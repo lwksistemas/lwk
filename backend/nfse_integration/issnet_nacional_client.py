@@ -26,7 +26,6 @@ from nfse_integration.issnet_nacional_xml_builder import (
     extrair_numero_nfse_nacional,
 )
 from nfse_integration.issnet_response import extrair_body_soap, extrair_erros
-from nfse_integration.issnet_soap_transport import post_soap_operacao
 from nfse_integration.issnet_xml_builder import somente_digitos
 
 logger = logging.getLogger(__name__)
@@ -97,35 +96,76 @@ class ISSNetNacionalClient:
                     os.unlink(cert_tmp.name)
 
     def _enviar_soap(self, xml_dados: str, soap_action: str) -> str:
-        """Envia requisição SOAP ao webservice Nacional."""
+        """Envia requisição SOAP ao webservice Nacional com envelope específico."""
         import os
         import tempfile
         from contextlib import suppress
+        from xml.sax.saxutils import escape as xml_escape
+
+        import requests as req
+
+        from nfse_integration.issnet_cert import certificado_mtls_temporario
+        from nfse_integration.issnet_soap import strip_xml_declaration
 
         cert_data = self.cert_bytes
-        if not cert_data and self.cert_path:
-            from nfse_integration.issnet_cert import carregar_certificado
-            cert_path = self.cert_path
-        else:
-            # Salvar bytes em arquivo temporário para mTLS
-            cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_soap_")
-            cert_tmp.write(bytes(cert_data))
-            cert_tmp.close()
-            cert_path = cert_tmp.name
+        if not cert_data:
+            raise ValueError("Certificado digital não disponível.")
+
+        # Salvar cert em temp para mTLS
+        cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_soap_")
+        cert_tmp.write(bytes(cert_data))
+        cert_tmp.close()
+        cert_path = cert_tmp.name
 
         try:
-            parsed, xml_body = post_soap_operacao(
-                base_url=self.url,
-                wsdl_url=self.url + "?wsdl",
-                certificado_path=cert_path,
-                senha_certificado=self.cert_password,
-                nome_operacao=soap_action.rsplit("/", 1)[-1] if "/" in soap_action else soap_action,
-                soap_action_uri=soap_action,
-                dados_xml=xml_dados,
-            )
-            return xml_body
+            with certificado_mtls_temporario(cert_path, self.cert_password) as (pem_cert, pem_key):
+                # Montar envelope SOAP para padrão Nacional
+                dados = strip_xml_declaration(xml_dados or "")
+                cabec_nac = (
+                    '<cabecalho versao="1.01" xmlns="http://www.sped.fazenda.gov.br/nfse">'
+                    '<versaoDados>1.01</versaoDados>'
+                    '</cabecalho>'
+                )
+                nome_op = soap_action.rsplit("/", 1)[-1] if "/" in soap_action else soap_action
+
+                envelope = (
+                    '<?xml version="1.0" encoding="utf-8"?>'
+                    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
+                    'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+                    'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+                    'xmlns:nfse="http://nfse.abrasf.org.br">'
+                    '<soap:Header/>'
+                    '<soap:Body>'
+                    f'<nfse:{nome_op}>'
+                    f'<nfseCabecMsg>{xml_escape(cabec_nac)}</nfseCabecMsg>'
+                    f'<nfseDadosMsg>{xml_escape(dados)}</nfseDadosMsg>'
+                    f'</nfse:{nome_op}>'
+                    '</soap:Body>'
+                    '</soap:Envelope>'
+                )
+
+                headers = {
+                    "Content-Type": "application/soap+xml; charset=utf-8",
+                    "SOAPAction": soap_action,
+                    "User-Agent": "LWK-Sistemas/NacionalNFSe",
+                }
+
+                logger.info("ISSNet Nacional SOAP %s (%d bytes) enviando...", nome_op, len(envelope.encode()))
+                r = req.post(
+                    self.url,
+                    data=envelope.encode("utf-8"),
+                    headers=headers,
+                    cert=(pem_cert, pem_key),
+                    timeout=(8, 25),
+                    verify=True,
+                )
+                logger.info("ISSNet Nacional resposta HTTP %d (%d bytes)", r.status_code, len(r.text))
+                if r.status_code >= 400:
+                    logger.error("ISSNet Nacional resposta erro: %s", r.text[:2000])
+                return r.text
+
         finally:
-            if cert_data and os.path.isfile(cert_path):
+            if os.path.isfile(cert_path):
                 with suppress(OSError):
                     os.unlink(cert_path)
 

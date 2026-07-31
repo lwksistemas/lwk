@@ -36,12 +36,14 @@ RETRYABLE_EXCEPTIONS = (
 ZEEP_OPERACOES_MTLS = frozenset({
     "RecepcionarLoteRps",
     "RecepcionarLoteRpsSincrono",
+    "RecepcionarLoteDpsSincrono",
     "ConsultarLoteRps",
     "ConsultarUrlNfse",
     "CancelarNfse",
     "ConsultarNfsePorRps",
     "ConsultarNfseServicoPrestado",
     "ConsultarNfsePorFaixa",
+    "ConsultarNfseDps",
 })
 
 

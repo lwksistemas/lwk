@@ -66,7 +66,7 @@ def construir_xml_gerar_nfse_envio(
 ) -> str:
     """Monta GerarNfseEnvio contendo o DPS para emissão síncrona.
 
-    Formato: <GerarNfseEnvio><DPS versao="1.01"><infDPS>...</infDPS></DPS></GerarNfseEnvio>
+    Formato: <GerarNfseEnvio><DPS versao="1.00"><infDPS>...</infDPS></DPS></GerarNfseEnvio>
 
     Usa internamente `nacional.xml_builder.construir_xml_dps` que já gera
     o XML correto conforme XSD oficial.
@@ -216,7 +216,9 @@ def construir_xml_enviar_lote_dps_sincrono(
     etree.SubElement(lote, f"{{{NS_NFSE}}}NumeroLote").text = str(numero_lote)
     prest_lote = etree.SubElement(lote, f"{{{NS_NFSE}}}Prestador")
     etree.SubElement(prest_lote, f"{{{NS_NFSE}}}CNPJ").text = cnpj_prest
-    etree.SubElement(prest_lote, f"{{{NS_NFSE}}}IM").text = _somente_digitos(im_prest) or im_prest
+    im_lote = _somente_digitos(im_prest) or im_prest
+    if im_lote:
+        etree.SubElement(prest_lote, f"{{{NS_NFSE}}}IM").text = im_lote
     etree.SubElement(lote, f"{{{NS_NFSE}}}QuantidadeDps").text = "1"
     lista_dps = etree.SubElement(lote, f"{{{NS_NFSE}}}ListaDps")
     lista_dps.append(dps_element)

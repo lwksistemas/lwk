@@ -37,6 +37,7 @@ from nfse_integration.issnet_nacional_xml_builder import (
 from nfse_integration.issnet_response import extrair_body_soap, extrair_erros
 from nfse_integration.issnet_soap import (
     issnet_corpo_parece_xml,
+    issnet_erro_schema_ou_cabecalho,
     issnet_fault_soap_generico,
     montar_soap_envelope_nacional_aninhado,
     montar_soap_envelope_nacional_cdata,
@@ -184,19 +185,26 @@ class ISSNetNacionalClient:
                             nome_op, label, last_text[:2000],
                         )
 
-                    # Namespace/operação errada ou Fault genérico → tenta próximo envelope
+                    # Namespace/operação errada, Fault genérico ou erro de schema/cabeçalho
+                    # → tenta próximo envelope para aumentar chance de sucesso
                     ns_fault = (
                         "with namespace name" in last_text
                         and "was not found" in last_text
                     )
+                    schema_fault = issnet_erro_schema_ou_cabecalho(last_text)
+                    if schema_fault:
+                        logger.error(
+                            "ISSNet Nacional %s erro de schema/cabeçalho (%s): %s",
+                            nome_op, label, last_text[:4000],
+                        )
                     if (
                         idx < len(estrategias) - 1
                         and issnet_corpo_parece_xml(last_text)
-                        and (issnet_fault_soap_generico(last_text) or ns_fault)
+                        and (issnet_fault_soap_generico(last_text) or ns_fault or schema_fault)
                     ):
                         logger.warning(
-                            "ISSNet Nacional Fault com %r; tentando formato alternativo",
-                            label,
+                            "ISSNet Nacional %s falhou com %r; tentando formato alternativo",
+                            nome_op, label,
                         )
                         continue
                     return last_text

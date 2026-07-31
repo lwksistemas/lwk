@@ -122,6 +122,24 @@ def issnet_corpo_parece_xml(texto: str) -> bool:
     return texto.lstrip().startswith("<")
 
 
+def issnet_erro_schema_ou_cabecalho(texto: str) -> bool:
+    """Retorna True se a resposta indicar rejeição de schema ou cabeçalho XML."""
+    t = (texto or "").lower()
+    return any(
+        marker in t
+        for marker in (
+            "xml schema",
+            "cabeçalho",
+            "cabecalho",
+            "fora do padrão",
+            "fora do padrao",
+            "desacordo com o xml schema",
+            "xmlns",
+            "invalid namespace",
+        )
+    )
+
+
 def issnet_decodificar_corpo(resposta) -> str:
     raw = getattr(resposta, "content", None) or b""
     if not raw:

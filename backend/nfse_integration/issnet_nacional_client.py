@@ -139,9 +139,10 @@ class ISSNetNacionalClient:
                     '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
                     '<soap:Header/>'
                     '<soap:Body>'
-                    f'<RecepcionarLoteDpsSincrono xmlns="http://www.sped.fazenda.gov.br/nfse">'
-                    f'{dados_sem_ns}'
-                    f'</RecepcionarLoteDpsSincrono>'
+                    f'<nfse:RecepcionarLoteDpsSincrono xmlns:nfse="http://nfse.abrasf.org.br">'
+                    f'<nfseCabecMsg><![CDATA[<cabecalho versao="1.01" xmlns="http://www.sped.fazenda.gov.br/nfse"><versaoDados>1.01</versaoDados></cabecalho>]]></nfseCabecMsg>'
+                    f'<nfseDadosMsg><![CDATA[{dados}]]></nfseDadosMsg>'
+                    f'</nfse:RecepcionarLoteDpsSincrono>'
                     '</soap:Body>'
                     '</soap:Envelope>'
                 )

@@ -100,9 +100,11 @@ def emitir_via_issnet_nacional_loja(
     valor_servicos: Decimal,
     enviar_email: bool,
     enviar_email_fn: Callable[..., None],
+    codigo_cnae_override: str | None = None,
     codigo_servico_override: str | None = None,
     item_lista_override: str | None = None,
     prestador: DadosPrestadorNFSe | None = None,
+    **_extra,
 ) -> dict[str, Any]:
     """Emite NFS-e via ISSNet Nacional (padrão DPS/RTC).
 

@@ -13,6 +13,7 @@ from typing import Any
 from nfse_integration.issnet_cert import carregar_certificado
 from nfse_integration.issnet_constants import (
     ISSNET_NACIONAL_URLS,
+    NS_NFSE_NACIONAL,
     SOAP_ACTION_NACIONAL_CANCELAR_NFSE,
     SOAP_ACTION_NACIONAL_CONSULTAR_NFSE_DPS,
     SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE,
@@ -128,13 +129,18 @@ class ISSNetNacionalClient:
                 )
                 nome_op = soap_action.rsplit("/", 1)[-1] if "/" in soap_action else soap_action
 
+                # Remover declaração de namespace redundante do XML (será herdada do pai)
+                dados_sem_ns = dados.replace(
+                    f' xmlns="{NS_NFSE_NACIONAL}"', '', 1
+                ) if f'xmlns="{NS_NFSE_NACIONAL}"' in dados else dados
+
                 envelope = (
                     '<?xml version="1.0" encoding="utf-8"?>'
                     '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
                     '<soap:Header/>'
                     '<soap:Body>'
                     f'<RecepcionarLoteDpsSincrono xmlns="http://www.sped.fazenda.gov.br/nfse">'
-                    f'{dados}'
+                    f'{dados_sem_ns}'
                     f'</RecepcionarLoteDpsSincrono>'
                     '</soap:Body>'
                     '</soap:Envelope>'

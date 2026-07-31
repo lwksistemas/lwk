@@ -221,6 +221,20 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         help_text="Emitir nota fiscal automaticamente ao confirmar pagamento",
     )
 
+    # === Padrão Nacional ISSNet (RTC/DPS) ===
+    issnet_usar_padrao_nacional = models.BooleanField(
+        default=False,
+        verbose_name="Usar padrão Nacional (DPS)",
+        help_text="Se True, emite via padrão Nacional ISSNet (DPS). Se False, usa ABRASF até 03/08/2026.",
+    )
+    codigo_tributacao_nacional = models.CharField(
+        max_length=10,
+        blank=True,
+        default="",
+        verbose_name="Código de Tributação Nacional (cTribNac)",
+        help_text="Código de 6 dígitos do serviço no padrão Nacional (ex: 140100 para item 14.01).",
+    )
+
     # Conta Asaas da própria loja (NFS-e para clientes — não confundir com cobrança LWK)
     asaas_api_key = models.CharField(
         max_length=255,

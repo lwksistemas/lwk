@@ -111,6 +111,17 @@ class NFSeService:
             )
 
             if provedor == "issnet":
+                # A partir de 03/08/2026, usar padrão Nacional (DPS) ao invés de ABRASF (RPS)
+                from datetime import date
+
+                usar_nacional = getattr(self.config, "issnet_usar_padrao_nacional", False)
+                if not usar_nacional and date.today() >= date(2026, 8, 3):
+                    usar_nacional = True
+
+                if usar_nacional:
+                    from nfse_integration.emissao_issnet_nacional_loja import emitir_via_issnet_nacional_loja
+                    return emitir_via_issnet_nacional_loja(self.loja, self.config, **kwargs)
+
                 return emitir_via_issnet_loja(self.loja, self.config, **kwargs)
 
             return emitir_via_nacional_loja(self.loja, self.config, **kwargs)

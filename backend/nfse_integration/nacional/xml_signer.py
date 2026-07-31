@@ -16,8 +16,48 @@ logger = logging.getLogger(__name__)
 DSIG_NS = "http://www.w3.org/2000/09/xmldsig#"
 
 
+def _known_issuer_cert_url(issuer_name: str) -> str | None:
+    """Fallback com URLs diretas de intermediárias ICP-Brasil (ITI)."""
+    name = (issuer_name or "").lower()
+    if "soluti multipla v5 g2" in name:
+        return "https://acraiz.icpbrasil.gov.br/credenciadas/SOLUTI/v5/AC_SOLUTI_Multipla_v5_G2.crt"
+    if "soluti multipla v5" in name:
+        return "https://acraiz.icpbrasil.gov.br/credenciadas/SOLUTI/v5/AC_SOLUTI_Multipla_v5.crt"
+    if "soluti multipla" in name:
+        return "https://acraiz.icpbrasil.gov.br/credenciadas/SOLUTI/v2/AC_Soluti_Multipla_v1.crt"
+    return None
+
+
+def _aia_ca_issuer_urls(cert):
+    """Extrai URLs HTTP(S) da extensão AIA (caIssuers)."""
+    from cryptography import x509
+
+    urls = []
+    try:
+        for ext in cert.extensions:
+            if ext.oid != x509.ExtensionOID.AUTHORITY_INFORMATION_ACCESS:
+                continue
+            for access in ext.value:
+                if access.access_method != x509.AuthorityInformationAccessOID.CA_ISSUERS:
+                    continue
+                loc = access.access_location
+                # cryptography representa URI como UniformResourceIdentifier.value
+                value = getattr(loc, "value", None)
+                if value and isinstance(value, str):
+                    url = value
+                elif value is not None:
+                    url = str(value)
+                else:
+                    url = str(loc)
+                if url.lower().startswith(("http://", "https://")):
+                    urls.append(url)
+    except Exception as e:
+        logger.debug("Erro ao ler AIA do certificado: %s", e)
+    return urls
+
+
 def _completar_cadeia_certificados(cert_obj, extra_certs):
-    """Tenta montar a cadeia ICP-Brasil usando certificados do PFX e AIA."""
+    """Tenta montar a cadeia ICP-Brasil usando certificados do PFX, AIA e fallback ITI."""
     from cryptography import x509
 
     chain = []
@@ -33,37 +73,52 @@ def _completar_cadeia_certificados(cert_obj, extra_certs):
         for c in extra_certs:
             add_cert(c)
 
-    # Seguir extensão AIA para baixar intermediários que faltem
+    import requests
+
+    # 1) Seguir extensão AIA para baixar intermediários que faltem
     current = cert_obj
-    for _ in range(5):
+    for depth in range(5):
         if not current or current.issuer == current.subject:
             break
-        aia_ext = None
-        for ext in current.extensions:
-            if ext.oid == x509.ExtensionOID.AUTHORITY_INFORMATION_ACCESS:
-                aia_ext = ext.value
-                break
-        if not aia_ext:
+        urls = _aia_ca_issuer_urls(current)
+        if not urls:
+            logger.info("AIA: nenhuma URL caIssuers HTTP(S) encontrada no certificado (profundidade %d)", depth)
             break
         next_cert = None
-        for access in aia_ext:
-            if access.access_method == x509.AuthorityInformationAccessOID.CA_ISSUERS:
-                url = str(access.access_location.value)
-                try:
-                    import requests
-
-                    r = requests.get(url, timeout=15)
-                    r.raise_for_status()
-                    issuer_cert = x509.load_der_x509_certificate(r.content)
-                    if issuer_cert.serial_number not in seen:
-                        add_cert(issuer_cert)
-                        next_cert = issuer_cert
-                        break
-                except Exception as e:
-                    logger.debug("Não foi possível baixar intermediário AIA %s: %s", url, e)
+        for url in urls:
+            logger.info("AIA: tentando baixar intermediário de %s", url)
+            try:
+                r = requests.get(url, timeout=15)
+                r.raise_for_status()
+                issuer_cert = x509.load_der_x509_certificate(r.content)
+                if issuer_cert.serial_number not in seen:
+                    logger.info("AIA: intermediário baixado com sucesso (serial %s)", issuer_cert.serial_number)
+                    add_cert(issuer_cert)
+                    next_cert = issuer_cert
+                    break
+                next_cert = issuer_cert
+            except Exception as e:
+                logger.warning("AIA: falha ao baixar intermediário de %s: %s", url, e)
         if not next_cert:
             break
         current = next_cert
+
+    # 2) Fallback por nome do emissor, caso AIA falhe ou não tenha sido suficiente
+    last = chain[-1] if chain else cert_obj
+    if last and last.issuer != last.subject:
+        issuer_name = last.issuer.rfc4514_string()
+        fallback_url = _known_issuer_cert_url(issuer_name)
+        if fallback_url and fallback_url not in [u for u in _aia_ca_issuer_urls(last)]:
+            logger.info("Fallback ICP-Brasil: tentando baixar intermediário de %s", fallback_url)
+            try:
+                r = requests.get(fallback_url, timeout=15)
+                r.raise_for_status()
+                issuer_cert = x509.load_der_x509_certificate(r.content)
+                if issuer_cert.serial_number not in seen:
+                    logger.info("Fallback: intermediário baixado com sucesso (serial %s)", issuer_cert.serial_number)
+                    add_cert(issuer_cert)
+            except Exception as e:
+                logger.warning("Fallback: falha ao baixar intermediário de %s: %s", fallback_url, e)
 
     return chain
 

@@ -15,7 +15,7 @@ NS_NFSE = "http://www.sped.fazenda.gov.br/nfse"
 NS_DS = "http://www.w3.org/2000/09/xmldsig#"
 
 # === Versão do layout ===
-VERSAO_DPS = "1.00"
+VERSAO_DPS = "1.01"
 
 # === Ambiente ===
 AMBIENTE_PRODUCAO = 1

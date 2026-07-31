@@ -119,7 +119,8 @@ def issnet_fault_soap_generico(texto: str) -> bool:
 def issnet_corpo_parece_xml(texto: str) -> bool:
     if not (texto or "").strip():
         return False
-    return texto.lstrip().startswith("<")
+    # Remove BOM e espaços em branco antes de verificar
+    return texto.lstrip("\ufeff").lstrip().startswith("<")
 
 
 def issnet_erro_schema_ou_cabecalho(texto: str) -> bool:

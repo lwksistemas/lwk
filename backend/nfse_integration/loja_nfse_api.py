@@ -2,6 +2,7 @@
 import contextlib
 import logging
 import re
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -247,6 +248,94 @@ def sincronizar_nfse_asaas_loja(nfse: Any, loja_id: int) -> tuple[dict[str, Any]
     )
 
 
+def _usar_nacional_sync(config: Any) -> bool:
+    """Usa ISSNet Nacional (DPS/RTC) para sincronização se a flag estiver ativa ou após 31/07/2026."""
+    if bool(getattr(config, "issnet_usar_padrao_nacional", False)):
+        return True
+    return date.today() >= date(2026, 7, 31)
+
+
+def _sincronizar_nfse_issnet_nacional(
+    *,
+    nfse: Any,
+    loja: Any,
+    loja_id: int,
+    config: Any,
+    numero_rps: int,
+    serie_rps: str,
+    cnpj_prestador: str,
+    im_prestador: str,
+) -> tuple[dict[str, Any], int]:
+    """Sincroniza status da NFS-e via ISSNet Nacional (DPS/RTC) de forma conservadora."""
+    from rest_framework import status as http_status
+
+    from nfse_integration.cancelamento_loja import _criar_client_nacional_cancelamento
+    from nfse_integration.email_nfse import notificar_cancelamento_nfse
+    from nfse_integration.serializers import NFSeSerializer
+
+    try:
+        client = _criar_client_nacional_cancelamento(config, cnpj_prestador, im_prestador)
+    except Exception as exc:
+        return (
+            {"error": f"Certificado não configurado para ISSNet Nacional: {exc}"},
+            http_status.HTTP_400_BAD_REQUEST,
+        )
+
+    resultado = client.consultar_nfse_por_dps(numero_dps=numero_rps, serie_dps=serie_rps)
+    logger.info("Sincronização ISSNet Nacional: nDPS=%s resultado=%s", numero_rps, resultado)
+
+    if resultado.get("success") and resultado.get("numero_nfse"):
+        message = "ISSNet Nacional indica nota ainda emitida; nenhuma alteração no CRM."
+        if nfse.status == "cancelada":
+            nfse.status = "emitida"
+            nfse.data_cancelamento = None
+            nfse.save(update_fields=["status", "data_cancelamento", "updated_at"])
+            message = (
+                "Status corrigido: ISSNet Nacional indica nota ainda emitida "
+                "(cancelamento local foi revertido)."
+            )
+        nfse.refresh_from_db()
+        return (
+            {
+                "success": True,
+                "message": message,
+                "nfse": NFSeSerializer(nfse).data,
+            },
+            http_status.HTTP_200_OK,
+        )
+
+    erro = resultado.get("erro") or "Não foi possível confirmar o status da NFS-e no ISSNet Nacional."
+    erro_lower = str(erro).lower()
+    if "cancel" in erro_lower or "cancelada" in erro_lower:
+        if nfse.status != "cancelada":
+            from django.utils import timezone
+
+            nfse.status = "cancelada"
+            nfse.data_cancelamento = nfse.data_cancelamento or timezone.now()
+            nfse.save(update_fields=["status", "data_cancelamento", "updated_at"])
+            with contextlib.suppress(Exception):
+                notificar_cancelamento_nfse(
+                    nfse=nfse,
+                    loja=loja,
+                    loja_id=loja_id,
+                    config=config,
+                )
+        nfse.refresh_from_db()
+        return (
+            {
+                "success": True,
+                "message": "NFS-e marcada como cancelada conforme o ISSNet Nacional.",
+                "nfse": NFSeSerializer(nfse).data,
+            },
+            http_status.HTTP_200_OK,
+        )
+
+    return (
+        {"error": f"ISSNet Nacional: {erro}"},
+        http_status.HTTP_400_BAD_REQUEST,
+    )
+
+
 def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[dict[str, Any], int]:
     """Consulta o ISSNet e atualiza status local (ex.: cancelada no portal)."""
     from rest_framework import status as http_status
@@ -278,6 +367,18 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
 
     from nfse_integration.email_nfse import notificar_cancelamento_nfse
     from nfse_integration.issnet_status_sync import consultar_nfse_cancelada_issnet
+
+    if _usar_nacional_sync(cfg):
+        return _sincronizar_nfse_issnet_nacional(
+            nfse=nfse,
+            loja=loja,
+            loja_id=loja_id,
+            config=cfg,
+            numero_rps=int(nfse.numero_rps),
+            serie_rps=str(serie),
+            cnpj_prestador=str(cnpj_prestador),
+            im_prestador=str(im_prestador),
+        )
 
     try:
         with issnet_client_loja(cfg) as client:

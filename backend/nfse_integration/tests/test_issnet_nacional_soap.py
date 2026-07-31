@@ -35,5 +35,5 @@ def test_envelope_nacional_xsd_string_namespace_e_escape():
     # xsd:string: XML escapado, não aninhado cru
     assert "&lt;EnviarLoteDpsSincronoEnvio" in env
     assert "<EnviarLoteDpsSincronoEnvio xmlns=" not in env.split("nfseDadosMsg>")[1].split("</nfseDadosMsg>")[0]
-    assert "versaoDados" in env or "1.01" in CABEC_MSG_NACIONAL
+    assert "versaoDados" in env or "1.00" in CABEC_MSG_NACIONAL
     assert "&lt;cabecalho" in env or "cabecalho" in env

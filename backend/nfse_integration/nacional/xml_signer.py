@@ -16,8 +16,60 @@ logger = logging.getLogger(__name__)
 DSIG_NS = "http://www.w3.org/2000/09/xmldsig#"
 
 
+def _completar_cadeia_certificados(cert_obj, extra_certs):
+    """Tenta montar a cadeia ICP-Brasil usando certificados do PFX e AIA."""
+    from cryptography import x509
+
+    chain = []
+    seen = set()
+
+    def add_cert(cert):
+        if cert and cert.serial_number not in seen:
+            chain.append(cert)
+            seen.add(cert.serial_number)
+
+    add_cert(cert_obj)
+    if extra_certs:
+        for c in extra_certs:
+            add_cert(c)
+
+    # Seguir extensão AIA para baixar intermediários que faltem
+    current = cert_obj
+    for _ in range(5):
+        if not current or current.issuer == current.subject:
+            break
+        aia_ext = None
+        for ext in current.extensions:
+            if ext.oid == x509.ExtensionOID.AUTHORITY_INFORMATION_ACCESS:
+                aia_ext = ext.value
+                break
+        if not aia_ext:
+            break
+        next_cert = None
+        for access in aia_ext:
+            if access.access_method == x509.AuthorityInformationAccessOID.CA_ISSUERS:
+                url = str(access.access_location.value)
+                try:
+                    import requests
+
+                    r = requests.get(url, timeout=15)
+                    r.raise_for_status()
+                    issuer_cert = x509.load_der_x509_certificate(r.content)
+                    if issuer_cert.serial_number not in seen:
+                        add_cert(issuer_cert)
+                        next_cert = issuer_cert
+                        break
+                except Exception as e:
+                    logger.debug("Não foi possível baixar intermediário AIA %s: %s", url, e)
+        if not next_cert:
+            break
+        current = next_cert
+
+    return chain
+
+
 def _adicionar_certificados_x509(x509_data, cert_obj, extra_certs):
-    """Adiciona certificado folha e eventuais intermediários ao X509Data.
+    """Adiciona certificado folha e cadeia completa ao X509Data.
 
     Alguns servidores (ex: ISSNet Nacional) não conseguem validar a assinatura
     sem a cadeia completa do certificado ICP-Brasil.
@@ -28,9 +80,8 @@ def _adicionar_certificados_x509(x509_data, cert_obj, extra_certs):
     for cert in existing:
         x509_data.remove(cert)
 
-    certs = [cert_obj]
-    if extra_certs:
-        certs.extend(extra_certs)
+    certs = _completar_cadeia_certificados(cert_obj, extra_certs or [])
+    logger.info("Incluindo %d certificado(s) na X509Data", len(certs))
 
     for cert in certs:
         pem_b64 = cert.public_bytes(Encoding.PEM).decode("ascii")

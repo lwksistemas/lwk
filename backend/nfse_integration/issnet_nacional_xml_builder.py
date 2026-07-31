@@ -145,6 +145,12 @@ def construir_xml_enviar_lote_dps_sincrono(
     valor_servicos: Decimal = Decimal("0.00"),
     aliquota_iss: Decimal = Decimal("2.50"),
     valor_iss: Decimal | None = None,
+    # IBSCBS / Reforma Tributária
+    indicador_operacao: str = "050101",
+    ind_final_ibscbs: str = "0",
+    ind_dest_ibscbs: str = "0",
+    cst_ibscbs: str = "000",
+    cclass_trib_ibscbs: str = "000001",
 ) -> str:
     """Monta EnviarLoteDpsSincronoEnvio para ISSNet Nacional.
 
@@ -196,13 +202,20 @@ def construir_xml_enviar_lote_dps_sincrono(
                 c_trib_mun_el.text = cod_trib_mun
                 c_serv.insert(list(c_serv).index(x_desc), c_trib_mun_el)
 
-    # Adicionar IBSCBS no final do infDPS
+    # Adicionar IBSCBS no final do infDPS (conforme XSD v1.01 ISSNet)
     inf_dps = dps_element.find(f"{{{NS_NFSE}}}infDPS")
     if inf_dps is not None:
         ibscbs = etree.SubElement(inf_dps, f"{{{NS_NFSE}}}IBSCBS")
         etree.SubElement(ibscbs, f"{{{NS_NFSE}}}finNFSe").text = "0"
-        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indFinal").text = "1"
-        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}cIndOp").text = "010101"
+        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indFinal").text = ind_final_ibscbs
+        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}cIndOp").text = indicador_operacao
+        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indDest").text = ind_dest_ibscbs
+
+        valores_ibscbs = etree.SubElement(ibscbs, f"{{{NS_NFSE}}}valores")
+        trib_ibscbs = etree.SubElement(valores_ibscbs, f"{{{NS_NFSE}}}trib")
+        g_ibscbs = etree.SubElement(trib_ibscbs, f"{{{NS_NFSE}}}gIBSCBS")
+        etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}CST").text = cst_ibscbs
+        etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}cClassTrib").text = cclass_trib_ibscbs
 
     # Envolver em EnviarLoteDpsSincronoEnvio > LoteDps (Id=Lote{n} — exigido p/ assinatura)
     nsmap = {None: NS_NFSE}

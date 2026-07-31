@@ -27,7 +27,8 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 NS_NFSE = "http://www.sped.fazenda.gov.br/nfse"
-XSD_URL = "https://www.sped.fazenda.gov.br/sped/IRS/Abril_2025/NFSe/NFSe_Tabela_versao1.01_2025.04.10/DPS_V1.01.xsd"
+XSD_URL = "https://raw.githubusercontent.com/MirrorProjetoACBr/ACBr/master/Exemplos/ACBrDFe/Schemas/NFSe/PadraoNacional/1.01/schema_v101-ISSNet.xsd"
+XSD_SIG_URL = "https://raw.githubusercontent.com/MirrorProjetoACBr/ACBr/master/Exemplos/ACBrDFe/Schemas/NFSe/PadraoNacional/1.01/xmldsig-core-schema.xsd"
 
 
 def _check_required_tags(root: etree.Element) -> list[str]:
@@ -90,12 +91,35 @@ def build_dps_xml(args) -> str:
         codigo_nbs=args.codigo_nbs,
         valor_servicos=Decimal(str(args.valor)),
         aliquota_iss=Decimal(str(args.aliquota)),
+        indicador_operacao=args.indicador_operacao,
+        ind_final_ibscbs=args.ind_final_ibscbs,
+        ind_dest_ibscbs=args.ind_dest_ibscbs,
+        cst_ibscbs=args.cst_ibscbs,
+        cclass_trib_ibscbs=args.cclass_trib_ibscbs,
     )
 
 
+def _download_schema(dest_dir: Path) -> Path:
+    """Baixa o XSD principal e a dependência xmldsig para validação local."""
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    main_xsd = dest_dir / "schema_v101-ISSNet.xsd"
+    sig_xsd = dest_dir / "xmldsig-core-schema.xsd"
+
+    for url, path in [(XSD_URL, main_xsd), (XSD_SIG_URL, sig_xsd)]:
+        if not path.exists():
+            logger.info("Baixando %s ...", url)
+            import urllib.request
+
+            urllib.request.urlretrieve(url, str(path))
+    return main_xsd
+
+
 def validate_xsd(xml_str: str, xsd_path: Path | None) -> bool:
-    """Valida o XML DPS contra um XSD local (se informado)."""
-    if not xsd_path or not xsd_path.exists():
+    """Valida o XML DPS contra um XSD local (se informado ou baixado automaticamente)."""
+    if not xsd_path:
+        xsd_path = _download_schema(Path(__file__).resolve().parent / "xsd")
+    if not xsd_path.exists():
+        logger.warning("⚠️ XSD não encontrado em %s", xsd_path)
         return False
     try:
         with open(xsd_path, "rb") as f:
@@ -142,6 +166,11 @@ def main() -> int:
     parser.add_argument("--valor", default="10.00")
     parser.add_argument("--aliquota", default="0.00")
     parser.add_argument("--optante-simples", action="store_true", default=True)
+    parser.add_argument("--indicador-operacao", default="050101", help="Código indicador da operação IBSCBS")
+    parser.add_argument("--ind-final-ibscbs", default="0", choices=["0", "1"], help="Operação uso/consumo pessoal")
+    parser.add_argument("--ind-dest-ibscbs", default="0", choices=["0", "1"], help="Destinatário = tomador")
+    parser.add_argument("--cst-ibscbs", default="000", help="CST IBS/CBS")
+    parser.add_argument("--cclass-trib-ibscbs", default="000001", help="Classificação tributária IBS/CBS")
     parser.add_argument("--xsd", type=Path, help="Caminho para o XSD local do DPS (opcional)")
     parser.add_argument("--mostrar-xml", action="store_true", help="Imprime o XML DPS e envelopes SOAP")
     parser.add_argument("--salvar", type=Path, help="Salva XML DPS no caminho informado")

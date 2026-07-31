@@ -145,7 +145,7 @@ class ISSNetNacionalClient:
                 )
 
                 headers = {
-                    "Content-Type": "application/soap+xml; charset=utf-8",
+                    "Content-Type": "text/xml; charset=utf-8",
                     "SOAPAction": soap_action,
                     "User-Agent": "LWK-Sistemas/NacionalNFSe",
                 }

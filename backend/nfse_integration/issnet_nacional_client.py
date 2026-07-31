@@ -133,7 +133,9 @@ class ISSNetNacionalClient:
                     '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
                     '<soap:Header/>'
                     '<soap:Body>'
+                    f'<RecepcionarLoteDpsSincrono xmlns="http://www.sped.fazenda.gov.br/nfse">'
                     f'{dados}'
+                    f'</RecepcionarLoteDpsSincrono>'
                     '</soap:Body>'
                     '</soap:Envelope>'
                 )

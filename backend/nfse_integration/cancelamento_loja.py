@@ -28,8 +28,13 @@ def _provedor_efetivo(nfse: Any, config: Any) -> str:
 
 
 def _usar_nacional_cancelamento(config: Any) -> bool:
-    """Usa ISSNet Nacional (DPS/RTC) para cancelamento quando a configuração ativa o padrão."""
-    return bool(getattr(config, "issnet_usar_padrao_nacional", False))
+    """Usa ISSNet Nacional (DPS/RTC) para cancelamento quando a configuração ativa o padrão
+    ou a partir de 31/07/2026, quando o ABRASF legado deixa de ser aceito em Ribeirão Preto."""
+    from datetime import date
+
+    if bool(getattr(config, "issnet_usar_padrao_nacional", False)):
+        return True
+    return date.today() >= date(2026, 7, 31)
 
 
 def _criar_client_nacional_cancelamento(

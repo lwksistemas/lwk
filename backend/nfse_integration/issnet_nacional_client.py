@@ -95,10 +95,9 @@ class ISSNetNacionalClient:
             return self.cert_path
         if not self.cert_bytes:
             raise ValueError("Certificado digital não disponível.")
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_nac_")
-        tmp.write(bytes(self.cert_bytes))
-        tmp.close()
-        return tmp.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_nac_") as tmp:
+            tmp.write(bytes(self.cert_bytes))
+            return tmp.name
 
     def _assinar_xml(self, xml_str: str) -> str:
         """Assina XML Nacional: lote DPS via assinador SPED; cancelamento via ISSNet."""

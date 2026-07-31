@@ -3,6 +3,7 @@
 Substitui o ABRASF 2.04 a partir de 03/08/2026.
 Usa ISSNetNacionalClient (DPS ao invés de RPS).
 """
+import contextlib
 import logging
 import re
 from collections.abc import Callable
@@ -70,11 +71,9 @@ def _criar_client_nacional(config, cnpj_prestador: str, im_prestador: str) -> IS
         raise ValueError("Certificado digital não configurado.")
 
     senha = getattr(config, "issnet_senha_certificado", "") or ""
-    if senha and hasattr(decrypt_value, "__call__"):
-        try:
+    if senha and callable(decrypt_value):
+        with contextlib.suppress(Exception):
             senha = decrypt_value(senha)
-        except Exception:
-            pass
 
     # CRM/clínica usam issnet_ambiente_homologacao (bool); fallback string legado
     if getattr(config, "issnet_ambiente_homologacao", False):

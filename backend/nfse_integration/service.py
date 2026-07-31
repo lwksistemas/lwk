@@ -111,18 +111,27 @@ class NFSeService:
             )
 
             if provedor == "issnet":
-                # Flag da config escolhe ABRASF vs Nacional (DPS).
-                # Em 03/08/2026 ABRASF deixa de ser aceito em Ribeirão Preto → força Nacional.
+                # ABRASF 2.04 foi descontinuado em Ribeirão Preto; Nacional (DPS/RTC) é o padrão.
+                # Respeita a flag explicitamente, mas força Nacional desde 31/07/2026 para evitar
+                # rejeição "XML do cabeçalho fora do padrão" no endpoint legado.
                 from datetime import date
 
                 usar_nacional = bool(getattr(self.config, "issnet_usar_padrao_nacional", False))
-                if not usar_nacional and date.today() >= date(2026, 8, 3):
+                if not usar_nacional and date.today() >= date(2026, 7, 31):
                     usar_nacional = True
 
                 if usar_nacional:
+                    logger.info(
+                        "NFSeService: emitindo via ISSNet Nacional (DPS) para loja %s",
+                        getattr(self.loja, "id", None),
+                    )
                     from nfse_integration.emissao_issnet_nacional_loja import emitir_via_issnet_nacional_loja
                     return emitir_via_issnet_nacional_loja(self.loja, self.config, **kwargs)
 
+                logger.info(
+                    "NFSeService: emitindo via ISSNet ABRASF legado (RPS) para loja %s",
+                    getattr(self.loja, "id", None),
+                )
                 return emitir_via_issnet_loja(self.loja, self.config, **kwargs)
 
             return emitir_via_nacional_loja(self.loja, self.config, **kwargs)

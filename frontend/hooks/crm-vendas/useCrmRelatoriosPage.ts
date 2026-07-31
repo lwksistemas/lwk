@@ -98,7 +98,10 @@ export function useCrmRelatoriosPage() {
 
         if (acao === 'pdf') {
           const res = await apiClient.post('/crm-vendas/relatorios/gerar/', payload, { responseType: 'blob' });
-          downloadBlobPdf(new Blob([res.data]), `relatorio_${tipoRelatorio}_${periodo}.pdf`);
+          const contentDisposition = res.headers?.['content-disposition'] || '';
+          const filenameMatch = contentDisposition.match(/filename="?([^";\n]+)"?/);
+          const filename = filenameMatch?.[1] || `relatorio_${tipoRelatorio}_${periodo}.pdf`;
+          downloadBlobPdf(new Blob([res.data]), filename);
           toast.success('PDF gerado com sucesso!');
         } else {
           const res = await apiClient.post<{ message?: string }>('/crm-vendas/relatorios/gerar/', payload);

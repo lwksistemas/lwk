@@ -248,13 +248,16 @@ export function useCrmFinanceiroPage() {
       const res = await apiClient.post('crm-vendas/financeiro/relatorio/', payload, {
         responseType: 'blob',
       });
+      const contentDisposition = res.headers?.['content-disposition'] || '';
+      const filenameMatch = contentDisposition.match(/filename="?([^";\n]+)"?/);
       const grupoSlug = grupoId
         ? data.grupos.find((g) => g.id === grupoId)?.nome.replace(/\s+/g, '_').toLowerCase() ?? `grupo_${grupoId}`
         : 'geral';
+      const filename = filenameMatch?.[1] || `financeiro_crm_${data.periodoRelatorio}_${grupoSlug}.pdf`;
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `financeiro_crm_${data.periodoRelatorio}_${grupoSlug}.pdf`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       link.remove();

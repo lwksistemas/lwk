@@ -22,6 +22,7 @@ from nfse_integration.issnet_soap import (
     montar_soap_envelope_nacional_cdata,
     montar_soap_envelope_nacional_xsd_string,
 )
+from nfse_integration.nacional.xml_signer import assinar_xml_enviar_lote_dps
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -172,6 +173,8 @@ def main() -> int:
     parser.add_argument("--cst-ibscbs", default="000", help="CST IBS/CBS")
     parser.add_argument("--cclass-trib-ibscbs", default="000001", help="Classificação tributária IBS/CBS")
     parser.add_argument("--xsd", type=Path, help="Caminho para o XSD local do DPS (opcional)")
+    parser.add_argument("--pfx", type=Path, help="PFX do prestador para testar assinatura local")
+    parser.add_argument("--senha-pfx", default="", help="Senha do PFX para teste de assinatura")
     parser.add_argument("--mostrar-xml", action="store_true", help="Imprime o XML DPS e envelopes SOAP")
     parser.add_argument("--salvar", type=Path, help="Salva XML DPS no caminho informado")
     args = parser.parse_args()
@@ -227,6 +230,32 @@ def main() -> int:
         validate_xsd(xml_dps, args.xsd)
     else:
         logger.info("ℹ️ XSD não informado — validação estrutural apenas. Baixe o XSD em %s", XSD_URL)
+
+    if args.pfx:
+        if not args.pfx.exists():
+            logger.error("❌ PFX não encontrado: %s", args.pfx)
+            return 1
+        try:
+            signed_xml = assinar_xml_enviar_lote_dps(xml_dps, str(args.pfx), args.senha_pfx)
+            logger.info("✅ XML assinado localmente com sucesso")
+            root_signed = etree.fromstring(signed_xml.encode("utf-8"))
+            ns_sig = "http://www.w3.org/2000/09/xmldsig#"
+            sig_count = len(root_signed.findall(f".//{{{ns_sig}}}Signature"))
+            cert_count = len(root_signed.findall(f".//{{{ns_sig}}}X509Certificate"))
+            logger.info("ℹ️ Assinaturas no XML: %d | Certificados X509: %d", sig_count, cert_count)
+            import xmlsec
+
+            root_signed = etree.fromstring(signed_xml.encode("utf-8"))
+            for idx, sig_node in enumerate(root_signed.findall(".//{http://www.w3.org/2000/09/xmldsig#}Signature")):
+                ctx = xmlsec.SignatureContext()
+                try:
+                    ctx.verify(sig_node)
+                    logger.info("✅ Assinatura %d validada localmente", idx + 1)
+                except Exception as e:
+                    logger.error("❌ Assinatura %d FALHOU na validação local: %s", idx + 1, e)
+        except Exception as e:
+            logger.error("❌ Falha ao assinar/verificar localmente: %s", e)
+            return 1
 
     if args.mostrar_xml:
         print("\n--- XML DPS ---\n")

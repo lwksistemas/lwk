@@ -38,21 +38,22 @@ SOAP_ACTION_RECEPCIONAR_LOTE_RPS_SINCRONO = (
 )
 SOAP_ACTION_CONSULTAR_LOTE_RPS = "http://nfse.abrasf.org.br/ConsultarLoteRps"
 
-# === SOAP Actions Nacional (novo padrão) ===
+# === SOAP Actions Nacional (ISSNet wsnfsenacional / NotaControl) ===
+# ACBr e o WSDL Nacional usam o namespace SPED — NÃO abrasf.org.br.
 SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS = (
-    "http://nfse.abrasf.org.br/RecepcionarLoteDps"
+    f"{NS_NFSE_NACIONAL}/RecepcionarLoteDps"
 )
 SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO = (
-    "http://nfse.abrasf.org.br/RecepcionarLoteDpsSincrono"
+    f"{NS_NFSE_NACIONAL}/RecepcionarLoteDpsSincrono"
 )
 SOAP_ACTION_NACIONAL_CANCELAR_NFSE = (
-    "http://nfse.abrasf.org.br/CancelarNfse"
+    f"{NS_NFSE_NACIONAL}/CancelarNfse"
 )
 SOAP_ACTION_NACIONAL_CONSULTAR_NFSE_DPS = (
-    "http://nfse.abrasf.org.br/ConsultarNfseDps"
+    f"{NS_NFSE_NACIONAL}/ConsultarNfseDps"
 )
 SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE = (
-    "http://nfse.abrasf.org.br/ConsultarUrlNfse"
+    f"{NS_NFSE_NACIONAL}/ConsultarUrlNfse"
 )
 
 # === Cabeçalhos SOAP ===

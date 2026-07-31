@@ -2,6 +2,13 @@
 import re
 from xml.sax.saxutils import escape as xml_escape
 
+from nfse_integration.issnet_constants import (
+    CABEC_MSG,
+    CABEC_MSG_NACIONAL,
+    NS_NFSE_NACIONAL,
+    NS_NFSE_WSDL,
+)
+
 
 def strip_xml_declaration(fragment: str) -> str:
     s = (fragment or "").strip()
@@ -17,75 +24,88 @@ def cdata_section(payload: str) -> str:
     return f"<![CDATA[{s}]]>"
 
 
-def montar_soap_envelope_xsd_string(nome_operacao: str, dados_xml: str) -> str:
+def _montar_soap_envelope(
+    nome_operacao: str,
+    dados_xml: str,
+    *,
+    cabec_txt: str,
+    target_ns: str,
+    modo: str,
+) -> str:
+    """Monta envelope SOAP Document/Literal wrapped (nfseCabecMsg + nfseDadosMsg)."""
     dados = strip_xml_declaration(dados_xml or "")
-    cabec_raw = (
-        '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
-        '<versaoDados>2.04</versaoDados>'
-        '</cabecalho>'
-    )
+    if modo == "xsd_string":
+        cabec_body = xml_escape(cabec_txt)
+        dados_body = xml_escape(dados)
+    elif modo == "cdata":
+        cabec_body = cdata_section(cabec_txt)
+        dados_body = cdata_section(dados)
+    else:  # aninhado
+        cabec_body = cabec_txt
+        dados_body = dados
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
         '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
         'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
         'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
-        'xmlns:nfse="http://nfse.abrasf.org.br">'
+        f'xmlns:nfse="{target_ns}">'
         '<soap:Header/>'
         '<soap:Body>'
         f'<nfse:{nome_operacao}>'
-        f'<nfseCabecMsg>{xml_escape(cabec_raw)}</nfseCabecMsg>'
-        f'<nfseDadosMsg>{xml_escape(dados)}</nfseDadosMsg>'
+        f'<nfseCabecMsg>{cabec_body}</nfseCabecMsg>'
+        f'<nfseDadosMsg>{dados_body}</nfseDadosMsg>'
         f'</nfse:{nome_operacao}>'
         '</soap:Body>'
         '</soap:Envelope>'
+    )
+
+
+def montar_soap_envelope_xsd_string(nome_operacao: str, dados_xml: str) -> str:
+    return _montar_soap_envelope(
+        nome_operacao, dados_xml, cabec_txt=CABEC_MSG, target_ns=NS_NFSE_WSDL, modo="xsd_string",
     )
 
 
 def montar_soap_envelope_aninhado(nome_operacao: str, dados_xml: str) -> str:
-    dados = strip_xml_declaration(dados_xml or "")
-    cabec_txt = (
-        '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
-        '<versaoDados>2.04</versaoDados>'
-        '</cabecalho>'
-    )
-    return (
-        '<?xml version="1.0" encoding="utf-8"?>'
-        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
-        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
-        'xmlns:nfse="http://nfse.abrasf.org.br">'
-        '<soap:Header/>'
-        '<soap:Body>'
-        f'<nfse:{nome_operacao}>'
-        f'<nfseCabecMsg>{cabec_txt}</nfseCabecMsg>'
-        f'<nfseDadosMsg>{dados}</nfseDadosMsg>'
-        f'</nfse:{nome_operacao}>'
-        '</soap:Body>'
-        '</soap:Envelope>'
+    return _montar_soap_envelope(
+        nome_operacao, dados_xml, cabec_txt=CABEC_MSG, target_ns=NS_NFSE_WSDL, modo="aninhado",
     )
 
 
 def montar_soap_envelope_cdata(nome_operacao: str, dados_xml: str) -> str:
-    dados = strip_xml_declaration(dados_xml or "")
-    cabec_txt = (
-        '<cabecalho versao="2.04" xmlns="http://www.abrasf.org.br/nfse.xsd">'
-        '<versaoDados>2.04</versaoDados>'
-        '</cabecalho>'
+    return _montar_soap_envelope(
+        nome_operacao, dados_xml, cabec_txt=CABEC_MSG, target_ns=NS_NFSE_WSDL, modo="cdata",
     )
-    return (
-        '<?xml version="1.0" encoding="utf-8"?>'
-        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
-        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
-        'xmlns:nfse="http://nfse.abrasf.org.br">'
-        '<soap:Header/>'
-        '<soap:Body>'
-        f'<nfse:{nome_operacao}>'
-        f'<nfseCabecMsg>{cdata_section(cabec_txt)}</nfseCabecMsg>'
-        f'<nfseDadosMsg>{cdata_section(dados)}</nfseDadosMsg>'
-        f'</nfse:{nome_operacao}>'
-        '</soap:Body>'
-        '</soap:Envelope>'
+
+
+def montar_soap_envelope_nacional_xsd_string(nome_operacao: str, dados_xml: str) -> str:
+    """Envelope Nacional (ACBr XmlToStr): cabec/dados como xsd:string escapados, NS SPED."""
+    return _montar_soap_envelope(
+        nome_operacao,
+        dados_xml,
+        cabec_txt=CABEC_MSG_NACIONAL,
+        target_ns=NS_NFSE_NACIONAL,
+        modo="xsd_string",
+    )
+
+
+def montar_soap_envelope_nacional_cdata(nome_operacao: str, dados_xml: str) -> str:
+    return _montar_soap_envelope(
+        nome_operacao,
+        dados_xml,
+        cabec_txt=CABEC_MSG_NACIONAL,
+        target_ns=NS_NFSE_NACIONAL,
+        modo="cdata",
+    )
+
+
+def montar_soap_envelope_nacional_aninhado(nome_operacao: str, dados_xml: str) -> str:
+    return _montar_soap_envelope(
+        nome_operacao,
+        dados_xml,
+        cabec_txt=CABEC_MSG_NACIONAL,
+        target_ns=NS_NFSE_NACIONAL,
+        modo="aninhado",
     )
 
 

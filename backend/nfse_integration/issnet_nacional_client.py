@@ -3,20 +3,28 @@
 Substitui o ABRASF 2.04 a partir de 03/08/2026.
 Endpoint: https://nfse.issnetonline.com.br/wsnfsenacional/ribeiraopreto/nfse.asmx
 Métodos: RecepcionarLoteDpsSincrono, CancelarNfse, ConsultarNfseDps, ConsultarUrlNfse.
+
+Envelope SOAP alinhado ao ACBr (ISSNet APIPrópria):
+  - SOAPAction: http://www.sped.fazenda.gov.br/nfse/<Operacao>
+  - Body: <nfse:Operacao xmlns:nfse="http://www.sped.fazenda.gov.br/nfse">
+  - nfseCabecMsg / nfseDadosMsg como xsd:string (XML escapado)
 """
 import logging
-import re
+import os
+import tempfile
+import time
+from contextlib import suppress
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from nfse_integration.issnet_cert import carregar_certificado
+import requests as req
+
+from nfse_integration.issnet_cert import certificado_mtls_temporario
 from nfse_integration.issnet_constants import (
     ISSNET_NACIONAL_URLS,
-    NS_NFSE_NACIONAL,
     SOAP_ACTION_NACIONAL_CANCELAR_NFSE,
     SOAP_ACTION_NACIONAL_CONSULTAR_NFSE_DPS,
-    SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE,
     SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
 )
 from nfse_integration.issnet_nacional_xml_builder import (
@@ -27,9 +35,22 @@ from nfse_integration.issnet_nacional_xml_builder import (
     extrair_numero_nfse_nacional,
 )
 from nfse_integration.issnet_response import extrair_body_soap, extrair_erros
+from nfse_integration.issnet_soap import (
+    issnet_corpo_parece_xml,
+    issnet_fault_soap_generico,
+    montar_soap_envelope_nacional_aninhado,
+    montar_soap_envelope_nacional_cdata,
+    montar_soap_envelope_nacional_xsd_string,
+)
 from nfse_integration.issnet_xml_builder import somente_digitos
+from nfse_integration.nacional.xml_signer import assinar_xml_enviar_lote_dps
 
 logger = logging.getLogger(__name__)
+
+
+def _nome_operacao_de_soap_action(soap_action: str) -> str:
+    action = (soap_action or "").strip().strip('"')
+    return action.rsplit("/", 1)[-1] if "/" in action else action
 
 
 class ISSNetNacionalClient:
@@ -68,107 +89,122 @@ class ISSNetNacionalClient:
         self.optante_simples = optante_simples_nacional
         self.url = ISSNET_NACIONAL_URLS.get(self.ambiente, ISSNET_NACIONAL_URLS["producao"])
 
+    def _pfx_temp(self) -> str:
+        """Garante path .pfx (grava bytes em temp se necessário). Caller remove se criou temp."""
+        if self.cert_path and os.path.isfile(self.cert_path):
+            return self.cert_path
+        if not self.cert_bytes:
+            raise ValueError("Certificado digital não disponível.")
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_nac_")
+        tmp.write(bytes(self.cert_bytes))
+        tmp.close()
+        return tmp.name
+
     def _assinar_xml(self, xml_str: str) -> str:
-        """Assina XML com certificado digital (salva cert em arquivo temp)."""
-        import os
-        import tempfile
-        from contextlib import suppress
+        """Assina XML Nacional: lote DPS via assinador SPED; cancelamento via ISSNet."""
+        from lxml import etree
 
         from nfse_integration.issnet_xml_signer import assinar_xml_issnet
 
-        cert_data = self.cert_bytes
-        if not cert_data and self.cert_path:
-            from nfse_integration.issnet_cert import carregar_certificado
-            # cert_path é path direto
-            return assinar_xml_issnet(xml_str, self.cert_path, self.cert_password)
-
-        if not cert_data:
-            raise ValueError("Certificado digital não disponível para assinatura.")
-
-        # Salvar bytes em arquivo temporário
-        cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_nac_")
+        created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
+        cert_path = self._pfx_temp()
         try:
-            cert_tmp.write(bytes(cert_data))
-            cert_tmp.close()
-            return assinar_xml_issnet(xml_str, cert_tmp.name, self.cert_password)
+            root = etree.fromstring(xml_str.encode("utf-8"))
+            root_local = etree.QName(root.tag).localname if root.tag else ""
+            if root_local in (
+                "EnviarLoteDpsSincronoEnvio",
+                "EnviarLoteDpsEnvio",
+                "GerarNfseEnvio",
+                "DPS",
+            ):
+                return assinar_xml_enviar_lote_dps(xml_str, cert_path, self.cert_password)
+            # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
+            return assinar_xml_issnet(xml_str, cert_path, self.cert_password)
         finally:
-            if os.path.isfile(cert_tmp.name):
+            if created_tmp and os.path.isfile(cert_path):
                 with suppress(OSError):
-                    os.unlink(cert_tmp.name)
+                    os.unlink(cert_path)
 
     def _enviar_soap(self, xml_dados: str, soap_action: str) -> str:
-        """Envia requisição SOAP ao webservice Nacional com envelope específico."""
-        import os
-        import tempfile
-        from contextlib import suppress
-        from xml.sax.saxutils import escape as xml_escape
+        """POST SOAP 1.1 com mTLS; tenta envelopes Nacional (xsd:string → CDATA → aninhado)."""
+        nome_op = _nome_operacao_de_soap_action(soap_action)
+        created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
+        cert_path = self._pfx_temp()
 
-        import requests as req
-
-        from nfse_integration.issnet_cert import certificado_mtls_temporario
-        from nfse_integration.issnet_soap import strip_xml_declaration
-
-        cert_data = self.cert_bytes
-        if not cert_data:
-            raise ValueError("Certificado digital não disponível.")
-
-        # Salvar cert em temp para mTLS
-        cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_soap_")
-        cert_tmp.write(bytes(cert_data))
-        cert_tmp.close()
-        cert_path = cert_tmp.name
+        estrategias = (
+            (montar_soap_envelope_nacional_xsd_string, "xsd:string (ACBr XmlToStr)"),
+            (montar_soap_envelope_nacional_cdata, "CDATA"),
+            (montar_soap_envelope_nacional_aninhado, "XML aninhado"),
+        )
 
         try:
             with certificado_mtls_temporario(cert_path, self.cert_password) as (pem_cert, pem_key):
-                # Montar envelope SOAP para padrão Nacional
-                dados = strip_xml_declaration(xml_dados or "")
-                cabec_nac = (
-                    '<cabecalho versao="1.01" xmlns="http://www.sped.fazenda.gov.br/nfse">'
-                    '<versaoDados>1.01</versaoDados>'
-                    '</cabecalho>'
-                )
-                nome_op = soap_action.rsplit("/", 1)[-1] if "/" in soap_action else soap_action
+                last_text = ""
+                for idx, (montar, label) in enumerate(estrategias):
+                    envelope = montar(nome_op, xml_dados)
+                    headers = {
+                        "Content-Type": "text/xml; charset=utf-8",
+                        "SOAPAction": f'"{soap_action}"',
+                        "Connection": "close",
+                        "Accept": "text/xml",
+                        "User-Agent": "LWK-Sistemas/ISSNet-Nacional",
+                    }
+                    logger.info(
+                        "ISSNet Nacional SOAP %s (~%d bytes, %s) → %s",
+                        nome_op, len(envelope.encode("utf-8")), label, self.url,
+                    )
+                    try:
+                        r = req.post(
+                            self.url,
+                            data=envelope.encode("utf-8"),
+                            headers=headers,
+                            cert=(pem_cert, pem_key),
+                            timeout=(8, 45),
+                            verify=True,
+                        )
+                    except (req.exceptions.ConnectionError, req.exceptions.ReadTimeout) as e:
+                        logger.warning("ISSNet Nacional %s conexão falhou (%s); retry 1x", nome_op, e)
+                        time.sleep(1.5)
+                        r = req.post(
+                            self.url,
+                            data=envelope.encode("utf-8"),
+                            headers=headers,
+                            cert=(pem_cert, pem_key),
+                            timeout=(8, 45),
+                            verify=True,
+                        )
 
-                # Remover declaração de namespace redundante do XML (será herdada do pai)
-                dados_sem_ns = dados.replace(
-                    f' xmlns="{NS_NFSE_NACIONAL}"', '', 1
-                ) if f'xmlns="{NS_NFSE_NACIONAL}"' in dados else dados
+                    last_text = r.text or ""
+                    logger.info(
+                        "ISSNet Nacional %s HTTP %s (%d bytes) via %s",
+                        nome_op, r.status_code, len(last_text), label,
+                    )
+                    if r.status_code >= 400 or "Fault" in last_text:
+                        logger.error(
+                            "ISSNet Nacional %s erro (%s): %s",
+                            nome_op, label, last_text[:2000],
+                        )
 
-                envelope = (
-                    '<?xml version="1.0" encoding="utf-8"?>'
-                    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
-                    '<soap:Header/>'
-                    '<soap:Body>'
-                    f'<nfse:RecepcionarLoteDpsSincrono xmlns:nfse="http://nfse.abrasf.org.br">'
-                    f'<nfseCabecMsg><![CDATA[<cabecalho versao="1.01" xmlns="http://www.sped.fazenda.gov.br/nfse"><versaoDados>1.01</versaoDados></cabecalho>]]></nfseCabecMsg>'
-                    f'<nfseDadosMsg><![CDATA[{dados}]]></nfseDadosMsg>'
-                    f'</nfse:RecepcionarLoteDpsSincrono>'
-                    '</soap:Body>'
-                    '</soap:Envelope>'
-                )
+                    # Namespace/operação errada ou Fault genérico → tenta próximo envelope
+                    ns_fault = (
+                        "with namespace name" in last_text
+                        and "was not found" in last_text
+                    )
+                    if (
+                        idx < len(estrategias) - 1
+                        and issnet_corpo_parece_xml(last_text)
+                        and (issnet_fault_soap_generico(last_text) or ns_fault)
+                    ):
+                        logger.warning(
+                            "ISSNet Nacional Fault com %r; tentando formato alternativo",
+                            label,
+                        )
+                        continue
+                    return last_text
 
-                headers = {
-                    "Content-Type": "text/xml; charset=utf-8",
-                    "SOAPAction": soap_action,
-                    "User-Agent": "LWK-Sistemas/NacionalNFSe",
-                }
-
-                logger.info("ISSNet Nacional SOAP %s (%d bytes) enviando...", nome_op, len(envelope.encode()))
-                r = req.post(
-                    self.url,
-                    data=envelope.encode("utf-8"),
-                    headers=headers,
-                    cert=(pem_cert, pem_key),
-                    timeout=(8, 25),
-                    verify=True,
-                )
-                logger.info("ISSNet Nacional resposta HTTP %d (%d bytes)", r.status_code, len(r.text))
-                if r.status_code >= 400:
-                    logger.error("ISSNet Nacional resposta erro: %s", r.text[:2000])
-                return r.text
-
+                return last_text
         finally:
-            if os.path.isfile(cert_path):
+            if created_tmp and os.path.isfile(cert_path):
                 with suppress(OSError):
                     os.unlink(cert_path)
 
@@ -213,7 +249,6 @@ class ISSNetNacionalClient:
         try:
             ambiente_int = 1 if self.ambiente == "producao" else 2
 
-            # 1. Construir XML
             xml_envio = construir_xml_enviar_lote_dps_sincrono(
                 numero_lote=numero_lote,
                 prestador_cnpj=self.prestador_cnpj,
@@ -241,20 +276,20 @@ class ISSNetNacionalClient:
                 aliquota_iss=aliquota_iss,
             )
 
-            # 2. Assinar XML
             logger.info("ISSNet Nacional: assinando XML DPS nº %d...", numero_dps)
             xml_assinado = self._assinar_xml(xml_envio)
             result["xml_dps"] = xml_assinado
 
-            # 3. Enviar via SOAP
-            logger.info("ISSNet Nacional: enviando DPS nº %d ao webservice (%s)...", numero_dps, self.ambiente)
+            logger.info(
+                "ISSNet Nacional: enviando DPS nº %d ao webservice (%s)...",
+                numero_dps, self.ambiente,
+            )
             resposta_soap = self._enviar_soap(
                 xml_assinado,
                 SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
             )
             result["xml_resposta"] = resposta_soap
 
-            # 4. Processar resposta
             body = extrair_body_soap(resposta_soap)
             erros = extrair_erros(body)
 
@@ -263,7 +298,6 @@ class ISSNetNacionalClient:
                 logger.warning("ISSNet Nacional: erro na emissão DPS %d: %s", numero_dps, erros)
                 return result
 
-            # Extrair dados da NFS-e gerada
             numero_nfse = extrair_numero_nfse_nacional(body)
             chave_acesso = extrair_chave_acesso_nfse_nacional(body)
 
@@ -277,9 +311,12 @@ class ISSNetNacionalClient:
                     numero_nfse, chave_acesso,
                 )
             else:
-                # Sem número mas sem erro explícito — pode ser processamento pendente
-                result["erro"] = "NFS-e não encontrada na resposta. Verifique no portal."
-                logger.warning("ISSNet Nacional: resposta sem número NFS-e: %s", body[:500])
+                if "Fault" in (resposta_soap or ""):
+                    preview = " ".join((resposta_soap or "").split())
+                    result["erro"] = f"SOAP Fault do ISSNet Nacional: {preview[:500]}"
+                else:
+                    result["erro"] = "NFS-e não encontrada na resposta. Verifique no portal."
+                logger.warning("ISSNet Nacional: resposta sem número NFS-e: %s", (body or "")[:500])
 
         except Exception as e:
             logger.exception("ISSNet Nacional: erro inesperado na emissão DPS %d: %s", numero_dps, e)
@@ -310,7 +347,6 @@ class ISSNetNacionalClient:
                 chave_acesso=chave_acesso,
                 ambiente=ambiente_int,
             )
-
             xml_assinado = self._assinar_xml(xml_cancelamento)
             resposta = self._enviar_soap(xml_assinado, SOAP_ACTION_NACIONAL_CANCELAR_NFSE)
             result["xml_resposta"] = resposta
@@ -336,7 +372,9 @@ class ISSNetNacionalClient:
         serie_dps: str = "1",
     ) -> dict[str, Any]:
         """Consulta NFS-e por DPS via ISSNet Nacional."""
-        result: dict[str, Any] = {"success": False, "numero_nfse": None, "chave_acesso": None, "erro": None}
+        result: dict[str, Any] = {
+            "success": False, "numero_nfse": None, "chave_acesso": None, "erro": None,
+        }
 
         try:
             ambiente_int = 1 if self.ambiente == "producao" else 2
@@ -368,7 +406,7 @@ class ISSNetNacionalClient:
         return result
 
     def testar_conexao(self) -> dict[str, Any]:
-        """Testa conexão com o webservice Nacional (valida certificado + endpoint)."""
+        """Testa conexão com o webservice Nacional (certificado + endpoint)."""
         try:
             xml_consulta = construir_xml_consultar_nfse_por_dps(
                 numero_dps=99999,
@@ -376,18 +414,18 @@ class ISSNetNacionalClient:
                 prestador_cnpj=self.prestador_cnpj,
                 prestador_inscricao_municipal=self.prestador_im,
                 codigo_municipio=self.codigo_municipio,
-                ambiente=2,  # homologação para teste
+                ambiente=2 if self.ambiente == "homologacao" else 1,
             )
             resposta = self._enviar_soap(xml_consulta, SOAP_ACTION_NACIONAL_CONSULTAR_NFSE_DPS)
 
-            if resposta and ("Fault" not in resposta or "DPS" in resposta.lower()):
+            if resposta and ("Fault" not in resposta or "DPS" in resposta.lower() or "MensagemRetorno" in resposta):
                 return {
                     "success": True,
                     "message": f"Conexão OK com ISSNet Nacional ({self.ambiente}). Endpoint: {self.url}",
                 }
             return {
                 "success": False,
-                "detail": f"Resposta inesperada: {resposta[:200]}",
+                "detail": f"Resposta inesperada: {(resposta or '')[:200]}",
             }
         except Exception as e:
             return {

@@ -93,9 +93,9 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
     },
   });
 
-  const handlePollingTick = useCallback(() => {
-    void carregarNFSes(true);
-  }, [carregarNFSes]);
+  // O próprio useNfseQueuedPolling já consulta /nfse/; não disparar carregarNFSes aqui
+  // (evita GET duplicado a cada intervalo e tempestade de requests).
+  const handlePollingTick = useCallback(() => {}, []);
 
   const handlePollingFound = useCallback(async () => {
     setEmissaoPolling({ active: false, countBefore: 0 });

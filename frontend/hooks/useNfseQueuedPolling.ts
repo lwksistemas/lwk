@@ -34,9 +34,9 @@ export function useNfseQueuedPolling(options: {
     onTick,
     onFound,
     onTimeout,
-    intervalMs = 2500,
-    // ISSNet/nacional pode demorar > 1 min; ~3 min de polling
-    maxAttempts = 72,
+    intervalMs = 4000,
+    // ISSNet/nacional pode demorar > 1 min; ~4 min de polling
+    maxAttempts = 60,
   } = options;
 
   const paramsKey = JSON.stringify(queryParams);

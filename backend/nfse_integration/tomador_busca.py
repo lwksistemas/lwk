@@ -222,22 +222,29 @@ def _payload_from_paciente(patient, digits: str) -> dict[str, Any]:
 
 
 def _buscar_paciente_clinica(loja_id: int, digits: str):
-    """Busca paciente da Clínica da Beleza pelo CPF (schema tenant)."""
+    """Busca paciente da Clínica da Beleza pelo CPF (schema tenant).
+
+    Em lojas só CRM a tabela Patient pode não existir — engole o erro.
+    """
     try:
         from clinica_beleza.models import Patient
     except Exception:
         return None
 
-    qs = Patient.objects.filter(loja_id=loja_id, is_active=True)
-    for patient in qs.iterator():
-        if _digitos_equivalentes(getattr(patient, "cpf", None), digits):
-            return patient
+    try:
+        qs = Patient.objects.filter(loja_id=loja_id, is_active=True)
+        for patient in qs.iterator():
+            if _digitos_equivalentes(getattr(patient, "cpf", None), digits):
+                return patient
+    except Exception:
+        # Schema CRM sem tabelas da clínica, migration pendente, etc.
+        return None
     return None
 
 
 def buscar_tomador_nfse_loja(loja_id: int, documento: str) -> dict[str, Any] | None:
     """Localiza tomador por CPF/CNPJ na ordem:
-    1. Paciente Clínica da Beleza
+    1. Paciente Clínica da Beleza (se o schema tiver a tabela)
     2. Conta CRM (Clientes)
     3. Lead CRM (Leads), incluindo conta vinculada
     4. NFS-e já emitida
@@ -246,10 +253,7 @@ def buscar_tomador_nfse_loja(loja_id: int, documento: str) -> dict[str, Any] | N
     if len(digits) not in (11, 14):
         return None
 
-    paciente = _buscar_paciente_clinica(loja_id, digits)
-    if paciente:
-        return _payload_from_paciente(paciente, digits)
-
+    # CRM primeiro para lojas vendas (evita 500/latência em schema sem Patient)
     conta = _buscar_conta_crm(loja_id, digits)
     if conta:
         return _payload_from_conta(conta, digits)
@@ -257,6 +261,10 @@ def buscar_tomador_nfse_loja(loja_id: int, documento: str) -> dict[str, Any] | N
     lead = _buscar_lead_crm(loja_id, digits)
     if lead:
         return _payload_from_lead(lead, digits)
+
+    paciente = _buscar_paciente_clinica(loja_id, digits)
+    if paciente:
+        return _payload_from_paciente(paciente, digits)
 
     nf = _buscar_nfse_por_documento(loja_id, digits)
     if nf:

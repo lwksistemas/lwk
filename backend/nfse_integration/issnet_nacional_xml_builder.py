@@ -204,10 +204,15 @@ def construir_xml_enviar_lote_dps_sincrono(
         etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indFinal").text = "1"
         etree.SubElement(ibscbs, f"{{{NS_NFSE}}}cIndOp").text = "010101"
 
-    # Envolver em EnviarLoteDpsSincronoEnvio > LoteDps
+    # Envolver em EnviarLoteDpsSincronoEnvio > LoteDps (Id=Lote{n} — exigido p/ assinatura)
     nsmap = {None: NS_NFSE}
     root = etree.Element(f"{{{NS_NFSE}}}EnviarLoteDpsSincronoEnvio", nsmap=nsmap)
-    lote = etree.SubElement(root, f"{{{NS_NFSE}}}LoteDps", versao=VERSAO_ISSNET_NACIONAL)
+    lote = etree.SubElement(
+        root,
+        f"{{{NS_NFSE}}}LoteDps",
+        versao=VERSAO_ISSNET_NACIONAL,
+        Id=f"Lote{numero_lote}",
+    )
     etree.SubElement(lote, f"{{{NS_NFSE}}}NumeroLote").text = str(numero_lote)
     prest_lote = etree.SubElement(lote, f"{{{NS_NFSE}}}Prestador")
     etree.SubElement(prest_lote, f"{{{NS_NFSE}}}CNPJ").text = cnpj_prest

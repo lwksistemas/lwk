@@ -147,6 +147,98 @@ def assinar_xml_dps_bytes(xml_str: str, pfx_bytes: bytes, senha_pfx: str) -> str
                 os.unlink(cert_path)
 
 
+def _carregar_chave_xmlsec(pfx_path: str, senha_pfx: str):
+    import xmlsec
+    from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
+
+    private_key, cert_obj, _ = carregar_certificado_pfx(pfx_path, senha_pfx)
+    key_pem = private_key.private_bytes(
+        Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption(),
+    )
+    cert_pem = cert_obj.public_bytes(Encoding.PEM)
+    key = xmlsec.Key.from_memory(key_pem, xmlsec.constants.KeyDataFormatPem)
+    key.load_cert_from_memory(cert_pem, xmlsec.constants.KeyDataFormatPem)
+    return key
+
+
+def _assinar_elemento_por_id(parent_el, target_el, key, ref_id: str) -> None:
+    """Assinatura enveloped no parent, Reference URI=#ref_id apontando para target_el."""
+    import xmlsec
+
+    # Evita Signature duplicada em reprocessamento
+    for child in list(parent_el):
+        if etree.QName(child.tag).localname == "Signature":
+            parent_el.remove(child)
+
+    sig_node = xmlsec.template.create(
+        parent_el,
+        xmlsec.constants.TransformInclC14N,
+        xmlsec.constants.TransformRsaSha1,
+    )
+    parent_el.append(sig_node)
+    ref = xmlsec.template.add_reference(
+        sig_node,
+        xmlsec.constants.TransformSha1,
+        uri=f"#{ref_id}",
+    )
+    xmlsec.template.add_transform(ref, xmlsec.constants.TransformEnveloped)
+    xmlsec.template.add_transform(ref, xmlsec.constants.TransformInclC14N)
+    key_info = xmlsec.template.ensure_key_info(sig_node)
+    x509_data = xmlsec.template.add_x509_data(key_info)
+    xmlsec.template.x509_data_add_certificate(x509_data)
+
+    ctx = xmlsec.SignatureContext()
+    ctx.key = key
+    ctx.register_id(target_el, "Id", None)
+    ctx.sign(sig_node)
+
+
+def assinar_xml_enviar_lote_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
+    """Assina EnviarLoteDpsSincronoEnvio / EnviarLoteDpsEnvio (padrão Nacional ISSNet).
+
+    1) Assina cada DPS (Reference=#Id do infDPS)
+    2) Assina o LoteDps (Reference=#Id do lote) — exigido pelo Manual NotaControl
+    """
+    ns = "http://www.sped.fazenda.gov.br/nfse"
+    root = etree.fromstring(xml_str.encode("utf-8"))
+    root_local = etree.QName(root.tag).localname if root.tag else ""
+
+    if root_local in ("DPS",):
+        return assinar_xml_dps(xml_str, pfx_path, senha_pfx)
+
+    key = _carregar_chave_xmlsec(pfx_path, senha_pfx)
+    dps_nodes = root.findall(f".//{{{ns}}}DPS")
+    if not dps_nodes:
+        raise ValueError("Nenhum elemento DPS encontrado para assinatura no lote Nacional.")
+
+    for dps in dps_nodes:
+        inf_dps = dps.find(f"{{{ns}}}infDPS")
+        if inf_dps is None:
+            raise ValueError("Elemento infDPS não encontrado em DPS do lote.")
+        inf_id = (inf_dps.get("Id") or "").strip()
+        if not inf_id:
+            raise ValueError("Atributo Id ausente em infDPS.")
+        _assinar_elemento_por_id(dps, inf_dps, key, inf_id)
+
+    # Signature do lote fica na raiz (irmã de LoteDps), Reference=#Id do LoteDps
+    lote = root.find(f"{{{ns}}}LoteDps")
+    if lote is not None and root_local in ("EnviarLoteDpsSincronoEnvio", "EnviarLoteDpsEnvio"):
+        lote_id = (lote.get("Id") or "").strip()
+        if not lote_id:
+            num = lote.findtext(f"{{{ns}}}NumeroLote") or "1"
+            lote_id = f"Lote{num}"
+            lote.set("Id", lote_id)
+        _assinar_elemento_por_id(root, lote, key, lote_id)
+
+    result = etree.tostring(root, encoding="unicode", xml_declaration=False)
+    logger.info(
+        "XML lote DPS assinado (%s): %d DPS + assinatura do envio",
+        root_local or "?",
+        len(dps_nodes),
+    )
+    return result
+
+
 def extrair_info_certificado(pfx_path: str, senha: str) -> dict:
     """Extrai informações do certificado para exibição.
 

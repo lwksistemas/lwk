@@ -51,7 +51,11 @@ def assinar_xml_issnet(xml_str: str, certificado_path: str, senha_certificado: s
         _append_x509_template(sig_node)
         return sig_node
 
-    ns = NS_NFSE
+    # Namespace do documento (ABRASF legado ou SPED Nacional)
+    if isinstance(root.tag, str) and root.tag.startswith("{"):
+        ns = root.tag.split("}", 1)[0][1:]
+    else:
+        ns = NS_NFSE
     root_local = etree.QName(root.tag).localname if root.tag else ""
 
     def _sign_cancelamento_por_pedido(root_el):

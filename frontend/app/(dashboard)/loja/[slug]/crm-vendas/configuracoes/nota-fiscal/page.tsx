@@ -49,6 +49,8 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
     issnet_ultimo_rps_conhecido: '',
     issnet_numero_lote: '',
     issnet_ambiente_homologacao: false,
+    issnet_usar_padrao_nacional: true,
+    codigo_tributacao_nacional: '',
     emitir_nf_automaticamente: true,
   });
   
@@ -85,6 +87,8 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
             ? String(config.issnet_numero_lote)
             : '',
         issnet_ambiente_homologacao: config.issnet_ambiente_homologacao ?? false,
+        issnet_usar_padrao_nacional: config.issnet_usar_padrao_nacional ?? true,
+        codigo_tributacao_nacional: config.codigo_tributacao_nacional || '',
         emitir_nf_automaticamente: config.emitir_nf_automaticamente ?? true,
       });
     }
@@ -100,7 +104,13 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
       
       // Adicionar campos de texto
       // Campos que podem ser limpos (string vazia deve ser enviada para limpar no backend)
-      const clearableFields = ['codigo_cnae', 'codigo_nbs', 'item_lista_servico', 'inscricao_municipal'];
+      const clearableFields = [
+        'codigo_cnae',
+        'codigo_nbs',
+        'item_lista_servico',
+        'inscricao_municipal',
+        'codigo_tributacao_nacional',
+      ];
       Object.entries(formData).forEach(([key, value]) => {
         if (value === null || value === undefined) return;
         // Campos limpaveis: enviar string vazia para o backend poder limpar
@@ -434,6 +444,50 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
+                    checked={formData.issnet_usar_padrao_nacional}
+                    onChange={(e) =>
+                      setFormData({ ...formData, issnet_usar_padrao_nacional: e.target.checked })
+                    }
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                    Padrão Nacional (DPS / RTC) — layout novo
+                  </span>
+                </label>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 pl-7">
+                  Emite DPS no webservice Nacional da ISSNet (
+                  <code className="text-[10px]">wsnfsenacional/ribeiraopreto</code>
+                  ). Desmarque só se a prefeitura pedir o ABRASF antigo (descontinuado em 03/08/2026).
+                </p>
+
+                {formData.issnet_usar_padrao_nacional && (
+                  <div className="pl-7">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Código de tributação nacional (cTribNac)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={formData.codigo_tributacao_nacional}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          codigo_tributacao_nacional: e.target.value.replace(/\D/g, '').slice(0, 6),
+                        })
+                      }
+                      placeholder="Ex.: 140100 (item 14.01)"
+                      className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+                    />
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                      6 dígitos. Se vazio, o sistema deriva do item da lista (ex.: 14.01 → 140100).
+                    </p>
+                  </div>
+                )}
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
                     checked={formData.issnet_ambiente_homologacao}
                     onChange={(e) =>
                       setFormData({ ...formData, issnet_ambiente_homologacao: e.target.checked })
@@ -441,15 +495,14 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
                     className="w-4 h-4"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Homologação / teste (ISSNet)
+                    Homologação / teste (ISSNet Nacional)
                   </span>
                 </label>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 pl-7">
-                  Opção salva no CRM: emissão e teste de conexão usam o flag de ambiente homologação. Para
-                  Ribeirão Preto (ABRASF 2.04) o WSDL é o mesmo da produção — não existe outro hostname
-                  público verificado para este contrato. Isso não substitui a liberação municipal (ex. E138):
-                  estar logado no portal também não autentica o servidor. Credenciais ou ambiente de testes,
-                  se existirem, vêm da prefeitura ou{' '}
+                  Com o padrão Nacional marcado, homologação usa{' '}
+                  <code className="text-[10px]">wsnfsenacional/homologacao/nfse.asmx</code>. Produção usa
+                  Ribeirão Preto. Valide o XML no ambiente de teste antes da obrigatoriedade de 03/08/2026.
+                  Dúvidas: suporte@notacontrol.com.br —{' '}
                   <a
                     href="https://www.ribeiraopreto.sp.gov.br/portal/fazenda/iss-digital"
                     target="_blank"

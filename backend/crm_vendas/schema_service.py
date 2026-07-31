@@ -469,12 +469,21 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
             "ALTER TABLE crm_vendas_config "
             "ADD COLUMN IF NOT EXISTS issnet_ambiente_homologacao boolean NOT NULL DEFAULT false;",
         )
+        cursor.execute(
+            "ALTER TABLE crm_vendas_config "
+            "ADD COLUMN IF NOT EXISTS issnet_usar_padrao_nacional boolean NOT NULL DEFAULT true;",
+        )
+        cursor.execute(
+            "ALTER TABLE crm_vendas_config "
+            "ADD COLUMN IF NOT EXISTS codigo_tributacao_nacional varchar(10) NOT NULL DEFAULT '';",
+        )
         # Registrar migrations como aplicadas
         for mig_name in [
             "0045_add_asaas_loja_nf_fields",
             "0046_add_portal_emissor_fields",
             "0047_certificado_binary",
             "0049_crmconfig_issnet_ambiente_homologacao",
+            "0027_crmconfig_issnet_nacional",
             "0059_crmconfig_asaas_webhook_token",
         ]:
             cursor.execute(

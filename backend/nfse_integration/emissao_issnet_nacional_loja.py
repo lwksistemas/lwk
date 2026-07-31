@@ -76,7 +76,13 @@ def _criar_client_nacional(config, cnpj_prestador: str, im_prestador: str) -> IS
         except Exception:
             pass
 
-    ambiente = getattr(config, "issnet_ambiente", "producao") or "producao"
+    # CRM/clínica usam issnet_ambiente_homologacao (bool); fallback string legado
+    if getattr(config, "issnet_ambiente_homologacao", False):
+        ambiente = "homologacao"
+    else:
+        ambiente = (getattr(config, "issnet_ambiente", None) or "producao").strip() or "producao"
+        if ambiente not in ("homologacao", "producao"):
+            ambiente = "producao"
 
     return ISSNetNacionalClient(
         cert_bytes=bytes(cert_bytes) if cert_bytes else None,

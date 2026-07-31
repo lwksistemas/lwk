@@ -223,9 +223,12 @@ class CRMConfig(LojaIsolationMixin, models.Model):
 
     # === Padrão Nacional ISSNet (RTC/DPS) ===
     issnet_usar_padrao_nacional = models.BooleanField(
-        default=False,
-        verbose_name="Usar padrão Nacional (DPS)",
-        help_text="Se True, emite via padrão Nacional ISSNet (DPS). Se False, usa ABRASF até 03/08/2026.",
+        default=True,
+        verbose_name="Usar padrão Nacional (DPS/RTC)",
+        help_text=(
+            "Se True, emite via webservice Nacional ISSNet (DPS/RTC). "
+            "Se False, tenta ABRASF (descontinuado em Ribeirão Preto a partir de 03/08/2026)."
+        ),
     )
     codigo_tributacao_nacional = models.CharField(
         max_length=10,

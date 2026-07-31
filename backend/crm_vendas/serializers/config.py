@@ -76,6 +76,7 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             "incentivador_cultural",
             "emitir_nf_automaticamente",
             "issnet_ambiente_homologacao",
+            "issnet_usar_padrao_nacional",
         ]
         for field in bool_fields:
             if hasattr(data, "get") and data.get(field) is not None:
@@ -153,6 +154,8 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             "incentivador_cultural", "item_lista_servico", "codigo_nbs",
             "issnet_serie_rps", "issnet_ultimo_rps_conhecido", "issnet_numero_lote",
             "issnet_ambiente_homologacao",
+            "issnet_usar_padrao_nacional",
+            "codigo_tributacao_nacional",
             "codigo_servico_municipal", "descricao_servico_padrao",
             "aliquota_iss", "emitir_nf_automaticamente",
             "asaas_api_key", "asaas_sandbox", "asaas_api_key_configured",

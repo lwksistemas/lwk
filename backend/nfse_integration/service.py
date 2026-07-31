@@ -111,11 +111,12 @@ class NFSeService:
             )
 
             if provedor == "issnet":
-                # A partir de 03/08/2026, usar padrão Nacional (DPS) ao invés de ABRASF (RPS)
+                # Ribeirão Preto: webservice Nacional (DPS/RTC) disponível desde 27/07/2026;
+                # ABRASF descontinuado em 03/08/2026. Flag da loja força Nacional antes disso.
                 from datetime import date
 
-                usar_nacional = getattr(self.config, "issnet_usar_padrao_nacional", False)
-                if not usar_nacional and date.today() >= date(2026, 8, 3):
+                usar_nacional = bool(getattr(self.config, "issnet_usar_padrao_nacional", False))
+                if not usar_nacional and date.today() >= date(2026, 7, 27):
                     usar_nacional = True
 
                 if usar_nacional:

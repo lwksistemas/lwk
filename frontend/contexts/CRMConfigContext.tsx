@@ -52,6 +52,10 @@ interface CRMConfig {
   issnet_numero_lote?: number | string | null;
   /** Em RP o WSDL costuma ser o mesmo da produção; ver texto na tela de NF. */
   issnet_ambiente_homologacao?: boolean;
+  /** Padrão Nacional ISSNet (DPS/RTC). Se false, tenta ABRASF legado. */
+  issnet_usar_padrao_nacional?: boolean;
+  /** cTribNac — 6 dígitos (ex.: 140100). */
+  codigo_tributacao_nacional?: string;
   emitir_nf_automaticamente: boolean;
   asaas_sandbox?: boolean;
   asaas_api_key_configured?: boolean;
@@ -113,6 +117,8 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
         asaas_api_key_configured: false,
         issnet_senhas_salvas: false,
         issnet_ambiente_homologacao: false,
+        issnet_usar_padrao_nacional: true,
+        codigo_tributacao_nacional: '',
       });
     } finally {
       setLoading(false);

@@ -13,6 +13,32 @@ from lxml import etree
 
 logger = logging.getLogger(__name__)
 
+DSIG_NS = "http://www.w3.org/2000/09/xmldsig#"
+
+
+def _adicionar_certificados_x509(x509_data, cert_obj, extra_certs):
+    """Adiciona certificado folha e eventuais intermediários ao X509Data.
+
+    Alguns servidores (ex: ISSNet Nacional) não conseguem validar a assinatura
+    sem a cadeia completa do certificado ICP-Brasil.
+    """
+    from cryptography.hazmat.primitives.serialization import Encoding
+
+    existing = x509_data.findall(f"{{{DSIG_NS}}}X509Certificate")
+    for cert in existing:
+        x509_data.remove(cert)
+
+    certs = [cert_obj]
+    if extra_certs:
+        certs.extend(extra_certs)
+
+    for cert in certs:
+        pem_b64 = cert.public_bytes(Encoding.PEM).decode("ascii")
+        # remove PEM headers/footers e junta linhas
+        lines = [line.strip() for line in pem_b64.splitlines() if line and not line.startswith("--")]
+        cert_el = etree.SubElement(x509_data, f"{{{DSIG_NS}}}X509Certificate")
+        cert_el.text = "".join(lines)
+
 
 def carregar_certificado_pfx(pfx_path: str, senha: str) -> tuple:
     """Carrega chave privada e certificado de um arquivo .pfx/.p12.
@@ -72,8 +98,8 @@ def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
 
     root = etree.fromstring(xml_str.encode("utf-8"))
 
-    # Carregar chave privada e certificado
-    private_key, cert_obj, _ = carregar_certificado_pfx(pfx_path, senha_pfx)
+    # Carregar chave privada, certificado folha e cadeia intermediária
+    private_key, cert_obj, extra_certs = carregar_certificado_pfx(pfx_path, senha_pfx)
 
     from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
 
@@ -113,10 +139,11 @@ def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
     xmlsec.template.add_transform(ref, xmlsec.constants.TransformEnveloped)
     xmlsec.template.add_transform(ref, xmlsec.constants.TransformInclC14N)
 
-    # KeyInfo com X509Data
+    # KeyInfo com X509Data (certificado + cadeia completa)
     key_info = xmlsec.template.ensure_key_info(sig_node)
     x509_data = xmlsec.template.add_x509_data(key_info)
     xmlsec.template.x509_data_add_certificate(x509_data)
+    _adicionar_certificados_x509(x509_data, cert_obj, extra_certs)
 
     # Assinar
     ctx = xmlsec.SignatureContext()
@@ -151,17 +178,17 @@ def _carregar_chave_xmlsec(pfx_path: str, senha_pfx: str):
     import xmlsec
     from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
 
-    private_key, cert_obj, _ = carregar_certificado_pfx(pfx_path, senha_pfx)
+    private_key, cert_obj, extra_certs = carregar_certificado_pfx(pfx_path, senha_pfx)
     key_pem = private_key.private_bytes(
         Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption(),
     )
     cert_pem = cert_obj.public_bytes(Encoding.PEM)
     key = xmlsec.Key.from_memory(key_pem, xmlsec.constants.KeyDataFormatPem)
     key.load_cert_from_memory(cert_pem, xmlsec.constants.KeyDataFormatPem)
-    return key
+    return key, cert_obj, extra_certs
 
 
-def _assinar_elemento_por_id(parent_el, target_el, key, ref_id: str) -> None:
+def _assinar_elemento_por_id(parent_el, target_el, key, ref_id: str, cert_obj=None, extra_certs=None) -> None:
     """Assinatura enveloped no parent, Reference URI=#ref_id apontando para target_el."""
     import xmlsec
 
@@ -186,6 +213,8 @@ def _assinar_elemento_por_id(parent_el, target_el, key, ref_id: str) -> None:
     key_info = xmlsec.template.ensure_key_info(sig_node)
     x509_data = xmlsec.template.add_x509_data(key_info)
     xmlsec.template.x509_data_add_certificate(x509_data)
+    if cert_obj is not None:
+        _adicionar_certificados_x509(x509_data, cert_obj, extra_certs)
 
     ctx = xmlsec.SignatureContext()
     ctx.key = key
@@ -206,7 +235,7 @@ def assinar_xml_enviar_lote_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> 
     if root_local in ("DPS",):
         return assinar_xml_dps(xml_str, pfx_path, senha_pfx)
 
-    key = _carregar_chave_xmlsec(pfx_path, senha_pfx)
+    key, cert_obj, extra_certs = _carregar_chave_xmlsec(pfx_path, senha_pfx)
     dps_nodes = root.findall(f".//{{{ns}}}DPS")
     if not dps_nodes:
         raise ValueError("Nenhum elemento DPS encontrado para assinatura no lote Nacional.")
@@ -218,7 +247,7 @@ def assinar_xml_enviar_lote_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> 
         inf_id = (inf_dps.get("Id") or "").strip()
         if not inf_id:
             raise ValueError("Atributo Id ausente em infDPS.")
-        _assinar_elemento_por_id(dps, inf_dps, key, inf_id)
+        _assinar_elemento_por_id(dps, inf_dps, key, inf_id, cert_obj, extra_certs)
 
     # Signature do lote fica na raiz (irmã de LoteDps), Reference=#Id do LoteDps
     lote = root.find(f"{{{ns}}}LoteDps")
@@ -228,7 +257,7 @@ def assinar_xml_enviar_lote_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> 
             num = lote.findtext(f"{{{ns}}}NumeroLote") or "1"
             lote_id = f"Lote{num}"
             lote.set("Id", lote_id)
-        _assinar_elemento_por_id(root, lote, key, lote_id)
+        _assinar_elemento_por_id(root, lote, key, lote_id, cert_obj, extra_certs)
 
     result = etree.tostring(root, encoding="unicode", xml_declaration=False)
     logger.info(

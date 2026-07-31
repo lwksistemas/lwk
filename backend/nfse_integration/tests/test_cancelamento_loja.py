@@ -93,3 +93,23 @@ class CancelarNFSeLojaTests(SimpleTestCase):
         self.assertTrue(resultado["success"])
         self.assertEqual(nfse.status, "cancelada")
         nfse.save.assert_called_once()
+
+    def test_cancela_via_issnet_nacional_quando_flag_ativa(self):
+        nfse = self._nfse()
+        config = self._config()
+        config.issnet_usar_padrao_nacional = True
+        loja = self._loja()
+        client = MagicMock()
+        client.cancelar_nfse.return_value = {"success": True}
+
+        with patch(
+            "nfse_integration.cancelamento_loja.ISSNetNacionalClient",
+            return_value=client,
+        ):
+            with patch("nfse_integration.cancelamento_loja.notificar_cancelamento_nfse"):
+                resultado = cancelar_nfse_loja(loja, config, nfse, "151", "Erro na emissão")
+
+        self.assertTrue(resultado["success"])
+        self.assertEqual(nfse.status, "cancelada")
+        nfse.save.assert_called_once()
+        client.cancelar_nfse.assert_called_once()

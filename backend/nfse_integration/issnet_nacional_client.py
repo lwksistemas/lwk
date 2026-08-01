@@ -120,15 +120,15 @@ class ISSNetNacionalClient:
                 "DPS",
             ):
                 # ISSNet Nacional: assina apenas cada DPS, sem assinatura de lote,
-                # sem prefixo ds: e com apenas o certificado folha na X509Data,
-                # conforme padrão usado por outros integradores.
+                # sem prefixo ds:. Inclui a cadeia completa (folha + intermediários)
+                # na X509Data para que o servidor consiga validar o certificado A1.
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
                     self.cert_password,
                     assinar_lote=False,
                     prefixo_ds=False,
-                    usar_cadeia=False,
+                    usar_cadeia=True,
                 )
             # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
             return assinar_xml_issnet(xml_str, cert_path, self.cert_password)

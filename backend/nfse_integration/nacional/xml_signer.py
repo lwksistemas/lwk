@@ -56,6 +56,28 @@ def _aia_ca_issuer_urls(cert):
     return urls
 
 
+def _load_certs_from_response(content: bytes, url: str) -> list:
+    """Carrega um ou mais certificados de resposta DER (X509 ou PKCS#7)."""
+    from cryptography import x509
+    from cryptography.hazmat.primitives.serialization import pkcs7
+
+    # Tenta como certificado único DER
+    try:
+        return [x509.load_der_x509_certificate(content)]
+    except Exception:
+        pass
+
+    # Tenta como PKCS#7 (.p7b)
+    try:
+        certs = pkcs7.load_der_pkcs7_certificates(content)
+        if certs:
+            logger.info("PKCS#7: extraídos %d certificado(s) de %s", len(certs), url)
+            return list(certs)
+    except Exception as e:
+        logger.debug("Não foi possível interpretar %s como PKCS#7: %s", url, e)
+    return []
+
+
 def _completar_cadeia_certificados(cert_obj, extra_certs):
     """Tenta montar a cadeia ICP-Brasil usando certificados do PFX, AIA e fallback ITI."""
     from cryptography import x509
@@ -90,13 +112,14 @@ def _completar_cadeia_certificados(cert_obj, extra_certs):
             try:
                 r = requests.get(url, timeout=15)
                 r.raise_for_status()
-                issuer_cert = x509.load_der_x509_certificate(r.content)
-                if issuer_cert.serial_number not in seen:
-                    logger.info("AIA: intermediário baixado com sucesso (serial %s)", issuer_cert.serial_number)
-                    add_cert(issuer_cert)
-                    next_cert = issuer_cert
+                certs = _load_certs_from_response(r.content, url)
+                for issuer_cert in certs:
+                    if issuer_cert.serial_number not in seen:
+                        logger.info("AIA: intermediário baixado com sucesso (serial %s)", issuer_cert.serial_number)
+                        add_cert(issuer_cert)
+                        next_cert = issuer_cert
+                if next_cert:
                     break
-                next_cert = issuer_cert
             except Exception as e:
                 logger.warning("AIA: falha ao baixar intermediário de %s: %s", url, e)
         if not next_cert:

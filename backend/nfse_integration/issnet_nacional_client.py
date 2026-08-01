@@ -132,9 +132,13 @@ class ISSNetNacionalClient:
         cert_path = self._pfx_temp()
 
         cabecalhos = [
+            # ABRASF 2.04 historicamente passou pela validação de schema do ISSNet Ribeirão Preto
+            ("ABRASF 2.04 (híbrido)", self._cabec_msg_nacional_abrasf("2.04"), NS_NFSE_NACIONAL),
+            # Variações SPED: alguns municípios exigem versão 1.00 no cabeçalho
+            ("SPED sem xmlns 1.00", self._cabec_msg_nacional_sem_ns("1.00"), NS_NFSE_NACIONAL),
+            ("SPED 1.00 (padrão)", self._cabec_msg_nacional_sped("1.00"), NS_NFSE_NACIONAL),
             ("SPED sem xmlns 1.01", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL),
             ("SPED 1.01 (padrão)", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL),
-            ("ABRASF 2.04 (híbrido)", self._cabec_msg_nacional_abrasf("2.04"), NS_NFSE_NACIONAL),
         ]
 
         try:

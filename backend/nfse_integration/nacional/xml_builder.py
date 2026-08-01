@@ -139,6 +139,8 @@ def construir_xml_dps(
     codigo_numerico: int = 0,
     # Data
     data_competencia: datetime | None = None,
+    # Versão do layout (a ISSNet Ribeirão Preto aceitou DPS 1.00)
+    versao_dps: str = VERSAO_DPS,
     # Namespace: por padrão default (sem prefixo). Quando True, usa prefixo nfse
     # para garantir que a canonicalização C14N da assinatura não seja alterada
     # ao inserir o XML aninhado dentro do envelope SOAP com xmlns:nfse.
@@ -161,7 +163,7 @@ def construir_xml_dps(
     # Root: DPS com versao
     nsmap = {"nfse": NS_NFSE} if prefixo_nfse else {None: NS_NFSE}
     root = etree.Element(f"{{{NS_NFSE}}}DPS", nsmap=nsmap)
-    root.set("versao", VERSAO_DPS)
+    root.set("versao", versao_dps)
 
     # infDPS com Id (formato TSIdDPS: DPS + CodMun7 + TipoInsc1 + InscFed14 + Serie5 + NumDPS15)
     tipo_insc = "2" if len(cnpj_digits) == 14 else "1"

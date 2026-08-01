@@ -151,8 +151,8 @@ class ISSNetNacionalClient:
         # Testa também os parâmetros nfseCabecMsg/nfseDadosMsg qualificados
         # (<nfse:nfseCabecMsg>), pois algumas implementações ASMX esperam isso.
         tentativas = [
-            ("SPED 1.01 cabec aninhado + dados aninhado", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "aninhado", False),
-            ("SPED 1.01 cabec aninhado + dados aninhado (params qualif)", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "aninhado", True),
+            ("SPED 1.00 cabec aninhado + dados aninhado", self._cabec_msg_nacional_sped("1.00", "1.00"), "aninhado", "aninhado", False),
+            ("SPED 1.00 cabec aninhado + dados aninhado (params qualif)", self._cabec_msg_nacional_sped("1.00", "1.00"), "aninhado", "aninhado", True),
         ]
 
         try:

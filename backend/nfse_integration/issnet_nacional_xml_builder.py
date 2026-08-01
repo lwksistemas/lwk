@@ -147,21 +147,20 @@ def _construir_dps_issnet(
     dps_element = etree.fromstring(xml_dps.encode("utf-8"))
 
     c_serv = dps_element.find(f".//{{{NS_NFSE}}}cServ")
-    if c_serv is not None:
+    if c_serv is not None and ADICIONAR_EXTRAS_ISSNET:
         x_desc = c_serv.find(f"{{{NS_NFSE}}}xDescServ")
 
         # cTribMun faz parte do leiaute v1.01 (RT) e vem antes de xDescServ.
-        if ADICIONAR_EXTRAS_ISSNET:
-            cod_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
-            if not cod_trib_mun and codigo_tributacao_nacional:
-                cod_trib_mun = _somente_digitos(codigo_tributacao_nacional or "")[:3]
-            if cod_trib_mun:
-                c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
-                c_trib_mun_el.text = cod_trib_mun
-                idx = list(c_serv).index(x_desc) if x_desc is not None else 0
-                c_serv.insert(idx, c_trib_mun_el)
+        cod_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
+        if not cod_trib_mun and codigo_tributacao_nacional:
+            cod_trib_mun = _somente_digitos(codigo_tributacao_nacional or "")[:3]
+        if cod_trib_mun:
+            c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
+            c_trib_mun_el.text = cod_trib_mun
+            idx = list(c_serv).index(x_desc) if x_desc is not None else 0
+            c_serv.insert(idx, c_trib_mun_el)
 
-        # cNBS é exigido em v1.00 e v1.01, sempre após xDescServ (XSD TCCServ).
+        # cNBS faz parte do leiaute v1.01 (RT), sempre após xDescServ (XSD TCCServ).
         c_nbs = _nbs_por_ctrib_nacional(codigo_tributacao_nacional, codigo_nbs)
         if c_nbs:
             c_nbs_el = etree.Element(f"{{{NS_NFSE}}}cNBS")

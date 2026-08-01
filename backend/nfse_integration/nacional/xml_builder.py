@@ -215,13 +215,17 @@ def construir_xml_dps(
     # trib
     trib = _el(valores, "trib")
 
-    # tribMun
+    # tribMun - ordem difere entre v1.00 e v1.01 do XSD
     trib_mun = _el(trib, "tribMun")
     _el(trib_mun, "tribISSQN", str(natureza_tributacao))
-    # tpRetISSQN: 1=Não Retido, 2=Retido pelo Tomador
-    _el(trib_mun, "tpRetISSQN", "2" if iss_retido else "1")
-    # pAliq
-    _el(trib_mun, "pAliq", _formatar_decimal(aliquota))
+    if versao_dps == "1.00":
+        # v1.00: pAliq antes de tpRetISSQN
+        _el(trib_mun, "pAliq", _formatar_decimal(aliquota))
+        _el(trib_mun, "tpRetISSQN", "2" if iss_retido else "1")
+    else:
+        # v1.01: tpRetISSQN antes de pAliq
+        _el(trib_mun, "tpRetISSQN", "2" if iss_retido else "1")
+        _el(trib_mun, "pAliq", _formatar_decimal(aliquota))
 
     # totTrib - usar indTotTrib=0 (conforme XML real)
     tot_trib = _el(trib, "totTrib")

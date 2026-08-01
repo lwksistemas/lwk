@@ -307,13 +307,22 @@ def assinar_xml_dps(
     xmlsec.template.x509_data_add_certificate(x509_data)
     _adicionar_certificados_x509(x509_data, cert_obj, chain, incluir_cadeia=usar_cadeia)
 
-    # Assinar
-    ctx = xmlsec.SignatureContext()
-    ctx.key = key
-    ctx.register_id(inf_dps, "Id", None)
-    ctx.sign(sig_node)
+    # Garante que o atributo Id seja reconhecido como ID do documento
+    xmlsec.tree.add_ids(root, ["Id"])
+
+    sign_ctx = xmlsec.SignatureContext()
+    sign_ctx.key = key
+    sign_ctx.register_id(inf_dps, "Id", None)
+    sign_ctx.sign(sig_node)
+
+    # Verificação local com chave pública do certificado folha.
+    verify_key = xmlsec.Key.from_memory(cert_pem, xmlsec.constants.KeyDataFormatCertPem)
+    verify_ctx = xmlsec.SignatureContext()
+    verify_ctx.key = verify_key
+    verify_ctx.register_id(inf_dps, "Id", None)
+    xmlsec.tree.add_ids(root, ["Id"])
     try:
-        ctx.verify(sig_node)
+        verify_ctx.verify(sig_node)
         logger.info("Assinatura verificada localmente com sucesso (Reference=#%s).", inf_id)
     except Exception as e:
         logger.error("Falha na verificação local da assinatura (Reference=#%s): %s", inf_id, e)
@@ -356,12 +365,17 @@ def _carregar_chave_xmlsec(pfx_path: str, senha_pfx: str):
     from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
 
     private_key, cert_obj, extra_certs = carregar_certificado_pfx(pfx_path, senha_pfx)
+
+    # Confirma que o certificado pertence à chave privada
+    if private_key.public_key().public_numbers() != cert_obj.public_key().public_numbers():
+        raise ValueError("Chave privada e certificado do .pfx não formam um par válido.")
+
     key_pem = private_key.private_bytes(
         Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption(),
     )
     cert_pem = cert_obj.public_bytes(Encoding.PEM)
     key = xmlsec.Key.from_memory(key_pem, xmlsec.constants.KeyDataFormatPem)
-    key.load_cert_from_memory(cert_pem, xmlsec.constants.KeyDataFormatPem)
+    key.load_cert_from_memory(cert_pem, xmlsec.constants.KeyDataFormatCertPem)
     return key, cert_obj, extra_certs
 
 
@@ -377,6 +391,7 @@ def _assinar_elemento_por_id(
 ) -> None:
     """Assinatura enveloped no parent, Reference URI=#ref_id apontando para target_el."""
     import xmlsec
+    from cryptography.hazmat.primitives.serialization import Encoding
 
     # Evita Signature duplicada em reprocessamento
     for child in list(parent_el):
@@ -404,12 +419,25 @@ def _assinar_elemento_por_id(
     if cert_obj is not None:
         _adicionar_certificados_x509(x509_data, cert_obj, extra_certs, incluir_cadeia=usar_cadeia)
 
-    ctx = xmlsec.SignatureContext()
-    ctx.key = key
-    ctx.register_id(target_el, "Id", None)
-    ctx.sign(sig_node)
+    # Garante que o atributo Id seja reconhecido como ID do documento
+    # tanto para assinar quanto para verificar a referência.
+    root_el = target_el.getroottree().getroot()
+    xmlsec.tree.add_ids(root_el, ["Id"])
+
+    sign_ctx = xmlsec.SignatureContext()
+    sign_ctx.key = key
+    sign_ctx.register_id(target_el, "Id", None)
+    sign_ctx.sign(sig_node)
+
+    # Verificação local com chave pública do certificado folha.
+    cert_pem = cert_obj.public_bytes(Encoding.PEM) if cert_obj else b""
+    verify_key = xmlsec.Key.from_memory(cert_pem, xmlsec.constants.KeyDataFormatCertPem)
+    verify_ctx = xmlsec.SignatureContext()
+    verify_ctx.key = verify_key
+    verify_ctx.register_id(target_el, "Id", None)
+    xmlsec.tree.add_ids(root_el, ["Id"])
     try:
-        ctx.verify(sig_node)
+        verify_ctx.verify(sig_node)
         logger.info("Assinatura verificada localmente com sucesso (Reference=#%s).", ref_id)
     except Exception as e:
         logger.error("Falha na verificação local da assinatura (Reference=#%s): %s", ref_id, e)

@@ -4,6 +4,7 @@ Namespace: http://www.sped.fazenda.gov.br/nfse
 """
 import logging
 import re
+import unicodedata
 from datetime import datetime
 from decimal import Decimal
 
@@ -19,6 +20,19 @@ logger = logging.getLogger(__name__)
 
 def _somente_digitos(texto: str) -> str:
     return re.sub(r"\D", "", texto or "")
+
+
+def _normalizar_texto_xml(texto: str, max_len: int | None = None) -> str:
+    """Remove acentos e caracteres fora do ASCII básico para evitar diferenças de
+    canonicalização no servidor da ISSNet."""
+    if not texto:
+        return texto or ""
+    # Decompõe caracteres acentuados e descarta os marcadores de combinação.
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(c for c in texto if ord(c) < 128)
+    if max_len is not None:
+        texto = texto[:max_len]
+    return texto
 
 
 def _formatar_decimal(valor: Decimal, casas: int = 2) -> str:
@@ -60,7 +74,7 @@ def _construir_xml_tomador(inf_dps, tomador_doc: str, tomador_nome: str, tomador
     elif len(tomador_doc) == 14:
         _el(toma, "CNPJ", tomador_doc)
     if tomador_nome:
-        _el(toma, "xNome", tomador_nome[:150])
+        _el(toma, "xNome", _normalizar_texto_xml(tomador_nome, 150))
     if tomador_endereco:
         end_toma = _el(toma, "end")
         end_nac = _el(end_toma, "endNac")
@@ -72,12 +86,12 @@ def _construir_xml_tomador(inf_dps, tomador_doc: str, tomador_nome: str, tomador
             _el(end_nac, "CEP", cep.zfill(8))
         logradouro = (tomador_endereco.get("logradouro") or "").strip()
         if logradouro:
-            _el(end_toma, "xLgr", logradouro[:60])
+            _el(end_toma, "xLgr", _normalizar_texto_xml(logradouro, 60))
         numero = (tomador_endereco.get("numero") or "S/N").strip()
-        _el(end_toma, "nro", numero[:10])
+        _el(end_toma, "nro", _normalizar_texto_xml(numero, 10))
         bairro = (tomador_endereco.get("bairro") or "").strip()
         if bairro:
-            _el(end_toma, "xBairro", bairro[:60])
+            _el(end_toma, "xBairro", _normalizar_texto_xml(bairro, 60))
     if tomador_telefone:
         _el(toma, "fone", _somente_digitos(tomador_telefone)[:11])
     if tomador_email:
@@ -186,7 +200,8 @@ def construir_xml_dps(
     c_serv = _el(serv, "cServ")
     codigo_trib_nac = _normalizar_codigo_servico_6dig(codigo_servico)
     _el(c_serv, "cTribNac", codigo_trib_nac)
-    _el(c_serv, "xDescServ", (descricao_servico or "Serviço prestado")[:2000])
+    descricao_limpa = _normalizar_texto_xml(descricao_servico or "Servico prestado", 2000)
+    _el(c_serv, "xDescServ", descricao_limpa)
 
     # === VALORES (valores) ===
     valores = _el(inf_dps, "valores")

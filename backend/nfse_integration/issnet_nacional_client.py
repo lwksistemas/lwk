@@ -135,12 +135,14 @@ class ISSNetNacionalClient:
         # Combinações (label, cabecalho_xml, target_namespace, modo) em ordem de prioridade
         # para o ISSNet Nacional. Ribeirão Preto (template Unimake) usa SPED 1.01 + aninhado.
         tentativas = [
-            ("SPED 1.01 aninhado", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "aninhado"),
-            ("SPED 1.01 CDATA", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "cdata"),
-            ("SPED 1.01 xsd:string", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "xsd_string"),
+            # Conforme documentação ISSNet Nacional, o cabeçalho cru sem xmlns
+            # e o XML aninhado são o único formato que passa do schema.
             ("SPED sem xmlns 1.01 aninhado", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL, "aninhado"),
             ("SPED sem xmlns 1.01 CDATA", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL, "cdata"),
             ("SPED sem xmlns 1.01 xsd:string", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL, "xsd_string"),
+            ("SPED 1.01 aninhado", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "aninhado"),
+            ("SPED 1.01 CDATA", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "cdata"),
+            ("SPED 1.01 xsd:string", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "xsd_string"),
             ("SPED 1.00 aninhado", self._cabec_msg_nacional_sped("1.00"), NS_NFSE_NACIONAL, "aninhado"),
             ("SPED 1.00 CDATA", self._cabec_msg_nacional_sped("1.00"), NS_NFSE_NACIONAL, "cdata"),
             ("SPED 1.00 xsd:string", self._cabec_msg_nacional_sped("1.00"), NS_NFSE_NACIONAL, "xsd_string"),

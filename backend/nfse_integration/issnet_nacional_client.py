@@ -19,6 +19,7 @@ from decimal import Decimal
 from typing import Any
 
 import requests as req
+from lxml import etree
 
 from nfse_integration.issnet_cert import certificado_mtls_temporario
 from nfse_integration.issnet_constants import (
@@ -322,6 +323,18 @@ class ISSNetNacionalClient:
             logger.info("ISSNet Nacional: assinando XML DPS nº %d...", numero_dps)
             xml_assinado = self._assinar_xml(xml_envio)
             result["xml_dps"] = xml_assinado
+
+            try:
+                root_signed = etree.fromstring(xml_assinado.encode("utf-8"))
+                ns_sig = "http://www.w3.org/2000/09/xmldsig#"
+                sig_count = len(root_signed.findall(f".//{{{ns_sig}}}Signature"))
+                cert_count = len(root_signed.findall(f".//{{{ns_sig}}}X509Certificate"))
+                logger.info(
+                    "ISSNet Nacional: XML assinado - %d assinatura(s), %d certificado(s) X509",
+                    sig_count, cert_count,
+                )
+            except Exception as e:
+                logger.debug("Não foi possível contar assinaturas/certificados: %s", e)
 
             logger.info(
                 "ISSNet Nacional: enviando DPS nº %d ao webservice (%s)...",

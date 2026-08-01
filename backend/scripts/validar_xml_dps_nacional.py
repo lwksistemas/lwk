@@ -246,8 +246,13 @@ def main() -> int:
             import xmlsec
 
             root_signed = etree.fromstring(signed_xml.encode("utf-8"))
-            for idx, sig_node in enumerate(root_signed.findall(".//{http://www.w3.org/2000/09/xmldsig#}Signature")):
+            ns_dsig = "http://www.w3.org/2000/09/xmldsig#"
+            for idx, sig_node in enumerate(root_signed.findall(f".//{{{ns_dsig}}}Signature")):
                 ctx = xmlsec.SignatureContext()
+                # Registra os atributos Id das tags assinadas para resolver Reference URI=#Id
+                for el in root_signed.iter():
+                    if el.get("Id"):
+                        ctx.register_id(el, "Id", None)
                 try:
                     ctx.verify(sig_node)
                     logger.info("✅ Assinatura %d validada localmente", idx + 1)

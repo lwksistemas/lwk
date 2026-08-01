@@ -132,95 +132,102 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        cabecalhos = [
-            # ABRASF 2.04 historicamente passou pela validação de schema do ISSNet Ribeirão Preto
-            ("ABRASF 2.04 (híbrido)", self._cabec_msg_nacional_abrasf("2.04"), NS_NFSE_NACIONAL),
-            # Variações SPED: alguns municípios exigem versão 1.00 no cabeçalho
-            ("SPED sem xmlns 1.00", self._cabec_msg_nacional_sem_ns("1.00"), NS_NFSE_NACIONAL),
-            ("SPED 1.00 (padrão)", self._cabec_msg_nacional_sped("1.00"), NS_NFSE_NACIONAL),
-            ("SPED sem xmlns 1.01", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL),
-            ("SPED 1.01 (padrão)", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL),
+        # Combinações (label, cabecalho_xml, target_namespace, modo) em ordem de prioridade
+        # para o ISSNet Nacional. Ribeirão Preto (template Unimake) usa SPED 1.01 + aninhado.
+        tentativas = [
+            ("SPED 1.01 aninhado", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "aninhado"),
+            ("SPED 1.01 CDATA", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "cdata"),
+            ("SPED 1.01 xsd:string", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "xsd_string"),
+            ("SPED sem xmlns 1.01 aninhado", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL, "aninhado"),
+            ("SPED sem xmlns 1.01 CDATA", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL, "cdata"),
+            ("SPED sem xmlns 1.01 xsd:string", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL, "xsd_string"),
+            ("SPED 1.00 aninhado", self._cabec_msg_nacional_sped("1.00"), NS_NFSE_NACIONAL, "aninhado"),
+            ("SPED 1.00 CDATA", self._cabec_msg_nacional_sped("1.00"), NS_NFSE_NACIONAL, "cdata"),
+            ("SPED 1.00 xsd:string", self._cabec_msg_nacional_sped("1.00"), NS_NFSE_NACIONAL, "xsd_string"),
+            ("ABRASF 2.04 aninhado", self._cabec_msg_nacional_abrasf("2.04"), NS_NFSE_NACIONAL, "aninhado"),
+            ("ABRASF 2.04 CDATA", self._cabec_msg_nacional_abrasf("2.04"), NS_NFSE_NACIONAL, "cdata"),
+            ("ABRASF 2.04 xsd:string", self._cabec_msg_nacional_abrasf("2.04"), NS_NFSE_NACIONAL, "xsd_string"),
         ]
 
         try:
             with certificado_mtls_temporario(cert_path, self.cert_password) as (pem_cert, pem_key):
                 last_text = ""
-                for cabec_label, cabec_txt, target_ns in cabecalhos:
-                    for modo, modo_label in (
-                        ("xsd_string", "xsd:string (ACBr XmlToStr)"),
-                        ("cdata", "CDATA"),
-                        ("aninhado", "XML aninhado"),
+                for cabec_label, cabec_txt, target_ns, modo in tentativas:
+                    modo_label = {
+                        "xsd_string": "xsd:string (ACBr XmlToStr)",
+                        "cdata": "CDATA",
+                        "aninhado": "XML aninhado",
+                    }[modo]
+                    label = f"{cabec_label} + {modo_label}"
+                    envelope = _montar_soap_envelope(
+                        nome_op, xml_dados, cabec_txt=cabec_txt,
+                        target_ns=target_ns, modo=modo,
+                    )
+                    headers = {
+                        "Content-Type": "text/xml; charset=utf-8",
+                        "SOAPAction": f'"{soap_action}"',
+                        "Connection": "close",
+                        "Accept": "text/xml",
+                        "User-Agent": "LWK-Sistemas/ISSNet-Nacional",
+                    }
+                    logger.info(
+                        "ISSNet Nacional SOAP %s (~%d bytes, %s) → %s",
+                        nome_op, len(envelope.encode("utf-8")), label, self.url,
+                    )
+                    try:
+                        r = req.post(
+                            self.url,
+                            data=envelope.encode("utf-8"),
+                            headers=headers,
+                            cert=(pem_cert, pem_key),
+                            timeout=(8, 45),
+                            verify=True,
+                        )
+                    except (req.exceptions.ConnectionError, req.exceptions.ReadTimeout) as e:
+                        logger.warning("ISSNet Nacional %s conexão falhou (%s); retry 1x", nome_op, e)
+                        time.sleep(1.5)
+                        r = req.post(
+                            self.url,
+                            data=envelope.encode("utf-8"),
+                            headers=headers,
+                            cert=(pem_cert, pem_key),
+                            timeout=(8, 45),
+                            verify=True,
+                        )
+
+                    last_text = r.text or ""
+                    logger.info(
+                        "ISSNet Nacional %s HTTP %s (%d bytes) via %s",
+                        nome_op, r.status_code, len(last_text), label,
+                    )
+
+                    ns_fault = (
+                        "with namespace name" in last_text
+                        and "was not found" in last_text
+                    )
+                    schema_fault = issnet_erro_schema_ou_cabecalho(last_text)
+
+                    if r.status_code >= 400 or "Fault" in last_text:
+                        logger.error(
+                            "ISSNet Nacional %s erro (%s): %s",
+                            nome_op, label, last_text[:2000],
+                        )
+
+                    if schema_fault:
+                        logger.error(
+                            "ISSNet Nacional %s erro de schema/cabeçalho (%s): envelope=%s | resposta=%s",
+                            nome_op, label, envelope[:4000], last_text[:4000],
+                        )
+
+                    if issnet_corpo_parece_xml(last_text) and not (
+                        issnet_fault_soap_generico(last_text) or ns_fault or schema_fault
                     ):
-                        label = f"{cabec_label} + {modo_label}"
-                        envelope = _montar_soap_envelope(
-                            nome_op, xml_dados, cabec_txt=cabec_txt,
-                            target_ns=target_ns, modo=modo,
-                        )
-                        headers = {
-                            "Content-Type": "text/xml; charset=utf-8",
-                            "SOAPAction": f'"{soap_action}"',
-                            "Connection": "close",
-                            "Accept": "text/xml",
-                            "User-Agent": "LWK-Sistemas/ISSNet-Nacional",
-                        }
-                        logger.info(
-                            "ISSNet Nacional SOAP %s (~%d bytes, %s) → %s",
-                            nome_op, len(envelope.encode("utf-8")), label, self.url,
-                        )
-                        try:
-                            r = req.post(
-                                self.url,
-                                data=envelope.encode("utf-8"),
-                                headers=headers,
-                                cert=(pem_cert, pem_key),
-                                timeout=(8, 45),
-                                verify=True,
-                            )
-                        except (req.exceptions.ConnectionError, req.exceptions.ReadTimeout) as e:
-                            logger.warning("ISSNet Nacional %s conexão falhou (%s); retry 1x", nome_op, e)
-                            time.sleep(1.5)
-                            r = req.post(
-                                self.url,
-                                data=envelope.encode("utf-8"),
-                                headers=headers,
-                                cert=(pem_cert, pem_key),
-                                timeout=(8, 45),
-                                verify=True,
-                            )
+                        # Resposta válida sem erros reconhecidos -> retorna
+                        return last_text
 
-                        last_text = r.text or ""
-                        logger.info(
-                            "ISSNet Nacional %s HTTP %s (%d bytes) via %s",
-                            nome_op, r.status_code, len(last_text), label,
-                        )
-
-                        ns_fault = (
-                            "with namespace name" in last_text
-                            and "was not found" in last_text
-                        )
-                        schema_fault = issnet_erro_schema_ou_cabecalho(last_text)
-
-                        if r.status_code >= 400 or "Fault" in last_text:
-                            logger.error(
-                                "ISSNet Nacional %s erro (%s): %s",
-                                nome_op, label, last_text[:2000],
-                            )
-
-                        if schema_fault:
-                            logger.error(
-                                "ISSNet Nacional %s erro de schema/cabeçalho (%s): envelope=%s | resposta=%s",
-                                nome_op, label, envelope[:4000], last_text[:4000],
-                            )
-
-                        if issnet_corpo_parece_xml(last_text) and not (
-                            issnet_fault_soap_generico(last_text) or ns_fault or schema_fault
-                        ):
-                            # Resposta válida sem erros reconhecidos -> retorna
-                            return last_text
-
-                        # Se não for erro de schema/cabeçalho, não adianta insistir com outros formatos
-                        if not (ns_fault or schema_fault):
-                            return last_text
+                    # Se não for erro de schema/cabeçalho, não adianta insistir com outros formatos
+                    if not (ns_fault or schema_fault):
+                        return last_text
 
                 return last_text
         finally:

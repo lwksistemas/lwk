@@ -24,25 +24,41 @@ def cdata_section(payload: str) -> str:
     return f"<![CDATA[{s}]]>"
 
 
+def _serializar_conteudo(fragmento: str, modo: str) -> str:
+    if modo == "xsd_string":
+        return xml_escape(fragmento)
+    if modo == "cdata":
+        return cdata_section(fragmento)
+    # aninhado: insere o XML literalmente
+    return fragmento
+
+
 def _montar_soap_envelope(
     nome_operacao: str,
     dados_xml: str,
     *,
     cabec_txt: str,
     target_ns: str,
-    modo: str,
+    modo: str | None = None,
+    modo_cabec: str | None = None,
+    modo_dados: str | None = None,
 ) -> str:
-    """Monta envelope SOAP Document/Literal wrapped (nfseCabecMsg + nfseDadosMsg)."""
+    """Monta envelope SOAP Document/Literal wrapped (nfseCabecMsg + nfseDadosMsg).
+
+    Os modos podem ser informados separadamente (modo_cabec / modo_dados) ou
+    em conjunto (modo). Isso permite, por exemplo, cabeçalho aninhado e dados
+    em CDATA/xsd:string, o que evita herança de namespace na assinatura.
+    """
+    if modo is not None and (modo_cabec is not None or modo_dados is not None):
+        raise ValueError("Use 'modo' ou 'modo_cabec'/'modo_dados', não ambos.")
+    if modo is not None:
+        modo_cabec = modo_dados = modo
+    if modo_cabec is None or modo_dados is None:
+        raise ValueError("modo ou ambos modo_cabec/modo_dados são obrigatórios.")
+
     dados = strip_xml_declaration(dados_xml or "")
-    if modo == "xsd_string":
-        cabec_body = xml_escape(cabec_txt)
-        dados_body = xml_escape(dados)
-    elif modo == "cdata":
-        cabec_body = cdata_section(cabec_txt)
-        dados_body = cdata_section(dados)
-    else:  # aninhado
-        cabec_body = cabec_txt
-        dados_body = dados
+    cabec_body = _serializar_conteudo(cabec_txt, modo_cabec)
+    dados_body = _serializar_conteudo(dados, modo_dados)
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
         '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '

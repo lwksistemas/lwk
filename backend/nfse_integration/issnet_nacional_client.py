@@ -143,38 +143,31 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        # Combinações (label, cabecalho_xml, target_namespace, modo) em ordem de prioridade
-        # para o ISSNet Nacional. Ribeirão Preto (template Unimake) usa SPED 1.01 + aninhado.
+        # Combinações (label, cabecalho_xml, modo_cabec, modo_dados) em ordem de prioridade.
+        # O ISSNet Nacional valida o cabeçalho quando ele é um elemento XML aninhado
+        # e a assinatura do XML de dados deve ser verificada sobre o XML isolado,
+        # sem herança de namespace do envelope SOAP. Por isso testamos cabeçalho
+        # aninhado + dados em CDATA/xsd:string.
         tentativas = [
-            # Conforme documentação ISSNet Nacional, o cabeçalho cru sem xmlns
-            # e o XML aninhado são o único formato que passa do schema.
-            ("SPED sem xmlns 1.01 aninhado", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL, "aninhado"),
-            ("SPED sem xmlns 1.01 CDATA", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL, "cdata"),
-            ("SPED sem xmlns 1.01 xsd:string", self._cabec_msg_nacional_sem_ns("1.01"), NS_NFSE_NACIONAL, "xsd_string"),
-            ("SPED 1.01 aninhado", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "aninhado"),
-            ("SPED 1.01 CDATA", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "cdata"),
-            ("SPED 1.01 xsd:string", CABEC_MSG_NACIONAL, NS_NFSE_NACIONAL, "xsd_string"),
-            ("SPED 1.00 aninhado", self._cabec_msg_nacional_sped("1.00"), NS_NFSE_NACIONAL, "aninhado"),
-            ("SPED 1.00 CDATA", self._cabec_msg_nacional_sped("1.00"), NS_NFSE_NACIONAL, "cdata"),
-            ("SPED 1.00 xsd:string", self._cabec_msg_nacional_sped("1.00"), NS_NFSE_NACIONAL, "xsd_string"),
-            ("ABRASF 2.04 aninhado", self._cabec_msg_nacional_abrasf("2.04"), NS_NFSE_NACIONAL, "aninhado"),
-            ("ABRASF 2.04 CDATA", self._cabec_msg_nacional_abrasf("2.04"), NS_NFSE_NACIONAL, "cdata"),
-            ("ABRASF 2.04 xsd:string", self._cabec_msg_nacional_abrasf("2.04"), NS_NFSE_NACIONAL, "xsd_string"),
+            ("SPED 1.01 cabec aninhado + dados CDATA", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "cdata"),
+            ("SPED 1.01 cabec aninhado + dados xsd:string", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "xsd_string"),
+            ("SPED 1.01 cabec aninhado + dados aninhado", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "aninhado"),
+            ("SPED 1.01 cabec sem ns + dados CDATA", self._cabec_msg_nacional_sem_ns("1.01", "1.01"), "aninhado", "cdata"),
+            ("SPED 1.01 cabec sem ns + dados xsd:string", self._cabec_msg_nacional_sem_ns("1.01", "1.01"), "aninhado", "xsd_string"),
+            ("SPED 1.00 cabec aninhado + dados CDATA", self._cabec_msg_nacional_sped("1.00", "1.00"), "aninhado", "cdata"),
+            ("SPED 1.00 cabec aninhado + dados xsd:string", self._cabec_msg_nacional_sped("1.00", "1.00"), "aninhado", "xsd_string"),
+            ("SPED 1.00 cabec sem ns + dados CDATA", self._cabec_msg_nacional_sem_ns("1.00", "1.00"), "aninhado", "cdata"),
+            ("SPED 1.00 cabec sem ns + dados xsd:string", self._cabec_msg_nacional_sem_ns("1.00", "1.00"), "aninhado", "xsd_string"),
         ]
 
         try:
             with certificado_mtls_temporario(cert_path, self.cert_password) as (pem_cert, pem_key):
                 last_text = ""
-                for cabec_label, cabec_txt, target_ns, modo in tentativas:
-                    modo_label = {
-                        "xsd_string": "xsd:string (ACBr XmlToStr)",
-                        "cdata": "CDATA",
-                        "aninhado": "XML aninhado",
-                    }[modo]
-                    label = f"{cabec_label} + {modo_label}"
+                for cabec_label, cabec_txt, modo_cabec, modo_dados in tentativas:
+                    label = f"{cabec_label}"
                     envelope = _montar_soap_envelope(
                         nome_op, xml_dados, cabec_txt=cabec_txt,
-                        target_ns=target_ns, modo=modo,
+                        target_ns=NS_NFSE_NACIONAL, modo_cabec=modo_cabec, modo_dados=modo_dados,
                     )
                     logger.info(
                         "ISSNet Nacional: envelope SOAP (%s) (truncado):\n%s",
@@ -262,28 +255,30 @@ class ISSNetNacionalClient:
                     os.unlink(cert_path)
 
     @staticmethod
-    def _cabec_msg_nacional_abrasf(versao: str) -> str:
-        return (
-            f'<cabecalho xmlns="http://www.abrasf.org.br/nfse.xsd" versao="{versao}">'
-            '<versaoDados>1.01</versaoDados>'
-            '</cabecalho>'
-        )
+    def _cabec_msg_nacional_sped(versao: str, versao_dados: str = "1.01") -> str:
+        ns = NS_NFSE_NACIONAL
+        cab = etree.Element(f"{{{ns}}}cabecalho", nsmap={None: ns})
+        cab.set("versao", versao)
+        vd = etree.SubElement(cab, f"{{{ns}}}versaoDados")
+        vd.text = versao_dados
+        return etree.tostring(cab, encoding="unicode", xml_declaration=False)
 
     @staticmethod
-    def _cabec_msg_nacional_sped(versao: str) -> str:
-        return (
-            f'<cabecalho xmlns="http://www.sped.fazenda.gov.br/nfse" versao="{versao}">'
-            '<versaoDados>1.01</versaoDados>'
-            '</cabecalho>'
-        )
+    def _cabec_msg_nacional_sem_ns(versao: str, versao_dados: str = "1.01") -> str:
+        cab = etree.Element("cabecalho")
+        cab.set("versao", versao)
+        vd = etree.SubElement(cab, "versaoDados")
+        vd.text = versao_dados
+        return etree.tostring(cab, encoding="unicode", xml_declaration=False)
 
     @staticmethod
-    def _cabec_msg_nacional_sem_ns(versao: str) -> str:
-        return (
-            f'<cabecalho versao="{versao}">'
-            '<versaoDados>1.01</versaoDados>'
-            '</cabecalho>'
-        )
+    def _cabec_msg_nacional_abrasf(versao: str, versao_dados: str = "1.01") -> str:
+        ns = "http://www.abrasf.org.br/nfse.xsd"
+        cab = etree.Element(f"{{{ns}}}cabecalho", nsmap={None: ns})
+        cab.set("versao", versao)
+        vd = etree.SubElement(cab, f"{{{ns}}}versaoDados")
+        vd.text = versao_dados
+        return etree.tostring(cab, encoding="unicode", xml_declaration=False)
 
     def emitir_nfse(
         self,

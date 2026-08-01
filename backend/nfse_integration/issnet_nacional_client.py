@@ -30,12 +30,14 @@ from nfse_integration.issnet_constants import (
     NS_NFSE_NACIONAL,
     SOAP_ACTION_NACIONAL_CANCELAR_NFSE,
     SOAP_ACTION_NACIONAL_CONSULTAR_NFSE_DPS,
+    SOAP_ACTION_NACIONAL_GERAR_NFSE,
     SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
 )
 from nfse_integration.issnet_nacional_xml_builder import (
     construir_xml_cancelar_nfse_nacional,
     construir_xml_consultar_nfse_por_dps,
     construir_xml_enviar_lote_dps_sincrono,
+    construir_xml_gerar_nfse_envio,
     extrair_chave_acesso_nfse_nacional,
     extrair_numero_nfse_nacional,
 )
@@ -145,16 +147,12 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        # O ISSNet Nacional Ribeirão Preto só aceitou o schema com:
-        #   - cabecalho em namespace SPED 1.01 aninhado
-        #   - dados aninhados (não CDATA/xsd:string)
-        # Testa também os parâmetros nfseCabecMsg/nfseDadosMsg qualificados
-        # (<nfse:nfseCabecMsg>), pois algumas implementações ASMX esperam isso.
         # O serviço ISSNet Nacional aceita XML "cru" dentro de nfseCabecMsg
         # e nfseDadosMsg, apesar do WSDL tipar como xsd:string. O cabeçalho
-        # NÃO pode ter xmlns (senão devolve E183).
+        # NÃO pode ter xmlns (senão devolve E183). Os parâmetros do corpo
+        # devem estar qualificados com o namespace do serviço.
         tentativas = [
-            ("ISSNet 1.01 cabec cru sem ns + dados cru", self._cabec_msg_nacional_sem_ns("1.01", "1.01"), "aninhado", "aninhado", False),
+            ("ISSNet 1.01 cabec cru sem ns + dados cru qualif", self._cabec_msg_nacional_sem_ns("1.01", "1.01"), "aninhado", "aninhado", True),
         ]
 
         try:
@@ -350,8 +348,7 @@ class ISSNetNacionalClient:
         try:
             ambiente_int = 1 if self.ambiente == "producao" else 2
 
-            xml_envio = construir_xml_enviar_lote_dps_sincrono(
-                numero_lote=numero_lote,
+            xml_envio = construir_xml_gerar_nfse_envio(
                 prestador_cnpj=self.prestador_cnpj,
                 prestador_inscricao_municipal=self.prestador_im,
                 numero_dps=numero_dps,
@@ -360,8 +357,6 @@ class ISSNetNacionalClient:
                 data_competencia=data_competencia,
                 codigo_municipio_emissor=self.codigo_municipio,
                 ambiente=ambiente_int,
-                prestador_telefone=prestador_telefone,
-                prestador_email=prestador_email,
                 optante_simples_nacional=self.optante_simples,
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
                 tomador_nome=tomador_nome,
@@ -403,7 +398,7 @@ class ISSNetNacionalClient:
             )
             resposta_soap = self._enviar_soap(
                 xml_assinado,
-                SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
+                SOAP_ACTION_NACIONAL_GERAR_NFSE,
             )
             result["xml_resposta"] = resposta_soap
 

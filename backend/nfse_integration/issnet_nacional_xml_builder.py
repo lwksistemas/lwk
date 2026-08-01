@@ -31,144 +31,37 @@ def _somente_digitos(texto: str) -> str:
     return re.sub(r"\D", "", texto or "")
 
 
-def construir_xml_gerar_nfse_envio(
+def _construir_dps_issnet(
     *,
-    # Prestador
+    numero_dps: int,
+    serie_dps: str,
+    codigo_municipio_emissor: str,
+    ambiente_str: str,
+    cnpj_prest: str,
+    im_prest: str,
     prestador_cnpj: str,
     prestador_inscricao_municipal: str,
-    # DPS
-    numero_dps: int,
-    serie_dps: str = "1",
-    data_emissao: datetime | None = None,
-    codigo_municipio_prestador: str = COD_MUNICIPIO_RP,
-    ambiente: str = "producao",
-    # Prestador info
-    prestador_telefone: str = "",
-    prestador_email: str = "",
-    optante_simples_nacional: bool = True,
-    regime_especial: int = 0,
-    # Tomador
-    tomador_cpf_cnpj: str = "",
-    tomador_nome: str = "",
-    tomador_endereco: dict[str, str] | None = None,
-    tomador_telefone: str = "",
-    tomador_email: str = "",
-    # Serviço
-    codigo_servico: str = "14.01",
-    descricao_servico: str = "Serviço prestado",
-    codigo_cnae: str = "",
-    codigo_municipio_incidencia: str = "",
-    # Valores
-    valor_servicos: Decimal = Decimal("0.00"),
-    aliquota_iss: Decimal = Decimal("0.00"),
-    # Tributação
-    natureza_tributacao: int = 1,
-    iss_retido: bool = False,
-) -> str:
-    """Monta GerarNfseEnvio contendo o DPS para emissão síncrona.
-
-    Formato: <GerarNfseEnvio><DPS versao="1.00"><infDPS>...</infDPS></DPS></GerarNfseEnvio>
-
-    Usa internamente `nacional.xml_builder.construir_xml_dps` que já gera
-    o XML correto conforme XSD oficial.
-    """
-    if data_emissao is None:
-        data_emissao = datetime.now()
-
-    # Gerar XML da DPS usando o builder ADN (já validado)
-    xml_dps = construir_xml_dps(
-        numero_dps=numero_dps,
-        serie_dps=serie_dps,
-        codigo_municipio_prestador=codigo_municipio_prestador,
-        ambiente=ambiente,
-        prestador_cnpj=prestador_cnpj,
-        prestador_inscricao_municipal=prestador_inscricao_municipal,
-        prestador_telefone=prestador_telefone,
-        prestador_email=prestador_email,
-        tomador_cpf_cnpj=tomador_cpf_cnpj,
-        tomador_nome=tomador_nome,
-        tomador_endereco=tomador_endereco,
-        tomador_telefone=tomador_telefone,
-        tomador_email=tomador_email,
-        codigo_servico=codigo_servico,
-        descricao_servico=descricao_servico,
-        codigo_cnae=codigo_cnae,
-        codigo_municipio_incidencia=codigo_municipio_incidencia,
-        valor_servicos=valor_servicos,
-        aliquota_iss=aliquota_iss,
-        natureza_tributacao=natureza_tributacao,
-        iss_retido=iss_retido,
-        optante_simples_nacional=optante_simples_nacional,
-        regime_especial=regime_especial,
-        data_competencia=data_emissao,
-    )
-
-    # Envolver em GerarNfseEnvio
-    nsmap = {None: NS_NFSE}
-    root = etree.Element(f"{{{NS_NFSE}}}GerarNfseEnvio", nsmap=nsmap)
-
-    # Parsear o DPS gerado e inserir como filho
-    dps_element = etree.fromstring(xml_dps.encode("utf-8"))
-    root.append(dps_element)
-
-    xml_str = etree.tostring(root, encoding="unicode", xml_declaration=False)
-    logger.info(
-        "XML GerarNfseEnvio (ISSNet Nacional): nDPS=%s, serie=%s, valor=R$%s",
-        numero_dps, serie_dps, valor_servicos,
-    )
-    return xml_str
-
-
-def construir_xml_enviar_lote_dps_sincrono(
-    *,
-    numero_lote: int,
-    prestador_cnpj: str,
-    prestador_inscricao_municipal: str,
-    numero_dps: int,
-    serie_dps: str = "1",
-    data_emissao: datetime | None = None,
-    data_competencia: datetime | None = None,
-    codigo_municipio_emissor: str = COD_MUNICIPIO_RP,
-    ambiente: int = 1,
-    prestador_telefone: str = "",
-    prestador_email: str = "",
-    optante_simples_nacional: bool = True,
-    tomador_cpf_cnpj: str = "",
-    tomador_nome: str = "",
-    tomador_endereco: dict[str, str] | None = None,
-    tomador_telefone: str = "",
-    tomador_email: str = "",
-    codigo_municipio_prestacao: str = "",
-    codigo_tributacao_nacional: str = "140100",
-    codigo_tributacao_municipal: str | None = None,
-    descricao_servico: str = "Serviço prestado",
-    codigo_nbs: str = "114011100",
-    valor_servicos: Decimal = Decimal("0.00"),
-    aliquota_iss: Decimal = Decimal("2.50"),
-    valor_iss: Decimal | None = None,
-    # IBSCBS / Reforma Tributária
-    indicador_operacao: str = "100301",
-    ind_final_ibscbs: str = "0",
-    ind_dest_ibscbs: str = "0",
-    cst_ibscbs: str = "000",
-    cclass_trib_ibscbs: str = "000001",
-) -> str:
-    """Monta EnviarLoteDpsSincronoEnvio para ISSNet Nacional.
-
-    Usa `nacional.xml_builder.construir_xml_dps` para gerar o DPS e envolve
-    no formato de lote conforme XSD v1.01.
-    """
-    if data_emissao is None:
-        data_emissao = datetime.now()
-
-    ambiente_str = "homologacao" if ambiente == 2 else "producao"
-    cnpj_prest = _somente_digitos(prestador_cnpj)
-    im_prest = (prestador_inscricao_municipal or "").strip()
-
-    # Gerar XML da DPS usando o builder ADN (já validado contra XSD).
-    # Para o ISSNet Nacional usamos namespace padrão (sem prefixo), alinhado
-    # ao exemplo oficial .NET da NFSe Nacional e evitando re-canonicalização
-    # causada pelo prefixo nfse: dentro do envelope SOAP.
+    optante_simples_nacional: bool,
+    tomador_cpf_cnpj: str,
+    tomador_nome: str,
+    tomador_endereco: dict[str, str] | None,
+    tomador_telefone: str,
+    tomador_email: str,
+    codigo_municipio_prestacao: str,
+    codigo_tributacao_nacional: str,
+    codigo_tributacao_municipal: str | None,
+    descricao_servico: str,
+    codigo_nbs: str,
+    valor_servicos: Decimal,
+    aliquota_iss: Decimal,
+    data_emissao: datetime,
+    indicador_operacao: str,
+    ind_final_ibscbs: str,
+    ind_dest_ibscbs: str,
+    cst_ibscbs: str,
+    cclass_trib_ibscbs: str,
+) -> etree._Element:
+    """Constrói o elemento <DPS> estendido com os campos exigidos pelo ISSNet Nacional."""
     xml_dps = construir_xml_dps(
         numero_dps=numero_dps,
         serie_dps=serie_dps,
@@ -234,6 +127,169 @@ def construir_xml_enviar_lote_dps_sincrono(
         g_ibscbs = etree.SubElement(trib_ibscbs, f"{{{NS_NFSE}}}gIBSCBS")
         etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}CST").text = cst_ibscbs
         etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}cClassTrib").text = cclass_trib_ibscbs
+
+    return dps_element
+
+
+def construir_xml_gerar_nfse_envio(
+    *,
+    prestador_cnpj: str,
+    prestador_inscricao_municipal: str,
+    numero_dps: int,
+    serie_dps: str = "1",
+    data_emissao: datetime | None = None,
+    data_competencia: datetime | None = None,
+    codigo_municipio_emissor: str = COD_MUNICIPIO_RP,
+    ambiente: int = 1,
+    prestador_telefone: str = "",
+    prestador_email: str = "",
+    optante_simples_nacional: bool = True,
+    tomador_cpf_cnpj: str = "",
+    tomador_nome: str = "",
+    tomador_endereco: dict[str, str] | None = None,
+    tomador_telefone: str = "",
+    tomador_email: str = "",
+    codigo_municipio_prestacao: str = "",
+    codigo_tributacao_nacional: str = "140100",
+    codigo_tributacao_municipal: str | None = None,
+    descricao_servico: str = "Serviço prestado",
+    codigo_nbs: str = "114011100",
+    valor_servicos: Decimal = Decimal("0.00"),
+    aliquota_iss: Decimal = Decimal("2.50"),
+    valor_iss: Decimal | None = None,
+    # IBSCBS / Reforma Tributária
+    indicador_operacao: str = "100301",
+    ind_final_ibscbs: str = "0",
+    ind_dest_ibscbs: str = "0",
+    cst_ibscbs: str = "000",
+    cclass_trib_ibscbs: str = "000001",
+) -> str:
+    """Monta GerarNfseEnvio contendo o DPS estendido para emissão via ISSNet Nacional."""
+    if data_emissao is None:
+        data_emissao = datetime.now()
+
+    ambiente_str = "homologacao" if ambiente == 2 else "producao"
+    cnpj_prest = _somente_digitos(prestador_cnpj)
+    im_prest = (prestador_inscricao_municipal or "").strip()
+
+    dps_element = _construir_dps_issnet(
+        numero_dps=numero_dps,
+        serie_dps=serie_dps,
+        codigo_municipio_emissor=codigo_municipio_emissor,
+        ambiente_str=ambiente_str,
+        cnpj_prest=cnpj_prest,
+        im_prest=im_prest,
+        prestador_cnpj=prestador_cnpj,
+        prestador_inscricao_municipal=prestador_inscricao_municipal,
+        optante_simples_nacional=optante_simples_nacional,
+        tomador_cpf_cnpj=tomador_cpf_cnpj,
+        tomador_nome=tomador_nome,
+        tomador_endereco=tomador_endereco,
+        tomador_telefone=tomador_telefone,
+        tomador_email=tomador_email,
+        codigo_municipio_prestacao=codigo_municipio_prestacao,
+        codigo_tributacao_nacional=codigo_tributacao_nacional,
+        codigo_tributacao_municipal=codigo_tributacao_municipal,
+        descricao_servico=descricao_servico,
+        codigo_nbs=codigo_nbs,
+        valor_servicos=valor_servicos,
+        aliquota_iss=aliquota_iss,
+        data_emissao=data_emissao,
+        indicador_operacao=indicador_operacao,
+        ind_final_ibscbs=ind_final_ibscbs,
+        ind_dest_ibscbs=ind_dest_ibscbs,
+        cst_ibscbs=cst_ibscbs,
+        cclass_trib_ibscbs=cclass_trib_ibscbs,
+    )
+
+    nsmap = {None: NS_NFSE}
+    root = etree.Element(f"{{{NS_NFSE}}}GerarNfseEnvio", nsmap=nsmap)
+    root.append(dps_element)
+
+    xml_str = etree.tostring(root, encoding="unicode", xml_declaration=False)
+    logger.info(
+        "XML GerarNfseEnvio (ISSNet Nacional): nDPS=%s, serie=%s, valor=R$%s",
+        numero_dps, serie_dps, valor_servicos,
+    )
+    return xml_str
+
+
+def construir_xml_enviar_lote_dps_sincrono(
+    *,
+    numero_lote: int,
+    prestador_cnpj: str,
+    prestador_inscricao_municipal: str,
+    numero_dps: int,
+    serie_dps: str = "1",
+    data_emissao: datetime | None = None,
+    data_competencia: datetime | None = None,
+    codigo_municipio_emissor: str = COD_MUNICIPIO_RP,
+    ambiente: int = 1,
+    prestador_telefone: str = "",
+    prestador_email: str = "",
+    optante_simples_nacional: bool = True,
+    tomador_cpf_cnpj: str = "",
+    tomador_nome: str = "",
+    tomador_endereco: dict[str, str] | None = None,
+    tomador_telefone: str = "",
+    tomador_email: str = "",
+    codigo_municipio_prestacao: str = "",
+    codigo_tributacao_nacional: str = "140100",
+    codigo_tributacao_municipal: str | None = None,
+    descricao_servico: str = "Serviço prestado",
+    codigo_nbs: str = "114011100",
+    valor_servicos: Decimal = Decimal("0.00"),
+    aliquota_iss: Decimal = Decimal("2.50"),
+    valor_iss: Decimal | None = None,
+    # IBSCBS / Reforma Tributária
+    indicador_operacao: str = "100301",
+    ind_final_ibscbs: str = "0",
+    ind_dest_ibscbs: str = "0",
+    cst_ibscbs: str = "000",
+    cclass_trib_ibscbs: str = "000001",
+) -> str:
+    """Monta EnviarLoteDpsSincronoEnvio para ISSNet Nacional.
+
+    Usa `nacional.xml_builder.construir_xml_dps` para gerar o DPS e envolve
+    no formato de lote conforme XSD v1.01.
+    """
+    if data_emissao is None:
+        data_emissao = datetime.now()
+
+    ambiente_str = "homologacao" if ambiente == 2 else "producao"
+    cnpj_prest = _somente_digitos(prestador_cnpj)
+    im_prest = (prestador_inscricao_municipal or "").strip()
+
+    dps_element = _construir_dps_issnet(
+        numero_dps=numero_dps,
+        serie_dps=serie_dps,
+        codigo_municipio_emissor=codigo_municipio_emissor,
+        ambiente_str=ambiente_str,
+        cnpj_prest=cnpj_prest,
+        im_prest=im_prest,
+        prestador_cnpj=prestador_cnpj,
+        prestador_inscricao_municipal=prestador_inscricao_municipal,
+        optante_simples_nacional=optante_simples_nacional,
+        tomador_cpf_cnpj=tomador_cpf_cnpj,
+        tomador_nome=tomador_nome,
+        tomador_endereco=tomador_endereco,
+        tomador_telefone=tomador_telefone,
+        tomador_email=tomador_email,
+        codigo_municipio_prestacao=codigo_municipio_prestacao,
+        codigo_tributacao_nacional=codigo_tributacao_nacional,
+        codigo_tributacao_municipal=codigo_tributacao_municipal,
+        descricao_servico=descricao_servico,
+        codigo_nbs=codigo_nbs,
+        valor_servicos=valor_servicos,
+        aliquota_iss=aliquota_iss,
+        data_emissao=data_emissao,
+        data_competencia=data_competencia,
+        indicador_operacao=indicador_operacao,
+        ind_final_ibscbs=ind_final_ibscbs,
+        ind_dest_ibscbs=ind_dest_ibscbs,
+        cst_ibscbs=cst_ibscbs,
+        cclass_trib_ibscbs=cclass_trib_ibscbs,
+    )
 
     # Envolver em EnviarLoteDpsSincronoEnvio > LoteDps (Id=Lote{n} — exigido p/ assinatura)
     # Namespace padrão (sem prefixo), alinhado ao exemplo oficial .NET.

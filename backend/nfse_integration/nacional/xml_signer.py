@@ -161,19 +161,23 @@ def _completar_cadeia_certificados(cert_obj, extra_certs):
     return chain
 
 
-def _adicionar_certificados_x509(x509_data, cert_obj, extra_certs):
-    """Adiciona certificado folha e cadeia completa ao X509Data.
-
-    Alguns servidores (ex: ISSNet Nacional) não conseguem validar a assinatura
-    sem a cadeia completa do certificado ICP-Brasil.
-    """
+def _adicionar_certificados_x509(
+    x509_data,
+    cert_obj,
+    extra_certs=None,
+    incluir_cadeia: bool = True,
+):
+    """Remove certificados X509Data existentes e adiciona folha + intermediários."""
     from cryptography.hazmat.primitives.serialization import Encoding
 
     existing = x509_data.findall(f"{{{DSIG_NS}}}X509Certificate")
     for cert in existing:
         x509_data.remove(cert)
 
-    certs = _completar_cadeia_certificados(cert_obj, extra_certs or [])
+    if incluir_cadeia:
+        certs = _completar_cadeia_certificados(cert_obj, extra_certs or [])
+    else:
+        certs = [cert_obj]
     logger.info("Incluindo %d certificado(s) na X509Data", len(certs))
 
     for cert in certs:
@@ -223,16 +227,24 @@ def carregar_certificado_bytes(pfx_bytes: bytes, senha: str) -> tuple:
     return private_key, certificate, extra
 
 
-def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
+def assinar_xml_dps(
+    xml_str: str,
+    pfx_path: str,
+    senha_pfx: str,
+    prefixo_ds: bool = True,
+    usar_cadeia: bool = True,
+) -> str:
     """Assina o XML da DPS com certificado digital.
 
     A assinatura é feita no elemento infDPS (Reference URI = #Id do infDPS).
-    Usa enveloped signature com Canonicalization C14N e RSA-SHA256.
+    Usa enveloped signature com Canonicalization C14N e RSA-SHA1.
 
     Args:
         xml_str: XML da DPS como string
         pfx_path: Caminho para o arquivo .pfx
         senha_pfx: Senha do certificado
+        prefixo_ds: se False, usa namespace padrão sem prefixo ds:
+        usar_cadeia: se False, inclui apenas o certificado folha na X509Data
 
     Returns:
         XML assinado como string
@@ -271,10 +283,12 @@ def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
     # Criar template de assinatura
     # Signature como último filho do root (DPS)
     # Usar RSA-SHA1 conforme Portal Contribuinte (nfse.gov.br)
+    ns_prefix = "ds" if prefixo_ds else None
     sig_node = xmlsec.template.create(
         root,
         xmlsec.constants.TransformInclC14N,
         xmlsec.constants.TransformRsaSha1,
+        ns=ns_prefix,
     )
     root.append(sig_node)
 
@@ -287,11 +301,11 @@ def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
     xmlsec.template.add_transform(ref, xmlsec.constants.TransformEnveloped)
     xmlsec.template.add_transform(ref, xmlsec.constants.TransformInclC14N)
 
-    # KeyInfo com X509Data (certificado + cadeia completa)
+    # KeyInfo com X509Data (certificado folha ou cadeia completa)
     key_info = xmlsec.template.ensure_key_info(sig_node)
     x509_data = xmlsec.template.add_x509_data(key_info)
     xmlsec.template.x509_data_add_certificate(x509_data)
-    _adicionar_certificados_x509(x509_data, cert_obj, chain)
+    _adicionar_certificados_x509(x509_data, cert_obj, chain, incluir_cadeia=usar_cadeia)
 
     # Assinar
     ctx = xmlsec.SignatureContext()
@@ -304,7 +318,13 @@ def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
     return result
 
 
-def assinar_xml_dps_bytes(xml_str: str, pfx_bytes: bytes, senha_pfx: str) -> str:
+def assinar_xml_dps_bytes(
+    xml_str: str,
+    pfx_bytes: bytes,
+    senha_pfx: str,
+    prefixo_ds: bool = True,
+    usar_cadeia: bool = True,
+) -> str:
     """Assina XML da DPS usando certificado em bytes (BinaryField).
     Cria arquivo temporário e delega para assinar_xml_dps.
     """
@@ -315,7 +335,10 @@ def assinar_xml_dps_bytes(xml_str: str, pfx_bytes: bytes, senha_pfx: str) -> str
         tmp.close()
         cert_path = tmp.name
 
-        return assinar_xml_dps(xml_str, cert_path, senha_pfx)
+        return assinar_xml_dps(
+            xml_str, cert_path, senha_pfx,
+            prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
+        )
     finally:
         if cert_path:
             with contextlib.suppress(OSError):
@@ -336,7 +359,16 @@ def _carregar_chave_xmlsec(pfx_path: str, senha_pfx: str):
     return key, cert_obj, extra_certs
 
 
-def _assinar_elemento_por_id(parent_el, target_el, key, ref_id: str, cert_obj=None, extra_certs=None) -> None:
+def _assinar_elemento_por_id(
+    parent_el,
+    target_el,
+    key,
+    ref_id: str,
+    cert_obj=None,
+    extra_certs=None,
+    prefixo_ds: bool = True,
+    usar_cadeia: bool = True,
+) -> None:
     """Assinatura enveloped no parent, Reference URI=#ref_id apontando para target_el."""
     import xmlsec
 
@@ -345,10 +377,12 @@ def _assinar_elemento_por_id(parent_el, target_el, key, ref_id: str, cert_obj=No
         if etree.QName(child.tag).localname == "Signature":
             parent_el.remove(child)
 
+    ns_prefix = "ds" if prefixo_ds else None
     sig_node = xmlsec.template.create(
         parent_el,
         xmlsec.constants.TransformInclC14N,
         xmlsec.constants.TransformRsaSha1,
+        ns=ns_prefix,
     )
     parent_el.append(sig_node)
     ref = xmlsec.template.add_reference(
@@ -362,7 +396,7 @@ def _assinar_elemento_por_id(parent_el, target_el, key, ref_id: str, cert_obj=No
     x509_data = xmlsec.template.add_x509_data(key_info)
     xmlsec.template.x509_data_add_certificate(x509_data)
     if cert_obj is not None:
-        _adicionar_certificados_x509(x509_data, cert_obj, extra_certs)
+        _adicionar_certificados_x509(x509_data, cert_obj, extra_certs, incluir_cadeia=usar_cadeia)
 
     ctx = xmlsec.SignatureContext()
     ctx.key = key
@@ -375,6 +409,8 @@ def assinar_xml_enviar_lote_dps(
     pfx_path: str,
     senha_pfx: str,
     assinar_lote: bool = True,
+    prefixo_ds: bool = True,
+    usar_cadeia: bool = True,
 ) -> str:
     """Assina EnviarLoteDpsSincronoEnvio / EnviarLoteDpsEnvio (padrão Nacional ISSNet).
 
@@ -382,6 +418,10 @@ def assinar_xml_enviar_lote_dps(
     2) Opcionalmente assina o LoteDps (Reference=#Id do lote). O ISSNet Nacional
        rejeita quando a segunda assinatura está presente, então o default pode
        ser desligado pelo chamador.
+    3) prefixo_ds=False emite <Signature xmlns="..."> sem prefixo ds:, conforme
+       exemplos do ISSNet Nacional.
+    4) usar_cadeia=False inclui apenas o certificado folha na X509Data, conforme
+       exemplos do ISSNet Nacional.
     """
     ns = "http://www.sped.fazenda.gov.br/nfse"
     root = etree.fromstring(xml_str.encode("utf-8"))
@@ -407,7 +447,10 @@ def assinar_xml_enviar_lote_dps(
         inf_id = (inf_dps.get("Id") or "").strip()
         if not inf_id:
             raise ValueError("Atributo Id ausente em infDPS.")
-        _assinar_elemento_por_id(dps, inf_dps, key, inf_id, cert_obj, chain)
+        _assinar_elemento_por_id(
+            dps, inf_dps, key, inf_id, cert_obj, chain,
+            prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
+        )
 
     # Signature do lote fica na raiz (irmã de LoteDps), Reference=#Id do LoteDps
     if assinar_lote:
@@ -418,7 +461,10 @@ def assinar_xml_enviar_lote_dps(
                 num = lote.findtext(f"{{{ns}}}NumeroLote") or "1"
                 lote_id = f"Lote{num}"
                 lote.set("Id", lote_id)
-            _assinar_elemento_por_id(root, lote, key, lote_id, cert_obj, chain)
+            _assinar_elemento_por_id(
+                root, lote, key, lote_id, cert_obj, chain,
+                prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
+            )
 
     result = etree.tostring(root, encoding="unicode", xml_declaration=False)
     logger.info(

@@ -118,10 +118,16 @@ class ISSNetNacionalClient:
                 "GerarNfseEnvio",
                 "DPS",
             ):
-                # ISSNet Nacional parece rejeitar a assinatura extra do lote;
-                # assina apenas cada DPS.
+                # ISSNet Nacional: assina apenas cada DPS, sem assinatura de lote,
+                # sem prefixo ds: e com apenas o certificado folha na X509Data,
+                # conforme exemplos oficiais retornados pelo servidor.
                 return assinar_xml_enviar_lote_dps(
-                    xml_str, cert_path, self.cert_password, assinar_lote=False,
+                    xml_str,
+                    cert_path,
+                    self.cert_password,
+                    assinar_lote=False,
+                    prefixo_ds=False,
+                    usar_cadeia=False,
                 )
             # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
             return assinar_xml_issnet(xml_str, cert_path, self.cert_password)

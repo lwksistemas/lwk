@@ -135,7 +135,6 @@ def issnet_erro_schema_ou_cabecalho(texto: str) -> bool:
             "fora do padrão",
             "fora do padrao",
             "desacordo com o xml schema",
-            "xmlns",
             "invalid namespace",
         )
     )

@@ -254,6 +254,10 @@ def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
     key = xmlsec.Key.from_memory(key_pem, xmlsec.constants.KeyDataFormatPem)
     key.load_cert_from_memory(cert_pem, xmlsec.constants.KeyDataFormatPem)
 
+    # Completar cadeia ICP-Brasil (AIA + fallback) para X509Data
+    chain = _completar_cadeia_certificados(cert_obj, extra_certs)
+    logger.info("Cadeia de certificados montada: %d certificado(s) (folha + intermediários)", len(chain))
+
     # Encontrar o elemento infDPS e seu Id
     ns = "http://www.sped.fazenda.gov.br/nfse"
     inf_dps = root.find(f"{{{ns}}}infDPS")
@@ -287,7 +291,7 @@ def assinar_xml_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
     key_info = xmlsec.template.ensure_key_info(sig_node)
     x509_data = xmlsec.template.add_x509_data(key_info)
     xmlsec.template.x509_data_add_certificate(x509_data)
-    _adicionar_certificados_x509(x509_data, cert_obj, extra_certs)
+    _adicionar_certificados_x509(x509_data, cert_obj, chain)
 
     # Assinar
     ctx = xmlsec.SignatureContext()
@@ -380,6 +384,11 @@ def assinar_xml_enviar_lote_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> 
         return assinar_xml_dps(xml_str, pfx_path, senha_pfx)
 
     key, cert_obj, extra_certs = _carregar_chave_xmlsec(pfx_path, senha_pfx)
+
+    # Completa a cadeia ICP-Brasil (AIA + fallback) para incluir no X509Data
+    chain = _completar_cadeia_certificados(cert_obj, extra_certs)
+    logger.info("Cadeia de certificados montada: %d certificado(s) (folha + intermediários)", len(chain))
+
     dps_nodes = root.findall(f".//{{{ns}}}DPS")
     if not dps_nodes:
         raise ValueError("Nenhum elemento DPS encontrado para assinatura no lote Nacional.")
@@ -391,7 +400,7 @@ def assinar_xml_enviar_lote_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> 
         inf_id = (inf_dps.get("Id") or "").strip()
         if not inf_id:
             raise ValueError("Atributo Id ausente em infDPS.")
-        _assinar_elemento_por_id(dps, inf_dps, key, inf_id, cert_obj, extra_certs)
+        _assinar_elemento_por_id(dps, inf_dps, key, inf_id, cert_obj, chain)
 
     # Signature do lote fica na raiz (irmã de LoteDps), Reference=#Id do LoteDps
     lote = root.find(f"{{{ns}}}LoteDps")
@@ -401,7 +410,7 @@ def assinar_xml_enviar_lote_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> 
             num = lote.findtext(f"{{{ns}}}NumeroLote") or "1"
             lote_id = f"Lote{num}"
             lote.set("Id", lote_id)
-        _assinar_elemento_por_id(root, lote, key, lote_id, cert_obj, extra_certs)
+        _assinar_elemento_por_id(root, lote, key, lote_id, cert_obj, chain)
 
     result = etree.tostring(root, encoding="unicode", xml_declaration=False)
     logger.info(

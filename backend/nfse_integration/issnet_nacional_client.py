@@ -148,21 +148,22 @@ class ISSNetNacionalClient:
         # O ISSNet Nacional Ribeirão Preto só aceitou o schema com:
         #   - cabecalho em namespace SPED 1.01 aninhado
         #   - dados aninhados (não CDATA/xsd:string)
-        # O erro restante é de assinatura, provocado pela re-canonicalização do
-        # XML dentro do envelope SOAP. O XML de dados agora é gerado com prefixo
-        # nfse: para alinhar a canonicalização C14N.
+        # Testa também os parâmetros nfseCabecMsg/nfseDadosMsg qualificados
+        # (<nfse:nfseCabecMsg>), pois algumas implementações ASMX esperam isso.
         tentativas = [
-            ("SPED 1.01 cabec aninhado + dados aninhado", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "aninhado"),
+            ("SPED 1.01 cabec aninhado + dados aninhado", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "aninhado", False),
+            ("SPED 1.01 cabec aninhado + dados aninhado (params qualif)", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "aninhado", True),
         ]
 
         try:
             with certificado_mtls_temporario(cert_path, self.cert_password) as (pem_cert, pem_key):
                 last_text = ""
-                for cabec_label, cabec_txt, modo_cabec, modo_dados in tentativas:
+                for cabec_label, cabec_txt, modo_cabec, modo_dados, prefixar_mensagens in tentativas:
                     label = f"{cabec_label}"
                     envelope = _montar_soap_envelope(
                         nome_op, xml_dados, cabec_txt=cabec_txt,
                         target_ns=NS_NFSE_NACIONAL, modo_cabec=modo_cabec, modo_dados=modo_dados,
+                        prefixar_mensagens=prefixar_mensagens,
                     )
                     logger.info(
                         "ISSNet Nacional: envelope SOAP (%s) (truncado):\n%s",
@@ -171,8 +172,12 @@ class ISSNetNacionalClient:
 
                     # Diagnóstico: comparar XML dos dados antes/depois do envelope
                     try:
-                        start = envelope.index("<nfseDadosMsg>") + len("<nfseDadosMsg>")
-                        end = envelope.index("</nfseDadosMsg>", start)
+                        tag_open = re.search(r"<(?:nfse:)?nfseDadosMsg>", envelope)
+                        tag_close = re.search(r"</(?:nfse:)?nfseDadosMsg>", envelope)
+                        if not tag_open or not tag_close:
+                            raise ValueError("Tags nfseDadosMsg não encontradas no envelope")
+                        start = tag_open.end()
+                        end = tag_close.start()
                         dados_no_envelope = envelope[start:end]
                         dados_originais = xml_dados.lstrip()
                         if dados_originais.startswith("<?xml"):

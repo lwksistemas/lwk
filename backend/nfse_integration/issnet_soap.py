@@ -42,12 +42,17 @@ def _montar_soap_envelope(
     modo: str | None = None,
     modo_cabec: str | None = None,
     modo_dados: str | None = None,
+    prefixar_mensagens: bool = False,
 ) -> str:
     """Monta envelope SOAP Document/Literal wrapped (nfseCabecMsg + nfseDadosMsg).
 
     Os modos podem ser informados separadamente (modo_cabec / modo_dados) ou
     em conjunto (modo). Isso permite, por exemplo, cabeçalho aninhado e dados
     em CDATA/xsd:string, o que evita herança de namespace na assinatura.
+
+    Quando prefixar_mensagens=True, os parâmetros do corpo da operação são
+    prefixados com o namespace nfse: (ex.: <nfse:nfseCabecMsg>), conforme
+    algumas implementações ASMX da ISSNet esperam.
     """
     if modo is not None and (modo_cabec is not None or modo_dados is not None):
         raise ValueError("Use 'modo' ou 'modo_cabec'/'modo_dados', não ambos.")
@@ -59,6 +64,7 @@ def _montar_soap_envelope(
     dados = strip_xml_declaration(dados_xml or "")
     cabec_body = _serializar_conteudo(cabec_txt, modo_cabec)
     dados_body = _serializar_conteudo(dados, modo_dados)
+    pfx = "nfse:" if prefixar_mensagens else ""
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
         '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
@@ -68,8 +74,8 @@ def _montar_soap_envelope(
         '<soap:Header/>'
         '<soap:Body>'
         f'<nfse:{nome_operacao}>'
-        f'<nfseCabecMsg>{cabec_body}</nfseCabecMsg>'
-        f'<nfseDadosMsg>{dados_body}</nfseDadosMsg>'
+        f'<{pfx}nfseCabecMsg>{cabec_body}</{pfx}nfseCabecMsg>'
+        f'<{pfx}nfseDadosMsg>{dados_body}</{pfx}nfseDadosMsg>'
         f'</nfse:{nome_operacao}>'
         '</soap:Body>'
         '</soap:Envelope>'

@@ -22,8 +22,8 @@ from nfse_integration.nacional.xml_builder import construir_xml_dps
 logger = logging.getLogger(__name__)
 
 NS_NFSE_NACIONAL = NS_NFSE  # Re-export
-# XMLs aceitos pela ISSNet Ribeirão Preto usam DPS versão 1.00 (sem IBSCBS/cTribMun).
-VERSAO_ISSNET_NACIONAL = "1.00"
+# Schema ISSNet Nacional aceita v1.01; teste sem IBSCBS/cTribMun para isolar E0714.
+VERSAO_ISSNET_NACIONAL = VERSAO_DPS
 COD_MUNICIPIO_RP = "3543402"
 
 
@@ -197,7 +197,7 @@ def construir_xml_enviar_lote_dps_sincrono(
     # Parsear DPS para opcionalmente adicionar cTribMun e IBSCBS (apenas v1.01).
     dps_element = etree.fromstring(xml_dps.encode("utf-8"))
 
-    adicionar_ibscbs = VERSAO_ISSNET_NACIONAL != "1.00"
+    adicionar_ibscbs = False
 
     # Adicionar cTribMun no cServ se informado (v1.01)
     if adicionar_ibscbs:

@@ -165,10 +165,9 @@ def construir_xml_enviar_lote_dps_sincrono(
     im_prest = (prestador_inscricao_municipal or "").strip()
 
     # Gerar XML da DPS usando o builder ADN (já validado contra XSD).
-    # Para o ISSNet Nacional usamos prefixo nfse: no namespace, pois o
-    # envelope SOAP declara xmlns:nfse="http://www.sped.fazenda.gov.br/nfse".
-    # Isso evita que a re-canonicalização da assinatura mude o formato do
-    # XML quando aninhado dentro do envelope.
+    # Para o ISSNet Nacional usamos namespace padrão (sem prefixo), alinhado
+    # ao exemplo oficial .NET da NFSe Nacional e evitando re-canonicalização
+    # causada pelo prefixo nfse: dentro do envelope SOAP.
     xml_dps = construir_xml_dps(
         numero_dps=numero_dps,
         serie_dps=serie_dps,
@@ -223,8 +222,8 @@ def construir_xml_enviar_lote_dps_sincrono(
         etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}cClassTrib").text = cclass_trib_ibscbs
 
     # Envolver em EnviarLoteDpsSincronoEnvio > LoteDps (Id=Lote{n} — exigido p/ assinatura)
-    # Mesmo namespace com prefixo nfse:, para evitar re-canonicalização no envelope.
-    nsmap = {"nfse": NS_NFSE}
+    # Namespace padrão (sem prefixo), alinhado ao exemplo oficial .NET.
+    nsmap = {None: NS_NFSE}
     root = etree.Element(f"{{{NS_NFSE}}}EnviarLoteDpsSincronoEnvio", nsmap=nsmap)
     lote = etree.SubElement(
         root,

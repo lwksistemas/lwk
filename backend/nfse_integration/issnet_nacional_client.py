@@ -9,8 +9,10 @@ Envelope SOAP alinhado ao ACBr (ISSNet APIPrópria):
   - Body: <nfse:Operacao xmlns:nfse="http://www.sped.fazenda.gov.br/nfse">
   - nfseCabecMsg / nfseDadosMsg como xsd:string (XML escapado)
 """
+import hashlib
 import logging
 import os
+import re
 import tempfile
 import time
 from contextlib import suppress
@@ -120,15 +122,15 @@ class ISSNetNacionalClient:
                 "DPS",
             ):
                 # ISSNet Nacional: assina apenas cada DPS, sem assinatura de lote,
-                # sem prefixo ds:. Inclui a cadeia completa (folha + intermediários)
-                # na X509Data para que o servidor consiga validar o certificado A1.
+                # sem prefixo ds: e com apenas o certificado folha na X509Data,
+                # conforme exemplo oficial .NET da NFSe Nacional.
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
                     self.cert_password,
                     assinar_lote=False,
                     prefixo_ds=False,
-                    usar_cadeia=True,
+                    usar_cadeia=False,
                 )
             # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
             return assinar_xml_issnet(xml_str, cert_path, self.cert_password)
@@ -166,6 +168,33 @@ class ISSNetNacionalClient:
                         "ISSNet Nacional: envelope SOAP (%s) (truncado):\n%s",
                         label, envelope[:8000],
                     )
+
+                    # Diagnóstico: comparar XML dos dados antes/depois do envelope
+                    try:
+                        start = envelope.index("<nfseDadosMsg>") + len("<nfseDadosMsg>")
+                        end = envelope.index("</nfseDadosMsg>", start)
+                        dados_no_envelope = envelope[start:end]
+                        dados_originais = xml_dados.lstrip()
+                        if dados_originais.startswith("<?xml"):
+                            dados_originais = re.sub(r"^\s*<\?xml[^?]*\?>\s*", "", dados_originais, count=1, flags=re.IGNORECASE)
+                        if dados_no_envelope != dados_originais:
+                            logger.error(
+                                "ISSNet Nacional: XML dos dados foi alterado ao montar envelope (%s)!",
+                                label,
+                            )
+                            logger.debug("Original (primeiros 500): %r", dados_originais[:500])
+                            logger.debug("No envelope (primeiros 500): %r", dados_no_envelope[:500])
+                        else:
+                            logger.info("ISSNet Nacional: XML dos dados preservado no envelope (%s).", label)
+                    except Exception as e:
+                        logger.debug("Não foi possível comparar dados no envelope: %s", e)
+
+                    envelope_bytes = envelope.encode("utf-8")
+                    logger.info(
+                        "ISSNet Nacional: envelope SHA-1 = %s (%d bytes, %s)",
+                        hashlib.sha1(envelope_bytes).hexdigest(), len(envelope_bytes), label,
+                    )
+
                     headers = {
                         "Content-Type": "text/xml; charset=utf-8",
                         "SOAPAction": f'"{soap_action}"',

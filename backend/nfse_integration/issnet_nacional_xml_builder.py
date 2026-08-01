@@ -67,12 +67,19 @@ def _somente_digitos(texto: str) -> str:
 
 
 def _nbs_por_ctrib_nacional(codigo_tributacao_nacional: str, codigo_nbs: str) -> str:
-    """Retorna cNBS válido: usa o informado se for 9 dígitos, senão faz fallback por cTribNac."""
-    nbs = _somente_digitos(codigo_nbs or "")
-    if len(nbs) == 9:
-        return nbs
+    """Retorna cNBS válido, priorizando o mapeamento por cTribNac.
+
+    Sobrescreve valores genéricos/inválidos conhecidos (114011100/104033000)
+    quando o mapeamento tem um NBS mais específico para o serviço.
+    """
     chave = _somente_digitos(codigo_tributacao_nacional or "")[:6]
-    return _MAPA_CTRIBNAC_PARA_NBS.get(chave, _MAPA_CTRIBNAC_PARA_NBS.get("140101", ""))
+    nbs_mapeado = _MAPA_CTRIBNAC_PARA_NBS.get(chave)
+    nbs_informado = _somente_digitos(codigo_nbs or "")
+    if nbs_mapeado and (not nbs_informado or nbs_informado in ("114011100", "104033000")):
+        return nbs_mapeado
+    if len(nbs_informado) == 9:
+        return nbs_informado
+    return nbs_mapeado or ""
 
 
 def _construir_dps_issnet(

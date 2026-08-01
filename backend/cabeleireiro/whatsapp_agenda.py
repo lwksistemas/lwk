@@ -43,9 +43,9 @@ class SalaoAgendamentoWhatsAppAdapter:
 
 
 def get_whatsapp_config_loja():
-    from whatsapp.config_service import get_or_create_whatsapp_config
-    from tenants.middleware import get_current_loja_id
     from superadmin.models import Loja
+    from tenants.middleware import get_current_loja_id
+    from whatsapp.config_service import get_or_create_whatsapp_config
 
     loja_id = get_current_loja_id()
     if not loja_id:

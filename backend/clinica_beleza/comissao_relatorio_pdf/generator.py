@@ -8,6 +8,8 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm, mm
 from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer
 
+from ..pdf_common import logo_image as _logo_image
+from ..pdf_common import merge_timbrado_fundo as _merge_timbrado_fundo
 from ..prontuario_pdf import _resolver_cabecalho
 from .blocos import (
     _bloco_consultas_pdf,
@@ -17,8 +19,6 @@ from .blocos import (
 )
 from .constants import _CINZA, _COR_PRIMARIA
 from .formatting import _fmt_data_br, _is_linha_consulta
-from ..pdf_common import logo_image as _logo_image
-from ..pdf_common import merge_timbrado_fundo as _merge_timbrado_fundo
 
 
 def _styles_comissoes(styles):

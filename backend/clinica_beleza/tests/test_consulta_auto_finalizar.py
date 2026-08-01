@@ -1,6 +1,6 @@
 """Testes da auto-finalização de consultas esquecidas."""
 from datetime import timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from django.test import SimpleTestCase
 from django.utils import timezone

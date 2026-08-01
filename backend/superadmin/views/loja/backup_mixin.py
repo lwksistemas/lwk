@@ -259,9 +259,8 @@ class LojaBackupMixin:
     def configuracao_backup(self, request, pk=None):
         """Obtém configuração de backup da loja."""
         from ...models import ConfiguracaoBackup
-        from ...serializers import ConfiguracaoBackupSerializer
-
         from ...models.backup import horario_envio_slot_noturno
+        from ...serializers import ConfiguracaoBackupSerializer
 
         loja = self.get_object()
         config, created = ConfiguracaoBackup.objects.get_or_create(

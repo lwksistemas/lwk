@@ -1,13 +1,12 @@
 from rest_framework import serializers
 
+from clinica_beleza.bloqueio_utils import bloqueio_datetime_range, split_datetime_range
 from core.serializer_mixins import (
     CpfNormalizationMixin,
     TenantQuerysetMixin,
     TextNormalizationMixin,
     UniqueDocumentoPerLojaMixin,
 )
-
-from clinica_beleza.bloqueio_utils import bloqueio_datetime_range, split_datetime_range
 
 from .models import (
     Agendamento,

@@ -37,6 +37,7 @@ def _get_nfse_config(loja_id: int):
     # Fallback: tabela antiga (CRM) no mesmo tenant
     try:
         from django.db import connections
+
         from tenants.middleware import get_current_tenant_db
 
         db = get_current_tenant_db() or "default"

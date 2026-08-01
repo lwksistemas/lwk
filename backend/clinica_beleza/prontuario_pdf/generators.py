@@ -11,6 +11,7 @@ from ..models import (
     Patient,
     PatientAnamnese,
 )
+from ..pdf_common import merge_timbrado_fundo
 from .constants import MARGIN
 from .elements import (
     _build_anamnese_elements,
@@ -23,7 +24,6 @@ from .elements import (
 )
 from .header import _build_header_elements, _resolver_cabecalho, get_top_margin
 from .styles import _get_styles
-from ..pdf_common import merge_timbrado_fundo
 
 SECOES_CONSULTA_PDF = {
     "atendimento": "Atendimento",

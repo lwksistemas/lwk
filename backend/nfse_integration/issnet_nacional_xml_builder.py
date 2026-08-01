@@ -28,8 +28,51 @@ ADICIONAR_EXTRAS_ISSNET = False
 COD_MUNICIPIO_RP = "3543402"
 
 
+_MAPA_CTRIBNAC_PARA_NBS: dict[str, str] = {
+    "140100": "120012000",
+    "140101": "120012000",
+    "140201": "120012000",
+    "140301": "120012000",
+    "140401": "120012000",
+    "140501": "120012000",
+    "140601": "120012000",
+    "140701": "120012000",
+    "140801": "120012000",
+    "140901": "120012000",
+    "141001": "120012000",
+    "141101": "120012000",
+    "141201": "120012000",
+    "141301": "120012000",
+    "141302": "120012000",
+    "141401": "120012000",
+    "141402": "120012000",
+    "141403": "120012000",
+    "141404": "120012000",
+    "010101": "114011100",
+    "010201": "114011100",
+    "010301": "114011100",
+    "010302": "114011100",
+    "010401": "114011100",
+    "010501": "114011100",
+    "010601": "114011100",
+    "010701": "114011100",
+    "010801": "114011100",
+    "010901": "114011100",
+    "010902": "114011100",
+}
+
+
 def _somente_digitos(texto: str) -> str:
     return re.sub(r"\D", "", texto or "")
+
+
+def _nbs_por_ctrib_nacional(codigo_tributacao_nacional: str, codigo_nbs: str) -> str:
+    """Retorna cNBS válido: usa o informado se for 9 dígitos, senão faz fallback por cTribNac."""
+    nbs = _somente_digitos(codigo_nbs or "")
+    if len(nbs) == 9:
+        return nbs
+    chave = _somente_digitos(codigo_tributacao_nacional or "")[:6]
+    return _MAPA_CTRIBNAC_PARA_NBS.get(chave, _MAPA_CTRIBNAC_PARA_NBS.get("140101", ""))
 
 
 def _construir_dps_issnet(
@@ -96,29 +139,33 @@ def _construir_dps_issnet(
 
     dps_element = etree.fromstring(xml_dps.encode("utf-8"))
 
-    # cTribMun, cNBS e IBSCBS só fazem parte do leiaute v1.01 (RT).
-    if ADICIONAR_EXTRAS_ISSNET:
-        c_serv = dps_element.find(f".//{{{NS_NFSE}}}cServ")
-        if c_serv is not None:
-            x_desc = c_serv.find(f"{{{NS_NFSE}}}xDescServ")
-            idx = list(c_serv).index(x_desc) if x_desc is not None else len(list(c_serv))
+    c_serv = dps_element.find(f".//{{{NS_NFSE}}}cServ")
+    if c_serv is not None:
+        x_desc = c_serv.find(f"{{{NS_NFSE}}}xDescServ")
 
+        # cTribMun faz parte do leiaute v1.01 (RT) e vem antes de xDescServ.
+        if ADICIONAR_EXTRAS_ISSNET:
             cod_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
             if not cod_trib_mun and codigo_tributacao_nacional:
-                # Fallback: 3 primeiros dígitos do código nacional como código municipal.
-                # O usuário deve informar o código correto da atividade no município.
                 cod_trib_mun = _somente_digitos(codigo_tributacao_nacional or "")[:3]
             if cod_trib_mun:
                 c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
                 c_trib_mun_el.text = cod_trib_mun
+                idx = list(c_serv).index(x_desc) if x_desc is not None else 0
                 c_serv.insert(idx, c_trib_mun_el)
-                idx += 1
 
-            if codigo_nbs:
-                c_nbs_el = etree.Element(f"{{{NS_NFSE}}}cNBS")
-                c_nbs_el.text = _somente_digitos(codigo_nbs)
-                c_serv.insert(idx, c_nbs_el)
+        # cNBS é exigido em v1.00 e v1.01, sempre após xDescServ (XSD TCCServ).
+        c_nbs = _nbs_por_ctrib_nacional(codigo_tributacao_nacional, codigo_nbs)
+        if c_nbs:
+            c_nbs_el = etree.Element(f"{{{NS_NFSE}}}cNBS")
+            c_nbs_el.text = c_nbs
+            if x_desc is not None:
+                x_desc.addnext(c_nbs_el)
+            else:
+                c_serv.append(c_nbs_el)
 
+    # IBSCBS só faz parte do leiaute v1.01 (RT).
+    if ADICIONAR_EXTRAS_ISSNET:
         inf_dps = dps_element.find(f"{{{NS_NFSE}}}infDPS")
         if inf_dps is not None:
             ibscbs = etree.SubElement(inf_dps, f"{{{NS_NFSE}}}IBSCBS")

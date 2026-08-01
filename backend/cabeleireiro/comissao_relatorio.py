@@ -5,8 +5,6 @@ import io
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import Sum
-
 from .models import Payment
 
 

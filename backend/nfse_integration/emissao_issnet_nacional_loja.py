@@ -131,6 +131,20 @@ def emitir_via_issnet_nacional_loja(
         )
         codigo_nbs = _resolver_codigo_nbs(config)
         aliquota = Decimal(str(getattr(config, "aliquota_iss", 2.00) or 0))
+
+        # Contato do prestador: configuração da NFS-e ou dados da loja
+        prestador_email = (
+            getattr(config, "prestador_email", "")
+            or getattr(loja, "email_contato", "")
+            or getattr(loja, "email", "")
+            or ""
+        )
+        prestador_telefone = (
+            getattr(config, "prestador_telefone", "")
+            or getattr(loja, "telefone_contato", "")
+            or getattr(loja, "owner_telefone", "")
+            or ""
+        )
         valor_iss = (Decimal(str(valor_servicos)) * aliquota / Decimal(100)).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP,
         )
@@ -144,6 +158,8 @@ def emitir_via_issnet_nacional_loja(
             numero_lote=numero_dps,
             numero_dps=numero_dps,
             serie_dps=serie_dps,
+            prestador_telefone=prestador_telefone,
+            prestador_email=prestador_email,
             tomador_cpf_cnpj=tomador_cpf_cnpj,
             tomador_nome=tomador_nome,
             tomador_endereco=tomador_endereco,

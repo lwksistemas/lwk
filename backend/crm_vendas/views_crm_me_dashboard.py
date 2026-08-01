@@ -142,6 +142,7 @@ def _store_dashboard_cache(cache_key, payload) -> None:
 def _try_recover_dashboard_schema(exc, loja_id) -> bool:
     """Tenta corrigir schema CRM após ProgrammingError/OperationalError."""
     from django.db.utils import OperationalError, ProgrammingError
+
     from superadmin.models import Loja
 
     from .schema_service import (

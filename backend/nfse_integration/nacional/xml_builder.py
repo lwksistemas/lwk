@@ -177,7 +177,7 @@ def construir_xml_dps(
     # Nota: em produção restrita (homologação), usar tpAmb=1 conforme comportamento do portal
     _el(inf_dps, "tpAmb", "1")
     _el(inf_dps, "dhEmi", data_competencia.strftime("%Y-%m-%dT00:00:00-03:00"))
-    _el(inf_dps, "verAplic", "1.00")
+    _el(inf_dps, "verAplic", versao_dps)
     _el(inf_dps, "serie", serie_formatada)
     _el(inf_dps, "nDPS", str(numero_dps))
     _el(inf_dps, "dCompet", data_competencia.strftime("%Y-%m-%d"))

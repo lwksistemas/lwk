@@ -153,6 +153,9 @@ class ISSNetNacionalClient:
         tentativas = [
             ("SPED 1.01 cabec aninhado + dados aninhado", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "aninhado", False),
             ("SPED 1.01 cabec aninhado + dados aninhado (params qualif)", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "aninhado", True),
+            ("SPED 1.01 cabec xsd:string + dados xsd:string", self._cabec_msg_nacional_sped("1.01", "1.01"), "xsd_string", "xsd_string", False),
+            ("ABRASF 1.01 cabec xsd:string + dados xsd:string", self._cabec_msg_nacional_abrasf("1.01", "1.01"), "xsd_string", "xsd_string", False),
+            ("SPED 1.01 cabec aninhado + dados cdata", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "cdata", False),
         ]
 
         try:

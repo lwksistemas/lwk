@@ -136,10 +136,11 @@ def _completar_cadeia_certificados(cert_obj, extra_certs):
             try:
                 r = requests.get(fallback_url, timeout=15)
                 r.raise_for_status()
-                issuer_cert = x509.load_der_x509_certificate(r.content)
-                if issuer_cert.serial_number not in seen:
-                    logger.info("Fallback: intermediário baixado com sucesso (serial %s)", issuer_cert.serial_number)
-                    add_cert(issuer_cert)
+                certs = _load_certs_from_response(r.content, fallback_url)
+                for issuer_cert in certs:
+                    if issuer_cert.serial_number not in seen:
+                        logger.info("Fallback: intermediário baixado com sucesso (serial %s)", issuer_cert.serial_number)
+                        add_cert(issuer_cert)
             except Exception as e:
                 logger.warning("Fallback: falha ao baixar intermediário de %s: %s", fallback_url, e)
 

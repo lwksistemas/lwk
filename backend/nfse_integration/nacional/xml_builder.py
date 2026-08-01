@@ -125,6 +125,10 @@ def construir_xml_dps(
     codigo_numerico: int = 0,
     # Data
     data_competencia: datetime | None = None,
+    # Namespace: por padrão default (sem prefixo). Quando True, usa prefixo nfse
+    # para garantir que a canonicalização C14N da assinatura não seja alterada
+    # ao inserir o XML aninhado dentro do envelope SOAP com xmlns:nfse.
+    prefixo_nfse: bool = False,
 ) -> str:
     """Constrói o XML da DPS conforme formato real do Portal Contribuinte."""
     if data_competencia is None:
@@ -141,6 +145,7 @@ def construir_xml_dps(
     nsmap = {None: NS_NFSE}
 
     # Root: DPS com versao
+    nsmap = {"nfse": NS_NFSE} if prefixo_nfse else {None: NS_NFSE}
     root = etree.Element(f"{{{NS_NFSE}}}DPS", nsmap=nsmap)
     root.set("versao", VERSAO_DPS)
 

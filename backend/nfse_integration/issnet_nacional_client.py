@@ -143,21 +143,14 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        # Combinações (label, cabecalho_xml, modo_cabec, modo_dados) em ordem de prioridade.
-        # O ISSNet Nacional valida o cabeçalho quando ele é um elemento XML aninhado
-        # e a assinatura do XML de dados deve ser verificada sobre o XML isolado,
-        # sem herança de namespace do envelope SOAP. Por isso testamos cabeçalho
-        # aninhado + dados em CDATA/xsd:string.
+        # O ISSNet Nacional Ribeirão Preto só aceitou o schema com:
+        #   - cabecalho em namespace SPED 1.01 aninhado
+        #   - dados aninhados (não CDATA/xsd:string)
+        # O erro restante é de assinatura, provocado pela re-canonicalização do
+        # XML dentro do envelope SOAP. O XML de dados agora é gerado com prefixo
+        # nfse: para alinhar a canonicalização C14N.
         tentativas = [
-            ("SPED 1.01 cabec aninhado + dados CDATA", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "cdata"),
-            ("SPED 1.01 cabec aninhado + dados xsd:string", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "xsd_string"),
             ("SPED 1.01 cabec aninhado + dados aninhado", self._cabec_msg_nacional_sped("1.01", "1.01"), "aninhado", "aninhado"),
-            ("SPED 1.01 cabec sem ns + dados CDATA", self._cabec_msg_nacional_sem_ns("1.01", "1.01"), "aninhado", "cdata"),
-            ("SPED 1.01 cabec sem ns + dados xsd:string", self._cabec_msg_nacional_sem_ns("1.01", "1.01"), "aninhado", "xsd_string"),
-            ("SPED 1.00 cabec aninhado + dados CDATA", self._cabec_msg_nacional_sped("1.00", "1.00"), "aninhado", "cdata"),
-            ("SPED 1.00 cabec aninhado + dados xsd:string", self._cabec_msg_nacional_sped("1.00", "1.00"), "aninhado", "xsd_string"),
-            ("SPED 1.00 cabec sem ns + dados CDATA", self._cabec_msg_nacional_sem_ns("1.00", "1.00"), "aninhado", "cdata"),
-            ("SPED 1.00 cabec sem ns + dados xsd:string", self._cabec_msg_nacional_sem_ns("1.00", "1.00"), "aninhado", "xsd_string"),
         ]
 
         try:

@@ -57,13 +57,27 @@ def _aia_ca_issuer_urls(cert):
 
 
 def _load_certs_from_response(content: bytes, url: str) -> list:
-    """Carrega um ou mais certificados de resposta DER (X509 ou PKCS#7)."""
+    """Carrega um ou mais certificados de resposta DER, PEM ou PKCS#7."""
     from cryptography import x509
     from cryptography.hazmat.primitives.serialization import pkcs7
 
     # Tenta como certificado único DER
     try:
         return [x509.load_der_x509_certificate(content)]
+    except Exception:
+        pass
+
+    # Tenta como PEM (uma ou mais certs)
+    try:
+        text = content.decode("ascii", errors="ignore")
+        pem_blocks = [
+            block + "-----END CERTIFICATE-----"
+            for block in text.split("-----BEGIN CERTIFICATE-----")[1:]
+        ]
+        certs = [x509.load_pem_x509_certificate(block.encode("ascii")) for block in pem_blocks]
+        if certs:
+            logger.info("PEM: extraídos %d certificado(s) de %s", len(certs), url)
+            return list(certs)
     except Exception:
         pass
 
@@ -74,7 +88,7 @@ def _load_certs_from_response(content: bytes, url: str) -> list:
             logger.info("PKCS#7: extraídos %d certificado(s) de %s", len(certs), url)
             return list(certs)
     except Exception as e:
-        logger.debug("Não foi possível interpretar %s como PKCS#7: %s", url, e)
+        logger.debug("Não foi possível interpretar %s como DER/PEM/PKCS#7: %s", url, e)
     return []
 
 

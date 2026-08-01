@@ -152,7 +152,7 @@ class ISSNetNacionalClient:
         # NÃO pode ter xmlns (senão devolve E183). Os parâmetros do corpo
         # devem estar qualificados com o namespace do serviço.
         tentativas = [
-            ("ISSNet 1.01 cabec cru sem ns + dados cru qualif", self._cabec_msg_nacional_sem_ns("1.01", "1.01"), "aninhado", "aninhado", True),
+            ("ISSNet 1.00 cabec cru sem ns + dados cru qualif", self._cabec_msg_nacional_sem_ns("1.00", "1.00"), "aninhado", "aninhado", True),
         ]
 
         try:
@@ -351,6 +351,8 @@ class ISSNetNacionalClient:
             xml_envio = construir_xml_gerar_nfse_envio(
                 prestador_cnpj=self.prestador_cnpj,
                 prestador_inscricao_municipal=self.prestador_im,
+                prestador_telefone=prestador_telefone,
+                prestador_email=prestador_email,
                 numero_dps=numero_dps,
                 serie_dps=serie_dps,
                 data_emissao=data_emissao,

@@ -22,8 +22,9 @@ from nfse_integration.nacional.xml_builder import construir_xml_dps
 logger = logging.getLogger(__name__)
 
 NS_NFSE_NACIONAL = NS_NFSE  # Re-export
-# Schema ISSNet Nacional aceita v1.01; teste sem IBSCBS/cTribMun para isolar E0714.
-VERSAO_ISSNET_NACIONAL = VERSAO_DPS
+# Ribeirão Preto (produção) ainda valida o leiaute v1.00 sem IBSCBS/cNBS/cTribMun.
+VERSAO_ISSNET_NACIONAL = "1.00"
+ADICIONAR_EXTRAS_ISSNET = False
 COD_MUNICIPIO_RP = "3543402"
 
 
@@ -41,6 +42,8 @@ def _construir_dps_issnet(
     im_prest: str,
     prestador_cnpj: str,
     prestador_inscricao_municipal: str,
+    prestador_telefone: str,
+    prestador_email: str,
     optante_simples_nacional: bool,
     tomador_cpf_cnpj: str,
     tomador_nome: str,
@@ -62,6 +65,10 @@ def _construir_dps_issnet(
     cclass_trib_ibscbs: str,
 ) -> etree._Element:
     """Constrói o elemento <DPS> estendido com os campos exigidos pelo ISSNet Nacional."""
+    # O leiaute v1.00 aceito por Ribeirão Preto inclui fone/e-mail no <prest>;
+    # o leiaute v1.01 (RT) não os aceita.
+    incluir_fone_email_prest = not ADICIONAR_EXTRAS_ISSNET
+
     xml_dps = construir_xml_dps(
         numero_dps=numero_dps,
         serie_dps=serie_dps,
@@ -69,10 +76,8 @@ def _construir_dps_issnet(
         ambiente=ambiente_str,
         prestador_cnpj=prestador_cnpj,
         prestador_inscricao_municipal=prestador_inscricao_municipal,
-        # O ISSNet Nacional v1.01 não aceita fone/e-mail no <prest> quando o
-        # emitente é o próprio prestador (E0121).
-        prestador_telefone="",
-        prestador_email="",
+        prestador_telefone=prestador_telefone if incluir_fone_email_prest else "",
+        prestador_email=prestador_email if incluir_fone_email_prest else "",
         tomador_cpf_cnpj=tomador_cpf_cnpj,
         tomador_nome=tomador_nome,
         tomador_endereco=tomador_endereco,
@@ -89,44 +94,44 @@ def _construir_dps_issnet(
         prefixo_nfse=False,
     )
 
-    # Parsear DPS para adicionar cTribMun, cNBS e IBSCBS (requisitos do ISSNet Nacional v1.01).
     dps_element = etree.fromstring(xml_dps.encode("utf-8"))
 
-    c_serv = dps_element.find(f".//{{{NS_NFSE}}}cServ")
-    if c_serv is not None:
-        x_desc = c_serv.find(f"{{{NS_NFSE}}}xDescServ")
-        idx = list(c_serv).index(x_desc) if x_desc is not None else len(list(c_serv))
+    # cTribMun, cNBS e IBSCBS só fazem parte do leiaute v1.01 (RT).
+    if ADICIONAR_EXTRAS_ISSNET:
+        c_serv = dps_element.find(f".//{{{NS_NFSE}}}cServ")
+        if c_serv is not None:
+            x_desc = c_serv.find(f"{{{NS_NFSE}}}xDescServ")
+            idx = list(c_serv).index(x_desc) if x_desc is not None else len(list(c_serv))
 
-        cod_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
-        if not cod_trib_mun and codigo_tributacao_nacional:
-            # Fallback: 3 primeiros dígitos do código nacional como código municipal.
-            # O usuário deve informar o código correto da atividade no município.
-            cod_trib_mun = _somente_digitos(codigo_tributacao_nacional or "")[:3]
-        if cod_trib_mun:
-            c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
-            c_trib_mun_el.text = cod_trib_mun
-            c_serv.insert(idx, c_trib_mun_el)
-            idx += 1
+            cod_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
+            if not cod_trib_mun and codigo_tributacao_nacional:
+                # Fallback: 3 primeiros dígitos do código nacional como código municipal.
+                # O usuário deve informar o código correto da atividade no município.
+                cod_trib_mun = _somente_digitos(codigo_tributacao_nacional or "")[:3]
+            if cod_trib_mun:
+                c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
+                c_trib_mun_el.text = cod_trib_mun
+                c_serv.insert(idx, c_trib_mun_el)
+                idx += 1
 
-        if codigo_nbs:
-            c_nbs_el = etree.Element(f"{{{NS_NFSE}}}cNBS")
-            c_nbs_el.text = _somente_digitos(codigo_nbs)
-            c_serv.insert(idx, c_nbs_el)
+            if codigo_nbs:
+                c_nbs_el = etree.Element(f"{{{NS_NFSE}}}cNBS")
+                c_nbs_el.text = _somente_digitos(codigo_nbs)
+                c_serv.insert(idx, c_nbs_el)
 
-    # Adicionar IBSCBS no final do infDPS (requisito do ISSNet Nacional v1.01)
-    inf_dps = dps_element.find(f"{{{NS_NFSE}}}infDPS")
-    if inf_dps is not None:
-        ibscbs = etree.SubElement(inf_dps, f"{{{NS_NFSE}}}IBSCBS")
-        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}finNFSe").text = "0"
-        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indFinal").text = ind_final_ibscbs
-        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}cIndOp").text = indicador_operacao
-        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indDest").text = ind_dest_ibscbs
+        inf_dps = dps_element.find(f"{{{NS_NFSE}}}infDPS")
+        if inf_dps is not None:
+            ibscbs = etree.SubElement(inf_dps, f"{{{NS_NFSE}}}IBSCBS")
+            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}finNFSe").text = "0"
+            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indFinal").text = ind_final_ibscbs
+            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}cIndOp").text = indicador_operacao
+            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indDest").text = ind_dest_ibscbs
 
-        valores_ibscbs = etree.SubElement(ibscbs, f"{{{NS_NFSE}}}valores")
-        trib_ibscbs = etree.SubElement(valores_ibscbs, f"{{{NS_NFSE}}}trib")
-        g_ibscbs = etree.SubElement(trib_ibscbs, f"{{{NS_NFSE}}}gIBSCBS")
-        etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}CST").text = cst_ibscbs
-        etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}cClassTrib").text = cclass_trib_ibscbs
+            valores_ibscbs = etree.SubElement(ibscbs, f"{{{NS_NFSE}}}valores")
+            trib_ibscbs = etree.SubElement(valores_ibscbs, f"{{{NS_NFSE}}}trib")
+            g_ibscbs = etree.SubElement(trib_ibscbs, f"{{{NS_NFSE}}}gIBSCBS")
+            etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}CST").text = cst_ibscbs
+            etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}cClassTrib").text = cclass_trib_ibscbs
 
     return dps_element
 
@@ -181,6 +186,8 @@ def construir_xml_gerar_nfse_envio(
         im_prest=im_prest,
         prestador_cnpj=prestador_cnpj,
         prestador_inscricao_municipal=prestador_inscricao_municipal,
+        prestador_telefone=prestador_telefone,
+        prestador_email=prestador_email,
         optante_simples_nacional=optante_simples_nacional,
         tomador_cpf_cnpj=tomador_cpf_cnpj,
         tomador_nome=tomador_nome,
@@ -269,6 +276,8 @@ def construir_xml_enviar_lote_dps_sincrono(
         im_prest=im_prest,
         prestador_cnpj=prestador_cnpj,
         prestador_inscricao_municipal=prestador_inscricao_municipal,
+        prestador_telefone=prestador_telefone,
+        prestador_email=prestador_email,
         optante_simples_nacional=optante_simples_nacional,
         tomador_cpf_cnpj=tomador_cpf_cnpj,
         tomador_nome=tomador_nome,

@@ -175,6 +175,7 @@ class ISSNetNacionalClient:
                         nome_op, xml_dados, cabec_txt=cabec_txt,
                         target_ns=target_ns, modo=modo,
                     )
+                    logger.debug("ISSNet Nacional: envelope SOAP (%s):\n%s", label, envelope)
                     headers = {
                         "Content-Type": "text/xml; charset=utf-8",
                         "SOAPAction": f'"{soap_action}"',
@@ -342,6 +343,7 @@ class ISSNetNacionalClient:
             logger.info("ISSNet Nacional: assinando XML DPS nº %d...", numero_dps)
             xml_assinado = self._assinar_xml(xml_envio)
             result["xml_dps"] = xml_assinado
+            logger.debug("ISSNet Nacional: XML DPS assinado completo:\n%s", xml_assinado)
 
             try:
                 root_signed = etree.fromstring(xml_assinado.encode("utf-8"))

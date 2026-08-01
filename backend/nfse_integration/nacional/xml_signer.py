@@ -370,11 +370,18 @@ def _assinar_elemento_por_id(parent_el, target_el, key, ref_id: str, cert_obj=No
     ctx.sign(sig_node)
 
 
-def assinar_xml_enviar_lote_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> str:
+def assinar_xml_enviar_lote_dps(
+    xml_str: str,
+    pfx_path: str,
+    senha_pfx: str,
+    assinar_lote: bool = True,
+) -> str:
     """Assina EnviarLoteDpsSincronoEnvio / EnviarLoteDpsEnvio (padrão Nacional ISSNet).
 
     1) Assina cada DPS (Reference=#Id do infDPS)
-    2) Assina o LoteDps (Reference=#Id do lote) — exigido pelo Manual NotaControl
+    2) Opcionalmente assina o LoteDps (Reference=#Id do lote). O ISSNet Nacional
+       rejeita quando a segunda assinatura está presente, então o default pode
+       ser desligado pelo chamador.
     """
     ns = "http://www.sped.fazenda.gov.br/nfse"
     root = etree.fromstring(xml_str.encode("utf-8"))
@@ -403,20 +410,22 @@ def assinar_xml_enviar_lote_dps(xml_str: str, pfx_path: str, senha_pfx: str) -> 
         _assinar_elemento_por_id(dps, inf_dps, key, inf_id, cert_obj, chain)
 
     # Signature do lote fica na raiz (irmã de LoteDps), Reference=#Id do LoteDps
-    lote = root.find(f"{{{ns}}}LoteDps")
-    if lote is not None and root_local in ("EnviarLoteDpsSincronoEnvio", "EnviarLoteDpsEnvio"):
-        lote_id = (lote.get("Id") or "").strip()
-        if not lote_id:
-            num = lote.findtext(f"{{{ns}}}NumeroLote") or "1"
-            lote_id = f"Lote{num}"
-            lote.set("Id", lote_id)
-        _assinar_elemento_por_id(root, lote, key, lote_id, cert_obj, chain)
+    if assinar_lote:
+        lote = root.find(f"{{{ns}}}LoteDps")
+        if lote is not None and root_local in ("EnviarLoteDpsSincronoEnvio", "EnviarLoteDpsEnvio"):
+            lote_id = (lote.get("Id") or "").strip()
+            if not lote_id:
+                num = lote.findtext(f"{{{ns}}}NumeroLote") or "1"
+                lote_id = f"Lote{num}"
+                lote.set("Id", lote_id)
+            _assinar_elemento_por_id(root, lote, key, lote_id, cert_obj, chain)
 
     result = etree.tostring(root, encoding="unicode", xml_declaration=False)
     logger.info(
-        "XML lote DPS assinado (%s): %d DPS + assinatura do envio",
+        "XML lote DPS assinado (%s): %d DPS%s",
         root_local or "?",
         len(dps_nodes),
+        " + assinatura do envio" if assinar_lote else "",
     )
     return result
 

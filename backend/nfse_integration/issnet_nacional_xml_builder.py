@@ -142,12 +142,12 @@ def construir_xml_enviar_lote_dps_sincrono(
     codigo_tributacao_nacional: str = "140100",
     codigo_tributacao_municipal: str | None = None,
     descricao_servico: str = "Serviço prestado",
-    codigo_nbs: str = "",
+    codigo_nbs: str = "114011100",
     valor_servicos: Decimal = Decimal("0.00"),
     aliquota_iss: Decimal = Decimal("2.50"),
     valor_iss: Decimal | None = None,
     # IBSCBS / Reforma Tributária
-    indicador_operacao: str = "050101",
+    indicador_operacao: str = "100301",
     ind_final_ibscbs: str = "0",
     ind_dest_ibscbs: str = "0",
     cst_ibscbs: str = "000",
@@ -176,8 +176,10 @@ def construir_xml_enviar_lote_dps_sincrono(
         ambiente=ambiente_str,
         prestador_cnpj=prestador_cnpj,
         prestador_inscricao_municipal=prestador_inscricao_municipal,
-        prestador_telefone=prestador_telefone,
-        prestador_email=prestador_email,
+        # O ISSNet Nacional v1.01 não aceita fone/e-mail no <prest> quando o
+        # emitente é o próprio prestador (E0121).
+        prestador_telefone="",
+        prestador_email="",
         tomador_cpf_cnpj=tomador_cpf_cnpj,
         tomador_nome=tomador_nome,
         tomador_endereco=tomador_endereco,
@@ -194,38 +196,44 @@ def construir_xml_enviar_lote_dps_sincrono(
         prefixo_nfse=False,
     )
 
-    # Parsear DPS para opcionalmente adicionar cTribMun e IBSCBS (apenas v1.01).
+    # Parsear DPS para adicionar cTribMun, cNBS e IBSCBS (requisitos do ISSNet Nacional v1.01).
     dps_element = etree.fromstring(xml_dps.encode("utf-8"))
 
-    adicionar_ibscbs = False
+    c_serv = dps_element.find(f".//{{{NS_NFSE}}}cServ")
+    if c_serv is not None:
+        x_desc = c_serv.find(f"{{{NS_NFSE}}}xDescServ")
+        idx = list(c_serv).index(x_desc) if x_desc is not None else len(list(c_serv))
 
-    # Adicionar cTribMun no cServ se informado (v1.01)
-    if adicionar_ibscbs:
         cod_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
+        if not cod_trib_mun and codigo_tributacao_nacional:
+            # Fallback: 3 primeiros dígitos do código nacional como código municipal.
+            # O usuário deve informar o código correto da atividade no município.
+            cod_trib_mun = _somente_digitos(codigo_tributacao_nacional or "")[:3]
         if cod_trib_mun:
-            c_serv = dps_element.find(f".//{{{NS_NFSE}}}cServ")
-            if c_serv is not None:
-                x_desc = c_serv.find(f"{{{NS_NFSE}}}xDescServ")
-                if x_desc is not None:
-                    c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
-                    c_trib_mun_el.text = cod_trib_mun
-                    c_serv.insert(list(c_serv).index(x_desc), c_trib_mun_el)
+            c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
+            c_trib_mun_el.text = cod_trib_mun
+            c_serv.insert(idx, c_trib_mun_el)
+            idx += 1
 
-    # Adicionar IBSCBS no final do infDPS (apenas v1.01)
-    if adicionar_ibscbs:
-        inf_dps = dps_element.find(f"{{{NS_NFSE}}}infDPS")
-        if inf_dps is not None:
-            ibscbs = etree.SubElement(inf_dps, f"{{{NS_NFSE}}}IBSCBS")
-            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}finNFSe").text = "0"
-            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indFinal").text = ind_final_ibscbs
-            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}cIndOp").text = indicador_operacao
-            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indDest").text = ind_dest_ibscbs
+        if codigo_nbs:
+            c_nbs_el = etree.Element(f"{{{NS_NFSE}}}cNBS")
+            c_nbs_el.text = _somente_digitos(codigo_nbs)
+            c_serv.insert(idx, c_nbs_el)
 
-            valores_ibscbs = etree.SubElement(ibscbs, f"{{{NS_NFSE}}}valores")
-            trib_ibscbs = etree.SubElement(valores_ibscbs, f"{{{NS_NFSE}}}trib")
-            g_ibscbs = etree.SubElement(trib_ibscbs, f"{{{NS_NFSE}}}gIBSCBS")
-            etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}CST").text = cst_ibscbs
-            etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}cClassTrib").text = cclass_trib_ibscbs
+    # Adicionar IBSCBS no final do infDPS (requisito do ISSNet Nacional v1.01)
+    inf_dps = dps_element.find(f"{{{NS_NFSE}}}infDPS")
+    if inf_dps is not None:
+        ibscbs = etree.SubElement(inf_dps, f"{{{NS_NFSE}}}IBSCBS")
+        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}finNFSe").text = "0"
+        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indFinal").text = ind_final_ibscbs
+        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}cIndOp").text = indicador_operacao
+        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indDest").text = ind_dest_ibscbs
+
+        valores_ibscbs = etree.SubElement(ibscbs, f"{{{NS_NFSE}}}valores")
+        trib_ibscbs = etree.SubElement(valores_ibscbs, f"{{{NS_NFSE}}}trib")
+        g_ibscbs = etree.SubElement(trib_ibscbs, f"{{{NS_NFSE}}}gIBSCBS")
+        etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}CST").text = cst_ibscbs
+        etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}cClassTrib").text = cclass_trib_ibscbs
 
     # Envolver em EnviarLoteDpsSincronoEnvio > LoteDps (Id=Lote{n} — exigido p/ assinatura)
     # Namespace padrão (sem prefixo), alinhado ao exemplo oficial .NET.

@@ -140,6 +140,21 @@ def issnet_erro_schema_ou_cabecalho(texto: str) -> bool:
     )
 
 
+def issnet_erro_assinatura(texto: str) -> bool:
+    """Retorna True se a resposta indicar rejeição específica da assinatura."""
+    t = (texto or "").lower()
+    return any(
+        marker in t
+        for marker in (
+            "erro na assinatura",
+            "erro na assinatura",
+            "assinatura",
+            "signature",
+            "digestvalue",
+        )
+    )
+
+
 def issnet_decodificar_corpo(resposta) -> str:
     raw = getattr(resposta, "content", None) or b""
     if not raw:

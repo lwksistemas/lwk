@@ -41,6 +41,7 @@ from nfse_integration.issnet_response import extrair_body_soap, extrair_erros
 from nfse_integration.issnet_soap import (
     _montar_soap_envelope,
     issnet_corpo_parece_xml,
+    issnet_erro_assinatura,
     issnet_erro_schema_ou_cabecalho,
     issnet_fault_soap_generico,
 )
@@ -119,15 +120,15 @@ class ISSNetNacionalClient:
                 "DPS",
             ):
                 # ISSNet Nacional: assina apenas cada DPS, sem assinatura de lote,
-                # sem prefixo ds: e com a cadeia de certificados na X509Data,
-                # para que o servidor consiga validar a confiança do certificado.
+                # sem prefixo ds: e com apenas o certificado folha na X509Data,
+                # conforme padrão usado por outros integradores.
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
                     self.cert_password,
                     assinar_lote=False,
                     prefixo_ds=False,
-                    usar_cadeia=True,
+                    usar_cadeia=False,
                 )
             # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
             return assinar_xml_issnet(xml_str, cert_path, self.cert_password)
@@ -229,20 +230,29 @@ class ISSNetNacionalClient:
                             nome_op, label, last_text[:2000],
                         )
 
+                    sig_fault = issnet_erro_assinatura(last_text)
+
                     if schema_fault:
                         logger.error(
                             "ISSNet Nacional %s erro de schema/cabeçalho (%s): envelope=%s | resposta=%s",
                             nome_op, label, envelope[:4000], last_text[:4000],
                         )
 
+                    if sig_fault:
+                        logger.error(
+                            "ISSNet Nacional %s erro de assinatura (%s): tentando próximo envelope | resposta=%s",
+                            nome_op, label, last_text[:2000],
+                        )
+
                     if issnet_corpo_parece_xml(last_text) and not (
-                        issnet_fault_soap_generico(last_text) or ns_fault or schema_fault
+                        issnet_fault_soap_generico(last_text) or ns_fault or schema_fault or sig_fault
                     ):
                         # Resposta válida sem erros reconhecidos -> retorna
                         return last_text
 
-                    # Se não for erro de schema/cabeçalho, não adianta insistir com outros formatos
-                    if not (ns_fault or schema_fault):
+                    # Só continua tentando outros envelopes em caso de erro de schema/cabeçalho
+                    # ou de assinatura (pode ser re-serialização do XML aninhado).
+                    if not (ns_fault or schema_fault or sig_fault):
                         return last_text
 
                 return last_text

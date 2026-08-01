@@ -312,6 +312,12 @@ def assinar_xml_dps(
     ctx.key = key
     ctx.register_id(inf_dps, "Id", None)
     ctx.sign(sig_node)
+    try:
+        ctx.verify(sig_node)
+        logger.info("Assinatura verificada localmente com sucesso (Reference=#%s).", inf_id)
+    except Exception as e:
+        logger.error("Falha na verificação local da assinatura (Reference=#%s): %s", inf_id, e)
+        raise
 
     result = '<?xml version="1.0" encoding="UTF-8"?>' + etree.tostring(root, encoding="unicode", xml_declaration=False)
     logger.info("XML DPS assinado com sucesso (RSA-SHA1, Reference=#%s)", inf_id)
@@ -402,6 +408,12 @@ def _assinar_elemento_por_id(
     ctx.key = key
     ctx.register_id(target_el, "Id", None)
     ctx.sign(sig_node)
+    try:
+        ctx.verify(sig_node)
+        logger.info("Assinatura verificada localmente com sucesso (Reference=#%s).", ref_id)
+    except Exception as e:
+        logger.error("Falha na verificação local da assinatura (Reference=#%s): %s", ref_id, e)
+        raise
 
 
 def assinar_xml_enviar_lote_dps(

@@ -24,11 +24,11 @@ from nfse_integration.nacional.xml_builder import construir_xml_dps
 logger = logging.getLogger(__name__)
 
 NS_NFSE_NACIONAL = NS_NFSE  # Re-export
-# Ribeirão Preto (produção) valida o leiaute v1.00 do padrão Nacional.
-VERSAO_ISSNET_NACIONAL = "1.00"
-# Adiciona cTribMun e cNBS no cServ apenas quando forem informados via parâmetro.
+# O ValidarXml do ISSNet Ribeirão Preto valida o DPS contra o schema v1.01.
+VERSAO_ISSNET_NACIONAL = "1.01"
+# Adiciona cTribMun, cNBS e cIntContrib no cServ quando houver tributação.
 ADICIONAR_EXTRAS_ISSNET = True
-# IBSCBS faz parte do leiaute v1.01; Ribeirão Preto ainda valida contra v1.00
+# IBSCBS faz parte do leiaute v1.01; mantido desligado até confirmação de uso.
 INCLUIR_IBSCBS = False
 COD_MUNICIPIO_RP = "3543402"
 
@@ -157,18 +157,27 @@ def _construir_dps_issnet(
     if c_serv is not None and ADICIONAR_EXTRAS_ISSNET:
         x_desc = c_serv.find(f"{{{NS_NFSE}}}xDescServ")
 
-        # cTribMun (3 dígitos) é opcional; cIntContrib (máx 20) pode vir
-        # do cadastro municipal (ex: 140118). Nunca gera fallback.
+        # cTribMun: código de tributação municipal de 3 dígitos.
+        # Se o cadastro municipal for > 3 dígitos (ex: 140118), usamos os 3
+        # primeiros para cTribMun e o código completo para cIntContrib.
         cod_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
-        if len(cod_trib_mun) == 3:
-            c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
-            c_trib_mun_el.text = cod_trib_mun
-            idx = list(c_serv).index(x_desc) if x_desc is not None else 0
-            c_serv.insert(idx, c_trib_mun_el)
-        elif cod_trib_mun:
-            # Código interno do contribuinte (atividade municipal > 3 dígitos)
+        if not cod_trib_mun:
+            # Fallback nos 3 primeiros dígitos do código nacional (LC 116/2003)
+            cod_trib_mun = _somente_digitos(codigo_tributacao_nacional or "")[:3]
+
+        # Sempre inclui cTribMun (3 dígitos) antes de xDescServ no v1.01.
+        c_trib_mun_val = cod_trib_mun[:3] if len(cod_trib_mun) >= 3 else cod_trib_mun
+        c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
+        c_trib_mun_el.text = c_trib_mun_val
+        idx = list(c_serv).index(x_desc) if x_desc is not None else 0
+        c_serv.insert(idx, c_trib_mun_el)
+
+        # cIntContrib (código interno > 3 dígitos, ex: ficha municipal 140118)
+        cod_trib_mun_full = _somente_digitos(codigo_tributacao_municipal or "")
+        c_int_contrib_el = None
+        if len(cod_trib_mun_full) > 3:
             c_int_contrib_el = etree.Element(f"{{{NS_NFSE}}}cIntContrib")
-            c_int_contrib_el.text = cod_trib_mun[:20]
+            c_int_contrib_el.text = cod_trib_mun_full[:20]
 
         # cNBS faz parte do leiaute v1.01 (RT), sempre após xDescServ (XSD TCCServ).
         c_nbs = _nbs_por_ctrib_nacional(codigo_tributacao_nacional, codigo_nbs)
@@ -182,7 +191,7 @@ def _construir_dps_issnet(
                 c_serv.append(c_nbs_el)
 
         # cIntContrib deve vir depois de cNBS no XSD TCCServ.
-        if cod_trib_mun and len(cod_trib_mun) > 3:
+        if c_int_contrib_el is not None:
             if c_nbs_el is not None:
                 c_nbs_el.addnext(c_int_contrib_el)
             elif x_desc is not None:

@@ -159,16 +159,16 @@ class ISSNetNacionalClient:
         abr_asf_d101 = self._cabec_msg_nacional_abrasf("2.04", "1.01")
 
         tentativas = [
-            # Ribeirão Preto valida o leiaute v1.00; aninhado + prefixo nfse é o padrão ACBr/ISSNet
+            # O ValidarXml do ISSNet Ribeirão Preto valida o DPS contra o schema v1.01.
+            ("1.01 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_101, "aninhado", "aninhado", True),
+            ("1.01 cabec aninhado SPED + dados aninhado (prefix)", sped_101, "aninhado", "aninhado", True),
+            ("1.01 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_101, "xsd_string", "xsd_string", True),
+            ("1.01 cabec aninhado SPED + dados xsd_string (prefix)", sped_101, "aninhado", "xsd_string", True),
+            # Fallbacks v1.00 (se o município ainda estiver na versão anterior)
             ("1.00 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_100, "aninhado", "aninhado", True),
             ("1.00 cabec aninhado SPED + dados aninhado (prefix)", self._cabec_msg_nacional_sped("1.00", "1.00"), "aninhado", "aninhado", True),
             ("1.00 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_100, "xsd_string", "xsd_string", True),
             ("1.00 cabec aninhado SPED + dados xsd_string (prefix)", self._cabec_msg_nacional_sped("1.00", "1.00"), "aninhado", "xsd_string", True),
-            # Fallbacks v1.01 (caso o município tenha migrado para o leiaute mais novo)
-            ("1.01 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_101, "aninhado", "aninhado", True),
-            ("1.01 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_101, "xsd_string", "xsd_string", True),
-            ("1.01 cabec aninhado SPED + dados aninhado (prefix)", sped_101, "aninhado", "aninhado", True),
-            ("1.01 cabec xsd_string SPED + dados xsd_string (prefix)", sped_101, "xsd_string", "xsd_string", True),
             # ABRASF legado
             ("ABRASF 2.04 cabec aninhado + dados aninhado (prefix)", abr_asf_d101, "aninhado", "aninhado", True),
             ("ABRASF 2.04 cabec xsd_string + dados xsd_string (prefix)", abr_asf_d101, "xsd_string", "xsd_string", True),

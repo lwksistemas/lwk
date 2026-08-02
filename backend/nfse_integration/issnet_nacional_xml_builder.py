@@ -156,18 +156,22 @@ def _construir_dps_issnet(
     if c_serv is not None and ADICIONAR_EXTRAS_ISSNET:
         x_desc = c_serv.find(f"{{{NS_NFSE}}}xDescServ")
 
-        # cTribMun é opcional no XSD, mas alguns municípios/mediadores
-        # o exigem. Quando informado pelo usuário, inclui-o após cTribNac
-        # e antes de xDescServ; nunca gera valor de fallback.
+        # cTribMun (3 dígitos) é opcional; cIntContrib (máx 20) pode vir
+        # do cadastro municipal (ex: 140118). Nunca gera fallback.
         cod_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
         if len(cod_trib_mun) == 3:
             c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
             c_trib_mun_el.text = cod_trib_mun
             idx = list(c_serv).index(x_desc) if x_desc is not None else 0
             c_serv.insert(idx, c_trib_mun_el)
+        elif cod_trib_mun:
+            # Código interno do contribuinte (atividade municipal > 3 dígitos)
+            c_int_contrib_el = etree.Element(f"{{{NS_NFSE}}}cIntContrib")
+            c_int_contrib_el.text = cod_trib_mun[:20]
 
         # cNBS faz parte do leiaute v1.01 (RT), sempre após xDescServ (XSD TCCServ).
         c_nbs = _nbs_por_ctrib_nacional(codigo_tributacao_nacional, codigo_nbs)
+        c_nbs_el = None
         if c_nbs:
             c_nbs_el = etree.Element(f"{{{NS_NFSE}}}cNBS")
             c_nbs_el.text = c_nbs
@@ -175,6 +179,15 @@ def _construir_dps_issnet(
                 x_desc.addnext(c_nbs_el)
             else:
                 c_serv.append(c_nbs_el)
+
+        # cIntContrib deve vir depois de cNBS no XSD TCCServ.
+        if cod_trib_mun and len(cod_trib_mun) > 3:
+            if c_nbs_el is not None:
+                c_nbs_el.addnext(c_int_contrib_el)
+            elif x_desc is not None:
+                x_desc.addnext(c_int_contrib_el)
+            else:
+                c_serv.append(c_int_contrib_el)
 
     # IBSCBS é obrigatório para emissão a partir da Reforma Tributária.
     if INCLUIR_IBSCBS and ADICIONAR_EXTRAS_ISSNET:

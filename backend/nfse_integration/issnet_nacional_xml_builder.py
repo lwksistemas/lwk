@@ -25,10 +25,11 @@ logger = logging.getLogger(__name__)
 
 NS_NFSE_NACIONAL = NS_NFSE  # Re-export
 # Ribeirão Preto (produção) valida o leiaute v1.01 padrão Nacional.
-VERSAO_ISSNET_NACIONAL = "1.01"
+VERSAO_ISSNET_NACIONAL = "1.00"
 # Adiciona cTribMun e cNBS no cServ apenas quando forem informados via parâmetro.
 ADICIONAR_EXTRAS_ISSNET = True
-INCLUIR_IBSCBS = True
+# IBSCBS faz parte do leiaute v1.01; Ribeirão Preto ainda valida contra v1.00
+INCLUIR_IBSCBS = False
 COD_MUNICIPIO_RP = "3543402"
 
 

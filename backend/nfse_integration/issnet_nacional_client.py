@@ -127,6 +127,7 @@ class ISSNetNacionalClient:
                 # ISSNet Nacional: assina cada DPS sem a segunda assinatura do
                 # lote. O RecepcionarLoteDpsSincrono rejeita a assinatura do LoteDps
                 # (E0714) e valida apenas a assinatura do infDPS.
+                # DPS v1.01 exige SHA-256.
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
@@ -134,6 +135,7 @@ class ISSNetNacionalClient:
                     assinar_lote=False,
                     prefixo_ds=False,
                     usar_cadeia=False,
+                    usar_sha256=True,
                 )
             # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
             return assinar_xml_issnet(xml_str, cert_path, self.cert_password)

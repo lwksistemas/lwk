@@ -1,7 +1,7 @@
 """Assinatura digital XML (XMLDSIG) para NFS-e Nacional.
 
 Padrão: XML Digital Signature (https://www.w3.org/TR/xmldsig-core/)
-Algoritmo: RSA-SHA1 (conforme Portal Contribuinte nfse.gov.br)
+Algoritmo: RSA-SHA1 (padrão legado) ou RSA-SHA256 (Nacional v1.01)
 Certificado: ICP-Brasil A1 ou A3 (.pfx/.p12)
 """
 import contextlib
@@ -388,6 +388,7 @@ def _assinar_elemento_por_id(
     extra_certs=None,
     prefixo_ds: bool = True,
     usar_cadeia: bool = True,
+    usar_sha256: bool = False,
 ) -> None:
     """Assinatura enveloped no parent, Reference URI=#ref_id apontando para target_el."""
     import xmlsec
@@ -399,16 +400,22 @@ def _assinar_elemento_por_id(
             parent_el.remove(child)
 
     ns_prefix = "ds" if prefixo_ds else None
+    if usar_sha256:
+        sig_transform = xmlsec.constants.TransformRsaSha256
+        digest_transform = xmlsec.constants.TransformSha256
+    else:
+        sig_transform = xmlsec.constants.TransformRsaSha1
+        digest_transform = xmlsec.constants.TransformSha1
     sig_node = xmlsec.template.create(
         parent_el,
         xmlsec.constants.TransformInclC14N,
-        xmlsec.constants.TransformRsaSha1,
+        sig_transform,
         ns=ns_prefix,
     )
     parent_el.append(sig_node)
     ref = xmlsec.template.add_reference(
         sig_node,
-        xmlsec.constants.TransformSha1,
+        digest_transform,
         uri=f"#{ref_id}",
     )
     xmlsec.template.add_transform(ref, xmlsec.constants.TransformEnveloped)
@@ -451,6 +458,7 @@ def assinar_xml_enviar_lote_dps(
     assinar_lote: bool = True,
     prefixo_ds: bool = True,
     usar_cadeia: bool = True,
+    usar_sha256: bool = False,
 ) -> str:
     """Assina EnviarLoteDpsSincronoEnvio / EnviarLoteDpsEnvio (padrão Nacional ISSNet).
 
@@ -490,6 +498,7 @@ def assinar_xml_enviar_lote_dps(
         _assinar_elemento_por_id(
             dps, inf_dps, key, inf_id, cert_obj, chain,
             prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
+            usar_sha256=usar_sha256,
         )
 
     # Signature do lote fica na raiz (irmã de LoteDps), Reference=#Id do LoteDps

@@ -45,21 +45,50 @@ def _resolver_codigo_tributacao_nacional(config) -> str:
         if len(digits) >= 4:
             return digits[:6].ljust(6, "0") if len(digits) < 6 else digits[:6]
 
-    # Derivar de item_lista_servico
+    # Derivar de item_lista_servico (padrão nacional: subitem 01)
     item = getattr(config, "item_lista_servico", None)
     if item and str(item).strip():
         digits = _somente_digitos(str(item))
-        if len(digits) >= 4:
-            return digits[:4] + "00"
+        if 4 <= len(digits) < 6:
+            return digits[:4] + "01"
+        if len(digits) >= 6:
+            return digits[:6]
 
-    # Default
-    return "140100"
+    # Default: Conserto/manutenção de computadores (subitem 01)
+    return "140101"
 
 
 def _resolver_codigo_nbs(config) -> str:
     """Resolve NBS da config."""
     nbs = getattr(config, "codigo_nbs", None)
     return _somente_digitos(str(nbs))[:9] if nbs else ""
+
+
+def _resolver_indicador_operacao(config) -> str:
+    """Resolve cIndOp da config ou retorna vazio (builder escolhe pelo cTribNac)."""
+    ind = getattr(config, "indicador_operacao", None)
+    return _somente_digitos(str(ind)) if ind else ""
+
+
+def _resolver_p_tot_trib_sn(config) -> Decimal:
+    """Resolve pTotTribSN para Simples Nacional (ME/EPP)."""
+    valor = getattr(config, "p_tot_trib_sn", None)
+    if valor is None:
+        # Empresas do Simples Nacional geralmente informam 0.00 (não optante) ou o percentual real.
+        return Decimal("0.00")
+    return Decimal(str(valor))
+
+
+def _resolver_cst_ibscbs(config) -> str:
+    """Resolve CST do IBSCBS."""
+    cst = getattr(config, "cst_ibscbs", None)
+    return _somente_digitos(str(cst))[:3] if cst else "000"
+
+
+def _resolver_cclass_trib_ibscbs(config) -> str:
+    """Resolve cClassTrib do IBSCBS."""
+    cclass = getattr(config, "cclass_trib_ibscbs", None)
+    return _somente_digitos(str(cclass))[:6] if cclass else "000001"
 
 
 def _criar_client_nacional(config, cnpj_prestador: str, im_prestador: str) -> ISSNetNacionalClient:
@@ -131,6 +160,10 @@ def emitir_via_issnet_nacional_loja(
         )
         codigo_nbs = _resolver_codigo_nbs(config)
         aliquota = Decimal(str(getattr(config, "aliquota_iss", 2.00) or 0))
+        indicador_operacao = _resolver_indicador_operacao(config)
+        p_tot_trib_sn = _resolver_p_tot_trib_sn(config)
+        cst_ibscbs = _resolver_cst_ibscbs(config)
+        cclass_trib_ibscbs = _resolver_cclass_trib_ibscbs(config)
 
         # Contato do prestador: configuração da NFS-e ou dados da loja
         prestador_email = (
@@ -170,6 +203,10 @@ def emitir_via_issnet_nacional_loja(
             codigo_nbs=codigo_nbs,
             valor_servicos=Decimal(str(valor_servicos)),
             aliquota_iss=aliquota,
+            p_tot_trib_sn=p_tot_trib_sn,
+            indicador_operacao=indicador_operacao,
+            cst_ibscbs=cst_ibscbs,
+            cclass_trib_ibscbs=cclass_trib_ibscbs,
             codigo_municipio_prestacao=tomador_endereco.get("codigo_municipio", "3543402"),
         )
 

@@ -135,6 +135,9 @@ def construir_xml_dps(
     optante_simples_nacional: bool = True,
     regime_especial: int = 0,
     incentivador_cultural: bool = False,
+    # Total de tributos para ME/EPP (Simples Nacional). Se informado,
+    # gera pTotTribSN em vez de indTotTrib=0.
+    p_tot_trib_sn: Decimal | None = None,
     # Código numérico
     codigo_numerico: int = 0,
     # Data
@@ -227,9 +230,13 @@ def construir_xml_dps(
         _el(trib_mun, "tpRetISSQN", "2" if iss_retido else "1")
         _el(trib_mun, "pAliq", _formatar_decimal(aliquota))
 
-    # totTrib - usar indTotTrib=0 (conforme XML real)
+    # totTrib - ME/EPP precisa informar pTotTribSN; demais casos indTotTrib=0
     tot_trib = _el(trib, "totTrib")
-    _el(tot_trib, "indTotTrib", "0")
+    if p_tot_trib_sn is not None:
+        p_sn = Decimal(str(p_tot_trib_sn))
+        _el(tot_trib, "pTotTribSN", _formatar_decimal(p_sn, casas=2))
+    else:
+        _el(tot_trib, "indTotTrib", "0")
 
     # Gerar XML string
     xml_str = etree.tostring(root, encoding="unicode", xml_declaration=False)

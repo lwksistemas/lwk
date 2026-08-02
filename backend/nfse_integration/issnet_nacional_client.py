@@ -123,14 +123,14 @@ class ISSNetNacionalClient:
                 "GerarNfseEnvio",
                 "DPS",
             ):
-                # ISSNet Nacional: assina apenas cada DPS, sem assinatura de lote,
+                # ISSNet Nacional: assina cada DPS e o Lote (assinar_lote=True),
                 # sem prefixo ds: e com apenas o certificado folha na X509Data,
-                # conforme exemplo oficial .NET da NFSe Nacional.
+                # conforme exigido no RecepcionarLoteDpsSincrono.
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
                     self.cert_password,
-                    assinar_lote=False,
+                    assinar_lote=True,
                     prefixo_ds=False,
                     usar_cadeia=False,
                 )
@@ -147,12 +147,12 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        # O serviço ISSNet Nacional aceita XML "cru" dentro de nfseCabecMsg
-        # e nfseDadosMsg, apesar do WSDL tipar como xsd:string. O cabeçalho
-        # NÃO pode ter xmlns (senão devolve E183). Os parâmetros do corpo
-        # devem estar qualificados com o namespace do serviço.
+        # O serviço ISSNet Nacional tipa nfseCabecMsg/nfseDadosMsg como xsd:string.
+        # Escapear os XMLs (xsd_string) evita que o parser do servidor herde
+        # namespaces do envelope e invalide a assinatura da DPS. O cabeçalho
+        # usa versão 1.01 alinhada ao leiaute v1.01.
         tentativas = [
-            ("ISSNet 1.00 cabec cru sem ns + dados cru qualif", self._cabec_msg_nacional_sem_ns("1.00", "1.00"), "aninhado", "aninhado", True),
+            ("ISSNet 1.01 cabec xsd_string sem ns + dados xsd_string", self._cabec_msg_nacional_sem_ns("1.01", "1.01"), "xsd_string", "xsd_string", False),
         ]
 
         try:
@@ -329,6 +329,10 @@ class ISSNetNacionalClient:
         codigo_municipio_prestacao: str = "",
         prestador_telefone: str = "",
         prestador_email: str = "",
+        p_tot_trib_sn: Decimal = Decimal("0.00"),
+        indicador_operacao: str = "",
+        cst_ibscbs: str = "000",
+        cclass_trib_ibscbs: str = "000001",
     ) -> dict[str, Any]:
         """Emite NFS-e via ISSNet Nacional (padrão DPS).
 
@@ -348,7 +352,8 @@ class ISSNetNacionalClient:
         try:
             ambiente_int = 1 if self.ambiente == "producao" else 2
 
-            xml_envio = construir_xml_gerar_nfse_envio(
+            xml_envio = construir_xml_enviar_lote_dps_sincrono(
+                numero_lote=numero_lote,
                 prestador_cnpj=self.prestador_cnpj,
                 prestador_inscricao_municipal=self.prestador_im,
                 prestador_telefone=prestador_telefone,
@@ -372,6 +377,10 @@ class ISSNetNacionalClient:
                 codigo_nbs=codigo_nbs,
                 valor_servicos=valor_servicos,
                 aliquota_iss=aliquota_iss,
+                p_tot_trib_sn=p_tot_trib_sn,
+                indicador_operacao=indicador_operacao,
+                cst_ibscbs=cst_ibscbs,
+                cclass_trib_ibscbs=cclass_trib_ibscbs,
             )
 
             logger.info("ISSNet Nacional: assinando XML DPS nº %d...", numero_dps)
@@ -400,7 +409,7 @@ class ISSNetNacionalClient:
             )
             resposta_soap = self._enviar_soap(
                 xml_assinado,
-                SOAP_ACTION_NACIONAL_GERAR_NFSE,
+                SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
             )
             result["xml_resposta"] = resposta_soap
 

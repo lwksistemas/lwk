@@ -9,10 +9,12 @@ O ISSNet Nacional recebe via SOAP com o XML DPS dentro de:
 
 Endpoint: https://nfse.issnetonline.com.br/wsnfsenacional/ribeiraopreto/nfse.asmx
 """
+import json
 import logging
 import re
 from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
 
 from lxml import etree
 
@@ -22,44 +24,27 @@ from nfse_integration.nacional.xml_builder import construir_xml_dps
 logger = logging.getLogger(__name__)
 
 NS_NFSE_NACIONAL = NS_NFSE  # Re-export
-# Ribeirão Preto (produção) ainda valida o leiaute v1.00 sem IBSCBS/cNBS/cTribMun.
-VERSAO_ISSNET_NACIONAL = "1.00"
-ADICIONAR_EXTRAS_ISSNET = False
+# Ribeirão Preto (produção) valida o leiaute v1.01 padrão Nacional.
+VERSAO_ISSNET_NACIONAL = "1.01"
+# Adiciona cTribMun e cNBS no cServ apenas quando forem informados via parâmetro.
+ADICIONAR_EXTRAS_ISSNET = True
+INCLUIR_IBSCBS = True
 COD_MUNICIPIO_RP = "3543402"
 
 
-_MAPA_CTRIBNAC_PARA_NBS: dict[str, str] = {
-    "140100": "120012000",
-    "140101": "120012000",
-    "140201": "120012000",
-    "140301": "120012000",
-    "140401": "120012000",
-    "140501": "120012000",
-    "140601": "120012000",
-    "140701": "120012000",
-    "140801": "120012000",
-    "140901": "120012000",
-    "141001": "120012000",
-    "141101": "120012000",
-    "141201": "120012000",
-    "141301": "120012000",
-    "141302": "120012000",
-    "141401": "120012000",
-    "141402": "120012000",
-    "141403": "120012000",
-    "141404": "120012000",
-    "010101": "114011100",
-    "010201": "114011100",
-    "010301": "114011100",
-    "010302": "114011100",
-    "010401": "114011100",
-    "010501": "114011100",
-    "010601": "114011100",
-    "010701": "114011100",
-    "010801": "114011100",
-    "010901": "114011100",
-    "010902": "114011100",
-}
+def _carregar_mapeamento() -> tuple[dict[str, str], dict[str, str]]:
+    """Carrega mapas cNBS e cIndOp por cTribNac da tabela de correlação nacional."""
+    try:
+        caminho = Path(__file__).parent / "data" / "nbs_indop_map.json"
+        with caminho.open("r", encoding="utf-8") as f:
+            dados = json.load(f)
+        return dados.get("nbs", {}), dados.get("indop", {})
+    except Exception as e:
+        logger.warning("Não foi possível carregar nbs_indop_map.json: %s", e)
+        return {}, {}
+
+
+_NBS_POR_CTRIBNAC, _INDOP_POR_CTRIBNAC = _carregar_mapeamento()
 
 
 def _somente_digitos(texto: str) -> str:
@@ -67,19 +52,33 @@ def _somente_digitos(texto: str) -> str:
 
 
 def _nbs_por_ctrib_nacional(codigo_tributacao_nacional: str, codigo_nbs: str) -> str:
-    """Retorna cNBS válido, priorizando o mapeamento por cTribNac.
+    """Retorna cNBS válido.
 
-    Sobrescreve valores genéricos/inválidos conhecidos (114011100/104033000)
-    quando o mapeamento tem um NBS mais específico para o serviço.
+    Quando não informado ou com valor genérico (114011100/104033000),
+    busca no mapeamento por cTribNac. O cNBS é opcional, mas passa a
+    ser obrigatório quando o bloco IBSCBS está habilitado.
     """
-    chave = _somente_digitos(codigo_tributacao_nacional or "")[:6]
-    nbs_mapeado = _MAPA_CTRIBNAC_PARA_NBS.get(chave)
     nbs_informado = _somente_digitos(codigo_nbs or "")
-    if nbs_mapeado and (not nbs_informado or nbs_informado in ("114011100", "104033000")):
+    chave = _somente_digitos(codigo_tributacao_nacional or "")[:6]
+    nbs_mapeado = _NBS_POR_CTRIBNAC.get(chave)
+
+    if not nbs_informado:
+        return nbs_mapeado or ""
+    if nbs_informado in ("114011100", "104033000") and nbs_mapeado:
         return nbs_mapeado
     if len(nbs_informado) == 9:
         return nbs_informado
     return nbs_mapeado or ""
+
+
+def _indicador_operacao_por_ctrib_nacional(codigo_tributacao_nacional: str, indicador_operacao: str | None) -> str:
+    """Retorna cIndOp padrão quando não informado ou genérico."""
+    ind_informado = _somente_digitos(indicador_operacao or "")
+    if ind_informado and ind_informado != "100301":
+        return ind_informado
+    chave = _somente_digitos(codigo_tributacao_nacional or "")[:6]
+    ind_mapeado = _INDOP_POR_CTRIBNAC.get(chave)
+    return ind_mapeado or ind_informado or "100301"
 
 
 def _construir_dps_issnet(
@@ -108,6 +107,7 @@ def _construir_dps_issnet(
     valor_servicos: Decimal,
     aliquota_iss: Decimal,
     data_emissao: datetime,
+    p_tot_trib_sn: Decimal | None,
     indicador_operacao: str,
     ind_final_ibscbs: str,
     ind_dest_ibscbs: str,
@@ -139,6 +139,7 @@ def _construir_dps_issnet(
         valor_servicos=valor_servicos,
         aliquota_iss=aliquota_iss,
         optante_simples_nacional=optante_simples_nacional,
+        p_tot_trib_sn=p_tot_trib_sn,
         data_competencia=data_emissao,
         versao_dps=VERSAO_ISSNET_NACIONAL,
         prefixo_nfse=False,
@@ -146,15 +147,20 @@ def _construir_dps_issnet(
 
     dps_element = etree.fromstring(xml_dps.encode("utf-8"))
 
+    # Resolve cIndOp padrão pelo mapa nacional quando genérico
+    indicador_operacao = _indicador_operacao_por_ctrib_nacional(
+        codigo_tributacao_nacional, indicador_operacao
+    )
+
     c_serv = dps_element.find(f".//{{{NS_NFSE}}}cServ")
     if c_serv is not None and ADICIONAR_EXTRAS_ISSNET:
         x_desc = c_serv.find(f"{{{NS_NFSE}}}xDescServ")
 
-        # cTribMun faz parte do leiaute v1.01 (RT) e vem antes de xDescServ.
+        # cTribMun é opcional no XSD, mas alguns municípios/mediadores
+        # o exigem. Quando informado pelo usuário, inclui-o após cTribNac
+        # e antes de xDescServ; nunca gera valor de fallback.
         cod_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
-        if not cod_trib_mun and codigo_tributacao_nacional:
-            cod_trib_mun = _somente_digitos(codigo_tributacao_nacional or "")[:3]
-        if cod_trib_mun:
+        if len(cod_trib_mun) == 3:
             c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
             c_trib_mun_el.text = cod_trib_mun
             idx = list(c_serv).index(x_desc) if x_desc is not None else 0
@@ -170,8 +176,8 @@ def _construir_dps_issnet(
             else:
                 c_serv.append(c_nbs_el)
 
-    # IBSCBS só faz parte do leiaute v1.01 (RT).
-    if ADICIONAR_EXTRAS_ISSNET:
+    # IBSCBS é obrigatório para emissão a partir da Reforma Tributária.
+    if INCLUIR_IBSCBS and ADICIONAR_EXTRAS_ISSNET:
         inf_dps = dps_element.find(f"{{{NS_NFSE}}}infDPS")
         if inf_dps is not None:
             ibscbs = etree.SubElement(inf_dps, f"{{{NS_NFSE}}}IBSCBS")
@@ -215,6 +221,7 @@ def construir_xml_gerar_nfse_envio(
     valor_servicos: Decimal = Decimal("0.00"),
     aliquota_iss: Decimal = Decimal("2.50"),
     valor_iss: Decimal | None = None,
+    p_tot_trib_sn: Decimal = Decimal("0.00"),
     # IBSCBS / Reforma Tributária
     indicador_operacao: str = "100301",
     ind_final_ibscbs: str = "0",
@@ -255,6 +262,7 @@ def construir_xml_gerar_nfse_envio(
         valor_servicos=valor_servicos,
         aliquota_iss=aliquota_iss,
         data_emissao=data_emissao,
+        p_tot_trib_sn=p_tot_trib_sn,
         indicador_operacao=indicador_operacao,
         ind_final_ibscbs=ind_final_ibscbs,
         ind_dest_ibscbs=ind_dest_ibscbs,
@@ -301,6 +309,7 @@ def construir_xml_enviar_lote_dps_sincrono(
     valor_servicos: Decimal = Decimal("0.00"),
     aliquota_iss: Decimal = Decimal("2.50"),
     valor_iss: Decimal | None = None,
+    p_tot_trib_sn: Decimal = Decimal("0.00"),
     # IBSCBS / Reforma Tributária
     indicador_operacao: str = "100301",
     ind_final_ibscbs: str = "0",
@@ -345,7 +354,7 @@ def construir_xml_enviar_lote_dps_sincrono(
         valor_servicos=valor_servicos,
         aliquota_iss=aliquota_iss,
         data_emissao=data_emissao,
-        data_competencia=data_competencia,
+        p_tot_trib_sn=p_tot_trib_sn,
         indicador_operacao=indicador_operacao,
         ind_final_ibscbs=ind_final_ibscbs,
         ind_dest_ibscbs=ind_dest_ibscbs,

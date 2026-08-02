@@ -124,14 +124,14 @@ class ISSNetNacionalClient:
                 "GerarNfseEnvio",
                 "DPS",
             ):
-                # ISSNet Nacional: assina cada DPS e o Lote (assinar_lote=True),
-                # sem prefixo ds: e com apenas o certificado folha na X509Data,
-                # conforme exigido no RecepcionarLoteDpsSincrono.
+                # ISSNet Nacional: assina cada DPS sem a segunda assinatura do
+                # lote. O RecepcionarLoteDpsSincrono rejeita a assinatura do LoteDps
+                # (E0714) e valida apenas a assinatura do infDPS.
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
                     self.cert_password,
-                    assinar_lote=True,
+                    assinar_lote=False,
                     prefixo_ds=False,
                     usar_cadeia=False,
                 )
@@ -371,9 +371,10 @@ class ISSNetNacionalClient:
         try:
             ambiente_int = 1 if self.ambiente == "producao" else 2
 
-            # Ribeirão Preto espera o método GerarNfse com DPS solto,
-            # conforme o envelope de referência dps_envelope2.xml.
-            xml_envio = construir_xml_gerar_nfse_envio(
+            # O ValidarXml do ISSNet Ribeirão Preto valida DPS v1.01. O envio
+            # é feito pelo método RecepcionarLoteDpsSincrono.
+            xml_envio = construir_xml_enviar_lote_dps_sincrono(
+                numero_lote=numero_lote,
                 prestador_cnpj=self.prestador_cnpj,
                 prestador_inscricao_municipal=self.prestador_im,
                 prestador_telefone=prestador_telefone,
@@ -429,7 +430,7 @@ class ISSNetNacionalClient:
             )
             resposta_soap = self._enviar_soap(
                 xml_assinado,
-                SOAP_ACTION_NACIONAL_GERAR_NFSE,
+                SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
             )
             result["xml_resposta"] = resposta_soap
 

@@ -371,8 +371,9 @@ class ISSNetNacionalClient:
         try:
             ambiente_int = 1 if self.ambiente == "producao" else 2
 
-            xml_envio = construir_xml_enviar_lote_dps_sincrono(
-                numero_lote=numero_lote,
+            # Ribeirão Preto espera o método GerarNfse com DPS solto,
+            # conforme o envelope de referência dps_envelope2.xml.
+            xml_envio = construir_xml_gerar_nfse_envio(
                 prestador_cnpj=self.prestador_cnpj,
                 prestador_inscricao_municipal=self.prestador_im,
                 prestador_telefone=prestador_telefone,
@@ -428,7 +429,7 @@ class ISSNetNacionalClient:
             )
             resposta_soap = self._enviar_soap(
                 xml_assinado,
-                SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
+                SOAP_ACTION_NACIONAL_GERAR_NFSE,
             )
             result["xml_resposta"] = resposta_soap
 

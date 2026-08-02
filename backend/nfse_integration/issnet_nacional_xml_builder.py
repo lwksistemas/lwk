@@ -495,7 +495,7 @@ def extrair_chave_acesso_nfse_nacional(xml_resposta: str) -> str | None:
         )
         for el in root.iter():
             local = etree.QName(el.tag).localname
-            if local in ("ChaveAcesso", "chNFSe", "chaveAcesso"):
+            if local in ("ChaveAcesso", "chNFSe", "chaveAcesso", "CodigoVerificacao", "cVerif"):
                 t = (el.text or "").strip()
                 if t:
                     return t

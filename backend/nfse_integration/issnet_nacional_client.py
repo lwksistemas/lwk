@@ -25,6 +25,7 @@ from lxml import etree
 
 from nfse_integration.issnet_cert import certificado_mtls_temporario
 from nfse_integration.issnet_constants import (
+    CABEC_MSG,
     CABEC_MSG_NACIONAL,
     ISSNET_NACIONAL_URLS,
     NS_NFSE_NACIONAL,
@@ -147,12 +148,27 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        # O serviço ISSNet Nacional tipa nfseCabecMsg/nfseDadosMsg como xsd:string.
-        # Escapear os XMLs (xsd_string) evita que o parser do servidor herde
-        # namespaces do envelope e invalide a assinatura da DPS. O cabeçalho
-        # usa versão 1.01 alinhada ao leiaute v1.01.
+        # Fallback de estratégias de envelope. A ordem prioriza o leiaute
+        # aninhado com prefixo nfse (conforme exemplos ACBr/ISSNet) e depois
+        # variações de cabeçalho (sem ns, SPED, ABRASF) e serialização.
+        sem_ns_101 = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
+        sped_101 = self._cabec_msg_nacional_sped("1.01", "1.01")
+        sem_ns_100 = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
+        sem_ns_100_d101 = self._cabec_msg_nacional_sem_ns("1.00", "1.01")
+        sped_100_d101 = self._cabec_msg_nacional_sped("1.00", "1.01")
+        abr_asf_d101 = self._cabec_msg_nacional_abrasf("2.04", "1.01")
+
         tentativas = [
-            ("ISSNet 1.01 cabec xsd_string sem ns + dados xsd_string", self._cabec_msg_nacional_sem_ns("1.01", "1.01"), "xsd_string", "xsd_string", False),
+            ("1.01 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_101, "aninhado", "aninhado", True),
+            ("1.01 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_101, "xsd_string", "xsd_string", True),
+            ("1.01 cabec aninhado SPED + dados aninhado (prefix)", sped_101, "aninhado", "aninhado", True),
+            ("1.01 cabec xsd_string SPED + dados xsd_string (prefix)", sped_101, "xsd_string", "xsd_string", True),
+            ("ABRASF 2.04 cabec aninhado + dados aninhado (prefix)", abr_asf_d101, "aninhado", "aninhado", True),
+            ("ABRASF 2.04 cabec xsd_string + dados xsd_string (prefix)", abr_asf_d101, "xsd_string", "xsd_string", True),
+            ("1.00 cabec aninhado sem ns vD 1.00 + dados aninhado (prefix)", sem_ns_100, "aninhado", "aninhado", True),
+            ("1.00 cabec xsd_string sem ns vD 1.00 + dados xsd_string (prefix)", sem_ns_100, "xsd_string", "xsd_string", True),
+            ("1.00 cabec aninhado sem ns vD 1.01 + dados aninhado (prefix)", sem_ns_100_d101, "aninhado", "aninhado", True),
+            ("1.00 cabec aninhado SPED vD 1.01 + dados aninhado (prefix)", sped_100_d101, "aninhado", "aninhado", True),
         ]
 
         try:

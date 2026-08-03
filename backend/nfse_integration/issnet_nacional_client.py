@@ -125,8 +125,8 @@ class ISSNetNacionalClient:
                 "DPS",
             ):
                 # ISSNet Nacional Ribeirão Preto v1.01: assina cada DPS sem a
-                # segunda assinatura do lote. Usa RSA-SHA256 via xmlsec (sem
-                # prefixo ds:, conforme aceito pelo validador ISSNet).
+                # segunda assinatura do lote. Usa RSA-SHA1 via xmlsec sem
+                # prefixo ds: (mesmo padrão que funcionava na v1.00).
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
@@ -135,7 +135,6 @@ class ISSNetNacionalClient:
                     prefixo_ds=False,
                     usar_cadeia=False,
                     usar_sha256=False,
-                    usar_sha256_xmlsec=True,
                 )
             # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
             return assinar_xml_issnet(xml_str, cert_path, self.cert_password)

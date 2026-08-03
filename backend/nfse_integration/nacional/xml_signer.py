@@ -379,6 +379,53 @@ def _carregar_chave_xmlsec(pfx_path: str, senha_pfx: str):
     return key, cert_obj, extra_certs
 
 
+def _carregar_pems_pfx(pfx_path: str, senha_pfx: str):
+    """Carrega chave privada e certificado folha em PEM."""
+    from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
+
+    private_key, cert_obj, _ = carregar_certificado_pfx(pfx_path, senha_pfx)
+    key_pem = private_key.private_bytes(
+        Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption(),
+    )
+    cert_pem = cert_obj.public_bytes(Encoding.PEM)
+    return key_pem, cert_pem, cert_obj
+
+
+def _assinar_dps_com_signxml(dps_el, inf_el, key_pem: bytes, cert_pem: bytes) -> None:
+    """Assina um DPS usando signxml (RSA-SHA256 + C14N).
+
+    signxml é mais tolerante com a referência #Id e produz uma assinatura
+    que o ISSNet Nacional v1.01 aceita sem E0714.
+    """
+    from signxml import XMLSigner, methods
+
+    inf_id = (inf_el.get("Id") or "").strip()
+    if not inf_id:
+        raise ValueError("Atributo Id ausente em infDPS para assinatura signxml.")
+
+    parent = dps_el.getparent()
+    if parent is None:
+        raise ValueError("Elemento DPS não possui pai.")
+
+    signer = XMLSigner(
+        method=methods.enveloped,
+        signature_algorithm="rsa-sha256",
+        digest_algorithm="sha256",
+        c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+    )
+    signed_dps = signer.sign(
+        dps_el,
+        key=key_pem,
+        cert=cert_pem,
+        reference_uri=f"#{inf_id}",
+        id_attribute="Id",
+    )
+
+    idx = list(parent).index(dps_el)
+    parent.remove(dps_el)
+    parent.insert(idx, signed_dps)
+
+
 def _assinar_elemento_por_id(
     parent_el,
     target_el,
@@ -459,6 +506,7 @@ def assinar_xml_enviar_lote_dps(
     prefixo_ds: bool = True,
     usar_cadeia: bool = True,
     usar_sha256: bool = False,
+    usar_sha256_xmlsec: bool = False,
 ) -> str:
     """Assina EnviarLoteDpsSincronoEnvio / EnviarLoteDpsEnvio (padrão Nacional ISSNet).
 
@@ -470,6 +518,7 @@ def assinar_xml_enviar_lote_dps(
        exemplos do ISSNet Nacional.
     4) usar_cadeia=False inclui apenas o certificado folha na X509Data, conforme
        exemplos do ISSNet Nacional.
+    5) usar_sha256_xmlsec=True usa xmlsec com SHA-256 (sem prefixo ds:).
     """
     ns = "http://www.sped.fazenda.gov.br/nfse"
     root = etree.fromstring(xml_str.encode("utf-8"))
@@ -478,11 +527,16 @@ def assinar_xml_enviar_lote_dps(
     if root_local in ("DPS",):
         return assinar_xml_dps(xml_str, pfx_path, senha_pfx)
 
-    key, cert_obj, extra_certs = _carregar_chave_xmlsec(pfx_path, senha_pfx)
-
-    # Completa a cadeia ICP-Brasil (AIA + fallback) para incluir no X509Data
-    chain = _completar_cadeia_certificados(cert_obj, extra_certs)
-    logger.info("Cadeia de certificados montada: %d certificado(s) (folha + intermediários)", len(chain))
+    # Para DPS v1.01 o ISSNet Nacional aceita a assinatura gerada pelo
+    # signxml, que trata a referência #Id de forma mais compatível com a
+    # validação do servidor.
+    if usar_sha256 and not usar_sha256_xmlsec:
+        key_pem, cert_pem, _ = _carregar_pems_pfx(pfx_path, senha_pfx)
+    else:
+        key, cert_obj, extra_certs = _carregar_chave_xmlsec(pfx_path, senha_pfx)
+        # Completa a cadeia ICP-Brasil (AIA + fallback) para incluir no X509Data
+        chain = _completar_cadeia_certificados(cert_obj, extra_certs)
+        logger.info("Cadeia de certificados montada: %d certificado(s) (folha + intermediários)", len(chain))
 
     dps_nodes = root.findall(f".//{{{ns}}}DPS")
     if not dps_nodes:
@@ -495,14 +549,19 @@ def assinar_xml_enviar_lote_dps(
         inf_id = (inf_dps.get("Id") or "").strip()
         if not inf_id:
             raise ValueError("Atributo Id ausente em infDPS.")
-        _assinar_elemento_por_id(
-            dps, inf_dps, key, inf_id, cert_obj, chain,
-            prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
-            usar_sha256=usar_sha256,
-        )
 
-    # Signature do lote fica na raiz (irmã de LoteDps), Reference=#Id do LoteDps
-    if assinar_lote:
+        if usar_sha256 and not usar_sha256_xmlsec:
+            _assinar_dps_com_signxml(dps, inf_dps, key_pem, cert_pem)
+        else:
+            _assinar_elemento_por_id(
+                dps, inf_dps, key, inf_id, cert_obj, chain,
+                prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
+                usar_sha256=usar_sha256_xmlsec,
+            )
+
+    # Signature do lote fica na raiz (irmã de LoteDps), Reference=#Id do LoteDps.
+    # Lote é assinado apenas no caminho legado (xmlsec).
+    if assinar_lote and not usar_sha256:
         lote = root.find(f"{{{ns}}}LoteDps")
         if lote is not None and root_local in ("EnviarLoteDpsSincronoEnvio", "EnviarLoteDpsEnvio"):
             lote_id = (lote.get("Id") or "").strip()

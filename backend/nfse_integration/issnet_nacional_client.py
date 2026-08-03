@@ -124,9 +124,8 @@ class ISSNetNacionalClient:
                 "GerarNfseEnvio",
                 "DPS",
             ):
-                # ISSNet Nacional Ribeirão Preto: assina cada DPS sem a segunda
-                # assinatura do lote. Usa RSA-SHA1 conforme envelope validado
-                # (dps_envelope2.xml). SHA-256 é rejeitado pelo schema v1.00.
+                # ISSNet Nacional Ribeirão Preto v1.01: assina cada DPS sem a
+                # segunda assinatura do lote. Usa RSA-SHA256 conforme schema v1.01.
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
@@ -134,7 +133,7 @@ class ISSNetNacionalClient:
                     assinar_lote=False,
                     prefixo_ds=False,
                     usar_cadeia=False,
-                    usar_sha256=False,
+                    usar_sha256=True,
                 )
             # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
             return assinar_xml_issnet(xml_str, cert_path, self.cert_password)
@@ -149,25 +148,24 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        # Fallback de estratégias de envelope. A ordem prioriza o leiaute
-        # validado em produção (dps_envelope2.xml): cabeçalho v1.00 sem
-        # namespace, dados aninhados com prefixo nfse.
-        sem_ns_100 = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
-        sped_100 = self._cabec_msg_nacional_sped("1.00", "1.00")
+        # Fallback de estratégias de envelope. A ordem prioriza v1.01
+        # (schema obrigatório a partir de 03/08/2026 no ISSNet RP).
         sem_ns_101 = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
         sped_101 = self._cabec_msg_nacional_sped("1.01", "1.01")
+        sem_ns_100 = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
+        sped_100 = self._cabec_msg_nacional_sped("1.00", "1.00")
 
         tentativas = [
-            # Formato validado em produção (dps_envelope2.xml): v1.00, aninhado, prefixo nfse
-            ("1.00 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_100, "aninhado", "aninhado", True),
-            ("1.00 cabec aninhado SPED + dados aninhado (prefix)", sped_100, "aninhado", "aninhado", True),
-            ("1.00 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_100, "xsd_string", "xsd_string", True),
-            ("1.00 cabec aninhado SPED + dados xsd_string (prefix)", sped_100, "aninhado", "xsd_string", True),
-            # Fallbacks v1.01 (caso o município migre para versão mais nova)
+            # v1.01 (schema atual obrigatório)
             ("1.01 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_101, "aninhado", "aninhado", True),
             ("1.01 cabec aninhado SPED + dados aninhado (prefix)", sped_101, "aninhado", "aninhado", True),
             ("1.01 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_101, "xsd_string", "xsd_string", True),
             ("1.01 cabec aninhado SPED + dados xsd_string (prefix)", sped_101, "aninhado", "xsd_string", True),
+            # Fallbacks v1.00 (caso o município volte atrás)
+            ("1.00 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_100, "aninhado", "aninhado", True),
+            ("1.00 cabec aninhado SPED + dados aninhado (prefix)", sped_100, "aninhado", "aninhado", True),
+            ("1.00 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_100, "xsd_string", "xsd_string", True),
+            ("1.00 cabec aninhado SPED + dados xsd_string (prefix)", sped_100, "aninhado", "xsd_string", True),
         ]
 
         try:

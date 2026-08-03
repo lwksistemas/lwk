@@ -24,12 +24,12 @@ from nfse_integration.nacional.xml_builder import construir_xml_dps, _formatar_d
 logger = logging.getLogger(__name__)
 
 NS_NFSE_NACIONAL = NS_NFSE  # Re-export
-# O ISSNet Ribeirão Preto aceita DPS v1.00 sem IBSCBS/cNBS até 2026-07-31.
-VERSAO_ISSNET_NACIONAL = "1.00"
-# Desabilita cNBS/cTribMun/cIntContrib no cServ e habilita fone/e-mail no prest.
-ADICIONAR_EXTRAS_ISSNET = False
+# A partir de 03/08/2026 o ISSNet Ribeirão Preto exige DPS v1.01.
+VERSAO_ISSNET_NACIONAL = "1.01"
+# Habilita cNBS no cServ e fone/e-mail no prest (obrigatórios v1.01).
+ADICIONAR_EXTRAS_ISSNET = True
 # IBSCBS é obrigatório no leiaute v1.01 a partir da Reforma Tributária.
-INCLUIR_IBSCBS = False
+INCLUIR_IBSCBS = True
 COD_MUNICIPIO_RP = "3543402"
 
 
@@ -117,8 +117,8 @@ def _construir_dps_issnet(
     cclass_trib_ibscbs: str,
 ) -> etree._Element:
     """Constrói o elemento <DPS> estendido com os campos exigidos pelo ISSNet Nacional."""
-    # O XML de sucesso do ISSNet Ribeirão Preto v1.00 não inclui fone/email no
-    # tomador (apenas no prestador). Omitir para evitar E160.
+    # v1.01: inclui fone/email no prestador e tomador.
+    # v1.00 (legado): omitia tomador fone/email.
     xml_dps = construir_xml_dps(
         numero_dps=numero_dps,
         serie_dps=serie_dps,
@@ -131,8 +131,8 @@ def _construir_dps_issnet(
         tomador_cpf_cnpj=tomador_cpf_cnpj,
         tomador_nome=tomador_nome,
         tomador_endereco=tomador_endereco,
-        tomador_telefone=tomador_telefone if ADICIONAR_EXTRAS_ISSNET else "",
-        tomador_email=tomador_email if ADICIONAR_EXTRAS_ISSNET else "",
+        tomador_telefone=tomador_telefone,
+        tomador_email=tomador_email,
         codigo_servico=codigo_tributacao_nacional or "140100",
         descricao_servico=descricao_servico,
         codigo_municipio_incidencia=codigo_municipio_prestacao or codigo_municipio_emissor,

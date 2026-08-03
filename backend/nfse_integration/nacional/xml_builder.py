@@ -177,7 +177,7 @@ def construir_xml_dps(
     inf_dps = etree.SubElement(root, f"{{{NS_NFSE}}}infDPS", Id=inf_id)
 
     # --- Identificação (ordem conforme XML real) ---
-    # Nota: em produção restrita (homologação), usar tpAmb=1 conforme comportamento do portal
+    # O ISSNet Ribeirão Preto trata homologação como produção restrita (tpAmb=1).
     _el(inf_dps, "tpAmb", "1")
     _el(inf_dps, "dhEmi", data_competencia.strftime("%Y-%m-%dT00:00:00-03:00"))
     _el(inf_dps, "verAplic", versao_dps)
@@ -218,17 +218,12 @@ def construir_xml_dps(
     # trib
     trib = _el(valores, "trib")
 
-    # tribMun - ordem difere entre v1.00 e v1.01 do XSD
+    # tribMun - ordem conforme XML de sucesso (ISSNet Ribeirão Preto):
+    # tribISSQN, pAliq, tpRetISSQN
     trib_mun = _el(trib, "tribMun")
     _el(trib_mun, "tribISSQN", str(natureza_tributacao))
-    if versao_dps == "1.00":
-        # v1.00: pAliq antes de tpRetISSQN
-        _el(trib_mun, "pAliq", _formatar_decimal(aliquota))
-        _el(trib_mun, "tpRetISSQN", "2" if iss_retido else "1")
-    else:
-        # v1.01: tpRetISSQN antes de pAliq
-        _el(trib_mun, "tpRetISSQN", "2" if iss_retido else "1")
-        _el(trib_mun, "pAliq", _formatar_decimal(aliquota))
+    _el(trib_mun, "pAliq", _formatar_decimal(aliquota))
+    _el(trib_mun, "tpRetISSQN", "2" if iss_retido else "1")
 
     # totTrib - ME/EPP precisa informar pTotTribSN; demais casos indTotTrib=0
     tot_trib = _el(trib, "totTrib")

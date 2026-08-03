@@ -124,10 +124,9 @@ class ISSNetNacionalClient:
                 "GerarNfseEnvio",
                 "DPS",
             ):
-                # ISSNet Nacional: assina cada DPS sem a segunda assinatura do
-                # lote. O RecepcionarLoteDpsSincrono rejeita a assinatura do LoteDps
-                # (E0714) e valida apenas a assinatura do infDPS.
-                # DPS v1.01 exige SHA-256.
+                # ISSNet Nacional Ribeirão Preto: assina cada DPS sem a segunda
+                # assinatura do lote. Usa RSA-SHA1 conforme envelope validado
+                # (dps_envelope2.xml). SHA-256 é rejeitado pelo schema v1.00.
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
@@ -135,7 +134,7 @@ class ISSNetNacionalClient:
                     assinar_lote=False,
                     prefixo_ds=False,
                     usar_cadeia=False,
-                    usar_sha256=True,
+                    usar_sha256=False,
                 )
             # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
             return assinar_xml_issnet(xml_str, cert_path, self.cert_password)
@@ -151,29 +150,24 @@ class ISSNetNacionalClient:
         cert_path = self._pfx_temp()
 
         # Fallback de estratégias de envelope. A ordem prioriza o leiaute
-        # aninhado com prefixo nfse (conforme exemplos ACBr/ISSNet) e depois
-        # variações de cabeçalho (sem ns, SPED, ABRASF) e serialização.
+        # validado em produção (dps_envelope2.xml): cabeçalho v1.00 sem
+        # namespace, dados aninhados com prefixo nfse.
+        sem_ns_100 = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
+        sped_100 = self._cabec_msg_nacional_sped("1.00", "1.00")
         sem_ns_101 = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
         sped_101 = self._cabec_msg_nacional_sped("1.01", "1.01")
-        sem_ns_100 = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
-        sem_ns_100_d101 = self._cabec_msg_nacional_sem_ns("1.00", "1.01")
-        sped_100_d101 = self._cabec_msg_nacional_sped("1.00", "1.01")
-        abr_asf_d101 = self._cabec_msg_nacional_abrasf("2.04", "1.01")
 
         tentativas = [
-            # O ValidarXml do ISSNet Ribeirão Preto valida o DPS contra o schema v1.01.
+            # Formato validado em produção (dps_envelope2.xml): v1.00, aninhado, prefixo nfse
+            ("1.00 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_100, "aninhado", "aninhado", True),
+            ("1.00 cabec aninhado SPED + dados aninhado (prefix)", sped_100, "aninhado", "aninhado", True),
+            ("1.00 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_100, "xsd_string", "xsd_string", True),
+            ("1.00 cabec aninhado SPED + dados xsd_string (prefix)", sped_100, "aninhado", "xsd_string", True),
+            # Fallbacks v1.01 (caso o município migre para versão mais nova)
             ("1.01 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_101, "aninhado", "aninhado", True),
             ("1.01 cabec aninhado SPED + dados aninhado (prefix)", sped_101, "aninhado", "aninhado", True),
             ("1.01 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_101, "xsd_string", "xsd_string", True),
             ("1.01 cabec aninhado SPED + dados xsd_string (prefix)", sped_101, "aninhado", "xsd_string", True),
-            # Fallbacks v1.00 (se o município ainda estiver na versão anterior)
-            ("1.00 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_100, "aninhado", "aninhado", True),
-            ("1.00 cabec aninhado SPED + dados aninhado (prefix)", self._cabec_msg_nacional_sped("1.00", "1.00"), "aninhado", "aninhado", True),
-            ("1.00 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_100, "xsd_string", "xsd_string", True),
-            ("1.00 cabec aninhado SPED + dados xsd_string (prefix)", self._cabec_msg_nacional_sped("1.00", "1.00"), "aninhado", "xsd_string", True),
-            # ABRASF legado
-            ("ABRASF 2.04 cabec aninhado + dados aninhado (prefix)", abr_asf_d101, "aninhado", "aninhado", True),
-            ("ABRASF 2.04 cabec xsd_string + dados xsd_string (prefix)", abr_asf_d101, "xsd_string", "xsd_string", True),
         ]
 
         try:
@@ -350,7 +344,7 @@ class ISSNetNacionalClient:
         codigo_municipio_prestacao: str = "",
         prestador_telefone: str = "",
         prestador_email: str = "",
-        p_tot_trib_sn: Decimal = Decimal("0.00"),
+        p_tot_trib_sn: Decimal | None = None,
         indicador_operacao: str = "",
         cst_ibscbs: str = "000",
         cclass_trib_ibscbs: str = "000001",
@@ -373,10 +367,10 @@ class ISSNetNacionalClient:
         try:
             ambiente_int = 1 if self.ambiente == "producao" else 2
 
-            # O ValidarXml do ISSNet Ribeirão Preto valida DPS v1.01. O envio
-            # é feito pelo método RecepcionarLoteDpsSincrono.
-            xml_envio = construir_xml_enviar_lote_dps_sincrono(
-                numero_lote=numero_lote,
+            # O ISSNet Ribeirão Preto valida DPS v1.01 e o envio síncrono de
+            # uma única DPS deve usar o método GerarNfse (conforme o exemplo
+            # de sucesso dps_envelope2.xml e a API Nacional).
+            xml_envio = construir_xml_gerar_nfse_envio(
                 prestador_cnpj=self.prestador_cnpj,
                 prestador_inscricao_municipal=self.prestador_im,
                 prestador_telefone=prestador_telefone,
@@ -394,6 +388,7 @@ class ISSNetNacionalClient:
                 tomador_telefone=tomador_telefone,
                 tomador_email=tomador_email,
                 codigo_municipio_prestacao=codigo_municipio_prestacao or self.codigo_municipio,
+                municipio_prestacao_nome=(tomador_endereco or {}).get("cidade", ""),
                 codigo_tributacao_nacional=codigo_tributacao_nacional,
                 codigo_tributacao_municipal=codigo_tributacao_municipal,
                 descricao_servico=descricao_servico,
@@ -432,7 +427,7 @@ class ISSNetNacionalClient:
             )
             resposta_soap = self._enviar_soap(
                 xml_assinado,
-                SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
+                SOAP_ACTION_NACIONAL_GERAR_NFSE,
             )
             result["xml_resposta"] = resposta_soap
 

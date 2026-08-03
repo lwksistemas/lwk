@@ -91,18 +91,18 @@ def montar_soap_envelope_sem_ns_raiz(
 ) -> str:
     """Envelope SOAP sem xmlns:nfse no root — preserva C14N da assinatura.
 
-    Declara o namespace da NFS-e apenas no elemento da operação, evitando
-    que o xmlns:nfse seja herdado pelos elementos aninhados e altere o
-    digest da assinatura digital.
+    Usa CDATA para envolver os dados, garantindo que o XML assinado é
+    transmitido byte-a-byte sem re-serialização pelo parser SOAP.
     """
     dados = strip_xml_declaration(dados_xml or "")
+    cabec = strip_xml_declaration(cabec_txt or "")
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
         '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
         '<soap:Body>'
         f'<GerarNfse xmlns="{target_ns}">'
-        f'<nfseCabecMsg>{cabec_txt}</nfseCabecMsg>'
-        f'<nfseDadosMsg>{dados}</nfseDadosMsg>'
+        f'<nfseCabecMsg><![CDATA[{cabec}]]></nfseCabecMsg>'
+        f'<nfseDadosMsg><![CDATA[{dados}]]></nfseDadosMsg>'
         f'</GerarNfse>'
         '</soap:Body>'
         '</soap:Envelope>'

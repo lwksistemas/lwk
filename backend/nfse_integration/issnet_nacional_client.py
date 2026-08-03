@@ -149,12 +149,13 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        # Formato único validado pelo ISSNet RP em homologação:
-        # cabeçalho v1.01 sem namespace, dados aninhados com prefixo nfse.
+        # Formato validado pelo ISSNet RP: cabeçalho v1.01 sem namespace.
+        # Dados como xsd_string (escapado) para preservar a assinatura
+        # (aninhado pode alterar namespaces e invalidar o digest).
         sem_ns_101 = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
 
         tentativas = [
-            ("1.01 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_101, "aninhado", "aninhado", True),
+            ("1.01 cabec aninhado sem ns + dados xsd_string (prefix)", sem_ns_101, "aninhado", "xsd_string", True),
         ]
 
         try:

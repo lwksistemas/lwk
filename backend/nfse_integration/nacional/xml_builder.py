@@ -54,8 +54,18 @@ def _construir_xml_prestador(inf_dps, cnpj_digits: str, prestador_inscricao_muni
     if prestador_inscricao_municipal:
         _el(prest, "IM", _somente_digitos(prestador_inscricao_municipal))
     if prestador_telefone:
-        _el(prest, "fone", _somente_digitos(prestador_telefone)[:11])
-    if prestador_email:
+        fone = _somente_digitos(prestador_telefone)
+        # Remove DDI 55 se presente (aceita apenas DDD+número = 10 ou 11 dígitos)
+        if len(fone) > 11 and fone.startswith("55"):
+            fone = fone[2:]
+        # XSD exige email após fone — só inclui fone se email também disponível
+        if prestador_email:
+            _el(prest, "fone", fone[:11])
+            _el(prest, "email", prestador_email[:80])
+        else:
+            # Sem email, omite fone para evitar E160 (sequência incompleta no XSD)
+            pass
+    elif prestador_email:
         _el(prest, "email", prestador_email[:80])
     reg_trib = _el(prest, "regTrib")
     if optante_simples_nacional:

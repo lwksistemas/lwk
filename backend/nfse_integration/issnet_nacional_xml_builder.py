@@ -19,16 +19,16 @@ from pathlib import Path
 from lxml import etree
 
 from nfse_integration.nacional.constants import NS_NFSE, VERSAO_DPS
-from nfse_integration.nacional.xml_builder import construir_xml_dps
+from nfse_integration.nacional.xml_builder import construir_xml_dps, _formatar_decimal
 
 logger = logging.getLogger(__name__)
 
 NS_NFSE_NACIONAL = NS_NFSE  # Re-export
-# O ValidarXml do ISSNet Ribeirão Preto valida o DPS contra o schema v1.01.
-VERSAO_ISSNET_NACIONAL = "1.01"
-# Adiciona cTribMun, cNBS e cIntContrib no cServ quando houver tributação.
-ADICIONAR_EXTRAS_ISSNET = True
-# IBSCBS faz parte do leiaute v1.01; mantido desligado até confirmação de uso.
+# O ISSNet Ribeirão Preto aceita DPS v1.00 sem IBSCBS/cNBS até 2026-07-31.
+VERSAO_ISSNET_NACIONAL = "1.00"
+# Desabilita cNBS/cTribMun/cIntContrib no cServ e habilita fone/e-mail no prest.
+ADICIONAR_EXTRAS_ISSNET = False
+# IBSCBS é obrigatório no leiaute v1.01 a partir da Reforma Tributária.
 INCLUIR_IBSCBS = False
 COD_MUNICIPIO_RP = "3543402"
 
@@ -101,6 +101,7 @@ def _construir_dps_issnet(
     tomador_telefone: str,
     tomador_email: str,
     codigo_municipio_prestacao: str,
+    municipio_prestacao_nome: str,
     codigo_tributacao_nacional: str,
     codigo_tributacao_municipal: str | None,
     descricao_servico: str,
@@ -116,10 +117,8 @@ def _construir_dps_issnet(
     cclass_trib_ibscbs: str,
 ) -> etree._Element:
     """Constrói o elemento <DPS> estendido com os campos exigidos pelo ISSNet Nacional."""
-    # O leiaute v1.00 aceito por Ribeirão Preto inclui fone/e-mail no <prest>;
-    # o leiaute v1.01 (RT) não os aceita.
-    incluir_fone_email_prest = not ADICIONAR_EXTRAS_ISSNET
-
+    # O XML de sucesso do ISSNet Ribeirão Preto v1.00 não inclui fone/email no
+    # tomador (apenas no prestador). Omitir para evitar E160.
     xml_dps = construir_xml_dps(
         numero_dps=numero_dps,
         serie_dps=serie_dps,
@@ -127,13 +126,13 @@ def _construir_dps_issnet(
         ambiente=ambiente_str,
         prestador_cnpj=prestador_cnpj,
         prestador_inscricao_municipal=prestador_inscricao_municipal,
-        prestador_telefone=prestador_telefone if incluir_fone_email_prest else "",
-        prestador_email=prestador_email if incluir_fone_email_prest else "",
+        prestador_telefone=prestador_telefone,
+        prestador_email=prestador_email,
         tomador_cpf_cnpj=tomador_cpf_cnpj,
         tomador_nome=tomador_nome,
         tomador_endereco=tomador_endereco,
-        tomador_telefone=tomador_telefone,
-        tomador_email=tomador_email,
+        tomador_telefone=tomador_telefone if ADICIONAR_EXTRAS_ISSNET else "",
+        tomador_email=tomador_email if ADICIONAR_EXTRAS_ISSNET else "",
         codigo_servico=codigo_tributacao_nacional or "140100",
         descricao_servico=descricao_servico,
         codigo_municipio_incidencia=codigo_municipio_prestacao or codigo_municipio_emissor,
@@ -154,68 +153,87 @@ def _construir_dps_issnet(
     )
 
     c_serv = dps_element.find(f".//{{{NS_NFSE}}}cServ")
-    if c_serv is not None and ADICIONAR_EXTRAS_ISSNET:
+    if c_serv is not None:
         x_desc = c_serv.find(f"{{{NS_NFSE}}}xDescServ")
 
-        # cTribMun: código de tributação municipal de 3 dígitos.
-        # Se o cadastro municipal for > 3 dígitos (ex: 140118), usamos os 3
-        # primeiros para cTribMun e o código completo para cIntContrib.
-        cod_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
-        if not cod_trib_mun:
-            # Fallback nos 3 primeiros dígitos do código nacional (LC 116/2003)
-            cod_trib_mun = _somente_digitos(codigo_tributacao_nacional or "")[:3]
+        # cTribMun/cIntContrib: o município valida se o código pertence ao
+        # contribuinte. Enquanto o código correto não é confirmado, omite-se
+        # ambos para evitar E0314/EM076.
+        #
+        # Re-habilitar abaixo quando o código de tributação municipal correto
+        # para este contribuinte/prestador estiver configurado.
+        # cTribMun = _somente_digitos(codigo_tributacao_municipal or "")[:3]
+        # if cTribMun:
+        #     ...
 
-        # Sempre inclui cTribMun (3 dígitos) antes de xDescServ no v1.01.
-        c_trib_mun_val = cod_trib_mun[:3] if len(cod_trib_mun) >= 3 else cod_trib_mun
-        c_trib_mun_el = etree.Element(f"{{{NS_NFSE}}}cTribMun")
-        c_trib_mun_el.text = c_trib_mun_val
-        idx = list(c_serv).index(x_desc) if x_desc is not None else 0
-        c_serv.insert(idx, c_trib_mun_el)
+        # cNBS deve ser informado após xDescServ (XSD TCCServ) conforme
+        # exemplos de sucesso do ISSNet Ribeirão Preto.
+        # No schema v1.00, o campo cNBS não é aceito pelo validador do ISSNet RP.
+        # Só incluir quando ADICIONAR_EXTRAS_ISSNET=True (v1.01+).
+        if ADICIONAR_EXTRAS_ISSNET:
+            c_nbs = _nbs_por_ctrib_nacional(codigo_tributacao_nacional, codigo_nbs)
+            if c_nbs:
+                c_nbs_el = etree.Element(f"{{{NS_NFSE}}}cNBS")
+                c_nbs_el.text = c_nbs
+                if x_desc is not None:
+                    x_desc.addnext(c_nbs_el)
+                else:
+                    c_serv.append(c_nbs_el)
 
-        # cIntContrib (código interno > 3 dígitos, ex: ficha municipal 140118)
-        cod_trib_mun_full = _somente_digitos(codigo_tributacao_municipal or "")
-        c_int_contrib_el = None
-        if len(cod_trib_mun_full) > 3:
-            c_int_contrib_el = etree.Element(f"{{{NS_NFSE}}}cIntContrib")
-            c_int_contrib_el.text = cod_trib_mun_full[:20]
-
-        # cNBS faz parte do leiaute v1.01 (RT), sempre após xDescServ (XSD TCCServ).
-        c_nbs = _nbs_por_ctrib_nacional(codigo_tributacao_nacional, codigo_nbs)
-        c_nbs_el = None
-        if c_nbs:
-            c_nbs_el = etree.Element(f"{{{NS_NFSE}}}cNBS")
-            c_nbs_el.text = c_nbs
-            if x_desc is not None:
-                x_desc.addnext(c_nbs_el)
-            else:
-                c_serv.append(c_nbs_el)
-
-        # cIntContrib deve vir depois de cNBS no XSD TCCServ.
-        if c_int_contrib_el is not None:
-            if c_nbs_el is not None:
-                c_nbs_el.addnext(c_int_contrib_el)
-            elif x_desc is not None:
-                x_desc.addnext(c_int_contrib_el)
-            else:
-                c_serv.append(c_int_contrib_el)
-
-    # IBSCBS é obrigatório para emissão a partir da Reforma Tributária.
-    if INCLUIR_IBSCBS and ADICIONAR_EXTRAS_ISSNET:
+    # IBSCBS é usado apenas no leiaute v1.01 e a partir da Reforma Tributária.
+    if INCLUIR_IBSCBS and VERSAO_ISSNET_NACIONAL == "1.01":
         inf_dps = dps_element.find(f"{{{NS_NFSE}}}infDPS")
         if inf_dps is not None:
-            ibscbs = etree.SubElement(inf_dps, f"{{{NS_NFSE}}}IBSCBS")
-            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}finNFSe").text = "0"
-            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indFinal").text = ind_final_ibscbs
-            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}cIndOp").text = indicador_operacao
-            etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indDest").text = ind_dest_ibscbs
-
-            valores_ibscbs = etree.SubElement(ibscbs, f"{{{NS_NFSE}}}valores")
-            trib_ibscbs = etree.SubElement(valores_ibscbs, f"{{{NS_NFSE}}}trib")
-            g_ibscbs = etree.SubElement(trib_ibscbs, f"{{{NS_NFSE}}}gIBSCBS")
-            etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}CST").text = cst_ibscbs
-            etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}cClassTrib").text = cclass_trib_ibscbs
+            _adicionar_ibscbs(
+                inf_dps,
+                codigo_municipio_prestacao=codigo_municipio_prestacao,
+                municipio_prestacao_nome=municipio_prestacao_nome,
+                valor_servicos=valor_servicos,
+            )
 
     return dps_element
+
+
+def _adicionar_ibscbs(inf_dps, *, codigo_municipio_prestacao: str, municipio_prestacao_nome: str, valor_servicos: Decimal) -> None:
+    """Adiciona o grupo IBSCBS ao infDPS conforme TCRTCIBSCBS (v1.01)."""
+    from nfse_integration.nacional.xml_builder import _normalizar_texto_xml
+
+    cod_mun = _somente_digitos(codigo_municipio_prestacao or "") or "3543402"
+    nome_mun = _normalizar_texto_xml((municipio_prestacao_nome or "").strip(), 600) or "Ribeirao Preto"
+    v_serv = _formatar_decimal(Decimal(str(valor_servicos or 0)), casas=2)
+    zero = _formatar_decimal(Decimal("0.00"), casas=2)
+
+    ibscbs = etree.SubElement(inf_dps, f"{{{NS_NFSE}}}IBSCBS")
+    etree.SubElement(ibscbs, f"{{{NS_NFSE}}}cLocalidadeIncid").text = cod_mun
+    etree.SubElement(ibscbs, f"{{{NS_NFSE}}}xLocalidadeIncid").text = nome_mun
+
+    valores = etree.SubElement(ibscbs, f"{{{NS_NFSE}}}valores")
+    etree.SubElement(valores, f"{{{NS_NFSE}}}vBC").text = v_serv
+
+    uf = etree.SubElement(valores, f"{{{NS_NFSE}}}uf")
+    etree.SubElement(uf, f"{{{NS_NFSE}}}pIBSUF").text = zero
+    etree.SubElement(uf, f"{{{NS_NFSE}}}pAliqEfetUF").text = zero
+
+    mun = etree.SubElement(valores, f"{{{NS_NFSE}}}mun")
+    etree.SubElement(mun, f"{{{NS_NFSE}}}pIBSMun").text = zero
+    etree.SubElement(mun, f"{{{NS_NFSE}}}pAliqEfetMun").text = zero
+
+    fed = etree.SubElement(valores, f"{{{NS_NFSE}}}fed")
+    etree.SubElement(fed, f"{{{NS_NFSE}}}pCBS").text = zero
+    etree.SubElement(fed, f"{{{NS_NFSE}}}pAliqEfetCBS").text = zero
+
+    tot_cibs = etree.SubElement(ibscbs, f"{{{NS_NFSE}}}totCIBS")
+    etree.SubElement(tot_cibs, f"{{{NS_NFSE}}}vTotNF").text = v_serv
+
+    g_ibs = etree.SubElement(tot_cibs, f"{{{NS_NFSE}}}gIBS")
+    etree.SubElement(g_ibs, f"{{{NS_NFSE}}}vIBSTot").text = zero
+    g_ibs_uf = etree.SubElement(g_ibs, f"{{{NS_NFSE}}}gIBSUFTot")
+    etree.SubElement(g_ibs_uf, f"{{{NS_NFSE}}}vIBSUF").text = zero
+    g_ibs_mun = etree.SubElement(g_ibs, f"{{{NS_NFSE}}}gIBSMunTot")
+    etree.SubElement(g_ibs_mun, f"{{{NS_NFSE}}}vIBSMun").text = zero
+
+    g_cbs = etree.SubElement(tot_cibs, f"{{{NS_NFSE}}}gCBS")
+    etree.SubElement(g_cbs, f"{{{NS_NFSE}}}vCBS").text = zero
 
 
 def construir_xml_gerar_nfse_envio(
@@ -237,6 +255,7 @@ def construir_xml_gerar_nfse_envio(
     tomador_telefone: str = "",
     tomador_email: str = "",
     codigo_municipio_prestacao: str = "",
+    municipio_prestacao_nome: str = "",
     codigo_tributacao_nacional: str = "140100",
     codigo_tributacao_municipal: str | None = None,
     descricao_servico: str = "Serviço prestado",
@@ -244,7 +263,7 @@ def construir_xml_gerar_nfse_envio(
     valor_servicos: Decimal = Decimal("0.00"),
     aliquota_iss: Decimal = Decimal("2.50"),
     valor_iss: Decimal | None = None,
-    p_tot_trib_sn: Decimal = Decimal("0.00"),
+    p_tot_trib_sn: Decimal | None = None,
     # IBSCBS / Reforma Tributária
     indicador_operacao: str = "100301",
     ind_final_ibscbs: str = "0",
@@ -278,6 +297,7 @@ def construir_xml_gerar_nfse_envio(
         tomador_telefone=tomador_telefone,
         tomador_email=tomador_email,
         codigo_municipio_prestacao=codigo_municipio_prestacao,
+        municipio_prestacao_nome=municipio_prestacao_nome,
         codigo_tributacao_nacional=codigo_tributacao_nacional,
         codigo_tributacao_municipal=codigo_tributacao_municipal,
         descricao_servico=descricao_servico,
@@ -325,6 +345,7 @@ def construir_xml_enviar_lote_dps_sincrono(
     tomador_telefone: str = "",
     tomador_email: str = "",
     codigo_municipio_prestacao: str = "",
+    municipio_prestacao_nome: str = "",
     codigo_tributacao_nacional: str = "140100",
     codigo_tributacao_municipal: str | None = None,
     descricao_servico: str = "Serviço prestado",
@@ -332,7 +353,7 @@ def construir_xml_enviar_lote_dps_sincrono(
     valor_servicos: Decimal = Decimal("0.00"),
     aliquota_iss: Decimal = Decimal("2.50"),
     valor_iss: Decimal | None = None,
-    p_tot_trib_sn: Decimal = Decimal("0.00"),
+    p_tot_trib_sn: Decimal | None = None,
     # IBSCBS / Reforma Tributária
     indicador_operacao: str = "100301",
     ind_final_ibscbs: str = "0",
@@ -370,6 +391,7 @@ def construir_xml_enviar_lote_dps_sincrono(
         tomador_telefone=tomador_telefone,
         tomador_email=tomador_email,
         codigo_municipio_prestacao=codigo_municipio_prestacao,
+        municipio_prestacao_nome=municipio_prestacao_nome,
         codigo_tributacao_nacional=codigo_tributacao_nacional,
         codigo_tributacao_municipal=codigo_tributacao_municipal,
         descricao_servico=descricao_servico,

@@ -163,8 +163,10 @@ def construir_xml_dps(
     valor = Decimal(str(valor_servicos))
     aliquota = Decimal(str(aliquota_iss))
 
-    # Série formatada com 5 dígitos (zeros à esquerda)
-    serie_formatada = _somente_digitos(serie_dps or "1").zfill(5)[:5]
+    # Série: no tag <serie> vai sem zeros (conforme XML real aceito);
+    # no Id mantém 5 dígitos (formato TSIdDPS).
+    serie_raw = _somente_digitos(serie_dps or "1") or "1"
+    serie_id = serie_raw.zfill(5)[:5]
 
     nsmap = {None: NS_NFSE}
 
@@ -177,7 +179,7 @@ def construir_xml_dps(
     tipo_insc = "2" if len(cnpj_digits) == 14 else "1"
     insc_fed = cnpj_digits.ljust(14, "0")[:14]
     num_dps_id = str(numero_dps).zfill(15)[:15]
-    inf_id = f'DPS{codigo_municipio_prestador[:7].ljust(7, "0")}{tipo_insc}{insc_fed}{serie_formatada}{num_dps_id}'
+    inf_id = f'DPS{codigo_municipio_prestador[:7].ljust(7, "0")}{tipo_insc}{insc_fed}{serie_id}{num_dps_id}'
 
     inf_dps = etree.SubElement(root, f"{{{NS_NFSE}}}infDPS", Id=inf_id)
 
@@ -186,7 +188,7 @@ def construir_xml_dps(
     _el(inf_dps, "tpAmb", "1")
     _el(inf_dps, "dhEmi", data_competencia.strftime("%Y-%m-%dT00:00:00-03:00"))
     _el(inf_dps, "verAplic", versao_dps)
-    _el(inf_dps, "serie", serie_formatada)
+    _el(inf_dps, "serie", serie_raw)
     _el(inf_dps, "nDPS", str(numero_dps))
     _el(inf_dps, "dCompet", data_competencia.strftime("%Y-%m-%d"))
     _el(inf_dps, "tpEmit", "1")  # 1=Prestador
@@ -225,12 +227,12 @@ def construir_xml_dps(
     # trib
     trib = _el(valores, "trib")
 
-    # tribMun - ordem conforme XML de sucesso (ISSNet Ribeirão Preto):
-    # tribISSQN, pAliq, tpRetISSQN
+    # tribMun - ordem conforme XML real aceito (NFSe Nacional):
+    # tribISSQN, tpRetISSQN, pAliq
     trib_mun = _el(trib, "tribMun")
     _el(trib_mun, "tribISSQN", str(natureza_tributacao))
-    _el(trib_mun, "pAliq", _formatar_decimal(aliquota))
     _el(trib_mun, "tpRetISSQN", "2" if iss_retido else "1")
+    _el(trib_mun, "pAliq", _formatar_decimal(aliquota))
 
     # totTrib - ME/EPP precisa informar pTotTribSN; demais casos indTotTrib=0
     tot_trib = _el(trib, "totTrib")
@@ -244,7 +246,7 @@ def construir_xml_dps(
     xml_str = etree.tostring(root, encoding="unicode", xml_declaration=False)
     logger.info(
         "XML DPS construído: nDPS=%s, serie=%s, Id=%s, valor=R$%s",
-        numero_dps, serie_formatada, inf_id, valor,
+        numero_dps, serie_raw, inf_id, valor,
     )
     return xml_str
 

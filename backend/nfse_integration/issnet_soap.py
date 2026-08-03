@@ -82,6 +82,33 @@ def _montar_soap_envelope(
     )
 
 
+def montar_soap_envelope_sem_ns_raiz(
+    nome_operacao: str,
+    dados_xml: str,
+    *,
+    cabec_txt: str,
+    target_ns: str,
+) -> str:
+    """Envelope SOAP sem xmlns:nfse no root — preserva C14N da assinatura.
+
+    Declara o namespace da NFS-e apenas no elemento da operação, evitando
+    que o xmlns:nfse seja herdado pelos elementos aninhados e altere o
+    digest da assinatura digital.
+    """
+    dados = strip_xml_declaration(dados_xml or "")
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
+        '<soap:Body>'
+        f'<GerarNfse xmlns="{target_ns}">'
+        f'<nfseCabecMsg>{cabec_txt}</nfseCabecMsg>'
+        f'<nfseDadosMsg>{dados}</nfseDadosMsg>'
+        f'</GerarNfse>'
+        '</soap:Body>'
+        '</soap:Envelope>'
+    )
+
+
 def montar_soap_envelope_xsd_string(nome_operacao: str, dados_xml: str) -> str:
     return _montar_soap_envelope(
         nome_operacao, dados_xml, cabec_txt=CABEC_MSG, target_ns=NS_NFSE_WSDL, modo="xsd_string",

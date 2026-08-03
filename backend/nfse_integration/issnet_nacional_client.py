@@ -155,19 +155,20 @@ class ISSNetNacionalClient:
         # re-parsear o XML assinado.
         sem_ns_101 = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
 
-        tentativas = [
-            ("1.01 cabec aninhado sem ns + dados aninhado (no-prefix)", sem_ns_101, "aninhado", "aninhado", False),
+        # Envelope sem xmlns:nfse no root para preservar C14N da assinatura
+        from nfse_integration.issnet_soap import montar_soap_envelope_sem_ns_raiz
+        tentativas_custom = [
+            ("1.01 sem-ns-raiz (preserva assinatura)", sem_ns_101),
         ]
 
         try:
             with certificado_mtls_temporario(cert_path, self.cert_password) as (pem_cert, pem_key):
                 last_text = ""
-                for cabec_label, cabec_txt, modo_cabec, modo_dados, prefixar_mensagens in tentativas:
-                    label = f"{cabec_label}"
-                    envelope = _montar_soap_envelope(
-                        nome_op, xml_dados, cabec_txt=cabec_txt,
-                        target_ns=NS_NFSE_NACIONAL, modo_cabec=modo_cabec, modo_dados=modo_dados,
-                        prefixar_mensagens=prefixar_mensagens,
+                for label, cabec_txt in tentativas_custom:
+                    envelope = montar_soap_envelope_sem_ns_raiz(
+                        nome_op, xml_dados,
+                        cabec_txt=cabec_txt,
+                        target_ns=NS_NFSE_NACIONAL,
                     )
                     logger.info(
                         "ISSNet Nacional: envelope SOAP (%s) (truncado):\n%s",

@@ -122,11 +122,19 @@ class ISSNetNacionalClient:
                 "EnviarLoteDpsSincronoEnvio",
                 "EnviarLoteDpsEnvio",
                 "GerarNfseEnvio",
-                "DPS",
             ):
-                # ISSNet Nacional Ribeirão Preto v1.01: assina cada DPS sem a
-                # segunda assinatura do lote. Usa RSA-SHA1 via xmlsec sem
-                # prefixo ds: (mesmo padrão que funcionava na v1.00).
+                # Lote/GerarNfseEnvio: assina cada DPS dentro
+                return assinar_xml_enviar_lote_dps(
+                    xml_str,
+                    cert_path,
+                    self.cert_password,
+                    assinar_lote=False,
+                    prefixo_ds=False,
+                    usar_cadeia=False,
+                    usar_sha256=False,
+                )
+            if root_local == "DPS":
+                # DPS isolado: assinar diretamente (conforme manual v1.01 seção 7.3.3)
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
@@ -360,9 +368,10 @@ class ISSNetNacionalClient:
             ambiente_int = 1 if self.ambiente == "producao" else 2
 
             # O ISSNet Ribeirão Preto valida DPS v1.01 e o envio síncrono de
-            # uma única DPS deve usar o método GerarNfse (conforme o exemplo
-            # de sucesso dps_envelope2.xml e a API Nacional).
-            xml_envio = construir_xml_gerar_nfse_envio(
+            # uma única DPS deve usar o método GerarNfse.
+            # Conforme manual v1.01 seção 7.3.3: "Assinatura do DPS isoladamente
+            # → neste momento deve ser identificado o namespace em cada DPS"
+            dps_xml = construir_xml_gerar_nfse_envio(
                 prestador_cnpj=self.prestador_cnpj,
                 prestador_inscricao_municipal=self.prestador_im,
                 prestador_telefone=prestador_telefone,
@@ -393,11 +402,16 @@ class ISSNetNacionalClient:
                 cclass_trib_ibscbs=cclass_trib_ibscbs,
             )
 
-            logger.info("ISSNet Nacional: assinando XML DPS nº %d...", numero_dps)
-            xml_assinado = self._assinar_xml(xml_envio)
+            # 1) Assinar o DPS isolado (com xmlns no próprio <DPS>)
+            logger.info("ISSNet Nacional: assinando DPS nº %d isoladamente...", numero_dps)
+            dps_assinado = self._assinar_xml(dps_xml)
+
+            # 2) Envolver no GerarNfseEnvio
+            ns = "http://www.sped.fazenda.gov.br/nfse"
+            xml_assinado = f'<GerarNfseEnvio xmlns="{ns}">{dps_assinado}</GerarNfseEnvio>'
             result["xml_dps"] = xml_assinado
             logger.info(
-                "ISSNet Nacional: XML DPS assinado completo (truncado):\n%s",
+                "ISSNet Nacional: XML GerarNfseEnvio com DPS assinado (truncado):\n%s",
                 xml_assinado[:6000],
             )
 

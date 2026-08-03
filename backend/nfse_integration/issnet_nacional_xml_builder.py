@@ -24,11 +24,11 @@ from nfse_integration.nacional.xml_builder import construir_xml_dps, _formatar_d
 logger = logging.getLogger(__name__)
 
 NS_NFSE_NACIONAL = NS_NFSE  # Re-export
-# TESTE: reverter para v1.00 para confirmar que o assinador funciona
-VERSAO_ISSNET_NACIONAL = "1.00"
-# Desabilitar extras v1.01 para teste
-ADICIONAR_EXTRAS_ISSNET = False
-# IBSCBS desabilitado
+# A partir de 03/08/2026 o ISSNet Ribeirão Preto exige DPS v1.01.
+VERSAO_ISSNET_NACIONAL = "1.01"
+# Habilita cNBS no cServ e fone/e-mail no prest (v1.01).
+ADICIONAR_EXTRAS_ISSNET = True
+# IBSCBS é opcional no leiaute v1.01 — desabilitado até validação completa.
 INCLUIR_IBSCBS = False
 COD_MUNICIPIO_RP = "3543402"
 
@@ -314,18 +314,31 @@ def construir_xml_gerar_nfse_envio(
         cclass_trib_ibscbs=cclass_trib_ibscbs,
     )
 
-    # ISSNet Nacional: o XML deve incluir xmlns="http://www.sped.fazenda.gov.br/nfse"
-    # no GerarNfseEnvio. O envelope SOAP usa apenas soapenv + nfse (2 namespaces).
-    nsmap = {None: NS_NFSE}
-    root = etree.Element(f"{{{NS_NFSE}}}GerarNfseEnvio", nsmap=nsmap)
-    root.append(dps_element)
+    # ISSNet Nacional: conforme manual de integração v1.01, seção 7.3.3:
+    # "Assinatura do DPS isoladamente → neste momento deve ser identificado
+    #  o namespace (http://www.sped.fazenda.gov.br/nfse) em cada DPS que será assinado"
+    #
+    # O DPS deve ter xmlns declarado explicitamente e ser assinado ISOLADO.
+    # Depois o DPS assinado é inserido no GerarNfseEnvio.
+    #
+    # 1) Serializar o DPS com xmlns próprio (como root)
+    # 2) Assinar o DPS isolado
+    # 3) Montar o GerarNfseEnvio com o DPS já assinado
 
-    xml_str = etree.tostring(root, encoding="unicode", xml_declaration=False)
+    # O dps_element já tem o namespace (vem do construir_xml_dps com nsmap={None: NS_NFSE}).
+    # Serializar como root para que xmlns fique declarado no <DPS>.
+    dps_xml_str = etree.tostring(dps_element, encoding="unicode", xml_declaration=False)
+
+    # Montar GerarNfseEnvio SEM o DPS (será inserido depois de assinado)
+    # Retornamos apenas o DPS serializado — o client vai assinar e envolver no GerarNfseEnvio.
     logger.info(
-        "XML GerarNfseEnvio (ISSNet Nacional): nDPS=%s, serie=%s, valor=R$%s",
+        "XML DPS isolado (ISSNet Nacional): nDPS=%s, serie=%s, valor=R$%s",
         numero_dps, serie_dps, valor_servicos,
     )
-    return xml_str
+    # Retorna tupla: (dps_xml, metadados para montar o envelope depois)
+    # Para manter compatibilidade, retornamos o GerarNfseEnvio com placeholder
+    # que será substituído pelo DPS assinado no client.
+    return dps_xml_str
 
 
 def construir_xml_enviar_lote_dps_sincrono(

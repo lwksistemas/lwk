@@ -525,7 +525,10 @@ def assinar_xml_enviar_lote_dps(
     root_local = etree.QName(root.tag).localname if root.tag else ""
 
     if root_local in ("DPS",):
-        return assinar_xml_dps(xml_str, pfx_path, senha_pfx)
+        return assinar_xml_dps(
+            xml_str, pfx_path, senha_pfx,
+            prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
+        )
 
     # Para DPS v1.01 o ISSNet Nacional aceita a assinatura gerada pelo
     # signxml, que trata a referência #Id de forma mais compatível com a

@@ -99,15 +99,18 @@ def montar_soap_envelope_sem_ns_raiz(
     cabec = strip_xml_declaration(cabec_txt or "")
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
-        '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" '
+        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
         f'xmlns:nfse="{target_ns}">'
-        '<soapenv:Body>'
+        '<soap:Header/>'
+        '<soap:Body>'
         f'<nfse:{nome_operacao}>'
         f'<nfse:nfseCabecMsg>{cabec}</nfse:nfseCabecMsg>'
         f'<nfse:nfseDadosMsg>{dados}</nfse:nfseDadosMsg>'
         f'</nfse:{nome_operacao}>'
-        '</soapenv:Body>'
-        '</soapenv:Envelope>'
+        '</soap:Body>'
+        '</soap:Envelope>'
     )
 
 

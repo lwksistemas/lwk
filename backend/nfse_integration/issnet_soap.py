@@ -89,21 +89,26 @@ def montar_soap_envelope_sem_ns_raiz(
     cabec_txt: str,
     target_ns: str,
 ) -> str:
-    """Envelope SOAP sem xmlns:nfse no root — preserva C14N da assinatura.
+    """Envelope SOAP para ISSNet Nacional v1.01.
 
-    Usa CDATA para envolver os dados, garantindo que o XML assinado é
-    transmitido byte-a-byte sem re-serialização pelo parser SOAP.
+    Usa xmlns:nfse no root para a operação e parâmetros, e insere os dados
+    XML literalmente. O namespace default não é declarado no envelope para
+    não interferir com o xmlns declarado no GerarNfseEnvio interno.
     """
     dados = strip_xml_declaration(dados_xml or "")
     cabec = strip_xml_declaration(cabec_txt or "")
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
-        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
+        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+        f'xmlns:nfse="{target_ns}">'
+        '<soap:Header/>'
         '<soap:Body>'
-        f'<GerarNfse xmlns="{target_ns}">'
-        f'<nfseCabecMsg><![CDATA[{cabec}]]></nfseCabecMsg>'
-        f'<nfseDadosMsg><![CDATA[{dados}]]></nfseDadosMsg>'
-        f'</GerarNfse>'
+        f'<nfse:{nome_operacao}>'
+        f'<nfse:nfseCabecMsg>{cabec}</nfse:nfseCabecMsg>'
+        f'<nfse:nfseDadosMsg>{dados}</nfse:nfseDadosMsg>'
+        f'</nfse:{nome_operacao}>'
         '</soap:Body>'
         '</soap:Envelope>'
     )

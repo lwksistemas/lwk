@@ -150,24 +150,12 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        # Fallback de estratégias de envelope. A ordem prioriza v1.01
-        # (schema obrigatório a partir de 03/08/2026 no ISSNet RP).
+        # Formato único validado pelo ISSNet RP em homologação:
+        # cabeçalho v1.01 sem namespace, dados aninhados com prefixo nfse.
         sem_ns_101 = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
-        sped_101 = self._cabec_msg_nacional_sped("1.01", "1.01")
-        sem_ns_100 = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
-        sped_100 = self._cabec_msg_nacional_sped("1.00", "1.00")
 
         tentativas = [
-            # v1.01 (schema atual obrigatório)
             ("1.01 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_101, "aninhado", "aninhado", True),
-            ("1.01 cabec aninhado SPED + dados aninhado (prefix)", sped_101, "aninhado", "aninhado", True),
-            ("1.01 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_101, "xsd_string", "xsd_string", True),
-            ("1.01 cabec aninhado SPED + dados xsd_string (prefix)", sped_101, "aninhado", "xsd_string", True),
-            # Fallbacks v1.00 (caso o município volte atrás)
-            ("1.00 cabec aninhado sem ns + dados aninhado (prefix)", sem_ns_100, "aninhado", "aninhado", True),
-            ("1.00 cabec aninhado SPED + dados aninhado (prefix)", sped_100, "aninhado", "aninhado", True),
-            ("1.00 cabec xsd_string sem ns + dados xsd_string (prefix)", sem_ns_100, "xsd_string", "xsd_string", True),
-            ("1.00 cabec aninhado SPED + dados xsd_string (prefix)", sped_100, "aninhado", "xsd_string", True),
         ]
 
         try:

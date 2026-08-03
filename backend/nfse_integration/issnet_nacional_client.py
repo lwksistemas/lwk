@@ -297,7 +297,9 @@ class ISSNetNacionalClient:
 
     @staticmethod
     def _cabec_msg_nacional_sem_ns(versao: str, versao_dados: str = "1.01") -> str:
-        cab = etree.Element("cabecalho")
+        # Cabeçalho com xmlns conforme orientação suporte NotaControl
+        ns = "http://www.sped.fazenda.gov.br/nfse"
+        cab = etree.Element("cabecalho", xmlns=ns)
         cab.set("versao", versao)
         vd = etree.SubElement(cab, "versaoDados")
         vd.text = versao_dados

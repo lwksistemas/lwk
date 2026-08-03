@@ -406,9 +406,14 @@ class ISSNetNacionalClient:
             logger.info("ISSNet Nacional: assinando DPS nº %d isoladamente...", numero_dps)
             dps_assinado = self._assinar_xml(dps_xml)
 
+            # Remover declaração XML (<?xml ...?>) se presente
+            dps_assinado_clean = re.sub(
+                r'^\s*<\?xml[^?]*\?>\s*', '', dps_assinado, count=1, flags=re.IGNORECASE
+            )
+
             # 2) Envolver no GerarNfseEnvio
             ns = "http://www.sped.fazenda.gov.br/nfse"
-            xml_assinado = f'<GerarNfseEnvio xmlns="{ns}">{dps_assinado}</GerarNfseEnvio>'
+            xml_assinado = f'<GerarNfseEnvio xmlns="{ns}">{dps_assinado_clean}</GerarNfseEnvio>'
             result["xml_dps"] = xml_assinado
             logger.info(
                 "ISSNet Nacional: XML GerarNfseEnvio com DPS assinado (truncado):\n%s",

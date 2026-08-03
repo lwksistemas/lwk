@@ -150,12 +150,13 @@ class ISSNetNacionalClient:
         cert_path = self._pfx_temp()
 
         # Formato validado pelo ISSNet RP: cabeçalho v1.01 sem namespace.
-        # Dados como xsd_string (escapado) para preservar a assinatura
-        # (aninhado pode alterar namespaces e invalidar o digest).
+        # Dados aninhados (XML literal) — o ISSNet requer dados não-escapados
+        # para validar schema, e a preservação da assinatura depende de não
+        # re-parsear o XML assinado.
         sem_ns_101 = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
 
         tentativas = [
-            ("1.01 cabec aninhado sem ns + dados xsd_string (prefix)", sem_ns_101, "aninhado", "xsd_string", True),
+            ("1.01 cabec aninhado sem ns + dados aninhado (no-prefix)", sem_ns_101, "aninhado", "aninhado", False),
         ]
 
         try:

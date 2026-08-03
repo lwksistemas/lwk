@@ -163,10 +163,10 @@ def construir_xml_dps(
     valor = Decimal(str(valor_servicos))
     aliquota = Decimal(str(aliquota_iss))
 
-    # Série: no tag <serie> vai sem zeros (conforme XML real aceito);
-    # no Id mantém 5 dígitos (formato TSIdDPS).
-    serie_raw = _somente_digitos(serie_dps or "1") or "1"
-    serie_id = serie_raw.zfill(5)[:5]
+    # Série: formato conforme XSD pattern ^0{0,4}\d{1,5}$ — usar zeros à esquerda.
+    # No Id mantém 5 dígitos (formato TSIdDPS).
+    serie_raw = _somente_digitos(serie_dps or "1").zfill(5)[:5] or "00001"
+    serie_id = serie_raw
 
     nsmap = {None: NS_NFSE}
 
@@ -212,8 +212,9 @@ def construir_xml_dps(
     c_serv = _el(serv, "cServ")
     codigo_trib_nac = _normalizar_codigo_servico_6dig(codigo_servico)
     _el(c_serv, "cTribNac", codigo_trib_nac)
-    # cTribMun obrigatório no schema v1.01 (Reforma Tributária)
-    _el(c_serv, "cTribMun", codigo_tributacao_municipal or "0")
+    # cTribMun obrigatório no schema v1.01 (Reforma Tributária) — 3 dígitos
+    c_trib_mun = (_somente_digitos(codigo_tributacao_municipal or "") or "0")[:3].zfill(3)
+    _el(c_serv, "cTribMun", c_trib_mun)
     descricao_limpa = _normalizar_texto_xml(descricao_servico or "Servico prestado", 2000)
     _el(c_serv, "xDescServ", descricao_limpa)
 

@@ -124,6 +124,7 @@ def construir_xml_dps(
     tomador_email: str = "",
     # Serviço
     codigo_servico: str = "14.01",
+    codigo_tributacao_municipal: str = "0",
     descricao_servico: str = "",
     codigo_cnae: str = "",
     codigo_municipio_incidencia: str = "",
@@ -209,6 +210,8 @@ def construir_xml_dps(
     c_serv = _el(serv, "cServ")
     codigo_trib_nac = _normalizar_codigo_servico_6dig(codigo_servico)
     _el(c_serv, "cTribNac", codigo_trib_nac)
+    # cTribMun obrigatório no schema v1.01 (Reforma Tributária)
+    _el(c_serv, "cTribMun", codigo_tributacao_municipal or "0")
     descricao_limpa = _normalizar_texto_xml(descricao_servico or "Servico prestado", 2000)
     _el(c_serv, "xDescServ", descricao_limpa)
 

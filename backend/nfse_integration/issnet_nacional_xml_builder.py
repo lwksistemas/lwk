@@ -28,8 +28,8 @@ NS_NFSE_NACIONAL = NS_NFSE  # Re-export
 VERSAO_ISSNET_NACIONAL = "1.01"
 # Habilita cNBS no cServ e fone/e-mail no prest (obrigatórios v1.01).
 ADICIONAR_EXTRAS_ISSNET = True
-# IBSCBS é obrigatório no leiaute v1.01 a partir da Reforma Tributária.
-INCLUIR_IBSCBS = True
+# IBSCBS é opcional no leiaute v1.01 — desabilitado até validação completa.
+INCLUIR_IBSCBS = False
 COD_MUNICIPIO_RP = "3543402"
 
 
@@ -134,6 +134,7 @@ def _construir_dps_issnet(
         tomador_telefone=tomador_telefone,
         tomador_email=tomador_email,
         codigo_servico=codigo_tributacao_nacional or "140100",
+        codigo_tributacao_municipal=_somente_digitos(codigo_tributacao_municipal or "") or "0",
         descricao_servico=descricao_servico,
         codigo_municipio_incidencia=codigo_municipio_prestacao or codigo_municipio_emissor,
         valor_servicos=valor_servicos,

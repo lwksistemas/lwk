@@ -540,10 +540,16 @@ def assinar_xml_enviar_lote_dps(
 
     dps_nodes = root.findall(f".//{{{ns}}}DPS")
     if not dps_nodes:
+        # Fallback: buscar DPS sem namespace (quando xmlns foi removido para ISSNet)
+        dps_nodes = root.findall(".//DPS")
+    if not dps_nodes:
         raise ValueError("Nenhum elemento DPS encontrado para assinatura no lote Nacional.")
 
     for dps in dps_nodes:
         inf_dps = dps.find(f"{{{ns}}}infDPS")
+        if inf_dps is None:
+            # Fallback sem namespace
+            inf_dps = dps.find("infDPS")
         if inf_dps is None:
             raise ValueError("Elemento infDPS não encontrado em DPS do lote.")
         inf_id = (inf_dps.get("Id") or "").strip()

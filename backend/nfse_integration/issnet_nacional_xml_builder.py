@@ -314,11 +314,21 @@ def construir_xml_gerar_nfse_envio(
         cclass_trib_ibscbs=cclass_trib_ibscbs,
     )
 
-    nsmap = {None: NS_NFSE}
-    root = etree.Element(f"{{{NS_NFSE}}}GerarNfseEnvio", nsmap=nsmap)
-    root.append(dps_element)
+    # ISSNet Nacional: o XML dentro do nfseDadosMsg NÃO deve ter xmlns declarado.
+    # O namespace é herdado do envelope SOAP (xmlns:nfse). Se declarar xmlns aqui,
+    # a canonicalização C14N fica diferente e a assinatura é rejeitada (E0714).
+    # Solução: serializar sem namespace e usar etree.cleanup_namespaces.
+    from lxml import etree as _etree
+    root = _etree.Element("GerarNfseEnvio")
+    # Re-serializar DPS sem namespace
+    dps_str = _etree.tostring(dps_element, encoding="unicode")
+    # Remover todas as declarações xmlns do DPS
+    import re as _re
+    dps_str_clean = _re.sub(r'\s+xmlns="[^"]*"', '', dps_str)
+    dps_clean = _etree.fromstring(dps_str_clean)
+    root.append(dps_clean)
 
-    xml_str = etree.tostring(root, encoding="unicode", xml_declaration=False)
+    xml_str = _etree.tostring(root, encoding="unicode", xml_declaration=False)
     logger.info(
         "XML GerarNfseEnvio (ISSNet Nacional): nDPS=%s, serie=%s, valor=R$%s",
         numero_dps, serie_dps, valor_servicos,

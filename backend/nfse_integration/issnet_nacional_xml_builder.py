@@ -24,12 +24,15 @@ from nfse_integration.nacional.xml_builder import construir_xml_dps, _formatar_d
 logger = logging.getLogger(__name__)
 
 NS_NFSE_NACIONAL = NS_NFSE  # Re-export
-# A partir de 03/08/2026 o ISSNet Ribeirão Preto exige DPS v1.01.
-VERSAO_ISSNET_NACIONAL = "1.01"
+# Revertido para 1.00 em 04/08/2026: nota real emitida manualmente pelo
+# portal ISSNet RP (aceita, cStat=100) usa DPS versao="1.00" sem IBSCBS.
+# A exigência de 1.01 (orientação verbal do suporte) provavelmente causava
+# o erro de assinatura E0714.
+VERSAO_ISSNET_NACIONAL = "1.00"
 # Habilita cNBS no cServ e fone/e-mail no prest (v1.01).
 ADICIONAR_EXTRAS_ISSNET = True
-# O ISSNet confirmou (erro "É obrigatório declarar informações de IBS/CBS
-# na versão 1.01.") que o bloco IBSCBS é obrigatório no leiaute v1.01.
+# IBSCBS só é incluído quando VERSAO_ISSNET_NACIONAL == "1.01" (ver checagem
+# abaixo); mantido True para religar automaticamente se voltarmos à v1.01.
 INCLUIR_IBSCBS = True
 COD_MUNICIPIO_RP = "3543402"
 

@@ -15,7 +15,12 @@ NS_NFSE = "http://www.sped.fazenda.gov.br/nfse"
 NS_DS = "http://www.w3.org/2000/09/xmldsig#"
 
 # === Versão do layout ===
-VERSAO_DPS = "1.01"
+# ATENÇÃO: revertido para 1.00 em 04/08/2026 após comprovação de que uma
+# emissão manual via portal ISSNet RP (nota real aceita, cStat=100) usa DPS
+# versao="1.00" e NÃO inclui bloco IBSCBS. A suposição de exigência de 1.01
+# a partir de 03/08/2026 (baseada em orientação verbal do suporte) estava
+# incorreta e provavelmente era a causa raiz do erro de assinatura E0714.
+VERSAO_DPS = "1.00"
 
 # === Ambiente ===
 AMBIENTE_PRODUCAO = 1

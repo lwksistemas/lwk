@@ -166,16 +166,16 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        # Formato validado pelo ISSNet RP: cabeçalho v1.01 sem namespace.
+        # Revertido para v1.00 em 04/08/2026 (nota real aceita usa versao=1.00).
         # Dados aninhados (XML literal) — o ISSNet requer dados não-escapados
         # para validar schema, e a preservação da assinatura depende de não
         # re-parsear o XML assinado.
-        sem_ns_101 = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
+        sem_ns_101 = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
 
         # Envelope sem xmlns:nfse no root para preservar C14N da assinatura
         from nfse_integration.issnet_soap import montar_soap_envelope_sem_ns_raiz
         tentativas_custom = [
-            ("1.01 sem-ns-raiz (preserva assinatura)", sem_ns_101),
+            ("1.00 sem-ns-raiz (preserva assinatura)", sem_ns_101),
         ]
 
         try:
@@ -321,7 +321,7 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        cabec_txt = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
+        cabec_txt = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
         envelope_nao_assinado = montar_soap_envelope_sem_ns_raiz(
             nome_op, lote_xml_nao_assinado,
             cabec_txt=cabec_txt,
@@ -413,7 +413,7 @@ class ISSNetNacionalClient:
                     os.unlink(cert_path2)
 
     @staticmethod
-    def _cabec_msg_nacional_sped(versao: str, versao_dados: str = "1.01") -> str:
+    def _cabec_msg_nacional_sped(versao: str, versao_dados: str = "1.00") -> str:
         ns = NS_NFSE_NACIONAL
         cab = etree.Element(f"{{{ns}}}cabecalho", nsmap={None: ns})
         cab.set("versao", versao)
@@ -422,7 +422,7 @@ class ISSNetNacionalClient:
         return etree.tostring(cab, encoding="unicode", xml_declaration=False)
 
     @staticmethod
-    def _cabec_msg_nacional_sem_ns(versao: str, versao_dados: str = "1.01") -> str:
+    def _cabec_msg_nacional_sem_ns(versao: str, versao_dados: str = "1.00") -> str:
         # Cabeçalho conforme print enviado pelo suporte NotaControl (03/08/2026):
         # <cabecalho versao="1.01" xmlns="...">  — atributo versao ANTES do xmlns.
         ns = "http://www.sped.fazenda.gov.br/nfse"
@@ -433,7 +433,7 @@ class ISSNetNacionalClient:
         )
 
     @staticmethod
-    def _cabec_msg_nacional_abrasf(versao: str, versao_dados: str = "1.01") -> str:
+    def _cabec_msg_nacional_abrasf(versao: str, versao_dados: str = "1.00") -> str:
         ns = "http://www.abrasf.org.br/nfse.xsd"
         cab = etree.Element(f"{{{ns}}}cabecalho", nsmap={None: ns})
         cab.set("versao", versao)

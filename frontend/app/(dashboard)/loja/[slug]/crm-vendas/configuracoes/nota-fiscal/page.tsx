@@ -28,6 +28,7 @@ const EMISSAO_OPCOES: Array<{
   titulo: string;
   descricao: string;
   badge?: string;
+  disabled?: boolean;
 }> = [
   {
     key: 'asaas',
@@ -39,18 +40,19 @@ const EMISSAO_OPCOES: Array<{
   {
     key: 'issnet_abrasf',
     numero: 2,
-    titulo: 'ISSNet — Ribeirão Preto (Direto)',
+    titulo: 'ISSNet — Ribeirão Preto (Direto, layout ABRASF)',
     descricao:
-      'Layout ABRASF atual (RPS). Emissão direta na prefeitura com o CNPJ da loja. Descontinuado em 03/08/2026.',
-    badge: 'Atual / legado',
+      'Descontinuado pelo município em 31/07/2026. O sistema já emite automaticamente pelo Padrão Nacional (opção 3) mesmo que esta opção esteja selecionada.',
+    badge: 'Descontinuado',
+    disabled: true,
   },
   {
     key: 'issnet_nacional',
     numero: 3,
     titulo: 'ISSNet — Padrão Nacional (DPS / RTC)',
     descricao:
-      'Novo layout NFS-e via webservice Nacional da ISSNet (Ribeirão Preto). Use este a partir da Reforma Tributária.',
-    badge: 'Padrão novo',
+      'Layout NFS-e via webservice Nacional da ISSNet (Ribeirão Preto). Padrão vigente desde a Reforma Tributária.',
+    badge: 'Padrão atual',
   },
   {
     key: 'nacional_adn',
@@ -61,10 +63,13 @@ const EMISSAO_OPCOES: Array<{
   },
 ];
 
-function resolvEmissaoOpcao(provedor: ProvedorNf, usarNacional: boolean): EmissaoOpcao {
+function resolvEmissaoOpcao(provedor: ProvedorNf, _usarNacional: boolean): EmissaoOpcao {
   if (provedor === 'asaas') return 'asaas';
   if (provedor === 'nacional') return 'nacional_adn';
-  if (provedor === 'issnet') return usarNacional ? 'issnet_nacional' : 'issnet_abrasf';
+  // ABRASF (issnet_abrasf) foi descontinuado em 31/07/2026: o backend força
+  // Nacional independente da flag (ver service.py). Resolve sempre para
+  // issnet_nacional para refletir o comportamento real.
+  if (provedor === 'issnet') return 'issnet_nacional';
   return 'asaas';
 }
 
@@ -335,10 +340,16 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
               return (
                 <label
                   key={op.key}
-                  className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    selected
+                  className={`flex items-start gap-3 p-4 rounded-lg border-2 transition-all ${
+                    op.disabled
+                      ? 'opacity-60 cursor-not-allowed border-gray-200 dark:border-[#0d1f3c]'
+                      : 'cursor-pointer'
+                  } ${
+                    selected && !op.disabled
                       ? 'border-[#0176d3] bg-[#e3f3ff] dark:bg-[#0176d3]/10'
-                      : 'border-gray-200 dark:border-[#0d1f3c] hover:border-gray-300 dark:hover:border-gray-600'
+                      : !op.disabled
+                        ? 'border-gray-200 dark:border-[#0d1f3c] hover:border-gray-300 dark:hover:border-gray-600'
+                        : ''
                   }`}
                 >
                   <input
@@ -346,7 +357,8 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
                     name="emissao_opcao"
                     value={op.key}
                     checked={selected}
-                    onChange={() => selecionarEmissao(op.key)}
+                    disabled={op.disabled}
+                    onChange={() => !op.disabled && selecionarEmissao(op.key)}
                     className="mt-1"
                   />
                   <div className="flex-1 min-w-0">
@@ -356,7 +368,13 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
                       </span>
                       <span className="font-medium text-gray-900 dark:text-white">{op.titulo}</span>
                       {op.badge ? (
-                        <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                        <span
+                          className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                            op.disabled
+                              ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                          }`}
+                        >
                           {op.badge}
                         </span>
                       ) : null}

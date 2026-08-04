@@ -423,13 +423,14 @@ class ISSNetNacionalClient:
 
     @staticmethod
     def _cabec_msg_nacional_sem_ns(versao: str, versao_dados: str = "1.01") -> str:
-        # Cabeçalho com xmlns conforme orientação suporte NotaControl
+        # Cabeçalho conforme print enviado pelo suporte NotaControl (03/08/2026):
+        # <cabecalho versao="1.01" xmlns="...">  — atributo versao ANTES do xmlns.
         ns = "http://www.sped.fazenda.gov.br/nfse"
-        cab = etree.Element("cabecalho", xmlns=ns)
-        cab.set("versao", versao)
-        vd = etree.SubElement(cab, "versaoDados")
-        vd.text = versao_dados
-        return etree.tostring(cab, encoding="unicode", xml_declaration=False)
+        return (
+            f'<cabecalho versao="{versao}" xmlns="{ns}">'
+            f'<versaoDados>{versao_dados}</versaoDados>'
+            f'</cabecalho>'
+        )
 
     @staticmethod
     def _cabec_msg_nacional_abrasf(versao: str, versao_dados: str = "1.01") -> str:

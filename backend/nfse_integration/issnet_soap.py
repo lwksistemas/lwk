@@ -92,25 +92,26 @@ def montar_soap_envelope_sem_ns_raiz(
     """Envelope SOAP para ISSNet Nacional v1.01.
 
     Usa xmlns:nfse no root para a operação e parâmetros, e insere os dados
-    XML literalmente. O namespace default não é declarado no envelope para
-    não interferir com o xmlns declarado no GerarNfseEnvio interno.
+    XML literalmente. Conforme orientação do suporte NotaControl
+    (03/08/2026), o envelope deve declarar apenas os namespaces
+    xmlns:soapenv e xmlns:nfse - namespaces extras (xsi/xsd) no ancestor
+    passam a ficar "em escopo" para o conteúdo assinado quando o servidor
+    recanonicaliza com C14N inclusiva, invalidando a assinatura.
     """
     dados = strip_xml_declaration(dados_xml or "")
     cabec = strip_xml_declaration(cabec_txt or "")
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
-        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" '
-        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-        'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+        '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" '
         f'xmlns:nfse="{target_ns}">'
-        '<soap:Header/>'
-        '<soap:Body>'
+        '<soapenv:Header/>'
+        '<soapenv:Body>'
         f'<nfse:{nome_operacao}>'
         f'<nfse:nfseCabecMsg>{cabec}</nfse:nfseCabecMsg>'
         f'<nfse:nfseDadosMsg>{dados}</nfse:nfseDadosMsg>'
         f'</nfse:{nome_operacao}>'
-        '</soap:Body>'
-        '</soap:Envelope>'
+        '</soapenv:Body>'
+        '</soapenv:Envelope>'
     )
 
 

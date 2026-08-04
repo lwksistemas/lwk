@@ -124,7 +124,9 @@ class ISSNetNacionalClient:
                 "GerarNfseEnvio",
             ):
                 # Lote/GerarNfseEnvio: assina cada DPS dentro.
-                # DPS v1.01 exige SHA-256 (E0714 se assinado com SHA-1).
+                # Suporte NotaControl (03/08/2026) confirmou: assinatura deve ser
+                # RSA-SHA1 com canonização inclusiva (funcionava assim nos dias
+                # 01-02/08; a troca para SHA-256 quebrou a validação - E0714).
                 # RecepcionarLoteDpsSincrono também exige assinatura do lote
                 # (EM003 "A assinatura do Lote é obrigatória" se ausente).
                 return assinar_xml_enviar_lote_dps(
@@ -134,10 +136,10 @@ class ISSNetNacionalClient:
                     assinar_lote=True,
                     prefixo_ds=False,
                     usar_cadeia=False,
-                    usar_sha256=True,
+                    usar_sha256=False,
                 )
             if root_local == "DPS":
-                # DPS isolado: assinar diretamente (conforme manual v1.01 seção 7.3.3)
+                # DPS isolado: assinar diretamente (RSA-SHA1, conforme suporte)
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
@@ -145,7 +147,7 @@ class ISSNetNacionalClient:
                     assinar_lote=False,
                     prefixo_ds=False,
                     usar_cadeia=False,
-                    usar_sha256=True,
+                    usar_sha256=False,
                 )
             # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
             return assinar_xml_issnet(xml_str, cert_path, self.cert_password)

@@ -128,6 +128,10 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
     issnet_usar_padrao_nacional: true,
     codigo_tributacao_nacional: '',
     nacional_codigo_municipio: '',
+    indicador_operacao: '',
+    cst_ibscbs: '',
+    cclass_trib_ibscbs: '',
+    p_tot_trib_sn: '',
     emitir_nf_automaticamente: true,
   });
 
@@ -162,6 +166,10 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
       issnet_usar_padrao_nacional: config.issnet_usar_padrao_nacional ?? true,
       codigo_tributacao_nacional: config.codigo_tributacao_nacional || '',
       nacional_codigo_municipio: config.nacional_codigo_municipio || '',
+      indicador_operacao: config.indicador_operacao || '',
+      cst_ibscbs: config.cst_ibscbs || '',
+      cclass_trib_ibscbs: config.cclass_trib_ibscbs || '',
+      p_tot_trib_sn: config.p_tot_trib_sn != null ? String(config.p_tot_trib_sn) : '',
       emitir_nf_automaticamente: config.emitir_nf_automaticamente ?? true,
     });
   }, [config, codigoServicoPadrao, descricaoServicoPadrao]);
@@ -585,6 +593,95 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
                       />
                     </div>
                   </>
+                )}
+                {isIssnetNacional && (
+                  <div className="md:col-span-2 mt-2 pt-4 border-t border-gray-200 dark:border-[#0d1f3c]">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                      IBS/CBS (Reforma Tributária)
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+                      Campos opcionais do bloco IBS/CBS da DPS. Deixe em branco para usar os valores
+                      padrão (CST 000, cClassTrib 000001).
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Indicador da Operação
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={2}
+                          value={formData.indicador_operacao}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              indicador_operacao: e.target.value.replace(/\D/g, '').slice(0, 2),
+                            })
+                          }
+                          className={INPUT}
+                        />
+                        <p className="text-[11px] text-gray-500 mt-1">Vazio: deriva automaticamente do cTribNac.</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Situação Tributária (CST)
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={3}
+                          value={formData.cst_ibscbs}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              cst_ibscbs: e.target.value.replace(/\D/g, '').slice(0, 3),
+                            })
+                          }
+                          placeholder="000"
+                          className={INPUT}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Classificação Tributária (cClassTrib)
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={formData.cclass_trib_ibscbs}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              cclass_trib_ibscbs: e.target.value.replace(/\D/g, '').slice(0, 6),
+                            })
+                          }
+                          placeholder="000001"
+                          className={INPUT}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          % Total de Tributos (Simples Nacional)
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={formData.p_tot_trib_sn}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              p_tot_trib_sn: e.target.value.replace(/[^0-9.,]/g, ''),
+                            })
+                          }
+                          placeholder="2.50"
+                          className={INPUT}
+                        />
+                        <p className="text-[11px] text-gray-500 mt-1">Vazio: usa a alíquota de ISS informada abaixo.</p>
+                      </div>
+                    </div>
+                  </div>
                 )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

@@ -245,6 +245,37 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         help_text="Código IBGE de 7 dígitos do município de prestação (ex.: 3543402 Ribeirão Preto).",
     )
 
+    # === IBS/CBS (Reforma Tributária — DPS Nacional v1.01) ===
+    indicador_operacao = models.CharField(
+        max_length=2,
+        blank=True,
+        default="",
+        verbose_name="Indicador da Operação (IBS/CBS)",
+        help_text="Código do indicador da operação (cIndOp) do bloco IBS/CBS. Vazio: builder deriva pelo cTribNac.",
+    )
+    cst_ibscbs = models.CharField(
+        max_length=3,
+        blank=True,
+        default="",
+        verbose_name="Situação Tributária IBS/CBS (CST)",
+        help_text="Código de Situação Tributária de 3 dígitos do bloco IBS/CBS. Vazio: usa '000'.",
+    )
+    cclass_trib_ibscbs = models.CharField(
+        max_length=6,
+        blank=True,
+        default="",
+        verbose_name="Classificação Tributária IBS/CBS (cClassTrib)",
+        help_text="Código de Classificação Tributária de 6 dígitos do bloco IBS/CBS. Vazio: usa '000001'.",
+    )
+    p_tot_trib_sn = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="% Total de Tributos (Simples Nacional)",
+        help_text="Percentual aproximado dos tributos (pTotTribSN), exigido para ME/EPP. Vazio: usa a alíquota de ISS.",
+    )
+
     # Conta Asaas da própria loja (NFS-e para clientes — não confundir com cobrança LWK)
     asaas_api_key = models.CharField(
         max_length=255,

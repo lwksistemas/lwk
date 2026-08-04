@@ -58,6 +58,14 @@ interface CRMConfig {
   codigo_tributacao_nacional?: string;
   /** IBGE 7 dígitos — API Nacional ADN. */
   nacional_codigo_municipio?: string;
+  /** cIndOp — Indicador da Operação (bloco IBS/CBS). */
+  indicador_operacao?: string;
+  /** CST do bloco IBS/CBS (3 dígitos). */
+  cst_ibscbs?: string;
+  /** cClassTrib do bloco IBS/CBS (6 dígitos). */
+  cclass_trib_ibscbs?: string;
+  /** pTotTribSN — % aproximado de tributos (Simples Nacional/ME/EPP). */
+  p_tot_trib_sn?: string | number | null;
   emitir_nf_automaticamente: boolean;
   asaas_sandbox?: boolean;
   asaas_api_key_configured?: boolean;

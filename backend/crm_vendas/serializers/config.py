@@ -156,6 +156,7 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             "issnet_ambiente_homologacao",
             "issnet_usar_padrao_nacional",
             "codigo_tributacao_nacional",
+            "codigo_tributacao_municipal",
             "nacional_codigo_municipio",
             "indicador_operacao", "cst_ibscbs", "cclass_trib_ibscbs", "p_tot_trib_sn",
             "codigo_servico_municipal", "descricao_servico_padrao",

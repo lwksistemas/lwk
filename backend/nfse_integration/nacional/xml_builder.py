@@ -214,10 +214,14 @@ def construir_xml_dps(
     _el(c_serv, "cTribNac", codigo_trib_nac)
     # cTribMun é obrigatório no validador real do ISSNet (embora o XSD
     # publicado o declare como minOccurs=0) — omiti-lo causa E160 "Arquivo
-    # em desacordo com o XML Schema". Envia sempre; o valor correto (código
-    # de tributação municipal cadastrado para o contribuinte) precisa ser
-    # confirmado junto ao município — ver TODO em issnet_nacional_xml_builder.py.
-    c_trib_mun = (_somente_digitos(codigo_tributacao_municipal or "") or "0")[:3].zfill(3)
+    # em desacordo com o XML Schema". Confirmado em 04/08/2026 com nota real
+    # aceita (cStat=100) para Felix Representações: cTribMun="140118" para
+    # Atividade Municipal "14.01" — código de 6 dígitos (mesmo formato de
+    # cTribNac), NÃO um código de 3 dígitos derivado do item da lista.
+    c_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
+    if not c_trib_mun:
+        c_trib_mun = codigo_trib_nac
+    c_trib_mun = c_trib_mun[:6].ljust(6, "0") if len(c_trib_mun) < 6 else c_trib_mun[:6]
     _el(c_serv, "cTribMun", c_trib_mun)
     descricao_limpa = _normalizar_texto_xml(descricao_servico or "Servico prestado", 2000)
     _el(c_serv, "xDescServ", descricao_limpa)

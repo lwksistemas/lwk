@@ -60,28 +60,28 @@ class Migration(migrations.Migration):
             database_operations=[
                 migrations.RunSQL(
                     sql=(
-                        "ALTER TABLE crm_vendas_crmconfig "
+                        "ALTER TABLE crm_vendas_config "
                         "ADD COLUMN IF NOT EXISTS indicador_operacao varchar(2) NOT NULL DEFAULT '';"
                     ),
                     reverse_sql=migrations.RunSQL.noop,
                 ),
                 migrations.RunSQL(
                     sql=(
-                        "ALTER TABLE crm_vendas_crmconfig "
+                        "ALTER TABLE crm_vendas_config "
                         "ADD COLUMN IF NOT EXISTS cst_ibscbs varchar(3) NOT NULL DEFAULT '';"
                     ),
                     reverse_sql=migrations.RunSQL.noop,
                 ),
                 migrations.RunSQL(
                     sql=(
-                        "ALTER TABLE crm_vendas_crmconfig "
+                        "ALTER TABLE crm_vendas_config "
                         "ADD COLUMN IF NOT EXISTS cclass_trib_ibscbs varchar(6) NOT NULL DEFAULT '';"
                     ),
                     reverse_sql=migrations.RunSQL.noop,
                 ),
                 migrations.RunSQL(
                     sql=(
-                        "ALTER TABLE crm_vendas_crmconfig "
+                        "ALTER TABLE crm_vendas_config "
                         "ADD COLUMN IF NOT EXISTS p_tot_trib_sn numeric(5,2) NULL;"
                     ),
                     reverse_sql=migrations.RunSQL.noop,

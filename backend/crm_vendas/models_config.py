@@ -237,6 +237,18 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         verbose_name="Código de Tributação Nacional (cTribNac)",
         help_text="Código de 6 dígitos do serviço no padrão Nacional (ex: 140100 para item 14.01).",
     )
+    codigo_tributacao_municipal = models.CharField(
+        max_length=10,
+        blank=True,
+        default="",
+        verbose_name="Código de Tributação Municipal (cTribMun)",
+        help_text=(
+            "Código de 6 dígitos cadastrado no ISSNet para este contribuinte/atividade "
+            "(NÃO é simplesmente o item da lista de serviço). Confirme junto à prefeitura "
+            "ou emitindo manualmente no portal ISSNet e inspecionando o XML gerado. "
+            "Vazio: usa o mesmo valor do cTribNac como fallback."
+        ),
+    )
     nacional_codigo_municipio = models.CharField(
         max_length=7,
         blank=True,

@@ -167,15 +167,16 @@ def emitir_via_issnet_nacional_loja(
 
         # Resolver parâmetros do serviço
         codigo_trib_nacional = _resolver_codigo_tributacao_nacional(config)
-        # cTribMun é obrigatório para o schema (omiti-lo causa E160), mas o
-        # valor correto é o código de tributação municipal cadastrado no
-        # ISSNet para este contribuinte — NÃO necessariamente igual ao item
-        # da lista de serviços (codigo_servico_municipal/item_lista_servico).
-        # Usa este último como fallback até confirmar o código real junto ao
-        # município (ISSNet retorna "código não existe/não pertence a este
-        # contribuinte" enquanto o valor não for o cadastrado corretamente).
+        # cTribMun é obrigatório para o schema (omiti-lo causa E160). Confirmado
+        # em 04/08/2026 com nota real aceita para Felix Representações que o
+        # valor correto é um código de 6 dígitos cadastrado no ISSNet para o
+        # contribuinte (ex.: "140118" para Atividade Municipal "14.01"), NÃO
+        # derivado do item da lista de serviços. Usa o campo dedicado da
+        # config; se vazio, o builder faz fallback para o próprio cTribNac.
         codigo_trib_municipal = _somente_digitos(
-            codigo_servico_override or getattr(config, "codigo_servico_municipal", "") or ""
+            codigo_servico_override
+            or getattr(config, "codigo_tributacao_municipal", "")
+            or ""
         )
         codigo_nbs = _resolver_codigo_nbs(config)
         aliquota = Decimal(str(getattr(config, "aliquota_iss", 2.00) or 0))

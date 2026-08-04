@@ -127,6 +127,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
     issnet_ambiente_homologacao: false,
     issnet_usar_padrao_nacional: true,
     codigo_tributacao_nacional: '',
+    codigo_tributacao_municipal: '',
     nacional_codigo_municipio: '',
     indicador_operacao: '',
     cst_ibscbs: '',
@@ -165,6 +166,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
       issnet_ambiente_homologacao: config.issnet_ambiente_homologacao ?? false,
       issnet_usar_padrao_nacional: config.issnet_usar_padrao_nacional ?? true,
       codigo_tributacao_nacional: config.codigo_tributacao_nacional || '',
+      codigo_tributacao_municipal: config.codigo_tributacao_municipal || '',
       nacional_codigo_municipio: config.nacional_codigo_municipio || '',
       indicador_operacao: config.indicador_operacao || '',
       cst_ibscbs: config.cst_ibscbs || '',
@@ -198,6 +200,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
         'item_lista_servico',
         'inscricao_municipal',
         'codigo_tributacao_nacional',
+        'codigo_tributacao_municipal',
         'nacional_codigo_municipio',
       ];
       Object.entries(formData).forEach(([key, value]) => {
@@ -580,6 +583,29 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
                         className={INPUT}
                       />
                       <p className="text-[11px] text-gray-500 mt-1">6 dígitos. Vazio → deriva do item (14.01 → 140100).</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        cTribMun (tributação municipal)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={formData.codigo_tributacao_municipal}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            codigo_tributacao_municipal: e.target.value.replace(/\D/g, '').slice(0, 6),
+                          })
+                        }
+                        placeholder="140118"
+                        className={INPUT}
+                      />
+                      <p className="text-[11px] text-gray-500 mt-1">
+                        Código cadastrado no ISSNet p/ este contribuinte (NÃO é o item da lista). Confirme
+                        emitindo manualmente no portal e inspecionando o XML. Vazio → usa o cTribNac.
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

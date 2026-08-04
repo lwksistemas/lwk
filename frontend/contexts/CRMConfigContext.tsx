@@ -56,6 +56,8 @@ interface CRMConfig {
   issnet_usar_padrao_nacional?: boolean;
   /** cTribNac — 6 dígitos (ex.: 140100). */
   codigo_tributacao_nacional?: string;
+  /** cTribMun — 6 dígitos cadastrado no ISSNet p/ este contribuinte (NÃO é o item da lista). */
+  codigo_tributacao_municipal?: string;
   /** IBGE 7 dígitos — API Nacional ADN. */
   nacional_codigo_municipio?: string;
   /** cIndOp — Indicador da Operação (bloco IBS/CBS). */

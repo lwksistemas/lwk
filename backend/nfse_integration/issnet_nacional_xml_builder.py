@@ -144,7 +144,15 @@ def _construir_dps_issnet(
         p_tot_trib_sn=p_tot_trib_sn,
         data_competencia=data_emissao,
         versao_dps=VERSAO_ISSNET_NACIONAL,
-        prefixo_nfse=False,
+        # O envelope SOAP embrulha nfseDadosMsg com prefixo nfse: (ver
+        # issnet_soap.py). Se o DPS/LoteDps declarar xmlns= (padrão) em vez de
+        # xmlns:nfse=, ficam DUAS declarações de namespace (default + nfse:)
+        # em escopo para o mesmo conteúdo assinado. Sob canonização INCLUSIVA
+        # (exigida pelo ISSNet - ver E0714), ambas entram no digest calculado
+        # pelo servidor mesmo sem terem sido usadas ao assinar, invalidando a
+        # assinatura. Usar o mesmo prefixo nfse: em todo o DPS/LoteDps elimina
+        # essa duplicidade.
+        prefixo_nfse=True,
     )
 
     dps_element = etree.fromstring(xml_dps.encode("utf-8"))
@@ -422,8 +430,10 @@ def construir_xml_enviar_lote_dps_sincrono(
     )
 
     # Envolver em EnviarLoteDpsSincronoEnvio > LoteDps (Id=Lote{n} — exigido p/ assinatura)
-    # Namespace padrão (sem prefixo), alinhado ao exemplo oficial .NET.
-    nsmap = {None: NS_NFSE}
+    # Prefixo nfse: (não namespace padrão) para casar com o xmlns:nfse do
+    # envelope SOAP e evitar dupla declaração de namespace sob C14N inclusiva
+    # (ver comentário em construir_xml_dps acima / prefixo_nfse=True).
+    nsmap = {"nfse": NS_NFSE}
     root = etree.Element(f"{{{NS_NFSE}}}EnviarLoteDpsSincronoEnvio", nsmap=nsmap)
     lote = etree.SubElement(
         root,

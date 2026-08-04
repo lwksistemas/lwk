@@ -537,6 +537,75 @@ def _assinar_elemento_por_id(
         raise
 
 
+def assinar_lote_dps_em_elemento(
+    root,
+    pfx_path: str,
+    senha_pfx: str,
+    assinar_lote: bool = True,
+    prefixo_ds: bool = True,
+    usar_cadeia: bool = True,
+    usar_sha256_xmlsec: bool = False,
+) -> None:
+    """Assina DPS/LoteDps já posicionados na árvore final (ex.: dentro do
+    envelope SOAP), em vez de assinar um documento isolado e inserir o
+    resultado via string no envelope.
+
+    Isso garante que a canonização C14N inclusiva veja exatamente o mesmo
+    contexto de namespaces (soapenv:, nfse:) que o servidor usará ao
+    verificar a assinatura — conforme orientação do suporte NotaControl:
+    "remova o xmlns [da DPS isolada] e assine [já no contexto final]".
+
+    Muta `root` (elemento EnviarLoteDpsSincronoEnvio/EnviarLoteDpsEnvio) em
+    memória, adicionando os elementos <Signature>. Não retorna XML.
+    """
+    ns = "http://www.sped.fazenda.gov.br/nfse"
+    root_local = etree.QName(root.tag).localname if root.tag else ""
+
+    key, cert_obj, extra_certs = _carregar_chave_xmlsec(pfx_path, senha_pfx)
+    chain = _completar_cadeia_certificados(cert_obj, extra_certs)
+    logger.info("Cadeia de certificados montada: %d certificado(s) (folha + intermediários)", len(chain))
+
+    dps_nodes = root.findall(f".//{{{ns}}}DPS")
+    if not dps_nodes:
+        dps_nodes = root.findall(".//DPS")
+    if not dps_nodes:
+        raise ValueError("Nenhum elemento DPS encontrado para assinatura no lote Nacional.")
+
+    for dps in dps_nodes:
+        inf_dps = dps.find(f"{{{ns}}}infDPS")
+        if inf_dps is None:
+            inf_dps = dps.find("infDPS")
+        if inf_dps is None:
+            raise ValueError("Elemento infDPS não encontrado em DPS do lote.")
+        inf_id = (inf_dps.get("Id") or "").strip()
+        if not inf_id:
+            raise ValueError("Atributo Id ausente em infDPS.")
+        _assinar_elemento_por_id(
+            dps, inf_dps, key, inf_id, cert_obj, chain,
+            prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
+            usar_sha256=usar_sha256_xmlsec,
+        )
+
+    if assinar_lote:
+        lote = root.find(f"{{{ns}}}LoteDps")
+        if lote is not None and root_local in ("EnviarLoteDpsSincronoEnvio", "EnviarLoteDpsEnvio"):
+            lote_id = (lote.get("Id") or "").strip()
+            if not lote_id:
+                num = lote.findtext(f"{{{ns}}}NumeroLote") or "1"
+                lote_id = f"Lote{num}"
+                lote.set("Id", lote_id)
+            _assinar_elemento_por_id(
+                root, lote, key, lote_id, cert_obj, chain,
+                prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
+                usar_sha256=usar_sha256_xmlsec,
+            )
+
+    logger.info(
+        "Lote DPS assinado em contexto final (%s): %d DPS%s",
+        root_local or "?", len(dps_nodes), " + assinatura do envio" if assinar_lote else "",
+    )
+
+
 def assinar_xml_enviar_lote_dps(
     xml_str: str,
     pfx_path: str,

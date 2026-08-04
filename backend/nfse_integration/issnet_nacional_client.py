@@ -49,9 +49,13 @@ from nfse_integration.issnet_soap import (
     issnet_erro_assinatura,
     issnet_erro_schema_ou_cabecalho,
     issnet_fault_soap_generico,
+    montar_soap_envelope_sem_ns_raiz,
 )
 from nfse_integration.issnet_xml_builder import somente_digitos
-from nfse_integration.nacional.xml_signer import assinar_xml_enviar_lote_dps
+from nfse_integration.nacional.xml_signer import (
+    assinar_lote_dps_em_elemento,
+    assinar_xml_enviar_lote_dps,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +303,115 @@ class ISSNetNacionalClient:
                 with suppress(OSError):
                     os.unlink(cert_path)
 
+    def _enviar_lote_dps_assinando_no_envelope(
+        self, lote_xml_nao_assinado: str, soap_action: str,
+    ) -> str:
+        """Monta o envelope SOAP com o LoteDps SEM assinatura, faz o parse
+        como UM ÚNICO documento e só então assina DPS/LoteDps já dentro
+        desse contexto final.
+
+        Orientação do suporte NotaControl (03/08/2026): "remova o xmlns [da
+        DPS isolada] e assine [já no contexto final]" — a assinatura
+        calculada sobre o documento isolado não sobrevive à inserção em um
+        envelope que introduz namespaces ambiente (soapenv:, nfse:) porque a
+        canonização C14N inclusiva captura TODOS os namespaces em escopo,
+        usados ou não, no momento da verificação pelo servidor.
+        """
+        nome_op = _nome_operacao_de_soap_action(soap_action)
+        created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
+        cert_path = self._pfx_temp()
+
+        cabec_txt = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
+        envelope_nao_assinado = montar_soap_envelope_sem_ns_raiz(
+            nome_op, lote_xml_nao_assinado,
+            cabec_txt=cabec_txt,
+            target_ns=NS_NFSE_NACIONAL,
+        )
+
+        try:
+            envelope_tree = etree.fromstring(envelope_nao_assinado.encode("utf-8"))
+            ns = NS_NFSE_NACIONAL
+            envio_root = envelope_tree.find(f".//{{{ns}}}EnviarLoteDpsSincronoEnvio")
+            if envio_root is None:
+                envio_root = envelope_tree.find(f".//{{{ns}}}EnviarLoteDpsEnvio")
+            if envio_root is None:
+                raise ValueError("EnviarLoteDpsSincronoEnvio não encontrado no envelope montado.")
+
+            assinar_lote_dps_em_elemento(
+                envio_root,
+                cert_path,
+                self.cert_password,
+                assinar_lote=True,
+                prefixo_ds=False,
+                usar_cadeia=False,
+                usar_sha256_xmlsec=False,
+            )
+
+            envelope_final = etree.tostring(
+                envelope_tree, encoding="utf-8", xml_declaration=True,
+            ).decode("utf-8")
+        finally:
+            if created_tmp and os.path.isfile(cert_path):
+                with suppress(OSError):
+                    os.unlink(cert_path)
+
+        logger.info(
+            "ISSNet Nacional: envelope SOAP (assinado no contexto final) (truncado):\n%s",
+            envelope_final[:8000],
+        )
+
+        headers = {
+            "Content-Type": "text/xml; charset=utf-8",
+            "SOAPAction": f'"{soap_action}"',
+            "Connection": "close",
+            "Accept": "text/xml",
+            "User-Agent": "LWK-Sistemas/ISSNet-Nacional",
+        }
+        cert_path2 = self._pfx_temp()
+        created_tmp2 = not (self.cert_path and os.path.isfile(self.cert_path))
+        try:
+            with certificado_mtls_temporario(cert_path2, self.cert_password) as (pem_cert, pem_key):  # noqa: E501
+                envelope_bytes = envelope_final.encode("utf-8")
+                logger.info(
+                    "ISSNet Nacional SOAP %s (~%d bytes, assinado-no-envelope) → %s",
+                    nome_op, len(envelope_bytes), self.url,
+                )
+                try:
+                    r = req.post(
+                        self.url,
+                        data=envelope_bytes,
+                        headers=headers,
+                        cert=(pem_cert, pem_key),
+                        timeout=(8, 45),
+                        verify=True,
+                    )
+                except (req.exceptions.ConnectionError, req.exceptions.ReadTimeout) as e:
+                    logger.warning("ISSNet Nacional %s conexão falhou (%s); retry 1x", nome_op, e)
+                    time.sleep(1.5)
+                    r = req.post(
+                        self.url,
+                        data=envelope_bytes,
+                        headers=headers,
+                        cert=(pem_cert, pem_key),
+                        timeout=(8, 45),
+                        verify=True,
+                    )
+                texto = r.text or ""
+                logger.info(
+                    "ISSNet Nacional %s HTTP %s (%d bytes, assinado-no-envelope)",
+                    nome_op, r.status_code, len(texto),
+                )
+                if r.status_code >= 400 or "Fault" in texto:
+                    logger.error(
+                        "ISSNet Nacional %s erro (assinado-no-envelope): %s",
+                        nome_op, texto[:2000],
+                    )
+                return texto
+        finally:
+            if created_tmp2 and os.path.isfile(cert_path2):
+                with suppress(OSError):
+                    os.unlink(cert_path2)
+
     @staticmethod
     def _cabec_msg_nacional_sped(versao: str, versao_dados: str = "1.01") -> str:
         ns = NS_NFSE_NACIONAL
@@ -408,40 +521,21 @@ class ISSNetNacionalClient:
                 cclass_trib_ibscbs=cclass_trib_ibscbs,
             )
 
-            # Assina o DPS dentro do LoteDps (sem assinar o LoteDps em si).
-            logger.info("ISSNet Nacional: assinando DPS nº %d (lote síncrono)...", numero_dps)
-            xml_assinado = self._assinar_xml(lote_xml)
-
-            # Remover declaração XML (<?xml ...?>) se presente
-            xml_assinado = re.sub(
-                r'^\s*<\?xml[^?]*\?>\s*', '', xml_assinado, count=1, flags=re.IGNORECASE
-            )
-            result["xml_dps"] = xml_assinado
+            # Assina o DPS/LoteDps já dentro do envelope SOAP final (não como
+            # documento isolado depois inserido via string). Orientação do
+            # suporte NotaControl (03/08/2026): a canonização C14N inclusiva
+            # captura os namespaces ambiente (soapenv:, nfse:) somente
+            # presentes após a montagem do envelope; assinar antes disso
+            # invalida a assinatura no lado do servidor (E0714).
             logger.info(
-                "ISSNet Nacional: XML EnviarLoteDpsSincronoEnvio com DPS assinado (truncado):\n%s",
-                xml_assinado[:6000],
+                "ISSNet Nacional: montando envelope e assinando DPS nº %d no contexto final...",
+                numero_dps,
             )
-
-            try:
-                root_signed = etree.fromstring(xml_assinado.encode("utf-8"))
-                ns_sig = "http://www.w3.org/2000/09/xmldsig#"
-                sig_count = len(root_signed.findall(f".//{{{ns_sig}}}Signature"))
-                cert_count = len(root_signed.findall(f".//{{{ns_sig}}}X509Certificate"))
-                logger.info(
-                    "ISSNet Nacional: XML assinado - %d assinatura(s), %d certificado(s) X509",
-                    sig_count, cert_count,
-                )
-            except Exception as e:
-                logger.debug("Não foi possível contar assinaturas/certificados: %s", e)
-
-            logger.info(
-                "ISSNet Nacional: enviando DPS nº %d ao webservice (%s)...",
-                numero_dps, self.ambiente,
-            )
-            resposta_soap = self._enviar_soap(
-                xml_assinado,
+            resposta_soap = self._enviar_lote_dps_assinando_no_envelope(
+                lote_xml,
                 SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
             )
+            result["xml_dps"] = lote_xml
             result["xml_resposta"] = resposta_soap
 
             body = extrair_body_soap(resposta_soap)

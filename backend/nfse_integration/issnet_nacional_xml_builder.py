@@ -28,8 +28,9 @@ NS_NFSE_NACIONAL = NS_NFSE  # Re-export
 VERSAO_ISSNET_NACIONAL = "1.01"
 # Habilita cNBS no cServ e fone/e-mail no prest (v1.01).
 ADICIONAR_EXTRAS_ISSNET = True
-# IBSCBS é opcional no leiaute v1.01 — desabilitado até validação completa.
-INCLUIR_IBSCBS = False
+# O ISSNet confirmou (erro "É obrigatório declarar informações de IBS/CBS
+# na versão 1.01.") que o bloco IBSCBS é obrigatório no leiaute v1.01.
+INCLUIR_IBSCBS = True
 COD_MUNICIPIO_RP = "3543402"
 
 
@@ -134,7 +135,7 @@ def _construir_dps_issnet(
         tomador_telefone=tomador_telefone,
         tomador_email=tomador_email,
         codigo_servico=codigo_tributacao_nacional or "140100",
-        codigo_tributacao_municipal=_somente_digitos(codigo_tributacao_municipal or "") or "0",
+        codigo_tributacao_municipal=_somente_digitos(codigo_tributacao_municipal or ""),
         descricao_servico=descricao_servico,
         codigo_municipio_incidencia=codigo_municipio_prestacao or codigo_municipio_emissor,
         valor_servicos=valor_servicos,
@@ -187,54 +188,51 @@ def _construir_dps_issnet(
         if inf_dps is not None:
             _adicionar_ibscbs(
                 inf_dps,
-                codigo_municipio_prestacao=codigo_municipio_prestacao,
-                municipio_prestacao_nome=municipio_prestacao_nome,
-                valor_servicos=valor_servicos,
+                indicador_operacao=indicador_operacao,
+                ind_final_ibscbs=ind_final_ibscbs,
+                ind_dest_ibscbs=ind_dest_ibscbs,
+                cst_ibscbs=cst_ibscbs,
+                cclass_trib_ibscbs=cclass_trib_ibscbs,
             )
 
     return dps_element
 
 
-def _adicionar_ibscbs(inf_dps, *, codigo_municipio_prestacao: str, municipio_prestacao_nome: str, valor_servicos: Decimal) -> None:
-    """Adiciona o grupo IBSCBS ao infDPS conforme TCRTCIBSCBS (v1.01)."""
-    from nfse_integration.nacional.xml_builder import _normalizar_texto_xml
+def _adicionar_ibscbs(
+    inf_dps,
+    *,
+    indicador_operacao: str = "100301",
+    ind_final_ibscbs: str = "0",
+    ind_dest_ibscbs: str = "0",
+    cst_ibscbs: str = "000",
+    cclass_trib_ibscbs: str = "000001",
+) -> None:
+    """Adiciona o grupo IBSCBS ao infDPS conforme TCRTCInfoIBSCBS (v1.01).
 
-    cod_mun = _somente_digitos(codigo_municipio_prestacao or "") or "3543402"
-    nome_mun = _normalizar_texto_xml((municipio_prestacao_nome or "").strip(), 600) or "Ribeirao Preto"
-    v_serv = _formatar_decimal(Decimal(str(valor_servicos or 0)), casas=2)
-    zero = _formatar_decimal(Decimal("0.00"), casas=2)
-
+    Estrutura real do XSD (tiposComplexos_v1.01.xsd):
+      IBSCBS
+        finNFSe (fixo "0")
+        indFinal (opcional)
+        cIndOp
+        indDest
+        valores
+          trib
+            gIBSCBS (TCRTCInfoTributosSitClas)
+              CST
+              cClassTrib
+    """
     ibscbs = etree.SubElement(inf_dps, f"{{{NS_NFSE}}}IBSCBS")
-    etree.SubElement(ibscbs, f"{{{NS_NFSE}}}cLocalidadeIncid").text = cod_mun
-    etree.SubElement(ibscbs, f"{{{NS_NFSE}}}xLocalidadeIncid").text = nome_mun
+    etree.SubElement(ibscbs, f"{{{NS_NFSE}}}finNFSe").text = "0"
+    if ind_final_ibscbs:
+        etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indFinal").text = str(ind_final_ibscbs)[:1]
+    etree.SubElement(ibscbs, f"{{{NS_NFSE}}}cIndOp").text = _somente_digitos(indicador_operacao or "100301") or "100301"
+    etree.SubElement(ibscbs, f"{{{NS_NFSE}}}indDest").text = str(ind_dest_ibscbs or "0")[:1]
 
     valores = etree.SubElement(ibscbs, f"{{{NS_NFSE}}}valores")
-    etree.SubElement(valores, f"{{{NS_NFSE}}}vBC").text = v_serv
-
-    uf = etree.SubElement(valores, f"{{{NS_NFSE}}}uf")
-    etree.SubElement(uf, f"{{{NS_NFSE}}}pIBSUF").text = zero
-    etree.SubElement(uf, f"{{{NS_NFSE}}}pAliqEfetUF").text = zero
-
-    mun = etree.SubElement(valores, f"{{{NS_NFSE}}}mun")
-    etree.SubElement(mun, f"{{{NS_NFSE}}}pIBSMun").text = zero
-    etree.SubElement(mun, f"{{{NS_NFSE}}}pAliqEfetMun").text = zero
-
-    fed = etree.SubElement(valores, f"{{{NS_NFSE}}}fed")
-    etree.SubElement(fed, f"{{{NS_NFSE}}}pCBS").text = zero
-    etree.SubElement(fed, f"{{{NS_NFSE}}}pAliqEfetCBS").text = zero
-
-    tot_cibs = etree.SubElement(ibscbs, f"{{{NS_NFSE}}}totCIBS")
-    etree.SubElement(tot_cibs, f"{{{NS_NFSE}}}vTotNF").text = v_serv
-
-    g_ibs = etree.SubElement(tot_cibs, f"{{{NS_NFSE}}}gIBS")
-    etree.SubElement(g_ibs, f"{{{NS_NFSE}}}vIBSTot").text = zero
-    g_ibs_uf = etree.SubElement(g_ibs, f"{{{NS_NFSE}}}gIBSUFTot")
-    etree.SubElement(g_ibs_uf, f"{{{NS_NFSE}}}vIBSUF").text = zero
-    g_ibs_mun = etree.SubElement(g_ibs, f"{{{NS_NFSE}}}gIBSMunTot")
-    etree.SubElement(g_ibs_mun, f"{{{NS_NFSE}}}vIBSMun").text = zero
-
-    g_cbs = etree.SubElement(tot_cibs, f"{{{NS_NFSE}}}gCBS")
-    etree.SubElement(g_cbs, f"{{{NS_NFSE}}}vCBS").text = zero
+    trib = etree.SubElement(valores, f"{{{NS_NFSE}}}trib")
+    g_ibscbs = etree.SubElement(trib, f"{{{NS_NFSE}}}gIBSCBS")
+    etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}CST").text = (cst_ibscbs or "000")[:3].zfill(3)
+    etree.SubElement(g_ibscbs, f"{{{NS_NFSE}}}cClassTrib").text = (cclass_trib_ibscbs or "000001")[:6].zfill(6)
 
 
 def construir_xml_gerar_nfse_envio(

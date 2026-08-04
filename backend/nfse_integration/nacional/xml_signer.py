@@ -426,6 +426,45 @@ def _assinar_dps_com_signxml(dps_el, inf_el, key_pem: bytes, cert_pem: bytes) ->
     parent.insert(idx, signed_dps)
 
 
+def _assinar_lote_com_signxml(root_el, lote_el, key_pem: bytes, cert_pem: bytes) -> None:
+    """Assina o LoteDps usando signxml (RSA-SHA256 + C14N).
+
+    O <Signature> resultante fica como irmão de <LoteDps> (filho de root),
+    com Reference apontando para o Id do LoteDps — mesmo leiaute usado no
+    caminho legado via xmlsec. Necessário para RecepcionarLoteDpsSincrono,
+    que rejeita o lote com EM003 ("A assinatura do Lote é obrigatória")
+    quando ausente.
+    """
+    from signxml import XMLSigner, methods
+
+    lote_id = (lote_el.get("Id") or "").strip()
+    if not lote_id:
+        raise ValueError("Atributo Id ausente em LoteDps para assinatura signxml.")
+
+    parent = root_el.getparent()
+
+    signer = XMLSigner(
+        method=methods.enveloped,
+        signature_algorithm="rsa-sha256",
+        digest_algorithm="sha256",
+        c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+    )
+    signed_root = signer.sign(
+        root_el,
+        key=key_pem,
+        cert=cert_pem,
+        reference_uri=f"#{lote_id}",
+        id_attribute="Id",
+    )
+
+    if parent is None:
+        return signed_root
+    idx = list(parent).index(root_el)
+    parent.remove(root_el)
+    parent.insert(idx, signed_root)
+    return signed_root
+
+
 def _assinar_elemento_por_id(
     parent_el,
     target_el,
@@ -571,8 +610,8 @@ def assinar_xml_enviar_lote_dps(
             )
 
     # Signature do lote fica na raiz (irmã de LoteDps), Reference=#Id do LoteDps.
-    # Lote é assinado apenas no caminho legado (xmlsec).
-    if assinar_lote and not usar_sha256:
+    # Exigido pelo RecepcionarLoteDpsSincrono (EM003 se ausente).
+    if assinar_lote:
         lote = root.find(f"{{{ns}}}LoteDps")
         if lote is not None and root_local in ("EnviarLoteDpsSincronoEnvio", "EnviarLoteDpsEnvio"):
             lote_id = (lote.get("Id") or "").strip()
@@ -580,10 +619,16 @@ def assinar_xml_enviar_lote_dps(
                 num = lote.findtext(f"{{{ns}}}NumeroLote") or "1"
                 lote_id = f"Lote{num}"
                 lote.set("Id", lote_id)
-            _assinar_elemento_por_id(
-                root, lote, key, lote_id, cert_obj, chain,
-                prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
-            )
+            if usar_sha256 and not usar_sha256_xmlsec:
+                novo_root = _assinar_lote_com_signxml(root, lote, key_pem, cert_pem)
+                if novo_root is not None:
+                    root = novo_root
+            else:
+                _assinar_elemento_por_id(
+                    root, lote, key, lote_id, cert_obj, chain,
+                    prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
+                    usar_sha256=usar_sha256_xmlsec,
+                )
 
     result = etree.tostring(root, encoding="unicode", xml_declaration=False)
     logger.info(

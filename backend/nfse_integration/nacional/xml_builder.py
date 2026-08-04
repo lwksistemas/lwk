@@ -212,7 +212,11 @@ def construir_xml_dps(
     c_serv = _el(serv, "cServ")
     codigo_trib_nac = _normalizar_codigo_servico_6dig(codigo_servico)
     _el(c_serv, "cTribNac", codigo_trib_nac)
-    # cTribMun obrigatório no schema v1.01 (Reforma Tributária) — 3 dígitos
+    # cTribMun é obrigatório no validador real do ISSNet (embora o XSD
+    # publicado o declare como minOccurs=0) — omiti-lo causa E160 "Arquivo
+    # em desacordo com o XML Schema". Envia sempre; o valor correto (código
+    # de tributação municipal cadastrado para o contribuinte) precisa ser
+    # confirmado junto ao município — ver TODO em issnet_nacional_xml_builder.py.
     c_trib_mun = (_somente_digitos(codigo_tributacao_municipal or "") or "0")[:3].zfill(3)
     _el(c_serv, "cTribMun", c_trib_mun)
     descricao_limpa = _normalizar_texto_xml(descricao_servico or "Servico prestado", 2000)

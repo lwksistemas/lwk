@@ -70,13 +70,25 @@ def _resolver_indicador_operacao(config) -> str:
     return _somente_digitos(str(ind)) if ind else ""
 
 
-def _resolver_p_tot_trib_sn(config) -> Decimal:
-    """Resolve pTotTribSN para Simples Nacional (ME/EPP)."""
+def _resolver_p_tot_trib_sn(config) -> Decimal | None:
+    """Resolve pTotTribSN para Simples Nacional (ME/EPP).
+
+    O ISSNet Ribeirão Preto rejeita <indTotTrib>0</indTotTrib> para
+    prestadores optantes pelo Simples Nacional ("Para ME/EPP somente um
+    dos 3 poderá ser informado: grupo vTotTrib ou pTotTrib ou pTotTribSN").
+    Nesse caso é obrigatório informar pTotTribSN. Usa valor configurado
+    explicitamente ou, na ausência, a própria alíquota do ISS como
+    aproximação (informação meramente declarativa/consumerista, conforme
+    Lei 12.741/2012 — não afeta o cálculo do tributo).
+    """
     valor = getattr(config, "p_tot_trib_sn", None)
-    if valor is None:
-        # Empresas do Simples Nacional geralmente informam 0.00 (não optante) ou o percentual real.
-        return Decimal("0.00")
-    return Decimal(str(valor))
+    if valor is not None:
+        return Decimal(str(valor))
+    if bool(getattr(config, "optante_simples_nacional", True)):
+        aliquota = getattr(config, "aliquota_iss", None)
+        if aliquota is not None:
+            return Decimal(str(aliquota))
+    return None
 
 
 def _resolver_cst_ibscbs(config) -> str:
@@ -155,6 +167,13 @@ def emitir_via_issnet_nacional_loja(
 
         # Resolver parâmetros do serviço
         codigo_trib_nacional = _resolver_codigo_tributacao_nacional(config)
+        # cTribMun é obrigatório para o schema (omiti-lo causa E160), mas o
+        # valor correto é o código de tributação municipal cadastrado no
+        # ISSNet para este contribuinte — NÃO necessariamente igual ao item
+        # da lista de serviços (codigo_servico_municipal/item_lista_servico).
+        # Usa este último como fallback até confirmar o código real junto ao
+        # município (ISSNet retorna "código não existe/não pertence a este
+        # contribuinte" enquanto o valor não for o cadastrado corretamente).
         codigo_trib_municipal = _somente_digitos(
             codigo_servico_override or getattr(config, "codigo_servico_municipal", "") or ""
         )

@@ -123,15 +123,18 @@ class ISSNetNacionalClient:
                 "EnviarLoteDpsEnvio",
                 "GerarNfseEnvio",
             ):
-                # Lote/GerarNfseEnvio: assina cada DPS dentro
+                # Lote/GerarNfseEnvio: assina cada DPS dentro.
+                # DPS v1.01 exige SHA-256 (E0714 se assinado com SHA-1).
+                # RecepcionarLoteDpsSincrono também exige assinatura do lote
+                # (EM003 "A assinatura do Lote é obrigatória" se ausente).
                 return assinar_xml_enviar_lote_dps(
                     xml_str,
                     cert_path,
                     self.cert_password,
-                    assinar_lote=False,
+                    assinar_lote=True,
                     prefixo_ds=False,
                     usar_cadeia=False,
-                    usar_sha256=False,
+                    usar_sha256=True,
                 )
             if root_local == "DPS":
                 # DPS isolado: assinar diretamente (conforme manual v1.01 seção 7.3.3)
@@ -142,7 +145,7 @@ class ISSNetNacionalClient:
                     assinar_lote=False,
                     prefixo_ds=False,
                     usar_cadeia=False,
-                    usar_sha256=False,
+                    usar_sha256=True,
                 )
             # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
             return assinar_xml_issnet(xml_str, cert_path, self.cert_password)
@@ -367,11 +370,12 @@ class ISSNetNacionalClient:
         try:
             ambiente_int = 1 if self.ambiente == "producao" else 2
 
-            # O ISSNet Ribeirão Preto valida DPS v1.01 e o envio síncrono de
-            # uma única DPS deve usar o método GerarNfse.
-            # Conforme manual v1.01 seção 7.3.3: "Assinatura do DPS isoladamente
-            # → neste momento deve ser identificado o namespace em cada DPS"
-            dps_xml = construir_xml_gerar_nfse_envio(
+            # O padrão nacional DPS não possui operação "GerarNfse" (isso é
+            # nomenclatura legada ABRASF). A emissão síncrona de um lote
+            # (mesmo que com uma única DPS) é feita via "EnviarLoteDpsSincrono",
+            # conforme Manual de Integração Webservice (Sistema Nacional NFS-e).
+            lote_xml = construir_xml_enviar_lote_dps_sincrono(
+                numero_lote=numero_dps,
                 prestador_cnpj=self.prestador_cnpj,
                 prestador_inscricao_municipal=self.prestador_im,
                 prestador_telefone=prestador_telefone,
@@ -402,21 +406,17 @@ class ISSNetNacionalClient:
                 cclass_trib_ibscbs=cclass_trib_ibscbs,
             )
 
-            # 1) Assinar o DPS isolado (com xmlns no próprio <DPS>)
-            logger.info("ISSNet Nacional: assinando DPS nº %d isoladamente...", numero_dps)
-            dps_assinado = self._assinar_xml(dps_xml)
+            # Assina o DPS dentro do LoteDps (sem assinar o LoteDps em si).
+            logger.info("ISSNet Nacional: assinando DPS nº %d (lote síncrono)...", numero_dps)
+            xml_assinado = self._assinar_xml(lote_xml)
 
             # Remover declaração XML (<?xml ...?>) se presente
-            dps_assinado_clean = re.sub(
-                r'^\s*<\?xml[^?]*\?>\s*', '', dps_assinado, count=1, flags=re.IGNORECASE
+            xml_assinado = re.sub(
+                r'^\s*<\?xml[^?]*\?>\s*', '', xml_assinado, count=1, flags=re.IGNORECASE
             )
-
-            # 2) Envolver no GerarNfseEnvio
-            ns = "http://www.sped.fazenda.gov.br/nfse"
-            xml_assinado = f'<GerarNfseEnvio xmlns="{ns}">{dps_assinado_clean}</GerarNfseEnvio>'
             result["xml_dps"] = xml_assinado
             logger.info(
-                "ISSNet Nacional: XML GerarNfseEnvio com DPS assinado (truncado):\n%s",
+                "ISSNet Nacional: XML EnviarLoteDpsSincronoEnvio com DPS assinado (truncado):\n%s",
                 xml_assinado[:6000],
             )
 
@@ -438,7 +438,7 @@ class ISSNetNacionalClient:
             )
             resposta_soap = self._enviar_soap(
                 xml_assinado,
-                SOAP_ACTION_NACIONAL_GERAR_NFSE,
+                SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
             )
             result["xml_resposta"] = resposta_soap
 

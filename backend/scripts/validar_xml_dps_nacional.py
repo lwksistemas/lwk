@@ -86,6 +86,7 @@ def build_dps_xml(args) -> str:
         tomador_telefone=args.tomador_telefone,
         tomador_email=args.tomador_email,
         codigo_municipio_prestacao=args.tomador_codigo_municipio,
+        municipio_prestacao_nome=args.tomador_cidade,
         codigo_tributacao_nacional=args.codigo_tributacao_nacional,
         codigo_tributacao_municipal=args.codigo_tributacao_municipal,
         descricao_servico=args.descricao,

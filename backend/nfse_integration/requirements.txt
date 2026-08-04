@@ -7,7 +7,7 @@ zeep==4.2.1
 lxml==6.1.0
 
 # Assinatura digital de XML
-signxml==3.2.2
+signxml==5.1.0
 
 # Manipulação de certificados digitais
 cryptography==42.0.0

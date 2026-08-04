@@ -91,13 +91,17 @@ def montar_soap_envelope_sem_ns_raiz(
 ) -> str:
     """Envelope SOAP para ISSNet Nacional v1.01.
 
-    Conforme orientação do suporte NotaControl (03/08/2026):
+    Conforme exemplo de referência enviado pelo suporte NotaControl
+    (03/08/2026, print do GerarNfse):
     - O envelope declara apenas xmlns:soapenv e xmlns:nfse (sem xsi/xsd).
-    - O elemento do MÉTODO (operação) usa o prefixo nfse: (herdado do
-      envelope) mas TAMBÉM declara localmente xmlns="{target_ns}"
-      ("inclua esse namespace xmlns=... no método").
-    - nfseCabecMsg/nfseDadosMsg e todo o conteúdo (LoteDps/DPS) ficam SEM
-      prefixo, herdando o namespace padrão declarado no método.
+    - O elemento do MÉTODO (nfse:Operacao) E nfseCabecMsg/nfseDadosMsg usam
+      o prefixo nfse: (herdado do envelope) - SEM xmlns= local.
+    - O elemento de DADOS (ex.: GerarNfseEnvio/EnviarLoteDpsSincronoEnvio,
+      dentro de nfseDadosMsg) é quem declara xmlns="{target_ns}" localmente
+      ("inclua esse namespace xmlns=... no método" refere-se a esse
+      elemento de dados, não ao método SOAP em si) - isso já é feito pelo
+      builder do XML (nacional/xml_builder.py / issnet_nacional_xml_builder.py
+      com prefixo_nfse=False), então aqui basta inserir `dados` literalmente.
     """
     dados = strip_xml_declaration(dados_xml or "")
     cabec = strip_xml_declaration(cabec_txt or "")
@@ -107,9 +111,9 @@ def montar_soap_envelope_sem_ns_raiz(
         f'xmlns:nfse="{target_ns}">'
         '<soapenv:Header/>'
         '<soapenv:Body>'
-        f'<nfse:{nome_operacao} xmlns="{target_ns}">'
-        f'<nfseCabecMsg>{cabec}</nfseCabecMsg>'
-        f'<nfseDadosMsg>{dados}</nfseDadosMsg>'
+        f'<nfse:{nome_operacao}>'
+        f'<nfse:nfseCabecMsg>{cabec}</nfse:nfseCabecMsg>'
+        f'<nfse:nfseDadosMsg>{dados}</nfse:nfseDadosMsg>'
         f'</nfse:{nome_operacao}>'
         '</soapenv:Body>'
         '</soapenv:Envelope>'

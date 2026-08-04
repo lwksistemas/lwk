@@ -91,12 +91,13 @@ def montar_soap_envelope_sem_ns_raiz(
 ) -> str:
     """Envelope SOAP para ISSNet Nacional v1.01.
 
-    Usa xmlns:nfse no root para a operação e parâmetros, e insere os dados
-    XML literalmente. Conforme orientação do suporte NotaControl
-    (03/08/2026), o envelope deve declarar apenas os namespaces
-    xmlns:soapenv e xmlns:nfse - namespaces extras (xsi/xsd) no ancestor
-    passam a ficar "em escopo" para o conteúdo assinado quando o servidor
-    recanonicaliza com C14N inclusiva, invalidando a assinatura.
+    Conforme orientação do suporte NotaControl (03/08/2026):
+    - O envelope declara apenas xmlns:soapenv e xmlns:nfse (sem xsi/xsd).
+    - O elemento do MÉTODO (operação) usa o prefixo nfse: (herdado do
+      envelope) mas TAMBÉM declara localmente xmlns="{target_ns}"
+      ("inclua esse namespace xmlns=... no método").
+    - nfseCabecMsg/nfseDadosMsg e todo o conteúdo (LoteDps/DPS) ficam SEM
+      prefixo, herdando o namespace padrão declarado no método.
     """
     dados = strip_xml_declaration(dados_xml or "")
     cabec = strip_xml_declaration(cabec_txt or "")
@@ -106,9 +107,9 @@ def montar_soap_envelope_sem_ns_raiz(
         f'xmlns:nfse="{target_ns}">'
         '<soapenv:Header/>'
         '<soapenv:Body>'
-        f'<nfse:{nome_operacao}>'
-        f'<nfse:nfseCabecMsg>{cabec}</nfse:nfseCabecMsg>'
-        f'<nfse:nfseDadosMsg>{dados}</nfse:nfseDadosMsg>'
+        f'<nfse:{nome_operacao} xmlns="{target_ns}">'
+        f'<nfseCabecMsg>{cabec}</nfseCabecMsg>'
+        f'<nfseDadosMsg>{dados}</nfseDadosMsg>'
         f'</nfse:{nome_operacao}>'
         '</soapenv:Body>'
         '</soapenv:Envelope>'

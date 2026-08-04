@@ -144,15 +144,12 @@ def _construir_dps_issnet(
         p_tot_trib_sn=p_tot_trib_sn,
         data_competencia=data_emissao,
         versao_dps=VERSAO_ISSNET_NACIONAL,
-        # O envelope SOAP embrulha nfseDadosMsg com prefixo nfse: (ver
-        # issnet_soap.py). Se o DPS/LoteDps declarar xmlns= (padrão) em vez de
-        # xmlns:nfse=, ficam DUAS declarações de namespace (default + nfse:)
-        # em escopo para o mesmo conteúdo assinado. Sob canonização INCLUSIVA
-        # (exigida pelo ISSNet - ver E0714), ambas entram no digest calculado
-        # pelo servidor mesmo sem terem sido usadas ao assinar, invalidando a
-        # assinatura. Usar o mesmo prefixo nfse: em todo o DPS/LoteDps elimina
-        # essa duplicidade.
-        prefixo_nfse=True,
+        # Suporte NotaControl (03/08/2026): o método (nfse:RecepcionarLote...)
+        # declara localmente xmlns="{NS_NFSE}" (namespace padrão) para seus
+        # filhos; nfseCabecMsg/nfseDadosMsg e todo o conteúdo (LoteDps/DPS)
+        # devem ficar SEM prefixo, herdando esse namespace padrão - ver
+        # issnet_soap.montar_soap_envelope_sem_ns_raiz.
+        prefixo_nfse=False,
     )
 
     dps_element = etree.fromstring(xml_dps.encode("utf-8"))
@@ -430,10 +427,11 @@ def construir_xml_enviar_lote_dps_sincrono(
     )
 
     # Envolver em EnviarLoteDpsSincronoEnvio > LoteDps (Id=Lote{n} — exigido p/ assinatura)
-    # Prefixo nfse: (não namespace padrão) para casar com o xmlns:nfse do
-    # envelope SOAP e evitar dupla declaração de namespace sob C14N inclusiva
-    # (ver comentário em construir_xml_dps acima / prefixo_nfse=True).
-    nsmap = {"nfse": NS_NFSE}
+    # Namespace padrão (sem prefixo) - o método no envelope SOAP já declara
+    # xmlns="{NS_NFSE}" localmente, então este conteúdo herda o mesmo
+    # namespace padrão sem precisar de prefixo próprio (orientação suporte
+    # NotaControl 03/08/2026).
+    nsmap = {None: NS_NFSE}
     root = etree.Element(f"{{{NS_NFSE}}}EnviarLoteDpsSincronoEnvio", nsmap=nsmap)
     lote = etree.SubElement(
         root,

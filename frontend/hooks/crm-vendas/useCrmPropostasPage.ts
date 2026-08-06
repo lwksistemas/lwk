@@ -110,12 +110,10 @@ export function useCrmPropostasPage(slug: string) {
           status_assinatura: 'concluido',
           status: 'aceita',
         });
-        await loadPropostas(true);
         toast.success('Proposta marcada como assinada com sucesso!');
       } else {
         setAlterandoStatus(id);
         await apiClient.post(`/crm-vendas/propostas/${id}/confirmar_pedido/`);
-        await loadPropostas(true);
         toast.success('Proposta confirmada como pedido.');
       }
       setConfirmAction(null);
@@ -126,6 +124,8 @@ export function useCrmPropostasPage(slug: string) {
     } finally {
       setAlterandoStatus(null);
       setConfirmando(false);
+      // Forçar reload visível para garantir atualização do status na tabela
+      loadPropostas(false);
     }
   };
 
@@ -144,13 +144,14 @@ export function useCrmPropostasPage(slug: string) {
     try {
       setAlterandoStatus(selected.id);
       await apiClient.post(`/crm-vendas/propostas/${selected.id}/cancelar/`, { motivo });
-      await loadPropostas(true);
       closeModal();
       toast.success('Proposta cancelada.');
     } catch (err: unknown) {
       throw new Error(getCrmApiErrorDetail(err, 'Erro ao cancelar proposta.'));
     } finally {
       setAlterandoStatus(null);
+      // Forçar reload para atualizar status na tabela
+      loadPropostas(false);
     }
   };
 

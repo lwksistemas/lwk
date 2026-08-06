@@ -6,10 +6,10 @@ inclusion: always
 
 ## Arquitetura
 
-- **Backend**: Django 6 + DRF 3.17, multi-tenant com schemas PostgreSQL por loja
-- **Frontend**: Next.js 16.2 (App Router), TypeScript 6, Tailwind CSS 4
-- **Deploy**: Backend no Railway (`npx railway up --detach`), Frontend no Vercel (`npx vercel --prod --yes`)
-- **Banco**: PostgreSQL (Railway) + Redis (cache)
+- **Backend**: Django 6.0.8 + DRF 3.17, multi-tenant com schemas PostgreSQL por loja
+- **Frontend**: Next.js 16.2 (App Router), TypeScript 7, Tailwind CSS 4
+- **Deploy**: Magalu Cloud SP (Docker Compose) — `ssh deploy@201.23.81.50`
+- **Banco**: PostgreSQL 18 (Docker local) + Redis 7 (cache/filas)
 - **Apps por tipo de loja**: clinica_beleza, crm_vendas, cabeleireiro, hotel, restaurante
 
 ## Estrutura Multi-Tenant
@@ -37,21 +37,19 @@ inclusion: always
 - Cores: usar cor temática do tipo de loja (não hardcoded)
 - Sempre verificar `getDiagnostics` antes de commit
 
-## Fluxo de Deploy
+## Fluxo de Deploy (Magalu Cloud SP)
 
 1. Verificar backend: `python3 manage.py check`
 2. Verificar frontend: `getDiagnostics` nos arquivos alterados
 3. Git: `git add` apenas arquivos relevantes → `git commit` com mensagem descritiva → `git push`
-4. Backend: `npx railway up --detach` (a partir da raiz do projeto)
-5. Frontend: `npx vercel --prod --yes` (a partir da raiz do projeto — rootDirectory=frontend no Vercel)
-6. Se criou tabela nova: rodar SQL `CREATE TABLE IF NOT EXISTS` em todos os schemas via `npx railway run python3 -c "..."`
+4. Deploy produção: `ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build'`
+5. Deploy beta: `ssh deploy@201.23.81.50 'cd /opt/lwk-erp && ./deploy-beta.sh'`
+6. Se criou tabela nova: `ssh deploy@201.23.81.50 'cd /opt/lwk-erp && docker compose -f docker-compose.prod.yml exec backend python manage.py migrate'`
 
 ### Regra de ambientes
 
 - **Padrão**: desenvolver no branch `staging`, testar no beta (beta.lwksistemas.com.br), depois fazer merge para `main` e deploy em produção
-- **Correções urgentes em produção**: corrigir direto no `main` e deployar em produção, depois sincronizar o beta: `git checkout staging && git merge main --no-edit && git push origin staging` + deploy preview Vercel + alias beta
-5. Frontend: `npx vercel --prod --yes` (a partir da raiz do projeto — rootDirectory=frontend no Vercel)
-6. Se criou tabela nova: rodar SQL `CREATE TABLE IF NOT EXISTS` em todos os schemas via `npx railway run python3 -c "..."`
+- **Correções urgentes em produção**: corrigir direto no `main` e deployar em produção, depois sincronizar o beta: `git checkout staging && git merge main --no-edit && git push origin staging` + deploy beta
 
 ## Convenções de Commit
 

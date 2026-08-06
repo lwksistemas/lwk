@@ -1,366 +1,101 @@
-# LWK Sistemas — Resumo para agentes de IA
+# LWK Sistemas — Resumo para Agentes IA
 
-> **Como usar este arquivo:** em um chat novo, peça ao assistente:
-> *"Leia `docs/RESUMO_SISTEMA_PARA_AGENTES.md` antes de continuar."*
->
-> Este documento é a fonte rápida de contexto sobre arquitetura, deploy e convenções.
-> Detalhes operacionais: `docs/DEPLOY_E_ROLLBACK.md`. Convenções de código: `.kiro/steering/project-conventions.md`.
+**Atualizado em 06/08/2026**
 
----
+## URLs do sistema
 
-## 1. O que é o sistema
+| Recurso | URL | Hospedagem |
+|---------|-----|-----------|
+| **Site público + apps** | https://lwksistemas.com.br | Magalu Cloud SP (Next.js) |
+| **API REST** | https://api.lwksistemas.com.br | Magalu Cloud SP (Django) |
+| **Beta (staging)** | https://beta.lwksistemas.com.br | Magalu Cloud SP (Next.js :3001) |
+| **WhatsApp API** | https://evolution.lwksistemas.com.br | Magalu Cloud SP (Evolution) |
+| **Servidor de mídia** | https://media.lwksistemas.com.br | Magalu Cloud SP (Flask + Nginx) |
 
-**LWK Sistemas** é um SaaS **multi-tenant**: uma plataforma que hospeda várias lojas (clientes), cada uma com seu tipo de negócio e banco isolado.
+## Stack técnica
 
-| Papel | URL típica | Descrição |
-|-------|------------|-----------|
-| **Site público + apps** | https://lwksistemas.com.br | Next.js (Vercel) |
-| **API REST** | https://api.lwksistemas.com.br | Django + DRF (Railway) |
-| **Superadmin** | `/superadmin/*` | Gestão global: lojas, planos, Asaas, schemas, NFS-e |
-| **Loja (tenant)** | `/loja/[slug]/*` | Área do cliente (clínica, CRM, hotel…) |
-| **Suporte** | `/suporte/*` | Equipe de suporte LWK |
+| Camada | Tecnologia | Detalhes |
+|--------|-----------|---------|
+| Backend | Django 6.0.8 + DRF 3.17.1, Gunicorn | Magalu SP (Docker) |
+| Frontend | Next.js 16.2.10 (App Router), TypeScript 7.0.2, Tailwind 4 | Magalu SP (Docker standalone) |
+| Banco | PostgreSQL 18 (schemas por loja) | Docker local |
+| Cache/Filas | Redis 7.4 + django-q2 | Docker local |
+| Imagens | Servidor de mídia próprio (media.lwksistemas.com.br) | Magalu SP (BV1-2-40) |
+| WhatsApp | Evolution API v2.3.7 | Docker (mesmo servidor) |
+| Runtime | Python 3.13 / Node.js 22 | Docker |
 
-**Repositório:** `https://github.com/lwksistemas/lwk` — branch `main`.
+## Deploy
 
----
+```bash
+# Produção (branch main)
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build'
 
-## 2. Stack
+# Beta (branch staging)
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && ./deploy-beta.sh'
 
-| Camada | Tecnologia | Onde roda |
-|--------|------------|-----------|
-| Backend | Django 5 + DRF, Gunicorn | Railway (`lwks-backend`) |
-| Frontend | Next.js 15 (App Router), TypeScript, Tailwind | Vercel (projeto `frontend`, root `frontend/`) |
-| Banco | PostgreSQL (schemas por loja) | Railway Postgres |
-| Cache | Redis (opcional, `USE_REDIS`) | Railway |
-| Arquivos | Cloudinary | Externo |
-| Pagamentos | Asaas (LWK global + contas por loja no CRM) | Webhooks na API |
+# Só backend (após mudanças Python)
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build backend worker'
 
-**Produção (jun/2026):**
+# Só frontend (após mudanças JS/TS)
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build frontend'
 
-- Site: `https://lwksistemas.com.br`
-- API: `https://api.lwksistemas.com.br`
-- Health: `GET /api/superadmin/health` → `healthy`
+# Migrations
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && docker compose -f docker-compose.prod.yml exec backend python manage.py migrate'
+```
 
-O README na raiz ainda menciona Heroku em alguns trechos; **produção atual é Railway + Vercel**.
+**NÃO usar:** `npx railway up`, `npx vercel`, `heroku` — serviços descontinuados.
 
----
+## Arquitetura multi-tenant
 
-## 3. Arquitetura multi-tenant (backend)
+- Cada loja tem schema PostgreSQL próprio (`loja_<cpf_cnpj>`)
+- Models com `LojaIsolationMixin` + `LojaIsolationManager`
+- TenantMiddleware resolve loja pelo token JWT
+- Apps por tipo: clinica_beleza, crm_vendas, cabeleireiro, hotel
 
-### 3.1 Schemas PostgreSQL
-
-Cada loja ativa tem um **schema isolado** no mesmo Postgres:
-
-- Schema **public** → dados globais (`superadmin`: `Loja`, `UsuarioSistema`, planos, financeiro LWK…)
-- Schema **suporte** → app `suporte`
-- Schema **loja_&lt;cnpj&gt;** → dados do tenant (ex.: `loja_37302743000126` para HARMONIS)
-
-O campo `Loja.database_name` guarda o identificador (ex.: `loja_37302743000126`). O `search_path` da conexão aponta para esse schema.
-
-### 3.2 Apps por tipo de loja
-
-Mapeamento em `backend/superadmin/services/database_schema_service.py` → `TIPO_LOJA_EXTRA_APPS`:
-
-| Tipo (`tipo_loja.slug`) | Apps extras no schema |
-|-------------------------|------------------------|
-| `clinica-beleza` | `clinica_beleza`, `whatsapp` |
-| `crm-vendas` | `crm_vendas`, `nfse_integration` |
-| `clinica-estetica` | `clinica_estetica` |
-| `hotel` / `hotel-pousada` | `hotel` |
-| `cabeleireiro` | `cabeleireiro` |
-| … | ver arquivo completo |
-
-Base comum em todo tenant: `contenttypes`, `auth`, `stores`, `products`.
-
-### 3.3 Roteamento de banco
-
-- `backend/config/db_router.py` — `MultiTenantRouter` direciona queries por `app_label`
-- `backend/tenants/middleware.py` — `TenantMiddleware` resolve loja por URL/headers e seta thread-local
-- `backend/core/mixins.py` — `LojaIsolationMixin` + `LojaIsolationManager` filtram por `loja_id`
-
-### 3.4 Resolução de loja (crítico)
-
-Documentação detalhada: `backend/docs/TENANT_CRM_ARCHITECTURE.md`.
-
-Regras resumidas:
-
-1. **Slug da loja** na URL: em geral CPF/CNPJ só dígitos (`41449198000172`)
-2. Headers HTTP: **`X-Tenant-Slug` antes de `X-Loja-ID`**
-3. Frontend envia ambos via `frontend/lib/api-client.ts`
-4. Views devem usar `ensure_loja_context(request)` quando o middleware não bastar
-
-### 3.5 Migrations e schemas de loja
-
-Fluxo típico ao criar tabela nova:
-
-1. Migration Django no app do tenant (`clinica_beleza/migrations/…`)
-2. `python manage.py migrate` no **public** (registro)
-3. `python manage.py migrate_all_lojas` — aplica nos schemas das lojas
-4. Comandos **`ensure_*`** idempotentes no release (`ensure_all`) — fallback se migration não rodou no tenant; **evitar** chamar ensures em views/services (usar ORM após migrate_all_lojas)
-
-Comandos `ensure_*` importantes (clínica beleza): ver `railway.toml` → `releaseCommand`.
-
-**Auditoria de schemas (superadmin):**
-
-- Página: `/superadmin/dashboard/schemas`
-- Serviço: `backend/superadmin/services/schema_audit_service.py`
-- API: `POST /api/superadmin/security-dashboard/verificar_corrigir_schemas_lojas/`
-- Detecta tabelas obrigatórias faltando (`TABELAS_OBRIGATORIAS_POR_TIPO`) e, na correção, roda `migrate` + `ENSURE_COMANDOS_POR_TIPO`
-- Correção em massa no front: uma requisição por loja com falha (evita timeout)
-
----
-
-## 4. Autenticação
-
-| Tipo | Login API | Área front |
-|------|-----------|------------|
-| Superadmin | `/api/auth/superadmin/login/` | `/superadmin/login` |
-| Loja | `/api/auth/loja/login/` | `/loja/[slug]/login` |
-| Suporte | `/api/auth/suporte/login/` | `/suporte/login` |
-
-- JWT em cookies httpOnly (`USE_JWT_HTTPONLY_COOKIES`) ou tokens em `sessionStorage` (legado)
-- Superadmin pode ter MFA (`superadmin/mfa_views.py`)
-- `sessionStorage`: `user_type`, `loja_slug`, `current_loja_id`, etc.
-
----
-
-## 5. Estrutura de pastas
+## Estrutura principal
 
 ```
 lwksistemas/
-├── backend/                    # Django (deploy: conteúdo vai para /app na imagem Docker)
-│   ├── config/                 # settings, urls, wsgi, db_router
-│   ├── superadmin/             # Loja, planos, financeiro LWK, dashboard segurança
-│   ├── tenants/                # middleware multi-tenant
-│   ├── core/                   # mixins, db_config, views_base, pagination
-│   ├── clinica_beleza/         # app principal clínica beleza
-│   ├── crm_vendas/             # CRM + config Asaas por loja
-│   ├── hotel/, cabeleireiro/, clinica_estetica/, …
-│   └── **/management/commands/ # ensure_*, migrate_all_lojas, seeds
-├── frontend/
-│   ├── app/                    # App Router Next.js
-│   │   ├── (dashboard)/superadmin/…
-│   │   ├── (dashboard)/loja/[slug]/…
-│   │   └── cadastro, assinar-consentimento, etc.
-│   └── lib/                    # api-client.ts, auth.ts, *-api.ts por módulo
-├── railway.toml                # releaseCommand + startCommand Railway
-├── Dockerfile.railway
-└── docs/
+├── backend/                    # Django
+│   ├── config/                 # Settings, URLs
+│   ├── core/                   # Mixins, utils, media_storage.py
+│   ├── superadmin/             # Lojas, usuários, planos
+│   ├── clinica_beleza/         # App clínica
+│   ├── crm_vendas/             # CRM
+│   ├── asaas_integration/      # Financeiro
+│   ├── nfse_integration/       # NFS-e
+│   └── whatsapp/               # WhatsApp
+├── frontend/                   # Next.js 16
+│   ├── app/(dashboard)/        # Páginas autenticadas
+│   ├── components/             # Componentes React
+│   └── lib/                    # API client, utils
+├── docker-compose.prod.yml     # Compose produção
+├── Dockerfile.magalu           # Backend (Python 3.13)
+├── Dockerfile.frontend         # Frontend (Node 22 standalone)
+├── deploy.sh                   # Deploy produção
+├── deploy-beta.sh              # Deploy beta
+└── backup.sh                   # Backup Postgres
 ```
 
-### Frontend — rotas por módulo
+## Padrões de código
 
-- **Clínica beleza:** `/loja/[slug]/clinica-beleza/*` (consultas, pacientes, estoque, Memed, WhatsApp…)
-- **CRM vendas:** `/loja/[slug]/crm-vendas/*` (pipeline, propostas, Asaas, NFS-e…)
-- **Hotel:** `/loja/[slug]/hotel/*`
-- **Superadmin:** `/superadmin/dashboard`, `/superadmin/lojas`, `/superadmin/asaas`, `/superadmin/dashboard/schemas`…
+- **Backend**: Views com APIView + GetObjectMixin; lógica em `*_service.py`
+- **Frontend**: `"use client"` em páginas interativas; formulários grandes em página dedicada
+- **Commits**: `feat(modulo):`, `fix(modulo):`, `refactor(modulo):`
 
-API base: `NEXT_PUBLIC_API_URL` → `frontend/lib/api-base.ts` → chamadas em `/api/...`.
+## Servidores
 
----
+| Servidor | IP | Specs | Função |
+|----------|-----|-------|--------|
+| lwksistemas | 201.23.81.50 | 8vCPU, 16GB, 150GB | Sistema completo |
+| lwk-media | 201.23.87.251 | 1vCPU, 2GB, 40GB | Armazenamento imagens |
 
-## 6. Deploy
-
-Guia completo: **`docs/DEPLOY_E_ROLLBACK.md`**.
-
-### 6.1 Automático (recomendado)
-
-- **Vercel:** repo `lwksistemas/lwk`, branch `main`, root `frontend/`
-- **Railway:** mesmo repo, serviço `lwks-backend`, paths `backend/`, `Dockerfile.railway`, `railway.toml`
-- Todo push na `main` dispara deploy; Railway executa **`releaseCommand`** (migrations + ensure + collectstatic)
-
-**Scripts unificados (evitam beta preso / prod sem frontend):**
-
-| Comando | Quando usar |
-|---------|-------------|
-| `bash scripts/deploy-beta.sh` | Publicar homologação (`staging` → beta) |
-| `bash scripts/deploy-prod.sh` | Promover para produção + alinhar beta |
-
-### 6.2 Manual (emergência)
+## Verificação rápida
 
 ```bash
-export PATH="$HOME/.local/npm-global/bin:$PATH"
-cd /home/luiz/Documentos/lwksistemas   # raiz do monorepo
-
-# Backend — serviço lwks-backend (NÃO evolution-api, NÃO lwks-cron)
-railway up --service lwks-backend --detach
-
-# Frontend (Vercel usa Root Directory = frontend/)
-npx vercel --prod --yes
-```
-
-Conta deploy: `lwksistemas@gmail.com`.
-
-### 6.2.1 Backend: BUILD_ID e cache Docker (CRÍTICO)
-
-O Railway usa `Dockerfile.railway`. O Docker **reutiliza camadas em cache** se o código parecer igual.
-
-**Sempre que mudar código do backend** (Python, migrations, fixes de produção):
-
-1. Altere `ARG BUILD_ID=...` em `Dockerfile.railway` (valor único, ex.: hash do commit ou descrição curta).
-2. Commit + `railway up --service lwks-backend --detach`.
-
-**Redeploy** de uma imagem antiga no painel **não** aplica código novo se o BUILD_ID não mudou.
-
-Verificar deploy real:
-
-```bash
-curl -s https://api.lwksistemas.com.br/api/superadmin/health/
-# Campos úteis: "build", "status", "evolution_available"
-```
-
-### 6.2.2 Branch `main` protegida
-
-`git push origin main` pode exigir aprovação no Cursor. Se bloquear, repetir com confirmação ou fazer deploy manual via `railway up` (código local).
-
-### 6.3 releaseCommand (Railway)
-
-Definido em `railway.toml` — ordem:
-
-1. `migrate --noinput` (schema `public`)
-2. `migrate --database=suporte --noinput`
-3. `migrate_all_lojas` — migrations em todos os schemas `loja_*`
-4. `ensure_all` — fallback idempotente pós-migration (não substitui migrate)
-5. `setup_initial_data`
-6. `collectstatic --noinput`
-
-**Sempre que houver migration nova**, o deploy deve passar pelo Railway (não só subir código sem release).
-
-### 6.4 Rollback rápido
-
-- **Vercel:** Deployments → Promote deploy anterior
-- **Railway:** Redeploy do build Successful anterior
-- Depois: `git revert` no repo (não force-push na `main`)
-
-### 6.5 Checklist pós-deploy
-
-- [ ] `GET /api/superadmin/health` → healthy
-- [ ] Login superadmin (senha errada → 401, não 500)
-- [ ] Uma tela de loja autenticada
-- [ ] Vercel production Ready
-
-### 6.6 Observabilidade e backup
-
-- **Sentry (opcional):** `SENTRY_DSN` no Railway — ver `docs/OBSERVABILIDADE_SENTRY.md`
-- **OpenAPI:** `/api/schema/swagger-ui/` (staff autenticado)
-- **Validar backup:** `python manage.py audit_backup_lojas --dry-export` — ver `docs/BACKUP_RESTORE_VALIDACAO.md`
-
----
-
-## 7. Integrações importantes
-
-### Asaas (cobrança)
-
-- **LWK global:** webhook `/api/asaas/webhook/` + token `ASAAS_WEBHOOK_TOKEN` — assinaturas de lojas na LWK
-- **CRM por loja:** conta Asaas separada, webhook `/api/crm-vendas/webhooks/asaas/[atalho]/`, token em `CRMConfig.asaas_webhook_token`
-- UI CRM: `/loja/[slug]/crm-vendas/configuracoes/asaas`
-- Superadmin: `/superadmin/asaas`
-
-### NFS-e
-
-- Emissão via integração (`nfse_integration`); superadmin em `/superadmin/nfse`
-
-### WhatsApp
-
-- Config por loja no **schema tenant** (`whatsapp_whatsappconfig`).
-- UI: `/loja/[slug]/configuracoes/whatsapp` (todos os tipos) ou módulo clínica.
-- **Meta Cloud API:** Phone ID + token + checkbox “WhatsApp ativo”.
-- **WhatsApp Web (Evolution):** serviço Railway separado `evolution-api`; backend com `EVOLUTION_API_URL` + `EVOLUTION_API_KEY`.
-- Colunas novas em `WhatsAppConfig` → migration + `ensure_whatsapp_evolution_fields` no `ensure_all` (release)
-- Doc completa: `docs/WHATSAPP_EVOLUTION.md`.
-- Health expõe `evolution_available: true/false`.
-
-### Cloudinary
-
-- Upload de imagens no front (`frontend/components/ImageUpload.tsx`); pasta por loja: `lwksistemas/{slug}/…`
-
----
-
-## 8. Convenções de desenvolvimento
-
-### Backend
-
-- Lógica de negócio em `*_service.py`, não em views
-- `python3 manage.py check` antes de considerar pronto
-- Novo app tenant: incluir em `db_router.loja_apps` + `TIPO_LOJA_EXTRA_APPS`
-- Comando ensure com `--slug` para rodar em uma loja só
-
-### Frontend
-
-- `"use client"` em páginas interativas
-- Formulários grandes → página dedicada; modais só para ações simples
-- Headers de tenant centralizados em `api-client.ts`
-- Diagnósticos/lint nos arquivos alterados antes de commit
-
-### Git / commit
-
-- Mensagens em português ou padrão `feat(modulo): …` / `fix(modulo): …`
-- Commit só quando o usuário pedir
-- Branch `main` pode estar protegida — push nem sempre funciona via automação; deploy manual via CLI é alternativa
-
----
-
-## 9. Comandos úteis (produção / Railway)
-
-```bash
-# Shell no Railway
-npx railway run python manage.py migrate_all_lojas
-npx railway run python manage.py ensure_termo_consentimento --slug 37302743000126
-npx railway run python manage.py auditar_schema_por_slug --slug 37302743000126
+# Health check
+curl https://api.lwksistemas.com.br/api/superadmin/health/
 
 # Logs
-npx railway logs
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && docker compose -f docker-compose.prod.yml logs --tail=50'
 ```
-
-Local:
-
-```bash
-cd backend && python3 manage.py runserver
-cd frontend && npm run dev
-```
-
----
-
-## 10. Lojas de referência (produção)
-
-| Nome | Slug (CNPJ) | Tipo | Notas |
-|------|-------------|------|-------|
-| HARMONIS | `37302743000126` | clinica-beleza | Corrigida via auditoria de schemas (termo consentimento) |
-| Clinica Nova Imagem | `novaimagem` (atalho) / CNPJ `22239255889` | clinica-beleza | db `loja_22239255889`; WhatsApp Evolution |
-| Felix Representações | `41449198000172` (atalho `felix`) | crm-vendas | Conta Asaas **separada** da LWK |
-| CLÍNICA VIDA | `34787081845` | clinica-beleza | |
-| DR Escrita | `31682991890` | clinica-beleza | |
-
----
-
-## 11. Documentos relacionados
-
-| Arquivo | Conteúdo |
-|---------|----------|
-| `docs/DEPLOY_E_ROLLBACK.md` | Deploy automático, manual, rollback |
-| `.kiro/steering/project-conventions.md` | Convenções para o agente no Cursor |
-| `backend/docs/TENANT_CRM_ARCHITECTURE.md` | Tenant, headers, cache CRM |
-| `railway.toml` | release/start commands |
-| `README.md` | Visão geral (parcialmente desatualizado em URLs Heroku) |
-
----
-
-## 12. Histórico recente relevante (jun/2026)
-
-- **Auditoria de schemas:** botão "Verificar e corrigir" agora falha lojas com tabelas obrigatórias ausentes e executa `ensure_*` após migrate (`schema_audit_service.py`).
-- **CRM Asaas:** páginas separadas Asaas e NFS-e; token webhook gerável por loja no CRM e no superadmin.
-- **Deploy:** backend Railway (`lwks-backend`), frontend Vercel; `git push origin main` às vezes bloqueado (branch protegida) — usar `railway up` / `vercel --prod`.
-- **BUILD_ID:** bump obrigatório em `Dockerfile.railway` + `railway up` para backend ir a produção de verdade.
-- **Regra Cursor:** `.cursor/rules/lwk-inicio-agente.mdc` (`alwaysApply`) — cola este resumo em todo chat novo.
-
----
-
-## 13. Prompt para chat novo
-
-Cole no início de um chat se quiser reforçar:
-
-> Leia `docs/RESUMO_SISTEMA_PARA_AGENTES.md` e `.cursor/rules/lwk-inicio-agente.mdc` antes de continuar. Produção: Vercel (front) + Railway `lwks-backend` (API). Deploy backend = bump BUILD_ID + `railway up --service lwks-backend --detach`.
-
----
-
-*Última atualização: junho/2026 — manter este arquivo ao mudar arquitetura ou fluxo de deploy.*

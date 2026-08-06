@@ -1,70 +1,68 @@
 ---
-description: Contexto LWK — ler antes de deploy, tenant ou WhatsApp
+description: Regras iniciais do agente para o projeto LWK Sistemas
+globs: ["**/*"]
 alwaysApply: true
 ---
 
-# LWK — início de chat (agente)
+# LWK Sistemas — Contexto para Agentes
 
-**Antes de investigar ou fazer deploy**, leia `docs/RESUMO_SISTEMA_PARA_AGENTES.md` (seção 6 = deploy).
-Detalhes operacionais: `docs/DEPLOY_E_ROLLBACK.md`.
+## URLs
 
-## URLs produção e beta
+| Recurso | URL |
+|---------|-----|
+| **Produção** | https://lwksistemas.com.br |
+| **API** | https://api.lwksistemas.com.br |
+| **Beta (staging)** | https://beta.lwksistemas.com.br |
+| **Mídia** | https://media.lwksistemas.com.br |
+| **Evolution (WhatsApp)** | https://evolution.lwksistemas.com.br |
 
-| O quê | URL |
-|-------|-----|
-| Site produção | https://lwksistemas.com.br |
-| API produção | https://api.lwksistemas.com.br |
-| **Site beta (homologação)** | https://beta.lwksistemas.com.br → branch `staging` (Vercel Preview) |
-| **API beta** | https://lwks-backend-staging-staging.up.railway.app |
-| Health prod | `GET /api/superadmin/health/` → `status`, `build`, `evolution_available` |
-
-Beta fora do ar ou servindo `main`? `cd frontend && bash scripts/vercel-link-beta-staging.sh`
-
-## Deploy (copiar e usar)
+## Deploy
 
 ```bash
-export PATH="$HOME/.local/npm-global/bin:$PATH"
-cd /home/luiz/Documentos/lwksistemas
+# Produção (branch main)
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build'
 
-# Beta (homologação) — push staging + Vercel alias + ensure tenant
-bash scripts/deploy-beta.sh
+# Beta (branch staging)
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && ./deploy-beta.sh'
 
-# Produção — merge staging→main + push + Vercel --prod + ensure + sync beta
-bash scripts/deploy-prod.sh
+# Só backend
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build backend worker'
+
+# Só frontend
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build frontend'
 ```
 
-Detalhes: `docs/DEPLOY_E_ROLLBACK.md` §0.2 e §0.3.
+**NÃO usar:** `npx railway up`, `npx vercel`, `heroku` — descontinuados.
 
-### Deploy manual (resumo)
+## Regra de ambientes
+
+- **Padrão**: desenvolver no branch `staging`, testar no beta, merge para `main` e deploy produção
+- **Correções urgentes**: direto no `main`, deploy produção, depois sync beta
+
+## Stack
+
+- Backend: Django 6.0.8 + DRF 3.17.1 (Python 3.13)
+- Frontend: Next.js 16.2.10 + TypeScript 7.0.2 + React 19.2 + Tailwind 4 (Node 22)
+- Banco: PostgreSQL 18 (Docker local, multi-tenant por schema)
+- Cache: Redis 7.4 + django-q2
+- Imagens: Servidor de mídia próprio (media.lwksistemas.com.br)
+- WhatsApp: Evolution API v2.3.7
+
+## Padrões
+
+- Views: `APIView` com `GetObjectMixin`
+- Lógica: em `*_service.py`, não em views
+- Frontend: `"use client"` em páginas interativas
+- Commits: `feat(modulo):`, `fix(modulo):`, `refactor(modulo):`
+- Deploy: `python3 manage.py check` antes de commit
+
+## Servidores
+
+- **201.23.81.50** — Sistema (API + frontend + banco + workers + Evolution)
+- **201.23.87.251** — Mídia (imagens/PDFs por loja)
+
+## Logs
 
 ```bash
-# Push main dispara Railway; Vercel production sempre builda em main (vercel-should-build.sh).
-git push origin main
-
-# Após produção: alinhar beta
-git checkout staging && git merge main && git push origin staging && git checkout main
-cd frontend && bash scripts/vercel-link-beta-staging.sh --deploy
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && docker compose -f docker-compose.prod.yml logs --tail=50'
 ```
-
-- **Nunca** `railway up` no serviço `evolution-api` ou `lwks-cron` por engano.
-- **Worker (fila):** `lwks-worker` → `python manage.py qcluster` (`railway.worker.toml`). Ver `docs/DEPLOY_E_ROLLBACK.md` §1.2.2.
-- Conta CLI: `lwksistemas@gmail.com` — `railway whoami`, `vercel whoami`.
-- **Commits:** não incluir `Co-authored-by: Cursor` (Railway pode pedir aprovação de “external contributor”).
-- **Produção → beta:** todo push em `main` (deploy produção) **deve** ser seguido de merge `main` → `staging` + `git push origin staging`. Nunca deixar beta desatualizado após publicar em produção.
-
-## Multi-tenant (não esquecer)
-
-- Cada loja = schema Postgres `loja_*` (`Loja.database_name`).
-- Headers: `X-Tenant-Slug` (ex.: `novaimagem`) > `X-Loja-ID`.
-- Migration nova no app tenant → `releaseCommand` no Railway + muitas vezes comando `ensure_*` por loja.
-- WhatsAppConfig fica no **schema da loja**, não no public.
-
-## Loja de teste frequente
-
-- **Nova Imagem:** slug `novaimagem`, tipo clinica-beleza, db `loja_22239255889`.
-
-## WhatsApp / Evolution
-
-- Serviço separado Railway: `evolution-api` (WhatsApp Web QR).
-- Backend precisa `EVOLUTION_API_URL` + `EVOLUTION_API_KEY`.
-- Doc: `docs/WHATSAPP_EVOLUTION.md`.

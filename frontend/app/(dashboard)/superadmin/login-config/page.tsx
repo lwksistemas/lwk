@@ -15,8 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Save, ArrowLeft } from 'lucide-react';
 import apiClient from '@/lib/api-client';
-import { ImageUpload } from '@/components/ImageUpload';
-import { cloudinarySuperadminLogin, cloudinarySuporteLogin } from '@/lib/cloudinary-folders';
+import { ImageUploadMedia as ImageUpload } from '@/components/ImageUploadMedia';
 import { logger } from '@/lib/logger';
 
 interface LoginConfig {
@@ -215,7 +214,6 @@ function LoginConfigContent() {
                   value={config.logo}
                   onChange={(url) => setConfig({ ...config, logo: url })}
                   maxSize={2}
-                  aspectRatio="16:9"
                   folder={loginFolder}
                 />
                 
@@ -225,7 +223,6 @@ function LoginConfigContent() {
                   value={config.login_background}
                   onChange={(url) => setConfig({ ...config, login_background: url })}
                   maxSize={5}
-                  aspectRatio="16:9"
                   folder={loginFolder}
                 />
               </CardContent>

@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera, Loader2, User, X } from "lucide-react";
-import { ImageUpload } from "@/components/ImageUpload";
+import { ImageUploadMedia as ImageUpload } from "@/components/ImageUploadMedia";
 import { usePacienteFotoCadastro } from "./usePacienteFotoCadastro";
 
 export interface PacienteFotoCadastroProps {
@@ -68,7 +68,6 @@ export function PacienteFotoCadastro({
                 value={value}
                 onChange={onChange}
                 folder={folder || "lwksistemas/misc"}
-                aspectRatio="1:1"
                 maxSize={5}
                 disabled={uploadDisabled || uploading}
                 buttonLabel={uploading ? "Enviando…" : "Importar foto"}

@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ImageUpload } from '@/components/ImageUpload';
-import { cloudinarySuperadminHomepage } from '@/lib/cloudinary-folders';
+import { ImageUploadMedia as ImageUpload } from '@/components/ImageUploadMedia';
 import { HomepagePreview } from '@/components/superadmin/HomepagePreview';
 
 interface ModuloData {
@@ -75,8 +74,7 @@ export function ModuloForm({
           value={form.imagem || ''}
           onChange={(url) => setForm((f) => ({ ...f, imagem: url }))}
           maxSize={2}
-          aspectRatio="1:1"
-          folder={cloudinarySuperadminHomepage()}
+          folder="fotos"
         />
         
         <div className="flex gap-2">

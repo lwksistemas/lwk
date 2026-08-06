@@ -15,8 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Modal } from '@/components/ui/Modal';
 import { Home, RefreshCw, Save } from 'lucide-react';
 import CloudinaryConfig from '@/components/superadmin/CloudinaryConfig';
-import { ImageUpload } from '@/components/ImageUpload';
-import { cloudinarySuperadminHomepage } from '@/lib/cloudinary-folders';
+import { ImageUploadMedia as ImageUpload } from '@/components/ImageUploadMedia';
 import { FuncionalidadeForm } from '@/components/superadmin/homepage/FuncionalidadeForm';
 import { ModuloForm } from '@/components/superadmin/homepage/ModuloForm';
 import { WhyUsForm } from '@/components/superadmin/homepage/WhyUsForm';
@@ -324,8 +323,7 @@ export default function HomepageConfigPage() {
                 value={config.editingHeroImg?.imagem ?? ''}
                 onChange={(url) => config.setEditingHeroImg(prev => prev ? { ...prev, imagem: url } : { imagem: url, titulo: '' })}
                 maxSize={5}
-                aspectRatio="16:9"
-                folder={cloudinarySuperadminHomepage()}
+                folder="fotos"
               />
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={() => { config.setShowAddHeroImg(false); config.setEditingHeroImg(null); }}>

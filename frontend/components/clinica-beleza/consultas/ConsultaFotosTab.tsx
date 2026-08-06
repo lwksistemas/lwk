@@ -13,8 +13,7 @@ import {
   ExternalLink,
   Smartphone,
 } from "lucide-react";
-import { ImageUpload } from "@/components/ImageUpload";
-import { cloudinaryLojaClinicaFotos, useLojaCloudinaryDocument } from "@/lib/cloudinary-folders";
+import { ImageUploadMedia as ImageUpload } from "@/components/ImageUploadMedia";
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
 import { useToast } from "@/components/ui/Toast";
 import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
@@ -200,11 +199,9 @@ export function ConsultaFotosTab({
                   setUploadUrl(url);
                   if (url) void salvarUploadPainel(url);
                 }}
-                folder={cloudinaryLojaClinicaFotos(lojaDoc)}
+                folder="fotos"
                 disabled={salvando || lojaDocLoading || !lojaDocReady}
                 maxSize={2}
-                maxImageWidth={1600}
-                maxImageHeight={1600}
               />
             ) : (
               <span className="text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-2.5 py-1.5">

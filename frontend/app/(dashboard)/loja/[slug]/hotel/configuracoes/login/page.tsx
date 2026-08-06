@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { LogIn, ArrowLeft, Palette, Image, Check } from 'lucide-react';
 import apiClient from '@/lib/api-client';
-import { ImageUpload } from '@/components/ImageUpload';
-import { cloudinaryLojaLogin, useLojaCloudinaryDocument } from '@/lib/cloudinary-folders';
+import { ImageUploadMedia as ImageUpload } from '@/components/ImageUploadMedia';
 
 interface LoginConfigData {
   logo: string;
@@ -108,7 +107,7 @@ export default function HotelLoginConfigPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4">
                       Imagem que aparece no topo da tela de login.
                     </p>
-                    <ImageUpload value={config.login_logo} onChange={(v) => setConfig({ ...config, login_logo: v })} folder={cloudinaryLojaLogin(lojaDoc)} disabled={lojaDocLoading || !lojaDocReady} />
+                    <ImageUpload value={config.login_logo} onChange={(v) => setConfig({ ...config, login_logo: v })} folder="fotos" disabled={lojaDocLoading || !lojaDocReady} />
                   </div>
                 </div>
               </div>
@@ -128,7 +127,7 @@ export default function HotelLoginConfigPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-4">
                       Imagem de fundo da tela de login.
                     </p>
-                    <ImageUpload value={config.login_background} onChange={(v) => setConfig({ ...config, login_background: v })} folder={cloudinaryLojaLogin(lojaDoc)} disabled={lojaDocLoading || !lojaDocReady} />
+                    <ImageUpload value={config.login_background} onChange={(v) => setConfig({ ...config, login_background: v })} folder="fotos" disabled={lojaDocLoading || !lojaDocReady} />
                   </div>
                 </div>
               </div>

@@ -1,5 +1,4 @@
-import { cloudinaryLojaLogin } from "@/lib/cloudinary-folders";
-import { ImageUpload } from "@/components/ImageUpload";
+import { ImageUploadMedia as ImageUpload } from "@/components/ImageUploadMedia";
 
 interface LoginConfigImagesSectionProps {
   lojaDoc: string;
@@ -37,8 +36,7 @@ export function LoginConfigImagesSection({
         value={logo}
         onChange={onLogoChange}
         maxSize={2}
-        aspectRatio="16:9"
-        folder={folder}
+        folder="fotos"
         disabled={disabled}
       />
       <ImageUpload
@@ -47,8 +45,7 @@ export function LoginConfigImagesSection({
         value={loginBackground}
         onChange={onLoginBackgroundChange}
         maxSize={5}
-        aspectRatio="16:9"
-        folder={folder}
+        folder="fotos"
         disabled={disabled}
       />
       <ImageUpload
@@ -57,8 +54,7 @@ export function LoginConfigImagesSection({
         value={loginLogo}
         onChange={onLoginLogoChange}
         maxSize={2}
-        aspectRatio="1:1"
-        folder={folder}
+        folder="fotos"
         disabled={disabled}
       />
     </>

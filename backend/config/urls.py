@@ -3,6 +3,8 @@ from django.contrib import admin
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import include, path
 
+from core.media_views import media_delete, media_upload
+
 
 def favicon_empty(_request):
     """Evita 500 quando browser/bots pedem /favicon.ico na API."""
@@ -92,6 +94,10 @@ urlpatterns = [
     path("api/crm-vendas/", include("crm_vendas.urls")),
     path("api/homepage/", include("homepage.urls")),
     path("api/", include("nfse_integration.urls")),  # API NFS-e
+
+    # API de mídia (substitui Cloudinary)
+    path("api/media/upload/", media_upload, name="media-upload"),
+    path("api/media/delete/", media_delete, name="media-delete"),
 
     # ✅ NOVO v1421: Redirecionamento por atalho (deve vir por último)
     # Esta rota captura atalhos simples como /felix, /harmonis, etc.

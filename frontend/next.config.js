@@ -66,7 +66,8 @@ const securityHeaders = [
 const path = require('path');
 
 const nextConfig = {
-  // Garante alias @/ no webpack (Vercel / Next 16)
+  output: "standalone",
+  // Garante alias @/ no webpack (Next 16)
   webpack: (config) => {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),

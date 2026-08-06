@@ -14,7 +14,6 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Modal } from '@/components/ui/Modal';
 import { Home, RefreshCw, Save } from 'lucide-react';
-import CloudinaryConfig from '@/components/superadmin/CloudinaryConfig';
 import { ImageUploadMedia as ImageUpload } from '@/components/ImageUploadMedia';
 import { FuncionalidadeForm } from '@/components/superadmin/homepage/FuncionalidadeForm';
 import { ModuloForm } from '@/components/superadmin/homepage/ModuloForm';
@@ -81,7 +80,7 @@ export default function HomepageConfigPage() {
             <TabsTrigger value="whyus" className="text-xs sm:text-sm">WhyUs</TabsTrigger>
             <TabsTrigger value="empresa" className="text-xs sm:text-sm">🏢 Empresa</TabsTrigger>
             <TabsTrigger value="login" className="text-xs sm:text-sm">Login</TabsTrigger>
-            <TabsTrigger value="cloudinary" className="text-xs sm:text-sm">Cloudinary</TabsTrigger>
+            <TabsTrigger value="media" className="text-xs sm:text-sm">Mídia</TabsTrigger>
           </TabsList>
 
           {/* Hero Imagens */}
@@ -259,9 +258,28 @@ export default function HomepageConfigPage() {
             </div>
           </TabsContent>
 
-          {/* Cloudinary */}
-          <TabsContent value="cloudinary">
-            <CloudinaryConfig />
+          {/* Servidor de Mídia */}
+          <TabsContent value="media">
+            <div className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Servidor de Mídia
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Imagens e arquivos são armazenados no servidor próprio (media.lwksistemas.com.br).
+                Não é necessário configuração adicional — o upload funciona automaticamente.
+              </p>
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-green-600 dark:text-green-400 font-medium">✅ Servidor ativo</span>
+                </div>
+                <ul className="text-sm text-green-800 dark:text-green-200 space-y-1">
+                  <li>• URL: https://media.lwksistemas.com.br</li>
+                  <li>• Armazenamento: separado por CNPJ/CPF de cada loja</li>
+                  <li>• Pastas: fotos, docs, avatars, recibos, contratos</li>
+                  <li>• Upload: via componente de imagem (celular, galeria ou câmera)</li>
+                </ul>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
 

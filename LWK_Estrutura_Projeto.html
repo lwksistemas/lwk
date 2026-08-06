@@ -1,0 +1,266 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+body{font-family:sans-serif;margin:40px;line-height:1.6;color:#333}
+h1{color:#1a56db;border-bottom:3px solid #1a56db;padding-bottom:10px}
+h2{color:#1e40af;margin-top:30px}
+table{border-collapse:collapse;width:100%;margin:15px 0}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left}
+th{background:#f3f4f6;font-weight:600}
+tr:nth-child(even){background:#f9fafb}
+code{background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:0.9em}
+pre{background:#1f2937;color:#f9fafb;padding:16px;border-radius:8px}
+pre code{background:none;color:inherit}
+</style></head><body><h1>LWK Sistemas — Estrutura do Projeto</h1>
+<p><strong>Atualizado em 06/08/2026</strong></p>
+<h2>Stack Tecnológica</h2>
+<table>
+<thead>
+<tr>
+<th>Camada</th>
+<th>Tecnologia</th>
+<th>Versão</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Backend</td>
+<td>Django + DRF</td>
+<td>6.0.7 + 3.17.1</td>
+</tr>
+<tr>
+<td>Frontend</td>
+<td>Next.js + React + TypeScript</td>
+<td>16.2.10 + 19.2 + 6.0.3</td>
+</tr>
+<tr>
+<td>Estilização</td>
+<td>Tailwind CSS</td>
+<td>4.3.2</td>
+</tr>
+<tr>
+<td>Banco de dados</td>
+<td>PostgreSQL (Docker local)</td>
+<td>16</td>
+</tr>
+<tr>
+<td>Cache/Filas</td>
+<td>Redis (Docker local)</td>
+<td>7.4</td>
+</tr>
+<tr>
+<td>WhatsApp</td>
+<td>Evolution API</td>
+<td>2.3.7</td>
+</tr>
+<tr>
+<td>Deploy</td>
+<td>Magalu Cloud SP (Docker Compose)</td>
+<td>Ubuntu 24.04</td>
+</tr>
+<tr>
+<td>Runtime</td>
+<td>Python 3.12 / Node.js 20</td>
+<td>LTS</td>
+</tr>
+</tbody>
+</table>
+<h2>Arquitetura</h2>
+<ul>
+<li><strong>Multi-tenant</strong>: cada loja possui schema PostgreSQL próprio (<code>loja_&lt;cpf_cnpj&gt;</code>)</li>
+<li><strong>Isolamento</strong>: models com <code>LojaIsolationMixin</code> + <code>LojaIsolationManager</code></li>
+<li><strong>Apps por tipo de loja</strong>: clinica_beleza, crm_vendas, cabeleireiro, hotel, restaurante</li>
+<li><strong>Service layer</strong>: lógica de negócio em <code>*_service.py</code>, não em views/serializers</li>
+<li><strong>API RESTful</strong>: DRF com APIView, GetObjectMixin, paginação retrocompatível</li>
+</ul>
+<h2>Estrutura de Diretórios</h2>
+<pre><code>lwksistemas/
+├── backend/                    # Django (API, models, services, migrations)
+│   ├── config/                 # Settings Django (settings_production.py)
+│   ├── core/                   # Middlewares, mixins, utilitários, encryption
+│   ├── superadmin/             # Gestão de lojas, usuários, planos
+│   ├── clinica_beleza/         # App clínica (consultas, recibos, agenda)
+│   ├── crm_vendas/             # CRM de vendas (leads, propostas, contratos)
+│   ├── cabeleireiro/           # App cabeleireiro
+│   ├── hotel/                  # App hotel
+│   ├── restaurante/            # App restaurante
+│   ├── asaas_integration/      # Integração financeira (cobranças, NFS-e config)
+│   ├── nfse_integration/       # Emissão NFS-e (ISSNet, Nacional, Asaas)
+│   ├── agenda_base/            # Agenda compartilhada entre apps
+│   ├── whatsapp/               # Integração WhatsApp (Evolution)
+│   ├── tenants/                # Middleware multi-tenant
+│   └── scripts/                # Scripts utilitários (worker, release, validação)
+├── frontend/                   # Next.js 16 (App Router)
+│   ├── app/                    # Páginas e rotas (App Router)
+│   │   └── (dashboard)/        # Layout autenticado
+│   │       └── loja/[slug]/    # Páginas por loja (clinica, crm, etc)
+│   ├── components/             # Componentes React por módulo
+│   ├── contexts/               # Context providers (auth, config, tema)
+│   ├── hooks/                  # Custom hooks por domínio
+│   └── lib/                    # Utilitários, API client, helpers
+├── docker-compose.prod.yml     # Compose de produção (Magalu)
+├── Dockerfile.magalu           # Dockerfile backend
+├── Dockerfile.frontend         # Dockerfile frontend (standalone)
+├── deploy.sh                   # Script de deploy
+├── backup.sh                   # Script de backup
+├── requirements.txt            # Dependências raiz (compartilhadas)
+├── railway.toml                # Config Railway (legado, manter para referência)
+└── .github/workflows/          # CI/CD (security audit)
+</code></pre>
+<h2>Infraestrutura (Magalu Cloud SP)</h2>
+<pre><code>Servidor: 201.23.81.50 (8 vCPU, 16GB RAM, 150GB disco)
+OS: Ubuntu 24.04 LTS
+Usuário deploy: deploy (SSH por chave)
+
+Docker Compose (/opt/lwk-erp/docker-compose.prod.yml):
+  ├── postgres    (16-alpine, porta 5432 local)
+  ├── redis       (7-alpine, porta 6379 local)
+  ├── backend     (Django/Gunicorn, porta 8080)
+  ├── worker      (django-q2, 4 workers)
+  ├── frontend    (Next.js standalone, porta 3000)
+  └── evolution   (WhatsApp API v2.3.7, porta 8081)
+
+Nginx (proxy reverso + SSL):
+  ├── lwksistemas.com.br        → frontend:3000
+  ├── www.lwksistemas.com.br    → frontend:3000
+  ├── api.lwksistemas.com.br    → backend:8080
+  ├── beta.lwksistemas.com.br   → frontend:3000
+  └── evolution.lwksistemas.com.br → evolution:8081
+
+SSL: Let's Encrypt (auto-renova via Certbot)
+Backup: cron diário 3h → /opt/lwk-erp/backups/ (7 dias retenção)
+</code></pre>
+<h2>Fluxo de Deploy</h2>
+<pre><code class="language-bash"># Na máquina local ou CI:
+ssh deploy@201.23.81.50
+cd /opt/lwk-erp
+git pull origin main
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Ou usar o script:
+./deploy.sh
+</code></pre>
+<h2>Domínios e DNS (Registro.br)</h2>
+<table>
+<thead>
+<tr>
+<th>Tipo</th>
+<th>Nome</th>
+<th>Destino</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>lwksistemas.com.br</td>
+<td>201.23.81.50</td>
+</tr>
+<tr>
+<td>A</td>
+<td>api.lwksistemas.com.br</td>
+<td>201.23.81.50</td>
+</tr>
+<tr>
+<td>A</td>
+<td>www.lwksistemas.com.br</td>
+<td>201.23.81.50</td>
+</tr>
+<tr>
+<td>A</td>
+<td>beta.lwksistemas.com.br</td>
+<td>201.23.81.50</td>
+</tr>
+<tr>
+<td>A</td>
+<td>evolution.lwksistemas.com.br</td>
+<td>201.23.81.50</td>
+</tr>
+<tr>
+<td>MX</td>
+<td>lwksistemas.com.br</td>
+<td>inbound-smtp.sa-east-1.amazonaws.com</td>
+</tr>
+<tr>
+<td>TXT</td>
+<td>_dmarc.lwksistemas.com.br</td>
+<td>v=DMARC1; p=none;</td>
+</tr>
+<tr>
+<td>MX</td>
+<td>send.lwksistemas.com.br</td>
+<td>feedback-smtp.sa-east-1.amazonses.com</td>
+</tr>
+<tr>
+<td>TXT</td>
+<td>send.lwksistemas.com.br</td>
+<td>v=spf1 include:amazonses.com ~all</td>
+</tr>
+</tbody>
+</table>
+<h2>Padrões de Código</h2>
+<h3>Backend</h3>
+<ul>
+<li>Views: usar <code>APIView</code> com <code>GetObjectMixin</code> (de <code>views_base.py</code>)</li>
+<li>Service layer: lógica de negócio em <code>*_service.py</code></li>
+<li>Mapeamento de campos: usar <code>map_field_names()</code> de <code>views_base.py</code></li>
+<li>Resolução de loja: usar <code>resolve_loja_id_from_request()</code></li>
+<li>Paginação: usar <code>paginate_queryset()</code> de <code>pagination.py</code></li>
+</ul>
+<h3>Frontend</h3>
+<ul>
+<li>Componentes: <code>"use client"</code> no topo de páginas interativas</li>
+<li>Formulários grandes: página dedicada (não modal)</li>
+<li>Busca em listas: campo input + resultados como botões</li>
+<li>Cores: usar cor temática do tipo de loja</li>
+</ul>
+<h2>Convenções de Commit</h2>
+<pre><code>feat(modulo): nova funcionalidade
+fix(modulo): correção de bug
+refactor(modulo): refatoração sem mudança de comportamento
+perf(modulo): otimização de performance
+</code></pre>
+<h2>Integrações Externas</h2>
+<table>
+<thead>
+<tr>
+<th>Serviço</th>
+<th>Função</th>
+<th>Variáveis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Asaas</td>
+<td>Cobranças/boletos/PIX</td>
+<td>ASAAS_API_KEY, ASAAS_WEBHOOK_TOKEN</td>
+</tr>
+<tr>
+<td>Resend</td>
+<td>Email transacional</td>
+<td>RESEND_API_KEY</td>
+</tr>
+<tr>
+<td>Evolution</td>
+<td>WhatsApp</td>
+<td>EVOLUTION_API_URL, EVOLUTION_API_KEY</td>
+</tr>
+<tr>
+<td>Cloudinary</td>
+<td>Upload imagens</td>
+<td>CLOUDINARY_*</td>
+</tr>
+<tr>
+<td>Memed</td>
+<td>Prescrições médicas</td>
+<td>MEMED_API_KEY_PROD, MEMED_SECRET_KEY_PROD</td>
+</tr>
+<tr>
+<td>Google Calendar</td>
+<td>Sincronização agenda</td>
+<td>GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET</td>
+</tr>
+<tr>
+<td>ISSNet Nacional</td>
+<td>NFS-e Ribeirão Preto</td>
+<td>Certificado A1 (.pfx) no banco</td>
+</tr>
+</tbody>
+</table></body></html>

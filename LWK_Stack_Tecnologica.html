@@ -1,0 +1,264 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+body{font-family:sans-serif;margin:40px;line-height:1.6;color:#333}
+h1{color:#1a56db;border-bottom:3px solid #1a56db;padding-bottom:10px}
+h2{color:#1e40af;margin-top:30px}
+table{border-collapse:collapse;width:100%;margin:15px 0}
+th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left}
+th{background:#f3f4f6;font-weight:600}
+tr:nth-child(even){background:#f9fafb}
+code{background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:0.9em}
+pre{background:#1f2937;color:#f9fafb;padding:16px;border-radius:8px}
+pre code{background:none;color:inherit}
+</style></head><body><h1>LWK Sistemas — Stack Tecnológica</h1>
+<p><strong>Atualizado em 06/08/2026</strong></p>
+<h2>Infraestrutura</h2>
+<table>
+<thead>
+<tr>
+<th>Camada</th>
+<th>Tecnologia</th>
+<th>Versão Atual</th>
+<th>Última Disponível</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Servidor</td>
+<td>Magalu Cloud SP (VM BV8-16-150)</td>
+<td>Ubuntu 24.04</td>
+<td>Ubuntu 24.04</td>
+<td>✅ Atual</td>
+</tr>
+<tr>
+<td>Container</td>
+<td>Docker + Compose</td>
+<td>29.1.3 / 2.40.3</td>
+<td>~29.x</td>
+<td>✅ Atual</td>
+</tr>
+<tr>
+<td>Proxy/SSL</td>
+<td>Nginx + Certbot</td>
+<td>1.24 / Let's Encrypt</td>
+<td>1.26</td>
+<td>⚠️ Atualizar</td>
+</tr>
+<tr>
+<td>Backend runtime</td>
+<td>Python</td>
+<td>3.12.13</td>
+<td>3.14</td>
+<td>⚠️ 3.12 OK (LTS suportado)</td>
+</tr>
+<tr>
+<td>Frontend runtime</td>
+<td>Node.js</td>
+<td>20.20.2</td>
+<td>22 LTS</td>
+<td>⚠️ 20 OK (LTS até 04/2026)</td>
+</tr>
+</tbody>
+</table>
+<h2>Backend</h2>
+<table>
+<thead>
+<tr>
+<th>Tecnologia</th>
+<th>Versão Atual</th>
+<th>Última Disponível</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Django</td>
+<td>6.0.7</td>
+<td>6.1 (ago/2026) + 6.0.8 (segurança)</td>
+<td>⚠️ Atualizar para 6.0.8</td>
+</tr>
+<tr>
+<td>Django REST Framework</td>
+<td>3.17.1</td>
+<td>3.17.x</td>
+<td>✅ Atual</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>16.14</td>
+<td>18.x</td>
+<td>⚠️ Pode atualizar (Railway usava 18)</td>
+</tr>
+<tr>
+<td>Redis</td>
+<td>7.4.10</td>
+<td>7.4.x</td>
+<td>✅ Atual</td>
+</tr>
+<tr>
+<td>django-q2</td>
+<td>1.10.0</td>
+<td>1.10.x</td>
+<td>✅ Atual</td>
+</tr>
+<tr>
+<td>Gunicorn</td>
+<td>23.0.0</td>
+<td>23.x</td>
+<td>✅ Atual</td>
+</tr>
+<tr>
+<td>lxml</td>
+<td>6.1.0</td>
+<td>6.x</td>
+<td>✅ Atual</td>
+</tr>
+<tr>
+<td>xmlsec</td>
+<td>1.3.17</td>
+<td>1.3.x</td>
+<td>✅ Atual</td>
+</tr>
+<tr>
+<td>cryptography</td>
+<td>45+</td>
+<td>46.x</td>
+<td>✅ Atual</td>
+</tr>
+</tbody>
+</table>
+<h2>Frontend</h2>
+<table>
+<thead>
+<tr>
+<th>Tecnologia</th>
+<th>Versão Atual</th>
+<th>Última Disponível</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Next.js</td>
+<td>16.2.10</td>
+<td>16.2.x</td>
+<td>✅ Atual</td>
+</tr>
+<tr>
+<td>React</td>
+<td>19.2.0</td>
+<td>19.2.x</td>
+<td>✅ Atual</td>
+</tr>
+<tr>
+<td>TypeScript</td>
+<td>6.0.3</td>
+<td>6.x</td>
+<td>✅ Atual</td>
+</tr>
+<tr>
+<td>Tailwind CSS</td>
+<td>4.3.2</td>
+<td>4.x</td>
+<td>✅ Atual</td>
+</tr>
+</tbody>
+</table>
+<h2>Integrações</h2>
+<table>
+<thead>
+<tr>
+<th>Serviço</th>
+<th>Função</th>
+<th>Hospedagem</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Asaas</td>
+<td>Cobranças, boletos, PIX</td>
+<td>API externa (asaas.com)</td>
+</tr>
+<tr>
+<td>Evolution API</td>
+<td>WhatsApp (mensagens, notificações)</td>
+<td><strong>Magalu SP</strong> (v2.3.7)</td>
+</tr>
+<tr>
+<td>Resend</td>
+<td>Email transacional</td>
+<td>API externa (resend.com)</td>
+</tr>
+<tr>
+<td>Cloudinary</td>
+<td>Upload de imagens</td>
+<td>API externa (cloudinary.com)</td>
+</tr>
+<tr>
+<td>Memed</td>
+<td>Prescrições médicas</td>
+<td>API externa (memed.com.br)</td>
+</tr>
+<tr>
+<td>ISSNet Nacional</td>
+<td>NFS-e (Ribeirão Preto)</td>
+<td>Webservice prefeitura</td>
+</tr>
+</tbody>
+</table>
+<h2>Arquitetura (pós-migração 06/08/2026)</h2>
+<pre><code>                    ┌─────────────────────────────────────────┐
+                    │        Magalu Cloud SP (201.23.81.50)    │
+                    │        Ubuntu 24.04 · 8vCPU · 16GB      │
+                    │                                         │
+  Internet ──443──► │  Nginx (SSL Let's Encrypt)              │
+                    │    ├── lwksistemas.com.br → Next.js:3000 │
+                    │    ├── api.lwksistemas.com.br → Django:8080 │
+                    │    ├── beta.lwksistemas.com.br → Next.js │
+                    │    └── evolution.lwksistemas.com.br → Evo:8081 │
+                    │                                         │
+                    │  Docker Compose:                         │
+                    │    ├── frontend (Next.js 16 standalone)  │
+                    │    ├── backend (Django 6 + Gunicorn)     │
+                    │    ├── worker (django-q2, 4 workers)     │
+                    │    ├── evolution (WhatsApp API v2.3.7)   │
+                    │    ├── postgres (16-alpine)              │
+                    │    └── redis (7-alpine)                  │
+                    └─────────────────────────────────────────┘
+</code></pre>
+<h2>Deploy</h2>
+<pre><code class="language-bash">ssh deploy@201.23.81.50
+cd /opt/lwk-erp
+git pull origin main
+docker compose -f docker-compose.prod.yml up -d --build
+</code></pre>
+<h2>Backup</h2>
+<ul>
+<li>Automático: cron diário às 3h (<code>backup.sh</code>)</li>
+<li>Retenção: 7 dias locais</li>
+<li>Manual: <code>./backup.sh</code></li>
+</ul>
+<h2>Custo Mensal</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Custo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Magalu BV8-16-150</td>
+<td>~R$ 430/mês</td>
+</tr>
+<tr>
+<td>Domínio + DNS</td>
+<td>~R$ 40/ano</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>~R$ 450/mês</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Anterior: Railway (~R$ 200-300) + Vercel Pro (~$40-100/mês) = R$ 500-800/mês</p></body></html>

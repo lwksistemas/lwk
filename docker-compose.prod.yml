@@ -1,0 +1,119 @@
+services:
+  postgres:
+    image: postgres:18-bookworm
+    restart: always
+    volumes:
+      - pgdata:/var/lib/postgresql
+    environment:
+      POSTGRES_DB: lwk
+      POSTGRES_USER: lwk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lwk"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.magalu
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/lwk
+      - REDIS_URL=redis://redis:6379/0
+      - LWK_PROCESS_ROLE=web
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - media:/app/media
+      - staticfiles:/app/staticfiles
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.magalu
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/lwk
+      - REDIS_URL=redis://redis:6379/0
+      - LWK_PROCESS_ROLE=worker
+    command: sh scripts/start_worker.sh
+    volumes:
+      - media:/app/media
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: always
+    env_file: .env.frontend
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.7
+    restart: always
+    environment:
+      - SERVER_URL=https://evolution.lwksistemas.com.br
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/evolution
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/1
+      - LOG_LEVEL=WARN
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8081:8080"
+
+  frontend-beta:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        - NEXT_PUBLIC_API_URL=https://api.lwksistemas.com.br
+    restart: always
+    env_file: .env.frontend
+    environment:
+      - LWK_BRANCH=staging
+    ports:
+      - "127.0.0.1:3001:3000"
+
+volumes:
+  pgdata:
+  redisdata:
+  media:
+  staticfiles:

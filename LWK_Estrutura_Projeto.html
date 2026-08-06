@@ -24,12 +24,12 @@ pre code{background:none;color:inherit}
 <tr>
 <td>Backend</td>
 <td>Django + DRF</td>
-<td>6.0.7 + 3.17.1</td>
+<td>6.0.8 + 3.17.1</td>
 </tr>
 <tr>
 <td>Frontend</td>
 <td>Next.js + React + TypeScript</td>
-<td>16.2.10 + 19.2 + 6.0.3</td>
+<td>16.2.10 + 19.2 + 7.0.2</td>
 </tr>
 <tr>
 <td>Estilização</td>
@@ -39,7 +39,7 @@ pre code{background:none;color:inherit}
 <tr>
 <td>Banco de dados</td>
 <td>PostgreSQL (Docker local)</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr>
 <td>Cache/Filas</td>
@@ -58,7 +58,7 @@ pre code{background:none;color:inherit}
 </tr>
 <tr>
 <td>Runtime</td>
-<td>Python 3.12 / Node.js 20</td>
+<td>Python 3.13 / Node.js 22</td>
 <td>LTS</td>
 </tr>
 </tbody>
@@ -75,7 +75,7 @@ pre code{background:none;color:inherit}
 <pre><code>lwksistemas/
 ├── backend/                    # Django (API, models, services, migrations)
 │   ├── config/                 # Settings Django (settings_production.py)
-│   ├── core/                   # Middlewares, mixins, utilitários, encryption
+│   ├── core/                   # Middlewares, mixins, utilitários, encryption, media_storage
 │   ├── superadmin/             # Gestão de lojas, usuários, planos
 │   ├── clinica_beleza/         # App clínica (consultas, recibos, agenda)
 │   ├── crm_vendas/             # CRM de vendas (leads, propostas, contratos)
@@ -97,33 +97,38 @@ pre code{background:none;color:inherit}
 │   ├── hooks/                  # Custom hooks por domínio
 │   └── lib/                    # Utilitários, API client, helpers
 ├── docker-compose.prod.yml     # Compose de produção (Magalu)
-├── Dockerfile.magalu           # Dockerfile backend
-├── Dockerfile.frontend         # Dockerfile frontend (standalone)
-├── deploy.sh                   # Script de deploy
-├── backup.sh                   # Script de backup
+├── Dockerfile.magalu           # Dockerfile backend (Python 3.13)
+├── Dockerfile.frontend         # Dockerfile frontend (Node 22, standalone)
+├── deploy.sh                   # Script de deploy produção
+├── deploy-beta.sh              # Script de deploy beta (staging)
+├── backup.sh                   # Script de backup Postgres
 ├── requirements.txt            # Dependências raiz (compartilhadas)
-├── railway.toml                # Config Railway (legado, manter para referência)
 └── .github/workflows/          # CI/CD (security audit)
 </code></pre>
 <h2>Infraestrutura (Magalu Cloud SP)</h2>
-<pre><code>Servidor: 201.23.81.50 (8 vCPU, 16GB RAM, 150GB disco)
+<pre><code>Servidor principal: 201.23.81.50 (8 vCPU, 16GB RAM, 150GB disco)
 OS: Ubuntu 24.04 LTS
 Usuário deploy: deploy (SSH por chave)
 
 Docker Compose (/opt/lwk-erp/docker-compose.prod.yml):
-  ├── postgres    (16-alpine, porta 5432 local)
-  ├── redis       (7-alpine, porta 6379 local)
-  ├── backend     (Django/Gunicorn, porta 8080)
-  ├── worker      (django-q2, 4 workers)
-  ├── frontend    (Next.js standalone, porta 3000)
-  └── evolution   (WhatsApp API v2.3.7, porta 8081)
+  ├── postgres      (18-bookworm, porta 5432 local)
+  ├── redis         (7-alpine, porta 6379 local)
+  ├── backend       (Django/Gunicorn, porta 8080)
+  ├── worker        (django-q2, 4 workers)
+  ├── frontend      (Next.js standalone, porta 3000 — branch main)
+  ├── frontend-beta (Next.js standalone, porta 3001 — branch staging)
+  ├── evolution     (WhatsApp API v2.3.7, porta 8081)
+  └── (volumes: pgdata, redisdata, media, staticfiles)
 
 Nginx (proxy reverso + SSL):
-  ├── lwksistemas.com.br        → frontend:3000
-  ├── www.lwksistemas.com.br    → frontend:3000
-  ├── api.lwksistemas.com.br    → backend:8080
-  ├── beta.lwksistemas.com.br   → frontend:3000
+  ├── lwksistemas.com.br           → frontend:3000
+  ├── www.lwksistemas.com.br       → frontend:3000
+  ├── api.lwksistemas.com.br       → backend:8080
+  ├── beta.lwksistemas.com.br      → frontend-beta:3001
   └── evolution.lwksistemas.com.br → evolution:8081
+
+Servidor de mídia: 201.23.87.251 (1 vCPU, 2GB RAM, 40GB disco)
+  └── media.lwksistemas.com.br     → Flask API :9000 + Nginx (arquivos estáticos)
 
 SSL: Let's Encrypt (auto-renova via Certbot)
 Backup: cron diário 3h → /opt/lwk-erp/backups/ (7 dias retenção)

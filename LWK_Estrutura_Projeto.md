@@ -35,7 +35,6 @@ lwksistemas/
 │   ├── crm_vendas/             # CRM de vendas (leads, propostas, contratos)
 │   ├── cabeleireiro/           # App cabeleireiro
 │   ├── hotel/                  # App hotel
-│   ├── restaurante/            # App restaurante
 │   ├── asaas_integration/      # Integração financeira (cobranças, NFS-e config)
 │   ├── nfse_integration/       # Emissão NFS-e (ISSNet, Nacional, Asaas)
 │   ├── agenda_base/            # Agenda compartilhada entre apps
@@ -113,6 +112,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 | A | www.lwksistemas.com.br | 201.23.81.50 |
 | A | beta.lwksistemas.com.br | 201.23.81.50 |
 | A | evolution.lwksistemas.com.br | 201.23.81.50 |
+| A | media.lwksistemas.com.br | 201.23.87.251 |
 | MX | lwksistemas.com.br | inbound-smtp.sa-east-1.amazonaws.com |
 | TXT | _dmarc.lwksistemas.com.br | v=DMARC1; p=none; |
 | MX | send.lwksistemas.com.br | feedback-smtp.sa-east-1.amazonses.com |
@@ -149,7 +149,7 @@ perf(modulo): otimização de performance
 | Asaas | Cobranças/boletos/PIX | ASAAS_API_KEY, ASAAS_WEBHOOK_TOKEN |
 | Resend | Email transacional | RESEND_API_KEY |
 | Evolution | WhatsApp | EVOLUTION_API_URL, EVOLUTION_API_KEY |
-| Cloudinary | Upload imagens | CLOUDINARY_* |
+| Servidor de Mídia | Upload imagens/PDFs | MEDIA_SERVER_URL, MEDIA_API_TOKEN |
 | Memed | Prescrições médicas | MEMED_API_KEY_PROD, MEMED_SECRET_KEY_PROD |
 | Google Calendar | Sincronização agenda | GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET |
 | ISSNet Nacional | NFS-e Ribeirão Preto | Certificado A1 (.pfx) no banco |

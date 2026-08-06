@@ -81,7 +81,6 @@ pre code{background:none;color:inherit}
 │   ├── crm_vendas/             # CRM de vendas (leads, propostas, contratos)
 │   ├── cabeleireiro/           # App cabeleireiro
 │   ├── hotel/                  # App hotel
-│   ├── restaurante/            # App restaurante
 │   ├── asaas_integration/      # Integração financeira (cobranças, NFS-e config)
 │   ├── nfse_integration/       # Emissão NFS-e (ISSNet, Nacional, Asaas)
 │   ├── agenda_base/            # Agenda compartilhada entre apps
@@ -179,6 +178,11 @@ docker compose -f docker-compose.prod.yml up -d --build
 <td>201.23.81.50</td>
 </tr>
 <tr>
+<td>A</td>
+<td>media.lwksistemas.com.br</td>
+<td>201.23.87.251</td>
+</tr>
+<tr>
 <td>MX</td>
 <td>lwksistemas.com.br</td>
 <td>inbound-smtp.sa-east-1.amazonaws.com</td>
@@ -248,9 +252,9 @@ perf(modulo): otimização de performance
 <td>EVOLUTION_API_URL, EVOLUTION_API_KEY</td>
 </tr>
 <tr>
-<td>Cloudinary</td>
-<td>Upload imagens</td>
-<td>CLOUDINARY_*</td>
+<td>Servidor de Mídia</td>
+<td>Upload imagens/PDFs</td>
+<td>MEDIA_SERVER_URL, MEDIA_API_TOKEN</td>
 </tr>
 <tr>
 <td>Memed</td>

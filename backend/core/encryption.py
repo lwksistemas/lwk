@@ -34,9 +34,31 @@ ENCRYPTED_PREFIX = "enc::"
 
 
 def _encryption_secret_bytes() -> bytes:
+    """Obtém a chave de criptografia.
+
+    Prioridade:
+    1. FIELD_ENCRYPTION_KEY_FILE (arquivo externo, mais seguro)
+    2. FIELD_ENCRYPTION_KEY (variável de ambiente)
+    3. SECRET_KEY (fallback)
+    """
+    import os
+
+    # 1. Arquivo externo (recomendado em produção)
+    key_file = os.environ.get("FIELD_ENCRYPTION_KEY_FILE", "")
+    if key_file and os.path.isfile(key_file):
+        with open(key_file, "r") as f:
+            key = f.read().strip()
+        if key:
+            return key.encode("utf-8")
+
+    # 2. Variável de ambiente
     dedicated = (getattr(settings, "FIELD_ENCRYPTION_KEY", None) or "").strip()
+    if not dedicated:
+        dedicated = os.environ.get("FIELD_ENCRYPTION_KEY", "").strip()
     if dedicated:
         return dedicated.encode("utf-8")
+
+    # 3. Fallback
     return settings.SECRET_KEY.encode("utf-8")
 
 

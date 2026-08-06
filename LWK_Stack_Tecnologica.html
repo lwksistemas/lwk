@@ -7,7 +7,7 @@ th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left}
 th{background:#f3f4f6;font-weight:600}
 tr:nth-child(even){background:#f9fafb}
 code{background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:0.9em}
-pre{background:#1f2937;color:#f9fafb;padding:16px;border-radius:8px}
+pre{background:#1f2937;color:#f9fafb;padding:16px;border-radius:8px;white-space:pre-wrap}
 pre code{background:none;color:inherit}
 </style></head><body><h1>LWK Sistemas — Stack Tecnológica</h1>
 <p><strong>Atualizado em 06/08/2026</strong></p>
@@ -17,46 +17,39 @@ pre code{background:none;color:inherit}
 <tr>
 <th>Camada</th>
 <th>Tecnologia</th>
-<th>Versão Atual</th>
-<th>Última Disponível</th>
-<th>Status</th>
+<th>Versão</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Servidor</td>
-<td>Magalu Cloud SP (VM BV8-16-150)</td>
-<td>Ubuntu 24.04</td>
-<td>Ubuntu 24.04</td>
-<td>✅ Atual</td>
+<td>Servidor principal</td>
+<td>Magalu Cloud SP (BV8-16-150)</td>
+<td>Ubuntu 24.04 LTS</td>
+</tr>
+<tr>
+<td>Servidor de mídia</td>
+<td>Magalu Cloud SP (BV1-2-40)</td>
+<td>Ubuntu 24.04 LTS</td>
 </tr>
 <tr>
 <td>Container</td>
 <td>Docker + Compose</td>
-<td>29.1.3 / 2.40.3</td>
-<td>~29.x</td>
-<td>✅ Atual</td>
+<td>29.1 / 2.40</td>
 </tr>
 <tr>
 <td>Proxy/SSL</td>
-<td>Nginx + Certbot</td>
-<td>1.24 / Let's Encrypt</td>
-<td>1.26</td>
-<td>⚠️ Atualizar</td>
+<td>Nginx + Certbot (Let's Encrypt)</td>
+<td>1.24</td>
 </tr>
 <tr>
 <td>Backend runtime</td>
 <td>Python</td>
-<td>3.12.13</td>
-<td>3.14</td>
-<td>⚠️ 3.12 OK (LTS suportado)</td>
+<td>3.13</td>
 </tr>
 <tr>
 <td>Frontend runtime</td>
 <td>Node.js</td>
-<td>20.20.2</td>
 <td>22 LTS</td>
-<td>⚠️ 20 OK (LTS até 04/2026)</td>
 </tr>
 </tbody>
 </table>
@@ -65,65 +58,50 @@ pre code{background:none;color:inherit}
 <thead>
 <tr>
 <th>Tecnologia</th>
-<th>Versão Atual</th>
-<th>Última Disponível</th>
-<th>Status</th>
+<th>Versão</th>
+<th>Função</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Django</td>
-<td>6.0.7</td>
-<td>6.1 (ago/2026) + 6.0.8 (segurança)</td>
-<td>⚠️ Atualizar para 6.0.8</td>
+<td>6.0.8</td>
+<td>Framework web Python</td>
 </tr>
 <tr>
 <td>Django REST Framework</td>
 <td>3.17.1</td>
-<td>3.17.x</td>
-<td>✅ Atual</td>
+<td>API RESTful</td>
 </tr>
 <tr>
 <td>PostgreSQL</td>
-<td>16.14</td>
-<td>18.x</td>
-<td>⚠️ Pode atualizar (Railway usava 18)</td>
+<td>18.4</td>
+<td>Banco de dados multi-tenant</td>
 </tr>
 <tr>
 <td>Redis</td>
-<td>7.4.10</td>
-<td>7.4.x</td>
-<td>✅ Atual</td>
+<td>7.4</td>
+<td>Cache e filas</td>
 </tr>
 <tr>
 <td>django-q2</td>
-<td>1.10.0</td>
-<td>1.10.x</td>
-<td>✅ Atual</td>
+<td>1.10</td>
+<td>Task queue (workers)</td>
 </tr>
 <tr>
 <td>Gunicorn</td>
-<td>23.0.0</td>
-<td>23.x</td>
-<td>✅ Atual</td>
-</tr>
-<tr>
-<td>lxml</td>
-<td>6.1.0</td>
-<td>6.x</td>
-<td>✅ Atual</td>
+<td>23.0</td>
+<td>Servidor WSGI</td>
 </tr>
 <tr>
 <td>xmlsec</td>
-<td>1.3.17</td>
-<td>1.3.x</td>
-<td>✅ Atual</td>
+<td>1.3</td>
+<td>Assinatura digital NFS-e</td>
 </tr>
 <tr>
-<td>cryptography</td>
-<td>45+</td>
-<td>46.x</td>
-<td>✅ Atual</td>
+<td>lxml</td>
+<td>6.1</td>
+<td>Processamento XML</td>
 </tr>
 </tbody>
 </table>
@@ -132,35 +110,30 @@ pre code{background:none;color:inherit}
 <thead>
 <tr>
 <th>Tecnologia</th>
-<th>Versão Atual</th>
-<th>Última Disponível</th>
-<th>Status</th>
+<th>Versão</th>
+<th>Função</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Next.js</td>
 <td>16.2.10</td>
-<td>16.2.x</td>
-<td>✅ Atual</td>
+<td>Framework React (App Router)</td>
 </tr>
 <tr>
 <td>React</td>
-<td>19.2.0</td>
-<td>19.2.x</td>
-<td>✅ Atual</td>
+<td>19.2</td>
+<td>Biblioteca de UI</td>
 </tr>
 <tr>
 <td>TypeScript</td>
-<td>6.0.3</td>
-<td>6.x</td>
-<td>✅ Atual</td>
+<td>7.0.2</td>
+<td>Tipagem estática (compilador Go, 10x mais rápido)</td>
 </tr>
 <tr>
 <td>Tailwind CSS</td>
 <td>4.3.2</td>
-<td>4.x</td>
-<td>✅ Atual</td>
+<td>Estilização</td>
 </tr>
 </tbody>
 </table>
@@ -175,29 +148,29 @@ pre code{background:none;color:inherit}
 </thead>
 <tbody>
 <tr>
-<td>Asaas</td>
-<td>Cobranças, boletos, PIX</td>
-<td>API externa (asaas.com)</td>
+<td>Servidor de Mídia</td>
+<td>Upload imagens/PDFs (substituiu Cloudinary)</td>
+<td>Magalu SP (201.23.87.251)</td>
 </tr>
 <tr>
 <td>Evolution API</td>
 <td>WhatsApp (mensagens, notificações)</td>
-<td><strong>Magalu SP</strong> (v2.3.7)</td>
+<td>Magalu SP (mesmo servidor)</td>
+</tr>
+<tr>
+<td>Asaas</td>
+<td>Cobranças, boletos, PIX</td>
+<td>API externa</td>
 </tr>
 <tr>
 <td>Resend</td>
 <td>Email transacional</td>
-<td>API externa (resend.com)</td>
-</tr>
-<tr>
-<td>Cloudinary</td>
-<td>Upload de imagens</td>
-<td>API externa (cloudinary.com)</td>
+<td>API externa</td>
 </tr>
 <tr>
 <td>Memed</td>
 <td>Prescrições médicas</td>
-<td>API externa (memed.com.br)</td>
+<td>API externa</td>
 </tr>
 <tr>
 <td>ISSNet Nacional</td>
@@ -206,37 +179,89 @@ pre code{background:none;color:inherit}
 </tr>
 </tbody>
 </table>
-<h2>Arquitetura (pós-migração 06/08/2026)</h2>
-<pre><code>                    ┌─────────────────────────────────────────┐
-                    │        Magalu Cloud SP (201.23.81.50)    │
-                    │        Ubuntu 24.04 · 8vCPU · 16GB      │
-                    │                                         │
-  Internet ──443──► │  Nginx (SSL Let's Encrypt)              │
-                    │    ├── lwksistemas.com.br → Next.js:3000 │
-                    │    ├── api.lwksistemas.com.br → Django:8080 │
-                    │    ├── beta.lwksistemas.com.br → Next.js │
-                    │    └── evolution.lwksistemas.com.br → Evo:8081 │
-                    │                                         │
-                    │  Docker Compose:                         │
-                    │    ├── frontend (Next.js 16 standalone)  │
-                    │    ├── backend (Django 6 + Gunicorn)     │
-                    │    ├── worker (django-q2, 4 workers)     │
-                    │    ├── evolution (WhatsApp API v2.3.7)   │
-                    │    ├── postgres (16-alpine)              │
-                    │    └── redis (7-alpine)                  │
-                    └─────────────────────────────────────────┘
+<h2>Arquitetura</h2>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│              Magalu Cloud SP — 201.23.81.50                       │
+│              8 vCPU · 16 GB RAM · 150 GB                         │
+│                                                                  │
+│  Nginx (SSL Let's Encrypt — auto-renova)                         │
+│    ├── lwksistemas.com.br      → Next.js :3000 (produção)        │
+│    ├── beta.lwksistemas.com.br → Next.js :3001 (staging)         │
+│    ├── api.lwksistemas.com.br  → Django/Gunicorn :8080           │
+│    └── evolution.lwksistemas.com.br → Evolution API :8081        │
+│                                                                  │
+│  Docker Compose:                                                  │
+│    ├── frontend       (Next.js 16 standalone — branch main)      │
+│    ├── frontend-beta  (Next.js 16 standalone — branch staging)   │
+│    ├── backend        (Django 6 + Gunicorn, 4 workers)           │
+│    ├── worker         (django-q2, 4 processos)                   │
+│    ├── evolution      (WhatsApp API v2.3.7)                      │
+│    ├── postgres       (18-bookworm)                              │
+│    └── redis          (7-alpine)                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│              Magalu Cloud SP — 201.23.87.251                       │
+│              1 vCPU · 2 GB RAM · 40 GB                            │
+│                                                                  │
+│  Nginx (SSL Let's Encrypt)                                        │
+│    └── media.lwksistemas.com.br                                  │
+│          ├── GET  /files/{cnpj}/{folder}/{file}  (servir imagem) │
+│          ├── POST /upload/{cnpj}/                (upload)        │
+│          └── GET  /health                        (status)        │
+│                                                                  │
+│  Estrutura de pastas:                                             │
+│    /storage/{cnpj_cpf}/fotos/                                    │
+│    /storage/{cnpj_cpf}/docs/                                     │
+│    /storage/{cnpj_cpf}/avatars/                                  │
+│    /storage/{cnpj_cpf}/recibos/                                  │
+│    /storage/{cnpj_cpf}/contratos/                                │
+└─────────────────────────────────────────────────────────────────┘
 </code></pre>
+<h2>Performance</h2>
+<table>
+<thead>
+<tr>
+<th>Métrica</th>
+<th>Antes (Railway + Vercel)</th>
+<th>Agora (Magalu SP)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Latência API</td>
+<td>~200ms (EUA→BR)</td>
+<td>~5-20ms (local SP)</td>
+</tr>
+<tr>
+<td>Build frontend</td>
+<td>~75s (Vercel)</td>
+<td>~75s (Docker)</td>
+</tr>
+<tr>
+<td>Cold start</td>
+<td>1-3s (serverless)</td>
+<td>0ms (sempre quente)</td>
+</tr>
+<tr>
+<td>Uptime</td>
+<td>99.9% (Railway SLA)</td>
+<td>depende de nós</td>
+</tr>
+</tbody>
+</table>
 <h2>Deploy</h2>
-<pre><code class="language-bash">ssh deploy@201.23.81.50
-cd /opt/lwk-erp
-git pull origin main
-docker compose -f docker-compose.prod.yml up -d --build
+<pre><code class="language-bash"># Produção (branch main)
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp &amp;&amp; git pull &amp;&amp; docker compose -f docker-compose.prod.yml up -d --build'
+
+# Beta (branch staging)
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp &amp;&amp; ./deploy-beta.sh'
 </code></pre>
 <h2>Backup</h2>
 <ul>
-<li>Automático: cron diário às 3h (<code>backup.sh</code>)</li>
+<li>Automático: cron diário às 3h (<code>/opt/lwk-erp/backup.sh</code>)</li>
 <li>Retenção: 7 dias locais</li>
-<li>Manual: <code>./backup.sh</code></li>
+<li>Banco: pg_dump com formato custom (comprimido)</li>
 </ul>
 <h2>Custo Mensal</h2>
 <table>
@@ -248,17 +273,22 @@ docker compose -f docker-compose.prod.yml up -d --build
 </thead>
 <tbody>
 <tr>
-<td>Magalu BV8-16-150</td>
-<td>~R$ 430/mês</td>
+<td>Magalu BV8-16-150 (sistema)</td>
+<td>~R$ 430</td>
 </tr>
 <tr>
-<td>Domínio + DNS</td>
-<td>~R$ 40/ano</td>
+<td>Magalu BV1-2-40 (mídia)</td>
+<td>~R$ 70</td>
+</tr>
+<tr>
+<td>Domínio (Registro.br)</td>
+<td>~R$ 4</td>
 </tr>
 <tr>
 <td><strong>Total</strong></td>
-<td><strong>~R$ 450/mês</strong></td>
+<td><strong>~R$ 504/mês</strong></td>
 </tr>
 </tbody>
 </table>
-<p>Anterior: Railway (~R$ 200-300) + Vercel Pro (~$40-100/mês) = R$ 500-800/mês</p></body></html>
+<p><strong>Economia vs anterior:</strong> Railway + Vercel Pro = ~R$ 650/mês → <strong>economia de ~R$ 150/mês</strong>
+<strong>Ganho adicional:</strong> latência 10x menor, controle total, SSH direto, sem limites de build</p></body></html>

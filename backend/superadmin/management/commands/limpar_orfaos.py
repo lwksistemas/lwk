@@ -123,7 +123,7 @@ class Command(BaseCommand):
             if execute:
                 try:
                     with connection.cursor() as cursor:
-                        cursor.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+                        cursor.execute(f"DROP SCHEMA IF EXISTS {connection.ops.quote_name(schema)} CASCADE")
                     self.stdout.write(self.style.SUCCESS("         ✅ Removido"))
                 except Exception as e:
                     self.stdout.write(self.style.ERROR(f"         ❌ Erro: {e}"))

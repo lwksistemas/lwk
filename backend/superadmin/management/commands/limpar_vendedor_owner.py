@@ -77,7 +77,7 @@ class Command(BaseCommand):
                 # Mudar para schema da loja e remover vendedor
                 schema_name = loja.database_name.replace("-", "_")
                 with connection.cursor() as cursor:
-                    cursor.execute(f'SET search_path TO "{schema_name}", public')
+                    cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
                     cursor.execute("DELETE FROM crm_vendas_vendedor WHERE id = %s", [vendedor_id])
 
                 self.stdout.write(

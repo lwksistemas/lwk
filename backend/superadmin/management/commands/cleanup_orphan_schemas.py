@@ -84,7 +84,7 @@ class Command(BaseCommand):
             for schema in orphan_schemas:
                 try:
                     self.stdout.write(f"  Removendo {schema}...", ending="")
-                    cursor.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
+                    cursor.execute(f"DROP SCHEMA IF EXISTS {connection.ops.quote_name(schema)} CASCADE")
                     removed_count += 1
                     self.stdout.write(self.style.SUCCESS(" ✅"))
                 except Exception as e:

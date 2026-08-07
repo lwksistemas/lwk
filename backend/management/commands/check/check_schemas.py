@@ -129,7 +129,7 @@ class Command(BaseCommand):
                     except ImportError:
                         # Fallback: usar SET search_path
                         with connection.cursor() as cursor:
-                            cursor.execute(f"SET search_path TO {schema}")
+                            cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema)}, public")
                             count = Lead.objects.count()
                             if count > 0:
                                 self.stdout.write(

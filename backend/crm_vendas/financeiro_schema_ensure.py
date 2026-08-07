@@ -8,7 +8,7 @@ TABLE_RECORRENCIA = "crm_financeiro_recorrencia"
 
 def aplicar_financeiro_base_sql(cursor, schema_name: str) -> bool:
     """Cria grupo + lançamento (migration 0064) sem migrate."""
-    cursor.execute(f'SET search_path TO "{schema_name}", public')
+    cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
 
     cursor.execute(
         f"""
@@ -85,7 +85,7 @@ def aplicar_financeiro_base_sql(cursor, schema_name: str) -> bool:
 
 def aplicar_recorrencia_sql(cursor, schema_name: str) -> bool:
     """Cria recorrência + coluna em lançamento (migration 0065) sem migrate."""
-    cursor.execute(f'SET search_path TO "{schema_name}", public')
+    cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
     if not table_exists(cursor, TABLE_GRUPO) or not table_exists(cursor, TABLE_LANCAMENTO):
         return False
 

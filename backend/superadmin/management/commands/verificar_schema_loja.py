@@ -61,7 +61,7 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.WARNING(f'⚠️ Schema "{schema_name}" não existe'))
                     if fix:
                         self.stdout.write('Criando schema...')
-                        cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                        cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {connection.ops.quote_name(schema_name)}")
                         self.stdout.write(self.style.SUCCESS('✅ Schema criado'))
                     else:
                         self.stdout.write(self.style.WARNING('Use --fix para criar o schema'))

@@ -16,7 +16,7 @@ def negociacao_historico_schema_missing(cursor) -> bool:
 
 def ensure_negociacao_historico_schema(cursor, schema_name: str) -> bool:
     """Aplica colunas e tabela da migration 0069 quando ausentes no tenant."""
-    cursor.execute(f'SET search_path TO "{schema_name}", public')
+    cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
 
     if not negociacao_historico_schema_missing(cursor):
         return False

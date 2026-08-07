@@ -326,7 +326,7 @@ class PaymentEnviarReciboView(GetObjectMixin, APIView):
 class ReciboPdfPublicView(APIView):
     """GET /clinica-beleza/payments/<id>/recibo-pdf/<token>/ — retorna PDF público (para WhatsApp)."""
 
-    permission_classes = []
+    permission_classes = [AllowAny]  # Acesso público intencional
     authentication_classes = []
 
     def get(self, request, pk, token):

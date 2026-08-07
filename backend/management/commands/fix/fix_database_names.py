@@ -98,7 +98,7 @@ class Command(BaseCommand):
                     return True
                 
                 # Criar schema
-                cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {connection.ops.quote_name(schema_name)}")
                 self.stdout.write(self.style.SUCCESS(f'   ✅ Schema "{schema_name}" criado'))
                 return True
                 

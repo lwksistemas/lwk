@@ -176,7 +176,7 @@ class DatabaseSchemaService:
 
             # Criar schema
             with connection.cursor() as cursor:
-                cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {connection.ops.quote_name(schema_name)}")
 
             logger.info(f"Schema '{schema_name}' criado no PostgreSQL")
 

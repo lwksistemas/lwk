@@ -52,7 +52,7 @@ def configurar_schema_crm_loja(loja) -> bool:
                 [schema_name],
             )
             if not cursor.fetchone():
-                cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {connection.ops.quote_name(schema_name)}")
                 logger.info(f"Schema '{schema_name}' criado")
 
         # 2b. Limpar migrations clinica_beleza órfãs/inconsistentes (bloqueiam migrate em lojas CRM)
@@ -125,7 +125,7 @@ def patch_crm_migration_0066_if_orphan(db_name: str) -> bool:
     schema_name = db_name.replace("-", "_")
     conn = connections[db_name]
     with conn.cursor() as cursor:
-        cursor.execute(f'SET search_path TO "{schema_name}", public')
+        cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
         cursor.execute(
             "SELECT 1 FROM django_migrations WHERE app = %s AND name = %s",
             ["crm_vendas", "0066_vendedor_config_acesso"],
@@ -182,7 +182,7 @@ def patch_crm_migration_0067_if_orphan(db_name: str) -> bool:
     schema_name = db_name.replace("-", "_")
     conn = connections[db_name]
     with conn.cursor() as cursor:
-        cursor.execute(f'SET search_path TO "{schema_name}", public')
+        cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
         cursor.execute(
             "SELECT 1 FROM django_migrations WHERE app = %s AND name = %s",
             ["crm_vendas", "0068_emitente_documento_snapshot"],
@@ -236,7 +236,7 @@ def patch_crm_negociacao_historico_if_missing(db_name: str) -> bool:
     schema_name = db_name.replace("-", "_")
     conn = connections[db_name]
     with conn.cursor() as cursor:
-        cursor.execute(f'SET search_path TO "{schema_name}", public')
+        cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
         if not negociacao_historico_schema_missing(cursor):
             return False
         logger.warning(
@@ -260,7 +260,7 @@ def patch_crm_emitente_documento_columns_if_missing(db_name: str) -> bool:
     schema_name = db_name.replace("-", "_")
     conn = connections[db_name]
     with conn.cursor() as cursor:
-        cursor.execute(f'SET search_path TO "{schema_name}", public')
+        cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
         if not emitente_columns_missing(cursor):
             return False
         logger.warning(
@@ -286,7 +286,7 @@ def patch_crm_financeiro_tables_if_missing(db_name: str) -> bool:
     schema_name = db_name.replace("-", "_")
     conn = connections[db_name]
     with conn.cursor() as cursor:
-        cursor.execute(f'SET search_path TO "{schema_name}", public')
+        cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
         if table_exists(cursor, TABLE_LANCAMENTO):
             return False
         cursor.execute(

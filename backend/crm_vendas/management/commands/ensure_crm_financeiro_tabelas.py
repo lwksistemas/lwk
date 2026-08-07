@@ -52,7 +52,7 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    cursor.execute(f'SET search_path TO "{schema_name}", public')
+                    cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
                     tem_grupo = table_exists(cursor, TABLE_GRUPO)
                     tem_lanc = table_exists(cursor, TABLE_LANCAMENTO)
                     tem_rec = table_exists(cursor, TABLE_RECORRENCIA)

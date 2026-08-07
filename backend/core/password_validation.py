@@ -77,23 +77,23 @@ def generate_provisional_password(length: int = 6) -> str:
         from core.password_validation import generate_provisional_password
         nova_senha = generate_provisional_password()
     """
-    import random
+    import secrets
     import string
 
     specials = "!@#$%"
 
     # Garantir pelo menos 1 de cada tipo
     chars = [
-        random.choice(string.ascii_uppercase),    # 1 maiúscula
-        random.choice(string.ascii_lowercase),    # 1 minúscula
-        random.choice(string.digits),             # 1 número
-        random.choice(specials),                  # 1 especial
+        secrets.choice(string.ascii_uppercase),    # 1 maiúscula
+        secrets.choice(string.ascii_lowercase),    # 1 minúscula
+        secrets.choice(string.digits),             # 1 número
+        secrets.choice(specials),                  # 1 especial
     ]
 
     # Preencher o restante com mix de letras e números (fáceis de ler)
     pool = string.ascii_letters + string.digits
     remaining = max(length - len(chars), 2)
-    chars.extend(random.choices(pool, k=remaining))
+    chars.extend(secrets.choices(pool, k=remaining))
 
     # Embaralhar para não ter padrão previsível
     random.shuffle(chars)

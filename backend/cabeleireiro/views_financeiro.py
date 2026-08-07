@@ -9,7 +9,7 @@ from django.db.models import Sum
 from django.http import HttpResponse
 from django.utils.timezone import now
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -105,7 +105,7 @@ class ReciboPdfPublicView(APIView):
     (staging com locmem / multi-réplica).
     """
 
-    permission_classes = []
+    permission_classes = [AllowAny]  # Acesso público intencional
     authentication_classes = []
 
     def get(self, request, pk, token):

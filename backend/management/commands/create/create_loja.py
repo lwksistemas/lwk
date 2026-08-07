@@ -113,7 +113,7 @@ class Command(BaseCommand):
             # 6. Criar schema
             schema_name = f"loja_{loja.id}"
             with connection.cursor() as cursor:
-                cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {connection.ops.quote_name(schema_name)}")
             self.stdout.write(f"✅ Schema criado: {schema_name}")
 
             # 7. Executar migrations no schema

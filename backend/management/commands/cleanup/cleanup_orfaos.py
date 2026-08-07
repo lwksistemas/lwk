@@ -162,7 +162,7 @@ class Command(BaseCommand):
         for schema in schemas:
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+                    cursor.execute(f"DROP SCHEMA IF EXISTS {connection.ops.quote_name(schema)} CASCADE")
                 self.stdout.write(self.style.SUCCESS(f"   ✅ Schema removido: {schema}"))
                 removidos += 1
             except Exception as e:
@@ -185,7 +185,7 @@ class Command(BaseCommand):
 
                 # Remover schema
                 with connection.cursor() as cursor:
-                    cursor.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+                    cursor.execute(f"DROP SCHEMA IF EXISTS {connection.ops.quote_name(schema)} CASCADE")
 
                 # Remover loja
                 loja.delete()

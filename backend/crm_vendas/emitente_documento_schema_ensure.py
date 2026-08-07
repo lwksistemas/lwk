@@ -16,7 +16,7 @@ EMITENTE_COLUMNS = (
 
 def ensure_emitente_documento_columns(cursor, schema_name: str) -> bool:
     """Adiciona colunas emitente_* se faltarem. Retorna True se alterou algo."""
-    cursor.execute(f'SET search_path TO "{schema_name}", public')
+    cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
     changed = False
     for table in (TABLE_PROPOSTA, TABLE_CONTRATO):
         if not table_exists(cursor, table):

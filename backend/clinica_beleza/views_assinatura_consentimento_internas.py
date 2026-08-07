@@ -291,7 +291,7 @@ class ConsultaEnviarTermoPdfWhatsappView(GetObjectMixin, APIView):
 class TermoConsentimentoPdfPublicView(APIView):
     """GET — PDF público temporário do termo assinado (para Evolution/WhatsApp)."""
 
-    permission_classes = []
+    permission_classes = [AllowAny]  # Acesso público intencional
     authentication_classes = []
 
     def get(self, request, consulta_id, procedure_id, token):

@@ -80,7 +80,7 @@ class Command(BaseCommand):
 
             with connection.cursor() as cursor:
                 # Criar schema
-                cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+                cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {connection.ops.quote_name(schema_name)}")
                 self.stdout.write(self.style.SUCCESS(f"   ✅ Schema criado: {schema_name}"))
 
                 # Criar tabela de teste no schema

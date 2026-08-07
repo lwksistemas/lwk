@@ -46,7 +46,7 @@ class Command(BaseCommand):
             try:
                 conn = connections[db_name]
                 with conn.cursor() as cursor:
-                    cursor.execute(f'SET search_path TO "{schema_name}", public')
+                    cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
                     if not emitente_columns_missing(cursor):
                         self.stdout.write(f"{loja.slug}: colunas emitente OK")
                         ok += 1

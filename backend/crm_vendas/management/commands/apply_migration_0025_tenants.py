@@ -73,7 +73,7 @@ class Command(BaseCommand):
                     self.stdout.write("   🔄 Aplicando migration...")
 
                     # Setar search_path
-                    cursor.execute(f'SET search_path TO "{schema_name}", public')
+                    cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
 
                     # 1. Adicionar novos campos
                     if "proposta_id" not in colunas_existentes:

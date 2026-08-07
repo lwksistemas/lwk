@@ -303,141 +303,111 @@ class ISSNetNacionalClient:
                     os.unlink(cert_path)
 
     def _enviar_soap(self, xml_dados: str, soap_action: str) -> str:
-        """POST SOAP 1.1 com mTLS; tenta cabeçalhos e envelopes alternativos."""
+        """POST SOAP 1.1 com mTLS.
+
+        Envia os dados como xsd:string (XML escapado) dentro de nfseDadosMsg.
+        Isso garante que o servidor extrai o conteúdo, faz unescape, e valida
+        a assinatura num documento isolado — sem interferência dos namespaces
+        do envelope SOAP (que quebrariam o DigestValue na canonização C14N).
+
+        Confirmado pelo suporte NotaControl (07/08/2026): "o XML não pode
+        sofrer nenhuma alteração de caractere, espaço ou tabulação após ser
+        assinado". Ao inserir o XML literal no envelope SOAP, os namespaces
+        soapenv: e nfse: entram no escopo e alteram a canonização.
+        """
         nome_op = _nome_operacao_de_soap_action(soap_action)
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        # Revertido para v1.00 em 04/08/2026 (nota real aceita usa versao=1.00).
-        # Dados aninhados (XML literal) — o ISSNet requer dados não-escapados
-        # para validar schema, e a preservação da assinatura depende de não
-        # re-parsear o XML assinado.
-        sem_ns_101 = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
-
-        # Envelope sem xmlns:nfse no root para preservar C14N da assinatura
-        from nfse_integration.issnet_soap import montar_soap_envelope_sem_ns_raiz
-        tentativas_custom = [
-            ("1.00 sem-ns-raiz (preserva assinatura)", sem_ns_101),
-        ]
+        cabec_txt = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
 
         try:
             with certificado_mtls_temporario(cert_path, self.cert_password) as (pem_cert, pem_key):
-                last_text = ""
-                for label, cabec_txt in tentativas_custom:
-                    envelope = montar_soap_envelope_sem_ns_raiz(
-                        nome_op, xml_dados,
-                        cabec_txt=cabec_txt,
-                        target_ns=NS_NFSE_NACIONAL,
-                    )
-                    logger.info(
-                        "ISSNet Nacional: envelope SOAP (%s) (truncado):\n%s",
-                        label, envelope[:8000],
-                    )
+                # Montar envelope com dados ESCAPADOS (xsd:string)
+                from xml.sax.saxutils import escape as xml_escape
+                from nfse_integration.issnet_soap import strip_xml_declaration
 
-                    # Diagnóstico: comparar XML dos dados antes/depois do envelope
-                    try:
-                        tag_open = re.search(r"<(?:nfse:)?nfseDadosMsg>", envelope)
-                        tag_close = re.search(r"</(?:nfse:)?nfseDadosMsg>", envelope)
-                        if not tag_open or not tag_close:
-                            raise ValueError("Tags nfseDadosMsg não encontradas no envelope")
-                        start = tag_open.end()
-                        end = tag_close.start()
-                        dados_no_envelope = envelope[start:end]
-                        dados_originais = xml_dados.lstrip()
-                        if dados_originais.startswith("<?xml"):
-                            dados_originais = re.sub(r"^\s*<\?xml[^?]*\?>\s*", "", dados_originais, count=1, flags=re.IGNORECASE)
-                        if dados_no_envelope != dados_originais:
-                            logger.error(
-                                "ISSNet Nacional: XML dos dados foi alterado ao montar envelope (%s)!",
-                                label,
-                            )
-                            logger.debug("Original (primeiros 500): %r", dados_originais[:500])
-                            logger.debug("No envelope (primeiros 500): %r", dados_no_envelope[:500])
-                        else:
-                            logger.info("ISSNet Nacional: XML dos dados preservado no envelope (%s).", label)
-                    except Exception as e:
-                        logger.debug("Não foi possível comparar dados no envelope: %s", e)
+                dados_limpo = strip_xml_declaration(xml_dados or "")
+                cabec_limpo = strip_xml_declaration(cabec_txt or "")
 
-                    envelope_bytes = envelope.encode("utf-8")
-                    logger.info(
-                        "ISSNet Nacional: envelope SHA-1 = %s (%d bytes, %s)",
-                        hashlib.sha1(envelope_bytes).hexdigest(), len(envelope_bytes), label,
+                # Escapar tanto cabeçalho quanto dados
+                cabec_escaped = xml_escape(cabec_limpo)
+                dados_escaped = xml_escape(dados_limpo)
+
+                envelope = (
+                    '<?xml version="1.0" encoding="utf-8"?>'
+                    '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" '
+                    f'xmlns:nfse="{NS_NFSE_NACIONAL}">'
+                    '<soapenv:Header/>'
+                    '<soapenv:Body>'
+                    f'<nfse:{nome_op}>'
+                    f'<nfse:nfseCabecMsg>{cabec_escaped}</nfse:nfseCabecMsg>'
+                    f'<nfse:nfseDadosMsg>{dados_escaped}</nfse:nfseDadosMsg>'
+                    f'</nfse:{nome_op}>'
+                    '</soapenv:Body>'
+                    '</soapenv:Envelope>'
+                )
+
+                logger.info(
+                    "ISSNet Nacional: envelope SOAP xsd:string (truncado 2000):\n%s",
+                    envelope[:2000],
+                )
+
+                envelope_bytes = envelope.encode("utf-8")
+                logger.info(
+                    "ISSNet Nacional: envelope SHA-1 = %s (%d bytes)",
+                    hashlib.sha1(envelope_bytes).hexdigest(), len(envelope_bytes),
+                )
+
+                headers = {
+                    "Content-Type": "text/xml; charset=utf-8",
+                    "SOAPAction": f'"{soap_action}"',
+                    "Connection": "close",
+                    "Accept": "text/xml",
+                    "User-Agent": "LWK-Sistemas/ISSNet-Nacional",
+                }
+                logger.info(
+                    "ISSNet Nacional SOAP %s (~%d bytes) → %s",
+                    nome_op, len(envelope_bytes), self.url,
+                )
+                try:
+                    r = req.post(
+                        self.url,
+                        data=envelope_bytes,
+                        headers=headers,
+                        cert=(pem_cert, pem_key),
+                        timeout=(8, 45),
+                        verify=True,
                     )
-
-                    headers = {
-                        "Content-Type": "text/xml; charset=utf-8",
-                        "SOAPAction": f'"{soap_action}"',
-                        "Connection": "close",
-                        "Accept": "text/xml",
-                        "User-Agent": "LWK-Sistemas/ISSNet-Nacional",
-                    }
-                    logger.info(
-                        "ISSNet Nacional SOAP %s (~%d bytes, %s) → %s",
-                        nome_op, len(envelope.encode("utf-8")), label, self.url,
-                    )
-                    try:
-                        r = req.post(
-                            self.url,
-                            data=envelope.encode("utf-8"),
-                            headers=headers,
-                            cert=(pem_cert, pem_key),
-                            timeout=(8, 45),
-                            verify=True,
-                        )
-                    except (req.exceptions.ConnectionError, req.exceptions.ReadTimeout) as e:
-                        logger.warning("ISSNet Nacional %s conexão falhou (%s); retry 1x", nome_op, e)
-                        time.sleep(1.5)
-                        r = req.post(
-                            self.url,
-                            data=envelope.encode("utf-8"),
-                            headers=headers,
-                            cert=(pem_cert, pem_key),
-                            timeout=(8, 45),
-                            verify=True,
-                        )
-
-                    last_text = r.text or ""
-                    logger.info(
-                        "ISSNet Nacional %s HTTP %s (%d bytes) via %s",
-                        nome_op, r.status_code, len(last_text), label,
+                except (req.exceptions.ConnectionError, req.exceptions.ReadTimeout) as e:
+                    logger.warning("ISSNet Nacional %s conexão falhou (%s); retry 1x", nome_op, e)
+                    time.sleep(1.5)
+                    r = req.post(
+                        self.url,
+                        data=envelope_bytes,
+                        headers=headers,
+                        cert=(pem_cert, pem_key),
+                        timeout=(8, 45),
+                        verify=True,
                     )
 
-                    ns_fault = (
-                        "with namespace name" in last_text
-                        and "was not found" in last_text
+                last_text = r.text or ""
+                logger.info(
+                    "ISSNet Nacional %s HTTP %s (%d bytes)",
+                    nome_op, r.status_code, len(last_text),
+                )
+
+                if r.status_code >= 400 or "Fault" in last_text:
+                    logger.error(
+                        "ISSNet Nacional %s erro: %s",
+                        nome_op, last_text[:2000],
                     )
-                    schema_fault = issnet_erro_schema_ou_cabecalho(last_text)
 
-                    if r.status_code >= 400 or "Fault" in last_text:
-                        logger.error(
-                            "ISSNet Nacional %s erro (%s): %s",
-                            nome_op, label, last_text[:2000],
-                        )
-
-                    sig_fault = issnet_erro_assinatura(last_text)
-
-                    if schema_fault:
-                        logger.error(
-                            "ISSNet Nacional %s erro de schema/cabeçalho (%s): envelope=%s | resposta=%s",
-                            nome_op, label, envelope[:4000], last_text[:4000],
-                        )
-
-                    if sig_fault:
-                        logger.error(
-                            "ISSNet Nacional %s erro de assinatura (%s): tentando próximo envelope | resposta=%s",
-                            nome_op, label, last_text[:2000],
-                        )
-
-                    if issnet_corpo_parece_xml(last_text) and not (
-                        issnet_fault_soap_generico(last_text) or ns_fault or schema_fault or sig_fault
-                    ):
-                        # Resposta válida sem erros reconhecidos -> retorna
-                        return last_text
-
-                    # Só continua tentando outros envelopes em caso de erro de schema/cabeçalho
-                    # ou de assinatura (pode ser re-serialização do XML aninhado).
-                    if not (ns_fault or schema_fault or sig_fault):
-                        return last_text
+                if issnet_erro_assinatura(last_text):
+                    logger.error(
+                        "ISSNet Nacional %s erro de assinatura: %s",
+                        nome_op, last_text[:2000],
+                    )
 
                 return last_text
         finally:

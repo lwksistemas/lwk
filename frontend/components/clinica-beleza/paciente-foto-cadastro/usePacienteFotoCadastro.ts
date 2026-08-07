@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  cloudinaryLojaClinicaPacientePerfil,
-  useLojaCloudinaryDocument,
-import { uploadImagemCloudinary } from "@/lib/cloudinary-direct-upload";
+import apiClient from "@/lib/api-client";
 import {
   capturarFotoDoVideo,
   isArquivoImagemValido,
   mensagemErroCamera,
   obterStreamCamera,
 } from "./paciente-foto-cadastro-utils";
+
+async function uploadToMedia(file: File, folder: string): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("folder", folder);
+  const res = await apiClient.post<{ url: string }>("/media/upload/", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data.url;
+}
 
 interface UsePacienteFotoCadastroParams {
   slug: string;
@@ -60,7 +67,7 @@ export function usePacienteFotoCadastro({ slug, value, onChange, disabled = fals
       setUploading(true);
       setErro("");
       try {
-        const url = await uploadImagemCloudinary(file, folder);
+        const url = await uploadToMedia(file, folder);
         onChange(url);
       } catch (e: unknown) {
         setErro(e instanceof Error ? e.message : "Erro ao enviar foto.");

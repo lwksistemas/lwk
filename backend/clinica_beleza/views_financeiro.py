@@ -6,6 +6,7 @@ from django.db.models import Case, DecimalField, F, OuterRef, Q, Subquery, Sum, 
 from django.db.models.functions import Coalesce, Greatest
 from django.utils.timezone import now
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 

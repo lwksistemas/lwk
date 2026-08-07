@@ -248,8 +248,17 @@ def extrair_detalhes_nfse_xml(xml_str: str) -> dict[str, Any]:
 
 
 def extrair_erros(texto: str) -> str:
+    """Extrai mensagens de erro da resposta ISSNet.
+
+    Retorna string vazia quando não há erros (resposta de sucesso).
+    """
+    if not (texto or "").strip():
+        return ""
+    # Se contém ListaNfse ou cStat>100, é resposta de sucesso
+    if "<ListaNfse>" in texto or "<cStat>100</cStat>" in texto:
+        return ""
     erros = re.findall(r"<Mensagem>(.*?)</Mensagem>", texto)
-    return "; ".join(erros) if erros else texto[:500]
+    return "; ".join(erros) if erros else ""
 
 
 def parse_resposta_cancelamento(xml_str: str) -> dict[str, Any]:

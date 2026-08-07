@@ -202,15 +202,16 @@ def issnet_erro_schema_ou_cabecalho(texto: str) -> bool:
 
 def issnet_erro_assinatura(texto: str) -> bool:
     """Retorna True se a resposta indicar rejeição específica da assinatura."""
-    t = (texto or "").lower()
+    t = (texto or "")
+    # Resposta de sucesso não é erro de assinatura
+    if "<ListaNfse>" in t or "<cStat>100</cStat>" in t:
+        return False
+    t_lower = t.lower()
     return any(
-        marker in t
+        marker in t_lower
         for marker in (
+            "e0714",
             "erro na assinatura",
-            "erro na assinatura",
-            "assinatura",
-            "signature",
-            "digestvalue",
         )
     )
 

@@ -203,10 +203,11 @@ def buscar_url_danfe_issnet_superadmin(nfse: Any, config: Any | None = None, *, 
 
 
 def _gerar_url_portal_issnet_nacional(nfse: Any, loja: Any) -> str:
-    """Gera URL direta para o portal ISSNet Nacional (Ribeirão Preto).
+    """Gera URL de consulta pública no portal ISSNet Ribeirão Preto.
 
-    O portal aceita o parâmetro nfse=NUMERO e inscmun=IM_PRESTADOR.
-    Isso abre a nota fiscal oficial no navegador com opção de imprimir.
+    O portal público permite visualizar/imprimir a nota pelo número + IM.
+    URL: https://www.notaeletronica.com.br/ribeiraopreto/consulta/default.aspx
+    Parâmetros: ccm=INSCRICAO_MUNICIPAL&nf=NUMERO_NFSE
     """
     numero_nf = getattr(nfse, "numero_nf", "") or ""
     if not numero_nf or not numero_nf.isdigit():
@@ -217,13 +218,11 @@ def _gerar_url_portal_issnet_nacional(nfse: Any, loja: Any) -> str:
     if loja:
         im = re.sub(r"\D", "", getattr(loja, "inscricao_municipal", "") or "")
     if not im:
-        # Tentar extrair do XML da NFS-e
         xml_nfse = getattr(nfse, "xml_nfse", "") or ""
         im_match = re.search(r"<IM>(\d+)</IM>", xml_nfse)
         if im_match:
             im = im_match.group(1)
     if not im:
-        # Fallback: config da loja
         try:
             from crm_vendas.models_config import CRMConfig
             config = CRMConfig.get_or_create_for_loja(getattr(nfse, "loja_id", 0))
@@ -236,9 +235,7 @@ def _gerar_url_portal_issnet_nacional(nfse: Any, loja: Any) -> str:
     if not im:
         return ""
 
-    url = f"{ISSNET_NACIONAL_PORTAL_RP}?nfse={numero_nf}&inscmun={im}"
+    # URL de consulta pública do portal ISSNet Ribeirão Preto
+    url = f"https://www.notaeletronica.com.br/ribeiraopreto/consulta/default.aspx?ccm={im}&nf={numero_nf}"
     logger.info("URL portal ISSNet Nacional: %s", url)
-
-    # Salvar para cache
-    _salvar_pdf_url(nfse, url)
     return url

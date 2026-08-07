@@ -23,11 +23,10 @@ def resolver_download_pdf_loja(nfse: Any, loja: Any, loja_id: int) -> ResultadoD
     if url_danfe:
         return ResultadoDownloadPdf(tipo="url", url=url_danfe)
 
-    # ISSNet Nacional (Ribeirão Preto): URL direta do portal
-    from .danfe import _gerar_url_portal_issnet_nacional
-    url_portal = _gerar_url_portal_issnet_nacional(nfse, loja)
-    if url_portal:
-        return ResultadoDownloadPdf(tipo="url", url=url_portal)
+    # ISSNet Nacional (Ribeirão Preto): gera PDF interno com dados reais
+    # O portal público (notaeletronica.com.br) tem proteção Cloudflare
+    # e não suporta links diretos. O PDF gerado pelo sistema contém todos
+    # os dados oficiais extraídos do XML retornado pelo ISSNet.
 
     from .pdf_nfse import gerar_pdf_nfse
 
@@ -38,7 +37,7 @@ def resolver_download_pdf_loja(nfse: Any, loja: Any, loja_id: int) -> ResultadoD
         tipo="pdf",
         conteudo_pdf=pdf_buffer.read(),
         nome_arquivo=nome,
-        content_disposition="attachment",
+        content_disposition="inline",
     )
 
 

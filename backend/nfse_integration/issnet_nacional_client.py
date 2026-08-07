@@ -632,23 +632,43 @@ class ISSNetNacionalClient:
                 cclass_trib_ibscbs=cclass_trib_ibscbs,
             )
 
-            # Fluxo de dupla assinatura conforme orientação do suporte
-            # NotaControl (07/08/2026):
-            # 1) Assinar cada DPS ISOLADAMENTE (com xmlns na DPS)
-            # 2) Agrupar DPS assinadas no LoteDps
-            # 3) Assinar o LoteDps (segunda assinatura)
-            # 4) Enviar sem alterar nada (sem pretty-print/formatação)
-            #
-            # IMPORTANTE: O XML NÃO PODE sofrer nenhuma alteração após ser
-            # assinado. Qualquer modificação invalida o DigestValue.
+            # Emissão via GerarNfse (DPS única assinada isoladamente).
+            # Nos dias 01-02/08/2026 a emissão funcionava assim (confirmado pelo
+            # suporte NotaControl): DPS assinada isoladamente → GerarNfseEnvio.
+            # O método RecepcionarLoteDpsSincrono exige dupla assinatura e
+            # tem problemas com C14N no contexto SOAP; GerarNfse aceita a DPS
+            # com assinatura simples.
             logger.info(
-                "ISSNet Nacional: assinando DPS nº %d isoladamente + lote (dupla assinatura)...",
+                "ISSNet Nacional: assinando DPS nº %d isoladamente para GerarNfse...",
                 numero_dps,
             )
-            xml_assinado = self._assinar_dupla(lote_xml)
+
+            # Extrair a DPS do lote (que foi montado como EnviarLoteDpsSincrono)
+            from lxml import etree as _etree
+            _ns = "http://www.sped.fazenda.gov.br/nfse"
+            _root = _etree.fromstring(lote_xml.encode("utf-8"))
+            _dps_el = _root.find(f".//{{{_ns}}}DPS")
+            if _dps_el is None:
+                raise ValueError("DPS não encontrada no XML do lote.")
+
+            # Serializar DPS isolada (com xmlns)
+            dps_isolada_str = _etree.tostring(_dps_el, encoding="unicode", xml_declaration=False)
+
+            # Assinar a DPS isolada
+            xml_dps_assinada = self._assinar_xml(dps_isolada_str)
+            # Remover <?xml ...?> se presente
+            xml_dps_assinada = re.sub(r'^\s*<\?xml[^?]*\?>\s*', '', xml_dps_assinada, count=1)
+
+            # Montar GerarNfseEnvio com a DPS assinada
+            xml_gerar_nfse = (
+                f'<GerarNfseEnvio xmlns="{_ns}">'
+                f'{xml_dps_assinada}'
+                f'</GerarNfseEnvio>'
+            )
+
             resposta_soap = self._enviar_soap(
-                xml_assinado,
-                SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
+                xml_gerar_nfse,
+                SOAP_ACTION_NACIONAL_GERAR_NFSE,
             )
             result["xml_dps"] = lote_xml
             result["xml_resposta"] = resposta_soap

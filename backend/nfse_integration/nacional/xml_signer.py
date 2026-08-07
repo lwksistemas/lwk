@@ -286,7 +286,7 @@ def assinar_xml_dps(
     ns_prefix = "ds" if prefixo_ds else None
     sig_node = xmlsec.template.create(
         root,
-        xmlsec.constants.TransformExclC14N,
+        xmlsec.constants.TransformInclC14N,
         xmlsec.constants.TransformRsaSha1,
         ns=ns_prefix,
     )
@@ -299,7 +299,7 @@ def assinar_xml_dps(
         uri=f"#{inf_id}",
     )
     xmlsec.template.add_transform(ref, xmlsec.constants.TransformEnveloped)
-    xmlsec.template.add_transform(ref, xmlsec.constants.TransformExclC14N)
+    xmlsec.template.add_transform(ref, xmlsec.constants.TransformInclC14N)
 
     # KeyInfo com X509Data (certificado folha ou cadeia completa)
     key_info = xmlsec.template.ensure_key_info(sig_node)
@@ -494,7 +494,7 @@ def _assinar_elemento_por_id(
         digest_transform = xmlsec.constants.TransformSha1
     sig_node = xmlsec.template.create(
         parent_el,
-        xmlsec.constants.TransformExclC14N,
+        xmlsec.constants.TransformInclC14N,
         sig_transform,
         ns=ns_prefix,
     )

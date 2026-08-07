@@ -18,7 +18,7 @@ COPY backend/ .
 COPY backend/scripts/ scripts/
 RUN mkdir -p staticfiles media && chmod +x scripts/*.sh 2>/dev/null || true
 
-ENV DJANGO_SETTINGS_MODULE=config.settings
+ENV DJANGO_SETTINGS_MODULE=config.settings_production
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8080

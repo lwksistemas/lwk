@@ -356,12 +356,22 @@ SIMPLE_JWT = {
 }
 
 # CORS
-CORS_ALLOWED_ORIGINS = config(
-    "CORS_ORIGINS",
-    default="http://localhost:3000,http://127.0.0.1:3000",
-).split(",")
+# Origens padrão garantidas (produção + dev local)
+_DEFAULT_CORS_ORIGINS = [
+    "https://lwksistemas.com.br",
+    "https://www.lwksistemas.com.br",
+    "https://beta.lwksistemas.com.br",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+_raw_cors = config("CORS_ORIGINS", default="").strip()
+_extra_cors = [o.strip() for o in _raw_cors.split(",") if o.strip()] if _raw_cors else []
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(_DEFAULT_CORS_ORIGINS + _extra_cors))
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False  # Nunca permitir todas as origens
+
+# CSRF: confiar nas mesmas origens do CORS
+CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
 
 # Em DEBUG, permitir Next.js pelo IP da LAN (ex.: http://192.168.0.107:3000) — evita CORS ao abrir pelo IP
 CORS_ALLOWED_ORIGIN_REGEXES = []

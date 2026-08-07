@@ -11,8 +11,7 @@ function buildConnectSrc() {
   }
   [
     'https://api.lwksistemas.com.br',
-    'https://lwks-backend-production.up.railway.app',
-    'https://lwks-backend-staging-staging.up.railway.app',
+    'https://media.lwksistemas.com.br',
     'https://viacep.com.br',
     'https://brasilapi.com.br',
     'https://memed.com.br',
@@ -97,8 +96,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'res.cloudinary.com', pathname: '/**' },
       { protocol: 'https', hostname: '*.cloudinary.com', pathname: '/**' },
       { protocol: 'https', hostname: 'api.lwksistemas.com.br', pathname: '/**' },
-      { protocol: 'https', hostname: 'lwks-backend-production.up.railway.app', pathname: '/**' },
-      { protocol: 'https', hostname: 'lwks-backend-staging-staging.up.railway.app', pathname: '/**' },
+      { protocol: 'https', hostname: 'media.lwksistemas.com.br', pathname: '/**' },
       { protocol: 'http', hostname: 'localhost', pathname: '/**' },
     ],
     formats: ['image/avif', 'image/webp'],

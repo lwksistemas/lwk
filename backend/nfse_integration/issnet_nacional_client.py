@@ -305,15 +305,13 @@ class ISSNetNacionalClient:
     def _enviar_soap(self, xml_dados: str, soap_action: str) -> str:
         """POST SOAP 1.1 com mTLS.
 
-        Envia os dados como xsd:string (XML escapado) dentro de nfseDadosMsg.
-        Isso garante que o servidor extrai o conteúdo, faz unescape, e valida
-        a assinatura num documento isolado — sem interferência dos namespaces
-        do envelope SOAP (que quebrariam o DigestValue na canonização C14N).
+        Envia os dados como XML literal (aninhado) dentro de nfseDadosMsg.
+        O envelope NÃO declara xmlns:nfse para evitar que a canonização C14N
+        inclusiva capture namespaces extras. Os dados já contêm xmlns="..."
+        declarado localmente (no EnviarLoteDpsSincronoEnvio), que é suficiente.
 
-        Confirmado pelo suporte NotaControl (07/08/2026): "o XML não pode
-        sofrer nenhuma alteração de caractere, espaço ou tabulação após ser
-        assinado". Ao inserir o XML literal no envelope SOAP, os namespaces
-        soapenv: e nfse: entram no escopo e alteram a canonização.
+        O elemento da operação e nfseCabecMsg/nfseDadosMsg são declarados
+        diretamente com o namespace (sem prefixo herdado do envelope).
         """
         nome_op = _nome_operacao_de_soap_action(soap_action)
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
@@ -323,34 +321,34 @@ class ISSNetNacionalClient:
 
         try:
             with certificado_mtls_temporario(cert_path, self.cert_password) as (pem_cert, pem_key):
-                # Montar envelope com dados ESCAPADOS (xsd:string)
-                from xml.sax.saxutils import escape as xml_escape
                 from nfse_integration.issnet_soap import strip_xml_declaration
 
                 dados_limpo = strip_xml_declaration(xml_dados or "")
                 cabec_limpo = strip_xml_declaration(cabec_txt or "")
 
-                # Escapar tanto cabeçalho quanto dados
-                cabec_escaped = xml_escape(cabec_limpo)
-                dados_escaped = xml_escape(dados_limpo)
-
+                # Envelope SOAP minimalista:
+                # - Apenas xmlns:soapenv no root (sem xmlns:nfse!)
+                # - O elemento da operação declara xmlns localmente
+                # - nfseCabecMsg e nfseDadosMsg com conteúdo literal
+                # Assim os dados ficam num contexto onde apenas xmlns:soapenv
+                # está no escopo (não afeta C14N de elementos com namespace nfse).
+                ns = NS_NFSE_NACIONAL
                 envelope = (
                     '<?xml version="1.0" encoding="utf-8"?>'
-                    '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" '
-                    f'xmlns:nfse="{NS_NFSE_NACIONAL}">'
+                    '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">'
                     '<soapenv:Header/>'
                     '<soapenv:Body>'
-                    f'<nfse:{nome_op}>'
-                    f'<nfse:nfseCabecMsg>{cabec_escaped}</nfse:nfseCabecMsg>'
-                    f'<nfse:nfseDadosMsg>{dados_escaped}</nfse:nfseDadosMsg>'
-                    f'</nfse:{nome_op}>'
+                    f'<{nome_op} xmlns="{ns}">'
+                    f'<nfseCabecMsg>{cabec_limpo}</nfseCabecMsg>'
+                    f'<nfseDadosMsg>{dados_limpo}</nfseDadosMsg>'
+                    f'</{nome_op}>'
                     '</soapenv:Body>'
                     '</soapenv:Envelope>'
                 )
 
                 logger.info(
-                    "ISSNet Nacional: envelope SOAP xsd:string (truncado 2000):\n%s",
-                    envelope[:2000],
+                    "ISSNet Nacional: envelope SOAP (aninhado sem xmlns:nfse no root, truncado 3000):\n%s",
+                    envelope[:3000],
                 )
 
                 envelope_bytes = envelope.encode("utf-8")

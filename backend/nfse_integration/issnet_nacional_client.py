@@ -111,6 +111,79 @@ class ISSNetNacionalClient:
             tmp.write(bytes(self.cert_bytes))
             return tmp.name
 
+    def _assinar_dps_signxml(self, dps_xml_str: str) -> str:
+        """Assina DPS isolada usando signxml (RSA-SHA1, C14N inclusiva, inline).
+
+        signxml gera a Signature sem espaços/newlines extras, o que evita
+        problemas de formatação que o xmlsec introduz e que podem invalidar
+        a assinatura no servidor ISSNet.
+        """
+        from contextlib import suppress
+        from lxml import etree
+        from signxml import XMLSigner, methods
+        from cryptography.hazmat.primitives.serialization import (
+            Encoding, NoEncryption, PrivateFormat, pkcs12,
+        )
+
+        created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
+        cert_path = self._pfx_temp()
+
+        try:
+            # Carregar certificado
+            with open(cert_path, "rb") as f:
+                pfx_data = f.read()
+            private_key, certificate, _ = pkcs12.load_key_and_certificates(
+                pfx_data, self.cert_password.encode(),
+            )
+
+            key_pem = private_key.private_bytes(
+                Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption(),
+            )
+            cert_pem = certificate.public_bytes(Encoding.PEM)
+
+            # Parse DPS
+            dps_root = etree.fromstring(dps_xml_str.encode("utf-8"))
+            ns = "http://www.sped.fazenda.gov.br/nfse"
+            inf_dps = dps_root.find(f"{{{ns}}}infDPS")
+            if inf_dps is None:
+                raise ValueError("infDPS não encontrado na DPS")
+
+            inf_id = inf_dps.get("Id")
+            if not inf_id:
+                raise ValueError("Atributo Id ausente em infDPS")
+
+            # Assinar com signxml
+            signer = XMLSigner(
+                method=methods.enveloped,
+                signature_algorithm="rsa-sha1",
+                digest_algorithm="sha1",
+                c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+            )
+
+            signed_root = signer.sign(
+                dps_root,
+                key=key_pem,
+                cert=cert_pem,
+                reference_uri=f"#{inf_id}",
+                id_attribute="Id",
+            )
+
+            # Serializar sem <?xml?> e sem formatação
+            resultado = etree.tostring(
+                signed_root, encoding="unicode", xml_declaration=False,
+            )
+
+            logger.info(
+                "ISSNet Nacional: DPS assinada com signxml (RSA-SHA1, Reference=#%s, %d bytes)",
+                inf_id, len(resultado),
+            )
+            return resultado
+
+        finally:
+            if created_tmp and os.path.isfile(cert_path):
+                with suppress(OSError):
+                    os.unlink(cert_path)
+
     def _assinar_dupla(self, lote_xml: str) -> str:
         """Dupla assinatura conforme suporte NotaControl (07/08/2026).
 
@@ -633,13 +706,10 @@ class ISSNetNacionalClient:
             )
 
             # Emissão via GerarNfse (DPS única assinada isoladamente).
-            # Nos dias 01-02/08/2026 a emissão funcionava assim (confirmado pelo
-            # suporte NotaControl): DPS assinada isoladamente → GerarNfseEnvio.
-            # O método RecepcionarLoteDpsSincrono exige dupla assinatura e
-            # tem problemas com C14N no contexto SOAP; GerarNfse aceita a DPS
-            # com assinatura simples.
+            # Usando signxml para gerar Signature inline (sem espaços/newlines
+            # que o xmlsec adiciona e que podem quebrar a validação no ISSNet).
             logger.info(
-                "ISSNet Nacional: assinando DPS nº %d isoladamente para GerarNfse...",
+                "ISSNet Nacional: assinando DPS nº %d isoladamente com signxml para GerarNfse...",
                 numero_dps,
             )
 
@@ -654,10 +724,8 @@ class ISSNetNacionalClient:
             # Serializar DPS isolada (com xmlns)
             dps_isolada_str = _etree.tostring(_dps_el, encoding="unicode", xml_declaration=False)
 
-            # Assinar a DPS isolada
-            xml_dps_assinada = self._assinar_xml(dps_isolada_str)
-            # Remover <?xml ...?> se presente
-            xml_dps_assinada = re.sub(r'^\s*<\?xml[^?]*\?>\s*', '', xml_dps_assinada, count=1)
+            # Assinar com signxml (RSA-SHA1 + C14N inclusiva, inline)
+            xml_dps_assinada = self._assinar_dps_signxml(dps_isolada_str)
 
             # Montar GerarNfseEnvio com a DPS assinada
             xml_gerar_nfse = (

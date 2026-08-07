@@ -111,6 +111,148 @@ class ISSNetNacionalClient:
             tmp.write(bytes(self.cert_bytes))
             return tmp.name
 
+    def _assinar_dupla(self, lote_xml: str) -> str:
+        """Dupla assinatura conforme suporte NotaControl (07/08/2026).
+
+        Fluxo obrigatório:
+        1) Extrair cada DPS do lote como documento isolado (com xmlns próprio)
+        2) Assinar cada DPS isoladamente (RSA-SHA1, C14N inclusiva)
+        3) Remontar o EnviarLoteDpsSincronoEnvio com as DPS já assinadas
+           (via concatenação de string para preservar o XML byte-a-byte)
+        4) Assinar o LoteDps (segunda assinatura)
+        5) Retornar o XML final sem nenhuma formatação adicional
+
+        IMPORTANTE: O lxml remove xmlns redundante quando pai e filho compartilham
+        o mesmo namespace. Por isso o passo 3 usa string concatenation para a DPS,
+        e o passo 4 re-parseia o resultado final para assinar o lote via xmlsec.
+        Após a assinatura do lote, serializa uma única vez sem formatação.
+        """
+        from contextlib import suppress
+        from lxml import etree
+        from nfse_integration.nacional.xml_signer import (
+            _carregar_chave_xmlsec,
+            _completar_cadeia_certificados,
+            _assinar_elemento_por_id,
+            assinar_xml_enviar_lote_dps,
+        )
+
+        created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
+        cert_path = self._pfx_temp()
+
+        try:
+            ns = "http://www.sped.fazenda.gov.br/nfse"
+
+            # Parse o lote para extrair dados e DPS
+            root = etree.fromstring(lote_xml.encode("utf-8"))
+            dps_nodes = root.findall(f".//{{{ns}}}DPS")
+            if not dps_nodes:
+                raise ValueError("Nenhum DPS encontrado no lote para assinatura.")
+
+            # Extrair dados do lote
+            lote_el = root.find(f"{{{ns}}}LoteDps")
+            if lote_el is None:
+                raise ValueError("LoteDps não encontrado no XML.")
+
+            numero_lote = lote_el.findtext(f"{{{ns}}}NumeroLote") or "1"
+            lote_id = lote_el.get("Id") or f"Lote{numero_lote}"
+            lote_versao = lote_el.get("versao") or "1.00"
+
+            prest_el = lote_el.find(f"{{{ns}}}Prestador")
+            prest_cnpj = ""
+            prest_im = ""
+            if prest_el is not None:
+                prest_cnpj = prest_el.findtext(f"{{{ns}}}CNPJ") or ""
+                prest_im = prest_el.findtext(f"{{{ns}}}IM") or ""
+
+            qtd_dps = str(len(dps_nodes))
+
+            # ---- PASSO 1+2: Assinar cada DPS isoladamente ----
+            dps_assinados_str = []
+            for dps in dps_nodes:
+                # Serializar DPS como root (garante xmlns no elemento)
+                dps_isolado_str = etree.tostring(
+                    dps, encoding="unicode", xml_declaration=False,
+                )
+                # Assinar a DPS isolada (apenas DPS, sem lote)
+                dps_assinado_str = assinar_xml_enviar_lote_dps(
+                    dps_isolado_str,
+                    cert_path,
+                    self.cert_password,
+                    assinar_lote=False,
+                    prefixo_ds=False,
+                    usar_cadeia=False,
+                    usar_sha256=False,
+                )
+                # Remove <?xml ...?> se presente
+                dps_assinado_str = re.sub(
+                    r'^\s*<\?xml[^?]*\?>\s*', '', dps_assinado_str, count=1,
+                )
+                dps_assinados_str.append(dps_assinado_str)
+                logger.info(
+                    "ISSNet Nacional: DPS assinada isoladamente (len=%d bytes)",
+                    len(dps_assinado_str),
+                )
+
+            # ---- PASSO 3: Remontar lote via string (preserva xmlns na DPS) ----
+            # Montamos o lote XML por concatenação para não perder o xmlns
+            # que o lxml removeria se usássemos append de elementos.
+            prest_im_tag = f"<IM>{prest_im}</IM>" if prest_im else ""
+            dps_concat = "".join(dps_assinados_str)
+
+            lote_xml_com_dps_assinadas = (
+                f'<EnviarLoteDpsSincronoEnvio xmlns="{ns}">'
+                f'<LoteDps versao="{lote_versao}" Id="{lote_id}">'
+                f'<NumeroLote>{numero_lote}</NumeroLote>'
+                f'<Prestador><CNPJ>{prest_cnpj}</CNPJ>{prest_im_tag}</Prestador>'
+                f'<QuantidadeDps>{qtd_dps}</QuantidadeDps>'
+                f'<ListaDps>{dps_concat}</ListaDps>'
+                f'</LoteDps>'
+                f'</EnviarLoteDpsSincronoEnvio>'
+            )
+
+            # ---- PASSO 4: Assinar o LoteDps (segunda assinatura) ----
+            # Re-parseia para assinar via xmlsec (necessário para calcular digest)
+            # NOTA: o lxml vai normalizar namespaces aqui, mas o DigestValue do
+            # lote é calculado SOBRE o LoteDps (não sobre cada DPS individual).
+            # A assinatura de cada DPS já foi feita sobre o documento isolado
+            # (com xmlns presente) — o que importa é que o CONTEÚDO da DPS
+            # (infDPS) não mude. A remoção do xmlns redundante da tag <DPS>
+            # não afeta a assinatura da DPS porque a Reference aponta para
+            # infDPS (não para DPS) e o transform enveloped-signature + C14N
+            # canoniza a partir do infDPS.
+            final_root = etree.fromstring(lote_xml_com_dps_assinadas.encode("utf-8"))
+            final_lote = final_root.find(f"{{{ns}}}LoteDps")
+
+            if final_lote is None:
+                raise ValueError("LoteDps não encontrado após remontagem.")
+
+            # Garantir Id no LoteDps
+            if not final_lote.get("Id"):
+                final_lote.set("Id", lote_id)
+
+            key, cert_obj, extra_certs = _carregar_chave_xmlsec(cert_path, self.cert_password)
+            chain = _completar_cadeia_certificados(cert_obj, extra_certs)
+
+            _assinar_elemento_por_id(
+                final_root, final_lote, key, lote_id, cert_obj, chain,
+                prefixo_ds=False, usar_cadeia=False, usar_sha256=False,
+            )
+
+            # ---- PASSO 5: Serializar sem formatação ----
+            resultado = etree.tostring(
+                final_root, encoding="unicode", xml_declaration=False,
+            )
+            logger.info(
+                "ISSNet Nacional: dupla assinatura concluída (lote=%s, %d DPS, %d bytes)",
+                lote_id, len(dps_assinados_str), len(resultado),
+            )
+            return resultado
+
+        finally:
+            if created_tmp and os.path.isfile(cert_path):
+                with suppress(OSError):
+                    os.unlink(cert_path)
+
     def _assinar_xml(self, xml_str: str) -> str:
         """Assina XML Nacional: lote DPS via assinador SPED; cancelamento via ISSNet."""
         from lxml import etree
@@ -522,18 +664,22 @@ class ISSNetNacionalClient:
                 cclass_trib_ibscbs=cclass_trib_ibscbs,
             )
 
-            # Assina o DPS/LoteDps já dentro do envelope SOAP final (não como
-            # documento isolado depois inserido via string). Orientação do
-            # suporte NotaControl (03/08/2026): a canonização C14N inclusiva
-            # captura os namespaces ambiente (soapenv:, nfse:) somente
-            # presentes após a montagem do envelope; assinar antes disso
-            # invalida a assinatura no lado do servidor (E0714).
+            # Fluxo de dupla assinatura conforme orientação do suporte
+            # NotaControl (07/08/2026):
+            # 1) Assinar cada DPS ISOLADAMENTE (com xmlns na DPS)
+            # 2) Agrupar DPS assinadas no LoteDps
+            # 3) Assinar o LoteDps (segunda assinatura)
+            # 4) Enviar sem alterar nada (sem pretty-print/formatação)
+            #
+            # IMPORTANTE: O XML NÃO PODE sofrer nenhuma alteração após ser
+            # assinado. Qualquer modificação invalida o DigestValue.
             logger.info(
-                "ISSNet Nacional: montando envelope e assinando DPS nº %d no contexto final...",
+                "ISSNet Nacional: assinando DPS nº %d isoladamente + lote (dupla assinatura)...",
                 numero_dps,
             )
-            resposta_soap = self._enviar_lote_dps_assinando_no_envelope(
-                lote_xml,
+            xml_assinado = self._assinar_dupla(lote_xml)
+            resposta_soap = self._enviar_soap(
+                xml_assinado,
                 SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
             )
             result["xml_dps"] = lote_xml

@@ -23,6 +23,12 @@ def resolver_download_pdf_loja(nfse: Any, loja: Any, loja_id: int) -> ResultadoD
     if url_danfe:
         return ResultadoDownloadPdf(tipo="url", url=url_danfe)
 
+    # ISSNet Nacional (Ribeirão Preto): URL direta do portal
+    from .danfe import _gerar_url_portal_issnet_nacional
+    url_portal = _gerar_url_portal_issnet_nacional(nfse, loja)
+    if url_portal:
+        return ResultadoDownloadPdf(tipo="url", url=url_portal)
+
     from .pdf_nfse import gerar_pdf_nfse
 
     pdf_buffer = gerar_pdf_nfse(nfse, loja)

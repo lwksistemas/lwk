@@ -7,6 +7,9 @@ logger = logging.getLogger(__name__)
 
 URL_INVALID_MARKERS = ("xmlsoap", "w3.org", "schemas.", "abrasf")
 
+# URL base do portal ISSNet Nacional Ribeirão Preto para visualização de NFS-e
+ISSNET_NACIONAL_PORTAL_RP = "https://nfse.issnetonline.com.br/ribeiraopreto/rps/visualizarnfse.aspx"
+
 
 def url_danfe_valida(url: str | None) -> bool:
     """Retorna True quando a URL parece ser do portal/PDF, nao de schema SOAP."""
@@ -197,3 +200,45 @@ def buscar_url_danfe_issnet_superadmin(nfse: Any, config: Any | None = None, *, 
     except Exception as exc:
         logger.warning("Erro ao buscar URL DANFE ISSNet (superadmin): %s", exc)
         return ""
+
+
+def _gerar_url_portal_issnet_nacional(nfse: Any, loja: Any) -> str:
+    """Gera URL direta para o portal ISSNet Nacional (Ribeirão Preto).
+
+    O portal aceita o parâmetro nfse=NUMERO e inscmun=IM_PRESTADOR.
+    Isso abre a nota fiscal oficial no navegador com opção de imprimir.
+    """
+    numero_nf = getattr(nfse, "numero_nf", "") or ""
+    if not numero_nf or not numero_nf.isdigit():
+        return ""
+
+    # Obter inscricao municipal do prestador
+    im = ""
+    if loja:
+        im = re.sub(r"\D", "", getattr(loja, "inscricao_municipal", "") or "")
+    if not im:
+        # Tentar extrair do XML da NFS-e
+        xml_nfse = getattr(nfse, "xml_nfse", "") or ""
+        im_match = re.search(r"<IM>(\d+)</IM>", xml_nfse)
+        if im_match:
+            im = im_match.group(1)
+    if not im:
+        # Fallback: config da loja
+        try:
+            from crm_vendas.models_config import CRMConfig
+            config = CRMConfig.get_or_create_for_loja(getattr(nfse, "loja_id", 0))
+            im = re.sub(r"\D", "", getattr(config, "issnet_inscricao_municipal", "") or "")
+            if not im:
+                im = re.sub(r"\D", "", getattr(config, "inscricao_municipal", "") or "")
+        except Exception:
+            pass
+
+    if not im:
+        return ""
+
+    url = f"{ISSNET_NACIONAL_PORTAL_RP}?nfse={numero_nf}&inscmun={im}"
+    logger.info("URL portal ISSNet Nacional: %s", url)
+
+    # Salvar para cache
+    _salvar_pdf_url(nfse, url)
+    return url

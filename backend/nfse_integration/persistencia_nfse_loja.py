@@ -44,7 +44,7 @@ def salvar_nfse_emitida(
             loja_id=loja_id,
             numero_nf=resultado["numero_nf"],
             numero_rps=int(resultado.get("numero_rps") or 0),
-            codigo_verificacao=resultado.get("codigo_verificacao", ""),
+            codigo_verificacao=resultado.get("codigo_verificacao") or "",
             data_emissao=resultado.get("data_emissao", timezone.now()),
             valor=resultado.get("valor", 0),
             aliquota_iss=aliquota_iss,

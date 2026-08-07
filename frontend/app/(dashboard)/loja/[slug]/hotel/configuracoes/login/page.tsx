@@ -29,7 +29,7 @@ const CORES = [
 export default function HotelLoginConfigPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
-  const { documento: lojaDoc, ready: lojaDocReady, loading: lojaDocLoading } = useLojaCloudinaryDocument(slug);
+  const lojaDoc = ""; const lojaDocReady = true; const lojaDocLoading = false;
 
   const [config, setConfig] = useState<LoginConfigData | null>(null);
   const [loading, setLoading] = useState(true);

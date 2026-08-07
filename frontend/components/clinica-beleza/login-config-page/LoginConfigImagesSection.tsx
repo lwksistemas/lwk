@@ -25,7 +25,7 @@ export function LoginConfigImagesSection({
   onLoginBackgroundChange,
   onLoginLogoChange,
 }: LoginConfigImagesSectionProps) {
-  const folder = cloudinaryLojaLogin(lojaDoc);
+  const folder = "fotos";
   const disabled = lojaDocLoading || !lojaDocReady;
 
   return (

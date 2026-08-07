@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowLeft, LogIn } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
-import { useLojaCloudinaryDocument } from "@/lib/cloudinary-folders";
 import { LoginConfigColorSection } from "./LoginConfigColorSection";
 import { LoginConfigImagesSection } from "./LoginConfigImagesSection";
 import type { LoginConfigPageContentProps } from "./login-config-page-types";
@@ -20,8 +19,7 @@ export function LoginConfigPageContent({
   backgroundDescription = "Opcional — se vazio, usa a imagem padrão do tipo de loja",
   title = "Configurar tela de login",
 }: LoginConfigPageContentProps) {
-  const { documento: lojaDoc, ready: lojaDocReady, loading: lojaDocLoading } =
-    useLojaCloudinaryDocument(slug);
+  const lojaDoc = ""; const lojaDocReady = true; const lojaDocLoading = false; //
 
   const { loading, saving, form, updateForm, applyColorPreset, saveConfig } = useLoginConfigPage(
     apiPath,

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cloudinaryLojaClinicaPacientePerfil,
   useLojaCloudinaryDocument,
-} from "@/lib/cloudinary-folders";
 import { uploadImagemCloudinary } from "@/lib/cloudinary-direct-upload";
 import {
   capturarFotoDoVideo,
@@ -19,8 +18,8 @@ interface UsePacienteFotoCadastroParams {
 }
 
 export function usePacienteFotoCadastro({ slug, value, onChange, disabled = false }: UsePacienteFotoCadastroParams) {
-  const { documento: lojaDoc, ready: lojaDocReady, loading: lojaDocLoading } = useLojaCloudinaryDocument(slug);
-  const folder = lojaDoc ? cloudinaryLojaClinicaPacientePerfil(lojaDoc) : "";
+  const lojaDoc = ""; const lojaDocReady = true; const lojaDocLoading = false;
+  const folder = "fotos";
   const uploadDisabled = disabled || lojaDocLoading || !lojaDocReady || !folder;
 
   const videoRef = useRef<HTMLVideoElement>(null);

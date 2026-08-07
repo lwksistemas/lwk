@@ -37,7 +37,6 @@ export function ConsultaFotosTab({
   const toast = useToast();
   const params = useParams();
   const slug = (params.slug as string) || "loja";
-  const { documento: lojaDoc, ready: lojaDocReady, loading: lojaDocLoading } = useLojaCloudinaryDocument(slug);
 
   const [fotos, setFotos] = useState<PacienteFotoItem[]>([]);
   const [fotosConsultaCount, setFotosConsultaCount] = useState(0);

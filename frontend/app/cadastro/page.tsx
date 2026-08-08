@@ -66,7 +66,7 @@ function CadastroPublicoContent() {
     <div className="relative isolate min-h-[100dvh] min-h-screen overflow-x-hidden">
       <CadastroFundo />
 
-      <div className="relative z-10 mx-auto max-w-4xl px-3 pb-10 pt-4 sm:px-4 sm:pb-12 sm:pt-6 md:px-6 md:pt-8">
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-3 pb-10 pt-4 sm:px-4 sm:pb-12 sm:pt-6 md:px-6 lg:px-8 md:pt-8">
         <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/95 shadow-xl shadow-slate-900/10 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/90 sm:rounded-2xl sm:shadow-2xl">
           <div className="bg-gradient-to-r from-slate-800 via-blue-800 to-indigo-800 px-4 py-5 text-white sm:px-6 sm:py-6 md:px-8">
             <Link

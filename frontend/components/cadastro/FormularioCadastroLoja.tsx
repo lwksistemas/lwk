@@ -120,8 +120,11 @@ export function FormularioCadastroLoja({
 
   return (
     <form onSubmit={handleFormSubmit} className="space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-10 lg:items-start">
+        {/* Coluna esquerda: dados da empresa + endereço + admin */}
+        <div className="space-y-6 sm:space-y-8">
       {/* Seção 1: Informações Básicas */}
-      <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
+      <div className="border-b border-gray-200 pb-6 dark:border-slate-700 lg:border-b-0 lg:pb-0">
         <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
           1. Informações Básicas
         </h3>
@@ -198,7 +201,7 @@ export function FormularioCadastroLoja({
       </div>
 
       {/* Seção 2: Endereço */}
-      <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
+      <div className="border-b border-gray-200 pb-6 dark:border-slate-700 lg:border-b-0 lg:pb-0">
         <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">2. Endereço</h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-2">
@@ -296,8 +299,104 @@ export function FormularioCadastroLoja({
         </div>
       </div>
 
+      {/* Seção 6: Dados do Administrador (coluna esquerda) */}
+      <div className="pb-2 lg:pb-0">
+        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
+          6. Dados do Administrador
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nome Completo *
+            </label>
+            <input
+              type="text"
+              name="owner_full_name"
+              value={formData.owner_full_name}
+              onChange={handleChange}
+              required
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              placeholder="Ex: João Silva"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nome de Usuário *
+            </label>
+            <input
+              type="text"
+              name="owner_username"
+              value={formData.owner_username}
+              onChange={handleChange}
+              required
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              placeholder="Ex: joao.silva"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              E-mail *
+            </label>
+            <input
+              type="email"
+              name="owner_email"
+              value={formData.owner_email}
+              onChange={handleChange}
+              required
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              placeholder="email@empresa.com"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              A senha será enviada para este email após confirmação do pagamento
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Telefone
+            </label>
+            <input
+              type="tel"
+              name="owner_telefone"
+              value={formData.owner_telefone}
+              onChange={handleChange}
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              placeholder="(00) 00000-0000"
+            />
+          </div>
+
+          {mostrarSenha && formData.owner_password && (
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Senha Provisória *
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={formData.owner_password}
+                  readOnly
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={gerarSenhaProvisoria}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  🔄 Gerar Nova
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+        </div>
+
+        {/* Coluna direita: tipo, plano e pagamento */}
+        <div className="space-y-6 sm:space-y-8 lg:border-l lg:border-gray-200 lg:pl-10 dark:lg:border-slate-700">
       {/* Seção 3: Tipo de App */}
-      <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
+      <div className="border-b border-gray-200 pb-6 dark:border-slate-700 lg:border-b-0 lg:pb-0">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-200">3. Tipo de Sistema</h3>
           {selecaoTravada && (
@@ -306,7 +405,7 @@ export function FormularioCadastroLoja({
             </a>
           )}
         </div>
-        <div className={`grid grid-cols-1 gap-4 ${selecaoTravada ? '' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>
+        <div className={`grid grid-cols-1 gap-4 ${selecaoTravada ? '' : 'sm:grid-cols-2'}`}>
           {tipos.map((tipo) => (
             <label
               key={tipo.id}
@@ -341,7 +440,7 @@ export function FormularioCadastroLoja({
       </div>
 
       {/* Seção 4: Plano */}
-      <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
+      <div className="border-b border-gray-200 pb-6 dark:border-slate-700 lg:border-b-0 lg:pb-0">
         <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
           {selecaoTravada ? '4. Seu Plano' : '4. Escolha seu Plano'}
         </h3>
@@ -354,7 +453,7 @@ export function FormularioCadastroLoja({
             Nenhum plano disponível
           </div>
         ) : (
-          <div className={`grid grid-cols-1 gap-4 ${selecaoTravada ? 'max-w-md' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>
+          <div className={`grid grid-cols-1 gap-4 ${selecaoTravada ? 'max-w-md' : 'sm:grid-cols-2 xl:grid-cols-3'}`}>
             {planos.map((plano) => (
               <label
                 key={plano.id}
@@ -455,7 +554,7 @@ export function FormularioCadastroLoja({
 
       {/* Seção 5: Forma de Pagamento */}
       {formData.plano && (
-        <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
+        <div className="border-b border-gray-200 pb-6 dark:border-slate-700 lg:border-b-0 lg:pb-0">
           <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
             5. Forma de Pagamento
           </h3>
@@ -565,102 +664,11 @@ export function FormularioCadastroLoja({
           </div>
         </div>
       )}
-
-      {/* Seção 6: Dados do Administrador */}
-      <div className="pb-6">
-        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
-          6. Dados do Administrador
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nome Completo *
-            </label>
-            <input
-              type="text"
-              name="owner_full_name"
-              value={formData.owner_full_name}
-              onChange={handleChange}
-              required
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-              placeholder="Ex: João Silva"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nome de Usuário *
-            </label>
-            <input
-              type="text"
-              name="owner_username"
-              value={formData.owner_username}
-              onChange={handleChange}
-              required
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-              placeholder="Ex: joao.silva"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              E-mail *
-            </label>
-            <input
-              type="email"
-              name="owner_email"
-              value={formData.owner_email}
-              onChange={handleChange}
-              required
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-              placeholder="email@empresa.com"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              A senha será enviada para este email após confirmação do pagamento
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Telefone
-            </label>
-            <input
-              type="tel"
-              name="owner_telefone"
-              value={formData.owner_telefone}
-              onChange={handleChange}
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-              placeholder="(00) 00000-0000"
-            />
-          </div>
-
-          {mostrarSenha && formData.owner_password && (
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Senha Provisória *
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={formData.owner_password}
-                  readOnly
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={gerarSenhaProvisoria}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  🔄 Gerar Nova
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Botão de Submit */}
-      <div className="space-y-4">
+      <div className="space-y-4 border-t border-gray-200 pt-6 dark:border-slate-700">
         {/* Aviso sobre senha */}
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
           <div className="flex items-start gap-3">

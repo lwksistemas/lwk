@@ -1,8 +1,9 @@
 'use client';
 
 import type React from 'react';
+import { useState } from 'react';
 import { formatCurrency } from '@/lib/financeiro-helpers';
-import { formatCep, formatTelefone, cepDigitosValidos } from '@/lib/format-br';
+import { formatCep, formatTelefone, cepDigitosValidos, mensagemCpfCnpjInvalido } from '@/lib/format-br';
 import type { LojaFormData, TipoLojaOption, PlanoOption } from '@/hooks/useLojaForm';
 
 interface FormularioCadastroLojaProps {
@@ -48,6 +49,8 @@ export function FormularioCadastroLoja({
     gerarSenhaProvisoria,
   } = lojaForm;
 
+  const [cpfCnpjErro, setCpfCnpjErro] = useState<string | null>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
@@ -76,6 +79,7 @@ export function FormularioCadastroLoja({
 
   const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCpfCnpj(e.target.value);
+    setCpfCnpjErro(null);
     setFormData((prev) => ({ 
       ...prev, 
       cpf_cnpj: formatted, 
@@ -85,9 +89,25 @@ export function FormularioCadastroLoja({
 
   const handleCpfCnpjBlur = () => {
     const digits = formData.cpf_cnpj.replace(/\D/g, '');
-    if (digits.length === 14 && !buscarCnpjLoading) {
+    const erro = mensagemCpfCnpjInvalido(formData.cpf_cnpj);
+    if (digits.length > 0) {
+      setCpfCnpjErro(erro);
+    } else {
+      setCpfCnpjErro(null);
+    }
+    if (digits.length === 14 && !erro && !buscarCnpjLoading) {
       void buscarCnpj();
     }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    const erro = mensagemCpfCnpjInvalido(formData.cpf_cnpj);
+    if (erro) {
+      e.preventDefault();
+      setCpfCnpjErro(erro);
+      return;
+    }
+    onSubmit(e);
   };
 
   const planoSelecionado = planos.find((p) => p.id === parseInt(formData.plano));
@@ -99,7 +119,7 @@ export function FormularioCadastroLoja({
   const valorAssinatura = typeof rawValor === 'string' ? parseFloat(rawValor) || 0 : rawValor ?? 0;
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-8">
+    <form onSubmit={handleFormSubmit} className="space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-8">
       {/* Seção 1: Informações Básicas */}
       <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
         <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
@@ -134,14 +154,23 @@ export function FormularioCadastroLoja({
                 onBlur={handleCpfCnpjBlur}
                 required
                 maxLength={18}
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                inputMode="numeric"
+                aria-invalid={Boolean(cpfCnpjErro)}
+                className={`w-full rounded-md border bg-white px-3 py-2.5 text-base text-gray-900 focus:ring-2 dark:bg-slate-800 dark:text-slate-100 ${
+                  cpfCnpjErro
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30 dark:border-red-500'
+                    : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/30 dark:border-slate-600'
+                }`}
                 placeholder="000.000.000-00"
               />
+              {cpfCnpjErro && (
+                <p className="mt-1 text-xs text-red-600 dark:text-red-400">{cpfCnpjErro}</p>
+              )}
             </div>
             <button
               type="button"
               onClick={buscarCnpj}
-              disabled={buscarCnpjLoading || formData.cpf_cnpj.replace(/\D/g, '').length !== 14}
+              disabled={buscarCnpjLoading || formData.cpf_cnpj.replace(/\D/g, '').length !== 14 || Boolean(cpfCnpjErro)}
               className="h-11 shrink-0 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:h-auto sm:min-h-[42px] sm:self-end"
             >
               {buscarCnpjLoading ? '...' : 'Buscar'}

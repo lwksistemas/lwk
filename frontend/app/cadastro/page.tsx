@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { formatApiErrorBody } from '@/lib/api-errors';
-import { cepDigitosValidos } from '@/lib/format-br';
+import { cepDigitosValidos, cpfCnpjValido, mensagemCpfCnpjInvalido } from '@/lib/format-br';
 import { logger } from '@/lib/logger';
 import { useLojaForm, type LojaCadastrada } from '@/hooks/useLojaForm';
 import { CadastroFundo } from '@/components/cadastro/CadastroFundo';
@@ -26,6 +26,11 @@ function CadastroPublicoContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!cpfCnpjValido(lojaForm.formData.cpf_cnpj)) {
+      alert(mensagemCpfCnpjInvalido(lojaForm.formData.cpf_cnpj) || 'CPF/CNPJ inválido.');
+      return;
+    }
 
     if (!cepDigitosValidos(lojaForm.formData.cep)) {
       alert('Informe um CEP válido com 8 dígitos antes de finalizar o cadastro.');

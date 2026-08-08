@@ -173,7 +173,25 @@ class LojaCreateSerializer(
 
     def validate(self, attrs):
         attrs = self._validate_cep_enriquecer(attrs)
-        return super().validate(attrs)
+        attrs = super().validate(attrs)
+        cpf_cnpj = (attrs.get("cpf_cnpj") or "").strip()
+        digits = "".join(c for c in cpf_cnpj if c.isdigit())
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from core.validators import validate_cpf, validate_cnpj
+
+        try:
+            if len(digits) == 11:
+                validate_cpf(digits)
+            elif len(digits) == 14:
+                validate_cnpj(digits)
+            else:
+                raise serializers.ValidationError(
+                    {"cpf_cnpj": "Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido."}
+                )
+        except DjangoValidationError as e:
+            msg = e.messages[0] if getattr(e, "messages", None) else "CPF/CNPJ inválido."
+            raise serializers.ValidationError({"cpf_cnpj": msg}) from e
+        return attrs
 
     def create(self, validated_data):
         """Cria loja usando services para separar responsabilidades

@@ -124,6 +124,68 @@ export function cepDigitosValidos(valor?: string | null): boolean {
   return apenasDigitos(valor).length === 8;
 }
 
+/** Valida CPF pelos dígitos verificadores (11 dígitos). */
+export function cpfValido(valor?: string | null): boolean {
+  const cpf = apenasDigitos(valor);
+  if (cpf.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(cpf)) return false;
+
+  const calc = (base: string): number => {
+    let total = 0;
+    for (let i = 0; i < base.length; i++) {
+      total += Number(base[i]) * (base.length + 1 - i);
+    }
+    const resto = total % 11;
+    return resto < 2 ? 0 : 11 - resto;
+  };
+
+  if (calc(cpf.slice(0, 9)) !== Number(cpf[9])) return false;
+  if (calc(cpf.slice(0, 10)) !== Number(cpf[10])) return false;
+  return true;
+}
+
+/** Valida CNPJ pelos dígitos verificadores (14 dígitos). */
+export function cnpjValido(valor?: string | null): boolean {
+  const cnpj = apenasDigitos(valor);
+  if (cnpj.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(cnpj)) return false;
+
+  const calc = (base: string, weights: number[]): number => {
+    let total = 0;
+    for (let i = 0; i < weights.length; i++) {
+      total += Number(base[i]) * weights[i];
+    }
+    const resto = total % 11;
+    return resto < 2 ? 0 : 11 - resto;
+  };
+
+  const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  if (calc(cnpj.slice(0, 12), w1) !== Number(cnpj[12])) return false;
+  if (calc(cnpj.slice(0, 13), w2) !== Number(cnpj[13])) return false;
+  return true;
+}
+
+/** True se for CPF (11) ou CNPJ (14) com dígitos verificadores válidos. */
+export function cpfCnpjValido(valor?: string | null): boolean {
+  const d = apenasDigitos(valor);
+  if (d.length === 11) return cpfValido(d);
+  if (d.length === 14) return cnpjValido(d);
+  return false;
+}
+
+/** Mensagem amigável para CPF/CNPJ inválido (vazio se ok). */
+export function mensagemCpfCnpjInvalido(valor?: string | null): string | null {
+  const d = apenasDigitos(valor);
+  if (!d) return "Informe o CPF ou CNPJ.";
+  if (d.length < 11) return "CPF incompleto. Digite os 11 dígitos.";
+  if (d.length > 11 && d.length < 14) return "CNPJ incompleto. Digite os 14 dígitos.";
+  if (d.length === 11 && !cpfValido(d)) return "CPF inválido. Verifique os números digitados.";
+  if (d.length === 14 && !cnpjValido(d)) return "CNPJ inválido. Verifique os números digitados.";
+  if (d.length !== 11 && d.length !== 14) return "Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.";
+  return null;
+}
+
 /**
  * Converte texto para MAIÚSCULAS (usado em campos de cadastro como nome, empresa, cidade).
  * Retorna string vazia se valor for nulo/undefined.

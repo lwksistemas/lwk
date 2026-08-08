@@ -328,6 +328,18 @@ export function FormularioCadastroLoja({
                       ou {formatCurrency(typeof plano.preco_anual === 'string' ? parseFloat(plano.preco_anual) || 0 : plano.preco_anual)}/ano
                     </p>
                   )}
+                  {plano.descricao && (
+                    <p className="text-xs text-gray-600 mt-3 text-left">{plano.descricao}</p>
+                  )}
+                  <ul className="mt-3 text-left text-xs text-gray-700 space-y-1">
+                    <li>{plano.tem_fotos_paciente ? '✓' : '✗'} Fotos de acompanhamento</li>
+                    <li>{plano.tem_whatsapp_integration ? '✓' : '✗'} WhatsApp</li>
+                    <li>{plano.tem_memed ? '✓' : '✗'} Memed (prescrição)</li>
+                    <li>{plano.tem_relatorios_avancados ? '✓' : '✗'} Relatórios avançados / NFSe</li>
+                    {typeof plano.espaco_storage_gb === 'number' && (
+                      <li>{plano.espaco_storage_gb} GB de armazenamento</li>
+                    )}
+                  </ul>
                 </div>
               </label>
             ))}

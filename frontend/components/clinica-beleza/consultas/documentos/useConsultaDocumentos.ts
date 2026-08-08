@@ -15,6 +15,7 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [confirmDeleteMemedId, setConfirmDeleteMemedId] = useState<number | null>(null);
   const [deletingMemedId, setDeletingMemedId] = useState<number | null>(null);
+  const [permiteMemed, setPermiteMemed] = useState(true);
   const [templateModalTipo, setTemplateModalTipo] = useState<DocumentoTipo | null>(null);
   const [manualModalTipo, setManualModalTipo] = useState<DocumentoTipo | null>(null);
   const [savingManualDoc, setSavingManualDoc] = useState(false);
@@ -22,12 +23,16 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
   const fetchDocumentos = useCallback(async () => {
     try {
       setLoadingDocs(true);
-      const [data, presc] = await Promise.all([
+      const [data, presc, lojaInfo] = await Promise.all([
         ClinicaBelezaAPI.documentos.list(consultaId).catch(() => []),
         ClinicaBelezaAPI.memed.listarPrescricoesConsulta(consultaId).catch(() => []),
+        ClinicaBelezaAPI.loja.info().catch(() => null),
       ]);
       setDocumentos(parseListaDocumentos(data));
       setPrescricoesMemed(Array.isArray(presc) ? presc : []);
+      if (lojaInfo && typeof lojaInfo.tem_memed === "boolean") {
+        setPermiteMemed(lojaInfo.tem_memed);
+      }
     } catch (e) {
       logger.warn("Erro ao listar documentos da consulta:", e);
       setDocumentos([]);
@@ -146,5 +151,6 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
     handleAcao,
     salvarDocumentoManual,
     atualizarPdfUrlPrescricao,
+    permiteMemed,
   };
 }

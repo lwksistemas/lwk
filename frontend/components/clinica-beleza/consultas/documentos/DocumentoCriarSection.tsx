@@ -7,11 +7,13 @@ export function DocumentoCriarSection({
   openDropdown,
   onToggleDropdown,
   onAcao,
+  permiteMemed = true,
 }: {
   consultaAtiva: boolean;
   openDropdown: DocumentoTipo | null;
   onToggleDropdown: (tipo: DocumentoTipo) => void;
   onAcao: (tipo: DocumentoTipo, acao: DocumentoAcao) => void;
+  permiteMemed?: boolean;
 }) {
   return (
     <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 md:p-6">
@@ -19,6 +21,12 @@ export function DocumentoCriarSection({
         <FileText size={18} className="text-gray-600 dark:text-gray-400" />
         <h3 className="font-semibold text-gray-900 dark:text-gray-100">Documentos</h3>
       </div>
+
+      {!permiteMemed && (
+        <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 mb-4">
+          Memed disponível apenas no plano Completo. Use template ou digitação manual, ou faça upgrade.
+        </p>
+      )}
 
       {consultaAtiva ? (
         <>
@@ -50,7 +58,7 @@ export function DocumentoCriarSection({
 
                   {isOpen && (
                     <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-600 rounded-lg shadow-lg overflow-hidden">
-                      {btn.hasMemed && (
+                      {btn.hasMemed && permiteMemed && (
                         <button
                           type="button"
                           onClick={() => onAcao(btn.tipo, "memed")}
@@ -59,6 +67,11 @@ export function DocumentoCriarSection({
                           <ExternalLink size={14} className="text-blue-500" />
                           Usar Memed
                         </button>
+                      )}
+                      {btn.hasMemed && !permiteMemed && (
+                        <div className="px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40">
+                          Memed: plano Completo
+                        </div>
                       )}
                       <button
                         type="button"

@@ -96,6 +96,7 @@ export const consultasApi = {
         max_fotos?: number;
         fotos_consulta_count?: number;
         fotos_restantes?: number;
+        permite_upload_fotos?: boolean;
       }>(`/consultas/${consultaId}/fotos/`),
     salvar: (consultaId: number, url: string, publicId?: string) =>
       cbPost<{ message: string; foto: PacienteFotoItem }>(`/consultas/${consultaId}/fotos/`, {

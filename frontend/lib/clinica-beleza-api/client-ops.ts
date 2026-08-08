@@ -21,6 +21,9 @@ export const lojaApi = {
       owner_username?: string;
       owner_email?: string;
       owner_telefone?: string;
+      tem_fotos_paciente?: boolean;
+      tem_memed?: boolean;
+      tem_whatsapp_integration?: boolean;
     }>("/loja-info/"),
   updateContato: (data: { telefone_contato?: string; email_contato?: string }) =>
     cbPatch<{

@@ -83,7 +83,7 @@ class LojaContextHelper:
         if not loja_id:
             return None
 
-        cache_key = f"loja_owner_info_v3_{loja_id}"
+        cache_key = f"loja_owner_info_v4_{loja_id}"
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
@@ -91,7 +91,7 @@ class LojaContextHelper:
         try:
             from superadmin.loja_utils import contato_publico_loja
             from superadmin.models import Loja
-            loja = Loja.objects.using("default").select_related("owner").get(id=loja_id)
+            loja = Loja.objects.using("default").select_related("owner", "plano").get(id=loja_id)
             # Endereço formatado (sem CEP — CEP vai com telefone no recibo)
             partes_end = []
             if getattr(loja, "logradouro", ""):
@@ -108,6 +108,8 @@ class LojaContextHelper:
                 partes_end.append(cidade)
 
             tel_publico, email_publico = contato_publico_loja(loja)
+            from superadmin.plano_features import plano_flags_dict
+
             result = {
                 "owner_username": loja.owner.username,
                 "owner_email": loja.owner.email or "",
@@ -122,6 +124,7 @@ class LojaContextHelper:
                 "cep": getattr(loja, "cep", "") or "",
                 "telefone": tel_publico,
                 "email": email_publico,
+                **plano_flags_dict(loja),
             }
             cache.set(cache_key, result, 3600)  # 1 hora
             return result

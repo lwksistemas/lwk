@@ -69,10 +69,16 @@ class ConsultaPrescricaoView(APIView):
         return Response(PrescricaoMemedSerializer(qs, many=True).data)
 
     def post(self, request, consulta_id):
+        from superadmin.plano_features import loja_plano_permite_memed
+
         try:
             consulta = Consulta.objects.select_related("professional").get(pk=consulta_id)
         except Consulta.DoesNotExist:
             return Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        ok, err = loja_plano_permite_memed(consulta.loja_id)
+        if not ok:
+            return Response({"error": err}, status=status.HTTP_403_FORBIDDEN)
 
         data, pdf_url, loja, professional = _preparar_dados_prescricao(request, consulta)
         prescricao_id = data["prescricao_id"]

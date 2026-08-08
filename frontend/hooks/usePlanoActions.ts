@@ -18,6 +18,8 @@ export interface PlanoFormData {
   tem_suporte_prioritario: boolean;
   tem_dominio_customizado: boolean;
   tem_whatsapp_integration: boolean;
+  tem_fotos_paciente: boolean;
+  tem_memed: boolean;
   is_active: boolean;
   ordem: number;
 }

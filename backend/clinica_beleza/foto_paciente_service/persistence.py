@@ -16,12 +16,19 @@ def contar_fotos_consulta(consulta_id: int) -> int:
     return PacienteFotoAcompanhamento.objects.filter(consulta_id=consulta_id).count()
 
 
-def limites_fotos_consulta(consulta_id: int) -> dict:
+def limites_fotos_consulta(consulta_id: int, loja_id: int | None = None) -> dict:
+    from superadmin.plano_features import loja_plano_permite_fotos
+
     count = contar_fotos_consulta(consulta_id)
+    permite_upload = True
+    if loja_id is not None:
+        ok, _ = loja_plano_permite_fotos(loja_id)
+        permite_upload = ok
     return {
         "max_fotos": MAX_FOTOS_POR_CONSULTA,
         "fotos_consulta_count": count,
-        "fotos_restantes": max(0, MAX_FOTOS_POR_CONSULTA - count),
+        "fotos_restantes": max(0, MAX_FOTOS_POR_CONSULTA - count) if permite_upload else 0,
+        "permite_upload_fotos": permite_upload,
     }
 
 
@@ -73,12 +80,16 @@ def registrar_foto(
     public_id: str = "",
 ) -> dict:
     from superadmin.models import Loja
+    from superadmin.plano_features import loja_plano_permite_fotos
 
     from ..models import PacienteFotoAcompanhamento
 
     loja = Loja.objects.using("default").filter(id=consulta.loja_id, is_active=True).first()
     if not loja:
         raise FotoUrlInvalida("Loja não encontrada.")
+    ok_plano, err_plano = loja_plano_permite_fotos(loja)
+    if not ok_plano:
+        raise FotoUploadInvalida(err_plano or "Plano sem fotos.")
     validar_foto_loja(loja, foto_url, public_id)
 
     if contar_fotos_consulta(consulta.id) >= MAX_FOTOS_POR_CONSULTA:

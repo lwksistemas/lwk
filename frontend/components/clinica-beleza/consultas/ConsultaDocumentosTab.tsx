@@ -48,6 +48,7 @@ export function ConsultaDocumentosTab({
     handleAcao,
     salvarDocumentoManual,
     atualizarPdfUrlPrescricao,
+    permiteMemed,
   } = useConsultaDocumentos(consultaId, refreshPrescricoes);
 
   return (
@@ -57,6 +58,7 @@ export function ConsultaDocumentosTab({
         openDropdown={openDropdown}
         onToggleDropdown={toggleDropdown}
         onAcao={(tipo, acao) => handleAcao(tipo, acao, onUsarMemed)}
+        permiteMemed={permiteMemed}
       />
 
       <DocumentoListaSection

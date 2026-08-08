@@ -23,9 +23,14 @@ export interface PlanoOption {
   id: number;
   nome: string;
   slug?: string;
+  descricao?: string;
   preco_mensal?: number | string;
   preco_anual?: number | string;
-  descricao?: string;
+  tem_fotos_paciente?: boolean;
+  tem_memed?: boolean;
+  tem_whatsapp_integration?: boolean;
+  tem_relatorios_avancados?: boolean;
+  espaco_storage_gb?: number;
 }
 
 export interface LojaFormData {

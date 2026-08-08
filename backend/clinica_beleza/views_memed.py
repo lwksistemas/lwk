@@ -68,6 +68,13 @@ class MemedTokenView(APIView):
     CACHE_TTL = 900  # 15 minutos
 
     def get(self, request):
+        from tenants.middleware import get_current_loja_id
+        from superadmin.plano_features import loja_plano_permite_memed
+
+        ok, err = loja_plano_permite_memed(get_current_loja_id())
+        if not ok:
+            return Response({"error": err}, status=status.HTTP_403_FORBIDDEN)
+
         env, endpoints = _memed_config()
         api_key, secret_key = _memed_credentials(env)
         if not api_key or not secret_key:
@@ -215,6 +222,13 @@ class MemedStatusView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request):
+        from tenants.middleware import get_current_loja_id
+        from superadmin.plano_features import loja_plano_permite_memed
+
+        ok, err = loja_plano_permite_memed(get_current_loja_id())
+        if not ok:
+            return Response({"error": err}, status=status.HTTP_403_FORBIDDEN)
+
         from .models import MemedTimbrado, Professional
 
         env, endpoints = _memed_config()
@@ -256,7 +270,13 @@ class MemedTimbradoView(APIView):
     MAX_PDF_BYTES = 5 * 1024 * 1024
 
     def get(self, request):
+        from tenants.middleware import get_current_loja_id
+        from superadmin.plano_features import loja_plano_permite_memed
         from .models import MemedTimbrado
+
+        ok, err = loja_plano_permite_memed(get_current_loja_id())
+        if not ok:
+            return Response({"error": err}, status=status.HTTP_403_FORBIDDEN)
 
         timbrado = MemedTimbrado.objects.first()
         if not timbrado or not timbrado.pdf:
@@ -272,8 +292,14 @@ class MemedTimbradoView(APIView):
     def post(self, request):
         import re
 
+        from tenants.middleware import get_current_loja_id
+        from superadmin.plano_features import loja_plano_permite_memed
         from .memed_impressao import aplicar_timbrado_loja_a_profissionais
         from .models import MemedTimbrado, Professional
+
+        ok, err = loja_plano_permite_memed(get_current_loja_id())
+        if not ok:
+            return Response({"error": err}, status=status.HTTP_403_FORBIDDEN)
 
         if request.data.get("aplicar") in (True, "true", "1", 1):
             timbrado = MemedTimbrado.objects.first()

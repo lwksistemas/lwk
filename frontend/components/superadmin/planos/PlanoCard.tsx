@@ -121,7 +121,17 @@ export function PlanoCard({ plano, onEdit, onDelete }: PlanoCardProps) {
           )}
           {plano.tem_whatsapp_integration && (
             <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
-              💬 WhatsApp
+              WhatsApp
+            </span>
+          )}
+          {plano.tem_fotos_paciente && (
+            <span className="px-2 py-1 bg-pink-100 text-pink-800 text-xs rounded">
+              Fotos
+            </span>
+          )}
+          {plano.tem_memed && (
+            <span className="px-2 py-1 bg-indigo-100 text-indigo-800 text-xs rounded">
+              Memed
             </span>
           )}
         </div>

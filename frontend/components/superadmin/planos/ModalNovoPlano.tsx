@@ -20,6 +20,8 @@ interface Plano {
   tem_suporte_prioritario: boolean;
   tem_dominio_customizado: boolean;
   tem_whatsapp_integration: boolean;
+  tem_fotos_paciente: boolean;
+  tem_memed: boolean;
   is_active: boolean;
   ordem: number;
 }
@@ -49,6 +51,8 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
     tem_suporte_prioritario: editingPlano?.tem_suporte_prioritario || false,
     tem_dominio_customizado: editingPlano?.tem_dominio_customizado || false,
     tem_whatsapp_integration: editingPlano?.tem_whatsapp_integration || false,
+    tem_fotos_paciente: editingPlano?.tem_fotos_paciente || false,
+    tem_memed: editingPlano?.tem_memed || false,
     is_active: editingPlano?.is_active ?? true,
     ordem: editingPlano?.ordem || 1,
   });
@@ -389,7 +393,29 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm text-gray-900 dark:text-gray-100">💬 Integração WhatsApp</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">Integração WhatsApp</span>
+              </label>
+
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="tem_fotos_paciente"
+                  checked={formData.tem_fotos_paciente}
+                  onChange={handleChange}
+                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900 dark:text-gray-100">Fotos paciente (mídia)</span>
+              </label>
+
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="tem_memed"
+                  checked={formData.tem_memed}
+                  onChange={handleChange}
+                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900 dark:text-gray-100">Memed (prescrição)</span>
               </label>
 
               <label className="flex items-center space-x-2">
@@ -400,7 +426,7 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                   onChange={handleChange}
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <span className="text-sm text-gray-900 dark:text-gray-100">✅ Plano Ativo</span>
+                <span className="text-sm text-gray-900 dark:text-gray-100">Plano Ativo</span>
               </label>
             </div>
           </div>

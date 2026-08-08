@@ -97,6 +97,14 @@ class PlanoAssinatura(models.Model):
     tem_suporte_prioritario = models.BooleanField(default=False)
     tem_dominio_customizado = models.BooleanField(default=False)
     tem_whatsapp_integration = models.BooleanField(default=False)
+    tem_fotos_paciente = models.BooleanField(
+        default=False,
+        help_text="Permite upload de fotos do paciente (servidor de mídia).",
+    )
+    tem_memed = models.BooleanField(
+        default=False,
+        help_text="Permite prescrição digital Memed.",
+    )
 
     is_active = models.BooleanField(default=True)
     ordem = models.IntegerField(default=0)  # Para ordenar na exibição

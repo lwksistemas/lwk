@@ -37,6 +37,7 @@ export function ConsultaFotosTab({
 
   const [fotos, setFotos] = useState<PacienteFotoItem[]>([]);
   const [fotosConsultaCount, setFotosConsultaCount] = useState(0);
+  const [permiteUploadPlano, setPermiteUploadPlano] = useState(true);
   const [loading, setLoading] = useState(true);
   const [qrAberto, setQrAberto] = useState(false);
   const [qrData, setQrData] = useState<{ url: string; qr_base64: string } | null>(null);
@@ -52,6 +53,9 @@ export function ConsultaFotosTab({
       const res = await ClinicaBelezaAPI.consultas.fotos.list(consultaId);
       const lista = res.fotos || [];
       setFotos(lista);
+      if (typeof res.permite_upload_fotos === "boolean") {
+        setPermiteUploadPlano(res.permite_upload_fotos);
+      }
       const countApi = res.fotos_consulta_count;
       if (typeof countApi === "number") {
         setFotosConsultaCount(countApi);
@@ -68,7 +72,7 @@ export function ConsultaFotosTab({
   }, [consultaId, toast]);
 
   const limiteAtingido = fotosConsultaCount >= MAX_FOTOS_POR_CONSULTA;
-  const podeEnviarMais = Boolean(permiteEnviar) && !limiteAtingido;
+  const podeEnviarMais = Boolean(permiteEnviar) && permiteUploadPlano && !limiteAtingido;
 
   useEffect(() => {
     void carregar();
@@ -177,14 +181,19 @@ export function ConsultaFotosTab({
 
   return (
     <div className="space-y-3">
-      {!permiteEnviar && (
+      {!permiteUploadPlano && (
+        <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+          Seu plano não inclui fotos de acompanhamento. Faça upgrade para Intermediário ou Completo para enviar fotos pelo painel ou QR.
+        </p>
+      )}
+      {!permiteEnviar && permiteUploadPlano && (
         <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
           Consulta finalizada — apenas visualizar e comparar fotos.
         </p>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        {permiteEnviar ? (
+        {permiteEnviar && permiteUploadPlano ? (
           <div className="flex flex-wrap items-center gap-2">
             {podeEnviarMais ? (
               <ImageUpload
@@ -241,7 +250,7 @@ export function ConsultaFotosTab({
         <p className="text-sm text-gray-500 py-8 text-center">Carregando fotos…</p>
       ) : !fotos.length ? (
         <p className="text-sm text-gray-500 py-8 text-center rounded-xl border border-dashed border-gray-300 dark:border-neutral-600">
-          {permiteEnviar
+          {permiteEnviar && permiteUploadPlano
             ? "Nenhuma foto ainda. Durante a consulta, escaneie o QR com seu celular ou envie pelo painel."
             : "Nenhuma foto registrada neste acompanhamento."}
         </p>

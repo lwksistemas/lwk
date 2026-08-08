@@ -38,18 +38,24 @@ MSG_LINK_FINALIZADA = "Consulta já foi finalizada. Gere um novo QR na próxima 
 
 
 def _consulta_permite_envio_foto(consulta) -> Response | None:
-    """Painel autenticado: IN_PROGRESS ou RECEBER (pagamento em aberto)."""
+    """Painel autenticado: plano com fotos + IN_PROGRESS ou RECEBER."""
+    from superadmin.plano_features import loja_plano_permite_fotos
+
+    ok, err = loja_plano_permite_fotos(getattr(consulta, "loja_id", None))
+    if not ok:
+        return Response({"detail": err}, status=status.HTTP_403_FORBIDDEN)
     if consulta.status not in ("IN_PROGRESS", "RECEBER"):
         return Response({"detail": MSG_APENAS_EM_ANDAMENTO}, status=status.HTTP_400_BAD_REQUEST)
     return None
 
 
 def _consulta_permite_envio_foto_publico(consulta) -> str | None:
-    """Link QR público: atendimento iniciado (IN_PROGRESS) ou RECEBER já iniciado.
+    """Link QR público: plano + atendimento iniciado (IN_PROGRESS) ou RECEBER já iniciado."""
+    from superadmin.plano_features import loja_plano_permite_fotos
 
-    RECEBER + data_inicio ocorre quando o profissional já iniciou e o pagamento
-    ainda está em aberto — o paciente deve conseguir enviar fotos nesse intervalo.
-    """
+    ok, err = loja_plano_permite_fotos(getattr(consulta, "loja_id", None))
+    if not ok:
+        return err
     if consulta.status == "IN_PROGRESS":
         return None
     if consulta.status == "RECEBER" and getattr(consulta, "data_inicio", None):
@@ -75,7 +81,7 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
             "patient_id": consulta.patient_id,
             "patient_nome": consulta.patient.nome if consulta.patient else "",
             "fotos": listar_fotos_paciente(consulta.patient_id),
-            **limites_fotos_consulta(consulta.id),
+            **limites_fotos_consulta(consulta.id, consulta.loja_id),
         })
 
     def post(self, request, pk):
@@ -111,7 +117,7 @@ class ConsultaFotoQrView(GetObjectMixin, APIView):
         bloqueio = _consulta_permite_envio_foto(consulta)
         if bloqueio:
             return bloqueio
-        limites = limites_fotos_consulta(consulta.id)
+        limites = limites_fotos_consulta(consulta.id, consulta.loja_id)
         if limites["fotos_restantes"] <= 0:
             return Response(
                 {"detail": f"Máximo de {MAX_FOTOS_POR_CONSULTA} fotos por consulta."},
@@ -204,7 +210,7 @@ class EnviarFotoPublicaView(View):
             "clinica_nome": loja.nome if loja else "Clínica",
             "consulta_id": consulta.id,
             "upload_via_api": True,
-            **limites_fotos_consulta(consulta.id),
+            **limites_fotos_consulta(consulta.id, consulta.loja_id),
         })
 
     def _validar_consulta_post(self, payload):

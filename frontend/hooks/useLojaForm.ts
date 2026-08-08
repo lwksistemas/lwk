@@ -59,7 +59,16 @@ export interface LojaFormData {
   owner_telefone: string;
 }
 
-export function useLojaForm(incluirSenha: boolean = true) {
+export interface LojaFormPrefill {
+  tipoSlug?: string | null;
+  planoSlug?: string | null;
+}
+
+export function useLojaForm(incluirSenha: boolean = true, prefill: LojaFormPrefill = {}) {
+  const tipoSlugPrefill = (prefill.tipoSlug || '').trim().toLowerCase();
+  const planoSlugPrefill = (prefill.planoSlug || '').trim().toLowerCase();
+  const selecaoTravada = Boolean(tipoSlugPrefill && planoSlugPrefill);
+
   const [formData, setFormData] = useState<LojaFormData>({
     nome: '',
     slug: '',
@@ -98,7 +107,7 @@ export function useLojaForm(incluirSenha: boolean = true) {
       gerarSenhaProvisoria();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incluirSenha]);
+  }, [incluirSenha, tipoSlugPrefill, planoSlugPrefill]);
 
   const loadMercadoPagoDefault = async () => {
     try {
@@ -143,8 +152,46 @@ export function useLojaForm(incluirSenha: boolean = true) {
 
       const tiposData = tiposRes.data;
       const planosData = planosRes.data;
-      setTipos(Array.isArray(tiposData) ? tiposData : tiposData.results || []);
-      setPlanos(Array.isArray(planosData) ? planosData : planosData.results || []);
+      let tiposLista = Array.isArray(tiposData) ? tiposData : tiposData.results || [];
+      let planosLista = Array.isArray(planosData) ? planosData : planosData.results || [];
+
+      if (tipoSlugPrefill) {
+        const tipoMatch = tiposLista.find((t) => (t.slug || '').toLowerCase() === tipoSlugPrefill);
+        if (tipoMatch) {
+          tiposLista = [tipoMatch];
+          const tipoId = String(tipoMatch.id);
+          try {
+            const porTipo = await apiClient.get<{ results?: PlanoOption[] } | PlanoOption[]>(
+              `${baseUrl}/planos/por_tipo/?tipo_id=${tipoId}`
+            );
+            const porTipoData = porTipo.data;
+            planosLista = Array.isArray(porTipoData) ? porTipoData : porTipoData.results || [];
+          } catch {
+            // mantém planosLista geral
+          }
+
+          if (planoSlugPrefill) {
+            const planoMatch = planosLista.find(
+              (p) => (p.slug || '').toLowerCase() === planoSlugPrefill
+            );
+            if (planoMatch) {
+              planosLista = [planoMatch];
+              setFormData((prev) => ({
+                ...prev,
+                tipo_loja: tipoId,
+                plano: String(planoMatch.id),
+              }));
+            } else {
+              setFormData((prev) => ({ ...prev, tipo_loja: tipoId, plano: '' }));
+            }
+          } else {
+            setFormData((prev) => ({ ...prev, tipo_loja: tipoId }));
+          }
+        }
+      }
+
+      setTipos(tiposLista);
+      setPlanos(planosLista);
     } catch (error) {
       logger.warn('Erro ao carregar tipos e planos:', error);
     }
@@ -153,6 +200,9 @@ export function useLojaForm(incluirSenha: boolean = true) {
   const loadPlanosPorTipo = async (tipoId: string) => {
     if (!tipoId) {
       setPlanos([]);
+      return;
+    }
+    if (selecaoTravada) {
       return;
     }
     
@@ -256,6 +306,7 @@ export function useLojaForm(incluirSenha: boolean = true) {
     setFormData,
     tipos,
     planos,
+    selecaoTravada,
     buscarCepLoading,
     buscarCnpjLoading,
     loadPlanosPorTipo,

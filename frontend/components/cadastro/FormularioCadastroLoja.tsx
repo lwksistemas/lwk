@@ -11,6 +11,7 @@ interface FormularioCadastroLojaProps {
     setFormData: React.Dispatch<React.SetStateAction<LojaFormData>>;
     tipos: TipoLojaOption[];
     planos: PlanoOption[];
+    selecaoTravada?: boolean;
     buscarCepLoading: boolean;
     buscarCnpjLoading: boolean;
     loadPlanosPorTipo: (tipoId: string) => Promise<void>;
@@ -36,6 +37,7 @@ export function FormularioCadastroLoja({
     setFormData, 
     tipos, 
     planos,
+    selecaoTravada = false,
     buscarCepLoading,
     buscarCnpjLoading,
     loadPlanosPorTipo,
@@ -66,6 +68,7 @@ export function FormularioCadastroLoja({
     }
 
     if (name === 'tipo_loja' && value) {
+      if (selecaoTravada) return;
       loadPlanosPorTipo(value);
       setFormData((prev) => ({ ...prev, plano: '' }));
     }
@@ -254,12 +257,21 @@ export function FormularioCadastroLoja({
 
       {/* Seção 3: Tipo de App */}
       <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
-        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">3. Tipo de Sistema</h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-200">3. Tipo de Sistema</h3>
+          {selecaoTravada && (
+            <a href="/#modulos" className="text-sm text-blue-600 hover:underline">
+              Trocar plano na home
+            </a>
+          )}
+        </div>
+        <div className={`grid grid-cols-1 gap-4 ${selecaoTravada ? '' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>
           {tipos.map((tipo) => (
             <label
               key={tipo.id}
-              className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+              className={`border-2 rounded-lg p-4 transition-all ${
+                selecaoTravada ? 'cursor-default' : 'cursor-pointer'
+              } ${
                 formData.tipo_loja === tipo.id.toString()
                   ? 'border-blue-600 bg-blue-50'
                   : 'border-gray-200 hover:border-blue-300'
@@ -273,6 +285,7 @@ export function FormularioCadastroLoja({
                 onChange={handleChange}
                 className="sr-only"
                 required
+                disabled={selecaoTravada}
               />
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-gray-900">{tipo.nome}</span>
@@ -288,7 +301,9 @@ export function FormularioCadastroLoja({
 
       {/* Seção 4: Plano */}
       <div className="border-b border-gray-200 pb-6 dark:border-slate-700">
-        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">4. Escolha seu Plano</h3>
+        <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
+          {selecaoTravada ? '4. Seu Plano' : '4. Escolha seu Plano'}
+        </h3>
         {!formData.tipo_loja ? (
           <div className="text-center py-8 text-gray-500">
             Selecione um tipo de sistema primeiro
@@ -298,11 +313,13 @@ export function FormularioCadastroLoja({
             Nenhum plano disponível
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={`grid grid-cols-1 gap-4 ${selecaoTravada ? 'max-w-md' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>
             {planos.map((plano) => (
               <label
                 key={plano.id}
-                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                className={`border-2 rounded-lg p-4 transition-all ${
+                  selecaoTravada ? 'cursor-default' : 'cursor-pointer'
+                } ${
                   formData.plano === plano.id.toString()
                     ? 'border-blue-600 bg-blue-50'
                     : 'border-gray-200 hover:border-blue-300'
@@ -316,6 +333,7 @@ export function FormularioCadastroLoja({
                   onChange={handleChange}
                   className="sr-only"
                   required
+                  disabled={selecaoTravada}
                 />
                 <div className="text-center">
                   <h4 className="font-bold text-lg mb-2">{plano.nome}</h4>

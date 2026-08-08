@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { formatApiErrorBody } from '@/lib/api-errors';
 import { cepDigitosValidos } from '@/lib/format-br';
@@ -12,13 +13,16 @@ import { FormularioCadastroLoja } from '@/components/cadastro/FormularioCadastro
 import { SucessoCadastro } from '@/components/cadastro/SucessoCadastro';
 import { applyTelefoneInternacionalPayload } from '@/lib/format-br';
 
-export default function CadastroPublicoPage() {
+function CadastroPublicoContent() {
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdLoja, setCreatedLoja] = useState<LojaCadastrada | null>(null);
-  
-  // Hook customizado sem campo de senha (gerada automaticamente no backend)
-  const lojaForm = useLojaForm(false);
+  const searchParams = useSearchParams();
+
+  const lojaForm = useLojaForm(false, {
+    tipoSlug: searchParams.get('tipo'),
+    planoSlug: searchParams.get('plano'),
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +39,7 @@ export default function CadastroPublicoPage() {
         ...lojaForm.formData,
         provedor_boleto_preferido: lojaForm.formData.provedor_boleto_preferido || 'asaas',
       }, ['owner_telefone']);
-      
+
       const response = await apiClient.post('/superadmin/lojas/', payload);
       const loja = response.data;
       setCreatedLoja(loja);
@@ -59,7 +63,6 @@ export default function CadastroPublicoPage() {
 
       <div className="relative z-10 mx-auto max-w-4xl px-3 pb-10 pt-4 sm:px-4 sm:pb-12 sm:pt-6 md:px-6 md:pt-8">
         <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/95 shadow-xl shadow-slate-900/10 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/90 sm:rounded-2xl sm:shadow-2xl">
-          {/* Header */}
           <div className="bg-gradient-to-r from-slate-800 via-blue-800 to-indigo-800 px-4 py-5 text-white sm:px-6 sm:py-6 md:px-8">
             <Link
               href="/"
@@ -84,5 +87,13 @@ export default function CadastroPublicoPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CadastroPublicoPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+      <CadastroPublicoContent />
+    </Suspense>
   );
 }

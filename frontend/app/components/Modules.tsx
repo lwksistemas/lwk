@@ -20,6 +20,7 @@ interface BeneficioPlano {
 
 interface PlanoValor {
   nome: string;
+  slug: string;
   resumo: string;
   precoMensal: string;
   precoAnual: string;
@@ -31,6 +32,7 @@ interface PlanoValor {
 const PLANOS_CLINICA_BELEZA: PlanoValor[] = [
   {
     nome: "Básico",
+    slug: "basico-clinica-beleza",
     resumo:
       "Para começar o atendimento: agenda, cadastro de pacientes e prontuário digital. Sem fotos no servidor, WhatsApp, NFSe nem Memed.",
     precoMensal: "R$ 99,90",
@@ -66,6 +68,7 @@ const PLANOS_CLINICA_BELEZA: PlanoValor[] = [
   },
   {
     nome: "Intermediário",
+    slug: "intermediario-clinica-beleza",
     resumo:
       "Tudo do Básico, mais fotos de acompanhamento no servidor de mídia (painel e QR). Ideal para clínicas que registram evolução visual.",
     precoMensal: "R$ 149,90",
@@ -101,6 +104,7 @@ const PLANOS_CLINICA_BELEZA: PlanoValor[] = [
   },
   {
     nome: "Completo",
+    slug: "profissional-clinica-beleza",
     resumo:
       "Pacote full: fotos, WhatsApp, NFSe, relatórios e Memed. Para clínicas que querem operação, comunicação e prescrição no mesmo sistema.",
     precoMensal: "R$ 199,90",
@@ -293,7 +297,7 @@ export default function Modules({ modulos }: ModulesProps) {
                   ))}
                 </ul>
                 <Link
-                  href="/cadastro"
+                  href={`/cadastro?tipo=clinica-beleza&plano=${plano.slug}`}
                   className={`mt-5 text-center rounded-lg px-4 py-2.5 font-medium transition-colors ${
                     plano.destaque
                       ? "bg-blue-600 text-white hover:bg-blue-700"

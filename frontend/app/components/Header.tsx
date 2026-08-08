@@ -35,7 +35,7 @@ export default function Header() {
               href="#modulos"
               className="text-gray-600 hover:text-blue-600 transition-colors"
             >
-              Módulos
+              Módulos Valores
             </a>
 
             <Link
@@ -88,7 +88,7 @@ export default function Header() {
                 onClick={() => setMenuOpen(false)}
                 className="py-3 text-gray-600 hover:text-blue-600 transition-colors border-b border-gray-100"
               >
-                Módulos
+                Módulos Valores
               </a>
               
               {/* Botão Fazer Cadastro Mobile */}

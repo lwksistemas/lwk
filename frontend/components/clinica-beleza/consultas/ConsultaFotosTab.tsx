@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { useParams } from "next/navigation";
 import {
   QrCode,
   X,
@@ -35,8 +34,6 @@ export function ConsultaFotosTab({
   onToolbarChange?: (toolbar: ReactNode | null) => void;
 }) {
   const toast = useToast();
-  const params = useParams();
-  const slug = (params.slug as string) || "loja";
 
   const [fotos, setFotos] = useState<PacienteFotoItem[]>([]);
   const [fotosConsultaCount, setFotosConsultaCount] = useState(0);
@@ -199,7 +196,7 @@ export function ConsultaFotosTab({
                   if (url) void salvarUploadPainel(url);
                 }}
                 folder="fotos"
-                disabled={salvando || lojaDocLoading || !lojaDocReady}
+                disabled={salvando}
                 maxSize={2}
               />
             ) : (

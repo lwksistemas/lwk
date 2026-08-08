@@ -99,6 +99,28 @@ def _resolver_cnpj_im_danfe(config, loja, nfse) -> tuple[str, str]:
         or getattr(loja, "inscricao_municipal", "")
         or ""
     )
+    # Se a config carregada veio sem IM (ex.: registro duplicado vazio),
+    # tenta a outra CRMConfig da mesma loja com IM preenchida.
+    if not str(im_prestador or "").strip() and config is not None:
+        try:
+            from crm_vendas.models_config import CRMConfig
+
+            loja_id = getattr(config, "loja_id", None) or getattr(loja, "id", None)
+            if loja_id:
+                alt = (
+                    CRMConfig.objects.filter(loja_id=loja_id)
+                    .exclude(inscricao_municipal__isnull=True)
+                    .exclude(inscricao_municipal="")
+                    .order_by("id")
+                    .first()
+                )
+                if alt and (alt.inscricao_municipal or "").strip():
+                    im_prestador = alt.inscricao_municipal
+                    if not cnpj_prestador:
+                        cnpj_prestador = getattr(alt, "cnpj_prestador", "") or cnpj_prestador
+        except Exception as exc:
+            logger.debug("Fallback IM CRMConfig: %s", exc)
+
     xml_nfse = getattr(nfse, "xml_nfse", "") if nfse else ""
     xml_cnpj, xml_im = _extrair_prestador_do_xml(xml_nfse)
     return xml_cnpj or cnpj_prestador, xml_im or im_prestador

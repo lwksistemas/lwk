@@ -357,19 +357,30 @@ class CRMConfig(LojaIsolationMixin, models.Model):
     @classmethod
     def get_or_create_for_loja(cls, loja_id):
         """Retorna ou cria configuração para a loja com valores padrão.
+
+        Preferência: registro com inscrição municipal preenchida (evita
+        configs duplicadas vazias que quebram NFS-e/DANFE).
         """
-        config, created = cls.objects.get_or_create(
-            loja_id=loja_id,
-            defaults={
-                "origens_leads": cls.get_default_origens(),
-                "etapas_pipeline": cls.get_default_etapas(),
-                "colunas_leads": cls.get_default_colunas_leads(),
-                "colunas_contas": cls.get_default_colunas_contas(),
-                "colunas_contatos": cls.get_default_colunas_contatos(),
-                "modulos_ativos": cls.get_default_modulos(),
-            },
+        qs = cls.objects.filter(loja_id=loja_id).order_by("id")
+        com_im = (
+            qs.exclude(inscricao_municipal__isnull=True)
+            .exclude(inscricao_municipal="")
+            .first()
         )
-        return config
+        if com_im is not None:
+            return com_im
+        existente = qs.first()
+        if existente is not None:
+            return existente
+        return cls.objects.create(
+            loja_id=loja_id,
+            origens_leads=cls.get_default_origens(),
+            etapas_pipeline=cls.get_default_etapas(),
+            colunas_leads=cls.get_default_colunas_leads(),
+            colunas_contas=cls.get_default_colunas_contas(),
+            colunas_contatos=cls.get_default_colunas_contatos(),
+            modulos_ativos=cls.get_default_modulos(),
+        )
 
     @staticmethod
     def get_default_origens():

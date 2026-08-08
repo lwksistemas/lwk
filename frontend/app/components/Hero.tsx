@@ -30,7 +30,7 @@ function isUsableHeroImage(url: string): boolean {
   }
 }
 
-export default function Hero({ hero, heroImagens = [] }: HeroProps) {
+export default function Hero({ hero: _hero, heroImagens = [] }: HeroProps) {
   const imagensValidas = useMemo(
     () => (heroImagens || []).filter((img) => isUsableHeroImage(img.imagem)),
     [heroImagens]
@@ -43,13 +43,6 @@ export default function Hero({ hero, heroImagens = [] }: HeroProps) {
     () => imagensValidas.filter((img) => !failedIds.has(img.id)),
     [imagensValidas, failedIds]
   );
-
-  const titulo = hero?.titulo ?? "Controle total da sua empresa em um único sistema";
-  const subtitulo =
-    hero?.subtitulo ??
-    "Gerencie clientes, vendas, financeiro e relatórios em um CRM moderno e fácil de usar.";
-  const botaoTexto = hero?.botao_texto ?? "Testar Gratuitamente";
-  const mostrarBotaoPrincipal = hero?.botao_principal_ativo !== false;
 
   const temCarrossel = imagens.length > 0;
 
@@ -69,7 +62,7 @@ export default function Hero({ hero, heroImagens = [] }: HeroProps) {
     <section
       className={
         "w-full min-w-full relative overflow-hidden " +
-        "flex flex-col justify-center min-h-[calc(100svh-5rem)] py-10 sm:py-12 " +
+        "flex flex-col justify-end min-h-[calc(100svh-5rem)] py-10 sm:py-12 " +
         "bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700"
       }
     >
@@ -101,36 +94,14 @@ export default function Hero({ hero, heroImagens = [] }: HeroProps) {
           </div>
         ))}
 
-      {/* Overlay para legibilidade do texto — leve o bastante para o carrossel aparecer */}
-      <div className="absolute inset-0 z-[1] bg-gradient-to-br from-blue-950/55 via-blue-900/45 to-indigo-950/55 pointer-events-none" />
-
-      <div className="absolute inset-0 z-[1] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE0YzMuMzEgMCA2LTIuNjkgNi02cy0yLjY5LTYtNi02LTYgMi42OS02IDYgMi42OSA2IDYgNnptMC0xMGMyLjIxIDAgNCAxLjc5IDQgNHMtMS43OSA0LTQgNC00LTEuNzktNC00IDEuNzktNCA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-20 pointer-events-none" />
-
+      {/* CTA discreto — título/subtítulo ficam nas imagens do carrossel */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6 text-white leading-tight drop-shadow-lg">
-            {titulo}
-          </h1>
-          <p className="text-base sm:text-lg text-blue-50 mb-6 sm:mb-8 drop-shadow max-w-2xl">
-            {subtitulo}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            {mostrarBotaoPrincipal && (
-              <Link
-                href="/cadastro"
-                className="inline-block text-center bg-white text-blue-700 px-6 py-3 rounded-lg hover:bg-blue-50 transition-all font-medium shadow-lg hover:shadow-xl"
-              >
-                {botaoTexto}
-              </Link>
-            )}
-            <Link
-              href="/#modulos"
-              className="inline-block text-center bg-blue-700/40 backdrop-blur-sm text-white border-2 border-white/35 px-6 py-3 rounded-lg hover:bg-blue-700/60 transition-all font-medium shadow-lg"
-            >
-              Ver planos e valores
-            </Link>
-          </div>
-        </div>
+        <Link
+          href="/#modulos"
+          className="inline-block text-center bg-blue-700/50 backdrop-blur-sm text-white border-2 border-white/40 px-6 py-3 rounded-lg hover:bg-blue-700/70 transition-all font-medium shadow-lg"
+        >
+          Ver planos e valores
+        </Link>
       </div>
 
       {temCarrossel && imagens.length > 1 && (

@@ -62,6 +62,25 @@ def _build_cache_key(request, requires_auth: bool) -> str:
     return f"rc:{hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()}"
 
 
+def invalidate_response_cache_path(path: str) -> None:
+    """Invalida o cache Redis de um path público (ex.: /api/homepage/)."""
+    if not getattr(settings, "USE_REDIS", False):
+        return
+    path_norm = (path or "").rstrip("/") + "/"
+    raw = "|".join(["resp_cache", path_norm, ""])
+    cache_key = f"rc:{hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()}"
+    try:
+        cache.delete(cache_key)
+        logger.info("ResponseCache invalidado: %s (%s)", path_norm, cache_key)
+    except Exception as exc:
+        logger.warning("Falha ao invalidar ResponseCache %s: %s", path_norm, exc)
+
+
+def invalidate_homepage_response_cache() -> None:
+    """Invalida o cache da API pública da homepage."""
+    invalidate_response_cache_path("/api/homepage/")
+
+
 class ResponseCacheMiddleware(MiddlewareMixin):
     """Cache transparente para respostas GET em endpoints selecionados.
 

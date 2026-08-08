@@ -101,8 +101,8 @@ export default function Hero({ hero, heroImagens = [] }: HeroProps) {
           </div>
         ))}
 
-      {/* Overlay para legibilidade do texto */}
-      <div className="absolute inset-0 z-[1] bg-gradient-to-br from-blue-900/75 via-blue-800/65 to-indigo-900/75 pointer-events-none" />
+      {/* Overlay para legibilidade do texto — leve o bastante para o carrossel aparecer */}
+      <div className="absolute inset-0 z-[1] bg-gradient-to-br from-blue-950/55 via-blue-900/45 to-indigo-950/55 pointer-events-none" />
 
       <div className="absolute inset-0 z-[1] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE0YzMuMzEgMCA2LTIuNjkgNi02cy0yLjY5LTYtNi02LTYgMi42OS02IDYgMi42OSA2IDYgNnptMC0xMGMyLjIxIDAgNCAxLjc5IDQgNHMtMS43OSA0LTQgNC00LTEuNzktNC00IDEuNzktNCA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-20 pointer-events-none" />
 

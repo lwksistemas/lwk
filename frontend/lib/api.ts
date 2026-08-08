@@ -22,9 +22,12 @@ export async function getHomepage() {
 
   try {
     const res = await fetch(`${API_BASE}/homepage/`, {
-      next: { revalidate: 300 }, // Cache por 5 minutos — reduz Function Invocations
+      next: { revalidate: 60 },
       signal: controller.signal,
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'Cache-Control': 'no-cache',
+      },
     });
     clearTimeout(timeoutId);
 

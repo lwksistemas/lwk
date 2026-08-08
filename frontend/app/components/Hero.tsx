@@ -1,6 +1,5 @@
 'use client';
 
-import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import type { Hero as HeroType } from "@/types/homepage";
@@ -62,9 +61,10 @@ export default function Hero({ hero: _hero, heroImagens = [] }: HeroProps) {
     <section
       className={
         "w-full min-w-full relative overflow-hidden " +
-        "flex flex-col justify-end min-h-[calc(100svh-5rem)] py-10 sm:py-12 " +
+        "min-h-[calc(100svh-5rem)] " +
         "bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700"
       }
+      aria-label="Banner principal"
     >
       {temCarrossel &&
         imagens.map((img, index) => (
@@ -77,7 +77,7 @@ export default function Hero({ hero: _hero, heroImagens = [] }: HeroProps) {
           >
             <Image
               src={img.imagem}
-              alt=""
+              alt={img.titulo || ""}
               fill
               className="object-cover"
               sizes="100vw"
@@ -94,26 +94,16 @@ export default function Hero({ hero: _hero, heroImagens = [] }: HeroProps) {
           </div>
         ))}
 
-      {/* CTA discreto — título/subtítulo ficam nas imagens do carrossel */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Link
-          href="/#modulos"
-          className="inline-block text-center bg-blue-700/50 backdrop-blur-sm text-white border-2 border-white/40 px-6 py-3 rounded-lg hover:bg-blue-700/70 transition-all font-medium shadow-lg"
-        >
-          Ver planos e valores
-        </Link>
-      </div>
-
       {temCarrossel && imagens.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 z-20">
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
           {imagens.map((_, index) => (
             <button
               key={index}
               type="button"
               onClick={() => setCurrentImageIndex(index)}
-              className={`w-2 h-2 rounded-full transition-all ${
+              className={`h-2 w-2 rounded-full transition-all ${
                 index === currentImageIndex
-                  ? "bg-white w-8"
+                  ? "w-8 bg-white"
                   : "bg-white/50 hover:bg-white/75"
               }`}
               aria-label={`Ir para imagem ${index + 1}`}

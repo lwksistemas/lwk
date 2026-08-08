@@ -64,7 +64,7 @@ export function useProfissionalForm(editId: string | null, onDone: () => void) {
   };
 
   useEffect(() => {
-    ClinicaBelezaAPI.procedures.list().then((data) => {
+    ClinicaBelezaAPI.procedures.list({ all: 1 }).then((data) => {
       const list = Array.isArray(data) ? (data as ProfissionalProcedure[]) : [];
       // Evita nomes duplicados no select (ex.: seed title-case + API em MAIÚSCULAS).
       const seen = new Set<string>();

@@ -19,7 +19,7 @@ export const anamneseApi = {
 };
 
 export const patientsApi = {
-  list: (params?: { active?: boolean; page?: number; page_size?: number }) =>
+  list: (params?: { active?: boolean; page?: number; page_size?: number; all?: boolean | number | string }) =>
     cbGetList<ClinicaPatient>("/patients/", params),
   get: (id: number) => cbGet<ClinicaPatient>(`/patients/${id}/`),
   delete: (id: number) => cbDelete(`/patients/${id}/`),
@@ -28,8 +28,13 @@ export const patientsApi = {
 type ProfessionalRow = ProfissionalApiRow & { id: number; tempo_consulta_minutos?: number | null };
 
 export const professionalsApi = {
-  list: (params?: { active?: boolean; with_schedule?: boolean; page?: number; page_size?: number }) =>
-    cbGetList<ProfessionalRow>("/professionals/", params),
+  list: (params?: {
+    active?: boolean;
+    with_schedule?: boolean;
+    page?: number;
+    page_size?: number;
+    all?: boolean | number | string;
+  }) => cbGetList<ProfessionalRow>("/professionals/", params),
   get: (id: number) => cbGet<ProfessionalRow>(`/professionals/${id}/`),
   create: (data: Record<string, unknown>) => cbPost<ProfessionalRow>("/professionals/", data),
   update: (id: number, data: Record<string, unknown>) => cbPut<ProfessionalRow>(`/professionals/${id}/`, data),
@@ -81,8 +86,13 @@ export const campanhasApi = {
 };
 
 export const proceduresApi = {
-  list: (params?: { categoria?: string; active?: boolean; page?: number; page_size?: number }) =>
-    cbGetList("/procedures/", params),
+  list: (params?: {
+    categoria?: string;
+    active?: boolean;
+    page?: number;
+    page_size?: number;
+    all?: boolean | number | string;
+  }) => cbGetList("/procedures/", params),
   convenioPrecosMatrix: () => cbGet<ProcedimentoConvenioPrecosMatrix>("/procedures/convenio-precos-matrix/"),
   precosConvenio: (id: number) => cbGet<ProcedureConvenioPrecoItem[]>(`/procedures/${id}/precos-convenio/`),
   savePrecosConvenio: (id: number, precos: { convenio: number; preco: number | string | null }[]) =>

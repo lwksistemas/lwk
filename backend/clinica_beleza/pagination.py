@@ -7,8 +7,8 @@ Uso nas views:
         qs = Patient.objects.all()
         return paginate_queryset(qs, request, PatientSerializer)
 
-Retrocompatível: se o frontend não enviar ?page=, retorna tudo (sem quebrar apps existentes).
-O frontend opta por paginar enviando ?page=1&page_size=20.
+Sempre pagina por padrão (page=1, page_size=50).
+Opt-out explícito para catálogos pequenos: ?all=1
 """
 from rest_framework.response import Response
 
@@ -16,9 +16,13 @@ DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
 
 
+def _wants_full_list(request) -> bool:
+    raw = (request.query_params.get("all") or "").strip().lower()
+    return raw in ("1", "true", "yes")
+
+
 def paginate_queryset(queryset, request, serializer_class=None, serializer_context=None, *, to_representation=None):
-    """Pagina o queryset SE o frontend enviar ?page=N.
-    Sem ?page → retorna lista completa (retrocompatível).
+    """Pagina o queryset.
 
     Resposta paginada:
     {
@@ -28,6 +32,8 @@ def paginate_queryset(queryset, request, serializer_class=None, serializer_conte
         "total_pages": 3,
         "results": [...]
     }
+
+    Com ?all=1 retorna a lista completa (array) — só para catálogos pequenos.
     """
     def serialize_items(items):
         if to_representation is not None:
@@ -35,22 +41,26 @@ def paginate_queryset(queryset, request, serializer_class=None, serializer_conte
         ctx = serializer_context or {}
         return serializer_class(items, many=True, context=ctx).data
 
-    page_param = request.query_params.get("page")
-    if page_param is None:
+    if _wants_full_list(request):
         return Response(serialize_items(queryset))
 
     try:
-        page = max(1, int(page_param))
+        page = max(1, int(request.query_params.get("page") or 1))
     except (ValueError, TypeError):
         page = 1
 
     try:
-        page_size = min(MAX_PAGE_SIZE, max(1, int(request.query_params.get("page_size", DEFAULT_PAGE_SIZE))))
+        page_size = min(
+            MAX_PAGE_SIZE,
+            max(1, int(request.query_params.get("page_size") or DEFAULT_PAGE_SIZE)),
+        )
     except (ValueError, TypeError):
         page_size = DEFAULT_PAGE_SIZE
 
     total = queryset.count()
-    total_pages = max(1, (total + page_size - 1) // page_size)
+    total_pages = max(1, (total + page_size - 1) // page_size) if total else 1
+    if page > total_pages:
+        page = total_pages
     offset = (page - 1) * page_size
 
     items = queryset[offset:offset + page_size]

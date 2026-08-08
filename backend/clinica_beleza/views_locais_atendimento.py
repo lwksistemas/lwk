@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from .models import LocalAtendimento
 from .permissions import CLINICA_RECEPCAO
 from .serializers import LocalAtendimentoSerializer
+from .catalogo_padrao_service import exclusivizar_padrao, garantir_primeiro_padrao
 from .views_base import GetObjectMixin
 
 
@@ -25,13 +26,7 @@ class LocalAtendimentoListView(APIView):
         serializer = LocalAtendimentoSerializer(data=request.data)
         if serializer.is_valid():
             instance = serializer.save()
-            # Se é o primeiro ou não existe nenhum padrão, marcar como padrão
-            tem_padrao = LocalAtendimento.objects.using(instance._state.db).filter(
-                loja_id=instance.loja_id, is_padrao=True, is_active=True,
-            ).exists()
-            if not tem_padrao:
-                instance.is_padrao = True
-                instance.save(update_fields=["is_padrao"])
+            garantir_primeiro_padrao(LocalAtendimento, instance)
             return Response(LocalAtendimentoSerializer(instance).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -57,11 +52,7 @@ class LocalAtendimentoDetailView(GetObjectMixin, APIView):
         serializer = LocalAtendimentoSerializer(obj, data=request.data, partial=True)
         if serializer.is_valid():
             instance = serializer.save()
-            # Se marcou como padrão, desmarcar os outros da mesma loja
-            if instance.is_padrao:
-                LocalAtendimento.objects.using(instance._state.db).filter(
-                    loja_id=instance.loja_id, is_padrao=True,
-                ).exclude(pk=instance.pk).update(is_padrao=False)
+            exclusivizar_padrao(LocalAtendimento, instance)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

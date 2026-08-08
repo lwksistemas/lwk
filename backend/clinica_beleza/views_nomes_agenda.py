@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from .models import NomeAgenda
 from .permissions import CLINICA_RECEPCAO
 from .serializers import NomeAgendaSerializer
+from .catalogo_padrao_service import exclusivizar_padrao, garantir_primeiro_padrao
 from .views_base import GetObjectMixin
 
 
@@ -24,13 +25,7 @@ class NomeAgendaListView(APIView):
         serializer = NomeAgendaSerializer(data=request.data)
         if serializer.is_valid():
             instance = serializer.save()
-            # Se não existe nenhum padrão, marcar este como padrão
-            tem_padrao = NomeAgenda.objects.using(instance._state.db).filter(
-                loja_id=instance.loja_id, is_padrao=True, is_active=True,
-            ).exists()
-            if not tem_padrao:
-                instance.is_padrao = True
-                instance.save(update_fields=["is_padrao"])
+            garantir_primeiro_padrao(NomeAgenda, instance)
             return Response(NomeAgendaSerializer(instance).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -55,11 +50,7 @@ class NomeAgendaDetailView(GetObjectMixin, APIView):
         serializer = NomeAgendaSerializer(obj, data=request.data, partial=True)
         if serializer.is_valid():
             instance = serializer.save()
-            # Se marcou como padrão, desmarcar os outros da mesma loja
-            if instance.is_padrao:
-                NomeAgenda.objects.using(instance._state.db).filter(
-                    loja_id=instance.loja_id, is_padrao=True,
-                ).exclude(pk=instance.pk).update(is_padrao=False)
+            exclusivizar_padrao(NomeAgenda, instance)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

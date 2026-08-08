@@ -14,19 +14,32 @@ class FakeQuerySet(list):
 
 
 class PaginationTests(SimpleTestCase):
-    def _request(self, page=None, page_size=None):
+    def _request(self, page=None, page_size=None, all_param=None):
         request = MagicMock()
         request.query_params.get.side_effect = lambda key, default=None: {
             "page": page,
             "page_size": page_size,
+            "all": all_param,
         }.get(key, default)
         return request
 
-    def test_sem_page_retorna_lista_completa(self):
-        qs = FakeQuerySet([{"id": 1}, {"id": 2}])
+    def test_sem_page_pagina_por_padrao(self):
+        qs = FakeQuerySet([{"id": i} for i in range(1, 4)])
         response = paginate_queryset(
             qs,
             self._request(),
+            to_representation=lambda item: item,
+        )
+        self.assertEqual(response.data["count"], 3)
+        self.assertEqual(response.data["page"], 1)
+        self.assertEqual(response.data["page_size"], 50)
+        self.assertEqual(len(response.data["results"]), 3)
+
+    def test_all_1_retorna_lista_completa(self):
+        qs = FakeQuerySet([{"id": 1}, {"id": 2}])
+        response = paginate_queryset(
+            qs,
+            self._request(all_param="1"),
             to_representation=lambda item: {"id": item["id"], "label": f'#{item["id"]}'},
         )
         self.assertEqual(

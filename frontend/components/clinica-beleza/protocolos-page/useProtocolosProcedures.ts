@@ -8,7 +8,7 @@ export function useProtocolosProcedures(defaultCategoria: string) {
 
   const loadProcedures = useCallback(async () => {
     try {
-      const data = await ClinicaBelezaAPI.procedures.list();
+      const data = await ClinicaBelezaAPI.procedures.list({ all: 1 });
       const arr = Array.isArray(data) ? (data as ProtocoloProcedureOption[]) : [];
       setProcedures(filterProceduresByModule(arr, defaultCategoria));
     } catch {

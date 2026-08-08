@@ -68,7 +68,7 @@ export function useFinanceiroPage() {
 
   const loadProfessionals = useCallback(async () => {
     try {
-      const data = await ClinicaBelezaAPI.professionals.list();
+      const data = await ClinicaBelezaAPI.professionals.list({ all: 1 });
       setProfessionals(Array.isArray(data) ? (data as FinanceiroProfessional[]) : []);
     } catch (e: unknown) {
       setProfessionals([]);

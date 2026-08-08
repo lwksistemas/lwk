@@ -46,10 +46,11 @@ export function ConsultasPageContent() {
   });
 
   const { colunasKeys } = useConsultasColunas();
-  const cadastros = useAgendamentoCadastros(true);
   const agendaModals = useConsultasAgendaModals();
   const novaConsulta = useConsultasNovaConsulta(slug);
   const deepLink = useConsultasDeepLink(slug, consultas);
+  // Cadastros só quando abre "Nova consulta" (evita 4 fetches na lista)
+  const cadastros = useAgendamentoCadastros(novaConsulta.showNovaConsultaModal);
 
   const limparFiltroPaciente = useCallback(() => {
     setFiltroPaciente(null);

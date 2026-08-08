@@ -63,33 +63,31 @@ function CadastroPublicoContent() {
   }
 
   return (
-    <div className="relative isolate min-h-[100dvh] min-h-screen overflow-x-hidden">
+    <div className="relative isolate flex min-h-[100dvh] min-h-screen w-full flex-col overflow-x-hidden">
       <CadastroFundo />
 
-      <div className="relative z-10 mx-auto w-full max-w-7xl px-3 pb-10 pt-4 sm:px-4 sm:pb-12 sm:pt-6 md:px-6 lg:px-8 md:pt-8">
-        <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/95 shadow-xl shadow-slate-900/10 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/90 sm:rounded-2xl sm:shadow-2xl">
-          <div className="bg-gradient-to-r from-slate-800 via-blue-800 to-indigo-800 px-4 py-5 text-white sm:px-6 sm:py-6 md:px-8">
-            <Link
-              href="/"
-              className="mb-2 inline-block text-sm text-white/85 transition hover:text-white"
-            >
-              ← Voltar para home
-            </Link>
-            <h1 className="text-2xl font-bold leading-tight sm:text-3xl md:text-4xl">
-              Cadastro de Nova Empresa
-            </h1>
-            <p className="mt-2 text-sm text-slate-200 sm:text-base">
-              Preencha os dados abaixo para começar a usar o sistema
-            </p>
-          </div>
+      <div className="relative z-10 flex min-h-[100dvh] w-full flex-1 flex-col bg-white/97 dark:bg-slate-950/95">
+        <header className="shrink-0 border-b border-white/10 bg-gradient-to-r from-slate-800 via-blue-800 to-indigo-800 px-4 py-4 text-white sm:px-6 sm:py-5 lg:px-10 xl:px-12">
+          <Link
+            href="/"
+            className="mb-2 inline-block text-sm text-white/85 transition hover:text-white"
+          >
+            ← Voltar para home
+          </Link>
+          <h1 className="text-2xl font-bold leading-tight sm:text-3xl lg:text-4xl">
+            Cadastro de Nova Empresa
+          </h1>
+          <p className="mt-1.5 text-sm text-slate-200 sm:text-base">
+            Preencha os dados abaixo para começar a usar o sistema
+          </p>
+        </header>
 
-          <FormularioCadastroLoja
-            lojaForm={lojaForm}
-            onSubmit={handleSubmit}
-            loading={loading}
-            mostrarSenha={false}
-          />
-        </div>
+        <FormularioCadastroLoja
+          lojaForm={lojaForm}
+          onSubmit={handleSubmit}
+          loading={loading}
+          mostrarSenha={false}
+        />
       </div>
     </div>
   );

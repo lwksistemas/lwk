@@ -119,10 +119,10 @@ export function FormularioCadastroLoja({
   const valorAssinatura = typeof rawValor === 'string' ? parseFloat(rawValor) || 0 : rawValor ?? 0;
 
   return (
-    <form onSubmit={handleFormSubmit} className="space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-8">
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-10 lg:items-start">
+    <form onSubmit={handleFormSubmit} className="flex flex-1 flex-col">
+      <div className="grid flex-1 grid-cols-1 lg:grid-cols-2 lg:items-stretch">
         {/* Coluna esquerda: dados da empresa + endereço + admin */}
-        <div className="space-y-6 sm:space-y-8">
+        <div className="space-y-6 border-b border-gray-200 p-4 sm:space-y-8 sm:p-6 md:p-8 lg:border-b-0 lg:border-r lg:border-gray-200 lg:p-8 xl:p-10 dark:border-slate-700">
       {/* Seção 1: Informações Básicas */}
       <div className="border-b border-gray-200 pb-6 dark:border-slate-700 lg:border-b-0 lg:pb-0">
         <h3 className="mb-4 text-lg font-semibold text-gray-800 dark:text-slate-200">
@@ -394,7 +394,7 @@ export function FormularioCadastroLoja({
         </div>
 
         {/* Coluna direita: tipo, plano e pagamento */}
-        <div className="space-y-6 sm:space-y-8 lg:border-l lg:border-gray-200 lg:pl-10 dark:lg:border-slate-700">
+        <div className="space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-8 lg:p-8 xl:p-10">
       {/* Seção 3: Tipo de App */}
       <div className="border-b border-gray-200 pb-6 dark:border-slate-700 lg:border-b-0 lg:pb-0">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -405,7 +405,7 @@ export function FormularioCadastroLoja({
             </a>
           )}
         </div>
-        <div className={`grid grid-cols-1 gap-4 ${selecaoTravada ? '' : 'sm:grid-cols-2'}`}>
+        <div className={`grid grid-cols-1 gap-3 ${selecaoTravada ? '' : 'xl:grid-cols-2'}`}>
           {tipos.map((tipo) => (
             <label
               key={tipo.id}
@@ -453,7 +453,7 @@ export function FormularioCadastroLoja({
             Nenhum plano disponível
           </div>
         ) : (
-          <div className={`grid grid-cols-1 gap-4 ${selecaoTravada ? 'max-w-md' : 'sm:grid-cols-2 xl:grid-cols-3'}`}>
+          <div className={`grid grid-cols-1 gap-4 ${selecaoTravada ? 'max-w-md' : 'xl:grid-cols-2 2xl:grid-cols-3'}`}>
             {planos.map((plano) => (
               <label
                 key={plano.id}
@@ -667,28 +667,25 @@ export function FormularioCadastroLoja({
         </div>
       </div>
 
-      {/* Botão de Submit */}
-      <div className="space-y-4 border-t border-gray-200 pt-6 dark:border-slate-700">
-        {/* Aviso sobre senha */}
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-          <div className="flex items-start gap-3">
+      {/* Botão de Submit — faixa full width */}
+      <div className="mt-auto space-y-4 border-t border-gray-200 bg-slate-50/80 px-4 py-5 sm:px-6 md:px-8 lg:px-10 xl:px-12 dark:border-slate-700 dark:bg-slate-900/50">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+          <div className="flex max-w-3xl items-start gap-3 rounded-lg border-l-4 border-blue-500 bg-blue-50 p-4 dark:bg-blue-950/40">
             <span className="text-2xl">ℹ️</span>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-blue-900 mb-1">
+              <p className="mb-1 text-sm font-semibold text-blue-900 dark:text-blue-100">
                 Como funciona o acesso ao sistema?
               </p>
-              <p className="text-xs text-blue-800">
+              <p className="text-xs text-blue-800 dark:text-blue-200">
                 Após finalizar o cadastro, você receberá um boleto de pagamento. A senha de acesso será <strong>gerada automaticamente</strong> e enviada para o email cadastrado assim que o pagamento for confirmado (1-3 dias úteis para boleto).
               </p>
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
             type="submit"
             disabled={loading}
-            className="min-h-[48px] w-full rounded-lg bg-blue-600 px-6 py-3 text-base font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[200px] sm:px-8 sm:text-lg"
+            className="min-h-[48px] w-full shrink-0 rounded-lg bg-blue-600 px-6 py-3 text-base font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:min-w-[220px] lg:px-10 lg:text-lg"
           >
             {loading ? 'Criando cadastro...' : 'Finalizar Cadastro'}
           </button>

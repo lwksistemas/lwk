@@ -3,7 +3,7 @@
 import type React from 'react';
 import { useState } from 'react';
 import { formatCurrency } from '@/lib/financeiro-helpers';
-import { formatCep, formatTelefone, cepDigitosValidos, mensagemCpfCnpjInvalido } from '@/lib/format-br';
+import { formatCep, formatTelefone, mensagemCpfCnpjInvalido } from '@/lib/format-br';
 import type { LojaFormData, TipoLojaOption, PlanoOption } from '@/hooks/useLojaForm';
 
 interface FormularioCadastroLojaProps {
@@ -245,6 +245,18 @@ export function FormularioCadastroLoja({
               value={formData.numero}
               onChange={handleChange}
               className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+            <input
+              type="text"
+              name="complemento"
+              value={formData.complemento}
+              onChange={handleChange}
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              placeholder="Apto, sala, bloco..."
             />
           </div>
           

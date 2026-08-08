@@ -296,9 +296,14 @@ class Loja(models.Model):
         if not self.cor_secundaria and self.tipo_loja:
             self.cor_secundaria = self.tipo_loja.cor_secundaria
 
-        # ✅ NOVO v738: Definir limite de storage baseado no plano
-        if self.plano and self.storage_limite_mb == 500:  # Valor padrão
-            self.storage_limite_mb = self.plano.espaco_storage_gb * 1024
+        # Limite de storage sempre alinhado ao plano (1 GB = 1024 MB)
+        if self.plano_id:
+            try:
+                plano = self.plano
+            except Exception:
+                plano = None
+            if plano and plano.espaco_storage_gb:
+                self.storage_limite_mb = int(plano.espaco_storage_gb) * 1024
 
         # Executar validações antes de salvar
         self.full_clean()

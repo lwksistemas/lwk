@@ -99,12 +99,22 @@ def listar_storage_lojas(request):
 
         dados = []
         for loja in lojas:
+            # Limite exibido = plano atual (fonte da verdade)
+            if loja.plano_id and loja.plano and loja.plano.espaco_storage_gb:
+                limite_mb = int(loja.plano.espaco_storage_gb) * 1024
+                if loja.storage_limite_mb != limite_mb:
+                    loja.storage_limite_mb = limite_mb
+                    loja.save(update_fields=["storage_limite_mb"])
+            else:
+                limite_mb = loja.storage_limite_mb or 0
+
             horas_desde_verificacao = None
             if loja.storage_ultima_verificacao:
                 tempo_desde = timezone.now() - loja.storage_ultima_verificacao
                 horas_desde_verificacao = int(tempo_desde.total_seconds() / 3600)
 
-            percentual = loja.get_storage_percentual()
+            usado_mb = float(loja.storage_usado_mb) if loja.storage_usado_mb else 0.0
+            percentual = (usado_mb / limite_mb * 100) if limite_mb else 0.0
             if percentual >= 100:
                 storage_status = "critical"
                 storage_status_texto = "Storage cheio"
@@ -119,9 +129,9 @@ def listar_storage_lojas(request):
                 "id": loja.id,
                 "nome": loja.nome,
                 "slug": loja.slug,
-                "storage_usado_mb": float(loja.storage_usado_mb) if loja.storage_usado_mb else 0.0,
-                "storage_limite_mb": loja.storage_limite_mb,
-                "storage_livre_mb": loja.storage_limite_mb - (float(loja.storage_usado_mb) if loja.storage_usado_mb else 0.0),
+                "storage_usado_mb": usado_mb,
+                "storage_limite_mb": limite_mb,
+                "storage_livre_mb": limite_mb - usado_mb,
                 "storage_percentual": percentual,
                 "storage_status": storage_status,
                 "storage_status_texto": storage_status_texto,

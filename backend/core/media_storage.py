@@ -26,6 +26,8 @@ MEDIA_API_TOKEN = os.environ.get(
     "MEDIA_API_TOKEN",
     os.environ.get("SECRET_KEY", ""),
 )
+# Tenant para assets globais (homepage, login do sistema) — sem loja no contexto
+MEDIA_SYSTEM_CNPJ = os.environ.get("MEDIA_SYSTEM_CNPJ", "00000000000000")
 
 
 def _cpf_cnpj_digits(loja) -> str:
@@ -40,6 +42,53 @@ def _cpf_cnpj_digits(loja) -> str:
     if len(slug_digits) in (11, 14):
         return slug_digits
     return digits or str(getattr(loja, "id", "unknown"))
+
+
+def media_upload_cnpj(
+    cnpj: str,
+    file_data: bytes | BinaryIO,
+    *,
+    filename: str = "upload.jpg",
+    folder: str = "fotos",
+) -> str | None:
+    """Faz upload para um tenant identificado por CPF/CNPJ (só dígitos)."""
+    digits = re.sub(r"\D", "", cnpj or "")
+    if not digits:
+        logger.error("media_upload_cnpj: CNPJ vazio")
+        return None
+
+    url = f"{MEDIA_SERVER_URL}/upload/{digits}/"
+    headers = {"Authorization": f"Bearer {MEDIA_API_TOKEN}"}
+
+    if isinstance(file_data, bytes):
+        file_obj = BytesIO(file_data)
+    else:
+        file_obj = file_data
+
+    try:
+        response = requests.post(
+            url,
+            headers=headers,
+            files={"file": (filename, file_obj)},
+            data={"folder": folder},
+            timeout=60,
+        )
+
+        if response.status_code == 201:
+            data = response.json()
+            file_url = f"{MEDIA_SERVER_URL}{data['url']}"
+            logger.info("media_upload OK: %s (%d bytes)", file_url, data.get("size", 0))
+            return file_url
+
+        logger.error(
+            "media_upload falhou: HTTP %s — %s",
+            response.status_code,
+            response.text[:200],
+        )
+        return None
+    except Exception as exc:
+        logger.exception("media_upload erro: %s", exc)
+        return None
 
 
 def media_upload(
@@ -64,39 +113,7 @@ def media_upload(
     if not cnpj:
         logger.error("media_upload: loja sem CPF/CNPJ")
         return None
-
-    url = f"{MEDIA_SERVER_URL}/upload/{cnpj}/"
-    headers = {"Authorization": f"Bearer {MEDIA_API_TOKEN}"}
-
-    if isinstance(file_data, bytes):
-        file_obj = BytesIO(file_data)
-    else:
-        file_obj = file_data
-
-    try:
-        response = requests.post(
-            url,
-            headers=headers,
-            files={"file": (filename, file_obj)},
-            data={"folder": folder},
-            timeout=60,
-        )
-
-        if response.status_code == 201:
-            data = response.json()
-            file_url = f"{MEDIA_SERVER_URL}{data['url']}"
-            logger.info("media_upload OK: %s (%d bytes)", file_url, data.get("size", 0))
-            return file_url
-        else:
-            logger.error(
-                "media_upload falhou: HTTP %s — %s",
-                response.status_code,
-                response.text[:200],
-            )
-            return None
-    except Exception as exc:
-        logger.exception("media_upload erro: %s", exc)
-        return None
+    return media_upload_cnpj(cnpj, file_data, filename=filename, folder=folder)
 
 
 def media_upload_from_url(

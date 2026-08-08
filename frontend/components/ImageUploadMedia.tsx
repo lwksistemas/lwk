@@ -72,8 +72,10 @@ export function ImageUploadMedia({
       } else {
         setError(response.data?.error || 'Erro ao enviar arquivo');
       }
-    } catch (err) {
-      setError('Erro ao enviar arquivo. Tente novamente.');
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string; detail?: string } } };
+      const apiMsg = axiosErr?.response?.data?.error || axiosErr?.response?.data?.detail;
+      setError(apiMsg || 'Erro ao enviar arquivo. Tente novamente.');
     } finally {
       setUploading(false);
       // Limpar input para permitir reselecionar o mesmo arquivo

@@ -340,7 +340,7 @@ export default function HomepageConfigPage() {
                 description="Imagem de fundo do Hero (recomendado: 1920x1080px)"
                 value={config.editingHeroImg?.imagem ?? ''}
                 onChange={(url) => config.setEditingHeroImg(prev => prev ? { ...prev, imagem: url } : { imagem: url, titulo: '' })}
-                maxSize={5}
+                maxSize={10}
                 folder="fotos"
               />
               <div className="flex gap-2 justify-end">

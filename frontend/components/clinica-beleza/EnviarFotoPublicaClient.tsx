@@ -28,9 +28,9 @@ interface FotoUploadConfig {
   paciente_nome: string;
   profissional_nome?: string;
   clinica_nome: string;
-  cloud_name: string;
-  upload_preset: string;
-  folder: string;
+  cloud_name?: string;
+  upload_preset?: string;
+  folder?: string;
   max_fotos?: number;
   fotos_consulta_count?: number;
   fotos_restantes?: number;

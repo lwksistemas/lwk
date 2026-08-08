@@ -15,8 +15,6 @@ from .foto_paciente_service import (
     MAX_FOTOS_POR_CONSULTA,
     FotoCloudinaryInvalida,
     FotoUploadInvalida,
-    ambiente_do_token_foto,
-    cloudinary_upload_config,
     decodificar_token_foto,
     excluir_foto_paciente,
     extrair_bytes_upload_request,
@@ -26,7 +24,7 @@ from .foto_paciente_service import (
     parse_json_body_seguro,
     registrar_foto,
     resolver_frontend_base_qr,
-    upload_foto_cloudinary,
+    upload_foto_media,
 )
 from .models import Consulta, PacienteFotoAcompanhamento
 from .permissions import CLINICA_CLINICAL
@@ -199,8 +197,6 @@ class EnviarFotoPublicaView(View):
             return JsonResponse({"error": bloqueio}, status=400)
 
         loja = Loja.objects.using("default").filter(id=payload["loja_id"]).first()
-        ambiente = ambiente_do_token_foto(payload, request)
-        upload_cfg = cloudinary_upload_config(loja, ambiente=ambiente) if loja else {}
 
         return JsonResponse({
             "paciente_nome": consulta.patient.nome if consulta.patient else "",
@@ -209,7 +205,6 @@ class EnviarFotoPublicaView(View):
             "consulta_id": consulta.id,
             "upload_via_api": True,
             **limites_fotos_consulta(consulta.id),
-            **upload_cfg,
         })
 
     def _validar_consulta_post(self, payload):
@@ -246,11 +241,10 @@ class EnviarFotoPublicaView(View):
         if not loja:
             return JsonResponse({"error": "Loja não encontrada."}, status=400)
 
-        ambiente = ambiente_do_token_foto(payload, request)
         conteudo = extrair_bytes_upload_request(request)
         if conteudo:
             try:
-                up = upload_foto_cloudinary(loja, conteudo, ambiente=ambiente)
+                up = upload_foto_media(loja, conteudo)
                 foto = registrar_foto(consulta, up["secure_url"], "qr", up["public_id"])
             except FotoUploadInvalida as exc:
                 return JsonResponse({"error": str(exc)}, status=400)

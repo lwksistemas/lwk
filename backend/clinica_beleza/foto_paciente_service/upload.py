@@ -1,8 +1,5 @@
 import io
 import logging
-import os
-
-from core.cloudinary_upload_preset import server_image_upload_options
 
 from .constants import (
     JPEG_QUALIDADE_INICIAL,
@@ -13,7 +10,6 @@ from .constants import (
     MIN_LADO_IMAGEM,
 )
 from .exceptions import FotoUploadInvalida
-from .validation import cloudinary_upload_config
 
 logger = logging.getLogger(__name__)
 
@@ -102,37 +98,6 @@ def parse_json_body_seguro(request) -> dict:
         return {}
 
 
-def _configurar_cloudinary_sdk() -> dict | None:
-    """Retorna cloud_name/api_key/api_secret ou None se indisponível."""
-    cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip()
-    api_key = os.environ.get("CLOUDINARY_API_KEY", "").strip()
-    api_secret = os.environ.get("CLOUDINARY_API_SECRET", "").strip()
-    try:
-        from superadmin.cloudinary_models import CloudinaryConfig
-
-        cfg = CloudinaryConfig.get_config()
-        if cfg.enabled and cfg.cloud_name and cfg.api_key and cfg.api_secret:
-            cloud_name = cfg.cloud_name.strip()
-            api_key = cfg.api_key.strip()
-            api_secret = cfg.api_secret.strip()
-    except Exception as exc:
-        logger.debug("CloudinaryConfig: %s", exc)
-    if not (cloud_name and api_key and api_secret):
-        return None
-    try:
-        import cloudinary
-
-        cloudinary.config(
-            cloud_name=cloud_name,
-            api_key=api_key,
-            api_secret=api_secret,
-            secure=True,
-        )
-    except ImportError:
-        return None
-    return {"cloud_name": cloud_name, "api_key": api_key, "api_secret": api_secret}
-
-
 def comprimir_imagem_bytes(conteudo: bytes) -> bytes:
     """Reduz JPEG/PNG/HEIC do celular (alvo ~1,5 MB, qualidade moderada para estética)."""
     from PIL import Image, ImageOps
@@ -191,42 +156,57 @@ def comprimir_imagem_bytes(conteudo: bytes) -> bytes:
     )
 
 
-def upload_foto_cloudinary(loja, conteudo: bytes, ambiente: str | None = None) -> dict:
-    """Envia bytes comprimidos ao Cloudinary (upload autenticado no servidor)."""
-    if not _configurar_cloudinary_sdk():
-        raise FotoUploadInvalida("Upload de imagem indisponível no momento.")
+def upload_foto_media(loja, conteudo: bytes, ambiente: str | None = None) -> dict:
+    """Comprime e envia a foto ao servidor de mídia (media.lwksistemas.com.br)."""
+    del ambiente  # mantido na assinatura por compatibilidade com chamadas antigas
+    from urllib.parse import urlparse
 
-    import cloudinary.uploader
-
-    cfg = cloudinary_upload_config(loja, ambiente=ambiente)
-    folder = (cfg.get("folder") or "").strip()
-    if not folder:
-        raise FotoUploadInvalida("Pasta de upload não configurada.")
+    from core.media_storage import media_upload
 
     comprimido = comprimir_imagem_bytes(conteudo)
-    try:
-        resultado = cloudinary.uploader.upload(
-            comprimido,
-            **server_image_upload_options(folder),
-            overwrite=True,
-        )
-    except Exception as exc:
-        logger.exception("Erro upload Cloudinary foto paciente")
-        raise FotoUploadInvalida("Falha ao enviar imagem. Tente novamente.") from exc
-
-    url = (resultado.get("secure_url") or "").strip()
+    url = media_upload(loja, comprimido, filename="foto.jpg", folder="fotos")
     if not url:
-        raise FotoUploadInvalida("Resposta inválida do serviço de imagens.")
-    return {
-        "secure_url": url,
-        "public_id": (resultado.get("public_id") or "").strip(),
-    }
+        raise FotoUploadInvalida("Falha ao enviar imagem. Tente novamente.")
+    path = urlparse(url).path.lstrip("/")
+    return {"secure_url": url, "public_id": path}
+
+
+def upload_foto_cloudinary(loja, conteudo: bytes, ambiente: str | None = None) -> dict:
+    """Compat: Cloudinary descontinuado — redireciona para o servidor de mídia."""
+    return upload_foto_media(loja, conteudo, ambiente=ambiente)
+
+
+def _parse_media_path(url: str) -> tuple[str, str] | None:
+    """Extrai (folder, filename) de URL /files/{cnpj}/{folder}/{filename}."""
+    import re
+
+    match = re.search(r"/files/\d+/(?P<folder>[\w-]+)/(?P<filename>[^/?#]+)$", url or "")
+    if not match:
+        return None
+    return match.group("folder"), match.group("filename")
+
+
+def excluir_foto_media(loja, foto_url: str) -> bool:
+    """Remove imagem do servidor de mídia."""
+    from core.media_storage import media_delete
+
+    parsed = _parse_media_path(foto_url)
+    if not parsed:
+        logger.warning("URL de mídia sem path reconhecível: %s", foto_url)
+        return False
+    folder, filename = parsed
+    ok = media_delete(loja, filename, folder=folder)
+    if ok:
+        logger.info("Foto removida do servidor de mídia: %s/%s", folder, filename)
+    return ok
 
 
 def excluir_foto_cloudinary(loja, cloudinary_url: str, public_id: str = "") -> bool:
-    """Remove imagem do Cloudinary. Retorna True se removida ou já inexistente."""
+    """Remove do servidor de mídia; Cloudinary legado é ignorado (descontinuado)."""
+    from core.media_storage import is_cloudinary_url, is_media_url
+
     from .exceptions import FotoCloudinaryInvalida
-    from .validation import validar_cloudinary_foto_loja
+    from .validation import validar_foto_loja
 
     url = (cloudinary_url or "").strip()
     pid = (public_id or "").strip()
@@ -234,7 +214,8 @@ def excluir_foto_cloudinary(loja, cloudinary_url: str, public_id: str = "") -> b
         return False
 
     try:
-        validar_cloudinary_foto_loja(loja, url, pid)
+        if url:
+            validar_foto_loja(loja, url, pid)
     except FotoCloudinaryInvalida:
         logger.warning(
             "Tentativa de excluir foto fora da pasta da loja %s: %s",
@@ -243,28 +224,14 @@ def excluir_foto_cloudinary(loja, cloudinary_url: str, public_id: str = "") -> b
         )
         return False
 
-    if not _configurar_cloudinary_sdk():
-        logger.error("Cloudinary indisponível para exclusão de foto do paciente")
-        return False
+    if is_media_url(url):
+        return excluir_foto_media(loja, url)
 
-    import cloudinary.uploader
-
-    from superadmin.cloudinary_utils import extract_public_id_from_url
-
-    target_pid = pid or extract_public_id_from_url(url)
-    if not target_pid:
-        logger.error("Não foi possível obter public_id para exclusão: %s", url)
-        return False
-
-    try:
-        result = cloudinary.uploader.destroy(target_pid)
-    except Exception:
-        logger.exception("Exceção ao remover foto do Cloudinary: %s", target_pid)
-        return False
-
-    if result.get("result") in ("ok", "not found"):
-        logger.info("Foto removida do Cloudinary: %s", target_pid)
+    if is_cloudinary_url(url):
+        logger.info(
+            "Foto ainda no Cloudinary (descontinuado) — só remove do banco: %s",
+            url[:120],
+        )
         return True
 
-    logger.error("Erro ao remover foto do Cloudinary: %s", result)
     return False

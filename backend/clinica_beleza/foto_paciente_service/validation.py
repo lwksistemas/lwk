@@ -1,7 +1,9 @@
 import logging
 import os
+import re
 
 from core.cloudinary_folders import loja_clinica_fotos, loja_clinica_fotos_paths
+from core.media_storage import MEDIA_SERVER_URL, _cpf_cnpj_digits, is_media_url
 
 from .constants import CLOUDINARY_HOST
 from .exceptions import FotoCloudinaryInvalida
@@ -10,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def cloudinary_upload_config(loja, ambiente: str | None = None) -> dict:
+    """Legado — QR/painel usam upload via API no servidor de mídia."""
     cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME", "dzrdbw74w")
     upload_preset = os.environ.get("CLOUDINARY_UPLOAD_PRESET", "lwk_padrao")
     try:
@@ -29,8 +32,21 @@ def cloudinary_upload_config(loja, ambiente: str | None = None) -> dict:
     }
 
 
+def validar_media_foto_loja(loja, url: str) -> None:
+    """Garante que a URL é do servidor de mídia na pasta da loja."""
+    cnpj = _cpf_cnpj_digits(loja)
+    if not cnpj:
+        raise FotoCloudinaryInvalida("Configuração de upload indisponível.")
+    base = (MEDIA_SERVER_URL or "https://media.lwksistemas.com.br").rstrip("/")
+    expected = f"{base}/files/{cnpj}/"
+    if not url.lower().startswith(expected.lower()):
+        # Aceita path relativo servido pelo mesmo host
+        if not re.search(rf"/files/{re.escape(cnpj)}/", url, re.IGNORECASE):
+            raise FotoCloudinaryInvalida("Imagem fora da pasta autorizada desta clínica.")
+
+
 def validar_cloudinary_foto_loja(loja, cloudinary_url: str, public_id: str = "") -> None:
-    """Garante que a imagem pertence à pasta da loja no Cloudinary."""
+    """Legado: valida URL Cloudinary (fotos antigas ainda não migradas)."""
     url = (cloudinary_url or "").strip()
     if not url.startswith("https://"):
         raise FotoCloudinaryInvalida("URL da imagem inválida.")
@@ -57,3 +73,14 @@ def validar_cloudinary_foto_loja(loja, cloudinary_url: str, public_id: str = "")
             return
 
     raise FotoCloudinaryInvalida("Imagem fora da pasta autorizada desta clínica.")
+
+
+def validar_foto_loja(loja, foto_url: str, public_id: str = "") -> None:
+    """Valida URL de foto da clínica (servidor de mídia; Cloudinary só legado)."""
+    url = (foto_url or "").strip()
+    if not url.startswith("https://"):
+        raise FotoCloudinaryInvalida("URL da imagem inválida.")
+    if is_media_url(url):
+        validar_media_foto_loja(loja, url)
+        return
+    validar_cloudinary_foto_loja(loja, url, public_id)

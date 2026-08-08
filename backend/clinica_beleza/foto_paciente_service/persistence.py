@@ -5,7 +5,7 @@ from django.utils import timezone
 from .constants import MAX_FOTOS_POR_CONSULTA
 from .exceptions import FotoCloudinaryInvalida, FotoUploadInvalida
 from .upload import excluir_foto_cloudinary
-from .validation import validar_cloudinary_foto_loja
+from .validation import validar_foto_loja
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ def listar_fotos_paciente(patient_id: int) -> list[dict]:
 
 
 def excluir_foto_paciente(foto) -> None:
-    """Remove foto do banco e do Cloudinary."""
+    """Remove foto do banco e do servidor de mídia."""
     from superadmin.models import Loja
 
     loja = Loja.objects.using("default").filter(id=foto.loja_id, is_active=True).first()
@@ -77,7 +77,7 @@ def registrar_foto(
     loja = Loja.objects.using("default").filter(id=consulta.loja_id, is_active=True).first()
     if not loja:
         raise FotoCloudinaryInvalida("Loja não encontrada.")
-    validar_cloudinary_foto_loja(loja, cloudinary_url, public_id)
+    validar_foto_loja(loja, cloudinary_url, public_id)
 
     if contar_fotos_consulta(consulta.id) >= MAX_FOTOS_POR_CONSULTA:
         raise FotoUploadInvalida(

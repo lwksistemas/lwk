@@ -1,4 +1,4 @@
-"""Fotos de acompanhamento — token QR e upload Cloudinary."""
+"""Fotos de acompanhamento — token QR e upload no servidor de mídia."""
 
 from .constants import (
     CLOUDINARY_HOST,
@@ -34,8 +34,9 @@ from .upload import (
     extrair_bytes_upload_request,
     parse_json_body_seguro,
     upload_foto_cloudinary,
+    upload_foto_media,
 )
-from .validation import cloudinary_upload_config, validar_cloudinary_foto_loja
+from .validation import cloudinary_upload_config, validar_cloudinary_foto_loja, validar_foto_loja
 
 __all__ = [
     "CLOUDINARY_HOST",
@@ -67,5 +68,7 @@ __all__ = [
     "resolver_frontend_base_qr",
     "serializar_foto",
     "upload_foto_cloudinary",
+    "upload_foto_media",
     "validar_cloudinary_foto_loja",
+    "validar_foto_loja",
 ]

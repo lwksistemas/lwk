@@ -259,12 +259,41 @@ def emitir_via_issnet_nacional_loja(
                 }
 
             if enviar_email and tomador_email:
+                # Busca URL oficial (ConsultarUrlNfse Nacional) e envia e-mail
+                # no padrão ISS.NET: link da DANFE + XML em anexo.
+                try:
+                    from nfse_integration.danfe import buscar_url_danfe_issnet
+                    from nfse_integration.models import NFSe
+
+                    nfse_obj = (
+                        NFSe.objects.filter(loja_id=loja.id, numero_nf=resultado_final["numero_nf"])
+                        .order_by("-data_emissao")
+                        .first()
+                    )
+                    url_danfe = buscar_url_danfe_issnet(
+                        nfse_obj,
+                        numero_nf=resultado_final["numero_nf"],
+                        loja_id=loja.id,
+                        loja=loja,
+                        config=config,
+                    )
+                    if url_danfe:
+                        resultado_final["pdf_url"] = url_danfe
+                        if nfse_obj is not None:
+                            nfse_obj.refresh_from_db(fields=["pdf_url", "xml_url"])
+                except Exception as exc:
+                    logger.warning(
+                        "ISSNet Nacional: falha ao obter URL DANFE pós-emissão NFS-e %s: %s",
+                        resultado_final["numero_nf"],
+                        exc,
+                    )
+
                 enviar_email_fn(
+                    numero_nf=resultado_final["numero_nf"],
                     tomador_email=tomador_email,
                     tomador_nome=tomador_nome,
-                    numero_nf=resultado_final["numero_nf"],
-                    valor=valor_servicos,
-                    descricao=servico_descricao,
+                    valor=Decimal(str(valor_servicos)),
+                    descricao=servico_descricao or "Serviço prestado",
                 )
 
             return resultado_final

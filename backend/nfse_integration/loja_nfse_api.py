@@ -53,7 +53,7 @@ def enviar_email_pos_emissao_loja(
     fail_silently: bool = True,
 ) -> None:
     """E-mail ao tomador após emissão (inclui DANFE ISSNet quando aplicável)."""
-    from nfse_integration.danfe import buscar_url_danfe_issnet
+    from nfse_integration.danfe import buscar_url_danfe_issnet, obter_url_visualizacao_nfse_loja
     from nfse_integration.email_nfse import enviar_email_nfse_tomador
     from nfse_integration.models import NFSe
 
@@ -64,13 +64,16 @@ def enviar_email_pos_emissao_loja(
     )
     url_danfe = ""
     if provedor_nf_loja(config) == "issnet":
-        url_danfe = buscar_url_danfe_issnet(
-            nfse_obj,
-            numero_nf=numero_nf,
-            loja_id=loja.id,
-            loja=loja,
-            config=config,
-        )
+        if nfse_obj is not None:
+            url_danfe = obter_url_visualizacao_nfse_loja(nfse_obj, loja, loja.id)
+        if not url_danfe:
+            url_danfe = buscar_url_danfe_issnet(
+                nfse_obj,
+                numero_nf=numero_nf,
+                loja_id=loja.id,
+                loja=loja,
+                config=config,
+            )
 
     enviar_email_nfse_tomador(
         loja=loja,

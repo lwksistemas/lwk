@@ -883,3 +883,68 @@ class ISSNetNacionalClient:
                 "success": False,
                 "detail": f"Erro ao conectar: {e}",
             }
+
+    def consultar_url_nfse(self, numero_nf: str) -> dict[str, Any]:
+        """Consulta URL da DANFE via ConsultarUrlNfse do Nacional.
+
+        Retorna dict com success e url (link para o portal notaeletronica.com.br).
+        """
+        result: dict[str, Any] = {"success": False, "url": "", "erro": None}
+
+        try:
+            ns = NS_NFSE_NACIONAL
+            from lxml import etree
+
+            nsmap = {None: ns}
+            root = etree.Element(f"{{{ns}}}ConsultarUrlNfseEnvio", nsmap=nsmap)
+            id_nfse = etree.SubElement(root, f"{{{ns}}}IdentificacaoNfse")
+            etree.SubElement(id_nfse, f"{{{ns}}}Numero").text = str(numero_nf)
+            cpf_cnpj_el = etree.SubElement(id_nfse, f"{{{ns}}}CpfCnpj")
+            etree.SubElement(cpf_cnpj_el, f"{{{ns}}}Cnpj").text = self.prestador_cnpj
+            etree.SubElement(id_nfse, f"{{{ns}}}InscricaoMunicipal").text = self.prestador_im
+            etree.SubElement(id_nfse, f"{{{ns}}}CodigoMunicipio").text = self.codigo_municipio
+
+            xml_consulta = etree.tostring(root, encoding="unicode", xml_declaration=False)
+
+            from nfse_integration.issnet_constants import SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE
+            resposta = self._enviar_soap(xml_consulta, SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE)
+
+            if not resposta:
+                result["erro"] = "Resposta vazia"
+                return result
+
+            # Extrair URL da resposta (Nacional / ABRASF-like tags)
+            import re
+
+            url = ""
+            for pattern in (
+                r"<(?:\w+:)?UrlVisualizacaoNfse>([^<]+)</(?:\w+:)?UrlVisualizacaoNfse>",
+                r"<(?:\w+:)?UrlNfse>([^<]+)</(?:\w+:)?UrlNfse>",
+                r"<(?:\w+:)?Url>([^<]+)</(?:\w+:)?Url>",
+                r"<(?:\w+:)?url>([^<]+)</(?:\w+:)?url>",
+                r"(https://www\.notaeletronica\.com\.br/[^\s\"'<>]+)",
+            ):
+                url_match = re.search(pattern, resposta, re.IGNORECASE)
+                if url_match:
+                    url = url_match.group(1).strip()
+                    if url.startswith("http"):
+                        break
+                    url = ""
+
+            if url.startswith("http"):
+                result["success"] = True
+                result["url"] = url
+                logger.info("ISSNet Nacional ConsultarUrlNfse: %s → %s", numero_nf, url)
+                return result
+
+            # Verificar erros
+            body = extrair_body_soap(resposta)
+            erros = extrair_erros(body)
+            result["erro"] = erros or "URL não encontrada na resposta"
+            logger.warning("ISSNet Nacional ConsultarUrlNfse falhou para NFS-e %s: %s", numero_nf, result["erro"])
+
+        except Exception as e:
+            logger.warning("ISSNet Nacional ConsultarUrlNfse erro: %s", e)
+            result["erro"] = str(e)
+
+        return result

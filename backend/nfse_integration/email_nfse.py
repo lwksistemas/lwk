@@ -46,9 +46,17 @@ def montar_corpo_email_nfse(
 
     if url_danfe:
         corpo += (
-            f"📄 VISUALIZAR NOTA FISCAL (DANFE):\n"
+            f"A Nota Eletrônica está disponível para impressão no seguinte endereço:\n"
             f"{url_danfe}\n\n"
         )
+        from nfse_integration.danfe import url_xml_download_from_danfe
+
+        url_xml = url_xml_download_from_danfe(url_danfe)
+        if url_xml:
+            corpo += (
+                f"O download do arquivo .xml referente a esta nota eletrônica pode ser feito acessando:\n"
+                f"{url_xml}\n\n"
+            )
 
     if rodape_simples:
         return corpo + f"Atenciosamente,\n{nome_prestador}"

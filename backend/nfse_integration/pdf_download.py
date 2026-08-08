@@ -2,7 +2,12 @@
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from .danfe import buscar_url_danfe_issnet, buscar_url_danfe_issnet_superadmin, url_danfe_valida
+from .danfe import (
+    buscar_url_danfe_issnet,
+    buscar_url_danfe_issnet_superadmin,
+    obter_url_visualizacao_nfse_loja,
+    url_danfe_valida,
+)
 
 
 @dataclass(frozen=True)
@@ -15,18 +20,17 @@ class ResultadoDownloadPdf:
 
 
 def resolver_download_pdf_loja(nfse: Any, loja: Any, loja_id: int) -> ResultadoDownloadPdf:
-    """CRM/loja: URL oficial da DANFE ou PDF interno."""
-    if url_danfe_valida(nfse.pdf_url):
+    """CRM/loja: URL oficial da DANFE (portal) ou PDF interno como último recurso."""
+    url_oficial = obter_url_visualizacao_nfse_loja(nfse, loja, loja_id)
+    if url_danfe_valida(url_oficial):
+        return ResultadoDownloadPdf(tipo="url", url=url_oficial)
+
+    if url_danfe_valida(getattr(nfse, "pdf_url", None)):
         return ResultadoDownloadPdf(tipo="url", url=nfse.pdf_url)
 
     url_danfe = buscar_url_danfe_issnet(nfse, loja_id=loja_id, loja=loja)
     if url_danfe:
         return ResultadoDownloadPdf(tipo="url", url=url_danfe)
-
-    # ISSNet Nacional (Ribeirão Preto): gera PDF interno com dados reais
-    # O portal público (notaeletronica.com.br) tem proteção Cloudflare
-    # e não suporta links diretos. O PDF gerado pelo sistema contém todos
-    # os dados oficiais extraídos do XML retornado pelo ISSNet.
 
     from .pdf_nfse import gerar_pdf_nfse
 

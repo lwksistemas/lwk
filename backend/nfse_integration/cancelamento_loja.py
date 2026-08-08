@@ -80,12 +80,34 @@ def _cancelar_nfse_loja_nacional(
     """Cancela NFS-e via ISSNet padrão Nacional (DPS/RTC)."""
     try:
         client = _criar_client_nacional_cancelamento(config, cnpj_prestador, im_prestador)
-        chave_acesso = getattr(nfse, "codigo_verificacao", "") or getattr(nfse, "chave_acesso", "") or ""
+        chave_acesso = (
+            getattr(nfse, "codigo_verificacao", "")
+            or getattr(nfse, "chave_acesso", "")
+            or ""
+        )
+        # GerarNfse frequentemente não devolve chave — tenta via ConsultarNfseDps.
+        if not str(chave_acesso).strip() and getattr(nfse, "numero_rps", None):
+            try:
+                serie = getattr(config, "issnet_serie_rps", "1") or "1"
+                consulta = client.consultar_nfse_por_dps(
+                    numero_dps=int(nfse.numero_rps),
+                    serie_dps=str(serie),
+                )
+                if consulta.get("success") and consulta.get("chave_acesso"):
+                    chave_acesso = consulta["chave_acesso"]
+                    try:
+                        nfse.codigo_verificacao = str(chave_acesso)[:100]
+                        nfse.save(update_fields=["codigo_verificacao", "updated_at"])
+                    except Exception:
+                        pass
+            except Exception as exc:
+                logger.debug("Cancelamento Nacional: falha ao obter chave via DPS: %s", exc)
+
         resultado = client.cancelar_nfse(
             numero_nfse=str(numero_nf),
             motivo=motivo,
             codigo_cancelamento=codigo_cancelamento,
-            chave_acesso=str(chave_acesso),
+            chave_acesso=str(chave_acesso or ""),
         )
         if resultado.get("success"):
             _marcar_cancelada_loja(nfse)
@@ -100,9 +122,12 @@ def _cancelar_nfse_loja_nacional(
                 logger.warning("Falha ao enviar email de cancelamento: %s", exc)
             return {"success": True, "message": "NFS-e cancelada com sucesso no ISSNet Nacional."}
 
+        erro = resultado.get("erro") or "Erro ao cancelar no ISSNet Nacional"
+        if isinstance(erro, (list, tuple)):
+            erro = "; ".join(str(e) for e in erro)
         return {
             "success": False,
-            "error": resultado.get("erro", "Erro ao cancelar no ISSNet Nacional"),
+            "error": str(erro),
         }
     except Exception as exc:
         logger.exception("Erro ao cancelar NFS-e via ISSNet Nacional: %s", exc)

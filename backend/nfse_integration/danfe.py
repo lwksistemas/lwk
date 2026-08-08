@@ -23,8 +23,14 @@ def _extrair_prestador_do_xml(xml_nfse: str) -> tuple[str, str]:
     inscricao_municipal = ""
 
     if xml_nfse:
-        cnpj_match = re.search(r"<Cnpj>(\d+)</Cnpj>", xml_nfse)
-        im_match = re.search(r"<InscricaoMunicipal>(\d+)</InscricaoMunicipal>", xml_nfse)
+        cnpj_match = (
+            re.search(r"<Cnpj>(\d+)</Cnpj>", xml_nfse, re.IGNORECASE)
+            or re.search(r"<CNPJ>(\d+)</CNPJ>", xml_nfse)
+        )
+        im_match = (
+            re.search(r"<InscricaoMunicipal>(\d+)</InscricaoMunicipal>", xml_nfse, re.IGNORECASE)
+            or re.search(r"<IM>(\d+)</IM>", xml_nfse)
+        )
         if cnpj_match:
             cnpj = cnpj_match.group(1)
         if im_match:
@@ -42,6 +48,27 @@ def _salvar_pdf_url(nfse: Any, url: str) -> None:
         nfse.save(update_fields=["pdf_url"])
     except Exception as exc:
         logger.debug("Nao foi possivel salvar pdf_url da NFS-e id=%s: %s", getattr(nfse, "id", None), exc)
+
+
+def _config_usa_padrao_nacional(config: Any | None) -> bool:
+    return bool(getattr(config, "issnet_usar_padrao_nacional", False)) if config is not None else False
+
+
+def url_xml_download_from_danfe(url_danfe: str) -> str:
+    """Deriva o link de download do XML a partir da URL da DANFE ISSNet RP."""
+    url = (url_danfe or "").strip()
+    if not url:
+        return ""
+    if "Nota_Digital_Nacional.aspx" in url:
+        return url.replace("Nota_Digital_Nacional.aspx", "NotaDigitalXmlDownload.aspx")
+    if "NotaDigital.aspx" in url:
+        return url.replace("NotaDigital.aspx", "NotaDigitalXmlDownload.aspx")
+    return ""
+
+
+def _url_xml_download_from_danfe(url_danfe: str) -> str:
+    """Alias legado — use url_xml_download_from_danfe."""
+    return url_xml_download_from_danfe(url_danfe)
 
 
 def obter_url_visualizacao_nfse_loja(
@@ -117,6 +144,20 @@ def buscar_url_danfe_issnet(
         )
 
         if not certificado_configurado_loja(config):
+            return ""
+
+        # Nacional (DPS/RTC): ABRASF ConsultarUrlNfse NÃO enxerga essas notas.
+        if _config_usa_padrao_nacional(config):
+            url_nacional = _gerar_url_portal_issnet_nacional(
+                nfse,
+                loja,
+                config=config,
+                salvar=salvar,
+                numero_nf=str(numero_nf),
+            )
+            if url_danfe_valida(url_nacional):
+                return url_nacional
+            # Não cair no ABRASF: notas Nacional não aparecem lá.
             return ""
 
         cnpj_prestador, im_prestador = _resolver_cnpj_im_danfe(config, loja, nfse)
@@ -202,40 +243,104 @@ def buscar_url_danfe_issnet_superadmin(nfse: Any, config: Any | None = None, *, 
         return ""
 
 
-def _gerar_url_portal_issnet_nacional(nfse: Any, loja: Any) -> str:
-    """Gera URL de consulta pública no portal ISSNet Ribeirão Preto.
+def _gerar_url_portal_issnet_nacional(
+    nfse: Any,
+    loja: Any,
+    *,
+    config: Any | None = None,
+    salvar: bool = True,
+    numero_nf: str = "",
+) -> str:
+    """Consulta URL da DANFE no webservice Nacional do ISSNet.
 
-    O portal público permite visualizar/imprimir a nota pelo número + IM.
-    URL: https://www.notaeletronica.com.br/ribeiraopreto/consulta/default.aspx
-    Parâmetros: ccm=INSCRICAO_MUNICIPAL&nf=NUMERO_NFSE
+    Usa o endpoint ConsultarUrlNfse do Nacional (não ABRASF) para obter
+    o link oficial da nota no portal notaeletronica.com.br
+    (Nota_Digital_Nacional.aspx com token).
     """
-    numero_nf = getattr(nfse, "numero_nf", "") or ""
+    numero_nf = str(numero_nf or getattr(nfse, "numero_nf", "") or "").strip()
     if not numero_nf or not numero_nf.isdigit():
         return ""
 
-    # Obter inscricao municipal do prestador
-    im = ""
-    if loja:
-        im = re.sub(r"\D", "", getattr(loja, "inscricao_municipal", "") or "")
-    if not im:
-        xml_nfse = getattr(nfse, "xml_nfse", "") or ""
-        im_match = re.search(r"<IM>(\d+)</IM>", xml_nfse)
-        if im_match:
-            im = im_match.group(1)
-    if not im:
-        try:
-            from crm_vendas.models_config import CRMConfig
-            config = CRMConfig.get_or_create_for_loja(getattr(nfse, "loja_id", 0))
-            im = re.sub(r"\D", "", getattr(config, "issnet_inscricao_municipal", "") or "")
-            if not im:
-                im = re.sub(r"\D", "", getattr(config, "inscricao_municipal", "") or "")
-        except Exception:
-            pass
+    try:
+        import contextlib
 
-    if not im:
-        return ""
+        from core.encryption import decrypt_value
+        from crm_vendas.models_config import CRMConfig
+        from nfse_integration.issnet_loja import certificado_configurado_loja
+        from nfse_integration.issnet_nacional_client import ISSNetNacionalClient
 
-    # URL de consulta pública do portal ISSNet Ribeirão Preto
-    url = f"https://www.notaeletronica.com.br/ribeiraopreto/consulta/default.aspx?ccm={im}&nf={numero_nf}"
-    logger.info("URL portal ISSNet Nacional: %s", url)
-    return url
+        loja_id = getattr(nfse, "loja_id", None) if nfse is not None else None
+        if not loja_id:
+            loja_id = getattr(loja, "id", None)
+        if not loja_id:
+            return ""
+
+        if config is None:
+            config = CRMConfig.get_or_create_for_loja(loja_id)
+        if not certificado_configurado_loja(config):
+            return ""
+
+        cert_bytes = getattr(config, "issnet_certificado", None) or getattr(
+            config, "nacional_certificado", None,
+        )
+        senha = (
+            getattr(config, "issnet_senha_certificado", "")
+            or getattr(config, "nacional_senha_certificado", "")
+            or ""
+        )
+        if senha:
+            with contextlib.suppress(Exception):
+                senha = decrypt_value(senha)
+
+        cnpj, im = _resolver_cnpj_im_danfe(config, loja, nfse)
+        cnpj = re.sub(r"\D", "", cnpj or "")
+        im = re.sub(r"\D", "", im or "")
+        if not cnpj or not im:
+            logger.warning(
+                "DANFE Nacional: CNPJ/IM ausentes para NFS-e %s (loja_id=%s)",
+                numero_nf,
+                loja_id,
+            )
+            return ""
+
+        ambiente = (
+            "homologacao"
+            if getattr(config, "issnet_ambiente_homologacao", False)
+            else "producao"
+        )
+        client = ISSNetNacionalClient(
+            cert_bytes=bytes(cert_bytes) if cert_bytes else None,
+            cert_password=senha,
+            ambiente=ambiente,
+            prestador_cnpj=cnpj,
+            prestador_inscricao_municipal=im,
+        )
+
+        resultado = client.consultar_url_nfse(numero_nf)
+        url = (resultado.get("url") or "").strip() if resultado.get("success") else ""
+        if url_danfe_valida(url):
+            if salvar and nfse is not None:
+                _salvar_pdf_url(nfse, url)
+                xml_url = url_xml_download_from_danfe(url)
+                if xml_url:
+                    try:
+                        nfse.xml_url = xml_url[:1000]
+                        nfse.save(update_fields=["xml_url"])
+                    except Exception as exc:
+                        logger.debug(
+                            "Nao foi possivel salvar xml_url id=%s: %s",
+                            getattr(nfse, "id", None),
+                            exc,
+                        )
+            return url
+
+        logger.warning(
+            "DANFE Nacional: sem URL válida para NFS-e %s: %s",
+            numero_nf,
+            resultado.get("erro"),
+        )
+
+    except Exception as exc:
+        logger.warning("Erro ao buscar URL DANFE Nacional: %s", exc)
+
+    return ""

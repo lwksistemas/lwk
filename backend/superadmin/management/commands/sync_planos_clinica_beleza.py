@@ -104,6 +104,19 @@ class Command(BaseCommand):
                 plano.tipos_loja.remove(tipo)
                 self.stdout.write(f"  removido tipo clinica-beleza de: {plano.slug}")
             else:
+                lojas_no_plano = plano.lojas.count()
+                if lojas_no_plano:
+                    # Não deixa loja em plano inativo: move para Completo
+                    completo = PlanoAssinatura.objects.filter(
+                        slug="profissional-clinica-beleza"
+                    ).first()
+                    if completo:
+                        movidas = plano.lojas.update(plano=completo)
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"  {movidas} loja(s) de {plano.slug} → {completo.slug}"
+                            )
+                        )
                 if plano.is_active:
                     plano.is_active = False
                     plano.save(update_fields=["is_active", "updated_at"])

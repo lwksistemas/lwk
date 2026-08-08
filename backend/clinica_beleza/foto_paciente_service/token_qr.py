@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.signing import BadSignature, dumps, loads
 from django.utils import timezone
 
-from core.cloudinary_folders import resolve_ambiente_segment
+from core.ambiente import resolve_ambiente_segment
 from core.mfa_service import qr_code_base64
 
 from .constants import MODULO, TOKEN_EXPIRACAO_HORAS
@@ -133,7 +133,7 @@ def gerar_qr_foto(consulta, frontend_base: str | None = None) -> dict:
 
 
 def ambiente_do_token_foto(payload: dict, request=None) -> str:
-    """Ambiente Cloudinary do token QR; fallback pela origem da requisição."""
+    """Ambiente do token QR (beta/producao); fallback pela origem da requisição."""
     amb = payload.get("ambiente")
     if amb in ("beta", "producao"):
         return amb

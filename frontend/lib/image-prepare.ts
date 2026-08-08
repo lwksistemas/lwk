@@ -1,4 +1,4 @@
-/** Upload direto ao Cloudinary (preset unsigned) — galeria ou câmera nativa. */
+/** Compressão de imagens antes do upload (servidor de mídia). */
 
 const EXT_IMAGEM = /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i;
 
@@ -105,26 +105,4 @@ export async function prepararArquivoImagemUpload(file: File): Promise<File> {
   } catch {
     return file;
   }
-}
-
-export async function uploadImagemCloudinary(file: File, folder: string): Promise<string> {
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dzrdbw74w';
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'lwk_padrao';
-  const arquivo = await prepararArquivoImagemUpload(file);
-
-  const formData = new FormData();
-  formData.append('file', arquivo);
-  formData.append('upload_preset', uploadPreset);
-  formData.append('folder', folder);
-  formData.append('asset_folder', folder);
-
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-    method: 'POST',
-    body: formData,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error((data as { error?: { message?: string } }).error?.message || 'Falha no upload');
-  }
-  return (data as { secure_url: string }).secure_url;
 }

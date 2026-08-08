@@ -8,7 +8,11 @@ from superadmin.backup_service.image_exporter import (
 
 
 class BackupImageExporterHelpersTest(SimpleTestCase):
-    def test_cloudinary_url_reconhecida(self):
+    def test_media_server_url_reconhecida(self):
+        url = "https://media.lwksistemas.com.br/files/12345678901/fotos/sample.jpg"
+        self.assertTrue(_looks_like_media_url(url))
+
+    def test_cloudinary_url_ainda_reconhecida(self):
         url = "https://res.cloudinary.com/demo/image/upload/v1/sample.jpg"
         self.assertTrue(_looks_like_media_url(url))
 
@@ -17,7 +21,7 @@ class BackupImageExporterHelpersTest(SimpleTestCase):
         self.assertFalse(_looks_like_media_url(""))
 
     def test_split_url_list_json(self):
-        raw = '["https://res.cloudinary.com/a/x.jpg", "https://res.cloudinary.com/a/y.png"]'
+        raw = '["https://media.lwksistemas.com.br/files/a/fotos/x.jpg", "https://media.lwksistemas.com.br/files/a/fotos/y.png"]'
         urls = _split_url_list(raw)
         self.assertEqual(len(urls), 2)
 

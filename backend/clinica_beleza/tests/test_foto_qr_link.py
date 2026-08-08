@@ -8,14 +8,12 @@ from rest_framework import status
 from clinica_beleza.foto_paciente_service import (
     ambiente_do_token_foto,
     build_link_foto,
-    cloudinary_upload_config,
     default_frontend_base_foto,
     frontend_base_permitido,
     gerar_token_foto,
     resolver_frontend_base_qr,
 )
-from core.cloudinary_folders import resolve_ambiente_segment
-from core.cloudinary_upload_preset import server_image_upload_options
+from core.ambiente import resolve_ambiente_segment
 
 
 class FotoQrLinkTests(TestCase):
@@ -113,24 +111,6 @@ class FotoQrLinkTests(TestCase):
             META={},
         )
         self.assertEqual(ambiente_do_token_foto({}, req), "beta")
-
-    def test_server_upload_usa_asset_folder(self):
-        opts = server_image_upload_options("lwksistemas/beta/34787081845/clinica-beleza-fotos")
-        self.assertEqual(opts["asset_folder"], "lwksistemas/beta/34787081845/clinica-beleza-fotos")
-        self.assertTrue(opts["use_asset_folder_as_public_id_prefix"])
-
-    def test_cloudinary_upload_config_com_ambiente(self):
-        loja = SimpleNamespace(
-            cpf_cnpj="34787081845",
-            slug="34787081845",
-            atalho="sorriso",
-            id=2,
-        )
-        cfg = cloudinary_upload_config(loja, ambiente="beta")
-        self.assertEqual(
-            cfg["folder"],
-            "lwksistemas/beta/34787081845/clinica-beleza-fotos",
-        )
 
 
 class ConsultaFotoPermissaoStatusTests(TestCase):

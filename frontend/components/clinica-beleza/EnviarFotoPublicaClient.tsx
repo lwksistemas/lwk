@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
-import { prepararArquivoImagemUpload } from '@/lib/cloudinary-direct-upload';
+import { prepararArquivoImagemUpload } from '@/lib/image-prepare';
 import { MAX_FOTOS_POR_CONSULTA } from '@/components/clinica-beleza/consultas/fotos/fotos-constants';
 
 function normalizarTokenFoto(raw: string | null | undefined): string {
@@ -28,9 +28,6 @@ interface FotoUploadConfig {
   paciente_nome: string;
   profissional_nome?: string;
   clinica_nome: string;
-  cloud_name?: string;
-  upload_preset?: string;
-  folder?: string;
   max_fotos?: number;
   fotos_consulta_count?: number;
   fotos_restantes?: number;

@@ -186,7 +186,7 @@ def architecture_diagram():
     # Camada 5 — Integrações + DB
     box(d, 0.5 * cm, 0.8 * cm, 4.8 * cm, 1.8 * cm, "PostgreSQL\nschema loja_*", colors.HexColor("#FAF5FF"))
     box(d, 6 * cm, 0.8 * cm, 4.8 * cm, 1.8 * cm, "WhatsApp\nEvolution API", colors.HexColor("#FAF5FF"))
-    box(d, 11.5 * cm, 0.8 * cm, 4.8 * cm, 1.8 * cm, "Memed + NFS-e\nCloudinary", colors.HexColor("#FAF5FF"))
+    box(d, 11.5 * cm, 0.8 * cm, 4.8 * cm, 1.8 * cm, "Memed + NFS-e\nMídia LWK", colors.HexColor("#FAF5FF"))
 
     arrow(d, 3 * cm, 3.2 * cm, 2.9 * cm, 2.6 * cm)
     arrow(d, 8.5 * cm, 3.2 * cm, 8.4 * cm, 2.6 * cm)
@@ -438,7 +438,7 @@ def build_pdf():
                 ["Evolution API", "Confirmação/lembrete WhatsApp", "Configurações → WhatsApp"],
                 ["Memed", "Prescrição digital (receituário)", "Configurações → Memed"],
                 ["NFS-e", "Nota ao fechar consulta paga", "Configurações → Nota fiscal"],
-                ["Cloudinary", "Fotos paciente, PDFs", "Automático (backend)"],
+                ["Servidor de mídia", "Fotos paciente, PDFs", "Automático (backend)"],
                 ["django-q + Redis", "Envio assíncrono campanhas/mensagens", "Railway lwks-worker"],
             ],
             [3.5 * cm, 6 * cm, 6 * cm],

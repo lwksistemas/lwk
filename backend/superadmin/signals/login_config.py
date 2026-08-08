@@ -5,48 +5,48 @@ from django.dispatch import receiver
 
 logger = logging.getLogger(__name__)
 
+
 @receiver(pre_save, sender="superadmin.LoginConfigSistema")
-def delete_old_cloudinary_images(sender, instance, **kwargs):
-    """Exclui imagens antigas do Cloudinary quando uma nova imagem é enviada.
+def delete_old_media_images(sender, instance, **kwargs):
+    """Exclui imagens antigas do servidor de mídia quando uma nova imagem é enviada.
 
     Trigger: Antes de salvar LoginConfigSistema
 
     Verifica se logo ou login_background foram alterados e exclui a imagem antiga
-    do Cloudinary para evitar acúmulo de imagens não utilizadas.
-
-    Args:
-        sender: Modelo LoginConfigSistema
-        instance: Instância sendo salva
-        **kwargs: Argumentos adicionais do signal
-
+    do servidor de mídia para evitar acúmulo de imagens não utilizadas.
     """
     if not instance.pk:
-        # Nova instância, não há imagem antiga para excluir
         return
 
     try:
         from superadmin.models import LoginConfigSistema
 
-        # Buscar instância antiga do banco
         try:
             old_instance = LoginConfigSistema.objects.get(pk=instance.pk)
         except LoginConfigSistema.DoesNotExist:
             return
 
-        from superadmin.cloudinary_utils import delete_cloudinary_image as _delete_img
+        from core.media_storage import is_media_url, media_delete_by_url
 
-        # Verificar se logo foi alterado
-        if old_instance.logo and old_instance.logo != instance.logo:
-            logger.info(f"🗑️  Logo alterado para {instance.get_tipo_display()}, excluindo imagem antiga...")
-            _delete_img(old_instance.logo)
+        if old_instance.logo and old_instance.logo != instance.logo and is_media_url(old_instance.logo):
+            logger.info(
+                "Logo alterado para %s, excluindo imagem antiga...",
+                instance.get_tipo_display(),
+            )
+            media_delete_by_url(old_instance.logo)
 
-        # Verificar se login_background foi alterado
-        if old_instance.login_background and old_instance.login_background != instance.login_background:
-            logger.info(f"🗑️  Background alterado para {instance.get_tipo_display()}, excluindo imagem antiga...")
-            _delete_img(old_instance.login_background)
+        if (
+            old_instance.login_background
+            and old_instance.login_background != instance.login_background
+            and is_media_url(old_instance.login_background)
+        ):
+            logger.info(
+                "Background alterado para %s, excluindo imagem antiga...",
+                instance.get_tipo_display(),
+            )
+            media_delete_by_url(old_instance.login_background)
 
     except Exception as e:
-        logger.error(f"❌ Erro ao processar exclusão de imagens antigas: {e}")
+        logger.error("Erro ao processar exclusão de imagens antigas: %s", e)
         import traceback
         logger.error(traceback.format_exc())
-        # Não interrompe o salvamento, apenas loga o erro

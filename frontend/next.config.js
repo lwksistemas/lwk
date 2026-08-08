@@ -17,8 +17,6 @@ function buildConnectSrc() {
     'https://memed.com.br',
     'https://*.memed.com.br',
     'wss://*.memed.com.br',
-    'https://api.cloudinary.com',
-    'https://*.cloudinary.com',
   ].forEach((o) => origins.add(o));
   return Array.from(origins).join(' ');
 }
@@ -32,13 +30,13 @@ const securityHeaders = [
       "object-src 'none'",
       "frame-ancestors 'none'",
       "form-action 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://memed.com.br https://*.memed.com.br https://upload-widget.cloudinary.com https://widget.cloudinary.com",
-      "style-src 'self' 'unsafe-inline' https://*.memed.com.br https://upload-widget.cloudinary.com",
-      "img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com https://i.pravatar.cc https://*.memed.com.br",
-      "font-src 'self' data: https://*.memed.com.br https://*.cloudinary.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://memed.com.br https://*.memed.com.br",
+      "style-src 'self' 'unsafe-inline' https://*.memed.com.br",
+      "img-src 'self' data: blob: https://media.lwksistemas.com.br https://i.pravatar.cc https://*.memed.com.br",
+      "font-src 'self' data: https://*.memed.com.br",
       `connect-src ${buildConnectSrc()}`,
-      "frame-src 'self' https://memed.com.br https://*.memed.com.br https://upload-widget.cloudinary.com https://widget.cloudinary.com https://*.cloudinary.com",
-      "child-src 'self' blob: https://memed.com.br https://*.memed.com.br https://upload-widget.cloudinary.com https://widget.cloudinary.com",
+      "frame-src 'self' https://memed.com.br https://*.memed.com.br",
+      "child-src 'self' blob: https://memed.com.br https://*.memed.com.br",
       "worker-src 'self' blob: https://*.memed.com.br",
       "upgrade-insecure-requests",
     ].join('; '),
@@ -93,8 +91,6 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'i.pravatar.cc', pathname: '/**' },
-      { protocol: 'https', hostname: 'res.cloudinary.com', pathname: '/**' },
-      { protocol: 'https', hostname: '*.cloudinary.com', pathname: '/**' },
       { protocol: 'https', hostname: 'api.lwksistemas.com.br', pathname: '/**' },
       { protocol: 'https', hostname: 'media.lwksistemas.com.br', pathname: '/**' },
       { protocol: 'http', hostname: 'localhost', pathname: '/**' },

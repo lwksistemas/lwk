@@ -1,4 +1,4 @@
-"""Serviço de armazenamento de mídia — substitui Cloudinary.
+"""Serviço de armazenamento de mídia (media.lwksistemas.com.br).
 
 Faz upload/download no servidor media.lwksistemas.com.br.
 Estrutura: /storage/{cpf_cnpj}/{folder}/{filename}
@@ -105,7 +105,7 @@ def media_upload_from_url(
     *,
     folder: str = "fotos",
 ) -> str | None:
-    """Baixa imagem de uma URL (ex: Cloudinary) e faz upload para o servidor de mídia."""
+    """Baixa arquivo de uma URL e faz upload para o servidor de mídia."""
     try:
         resp = requests.get(source_url, timeout=30)
         if resp.status_code != 200:
@@ -148,6 +148,27 @@ def is_media_url(url: str) -> bool:
     return "media.lwksistemas.com.br" in (url or "")
 
 
-def is_cloudinary_url(url: str) -> bool:
-    """Verifica se a URL é do Cloudinary."""
-    return "cloudinary.com" in (url or "")
+def media_delete_by_url(url: str) -> bool:
+    """Remove arquivo a partir da URL pública completa no servidor de mídia."""
+    import re
+
+    if not is_media_url(url):
+        return False
+    match = re.search(
+        r"/files/(?P<cnpj>\d+)/(?P<folder>[\w-]+)/(?P<filename>[^/?#]+)$",
+        url or "",
+    )
+    if not match:
+        logger.warning("media_delete_by_url: path não reconhecido: %s", url)
+        return False
+    cnpj = match.group("cnpj")
+    folder = match.group("folder")
+    filename = match.group("filename")
+    delete_url = f"{MEDIA_SERVER_URL}/upload/{cnpj}/{folder}/{filename}"
+    headers = {"Authorization": f"Bearer {MEDIA_API_TOKEN}"}
+    try:
+        response = requests.delete(delete_url, headers=headers, timeout=15)
+        return response.status_code == 200
+    except Exception as exc:
+        logger.warning("media_delete_by_url erro: %s", exc)
+        return False

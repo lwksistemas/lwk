@@ -21,6 +21,7 @@ DOWNLOAD_TIMEOUT = 30
 
 URL_PREFIX_RE = re.compile(r"^https?://", re.IGNORECASE)
 CLOUDINARY_RE = re.compile(r"cloudinary\.com", re.IGNORECASE)
+MEDIA_SERVER_RE = re.compile(r"media\.lwksistemas\.com\.br", re.IGNORECASE)
 MEDIA_EXT_RE = re.compile(r"\.(jpe?g|png|gif|webp|bmp|svg|pdf|heic|heif)(?:\?|#|$)", re.IGNORECASE)
 
 TABLE_URL_COLUMNS: dict[str, tuple[str, ...]] = {
@@ -50,11 +51,11 @@ def _looks_like_media_url(value: str) -> bool:
     url = (value or "").strip()
     if not url or not URL_PREFIX_RE.match(url):
         return False
-    if CLOUDINARY_RE.search(url):
+    if MEDIA_SERVER_RE.search(url) or CLOUDINARY_RE.search(url):
         return True
     if MEDIA_EXT_RE.search(urlparse(url).path):
         return True
-    return "/image/upload/" in url or "/raw/upload/" in url
+    return "/image/upload/" in url or "/raw/upload/" in url or "/files/" in url
 
 
 def _split_url_list(raw: str) -> list[str]:

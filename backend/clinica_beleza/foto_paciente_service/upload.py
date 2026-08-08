@@ -171,11 +171,6 @@ def upload_foto_media(loja, conteudo: bytes, ambiente: str | None = None) -> dic
     return {"secure_url": url, "public_id": path}
 
 
-def upload_foto_cloudinary(loja, conteudo: bytes, ambiente: str | None = None) -> dict:
-    """Compat: Cloudinary descontinuado — redireciona para o servidor de mídia."""
-    return upload_foto_media(loja, conteudo, ambiente=ambiente)
-
-
 def _parse_media_path(url: str) -> tuple[str, str] | None:
     """Extrai (folder, filename) de URL /files/{cnpj}/{folder}/{filename}."""
     import re
@@ -186,29 +181,14 @@ def _parse_media_path(url: str) -> tuple[str, str] | None:
     return match.group("folder"), match.group("filename")
 
 
-def excluir_foto_media(loja, foto_url: str) -> bool:
+def excluir_foto_media(loja, foto_url: str, public_id: str = "") -> bool:
     """Remove imagem do servidor de mídia."""
-    from core.media_storage import media_delete
+    from core.media_storage import is_media_url, media_delete
 
-    parsed = _parse_media_path(foto_url)
-    if not parsed:
-        logger.warning("URL de mídia sem path reconhecível: %s", foto_url)
-        return False
-    folder, filename = parsed
-    ok = media_delete(loja, filename, folder=folder)
-    if ok:
-        logger.info("Foto removida do servidor de mídia: %s/%s", folder, filename)
-    return ok
-
-
-def excluir_foto_cloudinary(loja, cloudinary_url: str, public_id: str = "") -> bool:
-    """Remove do servidor de mídia; Cloudinary legado é ignorado (descontinuado)."""
-    from core.media_storage import is_cloudinary_url, is_media_url
-
-    from .exceptions import FotoCloudinaryInvalida
+    from .exceptions import FotoUrlInvalida
     from .validation import validar_foto_loja
 
-    url = (cloudinary_url or "").strip()
+    url = (foto_url or "").strip()
     pid = (public_id or "").strip()
     if not url and not pid:
         return False
@@ -216,7 +196,7 @@ def excluir_foto_cloudinary(loja, cloudinary_url: str, public_id: str = "") -> b
     try:
         if url:
             validar_foto_loja(loja, url, pid)
-    except FotoCloudinaryInvalida:
+    except FotoUrlInvalida:
         logger.warning(
             "Tentativa de excluir foto fora da pasta da loja %s: %s",
             getattr(loja, "slug", loja.id),
@@ -224,14 +204,15 @@ def excluir_foto_cloudinary(loja, cloudinary_url: str, public_id: str = "") -> b
         )
         return False
 
-    if is_media_url(url):
-        return excluir_foto_media(loja, url)
+    if not is_media_url(url):
+        return False
 
-    if is_cloudinary_url(url):
-        logger.info(
-            "Foto ainda no Cloudinary (descontinuado) — só remove do banco: %s",
-            url[:120],
-        )
-        return True
-
-    return False
+    parsed = _parse_media_path(url)
+    if not parsed:
+        logger.warning("URL de mídia sem path reconhecível: %s", url)
+        return False
+    folder, filename = parsed
+    ok = media_delete(loja, filename, folder=folder)
+    if ok:
+        logger.info("Foto removida do servidor de mídia: %s/%s", folder, filename)
+    return ok

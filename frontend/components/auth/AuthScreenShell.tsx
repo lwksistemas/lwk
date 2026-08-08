@@ -19,7 +19,7 @@ interface AuthScreenShellProps {
   slug?: string;
   /** Nome do tipo de app (API) */
   tipoLojaNome?: string;
-  /** Fundo customizado Cloudinary (opcional) */
+  /** Fundo customizado do servidor de mídia (opcional) */
   loginBackground?: string | null;
   loadingMessage?: string;
 }

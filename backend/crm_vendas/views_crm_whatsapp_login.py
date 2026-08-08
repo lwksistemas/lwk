@@ -10,14 +10,17 @@ from .mixins import CRMPermissionMixin
 from .utils import get_loja_from_context
 
 
-def _patch_imagem_loja(loja, field, data, loja_slug, delete_fn):
-    """Atualiza campo de imagem na loja, deletando a imagem antiga do Cloudinary se necessário."""
+def _patch_imagem_loja(loja, field, data):
+    """Atualiza campo de imagem na loja, deletando a imagem antiga do servidor de mídia se necessário."""
     if field not in data:
         return False
     val = (data.get(field) or "").strip()
     old_val = (getattr(loja, field) or "").strip()
-    if old_val and old_val != val and "cloudinary.com" in old_val:
-        delete_fn(old_val, loja_slug)
+    if old_val and old_val != val:
+        from core.media_storage import is_media_url, media_delete_by_url
+
+        if is_media_url(old_val):
+            media_delete_by_url(old_val)
     setattr(loja, field, val[:200] if val else "")
     return True
 
@@ -77,7 +80,6 @@ class LoginConfigView(CRMPermissionMixin, APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        from superadmin.cloudinary_utils import delete_cloudinary_image
         from superadmin.loja_utils import invalidate_loja_info_publica_cache
         from superadmin.theme_colors import (
             normalize_hex_color,
@@ -87,11 +89,10 @@ class LoginConfigView(CRMPermissionMixin, APIView):
         )
 
         update_fields = ["updated_at"]
-        loja_slug = loja.slug
         data = request.data
 
         for img_field in ("logo", "login_background", "login_logo"):
-            if _patch_imagem_loja(loja, img_field, data, loja_slug, delete_cloudinary_image):
+            if _patch_imagem_loja(loja, img_field, data):
                 update_fields.append(img_field)
 
         for cor_field in ("cor_primaria", "cor_secundaria"):

@@ -97,10 +97,10 @@ export const consultasApi = {
         fotos_consulta_count?: number;
         fotos_restantes?: number;
       }>(`/consultas/${consultaId}/fotos/`),
-    salvar: (consultaId: number, cloudinaryUrl: string, publicId?: string) =>
+    salvar: (consultaId: number, url: string, publicId?: string) =>
       cbPost<{ message: string; foto: PacienteFotoItem }>(`/consultas/${consultaId}/fotos/`, {
-        cloudinary_url: cloudinaryUrl,
-        cloudinary_public_id: publicId || "",
+        url,
+        public_id: publicId || "",
       }),
     gerarQr: (consultaId: number) =>
       cbPost<{ url: string; qr_base64: string; expira_em_horas: number }>(

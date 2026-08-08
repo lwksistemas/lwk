@@ -1,7 +1,9 @@
 /** Tipos Memed / fotos usados pelo client de consultas. */
 export interface PacienteFotoItem {
   id: number;
-  cloudinary_url: string;
+  url: string;
+  /** Alias legado — preferir `url`. */
+  cloudinary_url?: string;
   origem: string;
   origem_display: string;
   consulta_id: number;

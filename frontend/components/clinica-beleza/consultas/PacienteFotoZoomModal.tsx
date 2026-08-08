@@ -161,7 +161,7 @@ export function PacienteFotoZoomModal({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={foto.cloudinary_url}
+          src={foto.url || foto.cloudinary_url}
           alt={`Foto ampliada ${foto.consulta_data}`}
           className="max-w-none transition-transform duration-100"
           style={{

@@ -1,5 +1,4 @@
 """Modelos do Super Admin — re-export centralizado."""
-from ..cloudinary_models import CloudinaryConfig
 from .audit import AuditLog
 from .backup import ConfiguracaoBackup, HistoricoBackup, horario_envio_slot_noturno
 from .catalog import PlanoAssinatura, TipoLoja
@@ -16,7 +15,6 @@ from .users import LoginLockout, ProfissionalUsuario, UsuarioSistema, VendedorUs
 
 __all__ = [
     "AuditLog",
-    "CloudinaryConfig",
     "ConfiguracaoBackup",
     "EmailRetry",
     "FinanceiroLoja",

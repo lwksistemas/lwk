@@ -7,7 +7,7 @@ from typing import Any
 
 import requests
 
-from core.cloudinary_folders import loja_clinica_memed
+from core.media_storage import media_upload, media_upload_from_url
 
 from .memed_config import memed_config as _memed_config
 from .memed_config import memed_credentials as _memed_credentials
@@ -201,101 +201,47 @@ def buscar_pdf_url_memed(prescritor_id: str, prescricao_id: str) -> str:
     return ""
 
 
-def arquivar_pdf_bytes_cloudinary(loja, conteudo: bytes) -> str:
-    """Envia bytes de PDF ao Cloudinary da loja. Retorna URL ou vazio."""
+def arquivar_pdf_bytes_media(loja, conteudo: bytes) -> str:
+    """Envia bytes de PDF ao servidor de mídia. Retorna URL ou vazio."""
     if not conteudo or len(conteudo) < 200 or conteudo[:4] != b"%PDF":
         return ""
     try:
-        import cloudinary.uploader
-
-        from superadmin.cloudinary_models import CloudinaryConfig
-
-        cfg = CloudinaryConfig.get_config()
-        if not cfg.enabled or not cfg.cloud_name or not cfg.api_key or not cfg.api_secret:
-            return ""
-        import cloudinary
-        cloudinary.config(
-            cloud_name=cfg.cloud_name,
-            api_key=cfg.api_key,
-            api_secret=cfg.api_secret,
-            secure=True,
-        )
-        folder = loja_clinica_memed(loja)
-        resultado = cloudinary.uploader.upload(
-            conteudo,
-            folder=folder,
-            resource_type="raw",
-            format="pdf",
-        )
-        return (resultado.get("secure_url") or "").strip()
+        return (media_upload(loja, conteudo, filename="prescricao.pdf", folder="docs") or "").strip()
     except Exception as exc:
-        logger.warning("Falha ao arquivar bytes PDF Memed no Cloudinary: %s", exc)
+        logger.warning("Falha ao arquivar bytes PDF Memed no servidor de mídia: %s", exc)
         return ""
 
 
-def arquivar_pdf_cloudinary(loja, pdf_url: str) -> str:
-    """Baixa o PDF da Memed e salva no Cloudinary da loja.
+def arquivar_pdf_media(loja, pdf_url: str) -> str:
+    """Baixa o PDF da Memed e salva no servidor de mídia.
     Retorna URL arquivada ou a original se falhar.
     """
     url = (pdf_url or "").strip()
     if not url or not _URL_HTTP.match(url):
         return ""
-
     try:
-        resp = requests.get(url, timeout=45, headers={"User-Agent": "LWK-Sistemas/1.0"})
-        resp.raise_for_status()
-        conteudo = resp.content
-    except requests.RequestException as exc:
-        logger.warning("Falha ao baixar PDF Memed: %s", exc)
-        return url
-
-    if len(conteudo) < 200:
-        return url
-
-    try:
-        import cloudinary.uploader
-
-        from superadmin.cloudinary_models import CloudinaryConfig
-
-        cfg = CloudinaryConfig.get_config()
-        if not cfg.enabled or not cfg.cloud_name or not cfg.api_key or not cfg.api_secret:
-            return url
-        import cloudinary
-        cloudinary.config(
-            cloud_name=cfg.cloud_name,
-            api_key=cfg.api_key,
-            api_secret=cfg.api_secret,
-            secure=True,
-        )
-        folder = loja_clinica_memed(loja)
-        resultado = cloudinary.uploader.upload(
-            conteudo,
-            folder=folder,
-            resource_type="raw",
-            format="pdf",
-        )
-        arquivada = (resultado.get("secure_url") or "").strip()
-        return arquivada or url
+        arquivada = media_upload_from_url(loja, url, folder="docs")
+        return (arquivada or url).strip()
     except Exception as exc:
-        logger.warning("Falha ao arquivar PDF Memed no Cloudinary: %s", exc)
+        logger.warning("Falha ao arquivar PDF Memed no servidor de mídia: %s", exc)
         return url
 
 
 def resolver_pdf_prescricao(loja, professional, prescricao_id: str, pdf_url_frontend: str = "") -> str:
-    """Define URL final do PDF: frontend → API Memed (bytes ou URL) → Cloudinary."""
+    """Define URL final do PDF: frontend → API Memed (bytes ou URL) → mídia."""
     pdf = (pdf_url_frontend or "").strip()[:500]
     if pdf:
-        return arquivar_pdf_cloudinary(loja, pdf) or pdf
+        return arquivar_pdf_media(loja, pdf) or pdf
 
     prescritor = resolver_prescritor_id_profissional(professional) if prescricao_id else None
     if prescritor:
         pdf_bytes = buscar_pdf_bytes_memed(prescritor, prescricao_id)
         if pdf_bytes:
-            arquivada = arquivar_pdf_bytes_cloudinary(loja, pdf_bytes)
+            arquivada = arquivar_pdf_bytes_media(loja, pdf_bytes)
             if arquivada:
                 return arquivada
 
         pdf_url = buscar_pdf_url_memed(prescritor, prescricao_id)
         if pdf_url:
-            return arquivar_pdf_cloudinary(loja, pdf_url) or pdf_url
+            return arquivar_pdf_media(loja, pdf_url) or pdf_url
     return ""

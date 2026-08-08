@@ -61,7 +61,7 @@ def _criar_cabecalho_relatorio(logo_url, titulo, max_width=6*cm, max_height=3*cm
         return Paragraph(titulo, title_style)
 
     try:
-        # Baixar imagem do Cloudinary
+        # Baixar imagem (servidor de mídia ou URL pública)
         response = requests.get(logo_url, timeout=5)
         if response.status_code != 200:
             title_style.alignment = TA_CENTER

@@ -95,7 +95,7 @@ urlpatterns = [
     path("api/homepage/", include("homepage.urls")),
     path("api/", include("nfse_integration.urls")),  # API NFS-e
 
-    # API de mídia (substitui Cloudinary)
+    # API de mídia
     path("api/media/upload/", media_upload, name="media-upload"),
     path("api/media/delete/", media_delete, name="media-delete"),
 

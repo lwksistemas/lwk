@@ -84,14 +84,6 @@ heroku config:get ASAAS_WALLET_ID --app $HEROKU_APP | sed 's/^/ASAAS_WALLET_ID=/
 heroku config:get ASAAS_WEBHOOK_TOKEN --app $HEROKU_APP | sed 's/^/ASAAS_WEBHOOK_TOKEN=/'
 echo ""
 
-# Variáveis do Cloudinary
-echo "# ===== CLOUDINARY (Imagens) ====="
-echo ""
-heroku config:get CLOUDINARY_CLOUD_NAME --app $HEROKU_APP | sed 's/^/CLOUDINARY_CLOUD_NAME=/'
-heroku config:get CLOUDINARY_API_KEY --app $HEROKU_APP | sed 's/^/CLOUDINARY_API_KEY=/'
-heroku config:get CLOUDINARY_API_SECRET --app $HEROKU_APP | sed 's/^/CLOUDINARY_API_SECRET=/'
-echo ""
-
 # Variáveis do Google
 echo "# ===== GOOGLE (OAuth, etc) ====="
 echo ""

@@ -21,8 +21,11 @@ class PacienteFotoAcompanhamento(LojaIsolationMixin, models.Model):
     consulta = models.ForeignKey(
         Consulta, on_delete=models.CASCADE, related_name="fotos_paciente",
     )
-    cloudinary_url = models.URLField(max_length=500)
-    cloudinary_public_id = models.CharField(max_length=255, blank=True, default="")
+    # Colunas DB legadas (cloudinary_*); código usa url / public_id
+    url = models.URLField(max_length=500, db_column="cloudinary_url")
+    public_id = models.CharField(
+        max_length=255, blank=True, default="", db_column="cloudinary_public_id",
+    )
     origem = models.CharField(max_length=10, choices=ORIGEM_CHOICES, default="qr")
     created_at = models.DateTimeField(auto_now_add=True)
 

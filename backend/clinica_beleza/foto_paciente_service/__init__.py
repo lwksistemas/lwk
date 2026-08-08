@@ -1,7 +1,6 @@
 """Fotos de acompanhamento — token QR e upload no servidor de mídia."""
 
 from .constants import (
-    CLOUDINARY_HOST,
     LIMITE_UPLOAD_BYTES,
     MAX_FOTOS_POR_CONSULTA,
     MAX_LADO_IMAGEM,
@@ -9,7 +8,7 @@ from .constants import (
     PATH_PUBLICO,
     TOKEN_EXPIRACAO_HORAS,
 )
-from .exceptions import FotoCloudinaryInvalida, FotoUploadInvalida
+from .exceptions import FotoCloudinaryInvalida, FotoUploadInvalida, FotoUrlInvalida
 from .persistence import (
     contar_fotos_consulta,
     excluir_foto_paciente,
@@ -30,16 +29,14 @@ from .token_qr import (
 )
 from .upload import (
     comprimir_imagem_bytes,
-    excluir_foto_cloudinary,
+    excluir_foto_media,
     extrair_bytes_upload_request,
     parse_json_body_seguro,
-    upload_foto_cloudinary,
     upload_foto_media,
 )
-from .validation import cloudinary_upload_config, validar_cloudinary_foto_loja, validar_foto_loja
+from .validation import validar_foto_loja
 
 __all__ = [
-    "CLOUDINARY_HOST",
     "LIMITE_UPLOAD_BYTES",
     "MAX_FOTOS_POR_CONSULTA",
     "MAX_LADO_IMAGEM",
@@ -47,15 +44,15 @@ __all__ = [
     "PATH_PUBLICO",
     "TOKEN_EXPIRACAO_HORAS",
     "FotoCloudinaryInvalida",
+    "FotoUrlInvalida",
     "FotoUploadInvalida",
     "ambiente_do_token_foto",
     "build_link_foto",
-    "cloudinary_upload_config",
     "comprimir_imagem_bytes",
     "contar_fotos_consulta",
     "decodificar_token_foto",
     "default_frontend_base_foto",
-    "excluir_foto_cloudinary",
+    "excluir_foto_media",
     "excluir_foto_paciente",
     "extrair_bytes_upload_request",
     "frontend_base_permitido",
@@ -67,8 +64,6 @@ __all__ = [
     "registrar_foto",
     "resolver_frontend_base_qr",
     "serializar_foto",
-    "upload_foto_cloudinary",
     "upload_foto_media",
-    "validar_cloudinary_foto_loja",
     "validar_foto_loja",
 ]

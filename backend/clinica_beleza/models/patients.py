@@ -28,7 +28,7 @@ class Patient(ClienteBase):
         default="",
         max_length=500,
         verbose_name="Foto",
-        help_text="Foto de perfil do cliente (Cloudinary).",
+        help_text="Foto de perfil do cliente (servidor de mídia).",
     )
 
     class Meta(ClienteBase.Meta):

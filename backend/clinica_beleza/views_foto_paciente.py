@@ -13,8 +13,8 @@ from rest_framework.views import APIView
 from .consentimento_assinatura_publica_service import configurar_tenant_publico_clinica
 from .foto_paciente_service import (
     MAX_FOTOS_POR_CONSULTA,
-    FotoCloudinaryInvalida,
     FotoUploadInvalida,
+    FotoUrlInvalida,
     decodificar_token_foto,
     excluir_foto_paciente,
     extrair_bytes_upload_request,
@@ -85,13 +85,13 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
         bloqueio = _consulta_permite_envio_foto(consulta)
         if bloqueio:
             return bloqueio
-        url = (request.data.get("cloudinary_url") or "").strip()
+        url = (request.data.get("url") or request.data.get("cloudinary_url") or "").strip()
         if not url or not url.startswith("https://"):
             return Response({"detail": "URL da imagem inválida."}, status=status.HTTP_400_BAD_REQUEST)
-        public_id = (request.data.get("cloudinary_public_id") or "").strip()
+        public_id = (request.data.get("public_id") or request.data.get("cloudinary_public_id") or "").strip()
         try:
             foto = registrar_foto(consulta, url, "painel", public_id)
-        except (FotoCloudinaryInvalida, FotoUploadInvalida) as exc:
+        except (FotoUrlInvalida, FotoUploadInvalida) as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"message": "Foto salva.", "foto": foto}, status=status.HTTP_201_CREATED)
 
@@ -246,23 +246,21 @@ class EnviarFotoPublicaView(View):
             try:
                 up = upload_foto_media(loja, conteudo)
                 foto = registrar_foto(consulta, up["secure_url"], "qr", up["public_id"])
-            except FotoUploadInvalida as exc:
-                return JsonResponse({"error": str(exc)}, status=400)
-            except FotoCloudinaryInvalida as exc:
+            except (FotoUrlInvalida, FotoUploadInvalida) as exc:
                 return JsonResponse({"error": str(exc)}, status=400)
             return JsonResponse({"success": True, "foto": foto})
 
         body = parse_json_body_seguro(request)
-        url = (body.get("cloudinary_url") or "").strip()
+        url = (body.get("url") or body.get("cloudinary_url") or "").strip()
         if not url or not url.startswith("https://"):
             return JsonResponse(
                 {"error": "Não foi possível ler a imagem. Tente enviar novamente."},
                 status=400,
             )
 
-        public_id = (body.get("cloudinary_public_id") or "").strip()
+        public_id = (body.get("public_id") or body.get("cloudinary_public_id") or "").strip()
         try:
             foto = registrar_foto(consulta, url, "qr", public_id)
-        except (FotoCloudinaryInvalida, FotoUploadInvalida) as exc:
+        except (FotoUrlInvalida, FotoUploadInvalida) as exc:
             return JsonResponse({"error": str(exc)}, status=400)
         return JsonResponse({"success": True, "foto": foto})

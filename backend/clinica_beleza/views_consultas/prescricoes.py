@@ -121,7 +121,7 @@ class PatientPrescricaoView(APIView):
 
 class PrescricaoMemedPdfView(APIView):
     """POST /clinica-beleza/prescricoes-memed/<pk>/pdf/
-    Busca o PDF na Memed (se ainda não salvo), arquiva no Cloudinary e retorna a URL.
+    Busca o PDF na Memed (se ainda não salvo), arquiva no servidor de mídia e retorna a URL.
     """
 
     permission_classes = CLINICA_CLINICAL
@@ -154,12 +154,12 @@ class PrescricaoMemedPdfView(APIView):
             pdf_url = resolver_pdf_prescricao(loja, professional, prescricao_id, "")
 
         if not pdf_url:
-            from ..memed_prescricao_service import arquivar_pdf_bytes_cloudinary
+            from ..memed_prescricao_service import arquivar_pdf_bytes_media
             from ..prontuario_pdf import gerar_pdf_prescricao_memed
 
             try:
                 buffer = gerar_pdf_prescricao_memed(presc)
-                pdf_url = arquivar_pdf_bytes_cloudinary(loja, buffer.getvalue())
+                pdf_url = arquivar_pdf_bytes_media(loja, buffer.getvalue())
             except Exception:
                 import logging
                 logging.getLogger(__name__).exception(

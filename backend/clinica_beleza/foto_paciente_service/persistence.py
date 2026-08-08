@@ -3,8 +3,8 @@ import logging
 from django.utils import timezone
 
 from .constants import MAX_FOTOS_POR_CONSULTA
-from .exceptions import FotoCloudinaryInvalida, FotoUploadInvalida
-from .upload import excluir_foto_cloudinary
+from .exceptions import FotoUploadInvalida, FotoUrlInvalida
+from .upload import excluir_foto_media
 from .validation import validar_foto_loja
 
 logger = logging.getLogger(__name__)
@@ -32,9 +32,11 @@ def serializar_foto(foto) -> dict:
         data_consulta = timezone.localtime(consulta.data_inicio).strftime("%d/%m/%Y %H:%M")
     elif consulta and consulta.created_at:
         data_consulta = timezone.localtime(consulta.created_at).strftime("%d/%m/%Y")
+    url = foto.url
     return {
         "id": foto.id,
-        "cloudinary_url": foto.cloudinary_url,
+        "url": url,
+        "cloudinary_url": url,  # compat frontend legado
         "origem": foto.origem,
         "origem_display": foto.get_origem_display(),
         "consulta_id": foto.consulta_id,
@@ -60,13 +62,13 @@ def excluir_foto_paciente(foto) -> None:
 
     loja = Loja.objects.using("default").filter(id=foto.loja_id, is_active=True).first()
     if loja:
-        excluir_foto_cloudinary(loja, foto.cloudinary_url, foto.cloudinary_public_id)
+        excluir_foto_media(loja, foto.url, foto.public_id)
     foto.delete()
 
 
 def registrar_foto(
     consulta,
-    cloudinary_url: str,
+    foto_url: str,
     origem: str,
     public_id: str = "",
 ) -> dict:
@@ -76,8 +78,8 @@ def registrar_foto(
 
     loja = Loja.objects.using("default").filter(id=consulta.loja_id, is_active=True).first()
     if not loja:
-        raise FotoCloudinaryInvalida("Loja não encontrada.")
-    validar_foto_loja(loja, cloudinary_url, public_id)
+        raise FotoUrlInvalida("Loja não encontrada.")
+    validar_foto_loja(loja, foto_url, public_id)
 
     if contar_fotos_consulta(consulta.id) >= MAX_FOTOS_POR_CONSULTA:
         raise FotoUploadInvalida(
@@ -87,8 +89,8 @@ def registrar_foto(
     foto = PacienteFotoAcompanhamento.objects.create(
         patient_id=consulta.patient_id,
         consulta=consulta,
-        cloudinary_url=cloudinary_url.strip(),
-        cloudinary_public_id=(public_id or "").strip(),
+        url=foto_url.strip(),
+        public_id=(public_id or "").strip(),
         origem=origem,
         loja_id=consulta.loja_id,
     )

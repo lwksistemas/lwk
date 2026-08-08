@@ -1,5 +1,4 @@
 TOKEN_EXPIRACAO_HORAS = 24
-CLOUDINARY_HOST = "res.cloudinary.com"
 MODULO = "clinica_beleza"
 PATH_PUBLICO = "/enviar-foto/"
 

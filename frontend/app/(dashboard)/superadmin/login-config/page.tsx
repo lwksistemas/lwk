@@ -33,7 +33,6 @@ function LoginConfigContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tipo = (searchParams.get('tipo') || 'superadmin') as 'superadmin' | 'suporte';
-  const loginFolder = tipo === 'suporte' ? cloudinarySuporteLogin() : cloudinarySuperadminLogin();
 
   const [config, setConfig] = useState<LoginConfig>({
     tipo,
@@ -214,7 +213,7 @@ function LoginConfigContent() {
                   value={config.logo}
                   onChange={(url) => setConfig({ ...config, logo: url })}
                   maxSize={2}
-                  folder={loginFolder}
+                  folder="fotos"
                 />
                 
                 <ImageUpload
@@ -223,7 +222,7 @@ function LoginConfigContent() {
                   value={config.login_background}
                   onChange={(url) => setConfig({ ...config, login_background: url })}
                   maxSize={5}
-                  folder={loginFolder}
+                  folder="fotos"
                 />
               </CardContent>
             </Card>

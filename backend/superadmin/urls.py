@@ -3,7 +3,6 @@ from rest_framework.routers import DefaultRouter
 
 from . import views_nfse as nfse_views
 from .auth_views_secure import SecureLoginView, SecureLogoutView
-from .cloudinary_views import cloudinary_config, cloudinary_test
 from .financeiro_views import (
     FinanceiroLojaViewSet as FinanceiroViewSet,
 )
@@ -114,10 +113,6 @@ urlpatterns = [
     path("mercadopago-config/test/", mercadopago_test, name="mercadopago-config-test"),
     path("mercadopago-webhook/", mercadopago_webhook, name="mercadopago-webhook"),
     path("sync-mercadopago/", sync_mercadopago_loja, name="sync-mercadopago"),
-
-    # Cloudinary
-    path("cloudinary-config/", cloudinary_config, name="cloudinary-config"),
-    path("cloudinary-config/test/", cloudinary_test, name="cloudinary-config-test"),
 
     # ✅ Lockouts (bloqueios de login)
     path("lockouts/", lockout_views.listar_lockouts, name="lockouts-list"),

@@ -175,7 +175,7 @@ def _parse_media_path(url: str) -> tuple[str, str] | None:
     """Extrai (folder, filename) de URL /files/{cnpj}/{folder}/{filename}."""
     import re
 
-    match = re.search(r"/files/\d+/(?P<folder>[\w-]+)/(?P<filename>[^/?#]+)$", url or "")
+    match = re.search(r"/files/(?:\d{11}|\d{14}|superadmin|suporte)/(?P<folder>[\w-]+)/(?P<filename>[^/?#]+)$", url or "")
     if not match:
         return None
     return match.group("folder"), match.group("filename")

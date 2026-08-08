@@ -80,11 +80,9 @@
 │          └── GET  /health                        (status)        │
 │                                                                  │
 │  Estrutura de pastas:                                             │
-│    /storage/{cnpj_cpf}/fotos/                                    │
-│    /storage/{cnpj_cpf}/docs/                                     │
-│    /storage/{cnpj_cpf}/avatars/                                  │
-│    /storage/{cnpj_cpf}/recibos/                                  │
-│    /storage/{cnpj_cpf}/contratos/                                │
+│    /storage/{cnpj_cpf}/fotos|docs|avatars|recibos|contratos/     │
+│    /storage/superadmin/...   (homepage, login-config do sistema) │
+│    /storage/suporte/...      (uploads do perfil suporte s/ loja) │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

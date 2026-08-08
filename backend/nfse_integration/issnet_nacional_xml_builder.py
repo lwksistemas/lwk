@@ -537,6 +537,59 @@ def construir_xml_consultar_nfse_por_dps(
     return xml_str
 
 
+def construir_xml_consultar_url_nfse_nacional(
+    *,
+    numero_nf: str,
+    prestador_cnpj: str,
+    prestador_inscricao_municipal: str,
+    pagina: int = 1,
+) -> str:
+    """Monta ConsultarUrlNfseEnvio no padrão aceito pelo ISSNet Nacional.
+
+    A variante IdentificacaoNfse foi rejeitada (E183 schema). O layout Pedido
+    (Prestador + NumeroNfse + Pagina) é o mesmo do ABRASF/NotaControl, com
+    namespace SPED do webservice Nacional.
+    """
+    cnpj_prest = _somente_digitos(prestador_cnpj)
+    im_prest = (prestador_inscricao_municipal or "").strip()
+    numero = str(numero_nf or "").strip()
+
+    nsmap = {None: NS_NFSE}
+    root = etree.Element(f"{{{NS_NFSE}}}ConsultarUrlNfseEnvio", nsmap=nsmap)
+    pedido = etree.SubElement(root, f"{{{NS_NFSE}}}Pedido")
+    prest = etree.SubElement(pedido, f"{{{NS_NFSE}}}Prestador")
+    cpf_cnpj_el = etree.SubElement(prest, f"{{{NS_NFSE}}}CpfCnpj")
+    etree.SubElement(cpf_cnpj_el, f"{{{NS_NFSE}}}Cnpj").text = cnpj_prest
+    etree.SubElement(prest, f"{{{NS_NFSE}}}InscricaoMunicipal").text = im_prest
+    etree.SubElement(pedido, f"{{{NS_NFSE}}}NumeroNfse").text = numero
+    etree.SubElement(pedido, f"{{{NS_NFSE}}}Pagina").text = str(int(pagina) or 1)
+
+    xml_str = etree.tostring(root, encoding="unicode")
+    logger.info("XML ConsultarUrlNfseEnvio (ISSNet Nacional): NFS-e=%s", numero)
+    return xml_str
+
+
+def construir_xml_consultar_url_nfse_nacional_simples(
+    *,
+    numero_nf: str,
+    prestador_cnpj: str,
+    prestador_inscricao_municipal: str,
+) -> str:
+    """Variante sem Pedido (Prestador + NumeroNfse), usada em alguns clientes."""
+    cnpj_prest = _somente_digitos(prestador_cnpj)
+    im_prest = (prestador_inscricao_municipal or "").strip()
+    numero = str(numero_nf or "").strip()
+
+    nsmap = {None: NS_NFSE}
+    root = etree.Element(f"{{{NS_NFSE}}}ConsultarUrlNfseEnvio", nsmap=nsmap)
+    prest = etree.SubElement(root, f"{{{NS_NFSE}}}Prestador")
+    cpf_cnpj_el = etree.SubElement(prest, f"{{{NS_NFSE}}}CpfCnpj")
+    etree.SubElement(cpf_cnpj_el, f"{{{NS_NFSE}}}Cnpj").text = cnpj_prest
+    etree.SubElement(prest, f"{{{NS_NFSE}}}InscricaoMunicipal").text = im_prest
+    etree.SubElement(root, f"{{{NS_NFSE}}}NumeroNfse").text = numero
+    return etree.tostring(root, encoding="unicode")
+
+
 # ---------------------------------------------------------------------------
 # Utilitários
 # ---------------------------------------------------------------------------

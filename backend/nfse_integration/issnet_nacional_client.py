@@ -37,6 +37,8 @@ from nfse_integration.issnet_constants import (
 from nfse_integration.issnet_nacional_xml_builder import (
     construir_xml_cancelar_nfse_nacional,
     construir_xml_consultar_nfse_por_dps,
+    construir_xml_consultar_url_nfse_nacional,
+    construir_xml_consultar_url_nfse_nacional_simples,
     construir_xml_enviar_lote_dps_sincrono,
     construir_xml_gerar_nfse_envio,
     extrair_chave_acesso_nfse_nacional,
@@ -890,61 +892,91 @@ class ISSNetNacionalClient:
         Retorna dict com success e url (link para o portal notaeletronica.com.br).
         """
         result: dict[str, Any] = {"success": False, "url": "", "erro": None}
+        numero = str(numero_nf or "").strip()
+        if not numero:
+            result["erro"] = "Número da NFS-e não informado"
+            return result
 
         try:
-            ns = NS_NFSE_NACIONAL
-            from lxml import etree
-
-            nsmap = {None: ns}
-            root = etree.Element(f"{{{ns}}}ConsultarUrlNfseEnvio", nsmap=nsmap)
-            id_nfse = etree.SubElement(root, f"{{{ns}}}IdentificacaoNfse")
-            etree.SubElement(id_nfse, f"{{{ns}}}Numero").text = str(numero_nf)
-            cpf_cnpj_el = etree.SubElement(id_nfse, f"{{{ns}}}CpfCnpj")
-            etree.SubElement(cpf_cnpj_el, f"{{{ns}}}Cnpj").text = self.prestador_cnpj
-            etree.SubElement(id_nfse, f"{{{ns}}}InscricaoMunicipal").text = self.prestador_im
-            etree.SubElement(id_nfse, f"{{{ns}}}CodigoMunicipio").text = self.codigo_municipio
-
-            xml_consulta = etree.tostring(root, encoding="unicode", xml_declaration=False)
-
             from nfse_integration.issnet_constants import SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE
-            resposta = self._enviar_soap(xml_consulta, SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE)
 
-            if not resposta:
-                result["erro"] = "Resposta vazia"
-                return result
+            variantes: list[tuple[str, str]] = []
+            xml_pedido = construir_xml_consultar_url_nfse_nacional(
+                numero_nf=numero,
+                prestador_cnpj=self.prestador_cnpj,
+                prestador_inscricao_municipal=self.prestador_im,
+            )
+            xml_simples = construir_xml_consultar_url_nfse_nacional_simples(
+                numero_nf=numero,
+                prestador_cnpj=self.prestador_cnpj,
+                prestador_inscricao_municipal=self.prestador_im,
+            )
+            for rotulo, xml_base in (("pedido", xml_pedido), ("simples", xml_simples)):
+                try:
+                    variantes.append((f"{rotulo}+assinado", self._assinar_xml(xml_base)))
+                except Exception as exc:
+                    logger.warning(
+                        "ISSNet Nacional ConsultarUrlNfse: falha ao assinar (%s): %s",
+                        rotulo,
+                        exc,
+                    )
+                variantes.append((rotulo, xml_base))
 
-            # Extrair URL da resposta (Nacional / ABRASF-like tags)
-            import re
+            ultimo_erro = "URL não encontrada na resposta"
+            for rotulo, xml_consulta in variantes:
+                resposta = self._enviar_soap(xml_consulta, SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE)
+                if not resposta:
+                    ultimo_erro = f"{rotulo}: resposta vazia"
+                    continue
 
-            url = ""
-            for pattern in (
-                r"<(?:\w+:)?UrlVisualizacaoNfse>([^<]+)</(?:\w+:)?UrlVisualizacaoNfse>",
-                r"<(?:\w+:)?UrlNfse>([^<]+)</(?:\w+:)?UrlNfse>",
-                r"<(?:\w+:)?Url>([^<]+)</(?:\w+:)?Url>",
-                r"<(?:\w+:)?url>([^<]+)</(?:\w+:)?url>",
-                r"(https://www\.notaeletronica\.com\.br/[^\s\"'<>]+)",
-            ):
-                url_match = re.search(pattern, resposta, re.IGNORECASE)
-                if url_match:
-                    url = url_match.group(1).strip()
-                    if url.startswith("http"):
-                        break
-                    url = ""
+                url = self._extrair_url_danfe_resposta(resposta)
+                if url:
+                    result["success"] = True
+                    result["url"] = url
+                    logger.info(
+                        "ISSNet Nacional ConsultarUrlNfse OK (%s): %s → %s",
+                        rotulo,
+                        numero,
+                        url,
+                    )
+                    return result
 
-            if url.startswith("http"):
-                result["success"] = True
-                result["url"] = url
-                logger.info("ISSNet Nacional ConsultarUrlNfse: %s → %s", numero_nf, url)
-                return result
+                body = extrair_body_soap(resposta)
+                erros = extrair_erros(body)
+                ultimo_erro = erros or f"{rotulo}: URL não encontrada"
+                logger.warning(
+                    "ISSNet Nacional ConsultarUrlNfse falhou (%s) NFS-e %s: %s | raw=%s",
+                    rotulo,
+                    numero,
+                    ultimo_erro,
+                    " ".join((resposta or "").split())[:500],
+                )
 
-            # Verificar erros
-            body = extrair_body_soap(resposta)
-            erros = extrair_erros(body)
-            result["erro"] = erros or "URL não encontrada na resposta"
-            logger.warning("ISSNet Nacional ConsultarUrlNfse falhou para NFS-e %s: %s", numero_nf, result["erro"])
+            result["erro"] = ultimo_erro
 
         except Exception as e:
             logger.warning("ISSNet Nacional ConsultarUrlNfse erro: %s", e)
             result["erro"] = str(e)
 
         return result
+
+    @staticmethod
+    def _extrair_url_danfe_resposta(resposta: str) -> str:
+        """Extrai URL oficial da DANFE/XML da resposta SOAP."""
+        import re
+
+        for pattern in (
+            r"<(?:\w+:)?UrlVisualizacaoNfse>([^<]+)</(?:\w+:)?UrlVisualizacaoNfse>",
+            r"<(?:\w+:)?UrlVisualizacao>([^<]+)</(?:\w+:)?UrlVisualizacao>",
+            r"<(?:\w+:)?UrlNfse>([^<]+)</(?:\w+:)?UrlNfse>",
+            r"<(?:\w+:)?Url>([^<]+)</(?:\w+:)?Url>",
+            r"<(?:\w+:)?url>([^<]+)</(?:\w+:)?url>",
+            r"(https://www\.notaeletronica\.com\.br/[^\s\"'<>]+)",
+            r"(https://nfse\.issnetonline\.com\.br/[^\s\"'<>]+)",
+        ):
+            url_match = re.search(pattern, resposta or "", re.IGNORECASE)
+            if url_match:
+                url = url_match.group(1).strip()
+                if url.startswith("http"):
+                    return url
+        return ""

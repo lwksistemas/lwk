@@ -273,7 +273,7 @@ export function ConsultaFotosTab({
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={f.url || f.cloudinary_url}
+                    src={f.url}
                     alt={`Foto ${f.consulta_data}`}
                     className="w-full h-full object-cover"
                   />
@@ -405,7 +405,7 @@ export function ConsultaFotosTab({
                 <div className="flex-1 min-h-0 overflow-hidden bg-neutral-900">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={f.url || f.cloudinary_url}
+                    src={f.url}
                     alt={`Comparação ${i + 1}`}
                     className="w-full h-full object-cover"
                   />

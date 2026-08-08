@@ -79,7 +79,12 @@ class AgendaView(APIView):
     permission_classes = CLINICA_AGENDA
 
     def get(self, request):
+        from datetime import timedelta
+
         from django.db.models import Q
+        from django.utils import timezone
+        from django.utils.dateparse import parse_datetime, parse_date
+
         qs = (
             _agenda_events_queryset()
             .filter(
@@ -90,10 +95,33 @@ class AgendaView(APIView):
             )
         )
         qs = _apply_agenda_appointment_scope(qs, request)
-        if s := request.query_params.get("start"):
-            qs = qs.filter(date__gte=s)
-        if e := request.query_params.get("end"):
-            qs = qs.filter(date__lte=e)
+        start_raw = request.query_params.get("start")
+        end_raw = request.query_params.get("end")
+        if start_raw:
+            qs = qs.filter(date__gte=start_raw)
+        if end_raw:
+            qs = qs.filter(date__lte=end_raw)
+
+        # Evita payload enorme: janela máx. ~3 meses; sem params → ~2 meses em torno de agora
+        max_span_days = 93
+
+        def _bound_date(raw: str):
+            dt = parse_datetime(raw)
+            if dt is not None:
+                return timezone.localtime(dt).date() if timezone.is_aware(dt) else dt.date()
+            return parse_date(raw[:10] if len(raw) >= 10 else raw)
+
+        if start_raw and end_raw:
+            start_d = _bound_date(start_raw)
+            end_d = _bound_date(end_raw)
+            if start_d and end_d and (end_d - start_d).days > max_span_days:
+                return Response(
+                    {"error": f"Intervalo máximo da agenda: {max_span_days} dias."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        elif not start_raw and not end_raw:
+            agora = timezone.now()
+            qs = qs.filter(date__gte=agora - timedelta(days=7), date__lte=agora + timedelta(days=60))
         scope = resolve_agenda_professional_scope(request)
         if scope is None and (p := request.query_params.get("professional")):
             qs = qs.filter(professional_id=p)

@@ -25,7 +25,7 @@ export function HistoricoFotosSection({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={foto.url || foto.cloudinary_url}
+            src={foto.url}
             alt={`Foto ${foto.consulta_data}`}
             className="w-full aspect-square object-cover cursor-zoom-in"
           />

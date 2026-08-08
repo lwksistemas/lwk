@@ -136,9 +136,12 @@ class ConsultaDetailView(GetObjectMixin, APIView):
     not_found_message = "Consulta não encontrada"
     select_related_fields = (
         "patient", "professional", "procedure", "protocol", "appointment",
-        "local_atendimento", "convenio",
+        "appointment__nome_agenda", "local_atendimento", "convenio",
     )
-    prefetch_related_fields = ("appointment__appointment_procedures__procedure",)
+    prefetch_related_fields = (
+        "appointment__appointment_procedures__procedure",
+        "appointment__payment_set",
+    )
 
     def get(self, request, pk):
         obj, err = self.object_or_404(pk)

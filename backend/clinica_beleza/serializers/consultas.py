@@ -138,12 +138,20 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         return self._info_retorno_recibo(obj).get("retorno_aviso") or ""
 
     def get_total_evolucoes(self, obj):
+        annotated = getattr(obj, "total_evolucoes_count", None)
+        if annotated is not None:
+            return annotated
         return obj.evolucoes.count()
 
     def _appointment_procedures(self, obj):
         appointment = getattr(obj, "appointment", None)
         if not appointment:
             return []
+        prefetched = getattr(appointment, "_prefetched_objects_cache", {}).get(
+            "appointment_procedures",
+        )
+        if prefetched is not None:
+            return sorted(prefetched, key=lambda ap: (getattr(ap, "ordem", 0) or 0, ap.id or 0))
         return list(
             appointment.appointment_procedures.select_related("procedure").order_by("ordem", "id"),
         )

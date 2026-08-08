@@ -2,8 +2,6 @@
 export interface PacienteFotoItem {
   id: number;
   url: string;
-  /** Alias legado — preferir `url`. */
-  cloudinary_url?: string;
   origem: string;
   origem_display: string;
   consulta_id: number;

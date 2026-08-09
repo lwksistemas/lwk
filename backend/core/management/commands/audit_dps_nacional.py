@@ -105,37 +105,78 @@ class Command(BaseCommand):
             return [row[0] for row in cursor.fetchall()]
 
     def auditar_schema(self, schema: str) -> list[dict[str, Any]]:
+        if not self._table_exists(schema, "clinica_beleza_clinicabelezanfseconfig"):
+            return []
+
         with connection.cursor() as cursor:
             cursor.execute("SET search_path TO %s, public", [schema])
 
-        lojas = self._buscar_lojas()
-        if not lojas:
+        loja = self._buscar_loja_do_schema(schema)
+        if not loja:
             return []
 
-        resultados = []
-        for loja in lojas:
-            cfg = self._buscar_nfse_config(loja["id"])
-            cert = self._buscar_certificado(loja["id"])
-            problema = self._avaliar_prontidao(loja, cfg, cert)
+        cfg = self._buscar_nfse_config(loja["id"])
+        cert = self._buscar_certificado(loja["id"])
+        problema = self._avaliar_prontidao(loja, cfg, cert)
 
-            resultados.append({
-                "schema": schema,
-                "loja_id": loja["id"],
-                "loja_nome": loja["nome"],
-                "loja_slug": loja["slug"],
-                "cpf_cnpj": loja.get("cpf_cnpj", ""),
-                "padrao_nacional_habilitado": cfg.get("padrao_nacional", False) if cfg else False,
-                "issnet_usar_padrao_nacional": cfg.get("issnet_usar_padrao_nacional", False) if cfg else False,
-                "provedor_nf": cfg.get("provedor_nf", "") if cfg else "",
-                "im": cfg.get("im", "") if cfg else "",
-                "codigo_tributacao_nacional": cfg.get("codigo_tributacao_nacional", "") if cfg else "",
-                "codigo_tributacao_municipal": cfg.get("codigo_tributacao_municipal", "") if cfg else "",
-                "nacional_codigo_municipio": cfg.get("nacional_codigo_municipio", "") if cfg else "",
-                "certificado_configurado": bool(cert),
-                "pronta_para_nacional": problema is None,
-                "pendencias": problema or "",
-            })
-        return resultados
+        return [{
+            "schema": schema,
+            "loja_id": loja["id"],
+            "loja_nome": loja["nome"],
+            "loja_slug": loja["slug"],
+            "cpf_cnpj": loja.get("cpf_cnpj", ""),
+            "padrao_nacional_habilitado": cfg.get("padrao_nacional", False) if cfg else False,
+            "issnet_usar_padrao_nacional": cfg.get("issnet_usar_padrao_nacional", False) if cfg else False,
+            "provedor_nf": cfg.get("provedor_nf", "") if cfg else "",
+            "im": cfg.get("im", "") if cfg else "",
+            "codigo_tributacao_nacional": cfg.get("codigo_tributacao_nacional", "") if cfg else "",
+            "codigo_tributacao_municipal": cfg.get("codigo_tributacao_municipal", "") if cfg else "",
+            "nacional_codigo_municipio": cfg.get("nacional_codigo_municipio", "") if cfg else "",
+            "certificado_configurado": bool(cert),
+            "pronta_para_nacional": problema is None,
+            "pendencias": problema or "",
+        }]
+
+    def _table_exists(self, schema: str, table_name: str) -> bool:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = %s AND table_name = %s
+                LIMIT 1
+                """,
+                [schema, table_name],
+            )
+            return cursor.fetchone() is not None
+
+    def _buscar_loja_do_schema(self, schema: str) -> dict[str, Any] | None:
+        """Resolve a loja dona do schema (database_name com hífen → underscore)."""
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, nome, slug, cpf_cnpj, database_name
+                    FROM public.superadmin_loja
+                    WHERE is_active = true
+                      AND replace(coalesce(database_name, ''), '-', '_') = %s
+                    ORDER BY id
+                    LIMIT 1
+                    """,
+                    [schema],
+                )
+                row = cursor.fetchone()
+        except Exception:
+            return None
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "nome": row[1],
+            "slug": row[2],
+            "cpf_cnpj": row[3] or "",
+            "database_name": row[4] or "",
+        }
 
     def _buscar_lojas(self) -> list[dict[str, Any]]:
         try:
@@ -143,7 +184,7 @@ class Command(BaseCommand):
                 cursor.execute(
                     """
                     SELECT id, nome, slug, cpf_cnpj
-                    FROM superadmin_loja
+                    FROM public.superadmin_loja
                     WHERE is_active = true
                     ORDER BY id
                     """

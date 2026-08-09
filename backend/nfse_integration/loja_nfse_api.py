@@ -68,16 +68,22 @@ def enviar_email_pos_emissao_loja(
     )
     url_danfe = ""
     if provedor_nf_loja(config) == "issnet":
-        if nfse_obj is not None:
-            url_danfe = obter_url_visualizacao_nfse_loja(nfse_obj, loja, loja.id)
-        if not url_danfe:
-            url_danfe = buscar_url_danfe_issnet(
-                nfse_obj,
-                numero_nf=numero_nf,
-                loja_id=loja.id,
-                loja=loja,
-                config=config,
-            )
+        # Para o padrão Nacional (DPS/RTC), não usar ConsultarUrlNfse do ABRASF
+        # pois retorna URL do sistema legado (issnetonline.com.br/online).
+        # O email usará a chave de acesso + link de autenticidade.
+        from nfse_integration.issnet_shared import usar_issnet_padrao_nacional
+        usar_nacional = usar_issnet_padrao_nacional(config)
+        if not usar_nacional:
+            if nfse_obj is not None:
+                url_danfe = obter_url_visualizacao_nfse_loja(nfse_obj, loja, loja.id)
+            if not url_danfe:
+                url_danfe = buscar_url_danfe_issnet(
+                    nfse_obj,
+                    numero_nf=numero_nf,
+                    loja_id=loja.id,
+                    loja=loja,
+                    config=config,
+                )
 
     xml_bruto = (nfse_obj.xml_nfse if nfse_obj and nfse_obj.xml_nfse else "") or ""
     chave = ""

@@ -43,7 +43,6 @@ def serializar_foto(foto) -> dict:
     return {
         "id": foto.id,
         "url": url,
-        "cloudinary_url": url,  # compat frontend legado
         "origem": foto.origem,
         "origem_display": foto.get_origem_display(),
         "consulta_id": foto.consulta_id,

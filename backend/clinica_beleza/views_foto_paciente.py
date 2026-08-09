@@ -91,10 +91,10 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
         bloqueio = _consulta_permite_envio_foto(consulta)
         if bloqueio:
             return bloqueio
-        url = (request.data.get("url") or request.data.get("cloudinary_url") or "").strip()
+        url = (request.data.get("url") or "").strip()
         if not url or not url.startswith("https://"):
             return Response({"detail": "URL da imagem inválida."}, status=status.HTTP_400_BAD_REQUEST)
-        public_id = (request.data.get("public_id") or request.data.get("cloudinary_public_id") or "").strip()
+        public_id = (request.data.get("public_id") or "").strip()
         try:
             foto = registrar_foto(consulta, url, "painel", public_id)
         except (FotoUrlInvalida, FotoUploadInvalida) as exc:
@@ -257,14 +257,14 @@ class EnviarFotoPublicaView(View):
             return JsonResponse({"success": True, "foto": foto})
 
         body = parse_json_body_seguro(request)
-        url = (body.get("url") or body.get("cloudinary_url") or "").strip()
+        url = (body.get("url") or "").strip()
         if not url or not url.startswith("https://"):
             return JsonResponse(
                 {"error": "Não foi possível ler a imagem. Tente enviar novamente."},
                 status=400,
             )
 
-        public_id = (body.get("public_id") or body.get("cloudinary_public_id") or "").strip()
+        public_id = (body.get("public_id") or "").strip()
         try:
             foto = registrar_foto(consulta, url, "qr", public_id)
         except (FotoUrlInvalida, FotoUploadInvalida) as exc:

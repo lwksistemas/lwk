@@ -35,16 +35,21 @@ def salvar_nfse_emitida(
     tomador_email: str,
     provedor: str = "nacional",
 ) -> Any | None:
+    from nfse_integration.issnet_nacional_xml_builder import extrair_chave_acesso_nfse_nacional
     from nfse_integration.models import NFSe
 
     try:
         aliquota_iss = Decimal(str(resultado.get("aliquota_iss", 0) or 0))
         valor_iss = Decimal(str(resultado.get("valor_iss", 0) or 0))
+        xml_nfse = resultado.get("xml_nfse", "") or ""
+        codigo_verificacao = (resultado.get("codigo_verificacao") or "").strip()
+        if not codigo_verificacao and xml_nfse:
+            codigo_verificacao = (extrair_chave_acesso_nfse_nacional(xml_nfse) or "").strip()
         nfse = NFSe.objects.create(
             loja_id=loja_id,
             numero_nf=resultado["numero_nf"],
             numero_rps=int(resultado.get("numero_rps") or 0),
-            codigo_verificacao=resultado.get("codigo_verificacao") or "",
+            codigo_verificacao=codigo_verificacao[:50],
             data_emissao=resultado.get("data_emissao", timezone.now()),
             valor=resultado.get("valor", 0),
             aliquota_iss=aliquota_iss,
@@ -53,8 +58,8 @@ def salvar_nfse_emitida(
             tomador_nome=resultado.get("tomador_nome", ""),
             tomador_cpf_cnpj=normalizar_cpf_cnpj(resultado.get("tomador_cpf_cnpj", "")),
             servico_descricao=(resultado.get("servico_descricao") or "")[:500],
-            xml_nfse=resultado.get("xml_nfse", ""),
-            pdf_url=(resultado.get("pdf_url", "") or "")[:500],
+            xml_nfse=xml_nfse,
+            pdf_url=(resultado.get("pdf_url", "") or "")[:1000],
             provedor=provedor,
             status="emitida",
         )

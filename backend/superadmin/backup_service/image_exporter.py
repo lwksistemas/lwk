@@ -25,7 +25,7 @@ MEDIA_SERVER_RE = re.compile(r"media\.lwksistemas\.com\.br", re.IGNORECASE)
 MEDIA_EXT_RE = re.compile(r"\.(jpe?g|png|gif|webp|bmp|svg|pdf|heic|heif)(?:\?|#|$)", re.IGNORECASE)
 
 TABLE_URL_COLUMNS: dict[str, tuple[str, ...]] = {
-    "clinica_beleza_paciente_fotos": ("cloudinary_url",),
+    "clinica_beleza_paciente_fotos": ("url",),
     "restaurante_cardapio": ("imagem_url",),
     "ecommerce_produtos": ("imagem_url",),
 }

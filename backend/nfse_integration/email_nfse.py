@@ -57,6 +57,16 @@ def montar_corpo_email_nfse(
                 f"O download do arquivo .xml referente a esta nota eletrônica pode ser feito acessando:\n"
                 f"{url_xml}\n\n"
             )
+    elif codigo_verificacao:
+        # ConsultarUrlNfse Nacional ainda pode falhar (E160): oferecer chave + portal.
+        corpo += (
+            "A Nota Eletrônica foi emitida no padrão Nacional.\n"
+            f"Chave de acesso: {codigo_verificacao}\n\n"
+            "É possível confirmar a autenticidade acessando:\n"
+            "https://www.notaeletronica.com.br/ribeiraopreto/NotaDigital/VerificaAutenticidade.aspx\n"
+            "e clicando em VERIFICAR AUTENTICIDADE DE DOCUMENTOS FISCAIS.\n\n"
+            "O arquivo XML da nota segue em anexo neste e-mail.\n\n"
+        )
 
     if rodape_simples:
         return corpo + f"Atenciosamente,\n{nome_prestador}"

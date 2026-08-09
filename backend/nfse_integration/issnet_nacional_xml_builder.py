@@ -595,9 +595,22 @@ def construir_xml_consultar_url_nfse_nacional_simples(
 # ---------------------------------------------------------------------------
 
 def extrair_chave_acesso_nfse_nacional(xml_resposta: str) -> str | None:
-    """Extrai a chave de acesso da NFS-e da resposta."""
+    """Extrai a chave de acesso da NFS-e da resposta.
+
+    No ISSNet Nacional (GerarNfse), a chave costuma vir no atributo Id de
+    infNFSe no formato NFS{chave50}. Também tenta tags explícitas.
+    """
     if not (xml_resposta or "").strip():
         return None
+
+    def _chave_do_id(id_attr: str) -> str | None:
+        id_attr = (id_attr or "").strip()
+        if id_attr.upper().startswith("NFS") and len(id_attr) > 3:
+            chave = id_attr[3:]
+            if chave.isdigit() and len(chave) >= 44:
+                return chave
+        return None
+
     try:
         root = etree.fromstring(
             xml_resposta.encode("utf-8") if isinstance(xml_resposta, str) else xml_resposta,
@@ -608,9 +621,44 @@ def extrair_chave_acesso_nfse_nacional(xml_resposta: str) -> str | None:
                 t = (el.text or "").strip()
                 if t:
                     return t
+            if local == "infNFSe":
+                chave = _chave_do_id(el.get("Id") or el.get("id") or "")
+                if chave:
+                    return chave
     except Exception:
-        return None
+        pass
+
+    m = re.search(
+        r'\bId\s*=\s*["\']NFS(\d{44,50})["\']',
+        xml_resposta,
+        re.IGNORECASE,
+    )
+    if m:
+        return m.group(1)
     return None
+
+
+def xml_nfse_para_anexo_email(xml_resposta: str) -> str:
+    """Extrai o bloco NFSe/CompNfse do SOAP para anexo de e-mail mais limpo."""
+    raw = (xml_resposta or "").strip()
+    if not raw:
+        return ""
+    try:
+        root = etree.fromstring(
+            raw.encode("utf-8") if isinstance(raw, str) else raw,
+        )
+        for nome in ("CompNfse", "NFSe", "infNFSe"):
+            for el in root.iter():
+                if etree.QName(el.tag).localname == nome:
+                    if nome == "infNFSe":
+                        # sobe para o elemento NFSe pai quando possível
+                        parent = el.getparent()
+                        if parent is not None and etree.QName(parent.tag).localname == "NFSe":
+                            el = parent
+                    return etree.tostring(el, encoding="unicode")
+    except Exception:
+        pass
+    return raw
 
 
 def extrair_numero_nfse_nacional(xml_resposta: str) -> str | None:

@@ -28,13 +28,10 @@ def _provedor_efetivo(nfse: Any, config: Any) -> str:
 
 
 def _usar_nacional_cancelamento(config: Any) -> bool:
-    """Usa ISSNet Nacional (DPS/RTC) para cancelamento quando a configuração ativa o padrão
-    ou a partir de 31/07/2026, quando o ABRASF legado deixa de ser aceito em Ribeirão Preto."""
-    from datetime import date
+    """Usa ISSNet Nacional (DPS/RTC) para cancelamento."""
+    from nfse_integration.issnet_shared import usar_issnet_padrao_nacional
 
-    if bool(getattr(config, "issnet_usar_padrao_nacional", False)):
-        return True
-    return date.today() >= date(2026, 7, 31)
+    return usar_issnet_padrao_nacional(config)
 
 
 def _criar_client_nacional_cancelamento(
@@ -85,7 +82,17 @@ def _cancelar_nfse_loja_nacional(
             or getattr(nfse, "chave_acesso", "")
             or ""
         )
-        # GerarNfse frequentemente não devolve chave — tenta via ConsultarNfseDps.
+        if not str(chave_acesso).strip() and getattr(nfse, "xml_nfse", None):
+            from nfse_integration.issnet_nacional_xml_builder import extrair_chave_acesso_nfse_nacional
+
+            chave_acesso = extrair_chave_acesso_nfse_nacional(nfse.xml_nfse) or ""
+            if str(chave_acesso).strip():
+                try:
+                    nfse.codigo_verificacao = str(chave_acesso)[:50]
+                    nfse.save(update_fields=["codigo_verificacao", "updated_at"])
+                except Exception:
+                    pass
+        # Sem chave no XML: tenta ConsultarNfseDps pelo número da DPS.
         if not str(chave_acesso).strip() and getattr(nfse, "numero_rps", None):
             try:
                 serie = getattr(config, "issnet_serie_rps", "1") or "1"
@@ -96,7 +103,7 @@ def _cancelar_nfse_loja_nacional(
                 if consulta.get("success") and consulta.get("chave_acesso"):
                     chave_acesso = consulta["chave_acesso"]
                     try:
-                        nfse.codigo_verificacao = str(chave_acesso)[:100]
+                        nfse.codigo_verificacao = str(chave_acesso)[:50]
                         nfse.save(update_fields=["codigo_verificacao", "updated_at"])
                     except Exception:
                         pass

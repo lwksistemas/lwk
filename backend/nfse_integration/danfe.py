@@ -51,7 +51,9 @@ def _salvar_pdf_url(nfse: Any, url: str) -> None:
 
 
 def _config_usa_padrao_nacional(config: Any | None) -> bool:
-    return bool(getattr(config, "issnet_usar_padrao_nacional", False)) if config is not None else False
+    from nfse_integration.issnet_shared import usar_issnet_padrao_nacional
+
+    return usar_issnet_padrao_nacional(config)
 
 
 def url_xml_download_from_danfe(url_danfe: str) -> str:

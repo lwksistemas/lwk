@@ -2,7 +2,6 @@
 import contextlib
 import logging
 import re
-from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -57,6 +56,11 @@ def enviar_email_pos_emissao_loja(
     from nfse_integration.email_nfse import enviar_email_nfse_tomador
     from nfse_integration.models import NFSe
 
+    from nfse_integration.issnet_nacional_xml_builder import (
+        extrair_chave_acesso_nfse_nacional,
+        xml_nfse_para_anexo_email,
+    )
+
     nfse_obj = (
         NFSe.objects.filter(loja_id=loja.id, numero_nf=numero_nf)
         .order_by("-data_emissao")
@@ -75,6 +79,19 @@ def enviar_email_pos_emissao_loja(
                 config=config,
             )
 
+    xml_bruto = (nfse_obj.xml_nfse if nfse_obj and nfse_obj.xml_nfse else "") or ""
+    chave = ""
+    if nfse_obj is not None:
+        chave = (getattr(nfse_obj, "codigo_verificacao", "") or "").strip()
+        if not chave and xml_bruto:
+            chave = (extrair_chave_acesso_nfse_nacional(xml_bruto) or "").strip()
+            if chave and not (nfse_obj.codigo_verificacao or "").strip():
+                try:
+                    nfse_obj.codigo_verificacao = chave[:50]
+                    nfse_obj.save(update_fields=["codigo_verificacao", "updated_at"])
+                except Exception:
+                    pass
+
     enviar_email_nfse_tomador(
         loja=loja,
         tomador_email=tomador_email,
@@ -83,10 +100,11 @@ def enviar_email_pos_emissao_loja(
         valor=valor,
         descricao=descricao,
         url_danfe=url_danfe,
-        xml_content=nfse_obj.xml_nfse if nfse_obj and nfse_obj.xml_nfse else "",
+        codigo_verificacao=chave,
+        xml_content=xml_nfse_para_anexo_email(xml_bruto) if xml_bruto else "",
         fail_silently=fail_silently,
         intro="A nota fiscal de serviço foi emitida.",
-        incluir_codigo_verificacao=False,
+        incluir_codigo_verificacao=bool(chave) and not url_danfe,
         xml_filename=f"nfse_{numero_nf[:20]}.xml",
     )
 
@@ -118,7 +136,19 @@ def enviar_whatsapp_nfse_loja(
         )
 
     url_danfe = obter_url_visualizacao_nfse_loja(nfse, loja, loja_id)
-    if not url_danfe:
+    chave = (nfse.codigo_verificacao or "").strip()
+    if not chave and (nfse.xml_nfse or nfse.xml_rps):
+        from nfse_integration.issnet_nacional_xml_builder import extrair_chave_acesso_nfse_nacional
+
+        chave = (extrair_chave_acesso_nfse_nacional(nfse.xml_nfse or nfse.xml_rps) or "").strip()
+        if chave:
+            try:
+                nfse.codigo_verificacao = chave[:50]
+                nfse.save(update_fields=["codigo_verificacao", "updated_at"])
+            except Exception:
+                pass
+
+    if not url_danfe and not chave:
         raise ReenvioNFSeLojaError(
             "Link da nota fiscal não disponível no momento. "
             "Tente novamente em alguns instantes ou use Reenviar e-mail.",
@@ -132,8 +162,8 @@ def enviar_whatsapp_nfse_loja(
         descricao=nfse.servico_descricao,
         url_danfe=url_danfe,
         intro="A nota fiscal de serviço foi emitida.",
-        codigo_verificacao=nfse.codigo_verificacao,
-        incluir_codigo_verificacao=bool(nfse.codigo_verificacao),
+        codigo_verificacao=chave,
+        incluir_codigo_verificacao=bool(chave) and not url_danfe,
     )
 
     ok, err = send_whatsapp(
@@ -151,11 +181,26 @@ def reenviar_email_nfse_loja(nfse: Any, loja: Any, loja_id: int) -> str:
     """Reenvia e-mail da NFS-e ao tomador (formato loja/CRM). Retorna o e-mail enviado."""
     from nfse_integration.danfe import obter_url_visualizacao_nfse_loja
     from nfse_integration.email_nfse import enviar_email_nfse_tomador
+    from nfse_integration.issnet_nacional_xml_builder import (
+        extrair_chave_acesso_nfse_nacional,
+        xml_nfse_para_anexo_email,
+    )
 
     if not nfse.tomador_email:
         raise ReenvioNFSeLojaError("NFS-e não possui email do tomador")
 
     url_danfe = obter_url_visualizacao_nfse_loja(nfse, loja, loja_id)
+    xml_bruto = nfse.xml_nfse or nfse.xml_rps or ""
+    chave = (nfse.codigo_verificacao or "").strip()
+    if not chave and xml_bruto:
+        chave = (extrair_chave_acesso_nfse_nacional(xml_bruto) or "").strip()
+        if chave:
+            try:
+                nfse.codigo_verificacao = chave[:50]
+                nfse.save(update_fields=["codigo_verificacao", "updated_at"])
+            except Exception:
+                pass
+
     enviar_email_nfse_tomador(
         loja=loja,
         tomador_email=nfse.tomador_email,
@@ -164,9 +209,11 @@ def reenviar_email_nfse_loja(nfse: Any, loja: Any, loja_id: int) -> str:
         valor=nfse.valor,
         descricao=nfse.servico_descricao,
         url_danfe=url_danfe,
-        codigo_verificacao=nfse.codigo_verificacao,
-        xml_content=nfse.xml_nfse or nfse.xml_rps or "",
+        codigo_verificacao=chave,
+        xml_content=xml_nfse_para_anexo_email(xml_bruto) if xml_bruto else "",
         fail_silently=False,
+        incluir_codigo_verificacao=bool(chave) and not url_danfe,
+        xml_filename=f"nfse_{(nfse.numero_nf or str(nfse.id))[:20]}.xml",
     )
     return nfse.tomador_email
 
@@ -252,10 +299,10 @@ def sincronizar_nfse_asaas_loja(nfse: Any, loja_id: int) -> tuple[dict[str, Any]
 
 
 def _usar_nacional_sync(config: Any) -> bool:
-    """Usa ISSNet Nacional (DPS/RTC) para sincronização se a flag estiver ativa ou após 31/07/2026."""
-    if bool(getattr(config, "issnet_usar_padrao_nacional", False)):
-        return True
-    return date.today() >= date(2026, 7, 31)
+    """Usa ISSNet Nacional (DPS/RTC) para sincronização."""
+    from nfse_integration.issnet_shared import usar_issnet_padrao_nacional
+
+    return usar_issnet_padrao_nacional(config)
 
 
 def _sincronizar_nfse_issnet_nacional(

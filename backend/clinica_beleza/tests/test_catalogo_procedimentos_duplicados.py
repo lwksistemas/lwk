@@ -1,6 +1,7 @@
 """Evita procedimentos duplicados por diferença de caixa no catálogo."""
-from unittest import SimpleTestCase
 from unittest.mock import MagicMock, patch
+
+from django.test import TestCase
 
 from clinica_beleza.catalogo_service import (
     _desativar_procedimentos_duplicados,
@@ -8,7 +9,7 @@ from clinica_beleza.catalogo_service import (
 )
 
 
-class NormalizarNomeProcedimentoTests(SimpleTestCase):
+class NormalizarNomeProcedimentoTests(TestCase):
     def test_upper_e_strip(self):
         self.assertEqual(
             _normalizar_nome_procedimento("  Bioestimulador de Colágeno "),
@@ -16,7 +17,7 @@ class NormalizarNomeProcedimentoTests(SimpleTestCase):
         )
 
 
-class DesativarProcedimentosDuplicadosTests(SimpleTestCase):
+class DesativarProcedimentosDuplicadosTests(TestCase):
     @patch("clinica_beleza.models.ConvenioProcedimentoPreco")
     @patch("clinica_beleza.models.ProfessionalCommission")
     @patch("clinica_beleza.models.Procedure")

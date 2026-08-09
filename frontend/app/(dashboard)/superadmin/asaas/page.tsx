@@ -121,7 +121,6 @@ export default function AsaasConfigPage() {
     loadStats()
     checkStatus()
     loadDiagnostico()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadConfig = async () => {

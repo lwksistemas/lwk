@@ -1,6 +1,7 @@
 """Linhas de taxa/desconto no recibo com retorno gratuito e prazo."""
-from unittest import SimpleTestCase
 from unittest.mock import MagicMock, patch
+
+from django.test import TestCase
 
 from clinica_beleza.recibo.context import (
     _linhas_descontos_recibo,
@@ -9,7 +10,7 @@ from clinica_beleza.recibo.context import (
 from clinica_beleza.recibo.retorno_info import montar_info_retorno_recibo
 
 
-class LinhasTaxaConsultaReciboTests(SimpleTestCase):
+class LinhasTaxaConsultaReciboTests(TestCase):
     def test_retorno_gratuito_mostra_apenas_taxa_de_tabela(self):
         linhas = _linhas_taxa_consulta_recibo(
             {
@@ -66,7 +67,7 @@ class LinhasTaxaConsultaReciboTests(SimpleTestCase):
         self.assertEqual(linhas, [])
 
 
-class MontarInfoRetornoReciboTests(SimpleTestCase):
+class MontarInfoRetornoReciboTests(TestCase):
     @patch("clinica_beleza.retorno_service.get_agenda_retorno_config")
     def test_aviso_quando_retorno_aplicado_por_consulta(self, mock_config):
         cfg = MagicMock(

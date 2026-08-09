@@ -2,7 +2,7 @@
 Separados de views_google_calendar.py para testes e reuso.
 """
 import logging
-from datetime import timedelta
+from datetime import timedelta, timezone as dt_timezone
 
 from django.conf import settings
 from django.shortcuts import redirect
@@ -27,8 +27,8 @@ def normalize_token_expiry(expiry):
     if not expiry:
         return None
     if timezone.is_naive(expiry):
-        return timezone.make_aware(expiry, timezone.utc)
-    return expiry.astimezone(timezone.utc)
+        return timezone.make_aware(expiry, dt_timezone.utc)
+    return expiry.astimezone(dt_timezone.utc)
 
 
 def get_redirect_uri(request):

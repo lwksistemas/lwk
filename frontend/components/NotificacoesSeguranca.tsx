@@ -109,7 +109,6 @@ export default function NotificacoesSeguranca({ onNovaViolacao }: NotificacoesSe
       document.removeEventListener('visibilitychange', onVisibility);
       clear();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- montagem única; ref sempre aponta para a última verificação
   }, []);
 
   const mostrarNotificacaoNativa = (violacao: Violacao) => {

@@ -126,7 +126,6 @@ export default function NovaPropostaPage() {
     if (tituloGerado) {
       setFormData((f) => ({ ...f, titulo: tituloGerado }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadInfo]);
 
   const handleSalvarComoPadrao = useCallback(async (conteudo: string) => {

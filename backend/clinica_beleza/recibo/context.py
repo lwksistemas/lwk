@@ -49,23 +49,20 @@ def _extrair_desconto_notes(payment) -> float:
         return 0.0
 
 
-def _obter_dados_contexto(payment, patient, appointment) -> dict:
-    """Obtém dados completos para o recibo."""
-    from superadmin.models import Loja
-
-    loja = Loja.objects.filter(id=payment.loja_id).first()
-    professional = getattr(appointment, "professional", None)
-
+def _buscar_procedimentos_recibo(appointment) -> list[dict]:
     procs = []
     try:
         ap_procs = appointment.appointment_procedures.select_related("procedure").all()
         for ap in ap_procs:
             procs.append({"nome": ap.procedure.nome, "valor": float(ap.get_valor())})
     except Exception:
-        logger.exception("Erro ao listar procedimentos do recibo (payment %s)", payment.id)
+        logger.exception("Erro ao listar procedimentos do recibo")
     if not procs and appointment.procedure:
         procs = [{"nome": appointment.procedure.nome, "valor": float(appointment.procedure.preco or 0)}]
+    return procs
 
+
+def _calcular_taxa_retorno_recibo(appointment, loja_id):
     taxa_consulta = 0.0
     taxa_consulta_referencia = 0.0
     retorno_gratuito = False
@@ -77,9 +74,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
             taxa_consulta = float(getattr(consulta, "valor_consulta", 0) or 0)
         from .retorno_info import montar_info_retorno_recibo
 
-        info_ret = montar_info_retorno_recibo(
-            consulta, appointment, loja_id=payment.loja_id,
-        )
+        info_ret = montar_info_retorno_recibo(consulta, appointment, loja_id=loja_id)
         retorno_gratuito = bool(info_ret.get("retorno_gratuito"))
         taxa_consulta_referencia = float(info_ret.get("taxa_consulta_referencia") or 0)
         retorno_dias = info_ret.get("retorno_dias")
@@ -87,16 +82,20 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         if retorno_gratuito and taxa_consulta_referencia <= 0 and taxa_consulta > 0:
             taxa_consulta_referencia = taxa_consulta
     except Exception:
-        logger.exception("Erro ao ler taxa de consulta do recibo (payment %s)", payment.id)
+        logger.exception("Erro ao ler taxa de consulta do recibo")
+    return {
+        "taxa_consulta": taxa_consulta,
+        "taxa_consulta_referencia": taxa_consulta_referencia,
+        "retorno_gratuito": retorno_gratuito,
+        "retorno_dias": retorno_dias,
+        "retorno_aviso": retorno_aviso,
+    }
 
-    from superadmin.loja_utils import contato_publico_loja
 
-    doc_raw = (getattr(loja, "cpf_cnpj", "") or "") if loja else ""
-    cep_raw = (getattr(loja, "cep", "") or "") if loja else ""
-    tel_raw, email_raw = contato_publico_loja(loja)
-    desconto = _extrair_desconto_notes(payment)
-    valor_total = float(payment.valor_total_efetivo)
-    valor_pago = float(payment.amount or 0)
+def _calcular_subtotal_recibo(taxa_info, procs, valor_total, desconto):
+    taxa_consulta = taxa_info["taxa_consulta"]
+    taxa_consulta_referencia = taxa_info["taxa_consulta_referencia"]
+    retorno_gratuito = taxa_info["retorno_gratuito"]
     desconto_retorno = (
         float(taxa_consulta_referencia)
         if retorno_gratuito and taxa_consulta_referencia > 0
@@ -110,30 +109,53 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         subtotal = servicos_soma
     else:
         subtotal = servicos_soma if servicos_soma > 0 else valor_total
+    return subtotal, desconto_retorno
+
+
+def _dados_loja_recibo(loja):
+    from superadmin.loja_utils import contato_publico_loja
+
+    doc_raw = (getattr(loja, "cpf_cnpj", "") or "") if loja else ""
+    cep_raw = (getattr(loja, "cep", "") or "") if loja else ""
+    tel_raw, email_raw = contato_publico_loja(loja)
     loja_telefone = telefone_exibicao_brasileiro(tel_raw)
     loja_cep = _formatar_cep(cep_raw)
-    loja_email = email_raw
+    return {
+        "loja_nome": getattr(loja, "nome", "") if loja else "",
+        "loja_documento": normalizar_cpf_cnpj(doc_raw),
+        "loja_documento_label": _label_documento_loja(doc_raw),
+        "loja_cnpj": normalizar_cpf_cnpj(doc_raw),
+        "loja_endereco": _formatar_endereco_loja(loja) if loja else "",
+        "loja_telefone": loja_telefone,
+        "loja_cep": loja_cep,
+        "loja_email": email_raw,
+        "loja_tel_cep": _linha_tel_cep(loja_telefone, loja_cep),
+    }
+
+
+def _obter_dados_contexto(payment, patient, appointment) -> dict:
+    """Obtém dados completos para o recibo."""
+    from superadmin.models import Loja
+
+    loja = Loja.objects.filter(id=payment.loja_id).first()
+    professional = getattr(appointment, "professional", None)
+    procs = _buscar_procedimentos_recibo(appointment)
+
+    taxa_info = _calcular_taxa_retorno_recibo(appointment, payment.loja_id)
+    desconto = _extrair_desconto_notes(payment)
+    valor_total = float(payment.valor_total_efetivo)
+    valor_pago = float(payment.amount or 0)
+    subtotal, desconto_retorno = _calcular_subtotal_recibo(taxa_info, procs, valor_total, desconto)
+
+    ctx = _dados_loja_recibo(loja)
 
     return {
+        **ctx,
         "paciente_nome": getattr(patient, "nome", "Cliente"),
         "paciente_email": (getattr(patient, "email", "") or "").strip(),
         "paciente_telefone": telefone_exibicao_brasileiro(getattr(patient, "telefone", "") or ""),
         "profissional_nome": getattr(professional, "nome", "") if professional else "",
-        "loja_nome": getattr(loja, "nome", "") if loja else "",
-        "loja_documento": normalizar_cpf_cnpj(doc_raw),
-        "loja_documento_label": _label_documento_loja(doc_raw),
-        "loja_cnpj": normalizar_cpf_cnpj(doc_raw),  # compat
-        "loja_endereco": _formatar_endereco_loja(loja) if loja else "",
-        "loja_telefone": loja_telefone,
-        "loja_cep": loja_cep,
-        "loja_email": loja_email,
-        "loja_tel_cep": _linha_tel_cep(loja_telefone, loja_cep),
         "procedimentos": procs,
-        "taxa_consulta": taxa_consulta,
-        "taxa_consulta_referencia": taxa_consulta_referencia,
-        "retorno_gratuito": retorno_gratuito,
-        "retorno_dias": retorno_dias,
-        "retorno_aviso": retorno_aviso,
         "subtotal": float(subtotal),
         "desconto": desconto,
         "desconto_retorno": desconto_retorno,
@@ -147,6 +169,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         "formas_pagamento": _listar_formas_pagamento(payment),
         "data": _formatar_data_recibo(payment.payment_date),
         "data_atendimento": _formatar_data_recibo(getattr(appointment, "date", None)),
+        **taxa_info,
     }
 
 

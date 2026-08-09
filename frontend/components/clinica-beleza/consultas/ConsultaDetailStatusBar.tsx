@@ -68,8 +68,10 @@ export function ConsultaDetailStatusBar({
       setLocaisAtendimento(Array.isArray(data) ? data.map((l: { id: number; nome: string }) => ({ id: l.id, nome: l.nome })) : []);
     }).catch(() => {});
     ClinicaBelezaAPI.convenios.list().then((data) => {
-      const items = Array.isArray(data) ? data : (data as { results?: unknown[] })?.results ?? [];
-      setConvenios(items.map((c: { id: number; nome: string }) => ({ id: c.id, nome: c.nome })));
+      const items: Array<{ id: number; nome: string }> = Array.isArray(data)
+        ? data
+        : ((data as { results?: Array<{ id: number; nome: string }> })?.results ?? []);
+      setConvenios(items.map((c) => ({ id: c.id, nome: c.nome })));
     }).catch(() => {});
   }, [consultaFinalizada]);
 

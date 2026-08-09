@@ -1,5 +1,4 @@
 """Testes do cancelamento de NFS-e (loja/CRM)."""
-from datetime import date
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
@@ -42,8 +41,7 @@ class CancelarNFSeLojaTests(SimpleTestCase):
         config = self._config(certificado=False)
         loja = self._loja()
 
-        with patch("nfse_integration.cancelamento_loja.date", today=lambda: date(2026, 7, 30)):
-            resultado = cancelar_nfse_loja(loja, config, nfse, "151", "Erro na emissão")
+        resultado = cancelar_nfse_loja(loja, config, nfse, "151", "Erro na emissão")
 
         self.assertFalse(resultado["success"])
         self.assertIn("Certificado", resultado["error"])
@@ -54,8 +52,7 @@ class CancelarNFSeLojaTests(SimpleTestCase):
         config = self._config(provedor_nf="nacional")
         loja = self._loja()
 
-        with patch("nfse_integration.cancelamento_loja.date", today=lambda: date(2026, 7, 30)):
-            resultado = cancelar_nfse_loja(loja, config, nfse, "151", "Motivo")
+        resultado = cancelar_nfse_loja(loja, config, nfse, "151", "Motivo")
 
         self.assertFalse(resultado["success"])
         self.assertIn("API Nacional", resultado["error"])
@@ -73,7 +70,7 @@ class CancelarNFSeLojaTests(SimpleTestCase):
         with patch("nfse_integration.cancelamento_loja.issnet_client_loja", return_value=client), patch(
             "nfse_integration.cancelamento_loja.consultar_nfse_cancelada_issnet",
             return_value=False,
-        ), patch("nfse_integration.cancelamento_loja.date", today=lambda: date(2026, 7, 30)):
+        ), patch("nfse_integration.cancelamento_loja._usar_nacional_cancelamento", return_value=False):
             resultado = cancelar_nfse_loja(loja, config, nfse, "151", "Erro na emissão")
 
         self.assertFalse(resultado["success"])
@@ -91,7 +88,7 @@ class CancelarNFSeLojaTests(SimpleTestCase):
 
         with patch("nfse_integration.cancelamento_loja.issnet_client_loja", return_value=client), patch(
             "nfse_integration.cancelamento_loja.notificar_cancelamento_nfse",
-        ), patch("nfse_integration.cancelamento_loja.date", today=lambda: date(2026, 7, 30)):
+        ), patch("nfse_integration.cancelamento_loja._usar_nacional_cancelamento", return_value=False):
             resultado = cancelar_nfse_loja(loja, config, nfse, "151", "Erro na emissão")
 
         self.assertTrue(resultado["success"])

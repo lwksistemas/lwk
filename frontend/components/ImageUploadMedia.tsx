@@ -152,6 +152,7 @@ export function ImageUploadMedia({
 
       {value ? (
         <div className="relative w-32 h-32 rounded-lg border-2 border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={value}
             alt={label}

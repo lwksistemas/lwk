@@ -157,6 +157,99 @@ class PaymentDetailView(GetObjectMixin, APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def _decimal_ou_none(raw):
+    try:
+        return Decimal(str(raw or "0"))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+
+def _validar_status_para_parcela(payment):
+    if payment.status == "CANCELLED":
+        return Response({"error": "Pagamento cancelado."}, status=status.HTTP_400_BAD_REQUEST)
+    if payment.status == "PAID":
+        return Response({"error": "Pagamento já está quitado."}, status=status.HTTP_400_BAD_REQUEST)
+    if payment.status == "DRAFT":
+        saldo = _decimal_ou_none(payment.saldo_devedor) or Decimal(0)
+        if saldo <= 0:
+            return Response(
+                {"error": "Pagamento já quitado na consulta. Corrija pelo Receber ou finalize."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    return None
+
+
+def _validar_consulta_para_parcela(payment):
+    consulta = getattr(getattr(payment, "appointment", None), "consulta", None)
+    if consulta is not None and consulta.status != "COMPLETED":
+        return Response(
+            {
+                "error": (
+                    "Pagamento do dia da consulta é pelo Receber. "
+                    "Complemento em outro dia só no Financeiro após finalizar a consulta."
+                ),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if consulta is None:
+        return Response(
+            {
+                "error": (
+                    "Não é possível registrar parcela neste pagamento. "
+                    "Finalize a consulta ou use o Receber."
+                ),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return None
+
+
+def _aplicar_desconto_payment(payment, desconto_raw):
+    desconto = _decimal_ou_none(desconto_raw) or Decimal(0)
+    if desconto <= 0:
+        return Decimal(0)
+    novo_total = max(Decimal(0), payment.valor_total_efetivo - desconto)
+    payment.valor_total = novo_total
+    notas_desc = f"Desconto: R$ {desconto:.2f}"
+    payment.notes = f"{payment.notes or ''}\n{notas_desc}".strip() if payment.notes else notas_desc
+    payment.save(update_fields=["valor_total", "notes", "updated_at"])
+    return desconto
+
+
+def _criar_parcela_e_atualizar_payment(payment, valor, dados):
+    parcela = None
+    if valor > 0:
+        parcela = PaymentParcela.objects.create(
+            payment=payment,
+            valor=valor,
+            payment_method=dados["payment_method"],
+            payment_date=dados["payment_date"],
+            observacoes=dados["observacoes"],
+            loja_id=payment.loja_id,
+        )
+    total_pago = payment.valor_pago_parcelas
+    total_devedor = payment.valor_total_efetivo
+    payment.status = "PAID" if total_pago >= total_devedor else "PARTIAL"
+    payment.amount = total_pago
+    if payment.status == "PAID":
+        payment.payment_date = now()
+    update_fields = ["status", "amount", "updated_at"]
+    if payment.status == "PAID":
+        update_fields.append("payment_date")
+    payment.save(update_fields=update_fields)
+    return parcela
+
+
+def _resumo_parcela_response(payment, parcela):
+    return Response({
+        "parcela": PaymentParcelaSerializer(parcela).data if parcela else None,
+        "valor_total": float(payment.valor_total_efetivo),
+        "valor_pago": float(payment.valor_pago_parcelas),
+        "saldo_devedor": float(payment.saldo_devedor),
+        "status": payment.status,
+    }, status=status.HTTP_201_CREATED)
+
+
 class PaymentParcelaView(APIView):
     """GET  /clinica-beleza/payments/<id>/parcelas/ — lista parcelas de um pagamento
     POST /clinica-beleza/payments/<id>/parcelas/ — registra nova entrada parcial
@@ -192,105 +285,32 @@ class PaymentParcelaView(APIView):
         if err:
             return err
 
-        if payment.status == "CANCELLED":
-            return Response({"error": "Pagamento cancelado."}, status=status.HTTP_400_BAD_REQUEST)
-        if payment.status == "PAID":
-            return Response({"error": "Pagamento já está quitado."}, status=status.HTTP_400_BAD_REQUEST)
-        # DRAFT quitado (saldo 0) também bloqueia nova parcela via financeiro
-        if payment.status == "DRAFT":
-            try:
-                saldo = Decimal(str(payment.saldo_devedor or 0))
-            except (InvalidOperation, TypeError, ValueError):
-                saldo = Decimal(0)
-            if saldo <= 0:
-                return Response(
-                    {"error": "Pagamento já quitado na consulta. Corrija pelo Receber ou finalize."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+        if (resp := _validar_status_para_parcela(payment)) is not None:
+            return resp
 
-        try:
-            valor = Decimal(str(request.data.get("valor") or "0"))
-        except InvalidOperation:
+        valor = _decimal_ou_none(request.data.get("valor"))
+        if valor is None:
             return Response({"error": "Valor inválido."}, status=status.HTTP_400_BAD_REQUEST)
 
         desconto_param = request.data.get("desconto")
-        has_desconto = desconto_param and Decimal(str(desconto_param)) > 0 if desconto_param else False
+        has_desconto = bool(desconto_param and (_decimal_ou_none(desconto_param) or Decimal(0)) > 0)
 
         if valor <= 0 and not has_desconto:
             return Response({"error": "Valor deve ser maior que zero."}, status=status.HTTP_400_BAD_REQUEST)
 
-        payment_method = (request.data.get("payment_method") or "CASH").strip()
-        payment_date = request.data.get("payment_date") or now().date().isoformat()
-        observacoes = request.data.get("observacoes") or ""
+        if (resp := _validar_consulta_para_parcela(payment)) is not None:
+            return resp
 
-        consulta = getattr(getattr(payment, "appointment", None), "consulta", None)
-        if consulta is not None and consulta.status != "COMPLETED":
-            return Response(
-                {
-                    "error": (
-                        "Pagamento do dia da consulta é pelo Receber. "
-                        "Complemento em outro dia só no Financeiro após finalizar a consulta."
-                    ),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if consulta is None:
-            return Response(
-                {
-                    "error": (
-                        "Não é possível registrar parcela neste pagamento. "
-                        "Finalize a consulta ou use o Receber."
-                    ),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        _aplicar_desconto_payment(payment, desconto_param)
 
-        # Consulta finalizada: baixa / complemento em qualquer data pelo Financeiro
+        dados_parcela = {
+            "payment_method": (request.data.get("payment_method") or "CASH").strip(),
+            "payment_date": request.data.get("payment_date") or now().date().isoformat(),
+            "observacoes": request.data.get("observacoes") or "",
+        }
+        parcela = _criar_parcela_e_atualizar_payment(payment, valor, dados_parcela)
 
-        # Aplicar desconto se informado (reduz valor_total do payment)
-        desconto_raw = request.data.get("desconto")
-        desconto = Decimal(0)
-        if desconto_raw:
-            try:
-                desconto = Decimal(str(desconto_raw))
-            except (InvalidOperation, TypeError, ValueError):
-                desconto = Decimal(0)
-            if desconto > 0:
-                novo_total = max(Decimal(0), payment.valor_total_efetivo - desconto)
-                payment.valor_total = novo_total
-                # Registrar desconto nas notas do payment
-                notas_desc = f"Desconto: R$ {desconto:.2f}"
-                payment.notes = f"{payment.notes or ''}\n{notas_desc}".strip() if payment.notes else notas_desc
-                payment.save(update_fields=["valor_total", "notes", "updated_at"])
-
-        parcela = None
-        if valor > 0:
-            parcela = PaymentParcela.objects.create(
-                payment=payment,
-                valor=valor,
-                payment_method=payment_method,
-                payment_date=payment_date,
-                observacoes=observacoes,
-                loja_id=payment.loja_id,
-            )
-        total_pago = payment.valor_pago_parcelas
-        total_devedor = payment.valor_total_efetivo
-        if total_pago >= total_devedor:
-            payment.status = "PAID"
-            payment.amount = total_pago
-            payment.payment_date = now()
-        else:
-            payment.status = "PARTIAL"
-            payment.amount = total_pago
-        payment.save(update_fields=["status", "amount", "payment_date", "updated_at"])
-
-        return Response({
-            "parcela": PaymentParcelaSerializer(parcela).data if parcela else None,
-            "valor_total": float(payment.valor_total_efetivo),
-            "valor_pago": float(payment.valor_pago_parcelas),
-            "saldo_devedor": float(payment.saldo_devedor),
-            "status": payment.status,
-        }, status=status.HTTP_201_CREATED)
+        return _resumo_parcela_response(payment, parcela)
 
 
 class PaymentEnviarReciboView(GetObjectMixin, APIView):

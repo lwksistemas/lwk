@@ -167,8 +167,8 @@ class CriarDocumentoTest(TestCase):
             )
         self.assertIn("IN_PROGRESS", str(cm.exception))
 
-    @patch("clinica_beleza.documento_service.DocumentoClinico")
-    def test_cria_documento_quando_in_progress(self, MockDocumentoClinico):
+    @patch("clinica_beleza.documento_service.DocumentoClinico.objects")
+    def test_cria_documento_quando_in_progress(self, MockObjects):
         """Deve criar documento quando consulta está IN_PROGRESS."""
         consulta = MagicMock()
         consulta.status = "IN_PROGRESS"
@@ -178,8 +178,7 @@ class CriarDocumentoTest(TestCase):
         template = MagicMock()
 
         mock_doc = MagicMock()
-        MockDocumentoClinico.return_value = mock_doc
-        mock_doc.save = MagicMock()
+        MockObjects.create.return_value = mock_doc
 
         result = criar_documento(
             consulta=consulta,

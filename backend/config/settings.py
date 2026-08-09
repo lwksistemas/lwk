@@ -503,6 +503,14 @@ Q_CLUSTER = build_q_cluster(
 VAPID_PRIVATE_KEY = config("VAPID_PRIVATE_KEY", default="")
 VAPID_CLAIM_MAILTO = config("VAPID_CLAIM_MAILTO", default="mailto:admin@lwksistemas.com.br")
 
+# ============================================================
+# SEGURANÇA ADICIONAL (HSTS, cookies secure, rate limits, etc.)
+# ============================================================
+# settings_security.py contém proteções que devem estar ativas em
+# todos os ambientes. Importado no final para sobrescrever/aderir
+# às configurações base sem conflitos.
+from .settings_security import *  # noqa: F401,F403
+
 # WhatsApp oficial (Meta Cloud API) - ETAPA 4
 WHATSAPP_API_URL = config("WHATSAPP_API_URL", default="https://graph.facebook.com/v19.0")
 WHATSAPP_PHONE_ID = config("WHATSAPP_PHONE_ID", default="")

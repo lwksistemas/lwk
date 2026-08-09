@@ -1,9 +1,26 @@
 import logging
 
+from django.db import connection
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 logger = logging.getLogger(__name__)
+
+
+def _tabela_existe(table_name: str) -> bool:
+    """Verifica se uma tabela existe no banco atual (SQLite/PostgreSQL)."""
+    with connection.cursor() as cursor:
+        if connection.vendor == "sqlite":
+            cursor.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=%s LIMIT 1",
+                [table_name],
+            )
+        else:
+            cursor.execute(
+                "SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = %s LIMIT 1",
+                [table_name],
+            )
+        return cursor.fetchone() is not None
 
 
 @receiver(post_save, sender="superadmin.Loja")
@@ -44,6 +61,10 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
             # CRM Vendas: admin (owner) é criado como Vendedor com is_admin=True
             # Isso permite que o admin apareça na lista de funcionários e tenha acesso total
             from crm_vendas.models import Vendedor
+
+            if not _tabela_existe(Vendedor._meta.db_table):
+                logger.debug("Tabela %s não existe — pulando criação de vendedor.", Vendedor._meta.db_table)
+                return
 
             if not Vendedor.objects.filter(email=owner.email, loja_id=instance.id).exists():
                 vendedor_data = {
@@ -115,8 +136,13 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
 
     except Exception as e:
         # Ignorar erro de tabela inexistente (schema ainda não criado — vendedor será criado após migrations)
-        err_str = str(e)
-        if "does not exist" in err_str or "UndefinedTable" in err_str:
+        err_str = str(e).lower()
+        if (
+            "does not exist" in err_str
+            or "undefinedtable" in err_str
+            or "no such table" in err_str
+            or "sqlite3.operationalerror" in err_str
+        ):
             logger.debug(
                 f"ℹ️ Tabela ainda não existe para loja {instance.nome} — "
                 f"vendedor/funcionário será criado após migrations do schema.",

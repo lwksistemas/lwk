@@ -127,7 +127,7 @@ class TextNormalizationMixinTestCase(TestCase):
         })
         self.assertTrue(serializer.is_valid())
         self.assertEqual(serializer.validated_data["nome"], "BEATRIZ")
-        self.assertEqual(serializer.validated_data["telefone"], "(21) 98765-4321")
+        self.assertEqual(serializer.validated_data["telefone"], "5521987654321")
 
     def test_campos_opcionais_vazios(self):
         """Testa que campos opcionais vazios não causam erro"""

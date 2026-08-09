@@ -1,25 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import {
-  QrCode,
-  X,
-  Trash2,
-  Columns2,
-  RefreshCw,
-  Check,
-  Copy,
-  ExternalLink,
-  Smartphone,
-} from "lucide-react";
+import { useEffect, type ReactNode } from "react";
+import { Columns2, Check, Trash2 } from "lucide-react";
 import { ImageUploadMedia as ImageUpload } from "@/components/ImageUploadMedia";
-import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
 import { useToast } from "@/components/ui/Toast";
 import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
 import { MAX_FOTOS_POR_CONSULTA } from "./fotos/fotos-constants";
-
-const MIN_COMPARAR = 2;
-const MAX_COMPARAR = 3;
+import { useConsultaFotosTab } from "./fotos-tab/useConsultaFotosTab";
+import { ConsultaFotosToolbar } from "./fotos-tab/ConsultaFotosToolbar";
+import { ConsultaFotosQrModal } from "./fotos-tab/ConsultaFotosQrModal";
+import { ConsultaFotosComparacaoModal } from "./fotos-tab/ConsultaFotosComparacaoModal";
 
 export function ConsultaFotosTab({
   consultaId,
@@ -28,156 +18,51 @@ export function ConsultaFotosTab({
   onToolbarChange,
 }: {
   consultaId: number;
-  /** Só true com consulta em andamento — envio pelo painel ou QR */
   permiteEnviar?: boolean;
   ativa?: boolean;
   onToolbarChange?: (toolbar: ReactNode | null) => void;
 }) {
   const toast = useToast();
-
-  const [fotos, setFotos] = useState<PacienteFotoItem[]>([]);
-  const [fotosConsultaCount, setFotosConsultaCount] = useState(0);
-  const [permiteUploadPlano, setPermiteUploadPlano] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [qrAberto, setQrAberto] = useState(false);
-  const [qrData, setQrData] = useState<{ url: string; qr_base64: string } | null>(null);
-  const [qrLoading, setQrLoading] = useState(false);
-  const [selecionadas, setSelecionadas] = useState<number[]>([]);
-  const [comparar, setComparar] = useState(false);
-  const [uploadUrl, setUploadUrl] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const [zoomFoto, setZoomFoto] = useState<PacienteFotoItem | null>(null);
-
-  const carregar = useCallback(async () => {
-    try {
-      const res = await ClinicaBelezaAPI.consultas.fotos.list(consultaId);
-      const lista = res.fotos || [];
-      setFotos(lista);
-      if (typeof res.permite_upload_fotos === "boolean") {
-        setPermiteUploadPlano(res.permite_upload_fotos);
-      }
-      const countApi = res.fotos_consulta_count;
-      if (typeof countApi === "number") {
-        setFotosConsultaCount(countApi);
-      } else {
-        setFotosConsultaCount(lista.filter((f) => f.consulta_id === consultaId).length);
-      }
-    } catch (e: unknown) {
-      setFotos([]);
-      setFotosConsultaCount(0);
-      toast.error(e instanceof Error ? e.message : "Erro ao carregar fotos.");
-    } finally {
-      setLoading(false);
-    }
-  }, [consultaId, toast]);
-
-  const limiteAtingido = fotosConsultaCount >= MAX_FOTOS_POR_CONSULTA;
-  const podeEnviarMais = Boolean(permiteEnviar) && permiteUploadPlano && !limiteAtingido;
-
-  useEffect(() => {
-    void carregar();
-  }, [carregar]);
-
-  useEffect(() => {
-    if (!ativa) return;
-    const id = window.setInterval(() => {
-      if (document.visibilityState !== "hidden") void carregar();
-    }, 5000);
-    return () => clearInterval(id);
-  }, [ativa, carregar]);
-
-  const abrirQr = useCallback(async () => {
-    if (limiteAtingido) {
-      toast.error(`Máximo de ${MAX_FOTOS_POR_CONSULTA} fotos por consulta.`);
-      return;
-    }
-    setQrLoading(true);
-    try {
-      const res = await ClinicaBelezaAPI.consultas.fotos.gerarQr(consultaId);
-      setQrData({ url: res.url, qr_base64: res.qr_base64 });
-      setQrAberto(true);
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro ao gerar QR.");
-    } finally {
-      setQrLoading(false);
-    }
-  }, [consultaId, limiteAtingido, toast]);
-
-  const salvarUploadPainel = async (url: string) => {
-    if (!url) return;
-    setSalvando(true);
-    try {
-      await ClinicaBelezaAPI.consultas.fotos.salvar(consultaId, url);
-      setUploadUrl("");
-      await carregar();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro ao salvar foto.");
-    } finally {
-      setSalvando(false);
-    }
-  };
-
-  const excluir = async (fotoId: number) => {
-    if (!confirm("Remover esta foto do acompanhamento?")) return;
-    try {
-      await ClinicaBelezaAPI.consultas.fotos.excluir(consultaId, fotoId);
-      setSelecionadas((s) => s.filter((id) => id !== fotoId));
-      await carregar();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro ao remover.");
-    }
-  };
-
-  const toggleSelecao = (id: number) => {
-    setSelecionadas((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= MAX_COMPARAR) return [...prev.slice(1), id];
-      return [...prev, id];
-    });
-  };
-
-  const fotosComparar = fotos.filter((f) => selecionadas.includes(f.id));
+  const {
+    fotos,
+    fotosConsultaCount,
+    permiteUploadPlano,
+    loading,
+    qrAberto,
+    setQrAberto,
+    qrData,
+    qrLoading,
+    selecionadas,
+    comparar,
+    setComparar,
+    uploadUrl,
+    setUploadUrl,
+    salvando,
+    zoomFoto,
+    setZoomFoto,
+    carregar,
+    podeEnviarMais,
+    abrirQr,
+    salvarUploadPainel,
+    excluir,
+    toggleSelecao,
+    fotosComparar,
+    podeComparar,
+  } = useConsultaFotosTab(consultaId, permiteEnviar, ativa);
 
   useEffect(() => {
     if (!onToolbarChange) return;
     onToolbarChange(
-      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-        <span className="hidden xl:inline text-xs text-gray-500 dark:text-gray-400 max-w-[220px] truncate">
-          Esta consulta {fotosConsultaCount}/{MAX_FOTOS_POR_CONSULTA} · histórico · compare 3
-        </span>
-        <button
-          type="button"
-          onClick={() => void carregar()}
-          className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs sm:text-sm border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800"
-        >
-          <RefreshCw size={14} />
-          <span className="hidden sm:inline">Atualizar</span>
-        </button>
-        {podeEnviarMais && (
-          <button
-            type="button"
-            onClick={() => void abrirQr()}
-            disabled={qrLoading}
-            className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-white text-xs sm:text-sm font-medium disabled:opacity-50"
-            style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
-          >
-            <Smartphone size={14} />
-            <span className="hidden md:inline">{qrLoading ? "Gerando…" : "QR — foto no celular"}</span>
-            <span className="md:hidden">{qrLoading ? "…" : "QR"}</span>
-          </button>
-        )}
-      </div>,
+      <ConsultaFotosToolbar
+        fotosConsultaCount={fotosConsultaCount}
+        podeEnviarMais={podeEnviarMais}
+        qrLoading={qrLoading}
+        onCarregar={carregar}
+        onAbrirQr={abrirQr}
+      />,
     );
     return () => onToolbarChange(null);
   }, [onToolbarChange, podeEnviarMais, qrLoading, carregar, abrirQr, fotosConsultaCount]);
-
-  const podeComparar = selecionadas.length >= MIN_COMPARAR;
-  const colsComparacao =
-    fotosComparar.length >= MAX_COMPARAR
-      ? "md:grid-cols-3"
-      : fotosComparar.length === MIN_COMPARAR
-        ? "md:grid-cols-2"
-        : "md:grid-cols-1";
 
   return (
     <div className="space-y-3">
@@ -310,63 +195,7 @@ export function ConsultaFotosTab({
       )}
 
       {qrAberto && qrData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl max-w-sm w-full p-6 relative">
-            <button
-              type="button"
-              onClick={() => setQrAberto(false)}
-              className="absolute top-3 right-3 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800"
-            >
-              <X size={20} />
-            </button>
-            <h3 className="text-lg font-semibold text-center mb-1 flex items-center justify-center gap-2">
-              <QrCode size={20} />
-              Foto no celular do profissional
-            </h3>
-            <p className="text-xs text-gray-500 text-center mb-4">
-              1. Deixe este QR visível no computador
-              <br />
-              2. Abra a câmera do <strong>seu celular</strong> e escaneie
-              <br />
-              3. Fotografe o paciente — a imagem entra aqui automaticamente
-            </p>
-            {qrData.qr_base64 ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={`data:image/png;base64,${qrData.qr_base64}`}
-                alt="QR Code para fotografar paciente"
-                className="mx-auto w-52 h-52"
-              />
-            ) : (
-              <p className="text-center text-sm text-amber-700">QR indisponível — use o link abaixo.</p>
-            )}
-            <div className="mt-4 flex flex-col gap-2">
-              <a
-                href={qrData.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800"
-              >
-                <ExternalLink size={16} />
-                Abrir link (teste no PC)
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  void navigator.clipboard.writeText(qrData.url);
-                  toast.success("Link copiado! Cole no navegador do celular (Chrome/Safari).");
-                }}
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg text-sm font-medium text-white"
-                style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
-              >
-                <Copy size={16} />
-                Copiar link para o celular
-              </button>
-            </div>
-            <p className="mt-2 text-[11px] text-gray-500 text-center break-all px-1">{qrData.url}</p>
-            <p className="mt-2 text-[10px] text-gray-400 text-center">Válido por 24h · só durante esta consulta</p>
-          </div>
-        </div>
+        <ConsultaFotosQrModal qrData={qrData} onClose={() => setQrAberto(false)} />
       )}
 
       {zoomFoto && (
@@ -378,42 +207,11 @@ export function ConsultaFotosTab({
         />
       )}
 
-      {comparar && fotosComparar.length >= MIN_COMPARAR && (
-        <div
-          className="fixed inset-0 z-[60] bg-black flex flex-col"
-          role="dialog"
-          aria-modal
-        >
-          <div className="flex items-center justify-between px-4 py-3 bg-black/80 text-white shrink-0">
-            <span className="text-sm font-medium">
-              Comparação de {fotosComparar.length} foto{fotosComparar.length !== 1 ? "s" : ""} — tela cheia
-            </span>
-            <button
-              type="button"
-              onClick={() => setComparar(false)}
-              className="p-2 rounded-lg hover:bg-white/10"
-            >
-              <X size={22} />
-            </button>
-          </div>
-          <div className={`flex-1 grid grid-cols-1 ${colsComparacao} gap-0 min-h-0`}>
-            {fotosComparar.map((f, i) => (
-              <div key={f.id} className="relative flex flex-col min-h-0">
-                <p className="text-xs text-white/70 px-3 py-1 shrink-0 bg-black/60 text-center">
-                  Foto {i + 1} — {f.consulta_data} ({f.origem_display})
-                </p>
-                <div className="flex-1 min-h-0 overflow-hidden bg-neutral-900">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={f.url}
-                    alt={`Comparação ${i + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {comparar && fotosComparar.length >= 2 && (
+        <ConsultaFotosComparacaoModal
+          fotos={fotosComparar}
+          onClose={() => setComparar(false)}
+        />
       )}
     </div>
   );

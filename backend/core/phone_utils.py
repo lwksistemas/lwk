@@ -3,6 +3,19 @@ Formata telefones brasileiros no padrão (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
 """
 import re
 
+# DDDs válidos no Brasil (ordem geográfica)
+DDDS_BRASIL = {
+    "11", "12", "13", "14", "15", "16", "17", "18", "19",
+    "21", "22", "24", "27", "28",
+    "31", "32", "33", "34", "35", "37", "38",
+    "41", "42", "43", "44", "45", "46", "47", "48", "49",
+    "51", "53", "54", "55",
+    "61", "62", "63", "64", "65", "66", "67", "68", "69",
+    "71", "73", "74", "75", "77", "79",
+    "81", "82", "83", "84", "85", "86", "87", "88", "89",
+    "91", "93", "94", "95", "96", "97", "98",
+}
+
 
 def limpar_telefone(telefone):
     """Remove todos os caracteres não numéricos do telefone
@@ -155,10 +168,9 @@ def validar_telefone_brasileiro(telefone):
 
     # Validar DDD (se tiver)
     if len(numeros) >= 10:
-        ddd = int(numeros[:2])
-        # DDDs válidos no Brasil: 11-99
-        if ddd < 11 or ddd > 99:
-            return False, "DDD inválido (deve ser entre 11 e 99)"
+        ddd = numeros[:2]
+        if ddd not in DDDS_BRASIL:
+            return False, "DDD inválido"
 
     # Validar celular (9 dígitos ou 11 com DDD)
     if len(numeros) in [9, 11]:

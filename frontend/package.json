@@ -10,7 +10,7 @@
     "build": "NODE_OPTIONS='--max-old-space-size=6144' next build --webpack",
     "postbuild": "echo 'PWA desabilitado temporariamente'",
     "start": "next start",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:crm-public": "playwright test e2e/crm-smoke.spec.ts e2e/crm-assinatura-publica.spec.ts --grep-invert autenticado",
@@ -50,11 +50,14 @@
     "@types/node": "^20.19.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.66.0",
+    "@typescript-eslint/parser": "^8.66.0",
     "eslint": "^9.30.0",
     "eslint-config-next": "16.2.10",
     "postcss": "^8",
     "tailwindcss": "^4.3.2",
-    "typescript": "^7.0.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.66.0",
     "vitest": "^3.2.6"
   }
 }

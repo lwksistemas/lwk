@@ -14,18 +14,23 @@ from superadmin.services.loja_password_recovery_service import (
 
 class LojaPasswordRecoveryServiceTest(TestCase):
     def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
         self.owner = User.objects.create_user(
             username="owner_felix",
             email="owner@felix.test",
             password="old-pass",
         )
-        self.tipo = TipoLoja.objects.create(nome="CRM Vendas", descricao="")
+        self.tipo = TipoLoja.objects.create(nome="Clínica da Beleza", descricao="", slug="clinica-beleza")
         self.plano = PlanoAssinatura.objects.create(
             nome="Básico",
-            tipo_loja=self.tipo,
-            valor_mensal=99,
-            valor_anual=990,
+            slug="basico",
+            descricao="",
+            preco_mensal=99,
+            preco_anual=990,
         )
+        self.plano.tipos_loja.add(self.tipo)
         self.loja = Loja.objects.create(
             nome="Felix Test",
             slug="41449198000172",
@@ -35,6 +40,8 @@ class LojaPasswordRecoveryServiceTest(TestCase):
             plano=self.plano,
             cpf_cnpj="41449198000172",
             is_active=True,
+            database_name="loja_felix_test",
+            database_created=True,
         )
 
     @patch("core.email_delivery.send_prepared")
@@ -105,7 +112,8 @@ class LojaPasswordRecoveryServiceTest(TestCase):
         self.assertIsNone(resolved)
 
     @patch("superadmin.services.loja_password_recovery_service._find_tenant_professional_id")
-    def test_resolve_profissional_por_email_tenant(self, mock_find_prof):
+    @patch("core.db_config.ensure_loja_database_config", return_value=True)
+    def test_resolve_profissional_por_email_tenant(self, _mock_ensure_db, mock_find_prof):
         prof_user = User.objects.create_user(
             username="luiz_harmonis",
             email="",

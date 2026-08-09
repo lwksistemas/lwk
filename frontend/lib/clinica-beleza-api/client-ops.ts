@@ -39,7 +39,7 @@ export const financeiroApi = {
   payments: {
     parcelas: {
       list: (paymentId: number) => cbGet(`/payments/${paymentId}/parcelas/`),
-      add: (paymentId: number, data: { valor: number; payment_method: string; payment_date: string; observacoes?: string }) =>
+      add: (paymentId: number, data: { valor: number; payment_method: string; payment_date: string; observacoes?: string; desconto?: number }) =>
         cbPost(`/payments/${paymentId}/parcelas/`, data),
     },
   },

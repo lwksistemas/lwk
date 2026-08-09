@@ -31,7 +31,7 @@ class TestAsaasPaymentStrategy(TestCase):
         """Deve retornar o nome correto do provedor"""
         self.assertEqual(self.strategy.provider_name, "Asaas")
 
-    @patch("superadmin.payment_deletion_service.AsaasDeletionService")
+    @patch("asaas_integration.deletion_service.AsaasDeletionService")
     def test_available_when_service_configured(self, mock_service):
         """Deve estar disponível quando o serviço está configurado"""
         mock_instance = Mock()
@@ -41,7 +41,7 @@ class TestAsaasPaymentStrategy(TestCase):
         strategy = AsaasPaymentStrategy()
         self.assertTrue(strategy.available)
 
-    @patch("superadmin.payment_deletion_service.AsaasDeletionService")
+    @patch("asaas_integration.deletion_service.AsaasDeletionService")
     def test_cancel_payments_success(self, mock_service):
         """Deve cancelar pagamentos com sucesso"""
         mock_instance = Mock()
@@ -60,7 +60,7 @@ class TestAsaasPaymentStrategy(TestCase):
         self.assertEqual(result["cancelled_count"], 5)
         self.assertTrue(result["deleted_customer"])
 
-    @patch("superadmin.payment_deletion_service.AsaasDeletionService")
+    @patch("asaas_integration.deletion_service.AsaasDeletionService")
     def test_cancel_payments_when_unavailable(self, mock_service):
         """Deve retornar erro quando o serviço não está disponível"""
         mock_instance = Mock()
@@ -85,7 +85,7 @@ class TestMercadoPagoPaymentStrategy(TestCase):
         """Deve retornar o nome correto do provedor"""
         self.assertEqual(self.strategy.provider_name, "Mercado Pago")
 
-    @patch("superadmin.payment_deletion_service.LojaMercadoPagoService")
+    @patch("superadmin.mercadopago_service.LojaMercadoPagoService")
     def test_available_when_service_configured(self, mock_service):
         """Deve estar disponível quando o serviço está configurado"""
         mock_instance = Mock()
@@ -95,7 +95,7 @@ class TestMercadoPagoPaymentStrategy(TestCase):
         strategy = MercadoPagoPaymentStrategy()
         self.assertTrue(strategy.available)
 
-    @patch("superadmin.payment_deletion_service.LojaMercadoPagoService")
+    @patch("superadmin.mercadopago_service.LojaMercadoPagoService")
     def test_cancel_payments_success(self, mock_service):
         """Deve cancelar pagamentos com sucesso"""
         mock_instance = Mock()

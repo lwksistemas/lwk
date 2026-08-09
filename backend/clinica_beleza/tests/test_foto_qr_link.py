@@ -71,7 +71,7 @@ class FotoQrLinkTests(TestCase):
         )
         self.assertEqual(base, "https://beta.lwksistemas.com.br")
 
-    @patch("clinica_beleza.foto_paciente_service.build_link_foto")
+    @patch("clinica_beleza.foto_paciente_service.token_qr.build_link_foto")
     def test_gerar_qr_foto_usa_frontend_beta(self, mock_link):
         from types import SimpleNamespace
 

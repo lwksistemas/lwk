@@ -9,34 +9,36 @@ from .context import (
 )
 
 
-def _gerar_pdf_recibo(ctx: dict) -> bytes:
-    """Gera PDF do recibo em formato cupom fiscal com layout profissional."""
+def _estilos_pdf():
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-    from reportlab.lib.pagesizes import mm
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import HRFlowable
 
-    buf = io.BytesIO()
-    page_w = 80 * mm
-    page_h = 240 * mm
-    doc = SimpleDocTemplate(
-        buf, pagesize=(page_w, page_h),
-        leftMargin=4 * mm, rightMargin=4 * mm,
-        topMargin=6 * mm, bottomMargin=6 * mm,
-    )
+    return {
+        "s_center": ParagraphStyle("c", fontSize=8, alignment=TA_CENTER, leading=11),
+        "s_bold_center": ParagraphStyle("bc", fontSize=11, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=14),
+        "s_title": ParagraphStyle("ti", fontSize=9, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=12),
+        "s_left": ParagraphStyle("l", fontSize=8, leading=11),
+        "s_bold": ParagraphStyle("b", fontSize=8, fontName="Helvetica-Bold", leading=11),
+        "s_total": ParagraphStyle("t", fontSize=12, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=15),
+        "s_footer": ParagraphStyle(
+            "f", fontSize=7, alignment=TA_CENTER, leading=10, textColor=colors.HexColor("#666666"),
+        ),
+        "s_right": ParagraphStyle("r", fontSize=8, alignment=TA_RIGHT, leading=11),
+        "hr": HRFlowable(width="100%", thickness=0.5, dash=[2, 2], spaceAfter=3, spaceBefore=3),
+    }
 
-    s_center = ParagraphStyle("c", fontSize=8, alignment=TA_CENTER, leading=11)
-    s_bold_center = ParagraphStyle("bc", fontSize=11, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=14)
-    s_title = ParagraphStyle("ti", fontSize=9, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=12)
-    s_left = ParagraphStyle("l", fontSize=8, leading=11)
-    s_bold = ParagraphStyle("b", fontSize=8, fontName="Helvetica-Bold", leading=11)
-    s_total = ParagraphStyle("t", fontSize=12, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=15)
-    s_footer = ParagraphStyle("f", fontSize=7, alignment=TA_CENTER, leading=10, textColor=colors.HexColor("#666666"))
-    s_right = ParagraphStyle("r", fontSize=8, alignment=TA_RIGHT, leading=11)
 
-    hr = HRFlowable(width="100%", thickness=0.5, dash=[2, 2], spaceAfter=3, spaceBefore=3)
-    col_w = page_w - 8 * mm
+def _cabecalho_recibo_pdf(ctx, styles, col_w, mm_unit):
+    from reportlab.platypus import Paragraph, Spacer
+
+    s_center = styles["s_center"]
+    s_bold_center = styles["s_bold_center"]
+    s_title = styles["s_title"]
+    s_left = styles["s_left"]
+    s_bold = styles["s_bold"]
+    hr = styles["hr"]
     story = []
 
     if ctx["loja_nome"]:
@@ -51,7 +53,7 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
         story.append(Paragraph(tel_cep, s_center))
     if ctx.get("loja_email"):
         story.append(Paragraph(ctx["loja_email"], s_center))
-    story.append(Spacer(1, 3 * mm))
+    story.append(Spacer(1, 3 * mm_unit))
     story.append(hr)
     story.append(Paragraph("RECIBO DE PAGAMENTO", s_title))
     story.append(Paragraph(ctx["data"], s_center))
@@ -63,9 +65,16 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     if ctx.get("data_atendimento"):
         story.append(Paragraph(f"<b>Data/Hora do atendimento:</b> {ctx['data_atendimento']}", s_left))
     story.append(hr)
-
     story.append(Paragraph("<b>SERVIÇOS</b>", s_bold))
-    story.append(Spacer(1, 1 * mm))
+    story.append(Spacer(1, 1 * mm_unit))
+    return story
+
+
+def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
+    from reportlab.platypus import Paragraph, Table, TableStyle
+
+    s_left = styles["s_left"]
+    s_right = styles["s_right"]
 
     svc_data = []
     linhas_taxa = _linhas_taxa_consulta_recibo(ctx)
@@ -76,7 +85,6 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
             Paragraph(f"R$ {valor:.2f}", s_right),
         ])
     for p in ctx["procedimentos"]:
-        # Ocultar procedimento redundante: "Consulta" com valor 0 quando taxa já está exibida
         nome_lower = (p["nome"] or "").strip().lower()
         if taxa_exibida > 0 and float(p["valor"]) == 0.0 and nome_lower in ("consulta", "taxa de consulta"):
             continue
@@ -85,17 +93,24 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
             Paragraph(f'R$ {p["valor"]:.2f}', s_right),
         ])
 
-    if svc_data:
-        svc_table = Table(svc_data, colWidths=[col_w * 0.65, col_w * 0.35])
-        svc_table.setStyle(TableStyle([
-            ("TOPPADDING", (0, 0), (-1, -1), 1),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        story.append(svc_table)
+    if not svc_data:
+        return None
+    svc_table = Table(svc_data, colWidths=[col_w * 0.65, col_w * 0.35])
+    svc_table.setStyle(TableStyle([
+        ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return svc_table
 
-    story.append(hr)
+
+def _tabela_totais_recibo_pdf(ctx, styles, col_w):
+    from reportlab.platypus import Paragraph, Table, TableStyle
+
+    s_left = styles["s_left"]
+    s_bold = styles["s_bold"]
+    s_right = styles["s_right"]
 
     totals_data = []
     descontos = _linhas_descontos_recibo(ctx)
@@ -113,6 +128,7 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
         Paragraph("<b>Total</b>", s_bold),
         Paragraph(f'<b>R$ {ctx["valor_total"]:.2f}</b>', s_right),
     ])
+
     formas = ctx.get("formas_pagamento", [])
     valor_pago = ctx.get("valor_pago", 0)
     if formas:
@@ -133,25 +149,64 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
         ("RIGHTPADDING", (0, 0), (-1, -1), 0),
     ]))
-    story.append(totals_table)
+    return totals_table
 
-    story.append(Spacer(1, 3 * mm))
+
+def _rodape_recibo_pdf(ctx, styles, mm_unit):
+    from reportlab.platypus import Paragraph, Spacer
+
+    s_total = styles["s_total"]
+    s_center = styles["s_center"]
+    s_footer = styles["s_footer"]
+    hr = styles["hr"]
+
+    story = []
+    valor_pago = ctx.get("valor_pago", 0)
     if valor_pago > 0:
         story.append(Paragraph(f"VALOR PAGO: R$ {valor_pago:.2f}", s_total))
     if valor_pago >= ctx.get("valor_total", 0) and ctx.get("valor_total", 0) >= 0:
-        story.append(Spacer(1, 1 * mm))
+        story.append(Spacer(1, 1 * mm_unit))
         story.append(Paragraph("<b>Quitado</b>", s_center))
-    story.append(Spacer(1, 2 * mm))
+    story.append(Spacer(1, 2 * mm_unit))
     story.append(hr)
 
     aviso = (ctx.get("retorno_aviso") or "").strip()
     if aviso:
-        story.append(Spacer(1, 2 * mm))
+        story.append(Spacer(1, 2 * mm_unit))
         story.append(Paragraph(aviso, s_footer))
 
-    story.append(Spacer(1, 2 * mm))
+    story.append(Spacer(1, 2 * mm_unit))
     story.append(Paragraph("Agradecemos pela confiança!", s_footer))
     story.append(Paragraph("Documento não fiscal — gerado pelo sistema.", s_footer))
+    return story
+
+
+def _gerar_pdf_recibo(ctx: dict) -> bytes:
+    """Gera PDF do recibo em formato cupom fiscal com layout profissional."""
+    from reportlab.lib.pagesizes import mm
+    from reportlab.platypus import SimpleDocTemplate, Spacer
+
+    buf = io.BytesIO()
+    page_w = 80 * mm
+    page_h = 240 * mm
+    doc = SimpleDocTemplate(
+        buf, pagesize=(page_w, page_h),
+        leftMargin=4 * mm, rightMargin=4 * mm,
+        topMargin=6 * mm, bottomMargin=6 * mm,
+    )
+
+    styles = _estilos_pdf()
+    col_w = page_w - 8 * mm
+    story = _cabecalho_recibo_pdf(ctx, styles, col_w, mm)
+
+    svc_table = _tabela_servicos_recibo_pdf(ctx, styles, col_w)
+    if svc_table:
+        story.append(svc_table)
+
+    story.append(styles["hr"])
+    story.append(_tabela_totais_recibo_pdf(ctx, styles, col_w))
+    story.append(Spacer(1, 3 * mm))
+    story.extend(_rodape_recibo_pdf(ctx, styles, mm))
 
     doc.build(story)
     return buf.getvalue()

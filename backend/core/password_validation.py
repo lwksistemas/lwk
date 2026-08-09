@@ -93,8 +93,8 @@ def generate_provisional_password(length: int = 6) -> str:
     # Preencher o restante com mix de letras e números (fáceis de ler)
     pool = string.ascii_letters + string.digits
     remaining = max(length - len(chars), 2)
-    chars.extend(secrets.choices(pool, k=remaining))
+    chars.extend(secrets.SystemRandom().choices(pool, k=remaining))
 
     # Embaralhar para não ter padrão previsível
-    random.shuffle(chars)
+    secrets.SystemRandom().shuffle(chars)
     return "".join(chars)

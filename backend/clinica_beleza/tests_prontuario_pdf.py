@@ -10,24 +10,30 @@ from clinica_beleza.prontuario_pdf import _resolver_cabecalho
 class ResolverCabecalhoTest(TestCase):
     """Testes para a função _resolver_cabecalho (prioridade de cabeçalho)."""
 
+    def _mock_timbrado_qs(self, mock_objects, timbrado=None):
+        mock_qs = MagicMock()
+        mock_qs.filter.return_value.first.return_value = timbrado
+        mock_objects.all_without_filter.return_value = mock_qs
+        return mock_qs
+
     @patch("clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects")
     def test_retorna_timbrado_quando_pdf_existe(self, mock_timbrado_qs):
         """Deve retornar ('timbrado', bytes) quando MemedTimbrado tem PDF."""
         timbrado = MagicMock()
         timbrado.pdf = b"%PDF-1.4 fake content"
-        mock_timbrado_qs.filter.return_value.first.return_value = timbrado
+        self._mock_timbrado_qs(mock_timbrado_qs, timbrado)
 
         tipo, dados = _resolver_cabecalho(loja_id=1)
 
         self.assertEqual(tipo, "timbrado")
         self.assertEqual(dados, b"%PDF-1.4 fake content")
-        mock_timbrado_qs.filter.assert_called_once_with(loja_id=1)
+        mock_timbrado_qs.all_without_filter.assert_called_once_with()
 
     @patch("clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects")
     @patch("superadmin.models.Loja.objects")
     def test_retorna_logo_quando_sem_timbrado_mas_tem_logo(self, mock_loja_qs, mock_timbrado_qs):
         """Deve retornar ('logo', url) quando não há timbrado mas Loja tem logo."""
-        mock_timbrado_qs.filter.return_value.first.return_value = None
+        self._mock_timbrado_qs(mock_timbrado_qs, None)
 
         loja = MagicMock()
         loja.logo = "https://cdn.example.com/logo.png"
@@ -42,7 +48,7 @@ class ResolverCabecalhoTest(TestCase):
     @patch("superadmin.models.Loja.objects")
     def test_retorna_texto_quando_sem_timbrado_e_sem_logo(self, mock_loja_qs, mock_timbrado_qs):
         """Deve retornar ('texto', loja) quando não há timbrado nem logo."""
-        mock_timbrado_qs.filter.return_value.first.return_value = None
+        self._mock_timbrado_qs(mock_timbrado_qs, None)
 
         loja = MagicMock()
         loja.logo = ""
@@ -57,7 +63,7 @@ class ResolverCabecalhoTest(TestCase):
     @patch("superadmin.models.Loja.objects")
     def test_retorna_texto_quando_loja_nao_existe(self, mock_loja_qs, mock_timbrado_qs):
         """Deve retornar ('texto', None) quando a loja não existe no banco."""
-        mock_timbrado_qs.filter.return_value.first.return_value = None
+        self._mock_timbrado_qs(mock_timbrado_qs, None)
         mock_loja_qs.filter.return_value.first.return_value = None
 
         tipo, dados = _resolver_cabecalho(loja_id=999)
@@ -70,7 +76,7 @@ class ResolverCabecalhoTest(TestCase):
         """Se MemedTimbrado existe mas pdf é vazio/None, deve fallback para logo/texto."""
         timbrado = MagicMock()
         timbrado.pdf = None
-        mock_timbrado_qs.filter.return_value.first.return_value = timbrado
+        self._mock_timbrado_qs(mock_timbrado_qs, timbrado)
 
         with patch("superadmin.models.Loja.objects") as mock_loja_qs:
             loja = MagicMock()
@@ -87,7 +93,7 @@ class ResolverCabecalhoTest(TestCase):
         """Se MemedTimbrado existe mas pdf é b'', deve fallback para logo/texto."""
         timbrado = MagicMock()
         timbrado.pdf = b""
-        mock_timbrado_qs.filter.return_value.first.return_value = timbrado
+        self._mock_timbrado_qs(mock_timbrado_qs, timbrado)
 
         with patch("superadmin.models.Loja.objects") as mock_loja_qs:
             loja = MagicMock()
@@ -105,7 +111,7 @@ class ResolverCabecalhoTest(TestCase):
         """Mesmo que Loja tenha logo, se MemedTimbrado tem PDF, usa timbrado."""
         timbrado = MagicMock()
         timbrado.pdf = b"%PDF content"
-        mock_timbrado_qs.filter.return_value.first.return_value = timbrado
+        self._mock_timbrado_qs(mock_timbrado_qs, timbrado)
 
         # Nem deve chegar a consultar Loja
         tipo, dados = _resolver_cabecalho(loja_id=6)

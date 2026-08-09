@@ -29,7 +29,7 @@ class TestCalcularIntervaloVencimento(TestCase):
     def test_mes_atual_inclui_vencimentos_futuros_no_mes(self):
         from crm_vendas.services_financeiro import calcular_intervalo_vencimento
 
-        with patch("crm_vendas.services_financeiro.timezone") as mock_tz:
+        with patch("crm_vendas.periodo.timezone") as mock_tz:
             mock_tz.now.return_value.date.return_value = date(2026, 7, 1)
             inicio, fim = calcular_intervalo_vencimento("mes_atual")
         self.assertEqual(inicio, date(2026, 7, 1))
@@ -179,10 +179,12 @@ class TestGarantirGruposPadraoDedup(TestCase):
             def filter_side_effect(**_kwargs):
                 qs = MagicMock()
                 calls["n"] += 1
-                if calls["n"] == 1:
+                # A primeira deduplicação de grupo obrigatório (n==2 após exists()) deve ter duplicata.
+                if calls["n"] == 2:
                     qs.order_by.return_value = [keep, dup]
                 else:
                     qs.order_by.return_value = [MagicMock(id=10 + calls["n"], ordem=1, is_active=True)]
+                qs.exists.return_value = True
                 return qs
 
             mock_grupo.objects.filter.side_effect = filter_side_effect

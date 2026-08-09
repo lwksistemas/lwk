@@ -1,5 +1,5 @@
 #!/bin/sh
-# Release Railway resiliente (lwks-backend / staging).
+# Release resiliente (lwks-backend / staging / Magalu cloud).
 #
 # Objetivo: migrate public/suporte e collectstatic são obrigatórios; migrate_all_lojas
 # pode falhar em lojas legadas sem bloquear ensure_all nem corrigir_schema_*.

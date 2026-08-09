@@ -112,7 +112,7 @@ def _check_webhook(request):
         details.append("Validação estrita ativa (WEBHOOK_STRICT_VERIFY)")
     return _diag_item(
         "asaas_webhook", "Webhook Asaas (confirmar PIX automaticamente)", ok, level,
-        "Webhook autenticado no servidor" if ok else "Alinhe o token entre superadmin/Railway e painel Asaas",
+        "Webhook autenticado no servidor" if ok else "Alinhe o token entre superadmin e painel Asaas",
         details, "/superadmin/asaas",
     )
 
@@ -145,7 +145,7 @@ def _check_email():
         pass
     return _diag_item(
         "email", "E-mail (senha provisória após pagamento)", ok, level,
-        "E-mail configurado para envio de senha" if ok else "Configure Resend ou SMTP no Railway",
+        "E-mail configurado para envio de senha" if ok else "Configure Resend ou SMTP no servidor",
         details, "/superadmin/asaas",
     )
 

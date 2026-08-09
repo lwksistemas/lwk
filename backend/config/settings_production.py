@@ -30,9 +30,11 @@ DEBUG = False
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]
 if not ALLOWED_HOSTS:
     raise ValueError("ALLOWED_HOSTS deve estar configurada nas variáveis de ambiente!")
-# Atrás do edge TLS do Railway/Vercel-like proxy, confiar em X-Forwarded-Proto
+# Atrás do edge TLS do proxy (Magalu, etc.), confiar em X-Forwarded-Proto
 # para que request.is_secure() reflita HTTPS externo e habilite HSTS.
-if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("USE_FORWARDED_SSL", "").lower() in ("true", "1", "yes"):
+_use_forwarded_ssl = os.environ.get("USE_FORWARDED_SSL", "").lower() in ("true", "1", "yes")
+_prod_like = bool(os.environ.get("LWK_ENVIRONMENT") or os.environ.get("RAILWAY_ENVIRONMENT"))
+if _use_forwarded_ssl or _prod_like:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # APPS
@@ -129,10 +131,14 @@ def _normalize_database_url(raw: str) -> str:
     return s
 
 
-def _railway_public_proxy_ssl(url: str) -> str:
-    """Proxy público Railway (*.rlwy.net): TLS obrigatório na conexão TCP."""
+def _public_proxy_ssl_require(url: str) -> str:
+    """Força sslmode=require quando o DATABASE_URL aponta para proxy público (ex.: *.rlwy.net)."""
     s = (url or "").strip()
-    if not s or ".rlwy.net" not in s.lower():
+    if not s:
+        return s
+    # Endereços de proxy público conhecidos que exigem TLS na conexão TCP.
+    public_proxy_hosts = (".rlwy.net", ".magalu.cloud", ".railway.app")
+    if not any(h in s.lower() for h in public_proxy_hosts):
         return s
     if "sslmode=" in s.lower():
         return s
@@ -141,7 +147,7 @@ def _railway_public_proxy_ssl(url: str) -> str:
 
 # DATABASE - PostgreSQL (produção). Sem DATABASE_URL válida: SQLite em /tmp (ex.: collectstatic em CI).
 # DATABASE_URL pode existir como chave mas com valor vazio/inválido — dj_database_url levanta ValueError.
-_database_url = _railway_public_proxy_ssl(_normalize_database_url(os.environ.get("DATABASE_URL") or ""))
+_database_url = _public_proxy_ssl_require(_normalize_database_url(os.environ.get("DATABASE_URL") or ""))
 _use_postgres = False
 if _database_url:
     try:
@@ -170,9 +176,9 @@ if _use_postgres:
     if "postgresql" in _engine:
         DATABASES["default"]["OPTIONS"]["connect_timeout"] = 10
         DATABASES["default"]["OPTIONS"]["options"] = "-c statement_timeout=25000"
-        # Proxy público Railway (*.rlwy.net) exige TLS; sem sslmode o Postgres encerra a conexão.
+        # Proxy público (ex.: *.rlwy.net, *.magalu.cloud) exige TLS; sem sslmode o Postgres encerra a conexão.
         _pg_host = (DATABASES["default"].get("HOST") or "").lower()
-        if _pg_host.endswith(".rlwy.net"):
+        if _pg_host.endswith((".rlwy.net", ".magalu.cloud", ".railway.app")):
             DATABASES["default"]["OPTIONS"].setdefault("sslmode", "require")
     DATABASE_ROUTERS = ["config.db_router.MultiTenantRouter"]
     _default_db = dict(DATABASES["default"])
@@ -366,7 +372,7 @@ SIMPLE_JWT = {
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
 
 if RESEND_API_KEY:
-    # Ignora EMAIL_HOST/USER/PASSWORD antigos do Gmail no Railway — usam só a API Resend
+    # Ignora EMAIL_HOST/USER/PASSWORD antigos do Gmail — usam só a API Resend
     EMAIL_BACKEND = "core.email_backends.ResendEmailBackend"
     DEFAULT_FROM_EMAIL = os.environ.get(
         "DEFAULT_FROM_EMAIL",
@@ -388,9 +394,10 @@ else:
 DEFAULT_REPLY_TO = os.environ.get("DEFAULT_REPLY_TO", "contato@lwksistemas.com.br")
 
 # SECURITY SETTINGS
-# Railway (e similares): TLS termina no edge; o probe interno chama HTTP sem
+# Edge TLS (Magalu e similares): TLS termina no edge; o probe interno chama HTTP sem
 # X-Forwarded-Proto → redirect 301 quebra o healthcheck e deixa deploy em FAILED.
-if os.environ.get("RAILWAY_ENVIRONMENT"):
+_disable_ssl_redirect = os.environ.get("LWK_DISABLE_SSL_REDIRECT", "").lower() in ("true", "1", "yes")
+if _disable_ssl_redirect or _prod_like:
     SECURE_SSL_REDIRECT = False
 else:
     SECURE_SSL_REDIRECT = True

@@ -11,6 +11,8 @@ Este comando cria/atualiza os schedules para:
 5. WhatsApp: lembretes 24h e 2h antes
 6. CRM Vendas: notificações de tarefas pendentes (a cada hora)
 7. Backups automáticos por email (a cada 15 minutos, na madrugada por slot da loja)
+
+Em Magalu rode via worker django-q ou scheduler local.
 """
 from django.core.management.base import BaseCommand
 from django_q.models import Schedule
@@ -118,7 +120,7 @@ class Command(BaseCommand):
             "a cada hora",
         )
 
-        # 8. Backups automáticos por email (Magalu: substitui o cron Railway)
+        # 8. Backups automáticos por email
         # Roda a cada 15 min; a task só envia se estiver no slot 00:00–04:45 da loja.
         _upsert(
             "executar_backups_automaticos",
@@ -141,7 +143,7 @@ class Command(BaseCommand):
         self.stdout.write("")
         self.stdout.write(
             self.style.WARNING(
-                "⚠️  IMPORTANTE: o worker (qcluster) precisa estar rodando para os schedules.",
+                "⚠️  IMPORTANTE: o worker django-q (qcluster) precisa estar rodando para os schedules.",
             ),
         )
         self.stdout.write("")

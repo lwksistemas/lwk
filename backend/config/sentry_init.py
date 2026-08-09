@@ -25,7 +25,7 @@ def init_sentry() -> bool:
 
     environment = (
         os.environ.get("SENTRY_ENVIRONMENT")
-        or os.environ.get("RAILWAY_ENVIRONMENT")
+        or os.environ.get("LWK_ENVIRONMENT")
         or "production"
     )
     traces_sample_rate = float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.05"))

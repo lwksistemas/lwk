@@ -4,7 +4,7 @@ Chama executar_backups_automaticos(): para cada loja com backup automático ativ
 verifica se está no horário e se ainda não rodou hoje; se sim, processa o backup
 e envia por email para o owner da loja.
 
-Em Magalu o agendamento é via Django-Q (worker):
+Agendamento via Django-Q (worker):
   python manage.py setup_security_schedules
   → schedule "executar_backups_automaticos" a cada 15 min
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = (
         "Verifica backups automáticos agendados e processa os que estão no horário. "
-        "No Magalu rode via Django-Q (setup_security_schedules)."
+        "Rode via Django-Q (setup_security_schedules) ou scheduler local."
     )
 
     def handle(self, *args, **options):

@@ -152,18 +152,22 @@ DATABASES = {
     },
 }
 
-# ✅ CORREÇÃO v895: Configuração PostgreSQL para Produção (Heroku)
+# ✅ CORREÇÃO v895: Configuração PostgreSQL para Produção
 # Sobrescrever 'default' e 'suporte' se DATABASE_URL estiver presente
 if "DATABASE_URL" in os.environ:
     DATABASE_URL = os.environ["DATABASE_URL"]
-    # Postgres interno Railway (*.railway.internal) não usa TLS como o Heroku; ssl exigido quebra a conexão.
     _ssl_env = os.environ.get("DATABASE_SSL_REQUIRE", "").strip().lower()
     if _ssl_env in ("true", "1", "yes"):
         _ssl_require = True
     elif _ssl_env in ("false", "0", "no"):
         _ssl_require = False
     else:
-        _ssl_require = "railway.internal" not in DATABASE_URL.lower()
+        # Postgres em rede privada (ex.: *.railway.internal, *.internal.magalu.cloud)
+        # normalmente não exige TLS; proxies públicos sim.
+        _ssl_require = not any(
+            h in DATABASE_URL.lower()
+            for h in ("railway.internal", "internal.magalu.cloud", ".internal")
+        )
 
     default_db_config = dj_database_url.config(
         default=DATABASE_URL,

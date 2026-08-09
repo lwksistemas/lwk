@@ -1,5 +1,5 @@
 """Teste de emissão NFS-e via ISSNet Nacional em produção.
-Executa no worker Railway via: python3 manage.py shell < scripts/test_emissao_nfse_prod.py
+Executa no worker via: python3 manage.py shell < scripts/test_emissao_nfse_prod.py
 """
 import traceback
 from decimal import Decimal

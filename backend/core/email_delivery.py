@@ -1,6 +1,6 @@
 """Envio de e-mails transacionais com remetente e Reply-To padronizados.
 
-Produção (Railway): API Resend quando RESEND_API_KEY estiver definida.
+Produção: API Resend quando RESEND_API_KEY estiver definida.
 """
 from __future__ import annotations
 
@@ -44,9 +44,9 @@ def deliver_email_sync(msg: EmailMessage, *, fail_silently: bool = False) -> int
                 return 0
             raise
 
-    if os.environ.get("RAILWAY_ENVIRONMENT"):
+    if os.environ.get("LWK_ENVIRONMENT") or os.environ.get("RAILWAY_ENVIRONMENT"):
         raise RuntimeError(
-            "RESEND_API_KEY não está configurada no Railway. "
+            "RESEND_API_KEY não está configurada no ambiente de produção. "
             "Adicione a chave do Resend e remova EMAIL_HOST / EMAIL_HOST_PASSWORD do Gmail.",
         )
 

@@ -96,7 +96,7 @@ def send_via_resend_api(message: EmailMessage, *, api_key: str | None = None) ->
     if not key:
         raise ValueError(
             "RESEND_API_KEY não configurada no servidor. "
-            "Configure no Railway e remova EMAIL_HOST/EMAIL_HOST_PASSWORD do Gmail.",
+            "Configure a chave e remova EMAIL_HOST/EMAIL_HOST_PASSWORD do Gmail.",
         )
 
     payload = build_resend_payload(message)

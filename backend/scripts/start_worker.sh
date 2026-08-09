@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Worker Railway: django-q em background + Gunicorn mínimo para healthcheck HTTP.
+# Worker (Magalu/cloud): django-q em background + Gunicorn mínimo para healthcheck HTTP.
 set -eu
 
 echo ">> Iniciando django-q qcluster (background)..."

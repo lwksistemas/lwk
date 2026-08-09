@@ -1,5 +1,5 @@
 """Middleware de fallback CORS para garantir headers em respostas da API.
-Corrige erro "No 'Access-Control-Allow-Origin' header" em produção (Heroku, Render, Vercel).
+Corrige erro "No 'Access-Control-Allow-Origin' header" em produção.
 """
 from django.conf import settings
 from django.http import HttpResponse

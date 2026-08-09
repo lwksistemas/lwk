@@ -4,7 +4,10 @@ import sys
 from django.core.wsgi import get_wsgi_application
 
 # Ambientes prod-like devem sempre usar config.settings_production.
-if os.environ.get("RAILWAY_ENVIRONMENT") and not os.environ.get("DJANGO_SETTINGS_MODULE"):
+if (
+    (os.environ.get("LWK_ENVIRONMENT") or os.environ.get("RAILWAY_ENVIRONMENT"))
+    and not os.environ.get("DJANGO_SETTINGS_MODULE")
+):
     os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings_production"
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
@@ -24,7 +27,7 @@ if "production" in _settings_module:
 
 
 def _run_startup_ensures():
-    """Verificações leves ao subir worker. Schema ensures ficam só no releaseCommand (Railway)."""
+    """Verificações leves ao subir worker. Schema ensures ficam só no release command do deploy."""
     if os.environ.get("LWK_SKIP_STARTUP_ENSURE") == "1":
         return
     settings_module = os.environ.get("DJANGO_SETTINGS_MODULE", "")
@@ -54,7 +57,7 @@ def _run_startup_ensures():
 
 def _start_backup_scheduler():
     """Verifica backups automáticos a cada 5 min (lock por hora no cache).
-    Substitui Heroku Scheduler no Railway.
+    Substitui scheduler externo quando django-q não está disponível.
     """
     if os.environ.get("LWK_SKIP_STARTUP_ENSURE") == "1":
         return
@@ -87,7 +90,7 @@ def _start_backup_scheduler():
 
 def _start_whatsapp_scheduler():
     """Lembretes WhatsApp 24h (1x/dia ~8h) e 2h (a cada 30 min) + CRM tarefas.
-    Substitui django-q/Heroku Scheduler no Railway.
+    Substitui scheduler externo quando django-q não está disponível.
     """
     if os.environ.get("LWK_SKIP_STARTUP_ENSURE") == "1":
         return
@@ -146,7 +149,7 @@ def _start_whatsapp_scheduler():
 
 def _start_security_scheduler():
     """Detecção de violações de segurança a cada 5 min.
-    Substitui django-q no Railway.
+    Substitui scheduler externo quando django-q não está disponível.
     """
     if os.environ.get("LWK_SKIP_STARTUP_ENSURE") == "1":
         return

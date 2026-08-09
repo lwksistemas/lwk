@@ -3,11 +3,8 @@ import sys
 
 from django.core.wsgi import get_wsgi_application
 
-# Ambientes prod-like devem sempre usar config.settings_production.
-if (
-    (os.environ.get("LWK_ENVIRONMENT") or os.environ.get("RAILWAY_ENVIRONMENT"))
-    and not os.environ.get("DJANGO_SETTINGS_MODULE")
-):
+# Ambientes prod-like (Magalu) devem sempre usar config.settings_production.
+if os.environ.get("LWK_ENVIRONMENT") and not os.environ.get("DJANGO_SETTINGS_MODULE"):
     os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings_production"
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")

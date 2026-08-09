@@ -44,9 +44,9 @@ def deliver_email_sync(msg: EmailMessage, *, fail_silently: bool = False) -> int
                 return 0
             raise
 
-    if os.environ.get("LWK_ENVIRONMENT") or os.environ.get("RAILWAY_ENVIRONMENT"):
+    if os.environ.get("LWK_ENVIRONMENT"):
         raise RuntimeError(
-            "RESEND_API_KEY não está configurada no ambiente de produção. "
+            "RESEND_API_KEY não está configurada no ambiente de produção (Magalu). "
             "Adicione a chave do Resend e remova EMAIL_HOST / EMAIL_HOST_PASSWORD do Gmail.",
         )
 

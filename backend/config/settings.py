@@ -162,11 +162,11 @@ if "DATABASE_URL" in os.environ:
     elif _ssl_env in ("false", "0", "no"):
         _ssl_require = False
     else:
-        # Postgres em rede privada (ex.: *.railway.internal, *.internal.magalu.cloud)
+        # Postgres em rede privada Magalu (ex.: *.internal.magalu.cloud / *.internal)
         # normalmente não exige TLS; proxies públicos sim.
         _ssl_require = not any(
             h in DATABASE_URL.lower()
-            for h in ("railway.internal", "internal.magalu.cloud", ".internal")
+            for h in ("internal.magalu.cloud", ".internal")
         )
 
     default_db_config = dj_database_url.config(

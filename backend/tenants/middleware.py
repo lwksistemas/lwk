@@ -372,11 +372,7 @@ class TenantMiddleware:
     def _slug_from_subdomain(self, request):
         """Tenta resolver o tenant pelo subdomínio (ex: loja1.exemplo.com)."""
         host = request.get_host().split(":")[0].lower()
-        public_domain = (
-            os.environ.get("LWK_PUBLIC_DOMAIN")
-            or os.environ.get("RAILWAY_PUBLIC_DOMAIN")
-            or ""
-        ).strip().lower().split(":")[0]
+        public_domain = (os.environ.get("LWK_PUBLIC_DOMAIN") or "").strip().lower().split(":")[0]
         if public_domain and host == public_domain:
             return None
         ignore_suffixes = {
@@ -384,8 +380,6 @@ class TenantMiddleware:
             for s in os.environ.get("TENANT_IGNORE_SUBDOMAIN_SUFFIXES", "").split(",")
             if s.strip()
         }
-        # Domínios de plataforma (legado Railway) não são tenant por subdomínio.
-        ignore_suffixes.update({".up.railway.app", ".railway.app"})
         if any(host.endswith(suf) for suf in ignore_suffixes):
             return None
         parts = host.split(".")

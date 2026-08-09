@@ -30,11 +30,11 @@ DEBUG = False
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]
 if not ALLOWED_HOSTS:
     raise ValueError("ALLOWED_HOSTS deve estar configurada nas variáveis de ambiente!")
-# Atrás do edge TLS do proxy (Magalu, etc.), confiar em X-Forwarded-Proto
+# Atrás do edge TLS do Magalu, confiar em X-Forwarded-Proto
 # para que request.is_secure() reflita HTTPS externo e habilite HSTS.
 _use_forwarded_ssl = os.environ.get("USE_FORWARDED_SSL", "").lower() in ("true", "1", "yes")
-_prod_like = bool(os.environ.get("LWK_ENVIRONMENT") or os.environ.get("RAILWAY_ENVIRONMENT"))
-if _use_forwarded_ssl or _prod_like:
+_magalu_prod = bool(os.environ.get("LWK_ENVIRONMENT"))
+if _use_forwarded_ssl or _magalu_prod:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # APPS
@@ -132,12 +132,11 @@ def _normalize_database_url(raw: str) -> str:
 
 
 def _public_proxy_ssl_require(url: str) -> str:
-    """Força sslmode=require quando o DATABASE_URL aponta para proxy público (ex.: *.rlwy.net)."""
+    """Força sslmode=require quando o DATABASE_URL aponta para proxy público Magalu."""
     s = (url or "").strip()
     if not s:
         return s
-    # Endereços de proxy público conhecidos que exigem TLS na conexão TCP.
-    public_proxy_hosts = (".rlwy.net", ".magalu.cloud", ".railway.app")
+    public_proxy_hosts = (".magalu.cloud",)
     if not any(h in s.lower() for h in public_proxy_hosts):
         return s
     if "sslmode=" in s.lower():
@@ -176,9 +175,9 @@ if _use_postgres:
     if "postgresql" in _engine:
         DATABASES["default"]["OPTIONS"]["connect_timeout"] = 10
         DATABASES["default"]["OPTIONS"]["options"] = "-c statement_timeout=25000"
-        # Proxy público (ex.: *.rlwy.net, *.magalu.cloud) exige TLS; sem sslmode o Postgres encerra a conexão.
+        # Proxy público Magalu (*.magalu.cloud) exige TLS; sem sslmode o Postgres encerra a conexão.
         _pg_host = (DATABASES["default"].get("HOST") or "").lower()
-        if _pg_host.endswith((".rlwy.net", ".magalu.cloud", ".railway.app")):
+        if _pg_host.endswith(".magalu.cloud"):
             DATABASES["default"]["OPTIONS"].setdefault("sslmode", "require")
     DATABASE_ROUTERS = ["config.db_router.MultiTenantRouter"]
     _default_db = dict(DATABASES["default"])
@@ -191,7 +190,7 @@ if _use_postgres:
     }
     if "postgresql" in _engine:
         _pg_host = (DATABASES["default"].get("HOST") or "").lower()
-        if _pg_host.endswith(".rlwy.net"):
+        if _pg_host.endswith(".magalu.cloud"):
             DATABASES["suporte"]["OPTIONS"].setdefault("sslmode", "require")
 else:
     logger.warning(
@@ -394,10 +393,10 @@ else:
 DEFAULT_REPLY_TO = os.environ.get("DEFAULT_REPLY_TO", "contato@lwksistemas.com.br")
 
 # SECURITY SETTINGS
-# Edge TLS (Magalu e similares): TLS termina no edge; o probe interno chama HTTP sem
+# Magalu: TLS termina no edge; o probe interno chama HTTP sem
 # X-Forwarded-Proto → redirect 301 quebra o healthcheck e deixa deploy em FAILED.
 _disable_ssl_redirect = os.environ.get("LWK_DISABLE_SSL_REDIRECT", "").lower() in ("true", "1", "yes")
-if _disable_ssl_redirect or _prod_like:
+if _disable_ssl_redirect or _magalu_prod:
     SECURE_SSL_REDIRECT = False
 else:
     SECURE_SSL_REDIRECT = True

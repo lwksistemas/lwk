@@ -4,15 +4,11 @@ Chama executar_backups_automaticos(): para cada loja com backup automático ativ
 verifica se está no horário e se ainda não rodou hoje; se sim, processa o backup
 e envia por email para o owner da loja.
 
-Para o backup chegar no email do admin:
-  - Agende no Heroku Scheduler para rodar a cada hora (ex.: às :00).
-  - Configure no Heroku as variáveis de email: EMAIL_HOST_USER, EMAIL_HOST_PASSWORD
-    (ex.: Gmail com senha de app).
-  - O horário configurado na tela é interpretado no fuso do servidor (America/Sao_Paulo).
+Em Magalu o agendamento é via Django-Q (worker):
+  python manage.py setup_security_schedules
+  → schedule "executar_backups_automaticos" a cada 15 min
 
-Exemplo Heroku Scheduler:
-  Comando: cd backend && python manage.py executar_backups_automaticos
-  Frequência: a cada hora
+Slots noturnos: 00:00–04:45 (horário de Brasília), um por loja.
 """
 import logging
 
@@ -25,7 +21,7 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = (
         "Verifica backups automáticos agendados e processa os que estão no horário. "
-        "Agende no Heroku Scheduler a cada hora para que o backup por email funcione."
+        "No Magalu rode via Django-Q (setup_security_schedules)."
     )
 
     def handle(self, *args, **options):

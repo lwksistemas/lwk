@@ -62,6 +62,7 @@ ENSURES = [
     ("ensure_consulta_numero", {}),
     ("ensure_suporte_schema", {}),
     ("verificar_storage_lojas", {}),
+    ("setup_security_schedules", {}),
 ]
 
 

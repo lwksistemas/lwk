@@ -144,7 +144,7 @@ class Command(BaseCommand):
 
     def _check_0067(self, schema):
         """Verifica se os campos novos da ClinicaBelezaNfseConfig existem."""
-        if not self._table_exists(schema, "clinica_beleza_clinicabelezanfseconfig"):
+        if not self._table_exists(schema, "clinica_beleza_nfse_config"):
             # Loja sem módulo NFS-e / tabela ainda não criada — não é falha de 0067.
             return True
         expected = {
@@ -158,7 +158,7 @@ class Command(BaseCommand):
             "p_tot_trib_sn",
         }
         return self._check_columns(
-            schema, "clinica_beleza_clinicabelezanfseconfig", expected, set()
+            schema, "clinica_beleza_nfse_config", expected, set()
         )
 
     def _table_exists(self, schema, table_name) -> bool:
@@ -224,7 +224,7 @@ class Command(BaseCommand):
                     )
 
             # 0067: só altera se a tabela de config NFS-e já existir neste schema
-            if self._table_exists(schema, "clinica_beleza_clinicabelezanfseconfig"):
+            if self._table_exists(schema, "clinica_beleza_nfse_config"):
                 for col_name, col_def in [
                     (
                         "issnet_usar_padrao_nacional",
@@ -245,10 +245,10 @@ class Command(BaseCommand):
                             IF NOT EXISTS (
                                 SELECT 1 FROM information_schema.columns
                                 WHERE table_schema = %s
-                                  AND table_name = 'clinica_beleza_clinicabelezanfseconfig'
+                                  AND table_name = 'clinica_beleza_nfse_config'
                                   AND column_name = %s
                             ) THEN
-                                ALTER TABLE {qn(schema)}.clinica_beleza_clinicabelezanfseconfig
+                                ALTER TABLE {qn(schema)}.clinica_beleza_nfse_config
                                 ADD COLUMN {qn(col_name)} {col_def};
                             END IF;
                         END $$;
@@ -279,7 +279,7 @@ class Command(BaseCommand):
                         "0066_paciente_foto_rename_db_columns",
                     ],
                 )
-            if self._table_exists(schema, "clinica_beleza_clinicabelezanfseconfig"):
+            if self._table_exists(schema, "clinica_beleza_nfse_config"):
                 cursor.execute(
                     f"""
                     INSERT INTO {qn(schema)}.django_migrations (app, name, applied)

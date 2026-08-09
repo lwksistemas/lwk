@@ -105,7 +105,7 @@ class Command(BaseCommand):
             return [row[0] for row in cursor.fetchall()]
 
     def auditar_schema(self, schema: str) -> list[dict[str, Any]]:
-        if not self._table_exists(schema, "clinica_beleza_clinicabelezanfseconfig"):
+        if not self._table_exists(schema, "clinica_beleza_nfse_config"):
             return []
 
         with connection.cursor() as cursor:
@@ -209,7 +209,7 @@ class Command(BaseCommand):
                            codigo_tributacao_nacional,
                            codigo_tributacao_municipal,
                            nacional_codigo_municipio
-                    FROM clinica_beleza_clinicabelezanfseconfig
+                    FROM clinica_beleza_nfse_config
                     WHERE loja_id = %s
                     LIMIT 1
                     """,

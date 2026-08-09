@@ -143,6 +143,18 @@ def gerar_pdf_nfse(nfse, loja) -> BytesIO:
     # Serviço + Valores
     _pdf_nfse_secao_servico_valores(elements, nfse, section_style, info_style)
 
+    # Autenticidade (padrão Nacional)
+    chave = (getattr(nfse, "codigo_verificacao", "") or "").strip()
+    if chave:
+        elements.append(Spacer(1, 0.3*cm))
+        elements.append(Paragraph("<b>Autenticidade</b>", section_style))
+        elements.append(Paragraph(f"<b>Chave de Acesso:</b> {chave}", info_style))
+        elements.append(Paragraph(
+            "Verifique a autenticidade desta nota em: "
+            "<font color='#1565c0'>https://www.notaeletronica.com.br/ribeiraopreto/NotaDigital/VerificaAutenticidade.aspx</font>",
+            info_style,
+        ))
+
     # Rodapé
     footer_style = ParagraphStyle(
         "NFSeFooter",
@@ -151,9 +163,10 @@ def gerar_pdf_nfse(nfse, loja) -> BytesIO:
         textColor=colors.HexColor("#666666"),
         alignment=TA_CENTER,
     )
+    elements.append(Spacer(1, 0.5*cm))
     elements.append(Paragraph(
-        "Documento auxiliar da Nota Fiscal de Serviço Eletrônica. "
-        "Consulte a autenticidade no portal da prefeitura usando o código de verificação.",
+        "Documento auxiliar da Nota Fiscal de Serviço Eletrônica — Emitida no padrão Nacional (DPS/RTC). "
+        "Este documento NÃO substitui a NFS-e oficial disponível no portal da prefeitura.",
         footer_style,
     ))
 

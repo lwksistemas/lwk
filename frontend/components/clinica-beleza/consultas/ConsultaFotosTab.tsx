@@ -44,6 +44,7 @@ export function ConsultaFotosTab({
     podeEnviarMais,
     abrirQr,
     salvarUploadPainel,
+    salvarArquivo,
     excluir,
     toggleSelecao,
     fotosComparar,
@@ -84,11 +85,7 @@ export function ConsultaFotosTab({
               <ImageUpload
                 compact
                 buttonLabel={salvando ? "Salvando…" : "Adicionar foto"}
-                value={uploadUrl}
-                onChange={(url) => {
-                  setUploadUrl(url);
-                  if (url) void salvarUploadPainel(url);
-                }}
+                onFileSelect={(file) => void salvarArquivo(file)}
                 folder="fotos"
                 disabled={salvando}
                 maxSize={2}

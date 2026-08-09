@@ -7,7 +7,9 @@ import apiClient from '@/lib/api-client';
 
 interface ImageUploadMediaProps {
   value?: string;
-  onChange: (url: string) => void;
+  onChange?: (url: string) => void;
+  /** Se informada, o componente não faz upload sozinho; entrega o arquivo bruto. */
+  onFileSelect?: (file: File) => void;
   label?: string;
   description?: string;
   disabled?: boolean;
@@ -25,6 +27,7 @@ const MEDIA_SERVER_URL = process.env.NEXT_PUBLIC_MEDIA_URL || 'https://media.lwk
 export function ImageUploadMedia({
   value,
   onChange,
+  onFileSelect,
   label = 'Imagem',
   description,
   disabled = false,
@@ -49,6 +52,19 @@ export function ImageUploadMedia({
     }
 
     setError(null);
+
+    // Modo delegado: o caller faz o upload (ex.: consulta fotos)
+    if (onFileSelect) {
+      onFileSelect(file);
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+
+    if (!onChange) {
+      setError('Nenhum handler de upload configurado.');
+      return;
+    }
+
     setUploading(true);
 
     try {
@@ -67,7 +83,7 @@ export function ImageUploadMedia({
       });
 
       if (response.data?.url) {
-        onChange(response.data.url);
+        onChange?.(response.data.url);
         setError(null);
       } else {
         setError(response.data?.error || 'Erro ao enviar arquivo');
@@ -85,7 +101,7 @@ export function ImageUploadMedia({
 
   const handleRemove = () => {
     if (disabled) return;
-    onChange('');
+    onChange?.('');
     setError(null);
   };
 

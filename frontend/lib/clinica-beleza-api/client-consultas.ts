@@ -1,6 +1,6 @@
 import { clinicaBelezaFetch } from "./fetch";
 import type { PacienteFotoItem } from "./types-memed";
-import { cbDelete, cbGet, cbPatch, cbPost } from "./client-http";
+import { cbDelete, cbGet, cbPatch, cbPost, cbPostFormData } from "./client-http";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 
 export const consultasApi = {
@@ -103,6 +103,14 @@ export const consultasApi = {
         url,
         public_id: publicId || "",
       }),
+    salvarArquivo: (consultaId: number, file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return cbPostFormData<{ message: string; foto: PacienteFotoItem }>(
+        `/consultas/${consultaId}/fotos/`,
+        formData,
+      );
+    },
     gerarQr: (consultaId: number) =>
       cbPost<{ url: string; qr_base64: string; expira_em_horas: number }>(
         `/consultas/${consultaId}/fotos/qr/`,

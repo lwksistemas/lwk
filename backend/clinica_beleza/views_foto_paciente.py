@@ -90,9 +90,32 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
         bloqueio = _consulta_permite_envio_foto(consulta)
         if bloqueio:
             return bloqueio
+
+        # Preferência absoluta por upload multipart do arquivo. O frontend deve
+        # enviar o campo file/image/foto. URL JSON continua aceita apenas como
+        # fallback legado, mas passa pela validação anti-Cloudinary e anti-externo.
+        from superadmin.models import Loja
+
+        loja = Loja.objects.using("default").filter(id=consulta.loja_id, is_active=True).first()
+        if not loja:
+            return Response({"detail": "Loja não encontrada."}, status=status.HTTP_400_BAD_REQUEST)
+
+        conteudo = extrair_bytes_upload_request(request)
+        if conteudo:
+            try:
+                up = upload_foto_media(loja, conteudo)
+                foto = registrar_foto(consulta, up["secure_url"], "painel", up["public_id"])
+            except (FotoUrlInvalida, FotoUploadInvalida) as exc:
+                return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Foto salva.", "foto": foto}, status=status.HTTP_201_CREATED)
+
+        # Fallback legado: recebimento de URL já hospedada no media server.
         url = (request.data.get("url") or "").strip()
         if not url or not url.startswith("https://"):
-            return Response({"detail": "URL da imagem inválida."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Envie a imagem como arquivo (multipart) ou uma URL HTTPS válida."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         public_id = (request.data.get("public_id") or "").strip()
         try:
             foto = registrar_foto(consulta, url, "painel", public_id)

@@ -73,6 +73,21 @@ export async function cbPatch<T = never>(
   return body as T;
 }
 
+export async function cbPostFormData<T = never>(
+  path: string,
+  formData: FormData,
+  loja?: { id?: number; slug?: string } | null,
+): Promise<T> {
+  const res = await clinicaBelezaFetch(
+    path,
+    { method: "POST", body: formData },
+    loja,
+  );
+  const body = await parseClinicaBelezaResponseBody(res);
+  if (!res.ok) throw body;
+  return body as T;
+}
+
 export async function cbDelete(path: string): Promise<void> {
   const res = await clinicaBelezaFetch(path, { method: "DELETE" });
   if (res.status === 204) return;

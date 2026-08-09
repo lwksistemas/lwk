@@ -97,6 +97,18 @@ export function useConsultaFotosTab(
     }
   };
 
+  const salvarArquivo = async (file: File) => {
+    setSalvando(true);
+    try {
+      await ClinicaBelezaAPI.consultas.fotos.salvarArquivo(consultaId, file);
+      await carregar();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar foto.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
   const excluir = async (fotoId: number) => {
     if (!confirm("Remover esta foto do acompanhamento?")) return;
     try {
@@ -144,6 +156,7 @@ export function useConsultaFotosTab(
     podeEnviarMais,
     abrirQr,
     salvarUploadPainel,
+    salvarArquivo,
     excluir,
     toggleSelecao,
     fotosComparar,

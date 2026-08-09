@@ -12,6 +12,28 @@ Este runbook deve ser executado após deploy das correções de migrações 0066
 - Variável `MEDIA_SERVER_URL` apontando para o novo servidor de imagens (ex.: `https://media.lwksistemas.com.br`).
 - Banco PostgreSQL com schemas tenants.
 
+## Pré-check — Worker Django-Q no ar
+
+Antes de confiar nos schedules (backup, notificações, lembretes), verifique se o worker está ativo:
+
+```bash
+python manage.py check_djangoq_worker
+```
+
+Para sair com código de erro em monitoramento (ex.: cron/healthcheck):
+
+```bash
+python manage.py check_djangoq_worker --exit-code
+```
+
+Se não houver workers ativos, inicie com:
+
+```bash
+python manage.py qcluster
+```
+
+ou use o script `scripts/start_worker.sh` no Railway/Magalu.
+
 ## Passo 1 — Verificar migrações 0066/0067 em todos os tenants
 
 ```bash

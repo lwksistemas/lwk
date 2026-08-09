@@ -5,6 +5,7 @@ import { NFSeAsaasSection } from '@/components/clinica-beleza/nfse/NFSeAsaasSect
 import { NFSeFormBanner } from '@/components/clinica-beleza/nfse/NFSeFormBanner';
 import { NFSeGeralSection } from '@/components/clinica-beleza/nfse/NFSeGeralSection';
 import { NFSeIssnetSection } from '@/components/clinica-beleza/nfse/NFSeIssnetSection';
+import { NFSeNacionalAdnSection } from '@/components/clinica-beleza/nfse/NFSeNacionalAdnSection';
 import { NFSeProvedorSection } from '@/components/clinica-beleza/nfse/NFSeProvedorSection';
 import { useClinicaNFSeForm } from '@/hooks/clinica-beleza/useClinicaNFSeForm';
 
@@ -18,20 +19,17 @@ export default function ClinicaNFSeForm({ configBackHref: _configBackHref }: Pro
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <FileText size={28} />
-          Nota Fiscal — Configuração da Clínica
+          Nota fiscal — emissão
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Configuração individual de NFS-e desta clínica para emissão aos seus clientes
+          Escolha um modo de emissão. As configurações do emissor aparecem abaixo da opção selecionada.
         </p>
       </div>
 
       {form.message && <NFSeFormBanner message={form.message} />}
 
       <form onSubmit={form.handleSubmit} className="space-y-6">
-        <NFSeProvedorSection
-          provedor={form.formData.provedor_nf}
-          onChange={(provedor) => form.updateFormField('provedor_nf', provedor)}
-        />
+        <NFSeProvedorSection formData={form.formData} onApply={form.applyFormPatch} />
 
         {form.formData.provedor_nf === 'asaas' && (
           <NFSeAsaasSection
@@ -56,6 +54,16 @@ export default function ClinicaNFSeForm({ configBackHref: _configBackHref }: Pro
             onFieldChange={form.updateFormField}
             onFileChange={form.handleFileChange}
             onTest={form.testarConexaoIssnet}
+          />
+        )}
+
+        {form.formData.provedor_nf === 'nacional' && (
+          <NFSeNacionalAdnSection
+            formData={form.formData}
+            config={form.config}
+            certificadoFile={form.certificadoFile}
+            onFieldChange={form.updateFormField}
+            onFileChange={form.handleFileChange}
           />
         )}
 

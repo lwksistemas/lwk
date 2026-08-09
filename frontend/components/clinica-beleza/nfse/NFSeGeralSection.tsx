@@ -7,10 +7,14 @@ interface Props {
 
 export function NFSeGeralSection({ formData, onFieldChange }: Props) {
   const isIssnet = formData.provedor_nf === "issnet";
+  const isNacional = formData.provedor_nf === "nacional";
+  const showIssnetExtras = isIssnet || isNacional;
 
   return (
     <div className={NFSE_CARD_CLASS}>
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Configurações Gerais</h2>
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Dados do serviço e do prestador
+      </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -46,7 +50,7 @@ export function NFSeGeralSection({ formData, onFieldChange }: Props) {
           />
         </div>
 
-        {isIssnet && (
+        {showIssnetExtras && (
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -83,27 +87,163 @@ export function NFSeGeralSection({ formData, onFieldChange }: Props) {
                 className={NFSE_INPUT_CLASS}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Série do RPS</label>
-              <input
-                type="text"
-                value={formData.issnet_serie_rps}
-                onChange={(e) => onFieldChange("issnet_serie_rps", e.target.value)}
-                placeholder="Ex.: E ou NFSE"
-                className={NFSE_INPUT_CLASS}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Último RPS emitido
-              </label>
-              <input
-                type="number"
-                value={formData.issnet_ultimo_rps_conhecido}
-                onChange={(e) => onFieldChange("issnet_ultimo_rps_conhecido", e.target.value)}
-                className={NFSE_INPUT_CLASS}
-              />
-            </div>
+            {isIssnet && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    cTribNac (tributação nacional)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={formData.codigo_tributacao_nacional}
+                    onChange={(e) =>
+                      onFieldChange(
+                        "codigo_tributacao_nacional",
+                        e.target.value.replace(/\D/g, "").slice(0, 6),
+                      )
+                    }
+                    placeholder="060100"
+                    className={NFSE_INPUT_CLASS}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    cTribMun (tributação municipal)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={formData.codigo_tributacao_municipal}
+                    onChange={(e) =>
+                      onFieldChange(
+                        "codigo_tributacao_municipal",
+                        e.target.value.replace(/\D/g, "").slice(0, 6),
+                      )
+                    }
+                    placeholder="060100"
+                    className={NFSE_INPUT_CLASS}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Código NBS
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.codigo_nbs}
+                    onChange={(e) => onFieldChange("codigo_nbs", e.target.value)}
+                    className={NFSE_INPUT_CLASS}
+                  />
+                </div>
+                <div className="md:col-span-2 mt-2 pt-4 border-t border-gray-200 dark:border-[#0d1f3c]">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                    IBS/CBS (Reforma Tributária)
+                  </p>
+                  <p className="text-[11px] text-gray-500 mb-3">
+                    Opcional. Em branco usa CST 000 / cClassTrib 000001.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Indicador da Operação
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={2}
+                        value={formData.indicador_operacao}
+                        onChange={(e) =>
+                          onFieldChange(
+                            "indicador_operacao",
+                            e.target.value.replace(/\D/g, "").slice(0, 2),
+                          )
+                        }
+                        className={NFSE_INPUT_CLASS}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Situação Tributária (CST)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={3}
+                        value={formData.cst_ibscbs}
+                        onChange={(e) =>
+                          onFieldChange("cst_ibscbs", e.target.value.replace(/\D/g, "").slice(0, 3))
+                        }
+                        placeholder="000"
+                        className={NFSE_INPUT_CLASS}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Classificação Tributária (cClassTrib)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={formData.cclass_trib_ibscbs}
+                        onChange={(e) =>
+                          onFieldChange(
+                            "cclass_trib_ibscbs",
+                            e.target.value.replace(/\D/g, "").slice(0, 6),
+                          )
+                        }
+                        placeholder="000001"
+                        className={NFSE_INPUT_CLASS}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        % Total de Tributos (Simples Nacional)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={formData.p_tot_trib_sn}
+                        onChange={(e) =>
+                          onFieldChange(
+                            "p_tot_trib_sn",
+                            e.target.value.replace(/[^0-9.,]/g, ""),
+                          )
+                        }
+                        placeholder="2.50"
+                        className={NFSE_INPUT_CLASS}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Série DPS / RPS
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.issnet_serie_rps}
+                    onChange={(e) => onFieldChange("issnet_serie_rps", e.target.value)}
+                    placeholder="1"
+                    className={NFSE_INPUT_CLASS}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Último RPS/DPS emitido
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.issnet_ultimo_rps_conhecido}
+                    onChange={(e) => onFieldChange("issnet_ultimo_rps_conhecido", e.target.value)}
+                    className={NFSE_INPUT_CLASS}
+                  />
+                </div>
+              </>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Regime Especial Tributação

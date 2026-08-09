@@ -8,6 +8,7 @@ interface ClinicaNFSeConfig {
   id: number;
   provedor_nf: 'asaas' | 'issnet' | 'nacional' | 'manual';
   provedor_nf_display?: string;
+  issnet_usar_padrao_nacional?: boolean;
   issnet_usuario: string;
   issnet_senha?: string;
   issnet_certificado: string | null;
@@ -28,6 +29,13 @@ interface ClinicaNFSeConfig {
   descricao_servico_padrao: string;
   aliquota_iss: string;
   emitir_nf_automaticamente: boolean;
+  codigo_tributacao_nacional?: string;
+  codigo_tributacao_municipal?: string;
+  nacional_codigo_municipio?: string;
+  indicador_operacao?: string;
+  cst_ibscbs?: string;
+  cclass_trib_ibscbs?: string;
+  p_tot_trib_sn?: string | number | null;
   asaas_api_key_configured?: boolean;
   asaas_sandbox?: boolean;
   asaas_webhook_url?: string;
@@ -58,6 +66,7 @@ export function ClinicaBelezaNFSeConfigProvider({ children }: { children: ReactN
       setConfig({
         id: 0,
         provedor_nf: 'asaas',
+        issnet_usar_padrao_nacional: true,
         issnet_usuario: '',
         issnet_certificado: null,
         codigo_servico_municipal: '0601',

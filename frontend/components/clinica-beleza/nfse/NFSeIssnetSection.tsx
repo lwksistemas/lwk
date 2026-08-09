@@ -32,7 +32,12 @@ export function NFSeIssnetSection({
 }: Props) {
   return (
     <div className={NFSE_CARD_CLASS}>
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Credenciais ISSNet</h2>
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Credenciais ISSNet — Padrão Nacional
+      </h2>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+        Endpoint: wsnfsenacional/ribeiraopreto (DPS). Homologação: wsnfsenacional/homologacao.
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Usuário ISSNet *</label>

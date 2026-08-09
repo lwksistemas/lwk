@@ -59,6 +59,7 @@ class ClinicaBelezaNFSeConfigSerializer(serializers.ModelSerializer):
             "incentivador_cultural",
             "emitir_nf_automaticamente",
             "issnet_ambiente_homologacao",
+            "issnet_usar_padrao_nacional",
         ]
         for field in bool_fields:
             if hasattr(data, "get") and data.get(field) is not None:
@@ -137,6 +138,10 @@ class ClinicaBelezaNFSeConfigSerializer(serializers.ModelSerializer):
             "issnet_serie_rps", "issnet_ultimo_rps_conhecido", "issnet_numero_lote",
             "codigo_servico_municipal", "descricao_servico_padrao",
             "aliquota_iss", "emitir_nf_automaticamente",
+            "issnet_usar_padrao_nacional",
+            "codigo_tributacao_nacional", "codigo_tributacao_municipal",
+            "nacional_codigo_municipio",
+            "indicador_operacao", "cst_ibscbs", "cclass_trib_ibscbs", "p_tot_trib_sn",
             "asaas_api_key", "asaas_sandbox", "asaas_api_key_configured",
             "asaas_webhook_url", "asaas_webhook_token",
             "asaas_webhook_token_configured",

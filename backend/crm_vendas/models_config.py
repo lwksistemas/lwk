@@ -75,7 +75,7 @@ class CRMConfig(LojaIsolationMixin, models.Model):
 
     PROVEDOR_NF_CHOICES = [
         ("asaas", "Asaas (conta da sua loja)"),
-        ("issnet", "ISSNet - Ribeirão Preto"),
+        ("issnet", "ISSNet — Padrão Nacional (DPS / RTC)"),
         ("nacional", "API Nacional NFS-e (Direto)"),
         ("manual", "Emissão Manual (Sem integração)"),
     ]

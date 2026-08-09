@@ -236,7 +236,7 @@ def xml_nfse_conteudo(nfse: Any) -> str:
 
 def _resolver_config_nfse_loja(loja_id: int):
     """Resolve a config NFS-e correta por loja: ClinicaBelezaNFSeConfig ou CRMConfig.
-    Verifica o tipo da loja (CLIEST/CLIBEL → tabela da clínica; demais → CRM).
+    Verifica o tipo da loja (CLIEST/CLIBEL/CABEL → tabela da clínica; demais → CRM).
     """
     from superadmin.models import Loja
 
@@ -245,7 +245,7 @@ def _resolver_config_nfse_loja(loja_id: int):
     if loja and hasattr(loja, "tipo_loja") and loja.tipo_loja:
         tipo_codigo = getattr(loja.tipo_loja, "codigo", "") or ""
 
-    if tipo_codigo in ("CLIEST", "CLIBEL"):
+    if tipo_codigo in ("CLIEST", "CLIBEL", "CABEL"):
         from clinica_beleza.nfse_config_service import get_or_create_nfse_config
         return get_or_create_nfse_config(loja_id)
 

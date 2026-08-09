@@ -12,8 +12,8 @@ class ClinicaBelezaNFSeConfig(LojaIsolationMixin, models.Model):
     """
 
     PROVEDOR_NF_CHOICES = [
-        ("asaas", "Asaas (Intermediário - Padrão)"),
-        ("issnet", "ISSNet - Ribeirão Preto (Direto)"),
+        ("asaas", "Asaas (conta da sua loja)"),
+        ("issnet", "ISSNet — Padrão Nacional (DPS / RTC)"),
         ("nacional", "API Nacional NFS-e (Direto)"),
         ("manual", "Emissão Manual (Sem integração)"),
     ]
@@ -113,6 +113,56 @@ class ClinicaBelezaNFSeConfig(LojaIsolationMixin, models.Model):
         default=False,
         verbose_name="Emitir NF Automaticamente",
         help_text="Desligado por padrão. Só emite NFS-e ao finalizar consulta se a clínica ativar.",
+    )
+
+    # === Padrão Nacional ISSNet (RTC/DPS) ===
+    issnet_usar_padrao_nacional = models.BooleanField(
+        default=True,
+        verbose_name="Usar padrão Nacional (DPS/RTC)",
+        help_text="Se True, emite via webservice Nacional ISSNet (DPS/RTC).",
+    )
+    codigo_tributacao_nacional = models.CharField(
+        max_length=10,
+        blank=True,
+        default="",
+        verbose_name="Código de Tributação Nacional (cTribNac)",
+    )
+    codigo_tributacao_municipal = models.CharField(
+        max_length=10,
+        blank=True,
+        default="",
+        verbose_name="Código de Tributação Municipal (cTribMun)",
+    )
+    nacional_codigo_municipio = models.CharField(
+        max_length=7,
+        blank=True,
+        default="",
+        verbose_name="Código IBGE do município (API Nacional)",
+    )
+    indicador_operacao = models.CharField(
+        max_length=2,
+        blank=True,
+        default="",
+        verbose_name="Indicador da Operação (IBS/CBS)",
+    )
+    cst_ibscbs = models.CharField(
+        max_length=3,
+        blank=True,
+        default="",
+        verbose_name="Situação Tributária IBS/CBS (CST)",
+    )
+    cclass_trib_ibscbs = models.CharField(
+        max_length=6,
+        blank=True,
+        default="",
+        verbose_name="Classificação Tributária IBS/CBS (cClassTrib)",
+    )
+    p_tot_trib_sn = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="% Total de Tributos (Simples Nacional)",
     )
 
     # === Asaas da loja (conta própria) ===

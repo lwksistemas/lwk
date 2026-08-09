@@ -8,86 +8,21 @@ import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { formatApiErrorBody } from '@/lib/api-errors';
 import { FileText, Upload, AlertCircle, CheckCircle2, Info, Loader2, ArrowLeft } from 'lucide-react';
+import {
+  NFSE_EMISSAO_OPCOES,
+  aplicarEmissaoOpcao,
+  resolverEmissaoOpcao,
+  type EmissaoOpcao,
+  type ProvedorNf,
+} from '@/lib/nfse-emissao-opcoes';
 
 type ConfiguracaoNotaFiscalPageProps = {
   params?: Promise<{ slug: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-type ProvedorNf = 'asaas' | 'issnet' | 'nacional' | 'manual';
-
-/** Opções visíveis na tela (4 caminhos de emissão). */
-type EmissaoOpcao = 'asaas' | 'issnet_abrasf' | 'issnet_nacional' | 'nacional_adn';
-
 const DEFAULT_DESCRICAO_SERVICO = 'Desenvolvimento e licenciamento de software sob demanda';
 const DEFAULT_CODIGO_SERVICO = '1401';
-
-const EMISSAO_OPCOES: Array<{
-  key: EmissaoOpcao;
-  numero: number;
-  titulo: string;
-  descricao: string;
-  badge?: string;
-  disabled?: boolean;
-}> = [
-  {
-    key: 'asaas',
-    numero: 1,
-    titulo: 'Asaas (conta da sua loja)',
-    descricao:
-      'Emissão de NFS-e pela conta Asaas da loja. A API Key fica em Configurações → Asaas (banco).',
-  },
-  {
-    key: 'issnet_abrasf',
-    numero: 2,
-    titulo: 'ISSNet — Ribeirão Preto (Direto, layout ABRASF)',
-    descricao:
-      'Descontinuado pelo município em 31/07/2026. O sistema já emite automaticamente pelo Padrão Nacional (opção 3) mesmo que esta opção esteja selecionada.',
-    badge: 'Descontinuado',
-    disabled: true,
-  },
-  {
-    key: 'issnet_nacional',
-    numero: 3,
-    titulo: 'ISSNet — Padrão Nacional (DPS / RTC)',
-    descricao:
-      'Layout NFS-e via webservice Nacional da ISSNet (Ribeirão Preto). Padrão vigente desde a Reforma Tributária.',
-    badge: 'Padrão atual',
-  },
-  {
-    key: 'nacional_adn',
-    numero: 4,
-    titulo: 'API Nacional NFS-e (Direto)',
-    descricao:
-      'Emissão direta na API Nacional (ADN/SEFIN), sem intermediário. Para municípios com emissão direta liberada.',
-  },
-];
-
-function resolvEmissaoOpcao(provedor: ProvedorNf, _usarNacional: boolean): EmissaoOpcao {
-  if (provedor === 'asaas') return 'asaas';
-  if (provedor === 'nacional') return 'nacional_adn';
-  // ABRASF (issnet_abrasf) foi descontinuado em 31/07/2026: o backend força
-  // Nacional independente da flag (ver service.py). Resolve sempre para
-  // issnet_nacional para refletir o comportamento real.
-  if (provedor === 'issnet') return 'issnet_nacional';
-  return 'asaas';
-}
-
-function aplicarEmissaoOpcao(opcao: EmissaoOpcao): {
-  provedor_nf: ProvedorNf;
-  issnet_usar_padrao_nacional: boolean;
-} {
-  switch (opcao) {
-    case 'asaas':
-      return { provedor_nf: 'asaas', issnet_usar_padrao_nacional: false };
-    case 'issnet_abrasf':
-      return { provedor_nf: 'issnet', issnet_usar_padrao_nacional: false };
-    case 'issnet_nacional':
-      return { provedor_nf: 'issnet', issnet_usar_padrao_nacional: true };
-    case 'nacional_adn':
-      return { provedor_nf: 'nacional', issnet_usar_padrao_nacional: false };
-  }
-}
 
 const INPUT =
   'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white';
@@ -177,7 +112,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
   }, [config, codigoServicoPadrao, descricaoServicoPadrao]);
 
   const emissaoOpcao = useMemo(
-    () => resolvEmissaoOpcao(formData.provedor_nf, formData.issnet_usar_padrao_nacional),
+    () => resolverEmissaoOpcao(formData.provedor_nf, formData.issnet_usar_padrao_nacional),
     [formData.provedor_nf, formData.issnet_usar_padrao_nacional],
   );
 
@@ -282,7 +217,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
     setMessage(null);
   };
 
-  const isIssnet = emissaoOpcao === 'issnet_abrasf' || emissaoOpcao === 'issnet_nacional';
+  const isIssnet = emissaoOpcao === 'issnet_nacional';
   const isIssnetNacional = emissaoOpcao === 'issnet_nacional';
   const isNacionalAdn = emissaoOpcao === 'nacional_adn';
   const isAsaas = emissaoOpcao === 'asaas';
@@ -342,25 +277,19 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
             Como deseja emitir?
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Selecione uma das 4 opções. Em seguida configure o emissor escolhido.
+            Selecione uma das opções. Em seguida configure o emissor escolhido.
           </p>
 
           <div className="space-y-3">
-            {EMISSAO_OPCOES.map((op) => {
+            {NFSE_EMISSAO_OPCOES.map((op) => {
               const selected = emissaoOpcao === op.key;
               return (
                 <label
                   key={op.key}
-                  className={`flex items-start gap-3 p-4 rounded-lg border-2 transition-all ${
-                    op.disabled
-                      ? 'opacity-60 cursor-not-allowed border-gray-200 dark:border-[#0d1f3c]'
-                      : 'cursor-pointer'
-                  } ${
-                    selected && !op.disabled
+                  className={`flex items-start gap-3 p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                    selected
                       ? 'border-[#0176d3] bg-[#e3f3ff] dark:bg-[#0176d3]/10'
-                      : !op.disabled
-                        ? 'border-gray-200 dark:border-[#0d1f3c] hover:border-gray-300 dark:hover:border-gray-600'
-                        : ''
+                      : 'border-gray-200 dark:border-[#0d1f3c] hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
                   <input
@@ -368,8 +297,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
                     name="emissao_opcao"
                     value={op.key}
                     checked={selected}
-                    disabled={op.disabled}
-                    onChange={() => !op.disabled && selecionarEmissao(op.key)}
+                    onChange={() => selecionarEmissao(op.key)}
                     className="mt-1"
                   />
                   <div className="flex-1 min-w-0">
@@ -379,13 +307,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
                       </span>
                       <span className="font-medium text-gray-900 dark:text-white">{op.titulo}</span>
                       {op.badge ? (
-                        <span
-                          className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                            op.disabled
-                              ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                          }`}
-                        >
+                        <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                           {op.badge}
                         </span>
                       ) : null}
@@ -424,14 +346,10 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
           <>
             <div className={CARD}>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                {isIssnetNacional
-                  ? 'Configurações — ISSNet Padrão Nacional'
-                  : 'Configurações — ISSNet ABRASF (legado)'}
+                Configurações — ISSNet Padrão Nacional
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                {isIssnetNacional
-                  ? 'Endpoint: wsnfsenacional/ribeiraopreto (DPS). Homologação: wsnfsenacional/homologacao.'
-                  : 'Endpoint ABRASF 2.04 (RPS). Em 03/08/2026 o município deixa de validar este layout.'}
+                Endpoint: wsnfsenacional/ribeiraopreto (DPS). Homologação: wsnfsenacional/homologacao.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

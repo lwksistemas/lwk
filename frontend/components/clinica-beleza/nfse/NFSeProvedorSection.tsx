@@ -1,47 +1,70 @@
 import {
   NFSE_CARD_CLASS,
-  NFSE_PROVEDOR_INFO,
   type NFSeFormData,
-  type NFSeProvedor,
 } from "@/components/clinica-beleza/nfse/nfse-form-types";
+import {
+  NFSE_EMISSAO_OPCOES,
+  aplicarEmissaoOpcao,
+  resolverEmissaoOpcao,
+  type EmissaoOpcao,
+} from "@/lib/nfse-emissao-opcoes";
 
 interface Props {
-  provedor: NFSeProvedor;
-  onChange: (provedor: NFSeProvedor) => void;
+  formData: NFSeFormData;
+  onApply: (patch: Partial<NFSeFormData>) => void;
 }
 
-export function NFSeProvedorSection({ provedor, onChange }: Props) {
+export function NFSeProvedorSection({ formData, onApply }: Props) {
+  const selected = resolverEmissaoOpcao(
+    formData.provedor_nf,
+    formData.issnet_usar_padrao_nacional,
+  );
+
+  const selecionar = (opcao: EmissaoOpcao) => {
+    onApply(aplicarEmissaoOpcao(opcao));
+  };
+
   return (
     <div className={NFSE_CARD_CLASS}>
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Provedor de Nota Fiscal</h2>
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+        Como deseja emitir?
+      </h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        Mesmas opções do CRM Vendas. Selecione e configure o emissor abaixo.
+      </p>
       <div className="space-y-3">
-        {(Object.keys(NFSE_PROVEDOR_INFO) as NFSeProvedor[]).map((key) => {
-          const info = NFSE_PROVEDOR_INFO[key];
-          const isDisabled = key === "nacional";
+        {NFSE_EMISSAO_OPCOES.map((op) => {
+          const isSelected = selected === op.key;
           return (
             <label
-              key={key}
+              key={op.key}
               className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                provedor === key
+                isSelected
                   ? "border-[#0176d3] bg-[#e3f3ff] dark:bg-[#0176d3]/10"
                   : "border-gray-200 dark:border-[#0d1f3c] hover:border-gray-300"
-              } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+              }`}
             >
               <input
                 type="radio"
-                name="provedor_nf"
-                value={key}
-                checked={provedor === key}
-                onChange={(e) => onChange(e.target.value as NFSeFormData["provedor_nf"])}
-                disabled={isDisabled}
+                name="emissao_opcao"
+                value={op.key}
+                checked={isSelected}
+                onChange={() => selecionar(op.key)}
                 className="mt-1"
               />
-              <div className="flex-1">
-                <div className="font-medium text-gray-900 dark:text-white">
-                  {info.titulo}
-                  {isDisabled && <span className="ml-2 text-xs text-gray-500">(Em breve)</span>}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-[#0176d3] tabular-nums">
+                    {op.numero}.
+                  </span>
+                  <span className="font-medium text-gray-900 dark:text-white">{op.titulo}</span>
+                  {op.badge ? (
+                    <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                      {op.badge}
+                    </span>
+                  ) : null}
                 </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{info.descricao}</div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{op.descricao}</p>
               </div>
             </label>
           );

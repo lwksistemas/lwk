@@ -36,13 +36,29 @@ export function useClinicaNFSeForm() {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
+  const applyFormPatch = (patch: Partial<NFSeFormData>) => {
+    setFormData((prev) => ({ ...prev, ...patch }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
     try {
       const data = new FormData();
-      const clearableFields = ["codigo_cnae", "codigo_nbs", "item_lista_servico", "inscricao_municipal"];
+      const clearableFields = [
+        "codigo_cnae",
+        "codigo_nbs",
+        "item_lista_servico",
+        "inscricao_municipal",
+        "codigo_tributacao_nacional",
+        "codigo_tributacao_municipal",
+        "nacional_codigo_municipio",
+        "indicador_operacao",
+        "cst_ibscbs",
+        "cclass_trib_ibscbs",
+        "p_tot_trib_sn",
+      ];
       Object.entries(formData).forEach(([key, value]) => {
         if (value === null || value === undefined) return;
         if (value === "" && !clearableFields.includes(key)) return;
@@ -151,6 +167,7 @@ export function useClinicaNFSeForm() {
     formData,
     setFormData,
     updateFormField,
+    applyFormPatch,
     certificadoFile,
     issnetTestLoading,
     issnetTestMessage,

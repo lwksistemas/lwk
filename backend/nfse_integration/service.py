@@ -36,7 +36,7 @@ class NFSeService:
         if hasattr(self.loja, "tipo_loja") and self.loja.tipo_loja:
             tipo_codigo = getattr(self.loja.tipo_loja, "codigo", "") or ""
 
-        if tipo_codigo in ("CLIEST", "CLIBEL"):
+        if tipo_codigo in ("CLIEST", "CLIBEL", "CABEL"):
             from clinica_beleza.nfse_config_service import get_or_create_nfse_config
             return get_or_create_nfse_config(self.loja.id)
 

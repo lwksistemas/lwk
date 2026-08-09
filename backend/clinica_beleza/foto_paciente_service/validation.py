@@ -10,6 +10,13 @@ from .exceptions import FotoUrlInvalida
 # Pastas permitidas para fotos de acompanhamento do paciente.
 FOLDERS_FOTO_PACIENTE = frozenset({"fotos"})
 
+# Hosts legados que não podem mais ser usados para fotos de paciente.
+HOSTS_BLOQUEADOS = frozenset({
+    "cloudinary.com",
+    "res.cloudinary.com",
+    "cloudinary",
+})
+
 
 def validar_foto_loja(loja, foto_url: str, public_id: str = "") -> None:
     """Garante host exato do media server + path /files/{cnpj}/fotos/..."""
@@ -23,6 +30,10 @@ def validar_foto_loja(loja, foto_url: str, public_id: str = "") -> None:
         raise FotoUrlInvalida("URL da imagem inválida.")
     if parsed_url.username or parsed_url.password:
         raise FotoUrlInvalida("URL da imagem inválida.")
+
+    hostname = parsed_url.hostname.lower()
+    if any(bloqueado in hostname for bloqueado in HOSTS_BLOQUEADOS):
+        raise FotoUrlInvalida("URLs de serviços externos de mídia não são permitidas.")
 
     if not is_media_url(url):
         raise FotoUrlInvalida("Imagem deve estar no servidor de mídia desta clínica.")

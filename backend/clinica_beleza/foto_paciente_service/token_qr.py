@@ -31,20 +31,28 @@ def gerar_token_foto(
 
 
 def decodificar_token_foto(token: str) -> dict | None:
+    from django.core.signing import BadSignature, SignatureExpired
+
     from core.assinatura_service import normalizar_token_url
 
     token = normalizar_token_url(token)
     if not token:
         return None
     try:
-        payload = loads(token)
-    except (BadSignature, Exception):
+        # max_age reforça o exp do payload (TTL alinhado à consulta).
+        payload = loads(token, max_age=TOKEN_EXPIRACAO_HORAS * 3600)
+    except (BadSignature, SignatureExpired, Exception):
         return None
     if payload.get("doc_type") != "foto_paciente":
         return None
-    exp = payload.get("exp")
-    if exp and timezone.now().timestamp() > exp:
+    if payload.get("modulo") != MODULO:
         return None
+    exp = payload.get("exp")
+    if not exp or timezone.now().timestamp() > exp:
+        return None
+    for key in ("consulta_id", "patient_id", "loja_id"):
+        if not payload.get(key):
+            return None
     return payload
 
 
@@ -55,7 +63,7 @@ def build_link_foto(token: str, frontend_base: str | None = None) -> str:
     try:
         from core.short_link import build_short_url
 
-        short = build_short_url(full_url, ttl_days=2)
+        short = build_short_url(full_url, ttl_days=1)
         if short and "/r/" in short:
             return short
     except Exception:

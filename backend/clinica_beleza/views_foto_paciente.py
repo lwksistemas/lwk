@@ -21,7 +21,6 @@ from .foto_paciente_service import (
     gerar_qr_foto,
     limites_fotos_consulta,
     listar_fotos_paciente,
-    parse_json_body_seguro,
     registrar_foto,
     resolver_frontend_base_qr,
     upload_foto_media,
@@ -150,7 +149,9 @@ class ConsultaFotoDeleteView(GetObjectMixin, APIView):
             return bloqueio
         try:
             foto = PacienteFotoAcompanhamento.objects.get(
-                id=foto_id, patient_id=consulta.patient_id,
+                id=foto_id,
+                consulta_id=consulta.id,
+                patient_id=consulta.patient_id,
             )
         except PacienteFotoAcompanhamento.DoesNotExist:
             return Response({"detail": "Foto não encontrada."}, status=status.HTTP_404_NOT_FOUND)
@@ -197,6 +198,8 @@ class EnviarFotoPublicaView(View):
 
         if consulta.patient_id != payload.get("patient_id"):
             return JsonResponse({"error": "Link inválido."}, status=400)
+        if consulta.loja_id != payload.get("loja_id"):
+            return JsonResponse({"error": "Link inválido."}, status=400)
 
         bloqueio = _consulta_permite_envio_foto_publico(consulta)
         if bloqueio:
@@ -225,6 +228,8 @@ class EnviarFotoPublicaView(View):
 
         if consulta.patient_id != payload.get("patient_id"):
             return None, JsonResponse({"error": "Link inválido."}, status=400)
+        if consulta.loja_id != payload.get("loja_id"):
+            return None, JsonResponse({"error": "Link inválido."}, status=400)
 
         bloqueio = _consulta_permite_envio_foto_publico(consulta)
         if bloqueio:
@@ -248,25 +253,20 @@ class EnviarFotoPublicaView(View):
             return JsonResponse({"error": "Loja não encontrada."}, status=400)
 
         conteudo = extrair_bytes_upload_request(request)
-        if conteudo:
-            try:
-                up = upload_foto_media(loja, conteudo)
-                foto = registrar_foto(consulta, up["secure_url"], "qr", up["public_id"])
-            except (FotoUrlInvalida, FotoUploadInvalida) as exc:
-                return JsonResponse({"error": str(exc)}, status=400)
-            return JsonResponse({"success": True, "foto": foto})
-
-        body = parse_json_body_seguro(request)
-        url = (body.get("url") or "").strip()
-        if not url or not url.startswith("https://"):
+        if not conteudo:
             return JsonResponse(
-                {"error": "Não foi possível ler a imagem. Tente enviar novamente."},
+                {
+                    "error": (
+                        "Envie a imagem como arquivo (multipart). "
+                        "Registro por URL JSON não é permitido no link público."
+                    ),
+                },
                 status=400,
             )
 
-        public_id = (body.get("public_id") or "").strip()
         try:
-            foto = registrar_foto(consulta, url, "qr", public_id)
+            up = upload_foto_media(loja, conteudo)
+            foto = registrar_foto(consulta, up["secure_url"], "qr", up["public_id"])
         except (FotoUrlInvalida, FotoUploadInvalida) as exc:
             return JsonResponse({"error": str(exc)}, status=400)
         return JsonResponse({"success": True, "foto": foto})

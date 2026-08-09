@@ -211,15 +211,41 @@ def media_url(loja, filename: str, folder: str = "fotos") -> str:
 
 
 def is_media_url(url: str) -> bool:
-    """Verifica se a URL é do servidor de mídia local."""
-    return "media.lwksistemas.com.br" in (url or "")
+    """True só se host for exatamente o do MEDIA_SERVER_URL e path /files/{tenant}/..."""
+    from urllib.parse import urlparse
+
+    raw = (url or "").strip()
+    if not raw:
+        return False
+    parsed = urlparse(raw)
+    if parsed.scheme not in ("https", "http") or not parsed.hostname:
+        return False
+    if parsed.username or parsed.password:
+        return False
+
+    allowed_host = (urlparse(MEDIA_SERVER_URL).hostname or "").lower()
+    if not allowed_host:
+        allowed_host = "media.lwksistemas.com.br"
+    host = (parsed.hostname or "").lower()
+    if host != allowed_host:
+        return False
+
+    # Em produção o media usa HTTPS; rejeita http se o base for https.
+    if parsed.scheme == "http" and (MEDIA_SERVER_URL or "").startswith("https://"):
+        return False
+
+    # Path deve ser exatamente /files/{tenant}/{folder}/{filename} (sem prefixo).
+    return bool(_FILES_PATH_RE.fullmatch(parsed.path or ""))
 
 
 def parse_media_url(url: str) -> tuple[str, str, str] | None:
     """Extrai (tenant, folder, filename) de uma URL pública de mídia."""
+    from urllib.parse import urlparse
+
     if not is_media_url(url):
         return None
-    match = _FILES_PATH_RE.search(url or "")
+    path = urlparse(url).path or ""
+    match = _FILES_PATH_RE.fullmatch(path)
     if not match:
         return None
     return match.group("tenant"), match.group("folder"), match.group("filename")

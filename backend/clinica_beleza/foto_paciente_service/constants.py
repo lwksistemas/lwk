@@ -1,4 +1,4 @@
-TOKEN_EXPIRACAO_HORAS = 24
+TOKEN_EXPIRACAO_HORAS = 4
 MODULO = "clinica_beleza"
 PATH_PUBLICO = "/enviar-foto/"
 

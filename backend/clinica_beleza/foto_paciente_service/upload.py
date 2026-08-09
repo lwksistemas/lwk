@@ -172,39 +172,36 @@ def upload_foto_media(loja, conteudo: bytes, ambiente: str | None = None) -> dic
 
 
 def _parse_media_path(url: str) -> tuple[str, str] | None:
-    """Extrai (folder, filename) de URL /files/{cnpj}/{folder}/{filename}."""
-    import re
+    """Extrai (folder, filename) de URL pública validada do media server."""
+    from core.media_storage import parse_media_url
 
-    match = re.search(r"/files/(?:\d{11}|\d{14}|superadmin|suporte)/(?P<folder>[\w-]+)/(?P<filename>[^/?#]+)$", url or "")
-    if not match:
+    parsed = parse_media_url(url)
+    if not parsed:
         return None
-    return match.group("folder"), match.group("filename")
+    _tenant, folder, filename = parsed
+    return folder, filename
 
 
 def excluir_foto_media(loja, foto_url: str, public_id: str = "") -> bool:
-    """Remove imagem do servidor de mídia."""
-    from core.media_storage import is_media_url, media_delete
+    """Remove imagem do servidor de mídia (fail-closed se URL inválida)."""
+    from core.media_storage import media_delete
 
     from .exceptions import FotoUrlInvalida
     from .validation import validar_foto_loja
 
     url = (foto_url or "").strip()
     pid = (public_id or "").strip()
-    if not url and not pid:
+    if not url:
         return False
 
     try:
-        if url:
-            validar_foto_loja(loja, url, pid)
+        validar_foto_loja(loja, url, pid)
     except FotoUrlInvalida:
         logger.warning(
             "Tentativa de excluir foto fora da pasta da loja %s: %s",
             getattr(loja, "slug", loja.id),
             url or pid,
         )
-        return False
-
-    if not is_media_url(url):
         return False
 
     parsed = _parse_media_path(url)

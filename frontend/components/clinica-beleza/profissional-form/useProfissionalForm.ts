@@ -80,7 +80,7 @@ export function useProfissionalForm(editId: string | null, onDone: () => void) {
     ClinicaBelezaAPI.locaisAtendimento.list().then((data) => {
       setLocais(Array.isArray(data) ? (data as LocalAtendimentoItem[]) : []);
     }).catch(() => {});
-    ClinicaBelezaAPI.convenios.list().then((data) => {
+    ClinicaBelezaAPI.convenios.list({ all: 1 }).then((data) => {
       setConvenios(Array.isArray(data) ? (data as ConvenioItem[]) : []);
     }).catch(() => {});
   }, []);

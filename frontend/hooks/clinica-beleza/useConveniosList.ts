@@ -8,7 +8,7 @@ export function useConveniosList(enabled = true) {
 
   useEffect(() => {
     if (!enabled) return;
-    ClinicaBelezaAPI.convenios.list()
+    ClinicaBelezaAPI.convenios.list({ all: 1 })
       .then((rows) => setConvenios(Array.isArray(rows) ? rows : []))
       .catch(() => setConvenios([]));
   }, [enabled]);

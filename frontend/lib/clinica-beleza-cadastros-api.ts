@@ -18,7 +18,6 @@ export interface ClinicaProfessionalOption {
   nome?: string;
 }
 
-const CADASTRO_PAGE_SIZE = 200;
 const PATIENT_SEARCH_PAGE_SIZE = 40;
 const HISTORICO_PAGE_SIZE = 100;
 
@@ -38,8 +37,7 @@ export const clinicaBelezaQueryKeys = {
 
 export async function fetchClinicaProfessionals(): Promise<ClinicaProfessionalOption[]> {
   return ClinicaBelezaAPI.getList<ClinicaProfessionalOption>("/professionals/", {
-    page: 1,
-    page_size: CADASTRO_PAGE_SIZE,
+    all: 1,
     active: true,
   });
 }
@@ -47,8 +45,7 @@ export async function fetchClinicaProfessionals(): Promise<ClinicaProfessionalOp
 /** Profissionais visíveis na agenda (filtro scheduling=true no backend). */
 export async function fetchClinicaSchedulingProfessionals(): Promise<ClinicaProfessionalOption[]> {
   return ClinicaBelezaAPI.getList<ClinicaProfessionalOption>("/professionals/", {
-    page: 1,
-    page_size: CADASTRO_PAGE_SIZE,
+    all: 1,
     scheduling: true,
   });
 }
@@ -76,8 +73,7 @@ export async function fetchClinicaHorariosTrabalho(professionalId: string) {
 
 export async function fetchClinicaProcedures(categoria?: string): Promise<ConsultaFormProcedure[]> {
   const params: Record<string, string | number | boolean> = {
-    page: 1,
-    page_size: CADASTRO_PAGE_SIZE,
+    all: 1,
     active: true,
   };
   if (categoria) params.categoria = categoria;

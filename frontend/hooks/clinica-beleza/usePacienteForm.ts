@@ -100,7 +100,7 @@ export function usePacienteForm({
   useEffect(() => {
     if (!isFormView) return;
     ClinicaBelezaAPI.convenios
-      .list()
+      .list({ all: 1 })
       .then((rows) => setConvenios(Array.isArray(rows) ? rows : []))
       .catch(() => setConvenios([]));
   }, [isFormView]);

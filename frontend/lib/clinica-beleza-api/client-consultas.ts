@@ -98,11 +98,6 @@ export const consultasApi = {
         fotos_restantes?: number;
         permite_upload_fotos?: boolean;
       }>(`/consultas/${consultaId}/fotos/`),
-    salvar: (consultaId: number, url: string, publicId?: string) =>
-      cbPost<{ message: string; foto: PacienteFotoItem }>(`/consultas/${consultaId}/fotos/`, {
-        url,
-        public_id: publicId || "",
-      }),
     salvarArquivo: (consultaId: number, file: File) => {
       const formData = new FormData();
       formData.append('file', file);

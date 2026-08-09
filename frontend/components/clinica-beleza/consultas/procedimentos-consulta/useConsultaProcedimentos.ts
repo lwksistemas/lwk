@@ -34,7 +34,7 @@ export function useConsultaProcedimentos({
     try {
       const [lista, procs] = await Promise.all([
         ClinicaBelezaAPI.consultas.procedimentos.list(consultaId),
-        ClinicaBelezaAPI.procedures.list({ active: true, page_size: 200 }),
+        ClinicaBelezaAPI.procedures.list({ active: true, all: 1 }),
       ]);
       setItens(Array.isArray(lista) ? lista : mapProcedimentosFromConsulta(procedimentosIniciais));
       setCatalogo(normalizarCatalogoProcedimentos(procs as { id: number; nome?: string; name?: string; categoria?: string; category?: string }[]));

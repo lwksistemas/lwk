@@ -24,7 +24,6 @@ export function useConsultaFotosTab(
   const [qrLoading, setQrLoading] = useState(false);
   const [selecionadas, setSelecionadas] = useState<number[]>([]);
   const [comparar, setComparar] = useState(false);
-  const [uploadUrl, setUploadUrl] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [zoomFoto, setZoomFoto] = useState<PacienteFotoItem | null>(null);
 
@@ -59,7 +58,7 @@ export function useConsultaFotosTab(
     if (!ativa) return;
     const id = window.setInterval(() => {
       if (document.visibilityState !== "hidden") void carregar();
-    }, 5000);
+    }, 15000);
     return () => clearInterval(id);
   }, [ativa, carregar]);
 
@@ -82,20 +81,6 @@ export function useConsultaFotosTab(
       setQrLoading(false);
     }
   }, [consultaId, limiteAtingido, toast]);
-
-  const salvarUploadPainel = async (url: string) => {
-    if (!url) return;
-    setSalvando(true);
-    try {
-      await ClinicaBelezaAPI.consultas.fotos.salvar(consultaId, url);
-      setUploadUrl("");
-      await carregar();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro ao salvar foto.");
-    } finally {
-      setSalvando(false);
-    }
-  };
 
   const salvarArquivo = async (file: File) => {
     setSalvando(true);
@@ -145,8 +130,6 @@ export function useConsultaFotosTab(
     setSelecionadas,
     comparar,
     setComparar,
-    uploadUrl,
-    setUploadUrl,
     salvando,
     setSalvando,
     zoomFoto,
@@ -155,7 +138,6 @@ export function useConsultaFotosTab(
     limiteAtingido,
     podeEnviarMais,
     abrirQr,
-    salvarUploadPainel,
     salvarArquivo,
     excluir,
     toggleSelecao,

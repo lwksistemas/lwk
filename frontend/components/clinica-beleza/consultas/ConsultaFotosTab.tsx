@@ -3,7 +3,6 @@
 import { useEffect, type ReactNode } from "react";
 import { Columns2, Check, Trash2 } from "lucide-react";
 import { ImageUploadMedia as ImageUpload } from "@/components/ImageUploadMedia";
-import { useToast } from "@/components/ui/Toast";
 import { PacienteFotoZoomModal } from "./PacienteFotoZoomModal";
 import { MAX_FOTOS_POR_CONSULTA } from "./fotos/fotos-constants";
 import { useConsultaFotosTab } from "./fotos-tab/useConsultaFotosTab";
@@ -22,7 +21,6 @@ export function ConsultaFotosTab({
   ativa?: boolean;
   onToolbarChange?: (toolbar: ReactNode | null) => void;
 }) {
-  const toast = useToast();
   const {
     fotos,
     fotosConsultaCount,
@@ -35,15 +33,12 @@ export function ConsultaFotosTab({
     selecionadas,
     comparar,
     setComparar,
-    uploadUrl,
-    setUploadUrl,
     salvando,
     zoomFoto,
     setZoomFoto,
     carregar,
     podeEnviarMais,
     abrirQr,
-    salvarUploadPainel,
     salvarArquivo,
     excluir,
     toggleSelecao,

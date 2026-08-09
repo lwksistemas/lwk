@@ -67,7 +67,7 @@ export function ConsultaDetailStatusBar({
     ClinicaBelezaAPI.locaisAtendimento.list().then((data) => {
       setLocaisAtendimento(Array.isArray(data) ? data.map((l: { id: number; nome: string }) => ({ id: l.id, nome: l.nome })) : []);
     }).catch(() => {});
-    ClinicaBelezaAPI.convenios.list().then((data) => {
+    ClinicaBelezaAPI.convenios.list({ all: 1 }).then((data) => {
       const items: Array<{ id: number; nome: string }> = Array.isArray(data)
         ? data
         : ((data as { results?: Array<{ id: number; nome: string }> })?.results ?? []);

@@ -100,8 +100,12 @@ export const proceduresApi = {
 };
 
 export const conveniosApi = {
-  list: (params?: { todos?: boolean; page?: number; page_size?: number }) =>
-    cbGetList<ConvenioItem>("/convenios/", params),
+  list: (params?: {
+    todos?: boolean;
+    page?: number;
+    page_size?: number;
+    all?: boolean | number | string;
+  }) => cbGetList<ConvenioItem>("/convenios/", params),
   create: (data: { nome: string; codigo?: string }) => cbPost<ConvenioDetailItem>("/convenios/", data),
   delete: (id: number) => cbDelete(`/convenios/${id}/`),
   precos: (id: number) => cbGet<ConvenioPrecoItem[]>(`/convenios/${id}/precos/`),

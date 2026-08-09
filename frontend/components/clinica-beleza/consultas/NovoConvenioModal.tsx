@@ -34,7 +34,7 @@ export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModa
   const loadConvenios = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await ClinicaBelezaAPI.convenios.list();
+      const data = await ClinicaBelezaAPI.convenios.list({ all: 1 });
       setConvenios(Array.isArray(data) ? data : []);
     } catch {
       setErro("Erro ao carregar convênios.");

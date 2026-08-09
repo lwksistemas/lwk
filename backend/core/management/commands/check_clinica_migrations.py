@@ -134,6 +134,8 @@ class Command(BaseCommand):
 
     def _check_0066(self, schema):
         """Verifica se as colunas de paciente_fotos estão renomeadas corretamente."""
+        if not self._table_exists(schema, "clinica_beleza_paciente_fotos"):
+            return True
         expected = {"url", "public_id"}
         forbidden = {"cloudinary_url", "cloudinary_public_id"}
         return self._check_columns(
@@ -142,6 +144,9 @@ class Command(BaseCommand):
 
     def _check_0067(self, schema):
         """Verifica se os campos novos da ClinicaBelezaNfseConfig existem."""
+        if not self._table_exists(schema, "clinica_beleza_clinicabelezanfseconfig"):
+            # Loja sem módulo NFS-e / tabela ainda não criada — não é falha de 0067.
+            return True
         expected = {
             "issnet_usar_padrao_nacional",
             "codigo_tributacao_nacional",
@@ -156,6 +161,19 @@ class Command(BaseCommand):
             schema, "clinica_beleza_clinicabelezanfseconfig", expected, set()
         )
 
+    def _table_exists(self, schema, table_name) -> bool:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = %s AND table_name = %s
+                LIMIT 1
+                """,
+                [schema, table_name],
+            )
+            return cursor.fetchone() is not None
+
     def _check_columns(self, schema, table_name, expected, forbidden):
         with connection.cursor() as cursor:
             cursor.execute(
@@ -168,6 +186,8 @@ class Command(BaseCommand):
             )
             columns = {row[0] for row in cursor.fetchall()}
 
+        if not columns:
+            return False
         if forbidden and forbidden.intersection(columns):
             return False
         return expected.issubset(columns)
@@ -177,67 +197,74 @@ class Command(BaseCommand):
         qn = connection.ops.quote_name
         with connection.cursor() as cursor:
             # 0066: renomeia colunas se existirem com nomes antigos
-            for old_name, new_name in [
-                ("cloudinary_url", "url"),
-                ("cloudinary_public_id", "public_id"),
-            ]:
-                cursor.execute(
-                    f"""
-                    DO $$
-                    BEGIN
-                        IF EXISTS (
-                            SELECT 1 FROM information_schema.columns
-                            WHERE table_schema = %s AND table_name = 'clinica_beleza_paciente_fotos'
-                            AND column_name = %s
-                        ) AND NOT EXISTS (
-                            SELECT 1 FROM information_schema.columns
-                            WHERE table_schema = %s AND table_name = 'clinica_beleza_paciente_fotos'
-                            AND column_name = %s
-                        ) THEN
-                            ALTER TABLE {qn(schema)}.clinica_beleza_paciente_fotos
-                            RENAME COLUMN {qn(old_name)} TO {qn(new_name)};
-                        END IF;
-                    END $$;
-                    """,
-                    [schema, old_name, schema, new_name],
+            if self._table_exists(schema, "clinica_beleza_paciente_fotos"):
+                for old_name, new_name in [
+                    ("cloudinary_url", "url"),
+                    ("cloudinary_public_id", "public_id"),
+                ]:
+                    cursor.execute(
+                        f"""
+                        DO $$
+                        BEGIN
+                            IF EXISTS (
+                                SELECT 1 FROM information_schema.columns
+                                WHERE table_schema = %s AND table_name = 'clinica_beleza_paciente_fotos'
+                                AND column_name = %s
+                            ) AND NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns
+                                WHERE table_schema = %s AND table_name = 'clinica_beleza_paciente_fotos'
+                                AND column_name = %s
+                            ) THEN
+                                ALTER TABLE {qn(schema)}.clinica_beleza_paciente_fotos
+                                RENAME COLUMN {qn(old_name)} TO {qn(new_name)};
+                            END IF;
+                        END $$;
+                        """,
+                        [schema, old_name, schema, new_name],
+                    )
+
+            # 0067: só altera se a tabela de config NFS-e já existir neste schema
+            if self._table_exists(schema, "clinica_beleza_clinicabelezanfseconfig"):
+                for col_name, col_def in [
+                    (
+                        "issnet_usar_padrao_nacional",
+                        "boolean NOT NULL DEFAULT TRUE",
+                    ),
+                    ("codigo_tributacao_nacional", "varchar(10) NOT NULL DEFAULT ''"),
+                    ("codigo_tributacao_municipal", "varchar(10) NOT NULL DEFAULT ''"),
+                    ("nacional_codigo_municipio", "varchar(7) NOT NULL DEFAULT ''"),
+                    ("indicador_operacao", "varchar(2) NOT NULL DEFAULT ''"),
+                    ("cst_ibscbs", "varchar(3) NOT NULL DEFAULT ''"),
+                    ("cclass_trib_ibscbs", "varchar(6) NOT NULL DEFAULT ''"),
+                    ("p_tot_trib_sn", "numeric(5,2)"),
+                ]:
+                    cursor.execute(
+                        f"""
+                        DO $$
+                        BEGIN
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns
+                                WHERE table_schema = %s
+                                  AND table_name = 'clinica_beleza_clinicabelezanfseconfig'
+                                  AND column_name = %s
+                            ) THEN
+                                ALTER TABLE {qn(schema)}.clinica_beleza_clinicabelezanfseconfig
+                                ADD COLUMN {qn(col_name)} {col_def};
+                            END IF;
+                        END $$;
+                        """,
+                        [schema, col_name],
+                    )
+            else:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"    ⏭️ {schema}: tabela NFS-e ausente — use "
+                        "corrigir_schema_clinica_beleza / migrate no tenant."
+                    )
                 )
 
-            # 0067: adiciona colunas na tabela de configuração de NFS-e se não existirem
-            for col_name, col_def in [
-                (
-                    "issnet_usar_padrao_nacional",
-                    "boolean NOT NULL DEFAULT TRUE",
-                ),
-                ("codigo_tributacao_nacional", "varchar(10) NOT NULL DEFAULT ''"),
-                ("codigo_tributacao_municipal", "varchar(10) NOT NULL DEFAULT ''"),
-                ("nacional_codigo_municipio", "varchar(7) NOT NULL DEFAULT ''"),
-                ("indicador_operacao", "varchar(2) NOT NULL DEFAULT ''"),
-                ("cst_ibscbs", "varchar(3) NOT NULL DEFAULT ''"),
-                ("cclass_trib_ibscbs", "varchar(6) NOT NULL DEFAULT ''"),
-                ("p_tot_trib_sn", "numeric(5,2)"),
-            ]:
-                cursor.execute(
-                    f"""
-                    DO $$
-                    BEGIN
-                        IF NOT EXISTS (
-                            SELECT 1 FROM information_schema.columns
-                            WHERE table_schema = %s AND table_name = 'clinica_beleza_clinicabelezanfseconfig'
-                            AND column_name = %s
-                        ) THEN
-                            ALTER TABLE {qn(schema)}.clinica_beleza_clinicabelezanfseconfig
-                            ADD COLUMN {qn(col_name)} {col_def};
-                        END IF;
-                    END $$;
-                    """,
-                    [schema, col_name],
-                )
-
-            # Registra as migrações como aplicadas
-            for migration_name in [
-                "0066_paciente_foto_rename_db_columns",
-                "0067_nfse_config_padrao_nacional_fields",
-            ]:
+            # Registra as migrações como aplicadas apenas quando as tabelas-alvo existem
+            if self._table_exists(schema, "clinica_beleza_paciente_fotos"):
                 cursor.execute(
                     f"""
                     INSERT INTO {qn(schema)}.django_migrations (app, name, applied)
@@ -247,7 +274,25 @@ class Command(BaseCommand):
                         WHERE app = 'clinica_beleza' AND name = %s
                     );
                     """,
-                    [migration_name, migration_name],
+                    [
+                        "0066_paciente_foto_rename_db_columns",
+                        "0066_paciente_foto_rename_db_columns",
+                    ],
+                )
+            if self._table_exists(schema, "clinica_beleza_clinicabelezanfseconfig"):
+                cursor.execute(
+                    f"""
+                    INSERT INTO {qn(schema)}.django_migrations (app, name, applied)
+                    SELECT 'clinica_beleza', %s, NOW()
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM {qn(schema)}.django_migrations
+                        WHERE app = 'clinica_beleza' AND name = %s
+                    );
+                    """,
+                    [
+                        "0067_nfse_config_padrao_nacional_fields",
+                        "0067_nfse_config_padrao_nacional_fields",
+                    ],
                 )
 
         self.stdout.write(self.style.SUCCESS(f"    🔧 Correções aplicadas em {schema}"))

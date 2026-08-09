@@ -1,6 +1,7 @@
 'use client';
 
-import { Download, FileText, Mail, MessageCircle, RefreshCw, Trash2, X } from 'lucide-react';
+import { Download, FileText, Link, Mail, MessageCircle, RefreshCw, Trash2, X } from 'lucide-react';
+import { useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime } from '@/lib/financeiro-helpers';
@@ -103,6 +104,28 @@ function NfseLojaRow({
   const aliquota = Number(nf.aliquota_iss ?? 0).toFixed(2);
   const podeBaixar = nfsePodeBaixar(nf.status);
   const podeSincronizar = nfsePodeSincronizar(nf.status, nf, lojaProvedor);
+  const [salvandoUrl, setSalvandoUrl] = useState(false);
+
+  const handleColarLink = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = window.prompt(
+      `Cole o link da nota ${nf.numero_nf} (do email do ISSNet):`,
+      nf.pdf_url || ''
+    );
+    if (!url || !url.startsWith('http')) return;
+    setSalvandoUrl(true);
+    try {
+      await apiClient.post(`/nfse/${nf.id}/salvar_url/`, { url });
+      toast.success('Link da nota salvo! Agora o PDF abre diretamente no portal.');
+      // Atualizar pdf_url localmente
+      nf.pdf_url = url;
+    } catch {
+      toast.error('Erro ao salvar link. Tente novamente.');
+    } finally {
+      setSalvandoUrl(false);
+    }
+  };
 
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/50">
@@ -161,6 +184,20 @@ function NfseLojaRow({
                 className="p-1.5 text-gray-600 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
               >
                 <Mail size={16} />
+              </button>
+              {/* Botão para colar o link oficial da nota (do email do ISSNet) */}
+              <button
+                type="button"
+                title={nf.pdf_url ? 'Link da nota salvo — clique para atualizar' : 'Colar link da nota (do email do ISSNet)'}
+                onClick={handleColarLink}
+                disabled={salvandoUrl}
+                className={`p-1.5 rounded ${
+                  nf.pdf_url
+                    ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                    : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                }`}
+              >
+                <Link size={16} />
               </button>
               {whatsappHabilitado && nfsePodeEnviarWhatsapp(nf.status) && (
                 <button

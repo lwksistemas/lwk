@@ -277,6 +277,25 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             logger.exception("Erro ao baixar XML da NFS-e: %s", e)
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=True, methods=["post"], url_path="salvar_url")
+    def salvar_url(self, request, pk=None):
+        """Salva a URL oficial da nota (ex: link do email do ISSNet) para uso no PDF/email."""
+        try:
+            nfse = self.get_object()
+            url = (request.data.get("url") or "").strip()
+            if not url or not url.startswith("http"):
+                return Response(
+                    {"error": "URL inválida. Informe o link completo da nota."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            nfse.pdf_url = url[:2000]
+            nfse.save(update_fields=["pdf_url", "updated_at"])
+            logger.info("NFS-e %s: pdf_url salva manualmente (%s...)", nfse.numero_nf, url[:60])
+            return Response({"success": True, "url": url})
+        except Exception as e:
+            logger.exception("Erro ao salvar URL da NFS-e: %s", e)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=True, methods=["post"])
     def enviar_whatsapp(self, request, pk=None):
         try:

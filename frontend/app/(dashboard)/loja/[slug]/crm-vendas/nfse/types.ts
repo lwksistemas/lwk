@@ -21,6 +21,7 @@ export interface NFSe {
   provedor?: string;
   asaas_invoice_id?: string;
   erro?: string;
+  pdf_url?: string;
 }
 
 export type NfseLojaRowHandlers = {

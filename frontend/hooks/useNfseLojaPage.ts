@@ -245,11 +245,30 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
         motivo: escolha.motivo,
         codigo_cancelamento: escolha.codigo,
       });
-      toast.success('NFS-e cancelada no ISSNet com sucesso.');
+      toast.success('NFS-e cancelada com sucesso.');
       setNfCancelamento(null);
       await carregarNFSes(true);
     } catch (err: unknown) {
-      toast.error(getCrmApiErrorDetail(err, 'Erro ao cancelar NFS-e'));
+      const ax = err as { response?: { data?: { error?: string; cancelamento_manual_necessario?: boolean } } };
+      const manualNecessario = ax.response?.data?.cancelamento_manual_necessario;
+      const errorMsg = ax.response?.data?.error || getCrmApiErrorDetail(err, 'Erro ao cancelar NFS-e');
+
+      if (manualNecessario) {
+        // ISSNet Nacional Ribeirão Preto: cancelamento via API não disponível
+        toast.warning(
+          'Cancelamento automático indisponível no padrão Nacional. ' +
+          'Abra o portal da prefeitura para solicitar o cancelamento, ' +
+          'depois use "Sincronizar" para atualizar o status.',
+          { duration: 8000 }
+        );
+        // Abrir portal em nova aba
+        window.open(
+          'https://ribeiraopreto.solarbpm.softplan.com.br/atendimento/',
+          '_blank'
+        );
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setCancelandoNFSe(false);
     }

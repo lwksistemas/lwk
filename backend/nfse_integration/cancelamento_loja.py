@@ -132,9 +132,24 @@ def _cancelar_nfse_loja_nacional(
         erro = resultado.get("erro") or "Erro ao cancelar no ISSNet Nacional"
         if isinstance(erro, (list, tuple)):
             erro = "; ".join(str(e) for e in erro)
+
+        # ISSNet Nacional Ribeirão Preto: cancelamento via API não implementado
+        erro_str = str(erro)
+        if "construção" in erro_str or "indisponível" in erro_str or "E999" in erro_str:
+            return {
+                "success": False,
+                "error": (
+                    "O cancelamento automático via API não está disponível no padrão Nacional de Ribeirão Preto. "
+                    "Para cancelar esta nota, acesse o portal: "
+                    "https://ribeiraopreto.solarbpm.softplan.com.br/atendimento/ "
+                    "e abra um processo de CANCELAMENTO DE NFe. "
+                    "Após o cancelamento ser aprovado, use «Sincronizar» na lista para atualizar o status."
+                ),
+                "cancelamento_manual_necessario": True,
+            }
         return {
             "success": False,
-            "error": str(erro),
+            "error": erro_str,
         }
     except Exception as exc:
         logger.exception("Erro ao cancelar NFS-e via ISSNet Nacional: %s", exc)

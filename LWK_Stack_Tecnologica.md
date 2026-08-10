@@ -62,7 +62,7 @@
 │  Docker Compose:                                                  │
 │    ├── frontend       (Next.js 16 standalone — branch main)      │
 │    ├── frontend-beta  (Next.js 16 standalone — branch staging)   │
-│    ├── backend        (Django 6 + Gunicorn, 4 workers)           │
+│    ├── backend        (Django 6 + Gunicorn, 6 workers × 2 threads)│
 │    ├── worker         (django-q2, 4 processos)                   │
 │    ├── evolution      (WhatsApp API v2.3.7)                      │
 │    ├── postgres       (18-bookworm)                              │

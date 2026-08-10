@@ -21,4 +21,5 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8080
 
-CMD ["gunicorn", "config.wsgi", "--bind", "0.0.0.0:8080", "--workers", "4", "--threads", "2", "--worker-class", "gthread", "--timeout", "60", "--graceful-timeout", "30", "--keep-alive", "5", "--max-requests", "1000", "--max-requests-jitter", "50", "--log-file", "-", "--access-logfile", "-"]
+# Workers default; em Magalu o docker-compose.prod.yml sobrescreve para 6×2.
+CMD ["gunicorn", "config.wsgi", "--bind", "0.0.0.0:8080", "--workers", "6", "--threads", "2", "--worker-class", "gthread", "--timeout", "60", "--graceful-timeout", "30", "--keep-alive", "5", "--max-requests", "1000", "--max-requests-jitter", "50", "--log-file", "-", "--access-logfile", "-"]

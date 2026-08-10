@@ -2,6 +2,29 @@ services:
   postgres:
     image: postgres:18.4-bookworm
     restart: always
+    # Tuning para BV8-16-150 (8 vCPU / 16 GB), compartilhado com app/Evolution.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=2GB
+      - -c
+      - effective_cache_size=10GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_connections=150
+      - -c
+      - wal_buffers=64MB
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - default_statistics_target=100
     volumes:
       - pgdata:/var/lib/postgresql
     environment:
@@ -19,7 +42,7 @@ services:
   redis:
     image: redis:7.4-alpine
     restart: always
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redisdata:/data
     healthcheck:
@@ -45,6 +68,34 @@ services:
       - DATABASE_URL=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/lwk
       - REDIS_URL=redis://redis:6379/0
       - LWK_PROCESS_ROLE=web
+      - CONN_MAX_AGE=120
+      - DJANGO_Q_WORKERS=4
+    # Override do Dockerfile: 6×2=12 slots (antes 4×2=8) no host 8 vCPU.
+    command:
+      - gunicorn
+      - config.wsgi
+      - --bind
+      - 0.0.0.0:8080
+      - --workers
+      - "6"
+      - --threads
+      - "2"
+      - --worker-class
+      - gthread
+      - --timeout
+      - "60"
+      - --graceful-timeout
+      - "30"
+      - --keep-alive
+      - "5"
+      - --max-requests
+      - "1000"
+      - --max-requests-jitter
+      - "50"
+      - --log-file
+      - "-"
+      - --access-logfile
+      - "-"
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
@@ -67,6 +118,7 @@ services:
       - DATABASE_URL=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/lwk
       - REDIS_URL=redis://redis:6379/0
       - LWK_PROCESS_ROLE=worker
+      - DJANGO_Q_WORKERS=4
     command: sh scripts/start_worker.sh
     volumes:
       - media:/app/media

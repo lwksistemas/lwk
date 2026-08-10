@@ -162,10 +162,10 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#16325c] rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+      <div className="bg-white dark:bg-[#16325c] rounded-lg w-full max-w-5xl max-h-[92vh] overflow-y-auto shadow-xl">
+        <div className="p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-4 sm:mb-5">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Emitir NFS-e</h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
               <X size={24} />
@@ -198,57 +198,64 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
           )}
 
           {step === 'formulario' && (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 text-sm">
-                <span className="font-medium text-blue-900 dark:text-blue-100">Emissor: </span>
-                <span className="text-blue-800 dark:text-blue-200">
-                  {emitenteNome || 'Loja atual (CNPJ do cadastro)'}
-                </span>
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6">
+                <div className="space-y-4 min-w-0">
+                  <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 text-sm">
+                    <span className="font-medium text-blue-900 dark:text-blue-100">Emissor: </span>
+                    <span className="text-blue-800 dark:text-blue-200">
+                      {emitenteNome || 'Loja atual (CNPJ do cadastro)'}
+                    </span>
+                  </div>
 
-              {modoTomador === 'cadastrado' ? (
-                <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4 text-sm space-y-1">
-                  <p className="font-medium text-green-900 dark:text-green-100">Cliente encontrado no cadastro</p>
-                  <p className="text-green-800 dark:text-green-200">{formData.tomador_nome}</p>
-                  <p className="text-green-700 dark:text-green-300">{formData.tomador_cpf_cnpj}</p>
-                  {formData.tomador_email && (
-                    <p className="text-green-700 dark:text-green-300">{formData.tomador_email}</p>
-                  )}
-                </div>
-              ) : (
-                <>
-                  {formData.tomador_nome ? (
-                    <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3 text-sm text-green-900 dark:text-green-100">
-                      {fonteTomador === 'conta'
-                        ? 'Cliente encontrado no cadastro (Clientes).'
-                        : fonteTomador === 'lead'
-                          ? 'Cliente encontrado no cadastro (Leads).'
-                          : fonteTomador === 'brasilapi'
-                            ? 'Dados obtidos da Receita Federal. Confira abaixo e informe o e-mail do cliente.'
-                            : fonteTomador === 'nfse'
-                              ? 'Dados recuperados de nota fiscal anterior. Confira e complete o endereço se necessário.'
-                              : 'Dados do cliente encontrados. Confira abaixo e complete o endereço se necessário.'}
+                  {modoTomador === 'cadastrado' ? (
+                    <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4 text-sm space-y-1">
+                      <p className="font-medium text-green-900 dark:text-green-100">Cliente encontrado no cadastro</p>
+                      <p className="text-green-800 dark:text-green-200">{formData.tomador_nome}</p>
+                      <p className="text-green-700 dark:text-green-300">{formData.tomador_cpf_cnpj}</p>
+                      {formData.tomador_email && (
+                        <p className="text-green-700 dark:text-green-300">{formData.tomador_email}</p>
+                      )}
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-900 dark:text-amber-100">
-                      Cliente não encontrado no cadastro. Preencha os dados manualmente.
-                    </div>
+                    <>
+                      {formData.tomador_nome ? (
+                        <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3 text-sm text-green-900 dark:text-green-100">
+                          {fonteTomador === 'conta'
+                            ? 'Cliente encontrado no cadastro (Clientes).'
+                            : fonteTomador === 'lead'
+                              ? 'Cliente encontrado no cadastro (Leads).'
+                              : fonteTomador === 'brasilapi'
+                                ? 'Dados obtidos da Receita Federal. Confira abaixo e informe o e-mail do cliente.'
+                                : fonteTomador === 'nfse'
+                                  ? 'Dados recuperados de nota fiscal anterior. Confira e complete o endereço se necessário.'
+                                  : 'Dados do cliente encontrados. Confira abaixo e complete o endereço se necessário.'}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-900 dark:text-amber-100">
+                          Cliente não encontrado no cadastro. Preencha os dados manualmente.
+                        </div>
+                      )}
+                      <ModalEmitirNFSeTomadorFields formData={formData} onChange={handleFieldChange} />
+                      <ModalEmitirNFSeEnderecoFields formData={formData} onChange={handleFieldChange} />
+                    </>
                   )}
-                  <ModalEmitirNFSeTomadorFields formData={formData} onChange={handleFieldChange} />
-                  <ModalEmitirNFSeEnderecoFields formData={formData} onChange={handleFieldChange} />
-                </>
-              )}
+                </div>
 
-              <ServicoFields
-                servico_descricao={formData.servico_descricao}
-                valor_servicos={formData.valor_servicos}
-                enviar_email={formData.enviar_email}
-                codigo_cnae={formData.codigo_cnae}
-                codigo_servico={formData.codigo_servico}
-                item_lista_servico={formData.item_lista_servico}
-                codigo_tributacao_nacional={formData.codigo_tributacao_nacional}
-                onChange={handleFieldChange}
-              />
+                <div className="min-w-0 lg:border-l lg:border-gray-200 dark:lg:border-gray-700 lg:pl-6">
+                  <ServicoFields
+                    servico_descricao={formData.servico_descricao}
+                    valor_servicos={formData.valor_servicos}
+                    enviar_email={formData.enviar_email}
+                    codigo_cnae={formData.codigo_cnae}
+                    codigo_servico={formData.codigo_servico}
+                    item_lista_servico={formData.item_lista_servico}
+                    codigo_tributacao_nacional={formData.codigo_tributacao_nacional}
+                    onChange={handleFieldChange}
+                  />
+                </div>
+              </div>
+
               <ModalFormButtons
                 loading={loading}
                 onBack={() => {

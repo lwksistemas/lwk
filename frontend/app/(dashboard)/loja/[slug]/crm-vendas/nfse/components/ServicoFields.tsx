@@ -50,28 +50,45 @@ export function ServicoFields({
   });
 
   return (
-    <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+    <div className="pt-1 lg:pt-0">
       <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Dados do Serviço</h3>
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Atividade Municipal *
-          </label>
-          <select
-            value={selectedIdx}
-            onChange={handleAtividadeChange}
-            required
-            className={NFSE_EMISSAO_INPUT_CLASS}
-          >
-            {NFSE_ATIVIDADES_MUNICIPAIS.map((a, i) => (
-              <option key={a.id} value={i}>
-                {a.label}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Preenche automaticamente CNAE, tributação nacional e municipal.
-          </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Atividade Municipal *
+            </label>
+            <select
+              value={selectedIdx}
+              onChange={handleAtividadeChange}
+              required
+              className={NFSE_EMISSAO_INPUT_CLASS}
+            >
+              {NFSE_ATIVIDADES_MUNICIPAIS.map((a, i) => (
+                <option key={a.id} value={i}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Preenche automaticamente CNAE, tributação nacional e municipal.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Valor (R$) *
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={valor_servicos}
+              onChange={(e) => onChange('valor_servicos', e.target.value)}
+              required
+              className={NFSE_EMISSAO_INPUT_CLASS}
+              placeholder="0.00"
+            />
+          </div>
         </div>
 
         <div>
@@ -82,24 +99,9 @@ export function ServicoFields({
             value={servico_descricao}
             onChange={(e) => onChange('servico_descricao', e.target.value)}
             required
-            rows={3}
-            className={NFSE_EMISSAO_INPUT_CLASS}
+            rows={6}
+            className={`${NFSE_EMISSAO_INPUT_CLASS} min-h-[8rem]`}
             placeholder="Ex: Serviços de representação comercial"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Valor dos Serviços (R$) *
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={valor_servicos}
-            onChange={(e) => onChange('valor_servicos', e.target.value)}
-            required
-            className={NFSE_EMISSAO_INPUT_CLASS}
-            placeholder="0.00"
           />
         </div>
         <label className="flex items-center gap-2 cursor-pointer">

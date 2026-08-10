@@ -169,9 +169,7 @@ class LojaContextHelper:
         """Invalida todos os caches da loja"""
         cache.delete(f"owner_professional_{loja_id}")
         cache.delete(f"admin_professional_ids_{loja_id}")
-        cache.delete(f"loja_owner_info_{loja_id}")
-        cache.delete(f"loja_owner_info_v2_{loja_id}")
-        cache.delete(f"loja_owner_info_v3_{loja_id}")
+        cache.delete(f"loja_owner_info_v4_{loja_id}")
         cache.delete(f"whatsapp_config_{loja_id}")
         invalidate_dashboard_cache(loja_id)
 

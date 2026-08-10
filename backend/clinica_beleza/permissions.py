@@ -69,184 +69,114 @@ class IsClinicaLojaMember(BasePermission):
         return prof is not None
 
 
-class IsRecepcaoOrAdmin(BasePermission):
+class _BaseClinicaProfilePermission(BasePermission):
+    """Classe base para permissões RBAC baseadas em perfil.
+
+    Subclasses definem ``allowed_profiles`` (tupla de perfis aceitos) e
+    ``message`` (mensagem de negação). O fluxo padrão é:
+    1. Usuário autenticado?
+    2. Superuser → sim
+    3. Loja existe? Owner da loja → sim
+    4. ProfissionalUsuario vinculado? Perfil na lista → sim
+    """
+
+    allowed_profiles: tuple[str, ...] = ()
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        loja, prof = _loja_and_profissional(request)
+        if prof == "superuser":
+            return True
+        if not loja:
+            return False
+        if loja.owner_id == request.user.id:
+            return True
+        if not prof:
+            return False
+        return prof.perfil in self.allowed_profiles
+
+
+class IsRecepcaoOrAdmin(_BaseClinicaProfilePermission):
     """Cadastros/recepção ampla: owner, administrador, recepcionista ou recepcao (legado).
     Exclui perfil limpeza, caixa, estoque e profissional.
     """
 
     message = "Acesso permitido apenas para administrador ou perfil recepção."
-
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        loja, prof = _loja_and_profissional(request)
-        if prof == "superuser":
-            return True
-        if not loja:
-            return False
-        if loja.owner_id == request.user.id:
-            return True
-        if not prof:
-            return False
-
-        return prof.perfil in (
-            ProfissionalUsuario.PERFIL_ADMINISTRADOR,
-            ProfissionalUsuario.PERFIL_RECEPCAO,
-            ProfissionalUsuario.PERFIL_RECEPCIONISTA,
-        )
+    allowed_profiles = (
+        ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+        ProfissionalUsuario.PERFIL_RECEPCAO,
+        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+    )
 
 
-class IsAgendaOrAdmin(BasePermission):
+class IsAgendaOrAdmin(_BaseClinicaProfilePermission):
     """Agenda e bloqueios: recepção/admin (visão completa) ou profissional (escopo próprio).
     """
 
     message = "Acesso permitido apenas para recepção, administrador ou profissional da clínica."
-
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        loja, prof = _loja_and_profissional(request)
-        if prof == "superuser":
-            return True
-        if not loja:
-            return False
-        if loja.owner_id == request.user.id:
-            return True
-        if not prof:
-            return False
-
-        return prof.perfil in (
-            ProfissionalUsuario.PERFIL_ADMINISTRADOR,
-            ProfissionalUsuario.PERFIL_RECEPCAO,
-            ProfissionalUsuario.PERFIL_RECEPCIONISTA,
-            ProfissionalUsuario.PERFIL_PROFISSIONAL,
-        )
+    allowed_profiles = (
+        ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+        ProfissionalUsuario.PERFIL_RECEPCAO,
+        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+        ProfissionalUsuario.PERFIL_PROFISSIONAL,
+    )
 
 
-class IsClinicaAdmin(BasePermission):
+class IsClinicaAdmin(_BaseClinicaProfilePermission):
     """Configurações e gestão: owner ou perfil administrador."""
 
     message = "Acesso permitido apenas para administrador da clínica."
-
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        loja, prof = _loja_and_profissional(request)
-        if prof == "superuser":
-            return True
-        if not loja:
-            return False
-        if loja.owner_id == request.user.id:
-            return True
-        if not prof:
-            return False
-
-        return prof.perfil == ProfissionalUsuario.PERFIL_ADMINISTRADOR
+    allowed_profiles = (ProfissionalUsuario.PERFIL_ADMINISTRADOR,)
 
 
-class IsClinicaClinicalStaff(BasePermission):
+class IsClinicaClinicalStaff(_BaseClinicaProfilePermission):
     """Prontuário, prescrição e documentos clínicos."""
 
     message = "Acesso permitido apenas à equipe clínica autorizada."
-
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        loja, prof = _loja_and_profissional(request)
-        if prof == "superuser":
-            return True
-        if not loja:
-            return False
-        if loja.owner_id == request.user.id:
-            return True
-        if not prof:
-            return False
-
-        return prof.perfil in (
-            ProfissionalUsuario.PERFIL_ADMINISTRADOR,
-            ProfissionalUsuario.PERFIL_PROFISSIONAL,
-            ProfissionalUsuario.PERFIL_RECEPCAO,
-            ProfissionalUsuario.PERFIL_RECEPCIONISTA,
-        )
+    allowed_profiles = (
+        ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+        ProfissionalUsuario.PERFIL_PROFISSIONAL,
+        ProfissionalUsuario.PERFIL_RECEPCAO,
+        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+    )
 
 
-class IsClinicaFinanceiro(BasePermission):
+class IsClinicaFinanceiro(_BaseClinicaProfilePermission):
     """Financeiro da clínica."""
 
     message = "Acesso permitido apenas para administrador, recepção ou caixa."
-
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        loja, prof = _loja_and_profissional(request)
-        if prof == "superuser":
-            return True
-        if not loja:
-            return False
-        if loja.owner_id == request.user.id:
-            return True
-        if not prof:
-            return False
-
-        return prof.perfil in (
-            ProfissionalUsuario.PERFIL_ADMINISTRADOR,
-            ProfissionalUsuario.PERFIL_RECEPCAO,
-            ProfissionalUsuario.PERFIL_RECEPCIONISTA,
-            ProfissionalUsuario.PERFIL_CAIXA,
-        )
+    allowed_profiles = (
+        ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+        ProfissionalUsuario.PERFIL_RECEPCAO,
+        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+        ProfissionalUsuario.PERFIL_CAIXA,
+    )
 
 
-class IsClinicaEstoque(BasePermission):
+class IsClinicaEstoque(_BaseClinicaProfilePermission):
     """Estoque e insumos."""
 
     message = "Acesso permitido apenas para administrador, recepção ou estoque."
-
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        loja, prof = _loja_and_profissional(request)
-        if prof == "superuser":
-            return True
-        if not loja:
-            return False
-        if loja.owner_id == request.user.id:
-            return True
-        if not prof:
-            return False
-
-        return prof.perfil in (
-            ProfissionalUsuario.PERFIL_ADMINISTRADOR,
-            ProfissionalUsuario.PERFIL_RECEPCAO,
-            ProfissionalUsuario.PERFIL_RECEPCIONISTA,
-            ProfissionalUsuario.PERFIL_ESTOQUE,
-        )
+    allowed_profiles = (
+        ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+        ProfissionalUsuario.PERFIL_RECEPCAO,
+        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+        ProfissionalUsuario.PERFIL_ESTOQUE,
+    )
 
 
-class IsClinicalOrEstoqueStaff(BasePermission):
+class IsClinicalOrEstoqueStaff(_BaseClinicaProfilePermission):
     """Leitura de estoque na consulta: equipe clínica ou perfil estoque (exclui limpeza/caixa)."""
 
     message = "Acesso permitido apenas à equipe clínica ou estoque."
-
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        loja, prof = _loja_and_profissional(request)
-        if prof == "superuser":
-            return True
-        if not loja:
-            return False
-        if loja.owner_id == request.user.id:
-            return True
-        if not prof:
-            return False
-
-        return prof.perfil in (
-            ProfissionalUsuario.PERFIL_ADMINISTRADOR,
-            ProfissionalUsuario.PERFIL_PROFISSIONAL,
-            ProfissionalUsuario.PERFIL_RECEPCAO,
-            ProfissionalUsuario.PERFIL_RECEPCIONISTA,
-            ProfissionalUsuario.PERFIL_ESTOQUE,
-        )
+    allowed_profiles = (
+        ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+        ProfissionalUsuario.PERFIL_PROFISSIONAL,
+        ProfissionalUsuario.PERFIL_RECEPCAO,
+        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+        ProfissionalUsuario.PERFIL_ESTOQUE,
+    )
 
 
 def resolve_agenda_professional_scope(request) -> int | None:

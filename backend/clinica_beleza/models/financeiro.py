@@ -1,9 +1,13 @@
 """Models — pagamentos e campanhas."""
+import logging
+
 from django.db import models
 
 from core.mixins import LojaIsolationManager, LojaIsolationMixin
 
 from .appointments import Appointment
+
+logger = logging.getLogger(__name__)
 
 
 class Payment(LojaIsolationMixin, models.Model):
@@ -77,14 +81,17 @@ class Payment(LojaIsolationMixin, models.Model):
     def valor_pago_parcelas(self):
         """Soma das parcelas PAID; se não houver parcelas, usa amount (legado/quitado à vista)."""
         from decimal import Decimal
+
+        from django.db import DatabaseError
+
         try:
             total = self.parcelas.filter(status="PAID").aggregate(
                 total=models.Sum("valor"),
             )["total"]
             if total is not None:
                 return total
-        except Exception:
-            pass
+        except (DatabaseError, TypeError, ArithmeticError) as exc:
+            logger.warning("Payment %s: erro ao somar parcelas — %s", self.pk, exc)
         # Sem parcelas: amount representa o já pago quando PARTIAL/PAID/DRAFT
         if self.status in ("PAID", "PARTIAL", "DRAFT"):
             return Decimal(str(self.amount or 0))
@@ -93,11 +100,13 @@ class Payment(LojaIsolationMixin, models.Model):
     @property
     def saldo_devedor(self):
         """Valor ainda em aberto = total - valor pago (parcelas ou amount)."""
-        from decimal import Decimal
+        from decimal import Decimal, InvalidOperation
+
         try:
             saldo = self.valor_total_efetivo - self.valor_pago_parcelas
             return saldo if saldo > 0 else Decimal(0)
-        except Exception:
+        except (TypeError, ArithmeticError, InvalidOperation) as exc:
+            logger.warning("Payment %s: erro ao calcular saldo_devedor — %s", self.pk, exc)
             return self.valor_total_efetivo
 
 

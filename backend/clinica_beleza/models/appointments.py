@@ -91,7 +91,7 @@ class Appointment(LojaIsolationMixin, models.Model):
         ("CONFIRMED", "Cliente presente"),
         ("CLIENT_CONFIRMED", "Confirmado pelo WhatsApp"),
         ("PHONE_CONFIRMED", "Confirmado por ligação"),
-        ("PENDING", "Aguardando confirmação"),  # legado — migrar para SCHEDULED
+        ("PENDING", "Aguardando confirmação"),  # legado — rodar normalizar_status_agenda antes de remover
         ("SCHEDULED", "Aguardando confirmação"),
         ("IN_PROGRESS", "Em Atendimento"),
         ("COMPLETED", "Consulta finalizada"),
@@ -179,10 +179,16 @@ class Appointment(LojaIsolationMixin, models.Model):
         ]
 
     def __str__(self):
-        nomes = ", ".join(
-            self.procedures.values_list("nome", flat=True),
-        ) if self.procedures.exists() else (self.procedure.nome if self.procedure_id else "—")
-        return f"{self.patient.nome} - {nomes} - {self.date.strftime('%d/%m/%Y %H:%M')}"
+        # Evita N+1: só usa procedures se já estiver no prefetch cache.
+        cached = getattr(self, "_prefetched_objects_cache", {}) or {}
+        if "procedures" in cached:
+            nomes = ", ".join(p.nome for p in cached["procedures"]) or "—"
+        elif self.procedure_id:
+            nomes = f"proc#{self.procedure_id}"
+        else:
+            nomes = "—"
+        paciente = f"paciente#{self.patient_id}"
+        return f"{paciente} - {nomes} - {self.date.strftime('%d/%m/%Y %H:%M')}"
 
     def get_duracao_efetiva(self) -> int:
         """Duração efetiva: manual > max(procedimentos, tempo consulta do profissional)."""

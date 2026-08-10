@@ -144,15 +144,36 @@ class Consulta(LojaIsolationMixin, models.Model):
             current_loja_id = get_current_loja_id()
             if current_loja_id:
                 self.loja_id = current_loja_id
-        if self.numero is None:
-            from django.db.models import Max
+        if self.numero is not None:
+            super().save(*args, **kwargs)
+            return
+        # Auto-incremento com retry em caso de race condition
+        self._salvar_com_proximo_numero(*args, **kwargs)
 
+    def _salvar_com_proximo_numero(self, *args, max_tentativas: int = 5, **kwargs) -> None:
+        """Atribui o próximo número sequencial e salva com retry.
+
+        O UniqueConstraint (loja_id, numero) garante unicidade no banco.
+        Se dois workers concorrentes obtiverem o mesmo Max, o segundo
+        receberá IntegrityError e fará retry com valor atualizado.
+        """
+        from django.db import IntegrityError
+        from django.db.models import Max
+
+        for tentativa in range(max_tentativas):
             qs = Consulta.objects.all()
             if self.loja_id:
                 qs = qs.filter(loja_id=self.loja_id)
             ultimo = qs.aggregate(m=Max("numero")).get("m")
             self.numero = int(ultimo or 0) + 1
-        super().save(*args, **kwargs)
+            try:
+                super().save(*args, **kwargs)
+                return
+            except IntegrityError:
+                if tentativa == max_tentativas - 1:
+                    raise
+                # INSERT falhou por UniqueConstraint; recalcula o próximo número.
+                self.numero = None
 
     @property
     def duracao_minutos(self):

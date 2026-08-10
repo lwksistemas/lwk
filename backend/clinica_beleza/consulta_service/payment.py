@@ -91,7 +91,8 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
     total_pago = payment.valor_pago_parcelas
     try:
         saldo_apos = payment.saldo_devedor
-    except Exception:
+    except (TypeError, ArithmeticError) as exc:
+        logger.warning("Erro saldo_devedor payment %s: %s", payment.pk, exc)
         saldo_apos = max(valor_total - total_pago, Decimal(0))
     quitou = total_pago >= valor_total or (mark_as_paid and saldo_apos <= Decimal("0.01"))
     payment.status = "DRAFT"
@@ -245,7 +246,8 @@ def _atualizar_status_consulta_apos_recebimento(consulta, payment) -> None:
     """
     try:
         quitado = payment.saldo_devedor <= Decimal("0.01")
-    except Exception:
+    except (TypeError, ArithmeticError) as exc:
+        logger.warning("Erro saldo_devedor payment %s: %s", payment.pk, exc)
         quitado = payment.status in ("PAID", "DRAFT") and Decimal(str(payment.amount or 0)) > 0
 
     if getattr(consulta, "data_inicio", None):
@@ -372,7 +374,8 @@ def registrar_recebimento_consulta(
 
     try:
         saldo = payment.saldo_devedor
-    except Exception:
+    except (TypeError, ArithmeticError) as exc:
+        logger.warning("Erro saldo_devedor payment %s: %s", payment.pk, exc)
         saldo = valor_total
     if soma_entradas > saldo + Decimal("0.01"):
         raise ValueError(f"Soma das formas (R$ {soma_entradas}) excede o saldo a receber (R$ {saldo}).")
@@ -491,7 +494,8 @@ def estornar_recebimento_consulta(consulta):
 
     try:
         ja_pago = payment.valor_pago_parcelas
-    except Exception:
+    except (TypeError, ArithmeticError) as exc:
+        logger.warning("Erro valor_pago_parcelas payment %s: %s", payment.pk, exc)
         ja_pago = Decimal(str(payment.amount or 0))
     if ja_pago <= 0 and payment.status == "PENDING":
         raise ValueError("Não há valor pago para estornar.")

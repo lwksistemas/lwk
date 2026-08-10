@@ -43,6 +43,9 @@ from .views import (
     sync_mercadopago_loja,
     verificar_storage_loja,  # ✅ NOVO v738
     verificar_storage_todas,
+    listar_midia_tenants,
+    listar_midia_pastas,
+    listar_midia_arquivos,
 )
 from .views import lockouts as lockout_views
 from .views_security_enhancements import SecurityDashboardViewSet  # ✅ NOVO: Melhorias de segurança
@@ -122,6 +125,11 @@ urlpatterns = [
     path("lojas/<int:loja_id>/verificar-storage/", verificar_storage_loja, name="verificar-storage-loja"),
     path("storage/verificar-todas/", verificar_storage_todas, name="verificar-storage-todas"),
     path("storage/", listar_storage_lojas, name="listar-storage-lojas"),
+
+    # Servidor de mídia (pastas por CPF/CNPJ)
+    path("midia/", listar_midia_tenants, name="listar-midia-tenants"),
+    path("midia/<str:tenant>/", listar_midia_pastas, name="listar-midia-pastas"),
+    path("midia/<str:tenant>/<str:folder>/", listar_midia_arquivos, name="listar-midia-arquivos"),
 
     # Configuração da Homepage (CRUD)
     path("homepage/", include("homepage.urls_admin")),

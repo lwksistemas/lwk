@@ -259,3 +259,70 @@ def media_delete_by_url(url: str) -> bool:
         return False
     tenant, folder, filename = parsed
     return media_delete_tenant(tenant, filename, folder=folder)
+
+
+def _media_auth_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {MEDIA_API_TOKEN}"}
+
+
+def media_list_tenants() -> dict | None:
+    """Lista tenants (pastas raiz) no servidor de mídia. Requer token."""
+    url = f"{MEDIA_SERVER_URL.rstrip('/')}/list/"
+    try:
+        response = requests.get(url, headers=_media_auth_headers(), timeout=20)
+        if response.status_code == 200:
+            return response.json()
+        logger.error(
+            "media_list_tenants falhou: HTTP %s — %s",
+            response.status_code,
+            response.text[:200],
+        )
+        return None
+    except Exception as exc:
+        logger.exception("media_list_tenants erro: %s", exc)
+        return None
+
+
+def media_list_folders(tenant: str) -> dict | None:
+    """Lista pastas de um tenant no servidor de mídia."""
+    tenant_key = normalize_media_tenant(tenant)
+    if not tenant_key:
+        return None
+    url = f"{MEDIA_SERVER_URL.rstrip('/')}/list/{tenant_key}/"
+    try:
+        response = requests.get(url, headers=_media_auth_headers(), timeout=20)
+        if response.status_code == 200:
+            return response.json()
+        logger.error(
+            "media_list_folders falhou: HTTP %s — %s",
+            response.status_code,
+            response.text[:200],
+        )
+        return None
+    except Exception as exc:
+        logger.exception("media_list_folders erro: %s", exc)
+        return None
+
+
+def media_list_files(tenant: str, folder: str) -> dict | None:
+    """Lista arquivos de uma pasta no servidor de mídia."""
+    tenant_key = normalize_media_tenant(tenant)
+    if not tenant_key:
+        return None
+    folder_key = (folder or "").strip()
+    if not folder_key:
+        return None
+    url = f"{MEDIA_SERVER_URL.rstrip('/')}/list/{tenant_key}/{folder_key}/"
+    try:
+        response = requests.get(url, headers=_media_auth_headers(), timeout=30)
+        if response.status_code == 200:
+            return response.json()
+        logger.error(
+            "media_list_files falhou: HTTP %s — %s",
+            response.status_code,
+            response.text[:200],
+        )
+        return None
+    except Exception as exc:
+        logger.exception("media_list_files erro: %s", exc)
+        return None

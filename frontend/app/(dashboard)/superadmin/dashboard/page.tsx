@@ -132,6 +132,13 @@ const MENU_CARDS: MenuCardProps[] = [
     color: 'purple',
   },
   {
+    title: 'Servidor de Mídia',
+    description: 'Pastas de imagens por loja (nome + CPF/CNPJ) no media.lwksistemas.com.br',
+    icon: '🖼️',
+    href: '/superadmin/dashboard/midia',
+    color: 'pink',
+  },
+  {
     title: 'Configurar Homepage',
     description: 'Editar textos, funcionalidades e módulos da página inicial',
     icon: '🏠',

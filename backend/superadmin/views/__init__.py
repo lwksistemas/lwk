@@ -32,6 +32,11 @@ from .sistema import (
     verificar_storage_loja,
     verificar_storage_todas,
 )
+from .midia import (
+    listar_midia_arquivos,
+    listar_midia_pastas,
+    listar_midia_tenants,
+)
 from .usuarios import (
     EmailRetryViewSet,
     UsuarioSistemaViewSet,
@@ -71,6 +76,9 @@ __all__ = [
     "verificar_storage_loja",
     "verificar_storage_todas",
     "listar_storage_lojas",
+    "listar_midia_tenants",
+    "listar_midia_pastas",
+    "listar_midia_arquivos",
     "health_check",
     "LoginConfigSistemaViewSet",
     "login_config_sistema_publico",

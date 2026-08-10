@@ -49,6 +49,7 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - media:/app/media
+      - /etc/lwk-encryption.key:/etc/lwk-encryption.key:ro
       - staticfiles:/app/staticfiles
 
   worker:
@@ -69,6 +70,7 @@ services:
     command: sh scripts/start_worker.sh
     volumes:
       - media:/app/media
+      - /etc/lwk-encryption.key:/etc/lwk-encryption.key:ro
 
   frontend:
     build:

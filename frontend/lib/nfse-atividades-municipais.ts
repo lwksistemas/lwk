@@ -25,12 +25,14 @@ export const NFSE_ATIVIDADES_MUNICIPAIS: NfseAtividadeMunicipal[] = [
     trib_mun: '',
   },
   {
+    // cTribMun 170602 = código cadastrado no ISSNet RP para este contribuinte
+    // (cTribNac 170601). Mesmo padrão de 14.01 → nac 140101 / mun 140118.
     id: '170601',
     label: '17.06.01 — Promoção de Vendas e Negócios',
     cnae: '7319002',
     item_lista: '17.06',
     trib_nac: '170601',
-    trib_mun: '170601',
+    trib_mun: '170602',
   },
   {
     id: '140118',

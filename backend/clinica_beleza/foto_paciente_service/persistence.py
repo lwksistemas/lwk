@@ -72,6 +72,52 @@ def excluir_foto_paciente(foto) -> None:
     foto.delete()
 
 
+def limpar_fotos_media_da_consulta(consulta) -> int:
+    """Remove do servidor de mídia as fotos vinculadas à consulta.
+
+    Deve ser chamado ANTES de ``consulta.delete()`` (CASCADE apaga só as rows).
+    Retorna quantas remoções no media tiveram sucesso.
+    """
+    from core.media_storage import media_delete_by_url
+    from superadmin.models import Loja
+
+    from ..models import PacienteFotoAcompanhamento
+
+    fotos = list(
+        PacienteFotoAcompanhamento.objects.filter(consulta_id=consulta.pk).only(
+            "id", "url", "public_id", "loja_id",
+        )
+    )
+    if not fotos:
+        return 0
+
+    loja = Loja.objects.using("default").filter(id=consulta.loja_id).first()
+    removidas = 0
+    for foto in fotos:
+        ok = False
+        if loja:
+            try:
+                ok = bool(excluir_foto_media(loja, foto.url, foto.public_id or ""))
+            except Exception:
+                logger.exception(
+                    "Falha ao excluir foto %s da consulta %s no media",
+                    getattr(foto, "id", "?"),
+                    consulta.pk,
+                )
+        if not ok and foto.url:
+            try:
+                ok = bool(media_delete_by_url(foto.url))
+            except Exception:
+                logger.exception(
+                    "Falha media_delete_by_url foto %s consulta %s",
+                    getattr(foto, "id", "?"),
+                    consulta.pk,
+                )
+        if ok:
+            removidas += 1
+    return removidas
+
+
 def registrar_foto(
     consulta,
     foto_url: str,

@@ -186,6 +186,11 @@ class ConsultaDetailView(GetObjectMixin, APIView):
             appointment.version = (appointment.version or 1) + 1
             appointment.save(update_fields=["status", "version", "updated_at"])
 
+        # CASCADE remove rows de fotos; limpar arquivos no media ANTES do delete
+        from ..foto_paciente_service import limpar_fotos_media_da_consulta
+
+        limpar_fotos_media_da_consulta(consulta)
+
         consulta.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

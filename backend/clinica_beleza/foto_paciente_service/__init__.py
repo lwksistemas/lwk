@@ -12,6 +12,7 @@ from .exceptions import FotoCloudinaryInvalida, FotoUploadInvalida, FotoUrlInval
 from .persistence import (
     contar_fotos_consulta,
     excluir_foto_paciente,
+    limpar_fotos_media_da_consulta,
     limites_fotos_consulta,
     listar_fotos_paciente,
     registrar_foto,
@@ -58,6 +59,7 @@ __all__ = [
     "frontend_base_permitido",
     "gerar_qr_foto",
     "gerar_token_foto",
+    "limpar_fotos_media_da_consulta",
     "limites_fotos_consulta",
     "listar_fotos_paciente",
     "parse_json_body_seguro",

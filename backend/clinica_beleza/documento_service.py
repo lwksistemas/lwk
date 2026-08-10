@@ -77,8 +77,10 @@ def criar_documento(
     from tenants.middleware import get_current_tenant_db
 
     tenant_db = get_current_tenant_db()
-    save_kwargs = {"using": tenant_db} if tenant_db and tenant_db != "default" else {}
-    documento = DocumentoClinico.objects.create(
+    manager = DocumentoClinico.objects
+    if tenant_db and tenant_db != "default":
+        manager = manager.using(tenant_db)
+    documento = manager.create(
         consulta=consulta,
         patient=consulta.patient,
         professional=professional,
@@ -87,7 +89,6 @@ def criar_documento(
         titulo=titulo,
         conteudo=conteudo,
         loja_id=consulta.loja_id,
-        **save_kwargs,
     )
     return documento
 

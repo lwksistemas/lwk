@@ -122,6 +122,12 @@ class EmitirNFSeSerializer(serializers.Serializer):
         allow_blank=True,
         help_text="Item da lista LC 116 (ex.: 17.06) para esta emissão",
     )
+    codigo_tributacao_nacional = serializers.CharField(
+        max_length=6,
+        required=False,
+        allow_blank=True,
+        help_text="cTribNac (6 dígitos) para esta emissão (sobrescreve config da loja)",
+    )
 
     def validate(self, data):
         """Valida que ou conta_id ou dados manuais foram fornecidos."""

@@ -33,11 +33,24 @@ def _resolver_dados_prestador(loja, config, prestador) -> tuple[str, str]:
     return cnpj, im
 
 
-def _resolver_codigo_tributacao_nacional(config) -> str:
-    """Resolve cTribNac a partir da config da loja.
+def _resolver_codigo_tributacao_nacional(
+    config,
+    *,
+    codigo_trib_nacional_override: str | None = None,
+    item_lista_override: str | None = None,
+) -> str:
+    """Resolve cTribNac: override explícito → item_lista da emissão → config da loja."""
+    override = _somente_digitos(codigo_trib_nacional_override or "")
+    if len(override) >= 4:
+        return override[:6].ljust(6, "0") if len(override) < 6 else override[:6]
 
-    Tenta: codigo_tributacao_nacional (novo campo) → item_lista_servico (14.01 → 140100) → default.
-    """
+    if item_lista_override and str(item_lista_override).strip():
+        digits = _somente_digitos(str(item_lista_override))
+        if 4 <= len(digits) < 6:
+            return digits[:4] + "01"
+        if len(digits) >= 6:
+            return digits[:6]
+
     # Campo novo (se existir)
     ctn = getattr(config, "codigo_tributacao_nacional", None)
     if ctn and str(ctn).strip():
@@ -45,7 +58,7 @@ def _resolver_codigo_tributacao_nacional(config) -> str:
         if len(digits) >= 4:
             return digits[:6].ljust(6, "0") if len(digits) < 6 else digits[:6]
 
-    # Derivar de item_lista_servico (padrão nacional: subitem 01)
+    # Derivar de item_lista_servico da config (padrão nacional: subitem 01)
     item = getattr(config, "item_lista_servico", None)
     if item and str(item).strip():
         digits = _somente_digitos(str(item))
@@ -56,6 +69,24 @@ def _resolver_codigo_tributacao_nacional(config) -> str:
 
     # Default: Conserto/manutenção de computadores (subitem 01)
     return "140101"
+
+
+def _resolver_codigo_tributacao_municipal(
+    config,
+    *,
+    codigo_servico_override: str | None = None,
+    codigo_trib_nacional: str,
+) -> str:
+    """Resolve cTribMun: override da emissão → config → fallback cTribNac."""
+    override = _somente_digitos(codigo_servico_override or "")
+    if override:
+        return override[:6].ljust(6, "0") if len(override) < 6 else override[:6]
+
+    from_config = _somente_digitos(getattr(config, "codigo_tributacao_municipal", "") or "")
+    if from_config:
+        return from_config[:6].ljust(6, "0") if len(from_config) < 6 else from_config[:6]
+
+    return codigo_trib_nacional
 
 
 def _resolver_codigo_nbs(config) -> str:
@@ -149,6 +180,7 @@ def emitir_via_issnet_nacional_loja(
     codigo_cnae_override: str | None = None,
     codigo_servico_override: str | None = None,
     item_lista_override: str | None = None,
+    codigo_trib_nacional_override: str | None = None,
     prestador: DadosPrestadorNFSe | None = None,
     **_extra,
 ) -> dict[str, Any]:
@@ -165,18 +197,21 @@ def emitir_via_issnet_nacional_loja(
         cnpj_prestador, im_prestador = _resolver_dados_prestador(loja, config, prestador)
         client = _criar_client_nacional(config, cnpj_prestador, im_prestador)
 
-        # Resolver parâmetros do serviço
-        codigo_trib_nacional = _resolver_codigo_tributacao_nacional(config)
+        # Resolver parâmetros do serviço (overrides da emissão têm prioridade)
+        codigo_trib_nacional = _resolver_codigo_tributacao_nacional(
+            config,
+            codigo_trib_nacional_override=codigo_trib_nacional_override,
+            item_lista_override=item_lista_override,
+        )
         # cTribMun é obrigatório para o schema (omiti-lo causa E160). Confirmado
         # em 04/08/2026 com nota real aceita para Felix Representações que o
         # valor correto é um código de 6 dígitos cadastrado no ISSNet para o
         # contribuinte (ex.: "140118" para Atividade Municipal "14.01"), NÃO
-        # derivado do item da lista de serviços. Usa o campo dedicado da
-        # config; se vazio, o builder faz fallback para o próprio cTribNac.
-        codigo_trib_municipal = _somente_digitos(
-            codigo_servico_override
-            or getattr(config, "codigo_tributacao_municipal", "")
-            or ""
+        # derivado do item da lista de serviços.
+        codigo_trib_municipal = _resolver_codigo_tributacao_municipal(
+            config,
+            codigo_servico_override=codigo_servico_override,
+            codigo_trib_nacional=codigo_trib_nacional,
         )
         codigo_nbs = _resolver_codigo_nbs(config)
         aliquota = Decimal(str(getattr(config, "aliquota_iss", 2.00) or 0))

@@ -548,6 +548,9 @@ def processar_emissao_nfse_loja_sync(
     codigo_cnae = (validated_data.get("codigo_cnae") or "").strip() or None
     codigo_servico = (validated_data.get("codigo_servico") or "").strip() or None
     item_lista_servico = (validated_data.get("item_lista_servico") or "").strip() or None
+    codigo_tributacao_nacional = (
+        (validated_data.get("codigo_tributacao_nacional") or "").strip() or None
+    )
 
     empresa_prestadora_id = validated_data.get("empresa_prestadora_id")
     if empresa_prestadora_id is not None:
@@ -564,6 +567,7 @@ def processar_emissao_nfse_loja_sync(
         codigo_cnae=codigo_cnae,
         codigo_servico=codigo_servico,
         item_lista_servico=item_lista_servico,
+        codigo_tributacao_nacional=codigo_tributacao_nacional,
         empresa_prestadora_id=empresa_prestadora_id,
     )
 

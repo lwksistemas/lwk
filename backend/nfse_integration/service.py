@@ -56,6 +56,7 @@ class NFSeService:
         codigo_cnae: str | None = None,
         codigo_servico: str | None = None,
         item_lista_servico: str | None = None,
+        codigo_tributacao_nacional: str | None = None,
         empresa_prestadora_id: int | None = None,
     ) -> dict[str, Any]:
         """Emite NFS-e com roteamento automático por provedor."""
@@ -120,7 +121,12 @@ class NFSeService:
                         getattr(self.loja, "id", None),
                     )
                     from nfse_integration.emissao_issnet_nacional_loja import emitir_via_issnet_nacional_loja
-                    return emitir_via_issnet_nacional_loja(self.loja, self.config, **kwargs)
+                    return emitir_via_issnet_nacional_loja(
+                        self.loja,
+                        self.config,
+                        codigo_trib_nacional_override=codigo_tributacao_nacional,
+                        **kwargs,
+                    )
 
                 logger.info(
                     "NFSeService: emitindo via ISSNet ABRASF legado (RPS) para loja %s",
@@ -128,6 +134,8 @@ class NFSeService:
                 )
                 return emitir_via_issnet_loja(self.loja, self.config, **kwargs)
 
+            # ADN Nacional não usa item_lista_override
+            kwargs.pop("item_lista_override", None)
             return emitir_via_nacional_loja(self.loja, self.config, **kwargs)
 
         except Exception as exc:

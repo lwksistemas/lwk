@@ -30,6 +30,8 @@ def _normalizar_texto_xml(texto: str, max_len: int | None = None) -> str:
     # Decompõe caracteres acentuados e descarta os marcadores de combinação.
     texto = unicodedata.normalize("NFKD", texto)
     texto = "".join(c for c in texto if ord(c) < 128)
+    # CR/LF viram &#13;/&#10; no XML e invalidam a assinatura no ISSNet.
+    texto = " ".join(texto.replace("\r", " ").replace("\n", " ").split())
     if max_len is not None:
         texto = texto[:max_len]
     return texto

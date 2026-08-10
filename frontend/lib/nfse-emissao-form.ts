@@ -28,6 +28,7 @@ export const NFSE_EMISSAO_INITIAL_FORM = {
   codigo_cnae: '',
   codigo_servico: '',
   item_lista_servico: '',
+  codigo_tributacao_nacional: '',
 };
 
 export type NfseDefaultsServico = {
@@ -35,6 +36,7 @@ export type NfseDefaultsServico = {
   codigo_cnae: string;
   codigo_servico: string;
   item_lista_servico: string;
+  codigo_tributacao_nacional: string;
 };
 
 export function defaultsServicoFromCrmConfig(config: {
@@ -42,12 +44,16 @@ export function defaultsServicoFromCrmConfig(config: {
   codigo_servico_municipal?: string;
   codigo_cnae?: string;
   item_lista_servico?: string;
+  codigo_tributacao_nacional?: string;
+  codigo_tributacao_municipal?: string;
 } | null): NfseDefaultsServico {
   return {
     servico_descricao: config?.descricao_servico_padrao || '',
-    codigo_servico: config?.codigo_servico_municipal || '',
+    codigo_servico:
+      config?.codigo_tributacao_municipal || config?.codigo_servico_municipal || '',
     codigo_cnae: config?.codigo_cnae || '',
     item_lista_servico: config?.item_lista_servico || '',
+    codigo_tributacao_nacional: config?.codigo_tributacao_nacional || '',
   };
 }
 

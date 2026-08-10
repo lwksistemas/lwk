@@ -124,6 +124,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
         codigo_cnae: formData.codigo_cnae || undefined,
         codigo_servico: formData.codigo_servico || undefined,
         item_lista_servico: formData.item_lista_servico || undefined,
+        codigo_tributacao_nacional: formData.codigo_tributacao_nacional || undefined,
       };
 
       const payload =
@@ -245,6 +246,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
                 codigo_cnae={formData.codigo_cnae}
                 codigo_servico={formData.codigo_servico}
                 item_lista_servico={formData.item_lista_servico}
+                codigo_tributacao_nacional={formData.codigo_tributacao_nacional}
                 onChange={handleFieldChange}
               />
               <ModalFormButtons

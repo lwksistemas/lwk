@@ -1,6 +1,6 @@
 # LWK Sistemas — Stack Tecnológica
 
-**Atualizado em 06/08/2026**
+**Atualizado em 10/08/2026**
 
 ## Infraestrutura
 
@@ -32,7 +32,7 @@
 |-----------|--------|--------|
 | Next.js | 16.2.10 | Framework React (App Router) |
 | React | 19.2 | Biblioteca de UI |
-| TypeScript | 7.0.2 | Tipagem estática (compilador Go, 10x mais rápido) |
+| TypeScript | 5.7.3 | Tipagem estática (versão instalada no frontend) |
 | Tailwind CSS | 4.3.2 | Estilização |
 
 ## Integrações

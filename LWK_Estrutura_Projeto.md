@@ -55,7 +55,8 @@ lwksistemas/
 ├── deploy.sh                   # Script de deploy produção
 ├── deploy-beta.sh              # Script de deploy beta (staging)
 ├── backup.sh                   # Script de backup Postgres
-├── requirements.txt            # Dependências raiz (compartilhadas)
+├── requirements.txt            # Compat: -r backend/requirements.txt
+├── backend/requirements.txt    # Dependências Python (fonte canônica Magalu)
 └── .github/workflows/          # CI/CD (security audit)
 ```
 

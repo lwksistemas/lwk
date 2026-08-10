@@ -17,12 +17,12 @@
 
 | Tecnologia | Versão | Função |
 |-----------|--------|--------|
-| Django | 6.0.8 | Framework web Python |
-| Django REST Framework | 3.17.1 | API RESTful |
+| Django | 6.1 | Framework web Python |
+| Django REST Framework | 3.18.0 | API RESTful |
 | PostgreSQL | 18.4 | Banco de dados multi-tenant |
 | Redis | 7.4 | Cache e filas |
 | django-q2 | 1.10 | Task queue (workers) |
-| Gunicorn | 23.0 | Servidor WSGI |
+| Gunicorn | 26.0 | Servidor WSGI |
 | xmlsec | 1.3 | Assinatura digital NFS-e |
 | lxml | 6.1 | Processamento XML |
 
@@ -30,10 +30,10 @@
 
 | Tecnologia | Versão | Função |
 |-----------|--------|--------|
-| Next.js | 16.2.10 | Framework React (App Router) |
-| React | 19.2 | Biblioteca de UI |
-| TypeScript | 5.7.3 | Tipagem estática (versão instalada no frontend) |
-| Tailwind CSS | 4.3.2 | Estilização |
+| Next.js | 16.3.0 | Framework React (App Router) |
+| React | 19.2.8 | Biblioteca de UI |
+| TypeScript | 5.9.3 | Tipagem estática (versão instalada no frontend) |
+| Tailwind CSS | 4.3.3 | Estilização |
 
 ## Integrações
 

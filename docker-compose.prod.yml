@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:18-bookworm
+    image: postgres:18.4-bookworm
     restart: always
     volumes:
       - pgdata:/var/lib/postgresql
@@ -17,7 +17,7 @@ services:
       - "127.0.0.1:5432:5432"
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     restart: always
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:

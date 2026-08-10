@@ -2,19 +2,21 @@
 
 Faz upload/download no servidor media.lwksistemas.com.br.
 Estrutura:
-  /storage/{cpf_cnpj}/fotos|docs|...     — cada cliente
-  /storage/superadmin/...                — assets do superadmin (sem loja)
-  /storage/suporte/...                   — assets do suporte (sem loja)
+  /storage/{cpf_cnpj}/fotos|docs|.../{arquivo}
+  /storage/{cpf_cnpj}/fotos|docs|.../{nome_cpf_paciente}/{arquivo}
+  /storage/superadmin/...
+  /storage/suporte/...
 
 Uso:
     from core.media_storage import media_upload, media_url
 
-    url = media_upload(loja, file_bytes, filename="foto.jpg", folder="fotos")
-    # Retorna: https://media.lwksistemas.com.br/files/41449198000172/fotos/abc123.jpg
+    url = media_upload(loja, file_bytes, filename="foto.jpg", folder="fotos/maria-silva_12345678901")
+    # Retorna: https://media.lwksistemas.com.br/files/41449198000172/fotos/maria-silva_123.../abc.jpg
 """
 import logging
 import os
 import re
+import unicodedata
 from io import BytesIO
 from typing import BinaryIO
 
@@ -37,9 +39,48 @@ MEDIA_SYSTEM_TENANTS = frozenset({MEDIA_TENANT_SUPERADMIN, MEDIA_TENANT_SUPORTE}
 # Compat: imports antigos
 MEDIA_SYSTEM_CNPJ = MEDIA_TENANT_SUPERADMIN
 
+_ALLOWED_ROOT_FOLDERS = ("fotos", "docs", "avatars", "recibos", "contratos")
+
+# /files/{tenant}/{root}[/{paciente}]/{filename}
 _FILES_PATH_RE = re.compile(
-    r"/files/(?P<tenant>\d{11}|\d{14}|superadmin|suporte)/(?P<folder>[\w-]+)/(?P<filename>[^/?#]+)$"
+    r"/files/(?P<tenant>\d{11}|\d{14}|superadmin|suporte)"
+    r"/(?P<root>fotos|docs|avatars|recibos|contratos)"
+    r"(?:/(?P<sub>[a-z0-9][a-z0-9_-]{0,100}))?"
+    r"/(?P<filename>[^/?#]+)$"
 )
+
+_PATIENT_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,100}$")
+
+
+def normalize_media_folder(folder: str | None) -> str | None:
+    """Normaliza pasta raiz ou pasta/paciente (ex.: fotos/maria-silva_123)."""
+    raw = (folder or "").strip().strip("/")
+    if not raw:
+        return None
+    parts = raw.split("/")
+    if len(parts) == 1:
+        return parts[0] if parts[0] in _ALLOWED_ROOT_FOLDERS else None
+    if len(parts) == 2:
+        root, sub = parts
+        if root in _ALLOWED_ROOT_FOLDERS and _PATIENT_SLUG_RE.fullmatch(sub):
+            return f"{root}/{sub}"
+    return None
+
+
+def pasta_media_paciente(patient) -> str:
+    """Slug estável para subpasta do paciente: {nome}_{cpf} ou {nome}_id{id}."""
+    nome_raw = (getattr(patient, "nome", None) or "paciente").strip()
+    nome_norm = unicodedata.normalize("NFKD", nome_raw)
+    nome_ascii = "".join(c for c in nome_norm if not unicodedata.combining(c))
+    nome_slug = re.sub(r"[^a-z0-9]+", "-", nome_ascii.lower()).strip("-")[:50] or "paciente"
+
+    cpf = re.sub(r"\D", "", getattr(patient, "cpf", None) or "")
+    if len(cpf) == 11:
+        return f"{nome_slug}_{cpf}"
+    pid = getattr(patient, "id", None)
+    if pid:
+        return f"{nome_slug}_id{pid}"
+    return nome_slug
 
 
 def normalize_media_tenant(value: str | None) -> str | None:
@@ -83,12 +124,16 @@ def media_upload_tenant(
     filename: str = "upload.jpg",
     folder: str = "fotos",
 ) -> str | None:
-    """Faz upload para um tenant (CPF/CNPJ, superadmin ou suporte)."""
+    """Faz upload para um tenant (CPF/CNPJ, superadmin ou suporte).
+
+    ``folder`` pode ser raiz (``fotos``) ou ``fotos/nome_cpf_paciente``.
+    """
     tenant_key = normalize_media_tenant(tenant)
     if not tenant_key:
         logger.error("media_upload_tenant: tenant inválido %r", tenant)
         return None
 
+    folder_path = normalize_media_folder(folder) or "fotos"
     url = f"{MEDIA_SERVER_URL}/upload/{tenant_key}/"
     headers = {"Authorization": f"Bearer {MEDIA_API_TOKEN}"}
 
@@ -102,7 +147,7 @@ def media_upload_tenant(
             url,
             headers=headers,
             files={"file": (filename, file_obj)},
-            data={"folder": folder},
+            data={"folder": folder_path},
             timeout=60,
         )
 
@@ -207,7 +252,8 @@ def media_delete_tenant(tenant: str, filename: str, folder: str = "fotos") -> bo
 def media_url(loja, filename: str, folder: str = "fotos") -> str:
     """Constrói URL pública de um arquivo."""
     tenant = _cpf_cnpj_digits(loja)
-    return f"{MEDIA_SERVER_URL}/files/{tenant}/{folder}/{filename}"
+    folder_path = normalize_media_folder(folder) or "fotos"
+    return f"{MEDIA_SERVER_URL}/files/{tenant}/{folder_path}/{filename}"
 
 
 def is_media_url(url: str) -> bool:
@@ -234,12 +280,14 @@ def is_media_url(url: str) -> bool:
     if parsed.scheme == "http" and (MEDIA_SERVER_URL or "").startswith("https://"):
         return False
 
-    # Path deve ser exatamente /files/{tenant}/{folder}/{filename} (sem prefixo).
     return bool(_FILES_PATH_RE.fullmatch(parsed.path or ""))
 
 
 def parse_media_url(url: str) -> tuple[str, str, str] | None:
-    """Extrai (tenant, folder, filename) de uma URL pública de mídia."""
+    """Extrai (tenant, folder_path, filename) de uma URL pública de mídia.
+
+    ``folder_path`` é ``fotos`` ou ``fotos/nome_cpf``.
+    """
     from urllib.parse import urlparse
 
     if not is_media_url(url):
@@ -248,7 +296,10 @@ def parse_media_url(url: str) -> tuple[str, str, str] | None:
     match = _FILES_PATH_RE.fullmatch(path)
     if not match:
         return None
-    return match.group("tenant"), match.group("folder"), match.group("filename")
+    root = match.group("root")
+    sub = match.group("sub")
+    folder_path = f"{root}/{sub}" if sub else root
+    return match.group("tenant"), folder_path, match.group("filename")
 
 
 def media_delete_by_url(url: str) -> bool:
@@ -305,14 +356,14 @@ def media_list_folders(tenant: str) -> dict | None:
 
 
 def media_list_files(tenant: str, folder: str) -> dict | None:
-    """Lista arquivos de uma pasta no servidor de mídia."""
+    """Lista arquivos (e subpastas) de uma pasta no servidor de mídia."""
     tenant_key = normalize_media_tenant(tenant)
     if not tenant_key:
         return None
-    folder_key = (folder or "").strip()
-    if not folder_key:
+    folder_path = normalize_media_folder(folder)
+    if not folder_path:
         return None
-    url = f"{MEDIA_SERVER_URL.rstrip('/')}/list/{tenant_key}/{folder_key}/"
+    url = f"{MEDIA_SERVER_URL.rstrip('/')}/list/{tenant_key}/{folder_path}/"
     try:
         response = requests.get(url, headers=_media_auth_headers(), timeout=30)
         if response.status_code == 200:

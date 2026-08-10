@@ -111,7 +111,7 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
             )
 
         try:
-            up = upload_foto_media(loja, conteudo)
+            up = upload_foto_media(loja, conteudo, patient=consulta.patient)
             foto = registrar_foto(consulta, up["secure_url"], "painel", up["public_id"])
         except (FotoUrlInvalida, FotoUploadInvalida) as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -239,7 +239,7 @@ class EnviarFotoPublicaView(View):
             return None, JsonResponse({"error": err}, status=400)
 
         try:
-            consulta = Consulta.objects.get(id=payload["consulta_id"])
+            consulta = Consulta.objects.select_related("patient").get(id=payload["consulta_id"])
         except Consulta.DoesNotExist:
             return None, JsonResponse({"error": "Consulta não encontrada."}, status=400)
 
@@ -282,7 +282,7 @@ class EnviarFotoPublicaView(View):
             )
 
         try:
-            up = upload_foto_media(loja, conteudo)
+            up = upload_foto_media(loja, conteudo, patient=consulta.patient)
             foto = registrar_foto(consulta, up["secure_url"], "qr", up["public_id"])
         except (FotoUrlInvalida, FotoUploadInvalida) as exc:
             return JsonResponse({"error": str(exc)}, status=400)

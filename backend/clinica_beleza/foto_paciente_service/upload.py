@@ -156,15 +156,18 @@ def comprimir_imagem_bytes(conteudo: bytes) -> bytes:
     )
 
 
-def upload_foto_media(loja, conteudo: bytes, ambiente: str | None = None) -> dict:
-    """Comprime e envia a foto ao servidor de mídia (media.lwksistemas.com.br)."""
+def upload_foto_media(loja, conteudo: bytes, ambiente: str | None = None, patient=None) -> dict:
+    """Comprime e envia a foto ao servidor de mídia (pasta por paciente quando houver)."""
     del ambiente  # mantido na assinatura por compatibilidade com chamadas antigas
     from urllib.parse import urlparse
 
-    from core.media_storage import media_upload
+    from core.media_storage import media_upload, pasta_media_paciente
 
     comprimido = comprimir_imagem_bytes(conteudo)
-    url = media_upload(loja, comprimido, filename="foto.jpg", folder="fotos")
+    folder = "fotos"
+    if patient is not None:
+        folder = f"fotos/{pasta_media_paciente(patient)}"
+    url = media_upload(loja, comprimido, filename="foto.jpg", folder=folder)
     if not url:
         raise FotoUploadInvalida("Falha ao enviar imagem. Tente novamente.")
     path = urlparse(url).path.lstrip("/")

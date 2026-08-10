@@ -129,7 +129,7 @@ urlpatterns = [
     # Servidor de mídia (pastas por CPF/CNPJ)
     path("midia/", listar_midia_tenants, name="listar-midia-tenants"),
     path("midia/<str:tenant>/", listar_midia_pastas, name="listar-midia-pastas"),
-    path("midia/<str:tenant>/<str:folder>/", listar_midia_arquivos, name="listar-midia-arquivos"),
+    path("midia/<str:tenant>/<path:folder>/", listar_midia_arquivos, name="listar-midia-arquivos"),
 
     # Configuração da Homepage (CRUD)
     path("homepage/", include("homepage.urls_admin")),

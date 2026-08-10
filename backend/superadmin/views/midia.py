@@ -174,5 +174,6 @@ def listar_midia_arquivos(request, tenant: str, folder: str):
         "nome": nome,
         "folder": raw.get("folder") or folder,
         "files": files,
+        "subfolders": raw.get("subfolders") or [],
         "truncated": bool(raw.get("truncated")),
     })

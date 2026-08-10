@@ -21,6 +21,13 @@ interface MidiaTenant {
 interface MidiaFolder {
   folder: string;
   file_count: number;
+  subfolder_count?: number;
+}
+
+interface MidiaSubfolder {
+  name: string;
+  path: string;
+  file_count: number;
 }
 
 interface MidiaArquivo {
@@ -57,6 +64,7 @@ export default function ServidorMidiaPage() {
   const [folders, setFolders] = useState<MidiaFolder[]>([]);
   const [folderSel, setFolderSel] = useState<string | null>(null);
   const [files, setFiles] = useState<MidiaArquivo[]>([]);
+  const [subfolders, setSubfolders] = useState<MidiaSubfolder[]>([]);
   const [truncated, setTruncated] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
@@ -88,6 +96,7 @@ export default function ServidorMidiaPage() {
       setTenantSel(item);
       setFolderSel(null);
       setFiles([]);
+      setSubfolders([]);
       setTruncated(false);
       const response = await apiClient.get(`/superadmin/midia/${item.tenant}/`);
       setFolders(response.data?.folders || []);
@@ -104,8 +113,11 @@ export default function ServidorMidiaPage() {
     try {
       setLoadingDetail(true);
       setFolderSel(folder);
-      const response = await apiClient.get(`/superadmin/midia/${tenantSel.tenant}/${folder}/`);
+      const response = await apiClient.get(
+        `/superadmin/midia/${tenantSel.tenant}/${folder}/`,
+      );
       setFiles(response.data?.files || []);
+      setSubfolders(response.data?.subfolders || []);
       setTruncated(Boolean(response.data?.truncated));
     } catch (err) {
       logger.warn('Erro ao listar arquivos:', err);
@@ -238,6 +250,9 @@ export default function ServidorMidiaPage() {
                     <div className="font-medium">{f.folder}/</div>
                     <div className="mt-1 text-xs text-gray-500">
                       {f.file_count} arquivo{f.file_count === 1 ? '' : 's'}
+                      {f.subfolder_count
+                        ? ` · ${f.subfolder_count} paciente${f.subfolder_count === 1 ? '' : 's'}`
+                        : ''}
                     </div>
                   </button>
                 ))}
@@ -254,13 +269,19 @@ export default function ServidorMidiaPage() {
             <button
               type="button"
               onClick={() => {
+                if (folderSel.includes('/')) {
+                  const parent = folderSel.split('/').slice(0, -1).join('/');
+                  abrirPasta(parent);
+                  return;
+                }
                 setFolderSel(null);
                 setFiles([]);
+                setSubfolders([]);
                 setTruncated(false);
               }}
               className="text-sm text-purple-700 hover:underline dark:text-purple-300"
             >
-              ← Pastas de {tenantSel.nome}
+              ← {folderSel.includes('/') ? `Voltar em ${folderSel.split('/')[0]}` : `Pastas de ${tenantSel.nome}`}
             </button>
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -276,46 +297,72 @@ export default function ServidorMidiaPage() {
               </p>
             )}
             {loadingDetail ? (
-              <p className="text-sm text-gray-500">Carregando arquivos…</p>
+              <p className="text-sm text-gray-500">Carregando…</p>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 text-left text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Arquivo</th>
-                      <th className="px-4 py-3 font-medium">Tamanho</th>
-                      <th className="px-4 py-3 font-medium">Modificado</th>
-                      <th className="px-4 py-3 font-medium">Link</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {files.map((f) => (
-                      <tr key={f.filename} className="border-t border-gray-100 dark:border-gray-800">
-                        <td className="px-4 py-3 font-mono text-xs break-all">{f.filename}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{formatBytes(f.size)}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{formatDate(f.mtime)}</td>
-                        <td className="px-4 py-3">
-                          <a
-                            href={f.public_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-purple-700 hover:underline dark:text-purple-300"
-                          >
-                            Abrir
-                          </a>
-                        </td>
-                      </tr>
+              <>
+                {!!subfolders.length && (
+                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                    {subfolders.map((s) => (
+                      <button
+                        key={s.path}
+                        type="button"
+                        onClick={() => abrirPasta(s.path)}
+                        className="rounded-xl border border-gray-200 bg-white p-4 text-left hover:border-purple-300 dark:border-gray-800 dark:bg-gray-900"
+                      >
+                        <div className="font-medium break-all">{s.name}/</div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          {s.file_count} arquivo{s.file_count === 1 ? '' : 's'}
+                        </div>
+                      </button>
                     ))}
-                    {!files.length && (
+                  </div>
+                )}
+                <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50 text-left text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                       <tr>
-                        <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
-                          Pasta vazia.
-                        </td>
+                        <th className="px-4 py-3 font-medium">Arquivo</th>
+                        <th className="px-4 py-3 font-medium">Tamanho</th>
+                        <th className="px-4 py-3 font-medium">Modificado</th>
+                        <th className="px-4 py-3 font-medium">Link</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {files.map((f) => (
+                        <tr key={f.filename} className="border-t border-gray-100 dark:border-gray-800">
+                          <td className="px-4 py-3 font-mono text-xs break-all">{f.filename}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">{formatBytes(f.size)}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">{formatDate(f.mtime)}</td>
+                          <td className="px-4 py-3">
+                            <a
+                              href={f.public_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-purple-700 hover:underline dark:text-purple-300"
+                            >
+                              Abrir
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                      {!files.length && !subfolders.length && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
+                            Pasta vazia.
+                          </td>
+                        </tr>
+                      )}
+                      {!files.length && !!subfolders.length && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-4 text-center text-gray-500">
+                            Sem arquivos soltos nesta pasta — abra a pasta do paciente acima.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </section>
         )}

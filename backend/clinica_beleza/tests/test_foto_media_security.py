@@ -29,6 +29,14 @@ class MediaUrlSecurityTests(TestCase):
             ("41449198000172", "fotos", "abc123.jpg"),
         )
 
+    def test_is_media_url_aceita_pasta_paciente(self):
+        url = "https://media.lwksistemas.com.br/files/41449198000172/fotos/maria-silva_12345678901/abc.jpg"
+        self.assertTrue(is_media_url(url))
+        self.assertEqual(
+            parse_media_url(url),
+            ("41449198000172", "fotos/maria-silva_12345678901", "abc.jpg"),
+        )
+
     def test_validar_foto_loja_rejeita_outro_cnpj(self):
         loja = SimpleNamespace(cpf_cnpj="41449198000172", cnpj="41449198000172")
         url = "https://media.lwksistemas.com.br/files/00000000000000/fotos/a.jpg"
@@ -45,6 +53,11 @@ class MediaUrlSecurityTests(TestCase):
         loja = SimpleNamespace(cpf_cnpj="41449198000172", cnpj="41449198000172")
         url = "https://media.lwksistemas.com.br/files/41449198000172/fotos/abc.jpg"
         validar_foto_loja(loja, url)  # não levanta
+
+    def test_validar_foto_loja_aceita_fotos_paciente(self):
+        loja = SimpleNamespace(cpf_cnpj="41449198000172", cnpj="41449198000172")
+        url = "https://media.lwksistemas.com.br/files/41449198000172/fotos/joao_12345678901/abc.jpg"
+        validar_foto_loja(loja, url)
 
 
 class TokenFotoSecurityTests(TestCase):

@@ -1,15 +1,16 @@
 """API de upload/listagem de mídia — LWK Sistemas.
 
-Endpoints:
-  POST   /upload/<tenant>/ — Upload (multipart)
-  DELETE /upload/<tenant>/<path:filename> — Deletar
-  GET    /list/ — Lista tenants (CPF/CNPJ/superadmin/suporte)
-  GET    /list/<tenant>/ — Lista pastas do tenant
-  GET    /list/<tenant>/<folder>/ — Lista arquivos
-  GET    /health
+Estrutura em disco:
+  /storage/{tenant}/{fotos|docs|...}/{arquivo}
+  /storage/{tenant}/{fotos|docs|...}/{nome_cpf_paciente}/{arquivo}
 
-Deploy: /opt/media-api no host media (201.23.87.251).
-Token via env MEDIA_API_TOKEN (systemd).
+Endpoints:
+  POST   /upload/<tenant>/
+  DELETE /upload/<tenant>/<path:filename>
+  GET    /list/
+  GET    /list/<tenant>/
+  GET    /list/<tenant>/<path:folder>/
+  GET    /health
 """
 import hmac
 import os
@@ -25,6 +26,11 @@ API_TOKEN = os.environ.get("MEDIA_API_TOKEN", "")
 SYSTEM_TENANTS = frozenset({"superadmin", "suporte"})
 TENANT_RE = re.compile(r"^(?:\d{11}|\d{14}|superadmin|suporte)$")
 ALLOWED_FOLDERS = ("fotos", "docs", "avatars", "recibos", "contratos")
+# pasta raiz OU pasta/paciente (slug_nome + cpf)
+FOLDER_PATH_RE = re.compile(
+    r"^(?P<root>fotos|docs|avatars|recibos|contratos)"
+    r"(?:/(?P<sub>[a-z0-9][a-z0-9_-]{0,100}))?$"
+)
 MAX_FILES_PER_FOLDER = 500
 
 
@@ -48,6 +54,18 @@ def normalize_tenant(raw: str) -> str | None:
     return None
 
 
+def normalize_folder_path(raw: str) -> str | None:
+    value = (raw or "").strip().strip("/")
+    if not value:
+        return None
+    match = FOLDER_PATH_RE.fullmatch(value)
+    if not match:
+        return None
+    root = match.group("root")
+    sub = match.group("sub")
+    return f"{root}/{sub}" if sub else root
+
+
 def _safe_under_storage(path: Path) -> bool:
     try:
         path.resolve().relative_to(STORAGE_ROOT.resolve())
@@ -69,11 +87,13 @@ def upload(tenant):
     if not file:
         return jsonify({"error": "Nenhum arquivo enviado"}), 400
 
-    subfolder = request.form.get("folder", "fotos")
-    if subfolder not in ALLOWED_FOLDERS:
-        subfolder = "fotos"
+    folder_path = normalize_folder_path(request.form.get("folder", "fotos"))
+    if not folder_path:
+        folder_path = "fotos"
 
-    dest_dir = STORAGE_ROOT / tenant_key / subfolder
+    dest_dir = STORAGE_ROOT / tenant_key / Path(folder_path)
+    if not _safe_under_storage(dest_dir):
+        return jsonify({"error": "Pasta inválida"}), 400
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     ext = Path(file.filename).suffix.lower() or ".jpg"
@@ -81,12 +101,13 @@ def upload(tenant):
     filepath = dest_dir / filename
     file.save(str(filepath))
 
-    url = f"/files/{tenant_key}/{subfolder}/{filename}"
+    url = f"/files/{tenant_key}/{folder_path}/{filename}"
     return jsonify({
         "success": True,
         "url": url,
         "filename": filename,
         "tenant": tenant_key,
+        "folder": folder_path,
         "size": os.path.getsize(str(filepath)),
     }), 201
 
@@ -152,16 +173,19 @@ def list_folders(tenant):
             continue
         try:
             file_count = sum(1 for f in d.iterdir() if f.is_file())
+            sub_count = sum(1 for f in d.iterdir() if f.is_dir())
         except OSError:
             file_count = 0
+            sub_count = 0
         folders.append({
             "folder": d.name,
             "file_count": file_count,
+            "subfolder_count": sub_count,
         })
     return jsonify({"tenant": tenant_key, "folders": folders})
 
 
-@app.route("/list/<tenant>/<folder>/", methods=["GET"])
+@app.route("/list/<tenant>/<path:folder>/", methods=["GET"])
 def list_files(tenant, folder):
     if not verify_token():
         return jsonify({"error": "Unauthorized"}), 401
@@ -169,30 +193,49 @@ def list_files(tenant, folder):
     tenant_key = normalize_tenant(tenant)
     if not tenant_key:
         return jsonify({"error": "Tenant inválido"}), 400
-    if folder not in ALLOWED_FOLDERS:
+
+    folder_path = normalize_folder_path(folder)
+    if not folder_path:
         return jsonify({"error": "Pasta inválida"}), 400
 
-    dest = STORAGE_ROOT / tenant_key / folder
+    dest = STORAGE_ROOT / tenant_key / Path(folder_path)
     if not _safe_under_storage(dest) or not dest.is_dir():
         return jsonify({
             "tenant": tenant_key,
-            "folder": folder,
+            "folder": folder_path,
             "files": [],
+            "subfolders": [],
             "truncated": False,
         })
 
     files = []
+    subfolders = []
     truncated = False
     try:
-        entries = sorted(
-            (f for f in dest.iterdir() if f.is_file()),
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )
+        children = list(dest.iterdir())
     except OSError:
-        entries = []
+        children = []
 
-    for f in entries:
+    dirs = sorted((c for c in children if c.is_dir()), key=lambda p: p.name)
+    for d in dirs:
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,100}", d.name):
+            continue
+        try:
+            count = sum(1 for f in d.iterdir() if f.is_file())
+        except OSError:
+            count = 0
+        subfolders.append({
+            "name": d.name,
+            "path": f"{folder_path}/{d.name}",
+            "file_count": count,
+        })
+
+    file_entries = sorted(
+        (c for c in children if c.is_file()),
+        key=lambda p: p.stat().st_mtime if p.exists() else 0,
+        reverse=True,
+    )
+    for f in file_entries:
         if len(files) >= MAX_FILES_PER_FOLDER:
             truncated = True
             break
@@ -204,13 +247,14 @@ def list_files(tenant, folder):
             "filename": f.name,
             "size": st.st_size,
             "mtime": int(st.st_mtime),
-            "url": f"/files/{tenant_key}/{folder}/{f.name}",
+            "url": f"/files/{tenant_key}/{folder_path}/{f.name}",
         })
 
     return jsonify({
         "tenant": tenant_key,
-        "folder": folder,
+        "folder": folder_path,
         "files": files,
+        "subfolders": subfolders,
         "truncated": truncated,
     })
 

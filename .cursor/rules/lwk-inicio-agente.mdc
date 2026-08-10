@@ -42,7 +42,7 @@ ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker
 ## Stack
 
 - Backend: Django 6.1 + DRF 3.18.0 (Python 3.13)
-- Frontend: Next.js 16.3.0 + TypeScript 5.9.3 + React 19.2.8 + Tailwind 4 (Node 22)
+- Frontend: Next.js 16.3.0 + TypeScript 7.0.2 + React 19.2.8 + Tailwind 4 (Node 22)
 - Banco: PostgreSQL 18.4 (Docker local, multi-tenant por schema)
 - Cache: Redis 7.4 + django-q2
 - Imagens: Servidor de mídia próprio (media.lwksistemas.com.br)

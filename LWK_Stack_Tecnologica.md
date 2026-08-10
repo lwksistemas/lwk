@@ -32,7 +32,7 @@
 |-----------|--------|--------|
 | Next.js | 16.3.0 | Framework React (App Router) |
 | React | 19.2.8 | Biblioteca de UI |
-| TypeScript | 5.9.3 | Tipagem estática (versão instalada no frontend) |
+| TypeScript | 7.0.2 | Tipagem estática (versão instalada no frontend) |
 | Tailwind CSS | 4.3.3 | Estilização |
 
 ## Integrações

@@ -886,45 +886,94 @@ class ISSNetNacionalClient:
                 "detail": f"Erro ao conectar: {e}",
             }
 
-    def consultar_url_nfse(self, numero_nf: str) -> dict[str, Any]:
+    def consultar_url_nfse(
+        self,
+        numero_nf: str,
+        *,
+        chave_acesso: str = "",
+    ) -> dict[str, Any]:
         """Consulta URL da DANFE via ConsultarUrlNfse do Nacional.
 
-        Retorna dict com success e url (link para o portal notaeletronica.com.br).
+        Retorna dict com success e url (link para o portal notaeletronica.com.br
+        no formato Nota_Digital_Nacional.aspx?token).
+
+        Tenta envelope aninhado (mesmo de GerarNfse) e xsd:string (ACBr),
+        com Pedido/NumeroNfse e, se houver, ChaveAcesso.
         """
         result: dict[str, Any] = {"success": False, "url": "", "erro": None}
         numero = str(numero_nf or "").strip()
-        if not numero:
+        if not numero and not (chave_acesso or "").strip():
             result["erro"] = "Número da NFS-e não informado"
             return result
 
         try:
             from nfse_integration.issnet_constants import SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE
+            from nfse_integration.issnet_soap import montar_soap_envelope_nacional_xsd_string
 
-            variantes: list[tuple[str, str]] = []
-            xml_pedido = construir_xml_consultar_url_nfse_nacional(
-                numero_nf=numero,
-                prestador_cnpj=self.prestador_cnpj,
-                prestador_inscricao_municipal=self.prestador_im,
-            )
-            xml_simples = construir_xml_consultar_url_nfse_nacional_simples(
-                numero_nf=numero,
-                prestador_cnpj=self.prestador_cnpj,
-                prestador_inscricao_municipal=self.prestador_im,
-            )
-            for rotulo, xml_base in (("pedido", xml_pedido), ("simples", xml_simples)):
+            ns = NS_NFSE_NACIONAL
+            chave = re.sub(r"\D", "", chave_acesso or "")
+            xmls: list[tuple[str, str]] = []
+
+            if numero:
+                xmls.append((
+                    "pedido",
+                    construir_xml_consultar_url_nfse_nacional(
+                        numero_nf=numero,
+                        prestador_cnpj=self.prestador_cnpj,
+                        prestador_inscricao_municipal=self.prestador_im,
+                    ),
+                ))
+                xmls.append((
+                    "simples",
+                    construir_xml_consultar_url_nfse_nacional_simples(
+                        numero_nf=numero,
+                        prestador_cnpj=self.prestador_cnpj,
+                        prestador_inscricao_municipal=self.prestador_im,
+                    ),
+                ))
+            if chave:
+                xmls.append((
+                    "chave",
+                    f'<ConsultarUrlNfseEnvio xmlns="{ns}"><ChaveAcesso>{chave}</ChaveAcesso></ConsultarUrlNfseEnvio>',
+                ))
+                xmls.append((
+                    "pedido_chave",
+                    (
+                        f'<ConsultarUrlNfseEnvio xmlns="{ns}"><Pedido>'
+                        f"<ChaveAcesso>{chave}</ChaveAcesso>"
+                        f"</Pedido></ConsultarUrlNfseEnvio>"
+                    ),
+                ))
+
+            variantes: list[tuple[str, str, str]] = []  # rotulo, xml, modo
+            for rotulo, xml_base in xmls:
+                variantes.append((f"{rotulo}|aninhado", xml_base, "aninhado"))
+                variantes.append((f"{rotulo}|xsd", xml_base, "xsd"))
                 try:
-                    variantes.append((f"{rotulo}+assinado", self._assinar_xml(xml_base)))
+                    xml_assinado = self._assinar_xml(xml_base)
+                    variantes.append((f"{rotulo}+assinado|aninhado", xml_assinado, "aninhado"))
+                    variantes.append((f"{rotulo}+assinado|xsd", xml_assinado, "xsd"))
                 except Exception as exc:
                     logger.warning(
                         "ISSNet Nacional ConsultarUrlNfse: falha ao assinar (%s): %s",
                         rotulo,
                         exc,
                     )
-                variantes.append((rotulo, xml_base))
 
             ultimo_erro = "URL não encontrada na resposta"
-            for rotulo, xml_consulta in variantes:
-                resposta = self._enviar_soap(xml_consulta, SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE)
+            nome_op = _nome_operacao_de_soap_action(SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE)
+
+            for rotulo, xml_consulta, modo in variantes:
+                if modo == "xsd":
+                    envelope = montar_soap_envelope_nacional_xsd_string(nome_op, xml_consulta)
+                    # Reusa o POST de _enviar_soap montando via path temporário:
+                    # chama helper interno com envelope pronto.
+                    resposta = self._enviar_soap_envelope_pronto(
+                        envelope, SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE, nome_op,
+                    )
+                else:
+                    resposta = self._enviar_soap(xml_consulta, SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE)
+
                 if not resposta:
                     ultimo_erro = f"{rotulo}: resposta vazia"
                     continue
@@ -936,7 +985,7 @@ class ISSNetNacionalClient:
                     logger.info(
                         "ISSNet Nacional ConsultarUrlNfse OK (%s): %s → %s",
                         rotulo,
-                        numero,
+                        numero or chave[:20],
                         url,
                     )
                     return result
@@ -947,7 +996,7 @@ class ISSNetNacionalClient:
                 logger.warning(
                     "ISSNet Nacional ConsultarUrlNfse falhou (%s) NFS-e %s: %s | raw=%s",
                     rotulo,
-                    numero,
+                    numero or chave[:20],
                     ultimo_erro,
                     " ".join((resposta or "").split())[:500],
                 )
@@ -959,6 +1008,50 @@ class ISSNetNacionalClient:
             result["erro"] = str(e)
 
         return result
+
+    def _enviar_soap_envelope_pronto(self, envelope: str, soap_action: str, nome_op: str) -> str:
+        """POST de envelope SOAP já montado (usado por ConsultarUrlNfse xsd:string)."""
+        created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
+        cert_path = self._pfx_temp()
+        try:
+            with certificado_mtls_temporario(cert_path, self.cert_password) as (pem_cert, pem_key):
+                envelope_bytes = envelope.encode("utf-8")
+                headers = {
+                    "Content-Type": "text/xml; charset=utf-8",
+                    "SOAPAction": f'"{soap_action}"',
+                    "Connection": "close",
+                    "Accept": "text/xml",
+                    "User-Agent": "LWK-Sistemas/ISSNet-Nacional",
+                }
+                logger.info(
+                    "ISSNet Nacional SOAP %s envelope-pronto (~%d bytes) → %s",
+                    nome_op, len(envelope_bytes), self.url,
+                )
+                try:
+                    r = req.post(
+                        self.url,
+                        data=envelope_bytes,
+                        headers=headers,
+                        cert=(pem_cert, pem_key),
+                        timeout=(8, 45),
+                        verify=True,
+                    )
+                except (req.exceptions.ConnectionError, req.exceptions.ReadTimeout) as e:
+                    logger.warning("ISSNet Nacional %s conexão falhou (%s); retry 1x", nome_op, e)
+                    time.sleep(1.5)
+                    r = req.post(
+                        self.url,
+                        data=envelope_bytes,
+                        headers=headers,
+                        cert=(pem_cert, pem_key),
+                        timeout=(8, 45),
+                        verify=True,
+                    )
+                return r.text or ""
+        finally:
+            if created_tmp and os.path.isfile(cert_path):
+                with suppress(OSError):
+                    os.unlink(cert_path)
 
     @staticmethod
     def _extrair_url_danfe_resposta(resposta: str) -> str:

@@ -340,7 +340,12 @@ def _gerar_url_portal_issnet_nacional(
             prestador_inscricao_municipal=im,
         )
 
-        resultado = client.consultar_url_nfse(numero_nf)
+        resultado = client.consultar_url_nfse(
+            numero_nf,
+            chave_acesso=(
+                getattr(nfse, "codigo_verificacao", "") if nfse is not None else ""
+            ) or "",
+        )
         url = (resultado.get("url") or "").strip() if resultado.get("success") else ""
         if url_danfe_valida(url):
             if salvar and nfse is not None:

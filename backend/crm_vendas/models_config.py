@@ -358,10 +358,18 @@ class CRMConfig(LojaIsolationMixin, models.Model):
     def get_or_create_for_loja(cls, loja_id):
         """Retorna ou cria configuração para a loja com valores padrão.
 
-        Preferência: registro com inscrição municipal preenchida (evita
-        configs duplicadas vazias que quebram NFS-e/DANFE).
+        Preferência: registro com certificado ISSNet; depois com inscrição
+        municipal (evita configs duplicadas vazias que quebram NFS-e/DANFE).
         """
         qs = cls.objects.filter(loja_id=loja_id).order_by("id")
+        com_cert = None
+        for cfg in qs:
+            raw = getattr(cfg, "issnet_certificado", None) or getattr(cfg, "nacional_certificado", None)
+            if raw and len(bytes(raw)) > 0:
+                com_cert = cfg
+                break
+        if com_cert is not None:
+            return com_cert
         com_im = (
             qs.exclude(inscricao_municipal__isnull=True)
             .exclude(inscricao_municipal="")

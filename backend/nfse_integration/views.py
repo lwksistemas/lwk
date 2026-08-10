@@ -281,6 +281,8 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
     def salvar_url(self, request, pk=None):
         """Salva a URL oficial da nota (ex: link do email do ISSNet) para uso no PDF/email."""
         try:
+            from nfse_integration.danfe import url_xml_download_from_danfe
+
             nfse = self.get_object()
             url = (request.data.get("url") or "").strip()
             if not url or not url.startswith("http"):
@@ -289,9 +291,14 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             nfse.pdf_url = url[:2000]
-            nfse.save(update_fields=["pdf_url", "updated_at"])
+            update_fields = ["pdf_url", "updated_at"]
+            xml_url = url_xml_download_from_danfe(url)
+            if xml_url:
+                nfse.xml_url = xml_url[:2000]
+                update_fields.append("xml_url")
+            nfse.save(update_fields=update_fields)
             logger.info("NFS-e %s: pdf_url salva manualmente (%s...)", nfse.numero_nf, url[:60])
-            return Response({"success": True, "url": url})
+            return Response({"success": True, "url": url, "xml_url": xml_url or ""})
         except Exception as e:
             logger.exception("Erro ao salvar URL da NFS-e: %s", e)
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

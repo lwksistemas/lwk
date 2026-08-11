@@ -20,6 +20,10 @@ interface ImageUploadMediaProps {
   buttonLabel?: string;
   /** Aceitar apenas imagens ou também PDFs */
   accept?: string;
+  /** Separar upload em pasta do paciente no servidor de mídia */
+  patientId?: number | null;
+  patientNome?: string;
+  patientCpf?: string;
 }
 
 const MEDIA_SERVER_URL = process.env.NEXT_PUBLIC_MEDIA_URL || 'https://media.lwksistemas.com.br';
@@ -36,6 +40,9 @@ export function ImageUploadMedia({
   compact = false,
   buttonLabel,
   accept = 'image/*',
+  patientId,
+  patientNome,
+  patientCpf,
 }: ImageUploadMediaProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +79,15 @@ export function ImageUploadMedia({
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folder', folder);
+      if (patientId != null && patientId > 0) {
+        formData.append('patient_id', String(patientId));
+      }
+      if (patientNome?.trim()) {
+        formData.append('patient_nome', patientNome.trim());
+      }
+      if (patientCpf?.trim()) {
+        formData.append('patient_cpf', patientCpf.trim());
+      }
 
       const response = await apiClient.post<{
         success: boolean;

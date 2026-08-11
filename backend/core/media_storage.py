@@ -69,7 +69,13 @@ def normalize_media_folder(folder: str | None) -> str | None:
 
 def pasta_media_paciente(patient) -> str:
     """Slug estável para subpasta do paciente: {nome}_{cpf} ou {nome}_id{id}."""
-    nome_raw = (getattr(patient, "nome", None) or "paciente").strip()
+    # Patient usa `name`; alguns stubs usam `nome`.
+    nome_raw = (
+        getattr(patient, "nome", None)
+        or getattr(patient, "name", None)
+        or "paciente"
+    )
+    nome_raw = str(nome_raw).strip() or "paciente"
     nome_norm = unicodedata.normalize("NFKD", nome_raw)
     nome_ascii = "".join(c for c in nome_norm if not unicodedata.combining(c))
     nome_slug = re.sub(r"[^a-z0-9]+", "-", nome_ascii.lower()).strip("-")[:50] or "paciente"
@@ -81,6 +87,16 @@ def pasta_media_paciente(patient) -> str:
     if pid:
         return f"{nome_slug}_id{pid}"
     return nome_slug
+
+
+def folder_media_paciente(root: str, patient) -> str:
+    """Pasta raiz ou raiz/{slug-paciente} para separar arquivos por paciente."""
+    root_ok = (root or "fotos").strip().strip("/").split("/")[0]
+    if root_ok not in _ALLOWED_ROOT_FOLDERS:
+        root_ok = "fotos"
+    if patient is None:
+        return root_ok
+    return f"{root_ok}/{pasta_media_paciente(patient)}"
 
 
 def normalize_media_tenant(value: str | None) -> str | None:

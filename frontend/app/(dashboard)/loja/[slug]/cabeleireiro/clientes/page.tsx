@@ -207,6 +207,7 @@ export default function SalaoClientesPage() {
           onCancel={voltar}
           accentColor={SALAO_PRIMARY}
           lojaSlug={slug}
+          patientId={editing?.id ?? null}
         />
       </div>
     );

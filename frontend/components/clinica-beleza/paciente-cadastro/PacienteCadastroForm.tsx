@@ -27,6 +27,7 @@ export function PacienteCadastroForm({
   lojaSlug,
   showHeader = true,
   hideConvenio = false,
+  patientId,
 }: PacienteCadastroFormProps) {
   const onChange = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -66,6 +67,7 @@ export function PacienteCadastroForm({
               lojaSlug={lojaSlug}
               onChange={onChange}
               hideConvenio={hideConvenio}
+              patientId={patientId}
             />
             <PacienteEnderecoSection
               form={form}

@@ -48,4 +48,6 @@ export interface PacienteCadastroFormProps {
   showHeader?: boolean;
   /** Oculta convênio (ex.: salão / cabeleireiro). */
   hideConvenio?: boolean;
+  /** ID do paciente em edição (pasta no servidor de mídia). */
+  patientId?: number | null;
 }

@@ -161,12 +161,10 @@ def upload_foto_media(loja, conteudo: bytes, ambiente: str | None = None, patien
     del ambiente  # mantido na assinatura por compatibilidade com chamadas antigas
     from urllib.parse import urlparse
 
-    from core.media_storage import media_upload, pasta_media_paciente
+    from core.media_storage import folder_media_paciente, media_upload
 
     comprimido = comprimir_imagem_bytes(conteudo)
-    folder = "fotos"
-    if patient is not None:
-        folder = f"fotos/{pasta_media_paciente(patient)}"
+    folder = folder_media_paciente("fotos", patient)
     url = media_upload(loja, comprimido, filename="foto.jpg", folder=folder)
     if not url:
         raise FotoUploadInvalida("Falha ao enviar imagem. Tente novamente.")

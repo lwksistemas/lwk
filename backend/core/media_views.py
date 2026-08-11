@@ -9,12 +9,15 @@ from rest_framework.response import Response
 from core.media_storage import (
     MEDIA_TENANT_SUPERADMIN,
     MEDIA_TENANT_SUPORTE,
-    media_upload_tenant,
-    media_delete_tenant,
-    is_media_url,
-    parse_media_url,
+    _ALLOWED_ROOT_FOLDERS,
     _cpf_cnpj_digits,
+    folder_media_paciente,
+    is_media_url,
+    media_delete_tenant,
+    media_upload_tenant,
+    normalize_media_folder,
     normalize_media_tenant,
+    parse_media_url,
 )
 from superadmin.models import Loja
 from tenants.middleware import get_current_loja_id
@@ -75,6 +78,37 @@ def _resolve_media_tenant(request):
     return None, Response({"error": "Loja não identificada"}, status=status.HTTP_400_BAD_REQUEST)
 
 
+def _resolver_folder_upload(request) -> str:
+    """Pasta raiz ou raiz/{paciente} a partir de folder + patient_id/nome/cpf."""
+    folder_raw = (request.data.get("folder") or "fotos").strip().strip("/")
+    root = folder_raw.split("/")[0] if folder_raw else "fotos"
+    if root not in _ALLOWED_ROOT_FOLDERS:
+        root = "fotos"
+
+    patient_id = request.data.get("patient_id")
+    if patient_id not in (None, ""):
+        try:
+            from clinica_beleza.models import Patient
+
+            paciente = Patient.objects.filter(pk=int(patient_id)).first()
+            if paciente:
+                return folder_media_paciente(root, paciente)
+        except (TypeError, ValueError, ImportError):
+            pass
+
+    nome = (request.data.get("patient_nome") or request.data.get("patient_name") or "").strip()
+    cpf = (request.data.get("patient_cpf") or "").strip()
+    if nome or cpf:
+        stub = SimpleNamespace(name=nome or "paciente", nome=nome or "paciente", cpf=cpf, id=None)
+        return folder_media_paciente(root, stub)
+
+    if "/" in folder_raw:
+        normalized = normalize_media_folder(folder_raw)
+        if normalized:
+            return normalized
+    return root
+
+
 @api_view(["POST"])
 @parser_classes([MultiPartParser])
 def media_upload(request):
@@ -87,20 +121,26 @@ def media_upload(request):
     if not file:
         return Response({"error": "Nenhum arquivo enviado"}, status=status.HTTP_400_BAD_REQUEST)
 
-    folder = request.data.get("folder", "fotos")
-    allowed_folders = ("fotos", "docs", "avatars", "recibos", "contratos")
-    if folder not in allowed_folders:
-        folder = "fotos"
+    folder = _resolver_folder_upload(request)
 
     url = media_upload_tenant(tenant, file.read(), filename=file.name or "upload", folder=folder)
 
     if url:
         return Response(
-            {"success": True, "url": url, "filename": file.name, "tenant": tenant},
+            {
+                "success": True,
+                "url": url,
+                "filename": file.name,
+                "tenant": tenant,
+                "folder": folder,
+            },
             status=status.HTTP_201_CREATED,
         )
 
-    return Response({"success": False, "error": "Falha ao enviar arquivo"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response(
+        {"success": False, "error": "Falha ao enviar arquivo"},
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
 
 
 @api_view(["POST"])

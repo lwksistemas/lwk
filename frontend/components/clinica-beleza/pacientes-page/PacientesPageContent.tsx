@@ -94,6 +94,7 @@ export function PacientesPageContent() {
             deleting={formState.deleting}
             accentColor={theme.corPrimaria || CLINICA_BELEZA_PRIMARY}
             lojaSlug={slug}
+            patientId={formState.editing?.id ?? (editIdParam ? Number(editIdParam) : null)}
           />
         </ClinicaBelezaPageContent>
       </>

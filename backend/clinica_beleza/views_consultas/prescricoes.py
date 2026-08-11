@@ -24,7 +24,13 @@ def _preparar_dados_prescricao(request, consulta) -> tuple[dict, str, object, ob
     loja = Loja.objects.using("default").filter(id=consulta.loja_id).first()
     pdf_url = ""
     if loja and prescricao_id:
-        pdf_url = resolver_pdf_prescricao(loja, professional, prescricao_id, str(request.data.get("pdf_url") or ""))
+        pdf_url = resolver_pdf_prescricao(
+            loja,
+            professional,
+            prescricao_id,
+            str(request.data.get("pdf_url") or ""),
+            patient=consulta.patient,
+        )
     data = {
         "consulta": consulta.id,
         "patient": consulta.patient_id,
@@ -45,7 +51,12 @@ def _atualizar_prescricao_existente(existente, data: dict, pdf_url: str, loja, p
     if pdf_url:
         existente.pdf_url = pdf_url
     elif not existente.pdf_url and loja and prescricao_id:
-        novo_pdf = resolver_pdf_prescricao(loja, professional, prescricao_id, "")
+        paciente = existente.patient
+        if not paciente and existente.consulta_id:
+            paciente = getattr(existente.consulta, "patient", None)
+        novo_pdf = resolver_pdf_prescricao(
+            loja, professional, prescricao_id, "", patient=paciente,
+        )
         if novo_pdf:
             existente.pdf_url = novo_pdf
     if prof_id:
@@ -72,7 +83,7 @@ class ConsultaPrescricaoView(APIView):
         from superadmin.plano_features import loja_plano_permite_memed
 
         try:
-            consulta = Consulta.objects.select_related("professional").get(pk=consulta_id)
+            consulta = Consulta.objects.select_related("professional", "patient").get(pk=consulta_id)
         except Consulta.DoesNotExist:
             return Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -139,7 +150,7 @@ class PrescricaoMemedPdfView(APIView):
 
         try:
             presc = PrescricaoMemed.objects.select_related(
-                "professional", "consulta", "consulta__professional",
+                "professional", "patient", "consulta", "consulta__professional", "consulta__patient",
             ).get(pk=pk)
         except PrescricaoMemed.DoesNotExist:
             return Response({"error": "Prescrição não encontrada."}, status=status.HTTP_404_NOT_FOUND)
@@ -155,9 +166,14 @@ class PrescricaoMemedPdfView(APIView):
         professional = presc.professional or (
             presc.consulta.professional if presc.consulta_id else None
         )
+        paciente = presc.patient or (
+            presc.consulta.patient if presc.consulta_id else None
+        )
         pdf_url = ""
         if prescricao_id:
-            pdf_url = resolver_pdf_prescricao(loja, professional, prescricao_id, "")
+            pdf_url = resolver_pdf_prescricao(
+                loja, professional, prescricao_id, "", patient=paciente,
+            )
 
         if not pdf_url:
             from ..memed_prescricao_service import arquivar_pdf_bytes_media
@@ -165,7 +181,7 @@ class PrescricaoMemedPdfView(APIView):
 
             try:
                 buffer = gerar_pdf_prescricao_memed(presc)
-                pdf_url = arquivar_pdf_bytes_media(loja, buffer.getvalue())
+                pdf_url = arquivar_pdf_bytes_media(loja, buffer.getvalue(), patient=paciente)
             except Exception:
                 import logging
                 logging.getLogger(__name__).exception(

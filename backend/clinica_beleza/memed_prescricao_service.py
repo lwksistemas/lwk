@@ -7,7 +7,7 @@ from typing import Any
 
 import requests
 
-from core.media_storage import media_upload, media_upload_from_url
+from core.media_storage import folder_media_paciente, media_upload, media_upload_from_url
 
 from .memed_config import memed_config as _memed_config
 from .memed_config import memed_credentials as _memed_credentials
@@ -201,47 +201,57 @@ def buscar_pdf_url_memed(prescritor_id: str, prescricao_id: str) -> str:
     return ""
 
 
-def arquivar_pdf_bytes_media(loja, conteudo: bytes) -> str:
-    """Envia bytes de PDF ao servidor de mídia. Retorna URL ou vazio."""
+def arquivar_pdf_bytes_media(loja, conteudo: bytes, patient=None) -> str:
+    """Envia bytes de PDF ao servidor de mídia (docs/{paciente}/). Retorna URL ou vazio."""
     if not conteudo or len(conteudo) < 200 or conteudo[:4] != b"%PDF":
         return ""
     try:
-        return (media_upload(loja, conteudo, filename="prescricao.pdf", folder="docs") or "").strip()
+        folder = folder_media_paciente("docs", patient)
+        return (
+            media_upload(loja, conteudo, filename="prescricao.pdf", folder=folder) or ""
+        ).strip()
     except Exception as exc:
         logger.warning("Falha ao arquivar bytes PDF Memed no servidor de mídia: %s", exc)
         return ""
 
 
-def arquivar_pdf_media(loja, pdf_url: str) -> str:
-    """Baixa o PDF da Memed e salva no servidor de mídia.
+def arquivar_pdf_media(loja, pdf_url: str, patient=None) -> str:
+    """Baixa o PDF da Memed e salva no servidor de mídia (docs/{paciente}/).
     Retorna URL arquivada ou a original se falhar.
     """
     url = (pdf_url or "").strip()
     if not url or not _URL_HTTP.match(url):
         return ""
     try:
-        arquivada = media_upload_from_url(loja, url, folder="docs")
+        folder = folder_media_paciente("docs", patient)
+        arquivada = media_upload_from_url(loja, url, folder=folder)
         return (arquivada or url).strip()
     except Exception as exc:
         logger.warning("Falha ao arquivar PDF Memed no servidor de mídia: %s", exc)
         return url
 
 
-def resolver_pdf_prescricao(loja, professional, prescricao_id: str, pdf_url_frontend: str = "") -> str:
+def resolver_pdf_prescricao(
+    loja,
+    professional,
+    prescricao_id: str,
+    pdf_url_frontend: str = "",
+    patient=None,
+) -> str:
     """Define URL final do PDF: frontend → API Memed (bytes ou URL) → mídia."""
     pdf = (pdf_url_frontend or "").strip()[:500]
     if pdf:
-        return arquivar_pdf_media(loja, pdf) or pdf
+        return arquivar_pdf_media(loja, pdf, patient=patient) or pdf
 
     prescritor = resolver_prescritor_id_profissional(professional) if prescricao_id else None
     if prescritor:
         pdf_bytes = buscar_pdf_bytes_memed(prescritor, prescricao_id)
         if pdf_bytes:
-            arquivada = arquivar_pdf_bytes_media(loja, pdf_bytes)
+            arquivada = arquivar_pdf_bytes_media(loja, pdf_bytes, patient=patient)
             if arquivada:
                 return arquivada
 
         pdf_url = buscar_pdf_url_memed(prescritor, prescricao_id)
         if pdf_url:
-            return arquivar_pdf_media(loja, pdf_url) or pdf_url
+            return arquivar_pdf_media(loja, pdf_url, patient=patient) or pdf_url
     return ""

@@ -7,10 +7,23 @@ import {
   obterStreamCamera,
 } from "./paciente-foto-cadastro-utils";
 
-async function uploadToMedia(file: File, folder: string): Promise<string> {
+async function uploadToMedia(
+  file: File,
+  folder: string,
+  patient?: { id?: number | null; nome?: string; cpf?: string },
+): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("folder", folder);
+  if (patient?.id != null && patient.id > 0) {
+    formData.append("patient_id", String(patient.id));
+  }
+  if (patient?.nome?.trim()) {
+    formData.append("patient_nome", patient.nome.trim());
+  }
+  if (patient?.cpf?.trim()) {
+    formData.append("patient_cpf", patient.cpf.trim());
+  }
   const res = await apiClient.post<{ url: string }>("/media/upload/", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
@@ -22,10 +35,25 @@ interface UsePacienteFotoCadastroParams {
   value: string;
   onChange: (url: string) => void;
   disabled?: boolean;
+  patientId?: number | null;
+  patientNome?: string;
+  patientCpf?: string;
 }
 
-export function usePacienteFotoCadastro({ slug, value, onChange, disabled = false }: UsePacienteFotoCadastroParams) {
-  const lojaDoc = ""; const lojaDocReady = true; const lojaDocLoading = false;
+export function usePacienteFotoCadastro({
+  slug,
+  value,
+  onChange,
+  disabled = false,
+  patientId,
+  patientNome,
+  patientCpf,
+}: UsePacienteFotoCadastroParams) {
+  void slug;
+  void value;
+  const lojaDoc = "";
+  const lojaDocReady = true;
+  const lojaDocLoading = false;
   const folder = "fotos";
   const uploadDisabled = disabled || lojaDocLoading || !lojaDocReady || !folder;
 
@@ -67,7 +95,11 @@ export function usePacienteFotoCadastro({ slug, value, onChange, disabled = fals
       setUploading(true);
       setErro("");
       try {
-        const url = await uploadToMedia(file, folder);
+        const url = await uploadToMedia(file, folder, {
+          id: patientId,
+          nome: patientNome,
+          cpf: patientCpf,
+        });
         onChange(url);
       } catch (e: unknown) {
         setErro(e instanceof Error ? e.message : "Erro ao enviar foto.");
@@ -75,7 +107,7 @@ export function usePacienteFotoCadastro({ slug, value, onChange, disabled = fals
         setUploading(false);
       }
     },
-    [folder, onChange],
+    [folder, onChange, patientId, patientNome, patientCpf],
   );
 
   const abrirCamera = useCallback(async () => {
@@ -127,5 +159,8 @@ export function usePacienteFotoCadastro({ slug, value, onChange, disabled = fals
     abrirCamera,
     capturarFoto,
     enviarArquivo,
+    patientId,
+    patientNome,
+    patientCpf,
   };
 }

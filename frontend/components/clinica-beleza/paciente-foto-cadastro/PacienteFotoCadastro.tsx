@@ -10,6 +10,9 @@ export interface PacienteFotoCadastroProps {
   onChange: (url: string) => void;
   disabled?: boolean;
   accentColor?: string;
+  patientId?: number | null;
+  patientNome?: string;
+  patientCpf?: string;
 }
 
 export function PacienteFotoCadastro({
@@ -18,6 +21,9 @@ export function PacienteFotoCadastro({
   onChange,
   disabled = false,
   accentColor,
+  patientId,
+  patientNome,
+  patientCpf,
 }: PacienteFotoCadastroProps) {
   const {
     folder,
@@ -32,7 +38,15 @@ export function PacienteFotoCadastro({
     abrirCamera,
     capturarFoto,
     enviarArquivo,
-  } = usePacienteFotoCadastro({ slug, value, onChange, disabled });
+  } = usePacienteFotoCadastro({
+    slug,
+    value,
+    onChange,
+    disabled,
+    patientId,
+    patientNome,
+    patientCpf,
+  });
 
   return (
     <>
@@ -67,10 +81,13 @@ export function PacienteFotoCadastro({
                 compact
                 value={value}
                 onChange={onChange}
-                folder={folder || "lwksistemas/misc"}
+                folder={folder || "fotos"}
                 maxSize={5}
                 disabled={uploadDisabled || uploading}
                 buttonLabel={uploading ? "Enviando…" : "Importar foto"}
+                patientId={patientId}
+                patientNome={patientNome}
+                patientCpf={patientCpf}
               />
               <button
                 type="button"

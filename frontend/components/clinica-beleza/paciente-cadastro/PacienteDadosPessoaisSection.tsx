@@ -19,6 +19,7 @@ interface PacienteDadosPessoaisSectionProps {
   lojaSlug: string;
   onChange: (patch: Partial<PacienteFormState>) => void;
   hideConvenio?: boolean;
+  patientId?: number | null;
 }
 
 export function PacienteDadosPessoaisSection({
@@ -29,6 +30,7 @@ export function PacienteDadosPessoaisSection({
   lojaSlug,
   onChange,
   hideConvenio = false,
+  patientId,
 }: PacienteDadosPessoaisSectionProps) {
   return (
     <div className="space-y-4">
@@ -40,6 +42,9 @@ export function PacienteDadosPessoaisSection({
         onChange={(url) => onChange({ foto_url: url })}
         disabled={saving}
         accentColor={accentColor}
+        patientId={patientId}
+        patientNome={form.name}
+        patientCpf={form.cpf}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

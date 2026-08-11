@@ -50,8 +50,13 @@ def enviar_email_pos_emissao_loja(
     valor: Decimal,
     descricao: str,
     fail_silently: bool = True,
+    url_danfe_previa: str = "",
 ) -> None:
-    """E-mail ao tomador após emissão (inclui DANFE ISSNet quando aplicável)."""
+    """E-mail ao tomador após emissão (inclui DANFE ISSNet quando aplicável).
+
+    Quando ``url_danfe_previa`` é informada (já obtida na emissão), ela é
+    usada diretamente, evitando uma segunda consulta ao ISSNet.
+    """
     from nfse_integration.danfe import buscar_url_danfe_issnet, obter_url_visualizacao_nfse_loja
     from nfse_integration.email_nfse import enviar_email_nfse_tomador
     from nfse_integration.models import NFSe
@@ -66,24 +71,23 @@ def enviar_email_pos_emissao_loja(
         .order_by("-data_emissao")
         .first()
     )
-    url_danfe = ""
-    if provedor_nf_loja(config) == "issnet":
-        # Para o padrão Nacional (DPS/RTC), não usar ConsultarUrlNfse do ABRASF
-        # pois retorna URL do sistema legado (issnetonline.com.br/online).
-        # O email usará a chave de acesso + link de autenticidade.
-        from nfse_integration.issnet_shared import usar_issnet_padrao_nacional
-        usar_nacional = usar_issnet_padrao_nacional(config)
-        if not usar_nacional:
-            if nfse_obj is not None:
-                url_danfe = obter_url_visualizacao_nfse_loja(nfse_obj, loja, loja.id)
-            if not url_danfe:
-                url_danfe = buscar_url_danfe_issnet(
-                    nfse_obj,
-                    numero_nf=numero_nf,
-                    loja_id=loja.id,
-                    loja=loja,
-                    config=config,
-                )
+    url_danfe = (url_danfe_previa or "").strip()
+    if not url_danfe and provedor_nf_loja(config) == "issnet":
+        # Buscar URL da DANFE para TODAS as notas ISSNet (incluindo padrão
+        # Nacional DPS/RTC). A cadeia obter_url_visualizacao_nfse_loja →
+        # buscar_url_danfe_issnet → _gerar_url_portal_issnet_nacional já
+        # trata corretamente o padrão Nacional via ConsultarUrlNfse do
+        # webservice Nacional (não ABRASF).
+        if nfse_obj is not None:
+            url_danfe = obter_url_visualizacao_nfse_loja(nfse_obj, loja, loja.id)
+        if not url_danfe:
+            url_danfe = buscar_url_danfe_issnet(
+                nfse_obj,
+                numero_nf=numero_nf,
+                loja_id=loja.id,
+                loja=loja,
+                config=config,
+            )
 
     xml_bruto = (nfse_obj.xml_nfse if nfse_obj and nfse_obj.xml_nfse else "") or ""
     chave = ""

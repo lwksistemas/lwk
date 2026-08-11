@@ -191,6 +191,7 @@ class NFSeService:
         numero_nf: str,
         valor: Decimal,
         descricao: str,
+        **kwargs,
     ):
         try:
             enviar_email_pos_emissao_loja(
@@ -202,6 +203,7 @@ class NFSeService:
                 valor=valor,
                 descricao=descricao,
                 fail_silently=True,
+                url_danfe_previa=kwargs.get("url_danfe_previa", ""),
             )
         except Exception as exc:
             logger.error("Erro ao enviar email NFS-e: %s", exc)

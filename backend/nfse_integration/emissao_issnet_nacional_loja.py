@@ -296,6 +296,7 @@ def emitir_via_issnet_nacional_loja(
             if enviar_email and tomador_email:
                 # Busca URL oficial (ConsultarUrlNfse Nacional) e envia e-mail
                 # no padrão ISS.NET: link da DANFE + XML em anexo.
+                url_danfe = ""
                 try:
                     from nfse_integration.danfe import buscar_url_danfe_issnet
                     from nfse_integration.models import NFSe
@@ -329,6 +330,7 @@ def emitir_via_issnet_nacional_loja(
                     tomador_nome=tomador_nome,
                     valor=Decimal(str(valor_servicos)),
                     descricao=servico_descricao or "Serviço prestado",
+                    url_danfe_previa=url_danfe,
                 )
 
             return resultado_final

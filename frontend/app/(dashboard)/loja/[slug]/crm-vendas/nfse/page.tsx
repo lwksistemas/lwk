@@ -97,6 +97,7 @@ export default function NFSePage() {
             onReenviarEmail={requestReenviarEmail}
             onEnviarWhatsapp={abrirModalWhatsapp}
             onCancelar={requestCancelarNFSe}
+            onRefresh={() => carregarNFSes(true)}
             whatsappHabilitado={whatsappAtivo}
           />
           <CrmPaginationBar

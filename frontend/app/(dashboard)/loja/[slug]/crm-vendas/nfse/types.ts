@@ -31,5 +31,6 @@ export type NfseLojaRowHandlers = {
   onReenviarEmail: (e: MouseEvent, nf: NFSe) => void;
   onEnviarWhatsapp: (e: MouseEvent, nf: NFSe) => void;
   onCancelar: (nf: NFSe) => void;
+  onRefresh?: () => void;
   whatsappHabilitado?: boolean;
 };

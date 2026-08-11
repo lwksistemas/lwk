@@ -23,6 +23,7 @@ type NfseLojaTableProps = {
   lojaProvedor?: string;
   syncingId: number | null;
   deletingId: number | null;
+  onRefresh?: () => void;
 } & NfseLojaRowHandlers;
 
 export function NfseLojaTable({
@@ -36,6 +37,7 @@ export function NfseLojaTable({
   onReenviarEmail,
   onEnviarWhatsapp,
   onCancelar,
+  onRefresh,
   whatsappHabilitado = false,
 }: NfseLojaTableProps) {
   return (
@@ -72,6 +74,7 @@ export function NfseLojaTable({
                 onReenviarEmail={onReenviarEmail}
                 onEnviarWhatsapp={onEnviarWhatsapp}
                 onCancelar={onCancelar}
+                onRefresh={onRefresh}
                 whatsappHabilitado={whatsappHabilitado}
               />
             ))}
@@ -93,6 +96,7 @@ function NfseLojaRow({
   onReenviarEmail,
   onEnviarWhatsapp,
   onCancelar,
+  onRefresh,
   whatsappHabilitado = false,
 }: {
   nf: NFSe;
@@ -110,16 +114,15 @@ function NfseLojaRow({
     e.preventDefault();
     e.stopPropagation();
     const url = window.prompt(
-      `Cole o link da nota ${nf.numero_nf} (do email do ISSNet):`,
+      `Cole o link da nota ${nf.numero_nf} (do email do ISSNet — Nota_Digital_Nacional.aspx):`,
       nf.pdf_url || ''
     );
     if (!url || !url.startsWith('http')) return;
     setSalvandoUrl(true);
     try {
       await apiClient.post(`/nfse/${nf.id}/salvar_url/`, { url });
-      toast.success('Link da nota salvo! Agora o PDF abre diretamente no portal.');
-      // Atualizar pdf_url localmente
-      nf.pdf_url = url;
+      toast.success('Link salvo! PDF e email agora usam o link oficial do portal.');
+      onRefresh?.();
     } catch {
       toast.error('Erro ao salvar link. Tente novamente.');
     } finally {

@@ -12,6 +12,7 @@ from .views import (
     ContratoViewSet,
     LeadViewSet,
     LoginConfigView,
+    NfseDescricaoTemplateViewSet,
     OportunidadeItemViewSet,
     OportunidadeNotaViewSet,
     OportunidadeViewSet,
@@ -70,6 +71,7 @@ router.register(r"propostas", PropostaViewSet, basename="crm-propostas")
 router.register(r"proposta-templates", PropostaTemplateViewSet, basename="crm-proposta-templates")
 router.register(r"contratos", ContratoViewSet, basename="crm-contratos")
 router.register(r"contrato-templates", ContratoTemplateViewSet, basename="crm-contrato-templates")
+router.register(r"nfse-templates", NfseDescricaoTemplateViewSet, basename="crm-nfse-templates")
 router.register(r"financeiro-grupos", GrupoFinanceiroCRMViewSet, basename="crm-financeiro-grupos")
 router.register(r"financeiro-lancamentos", LancamentoFinanceiroCRMViewSet, basename="crm-financeiro-lancamentos")
 

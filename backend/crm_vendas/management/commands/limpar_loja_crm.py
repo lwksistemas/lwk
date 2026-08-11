@@ -44,6 +44,7 @@ class Command(BaseCommand):
             Contrato,
             ContratoTemplate,
             Lead,
+            NfseDescricaoTemplate,
             Oportunidade,
             OportunidadeItem,
             ProdutoServico,
@@ -74,6 +75,7 @@ class Command(BaseCommand):
             ("Produtos/Serviços", ProdutoServico),
             ("Templates de Proposta", PropostaTemplate),
             ("Templates de Contrato", ContratoTemplate),
+            ("Templates de Descrição NFS-e", NfseDescricaoTemplate),
         ]
         counts = {label: _contar_seguro(model) for label, model in modelos_contagem}
 

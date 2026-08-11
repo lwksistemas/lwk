@@ -5,7 +5,12 @@
  * usuário informa só descrição e valor.
  */
 
-import { NFSE_EMISSAO_INPUT_CLASS } from '@/lib/nfse-emissao-form';
+import { useEffect, useState } from 'react';
+import {
+  NFSE_EMISSAO_INPUT_CLASS,
+  carregarNfseDescricaoTemplates,
+  type NfseDescricaoTemplateOption,
+} from '@/lib/nfse-emissao-form';
 import {
   NFSE_ATIVIDADES_MUNICIPAIS,
   encontrarAtividadeMunicipal,
@@ -32,6 +37,19 @@ export function ServicoFields({
   codigo_tributacao_nacional,
   onChange,
 }: ServicoFieldsProps) {
+  const [templates, setTemplates] = useState<NfseDescricaoTemplateOption[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const list = await carregarNfseDescricaoTemplates();
+      if (!cancelled) setTemplates(list);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleAtividadeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const idx = parseInt(e.target.value, 10);
     if (idx < 0 || idx >= NFSE_ATIVIDADES_MUNICIPAIS.length) return;
@@ -90,6 +108,34 @@ export function ServicoFields({
             />
           </div>
         </div>
+
+        {templates.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Usar template
+            </label>
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                const template = templates.find((t) => String(t.id) === e.target.value);
+                if (template) onChange('servico_descricao', template.conteudo);
+                e.target.value = '';
+              }}
+              className={NFSE_EMISSAO_INPUT_CLASS}
+            >
+              <option value="">Selecione um template (opcional)</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nome}
+                  {t.is_padrao ? ' (PADRÃO)' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Preenche a descrição do serviço automaticamente
+            </p>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

@@ -46,15 +46,49 @@ export function defaultsServicoFromCrmConfig(config: {
   item_lista_servico?: string;
   codigo_tributacao_nacional?: string;
   codigo_tributacao_municipal?: string;
-} | null): NfseDefaultsServico {
+} | null, descricaoOverride?: string): NfseDefaultsServico {
+  const descricao =
+    (descricaoOverride || '').trim() || config?.descricao_servico_padrao || '';
   return {
-    servico_descricao: config?.descricao_servico_padrao || '',
+    servico_descricao: descricao,
     codigo_servico:
       config?.codigo_tributacao_municipal || config?.codigo_servico_municipal || '',
     codigo_cnae: config?.codigo_cnae || '',
     item_lista_servico: config?.item_lista_servico || '',
     codigo_tributacao_nacional: config?.codigo_tributacao_nacional || '',
   };
+}
+
+export type NfseDescricaoTemplateOption = {
+  id: number;
+  nome: string;
+  conteudo: string;
+  is_padrao: boolean;
+};
+
+/** Lista templates ativos de descrição NFS-e (CRM). */
+export async function carregarNfseDescricaoTemplates(): Promise<NfseDescricaoTemplateOption[]> {
+  try {
+    const res = await apiClient.get<
+      NfseDescricaoTemplateOption[] | { results: NfseDescricaoTemplateOption[] }
+    >('/crm-vendas/nfse-templates/', { params: { ativo: 'true' } });
+    const data = res.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.results)) return data.results;
+  } catch {
+    // sem templates — modal usa só a config CRM
+  }
+  return [];
+}
+
+/** Prefere template marcado como padrão; senão descrição da config CRM. */
+export function descricaoServicoDeTemplates(
+  templates: NfseDescricaoTemplateOption[],
+  fallbackConfig?: string,
+): string {
+  const padrao = templates.find((t) => t.is_padrao)?.conteudo?.trim();
+  if (padrao) return padrao;
+  return (fallbackConfig || '').trim();
 }
 
 export type NfseEmissaoContaOption = {

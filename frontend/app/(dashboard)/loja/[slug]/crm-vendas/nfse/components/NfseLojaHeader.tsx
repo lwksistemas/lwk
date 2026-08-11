@@ -1,11 +1,14 @@
 'use client';
 
+import Link from 'next/link';
 import { FileText, Plus, RefreshCw } from 'lucide-react';
 
 export function NfseLojaHeader({
+  slug,
   onEmitir,
   onRecuperar,
 }: {
+  slug: string;
   onEmitir: () => void;
   onRecuperar?: () => void;
 }) {
@@ -19,7 +22,14 @@ export function NfseLojaHeader({
           Gerencie as notas fiscais emitidas para seus clientes
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Link
+          href={`/loja/${slug}/crm-vendas/nfse-templates`}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium transition-colors"
+        >
+          <FileText size={18} />
+          Gerenciar Templates
+        </Link>
         {onRecuperar && (
           <button
             type="button"

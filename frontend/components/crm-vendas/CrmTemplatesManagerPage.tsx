@@ -17,7 +17,7 @@ export interface CrmTemplateRecord {
   updated_at?: string;
 }
 
-export type CrmTemplateApiSegment = 'proposta-templates' | 'contrato-templates';
+export type CrmTemplateApiSegment = 'proposta-templates' | 'contrato-templates' | 'nfse-templates';
 
 interface CrmTemplatesManagerPageProps {
   apiSegment: CrmTemplateApiSegment;
@@ -30,7 +30,7 @@ interface CrmTemplatesManagerPageProps {
 type ModalType = 'create' | 'edit' | 'delete' | null;
 
 /**
- * CRUD unificado para templates de proposta e de contrato (rotas DRF espelhadas).
+ * CRUD unificado para templates de proposta, contrato e descrição NFS-e (rotas DRF espelhadas).
  */
 export default function CrmTemplatesManagerPage({
   apiSegment,

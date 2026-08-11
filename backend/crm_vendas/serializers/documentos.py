@@ -4,7 +4,7 @@ import contextlib
 from rest_framework import serializers
 
 from ..emitente_documento import limpar_emitente_se_vazio
-from ..models import Contrato, ContratoTemplate, Proposta, PropostaTemplate
+from ..models import Contrato, ContratoTemplate, NfseDescricaoTemplate, Proposta, PropostaTemplate
 
 _EMITENTE_FIELDS = [
     "emitente_nome", "emitente_endereco", "emitente_cpf_cnpj",
@@ -117,6 +117,16 @@ class PropostaTemplateSerializer(serializers.ModelSerializer):
 class ContratoTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContratoTemplate
+        fields = [
+            "id", "nome", "conteudo", "is_padrao", "ativo",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
+
+
+class NfseDescricaoTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NfseDescricaoTemplate
         fields = [
             "id", "nome", "conteudo", "is_padrao", "ativo",
             "created_at", "updated_at",

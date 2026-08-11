@@ -7,6 +7,7 @@ from .contatos import ContatoSerializer
 from .documentos import (
     ContratoSerializer,
     ContratoTemplateSerializer,
+    NfseDescricaoTemplateSerializer,
     PropostaSerializer,
     PropostaTemplateSerializer,
 )
@@ -33,6 +34,7 @@ __all__ = [
     "LancamentoFinanceiroCRMSerializer",
     "LeadListSerializer",
     "LeadSerializer",
+    "NfseDescricaoTemplateSerializer",
     "OportunidadeItemSerializer",
     "OportunidadeNotaSerializer",
     "OportunidadeSerializer",

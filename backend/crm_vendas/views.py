@@ -128,6 +128,7 @@ from .views_config import (  # noqa: F401, E402
 from .views_documentos import (  # noqa: F401, E402
     ContratoTemplateViewSet,
     ContratoViewSet,
+    NfseDescricaoTemplateViewSet,
     PropostaTemplateViewSet,
     PropostaViewSet,
 )

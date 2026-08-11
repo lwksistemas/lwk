@@ -10,10 +10,11 @@ from core.views import BaseModelViewSet
 from .mixins import CrmGranularPermissionMixin, CRMSchemaRecoveryMixin, VendedorFilterMixin
 from .mixins_assinatura import AssinaturaDigitalMixin
 from .mixins_documento import DocumentoQuerysetMixin, TemplateViewSetMixin
-from .models import Contrato, ContratoTemplate, Proposta, PropostaTemplate
+from .models import Contrato, ContratoTemplate, NfseDescricaoTemplate, Proposta, PropostaTemplate
 from .serializers import (
     ContratoSerializer,
     ContratoTemplateSerializer,
+    NfseDescricaoTemplateSerializer,
     PropostaSerializer,
     PropostaTemplateSerializer,
 )
@@ -143,6 +144,13 @@ class ContratoTemplateViewSet(CRMSchemaRecoveryMixin, TemplateViewSetMixin, Base
     serializer_class = ContratoTemplateSerializer
     pagination_class = CRMPagination
     template_model = ContratoTemplate
+
+
+class NfseDescricaoTemplateViewSet(CRMSchemaRecoveryMixin, TemplateViewSetMixin, BaseModelViewSet):
+    queryset = NfseDescricaoTemplate.objects.all()
+    serializer_class = NfseDescricaoTemplateSerializer
+    pagination_class = CRMPagination
+    template_model = NfseDescricaoTemplate
 
 
 class ContratoViewSet(

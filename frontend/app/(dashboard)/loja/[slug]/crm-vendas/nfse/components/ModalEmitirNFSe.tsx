@@ -9,7 +9,9 @@ import { formatCpfCnpj } from '@/lib/format-br';
 import {
   NFSE_EMISSAO_INITIAL_FORM,
   buscarTomadorCadastroPorDocumento,
+  carregarNfseDescricaoTemplates,
   defaultsServicoFromCrmConfig,
+  descricaoServicoDeTemplates,
   preencherFormTomador,
   somenteDigitosDocumento,
 } from '@/lib/nfse-emissao-form';
@@ -34,7 +36,6 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
   const { loja } = useLojaInfoPublica(slug);
   const emitenteNome = (loja?.nome || '').trim();
   const { config } = useCRMConfig();
-  const defaultsServico = defaultsServicoFromCrmConfig(config);
   const [step, setStep] = useState<'inicio' | 'formulario'>('inicio');
   const [modoTomador, setModoTomador] = useState<'cadastrado' | 'manual'>('manual');
   const [loading, setLoading] = useState(false);
@@ -45,6 +46,12 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
   const [documentoTomador, setDocumentoTomador] = useState('');
   const [contaBuscaId, setContaBuscaId] = useState('');
   const [formData, setFormData] = useState(NFSE_EMISSAO_INITIAL_FORM);
+
+  const resolverDefaultsServico = async () => {
+    const templates = await carregarNfseDescricaoTemplates();
+    const desc = descricaoServicoDeTemplates(templates, config?.descricao_servico_padrao);
+    return defaultsServicoFromCrmConfig(config, desc);
+  };
 
   const handleContaBuscaChange = async (id: string) => {
     setContaBuscaId(id);
@@ -81,6 +88,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
 
     setBuscandoTomador(true);
     try {
+      const defaultsServico = await resolverDefaultsServico();
       const encontrado = await buscarTomadorCadastroPorDocumento(documentoTomador);
 
       if (encontrado) {

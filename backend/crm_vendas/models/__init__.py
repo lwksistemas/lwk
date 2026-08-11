@@ -12,7 +12,7 @@ from .leads import Lead
 from .oportunidade_items import OportunidadeItem
 from .oportunidade_notas import OportunidadeNota
 from .oportunidades import Oportunidade
-from .templates import ContratoTemplate, PropostaTemplate
+from .templates import ContratoTemplate, NfseDescricaoTemplate, PropostaTemplate
 from .vendedores import Vendedor
 
 __all__ = [
@@ -27,6 +27,7 @@ __all__ = [
     "GrupoFinanceiroCRM",
     "LancamentoFinanceiroCRM",
     "Lead",
+    "NfseDescricaoTemplate",
     "Oportunidade",
     "OportunidadeItem",
     "OportunidadeNota",

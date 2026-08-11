@@ -181,8 +181,8 @@ def buscar_url_danfe_issnet(
             )
             if url_danfe_valida(url_nacional):
                 return url_nacional
-            # Não cair no ABRASF: notas Nacional não aparecem lá.
-            return ""
+            # Fallback ABRASF: notas antigas (pré-Nacional) ainda podem responder.
+            # Notas DPS costumam falhar aqui — só tenta se ainda não há URL.
 
         cnpj_prestador, im_prestador = _resolver_cnpj_im_danfe(config, loja, nfse)
 

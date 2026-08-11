@@ -99,7 +99,9 @@ export async function openPdfFromApiBlobResponse(res: ApiBlobResponse): Promise<
 /** Resposta JSON com campo url (DANFE ISSNet / link Asaas). */
 export function openPdfFromJsonUrl(data: unknown): boolean {
   if (data && typeof data === 'object' && 'url' in data && typeof (data as { url: unknown }).url === 'string') {
-    window.open((data as { url: string }).url, '_blank');
+    const url = ((data as { url: string }).url || '').trim();
+    if (!url) return false;
+    window.open(url, '_blank');
     return true;
   }
   return false;

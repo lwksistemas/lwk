@@ -20,17 +20,27 @@ class ResultadoDownloadPdf:
 
 
 def resolver_download_pdf_loja(nfse: Any, loja: Any, loja_id: int) -> ResultadoDownloadPdf:
-    """CRM/loja: URL oficial da DANFE (portal) ou PDF interno como último recurso."""
+    """CRM/loja: URL oficial da DANFE (portal).
+
+    Para ISSNet (padrão Nacional) o PDF interno NÃO é a nota fiscal real —
+    só redireciona ao link do portal (Nota_Digital_Nacional.aspx). Sem o link,
+    o chamador deve orientar a colar a URL do e-mail do ISSNet.
+    """
     url_oficial = obter_url_visualizacao_nfse_loja(nfse, loja, loja_id)
-    if url_danfe_valida(url_oficial):
+    if url_danfe_valida(url_oficial) and _url_parece_portal_oficial(url_oficial):
         return ResultadoDownloadPdf(tipo="url", url=url_oficial)
 
-    if url_danfe_valida(getattr(nfse, "pdf_url", None)):
+    if url_danfe_valida(getattr(nfse, "pdf_url", None)) and _url_parece_portal_oficial(nfse.pdf_url):
         return ResultadoDownloadPdf(tipo="url", url=nfse.pdf_url)
 
     url_danfe = buscar_url_danfe_issnet(nfse, loja_id=loja_id, loja=loja)
-    if url_danfe:
+    if url_danfe and _url_parece_portal_oficial(url_danfe):
         return ResultadoDownloadPdf(tipo="url", url=url_danfe)
+
+    provedor = (getattr(nfse, "provedor", "") or "").strip().lower()
+    if provedor == "issnet":
+        # Não servir PDF interno — evita confundir com a DANFE do portal.
+        return ResultadoDownloadPdf(tipo="url", url="")
 
     from .pdf_nfse import gerar_pdf_nfse
 
@@ -42,6 +52,22 @@ def resolver_download_pdf_loja(nfse: Any, loja: Any, loja_id: int) -> ResultadoD
         conteudo_pdf=pdf_buffer.read(),
         nome_arquivo=nome,
         content_disposition="inline",
+    )
+
+
+def _url_parece_portal_oficial(url: str | None) -> bool:
+    u = (url or "").lower()
+    if not u.startswith("http"):
+        return False
+    return any(
+        marker in u
+        for marker in (
+            "notaeletronica.com.br",
+            "nota_digital",
+            "issnetonline.com.br",
+            "nfse.gov.br",
+            "asaas.com",
+        )
     )
 
 

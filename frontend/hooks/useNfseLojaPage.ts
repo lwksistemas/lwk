@@ -228,8 +228,17 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
       const blob =
         resBlob.data instanceof Blob ? resBlob.data : new Blob([resBlob.data], { type: 'application/pdf' });
       openBlobInNewTab(blob);
-    } catch {
-      toast.error('PDF não disponível.');
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { error?: string; precisa_colar_link?: boolean } } };
+      const msg = ax.response?.data?.error;
+      if (ax.response?.data?.precisa_colar_link) {
+        toast.error(
+          msg ||
+            'Cole o link do e-mail do ISSNet (Nota_Digital_Nacional.aspx) no ícone de colar desta nota.',
+        );
+        return;
+      }
+      toast.error(msg || 'PDF não disponível.');
     }
   };
 

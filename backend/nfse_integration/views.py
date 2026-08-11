@@ -240,6 +240,18 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             resultado = resolver_download_pdf_loja(nfse, loja, loja_id)
 
             if resultado.tipo == "url":
+                if not (resultado.url or "").strip():
+                    return Response(
+                        {
+                            "error": (
+                                "Link oficial da DANFE ainda não está salvo. "
+                                "Cole o link do e-mail do ISSNet (Nota_Digital_Nacional.aspx) "
+                                "no ícone de colar link desta nota."
+                            ),
+                            "precisa_colar_link": True,
+                        },
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
                 return Response({"url": resultado.url})
 
             response = HttpResponse(resultado.conteudo_pdf, content_type="application/pdf")

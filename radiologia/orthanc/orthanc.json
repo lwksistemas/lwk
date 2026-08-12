@@ -30,5 +30,8 @@
   "MaximumPatientCount": 0,
   "OverwriteInstances": false,
   "DicomAlwaysAllowEcho": true,
+  "DicomAlwaysAllowStore": true,
+  "DicomAlwaysAllowFind": true,
+  "DicomCheckCalledAet": false,
   "DicomCheckModalityHost": false
 }

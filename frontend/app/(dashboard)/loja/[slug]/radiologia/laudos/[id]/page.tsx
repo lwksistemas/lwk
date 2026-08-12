@@ -101,7 +101,7 @@ export default function RadiologiaLaudoEditorPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <header className="bg-gradient-to-r from-teal-700 to-teal-900 text-white shadow">
-        <div className="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-4 sm:px-6">
+        <div className="flex w-full max-w-full flex-col gap-3 px-4 py-4 sm:px-6">
           <div>
             <h1 className="text-xl font-bold">Laudo · {laudo.accession_number}</h1>
             <p className="text-xs text-white/80">{laudo.paciente_nome} · {laudo.status}</p>
@@ -112,7 +112,7 @@ export default function RadiologiaLaudoEditorPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl space-y-4 px-4 py-6 sm:px-6">
+      <main className="w-full max-w-full space-y-4 px-4 py-6 sm:px-6">
         {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
         <div className="grid gap-3 sm:grid-cols-2">
           <input

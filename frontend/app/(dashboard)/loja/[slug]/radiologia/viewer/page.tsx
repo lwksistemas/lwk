@@ -37,7 +37,7 @@ function ViewerInner() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <header className="bg-gradient-to-r from-teal-700 to-teal-900 text-white shadow">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex w-full max-w-full flex-col gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <Activity className="hidden h-6 w-6 sm:block" />
             <div>
@@ -51,7 +51,7 @@ function ViewerInner() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
+      <main className="w-full max-w-full space-y-4 px-4 py-6 sm:px-6 lg:px-8">
         <p className="text-sm text-gray-600 dark:text-gray-400">
           O OHIF na VM de imagens deve apontar o data source para{' '}
           <code className="rounded bg-gray-100 px-1 text-xs dark:bg-gray-800">/api/radiologia/dicomweb/</code>.

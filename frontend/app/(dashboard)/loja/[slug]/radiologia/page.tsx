@@ -57,7 +57,7 @@ export default function RadiologiaHomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <nav className="bg-gradient-to-r from-teal-700 to-teal-900 text-white shadow-lg">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex min-h-[64px] flex-col items-start justify-between gap-2 py-3 sm:flex-row sm:items-center">
             <div>
               <h1 className="text-xl font-bold sm:text-2xl">Radiologia</h1>
@@ -74,7 +74,7 @@ export default function RadiologiaHomePage() {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+      <main className="w-full max-w-full px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         {health && (
           <div
             className={`mb-4 rounded-lg border px-4 py-3 text-sm ${

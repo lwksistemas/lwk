@@ -180,7 +180,8 @@ export default function LojaDashboardDinamicoPage() {
 
   const isClinicaBeleza = isTipoClinicaBeleza(lojaInfo.tipo_loja_nome);
   const isSalao = isTipoCabeleireiro(lojaInfo.tipo_loja_nome);
-  const isFullWidth = isClinicaBeleza;
+  const isRadiologia = isTipoRadiologia(lojaInfo.tipo_loja_nome);
+  const isFullWidth = isClinicaBeleza || isRadiologia;
 
   return (
     <>
@@ -192,7 +193,7 @@ export default function LojaDashboardDinamicoPage() {
             className="text-white shadow-lg"
             style={{ backgroundColor: lojaInfo.cor_primaria }}
           >
-            <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+            <div className={`${isFullWidth ? 'max-w-full' : 'max-w-7xl'} mx-auto px-3 sm:px-4 md:px-6 lg:px-8`}>
               <div className="flex flex-col sm:flex-row justify-between min-h-[56px] sm:h-16 py-2 sm:py-0 items-start sm:items-center gap-2 sm:gap-0">
                 <div className="w-full sm:w-auto">
                   <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">{lojaInfo.nome}</h1>

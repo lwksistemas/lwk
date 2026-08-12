@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { Activity, ClipboardList, FileText, Monitor, Stethoscope, Users } from 'lucide-react';
 
 type LojaInfo = {
@@ -47,8 +48,11 @@ function QuickLink({
 }
 
 export default function DashboardRadiologia({ loja }: { loja: LojaInfo }) {
+  const params = useParams();
+  // Usar slug da URL (atalho "radio"), não loja.slug (CPF/hash) — senão os links quebram a sessão.
+  const routeSlug = (typeof params?.slug === 'string' ? params.slug : '') || loja.slug;
   const accent = loja.cor_primaria || '#0F766E';
-  const base = `/loja/${loja.slug}/radiologia`;
+  const base = `/loja/${routeSlug}/radiologia`;
 
   return (
     <div className="space-y-6">

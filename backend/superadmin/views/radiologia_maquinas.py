@@ -57,8 +57,12 @@ class MaquinaRadiologiaViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="lojas-radiologia")
     def lojas_radiologia(self, request):
-        lojas = Loja.objects.filter(
-            is_active=True, tipo_loja__slug__icontains="radiolog"
+        from django.db.models import Q
+
+        lojas = Loja.objects.filter(is_active=True).filter(
+            Q(tipo_loja__slug__icontains="radiolog")
+            | Q(tipo_loja__dashboard_template="radiologia")
+            | Q(tipo_loja__nome__icontains="radiolog")
         ).select_related("tipo_loja", "plano")
         data = []
         for l in lojas:

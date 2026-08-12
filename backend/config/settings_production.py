@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "clinica_beleza.apps.ClinicaBelezaConfig",  # Clínica da Beleza (agenda, profissionais, etc.)
     "hotel.apps.HotelConfig",  # App de hotelaria (Hotel / Pousada)
     "cabeleireiro.apps.CabeleireiroConfig",  # Salão de cabeleireiro (Lumina)
+    "radiologia.apps.RadiologiaConfig",  # RIS / Radiologia DICOM
     "notificacoes.apps.NotificacoesConfig",  # Base de notificações (in-app, push, email, etc.)
     "push.apps.PushConfig",  # Push notifications (VAPID)
     "whatsapp.apps.WhatsappConfig",  # WhatsApp oficial (Meta Cloud API) - ETAPA 4
@@ -496,6 +497,16 @@ API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.lwksistemas.com.br").
 # Google Calendar (OAuth2 + API) - CRM Vendas
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+
+# Radiologia / Orthanc (PACS na VM de imagens — não misturar com ERP)
+ORTHANC_URL = os.environ.get("ORTHANC_URL", "http://127.0.0.1:8042").rstrip("/")
+ORTHANC_USER = os.environ.get("ORTHANC_USER", "lwk")
+ORTHANC_PASSWORD = os.environ.get("ORTHANC_PASSWORD", "")
+ORTHANC_WORKLISTS_DIR = os.environ.get("ORTHANC_WORKLISTS_DIR", "/var/lib/orthanc/worklists")
+RADIOLOGIA_DICOM_UID_ROOT = os.environ.get(
+    "RADIOLOGIA_DICOM_UID_ROOT",
+    "1.2.826.0.1.3680043.10.742.1",
+)
 
 # WhatsApp Meta Cloud API + Evolution (WhatsApp Web)
 WHATSAPP_API_URL = os.environ.get("WHATSAPP_API_URL", "https://graph.facebook.com/v19.0")

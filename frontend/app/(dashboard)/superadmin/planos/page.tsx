@@ -284,6 +284,7 @@ export default function PlanosPage() {
           onSuccess={handleSuccess}
           editingPlano={editingPlano}
           tipoLojaId={tipoSelecionado}
+          tipoLojaSlug={tipoAtual?.slug || null}
         />
       )}
     </div>

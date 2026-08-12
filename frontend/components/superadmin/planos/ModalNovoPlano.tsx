@@ -26,15 +26,39 @@ interface Plano {
   ordem: number;
 }
 
+function slugifyNome(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+/** Slug único: template + tipo (ex.: enterprise-radiologia). Evita colisão com enterprise genérico. */
+function slugPlanoParaTipo(nomePlano: string, tipoSlug?: string | null): string {
+  const base = slugifyNome(nomePlano) || 'plano';
+  const tipo = slugifyNome(tipoSlug || '') || 'app';
+  return `${base}-${tipo}`;
+}
+
 interface ModalNovoPlanoProps {
   onClose: () => void;
   onSuccess: () => void;
   editingPlano?: Plano | null;
   /** ID do tipo de app selecionado (ex.: Clínica de Estética) para vincular o novo plano */
   tipoLojaId?: number | null;
+  /** Slug do tipo (ex.: radiologia) — usado nos templates para slug único */
+  tipoLojaSlug?: string | null;
 }
 
-export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = null }: ModalNovoPlanoProps) {
+export function ModalNovoPlano({
+  onClose,
+  onSuccess,
+  editingPlano,
+  tipoLojaId = null,
+  tipoLojaSlug = null,
+}: ModalNovoPlanoProps) {
   const { criarPlano, atualizarPlano, loading } = usePlanoActions();
   const [formData, setFormData] = useState({
     nome: editingPlano?.nome || '',
@@ -73,13 +97,11 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
     }
     if (name === 'nome') {
       if (!isEditing) {
-        const slug = value
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)/g, '');
-        setFormData((prev) => ({ ...prev, nome: value, slug }));
+        setFormData((prev) => ({
+          ...prev,
+          nome: value,
+          slug: slugPlanoParaTipo(value, tipoLojaSlug),
+        }));
       } else {
         setFormData((prev) => ({ ...prev, nome: value }));
       }
@@ -164,13 +186,19 @@ export function ModalNovoPlano({ onClose, onSuccess, editingPlano, tipoLojaId = 
                 <button
                   key={template.nome}
                   type="button"
-                  onClick={() => setFormData(prev => ({
-                    ...prev,
-                    ...template,
-                    nome: template.nome,
-                    slug: template.nome.toLowerCase(),
-                    descricao: `Plano ${template.nome}`,
-                  }))}
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      ...template,
+                      nome: tipoLojaSlug
+                        ? `${template.nome} ${tipoLojaSlug.replace(/-/g, ' ')}`
+                        : template.nome,
+                      slug: slugPlanoParaTipo(template.nome, tipoLojaSlug),
+                      descricao: tipoLojaSlug
+                        ? `Plano ${template.nome} para ${tipoLojaSlug}`
+                        : `Plano ${template.nome}`,
+                    }))
+                  }
                   className="p-4 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-purple-400 dark:hover:border-purple-500 transition-all text-left"
                 >
                   <div className="font-semibold text-gray-900 dark:text-gray-100">{template.nome}</div>

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "hotel.apps.HotelConfig",  # App de hotelaria (Hotel / Pousada)
     "clinica_beleza.apps.ClinicaBelezaConfig",  # App de clínica da beleza
     "cabeleireiro.apps.CabeleireiroConfig",  # Salão de cabeleireiro (Lumina)
+    "radiologia.apps.RadiologiaConfig",  # RIS / Radiologia DICOM
     "notificacoes.apps.NotificacoesConfig",  # Base de notificações (in-app, push, email, etc.)
     "push.apps.PushConfig",  # Push notifications (VAPID)
     "whatsapp.apps.WhatsappConfig",  # WhatsApp oficial (Meta Cloud API) - ETAPA 4
@@ -528,3 +529,10 @@ EVOLUTION_API_KEY = config("EVOLUTION_API_KEY", default="")
 GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
 GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET", default="")
 FRONTEND_URL = config("FRONTEND_URL", default="https://lwksistemas.com.br")  # Base URL do front (redirect pós-OAuth)
+
+# Radiologia / Orthanc (PACS na VM de imagens)
+ORTHANC_URL = config("ORTHANC_URL", default="http://127.0.0.1:8042")
+ORTHANC_USER = config("ORTHANC_USER", default="lwk")
+ORTHANC_PASSWORD = config("ORTHANC_PASSWORD", default="")
+ORTHANC_WORKLISTS_DIR = config("ORTHANC_WORKLISTS_DIR", default="/tmp/orthanc-worklists")
+RADIOLOGIA_DICOM_UID_ROOT = config("RADIOLOGIA_DICOM_UID_ROOT", default="1.2.826.0.1.3680043.10.742.1")

@@ -1,0 +1,45 @@
+# Orthanc + OHIF — rodar na VM de IMAGENS (media: 201.23.87.251), NÃO no ERP.
+# Uso:
+#   scp -r radiologia/orthanc deploy@201.23.87.251:/opt/lwk-orthanc
+#   ssh deploy@201.23.87.251 'cd /opt/lwk-orthanc && cp .env.example .env && docker compose up -d'
+#
+# Portas:
+#   4242  DICOM C-STORE / MWL (modalidades)
+#   8042  HTTP Orthanc (API + DICOMweb) — só rede interna / firewall
+#   3005  OHIF (viewer) — idealmente atrás de reverse proxy
+#
+# O volume `worklists` precisa ser compartilhado com o backend ERP
+# (NFS/bind) apontando para ORTHANC_WORKLISTS_DIR — o RIS grava .wl DICOM.
+
+services:
+  orthanc:
+    image: orthancteam/orthanc:24.11.1
+    container_name: lwk-orthanc
+    restart: unless-stopped
+    ports:
+      - "${ORTHANC_DICOM_PORT:-4242}:4242"
+      - "${ORTHANC_HTTP_PORT:-8042}:8042"
+    volumes:
+      - ./orthanc.json:/etc/orthanc/orthanc.json:ro
+      - orthanc-db:/var/lib/orthanc/db
+      - orthanc-storage:/var/lib/orthanc/storage
+      - worklists:/var/lib/orthanc/worklists
+    environment:
+      VERBOSE_ENABLED: "false"
+      VERBOSE_STARTUP: "true"
+
+  ohif:
+    image: ohif/app:v3.9.1
+    container_name: lwk-ohif
+    restart: unless-stopped
+    depends_on:
+      - orthanc
+    ports:
+      - "${OHIF_PORT:-3005}:80"
+    volumes:
+      - ./ohif-app-config.js:/usr/share/nginx/html/app-config.js:ro
+
+volumes:
+  orthanc-db:
+  orthanc-storage:
+  worklists:

@@ -1,0 +1,34 @@
+{
+  "Name": "LWK-PACS",
+  "DicomAet": "LWKPACS",
+  "DicomPort": 4242,
+  "HttpPort": 8042,
+  "RemoteAccessAllowed": true,
+  "AuthenticationEnabled": true,
+  "RegisteredUsers": {
+    "lwk": "CHANGE_ME_ORTHANC_PASSWORD"
+  },
+  "DicomWeb": {
+    "Enable": true,
+    "Root": "/dicom-web/",
+    "EnableWado": true,
+    "WadoRoot": "/wado",
+    "Ssl": false,
+    "StudiesMetadata": "Full",
+    "SeriesMetadata": "Full"
+  },
+  "Worklists": {
+    "Enable": true,
+    "Database": "/var/lib/orthanc/worklists",
+    "FilterIssuerAet": false,
+    "LimitAnswers": 0
+  },
+  "StableAge": 30,
+  "StrictAetComparison": false,
+  "StorageCompression": false,
+  "MaximumStorageSize": 0,
+  "MaximumPatientCount": 0,
+  "OverwriteInstances": false,
+  "DicomAlwaysAllowEcho": true,
+  "DicomCheckModalityHost": false
+}

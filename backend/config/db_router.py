@@ -25,6 +25,7 @@ class MultiTenantRouter:
             "hotel",
             "nfse_integration",
             "products",
+            "radiologia",
             "stores",
             "whatsapp",
         ),

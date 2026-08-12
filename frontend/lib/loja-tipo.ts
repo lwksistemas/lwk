@@ -2,7 +2,7 @@
  * Helpers para tipo de app.
  * Regras centralizadas: valem para todas as lojas criadas no sistema (por tipo_loja_nome da API).
  *
- * Apps ativos: CRM Vendas, Clínica da Beleza, Hotel / Pousada, Salão (cabeleireiro).
+ * Apps ativos: CRM Vendas, Clínica da Beleza, Hotel / Pousada, Salão (cabeleireiro), Radiologia.
  * Clínica de Estética (legado) foi unificada em Clínica da Beleza — mesmo produto e rotas.
  */
 
@@ -12,6 +12,8 @@ const normalizarTipo = (tipo: string) =>
 export function isTipoClinicaBeleza(tipoLojaNome: string): boolean {
   const s = normalizarTipo(tipoLojaNome);
   if (!s.includes('clinica')) return false;
+  // clinica-radiologia não é clínica da beleza
+  if (s.includes('radiolog')) return false;
   return s.includes('beleza') || s.includes('estetica');
 }
 
@@ -40,12 +42,18 @@ export function isTipoCabeleireiro(tipoLojaNome: string): boolean {
   return s.includes('cabeleireiro') || s.includes('salao') || s.includes('salon');
 }
 
+export function isTipoRadiologia(tipoLojaNome: string): boolean {
+  const s = normalizarTipo(tipoLojaNome);
+  return s.includes('radiolog') || s.includes('diagnostico por imagem');
+}
+
 /** Rota de configurações do app (para voltar da tela de WhatsApp). */
 export function configuracoesPathForTipo(slug: string, tipoLojaNome: string): string {
   if (isTipoClinicaBeleza(tipoLojaNome)) return `/loja/${slug}/clinica-beleza/configuracoes`;
   if (isTipoCRMVendas(tipoLojaNome)) return `/loja/${slug}/crm-vendas/configuracoes`;
   if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/configuracoes`;
   if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/cabeleireiro/configuracoes`;
+  if (isTipoRadiologia(tipoLojaNome)) return `/loja/${slug}/radiologia`;
   return `/loja/${slug}/dashboard`;
 }
 
@@ -55,5 +63,6 @@ export function homePathForTipo(slug: string, tipoLojaNome: string): string {
   if (isTipoClinicaBeleza(tipoLojaNome)) return `/loja/${slug}/clinica-beleza/consultas`;
   if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/reservas`;
   if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/dashboard`;
+  if (isTipoRadiologia(tipoLojaNome)) return `/loja/${slug}/radiologia`;
   return `/loja/${slug}/dashboard`;
 }

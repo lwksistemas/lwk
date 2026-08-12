@@ -31,6 +31,8 @@ export interface Equipamento {
   modality: string;
   fabricante: string;
   modelo: string;
+  numero_serie: string;
+  codigo_vinculo: string;
   station_name: string;
   suporte_dicom_storage: boolean;
   suporte_mwl: boolean;

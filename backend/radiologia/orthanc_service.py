@@ -108,6 +108,11 @@ def build_mwl_dataset_dict(pedido) -> dict[str, Any]:
             {
                 "Modality": modality,
                 "ScheduledStationAETitle": aet,
+                "ScheduledStationName": (
+                    (equipamento.station_name if equipamento else "")
+                    or (equipamento.numero_serie if equipamento else "")
+                    or aet
+                )[:16],
                 "ScheduledProcedureStepStartDate": _dicom_date(ag),
                 "ScheduledProcedureStepStartTime": _dicom_time(ag),
                 "ScheduledProcedureStepDescription": procedimento.nome[:64],
@@ -139,6 +144,10 @@ def build_mwl_xml(pedido) -> str:
     xml.append(
         f'      <0040,0001 vr="AE">{escape(sps["ScheduledStationAETitle"])}</0040,0001>\n'
     )
+    if sps.get("ScheduledStationName"):
+        xml.append(
+            f'      <0040,0010 vr="SH">{escape(sps["ScheduledStationName"])}</0040,0010>\n'
+        )
     xml.append(
         f'      <0040,0002 vr="DA">{escape(sps["ScheduledProcedureStepStartDate"])}</0040,0002>\n'
     )
@@ -178,6 +187,8 @@ def build_mwl_dicom_bytes(pedido) -> bytes:
     sps = Dataset()
     sps.Modality = sps_src["Modality"]
     sps.ScheduledStationAETitle = sps_src["ScheduledStationAETitle"]
+    if sps_src.get("ScheduledStationName"):
+        sps.ScheduledStationName = sps_src["ScheduledStationName"]
     sps.ScheduledProcedureStepStartDate = sps_src["ScheduledProcedureStepStartDate"]
     sps.ScheduledProcedureStepStartTime = sps_src["ScheduledProcedureStepStartTime"]
     sps.ScheduledProcedureStepDescription = sps_src["ScheduledProcedureStepDescription"]

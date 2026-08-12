@@ -1,5 +1,5 @@
 import apiClient from '@/lib/api-client';
-import type { Laudo, PedidoExame } from '@/lib/radiologia-types';
+import type { Equipamento, Laudo, PedidoExame } from '@/lib/radiologia-types';
 
 function unwrapList<T>(data: T[] | { results?: T[] }): T[] {
   return Array.isArray(data) ? data : data.results ?? [];
@@ -69,6 +69,20 @@ export async function fetchLaudoPdf(laudoId: number): Promise<{ url?: string; bl
     return { url: json.url };
   }
   return { blob: res.data as Blob };
+}
+
+export async function regenerarCodigoEquipamento(equipamentoId: number) {
+  const res = await apiClient.post(`/radiologia/equipamentos/${equipamentoId}/regenerar-codigo/`);
+  return res.data as Equipamento;
+}
+
+export async function receberExameDicom(payload: {
+  accession_number: string;
+  numero_serie: string;
+  cpf_cnpj?: string;
+}) {
+  const res = await apiClient.post('/radiologia/dicom/receber/', payload);
+  return res.data;
 }
 
 export async function sincronizarImagensPedido(pedidoId: number) {

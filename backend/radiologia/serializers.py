@@ -40,6 +40,8 @@ class EquipamentoSerializer(BaseLojaSerializer):
             "modality",
             "fabricante",
             "modelo",
+            "numero_serie",
+            "codigo_vinculo",
             "station_name",
             "suporte_dicom_storage",
             "suporte_mwl",
@@ -49,7 +51,48 @@ class EquipamentoSerializer(BaseLojaSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at", "loja_id"]
+        read_only_fields = ["codigo_vinculo", "created_at", "updated_at", "loja_id"]
+
+    def validate_numero_serie(self, value):
+        from .equipamento_vinculo_service import (
+            serial_ja_vinculado_outra_loja,
+            validar_serial,
+        )
+
+        raw = (value or "").strip()
+        if not raw:
+            raise serializers.ValidationError(
+                "Informe o número de série do ultrassom para vincular à clínica."
+            )
+        try:
+            serial = validar_serial(raw)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+
+        loja_id = getattr(self.instance, "loja_id", None)
+        if loja_id is None:
+            from tenants.middleware import get_current_loja_id
+
+            loja_id = get_current_loja_id()
+        if loja_id and serial_ja_vinculado_outra_loja(serial, loja_id):
+            raise serializers.ValidationError(
+                "Este número de série já está vinculado a outra clínica."
+            )
+        return serial
+
+    def create(self, validated_data):
+        from .equipamento_vinculo_service import gerar_codigo_vinculo
+
+        validated_data["codigo_vinculo"] = gerar_codigo_vinculo()
+        if not validated_data.get("station_name"):
+            validated_data["station_name"] = (validated_data.get("numero_serie") or "")[:16]
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if "numero_serie" in validated_data and not validated_data.get("station_name"):
+            if not instance.station_name:
+                validated_data["station_name"] = (validated_data.get("numero_serie") or "")[:16]
+        return super().update(instance, validated_data)
 
 
 class ProcedimentoSerializer(BaseLojaSerializer):

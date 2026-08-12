@@ -53,6 +53,20 @@ class Equipamento(LojaIsolationMixin, models.Model):
     )
     fabricante = models.CharField(max_length=80, blank=True, default="")
     modelo = models.CharField(max_length=80, blank=True, default="")
+    numero_serie = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Serial do ultrassom — vincula aparelho à clínica (CPF/CNPJ da loja)",
+    )
+    codigo_vinculo = models.CharField(
+        max_length=16,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Código aleatório LWK para parear/enviar exames deste aparelho",
+    )
     station_name = models.CharField(max_length=64, blank=True, default="")
     suporte_dicom_storage = models.BooleanField(default=True)
     suporte_mwl = models.BooleanField(default=True)
@@ -71,6 +85,11 @@ class Equipamento(LojaIsolationMixin, models.Model):
             models.UniqueConstraint(
                 fields=["loja_id", "ae_title"],
                 name="rad_equip_loja_aet_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=["loja_id", "numero_serie"],
+                condition=~models.Q(numero_serie=""),
+                name="rad_equip_loja_serial_uniq",
             ),
         ]
 

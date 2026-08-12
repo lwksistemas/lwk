@@ -67,6 +67,58 @@ class EquipamentoViewSet(BaseModelViewSet):
             qs = qs.filter(is_active=True)
         return qs
 
+    @action(detail=True, methods=["post"], url_path="regenerar-codigo")
+    def regenerar_codigo(self, request, pk=None):
+        from .equipamento_vinculo_service import gerar_codigo_vinculo
+
+        eq = self.get_object()
+        eq.codigo_vinculo = gerar_codigo_vinculo()
+        eq.save(update_fields=["codigo_vinculo", "updated_at"])
+        return Response(EquipamentoSerializer(eq).data)
+
+
+class DicomReceberView(APIView):
+    """Recebe exame: serial (+ CPF/CNPJ) → clínica; Accession → pedido do paciente."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from .equipamento_vinculo_service import receber_exame_por_accession_e_serial
+
+        accession = (request.data.get("accession_number") or "").strip()
+        serial = (request.data.get("numero_serie") or "").strip()
+        cpf_cnpj = (request.data.get("cpf_cnpj") or "").strip() or None
+
+        # Se autenticado na loja, usa CPF/CNPJ da loja como confirmação
+        if not cpf_cnpj:
+            loja_id = get_current_loja_id()
+            if loja_id:
+                from superadmin.models import Loja
+
+                loja = Loja.objects.using("default").filter(id=loja_id).first()
+                if loja:
+                    cpf_cnpj = loja.cpf_cnpj
+
+        try:
+            result = receber_exame_por_accession_e_serial(
+                accession_number=accession,
+                numero_serie=serial,
+                cpf_cnpj_loja=cpf_cnpj,
+            )
+        except LookupError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.exception("dicom receber: %s", exc)
+            return Response(
+                {"error": "Falha ao vincular/arquivar exame DICOM."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(result)
+
 
 class ProcedimentoViewSet(BaseModelViewSet):
     serializer_class = ProcedimentoSerializer

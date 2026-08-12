@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     AuditoriaAcessoViewSet,
+    DicomReceberView,
     DicomwebProxyView,
     EquipamentoViewSet,
     LaudoViewSet,
@@ -22,6 +23,7 @@ router.register(r"auditoria", AuditoriaAcessoViewSet, basename="radiologia-audit
 
 urlpatterns = [
     path("health/", RadiologiaHealthView.as_view(), name="radiologia-health"),
+    path("dicom/receber/", DicomReceberView.as_view(), name="radiologia-dicom-receber"),
     path("dicomweb/", DicomwebProxyView.as_view(), name="radiologia-dicomweb-root"),
     path("dicomweb/<path:path>", DicomwebProxyView.as_view(), name="radiologia-dicomweb"),
     path("", include(router.urls)),

@@ -71,6 +71,11 @@ export async function fetchLaudoPdf(laudoId: number): Promise<{ url?: string; bl
   return { blob: res.data as Blob };
 }
 
+export async function sincronizarImagensPedido(pedidoId: number) {
+  const res = await apiClient.post(`/radiologia/pedidos/${pedidoId}/sincronizar-imagens/`);
+  return res.data as PedidoExame;
+}
+
 export async function radiologiaHealth() {
   const res = await apiClient.get('/radiologia/health/');
   return res.data as { app: string; orthanc_url: string; orthanc_ok: boolean };

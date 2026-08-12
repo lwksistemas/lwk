@@ -3,6 +3,7 @@
 Estrutura em disco:
   /storage/{tenant}/{fotos|docs|...}/{arquivo}
   /storage/{tenant}/{fotos|docs|...}/{nome_cpf_paciente}/{arquivo}
+  /storage/{cpf_cnpj}_{nome-empresa}/dicom|docs/{cpf_paciente}/{arquivo}
 
 Endpoints:
   POST   /upload/<tenant>/
@@ -24,12 +25,14 @@ app = Flask(__name__)
 STORAGE_ROOT = Path("/storage")
 API_TOKEN = os.environ.get("MEDIA_API_TOKEN", "")
 SYSTEM_TENANTS = frozenset({"superadmin", "suporte"})
-TENANT_RE = re.compile(r"^(?:\d{11}|\d{14}|superadmin|suporte)$")
-ALLOWED_FOLDERS = ("fotos", "docs", "avatars", "recibos", "contratos")
-# pasta raiz OU pasta/paciente (slug_nome + cpf)
+TENANT_RE = re.compile(
+    r"^(?:\d{11}|\d{14}|superadmin|suporte|\d{11,14}_[a-z0-9][a-z0-9_-]{0,80})$"
+)
+ALLOWED_FOLDERS = ("fotos", "docs", "avatars", "recibos", "contratos", "dicom")
+# pasta raiz OU pasta/paciente (slug_nome + cpf ou só cpf)
 FOLDER_PATH_RE = re.compile(
-    r"^(?P<root>fotos|docs|avatars|recibos|contratos)"
-    r"(?:/(?P<sub>[a-z0-9][a-z0-9_-]{0,100}))?$"
+    r"^(?P<root>fotos|docs|avatars|recibos|contratos|dicom)"
+    r"(?:/(?P<sub>[a-z0-9][a-z0-9_-]{0,100}|\d{11}|paciente-id\d+))?$"
 )
 MAX_FILES_PER_FOLDER = 500
 
@@ -49,8 +52,10 @@ def normalize_tenant(raw: str) -> str | None:
     if value in SYSTEM_TENANTS:
         return value
     digits = "".join(c for c in value if c.isdigit())
-    if len(digits) in (11, 14):
+    if len(digits) in (11, 14) and "_" not in value:
         return digits
+    if re.fullmatch(r"\d{11,14}_[a-z0-9][a-z0-9_-]{0,80}", value):
+        return value
     return None
 
 

@@ -148,6 +148,13 @@ class PedidoExame(LojaIsolationMixin, models.Model):
     accession_number = models.CharField(max_length=64, blank=True, default="", db_index=True)
     study_instance_uid = models.CharField(max_length=128, blank=True, default="", db_index=True)
     orthanc_study_id = models.CharField(max_length=64, blank=True, default="")
+    dicom_media_url = models.TextField(
+        blank=True,
+        default="",
+        help_text="ZIP DICOM arquivado no media server (pasta dicom/{paciente}/)",
+    )
+    dicom_instance_count = models.PositiveIntegerField(default=0)
+    dicom_synced_at = models.DateTimeField(null=True, blank=True)
     mwl_synced_at = models.DateTimeField(null=True, blank=True)
     observacoes = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -161,6 +168,13 @@ class PedidoExame(LojaIsolationMixin, models.Model):
         indexes = [
             models.Index(fields=["loja_id", "status"], name="rad_ped_loja_status_idx"),
             models.Index(fields=["loja_id", "accession_number"], name="rad_ped_loja_acc_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["loja_id", "study_instance_uid"],
+                condition=~models.Q(study_instance_uid=""),
+                name="rad_ped_loja_study_uniq",
+            ),
         ]
 
     def __str__(self) -> str:

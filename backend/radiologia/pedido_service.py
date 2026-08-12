@@ -74,12 +74,22 @@ def finalizar_laudo(laudo: Laudo, *, assinar: bool = False) -> Laudo:
     pdf_bytes = gerar_pdf_laudo(laudo)
     pdf_url = ""
     try:
-        from core.media_storage import media_upload
+        from core.media_storage import folder_media_paciente_cpf, media_upload_empresa
         from superadmin.models import Loja
 
         loja = Loja.objects.using("default").filter(id=laudo.loja_id).first()
+        paciente = laudo.pedido.paciente
+        acc = (laudo.pedido.accession_number or f"laudo{laudo.id}").replace("/", "_")
         if loja and pdf_bytes:
-            pdf_url = media_upload(loja, pdf_bytes, filename="laudo.pdf", folder="docs") or ""
+            pdf_url = (
+                media_upload_empresa(
+                    loja,
+                    pdf_bytes,
+                    filename=f"laudo_{acc}.pdf",
+                    folder=folder_media_paciente_cpf("docs", paciente),
+                )
+                or ""
+            )
     except Exception as exc:
         logger.warning("Falha ao arquivar PDF do laudo: %s", exc)
 

@@ -21,6 +21,7 @@ from .models import (
     PedidoExame,
     Procedimento,
 )
+from .dicom_storage_service import sincronizar_imagens_pedido
 from .orthanc_service import proxy_dicomweb
 from .pedido_service import (
     cancelar_pedido,
@@ -105,6 +106,25 @@ class PedidoExameViewSet(BaseModelViewSet):
         pedido = cancelar_pedido(self.get_object())
         return Response(PedidoExameSerializer(pedido).data)
 
+    @action(detail=True, methods=["post"], url_path="sincronizar-imagens")
+    def sincronizar_imagens(self, request, pk=None):
+        pedido = self.get_object()
+        try:
+            pedido = sincronizar_imagens_pedido(pedido)
+        except LookupError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.exception("sincronizar_imagens pedido=%s: %s", pedido.id, exc)
+            return Response(
+                {"error": "Falha ao arquivar imagens DICOM."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        return Response(PedidoExameSerializer(pedido).data)
+
     @action(detail=True, methods=["post"], url_path="abrir-laudo")
     def abrir_laudo(self, request, pk=None):
         pedido = self.get_object()
@@ -166,12 +186,22 @@ class DicomwebProxyView(APIView):
         if not loja_id:
             return Response({"error": "Loja não identificada"}, status=status.HTTP_400_BAD_REQUEST)
 
+        path_clean = path.strip("/")
+        first_seg = path_clean.split("/")[0] if path_clean else ""
+
         study_uid = request.query_params.get("StudyInstanceUID") or ""
         # Extrai StudyInstanceUID de paths /studies/{uid}/...
         if not study_uid and path:
-            parts = path.strip("/").split("/")
+            parts = path_clean.split("/")
             if len(parts) >= 2 and parts[0] == "studies":
                 study_uid = parts[1]
+
+        # Bloqueia buscas globais por paciente/série sem estudo autorizado (anti-vazamento PACS)
+        if first_seg in ("patients", "series", "instances") and not study_uid:
+            return Response(
+                {"error": "Acesso negado: informe StudyInstanceUID de um pedido desta loja"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         pedido = None
         allowed_uids = set(
@@ -185,9 +215,13 @@ class DicomwebProxyView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
             pedido = PedidoExame.objects.filter(study_instance_uid=study_uid).first()
-        elif path.strip("/") in ("", "studies") and method.upper() == "GET":
+        elif path_clean in ("", "studies") and method.upper() == "GET":
             # Listagem sem filtro: restringe a UIDs desta loja
             if not allowed_uids:
+                return HttpResponse("[]", content_type="application/dicom+json")
+        elif not study_uid and first_seg == "studies" and method.upper() == "GET":
+            # /studies sem UID na URL exige filtro via query ou retorna vazio
+            if not request.query_params.get("StudyInstanceUID"):
                 return HttpResponse("[]", content_type="application/dicom+json")
 
         try:

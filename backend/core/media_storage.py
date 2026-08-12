@@ -4,6 +4,7 @@ Faz upload/download no servidor media.lwksistemas.com.br.
 Estrutura:
   /storage/{cpf_cnpj}/fotos|docs|.../{arquivo}
   /storage/{cpf_cnpj}/fotos|docs|.../{nome_cpf_paciente}/{arquivo}
+  /storage/{cpf_cnpj}_{nome-empresa}/dicom|docs/{cpf_paciente}/{arquivo}
   /storage/superadmin/...
   /storage/suporte/...
 
@@ -39,17 +40,19 @@ MEDIA_SYSTEM_TENANTS = frozenset({MEDIA_TENANT_SUPERADMIN, MEDIA_TENANT_SUPORTE}
 # Compat: imports antigos
 MEDIA_SYSTEM_CNPJ = MEDIA_TENANT_SUPERADMIN
 
-_ALLOWED_ROOT_FOLDERS = ("fotos", "docs", "avatars", "recibos", "contratos")
+_ALLOWED_ROOT_FOLDERS = ("fotos", "docs", "avatars", "recibos", "contratos", "dicom")
 
 # /files/{tenant}/{root}[/{paciente}]/{filename}
 _FILES_PATH_RE = re.compile(
-    r"/files/(?P<tenant>\d{11}|\d{14}|superadmin|suporte)"
-    r"/(?P<root>fotos|docs|avatars|recibos|contratos)"
-    r"(?:/(?P<sub>[a-z0-9][a-z0-9_-]{0,100}))?"
+    r"/files/(?P<tenant>\d{11}|\d{14}|superadmin|suporte|\d{11,14}_[a-z0-9][a-z0-9_-]{0,80})"
+    r"/(?P<root>fotos|docs|avatars|recibos|contratos|dicom)"
+    r"(?:/(?P<sub>[a-z0-9][a-z0-9_-]{0,100}|\d{11}|paciente-id\d+))?"
     r"/(?P<filename>[^/?#]+)$"
 )
 
 _PATIENT_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,100}$")
+_PATIENT_CPF_FOLDER_RE = re.compile(r"^(?:\d{11}|paciente-id\d+)$")
+_TENANT_EMPRESA_RE = re.compile(r"^(\d{11}|\d{14})_([a-z0-9][a-z0-9_-]{0,80})$")
 
 
 def normalize_media_folder(folder: str | None) -> str | None:
@@ -62,9 +65,55 @@ def normalize_media_folder(folder: str | None) -> str | None:
         return parts[0] if parts[0] in _ALLOWED_ROOT_FOLDERS else None
     if len(parts) == 2:
         root, sub = parts
-        if root in _ALLOWED_ROOT_FOLDERS and _PATIENT_SLUG_RE.fullmatch(sub):
+        if root in _ALLOWED_ROOT_FOLDERS and (
+            _PATIENT_SLUG_RE.fullmatch(sub) or _PATIENT_CPF_FOLDER_RE.fullmatch(sub)
+        ):
             return f"{root}/{sub}"
     return None
+
+
+def slug_loja_nome(loja) -> str:
+    """Slug do nome da empresa/clínica para pasta no media server."""
+    nome_raw = getattr(loja, "nome", None) or "loja"
+    nome_norm = unicodedata.normalize("NFKD", str(nome_raw).strip())
+    nome_ascii = "".join(c for c in nome_norm if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]+", "-", nome_ascii.lower()).strip("-")[:50] or "loja"
+
+
+def media_tenant_empresa(loja) -> str:
+    """Pasta raiz da clínica: {cpf|cnpj}_{nome-empresa}."""
+    tenant_key = getattr(loja, "media_tenant", None) or getattr(loja, "slug", None)
+    if tenant_key in MEDIA_SYSTEM_TENANTS:
+        return tenant_key
+
+    digits = _cpf_cnpj_digits(loja)
+    if digits in MEDIA_SYSTEM_TENANTS:
+        return digits
+    doc = normalize_media_tenant(digits)
+    if not doc:
+        return digits
+    return f"{doc}_{slug_loja_nome(loja)}"[:80]
+
+
+def pasta_paciente_cpf(patient) -> str:
+    """Subpasta do paciente só pelo CPF (11 dígitos); fallback paciente-id{id}."""
+    cpf = re.sub(r"\D", "", getattr(patient, "cpf", None) or "")
+    if len(cpf) == 11:
+        return cpf
+    pid = getattr(patient, "id", None)
+    if pid:
+        return f"paciente-id{pid}"
+    return "paciente-sem-cpf"
+
+
+def folder_media_paciente_cpf(root: str, patient) -> str:
+    """Pasta raiz/{cpf} — separação de clientes por CPF dentro da clínica."""
+    root_ok = (root or "dicom").strip().strip("/").split("/")[0]
+    if root_ok not in _ALLOWED_ROOT_FOLDERS:
+        root_ok = "dicom"
+    if patient is None:
+        return root_ok
+    return f"{root_ok}/{pasta_paciente_cpf(patient)}"
 
 
 def pasta_media_paciente(patient) -> str:
@@ -105,6 +154,8 @@ def normalize_media_tenant(value: str | None) -> str | None:
     if not raw:
         return None
     if raw in MEDIA_SYSTEM_TENANTS:
+        return raw
+    if _TENANT_EMPRESA_RE.fullmatch(raw):
         return raw
     digits = re.sub(r"\D", "", raw)
     if len(digits) in (11, 14):
@@ -193,6 +244,21 @@ def media_upload_cnpj(
 ) -> str | None:
     """Compat: alias de media_upload_tenant."""
     return media_upload_tenant(cnpj, file_data, filename=filename, folder=folder)
+
+
+def media_upload_empresa(
+    loja,
+    file_data: bytes | BinaryIO,
+    *,
+    filename: str = "upload.jpg",
+    folder: str = "fotos",
+) -> str | None:
+    """Upload na pasta {cpf|cnpj}_{nome-empresa} da clínica."""
+    tenant = media_tenant_empresa(loja)
+    if not normalize_media_tenant(tenant):
+        logger.error("media_upload_empresa: tenant inválido (%r)", tenant)
+        return None
+    return media_upload_tenant(tenant, file_data, filename=filename, folder=folder)
 
 
 def media_upload(

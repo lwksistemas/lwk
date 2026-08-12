@@ -13,6 +13,7 @@ import {
   listPedidos,
   listProcedimentos,
   publicarMwl,
+  sincronizarImagensPedido,
 } from '@/lib/radiologia-api';
 import type { Equipamento, PacienteRadiologia, PedidoExame, Procedimento } from '@/lib/radiologia-types';
 import { PEDIDO_STATUS_LABEL } from '@/lib/radiologia-types';
@@ -114,6 +115,19 @@ export default function RadiologiaPedidosPage() {
     }
   };
 
+  const onSincronizar = async (id: number) => {
+    try {
+      await sincronizarImagensPedido(id);
+      await load();
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? String((err as { response?: { data?: { error?: string } } }).response?.data?.error || '')
+          : '';
+      setError(msg || 'Falha ao arquivar imagens DICOM na pasta do paciente.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <header className="bg-gradient-to-r from-teal-700 to-teal-900 text-white shadow">
@@ -165,6 +179,12 @@ export default function RadiologiaPedidosPage() {
                     </td>
                     <td className="space-x-2 px-3 py-3 text-right text-xs">
                       <button type="button" className="text-teal-700" onClick={() => void onPublicar(p.id)}>MWL</button>
+                      <button type="button" className="text-teal-700" onClick={() => void onSincronizar(p.id)} title="Arquivar ZIP DICOM na pasta do paciente">
+                        DICOM
+                      </button>
+                      {p.dicom_media_url && (
+                        <a className="text-teal-700" href={p.dicom_media_url} target="_blank" rel="noreferrer">ZIP</a>
+                      )}
                       <Link className="text-teal-700" href={`/loja/${slug}/radiologia/viewer?study=${encodeURIComponent(p.study_instance_uid)}`}>Viewer</Link>
                       <button type="button" className="text-teal-700" onClick={() => void onLaudo(p.id)}>Laudo</button>
                       {p.status !== 'cancelado' && (

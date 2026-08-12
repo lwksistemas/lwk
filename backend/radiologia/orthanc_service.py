@@ -58,11 +58,16 @@ def orthanc_worklists_dir() -> str:
     )
 
 
-def _patient_id(paciente) -> str:
+def _patient_id(paciente, loja_id: int | None = None) -> str:
+    """PatientID DICOM com prefixo de loja — evita colisão no Orthanc compartilhado."""
+    return dicom_patient_id(paciente, loja_id or getattr(paciente, "loja_id", 0) or 0)
+
+
+def dicom_patient_id(paciente, loja_id: int) -> str:
+    """Formato: L{loja:04d}_{cpf11|P{id}} — único entre tenants no PACS."""
     cpf = re.sub(r"\D", "", getattr(paciente, "cpf", "") or "")
-    if len(cpf) == 11:
-        return cpf
-    return f"P{paciente.id}"
+    suffix = cpf if len(cpf) == 11 else f"P{paciente.id}"
+    return f"L{int(loja_id):04d}_{suffix}"[:64]
 
 
 def _dicom_date(dt) -> str:
@@ -93,7 +98,7 @@ def build_mwl_dataset_dict(pedido) -> dict[str, Any]:
     aet = (equipamento.ae_title if equipamento else "") or "ANY-SCP"
     return {
         "AccessionNumber": pedido.accession_number,
-        "PatientID": _patient_id(paciente),
+        "PatientID": _patient_id(paciente, pedido.loja_id),
         "PatientName": (paciente.nome or "").upper().replace(" ", "^"),
         "PatientBirthDate": _dicom_date(paciente.data_nascimento),
         "PatientSex": (paciente.sexo or "")[:1] or "O",
@@ -255,3 +260,72 @@ def proxy_dicomweb(path: str, method: str = "GET", params: dict | None = None) -
     """Proxy DICOMweb — path relativo após /dicom-web/."""
     clean = path.lstrip("/")
     return orthanc_request(method, f"/dicom-web/{clean}", params=params, raw=True)
+
+
+def find_orthanc_study_for_pedido(pedido) -> dict | None:
+    """Busca estudo no Orthanc por StudyInstanceUID (preferencial) ou Accession."""
+    body: dict = {"Level": "Study", "Query": {}}
+    if pedido.study_instance_uid:
+        body["Query"]["StudyInstanceUID"] = pedido.study_instance_uid
+    elif pedido.accession_number:
+        body["Query"]["AccessionNumber"] = pedido.accession_number
+    else:
+        return None
+
+    try:
+        resp = orthanc_request("POST", "/tools/find", json_body=body, timeout=30)
+        if not resp.ok:
+            return None
+        ids = resp.json()
+        if not ids:
+            return None
+        orthanc_id = ids[0]
+        detail = orthanc_request("GET", f"/studies/{orthanc_id}", timeout=15)
+        if not detail.ok:
+            return {"orthanc_id": orthanc_id}
+        data = detail.json()
+        main = data.get("MainDicomTags") or {}
+        patient = data.get("PatientMainDicomTags") or {}
+        return {
+            "orthanc_id": orthanc_id,
+            "study_instance_uid": main.get("StudyInstanceUID") or "",
+            "accession_number": main.get("AccessionNumber") or "",
+            "patient_id": patient.get("PatientID") or "",
+            "patient_name": patient.get("PatientName") or "",
+            "instance_count": int(data.get("Instances") or 0),
+        }
+    except Exception as exc:
+        logger.warning("find_orthanc_study_for_pedido falhou: %s", exc)
+        return None
+
+
+def validate_study_belongs_to_pedido(pedido, meta: dict) -> bool:
+    """Garante UID/Accession/PatientID coerentes com o pedido (anti-mistura)."""
+    expected_pid = dicom_patient_id(pedido.paciente, pedido.loja_id)
+    if meta.get("patient_id") and meta["patient_id"] != expected_pid:
+        logger.warning(
+            "PatientID divergente pedido=%s esperado=%s orthanc=%s",
+            pedido.id,
+            expected_pid,
+            meta.get("patient_id"),
+        )
+        return False
+    if pedido.study_instance_uid and meta.get("study_instance_uid"):
+        if meta["study_instance_uid"] != pedido.study_instance_uid:
+            return False
+    if pedido.accession_number and meta.get("accession_number"):
+        if meta["accession_number"] != pedido.accession_number:
+            return False
+    return True
+
+
+def download_study_archive(orthanc_study_id: str) -> bytes | None:
+    if not orthanc_study_id:
+        return None
+    try:
+        resp = orthanc_request("GET", f"/studies/{orthanc_study_id}/archive", raw=True, timeout=120)
+        if resp.ok and resp.content:
+            return resp.content
+    except Exception as exc:
+        logger.warning("download_study_archive %s: %s", orthanc_study_id, exc)
+    return None

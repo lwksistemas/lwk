@@ -65,6 +65,9 @@ export interface PedidoExame {
   accession_number: string;
   study_instance_uid: string;
   orthanc_study_id: string;
+  dicom_media_url: string;
+  dicom_instance_count: number;
+  dicom_synced_at: string | null;
   mwl_synced_at: string | null;
   observacoes: string;
 }

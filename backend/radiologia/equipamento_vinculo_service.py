@@ -46,6 +46,19 @@ def _fechar_tenant_db(db_name: str) -> None:
             pass
 
 
+def _snapshot_tenant():
+    from tenants.middleware import get_current_loja_id, get_current_tenant_db
+
+    return get_current_loja_id(), get_current_tenant_db()
+
+
+def _restore_tenant(loja_id, db_name) -> None:
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+
+    set_current_loja_id(loja_id)
+    set_current_tenant_db(db_name)
+
+
 def resolver_equipamento_por_serial(
     numero_serie: str,
     *,
@@ -80,35 +93,37 @@ def resolver_equipamento_por_serial(
     else:
         lojas = list(lojas)
 
-    for loja in lojas:
-        db_name = loja.database_name
-        if not ensure_loja_database_config(db_name, conn_max_age=0):
-            continue
-        set_current_loja_id(loja.id)
-        set_current_tenant_db(db_name)
-        try:
-            eq = (
-                Equipamento.objects.using(db_name)
-                .filter(loja_id=loja.id, numero_serie=serial, is_active=True)
-                .first()
-            )
-            if not eq:
+    prev = _snapshot_tenant()
+    try:
+        for loja in lojas:
+            db_name = loja.database_name
+            if not ensure_loja_database_config(db_name, conn_max_age=0):
                 continue
-            return {
-                "loja_id": loja.id,
-                "loja_nome": loja.nome,
-                "cpf_cnpj": normalizar_cpf_cnpj(loja.cpf_cnpj),
-                "equipamento_id": eq.id,
-                "equipamento_nome": eq.nome,
-                "ae_title": eq.ae_title,
-                "codigo_vinculo": eq.codigo_vinculo,
-                "numero_serie": eq.numero_serie,
-                "database_name": db_name,
-            }
-        finally:
-            set_current_loja_id(None)
-            set_current_tenant_db(None)
-            _fechar_tenant_db(db_name)
+            set_current_loja_id(loja.id)
+            set_current_tenant_db(db_name)
+            try:
+                eq = (
+                    Equipamento.objects.using(db_name)
+                    .filter(loja_id=loja.id, numero_serie=serial, is_active=True)
+                    .first()
+                )
+                if not eq:
+                    continue
+                return {
+                    "loja_id": loja.id,
+                    "loja_nome": loja.nome,
+                    "cpf_cnpj": normalizar_cpf_cnpj(loja.cpf_cnpj),
+                    "equipamento_id": eq.id,
+                    "equipamento_nome": eq.nome,
+                    "ae_title": eq.ae_title,
+                    "codigo_vinculo": eq.codigo_vinculo,
+                    "numero_serie": eq.numero_serie,
+                    "database_name": db_name,
+                }
+            finally:
+                _fechar_tenant_db(db_name)
+    finally:
+        _restore_tenant(*prev)
 
     return None
 
@@ -139,36 +154,38 @@ def resolver_equipamento_por_codigo(codigo_vinculo: str) -> dict | None:
             tipo_loja__slug__icontains="radiolog",
         )
     )
-    for loja in lojas:
-        db_name = loja.database_name
-        if not ensure_loja_database_config(db_name, conn_max_age=0):
-            continue
-        set_current_loja_id(loja.id)
-        set_current_tenant_db(db_name)
-        try:
-            eq = (
-                Equipamento.objects.using(db_name)
-                .filter(loja_id=loja.id, codigo_vinculo=codigo, is_active=True)
-                .first()
-            )
-            if not eq:
+    prev = _snapshot_tenant()
+    try:
+        for loja in lojas:
+            db_name = loja.database_name
+            if not ensure_loja_database_config(db_name, conn_max_age=0):
                 continue
-            return {
-                "loja_id": loja.id,
-                "loja_nome": loja.nome,
-                "cpf_cnpj": normalizar_cpf_cnpj(loja.cpf_cnpj),
-                "equipamento_id": eq.id,
-                "equipamento_nome": eq.nome,
-                "ae_title": eq.ae_title,
-                "codigo_vinculo": eq.codigo_vinculo,
-                "numero_serie": eq.numero_serie,
-                "vinculado_em": eq.vinculado_em,
-                "database_name": db_name,
-            }
-        finally:
-            set_current_loja_id(None)
-            set_current_tenant_db(None)
-            _fechar_tenant_db(db_name)
+            set_current_loja_id(loja.id)
+            set_current_tenant_db(db_name)
+            try:
+                eq = (
+                    Equipamento.objects.using(db_name)
+                    .filter(loja_id=loja.id, codigo_vinculo=codigo, is_active=True)
+                    .first()
+                )
+                if not eq:
+                    continue
+                return {
+                    "loja_id": loja.id,
+                    "loja_nome": loja.nome,
+                    "cpf_cnpj": normalizar_cpf_cnpj(loja.cpf_cnpj),
+                    "equipamento_id": eq.id,
+                    "equipamento_nome": eq.nome,
+                    "ae_title": eq.ae_title,
+                    "codigo_vinculo": eq.codigo_vinculo,
+                    "numero_serie": eq.numero_serie,
+                    "vinculado_em": eq.vinculado_em,
+                    "database_name": db_name,
+                }
+            finally:
+                _fechar_tenant_db(db_name)
+    finally:
+        _restore_tenant(*prev)
     return None
 
 
@@ -244,7 +261,7 @@ def processar_vinculo_dicom_equipamento(equipamento) -> dict:
         equipamento.modelo = str(meta["manufacturer_model"])[:80]
         update.append("modelo")
 
-    equipamento.save(update_fields=update)
+    equipamento.save(using=equipamento._state.db, update_fields=update)
     logger.info(
         "Vínculo DICOM OK loja=%s equip=%s serial=%s codigo=%s study=%s",
         equipamento.loja_id,

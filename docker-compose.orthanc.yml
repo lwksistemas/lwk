@@ -14,7 +14,7 @@ services:
       - orthanc-worklists:/var/lib/orthanc/worklists
 
   orthanc:
-    image: orthancteam/orthanc:24.11.1
+    image: orthancteam/orthanc:26.6.1
     container_name: lwk-orthanc
     restart: unless-stopped
     ports:

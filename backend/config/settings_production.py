@@ -503,6 +503,9 @@ ORTHANC_URL = os.environ.get("ORTHANC_URL", "http://127.0.0.1:8042").rstrip("/")
 ORTHANC_USER = os.environ.get("ORTHANC_USER", "lwk")
 ORTHANC_PASSWORD = os.environ.get("ORTHANC_PASSWORD", "")
 ORTHANC_WORKLISTS_DIR = os.environ.get("ORTHANC_WORKLISTS_DIR", "/var/lib/orthanc/worklists")
+ORTHANC_DICOM_AET = os.environ.get("ORTHANC_DICOM_AET", "LWKPACS")
+ORTHANC_DICOM_HOST = os.environ.get("ORTHANC_DICOM_HOST", "201.23.81.50")
+ORTHANC_DICOM_PORT = int(os.environ.get("ORTHANC_DICOM_PORT", "4242"))
 RADIOLOGIA_DICOM_UID_ROOT = os.environ.get(
     "RADIOLOGIA_DICOM_UID_ROOT",
     "1.2.826.0.1.3680043.10.742.1",

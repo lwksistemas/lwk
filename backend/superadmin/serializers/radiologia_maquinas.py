@@ -34,6 +34,9 @@ class MaquinaRadiologiaSerializer(serializers.ModelSerializer):
     tipo_label = serializers.CharField(source="get_tipo_display", read_only=True)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
     cpf_cnpj = serializers.CharField(source="loja.cpf_cnpj", read_only=True)
+    pacs_ae = serializers.SerializerMethodField()
+    pacs_host = serializers.SerializerMethodField()
+    pacs_port = serializers.SerializerMethodField()
 
     class Meta:
         model = MaquinaRadiologia
@@ -54,6 +57,9 @@ class MaquinaRadiologiaSerializer(serializers.ModelSerializer):
             "status_label",
             "codigo_vinculo",
             "equipamento_tenant_id",
+            "pacs_ae",
+            "pacs_host",
+            "pacs_port",
             "is_active",
             "observacoes",
             "liberada_em",
@@ -63,11 +69,32 @@ class MaquinaRadiologiaSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "codigo_vinculo",
             "equipamento_tenant_id",
+            "pacs_ae",
+            "pacs_host",
+            "pacs_port",
             "status",
             "liberada_em",
             "created_at",
             "updated_at",
         ]
+
+    def _pacs(self):
+        cached = getattr(self, "_pacs_cache", None)
+        if cached is None:
+            from radiologia.orthanc_service import orthanc_dicom_publico
+
+            cached = orthanc_dicom_publico()
+            self._pacs_cache = cached
+        return cached
+
+    def get_pacs_ae(self, obj):
+        return self._pacs()["ae_title"]
+
+    def get_pacs_host(self, obj):
+        return self._pacs()["host"]
+
+    def get_pacs_port(self, obj):
+        return self._pacs()["port"]
 
     def validate_ae_title(self, value):
         raw = (value or "").strip().upper().replace(" ", "")

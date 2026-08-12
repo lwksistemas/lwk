@@ -34,6 +34,27 @@ def gerar_accession_number(loja_id: int, pedido_id: int) -> str:
     return f"L{loja_id:04d}{pedido_id:08d}"[:16]
 
 
+def orthanc_dicom_publico() -> dict:
+    """Host/porta/AE que o ultrassom deve usar no C-STORE (rede pública)."""
+    return {
+        "ae_title": (
+            getattr(settings, "ORTHANC_DICOM_AET", None)
+            or os.environ.get("ORTHANC_DICOM_AET")
+            or "LWKPACS"
+        ),
+        "host": (
+            getattr(settings, "ORTHANC_DICOM_HOST", None)
+            or os.environ.get("ORTHANC_DICOM_HOST")
+            or "201.23.81.50"
+        ),
+        "port": int(
+            getattr(settings, "ORTHANC_DICOM_PORT", None)
+            or os.environ.get("ORTHANC_DICOM_PORT")
+            or 4242
+        ),
+    }
+
+
 def orthanc_base_url() -> str:
     return (
         getattr(settings, "ORTHANC_URL", None)

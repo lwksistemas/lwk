@@ -81,6 +81,12 @@ class MaquinaRadiologiaViewSet(viewsets.ModelViewSet):
             )
         return Response(data)
 
+    @action(detail=False, methods=["get"], url_path="pacs")
+    def pacs(self, request):
+        from radiologia.orthanc_service import orthanc_dicom_publico
+
+        return Response(orthanc_dicom_publico())
+
     @action(detail=True, methods=["post"], url_path="liberar")
     def liberar(self, request, pk=None):
         maquina = self.get_object()

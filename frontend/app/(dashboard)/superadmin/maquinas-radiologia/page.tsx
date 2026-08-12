@@ -40,7 +40,16 @@ type Maquina = {
   status: string;
   status_label: string;
   codigo_vinculo: string;
+  pacs_ae?: string;
+  pacs_host?: string;
+  pacs_port?: number;
   is_active: boolean;
+};
+
+type PacsInfo = {
+  ae_title: string;
+  host: string;
+  port: number;
 };
 
 const TIPOS = [
@@ -62,6 +71,7 @@ export default function MaquinasRadiologiaPage() {
   const [lojas, setLojas] = useState<LojaRadio[]>([]);
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [pacsInfo, setPacsInfo] = useState<PacsInfo>({ ae_title: 'LWKPACS', host: '201.23.81.50', port: 4242 });
   const [lojaId, setLojaId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -88,10 +98,11 @@ export default function MaquinasRadiologiaPage() {
     setLoading(true);
     setError('');
     try {
-      const [lj, mq, ct] = await Promise.all([
+      const [lj, mq, ct, pacsRes] = await Promise.all([
         apiClient.get('/superadmin/maquinas-radiologia/lojas-radiologia/'),
         apiClient.get('/superadmin/maquinas-radiologia/'),
         apiClient.get('/superadmin/contratos-pacs/'),
+        apiClient.get('/superadmin/maquinas-radiologia/pacs/'),
       ]);
       const lojaList = Array.isArray(lj.data) ? lj.data : [];
       setLojas(lojaList);
@@ -99,6 +110,13 @@ export default function MaquinasRadiologiaPage() {
       setMaquinas(mqList);
       const ctList = Array.isArray(ct.data) ? ct.data : ct.data?.results || [];
       setContratos(ctList);
+      if (pacsRes.data?.host) {
+        setPacsInfo({
+          ae_title: pacsRes.data.ae_title || 'LWKPACS',
+          host: pacsRes.data.host,
+          port: Number(pacsRes.data.port) || 4242,
+        });
+      }
     } catch {
       setError('Erro ao carregar máquinas / contratos PACS.');
     } finally {
@@ -298,6 +316,9 @@ export default function MaquinasRadiologiaPage() {
               PACS: {lojaFiltro.dicom_contratado ? 'DICOM sim' : 'DICOM não'} · {lojaFiltro.worklist_contratado ? 'Worklist sim' : 'Worklist não'}
             </div>
           )}
+          <div className="rounded-md bg-gray-100 px-3 py-2 font-mono text-xs text-gray-800">
+            Servidor {pacsInfo.host} · Porta {pacsInfo.port} · AE {pacsInfo.ae_title}
+          </div>
           <button
             type="button"
             className="rounded-md bg-teal-800 px-3 py-2 text-sm text-white"
@@ -325,6 +346,8 @@ export default function MaquinasRadiologiaPage() {
                   <th className="px-4 py-3">Máquina</th>
                   <th className="px-4 py-3">Tipo</th>
                   <th className="px-4 py-3">AE Title</th>
+                  <th className="px-4 py-3">Servidor</th>
+                  <th className="px-4 py-3">Porta</th>
                   <th className="px-4 py-3">R$/mês</th>
                   <th className="px-4 py-3">Código</th>
                   <th className="px-4 py-3">Status</th>
@@ -338,6 +361,8 @@ export default function MaquinasRadiologiaPage() {
                     <td className="px-4 py-3 font-medium">{m.nome}</td>
                     <td className="px-4 py-3">{m.tipo_label}</td>
                     <td className="px-4 py-3 font-mono text-xs">{m.ae_title}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{m.pacs_host || pacsInfo.host}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{m.pacs_port || pacsInfo.port}</td>
                     <td className="px-4 py-3">{m.cobranca_mensal}</td>
                     <td className="px-4 py-3 font-mono text-xs">{m.codigo_vinculo || '—'}</td>
                     <td className="px-4 py-3">
@@ -363,7 +388,7 @@ export default function MaquinasRadiologiaPage() {
                 ))}
                 {!maquinasFiltradas.length && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
+                    <td colSpan={10} className="px-4 py-10 text-center text-gray-500">
                       Nenhuma máquina cadastrada. Clique em <strong>Nova máquina</strong> para incluir.
                     </td>
                   </tr>

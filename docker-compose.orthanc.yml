@@ -1,0 +1,45 @@
+# Overlay Orthanc + OHIF (beta: ERP 201.23.81.50 | prod futuro: VM imagens).
+# Uso:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.orthanc.yml up -d orthanc ohif backend worker
+#
+# Worklist: volume orthanc-worklists montado no backend e no Orthanc.
+
+services:
+  backend:
+    volumes:
+      - orthanc-worklists:/var/lib/orthanc/worklists
+
+  worker:
+    volumes:
+      - orthanc-worklists:/var/lib/orthanc/worklists
+
+  orthanc:
+    image: orthancteam/orthanc:24.11.1
+    container_name: lwk-orthanc
+    restart: unless-stopped
+    ports:
+      - "4242:4242"
+      - "8042:8042"
+    volumes:
+      - ./radiologia/orthanc/orthanc.runtime.json:/etc/orthanc/orthanc.json:ro
+      - orthanc-db:/var/lib/orthanc/db
+      - orthanc-storage:/var/lib/orthanc/storage
+      - orthanc-worklists:/var/lib/orthanc/worklists
+    environment:
+      VERBOSE_STARTUP: "true"
+
+  ohif:
+    image: ohif/app:v3.9.1
+    container_name: lwk-ohif
+    restart: unless-stopped
+    depends_on:
+      - orthanc
+    ports:
+      - "127.0.0.1:3005:80"
+    volumes:
+      - ./radiologia/orthanc/ohif-app-config.js:/usr/share/nginx/html/app-config.js:ro
+
+volumes:
+  orthanc-db:
+  orthanc-storage:
+  orthanc-worklists:

@@ -2,9 +2,18 @@
 
 Stack PACS LWK. **Não rode no mesmo host do ERP em produção.**
 
-Host alvo: `201.23.87.251` (media.lwksistemas.com.br).
+Host alvo produção: `201.23.87.251` (media.lwksistemas.com.br).
 
-## Subir
+**Beta (agora):** Orthanc no ERP (`201.23.81.50`) via overlay compose — VM imagens sem SSH ainda.
+
+```bash
+# no servidor ERP (201.23.81.50)
+cd /opt/lwk-erp
+git pull origin staging
+bash scripts/setup-orthanc-beta.sh
+```
+
+## Subir (VM imagens — quando SSH disponível)
 
 ```bash
 # na máquina de desenvolvimento

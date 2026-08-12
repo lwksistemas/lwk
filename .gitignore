@@ -30,6 +30,7 @@ db_*.sqlite3
 .env.staging
 .env.local
 .env.*.local
+radiologia/orthanc/orthanc.runtime.json
 
 # Node
 node_modules/

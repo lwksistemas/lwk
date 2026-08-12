@@ -15,6 +15,7 @@ from superadmin.serializers.radiologia_maquinas import (
 from superadmin.services.maquina_radiologia_service import (
     liberar_maquina_no_cliente,
     processar_vinculo_maquina,
+    regenerar_codigo_maquina,
     status_dicom_das_maquinas,
     suspender_maquina_no_cliente,
     sincronizar_valor_mensalidade,
@@ -138,6 +139,23 @@ class MaquinaRadiologiaViewSet(viewsets.ModelViewSet):
         except Exception as exc:
             logger.exception("vincular maquina %s: %s", maquina.id, exc)
             return Response({"error": "Falha ao vincular DICOM no PACS."}, status=status.HTTP_502_BAD_GATEWAY)
+        maquina.refresh_from_db()
+        extra = status_dicom_das_maquinas([maquina])
+        return Response({
+            "maquina": MaquinaRadiologiaSerializer(
+                maquina, context={**self.get_serializer_context(), "dicom_status": extra}
+            ).data,
+            **result,
+        })
+
+    @action(detail=True, methods=["post"], url_path="novo-codigo")
+    def novo_codigo(self, request, pk=None):
+        maquina = self.get_object()
+        try:
+            result = regenerar_codigo_maquina(maquina)
+        except Exception as exc:
+            logger.exception("novo codigo maquina %s: %s", maquina.id, exc)
+            return Response({"error": "Falha ao gerar novo código."}, status=status.HTTP_502_BAD_GATEWAY)
         maquina.refresh_from_db()
         extra = status_dicom_das_maquinas([maquina])
         return Response({

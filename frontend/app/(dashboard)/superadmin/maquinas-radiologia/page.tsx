@@ -230,7 +230,7 @@ export default function MaquinasRadiologiaPage() {
     }
   };
 
-  const acao = async (id: number, path: 'liberar' | 'suspender' | 'vincular') => {
+  const acao = async (id: number, path: 'liberar' | 'suspender' | 'vincular' | 'novo-codigo') => {
     setError('');
     setOk('');
     try {
@@ -241,6 +241,8 @@ export default function MaquinasRadiologiaPage() {
         setOk(`Máquina liberada no cliente. Código: ${res.data?.codigo_vinculo || ''}${valor ? ` · Mensalidade: R$ ${valor}` : ''}`);
       } else if (path === 'vincular') {
         setOk(serial ? `DICOM vinculado. Serial: ${serial}` : 'Vínculo DICOM processado.');
+      } else if (path === 'novo-codigo') {
+        setOk(`Novo código: ${res.data?.codigo_vinculo || ''}. Use este Accession no ultrassom.`);
       } else {
         setOk(`Máquina suspensa.${valor ? ` Mensalidade: R$ ${valor}` : ''}`);
       }
@@ -289,7 +291,7 @@ export default function MaquinasRadiologiaPage() {
             <li>Contratar <strong>servidor DICOM + Worklist</strong> para a clínica.</li>
             <li>Cadastrar a máquina (US / RX / MG) com preço mensal.</li>
             <li><strong>Liberar</strong> — o aparelho aparece no cliente; status fica <strong>Aguardando exame</strong>.</li>
-            <li>No ultrassom, envie um exame de teste com o <strong>código</strong> no Accession Number.</li>
+            <li>No ultrassom, envie um exame de teste com o <strong>código</strong> no Accession Number. Se o aparelho recusar um código já usado, clique em <strong>Novo código</strong>.</li>
             <li><strong>Vincular DICOM</strong> — o sistema lê o serial; status vira <strong>Vinculada</strong>.</li>
             <li>O cliente só <strong>escolhe a máquina ao abrir o exame</strong>.</li>
           </ol>
@@ -368,7 +370,7 @@ export default function MaquinasRadiologiaPage() {
                     <td className="px-4 py-3 font-mono text-xs">{m.pacs_host || pacsInfo.host}</td>
                     <td className="px-4 py-3 font-mono text-xs">{m.pacs_port || pacsInfo.port}</td>
                     <td className="px-4 py-3">{m.cobranca_mensal}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{m.codigo_vinculo || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-sm font-semibold tracking-wide">{m.codigo_vinculo || '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs">{m.numero_serie || '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-0.5 text-xs ${
@@ -386,6 +388,17 @@ export default function MaquinasRadiologiaPage() {
                       {m.status === 'liberada' && (
                         <>
                           <button type="button" className="font-semibold text-teal-800" onClick={() => void acao(m.id, 'vincular')}>Vincular DICOM</button>
+                          <button
+                            type="button"
+                            className="font-semibold text-teal-800"
+                            onClick={() => {
+                              if (confirm('Gerar novo código? O código anterior deixa de valer no ultrassom.')) {
+                                void acao(m.id, 'novo-codigo');
+                              }
+                            }}
+                          >
+                            Novo código
+                          </button>
                           <button type="button" className="font-semibold text-red-600" onClick={() => void acao(m.id, 'suspender')}>Suspender</button>
                         </>
                       )}

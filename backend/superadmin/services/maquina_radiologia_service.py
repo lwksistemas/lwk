@@ -157,6 +157,51 @@ def processar_vinculo_maquina(maquina) -> dict:
         _limpar_contexto(db_name)
 
 
+def regenerar_codigo_maquina(maquina) -> dict:
+    """Gera novo código de vínculo (o ultrassom não reaproveita Accession já usado)."""
+    from radiologia.equipamento_vinculo_service import gerar_codigo_vinculo
+    from radiologia.models import Equipamento
+    from superadmin.models import MaquinaRadiologia
+
+    usados = set(
+        MaquinaRadiologia.objects.exclude(pk=maquina.pk)
+        .exclude(codigo_vinculo="")
+        .values_list("codigo_vinculo", flat=True)
+    )
+    codigo = gerar_codigo_vinculo()
+    while codigo in usados or codigo == (maquina.codigo_vinculo or ""):
+        codigo = gerar_codigo_vinculo()
+    loja = maquina.loja
+    db_name = _contexto_tenant(loja) if maquina.equipamento_tenant_id else None
+    try:
+        if db_name and maquina.equipamento_tenant_id:
+            eq = (
+                Equipamento.objects.using(db_name)
+                .filter(loja_id=loja.id, id=maquina.equipamento_tenant_id)
+                .first()
+            )
+            if eq:
+                eq.codigo_vinculo = codigo
+                eq.numero_serie = ""
+                eq.vinculado_em = None
+                eq.orthanc_study_id_vinculo = ""
+                eq.save(
+                    update_fields=[
+                        "codigo_vinculo",
+                        "numero_serie",
+                        "vinculado_em",
+                        "orthanc_study_id_vinculo",
+                        "updated_at",
+                    ]
+                )
+        maquina.codigo_vinculo = codigo
+        maquina.save(update_fields=["codigo_vinculo", "updated_at"])
+        return {"ok": True, "maquina_id": maquina.id, "codigo_vinculo": codigo}
+    finally:
+        if db_name:
+            _limpar_contexto(db_name)
+
+
 def suspender_maquina_no_cliente(maquina) -> dict:
     from radiologia.models import Equipamento
     from superadmin.models import MaquinaRadiologia

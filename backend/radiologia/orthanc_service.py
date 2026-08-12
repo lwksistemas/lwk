@@ -317,6 +317,31 @@ def find_orthanc_study_by_accession(accession: str) -> dict | None:
         return None
 
 
+def _instance_ids_do_estudo(orthanc_id: str, study_payload: dict | None = None) -> list[str]:
+    """Orthanc 1.12+ não inclui Instances no GET /studies/{id} — só Series."""
+    ids: list[str] = []
+    raw = (study_payload or {}).get("Instances") or []
+    for item in raw:
+        if isinstance(item, str):
+            ids.append(item)
+        elif isinstance(item, dict) and item.get("ID"):
+            ids.append(item["ID"])
+    if ids:
+        return ids
+    try:
+        resp = orthanc_request("GET", f"/studies/{orthanc_id}/instances", timeout=15)
+        if not resp.ok:
+            return []
+        for item in resp.json() or []:
+            if isinstance(item, str):
+                ids.append(item)
+            elif isinstance(item, dict) and item.get("ID"):
+                ids.append(item["ID"])
+    except Exception as exc:
+        logger.warning("listar instancias estudo %s: %s", orthanc_id, exc)
+    return ids
+
+
 def enrich_orthanc_study(orthanc_id: str) -> dict | None:
     """Detalhe do estudo + DeviceSerialNumber da primeira instância."""
     try:
@@ -326,20 +351,20 @@ def enrich_orthanc_study(orthanc_id: str) -> dict | None:
         data = detail.json()
         main = data.get("MainDicomTags") or {}
         patient = data.get("PatientMainDicomTags") or {}
+        instances = _instance_ids_do_estudo(orthanc_id, data)
         meta = {
             "orthanc_id": orthanc_id,
             "study_instance_uid": main.get("StudyInstanceUID") or "",
             "accession_number": main.get("AccessionNumber") or "",
             "patient_id": patient.get("PatientID") or "",
             "patient_name": patient.get("PatientName") or "",
-            "instance_count": len(data.get("Instances") or []),
+            "instance_count": len(instances),
             "device_serial_number": "",
             "station_name": main.get("StationName") or "",
             "manufacturer": "",
             "manufacturer_model": "",
             "calling_ae": "",
         }
-        instances = data.get("Instances") or []
         if instances:
             tags_resp = orthanc_request(
                 "GET", f"/instances/{instances[0]}/simplified-tags", timeout=15
@@ -349,6 +374,7 @@ def enrich_orthanc_study(orthanc_id: str) -> dict | None:
                 meta["device_serial_number"] = (
                     tags.get("DeviceSerialNumber")
                     or tags.get("0018,1000")
+                    or tags.get("DeviceUID")
                     or ""
                 )
                 meta["station_name"] = tags.get("StationName") or meta["station_name"]

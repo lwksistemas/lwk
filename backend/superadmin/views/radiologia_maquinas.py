@@ -15,6 +15,7 @@ from superadmin.serializers.radiologia_maquinas import (
 from superadmin.services.maquina_radiologia_service import (
     liberar_maquina_no_cliente,
     processar_vinculo_maquina,
+    status_dicom_das_maquinas,
     suspender_maquina_no_cliente,
     sincronizar_valor_mensalidade,
 )
@@ -55,6 +56,23 @@ class MaquinaRadiologiaViewSet(viewsets.ModelViewSet):
         if self.request.query_params.get("ativos", "1") != "0":
             qs = qs.filter(is_active=True)
         return qs
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx.setdefault("dicom_status", {})
+        return ctx
+
+    def list(self, request, *args, **kwargs):
+        qs = list(self.filter_queryset(self.get_queryset()))
+        extra = status_dicom_das_maquinas(qs)
+        ser = self.get_serializer(qs, many=True, context={**self.get_serializer_context(), "dicom_status": extra})
+        return Response(ser.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        obj = self.get_object()
+        extra = status_dicom_das_maquinas([obj])
+        ser = self.get_serializer(obj, context={**self.get_serializer_context(), "dicom_status": extra})
+        return Response(ser.data)
 
     @action(detail=False, methods=["get"], url_path="lojas-radiologia")
     def lojas_radiologia(self, request):
@@ -98,7 +116,13 @@ class MaquinaRadiologiaViewSet(viewsets.ModelViewSet):
             logger.exception("liberar maquina %s: %s", maquina.id, exc)
             return Response({"error": "Falha ao liberar máquina no cliente."}, status=status.HTTP_502_BAD_GATEWAY)
         maquina.refresh_from_db()
-        return Response({"maquina": MaquinaRadiologiaSerializer(maquina).data, **result})
+        extra = status_dicom_das_maquinas([maquina])
+        return Response({
+            "maquina": MaquinaRadiologiaSerializer(
+                maquina, context={**self.get_serializer_context(), "dicom_status": extra}
+            ).data,
+            **result,
+        })
 
     @action(detail=True, methods=["post"], url_path="vincular")
     def vincular(self, request, pk=None):
@@ -115,7 +139,13 @@ class MaquinaRadiologiaViewSet(viewsets.ModelViewSet):
             logger.exception("vincular maquina %s: %s", maquina.id, exc)
             return Response({"error": "Falha ao vincular DICOM no PACS."}, status=status.HTTP_502_BAD_GATEWAY)
         maquina.refresh_from_db()
-        return Response({"maquina": MaquinaRadiologiaSerializer(maquina).data, **result})
+        extra = status_dicom_das_maquinas([maquina])
+        return Response({
+            "maquina": MaquinaRadiologiaSerializer(
+                maquina, context={**self.get_serializer_context(), "dicom_status": extra}
+            ).data,
+            **result,
+        })
 
     @action(detail=True, methods=["post"], url_path="suspender")
     def suspender(self, request, pk=None):
@@ -126,4 +156,10 @@ class MaquinaRadiologiaViewSet(viewsets.ModelViewSet):
             logger.exception("suspender maquina %s: %s", maquina.id, exc)
             return Response({"error": "Falha ao suspender máquina."}, status=status.HTTP_502_BAD_GATEWAY)
         maquina.refresh_from_db()
-        return Response({"maquina": MaquinaRadiologiaSerializer(maquina).data, **result})
+        extra = status_dicom_das_maquinas([maquina])
+        return Response({
+            "maquina": MaquinaRadiologiaSerializer(
+                maquina, context={**self.get_serializer_context(), "dicom_status": extra}
+            ).data,
+            **result,
+        })

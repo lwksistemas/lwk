@@ -32,11 +32,13 @@ class MaquinaRadiologiaSerializer(serializers.ModelSerializer):
     loja_nome = serializers.CharField(source="loja.nome", read_only=True)
     loja_slug = serializers.CharField(source="loja.slug", read_only=True)
     tipo_label = serializers.CharField(source="get_tipo_display", read_only=True)
-    status_label = serializers.CharField(source="get_status_display", read_only=True)
+    status_label = serializers.SerializerMethodField()
     cpf_cnpj = serializers.CharField(source="loja.cpf_cnpj", read_only=True)
     pacs_ae = serializers.SerializerMethodField()
     pacs_host = serializers.SerializerMethodField()
     pacs_port = serializers.SerializerMethodField()
+    dicom_vinculado = serializers.SerializerMethodField()
+    numero_serie = serializers.SerializerMethodField()
 
     class Meta:
         model = MaquinaRadiologia
@@ -57,6 +59,8 @@ class MaquinaRadiologiaSerializer(serializers.ModelSerializer):
             "status_label",
             "codigo_vinculo",
             "equipamento_tenant_id",
+            "dicom_vinculado",
+            "numero_serie",
             "pacs_ae",
             "pacs_host",
             "pacs_port",
@@ -69,6 +73,8 @@ class MaquinaRadiologiaSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "codigo_vinculo",
             "equipamento_tenant_id",
+            "dicom_vinculado",
+            "numero_serie",
             "pacs_ae",
             "pacs_host",
             "pacs_port",
@@ -95,6 +101,26 @@ class MaquinaRadiologiaSerializer(serializers.ModelSerializer):
 
     def get_pacs_port(self, obj):
         return self._pacs()["port"]
+
+    def _dicom(self, obj) -> dict:
+        return (self.context.get("dicom_status") or {}).get(obj.id) or {}
+
+    def get_dicom_vinculado(self, obj):
+        return bool(self._dicom(obj).get("dicom_vinculado"))
+
+    def get_numero_serie(self, obj):
+        return self._dicom(obj).get("numero_serie") or ""
+
+    def get_status_label(self, obj):
+        if obj.status == MaquinaRadiologia.Status.SUSPENSA:
+            return "Suspensa"
+        if obj.status == MaquinaRadiologia.Status.CADASTRADA:
+            return "Cadastrada"
+        if obj.status == MaquinaRadiologia.Status.LIBERADA:
+            if self.get_dicom_vinculado(obj):
+                return "Vinculada"
+            return "Aguardando exame"
+        return obj.get_status_display()
 
     def validate_ae_title(self, value):
         raw = (value or "").strip().upper().replace(" ", "")

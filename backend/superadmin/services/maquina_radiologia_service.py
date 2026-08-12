@@ -179,3 +179,41 @@ def suspender_maquina_no_cliente(maquina) -> dict:
         return {"ok": True, "maquina_id": maquina.id, "valor_mensalidade": str(valor)}
     finally:
         _limpar_contexto(db_name)
+
+
+def status_dicom_das_maquinas(maquinas) -> dict[int, dict]:
+    """Lê no tenant se o exame de teste já gravou o serial."""
+    from collections import defaultdict
+
+    from radiologia.models import Equipamento
+
+    por_loja = defaultdict(list)
+    for m in maquinas:
+        if m.equipamento_tenant_id and m.loja_id:
+            por_loja[m.loja_id].append(m)
+
+    out: dict[int, dict] = {}
+    lojas = {m.loja_id: m.loja for m in maquinas if m.loja_id}
+    for loja_id, items in por_loja.items():
+        loja = lojas.get(loja_id)
+        if not loja:
+            continue
+        ids = [m.equipamento_tenant_id for m in items]
+        db_name = _contexto_tenant(loja)
+        try:
+            eqs = {
+                eq.id: eq
+                for eq in Equipamento.objects.using(db_name).filter(loja_id=loja_id, id__in=ids)
+            }
+            for m in items:
+                eq = eqs.get(m.equipamento_tenant_id)
+                out[m.id] = {
+                    "dicom_vinculado": bool(eq and eq.vinculado_em),
+                    "numero_serie": (eq.numero_serie if eq else "") or "",
+                    "vinculado_em": eq.vinculado_em.isoformat() if eq and eq.vinculado_em else None,
+                }
+        except Exception:
+            logger.exception("status_dicom loja=%s", loja_id)
+        finally:
+            _limpar_contexto(db_name)
+    return out

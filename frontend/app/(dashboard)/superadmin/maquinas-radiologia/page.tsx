@@ -40,6 +40,8 @@ type Maquina = {
   status: string;
   status_label: string;
   codigo_vinculo: string;
+  dicom_vinculado?: boolean;
+  numero_serie?: string;
   pacs_ae?: string;
   pacs_host?: string;
   pacs_port?: number;
@@ -286,9 +288,10 @@ export default function MaquinasRadiologiaPage() {
           <ol className="mt-1 list-decimal pl-5 text-xs sm:text-sm">
             <li>Contratar <strong>servidor DICOM + Worklist</strong> para a clínica.</li>
             <li>Cadastrar a máquina (US / RX / MG) com preço mensal.</li>
-            <li><strong>Liberar</strong> — o aparelho aparece no sistema do cliente.</li>
+            <li><strong>Liberar</strong> — o aparelho aparece no cliente; status fica <strong>Aguardando exame</strong>.</li>
+            <li>No ultrassom, envie um exame de teste com o <strong>código</strong> no Accession Number.</li>
+            <li><strong>Vincular DICOM</strong> — o sistema lê o serial; status vira <strong>Vinculada</strong>.</li>
             <li>O cliente só <strong>escolhe a máquina ao abrir o exame</strong>.</li>
-            <li>O Super Admin faz o <strong>vínculo DICOM</strong> (código no Accession + Vincular).</li>
           </ol>
         </div>
 
@@ -350,6 +353,7 @@ export default function MaquinasRadiologiaPage() {
                   <th className="px-4 py-3">Porta</th>
                   <th className="px-4 py-3">R$/mês</th>
                   <th className="px-4 py-3">Código</th>
+                  <th className="px-4 py-3">Serial</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Ações</th>
                 </tr>
@@ -365,10 +369,12 @@ export default function MaquinasRadiologiaPage() {
                     <td className="px-4 py-3 font-mono text-xs">{m.pacs_port || pacsInfo.port}</td>
                     <td className="px-4 py-3">{m.cobranca_mensal}</td>
                     <td className="px-4 py-3 font-mono text-xs">{m.codigo_vinculo || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{m.numero_serie || '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-0.5 text-xs ${
-                        m.status === 'liberada' ? 'bg-emerald-50 text-emerald-800' :
-                        m.status === 'suspensa' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'
+                        m.dicom_vinculado ? 'bg-emerald-50 text-emerald-800' :
+                        m.status === 'liberada' ? 'bg-amber-50 text-amber-800' :
+                        m.status === 'suspensa' ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-700'
                       }`}>
                         {m.status_label}
                       </span>
@@ -388,7 +394,7 @@ export default function MaquinasRadiologiaPage() {
                 ))}
                 {!maquinasFiltradas.length && (
                   <tr>
-                    <td colSpan={10} className="px-4 py-10 text-center text-gray-500">
+                    <td colSpan={11} className="px-4 py-10 text-center text-gray-500">
                       Nenhuma máquina cadastrada. Clique em <strong>Nova máquina</strong> para incluir.
                     </td>
                   </tr>

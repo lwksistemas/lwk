@@ -57,6 +57,7 @@ export interface PedidoExame {
   procedimento_nome: string;
   equipamento: number | null;
   equipamento_nome: string | null;
+  equipamento_ae_title?: string | null;
   medico_solicitante: string;
   crm_solicitante: string;
   indicacao_clinica: string;

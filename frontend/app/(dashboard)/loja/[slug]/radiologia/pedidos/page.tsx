@@ -162,6 +162,7 @@ export default function RadiologiaPedidosPage() {
                   <th className="px-3 py-3">Accession</th>
                   <th className="px-3 py-3">Paciente</th>
                   <th className="px-3 py-3">Procedimento</th>
+                  <th className="px-3 py-3">Equipamento</th>
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3 text-right">Ações</th>
                 </tr>
@@ -172,6 +173,18 @@ export default function RadiologiaPedidosPage() {
                     <td className="px-3 py-3 font-mono text-xs">{p.accession_number || '—'}</td>
                     <td className="px-3 py-3">{p.paciente_nome}</td>
                     <td className="px-3 py-3">{p.procedimento_nome}</td>
+                    <td className="px-3 py-3 text-xs">
+                      {p.equipamento_nome ? (
+                        <span>
+                          {p.equipamento_nome}
+                          {p.equipamento_ae_title ? (
+                            <span className="ml-1 font-mono text-[10px] text-gray-500">({p.equipamento_ae_title})</span>
+                          ) : null}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td className="px-3 py-3">
                       <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs text-teal-800 dark:bg-teal-950 dark:text-teal-200">
                         {PEDIDO_STATUS_LABEL[p.status] || p.status}
@@ -213,9 +226,18 @@ export default function RadiologiaPedidosPage() {
                 {procedimentos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
               <select className="w-full rounded-md border px-3 py-2" value={form.equipamento} onChange={(e) => setForm({ ...form, equipamento: e.target.value })}>
-                <option value="">Equipamento (opcional)</option>
+                <option value="">Equipamento (obrigatório)</option>
                 {equipamentos.map((e) => <option key={e.id} value={e.id}>{e.nome} ({e.ae_title})</option>)}
               </select>
+              {!equipamentos.length && (
+                <p className="text-xs text-amber-700">
+                  Cadastre o ultrassom em{' '}
+                  <Link href={`/loja/${slug}/radiologia/equipamentos`} className="underline">
+                    Equipamentos
+                  </Link>{' '}
+                  antes de criar o pedido.
+                </p>
+              )}
               <input className="w-full rounded-md border px-3 py-2" placeholder="Médico solicitante" value={form.medico_solicitante} onChange={(e) => setForm({ ...form, medico_solicitante: e.target.value })} />
               <input className="w-full rounded-md border px-3 py-2" placeholder="CRM" value={form.crm_solicitante} onChange={(e) => setForm({ ...form, crm_solicitante: e.target.value })} />
               <input type="datetime-local" className="w-full rounded-md border px-3 py-2" value={form.agendado_para} onChange={(e) => setForm({ ...form, agendado_para: e.target.value })} />
@@ -225,7 +247,7 @@ export default function RadiologiaPedidosPage() {
               <button type="button" className="rounded-md px-3 py-2 text-sm" onClick={() => setOpen(false)}>Cancelar</button>
               <button
                 type="button"
-                disabled={saving || !form.paciente || !form.procedimento}
+                disabled={saving || !form.paciente || !form.procedimento || !form.equipamento}
                 className="rounded-md bg-teal-700 px-3 py-2 text-sm text-white disabled:opacity-50"
                 onClick={() => void submit()}
               >

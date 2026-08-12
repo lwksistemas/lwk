@@ -73,6 +73,9 @@ class PedidoExameSerializer(BaseLojaSerializer):
     paciente_nome = serializers.CharField(source="paciente.nome", read_only=True)
     procedimento_nome = serializers.CharField(source="procedimento.nome", read_only=True)
     equipamento_nome = serializers.CharField(source="equipamento.nome", read_only=True, allow_null=True)
+    equipamento_ae_title = serializers.CharField(
+        source="equipamento.ae_title", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = PedidoExame
@@ -84,6 +87,7 @@ class PedidoExameSerializer(BaseLojaSerializer):
             "procedimento_nome",
             "equipamento",
             "equipamento_nome",
+            "equipamento_ae_title",
             "medico_solicitante",
             "crm_solicitante",
             "indicacao_clinica",
@@ -112,6 +116,13 @@ class PedidoExameSerializer(BaseLojaSerializer):
             "updated_at",
             "loja_id",
         ]
+
+    def validate_equipamento(self, value):
+        if self.instance is None and value is None:
+            raise serializers.ValidationError(
+                "Selecione o equipamento (ultrassom) para vincular ao exame do paciente."
+            )
+        return value
 
 
 class LaudoSerializer(BaseLojaSerializer):

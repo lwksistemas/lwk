@@ -72,9 +72,39 @@ class EquipamentoViewSet(BaseModelViewSet):
         from .equipamento_vinculo_service import gerar_codigo_vinculo
 
         eq = self.get_object()
+        if eq.vinculado_em:
+            return Response(
+                {"error": "Equipamento já vinculado. Regenere só se for re-parear o aparelho."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         eq.codigo_vinculo = gerar_codigo_vinculo()
-        eq.save(update_fields=["codigo_vinculo", "updated_at"])
+        eq.numero_serie = ""
+        eq.orthanc_study_id_vinculo = ""
+        eq.save(update_fields=["codigo_vinculo", "numero_serie", "orthanc_study_id_vinculo", "updated_at"])
         return Response(EquipamentoSerializer(eq).data)
+
+    @action(detail=True, methods=["post"], url_path="processar-vinculo")
+    def processar_vinculo(self, request, pk=None):
+        """Lê no PACS o exame enviado com o código e grava o serial do DICOM."""
+        from .equipamento_vinculo_service import processar_vinculo_dicom_equipamento
+
+        eq = self.get_object()
+        try:
+            result = processar_vinculo_dicom_equipamento(eq)
+        except LookupError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.exception("processar_vinculo equip=%s: %s", eq.id, exc)
+            return Response(
+                {"error": "Falha ao processar vínculo DICOM no PACS."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        eq.refresh_from_db()
+        return Response({"equipamento": EquipamentoSerializer(eq).data, **result})
 
 
 class DicomReceberView(APIView):

@@ -273,6 +273,78 @@ def proxy_dicomweb(path: str, method: str = "GET", params: dict | None = None) -
     return orthanc_request(method, f"/dicom-web/{clean}", params=params, raw=True)
 
 
+def find_orthanc_study_by_accession(accession: str) -> dict | None:
+    """Busca estudo no Orthanc pelo AccessionNumber (ex.: código de vínculo)."""
+    acc = (accession or "").strip()
+    if not acc:
+        return None
+    try:
+        resp = orthanc_request(
+            "POST",
+            "/tools/find",
+            json_body={"Level": "Study", "Query": {"AccessionNumber": acc}},
+            timeout=30,
+        )
+        if not resp.ok:
+            return None
+        ids = resp.json() or []
+        if not ids:
+            return None
+        return enrich_orthanc_study(ids[0])
+    except Exception as exc:
+        logger.warning("find_orthanc_study_by_accession falhou: %s", exc)
+        return None
+
+
+def enrich_orthanc_study(orthanc_id: str) -> dict | None:
+    """Detalhe do estudo + DeviceSerialNumber da primeira instância."""
+    try:
+        detail = orthanc_request("GET", f"/studies/{orthanc_id}", timeout=15)
+        if not detail.ok:
+            return {"orthanc_id": orthanc_id}
+        data = detail.json()
+        main = data.get("MainDicomTags") or {}
+        patient = data.get("PatientMainDicomTags") or {}
+        meta = {
+            "orthanc_id": orthanc_id,
+            "study_instance_uid": main.get("StudyInstanceUID") or "",
+            "accession_number": main.get("AccessionNumber") or "",
+            "patient_id": patient.get("PatientID") or "",
+            "patient_name": patient.get("PatientName") or "",
+            "instance_count": len(data.get("Instances") or []),
+            "device_serial_number": "",
+            "station_name": main.get("StationName") or "",
+            "manufacturer": "",
+            "manufacturer_model": "",
+            "calling_ae": "",
+        }
+        instances = data.get("Instances") or []
+        if instances:
+            tags_resp = orthanc_request(
+                "GET", f"/instances/{instances[0]}/simplified-tags", timeout=15
+            )
+            if tags_resp.ok:
+                tags = tags_resp.json() or {}
+                meta["device_serial_number"] = (
+                    tags.get("DeviceSerialNumber")
+                    or tags.get("0018,1000")
+                    or ""
+                )
+                meta["station_name"] = tags.get("StationName") or meta["station_name"]
+                meta["manufacturer"] = tags.get("Manufacturer") or ""
+                meta["manufacturer_model"] = tags.get("ManufacturerModelName") or ""
+                # Alguns aparelhos colocam AE em StationName / SourceApplicationEntityTitle
+                meta["calling_ae"] = (
+                    tags.get("SourceApplicationEntityTitle")
+                    or tags.get("0002,0016")
+                    or ""
+                )
+        return meta
+    except Exception as exc:
+        logger.warning("enrich_orthanc_study %s: %s", orthanc_id, exc)
+        return {"orthanc_id": orthanc_id}
+
+
 def find_orthanc_study_for_pedido(pedido) -> dict | None:
     """Busca estudo no Orthanc por StudyInstanceUID (preferencial) ou Accession."""
     body: dict = {"Level": "Study", "Query": {}}
@@ -290,21 +362,7 @@ def find_orthanc_study_for_pedido(pedido) -> dict | None:
         ids = resp.json()
         if not ids:
             return None
-        orthanc_id = ids[0]
-        detail = orthanc_request("GET", f"/studies/{orthanc_id}", timeout=15)
-        if not detail.ok:
-            return {"orthanc_id": orthanc_id}
-        data = detail.json()
-        main = data.get("MainDicomTags") or {}
-        patient = data.get("PatientMainDicomTags") or {}
-        return {
-            "orthanc_id": orthanc_id,
-            "study_instance_uid": main.get("StudyInstanceUID") or "",
-            "accession_number": main.get("AccessionNumber") or "",
-            "patient_id": patient.get("PatientID") or "",
-            "patient_name": patient.get("PatientName") or "",
-            "instance_count": int(data.get("Instances") or 0),
-        }
+        return enrich_orthanc_study(ids[0])
     except Exception as exc:
         logger.warning("find_orthanc_study_for_pedido falhou: %s", exc)
         return None

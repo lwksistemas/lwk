@@ -67,6 +67,12 @@ class Equipamento(LojaIsolationMixin, models.Model):
         db_index=True,
         help_text="Código aleatório LWK para parear/enviar exames deste aparelho",
     )
+    vinculado_em = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Quando o exame de vínculo DICOM confirmou o serial do aparelho",
+    )
+    orthanc_study_id_vinculo = models.CharField(max_length=64, blank=True, default="")
     station_name = models.CharField(max_length=64, blank=True, default="")
     suporte_dicom_storage = models.BooleanField(default=True)
     suporte_mwl = models.BooleanField(default=True)

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { ArrowLeft, Copy, Monitor, Plus, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Copy, Link2, Monitor, Plus, RefreshCw } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { useRadiologiaCrud } from '@/hooks/useRadiologiaCrud';
 import type { Equipamento } from '@/lib/radiologia-types';
@@ -29,7 +29,9 @@ export default function RadiologiaEquipamentosPage() {
   const [editing, setEditing] = useState<Equipamento | null>(null);
   const [form, setForm] = useState(empty);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionOk, setActionOk] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   const openNew = () => {
     setEditing(null);
@@ -80,11 +82,41 @@ export default function RadiologiaEquipamentosPage() {
   const regenerar = async (id: number) => {
     if (!confirm('Gerar novo código de vínculo? O código anterior deixa de valer.')) return;
     setActionError(null);
+    setActionOk(null);
     try {
       await apiClient.post(`/radiologia/equipamentos/${id}/regenerar-codigo/`);
       await load();
-    } catch {
-      setActionError('Falha ao regenerar código.');
+      setActionOk('Novo código gerado.');
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? String((err as { response?: { data?: { error?: string } } }).response?.data?.error || '')
+          : '';
+      setActionError(msg || 'Falha ao regenerar código.');
+    }
+  };
+
+  const processarVinculo = async (id: number) => {
+    setBusyId(id);
+    setActionError(null);
+    setActionOk(null);
+    try {
+      const res = await apiClient.post(`/radiologia/equipamentos/${id}/processar-vinculo/`);
+      const serial = res.data?.numero_serie || '';
+      await load();
+      setActionOk(
+        serial
+          ? `Vínculo OK. Serial lido do DICOM: ${serial}`
+          : 'Vínculo processado com sucesso.',
+      );
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? String((err as { response?: { data?: { error?: string } } }).response?.data?.error || '')
+          : '';
+      setActionError(msg || 'Exame de vínculo ainda não chegou ao PACS.');
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -96,7 +128,9 @@ export default function RadiologiaEquipamentosPage() {
             <Monitor className="hidden h-6 w-6 sm:block" />
             <div>
               <h1 className="text-xl font-bold sm:text-2xl">Equipamentos</h1>
-              <p className="text-xs text-white/80">Serial do US + código aleatório vinculam à clínica (CPF/CNPJ)</p>
+              <p className="text-xs text-white/80">
+                Cadastre → configure DICOM no US → envie exame com o código → processar vínculo
+              </p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -111,6 +145,19 @@ export default function RadiologiaEquipamentosPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-4 rounded-xl border border-teal-200 bg-teal-50/80 p-4 text-sm text-teal-950 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-100">
+          <p className="font-semibold">Como vincular o ultrassom</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs sm:text-sm">
+            <li>Cadastre o equipamento (AE Title). O sistema gera um <strong>código único</strong>.</li>
+            <li>Configure no US: PACS <code className="rounded bg-white/60 px-1">LWKPACS</code> · IP <code className="rounded bg-white/60 px-1">201.23.81.50</code> · porta <code className="rounded bg-white/60 px-1">4242</code>.</li>
+            <li>No ultrassom, envie um exame de teste colocando o <strong>código</strong> no campo <strong>Accession Number</strong>.</li>
+            <li>Clique em <strong>Vincular</strong> — o sistema lê o <strong>número de série</strong> no DICOM e amarra à clínica.</li>
+          </ol>
+        </div>
+
+        {actionOk && (
+          <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{actionOk}</div>
+        )}
         {(error || actionError) && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {actionError || error}
@@ -120,14 +167,14 @@ export default function RadiologiaEquipamentosPage() {
           <div className="flex justify-center py-16"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-teal-700" /></div>
         ) : (
           <div className="overflow-x-auto overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-            <table className="w-full min-w-[880px] text-sm">
+            <table className="w-full min-w-[960px] text-sm">
               <thead>
                 <tr className="border-b bg-gray-50 text-left text-xs uppercase text-gray-500 dark:bg-gray-800">
                   <th className="px-4 py-3">Nome</th>
                   <th className="px-4 py-3">AE Title</th>
-                  <th className="px-4 py-3">Nº série</th>
-                  <th className="px-4 py-3">Código vínculo</th>
-                  <th className="px-4 py-3">MWL / Storage</th>
+                  <th className="px-4 py-3">Código</th>
+                  <th className="px-4 py-3">Serial (DICOM)</th>
+                  <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Ações</th>
                 </tr>
               </thead>
@@ -136,7 +183,6 @@ export default function RadiologiaEquipamentosPage() {
                   <tr key={e.id} className="border-b border-gray-100 dark:border-gray-800">
                     <td className="px-4 py-3 font-medium">{e.nome}</td>
                     <td className="px-4 py-3 font-mono text-xs">{e.ae_title}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{e.numero_serie || '—'}</td>
                     <td className="px-4 py-3">
                       {e.codigo_vinculo ? (
                         <div className="flex items-center gap-1">
@@ -152,15 +198,34 @@ export default function RadiologiaEquipamentosPage() {
                         '—'
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs">
-                      {[e.suporte_mwl && 'MWL', e.suporte_dicom_storage && 'C-STORE', e.suporte_sr && 'SR']
-                        .filter(Boolean)
-                        .join(' · ') || '—'}
+                    <td className="px-4 py-3 font-mono text-xs">{e.numero_serie || '—'}</td>
+                    <td className="px-4 py-3">
+                      {e.vinculado_em ? (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+                          Vinculado
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                          Aguardando exame
+                        </span>
+                      )}
                     </td>
                     <td className="space-x-2 px-4 py-3 text-right text-xs">
-                      <button type="button" className="inline-flex items-center gap-0.5 text-teal-700" onClick={() => void regenerar(e.id)}>
-                        <RefreshCw className="h-3 w-3" /> Código
+                      <button
+                        type="button"
+                        disabled={busyId === e.id}
+                        className="inline-flex items-center gap-0.5 text-teal-700 disabled:opacity-50"
+                        onClick={() => void processarVinculo(e.id)}
+                        title="Buscar exame com este código no PACS e ler o serial"
+                      >
+                        <Link2 className="h-3 w-3" />
+                        {busyId === e.id ? '…' : 'Vincular'}
                       </button>
+                      {!e.vinculado_em && (
+                        <button type="button" className="inline-flex items-center gap-0.5 text-teal-700" onClick={() => void regenerar(e.id)}>
+                          <RefreshCw className="h-3 w-3" /> Código
+                        </button>
+                      )}
                       <button type="button" className="text-teal-700" onClick={() => openEdit(e)}>Editar</button>
                       <button type="button" className="text-red-600" onClick={() => remove(e.id, e.nome)}>Excluir</button>
                     </td>
@@ -169,7 +234,7 @@ export default function RadiologiaEquipamentosPage() {
                 {!items.length && (
                   <tr>
                     <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
-                      Nenhum ultrassom cadastrado. Cadastre com o número de série para vincular à clínica.
+                      Nenhum ultrassom cadastrado. Cadastre e envie o exame com o código gerado.
                     </td>
                   </tr>
                 )}
@@ -184,20 +249,22 @@ export default function RadiologiaEquipamentosPage() {
           <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl dark:bg-gray-900">
             <h2 className="mb-4 text-lg font-semibold">{editing ? 'Editar equipamento' : 'Novo equipamento'}</h2>
             <p className="mb-3 text-xs text-gray-500">
-              O sistema gera um código aleatório ao salvar. Ao receber exames, usa <strong>serial + CPF/CNPJ da clínica</strong> e o <strong>Accession</strong> do pedido.
+              Ao salvar, o sistema gera um código. Depois configure o DICOM no US e envie um exame com esse código no Accession.
+              O serial pode ficar em branco — será lido do arquivo DICOM.
             </p>
             <div className="space-y-3">
               <input className="w-full rounded-md border px-3 py-2" placeholder="Nome" value={form.nome} onChange={(ev) => setForm({ ...form, nome: ev.target.value })} />
               <input className="w-full rounded-md border px-3 py-2 font-mono" placeholder="AE Title (máx. 16)" maxLength={16} value={form.ae_title} onChange={(ev) => setForm({ ...form, ae_title: ev.target.value.toUpperCase() })} />
               <input
                 className="w-full rounded-md border px-3 py-2 font-mono"
-                placeholder="Número de série do ultrassom *"
+                placeholder="Nº série (opcional — vem do DICOM)"
                 value={form.numero_serie}
                 onChange={(ev) => setForm({ ...form, numero_serie: ev.target.value.toUpperCase() })}
               />
               {editing?.codigo_vinculo && (
                 <div className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm dark:border-teal-900 dark:bg-teal-950">
                   Código vínculo: <span className="font-mono font-semibold tracking-wider">{editing.codigo_vinculo}</span>
+                  <p className="mt-1 text-xs text-teal-800 dark:text-teal-200">Coloque este valor no Accession Number do exame de teste.</p>
                 </div>
               )}
               <input className="w-full rounded-md border px-3 py-2" placeholder="Modalidade (US, CR, DX…)" value={form.modality} onChange={(ev) => setForm({ ...form, modality: ev.target.value.toUpperCase() })} />
@@ -211,7 +278,7 @@ export default function RadiologiaEquipamentosPage() {
               <button type="button" className="rounded-md px-3 py-2 text-sm" onClick={() => setOpen(false)}>Cancelar</button>
               <button
                 type="button"
-                disabled={saving || !form.nome.trim() || !form.ae_title.trim() || !form.numero_serie.trim()}
+                disabled={saving || !form.nome.trim() || !form.ae_title.trim()}
                 className="rounded-md bg-teal-700 px-3 py-2 text-sm text-white disabled:opacity-50"
                 onClick={() => void submit()}
               >

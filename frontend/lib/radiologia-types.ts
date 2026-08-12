@@ -33,6 +33,8 @@ export interface Equipamento {
   modelo: string;
   numero_serie: string;
   codigo_vinculo: string;
+  vinculado_em: string | null;
+  orthanc_study_id_vinculo?: string;
   station_name: string;
   suporte_dicom_storage: boolean;
   suporte_mwl: boolean;

@@ -121,6 +121,152 @@ def serial_ja_vinculado_outra_loja(numero_serie: str, loja_id: int) -> bool:
     return int(hit["loja_id"]) != int(loja_id)
 
 
+def resolver_equipamento_por_codigo(codigo_vinculo: str) -> dict | None:
+    """Localiza clínica + equipamento pelo código aleatório de vínculo."""
+    from core.db_config import ensure_loja_database_config
+    from superadmin.models import Loja
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+
+    from .models import Equipamento
+
+    codigo = (codigo_vinculo or "").strip().upper()
+    if not codigo:
+        return None
+
+    lojas = list(
+        Loja.objects.using("default").filter(
+            is_active=True,
+            tipo_loja__slug__icontains="radiolog",
+        )
+    )
+    for loja in lojas:
+        db_name = loja.database_name
+        if not ensure_loja_database_config(db_name, conn_max_age=0):
+            continue
+        set_current_loja_id(loja.id)
+        set_current_tenant_db(db_name)
+        try:
+            eq = (
+                Equipamento.objects.using(db_name)
+                .filter(loja_id=loja.id, codigo_vinculo=codigo, is_active=True)
+                .first()
+            )
+            if not eq:
+                continue
+            return {
+                "loja_id": loja.id,
+                "loja_nome": loja.nome,
+                "cpf_cnpj": normalizar_cpf_cnpj(loja.cpf_cnpj),
+                "equipamento_id": eq.id,
+                "equipamento_nome": eq.nome,
+                "ae_title": eq.ae_title,
+                "codigo_vinculo": eq.codigo_vinculo,
+                "numero_serie": eq.numero_serie,
+                "vinculado_em": eq.vinculado_em,
+                "database_name": db_name,
+            }
+        finally:
+            set_current_loja_id(None)
+            set_current_tenant_db(None)
+            _fechar_tenant_db(db_name)
+    return None
+
+
+def processar_vinculo_dicom_equipamento(equipamento) -> dict:
+    """Após C-STORE: acha estudo com Accession=código, lê serial DICOM e conclui vínculo."""
+    from django.utils import timezone
+
+    from .orthanc_service import find_orthanc_study_by_accession
+
+    codigo = (equipamento.codigo_vinculo or "").strip().upper()
+    if not codigo:
+        raise ValueError("Equipamento sem código de vínculo")
+
+    meta = find_orthanc_study_by_accession(codigo)
+    if not meta or not meta.get("orthanc_id"):
+        # Fallback: código no PatientID
+        from .orthanc_service import orthanc_request, enrich_orthanc_study
+
+        try:
+            resp = orthanc_request(
+                "POST",
+                "/tools/find",
+                json_body={"Level": "Study", "Query": {"PatientID": codigo}},
+                timeout=30,
+            )
+            ids = resp.json() if resp.ok else []
+            if ids:
+                meta = enrich_orthanc_study(ids[0])
+        except Exception:
+            meta = None
+
+    if not meta or not meta.get("orthanc_id"):
+        raise LookupError(
+            f"Nenhum exame encontrado no PACS com Accession/PatientID = {codigo}. "
+            "No ultrassom, envie um exame de teste colocando este código no Accession Number."
+        )
+
+    serial_raw = meta.get("device_serial_number") or ""
+    if not serial_raw:
+        raise LookupError(
+            "Exame encontrado, mas o DICOM não trouxe DeviceSerialNumber (0018,1000). "
+            "Confira se o aparelho envia o número de série nas tags DICOM."
+        )
+
+    try:
+        serial = validar_serial(serial_raw)
+    except ValueError as exc:
+        raise ValueError(f"Serial lido do DICOM inválido: {serial_raw}") from exc
+
+    if serial_ja_vinculado_outra_loja(serial, equipamento.loja_id):
+        raise PermissionError(
+            f"O serial {serial} já está vinculado a outra clínica."
+        )
+
+    # Se já tinha serial cadastrado manualmente, deve bater com o DICOM
+    if equipamento.numero_serie and normalizar_serial(equipamento.numero_serie) != serial:
+        raise PermissionError(
+            f"Serial do DICOM ({serial}) difere do cadastrado ({equipamento.numero_serie})."
+        )
+
+    update = ["numero_serie", "vinculado_em", "orthanc_study_id_vinculo", "updated_at"]
+    equipamento.numero_serie = serial
+    equipamento.vinculado_em = timezone.now()
+    equipamento.orthanc_study_id_vinculo = meta.get("orthanc_id") or ""
+
+    if not equipamento.station_name and meta.get("station_name"):
+        equipamento.station_name = str(meta["station_name"])[:64]
+        update.append("station_name")
+    if not equipamento.fabricante and meta.get("manufacturer"):
+        equipamento.fabricante = str(meta["manufacturer"])[:80]
+        update.append("fabricante")
+    if not equipamento.modelo and meta.get("manufacturer_model"):
+        equipamento.modelo = str(meta["manufacturer_model"])[:80]
+        update.append("modelo")
+
+    equipamento.save(update_fields=update)
+    logger.info(
+        "Vínculo DICOM OK loja=%s equip=%s serial=%s codigo=%s study=%s",
+        equipamento.loja_id,
+        equipamento.id,
+        serial,
+        codigo,
+        meta.get("orthanc_id"),
+    )
+    return {
+        "ok": True,
+        "equipamento_id": equipamento.id,
+        "codigo_vinculo": codigo,
+        "numero_serie": serial,
+        "vinculado_em": equipamento.vinculado_em.isoformat() if equipamento.vinculado_em else None,
+        "orthanc_study_id": meta.get("orthanc_id"),
+        "accession_number": meta.get("accession_number"),
+        "manufacturer": meta.get("manufacturer") or "",
+        "modelo": meta.get("manufacturer_model") or "",
+        "instance_count": meta.get("instance_count") or 0,
+    }
+
+
 def receber_exame_por_accession_e_serial(
     *,
     accession_number: str,

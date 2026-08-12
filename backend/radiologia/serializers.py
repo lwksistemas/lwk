@@ -42,6 +42,8 @@ class EquipamentoSerializer(BaseLojaSerializer):
             "modelo",
             "numero_serie",
             "codigo_vinculo",
+            "vinculado_em",
+            "orthanc_study_id_vinculo",
             "station_name",
             "suporte_dicom_storage",
             "suporte_mwl",
@@ -51,7 +53,14 @@ class EquipamentoSerializer(BaseLojaSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["codigo_vinculo", "created_at", "updated_at", "loja_id"]
+        read_only_fields = [
+            "codigo_vinculo",
+            "vinculado_em",
+            "orthanc_study_id_vinculo",
+            "created_at",
+            "updated_at",
+            "loja_id",
+        ]
 
     def validate_numero_serie(self, value):
         from .equipamento_vinculo_service import (
@@ -60,10 +69,9 @@ class EquipamentoSerializer(BaseLojaSerializer):
         )
 
         raw = (value or "").strip()
+        # Serial pode vir vazio no cadastro — preenchido pelo exame de vínculo DICOM
         if not raw:
-            raise serializers.ValidationError(
-                "Informe o número de série do ultrassom para vincular à clínica."
-            )
+            return ""
         try:
             serial = validar_serial(raw)
         except ValueError as exc:
@@ -75,6 +83,9 @@ class EquipamentoSerializer(BaseLojaSerializer):
 
             loja_id = get_current_loja_id()
         if loja_id and serial_ja_vinculado_outra_loja(serial, loja_id):
+            # Mesmo equipamento em edição
+            if self.instance and normalizar_serial_safe(self.instance.numero_serie) == serial:
+                return serial
             raise serializers.ValidationError(
                 "Este número de série já está vinculado a outra clínica."
             )
@@ -84,15 +95,21 @@ class EquipamentoSerializer(BaseLojaSerializer):
         from .equipamento_vinculo_service import gerar_codigo_vinculo
 
         validated_data["codigo_vinculo"] = gerar_codigo_vinculo()
-        if not validated_data.get("station_name"):
+        if not validated_data.get("station_name") and validated_data.get("numero_serie"):
             validated_data["station_name"] = (validated_data.get("numero_serie") or "")[:16]
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
         if "numero_serie" in validated_data and not validated_data.get("station_name"):
-            if not instance.station_name:
+            if not instance.station_name and validated_data.get("numero_serie"):
                 validated_data["station_name"] = (validated_data.get("numero_serie") or "")[:16]
         return super().update(instance, validated_data)
+
+
+def normalizar_serial_safe(value: str | None) -> str:
+    from .equipamento_vinculo_service import normalizar_serial
+
+    return normalizar_serial(value)
 
 
 class ProcedimentoSerializer(BaseLojaSerializer):

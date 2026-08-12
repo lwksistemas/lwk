@@ -14,6 +14,7 @@ from superadmin.serializers.radiologia_maquinas import (
 )
 from superadmin.services.maquina_radiologia_service import (
     liberar_maquina_no_cliente,
+    processar_vinculo_maquina,
     suspender_maquina_no_cliente,
     sincronizar_valor_mensalidade,
 )
@@ -90,6 +91,23 @@ class MaquinaRadiologiaViewSet(viewsets.ModelViewSet):
         except Exception as exc:
             logger.exception("liberar maquina %s: %s", maquina.id, exc)
             return Response({"error": "Falha ao liberar máquina no cliente."}, status=status.HTTP_502_BAD_GATEWAY)
+        maquina.refresh_from_db()
+        return Response({"maquina": MaquinaRadiologiaSerializer(maquina).data, **result})
+
+    @action(detail=True, methods=["post"], url_path="vincular")
+    def vincular(self, request, pk=None):
+        maquina = self.get_object()
+        try:
+            result = processar_vinculo_maquina(maquina)
+        except LookupError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.exception("vincular maquina %s: %s", maquina.id, exc)
+            return Response({"error": "Falha ao vincular DICOM no PACS."}, status=status.HTTP_502_BAD_GATEWAY)
         maquina.refresh_from_db()
         return Response({"maquina": MaquinaRadiologiaSerializer(maquina).data, **result})
 

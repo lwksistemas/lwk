@@ -134,6 +134,29 @@ def liberar_maquina_no_cliente(maquina) -> dict:
         _limpar_contexto(db_name)
 
 
+def processar_vinculo_maquina(maquina) -> dict:
+    """Super Admin conclui o pareamento DICOM no tenant da clínica."""
+    from radiologia.equipamento_vinculo_service import processar_vinculo_dicom_equipamento
+    from radiologia.models import Equipamento
+
+    if not maquina.equipamento_tenant_id:
+        raise LookupError("Libere a máquina no cliente antes de vincular o DICOM.")
+
+    loja = maquina.loja
+    db_name = _contexto_tenant(loja)
+    try:
+        eq = (
+            Equipamento.objects.using(db_name)
+            .filter(loja_id=loja.id, id=maquina.equipamento_tenant_id)
+            .first()
+        )
+        if not eq:
+            raise LookupError("Equipamento não encontrado no sistema do cliente.")
+        return processar_vinculo_dicom_equipamento(eq)
+    finally:
+        _limpar_contexto(db_name)
+
+
 def suspender_maquina_no_cliente(maquina) -> dict:
     from radiologia.models import Equipamento
     from superadmin.models import MaquinaRadiologia

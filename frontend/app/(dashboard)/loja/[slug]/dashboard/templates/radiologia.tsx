@@ -66,7 +66,7 @@ export default function DashboardRadiologia({ loja }: { loja: LojaInfo }) {
         <QuickLink href={`${base}/pedidos`} title="Pedidos / MWL" description="Accession, Study UID e worklist" icon={ClipboardList} accent={accent} />
         <QuickLink href={`${base}/pacientes`} title="Pacientes" description="Cadastro do fluxo de exames" icon={Users} accent={accent} />
         <QuickLink href={`${base}/procedimentos`} title="Procedimentos" description="Catálogo e template de laudo" icon={Stethoscope} accent={accent} />
-        <QuickLink href={`${base}/equipamentos`} title="Equipamentos" description="Máquinas liberadas — pareamento DICOM" icon={Monitor} accent={accent} />
+        <QuickLink href={`${base}/equipamentos`} title="Equipamentos" description="Máquinas liberadas para o exame" icon={Monitor} accent={accent} />
         <QuickLink href={`${base}/laudos`} title="Laudos" description="Laudo estruturado e PDF" icon={FileText} accent={accent} />
         <QuickLink href={`${base}/viewer`} title="Viewer" description="Proxy DICOMweb + OHIF" icon={Activity} accent={accent} />
       </div>

@@ -210,17 +210,20 @@ export default function MaquinasRadiologiaPage() {
     }
   };
 
-  const acao = async (id: number, path: 'liberar' | 'suspender') => {
+  const acao = async (id: number, path: 'liberar' | 'suspender' | 'vincular') => {
     setError('');
     setOk('');
     try {
       const res = await apiClient.post(`/superadmin/maquinas-radiologia/${id}/${path}/`);
       const valor = res.data?.valor_mensalidade;
-      setOk(
-        path === 'liberar'
-          ? `Máquina liberada no cliente. Código: ${res.data?.codigo_vinculo || ''}${valor ? ` · Mensalidade: R$ ${valor}` : ''}`
-          : `Máquina suspensa.${valor ? ` Mensalidade: R$ ${valor}` : ''}`,
-      );
+      const serial = res.data?.numero_serie || res.data?.equipamento?.numero_serie;
+      if (path === 'liberar') {
+        setOk(`Máquina liberada no cliente. Código: ${res.data?.codigo_vinculo || ''}${valor ? ` · Mensalidade: R$ ${valor}` : ''}`);
+      } else if (path === 'vincular') {
+        setOk(serial ? `DICOM vinculado. Serial: ${serial}` : 'Vínculo DICOM processado.');
+      } else {
+        setOk(`Máquina suspensa.${valor ? ` Mensalidade: R$ ${valor}` : ''}`);
+      }
       await load();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -266,7 +269,8 @@ export default function MaquinasRadiologiaPage() {
             <li>Contratar <strong>servidor DICOM + Worklist</strong> para a clínica.</li>
             <li>Cadastrar a máquina (US / RX / MG) com preço mensal.</li>
             <li><strong>Liberar</strong> — o aparelho aparece no sistema do cliente.</li>
-            <li>O cliente só <strong>escolhe a máquina ao abrir o exame</strong> e envia o DICOM de vínculo.</li>
+            <li>O cliente só <strong>escolhe a máquina ao abrir o exame</strong>.</li>
+            <li>O Super Admin faz o <strong>vínculo DICOM</strong> (código no Accession + Vincular).</li>
           </ol>
         </div>
 
@@ -349,7 +353,10 @@ export default function MaquinasRadiologiaPage() {
                         <button type="button" className="font-semibold text-teal-800" onClick={() => void acao(m.id, 'liberar')}>Liberar</button>
                       )}
                       {m.status === 'liberada' && (
-                        <button type="button" className="font-semibold text-red-600" onClick={() => void acao(m.id, 'suspender')}>Suspender</button>
+                        <>
+                          <button type="button" className="font-semibold text-teal-800" onClick={() => void acao(m.id, 'vincular')}>Vincular DICOM</button>
+                          <button type="button" className="font-semibold text-red-600" onClick={() => void acao(m.id, 'suspender')}>Suspender</button>
+                        </>
                       )}
                     </td>
                   </tr>

@@ -231,11 +231,7 @@ export default function RadiologiaPedidosPage() {
               </select>
               {!equipamentos.length && (
                 <p className="text-xs text-amber-700">
-                  Cadastre o ultrassom em{' '}
-                  <Link href={`/loja/${slug}/radiologia/equipamentos`} className="underline">
-                    Equipamentos
-                  </Link>
-                  {' '}(liberado pelo Super Admin) antes de criar o pedido.
+                  Nenhuma máquina liberada. O Super Admin precisa liberar o aparelho para esta clínica.
                 </p>
               )}
               <input className="w-full rounded-md border px-3 py-2" placeholder="Médico solicitante" value={form.medico_solicitante} onChange={(e) => setForm({ ...form, medico_solicitante: e.target.value })} />

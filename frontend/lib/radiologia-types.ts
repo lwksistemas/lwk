@@ -40,6 +40,7 @@ export interface Equipamento {
   suporte_mwl: boolean;
   suporte_sr: boolean;
   cobranca_mensal: string | null;
+  liberado_pelo_superadmin?: boolean;
   is_active: boolean;
 }
 

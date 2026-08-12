@@ -47,6 +47,7 @@ from .views import (
     listar_midia_pastas,
     listar_midia_arquivos,
 )
+from .views.radiologia_maquinas import ContratoPacsLojaViewSet, MaquinaRadiologiaViewSet
 from .views import lockouts as lockout_views
 from .views_security_enhancements import SecurityDashboardViewSet  # ✅ NOVO: Melhorias de segurança
 
@@ -63,6 +64,8 @@ router.register(r"violacoes-seguranca", ViolacaoSegurancaViewSet, basename="viol
 router.register(r"estatisticas-auditoria", EstatisticasAuditoriaViewSet, basename="estatisticas-auditoria")
 router.register(r"security-dashboard", SecurityDashboardViewSet, basename="security-dashboard")  # ✅ NOVO: Dashboard de segurança
 router.register(r"login-config-sistema", LoginConfigSistemaViewSet, basename="login-config-sistema")  # ✅ NOVO: Config login sistema
+router.register(r"contratos-pacs", ContratoPacsLojaViewSet, basename="contrato-pacs")
+router.register(r"maquinas-radiologia", MaquinaRadiologiaViewSet, basename="maquina-radiologia")
 
 # Rotas específicas para dashboard financeiro das lojas
 router.register(r"loja-financeiro", FinanceiroViewSet, basename="loja-financeiro")

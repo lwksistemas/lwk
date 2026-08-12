@@ -37,6 +37,11 @@ def preparar_pedido_uids(pedido: PedidoExame) -> PedidoExame:
 
 def publicar_pedido_na_worklist(pedido: PedidoExame) -> PedidoExame:
     preparar_pedido_uids(pedido)
+    eq = pedido.equipamento
+    if eq and not eq.liberado_pelo_superadmin:
+        logger.warning("Pedido %s usa equipamento não liberado pelo Super Admin", pedido.id)
+    if eq and not eq.suporte_mwl:
+        logger.warning("Pedido %s: Worklist não contratada para o equipamento %s", pedido.id, eq.id)
     ok = sync_pedido_mwl(pedido)
     if not ok:
         logger.warning("Pedido %s não sincronizou MWL (Orthanc offline ou dir inválido)", pedido.id)

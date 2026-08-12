@@ -60,12 +60,34 @@ class PacienteRadiologiaViewSet(BaseModelViewSet):
 class EquipamentoViewSet(BaseModelViewSet):
     serializer_class = EquipamentoSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "head", "options", "post"]
 
     def get_queryset(self):
         qs = Equipamento.objects.all()
         if self.request.query_params.get("ativos", "1") != "0":
             qs = qs.filter(is_active=True)
         return qs
+
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {"error": "O cadastro de máquinas é feito pelo Super Admin. Escolha o aparelho ao abrir o exame."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {"error": "Alteração de máquina é feita pelo Super Admin."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {"error": "Exclusão de máquina é feita pelo Super Admin."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     @action(detail=True, methods=["post"], url_path="regenerar-codigo")
     def regenerar_codigo(self, request, pk=None):

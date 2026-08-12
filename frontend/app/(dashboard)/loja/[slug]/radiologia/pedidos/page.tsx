@@ -234,8 +234,8 @@ export default function RadiologiaPedidosPage() {
                   Cadastre o ultrassom em{' '}
                   <Link href={`/loja/${slug}/radiologia/equipamentos`} className="underline">
                     Equipamentos
-                  </Link>{' '}
-                  antes de criar o pedido.
+                  </Link>
+                  {' '}(liberado pelo Super Admin) antes de criar o pedido.
                 </p>
               )}
               <input className="w-full rounded-md border px-3 py-2" placeholder="Médico solicitante" value={form.medico_solicitante} onChange={(e) => setForm({ ...form, medico_solicitante: e.target.value })} />

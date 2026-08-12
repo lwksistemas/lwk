@@ -78,6 +78,8 @@ class Equipamento(LojaIsolationMixin, models.Model):
     suporte_mwl = models.BooleanField(default=True)
     suporte_sr = models.BooleanField(default=False)
     cobranca_mensal = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    liberado_pelo_superadmin = models.BooleanField(default=False)
+    maquina_superadmin_id = models.IntegerField(null=True, blank=True, db_index=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

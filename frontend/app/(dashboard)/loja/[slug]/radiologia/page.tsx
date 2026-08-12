@@ -110,7 +110,7 @@ export default function RadiologiaHomePage() {
           <CardLink
             href={`/loja/${slug}/radiologia/equipamentos`}
             title="Equipamentos"
-            description="AE Title, modalidade e cobrança por aparelho."
+            description="Aparelhos liberados pelo Super Admin — escolha no exame e pareie o DICOM."
             icon={<Monitor className="h-5 w-5 sm:h-6 sm:w-6" />}
           />
           <CardLink

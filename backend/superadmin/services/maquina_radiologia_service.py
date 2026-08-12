@@ -1,0 +1,158 @@
+"""Libera / suspende máquina do Super Admin no schema da clínica."""
+from __future__ import annotations
+
+import logging
+from decimal import Decimal
+
+from django.utils import timezone
+
+logger = logging.getLogger(__name__)
+
+
+def _contexto_tenant(loja):
+    from core.db_config import ensure_loja_database_config
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+
+    db_name = loja.database_name
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        raise RuntimeError(f"Schema da loja {loja.id} indisponível")
+    set_current_loja_id(loja.id)
+    set_current_tenant_db(db_name)
+    return db_name
+
+
+def _limpar_contexto(db_name: str) -> None:
+    from django.db import connections
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+
+    set_current_loja_id(None)
+    set_current_tenant_db(None)
+    if db_name in connections:
+        try:
+            connections[db_name].close()
+        except Exception:
+            pass
+
+
+def sincronizar_valor_mensalidade(loja) -> Decimal:
+    """Plano + PACS/Worklist + máquinas liberadas."""
+    from superadmin.models import ContratoPacsLoja, FinanceiroLoja, MaquinaRadiologia
+    from superadmin.services.financeiro_service import FinanceiroService
+
+    valor = Decimal(str(FinanceiroService.calcular_valor_mensalidade(loja)))
+    contrato = ContratoPacsLoja.objects.filter(loja=loja, is_active=True).first()
+    if contrato:
+        valor += contrato.valor_mensal()
+    maquinas = MaquinaRadiologia.objects.filter(
+        loja=loja, is_active=True, status=MaquinaRadiologia.Status.LIBERADA
+    )
+    for m in maquinas:
+        valor += m.cobranca_mensal or Decimal("0.00")
+
+    fin = FinanceiroLoja.objects.filter(loja=loja).first()
+    if fin:
+        fin.valor_mensalidade = valor
+        fin.save(update_fields=["valor_mensalidade"])
+    return valor
+
+
+def liberar_maquina_no_cliente(maquina) -> dict:
+    """Cria/ativa Equipamento no tenant e marca máquina como liberada."""
+    from radiologia.equipamento_vinculo_service import gerar_codigo_vinculo
+    from radiologia.models import Equipamento
+    from superadmin.models import ContratoPacsLoja, MaquinaRadiologia
+
+    loja = maquina.loja
+    contrato = ContratoPacsLoja.objects.filter(loja=loja, is_active=True).first()
+    if not contrato or not (contrato.dicom_contratado or contrato.worklist_contratado):
+        raise PermissionError(
+            "A clínica precisa contratar o servidor DICOM e/ou Worklist antes de liberar a máquina."
+        )
+
+    codigo = (maquina.codigo_vinculo or "").strip() or gerar_codigo_vinculo()
+    db_name = _contexto_tenant(loja)
+    try:
+        eq = None
+        if maquina.equipamento_tenant_id:
+            eq = (
+                Equipamento.objects.using(db_name)
+                .filter(loja_id=loja.id, id=maquina.equipamento_tenant_id)
+                .first()
+            )
+        if not eq:
+            eq = (
+                Equipamento.objects.using(db_name)
+                .filter(loja_id=loja.id, ae_title=maquina.ae_title)
+                .first()
+            )
+        defaults = {
+            "nome": maquina.nome,
+            "ae_title": maquina.ae_title[:16],
+            "modality": maquina.tipo or "US",
+            "fabricante": maquina.fabricante,
+            "modelo": maquina.modelo,
+            "codigo_vinculo": codigo,
+            "suporte_dicom_storage": bool(contrato.dicom_contratado),
+            "suporte_mwl": bool(contrato.worklist_contratado),
+            "cobranca_mensal": maquina.cobranca_mensal,
+            "liberado_pelo_superadmin": True,
+            "maquina_superadmin_id": maquina.id,
+            "is_active": True,
+            "loja_id": loja.id,
+        }
+        if eq:
+            for k, v in defaults.items():
+                setattr(eq, k, v)
+            eq.save()
+        else:
+            eq = Equipamento(**defaults)
+            eq.save(using=db_name)
+
+        maquina.codigo_vinculo = codigo
+        maquina.equipamento_tenant_id = eq.id
+        maquina.status = MaquinaRadiologia.Status.LIBERADA
+        maquina.liberada_em = timezone.now()
+        maquina.save(
+            update_fields=[
+                "codigo_vinculo",
+                "equipamento_tenant_id",
+                "status",
+                "liberada_em",
+                "updated_at",
+            ]
+        )
+        valor = sincronizar_valor_mensalidade(loja)
+        logger.info("Máquina %s liberada na loja %s (equip tenant=%s)", maquina.id, loja.id, eq.id)
+        return {
+            "ok": True,
+            "maquina_id": maquina.id,
+            "equipamento_tenant_id": eq.id,
+            "codigo_vinculo": codigo,
+            "valor_mensalidade": str(valor),
+        }
+    finally:
+        _limpar_contexto(db_name)
+
+
+def suspender_maquina_no_cliente(maquina) -> dict:
+    from radiologia.models import Equipamento
+    from superadmin.models import MaquinaRadiologia
+
+    loja = maquina.loja
+    db_name = _contexto_tenant(loja)
+    try:
+        if maquina.equipamento_tenant_id:
+            eq = (
+                Equipamento.objects.using(db_name)
+                .filter(loja_id=loja.id, id=maquina.equipamento_tenant_id)
+                .first()
+            )
+            if eq:
+                eq.is_active = False
+                eq.save(update_fields=["is_active", "updated_at"])
+        maquina.status = MaquinaRadiologia.Status.SUSPENSA
+        maquina.save(update_fields=["status", "updated_at"])
+        valor = sincronizar_valor_mensalidade(loja)
+        return {"ok": True, "maquina_id": maquina.id, "valor_mensalidade": str(valor)}
+    finally:
+        _limpar_contexto(db_name)

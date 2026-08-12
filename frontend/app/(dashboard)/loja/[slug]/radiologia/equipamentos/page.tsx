@@ -3,70 +3,20 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { ArrowLeft, Copy, Link2, Monitor, Plus, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Copy, Link2, Monitor, RefreshCw } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { useRadiologiaCrud } from '@/hooks/useRadiologiaCrud';
 import type { Equipamento } from '@/lib/radiologia-types';
 
-const empty = {
-  nome: '',
-  ae_title: '',
-  modality: 'US',
-  fabricante: '',
-  modelo: '',
-  numero_serie: '',
-  suporte_mwl: true,
-  suporte_dicom_storage: true,
-  suporte_sr: false,
-};
-
 export default function RadiologiaEquipamentosPage() {
   const slug = useParams().slug as string;
-  const { items, loading, error, saving, save, remove, load } = useRadiologiaCrud<Equipamento>(
+  const { items, loading, error, load } = useRadiologiaCrud<Equipamento>(
     '/radiologia/equipamentos/',
   );
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Equipamento | null>(null);
-  const [form, setForm] = useState(empty);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionOk, setActionOk] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
-
-  const openNew = () => {
-    setEditing(null);
-    setForm(empty);
-    setOpen(true);
-  };
-  const openEdit = (e: Equipamento) => {
-    setEditing(e);
-    setForm({
-      nome: e.nome,
-      ae_title: e.ae_title,
-      modality: e.modality || 'US',
-      fabricante: e.fabricante || '',
-      modelo: e.modelo || '',
-      numero_serie: e.numero_serie || '',
-      suporte_mwl: e.suporte_mwl,
-      suporte_dicom_storage: e.suporte_dicom_storage,
-      suporte_sr: e.suporte_sr,
-    });
-    setOpen(true);
-  };
-  const submit = async () => {
-    setActionError(null);
-    const ok = await save(
-      {
-        ...form,
-        nome: form.nome.trim(),
-        ae_title: form.ae_title.trim(),
-        numero_serie: form.numero_serie.trim().toUpperCase(),
-        is_active: true,
-      },
-      editing?.id,
-    );
-    if (ok) setOpen(false);
-  };
 
   const copyCode = async (eq: Equipamento) => {
     if (!eq.codigo_vinculo) return;
@@ -129,7 +79,7 @@ export default function RadiologiaEquipamentosPage() {
             <div>
               <h1 className="text-xl font-bold sm:text-2xl">Equipamentos</h1>
               <p className="text-xs text-white/80">
-                Cadastre → configure DICOM no US → envie exame com o código → processar vínculo
+                Máquinas liberadas pelo Super Admin — pareie o DICOM e use no exame
               </p>
             </div>
           </div>
@@ -137,21 +87,18 @@ export default function RadiologiaEquipamentosPage() {
             <Link href={`/loja/${slug}/radiologia`} className="inline-flex items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-sm hover:bg-white/25">
               <ArrowLeft className="h-4 w-4" /> Voltar
             </Link>
-            <button type="button" onClick={openNew} className="ml-auto inline-flex items-center gap-1 rounded-md bg-white px-3 py-2 text-sm font-semibold text-teal-800">
-              <Plus className="h-4 w-4" /> Novo
-            </button>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-4 rounded-xl border border-teal-200 bg-teal-50/80 p-4 text-sm text-teal-950 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-100">
-          <p className="font-semibold">Como vincular o ultrassom</p>
+          <p className="font-semibold">Como usar a máquina</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs sm:text-sm">
-            <li>Cadastre o equipamento (AE Title). O sistema gera um <strong>código único</strong>.</li>
+            <li>O Super Admin cadastra, cobra e <strong>libera</strong> o aparelho nesta clínica.</li>
             <li>Configure no US: PACS <code className="rounded bg-white/60 px-1">LWKPACS</code> · IP <code className="rounded bg-white/60 px-1">201.23.81.50</code> · porta <code className="rounded bg-white/60 px-1">4242</code>.</li>
-            <li>No ultrassom, envie um exame de teste colocando o <strong>código</strong> no campo <strong>Accession Number</strong>.</li>
-            <li>Clique em <strong>Vincular</strong> — o sistema lê o <strong>número de série</strong> no DICOM e amarra à clínica.</li>
+            <li>Envie um exame de teste com o <strong>código</strong> no Accession Number e clique em <strong>Vincular</strong>.</li>
+            <li>Ao abrir o exame do paciente, <strong>escolha este aparelho</strong> na lista.</li>
           </ol>
         </div>
 
@@ -226,15 +173,13 @@ export default function RadiologiaEquipamentosPage() {
                           <RefreshCw className="h-3 w-3" /> Código
                         </button>
                       )}
-                      <button type="button" className="text-teal-700" onClick={() => openEdit(e)}>Editar</button>
-                      <button type="button" className="text-red-600" onClick={() => remove(e.id, e.nome)}>Excluir</button>
                     </td>
                   </tr>
                 ))}
                 {!items.length && (
                   <tr>
                     <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
-                      Nenhum ultrassom cadastrado. Cadastre e envie o exame com o código gerado.
+                      Nenhum aparelho liberado. O Super Admin precisa cadastrar e liberar a máquina nesta clínica.
                     </td>
                   </tr>
                 )}
@@ -243,51 +188,6 @@ export default function RadiologiaEquipamentosPage() {
           </div>
         )}
       </main>
-
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl dark:bg-gray-900">
-            <h2 className="mb-4 text-lg font-semibold">{editing ? 'Editar equipamento' : 'Novo equipamento'}</h2>
-            <p className="mb-3 text-xs text-gray-500">
-              Ao salvar, o sistema gera um código. Depois configure o DICOM no US e envie um exame com esse código no Accession.
-              O serial pode ficar em branco — será lido do arquivo DICOM.
-            </p>
-            <div className="space-y-3">
-              <input className="w-full rounded-md border px-3 py-2" placeholder="Nome" value={form.nome} onChange={(ev) => setForm({ ...form, nome: ev.target.value })} />
-              <input className="w-full rounded-md border px-3 py-2 font-mono" placeholder="AE Title (máx. 16)" maxLength={16} value={form.ae_title} onChange={(ev) => setForm({ ...form, ae_title: ev.target.value.toUpperCase() })} />
-              <input
-                className="w-full rounded-md border px-3 py-2 font-mono"
-                placeholder="Nº série (opcional — vem do DICOM)"
-                value={form.numero_serie}
-                onChange={(ev) => setForm({ ...form, numero_serie: ev.target.value.toUpperCase() })}
-              />
-              {editing?.codigo_vinculo && (
-                <div className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm dark:border-teal-900 dark:bg-teal-950">
-                  Código vínculo: <span className="font-mono font-semibold tracking-wider">{editing.codigo_vinculo}</span>
-                  <p className="mt-1 text-xs text-teal-800 dark:text-teal-200">Coloque este valor no Accession Number do exame de teste.</p>
-                </div>
-              )}
-              <input className="w-full rounded-md border px-3 py-2" placeholder="Modalidade (US, CR, DX…)" value={form.modality} onChange={(ev) => setForm({ ...form, modality: ev.target.value.toUpperCase() })} />
-              <input className="w-full rounded-md border px-3 py-2" placeholder="Fabricante" value={form.fabricante} onChange={(ev) => setForm({ ...form, fabricante: ev.target.value })} />
-              <input className="w-full rounded-md border px-3 py-2" placeholder="Modelo" value={form.modelo} onChange={(ev) => setForm({ ...form, modelo: ev.target.value })} />
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.suporte_mwl} onChange={(ev) => setForm({ ...form, suporte_mwl: ev.target.checked })} /> Consulta MWL</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.suporte_dicom_storage} onChange={(ev) => setForm({ ...form, suporte_dicom_storage: ev.target.checked })} /> DICOM Storage</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.suporte_sr} onChange={(ev) => setForm({ ...form, suporte_sr: ev.target.checked })} /> SR de medidas</label>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" className="rounded-md px-3 py-2 text-sm" onClick={() => setOpen(false)}>Cancelar</button>
-              <button
-                type="button"
-                disabled={saving || !form.nome.trim() || !form.ae_title.trim()}
-                className="rounded-md bg-teal-700 px-3 py-2 text-sm text-white disabled:opacity-50"
-                onClick={() => void submit()}
-              >
-                Salvar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -126,6 +126,12 @@ from .views_retorno import (
     RetornoProcedimentoRegraListView,
     RetornoVerificarView,
 )
+from .views_orcamento import (
+    OrcamentoConsultaView,
+    OrcamentoDetalheView,
+    OrcamentoEnviarView,
+    OrcamentoPDFView,
+)
 
 app_name = "clinica_beleza"
 
@@ -289,4 +295,10 @@ urlpatterns = [
 
     # Webhook Asaas da loja (conta própria — configurar URL no painel Asaas)
     path("webhooks/asaas/<str:loja_slug>/", clinica_beleza_asaas_webhook, name="asaas-webhook"),
+
+    # Orçamentos
+    path("orcamentos/", OrcamentoConsultaView.as_view(), name="orcamentos"),
+    path("orcamentos/<int:orcamento_id>/", OrcamentoDetalheView.as_view(), name="orcamento-detalhe"),
+    path("orcamentos/<int:orcamento_id>/pdf/", OrcamentoPDFView.as_view(), name="orcamento-pdf"),
+    path("orcamentos/<int:orcamento_id>/enviar/", OrcamentoEnviarView.as_view(), name="orcamento-enviar"),
 ]

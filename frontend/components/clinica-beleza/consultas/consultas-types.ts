@@ -109,7 +109,7 @@ export interface Evolucao {
   professional_name?: string;
 }
 
-export type TabId = "atendimento" | "produtos" | "anamnese" | "evolucao" | "historico" | "documentos" | "fotos";
+export type TabId = "atendimento" | "produtos" | "anamnese" | "evolucao" | "historico" | "documentos" | "fotos" | "orcamento";
 
 export interface ConsultaProdutoUtilizado {
   id: number;

@@ -6,6 +6,7 @@ import { DocumentosTabPanel } from "./DocumentosTabPanel";
 import { EvolucaoTabPanel } from "./EvolucaoTabPanel";
 import { FotosTabPanel } from "./FotosTabPanel";
 import { HistoricoTabPanel } from "./HistoricoTabPanel";
+import { OrcamentoTabPanel } from "./OrcamentoTabPanel";
 import { ProdutosTabPanel } from "./ProdutosTabPanel";
 import type { ConsultaDetailTabPanelsProps } from "./tab-panels-types";
 
@@ -17,6 +18,7 @@ const TAB_PANELS: Record<TabId, ComponentType<ConsultaDetailTabPanelsProps>> = {
   fotos: FotosTabPanel,
   historico: HistoricoTabPanel,
   documentos: DocumentosTabPanel,
+  orcamento: OrcamentoTabPanel,
 };
 
 export function ConsultaTabPanelRouter(props: ConsultaDetailTabPanelsProps) {

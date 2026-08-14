@@ -5,6 +5,7 @@ import {
   Activity,
   Camera,
   ClipboardList,
+  DollarSign,
   FileText,
   FolderOpen,
   History,
@@ -21,6 +22,7 @@ const ALL_TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: "anamnese", label: "Anamnese", icon: FileText },
   { id: "evolucao", label: "Evolução", icon: Activity },
   { id: "fotos", label: "Fotos", icon: Camera },
+  { id: "orcamento", label: "Orçamento", icon: DollarSign },
   { id: "historico", label: "Histórico", icon: History },
 ];
 
@@ -50,6 +52,7 @@ export function ConsultaDetailTabBar({
     "anamnese",
     "evolucao",
     "fotos",
+    "orcamento",
   ];
 
   const visibleTabs = (consultaFinalizada

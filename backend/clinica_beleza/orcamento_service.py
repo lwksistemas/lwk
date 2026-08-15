@@ -256,10 +256,14 @@ def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list) -> byt
 
 
 def _obter_timbrado(loja) -> bytes | None:
-    """Busca PDF de timbrado da loja (se configurado)."""
-    timbrado = getattr(loja, "timbrado_pdf", None)
-    if timbrado and hasattr(timbrado, "read"):
-        return timbrado.read()
+    """Busca PDF de timbrado da loja (MemedTimbrado)."""
+    try:
+        from clinica_beleza.models import MemedTimbrado
+        timbrado = MemedTimbrado.objects.filter(loja_id=loja.id).first()
+        if timbrado and timbrado.pdf:
+            return bytes(timbrado.pdf)
+    except Exception as e:
+        logger.debug("Timbrado não encontrado para loja %s: %s", getattr(loja, "id", "?"), e)
     return None
 
 
@@ -301,10 +305,9 @@ def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
 
     try:
         import base64
-        from whatsapp.evolution_client import send_document
-        from whatsapp.config_helpers import get_instance_name_for_loja
+        from whatsapp.evolution_client import send_document, evolution_instance_name
 
-        instance_name = get_instance_name_for_loja(orcamento.loja_id)
+        instance_name = evolution_instance_name(orcamento.loja_id)
         if not instance_name:
             return {"sucesso": False, "erro": "WhatsApp não configurado nesta loja."}
 

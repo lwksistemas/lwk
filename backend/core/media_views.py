@@ -18,6 +18,7 @@ from core.media_storage import (
     normalize_media_folder,
     normalize_media_tenant,
     parse_media_url,
+    pasta_media_paciente,
 )
 from superadmin.models import Loja
 from tenants.middleware import get_current_loja_id
@@ -79,11 +80,19 @@ def _resolve_media_tenant(request):
 
 
 def _resolver_folder_upload(request) -> str:
-    """Pasta raiz ou raiz/{paciente} a partir de folder + patient_id/nome/cpf."""
+    """Resolve pasta de destino: {paciente}/{tipo} ou admin/{tipo}.
+
+    Nova estrutura:
+      - Com paciente: {slug-paciente}/fotos  ou  {slug-paciente}/docs
+      - Sem paciente: admin/fotos  ou  admin/docs
+
+    O campo 'folder' do request define o tipo (fotos, docs, avatars, etc).
+    """
     folder_raw = (request.data.get("folder") or "fotos").strip().strip("/")
-    root = folder_raw.split("/")[0] if folder_raw else "fotos"
-    if root not in _ALLOWED_ROOT_FOLDERS:
-        root = "fotos"
+    # Tipo de arquivo: fotos, docs, avatars, recibos, contratos
+    tipo = folder_raw.split("/")[0] if folder_raw else "fotos"
+    if tipo not in _ALLOWED_ROOT_FOLDERS:
+        tipo = "fotos"
 
     patient_id = request.data.get("patient_id")
     if patient_id not in (None, ""):
@@ -92,7 +101,8 @@ def _resolver_folder_upload(request) -> str:
 
             paciente = Patient.objects.filter(pk=int(patient_id)).first()
             if paciente:
-                return folder_media_paciente(root, paciente)
+                slug = pasta_media_paciente(paciente)
+                return f"{slug}/{tipo}"
         except (TypeError, ValueError, ImportError):
             pass
 
@@ -100,16 +110,16 @@ def _resolver_folder_upload(request) -> str:
     cpf = (request.data.get("patient_cpf") or "").strip()
     if nome or cpf:
         stub = SimpleNamespace(name=nome or "paciente", nome=nome or "paciente", cpf=cpf, id=None)
-        return folder_media_paciente(root, stub)
+        slug = pasta_media_paciente(stub)
+        return f"{slug}/{tipo}"
 
     if "/" in folder_raw:
         normalized = normalize_media_folder(folder_raw)
         if normalized:
             return normalized
 
-    # Se não tem paciente, organizar por admin/proprietário da loja
-    # para não deixar arquivos soltos na raiz
-    return f"{root}/admin"
+    # Sem paciente: pasta admin
+    return f"admin/{tipo}"
 
 
 @api_view(["POST"])

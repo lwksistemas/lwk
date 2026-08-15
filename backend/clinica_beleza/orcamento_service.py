@@ -305,30 +305,78 @@ def _enviar_email(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
 
 
 def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
-    """Envia orçamento por WhatsApp (como documento PDF via Evolution API)."""
+    """Envia orçamento por WhatsApp: mensagem de texto + PDF anexo.
+    Mesmo padrão usado no recibo (send_whatsapp + _send_whatsapp_document_evolution).
+    """
     telefone = (getattr(orcamento.patient, "telefone", "") or "").strip()
     if not telefone:
         return {"sucesso": False, "erro": "Paciente sem telefone cadastrado."}
 
     try:
-        import base64
-        from whatsapp.evolution_client import send_document, evolution_instance_name
+        import hashlib
+        import time
+        from django.conf import settings
+        from django.core.cache import cache as django_cache
+        from whatsapp.models import WhatsAppConfig
+        from whatsapp.services import send_whatsapp, _send_whatsapp_document_evolution
 
-        instance_name = evolution_instance_name(orcamento.loja_id)
-        if not instance_name:
-            return {"sucesso": False, "erro": "WhatsApp não configurado nesta loja."}
+        config = WhatsAppConfig.objects.filter(loja_id=orcamento.loja_id).first()
+        if not config or not getattr(config, "whatsapp_ativo", False):
+            return {"sucesso": False, "erro": "WhatsApp não está ativo. Configure em Configurações → WhatsApp."}
 
-        # Evolution API aceita base64 como document_url com prefixo data:
-        pdf_b64 = base64.b64encode(pdf_bytes).decode("ascii")
-        document_url = f"data:application/pdf;base64,{pdf_b64}"
-        filename = f"orcamento_{orcamento.id}.pdf"
-        caption = f"Orçamento — {orcamento.patient.nome} — R$ {orcamento.valor_total:,.2f}"
+        profissional = orcamento.professional.nome if orcamento.professional else "Clínica"
+        itens_texto = "\n".join(
+            f"  • {item.nome_procedimento} x{item.quantidade} — R$ {item.subtotal:,.2f}"
+            for item in orcamento.itens.all()
+        )
 
-        send_document(instance_name, telefone, document_url, filename, caption=caption)
+        mensagem = (
+            f"🏥 *{profissional}*\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"📋 *ORÇAMENTO*\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 *Paciente:* {orcamento.patient.nome}\n\n"
+            f"📋 *Procedimentos:*\n"
+            f"{itens_texto}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"💰 *TOTAL: R$ {orcamento.valor_total:,.2f}*\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        )
+        if orcamento.observacoes:
+            mensagem += f"📝 *Obs:* {orcamento.observacoes[:200]}\n\n"
+        mensagem += "_O orçamento completo em PDF segue em anexo._"
+
+        # Enviar mensagem de texto
+        ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config)
+        if not ok:
+            return {"sucesso": False, "erro": err or "Erro ao enviar WhatsApp."}
+
+        # Enviar PDF via URL temporária (mesmo padrão do recibo)
+        try:
+            ts = str(int(time.time()))
+            token_raw = f"orcamento-{orcamento.id}-{ts}-{settings.SECRET_KEY[:16]}"
+            token = hashlib.sha256(token_raw.encode()).hexdigest()[:32]
+
+            django_cache.set(
+                f"orcamento_pdf_{token}",
+                {"orcamento_id": orcamento.id, "pdf": pdf_bytes},
+                300,
+            )
+
+            api_base = getattr(settings, "API_BASE_URL", "") or "https://api.lwksistemas.com.br"
+            pdf_url = f"{api_base}/api/clinica-beleza/orcamentos/{orcamento.id}/pdf/"
+
+            _send_whatsapp_document_evolution(
+                telefone, pdf_url, f"orcamento_{orcamento.id}.pdf",
+                caption="Orçamento", config=config,
+            )
+        except Exception as pdf_err:
+            logger.warning("PDF via WhatsApp falhou (texto já enviado): %s", pdf_err)
+
         logger.info("Orçamento %d enviado por WhatsApp para %s", orcamento.id, telefone)
         return {"sucesso": True, "erro": ""}
-    except ImportError:
-        return {"sucesso": False, "erro": "WhatsApp não configurado nesta loja."}
+    except ImportError as e:
+        return {"sucesso": False, "erro": f"WhatsApp não configurado: {e}"}
     except Exception as e:
         logger.warning("Erro ao enviar orçamento por WhatsApp: %s", e)
         return {"sucesso": False, "erro": str(e)}

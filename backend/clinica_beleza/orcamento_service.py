@@ -241,7 +241,9 @@ def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list, com_ti
     if orcamento.observacoes:
         story.append(hr)
         story.append(Paragraph("<b>Observações:</b>", s_bold))
-        story.append(Paragraph(orcamento.observacoes, s_obs))
+        # Preservar quebras de linha do texto
+        obs_formatado = orcamento.observacoes.replace("\n", "<br/>")
+        story.append(Paragraph(obs_formatado, s_obs))
         story.append(Spacer(1, 3*mm))
 
     # Validade

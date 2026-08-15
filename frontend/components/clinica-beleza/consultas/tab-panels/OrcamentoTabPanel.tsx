@@ -165,6 +165,22 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
     }
   };
 
+  const editarOrcamento = (orc: Orcamento) => {
+    // Preencher formulário com dados do orçamento existente
+    setItensForm(
+      orc.itens.map((it) => ({
+        procedure_id: it.procedure_id || 0,
+        nome: it.nome_procedimento,
+        valor: it.valor_customizado,
+        qtd: it.quantidade,
+      }))
+    );
+    setObservacoes(orc.observacoes);
+    setShowForm(true);
+    // Excluir o orçamento antigo ao criar o novo (substituição)
+    excluir(orc.id);
+  };
+
   const totalForm = itensForm.reduce((acc, it) => acc + Number(it.valor) * it.qtd, 0);
 
   if (loading) {
@@ -364,7 +380,7 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
           )}
 
           {/* Ações */}
-          <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
             <button
               type="button"
               onClick={() => visualizarPdf(orc.id)}
@@ -385,6 +401,13 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
               className="flex items-center gap-1 px-3 py-1.5 text-xs bg-green-50 text-green-700 rounded hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300"
             >
               <MessageCircle size={14} /> WhatsApp
+            </button>
+            <button
+              type="button"
+              onClick={() => editarOrcamento(orc)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-amber-50 text-amber-700 rounded hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-300"
+            >
+              <Plus size={14} /> Editar
             </button>
             <button
               type="button"

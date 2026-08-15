@@ -364,7 +364,7 @@ def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
             )
 
             api_base = getattr(settings, "API_BASE_URL", "") or "https://api.lwksistemas.com.br"
-            pdf_url = f"{api_base}/api/clinica-beleza/orcamentos/{orcamento.id}/pdf/"
+            pdf_url = f"{api_base}/api/clinica-beleza/orcamentos/{orcamento.id}/pdf-public/{token}/"
 
             _send_whatsapp_document_evolution(
                 telefone, pdf_url, f"orcamento_{orcamento.id}.pdf",

@@ -130,6 +130,7 @@ from .views_orcamento import (
     OrcamentoConsultaView,
     OrcamentoDetalheView,
     OrcamentoEnviarView,
+    OrcamentoPDFPublicView,
     OrcamentoPDFView,
 )
 
@@ -300,5 +301,6 @@ urlpatterns = [
     path("orcamentos/", OrcamentoConsultaView.as_view(), name="orcamentos"),
     path("orcamentos/<int:orcamento_id>/", OrcamentoDetalheView.as_view(), name="orcamento-detalhe"),
     path("orcamentos/<int:orcamento_id>/pdf/", OrcamentoPDFView.as_view(), name="orcamento-pdf"),
+    path("orcamentos/<int:orcamento_id>/pdf-public/<str:token>/", OrcamentoPDFPublicView.as_view(), name="orcamento-pdf-public"),
     path("orcamentos/<int:orcamento_id>/enviar/", OrcamentoEnviarView.as_view(), name="orcamento-enviar"),
 ]

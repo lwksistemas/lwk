@@ -54,6 +54,7 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
   const [quantidade, setQuantidade] = useState("1");
   const [itensForm, setItensForm] = useState<{ procedure_id: number; nome: string; valor: string; qtd: number }[]>([]);
   const [observacoes, setObservacoes] = useState("");
+  const [showProcSelector, setShowProcSelector] = useState(true);
 
   const carregarOrcamentos = useCallback(async () => {
     if (!selected?.id) return;
@@ -209,56 +210,66 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-4">
           <h4 className="font-medium text-gray-900 dark:text-white">Novo Orçamento</h4>
 
-          {/* Adicionar procedimento */}
-          <div className="flex flex-wrap gap-2 items-end">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs text-gray-500 mb-1">Procedimento</label>
-              <select
-                value={selectedProc}
-                onChange={(e) => {
-                  setSelectedProc(e.target.value);
-                  const p = procedures.find((pr) => pr.id === Number(e.target.value));
-                  if (p) setValorCustom(p.preco);
-                }}
-                className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
+          {/* Adicionar procedimento — ocultar após adicionar itens */}
+          {itensForm.length === 0 || showProcSelector ? (
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-xs text-gray-500 mb-1">Procedimento</label>
+                <select
+                  value={selectedProc}
+                  onChange={(e) => {
+                    setSelectedProc(e.target.value);
+                    const p = procedures.find((pr) => pr.id === Number(e.target.value));
+                    if (p) setValorCustom(p.preco);
+                  }}
+                  className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
+                >
+                  <option value="">Selecione...</option>
+                  {procedures.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome} — R$ {Number(p.preco).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-28">
+                <label className="block text-xs text-gray-500 mb-1">Valor (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={valorCustom}
+                  onChange={(e) => setValorCustom(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
+                />
+              </div>
+              <div className="w-16">
+                <label className="block text-xs text-gray-500 mb-1">Qtd</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantidade}
+                  onChange={(e) => setQuantidade(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { adicionarItem(); setShowProcSelector(false); }}
+                disabled={!selectedProc}
+                className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg disabled:opacity-50"
               >
-                <option value="">Selecione...</option>
-                {procedures.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome} — R$ {Number(p.preco).toFixed(2)}
-                  </option>
-                ))}
-              </select>
+                Adicionar
+              </button>
             </div>
-            <div className="w-28">
-              <label className="block text-xs text-gray-500 mb-1">Valor (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={valorCustom}
-                onChange={(e) => setValorCustom(e.target.value)}
-                className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
-              />
-            </div>
-            <div className="w-16">
-              <label className="block text-xs text-gray-500 mb-1">Qtd</label>
-              <input
-                type="number"
-                min="1"
-                value={quantidade}
-                onChange={(e) => setQuantidade(e.target.value)}
-                className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
-              />
-            </div>
+          ) : (
             <button
               type="button"
-              onClick={adicionarItem}
-              disabled={!selectedProc}
-              className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg disabled:opacity-50"
+              onClick={() => setShowProcSelector(true)}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
             >
-              Adicionar
+              + Adicionar mais procedimentos
             </button>
-          </div>
+          )}
 
           {/* Lista de itens */}
           {itensForm.length > 0 && (
@@ -307,9 +318,9 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
             <textarea
               value={observacoes}
               onChange={(e) => setObservacoes(e.target.value)}
-              rows={2}
+              rows={5}
               className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
-              placeholder="Ex: Pacote promocional, condições especiais..."
+              placeholder="Condições de pagamento, validade especial, informações adicionais..."
             />
           </div>
 

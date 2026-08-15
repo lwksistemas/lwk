@@ -113,7 +113,7 @@ def gerar_pdf_orcamento(orcamento_id: int) -> bytes:
 
 
 def enviar_orcamento(orcamento_id: int, canais: list[str]) -> dict[str, Any]:
-    """Envia orçamento por email e/ou WhatsApp."""
+    """Envia orçamento por email e/ou WhatsApp e salva PDF no servidor de mídia."""
     orcamento = OrcamentoConsulta.objects.select_related("patient", "professional").get(id=orcamento_id)
     pdf_bytes = gerar_pdf_orcamento(orcamento_id)
     resultado: dict[str, Any] = {}
@@ -123,6 +123,13 @@ def enviar_orcamento(orcamento_id: int, canais: list[str]) -> dict[str, Any]:
 
     if "whatsapp" in canais:
         resultado["whatsapp"] = _enviar_whatsapp(orcamento, pdf_bytes)
+
+    # Salvar PDF no servidor de mídia ({paciente}/docs/)
+    try:
+        from clinica_beleza.media_docs_service import salvar_orcamento_no_servidor_midia
+        salvar_orcamento_no_servidor_midia(orcamento, pdf_bytes)
+    except Exception as e:
+        logger.warning("Falha ao salvar orçamento no servidor de mídia: %s", e)
 
     # Atualizar status
     algum_sucesso = any(r.get("sucesso") for r in resultado.values())

@@ -106,7 +106,10 @@ def _resolver_folder_upload(request) -> str:
         normalized = normalize_media_folder(folder_raw)
         if normalized:
             return normalized
-    return root
+
+    # Se não tem paciente, organizar por admin/proprietário da loja
+    # para não deixar arquivos soltos na raiz
+    return f"{root}/admin"
 
 
 @api_view(["POST"])

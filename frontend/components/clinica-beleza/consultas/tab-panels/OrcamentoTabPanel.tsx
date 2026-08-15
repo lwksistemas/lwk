@@ -127,8 +127,16 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
     }
   };
 
-  const visualizarPdf = (id: number) => {
-    window.open(`/api/clinica-beleza/orcamentos/${id}/pdf/`, "_blank");
+  const visualizarPdf = async (id: number) => {
+    try {
+      const res = await apiClient.get(`/clinica-beleza/orcamentos/${id}/pdf/`, { responseType: 'blob' });
+      const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+    } catch {
+      toast.error("Erro ao gerar PDF.");
+    }
   };
 
   const enviar = async (id: number, canal: "email" | "whatsapp") => {

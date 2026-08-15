@@ -294,29 +294,31 @@ def _enviar_email(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
 
 
 def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
-    """Envia orçamento por WhatsApp (como documento PDF)."""
+    """Envia orçamento por WhatsApp (como documento PDF via Evolution API)."""
     telefone = (getattr(orcamento.patient, "telefone", "") or "").strip()
     if not telefone:
         return {"sucesso": False, "erro": "Paciente sem telefone cadastrado."}
 
     try:
-        from whatsapp.services import enviar_documento_whatsapp
+        import base64
+        from whatsapp.evolution_client import send_document
+        from whatsapp.config_helpers import get_instance_name_for_loja
 
-        profissional = orcamento.professional.nome if orcamento.professional else "Clínica"
+        instance_name = get_instance_name_for_loja(orcamento.loja_id)
+        if not instance_name:
+            return {"sucesso": False, "erro": "WhatsApp não configurado nesta loja."}
+
+        # Evolution API aceita base64 como document_url com prefixo data:
+        pdf_b64 = base64.b64encode(pdf_bytes).decode("ascii")
+        document_url = f"data:application/pdf;base64,{pdf_b64}"
+        filename = f"orcamento_{orcamento.id}.pdf"
         caption = f"Orçamento — {orcamento.patient.nome} — R$ {orcamento.valor_total:,.2f}"
 
-        sucesso, erro = enviar_documento_whatsapp(
-            telefone=telefone,
-            pdf_bytes=pdf_bytes,
-            filename=f"orcamento_{orcamento.id}.pdf",
-            caption=caption,
-            loja_id=orcamento.loja_id,
-        )
-        if sucesso:
-            logger.info("Orçamento %d enviado por WhatsApp para %s", orcamento.id, telefone)
-        return {"sucesso": sucesso, "erro": erro}
+        send_document(instance_name, telefone, document_url, filename, caption=caption)
+        logger.info("Orçamento %d enviado por WhatsApp para %s", orcamento.id, telefone)
+        return {"sucesso": True, "erro": ""}
     except ImportError:
-        return {"sucesso": False, "erro": "Módulo WhatsApp não disponível."}
+        return {"sucesso": False, "erro": "WhatsApp não configurado nesta loja."}
     except Exception as e:
         logger.warning("Erro ao enviar orçamento por WhatsApp: %s", e)
         return {"sucesso": False, "erro": str(e)}

@@ -101,10 +101,10 @@ def gerar_pdf_orcamento(orcamento_id: int) -> bytes:
     from clinica_beleza.recibo.context import _dados_loja_recibo
     ctx_loja = _dados_loja_recibo(loja)
 
-    pdf_bytes = _build_pdf(ctx_loja, orcamento, itens)
+    timbrado_bytes = _obter_timbrado(loja)
+    pdf_bytes = _build_pdf(ctx_loja, orcamento, itens, com_timbrado=bool(timbrado_bytes))
 
     # Tentar mesclar timbrado se existir
-    timbrado_bytes = _obter_timbrado(loja)
     if timbrado_bytes:
         from clinica_beleza.pdf_common.timbrado import merge_timbrado_fundo
         pdf_bytes = merge_timbrado_fundo(pdf_bytes, timbrado_bytes)
@@ -147,8 +147,12 @@ def excluir_orcamento(orcamento_id: int) -> None:
 # Internos
 # ---------------------------------------------------------------------------
 
-def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list) -> bytes:
-    """Constrói PDF do orçamento com ReportLab."""
+def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list, com_timbrado: bool = False) -> bytes:
+    """Constrói PDF do orçamento com ReportLab.
+    
+    Quando com_timbrado=True, omite o cabeçalho (já está no timbrado)
+    e usa margem superior maior para não sobrepor.
+    """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm, cm
     from reportlab.lib import colors
@@ -157,7 +161,9 @@ def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list) -> byt
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm, leftMargin=2*cm, rightMargin=2*cm)
+    # Se tem timbrado, margem superior maior para não sobrepor o cabeçalho
+    top_margin = 5.5*cm if com_timbrado else 2*cm
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=top_margin, bottomMargin=3*cm, leftMargin=2*cm, rightMargin=2*cm)
     story = []
 
     s_center = ParagraphStyle("c", fontSize=9, alignment=TA_CENTER, leading=12)
@@ -170,17 +176,18 @@ def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list) -> byt
     s_footer = ParagraphStyle("f", fontSize=7, alignment=TA_CENTER, textColor=colors.HexColor("#666"), leading=10)
     hr = HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#ccc"), spaceAfter=6, spaceBefore=6)
 
-    # Cabeçalho da clínica
-    if ctx_loja.get("loja_nome"):
-        story.append(Paragraph(ctx_loja["loja_nome"].upper(), s_bold_center))
-    if ctx_loja.get("loja_documento"):
-        story.append(Paragraph(f'{ctx_loja.get("loja_documento_label", "CNPJ")}: {ctx_loja["loja_documento"]}', s_center))
-    if ctx_loja.get("loja_endereco"):
-        story.append(Paragraph(ctx_loja["loja_endereco"], s_center))
-    if ctx_loja.get("loja_telefone"):
-        story.append(Paragraph(f'Tel: {ctx_loja["loja_telefone"]}', s_center))
-    story.append(Spacer(1, 6*mm))
-    story.append(hr)
+    # Cabeçalho da clínica (só se NÃO tem timbrado)
+    if not com_timbrado:
+        if ctx_loja.get("loja_nome"):
+            story.append(Paragraph(ctx_loja["loja_nome"].upper(), s_bold_center))
+        if ctx_loja.get("loja_documento"):
+            story.append(Paragraph(f'{ctx_loja.get("loja_documento_label", "CNPJ")}: {ctx_loja["loja_documento"]}', s_center))
+        if ctx_loja.get("loja_endereco"):
+            story.append(Paragraph(ctx_loja["loja_endereco"], s_center))
+        if ctx_loja.get("loja_telefone"):
+            story.append(Paragraph(f'Tel: {ctx_loja["loja_telefone"]}', s_center))
+        story.append(Spacer(1, 6*mm))
+        story.append(hr)
 
     # Título
     story.append(Paragraph("ORÇAMENTO", s_title))

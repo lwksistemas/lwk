@@ -190,9 +190,17 @@ def excluir_midia_arquivo(request, tenant: str, filepath: str):
     if ".." in filepath or not filepath:
         return Response({"error": "Path inválido"}, status=status.HTTP_400_BAD_REQUEST)
 
+    # Separar folder e filename do filepath (ex: "luiz-henrique/fotos/abc.jpg")
+    parts = filepath.rsplit("/", 1)
+    if len(parts) == 2:
+        folder, filename = parts
+    else:
+        folder = ""
+        filename = parts[0]
+
     from core.media_storage import media_delete_tenant
 
-    sucesso = media_delete_tenant(tenant_key, filepath)
+    sucesso = media_delete_tenant(tenant_key, filename, folder=folder if folder else "fotos")
     if sucesso:
         return Response({"success": True}, status=status.HTTP_200_OK)
     return Response({"error": "Falha ao excluir arquivo"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

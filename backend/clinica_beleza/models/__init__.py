@@ -21,6 +21,7 @@ from .patients import Patient, PatientAnamnese
 from .procedures import Procedure, ProcedureProtocol
 from .professionals import HorarioTrabalhoProfissional, Professional, ProfessionalCommission
 from .retorno import AgendaRetornoConfig, RetornoProcedimentoRegra
+from .orcamento import OrcamentoConsulta, OrcamentoItem
 
 __all__ = [
     "AgendaRetornoConfig",

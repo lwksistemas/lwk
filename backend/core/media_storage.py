@@ -56,19 +56,20 @@ _TENANT_EMPRESA_RE = re.compile(r"^(\d{11}|\d{14})_([a-z0-9][a-z0-9_-]{0,80})$")
 
 
 def normalize_media_folder(folder: str | None) -> str | None:
-    """Normaliza pasta raiz ou pasta/paciente (ex.: fotos/maria-silva_123)."""
+    """Normaliza caminho de pasta no servidor de mídia.
+
+    Aceita:
+      - Pasta raiz: fotos, docs, avatars, ...
+      - Nova estrutura: admin/fotos, luiz-henrique-felix_22239255889/fotos, paciente/docs
+      - Estrutura legada: fotos/paciente-slug
+    """
     raw = (folder or "").strip().strip("/")
-    if not raw:
+    if not raw or ".." in raw:
         return None
-    parts = raw.split("/")
-    if len(parts) == 1:
-        return parts[0] if parts[0] in _ALLOWED_ROOT_FOLDERS else None
-    if len(parts) == 2:
-        root, sub = parts
-        if root in _ALLOWED_ROOT_FOLDERS and (
-            _PATIENT_SLUG_RE.fullmatch(sub) or _PATIENT_CPF_FOLDER_RE.fullmatch(sub)
-        ):
-            return f"{root}/{sub}"
+    # Aceitar qualquer caminho com caracteres seguros (letras, números, -, _, /)
+    import re
+    if re.fullmatch(r"[a-z0-9][a-z0-9_./-]{0,200}", raw):
+        return raw
     return None
 
 

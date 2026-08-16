@@ -97,6 +97,29 @@ class OrcamentoPDFView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class OrcamentoPDFPublicView(APIView):
+    """GET /clinica-beleza/orcamentos/<id>/pdf-public/<token>/ — PDF público (para WhatsApp)."""
+
+    permission_classes = []
+    authentication_classes = []
+
+    def get(self, request, orcamento_id, token):
+        from django.core.cache import cache as django_cache
+
+        cache_key = f"orcamento_pdf_{token}"
+        cached = django_cache.get(cache_key)
+        if not cached or not isinstance(cached, dict) or cached.get("orcamento_id") != orcamento_id:
+            return Response({"error": "Orçamento expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
+
+        pdf_bytes = cached.get("pdf")
+        if not pdf_bytes:
+            return Response({"error": "PDF não disponível."}, status=status.HTTP_404_NOT_FOUND)
+
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="orcamento_{orcamento_id}.pdf"'
+        return response
+
+
 class OrcamentoEnviarView(APIView):
     """Envia orçamento por email/WhatsApp.
 

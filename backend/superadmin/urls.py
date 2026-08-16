@@ -46,6 +46,7 @@ from .views import (
     listar_midia_tenants,
     listar_midia_pastas,
     listar_midia_arquivos,
+    excluir_midia_arquivo,
 )
 from .views.radiologia_maquinas import ContratoPacsLojaViewSet, MaquinaRadiologiaViewSet
 from .views import lockouts as lockout_views
@@ -132,6 +133,7 @@ urlpatterns = [
     # Servidor de mídia (pastas por CPF/CNPJ)
     path("midia/", listar_midia_tenants, name="listar-midia-tenants"),
     path("midia/<str:tenant>/", listar_midia_pastas, name="listar-midia-pastas"),
+    path("midia/<str:tenant>/delete/<path:filepath>/", excluir_midia_arquivo, name="excluir-midia-arquivo"),
     path("midia/<str:tenant>/<path:folder>/", listar_midia_arquivos, name="listar-midia-arquivos"),
 
     # Configuração da Homepage (CRUD)

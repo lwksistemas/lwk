@@ -127,6 +127,17 @@ export default function ServidorMidiaPage() {
     }
   }, [tenantSel]);
 
+  const excluirArquivo = useCallback(async (file: MidiaArquivo) => {
+    if (!tenantSel || !folderSel) return;
+    if (!confirm(`Excluir "${file.filename}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await apiClient.delete(`/superadmin/midia/${tenantSel.tenant}/delete/${folderSel}/${file.filename}/`);
+      setFiles((prev) => prev.filter((f) => f.filename !== file.filename));
+    } catch {
+      setError('Falha ao excluir arquivo.');
+    }
+  }, [tenantSel, folderSel]);
+
   const filtrados = useMemo(() => {
     const q = filtro.trim().toLowerCase();
     if (!q) return tenants;
@@ -160,7 +171,7 @@ export default function ServidorMidiaPage() {
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-full mx-auto px-4 py-6 space-y-6">
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
             {error}
@@ -325,6 +336,7 @@ export default function ServidorMidiaPage() {
                         <th className="px-4 py-3 font-medium">Tamanho</th>
                         <th className="px-4 py-3 font-medium">Modificado</th>
                         <th className="px-4 py-3 font-medium">Link</th>
+                        <th className="px-4 py-3 font-medium">Ações</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -343,18 +355,27 @@ export default function ServidorMidiaPage() {
                               Abrir
                             </a>
                           </td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => excluirArquivo(f)}
+                              className="text-xs text-red-600 hover:text-red-800 hover:underline"
+                            >
+                              Excluir
+                            </button>
+                          </td>
                         </tr>
                       ))}
                       {!files.length && !subfolders.length && (
                         <tr>
-                          <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
+                          <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
                             Pasta vazia.
                           </td>
                         </tr>
                       )}
                       {!files.length && !!subfolders.length && (
                         <tr>
-                          <td colSpan={4} className="px-4 py-4 text-center text-gray-500">
+                          <td colSpan={5} className="px-4 py-4 text-center text-gray-500">
                             Sem arquivos soltos nesta pasta — abra a pasta do paciente acima.
                           </td>
                         </tr>

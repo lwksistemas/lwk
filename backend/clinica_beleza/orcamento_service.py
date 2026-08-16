@@ -101,10 +101,10 @@ def gerar_pdf_orcamento(orcamento_id: int) -> bytes:
     from clinica_beleza.recibo.context import _dados_loja_recibo
     ctx_loja = _dados_loja_recibo(loja)
 
-    pdf_bytes = _build_pdf(ctx_loja, orcamento, itens)
+    timbrado_bytes = _obter_timbrado(loja)
+    pdf_bytes = _build_pdf(ctx_loja, orcamento, itens, com_timbrado=bool(timbrado_bytes))
 
     # Tentar mesclar timbrado se existir
-    timbrado_bytes = _obter_timbrado(loja)
     if timbrado_bytes:
         from clinica_beleza.pdf_common.timbrado import merge_timbrado_fundo
         pdf_bytes = merge_timbrado_fundo(pdf_bytes, timbrado_bytes)
@@ -113,7 +113,7 @@ def gerar_pdf_orcamento(orcamento_id: int) -> bytes:
 
 
 def enviar_orcamento(orcamento_id: int, canais: list[str]) -> dict[str, Any]:
-    """Envia orçamento por email e/ou WhatsApp."""
+    """Envia orçamento por email e/ou WhatsApp e salva PDF no servidor de mídia."""
     orcamento = OrcamentoConsulta.objects.select_related("patient", "professional").get(id=orcamento_id)
     pdf_bytes = gerar_pdf_orcamento(orcamento_id)
     resultado: dict[str, Any] = {}
@@ -123,6 +123,13 @@ def enviar_orcamento(orcamento_id: int, canais: list[str]) -> dict[str, Any]:
 
     if "whatsapp" in canais:
         resultado["whatsapp"] = _enviar_whatsapp(orcamento, pdf_bytes)
+
+    # Salvar PDF no servidor de mídia ({paciente}/docs/)
+    try:
+        from clinica_beleza.media_docs_service import salvar_orcamento_no_servidor_midia
+        salvar_orcamento_no_servidor_midia(orcamento, pdf_bytes)
+    except Exception as e:
+        logger.warning("Falha ao salvar orçamento no servidor de mídia: %s", e)
 
     # Atualizar status
     algum_sucesso = any(r.get("sucesso") for r in resultado.values())
@@ -147,8 +154,12 @@ def excluir_orcamento(orcamento_id: int) -> None:
 # Internos
 # ---------------------------------------------------------------------------
 
-def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list) -> bytes:
-    """Constrói PDF do orçamento com ReportLab."""
+def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list, com_timbrado: bool = False) -> bytes:
+    """Constrói PDF do orçamento com ReportLab.
+    
+    Quando com_timbrado=True, omite o cabeçalho (já está no timbrado)
+    e usa margem superior maior para não sobrepor.
+    """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm, cm
     from reportlab.lib import colors
@@ -157,7 +168,9 @@ def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list) -> byt
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2*cm, bottomMargin=2*cm, leftMargin=2*cm, rightMargin=2*cm)
+    # Se tem timbrado, margem superior maior para não sobrepor o cabeçalho
+    top_margin = 5.5*cm if com_timbrado else 2*cm
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=top_margin, bottomMargin=3*cm, leftMargin=2*cm, rightMargin=2*cm)
     story = []
 
     s_center = ParagraphStyle("c", fontSize=9, alignment=TA_CENTER, leading=12)
@@ -170,17 +183,18 @@ def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list) -> byt
     s_footer = ParagraphStyle("f", fontSize=7, alignment=TA_CENTER, textColor=colors.HexColor("#666"), leading=10)
     hr = HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#ccc"), spaceAfter=6, spaceBefore=6)
 
-    # Cabeçalho da clínica
-    if ctx_loja.get("loja_nome"):
-        story.append(Paragraph(ctx_loja["loja_nome"].upper(), s_bold_center))
-    if ctx_loja.get("loja_documento"):
-        story.append(Paragraph(f'{ctx_loja.get("loja_documento_label", "CNPJ")}: {ctx_loja["loja_documento"]}', s_center))
-    if ctx_loja.get("loja_endereco"):
-        story.append(Paragraph(ctx_loja["loja_endereco"], s_center))
-    if ctx_loja.get("loja_telefone"):
-        story.append(Paragraph(f'Tel: {ctx_loja["loja_telefone"]}', s_center))
-    story.append(Spacer(1, 6*mm))
-    story.append(hr)
+    # Cabeçalho da clínica (só se NÃO tem timbrado)
+    if not com_timbrado:
+        if ctx_loja.get("loja_nome"):
+            story.append(Paragraph(ctx_loja["loja_nome"].upper(), s_bold_center))
+        if ctx_loja.get("loja_documento"):
+            story.append(Paragraph(f'{ctx_loja.get("loja_documento_label", "CNPJ")}: {ctx_loja["loja_documento"]}', s_center))
+        if ctx_loja.get("loja_endereco"):
+            story.append(Paragraph(ctx_loja["loja_endereco"], s_center))
+        if ctx_loja.get("loja_telefone"):
+            story.append(Paragraph(f'Tel: {ctx_loja["loja_telefone"]}', s_center))
+        story.append(Spacer(1, 6*mm))
+        story.append(hr)
 
     # Título
     story.append(Paragraph("ORÇAMENTO", s_title))
@@ -234,7 +248,9 @@ def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list) -> byt
     if orcamento.observacoes:
         story.append(hr)
         story.append(Paragraph("<b>Observações:</b>", s_bold))
-        story.append(Paragraph(orcamento.observacoes, s_obs))
+        # Preservar quebras de linha do texto
+        obs_formatado = orcamento.observacoes.replace("\n", "<br/>")
+        story.append(Paragraph(obs_formatado, s_obs))
         story.append(Spacer(1, 3*mm))
 
     # Validade
@@ -256,10 +272,14 @@ def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list) -> byt
 
 
 def _obter_timbrado(loja) -> bytes | None:
-    """Busca PDF de timbrado da loja (se configurado)."""
-    timbrado = getattr(loja, "timbrado_pdf", None)
-    if timbrado and hasattr(timbrado, "read"):
-        return timbrado.read()
+    """Busca PDF de timbrado da loja (MemedTimbrado)."""
+    try:
+        from clinica_beleza.models import MemedTimbrado
+        timbrado = MemedTimbrado.objects.filter(loja_id=loja.id).first()
+        if timbrado and timbrado.pdf:
+            return bytes(timbrado.pdf)
+    except Exception as e:
+        logger.debug("Timbrado não encontrado para loja %s: %s", getattr(loja, "id", "?"), e)
     return None
 
 
@@ -294,29 +314,78 @@ def _enviar_email(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
 
 
 def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
-    """Envia orçamento por WhatsApp (como documento PDF)."""
+    """Envia orçamento por WhatsApp: mensagem de texto + PDF anexo.
+    Mesmo padrão usado no recibo (send_whatsapp + _send_whatsapp_document_evolution).
+    """
     telefone = (getattr(orcamento.patient, "telefone", "") or "").strip()
     if not telefone:
         return {"sucesso": False, "erro": "Paciente sem telefone cadastrado."}
 
     try:
-        from whatsapp.services import enviar_documento_whatsapp
+        import hashlib
+        import time
+        from django.conf import settings
+        from django.core.cache import cache as django_cache
+        from whatsapp.models import WhatsAppConfig
+        from whatsapp.services import send_whatsapp, _send_whatsapp_document_evolution
+
+        config = WhatsAppConfig.objects.filter(loja_id=orcamento.loja_id).first()
+        if not config or not getattr(config, "whatsapp_ativo", False):
+            return {"sucesso": False, "erro": "WhatsApp não está ativo. Configure em Configurações → WhatsApp."}
 
         profissional = orcamento.professional.nome if orcamento.professional else "Clínica"
-        caption = f"Orçamento — {orcamento.patient.nome} — R$ {orcamento.valor_total:,.2f}"
-
-        sucesso, erro = enviar_documento_whatsapp(
-            telefone=telefone,
-            pdf_bytes=pdf_bytes,
-            filename=f"orcamento_{orcamento.id}.pdf",
-            caption=caption,
-            loja_id=orcamento.loja_id,
+        itens_texto = "\n".join(
+            f"  • {item.nome_procedimento} x{item.quantidade} — R$ {item.subtotal:,.2f}"
+            for item in orcamento.itens.all()
         )
-        if sucesso:
-            logger.info("Orçamento %d enviado por WhatsApp para %s", orcamento.id, telefone)
-        return {"sucesso": sucesso, "erro": erro}
-    except ImportError:
-        return {"sucesso": False, "erro": "Módulo WhatsApp não disponível."}
+
+        mensagem = (
+            f"🏥 *{profissional}*\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"📋 *ORÇAMENTO*\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 *Paciente:* {orcamento.patient.nome}\n\n"
+            f"📋 *Procedimentos:*\n"
+            f"{itens_texto}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"💰 *TOTAL: R$ {orcamento.valor_total:,.2f}*\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        )
+        if orcamento.observacoes:
+            mensagem += f"📝 *Obs:* {orcamento.observacoes[:200]}\n\n"
+        mensagem += "_O orçamento completo em PDF segue em anexo._"
+
+        # Enviar mensagem de texto
+        ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config)
+        if not ok:
+            return {"sucesso": False, "erro": err or "Erro ao enviar WhatsApp."}
+
+        # Enviar PDF via URL temporária (mesmo padrão do recibo)
+        try:
+            ts = str(int(time.time()))
+            token_raw = f"orcamento-{orcamento.id}-{ts}-{settings.SECRET_KEY[:16]}"
+            token = hashlib.sha256(token_raw.encode()).hexdigest()[:32]
+
+            django_cache.set(
+                f"orcamento_pdf_{token}",
+                {"orcamento_id": orcamento.id, "pdf": pdf_bytes},
+                300,
+            )
+
+            api_base = getattr(settings, "API_BASE_URL", "") or "https://api.lwksistemas.com.br"
+            pdf_url = f"{api_base}/api/clinica-beleza/orcamentos/{orcamento.id}/pdf-public/{token}/"
+
+            _send_whatsapp_document_evolution(
+                telefone, pdf_url, f"orcamento_{orcamento.id}.pdf",
+                caption="Orçamento", config=config,
+            )
+        except Exception as pdf_err:
+            logger.warning("PDF via WhatsApp falhou (texto já enviado): %s", pdf_err)
+
+        logger.info("Orçamento %d enviado por WhatsApp para %s", orcamento.id, telefone)
+        return {"sucesso": True, "erro": ""}
+    except ImportError as e:
+        return {"sucesso": False, "erro": f"WhatsApp não configurado: {e}"}
     except Exception as e:
         logger.warning("Erro ao enviar orçamento por WhatsApp: %s", e)
         return {"sucesso": False, "erro": str(e)}

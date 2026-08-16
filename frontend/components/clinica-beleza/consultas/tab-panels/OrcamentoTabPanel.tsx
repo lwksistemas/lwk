@@ -54,6 +54,7 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
   const [quantidade, setQuantidade] = useState("1");
   const [itensForm, setItensForm] = useState<{ procedure_id: number; nome: string; valor: string; qtd: number }[]>([]);
   const [observacoes, setObservacoes] = useState("");
+  const [showProcSelector, setShowProcSelector] = useState(true);
 
   const carregarOrcamentos = useCallback(async () => {
     if (!selected?.id) return;
@@ -127,8 +128,16 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
     }
   };
 
-  const visualizarPdf = (id: number) => {
-    window.open(`/api/clinica-beleza/orcamentos/${id}/pdf/`, "_blank");
+  const visualizarPdf = async (id: number) => {
+    try {
+      const res = await apiClient.get(`/clinica-beleza/orcamentos/${id}/pdf/`, { responseType: 'blob' });
+      const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+    } catch {
+      toast.error("Erro ao gerar PDF.");
+    }
   };
 
   const enviar = async (id: number, canal: "email" | "whatsapp") => {
@@ -155,6 +164,22 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
     } catch {
       toast.error("Erro ao excluir.");
     }
+  };
+
+  const editarOrcamento = (orc: Orcamento) => {
+    // Preencher formulário com dados do orçamento existente
+    setItensForm(
+      orc.itens.map((it) => ({
+        procedure_id: it.procedure_id || 0,
+        nome: it.nome_procedimento,
+        valor: it.valor_customizado,
+        qtd: it.quantidade,
+      }))
+    );
+    setObservacoes(orc.observacoes);
+    setShowForm(true);
+    // Excluir o orçamento antigo ao criar o novo (substituição)
+    excluir(orc.id);
   };
 
   const totalForm = itensForm.reduce((acc, it) => acc + Number(it.valor) * it.qtd, 0);
@@ -185,56 +210,66 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-4">
           <h4 className="font-medium text-gray-900 dark:text-white">Novo Orçamento</h4>
 
-          {/* Adicionar procedimento */}
-          <div className="flex flex-wrap gap-2 items-end">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs text-gray-500 mb-1">Procedimento</label>
-              <select
-                value={selectedProc}
-                onChange={(e) => {
-                  setSelectedProc(e.target.value);
-                  const p = procedures.find((pr) => pr.id === Number(e.target.value));
-                  if (p) setValorCustom(p.preco);
-                }}
-                className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
+          {/* Adicionar procedimento — ocultar após adicionar itens */}
+          {itensForm.length === 0 || showProcSelector ? (
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-xs text-gray-500 mb-1">Procedimento</label>
+                <select
+                  value={selectedProc}
+                  onChange={(e) => {
+                    setSelectedProc(e.target.value);
+                    const p = procedures.find((pr) => pr.id === Number(e.target.value));
+                    if (p) setValorCustom(p.preco);
+                  }}
+                  className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
+                >
+                  <option value="">Selecione...</option>
+                  {procedures.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome} — R$ {Number(p.preco).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-28">
+                <label className="block text-xs text-gray-500 mb-1">Valor (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={valorCustom}
+                  onChange={(e) => setValorCustom(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
+                />
+              </div>
+              <div className="w-16">
+                <label className="block text-xs text-gray-500 mb-1">Qtd</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantidade}
+                  onChange={(e) => setQuantidade(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { adicionarItem(); setShowProcSelector(false); }}
+                disabled={!selectedProc}
+                className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg disabled:opacity-50"
               >
-                <option value="">Selecione...</option>
-                {procedures.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome} — R$ {Number(p.preco).toFixed(2)}
-                  </option>
-                ))}
-              </select>
+                Adicionar
+              </button>
             </div>
-            <div className="w-28">
-              <label className="block text-xs text-gray-500 mb-1">Valor (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={valorCustom}
-                onChange={(e) => setValorCustom(e.target.value)}
-                className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
-              />
-            </div>
-            <div className="w-16">
-              <label className="block text-xs text-gray-500 mb-1">Qtd</label>
-              <input
-                type="number"
-                min="1"
-                value={quantidade}
-                onChange={(e) => setQuantidade(e.target.value)}
-                className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
-              />
-            </div>
+          ) : (
             <button
               type="button"
-              onClick={adicionarItem}
-              disabled={!selectedProc}
-              className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg disabled:opacity-50"
+              onClick={() => setShowProcSelector(true)}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
             >
-              Adicionar
+              + Adicionar mais procedimentos
             </button>
-          </div>
+          )}
 
           {/* Lista de itens */}
           {itensForm.length > 0 && (
@@ -283,9 +318,9 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
             <textarea
               value={observacoes}
               onChange={(e) => setObservacoes(e.target.value)}
-              rows={2}
+              rows={5}
               className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
-              placeholder="Ex: Pacote promocional, condições especiais..."
+              placeholder="Condições de pagamento, validade especial, informações adicionais..."
             />
           </div>
 
@@ -356,7 +391,7 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
           )}
 
           {/* Ações */}
-          <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
             <button
               type="button"
               onClick={() => visualizarPdf(orc.id)}
@@ -377,6 +412,13 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
               className="flex items-center gap-1 px-3 py-1.5 text-xs bg-green-50 text-green-700 rounded hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300"
             >
               <MessageCircle size={14} /> WhatsApp
+            </button>
+            <button
+              type="button"
+              onClick={() => editarOrcamento(orc)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-amber-50 text-amber-700 rounded hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-300"
+            >
+              <Plus size={14} /> Editar
             </button>
             <button
               type="button"

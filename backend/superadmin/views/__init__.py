@@ -33,6 +33,7 @@ from .sistema import (
     verificar_storage_todas,
 )
 from .midia import (
+    excluir_midia_arquivo,
     listar_midia_arquivos,
     listar_midia_pastas,
     listar_midia_tenants,

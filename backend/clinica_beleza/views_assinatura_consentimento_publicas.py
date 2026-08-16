@@ -114,6 +114,7 @@ class ConsultaAssinaturaPublicaView(View):
             normalizar_token_url,
             registrar_assinatura,
         )
+        from clinica_beleza.media_docs_service import _salvar_termo_no_servidor_midia
 
         token = normalizar_token_url(token)
         ctx, err = _carregar_assinatura_publica(token)
@@ -136,6 +137,9 @@ class ConsultaAssinaturaPublicaView(View):
 
         if novo_status == "concluido":
             enviar_pdf_final(adapter, termo_proc, loja_id)
+            # Salvar PDF do termo assinado no servidor de mídia ({paciente}/docs/)
+            with suppress(Exception):
+                _salvar_termo_no_servidor_midia(adapter, termo_proc, loja_id)
             with suppress(Exception):
                 enviar_termo_assinado_whatsapp(
                     termo_proc=termo_proc,

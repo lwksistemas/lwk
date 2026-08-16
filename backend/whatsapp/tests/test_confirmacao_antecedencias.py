@@ -11,10 +11,21 @@ from whatsapp.confirmacao_agenda_service import (
     data_consulta_local,
     dias_ate_consulta,
     janela_datas,
+    loja_usa_confirmacao_agenda,
     normalizar_antecedencias,
     processar_agendamento_hoje,
     regras_do_dia,
 )
+
+
+class LojaUsaConfirmacaoAgendaTest(SimpleTestCase):
+    def test_so_clinica_e_salao(self):
+        clinica = MagicMock()
+        clinica.tipo_loja.slug = "clinica-beleza"
+        crm = MagicMock()
+        crm.tipo_loja.slug = "crm-vendas"
+        self.assertTrue(loja_usa_confirmacao_agenda(clinica))
+        self.assertFalse(loja_usa_confirmacao_agenda(crm))
 
 
 class NormalizarAntecedenciasTest(SimpleTestCase):

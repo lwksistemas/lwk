@@ -46,6 +46,19 @@ def _lojas_cabeleireiro_whatsapp():
     )
 
 
+def _lojas_com_confirmacao_agenda_whatsapp():
+    from superadmin.models import Loja
+    from whatsapp.confirmacao_agenda_service import loja_usa_confirmacao_agenda
+
+    return [
+        loja
+        for loja in Loja.objects.filter(
+            database_created=True, is_active=True,
+        ).select_related("tipo_loja")
+        if loja_usa_confirmacao_agenda(loja)
+    ]
+
+
 def _send_lembretes_salao_24h():
     from cabeleireiro.models import Agendamento
     from cabeleireiro.whatsapp_agenda import SalaoAgendamentoWhatsAppAdapter
@@ -286,7 +299,7 @@ def send_confirmacoes_agendadas_whatsapp():
 
     hoje = timezone.localtime(timezone.now()).date()
     enviados = 0
-    lojas = list(_lojas_clinica_beleza_whatsapp()) + list(_lojas_cabeleireiro_whatsapp())
+    lojas = _lojas_com_confirmacao_agenda_whatsapp()
     vistos = set()
     for loja in lojas:
         if loja.id in vistos:

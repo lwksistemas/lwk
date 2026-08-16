@@ -19,6 +19,21 @@ DEFAULT_ANTECEDENCIAS = [1]
 MODULO_CLINICA = "clinica_beleza"
 MODULO_SALAO = "cabeleireiro"
 
+# Link de confirmação da agenda: só Clínica da Beleza e salão.
+# CRM Vendas (Felix) usa WhatsApp para proposta/contrato/tarefas, não esta tabela.
+SLUGS_CONFIRMACAO_AGENDA = frozenset({
+    "clinica-beleza",
+    "clinica-da-beleza",
+    "clinica-estetica",
+    "clinica-de-estetica",
+    "cabeleireiro",
+})
+
+
+def loja_usa_confirmacao_agenda(loja) -> bool:
+    slug = (getattr(getattr(loja, "tipo_loja", None), "slug", None) or "").strip().lower()
+    return slug in SLUGS_CONFIRMACAO_AGENDA
+
 
 class AntecedenciaInvalida(ValueError):
     pass

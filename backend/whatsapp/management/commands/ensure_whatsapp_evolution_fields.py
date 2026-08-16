@@ -13,6 +13,7 @@ from django.db import connections
 from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
+from whatsapp.confirmacao_agenda_service import loja_usa_confirmacao_agenda
 
 COLUMNS = (
     ("whatsapp_provider", "VARCHAR(20) NOT NULL DEFAULT 'meta'"),
@@ -39,7 +40,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         slug_filter = (options.get("slug") or "").strip().lower()
-        lojas = Loja.objects.filter(is_active=True, database_created=True)
+        lojas = Loja.objects.filter(is_active=True, database_created=True).select_related("tipo_loja")
         ok = skip = 0
 
         for loja in lojas:
@@ -68,7 +69,7 @@ class Command(BaseCommand):
                                 f"ALTER TABLE whatsapp_whatsappconfig ADD COLUMN {col} {ddl}",
                             )
                             self.stdout.write(f"{loja.slug}: coluna {col} adicionada")
-                    if not table_exists(cursor, ENVIO_TABLE):
+                    if loja_usa_confirmacao_agenda(loja) and not table_exists(cursor, ENVIO_TABLE):
                         cursor.execute(f"""
                             CREATE TABLE {ENVIO_TABLE} (
                                 id BIGSERIAL PRIMARY KEY,

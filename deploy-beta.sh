@@ -1,4 +1,6 @@
 #!/bin/bash
+# Legado: subia só o frontend-beta na VM de produção.
+# O beta isolado é 201.54.18.213 — use scripts/deploy-beta-isolated.sh
 set -e
 cd /opt/lwk-erp
 echo "=== Deploy BETA (staging) $(date) ==="

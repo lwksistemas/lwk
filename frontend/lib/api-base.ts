@@ -9,7 +9,7 @@ function stripTrailingSlashes(s: string): string {
 }
 
 const PRODUCTION_API_ROOT = 'https://api.lwksistemas.com.br';
-const STAGING_API_ROOT = 'https://api.lwksistemas.com.br';
+const STAGING_API_ROOT = 'https://beta.lwksistemas.com.br';
 
 const BETA_HOSTS = new Set(['beta.lwksistemas.com.br', 'staging.lwksistemas.com.br']);
 
@@ -20,7 +20,10 @@ export function isBetaHost(host: string): boolean {
 /** Raiz da API a partir do hostname (sem barra final). */
 export function getApiRootForHost(host: string): string | null {
   const h = host.toLowerCase().split(':')[0];
-  if (isBetaHost(h)) return STAGING_API_ROOT;
+  if (isBetaHost(h)) {
+    const fromEnv = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api\/?$/, '');
+    return stripTrailingSlashes(fromEnv || STAGING_API_ROOT);
+  }
   if (h === 'lwksistemas.com.br' || h === 'www.lwksistemas.com.br') {
     return PRODUCTION_API_ROOT;
   }
@@ -48,7 +51,7 @@ function resolveApiRootFromHost(): string | null {
   if (typeof window === 'undefined') return null;
   const host = window.location.hostname.toLowerCase();
   if (isBetaHost(host)) {
-    return STAGING_API_ROOT;
+    return window.location.origin;
   }
   if (host === 'lwksistemas.com.br' || host === 'www.lwksistemas.com.br') {
     return PRODUCTION_API_ROOT;

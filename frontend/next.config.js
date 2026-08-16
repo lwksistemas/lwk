@@ -11,6 +11,7 @@ function buildConnectSrc() {
   }
   [
     'https://api.lwksistemas.com.br',
+    'https://beta.lwksistemas.com.br',
     'https://media.lwksistemas.com.br',
     'https://viacep.com.br',
     'https://brasilapi.com.br',

@@ -16,19 +16,21 @@ alwaysApply: true
 | **Mídia** | https://media.lwksistemas.com.br |
 | **Evolution (WhatsApp)** | https://evolution.lwksistemas.com.br |
 
+Beta isolado: API, mídia de teste, Evolution e PACS no `201.54.18.213`. Não usar produção para WhatsApp/DICOM/NFS-e.
+
 ## Deploy
 
 ```bash
 # Produção (branch main)
 ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build'
 
-# Beta (branch staging)
-ssh deploy@201.23.81.50 'cd /opt/lwk-erp && ./deploy-beta.sh'
+# Beta isolado (branch staging) — VM servidorbeta
+ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh'
 
-# Só backend
+# Só backend (produção)
 ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build backend worker'
 
-# Só frontend
+# Só frontend (produção)
 ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build frontend'
 ```
 
@@ -59,8 +61,9 @@ ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker
 
 ## Servidores
 
-- **201.23.81.50** — Sistema (API + frontend + banco + workers + Evolution)
-- **201.23.87.251** — Mídia (imagens/PDFs por loja)
+- **201.23.81.50** — Produção (API + frontend + banco + workers + Evolution + Orthanc)
+- **201.23.87.251** — Mídia de produção (imagens/PDFs por loja)
+- **201.54.18.213** — Beta isolado (staging: API + frontend + Evolution + Orthanc + mídia de teste)
 
 ## Logs
 

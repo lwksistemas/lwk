@@ -1,34 +1,24 @@
+# Stack isolada do servidor beta (201.54.18.213).
+# Banco vazio / loja de teste — NUNCA dump de produção (clientes reais).
+# Uso no host: docker compose -f docker-compose.beta.yml up -d --build
+#
+# VM mínima confortável: 4 vCPU / 8 GB. Em 4 GB os limites abaixo evitam OOM;
+# WhatsApp + PACS funcionam para teste funcional, não para carga.
+
 services:
   postgres:
     image: postgres:18.6-bookworm
     restart: always
-    # Tuning para BV8-16-150 (8 vCPU / 16 GB), compartilhado com app/Evolution.
     command:
       - postgres
       - -c
-      - shared_buffers=2GB
+      - shared_buffers=128MB
       - -c
-      - effective_cache_size=10GB
-      - -c
-      - work_mem=16MB
-      - -c
-      - maintenance_work_mem=256MB
-      - -c
-      - max_connections=150
-      - -c
-      - wal_buffers=64MB
-      - -c
-      - checkpoint_completion_target=0.9
-      - -c
-      - random_page_cost=1.1
-      - -c
-      - effective_io_concurrency=200
-      - -c
-      - default_statistics_target=100
+      - max_connections=50
     volumes:
-      - pgdata:/var/lib/postgresql
+      - pgdata_beta:/var/lib/postgresql
     environment:
-      POSTGRES_DB: lwk
+      POSTGRES_DB: lwk_beta
       POSTGRES_USER: lwk
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     healthcheck:
@@ -38,13 +28,12 @@ services:
       retries: 5
     ports:
       - "127.0.0.1:5432:5432"
+    mem_limit: 384m
 
   redis:
     image: redis:7.4-alpine
     restart: always
-    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
-    volumes:
-      - redisdata:/data
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -52,6 +41,7 @@ services:
       retries: 5
     ports:
       - "127.0.0.1:6379:6379"
+    mem_limit: 160m
 
   backend:
     build:
@@ -65,19 +55,19 @@ services:
         condition: service_healthy
     env_file: .env
     environment:
-      - DATABASE_URL=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/lwk
+      - DATABASE_URL=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/lwk_beta
       - REDIS_URL=redis://redis:6379/0
       - LWK_PROCESS_ROLE=web
-      - CONN_MAX_AGE=120
-      - DJANGO_Q_WORKERS=4
-    # Override do Dockerfile: 6×2=12 slots (antes 4×2=8) no host 8 vCPU.
+      - LWK_ENVIRONMENT=staging
+      - DJANGO_Q_WORKERS=1
+      - CONN_MAX_AGE=60
     command:
       - gunicorn
       - config.wsgi
       - --bind
       - 0.0.0.0:8080
       - --workers
-      - "6"
+      - "2"
       - --threads
       - "2"
       - --worker-class
@@ -99,9 +89,9 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
-      - media:/app/media
       - /etc/lwk-encryption.key:/etc/lwk-encryption.key:ro
-      - staticfiles:/app/staticfiles
+      - orthanc-worklists:/var/lib/orthanc/worklists
+    mem_limit: 768m
 
   worker:
     build:
@@ -115,29 +105,34 @@ services:
         condition: service_healthy
     env_file: .env
     environment:
-      - DATABASE_URL=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/lwk
+      - DATABASE_URL=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/lwk_beta
       - REDIS_URL=redis://redis:6379/0
       - LWK_PROCESS_ROLE=worker
-      - DJANGO_Q_WORKERS=4
+      - LWK_ENVIRONMENT=staging
+      - DJANGO_Q_WORKERS=1
     command: sh scripts/start_worker.sh
     volumes:
-      - media:/app/media
       - /etc/lwk-encryption.key:/etc/lwk-encryption.key:ro
+      - orthanc-worklists:/var/lib/orthanc/worklists
+    mem_limit: 512m
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        - NEXT_PUBLIC_API_URL=https://beta.lwksistemas.com.br
     restart: always
     env_file: .env.frontend
     ports:
       - "127.0.0.1:3000:3000"
+    mem_limit: 256m
 
   evolution:
     image: evoapicloud/evolution-api:v2.3.7
     restart: always
     environment:
-      - SERVER_URL=https://evolution.lwksistemas.com.br
+      - SERVER_URL=https://beta.lwksistemas.com.br
       - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/evolution
@@ -152,22 +147,42 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:8081:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+    mem_limit: 768m
 
-  frontend-beta:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-      args:
-        - NEXT_PUBLIC_API_URL=https://api.lwksistemas.com.br
-    restart: always
-    env_file: .env.frontend
-    environment:
-      - LWK_BRANCH=staging
+  orthanc:
+    image: orthancteam/orthanc:26.6.1
+    container_name: lwk-beta-orthanc
+    restart: unless-stopped
     ports:
-      - "127.0.0.1:3001:3000"
+      - "4242:4242"
+      - "127.0.0.1:8042:8042"
+    volumes:
+      - ./radiologia/orthanc/orthanc.runtime.json:/etc/orthanc/orthanc.json:ro
+      - orthanc-db:/var/lib/orthanc/db
+      - orthanc-storage:/var/lib/orthanc/storage
+      - orthanc-worklists:/var/lib/orthanc/worklists
+    environment:
+      VERBOSE_STARTUP: "true"
+    mem_limit: 512m
+
+  media:
+    build:
+      context: ./media-server
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - MEDIA_API_TOKEN=${MEDIA_API_TOKEN}
+    volumes:
+      - /var/lib/lwk-beta-media:/storage
+    ports:
+      - "127.0.0.1:9000:9000"
+    mem_limit: 128m
 
 volumes:
-  pgdata:
-  redisdata:
-  media:
-  staticfiles:
+  pgdata_beta:
+  evolution_instances:
+  orthanc-db:
+  orthanc-storage:
+  orthanc-worklists:

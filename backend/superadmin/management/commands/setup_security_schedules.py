@@ -85,27 +85,36 @@ class Command(BaseCommand):
             "diariamente",
         )
 
-        # 5. WhatsApp: lembretes 24h antes (diariamente às 8h)
+        # 5. WhatsApp: lembretes 24h antes (diariamente às 8h America/Sao_Paulo)
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+
+        tz_sp = ZoneInfo("America/Sao_Paulo")
+        agora_sp = datetime.now(tz_sp)
+        proxima_8h = agora_sp.replace(hour=8, minute=0, second=0, microsecond=0)
+        if proxima_8h <= agora_sp:
+            proxima_8h += timedelta(days=1)
         _upsert(
             "whatsapp_lembretes_24h",
             {
                 "func": "whatsapp.tasks.send_lembretes_24h_whatsapp",
                 "schedule_type": Schedule.DAILY,
                 "repeats": -1,
+                "next_run": proxima_8h,
             },
-            "diário",
+            "diário às 8h",
         )
 
-        # 6. WhatsApp: lembretes 2h antes (a cada 30 min)
+        # 6. WhatsApp: lembretes 2h antes (a cada 15 min; janela 1h40–2h20)
         _upsert(
             "whatsapp_lembretes_2h",
             {
                 "func": "whatsapp.tasks.send_lembretes_2h_whatsapp",
                 "schedule_type": Schedule.MINUTES,
-                "minutes": 30,
+                "minutes": 15,
                 "repeats": -1,
             },
-            "a cada 30 min",
+            "a cada 15 min",
         )
 
         # 6b. WhatsApp: link de confirmação nos dias configurados (a cada 15 min)

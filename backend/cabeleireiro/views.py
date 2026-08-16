@@ -217,10 +217,7 @@ class AgendamentoViewSet(BaseModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        ag = serializer.save()
-        from .whatsapp_agenda import enviar_confirmacao_agendamento_salao
-
-        enviar_confirmacao_agendamento_salao(ag, user=self.request.user)
+        serializer.save()
 
     @action(detail=True, methods=["post"], url_path="confirmar-chegada")
     def confirmar_chegada(self, request, pk=None):

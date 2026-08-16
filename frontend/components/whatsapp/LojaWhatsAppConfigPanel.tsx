@@ -21,6 +21,18 @@ interface LojaWhatsAppConfigPanelProps {
   embedded?: boolean;
 }
 
+function normalizeAntecedencias(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [1];
+  const dias = [
+    ...new Set(
+      raw
+        .map((n) => Number(n))
+        .filter((n) => Number.isInteger(n) && n >= 1 && n <= 30),
+    ),
+  ];
+  return dias.sort((a, b) => b - a);
+}
+
 export function LojaWhatsAppConfigPanel({
   features,
   accentColor = '#0176d3',
@@ -39,6 +51,8 @@ export function LojaWhatsAppConfigPanel({
   const [connectedPhone, setConnectedPhone] = useState('');
   const [evolutionAvailable, setEvolutionAvailable] = useState(false);
   const [enviarConfirmacao, setEnviarConfirmacao] = useState(true);
+  const [antecedenciasDias, setAntecedenciasDias] = useState<number[]>([1]);
+  const [novoDiaAntecedencia, setNovoDiaAntecedencia] = useState('');
   const [enviarLembrete24h, setEnviarLembrete24h] = useState(true);
   const [enviarLembrete2h, setEnviarLembrete2h] = useState(true);
   const [enviarCobranca, setEnviarCobranca] = useState(true);
@@ -58,6 +72,7 @@ export function LojaWhatsAppConfigPanel({
     setConnectedPhone((data.connected_phone ?? '').toString());
     // evolutionAvailable é definido em loadConfig (health + API)
     setEnviarConfirmacao(data.enviar_confirmacao ?? true);
+    setAntecedenciasDias(normalizeAntecedencias(data.confirmacao_antecedencias_dias));
     setEnviarLembrete24h(data.enviar_lembrete_24h ?? true);
     setEnviarLembrete2h(data.enviar_lembrete_2h ?? true);
     setEnviarCobranca(data.enviar_cobranca ?? true);
@@ -110,6 +125,7 @@ export function LojaWhatsAppConfigPanel({
         whatsapp_provider: whatsappProvider,
         whatsapp_phone_id: whatsappPhoneId.trim() || '',
         enviar_confirmacao: enviarConfirmacao,
+        confirmacao_antecedencias_dias: antecedenciasDias,
         enviar_lembrete_24h: enviarLembrete24h,
         enviar_lembrete_2h: enviarLembrete2h,
         enviar_cobranca: enviarCobranca,
@@ -141,10 +157,19 @@ export function LojaWhatsAppConfigPanel({
   const helpVariant = features.variant === 'generic' ? 'clinica' : features.variant;
   const statusVariant = features.variant === 'generic' ? 'clinica' : features.variant;
 
+  const addAntecedencia = () => {
+    const n = Number.parseInt(novoDiaAntecedencia, 10);
+    if (!Number.isInteger(n) || n < 1 || n > 30) {
+      alert('Informe um número de 1 a 30 dias.');
+      return;
+    }
+    setAntecedenciasDias(normalizeAntecedencias([...antecedenciasDias, n]));
+    setNovoDiaAntecedencia('');
+  };
+
   const autoMessages: Array<{ checked: boolean; set: (v: boolean) => void; label: string }> = [];
   if (features.showAgendaMessages) {
     autoMessages.push(
-      { checked: enviarConfirmacao, set: setEnviarConfirmacao, label: 'Enviar confirmação de agendamento' },
       { checked: enviarLembrete24h, set: setEnviarLembrete24h, label: 'Lembrete 24h antes da consulta' },
       { checked: enviarLembrete2h, set: setEnviarLembrete2h, label: 'Lembrete 2h antes da consulta' },
       { checked: enviarCobranca, set: setEnviarCobranca, label: 'Enviar cobrança' },
@@ -275,9 +300,81 @@ export function LojaWhatsAppConfigPanel({
             />
           </div>
 
-          {autoMessages.length > 0 && (
+          {(features.showAgendaMessages || autoMessages.length > 0) && (
             <div className="rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-3 space-y-3">
               <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Mensagens automáticas</p>
+              {features.showAgendaMessages && (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enviarConfirmacao}
+                      onChange={(e) => setEnviarConfirmacao(e.target.checked)}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Enviar link de confirmação
+                    </span>
+                  </label>
+                  {enviarConfirmacao && (
+                    <div className="ml-6 space-y-2 rounded-lg bg-gray-50 dark:bg-gray-900/40 px-3 py-2">
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        O link <strong>não é enviado na hora do agendamento</strong>. Escolha quantos
+                        dias antes da consulta enviar. Pode repetir (ex.: 3 dias e 1 dia antes).
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {antecedenciasDias.length === 0 && (
+                          <span className="text-xs text-amber-700 dark:text-amber-300">
+                            Nenhum dia configurado — o link só sai se a equipe reenviar manualmente.
+                          </span>
+                        )}
+                        {antecedenciasDias.map((dias) => (
+                          <span
+                            key={dias}
+                            className="inline-flex items-center gap-1 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-0.5 text-xs text-gray-800 dark:text-gray-200"
+                          >
+                            {dias} {dias === 1 ? 'dia' : 'dias'} antes
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAntecedenciasDias(antecedenciasDias.filter((d) => d !== dias))
+                              }
+                              className="ml-0.5 text-gray-500 hover:text-red-600"
+                              aria-label={`Remover ${dias} dias antes`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          max={30}
+                          value={novoDiaAntecedencia}
+                          onChange={(e) => setNovoDiaAntecedencia(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addAntecedencia();
+                            }
+                          }}
+                          placeholder="Ex: 3"
+                          className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={addAntecedencia}
+                          className="text-xs font-medium px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                        >
+                          Adicionar dia
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               {autoMessages.map(({ checked, set, label }) => (
                 <label key={label} className="flex items-center gap-2 cursor-pointer">
                   <input

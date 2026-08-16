@@ -80,6 +80,9 @@ class WhatsAppConfigView(APIView):
                     "whatsapp_connected_phone": (getattr(config, "whatsapp_connected_phone", None) or "").strip(),
                     "connected_phone": (getattr(config, "whatsapp_connected_phone", None) or "").strip(),
                     "enviar_confirmacao": getattr(config, "enviar_confirmacao", True),
+                    "confirmacao_antecedencias_dias": getattr(
+                        config, "confirmacao_antecedencias_dias", None,
+                    ) or [1],
                 })
             return Response(payload)
 

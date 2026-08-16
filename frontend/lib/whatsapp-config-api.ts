@@ -20,6 +20,7 @@ export interface WhatsAppConnectionState {
 
 export interface WhatsAppConfigData extends WhatsAppConnectionState {
   enviar_confirmacao: boolean;
+  confirmacao_antecedencias_dias?: number[];
   enviar_lembrete_24h: boolean;
   enviar_lembrete_2h: boolean;
   enviar_cobranca: boolean;

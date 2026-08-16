@@ -221,6 +221,106 @@ def send_lembretes_2h_whatsapp():
     return enviados
 
 
+def _paciente_pode_receber_confirmacao(agendamento) -> bool:
+    patient = getattr(agendamento, "patient", None)
+    if patient is None:
+        return False
+    if not getattr(patient, "allow_whatsapp", True):
+        return False
+    telefone = (
+        getattr(patient, "phone", None)
+        or getattr(patient, "telefone", None)
+        or ""
+    )
+    return bool(str(telefone).strip())
+
+
+def _send_confirmacoes_clinica(config, hoje, inicio, fim):
+    from clinica_beleza.agenda_confirmacao_service import STATUS_ACIONAVEIS
+    from clinica_beleza.models import Appointment
+    from whatsapp.confirmacao_agenda_service import processar_agendamento_hoje
+
+    enviados = 0
+    qs = Appointment.objects.filter(
+        date__date__gte=inicio,
+        date__date__lte=fim,
+        status__in=list(STATUS_ACIONAVEIS),
+    ).select_related("patient", "procedure", "professional")
+    for ag in qs:
+        if not _paciente_pode_receber_confirmacao(ag):
+            continue
+        enviados += processar_agendamento_hoje(ag, config=config, hoje=hoje)
+    return enviados
+
+
+def _send_confirmacoes_salao(config, hoje, inicio, fim):
+    from cabeleireiro.models import Agendamento
+    from cabeleireiro.whatsapp_agenda import (
+        STATUS_ACIONAVEIS,
+        SalaoAgendamentoWhatsAppAdapter,
+    )
+    from whatsapp.confirmacao_agenda_service import processar_agendamento_hoje
+
+    enviados = 0
+    qs = Agendamento.objects.filter(
+        data__gte=inicio,
+        data__lte=fim,
+        is_active=True,
+        status__in=list(STATUS_ACIONAVEIS),
+    ).select_related("cliente", "servico", "profissional")
+    for ag in qs:
+        adapter = SalaoAgendamentoWhatsAppAdapter(ag)
+        if not _paciente_pode_receber_confirmacao(adapter):
+            continue
+        enviados += processar_agendamento_hoje(adapter, config=config, hoje=hoje)
+    return enviados
+
+
+def send_confirmacoes_agendadas_whatsapp():
+    """Envia o link de confirmação nos dias configurados (não na criação)."""
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+    from whatsapp.confirmacao_agenda_service import (
+        antecedencias_da_config,
+        janela_datas,
+    )
+
+    hoje = timezone.localtime(timezone.now()).date()
+    enviados = 0
+    lojas = list(_lojas_clinica_beleza_whatsapp()) + list(_lojas_cabeleireiro_whatsapp())
+    vistos = set()
+    for loja in lojas:
+        if loja.id in vistos:
+            continue
+        vistos.add(loja.id)
+        try:
+            db_name = _ensure_loja_db(loja)
+            set_current_loja_id(loja.id)
+            set_current_tenant_db(db_name)
+            config = _get_whatsapp_config(loja)
+            if not config or not config.whatsapp_ativo or not config.enviar_confirmacao:
+                continue
+            antecedencias = antecedencias_da_config(config)
+            janela = janela_datas(antecedencias, hoje=hoje)
+            if not janela:
+                continue
+            inicio, fim = janela
+            tipo = getattr(getattr(loja, "tipo_loja", None), "slug", "") or ""
+            if tipo == "cabeleireiro":
+                enviados += _send_confirmacoes_salao(config, hoje, inicio, fim)
+            else:
+                enviados += _send_confirmacoes_clinica(config, hoje, inicio, fim)
+        except Exception as e:
+            logger.exception(
+                "WhatsApp confirmação agendada loja %s: %s",
+                getattr(loja, "slug", loja.id), e,
+            )
+        finally:
+            set_current_loja_id(None)
+            set_current_tenant_db("default")
+    logger.info("WhatsApp confirmações agendadas: %d enviados", enviados)
+    return enviados
+
+
 def send_cobrancas_pendentes_whatsapp():
     """Envia cobrança por WhatsApp para pacientes com pagamento PENDING.
     Uma mensagem por paciente/dia (agrupa débitos). Só lojas Clínica da Beleza.

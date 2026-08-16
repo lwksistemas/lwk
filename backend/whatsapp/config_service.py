@@ -57,6 +57,7 @@ def get_or_create_whatsapp_config(loja):
         enviar_lembrete_2h=True,
         enviar_cobranca=True,
         enviar_lembrete_tarefas=True,
+        confirmacao_antecedencias_dias=[1],
         whatsapp_numero=owner_tel or "",
     )
     config.save()
@@ -72,6 +73,7 @@ def default_whatsapp_config_payload(loja=None):
 
     return {
         "enviar_confirmacao": True,
+        "confirmacao_antecedencias_dias": [1],
         "enviar_lembrete_24h": True,
         "enviar_lembrete_2h": True,
         "enviar_cobranca": True,

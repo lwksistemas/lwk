@@ -5,7 +5,14 @@ from .models import WhatsAppConfig, WhatsAppLog
 
 @admin.register(WhatsAppConfig)
 class WhatsAppConfigAdmin(admin.ModelAdmin):
-    list_display = ("loja", "enviar_confirmacao", "enviar_lembrete_24h", "enviar_lembrete_2h", "enviar_cobranca")
+    list_display = (
+        "loja",
+        "enviar_confirmacao",
+        "confirmacao_antecedencias_dias",
+        "enviar_lembrete_24h",
+        "enviar_lembrete_2h",
+        "enviar_cobranca",
+    )
     list_filter = ("enviar_confirmacao", "enviar_lembrete_24h", "enviar_lembrete_2h", "enviar_cobranca")
 
 

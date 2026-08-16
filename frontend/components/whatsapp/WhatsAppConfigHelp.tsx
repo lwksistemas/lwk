@@ -70,8 +70,10 @@ export function WhatsAppConfigHelp({ variant = 'clinica' }: WhatsAppConfigHelpPr
 
       {variant === 'clinica' ? (
         <p className="text-xs text-gray-600 dark:text-gray-400">
-          Confirmações saem ao confirmar agendamento. Lembretes 24h e 2h e <strong>cobranças de débitos pendentes</strong>{' '}
-          rodam automaticamente no servidor LWK. Campanhas em massa podem exigir <strong>template aprovado</strong> na Meta.
+          Confirmações com link saem nos dias escolhidos em Mensagens automáticas (não na hora do
+          agendamento). Lembretes 24h e 2h e <strong>cobranças de débitos pendentes</strong> rodam
+          automaticamente no servidor LWK. Campanhas em massa podem exigir <strong>template aprovado</strong> na
+          Meta.
         </p>
       ) : (
         <p className="text-xs text-gray-600 dark:text-gray-400">

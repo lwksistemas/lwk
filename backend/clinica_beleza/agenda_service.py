@@ -174,8 +174,8 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
     except Exception:
         logger.exception("Erro ao executar regras pós-criação do agendamento %s", appointment.id)
 
-    # WhatsApp confirmação (best-effort)
-    _enviar_whatsapp_confirmacao(appointment, request=request, user=user)
+    # Link de confirmação WhatsApp: não envia na criação.
+    # O worker dispara nos dias configurados em Configurações → WhatsApp.
 
     return appointment
 
@@ -279,32 +279,3 @@ def _executar_regra_finalizacao(appointment):
         logger.exception("Erro ao executar regras de finalização do agendamento %s", appointment.id)
 
 
-def _enviar_whatsapp_confirmacao(appointment, *, request=None, user=None):
-    """Envia confirmação WhatsApp (best-effort). Retorna (ok, erro)."""
-    try:
-        patient = appointment.patient
-        if not getattr(patient, "allow_whatsapp", True):
-            return False, "Paciente não permite WhatsApp."
-        telefone = getattr(patient, "telefone", None) or getattr(patient, "phone", None) or ""
-        if not telefone.strip():
-            return False, "Paciente sem telefone cadastrado."
-
-        from .utils import LojaContextHelper
-        config, _ = LojaContextHelper.get_whatsapp_config(request=request)
-        if not config:
-            logger.warning("WhatsApp confirmação agendamento %s: config não encontrada", appointment.id)
-            return False, "WhatsApp não configurado para esta loja."
-        if not getattr(config, "enviar_confirmacao", False):
-            return False, "Envio de confirmação desativado nas Configurações."
-        if not getattr(config, "whatsapp_ativo", False):
-            logger.warning("WhatsApp confirmação agendamento %s: integração inativa", appointment.id)
-            return False, "WhatsApp não está ativo. Ative em Configurações → WhatsApp."
-
-        from whatsapp.services import enviar_confirmacao_agendamento
-        ok, err = enviar_confirmacao_agendamento(appointment, user=user, config=config)
-        if not ok:
-            logger.warning("WhatsApp confirmação agendamento %s: %s", appointment.id, err)
-        return ok, err
-    except Exception as e:
-        logger.warning("WhatsApp confirmação agendamento %s: %s", appointment.id, e)
-        return False, str(e)

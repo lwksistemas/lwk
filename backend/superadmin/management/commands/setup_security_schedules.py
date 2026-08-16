@@ -8,7 +8,7 @@ Este comando cria/atualiza os schedules para:
 2. Limpeza de logs antigos (diariamente às 3h)
 3. Envio de notificações (a cada 15 minutos)
 4. Resumo diário de violações (diariamente às 8h)
-5. WhatsApp: lembretes 24h e 2h antes
+5. WhatsApp: lembretes 24h e 2h antes; link de confirmação nos dias configurados
 6. CRM Vendas: notificações de tarefas pendentes (a cada hora)
 7. Backups automáticos por email (a cada 15 minutos, na madrugada por slot da loja)
 
@@ -106,6 +106,18 @@ class Command(BaseCommand):
                 "repeats": -1,
             },
             "a cada 30 min",
+        )
+
+        # 6b. WhatsApp: link de confirmação nos dias configurados (a cada 15 min)
+        _upsert(
+            "whatsapp_confirmacoes_agendadas",
+            {
+                "func": "whatsapp.tasks.send_confirmacoes_agendadas_whatsapp",
+                "schedule_type": Schedule.MINUTES,
+                "minutes": 15,
+                "repeats": -1,
+            },
+            "a cada 15 min",
         )
 
         # 7. CRM Vendas: notificações de tarefas pendentes (a cada hora)

@@ -6,6 +6,11 @@ from rest_framework.response import Response
 
 from core.phone_utils import telefone_exibicao_brasileiro, telefone_internacional_br
 
+from .confirmacao_agenda_service import (
+    AntecedenciaInvalida,
+    antecedencias_da_config,
+    normalizar_antecedencias,
+)
 from .connection_service import sync_evolution_connection
 from .evolution_client import evolution_configured
 from .models import WhatsAppConfig
@@ -36,6 +41,7 @@ def serialize_whatsapp_config(config, loja=None, *, sync_evolution=False):
 
     payload = {
         "enviar_confirmacao": config.enviar_confirmacao,
+        "confirmacao_antecedencias_dias": antecedencias_da_config(config),
         "enviar_lembrete_24h": config.enviar_lembrete_24h,
         "enviar_lembrete_2h": config.enviar_lembrete_2h,
         "enviar_cobranca": config.enviar_cobranca,
@@ -104,6 +110,14 @@ def apply_whatsapp_config_patch(config, data):
     if "mensagem_confirmacao_agenda" in data:
         config.mensagem_confirmacao_agenda = (data.get("mensagem_confirmacao_agenda") or "").strip()
         update_fields.append("mensagem_confirmacao_agenda")
+    if "confirmacao_antecedencias_dias" in data:
+        try:
+            config.confirmacao_antecedencias_dias = normalizar_antecedencias(
+                data.get("confirmacao_antecedencias_dias"),
+            )
+        except AntecedenciaInvalida as exc:
+            return update_fields, Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        update_fields.append("confirmacao_antecedencias_dias")
 
     err = validate_whatsapp_activation(config)
     if err:

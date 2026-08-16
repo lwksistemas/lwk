@@ -24,7 +24,11 @@ COLUMNS = (
     ("enviar_contrato_whatsapp", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("enviar_termo_consentimento_whatsapp", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("mensagem_confirmacao_agenda", "TEXT NOT NULL DEFAULT ''" ),
+    ("confirmacao_antecedencias_dias", "JSONB NOT NULL DEFAULT '[1]'::jsonb"),
 )
+
+ENVIO_TABLE = "whatsapp_whatsappconfirmacaoenvio"
+MIGRATION_CONFIRMACAO = "0008_confirmacao_antecedencias"
 
 
 class Command(BaseCommand):
@@ -64,8 +68,27 @@ class Command(BaseCommand):
                                 f"ALTER TABLE whatsapp_whatsappconfig ADD COLUMN {col} {ddl}",
                             )
                             self.stdout.write(f"{loja.slug}: coluna {col} adicionada")
+                    if not table_exists(cursor, ENVIO_TABLE):
+                        cursor.execute(f"""
+                            CREATE TABLE {ENVIO_TABLE} (
+                                id BIGSERIAL PRIMARY KEY,
+                                appointment_id INTEGER NOT NULL,
+                                modulo VARCHAR(32) NOT NULL DEFAULT 'clinica_beleza',
+                                regra_dias SMALLINT NOT NULL,
+                                enviado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                            )
+                        """)
+                        cursor.execute(
+                            f"CREATE UNIQUE INDEX IF NOT EXISTS whatsapp_confirmacao_envio_unico "
+                            f"ON {ENVIO_TABLE} (modulo, appointment_id, regra_dias)",
+                        )
+                        cursor.execute(
+                            f"CREATE INDEX IF NOT EXISTS wa_conf_envio_appt_idx "
+                            f"ON {ENVIO_TABLE} (modulo, appointment_id)",
+                        )
+                        self.stdout.write(f"{loja.slug}: tabela {ENVIO_TABLE} criada")
                 with contextlib.suppress(Exception):
-                    call_command("migrate", "whatsapp", "0007_mensagem_confirmacao_agenda", database=db_name, verbosity=0)
+                    call_command("migrate", "whatsapp", MIGRATION_CONFIRMACAO, database=db_name, verbosity=0)
                 ok += 1
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(f"{loja.slug}: {exc}"))

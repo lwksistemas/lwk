@@ -6,6 +6,11 @@ from django.db import models
 User = settings.AUTH_USER_MODEL
 
 
+def default_confirmacao_antecedencias():
+    """1 dia antes — o link não sai na criação do agendamento."""
+    return [1]
+
+
 class WhatsAppConfig(models.Model):
     """Configuração de envio WhatsApp por loja (1 número + 1 conexão por clínica).
     Meta Cloud API: phone_number_id + token.
@@ -61,6 +66,16 @@ class WhatsAppConfig(models.Model):
     whatsapp_ativo = models.BooleanField(default=False, verbose_name="WhatsApp ativo para esta loja")
     # Regras de envio
     enviar_confirmacao = models.BooleanField(default=True, verbose_name="Enviar confirmação de agendamento")
+    confirmacao_antecedencias_dias = models.JSONField(
+        default=default_confirmacao_antecedencias,
+        blank=True,
+        verbose_name="Dias de antecedência do link de confirmação",
+        help_text=(
+            "Lista de dias antes da consulta para enviar o link. "
+            "Ex.: [3, 1] envia 3 dias antes e de novo 1 dia antes. "
+            "O link não é enviado na criação do agendamento."
+        ),
+    )
     enviar_lembrete_24h = models.BooleanField(default=True, verbose_name="Enviar lembrete 24h antes")
     enviar_lembrete_2h = models.BooleanField(default=True, verbose_name="Enviar lembrete 2h antes")
     enviar_cobranca = models.BooleanField(default=True, verbose_name="Enviar cobrança financeiro")
@@ -100,6 +115,35 @@ class WhatsAppConfig(models.Model):
 
     def __str__(self):
         return f"WhatsApp config - {self.loja.nome}"
+
+
+class WhatsAppConfirmacaoEnvio(models.Model):
+    """Controle de envio do link de confirmação por regra (dia de antecedência)."""
+
+    MODULO_CLINICA = "clinica_beleza"
+    MODULO_SALAO = "cabeleireiro"
+
+    appointment_id = models.PositiveIntegerField()
+    modulo = models.CharField(max_length=32, default=MODULO_CLINICA)
+    regra_dias = models.PositiveSmallIntegerField()
+    enviado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = "whatsapp"
+        verbose_name = "Envio de confirmação de agenda"
+        verbose_name_plural = "Envios de confirmação de agenda"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["modulo", "appointment_id", "regra_dias"],
+                name="whatsapp_confirmacao_envio_unico",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["modulo", "appointment_id"], name="wa_conf_envio_appt_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.modulo} #{self.appointment_id} {self.regra_dias}d"
 
 
 class WhatsAppLog(models.Model):

@@ -37,6 +37,7 @@ class SalaoAgendamentoWhatsAppAdapter:
         naive = datetime.combine(agendamento.data, agendamento.hora_inicio)
         tz = timezone.get_current_timezone()
         self.date = timezone.make_aware(naive, tz) if timezone.is_naive(naive) else naive
+        self.created_at = getattr(agendamento, "created_at", None)
 
     def get_status_display(self):
         return self._ag.get_status_display()

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
-from whatsapp.connection_service import disconnect_evolution, sync_evolution_connection
+from whatsapp.connection_service import disconnect_evolution, sync_evolution_connection, _apply_evolution_state_to_config
 from whatsapp.evolution_client import EvolutionAPIError
 from whatsapp.models import WhatsAppConfig
 
@@ -85,3 +85,22 @@ class SyncEvolutionStaleSessionTest(SimpleTestCase):
         sync_evolution_connection(config, fetch_qr=False)
 
         mock_apply.assert_called_once_with(config, WhatsAppConfig.CONNECTION_DISCONNECTED)
+
+
+class ApplyEvolutionStateAtivaEnvioTest(SimpleTestCase):
+    def test_conectar_liga_whatsapp_ativo(self):
+        config = MagicMock()
+        config.whatsapp_connection_status = WhatsAppConfig.CONNECTION_QR_PENDING
+        config.whatsapp_connected_phone = ""
+        config.whatsapp_numero = ""
+        config.whatsapp_connected_at = None
+        config.whatsapp_ativo = False
+        config.whatsapp_provider = WhatsAppConfig.PROVIDER_EVOLUTION
+
+        _apply_evolution_state_to_config(
+            config, WhatsAppConfig.CONNECTION_CONNECTED, "5516999621823",
+        )
+
+        self.assertTrue(config.whatsapp_ativo)
+        self.assertEqual(config.whatsapp_connection_status, WhatsAppConfig.CONNECTION_CONNECTED)
+        self.assertIn("whatsapp_ativo", config.save.call_args.kwargs["update_fields"])

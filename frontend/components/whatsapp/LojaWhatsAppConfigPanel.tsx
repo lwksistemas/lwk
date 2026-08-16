@@ -152,6 +152,7 @@ export function LojaWhatsAppConfigPanel({
     setConnectionStatus(state.connection_status);
     setConnectedPhone(state.connected_phone ?? '');
     if (state.connected_phone) setWhatsappNumero(formatTelefone(state.connected_phone));
+    if (state.connection_status === 'connected') setWhatsappAtivo(true);
   };
 
   const helpVariant = features.variant === 'generic' ? 'clinica' : features.variant;
@@ -286,6 +287,11 @@ export function LojaWhatsAppConfigPanel({
               WhatsApp ativo — usar esta integração para enviar mensagens
             </span>
           </label>
+          {connectionStatus === 'connected' && !whatsappAtivo && (
+            <p className="text-xs text-amber-700 dark:text-amber-300 -mt-4">
+              O número já está conectado. Marque a opção acima e clique em Salvar para liberar o envio.
+            </p>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

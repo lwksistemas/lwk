@@ -117,6 +117,12 @@ def _apply_evolution_state_to_config(config, status, phone=None):
         if not config.whatsapp_connected_at:
             config.whatsapp_connected_at = timezone.now()
             update_fields.append("whatsapp_connected_at")
+        if getattr(config, "whatsapp_provider", None) != WhatsAppConfig.PROVIDER_EVOLUTION:
+            config.whatsapp_provider = WhatsAppConfig.PROVIDER_EVOLUTION
+            update_fields.append("whatsapp_provider")
+        if not config.whatsapp_ativo:
+            config.whatsapp_ativo = True
+            update_fields.append("whatsapp_ativo")
         config.save(update_fields=list(dict.fromkeys(update_fields)))
         return
 

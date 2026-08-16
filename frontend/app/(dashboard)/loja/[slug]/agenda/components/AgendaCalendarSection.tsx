@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   CLINICA_AGENDA_SLOT_DURATION,
@@ -29,30 +29,51 @@ function toInputDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Um único scroll: a roda move só este container (o FullCalendar não compete). */
-function useParentWheelScroll(active: boolean) {
-  const ref = useRef<HTMLDivElement>(null);
+function findVerticalScroller(start: HTMLElement): HTMLElement {
+  let node: HTMLElement | null = start;
+  while (node) {
+    const overflowY = window.getComputedStyle(node).overflowY;
+    if (
+      (overflowY === "auto" || overflowY === "scroll") &&
+      node.scrollHeight > node.clientHeight + 1
+    ) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return (document.scrollingElement || document.documentElement) as HTMLElement;
+}
 
+function wheelDeltaY(e: WheelEvent, scroller: HTMLElement): number {
+  if (e.deltaMode === 1) return e.deltaY * 16;
+  if (e.deltaMode === 2) return e.deltaY * scroller.clientHeight;
+  return e.deltaY;
+}
+
+/** Roda no meio da grade move a mesma barra da página (o FullCalendar engole o wheel). */
+function useAgendaGridWheel(active: boolean) {
   useEffect(() => {
     if (!active) return;
-    const host = ref.current;
-    if (!host) return;
 
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.deltaY === 0) return;
-      const max = host.scrollHeight - host.clientHeight;
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      const root = target.closest(".fc-agenda-calendar-root");
+      if (!root) return;
+
+      const scroller = findVerticalScroller(root as HTMLElement);
+      const max = scroller.scrollHeight - scroller.clientHeight;
       if (max <= 1) return;
-      const next = Math.min(max, Math.max(0, host.scrollTop + e.deltaY));
-      if (next === host.scrollTop) return;
-      host.scrollTop = next;
+      const next = Math.min(max, Math.max(0, scroller.scrollTop + wheelDeltaY(e, scroller)));
+      if (next === scroller.scrollTop) return;
+      scroller.scrollTop = next;
       e.preventDefault();
     };
 
-    host.addEventListener("wheel", onWheel, { capture: true, passive: false });
-    return () => host.removeEventListener("wheel", onWheel, true);
+    document.addEventListener("wheel", onWheel, { capture: true, passive: false });
+    return () => document.removeEventListener("wheel", onWheel, true);
   }, [active]);
-
-  return ref;
 }
 
 export function AgendaCalendarSection({
@@ -92,7 +113,7 @@ export function AgendaCalendarSection({
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
-  const gradeScrollRef = useParentWheelScroll(isMobileUi === false && modoAgenda === "grade");
+  useAgendaGridWheel(isMobileUi === false && modoAgenda === "grade");
 
   useEffect(() => {
     const check = () => setIsMobileUi(window.innerWidth < 640);
@@ -136,10 +157,7 @@ export function AgendaCalendarSection({
   }
 
   return (
-    <div
-      ref={gradeScrollRef}
-      className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain fc-agenda-calendar-root"
-    >
+    <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain fc-agenda-calendar-root">
       {calendarPlugins.length > 0 && ptBrLocale ? (
         <FullCalendar
           key={`desktop-${selectedProfessional}`}

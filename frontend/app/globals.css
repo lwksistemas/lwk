@@ -534,29 +534,13 @@
   background: #80868b;
 }
 
-/* Agenda Clínica — height 100%: a grade preenche o painel e a roda do mouse rola o .fc-scroller */
+/* Agenda Clínica — um único scroll no container pai; o FullCalendar não cria outra barra */
 .fc-agenda-calendar-root {
   min-height: 0;
-  height: 100%;
 }
 
-.fc-agenda-calendar-root .fc {
-  height: 100%;
-}
-
-.fc-agenda-calendar-root .fc-view-harness {
-  min-height: 0;
-}
-
-.fc-agenda-calendar-root .fc-timegrid-body .fc-scroller {
-  overflow-y: auto !important;
-  overscroll-behavior-y: contain;
-}
-
-.fc-agenda-scroll-host {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
+.fc-agenda-calendar-root .fc-scroller {
+  overflow: visible !important;
 }
 
 /* ========== FULLCALENDAR MOBILE (Agenda - celular) ========== */

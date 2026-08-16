@@ -29,44 +29,28 @@ function toInputDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function isVerticallyScrollable(el: HTMLElement): boolean {
-  const overflowY = window.getComputedStyle(el).overflowY;
-  if (overflowY !== "auto" && overflowY !== "scroll" && overflowY !== "overlay") {
-    return false;
-  }
-  return el.scrollHeight > el.clientHeight + 1;
-}
-
-/** A roda do mouse deve rolar a agenda mesmo com o FullCalendar por baixo do cursor. */
-function useWheelScrollHost(enabled: boolean) {
+/** Um único scroll: a roda move só este container (o FullCalendar não compete). */
+function useParentWheelScroll(active: boolean) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!active) return;
     const host = ref.current;
     if (!host) return;
 
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.deltaY === 0) return;
-      const start = e.target instanceof HTMLElement ? e.target : host;
-      let node: HTMLElement | null = start;
-      while (node && host.contains(node)) {
-        if (isVerticallyScrollable(node)) {
-          node.scrollTop += e.deltaY;
-          e.preventDefault();
-          return;
-        }
-        node = node.parentElement;
-      }
-      if (isVerticallyScrollable(host) || host.scrollHeight > host.clientHeight + 1) {
-        host.scrollTop += e.deltaY;
-        e.preventDefault();
-      }
+      const max = host.scrollHeight - host.clientHeight;
+      if (max <= 1) return;
+      const next = Math.min(max, Math.max(0, host.scrollTop + e.deltaY));
+      if (next === host.scrollTop) return;
+      host.scrollTop = next;
+      e.preventDefault();
     };
 
     host.addEventListener("wheel", onWheel, { capture: true, passive: false });
     return () => host.removeEventListener("wheel", onWheel, true);
-  }, [enabled]);
+  }, [active]);
 
   return ref;
 }
@@ -108,8 +92,7 @@ export function AgendaCalendarSection({
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
-  const listaScrollRef = useWheelScrollHost(modoAgenda === "lista");
-  const gradeScrollRef = useWheelScrollHost(isMobileUi === false && modoAgenda === "grade");
+  const gradeScrollRef = useParentWheelScroll(isMobileUi === false && modoAgenda === "grade");
 
   useEffect(() => {
     const check = () => setIsMobileUi(window.innerWidth < 640);
@@ -146,41 +129,37 @@ export function AgendaCalendarSection({
 
   if (modoAgenda === "lista") {
     return (
-      <div
-        ref={listaScrollRef}
-        className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain"
-      >
+      <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain">
         <AgendaListaColunas eventos={eventos} onAbrir={onAbrirLista} />
       </div>
     );
   }
 
   return (
-    <div className="relative flex-1 min-h-0">
-      <div
-        ref={gradeScrollRef}
-        className="absolute inset-0 p-2 sm:p-3 overflow-hidden fc-agenda-calendar-root fc-agenda-scroll-host"
-      >
-        {calendarPlugins.length > 0 && ptBrLocale ? (
-          <FullCalendar
-            key={`desktop-${selectedProfessional}`}
-            plugins={calendarPlugins as never[]}
-            initialView="timeGridWeek"
-            locale={ptBrLocale as never}
-            editable
-            eventStartEditable
-            eventDurationEditable
-            selectable
-            selectMirror
-            selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
-            dayMaxEvents
-            weekends
-            events={eventos}
-            eventDrop={onEventDrop}
-            eventResize={onEventResize}
-            eventClick={onEventClick}
-            dateClick={onDateClick}
-            height="100%"
+    <div
+      ref={gradeScrollRef}
+      className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain fc-agenda-calendar-root"
+    >
+      {calendarPlugins.length > 0 && ptBrLocale ? (
+        <FullCalendar
+          key={`desktop-${selectedProfessional}`}
+          plugins={calendarPlugins as never[]}
+          initialView="timeGridWeek"
+          locale={ptBrLocale as never}
+          editable
+          eventStartEditable
+          eventDurationEditable
+          selectable
+          selectMirror
+          selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
+          dayMaxEvents
+          weekends
+          events={eventos}
+          eventDrop={onEventDrop}
+          eventResize={onEventResize}
+          eventClick={onEventClick}
+          dateClick={onDateClick}
+          height="auto"
           headerToolbar={{
             left: "prev,next today",
             center: "title",
@@ -200,7 +179,6 @@ export function AgendaCalendarSection({
           Carregando calendário...
         </div>
       )}
-      </div>
     </div>
   );
 }

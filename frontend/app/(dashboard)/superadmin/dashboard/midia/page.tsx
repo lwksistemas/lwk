@@ -131,7 +131,7 @@ export default function ServidorMidiaPage() {
     if (!tenantSel || !folderSel) return;
     if (!confirm(`Excluir "${file.filename}"? Esta ação não pode ser desfeita.`)) return;
     try {
-      await apiClient.delete(`/superadmin/midia/${tenantSel.tenant}/${folderSel}/${file.filename}/`);
+      await apiClient.delete(`/superadmin/midia/${tenantSel.tenant}/delete/${folderSel}/${file.filename}/`);
       setFiles((prev) => prev.filter((f) => f.filename !== file.filename));
     } catch {
       setError('Falha ao excluir arquivo.');

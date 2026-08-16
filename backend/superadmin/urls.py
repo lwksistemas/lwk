@@ -134,7 +134,7 @@ urlpatterns = [
     path("midia/", listar_midia_tenants, name="listar-midia-tenants"),
     path("midia/<str:tenant>/", listar_midia_pastas, name="listar-midia-pastas"),
     path("midia/<str:tenant>/<path:folder>/", listar_midia_arquivos, name="listar-midia-arquivos"),
-    path("midia/<str:tenant>/<str:folder>/<str:filename>/", excluir_midia_arquivo, name="excluir-midia-arquivo"),
+    path("midia/<str:tenant>/delete/<path:filepath>/", excluir_midia_arquivo, name="excluir-midia-arquivo"),
 
     # Configuração da Homepage (CRUD)
     path("homepage/", include("homepage.urls_admin")),

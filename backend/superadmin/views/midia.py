@@ -181,15 +181,18 @@ def listar_midia_arquivos(request, tenant: str, folder: str):
 
 @api_view(["DELETE"])
 @permission_classes([IsSuperAdmin])
-def excluir_midia_arquivo(request, tenant: str, folder: str, filename: str):
+def excluir_midia_arquivo(request, tenant: str, filepath: str):
     """Exclui um arquivo do servidor de mídia."""
     tenant_key = normalize_media_tenant(tenant)
     if not tenant_key:
         return Response({"error": "Tenant inválido"}, status=status.HTTP_400_BAD_REQUEST)
 
+    if ".." in filepath or not filepath:
+        return Response({"error": "Path inválido"}, status=status.HTTP_400_BAD_REQUEST)
+
     from core.media_storage import media_delete_tenant
 
-    sucesso = media_delete_tenant(tenant_key, f"{folder}/{filename}")
+    sucesso = media_delete_tenant(tenant_key, filepath)
     if sucesso:
         return Response({"success": True}, status=status.HTTP_200_OK)
     return Response({"error": "Falha ao excluir arquivo"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

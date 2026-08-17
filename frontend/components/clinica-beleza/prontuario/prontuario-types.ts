@@ -42,10 +42,3 @@ export const ANAMNESE_DISPLAY_FIELDS = [
   { key: "tipo_pele", label: "Tipo de Pele" },
   { key: "observacoes", label: "Observações" },
 ] as const;
-
-export const EVOLUCAO_DISPLAY_FIELDS = [
-  { key: "descricao", label: "Descrição" },
-  { key: "procedimento_realizado", label: "Procedimento Realizado" },
-  { key: "produtos_utilizados", label: "Produtos Utilizados" },
-  { key: "orientacoes", label: "Orientações" },
-] as const;

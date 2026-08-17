@@ -35,17 +35,6 @@ export function buildComissoesCsv(data: RelatorioComissoesData, dataInicio: stri
   return BOM + csv;
 }
 
-export function downloadComissoesCsv(data: RelatorioComissoesData, dataInicio: string, dataFim: string): void {
-  const blob = new Blob([buildComissoesCsv(data, dataInicio, dataFim)], {
-    type: "text/csv;charset=utf-8;",
-  });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `comissoes_${dataInicio}_${dataFim}.csv`;
-  link.click();
-  URL.revokeObjectURL(link.href);
-}
-
 export function ensureComissoesPrintStyles(): void {
   if (typeof window === "undefined") return;
   if (document.getElementById("comissoes-print-styles")) return;

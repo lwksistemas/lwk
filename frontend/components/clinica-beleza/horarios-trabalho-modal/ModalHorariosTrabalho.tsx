@@ -126,5 +126,3 @@ export function ModalHorariosTrabalho({
     </div>
   );
 }
-
-export type { HorarioTrabalhoItem } from "./horarios-trabalho-modal-utils";

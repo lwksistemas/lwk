@@ -40,19 +40,3 @@ export function buildFaturamentoCsv(
     `${data.totais.valor_procedimento.toFixed(2)};${data.totais.valor_total.toFixed(2)}\n`;
   return BOM + csv;
 }
-
-export function downloadFaturamentoCsv(
-  data: FaturamentoData,
-  agrupamento: AgrupamentoFaturamento,
-  dataInicio: string,
-  dataFim: string,
-): void {
-  const blob = new Blob([buildFaturamentoCsv(data, agrupamento)], {
-    type: "text/csv;charset=utf-8;",
-  });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `faturamento_${agrupamento}_${dataInicio}_${dataFim}.csv`;
-  link.click();
-  URL.revokeObjectURL(link.href);
-}

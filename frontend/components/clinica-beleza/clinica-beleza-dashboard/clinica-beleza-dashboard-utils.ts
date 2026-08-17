@@ -13,9 +13,6 @@ export function getDashboardChartColors(primary: string = CLINICA_BELEZA_PRIMARY
   return [primary, "#A64D63", "#C4727E", "#E8A0B0", "#D4A574"];
 }
 
-/** @deprecated use getDashboardChartColors(primary) */
-export const DASHBOARD_CHART_COLORS = getDashboardChartColors();
-
 export function currentDashboardMesAno(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;

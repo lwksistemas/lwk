@@ -17,7 +17,6 @@ Uso (local):
 import os
 
 from django.conf import settings
-from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.db import connection
 
@@ -96,21 +95,17 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(self.style.WARNING(f"  force-crm: {e}\n"))
 
-        # 4. Aplicar migrations no schema da loja
-        from superadmin.services.database_schema_service import get_apps_esperados_para_loja
+        # 4. Mesmo caminho do cadastro/Corrigir (fake superadmin.0001 + sqlmigrate no schema).
+        # call_command("migrate") ignora search_path e deixa loja CRM sem nfse/whatsapp.
+        from superadmin.services.database_schema_service import DatabaseSchemaService
 
-        apps_to_migrate = get_apps_esperados_para_loja(loja)
-
-        self.stdout.write(f'\nMigrando apps: {", ".join(apps_to_migrate)}\n')
-        for app in apps_to_migrate:
-            try:
-                extra = {}
-                if app == "crm_vendas" and force_crm:
-                    extra["fake_initial"] = True
-                call_command("migrate", app, "--database", db_name, verbosity=1, **extra)
-                self.stdout.write(self.style.SUCCESS(f"  ✅ {app}"))
-            except Exception as e:
-                self.stdout.write(self.style.WARNING(f"  ⚠️ {app}: {e}"))
+        self.stdout.write("\nAplicando schema completo (mesmo fluxo do cadastro da loja)...\n")
+        try:
+            DatabaseSchemaService.configurar_schema_completo(loja)
+            self.stdout.write(self.style.SUCCESS("  ✅ Schema completo aplicado"))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"  ❌ Falha no schema: {e}"))
+            return
 
         self.stdout.write("\n" + "="*60)
         self.stdout.write(self.style.SUCCESS("✅ Setup concluído. A loja pode passar a salvar dados no schema isolado."))

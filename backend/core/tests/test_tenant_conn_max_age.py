@@ -4,7 +4,11 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
 
-from core.db_config import _default_tenant_conn_max_age, ensure_loja_database_config
+from core.db_config import (
+    _default_tenant_conn_max_age,
+    close_tenant_connections,
+    ensure_loja_database_config,
+)
 
 
 class TenantConnMaxAgeTest(SimpleTestCase):
@@ -24,3 +28,30 @@ class TenantConnMaxAgeTest(SimpleTestCase):
             self.assertTrue(ensure_loja_database_config("loja_x"))
             from django.conf import settings
             self.assertEqual(settings.DATABASES["loja_x"]["CONN_MAX_AGE"], 0)
+
+    @override_settings(DATABASES={"default": {}, "suporte": {}, "loja_x": {}})
+    def test_fecha_so_alias_de_loja(self):
+        closed = []
+
+        class FakeConn:
+            def close(self):
+                closed.append(self.alias)
+
+        class FakeConnections:
+            databases = {"default": {}, "suporte": {}, "loja_x": {}}
+
+            def __getitem__(self, alias):
+                conn = FakeConn()
+                conn.alias = alias
+                return conn
+
+        with patch("django.db.connections", FakeConnections()):
+            close_tenant_connections()
+        self.assertEqual(closed, ["loja_x"])
+
+    def test_hook_django_q_fecha_tenant(self):
+        from core.q_signals import close_tenant_after_task
+
+        with patch("core.db_config.close_tenant_connections") as mock_close:
+            close_tenant_after_task({"id": 1})
+            mock_close.assert_called_once()

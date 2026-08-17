@@ -8,7 +8,13 @@ git checkout staging
 git pull --ff-only origin staging
 docker compose -f docker-compose.beta.yml up -d --build backend worker frontend evolution orthanc media
 docker compose -f docker-compose.beta.yml exec -T backend python manage.py migrate --noinput
-docker compose -f docker-compose.beta.yml exec -T backend python manage.py migrate_all_lojas
-docker compose -f docker-compose.beta.yml exec -T backend python manage.py ensure_all
+if [ -n "${MIGRATE_APPS:-}" ]; then
+  echo "=== Migrate pontual: $MIGRATE_APPS ==="
+  docker compose -f docker-compose.beta.yml exec -T backend python manage.py migrate_all_lojas --apps "$MIGRATE_APPS"
+  docker compose -f docker-compose.beta.yml exec -T backend python manage.py ensure_all --apps "$MIGRATE_APPS"
+else
+  docker compose -f docker-compose.beta.yml exec -T backend python manage.py migrate_all_lojas
+  docker compose -f docker-compose.beta.yml exec -T backend python manage.py ensure_all
+fi
 echo "=== Beta isolado atualizado ==="
 docker compose -f docker-compose.beta.yml ps

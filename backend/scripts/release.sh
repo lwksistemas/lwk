@@ -12,6 +12,9 @@
 #   5. setup_initial_data (best-effort)
 #   6. collectstatic (falha = aborta release)
 
+# Variável opcional MIGRATE_APPS=clinica_beleza (ou crm_vendas,whatsapp)
+# restringe migrate_all_lojas + ensure_all àqueles apps e pula os extra CRM.
+
 set -e
 
 log_step() {
@@ -37,21 +40,21 @@ python manage.py migrate --noinput
 log_step "migrate suporte"
 python manage.py migrate --database=suporte --noinput
 
-run_best_effort "migrate_all_lojas" python manage.py migrate_all_lojas
+run_best_effort "migrate_all_lojas" python manage.py migrate_all_lojas ${MIGRATE_APPS:+--apps "$MIGRATE_APPS"}
 run_best_effort "corrigir_migrations_inconsistentes" python manage.py corrigir_migrations_inconsistentes
 
 log_step "ensure_all"
-python manage.py ensure_all
+python manage.py ensure_all ${MIGRATE_APPS:+--apps "$MIGRATE_APPS"}
 
-run_best_effort "ensure_evolution_webhooks" python manage.py ensure_evolution_webhooks
-
-run_best_effort "corrigir_schema_clinica_beleza" python manage.py corrigir_schema_clinica_beleza
-run_best_effort "corrigir_schema_crm" python manage.py corrigir_schema_crm
-run_best_effort "ensure_crm_financeiro_tabelas" python manage.py ensure_crm_financeiro_tabelas
-run_best_effort "ensure_crm_emitente_documento_colunas" python manage.py ensure_crm_emitente_documento_colunas
-run_best_effort "ensure_crm_negociacao_historico" python manage.py ensure_crm_negociacao_historico
-
-run_best_effort "setup_initial_data" python manage.py setup_initial_data
+if [ -z "${MIGRATE_APPS:-}" ]; then
+  run_best_effort "ensure_evolution_webhooks" python manage.py ensure_evolution_webhooks
+  run_best_effort "corrigir_schema_clinica_beleza" python manage.py corrigir_schema_clinica_beleza
+  run_best_effort "corrigir_schema_crm" python manage.py corrigir_schema_crm
+  run_best_effort "ensure_crm_financeiro_tabelas" python manage.py ensure_crm_financeiro_tabelas
+  run_best_effort "ensure_crm_emitente_documento_colunas" python manage.py ensure_crm_emitente_documento_colunas
+  run_best_effort "ensure_crm_negociacao_historico" python manage.py ensure_crm_negociacao_historico
+  run_best_effort "setup_initial_data" python manage.py setup_initial_data
+fi
 
 log_step "collectstatic"
 python manage.py collectstatic --noinput

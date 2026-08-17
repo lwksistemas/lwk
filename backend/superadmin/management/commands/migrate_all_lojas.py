@@ -12,7 +12,24 @@ from superadmin.models import Loja
 
 
 class Command(BaseCommand):
-    help = "Aplica migrations em todos os schemas das lojas"
+    help = (
+        "Aplica migrations nos schemas das lojas. "
+        "Use --apps clinica_beleza para não tocar em CRM/outros tipos."
+    )
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--apps",
+            action="append",
+            dest="apps",
+            help="App(s) Django a migrar (vírgula ou repetir a flag). Ex.: clinica_beleza",
+        )
+        parser.add_argument(
+            "--tipo",
+            action="append",
+            dest="tipos",
+            help="Só lojas deste tipo_loja.slug (vírgula ou repetir). Ex.: clinica-beleza",
+        )
 
     def handle(self, *args, **options):
         """✅ FIX: Retry logic para evitar timeout do PostgreSQL
@@ -21,7 +38,20 @@ class Command(BaseCommand):
 
         from django.db import OperationalError
 
-        self.stdout.write("🔧 Aplicando migrations em todas as lojas...\n")
+        from superadmin.tenant_deploy import (
+            deve_rodar_fix_colunas_crm,
+            filtrar_apps_loja,
+            parse_apps_option,
+        )
+
+        filtro_apps = parse_apps_option(options.get("apps"))
+        filtro_tipos = parse_apps_option(options.get("tipos"))
+        if filtro_apps:
+            self.stdout.write(f"🔧 Migrations só dos apps: {', '.join(filtro_apps)}\n")
+        else:
+            self.stdout.write("🔧 Aplicando migrations em todas as lojas...\n")
+        if filtro_tipos:
+            self.stdout.write(f"🔧 Só tipos: {', '.join(filtro_tipos)}\n")
 
         # ✅ FIX: Retry logic para buscar lojas
         max_retries = 3
@@ -30,7 +60,10 @@ class Command(BaseCommand):
 
         for attempt in range(max_retries):
             try:
-                lojas = list(Loja.objects.all())
+                qs = Loja.objects.select_related("tipo_loja").all()
+                if filtro_tipos:
+                    qs = qs.filter(tipo_loja__slug__in=filtro_tipos)
+                lojas = list(qs)
                 self.stdout.write(f"📊 Total de lojas: {len(lojas)}\n")
                 break
             except OperationalError as e:
@@ -66,14 +99,14 @@ class Command(BaseCommand):
             self.stdout.write(f"Loja: {loja.nome} (ID: {loja.id})")
             self.stdout.write(f"Database: {loja.database_name}")
 
+            apps_to_migrate = filtrar_apps_loja(loja, filtro_apps or None)
+            if not apps_to_migrate:
+                self.stdout.write("⏭️  Loja não usa o(s) app(s) pedido(s) — pulada")
+                continue
+
             from core.db_config import ensure_loja_database_config
             if ensure_loja_database_config(loja.database_name, conn_max_age=0):
                 self.stdout.write("✅ Banco configurado")
-
-            from superadmin.services.database_schema_service import get_apps_esperados_para_loja
-
-            apps_to_migrate = get_apps_esperados_para_loja(loja)
-
             for app in apps_to_migrate:
                 # ✅ FIX: Retry logic para cada migration
                 for attempt in range(max_retries):
@@ -121,15 +154,15 @@ class Command(BaseCommand):
                 del settings.DATABASES[loja.database_name]
                 self.stdout.write("✅ Banco removido das configurações")
 
-        # Corrige colunas em schemas que têm crm_vendas_atividade
-        self.stdout.write(f"\n{'='*60}")
-        self.stdout.write("🔧 Verificando colunas em schemas com CRM...")
-        try:
-            call_command("fix_google_event_id_column", verbosity=1)
-            call_command("fix_duracao_minutos_column", verbosity=1)
-            call_command("fix_vendedor_column", verbosity=1)
-        except Exception as e:
-            self.stdout.write(self.style.WARNING(f"  ⚠️ fix columns: {e}"))
+        if deve_rodar_fix_colunas_crm(filtro_apps or None):
+            self.stdout.write(f"\n{'='*60}")
+            self.stdout.write("🔧 Verificando colunas em schemas com CRM...")
+            try:
+                call_command("fix_google_event_id_column", verbosity=1)
+                call_command("fix_duracao_minutos_column", verbosity=1)
+                call_command("fix_vendedor_column", verbosity=1)
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"  ⚠️ fix columns: {e}"))
 
         self.stdout.write(f"\n{'='*60}")
         self.stdout.write(self.style.SUCCESS("\n✅ Processo concluído!"))

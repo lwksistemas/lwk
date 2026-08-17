@@ -61,6 +61,7 @@ services:
       - LWK_ENVIRONMENT=staging
       - DJANGO_Q_WORKERS=1
       - CONN_MAX_AGE=60
+      - TENANT_CONN_MAX_AGE=0
     command:
       - gunicorn
       - config.wsgi
@@ -110,6 +111,7 @@ services:
       - LWK_PROCESS_ROLE=worker
       - LWK_ENVIRONMENT=staging
       - DJANGO_Q_WORKERS=1
+      - TENANT_CONN_MAX_AGE=0
     command: sh scripts/start_worker.sh
     volumes:
       - /etc/lwk-encryption.key:/etc/lwk-encryption.key:ro

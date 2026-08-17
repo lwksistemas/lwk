@@ -67,17 +67,39 @@ ENSURES = [
 
 
 class Command(BaseCommand):
-    help = "Executa todos os ensure_* do deploy em sequência (consolidado)"
+    help = (
+        "Executa ensure_* do deploy. "
+        "Use --apps clinica_beleza para não rodar ensures de CRM/WhatsApp/etc."
+    )
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--apps",
+            action="append",
+            dest="apps",
+            help="App(s) Django cujos ensures devem rodar. Ex.: clinica_beleza",
+        )
 
     def handle(self, *args, **options):
-        total = len(ENSURES)
+        from superadmin.tenant_deploy import ensures_para_apps, parse_apps_option
+
+        filtro_apps = parse_apps_option(options.get("apps"))
+        fila = ensures_para_apps(filtro_apps or None, ENSURES)
+        if filtro_apps:
+            self.stdout.write(
+                f"🚀 ensure_all só apps {', '.join(filtro_apps)}: {len(fila)} comando(s)\n",
+            )
+        total = len(fila)
+        if total == 0:
+            self.stdout.write(self.style.WARNING("Nenhum ensure mapeado para estes apps."))
+            return
         sucesso = 0
         falhas = []
         inicio = time.time()
 
         self.stdout.write(f"🚀 ensure_all: executando {total} ensures...\n")
 
-        for i, (cmd_name, kwargs) in enumerate(ENSURES, 1):
+        for i, (cmd_name, kwargs) in enumerate(fila, 1):
             t0 = time.time()
             try:
                 call_command(cmd_name, **kwargs)

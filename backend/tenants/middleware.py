@@ -189,9 +189,8 @@ class TenantMiddleware:
             logger.error(f"❌ [TenantMiddleware] Erro: {e}")
             raise
         finally:
-            # ⚠️ NÃO limpar thread-local aqui!
-            # A serialização DRF acontece APÓS o middleware retornar a response.
-            pass
+            from core.db_config import close_tenant_connections
+            close_tenant_connections()
 
     def _handle_early_returns(self, request):
         """Trata health check e rotas de auth antes de resolver tenant. Retorna Response ou None."""

@@ -106,11 +106,27 @@ def get_loja_database_config(
 
 
 def _default_tenant_conn_max_age() -> int:
-    """Pool de conexões do tenant no hot path (web). Override: CONN_MAX_AGE."""
+    """Tenant fecha a conexão no fim do request (0). Não herda CONN_MAX_AGE do public.
+
+    Override: TENANT_CONN_MAX_AGE. Public continua com CONN_MAX_AGE no DATABASES['default'].
+    """
     try:
-        return int(getattr(settings, "CONN_MAX_AGE", None) or os.environ.get("CONN_MAX_AGE", "120") or 120)
+        return int(os.environ.get("TENANT_CONN_MAX_AGE", "0") or 0)
     except (TypeError, ValueError):
-        return 120
+        return 0
+
+
+def close_tenant_connections() -> None:
+    """Fecha sockets dos schemas loja_* sem tocar em public/suporte."""
+    from django.db import connections
+
+    for alias in list(connections.databases):
+        if alias in ("default", "suporte"):
+            continue
+        try:
+            connections[alias].close()
+        except Exception:
+            logger.debug("close_tenant_connections: %s", alias, exc_info=True)
 
 
 def ensure_loja_database_config(database_name: str, conn_max_age: int | None = None) -> bool:
@@ -128,11 +144,7 @@ def ensure_loja_database_config(database_name: str, conn_max_age: int | None = N
         return False
 
     if database_name in settings.DATABASES:
-        # Se a config foi criada com conn_max_age=0 (legado), promove para pool.
-        cfg = settings.DATABASES[database_name]
-        current = int(cfg.get("CONN_MAX_AGE") or 0)
-        if conn_max_age > 0 and current == 0:
-            cfg["CONN_MAX_AGE"] = conn_max_age
+        settings.DATABASES[database_name]["CONN_MAX_AGE"] = conn_max_age
         return True
 
     config = get_loja_database_config(database_name, conn_max_age)

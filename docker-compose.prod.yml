@@ -69,6 +69,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - LWK_PROCESS_ROLE=web
       - CONN_MAX_AGE=120
+      - TENANT_CONN_MAX_AGE=0
       - DJANGO_Q_WORKERS=4
     # Override do Dockerfile: 6×2=12 slots (antes 4×2=8) no host 8 vCPU.
     command:
@@ -119,6 +120,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - LWK_PROCESS_ROLE=worker
       - DJANGO_Q_WORKERS=4
+      - TENANT_CONN_MAX_AGE=0
     command: sh scripts/start_worker.sh
     volumes:
       - media:/app/media

@@ -56,10 +56,14 @@ def _filtrar_tabelas_schema_public(db_helper, loja, table_names: list) -> list:
 def _preparar_tabelas_backup(db_helper, config, loja) -> list:
     """Define search_path PostgreSQL e retorna lista de tabelas a exportar."""
     if not db_helper._is_sqlite() and db_helper._pg_schema and is_safe_pg_schema_token(db_helper._pg_schema):
+        if db_helper._pg_schema == "public":
+            raise BackupExportError(
+                "Backup recusado: schema public não pode ser exportado (misturaria dados de outras lojas)."
+            )
         try:
             with db_helper.get_connection().cursor() as cursor:
-                cursor.execute(f'SET search_path TO "{db_helper._pg_schema}", public')
-            logger.info("Backup: search_path definido para '%s'", db_helper._pg_schema)
+                cursor.execute(f'SET search_path TO "{db_helper._pg_schema}"')
+            logger.info("Backup: search_path definido só para '%s'", db_helper._pg_schema)
         except Exception as e:
             logger.warning("Backup: não foi possível SET search_path: %s", e)
     try:

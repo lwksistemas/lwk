@@ -84,50 +84,28 @@ class DatabaseHelper:
                 )
                 tables = [row[0] for row in cursor.fetchall()]
             else:
-                # Usar current_schema() para listar tabelas (mesma conexão que o ORM usa no request)
-                current = self._get_current_schema_pg()
-                if current:
-                    self._pg_schema = current
+                schema = self._pg_schema
+                if not is_safe_pg_schema_token(schema) or schema == "public":
+                    logger.error(
+                        "Backup recusou listar tabelas: schema inválido ou public (%r)",
+                        schema,
+                    )
+                    return []
                 cursor.execute(
                     """
                     SELECT tablename FROM pg_tables
-                    WHERE schemaname = current_schema()
+                    WHERE schemaname = %s
                     ORDER BY tablename
                     """,
+                    [schema],
                 )
                 tables = [row[0] for row in cursor.fetchall()]
                 if tables:
-                    logger.info(f"Backup: {len(tables)} tabela(s) em current_schema()='{self._pg_schema}'")
-                if not tables:
-                    cursor.execute(
-                        """
-                        SELECT table_name FROM information_schema.tables
-                        WHERE table_schema = %s AND table_type = 'BASE TABLE'
-                        ORDER BY table_name
-                        """,
-                        [self._pg_schema],
-                    )
-                    tables = [row[0] for row in cursor.fetchall()]
-                # Fallback: se o schema da loja está vazio, listar do public (ORM pode estar usando public)
-                if not tables and self._pg_schema and self._pg_schema != "public":
-                    cursor.execute(
-                        """
-                        SELECT tablename FROM pg_tables
-                        WHERE schemaname = 'public'
-                        ORDER BY tablename
-                        """,
-                    )
-                    tables = [row[0] for row in cursor.fetchall()]
-                    if tables:
-                        self._pg_schema = "public"
-                        logger.info(
-                            f"Backup: 0 tabelas no schema nominal; usando schema 'public' ({len(tables)} tabela(s))",
-                        )
-                if not tables:
-                    current = self._get_current_schema_pg()
+                    logger.info("Backup: %s tabela(s) no schema da loja '%s'", len(tables), schema)
+                else:
                     logger.warning(
-                        f"Backup: 0 tabelas em current_schema e em schema '{self._pg_schema}'; "
-                        f"current_schema()='{current}'",
+                        "Backup: 0 tabelas no schema da loja '%s' — recusando fallback para public",
+                        schema,
                     )
         # Excluir tabelas de sistema e prefixos proibidos (superadmin, auth, django, etc.)
         def _allow_table(name: str) -> bool:

@@ -91,6 +91,7 @@ ENSURE_COMANDOS_POR_TIPO.update(
             "ensure_crm_config_colunas",
             "ensure_canal_assinatura_vendedor",
             "ensure_assinatura_link_enviado_em",
+            "ensure_whatsapp_evolution_fields",
         ],
     },
 )
@@ -547,12 +548,14 @@ def _processar_loja_auditoria(loja, aplicar_correcao: bool, resumo: dict) -> dic
                 resumo["corrigidos"] += 1
             audit_pos = auditar_loja(loja)
             ok_final = bool(audit_pos.get("ok"))
+            audit = audit_pos
         elif audit.get("tabelas_extras_count", 0) > 0:
             correcao = limpar_tabelas_extras_loja(loja)
             if correcao.get("sucesso") and correcao.get("removidas"):
                 resumo["corrigidos"] += 1
             audit_pos = auditar_loja(loja)
             ok_final = bool(audit_pos.get("ok"))
+            audit = audit_pos
     return {"audit": audit, "correcao": correcao, "audit_pos": audit_pos, "ok_final": ok_final}
 
 

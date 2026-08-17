@@ -92,6 +92,17 @@ def _rollback_and_reconnect(alias: str) -> None:
         conn.ensure_connection()
 
 
+def _sqlmigrate_body(sql: str) -> str:
+    """Remove BEGIN/COMMIT do sqlmigrate — o tenant já pode estar numa transação."""
+    lines: list[str] = []
+    for line in (sql or "").splitlines():
+        token = line.strip().rstrip(";").upper()
+        if token in ("BEGIN", "COMMIT", "START TRANSACTION"):
+            continue
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
 def _reset_tenant_connection(alias: str) -> None:
     """Evita 'current transaction is aborted' em requisições seguintes (ex.: re-auditoria)."""
     if alias not in connections:
@@ -254,7 +265,7 @@ class DatabaseSchemaService:
         try:
             sql_out = StringIO()
             call_command("sqlmigrate", app_label, migration_name, "--database", loja_database_name, stdout=sql_out)
-            sql = sql_out.getvalue()
+            sql = _sqlmigrate_body(sql_out.getvalue())
             if not sql or sql.strip() == "--":
                 logger.info("      ⚠️  Migration %s sem SQL", migration_name)
                 _record_migration_if_missing(loja_database_name, schema_name, app_label, migration_name)
@@ -273,8 +284,11 @@ class DatabaseSchemaService:
                     _record_migration_if_missing(loja_database_name, schema_name, app_label, migration_name)
                 except Exception as fake_err:
                     logger.error("      ❌ Falha ao registrar migration fake: %s", fake_err)
-            if tipo_slug == "crm-vendas" and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS and not _pg_objects_already_exist(e):
-                raise
+            elif tipo_slug == "crm-vendas" and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
+                logger.warning(
+                    "App crítico %s falhou em loja já existente; seguindo os demais apps (%s).",
+                    app, e,
+                )
 
     @staticmethod
     def _verify_schema_tables(conn, schema_name, apps_to_migrate):
@@ -331,19 +345,12 @@ class DatabaseSchemaService:
                     )
                 """)
                 logger.info("✅ Tabela django_migrations criada em '%s'", schema_name)
-                # WhatsApp 0002 depende de superadmin.0001 no histórico; tabelas ficam no public.
-                cur.execute(
-                    """
-                    SELECT EXISTS (
-                      SELECT 1 FROM django_migrations
-                      WHERE app = 'whatsapp' AND name LIKE '0002%%'
-                    )
-                    """,
-                )
-                if cur.fetchone()[0]:
-                    _record_migration_if_missing(
-                        loja.database_name, schema_name, "superadmin", "0001_initial",
-                    )
+
+            # nfse.0001 e whatsapp.0002/0003 dependem de superadmin.0001 no grafo Django.
+            # As tabelas superadmin_* ficam no public — só alinhar o histórico do tenant.
+            _record_migration_if_missing(
+                loja.database_name, schema_name, "superadmin", "0001_initial",
+            )
 
             for app in apps_to_migrate:
                 try:
@@ -371,7 +378,7 @@ class DatabaseSchemaService:
                     _rollback_and_reconnect(loja.database_name)
                     conn = connections[loja.database_name]
                     if tipo_slug == "crm-vendas" and app in APPS_CRITICOS_MIGRACAO_CRM_VENDAS:
-                        raise
+                        logger.error("❌ Erro ao processar app crítico %s: %s", app, e)
                     logger.warning("Continuando apesar do erro em %s", app)
 
             _rollback_and_reconnect(loja.database_name)

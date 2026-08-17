@@ -143,6 +143,32 @@ export default function SchemasPage() {
     setProgressText(null);
   };
 
+  const mesclarLinhaLoja = (
+    prev: SchemaResult | null,
+    incoming: SchemaResult,
+    lojaId: number,
+    mensagem?: string
+  ): SchemaResult => {
+    const newRow = (incoming.resultados || []).find((r) => r.audit.loja_id === lojaId);
+    const resultados = prev?.resultados?.length
+      ? prev.resultados.map((r) => (r.audit.loja_id === lojaId && newRow ? newRow : r))
+      : incoming.resultados || [];
+    const ok = resultados.filter((r) => r.ok_final).length;
+    return {
+      ...prev,
+      postgresql: incoming.postgresql ?? prev?.postgresql,
+      aplicar_correcao: true,
+      resultados,
+      resumo: {
+        total: resultados.length,
+        ok,
+        falhas: resultados.length - ok,
+        corrigidos: newRow?.ok_final ? (prev?.resumo?.corrigidos ?? 0) + 1 : prev?.resumo?.corrigidos ?? 0,
+      },
+      mensagem: mensagem || incoming.mensagem,
+    };
+  };
+
   const corrigirUmaLoja = async (lojaId: number) => {
     const ok = window.confirm(
       `Aplicar migrations e ensure nesta loja (id ${lojaId})? Pode levar até um minuto.`
@@ -157,17 +183,10 @@ export default function SchemasPage() {
       );
       const row = (corr.resultados || []).find((r) => r.audit.loja_id === lojaId);
       const corrMsg = row?.correcao?.mensagem;
-      setProgressText('Atualizando auditoria…');
-      const { data } = await postAuditoria({
-        aplicar_correcao: false,
-        limite: SCHEMA_AUDIT_LIMITE,
-      });
-      setResult({
-        ...data,
-        mensagem: corrMsg
-          ? `${row?.correcao?.sucesso === false ? 'Correção incompleta: ' : ''}${corrMsg}`
-          : data.mensagem,
-      });
+      const mensagem = corrMsg
+        ? `${row?.correcao?.sucesso === false ? 'Correção incompleta: ' : ''}${corrMsg}`
+        : corr.mensagem;
+      setResult((prev) => mesclarLinhaLoja(prev, corr, lojaId, mensagem));
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { detail?: string } }; message?: string };
       const detail = ax?.response?.data?.detail;
@@ -323,10 +342,22 @@ export default function SchemasPage() {
           </div>
         )}
 
-        {/* Erro geral (timeout, rede, etc.) sem confundir com «sem PostgreSQL» */}
+        {/* Mensagem da correção / erro — não pintar sucesso de vermelho */}
         {result?.mensagem && result.postgresql !== false && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <p className="text-red-700 dark:text-red-300 flex items-center gap-2">
+          <div
+            className={
+              /falha|erro|incompleta|esgotado/i.test(result.mensagem)
+                ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4'
+                : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4'
+            }
+          >
+            <p
+              className={
+                /falha|erro|incompleta|esgotado/i.test(result.mensagem)
+                  ? 'text-red-700 dark:text-red-300 flex items-center gap-2'
+                  : 'text-green-700 dark:text-green-300 flex items-center gap-2'
+              }
+            >
               <AlertTriangle size={18} />
               {result.mensagem}
             </p>

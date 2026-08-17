@@ -4,6 +4,7 @@ from django.test import SimpleTestCase
 from superadmin.backup_service.image_exporter import (
     _looks_like_media_url,
     _split_url_list,
+    pasta_pessoa,
 )
 
 
@@ -29,3 +30,18 @@ class BackupImageExporterHelpersTest(SimpleTestCase):
         raw = "https://a.com/1.jpg, https://b.com/2.png"
         urls = _split_url_list(raw)
         self.assertEqual(urls, ["https://a.com/1.jpg", "https://b.com/2.png"])
+
+    def test_pasta_pessoa_nome_e_cpf(self):
+        self.assertEqual(
+            pasta_pessoa(nome="LUIZ HENRIQUE FELIX", cpf="222.392.558-89"),
+            "LUIZ_HENRIQUE_FELIX_22239255889",
+        )
+
+    def test_pasta_pessoa_so_nome(self):
+        self.assertEqual(
+            pasta_pessoa(nome="Renata Ribeiro Guariba", cpf=""),
+            "Renata_Ribeiro_Guariba",
+        )
+
+    def test_pasta_pessoa_so_cpf(self):
+        self.assertEqual(pasta_pessoa(nome="", cpf="349.992.498-41"), "34999249841")

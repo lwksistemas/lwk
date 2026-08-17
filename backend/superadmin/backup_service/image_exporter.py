@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import re
+import unicodedata
 from typing import Any
 from urllib.parse import unquote, urlparse
 
@@ -25,9 +26,24 @@ MEDIA_SERVER_RE = re.compile(r"media\.lwksistemas\.com\.br", re.IGNORECASE)
 MEDIA_EXT_RE = re.compile(r"\.(jpe?g|png|gif|webp|bmp|svg|pdf|heic|heif)(?:\?|#|$)", re.IGNORECASE)
 
 TABLE_URL_COLUMNS: dict[str, tuple[str, ...]] = {
-    "clinica_beleza_paciente_fotos": ("url",),
     "restaurante_cardapio": ("imagem_url",),
     "ecommerce_produtos": ("imagem_url",),
+}
+
+# Foto de perfil: a própria linha é o paciente/cliente (nome + CPF).
+PESSOA_PERFIL_TABLES: dict[str, dict[str, str]] = {
+    "clinica_beleza_patient": {"kind": "pacientes", "foto_col": "foto_url"},
+    "cabeleireiro_cliente": {"kind": "clientes", "foto_col": "foto_url"},
+}
+
+# Fotos ligadas a um paciente/cliente por FK.
+PESSOA_FOTO_FK_TABLES: dict[str, dict[str, str]] = {
+    "clinica_beleza_paciente_fotos": {
+        "kind": "pacientes",
+        "pessoa_table": "clinica_beleza_patient",
+        "fk": "patient_id",
+        "url_col": "url",
+    },
 }
 
 TABLE_BINARY_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
@@ -71,6 +87,32 @@ def _split_url_list(raw: str) -> list[str]:
             pass
     parts = re.split(r"[\s,;|]+", text)
     return [p.strip() for p in parts if p.strip()]
+
+
+_UNSAFE_FOLDER_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def _cpf_digits(cpf: str | None) -> str:
+    return re.sub(r"\D", "", cpf or "")
+
+
+def _safe_folder_part(text: str) -> str:
+    raw = unicodedata.normalize("NFKD", (text or "").strip())
+    raw = raw.encode("ascii", "ignore").decode("ascii")
+    return _UNSAFE_FOLDER_RE.sub("_", raw).strip("._")[:80]
+
+
+def pasta_pessoa(*, nome: str = "", cpf: str = "", fallback: str = "") -> str:
+    """Pasta do backup: NOME, CPF ou NOME_CPF (o que existir)."""
+    nome_part = _safe_folder_part(nome)
+    cpf_part = _cpf_digits(cpf)
+    if nome_part and cpf_part:
+        return f"{nome_part}_{cpf_part}"
+    if nome_part:
+        return nome_part
+    if cpf_part:
+        return cpf_part
+    return _safe_folder_part(fallback) or "sem_identificacao"
 
 
 def _safe_zip_name(prefix: str, url: str, ext_fallback: str = ".bin") -> str:
@@ -127,12 +169,16 @@ class BackupImageExporter:
         self.loja = loja
         self.db_helper = db_helper
         self._seen_urls: set[str] = set()
+        self._used_paths: set[str] = set()
+        self._pessoas_cache: dict[str, dict[int, dict[str, str]]] = {}
+        self._pasta_owners: dict[tuple[str, str], int] = {}
         self._total_bytes = 0
         self.manifest: list[dict[str, Any]] = []
 
     def export_to_zip(self, zip_builder: ZipBuilder, table_names: list[str], loja_id: int) -> dict[str, Any]:
         self._export_loja_logos(zip_builder)
         self._export_table_binaries(zip_builder, loja_id)
+        self._export_fotos_por_pessoa(zip_builder, loja_id)
         self._export_known_url_tables(zip_builder, loja_id)
         self._export_generic_url_columns(zip_builder, table_names, loja_id)
 
@@ -175,6 +221,7 @@ class BackupImageExporter:
     ) -> bool:
         if not content or not self._can_add(len(content)):
             return False
+        zip_path = self._unique_zip_path(zip_path)
         zip_builder.add_file(zip_path, content)
         self._total_bytes += len(content)
         self.manifest.append({
@@ -194,6 +241,7 @@ class BackupImageExporter:
         origem: str,
         referencia: str,
         zip_prefix: str,
+        filename: str | None = None,
     ) -> bool:
         normalized = (url or "").strip()
         if not normalized or not _looks_like_media_url(normalized):
@@ -204,11 +252,128 @@ class BackupImageExporter:
         if not content:
             return False
         ext = _guess_ext_from_bytes(content, normalized)
-        zip_path = _safe_zip_name(zip_prefix, normalized, ext_fallback=ext)
+        if filename:
+            base = re.sub(r"[^a-zA-Z0-9._-]+", "_", filename).strip("._")
+            if "." not in base:
+                base = f"{base}{ext}"
+            zip_path = f"{zip_prefix}/{base}"
+        else:
+            zip_path = _safe_zip_name(zip_prefix, normalized, ext_fallback=ext)
         if self._add_bytes(zip_builder, zip_path, content, origem=origem, referencia=referencia, url=normalized):
             self._seen_urls.add(normalized)
             return True
         return False
+
+    def _unique_zip_path(self, path: str) -> str:
+        if path not in self._used_paths:
+            self._used_paths.add(path)
+            return path
+        if "." in path.rsplit("/", 1)[-1]:
+            stem, ext = path.rsplit(".", 1)
+            ext = f".{ext}"
+        else:
+            stem, ext = path, ""
+        i = 2
+        candidate = f"{stem}_{i}{ext}"
+        while candidate in self._used_paths:
+            i += 1
+            candidate = f"{stem}_{i}{ext}"
+        self._used_paths.add(candidate)
+        return candidate
+
+    def _load_pessoas(self, table: str, loja_id: int) -> dict[int, dict[str, str]]:
+        if table in self._pessoas_cache:
+            return self._pessoas_cache[table]
+        if not self.db_helper.table_exists(table):
+            self._pessoas_cache[table] = {}
+            return {}
+        columns, records = self.db_helper.fetch_all_records(table, loja_id=loja_id)
+        idx = {name: i for i, name in enumerate(columns)}
+        pessoas: dict[int, dict[str, str]] = {}
+        for rec in records:
+            pid = rec[idx["id"]]
+            pessoas[int(pid)] = {
+                "nome": str(rec[idx["nome"]] or "") if "nome" in idx else "",
+                "cpf": str(rec[idx["cpf"]] or "") if "cpf" in idx else "",
+            }
+        self._pessoas_cache[table] = pessoas
+        return pessoas
+
+    def _pasta_pessoa_unica(self, kind: str, pessoa_id: int, nome: str, cpf: str) -> str:
+        base = pasta_pessoa(nome=nome, cpf=cpf, fallback=f"{kind}_{pessoa_id}")
+        key = (kind, base)
+        dono = self._pasta_owners.get(key)
+        if dono is None:
+            self._pasta_owners[key] = pessoa_id
+            return base
+        if dono == pessoa_id:
+            return base
+        return f"{base}_id{pessoa_id}"
+
+    def _export_fotos_por_pessoa(self, zip_builder: ZipBuilder, loja_id: int) -> None:
+        for table, meta in PESSOA_PERFIL_TABLES.items():
+            if not self.db_helper.table_exists(table):
+                continue
+            pessoas = self._load_pessoas(table, loja_id)
+            columns, records = self.db_helper.fetch_all_records(table, loja_id=loja_id)
+            if not columns or not records:
+                continue
+            idx = {name: i for i, name in enumerate(columns)}
+            foto_col = meta["foto_col"]
+            if foto_col not in idx:
+                continue
+            for rec in records:
+                pid = int(rec[idx["id"]])
+                pessoa = pessoas.get(pid, {})
+                pasta = self._pasta_pessoa_unica(
+                    meta["kind"], pid, pessoa.get("nome", ""), pessoa.get("cpf", ""),
+                )
+                val = rec[idx[foto_col]]
+                if not val:
+                    continue
+                for url in _split_url_list(str(val)):
+                    self._add_url(
+                        zip_builder,
+                        url,
+                        origem=table,
+                        referencia=f"id={pid}:perfil",
+                        zip_prefix=f"imagens/{meta['kind']}/{pasta}",
+                        filename="perfil",
+                    )
+
+        for table, meta in PESSOA_FOTO_FK_TABLES.items():
+            if not self.db_helper.table_exists(table):
+                continue
+            pessoas = self._load_pessoas(meta["pessoa_table"], loja_id)
+            columns, records = self.db_helper.fetch_all_records(table, loja_id=loja_id)
+            if not columns or not records:
+                continue
+            idx = {name: i for i, name in enumerate(columns)}
+            fk, url_col = meta["fk"], meta["url_col"]
+            if fk not in idx or url_col not in idx:
+                continue
+            for rec in records:
+                raw_fk = rec[idx[fk]]
+                if raw_fk is None:
+                    continue
+                pid = int(raw_fk)
+                pessoa = pessoas.get(pid, {})
+                pasta = self._pasta_pessoa_unica(
+                    meta["kind"], pid, pessoa.get("nome", ""), pessoa.get("cpf", ""),
+                )
+                foto_id = rec[idx["id"]] if "id" in idx else pid
+                val = rec[idx[url_col]]
+                if not val:
+                    continue
+                for url in _split_url_list(str(val)):
+                    self._add_url(
+                        zip_builder,
+                        url,
+                        origem=table,
+                        referencia=f"id={foto_id}:patient_id={pid}",
+                        zip_prefix=f"imagens/{meta['kind']}/{pasta}",
+                        filename=f"foto_{foto_id}",
+                    )
 
     def _export_loja_logos(self, zip_builder: ZipBuilder) -> None:
         for field in LOJA_URL_FIELDS:
@@ -305,7 +470,12 @@ class BackupImageExporter:
         table_names: list[str],
         loja_id: int,
     ) -> None:
-        skip_tables = set(TABLE_URL_COLUMNS) | set(TABLE_BINARY_COLUMNS)
+        skip_tables = (
+            set(TABLE_URL_COLUMNS)
+            | set(TABLE_BINARY_COLUMNS)
+            | set(PESSOA_PERFIL_TABLES)
+            | set(PESSOA_FOTO_FK_TABLES)
+        )
         for table in table_names:
             if table in skip_tables or not self.db_helper.table_exists(table):
                 continue

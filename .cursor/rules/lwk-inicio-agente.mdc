@@ -18,23 +18,33 @@ alwaysApply: true
 
 Beta isolado: API, mídia de teste, Evolution e PACS no `201.54.18.213`. Não usar produção para WhatsApp/DICOM/NFS-e.
 
-## Deploy
+## Deploy (só o que mudou)
+
+Não rebuildar o ERP inteiro nem Evolution/Orthanc em bug de um app.
+O Next.js é um único container: “só frontend” = só o serviço `frontend` (não dá para publicar só a clínica sem o CRM no mesmo build).
+
+| Mudança | Produção | Beta |
+|---|---|---|
+| Tela / CSS / JS | `deploy-prod-magalu.sh frontend` | `deploy-beta-isolated.sh frontend` |
+| API da clínica | `deploy-prod-magalu.sh backend clinica_beleza` | `deploy-beta-isolated.sh backend clinica_beleza` |
+| API CRM | `… backend crm_vendas` | idem |
+| WhatsApp schema | `… backend whatsapp` | idem |
+| Front + API | `… all clinica_beleza` | idem |
+| Evolution / PACS | `… infra` | `… infra` |
 
 ```bash
-# Produção (branch main)
-ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build'
+# Produção (branch main) — exemplo tela
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh frontend'
 
-# Beta isolado (branch staging) — VM servidorbeta
-ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh'
+# Produção — backend só clínica (migrate/ensure só nessas lojas)
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh backend clinica_beleza'
 
-# Só backend (produção)
-ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build backend worker'
-
-# Só frontend (produção)
-ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build frontend'
+# Beta isolado (branch staging)
+ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh frontend'
+ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh backend clinica_beleza'
 ```
 
-**NÃO usar:** `npx railway up`, `npx vercel`, `heroku` — descontinuados.
+**NÃO usar:** `npx railway up`, `npx vercel`, `heroku`, nem `up -d --build` sem serviço.
 
 ## Regra de ambientes
 

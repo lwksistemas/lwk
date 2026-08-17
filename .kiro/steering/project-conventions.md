@@ -42,9 +42,11 @@ inclusion: always
 1. Verificar backend: `python3 manage.py check`
 2. Verificar frontend: `getDiagnostics` nos arquivos alterados
 3. Git: `git add` apenas arquivos relevantes → `git commit` com mensagem descritiva → `git push`
-4. Deploy produção: `ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build'`
-5. Deploy beta: `ssh deploy@201.23.81.50 'cd /opt/lwk-erp && ./deploy-beta.sh'`
-6. Se criou tabela nova: `ssh deploy@201.23.81.50 'cd /opt/lwk-erp && docker compose -f docker-compose.prod.yml exec backend python manage.py migrate'`
+4. Deploy só o que mudou:
+   - tela: `ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh frontend'`
+   - API clínica: `... bash scripts/deploy-prod-magalu.sh backend clinica_beleza`
+5. Beta: `ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh frontend'` (ou `backend clinica_beleza`)
+6. Tabela nova no app: já entra no `backend <app>` via `deploy_app`; não rodar `up --build` sem serviço.
 
 ### Regra de ambientes
 

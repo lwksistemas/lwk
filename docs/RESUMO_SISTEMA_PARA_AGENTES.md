@@ -27,20 +27,13 @@
 ## Deploy
 
 ```bash
-# Produção (branch main)
-ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build'
+# Tela / JS — só frontend
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh frontend'
+ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh frontend'
 
-# Beta (branch staging)
-ssh deploy@201.23.81.50 'cd /opt/lwk-erp && ./deploy-beta.sh'
-
-# Só backend (após mudanças Python)
-ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build backend worker'
-
-# Só frontend (após mudanças JS/TS)
-ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && docker compose -f docker-compose.prod.yml up -d --build frontend'
-
-# Migrations
-ssh deploy@201.23.81.50 'cd /opt/lwk-erp && docker compose -f docker-compose.prod.yml exec backend python manage.py migrate'
+# API da clínica — só backend + schema clinica_beleza
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh backend clinica_beleza'
+ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh backend clinica_beleza'
 ```
 
 **NÃO usar:** `npx railway up`, `npx vercel`, `heroku` — serviços descontinuados.

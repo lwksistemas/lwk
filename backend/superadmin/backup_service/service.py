@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from ..backup_helpers import (
     BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS,
+    BACKUP_SYSTEM_TABLES_EXCLUDE,
     BACKUP_TIPO_APP_EXCLUDED_PREFIXES,
     BACKUP_TIPO_APP_TABLE_PREFIXES,
     BackupExportError,
@@ -33,24 +34,32 @@ from .exporters import CSVExporter, ZipBuilder
 
 logger = logging.getLogger(__name__)
 
+def _filtrar_tabelas_por_tipo_loja(loja, table_names: list) -> list:
+    """Só exporta tabelas do app da loja (clínica não leva CRM/Felix)."""
+    tipo_slug = (getattr(getattr(loja, "tipo_loja", None), "slug", None) or "").strip()
+    allowed_prefixes = BACKUP_TIPO_APP_TABLE_PREFIXES.get(tipo_slug, ())
+    excluded_prefixes = BACKUP_TIPO_APP_EXCLUDED_PREFIXES.get(tipo_slug, ())
+    filtradas = []
+    for name in table_names:
+        if name in BACKUP_SYSTEM_TABLES_EXCLUDE:
+            continue
+        if excluded_prefixes and any(name.startswith(p) for p in excluded_prefixes):
+            continue
+        if allowed_prefixes and not any(name.startswith(p) for p in allowed_prefixes):
+            continue
+        filtradas.append(name)
+    if filtradas:
+        logger.info(
+            "Backup: %d tabela(s) do tipo '%s' (prefixos: %s)",
+            len(filtradas), tipo_slug, allowed_prefixes,
+        )
+    return filtradas
+
+
 def _filtrar_tabelas_schema_public(db_helper, loja, table_names: list) -> list:
     """Quando schema é public, filtra tabelas por loja_id e prefixo do tipo de app."""
     table_names = [t for t in table_names if db_helper._table_has_loja_id(t)]
-    tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else "").strip() or ""
-    allowed_prefixes = BACKUP_TIPO_APP_TABLE_PREFIXES.get(tipo_slug, ())
-    excluded_prefixes = BACKUP_TIPO_APP_EXCLUDED_PREFIXES.get(tipo_slug, ())
-    if allowed_prefixes:
-        def _pertence(name: str) -> bool:
-            if any(name.startswith(p) for p in excluded_prefixes):
-                return False
-            return any(name.startswith(p) for p in allowed_prefixes)
-        table_names = [t for t in table_names if _pertence(t)]
-    if table_names:
-        logger.info(
-            "Backup (schema public): exportando %d tabela(s) do tipo '%s' (prefixos: %s)",
-            len(table_names), tipo_slug, allowed_prefixes,
-        )
-    return table_names
+    return _filtrar_tabelas_por_tipo_loja(loja, table_names)
 
 
 def _preparar_tabelas_backup(db_helper, config, loja) -> list:
@@ -73,6 +82,8 @@ def _preparar_tabelas_backup(db_helper, config, loja) -> list:
         table_names = [t.nome for t in config.get_tabelas_ordenadas_exportacao()]
     if getattr(db_helper, "_pg_schema", None) == "public":
         table_names = _filtrar_tabelas_schema_public(db_helper, loja, table_names)
+    else:
+        table_names = _filtrar_tabelas_por_tipo_loja(loja, table_names)
     if not table_names:
         logger.warning(
             "⚠️ Nenhuma tabela no schema da loja %s (database_name=%s, schema_pg=%s). "

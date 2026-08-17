@@ -76,7 +76,7 @@ export function AgendaListaColunas({
           <h3 className="sticky top-0 z-10 bg-white dark:bg-gray-800 py-2 mb-1 text-sm font-semibold text-gray-800 dark:text-gray-100 capitalize border-b border-gray-200 dark:border-gray-700">
             {grupo.label}
           </h3>
-          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700">
             <table className="w-full min-w-[640px] text-sm border-collapse">
               <thead className="bg-gray-50 dark:bg-neutral-900/80 border-b border-gray-200 dark:border-gray-700">
                 <tr>

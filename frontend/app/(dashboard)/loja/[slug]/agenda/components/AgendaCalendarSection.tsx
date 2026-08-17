@@ -50,8 +50,10 @@ function wheelDeltaY(e: WheelEvent, scroller: HTMLElement): number {
   return e.deltaY;
 }
 
-/** Roda no meio da grade move a mesma barra da página (o FullCalendar engole o wheel). */
-function useAgendaGridWheel(active: boolean) {
+const AGENDA_SCROLL_ROOT = ".agenda-scroll-root";
+
+/** Roda no calendário/lista move a barra da página (FullCalendar e overflow-x da tabela engolem o wheel). */
+function useAgendaPageWheel(active: boolean) {
   useEffect(() => {
     if (!active) return;
 
@@ -59,7 +61,7 @@ function useAgendaGridWheel(active: boolean) {
       if (e.ctrlKey || e.deltaY === 0) return;
       const target = e.target;
       if (!(target instanceof Element)) return;
-      const root = target.closest(".fc-agenda-calendar-root");
+      const root = target.closest(AGENDA_SCROLL_ROOT);
       if (!root) return;
 
       const scroller = findVerticalScroller(root as HTMLElement);
@@ -113,7 +115,9 @@ export function AgendaCalendarSection({
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
-  useAgendaGridWheel(isMobileUi === false && modoAgenda === "grade");
+  useAgendaPageWheel(
+    isMobileUi === false || (isMobileUi === true && modoAgenda === "lista"),
+  );
 
   useEffect(() => {
     const check = () => setIsMobileUi(window.innerWidth < 640);
@@ -150,14 +154,14 @@ export function AgendaCalendarSection({
 
   if (modoAgenda === "lista") {
     return (
-      <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain">
+      <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-auto overscroll-contain agenda-scroll-root">
         <AgendaListaColunas eventos={eventos} onAbrir={onAbrirLista} />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain fc-agenda-calendar-root">
+    <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain agenda-scroll-root fc-agenda-calendar-root">
       {calendarPlugins.length > 0 && ptBrLocale ? (
         <FullCalendar
           key={`desktop-${selectedProfessional}`}

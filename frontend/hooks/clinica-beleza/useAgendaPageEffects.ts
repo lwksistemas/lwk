@@ -84,7 +84,7 @@ export function useAgendaPageEffects({
     };
     const onScroll = (e: Event) => {
       const el = e.target as HTMLElement | null;
-      if (el?.closest?.(".fc-scroller") || el?.closest?.(".fc-agenda-calendar-root")) markScrolling();
+      if (el?.closest?.(".fc-scroller") || el?.closest?.(".agenda-scroll-root")) markScrolling();
     };
     document.addEventListener("scroll", onScroll, true);
     return () => {

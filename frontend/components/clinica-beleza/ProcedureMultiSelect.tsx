@@ -7,7 +7,9 @@ import { entityName, procedureDuration, procedurePrice } from "@/lib/clinica-bel
 import {
   PROCEDURE_CATEGORIA_OPTIONS,
   procedureCategoriaLabel,
+  procedureSelectLabel,
   resolveProcedureCategoriaSlug,
+  stripCategoriaPrefixFromNome,
 } from "@/lib/clinica-beleza-categories";
 
 export interface ProcedureOption {
@@ -157,10 +159,9 @@ export function ProcedureMultiSelect({
         </option>
         {disponiveis.map((p) => (
           <option key={p.id} value={p.id}>
-            {entityName(p)}
-            {!categoriaAtiva && procedureCat(p)
-              ? ` · ${procedureCategoriaLabel(procedureCat(p))}`
-              : ""}
+            {procedureSelectLabel(entityName(p), procedureCat(p), {
+              includeCategorySuffix: !categoriaAtiva,
+            })}
           </option>
         ))}
       </select>
@@ -179,7 +180,7 @@ export function ProcedureMultiSelect({
               >
                 <div className="text-sm">
                   <span className="font-medium text-gray-800 dark:text-gray-200">
-                    {entityName(proc)}
+                    {stripCategoriaPrefixFromNome(entityName(proc), procedureCat(proc))}
                   </span>
                   <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
                     {procedureDuration(proc)}min

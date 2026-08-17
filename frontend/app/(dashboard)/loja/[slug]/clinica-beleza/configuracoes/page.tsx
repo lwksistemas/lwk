@@ -78,7 +78,7 @@ export default function ClinicaBelezaConfiguracoesPage() {
       descricao: 'PDF timbrado A4 para receitas e pedidos de exames',
       href: `${base}/memed`,
       icon: FileText,
-      itens: ['Upload Timbrado A4.pdf', 'Aplica a todos os prescritores', 'Receita e exames'],
+      itens: ['Upload do PDF timbrado da clínica', 'Aplica aos prescritores desta loja', 'Receita e exames'],
     },
     {
       titulo: 'Nota Fiscal (NFS-e)',

@@ -148,60 +148,60 @@ PROCEDIMENTOS_CATALOGO: list[ProcedimentoCatalogoItem] = [
         "Tratamento completo das pernas com laser. Requer fotoproteção e intervalo entre sessões.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Imunidade", "soroterapia", Decimal("350.00"), 60,
+        "Imunidade", "soroterapia", Decimal("350.00"), 60,
         "Protocolo endovenoso com vitaminas e minerais para suporte imunológico e recuperação. "
         "Avaliação prévia obrigatória.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Energia e Foco", "soroterapia", Decimal("320.00"), 60,
+        "Energia e Foco", "soroterapia", Decimal("320.00"), 60,
         "Cocktail vitamínico endovenoso para fadiga, estresse e melhora de disposição.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Detox", "soroterapia", Decimal("300.00"), 60,
+        "Detox", "soroterapia", Decimal("300.00"), 60,
         "Protocolo detoxificante com antioxidantes e hidratação venosa para bem-estar metabólico.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Hidratação IV", "soroterapia", Decimal("260.00"), 45,
+        "Hidratação IV", "soroterapia", Decimal("260.00"), 45,
         "Reposição hídrica e eletrolítica endovenosa para desidratação, cansaço e recuperação rápida. "
         "Indicada após viagens, jejum prolongado ou perda de líquidos.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Vitamina C", "soroterapia", Decimal("380.00"), 60,
+        "Vitamina C", "soroterapia", Decimal("380.00"), 60,
         "Infusão de vitamina C em dose terapêutica para suporte antioxidante, imunidade e viço. "
         "Avaliação prévia e monitoramento durante a aplicação.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Glutamina e Reposição", "soroterapia", Decimal("400.00"), 60,
+        "Glutamina e Reposição", "soroterapia", Decimal("400.00"), 60,
         "Protocolo com glutamina, aminoácidos e micronutrientes para recuperação muscular, "
         "integridade intestinal e suporte metabólico pós-esforço ou convalescença.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Recuperação Pós-Exercício", "soroterapia", Decimal("290.00"), 45,
+        "Recuperação Pós-Exercício", "soroterapia", Decimal("290.00"), 45,
         "Cocktail endovenoso com eletrólitos, vitaminas do complexo B e antioxidantes para "
         "reduzir fadiga e acelerar a recuperação após treinos intensos ou competições.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Repouso e Ressaca", "soroterapia", Decimal("330.00"), 60,
+        "Repouso e Ressaca", "soroterapia", Decimal("330.00"), 60,
         "Hidratação venosa com vitaminas, minerais e antieméticos conforme indicação clínica. "
         "Auxilia na recuperação de mal-estar pós-evento, privação de sono ou excesso alimentar.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Beleza e Pele", "soroterapia", Decimal("360.00"), 60,
+        "Beleza e Pele", "soroterapia", Decimal("360.00"), 60,
         "Protocolo com biotina, zinco, selênio e antioxidantes para suporte à saúde da pele, "
         "cabelos e unhas. Complementa tratamentos estéticos faciais e capilares.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Sono e Relaxamento", "soroterapia", Decimal("310.00"), 60,
+        "Sono e Relaxamento", "soroterapia", Decimal("310.00"), 60,
         "Infusão com magnésio, vitaminas do complexo B e aminoácidos calmantes para redução de "
         "estresse, tensão muscular e melhora da qualidade do sono.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Metabolismo e Emagrecimento", "soroterapia", Decimal("340.00"), 60,
+        "Metabolismo e Emagrecimento", "soroterapia", Decimal("340.00"), 60,
         "Protocolo com L-carnitina, vitaminas e minerais para suporte ao metabolismo energético "
         "e complemento a planos de reeducação alimentar e atividade física.",
     ),
     ProcedimentoCatalogoItem(
-        "Soroterapia — Anti-Aging", "soroterapia", Decimal("420.00"), 60,
+        "Anti-Aging", "soroterapia", Decimal("420.00"), 60,
         "Cocktail antioxidante com vitaminas, minerais e ativos de longevidade para vitalidade, "
         "disposição e suporte ao envelhecimento saudável. Não substitui avaliação médica.",
     ),
@@ -256,7 +256,7 @@ PROFISSIONAIS_SEED_DATA = [
 
 def procedimento_catalogo_defaults(item: ProcedimentoCatalogoItem) -> dict:
     """Campos para update_or_create de Procedure a partir do catálogo."""
-    termo_ativo, termo_texto = resolver_termo_consentimento(item.nome)
+    termo_ativo, termo_texto = resolver_termo_consentimento(f"{item.categoria} {item.nome}")
     return {
         "preco": item.preco,
         "duracao_minutos": item.duracao_minutos,

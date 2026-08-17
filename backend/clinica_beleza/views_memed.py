@@ -86,8 +86,7 @@ class MemedTokenView(APIView):
         prescritor_id = self._resolver_prescritor_id(request, env)
         if not prescritor_id:
             return Response(
-                {"error": "Prescritor não identificado. Cadastre o registro profissional (CRM) do profissional "
-                          "ou configure MEMED_PRESCRITOR_ID."},
+                {"error": "Prescritor não identificado. Cadastre o CPF ou o CRM do profissional desta loja."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -205,8 +204,12 @@ class MemedTokenView(APIView):
             if prescritor:
                 return prescritor
 
-        # 3) Prescritor padrão (clínica com um único médico / ambiente de testes).
-        #    Em produção, prioriza MEMED_PRESCRITOR_ID_PROD (fallback ao genérico).
+        # 3) Prescritor padrão só fora de loja (teste/superadmin).
+        # Em tenant nunca usar MEMED_PRESCRITOR_ID — seria o prescritor de outra clínica.
+        from tenants.middleware import get_current_loja_id
+        if get_current_loja_id():
+            return ""
+
         default_id = ""
         if env == "production":
             default_id = getattr(settings, "MEMED_PRESCRITOR_ID_PROD", "") or ""

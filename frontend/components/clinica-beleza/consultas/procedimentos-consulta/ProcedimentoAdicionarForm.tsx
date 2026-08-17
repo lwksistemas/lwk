@@ -6,6 +6,7 @@ import { toUpperCase } from "@/lib/format-br";
 import {
   PROCEDURE_CATEGORIA_OPTIONS,
   procedureCategoriaLabel,
+  procedureSelectLabel,
   resolveProcedureCategoriaSlug,
 } from "@/lib/clinica-beleza-categories";
 import type { ProcedureOption } from "./procedimentos-consulta-types";
@@ -119,8 +120,9 @@ export function ProcedimentoAdicionarForm({
         </option>
         {filtrados.map((p) => (
           <option key={p.id} value={p.id}>
-            {toUpperCase(p.nome)}
-            {!categoriaAtiva ? ` · ${procedureCategoriaLabel(procedureCat(p))}` : ""}
+            {procedureSelectLabel(toUpperCase(p.nome), procedureCat(p), {
+              includeCategorySuffix: !categoriaAtiva,
+            })}
           </option>
         ))}
       </select>

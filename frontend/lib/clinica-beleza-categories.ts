@@ -38,6 +38,33 @@ export function procedureCategoriaLabel(slug: string | undefined | null): string
   return PROCEDURE_CATEGORIA_OPTIONS.find((o) => o.value === resolved)?.label ?? slug ?? "";
 }
 
+/** Tira "Soroterapia — " do nome quando a categoria já é soroterapia. */
+export function stripCategoriaPrefixFromNome(nome: string, categoriaRaw?: string | null): string {
+  const raw = (nome || "").trim();
+  if (!raw) return raw;
+  const catLabel = procedureCategoriaLabel(categoriaRaw);
+  if (!catLabel) return raw;
+  const escaped = catLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`^${escaped}\\s*[—\\-–:]\\s*`, "i");
+  const stripped = raw.replace(re, "").trim();
+  return stripped || raw;
+}
+
+/** Rótulo do select: nome sem prefixo repetido; sufixo da categoria só se ainda não estiver no nome. */
+export function procedureSelectLabel(
+  nome: string,
+  categoriaRaw?: string | null,
+  opts?: { includeCategorySuffix?: boolean },
+): string {
+  const stripped = stripCategoriaPrefixFromNome(nome, categoriaRaw);
+  if (!opts?.includeCategorySuffix) return stripped;
+  const catLabel = procedureCategoriaLabel(categoriaRaw);
+  if (!catLabel) return stripped;
+  const already = stripped.toLowerCase().includes(catLabel.toLowerCase());
+  if (already) return stripped;
+  return `${stripped} · ${catLabel}`;
+}
+
 /** Palavras-chave que identificam procedimentos de cada módulo */
 const MODULE_ALIASES: Record<string, string[]> = {
   soroterapia: ["soroterapia", "soro", "iv ", "vitamina", "imunidade", "detox", "disposicao"],

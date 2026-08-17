@@ -52,9 +52,9 @@ export function MemedPageContent() {
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Timbrado A4 (PDF)</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Envie o <strong>modelo</strong> PDF timbrado da clínica (ex.: <strong>Timbrado A4.pdf</strong>, ~900
-                KB). Não use a receita já emitida (ex.: <strong>receita.pdf</strong> de poucos KB) — esse arquivo é a
-                saída da Memed, não o papel timbrado de entrada.
+                Envie o <strong>modelo</strong> PDF timbrado <strong>desta clínica</strong> (A4). Não use receita
+                já emitida — esse arquivo é a saída da Memed, não o papel de entrada. Cada loja tem o próprio
+                timbrado; o de outra clínica não vale aqui.
               </p>
             </div>
           </div>
@@ -99,7 +99,7 @@ export function MemedPageContent() {
             <label className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-[#8B3D52]/50 transition-colors">
               <Upload size={20} className="text-gray-400 shrink-0" />
               <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                {arquivo ? arquivo.name : "Clique para selecionar Timbrado A4.pdf"}
+                {arquivo ? arquivo.name : "Clique para selecionar o PDF timbrado da clínica"}
               </span>
               <input
                 type="file"
@@ -139,8 +139,8 @@ export function MemedPageContent() {
         </div>
 
         <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
-          <p>• Novos profissionais cadastrados com CPF recebem o timbrado automaticamente.</p>
-          <p>• A assinatura digital (certificado A1 da Nayara) continua sendo feita na Memed, no computador dela.</p>
+          <p>• Novos profissionais cadastrados com CPF recebem o timbrado desta loja automaticamente.</p>
+          <p>• A assinatura digital (certificado A1) é feita na Memed, no computador do prescritor desta clínica.</p>
         </div>
       </ClinicaBelezaPageContent>
     </>

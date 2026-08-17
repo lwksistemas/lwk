@@ -43,12 +43,22 @@ def _upsert_procedimento_catalogo(db, lid, item) -> None:
     defaults = procedimento_catalogo_defaults(item)
     defaults["nome"] = nome_norm
 
+    cat_prefix = (item.categoria or "").strip().upper()
+    nome_legado = f"{cat_prefix} — {nome_norm}" if cat_prefix and not nome_norm.startswith(cat_prefix) else ""
+
     existente = (
         Procedure.objects.using(db)
         .filter(loja_id=lid, nome__iexact=nome_norm)
         .order_by("id")
         .first()
     )
+    if not existente and nome_legado:
+        existente = (
+            Procedure.objects.using(db)
+            .filter(loja_id=lid, nome__iexact=nome_legado)
+            .order_by("id")
+            .first()
+        )
     if existente:
         for field, value in defaults.items():
             setattr(existente, field, value)

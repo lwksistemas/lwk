@@ -67,7 +67,7 @@ CABEC_MSG = (
 )
 
 CABEC_MSG_NACIONAL = (
-    '<cabecalho xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">'
-    '<versaoDados>1.00</versaoDados>'
+    '<cabecalho xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">'
+    '<versaoDados>1.01</versaoDados>'
     '</cabecalho>'
 )

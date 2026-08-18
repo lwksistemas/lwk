@@ -805,6 +805,11 @@ class ISSNetNacionalClient:
             resposta = self._enviar_soap(xml_assinado, SOAP_ACTION_NACIONAL_CANCELAR_NFSE)
             result["xml_resposta"] = resposta
 
+            logger.info(
+                "ISSNet Nacional CancelarNfse resposta bruta: %s",
+                (resposta or "")[:2000],
+            )
+
             body = extrair_body_soap(resposta)
             erros = extrair_erros(body)
 

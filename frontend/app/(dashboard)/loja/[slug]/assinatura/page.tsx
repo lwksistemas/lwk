@@ -155,7 +155,9 @@ export default function AssinaturaLojaPage() {
         !response &&
         (errorObj?.code === 'ERR_NETWORK' ||
           (err instanceof Error ? err.message.includes('Network') : false));
-      if (status === 403) setError('Sem permissão. Apenas o responsável pode acessar.');
+      if (status === 403) {
+        setError(detailStr || 'Sem permissão. Apenas o responsável ou um administrador da loja pode acessar.');
+      }
       else if (detailStr) setError(detailStr);
       else if (status === 404) setError('Financeiro não encontrado para esta loja.');
       else if (status && status >= 500) setError('Erro no servidor. Aguarde um momento e tente novamente.');

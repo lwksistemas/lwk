@@ -11,6 +11,8 @@ from superadmin.services.assinatura_bloqueio_service import (
     situacao_geracao_boleto_assinatura,
 )
 
+from core.tenant_access import user_is_loja_admin
+
 from ..loja_utils import resolve_loja_by_slug_or_atalho
 from ..models import PagamentoLoja
 from ..serializers import PagamentoLojaSerializer
@@ -43,18 +45,15 @@ def _aplicar_pix_estatico_mp(financeiro, pix_copy_paste):
 
 
 def _resolver_loja_por_permissao(request, loja_slug):
-    """Resolve loja conforme permissão do usuário. Retorna (loja, response_erro_ou_None)."""
-    if not request.user.is_superuser:
-        loja = resolve_loja_by_slug_or_atalho(loja_slug, owner=request.user, is_active=True)
-        if not loja:
-            return None, Response(
-                {"error": "Sem permissão. Apenas o responsável pode acessar."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-    else:
-        loja = resolve_loja_by_slug_or_atalho(loja_slug, is_active=True)
-        if not loja:
-            return None, Response({"error": "Loja não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+    """Resolve loja se o usuário for responsável ou administrador da loja."""
+    loja = resolve_loja_by_slug_or_atalho(loja_slug, is_active=True)
+    if not loja:
+        return None, Response({"error": "Loja não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+    if not user_is_loja_admin(request.user, loja):
+        return None, Response(
+            {"error": "Sem permissão. Apenas o responsável ou um administrador da loja pode acessar."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     return loja, None
 
 
@@ -148,20 +147,9 @@ def dashboard_financeiro_loja(request, loja_slug):
     """Dashboard financeiro específico de uma loja (GET). POST gera cobrança antecipada."""
     if request.method == "POST":
         logger.info("POST financeiro/ (gerar cobrança) loja_slug=%s user=%s", loja_slug, request.user.username)
-        if not request.user.is_superuser:
-            loja = resolve_loja_by_slug_or_atalho(loja_slug, owner=request.user, is_active=True)
-            if not loja:
-                return Response(
-                    {"success": False, "error": "Sem permissão. Apenas o responsável pode gerar cobrança."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-        else:
-            loja = resolve_loja_by_slug_or_atalho(loja_slug, is_active=True)
-            if not loja:
-                return Response(
-                    {"success": False, "error": "Loja não encontrada"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+        loja, err = _resolver_loja_por_permissao(request, loja_slug)
+        if err:
+            return err
         try:
             financeiro = _get_or_create_financeiro_loja(loja)
         except Exception as e:
@@ -180,6 +168,8 @@ def dashboard_financeiro_loja(request, loja_slug):
             {"error": "Erro ao carregar dados financeiros. Tente novamente em instantes."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
 def _dashboard_financeiro_loja_impl(request, loja_slug):
     loja, err = _resolver_loja_por_permissao(request, loja_slug)
     if err:

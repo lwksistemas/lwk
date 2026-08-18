@@ -46,6 +46,67 @@ def user_can_access_loja(user, loja) -> bool:
     return False
 
 
+def user_is_loja_admin(user, loja) -> bool:
+    """Owner, superuser ou ProfissionalUsuario com perfil administrador.
+
+    Administrador da loja tem o mesmo acesso operacional do responsável
+    (assinatura, configurações).
+    """
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    if not loja or not getattr(loja, "is_active", True):
+        return False
+    if user.is_superuser:
+        return True
+    if loja.owner_id == user.id:
+        return True
+    try:
+        from superadmin.models import ProfissionalUsuario
+
+        return ProfissionalUsuario.objects.filter(
+            user=user,
+            loja=loja,
+            perfil=ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+        ).exists()
+    except Exception as e:
+        logger.error(
+            "tenant_access: erro ao verificar admin user=%s loja=%s: %s",
+            getattr(user, "id", None),
+            getattr(loja, "id", None),
+            e,
+        )
+        return False
+
+
+def loja_ids_where_user_is_admin(user) -> set[int]:
+    """IDs de lojas ativas em que o usuário é owner ou administrador."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return set()
+    if user.is_superuser:
+        from superadmin.models import Loja
+
+        return set(Loja.objects.filter(is_active=True).values_list("id", flat=True))
+    try:
+        from superadmin.models import Loja, ProfissionalUsuario
+
+        ids = set(Loja.objects.filter(owner=user, is_active=True).values_list("id", flat=True))
+        ids.update(
+            ProfissionalUsuario.objects.filter(
+                user=user,
+                perfil=ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+                loja__is_active=True,
+            ).values_list("loja_id", flat=True)
+        )
+        return ids
+    except Exception as e:
+        logger.error(
+            "tenant_access: erro ao listar lojas admin user=%s: %s",
+            getattr(user, "id", None),
+            e,
+        )
+        return set()
+
+
 def is_store_api_path(path: str) -> bool:
     """Rotas de apps tenant (CRM, clínica, etc.), exceto webhooks públicos."""
     store_routes = (

@@ -3,8 +3,13 @@
 from django.contrib.auth.models import User
 from django.test import RequestFactory, TestCase
 
-from core.tenant_access import check_cross_tenant_access, user_can_access_loja
-from superadmin.models import Loja, PlanoAssinatura, TipoLoja, VendedorUsuario
+from core.tenant_access import (
+    check_cross_tenant_access,
+    loja_ids_where_user_is_admin,
+    user_can_access_loja,
+    user_is_loja_admin,
+)
+from superadmin.models import Loja, PlanoAssinatura, ProfissionalUsuario, TipoLoja, VendedorUsuario
 from tenants.middleware import TenantMiddleware, ensure_loja_context
 
 
@@ -93,3 +98,36 @@ class TenantAccessTestCase(TestCase):
         )
         request.user = self.owner_a
         self.assertFalse(ensure_loja_context(request))
+
+    def test_user_is_loja_admin_owner_profissional_and_recepcao(self):
+        self.assertTrue(user_is_loja_admin(self.owner_a, self.loja_a))
+        self.assertFalse(user_is_loja_admin(self.owner_a, self.loja_b))
+
+        admin_user = User.objects.create_user(
+            username="admin_loja@test.com",
+            email="admin_loja@test.com",
+            password="senha123",
+        )
+        ProfissionalUsuario.objects.create(
+            user=admin_user,
+            loja=self.loja_a,
+            professional_id=1,
+            perfil=ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+        )
+        self.assertTrue(user_is_loja_admin(admin_user, self.loja_a))
+        self.assertFalse(user_is_loja_admin(admin_user, self.loja_b))
+        self.assertEqual(loja_ids_where_user_is_admin(admin_user), {self.loja_a.id})
+
+        recep = User.objects.create_user(
+            username="recep@test.com",
+            email="recep@test.com",
+            password="senha123",
+        )
+        ProfissionalUsuario.objects.create(
+            user=recep,
+            loja=self.loja_a,
+            professional_id=2,
+            perfil=ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+        )
+        self.assertFalse(user_is_loja_admin(recep, self.loja_a))
+        self.assertEqual(loja_ids_where_user_is_admin(recep), set())

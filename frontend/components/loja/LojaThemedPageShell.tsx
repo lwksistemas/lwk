@@ -14,6 +14,8 @@ interface LojaThemedPageShellProps {
   backLabel?: string;
   hideBackButton?: boolean;
   headerActions?: React.ReactNode;
+  /** Lista em largura total (sem max-w-7xl). */
+  fullWidth?: boolean;
   children: React.ReactNode;
 }
 
@@ -26,9 +28,11 @@ export function LojaThemedPageShell({
   backLabel,
   hideBackButton = false,
   headerActions,
+  fullWidth = false,
   children,
 }: LojaThemedPageShellProps) {
   const backHref = assinaturaBackPath(slug, tipoLojaNome);
+  const widthClass = fullWidth ? 'w-full max-w-full' : 'max-w-7xl mx-auto';
 
   return (
     <div
@@ -39,7 +43,7 @@ export function LojaThemedPageShell({
         className="text-white shadow-lg"
         style={{ backgroundColor: theme.corPrimaria }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className={`${widthClass} px-4 sm:px-6 lg:px-8`}>
           <div className="flex flex-col sm:flex-row justify-between min-h-16 py-3 sm:py-0 gap-3 sm:gap-0 sm:items-center">
             <div className="min-w-0">
               <h1 className="text-xl sm:text-2xl font-bold truncate">{title}</h1>
@@ -64,7 +68,7 @@ export function LojaThemedPageShell({
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <main className={`${widthClass} w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6`}>
         {children}
       </main>
     </div>

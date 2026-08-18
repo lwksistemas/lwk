@@ -259,6 +259,10 @@ export function HistoricoPagamentos({
         window.open(data.pdf_url, '_blank');
         return;
       }
+      if (data && data.success === false) {
+        alert(data.error || 'Nota fiscal não encontrada.');
+        return;
+      }
       const res = await apiClient.get(
         `/superadmin/loja-pagamentos/${pagamentoId}/nota-fiscal-arquivo/`,
         { responseType: 'blob' }

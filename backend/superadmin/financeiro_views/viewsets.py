@@ -12,6 +12,7 @@ from ..asaas_service import LojaAsaasService
 from ..models import FinanceiroLoja, Loja, PagamentoLoja
 from ..serializers import FinanceiroLojaSerializer, PagamentoLojaSerializer
 from .helpers import (
+    _garantir_nfse_pagamento,
     _mercadopago_payment_ids_for_boleto,
     _nfse_para_pagamento,
     _resolve_asaas_payment_id,
@@ -236,11 +237,11 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["get"], url_path="nota-fiscal")
     def nota_fiscal(self, request, pk=None):
-        """PDF/link da NFS-e da assinatura (proprietário da loja)."""
+        """PDF/link da NFS-e da assinatura (proprietário ou administrador da loja)."""
         pagamento = self.get_object()
         asaas_id = _resolve_asaas_payment_id(pagamento)
 
-        nf = _nfse_para_pagamento(pagamento, asaas_id)
+        nf, emit_err = _garantir_nfse_pagamento(pagamento, asaas_id)
         if nf:
             if (nf.pdf_url or "").strip():
                 return Response({
@@ -261,6 +262,11 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
                     })
             except Exception as e:
                 logger.warning("nota_fiscal resolver pagamento %s: %s", pk, e)
+            return Response({
+                "success": True,
+                "numero_nf": nf.numero_nf or "",
+                "provedor": nf.provedor,
+            })
 
         if asaas_id:
             try:
@@ -279,14 +285,12 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
             except Exception as e:
                 logger.warning("nota_fiscal asaas pagamento %s: %s", pk, e)
 
+        erro = emit_err or (
+            "Nota fiscal não disponível para este pagamento. "
+            "Ela é gerada após a confirmação do pagamento."
+        )
         return Response(
-            {
-                "success": False,
-                "error": (
-                    "Nota fiscal não disponível para este pagamento. "
-                    "Ela é gerada após a confirmação do pagamento."
-                ),
-            },
+            {"success": False, "error": erro},
             status=status.HTTP_404_NOT_FOUND,
         )
 

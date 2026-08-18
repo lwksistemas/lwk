@@ -62,11 +62,12 @@ def _montar_descricao_nfse(config, pagamento, loja) -> str:
     return descricao
 
 
-def emitir_nfse_assinatura(pagamento) -> dict[str, Any]:
+def emitir_nfse_assinatura(pagamento, *, forcar: bool = False) -> dict[str, Any]:
     """Emite NFS-e para um pagamento de assinatura confirmado.
 
     Args:
         pagamento: instância de PagamentoLoja (superadmin)
+        forcar: True quando o responsável/admin pede a nota na tela (ignora flag automática).
 
     Returns:
         dict com resultado: {'success': bool, 'numero_nf': str, ...}
@@ -80,7 +81,7 @@ def emitir_nfse_assinatura(pagamento) -> dict[str, Any]:
         logger.info("NFS-e assinatura: emissão desabilitada")
         return {"success": False, "error": "Emissão de NFS-e desabilitada"}
 
-    if not config.emitir_automaticamente:
+    if not forcar and not config.emitir_automaticamente:
         logger.info("NFS-e assinatura: emissão automática desativada")
         return {"success": False, "error": "Emissão automática desativada"}
 

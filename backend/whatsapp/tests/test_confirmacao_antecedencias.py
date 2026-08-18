@@ -10,6 +10,7 @@ from whatsapp.confirmacao_agenda_service import (
     antecedencias_da_config,
     data_consulta_local,
     dias_ate_consulta,
+    disparar_confirmacao_se_hoje,
     janela_datas,
     loja_usa_confirmacao_agenda,
     normalizar_antecedencias,
@@ -62,8 +63,34 @@ class RegrasDoDiaTest(SimpleTestCase):
     def test_consulta_passada_nao_envia(self):
         self.assertEqual(regras_do_dia([3, 1], -1), [])
 
-    def test_mesmo_dia_da_consulta_nao_envia(self):
+    def test_mesmo_dia_da_consulta_nao_envia_sem_criado_em(self):
         self.assertEqual(regras_do_dia([3, 1], 0), [])
+
+    def test_ultima_chance_consulta_hoje_marcado_hoje(self):
+        hoje = date(2026, 8, 18)
+        self.assertEqual(
+            regras_do_dia(
+                [1],
+                0,
+                data_consulta=hoje,
+                criado_em=hoje,
+                hoje=hoje,
+            ),
+            [1],
+        )
+
+    def test_ultima_chance_so_a_menor_regra(self):
+        hoje = date(2026, 8, 18)
+        self.assertEqual(
+            regras_do_dia(
+                [3, 1],
+                0,
+                data_consulta=hoje,
+                criado_em=hoje,
+                hoje=hoje,
+            ),
+            [1],
+        )
 
     def test_marcado_depois_da_regra_nao_dispara_na_criacao(self):
         hoje = date(2026, 8, 16)
@@ -148,3 +175,27 @@ class ProcessarAgendamentoHojeTest(SimpleTestCase):
             n = processar_agendamento_hoje(ag, config=config, hoje=hoje)
         self.assertEqual(n, 0)
         mock_env.assert_not_called()
+
+    def test_optout_nao_envia_na_criacao(self):
+        ag, _hoje = self._ag(0)
+        ag.loja_id = 6
+        ag.patient = MagicMock(allow_whatsapp=False)
+        self.assertEqual(disparar_confirmacao_se_hoje(ag), 0)
+
+    def test_sem_loja_nao_envia_na_criacao(self):
+        ag, _hoje = self._ag(0)
+        ag.loja_id = None
+        ag.patient = MagicMock(allow_whatsapp=True)
+        with patch("tenants.middleware.get_current_loja_id", return_value=None):
+            self.assertEqual(disparar_confirmacao_se_hoje(ag), 0)
+
+    def test_envia_ultima_chance_no_mesmo_dia(self):
+        ag, hoje = self._ag(0)
+        ag.created_at = timezone.make_aware(
+            datetime(2026, 8, 16, 10, 0), timezone.get_current_timezone(),
+        )
+        config = MagicMock(enviar_confirmacao=True, whatsapp_ativo=True, confirmacao_antecedencias_dias=[1])
+        with patch("whatsapp.confirmacao_agenda_service.enviar_confirmacao_da_regra", return_value=True) as mock_env:
+            n = processar_agendamento_hoje(ag, config=config, hoje=hoje)
+        self.assertEqual(n, 1)
+        self.assertEqual(mock_env.call_args.args[1], 1)

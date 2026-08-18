@@ -325,8 +325,9 @@ export function LojaWhatsAppConfigPanel({
                   {enviarConfirmacao && (
                     <div className="ml-6 space-y-2 rounded-lg bg-gray-50 dark:bg-gray-900/40 px-3 py-2">
                       <p className="text-xs text-gray-600 dark:text-gray-400">
-                        O link <strong>não é enviado na hora do agendamento</strong>. Escolha quantos
-                        dias antes da consulta enviar. Pode repetir (ex.: 3 dias e 1 dia antes).
+                        Se marcar com antecedência, o link espera até o dia escolhido. Se marcar
+                        depois (ex.: consulta hoje com “1 dia antes”), envia na hora. Pode repetir
+                        (ex.: 3 dias e 1 dia antes).
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {antecedenciasDias.length === 0 && (

@@ -79,16 +79,74 @@ def _resolve_asaas_payment_id(pagamento):
     return ""
 
 
+def _vincular_nfse_ao_pagamento(nf, pagamento, asaas_id=""):
+    """Associa a nota ao pagamento se ainda não estiver em outro lançamento pago."""
+    prev = getattr(nf, "pagamento", None)
+    if prev is not None and prev.id != pagamento.id and getattr(prev, "status", "") == "pago":
+        return None
+    fields = []
+    if nf.pagamento_id != pagamento.id:
+        nf.pagamento = pagamento
+        fields.append("pagamento")
+    if asaas_id and not (nf.asaas_payment_id or "").strip():
+        nf.asaas_payment_id = asaas_id
+        fields.append("asaas_payment_id")
+    if fields:
+        nf.save(update_fields=fields)
+    return nf
+
+
 def _nfse_para_pagamento(pagamento, asaas_id=""):
-    """NFS-e vinculada ao PagamentoLoja (local, Asaas ou emissão manual da mesma loja/valor)."""
+    """NFS-e vinculada ao PagamentoLoja (local, Asaas, competência ou emissão órfã)."""
     try:
         from decimal import Decimal
 
-        from ..models import NFSeEmitida
+        from ..models import NFSeEmitida, PagamentoLoja
 
+        asaas_id = (asaas_id or getattr(pagamento, "asaas_payment_id", "") or "").strip()
         nf = NFSeEmitida.objects.filter(pagamento=pagamento, status="emitida").first()
         if not nf and asaas_id:
             nf = NFSeEmitida.objects.filter(asaas_payment_id=asaas_id, status="emitida").first()
+            ligada = _vincular_nfse_ao_pagamento(nf, pagamento, asaas_id) if nf else None
+            if ligada:
+                return ligada
+            nf = None
+        if not nf and pagamento.loja_id and pagamento.referencia_mes:
+            ref = pagamento.referencia_mes.strftime("%m/%Y")
+            nf = (
+                NFSeEmitida.objects.filter(
+                    loja_id=pagamento.loja_id,
+                    status="emitida",
+                    descricao_servico__icontains=f"Ref. {ref}",
+                )
+                .order_by("-created_at")
+                .first()
+            )
+            ligada = _vincular_nfse_ao_pagamento(nf, pagamento, asaas_id) if nf else None
+            if ligada:
+                return ligada
+            nf = None
+        if not nf and pagamento.loja_id:
+            cancelados = PagamentoLoja.objects.filter(
+                loja_id=pagamento.loja_id,
+                status="cancelado",
+                valor=pagamento.valor,
+            )
+            if pagamento.referencia_mes:
+                cancelados = cancelados.filter(referencia_mes=pagamento.referencia_mes)
+            nf = (
+                NFSeEmitida.objects.filter(
+                    loja_id=pagamento.loja_id,
+                    status="emitida",
+                    pagamento_id__in=cancelados.values("id"),
+                )
+                .order_by("-created_at")
+                .first()
+            )
+            ligada = _vincular_nfse_ao_pagamento(nf, pagamento, asaas_id) if nf else None
+            if ligada:
+                return ligada
+            nf = None
         if not nf and pagamento.loja_id:
             pl_valor = Decimal(str(pagamento.valor or 0)).quantize(Decimal("0.01"))
             candidatas = NFSeEmitida.objects.filter(
@@ -99,16 +157,30 @@ def _nfse_para_pagamento(pagamento, asaas_id=""):
             for cand in candidatas:
                 cand_valor = Decimal(str(cand.valor or 0)).quantize(Decimal("0.01"))
                 if cand_valor == pl_valor:
-                    nf = cand
-                    nf.pagamento = pagamento
-                    if asaas_id and not (nf.asaas_payment_id or "").strip():
-                        nf.asaas_payment_id = asaas_id
-                    nf.save(update_fields=["pagamento", "asaas_payment_id"])
-                    break
+                    return _vincular_nfse_ao_pagamento(cand, pagamento, asaas_id)
         return nf
     except Exception as e:
         logger.warning("nfse para pagamento %s: %s", getattr(pagamento, "id", "?"), e)
         return None
+
+
+def _garantir_nfse_pagamento(pagamento, asaas_id=""):
+    """Retorna (nf, erro). Se o pagamento está pago e não há nota, tenta emitir."""
+    nf = _nfse_para_pagamento(pagamento, asaas_id)
+    if nf:
+        return nf, None
+    if getattr(pagamento, "status", "") != "pago":
+        return None, None
+    try:
+        from asaas_integration.nfse_assinatura_service import emitir_nfse_assinatura
+
+        resultado = emitir_nfse_assinatura(pagamento, forcar=True)
+    except Exception as e:
+        logger.exception("emitir NFS-e sob demanda pagamento %s: %s", getattr(pagamento, "id", "?"), e)
+        return None, "Não foi possível emitir a nota fiscal agora. Tente novamente em instantes."
+    if resultado.get("success"):
+        return _nfse_para_pagamento(pagamento, asaas_id), None
+    return None, resultado.get("error") or "Não foi possível emitir a nota fiscal deste pagamento."
 
 
 def _cancelar_pagamentos_loja_obsoletos(loja):

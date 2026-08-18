@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -14,11 +13,15 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
-import { formatApiErrorBody } from '@/lib/api-errors';
 import { resolveLojaApiSlug } from '@/lib/resolve-loja-slug';
 import { useLojaTheme } from '@/hooks/useLojaTheme';
 import { LojaThemedPageShell } from '@/components/loja/LojaThemedPageShell';
 import { assinaturaBackPath } from '@/lib/loja-theme';
+import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
+import {
+  ClinicaBelezaStandardPageHeader,
+  useClinicaBelezaShellActions,
+} from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { NovaCobrancaModal } from './components/NovaCobrancaModal';
 import { HistoricoPagamentos, type HistoricoPagamentoItem } from './components/HistoricoPagamentos';
 import { AssinaturaAvisoAlert } from '@/components/loja/AssinaturaAvisoAlert';
@@ -77,6 +80,7 @@ export default function AssinaturaLojaPage() {
   const params = useParams();
   const slug = params.slug as string;
   const { loja, theme, loading: loadingTheme } = useLojaTheme(slug);
+  const clinicShell = useClinicaBelezaShellActions();
   const [tipoLojaNome, setTipoLojaNome] = useState('');
 
   useEffect(() => {
@@ -251,12 +255,23 @@ export default function AssinaturaLojaPage() {
   const backHref = assinaturaBackPath(slug, tipoNome);
 
   if (loadingTheme || loading) {
+    const spinner = <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />;
+    if (clinicShell) {
+      return (
+        <>
+          <ClinicaBelezaStandardPageHeader title="Assinatura" subtitle={loja?.nome || ''} />
+          <ClinicaBelezaPageContent>
+            <div className="flex justify-center py-16">{spinner}</div>
+          </ClinicaBelezaPageContent>
+        </>
+      );
+    }
     return (
       <div
         className="min-h-screen flex items-center justify-center dark:bg-gray-950"
         style={{ backgroundColor: theme.pageBg }}
       >
-        <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+        {spinner}
       </div>
     );
   }
@@ -333,7 +348,7 @@ export default function AssinaturaLojaPage() {
           gerandoCobranca={gerandoCobranca}
           onCopiarPix={() => copiarPix(fin.pix_copy_paste)}
           corPrimaria={theme.corPrimaria}
-          neutralStyle={false}
+          neutralStyle={Boolean(clinicShell)}
         />
         {showModal && novaCobranca && (
           <NovaCobrancaModal
@@ -351,24 +366,61 @@ export default function AssinaturaLojaPage() {
     ? `${data.loja.nome} · ${data.loja.plano} (${data.loja.tipo_assinatura})`
     : loja?.nome || '';
 
+  const atualizarBtn = (
+    <Button
+      variant="secondary"
+      size="sm"
+      className={
+        clinicShell
+          ? 'text-white hover:opacity-90'
+          : 'bg-white/15 text-white border-white/20 hover:bg-white/25'
+      }
+      style={clinicShell ? { backgroundColor: theme.corPrimaria } : undefined}
+      onClick={atualizarPagina}
+      disabled={atualizandoStatus || !data}
+    >
+      <RefreshCw className={`w-4 h-4 sm:mr-2 ${atualizandoStatus ? 'animate-spin' : ''}`} />
+      <span className="hidden sm:inline">Atualizar</span>
+    </Button>
+  );
+
   const headerActions = data ? (
     <>
-      <Badge variant={STATUS_BADGE[st] || 'secondary'} className="text-xs sm:text-sm gap-1 bg-white/20 text-white border-white/30">
+      <Badge
+        variant={STATUS_BADGE[st] || 'secondary'}
+        className={
+          clinicShell
+            ? 'text-xs sm:text-sm gap-1'
+            : 'text-xs sm:text-sm gap-1 bg-white/20 text-white border-white/30'
+        }
+      >
         {STATUS_ICON[st] || <Clock className="w-4 h-4" />}
         {data.financeiro.status_pagamento}
       </Badge>
-      <Button
-        variant="secondary"
-        size="sm"
-        className="bg-white/15 text-white border-white/20 hover:bg-white/25"
-        onClick={atualizarPagina}
-        disabled={atualizandoStatus}
-      >
-        <RefreshCw className={`w-4 h-4 sm:mr-2 ${atualizandoStatus ? 'animate-spin' : ''}`} />
-        <span className="hidden sm:inline">Atualizar</span>
-      </Button>
+      {atualizarBtn}
     </>
   ) : null;
+
+  const historicoLista = (
+    <ClinicaBelezaPanel>
+      <div className="p-3 sm:p-4">{renderHistorico()}</div>
+    </ClinicaBelezaPanel>
+  );
+
+  if (clinicShell) {
+    return (
+      <>
+        <ClinicaBelezaStandardPageHeader
+          title="Assinatura"
+          subtitle={subtitle}
+          backHref={lojaBloqueada ? undefined : backHref}
+          showBack={!lojaBloqueada}
+          extraActions={headerActions}
+        />
+        <ClinicaBelezaPageContent>{historicoLista}</ClinicaBelezaPageContent>
+      </>
+    );
+  }
 
   return (
     <LojaThemedPageShell
@@ -379,13 +431,9 @@ export default function AssinaturaLojaPage() {
       subtitle={subtitle}
       hideBackButton={lojaBloqueada}
       headerActions={headerActions}
+      fullWidth
     >
-      <Card
-        className="w-full bg-white/95 dark:bg-slate-900/95 shadow-sm"
-        style={{ borderColor: theme.cardBorder }}
-      >
-        <CardContent className="pt-6">{renderHistorico()}</CardContent>
-      </Card>
+      {historicoLista}
     </LojaThemedPageShell>
   );
 }

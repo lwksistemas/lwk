@@ -71,6 +71,8 @@ class SuperAdminSecurityMiddleware:
             logger.warning(f"Tentativa de acesso não autenticado ao superadmin: {request.path}")
             return JsonResponse({"error": "Autenticação necessária", "code": "AUTHENTICATION_REQUIRED"}, status=401)
         if is_owner_allowed:
+            if "/loja/" in request.path and "/financeiro/" in request.path:
+                return self._verificar_acesso_loja_financeiro(request)
             logger.info(f"Acesso de proprietário permitido: {request.user.username} -> {request.path}")
             return None
         if "/loja/" in request.path and "/financeiro/" in request.path:
@@ -96,7 +98,9 @@ class SuperAdminSecurityMiddleware:
             loja = resolve_loja_by_slug_or_atalho(loja_key, is_active=True)
             if not loja:
                 return JsonResponse({"error": "Loja não encontrada", "code": "STORE_NOT_FOUND"}, status=404)
-            if request.user != loja.owner and not request.user.is_superuser:
+            from core.tenant_access import user_is_loja_admin
+
+            if not user_is_loja_admin(request.user, loja):
                 logger.warning("Usuário %s tentou acessar financeiro de loja não autorizada: %s", request.user.username, loja_key)
                 return JsonResponse({"error": "Acesso negado - Você só pode acessar dados da sua loja", "code": "STORE_ACCESS_DENIED"}, status=403)
         except Exception as e:

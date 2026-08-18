@@ -1,32 +1,21 @@
 """Permissões do financeiro das lojas."""
 from rest_framework import permissions
 
-from ..models import Loja
+from core.tenant_access import loja_ids_where_user_is_admin, user_is_loja_admin
 
 
 class IsLojaOwner(permissions.BasePermission):
-    """Permissão para proprietário da loja"""
+    """Owner, superuser ou administrador da loja (perfil administrador)."""
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-
-        # Super admin tem acesso total
         if request.user.is_superuser:
             return True
-
-        # Verificar se é proprietário de alguma loja
-        return Loja.objects.filter(owner=request.user, is_active=True).exists()
+        return bool(loja_ids_where_user_is_admin(request.user))
 
     def has_object_permission(self, request, view, obj):
-        # Super admin tem acesso total
         if request.user.is_superuser:
             return True
-
-        # Verificar se é proprietário da loja específica
-        if hasattr(obj, "loja"):
-            return obj.loja.owner == request.user
-        if hasattr(obj, "owner"):
-            return obj.owner == request.user
-
-        return False
+        loja = getattr(obj, "loja", None) or (obj if hasattr(obj, "owner_id") else None)
+        return user_is_loja_admin(request.user, loja)

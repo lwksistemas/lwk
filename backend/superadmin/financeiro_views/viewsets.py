@@ -6,6 +6,8 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from core.tenant_access import loja_ids_where_user_is_admin
+
 from ..asaas_service import LojaAsaasService
 from ..models import FinanceiroLoja, Loja, PagamentoLoja
 from ..serializers import FinanceiroLojaSerializer, PagamentoLojaSerializer
@@ -29,14 +31,11 @@ class FinanceiroLojaViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        # Super admin vê tudo
         if user.is_superuser:
             return FinanceiroLoja.objects.select_related("loja").all()
 
-        # Proprietário vê apenas suas lojas
         return FinanceiroLoja.objects.select_related("loja").filter(
-            loja__owner=user,
-            loja__is_active=True,
+            loja_id__in=loja_ids_where_user_is_admin(user),
         )
 
     @action(detail=True, methods=["get"])
@@ -143,14 +142,11 @@ class PagamentoLojaViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        # Super admin vê tudo
         if user.is_superuser:
             return PagamentoLoja.objects.select_related("loja", "financeiro").all()
 
-        # Proprietário vê apenas suas lojas
         return PagamentoLoja.objects.select_related("loja", "financeiro").filter(
-            loja__owner=user,
-            loja__is_active=True,
+            loja_id__in=loja_ids_where_user_is_admin(user),
         )
 
     @action(detail=True, methods=["post"])

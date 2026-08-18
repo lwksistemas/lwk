@@ -6,7 +6,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..loja_utils import resolve_loja_by_slug_or_atalho
+from core.tenant_access import user_is_loja_admin
+
 from ..models import FinanceiroLoja
 from ..services.assinatura_bloqueio_service import situacao_geracao_boleto_assinatura
 from .helpers import _get_or_create_financeiro_loja
@@ -68,17 +69,11 @@ def _executar_renovar_financeiro(financeiro, data, *, forcar: bool = False):
 @permission_classes([IsAuthenticated])
 def renovar_assinatura_loja(request, loja_slug):
     """Gera boleto/PIX para o proprietário pagar (slug ou atalho na URL)."""
-    if not request.user.is_superuser:
-        loja = resolve_loja_by_slug_or_atalho(loja_slug, owner=request.user, is_active=True)
-        if not loja:
-            return Response(
-                {"success": False, "error": "Sem permissão. Apenas o responsável pode gerar cobrança."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-    else:
-        loja = resolve_loja_by_slug_or_atalho(loja_slug, is_active=True)
-        if not loja:
-            return Response({"success": False, "error": "Loja não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+    from .dashboard_loja import _resolver_loja_por_permissao
+
+    loja, err = _resolver_loja_por_permissao(request, loja_slug)
+    if err:
+        return err
 
     try:
         financeiro = _get_or_create_financeiro_loja(loja)
@@ -97,16 +92,13 @@ def renovar_assinatura_loja(request, loja_slug):
 def renovar_financeiro_por_id(request, financeiro_id):
     """Gera boleto/PIX pelo ID do FinanceiroLoja (compatível com loja-financeiro/{id}/renovar/)."""
     qs = FinanceiroLoja.objects.select_related("loja", "loja__plano")
-    if not request.user.is_superuser:
-        financeiro = qs.filter(id=financeiro_id, loja__owner=request.user, loja__is_active=True).first()
-        if not financeiro:
-            return Response(
-                {"success": False, "error": "Sem permissão ou financeiro não encontrado."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-    else:
-        financeiro = qs.filter(id=financeiro_id).first()
-        if not financeiro:
-            return Response({"success": False, "error": "Financeiro não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+    financeiro = qs.filter(id=financeiro_id).first()
+    if not financeiro:
+        return Response({"success": False, "error": "Financeiro não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+    if not user_is_loja_admin(request.user, financeiro.loja):
+        return Response(
+            {"success": False, "error": "Sem permissão. Apenas o responsável ou um administrador da loja pode gerar cobrança."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     return _executar_renovar_financeiro(financeiro, request.data)

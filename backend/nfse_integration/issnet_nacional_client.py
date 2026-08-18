@@ -392,7 +392,7 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        cabec_txt = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
+        cabec_txt = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
 
         try:
             with certificado_mtls_temporario(cert_path, self.cert_password) as (pem_cert, pem_key):
@@ -506,7 +506,7 @@ class ISSNetNacionalClient:
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
 
-        cabec_txt = self._cabec_msg_nacional_sem_ns("1.00", "1.00")
+        cabec_txt = self._cabec_msg_nacional_sem_ns("1.01", "1.01")
         envelope_nao_assinado = montar_soap_envelope_sem_ns_raiz(
             nome_op, lote_xml_nao_assinado,
             cabec_txt=cabec_txt,
@@ -607,9 +607,10 @@ class ISSNetNacionalClient:
         return etree.tostring(cab, encoding="unicode", xml_declaration=False)
 
     @staticmethod
-    def _cabec_msg_nacional_sem_ns(versao: str, versao_dados: str = "1.00") -> str:
-        # Cabeçalho conforme print enviado pelo suporte NotaControl (03/08/2026):
+    def _cabec_msg_nacional_sem_ns(versao: str, versao_dados: str = "1.01") -> str:
+        # Cabeçalho conforme Manual de Integração v1.01 (03/08/2026):
         # <cabecalho versao="1.01" xmlns="...">  — atributo versao ANTES do xmlns.
+        # IMPORTANTE: desde 03/08/2026 o ISSNet rejeita versão 1.00 com E160.
         ns = "http://www.sped.fazenda.gov.br/nfse"
         return (
             f'<cabecalho versao="{versao}" xmlns="{ns}">'

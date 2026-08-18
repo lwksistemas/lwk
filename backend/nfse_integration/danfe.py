@@ -372,31 +372,10 @@ def _gerar_url_portal_issnet_nacional(
     except Exception as exc:
         logger.warning("Erro ao buscar URL DANFE Nacional: %s", exc)
 
-    # Fallback: gerar URL do portal diretamente pela chave de acesso.
-    # O ConsultarUrlNfse do ISSNet Nacional de Ribeirão Preto retorna E160
-    # (serviço em construção / schema incompatível). Enquanto isso, usamos
-    # a URL de verificação de autenticidade com a chave de acesso.
-    chave = ""
-    if nfse is not None:
-        chave = (getattr(nfse, "codigo_verificacao", "") or "").strip()
-    if chave and len(chave) > 10:
-        url_fallback = (
-            f"https://www.notaeletronica.com.br/ribeiraopreto/"
-            f"NotaDigital/Nota_Digital_Nacional.aspx?chave={chave}"
-        )
-        logger.info(
-            "DANFE Nacional: usando URL fallback por chave de acesso para NFS-e %s",
-            numero_nf,
-        )
-        if salvar and nfse is not None:
-            _salvar_pdf_url(nfse, url_fallback)
-            xml_url = url_xml_download_from_danfe(url_fallback)
-            if xml_url:
-                try:
-                    nfse.xml_url = xml_url[:1000]
-                    nfse.save(update_fields=["xml_url"])
-                except Exception:
-                    pass
-        return url_fallback
+    # O ConsultarUrlNfse do ISSNet Nacional de Ribeirão Preto retorna E160/E999
+    # (serviço em construção). A URL real da DANFE usa um token criptografado
+    # que só vem no e-mail automático do ISSNet ou na resposta do ConsultarUrlNfse
+    # — não é possível gerá-lo a partir da chave de acesso.
+    # O usuário deve colar o link do e-mail do ISSNet no ícone "colar link" da nota.
 
     return ""

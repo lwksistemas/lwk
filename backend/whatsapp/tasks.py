@@ -326,7 +326,7 @@ def _send_confirmacoes_salao(config, hoje, inicio, fim):
 
 
 def send_confirmacoes_agendadas_whatsapp():
-    """Envia o link de confirmação nos dias configurados (não na criação)."""
+    """Envia o link de confirmação nos dias configurados (e última chance no mesmo dia)."""
     from tenants.middleware import set_current_loja_id, set_current_tenant_db
     from whatsapp.confirmacao_agenda_service import (
         antecedencias_da_config,

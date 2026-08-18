@@ -1,7 +1,8 @@
 """Quando enviar o link de confirmação da agenda.
 
-O link NÃO sai na criação do agendamento. O admin escolhe os dias de
-antecedência (ex.: 3 e 1) e o worker envia em cada um desses dias.
+O admin escolhe os dias de antecedência (ex.: 3 e 1). O worker envia em
+cada um desses dias. Se o horário for marcado depois do dia da regra
+(ex.: consulta hoje com "1 dia antes"), envia na última chance.
 """
 from __future__ import annotations
 
@@ -111,6 +112,9 @@ def regras_do_dia(
     Catch-up: se o worker perdeu o dia D, envia atrasado — só se o agendamento
     já existia naquele dia. Não dispara regra passada na criação (ex.: marcado
     há 2 dias com regra de 3 dias).
+    Última chance: se a consulta já está dentro da menor antecedência e o
+    horário foi marcado depois do dia dela (ex.: "1 dia antes" + consulta hoje),
+    dispara só a menor regra.
     """
     if dias_ate < 0:
         return []
@@ -130,6 +134,16 @@ def regras_do_dia(
         dia_da_regra = data_consulta - timedelta(days=d)
         if criado <= dia_da_regra <= hoje:
             disparar.append(d)
+    if (
+        not disparar
+        and criado is not None
+        and data_consulta is not None
+        and antecedencias
+        and 0 <= dias_ate < min(antecedencias)
+    ):
+        menor = min(antecedencias)
+        if criado > data_consulta - timedelta(days=menor):
+            disparar.append(menor)
     return disparar
 
 
@@ -218,6 +232,25 @@ def processar_agendamento_hoje(agendamento, *, config, hoje=None, user=None) -> 
         if enviar_confirmacao_da_regra(agendamento, regra, config=config, user=user):
             enviados += 1
     return enviados
+
+
+def disparar_confirmacao_se_hoje(agendamento, *, user=None) -> int:
+    """Na criação: envia só se hoje já é um dia de envio (regra exata ou última chance)."""
+    from tenants.middleware import get_current_loja_id
+    from whatsapp.models import WhatsAppConfig
+
+    patient = getattr(agendamento, "patient", None)
+    if patient is not None and not getattr(patient, "allow_whatsapp", True):
+        return 0
+    loja_id = getattr(agendamento, "loja_id", None) or get_current_loja_id()
+    if not loja_id:
+        return 0
+    try:
+        config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+    except Exception:
+        logger.exception("WhatsApp config confirmação loja_id=%s", loja_id)
+        return 0
+    return processar_agendamento_hoje(agendamento, config=config, user=user)
 
 
 def janela_datas(antecedencias: list[int], *, hoje=None) -> tuple[date, date] | None:

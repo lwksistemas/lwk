@@ -440,7 +440,9 @@ export default function RelatorioComissoesPage() {
       .then(async (res) => {
         if (res.ok) {
           const json = await res.json();
-          setProfessionals(json.results || json);
+          const list: ProfessionalOption[] = json.results || json;
+          // Filtrar apenas profissionais reais (excluir administradores)
+          setProfessionals(list.filter((p: any) => p.is_profissional !== false));
         }
       })
       .catch(() => {});

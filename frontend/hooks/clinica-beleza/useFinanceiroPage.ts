@@ -69,7 +69,9 @@ export function useFinanceiroPage() {
   const loadProfessionals = useCallback(async () => {
     try {
       const data = await ClinicaBelezaAPI.professionals.list({ all: 1 });
-      setProfessionals(Array.isArray(data) ? (data as FinanceiroProfessional[]) : []);
+      const list = Array.isArray(data) ? (data as (FinanceiroProfessional & { is_profissional?: boolean })[]) : [];
+      // Filtrar apenas profissionais reais (excluir administradores sem flag profissional)
+      setProfessionals(list.filter((p) => p.is_profissional !== false));
     } catch (e: unknown) {
       setProfessionals([]);
       toast.error(e instanceof Error ? e.message : "Erro ao carregar profissionais.");

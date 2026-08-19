@@ -66,7 +66,8 @@ export function ConsultasListView({
         beforeLogout={
           <LocalizarClienteButton
             onClick={() => setShowLocalizar(true)}
-            title="Localizar cliente e ver consultas em lista"
+            label="Consultas do paciente"
+            title="Localizar paciente e ver suas consultas"
           />
         }
         extraActions={

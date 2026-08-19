@@ -5,10 +5,14 @@ import { Search } from "lucide-react";
 export function LocalizarClienteButton({
   onClick,
   title = "Localizar cliente",
+  label,
 }: {
   onClick: () => void;
   title?: string;
+  label?: string;
 }) {
+  const textoDesktop = label || "Localizar cliente";
+  const textoMobile = label || "Localizar";
   return (
     <button
       type="button"
@@ -17,8 +21,8 @@ export function LocalizarClienteButton({
       title={title}
     >
       <Search className="w-4 h-4 shrink-0" style={{ color: "var(--cb-primary, #8B3D52)" }} />
-      <span className="hidden sm:inline">Localizar cliente</span>
-      <span className="sm:hidden">Localizar</span>
+      <span className="hidden sm:inline">{textoDesktop}</span>
+      <span className="sm:hidden">{textoMobile}</span>
     </button>
   );
 }

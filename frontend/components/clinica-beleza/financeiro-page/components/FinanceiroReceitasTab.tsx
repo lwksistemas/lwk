@@ -114,7 +114,7 @@ export function FinanceiroReceitasTab({
                     <td className="py-3 px-4">{p.paciente_nome || "—"}</td>
                     <td className="py-3 px-4">{p.profissional_nome || "—"}</td>
                     <td className="py-3 px-4 max-w-[220px] text-sm leading-snug">
-                      {p.procedimento_nome || "—"}
+                      {p.procedimento_nome || "Consulta"}
                     </td>
                     <td className="py-3 px-4 text-right font-medium">
                       {formatCurrency(p.amount)}

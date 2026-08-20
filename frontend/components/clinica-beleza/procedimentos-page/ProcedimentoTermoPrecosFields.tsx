@@ -63,7 +63,7 @@ export function ProcedimentoTermoFields({ form, accentColor, onChange }: Procedi
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Cadastre TCLEs Interativos em Clínica da Beleza → Termos de Consentimento.
+              Cadastre TCLEs Interativos em Clínica da Beleza → TCLE Interativo.
             </p>
           </div>
           {usaTextoLocal && (

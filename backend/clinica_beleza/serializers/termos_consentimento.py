@@ -73,3 +73,9 @@ class TermoConsentimentoTemplateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"procedimento_id": str(exc)}) from exc
         except ValueError as exc:
             raise serializers.ValidationError({"procedimento_id": str(exc)}) from exc
+
+
+class TermoConsentimentoConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TermoConsentimentoConfig
+        fields = ["pdf_cabecalho"]

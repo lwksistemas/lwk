@@ -37,3 +37,42 @@ class ValidarRespostasTest(SimpleTestCase):
         secoes = normalizar_secoes([{"titulo": "X", "tipo": "sim_nao", "texto": "oi"}])
         self.assertEqual(len(secoes), 1)
         self.assertTrue(secoes[0]["id"])
+
+
+class RenderizarTextoTermoTest(SimpleTestCase):
+    def test_substitui_placeholders_da_introducao(self):
+        from unittest.mock import MagicMock, patch
+
+        from clinica_beleza.consentimento_service import renderizar_texto_termo
+
+        consulta = MagicMock()
+        consulta.loja_id = 6
+        consulta.patient.nome = "LUIZ HENRIQUE FELIX"
+        consulta.patient.cpf = "222.392.558-89"
+        consulta.patient.email = "a@b.com"
+        consulta.patient.telefone = ""
+        consulta.professional.nome = "DRA. MARINA"
+        consulta.professional.formatar_conselho.return_value = "CRF-SP 55604"
+        consulta.professional.cpf = ""
+        consulta.data_inicio = None
+        proc = MagicMock()
+        proc.nome = "MICROAGULHAMENTO FACIAL"
+        loja = {
+            "nome": "HARMONIS",
+            "cnpj": "37.302.743/0001-26",
+            "endereco": "PRADOPOLIS",
+            "telefone": "",
+            "email": "",
+        }
+        with patch("clinica_beleza.consentimento_service._dados_loja", return_value=loja):
+            out = renderizar_texto_termo(
+                "eu, {paciente_nome}, em {data} na clínica {clinica_nome}, "
+                "profissional {profissional_nome}, procedimento {procedimentos}",
+                consulta,
+                proc,
+            )
+        self.assertNotIn("{paciente_nome}", out)
+        self.assertNotIn("{clinica_nome}", out)
+        self.assertIn("LUIZ HENRIQUE FELIX", out)
+        self.assertIn("HARMONIS", out)
+        self.assertIn("MICROAGULHAMENTO FACIAL", out)

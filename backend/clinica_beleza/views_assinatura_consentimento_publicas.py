@@ -97,8 +97,15 @@ class ConsultaAssinaturaPublicaView(View):
         )
         tpl = template_do_procedimento(termo_proc.procedure)
         tipo_termo = "interativo" if tpl and tpl.is_interativo else "simples"
-        secoes = normalizar_secoes(tpl.secoes) if tipo_termo == "interativo" else []
-        introducao = (tpl.introducao or "") if tpl else ""
+        from .consentimento_service import renderizar_texto_termo
+        secoes = []
+        introducao = ""
+        if tipo_termo == "interativo" and tpl:
+            introducao = renderizar_texto_termo(tpl.introducao or "", consulta, termo_proc.procedure)
+            for secao in normalizar_secoes(tpl.secoes):
+                secao["titulo"] = renderizar_texto_termo(secao["titulo"], consulta, termo_proc.procedure)
+                secao["texto"] = renderizar_texto_termo(secao["texto"], consulta, termo_proc.procedure)
+                secoes.append(secao)
 
         return JsonResponse({
             "tipo_documento": "termo_consentimento",

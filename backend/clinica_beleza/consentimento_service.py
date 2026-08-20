@@ -118,6 +118,16 @@ def _renderizar_bloco_termo(template: str, ctx: dict) -> str:
     return texto
 
 
+def renderizar_texto_termo(template: str, consulta, procedure=None) -> str:
+    """Substitui {paciente_nome}, {data}, {clinica_nome}, etc. no texto do termo."""
+    ctx = _ctx_base_termo(consulta)
+    if procedure is not None:
+        nome = getattr(procedure, "nome", "") or ""
+        ctx["procedimento"] = nome
+        ctx["procedimentos"] = nome
+    return _renderizar_bloco_termo(template or "", ctx)
+
+
 def _ctx_base_termo(consulta) -> dict:
     loja = _dados_loja(consulta.loja_id)
     paciente = consulta.patient

@@ -2,7 +2,8 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import { AlertCircle, CheckCircle, Download, Eye, FileText, Stethoscope, User } from "lucide-react";
-import type { TermoConsentimentoData } from "./assinar-consentimento-types";
+import type { RespostaTcleInterativo, TermoConsentimentoData } from "./assinar-consentimento-types";
+import { AssinarTcleInterativoForm } from "./AssinarTcleInterativoForm";
 import { useAssinarConsentimento } from "./useAssinarConsentimento";
 
 function AssinarConsentimentoLoading() {
@@ -79,6 +80,9 @@ interface AssinarConsentimentoFormProps {
   pdfPronto: boolean;
   pdfInteracaoFeita: boolean;
   podeAssinar: boolean;
+  interativoPaciente: boolean;
+  respostasInterativo: Record<string, RespostaTcleInterativo>;
+  patchRespostaInterativo: (id: string, data: Partial<RespostaTcleInterativo>) => void;
   visualizarPdf: () => Promise<void>;
   baixarPdf: () => Promise<void>;
   assinar: () => Promise<void>;
@@ -98,6 +102,9 @@ function AssinarConsentimentoForm({
   pdfPronto,
   pdfInteracaoFeita,
   podeAssinar,
+  interativoPaciente,
+  respostasInterativo,
+  patchRespostaInterativo,
   visualizarPdf,
   baixarPdf,
   assinar,
@@ -116,7 +123,11 @@ function AssinarConsentimentoForm({
             </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">Assinatura Digital</h1>
-          <p className="text-gray-600 text-center">Termo de Consentimento Esclarecido</p>
+          <p className="text-gray-600 text-center">
+            {termo.tipo_termo === "interativo"
+              ? "TCLE Interativo"
+              : "Termo de Consentimento Esclarecido"}
+          </p>
         </div>
 
         <div className="bg-white shadow-xl p-8">
@@ -186,6 +197,23 @@ function AssinarConsentimentoForm({
           </div>
 
           <div className="mt-6 pt-6 border-t">
+            {interativoPaciente ? (
+              <>
+                <p className="text-sm font-semibold text-gray-800 mb-1">Leia cada seção e responda</p>
+                <p className="text-xs text-gray-500 mb-4">
+                  Marque SIM nas leituras, tire dúvidas com a clínica se precisar e escolha CONSINTO no final.
+                  Paciente, profissional e logomarca da clínica entram automaticamente no PDF.
+                </p>
+                <AssinarTcleInterativoForm
+                  introducao={termo.introducao || ""}
+                  secoes={termo.secoes || []}
+                  respostas={respostasInterativo}
+                  disabled={assinando}
+                  onChange={patchRespostaInterativo}
+                />
+              </>
+            ) : (
+              <>
             <p className="text-sm font-semibold text-gray-800 mb-1">Documento completo (PDF)</p>
             <p className="text-xs text-gray-500 mb-3">
               Abra ou baixe o PDF deste procedimento antes de assinar. A assinatura só é liberada após
@@ -257,6 +285,8 @@ function AssinarConsentimentoForm({
                 </span>
               </label>
             )}
+              </>
+            )}
           </div>
         </div>
 
@@ -264,8 +294,9 @@ function AssinarConsentimentoForm({
           <div className="flex items-start">
             <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 shrink-0" />
             <p className="text-sm text-yellow-700">
-              A assinatura só pode ser feita após abrir ou baixar o PDF e confirmar a leitura.
-              O registro inclui data, hora e endereço IP.
+              {interativoPaciente
+                ? "A assinatura só é liberada depois de responder SIM nas leituras e CONSINTO no final. O registro inclui data, hora e endereço IP."
+                : "A assinatura só pode ser feita após abrir ou baixar o PDF e confirmar a leitura. O registro inclui data, hora e endereço IP."}
             </p>
           </div>
         </div>
@@ -282,11 +313,13 @@ function AssinarConsentimentoForm({
         <div className="bg-white rounded-b-2xl shadow-xl p-8">
           {!podeAssinar && !assinando && (
             <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
-              {!pdfPronto
-                ? "Aguarde o carregamento do documento."
-                : !pdfInteracaoFeita
-                  ? "Abra ou baixe o PDF antes de assinar."
-                  : "Marque a caixa confirmando que leu o PDF para habilitar a assinatura."}
+              {interativoPaciente
+                ? "Responda SIM em cada leitura e escolha CONSINTO no final para habilitar a assinatura."
+                : !pdfPronto
+                  ? "Aguarde o carregamento do documento."
+                  : !pdfInteracaoFeita
+                    ? "Abra ou baixe o PDF antes de assinar."
+                    : "Marque a caixa confirmando que leu o PDF para habilitar a assinatura."}
             </p>
           )}
           <button
@@ -347,6 +380,9 @@ export function AssinarConsentimentoPageContent({ tokenRaw }: { tokenRaw: string
       pdfPronto={state.pdfPronto}
       pdfInteracaoFeita={state.pdfInteracaoFeita}
       podeAssinar={state.podeAssinar}
+      interativoPaciente={state.interativoPaciente}
+      respostasInterativo={state.respostasInterativo}
+      patchRespostaInterativo={state.patchRespostaInterativo}
       visualizarPdf={state.visualizarPdf}
       baixarPdf={state.baixarPdf}
       assinar={state.assinar}

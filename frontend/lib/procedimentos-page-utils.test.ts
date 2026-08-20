@@ -75,6 +75,23 @@ describe("buildProcedimentoSaveBody", () => {
     expect(body.name).toBe("Botox");
     expect(body.duration).toBe(45);
     expect(body.termo_consentimento).toBe("Texto do termo");
+    expect(body.termo_template).toBeNull();
+  });
+
+  it("envia o template escolhido e omite o texto local", () => {
+    const body = buildProcedimentoSaveBody(
+      {
+        ...EMPTY_PROCEDIMENTO_FORM,
+        name: "Microagulhamento",
+        categoria: "estetica",
+        termo_consentimento_ativo: true,
+        termo_consentimento: "Ignorar",
+        termo_template: 12,
+      },
+      "estetica",
+    );
+    expect(body.termo_template).toBe(12);
+    expect(body.termo_consentimento).toBe("");
   });
 });
 

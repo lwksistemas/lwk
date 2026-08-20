@@ -175,7 +175,10 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
                     "valor": float(ap.get_valor()),
                     "exige_termo": bool(
                         ap.procedure.termo_consentimento_ativo
-                        and (ap.procedure.termo_consentimento or "").strip(),
+                        and (
+                            getattr(ap.procedure, "termo_template_id", None)
+                            or (ap.procedure.termo_consentimento or "").strip()
+                        ),
                     ),
                 }
                 for ap in procs

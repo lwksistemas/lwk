@@ -21,6 +21,7 @@ export interface Procedure {
   categoria?: string;
   termo_consentimento?: string;
   termo_consentimento_ativo?: boolean;
+  termo_template?: number | null;
 }
 
 export interface ProcedimentoFormState {
@@ -30,6 +31,7 @@ export interface ProcedimentoFormState {
   categoria: string;
   termo_consentimento: string;
   termo_consentimento_ativo: boolean;
+  termo_template: number | null;
 }
 
 export const DEFAULT_TERMO_CONSENTIMENTO = `TERMO DE CONSENTIMENTO ESCLARECIDO
@@ -47,6 +49,7 @@ export const EMPTY_PROCEDIMENTO_FORM: ProcedimentoFormState = {
   categoria: "",
   termo_consentimento: DEFAULT_TERMO_CONSENTIMENTO,
   termo_consentimento_ativo: false,
+  termo_template: null,
 };
 
 export const FORM_INPUT_CLASS =
@@ -73,5 +76,6 @@ export function procedureToForm(p: Procedure): ProcedimentoFormState {
     categoria: resolveProcedureCategoriaSlug(procedureCategoria(p)),
     termo_consentimento: (p.termo_consentimento || "").trim() || DEFAULT_TERMO_CONSENTIMENTO,
     termo_consentimento_ativo: !!p.termo_consentimento_ativo,
+    termo_template: p.termo_template ?? null,
   };
 }

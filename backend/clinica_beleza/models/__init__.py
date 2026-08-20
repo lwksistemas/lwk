@@ -20,6 +20,7 @@ from .nfse_config import ClinicaBelezaNFSeConfig
 from .patients import Patient, PatientAnamnese
 from .procedures import Procedure, ProcedureProtocol
 from .professionals import HorarioTrabalhoProfissional, Professional, ProfessionalCommission
+from .termos_consentimento import TermoConsentimentoConfig, TermoConsentimentoTemplate
 from .retorno import AgendaRetornoConfig, RetornoProcedimentoRegra
 from .orcamento import OrcamentoConsulta, OrcamentoItem
 
@@ -54,6 +55,8 @@ __all__ = [
     "PrescricaoMemed",
     "Procedure",
     "ProcedureProtocol",
+    "TermoConsentimentoConfig",
+    "TermoConsentimentoTemplate",
     "ProdutoEstoque",
     "Professional",
     "ProfessionalCommission",

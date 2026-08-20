@@ -74,8 +74,9 @@ export function buildProcedimentoSaveBody(
     duration,
     active: true,
     category: categoria,
-    termo_consentimento: form.termo_consentimento_ativo ? form.termo_consentimento.trim() : "",
+    termo_consentimento: form.termo_consentimento_ativo && !form.termo_template ? form.termo_consentimento.trim() : "",
     termo_consentimento_ativo: form.termo_consentimento_ativo,
+    termo_template: form.termo_consentimento_ativo ? form.termo_template : null,
   };
 }
 

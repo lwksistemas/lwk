@@ -192,6 +192,9 @@ class ConsultaTermoProcedimento(LojaIsolationMixin, models.Model):
         Procedure, on_delete=models.CASCADE, related_name="termos_consulta",
     )
     conteudo_termo = models.TextField(blank=True, default="", verbose_name="Conteúdo do termo")
+    respostas_interativo = models.JSONField(
+        default=dict, blank=True, verbose_name="Respostas do TCLE Interativo",
+    )
     status_assinatura_termo = models.CharField(
         max_length=30,
         choices=Consulta.STATUS_ASSINATURA_TERMO_CHOICES,

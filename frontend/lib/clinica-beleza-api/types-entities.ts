@@ -165,3 +165,40 @@ export interface ProntuarioAnamneseItem {
   created_at: string | null;
   updated_at: string | null;
 }
+
+export type TermoConsentimentoTipo = "simples" | "interativo";
+export type TermoPdfCabecalho = "logo" | "timbrado";
+export type TermoSecaoTipo =
+  | "sim_nao"
+  | "assinatura"
+  | "gravidez"
+  | "fotos"
+  | "consinto"
+  | "profissional";
+
+export interface TermoConsentimentoSecao {
+  id: string;
+  codigo: string;
+  titulo: string;
+  texto: string;
+  tipo: TermoSecaoTipo;
+  ordem?: number;
+}
+
+export interface TermoConsentimentoTemplateItem {
+  id: number;
+  nome: string;
+  tipo: TermoConsentimentoTipo;
+  tipo_display?: string;
+  introducao: string;
+  conteudo: string;
+  secoes: TermoConsentimentoSecao[];
+  is_active: boolean;
+  procedimentos?: { id: number; nome: string }[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TermoConsentimentoConfigItem {
+  pdf_cabecalho: TermoPdfCabecalho;
+}

@@ -6,6 +6,8 @@ import type {
   DocumentoClinicoItem,
   ProcedureConvenioPrecoItem,
   ProcedimentoConvenioPrecosMatrix,
+  TermoConsentimentoConfigItem,
+  TermoConsentimentoTemplateItem,
 } from "./types-entities";
 import type { Anamnese } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { ClinicaPatient, HorarioTrabalhoRow } from "@/lib/clinica-beleza-entities";
@@ -97,6 +99,20 @@ export const proceduresApi = {
   precosConvenio: (id: number) => cbGet<ProcedureConvenioPrecoItem[]>(`/procedures/${id}/precos-convenio/`),
   savePrecosConvenio: (id: number, precos: { convenio: number; preco: number | string | null }[]) =>
     cbPut<ConvenioPrecoItem[]>(`/procedures/${id}/precos-convenio/`, { precos }),
+};
+
+export const termosConsentimentoApi = {
+  list: (params?: { tipo?: string; active?: boolean; page?: number; page_size?: number; all?: boolean | number | string }) =>
+    cbGetList<TermoConsentimentoTemplateItem>("/termos-consentimento/", params),
+  get: (id: number) => cbGet<TermoConsentimentoTemplateItem>(`/termos-consentimento/${id}/`),
+  create: (data: Partial<TermoConsentimentoTemplateItem>) =>
+    cbPost<TermoConsentimentoTemplateItem>("/termos-consentimento/", data),
+  update: (id: number, data: Partial<TermoConsentimentoTemplateItem>) =>
+    cbPut<TermoConsentimentoTemplateItem>(`/termos-consentimento/${id}/`, data),
+  delete: (id: number) => cbDelete(`/termos-consentimento/${id}/`),
+  getConfig: () => cbGet<TermoConsentimentoConfigItem>("/termos-consentimento/config/"),
+  saveConfig: (data: Partial<TermoConsentimentoConfigItem>) =>
+    cbPut<TermoConsentimentoConfigItem>("/termos-consentimento/config/", data),
 };
 
 export const conveniosApi = {

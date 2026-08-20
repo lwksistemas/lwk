@@ -16,6 +16,14 @@ class Procedure(ServicoBase):
     termo_consentimento_ativo = models.BooleanField(
         default=False, verbose_name="Exigir termo de consentimento",
     )
+    termo_template = models.ForeignKey(
+        "TermoConsentimentoTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="procedimentos",
+        verbose_name="Template de termo",
+    )
 
     class Meta(ServicoBase.Meta):
         app_label = "clinica_beleza"

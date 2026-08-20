@@ -14,6 +14,7 @@ from superadmin.models import Loja
 MIGRATION_NAMES = (
     "0037_termo_consentimento_assinatura",
     "0038_termo_por_procedimento",
+    "0068_termo_consentimento_template",
 )
 
 
@@ -126,6 +127,45 @@ class Command(BaseCommand):
                         cursor.execute(
                             "CREATE INDEX clin_cb_assin_termo_tipo_idx "
                             "ON clinica_beleza_consulta_assinaturas_termo (termo_procedimento_id, tipo)",
+                        )
+                    if not table_exists(cursor, "clinica_beleza_termo_template"):
+                        cursor.execute("""
+                            CREATE TABLE clinica_beleza_termo_template (
+                                id BIGSERIAL PRIMARY KEY,
+                                loja_id INTEGER NOT NULL,
+                                nome VARCHAR(200) NOT NULL,
+                                tipo VARCHAR(20) NOT NULL DEFAULT 'simples',
+                                introducao TEXT NOT NULL DEFAULT '',
+                                conteudo TEXT NOT NULL DEFAULT '',
+                                secoes JSONB NOT NULL DEFAULT '[]'::jsonb,
+                                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                            )
+                        """)
+                    if not table_exists(cursor, "clinica_beleza_termo_config"):
+                        cursor.execute("""
+                            CREATE TABLE clinica_beleza_termo_config (
+                                id BIGSERIAL PRIMARY KEY,
+                                loja_id INTEGER NOT NULL,
+                                pdf_cabecalho VARCHAR(20) NOT NULL DEFAULT 'logo',
+                                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                            )
+                        """)
+                    if table_exists(cursor, "clinica_beleza_procedure") and not column_exists(
+                        cursor, "clinica_beleza_procedure", "termo_template_id",
+                    ):
+                        cursor.execute(
+                            "ALTER TABLE clinica_beleza_procedure "
+                            "ADD COLUMN termo_template_id BIGINT NULL "
+                            "REFERENCES clinica_beleza_termo_template(id) ON DELETE SET NULL",
+                        )
+                    if table_exists(cursor, "clinica_beleza_consulta_termo_procedimento") and not column_exists(
+                        cursor, "clinica_beleza_consulta_termo_procedimento", "respostas_interativo",
+                    ):
+                        cursor.execute(
+                            "ALTER TABLE clinica_beleza_consulta_termo_procedimento "
+                            "ADD COLUMN respostas_interativo JSONB NOT NULL DEFAULT '{}'::jsonb",
                         )
                     for mig_name in MIGRATION_NAMES:
                         cursor.execute(

@@ -58,7 +58,7 @@ export function TermosConsentimentoPageContent() {
     <>
       <ClinicaBelezaStandardPageHeader
         title="Termos de Consentimento"
-        subtitle="Termo simples ou TCLE Interativo — um por procedimento"
+        subtitle="Um termo por procedimento — simples ou TCLE Interativo"
         icon={ScrollText}
         newLabel="Novo termo"
         onNew={() => router.push(buildTermoNovoPath(slug))}

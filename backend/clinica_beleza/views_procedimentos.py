@@ -29,15 +29,13 @@ _PROCEDURE_FIELD_MAP = {
     "termo_consentimento": "termo_consentimento",
     "consent_term_active": "termo_consentimento_ativo",
     "termo_consentimento_ativo": "termo_consentimento_ativo",
-    "termo_template": "termo_template",
-    "termo_template_id": "termo_template",
 }
 
 
 def _map_procedure_data(raw_data):
     data = map_field_names(raw_data, _PROCEDURE_FIELD_MAP)
-    if data.get("termo_template") in ("", "null"):
-        data["termo_template"] = None
+    data.pop("termo_template", None)
+    data.pop("termo_template_id", None)
     return data
 
 

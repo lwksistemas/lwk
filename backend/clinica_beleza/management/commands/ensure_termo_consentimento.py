@@ -15,6 +15,7 @@ MIGRATION_NAMES = (
     "0037_termo_consentimento_assinatura",
     "0038_termo_por_procedimento",
     "0068_termo_consentimento_template",
+    "0069_procedure_termo_template_unico",
 )
 
 
@@ -160,6 +161,12 @@ class Command(BaseCommand):
                             "ADD COLUMN termo_template_id BIGINT NULL "
                             "REFERENCES clinica_beleza_termo_template(id) ON DELETE SET NULL",
                         )
+                    cursor.execute(
+                        """
+                        CREATE UNIQUE INDEX IF NOT EXISTS clin_cb_proc_termo_tpl_uniq
+                        ON clinica_beleza_procedure (termo_template_id)
+                        """,
+                    )
                     if table_exists(cursor, "clinica_beleza_consulta_termo_procedimento") and not column_exists(
                         cursor, "clinica_beleza_consulta_termo_procedimento", "respostas_interativo",
                     ):

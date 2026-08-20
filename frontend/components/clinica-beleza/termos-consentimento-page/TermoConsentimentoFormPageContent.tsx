@@ -45,6 +45,22 @@ export function TermoConsentimentoFormPageContent() {
               />
             </div>
             <div>
+              <label className={FORM_LABEL_CLASS}>Procedimento *</label>
+              <select
+                value={page.form.procedimentoId ?? ""}
+                onChange={(e) => page.set("procedimentoId", e.target.value ? Number(e.target.value) : null)}
+                className={FORM_INPUT_CLASS}
+              >
+                <option value="">Selecione o procedimento</option>
+                {page.procedimentosDisponiveis.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Cada procedimento usa um único termo. Cadastre o procedimento antes, se ainda não existir.
+              </p>
+            </div>
+            <div>
               <label className={FORM_LABEL_CLASS}>Tipo *</label>
               <select
                 value={page.form.tipo}

@@ -66,6 +66,8 @@ class TermoConsentimentoTemplateDetailView(GetObjectMixin, APIView):
             return Response({"error": "Termo não encontrado."}, status=status.HTTP_404_NOT_FOUND)
         obj.is_active = False
         obj.save(update_fields=["is_active", "updated_at"])
+        from .termos_consentimento_service import vincular_procedimento_ao_termo
+        vincular_procedimento_ao_termo(obj, None)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

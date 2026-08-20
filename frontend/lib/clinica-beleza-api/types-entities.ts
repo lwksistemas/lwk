@@ -194,6 +194,7 @@ export interface TermoConsentimentoTemplateItem {
   conteudo: string;
   secoes: TermoConsentimentoSecao[];
   is_active: boolean;
+  procedimento_id?: number | null;
   procedimentos?: { id: number; nome: string }[];
   created_at?: string;
   updated_at?: string;

@@ -1,91 +1,9 @@
-import { useEffect, useState } from "react";
-import { ClinicaBelezaAPI, type ConvenioItem, type TermoConsentimentoTemplateItem } from "@/lib/clinica-beleza-api";
+import type { ConvenioItem } from "@/lib/clinica-beleza-api";
 import {
   FORM_INPUT_CLASS,
   FORM_LABEL_CLASS,
   FORM_SECTION_TITLE_CLASS,
-  type ProcedimentoFormState,
 } from "./procedimentos-page-types";
-
-interface ProcedimentoTermoFieldsProps {
-  form: ProcedimentoFormState;
-  accentColor: string;
-  onChange: (patch: Partial<ProcedimentoFormState>) => void;
-}
-
-export function ProcedimentoTermoFields({ form, accentColor, onChange }: ProcedimentoTermoFieldsProps) {
-  const [termos, setTermos] = useState<TermoConsentimentoTemplateItem[]>([]);
-
-  useEffect(() => {
-    ClinicaBelezaAPI.termosConsentimento
-      .list({ active: true, all: 1 })
-      .then((res) => setTermos(Array.isArray(res) ? res : res.results ?? []))
-      .catch(() => setTermos([]));
-  }, []);
-
-  const usaTextoLocal = form.termo_consentimento_ativo && !form.termo_template;
-
-  return (
-    <div className="space-y-4">
-      <p className={FORM_SECTION_TITLE_CLASS}>Termo de consentimento</p>
-      <label className="flex items-start gap-2.5 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={form.termo_consentimento_ativo}
-          onChange={(e) => onChange({
-            termo_consentimento_ativo: e.target.checked,
-            termo_template: e.target.checked ? form.termo_template : null,
-          })}
-          className="mt-0.5 rounded border-gray-300"
-          style={{ accentColor }}
-        />
-        <span className="text-xs text-gray-600 dark:text-gray-400 leading-snug">
-          Exigir termo de consentimento esclarecido (assinatura digital)
-        </span>
-      </label>
-      {form.termo_consentimento_ativo && (
-        <div className="space-y-3">
-          <div>
-            <label className={FORM_LABEL_CLASS}>Qual termo usar</label>
-            <select
-              value={form.termo_template ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                onChange({ termo_template: v ? Number(v) : null });
-              }}
-              className={FORM_INPUT_CLASS}
-            >
-              <option value="">Termo simples neste cadastro</option>
-              {termos.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.tipo === "interativo" ? "TCLE Interativo" : "Simples"} — {t.nome}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Cadastre TCLEs Interativos em Clínica da Beleza → TCLE Interativo.
-            </p>
-          </div>
-          {usaTextoLocal && (
-            <div>
-              <label className={FORM_LABEL_CLASS}>Texto do termo simples</label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                Variáveis: {"{paciente_nome}"}, {"{paciente_cpf}"}, {"{profissional_nome}"},{" "}
-                {"{profissional_conselho}"}, {"{clinica_nome}"}, {"{procedimentos}"}, {"{data}"}
-              </p>
-              <textarea
-                value={form.termo_consentimento}
-                onChange={(e) => onChange({ termo_consentimento: e.target.value })}
-                rows={10}
-                className={`${FORM_INPUT_CLASS} resize-y font-mono text-xs min-h-[180px]`}
-              />
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface ProcedimentoPrecosFieldsProps {
   convenios: ConvenioItem[];

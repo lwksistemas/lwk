@@ -30,6 +30,12 @@ class Procedure(ServicoBase):
         verbose_name = "Procedimento"
         verbose_name_plural = "Procedimentos"
         ordering = ["nome"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["termo_template"],
+                name="clin_cb_proc_termo_tpl_uniq",
+            ),
+        ]
 
     def __str__(self):
         return self.nome

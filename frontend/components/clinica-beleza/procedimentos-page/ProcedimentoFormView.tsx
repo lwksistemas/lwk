@@ -6,7 +6,7 @@ import type { ConvenioItem } from "@/lib/clinica-beleza-api";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ProcedimentoDadosFields } from "./ProcedimentoDadosFields";
-import { ProcedimentoPrecosFields, ProcedimentoTermoFields } from "./ProcedimentoTermoPrecosFields";
+import { ProcedimentoPrecosFields } from "./ProcedimentoTermoPrecosFields";
 import type { Procedure, ProcedimentoFormState } from "./procedimentos-page-types";
 
 interface ProcedimentoFormViewProps {
@@ -57,7 +57,6 @@ export function ProcedimentoFormView({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full max-w-none">
                 <ProcedimentoDadosFields form={form} onChange={onFormChange} />
                 <div className="space-y-6">
-                  <ProcedimentoTermoFields form={form} accentColor={accentColor} onChange={onFormChange} />
                   <ProcedimentoPrecosFields
                     convenios={convenios}
                     precosConvenio={precosConvenio}

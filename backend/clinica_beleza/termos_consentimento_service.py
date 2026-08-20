@@ -85,6 +85,45 @@ def pdf_usa_timbrado(loja_id: int | None) -> bool:
     return cfg.pdf_cabecalho == PDF_CABECALHO_TIMBRADO
 
 
+class ProcedimentoJaTemTermo(ValueError):
+    """O procedimento já está vinculado a outro template."""
+
+
+def vincular_procedimento_ao_termo(template: TermoConsentimentoTemplate, procedure_id: int | None) -> None:
+    """Garante 1 termo = 1 procedimento. procedure_id None desvincula."""
+    from .models import Procedure
+
+    atuais = list(Procedure.objects.filter(termo_template_id=template.id))
+    if not procedure_id:
+        for proc in atuais:
+            _desvincular_termo_procedimento(proc)
+        return
+
+    proc = Procedure.objects.filter(pk=procedure_id, is_active=True).first()
+    if not proc:
+        raise ValueError("Procedimento não encontrado.")
+    if proc.termo_template_id and proc.termo_template_id != template.id:
+        raise ProcedimentoJaTemTermo(
+            f"O procedimento “{proc.nome}” já tem outro termo. Cada procedimento usa um único termo.",
+        )
+    for outro in atuais:
+        if outro.id != proc.id:
+            _desvincular_termo_procedimento(outro)
+    if proc.termo_template_id != template.id or not proc.termo_consentimento_ativo:
+        proc.termo_template = template
+        proc.termo_consentimento_ativo = True
+        proc.save(update_fields=["termo_template", "termo_consentimento_ativo", "updated_at"])
+
+
+def _desvincular_termo_procedimento(proc) -> None:
+    proc.termo_template = None
+    if not (proc.termo_consentimento or "").strip():
+        proc.termo_consentimento_ativo = False
+        proc.save(update_fields=["termo_template", "termo_consentimento_ativo", "updated_at"])
+    else:
+        proc.save(update_fields=["termo_template", "updated_at"])
+
+
 def validar_respostas_interativo(secoes: list[dict], respostas: dict) -> str | None:
     """Retorna erro ou None se o paciente pode assinar."""
     respostas = respostas if isinstance(respostas, dict) else {}

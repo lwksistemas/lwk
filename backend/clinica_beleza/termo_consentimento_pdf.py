@@ -35,10 +35,10 @@ def _logo_url_loja(loja) -> str:
 
 # Marca d'água atrás das assinaturas, abaixo do nome (y_factor > 1 desce o logo).
 WM_OPACIDADE = 0.55
-WM_MAX_W_CM = 5.8
-WM_MAX_H_CM = 3.2
-WM_Y_FACTOR = 1.22
-WM_DESCER_CM = 0.95  # ~2 linhas de texto da assinatura
+WM_MAX_W_CM = 6.6
+WM_MAX_H_CM = 3.6
+WM_Y_FACTOR = 1.12
+WM_DESCER_CM = 0.48  # ~1 linha abaixo do nome (antes: 2 linhas)
 
 
 def _watermark_bytes(logo_url: str) -> bytes | None:
@@ -124,7 +124,7 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
         ("RIGHTPADDING", (0, 0), (-1, -1), 8),
         ("TOPPADDING", (0, 0), (-1, 0), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, -1), (-1, -1), 52),
+        ("BOTTOMPADDING", (0, -1), (-1, -1), 44),
         ("BOX", (0, 0), (0, -1), 0.5, colors.HexColor("#e5e7eb")),
         ("BOX", (1, 0), (1, -1), 0.5, colors.HexColor("#e5e7eb")),
     ]))

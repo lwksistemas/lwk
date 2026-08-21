@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { DollarSign, Eye, FileText, Mail, MessageCircle, Plus, Trash2, X } from "lucide-react";
 import apiClient from "@/lib/api-client";
 import { useToast } from "@/components/ui/Toast";
-import { Modal } from "@/components/ui/Modal";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { ConsultaDetailTabPanelsProps } from "./tab-panels-types";
 
@@ -81,6 +80,19 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
   const [showProcSelector, setShowProcSelector] = useState(true);
   const [visualizando, setVisualizando] = useState<Orcamento | null>(null);
   const [abrindoPdf, setAbrindoPdf] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!visualizando) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setVisualizando(null);
+    };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [visualizando]);
 
   const carregarOrcamentos = useCallback(async () => {
     if (!selected?.id) return;
@@ -474,13 +486,24 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
         </div>
       ))}
 
-      <Modal isOpen={!!visualizando} onClose={() => setVisualizando(null)} maxWidth="lg">
-        {visualizando && (
-          <div className="p-5">
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Orçamento</h3>
-                <p className="text-sm text-gray-500 mt-0.5">
+      {visualizando && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4"
+          onClick={() => setVisualizando(null)}
+        >
+          <div
+            className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] sm:max-h-[min(88vh,42rem)] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="orcamento-visualizar-titulo"
+          >
+            <div className="shrink-0 flex items-start justify-between gap-3 px-5 sm:px-6 py-3.5 border-b border-gray-200 dark:border-neutral-700">
+              <div className="min-w-0">
+                <h3 id="orcamento-visualizar-titulo" className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Orçamento
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5 truncate">
                   {visualizando.patient_name}
                   {visualizando.professional_name ? ` · ${visualizando.professional_name}` : ""}
                   {" · "}
@@ -490,60 +513,69 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
               <button
                 type="button"
                 onClick={() => setVisualizando(null)}
-                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700 text-gray-500 shrink-0"
                 aria-label="Fechar"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <table className="w-full text-sm mb-4">
-              <thead>
-                <tr className="text-left text-gray-500 border-b">
-                  <th className="pb-2 font-medium">Procedimento</th>
-                  <th className="pb-2 font-medium text-center w-14">Qtd</th>
-                  <th className="pb-2 font-medium text-right">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visualizando.itens.map((it) => (
-                  <tr key={it.id} className="border-b border-gray-100 dark:border-gray-700">
-                    <td className="py-2 pr-2 text-gray-900 dark:text-gray-100 break-words">
-                      {it.nome_procedimento}
-                    </td>
-                    <td className="py-2 text-center text-gray-600">{it.quantidade}</td>
-                    <td className="py-2 text-right font-medium whitespace-nowrap">
-                      {formatCurrency(it.subtotal)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan={2} className="pt-3 text-right font-semibold">
-                    Total
-                  </td>
-                  <td className="pt-3 text-right font-bold text-base">
-                    {formatCurrency(visualizando.valor_total)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+            <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 md:items-start">
+                <div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-gray-500 border-b">
+                        <th className="pb-2 font-medium">Procedimento</th>
+                        <th className="pb-2 font-medium text-center w-14">Qtd</th>
+                        <th className="pb-2 font-medium text-right">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visualizando.itens.map((it) => (
+                        <tr key={it.id} className="border-b border-gray-100 dark:border-gray-700">
+                          <td className="py-2 pr-2 text-gray-900 dark:text-gray-100 break-words">
+                            {it.nome_procedimento}
+                          </td>
+                          <td className="py-2 text-center text-gray-600">{it.quantidade}</td>
+                          <td className="py-2 text-right font-medium whitespace-nowrap">
+                            {formatCurrency(it.subtotal)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colSpan={2} className="pt-3 text-right font-semibold">
+                          Total
+                        </td>
+                        <td className="pt-3 text-right font-bold text-lg">
+                          {formatCurrency(visualizando.valor_total)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
 
-            {visualizando.observacoes && (
-              <div className="mb-4">
-                <p className="text-xs font-medium text-gray-500 mb-1">Observações</p>
-                <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words leading-relaxed">
-                  {formatarObservacoesOrcamento(visualizando.observacoes)}
-                </p>
+                <div className="md:border-l md:border-gray-100 dark:md:border-neutral-700 md:pl-8 flex flex-col min-h-0">
+                  {visualizando.observacoes ? (
+                    <div className="flex-1 min-h-0">
+                      <p className="text-xs font-medium text-gray-500 mb-1">Observações</p>
+                      <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words leading-relaxed">
+                        {formatarObservacoesOrcamento(visualizando.observacoes)}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400">Sem observações.</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-4">
+                    Válido por {visualizando.validade_dias} dias · {STATUS_LABEL[visualizando.status] || visualizando.status}
+                  </p>
+                </div>
               </div>
-            )}
+            </div>
 
-            <p className="text-xs text-gray-500 mb-4">
-              Válido por {visualizando.validade_dias} dias · {STATUS_LABEL[visualizando.status] || visualizando.status}
-            </p>
-
-            <div className="flex flex-wrap gap-2">
+            <div className="shrink-0 flex flex-wrap gap-2 px-5 sm:px-6 py-3 border-t border-gray-200 dark:border-neutral-700 bg-white/90 dark:bg-neutral-800/90">
               <button
                 type="button"
                 onClick={() => visualizarPdf(visualizando.id)}
@@ -562,8 +594,8 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
               </button>
             </div>
           </div>
-        )}
-      </Modal>
+        </div>
+      )}
     </div>
   );
 }

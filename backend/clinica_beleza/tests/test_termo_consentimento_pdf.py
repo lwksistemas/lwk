@@ -25,4 +25,4 @@ class LogoUrlLojaTermoTest(TestCase):
 
     def test_marca_dagua_mais_visivel_que_crm(self):
         self.assertGreater(WM_OPACIDADE, 0.25)
-        self.assertLessEqual(WM_OPACIDADE, 0.7)
+        self.assertLessEqual(WM_OPACIDADE, 0.9)

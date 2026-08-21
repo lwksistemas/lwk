@@ -66,7 +66,6 @@ def enviar_whatsapp_link_assinatura(
             procedimento=proc_nome or tipo_doc,
             loja_nome=loja_nome,
             link=link,
-            dias=TOKEN_EXPIRACAO_DIAS,
         )
     else:
         mensagem = msg_assinatura_cliente(

@@ -50,7 +50,10 @@ def _carregar_assinatura_publica(token):
     if assinatura.assinado:
         return None, JsonResponse({"error": "Este documento já foi assinado."}, status=400)
     if assinatura.is_expirado:
-        return None, JsonResponse({"error": "Este link expirou."}, status=400)
+        return None, JsonResponse(
+            {"error": "Este link não vale mais: a consulta já foi finalizada."},
+            status=400,
+        )
 
     termo_proc = documento_da_assinatura(adapter, assinatura)
     if not termo_proc:

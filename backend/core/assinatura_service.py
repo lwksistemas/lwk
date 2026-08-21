@@ -38,15 +38,23 @@ def normalizar_token_url(token: str) -> str:
     return t
 
 
-def gerar_token(doc_type: str, doc_id: int, tipo: str, loja_id: int, modulo: str = "crm") -> str:
+def gerar_token(
+    doc_type: str,
+    doc_id: int,
+    tipo: str,
+    loja_id: int,
+    modulo: str = "crm",
+    expiracao_dias: int | None = None,
+) -> str:
     """Gera token assinado com payload."""
+    dias = TOKEN_EXPIRACAO_DIAS if expiracao_dias is None else expiracao_dias
     payload = {
         "doc_type": doc_type,
         "doc_id": doc_id,
         "tipo": tipo,
         "loja_id": loja_id,
         "modulo": modulo,
-        "exp": int((timezone.now() + timedelta(days=TOKEN_EXPIRACAO_DIAS)).timestamp()),
+        "exp": int((timezone.now() + timedelta(days=dias)).timestamp()),
     }
     return dumps(payload)
 
@@ -133,6 +141,13 @@ class AssinaturaAdapter:
         """Identificador do módulo: 'crm', 'hotel'."""
         return "crm"
 
+    def aviso_validade_link(self) -> str:
+        """Texto HTML do aviso de validade no e-mail da parte 1."""
+        return f"Link válido por <strong>{TOKEN_EXPIRACAO_DIAS} dias</strong>."
+
+    def token_expiracao_dias(self) -> int:
+        return TOKEN_EXPIRACAO_DIAS
+
     def get_pagina_assinatura_path(self) -> str:
         """Path da página pública de assinatura. Ex: '/assinar/', '/assinar-reserva/'."""
         return "/assinar/"
@@ -190,7 +205,14 @@ def criar_assinatura(adapter: AssinaturaAdapter, documento, tipo: str, loja_id: 
         nome, email = adapter.get_destinatario_parte2(documento, loja_id)
 
     doc_type = documento.__class__.__name__.lower()
-    token = gerar_token(doc_type, documento.id, tipo, loja_id, modulo=adapter.get_modulo())
+    token = gerar_token(
+        doc_type,
+        documento.id,
+        tipo,
+        loja_id,
+        modulo=adapter.get_modulo(),
+        expiracao_dias=adapter.token_expiracao_dias(),
+    )
 
     assinatura = adapter.criar_registro_assinatura(
         documento, tipo, nome, email, token, loja_id,
@@ -302,7 +324,7 @@ def enviar_email_parte1(adapter: AssinaturaAdapter, documento, assinatura, loja_
 <!--<![endif]-->
 </td></tr></table>
 <table width="100%" style="background:#fff3cd;border-radius:4px;margin-bottom:20px;"><tr><td style="padding:15px;">
-<p style="color:#856404;font-size:13px;margin:0;">⏰ Link válido por <strong>{TOKEN_EXPIRACAO_DIAS} dias</strong>.</p>
+<p style="color:#856404;font-size:13px;margin:0;">⏰ {adapter.aviso_validade_link()}</p>
 </td></tr></table>"""
 
     html = _render_email_html("📄 Assinatura Digital", "#667eea 0%, #764ba2 100%", corpo, loja_nome)

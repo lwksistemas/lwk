@@ -27,9 +27,10 @@ def _ts_local(dt):
 
 
 def _logo_url_loja(loja) -> str:
+    """Logo principal da clínica (Configurações → Login). Fallback: logo da tela de login."""
     if not loja:
         return ""
-    return (getattr(loja, "login_logo", "") or "") or (getattr(loja, "logo", "") or "")
+    return (getattr(loja, "logo", "") or "").strip() or (getattr(loja, "login_logo", "") or "").strip()
 
 
 def _watermark_bytes(logo_url: str) -> bytes | None:
@@ -352,9 +353,9 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
     from superadmin.models import Loja
     loja = Loja.objects.using("default").filter(id=consulta.loja_id).first()
     nome_clinica = loja.nome if loja else "Clínica"
-    logo_url = None
+    logo_url = _logo_url_loja(loja)
     if not usa_timbrado:
-        logo_url = _build_cabecalho_logo_termo(elements, loja, styles, nome_clinica)
+        _build_cabecalho_logo_termo(elements, loja, styles, nome_clinica)
     elements.append(Paragraph("Termo de Consentimento Esclarecido", title_style))
     elements.append(Spacer(1, 0.4 * cm))
     elements.append(_build_tabela_dados_termo(consulta, procedure, loja, col1, col2))
@@ -372,6 +373,7 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
 
     ass_p, ass_pr = _build_secao_assinaturas(elements, termo_proc, compact, incluir_assinaturas)
 
+    # Marca d'água nas assinaturas: logo principal, mesmo com papel timbrado (padrão CRM).
     if (ass_p or ass_pr) and logo_url:
         wm_bytes = _watermark_bytes(logo_url)
         if wm_bytes:

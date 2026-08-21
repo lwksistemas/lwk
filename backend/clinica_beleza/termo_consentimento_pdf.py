@@ -33,15 +33,15 @@ def _logo_url_loja(loja) -> str:
     return (getattr(loja, "logo", "") or "").strip() or (getattr(loja, "login_logo", "") or "").strip()
 
 
-# Marca d'água igual CRM: logo original, semitransparente, atrás do texto (não foto na tabela).
-WM_OPACIDADE = 0.40
-WM_MAX_W_CM = 6.5
-WM_MAX_H_CM = 4.0
-WM_Y_FACTOR = 0.85
+# Marca d'água atrás das assinaturas, abaixo do nome (y_factor > 1 desce o logo).
+WM_OPACIDADE = 0.55
+WM_MAX_W_CM = 5.8
+WM_MAX_H_CM = 3.2
+WM_Y_FACTOR = 1.22
 
 
 def _watermark_bytes(logo_url: str) -> bytes | None:
-    """Logo da clínica a 40% de opacidade — marca d'água atrás das assinaturas."""
+    """Logo da clínica a 55% de opacidade — marca d'água abaixo do nome nas assinaturas."""
     if not logo_url:
         return None
     try:
@@ -121,9 +121,9 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
         ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, 0), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, -1), (-1, -1), 28),
+        ("BOTTOMPADDING", (0, -1), (-1, -1), 36),
         ("BOX", (0, 0), (0, -1), 0.5, colors.HexColor("#e5e7eb")),
         ("BOX", (1, 0), (1, -1), 0.5, colors.HexColor("#e5e7eb")),
     ]))

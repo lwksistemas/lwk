@@ -2,7 +2,10 @@
 from types import SimpleNamespace
 from unittest import TestCase
 
-from clinica_beleza.termo_consentimento_pdf import _logo_url_loja
+from clinica_beleza.termo_consentimento_pdf import (
+    WM_OPACIDADE,
+    _logo_url_loja,
+)
 
 
 class LogoUrlLojaTermoTest(TestCase):
@@ -19,3 +22,7 @@ class LogoUrlLojaTermoTest(TestCase):
 
     def test_sem_loja(self):
         self.assertEqual(_logo_url_loja(None), "")
+
+    def test_marca_dagua_mais_visivel_que_crm(self):
+        self.assertGreater(WM_OPACIDADE, 0.25)
+        self.assertLessEqual(WM_OPACIDADE, 0.7)

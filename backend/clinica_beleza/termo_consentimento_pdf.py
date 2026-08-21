@@ -33,8 +33,15 @@ def _logo_url_loja(loja) -> str:
     return (getattr(loja, "logo", "") or "").strip() or (getattr(loja, "login_logo", "") or "").strip()
 
 
+# Marca d'água mais visível que o CRM (25%) e posicionada sob o nome de cada assinante.
+WM_OPACIDADE = 0.55
+WM_MAX_W_CM = 4.2
+WM_MAX_H_CM = 2.0
+WM_Y_FACTOR = 1.35
+
+
 def _watermark_bytes(logo_url: str) -> bytes | None:
-    """Logo da clínica com 25% de opacidade — marca d'água nas assinaturas (padrão CRM)."""
+    """Logo da clínica com opacidade reduzida — marca d'água nas assinaturas."""
     if not logo_url:
         return None
     try:
@@ -43,7 +50,7 @@ def _watermark_bytes(logo_url: str) -> bytes | None:
             return None
         pil_img = PILImage.open(BytesIO(resp.content)).convert("RGBA")
         alpha = pil_img.split()[3]
-        alpha = alpha.point(lambda p: int(p * 0.25))
+        alpha = alpha.point(lambda p: int(p * WM_OPACIDADE))
         pil_img.putalpha(alpha)
         out_buf = BytesIO()
         pil_img.save(out_buf, format="PNG")
@@ -114,8 +121,9 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("LEFTPADDING", (0, 0), (-1, -1), 6),
         ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 52),
         ("BOX", (0, 0), (0, -1), 0.5, colors.HexColor("#e5e7eb")),
         ("BOX", (1, 0), (1, -1), 0.5, colors.HexColor("#e5e7eb")),
     ]))
@@ -150,12 +158,12 @@ def _insert_watermark(elements, wm_bytes: bytes):
                 from reportlab.lib.utils import ImageReader
                 img = ImageReader(BytesIO(self.wm_bytes))
                 iw, ih = img.getSize()
-                wm_w = 7.5 * cm
+                wm_w = WM_MAX_W_CM * cm
                 wm_h = wm_w * (ih / float(iw))
-                if wm_h > 5 * cm:
-                    wm_h = 5 * cm
+                if wm_h > WM_MAX_H_CM * cm:
+                    wm_h = WM_MAX_H_CM * cm
                     wm_w = wm_h / (ih / float(iw))
-                y_offset = -(wm_h * 0.8)
+                y_offset = -(wm_h * WM_Y_FACTOR)
                 x_left = (8 * cm - wm_w) / 2
                 x_right = 8 * cm + (8 * cm - wm_w) / 2
                 self.canv.drawImage(

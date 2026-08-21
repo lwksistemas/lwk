@@ -38,6 +38,7 @@ WM_OPACIDADE = 0.55
 WM_MAX_W_CM = 5.8
 WM_MAX_H_CM = 3.2
 WM_Y_FACTOR = 1.22
+WM_DESCER_CM = 0.95  # ~2 linhas de texto da assinatura
 
 
 def _watermark_bytes(logo_url: str) -> bytes | None:
@@ -123,7 +124,7 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
         ("RIGHTPADDING", (0, 0), (-1, -1), 8),
         ("TOPPADDING", (0, 0), (-1, 0), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, -1), (-1, -1), 36),
+        ("BOTTOMPADDING", (0, -1), (-1, -1), 52),
         ("BOX", (0, 0), (0, -1), 0.5, colors.HexColor("#e5e7eb")),
         ("BOX", (1, 0), (1, -1), 0.5, colors.HexColor("#e5e7eb")),
     ]))
@@ -165,7 +166,7 @@ def _insert_watermark(elements, wm_bytes: bytes):
                 if wm_h > WM_MAX_H_CM * cm:
                     wm_h = WM_MAX_H_CM * cm
                     wm_w = wm_h / (ih / float(iw))
-                y_offset = -(wm_h * WM_Y_FACTOR)
+                y_offset = -(wm_h * WM_Y_FACTOR) - (WM_DESCER_CM * cm)
                 x_left = (8 * cm - wm_w) / 2
                 x_right = 8 * cm + (8 * cm - wm_w) / 2
                 self.canv.drawImage(

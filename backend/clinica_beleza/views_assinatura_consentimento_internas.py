@@ -288,8 +288,13 @@ class ConsultaDownloadTermoPdfView(GetObjectMixin, APIView):
         incluir = termo_proc.status_assinatura_termo == "concluido"
         pdf = adapter.gerar_pdf(termo_proc, incluir_assinaturas=incluir)
         nome_proc = termo_proc.procedure.nome.replace(" ", "_")[:40]
+        from django.utils import timezone as dj_tz
+        stamp = dj_tz.localtime().strftime("%H%M%S")
         response = HttpResponse(pdf.getvalue(), content_type="application/pdf")
-        response["Content-Disposition"] = f'attachment; filename="termo_{nome_proc}_{pk}.pdf"'
+        response["Cache-Control"] = "no-store"
+        response["Content-Disposition"] = (
+            f'attachment; filename="termo_{nome_proc}_{pk}_{stamp}.pdf"'
+        )
         return response
 
 

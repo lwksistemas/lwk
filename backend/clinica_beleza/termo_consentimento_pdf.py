@@ -33,26 +33,31 @@ def _logo_url_loja(loja) -> str:
     return (getattr(loja, "logo", "") or "").strip() or (getattr(loja, "login_logo", "") or "").strip()
 
 
-# Logo nas assinaturas: visível, abaixo do nome — não sobreposto como overlay.
-WM_OPACIDADE = 0.75
-WM_MAX_W_CM = 3.6
-WM_MAX_H_CM = 1.4
+# Logo da assinatura: cor escura no papel (o PNG da Harmonis é claro demais como marca d'água).
+WM_OPACIDADE = 1.0
+WM_MAX_W_CM = 5.0
+WM_MAX_H_CM = 1.8
+LOGO_ASSINATURA_RGB = (40, 40, 40)
 
 
 def _watermark_bytes(logo_url: str) -> bytes | None:
-    """Logo da clínica com opacidade reduzida — marca d'água nas assinaturas."""
+    """Logo da clínica em cinza escuro, fundo transparente — carimbo abaixo do nome."""
     if not logo_url:
         return None
     try:
         resp = http_requests.get(logo_url, timeout=5)
         if resp.status_code != 200:
             return None
-        pil_img = PILImage.open(BytesIO(resp.content)).convert("RGBA")
-        alpha = pil_img.split()[3]
-        alpha = alpha.point(lambda p: int(p * WM_OPACIDADE))
-        pil_img.putalpha(alpha)
+        rgba = PILImage.open(BytesIO(resp.content)).convert("RGBA")
+        pixels = []
+        for _r, _g, _b, a in rgba.getdata():
+            if a < 12:
+                pixels.append((255, 255, 255, 0))
+            else:
+                pixels.append((*LOGO_ASSINATURA_RGB, a))
+        rgba.putdata(pixels)
         out_buf = BytesIO()
-        pil_img.save(out_buf, format="PNG")
+        rgba.save(out_buf, format="PNG")
         return out_buf.getvalue()
     except Exception as e:
         logger.warning("Marca dágua termo consentimento: %s", e)
@@ -153,8 +158,8 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
         table_style.extend([
             ("ALIGN", (0, logo_row_idx), (-1, logo_row_idx), "CENTER"),
             ("VALIGN", (0, logo_row_idx), (-1, logo_row_idx), "MIDDLE"),
-            ("TOPPADDING", (0, logo_row_idx), (-1, logo_row_idx), 4),
-            ("BOTTOMPADDING", (0, logo_row_idx), (-1, logo_row_idx), 6),
+            ("TOPPADDING", (0, logo_row_idx), (-1, logo_row_idx), 8),
+            ("BOTTOMPADDING", (0, logo_row_idx), (-1, logo_row_idx), 8),
         ])
     t = Table(assinatura_data, colWidths=[8 * cm, 8 * cm])
     t.setStyle(TableStyle(table_style))

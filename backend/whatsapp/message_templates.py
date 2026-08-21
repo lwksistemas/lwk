@@ -114,7 +114,7 @@ def msg_termo_consentimento(
         "👇 *Toque para ler e assinar:*",
         link,
         "",
-        f"⏳ Válido por {dias} dias",
+        "⏳ Válido até o fim da consulta",
         "🔒 Documento verificado por LWK Sistemas",
         SEPARADOR,
         "_Sua assinatura confirma que foi informado(a) sobre o procedimento._",

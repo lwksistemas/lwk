@@ -90,7 +90,8 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
             nome_assinante=nome,
             email_assinante=email,
             token=token,
-            token_expira_em=timezone.now() + timedelta(days=7),
+            # Campo obrigatório; a validade real é o status da consulta (is_expirado).
+            token_expira_em=timezone.now() + timedelta(days=3650),
             loja_id=loja_id,
         )
 
@@ -172,6 +173,13 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
 
     def get_modulo(self) -> str:
         return "clinica_beleza"
+
+    def aviso_validade_link(self) -> str:
+        return "Este link vale <strong>até o fim da consulta</strong>."
+
+    def token_expiracao_dias(self) -> int:
+        # A validade efetiva é o status da consulta; este valor só preenche o payload.
+        return 3650
 
     def get_pagina_assinatura_path(self) -> str:
         return "/assinar-consentimento/"

@@ -272,8 +272,12 @@ class ConsultaAssinaturaTermo(LojaIsolationMixin, models.Model):
 
     @property
     def is_expirado(self):
-        from django.utils import timezone
-        return timezone.now() > self.token_expira_em
+        """O link do termo vale até a consulta ser concluída ou cancelada — não por calendário."""
+        from ..consentimento_validade import termo_link_expirado_por_consulta
+
+        consulta = getattr(self, "consulta", None)
+        status = getattr(consulta, "status", None) if consulta is not None else None
+        return termo_link_expirado_por_consulta(status)
 
 
 class PrescricaoMemed(LojaIsolationMixin, models.Model):

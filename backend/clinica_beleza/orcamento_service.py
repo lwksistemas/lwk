@@ -1,6 +1,8 @@
 """Service layer para Orçamentos de consulta."""
+import html
 import io
 import logging
+import re
 from datetime import timedelta
 from decimal import Decimal
 from typing import Any
@@ -154,6 +156,56 @@ def excluir_orcamento(orcamento_id: int) -> None:
 # Internos
 # ---------------------------------------------------------------------------
 
+_OBS_LABELS = (
+    r"Dados do Cliente:",
+    r"Empresa:",
+    r"CPF/CNPJ:",
+    r"E-mail:",
+    r"Email:",
+    r"Telefone:",
+    r"Endere[cç]o:",
+    r"LGPD",
+)
+_OBS_SPLIT = re.compile(r"\s+(?=(?:" + "|".join(_OBS_LABELS) + r"))", re.IGNORECASE)
+
+
+def _format_brl(valor) -> str:
+    """R$ 3.580,00"""
+    v = Decimal(str(valor))
+    return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def observacoes_para_exibicao(texto: str) -> str:
+    """Quebra bloco colado (cadastro/LGPD) em linhas para leitura na tela e no PDF."""
+    t = (texto or "").strip()
+    if not t or "\n" in t:
+        return t
+    return _OBS_SPLIT.sub("\n", t).strip()
+
+
+def montar_mensagem_whatsapp_orcamento(orcamento: OrcamentoConsulta, loja_nome: str = "") -> str:
+    """Resumo profissional para WhatsApp — sem observações/cadastro (vão no PDF)."""
+    from whatsapp.message_templates import msg_orcamento
+
+    itens = [
+        f"• {item.nome_procedimento} ({item.quantidade}x) — {_format_brl(item.subtotal)}"
+        for item in orcamento.itens.all()
+    ]
+    nome = orcamento.patient.nome if orcamento.patient else "Paciente"
+    clinica = (loja_nome or "").strip() or (
+        orcamento.professional.nome if orcamento.professional else "Clínica"
+    )
+    return msg_orcamento(
+        nome=nome,
+        loja_nome=clinica,
+        linhas_itens=itens,
+        total=_format_brl(orcamento.valor_total),
+        validade_dias=orcamento.validade_dias or 30,
+    )
+
+
+
+
 def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list, com_timbrado: bool = False) -> bytes:
     """Constrói PDF do orçamento com ReportLab.
     
@@ -223,8 +275,8 @@ def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list, com_ti
         table_data.append([
             item.nome_procedimento,
             str(item.quantidade),
-            f"R$ {item.valor_customizado:,.2f}",
-            f"R$ {item.subtotal:,.2f}",
+            _format_brl(item.valor_customizado),
+            _format_brl(item.subtotal),
         ])
 
     t = Table(table_data, colWidths=[220, 40, 90, 90])
@@ -241,15 +293,14 @@ def _build_pdf(ctx_loja: dict, orcamento: OrcamentoConsulta, itens: list, com_ti
     story.append(Spacer(1, 4*mm))
 
     # Total
-    story.append(Paragraph(f"TOTAL: R$ {orcamento.valor_total:,.2f}", s_total))
+    story.append(Paragraph(f"TOTAL: {_format_brl(orcamento.valor_total)}", s_total))
     story.append(Spacer(1, 4*mm))
 
     # Observações
     if orcamento.observacoes:
         story.append(hr)
         story.append(Paragraph("<b>Observações:</b>", s_bold))
-        # Preservar quebras de linha do texto
-        obs_formatado = orcamento.observacoes.replace("\n", "<br/>")
+        obs_formatado = html.escape(observacoes_para_exibicao(orcamento.observacoes)).replace("\n", "<br/>")
         story.append(Paragraph(obs_formatado, s_obs))
         story.append(Spacer(1, 3*mm))
 
@@ -297,7 +348,7 @@ def _enviar_email(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
         corpo = (
             f"Olá {orcamento.patient.nome},\n\n"
             f"Segue em anexo o orçamento dos procedimentos conversados.\n"
-            f"Valor total: R$ {orcamento.valor_total:,.2f}\n\n"
+            f"Valor total: {_format_brl(orcamento.valor_total)}\n\n"
             f"Qualquer dúvida, estamos à disposição.\n\n"
             f"Atenciosamente,\n{profissional}"
         )
@@ -333,27 +384,16 @@ def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
         if not config or not getattr(config, "whatsapp_ativo", False):
             return {"sucesso": False, "erro": "WhatsApp não está ativo. Configure em Configurações → WhatsApp."}
 
-        profissional = orcamento.professional.nome if orcamento.professional else "Clínica"
-        itens_texto = "\n".join(
-            f"  • {item.nome_procedimento} x{item.quantidade} — R$ {item.subtotal:,.2f}"
-            for item in orcamento.itens.all()
-        )
+        loja_nome = "Clínica"
+        try:
+            loja = Loja.objects.using("default").filter(id=orcamento.loja_id).first()
+            if loja and getattr(loja, "nome", ""):
+                loja_nome = loja.nome
+        except Exception:
+            if orcamento.professional:
+                loja_nome = orcamento.professional.nome
 
-        mensagem = (
-            f"🏥 *{profissional}*\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"📋 *ORÇAMENTO*\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"👤 *Paciente:* {orcamento.patient.nome}\n\n"
-            f"📋 *Procedimentos:*\n"
-            f"{itens_texto}\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"💰 *TOTAL: R$ {orcamento.valor_total:,.2f}*\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n\n"
-        )
-        if orcamento.observacoes:
-            mensagem += f"📝 *Obs:* {orcamento.observacoes[:200]}\n\n"
-        mensagem += "_O orçamento completo em PDF segue em anexo._"
+        mensagem = montar_mensagem_whatsapp_orcamento(orcamento, loja_nome)
 
         # Enviar mensagem de texto
         ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config)

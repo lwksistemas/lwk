@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { DollarSign, FileText, Mail, MessageCircle, Plus, Trash2 } from "lucide-react";
+import { DollarSign, Eye, FileText, Mail, MessageCircle, Plus, Trash2, X } from "lucide-react";
 import apiClient from "@/lib/api-client";
 import { useToast } from "@/components/ui/Toast";
+import { Modal } from "@/components/ui/Modal";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { ConsultaDetailTabPanelsProps } from "./tab-panels-types";
 
 interface OrcamentoItem {
@@ -40,6 +42,28 @@ interface Procedure {
   categoria: string;
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  RASCUNHO: "Rascunho",
+  ENVIADO: "Enviado",
+  ACEITO: "Aceito",
+  RECUSADO: "Recusado",
+};
+
+function formatarObservacoesOrcamento(texto: string): string {
+  const t = (texto || "").trim();
+  if (!t) return "";
+  if (t.includes("\n")) return t;
+  return t
+    .replace(/\s+(?=Dados do Cliente:)/gi, "\n")
+    .replace(/\s+(?=Empresa:)/gi, "\n")
+    .replace(/\s+(?=CPF\/CNPJ:)/gi, "\n")
+    .replace(/\s+(?=E-mails?:)/gi, "\n")
+    .replace(/\s+(?=Telefone:)/gi, "\n")
+    .replace(/\s+(?=Endere[cç]o:)/gi, "\n")
+    .replace(/\s+(?=LGPD)/g, "\n")
+    .trim();
+}
+
 export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
   const toast = useToast();
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
@@ -55,6 +79,8 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
   const [itensForm, setItensForm] = useState<{ procedure_id: number; nome: string; valor: string; qtd: number }[]>([]);
   const [observacoes, setObservacoes] = useState("");
   const [showProcSelector, setShowProcSelector] = useState(true);
+  const [visualizando, setVisualizando] = useState<Orcamento | null>(null);
+  const [abrindoPdf, setAbrindoPdf] = useState<number | null>(null);
 
   const carregarOrcamentos = useCallback(async () => {
     if (!selected?.id) return;
@@ -129,14 +155,17 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
   };
 
   const visualizarPdf = async (id: number) => {
+    setAbrindoPdf(id);
     try {
-      const res = await apiClient.get(`/clinica-beleza/orcamentos/${id}/pdf/`, { responseType: 'blob' });
-      const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' });
+      const res = await apiClient.get(`/clinica-beleza/orcamentos/${id}/pdf/`, { responseType: "blob" });
+      const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       window.open(url, "_blank");
       setTimeout(() => window.URL.revokeObjectURL(url), 10000);
     } catch {
       toast.error("Erro ao gerar PDF.");
+    } finally {
+      setAbrindoPdf(null);
     }
   };
 
@@ -288,10 +317,10 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
                   {itensForm.map((it, idx) => (
                     <tr key={idx} className="border-t">
                       <td className="px-3 py-2">{it.nome}</td>
-                      <td className="px-3 py-2 text-right">R$ {Number(it.valor).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(it.valor)}</td>
                       <td className="px-3 py-2 text-center">{it.qtd}</td>
                       <td className="px-3 py-2 text-right font-medium">
-                        R$ {(Number(it.valor) * it.qtd).toFixed(2)}
+                        {formatCurrency(Number(it.valor) * it.qtd)}
                       </td>
                       <td className="px-3 py-2 text-center">
                         <button type="button" onClick={() => removerItem(idx)} className="text-red-500 hover:text-red-700">
@@ -304,7 +333,7 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
                 <tfoot>
                   <tr className="border-t bg-gray-50 dark:bg-gray-700">
                     <td colSpan={3} className="px-3 py-2 font-bold text-right">TOTAL:</td>
-                    <td className="px-3 py-2 text-right font-bold">R$ {totalForm.toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right font-bold">{formatCurrency(totalForm)}</td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -320,7 +349,7 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
               onChange={(e) => setObservacoes(e.target.value)}
               rows={5}
               className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
-              placeholder="Condições de pagamento, validade especial, informações adicionais..."
+              placeholder="Condições de pagamento, validade especial... (aparecem no PDF; o WhatsApp envia só o resumo + anexo)"
             />
           </div>
 
@@ -360,44 +389,58 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
           key={orc.id}
           className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
         >
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <span className="font-semibold text-gray-900 dark:text-white">
-                R$ {Number(orc.valor_total).toFixed(2)}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                {formatCurrency(orc.valor_total)}
               </span>
-              <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                {orc.status}
+              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                {STATUS_LABEL[orc.status] || orc.status}
               </span>
-              {orc.enviado_email && <span className="ml-1 text-xs text-green-600">✓ Email</span>}
-              {orc.enviado_whatsapp && <span className="ml-1 text-xs text-green-600">✓ WhatsApp</span>}
+              {orc.enviado_email && <span className="text-xs text-green-600">✓ E-mail</span>}
+              {orc.enviado_whatsapp && <span className="text-xs text-green-600">✓ WhatsApp</span>}
             </div>
             <span className="text-xs text-gray-500">
               {new Date(orc.created_at).toLocaleDateString("pt-BR")}
             </span>
           </div>
 
-          {/* Itens */}
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+          <div className="text-sm text-gray-800 dark:text-gray-200 mb-3 space-y-1">
             {orc.itens.map((it) => (
-              <div key={it.id} className="flex justify-between">
-                <span>{it.nome_procedimento} x{it.quantidade}</span>
-                <span>R$ {Number(it.subtotal).toFixed(2)}</span>
+              <div key={it.id} className="flex justify-between gap-3">
+                <span className="break-words">
+                  {it.nome_procedimento}{" "}
+                  <span className="text-gray-500">({it.quantidade}x)</span>
+                </span>
+                <span className="shrink-0 font-medium">{formatCurrency(it.subtotal)}</span>
               </div>
             ))}
           </div>
 
           {orc.observacoes && (
-            <p className="text-xs text-gray-500 italic mb-2">{orc.observacoes}</p>
+            <div className="mb-3 rounded-md bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 px-3 py-2 max-h-48 overflow-y-auto">
+              <p className="text-xs font-medium text-gray-500 mb-1">Observações</p>
+              <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words leading-relaxed">
+                {formatarObservacoesOrcamento(orc.observacoes)}
+              </p>
+            </div>
           )}
 
-          {/* Ações */}
           <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
             <button
               type="button"
-              onClick={() => visualizarPdf(orc.id)}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-purple-50 text-purple-700 rounded hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-300"
+              onClick={() => setVisualizando(orc)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-100 text-gray-800 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
             >
-              <FileText size={14} /> PDF
+              <Eye size={14} /> Visualizar
+            </button>
+            <button
+              type="button"
+              onClick={() => visualizarPdf(orc.id)}
+              disabled={abrindoPdf === orc.id}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-purple-50 text-purple-700 rounded hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-300 disabled:opacity-50"
+            >
+              <FileText size={14} /> {abrindoPdf === orc.id ? "Abrindo..." : "PDF"}
             </button>
             <button
               type="button"
@@ -430,6 +473,97 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
           </div>
         </div>
       ))}
+
+      <Modal isOpen={!!visualizando} onClose={() => setVisualizando(null)} maxWidth="lg">
+        {visualizando && (
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Orçamento</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {visualizando.patient_name}
+                  {visualizando.professional_name ? ` · ${visualizando.professional_name}` : ""}
+                  {" · "}
+                  {new Date(visualizando.created_at).toLocaleDateString("pt-BR")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVisualizando(null)}
+                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+                aria-label="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <table className="w-full text-sm mb-4">
+              <thead>
+                <tr className="text-left text-gray-500 border-b">
+                  <th className="pb-2 font-medium">Procedimento</th>
+                  <th className="pb-2 font-medium text-center w-14">Qtd</th>
+                  <th className="pb-2 font-medium text-right">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visualizando.itens.map((it) => (
+                  <tr key={it.id} className="border-b border-gray-100 dark:border-gray-700">
+                    <td className="py-2 pr-2 text-gray-900 dark:text-gray-100 break-words">
+                      {it.nome_procedimento}
+                    </td>
+                    <td className="py-2 text-center text-gray-600">{it.quantidade}</td>
+                    <td className="py-2 text-right font-medium whitespace-nowrap">
+                      {formatCurrency(it.subtotal)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={2} className="pt-3 text-right font-semibold">
+                    Total
+                  </td>
+                  <td className="pt-3 text-right font-bold text-base">
+                    {formatCurrency(visualizando.valor_total)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+
+            {visualizando.observacoes && (
+              <div className="mb-4">
+                <p className="text-xs font-medium text-gray-500 mb-1">Observações</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words leading-relaxed">
+                  {formatarObservacoesOrcamento(visualizando.observacoes)}
+                </p>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500 mb-4">
+              Válido por {visualizando.validade_dias} dias · {STATUS_LABEL[visualizando.status] || visualizando.status}
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => visualizarPdf(visualizando.id)}
+                disabled={abrindoPdf === visualizando.id}
+                className="flex items-center gap-1 px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50"
+                style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+              >
+                <FileText size={16} /> {abrindoPdf === visualizando.id ? "Abrindo..." : "Abrir PDF"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisualizando(null)}
+                className="px-4 py-2 text-sm border rounded-lg"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

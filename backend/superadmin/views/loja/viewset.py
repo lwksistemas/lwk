@@ -195,7 +195,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             }, status=400)
 
         try:
-            logger.info(f"[buscar_por_documento] Buscando loja com documento: {documento_limpo}")
+            logger.info("[buscar_por_documento] Buscando loja por documento")
 
             from django.db.models import Q
             loja = Loja.objects.filter(
@@ -204,12 +204,12 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             ).first()
 
             if not loja:
-                logger.warning(f"[buscar_por_documento] Nenhuma loja encontrada com documento: {documento_limpo}")
+                logger.warning("[buscar_por_documento] Nenhuma loja encontrada para o documento informado")
                 return Response({
                     "error": "Nenhuma loja encontrada com este CPF/CNPJ",
                 }, status=404)
 
-            logger.info(f"[buscar_por_documento] Loja encontrada: {loja.nome} (slug: {loja.slug})")
+            logger.info("[buscar_por_documento] Loja encontrada: %s (slug: %s)", loja.nome, loja.slug)
 
             return Response({
                 "slug": loja.slug,
@@ -218,7 +218,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             })
 
         except Exception as e:
-            logger.exception("buscar_por_documento erro para documento=%s: %s", documento_limpo, e)
+            logger.exception("[buscar_por_documento] Erro ao buscar loja: %s", e)
             return Response({
                 "error": "Erro ao buscar loja. Tente novamente.",
             }, status=500)

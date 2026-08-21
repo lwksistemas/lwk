@@ -23,20 +23,20 @@ export function AssinarTcleInterativoForm({
   return (
     <div className="space-y-6">
       {introducao ? (
-        <p className="text-sm text-gray-700 whitespace-pre-wrap">{introducao}</p>
+        <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{introducao}</p>
       ) : null}
       {ordered.map((secao) => {
         const r = respostas[secao.id] || {};
         const cab = secao.codigo ? `${secao.codigo}. ${secao.titulo}` : secao.titulo;
         return (
-          <section key={secao.id} className="border border-gray-200 rounded-xl p-4 space-y-3">
-            <h3 className="font-semibold text-gray-900">{cab}</h3>
+          <section key={secao.id} className="border border-gray-200 dark:border-slate-600 rounded-xl p-4 space-y-3">
+            <h3 className="font-semibold text-gray-900 dark:text-white">{cab}</h3>
             {secao.texto ? (
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{secao.texto}</p>
+              <p className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{secao.texto}</p>
             ) : null}
 
             {(secao.tipo === "sim_nao" || secao.tipo === "fotos" || secao.tipo === "gravidez") && (
-              <div className="flex gap-4 text-sm">
+              <div className="flex gap-4 text-sm text-gray-800 dark:text-slate-200">
                 <label className="inline-flex items-center gap-1.5">
                   <input
                     type="radio"
@@ -62,26 +62,26 @@ export function AssinarTcleInterativoForm({
 
             {secao.tipo === "sim_nao" && (
               <div>
-                <label className="text-xs text-gray-500">Dúvidas (opcional)</label>
+                <label className="text-xs text-gray-500 dark:text-slate-400">Dúvidas (opcional)</label>
                 <textarea
                   disabled={disabled}
                   value={r.duvidas || ""}
                   onChange={(e) => onChange(secao.id, { duvidas: e.target.value })}
                   rows={2}
-                  className="mt-1 w-full text-sm border rounded-lg px-3 py-2"
+                  className="mt-1 w-full text-sm border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
                 />
               </div>
             )}
 
             {secao.tipo === "gravidez" && (
-              <div className="space-y-2 text-sm">
-                <label className="block text-xs text-gray-500">Data da última menstruação</label>
+              <div className="space-y-2 text-sm text-gray-800 dark:text-slate-200">
+                <label className="block text-xs text-gray-500 dark:text-slate-400">Data da última menstruação</label>
                 <input
                   type="date"
                   disabled={disabled || r.nao_me_recordo}
                   value={r.dum || ""}
                   onChange={(e) => onChange(secao.id, { dum: e.target.value, nao_me_recordo: false })}
-                  className="border rounded-lg px-3 py-2"
+                  className="border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
                 />
                 <label className="inline-flex items-center gap-1.5">
                   <input
@@ -99,7 +99,7 @@ export function AssinarTcleInterativoForm({
             )}
 
             {secao.tipo === "consinto" && (
-              <div className="flex gap-4 text-sm">
+              <div className="flex gap-4 text-sm text-gray-800 dark:text-slate-200">
                 <label className="inline-flex items-center gap-1.5">
                   <input
                     type="radio"

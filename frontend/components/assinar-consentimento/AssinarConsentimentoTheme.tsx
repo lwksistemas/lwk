@@ -1,25 +1,31 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 const ROOT_ID = "assinar-consentimento-root";
 
-function applySystemDark(el: HTMLElement) {
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  el.classList.toggle("dark", dark);
-  el.style.colorScheme = dark ? "dark" : "light";
+/** Link de e-mail/WhatsApp deve ficar claro no celular, igual no computador. */
+export function forcarTemaClaroAssinatura() {
+  if (typeof document === "undefined") return;
+  const html = document.documentElement;
+  html.classList.remove("dark");
+  html.classList.add("light");
+  html.style.colorScheme = "only light";
+  const el = document.getElementById(ROOT_ID);
+  if (!el) return;
+  el.classList.remove("dark");
+  el.style.colorScheme = "only light";
 }
 
-/** Reaplica o tema se o celular mudar claro/escuro com a página aberta. */
 export function AssinarConsentimentoThemeSync() {
-  useEffect(() => {
-    const el = document.getElementById(ROOT_ID);
-    if (!el) return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => applySystemDark(el);
-    applySystemDark(el);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
+  useLayoutEffect(() => {
+    forcarTemaClaroAssinatura();
+    const html = document.documentElement;
+    const observer = new MutationObserver(() => {
+      if (html.classList.contains("dark")) forcarTemaClaroAssinatura();
+    });
+    observer.observe(html, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
   }, []);
   return null;
 }

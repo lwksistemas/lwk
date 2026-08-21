@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPrimaryApiBaseUrl } from "@/lib/api-base";
-import type { TermoConsentimentoData } from "./assinar-consentimento-types";
+import type { RespostaTcleInterativo, TermoConsentimentoData } from "./assinar-consentimento-types";
 import {
   buildAssinaturaConsentimentoUrls,
   decodeAssinaturaToken,
+  ehTcleInterativoPaciente,
   podeAssinarTermo,
+  respostasInterativoValidas,
 } from "./assinar-consentimento-utils";
 
 export function useAssinarConsentimento(tokenRaw: string) {
@@ -25,10 +27,14 @@ export function useAssinarConsentimento(tokenRaw: string) {
   const [pdfInteracaoFeita, setPdfInteracaoFeita] = useState(false);
   const [declarouLeituraCompleta, setDeclarouLeituraCompleta] = useState(false);
   const [pdfReloadKey, setPdfReloadKey] = useState(0);
+  const [respostasInterativo, setRespostasInterativo] = useState<Record<string, RespostaTcleInterativo>>({});
   const pdfBlobUrlRef = useRef<string | null>(null);
 
+  const interativoPaciente = ehTcleInterativoPaciente(termo);
   const pdfPronto = Boolean(pdfBlobUrl) && !pdfInlineLoading && !pdfInlineError;
-  const podeAssinar = podeAssinarTermo(pdfPronto, pdfInteracaoFeita, declarouLeituraCompleta);
+  const podeAssinar = interativoPaciente
+    ? respostasInterativoValidas(termo?.secoes || [], respostasInterativo)
+    : podeAssinarTermo(pdfPronto, pdfInteracaoFeita, declarouLeituraCompleta);
 
   useEffect(() => {
     pdfBlobUrlRef.current = pdfBlobUrl;
@@ -64,6 +70,11 @@ export function useAssinarConsentimento(tokenRaw: string) {
 
   useEffect(() => {
     if (!termo) return;
+    if (ehTcleInterativoPaciente(termo)) {
+      setPdfInlineLoading(false);
+      setPdfInlineError(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setPdfBlobUrl((prev) => {
@@ -116,9 +127,13 @@ export function useAssinarConsentimento(tokenRaw: string) {
     setErro("");
     try {
       const url = getPrimaryApiBaseUrl();
+      const payload = ehTcleInterativoPaciente(termo)
+        ? { respostas_interativo: respostasInterativo }
+        : {};
       const res = await fetch(`${url}${urls.termo}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -132,7 +147,7 @@ export function useAssinarConsentimento(tokenRaw: string) {
     } finally {
       setAssinando(false);
     }
-  }, [podeAssinar, urls.termo]);
+  }, [podeAssinar, respostasInterativo, termo, urls.termo]);
 
   const fetchPdfBlob = useCallback(async (): Promise<Blob | null> => {
     const url = getPrimaryApiBaseUrl();
@@ -218,6 +233,11 @@ export function useAssinarConsentimento(tokenRaw: string) {
     setPdfReloadKey,
     pdfPronto,
     podeAssinar,
+    interativoPaciente,
+    respostasInterativo,
+    patchRespostaInterativo: (id: string, data: Partial<RespostaTcleInterativo>) => {
+      setRespostasInterativo((prev) => ({ ...prev, [id]: { ...prev[id], ...data } }));
+    },
     assinar,
     visualizarPdf,
     baixarPdf,

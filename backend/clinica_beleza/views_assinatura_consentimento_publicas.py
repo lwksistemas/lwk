@@ -15,6 +15,7 @@ from .consentimento_assinatura_publica_service import (
     configurar_tenant_publico_clinica,
     documento_da_assinatura,
     preencher_termo_se_vazio,
+    resolver_assinatura_publica,
 )
 from .consentimento_service import limpar_conteudo_termo_exibicao
 
@@ -43,9 +44,9 @@ def _carregar_assinatura_publica(token):
         return None, JsonResponse({"error": err}, status=400)
 
     adapter = ConsultaTermoAssinaturaAdapter()
-    assinatura = adapter.buscar_assinatura_por_token(token)
-    if not assinatura:
-        return None, JsonResponse({"error": "Link inválido."}, status=400)
+    _payload, assinatura, ass_err = resolver_assinatura_publica(adapter, token)
+    if ass_err or not assinatura:
+        return None, JsonResponse({"error": ass_err or "Link inválido."}, status=400)
     if assinatura.assinado:
         return None, JsonResponse({"error": "Este documento já foi assinado."}, status=400)
     if assinatura.is_expirado:
@@ -91,9 +92,25 @@ class ConsultaAssinaturaPublicaView(View):
             loja_nome = loja.nome
 
         nome_proc = termo_proc.procedure.nome
+        from .termos_consentimento_service import (
+            normalizar_secoes,
+            template_do_procedimento,
+        )
+        tpl = template_do_procedimento(termo_proc.procedure)
+        tipo_termo = "interativo" if tpl and tpl.is_interativo else "simples"
+        from .consentimento_service import renderizar_texto_termo
+        secoes = []
+        introducao = ""
+        if tipo_termo == "interativo" and tpl:
+            introducao = renderizar_texto_termo(tpl.introducao or "", consulta, termo_proc.procedure)
+            for secao in normalizar_secoes(tpl.secoes):
+                secao["titulo"] = renderizar_texto_termo(secao["titulo"], consulta, termo_proc.procedure)
+                secao["texto"] = renderizar_texto_termo(secao["texto"], consulta, termo_proc.procedure)
+                secoes.append(secao)
 
         return JsonResponse({
             "tipo_documento": "termo_consentimento",
+            "tipo_termo": tipo_termo,
             "titulo": nome_proc,
             "procedimentos_nomes": nome_proc,
             "procedure_id": termo_proc.procedure_id,
@@ -104,6 +121,8 @@ class ConsultaAssinaturaPublicaView(View):
             "profissional_nome": consulta.professional.nome if consulta.professional else "",
             "clinica_nome": loja_nome,
             "conteudo_termo": limpar_conteudo_termo_exibicao(termo_proc.conteudo_termo or ""),
+            "introducao": introducao,
+            "secoes": secoes,
         })
 
     def post(self, request, token):
@@ -123,6 +142,25 @@ class ConsultaAssinaturaPublicaView(View):
 
         payload, adapter, assinatura, termo_proc = ctx
         loja_id = payload["loja_id"]
+
+        import json
+        from .termos_consentimento_service import (
+            normalizar_secoes,
+            template_do_procedimento,
+            validar_respostas_interativo,
+        )
+        tpl = template_do_procedimento(termo_proc.procedure)
+        if tpl and tpl.is_interativo and assinatura.tipo == "paciente":
+            try:
+                body = json.loads(request.body or b"{}")
+            except json.JSONDecodeError:
+                body = {}
+            respostas = body.get("respostas_interativo") or {}
+            erro_resp = validar_respostas_interativo(normalizar_secoes(tpl.secoes), respostas)
+            if erro_resp:
+                return JsonResponse({"error": erro_resp}, status=400)
+            termo_proc.respostas_interativo = respostas
+            termo_proc.save(update_fields=["respostas_interativo", "updated_at"])
 
         ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", "0.0.0.0"))
         if "," in ip:

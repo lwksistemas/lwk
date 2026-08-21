@@ -11,6 +11,7 @@ import {
   proceduresApi,
   professionalsApi,
   templatesApi,
+  termosConsentimentoApi,
 } from "./client-entities";
 import { estoqueApi, financeiroApi, locaisAtendimentoApi, lojaApi, nomesAgendaApi, retornoApi } from "./client-ops";
 import { cbDelete, cbGet, cbGetList, cbPatch, cbPost, cbPut } from "./client-http";
@@ -50,6 +51,7 @@ export class ClinicaBelezaAPI {
   };
 
   static templates = templatesApi;
+  static termosConsentimento = termosConsentimentoApi;
   static documentos = documentosApi;
 
   static prontuario: ProntuarioApi = {

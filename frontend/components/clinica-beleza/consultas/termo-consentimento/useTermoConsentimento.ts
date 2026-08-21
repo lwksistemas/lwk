@@ -142,6 +142,26 @@ export function useTermoConsentimento({
     }
   };
 
+  const assinarProfissional = async (procedureId: number) => {
+    setLoading(true);
+    try {
+      const res = await ClinicaBelezaAPI.consultas.termoConsentimento.linkProfissional(
+        consultaId,
+        procedureId,
+      );
+      const path = (res.path || "").trim();
+      if (!path.startsWith("/assinar-consentimento/")) {
+        toast.error("Não foi possível abrir o link de assinatura.");
+        return;
+      }
+      window.open(`${window.location.origin}${path}`, "_blank", "noopener,noreferrer");
+    } catch (e: unknown) {
+      toast.error(extrairErroTermo(e, "Erro ao abrir assinatura do profissional."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     loading,
     termos,
@@ -151,5 +171,6 @@ export function useTermoConsentimento({
     reenviar,
     baixarPdf,
     enviarPdfWhatsapp,
+    assinarProfissional,
   };
 }

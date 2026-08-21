@@ -60,21 +60,21 @@ describe("validateProcedimentoForm", () => {
 });
 
 describe("buildProcedimentoSaveBody", () => {
-  it("monta body com categoria e termo", () => {
+  it("monta body com categoria sem campos de termo", () => {
     const body = buildProcedimentoSaveBody(
       {
         ...EMPTY_PROCEDIMENTO_FORM,
         name: "Botox",
         categoria: "estetica",
         duration: "45",
-        termo_consentimento_ativo: true,
-        termo_consentimento: "Texto do termo",
       },
       "estetica",
     );
     expect(body.name).toBe("Botox");
     expect(body.duration).toBe(45);
-    expect(body.termo_consentimento).toBe("Texto do termo");
+    expect(body.category).toBe("estetica");
+    expect(body).not.toHaveProperty("termo_consentimento");
+    expect(body).not.toHaveProperty("termo_template");
   });
 });
 

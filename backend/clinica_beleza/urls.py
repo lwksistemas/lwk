@@ -44,6 +44,7 @@ from .views_assinatura_consentimento import (
     ConsultaDownloadTermoPdfView,
     ConsultaEnviarTermoAssinaturaView,
     ConsultaEnviarTermoPdfWhatsappView,
+    ConsultaLinkAssinaturaProfissionalView,
     ConsultaReenviarTermoAssinaturaView,
     ConsultaTermoConsentimentoStatusView,
     TermoConsentimentoPdfPublicView,
@@ -113,6 +114,11 @@ from .views_prontuario import (
     ProntuarioView,
 )
 from .views_protocolos import ProtocolDetailView, ProtocolListView
+from .views_termos_consentimento import (
+    TermoConsentimentoConfigView,
+    TermoConsentimentoTemplateDetailView,
+    TermoConsentimentoTemplateListView,
+)
 from .views_relatorios import (
     RelatorioComissoesPdfView,
     RelatorioComissoesView,
@@ -170,6 +176,11 @@ urlpatterns = [
     path("consultas/<int:pk>/termo-consentimento/", ConsultaTermoConsentimentoStatusView.as_view(), name="consultas-termo-status"),
     path("consultas/<int:pk>/termo-consentimento/enviar/", ConsultaEnviarTermoAssinaturaView.as_view(), name="consultas-termo-enviar"),
     path("consultas/<int:pk>/termo-consentimento/reenviar/", ConsultaReenviarTermoAssinaturaView.as_view(), name="consultas-termo-reenviar"),
+    path(
+        "consultas/<int:pk>/termo-consentimento/link-profissional/",
+        ConsultaLinkAssinaturaProfissionalView.as_view(),
+        name="consultas-termo-link-profissional",
+    ),
     path("consultas/<int:pk>/termo-consentimento/pdf/", ConsultaDownloadTermoPdfView.as_view(), name="consultas-termo-pdf"),
     path(
         "consultas/<int:pk>/termo-consentimento/enviar-pdf-whatsapp/",
@@ -275,6 +286,9 @@ urlpatterns = [
     # Templates de documentos clínicos
     path("templates/", DocumentTemplateListView.as_view(), name="templates-list"),
     path("templates/<int:pk>/", DocumentTemplateDetailView.as_view(), name="templates-detail"),
+    path("termos-consentimento/", TermoConsentimentoTemplateListView.as_view(), name="termos-consentimento-list"),
+    path("termos-consentimento/config/", TermoConsentimentoConfigView.as_view(), name="termos-consentimento-config"),
+    path("termos-consentimento/<int:pk>/", TermoConsentimentoTemplateDetailView.as_view(), name="termos-consentimento-detail"),
     # Documentos da consulta
     path("consultas/<int:consulta_id>/documentos/", ConsultaDocumentoListView.as_view(), name="consulta-documentos-list"),
     path("consultas/<int:consulta_id>/documentos/<int:doc_id>/", ConsultaDocumentoDeleteView.as_view(), name="consulta-documentos-delete"),

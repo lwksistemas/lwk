@@ -1,6 +1,8 @@
 """Helpers compartilhados das views públicas de assinatura de consentimento."""
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from .consentimento_service import garantir_termos_procedimento, montar_conteudo_termo_procedimento
 from .models import ConsultaTermoProcedimento
 
@@ -47,3 +49,32 @@ def documento_da_assinatura(adapter, assinatura):
         return adapter.get_documento_da_assinatura(assinatura)
     except ValueError:
         return None
+
+
+def path_assinar_consentimento(token: str) -> str:
+    return f"/assinar-consentimento/{quote(token or '', safe='')}"
+
+
+def resolver_assinatura_publica(adapter, token: str):
+    """Token da URL, ou a assinatura pendente do mesmo termo se o link foi reenviado."""
+    from core.assinatura_service import decodificar_token, normalizar_token_url
+
+    token = normalizar_token_url(token)
+    payload = decodificar_token(token)
+    if not payload or not payload.get("loja_id"):
+        return None, None, "Link inválido."
+
+    assinatura = adapter.buscar_assinatura_por_token(token)
+    if not assinatura:
+        modulo = payload.get("modulo")
+        if modulo and modulo != adapter.get_modulo():
+            return payload, None, "Link inválido."
+        doc_id = payload.get("doc_id")
+        tipo = payload.get("tipo")
+        if doc_id and tipo:
+            assinatura = adapter.buscar_assinatura_pendente(int(doc_id), str(tipo))
+    if not assinatura:
+        return payload, None, (
+            "Link inválido ou substituído. Use o link mais recente ou Assinar agora na consulta."
+        )
+    return payload, assinatura, None

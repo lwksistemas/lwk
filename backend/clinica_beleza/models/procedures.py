@@ -16,12 +16,26 @@ class Procedure(ServicoBase):
     termo_consentimento_ativo = models.BooleanField(
         default=False, verbose_name="Exigir termo de consentimento",
     )
+    termo_template = models.ForeignKey(
+        "TermoConsentimentoTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="procedimentos",
+        verbose_name="Template de termo",
+    )
 
     class Meta(ServicoBase.Meta):
         app_label = "clinica_beleza"
         verbose_name = "Procedimento"
         verbose_name_plural = "Procedimentos"
         ordering = ["nome"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["termo_template"],
+                name="clin_cb_proc_termo_tpl_uniq",
+            ),
+        ]
 
     def __str__(self):
         return self.nome

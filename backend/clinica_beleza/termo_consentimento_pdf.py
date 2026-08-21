@@ -265,7 +265,56 @@ def _build_cabecalho_logo_termo(elements: list, loja, styles, nome_clinica: str)
 
 def _build_conteudo_texto_termo(elements: list, termo_proc, consulta, procedure, body_style) -> None:
     """Adiciona o conteúdo textual do termo (parágrafos) aos elements."""
-    from .consentimento_service import limpar_conteudo_termo_exibicao, montar_conteudo_termo_procedimento
+    from .consentimento_service import (
+        limpar_conteudo_termo_exibicao,
+        montar_conteudo_termo_procedimento,
+        renderizar_texto_termo,
+    )
+    from .termos_consentimento_service import (
+        normalizar_secoes,
+        template_do_procedimento,
+    )
+
+    tpl = template_do_procedimento(procedure)
+    if tpl and tpl.is_interativo:
+        intro = renderizar_texto_termo((tpl.introducao or "").strip(), consulta, procedure)
+        if intro:
+            elements.append(Paragraph(intro.replace("&", "&amp;").replace("\n", "<br/>"), body_style))
+        respostas = termo_proc.respostas_interativo if isinstance(
+            getattr(termo_proc, "respostas_interativo", None), dict,
+        ) else {}
+        compact = ParagraphStyle(
+            "Resp", parent=body_style, fontSize=9, textColor=colors.HexColor("#333"),
+        )
+        for secao in normalizar_secoes(tpl.secoes):
+            cab = renderizar_texto_termo(secao["titulo"], consulta, procedure)
+            if secao["codigo"]:
+                cab = f"{secao['codigo']}. {cab}"
+            elements.append(Paragraph(f"<b>{cab.replace('&', '&amp;')}</b>", body_style))
+            texto_secao = renderizar_texto_termo(secao["texto"], consulta, procedure)
+            if texto_secao:
+                elements.append(Paragraph(
+                    texto_secao.replace("&", "&amp;").replace("\n", "<br/>"), body_style,
+                ))
+            resp = respostas.get(secao["id"]) or {}
+            sim = (resp.get("sim_nao") or "").upper()
+            if sim:
+                elements.append(Paragraph(f"Resposta: <b>{sim}</b>", compact))
+            duvida = (resp.get("duvidas") or "").strip()
+            if duvida:
+                elements.append(Paragraph(f"Dúvidas: {duvida.replace('&', '&amp;')}", compact))
+            if secao["tipo"] == "gravidez":
+                dum = (resp.get("dum") or "").strip()
+                if resp.get("nao_me_recordo"):
+                    elements.append(Paragraph("Data da última menstruação: não me recordo", compact))
+                elif dum:
+                    elements.append(Paragraph(f"Data da última menstruação: {dum}", compact))
+            cons = (resp.get("consinto") or "").upper()
+            if cons:
+                elements.append(Paragraph(f"Manifestação: <b>{cons}</b>", compact))
+            elements.append(Spacer(1, 0.12 * cm))
+        return
+
     if termo_proc.status_assinatura_termo == "concluido":
         conteudo = limpar_conteudo_termo_exibicao(termo_proc.conteudo_termo or "")
     else:
@@ -286,9 +335,14 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
     """PDF de um único procedimento — conteúdo e assinaturas isolados."""
     consulta = termo_proc.consulta
     procedure = termo_proc.procedure
+    from .termos_consentimento_service import pdf_usa_timbrado
+    usa_timbrado = pdf_usa_timbrado(consulta.loja_id)
     buf = BytesIO()
+    # Timbrado Harmonis (e equivalentes) ocupa ~5 cm no topo e barra+logo na base.
     doc = SimpleDocTemplate(
-        buf, pagesize=A4, topMargin=1.5 * cm, bottomMargin=1.5 * cm,
+        buf, pagesize=A4,
+        topMargin=5.5 * cm if usa_timbrado else 1.5 * cm,
+        bottomMargin=2.5 * cm if usa_timbrado else 1.5 * cm,
         leftMargin=2 * cm, rightMargin=2 * cm,
     )
     elements = []
@@ -298,7 +352,9 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
     from superadmin.models import Loja
     loja = Loja.objects.using("default").filter(id=consulta.loja_id).first()
     nome_clinica = loja.nome if loja else "Clínica"
-    logo_url = _build_cabecalho_logo_termo(elements, loja, styles, nome_clinica)
+    logo_url = None
+    if not usa_timbrado:
+        logo_url = _build_cabecalho_logo_termo(elements, loja, styles, nome_clinica)
     elements.append(Paragraph("Termo de Consentimento Esclarecido", title_style))
     elements.append(Spacer(1, 0.4 * cm))
     elements.append(_build_tabela_dados_termo(consulta, procedure, loja, col1, col2))
@@ -323,4 +379,13 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
 
     doc.build(elements)
     buf.seek(0)
+    if usa_timbrado:
+        from .models import MemedTimbrado
+        from .pdf_common.timbrado import merge_timbrado_fundo
+        timbrado = MemedTimbrado.objects.filter(loja_id=consulta.loja_id).first()
+        if timbrado and timbrado.pdf:
+            mesclado = merge_timbrado_fundo(buf.getvalue(), bytes(timbrado.pdf))
+            out = BytesIO(mesclado)
+            out.seek(0)
+            return out
     return buf

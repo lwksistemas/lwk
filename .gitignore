@@ -91,8 +91,6 @@ verificar_*.py
 monitorar_*.sh
 COMMIT_MESSAGE_*.txt
 
-# Binários PHP e artefatos gerados
+# Binários e artefatos gerados
 *.phar
-whatsapp_evolution_php/output/
-docs/manual-whatsapp-meta-cloud-*.html
 envelope_issnet_para_suporte.xml

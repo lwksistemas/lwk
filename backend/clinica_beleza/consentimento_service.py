@@ -39,6 +39,15 @@ def aviso_email_paciente_suspeito(email: str) -> str | None:
     )
 
 
+def procedure_exige_termo(proc) -> bool:
+    if not proc or not getattr(proc, "termo_consentimento_ativo", False):
+        return False
+    tpl = getattr(proc, "termo_template", None)
+    if tpl and getattr(tpl, "is_active", True):
+        return True
+    return bool((getattr(proc, "termo_consentimento", None) or "").strip())
+
+
 def _procedimentos_com_termo_ativo(consulta) -> list[Procedure]:
     """Procedimentos da consulta com termo de consentimento ativo."""
     vistos: set[int] = set()
@@ -47,13 +56,15 @@ def _procedimentos_com_termo_ativo(consulta) -> list[Procedure]:
     def _add(proc: Procedure | None):
         if not proc or proc.id in vistos:
             return
-        if proc.termo_consentimento_ativo and (proc.termo_consentimento or "").strip():
+        tpl = getattr(proc, "termo_template", None)
+        tem_template = bool(tpl and getattr(tpl, "is_active", True))
+        if proc.termo_consentimento_ativo and (tem_template or (proc.termo_consentimento or "").strip()):
             vistos.add(proc.id)
             resultado.append(proc)
 
     appointment = getattr(consulta, "appointment", None)
     if appointment:
-        for ap in appointment.appointment_procedures.select_related("procedure").all():
+        for ap in appointment.appointment_procedures.select_related("procedure__termo_template").all():
             _add(ap.procedure)
 
     for cpu in consulta.produtos_estoque.select_related("produto__procedure").all():
@@ -107,6 +118,16 @@ def _renderizar_bloco_termo(template: str, ctx: dict) -> str:
     return texto
 
 
+def renderizar_texto_termo(template: str, consulta, procedure=None) -> str:
+    """Substitui {paciente_nome}, {data}, {clinica_nome}, etc. no texto do termo."""
+    ctx = _ctx_base_termo(consulta)
+    if procedure is not None:
+        nome = getattr(procedure, "nome", "") or ""
+        ctx["procedimento"] = nome
+        ctx["procedimentos"] = nome
+    return _renderizar_bloco_termo(template or "", ctx)
+
+
 def _ctx_base_termo(consulta) -> dict:
     loja = _dados_loja(consulta.loja_id)
     paciente = consulta.patient
@@ -148,6 +169,19 @@ def limpar_conteudo_termo_exibicao(conteudo: str) -> str:
 
 def montar_conteudo_termo_procedimento(consulta, procedure: Procedure) -> str:
     """Gera o texto jurídico do procedimento (metadados ficam no layout do PDF)."""
+    from .termos_consentimento_service import template_do_procedimento, texto_plano_interativo
+
+    tpl = template_do_procedimento(procedure)
+    if tpl:
+        if tpl.is_interativo:
+            tpl_texto = texto_plano_interativo(tpl)
+        else:
+            tpl_texto = (tpl.conteudo or "").strip()
+        if tpl_texto:
+            ctx_base = _ctx_base_termo(consulta)
+            ctx = {**ctx_base, "procedimento": procedure.nome, "procedimentos": procedure.nome}
+            return _renderizar_bloco_termo(tpl_texto, ctx)
+
     tpl = (procedure.termo_consentimento or "").strip()
     if not tpl:
         return ""

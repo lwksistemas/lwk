@@ -78,7 +78,9 @@ def adicionar_procedimento_consulta(consulta: Consulta, procedure_id: int) -> Ap
     )
     _sync_primary_procedure(appointment, consulta)
 
-    if procedure.termo_consentimento_ativo and (procedure.termo_consentimento or "").strip():
+    if procedure.termo_consentimento_ativo and (
+        getattr(procedure, "termo_template_id", None) or (procedure.termo_consentimento or "").strip()
+    ):
         garantir_termos_procedimento(consulta)
 
     _sincronizar_recebimento_apos_procedimento(consulta)

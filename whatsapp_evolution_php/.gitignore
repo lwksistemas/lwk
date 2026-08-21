@@ -1,6 +1,0 @@
-/vendor/
-/config.php
-/output/
-/node_modules/
-/package-lock.json
-composer.phar

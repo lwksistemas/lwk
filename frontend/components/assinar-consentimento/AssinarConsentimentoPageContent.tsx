@@ -2,15 +2,16 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import { AlertCircle, CheckCircle, Download, Eye, FileText, Stethoscope, User } from "lucide-react";
-import type { TermoConsentimentoData } from "./assinar-consentimento-types";
+import type { RespostaTcleInterativo, TermoConsentimentoData } from "./assinar-consentimento-types";
+import { AssinarTcleInterativoForm } from "./AssinarTcleInterativoForm";
 import { useAssinarConsentimento } from "./useAssinarConsentimento";
 
 function AssinarConsentimentoLoading() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4" />
-        <p className="text-gray-600">Carregando termo...</p>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 dark:border-purple-400 mx-auto mb-4" />
+        <p className="text-gray-600 dark:text-slate-300">Carregando termo...</p>
       </div>
     </div>
   );
@@ -18,21 +19,21 @@ function AssinarConsentimentoLoading() {
 
 function AssinarConsentimentoSucesso({ proximoStatus }: { proximoStatus: string }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
-        <div className="flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mx-auto mb-4">
-          <CheckCircle className="w-8 h-8 text-green-600" />
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 max-w-md w-full">
+        <div className="flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/40 rounded-full mx-auto mb-4">
+          <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Termo Assinado!</h2>
-        <p className="text-gray-600 text-center mb-4">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">Termo Assinado!</h2>
+        <p className="text-gray-600 dark:text-slate-300 text-center mb-4">
           Sua assinatura deste procedimento foi registrada com sucesso.
         </p>
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-          <p className="text-sm text-purple-800 text-center">
+        <div className="bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 rounded-lg p-4 mb-4">
+          <p className="text-sm text-purple-800 dark:text-purple-200 text-center">
             <strong>Status:</strong> {proximoStatus}
           </p>
         </div>
-        <p className="text-sm text-gray-500 text-center mb-4">
+        <p className="text-sm text-gray-500 dark:text-slate-400 text-center mb-4">
           Você receberá por e-mail o PDF deste procedimento quando paciente e profissional tiverem assinado.
           Se houver outros procedimentos na consulta, cada um possui termo e link separados.
         </p>
@@ -42,8 +43,8 @@ function AssinarConsentimentoSucesso({ proximoStatus }: { proximoStatus: string 
         >
           Fechar Página
         </button>
-        <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-          <p className="text-xs text-green-700 text-center">
+        <div className="p-3 bg-green-50 dark:bg-green-950/40 rounded-lg border border-green-200 dark:border-green-800">
+          <p className="text-xs text-green-700 dark:text-green-300 text-center">
             Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes,
             com registro de data, hora e endereço IP.
           </p>
@@ -55,11 +56,11 @@ function AssinarConsentimentoSucesso({ proximoStatus }: { proximoStatus: string 
 
 function AssinarConsentimentoErro({ erro }: { erro: string }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
         <AlertCircle size={64} className="mx-auto text-red-500 mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Link Inválido</h2>
-        <p className="text-gray-600">{erro}</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Link Inválido</h2>
+        <p className="text-gray-600 dark:text-slate-300">{erro}</p>
       </div>
     </div>
   );
@@ -79,6 +80,9 @@ interface AssinarConsentimentoFormProps {
   pdfPronto: boolean;
   pdfInteracaoFeita: boolean;
   podeAssinar: boolean;
+  interativoPaciente: boolean;
+  respostasInterativo: Record<string, RespostaTcleInterativo>;
+  patchRespostaInterativo: (id: string, data: Partial<RespostaTcleInterativo>) => void;
   visualizarPdf: () => Promise<void>;
   baixarPdf: () => Promise<void>;
   assinar: () => Promise<void>;
@@ -98,6 +102,9 @@ function AssinarConsentimentoForm({
   pdfPronto,
   pdfInteracaoFeita,
   podeAssinar,
+  interativoPaciente,
+  respostasInterativo,
+  patchRespostaInterativo,
   visualizarPdf,
   baixarPdf,
   assinar,
@@ -107,76 +114,80 @@ function AssinarConsentimentoForm({
   const assinandoComoProfissional = termo.tipo_assinante === "profissional";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 dark:from-slate-950 dark:to-slate-900 py-12 px-4">
       <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-t-2xl shadow-xl p-8 border-b-4 border-purple-700">
+        <div className="bg-white dark:bg-slate-800 rounded-t-2xl shadow-xl p-8 border-b-4 border-purple-700 dark:border-purple-500">
           <div className="flex items-center justify-center mb-4">
-            <div className="bg-purple-100 p-3 rounded-full">
-              <Stethoscope className="w-8 h-8 text-purple-700" />
+            <div className="bg-purple-100 dark:bg-purple-900/60 p-3 rounded-full">
+              <Stethoscope className="w-8 h-8 text-purple-700 dark:text-purple-300" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">Assinatura Digital</h1>
-          <p className="text-gray-600 text-center">Termo de Consentimento Esclarecido</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white text-center mb-2">Assinatura Digital</h1>
+          <p className="text-gray-600 dark:text-slate-400 text-center">
+            {termo.tipo_termo === "interativo"
+              ? "TCLE Interativo"
+              : "Termo de Consentimento Esclarecido"}
+          </p>
         </div>
 
-        <div className="bg-white shadow-xl p-8">
+        <div className="bg-white dark:bg-slate-800 shadow-xl p-8">
           <div className="space-y-4">
             <div className="flex items-start space-x-3">
-              <FileText className="w-5 h-5 text-gray-400 mt-1" />
+              <FileText className="w-5 h-5 text-gray-400 dark:text-slate-500 mt-1" />
               <div className="flex-1">
-                <p className="text-sm text-gray-500">Procedimento deste termo</p>
-                <p className="text-lg font-semibold text-gray-900">{procedimentos}</p>
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-2">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Procedimento deste termo</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">{procedimentos}</p>
+                <p className="text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2 mt-2">
                   Leia com atenção apenas as informações deste procedimento. Cada procedimento da consulta
                   exige termo e assinatura separados.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start space-x-3 border-t pt-4">
-              <Stethoscope className="w-5 h-5 text-gray-400 mt-1" />
+            <div className="flex items-start space-x-3 border-t border-gray-200 dark:border-slate-700 pt-4">
+              <Stethoscope className="w-5 h-5 text-gray-400 dark:text-slate-500 mt-1" />
               <div className="flex-1">
-                <p className="text-sm text-gray-500">Clínica</p>
-                <p className="text-lg font-semibold text-gray-900">{termo.clinica_nome || "—"}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Clínica</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">{termo.clinica_nome || "—"}</p>
               </div>
             </div>
 
             {assinandoComoProfissional && termo.paciente_nome && (
-              <div className="flex items-start space-x-3 border-t pt-4">
-                <User className="w-5 h-5 text-gray-400 mt-1" />
+              <div className="flex items-start space-x-3 border-t border-gray-200 dark:border-slate-700 pt-4">
+                <User className="w-5 h-5 text-gray-400 dark:text-slate-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-sm text-gray-500">Paciente</p>
-                  <p className="text-lg font-semibold text-gray-900">{termo.paciente_nome}</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">Paciente</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{termo.paciente_nome}</p>
                 </div>
               </div>
             )}
 
             {assinandoComoPaciente && termo.profissional_nome && (
-              <div className="flex items-start space-x-3 border-t pt-4">
-                <User className="w-5 h-5 text-gray-400 mt-1" />
+              <div className="flex items-start space-x-3 border-t border-gray-200 dark:border-slate-700 pt-4">
+                <User className="w-5 h-5 text-gray-400 dark:text-slate-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-sm text-gray-500">Profissional responsável</p>
-                  <p className="text-lg font-semibold text-gray-900">{termo.profissional_nome}</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">Profissional responsável</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{termo.profissional_nome}</p>
                 </div>
               </div>
             )}
 
-            <div className="flex items-start space-x-3 border-t pt-4">
-              <User className="w-5 h-5 text-gray-400 mt-1" />
+            <div className="flex items-start space-x-3 border-t border-gray-200 dark:border-slate-700 pt-4">
+              <User className="w-5 h-5 text-gray-400 dark:text-slate-500 mt-1" />
               <div className="flex-1">
                 {assinandoComoPaciente ? (
                   <>
-                    <p className="text-sm text-gray-500">Paciente</p>
-                    <p className="text-lg font-semibold text-gray-900">{termo.nome_assinante}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-slate-400">Paciente</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{termo.nome_assinante}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                       Este link é exclusivo para você assinar o termo de consentimento deste procedimento.
                     </p>
                   </>
                 ) : (
                   <>
-                    <p className="text-sm text-gray-500">Profissional responsável pela assinatura</p>
-                    <p className="text-lg font-semibold text-gray-900">{termo.nome_assinante}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-slate-400">Profissional responsável pela assinatura</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{termo.nome_assinante}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                       O paciente já assinou. Confirme sua assinatura como profissional do procedimento.
                     </p>
                   </>
@@ -185,23 +196,40 @@ function AssinarConsentimentoForm({
             </div>
           </div>
 
-          <div className="mt-6 pt-6 border-t">
-            <p className="text-sm font-semibold text-gray-800 mb-1">Documento completo (PDF)</p>
-            <p className="text-xs text-gray-500 mb-3">
+          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+            {interativoPaciente ? (
+              <>
+                <p className="text-sm font-semibold text-gray-800 dark:text-slate-100 mb-1">Leia cada seção e responda</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
+                  Marque SIM nas leituras, tire dúvidas com a clínica se precisar e escolha CONSINTO no final.
+                  Paciente, profissional e logomarca da clínica entram automaticamente no PDF.
+                </p>
+                <AssinarTcleInterativoForm
+                  introducao={termo.introducao || ""}
+                  secoes={termo.secoes || []}
+                  respostas={respostasInterativo}
+                  disabled={assinando}
+                  onChange={patchRespostaInterativo}
+                />
+              </>
+            ) : (
+              <>
+            <p className="text-sm font-semibold text-gray-800 dark:text-slate-100 mb-1">Documento completo (PDF)</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
               Abra ou baixe o PDF deste procedimento antes de assinar. A assinatura só é liberada após
               confirmar que leu o termo completo.
             </p>
 
             {pdfInlineLoading && !pdfBlobUrl && (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-gray-50 py-16 text-gray-600">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mb-3" />
+              <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-900 py-16 text-gray-600 dark:text-slate-300">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 dark:border-purple-400 mb-3" />
                 <span className="text-sm">Carregando PDF…</span>
               </div>
             )}
 
             {pdfInlineError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
-                <p className="text-sm text-red-800 mb-3">Não foi possível carregar o PDF.</p>
+              <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-4 text-center">
+                <p className="text-sm text-red-800 dark:text-red-200 mb-3">Não foi possível carregar o PDF.</p>
                 <button
                   type="button"
                   onClick={() => setPdfReloadKey((k) => k + 1)}
@@ -213,10 +241,10 @@ function AssinarConsentimentoForm({
             )}
 
             {pdfBlobUrl && !pdfInlineError && (
-              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center">
-                <FileText className="mx-auto mb-2 h-10 w-10 text-gray-400" aria-hidden />
-                <p className="text-sm font-medium text-gray-800">Documento pronto</p>
-                <p className="mt-1 text-xs text-gray-600">
+              <div className="rounded-lg border border-dashed border-gray-300 dark:border-slate-500 bg-gray-50 dark:bg-slate-900 px-4 py-6 text-center">
+                <FileText className="mx-auto mb-2 h-10 w-10 text-gray-400 dark:text-slate-400" aria-hidden />
+                <p className="text-sm font-medium text-gray-800 dark:text-slate-100">Documento pronto</p>
+                <p className="mt-1 text-xs text-gray-600 dark:text-slate-300">
                   Abra em nova aba ou baixe o arquivo para ler com calma antes de assinar.
                 </p>
               </div>
@@ -227,7 +255,7 @@ function AssinarConsentimentoForm({
                 type="button"
                 onClick={() => void visualizarPdf()}
                 disabled={baixandoPdf || !pdfBlobUrl}
-                className="flex items-center justify-center space-x-2 rounded-lg bg-gray-100 px-4 py-3 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                className="flex items-center justify-center space-x-2 rounded-lg bg-gray-100 dark:bg-slate-700 px-4 py-3 text-gray-800 dark:text-white hover:bg-gray-200 dark:hover:bg-slate-600 disabled:opacity-50"
               >
                 <Eye className="h-4 w-4" />
                 <span className="text-sm font-medium">Abrir PDF em nova aba</span>
@@ -236,7 +264,7 @@ function AssinarConsentimentoForm({
                 type="button"
                 onClick={() => void baixarPdf()}
                 disabled={baixandoPdf || !pdfBlobUrl}
-                className="flex items-center justify-center space-x-2 rounded-lg bg-gray-100 px-4 py-3 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                className="flex items-center justify-center space-x-2 rounded-lg bg-gray-100 dark:bg-slate-700 px-4 py-3 text-gray-800 dark:text-white hover:bg-gray-200 dark:hover:bg-slate-600 disabled:opacity-50"
               >
                 <Download className="h-4 w-4" />
                 <span className="text-sm font-medium">Baixar PDF</span>
@@ -244,10 +272,10 @@ function AssinarConsentimentoForm({
             </div>
 
             {pdfBlobUrl && !pdfInlineError && (
-              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-purple-200 bg-purple-50/80 p-4 text-sm text-gray-800">
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-purple-200 dark:border-purple-700 bg-purple-50/80 dark:bg-purple-950/40 p-4 text-sm text-gray-800 dark:text-slate-100">
                 <input
                   type="checkbox"
-                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 dark:border-slate-500 text-purple-600 focus:ring-purple-500"
                   checked={declarouLeituraCompleta}
                   onChange={(e) => setDeclarouLeituraCompleta(e.target.checked)}
                 />
@@ -257,36 +285,41 @@ function AssinarConsentimentoForm({
                 </span>
               </label>
             )}
+              </>
+            )}
           </div>
         </div>
 
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 shadow-xl">
+        <div className="bg-yellow-50 dark:bg-amber-950/40 border-l-4 border-yellow-400 dark:border-amber-500 p-6 shadow-xl">
           <div className="flex items-start">
-            <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 shrink-0" />
-            <p className="text-sm text-yellow-700">
-              A assinatura só pode ser feita após abrir ou baixar o PDF e confirmar a leitura.
-              O registro inclui data, hora e endereço IP.
+            <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-amber-400 mt-0.5 mr-3 shrink-0" />
+            <p className="text-sm text-yellow-800 dark:text-amber-100">
+              {interativoPaciente
+                ? "A assinatura só é liberada depois de responder SIM nas leituras e CONSINTO no final. O registro inclui data, hora e endereço IP."
+                : "A assinatura só pode ser feita após abrir ou baixar o PDF e confirmar a leitura. O registro inclui data, hora e endereço IP."}
             </p>
           </div>
         </div>
 
         {erro && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 shadow-xl">
+          <div className="bg-red-50 dark:bg-red-950/40 border-l-4 border-red-400 dark:border-red-500 p-4 shadow-xl">
             <div className="flex items-center">
-              <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
-              <p className="text-sm text-red-700">{erro}</p>
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mr-3" />
+              <p className="text-sm text-red-700 dark:text-red-200">{erro}</p>
             </div>
           </div>
         )}
 
-        <div className="bg-white rounded-b-2xl shadow-xl p-8">
+        <div className="bg-white dark:bg-slate-800 rounded-b-2xl shadow-xl p-8">
           {!podeAssinar && !assinando && (
-            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
-              {!pdfPronto
-                ? "Aguarde o carregamento do documento."
-                : !pdfInteracaoFeita
-                  ? "Abra ou baixe o PDF antes de assinar."
-                  : "Marque a caixa confirmando que leu o PDF para habilitar a assinatura."}
+            <p className="mb-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-center text-xs text-amber-900 dark:text-amber-100">
+              {interativoPaciente
+                ? "Responda SIM em cada leitura e escolha CONSINTO no final para habilitar a assinatura."
+                : !pdfPronto
+                  ? "Aguarde o carregamento do documento."
+                  : !pdfInteracaoFeita
+                    ? "Abra ou baixe o PDF antes de assinar."
+                    : "Marque a caixa confirmando que leu o PDF para habilitar a assinatura."}
             </p>
           )}
           <button
@@ -309,11 +342,11 @@ function AssinarConsentimentoForm({
               </>
             )}
           </button>
-          <p className="mt-4 text-center text-xs text-gray-500">
+          <p className="mt-4 text-center text-xs text-gray-500 dark:text-slate-400">
             Ao assinar, você concorda que esta assinatura tem validade legal equivalente à assinatura manuscrita.
           </p>
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
+          <div className="mt-4 p-3 bg-gray-50 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-600">
+            <p className="text-xs text-gray-600 dark:text-slate-300 text-center">
               Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes,
               com registro de data, hora e endereço IP. A logo da clínica aparece como marca d&apos;água nas assinaturas.
             </p>
@@ -347,6 +380,9 @@ export function AssinarConsentimentoPageContent({ tokenRaw }: { tokenRaw: string
       pdfPronto={state.pdfPronto}
       pdfInteracaoFeita={state.pdfInteracaoFeita}
       podeAssinar={state.podeAssinar}
+      interativoPaciente={state.interativoPaciente}
+      respostasInterativo={state.respostasInterativo}
+      patchRespostaInterativo={state.patchRespostaInterativo}
       visualizarPdf={state.visualizarPdf}
       baixarPdf={state.baixarPdf}
       assinar={state.assinar}

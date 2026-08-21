@@ -33,7 +33,10 @@ _PROCEDURE_FIELD_MAP = {
 
 
 def _map_procedure_data(raw_data):
-    return map_field_names(raw_data, _PROCEDURE_FIELD_MAP)
+    data = map_field_names(raw_data, _PROCEDURE_FIELD_MAP)
+    data.pop("termo_template", None)
+    data.pop("termo_template_id", None)
+    return data
 
 
 def _normalize_categoria(value: str) -> str:
@@ -76,7 +79,7 @@ class ProcedureListView(APIView):
     def get(self, request):
         active_only = request.query_params.get("active", "true").lower() == "true"
         categoria = (request.query_params.get("categoria") or "").strip()
-        queryset = Procedure.objects.all().order_by("nome")
+        queryset = Procedure.objects.select_related("termo_template").all().order_by("nome")
         if active_only:
             queryset = queryset.filter(is_active=True)
         if categoria:
@@ -102,6 +105,7 @@ class ProcedureDetailView(GetObjectMixin, APIView):
     permission_classes = CLINICA_RECEPCAO
     model_class = Procedure
     not_found_message = "Procedimento não encontrado"
+    select_related_fields = ("termo_template",)
 
     def get(self, request, pk):
         obj, error = self.object_or_404(pk)

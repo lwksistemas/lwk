@@ -21,6 +21,7 @@ export interface Procedure {
   categoria?: string;
   termo_consentimento?: string;
   termo_consentimento_ativo?: boolean;
+  termo_template?: number | null;
 }
 
 export interface ProcedimentoFormState {
@@ -28,25 +29,13 @@ export interface ProcedimentoFormState {
   description: string;
   duration: string;
   categoria: string;
-  termo_consentimento: string;
-  termo_consentimento_ativo: boolean;
 }
-
-export const DEFAULT_TERMO_CONSENTIMENTO = `TERMO DE CONSENTIMENTO ESCLARECIDO
-
-Eu, {paciente_nome}, inscrito(a) no CPF {paciente_cpf}, declaro ter sido esclarecido(a) sobre o(s) procedimento(s): {procedimentos}, a serem realizados pela profissional {profissional_nome} ({profissional_conselho}) na clínica {clinica_nome}.
-
-Fui informado(a) sobre objetivos, benefícios, riscos, efeitos adversos, contraindicações e alternativas, e tive oportunidade de esclarecer minhas dúvidas.
-
-Declaro que concordo com a realização do(s) procedimento(s) na data {data}.`;
 
 export const EMPTY_PROCEDIMENTO_FORM: ProcedimentoFormState = {
   name: "",
   description: "",
   duration: "30",
   categoria: "",
-  termo_consentimento: DEFAULT_TERMO_CONSENTIMENTO,
-  termo_consentimento_ativo: false,
 };
 
 export const FORM_INPUT_CLASS =
@@ -71,7 +60,5 @@ export function procedureToForm(p: Procedure): ProcedimentoFormState {
     description: procedureDescription(p) || "",
     duration: String(procedureDuration(p)),
     categoria: resolveProcedureCategoriaSlug(procedureCategoria(p)),
-    termo_consentimento: (p.termo_consentimento || "").trim() || DEFAULT_TERMO_CONSENTIMENTO,
-    termo_consentimento_ativo: !!p.termo_consentimento_ativo,
   };
 }

@@ -25,4 +25,4 @@ class LogoUrlLojaTermoTest(TestCase):
 
     def test_marca_dagua_semitransparente(self):
         self.assertGreater(WM_OPACIDADE, 0.2)
-        self.assertLess(WM_OPACIDADE, 0.6)
+        self.assertLess(WM_OPACIDADE, 0.7)

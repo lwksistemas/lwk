@@ -122,6 +122,36 @@ def msg_termo_consentimento(
     return "\n".join(linhas)
 
 
+def msg_orcamento(
+    *,
+    nome: str,
+    loja_nome: str,
+    linhas_itens: list[str],
+    total: str,
+    validade_dias: int = 30,
+) -> str:
+    """Orçamento da Clínica da Beleza: resumo curto + PDF em anexo.
+
+    Não inclui observações/cadastro/LGPD — esses dados ficam só no PDF.
+    """
+    linhas = [
+        "📋 *Orçamento*",
+        SEPARADOR,
+        f"Olá *{nome}*!",
+        "",
+        f"Segue o orçamento da *{loja_nome}*:",
+        "",
+        *linhas_itens,
+        "",
+        f"💰 *Total: {total}*",
+        f"⏳ Válido por {validade_dias} dias",
+        SEPARADOR,
+        "_O PDF completo segue em anexo._",
+        "_Qualquer dúvida, estamos à disposição._",
+    ]
+    return "\n".join(linhas)
+
+
 # ---------------------------------------------------------------------------
 # Templates de confirmação de agendamento (Clínica da Beleza)
 # ---------------------------------------------------------------------------

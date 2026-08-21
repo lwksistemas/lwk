@@ -12,7 +12,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Flowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +33,10 @@ def _logo_url_loja(loja) -> str:
     return (getattr(loja, "logo", "") or "").strip() or (getattr(loja, "login_logo", "") or "").strip()
 
 
-# Marca d'água mais visível que o CRM (25%) e posicionada sob o nome de cada assinante.
-WM_OPACIDADE = 0.55
-WM_MAX_W_CM = 4.2
-WM_MAX_H_CM = 2.0
-WM_Y_FACTOR = 1.35
+# Logo nas assinaturas: visível, abaixo do nome — não sobreposto como overlay.
+WM_OPACIDADE = 0.75
+WM_MAX_W_CM = 3.6
+WM_MAX_H_CM = 1.4
 
 
 def _watermark_bytes(logo_url: str) -> bytes | None:
@@ -60,7 +59,23 @@ def _watermark_bytes(logo_url: str) -> bytes | None:
         return None
 
 
-def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assinaturas: bool):
+def _logo_assinatura_flowable(wm_bytes: bytes):
+    """Imagem do logo para a linha abaixo do nome em cada coluna."""
+    pil = PILImage.open(BytesIO(wm_bytes))
+    iw, ih = pil.size
+    if not iw or not ih:
+        return ""
+    w = WM_MAX_W_CM * cm
+    h = w * (ih / float(iw))
+    if h > WM_MAX_H_CM * cm:
+        h = WM_MAX_H_CM * cm
+        w = h * (iw / float(ih))
+    logo = Image(BytesIO(wm_bytes), width=w, height=h, mask="auto")
+    logo.hAlign = "CENTER"
+    return logo
+
+
+def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assinaturas: bool, logo_url: str = ""):
     """Assinaturas Paciente | Profissional — mesmo layout do CRM Vendas."""
     from .models import ConsultaAssinaturaTermo
 
@@ -106,14 +121,22 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
         prof_info.append("<font size='8'>Assinado digitalmente</font>")
 
     assinatura_data = []
+    logo_row_idx = None
     max_rows = max(len(paciente_info), len(prof_info))
     for i in range(max_rows):
         p_text = Paragraph(paciente_info[i], compact_style) if i < len(paciente_info) else ""
         pr_text = Paragraph(prof_info[i], compact_style) if i < len(prof_info) else ""
         assinatura_data.append([p_text, pr_text])
+        if i == 0 and (ass_paciente or ass_profissional) and logo_url:
+            wm_bytes = _watermark_bytes(logo_url)
+            if wm_bytes:
+                assinatura_data.append([
+                    _logo_assinatura_flowable(wm_bytes),
+                    _logo_assinatura_flowable(wm_bytes),
+                ])
+                logo_row_idx = 1
 
-    t = Table(assinatura_data, colWidths=[8 * cm, 8 * cm])
-    t.setStyle(TableStyle([
+    table_style = [
         ("ALIGN", (0, 0), (-1, -1), "LEFT"),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),
@@ -121,12 +144,20 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("LEFTPADDING", (0, 0), (-1, -1), 6),
         ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 52),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
         ("BOX", (0, 0), (0, -1), 0.5, colors.HexColor("#e5e7eb")),
         ("BOX", (1, 0), (1, -1), 0.5, colors.HexColor("#e5e7eb")),
-    ]))
+    ]
+    if logo_row_idx is not None:
+        table_style.extend([
+            ("ALIGN", (0, logo_row_idx), (-1, logo_row_idx), "CENTER"),
+            ("VALIGN", (0, logo_row_idx), (-1, logo_row_idx), "MIDDLE"),
+            ("TOPPADDING", (0, logo_row_idx), (-1, logo_row_idx), 4),
+            ("BOTTOMPADDING", (0, logo_row_idx), (-1, logo_row_idx), 6),
+        ])
+    t = Table(assinatura_data, colWidths=[8 * cm, 8 * cm])
+    t.setStyle(TableStyle(table_style))
     elements.append(t)
     elements.append(Spacer(1, 0.1 * cm))
 
@@ -141,49 +172,6 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
     ))
 
     return ass_paciente, ass_profissional
-
-
-def _insert_watermark(elements, wm_bytes: bytes):
-    """Insere marca d'água (logo) nas duas colunas de assinatura — padrão CRM."""
-
-    class WatermarkFlowable(Flowable):
-        def __init__(self, wm_data: bytes):
-            Flowable.__init__(self)
-            self.wm_bytes = wm_data
-            self.width = 16 * cm
-            self.height = 0
-
-        def draw(self):
-            try:
-                from reportlab.lib.utils import ImageReader
-                img = ImageReader(BytesIO(self.wm_bytes))
-                iw, ih = img.getSize()
-                wm_w = WM_MAX_W_CM * cm
-                wm_h = wm_w * (ih / float(iw))
-                if wm_h > WM_MAX_H_CM * cm:
-                    wm_h = WM_MAX_H_CM * cm
-                    wm_w = wm_h / (ih / float(iw))
-                y_offset = -(wm_h * WM_Y_FACTOR)
-                x_left = (8 * cm - wm_w) / 2
-                x_right = 8 * cm + (8 * cm - wm_w) / 2
-                self.canv.drawImage(
-                    img, x_left, y_offset, width=wm_w, height=wm_h,
-                    mask="auto", preserveAspectRatio=True,
-                )
-                self.canv.drawImage(
-                    img, x_right, y_offset, width=wm_w, height=wm_h,
-                    mask="auto", preserveAspectRatio=True,
-                )
-            except Exception:
-                pass
-
-    insert_idx = None
-    for i in range(len(elements) - 1, -1, -1):
-        if isinstance(elements[i], Table):
-            insert_idx = i
-            break
-    if insert_idx is not None:
-        elements.insert(insert_idx, WatermarkFlowable(wm_bytes))
 
 
 def _criar_styles_termo(styles) -> tuple:
@@ -379,13 +367,9 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
         ParagraphStyle("Aceite", parent=body_style, fontSize=9, textColor=colors.HexColor("#555")),
     ))
 
-    ass_p, ass_pr = _build_secao_assinaturas(elements, termo_proc, compact, incluir_assinaturas)
-
-    # Marca d'água nas assinaturas: logo principal, mesmo com papel timbrado (padrão CRM).
-    if (ass_p or ass_pr) and logo_url:
-        wm_bytes = _watermark_bytes(logo_url)
-        if wm_bytes:
-            _insert_watermark(elements, wm_bytes)
+    ass_p, ass_pr = _build_secao_assinaturas(
+        elements, termo_proc, compact, incluir_assinaturas, logo_url=logo_url,
+    )
 
     doc.build(elements)
     buf.seek(0)

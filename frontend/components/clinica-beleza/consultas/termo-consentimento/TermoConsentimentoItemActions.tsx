@@ -1,4 +1,4 @@
-import { Download, Mail, MessageCircle, RefreshCw } from "lucide-react";
+import { CheckCircle, Download, Mail, MessageCircle, RefreshCw } from "lucide-react";
 import type { TermoConsentimentoCanal, TermoProcedimento } from "./termo-consentimento-types";
 import { TERMO_STATUS_BADGE } from "./termo-consentimento-types";
 
@@ -10,6 +10,7 @@ export function TermoConsentimentoItemActions({
   onReenviar,
   onBaixarPdf,
   onEnviarPdfWhatsapp,
+  onAssinarProfissional,
 }: {
   termo: TermoProcedimento;
   loading: boolean;
@@ -18,6 +19,7 @@ export function TermoConsentimentoItemActions({
   onReenviar: (procedureId: number, nome: string, canal: TermoConsentimentoCanal) => void;
   onBaixarPdf: (procedureId: number, nome: string) => void;
   onEnviarPdfWhatsapp: (procedureId: number, nome: string) => void;
+  onAssinarProfissional: (procedureId: number) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -48,6 +50,18 @@ export function TermoConsentimentoItemActions({
       )}
       {(termo.status === "aguardando_paciente" || termo.status === "aguardando_profissional") && (
         <>
+          {termo.status === "aguardando_profissional" && (
+            <button
+              type="button"
+              onClick={() => onAssinarProfissional(termo.procedure_id)}
+              disabled={loading}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-white text-xs font-medium disabled:opacity-50"
+              style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+            >
+              <CheckCircle size={12} />
+              Assinar agora
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onReenviar(termo.procedure_id, termo.procedure_nome, "email")}
@@ -103,6 +117,7 @@ export function TermoConsentimentoItemRow({
   onReenviar,
   onBaixarPdf,
   onEnviarPdfWhatsapp,
+  onAssinarProfissional,
 }: {
   termo: TermoProcedimento;
   loading: boolean;
@@ -111,6 +126,7 @@ export function TermoConsentimentoItemRow({
   onReenviar: (procedureId: number, nome: string, canal: TermoConsentimentoCanal) => void;
   onBaixarPdf: (procedureId: number, nome: string) => void;
   onEnviarPdfWhatsapp: (procedureId: number, nome: string) => void;
+  onAssinarProfissional: (procedureId: number) => void;
 }) {
   return (
     <li className="px-4 py-3">
@@ -134,6 +150,7 @@ export function TermoConsentimentoItemRow({
         onReenviar={onReenviar}
         onBaixarPdf={onBaixarPdf}
         onEnviarPdfWhatsapp={onEnviarPdfWhatsapp}
+        onAssinarProfissional={onAssinarProfissional}
       />
     </li>
   );

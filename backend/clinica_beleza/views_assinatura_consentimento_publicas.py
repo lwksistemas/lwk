@@ -15,6 +15,7 @@ from .consentimento_assinatura_publica_service import (
     configurar_tenant_publico_clinica,
     documento_da_assinatura,
     preencher_termo_se_vazio,
+    resolver_assinatura_publica,
 )
 from .consentimento_service import limpar_conteudo_termo_exibicao
 
@@ -43,9 +44,9 @@ def _carregar_assinatura_publica(token):
         return None, JsonResponse({"error": err}, status=400)
 
     adapter = ConsultaTermoAssinaturaAdapter()
-    assinatura = adapter.buscar_assinatura_por_token(token)
-    if not assinatura:
-        return None, JsonResponse({"error": "Link inválido."}, status=400)
+    _payload, assinatura, ass_err = resolver_assinatura_publica(adapter, token)
+    if ass_err or not assinatura:
+        return None, JsonResponse({"error": ass_err or "Link inválido."}, status=400)
     if assinatura.assinado:
         return None, JsonResponse({"error": "Este documento já foi assinado."}, status=400)
     if assinatura.is_expirado:

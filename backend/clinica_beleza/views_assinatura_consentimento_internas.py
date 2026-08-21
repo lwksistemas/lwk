@@ -18,6 +18,7 @@ from .consentimento_assinatura_envio_service import (
 )
 from .consentimento_assinatura_publica_service import (
     preencher_termo_se_vazio,
+    path_assinar_consentimento,
     resolver_termo_procedimento,
 )
 from .consentimento_service import (
@@ -213,6 +214,49 @@ class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
         if ok:
             return Response({"message": msg, "procedure_nome": termo_proc.procedure.nome})
         return Response({"detail": email_err or "Erro ao reenviar."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ConsultaLinkAssinaturaProfissionalView(GetObjectMixin, APIView):
+    """POST — URL para o profissional assinar na própria clínica."""
+
+    permission_classes = CLINICA_CLINICAL
+    model_class = Consulta
+    not_found_message = "Consulta não encontrada"
+    select_related_fields = ("patient", "professional")
+
+    def post(self, request, pk):
+        from core.assinatura_service import criar_assinatura
+        from tenants.middleware import get_current_loja_id
+
+        consulta, err = self.object_or_404(pk)
+        if err:
+            return err
+
+        procedure_id = request.data.get("procedure_id")
+        if not procedure_id:
+            return Response(
+                {"detail": "Informe procedure_id do procedimento."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        termo_proc = resolver_termo_procedimento(consulta, procedure_id)
+        if not termo_proc:
+            return Response({"detail": "Procedimento não encontrado nesta consulta."}, status=400)
+        if termo_proc.status_assinatura_termo != "aguardando_profissional":
+            return Response(
+                {"detail": "O paciente ainda não assinou este termo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        loja_id = get_current_loja_id()
+        adapter = ConsultaTermoAssinaturaAdapter()
+        assinatura = adapter.buscar_assinatura_pendente(termo_proc.id, "profissional")
+        if not assinatura:
+            assinatura = criar_assinatura(adapter, termo_proc, "profissional", loja_id)
+        return Response({
+            "path": path_assinar_consentimento(assinatura.token),
+            "procedure_nome": termo_proc.procedure.nome,
+        })
 
 
 class ConsultaDownloadTermoPdfView(GetObjectMixin, APIView):

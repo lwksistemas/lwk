@@ -117,6 +117,22 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
                     pass
         return None
 
+    def buscar_assinatura_pendente(self, doc_id: int, tipo: str):
+        """Assinatura atual não assinada do termo (sobrevive a reenvio que troca o token)."""
+        from .models import ConsultaAssinaturaTermo
+
+        if not doc_id or not tipo:
+            return None
+        return (
+            ConsultaAssinaturaTermo.objects.select_related(
+                "consulta", "consulta__patient", "consulta__professional",
+                "termo_procedimento", "termo_procedimento__procedure",
+            )
+            .filter(termo_procedimento_id=doc_id, tipo=tipo, assinado=False)
+            .order_by("-id")
+            .first()
+        )
+
     def get_documento_da_assinatura(self, assinatura):
         if assinatura.termo_procedimento_id:
             return assinatura.termo_procedimento

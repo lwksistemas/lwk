@@ -144,6 +144,11 @@ export const consultasApi = {
         `/consultas/${consultaId}/termo-consentimento/enviar-pdf-whatsapp/`,
         { procedure_id: procedureId },
       ),
+    linkProfissional: (consultaId: number, procedureId: number) =>
+      cbPost<{ path: string; procedure_nome?: string }>(
+        `/consultas/${consultaId}/termo-consentimento/link-profissional/`,
+        { procedure_id: procedureId },
+      ),
     downloadPdf: async (consultaId: number, procedureId: number) => {
       const res = await clinicaBelezaFetch(
         `/consultas/${consultaId}/termo-consentimento/pdf/?procedure_id=${procedureId}`,

@@ -44,6 +44,7 @@ from .views_assinatura_consentimento import (
     ConsultaDownloadTermoPdfView,
     ConsultaEnviarTermoAssinaturaView,
     ConsultaEnviarTermoPdfWhatsappView,
+    ConsultaLinkAssinaturaProfissionalView,
     ConsultaReenviarTermoAssinaturaView,
     ConsultaTermoConsentimentoStatusView,
     TermoConsentimentoPdfPublicView,
@@ -175,6 +176,11 @@ urlpatterns = [
     path("consultas/<int:pk>/termo-consentimento/", ConsultaTermoConsentimentoStatusView.as_view(), name="consultas-termo-status"),
     path("consultas/<int:pk>/termo-consentimento/enviar/", ConsultaEnviarTermoAssinaturaView.as_view(), name="consultas-termo-enviar"),
     path("consultas/<int:pk>/termo-consentimento/reenviar/", ConsultaReenviarTermoAssinaturaView.as_view(), name="consultas-termo-reenviar"),
+    path(
+        "consultas/<int:pk>/termo-consentimento/link-profissional/",
+        ConsultaLinkAssinaturaProfissionalView.as_view(),
+        name="consultas-termo-link-profissional",
+    ),
     path("consultas/<int:pk>/termo-consentimento/pdf/", ConsultaDownloadTermoPdfView.as_view(), name="consultas-termo-pdf"),
     path(
         "consultas/<int:pk>/termo-consentimento/enviar-pdf-whatsapp/",

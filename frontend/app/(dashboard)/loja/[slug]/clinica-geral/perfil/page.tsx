@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { UserRound } from 'lucide-react';
 import { getUsuarioConsultorio } from '@/lib/clinica-geral-api';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { UsuarioConsultorio } from '@/lib/clinica-geral-types';
 
-const TEAL = '#0D9B9B';
 
 export default function ClinicaGeralPerfilPage() {
   const params = useParams();

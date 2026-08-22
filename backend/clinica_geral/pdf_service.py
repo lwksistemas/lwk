@@ -1,12 +1,19 @@
 """PDFs do consultório: evolução, receita ANVISA (duas vias) e guia TISS."""
 from io import BytesIO
 
+from django.http import HttpResponse
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+
+def pdf_response(data: bytes, filename: str) -> HttpResponse:
+    resp = HttpResponse(data, content_type="application/pdf")
+    resp["Content-Disposition"] = f'inline; filename="{filename}"'
+    return resp
 
 
 def _styles():

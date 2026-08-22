@@ -3,11 +3,10 @@
 import { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { createConsulta, createPaciente, listPacientes } from '@/lib/clinica-geral-api';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { Consulta, PacienteLista } from '@/lib/clinica-geral-types';
 import { MODALIDADE_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
 import { formatShortDate } from '@/lib/clinica-geral-utils';
-
-const TEAL = '#0D9B9B';
 
 type AgendamentoRapidoProps = {
   data: string;

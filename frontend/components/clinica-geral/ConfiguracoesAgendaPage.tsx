@@ -5,10 +5,9 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, CalendarClock, CheckCircle, Save } from 'lucide-react';
 import { getConfiguracao, saveConfiguracao } from '@/lib/clinica-geral-api';
+import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
 import type { ConfiguracaoConsultorio } from '@/lib/clinica-geral-types';
 
-const NAVY = '#2F2E5B';
-const TEAL = '#0D9B9B';
 const DURACOES = [5, 10, 15, 20, 30, 45, 60];
 
 function hhmm(value: string): string {

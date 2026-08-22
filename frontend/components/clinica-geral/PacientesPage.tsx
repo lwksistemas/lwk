@@ -5,10 +5,10 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Archive, Clock, Trash2 } from 'lucide-react';
 import { archivePaciente, listPacientes } from '@/lib/clinica-geral-api';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { PacienteLista } from '@/lib/clinica-geral-types';
 import { displayName, toISODate } from '@/lib/clinica-geral-utils';
 
-const TEAL = '#0D9B9B';
 const LETRAS = ['TODOS', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')];
 
 export function PacientesPage() {

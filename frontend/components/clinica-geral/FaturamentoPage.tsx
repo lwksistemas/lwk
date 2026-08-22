@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { fecharCaixa, getCaixaDia } from '@/lib/clinica-geral-api';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { CaixaDia } from '@/lib/clinica-geral-types';
 import { formatBRL, toISODate } from '@/lib/clinica-geral-utils';
-
-const TEAL = '#0D9B9B';
 
 export function FaturamentoPage() {
   const [data, setData] = useState(toISODate(new Date()));

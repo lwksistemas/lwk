@@ -3,28 +3,15 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import {
-  Bell,
-  BookOpen,
-  ChevronDown,
-  CircleHelp,
-  FileText,
-  KeyRound,
-  LayoutGrid,
-  LogOut,
-  Search,
-  Settings,
-  UserRound,
-} from 'lucide-react';
+import { Bell, LayoutGrid, Search } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
 import { MiniCalendario } from '@/components/clinica-geral/MiniCalendario';
+import { ClinicaGeralUserMenu } from '@/components/clinica-geral/ClinicaGeralUserMenu';
 import { TarefasDoDia } from '@/components/clinica-geral/TarefasDoDia';
 import { getUsuarioConsultorio } from '@/lib/clinica-geral-api';
+import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
 import { RELATORIOS_MENU, RECURSOS_MENU } from '@/lib/clinica-geral-types';
 import { readSidebarHidden, toISODate, writeSidebarHidden } from '@/lib/clinica-geral-utils';
-
-const NAVY = '#2F2E5B';
-const TEAL = '#0D9B9B';
 
 const NAV = [
   { id: 'agenda', label: 'agenda', suffix: 'agenda' },
@@ -194,68 +181,16 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
             <button type="button" className="ml-1 rounded p-2 text-white/80 hover:bg-white/10" title="Notificações">
               <Bell className="h-4 w-4" />
             </button>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setMenuUser((v) => !v)}
-                className="flex items-center gap-1 rounded p-1.5 hover:bg-white/10"
-                aria-label="Menu do usuário"
-              >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-xs">
-                  {loja.nome.slice(0, 1).toUpperCase()}
-                </span>
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-              {menuUser && (
-                <div className="absolute right-0 mt-1 w-72 overflow-hidden rounded-md border border-slate-200 bg-white text-slate-800 shadow-lg">
-                  <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-medium text-slate-600">
-                      {(usuario.nome || loja.nome).slice(0, 1).toUpperCase()}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{usuario.nome || loja.nome}</p>
-                      {usuario.email ? (
-                        <p className="truncate text-xs text-slate-500">{usuario.email}</p>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="py-1">
-                    <Link href={`${base}/perfil`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
-                      <UserRound className="h-4 w-4 text-slate-500" />
-                      Meu perfil
-                    </Link>
-                    <Link href={`${base}/configuracoes`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
-                      <Settings className="h-4 w-4 text-slate-500" />
-                      Configurações
-                    </Link>
-                    <Link href={`${base}/termos`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
-                      <FileText className="h-4 w-4 text-slate-500" />
-                      Termos de uso
-                    </Link>
-                    <Link href={`${base}/guias`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
-                      <BookOpen className="h-4 w-4 text-slate-500" />
-                      Guias de uso
-                    </Link>
-                    <Link href={`/loja/${slug}/trocar-senha`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
-                      <KeyRound className="h-4 w-4 text-slate-500" />
-                      Alterar senha
-                    </Link>
-                    <Link href={`/loja/${slug}/suporte`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
-                      <CircleHelp className="h-4 w-4 text-slate-500" />
-                      Ajuda
-                    </Link>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onLogout}
-                    className="flex w-full items-center gap-2 border-t border-slate-100 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sair
-                  </button>
-                </div>
-              )}
-            </div>
+            <ClinicaGeralUserMenu
+              base={base}
+              slug={slug}
+              lojaNome={loja.nome}
+              usuario={usuario}
+              aberto={menuUser}
+              onToggle={() => setMenuUser((v) => !v)}
+              onClose={() => setMenuUser(false)}
+              onLogout={onLogout}
+            />
           </nav>
         </div>
         <form onSubmit={onSearch} className="border-t border-white/10 px-3 py-2 md:hidden">

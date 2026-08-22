@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { createLoteTiss, guiaPdfUrl, listGuiasTiss, listLotesTiss, openPdf } from '@/lib/clinica-geral-api';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { GuiaTiss, LoteTiss } from '@/lib/clinica-geral-types';
 import { formatBRL } from '@/lib/clinica-geral-utils';
-
-const TEAL = '#0D9B9B';
 
 export function TissPage() {
   const [lotes, setLotes] = useState<LoteTiss[]>([]);

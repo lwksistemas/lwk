@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { createTarefa, deleteTarefa, listTarefas, toggleTarefa } from '@/lib/clinica-geral-api';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { Tarefa } from '@/lib/clinica-geral-types';
-
-const TEAL = '#0D9B9B';
 
 export function TarefasDoDia({ data }: { data: string }) {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);

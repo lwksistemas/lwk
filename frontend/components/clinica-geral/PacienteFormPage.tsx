@@ -3,6 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createPaciente, getPaciente, updatePaciente, archivePaciente } from '@/lib/clinica-geral-api';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { ConvenioPaciente, Paciente, Responsavel } from '@/lib/clinica-geral-types';
 import {
   EMPTY_CONVENIO,
@@ -11,8 +12,6 @@ import {
   emptyPaciente,
 } from '@/lib/clinica-geral-types';
 import { ageFromISO, displayName } from '@/lib/clinica-geral-utils';
-
-const TEAL = '#0D9B9B';
 
 type PacienteFormPageProps = {
   mode: 'novo' | 'editar';

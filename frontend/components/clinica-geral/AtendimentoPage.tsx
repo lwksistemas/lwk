@@ -2,11 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { EvolucaoForm } from '@/components/clinica-geral/EvolucaoForm';
+import { PainelTele } from '@/components/clinica-geral/PainelTele';
+import { EMPTY_ITEM, ReceitaForm } from '@/components/clinica-geral/ReceitaForm';
+import { ValorTissForm } from '@/components/clinica-geral/ValorTissForm';
 import {
   abrirTele,
-  createPrescricao,
   createGuiaTiss,
+  createPrescricao,
   evolucaoPdfUrl,
+  getConsulta,
   getEvolucaoDaConsulta,
   listPrescricoes,
   openPdf,
@@ -16,11 +21,9 @@ import {
   updateConsulta,
   updateConsultaStatus,
 } from '@/lib/clinica-geral-api';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { Consulta, Evolucao, Prescricao, PrescricaoItem } from '@/lib/clinica-geral-types';
-import { alertaAlergia, formatBRL, formatHora } from '@/lib/clinica-geral-utils';
-
-const TEAL = '#0D9B9B';
-const EMPTY_ITEM: PrescricaoItem = { medicamento: '', dosagem: '', posologia: '', quantidade: '' };
+import { formatBRL, formatHora, minutosTeleRestantes } from '@/lib/clinica-geral-utils';
 
 export function AtendimentoPage() {
   const params = useParams();
@@ -44,7 +47,7 @@ export function AtendimentoPage() {
   useEffect(() => {
     if (!id) return;
     void (async () => {
-      const achada = await fetchConsultaFallback(id);
+      const achada = await getConsulta(id);
       if (!achada) return;
       setConsulta(achada);
       setValor(achada.valor || '');
@@ -102,130 +105,48 @@ export function AtendimentoPage() {
       {alergias ? <p className="rounded-md bg-red-50 px-4 py-2 text-sm font-medium text-red-700">Alergias: {alergias}</p> : null}
       {msg ? <p className="text-sm text-teal-700">{msg}</p> : null}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-3 font-semibold text-slate-800">Evolução SOAP</h2>
-        {(['subjetivo', 'objetivo', 'avaliacao', 'plano'] as const).map((campo) => (
-          <label key={campo} className="mb-3 block text-sm">
-            <span className="mb-1 block capitalize text-slate-600">{campo}</span>
-            <textarea
-              value={evolucao[campo] || ''}
-              onChange={(e) => setEvolucao((ev) => ({ ...ev, [campo]: e.target.value }))}
-              rows={3}
-              className="w-full rounded-md border border-slate-300 px-3 py-2"
-            />
-          </label>
-        ))}
-        <div className="flex gap-2">
-          <button type="button" onClick={() => void salvarEvolucao()} className="rounded-md px-4 py-2 text-sm text-white" style={{ backgroundColor: TEAL }}>
-            Salvar evolução
-          </button>
-          {evolucao.id ? (
-            <button type="button" onClick={() => void openPdf(evolucaoPdfUrl(evolucao.id!))} className="rounded-md border px-4 py-2 text-sm">
-              PDF do prontuário
-            </button>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-3 font-semibold text-slate-800">Receituário ANVISA</h2>
-        {itens.map((item, i) => {
-          const alerta = alertaAlergia(alergias, item.medicamento);
-          return (
-            <div key={i} className="mb-2 grid gap-2 sm:grid-cols-4">
-              <input
-                placeholder="Medicamento"
-                value={item.medicamento}
-                onChange={(e) => patchItem(i, { medicamento: e.target.value })}
-                className={`rounded-md border px-3 py-2 text-sm ${alerta ? 'border-red-500 bg-red-50' : 'border-slate-300'}`}
-              />
-              <input placeholder="Dosagem" value={item.dosagem} onChange={(e) => patchItem(i, { dosagem: e.target.value })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-              <input placeholder="Posologia" value={item.posologia} onChange={(e) => patchItem(i, { posologia: e.target.value })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-              <input placeholder="Qtde" value={item.quantidade} onChange={(e) => patchItem(i, { quantidade: e.target.value })} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-              {alerta ? <p className="sm:col-span-4 text-xs text-red-600">Conflito com alergia cadastrada.</p> : null}
-            </div>
-          );
-        })}
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setItens((xs) => [...xs, { ...EMPTY_ITEM }])} className="text-sm text-teal-700">
-            + medicamento
-          </button>
-          <button type="button" onClick={() => void emitirReceita()} className="rounded-md px-4 py-2 text-sm text-white" style={{ backgroundColor: TEAL }}>
-            Emitir receita
-          </button>
-        </div>
-        {prescricoes.map((p) => (
-          <button key={p.id} type="button" onClick={() => void openPdf(receitaPdfUrl(p.id))} className="mt-2 block text-sm text-teal-700">
-            Abrir receita #{p.id}
-            {p.itens.some((i) => i.alerta_alergia) ? ' (alerta de alergia)' : ''}
-          </button>
-        ))}
-      </section>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-3 font-semibold text-slate-800">Valor e TISS</h2>
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="text-sm">
-            Valor (R$)
-            <input value={valor} onChange={(e) => setValor(e.target.value)} className="ml-2 rounded-md border border-slate-300 px-3 py-2" />
-          </label>
-          <button
-            type="button"
-            onClick={async () => {
-              const saved = await updateConsulta(consulta.id, { valor });
-              setConsulta(saved);
-              setMsg(`Valor ${formatBRL(valor)} salvo.`);
-            }}
-            className="rounded-md border px-3 py-2 text-sm"
-          >
-            Salvar valor
-          </button>
-          <button
-            type="button"
-            onClick={async () => {
-              const guia = await createGuiaTiss(consulta.id, null, valor || consulta.valor);
-              setMsg(`Guia ${guia.numero_guia} gerada.`);
-            }}
-            className="rounded-md border px-3 py-2 text-sm"
-          >
-            Gerar guia TISS
-          </button>
-        </div>
-      </section>
-
-      {consulta.modalidade === 'tele' && (
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="mb-3 font-semibold text-slate-800">Telemedicina (cota 10h/mês)</h2>
-          {teleInfo ? <p className="mb-2 text-sm text-slate-600">{teleInfo}</p> : null}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={async () => {
-                const r = await abrirTele(consulta.id);
-                setConsulta(r);
-                const rest = Math.max(0, (r.teto_tele_minutos || 600) - (r.tele_minutos_mes || 0));
-                setTeleInfo(`Restam ${rest} min neste mês.`);
-                if (r.tele_sala_url) window.open(r.tele_sala_url, '_blank');
-              }}
-              className="rounded-md px-4 py-2 text-sm text-white"
-              style={{ backgroundColor: TEAL }}
-            >
-              Abrir sala
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                const r = await registrarTele(consulta.id, consulta.duracao_minutos || 15);
-                setConsulta(r);
-                setTeleInfo(`+${consulta.duracao_minutos || 15} min registrados.`);
-              }}
-              className="rounded-md border px-4 py-2 text-sm"
-            >
-              Registrar duração
-            </button>
-          </div>
-        </section>
-      )}
+      <EvolucaoForm
+        evolucao={evolucao}
+        onChange={(patch) => setEvolucao((ev) => ({ ...ev, ...patch }))}
+        onSave={() => void salvarEvolucao()}
+        onPdf={evolucao.id ? () => void openPdf(evolucaoPdfUrl(evolucao.id!)) : undefined}
+      />
+      <ReceitaForm
+        alergias={alergias}
+        itens={itens}
+        prescricoes={prescricoes}
+        onItensChange={setItens}
+        onEmitir={() => void emitirReceita()}
+        onAbrirPdf={(prescId) => void openPdf(receitaPdfUrl(prescId))}
+      />
+      <ValorTissForm
+        valor={valor}
+        onValorChange={setValor}
+        onSalvarValor={async () => {
+          const saved = await updateConsulta(consulta.id, { valor });
+          setConsulta(saved);
+          setMsg(`Valor ${formatBRL(valor)} salvo.`);
+        }}
+        onGerarGuia={async () => {
+          const guia = await createGuiaTiss(consulta.id, null, valor || consulta.valor);
+          setMsg(`Guia ${guia.numero_guia} gerada.`);
+        }}
+      />
+      <PainelTele
+        consulta={consulta}
+        info={teleInfo}
+        onAbrir={async () => {
+          const r = await abrirTele(consulta.id);
+          setConsulta(r);
+          setTeleInfo(`Restam ${minutosTeleRestantes(r.tele_minutos_mes || 0, r.teto_tele_minutos || 600)} min neste mês.`);
+          if (r.tele_sala_url) window.open(r.tele_sala_url, '_blank');
+        }}
+        onRegistrar={async () => {
+          const r = await registrarTele(consulta.id, consulta.duracao_minutos || 15);
+          setConsulta(r);
+          setTeleInfo(`+${consulta.duracao_minutos || 15} min registrados.`);
+        }}
+      />
 
       <button
         type="button"
@@ -241,18 +162,4 @@ export function AtendimentoPage() {
       </button>
     </div>
   );
-
-  function patchItem(index: number, patch: Partial<PrescricaoItem>) {
-    setItens((xs) => xs.map((item, i) => (i === index ? { ...item, ...patch } : item)));
-  }
-}
-
-async function fetchConsultaFallback(id: number): Promise<Consulta | null> {
-  try {
-    const { default: apiClient } = await import('@/lib/api-client');
-    const res = await apiClient.get(`/clinica-geral/consultas/${id}/`);
-    return res.data as Consulta;
-  } catch {
-    return null;
-  }
 }

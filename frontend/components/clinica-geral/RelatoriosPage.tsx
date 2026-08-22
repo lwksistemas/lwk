@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { fetchRelatorio } from '@/lib/clinica-geral-api';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { RelatorioResposta, TipoRelatorio } from '@/lib/clinica-geral-types';
 import { RELATORIO_TITULO, STATUS_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
 import { formatBRL, formatHora, monthRange } from '@/lib/clinica-geral-utils';
-
-const TEAL = '#0D9B9B';
 
 export function RelatoriosPage({ tipo }: { tipo: TipoRelatorio }) {
   const padrao = monthRange();

@@ -6,9 +6,8 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Check, Image, LogIn, Palette } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ImageUploadMedia as ImageUpload } from '@/components/ImageUploadMedia';
+import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
 
-const NAVY = '#2F2E5B';
-const TEAL = '#0D9B9B';
 
 interface LoginConfigData {
   logo: string;

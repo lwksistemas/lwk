@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { getPaciente, recepcionarConsulta } from '@/lib/clinica-geral-api';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { Consulta, Paciente } from '@/lib/clinica-geral-types';
 import { emptyPaciente } from '@/lib/clinica-geral-types';
-
-const TEAL = '#0D9B9B';
 
 type RecepcionarModalProps = {
   consulta: Consulta;

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import { monthGrid, parseISODate, toISODate } from '@/lib/clinica-geral-utils';
 
 const WEEK = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -19,8 +20,6 @@ const MONTHS = [
   'novembro',
   'dezembro',
 ];
-
-const TEAL = '#0D9B9B';
 
 type MiniCalendarioProps = {
   selected: string;

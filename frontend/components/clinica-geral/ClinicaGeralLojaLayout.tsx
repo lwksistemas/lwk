@@ -9,6 +9,7 @@ import {
   readLojaInfoPublicaCache,
   writeLojaInfoPublicaCache,
 } from '@/lib/loja-info-publica-cache';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { LojaInfo } from '@/types/dashboard';
 
 export function ClinicaGeralLojaLayout({ children }: { children: ReactNode }) {
@@ -72,7 +73,7 @@ export function ClinicaGeralLojaLayout({ children }: { children: ReactNode }) {
           type="button"
           onClick={() => void loadLoja()}
           className="rounded-md px-4 py-2 text-sm font-medium text-white"
-          style={{ backgroundColor: '#0D9B9B' }}
+          style={{ backgroundColor: TEAL }}
         >
           Tentar novamente
         </button>

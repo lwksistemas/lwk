@@ -50,6 +50,15 @@ export async function archivePaciente(id: number) {
   await apiClient.delete(`/clinica-geral/pacientes/${id}/`);
 }
 
+export async function getConsulta(id: number) {
+  try {
+    const res = await apiClient.get(`/clinica-geral/consultas/${id}/`);
+    return res.data as Consulta;
+  } catch {
+    return null;
+  }
+}
+
 export async function listConsultas(data: string) {
   const res = await apiClient.get(`/clinica-geral/consultas/?data=${encodeURIComponent(data)}`);
   return unwrapList(res.data) as Consulta[];

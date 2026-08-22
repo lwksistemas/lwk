@@ -13,9 +13,8 @@ import {
   Settings,
   Wallet,
 } from 'lucide-react';
+import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
 
-const NAVY = '#2F2E5B';
-const TEAL = '#0D9B9B';
 
 export function ConfiguracoesHubPage() {
   const params = useParams();

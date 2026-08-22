@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Clock, Printer, User } from 'lucide-react';
+import { AgendamentoRapido } from '@/components/clinica-geral/AgendamentoRapido';
+import { RecepcionarModal } from '@/components/clinica-geral/RecepcionarModal';
+import { ResumoAgendamento } from '@/components/clinica-geral/ResumoAgendamento';
 import { getConfiguracao, getPaciente, listConsultas, listHorariosLivres } from '@/lib/clinica-geral-api';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { Consulta, DiaHorariosLivres, PacienteLista } from '@/lib/clinica-geral-types';
 import { STATUS_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
 import {
@@ -16,11 +20,6 @@ import {
   slotTimesFromConfig,
   toISODate,
 } from '@/lib/clinica-geral-utils';
-import { AgendamentoRapido } from '@/components/clinica-geral/AgendamentoRapido';
-import { RecepcionarModal } from '@/components/clinica-geral/RecepcionarModal';
-import { ResumoAgendamento } from '@/components/clinica-geral/ResumoAgendamento';
-
-const TEAL = '#0D9B9B';
 
 export function AgendaPage() {
   const params = useParams();

@@ -105,8 +105,17 @@ class Command(BaseCommand):
                 continue
 
             from core.db_config import ensure_loja_database_config
+            from superadmin.services.migration_history_repair import repair_inconsistent_history
+
             if ensure_loja_database_config(loja.database_name, conn_max_age=0):
                 self.stdout.write("✅ Banco configurado")
+            try:
+                recorded = repair_inconsistent_history(connections[loja.database_name])
+                if recorded:
+                    nomes = ", ".join(f"{app}.{name}" for app, name in recorded)
+                    self.stdout.write(self.style.WARNING(f"  🔧 Histórico alinhado: {nomes}"))
+            except Exception as repair_err:
+                self.stdout.write(self.style.WARNING(f"  ⚠️ Reparar histórico: {repair_err}"))
             for app in apps_to_migrate:
                 # ✅ FIX: Retry logic para cada migration
                 for attempt in range(max_retries):

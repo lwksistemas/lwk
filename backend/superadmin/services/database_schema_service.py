@@ -129,6 +129,7 @@ TIPO_LOJA_EXTRA_APPS = {
     "hotel": ["hotel"],
     "radiologia": ["radiologia", "whatsapp"],
     "clinica-radiologia": ["radiologia", "whatsapp"],
+    "clinica-geral": ["clinica_geral", "whatsapp"],
 }
 
 # Falha de migration nestes apps aborta criação/recuperação de loja tipo CRM Vendas (NFS-e no tenant).

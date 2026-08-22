@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "nfse_integration.apps.NfseIntegrationConfig",  # App de integração NFS-e (ISSNet, API Nacional, etc)
     "hotel.apps.HotelConfig",  # App de hotelaria (Hotel / Pousada)
     "clinica_beleza.apps.ClinicaBelezaConfig",  # App de clínica da beleza
+    "clinica_geral.apps.ClinicaGeralConfig",  # Consultório médico (separado da estética)
     "cabeleireiro.apps.CabeleireiroConfig",  # Salão de cabeleireiro (Lumina)
     "radiologia.apps.RadiologiaConfig",  # RIS / Radiologia DICOM
     "notificacoes.apps.NotificacoesConfig",  # Base de notificações (in-app, push, email, etc.)

@@ -2,18 +2,24 @@
  * Helpers para tipo de app.
  * Regras centralizadas: valem para todas as lojas criadas no sistema (por tipo_loja_nome da API).
  *
- * Apps ativos: CRM Vendas, Clínica da Beleza, Hotel / Pousada, Salão (cabeleireiro), Radiologia.
+ * Apps ativos: CRM Vendas, Clínica da Beleza, Clínica Geral, Hotel / Pousada, Salão (cabeleireiro), Radiologia.
  * Clínica de Estética (legado) foi unificada em Clínica da Beleza — mesmo produto e rotas.
  */
 
 const normalizarTipo = (tipo: string) =>
   tipo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+export function isTipoClinicaGeral(tipoLojaNome: string): boolean {
+  const s = normalizarTipo(tipoLojaNome);
+  if (s.includes('beleza') || s.includes('estetica') || s.includes('radiolog')) return false;
+  if (s.includes('consultorio')) return true;
+  return s.includes('clinica') && (s.includes('geral') || s.includes('medica'));
+}
+
 export function isTipoClinicaBeleza(tipoLojaNome: string): boolean {
   const s = normalizarTipo(tipoLojaNome);
   if (!s.includes('clinica')) return false;
-  // clinica-radiologia não é clínica da beleza
-  if (s.includes('radiolog')) return false;
+  if (s.includes('radiolog') || s.includes('geral') || s.includes('consultorio')) return false;
   return s.includes('beleza') || s.includes('estetica');
 }
 
@@ -54,6 +60,7 @@ export function configuracoesPathForTipo(slug: string, tipoLojaNome: string): st
   if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/configuracoes`;
   if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/cabeleireiro/configuracoes`;
   if (isTipoRadiologia(tipoLojaNome)) return `/loja/${slug}/radiologia`;
+  if (isTipoClinicaGeral(tipoLojaNome)) return `/loja/${slug}/clinica-geral/recursos`;
   return `/loja/${slug}/dashboard`;
 }
 
@@ -61,6 +68,7 @@ export function configuracoesPathForTipo(slug: string, tipoLojaNome: string): st
 export function homePathForTipo(slug: string, tipoLojaNome: string): string {
   if (isTipoCRMVendas(tipoLojaNome)) return `/loja/${slug}/crm-vendas`;
   if (isTipoClinicaBeleza(tipoLojaNome)) return `/loja/${slug}/clinica-beleza/consultas`;
+  if (isTipoClinicaGeral(tipoLojaNome)) return `/loja/${slug}/clinica-geral/agenda`;
   if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/reservas`;
   if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/dashboard`;
   if (isTipoRadiologia(tipoLojaNome)) return `/loja/${slug}/radiologia`;

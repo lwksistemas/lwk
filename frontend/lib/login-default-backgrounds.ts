@@ -8,6 +8,7 @@ import {
   isTipoCRMVendas,
   isTipoHotel,
   isTipoRadiologia,
+  isTipoClinicaGeral,
 } from '@/lib/loja-tipo';
 
 /** Arquivos em /public/login-backgrounds/ — um por tipo de app ativo */
@@ -47,6 +48,7 @@ export function getLoginThemeColor(tipoLojaNome: string): string {
   if (isTipoHotel(tipo)) return LOGIN_THEME_COLORS.hotel;
   if (isTipoCRMVendas(tipo)) return LOGIN_THEME_COLORS.crm;
   if (isTipoRadiologia(tipo)) return '#0F766E';
+  if (isTipoClinicaGeral(tipo)) return '#2F2E5B';
   return LOGIN_THEME_COLORS.default;
 }
 

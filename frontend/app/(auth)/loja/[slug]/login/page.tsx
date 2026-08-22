@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
-import { isTipoCRMVendas } from '@/lib/loja-tipo';
+import { homePathForTipo, isTipoCRMVendas } from '@/lib/loja-tipo';
 import { resolveLoginBackground, getLoginBackgroundHintFromSlug, getLoginBackgroundFallbackColor, preloadLoginBackground, getLoginThemeColor, cacheLojaLoginContext, getInitialLoginBackgroundForSlug, preloadImageUrl } from '@/lib/login-default-backgrounds';
 import { LoginBackgroundLayer } from '@/components/auth/LoginBackgroundLayer';
 import { getPublicApiJson } from '@/lib/public-api';
@@ -185,9 +185,10 @@ export default function LojaLoginDinamicoPage() {
         }
       }
 
-      // Loja tipo CRM Vendas: ir direto para o Dashboard de Vendas (CRM)
       const usaCrm = lojaInfo && isTipoCRMVendas(lojaInfo.tipo_loja_nome);
-      const destino = usaCrm ? `/loja/${slug}/crm-vendas` : `/loja/${slug}/dashboard`;
+      const destino = lojaInfo
+        ? homePathForTipo(slug, lojaInfo.tipo_loja_nome)
+        : `/loja/${slug}/dashboard`;
       if (typeof document !== 'undefined') {
         document.cookie = usaCrm
           ? 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax'

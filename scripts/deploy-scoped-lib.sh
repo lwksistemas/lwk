@@ -11,7 +11,7 @@ Uso: TARGET [app ...]
   all [app ...]         frontend + backend + worker (sem Evolution/Orthanc/mídia)
   infra                 Evolution, Orthanc e mídia
 
-Apps: clinica_beleza  crm_vendas  whatsapp  nfse_integration  cabeleireiro  hotel
+Apps: clinica_beleza  clinica_geral  crm_vendas  whatsapp  nfse_integration  cabeleireiro  hotel
 
 Exemplos:
   bash scripts/deploy-beta-isolated.sh frontend

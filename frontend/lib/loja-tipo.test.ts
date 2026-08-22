@@ -1,0 +1,28 @@
+import { describe, expect, it } from 'vitest';
+import {
+  homePathForTipo,
+  isTipoClinicaBeleza,
+  isTipoClinicaGeral,
+} from '@/lib/loja-tipo';
+
+describe('isTipoClinicaGeral', () => {
+  it('reconhece Clínica Geral e consultório médico', () => {
+    expect(isTipoClinicaGeral('Clínica Geral')).toBe(true);
+    expect(isTipoClinicaGeral('Consultorio Medico')).toBe(true);
+    expect(isTipoClinicaGeral('Clinica Médica')).toBe(true);
+  });
+
+  it('não confunde com Clínica da Beleza nem Radiologia', () => {
+    expect(isTipoClinicaGeral('Clínica da Beleza')).toBe(false);
+    expect(isTipoClinicaGeral('Clínica de Estética')).toBe(false);
+    expect(isTipoClinicaGeral('Radiologia')).toBe(false);
+    expect(isTipoClinicaBeleza('Clínica Geral')).toBe(false);
+    expect(isTipoClinicaBeleza('Clínica da Beleza')).toBe(true);
+  });
+
+  it('manda o app para a agenda', () => {
+    expect(homePathForTipo('clinicageral', 'Clínica Geral')).toBe(
+      '/loja/clinicageral/clinica-geral/agenda',
+    );
+  });
+});

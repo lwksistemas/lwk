@@ -61,6 +61,7 @@ ENSURES = [
     ("ensure_payment_draft_nao_finalizadas", {}),
     ("ensure_consulta_numero", {}),
     ("ensure_suporte_schema", {}),
+    ("ensure_clinica_geral_app", {}),
     ("verificar_storage_lojas", {}),
     ("setup_security_schedules", {}),
 ]

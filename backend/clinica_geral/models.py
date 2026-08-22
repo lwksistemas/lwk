@@ -141,3 +141,18 @@ class Tarefa(LojaIsolationMixin, models.Model):
         app_label = "clinica_geral"
         db_table = "clinica_geral_tarefa"
         ordering = ["-id"]
+
+
+class ConfiguracaoConsultorio(LojaIsolationMixin, models.Model):
+    hora_inicio = models.TimeField(default="08:00")
+    hora_fim = models.TimeField(default="18:00")
+    duracao_minutos = models.PositiveSmallIntegerField(default=15)
+    endereco = models.CharField(max_length=240, blank=True, default="")
+    telefone = models.CharField(max_length=30, blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_config"

@@ -85,6 +85,26 @@ export interface Consulta {
   observacoes: string;
 }
 
+export interface ConfiguracaoConsultorio {
+  hora_inicio: string;
+  hora_fim: string;
+  duracao_minutos: number;
+  endereco: string;
+  telefone: string;
+}
+
+export interface UsuarioConsultorio {
+  username: string;
+  nome: string;
+  email: string;
+}
+
+export const RECURSOS_MENU: { label: string; path: (slug: string) => string }[] = [
+  { label: 'configurações da agenda', path: (s) => `/loja/${s}/clinica-geral/configuracoes/agenda` },
+  { label: 'whatsapp', path: (s) => `/loja/${s}/configuracoes/whatsapp` },
+  { label: 'assinatura', path: (s) => `/loja/${s}/assinatura` },
+];
+
 export interface Tarefa {
   id: number;
   data: string;

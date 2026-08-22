@@ -2,7 +2,7 @@ from datetime import datetime
 
 from rest_framework import serializers
 
-from .models import Consulta, ConvenioPaciente, Paciente, Responsavel, Tarefa
+from .models import ConfiguracaoConsultorio, Consulta, ConvenioPaciente, Paciente, Responsavel, Tarefa
 
 
 class ResponsavelSerializer(serializers.ModelSerializer):
@@ -171,3 +171,19 @@ class TarefaSerializer(serializers.ModelSerializer):
         model = Tarefa
         fields = ("id", "data", "texto", "concluida")
         read_only_fields = ("id",)
+
+
+class ConfiguracaoConsultorioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConfiguracaoConsultorio
+        fields = ("hora_inicio", "hora_fim", "duracao_minutos", "endereco", "telefone")
+
+    def validate(self, attrs):
+        inicio = attrs.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
+        fim = attrs.get("hora_fim", getattr(self.instance, "hora_fim", None))
+        if inicio and fim and fim <= inicio:
+            raise serializers.ValidationError("O horário de fim deve ser depois do início.")
+        duracao = attrs.get("duracao_minutos")
+        if duracao is not None and duracao not in (5, 10, 15, 20, 30, 45, 60):
+            raise serializers.ValidationError("Duração deve ser 5, 10, 15, 20, 30, 45 ou 60 minutos.")
+        return attrs

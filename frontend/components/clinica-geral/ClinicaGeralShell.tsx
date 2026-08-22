@@ -5,15 +5,22 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   Bell,
+  BookOpen,
   ChevronDown,
+  CircleHelp,
+  FileText,
+  KeyRound,
   LayoutGrid,
   LogOut,
   Search,
+  Settings,
+  UserRound,
 } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
 import { MiniCalendario } from '@/components/clinica-geral/MiniCalendario';
 import { TarefasDoDia } from '@/components/clinica-geral/TarefasDoDia';
-import { RELATORIOS_MENU } from '@/lib/clinica-geral-types';
+import { getUsuarioConsultorio } from '@/lib/clinica-geral-api';
+import { RELATORIOS_MENU, RECURSOS_MENU } from '@/lib/clinica-geral-types';
 import { readSidebarHidden, toISODate, writeSidebarHidden } from '@/lib/clinica-geral-utils';
 
 const NAVY = '#2F2E5B';
@@ -43,10 +50,18 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
   const [busca, setBusca] = useState('');
   const [menuUser, setMenuUser] = useState(false);
   const [menuRelatorios, setMenuRelatorios] = useState(false);
+  const [menuRecursos, setMenuRecursos] = useState(false);
+  const [usuario, setUsuario] = useState({ nome: loja.nome, email: '' });
 
   useEffect(() => {
     setSidebarHidden(readSidebarHidden());
   }, []);
+
+  useEffect(() => {
+    void getUsuarioConsultorio()
+      .then((u) => setUsuario({ nome: u.nome || loja.nome, email: u.email }))
+      .catch(() => setUsuario({ nome: loja.nome, email: '' }));
+  }, [loja.nome]);
 
   const toggleSidebar = () => {
     setSidebarHidden((prev) => {
@@ -59,7 +74,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
   const active = useMemo(() => {
     if (pathname.includes('/pacientes')) return 'pacientes';
     if (pathname.includes('/relatorios')) return 'relatorios';
-    if (pathname.includes('/recursos')) return 'recursos';
+    if (pathname.includes('/recursos') || pathname.includes('/configuracoes')) return 'recursos';
     return 'agenda';
   }, [pathname]);
 
@@ -112,34 +127,47 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
             {NAV.map((item) => {
               const href = `${base}/${item.suffix}`;
               const isActive = active === item.id;
-              if (item.id === 'relatorios') {
+              if (item.id === 'relatorios' || item.id === 'recursos') {
+                const aberto = item.id === 'relatorios' ? menuRelatorios : menuRecursos;
+                const setAberto = item.id === 'relatorios' ? setMenuRelatorios : setMenuRecursos;
                 return (
                   <div
                     key={item.id}
                     className="relative"
-                    onMouseEnter={() => setMenuRelatorios(true)}
-                    onMouseLeave={() => setMenuRelatorios(false)}
+                    onMouseEnter={() => setAberto(true)}
+                    onMouseLeave={() => setAberto(false)}
                   >
                     <button
                       type="button"
-                      onClick={() => setMenuRelatorios((v) => !v)}
+                      onClick={() => setAberto((v) => !v)}
                       className={`px-2 py-3 lowercase ${isActive ? 'font-medium' : 'text-white/80 hover:text-white'}`}
                       style={isActive ? { boxShadow: `inset 0 -3px 0 ${TEAL}` } : undefined}
                     >
                       {item.label}
                     </button>
-                    {menuRelatorios && (
+                    {aberto && (
                       <div className="absolute right-0 top-full z-50 min-w-[220px] rounded-md bg-white py-1 text-slate-700 shadow-lg">
-                        {RELATORIOS_MENU.map((opt) => (
-                          <Link
-                            key={opt.tipo}
-                            href={`${base}/relatorios/${opt.tipo}`}
-                            onClick={() => setMenuRelatorios(false)}
-                            className="block px-4 py-2 text-sm lowercase hover:bg-slate-50"
-                          >
-                            {opt.label}
-                          </Link>
-                        ))}
+                        {item.id === 'relatorios'
+                          ? RELATORIOS_MENU.map((opt) => (
+                              <Link
+                                key={opt.tipo}
+                                href={`${base}/relatorios/${opt.tipo}`}
+                                onClick={() => setAberto(false)}
+                                className="block px-4 py-2 text-sm lowercase hover:bg-slate-50"
+                              >
+                                {opt.label}
+                              </Link>
+                            ))
+                          : RECURSOS_MENU.map((opt) => (
+                              <Link
+                                key={opt.label}
+                                href={opt.path(slug)}
+                                onClick={() => setAberto(false)}
+                                className="block px-4 py-2 text-sm lowercase hover:bg-slate-50"
+                              >
+                                {opt.label}
+                              </Link>
+                            ))}
                       </div>
                     )}
                   </div>
@@ -172,11 +200,48 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
               {menuUser && (
-                <div className="absolute right-0 mt-1 w-44 rounded-md border border-slate-200 bg-white py-1 text-slate-800 shadow-lg">
+                <div className="absolute right-0 mt-1 w-72 overflow-hidden rounded-md border border-slate-200 bg-white text-slate-800 shadow-lg">
+                  <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-medium text-slate-600">
+                      {(usuario.nome || loja.nome).slice(0, 1).toUpperCase()}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{usuario.nome || loja.nome}</p>
+                      {usuario.email ? (
+                        <p className="truncate text-xs text-slate-500">{usuario.email}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="py-1">
+                    <Link href={`${base}/perfil`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
+                      <UserRound className="h-4 w-4 text-slate-500" />
+                      Meu perfil
+                    </Link>
+                    <Link href={`${base}/configuracoes`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
+                      <Settings className="h-4 w-4 text-slate-500" />
+                      Configurações
+                    </Link>
+                    <Link href={`${base}/termos`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
+                      <FileText className="h-4 w-4 text-slate-500" />
+                      Termos de uso
+                    </Link>
+                    <Link href={`${base}/guias`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
+                      <BookOpen className="h-4 w-4 text-slate-500" />
+                      Guias de uso
+                    </Link>
+                    <Link href={`/loja/${slug}/trocar-senha`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
+                      <KeyRound className="h-4 w-4 text-slate-500" />
+                      Alterar senha
+                    </Link>
+                    <Link href={`/loja/${slug}/suporte`} onClick={() => setMenuUser(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50">
+                      <CircleHelp className="h-4 w-4 text-slate-500" />
+                      Ajuda
+                    </Link>
+                  </div>
                   <button
                     type="button"
                     onClick={onLogout}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50"
+                    className="flex w-full items-center gap-2 border-t border-slate-100 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50"
                   >
                     <LogOut className="h-4 w-4" />
                     Sair

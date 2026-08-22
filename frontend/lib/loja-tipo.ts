@@ -60,7 +60,7 @@ export function configuracoesPathForTipo(slug: string, tipoLojaNome: string): st
   if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/configuracoes`;
   if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/cabeleireiro/configuracoes`;
   if (isTipoRadiologia(tipoLojaNome)) return `/loja/${slug}/radiologia`;
-  if (isTipoClinicaGeral(tipoLojaNome)) return `/loja/${slug}/clinica-geral/recursos`;
+  if (isTipoClinicaGeral(tipoLojaNome)) return `/loja/${slug}/clinica-geral/configuracoes`;
   return `/loja/${slug}/dashboard`;
 }
 

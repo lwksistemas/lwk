@@ -85,6 +85,30 @@ export function slotTimes(startHour = 8, endHour = 18, stepMin = 15): string[] {
   return out;
 }
 
+export function parseHHMM(value: string): { h: number; m: number } {
+  const [h, m] = (value || '').slice(0, 5).split(':').map(Number);
+  return {
+    h: Number.isFinite(h) ? h : 8,
+    m: Number.isFinite(m) ? m : 0,
+  };
+}
+
+export function slotTimesFromConfig(horaInicio = '08:00', horaFim = '18:00', stepMin = 15): string[] {
+  const start = parseHHMM(horaInicio);
+  const end = parseHHMM(horaFim);
+  const step = stepMin > 0 ? stepMin : 15;
+  const out: string[] = [];
+  let minutes = start.h * 60 + start.m;
+  const endMinutes = end.h * 60 + end.m;
+  while (minutes < endMinutes) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    out.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    minutes += step;
+  }
+  return out;
+}
+
 export function monthGrid(year: number, month: number): (number | null)[] {
   const first = new Date(year, month, 1);
   const days = new Date(year, month + 1, 0).getDate();

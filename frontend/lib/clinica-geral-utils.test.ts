@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, cardTone, displayName, formatHora, formatLivreHeading, monthRange, slotTimes, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
+import { addDays, cardTone, displayName, formatHora, formatLivreHeading, monthRange, slotTimes, slotTimesFromConfig, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
 
 describe('clinica-geral-utils', () => {
   it('formata nome social como na ficha', () => {
@@ -13,6 +13,11 @@ describe('clinica-geral-utils', () => {
     expect(slots).toContain('08:15');
     expect(slots).toContain('17:45');
     expect(slots).not.toContain('18:00');
+  });
+
+  it('gera slots a partir da configuração do consultório', () => {
+    const slots = slotTimesFromConfig('09:00:00', '11:00', 30);
+    expect(slots).toEqual(['09:00', '09:30', '10:00', '10:30']);
   });
 
   it('avança o dia da agenda', () => {

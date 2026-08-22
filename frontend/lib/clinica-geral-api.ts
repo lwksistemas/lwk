@@ -4,7 +4,9 @@ import type {
   DiaHorariosLivres,
   Paciente,
   PacienteLista,
+  ConfiguracaoConsultorio,
   RelatorioResposta,
+  UsuarioConsultorio,
   StatusConsulta,
   Tarefa,
   TipoRelatorio,
@@ -94,6 +96,21 @@ export async function toggleTarefa(tarefa: Tarefa) {
 
 export async function deleteTarefa(id: number) {
   await apiClient.delete(`/clinica-geral/tarefas/${id}/`);
+}
+
+export async function getUsuarioConsultorio() {
+  const res = await apiClient.get('/clinica-geral/me/');
+  return res.data as UsuarioConsultorio;
+}
+
+export async function getConfiguracao() {
+  const res = await apiClient.get('/clinica-geral/configuracao/atual/');
+  return res.data as ConfiguracaoConsultorio;
+}
+
+export async function saveConfiguracao(payload: Partial<ConfiguracaoConsultorio>) {
+  const res = await apiClient.patch('/clinica-geral/configuracao/atual/', payload);
+  return res.data as ConfiguracaoConsultorio;
 }
 
 export async function fetchRelatorio(tipo: TipoRelatorio, de: string, ate: string) {

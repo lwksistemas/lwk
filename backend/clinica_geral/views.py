@@ -8,10 +8,11 @@ from rest_framework.views import APIView
 
 from core.permissions import HasLojaAccess
 from core.views import BaseModelViewSet
-from tenants.middleware import ensure_loja_context
+from tenants.middleware import ensure_loja_context, get_current_loja_id
 
-from .models import Consulta, Paciente, Tarefa
+from .models import ConfiguracaoConsultorio, Consulta, Paciente, Tarefa
 from .serializers import (
+    ConfiguracaoConsultorioSerializer,
     ConsultaSerializer,
     PacienteListaSerializer,
     PacienteSerializer,
@@ -104,13 +105,14 @@ class ConsultaViewSet(BaseModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="horarios-livres")
     def horarios_livres(self, request):
-        """Slots de 15 min (08:00–18:00) sem consulta no dia informado (e no seguinte)."""
+        """Slots conforme a configuração do consultório, sem consulta no dia (e no seguinte)."""
         ensure_loja_context(request)
         raw = (request.query_params.get("data") or "").strip()
         try:
             dia = datetime.strptime(raw, "%Y-%m-%d").date() if raw else datetime.now().date()
         except ValueError:
             dia = datetime.now().date()
+        inicio, fim_hora, passo = _agenda_janela()
 
         def slots_do_dia(d):
             ocupados = {
@@ -118,13 +120,13 @@ class ConsultaViewSet(BaseModelViewSet):
                 for c in Consulta.objects.filter(is_active=True, data=d).exclude(status="desmarcado")
             }
             livres = []
-            cursor = datetime.combine(d, time(8, 0))
-            fim = datetime.combine(d, time(18, 0))
+            cursor = datetime.combine(d, inicio)
+            fim = datetime.combine(d, fim_hora)
             while cursor < fim:
                 hhmm = cursor.strftime("%H:%M")
                 if hhmm not in ocupados:
                     livres.append(hhmm)
-                cursor += timedelta(minutes=15)
+                cursor += timedelta(minutes=passo)
             return livres
 
         return Response(
@@ -150,6 +152,61 @@ class TarefaViewSet(BaseModelViewSet):
         if data:
             qs = qs.filter(data=data)
         return qs
+
+
+class ConfiguracaoConsultorioViewSet(BaseModelViewSet):
+    serializer_class = ConfiguracaoConsultorioSerializer
+    http_method_names = ["get", "put", "patch", "head", "options"]
+
+    def get_queryset(self):
+        ensure_loja_context(self.request)
+        return ConfiguracaoConsultorio.objects.all()
+
+    @action(detail=False, methods=["get", "put", "patch"], url_path="atual")
+    def atual(self, request):
+        ensure_loja_context(request)
+        config = _config_consultorio()
+        if request.method == "GET":
+            return Response(ConfiguracaoConsultorioSerializer(config).data)
+        serializer = ConfiguracaoConsultorioSerializer(config, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated, HasLojaAccess]
+
+    def get(self, request):
+        ensure_loja_context(request)
+        user = request.user
+        nome = (user.get_full_name() or user.first_name or user.username or "").strip()
+        return Response(
+            {
+                "username": user.username,
+                "nome": nome,
+                "email": user.email or "",
+            }
+        )
+
+
+def _config_consultorio():
+    loja_id = get_current_loja_id()
+    config = ConfiguracaoConsultorio.objects.first()
+    if config:
+        return config
+    defaults = {"hora_inicio": time(8, 0), "hora_fim": time(18, 0), "duracao_minutos": 15}
+    if loja_id:
+        defaults["loja_id"] = loja_id
+    return ConfiguracaoConsultorio.objects.create(**defaults)
+
+
+def _agenda_janela():
+    config = ConfiguracaoConsultorio.objects.first()
+    if not config:
+        return time(8, 0), time(18, 0), 15
+    passo = config.duracao_minutos or 15
+    return config.hora_inicio, config.hora_fim, passo
 
 
 def _periodo(request):

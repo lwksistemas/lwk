@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Clock, Printer, User } from 'lucide-react';
-import { getPaciente, listConsultas, listHorariosLivres } from '@/lib/clinica-geral-api';
+import { getConfiguracao, getPaciente, listConsultas, listHorariosLivres } from '@/lib/clinica-geral-api';
 import type { Consulta, DiaHorariosLivres, PacienteLista } from '@/lib/clinica-geral-types';
 import { STATUS_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
 import {
@@ -13,6 +13,7 @@ import {
   formatLivreHeading,
   formatLongDate,
   slotTimes,
+  slotTimesFromConfig,
   toISODate,
 } from '@/lib/clinica-geral-utils';
 import { AgendamentoRapido } from '@/components/clinica-geral/AgendamentoRapido';
@@ -20,7 +21,6 @@ import { RecepcionarModal } from '@/components/clinica-geral/RecepcionarModal';
 import { ResumoAgendamento } from '@/components/clinica-geral/ResumoAgendamento';
 
 const TEAL = '#0D9B9B';
-const SLOTS = slotTimes();
 
 export function AgendaPage() {
   const params = useParams();
@@ -39,6 +39,7 @@ export function AgendaPage() {
   const [pacienteInicial, setPacienteInicial] = useState<PacienteLista | null>(null);
   const [resumo, setResumo] = useState<Consulta | null>(null);
   const [recepcionar, setRecepcionar] = useState<Consulta | null>(null);
+  const [slots, setSlots] = useState<string[]>(() => slotTimes());
 
   const setData = (iso: string) => router.replace(`/loja/${slug}/clinica-geral/agenda?data=${iso}`);
 
@@ -61,10 +62,16 @@ export function AgendaPage() {
   }, [carregar]);
 
   useEffect(() => {
+    void getConfiguracao()
+      .then((c) => setSlots(slotTimesFromConfig(c.hora_inicio, c.hora_fim, c.duracao_minutos)))
+      .catch(() => setSlots(slotTimes()));
+  }, []);
+
+  useEffect(() => {
     if (!abrirNova) return;
-    const hora = nextLivre(livres, data) || SLOTS[0];
+    const hora = nextLivre(livres, data) || slots[0];
     setSlotAberto(hora);
-  }, [abrirNova, livres, data]);
+  }, [abrirNova, livres, data, slots]);
 
   useEffect(() => {
     if (!pacienteId) return;
@@ -87,7 +94,7 @@ export function AgendaPage() {
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-3">
           <button
             type="button"
-            onClick={() => setSlotAberto(nextLivre(livres, data) || SLOTS[0])}
+            onClick={() => setSlotAberto(nextLivre(livres, data) || slots[0])}
             className="rounded-md px-4 py-2 text-sm font-medium text-white"
             style={{ backgroundColor: TEAL }}
           >
@@ -119,7 +126,7 @@ export function AgendaPage() {
             <p className="p-6 text-sm text-slate-500">Carregando agenda...</p>
           ) : (
             <div>
-              {SLOTS.map((slot, i) => {
+              {slots.map((slot, i) => {
                 const consulta = porHora.get(slot);
                 const tom = consulta ? cardTone(consulta.status) : null;
                 return (

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RELATORIOS_MENU } from '@/lib/clinica-geral-types';
 import {
+  configuracoesPathForTipo,
   homePathForTipo,
   isTipoClinicaBeleza,
   isTipoClinicaGeral,
@@ -34,6 +35,12 @@ describe('isTipoClinicaGeral', () => {
   it('manda o app para a agenda', () => {
     expect(homePathForTipo('clinicageral', 'Clínica Geral')).toBe(
       '/loja/clinicageral/clinica-geral/agenda',
+    );
+  });
+
+  it('manda configurações para o hub do consultório', () => {
+    expect(configuracoesPathForTipo('clinicageral', 'Clínica Geral')).toBe(
+      '/loja/clinicageral/clinica-geral/configuracoes',
     );
   });
 });

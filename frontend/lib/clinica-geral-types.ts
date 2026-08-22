@@ -8,6 +8,7 @@ export type StatusConsulta =
   | 'agendado'
   | 'confirmado'
   | 'recepcionado'
+  | 'atendido'
   | 'desmarcado'
   | 'faltou';
 
@@ -34,6 +35,7 @@ export interface PacienteLista {
   telefone: string;
   email: string;
   cpf: string;
+  numero_prontuario?: string;
 }
 
 export interface Paciente extends PacienteLista {
@@ -44,8 +46,12 @@ export interface Paciente extends PacienteLista {
   estado_civil: string;
   rg: string;
   passaporte: string;
+  rne: string;
+  pais_emissor: string;
   nome_mae: string;
   tipo_sanguineo: string;
+  telefone_fixo: string;
+  quem_indicou: string;
   cep: string;
   logradouro: string;
   numero: string;
@@ -65,13 +71,25 @@ export interface Consulta {
   paciente_nome: string;
   paciente_telefone: string;
   paciente_email: string;
+  paciente_idade: number | null;
+  paciente_prontuario: string;
   data: string;
   hora: string;
   tipo: TipoConsulta;
   modalidade: ModalidadeConsulta;
   convenio: string;
   status: StatusConsulta;
+  duracao_minutos: number;
+  agendado_por: string;
+  minutos_espera: number;
   observacoes: string;
+}
+
+export interface Tarefa {
+  id: number;
+  data: string;
+  texto: string;
+  concluida: boolean;
 }
 
 export interface DiaHorariosLivres {
@@ -94,6 +112,7 @@ export const STATUS_LABEL: Record<StatusConsulta, string> = {
   agendado: 'Agendado',
   confirmado: 'Confirmado',
   recepcionado: 'Recepcionado',
+  atendido: 'Atendido',
   desmarcado: 'Desmarcado',
   faltou: 'Faltou',
 };
@@ -132,7 +151,11 @@ export function emptyPaciente(): Paciente {
     cpf: '',
     rg: '',
     passaporte: '',
+    rne: '',
+    pais_emissor: '',
     nome_mae: '',
+    telefone_fixo: '',
+    quem_indicou: '',
     tipo_sanguineo: '',
     telefone: '',
     email: '',

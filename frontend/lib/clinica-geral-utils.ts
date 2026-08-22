@@ -103,3 +103,29 @@ export function writeSidebarHidden(hidden: boolean): void {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(SIDEBAR_HIDDEN_KEY, hidden ? '1' : '0');
 }
+
+export function formatLivreHeading(iso: string, hoje: string): string {
+  const d = parseISODate(iso);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const weekday = WEEKDAYS[d.getDay()];
+  const corpo = `${weekday} ${dd}/${mm}/${d.getFullYear()}`;
+  if (iso === addDays(hoje, 1)) return `Amanhã, ${corpo}`;
+  if (iso === hoje) return `Hoje, ${corpo}`;
+  return corpo;
+}
+
+export function cardTone(status: string): { bg: string; border: string } {
+  if (status === 'confirmado') return { bg: '#C8E6C0', border: '#7CB342' };
+  if (status === 'recepcionado') return { bg: '#B2DFDB', border: '#00897B' };
+  if (status === 'atendido') return { bg: '#E0E0E0', border: '#9E9E9E' };
+  if (status === 'faltou') return { bg: '#FFCDD2', border: '#E57373' };
+  return { bg: '#C5E1A5', border: '#8BC34A' };
+}
+
+export function whatsappHref(phone: string): string | null {
+  const d = (phone || '').replace(/\D/g, '');
+  if (d.length < 10) return null;
+  const withCountry = d.startsWith('55') ? d : `55${d}`;
+  return `https://wa.me/${withCountry}`;
+}

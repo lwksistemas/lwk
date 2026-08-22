@@ -7,8 +7,13 @@ from rest_framework.response import Response
 from core.views import BaseModelViewSet
 from tenants.middleware import ensure_loja_context
 
-from .models import Consulta, Paciente
-from .serializers import ConsultaSerializer, PacienteListaSerializer, PacienteSerializer
+from .models import Consulta, Paciente, Tarefa
+from .serializers import (
+    ConsultaSerializer,
+    PacienteListaSerializer,
+    PacienteSerializer,
+    TarefaSerializer,
+)
 
 
 class PacienteViewSet(BaseModelViewSet):
@@ -46,10 +51,47 @@ class ConsultaViewSet(BaseModelViewSet):
             qs = qs.filter(data=data)
         return qs
 
+    def perform_create(self, serializer):
+        ensure_loja_context(self.request)
+        user = self.request.user
+        nome = (getattr(user, "get_full_name", lambda: "")() or getattr(user, "username", "") or "").strip()
+        serializer.save(agendado_por=nome)
+
     def perform_destroy(self, instance):
         instance.is_active = False
         instance.status = "desmarcado"
         instance.save(update_fields=["is_active", "status", "updated_at"])
+
+    @action(detail=True, methods=["post"])
+    def recepcionar(self, request, pk=None):
+        """Atualiza ficha do paciente e marca a consulta como recepcionada."""
+        ensure_loja_context(request)
+        consulta = self.get_object()
+        paciente = consulta.paciente
+        campos = (
+            "numero_prontuario",
+            "nome",
+            "nome_social",
+            "cpf",
+            "rg",
+            "rne",
+            "passaporte",
+            "pais_emissor",
+            "nome_mae",
+            "telefone_fixo",
+            "telefone",
+            "email",
+            "quem_indicou",
+        )
+        for campo in campos:
+            if campo in request.data:
+                setattr(paciente, campo, request.data.get(campo) or "")
+        paciente.save()
+        if "convenio" in request.data:
+            consulta.convenio = request.data.get("convenio") or consulta.convenio
+        consulta.status = "recepcionado"
+        consulta.save(update_fields=["convenio", "status", "updated_at"])
+        return Response(ConsultaSerializer(consulta).data)
 
     @action(detail=False, methods=["get"], url_path="horarios-livres")
     def horarios_livres(self, request):
@@ -87,3 +129,15 @@ class ConsultaViewSet(BaseModelViewSet):
                 ]
             }
         )
+
+
+class TarefaViewSet(BaseModelViewSet):
+    serializer_class = TarefaSerializer
+
+    def get_queryset(self):
+        ensure_loja_context(self.request)
+        qs = Tarefa.objects.all()
+        data = (self.request.query_params.get("data") or "").strip()
+        if data:
+            qs = qs.filter(data=data)
+        return qs

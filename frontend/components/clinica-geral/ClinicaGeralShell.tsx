@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   Bell,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
 import { MiniCalendario } from '@/components/clinica-geral/MiniCalendario';
+import { TarefasDoDia } from '@/components/clinica-geral/TarefasDoDia';
 import { readSidebarHidden, toISODate, writeSidebarHidden } from '@/lib/clinica-geral-utils';
 
 const NAVY = '#2F2E5B';
@@ -34,7 +35,9 @@ type ClinicaGeralShellProps = {
 export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGeralShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const search = useSearchParams();
   const base = `/loja/${slug}/clinica-geral`;
+  const agendaData = search.get('data') || toISODate(new Date());
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [busca, setBusca] = useState('');
   const [menuUser, setMenuUser] = useState(false);
@@ -165,20 +168,22 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
         {!sidebarHidden && (
           <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
             <div className="p-4">
+              {active === 'agenda' && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`${base}/agenda?data=${agendaData}&nova=1`)}
+                  className="mb-4 w-full rounded-md py-2 text-sm font-medium text-white"
+                  style={{ backgroundColor: TEAL }}
+                >
+                  nova consulta
+                </button>
+              )}
               <MiniCalendario
-                selected={toISODate(new Date())}
+                selected={agendaData}
                 onSelect={(iso) => router.push(`${base}/agenda?data=${iso}`)}
               />
             </div>
-            <div className="border-t border-slate-100 px-4 py-3">
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-700">Tarefas do dia</h3>
-                <span className="text-lg leading-none" style={{ color: TEAL }}>
-                  +
-                </span>
-              </div>
-              <p className="text-xs text-slate-500">Você não possui nenhuma tarefa agendada</p>
-            </div>
+            <TarefasDoDia data={agendaData} />
           </aside>
         )}
 

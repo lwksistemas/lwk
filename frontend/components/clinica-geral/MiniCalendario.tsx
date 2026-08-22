@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { monthGrid, parseISODate, toISODate } from '@/lib/clinica-geral-utils';
 
@@ -33,6 +33,9 @@ export function MiniCalendario({ selected, onSelect }: MiniCalendarioProps) {
     year: selectedDate.getFullYear(),
     month: selectedDate.getMonth(),
   }));
+  useEffect(() => {
+    setCursor({ year: selectedDate.getFullYear(), month: selectedDate.getMonth() });
+  }, [selected]);
   const today = toISODate(new Date());
   const cells = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor]);
 

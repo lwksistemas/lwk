@@ -22,9 +22,13 @@ class Paciente(LojaIsolationMixin, models.Model):
     cpf = models.CharField(max_length=14, blank=True, default="")
     rg = models.CharField(max_length=20, blank=True, default="")
     passaporte = models.CharField(max_length=30, blank=True, default="")
+    rne = models.CharField(max_length=30, blank=True, default="")
+    pais_emissor = models.CharField(max_length=80, blank=True, default="")
     nome_mae = models.CharField(max_length=200, blank=True, default="")
     tipo_sanguineo = models.CharField(max_length=8, blank=True, default="")
     telefone = models.CharField(max_length=30, blank=True, default="")
+    telefone_fixo = models.CharField(max_length=30, blank=True, default="")
+    quem_indicou = models.CharField(max_length=200, blank=True, default="")
     email = models.EmailField(blank=True, default="")
     cep = models.CharField(max_length=10, blank=True, default="")
     logradouro = models.CharField(max_length=200, blank=True, default="")
@@ -95,6 +99,7 @@ class Consulta(LojaIsolationMixin, models.Model):
         ("agendado", "Agendado"),
         ("confirmado", "Confirmado"),
         ("recepcionado", "Recepcionado"),
+        ("atendido", "Atendido"),
         ("desmarcado", "Desmarcado"),
         ("faltou", "Faltou"),
     )
@@ -106,6 +111,8 @@ class Consulta(LojaIsolationMixin, models.Model):
     modalidade = models.CharField(max_length=20, choices=MODALIDADE_CHOICES, default="presencial")
     convenio = models.CharField(max_length=80, blank=True, default="PARTICULAR")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="agendado")
+    duracao_minutos = models.PositiveSmallIntegerField(default=15)
+    agendado_por = models.CharField(max_length=120, blank=True, default="")
     observacoes = models.TextField(blank=True, default="")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -120,3 +127,17 @@ class Consulta(LojaIsolationMixin, models.Model):
         indexes = [
             models.Index(fields=["loja_id", "data"], name="cg_cons_loja_data_idx"),
         ]
+
+
+class Tarefa(LojaIsolationMixin, models.Model):
+    data = models.DateField()
+    texto = models.CharField(max_length=240)
+    concluida = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_tarefa"
+        ordering = ["-id"]

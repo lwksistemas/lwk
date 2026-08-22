@@ -5,6 +5,7 @@ import type {
   Paciente,
   PacienteLista,
   StatusConsulta,
+  Tarefa,
 } from '@/lib/clinica-geral-types';
 
 function unwrapList<T>(data: T[] | { results?: T[] }): T[] {
@@ -67,4 +68,28 @@ export async function listHorariosLivres(data: string) {
     `/clinica-geral/consultas/horarios-livres/?data=${encodeURIComponent(data)}`,
   );
   return (res.data?.dias ?? []) as DiaHorariosLivres[];
+}
+
+export async function recepcionarConsulta(id: number, payload: Partial<Paciente> & { convenio?: string }) {
+  const res = await apiClient.post(`/clinica-geral/consultas/${id}/recepcionar/`, payload);
+  return res.data as Consulta;
+}
+
+export async function listTarefas(data: string) {
+  const res = await apiClient.get(`/clinica-geral/tarefas/?data=${encodeURIComponent(data)}`);
+  return unwrapList(res.data) as Tarefa[];
+}
+
+export async function createTarefa(data: string, texto: string) {
+  const res = await apiClient.post('/clinica-geral/tarefas/', { data, texto, concluida: false });
+  return res.data as Tarefa;
+}
+
+export async function toggleTarefa(tarefa: Tarefa) {
+  const res = await apiClient.patch(`/clinica-geral/tarefas/${tarefa.id}/`, { concluida: !tarefa.concluida });
+  return res.data as Tarefa;
+}
+
+export async function deleteTarefa(id: number) {
+  await apiClient.delete(`/clinica-geral/tarefas/${id}/`);
 }

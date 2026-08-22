@@ -1,6 +1,8 @@
+from datetime import datetime
+
 from rest_framework import serializers
 
-from .models import Consulta, ConvenioPaciente, Paciente, Responsavel
+from .models import Consulta, ConvenioPaciente, Paciente, Responsavel, Tarefa
 
 
 class ResponsavelSerializer(serializers.ModelSerializer):
@@ -33,9 +35,13 @@ class PacienteSerializer(serializers.ModelSerializer):
             "cpf",
             "rg",
             "passaporte",
+            "rne",
+            "pais_emissor",
             "nome_mae",
             "tipo_sanguineo",
             "telefone",
+            "telefone_fixo",
+            "quem_indicou",
             "email",
             "cep",
             "logradouro",
@@ -55,6 +61,9 @@ class PacienteSerializer(serializers.ModelSerializer):
         responsaveis = validated_data.pop("responsaveis", [])
         convenios = validated_data.pop("convenios", [])
         paciente = Paciente.objects.create(**validated_data)
+        if not paciente.numero_prontuario:
+            paciente.numero_prontuario = str(paciente.id)
+            paciente.save(update_fields=["numero_prontuario"])
         for item in responsaveis:
             Responsavel.objects.create(paciente=paciente, **item)
         for item in convenios:
@@ -81,13 +90,16 @@ class PacienteSerializer(serializers.ModelSerializer):
 class PacienteListaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Paciente
-        fields = ("id", "nome", "nome_social", "telefone", "email", "cpf")
+        fields = ("id", "nome", "nome_social", "telefone", "email", "cpf", "numero_prontuario")
 
 
 class ConsultaSerializer(serializers.ModelSerializer):
     paciente_nome = serializers.SerializerMethodField()
     paciente_telefone = serializers.SerializerMethodField()
     paciente_email = serializers.SerializerMethodField()
+    paciente_idade = serializers.SerializerMethodField()
+    paciente_prontuario = serializers.SerializerMethodField()
+    minutos_espera = serializers.SerializerMethodField()
 
     class Meta:
         model = Consulta
@@ -97,15 +109,29 @@ class ConsultaSerializer(serializers.ModelSerializer):
             "paciente_nome",
             "paciente_telefone",
             "paciente_email",
+            "paciente_idade",
+            "paciente_prontuario",
             "data",
             "hora",
             "tipo",
             "modalidade",
             "convenio",
             "status",
+            "duracao_minutos",
+            "agendado_por",
+            "minutos_espera",
             "observacoes",
         )
-        read_only_fields = ("id", "paciente_nome", "paciente_telefone", "paciente_email")
+        read_only_fields = (
+            "id",
+            "paciente_nome",
+            "paciente_telefone",
+            "paciente_email",
+            "paciente_idade",
+            "paciente_prontuario",
+            "minutos_espera",
+            "agendado_por",
+        )
 
     def get_paciente_nome(self, obj):
         p = obj.paciente
@@ -118,3 +144,30 @@ class ConsultaSerializer(serializers.ModelSerializer):
 
     def get_paciente_email(self, obj):
         return obj.paciente.email
+
+    def get_paciente_prontuario(self, obj):
+        return obj.paciente.numero_prontuario or str(obj.paciente_id)
+
+    def get_paciente_idade(self, obj):
+        nasc = obj.paciente.data_nascimento
+        if not nasc:
+            return None
+        hoje = datetime.now().date()
+        idade = hoje.year - nasc.year - ((hoje.month, hoje.day) < (nasc.month, nasc.day))
+        return idade if idade >= 0 else None
+
+    def get_minutos_espera(self, obj):
+        if obj.status in ("desmarcado", "faltou", "atendido"):
+            return 0
+        inicio = datetime.combine(obj.data, obj.hora)
+        agora = datetime.now()
+        if agora <= inicio:
+            return 0
+        return int((agora - inicio).total_seconds() // 60)
+
+
+class TarefaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tarefa
+        fields = ("id", "data", "texto", "concluida")
+        read_only_fields = ("id",)

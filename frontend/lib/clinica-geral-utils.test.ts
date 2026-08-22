@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, displayName, formatHora, slotTimes, toISODate } from '@/lib/clinica-geral-utils';
+import { addDays, cardTone, displayName, formatHora, formatLivreHeading, slotTimes, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
 
 describe('clinica-geral-utils', () => {
   it('formata nome social como na ficha', () => {
@@ -19,5 +19,11 @@ describe('clinica-geral-utils', () => {
     expect(addDays('2026-08-24', 1)).toBe('2026-08-25');
     expect(formatHora('10:00:00')).toBe('10:00');
     expect(toISODate(new Date(2026, 7, 22))).toBe('2026-08-22');
+  });
+
+  it('monta o atalho de horários livres e o WhatsApp', () => {
+    expect(formatLivreHeading('2026-08-25', '2026-08-24')).toContain('Amanhã');
+    expect(cardTone('agendado').bg).toBe('#C5E1A5');
+    expect(whatsappHref('(16) 98140-2966')).toBe('https://wa.me/5516981402966');
   });
 });

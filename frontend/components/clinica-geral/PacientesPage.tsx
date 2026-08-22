@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { Archive, Clock, Trash2 } from 'lucide-react';
 import { archivePaciente, listPacientes } from '@/lib/clinica-geral-api';
 import type { PacienteLista } from '@/lib/clinica-geral-types';
-import { displayName } from '@/lib/clinica-geral-utils';
+import { displayName, toISODate } from '@/lib/clinica-geral-utils';
 
 const TEAL = '#0D9B9B';
 const LETRAS = ['TODOS', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')];
@@ -102,18 +103,41 @@ export function PacientesPage() {
                 className="min-w-0 flex-1 text-left"
                 onClick={() => router.push(`${base}/${p.id}`)}
               >
-                <p className="font-medium text-slate-800">{displayName(p.nome, p.nome_social)}</p>
+                <p className="font-medium text-slate-800">
+                  {displayName(p.nome, p.nome_social)} ({p.numero_prontuario || p.id})
+                </p>
                 <p className="text-sm text-slate-500">
                   {p.telefone || 'sem telefone'} · {p.email || 'sem e-mail'}
                 </p>
               </button>
-              <button
-                type="button"
-                onClick={() => void excluir(p.id, displayName(p.nome, p.nome_social))}
-                className="text-sm text-red-500 hover:underline"
-              >
-                Excluir
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  title="Arquivar"
+                  onClick={() => void excluir(p.id, displayName(p.nome, p.nome_social))}
+                  className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50"
+                >
+                  <Archive className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  title="Agendar"
+                  onClick={() =>
+                    router.push(`/loja/${slug}/clinica-geral/agenda?data=${toISODate(new Date())}&nova=1&paciente=${p.id}`)
+                  }
+                  className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50"
+                >
+                  <Clock className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  title="Excluir"
+                  onClick={() => void excluir(p.id, displayName(p.nome, p.nome_social))}
+                  className="rounded border border-red-200 p-1.5 text-red-500 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </li>
           ))}
         </ul>

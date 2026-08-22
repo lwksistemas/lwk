@@ -21,6 +21,10 @@ const VAZIA: ConfiguracaoConsultorio = {
   duracao_minutos: 15,
   endereco: '',
   telefone: '',
+  especialidade: 'Clínica médica',
+  crm: '',
+  medico_nome: '',
+  teto_tele_minutos: 600,
 };
 
 export function ConfiguracoesAgendaPage() {
@@ -151,6 +155,33 @@ export function ConfiguracoesAgendaPage() {
                     className="w-full rounded-lg border border-slate-300 px-3 py-2"
                   />
                 </label>
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-slate-700">Especialidade</span>
+                  <input
+                    value={config.especialidade}
+                    onChange={(e) => setConfig((c) => ({ ...c, especialidade: e.target.value }))}
+                    placeholder="Clínica médica"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </label>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block text-sm">
+                    <span className="mb-1 block font-medium text-slate-700">Médico</span>
+                    <input
+                      value={config.medico_nome}
+                      onChange={(e) => setConfig((c) => ({ ...c, medico_nome: e.target.value }))}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="mb-1 block font-medium text-slate-700">CRM</span>
+                    <input
+                      value={config.crm}
+                      onChange={(e) => setConfig((c) => ({ ...c, crm: e.target.value }))}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                    />
+                  </label>
+                </div>
               </div>
             </div>
 

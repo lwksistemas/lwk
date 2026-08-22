@@ -52,6 +52,7 @@ export function RecepcionarModal({ consulta, onClose, onDone }: RecepcionarModal
         telefone: form.telefone,
         email: form.email,
         quem_indicou: form.quem_indicou,
+        alergias: form.alergias,
         convenio,
       });
       await onDone();
@@ -101,6 +102,7 @@ export function RecepcionarModal({ consulta, onClose, onDone }: RecepcionarModal
               </label>
               <Field label="Quem indicou" value={form.quem_indicou} onChange={(v) => set({ quem_indicou: v })} />
               <Field label="E-mail" value={form.email} onChange={(v) => set({ email: v })} className="sm:col-span-2" />
+              <Field label="Alergias" value={form.alergias} onChange={(v) => set({ alergias: v })} className="sm:col-span-2" />
             </div>
           </div>
         )}

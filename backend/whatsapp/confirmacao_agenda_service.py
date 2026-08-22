@@ -19,6 +19,7 @@ ANTECEDENCIA_MAX = 30
 DEFAULT_ANTECEDENCIAS = [1]
 MODULO_CLINICA = "clinica_beleza"
 MODULO_SALAO = "cabeleireiro"
+MODULO_CONSULTORIO = "clinica_geral"
 
 # Link de confirmação da agenda: só Clínica da Beleza e salão.
 # CRM Vendas (Felix) usa WhatsApp para proposta/contrato/tarefas, não esta tabela.
@@ -28,6 +29,7 @@ SLUGS_CONFIRMACAO_AGENDA = frozenset({
     "clinica-estetica",
     "clinica-de-estetica",
     "cabeleireiro",
+    "clinica-geral",
 })
 
 
@@ -151,6 +153,8 @@ def _modulo_agendamento(agendamento) -> str:
     modulo = (getattr(agendamento, "whatsapp_modulo", None) or MODULO_CLINICA).strip().lower()
     if modulo in ("cabeleireiro", "salao"):
         return MODULO_SALAO
+    if modulo in ("clinica_geral", "clinica-geral"):
+        return MODULO_CONSULTORIO
     return MODULO_CLINICA
 
 

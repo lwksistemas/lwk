@@ -80,7 +80,7 @@ export function PacienteFormPage({ mode }: PacienteFormPageProps) {
             type="button"
             className="w-full rounded-md py-2 text-sm font-medium text-white"
             style={{ backgroundColor: TEAL }}
-            onClick={() => router.push(`/loja/${slug}/clinica-geral/agenda`)}
+            onClick={() => router.push(`/loja/${slug}/clinica-geral/pacientes/${id}/prontuario`)}
           >
             Ver prontuário
           </button>
@@ -103,7 +103,11 @@ export function PacienteFormPage({ mode }: PacienteFormPageProps) {
             <Field label="Estado civil" value={form.estado_civil} />
             <Field label="Telefone" value={form.telefone} />
             <Field label="E-mail" value={form.email} />
+            <Field label="Alergias" value={form.alergias} />
           </dl>
+          {form.alergias ? (
+            <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">Alergias: {form.alergias}</p>
+          ) : null}
           <div className="mt-8 flex flex-wrap gap-2">
             <button
               type="button"
@@ -163,6 +167,7 @@ export function PacienteFormPage({ mode }: PacienteFormPageProps) {
         <Input label="Telefone" value={form.telefone} onChange={(v) => set({ telefone: v })} />
         <Input label="E-mail" value={form.email} onChange={(v) => set({ email: v })} />
       </div>
+      <Input label="Alergias" value={form.alergias} onChange={(v) => set({ alergias: v })} />
 
       <section>
         <h2 className="mb-3 text-base font-semibold text-slate-800">Responsáveis</h2>

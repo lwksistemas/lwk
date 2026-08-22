@@ -141,6 +141,7 @@ export function formatLivreHeading(iso: string, hoje: string): string {
 
 export function cardTone(status: string): { bg: string; border: string } {
   if (status === 'confirmado') return { bg: '#C8E6C0', border: '#7CB342' };
+  if (status === 'checkin') return { bg: '#BBDEFB', border: '#1E88E5' };
   if (status === 'recepcionado') return { bg: '#B2DFDB', border: '#00897B' };
   if (status === 'atendido') return { bg: '#E0E0E0', border: '#9E9E9E' };
   if (status === 'faltou') return { bg: '#FFCDD2', border: '#E57373' };
@@ -151,6 +152,27 @@ export function monthRange(ref = new Date()): { de: string; ate: string } {
   const de = toISODate(new Date(ref.getFullYear(), ref.getMonth(), 1));
   const ate = toISODate(new Date(ref.getFullYear(), ref.getMonth() + 1, 0));
   return { de, ate };
+}
+
+export function formatBRL(value: string | number | null | undefined): string {
+  const n = typeof value === 'number' ? value : Number(String(value || '0').replace(',', '.'));
+  if (!Number.isFinite(n)) return 'R$ 0,00';
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+export function alertaAlergia(alergias: string, medicamento: string): boolean {
+  const med = (medicamento || '').trim().toLowerCase();
+  if (!med) return false;
+  return (alergias || '')
+    .replace(/;/g, ',')
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length > 2)
+    .some((t) => med.includes(t) || t.includes(med));
+}
+
+export function minutosTeleRestantes(usados: number, teto = 600): number {
+  return Math.max(0, teto - (usados || 0));
 }
 
 export function whatsappHref(phone: string): string | null {

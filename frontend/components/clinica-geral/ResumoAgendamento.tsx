@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { CalendarX, Check, Clock, MessageCircle, Pencil, X } from 'lucide-react';
-import { cancelarConsulta, listHorariosLivres, updateConsulta, updateConsultaStatus } from '@/lib/clinica-geral-api';
+import { useRouter } from 'next/navigation';
+import { cancelarConsulta, checkinConsulta, listHorariosLivres, updateConsulta, updateConsultaStatus } from '@/lib/clinica-geral-api';
 import type { Consulta, DiaHorariosLivres, StatusConsulta } from '@/lib/clinica-geral-types';
 import { MODALIDADE_LABEL, STATUS_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
 import { formatHora, formatShortDate, whatsappHref } from '@/lib/clinica-geral-utils';
@@ -16,6 +17,7 @@ type ResumoAgendamentoProps = {
 };
 
 export function ResumoAgendamento({ consulta, slug, onClose, onChanged, onRecepcionar }: ResumoAgendamentoProps) {
+  const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [remarcar, setRemarcar] = useState(false);
   const [livres, setLivres] = useState<DiaHorariosLivres[]>([]);
@@ -37,6 +39,16 @@ export function ResumoAgendamento({ consulta, slug, onClose, onChanged, onRecepc
     setRemarcar(true);
     const dias = await listHorariosLivres(consulta.data);
     setLivres(dias);
+  };
+
+  const agirCheckin = async () => {
+    setBusy('checkin');
+    try {
+      await checkinConsulta(consulta.id);
+      await onChanged();
+    } finally {
+      setBusy(null);
+    }
   };
 
   const escolherSlot = async (data: string, hora: string) => {
@@ -83,6 +95,11 @@ export function ResumoAgendamento({ consulta, slug, onClose, onChanged, onRecepc
               </a>
             )}
           </div>
+          {consulta.paciente_alergias ? (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+              Alergias: {consulta.paciente_alergias}
+            </p>
+          ) : null}
           <dl className="space-y-2 border-t border-slate-100 pt-3">
             <Linha label="Tipo de consulta" value={TIPO_CONSULTA_LABEL[consulta.tipo]} />
             <Linha label="Tipo de atendimento" value={MODALIDADE_LABEL[consulta.modalidade]} />
@@ -127,6 +144,11 @@ export function ResumoAgendamento({ consulta, slug, onClose, onChanged, onRecepc
                 disabled={busy !== null}
                 onClick={() => {
                   if (a.id === 'recepcionar') onRecepcionar();
+                  else if (a.id === 'checkin') void agirCheckin();
+                  else if (a.id === 'atender') {
+                    onClose();
+                    router.push(`/loja/${slug}/clinica-geral/consultas/${consulta.id}`);
+                  }
                   else if (a.id === 'remarcar') void abrirRemarcar();
                   else void agir(a.id);
                 }}
@@ -154,15 +176,16 @@ function Linha({ label, value }: { label: string; value: string }) {
 
 function acoesDoStatus(status: StatusConsulta) {
   const confirmar = { id: 'confirmado' as const, label: 'Confirmar', icon: <Check className="h-4 w-4" /> };
+  const checkin = { id: 'checkin' as const, label: 'Check-in', icon: <Clock className="h-4 w-4" /> };
   const recepcionar = { id: 'recepcionar' as const, label: 'Recepcionar', icon: <Clock className="h-4 w-4" /> };
-  const atendido = { id: 'atendido' as const, label: 'Atendido', icon: <Check className="h-4 w-4" /> };
+  const atender = { id: 'atender' as const, label: 'Atender', icon: <Check className="h-4 w-4" /> };
   const desmarcar = { id: 'desmarcar' as const, label: 'Desmarcar', icon: <CalendarX className="h-4 w-4" /> };
   const remarcar = { id: 'remarcar' as const, label: 'Remarcar', icon: <Clock className="h-4 w-4" /> };
   const faltou = { id: 'faltou' as const, label: 'Faltou', icon: <X className="h-4 w-4" /> };
 
-  if (status === 'recepcionado') return [atendido, desmarcar, remarcar];
-  if (status === 'atendido') return [desmarcar, remarcar];
-  if (status === 'confirmado') return [recepcionar, desmarcar, remarcar, faltou];
+  if (status === 'recepcionado' || status === 'checkin') return [atender, recepcionar, desmarcar, remarcar];
+  if (status === 'atendido') return [atender, desmarcar, remarcar];
+  if (status === 'confirmado') return [checkin, recepcionar, desmarcar, remarcar, faltou];
   if (status === 'faltou') return [remarcar];
-  return [confirmar, recepcionar, desmarcar, remarcar, faltou];
+  return [confirmar, checkin, recepcionar, desmarcar, remarcar, faltou];
 }

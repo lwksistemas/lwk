@@ -1,6 +1,8 @@
 from datetime import datetime, time, timedelta
+from decimal import Decimal
 
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
+from django.http import HttpResponse
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,12 +12,27 @@ from core.permissions import HasLojaAccess
 from core.views import BaseModelViewSet
 from tenants.middleware import ensure_loja_context, get_current_loja_id
 
-from .models import ConfiguracaoConsultorio, Consulta, Paciente, Tarefa
+from .models import (
+    ConfiguracaoConsultorio,
+    Consulta,
+    Evolucao,
+    FechamentoCaixa,
+    GuiaTiss,
+    LoteTiss,
+    Paciente,
+    Prescricao,
+    Tarefa,
+)
 from .serializers import (
     ConfiguracaoConsultorioSerializer,
     ConsultaSerializer,
+    EvolucaoSerializer,
+    FechamentoCaixaSerializer,
+    GuiaTissSerializer,
+    LoteTissSerializer,
     PacienteListaSerializer,
     PacienteSerializer,
+    PrescricaoSerializer,
     TarefaSerializer,
 )
 
@@ -65,7 +82,15 @@ class ConsultaViewSet(BaseModelViewSet):
         ensure_loja_context(self.request)
         user = self.request.user
         nome = (getattr(user, "get_full_name", lambda: "")() or getattr(user, "username", "") or "").strip()
-        serializer.save(agendado_por=nome)
+        consulta = serializer.save(agendado_por=nome)
+        try:
+            from whatsapp.confirmacao_agenda_service import disparar_confirmacao_se_hoje
+
+            from .whatsapp_agenda import ConsultaWhatsAppAdapter
+
+            disparar_confirmacao_se_hoje(ConsultaWhatsAppAdapter(consulta))
+        except Exception:
+            pass
 
     def perform_destroy(self, instance):
         instance.is_active = False
@@ -92,6 +117,7 @@ class ConsultaViewSet(BaseModelViewSet):
             "telefone",
             "email",
             "quem_indicou",
+            "alergias",
         )
         for campo in campos:
             if campo in request.data:
@@ -101,6 +127,51 @@ class ConsultaViewSet(BaseModelViewSet):
             consulta.convenio = request.data.get("convenio") or consulta.convenio
         consulta.status = "recepcionado"
         consulta.save(update_fields=["convenio", "status", "updated_at"])
+        return Response(ConsultaSerializer(consulta).data)
+
+    @action(detail=True, methods=["post"])
+    def checkin(self, request, pk=None):
+        ensure_loja_context(request)
+        consulta = self.get_object()
+        consulta.status = "checkin"
+        consulta.save(update_fields=["status", "updated_at"])
+        return Response(ConsultaSerializer(consulta).data)
+
+    @action(detail=True, methods=["post"], url_path="abrir-tele")
+    def abrir_tele(self, request, pk=None):
+        ensure_loja_context(request)
+        consulta = self.get_object()
+        config = _config_consultorio()
+        usados = (
+            Consulta.objects.filter(data__month=consulta.data.month, data__year=consulta.data.year)
+            .aggregate(t=Sum("tele_minutos"))
+            .get("t")
+            or 0
+        )
+        teto = config.teto_tele_minutos or 600
+        if usados >= teto:
+            return Response({"detail": "Cota de telemedicina do mês esgotada (10h)."}, status=400)
+        if not consulta.tele_sala_url:
+            consulta.tele_sala_url = f"https://meet.jit.si/lwk-cg-{consulta.loja_id}-{consulta.id}"
+            consulta.save(update_fields=["tele_sala_url", "updated_at"])
+        return Response(
+            {
+                **ConsultaSerializer(consulta).data,
+                "tele_minutos_mes": int(usados),
+                "teto_tele_minutos": teto,
+            }
+        )
+
+    @action(detail=True, methods=["post"], url_path="registrar-tele")
+    def registrar_tele(self, request, pk=None):
+        ensure_loja_context(request)
+        consulta = self.get_object()
+        try:
+            extra = max(0, int(request.data.get("minutos") or 0))
+        except (TypeError, ValueError):
+            extra = 0
+        consulta.tele_minutos = (consulta.tele_minutos or 0) + extra
+        consulta.save(update_fields=["tele_minutos", "updated_at"])
         return Response(ConsultaSerializer(consulta).data)
 
     @action(detail=False, methods=["get"], url_path="horarios-livres")
@@ -262,18 +333,23 @@ class RelatoriosView(APIView):
             )
 
         if tipo == "financeiro":
-            grupos = (
-                consultas.exclude(status="desmarcado")
-                .values("convenio")
-                .annotate(total=Count("id"))
-                .order_by("-total")
-            )
+            base = consultas.exclude(status__in=("desmarcado", "faltou"))
+            grupos = base.values("convenio").annotate(total=Count("id"), valor=Sum("valor")).order_by("-total")
+            soma = base.aggregate(v=Sum("valor")).get("v") or Decimal("0")
             return Response(
                 {
                     "de": de.isoformat(),
                     "ate": ate.isoformat(),
-                    "total": consultas.exclude(status="desmarcado").count(),
-                    "itens": [{"convenio": g["convenio"] or "PARTICULAR", "total": g["total"]} for g in grupos],
+                    "total": base.count(),
+                    "valor_total": str(soma),
+                    "itens": [
+                        {
+                            "convenio": g["convenio"] or "PARTICULAR",
+                            "total": g["total"],
+                            "valor": str(g["valor"] or 0),
+                        }
+                        for g in grupos
+                    ],
                 }
             )
 
@@ -306,3 +382,169 @@ class RelatoriosView(APIView):
                 "itens": ConsultaSerializer(itens, many=True).data,
             }
         )
+
+
+class EvolucaoViewSet(BaseModelViewSet):
+    serializer_class = EvolucaoSerializer
+
+    def get_queryset(self):
+        ensure_loja_context(self.request)
+        qs = Evolucao.objects.select_related("consulta", "paciente")
+        paciente = (self.request.query_params.get("paciente") or "").strip()
+        consulta = (self.request.query_params.get("consulta") or "").strip()
+        if paciente:
+            qs = qs.filter(paciente_id=paciente)
+        if consulta:
+            qs = qs.filter(consulta_id=consulta)
+        return qs
+
+    def perform_create(self, serializer):
+        ensure_loja_context(self.request)
+        config = _config_consultorio()
+        serializer.save(especialidade=serializer.validated_data.get("especialidade") or config.especialidade)
+
+
+class PrescricaoViewSet(BaseModelViewSet):
+    serializer_class = PrescricaoSerializer
+
+    def get_queryset(self):
+        ensure_loja_context(self.request)
+        qs = Prescricao.objects.prefetch_related("itens").select_related("paciente", "consulta")
+        consulta = (self.request.query_params.get("consulta") or "").strip()
+        if consulta:
+            qs = qs.filter(consulta_id=consulta)
+        return qs
+
+    @action(detail=True, methods=["get"])
+    def pdf(self, request, pk=None):
+        ensure_loja_context(request)
+        from .pdf_service import pdf_receita
+
+        presc = self.get_object()
+        data = pdf_receita(presc, presc.consulta, presc.paciente, _config_consultorio())
+        resp = HttpResponse(data, content_type="application/pdf")
+        resp["Content-Disposition"] = f'inline; filename="receita-{presc.id}.pdf"'
+        return resp
+
+
+class LoteTissViewSet(BaseModelViewSet):
+    serializer_class = LoteTissSerializer
+
+    def get_queryset(self):
+        ensure_loja_context(self.request)
+        return LoteTiss.objects.annotate(guias_count=Count("guias"))
+
+    def perform_create(self, serializer):
+        ensure_loja_context(self.request)
+        lote = serializer.save()
+        if not lote.numero:
+            lote.numero = str(lote.id).zfill(6)
+            lote.save(update_fields=["numero"])
+
+
+class GuiaTissViewSet(BaseModelViewSet):
+    serializer_class = GuiaTissSerializer
+
+    def get_queryset(self):
+        ensure_loja_context(self.request)
+        qs = GuiaTiss.objects.select_related("consulta__paciente", "lote")
+        lote = (self.request.query_params.get("lote") or "").strip()
+        if lote:
+            qs = qs.filter(lote_id=lote)
+        return qs
+
+    def perform_create(self, serializer):
+        ensure_loja_context(self.request)
+        consulta = serializer.validated_data["consulta"]
+        guia = serializer.save(valor=serializer.validated_data.get("valor") or consulta.valor)
+        if not guia.numero_guia:
+            guia.numero_guia = f"G{guia.id:06d}"
+            guia.save(update_fields=["numero_guia"])
+
+    @action(detail=True, methods=["get"])
+    def pdf(self, request, pk=None):
+        ensure_loja_context(request)
+        from .pdf_service import pdf_guia_tiss
+
+        guia = self.get_object()
+        data = pdf_guia_tiss(guia, guia.consulta, guia.consulta.paciente, _config_consultorio())
+        resp = HttpResponse(data, content_type="application/pdf")
+        resp["Content-Disposition"] = f'inline; filename="guia-tiss-{guia.numero_guia or guia.id}.pdf"'
+        return resp
+
+
+class FechamentoCaixaViewSet(BaseModelViewSet):
+    serializer_class = FechamentoCaixaSerializer
+
+    def get_queryset(self):
+        ensure_loja_context(self.request)
+        qs = FechamentoCaixa.objects.all()
+        data = (self.request.query_params.get("data") or "").strip()
+        if data:
+            qs = qs.filter(data=data)
+        return qs
+
+    @action(detail=False, methods=["get", "post"], url_path="dia")
+    def dia(self, request):
+        ensure_loja_context(request)
+        raw = (request.query_params.get("data") or request.data.get("data") or "").strip()
+        try:
+            dia = datetime.strptime(raw, "%Y-%m-%d").date() if raw else datetime.now().date()
+        except ValueError:
+            dia = datetime.now().date()
+        qs = Consulta.objects.filter(data=dia).exclude(status__in=("desmarcado", "faltou"))
+        particular = qs.filter(Q(convenio="") | Q(convenio__iexact="PARTICULAR")).aggregate(v=Sum("valor")).get("v") or 0
+        convenio = qs.exclude(Q(convenio="") | Q(convenio__iexact="PARTICULAR")).aggregate(v=Sum("valor")).get("v") or 0
+        if request.method == "POST":
+            fech, _ = FechamentoCaixa.objects.update_or_create(
+                data=dia,
+                defaults={
+                    "total_particular": particular,
+                    "total_convenio": convenio,
+                    "observacoes": request.data.get("observacoes") or "",
+                },
+            )
+            return Response(FechamentoCaixaSerializer(fech).data)
+        return Response(
+            {
+                "data": dia.isoformat(),
+                "total_particular": str(particular),
+                "total_convenio": str(convenio),
+                "consultas": qs.count(),
+            }
+        )
+
+
+class ProntuarioPacienteView(APIView):
+    permission_classes = [IsAuthenticated, HasLojaAccess]
+
+    def get(self, request, paciente_id):
+        ensure_loja_context(request)
+        paciente = Paciente.objects.filter(pk=paciente_id, is_active=True).first()
+        if not paciente:
+            return Response({"detail": "Paciente não encontrado."}, status=404)
+        evolucoes = Evolucao.objects.filter(paciente=paciente).select_related("consulta")
+        prescricoes = Prescricao.objects.filter(paciente=paciente).prefetch_related("itens")
+        return Response(
+            {
+                "paciente": PacienteSerializer(paciente).data,
+                "evolucoes": EvolucaoSerializer(evolucoes, many=True).data,
+                "prescricoes": PrescricaoSerializer(prescricoes, many=True).data,
+            }
+        )
+
+
+class EvolucaoPDFView(APIView):
+    permission_classes = [IsAuthenticated, HasLojaAccess]
+
+    def get(self, request, pk):
+        ensure_loja_context(request)
+        from .pdf_service import pdf_evolucao
+
+        ev = Evolucao.objects.select_related("consulta", "paciente").filter(pk=pk).first()
+        if not ev:
+            return Response({"detail": "Evolução não encontrada."}, status=404)
+        data = pdf_evolucao(ev, ev.consulta, ev.paciente, _config_consultorio())
+        resp = HttpResponse(data, content_type="application/pdf")
+        resp["Content-Disposition"] = f'inline; filename="evolucao-{ev.id}.pdf"'
+        return resp

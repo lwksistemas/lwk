@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { fetchRelatorio } from '@/lib/clinica-geral-api';
 import type { RelatorioResposta, TipoRelatorio } from '@/lib/clinica-geral-types';
 import { RELATORIO_TITULO, STATUS_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
-import { formatHora, monthRange } from '@/lib/clinica-geral-utils';
+import { formatBRL, formatHora, monthRange } from '@/lib/clinica-geral-utils';
 
 const TEAL = '#0D9B9B';
 
@@ -73,13 +73,14 @@ function Conteudo({ tipo, dados }: { tipo: TipoRelatorio; dados: RelatorioRespos
   if (tipo === 'financeiro') {
     return (
       <div>
-        <p className="mb-3 text-sm text-slate-500">
-          Volume de consultas por convênio. Valores em reais entram quando o recebimento do consultório estiver ligado.
-        </p>
         <Tabela
-          colunas={['Convênio', 'Consultas']}
-          linhas={(dados.itens || []).map((i) => [i.convenio || 'PARTICULAR', String(i.total ?? 0)])}
-          rodape={`Total: ${dados.total ?? 0}`}
+          colunas={['Convênio', 'Consultas', 'Valor']}
+          linhas={(dados.itens || []).map((i) => [
+            i.convenio || 'PARTICULAR',
+            String(i.total ?? 0),
+            formatBRL(i.valor),
+          ])}
+          rodape={`Total: ${dados.total ?? 0} · ${formatBRL(dados.valor_total)}`}
         />
       </div>
     );

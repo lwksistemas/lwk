@@ -4,7 +4,13 @@ import type {
   DiaHorariosLivres,
   Paciente,
   PacienteLista,
+  CaixaDia,
   ConfiguracaoConsultorio,
+  Evolucao,
+  GuiaTiss,
+  LoteTiss,
+  Prescricao,
+  PrescricaoItem,
   RelatorioResposta,
   UsuarioConsultorio,
   StatusConsulta,
@@ -111,6 +117,99 @@ export async function getConfiguracao() {
 export async function saveConfiguracao(payload: Partial<ConfiguracaoConsultorio>) {
   const res = await apiClient.patch('/clinica-geral/configuracao/atual/', payload);
   return res.data as ConfiguracaoConsultorio;
+}
+
+export async function checkinConsulta(id: number) {
+  const res = await apiClient.post(`/clinica-geral/consultas/${id}/checkin/`);
+  return res.data as Consulta;
+}
+
+export async function abrirTele(id: number) {
+  const res = await apiClient.post(`/clinica-geral/consultas/${id}/abrir-tele/`);
+  return res.data as Consulta & { tele_minutos_mes?: number; teto_tele_minutos?: number };
+}
+
+export async function registrarTele(id: number, minutos: number) {
+  const res = await apiClient.post(`/clinica-geral/consultas/${id}/registrar-tele/`, { minutos });
+  return res.data as Consulta;
+}
+
+export async function getEvolucaoDaConsulta(consultaId: number) {
+  const res = await apiClient.get(`/clinica-geral/evolucoes/?consulta=${consultaId}`);
+  return unwrapList(res.data)[0] as Evolucao | undefined;
+}
+
+export async function saveEvolucao(payload: Partial<Evolucao> & { consulta: number; paciente: number }) {
+  if (payload.id) {
+    const res = await apiClient.patch(`/clinica-geral/evolucoes/${payload.id}/`, payload);
+    return res.data as Evolucao;
+  }
+  const res = await apiClient.post('/clinica-geral/evolucoes/', payload);
+  return res.data as Evolucao;
+}
+
+export async function listPrescricoes(consultaId: number) {
+  const res = await apiClient.get(`/clinica-geral/prescricoes/?consulta=${consultaId}`);
+  return unwrapList(res.data) as Prescricao[];
+}
+
+export async function createPrescricao(consulta: number, paciente: number, itens: PrescricaoItem[]) {
+  const res = await apiClient.post('/clinica-geral/prescricoes/', { consulta, paciente, itens });
+  return res.data as Prescricao;
+}
+
+export function receitaPdfUrl(id: number) {
+  return `/clinica-geral/prescricoes/${id}/pdf/`;
+}
+
+export async function getProntuario(pacienteId: number) {
+  const res = await apiClient.get(`/clinica-geral/pacientes/${pacienteId}/prontuario/`);
+  return res.data as { paciente: Paciente; evolucoes: Evolucao[]; prescricoes: Prescricao[] };
+}
+
+export function evolucaoPdfUrl(id: number) {
+  return `/clinica-geral/evolucoes/${id}/pdf/`;
+}
+
+export async function listLotesTiss() {
+  const res = await apiClient.get('/clinica-geral/lotes-tiss/');
+  return unwrapList(res.data) as LoteTiss[];
+}
+
+export async function createLoteTiss(competencia: string) {
+  const res = await apiClient.post('/clinica-geral/lotes-tiss/', { competencia, status: 'aberto' });
+  return res.data as LoteTiss;
+}
+
+export async function listGuiasTiss(loteId?: number) {
+  const qs = loteId ? `?lote=${loteId}` : '';
+  const res = await apiClient.get(`/clinica-geral/guias-tiss/${qs}`);
+  return unwrapList(res.data) as GuiaTiss[];
+}
+
+export async function createGuiaTiss(consulta: number, lote: number | null, valor?: string | null) {
+  const res = await apiClient.post('/clinica-geral/guias-tiss/', { consulta, lote, valor: valor || null });
+  return res.data as GuiaTiss;
+}
+
+export function guiaPdfUrl(id: number) {
+  return `/clinica-geral/guias-tiss/${id}/pdf/`;
+}
+
+export async function getCaixaDia(data: string) {
+  const res = await apiClient.get(`/clinica-geral/caixa/dia/?data=${encodeURIComponent(data)}`);
+  return res.data as CaixaDia;
+}
+
+export async function fecharCaixa(data: string, observacoes = '') {
+  const res = await apiClient.post('/clinica-geral/caixa/dia/', { data, observacoes });
+  return res.data;
+}
+
+export async function openPdf(path: string) {
+  const res = await apiClient.get(path, { responseType: 'blob' });
+  const url = URL.createObjectURL(res.data);
+  window.open(url, '_blank', 'noopener');
 }
 
 export async function fetchRelatorio(tipo: TipoRelatorio, de: string, ate: string) {

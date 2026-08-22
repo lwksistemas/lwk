@@ -2,7 +2,20 @@ from datetime import datetime
 
 from rest_framework import serializers
 
-from .models import ConfiguracaoConsultorio, Consulta, ConvenioPaciente, Paciente, Responsavel, Tarefa
+from .models import (
+    ConfiguracaoConsultorio,
+    Consulta,
+    ConvenioPaciente,
+    Evolucao,
+    FechamentoCaixa,
+    GuiaTiss,
+    LoteTiss,
+    Paciente,
+    Prescricao,
+    PrescricaoItem,
+    Responsavel,
+    Tarefa,
+)
 
 
 class ResponsavelSerializer(serializers.ModelSerializer):
@@ -51,6 +64,7 @@ class PacienteSerializer(serializers.ModelSerializer):
             "cidade",
             "uf",
             "observacoes",
+            "alergias",
             "responsaveis",
             "convenios",
             "created_at",
@@ -90,7 +104,7 @@ class PacienteSerializer(serializers.ModelSerializer):
 class PacienteListaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Paciente
-        fields = ("id", "nome", "nome_social", "telefone", "email", "cpf", "numero_prontuario")
+        fields = ("id", "nome", "nome_social", "telefone", "email", "cpf", "numero_prontuario", "alergias")
 
 
 class ConsultaSerializer(serializers.ModelSerializer):
@@ -99,6 +113,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
     paciente_email = serializers.SerializerMethodField()
     paciente_idade = serializers.SerializerMethodField()
     paciente_prontuario = serializers.SerializerMethodField()
+    paciente_alergias = serializers.SerializerMethodField()
     minutos_espera = serializers.SerializerMethodField()
 
     class Meta:
@@ -111,6 +126,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
             "paciente_email",
             "paciente_idade",
             "paciente_prontuario",
+            "paciente_alergias",
             "data",
             "hora",
             "tipo",
@@ -118,6 +134,9 @@ class ConsultaSerializer(serializers.ModelSerializer):
             "convenio",
             "status",
             "duracao_minutos",
+            "valor",
+            "tele_sala_url",
+            "tele_minutos",
             "agendado_por",
             "minutos_espera",
             "observacoes",
@@ -129,6 +148,8 @@ class ConsultaSerializer(serializers.ModelSerializer):
             "paciente_email",
             "paciente_idade",
             "paciente_prontuario",
+            "paciente_alergias",
+            "tele_sala_url",
             "minutos_espera",
             "agendado_por",
         )
@@ -147,6 +168,9 @@ class ConsultaSerializer(serializers.ModelSerializer):
 
     def get_paciente_prontuario(self, obj):
         return obj.paciente.numero_prontuario or str(obj.paciente_id)
+
+    def get_paciente_alergias(self, obj):
+        return obj.paciente.alergias or ""
 
     def get_paciente_idade(self, obj):
         nasc = obj.paciente.data_nascimento
@@ -176,7 +200,17 @@ class TarefaSerializer(serializers.ModelSerializer):
 class ConfiguracaoConsultorioSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConfiguracaoConsultorio
-        fields = ("hora_inicio", "hora_fim", "duracao_minutos", "endereco", "telefone")
+        fields = (
+            "hora_inicio",
+            "hora_fim",
+            "duracao_minutos",
+            "endereco",
+            "telefone",
+            "especialidade",
+            "crm",
+            "medico_nome",
+            "teto_tele_minutos",
+        )
 
     def validate(self, attrs):
         inicio = attrs.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
@@ -187,3 +221,92 @@ class ConfiguracaoConsultorioSerializer(serializers.ModelSerializer):
         if duracao is not None and duracao not in (5, 10, 15, 20, 30, 45, 60):
             raise serializers.ValidationError("Duração deve ser 5, 10, 15, 20, 30, 45 ou 60 minutos.")
         return attrs
+
+
+class EvolucaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Evolucao
+        fields = (
+            "id",
+            "consulta",
+            "paciente",
+            "especialidade",
+            "subjetivo",
+            "objetivo",
+            "avaliacao",
+            "plano",
+            "updated_at",
+        )
+        read_only_fields = ("id", "updated_at")
+
+
+class PrescricaoItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PrescricaoItem
+        fields = ("id", "medicamento", "dosagem", "posologia", "quantidade", "alerta_alergia")
+        read_only_fields = ("id", "alerta_alergia")
+
+
+class PrescricaoSerializer(serializers.ModelSerializer):
+    itens = PrescricaoItemSerializer(many=True)
+
+    class Meta:
+        model = Prescricao
+        fields = ("id", "consulta", "paciente", "itens", "created_at")
+        read_only_fields = ("id", "created_at")
+
+    def create(self, validated_data):
+        from .alergia_service import medicamento_conflita_alergia
+
+        itens = validated_data.pop("itens", [])
+        prescricao = Prescricao.objects.create(**validated_data)
+        alergias = prescricao.paciente.alergias
+        for item in itens:
+            PrescricaoItem.objects.create(
+                prescricao=prescricao,
+                alerta_alergia=medicamento_conflita_alergia(alergias, item.get("medicamento", "")),
+                **item,
+            )
+        return prescricao
+
+
+class LoteTissSerializer(serializers.ModelSerializer):
+    guias_count = serializers.IntegerField(read_only=True, required=False)
+
+    class Meta:
+        model = LoteTiss
+        fields = ("id", "numero", "competencia", "status", "guias_count", "created_at")
+        read_only_fields = ("id", "created_at")
+
+
+class GuiaTissSerializer(serializers.ModelSerializer):
+    paciente_nome = serializers.SerializerMethodField()
+    consulta_data = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GuiaTiss
+        fields = (
+            "id",
+            "lote",
+            "consulta",
+            "numero_guia",
+            "codigo_procedimento",
+            "valor",
+            "paciente_nome",
+            "consulta_data",
+            "created_at",
+        )
+        read_only_fields = ("id", "numero_guia", "paciente_nome", "consulta_data", "created_at")
+
+    def get_paciente_nome(self, obj):
+        return obj.consulta.paciente.nome
+
+    def get_consulta_data(self, obj):
+        return obj.consulta.data.isoformat()
+
+
+class FechamentoCaixaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FechamentoCaixa
+        fields = ("id", "data", "total_particular", "total_convenio", "observacoes", "created_at")
+        read_only_fields = ("id", "created_at")

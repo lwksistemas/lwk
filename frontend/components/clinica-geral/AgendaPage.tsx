@@ -153,6 +153,11 @@ export function AgendaPage() {
                           {consulta.paciente_idade != null && (
                             <span className="text-xs text-slate-600">{consulta.paciente_idade}a</span>
                           )}
+                          {consulta.paciente_alergias ? (
+                            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                              alergia
+                            </span>
+                          ) : null}
                           <span className="text-slate-600">
                             {TIPO_CONSULTA_LABEL[consulta.tipo]} | {consulta.convenio || 'PARTICULAR'}
                           </span>

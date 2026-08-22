@@ -99,11 +99,13 @@ def _loja_elegivel_confirmacao_agenda(loja_id: int) -> bool:
         return False
     slug = (loja.tipo_loja.slug or "").strip().lower()
     nome = (loja.tipo_loja.nome or "").strip().lower()
-    if slug in ("clinica-beleza", "cabeleireiro"):
+    if slug in ("clinica-beleza", "cabeleireiro", "clinica-geral"):
         return True
     if "clínica da beleza" in nome or "clinica da beleza" in nome:
         return True
     if "cabeleireiro" in nome or "salão" in nome or "salao" in nome:
+        return True
+    if "clinica geral" in nome or "clínica geral" in nome or "consultorio" in nome:
         return True
     return False
 
@@ -191,6 +193,15 @@ def obter_dados_confirmacao(token: str) -> tuple[dict | None, str | None, int | 
             return None, "Agendamento não encontrado.", loja_id
         return serializar_agendamento_publico_salao(ag, loja_nome), None, loja_id
 
+    if modulo in ("clinica_geral", "clinica-geral"):
+        from clinica_geral.models import Consulta
+        from clinica_geral.whatsapp_agenda import serializar_consulta_publico
+
+        consulta = Consulta.objects.select_related("paciente").filter(pk=appointment_id).first()
+        if not consulta:
+            return None, "Agendamento não encontrado.", loja_id
+        return serializar_consulta_publico(consulta, loja_nome), None, loja_id
+
     from .models import Appointment
 
     appointment = (
@@ -243,6 +254,22 @@ def processar_resposta_confirmacao(token: str, acao: str) -> RespostaConfirmacao
             msg,
             status=ag.status,
             appointment_id=ag.id,
+            already_done=already,
+        )
+
+    if modulo in ("clinica_geral", "clinica-geral"):
+        from clinica_geral.models import Consulta
+        from clinica_geral.whatsapp_agenda import aplicar_resposta_confirmacao_consultorio
+
+        consulta = Consulta.objects.select_related("paciente").filter(pk=appointment_id).first()
+        if not consulta:
+            return RespostaConfirmacao(False, "Agendamento não encontrado.")
+        ok, msg, already = aplicar_resposta_confirmacao_consultorio(consulta, acao)
+        return RespostaConfirmacao(
+            ok,
+            msg,
+            status=consulta.status,
+            appointment_id=consulta.id,
             already_done=already,
         )
 
@@ -382,6 +409,10 @@ def processar_resposta_whatsapp(
         return _processar_resposta_whatsapp_salao(
             loja_id, telefone, acao=acao, appointment_id=appointment_id,
         )
+    if tipo_slug == "clinica-geral":
+        return _processar_resposta_whatsapp_consultorio(
+            loja_id, telefone, acao=acao, appointment_id=appointment_id,
+        )
 
     from .models import Appointment
 
@@ -486,4 +517,52 @@ def _processar_resposta_whatsapp_salao(
         )
 
     token = gerar_token_confirmacao(loja_id, agendamento.id, modulo="cabeleireiro")
+    return processar_resposta_confirmacao(token, acao)
+
+
+def _processar_resposta_whatsapp_consultorio(
+    loja_id: int,
+    telefone: str,
+    *,
+    acao: str,
+    appointment_id: int | None,
+) -> RespostaConfirmacao | None:
+    from django.db.utils import ProgrammingError
+
+    from clinica_geral.models import Consulta
+    from clinica_geral.whatsapp_agenda import STATUS_ACIONAVEIS as CG_STATUS
+
+    consulta = None
+    try:
+        if appointment_id:
+            consulta = Consulta.objects.select_related("paciente").filter(pk=appointment_id).first()
+            if consulta:
+                phone = getattr(consulta.paciente, "telefone", "") or ""
+                if not _phones_match(telefone, phone):
+                    consulta = None
+        if not consulta:
+            phone_digits = _normalize_phone_digits(telefone)
+            if not phone_digits:
+                return None
+            hoje = timezone.localdate()
+            qs = (
+                Consulta.objects.select_related("paciente")
+                .filter(status__in=CG_STATUS, data__gte=hoje, is_active=True)
+                .order_by("data", "hora")
+            )
+            for ag in qs[:50]:
+                pt = getattr(ag.paciente, "telefone", "") or ""
+                if _phones_match(phone_digits, pt):
+                    consulta = ag
+                    break
+    except ProgrammingError as exc:
+        logger.warning("processar_resposta_whatsapp consultorio loja %s: %s", loja_id, exc)
+        return None
+
+    if not consulta:
+        return RespostaConfirmacao(
+            False,
+            "Não encontramos agendamento pendente para confirmar ou cancelar.",
+        )
+    token = gerar_token_confirmacao(loja_id, consulta.id, modulo="clinica_geral")
     return processar_resposta_confirmacao(token, acao)

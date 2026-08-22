@@ -38,6 +38,7 @@ class Paciente(LojaIsolationMixin, models.Model):
     cidade = models.CharField(max_length=100, blank=True, default="")
     uf = models.CharField(max_length=2, blank=True, default="")
     observacoes = models.TextField(blank=True, default="")
+    alergias = models.TextField(blank=True, default="")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -98,6 +99,7 @@ class Consulta(LojaIsolationMixin, models.Model):
     STATUS_CHOICES = (
         ("agendado", "Agendado"),
         ("confirmado", "Confirmado"),
+        ("checkin", "Check-in"),
         ("recepcionado", "Recepcionado"),
         ("atendido", "Atendido"),
         ("desmarcado", "Desmarcado"),
@@ -112,6 +114,9 @@ class Consulta(LojaIsolationMixin, models.Model):
     convenio = models.CharField(max_length=80, blank=True, default="PARTICULAR")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="agendado")
     duracao_minutos = models.PositiveSmallIntegerField(default=15)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    tele_sala_url = models.CharField(max_length=400, blank=True, default="")
+    tele_minutos = models.PositiveIntegerField(default=0)
     agendado_por = models.CharField(max_length=120, blank=True, default="")
     observacoes = models.TextField(blank=True, default="")
     is_active = models.BooleanField(default=True)
@@ -149,6 +154,10 @@ class ConfiguracaoConsultorio(LojaIsolationMixin, models.Model):
     duracao_minutos = models.PositiveSmallIntegerField(default=15)
     endereco = models.CharField(max_length=240, blank=True, default="")
     telefone = models.CharField(max_length=30, blank=True, default="")
+    especialidade = models.CharField(max_length=80, blank=True, default="Clínica médica")
+    crm = models.CharField(max_length=30, blank=True, default="")
+    medico_nome = models.CharField(max_length=200, blank=True, default="")
+    teto_tele_minutos = models.PositiveIntegerField(default=600)
     updated_at = models.DateTimeField(auto_now=True)
 
     objects = LojaIsolationManager()
@@ -156,3 +165,100 @@ class ConfiguracaoConsultorio(LojaIsolationMixin, models.Model):
     class Meta:
         app_label = "clinica_geral"
         db_table = "clinica_geral_config"
+
+
+class Evolucao(LojaIsolationMixin, models.Model):
+    consulta = models.OneToOneField(Consulta, on_delete=models.CASCADE, related_name="evolucao")
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name="evolucoes")
+    especialidade = models.CharField(max_length=80, blank=True, default="")
+    subjetivo = models.TextField(blank=True, default="")
+    objetivo = models.TextField(blank=True, default="")
+    avaliacao = models.TextField(blank=True, default="")
+    plano = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_evolucao"
+        ordering = ["-id"]
+
+
+class Prescricao(LojaIsolationMixin, models.Model):
+    consulta = models.ForeignKey(Consulta, on_delete=models.CASCADE, related_name="prescricoes")
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name="prescricoes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_prescricao"
+        ordering = ["-id"]
+
+
+class PrescricaoItem(LojaIsolationMixin, models.Model):
+    prescricao = models.ForeignKey(Prescricao, on_delete=models.CASCADE, related_name="itens")
+    medicamento = models.CharField(max_length=200)
+    dosagem = models.CharField(max_length=80, blank=True, default="")
+    posologia = models.CharField(max_length=240, blank=True, default="")
+    quantidade = models.CharField(max_length=40, blank=True, default="")
+    alerta_alergia = models.BooleanField(default=False)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_prescricao_item"
+
+
+class LoteTiss(LojaIsolationMixin, models.Model):
+    STATUS_CHOICES = (
+        ("aberto", "Aberto"),
+        ("fechado", "Fechado"),
+    )
+    numero = models.CharField(max_length=30, blank=True, default="")
+    competencia = models.CharField(max_length=7, blank=True, default="")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="aberto")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_lote_tiss"
+        ordering = ["-id"]
+
+
+class GuiaTiss(LojaIsolationMixin, models.Model):
+    lote = models.ForeignKey(LoteTiss, on_delete=models.SET_NULL, null=True, blank=True, related_name="guias")
+    consulta = models.OneToOneField(Consulta, on_delete=models.CASCADE, related_name="guia_tiss")
+    numero_guia = models.CharField(max_length=30, blank=True, default="")
+    codigo_procedimento = models.CharField(max_length=20, blank=True, default="10101012")
+    valor = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_guia_tiss"
+        ordering = ["-id"]
+
+
+class FechamentoCaixa(LojaIsolationMixin, models.Model):
+    data = models.DateField()
+    total_particular = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_convenio = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    observacoes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_caixa"
+        ordering = ["-data"]
+        unique_together = ("loja_id", "data")

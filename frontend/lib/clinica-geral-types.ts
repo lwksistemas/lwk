@@ -7,6 +7,7 @@ export type ModalidadeConsulta = 'presencial' | 'tele';
 export type StatusConsulta =
   | 'agendado'
   | 'confirmado'
+  | 'checkin'
   | 'recepcionado'
   | 'atendido'
   | 'desmarcado'
@@ -36,6 +37,7 @@ export interface PacienteLista {
   email: string;
   cpf: string;
   numero_prontuario?: string;
+  alergias?: string;
 }
 
 export interface Paciente extends PacienteLista {
@@ -60,6 +62,7 @@ export interface Paciente extends PacienteLista {
   cidade: string;
   uf: string;
   observacoes: string;
+  alergias: string;
   responsaveis: Responsavel[];
   convenios: ConvenioPaciente[];
   created_at?: string;
@@ -73,6 +76,7 @@ export interface Consulta {
   paciente_email: string;
   paciente_idade: number | null;
   paciente_prontuario: string;
+  paciente_alergias: string;
   data: string;
   hora: string;
   tipo: TipoConsulta;
@@ -80,6 +84,9 @@ export interface Consulta {
   convenio: string;
   status: StatusConsulta;
   duracao_minutos: number;
+  valor: string | null;
+  tele_sala_url: string;
+  tele_minutos: number;
   agendado_por: string;
   minutos_espera: number;
   observacoes: string;
@@ -91,6 +98,10 @@ export interface ConfiguracaoConsultorio {
   duracao_minutos: number;
   endereco: string;
   telefone: string;
+  especialidade: string;
+  crm: string;
+  medico_nome: string;
+  teto_tele_minutos: number;
 }
 
 export interface UsuarioConsultorio {
@@ -103,6 +114,8 @@ export const RECURSOS_MENU: { label: string; path: (slug: string) => string }[] 
   { label: 'configurações da agenda', path: (s) => `/loja/${s}/clinica-geral/configuracoes/agenda` },
   { label: 'whatsapp', path: (s) => `/loja/${s}/configuracoes/whatsapp` },
   { label: 'assinatura', path: (s) => `/loja/${s}/assinatura` },
+  { label: 'faturamento', path: (s) => `/loja/${s}/clinica-geral/faturamento` },
+  { label: 'lotes TISS', path: (s) => `/loja/${s}/clinica-geral/tiss` },
 ];
 
 export interface Tarefa {
@@ -141,14 +154,71 @@ export interface RelatorioResposta {
   retornos?: number;
   pacientes_novos?: number;
   pacientes_ativos?: number;
+  valor_total?: string;
   itens?: Array<
     Consulta & {
       indicacao?: string;
       convenio?: string;
       status?: string;
       total?: number;
+      valor?: string;
     }
   >;
+}
+
+export interface Evolucao {
+  id: number;
+  consulta: number;
+  paciente: number;
+  especialidade: string;
+  subjetivo: string;
+  objetivo: string;
+  avaliacao: string;
+  plano: string;
+  updated_at?: string;
+}
+
+export interface PrescricaoItem {
+  id?: number;
+  medicamento: string;
+  dosagem: string;
+  posologia: string;
+  quantidade: string;
+  alerta_alergia?: boolean;
+}
+
+export interface Prescricao {
+  id: number;
+  consulta: number;
+  paciente: number;
+  itens: PrescricaoItem[];
+  created_at?: string;
+}
+
+export interface LoteTiss {
+  id: number;
+  numero: string;
+  competencia: string;
+  status: 'aberto' | 'fechado';
+  guias_count?: number;
+}
+
+export interface GuiaTiss {
+  id: number;
+  lote: number | null;
+  consulta: number;
+  numero_guia: string;
+  codigo_procedimento: string;
+  valor: string | null;
+  paciente_nome: string;
+  consulta_data: string;
+}
+
+export interface CaixaDia {
+  data: string;
+  total_particular: string;
+  total_convenio: string;
+  consultas?: number;
 }
 
 export interface DiaHorariosLivres {
@@ -170,6 +240,7 @@ export const MODALIDADE_LABEL: Record<ModalidadeConsulta, string> = {
 export const STATUS_LABEL: Record<StatusConsulta, string> = {
   agendado: 'Agendado',
   confirmado: 'Confirmado',
+  checkin: 'Check-in',
   recepcionado: 'Recepcionado',
   atendido: 'Atendido',
   desmarcado: 'Desmarcado',
@@ -226,6 +297,7 @@ export function emptyPaciente(): Paciente {
     cidade: '',
     uf: '',
     observacoes: '',
+    alergias: '',
     responsaveis: [],
     convenios: [],
   };

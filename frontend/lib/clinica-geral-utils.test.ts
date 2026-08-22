@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, cardTone, displayName, formatHora, formatLivreHeading, monthRange, slotTimes, slotTimesFromConfig, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
+import { addDays, alertaAlergia, cardTone, displayName, formatBRL, formatHora, formatLivreHeading, minutosTeleRestantes, monthRange, slotTimes, slotTimesFromConfig, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
 
 describe('clinica-geral-utils', () => {
   it('formata nome social como na ficha', () => {
@@ -24,6 +24,14 @@ describe('clinica-geral-utils', () => {
     expect(addDays('2026-08-24', 1)).toBe('2026-08-25');
     expect(formatHora('10:00:00')).toBe('10:00');
     expect(toISODate(new Date(2026, 7, 22))).toBe('2026-08-22');
+  });
+
+  it('sinaliza alergia e formata valor e cota de tele', () => {
+    expect(alertaAlergia('dipirona, penicilina', 'Dipirona 500mg')).toBe(true);
+    expect(alertaAlergia('penicilina', 'paracetamol')).toBe(false);
+    expect(formatBRL('150.00')).toMatch(/150/);
+    expect(minutosTeleRestantes(90, 600)).toBe(510);
+    expect(cardTone('checkin').border).toBe('#1E88E5');
   });
 
   it('monta o atalho de horários livres e o WhatsApp', () => {

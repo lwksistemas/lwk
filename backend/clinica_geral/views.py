@@ -1,9 +1,12 @@
 from datetime import datetime, time, timedelta
 
-from django.db.models import Q
+from django.db.models import Count, Q
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from core.permissions import HasLojaAccess
 from core.views import BaseModelViewSet
 from tenants.middleware import ensure_loja_context
 
@@ -47,8 +50,14 @@ class ConsultaViewSet(BaseModelViewSet):
         ensure_loja_context(self.request)
         qs = Consulta.objects.filter(is_active=True).select_related("paciente")
         data = (self.request.query_params.get("data") or "").strip()
+        de = (self.request.query_params.get("de") or "").strip()
+        ate = (self.request.query_params.get("ate") or "").strip()
         if data:
             qs = qs.filter(data=data)
+        if de:
+            qs = qs.filter(data__gte=de)
+        if ate:
+            qs = qs.filter(data__lte=ate)
         return qs
 
     def perform_create(self, serializer):
@@ -141,3 +150,102 @@ class TarefaViewSet(BaseModelViewSet):
         if data:
             qs = qs.filter(data=data)
         return qs
+
+
+def _periodo(request):
+    hoje = datetime.now().date()
+    raw_de = (request.query_params.get("de") or "").strip()
+    raw_ate = (request.query_params.get("ate") or "").strip()
+    try:
+        de = datetime.strptime(raw_de, "%Y-%m-%d").date() if raw_de else hoje.replace(day=1)
+    except ValueError:
+        de = hoje.replace(day=1)
+    try:
+        ate = datetime.strptime(raw_ate, "%Y-%m-%d").date() if raw_ate else hoje
+    except ValueError:
+        ate = hoje
+    return de, ate
+
+
+class RelatoriosView(APIView):
+    permission_classes = [IsAuthenticated, HasLojaAccess]
+
+    def get(self, request):
+        ensure_loja_context(request)
+        tipo = (request.query_params.get("tipo") or "atendimentos").strip()
+        de, ate = _periodo(request)
+        consultas = Consulta.objects.filter(data__gte=de, data__lte=ate)
+        pacientes = Paciente.objects.filter(is_active=True)
+
+        if tipo == "indicacao":
+            grupos = (
+                pacientes.exclude(quem_indicou="")
+                .values("quem_indicou")
+                .annotate(total=Count("id"))
+                .order_by("-total")
+            )
+            return Response(
+                {
+                    "de": de.isoformat(),
+                    "ate": ate.isoformat(),
+                    "sem_indicacao": pacientes.filter(Q(quem_indicou="") | Q(quem_indicou__isnull=True)).count(),
+                    "itens": [{"indicacao": g["quem_indicou"], "total": g["total"]} for g in grupos],
+                }
+            )
+
+        if tipo == "status":
+            grupos = consultas.values("status").annotate(total=Count("id")).order_by("-total")
+            return Response(
+                {
+                    "de": de.isoformat(),
+                    "ate": ate.isoformat(),
+                    "total": consultas.count(),
+                    "itens": [{"status": g["status"], "total": g["total"]} for g in grupos],
+                }
+            )
+
+        if tipo == "financeiro":
+            grupos = (
+                consultas.exclude(status="desmarcado")
+                .values("convenio")
+                .annotate(total=Count("id"))
+                .order_by("-total")
+            )
+            return Response(
+                {
+                    "de": de.isoformat(),
+                    "ate": ate.isoformat(),
+                    "total": consultas.exclude(status="desmarcado").count(),
+                    "itens": [{"convenio": g["convenio"] or "PARTICULAR", "total": g["total"]} for g in grupos],
+                }
+            )
+
+        if tipo == "outros":
+            return Response(
+                {
+                    "de": de.isoformat(),
+                    "ate": ate.isoformat(),
+                    "faltas": consultas.filter(status="faltou").count(),
+                    "desmarcados": consultas.filter(status="desmarcado").count(),
+                    "primeiras": consultas.filter(tipo="primeira").count(),
+                    "retornos": consultas.filter(tipo="retorno").count(),
+                    "pacientes_novos": pacientes.filter(
+                        created_at__date__gte=de, created_at__date__lte=ate
+                    ).count(),
+                    "pacientes_ativos": pacientes.count(),
+                }
+            )
+
+        itens = (
+            consultas.exclude(status="desmarcado")
+            .select_related("paciente")
+            .order_by("data", "hora")[:300]
+        )
+        return Response(
+            {
+                "de": de.isoformat(),
+                "ate": ate.isoformat(),
+                "total": consultas.exclude(status="desmarcado").count(),
+                "itens": ConsultaSerializer(itens, many=True).data,
+            }
+        )

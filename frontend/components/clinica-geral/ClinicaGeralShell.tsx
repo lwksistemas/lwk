@@ -13,6 +13,7 @@ import {
 import type { LojaInfo } from '@/types/dashboard';
 import { MiniCalendario } from '@/components/clinica-geral/MiniCalendario';
 import { TarefasDoDia } from '@/components/clinica-geral/TarefasDoDia';
+import { RELATORIOS_MENU } from '@/lib/clinica-geral-types';
 import { readSidebarHidden, toISODate, writeSidebarHidden } from '@/lib/clinica-geral-utils';
 
 const NAVY = '#2F2E5B';
@@ -41,6 +42,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [busca, setBusca] = useState('');
   const [menuUser, setMenuUser] = useState(false);
+  const [menuRelatorios, setMenuRelatorios] = useState(false);
 
   useEffect(() => {
     setSidebarHidden(readSidebarHidden());
@@ -110,6 +112,39 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
             {NAV.map((item) => {
               const href = `${base}/${item.suffix}`;
               const isActive = active === item.id;
+              if (item.id === 'relatorios') {
+                return (
+                  <div
+                    key={item.id}
+                    className="relative"
+                    onMouseEnter={() => setMenuRelatorios(true)}
+                    onMouseLeave={() => setMenuRelatorios(false)}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setMenuRelatorios((v) => !v)}
+                      className={`px-2 py-3 lowercase ${isActive ? 'font-medium' : 'text-white/80 hover:text-white'}`}
+                      style={isActive ? { boxShadow: `inset 0 -3px 0 ${TEAL}` } : undefined}
+                    >
+                      {item.label}
+                    </button>
+                    {menuRelatorios && (
+                      <div className="absolute right-0 top-full z-50 min-w-[220px] rounded-md bg-white py-1 text-slate-700 shadow-lg">
+                        {RELATORIOS_MENU.map((opt) => (
+                          <Link
+                            key={opt.tipo}
+                            href={`${base}/relatorios/${opt.tipo}`}
+                            onClick={() => setMenuRelatorios(false)}
+                            className="block px-4 py-2 text-sm lowercase hover:bg-slate-50"
+                          >
+                            {opt.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
               return (
                 <Link
                   key={item.id}

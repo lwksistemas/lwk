@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RELATORIOS_MENU } from '@/lib/clinica-geral-types';
 import {
   homePathForTipo,
   isTipoClinicaBeleza,
@@ -18,6 +19,16 @@ describe('isTipoClinicaGeral', () => {
     expect(isTipoClinicaGeral('Radiologia')).toBe(false);
     expect(isTipoClinicaBeleza('Clínica Geral')).toBe(false);
     expect(isTipoClinicaBeleza('Clínica da Beleza')).toBe(true);
+  });
+
+  it('expõe as opções de relatórios da agenda', () => {
+    expect(RELATORIOS_MENU.map((r) => r.tipo)).toEqual([
+      'atendimentos',
+      'indicacao',
+      'financeiro',
+      'status',
+      'outros',
+    ]);
   });
 
   it('manda o app para a agenda', () => {

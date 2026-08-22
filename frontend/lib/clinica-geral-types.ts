@@ -92,6 +92,45 @@ export interface Tarefa {
   concluida: boolean;
 }
 
+export type TipoRelatorio = 'atendimentos' | 'indicacao' | 'financeiro' | 'status' | 'outros';
+
+export const RELATORIOS_MENU: { tipo: TipoRelatorio; label: string }[] = [
+  { tipo: 'atendimentos', label: 'atendimentos' },
+  { tipo: 'indicacao', label: 'indicação' },
+  { tipo: 'financeiro', label: 'relatório financeiro' },
+  { tipo: 'status', label: 'status de agendamento' },
+  { tipo: 'outros', label: 'outros relatórios' },
+];
+
+export const RELATORIO_TITULO: Record<TipoRelatorio, string> = {
+  atendimentos: 'Atendimentos',
+  indicacao: 'Indicação',
+  financeiro: 'Relatório financeiro',
+  status: 'Status de agendamento',
+  outros: 'Outros relatórios',
+};
+
+export interface RelatorioResposta {
+  de: string;
+  ate: string;
+  total?: number;
+  sem_indicacao?: number;
+  faltas?: number;
+  desmarcados?: number;
+  primeiras?: number;
+  retornos?: number;
+  pacientes_novos?: number;
+  pacientes_ativos?: number;
+  itens?: Array<
+    Consulta & {
+      indicacao?: string;
+      convenio?: string;
+      status?: string;
+      total?: number;
+    }
+  >;
+}
+
 export interface DiaHorariosLivres {
   data: string;
   horarios: string[];

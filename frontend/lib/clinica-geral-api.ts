@@ -4,8 +4,10 @@ import type {
   DiaHorariosLivres,
   Paciente,
   PacienteLista,
+  RelatorioResposta,
   StatusConsulta,
   Tarefa,
+  TipoRelatorio,
 } from '@/lib/clinica-geral-types';
 
 function unwrapList<T>(data: T[] | { results?: T[] }): T[] {
@@ -92,4 +94,10 @@ export async function toggleTarefa(tarefa: Tarefa) {
 
 export async function deleteTarefa(id: number) {
   await apiClient.delete(`/clinica-geral/tarefas/${id}/`);
+}
+
+export async function fetchRelatorio(tipo: TipoRelatorio, de: string, ate: string) {
+  const params = new URLSearchParams({ tipo, de, ate });
+  const res = await apiClient.get(`/clinica-geral/relatorios/?${params.toString()}`);
+  return res.data as RelatorioResposta;
 }

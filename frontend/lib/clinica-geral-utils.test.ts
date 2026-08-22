@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, cardTone, displayName, formatHora, formatLivreHeading, slotTimes, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
+import { addDays, cardTone, displayName, formatHora, formatLivreHeading, monthRange, slotTimes, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
 
 describe('clinica-geral-utils', () => {
   it('formata nome social como na ficha', () => {
@@ -25,5 +25,6 @@ describe('clinica-geral-utils', () => {
     expect(formatLivreHeading('2026-08-25', '2026-08-24')).toContain('Amanhã');
     expect(cardTone('agendado').bg).toBe('#C5E1A5');
     expect(whatsappHref('(16) 98140-2966')).toBe('https://wa.me/5516981402966');
+    expect(monthRange(new Date(2026, 7, 22))).toEqual({ de: '2026-08-01', ate: '2026-08-31' });
   });
 });

@@ -123,6 +123,12 @@ export function cardTone(status: string): { bg: string; border: string } {
   return { bg: '#C5E1A5', border: '#8BC34A' };
 }
 
+export function monthRange(ref = new Date()): { de: string; ate: string } {
+  const de = toISODate(new Date(ref.getFullYear(), ref.getMonth(), 1));
+  const ate = toISODate(new Date(ref.getFullYear(), ref.getMonth() + 1, 0));
+  return { de, ate };
+}
+
 export function whatsappHref(phone: string): string | null {
   const d = (phone || '').replace(/\D/g, '');
   if (d.length < 10) return null;

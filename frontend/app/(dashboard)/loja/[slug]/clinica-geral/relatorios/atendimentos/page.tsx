@@ -2,6 +2,6 @@
 
 import { RelatoriosPage } from '@/components/clinica-geral/RelatoriosPage';
 
-export default function ClinicaGeralRelatoriosIndex() {
+export default function RelatorioAtendimentosPage() {
   return <RelatoriosPage tipo="atendimentos" />;
 }

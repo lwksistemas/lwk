@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, alertaAlergia, cardTone, displayName, formatBRL, formatHora, formatLivreHeading, minutosTeleRestantes, monthRange, slotTimes, slotTimesFromConfig, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
+import { addDays, alertaAlergia, cardTone, daysFromToday, displayName, formatAgeYearsMonths, formatBRL, formatDateBR, formatDaysOffset, formatEndereco, formatHora, formatLivreHeading, formatNascimentoIdade, minutosTeleRestantes, monthRange, slotTimes, slotTimesFromConfig, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
 
 describe('clinica-geral-utils', () => {
   it('formata nome social como na ficha', () => {
@@ -32,6 +32,28 @@ describe('clinica-geral-utils', () => {
     expect(formatBRL('150.00')).toMatch(/150/);
     expect(minutosTeleRestantes(90, 600)).toBe(510);
     expect(cardTone('checkin').border).toBe('#1E88E5');
+  });
+
+  it('mostra data de nascimento com idade em anos e meses', () => {
+    const hoje = new Date(2026, 7, 23);
+    expect(formatDateBR('1984-02-20')).toBe('20/02/1984');
+    expect(formatAgeYearsMonths('1984-02-20', hoje)).toBe('42 anos e 6 meses');
+    expect(formatNascimentoIdade('1984-02-20', hoje)).toBe('20/02/1984 (42 anos e 6 meses)');
+    expect(formatAgeYearsMonths('2025-08-23', hoje)).toBe('1 ano');
+    expect(formatAgeYearsMonths('2026-02-23', hoje)).toBe('6 meses');
+  });
+
+  it('mostra o deslocamento dos agendamentos e o endereço', () => {
+    const hoje = new Date(2026, 7, 23);
+    expect(formatDaysOffset(daysFromToday('2026-08-24', hoje))).toBe('+1 d');
+    expect(formatDaysOffset(daysFromToday('2026-08-23', hoje))).toBe('0 d');
+    expect(formatEndereco({
+      logradouro: 'Avenida Brigadeiro Luis Antônio',
+      numero: '2696',
+      cidade: 'São Paulo',
+      uf: 'SP',
+      cep: '01402-000',
+    })).toBe('Avenida Brigadeiro Luis Antônio 2696\nSão Paulo SP 01402-000');
   });
 
   it('monta o atalho de horários livres e o WhatsApp', () => {

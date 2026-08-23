@@ -65,14 +65,73 @@ export function displayName(nome: string, nomeSocial?: string | null): string {
   return nome;
 }
 
-export function ageFromISO(iso: string | null | undefined): number | null {
+export function ageFromISO(iso: string | null | undefined, today = new Date()): number | null {
   if (!iso) return null;
   const birth = parseISODate(iso);
-  const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const m = today.getMonth() - birth.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age -= 1;
   return age >= 0 ? age : null;
+}
+
+export function formatDateBR(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = parseISODate(iso);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+export function formatAgeYearsMonths(iso: string | null | undefined, today = new Date()): string | null {
+  if (!iso) return null;
+  const birth = parseISODate(iso);
+  if (birth > today) return null;
+  let years = today.getFullYear() - birth.getFullYear();
+  let months = today.getMonth() - birth.getMonth();
+  if (today.getDate() < birth.getDate()) months -= 1;
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+  if (years < 0) return null;
+  const yLabel = years === 1 ? '1 ano' : `${years} anos`;
+  const mLabel = months === 1 ? '1 mês' : `${months} meses`;
+  if (years === 0) return mLabel;
+  if (months === 0) return yLabel;
+  return `${yLabel} e ${mLabel}`;
+}
+
+export function formatNascimentoIdade(iso: string | null | undefined, today = new Date()): string {
+  if (!iso) return '';
+  const idade = formatAgeYearsMonths(iso, today);
+  return idade ? `${formatDateBR(iso)} (${idade})` : formatDateBR(iso);
+}
+
+export function daysFromToday(iso: string, today = new Date()): number {
+  const ref = parseISODate(toISODate(today));
+  const d = parseISODate(iso);
+  return Math.round((d.getTime() - ref.getTime()) / 86400000);
+}
+
+export function formatDaysOffset(days: number): string {
+  if (days === 0) return '0 d';
+  if (days > 0) return `+${days} d`;
+  return `${days} d`;
+}
+
+export function formatEndereco(p: {
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+  cep?: string;
+}): string {
+  const linha1 = [p.logradouro, p.numero].filter(Boolean).join(' ');
+  const extra = p.complemento ? `, ${p.complemento}` : '';
+  const linha2 = [p.bairro, p.cidade, p.uf, p.cep].filter(Boolean).join(' ');
+  return [linha1 + extra, linha2].filter((s) => s.trim()).join('\n');
 }
 
 export function slotTimes(startHour = 8, endHour = 18, stepMin = 15): string[] {

@@ -11,6 +11,7 @@ from .models import (
     GuiaTiss,
     LoteTiss,
     Paciente,
+    PacienteAnexo,
     Prescricao,
     PrescricaoItem,
     Responsavel,
@@ -52,6 +53,9 @@ class PacienteSerializer(serializers.ModelSerializer):
             "pais_emissor",
             "nome_mae",
             "tipo_sanguineo",
+            "nacionalidade",
+            "profissao",
+            "foto_url",
             "telefone",
             "telefone_fixo",
             "quem_indicou",
@@ -309,4 +313,11 @@ class FechamentoCaixaSerializer(serializers.ModelSerializer):
     class Meta:
         model = FechamentoCaixa
         fields = ("id", "data", "total_particular", "total_convenio", "observacoes", "created_at")
+        read_only_fields = ("id", "created_at")
+
+
+class PacienteAnexoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PacienteAnexo
+        fields = ("id", "paciente", "nome", "url", "created_at")
         read_only_fields = ("id", "created_at")

@@ -1,6 +1,6 @@
 """Views/API da Clínica Geral — reexportação por domínio.
 
-- views_pacientes.py   → PacienteViewSet, ProntuarioPacienteView
+- views_pacientes.py   → PacienteViewSet, PacienteAnexoViewSet, ProntuarioPacienteView
 - views_consultas.py   → ConsultaViewSet
 - views_config.py      → TarefaViewSet, ConfiguracaoConsultorioViewSet, MeView
 - views_prontuario.py  → EvolucaoViewSet, PrescricaoViewSet, EvolucaoPDFView
@@ -11,7 +11,7 @@
 from .views_config import ConfiguracaoConsultorioViewSet, MeView, TarefaViewSet
 from .views_consultas import ConsultaViewSet
 from .views_faturamento import FechamentoCaixaViewSet, RelatoriosView
-from .views_pacientes import PacienteViewSet, ProntuarioPacienteView
+from .views_pacientes import PacienteAnexoViewSet, PacienteViewSet, ProntuarioPacienteView
 from .views_prontuario import EvolucaoPDFView, EvolucaoViewSet, PrescricaoViewSet
 from .views_tiss import GuiaTissViewSet, LoteTissViewSet
 
@@ -24,6 +24,7 @@ __all__ = [
     "GuiaTissViewSet",
     "LoteTissViewSet",
     "MeView",
+    "PacienteAnexoViewSet",
     "PacienteViewSet",
     "PrescricaoViewSet",
     "ProntuarioPacienteView",

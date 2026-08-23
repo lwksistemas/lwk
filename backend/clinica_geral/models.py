@@ -26,6 +26,9 @@ class Paciente(LojaIsolationMixin, models.Model):
     pais_emissor = models.CharField(max_length=80, blank=True, default="")
     nome_mae = models.CharField(max_length=200, blank=True, default="")
     tipo_sanguineo = models.CharField(max_length=8, blank=True, default="")
+    nacionalidade = models.CharField(max_length=80, blank=True, default="Brasileira")
+    profissao = models.CharField(max_length=120, blank=True, default="")
+    foto_url = models.CharField(max_length=500, blank=True, default="")
     telefone = models.CharField(max_length=30, blank=True, default="")
     telefone_fixo = models.CharField(max_length=30, blank=True, default="")
     quem_indicou = models.CharField(max_length=200, blank=True, default="")
@@ -262,3 +265,17 @@ class FechamentoCaixa(LojaIsolationMixin, models.Model):
         db_table = "clinica_geral_caixa"
         ordering = ["-data"]
         unique_together = ("loja_id", "data")
+
+
+class PacienteAnexo(LojaIsolationMixin, models.Model):
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name="anexos")
+    nome = models.CharField(max_length=200)
+    url = models.CharField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_anexo"
+        ordering = ["-id"]

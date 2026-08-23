@@ -10,6 +10,7 @@ from .views import (
     GuiaTissViewSet,
     LoteTissViewSet,
     MeView,
+    PacienteAnexoViewSet,
     PacienteViewSet,
     PrescricaoViewSet,
     ProntuarioPacienteView,
@@ -19,6 +20,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r"pacientes", PacienteViewSet, basename="clinica-geral-pacientes")
+router.register(r"anexos", PacienteAnexoViewSet, basename="clinica-geral-anexos")
 router.register(r"consultas", ConsultaViewSet, basename="clinica-geral-consultas")
 router.register(r"tarefas", TarefaViewSet, basename="clinica-geral-tarefas")
 router.register(r"configuracao", ConfiguracaoConsultorioViewSet, basename="clinica-geral-config")

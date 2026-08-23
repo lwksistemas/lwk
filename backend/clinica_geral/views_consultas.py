@@ -34,6 +34,9 @@ class ConsultaViewSet(BaseModelViewSet):
             qs = qs.filter(data__gte=de)
         if ate:
             qs = qs.filter(data__lte=ate)
+        paciente_id = (self.request.query_params.get("paciente") or "").strip()
+        if paciente_id:
+            qs = qs.filter(paciente_id=paciente_id)
         return qs
 
     def perform_create(self, serializer):

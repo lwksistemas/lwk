@@ -6,9 +6,15 @@ from core.permissions import HasLojaAccess
 from core.views import BaseModelViewSet
 from tenants.middleware import ensure_loja_context
 
-from .models import Evolucao, Paciente, Prescricao
+from .models import Evolucao, Paciente, PacienteAnexo, Prescricao
 from .paciente_service import arquivar_paciente, listar_pacientes
-from .serializers import EvolucaoSerializer, PacienteListaSerializer, PacienteSerializer, PrescricaoSerializer
+from .serializers import (
+    EvolucaoSerializer,
+    PacienteAnexoSerializer,
+    PacienteListaSerializer,
+    PacienteSerializer,
+    PrescricaoSerializer,
+)
 
 
 class PacienteViewSet(BaseModelViewSet):
@@ -28,6 +34,18 @@ class PacienteViewSet(BaseModelViewSet):
 
     def perform_destroy(self, instance):
         arquivar_paciente(instance)
+
+
+class PacienteAnexoViewSet(BaseModelViewSet):
+    serializer_class = PacienteAnexoSerializer
+
+    def get_queryset(self):
+        ensure_loja_context(self.request)
+        qs = PacienteAnexo.objects.select_related("paciente")
+        paciente_id = self.request.query_params.get("paciente")
+        if paciente_id:
+            qs = qs.filter(paciente_id=paciente_id)
+        return qs
 
 
 class ProntuarioPacienteView(APIView):

@@ -2,16 +2,28 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { createPaciente, getPaciente, updatePaciente, archivePaciente } from '@/lib/clinica-geral-api';
+import { ImageUploadMedia } from '@/components/ImageUploadMedia';
+import { PacienteFichaView } from '@/components/clinica-geral/PacienteFichaView';
+import {
+  archivePaciente,
+  createAnexoPaciente,
+  createPaciente,
+  deleteAnexoPaciente,
+  getPaciente,
+  listAnexosPaciente,
+  listConsultasPaciente,
+  updatePaciente,
+} from '@/lib/clinica-geral-api';
 import { TEAL } from '@/lib/clinica-geral-theme';
-import type { ConvenioPaciente, Paciente, Responsavel } from '@/lib/clinica-geral-types';
+import type { ConvenioPaciente, Consulta, Paciente, PacienteAnexo, Responsavel } from '@/lib/clinica-geral-types';
 import {
   EMPTY_CONVENIO,
   EMPTY_RESPONSAVEL,
+  ESTADO_CIVIL_OPCOES,
   SEXO_LABEL,
+  TIPO_SANGUINEO_OPCOES,
   emptyPaciente,
 } from '@/lib/clinica-geral-types';
-import { ageFromISO, displayName } from '@/lib/clinica-geral-utils';
 
 type PacienteFormPageProps = {
   mode: 'novo' | 'editar';
@@ -25,6 +37,8 @@ export function PacienteFormPage({ mode }: PacienteFormPageProps) {
   const base = `/loja/${slug}/clinica-geral/pacientes`;
 
   const [form, setForm] = useState<Paciente>(emptyPaciente());
+  const [consultas, setConsultas] = useState<Consulta[]>([]);
+  const [anexos, setAnexos] = useState<PacienteAnexo[]>([]);
   const [loading, setLoading] = useState(mode === 'editar');
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
@@ -33,8 +47,17 @@ export function PacienteFormPage({ mode }: PacienteFormPageProps) {
   useEffect(() => {
     if (mode !== 'editar' || !id) return;
     setLoading(true);
-    getPaciente(id)
-      .then(setForm)
+    Promise.all([getPaciente(id), listConsultasPaciente(id), listAnexosPaciente(id)])
+      .then(([paciente, agenda, docs]) => {
+        setForm({
+          ...emptyPaciente(),
+          ...paciente,
+          responsaveis: paciente.responsaveis || [],
+          convenios: paciente.convenios || [],
+        });
+        setConsultas(agenda);
+        setAnexos(docs);
+      })
       .catch(() => setErro('Paciente não encontrado.'))
       .finally(() => setLoading(false));
   }, [mode, id]);
@@ -56,7 +79,8 @@ export function PacienteFormPage({ mode }: PacienteFormPageProps) {
         const created = await createPaciente(payload);
         router.replace(`${base}/${created.id}`);
       } else {
-        await updatePaciente(id, payload);
+        const updated = await updatePaciente(id, payload);
+        setForm(updated);
         setView(true);
       }
     } catch {
@@ -66,82 +90,62 @@ export function PacienteFormPage({ mode }: PacienteFormPageProps) {
     }
   };
 
+  const arquivar = async () => {
+    if (!window.confirm('Arquivar este paciente?')) return;
+    await archivePaciente(id);
+    router.push(base);
+  };
+
+  const excluir = async () => {
+    if (!window.confirm('Excluir este paciente? A ficha será arquivada e deixará de aparecer na lista.')) return;
+    await archivePaciente(id);
+    router.push(base);
+  };
+
   if (loading) {
     return <p className="p-6 text-sm text-slate-500">Carregando ficha...</p>;
   }
 
   if (view) {
-    const idade = ageFromISO(form.data_nascimento);
     return (
-      <div className="grid gap-6 p-6 lg:grid-cols-[220px_1fr_240px]">
-        <div className="space-y-4">
-          <button
-            type="button"
-            className="w-full rounded-md py-2 text-sm font-medium text-white"
-            style={{ backgroundColor: TEAL }}
-            onClick={() => router.push(`/loja/${slug}/clinica-geral/pacientes/${id}/prontuario`)}
-          >
-            Ver prontuário
-          </button>
-          <div className="flex h-36 items-center justify-center rounded-full bg-slate-200 text-4xl text-slate-500">
-            {(form.nome_social || form.nome).slice(0, 1).toUpperCase()}
-          </div>
-        </div>
-        <div>
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-            <Field label="Número do prontuário" value={form.numero_prontuario} />
-            <Field label="Nome" value={displayName(form.nome, form.nome_social)} />
-            <Field label="Nome social" value={form.nome_social} />
-            <Field label="CPF" value={form.cpf} />
-            <Field label="RG" value={form.rg} />
-            <Field
-              label="Data de nascimento"
-              value={form.data_nascimento ? `${form.data_nascimento}${idade != null ? ` (${idade} anos)` : ''}` : ''}
-            />
-            <Field label="Sexo" value={SEXO_LABEL[form.sexo]} />
-            <Field label="Estado civil" value={form.estado_civil} />
-            <Field label="Telefone" value={form.telefone} />
-            <Field label="E-mail" value={form.email} />
-            <Field label="Alergias" value={form.alergias} />
-          </dl>
-          {form.alergias ? (
-            <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">Alergias: {form.alergias}</p>
-          ) : null}
-          <div className="mt-8 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={async () => {
-                if (!window.confirm('Arquivar este paciente?')) return;
-                await archivePaciente(id);
-                router.push(base);
-              }}
-              className="rounded-md border border-red-400 px-3 py-2 text-sm text-red-600"
-            >
-              Arquivar paciente
-            </button>
-            <button
-              type="button"
-              onClick={() => setView(false)}
-              className="rounded-md border px-3 py-2 text-sm"
-              style={{ borderColor: TEAL, color: TEAL }}
-            >
-              Editar
-            </button>
-          </div>
-        </div>
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-slate-700">Anexos</h3>
-          <p className="text-xs text-slate-500">Documentos do prontuário entram na próxima etapa.</p>
-        </div>
-      </div>
+      <PacienteFichaView
+        slug={slug}
+        paciente={form}
+        consultas={consultas}
+        anexos={anexos}
+        onVerProntuario={() => router.push(`${base}/${id}/prontuario`)}
+        onEditar={() => setView(false)}
+        onArquivar={() => void arquivar()}
+        onExcluir={() => void excluir()}
+        onAddAnexo={async (url, nome) => {
+          const created = await createAnexoPaciente(id, nome, url);
+          setAnexos((atual) => [created, ...atual]);
+        }}
+        onRemoveAnexo={async (anexoId) => {
+          await deleteAnexoPaciente(anexoId);
+          setAnexos((atual) => atual.filter((a) => a.id !== anexoId));
+        }}
+      />
     );
   }
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 p-6">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Input label="Número do prontuário" value={form.numero_prontuario} onChange={(v) => set({ numero_prontuario: v })} />
-        <Input label="Médico de referência" value={form.medico_referencia} onChange={(v) => set({ medico_referencia: v })} />
+      <div className="flex flex-wrap items-start gap-6">
+        <ImageUploadMedia
+          label="Foto"
+          folder="fotos"
+          accept="image/*"
+          value={form.foto_url}
+          onChange={(url) => set({ foto_url: url })}
+          patientId={id || null}
+          patientNome={form.nome}
+          patientCpf={form.cpf}
+        />
+        <div className="min-w-[240px] flex-1 grid gap-3 sm:grid-cols-2">
+          <Input label="Número do prontuário" value={form.numero_prontuario} onChange={(v) => set({ numero_prontuario: v })} />
+          <Input label="Médico de referência" value={form.medico_referencia} onChange={(v) => set({ medico_referencia: v })} />
+        </div>
       </div>
       <Input label="Nome" value={form.nome} onChange={(v) => set({ nome: v })} required />
       <Input label="Nome social" value={form.nome_social} onChange={(v) => set({ nome_social: v })} />
@@ -153,20 +157,43 @@ export function PacienteFormPage({ mode }: PacienteFormPageProps) {
           onChange={(v) => set({ sexo: v as Paciente['sexo'] })}
           options={Object.entries(SEXO_LABEL).map(([value, label]) => ({ value, label }))}
         />
-        <Input label="Estado civil" value={form.estado_civil} onChange={(v) => set({ estado_civil: v })} />
-        <Input label="RG" value={form.rg} onChange={(v) => set({ rg: v })} />
+        <Select
+          label="Estado civil"
+          value={form.estado_civil}
+          onChange={(v) => set({ estado_civil: v })}
+          options={ESTADO_CIVIL_OPCOES.map((value) => ({ value, label: value || 'Não informado' }))}
+        />
+        <Select
+          label="Tipo sanguíneo"
+          value={form.tipo_sanguineo}
+          onChange={(v) => set({ tipo_sanguineo: v })}
+          options={TIPO_SANGUINEO_OPCOES.map((value) => ({ value, label: value || 'Não informado' }))}
+        />
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <Input label="CPF" value={form.cpf} onChange={(v) => set({ cpf: v })} />
-        <Input label="Passaporte" value={form.passaporte} onChange={(v) => set({ passaporte: v })} />
-        <Input label="Tipo sanguíneo" value={form.tipo_sanguineo} onChange={(v) => set({ tipo_sanguineo: v })} />
+        <Input label="Nacionalidade" value={form.nacionalidade} onChange={(v) => set({ nacionalidade: v })} />
+        <Input label="Profissão" value={form.profissao} onChange={(v) => set({ profissao: v })} />
       </div>
-      <Input label="Nome da mãe" value={form.nome_mae} onChange={(v) => set({ nome_mae: v })} />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Input label="RG" value={form.rg} onChange={(v) => set({ rg: v })} />
+        <Input label="Passaporte" value={form.passaporte} onChange={(v) => set({ passaporte: v })} />
+        <Input label="Nome da mãe" value={form.nome_mae} onChange={(v) => set({ nome_mae: v })} />
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Input label="Telefone" value={form.telefone} onChange={(v) => set({ telefone: v })} />
+        <Input label="Celular" value={form.telefone} onChange={(v) => set({ telefone: v })} />
         <Input label="E-mail" value={form.email} onChange={(v) => set({ email: v })} />
       </div>
       <Input label="Alergias" value={form.alergias} onChange={(v) => set({ alergias: v })} />
+      <label className="block text-sm">
+        <span className="mb-1 block text-slate-600">Observações</span>
+        <textarea
+          value={form.observacoes}
+          onChange={(e) => set({ observacoes: e.target.value })}
+          rows={4}
+          className="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:border-teal-500"
+        />
+      </label>
 
       <section>
         <h2 className="mb-3 text-base font-semibold text-slate-800">Responsáveis</h2>
@@ -253,15 +280,6 @@ export function PacienteFormPage({ mode }: PacienteFormPageProps) {
       [key]: f[key].map((item, i) => (i === index ? { ...item, ...patch } : item)),
     }));
   }
-}
-
-function Field({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div>
-      <dt className="text-xs text-slate-400">{label}</dt>
-      <dd className="text-slate-800">{value || '—'}</dd>
-    </div>
-  );
 }
 
 function Input({

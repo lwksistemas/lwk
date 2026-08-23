@@ -3,6 +3,7 @@ import type {
   Consulta,
   DiaHorariosLivres,
   Paciente,
+  PacienteAnexo,
   PacienteLista,
   CaixaDia,
   ConfiguracaoConsultorio,
@@ -62,6 +63,25 @@ export async function getConsulta(id: number) {
 export async function listConsultas(data: string) {
   const res = await apiClient.get(`/clinica-geral/consultas/?data=${encodeURIComponent(data)}`);
   return unwrapList(res.data) as Consulta[];
+}
+
+export async function listConsultasPaciente(pacienteId: number) {
+  const res = await apiClient.get(`/clinica-geral/consultas/?paciente=${pacienteId}`);
+  return unwrapList(res.data) as Consulta[];
+}
+
+export async function listAnexosPaciente(pacienteId: number) {
+  const res = await apiClient.get(`/clinica-geral/anexos/?paciente=${pacienteId}`);
+  return unwrapList(res.data) as PacienteAnexo[];
+}
+
+export async function createAnexoPaciente(paciente: number, nome: string, url: string) {
+  const res = await apiClient.post('/clinica-geral/anexos/', { paciente, nome, url });
+  return res.data as PacienteAnexo;
+}
+
+export async function deleteAnexoPaciente(id: number) {
+  await apiClient.delete(`/clinica-geral/anexos/${id}/`);
 }
 
 export async function createConsulta(payload: Partial<Consulta>) {

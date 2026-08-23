@@ -52,6 +52,9 @@ export interface Paciente extends PacienteLista {
   pais_emissor: string;
   nome_mae: string;
   tipo_sanguineo: string;
+  nacionalidade: string;
+  profissao: string;
+  foto_url: string;
   telefone_fixo: string;
   quem_indicou: string;
   cep: string;
@@ -251,6 +254,26 @@ export const SEXO_LABEL: Record<SexoPaciente, string> = {
   I: 'Indefinido',
 };
 
+export const ESTADO_CIVIL_OPCOES = [
+  '',
+  'Solteiro(a)',
+  'Casado(a)',
+  'União estável',
+  'Divorciado(a)',
+  'Viúvo(a)',
+  'Separado(a)',
+] as const;
+
+export const TIPO_SANGUINEO_OPCOES = ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
+
+export interface PacienteAnexo {
+  id: number;
+  paciente: number;
+  nome: string;
+  url: string;
+  created_at?: string;
+}
+
 export const EMPTY_RESPONSAVEL: Responsavel = {
   nome: '',
   profissao: '',
@@ -284,6 +307,9 @@ export function emptyPaciente(): Paciente {
     telefone_fixo: '',
     quem_indicou: '',
     tipo_sanguineo: '',
+    nacionalidade: 'Brasileira',
+    profissao: '',
+    foto_url: '',
     telefone: '',
     email: '',
     cep: '',

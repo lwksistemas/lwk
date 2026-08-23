@@ -25,7 +25,9 @@ import {
   abrirTele,
   createGuiaTiss,
   createPrescricao,
+  enviarTele,
   evolucaoPdfUrl,
+  getConfiguracao,
   getConsulta,
   getEvolucaoDaConsulta,
   getPaciente,
@@ -33,7 +35,6 @@ import {
   listPrescricoes,
   openPdf,
   receitaPdfUrl,
-  registrarTele,
   saveEvolucao,
   updateConsulta,
   updateConsultaStatus,
@@ -69,6 +70,9 @@ export function AtendimentoPage() {
   const [anexos, setAnexos] = useState<PacienteAnexo[]>([]);
   const [valor, setValor] = useState('');
   const [teleInfo, setTeleInfo] = useState('');
+  const [medicoNome, setMedicoNome] = useState('');
+  const [emChamada, setEmChamada] = useState(false);
+  const [enviandoTele, setEnviandoTele] = useState(false);
   const [segundos, setSegundos] = useState(0);
   const [msg, setMsg] = useState('');
   const saveTimer = useRef<number | null>(null);
@@ -83,11 +87,13 @@ export function AtendimentoPage() {
       if (achada.status === 'agendado' || achada.status === 'confirmado') {
         setConsulta(await updateConsultaStatus(achada.id, 'recepcionado'));
       }
-      const [ev, docs, fichaPaciente] = await Promise.all([
+      const [ev, docs, fichaPaciente, config] = await Promise.all([
         getEvolucaoDaConsulta(id),
         listAnexosPaciente(achada.paciente),
         getPaciente(achada.paciente),
+        getConfiguracao().catch(() => ({ medico_nome: '' })),
       ]);
+      setMedicoNome(config.medico_nome || '');
       setPaciente({ ...emptyPaciente(), ...fichaPaciente });
       setAnexos(docs);
       if (ev) {
@@ -257,17 +263,59 @@ export function AtendimentoPage() {
           consulta={consulta}
           anexos={anexos}
           teleInfo={teleInfo}
-          onAbrirTele={async () => {
-            const r = await abrirTele(consulta.id);
-            setConsulta(r);
-            setTeleInfo(`Restam ${minutosTeleRestantes(r.tele_minutos_mes || 0, r.teto_tele_minutos || 600)} min neste mês.`);
-            if (r.tele_sala_url) window.open(r.tele_sala_url, '_blank');
+          medicoNome={medicoNome}
+          emChamada={emChamada}
+          enviandoTele={enviandoTele}
+          onGerarTele={async () => {
+            try {
+              const r = await abrirTele(consulta.id);
+              setConsulta(r);
+              setTeleInfo(`Restam ${minutosTeleRestantes(r.tele_minutos_mes || 0, r.teto_tele_minutos || 600)} min neste mês.`);
+            } catch {
+              setTeleInfo('Não foi possível gerar a sala.');
+            }
           }}
-          onRegistrarTele={async () => {
-            const r = await registrarTele(consulta.id, consulta.duracao_minutos || 15);
-            setConsulta(r);
-            setTeleInfo(`+${consulta.duracao_minutos || 15} min registrados.`);
+          onCopiarTele={async () => {
+            let atual = consulta;
+            if (!atual.tele_link) {
+              atual = await abrirTele(consulta.id);
+              setConsulta(atual);
+            }
+            const bruto = atual.tele_link || '';
+            const path = bruto.replace(/^https?:\/\/[^/]+/, '');
+            const link = path ? `${window.location.origin}${path}` : '';
+            if (!link) {
+              setTeleInfo('Gere a sala antes de copiar o link.');
+              return;
+            }
+            try {
+              await navigator.clipboard.writeText(link);
+              setTeleInfo('Link copiado. Envie ao paciente ou use o WhatsApp.');
+            } catch {
+              setTeleInfo(link);
+            }
           }}
+          onEnviarTele={async () => {
+            setEnviandoTele(true);
+            try {
+              const r = await enviarTele(consulta.id);
+              setConsulta(r);
+              setTeleInfo('Link enviado pelo WhatsApp do consultório.');
+            } catch (err) {
+              const detalhe = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+              setTeleInfo(detalhe || 'Não foi possível enviar o WhatsApp.');
+            } finally {
+              setEnviandoTele(false);
+            }
+          }}
+          onEntrarTele={async () => {
+            if (!consulta.tele_sala_url) {
+              const r = await abrirTele(consulta.id);
+              setConsulta(r);
+            }
+            setEmChamada(true);
+          }}
+          onSairTele={() => setEmChamada(false)}
         />
       </div>
     </div>

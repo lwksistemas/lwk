@@ -90,6 +90,8 @@ export interface Consulta {
   duracao_minutos: number;
   valor: string | null;
   tele_sala_url: string;
+  tele_token?: string;
+  tele_link?: string;
   tele_minutos: number;
   agendado_por: string;
   minutos_espera: number;

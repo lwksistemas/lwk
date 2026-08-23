@@ -126,7 +126,9 @@ export function ProntuarioResumoClinico({
           </div>
         ) : null}
         {painel === 'chat' ? <p className="text-sm text-slate-400">Mensagens entram na agenda e no WhatsApp do consultório.</p> : null}
-        {painel === 'tele' ? <p className="text-sm text-slate-400">A teleconsulta abre no atendimento do horário marcado.</p> : null}
+        {painel === 'tele' ? (
+          <p className="text-sm text-slate-400">Gere o link e entre na sala pela tela do atendimento em andamento.</p>
+        ) : null}
       </div>
     </aside>
   );

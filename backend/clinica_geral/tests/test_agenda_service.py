@@ -1,7 +1,16 @@
 from datetime import date, time
 
 from clinica_geral.agenda_service import nome_usuario, parse_iso_date, parse_periodo, slots_livres
-from clinica_geral.tele_service import minutos_validos, url_sala_jitsi
+from clinica_geral.tele_service import (
+    base_frontend,
+    link_paciente,
+    mensagem_tele,
+    minutos_validos,
+    parse_token_publico,
+    sala_jitsi_nome,
+    token_publico,
+    url_sala_jitsi,
+)
 from clinica_geral.tiss_service import numerar_guia, numerar_lote
 
 
@@ -58,6 +67,16 @@ def test_nome_usuario_prioriza_nome_completo():
 
 def test_tele_helpers():
     assert url_sala_jitsi(7, 12) == "https://meet.jit.si/lwk-cg-7-12"
+    assert url_sala_jitsi(7, 12, "aabbccddeeff0011") == "https://meet.jit.si/lwk-cg-7-12-aabbccddeeff"
+    assert sala_jitsi_nome("https://meet.jit.si/lwk-cg-7-12-aabb") == "lwk-cg-7-12-aabb"
+    assert parse_token_publico("7-aabbccddeeff00112233445566778899") == (7, "aabbccddeeff00112233445566778899")
+    assert parse_token_publico("invalido") is None
+    consulta = type("C", (), {"loja_id": 7, "tele_token": "aabbccddeeff0011"})()
+    assert token_publico(consulta) == "7-aabbccddeeff0011"
+    assert link_paciente(consulta, "https://beta.lwksistemas.com.br").endswith("/teleconsulta/7-aabbccddeeff0011")
+    assert base_frontend("https://beta.lwksistemas.com.br") == "https://beta.lwksistemas.com.br"
+    assert base_frontend("https://evil.example") != "https://evil.example"
+    assert "câmera" in mensagem_tele("CG beta", "https://x/teleconsulta/7-aa")
     assert minutos_validos("20") == 20
     assert minutos_validos("-3") == 0
     assert minutos_validos("x") == 0

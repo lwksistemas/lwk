@@ -62,6 +62,10 @@ _CLINICA_BELEZA_PUBLIC_PREFIXES = (
     "/api/clinica-beleza/termo-consentimento-pdf/",
 )
 
+_CLINICA_GERAL_PUBLIC_PREFIXES = (
+    "/api/clinica-geral/teleconsulta/",
+)
+
 
 _NFSE_PUBLIC_PREFIXES = (
     "/api/nfse/documento-pdf/",
@@ -215,6 +219,8 @@ class SecurityIsolationMiddleware:
             return None
         if self._is_clinica_beleza_public_path(path):
             return None
+        if self._is_clinica_geral_public_path(path):
+            return None
         if self._is_cabeleireiro_public_path(path):
             return None
         if self._is_nfse_public_path(path):
@@ -360,6 +366,10 @@ class SecurityIsolationMiddleware:
             return True
         # Recibo PDF temporário para Evolution (mesmo padrão do termo assinado)
         return bool(path.startswith("/api/clinica-beleza/payments/") and "/recibo-pdf/" in path)
+
+    @staticmethod
+    def _is_clinica_geral_public_path(path):
+        return any(path.startswith(prefix) for prefix in _CLINICA_GERAL_PUBLIC_PREFIXES)
 
     @staticmethod
     def _is_cabeleireiro_public_path(path):

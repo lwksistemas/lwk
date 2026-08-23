@@ -120,6 +120,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
     paciente_alergias = serializers.SerializerMethodField()
     paciente_foto_url = serializers.SerializerMethodField()
     minutos_espera = serializers.SerializerMethodField()
+    tele_link = serializers.SerializerMethodField()
 
     class Meta:
         model = Consulta
@@ -142,6 +143,8 @@ class ConsultaSerializer(serializers.ModelSerializer):
             "duracao_minutos",
             "valor",
             "tele_sala_url",
+            "tele_token",
+            "tele_link",
             "tele_minutos",
             "agendado_por",
             "minutos_espera",
@@ -157,6 +160,8 @@ class ConsultaSerializer(serializers.ModelSerializer):
             "paciente_alergias",
             "paciente_foto_url",
             "tele_sala_url",
+            "tele_token",
+            "tele_link",
             "minutos_espera",
             "agendado_por",
         )
@@ -198,6 +203,11 @@ class ConsultaSerializer(serializers.ModelSerializer):
         if agora <= inicio:
             return 0
         return int((agora - inicio).total_seconds() // 60)
+
+    def get_tele_link(self, obj):
+        from .tele_service import link_paciente
+
+        return link_paciente(obj) if getattr(obj, "tele_token", "") else ""
 
 
 class TarefaSerializer(serializers.ModelSerializer):

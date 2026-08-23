@@ -16,6 +16,7 @@ from .views import (
     ProntuarioPacienteView,
     RelatoriosView,
     TarefaViewSet,
+    TeleconsultaPublicaView,
 )
 
 router = DefaultRouter()
@@ -35,5 +36,6 @@ urlpatterns = [
     path("me/", MeView.as_view(), name="clinica-geral-me"),
     path("pacientes/<int:paciente_id>/prontuario/", ProntuarioPacienteView.as_view(), name="clinica-geral-prontuario"),
     path("evolucoes/<int:pk>/pdf/", EvolucaoPDFView.as_view(), name="clinica-geral-evolucao-pdf"),
+    path("teleconsulta/<path:token>/", TeleconsultaPublicaView.as_view(), name="clinica-geral-teleconsulta"),
     path("", include(router.urls)),
 ]

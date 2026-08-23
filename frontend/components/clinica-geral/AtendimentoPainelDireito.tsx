@@ -12,15 +12,33 @@ type Props = {
   consulta: Consulta;
   anexos: PacienteAnexo[];
   teleInfo: string;
-  onAbrirTele: () => void;
-  onRegistrarTele: () => void;
+  medicoNome: string;
+  emChamada: boolean;
+  enviandoTele: boolean;
+  onGerarTele: () => void;
+  onCopiarTele: () => void;
+  onEnviarTele: () => void;
+  onEntrarTele: () => void;
+  onSairTele: () => void;
 };
 
-export function AtendimentoPainelDireito({ consulta, anexos, teleInfo, onAbrirTele, onRegistrarTele }: Props) {
+export function AtendimentoPainelDireito({
+  consulta,
+  anexos,
+  teleInfo,
+  medicoNome,
+  emChamada,
+  enviandoTele,
+  onGerarTele,
+  onCopiarTele,
+  onEnviarTele,
+  onEntrarTele,
+  onSairTele,
+}: Props) {
   const [painel, setPainel] = useState<Painel>('tele');
 
   return (
-    <aside className="flex min-h-[420px] border-l border-slate-200 bg-white">
+    <aside className={`flex min-h-[420px] border-l border-slate-200 bg-white ${emChamada ? 'w-[420px] min-w-[320px]' : ''}`}>
       <div className="flex w-10 flex-col items-center gap-3 border-r border-slate-100 py-3 text-slate-400">
         <IconBtn ativo={painel === 'clinico'} title="Resumo clínico" onClick={() => setPainel('clinico')}>
           <BriefcaseMedical className="h-4 w-4" />
@@ -38,18 +56,25 @@ export function AtendimentoPainelDireito({ consulta, anexos, teleInfo, onAbrirTe
           <Video className="h-4 w-4" />
         </IconBtn>
       </div>
-      <div className="w-64 min-w-[220px] p-3">
+      <div className="w-64 min-w-[220px] flex-1 p-3">
         {painel === 'tele' ? (
           <>
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-bold tracking-wide text-slate-700">TELEMEDICINA</span>
               <ChevronRight className="h-4 w-4 text-slate-400" />
             </div>
-            {consulta.modalidade === 'tele' ? (
-              <PainelTele consulta={consulta} info={teleInfo} onAbrir={onAbrirTele} onRegistrar={onRegistrarTele} />
-            ) : (
-              <p className="text-sm text-slate-400">Esse paciente não possui nenhuma Teleconsulta agendada.</p>
-            )}
+            <PainelTele
+              consulta={consulta}
+              info={teleInfo}
+              medicoNome={medicoNome}
+              emChamada={emChamada}
+              enviando={enviandoTele}
+              onGerar={onGerarTele}
+              onCopiar={onCopiarTele}
+              onEnviar={onEnviarTele}
+              onEntrar={onEntrarTele}
+              onSair={onSairTele}
+            />
           </>
         ) : null}
         {painel === 'anexos' ? (

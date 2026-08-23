@@ -119,6 +119,7 @@ class Consulta(LojaIsolationMixin, models.Model):
     duracao_minutos = models.PositiveSmallIntegerField(default=15)
     valor = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     tele_sala_url = models.CharField(max_length=400, blank=True, default="")
+    tele_token = models.CharField(max_length=64, blank=True, default="", db_index=True)
     tele_minutos = models.PositiveIntegerField(default=0)
     agendado_por = models.CharField(max_length=120, blank=True, default="")
     observacoes = models.TextField(blank=True, default="")

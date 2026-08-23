@@ -16,7 +16,7 @@ from .agenda_service import (
 from .config_service import get_or_create_config
 from .models import Consulta
 from .serializers import ConsultaSerializer
-from .tele_service import CotaTeleEsgotada, abrir_sala, registrar_minutos
+from .tele_service import CotaTeleEsgotada, abrir_sala, enviar_link_whatsapp, registrar_minutos
 
 
 class ConsultaViewSet(BaseModelViewSet):
@@ -72,6 +72,27 @@ class ConsultaViewSet(BaseModelViewSet):
                 **ConsultaSerializer(consulta).data,
                 "tele_minutos_mes": usados,
                 "teto_tele_minutos": teto,
+            }
+        )
+
+    @action(detail=True, methods=["post"], url_path="enviar-tele")
+    def enviar_tele(self, request, pk=None):
+        ensure_loja_context(request)
+        consulta = self.get_object()
+        try:
+            consulta, usados, teto = abrir_sala(consulta, get_or_create_config().teto_tele_minutos)
+        except CotaTeleEsgotada as exc:
+            return Response({"detail": str(exc)}, status=400)
+        origem = (request.data or {}).get("frontend_base") or request.headers.get("Origin")
+        ok, err = enviar_link_whatsapp(consulta, user=request.user, frontend_base=origem)
+        if not ok:
+            return Response({"detail": err or "Não foi possível enviar o WhatsApp."}, status=400)
+        return Response(
+            {
+                **ConsultaSerializer(consulta).data,
+                "tele_minutos_mes": usados,
+                "teto_tele_minutos": teto,
+                "enviado": True,
             }
         )
 

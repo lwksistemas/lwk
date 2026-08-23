@@ -158,6 +158,13 @@ export async function abrirTele(id: number) {
   return res.data as Consulta & { tele_minutos_mes?: number; teto_tele_minutos?: number };
 }
 
+export async function enviarTele(id: number, frontendBase?: string) {
+  const res = await apiClient.post(`/clinica-geral/consultas/${id}/enviar-tele/`, {
+    frontend_base: frontendBase || (typeof window !== 'undefined' ? window.location.origin : ''),
+  });
+  return res.data as Consulta & { tele_minutos_mes?: number; teto_tele_minutos?: number; enviado?: boolean };
+}
+
 export async function registrarTele(id: number, minutos: number) {
   const res = await apiClient.post(`/clinica-geral/consultas/${id}/registrar-tele/`, { minutos });
   return res.data as Consulta;

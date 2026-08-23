@@ -35,7 +35,7 @@ describe('isTipoClinicaGeral', () => {
   it('não mistura recursos com relatórios', () => {
     const recursos = RECURSOS_MENU.map((r) => r.label);
     const relatorios = RELATORIOS_MENU.map((r) => r.label);
-    expect(recursos).toEqual(['configurações', 'whatsapp', 'assinatura', 'faturamento', 'lotes TISS']);
+    expect(recursos).toEqual(['faturamento', 'lotes TISS']);
     expect(recursos.some((label) => relatorios.includes(label))).toBe(false);
   });
 

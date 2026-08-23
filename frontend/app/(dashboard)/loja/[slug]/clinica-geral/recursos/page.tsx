@@ -9,8 +9,8 @@ export default function ClinicaGeralRecursosPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace(`/loja/${slug}/clinica-geral/configuracoes`);
+    router.replace(`/loja/${slug}/clinica-geral/faturamento`);
   }, [router, slug]);
 
-  return <p className="p-6 text-sm text-slate-500">Abrindo configurações...</p>;
+  return <p className="p-6 text-sm text-slate-500">Abrindo faturamento...</p>;
 }

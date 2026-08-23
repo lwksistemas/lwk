@@ -57,12 +57,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
   const active = useMemo(() => {
     if (pathname.includes('/pacientes')) return 'pacientes';
     if (pathname.includes('/relatorios')) return 'relatorios';
-    if (
-      pathname.includes('/recursos') ||
-      pathname.includes('/configuracoes') ||
-      pathname.includes('/tiss') ||
-      pathname.includes('/faturamento')
-    ) {
+    if (pathname.includes('/recursos') || pathname.includes('/tiss') || pathname.includes('/faturamento')) {
       return 'recursos';
     }
     return 'agenda';

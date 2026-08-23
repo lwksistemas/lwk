@@ -7,11 +7,13 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   rows?: number;
+  onVerAnteriores?: () => void;
+  onConfigurar?: () => void;
 };
 
-export function AtendimentoTexto({ titulo, value, onChange, rows = 10 }: Props) {
+export function AtendimentoTexto({ titulo, value, onChange, rows = 10, onVerAnteriores, onConfigurar }: Props) {
   return (
-    <SecaoTeal titulo={titulo}>
+    <SecaoTeal titulo={titulo} onVerAnteriores={onVerAnteriores} onConfigurar={onConfigurar}>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}

@@ -192,6 +192,57 @@ export function formatTimer(segundos: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+export function resumoAbaFicha(aba: AbaAtendimento, ficha: FichaAtendimento): string[] {
+  const f = mergeFicha(ficha);
+  if (aba === 'HMA') {
+    return [...f.queixas.map((q) => [q.nome, q.duracao].filter(Boolean).join(' — ')), f.historia_doenca].filter(Boolean);
+  }
+  if (aba === 'TrA') return f.tratamentos.map((t) => t.nome).filter(Boolean);
+  if (aba === 'AP') {
+    return [
+      ...f.antecedentes_clinicos.map((i) => i.nome),
+      ...f.antecedentes_cirurgicos.map((i) => `${i.nome} (cirúrgico)`),
+    ].filter(Boolean);
+  }
+  if (aba === 'EF') {
+    const e = f.exame;
+    return [
+      e.peso && `Peso ${e.peso} kg`,
+      e.altura && `Altura ${e.altura} cm`,
+      e.imc && `IMC ${e.imc}`,
+      e.aspecto_geral,
+    ].filter((v): v is string => Boolean(v));
+  }
+  if (aba === 'TA') return [f.terapeutica].filter(Boolean);
+  if (aba === 'DIAG') return [f.diagnostico].filter(Boolean);
+  if (aba === 'ENC') return [f.encaminhamento].filter(Boolean);
+  if (aba === 'SP') return [f.sumario].filter(Boolean);
+  if (aba === 'AM') return [f.atestado].filter(Boolean);
+  return [];
+}
+
+export function isAnexoImagem(nome: string, url = ''): boolean {
+  return /\.(jpe?g|png|gif|webp|bmp|heic)$/i.test(nome || url.split('?')[0]);
+}
+
+const ESCALAS_OCULTAS_KEY = 'clinica-geral-escalas-ocultas';
+
+export function lerEscalasOcultas(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(ESCALAS_OCULTAS_KEY);
+    const lista = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(lista) ? lista.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function gravarEscalasOcultas(nomes: string[]): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(ESCALAS_OCULTAS_KEY, JSON.stringify(nomes));
+}
+
 export type LinhaResumoClinico = {
   texto: string;
   data: string;

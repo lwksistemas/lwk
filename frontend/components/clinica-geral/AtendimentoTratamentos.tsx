@@ -8,11 +8,13 @@ import type { FichaAtendimento } from '@/lib/clinica-geral-types';
 type Props = {
   ficha: FichaAtendimento;
   onChange: (patch: Partial<FichaAtendimento>) => void;
+  onVerAnteriores?: () => void;
+  onConfigurar?: () => void;
 };
 
-export function AtendimentoTratamentos({ ficha, onChange }: Props) {
+export function AtendimentoTratamentos({ ficha, onChange, onVerAnteriores, onConfigurar }: Props) {
   return (
-    <SecaoTeal titulo="Tratamentos em andamento">
+    <SecaoTeal titulo="Tratamentos em andamento" onVerAnteriores={onVerAnteriores} onConfigurar={onConfigurar}>
       <NuvemTags
         opcoes={MEDICAMENTOS}
         selecionados={ficha.tratamentos.map((t) => t.nome)}

@@ -31,9 +31,11 @@ const QUALI: { key: keyof ExameFisicoFicha; label: string }[] = [
 type Props = {
   ficha: FichaAtendimento;
   onChange: (patch: Partial<FichaAtendimento>) => void;
+  onVerAnteriores?: () => void;
+  onConfigurar?: () => void;
 };
 
-export function AtendimentoExameFisico({ ficha, onChange }: Props) {
+export function AtendimentoExameFisico({ ficha, onChange, onVerAnteriores, onConfigurar }: Props) {
   const set = (patch: Partial<ExameFisicoFicha>) => {
     const exame = { ...ficha.exame, ...patch };
     if (patch.peso !== undefined || patch.altura !== undefined) {
@@ -44,7 +46,7 @@ export function AtendimentoExameFisico({ ficha, onChange }: Props) {
   };
 
   return (
-    <SecaoTeal titulo="Exame físico">
+    <SecaoTeal titulo="Exame físico" onVerAnteriores={onVerAnteriores} onConfigurar={onConfigurar}>
       <div className="grid gap-3 sm:grid-cols-3">
         {VITAIS.map((c) => (
           <label key={c.key} className="text-sm">

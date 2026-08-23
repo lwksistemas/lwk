@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calcIMC, calcSC, coletarCirurgias, coletarDiagnosticos, emptyFicha, fichaParaSoap, formatTimer, mergeFicha, toggleItem } from '@/lib/clinica-geral-atendimento';
+import { calcIMC, calcSC, coletarCirurgias, coletarDiagnosticos, emptyFicha, fichaParaSoap, formatTimer, isAnexoImagem, mergeFicha, resumoAbaFicha, toggleItem } from '@/lib/clinica-geral-atendimento';
 
 describe('clinica-geral-atendimento', () => {
   it('calcula IMC, SC e o cronômetro', () => {
@@ -55,5 +55,14 @@ describe('clinica-geral-atendimento', () => {
     expect(coletarCirurgias([
       { ficha: { ...emptyFicha(), antecedentes_cirurgicos: [{ nome: 'Apendicectomia' }] } } as never,
     ])).toEqual(['Apendicectomia']);
+  });
+
+  it('resume a aba HMA e reconhece foto em anexo', () => {
+    expect(resumoAbaFicha('HMA', mergeFicha({ queixas: [{ nome: 'Cefaléia', duracao: 'Até 24h' }], historia_doenca: 'Dor há 1 dia' }))).toEqual([
+      'Cefaléia — Até 24h',
+      'Dor há 1 dia',
+    ]);
+    expect(isAnexoImagem('raio-x.jpg')).toBe(true);
+    expect(isAnexoImagem('laudo.pdf')).toBe(false);
   });
 });

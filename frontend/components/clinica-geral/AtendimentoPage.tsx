@@ -4,12 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Clock, Info, Printer } from 'lucide-react';
 import { AtendimentoAntecedentes } from '@/components/clinica-geral/AtendimentoAntecedentes';
+import { AtendimentoAnteriores } from '@/components/clinica-geral/AtendimentoAnteriores';
+import { AtendimentoConfigSecao } from '@/components/clinica-geral/AtendimentoConfigSecao';
 import { AtendimentoEscalas } from '@/components/clinica-geral/AtendimentoEscalas';
 import { AtendimentoExameFisico } from '@/components/clinica-geral/AtendimentoExameFisico';
 import { AtendimentoHma } from '@/components/clinica-geral/AtendimentoHma';
 import { AtendimentoPainelDireito } from '@/components/clinica-geral/AtendimentoPainelDireito';
 import { AtendimentoTexto } from '@/components/clinica-geral/AtendimentoTexto';
 import { AtendimentoTratamentos } from '@/components/clinica-geral/AtendimentoTratamentos';
+import { SecaoTeal } from '@/components/clinica-geral/AtendimentoWidgets';
 import { ProntuarioExames } from '@/components/clinica-geral/ProntuarioExames';
 import { ProntuarioFotoPerfil } from '@/components/clinica-geral/ProntuarioFotoPerfil';
 import { EMPTY_ITEM, ReceitaForm } from '@/components/clinica-geral/ReceitaForm';
@@ -31,7 +34,9 @@ import {
   getConsulta,
   getEvolucaoDaConsulta,
   getPaciente,
+  getProntuario,
   listAnexosPaciente,
+  listConsultasPaciente,
   listPrescricoes,
   openPdf,
   receitaPdfUrl,
@@ -75,6 +80,10 @@ export function AtendimentoPage() {
   const [enviandoTele, setEnviandoTele] = useState(false);
   const [segundos, setSegundos] = useState(0);
   const [msg, setMsg] = useState('');
+  const [historico, setHistorico] = useState<Evolucao[]>([]);
+  const [consultasPaciente, setConsultasPaciente] = useState<Consulta[]>([]);
+  const [modal, setModal] = useState<'anteriores' | 'config' | null>(null);
+  const [escalasVersao, setEscalasVersao] = useState(0);
   const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -87,15 +96,19 @@ export function AtendimentoPage() {
       if (achada.status === 'agendado' || achada.status === 'confirmado') {
         setConsulta(await updateConsultaStatus(achada.id, 'recepcionado'));
       }
-      const [ev, docs, fichaPaciente, config] = await Promise.all([
+      const [ev, docs, fichaPaciente, config, prontuario, agenda] = await Promise.all([
         getEvolucaoDaConsulta(id),
         listAnexosPaciente(achada.paciente),
         getPaciente(achada.paciente),
         getConfiguracao().catch(() => ({ medico_nome: '' })),
+        getProntuario(achada.paciente),
+        listConsultasPaciente(achada.paciente),
       ]);
       setMedicoNome(config.medico_nome || '');
       setPaciente({ ...emptyPaciente(), ...fichaPaciente });
       setAnexos(docs);
+      setHistorico(prontuario.evolucoes);
+      setConsultasPaciente(agenda);
       if (ev) {
         setEvolucao(ev);
         setFicha(mergeFicha(ev.ficha));
@@ -138,6 +151,10 @@ export function AtendimentoPage() {
   if (!consulta || !paciente) return <p className="p-6 text-sm text-slate-500">Carregando atendimento...</p>;
 
   const titulo = ABAS_ATENDIMENTO.find((a) => a.id === aba)?.titulo || aba;
+  const acoesSecao = {
+    onVerAnteriores: () => setModal('anteriores'),
+    onConfigurar: () => setModal('config'),
+  };
 
   return (
     <div className="flex min-h-full flex-col bg-white">
@@ -215,15 +232,20 @@ export function AtendimentoPage() {
         </nav>
 
         <div className="min-w-0 flex-1 overflow-auto p-4">
-          {aba === 'HMA' ? <AtendimentoHma ficha={ficha} onChange={patchFicha} /> : null}
-          {aba === 'TrA' ? <AtendimentoTratamentos ficha={ficha} onChange={patchFicha} /> : null}
-          {aba === 'AP' ? <AtendimentoAntecedentes ficha={ficha} onChange={patchFicha} /> : null}
-          {aba === 'EF' ? <AtendimentoExameFisico ficha={ficha} onChange={patchFicha} /> : null}
-          {aba === 'EM' ? <AtendimentoEscalas /> : null}
-          {aba === 'TA' ? <AtendimentoTexto titulo={titulo} value={ficha.terapeutica} onChange={(terapeutica) => patchFicha({ terapeutica })} /> : null}
-          {aba === 'DIAG' ? <AtendimentoTexto titulo={titulo} value={ficha.diagnostico} onChange={(diagnostico) => patchFicha({ diagnostico })} /> : null}
-          {aba === 'Lx' ? <ProntuarioExames /> : null}
+          {aba === 'HMA' ? <AtendimentoHma ficha={ficha} onChange={patchFicha} {...acoesSecao} /> : null}
+          {aba === 'TrA' ? <AtendimentoTratamentos ficha={ficha} onChange={patchFicha} {...acoesSecao} /> : null}
+          {aba === 'AP' ? <AtendimentoAntecedentes ficha={ficha} onChange={patchFicha} {...acoesSecao} /> : null}
+          {aba === 'EF' ? <AtendimentoExameFisico ficha={ficha} onChange={patchFicha} {...acoesSecao} /> : null}
+          {aba === 'EM' ? <AtendimentoEscalas versao={escalasVersao} {...acoesSecao} /> : null}
+          {aba === 'TA' ? <AtendimentoTexto titulo={titulo} value={ficha.terapeutica} onChange={(terapeutica) => patchFicha({ terapeutica })} {...acoesSecao} /> : null}
+          {aba === 'DIAG' ? <AtendimentoTexto titulo={titulo} value={ficha.diagnostico} onChange={(diagnostico) => patchFicha({ diagnostico })} {...acoesSecao} /> : null}
+          {aba === 'Lx' ? (
+            <SecaoTeal titulo={titulo} {...acoesSecao}>
+              <ProntuarioExames />
+            </SecaoTeal>
+          ) : null}
           {aba === 'Rx' ? (
+            <SecaoTeal titulo={titulo} {...acoesSecao}>
             <div className="space-y-4">
               <ReceitaForm
                 alergias={consulta.paciente_alergias}
@@ -253,10 +275,11 @@ export function AtendimentoPage() {
                 }}
               />
             </div>
+            </SecaoTeal>
           ) : null}
-          {aba === 'ENC' ? <AtendimentoTexto titulo={titulo} value={ficha.encaminhamento} onChange={(encaminhamento) => patchFicha({ encaminhamento })} /> : null}
-          {aba === 'SP' ? <AtendimentoTexto titulo={titulo} value={ficha.sumario} onChange={(sumario) => patchFicha({ sumario })} /> : null}
-          {aba === 'AM' ? <AtendimentoTexto titulo={titulo} value={ficha.atestado} onChange={(atestado) => patchFicha({ atestado })} /> : null}
+          {aba === 'ENC' ? <AtendimentoTexto titulo={titulo} value={ficha.encaminhamento} onChange={(encaminhamento) => patchFicha({ encaminhamento })} {...acoesSecao} /> : null}
+          {aba === 'SP' ? <AtendimentoTexto titulo={titulo} value={ficha.sumario} onChange={(sumario) => patchFicha({ sumario })} {...acoesSecao} /> : null}
+          {aba === 'AM' ? <AtendimentoTexto titulo={titulo} value={ficha.atestado} onChange={(atestado) => patchFicha({ atestado })} {...acoesSecao} /> : null}
         </div>
 
         <AtendimentoPainelDireito
@@ -318,6 +341,25 @@ export function AtendimentoPage() {
           onSairTele={() => setEmChamada(false)}
         />
       </div>
+      {modal === 'anteriores' ? (
+        <AtendimentoAnteriores
+          aba={aba}
+          titulo={titulo}
+          consultaId={consulta.id}
+          evolucoes={historico}
+          consultas={consultasPaciente}
+          onClose={() => setModal(null)}
+        />
+      ) : null}
+      {modal === 'config' ? (
+        <AtendimentoConfigSecao
+          aba={aba}
+          titulo={titulo}
+          anexos={anexos}
+          onEscalasChange={() => setEscalasVersao((n) => n + 1)}
+          onClose={() => setModal(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -7,11 +7,13 @@ import type { FichaAtendimento } from '@/lib/clinica-geral-types';
 type Props = {
   ficha: FichaAtendimento;
   onChange: (patch: Partial<FichaAtendimento>) => void;
+  onVerAnteriores?: () => void;
+  onConfigurar?: () => void;
 };
 
-export function AtendimentoHma({ ficha, onChange }: Props) {
+export function AtendimentoHma({ ficha, onChange, onVerAnteriores, onConfigurar }: Props) {
   return (
-    <SecaoTeal titulo="História e motivo do atendimento">
+    <SecaoTeal titulo="História e motivo do atendimento" onVerAnteriores={onVerAnteriores} onConfigurar={onConfigurar}>
       <div>
         <p className="mb-2 text-sm font-medium text-slate-700">Queixa principal e duração</p>
         <NuvemTags

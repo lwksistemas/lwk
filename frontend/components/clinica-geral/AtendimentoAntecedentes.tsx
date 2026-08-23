@@ -7,6 +7,8 @@ import type { FichaAtendimento, ItemFicha } from '@/lib/clinica-geral-types';
 type Props = {
   ficha: FichaAtendimento;
   onChange: (patch: Partial<FichaAtendimento>) => void;
+  onVerAnteriores?: () => void;
+  onConfigurar?: () => void;
 };
 
 function Bloco({
@@ -42,9 +44,9 @@ function Bloco({
   );
 }
 
-export function AtendimentoAntecedentes({ ficha, onChange }: Props) {
+export function AtendimentoAntecedentes({ ficha, onChange, onVerAnteriores, onConfigurar }: Props) {
   return (
-    <SecaoTeal titulo="Antecedentes pessoais">
+    <SecaoTeal titulo="Antecedentes pessoais" onVerAnteriores={onVerAnteriores} onConfigurar={onConfigurar}>
       <Bloco
         titulo="Antecedentes clínicos"
         opcoes={ANTECEDENTES_CLINICOS}

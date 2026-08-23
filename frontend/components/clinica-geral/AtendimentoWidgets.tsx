@@ -5,12 +5,33 @@ import { Settings, X } from 'lucide-react';
 import { TEAL } from '@/lib/clinica-geral-theme';
 import type { ItemFicha } from '@/lib/clinica-geral-types';
 
-export function SecaoTeal({ titulo, children }: { titulo: string; children: ReactNode }) {
+export function SecaoTeal({
+  titulo,
+  onVerAnteriores,
+  onConfigurar,
+  children,
+}: {
+  titulo: string;
+  onVerAnteriores?: () => void;
+  onConfigurar?: () => void;
+  children: ReactNode;
+}) {
   return (
     <section className="overflow-hidden rounded-md border border-slate-200 bg-white">
-      <div className="flex items-center justify-between px-4 py-2 text-white" style={{ backgroundColor: TEAL }}>
+      <div className="flex items-center justify-between gap-3 px-4 py-2 text-white" style={{ backgroundColor: TEAL }}>
         <h2 className="text-sm font-semibold">{titulo}</h2>
-        <Settings className="h-4 w-4 opacity-80" />
+        <div className="flex items-center gap-3">
+          {onVerAnteriores ? (
+            <button type="button" onClick={onVerAnteriores} className="text-xs font-medium underline-offset-2 hover:underline">
+              Ver anteriores
+            </button>
+          ) : null}
+          {onConfigurar ? (
+            <button type="button" onClick={onConfigurar} title="Configurações e fotos" aria-label="Configurações da seção">
+              <Settings className="h-4 w-4 opacity-90" />
+            </button>
+          ) : null}
+        </div>
       </div>
       <div className="space-y-4 p-4">{children}</div>
     </section>

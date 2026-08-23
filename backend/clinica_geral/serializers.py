@@ -118,6 +118,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
     paciente_idade = serializers.SerializerMethodField()
     paciente_prontuario = serializers.SerializerMethodField()
     paciente_alergias = serializers.SerializerMethodField()
+    paciente_foto_url = serializers.SerializerMethodField()
     minutos_espera = serializers.SerializerMethodField()
 
     class Meta:
@@ -131,6 +132,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
             "paciente_idade",
             "paciente_prontuario",
             "paciente_alergias",
+            "paciente_foto_url",
             "data",
             "hora",
             "tipo",
@@ -153,6 +155,7 @@ class ConsultaSerializer(serializers.ModelSerializer):
             "paciente_idade",
             "paciente_prontuario",
             "paciente_alergias",
+            "paciente_foto_url",
             "tele_sala_url",
             "minutos_espera",
             "agendado_por",
@@ -175,6 +178,9 @@ class ConsultaSerializer(serializers.ModelSerializer):
 
     def get_paciente_alergias(self, obj):
         return obj.paciente.alergias or ""
+
+    def get_paciente_foto_url(self, obj):
+        return obj.paciente.foto_url or ""
 
     def get_paciente_idade(self, obj):
         nasc = obj.paciente.data_nascimento

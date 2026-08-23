@@ -80,6 +80,7 @@ export interface Consulta {
   paciente_idade: number | null;
   paciente_prontuario: string;
   paciente_alergias: string;
+  paciente_foto_url?: string;
   data: string;
   hora: string;
   tipo: TipoConsulta;
@@ -276,7 +277,7 @@ export interface DiaHorariosLivres {
 
 export const TIPO_CONSULTA_LABEL: Record<TipoConsulta, string> = {
   consulta: 'Consulta',
-  primeira: 'Primeira consulta',
+  primeira: 'Primeira Consulta',
   retorno: 'Retorno',
 };
 

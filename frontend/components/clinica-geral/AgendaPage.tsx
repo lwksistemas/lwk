@@ -2,17 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Clock, Printer, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Printer, User } from 'lucide-react';
 import { AgendamentoRapido } from '@/components/clinica-geral/AgendamentoRapido';
 import { RecepcionarModal } from '@/components/clinica-geral/RecepcionarModal';
 import { ResumoAgendamento } from '@/components/clinica-geral/ResumoAgendamento';
 import { getConfiguracao, getPaciente, listConsultas, listHorariosLivres } from '@/lib/clinica-geral-api';
-import { TEAL } from '@/lib/clinica-geral-theme';
+import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
 import type { Consulta, DiaHorariosLivres, PacienteLista } from '@/lib/clinica-geral-types';
 import { STATUS_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
 import {
   addDays,
-  cardTone,
   formatHora,
   formatLivreHeading,
   formatLongDate,
@@ -102,7 +101,8 @@ export function AgendaPage() {
           <button
             type="button"
             onClick={() => setData(hoje)}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+            disabled={data === hoje}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:cursor-default disabled:opacity-40"
           >
             Ir para hoje
           </button>
@@ -127,47 +127,71 @@ export function AgendaPage() {
             <div>
               {slots.map((slot, i) => {
                 const consulta = porHora.get(slot);
-                const tom = consulta ? cardTone(consulta.status) : null;
                 return (
-                  <button
+                  <div
                     key={slot}
-                    type="button"
-                    title={consulta ? STATUS_LABEL[consulta.status] : `Agendar às ${slot}`}
-                    onClick={() => (consulta ? setResumo(consulta) : setSlotAberto(slot))}
-                    className={`flex w-full items-stretch border-b border-slate-100 text-left ${
+                    className={`flex w-full items-stretch border-b border-slate-100 ${
                       i % 2 === 0 ? 'bg-[#F4F6FB]' : 'bg-white'
                     }`}
                   >
                     <span className="w-16 shrink-0 px-3 py-2.5 text-xs text-slate-400">{slot}</span>
-                    <span className="min-h-[44px] flex-1 px-2 py-1">
-                      {consulta && tom && (
-                        <span
-                          className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm text-slate-800"
-                          style={{ backgroundColor: tom.bg, borderColor: tom.border }}
+                    <div className="min-h-[52px] flex-1 px-2 py-1">
+                      {consulta ? (
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          title={STATUS_LABEL[consulta.status]}
+                          onClick={() => setResumo(consulta)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') setResumo(consulta);
+                          }}
+                          className="flex items-center gap-2 overflow-hidden rounded-md border border-slate-200 bg-white text-left text-sm text-slate-800"
                         >
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/70">
-                            <User className="h-3.5 w-3.5 text-slate-500" />
+                          <span className="h-full w-1.5 self-stretch" style={{ backgroundColor: NAVY }} />
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200">
+                            {consulta.paciente_foto_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={consulta.paciente_foto_url} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <User className="h-4 w-4 text-slate-400" />
+                            )}
                           </span>
-                          <span className="font-medium">{consulta.paciente_nome}</span>
-                          {consulta.paciente_idade != null && (
-                            <span className="text-xs text-slate-600">{consulta.paciente_idade}a</span>
-                          )}
-                          {consulta.paciente_alergias ? (
-                            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                              alergia
+                          <span className="min-w-0 flex-1 py-2">
+                            <span className="font-semibold">{consulta.paciente_nome}</span>
+                            {consulta.paciente_idade != null ? (
+                              <span className="ml-2 text-xs text-slate-500">{consulta.paciente_idade}a</span>
+                            ) : null}
+                            {consulta.paciente_alergias ? (
+                              <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                alergia
+                              </span>
+                            ) : null}
+                            <span className="ml-2 text-slate-500">
+                              {TIPO_CONSULTA_LABEL[consulta.tipo]} | {consulta.convenio || 'PARTICULAR'}
                             </span>
-                          ) : null}
-                          <span className="text-slate-600">
-                            {TIPO_CONSULTA_LABEL[consulta.tipo]} | {consulta.convenio || 'PARTICULAR'}
                           </span>
-                          <span className="ml-auto flex items-center gap-1 text-xs text-slate-600">
-                            <Clock className="h-3.5 w-3.5" />
-                            {consulta.minutos_espera ?? 0} min
-                          </span>
-                        </span>
+                          <button
+                            type="button"
+                            className="mr-2 shrink-0 rounded-md border bg-white px-3 py-1.5 text-xs font-medium"
+                            style={{ borderColor: NAVY, color: NAVY }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/loja/${slug}/clinica-geral/pacientes/${consulta.paciente}/prontuario`);
+                            }}
+                          >
+                            Ver Prontuário
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          title={`Agendar às ${slot}`}
+                          onClick={() => setSlotAberto(slot)}
+                          className="h-full min-h-[44px] w-full"
+                        />
                       )}
-                    </span>
-                  </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>

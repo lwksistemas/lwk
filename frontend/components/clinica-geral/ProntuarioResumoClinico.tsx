@@ -2,8 +2,10 @@
 
 import { useState, type ReactNode } from 'react';
 import { BriefcaseMedical, ChevronRight, ClipboardList, MessageCircle, Paperclip, Video } from 'lucide-react';
+import { coletarCirurgias, coletarDiagnosticos, coletarTratamentos } from '@/lib/clinica-geral-atendimento';
 import { TEAL } from '@/lib/clinica-geral-theme';
-import type { Evolucao, Paciente, PacienteAnexo, Prescricao } from '@/lib/clinica-geral-types';
+import type { Consulta, Evolucao, Paciente, PacienteAnexo, Prescricao } from '@/lib/clinica-geral-types';
+import { formatMesAnoCurto, formatRelativo } from '@/lib/clinica-geral-utils';
 
 const ABAS = [
   { id: 'DIAG', label: 'DIAG' },
@@ -18,25 +20,27 @@ type Painel = 'clinico' | 'evolucoes' | 'anexos' | 'chat' | 'tele';
 
 type ProntuarioResumoClinicoProps = {
   paciente: Paciente;
+  consultas: Consulta[];
   evolucoes: Evolucao[];
   prescricoes: Prescricao[];
   anexos: PacienteAnexo[];
 };
 
-export function ProntuarioResumoClinico({ paciente, evolucoes, prescricoes, anexos }: ProntuarioResumoClinicoProps) {
+export function ProntuarioResumoClinico({
+  paciente,
+  consultas,
+  evolucoes,
+  prescricoes,
+  anexos,
+}: ProntuarioResumoClinicoProps) {
   const [aba, setAba] = useState<(typeof ABAS)[number]['id']>('DIAG');
   const [painel, setPainel] = useState<Painel>('clinico');
   const [aberto, setAberto] = useState(true);
 
-  const diagnosticos = evolucoes.map((e) => e.avaliacao).filter(Boolean);
-  const tratamentos = [
-    ...evolucoes.map((e) => e.plano).filter(Boolean),
-    ...prescricoes.flatMap((p) => p.itens.map((i) => i.medicamento).filter(Boolean)),
-  ];
+  const diagnosticos = coletarDiagnosticos(evolucoes, consultas);
+  const tratamentos = coletarTratamentos(evolucoes, prescricoes);
   const alergias = paciente.alergias.trim() ? [paciente.alergias] : [];
-
-  const itens =
-    aba === 'DIAG' ? diagnosticos : aba === 'TRAT' ? tratamentos : aba === 'ALEG' ? alergias : [];
+  const cirurgias = coletarCirurgias(evolucoes);
 
   return (
     <aside className="flex min-h-[420px] border-l border-slate-200 bg-white">
@@ -58,7 +62,7 @@ export function ProntuarioResumoClinico({ paciente, evolucoes, prescricoes, anex
         </IconBtn>
       </div>
 
-      <div className="w-64 min-w-[220px] p-3">
+      <div className="w-[300px] min-w-[240px] p-3">
         {painel === 'clinico' ? (
           <>
             <button type="button" onClick={() => setAberto((v) => !v)} className="mb-3 flex w-full items-center justify-between text-left">
@@ -73,23 +77,23 @@ export function ProntuarioResumoClinico({ paciente, evolucoes, prescricoes, anex
                       key={item.id}
                       type="button"
                       onClick={() => setAba(item.id)}
-                      className={`pb-0.5 ${aba === item.id ? 'font-semibold' : 'text-slate-400'}`}
+                      className={`inline-flex items-center gap-1 pb-0.5 ${aba === item.id ? 'font-semibold' : 'text-slate-400'}`}
                       style={aba === item.id ? { boxShadow: `inset 0 -2px 0 ${TEAL}`, color: TEAL } : undefined}
                     >
                       {item.label}
+                      {item.id === 'DIAG' && diagnosticos.length > 0 ? (
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                      ) : null}
                     </button>
                   ))}
                 </div>
-                {itens.length === 0 ? (
-                  <p className="text-sm text-slate-400">Ainda não há informações</p>
+                {aba === 'DIAG' ? (
+                  <TabelaDiag linhas={diagnosticos} />
                 ) : (
-                  <ul className="space-y-2 text-sm text-slate-700">
-                    {itens.map((texto, i) => (
-                      <li key={`${aba}-${i}`} className="rounded-md bg-slate-50 px-2 py-1.5">
-                        {texto}
-                      </li>
-                    ))}
-                  </ul>
+                  <ListaSimples
+                    vazio="Ainda não há informações"
+                    itens={aba === 'TRAT' ? tratamentos : aba === 'ALEG' ? alergias : aba === 'CIR' ? cirurgias : []}
+                  />
                 )}
               </>
             ) : null}
@@ -97,7 +101,11 @@ export function ProntuarioResumoClinico({ paciente, evolucoes, prescricoes, anex
         ) : null}
 
         {painel === 'evolucoes' ? (
-          <ListaSimples titulo="Evoluções" vazio="Nenhuma evolução." itens={evolucoes.map((e) => e.avaliacao || e.subjetivo || `Consulta #${e.consulta}`)} />
+          <ListaSimples
+            titulo="Evoluções"
+            vazio="Nenhuma evolução."
+            itens={evolucoes.map((e) => e.avaliacao || e.subjetivo || `Consulta #${e.consulta}`)}
+          />
         ) : null}
         {painel === 'anexos' ? (
           <div>
@@ -121,6 +129,34 @@ export function ProntuarioResumoClinico({ paciente, evolucoes, prescricoes, anex
         {painel === 'tele' ? <p className="text-sm text-slate-400">A teleconsulta abre no atendimento do horário marcado.</p> : null}
       </div>
     </aside>
+  );
+}
+
+function TabelaDiag({ linhas }: { linhas: { texto: string; data: string; hora?: string }[] }) {
+  if (linhas.length === 0) {
+    return <p className="text-sm text-slate-400">Ainda não há informações</p>;
+  }
+  return (
+    <div>
+      <div className="mb-1 grid grid-cols-[1fr_auto] gap-2 text-[11px] text-slate-400">
+        <span>Diagnósticos</span>
+        <span>Data</span>
+      </div>
+      <ul className="space-y-2">
+        {linhas.map((linha) => (
+          <li key={`${linha.texto}-${linha.data}`} className="grid grid-cols-[1fr_auto] items-start gap-2 text-sm">
+            <span className="line-clamp-2 text-slate-700">{linha.texto}</span>
+            {linha.data ? (
+              <span className="whitespace-nowrap text-[11px] text-slate-500">
+                {formatMesAnoCurto(linha.data)} ({formatRelativo(linha.data, linha.hora)})
+              </span>
+            ) : (
+              <span />
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -148,14 +184,14 @@ function IconBtn({
   );
 }
 
-function ListaSimples({ titulo, vazio, itens }: { titulo: string; vazio: string; itens: string[] }) {
+function ListaSimples({ titulo, vazio, itens }: { titulo?: string; vazio: string; itens: string[] }) {
   return (
     <div>
-      <p className="mb-2 text-xs font-bold tracking-wide text-slate-700">{titulo.toUpperCase()}</p>
+      {titulo ? <p className="mb-2 text-xs font-bold tracking-wide text-slate-700">{titulo.toUpperCase()}</p> : null}
       {itens.length === 0 ? <p className="text-sm text-slate-400">{vazio}</p> : (
         <ul className="space-y-2 text-sm text-slate-700">
           {itens.map((texto, i) => (
-            <li key={`${titulo}-${i}`}>{texto}</li>
+            <li key={`${titulo || 'item'}-${i}`}>{texto}</li>
           ))}
         </ul>
       )}

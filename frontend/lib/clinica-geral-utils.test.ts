@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, alertaAlergia, cardTone, daysFromToday, displayName, formatAgeYearsMonths, formatBRL, formatDateBR, formatDaysOffset, formatEndereco, formatHora, formatLivreHeading, formatNascimentoIdade, formatProntuarioSubtitulo, minutosTeleRestantes, monthRange, slotTimes, slotTimesFromConfig, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
+import { addDays, alertaAlergia, cardTone, daysFromToday, displayName, formatAgeYearsMonths, formatBRL, formatDateBR, formatDataExtenso, formatDaysOffset, formatEndereco, formatHora, formatLivreHeading, formatMesAnoCurto, formatNascimentoIdade, formatProntuarioSubtitulo, formatRelativo, minutosTeleRestantes, monthRange, slotTimes, slotTimesFromConfig, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
 
 describe('clinica-geral-utils', () => {
   it('formata nome social como na ficha', () => {
@@ -60,6 +60,13 @@ describe('clinica-geral-utils', () => {
       uf: 'SP',
       cep: '01402-000',
     })).toBe('Avenida Brigadeiro Luis Antônio 2696\nSão Paulo SP 01402-000');
+  });
+
+  it('formata data relativa do resumo clínico', () => {
+    const agora = new Date(2026, 7, 23, 18, 50, 0);
+    expect(formatMesAnoCurto('2026-08-23')).toBe('Ago/26');
+    expect(formatDataExtenso('2026-08-23')).toBe('23 de agosto de 2026');
+    expect(formatRelativo('2026-08-23', '18:25', agora)).toBe('Há 25 Minutos');
   });
 
   it('monta o atalho de horários livres e o WhatsApp', () => {

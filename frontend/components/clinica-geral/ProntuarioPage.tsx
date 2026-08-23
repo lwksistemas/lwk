@@ -7,30 +7,30 @@ import { ProntuarioExames } from '@/components/clinica-geral/ProntuarioExames';
 import { ProntuarioFotoPerfil } from '@/components/clinica-geral/ProntuarioFotoPerfil';
 import { ProntuarioResumoClinico } from '@/components/clinica-geral/ProntuarioResumoClinico';
 import { EMPTY_ITEM, ReceitaForm } from '@/components/clinica-geral/ReceitaForm';
+import { ProntuarioResumoAtendimento } from '@/components/clinica-geral/ProntuarioResumoAtendimento';
 import {
   createConsulta,
   createPrescricao,
   evolucaoPdfUrl,
+  getConfiguracao,
   getProntuario,
   listAnexosPaciente,
   listConsultasPaciente,
   openPdf,
   receitaPdfUrl,
+  updateConsultaStatus,
   updatePaciente,
 } from '@/lib/clinica-geral-api';
 import { TEAL } from '@/lib/clinica-geral-theme';
 import {
   emptyPaciente,
-  STATUS_LABEL,
-  TIPO_CONSULTA_LABEL,
   type Consulta,
-  type Evolucao,
   type Paciente,
   type PacienteAnexo,
   type Prescricao,
   type PrescricaoItem,
 } from '@/lib/clinica-geral-types';
-import { displayName, formatDateBR, formatHora, formatProntuarioSubtitulo, toISODate } from '@/lib/clinica-geral-utils';
+import { displayName, formatProntuarioSubtitulo, toISODate } from '@/lib/clinica-geral-utils';
 
 type AbaProntuario = 'resumo' | 'exames';
 
@@ -50,16 +50,23 @@ export function ProntuarioPage() {
   const [prescrever, setPrescrever] = useState(false);
   const [itens, setItens] = useState<PrescricaoItem[]>([{ ...EMPTY_ITEM }]);
   const [erro, setErro] = useState('');
+  const [medicoNome, setMedicoNome] = useState('');
 
   useEffect(() => {
     if (!id) return;
-    void Promise.all([getProntuario(id), listConsultasPaciente(id), listAnexosPaciente(id)])
-      .then(([prontuario, agenda, docs]) => {
+    void Promise.all([
+      getProntuario(id),
+      listConsultasPaciente(id),
+      listAnexosPaciente(id),
+      getConfiguracao().catch(() => ({ medico_nome: '' })),
+    ])
+      .then(([prontuario, agenda, docs, config]) => {
         setPaciente({ ...emptyPaciente(), ...prontuario.paciente });
         setEvolucoes(prontuario.evolucoes);
         setPrescricoes(prontuario.prescricoes);
         setConsultas(agenda);
         setAnexos(docs);
+        setMedicoNome(config.medico_nome || '');
       })
       .catch(() => setErro('Não foi possível carregar o prontuário.'));
   }, [id]);
@@ -93,8 +100,8 @@ export function ProntuarioPage() {
   };
 
   return (
-    <div className="flex min-h-full flex-col bg-white">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
+    <div className="flex min-h-full flex-col bg-slate-50">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-5 py-4">
         <div className="flex min-w-0 items-center gap-4">
           <ProntuarioFotoPerfil
             paciente={paciente}
@@ -167,44 +174,24 @@ export function ProntuarioPage() {
             {consultasOrdenadas.length === 0 && evolucoes.length === 0 ? (
               <p className="pt-16 text-center text-slate-400">Este paciente não possui atendimentos</p>
             ) : (
-              <ul className="space-y-3">
-                {consultasOrdenadas.map((c) => {
-                  const ev = evolucoes.find((e) => e.consulta === c.id);
-                  return (
-                    <li key={c.id}>
-                      <button
-                        type="button"
-                        onClick={() => router.push(`${base}/consultas/${c.id}`)}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-left hover:border-teal-400"
-                      >
-                        <p className="text-sm font-medium text-slate-800">
-                          {formatDateBR(c.data)} {formatHora(c.hora)} · {TIPO_CONSULTA_LABEL[c.tipo]} · {STATUS_LABEL[c.status]}
-                        </p>
-                        {ev ? (
-                          <p className="mt-1 line-clamp-2 text-sm text-slate-500">
-                            {ev.avaliacao || ev.subjetivo || ev.plano || 'Atendimento registrado'}
-                          </p>
-                        ) : (
-                          <p className="mt-1 text-sm text-slate-400">Sem evolução</p>
-                        )}
-                        {ev ? (
-                          <span
-                            role="link"
-                            className="mt-2 inline-block text-xs"
-                            style={{ color: TEAL }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void openPdf(evolucaoPdfUrl(ev.id));
-                            }}
-                          >
-                            Abrir PDF
-                          </span>
-                        ) : null}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ProntuarioResumoAtendimento
+                consultas={consultas}
+                evolucoes={evolucoes}
+                medicoNome={medicoNome}
+                onReabrir={async (consulta) => {
+                  try {
+                    if (consulta.status === 'atendido' || consulta.status === 'faltou') {
+                      await updateConsultaStatus(consulta.id, 'recepcionado');
+                    }
+                    router.push(`${base}/consultas/${consulta.id}`);
+                  } catch {
+                    setErro('Não foi possível reabrir o atendimento.');
+                  }
+                }}
+                onImprimir={(ev) => {
+                  if (ev) void openPdf(evolucaoPdfUrl(ev.id));
+                }}
+              />
             )}
           </section>
         ) : (
@@ -213,6 +200,7 @@ export function ProntuarioPage() {
 
         <ProntuarioResumoClinico
           paciente={paciente}
+          consultas={consultas}
           evolucoes={evolucoes}
           prescricoes={prescricoes}
           anexos={anexos}

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { CalendarX, Check, Clock, MessageCircle, Pencil, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cancelarConsulta, checkinConsulta, listHorariosLivres, updateConsulta, updateConsultaStatus } from '@/lib/clinica-geral-api';
+import { NAVY } from '@/lib/clinica-geral-theme';
 import type { Consulta, DiaHorariosLivres, StatusConsulta } from '@/lib/clinica-geral-types';
 import { MODALIDADE_LABEL, STATUS_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
 import { formatHora, formatShortDate, whatsappHref } from '@/lib/clinica-geral-utils';
@@ -81,7 +82,18 @@ export function ResumoAgendamento({ consulta, slug, onClose, onChanged, onRecepc
           <p className="capitalize text-slate-500">
             {formatShortDate(consulta.data)} às {formatHora(consulta.hora)}
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-md border bg-white px-3 py-1.5 text-xs font-medium"
+              style={{ borderColor: NAVY, color: NAVY }}
+              onClick={() => {
+                onClose();
+                router.push(`/loja/${slug}/clinica-geral/pacientes/${consulta.paciente}/prontuario`);
+              }}
+            >
+              Ver Prontuário
+            </button>
             <a
               href={`/loja/${slug}/clinica-geral/pacientes/${consulta.paciente}`}
               className="rounded border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calcIMC, calcSC, emptyFicha, fichaParaSoap, formatTimer, mergeFicha, toggleItem } from '@/lib/clinica-geral-atendimento';
+import { calcIMC, calcSC, coletarCirurgias, coletarDiagnosticos, emptyFicha, fichaParaSoap, formatTimer, mergeFicha, toggleItem } from '@/lib/clinica-geral-atendimento';
 
 describe('clinica-geral-atendimento', () => {
   it('calcula IMC, SC e o cronômetro', () => {
@@ -24,5 +24,36 @@ describe('clinica-geral-atendimento', () => {
     expect(soap.subjetivo).toContain('Cefaléia');
     expect(soap.avaliacao).toBe('Cefaleia tensional');
     expect(soap.plano).toContain('Dipirona');
+  });
+
+  it('monta o DIAG do resumo clínico com diagnóstico atual e antigo', () => {
+    const rows = coletarDiagnosticos(
+      [
+        {
+          id: 1,
+          consulta: 10,
+          paciente: 3,
+          especialidade: '',
+          subjetivo: '',
+          objetivo: '',
+          avaliacao: '',
+          plano: '',
+          ficha: {
+            ...emptyFicha(),
+            diagnostico: 'N18 - Insuficiência renal crônica',
+            antecedentes_clinicos: [{ nome: 'Depressão' }],
+            antecedentes_cirurgicos: [{ nome: 'Apendicectomia' }],
+          },
+        },
+      ],
+      [{ id: 10, data: '2026-08-23', hora: '18:25' } as never],
+    );
+    expect(rows.map((r) => r.texto)).toEqual([
+      'N18 - Insuficiência renal crônica',
+      'Depressão (Diagnóstico antigo)',
+    ]);
+    expect(coletarCirurgias([
+      { ficha: { ...emptyFicha(), antecedentes_cirurgicos: [{ nome: 'Apendicectomia' }] } } as never,
+    ])).toEqual(['Apendicectomia']);
   });
 });

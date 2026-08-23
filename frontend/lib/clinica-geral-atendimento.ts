@@ -1,4 +1,4 @@
-import type { ExameFisicoFicha, FichaAtendimento, ItemFicha } from '@/lib/clinica-geral-types';
+import type { Consulta, Evolucao, ExameFisicoFicha, FichaAtendimento, ItemFicha, Prescricao } from '@/lib/clinica-geral-types';
 
 export const ABAS_ATENDIMENTO = [
   { id: 'HMA', label: 'HMA', titulo: 'História e motivo do atendimento' },
@@ -190,4 +190,74 @@ export function formatTimer(segundos: number): string {
   const m = Math.floor(Math.max(0, segundos) / 60);
   const s = Math.max(0, segundos) % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+export type LinhaResumoClinico = {
+  texto: string;
+  data: string;
+  hora?: string;
+};
+
+function dataHoraConsulta(consultaId: number, consultas: Consulta[], fallback?: string): { data: string; hora?: string } {
+  const c = consultas.find((x) => x.id === consultaId);
+  return { data: c?.data || fallback?.slice(0, 10) || '', hora: c?.hora };
+}
+
+export function coletarDiagnosticos(evolucoes: Evolucao[], consultas: Consulta[]): LinhaResumoClinico[] {
+  const rows: LinhaResumoClinico[] = [];
+  const seen = new Set<string>();
+  for (const e of evolucoes) {
+    const { data, hora } = dataHoraConsulta(e.consulta, consultas, e.updated_at);
+    const ficha = mergeFicha(e.ficha);
+    const atual = (ficha.diagnostico || e.avaliacao || '').trim();
+    if (atual) {
+      const key = atual.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        rows.push({ texto: atual, data, hora });
+      }
+    }
+    for (const a of ficha.antecedentes_clinicos) {
+      const texto = `${a.nome} (Diagnóstico antigo)`;
+      const key = texto.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push({ texto, data, hora });
+    }
+  }
+  return rows;
+}
+
+export function coletarCirurgias(evolucoes: Evolucao[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const e of evolucoes) {
+    for (const i of mergeFicha(e.ficha).antecedentes_cirurgicos) {
+      if (seen.has(i.nome)) continue;
+      seen.add(i.nome);
+      out.push(i.nome);
+    }
+  }
+  return out;
+}
+
+export function coletarTratamentos(evolucoes: Evolucao[], prescricoes: Prescricao[]): string[] {
+  const textos = [
+    ...evolucoes.flatMap((e) => {
+      const ficha = mergeFicha(e.ficha);
+      return [...ficha.tratamentos.map((t) => t.nome), e.plano, ficha.terapeutica];
+    }),
+    ...prescricoes.flatMap((p) => p.itens.map((i) => i.medicamento)),
+  ];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of textos) {
+    const texto = (raw || '').trim();
+    if (!texto) continue;
+    const key = texto.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(texto);
+  }
+  return out;
 }

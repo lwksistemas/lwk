@@ -202,6 +202,32 @@ export function writeSidebarHidden(hidden: boolean): void {
   window.localStorage.setItem(SIDEBAR_HIDDEN_KEY, hidden ? '1' : '0');
 }
 
+export function formatMesAnoCurto(iso: string): string {
+  const d = parseISODate(iso);
+  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  return `${meses[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
+}
+
+export function formatDataExtenso(iso: string): string {
+  const d = parseISODate(iso);
+  return `${d.getDate()} de ${MONTHS[d.getMonth()].toLowerCase()} de ${d.getFullYear()}`;
+}
+
+export function formatRelativo(iso: string, hora?: string, now = new Date()): string {
+  const d = parseISODate(iso);
+  if (hora) {
+    const hm = parseHHMM(hora);
+    d.setHours(hm.h, hm.m, 0, 0);
+  }
+  const min = Math.round((now.getTime() - d.getTime()) / 60000);
+  if (min < 1) return 'Agora';
+  if (min < 60) return `Há ${min} Minuto${min === 1 ? '' : 's'}`;
+  const horas = Math.round(min / 60);
+  if (horas < 24) return `Há ${horas} hora${horas === 1 ? '' : 's'}`;
+  const dias = Math.round(horas / 24);
+  return `Há ${dias} dia${dias === 1 ? '' : 's'}`;
+}
+
 export function formatLivreHeading(iso: string, hoje: string): string {
   const d = parseISODate(iso);
   const dd = String(d.getDate()).padStart(2, '0');

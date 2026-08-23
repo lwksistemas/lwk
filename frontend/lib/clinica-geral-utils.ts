@@ -101,6 +101,21 @@ export function formatAgeYearsMonths(iso: string | null | undefined, today = new
   return `${yLabel} e ${mLabel}`;
 }
 
+export function formatProntuarioSubtitulo(p: {
+  data_nascimento?: string | null;
+  estado_civil?: string;
+  cidade?: string;
+  uf?: string;
+}, today = new Date()): string {
+  const partes: string[] = [];
+  const idade = formatAgeYearsMonths(p.data_nascimento, today);
+  if (idade) partes.push(idade);
+  if (p.estado_civil?.trim()) partes.push(p.estado_civil.trim());
+  const local = [p.cidade, p.uf].filter((s) => (s || '').trim()).join(' - ');
+  if (local) partes.push(local);
+  return partes.join('. ');
+}
+
 export function formatNascimentoIdade(iso: string | null | undefined, today = new Date()): string {
   if (!iso) return '';
   const idade = formatAgeYearsMonths(iso, today);

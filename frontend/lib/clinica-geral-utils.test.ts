@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, alertaAlergia, cardTone, daysFromToday, displayName, formatAgeYearsMonths, formatBRL, formatDateBR, formatDaysOffset, formatEndereco, formatHora, formatLivreHeading, formatNascimentoIdade, minutosTeleRestantes, monthRange, slotTimes, slotTimesFromConfig, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
+import { addDays, alertaAlergia, cardTone, daysFromToday, displayName, formatAgeYearsMonths, formatBRL, formatDateBR, formatDaysOffset, formatEndereco, formatHora, formatLivreHeading, formatNascimentoIdade, formatProntuarioSubtitulo, minutosTeleRestantes, monthRange, slotTimes, slotTimesFromConfig, toISODate, whatsappHref } from '@/lib/clinica-geral-utils';
 
 describe('clinica-geral-utils', () => {
   it('formata nome social como na ficha', () => {
@@ -39,6 +39,12 @@ describe('clinica-geral-utils', () => {
     expect(formatDateBR('1984-02-20')).toBe('20/02/1984');
     expect(formatAgeYearsMonths('1984-02-20', hoje)).toBe('42 anos e 6 meses');
     expect(formatNascimentoIdade('1984-02-20', hoje)).toBe('20/02/1984 (42 anos e 6 meses)');
+    expect(formatProntuarioSubtitulo({
+      data_nascimento: '1984-02-20',
+      estado_civil: 'Solteiro(a)',
+      cidade: 'São Paulo',
+      uf: 'SP',
+    }, hoje)).toBe('42 anos e 6 meses. Solteiro(a). São Paulo - SP');
     expect(formatAgeYearsMonths('2025-08-23', hoje)).toBe('1 ano');
     expect(formatAgeYearsMonths('2026-02-23', hoje)).toBe('6 meses');
   });

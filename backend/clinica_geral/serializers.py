@@ -239,6 +239,7 @@ class EvolucaoSerializer(serializers.ModelSerializer):
             "objetivo",
             "avaliacao",
             "plano",
+            "ficha",
             "updated_at",
         )
         read_only_fields = ("id", "updated_at")

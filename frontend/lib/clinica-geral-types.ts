@@ -166,6 +166,53 @@ export interface RelatorioResposta {
   >;
 }
 
+export interface ItemFicha {
+  nome: string;
+  status?: string;
+  duracao?: string;
+  nota?: string;
+}
+
+export interface ExameFisicoFicha {
+  peso: string;
+  altura: string;
+  sc: string;
+  temperatura: string;
+  imc: string;
+  circ_abdominal: string;
+  pas_sentado: string;
+  pad_sentado: string;
+  pas_deitado: string;
+  pad_deitado: string;
+  aspecto_geral: string;
+  mucosas: string;
+  olhos_face: string;
+  pescoco: string;
+  cardiorespiratorio: string;
+  pele: string;
+  abdome_superior: string;
+  abdome_inferior: string;
+  osteomuscular: string;
+  membros: string;
+  neurologico: string;
+  outras: string;
+}
+
+export interface FichaAtendimento {
+  queixas: ItemFicha[];
+  historia_doenca: string;
+  tratamentos: ItemFicha[];
+  antecedentes_clinicos: ItemFicha[];
+  antecedentes_cirurgicos: ItemFicha[];
+  exame: ExameFisicoFicha;
+  diagnostico: string;
+  terapeutica: string;
+  encaminhamento: string;
+  laudos: string;
+  sumario: string;
+  atestado: string;
+}
+
 export interface Evolucao {
   id: number;
   consulta: number;
@@ -175,6 +222,7 @@ export interface Evolucao {
   objetivo: string;
   avaliacao: string;
   plano: string;
+  ficha?: FichaAtendimento;
   updated_at?: string;
 }
 

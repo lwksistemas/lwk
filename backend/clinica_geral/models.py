@@ -178,6 +178,7 @@ class Evolucao(LojaIsolationMixin, models.Model):
     objetivo = models.TextField(blank=True, default="")
     avaliacao = models.TextField(blank=True, default="")
     plano = models.TextField(blank=True, default="")
+    ficha = models.JSONField(blank=True, default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

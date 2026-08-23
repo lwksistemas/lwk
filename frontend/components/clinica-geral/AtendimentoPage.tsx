@@ -1,11 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { EvolucaoForm } from '@/components/clinica-geral/EvolucaoForm';
-import { PainelTele } from '@/components/clinica-geral/PainelTele';
+import { Clock, Info, Printer } from 'lucide-react';
+import { AtendimentoAntecedentes } from '@/components/clinica-geral/AtendimentoAntecedentes';
+import { AtendimentoEscalas } from '@/components/clinica-geral/AtendimentoEscalas';
+import { AtendimentoExameFisico } from '@/components/clinica-geral/AtendimentoExameFisico';
+import { AtendimentoHma } from '@/components/clinica-geral/AtendimentoHma';
+import { AtendimentoPainelDireito } from '@/components/clinica-geral/AtendimentoPainelDireito';
+import { AtendimentoTexto } from '@/components/clinica-geral/AtendimentoTexto';
+import { AtendimentoTratamentos } from '@/components/clinica-geral/AtendimentoTratamentos';
+import { ProntuarioExames } from '@/components/clinica-geral/ProntuarioExames';
+import { ProntuarioFotoPerfil } from '@/components/clinica-geral/ProntuarioFotoPerfil';
 import { EMPTY_ITEM, ReceitaForm } from '@/components/clinica-geral/ReceitaForm';
 import { ValorTissForm } from '@/components/clinica-geral/ValorTissForm';
+import {
+  ABAS_ATENDIMENTO,
+  fichaParaSoap,
+  formatTimer,
+  mergeFicha,
+  type AbaAtendimento,
+} from '@/lib/clinica-geral-atendimento';
 import {
   abrirTele,
   createGuiaTiss,
@@ -13,6 +28,8 @@ import {
   evolucaoPdfUrl,
   getConsulta,
   getEvolucaoDaConsulta,
+  getPaciente,
+  listAnexosPaciente,
   listPrescricoes,
   openPdf,
   receitaPdfUrl,
@@ -20,29 +37,41 @@ import {
   saveEvolucao,
   updateConsulta,
   updateConsultaStatus,
+  updatePaciente,
 } from '@/lib/clinica-geral-api';
 import { TEAL } from '@/lib/clinica-geral-theme';
-import type { Consulta, Evolucao, Prescricao, PrescricaoItem } from '@/lib/clinica-geral-types';
-import { formatBRL, formatHora, minutosTeleRestantes } from '@/lib/clinica-geral-utils';
+import {
+  emptyPaciente,
+  type Consulta,
+  type Evolucao,
+  type FichaAtendimento,
+  type Paciente,
+  type PacienteAnexo,
+  type Prescricao,
+  type PrescricaoItem,
+} from '@/lib/clinica-geral-types';
+import { displayName, formatBRL, formatProntuarioSubtitulo, minutosTeleRestantes } from '@/lib/clinica-geral-utils';
 
 export function AtendimentoPage() {
   const params = useParams();
   const slug = params.slug as string;
   const id = Number(params.id);
   const router = useRouter();
+  const base = `/loja/${slug}/clinica-geral`;
+
   const [consulta, setConsulta] = useState<Consulta | null>(null);
-  const [evolucao, setEvolucao] = useState<Partial<Evolucao>>({
-    subjetivo: '',
-    objetivo: '',
-    avaliacao: '',
-    plano: '',
-    especialidade: '',
-  });
+  const [paciente, setPaciente] = useState<Paciente | null>(null);
+  const [evolucao, setEvolucao] = useState<Partial<Evolucao>>({});
+  const [ficha, setFicha] = useState<FichaAtendimento>(mergeFicha());
+  const [aba, setAba] = useState<AbaAtendimento>('HMA');
   const [itens, setItens] = useState<PrescricaoItem[]>([{ ...EMPTY_ITEM }]);
   const [prescricoes, setPrescricoes] = useState<Prescricao[]>([]);
+  const [anexos, setAnexos] = useState<PacienteAnexo[]>([]);
   const [valor, setValor] = useState('');
-  const [msg, setMsg] = useState('');
   const [teleInfo, setTeleInfo] = useState('');
+  const [segundos, setSegundos] = useState(0);
+  const [msg, setMsg] = useState('');
+  const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -51,115 +80,196 @@ export function AtendimentoPage() {
       if (!achada) return;
       setConsulta(achada);
       setValor(achada.valor || '');
-      const ev = await getEvolucaoDaConsulta(id);
-      if (ev) setEvolucao(ev);
+      if (achada.status === 'agendado' || achada.status === 'confirmado') {
+        setConsulta(await updateConsultaStatus(achada.id, 'recepcionado'));
+      }
+      const [ev, docs, fichaPaciente] = await Promise.all([
+        getEvolucaoDaConsulta(id),
+        listAnexosPaciente(achada.paciente),
+        getPaciente(achada.paciente),
+      ]);
+      setPaciente({ ...emptyPaciente(), ...fichaPaciente });
+      setAnexos(docs);
+      if (ev) {
+        setEvolucao(ev);
+        setFicha(mergeFicha(ev.ficha));
+      }
       setPrescricoes(await listPrescricoes(id));
     })();
   }, [id]);
 
-  if (!consulta) return <p className="p-6 text-sm text-slate-500">Carregando atendimento...</p>;
+  useEffect(() => {
+    const t = window.setInterval(() => setSegundos((s) => s + 1), 1000);
+    return () => window.clearInterval(t);
+  }, []);
 
-  const alergias = consulta.paciente_alergias || '';
-
-  const salvarEvolucao = async () => {
+  const persistir = async (proxima = ficha) => {
+    if (!consulta) return;
+    const soap = fichaParaSoap(proxima);
     const saved = await saveEvolucao({
       id: evolucao.id,
       consulta: consulta.id,
       paciente: consulta.paciente,
       especialidade: evolucao.especialidade || '',
-      subjetivo: evolucao.subjetivo || '',
-      objetivo: evolucao.objetivo || '',
-      avaliacao: evolucao.avaliacao || '',
-      plano: evolucao.plano || '',
+      ...soap,
+      ficha: proxima,
     });
     setEvolucao(saved);
-    setMsg('Evolução salva.');
+    return saved;
   };
 
-  const emitirReceita = async () => {
-    const limpos = itens.filter((i) => i.medicamento.trim());
-    if (!limpos.length) {
-      setMsg('Informe ao menos um medicamento.');
-      return;
-    }
-    const presc = await createPrescricao(consulta.id, consulta.paciente, limpos);
-    setPrescricoes((p) => [presc, ...p]);
-    setItens([{ ...EMPTY_ITEM }]);
-    setMsg(presc.itens.some((i) => i.alerta_alergia) ? 'Receita salva com alerta de alergia.' : 'Receita emitida.');
+  const patchFicha = (patch: Partial<FichaAtendimento>) => {
+    setFicha((atual) => {
+      const proxima = { ...atual, ...patch };
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+      saveTimer.current = window.setTimeout(() => {
+        void persistir(proxima);
+      }, 700);
+      return proxima;
+    });
   };
+
+  if (!consulta || !paciente) return <p className="p-6 text-sm text-slate-500">Carregando atendimento...</p>;
+
+  const titulo = ABAS_ATENDIMENTO.find((a) => a.id === aba)?.titulo || aba;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-800">{consulta.paciente_nome}</h1>
-          <p className="text-sm text-slate-500">
-            {consulta.data} {formatHora(consulta.hora)} · {consulta.convenio}
-          </p>
+    <div className="flex min-h-full flex-col bg-white">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-5 py-3">
+        <div className="flex min-w-0 items-center gap-4">
+          <ProntuarioFotoPerfil
+            paciente={paciente}
+            onChange={async (url) => {
+              const atualizado = await updatePaciente(paciente.id, { foto_url: url });
+              setPaciente({ ...emptyPaciente(), ...atualizado });
+            }}
+          />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-lg font-semibold text-slate-800">
+                {displayName(paciente.nome, paciente.nome_social) || consulta.paciente_nome}
+              </h1>
+              <button type="button" title="Ficha" className="text-slate-400" onClick={() => router.push(`${base}/pacientes/${paciente.id}`)}>
+                <Info className="h-4 w-4" />
+              </button>
+              <button type="button" title="Prontuário" className="text-slate-400" onClick={() => router.push(`${base}/pacientes/${paciente.id}/prontuario`)}>
+                <Clock className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500">{formatProntuarioSubtitulo(paciente) || '—'}</p>
+          </div>
         </div>
-        <button type="button" onClick={() => router.push(`/loja/${slug}/clinica-geral/agenda?data=${consulta.data}`)} className="text-sm text-teal-700">
-          Voltar à agenda
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-1 text-sm tabular-nums text-slate-600">
+            <Clock className="h-4 w-4" />
+            {formatTimer(segundos)}
+          </span>
+          <button
+            type="button"
+            className="text-slate-400"
+            title="Imprimir evolução"
+            onClick={() => evolucao.id && void openPdf(evolucaoPdfUrl(evolucao.id))}
+          >
+            <Printer className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              await persistir();
+              await updateConsultaStatus(consulta.id, 'atendido');
+              router.push(`${base}/pacientes/${paciente.id}/prontuario`);
+            }}
+            className="rounded-md border bg-white px-4 py-2 text-sm font-medium"
+            style={{ borderColor: TEAL, color: TEAL }}
+          >
+            Finalizar atendimento
+          </button>
+        </div>
+      </header>
+
+      {consulta.paciente_alergias ? (
+        <p className="bg-red-50 px-5 py-2 text-sm text-red-700">Alergias: {consulta.paciente_alergias}</p>
+      ) : null}
+      {msg ? <p className="px-5 py-2 text-sm" style={{ color: TEAL }}>{msg}</p> : null}
+
+      <div className="flex min-h-0 flex-1">
+        <nav className="flex w-14 shrink-0 flex-col gap-1 bg-slate-100 py-2">
+          {ABAS_ATENDIMENTO.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              title={item.titulo}
+              onClick={() => setAba(item.id)}
+              className={`mx-1 rounded px-1 py-2 text-center text-[11px] font-semibold ${aba === item.id ? 'text-white' : 'text-slate-600 hover:bg-white'}`}
+              style={aba === item.id ? { backgroundColor: TEAL } : undefined}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="min-w-0 flex-1 overflow-auto p-4">
+          {aba === 'HMA' ? <AtendimentoHma ficha={ficha} onChange={patchFicha} /> : null}
+          {aba === 'TrA' ? <AtendimentoTratamentos ficha={ficha} onChange={patchFicha} /> : null}
+          {aba === 'AP' ? <AtendimentoAntecedentes ficha={ficha} onChange={patchFicha} /> : null}
+          {aba === 'EF' ? <AtendimentoExameFisico ficha={ficha} onChange={patchFicha} /> : null}
+          {aba === 'EM' ? <AtendimentoEscalas /> : null}
+          {aba === 'TA' ? <AtendimentoTexto titulo={titulo} value={ficha.terapeutica} onChange={(terapeutica) => patchFicha({ terapeutica })} /> : null}
+          {aba === 'DIAG' ? <AtendimentoTexto titulo={titulo} value={ficha.diagnostico} onChange={(diagnostico) => patchFicha({ diagnostico })} /> : null}
+          {aba === 'Lx' ? <ProntuarioExames /> : null}
+          {aba === 'Rx' ? (
+            <div className="space-y-4">
+              <ReceitaForm
+                alergias={consulta.paciente_alergias}
+                itens={itens}
+                prescricoes={prescricoes}
+                onItensChange={setItens}
+                onEmitir={async () => {
+                  const limpos = itens.filter((i) => i.medicamento.trim());
+                  if (!limpos.length) return;
+                  const presc = await createPrescricao(consulta.id, consulta.paciente, limpos);
+                  setPrescricoes((p) => [presc, ...p]);
+                  setItens([{ ...EMPTY_ITEM }]);
+                  setMsg(presc.itens.some((i) => i.alerta_alergia) ? 'Receita salva com alerta de alergia.' : 'Receita emitida.');
+                }}
+                onAbrirPdf={(prescId) => void openPdf(receitaPdfUrl(prescId))}
+              />
+              <ValorTissForm
+                valor={valor}
+                onValorChange={setValor}
+                onSalvarValor={async () => {
+                  setConsulta(await updateConsulta(consulta.id, { valor }));
+                  setMsg(`Valor ${formatBRL(valor)} salvo.`);
+                }}
+                onGerarGuia={async () => {
+                  const guia = await createGuiaTiss(consulta.id, null, valor || consulta.valor);
+                  setMsg(`Guia ${guia.numero_guia} gerada.`);
+                }}
+              />
+            </div>
+          ) : null}
+          {aba === 'ENC' ? <AtendimentoTexto titulo={titulo} value={ficha.encaminhamento} onChange={(encaminhamento) => patchFicha({ encaminhamento })} /> : null}
+          {aba === 'SP' ? <AtendimentoTexto titulo={titulo} value={ficha.sumario} onChange={(sumario) => patchFicha({ sumario })} /> : null}
+          {aba === 'AM' ? <AtendimentoTexto titulo={titulo} value={ficha.atestado} onChange={(atestado) => patchFicha({ atestado })} /> : null}
+        </div>
+
+        <AtendimentoPainelDireito
+          consulta={consulta}
+          anexos={anexos}
+          teleInfo={teleInfo}
+          onAbrirTele={async () => {
+            const r = await abrirTele(consulta.id);
+            setConsulta(r);
+            setTeleInfo(`Restam ${minutosTeleRestantes(r.tele_minutos_mes || 0, r.teto_tele_minutos || 600)} min neste mês.`);
+            if (r.tele_sala_url) window.open(r.tele_sala_url, '_blank');
+          }}
+          onRegistrarTele={async () => {
+            const r = await registrarTele(consulta.id, consulta.duracao_minutos || 15);
+            setConsulta(r);
+            setTeleInfo(`+${consulta.duracao_minutos || 15} min registrados.`);
+          }}
+        />
       </div>
-
-      {alergias ? <p className="rounded-md bg-red-50 px-4 py-2 text-sm font-medium text-red-700">Alergias: {alergias}</p> : null}
-      {msg ? <p className="text-sm text-teal-700">{msg}</p> : null}
-
-      <EvolucaoForm
-        evolucao={evolucao}
-        onChange={(patch) => setEvolucao((ev) => ({ ...ev, ...patch }))}
-        onSave={() => void salvarEvolucao()}
-        onPdf={evolucao.id ? () => void openPdf(evolucaoPdfUrl(evolucao.id!)) : undefined}
-      />
-      <ReceitaForm
-        alergias={alergias}
-        itens={itens}
-        prescricoes={prescricoes}
-        onItensChange={setItens}
-        onEmitir={() => void emitirReceita()}
-        onAbrirPdf={(prescId) => void openPdf(receitaPdfUrl(prescId))}
-      />
-      <ValorTissForm
-        valor={valor}
-        onValorChange={setValor}
-        onSalvarValor={async () => {
-          const saved = await updateConsulta(consulta.id, { valor });
-          setConsulta(saved);
-          setMsg(`Valor ${formatBRL(valor)} salvo.`);
-        }}
-        onGerarGuia={async () => {
-          const guia = await createGuiaTiss(consulta.id, null, valor || consulta.valor);
-          setMsg(`Guia ${guia.numero_guia} gerada.`);
-        }}
-      />
-      <PainelTele
-        consulta={consulta}
-        info={teleInfo}
-        onAbrir={async () => {
-          const r = await abrirTele(consulta.id);
-          setConsulta(r);
-          setTeleInfo(`Restam ${minutosTeleRestantes(r.tele_minutos_mes || 0, r.teto_tele_minutos || 600)} min neste mês.`);
-          if (r.tele_sala_url) window.open(r.tele_sala_url, '_blank');
-        }}
-        onRegistrar={async () => {
-          const r = await registrarTele(consulta.id, consulta.duracao_minutos || 15);
-          setConsulta(r);
-          setTeleInfo(`+${consulta.duracao_minutos || 15} min registrados.`);
-        }}
-      />
-
-      <button
-        type="button"
-        onClick={async () => {
-          await salvarEvolucao();
-          await updateConsultaStatus(consulta.id, 'atendido');
-          router.push(`/loja/${slug}/clinica-geral/agenda?data=${consulta.data}`);
-        }}
-        className="w-full rounded-xl py-3 font-semibold text-white"
-        style={{ backgroundColor: TEAL }}
-      >
-        Encerrar atendimento
-      </button>
     </div>
   );
 }

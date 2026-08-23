@@ -54,6 +54,8 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
     });
   };
 
+  const hideAgendaSidebar = pathname.includes('/prontuario') || pathname.includes('/consultas/');
+
   const active = useMemo(() => {
     if (pathname.includes('/pacientes')) return 'pacientes';
     if (pathname.includes('/relatorios')) return 'relatorios';
@@ -153,7 +155,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
       </header>
 
       <div className="flex min-h-0 flex-1">
-        {!sidebarHidden && (
+        {!sidebarHidden && !hideAgendaSidebar && (
           <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
             <div className="p-4">
               {active === 'agenda' && (
@@ -175,7 +177,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
           </aside>
         )}
 
-        {sidebarHidden && (
+        {sidebarHidden && !hideAgendaSidebar && (
           <div className="hidden w-8 shrink-0 flex-col items-center border-r border-slate-200 bg-slate-50 pt-3 lg:flex">
             <button
               type="button"

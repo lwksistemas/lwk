@@ -6,18 +6,16 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import { Bell, LayoutGrid, Search } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
 import { MiniCalendario } from '@/components/clinica-geral/MiniCalendario';
+import { ClinicaGeralNavMenus } from '@/components/clinica-geral/ClinicaGeralNavMenus';
 import { ClinicaGeralUserMenu } from '@/components/clinica-geral/ClinicaGeralUserMenu';
 import { TarefasDoDia } from '@/components/clinica-geral/TarefasDoDia';
 import { getUsuarioConsultorio } from '@/lib/clinica-geral-api';
 import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
-import { RELATORIOS_MENU, RECURSOS_MENU } from '@/lib/clinica-geral-types';
 import { readSidebarHidden, toISODate, writeSidebarHidden } from '@/lib/clinica-geral-utils';
 
 const NAV = [
   { id: 'agenda', label: 'agenda', suffix: 'agenda' },
   { id: 'pacientes', label: 'pacientes', suffix: 'pacientes' },
-  { id: 'relatorios', label: 'relatórios', suffix: 'relatorios' },
-  { id: 'recursos', label: 'recursos', suffix: 'recursos' },
 ] as const;
 
 type ClinicaGeralShellProps = {
@@ -36,8 +34,6 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [busca, setBusca] = useState('');
   const [menuUser, setMenuUser] = useState(false);
-  const [menuRelatorios, setMenuRelatorios] = useState(false);
-  const [menuRecursos, setMenuRecursos] = useState(false);
   const [usuario, setUsuario] = useState({ nome: loja.nome, email: '' });
 
   useEffect(() => {
@@ -121,52 +117,6 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
             {NAV.map((item) => {
               const href = `${base}/${item.suffix}`;
               const isActive = active === item.id;
-              if (item.id === 'relatorios' || item.id === 'recursos') {
-                const aberto = item.id === 'relatorios' ? menuRelatorios : menuRecursos;
-                const setAberto = item.id === 'relatorios' ? setMenuRelatorios : setMenuRecursos;
-                return (
-                  <div
-                    key={item.id}
-                    className="relative"
-                    onMouseEnter={() => setAberto(true)}
-                    onMouseLeave={() => setAberto(false)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setAberto((v) => !v)}
-                      className={`px-2 py-3 lowercase ${isActive ? 'font-medium' : 'text-white/80 hover:text-white'}`}
-                      style={isActive ? { boxShadow: `inset 0 -3px 0 ${TEAL}` } : undefined}
-                    >
-                      {item.label}
-                    </button>
-                    {aberto && (
-                      <div className="absolute right-0 top-full z-50 min-w-[220px] rounded-md bg-white py-1 text-slate-700 shadow-lg">
-                        {item.id === 'relatorios'
-                          ? RELATORIOS_MENU.map((opt) => (
-                              <Link
-                                key={opt.tipo}
-                                href={`${base}/relatorios/${opt.tipo}`}
-                                onClick={() => setAberto(false)}
-                                className="block px-4 py-2 text-sm lowercase hover:bg-slate-50"
-                              >
-                                {opt.label}
-                              </Link>
-                            ))
-                          : RECURSOS_MENU.map((opt) => (
-                              <Link
-                                key={opt.label}
-                                href={opt.path(slug)}
-                                onClick={() => setAberto(false)}
-                                className="block px-4 py-2 text-sm lowercase hover:bg-slate-50"
-                              >
-                                {opt.label}
-                              </Link>
-                            ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
               return (
                 <Link
                   key={item.id}
@@ -178,6 +128,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
                 </Link>
               );
             })}
+            <ClinicaGeralNavMenus slug={slug} base={base} active={active} />
             <button type="button" className="ml-1 rounded p-2 text-white/80 hover:bg-white/10" title="Notificações">
               <Bell className="h-4 w-4" />
             </button>

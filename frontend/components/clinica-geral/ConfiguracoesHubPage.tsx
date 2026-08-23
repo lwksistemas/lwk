@@ -6,12 +6,10 @@ import {
   CalendarClock,
   ChevronRight,
   CreditCard,
-  FileSpreadsheet,
   Headphones,
   LogIn,
   MessageCircle,
   Settings,
-  Wallet,
 } from 'lucide-react';
 import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
 
@@ -57,24 +55,6 @@ export function ConfiguracoesHubPage() {
       color: 'from-[#2F2E5B] to-indigo-700',
       iconBg: 'bg-indigo-100 text-indigo-700',
       itens: ['Logo', 'Imagem de fundo', 'Cores'],
-    },
-    {
-      titulo: 'Faturamento',
-      descricao: 'Valor das consultas e fechamento de caixa do dia',
-      href: `/loja/${slug}/clinica-geral/faturamento`,
-      icon: Wallet,
-      color: 'from-sky-500 to-blue-600',
-      iconBg: 'bg-sky-100 text-sky-700',
-      itens: ['Caixa do dia', 'Particular e convênio'],
-    },
-    {
-      titulo: 'Lotes TISS',
-      descricao: 'Guias de consulta no padrão ANS para impressão',
-      href: `/loja/${slug}/clinica-geral/tiss`,
-      icon: FileSpreadsheet,
-      color: 'from-slate-500 to-slate-700',
-      iconBg: 'bg-slate-100 text-slate-700',
-      itens: ['Novo lote', 'Impressão da guia'],
     },
     {
       titulo: 'Suporte',

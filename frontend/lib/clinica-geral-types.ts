@@ -111,7 +111,7 @@ export interface UsuarioConsultorio {
 }
 
 export const RECURSOS_MENU: { label: string; path: (slug: string) => string }[] = [
-  { label: 'configurações da agenda', path: (s) => `/loja/${s}/clinica-geral/configuracoes/agenda` },
+  { label: 'configurações', path: (s) => `/loja/${s}/clinica-geral/configuracoes` },
   { label: 'whatsapp', path: (s) => `/loja/${s}/configuracoes/whatsapp` },
   { label: 'assinatura', path: (s) => `/loja/${s}/assinatura` },
   { label: 'faturamento', path: (s) => `/loja/${s}/clinica-geral/faturamento` },

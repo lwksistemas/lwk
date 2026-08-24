@@ -25,12 +25,12 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--slug", type=str, default="clinicageral")
         parser.add_argument("--atalho", type=str, default="clinicageral")
-        parser.add_argument("--nome", type=str, default="Clínica Geral Beta")
+        parser.add_argument("--nome", type=str, default="Clínica Beta")
 
     def handle(self, *args, **options):
         slug = (options.get("slug") or "clinicageral").strip()
         atalho = (options.get("atalho") or slug).strip()
-        nome = (options.get("nome") or "Clínica Geral Beta").strip()
+        nome = (options.get("nome") or "Clínica Beta").strip()
 
         existente = Loja.objects.filter(slug=slug).first() or Loja.objects.filter(atalho=atalho).first()
         if existente:

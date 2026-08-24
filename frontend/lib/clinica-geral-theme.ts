@@ -2,6 +2,8 @@ import { isTipoClinicaGeral } from '@/lib/loja-tipo';
 
 export const NAVY = '#2F2E5B';
 export const TEAL = '#0D9B9B';
+/** Nome visível do app (tipo de loja). Slug interno permanece clinica-geral. */
+export const APP_NOME = 'Clínica';
 
 export const PAGE_BG = '#F7F8FB';
 export const PAGE_BG_DARK = '#16152B';

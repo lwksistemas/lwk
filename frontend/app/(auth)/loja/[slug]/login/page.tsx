@@ -9,6 +9,7 @@ import { homePathForTipo, isTipoCRMVendas, isTipoClinicaGeral } from '@/lib/loja
 import { TEAL } from '@/lib/clinica-geral-theme';
 import { useClinicaGeralDark } from '@/hooks/useClinicaGeralDark';
 import { resolveLoginBackground, getLoginBackgroundHintFromSlug, getLoginBackgroundFallbackColor, preloadLoginBackground, getLoginThemeColor, cacheLojaLoginContext, getInitialLoginBackgroundForSlug, preloadImageUrl } from '@/lib/login-default-backgrounds';
+import { themeLabelForTipo } from '@/lib/loja-theme';
 import { LoginBackgroundLayer } from '@/components/auth/LoginBackgroundLayer';
 import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
@@ -323,7 +324,7 @@ export default function LojaLoginDinamicoPage() {
             {lojaInfo.nome}
           </h2>
           <p className="mt-1 text-center text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-            {lojaInfo.tipo_loja_nome}
+            {themeLabelForTipo(lojaInfo.tipo_loja_nome)}
           </p>
           <p className="text-center text-xs text-gray-500 dark:text-gray-400">
             Portal da Loja

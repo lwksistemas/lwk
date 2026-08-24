@@ -13,7 +13,7 @@ class Command(BaseCommand):
         tipo, created = TipoLoja.objects.update_or_create(
             slug="clinica-geral",
             defaults={
-                "nome": "Clínica Geral",
+                "nome": "Clínica",
                 "codigo": "CLIGER",
                 "descricao": "Consultório médico: agenda, pacientes e consultas. Sem estética.",
                 "dashboard_template": "clinica-geral",

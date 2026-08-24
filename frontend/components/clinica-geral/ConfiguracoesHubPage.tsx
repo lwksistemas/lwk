@@ -124,7 +124,7 @@ export function ConfiguracoesHubPage() {
           })}
         </div>
         <p className="mt-6 text-center text-xs text-slate-400" style={{ color: TEAL }}>
-          Clínica Geral · LWK Sistemas
+          Clínica · LWK Sistemas
         </p>
       </div>
     </div>

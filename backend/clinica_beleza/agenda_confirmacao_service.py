@@ -107,6 +107,8 @@ def _loja_elegivel_confirmacao_agenda(loja_id: int) -> bool:
         return True
     if "clinica geral" in nome or "clínica geral" in nome or "consultorio" in nome:
         return True
+    if nome in ("clinica", "clínica"):
+        return True
     return False
 
 

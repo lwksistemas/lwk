@@ -2,7 +2,7 @@
  * Helpers para tipo de app.
  * Regras centralizadas: valem para todas as lojas criadas no sistema (por tipo_loja_nome da API).
  *
- * Apps ativos: CRM Vendas, Clínica da Beleza, Clínica Geral, Hotel / Pousada, Salão (cabeleireiro), Radiologia.
+ * Apps ativos: CRM Vendas, Clínica da Beleza, Clínica, Hotel / Pousada, Salão (cabeleireiro), Radiologia.
  * Clínica de Estética (legado) foi unificada em Clínica da Beleza — mesmo produto e rotas.
  */
 
@@ -13,6 +13,7 @@ export function isTipoClinicaGeral(tipoLojaNome: string): boolean {
   const s = normalizarTipo(tipoLojaNome);
   if (s.includes('beleza') || s.includes('estetica') || s.includes('radiolog')) return false;
   if (s.includes('consultorio')) return true;
+  if (s === 'clinica') return true;
   return s.includes('clinica') && (s.includes('geral') || s.includes('medica'));
 }
 

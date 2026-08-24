@@ -10,7 +10,7 @@ import { ClinicaGeralNavMenus } from '@/components/clinica-geral/ClinicaGeralNav
 import { ClinicaGeralUserMenu } from '@/components/clinica-geral/ClinicaGeralUserMenu';
 import { TarefasDoDia } from '@/components/clinica-geral/TarefasDoDia';
 import { getUsuarioConsultorio } from '@/lib/clinica-geral-api';
-import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
+import { APP_NOME, NAVY, TEAL } from '@/lib/clinica-geral-theme';
 import { useClinicaGeralDark } from '@/hooks/useClinicaGeralDark';
 import { readSidebarHidden, toISODate, writeSidebarHidden } from '@/lib/clinica-geral-utils';
 
@@ -93,7 +93,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
               className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold"
               style={{ backgroundColor: TEAL }}
             >
-              CG
+              {APP_NOME.charAt(0)}
             </span>
             <span className="max-w-[160px] truncate text-sm font-medium lowercase tracking-wide">
               {loja.nome}

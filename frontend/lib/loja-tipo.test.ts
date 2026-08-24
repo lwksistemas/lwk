@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RECURSOS_MENU, RELATORIOS_MENU } from '@/lib/clinica-geral-types';
+import { themeLabelForTipo } from '@/lib/loja-theme';
 import {
   configuracoesPathForTipo,
   homePathForTipo,
@@ -8,7 +9,8 @@ import {
 } from '@/lib/loja-tipo';
 
 describe('isTipoClinicaGeral', () => {
-  it('reconhece Clínica Geral e consultório médico', () => {
+  it('reconhece Clínica, Clínica Geral e consultório médico', () => {
+    expect(isTipoClinicaGeral('Clínica')).toBe(true);
     expect(isTipoClinicaGeral('Clínica Geral')).toBe(true);
     expect(isTipoClinicaGeral('Consultorio Medico')).toBe(true);
     expect(isTipoClinicaGeral('Clinica Médica')).toBe(true);
@@ -19,6 +21,7 @@ describe('isTipoClinicaGeral', () => {
     expect(isTipoClinicaGeral('Clínica de Estética')).toBe(false);
     expect(isTipoClinicaGeral('Radiologia')).toBe(false);
     expect(isTipoClinicaBeleza('Clínica Geral')).toBe(false);
+    expect(isTipoClinicaBeleza('Clínica')).toBe(false);
     expect(isTipoClinicaBeleza('Clínica da Beleza')).toBe(true);
   });
 
@@ -39,7 +42,15 @@ describe('isTipoClinicaGeral', () => {
     expect(recursos.some((label) => relatorios.includes(label))).toBe(false);
   });
 
+  it('exibe o tipo como Clínica', () => {
+    expect(themeLabelForTipo('Clínica')).toBe('Clínica');
+    expect(themeLabelForTipo('Clínica Geral')).toBe('Clínica');
+  });
+
   it('manda o app para a agenda', () => {
+    expect(homePathForTipo('clinicageral', 'Clínica')).toBe(
+      '/loja/clinicageral/clinica-geral/agenda',
+    );
     expect(homePathForTipo('clinicageral', 'Clínica Geral')).toBe(
       '/loja/clinicageral/clinica-geral/agenda',
     );

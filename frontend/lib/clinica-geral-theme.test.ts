@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  APP_NOME,
   CLINICA_GERAL_DARK_KEY,
   applyClinicaGeralDark,
   isClinicaGeralAppPath,
@@ -56,12 +57,13 @@ describe('clinica-geral-theme', () => {
   });
 
   it('reconhece rotas do consultório', () => {
+    expect(APP_NOME).toBe('Clínica');
     expect(isClinicaGeralAppPath('/loja/clinicageral/clinica-geral/agenda')).toBe(true);
     expect(isClinicaGeralAppPath('/loja/felix/crm-vendas/leads')).toBe(false);
   });
 
   it('aplica tema do consultório no login quando o tipo está em cache', () => {
-    session.setItem('loja_tipo_clinicageral', 'Clínica Geral');
+    session.setItem('loja_tipo_clinicageral', 'Clínica');
     expect(shouldApplyClinicaGeralTheme('/loja/clinicageral/login')).toBe(true);
     session.setItem('loja_tipo_felix', 'CRM Vendas');
     expect(shouldApplyClinicaGeralTheme('/loja/felix/login')).toBe(false);

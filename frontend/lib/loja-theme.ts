@@ -84,6 +84,6 @@ export function themeLabelForTipo(tipoLojaNome: string): string {
   if (isTipoCRMVendas(tipoLojaNome)) return 'CRM Vendas';
   if (isTipoClinicaBeleza(tipoLojaNome)) return 'Clínica da Beleza';
   if (isTipoRadiologia(tipoLojaNome)) return 'Radiologia';
-  if (isTipoClinicaGeral(tipoLojaNome)) return 'Clínica Geral';
+  if (isTipoClinicaGeral(tipoLojaNome)) return 'Clínica';
   return 'Dashboard';
 }

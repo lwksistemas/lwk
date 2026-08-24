@@ -60,7 +60,8 @@ export default function RootLayout({
                   if (loginMatch) {
                     try {
                       var tipo = (sessionStorage.getItem('loja_tipo_' + decodeURIComponent(loginMatch[1])) || '').toLowerCase();
-                      var isCg = tipo.indexOf('consultorio') !== -1 || (tipo.indexOf('clinica') !== -1 && (tipo.indexOf('geral') !== -1 || tipo.indexOf('medica') !== -1));
+                      if (tipo.normalize) tipo = tipo.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                      var isCg = tipo === 'clinica' || tipo.indexOf('consultorio') !== -1 || (tipo.indexOf('clinica') !== -1 && (tipo.indexOf('geral') !== -1 || tipo.indexOf('medica') !== -1));
                       if (isCg && tipo.indexOf('beleza') === -1 && tipo.indexOf('estetica') === -1) {
                         applyCg(localStorage.getItem(cgDarkKey) === 'true');
                         return;

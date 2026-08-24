@@ -201,7 +201,7 @@ class Command(BaseCommand):
                 "tem_estoque": False,
             },
             {
-                "nome": "Clínica Geral",
+                "nome": "Clínica",
                 "slug": "clinica-geral",
                 "descricao": "Consultório médico: agenda, pacientes e consultas. Sem estética.",
                 "dashboard_template": "clinica-geral",

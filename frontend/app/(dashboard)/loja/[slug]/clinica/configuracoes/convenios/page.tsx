@@ -2,11 +2,11 @@
 
 import { ConfiguracoesSecaoPage } from '@/components/clinica-geral/ConfiguracoesSecaoPage';
 
-export default function Page() {
+export default function ClinicaConveniosRoute() {
   return (
     <ConfiguracoesSecaoPage
-      titulo="Convênios/Empresas/Adm. de Benefícios"
-      texto="Cadastre convênios e empresas atendidas pelo consultório."
+      titulo="Convênios / Empresas"
+      texto="O cadastro de convênios e administradoras de benefícios entra neste espaço no próximo passo."
     />
   );
 }

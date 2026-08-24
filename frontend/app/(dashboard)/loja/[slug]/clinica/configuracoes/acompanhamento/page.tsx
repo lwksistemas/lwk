@@ -2,11 +2,11 @@
 
 import { ConfiguracoesSecaoPage } from '@/components/clinica-geral/ConfiguracoesSecaoPage';
 
-export default function Page() {
+export default function ClinicaAcompanhamentoRoute() {
   return (
     <ConfiguracoesSecaoPage
-      titulo="Tabela de Acompanhamento"
-      texto="Indicadores acompanhados no prontuário do paciente."
+      titulo="Tabela de acompanhamento"
+      texto="A tabela de acompanhamento clínico entra neste espaço no próximo passo."
     />
   );
 }

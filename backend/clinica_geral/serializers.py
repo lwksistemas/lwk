@@ -7,13 +7,16 @@ from .models import (
     Consulta,
     ConvenioPaciente,
     Evolucao,
+    Especialidade,
     FechamentoCaixa,
+    Funcionario,
     GuiaTiss,
     LoteTiss,
     Paciente,
     PacienteAnexo,
     Prescricao,
     PrescricaoItem,
+    Profissional,
     Responsavel,
     Tarefa,
 )
@@ -338,3 +341,76 @@ class PacienteAnexoSerializer(serializers.ModelSerializer):
         model = PacienteAnexo
         fields = ("id", "paciente", "nome", "url", "created_at")
         read_only_fields = ("id", "created_at")
+
+
+class ProfissionalSerializer(serializers.ModelSerializer):
+    especialidade_nome = serializers.CharField(source="especialidade.nome", read_only=True)
+
+    class Meta:
+        model = Profissional
+        fields = (
+            "id",
+            "especialidade",
+            "especialidade_nome",
+            "nome",
+            "conselho",
+            "registro",
+            "uf",
+            "email",
+            "telefone",
+            "cbo",
+        )
+        read_only_fields = ("id",)
+
+    def validate_nome(self, value):
+        from .equipe_service import normalizar_nome
+
+        nome = normalizar_nome(value)
+        if not nome:
+            raise serializers.ValidationError("Informe o nome do profissional.")
+        return nome
+
+    def validate_uf(self, value):
+        from .equipe_service import normalizar_uf
+
+        return normalizar_uf(value)
+
+
+class EspecialidadeSerializer(serializers.ModelSerializer):
+    profissionais = ProfissionalSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Especialidade
+        fields = ("id", "nome", "profissionais")
+        read_only_fields = ("id",)
+
+    def validate_nome(self, value):
+        from .equipe_service import normalizar_nome
+
+        nome = normalizar_nome(value)
+        if not nome:
+            raise serializers.ValidationError("Informe o nome da especialidade.")
+        return nome
+
+
+class FuncionarioSerializer(serializers.ModelSerializer):
+    cargo_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Funcionario
+        fields = ("id", "nome", "cargo", "cargo_label", "email", "telefone")
+        read_only_fields = ("id",)
+
+    def get_cargo_label(self, obj):
+        from .equipe_service import cargo_label
+
+        return cargo_label(obj.cargo)
+
+    def validate_nome(self, value):
+        from .equipe_service import normalizar_nome
+
+        nome = normalizar_nome(value)
+        if not nome:
+            raise serializers.ValidationError("Informe o nome do funcionário.")
+        return nome
+

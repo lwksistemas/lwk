@@ -2,11 +2,11 @@
 
 import { ConfiguracoesSecaoPage } from '@/components/clinica-geral/ConfiguracoesSecaoPage';
 
-export default function ClinicaPerfilProntuarioConfigPage() {
+export default function ClinicaProntuarioConfigRoute() {
   return (
     <ConfiguracoesSecaoPage
       titulo="Prontuário"
-      texto="Ajuste o modelo de prontuário usado nas consultas. Esta seção entra no próximo passo da configuração."
+      texto="Ajustes do prontuário eletrônico (modelos e campos) entram neste espaço no próximo passo."
     />
   );
 }

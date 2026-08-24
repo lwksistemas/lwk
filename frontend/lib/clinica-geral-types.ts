@@ -391,3 +391,40 @@ export function emptyPaciente(): Paciente {
     convenios: [],
   };
 }
+
+export type CargoFuncionario = 'recepcao' | 'administracao' | 'financeiro' | 'outros';
+
+export const CARGO_FUNCIONARIO: { id: CargoFuncionario; label: string }[] = [
+  { id: 'recepcao', label: 'Recepção' },
+  { id: 'administracao', label: 'Administração' },
+  { id: 'financeiro', label: 'Financeiro' },
+  { id: 'outros', label: 'Outros' },
+];
+
+export interface ProfissionalEquipe {
+  id: number;
+  especialidade: number;
+  especialidade_nome: string;
+  nome: string;
+  conselho: string;
+  registro: string;
+  uf: string;
+  email: string;
+  telefone: string;
+  cbo: string;
+}
+
+export interface EspecialidadeEquipe {
+  id: number;
+  nome: string;
+  profissionais: ProfissionalEquipe[];
+}
+
+export interface FuncionarioLoja {
+  id: number;
+  nome: string;
+  cargo: CargoFuncionario;
+  cargo_label: string;
+  email: string;
+  telefone: string;
+}

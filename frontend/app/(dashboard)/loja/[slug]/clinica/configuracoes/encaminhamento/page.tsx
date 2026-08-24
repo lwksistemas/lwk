@@ -2,11 +2,11 @@
 
 import { ConfiguracoesSecaoPage } from '@/components/clinica-geral/ConfiguracoesSecaoPage';
 
-export default function Page() {
+export default function ClinicaEncaminhamentoRoute() {
   return (
     <ConfiguracoesSecaoPage
       titulo="Encaminhamento"
-      texto="Textos e modelos de encaminhamento a outros profissionais."
+      texto="Modelos de encaminhamento serão configurados aqui no próximo passo."
     />
   );
 }

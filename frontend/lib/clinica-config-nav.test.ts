@@ -12,7 +12,8 @@ describe('clinica-config-nav', () => {
     expect(perfilSubmenuAtivo('/loja/clinicageral/clinica/perfil/prontuario')).toBe('prontuario');
   });
 
-  it('marca Meu consultório na agenda', () => {
+  it('marca Meu consultório na agenda e na recepção', () => {
     expect(abaConfigAtiva('/loja/clinicageral/clinica/configuracoes/agenda')).toBe('consultorio');
+    expect(abaConfigAtiva('/loja/clinicageral/clinica/configuracoes/recepcao')).toBe('consultorio');
   });
 });

@@ -307,6 +307,85 @@ class FechamentoCaixa(LojaIsolationMixin, models.Model):
         unique_together = ("loja_id", "data")
 
 
+class Especialidade(LojaIsolationMixin, models.Model):
+    nome = models.CharField(max_length=120)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_especialidade"
+        ordering = ["nome"]
+        unique_together = (("loja_id", "nome"),)
+        indexes = [
+            models.Index(fields=["loja_id", "is_active"], name="cg_esp_loja_act_idx"),
+        ]
+
+    def __str__(self):
+        return self.nome
+
+
+class Profissional(LojaIsolationMixin, models.Model):
+    especialidade = models.ForeignKey(
+        Especialidade, on_delete=models.CASCADE, related_name="profissionais"
+    )
+    nome = models.CharField(max_length=200)
+    conselho = models.CharField(max_length=20, blank=True, default="")
+    registro = models.CharField(max_length=30, blank=True, default="")
+    uf = models.CharField(max_length=2, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    telefone = models.CharField(max_length=30, blank=True, default="")
+    cbo = models.CharField(max_length=20, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_profissional"
+        ordering = ["nome"]
+        indexes = [
+            models.Index(fields=["loja_id", "especialidade"], name="cg_prof_loja_esp_idx"),
+        ]
+
+    def __str__(self):
+        return self.nome
+
+
+class Funcionario(LojaIsolationMixin, models.Model):
+    CARGO_CHOICES = (
+        ("recepcao", "Recepção"),
+        ("administracao", "Administração"),
+        ("financeiro", "Financeiro"),
+        ("outros", "Outros"),
+    )
+
+    nome = models.CharField(max_length=200)
+    cargo = models.CharField(max_length=20, choices=CARGO_CHOICES, default="recepcao")
+    email = models.EmailField(blank=True, default="")
+    telefone = models.CharField(max_length=30, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_funcionario"
+        ordering = ["nome"]
+        indexes = [
+            models.Index(fields=["loja_id", "is_active"], name="cg_func_loja_act_idx"),
+        ]
+
+    def __str__(self):
+        return self.nome
+
+
 class PacienteAnexo(LojaIsolationMixin, models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name="anexos")
     nome = models.CharField(max_length=200)

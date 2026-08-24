@@ -1,12 +1,12 @@
 'use client';
 
-import { ConfiguracoesSecaoPage } from '@/components/clinica-geral/ConfiguracoesSecaoPage';
+import { ConfiguracoesLayout } from '@/components/clinica-geral/ConfiguracoesLayout';
+import { FuncionariosPage } from '@/components/clinica-geral/FuncionariosPage';
 
-export default function Page() {
+export default function ClinicaRecepcaoRoute() {
   return (
-    <ConfiguracoesSecaoPage
-      titulo="Recepção/Adm"
-      texto="Ajustes da recepção e da administração do consultório."
-    />
+    <ConfiguracoesLayout>
+      <FuncionariosPage />
+    </ConfiguracoesLayout>
   );
 }

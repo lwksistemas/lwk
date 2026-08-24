@@ -1,12 +1,12 @@
 'use client';
 
-import { ConfiguracoesSecaoPage } from '@/components/clinica-geral/ConfiguracoesSecaoPage';
+import { ConfiguracoesLayout } from '@/components/clinica-geral/ConfiguracoesLayout';
+import { EspecialidadesPage } from '@/components/clinica-geral/EspecialidadesPage';
 
-export default function ClinicaPerfilEspecialidadesPage() {
+export default function ClinicaEspecialidadesRoute() {
   return (
-    <ConfiguracoesSecaoPage
-      titulo="Especialidades"
-      texto="Cadastre as especialidades do consultório. Esta seção entra no próximo passo da configuração."
-    />
+    <ConfiguracoesLayout>
+      <EspecialidadesPage />
+    </ConfiguracoesLayout>
   );
 }

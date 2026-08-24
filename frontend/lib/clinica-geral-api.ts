@@ -17,6 +17,9 @@ import type {
   StatusConsulta,
   Tarefa,
   TipoRelatorio,
+  EspecialidadeEquipe,
+  FuncionarioLoja,
+  ProfissionalEquipe,
 } from '@/lib/clinica-geral-types';
 
 function unwrapList<T>(data: T[] | { results?: T[] }): T[] {
@@ -257,4 +260,56 @@ export async function fetchRelatorio(tipo: TipoRelatorio, de: string, ate: strin
   const params = new URLSearchParams({ tipo, de, ate });
   const res = await apiClient.get(`/clinica-geral/relatorios/?${params.toString()}`);
   return res.data as RelatorioResposta;
+}
+
+export async function listEspecialidades() {
+  const res = await apiClient.get('/clinica-geral/especialidades/');
+  return unwrapList(res.data) as EspecialidadeEquipe[];
+}
+
+export async function createEspecialidade(nome: string) {
+  const res = await apiClient.post('/clinica-geral/especialidades/', { nome });
+  return res.data as EspecialidadeEquipe;
+}
+
+export async function updateEspecialidade(id: number, nome: string) {
+  const res = await apiClient.patch(`/clinica-geral/especialidades/${id}/`, { nome });
+  return res.data as EspecialidadeEquipe;
+}
+
+export async function deleteEspecialidade(id: number) {
+  await apiClient.delete(`/clinica-geral/especialidades/${id}/`);
+}
+
+export async function createProfissional(payload: Partial<ProfissionalEquipe>) {
+  const res = await apiClient.post('/clinica-geral/profissionais/', payload);
+  return res.data as ProfissionalEquipe;
+}
+
+export async function updateProfissional(id: number, payload: Partial<ProfissionalEquipe>) {
+  const res = await apiClient.patch(`/clinica-geral/profissionais/${id}/`, payload);
+  return res.data as ProfissionalEquipe;
+}
+
+export async function deleteProfissional(id: number) {
+  await apiClient.delete(`/clinica-geral/profissionais/${id}/`);
+}
+
+export async function listFuncionarios() {
+  const res = await apiClient.get('/clinica-geral/funcionarios/');
+  return unwrapList(res.data) as FuncionarioLoja[];
+}
+
+export async function createFuncionario(payload: Partial<FuncionarioLoja>) {
+  const res = await apiClient.post('/clinica-geral/funcionarios/', payload);
+  return res.data as FuncionarioLoja;
+}
+
+export async function updateFuncionario(id: number, payload: Partial<FuncionarioLoja>) {
+  const res = await apiClient.patch(`/clinica-geral/funcionarios/${id}/`, payload);
+  return res.data as FuncionarioLoja;
+}
+
+export async function deleteFuncionario(id: number) {
+  await apiClient.delete(`/clinica-geral/funcionarios/${id}/`);
 }

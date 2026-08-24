@@ -240,11 +240,13 @@ class UniqueDocumentoPerLojaMixin:
             apenas_ativos=self.unique_documento_apenas_ativos,
         ):
             raise serializers.ValidationError(
-                mensagem_documento_duplicado(
-                    field_name,
-                    escopo_global=self.unique_documento_global,
-                    entidade=self.unique_documento_entidade,
-                ),
+                {
+                    field_name: mensagem_documento_duplicado(
+                        field_name,
+                        escopo_global=self.unique_documento_global,
+                        entidade=self.unique_documento_entidade,
+                    ),
+                },
             )
         return value
 

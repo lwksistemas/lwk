@@ -17,7 +17,10 @@ export function formatApiErrorBody(data: unknown): string {
     .filter(([k]) => k !== 'detail' && k !== 'error')
     .map(([key, val]) => {
       const msg = Array.isArray(val) ? val.map((v) => String(v)).join(' ') : String(val);
-      if (key === 'non_field_errors') return msg;
+      // Mensagens já completas (unicidade de documento, non_field_errors)
+      if (key === 'non_field_errors' || ['cpf', 'cnpj', 'cpf_cnpj', 'documento'].includes(key)) {
+        return msg;
+      }
       return `${key}: ${msg}`;
     });
   if (fieldMessages.length) return fieldMessages.join(' · ');

@@ -36,7 +36,7 @@ export function ProntuarioExames() {
           Nova Data
         </button>
         <select className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700">
-          <option>Prontuário: Clínica Médica Geral</option>
+          <option>Prontuário: Clínica</option>
         </select>
         <button type="button" className="rounded-md border border-slate-200 p-1.5 text-slate-500" title="Imprimir" onClick={() => window.print()}>
           <Printer className="h-4 w-4" />

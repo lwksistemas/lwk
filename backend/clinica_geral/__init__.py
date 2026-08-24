@@ -1,1 +1,1 @@
-# App Clínica Geral — consultório médico (separado da Clínica da Beleza).
+# App Clínica — consultório médico (separado da Clínica da Beleza).

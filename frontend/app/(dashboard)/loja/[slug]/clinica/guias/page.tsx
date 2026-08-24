@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 export default function ClinicaGeralGuiasPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
-  const base = `/loja/${slug}/clinica-geral`;
+  const base = `/loja/${slug}/clinica`;
 
   const itens = [
     { href: `${base}/agenda`, titulo: 'Agenda', texto: 'Clique num horário livre para agendar. No card, confirme, recepcione, remarque ou registre falta.' },

@@ -2,8 +2,9 @@ import { isTipoClinicaGeral } from '@/lib/loja-tipo';
 
 export const NAVY = '#2F2E5B';
 export const TEAL = '#0D9B9B';
-/** Nome visível do app (tipo de loja). Slug interno permanece clinica-geral. */
+/** Nome visível do app. Rotas: /loja/:slug/clinica. */
 export const APP_NOME = 'Clínica';
+export const APP_PATH = 'clinica';
 
 export const PAGE_BG = '#F7F8FB';
 export const PAGE_BG_DARK = '#16152B';
@@ -14,7 +15,8 @@ export const SURFACE_DARK = '#1E1D3A';
 export const CLINICA_GERAL_DARK_KEY = 'lwk-clinica-geral-dark';
 
 export function isClinicaGeralAppPath(pathname: string): boolean {
-  return pathname.includes('/clinica-geral');
+  if (pathname.includes('/clinica-beleza')) return false;
+  return /\/clinica(?:-geral)?(?:\/|$)/.test(pathname);
 }
 
 export function shouldApplyClinicaGeralTheme(pathname: string): boolean {

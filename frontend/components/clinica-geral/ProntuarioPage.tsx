@@ -39,7 +39,7 @@ export function ProntuarioPage() {
   const slug = params.slug as string;
   const id = Number(params.id);
   const router = useRouter();
-  const base = `/loja/${slug}/clinica-geral`;
+  const base = `/loja/${slug}/clinica`;
 
   const [paciente, setPaciente] = useState<Paciente | null>(null);
   const [evolucoes, setEvolucoes] = useState<Evolucao[]>([]);

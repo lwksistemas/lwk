@@ -167,6 +167,16 @@ const nextConfig = {
         destination: '/loja/:slug/clinica-beleza/consultas',
         permanent: true,
       },
+      {
+        source: '/loja/:slug/clinica-geral',
+        destination: '/loja/:slug/clinica',
+        permanent: false,
+      },
+      {
+        source: '/loja/:slug/clinica-geral/:path*',
+        destination: '/loja/:slug/clinica/:path*',
+        permanent: false,
+      },
     ]
   },
   

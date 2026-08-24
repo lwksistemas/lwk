@@ -1,4 +1,4 @@
-"""WhatsApp confirmação da Clínica Geral — adapter, sem modelos da estética."""
+"""WhatsApp confirmação da Clínica — adapter, sem modelos da estética."""
 from __future__ import annotations
 
 import logging

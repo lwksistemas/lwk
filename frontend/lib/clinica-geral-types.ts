@@ -117,8 +117,8 @@ export interface UsuarioConsultorio {
 }
 
 export const RECURSOS_MENU: { label: string; path: (slug: string) => string }[] = [
-  { label: 'faturamento', path: (s) => `/loja/${s}/clinica-geral/faturamento` },
-  { label: 'lotes TISS', path: (s) => `/loja/${s}/clinica-geral/tiss` },
+  { label: 'faturamento', path: (s) => `/loja/${s}/clinica/faturamento` },
+  { label: 'lotes TISS', path: (s) => `/loja/${s}/clinica/tiss` },
 ];
 
 export interface Tarefa {

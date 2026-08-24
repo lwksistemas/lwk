@@ -88,7 +88,7 @@ export function PacienteFichaView({
                   className="rounded-md px-2 py-2 text-xs"
                   style={c.status === 'confirmado' ? { backgroundColor: '#EDE7F6' } : undefined}
                 >
-                  <a href={`/loja/${slug}/clinica-geral/consultas/${c.id}`} className="block hover:opacity-80">
+                  <a href={`/loja/${slug}/clinica/consultas/${c.id}`} className="block hover:opacity-80">
                     <div className="flex flex-wrap items-baseline gap-x-2 text-slate-700">
                       <span className="font-medium">
                         {formatDateBR(c.data)} {formatHora(c.hora)}

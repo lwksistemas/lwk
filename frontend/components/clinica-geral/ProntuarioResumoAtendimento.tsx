@@ -75,7 +75,7 @@ export function ProntuarioResumoAtendimento({ consultas, evolucoes, medicoNome, 
           </p>
           <p className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-slate-400" />
-            Prontuário utilizado: Clínica Médica Geral
+            Prontuário utilizado: Clínica
           </p>
         </div>
 
@@ -158,7 +158,7 @@ function LinhaDoTempo({
               </span>
               {ativo ? (
                 <span className="text-center text-[10px] leading-tight" style={{ color: TEAL }}>
-                  Clínica Médica Geral
+                  Clínica
                   <br />
                   {formatDateBR(selecionada.data)}
                 </span>

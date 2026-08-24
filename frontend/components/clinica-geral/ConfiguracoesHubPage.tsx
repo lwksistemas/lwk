@@ -17,7 +17,7 @@ import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
 export function ConfiguracoesHubPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
-  const base = `/loja/${slug}/clinica-geral/configuracoes`;
+  const base = `/loja/${slug}/clinica/configuracoes`;
 
   const opcoes = [
     {

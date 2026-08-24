@@ -58,8 +58,10 @@ describe('clinica-geral-theme', () => {
 
   it('reconhece rotas do consultório', () => {
     expect(APP_NOME).toBe('Clínica');
+    expect(isClinicaGeralAppPath('/loja/clinicageral/clinica/agenda')).toBe(true);
     expect(isClinicaGeralAppPath('/loja/clinicageral/clinica-geral/agenda')).toBe(true);
     expect(isClinicaGeralAppPath('/loja/felix/crm-vendas/leads')).toBe(false);
+    expect(isClinicaGeralAppPath('/loja/harmonis/clinica-beleza/consultas')).toBe(false);
   });
 
   it('aplica tema do consultório no login quando o tipo está em cache', () => {

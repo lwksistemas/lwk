@@ -1,4 +1,4 @@
-"""Cria loja de teste tipo Clínica Geral (beta).
+"""Cria loja de teste tipo Clínica (beta).
 
   python manage.py criar_loja_clinica_geral_teste --slug clinicageral --atalho clinicageral
 """
@@ -20,7 +20,7 @@ def gerar_senha(tamanho: int = 10) -> str:
 
 
 class Command(BaseCommand):
-    help = "Cria loja de teste Clínica Geral (owner + schema + financeiro)."
+    help = "Cria loja de teste Clínica (owner + schema + financeiro)."
 
     def add_arguments(self, parser):
         parser.add_argument("--slug", type=str, default="clinicageral")
@@ -59,7 +59,7 @@ class Command(BaseCommand):
             defaults={
                 "email": "clinicageral@teste.lwk.local",
                 "first_name": "Secretaria",
-                "last_name": "Geral",
+                "last_name": "Beta",
                 "is_staff": False,
             },
         )
@@ -71,7 +71,7 @@ class Command(BaseCommand):
             nome=nome,
             slug=slug,
             atalho=atalho,
-            descricao="Loja de teste – Clínica Geral (consultório)",
+            descricao="Loja de teste – Clínica (consultório)",
             tipo_loja=tipo,
             plano=plano,
             owner=owner,
@@ -94,7 +94,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"Aviso financeiro: {exc}"))
 
         self.stdout.write("")
-        self.stdout.write(self.style.SUCCESS("Loja Clínica Geral criada"))
+        self.stdout.write(self.style.SUCCESS("Loja Clínica criada"))
         self.stdout.write(f"  Slug/atalho: {loja.slug} / {loja.atalho}")
         self.stdout.write(f"  Login: {owner.username}")
         self.stdout.write(f"  Senha: {senha if created_user else '(já existia — não alterada)'}")

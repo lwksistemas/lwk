@@ -34,7 +34,7 @@ export function PacienteFormPage({ mode }: PacienteFormPageProps) {
   const slug = params.slug as string;
   const id = mode === 'editar' ? Number(params.id) : 0;
   const router = useRouter();
-  const base = `/loja/${slug}/clinica-geral/pacientes`;
+  const base = `/loja/${slug}/clinica/pacientes`;
 
   const [form, setForm] = useState<Paciente>(emptyPaciente());
   const [consultas, setConsultas] = useState<Consulta[]>([]);

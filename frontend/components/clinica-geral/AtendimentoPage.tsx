@@ -63,7 +63,7 @@ export function AtendimentoPage() {
   const slug = params.slug as string;
   const id = Number(params.id);
   const router = useRouter();
-  const base = `/loja/${slug}/clinica-geral`;
+  const base = `/loja/${slug}/clinica`;
 
   const [consulta, setConsulta] = useState<Consulta | null>(null);
   const [paciente, setPaciente] = useState<Paciente | null>(null);

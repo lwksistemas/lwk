@@ -1,4 +1,4 @@
-"""Garante TipoLoja Clínica Geral + plano (idempotente)."""
+"""Garante TipoLoja Clínica + plano (idempotente)."""
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
@@ -7,7 +7,7 @@ from superadmin.models import PlanoAssinatura, TipoLoja
 
 
 class Command(BaseCommand):
-    help = "Cria/atualiza o tipo de app Clínica Geral e o plano básico."
+    help = "Cria/atualiza o tipo de app Clínica e o plano básico."
 
     def handle(self, *args, **options):
         tipo, created = TipoLoja.objects.update_or_create(
@@ -34,7 +34,7 @@ class Command(BaseCommand):
         plano, p_created = PlanoAssinatura.objects.update_or_create(
             slug="basico-clinica-geral",
             defaults={
-                "nome": "Básico Clínica Geral",
+                "nome": "Básico Clínica",
                 "descricao": "Agenda, pacientes e consultas do consultório.",
                 "preco_mensal": Decimal("139.00"),
                 "preco_anual": Decimal("1390.00"),
@@ -50,4 +50,4 @@ class Command(BaseCommand):
         self.stdout.write(
             f"  {'Criado' if p_created else 'Atualizado'} plano: {plano.nome}"
         )
-        self.stdout.write(self.style.SUCCESS("Clínica Geral pronta em tipos-app / planos."))
+        self.stdout.write(self.style.SUCCESS("Clínica pronta em tipos-app / planos."))

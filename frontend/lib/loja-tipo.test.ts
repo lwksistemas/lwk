@@ -49,16 +49,16 @@ describe('isTipoClinicaGeral', () => {
 
   it('manda o app para a agenda', () => {
     expect(homePathForTipo('clinicageral', 'Clínica')).toBe(
-      '/loja/clinicageral/clinica-geral/agenda',
+      '/loja/clinicageral/clinica/agenda',
     );
     expect(homePathForTipo('clinicageral', 'Clínica Geral')).toBe(
-      '/loja/clinicageral/clinica-geral/agenda',
+      '/loja/clinicageral/clinica/agenda',
     );
   });
 
   it('manda configurações para o hub do consultório', () => {
     expect(configuracoesPathForTipo('clinicageral', 'Clínica Geral')).toBe(
-      '/loja/clinicageral/clinica-geral/configuracoes',
+      '/loja/clinicageral/clinica/configuracoes',
     );
   });
 });

@@ -39,7 +39,7 @@ export function AgendaPage() {
   const [recepcionar, setRecepcionar] = useState<Consulta | null>(null);
   const [slots, setSlots] = useState<string[]>(() => slotTimes());
 
-  const setData = (iso: string) => router.replace(`/loja/${slug}/clinica-geral/agenda?data=${iso}`);
+  const setData = (iso: string) => router.replace(`/loja/${slug}/clinica/agenda?data=${iso}`);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -175,7 +175,7 @@ export function AgendaPage() {
                             className="mr-2 shrink-0 rounded-md border border-[#2F2E5B] bg-white px-3 py-1.5 text-xs font-medium text-[#2F2E5B] dark:border-teal-300 dark:bg-transparent dark:text-teal-200"
                             onClick={(e) => {
                               e.stopPropagation();
-                              router.push(`/loja/${slug}/clinica-geral/pacientes/${consulta.paciente}/prontuario`);
+                              router.push(`/loja/${slug}/clinica/pacientes/${consulta.paciente}/prontuario`);
                             }}
                           >
                             Ver Prontuário
@@ -232,12 +232,12 @@ export function AgendaPage() {
           pacienteInicial={pacienteInicial}
           onClose={() => {
             setSlotAberto(null);
-            if (abrirNova) router.replace(`/loja/${slug}/clinica-geral/agenda?data=${data}`);
+            if (abrirNova) router.replace(`/loja/${slug}/clinica/agenda?data=${data}`);
           }}
           onSaved={async () => {
             setSlotAberto(null);
             setPacienteInicial(null);
-            if (abrirNova) router.replace(`/loja/${slug}/clinica-geral/agenda?data=${data}`);
+            if (abrirNova) router.replace(`/loja/${slug}/clinica/agenda?data=${data}`);
             await carregar();
           }}
         />

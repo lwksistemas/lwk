@@ -1,4 +1,4 @@
-"""Views/API da Clínica Geral — reexportação por domínio.
+"""Views/API da Clínica — reexportação por domínio.
 
 - views_pacientes.py   → PacienteViewSet, PacienteAnexoViewSet, ProntuarioPacienteView
 - views_consultas.py   → ConsultaViewSet

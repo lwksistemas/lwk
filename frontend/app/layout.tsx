@@ -52,7 +52,7 @@ export default function RootLayout({
                     root.classList.toggle('dark', isDark);
                     root.style.colorScheme = isDark ? 'dark' : 'light';
                   }
-                  if (path.indexOf('/clinica-geral') !== -1) {
+                  if (/\\/clinica(?:-geral)?(?:\\/|$)/.test(path) && path.indexOf('clinica-beleza') === -1) {
                     applyCg(localStorage.getItem(cgDarkKey) === 'true');
                     return;
                   }

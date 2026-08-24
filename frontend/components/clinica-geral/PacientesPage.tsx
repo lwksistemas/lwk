@@ -18,7 +18,7 @@ export function PacientesPage() {
   const search = useSearchParams();
   const q = search.get('q') || '';
   const letra = (search.get('letra') || 'TODOS').toUpperCase();
-  const base = `/loja/${slug}/clinica-geral/pacientes`;
+  const base = `/loja/${slug}/clinica/pacientes`;
 
   const [lista, setLista] = useState<PacienteLista[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +123,7 @@ export function PacientesPage() {
                   type="button"
                   title="Agendar"
                   onClick={() =>
-                    router.push(`/loja/${slug}/clinica-geral/agenda?data=${toISODate(new Date())}&nova=1&paciente=${p.id}`)
+                    router.push(`/loja/${slug}/clinica/agenda?data=${toISODate(new Date())}&nova=1&paciente=${p.id}`)
                   }
                   className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-white/10"
                 >

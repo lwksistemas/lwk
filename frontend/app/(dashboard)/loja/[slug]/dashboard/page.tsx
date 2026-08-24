@@ -168,7 +168,7 @@ export default function LojaDashboardDinamicoPage() {
 
   if (isTipoClinicaGeral(lojaInfo.tipo_loja_nome)) {
     if (typeof window !== 'undefined') {
-      window.location.replace(`/loja/${slug}/clinica-geral/agenda`);
+      window.location.replace(`/loja/${slug}/clinica/agenda`);
     }
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">

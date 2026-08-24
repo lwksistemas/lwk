@@ -10,7 +10,7 @@ import { ClinicaGeralNavMenus } from '@/components/clinica-geral/ClinicaGeralNav
 import { ClinicaGeralUserMenu } from '@/components/clinica-geral/ClinicaGeralUserMenu';
 import { TarefasDoDia } from '@/components/clinica-geral/TarefasDoDia';
 import { getUsuarioConsultorio } from '@/lib/clinica-geral-api';
-import { APP_NOME, NAVY, TEAL } from '@/lib/clinica-geral-theme';
+import { APP_NOME, APP_PATH, NAVY, TEAL } from '@/lib/clinica-geral-theme';
 import { useClinicaGeralDark } from '@/hooks/useClinicaGeralDark';
 import { readSidebarHidden, toISODate, writeSidebarHidden } from '@/lib/clinica-geral-utils';
 
@@ -30,7 +30,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
   const pathname = usePathname();
   const router = useRouter();
   const search = useSearchParams();
-  const base = `/loja/${slug}/clinica-geral`;
+  const base = `/loja/${slug}/${APP_PATH}`;
   const agendaData = search.get('data') || toISODate(new Date());
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [busca, setBusca] = useState('');

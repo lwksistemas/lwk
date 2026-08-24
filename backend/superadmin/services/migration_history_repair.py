@@ -1,7 +1,7 @@
 """Alinha django_migrations quando um filho está aplicado sem o pai.
 
 O migrate do Django recusa qualquer app se o histórico de outro app estiver
-inconsistente. No tenant da Clínica Geral isso aparece como:
+inconsistente. No tenant da Clínica isso aparece como:
 
     auth.0005_alter_user_last_login_null is applied before its dependency
     auth.0004_alter_user_username_opts

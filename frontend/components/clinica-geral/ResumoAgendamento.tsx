@@ -89,13 +89,13 @@ export function ResumoAgendamento({ consulta, slug, onClose, onChanged, onRecepc
               style={{ borderColor: NAVY, color: NAVY }}
               onClick={() => {
                 onClose();
-                router.push(`/loja/${slug}/clinica-geral/pacientes/${consulta.paciente}/prontuario`);
+                router.push(`/loja/${slug}/clinica/pacientes/${consulta.paciente}/prontuario`);
               }}
             >
               Ver Prontuário
             </button>
             <a
-              href={`/loja/${slug}/clinica-geral/pacientes/${consulta.paciente}`}
+              href={`/loja/${slug}/clinica/pacientes/${consulta.paciente}`}
               className="rounded border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
               title="Editar paciente"
             >
@@ -159,7 +159,7 @@ export function ResumoAgendamento({ consulta, slug, onClose, onChanged, onRecepc
                   else if (a.id === 'checkin') void agirCheckin();
                   else if (a.id === 'atender') {
                     onClose();
-                    router.push(`/loja/${slug}/clinica-geral/consultas/${consulta.id}`);
+                    router.push(`/loja/${slug}/clinica/consultas/${consulta.id}`);
                   }
                   else if (a.id === 'remarcar') void abrirRemarcar();
                   else void agir(a.id);

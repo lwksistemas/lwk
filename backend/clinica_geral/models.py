@@ -1,4 +1,4 @@
-"""Models — Clínica Geral (consultório). Sem lógica de estética."""
+"""Models — Clínica (consultório). Sem lógica de estética."""
 from django.db import models
 
 from core.mixins import LojaIsolationManager, LojaIsolationMixin

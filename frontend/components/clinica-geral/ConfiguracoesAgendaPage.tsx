@@ -82,7 +82,7 @@ export function ConfiguracoesAgendaPage() {
             </div>
           </div>
           <Link
-            href={`/loja/${slug}/clinica-geral/configuracoes`}
+            href={`/loja/${slug}/clinica/configuracoes`}
             className="flex items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-sm hover:bg-white/25"
           >
             <ArrowLeft className="h-4 w-4" /> Voltar

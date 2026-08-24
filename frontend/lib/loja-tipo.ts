@@ -61,7 +61,7 @@ export function configuracoesPathForTipo(slug: string, tipoLojaNome: string): st
   if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/configuracoes`;
   if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/cabeleireiro/configuracoes`;
   if (isTipoRadiologia(tipoLojaNome)) return `/loja/${slug}/radiologia`;
-  if (isTipoClinicaGeral(tipoLojaNome)) return `/loja/${slug}/clinica-geral/configuracoes`;
+  if (isTipoClinicaGeral(tipoLojaNome)) return `/loja/${slug}/clinica/configuracoes`;
   return `/loja/${slug}/dashboard`;
 }
 
@@ -69,7 +69,7 @@ export function configuracoesPathForTipo(slug: string, tipoLojaNome: string): st
 export function homePathForTipo(slug: string, tipoLojaNome: string): string {
   if (isTipoCRMVendas(tipoLojaNome)) return `/loja/${slug}/crm-vendas`;
   if (isTipoClinicaBeleza(tipoLojaNome)) return `/loja/${slug}/clinica-beleza/consultas`;
-  if (isTipoClinicaGeral(tipoLojaNome)) return `/loja/${slug}/clinica-geral/agenda`;
+  if (isTipoClinicaGeral(tipoLojaNome)) return `/loja/${slug}/clinica/agenda`;
   if (isTipoHotel(tipoLojaNome)) return `/loja/${slug}/hotel/reservas`;
   if (isTipoCabeleireiro(tipoLojaNome)) return `/loja/${slug}/dashboard`;
   if (isTipoRadiologia(tipoLojaNome)) return `/loja/${slug}/radiologia`;

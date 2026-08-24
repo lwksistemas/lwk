@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { ArrowLeft, CalendarClock, CheckCircle, Save } from 'lucide-react';
+import { CheckCircle, Save } from 'lucide-react';
 import { getConfiguracao, saveConfiguracao } from '@/lib/clinica-geral-api';
-import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
+import { ConfiguracoesLayout } from '@/components/clinica-geral/ConfiguracoesLayout';
+import { TEAL } from '@/lib/clinica-geral-theme';
 import type { ConfiguracaoConsultorio } from '@/lib/clinica-geral-types';
 
 const DURACOES = [5, 10, 15, 20, 30, 45, 60];
@@ -27,8 +26,6 @@ const VAZIA: ConfiguracaoConsultorio = {
 };
 
 export function ConfiguracoesAgendaPage() {
-  const params = useParams();
-  const slug = (params?.slug as string) ?? '';
   const [config, setConfig] = useState<ConfiguracaoConsultorio>(VAZIA);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -69,28 +66,8 @@ export function ConfiguracoesAgendaPage() {
   };
 
   return (
-    <div className="min-h-full bg-[#F7F8FB]">
-      <div className="text-white shadow-sm" style={{ backgroundColor: NAVY }}>
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-white/15 p-2">
-              <CalendarClock className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold">Agenda</h1>
-              <p className="text-sm text-white/80">Expediente e dados do consultório</p>
-            </div>
-          </div>
-          <Link
-            href={`/loja/${slug}/clinica/configuracoes`}
-            className="flex items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-sm hover:bg-white/25"
-          >
-            <ArrowLeft className="h-4 w-4" /> Voltar
-          </Link>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+    <ConfiguracoesLayout>
+      <div className="max-w-3xl space-y-6">
         {loading ? (
           <p className="py-12 text-center text-sm text-slate-500">Carregando configurações...</p>
         ) : (
@@ -201,6 +178,6 @@ export function ConfiguracoesAgendaPage() {
           </>
         )}
       </div>
-    </div>
+    </ConfiguracoesLayout>
   );
 }

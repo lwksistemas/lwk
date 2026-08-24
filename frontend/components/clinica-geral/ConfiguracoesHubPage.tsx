@@ -9,9 +9,9 @@ import {
   Headphones,
   LogIn,
   MessageCircle,
-  Settings,
 } from 'lucide-react';
-import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
+import { ConfiguracoesLayout } from '@/components/clinica-geral/ConfiguracoesLayout';
+import { TEAL } from '@/lib/clinica-geral-theme';
 
 
 export function ConfiguracoesHubPage() {
@@ -68,23 +68,8 @@ export function ConfiguracoesHubPage() {
   ];
 
   return (
-    <div className="min-h-full bg-[#F7F8FB]">
-      <div className="text-white shadow-sm" style={{ backgroundColor: NAVY }}>
-        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-white/15 p-2">
-              <Settings className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Configurações</h1>
-              <p className="text-sm text-white/80">Agenda, WhatsApp, assinatura e tela de login</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+    <ConfiguracoesLayout>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {opcoes.map((op) => {
             const Icon = op.icon;
             return (
@@ -123,10 +108,9 @@ export function ConfiguracoesHubPage() {
             );
           })}
         </div>
-        <p className="mt-6 text-center text-xs text-slate-400" style={{ color: TEAL }}>
+        <p className="mt-6 text-center text-xs" style={{ color: TEAL }}>
           Clínica · LWK Sistemas
         </p>
-      </div>
-    </div>
+    </ConfiguracoesLayout>
   );
 }

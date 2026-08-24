@@ -114,6 +114,21 @@ export interface UsuarioConsultorio {
   username: string;
   nome: string;
   email: string;
+  tratamento?: string;
+  celular?: string;
+  telefone?: string;
+  conselho?: string;
+  uf?: string;
+  rg?: string;
+  cpf?: string;
+  data_nascimento?: string;
+  nacionalidade?: string;
+  sexo?: string;
+  sexo_label?: string;
+  cbo?: string;
+  estado_civil?: string;
+  estado_civil_label?: string;
+  foto_url?: string;
 }
 
 export const RECURSOS_MENU: { label: string; path: (slug: string) => string }[] = [

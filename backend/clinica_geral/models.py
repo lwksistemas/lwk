@@ -171,6 +171,44 @@ class ConfiguracaoConsultorio(LojaIsolationMixin, models.Model):
         db_table = "clinica_geral_config"
 
 
+class PerfilProfissional(LojaIsolationMixin, models.Model):
+    SEXO_CHOICES = Paciente.SEXO_CHOICES
+    ESTADO_CIVIL_CHOICES = (
+        ("", "Não informado"),
+        ("solteiro", "Solteiro(a)"),
+        ("casado", "Casado(a)"),
+        ("divorciado", "Divorciado(a)"),
+        ("viuvo", "Viúvo(a)"),
+        ("uniao", "União estável"),
+    )
+
+    username = models.CharField(max_length=150)
+    tratamento = models.CharField(max_length=20, blank=True, default="")
+    celular = models.CharField(max_length=30, blank=True, default="")
+    telefone = models.CharField(max_length=30, blank=True, default="")
+    conselho = models.CharField(max_length=20, blank=True, default="")
+    uf = models.CharField(max_length=2, blank=True, default="")
+    rg = models.CharField(max_length=20, blank=True, default="")
+    cpf = models.CharField(max_length=14, blank=True, default="")
+    data_nascimento = models.DateField(null=True, blank=True)
+    nacionalidade = models.CharField(max_length=80, blank=True, default="")
+    sexo = models.CharField(max_length=1, blank=True, default="", choices=SEXO_CHOICES)
+    cbo = models.CharField(max_length=20, blank=True, default="")
+    estado_civil = models.CharField(max_length=20, blank=True, default="", choices=ESTADO_CIVIL_CHOICES)
+    foto_url = models.CharField(max_length=500, blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_perfil"
+        unique_together = (("loja_id", "username"),)
+
+    def __str__(self):
+        return self.username
+
+
 class Evolucao(LojaIsolationMixin, models.Model):
     consulta = models.OneToOneField(Consulta, on_delete=models.CASCADE, related_name="evolucao")
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name="evolucoes")

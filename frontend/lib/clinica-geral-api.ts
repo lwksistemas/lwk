@@ -138,6 +138,11 @@ export async function getUsuarioConsultorio() {
   return res.data as UsuarioConsultorio;
 }
 
+export async function saveUsuarioConsultorio(payload: Partial<UsuarioConsultorio>) {
+  const res = await apiClient.patch('/clinica-geral/me/', payload);
+  return res.data as UsuarioConsultorio;
+}
+
 export async function getConfiguracao() {
   const res = await apiClient.get('/clinica-geral/configuracao/atual/');
   return res.data as ConfiguracaoConsultorio;

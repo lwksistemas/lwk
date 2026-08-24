@@ -7,7 +7,6 @@ from core.permissions import HasLojaAccess
 from core.views import BaseModelViewSet
 from tenants.middleware import ensure_loja_context
 
-from .agenda_service import nome_usuario
 from .config_service import get_or_create_config
 from .models import ConfiguracaoConsultorio, Tarefa
 from .serializers import ConfiguracaoConsultorioSerializer, TarefaSerializer
@@ -50,11 +49,16 @@ class MeView(APIView):
 
     def get(self, request):
         ensure_loja_context(request)
-        user = request.user
-        return Response(
-            {
-                "username": user.username,
-                "nome": nome_usuario(user),
-                "email": user.email or "",
-            }
-        )
+        from .perfil_service import get_or_create_perfil, serializar_perfil
+
+        perfil = get_or_create_perfil(request.user)
+        return Response(serializar_perfil(request.user, perfil))
+
+    def patch(self, request):
+        ensure_loja_context(request)
+        from .perfil_service import aplicar_perfil, get_or_create_perfil, serializar_perfil
+
+        perfil = get_or_create_perfil(request.user)
+        aplicar_perfil(request.user, perfil, request.data)
+        request.user.refresh_from_db()
+        return Response(serializar_perfil(request.user, perfil))

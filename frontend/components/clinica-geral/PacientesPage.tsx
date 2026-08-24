@@ -71,7 +71,7 @@ export function PacientesPage() {
               type="button"
               onClick={() => setLetra(l)}
               className={`min-w-8 rounded border px-1.5 py-1 text-xs ${
-                letra === l ? 'border-transparent text-white' : 'border-slate-200 bg-white text-slate-600'
+                letra === l ? 'border-transparent text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-white/20 dark:bg-[#2F2E5B] dark:text-slate-100'
               }`}
               style={letra === l ? { backgroundColor: TEAL } : undefined}
             >
@@ -81,7 +81,7 @@ export function PacientesPage() {
         </div>
       </div>
 
-      <div className="mb-3 rounded bg-slate-100 px-4 py-2 text-sm text-slate-600">
+      <div className="mb-3 rounded bg-slate-100 px-4 py-2 text-sm text-slate-600 dark:bg-[#252448] dark:text-slate-200">
         Pacientes — Total de {lista.length} paciente{lista.length === 1 ? '' : 's'} cadastrado
         {lista.length === 1 ? '' : 's'}
       </div>
@@ -92,10 +92,10 @@ export function PacientesPage() {
       ) : lista.length === 0 ? (
         <p className="text-sm text-slate-500">Nenhum paciente encontrado.</p>
       ) : (
-        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white dark:divide-white/10 dark:border-white/10 dark:bg-[#1E1D3A]">
           {lista.map((p) => (
             <li key={p.id} className="flex items-center gap-4 px-4 py-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm text-slate-600">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm text-slate-600 dark:bg-white/15 dark:text-slate-100">
                 {(p.nome_social || p.nome).slice(0, 1).toUpperCase()}
               </span>
               <button
@@ -103,10 +103,10 @@ export function PacientesPage() {
                 className="min-w-0 flex-1 text-left"
                 onClick={() => router.push(`${base}/${p.id}`)}
               >
-                <p className="font-medium text-slate-800">
+                <p className="font-medium text-slate-800 dark:text-white">
                   {displayName(p.nome, p.nome_social)} ({p.numero_prontuario || p.id})
                 </p>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-slate-500 dark:text-slate-300">
                   {p.telefone || 'sem telefone'} · {p.email || 'sem e-mail'}
                 </p>
               </button>
@@ -115,7 +115,7 @@ export function PacientesPage() {
                   type="button"
                   title="Arquivar"
                   onClick={() => void excluir(p.id, displayName(p.nome, p.nome_social))}
-                  className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50"
+                  className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-white/10"
                 >
                   <Archive className="h-4 w-4" />
                 </button>
@@ -125,7 +125,7 @@ export function PacientesPage() {
                   onClick={() =>
                     router.push(`/loja/${slug}/clinica-geral/agenda?data=${toISODate(new Date())}&nova=1&paciente=${p.id}`)
                   }
-                  className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50"
+                  className="rounded border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-white/10"
                 >
                   <Clock className="h-4 w-4" />
                 </button>
@@ -133,7 +133,7 @@ export function PacientesPage() {
                   type="button"
                   title="Excluir"
                   onClick={() => void excluir(p.id, displayName(p.nome, p.nome_social))}
-                  className="rounded border border-red-200 p-1.5 text-red-500 hover:bg-red-50"
+                  className="rounded border border-red-200 p-1.5 text-red-500 hover:bg-red-50 dark:border-red-400/40 dark:hover:bg-red-950/40"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

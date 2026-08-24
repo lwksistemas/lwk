@@ -9,6 +9,7 @@ import {
   readLojaInfoPublicaCache,
   writeLojaInfoPublicaCache,
 } from '@/lib/loja-info-publica-cache';
+import { useClinicaGeralDark } from '@/hooks/useClinicaGeralDark';
 import { TEAL } from '@/lib/clinica-geral-theme';
 import type { LojaInfo } from '@/types/dashboard';
 
@@ -16,6 +17,7 @@ export function ClinicaGeralLojaLayout({ children }: { children: ReactNode }) {
   const params = useParams();
   const slug = params.slug as string;
   const { loginPath, handleLogout, isLoja, ready } = useLojaAuth(slug);
+  useClinicaGeralDark();
   const [loja, setLoja] = useState<LojaInfo | null>(() => readLojaInfoPublicaCache(slug));
   const [lojaLoading, setLojaLoading] = useState(() => !readLojaInfoPublicaCache(slug));
   const [lojaError, setLojaError] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export function ClinicaGeralLojaLayout({ children }: { children: ReactNode }) {
 
   if (!ready || !isLoja || (lojaLoading && !loja)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F7F8FB]">
+      <div className="clinica-geral-app flex min-h-screen items-center justify-center bg-[#F7F8FB] dark:bg-[#16152B] dark:text-slate-200">
         <p className="text-sm text-slate-500">Carregando consultório...</p>
       </div>
     );
@@ -65,7 +67,7 @@ export function ClinicaGeralLojaLayout({ children }: { children: ReactNode }) {
 
   if (!loja) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#F7F8FB] px-4">
+      <div className="clinica-geral-app flex min-h-screen flex-col items-center justify-center gap-3 bg-[#F7F8FB] px-4 dark:bg-[#16152B] dark:text-slate-200">
         <p className="max-w-md text-center text-sm text-red-600">
           {lojaError || 'Não foi possível carregar o consultório.'}
         </p>

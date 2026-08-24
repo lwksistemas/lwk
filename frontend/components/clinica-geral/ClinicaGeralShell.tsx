@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Bell, LayoutGrid, Search } from 'lucide-react';
+import { Bell, LayoutGrid, Moon, Search, Sun } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
 import { MiniCalendario } from '@/components/clinica-geral/MiniCalendario';
 import { ClinicaGeralNavMenus } from '@/components/clinica-geral/ClinicaGeralNavMenus';
@@ -11,6 +11,7 @@ import { ClinicaGeralUserMenu } from '@/components/clinica-geral/ClinicaGeralUse
 import { TarefasDoDia } from '@/components/clinica-geral/TarefasDoDia';
 import { getUsuarioConsultorio } from '@/lib/clinica-geral-api';
 import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
+import { useClinicaGeralDark } from '@/hooks/useClinicaGeralDark';
 import { readSidebarHidden, toISODate, writeSidebarHidden } from '@/lib/clinica-geral-utils';
 
 const NAV = [
@@ -35,6 +36,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
   const [busca, setBusca] = useState('');
   const [menuUser, setMenuUser] = useState(false);
   const [usuario, setUsuario] = useState({ nome: loja.nome, email: '' });
+  const [darkMode, setDarkMode] = useClinicaGeralDark();
 
   useEffect(() => {
     setSidebarHidden(readSidebarHidden());
@@ -72,7 +74,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F7F8FB] text-slate-800">
+    <div className="clinica-geral-app flex min-h-screen flex-col bg-[#F7F8FB] text-slate-800 dark:bg-[#16152B] dark:text-slate-100">
       <header className="sticky top-0 z-40 text-white" style={{ backgroundColor: NAVY }}>
         <div className="flex h-14 items-center gap-3 px-3 sm:px-4">
           <button
@@ -126,7 +128,16 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
               );
             })}
             <ClinicaGeralNavMenus slug={slug} base={base} active={active} />
-            <button type="button" className="ml-1 rounded p-2 text-white/80 hover:bg-white/10" title="Notificações">
+            <button
+              type="button"
+              onClick={() => setDarkMode(!darkMode)}
+              className="ml-1 rounded p-2 text-white/80 hover:bg-white/10"
+              title={darkMode ? 'Modo claro' : 'Modo escuro'}
+              aria-label={darkMode ? 'Ativar modo claro' : 'Ativar modo escuro'}
+            >
+              {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button type="button" className="rounded p-2 text-white/80 hover:bg-white/10" title="Notificações">
               <Bell className="h-4 w-4" />
             </button>
             <ClinicaGeralUserMenu
@@ -135,9 +146,11 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
               lojaNome={loja.nome}
               usuario={usuario}
               aberto={menuUser}
+              darkMode={darkMode}
               onToggle={() => setMenuUser((v) => !v)}
               onClose={() => setMenuUser(false)}
               onLogout={onLogout}
+              onToggleTheme={() => setDarkMode(!darkMode)}
             />
           </nav>
         </div>
@@ -156,7 +169,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
 
       <div className="flex min-h-0 flex-1">
         {!sidebarHidden && !hideAgendaSidebar && (
-          <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
+          <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white dark:border-white/10 dark:bg-[#1E1D3A] lg:flex lg:flex-col">
             <div className="p-4">
               {active === 'agenda' && (
                 <button
@@ -178,7 +191,7 @@ export function ClinicaGeralShell({ loja, slug, onLogout, children }: ClinicaGer
         )}
 
         {sidebarHidden && !hideAgendaSidebar && (
-          <div className="hidden w-8 shrink-0 flex-col items-center border-r border-slate-200 bg-slate-50 pt-3 lg:flex">
+          <div className="hidden w-8 shrink-0 flex-col items-center border-r border-slate-200 bg-slate-50 pt-3 dark:border-white/10 dark:bg-[#1E1D3A] lg:flex">
             <button
               type="button"
               onClick={toggleSidebar}

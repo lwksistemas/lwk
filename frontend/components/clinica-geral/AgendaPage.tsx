@@ -9,7 +9,7 @@ import { ResumoAgendamento } from '@/components/clinica-geral/ResumoAgendamento'
 import { getConfiguracao, getPaciente, listConsultas, listHorariosLivres } from '@/lib/clinica-geral-api';
 import { NAVY, TEAL } from '@/lib/clinica-geral-theme';
 import type { Consulta, DiaHorariosLivres, PacienteLista } from '@/lib/clinica-geral-types';
-import { STATUS_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
+import { STATUS_LABEL, labelTipoConsulta } from '@/lib/clinica-geral-types';
 import {
   addDays,
   formatHora,
@@ -167,7 +167,7 @@ export function AgendaPage() {
                               </span>
                             ) : null}
                             <span className="ml-2 text-slate-500 dark:text-slate-300">
-                              {TIPO_CONSULTA_LABEL[consulta.tipo]} | {consulta.convenio || 'PARTICULAR'}
+                              {labelTipoConsulta(consulta.tipo)} | {consulta.convenio || 'PARTICULAR'}
                             </span>
                           </span>
                           <button

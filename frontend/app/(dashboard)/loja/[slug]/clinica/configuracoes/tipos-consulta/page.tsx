@@ -1,12 +1,12 @@
 'use client';
 
-import { ConfiguracoesSecaoPage } from '@/components/clinica-geral/ConfiguracoesSecaoPage';
+import { ConfiguracoesLayout } from '@/components/clinica-geral/ConfiguracoesLayout';
+import { TiposConsultaPage } from '@/components/clinica-geral/TiposConsultaPage';
 
 export default function ClinicaTiposConsultaRoute() {
   return (
-    <ConfiguracoesSecaoPage
-      titulo="Tipos de consulta"
-      texto="Os tipos de consulta (primeira, retorno, particular) serão configurados aqui no próximo passo."
-    />
+    <ConfiguracoesLayout>
+      <TiposConsultaPage />
+    </ConfiguracoesLayout>
   );
 }

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { cancelarConsulta, checkinConsulta, listHorariosLivres, updateConsulta, updateConsultaStatus } from '@/lib/clinica-geral-api';
 import { NAVY } from '@/lib/clinica-geral-theme';
 import type { Consulta, DiaHorariosLivres, StatusConsulta } from '@/lib/clinica-geral-types';
-import { MODALIDADE_LABEL, STATUS_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
+import { MODALIDADE_LABEL, STATUS_LABEL, labelTipoConsulta } from '@/lib/clinica-geral-types';
 import { formatHora, formatShortDate, whatsappHref } from '@/lib/clinica-geral-utils';
 
 type ResumoAgendamentoProps = {
@@ -113,7 +113,7 @@ export function ResumoAgendamento({ consulta, slug, onClose, onChanged, onRecepc
             </p>
           ) : null}
           <dl className="space-y-2 border-t border-slate-100 pt-3">
-            <Linha label="Tipo de consulta" value={TIPO_CONSULTA_LABEL[consulta.tipo]} />
+            <Linha label="Tipo de consulta" value={labelTipoConsulta(consulta.tipo)} />
             <Linha label="Tipo de atendimento" value={MODALIDADE_LABEL[consulta.modalidade]} />
             <Linha label="Convênio" value={consulta.convenio || 'PARTICULAR'} />
             <Linha label="E-mail" value={consulta.paciente_email || '—'} />

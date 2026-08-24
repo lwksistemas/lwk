@@ -112,7 +112,7 @@ class Consulta(LojaIsolationMixin, models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name="consultas")
     data = models.DateField()
     hora = models.TimeField()
-    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default="consulta")
+    tipo = models.CharField(max_length=40, default="consulta")
     modalidade = models.CharField(max_length=20, choices=MODALIDADE_CHOICES, default="presencial")
     convenio = models.CharField(max_length=80, blank=True, default="PARTICULAR")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="agendado")
@@ -157,11 +157,20 @@ class ConfiguracaoConsultorio(LojaIsolationMixin, models.Model):
     hora_fim = models.TimeField(default="18:00")
     duracao_minutos = models.PositiveSmallIntegerField(default=15)
     endereco = models.CharField(max_length=240, blank=True, default="")
+    cep = models.CharField(max_length=10, blank=True, default="")
+    logradouro = models.CharField(max_length=200, blank=True, default="")
+    numero = models.CharField(max_length=20, blank=True, default="")
+    complemento = models.CharField(max_length=80, blank=True, default="")
+    bairro = models.CharField(max_length=100, blank=True, default="")
+    cidade = models.CharField(max_length=100, blank=True, default="")
+    uf = models.CharField(max_length=2, blank=True, default="")
     telefone = models.CharField(max_length=30, blank=True, default="")
     especialidade = models.CharField(max_length=80, blank=True, default="Clínica médica")
     crm = models.CharField(max_length=30, blank=True, default="")
     medico_nome = models.CharField(max_length=200, blank=True, default="")
     teto_tele_minutos = models.PositiveIntegerField(default=600)
+    prontuario_prefixo = models.CharField(max_length=20, blank=True, default="")
+    prontuario_abas_ocultas = models.JSONField(blank=True, default=list)
     updated_at = models.DateTimeField(auto_now=True)
 
     objects = LojaIsolationManager()
@@ -169,6 +178,62 @@ class ConfiguracaoConsultorio(LojaIsolationMixin, models.Model):
     class Meta:
         app_label = "clinica_geral"
         db_table = "clinica_geral_config"
+
+
+class TipoConsulta(LojaIsolationMixin, models.Model):
+    codigo = models.CharField(max_length=40)
+    nome = models.CharField(max_length=80)
+    duracao_minutos = models.PositiveSmallIntegerField(default=0)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    ordem = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_tipo_consulta"
+        ordering = ["ordem", "nome"]
+        unique_together = (("loja_id", "codigo"),)
+        indexes = [
+            models.Index(fields=["loja_id", "is_active"], name="cg_tipo_loja_act_idx"),
+        ]
+
+    def __str__(self):
+        return self.nome
+
+
+class ConvenioConsultorio(LojaIsolationMixin, models.Model):
+    TIPO_CHOICES = (
+        ("particular", "Particular"),
+        ("convenio", "Convênio"),
+        ("empresa", "Empresa"),
+        ("adm", "Adm. de benefícios"),
+    )
+
+    nome = models.CharField(max_length=120)
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default="convenio")
+    registro_ans = models.CharField(max_length=20, blank=True, default="")
+    telefone = models.CharField(max_length=30, blank=True, default="")
+    observacoes = models.CharField(max_length=200, blank=True, default="")
+    ordem = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_geral"
+        db_table = "clinica_geral_convenio_cat"
+        ordering = ["ordem", "nome"]
+        unique_together = (("loja_id", "nome"),)
+        indexes = [
+            models.Index(fields=["loja_id", "is_active"], name="cg_convcat_loja_act_idx"),
+        ]
+
+    def __str__(self):
+        return self.nome
 
 
 class PerfilProfissional(LojaIsolationMixin, models.Model):

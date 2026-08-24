@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { fetchRelatorio } from '@/lib/clinica-geral-api';
 import { TEAL } from '@/lib/clinica-geral-theme';
 import type { RelatorioResposta, TipoRelatorio } from '@/lib/clinica-geral-types';
-import { RELATORIO_TITULO, STATUS_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
+import { RELATORIO_TITULO, STATUS_LABEL, labelTipoConsulta } from '@/lib/clinica-geral-types';
 import { formatBRL, formatHora, monthRange } from '@/lib/clinica-geral-utils';
 
 export function RelatoriosPage({ tipo }: { tipo: TipoRelatorio }) {
@@ -106,7 +106,7 @@ function Conteudo({ tipo, dados }: { tipo: TipoRelatorio; dados: RelatorioRespos
         c.data || '',
         formatHora(c.hora || ''),
         c.paciente_nome || '—',
-        TIPO_CONSULTA_LABEL[c.tipo] || c.tipo || '—',
+        labelTipoConsulta(c.tipo),
         c.convenio || 'PARTICULAR',
         STATUS_LABEL[c.status as keyof typeof STATUS_LABEL] || c.status || '—',
       ])}

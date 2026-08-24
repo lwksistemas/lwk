@@ -19,6 +19,7 @@ import { EMPTY_ITEM, ReceitaForm } from '@/components/clinica-geral/ReceitaForm'
 import { ValorTissForm } from '@/components/clinica-geral/ValorTissForm';
 import {
   ABAS_ATENDIMENTO,
+  filtrarAbasAtendimento,
   fichaParaSoap,
   formatTimer,
   mergeFicha,
@@ -84,6 +85,7 @@ export function AtendimentoPage() {
   const [consultasPaciente, setConsultasPaciente] = useState<Consulta[]>([]);
   const [modal, setModal] = useState<'anteriores' | 'config' | null>(null);
   const [escalasVersao, setEscalasVersao] = useState(0);
+  const [abas, setAbas] = useState(() => [...ABAS_ATENDIMENTO]);
   const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -100,11 +102,14 @@ export function AtendimentoPage() {
         getEvolucaoDaConsulta(id),
         listAnexosPaciente(achada.paciente),
         getPaciente(achada.paciente),
-        getConfiguracao().catch(() => ({ medico_nome: '' })),
+        getConfiguracao().catch(() => ({ medico_nome: '', prontuario_abas_ocultas: [] as string[] })),
         getProntuario(achada.paciente),
         listConsultasPaciente(achada.paciente),
       ]);
       setMedicoNome(config.medico_nome || '');
+      const visiveis = filtrarAbasAtendimento(config.prontuario_abas_ocultas);
+      setAbas(visiveis);
+      setAba((atual) => (visiveis.some((a) => a.id === atual) ? atual : visiveis[0].id));
       setPaciente({ ...emptyPaciente(), ...fichaPaciente });
       setAnexos(docs);
       setHistorico(prontuario.evolucoes);
@@ -150,7 +155,7 @@ export function AtendimentoPage() {
 
   if (!consulta || !paciente) return <p className="p-6 text-sm text-slate-500">Carregando atendimento...</p>;
 
-  const titulo = ABAS_ATENDIMENTO.find((a) => a.id === aba)?.titulo || aba;
+  const titulo = abas.find((a) => a.id === aba)?.titulo || aba;
   const acoesSecao = {
     onVerAnteriores: () => setModal('anteriores'),
     onConfigurar: () => setModal('config'),
@@ -217,7 +222,7 @@ export function AtendimentoPage() {
 
       <div className="flex min-h-0 flex-1">
         <nav className="flex w-14 shrink-0 flex-col gap-1 bg-slate-100 py-2">
-          {ABAS_ATENDIMENTO.map((item) => (
+          {abas.map((item) => (
             <button
               key={item.id}
               type="button"

@@ -1,12 +1,12 @@
 'use client';
 
-import { ConfiguracoesSecaoPage } from '@/components/clinica-geral/ConfiguracoesSecaoPage';
+import { ConfiguracoesLayout } from '@/components/clinica-geral/ConfiguracoesLayout';
+import { ConveniosConsultorioPage } from '@/components/clinica-geral/ConveniosConsultorioPage';
 
 export default function ClinicaConveniosRoute() {
   return (
-    <ConfiguracoesSecaoPage
-      titulo="Convênios / Empresas"
-      texto="O cadastro de convênios e administradoras de benefícios entra neste espaço no próximo passo."
-    />
+    <ConfiguracoesLayout>
+      <ConveniosConsultorioPage />
+    </ConfiguracoesLayout>
   );
 }

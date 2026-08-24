@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     ConfiguracaoConsultorioViewSet,
     ConsultaViewSet,
+    ConvenioConsultorioViewSet,
     EspecialidadeViewSet,
     EvolucaoPDFView,
     EvolucaoViewSet,
@@ -20,6 +21,7 @@ from .views import (
     RelatoriosView,
     TarefaViewSet,
     TeleconsultaPublicaView,
+    TipoConsultaViewSet,
 )
 
 router = DefaultRouter()
@@ -36,6 +38,8 @@ router.register(r"caixa", FechamentoCaixaViewSet, basename="clinica-geral-caixa"
 router.register(r"especialidades", EspecialidadeViewSet, basename="clinica-geral-especialidades")
 router.register(r"profissionais", ProfissionalViewSet, basename="clinica-geral-profissionais")
 router.register(r"funcionarios", FuncionarioViewSet, basename="clinica-geral-funcionarios")
+router.register(r"tipos-consulta", TipoConsultaViewSet, basename="clinica-geral-tipos-consulta")
+router.register(r"convenios", ConvenioConsultorioViewSet, basename="clinica-geral-convenios")
 
 urlpatterns = [
     path("relatorios/", RelatoriosView.as_view(), name="clinica-geral-relatorios"),

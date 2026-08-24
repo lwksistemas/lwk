@@ -4,7 +4,7 @@ import { Printer, User } from 'lucide-react';
 import { ImageUploadMedia } from '@/components/ImageUploadMedia';
 import { TEAL } from '@/lib/clinica-geral-theme';
 import type { Consulta, Paciente, PacienteAnexo } from '@/lib/clinica-geral-types';
-import { SEXO_LABEL, STATUS_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
+import { SEXO_LABEL, STATUS_LABEL, labelTipoConsulta } from '@/lib/clinica-geral-types';
 import {
   daysFromToday,
   displayName,
@@ -97,7 +97,7 @@ export function PacienteFichaView({
                     </div>
                     <div className="mt-0.5 flex flex-wrap gap-x-2 text-slate-500">
                       <span>{STATUS_LABEL[c.status]}</span>
-                      <span>{TIPO_CONSULTA_LABEL[c.tipo]}</span>
+                      <span>{labelTipoConsulta(c.tipo)}</span>
                     </div>
                   </a>
                 </li>

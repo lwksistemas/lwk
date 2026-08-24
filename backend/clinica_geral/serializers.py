@@ -5,6 +5,7 @@ from rest_framework import serializers
 from .models import (
     ConfiguracaoConsultorio,
     Consulta,
+    ConvenioConsultorio,
     ConvenioPaciente,
     Evolucao,
     Especialidade,
@@ -19,6 +20,7 @@ from .models import (
     Profissional,
     Responsavel,
     Tarefa,
+    TipoConsulta,
 )
 
 
@@ -83,7 +85,9 @@ class PacienteSerializer(serializers.ModelSerializer):
         convenios = validated_data.pop("convenios", [])
         paciente = Paciente.objects.create(**validated_data)
         if not paciente.numero_prontuario:
-            paciente.numero_prontuario = str(paciente.id)
+            from .catalog_service import montar_numero_prontuario
+
+            paciente.numero_prontuario = montar_numero_prontuario(paciente.id)
             paciente.save(update_fields=["numero_prontuario"])
         for item in responsaveis:
             Responsavel.objects.create(paciente=paciente, **item)
@@ -212,6 +216,12 @@ class ConsultaSerializer(serializers.ModelSerializer):
 
         return link_paciente(obj) if getattr(obj, "tele_token", "") else ""
 
+    def create(self, validated_data):
+        from .catalog_service import aplicar_tipo_na_consulta
+
+        aplicar_tipo_na_consulta(validated_data, self.initial_data)
+        return super().create(validated_data)
+
 
 class TarefaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -228,12 +238,45 @@ class ConfiguracaoConsultorioSerializer(serializers.ModelSerializer):
             "hora_fim",
             "duracao_minutos",
             "endereco",
+            "cep",
+            "logradouro",
+            "numero",
+            "complemento",
+            "bairro",
+            "cidade",
+            "uf",
             "telefone",
             "especialidade",
             "crm",
             "medico_nome",
             "teto_tele_minutos",
+            "prontuario_prefixo",
+            "prontuario_abas_ocultas",
         )
+
+    def validate_uf(self, value):
+        from .equipe_service import normalizar_uf
+
+        return normalizar_uf(value)
+
+    def update(self, instance, validated_data):
+        from .catalog_service import montar_endereco
+
+        obj = super().update(instance, validated_data)
+        montado = montar_endereco(
+            obj.logradouro, obj.numero, obj.complemento, obj.bairro, obj.cidade, obj.uf, obj.cep
+        )
+        if montado and obj.endereco != montado:
+            obj.endereco = montado
+            obj.save(update_fields=["endereco"])
+        return obj
+
+    def validate_prontuario_abas_ocultas(self, value):
+        if value in (None, ""):
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Informe uma lista de abas.")
+        return [str(item).strip() for item in value if str(item).strip()]
 
     def validate(self, attrs):
         inicio = attrs.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
@@ -413,4 +456,78 @@ class FuncionarioSerializer(serializers.ModelSerializer):
         if not nome:
             raise serializers.ValidationError("Informe o nome do funcionário.")
         return nome
+
+
+class TipoConsultaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoConsulta
+        fields = ("id", "codigo", "nome", "duracao_minutos", "valor", "ordem")
+        read_only_fields = ("id", "codigo")
+
+    def validate_nome(self, value):
+        from .equipe_service import normalizar_nome
+
+        nome = normalizar_nome(value)
+        if not nome:
+            raise serializers.ValidationError("Informe o nome do tipo de consulta.")
+        qs = TipoConsulta.objects.filter(nome__iexact=nome, is_active=True)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Já existe um tipo com este nome.")
+        return nome
+
+    def create(self, validated_data):
+        from .catalog_service import codigo_unico_tipo
+
+        validated_data["codigo"] = codigo_unico_tipo(validated_data["nome"])
+        if "ordem" not in validated_data or validated_data.get("ordem") in (None, 0):
+            ultimo = TipoConsulta.objects.filter(is_active=True).order_by("-ordem").first()
+            validated_data["ordem"] = (ultimo.ordem + 1) if ultimo else 1
+        return super().create(validated_data)
+
+
+class ConvenioConsultorioSerializer(serializers.ModelSerializer):
+    tipo_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ConvenioConsultorio
+        fields = ("id", "nome", "tipo", "tipo_label", "registro_ans", "telefone", "observacoes", "ordem")
+        read_only_fields = ("id",)
+
+    def get_tipo_label(self, obj):
+        return dict(ConvenioConsultorio.TIPO_CHOICES).get(obj.tipo, obj.tipo)
+
+    def validate_nome(self, value):
+        from .equipe_service import normalizar_nome
+
+        nome = normalizar_nome(value)
+        if not nome:
+            raise serializers.ValidationError("Informe o nome do convênio.")
+        qs = ConvenioConsultorio.objects.filter(nome__iexact=nome, is_active=True)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Já existe um convênio com este nome.")
+        return nome
+
+    def validate_tipo(self, value):
+        tipos = {k for k, _ in ConvenioConsultorio.TIPO_CHOICES}
+        tipo = (value or "convenio").strip().lower()
+        if tipo not in tipos:
+            raise serializers.ValidationError("Tipo inválido.")
+        return tipo
+
+    def create(self, validated_data):
+        inativo = ConvenioConsultorio.objects.filter(nome=validated_data["nome"], is_active=False).first()
+        if inativo:
+            for key, value in validated_data.items():
+                setattr(inativo, key, value)
+            inativo.is_active = True
+            inativo.save()
+            return inativo
+        if "ordem" not in validated_data or validated_data.get("ordem") in (None, 0):
+            ultimo = ConvenioConsultorio.objects.filter(is_active=True).order_by("-ordem").first()
+            validated_data["ordem"] = (ultimo.ordem + 1) if ultimo else 1
+        return super().create(validated_data)
 

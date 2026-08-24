@@ -1,12 +1,12 @@
 'use client';
 
-import { ConfiguracoesSecaoPage } from '@/components/clinica-geral/ConfiguracoesSecaoPage';
+import { ConfiguracoesLayout } from '@/components/clinica-geral/ConfiguracoesLayout';
+import { EnderecoConsultorioPage } from '@/components/clinica-geral/EnderecoConsultorioPage';
 
 export default function ClinicaEnderecoRoute() {
   return (
-    <ConfiguracoesSecaoPage
-      titulo="Endereço"
-      texto="O endereço de atendimento do consultório entra neste espaço. Enquanto isso, use Agenda em Meu consultório."
-    />
+    <ConfiguracoesLayout>
+      <EnderecoConsultorioPage />
+    </ConfiguracoesLayout>
   );
 }

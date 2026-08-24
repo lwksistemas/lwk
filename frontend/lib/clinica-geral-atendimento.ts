@@ -17,6 +17,12 @@ export const ABAS_ATENDIMENTO = [
 
 export type AbaAtendimento = (typeof ABAS_ATENDIMENTO)[number]['id'];
 
+export function filtrarAbasAtendimento(ocultas?: string[] | null) {
+  const hide = new Set((ocultas || []).filter(Boolean));
+  const visiveis = ABAS_ATENDIMENTO.filter((a) => !hide.has(a.id));
+  return visiveis.length > 0 ? visiveis : [...ABAS_ATENDIMENTO];
+}
+
 export const QUEIXAS = [
   'Diabetes Mellitus',
   'Cefaléia',

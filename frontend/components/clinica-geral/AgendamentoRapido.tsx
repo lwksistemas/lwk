@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
-import { createConsulta, createPaciente, listPacientes } from '@/lib/clinica-geral-api';
+import { createConsulta, createPaciente, listConveniosConsultorio, listPacientes, listTiposConsulta } from '@/lib/clinica-geral-api';
 import { TEAL } from '@/lib/clinica-geral-theme';
-import type { Consulta, PacienteLista } from '@/lib/clinica-geral-types';
+import type { ConvenioConsultorio, Consulta, PacienteLista, TipoConsultaCatalogo } from '@/lib/clinica-geral-types';
 import { MODALIDADE_LABEL, TIPO_CONSULTA_LABEL } from '@/lib/clinica-geral-types';
 import { formatShortDate } from '@/lib/clinica-geral-utils';
 
@@ -25,8 +25,26 @@ export function AgendamentoRapido({ data, hora, pacienteInicial, onClose, onSave
   const [convenio, setConvenio] = useState('PARTICULAR');
   const [tipo, setTipo] = useState<Consulta['tipo']>('consulta');
   const [modalidade, setModalidade] = useState<Consulta['modalidade']>('presencial');
+  const [tipos, setTipos] = useState<TipoConsultaCatalogo[]>([]);
+  const [convenios, setConvenios] = useState<ConvenioConsultorio[]>([]);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    void Promise.all([listTiposConsulta(), listConveniosConsultorio()])
+      .then(([listaTipos, listaConvenios]) => {
+        setTipos(listaTipos);
+        setConvenios(listaConvenios);
+        if (listaTipos.some((t) => t.codigo === 'consulta')) setTipo('consulta');
+        else if (listaTipos[0]) setTipo(listaTipos[0].codigo);
+        const particular = listaConvenios.find((c) => c.tipo === 'particular') || listaConvenios[0];
+        if (particular) setConvenio(particular.nome);
+      })
+      .catch(() => {
+        setTipos([]);
+        setConvenios([]);
+      });
+  }, []);
 
   useEffect(() => {
     if (!pacienteInicial) return;
@@ -142,10 +160,12 @@ export function AgendamentoRapido({ data, hora, pacienteInicial, onClose, onSave
           <input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="Celular" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
           <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
           <select value={convenio} onChange={(e) => setConvenio(e.target.value)} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
-            <option value="PARTICULAR">PARTICULAR</option>
+            {(convenios.length > 0 ? convenios.map((c) => c.nome) : ['PARTICULAR']).map((nome) => (
+              <option key={nome} value={nome}>{nome}</option>
+            ))}
           </select>
-          <select value={tipo} onChange={(e) => setTipo(e.target.value as Consulta['tipo'])} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
-            {Object.entries(TIPO_CONSULTA_LABEL).map(([k, label]) => (
+          <select value={tipo} onChange={(e) => setTipo(e.target.value)} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+            {(tipos.length ? tipos.map((t) => [t.codigo, t.nome] as const) : Object.entries(TIPO_CONSULTA_LABEL)).map(([k, label]) => (
               <option key={k} value={k}>{label}</option>
             ))}
           </select>

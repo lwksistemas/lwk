@@ -18,11 +18,20 @@ const VAZIA: ConfiguracaoConsultorio = {
   hora_fim: '18:00',
   duracao_minutos: 15,
   endereco: '',
+  cep: '',
+  logradouro: '',
+  numero: '',
+  complemento: '',
+  bairro: '',
+  cidade: '',
+  uf: '',
   telefone: '',
   especialidade: 'Clínica médica',
   crm: '',
   medico_nome: '',
   teto_tele_minutos: 600,
+  prontuario_prefixo: '',
+  prontuario_abas_ocultas: [],
 };
 
 export function ConfiguracoesAgendaPage() {
@@ -36,6 +45,7 @@ export function ConfiguracoesAgendaPage() {
     getConfiguracao()
       .then((c) =>
         setConfig({
+          ...VAZIA,
           ...c,
           hora_inicio: hhmm(c.hora_inicio),
           hora_fim: hhmm(c.hora_fim),
@@ -50,8 +60,16 @@ export function ConfiguracoesAgendaPage() {
     setSalvando(true);
     setErro('');
     try {
-      const r = await saveConfiguracao(config);
+      const r = await saveConfiguracao({
+        hora_inicio: config.hora_inicio,
+        hora_fim: config.hora_fim,
+        duracao_minutos: config.duracao_minutos,
+        especialidade: config.especialidade,
+        crm: config.crm,
+        medico_nome: config.medico_nome,
+      });
       setConfig({
+        ...VAZIA,
         ...r,
         hora_inicio: hhmm(r.hora_inicio),
         hora_fim: hhmm(r.hora_fim),
@@ -111,26 +129,8 @@ export function ConfiguracoesAgendaPage() {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-6">
-              <h2 className="mb-4 text-base font-semibold text-slate-900">Consultório</h2>
+              <h2 className="mb-4 text-base font-semibold text-slate-900">Médico</h2>
               <div className="space-y-4">
-                <label className="block text-sm">
-                  <span className="mb-1 block font-medium text-slate-700">Endereço</span>
-                  <input
-                    value={config.endereco}
-                    onChange={(e) => setConfig((c) => ({ ...c, endereco: e.target.value }))}
-                    placeholder="Rua, número, bairro, cidade"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="mb-1 block font-medium text-slate-700">Telefone</span>
-                  <input
-                    value={config.telefone}
-                    onChange={(e) => setConfig((c) => ({ ...c, telefone: e.target.value }))}
-                    placeholder="(16) 0000-0000"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                  />
-                </label>
                 <label className="block text-sm">
                   <span className="mb-1 block font-medium text-slate-700">Especialidade</span>
                   <input

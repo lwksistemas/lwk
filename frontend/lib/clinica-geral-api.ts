@@ -20,6 +20,8 @@ import type {
   EspecialidadeEquipe,
   FuncionarioLoja,
   ProfissionalEquipe,
+  TipoConsultaCatalogo,
+  ConvenioConsultorio,
 } from '@/lib/clinica-geral-types';
 
 function unwrapList<T>(data: T[] | { results?: T[] }): T[] {
@@ -312,4 +314,42 @@ export async function updateFuncionario(id: number, payload: Partial<Funcionario
 
 export async function deleteFuncionario(id: number) {
   await apiClient.delete(`/clinica-geral/funcionarios/${id}/`);
+}
+
+export async function listTiposConsulta() {
+  const res = await apiClient.get('/clinica-geral/tipos-consulta/');
+  return unwrapList(res.data) as TipoConsultaCatalogo[];
+}
+
+export async function createTipoConsulta(payload: Partial<TipoConsultaCatalogo>) {
+  const res = await apiClient.post('/clinica-geral/tipos-consulta/', payload);
+  return res.data as TipoConsultaCatalogo;
+}
+
+export async function updateTipoConsulta(id: number, payload: Partial<TipoConsultaCatalogo>) {
+  const res = await apiClient.patch(`/clinica-geral/tipos-consulta/${id}/`, payload);
+  return res.data as TipoConsultaCatalogo;
+}
+
+export async function deleteTipoConsulta(id: number) {
+  await apiClient.delete(`/clinica-geral/tipos-consulta/${id}/`);
+}
+
+export async function listConveniosConsultorio() {
+  const res = await apiClient.get('/clinica-geral/convenios/');
+  return unwrapList(res.data) as ConvenioConsultorio[];
+}
+
+export async function createConvenioConsultorio(payload: Partial<ConvenioConsultorio>) {
+  const res = await apiClient.post('/clinica-geral/convenios/', payload);
+  return res.data as ConvenioConsultorio;
+}
+
+export async function updateConvenioConsultorio(id: number, payload: Partial<ConvenioConsultorio>) {
+  const res = await apiClient.patch(`/clinica-geral/convenios/${id}/`, payload);
+  return res.data as ConvenioConsultorio;
+}
+
+export async function deleteConvenioConsultorio(id: number) {
+  await apiClient.delete(`/clinica-geral/convenios/${id}/`);
 }

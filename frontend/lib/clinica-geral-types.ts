@@ -1,6 +1,6 @@
 export type SexoPaciente = '' | 'M' | 'F' | 'I';
 
-export type TipoConsulta = 'consulta' | 'primeira' | 'retorno';
+export type TipoConsulta = string;
 
 export type ModalidadeConsulta = 'presencial' | 'tele';
 
@@ -103,11 +103,20 @@ export interface ConfiguracaoConsultorio {
   hora_fim: string;
   duracao_minutos: number;
   endereco: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
   telefone: string;
   especialidade: string;
   crm: string;
   medico_nome: string;
   teto_tele_minutos: number;
+  prontuario_prefixo: string;
+  prontuario_abas_ocultas: string[];
 }
 
 export interface UsuarioConsultorio {
@@ -292,11 +301,17 @@ export interface DiaHorariosLivres {
   horarios: string[];
 }
 
-export const TIPO_CONSULTA_LABEL: Record<TipoConsulta, string> = {
+export const TIPO_CONSULTA_LABEL: Record<string, string> = {
   consulta: 'Consulta',
-  primeira: 'Primeira Consulta',
+  primeira: 'Primeira consulta',
   retorno: 'Retorno',
 };
+
+export function labelTipoConsulta(tipo?: string | null): string {
+  const codigo = (tipo || '').trim();
+  if (!codigo) return '—';
+  return TIPO_CONSULTA_LABEL[codigo] || codigo;
+}
 
 export const MODALIDADE_LABEL: Record<ModalidadeConsulta, string> = {
   presencial: 'Consulta presencial',
@@ -427,4 +442,33 @@ export interface FuncionarioLoja {
   cargo_label: string;
   email: string;
   telefone: string;
+}
+
+export type TipoConvenioConsultorio = 'particular' | 'convenio' | 'empresa' | 'adm';
+
+export const TIPO_CONVENIO_CONSULTORIO: { id: TipoConvenioConsultorio; label: string }[] = [
+  { id: 'particular', label: 'Particular' },
+  { id: 'convenio', label: 'Convênio' },
+  { id: 'empresa', label: 'Empresa' },
+  { id: 'adm', label: 'Adm. de benefícios' },
+];
+
+export interface TipoConsultaCatalogo {
+  id: number;
+  codigo: string;
+  nome: string;
+  duracao_minutos: number;
+  valor: string | null;
+  ordem: number;
+}
+
+export interface ConvenioConsultorio {
+  id: number;
+  nome: string;
+  tipo: TipoConvenioConsultorio;
+  tipo_label: string;
+  registro_ans: string;
+  telefone: string;
+  observacoes: string;
+  ordem: number;
 }

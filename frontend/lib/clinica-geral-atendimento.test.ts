@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calcIMC, calcSC, coletarCirurgias, coletarDiagnosticos, emptyFicha, fichaParaSoap, formatTimer, isAnexoImagem, mergeFicha, resumoAbaFicha, toggleItem } from '@/lib/clinica-geral-atendimento';
+import { calcIMC, calcSC, coletarCirurgias, coletarDiagnosticos, emptyFicha, fichaParaSoap, filtrarAbasAtendimento, formatTimer, isAnexoImagem, mergeFicha, resumoAbaFicha, toggleItem, ABAS_ATENDIMENTO } from '@/lib/clinica-geral-atendimento';
 
 describe('clinica-geral-atendimento', () => {
   it('calcula IMC, SC e o cronômetro', () => {
@@ -64,5 +64,12 @@ describe('clinica-geral-atendimento', () => {
     ]);
     expect(isAnexoImagem('raio-x.jpg')).toBe(true);
     expect(isAnexoImagem('laudo.pdf')).toBe(false);
+  });
+
+  it('esconde abas ocultas do atendimento e nunca deixa a lista vazia', () => {
+    const visiveis = filtrarAbasAtendimento(['EM', 'Lx']);
+    expect(visiveis.some((a) => a.id === 'EM')).toBe(false);
+    expect(visiveis.some((a) => a.id === 'HMA')).toBe(true);
+    expect(filtrarAbasAtendimento(ABAS_ATENDIMENTO.map((a) => a.id)).length).toBe(ABAS_ATENDIMENTO.length);
   });
 });

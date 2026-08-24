@@ -6,7 +6,7 @@ import apiClient from '@/lib/api-client';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { formatCpfCnpj } from '@/lib/consulta-cnpj';
-import { buildCrmLeadPayload } from '@/lib/crm-utils';
+import { buildCrmLeadPayload, getCrmApiErrorDetail } from '@/lib/crm-utils';
 import { formatCep } from '@/lib/format-br';
 import { LeadCadastroForm } from '@/components/crm-vendas/LeadCadastroForm';
 import { EMPTY_FORM_LEAD } from '@/lib/crm-lead-form-types';
@@ -55,9 +55,7 @@ export default function NovoLeadPage() {
         router.push(basePath);
       })
       .catch((err) => {
-        setFormErro(
-          err.response?.data?.nome?.[0] || err.response?.data?.detail || 'Erro ao salvar lead.',
-        );
+        setFormErro(getCrmApiErrorDetail(err, 'Erro ao salvar lead.'));
       })
       .finally(() => setEnviando(false));
   };

@@ -93,6 +93,12 @@ class LeadViewSet(
     cache_keys = ["leads"]
     crm_permission_model = "lead"
 
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        if response.status_code >= 400:
+            logger.warning("[LeadViewSet.create] 400 payload=%s erros=%s", request.data, response.data)
+        return response
+
     def get_serializer_class(self):
         if self.action == "list":
             return LeadListSerializer

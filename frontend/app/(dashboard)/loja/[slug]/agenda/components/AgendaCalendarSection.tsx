@@ -94,6 +94,7 @@ export function AgendaCalendarSection({
   onDateClick,
   onEventDrop,
   onEventResize,
+  isMutatingRef,
 }: {
   modoAgenda: "grade" | "lista";
   eventos: AgendaEventData[];
@@ -111,6 +112,7 @@ export function AgendaCalendarSection({
   onDateClick: (info: DateClickArg) => void;
   onEventDrop: (info: EventDropArg) => void;
   onEventResize: (info: EventResizeDoneArg) => void;
+  isMutatingRef?: React.MutableRefObject<boolean>;
 }) {
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
@@ -177,6 +179,7 @@ export function AgendaCalendarSection({
           dayMaxEvents
           weekends
           events={eventos}
+          eventDragStart={() => { if (isMutatingRef) isMutatingRef.current = true; }}
           eventDrop={onEventDrop}
           eventResize={onEventResize}
           eventClick={onEventClick}

@@ -36,6 +36,7 @@ export function useAgendaEventos({
   patients,
   procedures,
   statusColors = CLINICA_AGENDA_STATUS_COLORS,
+  isMutatingRef,
 }: {
   isOnline: boolean;
   selectedProfessional: string;
@@ -46,6 +47,7 @@ export function useAgendaEventos({
   patients: ClinicaPatient[];
   procedures: ClinicaProcedure[];
   statusColors?: AgendaStatusColorMap;
+  isMutatingRef?: React.MutableRefObject<boolean>;
 }) {
   const horariosTrabalhoRef = useRef<HorarioTrabalhoRow[]>(horariosTrabalho);
   horariosTrabalhoRef.current = horariosTrabalho;
@@ -143,9 +145,11 @@ export function useAgendaEventos({
   );
 
   useEffect(() => {
+    // Não atualizar eventos durante drag/mutation para não cancelar o drag do FullCalendar
+    if (isMutatingRef?.current) return;
     const next = isOnline ? eventosOnline : offlineEventos;
     setEventos((prev) => (agendaEventsEqual(prev, next) ? prev : next));
-  }, [eventosOnline, offlineEventos, isOnline]);
+  }, [eventosOnline, offlineEventos, isOnline, isMutatingRef]);
 
   return { eventos, setEventos, offlineLoading, loadOffline };
 }

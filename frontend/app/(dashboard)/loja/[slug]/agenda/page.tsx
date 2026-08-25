@@ -56,7 +56,7 @@ export default function AgendaPage() {
     locaisAtendimento,
     bloqueios,
     carregarDados,
-  } = useAgendaData(selectedProfessional);
+  } = useAgendaData(selectedProfessional, isMutatingRef);
 
   const { calendarPlugins, ptBrLocale, isMobile } = useAgendaPageEffects({
     searchParams,

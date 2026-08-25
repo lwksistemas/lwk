@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useAgendaStatusColors } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
 import { useAgendaEventos } from "./useAgendaEventos";
 import { useAgendaOnlineStatus } from "./useAgendaOnlineStatus";
@@ -10,7 +11,7 @@ import {
   useAgendaRefresh,
 } from "./useAgendaQueries";
 
-export function useAgendaData(selectedProfessional: string) {
+export function useAgendaData(selectedProfessional: string, isMutatingRef?: React.MutableRefObject<boolean>) {
   const isOnline = useAgendaOnlineStatus();
   const statusColors = useAgendaStatusColors();
 
@@ -41,6 +42,7 @@ export function useAgendaData(selectedProfessional: string) {
     patients,
     procedures,
     statusColors,
+    isMutatingRef,
   });
 
   const { carregarDados, setPatients } = useAgendaRefresh(

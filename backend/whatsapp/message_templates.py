@@ -206,6 +206,54 @@ def msg_confirmacao_agendamento(
     return "\n".join(linhas)
 
 
+def msg_reagendamento(
+    *,
+    nome: str,
+    data: str,
+    hora: str,
+    procedimento: str,
+    profissional: str | None = None,
+    link: str | None = None,
+) -> str:
+    """Mensagem enviada quando o agendamento é remarcado para outro dia/horário."""
+    linhas = [
+        "🔄 *Agendamento Remarcado*",
+        SEPARADOR,
+        f"Olá *{nome}*! 😊",
+        "",
+        "Seu horário foi *remarcado*. Por favor, desconsidere o horário anterior.",
+        "",
+        "📆 *Nova data:* {data}",
+        "⏰ *Novo horário:* {hora}",
+        f"💆 *Procedimento:* {procedimento}",
+    ]
+    if profissional:
+        linhas.append(f"👤 *Profissional:* {profissional}")
+
+    linhas.append("")
+
+    if link:
+        linhas.extend([
+            "Por favor, confirme ou cancele:",
+            "",
+            "👇 *Abra o link e toque em Confirmar ou Cancelar:*",
+            link,
+            "",
+            "_Ou responda neste chat:_ *CONFIRMAR* ou *CANCELAR*",
+            "",
+            SEPARADOR,
+            "_Qualquer dúvida, entre em contato conosco._",
+        ])
+    else:
+        linhas.extend([
+            "Responda *CONFIRMAR* ou *CANCELAR* para este chat.",
+            "",
+            SEPARADOR,
+            "_Qualquer dúvida, entre em contato conosco._",
+        ])
+    return "\n".join(linhas).format(data=data, hora=hora)
+
+
 def msg_confirmacao_agendamento_salao(
     *,
     nome: str,

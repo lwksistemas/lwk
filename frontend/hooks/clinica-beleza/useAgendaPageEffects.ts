@@ -23,7 +23,7 @@ export function useAgendaPageEffects({
   setSelectedEvent: (event: AgendaEventData | null) => void;
   setSelectedDate: (date: Date | null) => void;
   setShowCreateModal: (open: boolean) => void;
-  isMutatingRef?: React.RefObject<boolean>;
+  isMutatingRef?: React.MutableRefObject<boolean>;
 }) {
   const [calendarPlugins, setCalendarPlugins] = useState<unknown[]>([]);
   const [ptBrLocale, setPtBrLocale] = useState<unknown>(null);

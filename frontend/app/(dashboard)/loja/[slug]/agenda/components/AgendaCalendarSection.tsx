@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   CLINICA_AGENDA_SLOT_DURATION,
@@ -94,6 +94,7 @@ export function AgendaCalendarSection({
   onDateClick,
   onEventDrop,
   onEventResize,
+  isMutatingRef,
 }: {
   modoAgenda: "grade" | "lista";
   eventos: AgendaEventData[];
@@ -111,8 +112,24 @@ export function AgendaCalendarSection({
   onDateClick: (info: DateClickArg) => void;
   onEventDrop: (info: EventDropArg) => void;
   onEventResize: (info: EventResizeDoneArg) => void;
+  isMutatingRef?: React.MutableRefObject<boolean>;
 }) {
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
+
+  // Congelar eventos durante drag para evitar que FullCalendar cancele o drag
+  const frozenEventsRef = useRef(eventos);
+  const isDraggingRef = useRef(false);
+  // Só atualiza os eventos visíveis no calendário se NÃO está arrastando
+  const [calendarEvents, setCalendarEvents] = useState(eventos);
+
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      setCalendarEvents(eventos);
+    } else {
+      // Agendar atualização para quando o drag terminar
+      frozenEventsRef.current = eventos;
+    }
+  }, [eventos]);
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
   useAgendaPageWheel(
@@ -176,9 +193,23 @@ export function AgendaCalendarSection({
           selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
           dayMaxEvents
           weekends
-          events={eventos}
-          eventDrop={onEventDrop}
-          eventResize={onEventResize}
+          events={calendarEvents}
+          eventDragStart={() => {
+            isDraggingRef.current = true;
+            if (isMutatingRef) isMutatingRef.current = true;
+          }}
+          eventDrop={(info) => {
+            isDraggingRef.current = false;
+            if (isMutatingRef) isMutatingRef.current = false;
+            setCalendarEvents(frozenEventsRef.current);
+            onEventDrop(info);
+          }}
+          eventResize={(info) => {
+            isDraggingRef.current = false;
+            if (isMutatingRef) isMutatingRef.current = false;
+            setCalendarEvents(frozenEventsRef.current);
+            onEventResize(info);
+          }}
           eventClick={onEventClick}
           dateClick={onDateClick}
           height="auto"

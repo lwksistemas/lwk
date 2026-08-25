@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   CLINICA_AGENDA_SLOT_DURATION,
@@ -115,6 +115,14 @@ export function AgendaCalendarSection({
   isMutatingRef?: React.MutableRefObject<boolean>;
 }) {
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
+
+  // Congelar eventos durante drag para evitar que FullCalendar cancele o drag
+  const frozenEventsRef = useRef(eventos);
+  const isDraggingRef = useRef(false);
+  if (!isDraggingRef.current) {
+    frozenEventsRef.current = eventos;
+  }
+  const stableEventos = isDraggingRef.current ? frozenEventsRef.current : eventos;
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
   useAgendaPageWheel(
@@ -178,10 +186,19 @@ export function AgendaCalendarSection({
           selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
           dayMaxEvents
           weekends
-          events={eventos}
-          eventDragStart={() => { if (isMutatingRef) isMutatingRef.current = true; }}
-          eventDrop={onEventDrop}
-          eventResize={onEventResize}
+          events={stableEventos}
+          eventDragStart={() => {
+            isDraggingRef.current = true;
+            if (isMutatingRef) isMutatingRef.current = true;
+          }}
+          eventDrop={(info) => {
+            isDraggingRef.current = false;
+            onEventDrop(info);
+          }}
+          eventResize={(info) => {
+            isDraggingRef.current = false;
+            onEventResize(info);
+          }}
           eventClick={onEventClick}
           dateClick={onDateClick}
           height="auto"

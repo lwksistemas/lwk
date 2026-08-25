@@ -35,7 +35,8 @@ export function formatarAgendaEvento(
     backgroundColor: cores.bg,
     borderColor: cores.border,
     textColor: "#fff",
-    ...(comRestricaoExpediente ? { constraint: "businessHours" as const } : {}),
+    // Nota: constraint removida dos eventos para permitir arrastar para qualquer horário.
+    // A restrição de horário comercial é mantida via selectConstraint no calendário (novos agendamentos).
     extendedProps: {
       dbId: raw.id as string | number,
       status,
@@ -168,7 +169,6 @@ export function buildPendingSyncEvents({
         backgroundColor: cores.bg,
         borderColor: cores.border,
         textColor: "#fff",
-        ...(temExpediente ? { constraint: "businessHours" as const } : {}),
         extendedProps: {
           dbId: `offline-${item.id}`,
           status,

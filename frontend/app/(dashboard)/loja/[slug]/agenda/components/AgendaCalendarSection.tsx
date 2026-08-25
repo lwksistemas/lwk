@@ -10,7 +10,6 @@ import {
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
 import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
-import { agendaEventsEqual } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import { AgendaListaColunas } from "./AgendaListaColunas";
 import { AgendaMobileDayView } from "./AgendaMobileDayView";
 
@@ -115,21 +114,32 @@ export function AgendaCalendarSection({
 }) {
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
 
-  // Estabilizar referência dos eventos: o FullCalendar cancela drag ao receber
-  // nova referência de array. Manter a mesma referência se conteúdo não mudou.
-  const stableEventsRef = useRef(eventos);
-  if (!agendaEventsEqual(stableEventsRef.current, eventos)) {
-    stableEventsRef.current = eventos;
-  }
-  const calendarEvents = stableEventsRef.current;
+  // Estabilizar referência dos eventos para FullCalendar.
+  // O FullCalendar cancela drag quando recebe nova referência em `events`.
+  // Usar calendarRef para controlar atualizações manualmente.
+  const calendarRef = useRef<{ getApi(): { refetchEvents(): void; removeAllEvents(): void; addEventSource(s: unknown): void } } | null>(null);
+  const eventsRef = useRef(eventos);
+  eventsRef.current = eventos;
 
-  const handleDragStart = useCallback(() => {}, []);
-  const handleEventDrop = useCallback((info: EventDropArg) => {
-    onEventDrop(info);
-  }, [onEventDrop]);
-  const handleEventResize = useCallback((info: EventResizeDoneArg) => {
-    onEventResize(info);
-  }, [onEventResize]);
+  const eventSourceFn = useCallback(
+    (_info: unknown, successCallback: (events: AgendaEventData[]) => void) => {
+      successCallback(eventsRef.current);
+    },
+    [],
+  );
+
+  // Quando eventos mudam, pedir ao FullCalendar para re-buscar da source
+  const prevEventosLenRef = useRef(0);
+  const prevFirstStartRef = useRef("");
+  useEffect(() => {
+    const newLen = eventos.length;
+    const newFirst = eventos[0]?.start ?? "";
+    if (newLen !== prevEventosLenRef.current || newFirst !== prevFirstStartRef.current) {
+      prevEventosLenRef.current = newLen;
+      prevFirstStartRef.current = newFirst;
+      calendarRef.current?.getApi()?.refetchEvents();
+    }
+  }, [eventos]);
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
   useAgendaPageWheel(
@@ -181,6 +191,7 @@ export function AgendaCalendarSection({
     <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain agenda-scroll-root fc-agenda-calendar-root">
       {calendarPlugins.length > 0 && ptBrLocale ? (
         <FullCalendar
+          ref={calendarRef as never}
           key={`desktop-${selectedProfessional}`}
           plugins={calendarPlugins as never[]}
           initialView="timeGridWeek"
@@ -193,10 +204,9 @@ export function AgendaCalendarSection({
           selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
           dayMaxEvents
           weekends
-          events={calendarEvents}
-          eventDragStart={handleDragStart}
-          eventDrop={handleEventDrop}
-          eventResize={handleEventResize}
+          eventSources={[{ events: eventSourceFn }]}
+          eventDrop={onEventDrop}
+          eventResize={onEventResize}
           eventClick={onEventClick}
           dateClick={onDateClick}
           height="auto"

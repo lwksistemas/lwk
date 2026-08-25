@@ -259,6 +259,10 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     if new_status is not None:
         result.consulta_id, result.consulta_error = _sync_consulta(appointment, new_status, old_status)
 
+    # Se a data mudou, limpar registros de envio antigos e re-disparar confirmação
+    if date_changed:
+        _redisparar_confirmacao_por_mudanca_data(appointment)
+
     return result
 
 
@@ -276,6 +280,32 @@ def _sync_consulta(appointment, new_status, old_status):
         logger.exception("Erro ao sincronizar consulta agendamento %s status %s: %s",
                          appointment.id, new_status, e)
         return None, "Consulta não criada. Execute a atualização do sistema ou contate o suporte."
+
+
+def _redisparar_confirmacao_por_mudanca_data(appointment):
+    """Limpa registros de envio anteriores e re-dispara confirmação WhatsApp.
+
+    Quando o agendamento é arrastado para outro dia, o link antigo fica com
+    a data errada na mensagem. Precisamos:
+    1. Remover os registros de WhatsAppConfirmacaoEnvio (libera re-envio)
+    2. Disparar novamente se hoje é dia de envio pela nova data
+    """
+    try:
+        from whatsapp.models import WhatsAppConfirmacaoEnvio
+        from whatsapp.confirmacao_agenda_service import disparar_confirmacao_se_hoje
+
+        # Limpar todas as regras enviadas anteriormente para este agendamento
+        WhatsAppConfirmacaoEnvio.objects.filter(
+            appointment_id=appointment.id,
+        ).delete()
+
+        # Re-disparar confirmação (envia se hoje cair na regra da nova data)
+        disparar_confirmacao_se_hoje(appointment)
+    except Exception:
+        logger.exception(
+            "Erro ao re-disparar confirmação após mudança de data do agendamento %s",
+            appointment.id,
+        )
 
 
 def _executar_regra_finalizacao(appointment):

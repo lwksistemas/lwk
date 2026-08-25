@@ -201,24 +201,15 @@ export function AgendaCalendarSection({
           events={calendarEvents}
           eventDragStart={() => {
             isDraggingRef.current = true;
-            if (isMutatingRef) isMutatingRef.current = true;
           }}
           eventDrop={(info) => {
             isDraggingRef.current = false;
-            if (isMutatingRef) isMutatingRef.current = false;
-            if (pendingEventsRef.current) {
-              setCalendarEvents(pendingEventsRef.current);
-              pendingEventsRef.current = null;
-            }
+            pendingEventsRef.current = null;
             onEventDrop(info);
           }}
           eventResize={(info) => {
             isDraggingRef.current = false;
-            if (isMutatingRef) isMutatingRef.current = false;
-            if (pendingEventsRef.current) {
-              setCalendarEvents(pendingEventsRef.current);
-              pendingEventsRef.current = null;
-            }
+            pendingEventsRef.current = null;
             onEventResize(info);
           }}
           eventClick={onEventClick}

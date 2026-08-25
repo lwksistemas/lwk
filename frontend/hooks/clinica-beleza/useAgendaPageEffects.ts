@@ -113,7 +113,8 @@ export function useAgendaPageEffects({
         selectedEvent?.extendedProps.status === "PENDING");
     // Polling: atualiza dados auxiliares (profissionais, procedimentos, etc.)
     // Eventos da agenda NÃO são invalidados no poll — só via onReload após ações.
-    const intervalMs = aguardando ? 5000 : 20000;
+    // Intervalo longo (60s) para minimizar interferência com drag-and-drop.
+    const intervalMs = aguardando ? 5000 : 60000;
     const tick = () => {
       if (userScrollingRef.current) return;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;

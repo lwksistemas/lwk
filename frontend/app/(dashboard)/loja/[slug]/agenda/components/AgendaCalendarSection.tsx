@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   CLINICA_AGENDA_SLOT_DURATION,
@@ -10,6 +10,7 @@ import {
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
 import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
+import { agendaEventsEqual } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import { AgendaListaColunas } from "./AgendaListaColunas";
 import { AgendaMobileDayView } from "./AgendaMobileDayView";
 
@@ -94,7 +95,6 @@ export function AgendaCalendarSection({
   onDateClick,
   onEventDrop,
   onEventResize,
-  isMutatingRef,
 }: {
   modoAgenda: "grade" | "lista";
   eventos: AgendaEventData[];
@@ -112,13 +112,24 @@ export function AgendaCalendarSection({
   onDateClick: (info: DateClickArg) => void;
   onEventDrop: (info: EventDropArg) => void;
   onEventResize: (info: EventResizeDoneArg) => void;
-  isMutatingRef?: React.MutableRefObject<boolean>;
 }) {
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
 
-  // FullCalendar: usar eventos diretamente — staleTime: Infinity garante que
-  // o React Query não refetcha automaticamente, evitando cancelamento do drag.
-  const isDraggingRef = useRef(false);
+  // Estabilizar referência dos eventos: o FullCalendar cancela drag ao receber
+  // nova referência de array. Manter a mesma referência se conteúdo não mudou.
+  const stableEventsRef = useRef(eventos);
+  if (!agendaEventsEqual(stableEventsRef.current, eventos)) {
+    stableEventsRef.current = eventos;
+  }
+  const calendarEvents = stableEventsRef.current;
+
+  const handleDragStart = useCallback(() => {}, []);
+  const handleEventDrop = useCallback((info: EventDropArg) => {
+    onEventDrop(info);
+  }, [onEventDrop]);
+  const handleEventResize = useCallback((info: EventResizeDoneArg) => {
+    onEventResize(info);
+  }, [onEventResize]);
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
   useAgendaPageWheel(
@@ -182,18 +193,10 @@ export function AgendaCalendarSection({
           selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
           dayMaxEvents
           weekends
-          events={eventos}
-          eventDragStart={() => {
-            isDraggingRef.current = true;
-          }}
-          eventDrop={(info) => {
-            isDraggingRef.current = false;
-            onEventDrop(info);
-          }}
-          eventResize={(info) => {
-            isDraggingRef.current = false;
-            onEventResize(info);
-          }}
+          events={calendarEvents}
+          eventDragStart={handleDragStart}
+          eventDrop={handleEventDrop}
+          eventResize={handleEventResize}
           eventClick={onEventClick}
           dateClick={onDateClick}
           height="auto"

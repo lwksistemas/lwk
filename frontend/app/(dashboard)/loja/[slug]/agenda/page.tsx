@@ -186,7 +186,6 @@ export default function AgendaPage() {
             onEventResize={(info) => {
               void redimensionarEvento(info);
             }}
-            isMutatingRef={isMutatingRef}
           />
         </div>
       </div>

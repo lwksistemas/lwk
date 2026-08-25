@@ -311,7 +311,7 @@ def _redisparar_confirmacao_por_mudanca_data(appointment):
         if not getattr(config, "enviar_confirmacao", False):
             return
 
-        ok, err = enviar_confirmacao_agendamento(appointment, config=config)
+        ok, err = enviar_confirmacao_agendamento(appointment, config=config, reagendado=True)
         if not ok:
             logger.warning(
                 "Re-envio confirmação após mudança de data agendamento %s falhou: %s",

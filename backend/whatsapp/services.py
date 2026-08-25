@@ -572,25 +572,37 @@ def _contexto_confirmacao_agenda(agendamento, *, link_confirmacao=None) -> dict:
     }
 
 
-def msg_confirmacao(agendamento, *, link_confirmacao=None, config=None):
+def msg_confirmacao(agendamento, *, link_confirmacao=None, config=None, reagendado=False):
     """Solicitação de confirmação de agendamento."""
     from clinica_beleza.agenda_display import format_agenda_data, format_agenda_hora
 
     from .message_templates import (
         msg_confirmacao_agendamento,
         msg_confirmacao_agendamento_salao,
+        msg_reagendamento,
     )
 
     custom = ""
     if config is not None:
         custom = (getattr(config, "mensagem_confirmacao_agenda", None) or "").strip()
-    if custom:
+    if custom and not reagendado:
         ctx = _contexto_confirmacao_agenda(agendamento, link_confirmacao=link_confirmacao)
         return _render_mensagem_template(custom, ctx)
 
     nome = getattr(agendamento.patient, "name", "") or getattr(agendamento.patient, "nome", "") or "Cliente"
     prof = getattr(agendamento.professional, "nome", "") if agendamento.professional else ""
     modulo = (getattr(agendamento, "whatsapp_modulo", None) or "clinica_beleza").strip().lower()
+
+    if reagendado:
+        return msg_reagendamento(
+            nome=nome,
+            data=format_agenda_data(agendamento),
+            hora=format_agenda_hora(agendamento),
+            procedimento=_procedure_label(agendamento),
+            profissional=prof or None,
+            link=link_confirmacao,
+        )
+
     builder = (
         msg_confirmacao_agendamento_salao
         if modulo in ("cabeleireiro", "salao")
@@ -639,7 +651,7 @@ def msg_cobranca(paciente, valor):
 
 # --- Integração com agendamentos (chamar ao confirmar / lembrete / cobrança) ---
 
-def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
+def enviar_confirmacao_agendamento(agendamento, user=None, config=None, reagendado=False):
     """Envia solicitação de confirmação por WhatsApp ao paciente.
     Evolution: tenta botões interativos (URL ou reply) antes de fallback texto.
     Meta: envia texto formatado com link.
@@ -661,7 +673,7 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None):
         token = gerar_token_confirmacao(loja_id, agendamento.id, modulo=modulo)
         link = url_confirmacao_frontend(token)
 
-    msg = msg_confirmacao(agendamento, link_confirmacao=link, config=config)
+    msg = msg_confirmacao(agendamento, link_confirmacao=link, config=config, reagendado=reagendado)
 
     # Evolution: tentar botões interativos (melhor UX)
     if config and _get_provider(config) == WhatsAppConfig.PROVIDER_EVOLUTION:

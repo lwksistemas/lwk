@@ -119,10 +119,7 @@ export function useAgendaMutations({
       await atualizarBloqueioHorario(info as Parameters<typeof atualizarBloqueioHorario>[0]);
       return;
     }
-    const { version, updated_at } = info.event.extendedProps || {};
     const body: Record<string, unknown> = { date: info.event.start.toISOString() };
-    if (version != null) body.version = version;
-    if (updated_at) body.updated_at = updated_at;
     isMutatingRef.current = true;
     try {
       const ok = await patchAgendamento(info.event.id, body, info.revert);

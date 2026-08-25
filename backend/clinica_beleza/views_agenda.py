@@ -144,6 +144,7 @@ class AgendaUpdateView(APIView):
     permission_classes = CLINICA_AGENDA
 
     def patch(self, request, pk):
+        logger.info("PATCH agenda/%s data=%s", pk, dict(request.data))
         try:
             appointment = (
                 _agenda_events_queryset()

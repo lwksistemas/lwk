@@ -283,24 +283,45 @@ def _sync_consulta(appointment, new_status, old_status):
 
 
 def _redisparar_confirmacao_por_mudanca_data(appointment):
-    """Limpa registros de envio anteriores e re-dispara confirmação WhatsApp.
+    """Limpa registros de envio anteriores e re-envia confirmação WhatsApp.
 
-    Quando o agendamento é arrastado para outro dia, o link antigo fica com
-    a data errada na mensagem. Precisamos:
-    1. Remover os registros de WhatsAppConfirmacaoEnvio (libera re-envio)
-    2. Disparar novamente se hoje é dia de envio pela nova data
+    Quando o agendamento é arrastado para outro dia, a mensagem antiga fica com
+    a data errada. Precisamos:
+    1. Remover os registros de WhatsAppConfirmacaoEnvio (libera re-envio futuro)
+    2. Enviar IMEDIATAMENTE nova confirmação com a data correta
     """
     try:
-        from whatsapp.models import WhatsAppConfirmacaoEnvio
-        from whatsapp.confirmacao_agenda_service import disparar_confirmacao_se_hoje
+        from whatsapp.models import WhatsAppConfirmacaoEnvio, WhatsAppConfig
+        from whatsapp.services import enviar_confirmacao_agendamento
+        from tenants.middleware import get_current_loja_id
 
         # Limpar todas as regras enviadas anteriormente para este agendamento
         WhatsAppConfirmacaoEnvio.objects.filter(
             appointment_id=appointment.id,
         ).delete()
 
-        # Re-disparar confirmação (envia se hoje cair na regra da nova data)
-        disparar_confirmacao_se_hoje(appointment)
+        # Enviar imediatamente nova confirmação com a data atualizada
+        loja_id = getattr(appointment, "loja_id", None) or get_current_loja_id()
+        if not loja_id:
+            return
+        config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+        if not config or not getattr(config, "whatsapp_ativo", False):
+            return
+        # Só envia se confirmação estiver habilitada
+        if not getattr(config, "enviar_confirmacao", False):
+            return
+
+        ok, err = enviar_confirmacao_agendamento(appointment, config=config)
+        if not ok:
+            logger.warning(
+                "Re-envio confirmação após mudança de data agendamento %s falhou: %s",
+                appointment.id, err,
+            )
+    except Exception:
+        logger.exception(
+            "Erro ao re-disparar confirmação após mudança de data do agendamento %s",
+            appointment.id,
+        )
     except Exception:
         logger.exception(
             "Erro ao re-disparar confirmação após mudança de data do agendamento %s",

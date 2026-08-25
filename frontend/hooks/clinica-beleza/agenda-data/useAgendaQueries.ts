@@ -85,6 +85,8 @@ export function useAgendaCalendarQueries(isOnline: boolean, selectedProfessional
     queryKey: clinicaBelezaQueryKeys.agendaEvents(selectedProfessional),
     queryFn: () => fetchClinicaAgendaEvents(selectedProfessional),
     enabled: isOnline,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 
   const bloqueiosQuery = useQuery({

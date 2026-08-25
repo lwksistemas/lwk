@@ -112,14 +112,11 @@ export function useAgendaPageEffects({
       (selectedEvent?.extendedProps.status === "SCHEDULED" ||
         selectedEvent?.extendedProps.status === "PENDING");
     // 5s só no check-in; 20s em uso normal (antes 15s) — reduz carga na API.
-    // TEMPORÁRIO: polling desabilitado para debug do drag-and-drop
     const intervalMs = aguardando ? 5000 : 20000;
     const tick = () => {
       if (userScrollingRef.current) return;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       if (isMutatingRef?.current) return;
-      // Desabilitar polling automático — só atualiza manualmente
-      return;
       void carregarDadosRef.current();
     };
     const timer = window.setInterval(tick, intervalMs);

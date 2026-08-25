@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { arredondarDuracaoAgendaMin } from "@/lib/clinica-beleza-datetime";
 import type { AgendaConflictPayload, AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
@@ -20,6 +20,7 @@ interface UseAgendaMutationsOptions {
   selectedEvent: AgendaEventData | null;
   setSelectedEvent: React.Dispatch<React.SetStateAction<AgendaEventData | null>>;
   setShowModal: (open: boolean) => void;
+  isMutatingRef?: React.RefObject<boolean>;
 }
 
 export function useAgendaMutations({
@@ -27,12 +28,15 @@ export function useAgendaMutations({
   selectedEvent,
   setSelectedEvent,
   setShowModal,
+  isMutatingRef: externalMutatingRef,
 }: UseAgendaMutationsOptions) {
   const toast = useToast();
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [reenviandoMensagem, setReenviandoMensagem] = useState(false);
   const [conflictData, setConflictData] = useState<ConflictState>(null);
   const [conflictResolving, setConflictResolving] = useState(false);
+  const internalMutatingRef = useRef(false);
+  const isMutatingRef = externalMutatingRef ?? internalMutatingRef;
 
   const atualizarBloqueioHorario = useCallback(async (info: { event: { extendedProps?: Record<string, unknown>; start: Date | null; end: Date | null; title?: string }; revert: () => void }) => {
     const bloqueioId = info.event.extendedProps?.bloqueioId;
@@ -119,6 +123,7 @@ export function useAgendaMutations({
     const body: Record<string, unknown> = { date: info.event.start.toISOString() };
     if (version != null) body.version = version;
     if (updated_at) body.updated_at = updated_at;
+    isMutatingRef.current = true;
     try {
       const ok = await patchAgendamento(info.event.id, body, info.revert);
       if (ok) onReload();
@@ -126,6 +131,8 @@ export function useAgendaMutations({
       logger.warn("Erro ao mover evento:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao mover evento. Tente novamente.");
       info.revert();
+    } finally {
+      isMutatingRef.current = false;
     }
   }, [atualizarBloqueioHorario, onReload, patchAgendamento, toast]);
 

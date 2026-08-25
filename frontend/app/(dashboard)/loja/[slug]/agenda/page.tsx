@@ -5,7 +5,7 @@
  * Calendário fullscreen com drag & drop + Bloqueio de Horários
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
@@ -41,6 +41,8 @@ export default function AgendaPage() {
 
   useClinicaBelezaDark();
 
+  const isMutatingRef = useRef(false);
+
   const {
     eventos,
     setEventos,
@@ -66,6 +68,7 @@ export default function AgendaPage() {
     setSelectedEvent,
     setSelectedDate,
     setShowCreateModal,
+    isMutatingRef,
   });
 
   const {
@@ -96,6 +99,7 @@ export default function AgendaPage() {
     selectedEvent,
     setSelectedEvent,
     setShowModal,
+    isMutatingRef,
   });
 
   const { handleEventClick, handleEventClickArg, abrirEventoDaLista, handleDateClick } = useAgendaPageHandlers({

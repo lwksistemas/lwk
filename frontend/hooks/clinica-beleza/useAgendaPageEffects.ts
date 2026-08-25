@@ -12,6 +12,7 @@ export function useAgendaPageEffects({
   setSelectedEvent,
   setSelectedDate,
   setShowCreateModal,
+  isMutatingRef,
 }: {
   searchParams: ReadonlyURLSearchParams;
   selectedProfessional: string;
@@ -22,6 +23,7 @@ export function useAgendaPageEffects({
   setSelectedEvent: (event: AgendaEventData | null) => void;
   setSelectedDate: (date: Date | null) => void;
   setShowCreateModal: (open: boolean) => void;
+  isMutatingRef?: React.RefObject<boolean>;
 }) {
   const [calendarPlugins, setCalendarPlugins] = useState<unknown[]>([]);
   const [ptBrLocale, setPtBrLocale] = useState<unknown>(null);
@@ -114,6 +116,7 @@ export function useAgendaPageEffects({
     const tick = () => {
       if (userScrollingRef.current) return;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      if (isMutatingRef?.current) return;
       void carregarDadosRef.current();
     };
     const timer = window.setInterval(tick, intervalMs);

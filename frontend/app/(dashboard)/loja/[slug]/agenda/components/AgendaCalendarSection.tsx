@@ -116,25 +116,19 @@ export function AgendaCalendarSection({
 }) {
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
 
-  // Congelar eventos durante drag para evitar que FullCalendar cancele o drag
+  // Congelar eventos durante drag para evitar que FullCalendar cancele o drag.
+  // Abordagem: usar useRef para manter a última versão "segura" dos eventos.
+  // O FullCalendar só recebe uma nova referência quando NÃO está arrastando.
   const isDraggingRef = useRef(false);
-  const pendingEventsRef = useRef<AgendaEventData[] | null>(null);
-  const [calendarEvents, setCalendarEvents] = useState(eventos);
+  const stableEventsRef = useRef(eventos);
+  const [eventVersion, setEventVersion] = useState(0);
   
-  // Atualizar calendarEvents apenas quando não está arrastando
-  // Usa comparação de referência — se eventos mudou e não está arrastando, atualiza
-  const prevEventosRef = useRef(eventos);
-  if (eventos !== prevEventosRef.current) {
-    prevEventosRef.current = eventos;
-    if (!isDraggingRef.current) {
-      // Atualiza inline (sem useEffect) para evitar render extra que cancela drag
-      if (calendarEvents !== eventos) {
-        setCalendarEvents(eventos);
-      }
-    } else {
-      pendingEventsRef.current = eventos;
-    }
+  // Só atualiza a referência estável quando não está arrastando
+  if (!isDraggingRef.current && eventos !== stableEventsRef.current) {
+    stableEventsRef.current = eventos;
   }
+  // O FullCalendar usa stableEventsRef.current — que só muda fora do drag
+  const calendarEvents = stableEventsRef.current;
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
   useAgendaPageWheel(
@@ -204,13 +198,14 @@ export function AgendaCalendarSection({
           }}
           eventDrop={(info) => {
             isDraggingRef.current = false;
-            pendingEventsRef.current = null;
             onEventDrop(info);
+            // Forçar re-render após o drop para atualizar eventos
+            setTimeout(() => setEventVersion((v) => v + 1), 100);
           }}
           eventResize={(info) => {
             isDraggingRef.current = false;
-            pendingEventsRef.current = null;
             onEventResize(info);
+            setTimeout(() => setEventVersion((v) => v + 1), 100);
           }}
           eventClick={onEventClick}
           dateClick={onDateClick}

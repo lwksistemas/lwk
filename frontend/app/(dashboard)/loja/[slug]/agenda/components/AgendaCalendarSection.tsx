@@ -117,19 +117,24 @@ export function AgendaCalendarSection({
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
 
   // Congelar eventos durante drag para evitar que FullCalendar cancele o drag
-  const frozenEventsRef = useRef(eventos);
   const isDraggingRef = useRef(false);
-  // Só atualiza os eventos visíveis no calendário se NÃO está arrastando
+  const pendingEventsRef = useRef<AgendaEventData[] | null>(null);
   const [calendarEvents, setCalendarEvents] = useState(eventos);
-
-  useEffect(() => {
+  
+  // Atualizar calendarEvents apenas quando não está arrastando
+  // Usa comparação de referência — se eventos mudou e não está arrastando, atualiza
+  const prevEventosRef = useRef(eventos);
+  if (eventos !== prevEventosRef.current) {
+    prevEventosRef.current = eventos;
     if (!isDraggingRef.current) {
-      setCalendarEvents(eventos);
+      // Atualiza inline (sem useEffect) para evitar render extra que cancela drag
+      if (calendarEvents !== eventos) {
+        setCalendarEvents(eventos);
+      }
     } else {
-      // Agendar atualização para quando o drag terminar
-      frozenEventsRef.current = eventos;
+      pendingEventsRef.current = eventos;
     }
-  }, [eventos]);
+  }
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
   useAgendaPageWheel(
@@ -201,13 +206,19 @@ export function AgendaCalendarSection({
           eventDrop={(info) => {
             isDraggingRef.current = false;
             if (isMutatingRef) isMutatingRef.current = false;
-            setCalendarEvents(frozenEventsRef.current);
+            if (pendingEventsRef.current) {
+              setCalendarEvents(pendingEventsRef.current);
+              pendingEventsRef.current = null;
+            }
             onEventDrop(info);
           }}
           eventResize={(info) => {
             isDraggingRef.current = false;
             if (isMutatingRef) isMutatingRef.current = false;
-            setCalendarEvents(frozenEventsRef.current);
+            if (pendingEventsRef.current) {
+              setCalendarEvents(pendingEventsRef.current);
+              pendingEventsRef.current = null;
+            }
             onEventResize(info);
           }}
           eventClick={onEventClick}

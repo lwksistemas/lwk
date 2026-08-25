@@ -41,9 +41,9 @@ export function useAgendaCalendarConfig(
   }, [selectedProfessional, horariosTrabalho]);
 
   const slotMaxTime = useMemo(() => {
-    if (!selectedProfessional || horariosTrabalho.length === 0) return "20:00:00";
+    if (!selectedProfessional || horariosTrabalho.length === 0) return "22:00:00";
     const ativos = horariosTrabalho.filter((h) => h.ativo);
-    if (!ativos.length) return "20:00:00";
+    if (!ativos.length) return "22:00:00";
     return (
       ativos.reduce((max, h) => {
         const t = (h.hora_saida || "20:00").slice(0, 5);

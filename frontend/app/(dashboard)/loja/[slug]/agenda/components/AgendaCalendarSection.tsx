@@ -119,10 +119,17 @@ export function AgendaCalendarSection({
   // Congelar eventos durante drag para evitar que FullCalendar cancele o drag
   const frozenEventsRef = useRef(eventos);
   const isDraggingRef = useRef(false);
-  if (!isDraggingRef.current) {
-    frozenEventsRef.current = eventos;
-  }
-  const stableEventos = isDraggingRef.current ? frozenEventsRef.current : eventos;
+  // Só atualiza os eventos visíveis no calendário se NÃO está arrastando
+  const [calendarEvents, setCalendarEvents] = useState(eventos);
+
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      setCalendarEvents(eventos);
+    } else {
+      // Agendar atualização para quando o drag terminar
+      frozenEventsRef.current = eventos;
+    }
+  }, [eventos]);
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
   useAgendaPageWheel(
@@ -186,17 +193,21 @@ export function AgendaCalendarSection({
           selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
           dayMaxEvents
           weekends
-          events={stableEventos}
+          events={calendarEvents}
           eventDragStart={() => {
             isDraggingRef.current = true;
             if (isMutatingRef) isMutatingRef.current = true;
           }}
           eventDrop={(info) => {
             isDraggingRef.current = false;
+            if (isMutatingRef) isMutatingRef.current = false;
+            setCalendarEvents(frozenEventsRef.current);
             onEventDrop(info);
           }}
           eventResize={(info) => {
             isDraggingRef.current = false;
+            if (isMutatingRef) isMutatingRef.current = false;
+            setCalendarEvents(frozenEventsRef.current);
             onEventResize(info);
           }}
           eventClick={onEventClick}

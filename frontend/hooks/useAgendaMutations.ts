@@ -20,7 +20,7 @@ interface UseAgendaMutationsOptions {
   selectedEvent: AgendaEventData | null;
   setSelectedEvent: React.Dispatch<React.SetStateAction<AgendaEventData | null>>;
   setShowModal: (open: boolean) => void;
-  isMutatingRef?: React.RefObject<boolean>;
+  isMutatingRef?: React.MutableRefObject<boolean>;
 }
 
 export function useAgendaMutations({
@@ -126,13 +126,16 @@ export function useAgendaMutations({
     isMutatingRef.current = true;
     try {
       const ok = await patchAgendamento(info.event.id, body, info.revert);
-      if (ok) onReload();
+      if (ok) {
+        await onReload();
+      }
     } catch (error) {
       logger.warn("Erro ao mover evento:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao mover evento. Tente novamente.");
       info.revert();
     } finally {
-      isMutatingRef.current = false;
+      // Pequeno delay para garantir que o reload completou antes de liberar o polling
+      setTimeout(() => { isMutatingRef.current = false; }, 2000);
     }
   }, [atualizarBloqueioHorario, onReload, patchAgendamento, toast]);
 

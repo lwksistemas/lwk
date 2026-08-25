@@ -116,19 +116,9 @@ export function AgendaCalendarSection({
 }) {
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
 
-  // Congelar eventos durante drag para evitar que FullCalendar cancele o drag.
-  // Abordagem: usar useRef para manter a última versão "segura" dos eventos.
-  // O FullCalendar só recebe uma nova referência quando NÃO está arrastando.
+  // FullCalendar: usar eventos diretamente — staleTime: Infinity garante que
+  // o React Query não refetcha automaticamente, evitando cancelamento do drag.
   const isDraggingRef = useRef(false);
-  const stableEventsRef = useRef(eventos);
-  const [eventVersion, setEventVersion] = useState(0);
-  
-  // Só atualiza a referência estável quando não está arrastando
-  if (!isDraggingRef.current && eventos !== stableEventsRef.current) {
-    stableEventsRef.current = eventos;
-  }
-  // O FullCalendar usa stableEventsRef.current — que só muda fora do drag
-  const calendarEvents = stableEventsRef.current;
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
   useAgendaPageWheel(
@@ -192,20 +182,17 @@ export function AgendaCalendarSection({
           selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
           dayMaxEvents
           weekends
-          events={calendarEvents}
+          events={eventos}
           eventDragStart={() => {
             isDraggingRef.current = true;
           }}
           eventDrop={(info) => {
             isDraggingRef.current = false;
             onEventDrop(info);
-            // Forçar re-render após o drop para atualizar eventos
-            setTimeout(() => setEventVersion((v) => v + 1), 100);
           }}
           eventResize={(info) => {
             isDraggingRef.current = false;
             onEventResize(info);
-            setTimeout(() => setEventVersion((v) => v + 1), 100);
           }}
           eventClick={onEventClick}
           dateClick={onDateClick}

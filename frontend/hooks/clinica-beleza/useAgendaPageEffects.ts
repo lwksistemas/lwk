@@ -111,7 +111,8 @@ export function useAgendaPageEffects({
       showModal &&
       (selectedEvent?.extendedProps.status === "SCHEDULED" ||
         selectedEvent?.extendedProps.status === "PENDING");
-    // 5s só no check-in; 20s em uso normal (antes 15s) — reduz carga na API.
+    // Polling: atualiza dados auxiliares (profissionais, procedimentos, etc.)
+    // Eventos da agenda NÃO são invalidados no poll — só via onReload após ações.
     const intervalMs = aguardando ? 5000 : 20000;
     const tick = () => {
       if (userScrollingRef.current) return;

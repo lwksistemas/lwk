@@ -85,6 +85,12 @@ export function formatarAgendaEvento(
       patient_name: String(raw.patient_name ?? ""),
       patient_phone: String(raw.patient_phone ?? ""),
       professional_name: String(raw.professional_name ?? ""),
+      professional:
+        raw.professional != null && raw.professional !== ""
+          ? Number(raw.professional)
+          : raw.professional_id != null
+            ? Number(raw.professional_id)
+            : undefined,
       procedure_name: String(raw.procedure_name ?? ""),
       procedure_duration: raw.procedure_duration as number | undefined,
       duracao_minutos: raw.duracao_minutos as number | undefined,

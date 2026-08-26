@@ -38,6 +38,7 @@ export default function AgendaPage() {
     professional_name: string;
   } | null>(null);
   const [modoAgenda, setModoAgenda] = useState<"grade" | "lista">("grade");
+  const [createProfessionalId, setCreateProfessionalId] = useState("");
 
   useClinicaBelezaDark();
 
@@ -129,8 +130,9 @@ export default function AgendaPage() {
       rounded.setMinutes(next, 0, 0);
     }
     setSelectedDate(rounded);
+    setCreateProfessionalId(selectedProfessional);
     setShowCreateModal(true);
-  }, []);
+  }, [selectedProfessional]);
 
   if (loading && eventos.length === 0) {
     return (
@@ -186,6 +188,11 @@ export default function AgendaPage() {
             onEventDrop={moverEvento}
             onEventResize={redimensionarEvento}
             isDraggingRef={isDraggingRef}
+            professionals={professionals}
+            onNovoHorario={(_date, professionalId) => {
+              setCreateProfessionalId(String(professionalId));
+            }}
+            onVerLista={() => setModoAgenda("lista")}
           />
         </div>
       </div>
@@ -216,9 +223,12 @@ export default function AgendaPage() {
         updatingStatus={updatingStatus}
         reenviandoMensagem={reenviandoMensagem}
         showCreateModal={showCreateModal}
-        onCloseCreate={() => setShowCreateModal(false)}
+        onCloseCreate={() => {
+          setShowCreateModal(false);
+          setCreateProfessionalId("");
+        }}
         selectedDate={selectedDate}
-        defaultProfessionalId={selectedProfessional}
+        defaultProfessionalId={createProfessionalId || selectedProfessional}
         professionals={professionals}
         patients={patients}
         procedures={procedures}

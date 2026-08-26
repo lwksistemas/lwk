@@ -38,9 +38,9 @@ export function AgendaPageHeaderActions({
       <select
         value={selectedProfessional}
         onChange={(e) => onSelectProfessional(e.target.value)}
-        className="px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8B3D52]/30 max-w-[120px] sm:max-w-none"
+        className="px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8B3D52]/30 max-w-[140px] sm:max-w-none"
       >
-        <option value="">Todos</option>
+        <option value="">Todos os profissionais</option>
         {professionals.map((prof) => (
           <option key={prof.id} value={prof.id}>
             {entityName(prof)}
@@ -64,7 +64,7 @@ export function AgendaPageHeaderActions({
         title="Novo agendamento"
       >
         <Plus size={16} className="sm:w-4 sm:h-4" />
-        <span>Novo</span>
+        <span>Novo agendamento</span>
       </button>
     </>
   );

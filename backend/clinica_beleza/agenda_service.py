@@ -322,11 +322,6 @@ def _redisparar_confirmacao_por_mudanca_data(appointment):
             "Erro ao re-disparar confirmação após mudança de data do agendamento %s",
             appointment.id,
         )
-    except Exception:
-        logger.exception(
-            "Erro ao re-disparar confirmação após mudança de data do agendamento %s",
-            appointment.id,
-        )
 
 
 def _executar_regra_finalizacao(appointment):

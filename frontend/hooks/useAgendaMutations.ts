@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { clinicaBelezaQueryKeys } from "@/lib/clinica-beleza-cadastros-api";
 import { arredondarDuracaoAgendaMin } from "@/lib/clinica-beleza-datetime";
 import type { AgendaConflictPayload, AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { ConflitoAgendaData } from "@/components/clinica-beleza/ModalConflitoAgenda";
+import { mergeRawAgendaEvent, versaoAgenda } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import { useToast } from "@/components/ui/Toast";
 import { logger } from "@/lib/logger";
 import type { EventDropArg } from "@fullcalendar/core";
@@ -17,6 +20,7 @@ type ConflictState = (ConflitoAgendaData & {
 
 interface UseAgendaMutationsOptions {
   onReload: () => void;
+  selectedProfessional?: string;
   selectedEvent: AgendaEventData | null;
   setSelectedEvent: React.Dispatch<React.SetStateAction<AgendaEventData | null>>;
   setShowModal: (open: boolean) => void;
@@ -25,12 +29,14 @@ interface UseAgendaMutationsOptions {
 
 export function useAgendaMutations({
   onReload,
+  selectedProfessional = "",
   selectedEvent,
   setSelectedEvent,
   setShowModal,
   isMutatingRef: externalMutatingRef,
 }: UseAgendaMutationsOptions) {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [reenviandoMensagem, setReenviandoMensagem] = useState(false);
   const [conflictData, setConflictData] = useState<ConflictState>(null);
@@ -109,42 +115,51 @@ export function useAgendaMutations({
     return data;
   }, []);
 
+  const gravarEventoSalvo = useCallback(
+    (info: { event: { setExtendedProp: (k: string, v: unknown) => void } }, result: Record<string, unknown>) => {
+      const version = versaoAgenda(result.version);
+      if (version != null) info.event.setExtendedProp("version", version);
+      if (result.updated_at) info.event.setExtendedProp("updated_at", result.updated_at);
+      queryClient.setQueryData(
+        clinicaBelezaQueryKeys.agendaEvents(selectedProfessional),
+        (old) => mergeRawAgendaEvent(old, result),
+      );
+    },
+    [queryClient, selectedProfessional],
+  );
+
   const moverEvento = useCallback(async (info: EventDropArg) => {
     if (!info.event.start) {
       info.revert();
       return;
     }
     if (info.event.extendedProps?.isIntervalo) return;
+    if (isMutatingRef.current) {
+      info.revert();
+      toast.warning("Aguarde o agendamento salvar antes de mover de novo.");
+      return;
+    }
     if (info.event.extendedProps?.isBloqueio) {
       await atualizarBloqueioHorario(info as Parameters<typeof atualizarBloqueioHorario>[0]);
       return;
     }
-    const { version, updated_at } = info.event.extendedProps || {};
+    const version = versaoAgenda(info.event.extendedProps?.version);
+    const updatedAt = info.event.extendedProps?.updated_at;
     const body: Record<string, unknown> = { date: info.event.start.toISOString() };
     if (version != null) body.version = version;
-    if (updated_at) body.updated_at = updated_at;
+    if (updatedAt) body.updated_at = updatedAt;
     isMutatingRef.current = true;
     try {
       const result = await patchAgendamento(info.event.id, body, info.revert);
-      if (result) {
-        // Atualizar imediatamente o version/updated_at no evento do FullCalendar
-        // para que a próxima movimentação use os tokens de concorrência corretos,
-        // sem depender do refetch (que pode demorar ou ser filtrado pelo equality check).
-        if (result.version != null || result.updated_at) {
-          info.event.setExtendedProp("version", result.version);
-          info.event.setExtendedProp("updated_at", result.updated_at);
-        }
-        await onReload();
-      }
+      if (result) gravarEventoSalvo(info, result);
     } catch (error) {
       logger.warn("Erro ao mover evento:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao mover evento. Tente novamente.");
       info.revert();
     } finally {
-      // Pequeno delay para garantir que o reload completou antes de liberar o polling
-      setTimeout(() => { isMutatingRef.current = false; }, 2000);
+      setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [atualizarBloqueioHorario, onReload, patchAgendamento, toast]);
+  }, [atualizarBloqueioHorario, gravarEventoSalvo, patchAgendamento, toast]);
 
   const redimensionarEvento = useCallback(async (info: EventResizeDoneArg) => {
     if (info.event.extendedProps?.isIntervalo) {
@@ -175,26 +190,23 @@ export function useAgendaMutations({
     const duracaoMinutos = arredondarDuracaoAgendaMin(
       Math.round((end.getTime() - start.getTime()) / 60000),
     );
-    const { version, updated_at } = info.event.extendedProps || {};
+    const version = versaoAgenda(info.event.extendedProps?.version);
+    const updatedAt = info.event.extendedProps?.updated_at;
     const body: Record<string, unknown> = { duracao_minutos: duracaoMinutos };
     if (version != null) body.version = version;
-    if (updated_at) body.updated_at = updated_at;
+    if (updatedAt) body.updated_at = updatedAt;
+    isMutatingRef.current = true;
     try {
       const result = await patchAgendamento(info.event.id, body, info.revert);
-      if (result) {
-        // Atualizar tokens de concorrência imediatamente no evento
-        if (result.version != null || result.updated_at) {
-          info.event.setExtendedProp("version", result.version);
-          info.event.setExtendedProp("updated_at", result.updated_at);
-        }
-        onReload();
-      }
+      if (result) gravarEventoSalvo(info, result);
     } catch (error) {
       logger.warn("Erro ao redimensionar evento:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao ajustar duração. Tente novamente.");
       info.revert();
+    } finally {
+      setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [atualizarBloqueioHorario, onReload, patchAgendamento, toast]);
+  }, [atualizarBloqueioHorario, gravarEventoSalvo, patchAgendamento, toast]);
 
   const deletarEvento = useCallback(async () => {
     if (!selectedEvent) return;

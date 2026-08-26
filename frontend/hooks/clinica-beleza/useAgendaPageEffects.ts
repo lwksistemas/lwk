@@ -115,7 +115,9 @@ export function useAgendaPageEffects({
     // atualizações automáticas de eventos (cancela o drag silenciosamente).
     // Dados atualizam via onReload após cada ação e ao trocar de aba.
     const onVisibility = () => {
-      if (document.visibilityState === "visible") void carregarDadosRef.current();
+      if (document.visibilityState !== "visible") return;
+      if (isMutatingRef?.current) return;
+      void carregarDadosRef.current();
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {

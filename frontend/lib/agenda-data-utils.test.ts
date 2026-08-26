@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   agendaEventsEqual,
   formatarAgendaEvento,
+  mergeRawAgendaEvent,
   temExpedienteProfissional,
+  versaoAgenda,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 
@@ -38,6 +40,46 @@ describe("agendaEventsEqual", () => {
     };
     const other = { ...base, extendedProps: { status: "COMPLETED" } };
     expect(agendaEventsEqual([base], [other])).toBe(false);
+  });
+
+  it("detecta diferença de version após um PATCH", () => {
+    const base: AgendaEventData = {
+      id: "1",
+      title: "A",
+      start: "s",
+      end: "e",
+      backgroundColor: "#fff",
+      borderColor: "#000",
+      textColor: "#fff",
+      extendedProps: { status: "SCHEDULED", version: 4 },
+    };
+    const other = { ...base, extendedProps: { ...base.extendedProps, version: 5 } };
+    expect(agendaEventsEqual([base], [other])).toBe(false);
+    expect(agendaEventsEqual([base], [{ ...base, extendedProps: { ...base.extendedProps, version: "4" as unknown as number } }])).toBe(true);
+  });
+});
+
+describe("mergeRawAgendaEvent", () => {
+  it("substitui o agendamento salvo mantendo os demais", () => {
+    const next = mergeRawAgendaEvent(
+      [
+        { id: 1, start: "a", version: 4 },
+        { id: 2, start: "b", version: 1 },
+      ],
+      { id: 1, start: "c", version: 5 },
+    );
+    expect(next).toEqual([
+      { id: 1, start: "c", version: 5 },
+      { id: 2, start: "b", version: 1 },
+    ]);
+  });
+});
+
+describe("versaoAgenda", () => {
+  it("normaliza number e string", () => {
+    expect(versaoAgenda(5)).toBe(5);
+    expect(versaoAgenda("5")).toBe(5);
+    expect(versaoAgenda(undefined)).toBeUndefined();
   });
 });
 

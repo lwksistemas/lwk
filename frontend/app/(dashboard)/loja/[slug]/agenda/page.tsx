@@ -96,6 +96,7 @@ export default function AgendaPage() {
     closeConflictModal,
   } = useAgendaMutations({
     onReload: carregarDados,
+    selectedProfessional,
     selectedEvent,
     setSelectedEvent,
     setShowModal,

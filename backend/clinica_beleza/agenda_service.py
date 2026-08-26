@@ -88,13 +88,24 @@ def validar_regras_agendamento(evento: str, professional, date_start, date_end, 
 # Detecção de conflito offline
 # ---------------------------------------------------------------------------
 
+def versao_int(value):
+    """Normaliza version do client (JSON number ou string) para int."""
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def detectar_conflito(appointment, local_version, request_data, serializer_class):
     """Detecta conflito de versão entre o servidor e o client.
     Lança AgendaConflictError se houver conflito.
     """
+    local_version = versao_int(local_version)
     if local_version is None:
         return
-    if appointment.version == local_version:
+    if versao_int(appointment.version) == local_version:
         return
 
     server_data = serializer_class(appointment).data
@@ -262,6 +273,11 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     # Se a data mudou, limpar registros de envio antigos e re-disparar confirmação
     if date_changed:
         _redisparar_confirmacao_por_mudanca_data(appointment)
+        try:
+            appointment.refresh_from_db()
+            result.appointment = appointment
+        except Exception:
+            pass
 
     return result
 

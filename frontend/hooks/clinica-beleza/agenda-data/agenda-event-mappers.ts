@@ -15,6 +15,26 @@ import type {
 } from "@/lib/clinica-beleza-entities";
 import { intervalosEventsFromHorarios } from "@/lib/clinica-beleza-work-hours";
 
+export function versaoAgenda(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+export function mergeRawAgendaEvent(
+  list: unknown,
+  saved: Record<string, unknown>,
+): Record<string, unknown>[] {
+  const rows = Array.isArray(list)
+    ? list.map((e) => ({ ...(e as Record<string, unknown>) }))
+    : [];
+  const id = String(saved.id ?? "");
+  if (!id) return rows;
+  const idx = rows.findIndex((e) => String(e.id) === id);
+  if (idx >= 0) rows[idx] = { ...rows[idx], ...saved };
+  else rows.push(saved);
+  return rows;
+}
+
 export function formatarAgendaEvento(
   e: AgendaEventData | Record<string, unknown>,
   comRestricaoExpediente: boolean,
@@ -48,8 +68,8 @@ export function formatarAgendaEvento(
       duracao_minutos: raw.duracao_minutos as number | undefined,
       procedure_price: raw.procedure_price as string | undefined,
       notes: String(raw.notes ?? ""),
-      version: raw.version as number | undefined,
-      updated_at: raw.updated_at as string | undefined,
+      version: versaoAgenda(raw.version),
+      updated_at: raw.updated_at ? String(raw.updated_at) : undefined,
     },
   };
 }
@@ -72,7 +92,7 @@ export function agendaEventsEqual(a: AgendaEventData[], b: AgendaEventData[]): b
     // Version e updated_at são essenciais para o controle de concorrência.
     // Sem essa comparação, o frontend mantém version stale após um drag-and-drop
     // e a segunda movimentação sempre gera conflito 409.
-    if (x.extendedProps?.version !== y.extendedProps?.version) return false;
+    if (versaoAgenda(x.extendedProps?.version) !== versaoAgenda(y.extendedProps?.version)) return false;
     if (x.extendedProps?.updated_at !== y.extendedProps?.updated_at) return false;
   }
   return true;

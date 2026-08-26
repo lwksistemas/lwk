@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import dynamic from "next/dynamic";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   CLINICA_AGENDA_SLOT_DURATION,
   CLINICA_AGENDA_SLOT_LABEL_INTERVAL,
@@ -13,14 +12,7 @@ import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction
 import { AgendaListaColunas } from "./AgendaListaColunas";
 import { AgendaMobileDayView } from "./AgendaMobileDayView";
 
-const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-40 text-sm text-gray-500">
-      Carregando calendário...
-    </div>
-  ),
-});
+const FullCalendar = lazy(() => import("@fullcalendar/react"));
 
 function toInputDate(d: Date): string {
   const y = d.getFullYear();
@@ -171,6 +163,7 @@ export function AgendaCalendarSection({
   return (
     <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain agenda-scroll-root fc-agenda-calendar-root">
       {calendarPlugins.length > 0 && ptBrLocale ? (
+        <Suspense fallback={<div className="flex items-center justify-center h-40 text-sm text-gray-500">Carregando calendário...</div>}>
         <FullCalendar
           key={`desktop-${selectedProfessional}`}
           plugins={calendarPlugins as never[]}
@@ -204,6 +197,7 @@ export function AgendaCalendarSection({
           businessHours={businessHours as never}
           hiddenDays={hiddenDays}
         />
+        </Suspense>
       ) : (
         <div className="flex items-center justify-center h-40 text-sm text-gray-500">
           Carregando calendário...

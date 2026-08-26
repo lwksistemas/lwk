@@ -35,6 +35,19 @@ export function mergeRawAgendaEvent(
   return rows;
 }
 
+export function aplicarHorarioAgendaEvento(
+  list: AgendaEventData[],
+  eventId: string,
+  start: string,
+  end?: string,
+): AgendaEventData[] {
+  return list.map((e) =>
+    String(e.id) === String(eventId)
+      ? { ...e, start, end: end ?? e.end }
+      : e,
+  );
+}
+
 export function formatarAgendaEvento(
   e: AgendaEventData | Record<string, unknown>,
   comRestricaoExpediente: boolean,

@@ -1,11 +1,12 @@
 "use client";
 
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   CLINICA_AGENDA_SLOT_DURATION,
   CLINICA_AGENDA_SLOT_LABEL_INTERVAL,
   CLINICA_AGENDA_SNAP_DURATION,
 } from "@/lib/clinica-beleza-constants";
+import { aplicarHorarioAgendaEvento } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
 import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
@@ -86,6 +87,7 @@ export function AgendaCalendarSection({
   onDateClick,
   onEventDrop,
   onEventResize,
+  isDraggingRef: parentDraggingRef,
 }: {
   modoAgenda: "grade" | "lista";
   eventos: AgendaEventData[];
@@ -101,18 +103,62 @@ export function AgendaCalendarSection({
   onAbrirLista: (evt: AgendaEventData) => void;
   onEventClick: (info: EventClickArg) => void;
   onDateClick: (info: DateClickArg) => void;
-  onEventDrop: (info: EventDropArg) => void;
-  onEventResize: (info: EventResizeDoneArg) => void;
+  onEventDrop: (info: EventDropArg) => void | Promise<void>;
+  onEventResize: (info: EventResizeDoneArg) => void | Promise<void>;
+  isDraggingRef?: React.MutableRefObject<boolean>;
 }) {
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
+  const [, setFreezeTick] = useState(0);
+  const isDraggingRef = useRef(false);
+  const dropHandlingRef = useRef(false);
+  const frozenEventsRef = useRef(eventos);
+  if (!isDraggingRef.current) {
+    frozenEventsRef.current = eventos;
+  }
+  const stableEventos = isDraggingRef.current ? frozenEventsRef.current : eventos;
 
-  // Eventos passados diretamente ao FullCalendar — sem eventSources para evitar duplicação.
+  const marcarArrasto = useCallback((dragging: boolean) => {
+    isDraggingRef.current = dragging;
+    if (parentDraggingRef) parentDraggingRef.current = dragging;
+  }, [parentDraggingRef]);
+
   const handleEventDrop = useCallback((info: EventDropArg) => {
-    onEventDrop(info);
-  }, [onEventDrop]);
+    dropHandlingRef.current = true;
+    const start = info.event.start?.toISOString();
+    const end = info.event.end?.toISOString();
+    if (start) {
+      frozenEventsRef.current = aplicarHorarioAgendaEvento(
+        frozenEventsRef.current,
+        String(info.event.id),
+        start,
+        end,
+      );
+    }
+    void Promise.resolve(onEventDrop(info)).finally(() => {
+      dropHandlingRef.current = false;
+      marcarArrasto(false);
+      setFreezeTick((n) => n + 1);
+    });
+  }, [marcarArrasto, onEventDrop]);
+
   const handleEventResize = useCallback((info: EventResizeDoneArg) => {
-    onEventResize(info);
-  }, [onEventResize]);
+    dropHandlingRef.current = true;
+    const start = info.event.start?.toISOString();
+    const end = info.event.end?.toISOString();
+    if (start) {
+      frozenEventsRef.current = aplicarHorarioAgendaEvento(
+        frozenEventsRef.current,
+        String(info.event.id),
+        start,
+        end,
+      );
+    }
+    void Promise.resolve(onEventResize(info)).finally(() => {
+      dropHandlingRef.current = false;
+      marcarArrasto(false);
+      setFreezeTick((n) => n + 1);
+    });
+  }, [marcarArrasto, onEventResize]);
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
   useAgendaPageWheel(
@@ -177,7 +223,20 @@ export function AgendaCalendarSection({
           selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
           dayMaxEvents
           weekends
-          events={eventos}
+          events={stableEventos}
+          eventDragStart={() => {
+            frozenEventsRef.current = eventos;
+            marcarArrasto(true);
+          }}
+          eventDragStop={() => {
+            queueMicrotask(() => {
+              if (!dropHandlingRef.current) marcarArrasto(false);
+            });
+          }}
+          eventResizeStart={() => {
+            frozenEventsRef.current = eventos;
+            marcarArrasto(true);
+          }}
           eventDrop={handleEventDrop}
           eventResize={handleEventResize}
           eventClick={onEventClick}

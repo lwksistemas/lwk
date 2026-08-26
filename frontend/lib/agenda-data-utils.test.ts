@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   agendaEventsEqual,
+  aplicarHorarioAgendaEvento,
   formatarAgendaEvento,
   mergeRawAgendaEvent,
   temExpedienteProfissional,
@@ -72,6 +73,26 @@ describe("mergeRawAgendaEvent", () => {
       { id: 1, start: "c", version: 5 },
       { id: 2, start: "b", version: 1 },
     ]);
+  });
+});
+
+describe("aplicarHorarioAgendaEvento", () => {
+  it("atualiza start/end só do evento arrastado", () => {
+    const base: AgendaEventData = {
+      id: "1",
+      title: "A",
+      start: "s1",
+      end: "e1",
+      backgroundColor: "#fff",
+      borderColor: "#000",
+      textColor: "#fff",
+      extendedProps: { status: "SCHEDULED" },
+    };
+    const other = { ...base, id: "2", start: "s2", end: "e2" };
+    const next = aplicarHorarioAgendaEvento([base, other], "1", "s3", "e3");
+    expect(next[0].start).toBe("s3");
+    expect(next[0].end).toBe("e3");
+    expect(next[1].start).toBe("s2");
   });
 });
 

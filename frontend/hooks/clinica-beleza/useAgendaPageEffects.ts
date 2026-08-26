@@ -13,6 +13,7 @@ export function useAgendaPageEffects({
   setSelectedDate,
   setShowCreateModal,
   isMutatingRef,
+  isDraggingRef,
 }: {
   searchParams: ReadonlyURLSearchParams;
   selectedProfessional: string;
@@ -24,6 +25,7 @@ export function useAgendaPageEffects({
   setSelectedDate: (date: Date | null) => void;
   setShowCreateModal: (open: boolean) => void;
   isMutatingRef?: React.MutableRefObject<boolean>;
+  isDraggingRef?: React.MutableRefObject<boolean>;
 }) {
   const [calendarPlugins, setCalendarPlugins] = useState<unknown[]>([]);
   const [ptBrLocale, setPtBrLocale] = useState<unknown>(null);
@@ -96,10 +98,13 @@ export function useAgendaPageEffects({
   }, []);
 
   useEffect(() => {
-    const handler = () => setTimeout(() => void carregarDadosRef.current(), 1200);
+    const handler = () => setTimeout(() => {
+      if (isMutatingRef?.current || isDraggingRef?.current) return;
+      void carregarDadosRef.current();
+    }, 1200);
     window.addEventListener("offline-sync-done", handler);
     return () => window.removeEventListener("offline-sync-done", handler);
-  }, []);
+  }, [isDraggingRef, isMutatingRef]);
 
   useEffect(() => {
     const isMobileViewport =
@@ -107,23 +112,19 @@ export function useAgendaPageEffects({
     // Desktop só faz poll depois dos plugins; mobile não usa FullCalendar.
     if (!isMobileViewport && !calendarPlugins.length) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    const aguardando =
-      showModal &&
-      (selectedEvent?.extendedProps.status === "SCHEDULED" ||
-        selectedEvent?.extendedProps.status === "PENDING");
     // Polling desabilitado — o drag-and-drop do FullCalendar é incompatível com
     // atualizações automáticas de eventos (cancela o drag silenciosamente).
     // Dados atualizam via onReload após cada ação e ao trocar de aba.
     const onVisibility = () => {
       if (document.visibilityState !== "visible") return;
-      if (isMutatingRef?.current) return;
+      if (isMutatingRef?.current || isDraggingRef?.current) return;
       void carregarDadosRef.current();
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [calendarPlugins.length, selectedProfessional, showModal, selectedEvent?.extendedProps.status]);
+  }, [calendarPlugins.length, selectedProfessional, showModal, selectedEvent?.extendedProps.status, isDraggingRef, isMutatingRef]);
 
   useEffect(() => {
     if (!showModal || !selectedEvent?.extendedProps?.dbId) return;

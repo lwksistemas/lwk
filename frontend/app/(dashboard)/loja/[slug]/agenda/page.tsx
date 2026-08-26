@@ -42,6 +42,7 @@ export default function AgendaPage() {
   useClinicaBelezaDark();
 
   const isMutatingRef = useRef(false);
+  const isDraggingRef = useRef(false);
 
   const {
     eventos,
@@ -69,6 +70,7 @@ export default function AgendaPage() {
     setSelectedDate,
     setShowCreateModal,
     isMutatingRef,
+    isDraggingRef,
   });
 
   const {
@@ -181,12 +183,9 @@ export default function AgendaPage() {
             onAbrirLista={abrirEventoDaLista}
             onEventClick={handleEventClickArg}
             onDateClick={handleDateClick}
-            onEventDrop={(info) => {
-              void moverEvento(info);
-            }}
-            onEventResize={(info) => {
-              void redimensionarEvento(info);
-            }}
+            onEventDrop={moverEvento}
+            onEventResize={redimensionarEvento}
+            isDraggingRef={isDraggingRef}
           />
         </div>
       </div>

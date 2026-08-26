@@ -4,6 +4,7 @@ Extrai a lógica de negócio que antes ficava diretamente nas views de agenda
 (validação de bloqueios, detecção de conflitos, regras, side-effects).
 """
 import logging
+import threading
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -270,14 +271,9 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     if new_status is not None:
         result.consulta_id, result.consulta_error = _sync_consulta(appointment, new_status, old_status)
 
-    # Se a data mudou, limpar registros de envio antigos e re-disparar confirmação
+    # Data gravada; WhatsApp de remarcação vai em segundo plano (não segura o PATCH).
     if date_changed:
         _redisparar_confirmacao_por_mudanca_data(appointment)
-        try:
-            appointment.refresh_from_db()
-            result.appointment = appointment
-        except Exception:
-            pass
 
     return result
 
@@ -298,41 +294,94 @@ def _sync_consulta(appointment, new_status, old_status):
         return None, "Consulta não criada. Execute a atualização do sistema ou contate o suporte."
 
 
-def _redisparar_confirmacao_por_mudanca_data(appointment):
-    """Limpa registros de envio anteriores e re-envia confirmação WhatsApp.
+def enviar_confirmacao_reagendamento(appointment_id: int, loja_id: int) -> None:
+    """Worker/thread: envia WhatsApp após remarcar, fora do PATCH da agenda."""
+    from django.db import connections
+    from superadmin.models import Loja
+    from tenants.middleware import _configure_tenant_db_for_loja
+    from whatsapp.models import WhatsAppConfig
+    from whatsapp.services import enviar_confirmacao_agendamento
 
-    Quando o agendamento é arrastado para outro dia, a mensagem antiga fica com
-    a data errada. Precisamos:
-    1. Remover os registros de WhatsAppConfirmacaoEnvio (libera re-envio futuro)
-    2. Enviar IMEDIATAMENTE nova confirmação com a data correta
+    try:
+        loja = Loja.objects.using("default").filter(pk=loja_id).first()
+        if not loja:
+            logger.warning("Reagendamento WhatsApp: loja %s não encontrada", loja_id)
+            return
+        _configure_tenant_db_for_loja(loja)
+        appointment = (
+            Appointment.objects.select_related("patient", "professional", "procedure")
+            .filter(pk=appointment_id)
+            .first()
+        )
+        if not appointment:
+            return
+        config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+        if not config or not getattr(config, "whatsapp_ativo", False):
+            return
+        if not getattr(config, "enviar_confirmacao", False):
+            return
+        ok, err = enviar_confirmacao_agendamento(appointment, config=config, reagendado=True)
+        if not ok:
+            logger.warning(
+                "Re-envio confirmação após mudança de data agendamento %s falhou: %s",
+                appointment_id, err,
+            )
+    except Exception:
+        logger.exception(
+            "Erro ao enviar confirmação de reagendamento do agendamento %s",
+            appointment_id,
+        )
+    finally:
+        connections.close_all()
+
+
+def _agendar_confirmacao_reagendamento(appointment_id: int, loja_id: int) -> None:
+    """Enfileira ou dispara em thread — nunca bloqueia o PATCH da agenda."""
+    from core.task_queue import task_queue_enabled
+
+    task_name = f"agenda-reagend-{appointment_id}"
+    func_path = "clinica_beleza.agenda_service.enviar_confirmacao_reagendamento"
+    if task_queue_enabled():
+        try:
+            from django_q.tasks import async_task
+
+            async_task(func_path, appointment_id, loja_id, task_name=task_name)
+            return
+        except Exception as exc:
+            logger.warning("Fila indisponível para reagendamento WhatsApp: %s", exc)
+    threading.Thread(
+        target=enviar_confirmacao_reagendamento,
+        args=(appointment_id, loja_id),
+        daemon=True,
+        name=task_name,
+    ).start()
+
+
+def _redisparar_confirmacao_por_mudanca_data(appointment):
+    """Limpa registros de envio anteriores e agenda nova confirmação WhatsApp.
+
+    Quando o agendamento é arrastado para outro horário, a mensagem antiga fica
+    com a data errada. O envio roda em segundo plano para o PATCH responder
+    na hora — senão o arrasto na agenda falha de forma intermitente.
     """
     try:
         from whatsapp.models import WhatsAppConfirmacaoEnvio, WhatsAppConfig
-        from whatsapp.services import enviar_confirmacao_agendamento
         from tenants.middleware import get_current_loja_id
 
-        # Limpar todas as regras enviadas anteriormente para este agendamento
         WhatsAppConfirmacaoEnvio.objects.filter(
             appointment_id=appointment.id,
         ).delete()
 
-        # Enviar imediatamente nova confirmação com a data atualizada
         loja_id = getattr(appointment, "loja_id", None) or get_current_loja_id()
         if not loja_id:
             return
         config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
         if not config or not getattr(config, "whatsapp_ativo", False):
             return
-        # Só envia se confirmação estiver habilitada
         if not getattr(config, "enviar_confirmacao", False):
             return
 
-        ok, err = enviar_confirmacao_agendamento(appointment, config=config, reagendado=True)
-        if not ok:
-            logger.warning(
-                "Re-envio confirmação após mudança de data agendamento %s falhou: %s",
-                appointment.id, err,
-            )
+        _agendar_confirmacao_reagendamento(appointment.id, loja_id)
     except Exception:
         logger.exception(
             "Erro ao re-disparar confirmação após mudança de data do agendamento %s",

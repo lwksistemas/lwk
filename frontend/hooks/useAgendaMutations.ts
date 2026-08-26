@@ -143,23 +143,32 @@ export function useAgendaMutations({
       await atualizarBloqueioHorario(info as Parameters<typeof atualizarBloqueioHorario>[0]);
       return;
     }
+    const startIso = info.event.start.toISOString();
+    const endIso = info.event.end?.toISOString();
     const version = versaoAgenda(info.event.extendedProps?.version);
     const updatedAt = info.event.extendedProps?.updated_at;
-    const body: Record<string, unknown> = { date: info.event.start.toISOString() };
+    const body: Record<string, unknown> = { date: startIso };
     if (version != null) body.version = version;
     if (updatedAt) body.updated_at = updatedAt;
+    const cacheKey = clinicaBelezaQueryKeys.agendaEvents(selectedProfessional);
+    const previous = queryClient.getQueryData(cacheKey);
+    queryClient.setQueryData(cacheKey, (old) =>
+      mergeRawAgendaEvent(old, { id: info.event.id, start: startIso, ...(endIso ? { end: endIso } : {}) }),
+    );
     isMutatingRef.current = true;
     try {
       const result = await patchAgendamento(info.event.id, body, info.revert);
       if (result) gravarEventoSalvo(info, result);
+      else queryClient.setQueryData(cacheKey, previous);
     } catch (error) {
+      queryClient.setQueryData(cacheKey, previous);
       logger.warn("Erro ao mover evento:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao mover evento. Tente novamente.");
       info.revert();
     } finally {
       setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [atualizarBloqueioHorario, gravarEventoSalvo, patchAgendamento, toast]);
+  }, [atualizarBloqueioHorario, gravarEventoSalvo, patchAgendamento, queryClient, selectedProfessional, toast]);
 
   const redimensionarEvento = useCallback(async (info: EventResizeDoneArg) => {
     if (info.event.extendedProps?.isIntervalo) {

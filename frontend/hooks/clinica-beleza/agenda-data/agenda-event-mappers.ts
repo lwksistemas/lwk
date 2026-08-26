@@ -69,6 +69,11 @@ export function agendaEventsEqual(a: AgendaEventData[], b: AgendaEventData[]): b
       return false;
     }
     if (x.extendedProps?.status !== y.extendedProps?.status) return false;
+    // Version e updated_at são essenciais para o controle de concorrência.
+    // Sem essa comparação, o frontend mantém version stale após um drag-and-drop
+    // e a segunda movimentação sempre gera conflito 409.
+    if (x.extendedProps?.version !== y.extendedProps?.version) return false;
+    if (x.extendedProps?.updated_at !== y.extendedProps?.updated_at) return false;
   }
   return true;
 }

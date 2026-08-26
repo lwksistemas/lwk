@@ -85,7 +85,7 @@ export function useAgendaMutations({
     id: number | string,
     body: Record<string, unknown>,
     revert?: () => void,
-  ): Promise<boolean> => {
+  ): Promise<Record<string, unknown> | false> => {
     const res = await clinicaBelezaFetch(`/agenda/${id}/update/`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -106,7 +106,7 @@ export function useAgendaMutations({
       revert?.();
       throw new Error(data.error || "Erro ao atualizar agendamento");
     }
-    return true;
+    return data;
   }, []);
 
   const moverEvento = useCallback(async (info: EventDropArg) => {
@@ -125,8 +125,15 @@ export function useAgendaMutations({
     if (updated_at) body.updated_at = updated_at;
     isMutatingRef.current = true;
     try {
-      const ok = await patchAgendamento(info.event.id, body, info.revert);
-      if (ok) {
+      const result = await patchAgendamento(info.event.id, body, info.revert);
+      if (result) {
+        // Atualizar imediatamente o version/updated_at no evento do FullCalendar
+        // para que a próxima movimentação use os tokens de concorrência corretos,
+        // sem depender do refetch (que pode demorar ou ser filtrado pelo equality check).
+        if (result.version != null || result.updated_at) {
+          info.event.setExtendedProp("version", result.version);
+          info.event.setExtendedProp("updated_at", result.updated_at);
+        }
         await onReload();
       }
     } catch (error) {
@@ -173,8 +180,15 @@ export function useAgendaMutations({
     if (version != null) body.version = version;
     if (updated_at) body.updated_at = updated_at;
     try {
-      const ok = await patchAgendamento(info.event.id, body, info.revert);
-      if (ok) onReload();
+      const result = await patchAgendamento(info.event.id, body, info.revert);
+      if (result) {
+        // Atualizar tokens de concorrência imediatamente no evento
+        if (result.version != null || result.updated_at) {
+          info.event.setExtendedProp("version", result.version);
+          info.event.setExtendedProp("updated_at", result.updated_at);
+        }
+        onReload();
+      }
     } catch (error) {
       logger.warn("Erro ao redimensionar evento:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao ajustar duração. Tente novamente.");

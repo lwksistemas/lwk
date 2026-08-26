@@ -111,23 +111,14 @@ export function useAgendaPageEffects({
       showModal &&
       (selectedEvent?.extendedProps.status === "SCHEDULED" ||
         selectedEvent?.extendedProps.status === "PENDING");
-    // Polling: atualiza dados auxiliares (profissionais, procedimentos, etc.)
-    // Eventos da agenda NÃO são invalidados no poll — só via onReload após ações.
-    // Intervalo longo (60s) para minimizar interferência com drag-and-drop.
-    const intervalMs = aguardando ? 5000 : 60000;
-    const tick = () => {
-      if (userScrollingRef.current) return;
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      if (isMutatingRef?.current) return;
-      void carregarDadosRef.current();
-    };
-    const timer = window.setInterval(tick, intervalMs);
+    // Polling desabilitado — o drag-and-drop do FullCalendar é incompatível com
+    // atualizações automáticas de eventos (cancela o drag silenciosamente).
+    // Dados atualizam via onReload após cada ação e ao trocar de aba.
     const onVisibility = () => {
       if (document.visibilityState === "visible") void carregarDadosRef.current();
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [calendarPlugins.length, selectedProfessional, showModal, selectedEvent?.extendedProps.status]);

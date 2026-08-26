@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   CLINICA_AGENDA_SLOT_DURATION,
@@ -114,32 +114,13 @@ export function AgendaCalendarSection({
 }) {
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
 
-  // Estabilizar referência dos eventos para FullCalendar.
-  // O FullCalendar cancela drag quando recebe nova referência em `events`.
-  // Usar calendarRef para controlar atualizações manualmente.
-  const calendarRef = useRef<{ getApi(): { refetchEvents(): void; removeAllEvents(): void; addEventSource(s: unknown): void } } | null>(null);
-  const eventsRef = useRef(eventos);
-  eventsRef.current = eventos;
-
-  const eventSourceFn = useCallback(
-    (_info: unknown, successCallback: (events: AgendaEventData[]) => void) => {
-      successCallback(eventsRef.current);
-    },
-    [],
-  );
-
-  // Quando eventos mudam, pedir ao FullCalendar para re-buscar da source
-  const prevEventosLenRef = useRef(0);
-  const prevFirstStartRef = useRef("");
-  useEffect(() => {
-    const newLen = eventos.length;
-    const newFirst = eventos[0]?.start ?? "";
-    if (newLen !== prevEventosLenRef.current || newFirst !== prevFirstStartRef.current) {
-      prevEventosLenRef.current = newLen;
-      prevFirstStartRef.current = newFirst;
-      calendarRef.current?.getApi()?.refetchEvents();
-    }
-  }, [eventos]);
+  // Eventos passados diretamente ao FullCalendar — sem eventSources para evitar duplicação.
+  const handleEventDrop = useCallback((info: EventDropArg) => {
+    onEventDrop(info);
+  }, [onEventDrop]);
+  const handleEventResize = useCallback((info: EventResizeDoneArg) => {
+    onEventResize(info);
+  }, [onEventResize]);
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
   useAgendaPageWheel(
@@ -191,7 +172,6 @@ export function AgendaCalendarSection({
     <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain agenda-scroll-root fc-agenda-calendar-root">
       {calendarPlugins.length > 0 && ptBrLocale ? (
         <FullCalendar
-          ref={calendarRef as never}
           key={`desktop-${selectedProfessional}`}
           plugins={calendarPlugins as never[]}
           initialView="timeGridWeek"
@@ -204,9 +184,9 @@ export function AgendaCalendarSection({
           selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
           dayMaxEvents
           weekends
-          eventSources={[{ events: eventSourceFn }]}
-          eventDrop={onEventDrop}
-          eventResize={onEventResize}
+          events={eventos}
+          eventDrop={handleEventDrop}
+          eventResize={handleEventResize}
           eventClick={onEventClick}
           dateClick={onDateClick}
           height="auto"

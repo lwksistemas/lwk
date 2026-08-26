@@ -301,7 +301,13 @@ class AgendaEventSerializer(serializers.ModelSerializer):
 
     def get_end(self, obj):
         from datetime import timedelta
-        return obj.date + timedelta(minutes=obj.get_duracao_efetiva())
+
+        from django.utils import timezone
+
+        end = obj.date + timedelta(minutes=obj.get_duracao_efetiva())
+        if timezone.is_aware(end):
+            return timezone.localtime(end)
+        return end
 
     def get_backgroundColor(self, obj):
         colors = {

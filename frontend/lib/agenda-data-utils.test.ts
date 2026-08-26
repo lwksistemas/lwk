@@ -25,6 +25,24 @@ describe("formatarAgendaEvento", () => {
     expect(ev.title).toBe("Maria • Botox");
     expect(ev.id).toBe("1");
   });
+
+  it("calcula o fim pela duração para não misturar fuso de start/end", () => {
+    const ev = formatarAgendaEvento(
+      {
+        id: 82,
+        start: "2026-08-27T16:20:00-03:00",
+        end: "2026-08-27T20:25:00+00:00",
+        status: "SCHEDULED",
+        duracao_minutos: 65,
+        patient_name: "Luiz",
+        procedure_name: "Drenagem",
+      },
+      false,
+    );
+    const inicio = new Date(ev.start).getTime();
+    const fim = new Date(ev.end).getTime();
+    expect(Math.round((fim - inicio) / 60000)).toBe(65);
+  });
 });
 
 describe("agendaEventsEqual", () => {

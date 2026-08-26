@@ -60,11 +60,20 @@ export function formatarAgendaEvento(
     [raw.patient_name, raw.procedure_name].filter(Boolean).join(" • ") ||
     String(raw.title ?? "") ||
     "Agendamento";
+  const start = String(raw.start ?? "");
+  const duracaoMin = Number(raw.duracao_minutos ?? raw.procedure_duration);
+  let end = String(raw.end ?? "");
+  if (start && Number.isFinite(duracaoMin) && duracaoMin > 0) {
+    const inicio = new Date(start);
+    if (!Number.isNaN(inicio.getTime())) {
+      end = new Date(inicio.getTime() + duracaoMin * 60_000).toISOString();
+    }
+  }
   return {
     id: String(raw.id),
     title: titulo,
-    start: String(raw.start),
-    end: String(raw.end),
+    start,
+    end,
     backgroundColor: cores.bg,
     borderColor: cores.border,
     textColor: "#fff",

@@ -248,7 +248,6 @@ export function AgendaCalendarSection({
           eventClick={onEventClick}
           dateClick={onDateClick}
           height="auto"
-          timeZone="America/Sao_Paulo"
           headerToolbar={{
             left: "prev,next today",
             center: "title",

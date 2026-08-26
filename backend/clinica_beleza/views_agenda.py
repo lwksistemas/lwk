@@ -126,6 +126,11 @@ class AgendaView(APIView):
         if scope is None and (p := request.query_params.get("professional")):
             qs = qs.filter(professional_id=p)
         appointments = list(qs.order_by("date"))
+        logger.info(
+            "GET agenda n=%s %s",
+            len(appointments),
+            [(a.id, a.date.isoformat() if a.date else None, a.version) for a in appointments[:20]],
+        )
         from clinica_beleza.retorno_service import verificar_retorno_appointments_batch
 
         retorno_map = verificar_retorno_appointments_batch(appointments)
@@ -193,6 +198,12 @@ class AgendaUpdateView(APIView):
             return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
         response_data = AgendaEventSerializer(result.appointment).data
+        logger.info(
+            "PATCH agenda/%s saved start=%s version=%s",
+            pk,
+            response_data.get("start"),
+            response_data.get("version"),
+        )
         if result.consulta_id is not None:
             response_data["consulta_id"] = result.consulta_id
         if result.consulta_error:

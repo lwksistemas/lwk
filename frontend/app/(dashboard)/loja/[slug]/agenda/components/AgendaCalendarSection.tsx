@@ -229,9 +229,15 @@ export function AgendaCalendarSection({
             marcarArrasto(true);
           }}
           eventDragStop={() => {
-            queueMicrotask(() => {
-              if (!dropHandlingRef.current) marcarArrasto(false);
-            });
+            // setTimeout (não microtask): o FullCalendar às vezes dispara
+            // eventDrop no frame seguinte. Soltar o freeze antes disso
+            // cancela o drop e o PATCH nem sai.
+            window.setTimeout(() => {
+              if (!dropHandlingRef.current) {
+                marcarArrasto(false);
+                setFreezeTick((n) => n + 1);
+              }
+            }, 250);
           }}
           eventResizeStart={() => {
             frozenEventsRef.current = eventos;
@@ -242,6 +248,7 @@ export function AgendaCalendarSection({
           eventClick={onEventClick}
           dateClick={onDateClick}
           height="auto"
+          timeZone="America/Sao_Paulo"
           headerToolbar={{
             left: "prev,next today",
             center: "title",

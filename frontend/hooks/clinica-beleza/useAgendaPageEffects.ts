@@ -33,6 +33,7 @@ export function useAgendaPageEffects({
   const carregarDadosRef = useRef(carregarDados);
   const userScrollingRef = useRef(false);
   const scrollPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const desktopPluginsReadyRef = useRef(false);
 
   carregarDadosRef.current = carregarDados;
 
@@ -63,12 +64,19 @@ export function useAgendaPageEffects({
   }, []);
 
   useEffect(() => {
-    // Desktop: recarrega quando plugins/profissional mudam. Mobile já carregou no efeito acima.
+    // Celular usa AgendaMobileDayView — não carrega FullCalendar (economiza memória/Android).
     if (typeof window !== "undefined" && window.innerWidth < 640) {
       void carregarDadosRef.current();
       return;
     }
-    if (calendarPlugins.length > 0) void carregarDadosRef.current();
+    if (calendarPlugins.length === 0) return;
+    // No primeiro mount do calendário a query de eventos já buscou sozinha.
+    // Um refetch extra aqui coincidia com o arrasto e cancelava o drop.
+    if (!desktopPluginsReadyRef.current) {
+      desktopPluginsReadyRef.current = true;
+      return;
+    }
+    void carregarDadosRef.current();
   }, [selectedProfessional, calendarPlugins]);
 
   useEffect(() => {

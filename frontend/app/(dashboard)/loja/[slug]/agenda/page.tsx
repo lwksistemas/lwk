@@ -132,7 +132,7 @@ export default function AgendaPage() {
     setShowCreateModal(true);
   }, []);
 
-  if (loading) {
+  if (loading && eventos.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center min-h-[320px]">
         <div className="text-center">

@@ -1,5 +1,5 @@
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
-import { parseEventDate } from "@/lib/clinica-beleza-datetime";
+import { arredondarDuracaoAgendaMin, parseEventDate } from "@/lib/clinica-beleza-datetime";
 import { entityName, professionalSpecialty, type ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 
 export const AGENDA_DIA_CORES = [
@@ -159,4 +159,71 @@ export function slotDateFromMinutes(iso: string, minutesFromMidnight: number): D
   const dt = new Date(y, (mo || 1) - 1, d || 1, 0, 0, 0, 0);
   dt.setMinutes(minutesFromMidnight);
   return dt;
+}
+
+export function combinarDiaEHorario(dateIso: string, source: Date): Date {
+  return slotDateFromMinutes(
+    dateIso,
+    source.getHours() * 60 + source.getMinutes(),
+  );
+}
+
+export function duracaoEventoMinutos(evt: AgendaEventData, start: Date, end: Date): number {
+  const raw = evt.extendedProps?.duracao_minutos ?? evt.extendedProps?.procedure_duration;
+  if (typeof raw === "number" && raw > 0) return raw;
+  return Math.max(5, Math.round((end.getTime() - start.getTime()) / 60000));
+}
+
+export function minutosArrastoNaGrade(
+  clientY: number,
+  gridTop: number,
+  minMin: number,
+  pxPerMin: number,
+  offsetY = 0,
+): number {
+  return snapMinutos(minMin + (clientY - offsetY - gridTop) / pxPerMin);
+}
+
+export function clampMinutosInicio(
+  minutes: number,
+  minMin: number,
+  maxMin: number,
+  durationMin: number,
+): number {
+  const teto = Math.max(minMin, maxMin - durationMin);
+  return Math.min(Math.max(minutes, minMin), teto);
+}
+
+export function duracaoResizeNaGrade(
+  startMin: number,
+  clientY: number,
+  gridTop: number,
+  minMin: number,
+  maxMin: number,
+  pxPerMin: number,
+): number {
+  const endMin = Math.min(maxMin, Math.max(startMin + 5, snapMinutos(minMin + (clientY - gridTop) / pxPerMin)));
+  return arredondarDuracaoAgendaMin(endMin - startMin);
+}
+
+export function mesmoHorarioLocal(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate() &&
+    a.getHours() === b.getHours() &&
+    a.getMinutes() === b.getMinutes()
+  );
+}
+
+export function movimentoGradeAlterou(
+  evt: AgendaEventData,
+  start: Date,
+  professionalId: number,
+): boolean {
+  const oldStart = parseEventDate(evt.start);
+  const oldPid = eventProfessionalId(evt);
+  if (oldPid !== professionalId) return true;
+  if (!oldStart) return true;
+  return !mesmoHorarioLocal(oldStart, start);
 }

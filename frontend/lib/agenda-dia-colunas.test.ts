@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   celulasCalendarioMes,
+  clampMinutosInicio,
   colunasProfissionaisDia,
+  combinarDiaEHorario,
   corProfissionalAgenda,
+  duracaoResizeNaGrade,
   eventProfessionalId,
   eventosDoDia,
   eventosDoDiaNaColuna,
   iniciaisProfissional,
+  minutosArrastoNaGrade,
+  movimentoGradeAlterou,
   snapMinutos,
+  toAgendaDiaIso,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 
@@ -113,6 +119,35 @@ describe("celulasCalendarioMes", () => {
     expect(cells).toHaveLength(42);
     expect(cells[0].iso).toBe("2026-07-26");
     expect(cells.find((c) => c.iso === "2026-08-26")?.inMonth).toBe(true);
+  });
+});
+
+describe("movimento e resize da grade", () => {
+  const base = evt({
+    id: "1",
+    start: "2026-08-26T08:10:00",
+    end: "2026-08-26T09:40:00",
+    extendedProps: { professional: 3, duracao_minutos: 90 },
+  });
+
+  it("combina o horário com outro dia", () => {
+    const origem = new Date(2026, 7, 26, 8, 10);
+    const dest = combinarDiaEHorario("2026-08-28", origem);
+    expect(toAgendaDiaIso(dest)).toBe("2026-08-28");
+    expect(dest.getHours()).toBe(8);
+    expect(dest.getMinutes()).toBe(10);
+  });
+
+  it("detecta troca de horário ou profissional", () => {
+    expect(movimentoGradeAlterou(base, new Date(2026, 7, 26, 8, 10), 3)).toBe(false);
+    expect(movimentoGradeAlterou(base, new Date(2026, 7, 26, 10, 0), 3)).toBe(true);
+    expect(movimentoGradeAlterou(base, new Date(2026, 7, 26, 8, 10), 1)).toBe(true);
+  });
+
+  it("calcula minutos e duração com snap", () => {
+    expect(minutosArrastoNaGrade(72, 0, 420, 1.2, 0)).toBe(480);
+    expect(duracaoResizeNaGrade(480, 144, 0, 420, 1140, 1.2)).toBe(60);
+    expect(clampMinutosInicio(400, 420, 1140, 40)).toBe(420);
   });
 });
 

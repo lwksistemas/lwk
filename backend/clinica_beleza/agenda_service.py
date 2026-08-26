@@ -14,7 +14,7 @@ from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
 from .bloqueio_utils import bloqueio_datetime_range, intervalos_sobrepoem
-from .models import Appointment, BloqueioHorario
+from .models import Appointment, BloqueioHorario, Consulta, Professional
 
 logger = logging.getLogger(__name__)
 
@@ -211,14 +211,37 @@ class UpdateResult:
     consulta_error: str | None = None
 
 
+def _profissional_ativo(new_professional):
+    try:
+        pid = int(new_professional)
+    except (TypeError, ValueError):
+        raise AgendaValidationError("Profissional inválido.")
+    prof = Professional.objects.filter(pk=pid, is_active=True).first()
+    if not prof:
+        raise AgendaValidationError("Profissional não encontrado.")
+    return prof
+
+
+def _sync_consulta_profissional(appointment, prof):
+    try:
+        consulta = appointment.consulta
+    except Consulta.DoesNotExist:
+        return
+    if consulta.professional_id == prof.id:
+        return
+    consulta.professional = prof
+    consulta.save(update_fields=["professional", "updated_at"])
+
+
 def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
-                          new_duracao=None, user=None, request=None) -> UpdateResult:
+                          new_duracao=None, new_professional=None, user=None, request=None) -> UpdateResult:
     """Atualiza um agendamento com validações de negócio.
     Retorna UpdateResult com dados do resultado.
     Lança AgendaValidationError se alguma validação falhar.
     """
     date_changed = new_date is not None
     duracao_changed = new_duracao is not None
+    professional_changed = False
     old_status = appointment.status
 
     # Duração
@@ -231,6 +254,14 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
             raise AgendaValidationError("Duração mínima de 5 minutos.")
         appointment.duracao_minutos = new_duracao
 
+    # Profissional
+    if new_professional is not None and new_professional != "":
+        prof = _profissional_ativo(new_professional)
+        if appointment.professional_id != prof.id:
+            appointment.professional = prof
+            professional_changed = True
+            _sync_consulta_profissional(appointment, prof)
+
     # Data
     if date_changed:
         date_start = (parse_datetime(new_date) if isinstance(new_date, str) else new_date) or now()
@@ -238,8 +269,8 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     else:
         date_start = appointment.date
 
-    # Validar bloqueios e regras se data ou duração mudou
-    if date_changed or duracao_changed:
+    # Validar bloqueios e regras se data, duração ou profissional mudou
+    if date_changed or duracao_changed or professional_changed:
         date_end = date_start + timedelta(minutes=appointment.get_duracao_efetiva())
         if bloqueio_impede_agendamento(date_start, date_end, appointment.professional_id):
             raise AgendaValidationError("Horário bloqueado. Escolha outro horário.")
@@ -271,8 +302,8 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     if new_status is not None:
         result.consulta_id, result.consulta_error = _sync_consulta(appointment, new_status, old_status)
 
-    # Data gravada; WhatsApp de remarcação vai em segundo plano (não segura o PATCH).
-    if date_changed:
+    # Data/profissional gravados; WhatsApp de remarcação vai em segundo plano (não segura o PATCH).
+    if date_changed or professional_changed:
         _redisparar_confirmacao_por_mudanca_data(appointment)
 
     return result

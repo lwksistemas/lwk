@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Calendar } from "lucide-react";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
@@ -21,6 +22,7 @@ import {
   tituloMesCalendario,
   toAgendaDiaIso,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
+import { useAgendaDiaArrasto } from "./useAgendaDiaArrasto";
 
 const PX_PER_HOUR = 72;
 const COL_MIN_WIDTH = 280;
@@ -62,6 +64,8 @@ export function AgendaDiaColunas({
   onSlotClick,
   onMudarVisao,
   onVerLista,
+  onMover,
+  onRedimensionar,
 }: {
   dateIso: string;
   onDateChange: (iso: string) => void;
@@ -74,6 +78,8 @@ export function AgendaDiaColunas({
   onSlotClick: (date: Date, professionalId: number) => void;
   onMudarVisao: (view: "week" | "month") => void;
   onVerLista?: () => void;
+  onMover?: (evt: AgendaEventData, start: Date, professionalId: number) => void;
+  onRedimensionar?: (evt: AgendaEventData, duracaoMinutos: number) => void;
 }) {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const minMin = parseHmToMinutes(slotMinTime);
@@ -118,9 +124,18 @@ export function AgendaDiaColunas({
   const celulasMes = useMemo(() => celulasCalendarioMes(dateIso), [dateIso]);
   const mesTitulo = useMemo(() => capitalizar(tituloMesCalendario(dateIso)), [dateIso]);
   const hojeIso = toAgendaDiaIso(new Date());
+  const { arrasto, iniciarMover, iniciarResize, deveIgnorarClick } = useAgendaDiaArrasto({
+    dateIso,
+    minMin,
+    maxMin,
+    pxPerMin,
+    onMover,
+    onRedimensionar,
+    onDateChange,
+  });
 
   return (
-    <div className="flex flex-col min-h-0 flex-1 bg-white dark:bg-gray-800">
+    <div className={`flex flex-col min-h-0 flex-1 bg-white dark:bg-gray-800 ${arrasto?.moved ? "select-none" : ""}`}>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 sm:px-4 py-3 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-1.5">
           <button
@@ -246,9 +261,15 @@ export function AgendaDiaColunas({
                       </div>
                     </div>
                     <div
-                      className="relative bg-white dark:bg-gray-800 cursor-pointer"
+                      className={`relative bg-white dark:bg-gray-800 cursor-pointer ${
+                        arrasto?.modo === "mover" && arrasto.hoverProfessionalId === col.id
+                          ? "bg-violet-50/60 dark:bg-violet-950/20"
+                          : ""
+                      }`}
+                      data-agenda-coluna={col.id}
                       style={{ height: gridH }}
                       onClick={(e) => {
+                        if (deveIgnorarClick()) return;
                         if ((e.target as HTMLElement).closest("[data-agenda-card]")) return;
                         const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                         const y = e.clientY - rect.top;
@@ -281,20 +302,39 @@ export function AgendaDiaColunas({
                         const startMin = start.getHours() * 60 + start.getMinutes();
                         const endMin = Math.max(startMin + 15, end.getHours() * 60 + end.getMinutes());
                         const top = (startMin - minMin) * pxPerMin;
-                        const height = Math.max(36, (endMin - startMin) * pxPerMin - 4);
+                        const resizing = arrasto?.modo === "resize" && arrasto.evt.id === evt.id;
+                        const durationMin = resizing ? arrasto.durationMin : Math.max(15, endMin - startMin);
+                        const height = Math.max(36, durationMin * pxPerMin - 4);
                         const intervalo = Boolean(evt.extendedProps?.isIntervalo);
                         const bloqueio = Boolean(evt.extendedProps?.isBloqueio);
                         const cor = intervalo ? "#d97706" : bloqueio ? "#4f46e5" : col.cor;
+                        const arrastandoEste = arrasto?.modo === "mover" && arrasto.evt.id === evt.id && arrasto.moved;
+                        const fimPreview = new Date(start.getTime() + durationMin * 60_000);
                         return (
-                          <button
+                          <div
                             key={evt.id}
-                            type="button"
+                            role="button"
+                            tabIndex={0}
                             data-agenda-card
+                            onPointerDown={(e) => {
+                              if (e.button !== 0) return;
+                              if (intervalo || bloqueio) return;
+                              iniciarMover(evt, start, end, e);
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (!intervalo) onOpenEvent(evt);
+                              if (deveIgnorarClick() || intervalo) return;
+                              onOpenEvent(evt);
                             }}
-                            className="absolute z-[1] rounded-lg text-left overflow-hidden px-2.5 py-1.5"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                if (!intervalo) onOpenEvent(evt);
+                              }
+                            }}
+                            className={`absolute z-[1] rounded-lg text-left overflow-hidden px-2.5 py-1.5 touch-none ${
+                              arrastandoEste ? "opacity-40" : ""
+                            }`}
                             style={{
                               top,
                               height,
@@ -303,11 +343,12 @@ export function AgendaDiaColunas({
                               backgroundColor: intervalo
                                 ? "color-mix(in srgb, #d97706 16%, white)"
                                 : fundoPastel(cor),
+                              cursor: intervalo || bloqueio ? "default" : "grab",
                             }}
                           >
                             <div className="flex items-start justify-between gap-1">
                               <p className="text-[11px] tabular-nums text-gray-600 dark:text-gray-700">
-                                {formatClinicaHora(start)} - {formatClinicaHora(end)}
+                                {formatClinicaHora(start)} - {formatClinicaHora(fimPreview)}
                               </p>
                               <span
                                 className="mt-0.5 w-2 h-2 rounded-full shrink-0"
@@ -322,7 +363,20 @@ export function AgendaDiaColunas({
                                 {subtituloCard(evt)}
                               </p>
                             ) : null}
-                          </button>
+                            {!intervalo && !bloqueio ? (
+                              <span
+                                className="absolute left-0 right-0 bottom-0 h-2.5 cursor-ns-resize flex items-end justify-center pb-0.5"
+                                title="Arraste para alterar a duração"
+                                onPointerDown={(e) => {
+                                  if (e.button !== 0) return;
+                                  e.preventDefault();
+                                  iniciarResize(evt, start, end, e);
+                                }}
+                              >
+                                <span className="block w-8 h-1 rounded-full bg-black/20" />
+                              </span>
+                            ) : null}
+                          </div>
                         );
                       })}
                     </div>
@@ -350,15 +404,21 @@ export function AgendaDiaColunas({
                     <button
                       key={cel.iso}
                       type="button"
-                      onClick={() => onDateChange(cel.iso)}
+                      data-agenda-dia-iso={cel.iso}
+                      onClick={() => {
+                        if (deveIgnorarClick()) return;
+                        onDateChange(cel.iso);
+                      }}
                       className={`h-8 text-xs rounded-full ${
                         selected
                           ? "text-white font-semibold"
-                          : today
-                            ? "font-semibold text-gray-900 dark:text-gray-100"
-                            : cel.inMonth
-                              ? "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                              : "text-gray-300 dark:text-gray-600"
+                          : arrasto?.modo === "mover" && arrasto.hoverDiaIso === cel.iso
+                            ? "ring-2 ring-violet-500 font-semibold text-gray-900"
+                            : today
+                              ? "font-semibold text-gray-900 dark:text-gray-100"
+                              : cel.inMonth
+                                ? "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                : "text-gray-300 dark:text-gray-600"
                       }`}
                       style={selected ? { backgroundColor: DIA_ACCENT } : undefined}
                     >
@@ -427,6 +487,30 @@ export function AgendaDiaColunas({
           </aside>
         </div>
       )}
+      {arrasto?.modo === "mover" && arrasto.moved && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              data-agenda-ghost
+              className="pointer-events-none fixed z-[80] w-56 rounded-lg px-2.5 py-1.5 shadow-lg border border-violet-200 bg-white"
+              style={{
+                left: arrasto.x + 12,
+                top: arrasto.y - 8,
+                backgroundColor: fundoPastel(corProfissionalAgenda(arrasto.professionalId)),
+              }}
+            >
+              <p className="text-[11px] tabular-nums text-gray-600">
+                {formatClinicaHora(arrasto.start)} - {formatClinicaHora(arrasto.end)}
+              </p>
+              <p className="text-xs font-semibold text-gray-900 truncate">{tituloCard(arrasto.evt)}</p>
+              {arrasto.hoverDiaIso && arrasto.hoverDiaIso !== dateIso ? (
+                <p className="text-[11px] text-violet-700 mt-0.5">
+                  Mover para {arrasto.hoverDiaIso.split("-").reverse().join("/")}
+                </p>
+              ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

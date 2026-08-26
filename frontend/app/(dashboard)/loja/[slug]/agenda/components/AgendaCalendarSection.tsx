@@ -94,6 +94,8 @@ export function AgendaCalendarSection({
   professionals = [],
   onNovoHorario,
   onVerLista,
+  onMoverGrade,
+  onRedimensionarGrade,
 }: {
   modoAgenda: "grade" | "lista";
   eventos: AgendaEventData[];
@@ -115,6 +117,8 @@ export function AgendaCalendarSection({
   professionals?: ClinicaProfessional[];
   onNovoHorario?: (date: Date, professionalId: number) => void;
   onVerLista?: () => void;
+  onMoverGrade?: (evt: AgendaEventData, start: Date, professionalId: number) => void;
+  onRedimensionarGrade?: (evt: AgendaEventData, duracaoMinutos: number) => void;
 }) {
   const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
   const [gradeView, setGradeView] = useState<"day" | "week" | "month">("day");
@@ -235,6 +239,8 @@ export function AgendaCalendarSection({
           }}
           onMudarVisao={(view) => setGradeView(view)}
           onVerLista={onVerLista}
+          onMover={onMoverGrade}
+          onRedimensionar={onRedimensionarGrade}
         />
       </div>
     );

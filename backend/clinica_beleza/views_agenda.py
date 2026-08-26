@@ -178,12 +178,22 @@ class AgendaUpdateView(APIView):
         new_date = request.data.get("date")
         new_status = request.data.get("status")
         new_duracao = request.data.get("duracao_minutos")
+        new_professional = request.data.get("professional")
 
-        if not new_date and new_status is None and new_duracao is None and not resolve_use_local:
+        if (
+            not new_date
+            and new_status is None
+            and new_duracao is None
+            and new_professional is None
+            and not resolve_use_local
+        ):
             return Response(
-                {"error": "Envie date, duracao_minutos e/ou status"},
+                {"error": "Envie date, duracao_minutos, professional e/ou status"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        if scope is not None and new_professional is not None and str(new_professional) != str(scope):
+            return _agenda_scope_forbidden_response()
 
         try:
             result = atualizar_agendamento(
@@ -191,6 +201,7 @@ class AgendaUpdateView(APIView):
                 new_date=new_date,
                 new_status=new_status,
                 new_duracao=new_duracao,
+                new_professional=new_professional,
                 user=request.user,
                 request=request,
             )

@@ -90,7 +90,9 @@ export default function AgendaPage() {
     conflictData,
     conflictResolving,
     moverEvento,
+    moverAgendamentoGrade,
     redimensionarEvento,
+    redimensionarAgendamentoGrade,
     deletarEvento,
     atualizarStatusAgendamento,
     reenviarMensagemWhatsApp,
@@ -193,6 +195,8 @@ export default function AgendaPage() {
               setCreateProfessionalId(String(professionalId));
             }}
             onVerLista={() => setModoAgenda("lista")}
+            onMoverGrade={moverAgendamentoGrade}
+            onRedimensionarGrade={redimensionarAgendamentoGrade}
           />
         </div>
       </div>

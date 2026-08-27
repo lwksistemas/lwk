@@ -113,17 +113,15 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         now = _time.time()
         cached = _session_cache.get(user_id)
 
-        # Se cache válido, comparar direto
+        # Se cache válido e o sid bate, aceita. Se diverge, consulta o DB:
+        # o cache é por worker (Gunicorn) e um login novo em outro worker
+        # deixa sid antigo aqui — rejeitar no cache expulsaria o aparelho que acabou de entrar.
         if cached:
             cached_sid, cached_ts = cached
             if (now - cached_ts) < _CACHE_TTL_SECONDS:
-                if cached_sid != client_session_id:
-                    return {
-                        "valid": False,
-                        "reason": "DIFFERENT_SESSION",
-                        "message": "Sessão encerrada — login realizado em outro dispositivo. Faça login novamente.",
-                    }
-                return {"valid": True}
+                if cached_sid == client_session_id:
+                    return {"valid": True}
+                _session_cache.pop(user_id, None)
 
         # Cache expirado ou inexistente — consultar DB
         try:

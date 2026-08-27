@@ -2,6 +2,7 @@
 Garante que cada usuário tenha apenas uma sessão ativa por vez
 e implementa timeout de inatividade de 30 minutos
 """
+import contextlib
 import hashlib
 import logging
 
@@ -60,6 +61,9 @@ class SessionManager:
             )
 
             logger.info("session.create: ok user_id=%s session_prefix=%s", user_id, session_id[:16])
+            with contextlib.suppress(Exception):
+                from superadmin.authentication import invalidate_session_cache
+                invalidate_session_cache(user_id)
             return session_id
 
         except User.DoesNotExist:

@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { clampLarguraColuna } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
+import {
+  clampLarguraColuna,
+  snapshotLargurasColunas,
+  templateLarguraColuna,
+} from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 
 export function useAgendaColunaLargura(storageKey: string, defaultWidth: number) {
   const [widths, setWidths] = useState<Record<string, number>>({});
@@ -32,12 +36,11 @@ export function useAgendaColunaLargura(storageKey: string, defaultWidth: number)
     }
   }, [ready, storageKey, widths]);
 
+  const hasCustomWidths = Object.keys(widths).length > 0;
+
   const template = useCallback(
-    (id: string) =>
-      widths[id] == null
-        ? `minmax(${defaultWidth}px, 1fr)`
-        : `${clampLarguraColuna(widths[id])}px`,
-    [defaultWidth, widths],
+    (id: string) => templateLarguraColuna(widths[id], defaultWidth, hasCustomWidths),
+    [defaultWidth, hasCustomWidths, widths],
   );
 
   const iniciar = useCallback(
@@ -46,10 +49,15 @@ export function useAgendaColunaLargura(storageKey: string, defaultWidth: number)
       e.preventDefault();
       e.stopPropagation();
       const wrap = (e.currentTarget as HTMLElement).closest("[data-agenda-col-wrap]");
+      const grid = wrap?.parentElement instanceof HTMLElement ? wrap.parentElement : null;
       const measured =
         wrap instanceof HTMLElement ? wrap.getBoundingClientRect().width : defaultWidth;
       dragRef.current = { id, startX: e.clientX, startW: measured };
-      setWidths((prev) => ({ ...prev, [id]: clampLarguraColuna(measured) }));
+      setWidths((prev) => ({
+        ...prev,
+        ...snapshotLargurasColunas(grid),
+        [id]: clampLarguraColuna(measured),
+      }));
       setArrastando(true);
     },
     [defaultWidth],
@@ -92,7 +100,7 @@ export function useAgendaColunaLargura(storageKey: string, defaultWidth: number)
     [],
   );
 
-  return { template, iniciar, arrastando, deveIgnorarClick };
+  return { template, iniciar, arrastando, deveIgnorarClick, hasCustomWidths };
 }
 
 export function AlcaLarguraColuna({

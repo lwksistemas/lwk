@@ -29,6 +29,7 @@ export function AgendaLateralDireita({
   hoverDiaIso,
   deveIgnorarClick,
   onOpenEvent,
+  expandToFill = false,
 }: {
   dateIso: string;
   onDateChange: (iso: string) => void;
@@ -37,6 +38,7 @@ export function AgendaLateralDireita({
   hoverDiaIso?: string | null;
   deveIgnorarClick: () => boolean;
   onOpenEvent: (evt: AgendaEventData) => void;
+  expandToFill?: boolean;
 }) {
   const [agora, setAgora] = useState(() => new Date());
   useEffect(() => {
@@ -54,7 +56,11 @@ export function AgendaLateralDireita({
   const tituloFila = dateIso === hojeIso ? "Próximos" : "Neste dia";
 
   return (
-    <aside className="hidden lg:flex w-64 shrink-0 min-h-0 flex-col border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+    <aside
+      className={`hidden lg:flex min-h-0 flex-col border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 ${
+        expandToFill ? "flex-1 min-w-64" : "w-64 shrink-0"
+      }`}
+    >
       <div className="p-4 pb-3 shrink-0">
         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 capitalize mb-3">
           {mesTitulo}

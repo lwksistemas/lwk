@@ -396,6 +396,29 @@ export function clampLarguraColuna(
   return Math.min(max, Math.max(min, Math.round(px)));
 }
 
+/** Com largura customizada todas as colunas ficam em px para o calendário lateral crescer. */
+export function templateLarguraColuna(
+  storedPx: number | undefined,
+  defaultWidth: number,
+  todasFixas: boolean,
+): string {
+  if (todasFixas || storedPx != null) {
+    return `${clampLarguraColuna(storedPx ?? defaultWidth)}px`;
+  }
+  return `minmax(${defaultWidth}px, 1fr)`;
+}
+
+export function snapshotLargurasColunas(grid: HTMLElement | null): Record<string, number> {
+  const snapshot: Record<string, number> = {};
+  if (!grid) return snapshot;
+  grid.querySelectorAll<HTMLElement>("[data-agenda-col-id]").forEach((el) => {
+    const key = el.dataset.agendaColId;
+    if (!key) return;
+    snapshot[key] = clampLarguraColuna(el.getBoundingClientRect().width);
+  });
+  return snapshot;
+}
+
 const STATUS_AGENDA_FORA_DA_FILA = new Set(["CANCELLED", "NO_SHOW", "COMPLETED"]);
 
 export function ehAgendamentoCliente(evt: AgendaEventData): boolean {

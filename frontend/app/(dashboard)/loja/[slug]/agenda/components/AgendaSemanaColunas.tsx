@@ -129,6 +129,7 @@ export function AgendaSemanaColunas({
     iniciar: iniciarLargura,
     arrastando: arrastandoLargura,
     deveIgnorarClick: deveIgnorarLargura,
+    hasCustomWidths,
   } = useAgendaColunaLargura("agenda-col-w-semana", COL_MIN_WIDTH);
   const deveIgnorarClick = () => deveIgnorarArrasto() || deveIgnorarLargura();
 
@@ -194,9 +195,13 @@ export function AgendaSemanaColunas({
       </div>
 
       <div className="flex flex-1 min-h-0">
-        <div className="flex-1 min-h-0 overflow-auto agenda-scroll-root">
+        <div
+          className={`min-h-0 overflow-auto agenda-scroll-root flex-1 ${
+            hasCustomWidths ? "lg:flex-none lg:max-w-[calc(100%-16rem)]" : ""
+          }`}
+        >
           <div
-            className="grid h-full min-w-full"
+            className={`grid h-full ${hasCustomWidths ? "w-max min-w-full lg:min-w-0" : "min-w-full"}`}
             style={{
               gridTemplateColumns: colunas.map((colIso) => template(chaveColunaSemana(colIso))).join(" "),
             }}
@@ -211,6 +216,7 @@ export function AgendaSemanaColunas({
                 <div
                   key={colIso}
                   data-agenda-col-wrap
+                  data-agenda-col-id={colKey}
                   className="relative flex flex-col border-r border-gray-200 dark:border-gray-700 min-w-0"
                 >
                   <AlcaLarguraColuna onPointerDown={(e) => iniciarLargura(colKey, e)} />
@@ -374,6 +380,7 @@ export function AgendaSemanaColunas({
           hoverDiaIso={arrasto?.modo === "mover" ? arrasto.hoverDiaIso : null}
           deveIgnorarClick={deveIgnorarClick}
           onOpenEvent={onOpenEvent}
+          expandToFill={hasCustomWidths}
         />
       </div>
 

@@ -3,6 +3,8 @@ import {
   agendamentoEmAndamento,
   celulasCalendarioMes,
   clampLarguraColuna,
+  snapshotLargurasColunas,
+  templateLarguraColuna,
   clampMinutosInicio,
   colunasProfissionaisDia,
   combinarDiaEHorario,
@@ -207,6 +209,30 @@ describe("clampLarguraColuna", () => {
     expect(clampLarguraColuna(80)).toBe(160);
     expect(clampLarguraColuna(900)).toBe(560);
     expect(clampLarguraColuna(280.4)).toBe(280);
+  });
+});
+
+describe("templateLarguraColuna", () => {
+  it("distribui o espaço enquanto nenhuma coluna foi arrastada", () => {
+    expect(templateLarguraColuna(undefined, 280, false)).toBe("minmax(280px, 1fr)");
+  });
+
+  it("trava todas em px para o calendário lateral crescer", () => {
+    expect(templateLarguraColuna(undefined, 280, true)).toBe("280px");
+    expect(templateLarguraColuna(220, 280, true)).toBe("220px");
+  });
+});
+
+describe("snapshotLargurasColunas", () => {
+  it("lê data-agenda-col-id e a largura medida", () => {
+    const grid = {
+      querySelectorAll: () => [
+        { dataset: { agendaColId: "prof-1" }, getBoundingClientRect: () => ({ width: 310.4 }) },
+        { dataset: { agendaColId: "prof-2" }, getBoundingClientRect: () => ({ width: 90 }) },
+      ],
+    } as unknown as HTMLElement;
+    expect(snapshotLargurasColunas(grid)).toEqual({ "prof-1": 310, "prof-2": 160 });
+    expect(snapshotLargurasColunas(null)).toEqual({});
   });
 });
 

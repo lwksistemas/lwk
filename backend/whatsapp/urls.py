@@ -8,6 +8,7 @@ from .views_config import (
     WhatsAppConfigView,
 )
 from .views_evolution_webhook import EvolutionWebhookView
+from .views_parceiro_api import WhatsappParceiroMeView
 
 app_name = "whatsapp"
 
@@ -18,4 +19,5 @@ urlpatterns = [
     path("config/disconnect/", LojaWhatsAppDisconnectView.as_view(), name="whatsapp-disconnect"),
     path("config/reset-session/", LojaWhatsAppResetSessionView.as_view(), name="whatsapp-reset-session"),
     path("evolution/webhook/", EvolutionWebhookView.as_view(), name="evolution-webhook"),
+    path("v1/me/", WhatsappParceiroMeView.as_view(), name="whatsapp-parceiro-me"),
 ]

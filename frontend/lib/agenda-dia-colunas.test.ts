@@ -15,6 +15,8 @@ import {
   faixasSobrepostas,
   iniciaisProfissional,
   inicioSemanaIso,
+  horasGradeAgenda,
+  minutesToHm,
   minutosArrastoNaGrade,
   movimentoGradeAlterou,
   primeiroNomeProfissional,
@@ -197,6 +199,16 @@ describe("clampLarguraColuna", () => {
     expect(clampLarguraColuna(80)).toBe(160);
     expect(clampLarguraColuna(900)).toBe(560);
     expect(clampLarguraColuna(280.4)).toBe(280);
+  });
+});
+
+describe("horasGradeAgenda", () => {
+  it("mostra 22:00 quando o expediente vai até 22:00, não para no 21:00", () => {
+    const horas = horasGradeAgenda(7 * 60, 22 * 60);
+    expect(horas[0]).toBe(7 * 60);
+    expect(horas.at(-1)).toBe(22 * 60);
+    expect(horas).toContain(21 * 60);
+    expect(minutesToHm(horas.at(-1)!)).toBe("22:00");
   });
 });
 

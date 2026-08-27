@@ -8,6 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const viewport: Viewport = {
   themeColor: "#46cce4ff",
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {

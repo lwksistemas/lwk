@@ -38,7 +38,7 @@ export function EstoqueFilters({
           Filtro: {estoqueCategoriaLabel(categoriaFilter, categorias)}
         </span>
       )}
-      <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="relative flex-1 min-w-0 max-w-full">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           type="text"

@@ -11,6 +11,7 @@ import {
   estiloInlineCardAgenda,
   eventosDoDiaFiltrados,
   faixasSobrepostas,
+  horasGradeAgenda,
   minutesToHm,
   parseHmToMinutes,
   rotuloStatusCardAgenda,
@@ -87,14 +88,7 @@ export function AgendaSemanaColunas({
   const colunas = useMemo(() => diasSemanaIso(dateIso, hiddenDays), [dateIso, hiddenDays]);
   const profSlot = selectedProfessional ? Number(selectedProfessional) : 0;
 
-  const horas = useMemo(() => {
-    const out: number[] = [];
-    const startHour = Math.floor(minMin / 60) * 60;
-    for (let m = startHour; m < maxMin; m += 60) {
-      if (m >= minMin) out.push(m);
-    }
-    return out;
-  }, [minMin, maxMin]);
+  const horas = useMemo(() => horasGradeAgenda(minMin, maxMin), [minMin, maxMin]);
 
   const agora = new Date();
   const hojeIso = toAgendaDiaIso(agora);
@@ -260,7 +254,11 @@ export function AgendaSemanaColunas({
                         className="absolute left-0 right-0 pointer-events-none"
                         style={{ top: (m - minMin) * pxPerMin }}
                       >
-                        <span className="absolute left-1.5 text-[10px] tabular-nums text-gray-400 dark:text-gray-500 leading-none pt-0.5">
+                        <span
+                          className={`absolute left-1.5 text-[10px] tabular-nums text-gray-400 dark:text-gray-500 leading-none ${
+                            m >= maxMin ? "-translate-y-full" : "pt-0.5"
+                          }`}
+                        >
                           {minutesToHm(m)}
                         </span>
                         <div

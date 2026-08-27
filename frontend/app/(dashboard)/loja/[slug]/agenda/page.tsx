@@ -155,7 +155,7 @@ export default function AgendaPage() {
   }
 
   return (
-    <div className="relative flex flex-col sm:flex-1 sm:min-h-0">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <ClinicaBelezaStandardPageHeader
         title="Agenda"
         backHref={`/loja/${slug}/dashboard`}
@@ -173,8 +173,8 @@ export default function AgendaPage() {
         }
       />
 
-      <div className="flex flex-col sm:flex-1 sm:min-h-0 min-w-0 p-3 sm:p-4 lg:p-6">
-        <div className="flex flex-col sm:flex-1 sm:min-h-0 min-w-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm sm:overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col p-2 sm:p-4 lg:p-6 pb-[max(5.5rem,calc(env(safe-area-inset-bottom)+4.5rem))] sm:pb-4 lg:pb-6">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <AgendaCalendarSection
             modoAgenda={modoAgenda}
             eventos={eventos}

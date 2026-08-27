@@ -39,6 +39,7 @@ export function useAgendaMutations({
   const queryClient = useQueryClient();
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [reenviandoMensagem, setReenviandoMensagem] = useState(false);
+  const [salvandoDetalhe, setSalvandoDetalhe] = useState(false);
   const [conflictData, setConflictData] = useState<ConflictState>(null);
   const [conflictResolving, setConflictResolving] = useState(false);
   const internalMutatingRef = useRef(false);
@@ -351,6 +352,42 @@ export function useAgendaMutations({
     }
   }, [onReload, selectedEvent, setSelectedEvent, setShowModal, toast]);
 
+  const atualizarDetalheAgendamento = useCallback(async (payload: {
+    date?: string;
+    professional?: number;
+    procedures_ids?: number[];
+  }) => {
+    if (!selectedEvent) return;
+    const dbId = selectedEvent.extendedProps.dbId ?? selectedEvent.id;
+    if (typeof dbId === "string" && dbId.startsWith("offline-")) {
+      toast.warning("Agendamento criado offline. Aguarde a sincronização para editar.");
+      return;
+    }
+    const body: Record<string, unknown> = { ...payload };
+    if (selectedEvent.extendedProps.version != null) body.version = selectedEvent.extendedProps.version;
+    if (selectedEvent.extendedProps.updated_at) body.updated_at = selectedEvent.extendedProps.updated_at;
+    setSalvandoDetalhe(true);
+    try {
+      const result = await patchAgendamento(dbId, body);
+      if (!result) return;
+      queryClient.setQueryData(
+        clinicaBelezaQueryKeys.agendaEvents(selectedProfessional),
+        (old) => mergeRawAgendaEvent(old, result),
+      );
+      if (result.confirmacao_reiniciada) {
+        toast.success("Agendamento atualizado. O link anterior foi invalidado e um novo será enviado no WhatsApp.");
+      } else {
+        toast.success("Agendamento atualizado.");
+      }
+      onReload();
+    } catch (error) {
+      logger.warn("Erro ao editar agendamento:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar agendamento.");
+    } finally {
+      setSalvandoDetalhe(false);
+    }
+  }, [onReload, patchAgendamento, queryClient, selectedEvent, selectedProfessional, toast]);
+
   const atualizarStatusAgendamento = useCallback(async (novoStatus: string) => {
     if (!selectedEvent) return;
     const dbId = selectedEvent.extendedProps.dbId;
@@ -460,6 +497,7 @@ export function useAgendaMutations({
   return {
     updatingStatus,
     reenviandoMensagem,
+    salvandoDetalhe,
     conflictData,
     conflictResolving,
     moverEvento,
@@ -468,6 +506,7 @@ export function useAgendaMutations({
     redimensionarAgendamentoGrade,
     deletarEvento,
     atualizarStatusAgendamento,
+    atualizarDetalheAgendamento,
     reenviarMensagemWhatsApp,
     handleConflitoUseServer,
     handleConflitoUseLocal,

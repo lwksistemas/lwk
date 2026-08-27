@@ -16,9 +16,11 @@ export function AgendaPageModals({
   onCloseDetalhe,
   onReload,
   onUpdateStatus,
+  onSalvarDetalhe,
   onDelete,
   onReenviarWhatsApp,
   updatingStatus,
+  salvandoDetalhe,
   reenviandoMensagem,
   showCreateModal,
   onCloseCreate,
@@ -47,9 +49,15 @@ export function AgendaPageModals({
   onCloseDetalhe: () => void;
   onReload: () => void;
   onUpdateStatus: (status: string) => Promise<void>;
+  onSalvarDetalhe: (payload: {
+    date?: string;
+    professional?: number;
+    procedures_ids?: number[];
+  }) => Promise<void>;
   onDelete: () => Promise<void>;
   onReenviarWhatsApp: () => Promise<void>;
   updatingStatus: boolean;
+  salvandoDetalhe: boolean;
   reenviandoMensagem: boolean;
   showCreateModal: boolean;
   onCloseCreate: () => void;
@@ -84,10 +92,14 @@ export function AgendaPageModals({
         onClose={onCloseDetalhe}
         onSuccess={onReload}
         event={selectedEvent!}
+        professionals={professionals}
+        procedures={procedures}
         onUpdateStatus={onUpdateStatus}
+        onSalvarDetalhe={onSalvarDetalhe}
         onDelete={onDelete}
         onReenviarWhatsApp={onReenviarWhatsApp}
         updatingStatus={updatingStatus}
+        salvandoDetalhe={salvandoDetalhe}
         reenviandoMensagem={reenviandoMensagem}
       />
       <ModalCriarAgendamento

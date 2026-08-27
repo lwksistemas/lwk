@@ -87,6 +87,7 @@ export default function AgendaPage() {
   const {
     updatingStatus,
     reenviandoMensagem,
+    salvandoDetalhe,
     conflictData,
     conflictResolving,
     moverEvento,
@@ -95,6 +96,7 @@ export default function AgendaPage() {
     redimensionarAgendamentoGrade,
     deletarEvento,
     atualizarStatusAgendamento,
+    atualizarDetalheAgendamento,
     reenviarMensagemWhatsApp,
     handleConflitoUseServer,
     handleConflitoUseLocal,
@@ -221,9 +223,11 @@ export default function AgendaPage() {
         onCloseDetalhe={() => setShowModal(false)}
         onReload={carregarDados}
         onUpdateStatus={atualizarStatusAgendamento}
+        onSalvarDetalhe={atualizarDetalheAgendamento}
         onDelete={deletarEvento}
         onReenviarWhatsApp={reenviarMensagemWhatsApp}
         updatingStatus={updatingStatus}
+        salvandoDetalhe={salvandoDetalhe}
         reenviandoMensagem={reenviandoMensagem}
         showCreateModal={showCreateModal}
         onCloseCreate={() => {

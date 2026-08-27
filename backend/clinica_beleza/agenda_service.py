@@ -208,6 +208,76 @@ class UpdateResult:
     appointment: Appointment
     consulta_id: int | None = None
     consulta_error: str | None = None
+    confirmacao_reiniciada: bool = False
+
+
+STATUS_EDICAO_MATERIAL_BLOQUEADA = frozenset({"IN_PROGRESS", "COMPLETED", "CANCELLED"})
+STATUS_INVALIDA_CONFIRMACAO = frozenset({
+    "SCHEDULED", "PENDING", "CLIENT_CONFIRMED", "PHONE_CONFIRMED",
+})
+STATUS_RESET_CONFIRMACAO = frozenset({"CLIENT_CONFIRMED", "PHONE_CONFIRMED"})
+
+
+def _int_geracao(appointment) -> int:
+    try:
+        return max(1, int(getattr(appointment, "confirmacao_generation", 1) or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _ids_procedimentos_atuais(appointment) -> list[int]:
+    ids = list(
+        appointment.appointment_procedures.order_by("ordem").values_list("procedure_id", flat=True)
+    )
+    if ids:
+        return ids
+    if appointment.procedure_id:
+        return [appointment.procedure_id]
+    return []
+
+
+def _aplicar_procedimentos(appointment, procedures_ids) -> bool:
+    if procedures_ids is None:
+        return False
+    if not isinstance(procedures_ids, (list, tuple)):
+        raise AgendaValidationError("Procedimentos inválidos.")
+    try:
+        ids = [int(x) for x in procedures_ids]
+    except (TypeError, ValueError):
+        raise AgendaValidationError("Procedimentos inválidos.")
+    if not ids:
+        raise AgendaValidationError("Selecione ao menos um procedimento.")
+    if ids == _ids_procedimentos_atuais(appointment):
+        return False
+
+    from .convenio_service import criar_appointment_procedures
+    from .models import Procedure
+
+    encontrados = {
+        p.id: p for p in Procedure.objects.filter(id__in=ids, is_active=True)
+    }
+    if len(encontrados) != len(set(ids)):
+        raise AgendaValidationError("Um ou mais procedimentos não encontrados.")
+    ordered = [encontrados[i] for i in ids]
+    appointment.appointment_procedures.all().delete()
+    criar_appointment_procedures(
+        appointment, ordered, convenio=getattr(appointment, "convenio", None),
+    )
+    appointment.procedure = ordered[0]
+    appointment.duracao_minutos = None
+    return True
+
+
+def _datas_iguais_minuto(a, b) -> bool:
+    if a is None or b is None:
+        return False
+    from django.utils import timezone as tz
+
+    if tz.is_naive(a):
+        a = tz.make_aware(a, tz.get_current_timezone())
+    if tz.is_naive(b):
+        b = tz.make_aware(b, tz.get_current_timezone())
+    return abs((a - b).total_seconds()) < 60
 
 
 def _profissional_ativo(new_professional):
@@ -233,7 +303,8 @@ def _sync_consulta_profissional(appointment, prof):
 
 
 def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
-                          new_duracao=None, new_professional=None, user=None, request=None) -> UpdateResult:
+                          new_duracao=None, new_professional=None,
+                          new_procedures_ids=None, user=None, request=None) -> UpdateResult:
     """Atualiza um agendamento com validações de negócio.
     Retorna UpdateResult com dados do resultado.
     Lança AgendaValidationError se alguma validação falhar.
@@ -242,6 +313,35 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     duracao_changed = new_duracao is not None
     professional_changed = False
     old_status = appointment.status
+
+    if old_status in STATUS_EDICAO_MATERIAL_BLOQUEADA:
+        pedindo_material = False
+        if new_date is not None:
+            date_start_preview = (
+                parse_datetime(new_date) if isinstance(new_date, str) else new_date
+            ) or now()
+            if not _datas_iguais_minuto(date_start_preview, appointment.date):
+                pedindo_material = True
+        if new_professional is not None and new_professional != "":
+            try:
+                if int(new_professional) != appointment.professional_id:
+                    pedindo_material = True
+            except (TypeError, ValueError):
+                pedindo_material = True
+        if new_procedures_ids is not None:
+            try:
+                ids_preview = [int(x) for x in new_procedures_ids]
+            except (TypeError, ValueError):
+                ids_preview = []
+            if ids_preview != _ids_procedimentos_atuais(appointment):
+                pedindo_material = True
+        if pedindo_material:
+            raise AgendaValidationError(
+                "Não é possível alterar data, profissional ou procedimento neste status. "
+                "Ajuste em Consultas se o atendimento já começou.",
+            )
+
+    procedures_changed = _aplicar_procedimentos(appointment, new_procedures_ids)
 
     # Duração
     if new_duracao is not None:
@@ -264,12 +364,17 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     # Data
     if date_changed:
         date_start = (parse_datetime(new_date) if isinstance(new_date, str) else new_date) or now()
-        appointment.date = date_start
+        if _datas_iguais_minuto(date_start, appointment.date):
+            date_changed = False
+        else:
+            appointment.date = date_start
     else:
         date_start = appointment.date
 
+    mudanca_material = date_changed or professional_changed or procedures_changed
+
     # Validar bloqueios e regras se data, duração ou profissional mudou
-    if date_changed or duracao_changed or professional_changed:
+    if date_changed or duracao_changed or professional_changed or procedures_changed:
         date_end = date_start + timedelta(minutes=appointment.get_duracao_efetiva())
         if bloqueio_impede_agendamento(date_start, date_end, appointment.professional_id):
             raise AgendaValidationError("Horário bloqueado. Escolha outro horário.")
@@ -290,19 +395,30 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
             )
         appointment.status = new_status
 
+    confirmacao_reiniciada = False
+    if mudanca_material and old_status in STATUS_INVALIDA_CONFIRMACAO:
+        appointment.confirmacao_generation = _int_geracao(appointment) + 1
+        if new_status is None and old_status in STATUS_RESET_CONFIRMACAO:
+            appointment.status = "SCHEDULED"
+        confirmacao_reiniciada = True
+
     # Salvar
     appointment.version = (appointment.version or 1) + 1
     appointment.updated_by_id = getattr(user, "id", None) if user else None
     appointment.save()
 
     # Side effects
-    result = UpdateResult(appointment=appointment)
+    result = UpdateResult(appointment=appointment, confirmacao_reiniciada=confirmacao_reiniciada)
 
     if new_status is not None:
         result.consulta_id, result.consulta_error = _sync_consulta(appointment, new_status, old_status)
+    elif confirmacao_reiniciada and old_status in STATUS_RESET_CONFIRMACAO:
+        result.consulta_id, result.consulta_error = _sync_consulta(
+            appointment, appointment.status, old_status,
+        )
 
-    # Data/profissional gravados; WhatsApp de remarcação vai em segundo plano (não segura o PATCH).
-    if date_changed or professional_changed:
+    # Data/profissional/procedimento gravados; WhatsApp de remarcação vai em segundo plano.
+    if confirmacao_reiniciada:
         _redisparar_confirmacao_por_mudanca_data(appointment)
 
     return result

@@ -163,6 +163,11 @@ class Appointment(LojaIsolationMixin, models.Model):
     # Sincronização offline: version para detectar conflitos; updated_by_id = ID do user (schema public)
     version = models.PositiveIntegerField(default=1, verbose_name="Versão")
     updated_by_id = models.PositiveIntegerField(null=True, blank=True, verbose_name="Atualizado por (user id)")
+    confirmacao_generation = models.PositiveIntegerField(
+        default=1,
+        verbose_name="Geração da confirmação",
+        help_text="Incrementado ao alterar data, profissional ou procedimento. Invalida o link WhatsApp anterior.",
+    )
 
     objects = LojaIsolationManager()
 

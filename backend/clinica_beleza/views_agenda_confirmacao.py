@@ -9,6 +9,8 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from .agenda_confirmacao_service import (
+    CODIGO_LINK_SUBSTITUIDO,
+    MSG_LINK_SUBSTITUIDO,
     obter_dados_confirmacao,
     processar_resposta_confirmacao,
 )
@@ -32,7 +34,10 @@ class ConfirmarAgendamentoPublicaView(View):
     def get(self, request, token):
         dados, err, _ = obter_dados_confirmacao(token)
         if err:
-            return JsonResponse({"error": err}, status=400)
+            payload = {"error": err}
+            if err == MSG_LINK_SUBSTITUIDO:
+                payload["codigo"] = CODIGO_LINK_SUBSTITUIDO
+            return JsonResponse(payload, status=400)
         return JsonResponse(dados)
 
     def post(self, request, token):
@@ -48,7 +53,10 @@ class ConfirmarAgendamentoPublicaView(View):
 
         result = processar_resposta_confirmacao(token, acao)
         if not result.ok:
-            return JsonResponse({"error": result.message, "status": result.status}, status=400)
+            payload = {"error": result.message, "status": result.status}
+            if result.codigo:
+                payload["codigo"] = result.codigo
+            return JsonResponse(payload, status=400)
 
         status_display = None
         if result.status and result.appointment_id:

@@ -670,7 +670,12 @@ def enviar_confirmacao_agendamento(agendamento, user=None, config=None, reagenda
     link = None
     if loja_id and agendamento.id:
         modulo = getattr(agendamento, "whatsapp_modulo", None) or "clinica_beleza"
-        token = gerar_token_confirmacao(loja_id, agendamento.id, modulo=modulo)
+        token = gerar_token_confirmacao(
+            loja_id,
+            agendamento.id,
+            modulo=modulo,
+            generation=getattr(agendamento, "confirmacao_generation", None),
+        )
         link = url_confirmacao_frontend(token)
 
     msg = msg_confirmacao(agendamento, link_confirmacao=link, config=config, reagendado=reagendado)

@@ -95,6 +95,9 @@ export function formatarAgendaEvento(
       procedure_duration: raw.procedure_duration as number | undefined,
       duracao_minutos: raw.duracao_minutos as number | undefined,
       procedure_price: raw.procedure_price as string | undefined,
+      procedures_list: Array.isArray(raw.procedures_list)
+        ? (raw.procedures_list as { id: number; nome?: string }[])
+        : undefined,
       notes: String(raw.notes ?? ""),
       version: versaoAgenda(raw.version),
       updated_at: raw.updated_at ? String(raw.updated_at) : undefined,

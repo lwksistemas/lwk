@@ -179,16 +179,18 @@ class AgendaUpdateView(APIView):
         new_status = request.data.get("status")
         new_duracao = request.data.get("duracao_minutos")
         new_professional = request.data.get("professional")
+        new_procedures_ids = request.data.get("procedures_ids")
 
         if (
             not new_date
             and new_status is None
             and new_duracao is None
             and new_professional is None
+            and new_procedures_ids is None
             and not resolve_use_local
         ):
             return Response(
-                {"error": "Envie date, duracao_minutos, professional e/ou status"},
+                {"error": "Envie date, duracao_minutos, professional, procedures_ids e/ou status"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -202,6 +204,7 @@ class AgendaUpdateView(APIView):
                 new_status=new_status,
                 new_duracao=new_duracao,
                 new_professional=new_professional,
+                new_procedures_ids=new_procedures_ids,
                 user=request.user,
                 request=request,
             )
@@ -219,6 +222,8 @@ class AgendaUpdateView(APIView):
             response_data["consulta_id"] = result.consulta_id
         if result.consulta_error:
             response_data["consulta_error"] = result.consulta_error
+        if result.confirmacao_reiniciada:
+            response_data["confirmacao_reiniciada"] = True
         return Response(response_data)
 
 

@@ -129,6 +129,7 @@ export default function ConfirmarAgendamentoPage() {
   const [loading, setLoading] = useState(true);
   const [agendamento, setAgendamento] = useState<AgendamentoData | null>(null);
   const [erro, setErro] = useState('');
+  const [codigoErro, setCodigoErro] = useState('');
   const [processando, setProcessando] = useState(false);
   const [resultado, setResultado] = useState<{ ok: boolean; message: string } | null>(null);
   const [fechando, setFechando] = useState(false);
@@ -146,6 +147,7 @@ export default function ConfirmarAgendamentoPage() {
         const data = await res.json();
         if (!res.ok) {
           setErro(data.error || 'Link inválido ou expirado.');
+          setCodigoErro(data.codigo || '');
           return;
         }
         setAgendamento(data);
@@ -176,6 +178,7 @@ export default function ConfirmarAgendamentoPage() {
       const data = await res.json();
       if (!res.ok) {
         setErro(data.error || 'Não foi possível registrar sua resposta.');
+        setCodigoErro(data.codigo || '');
         return;
       }
       setResultado({ ok: true, message: data.message });
@@ -212,8 +215,10 @@ export default function ConfirmarAgendamentoPage() {
     return (
       <ConfirmacaoShell isMobile={isMobile}>
         <ConfirmacaoCard isMobile={isMobile} className="text-center" onFechar={!isMobile ? tentarFechar : undefined}>
-          <AlertCircle className="w-10 h-10 md:w-9 md:h-9 text-red-500 mx-auto mb-3" />
-          <h1 className="text-xl md:text-lg font-semibold text-gray-800 mb-2">Link indisponível</h1>
+          <AlertCircle className={`w-10 h-10 md:w-9 md:h-9 mx-auto mb-3 ${codigoErro === 'link_substituido' ? 'text-amber-500' : 'text-red-500'}`} />
+          <h1 className="text-xl md:text-lg font-semibold text-gray-800 mb-2">
+            {codigoErro === 'link_substituido' ? 'Agendamento alterado' : 'Link indisponível'}
+          </h1>
           <p className="text-gray-600 text-sm">{erro}</p>
           {!isMobile && (
             <button

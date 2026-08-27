@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 TOKEN_EXPIRACAO_DIAS = 14
 ACOES_VALIDAS = frozenset({"confirmar", "cancelar"})
 STATUS_ACIONAVEIS = frozenset({"SCHEDULED", "PENDING"})
+CODIGO_LINK_SUBSTITUIDO = "link_substituido"
+MSG_LINK_SUBSTITUIDO = (
+    "Este agendamento foi alterado. Confirme pelo link atualizado enviado no WhatsApp."
+)
 
 
 @dataclass
@@ -28,15 +32,47 @@ class RespostaConfirmacao:
     status: str | None = None
     appointment_id: int | None = None
     already_done: bool = False
+    codigo: str | None = None
 
 
-def gerar_token_confirmacao(loja_id: int, appointment_id: int, *, modulo: str = "clinica_beleza") -> str:
+def geracao_do_payload(payload: dict | None) -> int:
+    if not payload:
+        return 1
+    try:
+        return max(1, int(payload.get("g") or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def geracao_do_agendamento(appointment) -> int:
+    try:
+        return max(1, int(getattr(appointment, "confirmacao_generation", 1) or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def token_confirmacao_desatualizado(payload: dict | None, appointment) -> bool:
+    return geracao_do_payload(payload) != geracao_do_agendamento(appointment)
+
+
+def gerar_token_confirmacao(
+    loja_id: int,
+    appointment_id: int,
+    *,
+    modulo: str = "clinica_beleza",
+    generation: int | None = None,
+) -> str:
+    try:
+        geracao = max(1, int(generation)) if generation is not None else 1
+    except (TypeError, ValueError):
+        geracao = 1
     payload = {
         "doc_type": "agendamento",
         "doc_id": int(appointment_id),
         "loja_id": int(loja_id),
         "modulo": (modulo or "clinica_beleza").strip() or "clinica_beleza",
         "exp": int((timezone.now() + timedelta(days=TOKEN_EXPIRACAO_DIAS)).timestamp()),
+        "g": geracao,
     }
     return dumps(payload)
 
@@ -216,6 +252,9 @@ def obter_dados_confirmacao(token: str) -> tuple[dict | None, str | None, int | 
     if not appointment:
         return None, "Agendamento não encontrado.", loja_id
 
+    if token_confirmacao_desatualizado(payload, appointment):
+        return None, MSG_LINK_SUBSTITUIDO, loja_id
+
     return serializar_agendamento_publico(appointment, loja_nome), None, loja_id
 
 
@@ -285,6 +324,14 @@ def processar_resposta_confirmacao(token: str, acao: str) -> RespostaConfirmacao
     )
     if not appointment:
         return RespostaConfirmacao(False, "Agendamento não encontrado.")
+
+    if token_confirmacao_desatualizado(payload, appointment):
+        return RespostaConfirmacao(
+            False,
+            MSG_LINK_SUBSTITUIDO,
+            appointment_id=appointment.id,
+            codigo=CODIGO_LINK_SUBSTITUIDO,
+        )
 
     novo_status = "CLIENT_CONFIRMED" if acao == "confirmar" else "CANCELLED"
 
@@ -461,7 +508,11 @@ def processar_resposta_whatsapp(
             "Não encontramos agendamento pendente para confirmar ou cancelar.",
         )
 
-    token = gerar_token_confirmacao(loja_id, appointment.id)
+    token = gerar_token_confirmacao(
+        loja_id,
+        appointment.id,
+        generation=geracao_do_agendamento(appointment),
+    )
     return processar_resposta_confirmacao(token, acao)
 
 

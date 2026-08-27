@@ -13,6 +13,7 @@ from .nfse import NFSeEmitida
 from .security import HistoricoAcessoGlobal, ViolacaoSeguranca
 from .session import UserSession
 from .users import LoginLockout, ProfissionalUsuario, UsuarioSistema, VendedorUsuario
+from .whatsapp_gateway import WhatsappApiKey, WhatsappCustomer, WhatsappInstance
 
 __all__ = [
     "AuditLog",
@@ -37,5 +38,8 @@ __all__ = [
     "UsuarioSistema",
     "VendedorUsuario",
     "ViolacaoSeguranca",
+    "WhatsappApiKey",
+    "WhatsappCustomer",
+    "WhatsappInstance",
     "horario_envio_slot_noturno",
 ]

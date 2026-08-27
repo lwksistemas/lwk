@@ -59,6 +59,8 @@ def api_root(request):
             "push": "/api/push/",
             "crm_vendas": "/api/crm-vendas/",
             "homepage": "/api/homepage/",
+            "whatsapp": "/api/whatsapp/",
+            "whatsapp_v1": "/api/whatsapp/v1/me/",
         },
         "documentacao": "Sistema Multi-Tenant para gestão de lojas",
     }

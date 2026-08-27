@@ -132,6 +132,13 @@ const MENU_CARDS: MenuCardProps[] = [
     color: 'purple',
   },
   {
+    title: 'WhatsApp',
+    description: 'Quem está conectado: lojas LWK e parceiros de API, com os números separados',
+    icon: '💬',
+    href: '/superadmin/whatsapp',
+    color: 'green',
+  },
+  {
     title: 'Máquinas Radiologia',
     description: 'Cadastrar, cobrar e liberar ultrassom, raio-X e mamógrafo no cliente',
     icon: '📡',

@@ -49,6 +49,12 @@ from .views import (
     excluir_midia_arquivo,
 )
 from .views.radiologia_maquinas import ContratoPacsLojaViewSet, MaquinaRadiologiaViewSet
+from .views.whatsapp_painel import (
+    WhatsappPainelView,
+    WhatsappParceiroChaveRevogarView,
+    WhatsappParceiroChaveView,
+    WhatsappParceiroCreateView,
+)
 from .views import lockouts as lockout_views
 from .views_security_enhancements import SecurityDashboardViewSet  # ✅ NOVO: Melhorias de segurança
 
@@ -135,6 +141,16 @@ urlpatterns = [
     path("midia/<str:tenant>/", listar_midia_pastas, name="listar-midia-pastas"),
     path("midia/<str:tenant>/delete/<path:filepath>/", excluir_midia_arquivo, name="excluir-midia-arquivo"),
     path("midia/<str:tenant>/<path:folder>/", listar_midia_arquivos, name="listar-midia-arquivos"),
+
+    # WhatsApp (Evolution dedicada + parceiros)
+    path("whatsapp/painel/", WhatsappPainelView.as_view(), name="whatsapp-painel"),
+    path("whatsapp/parceiros/", WhatsappParceiroCreateView.as_view(), name="whatsapp-parceiros-create"),
+    path("whatsapp/parceiros/<int:customer_id>/chaves/", WhatsappParceiroChaveView.as_view(), name="whatsapp-parceiros-chave"),
+    path(
+        "whatsapp/parceiros/<int:customer_id>/chaves/<int:key_id>/revogar/",
+        WhatsappParceiroChaveRevogarView.as_view(),
+        name="whatsapp-parceiros-chave-revogar",
+    ),
 
     # Configuração da Homepage (CRUD)
     path("homepage/", include("homepage.urls_admin")),

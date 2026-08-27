@@ -15,6 +15,7 @@ import {
   slotDateFromMinutes,
   snapMinutos,
   estiloCardStatusAgenda,
+  estiloInlineCardAgenda,
   rotuloStatusCardAgenda,
   capitalizarAgenda,
   tituloCardAgenda,
@@ -313,8 +314,7 @@ export function AgendaDiaColunas({
                               height,
                               left: TIME_COL_W,
                               right: 6,
-                              backgroundColor: estilo.backgroundColor,
-                              borderLeft: estilo.borderLeft,
+                              ...estiloInlineCardAgenda(evt),
                               cursor: intervalo || bloqueio ? "default" : "grab",
                             }}
                           >
@@ -322,7 +322,7 @@ export function AgendaDiaColunas({
                               <p className="text-[11px] tabular-nums text-gray-600 dark:text-gray-700">
                                 {formatClinicaHora(start)} - {formatClinicaHora(fimPreview)}
                               </p>
-                              {height > 42 ? (
+                              {height > 42 || bloqueio ? (
                                 <span
                                   className="text-[10px] font-semibold leading-none px-1.5 py-0.5 rounded-full text-white shrink-0 max-w-[6.5rem] truncate"
                                   style={{ backgroundColor: estilo.cor }}

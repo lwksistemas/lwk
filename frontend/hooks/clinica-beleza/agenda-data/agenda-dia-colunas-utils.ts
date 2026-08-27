@@ -31,11 +31,48 @@ export function corProfissionalAgenda(id: number): string {
   return AGENDA_DIA_CORES[Math.abs(id) % AGENDA_DIA_CORES.length];
 }
 
+export type FamiliaBloqueioAgenda = "ferias" | "manutencao" | "evento" | "reuniao" | "outro";
+
+/** Agrupa o motivo livre (Férias, Reunião videomaker, etc.) para cor e selo. */
+export function familiaBloqueioAgenda(motivo?: string): FamiliaBloqueioAgenda {
+  const t = (motivo || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  if (t.includes("ferias")) return "ferias";
+  if (t.includes("manutenc")) return "manutencao";
+  if (t.includes("evento")) return "evento";
+  if (t.includes("reuniao")) return "reuniao";
+  return "outro";
+}
+
+/** Cores de bloqueio longe do roxo Aguardando e do verde Presente. */
+export const COR_BLOQUEIO_AGENDA: Record<FamiliaBloqueioAgenda, string> = {
+  ferias: "#0f766e",
+  manutencao: "#475569",
+  evento: "#0c4a6e",
+  reuniao: "#44403c",
+  outro: "#57534e",
+};
+
+export function corBloqueioAgenda(motivo?: string): string {
+  return COR_BLOQUEIO_AGENDA[familiaBloqueioAgenda(motivo)];
+}
+
+export function rotuloTipoBloqueioAgenda(motivo?: string): string {
+  const familia = familiaBloqueioAgenda(motivo);
+  if (familia === "ferias") return "Férias";
+  if (familia === "manutencao") return "Manutenção";
+  if (familia === "evento") return "Evento";
+  if (familia === "reuniao") return "Reunião";
+  return "Bloqueio";
+}
+
 /** Cor do card = status do agendamento (não a cor da coluna do profissional). */
 export function corStatusEventoAgenda(evt: AgendaEventData): string {
   const p = evt.extendedProps || {};
   if (p.isIntervalo) return "#d97706";
-  if (p.isBloqueio) return "#4f46e5";
+  if (p.isBloqueio) return corBloqueioAgenda(p.motivo);
   return evt.backgroundColor || evt.borderColor || "#a855f7";
 }
 
@@ -45,21 +82,47 @@ export function fundoPastelAgenda(hex: string, pct = 28): string {
 
 export function rotuloStatusCardAgenda(evt: AgendaEventData): string {
   const p = evt.extendedProps || {};
-  if (p.isBloqueio) return "Bloqueio";
+  if (p.isBloqueio) return rotuloTipoBloqueioAgenda(p.motivo);
   if (p.isIntervalo) return "Intervalo";
   return getAgendaStatusLabelCurto(String(p.status || "SCHEDULED"));
 }
 
-export function estiloCardStatusAgenda(evt: AgendaEventData): {
+export type EstiloCardAgenda = {
   cor: string;
   backgroundColor: string;
   borderLeft: string;
-} {
+  backgroundImage?: string;
+};
+
+export function estiloCardStatusAgenda(evt: AgendaEventData): EstiloCardAgenda {
+  const p = evt.extendedProps || {};
   const cor = corStatusEventoAgenda(evt);
+  if (p.isBloqueio) {
+    return {
+      cor,
+      backgroundColor: fundoPastelAgenda(cor, 14),
+      borderLeft: `4px dashed ${cor}`,
+      backgroundImage:
+        `repeating-linear-gradient(-45deg, color-mix(in srgb, ${cor} 18%, transparent) 0 6px, transparent 6px 12px)`,
+    };
+  }
   return {
     cor,
     backgroundColor: fundoPastelAgenda(cor),
     borderLeft: `4px solid ${cor}`,
+  };
+}
+
+export function estiloInlineCardAgenda(evt: AgendaEventData): {
+  backgroundColor: string;
+  borderLeft: string;
+  backgroundImage?: string;
+} {
+  const e = estiloCardStatusAgenda(evt);
+  return {
+    backgroundColor: e.backgroundColor,
+    borderLeft: e.borderLeft,
+    ...(e.backgroundImage ? { backgroundImage: e.backgroundImage } : {}),
   };
 }
 

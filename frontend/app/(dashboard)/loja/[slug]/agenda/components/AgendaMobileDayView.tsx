@@ -7,6 +7,7 @@ import { parseEventDate } from "@/lib/clinica-beleza-datetime";
 import { CLINICA_AGENDA_SLOT_VISUAL_MIN } from "@/lib/clinica-beleza-constants";
 import {
   estiloCardStatusAgenda,
+  estiloInlineCardAgenda,
   rotuloStatusCardAgenda,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 
@@ -246,8 +247,7 @@ export function AgendaMobileDayView({
                       className="w-full flex gap-3 px-3 py-3 text-left touch-manipulation active:opacity-80 rounded-r-lg"
                       style={{
                         minHeight: Math.max(56, slot.spanSlots * 44),
-                        backgroundColor: estilo.backgroundColor,
-                        borderLeft: estilo.borderLeft,
+                        ...estiloInlineCardAgenda(ev),
                       }}
                     >
                       <span className="w-11 shrink-0 text-xs font-bold text-gray-800 dark:text-gray-200 pt-0.5">

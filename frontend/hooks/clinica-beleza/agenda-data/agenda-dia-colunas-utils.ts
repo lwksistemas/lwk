@@ -192,6 +192,7 @@ export type AgendaDiaProfissionalColuna = {
   especialidade: string;
   iniciais: string;
   cor: string;
+  foto_url: string | null;
 };
 
 export function colunasProfissionaisDia(
@@ -209,6 +210,7 @@ export function colunasProfissionaisDia(
       especialidade: professionalSpecialty(p),
       iniciais: iniciaisProfissional(nome),
       cor: corProfissionalAgenda(p.id),
+      foto_url: (p.foto_url || "").trim() || null,
     };
   });
 }

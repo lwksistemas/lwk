@@ -98,6 +98,17 @@ describe("buildProfissionalSaveBody", () => {
     expect(body.criar_acesso).toBe(true);
     expect(body.username).toBe("ana");
     expect(body.name).toBe("Ana Silva");
+    expect(body.foto_url).toBe("");
+  });
+
+  it("envia a foto do profissional", () => {
+    const form = {
+      ...DEFAULT_PROFISSIONAL_FORM,
+      name: "Marina",
+      specialty: "Farmacêutica",
+      foto_url: "https://media.lwksistemas.com.br/files/x/avatars/a.jpg",
+    };
+    expect(buildProfissionalSaveBody(form, "3").foto_url).toContain("/avatars/");
   });
 });
 

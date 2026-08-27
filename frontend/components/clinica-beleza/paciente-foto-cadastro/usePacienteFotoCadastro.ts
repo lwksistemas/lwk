@@ -35,9 +35,11 @@ interface UsePacienteFotoCadastroParams {
   value: string;
   onChange: (url: string) => void;
   disabled?: boolean;
+  folder?: string;
   patientId?: number | null;
   patientNome?: string;
   patientCpf?: string;
+  captureFilename?: string;
 }
 
 export function usePacienteFotoCadastro({
@@ -45,16 +47,18 @@ export function usePacienteFotoCadastro({
   value,
   onChange,
   disabled = false,
+  folder: folderProp = "fotos",
   patientId,
   patientNome,
   patientCpf,
+  captureFilename = "foto-cliente.jpg",
 }: UsePacienteFotoCadastroParams) {
   void slug;
   void value;
   const lojaDoc = "";
   const lojaDocReady = true;
   const lojaDocLoading = false;
-  const folder = "fotos";
+  const folder = folderProp;
   const uploadDisabled = disabled || lojaDocLoading || !lojaDocReady || !folder;
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -143,8 +147,8 @@ export function usePacienteFotoCadastro({
       setErro("Erro ao capturar a foto.");
       return;
     }
-    await enviarArquivo(new File([blob], "foto-cliente.jpg", { type: "image/jpeg" }));
-  }, [enviarArquivo, pararCamera]);
+    await enviarArquivo(new File([blob], captureFilename, { type: "image/jpeg" }));
+  }, [captureFilename, enviarArquivo, pararCamera]);
 
   return {
     folder,

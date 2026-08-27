@@ -123,6 +123,7 @@ export interface ClinicaProfessional {
   is_owner?: boolean;
   is_profissional?: boolean;
   tempo_consulta_minutos?: number | null;
+  foto_url?: string | null;
 }
 
 export interface ClinicaPatient {

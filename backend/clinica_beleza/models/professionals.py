@@ -61,6 +61,13 @@ class Professional(ProfissionalBase):
         verbose_name="É profissional",
         help_text="Se False, é apenas administrador (não aparece na agenda nem recebe agendamentos).",
     )
+    foto_url = models.URLField(
+        blank=True,
+        default="",
+        max_length=500,
+        verbose_name="Foto",
+        help_text="Foto de perfil do profissional (servidor de mídia).",
+    )
 
     class Meta(ProfissionalBase.Meta):
         app_label = "clinica_beleza"

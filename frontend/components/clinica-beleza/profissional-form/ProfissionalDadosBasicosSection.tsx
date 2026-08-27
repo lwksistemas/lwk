@@ -1,15 +1,33 @@
 import { formatTelefone, toUpperCase } from "@/lib/format-br";
+import { PacienteFotoCadastro } from "@/components/clinica-beleza/paciente-foto-cadastro/PacienteFotoCadastro";
 import { INPUT_CLASS, LABEL_CLASS, type ProfissionalFormState } from "./profissional-form-types";
 
 interface ProfissionalDadosBasicosSectionProps {
+  slug: string;
   form: ProfissionalFormState;
   onFieldChange: (field: keyof ProfissionalFormState, value: string | boolean) => void;
+  disabled?: boolean;
 }
 
-export function ProfissionalDadosBasicosSection({ form, onFieldChange }: ProfissionalDadosBasicosSectionProps) {
+export function ProfissionalDadosBasicosSection({
+  slug,
+  form,
+  onFieldChange,
+  disabled = false,
+}: ProfissionalDadosBasicosSectionProps) {
   return (
     <section className="bg-white dark:bg-neutral-800 rounded-xl border dark:border-neutral-700 p-5 space-y-4">
       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Dados Básicos</h3>
+      <PacienteFotoCadastro
+        slug={slug}
+        value={form.foto_url}
+        onChange={(url) => onFieldChange("foto_url", url)}
+        disabled={disabled}
+        accentColor="var(--cb-primary, #8B3D52)"
+        label="Foto do profissional"
+        folder="avatars"
+        captureFilename="foto-profissional.jpg"
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={LABEL_CLASS}>Nome *</label>

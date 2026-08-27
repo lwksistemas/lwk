@@ -20,6 +20,7 @@ from .views import (
     FinanceiroResumoView,
     HorarioTrabalhoProfissionalView,
     LojaInfoView,
+    MeView,
     PatientDetailView,
     PatientListView,
     PaymentDetailView,
@@ -147,6 +148,7 @@ urlpatterns = [
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     # Dados do administrador da loja (nome, email, telefone)
     path("loja-info/", LojaInfoView.as_view(), name="loja-info"),
+    path("me/", MeView.as_view(), name="me"),
 
     # Pacientes
     path("patients/", PatientListView.as_view(), name="patients-list"),

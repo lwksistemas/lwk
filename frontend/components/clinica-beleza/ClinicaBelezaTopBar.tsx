@@ -1,20 +1,50 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Menu, Moon, Sun } from 'lucide-react';
 import type { LojaInfo } from '@/types/dashboard';
+import apiClient from '@/lib/api-client';
 import { useClinicaBelezaPageHeaderMount, useClinicaBelezaShellActions } from './ClinicaBelezaPageHeaderContext';
+
+function useClinicaBelezaUserDisplayName() {
+  const [nome, setNome] = useState('');
+
+  useEffect(() => {
+    let ativo = true;
+    apiClient
+      .get<{ user_display_name?: string | null }>('/clinica-beleza/me/')
+      .then((res) => {
+        if (!ativo) return;
+        setNome((res.data?.user_display_name || '').trim());
+      })
+      .catch(() => {
+        if (!ativo) return;
+        setNome('');
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  return nome;
+}
 
 function ClinicaBelezaUserTopBarActions({ loja }: { loja: LojaInfo }) {
   const shellActions = useClinicaBelezaShellActions();
   const darkMode = shellActions?.darkMode ?? false;
   const setDarkMode = shellActions?.setDarkMode;
+  const userName = useClinicaBelezaUserDisplayName();
 
   return (
     <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-      <div className="text-right hidden md:block">
-        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">Administrador(a)</p>
-        <p className="text-xs text-gray-400 truncate max-w-[140px]">{loja?.nome}</p>
+      <div className="text-right min-w-0 hidden sm:block">
+        <p
+          className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight truncate max-w-[10rem] sm:max-w-[14rem]"
+          title={userName || undefined}
+        >
+          {userName || '…'}
+        </p>
+        <p className="text-xs text-gray-400 truncate max-w-[10rem] sm:max-w-[14rem]">{loja?.nome}</p>
       </div>
       <button
         type="button"
@@ -77,3 +107,4 @@ export function ClinicaBelezaTopBar({ loja, onOpenMobileMenu }: ClinicaBelezaTop
     </header>
   );
 }
+

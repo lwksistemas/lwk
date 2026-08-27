@@ -7,7 +7,6 @@ import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 import { formatClinicaHora } from "@/lib/clinica-beleza-datetime";
 import {
   addDaysIso,
-  celulasCalendarioMes,
   colunasProfissionaisDia,
   eventosDoDiaNaColuna,
   minutesToHm,
@@ -19,16 +18,15 @@ import {
   rotuloStatusCardAgenda,
   capitalizarAgenda,
   tituloCardAgenda,
-  tituloMesCalendario,
   toAgendaDiaIso,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 import { AlcaLarguraColuna, useAgendaColunaLargura } from "./useAgendaColunaLargura";
 import { useAgendaDiaArrasto } from "./useAgendaDiaArrasto";
+import { AgendaLateralDireita } from "./AgendaLateralDireita";
 
 const PX_PER_HOUR = 72;
 const COL_MIN_WIDTH = 280;
 const TIME_COL_W = 44;
-const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"] as const;
 const DIA_ACCENT = "#7c3aed";
 
 function subtituloCard(evt: AgendaEventData): string {
@@ -105,8 +103,6 @@ export function AgendaDiaColunas({
     };
   }, [dateIso]);
 
-  const celulasMes = useMemo(() => celulasCalendarioMes(dateIso), [dateIso]);
-  const mesTitulo = useMemo(() => capitalizarAgenda(tituloMesCalendario(dateIso)), [dateIso]);
   const hojeIso = toAgendaDiaIso(new Date());
   const { arrasto, iniciarMover, iniciarResize, deveIgnorarClick: deveIgnorarArrasto } = useAgendaDiaArrasto({
     dateIso,
@@ -372,49 +368,15 @@ export function AgendaDiaColunas({
             </div>
           </div>
 
-          <aside className="hidden lg:flex w-64 shrink-0 self-start flex-col border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <div className="p-4">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 capitalize mb-3">
-                {mesTitulo}
-              </p>
-              <div className="grid grid-cols-7 gap-y-1 text-center">
-                {WEEKDAYS.map((d, i) => (
-                  <span key={`${d}-${i}`} className="text-[10px] font-medium text-gray-400 py-1">
-                    {d}
-                  </span>
-                ))}
-                {celulasMes.map((cel) => {
-                  const selected = cel.iso === dateIso;
-                  const today = cel.iso === hojeIso;
-                  return (
-                    <button
-                      key={cel.iso}
-                      type="button"
-                      data-agenda-dia-iso={cel.iso}
-                      onClick={() => {
-                        if (deveIgnorarClick()) return;
-                        onDateChange(cel.iso);
-                      }}
-                      className={`h-8 text-xs rounded-full ${
-                        selected
-                          ? "text-white font-semibold"
-                          : arrasto?.modo === "mover" && arrasto.hoverDiaIso === cel.iso
-                            ? "ring-2 ring-violet-500 font-semibold text-gray-900"
-                            : today
-                              ? "font-semibold text-gray-900 dark:text-gray-100"
-                              : cel.inMonth
-                                ? "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                                : "text-gray-300 dark:text-gray-600"
-                      }`}
-                      style={selected ? { backgroundColor: DIA_ACCENT } : undefined}
-                    >
-                      {Number(cel.iso.slice(-2))}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </aside>
+          <AgendaLateralDireita
+            dateIso={dateIso}
+            onDateChange={onDateChange}
+            eventos={eventos}
+            selectedProfessional={selectedProfessional}
+            hoverDiaIso={arrasto?.modo === "mover" ? arrasto.hoverDiaIso : null}
+            deveIgnorarClick={deveIgnorarClick}
+            onOpenEvent={onOpenEvent}
+          />
         </div>
       )}
       {arrasto?.modo === "mover" && arrasto.moved && typeof document !== "undefined"

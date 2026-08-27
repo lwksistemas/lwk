@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  agendamentoEmAndamento,
   celulasCalendarioMes,
   clampLarguraColuna,
   clampMinutosInicio,
@@ -16,6 +17,8 @@ import {
   inicioSemanaIso,
   minutosArrastoNaGrade,
   movimentoGradeAlterou,
+  primeiroNomeProfissional,
+  proximosAgendamentosAgenda,
   snapMinutos,
   toAgendaDiaIso,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
@@ -190,6 +193,115 @@ describe("clampLarguraColuna", () => {
     expect(clampLarguraColuna(80)).toBe(160);
     expect(clampLarguraColuna(900)).toBe(560);
     expect(clampLarguraColuna(280.4)).toBe(280);
+  });
+});
+
+describe("proximosAgendamentosAgenda", () => {
+  const agora = new Date("2026-08-27T10:45:00-03:00");
+
+  function fila(partial: Partial<AgendaEventData> & { id: string; start: string; end?: string }) {
+    return evt({
+      end: partial.end || "2026-08-27T11:00:00-03:00",
+      extendedProps: { professional: 1, patient_name: "Ana", ...partial.extendedProps },
+      ...partial,
+    });
+  }
+
+  it("na Harmonis às 10h45 mostra o em andamento e os próximos de todos", () => {
+    const lista = [
+      fila({
+        id: "passou",
+        start: "2026-08-27T09:00:00-03:00",
+        end: "2026-08-27T10:00:00-03:00",
+        extendedProps: { professional: 1, patient_name: "Bruna paciente", status: "SCHEDULED" },
+      }),
+      fila({
+        id: "agora",
+        start: "2026-08-27T10:00:00-03:00",
+        end: "2026-08-27T11:00:00-03:00",
+        extendedProps: {
+          professional: 3,
+          patient_name: "Patrícia G. De Barros Martins",
+          procedure_name: "Eletroestimulação",
+          professional_name: "Dra. Nayara da Silva de Souza",
+          status: "CLIENT_CONFIRMED",
+        },
+      }),
+      fila({
+        id: "tarde",
+        start: "2026-08-27T14:30:00-03:00",
+        end: "2026-08-27T15:10:00-03:00",
+        extendedProps: {
+          professional: 2,
+          patient_name: "Maria Antonia da Cunha Carvalho",
+          professional_name: "Dra. Marina Garcia Ramos",
+          status: "CLIENT_CONFIRMED",
+        },
+      }),
+      fila({
+        id: "almoco",
+        start: "2026-08-27T12:00:00-03:00",
+        end: "2026-08-27T13:00:00-03:00",
+        extendedProps: { isIntervalo: true },
+      }),
+      fila({
+        id: "cancelado",
+        start: "2026-08-27T16:00:00-03:00",
+        end: "2026-08-27T16:40:00-03:00",
+        extendedProps: { professional: 2, status: "CANCELLED" },
+      }),
+    ];
+    const ids = proximosAgendamentosAgenda(lista, "2026-08-27", agora, "").map((x) => x.evt.id);
+    expect(ids).toEqual(["agora", "tarde"]);
+    expect(
+      agendamentoEmAndamento(
+        {
+          evt: lista[1],
+          start: new Date("2026-08-27T10:00:00-03:00"),
+          end: new Date("2026-08-27T11:00:00-03:00"),
+        },
+        agora,
+      ),
+    ).toBe(true);
+  });
+
+  it("respeita o filtro de um profissional", () => {
+    const lista = [
+      fila({
+        id: "n1",
+        start: "2026-08-27T14:00:00-03:00",
+        end: "2026-08-27T15:00:00-03:00",
+        extendedProps: { professional: 3, status: "SCHEDULED" },
+      }),
+      fila({
+        id: "m1",
+        start: "2026-08-27T14:30:00-03:00",
+        end: "2026-08-27T15:10:00-03:00",
+        extendedProps: { professional: 2, status: "SCHEDULED" },
+      }),
+    ];
+    expect(proximosAgendamentosAgenda(lista, "2026-08-27", agora, "2").map((x) => x.evt.id)).toEqual([
+      "m1",
+    ]);
+  });
+
+  it("em outro dia lista a fila inteira, sem cortar pelo relógio", () => {
+    const lista = [
+      fila({
+        id: "cedo",
+        start: "2026-08-28T08:00:00-03:00",
+        end: "2026-08-28T09:00:00-03:00",
+        extendedProps: { professional: 1, status: "SCHEDULED" },
+      }),
+    ];
+    expect(proximosAgendamentosAgenda(lista, "2026-08-28", agora, "").map((x) => x.evt.id)).toEqual([
+      "cedo",
+    ]);
+  });
+
+  it("primeiro nome ignora Dr/Dra", () => {
+    expect(primeiroNomeProfissional("Dra. Nayara da Silva de Souza")).toBe("Nayara");
+    expect(primeiroNomeProfissional("Bruna Tucci Martins")).toBe("Bruna");
   });
 });
 

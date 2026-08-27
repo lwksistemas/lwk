@@ -318,6 +318,48 @@ export function clampLarguraColuna(
   return Math.min(max, Math.max(min, Math.round(px)));
 }
 
+const STATUS_AGENDA_FORA_DA_FILA = new Set(["CANCELLED", "NO_SHOW", "COMPLETED"]);
+
+export function ehAgendamentoCliente(evt: AgendaEventData): boolean {
+  const p = evt.extendedProps || {};
+  return !p.isBloqueio && !p.isIntervalo;
+}
+
+export function primeiroNomeProfissional(nome: string | undefined): string {
+  if (!nome) return "";
+  const palavras = nome
+    .replace(/\./g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((p) => !PARTICULAS.has(p.toUpperCase()));
+  return palavras[0] || nome.trim();
+}
+
+export function agendamentoEmAndamento(item: AgendaDiaItem, now: Date): boolean {
+  return item.start.getTime() <= now.getTime() && item.end.getTime() > now.getTime();
+}
+
+/**
+ * Fila da recepção no painel direito: do horário atual em diante no dia
+ * selecionado, todos os profissionais (ou o filtro do topo).
+ */
+export function proximosAgendamentosAgenda(
+  eventos: AgendaEventData[],
+  dateIso: string,
+  now: Date = new Date(),
+  selectedProfessional = "",
+): AgendaDiaItem[] {
+  const hojeIso = toAgendaDiaIso(now);
+  return eventosDoDiaFiltrados(eventos, dateIso, selectedProfessional).filter((row) => {
+    if (!ehAgendamentoCliente(row.evt)) return false;
+    const status = String(row.evt.extendedProps?.status || "SCHEDULED").toUpperCase();
+    if (STATUS_AGENDA_FORA_DA_FILA.has(status)) return false;
+    if (dateIso === hojeIso && row.end.getTime() <= now.getTime()) return false;
+    return true;
+  });
+}
+
 export function faixasSobrepostas(
   items: AgendaDiaItem[],
 ): { item: AgendaDiaItem; lane: number; lanes: number }[] {

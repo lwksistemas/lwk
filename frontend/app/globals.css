@@ -346,6 +346,12 @@
 /* Bloqueios: arrastar corpo, redimensionar na borda inferior (igual aos agendamentos) */
 .fc-event-bloqueio {
   cursor: grab;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgb(15 23 42 / 0.14) 0 5px,
+    transparent 5px 11px
+  ) !important;
+  border-style: dashed !important;
 }
 .fc-event-bloqueio:active {
   cursor: grabbing;

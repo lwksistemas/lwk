@@ -19,6 +19,10 @@ import {
   movimentoGradeAlterou,
   primeiroNomeProfissional,
   proximosAgendamentosAgenda,
+  corBloqueioAgenda,
+  estiloCardStatusAgenda,
+  familiaBloqueioAgenda,
+  rotuloTipoBloqueioAgenda,
   snapMinutos,
   toAgendaDiaIso,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
@@ -322,5 +326,35 @@ describe("formatarAgendaEvento / professional", () => {
       false,
     );
     expect(eventProfessionalId(e)).toBe(3);
+  });
+});
+
+describe("visual do bloqueio", () => {
+  it("não usa o roxo do Aguardando e listra o fundo", () => {
+    expect(familiaBloqueioAgenda("REUNIÃO VÍDEOMAKER")).toBe("reuniao");
+    expect(familiaBloqueioAgenda("Férias do profissional")).toBe("ferias");
+    expect(rotuloTipoBloqueioAgenda("REUNIÃO VÍDEOMAKER")).toBe("Reunião");
+    expect(corBloqueioAgenda("REUNIÃO")).not.toBe("#a855f7");
+    expect(corBloqueioAgenda("REUNIÃO")).not.toBe("#4f46e5");
+    const estilo = estiloCardStatusAgenda(
+      evt({
+        id: "b1",
+        start: "2026-08-27T16:00:00-03:00",
+        extendedProps: { isBloqueio: true, motivo: "REUNIÃO VÍDEOMAKER" },
+      }),
+    );
+    expect(estilo.borderLeft).toContain("dashed");
+    expect(estilo.backgroundImage).toContain("repeating-linear-gradient");
+    const aguardando = estiloCardStatusAgenda(
+      evt({
+        id: "a1",
+        start: "2026-08-27T16:30:00-03:00",
+        backgroundColor: "#a855f7",
+        extendedProps: { status: "SCHEDULED", patient_name: "Tania" },
+      }),
+    );
+    expect(aguardando.borderLeft).toContain("solid");
+    expect(aguardando.backgroundImage).toBeUndefined();
+    expect(estilo.cor).not.toBe(aguardando.cor);
   });
 });

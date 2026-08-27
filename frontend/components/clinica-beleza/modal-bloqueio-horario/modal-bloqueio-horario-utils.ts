@@ -1,5 +1,6 @@
 export const TIPOS_BLOQUEIO = [
   { value: "Férias do profissional", label: "🏖 Férias do profissional" },
+  { value: "Reunião", label: "💼 Reunião" },
   { value: "Manutenção", label: "🛠 Manutenção" },
   { value: "Evento interno", label: "📅 Evento interno" },
   { value: "", label: "✏️ Outro (digite abaixo)" },

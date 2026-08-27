@@ -8,6 +8,7 @@ import {
   addDaysIso,
   diasSemanaIso,
   estiloCardStatusAgenda,
+  estiloInlineCardAgenda,
   eventosDoDiaFiltrados,
   faixasSobrepostas,
   minutesToHm,
@@ -317,8 +318,7 @@ export function AgendaSemanaColunas({
                             height,
                             left: `calc(${TIME_COL_W}px + ${lane} * ((100% - ${TIME_COL_W + 6}px) / ${lanes}))`,
                             width: `calc((100% - ${TIME_COL_W + 6}px) / ${lanes} - 4px)`,
-                            backgroundColor: estilo.backgroundColor,
-                            borderLeft: estilo.borderLeft,
+                            ...estiloInlineCardAgenda(evt),
                             cursor: intervalo || bloqueio ? "default" : "grab",
                           }}
                         >
@@ -326,7 +326,7 @@ export function AgendaSemanaColunas({
                             <p className="text-[11px] tabular-nums text-gray-600">
                               {formatClinicaHora(start)} - {formatClinicaHora(fimPreview)}
                             </p>
-                            {height > 42 ? (
+                            {height > 42 || bloqueio ? (
                               <span
                                 className="text-[10px] font-semibold leading-none px-1.5 py-0.5 rounded-full text-white shrink-0 max-w-[5.5rem] truncate"
                                 style={{ backgroundColor: estilo.cor }}

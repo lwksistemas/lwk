@@ -1,9 +1,4 @@
-import {
-  CLINICA_AGENDA_BLOQUEIO_COLORS,
-  CLINICA_AGENDA_STATUS_COLORS,
-  getAgendaStatusColor,
-  type AgendaStatusColorMap,
-} from "@/lib/clinica-beleza-constants";
+import { CLINICA_AGENDA_STATUS_COLORS, getAgendaStatusColor, type AgendaStatusColorMap } from "@/lib/clinica-beleza-constants";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { BloqueioHorario } from "@/lib/clinica-beleza-entities";
 import { entityName } from "@/lib/clinica-beleza-entities";
@@ -14,6 +9,7 @@ import type {
   HorarioTrabalhoRow,
 } from "@/lib/clinica-beleza-entities";
 import { intervalosEventsFromHorarios } from "@/lib/clinica-beleza-work-hours";
+import { corBloqueioAgenda } from "./agenda-dia-colunas-utils";
 
 export function versaoAgenda(value: unknown): number | undefined {
   const n = Number(value);
@@ -144,14 +140,15 @@ export function bloqueiosToAgendaEvents(bloqueiosList: BloqueioHorario[]): Agend
       rawE.includes("T");
     const startStr = hasT ? rawS : (rawS.slice(0, 10) ? `${rawS.slice(0, 10)}T00:00:00` : "");
     const endStr = hasT ? rawE : (rawS.slice(0, 10) ? `${rawS.slice(0, 10)}T23:59:59` : "");
+    const cor = corBloqueioAgenda(b.motivo);
     return {
       id: `bloqueio-${b.id}`,
       title: `🚫 ${b.motivo}`,
       start: startStr,
       end: endStr,
       allDay: false,
-      backgroundColor: CLINICA_AGENDA_BLOQUEIO_COLORS.bg,
-      borderColor: CLINICA_AGENDA_BLOQUEIO_COLORS.border,
+      backgroundColor: cor,
+      borderColor: cor,
       textColor: "#fff",
       editable: true,
       durationEditable: true,

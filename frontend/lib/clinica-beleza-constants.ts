@@ -86,7 +86,8 @@ export function getAgendaStatusColor(
   return colors[key] || colors.SCHEDULED || { bg: '#a855f7', border: '#9333ea' };
 }
 
-export const CLINICA_AGENDA_BLOQUEIO_COLORS = { bg: '#4f46e5', border: '#4338ca' } as const;
+/** Cinza-pedra: bloqueio não pode parecer Aguardando (roxo). */
+export const CLINICA_AGENDA_BLOQUEIO_COLORS = { bg: '#57534e', border: '#44403c' } as const;
 
 /** Opções de status no modal Detalhes do Agendamento. */
 export const CLINICA_AGENDA_STATUS_OPCOES_MODAL = [

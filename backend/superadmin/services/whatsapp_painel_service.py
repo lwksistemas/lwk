@@ -21,14 +21,50 @@ logger = logging.getLogger(__name__)
 
 API_KEY_PREFIX = "lwk_wh_"
 EXT_INSTANCE_RE = re.compile(r"^ext_(\d+)(?:_|$)", re.IGNORECASE)
+QUOTA_PARCEIRO_MAX = 500
+QUOTA_PARCEIRO_PADRAO = 50
 
 
 def hash_api_key(raw: str) -> str:
     return hashlib.sha256((raw or "").encode("utf-8")).hexdigest()
 
 
-def gerar_chave_api() -> tuple[str, str]:
-    raw = API_KEY_PREFIX + secrets.token_urlsafe(32)
+def _somente_digitos(valor: str) -> str:
+    return re.sub(r"\D", "", valor or "")
+
+
+def _mod11(base: str, pesos: list[int]) -> int:
+    total = sum(int(base[i]) * pesos[i] for i in range(len(pesos)))
+    resto = total % 11
+    return 0 if resto < 2 else 11 - resto
+
+
+def documento_parceiro_valido(valor: str) -> str:
+    """CPF (11) ou CNPJ (14) com dígitos verificadores. Retorna só números."""
+    digits = _somente_digitos(valor)
+    if len(digits) == 11:
+        if digits == digits[0] * 11:
+            raise ValueError("CPF inválido.")
+        d1 = _mod11(digits[:9], list(range(10, 1, -1)))
+        d2 = _mod11(digits[:10], list(range(11, 1, -1)))
+        if digits[-2:] != f"{d1}{d2}":
+            raise ValueError("CPF inválido. Verifique os números.")
+        return digits
+    if len(digits) == 14:
+        if digits == digits[0] * 14:
+            raise ValueError("CNPJ inválido.")
+        w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        if _mod11(digits[:12], w1) != int(digits[12]) or _mod11(digits[:13], w2) != int(digits[13]):
+            raise ValueError("CNPJ inválido. Verifique os números.")
+        return digits
+    raise ValueError("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos).")
+
+
+def gerar_chave_api(documento: str = "") -> tuple[str, str]:
+    digits = _somente_digitos(documento)
+    meio = f"{digits}_" if digits else ""
+    raw = f"{API_KEY_PREFIX}{meio}{secrets.token_urlsafe(32)}"
     return raw, hash_api_key(raw)
 
 
@@ -57,15 +93,21 @@ def _chave_publica(key: WhatsappApiKey) -> dict:
     }
 
 
-def criar_parceiro(*, nome: str, documento: str = "", quota_numeros: int = 1, webhook_url: str = "") -> WhatsappCustomer:
+def criar_parceiro(*, nome: str, documento: str, quota_numeros: int = QUOTA_PARCEIRO_PADRAO, webhook_url: str = "") -> WhatsappCustomer:
     nome_limpo = (nome or "").strip()
     if not nome_limpo:
         raise ValueError("Informe o nome do parceiro.")
-    quota = max(1, min(int(quota_numeros or 1), 50))
+    doc = documento_parceiro_valido(documento)
+    if WhatsappCustomer.objects.filter(tipo=WhatsappCustomer.TIPO_PARCEIRO, documento=doc).exists():
+        raise ValueError("Já existe um parceiro com este CPF/CNPJ.")
+    try:
+        quota = max(1, min(int(quota_numeros or QUOTA_PARCEIRO_PADRAO), QUOTA_PARCEIRO_MAX))
+    except (TypeError, ValueError):
+        quota = QUOTA_PARCEIRO_PADRAO
     return WhatsappCustomer.objects.create(
         tipo=WhatsappCustomer.TIPO_PARCEIRO,
         nome=nome_limpo,
-        documento=re.sub(r"\D", "", documento or "")[:18],
+        documento=doc,
         quota_numeros=quota,
         webhook_url=(webhook_url or "").strip(),
         is_active=True,
@@ -77,11 +119,13 @@ def emitir_chave(customer: WhatsappCustomer, nome: str = "padrão") -> tuple[Wha
         raise ValueError("Chave de API só é emitida para parceiros.")
     if not customer.is_active:
         raise ValueError("Parceiro inativo.")
-    raw, digest = gerar_chave_api()
+    raw, digest = gerar_chave_api(customer.documento)
+    digits = _somente_digitos(customer.documento)
+    prefixo = (f"{API_KEY_PREFIX}{digits}" if digits else raw)[:40]
     key = WhatsappApiKey.objects.create(
         customer=customer,
         nome=(nome or "padrão").strip() or "padrão",
-        prefixo=raw[:16],
+        prefixo=prefixo,
         key_hash=digest,
     )
     return key, raw

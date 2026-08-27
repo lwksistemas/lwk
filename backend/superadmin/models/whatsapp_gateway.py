@@ -21,8 +21,8 @@ class WhatsappCustomer(models.Model):
         related_name="whatsapp_customer",
     )
     nome = models.CharField(max_length=200)
-    documento = models.CharField(max_length=18, blank=True, default="")
-    quota_numeros = models.PositiveSmallIntegerField(default=1)
+    documento = models.CharField(max_length=18, blank=True, default="", db_index=True)
+    quota_numeros = models.PositiveSmallIntegerField(default=50)
     webhook_url = models.URLField(max_length=500, blank=True, default="")
     is_active = models.BooleanField(default=True)
     observacoes = models.TextField(blank=True, default="")
@@ -32,6 +32,13 @@ class WhatsappCustomer(models.Model):
     class Meta:
         db_table = "superadmin_whatsapp_customer"
         ordering = ["nome"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["documento"],
+                condition=models.Q(tipo="parceiro") & ~models.Q(documento=""),
+                name="uniq_whatsapp_parceiro_documento",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.get_tipo_display()} {self.nome}"
@@ -76,7 +83,7 @@ class WhatsappApiKey(models.Model):
         related_name="api_keys",
     )
     nome = models.CharField(max_length=80, default="padrão")
-    prefixo = models.CharField(max_length=24)
+    prefixo = models.CharField(max_length=40)
     key_hash = models.CharField(max_length=64, unique=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)

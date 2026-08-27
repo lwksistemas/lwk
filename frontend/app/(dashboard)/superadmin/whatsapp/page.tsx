@@ -101,7 +101,7 @@ export default function SuperadminWhatsappPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <nav className="bg-green-800 dark:bg-green-950 text-white shadow">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+        <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
           <div>
             <a href="/superadmin/dashboard" className="text-sm text-green-100 hover:underline">
               ← Dashboard
@@ -119,7 +119,7 @@ export default function SuperadminWhatsappPage() {
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <main className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {error && <p className="rounded-md bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200 px-4 py-3">{error}</p>}
         {ok && <p className="rounded-md bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-4 py-3">{ok}</p>}
         {chaveNova && (
@@ -153,34 +153,35 @@ export default function SuperadminWhatsappPage() {
               ))}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm flex flex-col md:flex-row gap-3 md:items-end">
-              <label className="flex-1 text-sm text-gray-700 dark:text-gray-300">
-                Novo parceiro (API PHP)
-                <input
-                  value={parceiroNome}
-                  onChange={(e) => setParceiroNome(e.target.value)}
-                  className="mt-1 w-full border rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-600"
-                  placeholder="Nome do sistema cliente"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => void criarParceiro()}
-                disabled={!parceiroNome.trim()}
-                className="px-4 py-2 rounded-md bg-green-700 text-white text-sm disabled:opacity-50"
-              >
-                Cadastrar parceiro
-              </button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm flex flex-col sm:flex-row gap-3 sm:items-end">
+                <label className="flex-1 text-sm text-gray-700 dark:text-gray-300">
+                  Novo parceiro (API PHP)
+                  <input
+                    value={parceiroNome}
+                    onChange={(e) => setParceiroNome(e.target.value)}
+                    className="mt-1 w-full border rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-600"
+                    placeholder="Nome do sistema cliente"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void criarParceiro()}
+                  disabled={!parceiroNome.trim()}
+                  className="px-4 py-2 rounded-md bg-green-700 text-white text-sm disabled:opacity-50"
+                >
+                  Cadastrar parceiro
+                </button>
+              </div>
+              <input
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                placeholder="Buscar cliente, loja ou número..."
+                className="w-full h-full min-h-14 border rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-600"
+              />
             </div>
 
-            <input
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-              placeholder="Buscar cliente, loja ou número..."
-              className="w-full border rounded-md px-3 py-2 dark:bg-gray-800 dark:border-gray-600"
-            />
-
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {clientes.map((c) => {
                 const key = `${c.tipo}-${c.id ?? c.loja_id ?? c.nome}`;
                 const abertoAgora = aberto === key;

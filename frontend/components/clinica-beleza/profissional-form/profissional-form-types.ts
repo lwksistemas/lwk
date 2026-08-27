@@ -41,6 +41,7 @@ export interface ProfissionalFormState {
   criar_acesso: boolean;
   perfil: PerfilAcesso;
   username: string;
+  foto_url: string;
 }
 
 export const UFS_BR = [
@@ -80,6 +81,7 @@ export const DEFAULT_PROFISSIONAL_FORM: ProfissionalFormState = {
   criar_acesso: false,
   perfil: "profissional",
   username: "",
+  foto_url: "",
 };
 
 export type ProfissionalEditing = { id: number };

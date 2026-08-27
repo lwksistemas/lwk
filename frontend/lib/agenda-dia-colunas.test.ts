@@ -63,6 +63,14 @@ describe("colunasProfissionaisDia", () => {
   it("filtra um profissional", () => {
     expect(colunasProfissionaisDia(profs, "2").map((c) => c.id)).toEqual([2]);
   });
+
+  it("leva a foto para o cabeçalho da coluna", () => {
+    const comFoto = [
+      { id: 1, nome: "Bruna Tucci", especialidade: "Esteticista", foto_url: "https://media.example/b.jpg" },
+    ];
+    expect(colunasProfissionaisDia(comFoto, "")[0].foto_url).toBe("https://media.example/b.jpg");
+    expect(colunasProfissionaisDia(profs, "")[0].foto_url).toBeNull();
+  });
 });
 
 describe("eventosDoDiaNaColuna", () => {

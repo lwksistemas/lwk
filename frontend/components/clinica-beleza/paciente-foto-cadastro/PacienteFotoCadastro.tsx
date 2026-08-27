@@ -13,6 +13,9 @@ export interface PacienteFotoCadastroProps {
   patientId?: number | null;
   patientNome?: string;
   patientCpf?: string;
+  label?: string;
+  folder?: string;
+  captureFilename?: string;
 }
 
 export function PacienteFotoCadastro({
@@ -24,9 +27,12 @@ export function PacienteFotoCadastro({
   patientId,
   patientNome,
   patientCpf,
+  label = "Foto do cliente",
+  folder = "fotos",
+  captureFilename = "foto-cliente.jpg",
 }: PacienteFotoCadastroProps) {
   const {
-    folder,
+    folder: pastaUpload,
     uploadDisabled,
     lojaDocLoading,
     lojaDocReady,
@@ -37,27 +43,28 @@ export function PacienteFotoCadastro({
     pararCamera,
     abrirCamera,
     capturarFoto,
-    enviarArquivo,
   } = usePacienteFotoCadastro({
     slug,
     value,
     onChange,
     disabled,
+    folder,
     patientId,
     patientNome,
     patientCpf,
+    captureFilename,
   });
 
   return (
     <>
       <div className="pb-2">
-        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Foto do cliente</label>
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">{label}</label>
         <div className="flex flex-wrap items-start gap-4">
           <div className="relative shrink-0">
             <div className="w-24 h-24 rounded-full border-2 border-gray-200 dark:border-neutral-600 overflow-hidden bg-gray-50 dark:bg-neutral-800 flex items-center justify-center">
               {value ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={value} alt="Foto do cliente" className="w-full h-full object-cover" />
+                <img src={value} alt={label} className="w-full h-full object-cover" />
               ) : (
                 <User size={32} className="text-gray-300 dark:text-neutral-600" />
               )}
@@ -81,7 +88,7 @@ export function PacienteFotoCadastro({
                 compact
                 value={value}
                 onChange={onChange}
-                folder={folder || "fotos"}
+                folder={pastaUpload || "fotos"}
                 maxSize={5}
                 disabled={uploadDisabled || uploading}
                 buttonLabel={uploading ? "Enviando…" : "Importar foto"}

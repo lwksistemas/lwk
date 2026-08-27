@@ -22,6 +22,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
     cpf = serializers.CharField(max_length=14, required=False, allow_blank=True, allow_null=True)
     data_nascimento = serializers.DateField(required=False, allow_null=True)
     sexo = serializers.ChoiceField(choices=["M", "F"], required=False, allow_blank=True, allow_null=True)
+    foto_url = serializers.URLField(required=False, allow_blank=True, default="")
     criar_acesso = serializers.BooleanField(default=False, write_only=True)
     username = serializers.CharField(max_length=150, required=False, allow_blank=True, write_only=True)
     perfil = serializers.ChoiceField(
@@ -64,6 +65,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
         cpf = (validated_data.pop("cpf", None) or "").strip() or None
         data_nascimento = validated_data.pop("data_nascimento", None) or None
         sexo = (validated_data.pop("sexo", None) or "").strip().upper() or None
+        foto_url = (validated_data.pop("foto_url", None) or "").strip()
 
         professional = Professional.objects.create(
             nome=name,
@@ -76,6 +78,7 @@ class ProfessionalCreateWithUserSerializer(serializers.Serializer):
             cpf=cpf,
             data_nascimento=data_nascimento,
             sexo=sexo,
+            foto_url=foto_url,
         )
 
         if criar_acesso:
@@ -129,6 +132,7 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
         extra_kwargs = {
             "email": {"required": False, "allow_blank": True, "allow_null": True},
             "telefone": {"required": False, "allow_blank": True},
+            "foto_url": {"required": False, "allow_blank": True},
         }
 
     def get_is_administrador_vinculado(self, obj):

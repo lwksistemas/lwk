@@ -34,6 +34,7 @@ export type ProfissionalApiRow = {
   cpf?: string;
   data_nascimento?: string;
   sexo?: string;
+  foto_url?: string;
 };
 
 export function mapProfissionalFormFromApi(prof: ProfissionalApiRow): ProfissionalFormState {
@@ -49,6 +50,7 @@ export function mapProfissionalFormFromApi(prof: ProfissionalApiRow): Profission
     cpf: prof.cpf || "",
     data_nascimento: prof.data_nascimento || "",
     sexo: prof.sexo || "",
+    foto_url: prof.foto_url || "",
   };
 }
 
@@ -175,6 +177,7 @@ export function buildProfissionalSaveBody(
     cpf: form.cpf.trim() || null,
     data_nascimento: form.data_nascimento || null,
     sexo: form.sexo || null,
+    foto_url: form.foto_url.trim() || "",
     active: true,
   };
   if (!editId && form.criar_acesso) {

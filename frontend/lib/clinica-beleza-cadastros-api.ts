@@ -16,6 +16,9 @@ export interface ClinicaProfessionalOption {
   id: number;
   name?: string;
   nome?: string;
+  especialidade?: string;
+  specialty?: string;
+  foto_url?: string | null;
 }
 
 const PATIENT_SEARCH_PAGE_SIZE = 40;

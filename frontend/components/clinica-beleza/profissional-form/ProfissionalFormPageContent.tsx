@@ -68,7 +68,12 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
             </div>
           )}
 
-          <ProfissionalDadosBasicosSection form={form} onFieldChange={setField} />
+          <ProfissionalDadosBasicosSection
+            slug={slug}
+            form={form}
+            onFieldChange={setField}
+            disabled={saving}
+          />
           <ProfissionalPrescritorSection form={form} onFieldChange={setField} />
 
           <section className="bg-white dark:bg-neutral-800 rounded-xl border dark:border-neutral-700 p-5 space-y-5">

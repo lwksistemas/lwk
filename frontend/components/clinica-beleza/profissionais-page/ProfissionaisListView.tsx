@@ -3,6 +3,7 @@
 import { Clock, Pencil, Timer, Trash2 } from "lucide-react";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
+import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
 import { entityName, entityPhone, professionalSpecialty, type ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 
 interface ProfissionaisListViewProps {
@@ -53,7 +54,10 @@ export function ProfissionaisListView({
             key: "nome",
             header: "Nome",
             render: (p) => (
-              <span className="font-medium text-gray-800 dark:text-gray-200">{entityName(p)}</span>
+              <span className="inline-flex items-center gap-2 min-w-0 font-medium text-gray-800 dark:text-gray-200">
+                <PacienteAvatar fotoUrl={p.foto_url} name={entityName(p)} size="sm" />
+                <span className="truncate">{entityName(p)}</span>
+              </span>
             ),
           },
           {

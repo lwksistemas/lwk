@@ -7,13 +7,13 @@ import { formatClinicaHora } from "@/lib/clinica-beleza-datetime";
 import {
   addDaysIso,
   celulasCalendarioMes,
-  corProfissionalAgenda,
   diasSemanaIso,
-  eventProfessionalId,
+  estiloCardStatusAgenda,
   eventosDoDiaFiltrados,
   faixasSobrepostas,
   minutesToHm,
   parseHmToMinutes,
+  rotuloStatusCardAgenda,
   sameDayIso,
   slotDateFromMinutes,
   snapMinutos,
@@ -31,10 +31,6 @@ const DIA_ACCENT = "#7c3aed";
 
 function capitalizar(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-}
-
-function fundoPastel(hex: string): string {
-  return `color-mix(in srgb, ${hex} 18%, white)`;
 }
 
 function tituloCard(evt: AgendaEventData): string {
@@ -301,14 +297,7 @@ export function AgendaSemanaColunas({
                       const height = Math.max(36, durationMin * pxPerMin - 4);
                       const intervalo = Boolean(evt.extendedProps?.isIntervalo);
                       const bloqueio = Boolean(evt.extendedProps?.isBloqueio);
-                      const pid = eventProfessionalId(evt);
-                      const cor = intervalo
-                        ? "#d97706"
-                        : bloqueio
-                          ? "#4f46e5"
-                          : pid != null
-                            ? corProfissionalAgenda(pid)
-                            : "#94a3b8";
+                      const estilo = estiloCardStatusAgenda(evt);
                       const arrastandoEste = arrasto?.modo === "mover" && arrasto.evt.id === evt.id && arrasto.moved;
                       const fimPreview = new Date(start.getTime() + durationMin * 60_000);
                       return (
@@ -342,9 +331,8 @@ export function AgendaSemanaColunas({
                             height,
                             left: `calc(${TIME_COL_W}px + ${lane} * ((100% - ${TIME_COL_W + 6}px) / ${lanes}))`,
                             width: `calc((100% - ${TIME_COL_W + 6}px) / ${lanes} - 4px)`,
-                            backgroundColor: intervalo
-                              ? "color-mix(in srgb, #d97706 16%, white)"
-                              : fundoPastel(cor),
+                            backgroundColor: estilo.backgroundColor,
+                            borderLeft: estilo.borderLeft,
                             cursor: intervalo || bloqueio ? "default" : "grab",
                           }}
                         >
@@ -352,10 +340,23 @@ export function AgendaSemanaColunas({
                             <p className="text-[11px] tabular-nums text-gray-600">
                               {formatClinicaHora(start)} - {formatClinicaHora(fimPreview)}
                             </p>
-                            <span className="mt-0.5 w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cor }} />
+                            {height > 42 ? (
+                              <span
+                                className="text-[10px] font-semibold leading-none px-1.5 py-0.5 rounded-full text-white shrink-0 max-w-[5.5rem] truncate"
+                                style={{ backgroundColor: estilo.cor }}
+                              >
+                                {rotuloStatusCardAgenda(evt)}
+                              </span>
+                            ) : (
+                              <span
+                                className="mt-0.5 w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-white"
+                                style={{ backgroundColor: estilo.cor }}
+                                title={rotuloStatusCardAgenda(evt)}
+                              />
+                            )}
                           </div>
                           <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{tituloCard(evt)}</p>
-                          {height > 48 ? (
+                          {height > 56 ? (
                             <p className="text-[11px] text-gray-500 truncate">{subtituloCard(evt)}</p>
                           ) : null}
                           {!intervalo && !bloqueio ? (
@@ -428,11 +429,12 @@ export function AgendaSemanaColunas({
         ? createPortal(
             <div
               data-agenda-ghost
-              className="pointer-events-none fixed z-[80] w-56 rounded-lg px-2.5 py-1.5 shadow-lg border border-violet-200 bg-white"
+              className="pointer-events-none fixed z-[80] w-56 rounded-lg px-2.5 py-1.5 shadow-lg border border-violet-200"
               style={{
                 left: arrasto.x + 12,
                 top: arrasto.y - 8,
-                backgroundColor: fundoPastel(corProfissionalAgenda(arrasto.professionalId)),
+                backgroundColor: estiloCardStatusAgenda(arrasto.evt).backgroundColor,
+                borderLeft: estiloCardStatusAgenda(arrasto.evt).borderLeft,
               }}
             >
               <p className="text-[11px] tabular-nums text-gray-600">

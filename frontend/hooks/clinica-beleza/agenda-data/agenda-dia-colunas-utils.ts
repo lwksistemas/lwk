@@ -1,4 +1,5 @@
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
+import { getAgendaStatusLabelCurto } from "@/lib/clinica-beleza-constants";
 import { arredondarDuracaoAgendaMin, parseEventDate } from "@/lib/clinica-beleza-datetime";
 import { entityName, professionalSpecialty, type ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 
@@ -28,6 +29,38 @@ export function iniciaisProfissional(nome: string): string {
 
 export function corProfissionalAgenda(id: number): string {
   return AGENDA_DIA_CORES[Math.abs(id) % AGENDA_DIA_CORES.length];
+}
+
+/** Cor do card = status do agendamento (não a cor da coluna do profissional). */
+export function corStatusEventoAgenda(evt: AgendaEventData): string {
+  const p = evt.extendedProps || {};
+  if (p.isIntervalo) return "#d97706";
+  if (p.isBloqueio) return "#4f46e5";
+  return evt.backgroundColor || evt.borderColor || "#a855f7";
+}
+
+export function fundoPastelAgenda(hex: string, pct = 28): string {
+  return `color-mix(in srgb, ${hex} ${pct}%, white)`;
+}
+
+export function rotuloStatusCardAgenda(evt: AgendaEventData): string {
+  const p = evt.extendedProps || {};
+  if (p.isBloqueio) return "Bloqueio";
+  if (p.isIntervalo) return "Intervalo";
+  return getAgendaStatusLabelCurto(String(p.status || "SCHEDULED"));
+}
+
+export function estiloCardStatusAgenda(evt: AgendaEventData): {
+  cor: string;
+  backgroundColor: string;
+  borderLeft: string;
+} {
+  const cor = corStatusEventoAgenda(evt);
+  return {
+    cor,
+    backgroundColor: fundoPastelAgenda(cor),
+    borderLeft: `4px solid ${cor}`,
+  };
 }
 
 export function toAgendaDiaIso(d: Date): string {

@@ -134,6 +134,13 @@ export function useAgendaRefresh(
     ]);
   }, [isOnline, loadOffline, queryClient, selectedProfessional]);
 
+  const recarregarEventos = useCallback(async () => {
+    if (!isOnline) return;
+    await queryClient.refetchQueries({
+      queryKey: clinicaBelezaQueryKeys.agendaEvents(selectedProfessional),
+    });
+  }, [isOnline, queryClient, selectedProfessional]);
+
   const setPatients = useCallback(
     (updater: ClinicaPatient[] | ((prev: ClinicaPatient[]) => ClinicaPatient[])) => {
       queryClient.setQueryData<ClinicaPatient[]>(
@@ -147,5 +154,5 @@ export function useAgendaRefresh(
     [queryClient],
   );
 
-  return { carregarDados, setPatients };
+  return { carregarDados, recarregarEventos, setPatients };
 }

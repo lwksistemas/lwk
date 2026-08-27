@@ -242,6 +242,7 @@ export function AgendaCalendarSection({
           onVerLista={onVerLista}
           onMover={onMoverGrade}
           onRedimensionar={onRedimensionarGrade}
+          onArrastoAtivo={marcarArrasto}
         />
       </div>
     );
@@ -267,6 +268,7 @@ export function AgendaCalendarSection({
           onVerLista={onVerLista}
           onMover={onMoverGrade}
           onRedimensionar={onRedimensionarGrade}
+          onArrastoAtivo={marcarArrasto}
         />
       </div>
     );

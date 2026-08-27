@@ -6,6 +6,7 @@ export function useAgendaPageEffects({
   searchParams,
   selectedProfessional,
   carregarDados,
+  recarregarEventos,
   showModal,
   selectedEvent,
   eventos,
@@ -18,6 +19,7 @@ export function useAgendaPageEffects({
   searchParams: ReadonlyURLSearchParams;
   selectedProfessional: string;
   carregarDados: () => Promise<void>;
+  recarregarEventos?: () => Promise<void>;
   showModal: boolean;
   selectedEvent: AgendaEventData | null;
   eventos: AgendaEventData[];
@@ -31,11 +33,13 @@ export function useAgendaPageEffects({
   const [ptBrLocale, setPtBrLocale] = useState<unknown>(null);
   const [isMobile, setIsMobile] = useState(false);
   const carregarDadosRef = useRef(carregarDados);
+  const recarregarEventosRef = useRef(recarregarEventos);
   const userScrollingRef = useRef(false);
   const scrollPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const desktopPluginsReadyRef = useRef(false);
 
   carregarDadosRef.current = carregarDados;
+  recarregarEventosRef.current = recarregarEventos;
 
   useEffect(() => {
     if (searchParams.get("novo") === "1") {
@@ -115,24 +119,40 @@ export function useAgendaPageEffects({
   }, [isDraggingRef, isMutatingRef]);
 
   useEffect(() => {
-    const isMobileViewport =
-      typeof window !== "undefined" && window.innerWidth < 640;
-    // Desktop só faz poll depois dos plugins; mobile não usa FullCalendar.
-    if (!isMobileViewport && !calendarPlugins.length) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    // Polling desabilitado — o drag-and-drop do FullCalendar é incompatível com
-    // atualizações automáticas de eventos (cancela o drag silenciosamente).
-    // Dados atualizam via onReload após cada ação e ao trocar de aba.
+
+    const aguardando =
+      showModal &&
+      (selectedEvent?.extendedProps.status === "SCHEDULED" ||
+        selectedEvent?.extendedProps.status === "PENDING");
+    const intervalMs = aguardando ? 4000 : 8000;
+
+    const poll = () => {
+      if (document.visibilityState !== "visible") return;
+      if (isMutatingRef?.current || isDraggingRef?.current) return;
+      if (userScrollingRef.current) return;
+      void (recarregarEventosRef.current ?? carregarDadosRef.current)();
+    };
+
+    if (aguardando) poll();
+    const timer = window.setInterval(poll, intervalMs);
     const onVisibility = () => {
       if (document.visibilityState !== "visible") return;
       if (isMutatingRef?.current || isDraggingRef?.current) return;
-      void carregarDadosRef.current();
+      void (recarregarEventosRef.current ?? carregarDadosRef.current)();
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [calendarPlugins.length, selectedProfessional, showModal, selectedEvent?.extendedProps.status, isDraggingRef, isMutatingRef]);
+  }, [
+    selectedProfessional,
+    showModal,
+    selectedEvent?.extendedProps.status,
+    isDraggingRef,
+    isMutatingRef,
+  ]);
 
   useEffect(() => {
     if (!showModal || !selectedEvent?.extendedProps?.dbId) return;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { formatClinicaHora } from "@/lib/clinica-beleza-datetime";
@@ -78,6 +78,7 @@ export function AgendaSemanaColunas({
   onMudarVisao,
   onMover,
   onRedimensionar,
+  onArrastoAtivo,
 }: {
   dateIso: string;
   onDateChange: (iso: string) => void;
@@ -92,6 +93,7 @@ export function AgendaSemanaColunas({
   onVerLista?: () => void;
   onMover?: (evt: AgendaEventData, start: Date, professionalId: number) => void;
   onRedimensionar?: (evt: AgendaEventData, duracaoMinutos: number) => void;
+  onArrastoAtivo?: (ativo: boolean) => void;
 }) {
   const minMin = parseHmToMinutes(slotMinTime);
   const maxMin = Math.max(minMin + 60, parseHmToMinutes(slotMaxTime));
@@ -152,6 +154,11 @@ export function AgendaSemanaColunas({
     deveIgnorarClick: deveIgnorarLargura,
   } = useAgendaColunaLargura("agenda-col-w-semana", COL_MIN_WIDTH);
   const deveIgnorarClick = () => deveIgnorarArrasto() || deveIgnorarLargura();
+
+  useEffect(() => {
+    onArrastoAtivo?.(Boolean(arrasto) || arrastandoLargura);
+    return () => onArrastoAtivo?.(false);
+  }, [arrasto, arrastandoLargura, onArrastoAtivo]);
 
   return (
     <div className={`flex flex-col min-h-0 flex-1 bg-white dark:bg-gray-800 ${arrasto?.moved || arrastandoLargura ? "select-none" : ""}`}>

@@ -187,7 +187,7 @@ export function AgendaCalendarSection({
 
   if (isMobileUi && modoAgenda === "grade") {
     return (
-      <div className="flex flex-col min-h-[60vh] p-2">
+      <div className="flex flex-col min-h-0 flex-1 overflow-y-auto p-2">
         <AgendaMobileDayView
           dateIso={diaIso}
           onDateChange={setDiaIso}

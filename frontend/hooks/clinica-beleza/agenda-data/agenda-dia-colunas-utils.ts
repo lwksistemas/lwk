@@ -162,6 +162,19 @@ export function minutesToHm(minutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/** Eixo da grade: horas cheias + horário de fechamento (22:00 aparece se o expediente vai até 22:00). */
+export function horasGradeAgenda(minMin: number, maxMin: number): number[] {
+  const out: number[] = [];
+  const startHour = Math.floor(minMin / 60) * 60;
+  for (let m = startHour; m < maxMin; m += 60) {
+    if (m >= minMin) out.push(m);
+  }
+  if (maxMin > minMin && (out.length === 0 || out[out.length - 1] !== maxMin)) {
+    out.push(maxMin);
+  }
+  return out;
+}
+
 export function sameDayIso(date: Date, iso: string): boolean {
   return toAgendaDiaIso(date) === iso;
 }

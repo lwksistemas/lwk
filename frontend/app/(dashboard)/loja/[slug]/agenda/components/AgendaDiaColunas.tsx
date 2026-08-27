@@ -9,6 +9,7 @@ import {
   addDaysIso,
   colunasProfissionaisDia,
   eventosDoDiaNaColuna,
+  horasGradeAgenda,
   minutesToHm,
   parseHmToMinutes,
   sameDayIso,
@@ -76,14 +77,7 @@ export function AgendaDiaColunas({
     [professionals, selectedProfessional],
   );
 
-  const horas = useMemo(() => {
-    const out: number[] = [];
-    const startHour = Math.floor(minMin / 60) * 60;
-    for (let m = startHour; m < maxMin; m += 60) {
-      if (m >= minMin) out.push(m);
-    }
-    return out;
-  }, [minMin, maxMin]);
+  const horas = useMemo(() => horasGradeAgenda(minMin, maxMin), [minMin, maxMin]);
 
   const agora = new Date();
   const mostrarAgora = sameDayIso(agora, dateIso);
@@ -256,7 +250,11 @@ export function AgendaDiaColunas({
                           className="absolute left-0 right-0 pointer-events-none"
                           style={{ top: (m - minMin) * pxPerMin }}
                         >
-                          <span className="absolute left-1.5 text-[10px] tabular-nums text-gray-400 dark:text-gray-500 leading-none pt-0.5">
+                          <span
+                            className={`absolute left-1.5 text-[10px] tabular-nums text-gray-400 dark:text-gray-500 leading-none ${
+                              m >= maxMin ? "-translate-y-full" : "pt-0.5"
+                            }`}
+                          >
                             {minutesToHm(m)}
                           </span>
                           <div

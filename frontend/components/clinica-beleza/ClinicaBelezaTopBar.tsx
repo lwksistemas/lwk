@@ -65,7 +65,7 @@ export function ClinicaBelezaTopBar({ loja, onOpenMobileMenu }: ClinicaBelezaTop
           </button>
         </div>
 
-        <div ref={mainRef} className="flex-1 min-w-0 flex items-center" />
+        <div ref={mainRef} className="flex-1 min-w-0 w-full" />
 
         <ClinicaBelezaUserTopBarActions loja={loja} />
       </div>

@@ -38,7 +38,7 @@ export function ClinicaBelezaShell({
   };
 
   return (
-    <div className="flex min-h-screen bg-[var(--cb-page-bg,#f7f2f4)] dark:bg-gray-950">
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-[var(--cb-page-bg,#f7f2f4)] dark:bg-gray-950">
       <aside className={`hidden lg:flex ${getDesktopSidebarClassName(sidebarCollapsed)}`}>
         <ClinicaBelezaSidebarContent {...sidebarProps} />
       </aside>
@@ -66,13 +66,13 @@ export function ClinicaBelezaShell({
         />
       )}
 
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <ClinicaBelezaPageHeaderProvider
           shellActions={{ loja, darkMode, setDarkMode, onLogout }}
         >
           <ClinicaBelezaTopBar loja={loja} onOpenMobileMenu={() => setSidebarOpen(true)} />
           <main
-            className={`relative flex flex-col flex-1 min-h-0 min-w-0 overflow-y-auto ${mainClassName}`}
+            className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain ${mainClassName}`}
           >
             {children}
           </main>

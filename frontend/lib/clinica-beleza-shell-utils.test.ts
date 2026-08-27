@@ -23,6 +23,7 @@ describe("getDesktopSidebarClassName", () => {
   it("alterna largura conforme collapsed", () => {
     expect(getDesktopSidebarClassName(true)).toContain("w-16");
     expect(getDesktopSidebarClassName(false)).toContain("w-64");
+    expect(getDesktopSidebarClassName(false)).toContain("h-dvh");
   });
 });
 

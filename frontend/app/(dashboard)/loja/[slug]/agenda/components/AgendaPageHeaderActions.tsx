@@ -38,7 +38,7 @@ export function AgendaPageHeaderActions({
       <select
         value={selectedProfessional}
         onChange={(e) => onSelectProfessional(e.target.value)}
-        className="px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8B3D52]/30 max-w-[140px] sm:max-w-none"
+        className="px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#8B3D52]/30 min-w-0 flex-1 sm:flex-none max-w-[11rem] sm:max-w-none"
       >
         <option value="">Todos os profissionais</option>
         {professionals.map((prof) => (

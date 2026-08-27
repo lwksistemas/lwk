@@ -38,7 +38,7 @@ export function getDefaultSidebarCollapsed(): boolean {
 }
 
 export function getDesktopSidebarClassName(collapsed: boolean): string {
-  return `flex flex-col shrink-0 sticky top-0 h-screen z-20 overflow-hidden bg-[var(--cb-sidebar-bg,#f0eaec)] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${
+  return `flex flex-col shrink-0 sticky top-0 h-dvh z-20 overflow-hidden bg-[var(--cb-sidebar-bg,#f0eaec)] dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 ${
     collapsed ? "w-16" : "w-64"
   }`;
 }

@@ -15,9 +15,42 @@ import type {
 } from "@/lib/clinica-beleza-entities";
 import { intervalosEventsFromHorarios } from "@/lib/clinica-beleza-work-hours";
 
+export function versaoAgenda(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+export function mergeRawAgendaEvent(
+  list: unknown,
+  saved: Record<string, unknown>,
+): Record<string, unknown>[] {
+  const rows = Array.isArray(list)
+    ? list.map((e) => ({ ...(e as Record<string, unknown>) }))
+    : [];
+  const id = String(saved.id ?? "");
+  if (!id) return rows;
+  const idx = rows.findIndex((e) => String(e.id) === id);
+  if (idx >= 0) rows[idx] = { ...rows[idx], ...saved };
+  else rows.push(saved);
+  return rows;
+}
+
+export function aplicarHorarioAgendaEvento(
+  list: AgendaEventData[],
+  eventId: string,
+  start: string,
+  end?: string,
+): AgendaEventData[] {
+  return list.map((e) =>
+    String(e.id) === String(eventId)
+      ? { ...e, start, end: end ?? e.end }
+      : e,
+  );
+}
+
 export function formatarAgendaEvento(
   e: AgendaEventData | Record<string, unknown>,
-  comRestricaoExpediente: boolean,
+  _comRestricaoExpediente: boolean,
   statusColors: AgendaStatusColorMap = CLINICA_AGENDA_STATUS_COLORS,
 ): AgendaEventData {
   const raw = e as Record<string, unknown>;
@@ -27,11 +60,20 @@ export function formatarAgendaEvento(
     [raw.patient_name, raw.procedure_name].filter(Boolean).join(" • ") ||
     String(raw.title ?? "") ||
     "Agendamento";
+  const start = String(raw.start ?? "");
+  const duracaoMin = Number(raw.duracao_minutos ?? raw.procedure_duration);
+  let end = String(raw.end ?? "");
+  if (start && Number.isFinite(duracaoMin) && duracaoMin > 0) {
+    const inicio = new Date(start);
+    if (!Number.isNaN(inicio.getTime())) {
+      end = new Date(inicio.getTime() + duracaoMin * 60_000).toISOString();
+    }
+  }
   return {
     id: String(raw.id),
     title: titulo,
-    start: String(raw.start),
-    end: String(raw.end),
+    start,
+    end,
     backgroundColor: cores.bg,
     borderColor: cores.border,
     textColor: "#fff",
@@ -43,13 +85,26 @@ export function formatarAgendaEvento(
       patient_name: String(raw.patient_name ?? ""),
       patient_phone: String(raw.patient_phone ?? ""),
       professional_name: String(raw.professional_name ?? ""),
+      professional:
+        raw.professional != null && raw.professional !== ""
+          ? Number(raw.professional)
+          : raw.professional_id != null
+            ? Number(raw.professional_id)
+            : undefined,
       procedure_name: String(raw.procedure_name ?? ""),
       procedure_duration: raw.procedure_duration as number | undefined,
       duracao_minutos: raw.duracao_minutos as number | undefined,
       procedure_price: raw.procedure_price as string | undefined,
+      procedures_list: Array.isArray(raw.procedures_list)
+        ? (raw.procedures_list as { id: number; nome?: string }[])
+        : undefined,
       notes: String(raw.notes ?? ""),
-      version: raw.version as number | undefined,
-      updated_at: raw.updated_at as string | undefined,
+      version: versaoAgenda(raw.version),
+      updated_at: raw.updated_at ? String(raw.updated_at) : undefined,
+      consulta_id: (() => {
+        const n = Number(raw.consulta_id);
+        return Number.isFinite(n) && n > 0 ? n : undefined;
+      })(),
     },
   };
 }
@@ -69,6 +124,11 @@ export function agendaEventsEqual(a: AgendaEventData[], b: AgendaEventData[]): b
       return false;
     }
     if (x.extendedProps?.status !== y.extendedProps?.status) return false;
+    // Version e updated_at são essenciais para o controle de concorrência.
+    // Sem essa comparação, o frontend mantém version stale após um drag-and-drop
+    // e a segunda movimentação sempre gera conflito 409.
+    if (versaoAgenda(x.extendedProps?.version) !== versaoAgenda(y.extendedProps?.version)) return false;
+    if (x.extendedProps?.updated_at !== y.extendedProps?.updated_at) return false;
   }
   return true;
 }

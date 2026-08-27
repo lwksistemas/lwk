@@ -1,33 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   CLINICA_AGENDA_SLOT_DURATION,
   CLINICA_AGENDA_SLOT_LABEL_INTERVAL,
   CLINICA_AGENDA_SNAP_DURATION,
 } from "@/lib/clinica-beleza-constants";
+import { aplicarHorarioAgendaEvento } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
 import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
 import { AgendaListaColunas } from "./AgendaListaColunas";
 import { AgendaMobileDayView } from "./AgendaMobileDayView";
+import { AgendaDiaColunas } from "./AgendaDiaColunas";
+import { AgendaSemanaColunas } from "./AgendaSemanaColunas";
+import { toAgendaDiaIso } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
+import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 
-const FullCalendar = dynamic(() => import("@fullcalendar/react"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-40 text-sm text-gray-500">
-      Carregando calendário...
-    </div>
-  ),
-});
-
-function toInputDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+const FullCalendar = lazy(() => import("@fullcalendar/react"));
 
 function findVerticalScroller(start: HTMLElement): HTMLElement {
   let node: HTMLElement | null = start;
@@ -94,13 +84,16 @@ export function AgendaCalendarSection({
   onDateClick,
   onEventDrop,
   onEventResize,
-  isMutatingRef,
+  isDraggingRef: parentDraggingRef,
+  professionals = [],
+  onNovoHorario,
+  onMoverGrade,
+  onRedimensionarGrade,
 }: {
   modoAgenda: "grade" | "lista";
   eventos: AgendaEventData[];
   calendarPlugins: unknown[];
   ptBrLocale: unknown;
-  isMobile: boolean;
   selectedProfessional: string;
   temHorarioExpediente: boolean;
   businessHours: unknown;
@@ -110,26 +103,67 @@ export function AgendaCalendarSection({
   onAbrirLista: (evt: AgendaEventData) => void;
   onEventClick: (info: EventClickArg) => void;
   onDateClick: (info: DateClickArg) => void;
-  onEventDrop: (info: EventDropArg) => void;
-  onEventResize: (info: EventResizeDoneArg) => void;
-  isMutatingRef?: React.MutableRefObject<boolean>;
+  onEventDrop: (info: EventDropArg) => void | Promise<void>;
+  onEventResize: (info: EventResizeDoneArg) => void | Promise<void>;
+  isDraggingRef?: React.MutableRefObject<boolean>;
+  professionals?: ClinicaProfessional[];
+  onNovoHorario?: (date: Date, professionalId: number) => void;
+  onMoverGrade?: (evt: AgendaEventData, start: Date, professionalId: number) => void;
+  onRedimensionarGrade?: (evt: AgendaEventData, duracaoMinutos: number) => void;
 }) {
-  const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
-
-  // Congelar eventos durante drag para evitar que FullCalendar cancele o drag
-  const frozenEventsRef = useRef(eventos);
+  const [gradeView, setGradeView] = useState<"day" | "week" | "month">("day");
+  const [diaIso, setDiaIso] = useState(() => toAgendaDiaIso(new Date()));
+  const [, setFreezeTick] = useState(0);
   const isDraggingRef = useRef(false);
-  // Só atualiza os eventos visíveis no calendário se NÃO está arrastando
-  const [calendarEvents, setCalendarEvents] = useState(eventos);
+  const dropHandlingRef = useRef(false);
+  const frozenEventsRef = useRef(eventos);
+  if (!isDraggingRef.current) {
+    frozenEventsRef.current = eventos;
+  }
+  const stableEventos = isDraggingRef.current ? frozenEventsRef.current : eventos;
 
-  useEffect(() => {
-    if (!isDraggingRef.current) {
-      setCalendarEvents(eventos);
-    } else {
-      // Agendar atualização para quando o drag terminar
-      frozenEventsRef.current = eventos;
+  const marcarArrasto = useCallback((dragging: boolean) => {
+    isDraggingRef.current = dragging;
+    if (parentDraggingRef) parentDraggingRef.current = dragging;
+  }, [parentDraggingRef]);
+
+  const handleEventDrop = useCallback((info: EventDropArg) => {
+    dropHandlingRef.current = true;
+    const start = info.event.start?.toISOString();
+    const end = info.event.end?.toISOString();
+    if (start) {
+      frozenEventsRef.current = aplicarHorarioAgendaEvento(
+        frozenEventsRef.current,
+        String(info.event.id),
+        start,
+        end,
+      );
     }
-  }, [eventos]);
+    void Promise.resolve(onEventDrop(info)).finally(() => {
+      dropHandlingRef.current = false;
+      marcarArrasto(false);
+      setFreezeTick((n) => n + 1);
+    });
+  }, [marcarArrasto, onEventDrop]);
+
+  const handleEventResize = useCallback((info: EventResizeDoneArg) => {
+    dropHandlingRef.current = true;
+    const start = info.event.start?.toISOString();
+    const end = info.event.end?.toISOString();
+    if (start) {
+      frozenEventsRef.current = aplicarHorarioAgendaEvento(
+        frozenEventsRef.current,
+        String(info.event.id),
+        start,
+        end,
+      );
+    }
+    void Promise.resolve(onEventResize(info)).finally(() => {
+      dropHandlingRef.current = false;
+      marcarArrasto(false);
+      setFreezeTick((n) => n + 1);
+    });
+  }, [marcarArrasto, onEventResize]);
   /** null = viewport ainda não medido — não monta FullCalendar no celular. */
   const [isMobileUi, setIsMobileUi] = useState<boolean | null>(null);
   useAgendaPageWheel(
@@ -155,8 +189,8 @@ export function AgendaCalendarSection({
     return (
       <div className="flex flex-col min-h-[60vh] p-2">
         <AgendaMobileDayView
-          dateIso={mobileDateIso}
-          onDateChange={setMobileDateIso}
+          dateIso={diaIso}
+          onDateChange={setDiaIso}
           eventos={eventos}
           slotMinTime={slotMinTime}
           slotMaxTime={slotMaxTime}
@@ -177,13 +211,65 @@ export function AgendaCalendarSection({
     );
   }
 
+  if (gradeView === "week") {
+    return (
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <AgendaSemanaColunas
+          dateIso={diaIso}
+          onDateChange={setDiaIso}
+          eventos={eventos}
+          selectedProfessional={selectedProfessional}
+          hiddenDays={hiddenDays}
+          slotMinTime={slotMinTime}
+          slotMaxTime={slotMaxTime}
+          onOpenEvent={onAbrirLista}
+          onSlotClick={(date, professionalId) => {
+            onNovoHorario?.(date, professionalId);
+            onDateClick({ date, allDay: false } as DateClickArg);
+          }}
+          onMudarVisao={(view) => setGradeView(view)}
+          onMover={onMoverGrade}
+          onRedimensionar={onRedimensionarGrade}
+          onArrastoAtivo={marcarArrasto}
+        />
+      </div>
+    );
+  }
+
+  if (gradeView === "day") {
+    return (
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <AgendaDiaColunas
+          dateIso={diaIso}
+          onDateChange={setDiaIso}
+          eventos={eventos}
+          professionals={professionals}
+          selectedProfessional={selectedProfessional}
+          slotMinTime={slotMinTime}
+          slotMaxTime={slotMaxTime}
+          onOpenEvent={onAbrirLista}
+          onSlotClick={(date, professionalId) => {
+            onNovoHorario?.(date, professionalId);
+            onDateClick({ date, allDay: false } as DateClickArg);
+          }}
+          onMudarVisao={(view) => setGradeView(view)}
+          onMover={onMoverGrade}
+          onRedimensionar={onRedimensionarGrade}
+          onArrastoAtivo={marcarArrasto}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain agenda-scroll-root fc-agenda-calendar-root">
       {calendarPlugins.length > 0 && ptBrLocale ? (
+        <Suspense fallback={<div className="flex items-center justify-center h-40 text-sm text-gray-500">Carregando calendário...</div>}>
         <FullCalendar
-          key={`desktop-${selectedProfessional}`}
+          key={`desktop-${selectedProfessional}-${gradeView}`}
           plugins={calendarPlugins as never[]}
-          initialView="timeGridWeek"
+          initialView="dayGridMonth"
+          initialDate={diaIso}
           locale={ptBrLocale as never}
           editable
           eventStartEditable
@@ -193,30 +279,48 @@ export function AgendaCalendarSection({
           selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
           dayMaxEvents
           weekends
-          events={calendarEvents}
+          events={stableEventos}
           eventDragStart={() => {
-            isDraggingRef.current = true;
-            if (isMutatingRef) isMutatingRef.current = true;
+            frozenEventsRef.current = eventos;
+            marcarArrasto(true);
           }}
-          eventDrop={(info) => {
-            isDraggingRef.current = false;
-            if (isMutatingRef) isMutatingRef.current = false;
-            setCalendarEvents(frozenEventsRef.current);
-            onEventDrop(info);
+          eventDragStop={() => {
+            // setTimeout (não microtask): o FullCalendar às vezes dispara
+            // eventDrop no frame seguinte. Soltar o freeze antes disso
+            // cancela o drop e o PATCH nem sai.
+            window.setTimeout(() => {
+              if (!dropHandlingRef.current) {
+                marcarArrasto(false);
+                setFreezeTick((n) => n + 1);
+              }
+            }, 250);
           }}
-          eventResize={(info) => {
-            isDraggingRef.current = false;
-            if (isMutatingRef) isMutatingRef.current = false;
-            setCalendarEvents(frozenEventsRef.current);
-            onEventResize(info);
+          eventResizeStart={() => {
+            frozenEventsRef.current = eventos;
+            marcarArrasto(true);
           }}
+          eventDrop={handleEventDrop}
+          eventResize={handleEventResize}
           eventClick={onEventClick}
           dateClick={onDateClick}
+          datesSet={(arg) => {
+            setDiaIso(toAgendaDiaIso(arg.view.calendar.getDate()));
+          }}
           height="auto"
+          customButtons={{
+            visaoDia: {
+              text: "Dia",
+              click: () => setGradeView("day"),
+            },
+            visaoSemana: {
+              text: "Semana",
+              click: () => setGradeView("week"),
+            },
+          }}
           headerToolbar={{
             left: "prev,next today",
             center: "title",
-            right: "timeGridDay,timeGridWeek,dayGridMonth",
+            right: "visaoDia,visaoSemana,dayGridMonth",
           }}
           slotMinTime={slotMinTime}
           slotMaxTime={slotMaxTime}
@@ -227,6 +331,7 @@ export function AgendaCalendarSection({
           businessHours={businessHours as never}
           hiddenDays={hiddenDays}
         />
+        </Suspense>
       ) : (
         <div className="flex items-center justify-center h-40 text-sm text-gray-500">
           Carregando calendário...

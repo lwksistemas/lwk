@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 TOKEN_EXPIRACAO_DIAS = 14
 ACOES_VALIDAS = frozenset({"confirmar", "cancelar"})
 STATUS_ACIONAVEIS = frozenset({"SCHEDULED", "PENDING"})
+CODIGO_LINK_SUBSTITUIDO = "link_substituido"
+MSG_LINK_SUBSTITUIDO = (
+    "Este agendamento foi alterado. Confirme pelo link atualizado enviado no WhatsApp."
+)
 
 
 @dataclass
@@ -28,15 +32,47 @@ class RespostaConfirmacao:
     status: str | None = None
     appointment_id: int | None = None
     already_done: bool = False
+    codigo: str | None = None
 
 
-def gerar_token_confirmacao(loja_id: int, appointment_id: int, *, modulo: str = "clinica_beleza") -> str:
+def geracao_do_payload(payload: dict | None) -> int:
+    if not payload:
+        return 1
+    try:
+        return max(1, int(payload.get("g") or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def geracao_do_agendamento(appointment) -> int:
+    try:
+        return max(1, int(getattr(appointment, "confirmacao_generation", 1) or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def token_confirmacao_desatualizado(payload: dict | None, appointment) -> bool:
+    return geracao_do_payload(payload) != geracao_do_agendamento(appointment)
+
+
+def gerar_token_confirmacao(
+    loja_id: int,
+    appointment_id: int,
+    *,
+    modulo: str = "clinica_beleza",
+    generation: int | None = None,
+) -> str:
+    try:
+        geracao = max(1, int(generation)) if generation is not None else 1
+    except (TypeError, ValueError):
+        geracao = 1
     payload = {
         "doc_type": "agendamento",
         "doc_id": int(appointment_id),
         "loja_id": int(loja_id),
         "modulo": (modulo or "clinica_beleza").strip() or "clinica_beleza",
         "exp": int((timezone.now() + timedelta(days=TOKEN_EXPIRACAO_DIAS)).timestamp()),
+        "g": geracao,
     }
     return dumps(payload)
 
@@ -99,11 +135,15 @@ def _loja_elegivel_confirmacao_agenda(loja_id: int) -> bool:
         return False
     slug = (loja.tipo_loja.slug or "").strip().lower()
     nome = (loja.tipo_loja.nome or "").strip().lower()
-    if slug in ("clinica-beleza", "cabeleireiro"):
+    if slug in ("clinica-beleza", "cabeleireiro", "clinica-geral"):
         return True
     if "clínica da beleza" in nome or "clinica da beleza" in nome:
         return True
     if "cabeleireiro" in nome or "salão" in nome or "salao" in nome:
+        return True
+    if "clinica geral" in nome or "clínica geral" in nome or "consultorio" in nome:
+        return True
+    if nome in ("clinica", "clínica"):
         return True
     return False
 
@@ -191,6 +231,15 @@ def obter_dados_confirmacao(token: str) -> tuple[dict | None, str | None, int | 
             return None, "Agendamento não encontrado.", loja_id
         return serializar_agendamento_publico_salao(ag, loja_nome), None, loja_id
 
+    if modulo in ("clinica_geral", "clinica-geral"):
+        from clinica_geral.models import Consulta
+        from clinica_geral.whatsapp_agenda import serializar_consulta_publico
+
+        consulta = Consulta.objects.select_related("paciente").filter(pk=appointment_id).first()
+        if not consulta:
+            return None, "Agendamento não encontrado.", loja_id
+        return serializar_consulta_publico(consulta, loja_nome), None, loja_id
+
     from .models import Appointment
 
     appointment = (
@@ -202,6 +251,9 @@ def obter_dados_confirmacao(token: str) -> tuple[dict | None, str | None, int | 
     )
     if not appointment:
         return None, "Agendamento não encontrado.", loja_id
+
+    if token_confirmacao_desatualizado(payload, appointment):
+        return None, MSG_LINK_SUBSTITUIDO, loja_id
 
     return serializar_agendamento_publico(appointment, loja_nome), None, loja_id
 
@@ -246,6 +298,22 @@ def processar_resposta_confirmacao(token: str, acao: str) -> RespostaConfirmacao
             already_done=already,
         )
 
+    if modulo in ("clinica_geral", "clinica-geral"):
+        from clinica_geral.models import Consulta
+        from clinica_geral.whatsapp_agenda import aplicar_resposta_confirmacao_consultorio
+
+        consulta = Consulta.objects.select_related("paciente").filter(pk=appointment_id).first()
+        if not consulta:
+            return RespostaConfirmacao(False, "Agendamento não encontrado.")
+        ok, msg, already = aplicar_resposta_confirmacao_consultorio(consulta, acao)
+        return RespostaConfirmacao(
+            ok,
+            msg,
+            status=consulta.status,
+            appointment_id=consulta.id,
+            already_done=already,
+        )
+
     from .models import Appointment
 
     appointment = (
@@ -256,6 +324,14 @@ def processar_resposta_confirmacao(token: str, acao: str) -> RespostaConfirmacao
     )
     if not appointment:
         return RespostaConfirmacao(False, "Agendamento não encontrado.")
+
+    if token_confirmacao_desatualizado(payload, appointment):
+        return RespostaConfirmacao(
+            False,
+            MSG_LINK_SUBSTITUIDO,
+            appointment_id=appointment.id,
+            codigo=CODIGO_LINK_SUBSTITUIDO,
+        )
 
     novo_status = "CLIENT_CONFIRMED" if acao == "confirmar" else "CANCELLED"
 
@@ -382,6 +458,10 @@ def processar_resposta_whatsapp(
         return _processar_resposta_whatsapp_salao(
             loja_id, telefone, acao=acao, appointment_id=appointment_id,
         )
+    if tipo_slug == "clinica-geral":
+        return _processar_resposta_whatsapp_consultorio(
+            loja_id, telefone, acao=acao, appointment_id=appointment_id,
+        )
 
     from .models import Appointment
 
@@ -428,7 +508,11 @@ def processar_resposta_whatsapp(
             "Não encontramos agendamento pendente para confirmar ou cancelar.",
         )
 
-    token = gerar_token_confirmacao(loja_id, appointment.id)
+    token = gerar_token_confirmacao(
+        loja_id,
+        appointment.id,
+        generation=geracao_do_agendamento(appointment),
+    )
     return processar_resposta_confirmacao(token, acao)
 
 
@@ -486,4 +570,52 @@ def _processar_resposta_whatsapp_salao(
         )
 
     token = gerar_token_confirmacao(loja_id, agendamento.id, modulo="cabeleireiro")
+    return processar_resposta_confirmacao(token, acao)
+
+
+def _processar_resposta_whatsapp_consultorio(
+    loja_id: int,
+    telefone: str,
+    *,
+    acao: str,
+    appointment_id: int | None,
+) -> RespostaConfirmacao | None:
+    from django.db.utils import ProgrammingError
+
+    from clinica_geral.models import Consulta
+    from clinica_geral.whatsapp_agenda import STATUS_ACIONAVEIS as CG_STATUS
+
+    consulta = None
+    try:
+        if appointment_id:
+            consulta = Consulta.objects.select_related("paciente").filter(pk=appointment_id).first()
+            if consulta:
+                phone = getattr(consulta.paciente, "telefone", "") or ""
+                if not _phones_match(telefone, phone):
+                    consulta = None
+        if not consulta:
+            phone_digits = _normalize_phone_digits(telefone)
+            if not phone_digits:
+                return None
+            hoje = timezone.localdate()
+            qs = (
+                Consulta.objects.select_related("paciente")
+                .filter(status__in=CG_STATUS, data__gte=hoje, is_active=True)
+                .order_by("data", "hora")
+            )
+            for ag in qs[:50]:
+                pt = getattr(ag.paciente, "telefone", "") or ""
+                if _phones_match(phone_digits, pt):
+                    consulta = ag
+                    break
+    except ProgrammingError as exc:
+        logger.warning("processar_resposta_whatsapp consultorio loja %s: %s", loja_id, exc)
+        return None
+
+    if not consulta:
+        return RespostaConfirmacao(
+            False,
+            "Não encontramos agendamento pendente para confirmar ou cancelar.",
+        )
+    token = gerar_token_confirmacao(loja_id, consulta.id, modulo="clinica_geral")
     return processar_resposta_confirmacao(token, acao)

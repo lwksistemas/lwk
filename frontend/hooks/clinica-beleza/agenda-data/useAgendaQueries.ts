@@ -85,6 +85,9 @@ export function useAgendaCalendarQueries(isOnline: boolean, selectedProfessional
     queryKey: clinicaBelezaQueryKeys.agendaEvents(selectedProfessional),
     queryFn: () => fetchClinicaAgendaEvents(selectedProfessional),
     enabled: isOnline,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   const bloqueiosQuery = useQuery({
@@ -111,6 +114,9 @@ export function useAgendaRefresh(
       await loadOffline();
       return;
     }
+    // Usar refetchQueries em vez de invalidateQueries para a query de eventos.
+    // invalidateQueries marca como stale permanentemente, causando refetches
+    // indesejados que cancelam o drag-and-drop do FullCalendar.
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: clinicaBelezaQueryKeys.schedulingProfessionals() }),
       queryClient.invalidateQueries({ queryKey: clinicaBelezaQueryKeys.procedures() }),
@@ -119,14 +125,21 @@ export function useAgendaRefresh(
       queryClient.invalidateQueries({
         queryKey: clinicaBelezaQueryKeys.horariosTrabalho(selectedProfessional),
       }),
-      queryClient.invalidateQueries({
+      queryClient.refetchQueries({
         queryKey: clinicaBelezaQueryKeys.agendaEvents(selectedProfessional),
       }),
-      queryClient.invalidateQueries({
+      queryClient.refetchQueries({
         queryKey: clinicaBelezaQueryKeys.agendaBloqueios(selectedProfessional),
       }),
     ]);
   }, [isOnline, loadOffline, queryClient, selectedProfessional]);
+
+  const recarregarEventos = useCallback(async () => {
+    if (!isOnline) return;
+    await queryClient.refetchQueries({
+      queryKey: clinicaBelezaQueryKeys.agendaEvents(selectedProfessional),
+    });
+  }, [isOnline, queryClient, selectedProfessional]);
 
   const setPatients = useCallback(
     (updater: ClinicaPatient[] | ((prev: ClinicaPatient[]) => ClinicaPatient[])) => {
@@ -141,5 +154,5 @@ export function useAgendaRefresh(
     [queryClient],
   );
 
-  return { carregarDados, setPatients };
+  return { carregarDados, recarregarEventos, setPatients };
 }

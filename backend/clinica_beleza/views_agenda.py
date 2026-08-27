@@ -126,6 +126,11 @@ class AgendaView(APIView):
         if scope is None and (p := request.query_params.get("professional")):
             qs = qs.filter(professional_id=p)
         appointments = list(qs.order_by("date"))
+        logger.info(
+            "GET agenda n=%s %s",
+            len(appointments),
+            [(a.id, a.date.isoformat() if a.date else None, a.version) for a in appointments[:20]],
+        )
         from clinica_beleza.retorno_service import verificar_retorno_appointments_batch
 
         retorno_map = verificar_retorno_appointments_batch(appointments)
@@ -144,6 +149,7 @@ class AgendaUpdateView(APIView):
     permission_classes = CLINICA_AGENDA
 
     def patch(self, request, pk):
+        logger.info("PATCH agenda/%s data=%s", pk, dict(request.data))
         try:
             appointment = (
                 _agenda_events_queryset()
@@ -172,12 +178,24 @@ class AgendaUpdateView(APIView):
         new_date = request.data.get("date")
         new_status = request.data.get("status")
         new_duracao = request.data.get("duracao_minutos")
+        new_professional = request.data.get("professional")
+        new_procedures_ids = request.data.get("procedures_ids")
 
-        if not new_date and new_status is None and new_duracao is None and not resolve_use_local:
+        if (
+            not new_date
+            and new_status is None
+            and new_duracao is None
+            and new_professional is None
+            and new_procedures_ids is None
+            and not resolve_use_local
+        ):
             return Response(
-                {"error": "Envie date, duracao_minutos e/ou status"},
+                {"error": "Envie date, duracao_minutos, professional, procedures_ids e/ou status"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        if scope is not None and new_professional is not None and str(new_professional) != str(scope):
+            return _agenda_scope_forbidden_response()
 
         try:
             result = atualizar_agendamento(
@@ -185,6 +203,8 @@ class AgendaUpdateView(APIView):
                 new_date=new_date,
                 new_status=new_status,
                 new_duracao=new_duracao,
+                new_professional=new_professional,
+                new_procedures_ids=new_procedures_ids,
                 user=request.user,
                 request=request,
             )
@@ -192,10 +212,18 @@ class AgendaUpdateView(APIView):
             return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
         response_data = AgendaEventSerializer(result.appointment).data
+        logger.info(
+            "PATCH agenda/%s saved start=%s version=%s",
+            pk,
+            response_data.get("start"),
+            response_data.get("version"),
+        )
         if result.consulta_id is not None:
             response_data["consulta_id"] = result.consulta_id
         if result.consulta_error:
             response_data["consulta_error"] = result.consulta_error
+        if result.confirmacao_reiniciada:
+            response_data["confirmacao_reiniciada"] = True
         return Response(response_data)
 
 

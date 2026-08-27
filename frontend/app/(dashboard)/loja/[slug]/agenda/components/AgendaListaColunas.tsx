@@ -2,20 +2,15 @@
 
 import { ChevronRight } from "lucide-react";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
-import {
-  CLINICA_AGENDA_STATUS_LABEL,
-} from "@/lib/clinica-beleza-constants";
+import { getAgendaStatusLabel } from "@/lib/clinica-beleza-constants";
 import { formatClinicaDia, formatClinicaHora, parseEventDate } from "@/lib/clinica-beleza-datetime";
-import type { AgendaEventData } from "./ModalDetalheAgendamento";
+import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 
 function labelStatusLista(evt: AgendaEventData): string {
   const props = evt.extendedProps || {};
-  const isBloqueio = (props as { isBloqueio?: boolean }).isBloqueio;
-  const isIntervalo = (props as { isIntervalo?: boolean }).isIntervalo;
-  const status = props.status as string | undefined;
-  if (isBloqueio) return "Bloqueio";
-  if (isIntervalo) return "Intervalo";
-  return CLINICA_AGENDA_STATUS_LABEL[status || ""] || "Agendamento";
+  if (props.isBloqueio) return "Bloqueio";
+  if (props.isIntervalo) return "Intervalo";
+  return getAgendaStatusLabel(String(props.status || "SCHEDULED"));
 }
 
 function tituloLista(evt: AgendaEventData): string {

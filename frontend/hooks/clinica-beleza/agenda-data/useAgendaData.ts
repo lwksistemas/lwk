@@ -43,7 +43,7 @@ export function useAgendaData(selectedProfessional: string) {
     statusColors,
   });
 
-  const { carregarDados, setPatients } = useAgendaRefresh(
+  const { carregarDados, recarregarEventos, setPatients } = useAgendaRefresh(
     isOnline,
     selectedProfessional,
     loadOffline,
@@ -68,5 +68,6 @@ export function useAgendaData(selectedProfessional: string) {
     locaisAtendimento,
     bloqueios,
     carregarDados,
+    recarregarEventos,
   };
 }

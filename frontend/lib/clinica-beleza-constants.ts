@@ -105,6 +105,19 @@ export const CLINICA_AGENDA_STATUS_LABEL_MODAL: Record<string, string> = {
   COMPLETED: '🟢 Finalizada',
 };
 
+/** Rótulo curto no card da grade (Dia / Semana). */
+export const CLINICA_AGENDA_STATUS_LABEL_CURTO: Record<string, string> = {
+  SCHEDULED: 'Aguardando',
+  CLIENT_CONFIRMED: 'WhatsApp',
+  PHONE_CONFIRMED: 'Ligação',
+  CONFIRMED: 'Presente',
+  PENDING: 'Aguardando',
+  IN_PROGRESS: 'Atendimento',
+  COMPLETED: 'Finalizada',
+  CANCELLED: 'Cancelado',
+  NO_SHOW: 'Faltou',
+};
+
 /** PENDING legado equivale a SCHEDULED na exibição. */
 export function normalizeAgendaStatus(status: string): string {
   return status === 'PENDING' ? 'SCHEDULED' : status;
@@ -112,6 +125,11 @@ export function normalizeAgendaStatus(status: string): string {
 
 export function getAgendaStatusLabel(status: string): string {
   return CLINICA_AGENDA_STATUS_LABEL[normalizeAgendaStatus(status)] || status;
+}
+
+export function getAgendaStatusLabelCurto(status: string): string {
+  const key = normalizeAgendaStatus(status);
+  return CLINICA_AGENDA_STATUS_LABEL_CURTO[key] || getAgendaStatusLabel(status);
 }
 
 export function getAgendaStatusLabelModal(status: string): string {

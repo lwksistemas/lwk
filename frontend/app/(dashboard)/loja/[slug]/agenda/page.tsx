@@ -2,7 +2,7 @@
 
 /**
  * Página de Agenda - Clínica da Beleza
- * Calendário fullscreen com drag & drop + Bloqueio de Horários
+ * Grade Dia/Semana própria, mês FullCalendar, bloqueio de horários.
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -38,10 +38,12 @@ export default function AgendaPage() {
     professional_name: string;
   } | null>(null);
   const [modoAgenda, setModoAgenda] = useState<"grade" | "lista">("grade");
+  const [createProfessionalId, setCreateProfessionalId] = useState("");
 
   useClinicaBelezaDark();
 
   const isMutatingRef = useRef(false);
+  const isDraggingRef = useRef(false);
 
   const {
     eventos,
@@ -56,12 +58,14 @@ export default function AgendaPage() {
     locaisAtendimento,
     bloqueios,
     carregarDados,
+    recarregarEventos,
   } = useAgendaData(selectedProfessional);
 
-  const { calendarPlugins, ptBrLocale, isMobile } = useAgendaPageEffects({
+  const { calendarPlugins, ptBrLocale } = useAgendaPageEffects({
     searchParams,
     selectedProfessional,
     carregarDados,
+    recarregarEventos,
     showModal,
     selectedEvent,
     eventos,
@@ -69,6 +73,7 @@ export default function AgendaPage() {
     setSelectedDate,
     setShowCreateModal,
     isMutatingRef,
+    isDraggingRef,
   });
 
   const {
@@ -84,18 +89,23 @@ export default function AgendaPage() {
   const {
     updatingStatus,
     reenviandoMensagem,
+    salvandoDetalhe,
     conflictData,
     conflictResolving,
     moverEvento,
+    moverAgendamentoGrade,
     redimensionarEvento,
+    redimensionarAgendamentoGrade,
     deletarEvento,
     atualizarStatusAgendamento,
+    atualizarDetalheAgendamento,
     reenviarMensagemWhatsApp,
     handleConflitoUseServer,
     handleConflitoUseLocal,
     closeConflictModal,
   } = useAgendaMutations({
     onReload: carregarDados,
+    selectedProfessional,
     selectedEvent,
     setSelectedEvent,
     setShowModal,
@@ -126,10 +136,11 @@ export default function AgendaPage() {
       rounded.setMinutes(next, 0, 0);
     }
     setSelectedDate(rounded);
+    setCreateProfessionalId(selectedProfessional);
     setShowCreateModal(true);
-  }, []);
+  }, [selectedProfessional]);
 
-  if (loading) {
+  if (loading && eventos.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center min-h-[320px]">
         <div className="text-center">
@@ -147,7 +158,6 @@ export default function AgendaPage() {
     <div className="relative flex flex-col sm:flex-1 sm:min-h-0">
       <ClinicaBelezaStandardPageHeader
         title="Agenda"
-        subtitle="Calendário de agendamentos"
         backHref={`/loja/${slug}/dashboard`}
         showOffline={false}
         extraActions={
@@ -170,7 +180,6 @@ export default function AgendaPage() {
             eventos={eventos}
             calendarPlugins={calendarPlugins}
             ptBrLocale={ptBrLocale}
-            isMobile={isMobile}
             selectedProfessional={selectedProfessional}
             temHorarioExpediente={temHorarioExpediente}
             businessHours={businessHours}
@@ -180,13 +189,15 @@ export default function AgendaPage() {
             onAbrirLista={abrirEventoDaLista}
             onEventClick={handleEventClickArg}
             onDateClick={handleDateClick}
-            onEventDrop={(info) => {
-              void moverEvento(info);
+            onEventDrop={moverEvento}
+            onEventResize={redimensionarEvento}
+            isDraggingRef={isDraggingRef}
+            professionals={professionals}
+            onNovoHorario={(_date, professionalId) => {
+              setCreateProfessionalId(professionalId > 0 ? String(professionalId) : "");
             }}
-            onEventResize={(info) => {
-              void redimensionarEvento(info);
-            }}
-            isMutatingRef={isMutatingRef}
+            onMoverGrade={moverAgendamentoGrade}
+            onRedimensionarGrade={redimensionarAgendamentoGrade}
           />
         </div>
       </div>
@@ -212,14 +223,19 @@ export default function AgendaPage() {
         onCloseDetalhe={() => setShowModal(false)}
         onReload={carregarDados}
         onUpdateStatus={atualizarStatusAgendamento}
+        onSalvarDetalhe={atualizarDetalheAgendamento}
         onDelete={deletarEvento}
         onReenviarWhatsApp={reenviarMensagemWhatsApp}
         updatingStatus={updatingStatus}
+        salvandoDetalhe={salvandoDetalhe}
         reenviandoMensagem={reenviandoMensagem}
         showCreateModal={showCreateModal}
-        onCloseCreate={() => setShowCreateModal(false)}
+        onCloseCreate={() => {
+          setShowCreateModal(false);
+          setCreateProfessionalId("");
+        }}
         selectedDate={selectedDate}
-        defaultProfessionalId={selectedProfessional}
+        defaultProfessionalId={createProfessionalId || selectedProfessional}
         professionals={professionals}
         patients={patients}
         procedures={procedures}

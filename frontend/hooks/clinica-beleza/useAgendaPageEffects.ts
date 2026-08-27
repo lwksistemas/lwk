@@ -6,6 +6,7 @@ export function useAgendaPageEffects({
   searchParams,
   selectedProfessional,
   carregarDados,
+  recarregarEventos,
   showModal,
   selectedEvent,
   eventos,
@@ -13,10 +14,12 @@ export function useAgendaPageEffects({
   setSelectedDate,
   setShowCreateModal,
   isMutatingRef,
+  isDraggingRef,
 }: {
   searchParams: ReadonlyURLSearchParams;
   selectedProfessional: string;
   carregarDados: () => Promise<void>;
+  recarregarEventos?: () => Promise<void>;
   showModal: boolean;
   selectedEvent: AgendaEventData | null;
   eventos: AgendaEventData[];
@@ -24,15 +27,19 @@ export function useAgendaPageEffects({
   setSelectedDate: (date: Date | null) => void;
   setShowCreateModal: (open: boolean) => void;
   isMutatingRef?: React.MutableRefObject<boolean>;
+  isDraggingRef?: React.MutableRefObject<boolean>;
 }) {
   const [calendarPlugins, setCalendarPlugins] = useState<unknown[]>([]);
   const [ptBrLocale, setPtBrLocale] = useState<unknown>(null);
   const [isMobile, setIsMobile] = useState(false);
   const carregarDadosRef = useRef(carregarDados);
+  const recarregarEventosRef = useRef(recarregarEventos);
   const userScrollingRef = useRef(false);
   const scrollPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const desktopPluginsReadyRef = useRef(false);
 
   carregarDadosRef.current = carregarDados;
+  recarregarEventosRef.current = recarregarEventos;
 
   useEffect(() => {
     if (searchParams.get("novo") === "1") {
@@ -48,26 +55,25 @@ export function useAgendaPageEffects({
       return;
     }
     const loadPlugins = async () => {
-      const [dayGrid, timeGrid, interaction, ptBr] = await Promise.all([
+      // Visão Mês usa dayGrid + interaction. Dia/Semana são views próprias (sem timeGrid).
+      const [dayGrid, interaction, ptBr] = await Promise.all([
         import("@fullcalendar/daygrid"),
-        import("@fullcalendar/timegrid"),
         import("@fullcalendar/interaction"),
         import("@fullcalendar/core/locales/pt-br"),
       ]);
-      setCalendarPlugins([dayGrid.default, timeGrid.default, interaction.default]);
+      setCalendarPlugins([dayGrid.default, interaction.default]);
       setPtBrLocale(ptBr.default);
     };
     void loadPlugins();
   }, []);
 
   useEffect(() => {
-    // Desktop: recarrega quando plugins/profissional mudam. Mobile já carregou no efeito acima.
-    if (typeof window !== "undefined" && window.innerWidth < 640) {
-      void carregarDadosRef.current();
+    if (!desktopPluginsReadyRef.current) {
+      desktopPluginsReadyRef.current = true;
       return;
     }
-    if (calendarPlugins.length > 0) void carregarDadosRef.current();
-  }, [selectedProfessional, calendarPlugins]);
+    void carregarDadosRef.current();
+  }, [selectedProfessional]);
 
   useEffect(() => {
     const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 640);
@@ -96,39 +102,50 @@ export function useAgendaPageEffects({
   }, []);
 
   useEffect(() => {
-    const handler = () => setTimeout(() => void carregarDadosRef.current(), 1200);
+    const handler = () => setTimeout(() => {
+      if (isMutatingRef?.current || isDraggingRef?.current) return;
+      void carregarDadosRef.current();
+    }, 1200);
     window.addEventListener("offline-sync-done", handler);
     return () => window.removeEventListener("offline-sync-done", handler);
-  }, []);
+  }, [isDraggingRef, isMutatingRef]);
 
   useEffect(() => {
-    const isMobileViewport =
-      typeof window !== "undefined" && window.innerWidth < 640;
-    // Desktop só faz poll depois dos plugins; mobile não usa FullCalendar.
-    if (!isMobileViewport && !calendarPlugins.length) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    // Polling de eventos (8s; 4s com modal em aguardando). Pausa em arrasto, mutação e scroll.
+
     const aguardando =
       showModal &&
       (selectedEvent?.extendedProps.status === "SCHEDULED" ||
         selectedEvent?.extendedProps.status === "PENDING");
-    // 5s só no check-in; 20s em uso normal (antes 15s) — reduz carga na API.
-    const intervalMs = aguardando ? 5000 : 20000;
-    const tick = () => {
+    const intervalMs = aguardando ? 4000 : 8000;
+
+    const poll = () => {
+      if (document.visibilityState !== "visible") return;
+      if (isMutatingRef?.current || isDraggingRef?.current) return;
       if (userScrollingRef.current) return;
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      if (isMutatingRef?.current) return;
-      void carregarDadosRef.current();
+      void (recarregarEventosRef.current ?? carregarDadosRef.current)();
     };
-    const timer = window.setInterval(tick, intervalMs);
+
+    if (aguardando) poll();
+    const timer = window.setInterval(poll, intervalMs);
     const onVisibility = () => {
-      if (document.visibilityState === "visible") void carregarDadosRef.current();
+      if (document.visibilityState !== "visible") return;
+      if (isMutatingRef?.current || isDraggingRef?.current) return;
+      void (recarregarEventosRef.current ?? carregarDadosRef.current)();
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [calendarPlugins.length, selectedProfessional, showModal, selectedEvent?.extendedProps.status]);
+  }, [
+    selectedProfessional,
+    showModal,
+    selectedEvent?.extendedProps.status,
+    isDraggingRef,
+    isMutatingRef,
+  ]);
 
   useEffect(() => {
     if (!showModal || !selectedEvent?.extendedProps?.dbId) return;
@@ -150,5 +167,5 @@ export function useAgendaPageEffects({
     setSelectedEvent,
   ]);
 
-  return { calendarPlugins, ptBrLocale, isMobile, calendarReady: calendarPlugins.length > 0 && ptBrLocale != null };
+  return { calendarPlugins, ptBrLocale, isMobile };
 }

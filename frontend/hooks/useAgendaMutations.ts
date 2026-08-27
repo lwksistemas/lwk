@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { clinicaBelezaQueryKeys } from "@/lib/clinica-beleza-cadastros-api";
 import { arredondarDuracaoAgendaMin } from "@/lib/clinica-beleza-datetime";
 import type { AgendaConflictPayload, AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { ConflitoAgendaData } from "@/components/clinica-beleza/ModalConflitoAgenda";
+import { mergeRawAgendaEvent, versaoAgenda } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import { useToast } from "@/components/ui/Toast";
 import { logger } from "@/lib/logger";
 import type { EventDropArg } from "@fullcalendar/core";
@@ -17,6 +20,7 @@ type ConflictState = (ConflitoAgendaData & {
 
 interface UseAgendaMutationsOptions {
   onReload: () => void;
+  selectedProfessional?: string;
   selectedEvent: AgendaEventData | null;
   setSelectedEvent: React.Dispatch<React.SetStateAction<AgendaEventData | null>>;
   setShowModal: (open: boolean) => void;
@@ -25,14 +29,17 @@ interface UseAgendaMutationsOptions {
 
 export function useAgendaMutations({
   onReload,
+  selectedProfessional = "",
   selectedEvent,
   setSelectedEvent,
   setShowModal,
   isMutatingRef: externalMutatingRef,
 }: UseAgendaMutationsOptions) {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [reenviandoMensagem, setReenviandoMensagem] = useState(false);
+  const [salvandoDetalhe, setSalvandoDetalhe] = useState(false);
   const [conflictData, setConflictData] = useState<ConflictState>(null);
   const [conflictResolving, setConflictResolving] = useState(false);
   const internalMutatingRef = useRef(false);
@@ -85,7 +92,7 @@ export function useAgendaMutations({
     id: number | string,
     body: Record<string, unknown>,
     revert?: () => void,
-  ): Promise<boolean> => {
+  ): Promise<Record<string, unknown> | false> => {
     const res = await clinicaBelezaFetch(`/agenda/${id}/update/`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -106,8 +113,21 @@ export function useAgendaMutations({
       revert?.();
       throw new Error(data.error || "Erro ao atualizar agendamento");
     }
-    return true;
+    return data;
   }, []);
+
+  const gravarEventoSalvo = useCallback(
+    (info: { event: { setExtendedProp: (k: string, v: unknown) => void } }, result: Record<string, unknown>) => {
+      const version = versaoAgenda(result.version);
+      if (version != null) info.event.setExtendedProp("version", version);
+      if (result.updated_at) info.event.setExtendedProp("updated_at", result.updated_at);
+      queryClient.setQueryData(
+        clinicaBelezaQueryKeys.agendaEvents(selectedProfessional),
+        (old) => mergeRawAgendaEvent(old, result),
+      );
+    },
+    [queryClient, selectedProfessional],
+  );
 
   const moverEvento = useCallback(async (info: EventDropArg) => {
     if (!info.event.start) {
@@ -115,29 +135,152 @@ export function useAgendaMutations({
       return;
     }
     if (info.event.extendedProps?.isIntervalo) return;
+    if (isMutatingRef.current) {
+      info.revert();
+      toast.warning("Aguarde o agendamento salvar antes de mover de novo.");
+      return;
+    }
     if (info.event.extendedProps?.isBloqueio) {
       await atualizarBloqueioHorario(info as Parameters<typeof atualizarBloqueioHorario>[0]);
       return;
     }
-    const { version, updated_at } = info.event.extendedProps || {};
-    const body: Record<string, unknown> = { date: info.event.start.toISOString() };
+    const startIso = info.event.start.toISOString();
+    const endIso = info.event.end?.toISOString();
+    const version = versaoAgenda(info.event.extendedProps?.version);
+    const updatedAt = info.event.extendedProps?.updated_at;
+    const body: Record<string, unknown> = { date: startIso };
     if (version != null) body.version = version;
-    if (updated_at) body.updated_at = updated_at;
+    if (updatedAt) body.updated_at = updatedAt;
+    const cacheKey = clinicaBelezaQueryKeys.agendaEvents(selectedProfessional);
+    const previous = queryClient.getQueryData(cacheKey);
+    queryClient.setQueryData(cacheKey, (old) =>
+      mergeRawAgendaEvent(old, { id: info.event.id, start: startIso, ...(endIso ? { end: endIso } : {}) }),
+    );
     isMutatingRef.current = true;
     try {
-      const ok = await patchAgendamento(info.event.id, body, info.revert);
-      if (ok) {
-        await onReload();
-      }
+      const result = await patchAgendamento(info.event.id, body, info.revert);
+      if (result) gravarEventoSalvo(info, result);
+      else queryClient.setQueryData(cacheKey, previous);
     } catch (error) {
+      queryClient.setQueryData(cacheKey, previous);
       logger.warn("Erro ao mover evento:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao mover evento. Tente novamente.");
       info.revert();
     } finally {
-      // Pequeno delay para garantir que o reload completou antes de liberar o polling
-      setTimeout(() => { isMutatingRef.current = false; }, 2000);
+      setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [atualizarBloqueioHorario, onReload, patchAgendamento, toast]);
+  }, [atualizarBloqueioHorario, gravarEventoSalvo, patchAgendamento, queryClient, selectedProfessional, toast]);
+
+  const moverAgendamentoGrade = useCallback(async (
+    evt: AgendaEventData,
+    start: Date,
+    professionalId: number,
+  ) => {
+    if (evt.extendedProps?.isIntervalo || evt.extendedProps?.isBloqueio) return;
+    const dbId = evt.extendedProps?.dbId ?? evt.id;
+    if (typeof dbId === "string" && dbId.startsWith("offline-")) {
+      toast.warning("Agendamento offline. Aguarde a sincronização para mover.");
+      return;
+    }
+    if (isMutatingRef.current) {
+      toast.warning("Aguarde o agendamento salvar antes de mover de novo.");
+      return;
+    }
+    const startIso = start.toISOString();
+    const duracao = Number(evt.extendedProps?.duracao_minutos || evt.extendedProps?.procedure_duration || 30);
+    const endIso = new Date(start.getTime() + Math.max(5, duracao) * 60_000).toISOString();
+    const version = versaoAgenda(evt.extendedProps?.version);
+    const updatedAt = evt.extendedProps?.updated_at;
+    const body: Record<string, unknown> = { date: startIso };
+    if (version != null) body.version = version;
+    if (updatedAt) body.updated_at = updatedAt;
+    const atual = evt.extendedProps?.professional;
+    if (professionalId && Number(atual) !== professionalId) {
+      body.professional = professionalId;
+    }
+    const cacheKey = clinicaBelezaQueryKeys.agendaEvents(selectedProfessional);
+    const previous = queryClient.getQueryData(cacheKey);
+    queryClient.setQueryData(cacheKey, (old) =>
+      mergeRawAgendaEvent(old, {
+        id: evt.id,
+        start: startIso,
+        end: endIso,
+        professional: professionalId,
+        professional_id: professionalId,
+      }),
+    );
+    isMutatingRef.current = true;
+    try {
+      const result = await patchAgendamento(dbId, body);
+      if (result) {
+        queryClient.setQueryData(cacheKey, (old) => mergeRawAgendaEvent(old, result));
+      } else {
+        queryClient.setQueryData(cacheKey, previous);
+      }
+    } catch (error) {
+      queryClient.setQueryData(cacheKey, previous);
+      logger.warn("Erro ao mover evento da grade:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao mover evento. Tente novamente.");
+    } finally {
+      setTimeout(() => { isMutatingRef.current = false; }, 400);
+    }
+  }, [patchAgendamento, queryClient, selectedProfessional, toast]);
+
+  const redimensionarAgendamentoGrade = useCallback(async (
+    evt: AgendaEventData,
+    duracaoMinutos: number,
+  ) => {
+    if (evt.extendedProps?.isIntervalo || evt.extendedProps?.isBloqueio) return;
+    if (evt.extendedProps?.status === "CANCELLED") {
+      toast.warning("Não é possível alterar a duração de um agendamento cancelado.");
+      return;
+    }
+    const dbId = evt.extendedProps?.dbId ?? evt.id;
+    if (typeof dbId === "string" && dbId.startsWith("offline-")) {
+      toast.warning("Agendamento offline. Aguarde a sincronização para ajustar a duração.");
+      return;
+    }
+    if (isMutatingRef.current) {
+      toast.warning("Aguarde o agendamento salvar antes de ajustar de novo.");
+      return;
+    }
+    const duracao = arredondarDuracaoAgendaMin(duracaoMinutos);
+    const atual = Number(evt.extendedProps?.duracao_minutos || evt.extendedProps?.procedure_duration || 0);
+    if (duracao === atual) return;
+    const version = versaoAgenda(evt.extendedProps?.version);
+    const updatedAt = evt.extendedProps?.updated_at;
+    const body: Record<string, unknown> = { duracao_minutos: duracao };
+    if (version != null) body.version = version;
+    if (updatedAt) body.updated_at = updatedAt;
+    const start = evt.start;
+    const endIso = start
+      ? new Date(new Date(start).getTime() + duracao * 60_000).toISOString()
+      : undefined;
+    const cacheKey = clinicaBelezaQueryKeys.agendaEvents(selectedProfessional);
+    const previous = queryClient.getQueryData(cacheKey);
+    queryClient.setQueryData(cacheKey, (old) =>
+      mergeRawAgendaEvent(old, {
+        id: evt.id,
+        duracao_minutos: duracao,
+        ...(endIso ? { end: endIso } : {}),
+      }),
+    );
+    isMutatingRef.current = true;
+    try {
+      const result = await patchAgendamento(dbId, body);
+      if (result) {
+        queryClient.setQueryData(cacheKey, (old) => mergeRawAgendaEvent(old, result));
+      } else {
+        queryClient.setQueryData(cacheKey, previous);
+      }
+    } catch (error) {
+      queryClient.setQueryData(cacheKey, previous);
+      logger.warn("Erro ao redimensionar evento da grade:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao ajustar duração. Tente novamente.");
+    } finally {
+      setTimeout(() => { isMutatingRef.current = false; }, 400);
+    }
+  }, [patchAgendamento, queryClient, selectedProfessional, toast]);
 
   const redimensionarEvento = useCallback(async (info: EventResizeDoneArg) => {
     if (info.event.extendedProps?.isIntervalo) {
@@ -168,19 +311,23 @@ export function useAgendaMutations({
     const duracaoMinutos = arredondarDuracaoAgendaMin(
       Math.round((end.getTime() - start.getTime()) / 60000),
     );
-    const { version, updated_at } = info.event.extendedProps || {};
+    const version = versaoAgenda(info.event.extendedProps?.version);
+    const updatedAt = info.event.extendedProps?.updated_at;
     const body: Record<string, unknown> = { duracao_minutos: duracaoMinutos };
     if (version != null) body.version = version;
-    if (updated_at) body.updated_at = updated_at;
+    if (updatedAt) body.updated_at = updatedAt;
+    isMutatingRef.current = true;
     try {
-      const ok = await patchAgendamento(info.event.id, body, info.revert);
-      if (ok) onReload();
+      const result = await patchAgendamento(info.event.id, body, info.revert);
+      if (result) gravarEventoSalvo(info, result);
     } catch (error) {
       logger.warn("Erro ao redimensionar evento:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao ajustar duração. Tente novamente.");
       info.revert();
+    } finally {
+      setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [atualizarBloqueioHorario, onReload, patchAgendamento, toast]);
+  }, [atualizarBloqueioHorario, gravarEventoSalvo, patchAgendamento, toast]);
 
   const deletarEvento = useCallback(async () => {
     if (!selectedEvent) return;
@@ -204,6 +351,42 @@ export function useAgendaMutations({
       toast.error(error instanceof Error ? error.message : "Erro ao deletar agendamento.");
     }
   }, [onReload, selectedEvent, setSelectedEvent, setShowModal, toast]);
+
+  const atualizarDetalheAgendamento = useCallback(async (payload: {
+    date?: string;
+    professional?: number;
+    procedures_ids?: number[];
+  }) => {
+    if (!selectedEvent) return;
+    const dbId = selectedEvent.extendedProps.dbId ?? selectedEvent.id;
+    if (typeof dbId === "string" && dbId.startsWith("offline-")) {
+      toast.warning("Agendamento criado offline. Aguarde a sincronização para editar.");
+      return;
+    }
+    const body: Record<string, unknown> = { ...payload };
+    if (selectedEvent.extendedProps.version != null) body.version = selectedEvent.extendedProps.version;
+    if (selectedEvent.extendedProps.updated_at) body.updated_at = selectedEvent.extendedProps.updated_at;
+    setSalvandoDetalhe(true);
+    try {
+      const result = await patchAgendamento(dbId, body);
+      if (!result) return;
+      queryClient.setQueryData(
+        clinicaBelezaQueryKeys.agendaEvents(selectedProfessional),
+        (old) => mergeRawAgendaEvent(old, result),
+      );
+      if (result.confirmacao_reiniciada) {
+        toast.success("Agendamento atualizado. O link anterior foi invalidado e um novo será enviado no WhatsApp.");
+      } else {
+        toast.success("Agendamento atualizado.");
+      }
+      onReload();
+    } catch (error) {
+      logger.warn("Erro ao editar agendamento:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar agendamento.");
+    } finally {
+      setSalvandoDetalhe(false);
+    }
+  }, [onReload, patchAgendamento, queryClient, selectedEvent, selectedProfessional, toast]);
 
   const atualizarStatusAgendamento = useCallback(async (novoStatus: string) => {
     if (!selectedEvent) return;
@@ -233,6 +416,15 @@ export function useAgendaMutations({
         return;
       }
       if (!res.ok) throw new Error(data.error || "Erro ao atualizar status");
+      queryClient.setQueryData(
+        clinicaBelezaQueryKeys.agendaEvents(selectedProfessional),
+        (old) =>
+          mergeRawAgendaEvent(old, {
+            id: dbId,
+            status: novoStatus,
+            ...(data.consulta_id != null ? { consulta_id: Number(data.consulta_id) } : {}),
+          }),
+      );
       setSelectedEvent((prev) =>
         prev
           ? {
@@ -253,7 +445,7 @@ export function useAgendaMutations({
     } finally {
       setUpdatingStatus(false);
     }
-  }, [onReload, selectedEvent, setSelectedEvent, toast]);
+  }, [onReload, queryClient, selectedEvent, selectedProfessional, setSelectedEvent, toast]);
 
   const reenviarMensagemWhatsApp = useCallback(async () => {
     if (!selectedEvent) return;
@@ -314,12 +506,16 @@ export function useAgendaMutations({
   return {
     updatingStatus,
     reenviandoMensagem,
+    salvandoDetalhe,
     conflictData,
     conflictResolving,
     moverEvento,
+    moverAgendamentoGrade,
     redimensionarEvento,
+    redimensionarAgendamentoGrade,
     deletarEvento,
     atualizarStatusAgendamento,
+    atualizarDetalheAgendamento,
     reenviarMensagemWhatsApp,
     handleConflitoUseServer,
     handleConflitoUseLocal,

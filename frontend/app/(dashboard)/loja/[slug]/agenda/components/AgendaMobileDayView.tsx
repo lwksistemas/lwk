@@ -5,6 +5,10 @@ import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { parseEventDate } from "@/lib/clinica-beleza-datetime";
 import { CLINICA_AGENDA_SLOT_VISUAL_MIN } from "@/lib/clinica-beleza-constants";
+import {
+  estiloCardStatusAgenda,
+  rotuloStatusCardAgenda,
+} from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 
 function toInputDate(d: Date): string {
   const y = d.getFullYear();
@@ -233,28 +237,33 @@ export function AgendaMobileDayView({
             {slots.map((slot) => {
               if (slot.kind === "event") {
                 const ev = slot.event;
-                const statusColor = ev.extendedProps?.status === "COMPLETED"
-                  ? "border-l-emerald-500"
-                  : ev.extendedProps?.status === "CANCELLED"
-                    ? "border-l-red-400"
-                    : "border-l-transparent";
+                const estilo = estiloCardStatusAgenda(ev);
                 return (
                   <li key={`e-${ev.id}-${slot.minutes}`}>
                     <button
                       type="button"
                       onClick={() => { if (!swiped.current) onOpenEvent(ev); }}
-                      className={`w-full flex gap-3 px-3 py-3 text-left touch-manipulation active:opacity-80 border-l-4 ${statusColor} rounded-r-lg`}
+                      className="w-full flex gap-3 px-3 py-3 text-left touch-manipulation active:opacity-80 rounded-r-lg"
                       style={{
                         minHeight: Math.max(56, slot.spanSlots * 44),
-                        backgroundColor: ev.backgroundColor || "#fce7f3",
+                        backgroundColor: estilo.backgroundColor,
+                        borderLeft: estilo.borderLeft,
                       }}
                     >
                       <span className="w-11 shrink-0 text-xs font-bold text-gray-800 dark:text-gray-200 pt-0.5">
                         {slot.label}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                          {ev.title}
+                        <span className="flex items-center gap-2">
+                          <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                            {ev.title}
+                          </span>
+                          <span
+                            className="text-[10px] font-semibold leading-none px-1.5 py-0.5 rounded-full text-white shrink-0"
+                            style={{ backgroundColor: estilo.cor }}
+                          >
+                            {rotuloStatusCardAgenda(ev)}
+                          </span>
                         </span>
                         {ev.extendedProps?.professional_name && (
                           <span className="block text-xs text-gray-600 dark:text-gray-400 truncate mt-0.5">

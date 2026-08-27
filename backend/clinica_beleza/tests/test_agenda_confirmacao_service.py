@@ -5,7 +5,13 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase, override_settings
 
 from clinica_beleza.agenda_confirmacao_service import (
+    MSG_LINK_SUBSTITUIDO,
+    decodificar_token_confirmacao,
+    gerar_token_confirmacao,
+    geracao_do_payload,
+    obter_dados_confirmacao,
     processar_resposta_confirmacao,
+    token_confirmacao_desatualizado,
     url_confirmacao_frontend,
 )
 from clinica_beleza.consulta_service import sync_consulta_from_appointment_status
@@ -48,6 +54,68 @@ class ProcessarRespostaConfirmacaoTest(TestCase):
         self.assertEqual(result.status, "CLIENT_CONFIRMED")
         mock_atualizar.assert_called_once()
         self.assertEqual(mock_atualizar.call_args.kwargs["new_status"], "CLIENT_CONFIRMED")
+
+
+class TokenGeracaoConfirmacaoTest(SimpleTestCase):
+    def test_token_sem_generation_equivale_a_1(self):
+        token = gerar_token_confirmacao(6, 10)
+        payload = decodificar_token_confirmacao(token)
+        self.assertEqual(geracao_do_payload(payload), 1)
+
+    def test_token_com_generation(self):
+        token = gerar_token_confirmacao(6, 10, generation=3)
+        payload = decodificar_token_confirmacao(token)
+        self.assertEqual(geracao_do_payload(payload), 3)
+
+    def test_link_antigo_fica_desatualizado(self):
+        payload = {"g": 1}
+        appointment = MagicMock(confirmacao_generation=2)
+        self.assertTrue(token_confirmacao_desatualizado(payload, appointment))
+        appointment.confirmacao_generation = 1
+        self.assertFalse(token_confirmacao_desatualizado(payload, appointment))
+
+
+class ProcessarRespostaLinkSubstituidoTest(TestCase):
+    @patch("clinica_beleza.agenda_confirmacao_service._configurar_tenant")
+    @patch("clinica_beleza.agenda_confirmacao_service.decodificar_token_confirmacao")
+    @patch("clinica_beleza.models.Appointment")
+    def test_token_antigo_nao_confirma(
+        self,
+        mock_appointment_model,
+        mock_decode,
+        mock_tenant,
+    ):
+        mock_tenant.return_value = None
+        mock_decode.return_value = {"loja_id": 15, "doc_id": 99, "g": 1}
+        appointment = MagicMock(status="SCHEDULED", id=99, confirmacao_generation=2)
+        mock_appointment_model.objects.select_related.return_value.filter.return_value.first.return_value = appointment
+
+        result = processar_resposta_confirmacao("token-antigo", "confirmar")
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.message, MSG_LINK_SUBSTITUIDO)
+        self.assertEqual(result.codigo, "link_substituido")
+
+
+class ObterDadosLinkSubstituidoTest(TestCase):
+    @patch("clinica_beleza.agenda_confirmacao_service._configurar_tenant")
+    @patch("clinica_beleza.agenda_confirmacao_service.decodificar_token_confirmacao")
+    @patch("superadmin.models.Loja")
+    @patch("clinica_beleza.models.Appointment")
+    def test_get_publico_recusa_token_antigo(
+        self, mock_appointment_model, mock_loja, mock_decode, mock_tenant,
+    ):
+        mock_tenant.return_value = None
+        mock_decode.return_value = {"loja_id": 15, "doc_id": 99, "g": 1}
+        mock_loja.objects.using.return_value.filter.return_value.first.return_value = MagicMock(nome="Harmonis")
+        appointment = MagicMock(id=99, confirmacao_generation=2)
+        mock_appointment_model.objects.select_related.return_value.prefetch_related.return_value.filter.return_value.first.return_value = appointment
+
+        dados, erro, loja_id = obter_dados_confirmacao("token-antigo")
+
+        self.assertIsNone(dados)
+        self.assertEqual(erro, MSG_LINK_SUBSTITUIDO)
+        self.assertEqual(loja_id, 15)
 
 
 class UrlConfirmacaoFrontendTest(SimpleTestCase):

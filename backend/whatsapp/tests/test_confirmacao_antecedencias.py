@@ -66,7 +66,7 @@ class RegrasDoDiaTest(SimpleTestCase):
     def test_mesmo_dia_da_consulta_nao_envia_sem_criado_em(self):
         self.assertEqual(regras_do_dia([3, 1], 0), [])
 
-    def test_ultima_chance_consulta_hoje_marcado_hoje(self):
+    def test_consulta_hoje_nao_envia_confirmacao(self):
         hoje = date(2026, 8, 18)
         self.assertEqual(
             regras_do_dia(
@@ -76,10 +76,10 @@ class RegrasDoDiaTest(SimpleTestCase):
                 criado_em=hoje,
                 hoje=hoje,
             ),
-            [1],
+            [],
         )
 
-    def test_ultima_chance_so_a_menor_regra(self):
+    def test_consulta_hoje_com_varias_regras_nao_envia(self):
         hoje = date(2026, 8, 18)
         self.assertEqual(
             regras_do_dia(
@@ -89,7 +89,7 @@ class RegrasDoDiaTest(SimpleTestCase):
                 criado_em=hoje,
                 hoje=hoje,
             ),
-            [1],
+            [],
         )
 
     def test_marcado_depois_da_regra_nao_dispara_na_criacao(self):
@@ -189,13 +189,13 @@ class ProcessarAgendamentoHojeTest(SimpleTestCase):
         with patch("tenants.middleware.get_current_loja_id", return_value=None):
             self.assertEqual(disparar_confirmacao_se_hoje(ag), 0)
 
-    def test_envia_ultima_chance_no_mesmo_dia(self):
+    def test_nao_envia_confirmacao_no_mesmo_dia(self):
         ag, hoje = self._ag(0)
         ag.created_at = timezone.make_aware(
             datetime(2026, 8, 16, 10, 0), timezone.get_current_timezone(),
         )
         config = MagicMock(enviar_confirmacao=True, whatsapp_ativo=True, confirmacao_antecedencias_dias=[1])
-        with patch("whatsapp.confirmacao_agenda_service.enviar_confirmacao_da_regra", return_value=True) as mock_env:
+        with patch("whatsapp.confirmacao_agenda_service.enviar_confirmacao_da_regra") as mock_env:
             n = processar_agendamento_hoje(ag, config=config, hoje=hoje)
-        self.assertEqual(n, 1)
-        self.assertEqual(mock_env.call_args.args[1], 1)
+        self.assertEqual(n, 0)
+        mock_env.assert_not_called()

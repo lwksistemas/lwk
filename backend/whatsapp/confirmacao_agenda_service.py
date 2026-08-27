@@ -1,8 +1,8 @@
 """Quando enviar o link de confirmação da agenda.
 
 O admin escolhe os dias de antecedência (ex.: 3 e 1). O worker envia em
-cada um desses dias. Se o horário for marcado depois do dia da regra
-(ex.: consulta hoje com "1 dia antes"), envia na última chance.
+cada um desses dias. Marcação no mesmo dia da consulta não dispara o link
+— o lembrete de 2h (se ativo) cobre o aviso perto do horário.
 """
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ ANTECEDENCIA_MAX = 30
 DEFAULT_ANTECEDENCIAS = [1]
 MODULO_CLINICA = "clinica_beleza"
 MODULO_SALAO = "cabeleireiro"
+MODULO_CONSULTORIO = "clinica_geral"
 
 # Link de confirmação da agenda: só Clínica da Beleza e salão.
 # CRM Vendas (Felix) usa WhatsApp para proposta/contrato/tarefas, não esta tabela.
@@ -28,6 +29,7 @@ SLUGS_CONFIRMACAO_AGENDA = frozenset({
     "clinica-estetica",
     "clinica-de-estetica",
     "cabeleireiro",
+    "clinica-geral",
 })
 
 
@@ -110,11 +112,9 @@ def regras_do_dia(
 
     Dia exato (dias_ate == D) sempre dispara.
     Catch-up: se o worker perdeu o dia D, envia atrasado — só se o agendamento
-    já existia naquele dia. Não dispara regra passada na criação (ex.: marcado
-    há 2 dias com regra de 3 dias).
-    Última chance: se a consulta já está dentro da menor antecedência e o
-    horário foi marcado depois do dia dela (ex.: "1 dia antes" + consulta hoje),
-    dispara só a menor regra.
+    já existia naquele dia e a consulta ainda não é hoje. Não dispara regra
+    passada na criação (ex.: marcado há 2 dias com regra de 3 dias) nem no
+    próprio dia da consulta (ex.: "1 dia antes" + consulta hoje).
     """
     if dias_ate < 0:
         return []
@@ -128,22 +128,12 @@ def regras_do_dia(
             data_consulta is None
             or criado is None
             or hoje is None
-            or not (0 <= dias_ate < d)
+            or not (0 < dias_ate < d)
         ):
             continue
         dia_da_regra = data_consulta - timedelta(days=d)
         if criado <= dia_da_regra <= hoje:
             disparar.append(d)
-    if (
-        not disparar
-        and criado is not None
-        and data_consulta is not None
-        and antecedencias
-        and 0 <= dias_ate < min(antecedencias)
-    ):
-        menor = min(antecedencias)
-        if criado > data_consulta - timedelta(days=menor):
-            disparar.append(menor)
     return disparar
 
 
@@ -151,6 +141,8 @@ def _modulo_agendamento(agendamento) -> str:
     modulo = (getattr(agendamento, "whatsapp_modulo", None) or MODULO_CLINICA).strip().lower()
     if modulo in ("cabeleireiro", "salao"):
         return MODULO_SALAO
+    if modulo in ("clinica_geral", "clinica-geral"):
+        return MODULO_CONSULTORIO
     return MODULO_CLINICA
 
 
@@ -235,7 +227,7 @@ def processar_agendamento_hoje(agendamento, *, config, hoje=None, user=None) -> 
 
 
 def disparar_confirmacao_se_hoje(agendamento, *, user=None) -> int:
-    """Na criação: envia só se hoje já é um dia de envio (regra exata ou última chance)."""
+    """Na criação: envia só se hoje já é um dia exato da regra (ex.: consulta amanhã com “1 dia antes”)."""
     from tenants.middleware import get_current_loja_id
     from whatsapp.models import WhatsAppConfig
 

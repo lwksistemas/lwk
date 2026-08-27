@@ -227,3 +227,61 @@ export function movimentoGradeAlterou(
   if (!oldStart) return true;
   return !mesmoHorarioLocal(oldStart, start);
 }
+
+export function inicioSemanaIso(iso: string): string {
+  const [y, mo, d] = iso.split("-").map(Number);
+  const dt = new Date(y, (mo || 1) - 1, d || 1);
+  const weekday = dt.getDay();
+  const delta = weekday === 0 ? -6 : 1 - weekday;
+  dt.setDate(dt.getDate() + delta);
+  return toAgendaDiaIso(dt);
+}
+
+export function diasSemanaIso(iso: string, hiddenDays: number[] = [0]): string[] {
+  const start = inicioSemanaIso(iso);
+  const out: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const dayIso = addDaysIso(start, i);
+    const [y, mo, d] = dayIso.split("-").map(Number);
+    const jsDay = new Date(y, (mo || 1) - 1, d || 1).getDay();
+    if (hiddenDays.includes(jsDay)) continue;
+    out.push(dayIso);
+  }
+  return out.length ? out : [start];
+}
+
+export function eventosDoDiaFiltrados(
+  eventos: AgendaEventData[],
+  dateIso: string,
+  selectedProfessional: string,
+): AgendaDiaItem[] {
+  const lista = eventosDoDia(eventos, dateIso);
+  if (!selectedProfessional) return lista;
+  return lista.filter((row) => String(eventProfessionalId(row.evt)) === selectedProfessional);
+}
+
+export function faixasSobrepostas(
+  items: AgendaDiaItem[],
+): { item: AgendaDiaItem; lane: number; lanes: number }[] {
+  const sorted = [...items].sort((a, b) => a.start.getTime() - b.start.getTime());
+  const assigned: { item: AgendaDiaItem; lane: number }[] = [];
+  const active: { end: number; lane: number }[] = [];
+  for (const item of sorted) {
+    const start = item.start.getTime();
+    for (let i = active.length - 1; i >= 0; i--) {
+      if (active[i].end <= start) active.splice(i, 1);
+    }
+    const used = new Set(active.map((a) => a.lane));
+    let lane = 0;
+    while (used.has(lane)) lane += 1;
+    active.push({ end: item.end.getTime(), lane });
+    assigned.push({ item, lane });
+  }
+  return assigned.map((row) => {
+    const overlapping = assigned.filter(
+      (o) => o.item.start < row.item.end && o.item.end > row.item.start,
+    );
+    const lanes = overlapping.reduce((max, o) => Math.max(max, o.lane + 1), 1);
+    return { item: row.item, lane: row.lane, lanes };
+  });
+}

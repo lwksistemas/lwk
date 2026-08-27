@@ -13,6 +13,7 @@ import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction
 import { AgendaListaColunas } from "./AgendaListaColunas";
 import { AgendaMobileDayView } from "./AgendaMobileDayView";
 import { AgendaDiaColunas } from "./AgendaDiaColunas";
+import { AgendaSemanaColunas } from "./AgendaSemanaColunas";
 import { toAgendaDiaIso } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 
@@ -221,6 +222,31 @@ export function AgendaCalendarSection({
     );
   }
 
+  if (gradeView === "week") {
+    return (
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <AgendaSemanaColunas
+          dateIso={diaIso}
+          onDateChange={setDiaIso}
+          eventos={eventos}
+          selectedProfessional={selectedProfessional}
+          hiddenDays={hiddenDays}
+          slotMinTime={slotMinTime}
+          slotMaxTime={slotMaxTime}
+          onOpenEvent={onAbrirLista}
+          onSlotClick={(date, professionalId) => {
+            onNovoHorario?.(date, professionalId);
+            onDateClick({ date, allDay: false } as DateClickArg);
+          }}
+          onMudarVisao={(view) => setGradeView(view)}
+          onVerLista={onVerLista}
+          onMover={onMoverGrade}
+          onRedimensionar={onRedimensionarGrade}
+        />
+      </div>
+    );
+  }
+
   if (gradeView === "day") {
     return (
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -253,7 +279,7 @@ export function AgendaCalendarSection({
         <FullCalendar
           key={`desktop-${selectedProfessional}-${gradeView}`}
           plugins={calendarPlugins as never[]}
-          initialView={gradeView === "month" ? "dayGridMonth" : "timeGridWeek"}
+          initialView="dayGridMonth"
           initialDate={diaIso}
           locale={ptBrLocale as never}
           editable
@@ -297,11 +323,15 @@ export function AgendaCalendarSection({
               text: "Dia",
               click: () => setGradeView("day"),
             },
+            visaoSemana: {
+              text: "Semana",
+              click: () => setGradeView("week"),
+            },
           }}
           headerToolbar={{
             left: "prev,next today",
             center: "title",
-            right: "visaoDia,timeGridWeek,dayGridMonth",
+            right: "visaoDia,visaoSemana,dayGridMonth",
           }}
           slotMinTime={slotMinTime}
           slotMaxTime={slotMaxTime}

@@ -267,6 +267,7 @@ export function AgendaDiaColunas({
                           : ""
                       }`}
                       data-agenda-coluna={col.id}
+                      data-agenda-grade
                       style={{ height: gridH }}
                       onClick={(e) => {
                         if (deveIgnorarClick()) return;
@@ -316,6 +317,7 @@ export function AgendaDiaColunas({
                             role="button"
                             tabIndex={0}
                             data-agenda-card
+                            data-agenda-card-id={evt.id}
                             onPointerDown={(e) => {
                               if (e.button !== 0) return;
                               if (intervalo || bloqueio) return;

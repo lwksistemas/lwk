@@ -192,7 +192,7 @@ export default function AgendaPage() {
             isDraggingRef={isDraggingRef}
             professionals={professionals}
             onNovoHorario={(_date, professionalId) => {
-              setCreateProfessionalId(String(professionalId));
+              setCreateProfessionalId(professionalId > 0 ? String(professionalId) : "");
             }}
             onVerLista={() => setModoAgenda("lista")}
             onMoverGrade={moverAgendamentoGrade}

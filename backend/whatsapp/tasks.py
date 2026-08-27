@@ -346,7 +346,7 @@ def _send_confirmacoes_clinica_geral(config, hoje, inicio, fim):
 
 
 def send_confirmacoes_agendadas_whatsapp():
-    """Envia o link de confirmação nos dias configurados (e última chance no mesmo dia)."""
+    """Envia o link de confirmação nos dias configurados (nunca no próprio dia da consulta)."""
     from tenants.middleware import set_current_loja_id, set_current_tenant_db
     from whatsapp.confirmacao_agenda_service import (
         antecedencias_da_config,

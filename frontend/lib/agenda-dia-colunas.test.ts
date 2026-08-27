@@ -5,11 +5,14 @@ import {
   colunasProfissionaisDia,
   combinarDiaEHorario,
   corProfissionalAgenda,
+  diasSemanaIso,
   duracaoResizeNaGrade,
   eventProfessionalId,
   eventosDoDia,
   eventosDoDiaNaColuna,
+  faixasSobrepostas,
   iniciaisProfissional,
+  inicioSemanaIso,
   minutosArrastoNaGrade,
   movimentoGradeAlterou,
   snapMinutos,
@@ -148,6 +151,36 @@ describe("movimento e resize da grade", () => {
     expect(minutosArrastoNaGrade(72, 0, 420, 1.2, 0)).toBe(480);
     expect(duracaoResizeNaGrade(480, 144, 0, 420, 1140, 1.2)).toBe(60);
     expect(clampMinutosInicio(400, 420, 1140, 40)).toBe(420);
+  });
+});
+
+describe("semana", () => {
+  it("começa na segunda e omite domingo", () => {
+    expect(inicioSemanaIso("2026-08-26")).toBe("2026-08-24");
+    expect(diasSemanaIso("2026-08-26", [0])).toEqual([
+      "2026-08-24",
+      "2026-08-25",
+      "2026-08-26",
+      "2026-08-27",
+      "2026-08-28",
+      "2026-08-29",
+    ]);
+  });
+
+  it("separa eventos que se sobrepõem em faixas", () => {
+    const a = {
+      evt: evt({ id: "a", start: "2026-08-26T09:00:00", end: "2026-08-26T10:00:00" }),
+      start: new Date(2026, 7, 26, 9, 0),
+      end: new Date(2026, 7, 26, 10, 0),
+    };
+    const b = {
+      evt: evt({ id: "b", start: "2026-08-26T09:30:00", end: "2026-08-26T10:30:00" }),
+      start: new Date(2026, 7, 26, 9, 30),
+      end: new Date(2026, 7, 26, 10, 30),
+    };
+    const faixas = faixasSobrepostas([a, b]);
+    expect(faixas.map((f) => f.lane)).toEqual([0, 1]);
+    expect(faixas[0].lanes).toBe(2);
   });
 });
 

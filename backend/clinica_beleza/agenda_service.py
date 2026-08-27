@@ -186,8 +186,7 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
     except Exception:
         logger.exception("Erro ao executar regras pós-criação do agendamento %s", appointment.id)
 
-    # Link de confirmação: só na criação se hoje já é um dia de envio
-    # (regra exata, ou última chance — ex.: consulta hoje com "1 dia antes").
+    # Link de confirmação: só na criação se hoje já é um dia exato da regra.
     try:
         from whatsapp.confirmacao_agenda_service import disparar_confirmacao_se_hoje
 

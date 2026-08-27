@@ -49,7 +49,9 @@ function alvoArrasto(x: number, y: number): HTMLElement | null {
     if (!(node instanceof Element)) continue;
     if (node.closest("[data-agenda-ghost]")) continue;
     if (node.closest("[data-agenda-card]")) continue;
-    const hit = node.closest("[data-agenda-dia-iso], [data-agenda-coluna]") as HTMLElement | null;
+    const hit = node.closest(
+      "[data-agenda-dia-iso], [data-agenda-coluna], [data-agenda-semana-dia]",
+    ) as HTMLElement | null;
     if (hit) return hit;
   }
   return null;
@@ -142,9 +144,10 @@ export function useAgendaDiaArrasto({
       const dy = e.clientY - atual.y;
       const moved = atual.moved || Math.hypot(dx, dy) > LIMIAR_PX;
       if (atual.modo === "resize") {
-        const grade = document.querySelector(
-          `[data-agenda-coluna="${atual.professionalId}"]`,
-        ) as HTMLElement | null;
+        const grade =
+          document.querySelector(`[data-agenda-card-id="${atual.evt.id}"]`)?.closest("[data-agenda-grade]") as
+            | HTMLElement
+            | null;
         const gridTop = grade?.getBoundingClientRect().top ?? 0;
         const durationMin = duracaoResizeNaGrade(
           atual.startMin,
@@ -160,7 +163,10 @@ export function useAgendaDiaArrasto({
         return;
       }
       const hit = alvoArrasto(e.clientX, e.clientY);
-      const hoverDiaIso = hit?.getAttribute("data-agenda-dia-iso") || undefined;
+      const hoverDiaIso =
+        hit?.getAttribute("data-agenda-semana-dia") ||
+        hit?.getAttribute("data-agenda-dia-iso") ||
+        undefined;
       const hoverProfessionalId = hit?.hasAttribute("data-agenda-coluna")
         ? Number(hit.getAttribute("data-agenda-coluna"))
         : undefined;
@@ -193,6 +199,22 @@ export function useAgendaDiaArrasto({
       }
       const hit = alvoArrasto(e.clientX, e.clientY);
       if (!hit) return;
+      const semanaIso = hit.getAttribute("data-agenda-semana-dia");
+      if (semanaIso) {
+        const gridTop = hit.getBoundingClientRect().top;
+        const minutes = clampMinutosInicio(
+          minutosArrastoNaGrade(e.clientY, gridTop, minMin, pxPerMin, atual.offsetY),
+          minMin,
+          maxMin,
+          atual.durationMin,
+        );
+        const start = slotDateFromMinutes(semanaIso, minutes);
+        if (movimentoGradeAlterou(atual.evt, start, atual.professionalId)) {
+          onMover?.(atual.evt, start, atual.professionalId);
+          if (semanaIso !== dateIso) onDateChange(semanaIso);
+        }
+        return;
+      }
       const diaIso = hit.getAttribute("data-agenda-dia-iso");
       if (diaIso) {
         const start = combinarDiaEHorario(diaIso, atual.start);

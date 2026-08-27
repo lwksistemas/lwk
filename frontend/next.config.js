@@ -1,3 +1,5 @@
+const { extraConnectSrcOrigins, MEMED_HTTPS } = require('./lib/csp-policy');
+
 function buildConnectSrc() {
   const origins = new Set(["'self'"]);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
@@ -9,24 +11,11 @@ function buildConnectSrc() {
       /* ignore */
     }
   }
-  [
-    'https://api.lwksistemas.com.br',
-    'https://beta.lwksistemas.com.br',
-    'https://media.lwksistemas.com.br',
-    'https://viacep.com.br',
-    'https://brasilapi.com.br',
-    'https://memed.com.br',
-    'https://*.memed.com.br',
-    'wss://*.memed.com.br',
-    'https://meet.jit.si',
-    'wss://meet.jit.si',
-    'https://*.jitsi.net',
-    'wss://*.jitsi.net',
-    'https://8x8.vc',
-    'wss://8x8.vc',
-  ].forEach((o) => origins.add(o));
+  extraConnectSrcOrigins().forEach((o) => origins.add(o));
   return Array.from(origins).join(' ');
 }
+
+const memedHttps = MEMED_HTTPS.join(' ');
 
 const securityHeaders = [
   {
@@ -37,15 +26,15 @@ const securityHeaders = [
       "object-src 'none'",
       "frame-ancestors 'none'",
       "form-action 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://memed.com.br https://*.memed.com.br https://meet.jit.si https://8x8.vc",
-      "style-src 'self' 'unsafe-inline' https://*.memed.com.br https://meet.jit.si",
-      "img-src 'self' data: blob: https://media.lwksistemas.com.br https://i.pravatar.cc https://*.memed.com.br https://meet.jit.si https://*.jitsi.net",
-      "font-src 'self' data: https://*.memed.com.br https://meet.jit.si",
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: ${memedHttps} https://meet.jit.si https://8x8.vc`,
+      `style-src 'self' 'unsafe-inline' ${memedHttps} https://meet.jit.si`,
+      `img-src 'self' data: blob: https://media.lwksistemas.com.br https://i.pravatar.cc ${memedHttps} https://meet.jit.si https://*.jitsi.net`,
+      `font-src 'self' data: ${memedHttps} https://meet.jit.si`,
       `connect-src ${buildConnectSrc()}`,
       "media-src 'self' blob: mediastream:",
-      "frame-src 'self' https://memed.com.br https://*.memed.com.br https://meet.jit.si https://8x8.vc https://*.jitsi.net",
-      "child-src 'self' blob: https://memed.com.br https://*.memed.com.br https://meet.jit.si https://8x8.vc",
-      "worker-src 'self' blob: https://*.memed.com.br https://meet.jit.si",
+      `frame-src 'self' ${memedHttps} https://meet.jit.si https://8x8.vc https://*.jitsi.net`,
+      `child-src 'self' blob: ${memedHttps} https://meet.jit.si https://8x8.vc`,
+      `worker-src 'self' blob: ${memedHttps} https://meet.jit.si`,
       "upgrade-insecure-requests",
     ].join('; '),
   },

@@ -1,6 +1,10 @@
-import { Pencil, Save, X } from "lucide-react";
+import { Save, X } from "lucide-react";
 import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
 import { formatCurrency } from "@/lib/financeiro-helpers";
+import {
+  mostrarEditorNotasAtendimento,
+  mostrarSeletorProtocolo,
+} from "./consulta-atendimento-tab-utils";
 import type { ConsultaProcedimento, Protocolo } from "./consultas-types";
 import { ConsultaPrintButton } from "./ConsultaPrintButton";
 import { ConsultaProcedimentosSection } from "./ConsultaProcedimentosSection";
@@ -10,19 +14,16 @@ export function ConsultaAtendimentoTab({
   consultaId,
   protocolos,
   protocoloPreview,
-  editAtendimento,
   observacoes,
   observacoesDraft,
   saving,
   onSelectProtocolo,
   onConfirmProtocolo,
   onCancelProtocolo,
-  onStartEdit,
   onCancelEdit,
   onChangeDraft,
   onSave,
   printMeta,
-  protocolName,
   procedimentosRealizados = [],
   consultaFinalizada = false,
   onProcedimentosChanged,
@@ -47,6 +48,9 @@ export function ConsultaAtendimentoTab({
   onSave: () => void;
   onProcedimentosChanged?: (consulta?: Record<string, unknown>) => void;
 }) {
+  const editorNotas = mostrarEditorNotasAtendimento(consultaFinalizada);
+  const seletorProtocolo = mostrarSeletorProtocolo(protocolos.length, consultaFinalizada);
+
   return (
     <div className="space-y-5">
       {consultaFinalizada && procedimentosRealizados.length > 0 && (
@@ -62,7 +66,7 @@ export function ConsultaAtendimentoTab({
           </ul>
         </div>
       )}
-      {protocolos.length > 0 && !editAtendimento && (
+      {seletorProtocolo && (
         <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4">
           <p className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">Protocolo cadastrado</p>
           {!protocoloPreview ? (
@@ -113,28 +117,19 @@ export function ConsultaAtendimentoTab({
       <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 md:p-6">
         <div className="flex items-center justify-between mb-4 gap-2">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100">Notas do atendimento</h3>
-          {!editAtendimento ? (
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              {observacoes.trim() && (
-                <ConsultaPrintButton
-                  onAction={(modo) => imprimirConsultaPdf(printMeta.consultaId, "atendimento", modo)}
-                />
-              )}
-              <button
-                type="button"
-                onClick={onStartEdit}
-                className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-700"
-              >
-                <Pencil size={14} />
-                Editar
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {observacoes.trim() && (
+              <ConsultaPrintButton
+                onAction={(modo) => imprimirConsultaPdf(printMeta.consultaId, "atendimento", modo)}
+              />
+            )}
+            {editorNotas && observacoesDraft !== observacoes && (
+              <button type="button" onClick={onCancelEdit} className="inline-flex items-center gap-1.5 text-sm text-gray-500">
+                <X size={14} />
+                Desfazer
               </button>
-            </div>
-          ) : (
-            <button type="button" onClick={onCancelEdit} className="inline-flex items-center gap-1.5 text-sm text-gray-500">
-              <X size={14} />
-              Cancelar
-            </button>
-          )}
+            )}
+          </div>
         </div>
 
         {!consultaFinalizada && (
@@ -146,14 +141,13 @@ export function ConsultaAtendimentoTab({
           />
         )}
 
-        {!editAtendimento ? (
-          <PreviewBlock label="Conteúdo" value={observacoes} empty="Nenhuma anotação registrada." mono />
-        ) : (
+        {editorNotas ? (
           <>
             <textarea
               rows={12}
               value={observacoesDraft}
               onChange={(e) => onChangeDraft(e.target.value)}
+              placeholder="Digite as notas do atendimento..."
               className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600 font-mono text-sm"
             />
             <button
@@ -167,6 +161,8 @@ export function ConsultaAtendimentoTab({
               {saving ? "Salvando..." : "Salvar atendimento"}
             </button>
           </>
+        ) : (
+          <PreviewBlock label="Conteúdo" value={observacoes} empty="Nenhuma anotação registrada." mono />
         )}
       </div>
     </div>

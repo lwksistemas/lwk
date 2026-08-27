@@ -65,17 +65,8 @@ export function useMemedPrescricao({
   }, [professionalId]);
 
   useEffect(() => {
-    let tentativas = 0;
-    const maxTentativas = 2;
-    const tentarPrecarregar = () => {
-      garantirPronto().catch((e) => {
-        tentativas++;
-        logger.warn(`Memed: pré-carregamento falhou (tentativa ${tentativas}/${maxTentativas}):`, e);
-        if (tentativas < maxTentativas) setTimeout(tentarPrecarregar, 3000);
-      });
-    };
-    tentarPrecarregar();
-  }, [garantirPronto]);
+    preloadMemedScript(MEMED_PRELOAD_SCRIPT_URL);
+  }, []);
 
   useEffect(() => () => logoutMemedSdk(), []);
 

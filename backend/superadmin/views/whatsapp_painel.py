@@ -7,8 +7,20 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from superadmin.models import WhatsappApiKey, WhatsappCustomer
-from superadmin.services.whatsapp_painel_service import criar_parceiro, emitir_chave, montar_painel
+from superadmin.services.whatsapp_painel_service import (
+    QUOTA_PARCEIRO_PADRAO,
+    criar_parceiro,
+    emitir_chave,
+    montar_painel,
+)
 from superadmin.views.permissions import IsSuperAdmin
+
+
+def _quota_do_pedido(data) -> int:
+    raw = data.get("quota_numeros")
+    if raw in (None, ""):
+        return QUOTA_PARCEIRO_PADRAO
+    return raw
 
 
 class WhatsappPainelView(APIView):
@@ -25,14 +37,23 @@ class WhatsappParceiroCreateView(APIView):
         try:
             customer = criar_parceiro(
                 nome=request.data.get("nome") or "",
-                documento=request.data.get("documento") or "",
-                quota_numeros=request.data.get("quota_numeros") or 1,
+                documento=request.data.get("documento") or request.data.get("cpf_cnpj") or "",
+                quota_numeros=_quota_do_pedido(request.data),
                 webhook_url=request.data.get("webhook_url") or "",
             )
+            key, raw = emitir_chave(customer, nome=request.data.get("nome_chave") or "php")
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(
-            {"id": customer.id, "nome": customer.nome, "tipo": customer.tipo},
+            {
+                "id": customer.id,
+                "nome": customer.nome,
+                "documento": customer.documento,
+                "quota_numeros": customer.quota_numeros,
+                "tipo": customer.tipo,
+                "chave": raw,
+                "aviso": "Copie agora. A chave completa não será exibida de novo.",
+            },
             status=status.HTTP_201_CREATED,
         )
 

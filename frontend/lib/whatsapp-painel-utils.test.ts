@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   filtrarClientesWhatsapp,
+  formatarDocumentoWhatsapp,
   labelStatusWhatsapp,
   labelTipoWhatsapp,
   type WhatsappCliente,
@@ -38,5 +39,12 @@ describe("labels WhatsApp", () => {
     expect(labelStatusWhatsapp("connected")).toBe("Conectado");
     expect(labelStatusWhatsapp("qr_pending")).toBe("Aguardando QR");
     expect(labelTipoWhatsapp("parceiro")).toBe("Parceiro API");
+  });
+});
+
+describe("formatarDocumentoWhatsapp", () => {
+  it("formata CPF e CNPJ", () => {
+    expect(formatarDocumentoWhatsapp("52998224725")).toBe("529.982.247-25");
+    expect(formatarDocumentoWhatsapp("04252011000110")).toBe("04.252.011/0001-10");
   });
 });

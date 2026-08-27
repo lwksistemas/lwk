@@ -32,6 +32,7 @@ class WhatsappParceiroMeView(APIView):
             {
                 "customer_id": c.id,
                 "nome": c.nome,
+                "documento": c.documento,
                 "tipo": c.tipo,
                 "quota_numeros": c.quota_numeros,
                 "ativo": c.is_active,

@@ -1,3 +1,5 @@
+import { formatCpfCnpj } from "@/lib/format-br";
+
 export type WhatsappNumero = {
   instance_name: string;
   telefone: string;
@@ -56,4 +58,10 @@ export function labelTipoWhatsapp(tipo: string): string {
   if (tipo === "lwk_loja") return "Loja LWK";
   if (tipo === "parceiro") return "Parceiro API";
   return "Sem cliente";
+}
+
+export function formatarDocumentoWhatsapp(documento: string): string {
+  const d = (documento || "").replace(/\D/g, "");
+  if (!d) return "";
+  return formatCpfCnpj(d);
 }

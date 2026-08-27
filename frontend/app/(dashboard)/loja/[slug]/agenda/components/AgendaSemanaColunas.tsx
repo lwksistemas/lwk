@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Calendar } from "lucide-react";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { formatClinicaHora } from "@/lib/clinica-beleza-datetime";
 import {
@@ -11,7 +10,6 @@ import {
   corProfissionalAgenda,
   diasSemanaIso,
   eventProfessionalId,
-  eventosDoDia,
   eventosDoDiaFiltrados,
   faixasSobrepostas,
   minutesToHm,
@@ -22,6 +20,7 @@ import {
   tituloMesCalendario,
   toAgendaDiaIso,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
+import { AlcaLarguraColuna, useAgendaColunaLargura } from "./useAgendaColunaLargura";
 import { useAgendaDiaArrasto } from "./useAgendaDiaArrasto";
 
 const PX_PER_HOUR = 72;
@@ -61,6 +60,11 @@ function rotuloDia(iso: string): { semana: string; data: string } {
   };
 }
 
+function chaveColunaSemana(iso: string): string {
+  const [y, mo, d] = iso.split("-").map(Number);
+  return `dow-${new Date(y, (mo || 1) - 1, d || 1).getDay()}`;
+}
+
 export function AgendaSemanaColunas({
   dateIso,
   onDateChange,
@@ -72,7 +76,6 @@ export function AgendaSemanaColunas({
   onOpenEvent,
   onSlotClick,
   onMudarVisao,
-  onVerLista,
   onMover,
   onRedimensionar,
 }: {
@@ -90,7 +93,6 @@ export function AgendaSemanaColunas({
   onMover?: (evt: AgendaEventData, start: Date, professionalId: number) => void;
   onRedimensionar?: (evt: AgendaEventData, duracaoMinutos: number) => void;
 }) {
-  const dateInputRef = useRef<HTMLInputElement>(null);
   const minMin = parseHmToMinutes(slotMinTime);
   const maxMin = Math.max(minMin + 60, parseHmToMinutes(slotMaxTime));
   const pxPerMin = PX_PER_HOUR / 60;
@@ -132,10 +134,9 @@ export function AgendaSemanaColunas({
     })}`;
   }, [colunas]);
 
-  const listaDia = useMemo(() => eventosDoDia(eventos, dateIso), [eventos, dateIso]);
   const celulasMes = useMemo(() => celulasCalendarioMes(dateIso), [dateIso]);
   const mesTitulo = useMemo(() => capitalizar(tituloMesCalendario(dateIso)), [dateIso]);
-  const { arrasto, iniciarMover, iniciarResize, deveIgnorarClick } = useAgendaDiaArrasto({
+  const { arrasto, iniciarMover, iniciarResize, deveIgnorarClick: deveIgnorarArrasto } = useAgendaDiaArrasto({
     dateIso,
     minMin,
     maxMin,
@@ -144,9 +145,16 @@ export function AgendaSemanaColunas({
     onRedimensionar,
     onDateChange,
   });
+  const {
+    template,
+    iniciar: iniciarLargura,
+    arrastando: arrastandoLargura,
+    deveIgnorarClick: deveIgnorarLargura,
+  } = useAgendaColunaLargura("agenda-col-w-semana", COL_MIN_WIDTH);
+  const deveIgnorarClick = () => deveIgnorarArrasto() || deveIgnorarLargura();
 
   return (
-    <div className={`flex flex-col min-h-0 flex-1 bg-white dark:bg-gray-800 ${arrasto?.moved ? "select-none" : ""}`}>
+    <div className={`flex flex-col min-h-0 flex-1 bg-white dark:bg-gray-800 ${arrasto?.moved || arrastandoLargura ? "select-none" : ""}`}>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 sm:px-4 py-3 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-1.5">
           <button
@@ -172,30 +180,6 @@ export function AgendaSemanaColunas({
           >
             Hoje
           </button>
-          <button
-            type="button"
-            className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-200 hover:bg-gray-50 inline-flex items-center justify-center"
-            onClick={() => {
-              const el = dateInputRef.current;
-              if (!el) return;
-              if (typeof el.showPicker === "function") el.showPicker();
-              else el.click();
-            }}
-            aria-label="Escolher data"
-          >
-            <Calendar size={16} />
-          </button>
-          <input
-            ref={dateInputRef}
-            type="date"
-            value={dateIso}
-            onChange={(e) => {
-              if (e.target.value) onDateChange(e.target.value);
-            }}
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden
-          />
         </div>
         <div className="text-center min-w-[12rem]">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-50 capitalize leading-tight">
@@ -228,9 +212,9 @@ export function AgendaSemanaColunas({
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 min-h-0 overflow-auto agenda-scroll-root">
           <div
-            className="grid min-w-max h-full"
+            className="grid h-full min-w-full"
             style={{
-              gridTemplateColumns: `repeat(${colunas.length}, minmax(${COL_MIN_WIDTH}px, 1fr))`,
+              gridTemplateColumns: colunas.map((colIso) => template(chaveColunaSemana(colIso))).join(" "),
             }}
           >
             {colunas.map((colIso) => {
@@ -238,11 +222,14 @@ export function AgendaSemanaColunas({
               const ehHoje = colIso === hojeIso;
               const ehFoco = colIso === dateIso;
               const items = faixasSobrepostas(eventosDoDiaFiltrados(eventos, colIso, selectedProfessional));
+              const colKey = chaveColunaSemana(colIso);
               return (
                 <div
                   key={colIso}
-                  className="flex flex-col border-r border-gray-200 dark:border-gray-700 min-w-0"
+                  data-agenda-col-wrap
+                  className="relative flex flex-col border-r border-gray-200 dark:border-gray-700 min-w-0"
                 >
+                  <AlcaLarguraColuna onPointerDown={(e) => iniciarLargura(colKey, e)} />
                   <div
                     className={`sticky top-0 z-20 border-b border-gray-200 dark:border-gray-700 px-2 py-2 text-center ${
                       ehHoje ? "bg-violet-50 dark:bg-violet-950/30" : "bg-white dark:bg-gray-800"
@@ -387,8 +374,8 @@ export function AgendaSemanaColunas({
           </div>
         </div>
 
-        <aside className="hidden lg:flex w-72 shrink-0 flex-col border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+        <aside className="hidden lg:flex w-64 shrink-0 self-start flex-col border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <div className="p-4">
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 capitalize mb-3">{mesTitulo}</p>
             <div className="grid grid-cols-7 gap-y-1 text-center">
               {WEEKDAYS.map((d, i) => (
@@ -427,48 +414,6 @@ export function AgendaSemanaColunas({
               })}
             </div>
           </div>
-          <div className="flex-1 min-h-0 overflow-auto p-4">
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Agendamentos do dia</p>
-            {listaDia.length === 0 ? (
-              <p className="text-xs text-gray-500">Nenhum agendamento neste dia.</p>
-            ) : (
-              <ul className="space-y-2.5">
-                {listaDia.map(({ evt, start }) => {
-                  const pid = eventProfessionalId(evt);
-                  const cor = pid != null ? corProfissionalAgenda(pid) : "#94a3b8";
-                  return (
-                    <li key={evt.id}>
-                      <button
-                        type="button"
-                        onClick={() => onOpenEvent(evt)}
-                        className="w-full flex items-start gap-2 text-left rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/60 px-1 py-0.5"
-                      >
-                        <span className="mt-1.5 w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cor }} />
-                        <span className="min-w-0">
-                          <span className="block text-xs text-gray-900 dark:text-gray-100">
-                            <span className="tabular-nums text-gray-500 mr-1.5">{formatClinicaHora(start)}</span>
-                            <span className="font-semibold">{evt.extendedProps?.patient_name || evt.title}</span>
-                          </span>
-                          {evt.extendedProps?.professional_name ? (
-                            <span className="block text-[11px] text-gray-400 truncate">
-                              {evt.extendedProps.professional_name}
-                            </span>
-                          ) : null}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-          {onVerLista ? (
-            <div className="p-3 border-t border-gray-100 dark:border-gray-700">
-              <button type="button" onClick={onVerLista} className="text-sm font-medium" style={{ color: DIA_ACCENT }}>
-                Ver todos
-              </button>
-            </div>
-          ) : null}
         </aside>
       </div>
 

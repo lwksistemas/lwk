@@ -154,7 +154,6 @@ export default function AgendaPage() {
     <div className="relative flex flex-col sm:flex-1 sm:min-h-0">
       <ClinicaBelezaStandardPageHeader
         title="Agenda"
-        subtitle="Calendário de agendamentos"
         backHref={`/loja/${slug}/dashboard`}
         showOffline={false}
         extraActions={

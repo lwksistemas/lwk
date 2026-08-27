@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   celulasCalendarioMes,
+  clampLarguraColuna,
   clampMinutosInicio,
   colunasProfissionaisDia,
   combinarDiaEHorario,
@@ -181,6 +182,14 @@ describe("semana", () => {
     const faixas = faixasSobrepostas([a, b]);
     expect(faixas.map((f) => f.lane)).toEqual([0, 1]);
     expect(faixas[0].lanes).toBe(2);
+  });
+});
+
+describe("clampLarguraColuna", () => {
+  it("respeita o mínimo, o máximo e arredonda", () => {
+    expect(clampLarguraColuna(80)).toBe(160);
+    expect(clampLarguraColuna(900)).toBe(560);
+    expect(clampLarguraColuna(280.4)).toBe(280);
   });
 });
 

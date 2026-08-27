@@ -260,6 +260,17 @@ export function eventosDoDiaFiltrados(
   return lista.filter((row) => String(eventProfessionalId(row.evt)) === selectedProfessional);
 }
 
+export const AGENDA_COLUNA_MIN = 160;
+export const AGENDA_COLUNA_MAX = 560;
+
+export function clampLarguraColuna(
+  px: number,
+  min = AGENDA_COLUNA_MIN,
+  max = AGENDA_COLUNA_MAX,
+): number {
+  return Math.min(max, Math.max(min, Math.round(px)));
+}
+
 export function faixasSobrepostas(
   items: AgendaDiaItem[],
 ): { item: AgendaDiaItem; lane: number; lanes: number }[] {

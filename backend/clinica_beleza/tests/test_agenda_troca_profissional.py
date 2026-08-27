@@ -96,3 +96,49 @@ class AtualizarAgendamentoProfissionalTest(SimpleTestCase):
         atualizar_agendamento(appointment, new_professional=3, user=None)
 
         mock_whats.assert_not_called()
+
+
+class AtualizarAgendamentoMaterialTest(SimpleTestCase):
+    @patch("clinica_beleza.agenda_service._redisparar_confirmacao_por_mudanca_data")
+    @patch("clinica_beleza.agenda_service.validar_regras_agendamento")
+    @patch("clinica_beleza.agenda_service.bloqueio_impede_agendamento", return_value=False)
+    def test_mudanca_data_invalida_link(self, _bloq, _regras, mock_whats):
+        appointment = MagicMock(
+            id=10,
+            professional_id=3,
+            date=datetime(2026, 8, 26, 8, 10),
+            status="CLIENT_CONFIRMED",
+            version=1,
+            confirmacao_generation=1,
+        )
+        appointment.get_duracao_efetiva.return_value = 40
+
+        result = atualizar_agendamento(
+            appointment, new_date=datetime(2026, 8, 31, 9, 25), user=None,
+        )
+
+        self.assertEqual(appointment.status, "SCHEDULED")
+        self.assertEqual(appointment.confirmacao_generation, 2)
+        self.assertTrue(result.confirmacao_reiniciada)
+        mock_whats.assert_called_once_with(appointment)
+
+    @patch("clinica_beleza.agenda_service._redisparar_confirmacao_por_mudanca_data")
+    @patch("clinica_beleza.agenda_service._aplicar_procedimentos", return_value=True)
+    @patch("clinica_beleza.agenda_service.validar_regras_agendamento")
+    @patch("clinica_beleza.agenda_service.bloqueio_impede_agendamento", return_value=False)
+    def test_mudanca_procedimento_invalida_link(self, _bloq, _regras, _procs, mock_whats):
+        appointment = MagicMock(
+            id=10,
+            professional_id=3,
+            date=datetime(2026, 8, 26, 8, 10),
+            status="SCHEDULED",
+            version=1,
+            confirmacao_generation=1,
+        )
+        appointment.get_duracao_efetiva.return_value = 40
+
+        result = atualizar_agendamento(appointment, new_procedures_ids=[1, 2], user=None)
+
+        self.assertEqual(appointment.confirmacao_generation, 2)
+        self.assertTrue(result.confirmacao_reiniciada)
+        mock_whats.assert_called_once_with(appointment)

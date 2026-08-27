@@ -90,7 +90,7 @@ describe("corProfissionalAgenda / snapMinutos", () => {
 });
 
 describe("eventosDoDia", () => {
-  it("lista o dia e ignora intervalo e bloqueio", () => {
+  it("lista o dia incluindo intervalo e bloqueio", () => {
     const lista = [
       evt({
         id: "1",
@@ -113,7 +113,7 @@ describe("eventosDoDia", () => {
         extendedProps: { professional: 1 },
       }),
     ];
-    expect(eventosDoDia(lista, "2026-08-26").map((x) => x.evt.id)).toEqual(["1"]);
+    expect(eventosDoDia(lista, "2026-08-26").map((x) => x.evt.id)).toEqual(["1", "2", "3"]);
   });
 });
 

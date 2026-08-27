@@ -90,7 +90,6 @@ export function AgendaPageModals({
       <ModalDetalheAgendamento
         open={showModal && selectedEvent != null}
         onClose={onCloseDetalhe}
-        onSuccess={onReload}
         event={selectedEvent!}
         professionals={professionals}
         procedures={procedures}

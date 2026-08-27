@@ -19,13 +19,6 @@ import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 
 const FullCalendar = lazy(() => import("@fullcalendar/react"));
 
-function toInputDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 function findVerticalScroller(start: HTMLElement): HTMLElement {
   let node: HTMLElement | null = start;
   while (node) {
@@ -94,7 +87,6 @@ export function AgendaCalendarSection({
   isDraggingRef: parentDraggingRef,
   professionals = [],
   onNovoHorario,
-  onVerLista,
   onMoverGrade,
   onRedimensionarGrade,
 }: {
@@ -102,7 +94,6 @@ export function AgendaCalendarSection({
   eventos: AgendaEventData[];
   calendarPlugins: unknown[];
   ptBrLocale: unknown;
-  isMobile: boolean;
   selectedProfessional: string;
   temHorarioExpediente: boolean;
   businessHours: unknown;
@@ -117,11 +108,9 @@ export function AgendaCalendarSection({
   isDraggingRef?: React.MutableRefObject<boolean>;
   professionals?: ClinicaProfessional[];
   onNovoHorario?: (date: Date, professionalId: number) => void;
-  onVerLista?: () => void;
   onMoverGrade?: (evt: AgendaEventData, start: Date, professionalId: number) => void;
   onRedimensionarGrade?: (evt: AgendaEventData, duracaoMinutos: number) => void;
 }) {
-  const [mobileDateIso, setMobileDateIso] = useState(() => toInputDate(new Date()));
   const [gradeView, setGradeView] = useState<"day" | "week" | "month">("day");
   const [diaIso, setDiaIso] = useState(() => toAgendaDiaIso(new Date()));
   const [, setFreezeTick] = useState(0);
@@ -200,8 +189,8 @@ export function AgendaCalendarSection({
     return (
       <div className="flex flex-col min-h-[60vh] p-2">
         <AgendaMobileDayView
-          dateIso={mobileDateIso}
-          onDateChange={setMobileDateIso}
+          dateIso={diaIso}
+          onDateChange={setDiaIso}
           eventos={eventos}
           slotMinTime={slotMinTime}
           slotMaxTime={slotMaxTime}
@@ -239,7 +228,6 @@ export function AgendaCalendarSection({
             onDateClick({ date, allDay: false } as DateClickArg);
           }}
           onMudarVisao={(view) => setGradeView(view)}
-          onVerLista={onVerLista}
           onMover={onMoverGrade}
           onRedimensionar={onRedimensionarGrade}
           onArrastoAtivo={marcarArrasto}
@@ -265,7 +253,6 @@ export function AgendaCalendarSection({
             onDateClick({ date, allDay: false } as DateClickArg);
           }}
           onMudarVisao={(view) => setGradeView(view)}
-          onVerLista={onVerLista}
           onMover={onMoverGrade}
           onRedimensionar={onRedimensionarGrade}
           onArrastoAtivo={marcarArrasto}

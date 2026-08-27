@@ -50,7 +50,7 @@ export function aplicarHorarioAgendaEvento(
 
 export function formatarAgendaEvento(
   e: AgendaEventData | Record<string, unknown>,
-  comRestricaoExpediente: boolean,
+  _comRestricaoExpediente: boolean,
   statusColors: AgendaStatusColorMap = CLINICA_AGENDA_STATUS_COLORS,
 ): AgendaEventData {
   const raw = e as Record<string, unknown>;
@@ -101,6 +101,10 @@ export function formatarAgendaEvento(
       notes: String(raw.notes ?? ""),
       version: versaoAgenda(raw.version),
       updated_at: raw.updated_at ? String(raw.updated_at) : undefined,
+      consulta_id: (() => {
+        const n = Number(raw.consulta_id);
+        return Number.isFinite(n) && n > 0 ? n : undefined;
+      })(),
     },
   };
 }

@@ -55,33 +55,25 @@ export function useAgendaPageEffects({
       return;
     }
     const loadPlugins = async () => {
-      const [dayGrid, timeGrid, interaction, ptBr] = await Promise.all([
+      // Visão Mês usa dayGrid + interaction. Dia/Semana são views próprias (sem timeGrid).
+      const [dayGrid, interaction, ptBr] = await Promise.all([
         import("@fullcalendar/daygrid"),
-        import("@fullcalendar/timegrid"),
         import("@fullcalendar/interaction"),
         import("@fullcalendar/core/locales/pt-br"),
       ]);
-      setCalendarPlugins([dayGrid.default, timeGrid.default, interaction.default]);
+      setCalendarPlugins([dayGrid.default, interaction.default]);
       setPtBrLocale(ptBr.default);
     };
     void loadPlugins();
   }, []);
 
   useEffect(() => {
-    // Celular usa AgendaMobileDayView — não carrega FullCalendar (economiza memória/Android).
-    if (typeof window !== "undefined" && window.innerWidth < 640) {
-      void carregarDadosRef.current();
-      return;
-    }
-    if (calendarPlugins.length === 0) return;
-    // No primeiro mount do calendário a query de eventos já buscou sozinha.
-    // Um refetch extra aqui coincidia com o arrasto e cancelava o drop.
     if (!desktopPluginsReadyRef.current) {
       desktopPluginsReadyRef.current = true;
       return;
     }
     void carregarDadosRef.current();
-  }, [selectedProfessional, calendarPlugins]);
+  }, [selectedProfessional]);
 
   useEffect(() => {
     const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 640);
@@ -120,6 +112,7 @@ export function useAgendaPageEffects({
 
   useEffect(() => {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    // Polling de eventos (8s; 4s com modal em aguardando). Pausa em arrasto, mutação e scroll.
 
     const aguardando =
       showModal &&
@@ -174,5 +167,5 @@ export function useAgendaPageEffects({
     setSelectedEvent,
   ]);
 
-  return { calendarPlugins, ptBrLocale, isMobile, calendarReady: calendarPlugins.length > 0 && ptBrLocale != null };
+  return { calendarPlugins, ptBrLocale, isMobile };
 }

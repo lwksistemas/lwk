@@ -416,6 +416,15 @@ export function useAgendaMutations({
         return;
       }
       if (!res.ok) throw new Error(data.error || "Erro ao atualizar status");
+      queryClient.setQueryData(
+        clinicaBelezaQueryKeys.agendaEvents(selectedProfessional),
+        (old) =>
+          mergeRawAgendaEvent(old, {
+            id: dbId,
+            status: novoStatus,
+            ...(data.consulta_id != null ? { consulta_id: Number(data.consulta_id) } : {}),
+          }),
+      );
       setSelectedEvent((prev) =>
         prev
           ? {
@@ -436,7 +445,7 @@ export function useAgendaMutations({
     } finally {
       setUpdatingStatus(false);
     }
-  }, [onReload, selectedEvent, setSelectedEvent, toast]);
+  }, [onReload, queryClient, selectedEvent, selectedProfessional, setSelectedEvent, toast]);
 
   const reenviarMensagemWhatsApp = useCallback(async () => {
     if (!selectedEvent) return;

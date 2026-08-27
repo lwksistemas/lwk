@@ -63,6 +63,17 @@ export function estiloCardStatusAgenda(evt: AgendaEventData): {
   };
 }
 
+export function capitalizarAgenda(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+export function tituloCardAgenda(evt: AgendaEventData): string {
+  const p = evt.extendedProps || {};
+  if (p.isBloqueio) return (p.motivo || evt.title).replace(/^🚫\s*/, "");
+  if (p.isIntervalo) return evt.title.replace(/^🍽️\s*/, "") || "Intervalo / Almoço";
+  return (p.patient_name || evt.title).toUpperCase();
+}
+
 export function toAgendaDiaIso(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -149,7 +160,6 @@ export function eventosDoDiaNaColuna(
 export function eventosDoDia(eventos: AgendaEventData[], dateIso: string): AgendaDiaItem[] {
   const out: AgendaDiaItem[] = [];
   for (const evt of eventos) {
-    if (evt.extendedProps?.isIntervalo || evt.extendedProps?.isBloqueio) continue;
     const start = parseEventDate(evt.start);
     if (!start || !sameDayIso(start, dateIso)) continue;
     const end = parseEventDate(evt.end) || start;
@@ -290,7 +300,11 @@ export function eventosDoDiaFiltrados(
 ): AgendaDiaItem[] {
   const lista = eventosDoDia(eventos, dateIso);
   if (!selectedProfessional) return lista;
-  return lista.filter((row) => String(eventProfessionalId(row.evt)) === selectedProfessional);
+  return lista.filter((row) => {
+    const pid = eventProfessionalId(row.evt);
+    if (pid == null && Boolean(row.evt.extendedProps?.isBloqueio)) return true;
+    return String(pid) === selectedProfessional;
+  });
 }
 
 export const AGENDA_COLUNA_MIN = 160;

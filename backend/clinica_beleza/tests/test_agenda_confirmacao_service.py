@@ -9,6 +9,7 @@ from clinica_beleza.agenda_confirmacao_service import (
     decodificar_token_confirmacao,
     gerar_token_confirmacao,
     geracao_do_payload,
+    obter_dados_confirmacao,
     processar_resposta_confirmacao,
     token_confirmacao_desatualizado,
     url_confirmacao_frontend,
@@ -94,6 +95,27 @@ class ProcessarRespostaLinkSubstituidoTest(TestCase):
         self.assertFalse(result.ok)
         self.assertEqual(result.message, MSG_LINK_SUBSTITUIDO)
         self.assertEqual(result.codigo, "link_substituido")
+
+
+class ObterDadosLinkSubstituidoTest(TestCase):
+    @patch("clinica_beleza.agenda_confirmacao_service._configurar_tenant")
+    @patch("clinica_beleza.agenda_confirmacao_service.decodificar_token_confirmacao")
+    @patch("superadmin.models.Loja")
+    @patch("clinica_beleza.models.Appointment")
+    def test_get_publico_recusa_token_antigo(
+        self, mock_appointment_model, mock_loja, mock_decode, mock_tenant,
+    ):
+        mock_tenant.return_value = None
+        mock_decode.return_value = {"loja_id": 15, "doc_id": 99, "g": 1}
+        mock_loja.objects.using.return_value.filter.return_value.first.return_value = MagicMock(nome="Harmonis")
+        appointment = MagicMock(id=99, confirmacao_generation=2)
+        mock_appointment_model.objects.select_related.return_value.prefetch_related.return_value.filter.return_value.first.return_value = appointment
+
+        dados, erro, loja_id = obter_dados_confirmacao("token-antigo")
+
+        self.assertIsNone(dados)
+        self.assertEqual(erro, MSG_LINK_SUBSTITUIDO)
+        self.assertEqual(loja_id, 15)
 
 
 class UrlConfirmacaoFrontendTest(SimpleTestCase):

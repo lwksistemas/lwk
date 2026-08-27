@@ -17,6 +17,8 @@ import {
   sameDayIso,
   slotDateFromMinutes,
   snapMinutos,
+  capitalizarAgenda,
+  tituloCardAgenda,
   tituloMesCalendario,
   toAgendaDiaIso,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
@@ -29,17 +31,6 @@ const TIME_COL_W = 44;
 const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"] as const;
 const DIA_ACCENT = "#7c3aed";
 
-function capitalizar(s: string): string {
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-}
-
-function tituloCard(evt: AgendaEventData): string {
-  const p = evt.extendedProps || {};
-  if (p.isBloqueio) return (p.motivo || evt.title).replace(/^🚫\s*/, "");
-  if (p.isIntervalo) return evt.title.replace(/^🍽️\s*/, "") || "Intervalo / Almoço";
-  return (p.patient_name || evt.title).toUpperCase();
-}
-
 function subtituloCard(evt: AgendaEventData): string {
   const p = evt.extendedProps || {};
   if (p.isBloqueio) return "Bloqueio";
@@ -51,7 +42,7 @@ function rotuloDia(iso: string): { semana: string; data: string } {
   const [y, mo, d] = iso.split("-").map(Number);
   const ref = new Date(y, (mo || 1) - 1, d || 1);
   return {
-    semana: capitalizar(ref.toLocaleDateString("pt-BR", { weekday: "short" })).replace(".", ""),
+    semana: capitalizarAgenda(ref.toLocaleDateString("pt-BR", { weekday: "short" })).replace(".", ""),
     data: ref.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
   };
 }
@@ -86,7 +77,6 @@ export function AgendaSemanaColunas({
   onOpenEvent: (evt: AgendaEventData) => void;
   onSlotClick: (date: Date, professionalId: number) => void;
   onMudarVisao: (view: "day" | "month") => void;
-  onVerLista?: () => void;
   onMover?: (evt: AgendaEventData, start: Date, professionalId: number) => void;
   onRedimensionar?: (evt: AgendaEventData, duracaoMinutos: number) => void;
   onArrastoAtivo?: (ativo: boolean) => void;
@@ -121,7 +111,7 @@ export function AgendaSemanaColunas({
     const a = new Date(y1, (m1 || 1) - 1, d1 || 1);
     const b = new Date(y2, (m2 || 1) - 1, d2 || 1);
     if (a.getMonth() === b.getMonth()) {
-      return `${a.getDate()} – ${b.getDate()} de ${capitalizar(
+      return `${a.getDate()} – ${b.getDate()} de ${capitalizarAgenda(
         a.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
       )}`;
     }
@@ -133,7 +123,7 @@ export function AgendaSemanaColunas({
   }, [colunas]);
 
   const celulasMes = useMemo(() => celulasCalendarioMes(dateIso), [dateIso]);
-  const mesTitulo = useMemo(() => capitalizar(tituloMesCalendario(dateIso)), [dateIso]);
+  const mesTitulo = useMemo(() => capitalizarAgenda(tituloMesCalendario(dateIso)), [dateIso]);
   const { arrasto, iniciarMover, iniciarResize, deveIgnorarClick: deveIgnorarArrasto } = useAgendaDiaArrasto({
     dateIso,
     minMin,
@@ -355,7 +345,7 @@ export function AgendaSemanaColunas({
                               />
                             )}
                           </div>
-                          <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{tituloCard(evt)}</p>
+                          <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{tituloCardAgenda(evt)}</p>
                           {height > 56 ? (
                             <p className="text-[11px] text-gray-500 truncate">{subtituloCard(evt)}</p>
                           ) : null}
@@ -440,7 +430,7 @@ export function AgendaSemanaColunas({
               <p className="text-[11px] tabular-nums text-gray-600">
                 {formatClinicaHora(arrasto.start)} - {formatClinicaHora(arrasto.end)}
               </p>
-              <p className="text-xs font-semibold text-gray-900 truncate">{tituloCard(arrasto.evt)}</p>
+              <p className="text-xs font-semibold text-gray-900 truncate">{tituloCardAgenda(arrasto.evt)}</p>
               {arrasto.hoverDiaIso && arrasto.hoverDiaIso !== dateIso ? (
                 <p className="text-[11px] text-violet-700 mt-0.5">
                   Mover para {arrasto.hoverDiaIso.split("-").reverse().join("/")}

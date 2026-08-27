@@ -16,8 +16,6 @@ import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 
-export type { AgendaEventData };
-
 function toDatetimeLocalValue(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
@@ -44,7 +42,6 @@ const STATUS_JA_CONFIRMADO = new Set(["CLIENT_CONFIRMED", "PHONE_CONFIRMED"]);
 interface ModalDetalheAgendamentoProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
   event: AgendaEventData;
   professionals: { id: number; nome?: string; name?: string }[];
   procedures: ConsultaFormProcedure[];

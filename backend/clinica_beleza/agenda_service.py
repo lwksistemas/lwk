@@ -534,13 +534,3 @@ def _redisparar_confirmacao_por_mudanca_data(appointment):
             appointment.id,
         )
 
-
-def _executar_regra_finalizacao(appointment):
-    """Executa regras de finalização (best-effort)."""
-    try:
-        from rules.base import MotorRegras
-        MotorRegras().executar("AGENDAMENTO_FINALIZADO", {"appointment": appointment})
-    except Exception:
-        logger.exception("Erro ao executar regras de finalização do agendamento %s", appointment.id)
-
-

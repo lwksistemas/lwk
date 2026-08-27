@@ -2,7 +2,7 @@
 
 /**
  * Página de Agenda - Clínica da Beleza
- * Calendário fullscreen com drag & drop + Bloqueio de Horários
+ * Grade Dia/Semana própria, mês FullCalendar, bloqueio de horários.
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -61,7 +61,7 @@ export default function AgendaPage() {
     recarregarEventos,
   } = useAgendaData(selectedProfessional);
 
-  const { calendarPlugins, ptBrLocale, isMobile } = useAgendaPageEffects({
+  const { calendarPlugins, ptBrLocale } = useAgendaPageEffects({
     searchParams,
     selectedProfessional,
     carregarDados,
@@ -180,7 +180,6 @@ export default function AgendaPage() {
             eventos={eventos}
             calendarPlugins={calendarPlugins}
             ptBrLocale={ptBrLocale}
-            isMobile={isMobile}
             selectedProfessional={selectedProfessional}
             temHorarioExpediente={temHorarioExpediente}
             businessHours={businessHours}
@@ -197,7 +196,6 @@ export default function AgendaPage() {
             onNovoHorario={(_date, professionalId) => {
               setCreateProfessionalId(professionalId > 0 ? String(professionalId) : "");
             }}
-            onVerLista={() => setModoAgenda("lista")}
             onMoverGrade={moverAgendamentoGrade}
             onRedimensionarGrade={redimensionarAgendamentoGrade}
           />

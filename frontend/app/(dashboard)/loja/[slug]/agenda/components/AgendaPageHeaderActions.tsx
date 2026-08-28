@@ -1,4 +1,4 @@
-import { CalendarDays, List, Lock, Plus } from "lucide-react";
+import { CalendarDays, List, Lock, Plus, Settings } from "lucide-react";
 import { OfflineIndicator } from "@/components/clinica-beleza/OfflineIndicator";
 import { entityName } from "@/lib/clinica-beleza-entities";
 
@@ -10,6 +10,7 @@ export function AgendaPageHeaderActions({
   professionals,
   onBloquear,
   onNovo,
+  onConfigurar,
 }: {
   modoAgenda: "grade" | "lista";
   onToggleModo: () => void;
@@ -18,6 +19,7 @@ export function AgendaPageHeaderActions({
   professionals: { id: number; nome?: string; name?: string }[];
   onBloquear: () => void;
   onNovo: () => void;
+  onConfigurar: () => void;
 }) {
   return (
     <>
@@ -47,6 +49,15 @@ export function AgendaPageHeaderActions({
           </option>
         ))}
       </select>
+      <button
+        type="button"
+        onClick={onConfigurar}
+        className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs sm:text-sm hover:bg-gray-50 dark:hover:bg-gray-600 shrink-0 transition-colors"
+        title="Configuração da Agenda"
+      >
+        <Settings size={16} className="sm:w-4 sm:h-4" />
+        <span className="hidden md:inline">Configurar</span>
+      </button>
       <button
         type="button"
         onClick={onBloquear}

@@ -63,12 +63,6 @@ export function buildProntuarioConsultasResumo(consultas: Consulta[]): Prontuari
   };
 }
 
-export function consultaAcaoLabel(status: string): string {
-  if (status === "IN_PROGRESS") return "Continuar consulta";
-  if (status === "RECEBER" || status === "SCHEDULED") return "Iniciar consulta";
-  return "Abrir consulta";
-}
-
 /** Ainda não entrou em atendimento — o botão Iniciar dispara a API e abre a ficha. */
 export function consultaPodeIniciarAtendimento(c: Pick<Consulta, "status" | "data_inicio">): boolean {
   return (c.status === "SCHEDULED" || c.status === "RECEBER") && !c.data_inicio;

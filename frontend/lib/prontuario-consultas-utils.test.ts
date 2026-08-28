@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import {
   buildProntuarioConsultasResumo,
-  consultaAcaoLabel,
   consultaPodeExcluirNoProntuario,
   consultaPodeIniciarAtendimento,
   consultaProcedimentoLabel,
@@ -60,10 +59,7 @@ describe("prontuario consultas", () => {
     expect(resumo.consultaParaFotosId).toBe(10);
   });
 
-  it("rótulos de ação e procedimento", () => {
-    expect(consultaAcaoLabel("IN_PROGRESS")).toBe("Continuar consulta");
-    expect(consultaAcaoLabel("SCHEDULED")).toBe("Iniciar consulta");
-    expect(consultaAcaoLabel("COMPLETED")).toBe("Abrir consulta");
+  it("rótulos de procedimento", () => {
     expect(
       consultaProcedimentoLabel(
         consulta({

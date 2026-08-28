@@ -16,16 +16,13 @@ function mensagemErro(e: unknown, fallback: string): string {
 }
 
 type Props = {
-  onAction?: (modo: ConsultaPdfModo) => void | Promise<unknown>;
-  /** Compat: mesmo efeito de Visualizar. */
-  onPrint?: () => void | Promise<unknown>;
+  onAction: (modo: ConsultaPdfModo) => void | Promise<unknown>;
   labelVisualizar?: string;
   className?: string;
 };
 
 export function ConsultaPrintButton({
   onAction,
-  onPrint,
   labelVisualizar = "Visualizar",
   className = "",
 }: Props) {
@@ -36,11 +33,7 @@ export function ConsultaPrintButton({
     if (loading) return;
     setLoading(true);
     try {
-      if (onAction) {
-        await onAction("visualizar");
-      } else {
-        await onPrint?.();
-      }
+      await onAction("visualizar");
     } catch (e) {
       toast.error(mensagemErro(e, "Não foi possível visualizar."));
     } finally {

@@ -1,5 +1,6 @@
 """Construção de elementos (parágrafos, seções) dos PDFs."""
 import re
+from xml.sax.saxutils import escape as xml_escape
 
 from django.utils import timezone
 from reportlab.lib import colors
@@ -275,14 +276,15 @@ def _build_prescricao_memed_elements(prescricao, styles):
     elements.append(Paragraph(f"Receituário — {data_str}", styles["DocTitle"]))
 
     if prescricao.resumo:
-        elements.append(Paragraph(prescricao.resumo.replace("\n", "<br/>"), styles["DocBody"]))
+        texto = xml_escape(str(prescricao.resumo)).replace("\n", "<br/>")
+        elements.append(Paragraph(texto, styles["DocBody"]))
     elif prescricao.itens:
         linhas = []
         for item in prescricao.itens:
             if not isinstance(item, dict):
                 continue
-            nome = (item.get("nome") or "").strip()
-            posologia = (item.get("posologia") or "").strip()
+            nome = xml_escape((item.get("nome") or "").strip())
+            posologia = xml_escape((item.get("posologia") or "").strip())
             if nome and posologia:
                 linhas.append(f"• {nome} — {posologia}")
             elif nome:

@@ -15,7 +15,13 @@ interface ProntuarioTabContentProps {
   consultas: Consulta[];
   consultasLoading: boolean;
   consultaParaFotosId: number | null;
+  iniciandoId: number | null;
+  excluindoId: number | null;
+  recebendoId: number | null;
   onAbrirConsulta: (consultaId: number) => void;
+  onIniciarConsulta: (consulta: Consulta) => void;
+  onReceberConsulta: (consulta: Consulta) => void;
+  onExcluirConsulta: (consulta: Consulta) => void;
 }
 
 export function ProntuarioTabContent({
@@ -24,14 +30,26 @@ export function ProntuarioTabContent({
   consultas,
   consultasLoading,
   consultaParaFotosId,
+  iniciandoId,
+  excluindoId,
+  recebendoId,
   onAbrirConsulta,
+  onIniciarConsulta,
+  onReceberConsulta,
+  onExcluirConsulta,
 }: ProntuarioTabContentProps) {
   if (activeTab === "resumo") {
     return (
       <ProntuarioResumoSection
         consultas={consultas}
         loading={consultasLoading}
+        iniciandoId={iniciandoId}
+        excluindoId={excluindoId}
+        recebendoId={recebendoId}
         onAbrirConsulta={onAbrirConsulta}
+        onIniciarConsulta={onIniciarConsulta}
+        onReceberConsulta={onReceberConsulta}
+        onExcluirConsulta={onExcluirConsulta}
       />
     );
   }

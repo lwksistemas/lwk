@@ -253,7 +253,7 @@ class ClienteSearchMixin:
     por nome, telefone ou email (mínimo 2 caracteres).
 
     Consumidores: apps legado removidos.
-    NÃO usado por `clinica_beleza` (que usa `_patient_search_q` diretamente nas views).
+    NÃO usado por `clinica_beleza` (que usa `apply_patient_search` nas views).
 
     Uso:
         from rest_framework.decorators import action

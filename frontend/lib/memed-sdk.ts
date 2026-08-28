@@ -74,15 +74,39 @@ export async function enviarComandoMemed(
   await withTimeout(Promise.resolve(result), timeoutMs, `Memed: tempo esgotado no comando ${command}`);
 }
 
-export function forcarFecharOverlayMemed(win: Window): void {
-  const ids = [MEMED_V4_OVERLAY_ID, "iframe-container", "memed-sinapse-container"];
-  for (const id of ids) {
-    const el = win.document.getElementById(id);
-    if (el instanceof HTMLElement) {
-      el.style.display = "none";
-      el.style.visibility = "hidden";
-      el.style.pointerEvents = "none";
-    }
+export function moverIframeMemedParaHost(doc: Document, hostId: string): boolean {
+  const host = doc.getElementById(hostId);
+  if (!host) return false;
+  const noHost = host.querySelector("iframe");
+  const iframe =
+    (noHost instanceof HTMLIFrameElement ? noHost : null) ||
+    Array.from(doc.querySelectorAll("iframe")).find((el) => {
+      const src = el.getAttribute("src") || "";
+      const title = el.getAttribute("title") || "";
+      return title === "Memed Prescrição" || src.includes("v4-embedded") || src.includes("memed.com.br");
+    }) ||
+    null;
+  if (!(iframe instanceof HTMLIFrameElement)) return false;
+  iframe.style.display = "block";
+  iframe.style.width = "100%";
+  iframe.style.height = "100%";
+  iframe.style.minHeight = "700px";
+  iframe.style.border = "none";
+  iframe.style.visibility = "visible";
+  iframe.style.pointerEvents = "auto";
+  if (!host.contains(iframe)) {
+    host.appendChild(iframe);
+  }
+  return true;
+}
+
+export function forcarFecharOverlayMemed(win: Window, hostId?: string): void {
+  const host = hostId ? win.document.getElementById(hostId) : null;
+  const overlay = win.document.getElementById(MEMED_V4_OVERLAY_ID);
+  if (overlay instanceof HTMLElement && (!host || !overlay.contains(host))) {
+    overlay.style.display = "none";
+    overlay.style.visibility = "hidden";
+    overlay.style.pointerEvents = "none";
   }
   win.document.body.style.overflow = "";
 }

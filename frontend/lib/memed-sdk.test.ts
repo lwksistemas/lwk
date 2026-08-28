@@ -3,6 +3,7 @@ import {
   isMemedMessageReady,
   isMemedV4Boot,
   MEMED_V4_BOOT_KEY,
+  moverIframeMemedParaHost,
   withTimeout,
 } from "./memed-sdk";
 
@@ -32,5 +33,15 @@ describe("detecção V4", () => {
     expect(isMemedMessageReady({ type: "MEMED_READY" })).toBe(true);
     expect(isMemedMessageReady({ type: "COMMAND_RESULT" })).toBe(false);
     expect(isMemedMessageReady(null)).toBe(false);
+  });
+});
+
+describe("moverIframeMemedParaHost", () => {
+  it("devolve false sem host", () => {
+    const doc = {
+      getElementById: () => null,
+      querySelectorAll: () => [],
+    } as unknown as Document;
+    expect(moverIframeMemedParaHost(doc, "lwk-memed-host")).toBe(false);
   });
 });

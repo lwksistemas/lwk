@@ -11,6 +11,7 @@ import { flushSync } from "react-dom";
 import { X } from "lucide-react";
 import { MEMED_CONTAINER_ID } from "./memed/memed-constants";
 import { useMemedPrescricao } from "./memed/useMemedPrescricao";
+import { moverIframeMemedParaHost } from "@/lib/memed-sdk";
 
 export interface MemedPrescricaoHandle {
   abrir: () => Promise<void>;
@@ -69,8 +70,16 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
         if (event.key === "Escape") fechar();
       };
       window.addEventListener("keydown", onKey, true);
-      return () => window.removeEventListener("keydown", onKey, true);
-    }, [aberto, fechar]);
+      const interval = window.setInterval(() => {
+        if (moverIframeMemedParaHost(document, MEMED_CONTAINER_ID) && status === "loading") {
+          setStatus("ready");
+        }
+      }, 400);
+      return () => {
+        window.removeEventListener("keydown", onKey, true);
+        window.clearInterval(interval);
+      };
+    }, [aberto, fechar, status]);
 
     return (
       <div
@@ -85,7 +94,6 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
         aria-hidden={!aberto}
         aria-label="Prescrição Memed"
       >
-        <style>{`#memed-auto-generated,#iframe-container{display:none!important;pointer-events:none!important;visibility:hidden!important;}`}</style>
         <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-neutral-900">
           <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-neutral-700">
             <div>
@@ -109,8 +117,8 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
           )}
           <div
             id={MEMED_CONTAINER_ID}
-            className="min-h-[700px] w-full flex-1 bg-white"
-            style={{ minWidth: 800 }}
+            className="w-full flex-1 bg-white"
+            style={{ minHeight: 700, height: "calc(100vh - 9rem)" }}
           />
         </div>
       </div>

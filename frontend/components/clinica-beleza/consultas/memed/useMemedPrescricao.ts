@@ -8,8 +8,7 @@ import type { DadosClinicaMemed } from "./memed-paciente";
 import { enviarPacienteMemed, enviarWorkplaceMemed } from "./memed-paciente";
 import {
   abrirModuloPrescricaoMemed,
-  aguardarModuloMemed,
-  aguardarWidgetMemedOperacional,
+  aguardarIframeMemedNoHost,
   carregarScriptMemed,
   enviarComandoPrescricaoMemed,
   fecharModuloPrescricaoMemed,
@@ -66,7 +65,6 @@ export function useMemedPrescricao({
       }
       clinicaRef.current = cfg.clinica ?? null;
       await carregarScriptMemed(cfg.script_url, cfg.token);
-      await aguardarModuloMemed();
       readyRef.current = true;
     })();
 
@@ -115,24 +113,17 @@ export function useMemedPrescricao({
   const abrir = useCallback(async () => {
     await esperarProximoFrame();
     await garantirPronto();
-    if (!window.MdHub) throw new Error("Memed não disponível.");
-    await aguardarWidgetMemedOperacional();
-    try {
-      await enviarPacienteMemed(patientId, patientName);
-    } catch (e) {
-      logger.warn("Memed: não foi possível definir o paciente:", e);
-    }
-    try {
-      await enviarWorkplaceMemed(clinicaRef.current);
-    } catch (e) {
-      logger.warn("Memed: não foi possível definir o local de atendimento:", e);
-    }
     abrirModuloPrescricaoMemed();
-    try {
-      await enviarComandoPrescricaoMemed("newPrescription");
-    } catch (e) {
+    await aguardarIframeMemedNoHost();
+    void enviarPacienteMemed(patientId, patientName).catch((e) => {
+      logger.warn("Memed: não foi possível definir o paciente:", e);
+    });
+    void enviarWorkplaceMemed(clinicaRef.current).catch((e) => {
+      logger.warn("Memed: não foi possível definir o local de atendimento:", e);
+    });
+    void enviarComandoPrescricaoMemed("newPrescription").catch((e) => {
       logger.warn("Memed: newPrescription indisponível:", e);
-    }
+    });
   }, [garantirPronto, patientId, patientName]);
 
   const fechar = useCallback(() => {

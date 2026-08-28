@@ -1,25 +1,39 @@
 declare global {
   interface Window {
     MdHub?: {
-      module?: { show: (module: string) => void; hide?: (module: string) => void };
+      module?: { show: (module: string) => void | Promise<unknown>; hide?: (module: string) => void | Promise<unknown> };
       event?: { add: (event: string, handler: (data: unknown) => void) => void };
-      command?: { send?: (module: string, command: string, payload?: Record<string, unknown>) => void };
+      command?: {
+        send?: (module: string, command: string, payload?: Record<string, unknown>) => unknown;
+      };
     };
     MdSinapsePrescricao?: {
       event?: { add: (event: string, handler: (module: Record<string, unknown>) => void) => void };
+      setToken?: (token: string) => void;
     };
     [MEMED_READY_FLAG]?: boolean;
     __memedListenerRegistrado?: boolean;
     __memedPrescImpressaRegistrado?: boolean;
+    __memedV4ReadyListener?: boolean;
+    __memedV4IframeReady?: boolean;
   }
 }
 
 import {
+  MEMED_COMMAND_TIMEOUT_MS,
   MEMED_MODULO_PRESCRICAO,
   MEMED_READY_FLAG,
   MEMED_SCRIPT_ID,
   MEMED_TIMEOUT_MS,
+  MEMED_V4_READY_TIMEOUT_MS,
 } from "./memed-constants";
+import {
+  aguardarMensagemMemedReady,
+  enviarComandoMemed,
+  forcarFecharOverlayMemed,
+  isMemedMessageReady,
+  isMemedV4Boot,
+} from "@/lib/memed-sdk";
 
 let prescricaoImpressaHandler: ((data: unknown) => void) | null = null;
 
@@ -28,11 +42,23 @@ export function setPrescricaoImpressaHandler(handler: ((data: unknown) => void) 
 }
 
 export function moduloMemedPronto(): boolean {
-  return typeof window !== "undefined" && window[MEMED_READY_FLAG] === true;
+  if (typeof window === "undefined") return false;
+  return window[MEMED_READY_FLAG] === true || window.__memedV4IframeReady === true || isMemedV4Boot(window);
+}
+
+export function registrarListenerV4Ready(): void {
+  if (typeof window === "undefined" || window.__memedV4ReadyListener) return;
+  window.__memedV4ReadyListener = true;
+  window.addEventListener("message", (event: MessageEvent) => {
+    if (isMemedMessageReady(event.data)) {
+      window.__memedV4IframeReady = true;
+    }
+  });
 }
 
 export function registrarListenerPrescricaoMemed(): void {
   if (typeof window === "undefined") return;
+  registrarListenerV4Ready();
   const sinapse = window.MdSinapsePrescricao;
   if (!sinapse?.event?.add || window.__memedListenerRegistrado) return;
   window.__memedListenerRegistrado = true;
@@ -58,6 +84,7 @@ export function carregarScriptMemed(scriptUrl: string, token: string): Promise<v
     const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
     if (existing) {
       existing.setAttribute("data-token", token);
+      window.MdSinapsePrescricao?.setToken?.(token);
       registrarListenerPrescricaoMemed();
       resolve();
       return;
@@ -97,6 +124,19 @@ export function aguardarModuloMemed(): Promise<void> {
   });
 }
 
+export async function aguardarWidgetMemedOperacional(): Promise<void> {
+  if (!isMemedV4Boot(window)) return;
+  if (window.__memedV4IframeReady) return;
+  registrarListenerV4Ready();
+  const ok = await aguardarMensagemMemedReady(window, MEMED_V4_READY_TIMEOUT_MS);
+  if (window.__memedV4IframeReady) return;
+  if (!ok) {
+    throw new Error(
+      "A Memed não carregou o editor de prescrição. Feche com Esc e tente novamente em instantes.",
+    );
+  }
+}
+
 export function preloadMemedScript(url: string): void {
   if (document.querySelector(`link[href="${url}"]`)) return;
   const link = document.createElement("link");
@@ -108,20 +148,28 @@ export function preloadMemedScript(url: string): void {
 
 export function fecharModuloPrescricaoMemed(): void {
   try {
-    window.MdHub?.module?.hide?.(MEMED_MODULO_PRESCRICAO);
+    void window.MdHub?.module?.hide?.(MEMED_MODULO_PRESCRICAO);
   } catch {
     // silencioso
   }
+  forcarFecharOverlayMemed(window);
 }
 
 export function logoutMemedSdk(): void {
   try {
-    window.MdHub?.command?.send?.("plataforma.sdk", "logout");
+    void window.MdHub?.command?.send?.("plataforma.sdk", "logout");
   } catch {
     // silencioso
   }
 }
 
 export function abrirModuloPrescricaoMemed(): void {
-  window.MdHub?.module?.show?.(MEMED_MODULO_PRESCRICAO);
+  void window.MdHub?.module?.show?.(MEMED_MODULO_PRESCRICAO);
+}
+
+export async function enviarComandoPrescricaoMemed(
+  command: string,
+  payload?: Record<string, unknown>,
+): Promise<void> {
+  await enviarComandoMemed(window, MEMED_MODULO_PRESCRICAO, command, payload, MEMED_COMMAND_TIMEOUT_MS);
 }

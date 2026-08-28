@@ -10,6 +10,15 @@ describe("CSP connect-src Memed", () => {
     expect(connect).toContain("wss://*.memed.rocks");
   });
 
+  it("libera o Unleash e o widget V4 da Memed (atualização 3.11 / ago 2026)", () => {
+    const connect = extraConnectSrcOrigins();
+    expect(MEMED_HTTPS).toContain("https://*.data.memed.rocks");
+    expect(MEMED_HTTPS).toContain("https://v4-embedded.memed.com.br");
+    expect(MEMED_WSS).toContain("wss://*.data.memed.rocks");
+    expect(connect).toContain("https://*.data.memed.rocks");
+    expect(connect).toContain("https://v4-embedded.memed.com.br");
+  });
+
   it("mantém os hosts clássicos memed.com.br", () => {
     const connect = extraConnectSrcOrigins();
     expect(connect).toContain("https://memed.com.br");

@@ -1,7 +1,7 @@
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { apenasDigitos } from "@/lib/format-br";
 import { toBrDateMemed } from "@/lib/memed-prescricao-parser";
-import { MEMED_MODULO_PRESCRICAO } from "./memed-constants";
+import { enviarComandoPrescricaoMemed } from "./memed-script-loader";
 
 export interface DadosClinicaMemed {
   local_name?: string;
@@ -42,7 +42,7 @@ export async function montarPacienteMemed(
 
 export async function enviarPacienteMemed(patientId: number, patientName: string): Promise<void> {
   const paciente = await montarPacienteMemed(patientId, patientName);
-  await window.MdHub?.command?.send?.(MEMED_MODULO_PRESCRICAO, "setPaciente", paciente);
+  await enviarComandoPrescricaoMemed("setPaciente", paciente);
 }
 
 export async function enviarWorkplaceMemed(clinica: DadosClinicaMemed | null): Promise<void> {
@@ -52,5 +52,5 @@ export async function enviarWorkplaceMemed(clinica: DadosClinicaMemed | null): P
   if (clinica.city) workplace.city = clinica.city;
   if (clinica.state) workplace.state = clinica.state;
   if (clinica.phone) workplace.phone = String(clinica.phone);
-  await window.MdHub?.command?.send?.(MEMED_MODULO_PRESCRICAO, "setWorkplace", workplace);
+  await enviarComandoPrescricaoMemed("setWorkplace", workplace);
 }

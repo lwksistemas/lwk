@@ -70,6 +70,7 @@ _NFSE_PUBLIC_PREFIXES = (
 
 _WHATSAPP_PUBLIC_PREFIXES = (
     "/api/whatsapp/evolution/webhook/",
+    "/api/whatsapp/v1/",
 )
 
 

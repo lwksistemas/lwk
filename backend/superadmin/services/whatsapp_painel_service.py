@@ -11,7 +11,9 @@ from whatsapp.evolution_client import (
     _extract_phone,
     _normalize_evolution_state,
     evolution_configured,
+    evolution_target,
     fetch_instances,
+    partner_evolution_configured,
 )
 from whatsapp.evolution_cleanup import loja_id_from_instance_name
 
@@ -143,7 +145,7 @@ def buscar_chave(raw: str) -> WhatsappApiKey | None:
 
 
 def montar_painel() -> dict:
-    evolution = {"configured": evolution_configured(), "ok": False, "error": None}
+    evolution = {"configured": evolution_configured(), "ok": False, "error": None, "parceiro_ok": False}
     snapshots: list[dict] = []
     if evolution["configured"]:
         try:
@@ -155,6 +157,17 @@ def montar_painel() -> dict:
             evolution["error"] = str(exc)
     else:
         evolution["error"] = "Evolution API não configurada neste ambiente."
+
+    if partner_evolution_configured():
+        try:
+            with evolution_target("parceiro"):
+                partner_snaps = [snapshot_evolution_item(item) for item in fetch_instances()]
+            snapshots.extend([s for s in partner_snaps if s.get("instance_name")])
+            evolution["parceiro_ok"] = True
+        except Exception as exc:
+            logger.warning("Painel WhatsApp: falha Evolution parceiro: %s", exc)
+            extra = f"Parceiro: {exc}"
+            evolution["error"] = f"{evolution['error']} | {extra}" if evolution["error"] else extra
 
     lojas = {
         l.id: l

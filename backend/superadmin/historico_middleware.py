@@ -42,6 +42,7 @@ class HistoricoAcessoMiddleware:
             "/api/auth/token/refresh/",  # Refresh token (muito frequente)
             "/api/superadmin/lojas/heartbeat/",  # Heartbeat (muito frequente)
             "/api/whatsapp/evolution/webhook/",  # Webhook Evolution (muito frequente)
+            "/api/whatsapp/v1/webhook/",
             "/api/asaas/",  # Webhooks Asaas
         ]
         # Raiz do site: bots fazem POST / — não poluir auditoria
@@ -217,7 +218,7 @@ class HistoricoAcessoMiddleware:
         /api/clinica/procedimentos/123/ -> Procedimento
         /api/crm/vendas/ -> Venda
         """
-        if "/whatsapp/evolution/webhook" in path:
+        if "/whatsapp/evolution/webhook" in path or "/whatsapp/v1/webhook" in path:
             return "Webhook Evolution"
         if "/whatsapp/config/connect" in path:
             return "WhatsApp (conectar)"

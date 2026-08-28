@@ -269,7 +269,7 @@ def resolver_identidade_historico(request) -> tuple[object | None, str, str, int
         usuario_nome = _enriquecer_nome_usuario_autenticado(user, loja_id_ctx)
         return user, usuario_email, usuario_nome, loja_id_ctx
 
-    if path.startswith("/api/whatsapp/evolution/webhook"):
+    if path.startswith("/api/whatsapp/evolution/webhook") or path.startswith("/api/whatsapp/v1/webhook"):
         return _identidade_evolution_webhook(request)
 
     if path.startswith("/api/superadmin/lojas/recuperar_senha/"):

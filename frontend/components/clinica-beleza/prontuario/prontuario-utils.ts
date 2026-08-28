@@ -7,8 +7,12 @@ import type {
 import { ANAMNESE_DISPLAY_FIELDS } from "./prontuario-types";
 import type { ProntuarioDocTabId, ProntuarioTabId } from "./prontuario-types";
 
+export function isProntuarioLocalTab(tab: ProntuarioTabId): boolean {
+  return tab === "resumo" || tab === "fotos";
+}
+
 export function isProntuarioDocTab(tab: ProntuarioTabId): tab is ProntuarioDocTabId {
-  return tab !== "anamnese" && tab !== "evolucao";
+  return tab !== "anamnese" && tab !== "evolucao" && !isProntuarioLocalTab(tab);
 }
 
 export function getProntuarioDocsForTab(

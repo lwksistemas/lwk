@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Users } from "lucide-react";
 import {
   deleteClinicaBelezaEntity,
@@ -25,10 +25,12 @@ import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBe
 import { usePacienteForm } from "@/hooks/clinica-beleza/usePacienteForm";
 import { entityActive, entityName } from "@/lib/clinica-beleza-entities";
 import { buscarPacientesOffline, salvarPacientesOffline } from "@/lib/offline-db";
+import { buildProntuarioPacientePath } from "@/components/clinica-beleza/prontuario/prontuario-paths";
 import type { Patient } from "./lib/paciente-form-utils";
 
 export function PacientesPageContent() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
   const basePath = `/loja/${slug}/clinica-beleza/pacientes`;
   const { theme } = useLojaTheme(slug);
@@ -127,6 +129,7 @@ export function PacientesPageContent() {
           onPageChange={setPage}
           onEdit={(p) => abrirEditar(p.id)}
           onExclude={exclude}
+          onVerProntuario={(p) => router.push(buildProntuarioPacientePath(slug, p.id))}
         />
       </ClinicaBelezaPageContent>
       <LocalizarClienteModal

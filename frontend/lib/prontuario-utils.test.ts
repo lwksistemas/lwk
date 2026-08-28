@@ -23,6 +23,8 @@ describe("isProntuarioDocTab", () => {
   it("identifica abas de documentos", () => {
     expect(isProntuarioDocTab("receituario")).toBe(true);
     expect(isProntuarioDocTab("anamnese")).toBe(false);
+    expect(isProntuarioDocTab("resumo")).toBe(false);
+    expect(isProntuarioDocTab("fotos")).toBe(false);
   });
 });
 

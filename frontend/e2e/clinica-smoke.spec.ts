@@ -22,8 +22,8 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     expect(temLogin || lojaInexistente || carregando).toBeTruthy();
   });
 
-  test('consultas exige autenticação ou loja válida', async ({ page }) => {
-    await page.goto(`/loja/${slug}/clinica-beleza/consultas`);
+  test('prontuário exige autenticação ou loja válida', async ({ page }) => {
+    await page.goto(`/loja/${slug}/clinica-beleza/prontuario`);
     await page.waitForLoadState('networkidle');
     const url = page.url();
     const body = await page.locator('body').innerText();
@@ -46,8 +46,8 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     const ok = await loginClinicaLoja(page, slug);
     test.skip(!ok, 'Loja clínica indisponível neste ambiente');
 
-    await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
-    await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
+    await visitarClinicaAutenticado(page, '/clinica-beleza/prontuario', slug);
+    await expect(page.getByRole('heading', { name: /^prontuário$/i })).toBeVisible({ timeout: 20000 });
 
     await visitarClinicaAutenticado(page, '/clinica-beleza/pacientes', slug);
     await expect(page.getByRole('heading', { name: /^clientes$/i })).toBeVisible({ timeout: 20000 });
@@ -56,33 +56,28 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     await expect(page.getByRole('heading', { name: /^agenda$/i })).toBeVisible({ timeout: 20000 });
   });
 
-  test('fluxo autenticado — coluna pagamento e financeiro', async ({ page }) => {
+  test('fluxo autenticado — prontuário e financeiro', async ({ page }) => {
     test.skip(!clinicaE2eCredentials(), 'Defina CLINICA_E2E_* ou CRM_E2E_*');
 
     const ok = await loginClinicaLoja(page, slug);
     test.skip(!ok, 'Loja clínica indisponível neste ambiente');
 
-    await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
-    await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
-    // Coluna PAGAMENTO da lista (Receber / Pago / Parcial)
-    const pagamentoHeader = page.getByRole('columnheader', { name: /pagamento/i });
-    const temColuna = (await pagamentoHeader.count()) > 0;
-    const temBotaoReceber = (await page.getByRole('button', { name: /receber|parcial|pago/i }).count()) > 0;
-    const listaVazia = /nenhuma consulta/i.test(await page.locator('body').innerText());
-    expect(temColuna || temBotaoReceber || listaVazia).toBeTruthy();
+    await visitarClinicaAutenticado(page, '/clinica-beleza/prontuario', slug);
+    await expect(page.getByRole('heading', { name: /^prontuário$/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByPlaceholder(/nome, cpf, telefone/i)).toBeVisible();
 
     await visitarClinicaAutenticado(page, '/clinica-beleza/financeiro', slug);
     await expect(page.getByRole('heading', { name: /financeiro/i })).toBeVisible({ timeout: 20000 });
   });
 
-  test('fluxo autenticado — abrir Receber na lista quando houver consulta', async ({ page }) => {
+  test('fluxo autenticado — abrir Receber na consulta quando houver saldo', async ({ page }) => {
     test.skip(!clinicaE2eCredentials(), 'Defina CLINICA_E2E_* ou CRM_E2E_*');
 
     const ok = await loginClinicaLoja(page, slug);
     test.skip(!ok, 'Loja clínica indisponível neste ambiente');
 
-    await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
-    await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
+    await visitarClinicaAutenticado(page, '/clinica-beleza/prontuario', slug);
+    await expect(page.getByRole('heading', { name: /^prontuário$/i })).toBeVisible({ timeout: 20000 });
 
     const receberBtn = page.getByRole('button', { name: /^receber$/i }).first();
     const parcialBtn = page.getByRole('button', { name: /^parcial$/i }).first();
@@ -90,7 +85,7 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     const temParcial = (await parcialBtn.count()) > 0;
 
     if (!temReceber && !temParcial) {
-      test.skip(true, 'Nenhuma consulta com saldo em aberto nesta loja');
+      test.skip(true, 'Receber ficou na consulta aberta, não na lista de prontuário');
       return;
     }
 

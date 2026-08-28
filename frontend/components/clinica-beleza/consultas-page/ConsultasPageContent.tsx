@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { useAgendamentoCadastros } from "@/hooks/clinica-beleza/useAgendamentoCadastros";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
@@ -9,6 +9,7 @@ import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/Moda
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import { entityName } from "@/lib/clinica-beleza-entities";
+import { buildProntuarioHubPath } from "@/components/clinica-beleza/prontuario/prontuario-paths";
 import { ConsultaDetailView, ConsultasListView } from "./ConsultasListView";
 import { ConsultasPageModals } from "./ConsultasPageModals";
 import {
@@ -17,10 +18,20 @@ import {
   useConsultasNovaConsulta,
 } from "./useConsultasPage";
 import { useConsultasColunas } from "@/hooks/clinica-beleza/useConsultasColunas";
+import { shouldRedirectConsultasList } from "./consultas-page-utils";
 
 export function ConsultasPageContent() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const deveRedirecionarLista = shouldRedirectConsultasList(searchParams);
+
+  useEffect(() => {
+    if (deveRedirecionarLista) {
+      router.replace(buildProntuarioHubPath(slug));
+    }
+  }, [deveRedirecionarLista, router, slug]);
 
   const [receberConsulta, setReceberConsulta] = useState<Consulta | null>(null);
   const [abrindoReceberId, setAbrindoReceberId] = useState<number | null>(null);
@@ -75,6 +86,12 @@ export function ConsultasPageContent() {
     },
     [loadConsultas],
   );
+
+  if (deveRedirecionarLista) {
+    return (
+      <div className="text-center py-16 text-gray-500">Redirecionando ao prontuário...</div>
+    );
+  }
 
   if (deepLink.selected) {
     return (

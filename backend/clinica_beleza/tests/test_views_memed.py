@@ -2,6 +2,7 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+from clinica_beleza.memed_impressao import aviso_timbrado_nao_aplicado
 from clinica_beleza.memed_service import prescritor_liberado_na_memed
 from clinica_beleza.views_memed import MemedTokenView
 
@@ -18,6 +19,21 @@ class PrescritorLiberadoNaMemedTest(TestCase):
         self.assertTrue(
             prescritor_liberado_na_memed({"state": "ok", "status": "Ativo", "terms_accepted": True})
         )
+
+
+class AvisoTimbradoNaoAplicadoTest(TestCase):
+    def test_pendente_cita_nome_e_reaplicar(self):
+        msg = aviso_timbrado_nao_aplicado(
+            {
+                "aplicados": 0,
+                "total": 1,
+                "detalhes": [
+                    {"ok": False, "nome": "NAYARA", "error": "prescritor_pendente_memed"}
+                ],
+            }
+        )
+        self.assertIn("NAYARA", msg)
+        self.assertIn("Reaplicar", msg)
 
 
 class MemedTokenViewTest(TestCase):

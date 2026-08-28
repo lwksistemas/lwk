@@ -23,7 +23,22 @@ describe("buildTimbradoApplyFeedback", () => {
     expect(buildTimbradoApplyFeedback({ tem_timbrado: true, aplicados: 2, total: 3 })).toEqual({
       msg: "Timbrado aplicado na Memed para 2 de 3 prescritor(es).",
       erro: "",
+      aviso: "",
     });
+  });
+
+  it("aviso quando prescritor ainda esta em analise", () => {
+    const r = buildTimbradoApplyFeedback({
+      tem_timbrado: true,
+      aplicados: 0,
+      total: 1,
+      warning:
+        "Timbrado salvo no LWK. A Memed ainda não aplica o papel timbrado para NAYARA (cadastro Em análise ou termos não aceitos).",
+      detalhes: [{ error: "prescritor_pendente_memed", nome: "NAYARA" }],
+    });
+    expect(r.msg).toBe("Timbrado salvo no LWK.");
+    expect(r.erro).toBe("");
+    expect(r.aviso).toContain("NAYARA");
   });
 
   it("erro quando aplicados é zero", () => {

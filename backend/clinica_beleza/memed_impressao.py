@@ -13,7 +13,7 @@ import requests
 
 from .memed_config import memed_config as _memed_config
 from .memed_config import memed_credentials as _memed_credentials
-from .memed_service import consultar_status_memed, external_id_prescritor
+from .memed_service import consultar_status_memed, external_id_prescritor, prescritor_liberado_na_memed
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +147,14 @@ def aplicar_timbrado_prescritor(professional, pdf_bytes: bytes, filename: str = 
     status = consultar_status_memed(professional)
     if status.get("state") == "nao_cadastrado":
         return {"ok": False, "professional_id": prof_id, "error": "prescritor_nao_cadastrado_memed"}
+    if not prescritor_liberado_na_memed(status):
+        return {
+            "ok": False,
+            "professional_id": prof_id,
+            "error": "prescritor_pendente_memed",
+            "status_memed": status.get("status") or status.get("label") or "",
+            "terms_accepted": bool(status.get("terms_accepted")),
+        }
 
     token = _token_prescritor(prescritor_id)
     if not token:
@@ -192,7 +200,26 @@ def aplicar_timbrado_loja_a_profissionais(pdf_bytes: bytes, filename: str, profe
     ok = 0
     for prof in professionals:
         r = aplicar_timbrado_prescritor(prof, pdf_bytes, filename)
+        r.setdefault("nome", getattr(prof, "nome", "") or "")
         resultados.append(r)
         if r.get("ok"):
             ok += 1
     return {"ok": ok > 0, "aplicados": ok, "total": len(resultados), "detalhes": resultados}
+
+
+def aviso_timbrado_nao_aplicado(resultado: dict) -> str | None:
+    """Texto para a tela de config quando a Memed não aplicou o timbrado a ninguém."""
+    if resultado.get("aplicados"):
+        return None
+    detalhes = resultado.get("detalhes") or []
+    pendentes = [d for d in detalhes if d.get("error") == "prescritor_pendente_memed"]
+    if pendentes and len(pendentes) == len(detalhes):
+        nomes = ", ".join((d.get("nome") or "profissional").strip() or "profissional" for d in pendentes)
+        return (
+            f"Timbrado salvo no LWK. A Memed ainda não aplica o papel timbrado para {nomes} "
+            "(cadastro Em análise ou termos não aceitos). Quando o status for Ativo, clique em Reaplicar aos prescritores."
+        )
+    return (
+        "Timbrado salvo no LWK, mas a Memed recusou a aplicação para todos os prescritores. "
+        'Prescritores "Em análise" ou conta parceira sem permissão de layout costumam causar isso.'
+    )

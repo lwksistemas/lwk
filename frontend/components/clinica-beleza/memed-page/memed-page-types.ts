@@ -1,9 +1,11 @@
 export interface TimbradoDetalhe {
   ok?: boolean;
   professional_id?: number;
+  nome?: string;
   error?: string;
   detail?: string;
   status?: number;
+  status_memed?: string;
 }
 
 export interface TimbradoStatus {

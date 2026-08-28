@@ -14,11 +14,13 @@ export function useMemedPage() {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [msg, setMsg] = useState("");
   const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
   const [memedDiag, setMemedDiag] = useState<MemedDiagStatus | null>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
     setErro("");
+    setAviso("");
     try {
       const [timbradoData, statusData] = await Promise.all([
         ClinicaBelezaAPI.memed.timbrado.get(),
@@ -42,6 +44,7 @@ export function useMemedPage() {
       setSaving(true);
       setErro("");
       setMsg("");
+      setAviso("");
       try {
         const url = `${getClinicaBelezaBaseUrl()}/memed/timbrado/`;
         const headers = getClinicaBelezaHeadersWithLoja();
@@ -76,6 +79,7 @@ export function useMemedPage() {
         const feedback = buildTimbradoApplyFeedback(timbrado);
         setMsg(feedback.msg);
         setErro(feedback.erro);
+        setAviso(feedback.aviso);
       } catch {
         setErro("Erro de conexão ao enviar timbrado.");
       } finally {
@@ -94,6 +98,7 @@ export function useMemedPage() {
     setArquivo,
     msg,
     erro,
+    aviso,
     memedDiag,
     enviarPdf,
   };

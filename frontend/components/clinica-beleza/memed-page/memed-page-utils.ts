@@ -11,16 +11,35 @@ export function formatTimbradoBytes(n?: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function buildTimbradoApplyFeedback(data: TimbradoStatus): { msg: string; erro: string } {
+export function buildTimbradoApplyFeedback(data: TimbradoStatus): { msg: string; erro: string; aviso: string } {
   const aplicados = data.aplicados;
   const total = data.total;
   if (typeof aplicados !== "number") {
-    return { msg: "Timbrado salvo no sistema.", erro: "" };
-  }
-  if (aplicados > 0) {
-    return { msg: `Timbrado aplicado na Memed para ${aplicados} de ${total} prescritor(es).`, erro: "" };
+    return { msg: "Timbrado salvo no sistema.", erro: "", aviso: "" };
   }
   const detalhes = data.detalhes ?? [];
+  const pendentes = detalhes.filter((d) => d.error === "prescritor_pendente_memed");
+  if (aplicados > 0) {
+    const aviso =
+      pendentes.length > 0
+        ? `Não aplicado em ${pendentes.length} prescritor(es) ainda pendentes na Memed (Em análise / termos).`
+        : "";
+    return {
+      msg: `Timbrado aplicado na Memed para ${aplicados} de ${total} prescritor(es).`,
+      erro: "",
+      aviso,
+    };
+  }
+  const soPendentes = pendentes.length > 0 && pendentes.length === detalhes.length;
+  if (soPendentes || (typeof data.warning === "string" && /Em análise|termos não aceitos/i.test(data.warning))) {
+    return {
+      msg: "Timbrado salvo no LWK.",
+      erro: "",
+      aviso:
+        (typeof data.warning === "string" && data.warning) ||
+        "A Memed ainda não aplica o papel timbrado enquanto o prescritor está Em análise. Quando estiver Ativo, use Reaplicar aos prescritores.",
+    };
+  }
   const memedErr = detalhes.find((d) => d.detail)?.detail || detalhes[0]?.error;
   return {
     msg: "",
@@ -29,7 +48,8 @@ export function buildTimbradoApplyFeedback(data: TimbradoStatus): { msg: string;
       `Timbrado salvo no LWK, mas a Memed não aplicou (${aplicados}/${total}).` +
         (memedErr ? ` Detalhe: ${String(memedErr).slice(0, 200)}` : "") +
         ' Isso costuma ocorrer enquanto o prescritor está "Em análise" na Memed — tente de novo quando estiver Ativo, ou contate o suporte Memed.',
-    };
+    aviso: "",
+  };
 }
 
 export function mensagemPrescritorMemedPendente(prescritor?: {

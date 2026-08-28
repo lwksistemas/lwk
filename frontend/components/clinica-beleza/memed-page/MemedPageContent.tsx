@@ -7,7 +7,7 @@ import { formatTimbradoBytes, resumoProntoParaPrescrever, detalhePrescritorMemed
 import { useMemedPage } from "./useMemedPage";
 
 export function MemedPageContent() {
-  const { base, loading, saving, status, arquivo, setArquivo, msg, erro, memedDiag, enviarPdf } =
+  const { base, loading, saving, status, arquivo, setArquivo, msg, erro, aviso, memedDiag, enviarPdf } =
     useMemedPage();
   const resumo = memedDiag ? resumoProntoParaPrescrever(memedDiag) : null;
   const resumoCor =
@@ -98,6 +98,11 @@ export function MemedPageContent() {
           {erro && (
             <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
               {erro}
+            </div>
+          )}
+          {aviso && (
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 text-sm">
+              {aviso}
             </div>
           )}
           {msg && (

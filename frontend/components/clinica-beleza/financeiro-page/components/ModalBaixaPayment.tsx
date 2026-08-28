@@ -97,8 +97,8 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
         observacoes,
         desconto: valorDesconto > 0 ? valorDesconto : undefined,
       });
+      onSuccess();
       if (quitaTotal) {
-        onSuccess();
         onClose();
       } else {
         await carregarParcelas(payment.id);

@@ -92,7 +92,7 @@ export function FinanceiroPageContent() {
       <ModalBaixaPayment
         payment={baixaPayment}
         onClose={() => setBaixaPayment(null)}
-        onSuccess={() => { setBaixaPayment(null); void f.loadAll(); }}
+        onSuccess={() => { void f.loadAll(); }}
       />
       <DespesaFormModal
         open={f.showDespesaModal}

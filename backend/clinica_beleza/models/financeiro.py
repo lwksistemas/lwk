@@ -110,6 +110,25 @@ class Payment(LojaIsolationMixin, models.Model):
             return self.valor_total_efetivo
 
 
+def status_pagamento_exibido(payment) -> str:
+    """Status na lista do Financeiro: Parcial se já houve entrada e ainda há saldo."""
+    from decimal import Decimal
+
+    st = getattr(payment, "status", None) or "PENDING"
+    if st in ("PAID", "CANCELLED", "DRAFT"):
+        return st
+    try:
+        pago = payment.valor_pago_parcelas
+        saldo = payment.saldo_devedor
+    except (TypeError, ArithmeticError):
+        return st
+    if pago > Decimal("0.01") and saldo > Decimal("0.01"):
+        return "PARTIAL"
+    if pago > Decimal("0.01") and saldo <= Decimal("0.01"):
+        return "PAID"
+    return st
+
+
 class PaymentParcela(LojaIsolationMixin, models.Model):
     """Registro de cada entrada de pagamento parcial de um Payment."""
 

@@ -2,7 +2,7 @@
 from rest_framework import serializers
 
 from ..models import CategoriaDespesa, Despesa, Payment
-from ..models.financeiro import PaymentParcela
+from ..models.financeiro import PaymentParcela, status_pagamento_exibido
 from .appointments import AppointmentListSerializer
 
 
@@ -84,6 +84,11 @@ class PaymentSerializer(serializers.ModelSerializer):
             return float(obj.saldo_devedor)
         except Exception:
             return float(obj.amount or 0)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["status"] = status_pagamento_exibido(instance)
+        return data
 
     class Meta:
         model = Payment

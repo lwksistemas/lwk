@@ -9,6 +9,7 @@ interface ProntuarioTabBarProps {
   onTabChange: (tabId: ProntuarioTabId) => void;
   onPrintSecao: () => void;
   onPrintCompleto: () => void;
+  printando?: "secao" | "completo" | null;
 }
 
 export function ProntuarioTabBar({
@@ -16,6 +17,7 @@ export function ProntuarioTabBar({
   onTabChange,
   onPrintSecao,
   onPrintCompleto,
+  printando = null,
 }: ProntuarioTabBarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -44,23 +46,25 @@ export function ProntuarioTabBar({
       <button
         type="button"
         onClick={onPrintSecao}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors"
+        disabled={!!printando}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
         title="Imprimir todos os documentos desta seção"
       >
         <Printer size={16} />
-        <span className="hidden md:inline">Imprimir Seção</span>
+        <span className="hidden md:inline">{printando === "secao" ? "Gerando…" : "Imprimir Seção"}</span>
       </button>
       )}
 
       <button
         type="button"
         onClick={onPrintCompleto}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+        disabled={!!printando}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
         style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
         title="Imprimir prontuário completo do paciente"
       >
         <Printer size={16} />
-        <span className="hidden md:inline">Imprimir Completo</span>
+        <span className="hidden md:inline">{printando === "completo" ? "Gerando…" : "Imprimir Completo"}</span>
       </button>
     </div>
   );

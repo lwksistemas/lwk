@@ -57,7 +57,10 @@ export function abrirPdfUrl(url: string, modo: ConsultaPdfModo = "visualizar"): 
   }
 }
 
-async function abrirPdfBlob(response: Response, modo: ConsultaPdfModo = "visualizar"): Promise<void> {
+export async function abrirPdfBlobFromResponse(
+  response: Response,
+  modo: ConsultaPdfModo = "visualizar",
+): Promise<void> {
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("pdf") && !contentType.includes("octet-stream")) {
     const msg = await extrairErroApi(response);
@@ -91,7 +94,7 @@ export async function imprimirConsultaPdf(
     logger.warn("Erro ao gerar PDF da consulta:", response.status, msg);
     throw new Error(msg);
   }
-  await abrirPdfBlob(response, modo);
+  await abrirPdfBlobFromResponse(response, modo);
 }
 
 /** Gera PDF do documento clínico e abre em nova aba. */
@@ -114,5 +117,5 @@ export async function imprimirDocumentoPdf(
     logger.warn("Erro ao gerar PDF do documento:", response.status, msg);
     throw new Error(msg);
   }
-  await abrirPdfBlob(response, modo);
+  await abrirPdfBlobFromResponse(response, modo);
 }

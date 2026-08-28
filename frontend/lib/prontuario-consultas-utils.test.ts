@@ -3,11 +3,14 @@ import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-t
 import {
   buildProntuarioConsultasResumo,
   consultaAcaoLabel,
+  consultaPodeExcluirNoProntuario,
+  consultaPodeIniciarAtendimento,
   consultaProcedimentoLabel,
   isConsultaAtualParaIniciar,
   isConsultaFinalizadaProntuario,
   pickConsultasAtuais,
   pickConsultasFinalizadas,
+  prontuarioConsultaAtualAcoes,
 } from "@/components/clinica-beleza/prontuario/prontuario-consultas-utils";
 
 const consulta = (partial: Partial<Consulta> & Pick<Consulta, "id" | "status">): Consulta =>
@@ -73,5 +76,38 @@ describe("prontuario consultas", () => {
         }),
       ),
     ).toBe("Botox, Peeling");
+  });
+
+  it("define ações da consulta atual no prontuário", () => {
+    const atual = consulta({ id: 12, status: "RECEBER" });
+    const acoes = prontuarioConsultaAtualAcoes(atual, [atual]);
+    expect(consultaPodeIniciarAtendimento(atual)).toBe(true);
+    expect(consultaPodeExcluirNoProntuario(atual)).toBe(true);
+    expect(acoes.podeIniciar).toBe(true);
+    expect(acoes.podeExcluir).toBe(true);
+    expect(acoes.mostrarContinuar).toBe(false);
+
+    const emAndamento = consulta({
+      id: 13,
+      status: "IN_PROGRESS",
+      data_inicio: "2026-08-28T09:00:00",
+    });
+    const acoesAndamento = prontuarioConsultaAtualAcoes(emAndamento, [emAndamento]);
+    expect(acoesAndamento.podeIniciar).toBe(false);
+    expect(acoesAndamento.mostrarContinuar).toBe(true);
+    expect(acoesAndamento.podeExcluir).toBe(true);
+
+    const outra = consulta({ id: 14, status: "SCHEDULED" });
+    const bloqueada = prontuarioConsultaAtualAcoes(outra, [emAndamento, outra]);
+    expect(bloqueada.podeIniciar).toBe(false);
+    expect(bloqueada.bloqueadaPorOutraEmAndamento).toBe(true);
+
+    const finalizada = consulta({
+      id: 15,
+      status: "COMPLETED",
+      data_fim: "2026-08-10T20:00:00",
+    });
+    expect(consultaPodeExcluirNoProntuario(finalizada)).toBe(false);
+    expect(consultaPodeIniciarAtendimento(finalizada)).toBe(false);
   });
 });

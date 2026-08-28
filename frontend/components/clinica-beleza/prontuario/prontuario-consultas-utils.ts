@@ -1,4 +1,7 @@
-import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
+import {
+  consultaEstaConcluida,
+  type Consulta,
+} from "@/components/clinica-beleza/consultas/consultas-types";
 
 const STATUS_ATUAL = new Set(["IN_PROGRESS", "RECEBER", "SCHEDULED"]);
 const STATUS_FINALIZADA = "COMPLETED";
@@ -64,6 +67,43 @@ export function consultaAcaoLabel(status: string): string {
   if (status === "IN_PROGRESS") return "Continuar consulta";
   if (status === "RECEBER" || status === "SCHEDULED") return "Iniciar consulta";
   return "Abrir consulta";
+}
+
+/** Ainda não entrou em atendimento — o botão Iniciar dispara a API e abre a ficha. */
+export function consultaPodeIniciarAtendimento(c: Pick<Consulta, "status" | "data_inicio">): boolean {
+  return (c.status === "SCHEDULED" || c.status === "RECEBER") && !c.data_inicio;
+}
+
+export function consultaPodeExcluirNoProntuario(
+  c: Pick<Consulta, "status" | "data_fim" | "appointment_status">,
+): boolean {
+  return !consultaEstaConcluida(c) && c.status !== "CANCELLED";
+}
+
+export interface ProntuarioConsultaAtualAcoes {
+  podeExcluir: boolean;
+  podeIniciar: boolean;
+  mostrarContinuar: boolean;
+  bloqueadaPorOutraEmAndamento: boolean;
+}
+
+/** Ações do card da consulta atual no resumo do prontuário. */
+export function prontuarioConsultaAtualAcoes(
+  consulta: Consulta,
+  todas: Consulta[],
+): ProntuarioConsultaAtualAcoes {
+  const podeIniciarBase = consultaPodeIniciarAtendimento(consulta);
+  const bloqueadaPorOutraEmAndamento =
+    podeIniciarBase && todas.some((c) => c.id !== consulta.id && c.status === "IN_PROGRESS");
+  const mostrarContinuar =
+    consulta.status === "IN_PROGRESS" ||
+    (!!consulta.data_inicio && consulta.status !== "COMPLETED" && consulta.status !== "CANCELLED");
+  return {
+    podeExcluir: consultaPodeExcluirNoProntuario(consulta),
+    podeIniciar: podeIniciarBase && !bloqueadaPorOutraEmAndamento,
+    mostrarContinuar,
+    bloqueadaPorOutraEmAndamento,
+  };
 }
 
 export function consultaProcedimentoLabel(c: Consulta): string {

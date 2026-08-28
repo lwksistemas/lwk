@@ -1,5 +1,7 @@
 """Views do Prontuário — Visualização e geração de PDF
 """
+import logging
+
 from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.response import Response
@@ -11,6 +13,8 @@ from .permissions import CLINICA_CLINICAL
 from .prontuario_pdf import gerar_pdf_documento, gerar_pdf_prontuario_completo, gerar_pdf_secao
 from .serializers import ProntuarioSectionSerializer
 from .views_base import GetObjectMixin
+
+logger = logging.getLogger(__name__)
 
 
 class ProntuarioView(APIView):
@@ -65,6 +69,12 @@ class ProntuarioPDFView(APIView):
                 filename = f"prontuario_completo_{patient_id}.pdf"
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Erro ao gerar PDF do prontuário (paciente %s, seção %s)", patient_id, secao)
+            return Response(
+                {"error": "Não foi possível gerar o PDF. Tente novamente."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="{filename}"'

@@ -1,6 +1,8 @@
 "use client";
 
 import { ArrowLeft, BookOpen } from "lucide-react";
+import { ConsultaProfessionalSelectModal } from "@/components/clinica-beleza/consultas/ConsultaProfessionalSelectModal";
+import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/ModalReceberConsulta";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { isProntuarioLocalTab } from "./prontuario-utils";
 import { ProntuarioTabBar } from "./ProntuarioTabBar";
@@ -17,11 +19,25 @@ export function ProntuarioPageContent() {
     consultas,
     consultasLoading,
     consultaParaFotosId,
+    printando,
+    iniciandoId,
+    excluindoId,
+    receberConsulta,
+    abrindoReceberId,
+    showProfessionalModal,
+    profissionaisDisponiveis,
     handleTabChange,
     voltarHub,
     abrirConsulta,
     handlePrintSecao,
     handlePrintCompleto,
+    iniciarConsulta,
+    confirmarProfissional,
+    fecharProfessionalModal,
+    abrirReceber,
+    fecharReceber,
+    aposRecebimento,
+    excluirConsulta,
   } = useProntuarioPage();
 
   const showDocsLoading = loading && !isProntuarioLocalTab(activeTab);
@@ -49,8 +65,9 @@ export function ProntuarioPageContent() {
           <ProntuarioTabBar
             activeTab={activeTab}
             onTabChange={handleTabChange}
-            onPrintSecao={handlePrintSecao}
-            onPrintCompleto={handlePrintCompleto}
+            onPrintSecao={() => void handlePrintSecao()}
+            onPrintCompleto={() => void handlePrintCompleto()}
+            printando={printando}
           />
         </div>
 
@@ -66,11 +83,33 @@ export function ProntuarioPageContent() {
               consultas={consultas}
               consultasLoading={consultasLoading}
               consultaParaFotosId={consultaParaFotosId}
+              iniciandoId={iniciandoId}
+              excluindoId={excluindoId}
+              recebendoId={abrindoReceberId}
               onAbrirConsulta={abrirConsulta}
+              onIniciarConsulta={(c) => void iniciarConsulta(c)}
+              onReceberConsulta={(c) => void abrirReceber(c)}
+              onExcluirConsulta={(c) => void excluirConsulta(c)}
             />
           )}
         </div>
       </div>
+
+      {receberConsulta && (
+        <ModalReceberConsulta
+          open
+          consulta={receberConsulta}
+          onClose={fecharReceber}
+          onSuccess={(c) => void aposRecebimento(c)}
+        />
+      )}
+
+      <ConsultaProfessionalSelectModal
+        open={showProfessionalModal}
+        profissionais={profissionaisDisponiveis}
+        onSelect={confirmarProfissional}
+        onClose={fecharProfessionalModal}
+      />
     </>
   );
 }

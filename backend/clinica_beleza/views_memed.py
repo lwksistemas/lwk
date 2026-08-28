@@ -96,7 +96,7 @@ class MemedTokenView(APIView):
 
         from tenants.middleware import get_current_loja_id
         loja_id = get_current_loja_id() or 0
-        cache_key = f"memed_token_v2_{loja_id}_{prescritor_id}"
+        cache_key = f"memed_token_v3_{loja_id}_{prescritor_id}_{env}"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)

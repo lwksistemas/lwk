@@ -6,7 +6,7 @@
  */
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { X } from "lucide-react";
 import { MEMED_CONTAINER_ID } from "./memed/memed-constants";
 import { useMemedPrescricao } from "./memed/useMemedPrescricao";
@@ -30,6 +30,7 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
     const [aberto, setAberto] = useState(false);
     const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
     const [erro, setErro] = useState<string | null>(null);
+    const [montado, setMontado] = useState(false);
     const { abrir: abrirSdk, fechar: fecharSdk } = useMemedPrescricao({
       consultaId,
       professionalId,
@@ -63,6 +64,10 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
 
     useImperativeHandle(ref, () => ({ abrir, fechar }), [abrir, fechar]);
 
+    useEffect(() => {
+      setMontado(true);
+    }, []);
+
     const editorAberto = aberto && status === "ready";
     const avisoAberto = aberto && status !== "ready";
 
@@ -83,7 +88,7 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
       };
     }, [aberto, fechar, status]);
 
-    return (
+    const ui = (
       <>
         {avisoAberto && (
           <div
@@ -139,21 +144,21 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
         </div>
         <div
           id={MEMED_CONTAINER_ID}
-          className="bg-white"
+          aria-hidden
           style={{
             position: "fixed",
-            top: editorAberto ? "4.25rem" : 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: editorAberto ? 2147483645 : -1,
-            visibility: editorAberto ? "visible" : "hidden",
-            pointerEvents: editorAberto ? "auto" : "none",
-            minHeight: editorAberto ? 400 : 0,
+            width: 0,
+            height: 0,
+            overflow: "hidden",
+            zIndex: -1,
+            pointerEvents: "none",
           }}
         />
       </>
     );
+
+    if (!montado) return null;
+    return createPortal(ui, document.body);
   },
 );
 

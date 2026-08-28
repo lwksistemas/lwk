@@ -4,6 +4,10 @@ import {
   isMemedMessageReady,
   isMemedV4Boot,
   MEMED_V4_BOOT_KEY,
+  MEMED_V4_SCRIPT_PROD,
+  podeReforcarTokenMemed,
+  scriptMemedPrecisaReiniciar,
+  urlScriptWidgetMemed,
   withTimeout,
 } from "./memed-sdk";
 
@@ -75,5 +79,48 @@ describe("garantirEditorMemedVisivel", () => {
     expect(host.appendChild).not.toHaveBeenCalled();
     expect(overlay.style.display).not.toBe("none");
     expect(overlay.style.visibility).toBe("visible");
+    expect(overlay.style.position).toBe("fixed");
+    expect(overlay.style.zIndex).toBe("2147483646");
+  });
+});
+
+describe("token da Memed", () => {
+  it("nao reforca setToken no stack legado (startModules causa 401)", () => {
+    expect(podeReforcarTokenMemed({} as Window)).toBe(false);
+  });
+
+  it("reforca setToken so depois do boot V4", () => {
+    const win = { [MEMED_V4_BOOT_KEY]: { teardown() {} } } as unknown as Window;
+    expect(podeReforcarTokenMemed(win)).toBe(true);
+  });
+
+  it("reinicia o script se o token do prescritor mudou", () => {
+    expect(scriptMemedPrecisaReiniciar("token-a", "token-b")).toBe(true);
+    expect(scriptMemedPrecisaReiniciar("token-a", "token-a")).toBe(false);
+    expect(scriptMemedPrecisaReiniciar(null, "token-a")).toBe(false);
+  });
+
+  it("reinicia o script se a URL mudou do wrapper legado para o V4", () => {
+    expect(
+      scriptMemedPrecisaReiniciar(
+        "token-a",
+        "token-a",
+        "https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js",
+        MEMED_V4_SCRIPT_PROD,
+      ),
+    ).toBe(true);
+  });
+
+  it("usa o widget V4 em producao e mantem o wrapper na homologacao", () => {
+    expect(
+      urlScriptWidgetMemed(
+        "https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js",
+      ),
+    ).toBe(MEMED_V4_SCRIPT_PROD);
+    expect(
+      urlScriptWidgetMemed(
+        "https://integrations.memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js",
+      ),
+    ).toContain("integrations.memed.com.br");
   });
 });

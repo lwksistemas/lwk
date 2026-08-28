@@ -525,6 +525,10 @@ WHATSAPP_TOKEN = config("WHATSAPP_TOKEN", default="")
 # WhatsApp Web (Evolution API) — opcional; uma instância por loja
 EVOLUTION_API_URL = config("EVOLUTION_API_URL", default="")
 EVOLUTION_API_KEY = config("EVOLUTION_API_KEY", default="")
+# Evolution da VM servidorwhatsapp (parceiros PHP). Vazio = não mistura com lojas.
+EVOLUTION_PARCEIRO_API_URL = config("EVOLUTION_PARCEIRO_API_URL", default="")
+EVOLUTION_PARCEIRO_API_KEY = config("EVOLUTION_PARCEIRO_API_KEY", default="")
+EVOLUTION_PARCEIRO_WEBHOOK_URL = config("EVOLUTION_PARCEIRO_WEBHOOK_URL", default="")
 
 # Google Calendar (OAuth2 + API) - CRM Vendas
 GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")

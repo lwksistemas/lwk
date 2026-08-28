@@ -62,6 +62,8 @@ def api_root(request):
             "homepage": "/api/homepage/",
             "whatsapp": "/api/whatsapp/",
             "whatsapp_v1": "/api/whatsapp/v1/me/",
+            "whatsapp_v1_numeros": "/api/whatsapp/v1/numeros/",
+            "whatsapp_v1_mensagens": "/api/whatsapp/v1/mensagens/",
         },
         "documentacao": "Sistema Multi-Tenant para gestão de lojas",
     }

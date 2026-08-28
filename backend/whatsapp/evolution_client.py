@@ -1,14 +1,31 @@
 """Cliente HTTP para Evolution API (WhatsApp Web / Baileys).
 Documentação: https://doc.evolution-api.com/
+
+Duas Evolution: lojas LWK (EVOLUTION_API_*) e parceiros PHP (EVOLUTION_PARCEIRO_*).
+Use `evolution_target("parceiro")` para não misturar com as lojas.
 """
 import logging
 import re
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+_evo_target: ContextVar[str] = ContextVar("evolution_target", default="loja")
+
+
+@contextmanager
+def evolution_target(target: str):
+    """Direciona as chamadas HTTP para a Evolution das lojas ou a dos parceiros."""
+    token = _evo_target.set("parceiro" if target == "parceiro" else "loja")
+    try:
+        yield
+    finally:
+        _evo_target.reset(token)
 
 
 class EvolutionAPIError(Exception):
@@ -24,6 +41,12 @@ def evolution_configured():
     return bool(url and key)
 
 
+def partner_evolution_configured():
+    url = (getattr(settings, "EVOLUTION_PARCEIRO_API_URL", None) or "").strip()
+    key = (getattr(settings, "EVOLUTION_PARCEIRO_API_KEY", None) or "").strip()
+    return bool(url and key)
+
+
 def evolution_instance_name(loja_id):
     return f"lwk_loja_{int(loja_id)}"
 
@@ -31,6 +54,12 @@ def evolution_instance_name(loja_id):
 def loja_id_from_evolution_instance(instance_name: str) -> int | None:
     """lwk_loja_4 ou lwk_loja_4_96990 → loja_id 4."""
     m = re.match(r"^lwk_loja_(\d+)(?:_\d+)?$", (instance_name or "").strip(), re.IGNORECASE)
+    return int(m.group(1)) if m else None
+
+
+def customer_id_from_ext_instance(instance_name: str) -> int | None:
+    """ext_12 ou ext_12_cliente → customer_id 12."""
+    m = re.match(r"^ext_(\d+)(?:_|$)", (instance_name or "").strip(), re.IGNORECASE)
     return int(m.group(1)) if m else None
 
 
@@ -55,6 +84,11 @@ def evolution_instance_name_stuck(exc: EvolutionAPIError) -> bool:
 
 
 def _base_url():
+    if _evo_target.get() == "parceiro":
+        url = (getattr(settings, "EVOLUTION_PARCEIRO_API_URL", None) or "").strip().rstrip("/")
+        if not url:
+            raise EvolutionAPIError("Evolution de parceiro não configurada (EVOLUTION_PARCEIRO_API_URL).")
+        return url
     url = (getattr(settings, "EVOLUTION_API_URL", None) or "").strip().rstrip("/")
     if not url:
         raise EvolutionAPIError("Evolution API não configurada (EVOLUTION_API_URL).")
@@ -62,6 +96,11 @@ def _base_url():
 
 
 def _headers():
+    if _evo_target.get() == "parceiro":
+        key = (getattr(settings, "EVOLUTION_PARCEIRO_API_KEY", None) or "").strip()
+        if not key:
+            raise EvolutionAPIError("Evolution de parceiro sem chave (EVOLUTION_PARCEIRO_API_KEY).")
+        return {"apikey": key, "Content-Type": "application/json"}
     key = (getattr(settings, "EVOLUTION_API_KEY", None) or "").strip()
     if not key:
         raise EvolutionAPIError("Evolution API key não configurada (EVOLUTION_API_KEY).")
@@ -580,13 +619,36 @@ def evolution_webhook_url():
     return f"{base}/api/whatsapp/evolution/webhook/"
 
 
+def partner_evolution_webhook_url():
+    from django.conf import settings
+
+    explicit = (getattr(settings, "EVOLUTION_PARCEIRO_WEBHOOK_URL", None) or "").strip()
+    if explicit:
+        return explicit if explicit.endswith("/") else f"{explicit}/"
+    base = (
+        getattr(settings, "API_BASE_URL", None)
+        or getattr(settings, "BACKEND_URL", None)
+        or ""
+    ).strip().rstrip("/")
+    if not base:
+        from core.public_urls import get_public_api_base_url
+
+        base = get_public_api_base_url()
+    return f"{base}/api/whatsapp/v1/webhook/"
+
+
 def set_instance_webhook(instance_name):
     from django.conf import settings
 
-    key = (getattr(settings, "EVOLUTION_API_KEY", None) or "").strip()
+    if _evo_target.get() == "parceiro":
+        key = (getattr(settings, "EVOLUTION_PARCEIRO_API_KEY", None) or "").strip()
+        url = partner_evolution_webhook_url()
+    else:
+        key = (getattr(settings, "EVOLUTION_API_KEY", None) or "").strip()
+        url = evolution_webhook_url()
     webhook_cfg = {
         "enabled": True,
-        "url": evolution_webhook_url(),
+        "url": url,
         "webhookByEvents": False,
         "webhookBase64": False,
         "events": ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],

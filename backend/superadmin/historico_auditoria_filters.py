@@ -4,6 +4,7 @@ from django.db.models import Q
 # URLs que não representam ação humana (webhooks, bots)
 URLS_IGNORAR_AUDITORIA = (
     "/api/whatsapp/evolution/webhook/",
+    "/api/whatsapp/v1/webhook/",
     "/api/asaas/",
 )
 

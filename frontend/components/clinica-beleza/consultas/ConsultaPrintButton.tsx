@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, Printer } from "lucide-react";
+import { Eye } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import type { ConsultaPdfModo } from "@/lib/consulta-print";
 
@@ -16,12 +16,10 @@ function mensagemErro(e: unknown, fallback: string): string {
 }
 
 type Props = {
-  /** Preferido: Visualizar + Imprimir com o mesmo handler. */
   onAction?: (modo: ConsultaPdfModo) => void | Promise<unknown>;
-  /** Compat: só Imprimir (sem botão Visualizar). */
+  /** Compat: mesmo efeito de Visualizar. */
   onPrint?: () => void | Promise<unknown>;
   labelVisualizar?: string;
-  labelImprimir?: string;
   className?: string;
 };
 
@@ -29,84 +27,40 @@ export function ConsultaPrintButton({
   onAction,
   onPrint,
   labelVisualizar = "Visualizar",
-  labelImprimir = "Imprimir",
   className = "",
 }: Props) {
   const toast = useToast();
-  const [loading, setLoading] = useState<ConsultaPdfModo | "print-only" | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const run = async (modo: ConsultaPdfModo | "print-only") => {
+  const run = async () => {
     if (loading) return;
-    setLoading(modo);
+    setLoading(true);
     try {
-      if (modo === "print-only") {
+      if (onAction) {
+        await onAction("visualizar");
+      } else {
         await onPrint?.();
-      } else if (onAction) {
-        await onAction(modo);
-      } else if (onPrint && modo === "imprimir") {
-        await onPrint();
       }
     } catch (e) {
-      toast.error(
-        mensagemErro(
-          e,
-          modo === "visualizar" ? "Não foi possível visualizar." : "Não foi possível imprimir.",
-        ),
-      );
+      toast.error(mensagemErro(e, "Não foi possível visualizar."));
     } finally {
-      setLoading(null);
+      setLoading(false);
     }
   };
-
-  const btnClass =
-    "inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50 transition-colors";
-
-  if (onAction) {
-    return (
-      <div className={`inline-flex items-center gap-1.5 ${className}`}>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            void run("visualizar");
-          }}
-          disabled={!!loading}
-          title="Visualizar PDF"
-          className={btnClass}
-        >
-          <Eye size={13} />
-          {loading === "visualizar" ? "Abrindo..." : labelVisualizar}
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            void run("imprimir");
-          }}
-          disabled={!!loading}
-          title="Imprimir"
-          className={btnClass}
-        >
-          <Printer size={13} />
-          {loading === "imprimir" ? "Gerando..." : labelImprimir}
-        </button>
-      </div>
-    );
-  }
 
   return (
     <button
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        void run("print-only");
+        void run();
       }}
-      disabled={!!loading}
-      title="Imprimir"
-      className={`${btnClass} ${className}`}
+      disabled={loading}
+      title="Visualizar PDF — imprima pelo visualizador"
+      className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50 transition-colors ${className}`}
     >
-      <Printer size={13} />
-      {loading ? "Gerando..." : labelImprimir}
+      <Eye size={13} />
+      {loading ? "Abrindo..." : labelVisualizar}
     </button>
   );
 }

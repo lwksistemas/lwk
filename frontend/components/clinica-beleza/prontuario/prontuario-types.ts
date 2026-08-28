@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  Camera,
+  ClipboardList,
   FileCheck,
   FileText,
   FlaskConical,
@@ -8,8 +10,10 @@ import {
   Pill,
 } from "lucide-react";
 
-/** Mapeamento de tab para seção da API */
+/** Mapeamento de tab para seção da API (resumo e fotos são só front). */
 export type ProntuarioTabId =
+  | "resumo"
+  | "fotos"
   | "receituario"
   | "pedido_exame"
   | "atestado"
@@ -17,7 +21,10 @@ export type ProntuarioTabId =
   | "anamnese"
   | "evolucao";
 
-export type ProntuarioDocTabId = Exclude<ProntuarioTabId, "anamnese" | "evolucao">;
+export type ProntuarioDocTabId = Exclude<
+  ProntuarioTabId,
+  "resumo" | "fotos" | "anamnese" | "evolucao"
+>;
 
 export interface ProntuarioTabDef {
   id: ProntuarioTabId;
@@ -26,6 +33,8 @@ export interface ProntuarioTabDef {
 }
 
 export const PRONTUARIO_TABS: ProntuarioTabDef[] = [
+  { id: "resumo", label: "Resumo", icon: ClipboardList },
+  { id: "fotos", label: "Fotos", icon: Camera },
   { id: "receituario", label: "Receitas", icon: Pill },
   { id: "pedido_exame", label: "Exames", icon: FlaskConical },
   { id: "atestado", label: "Atestados", icon: FileCheck },

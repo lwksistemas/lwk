@@ -15,11 +15,14 @@ export function ConsultaFotosTab({
   permiteEnviar,
   ativa,
   onToolbarChange,
+  ocultarAvisoFinalizada = false,
 }: {
   consultaId: number;
   permiteEnviar?: boolean;
   ativa?: boolean;
   onToolbarChange?: (toolbar: ReactNode | null) => void;
+  /** No prontuário: fotos são só leitura mesmo com consulta em andamento. */
+  ocultarAvisoFinalizada?: boolean;
 }) {
   const {
     fotos,
@@ -67,7 +70,7 @@ export function ConsultaFotosTab({
           Seu plano não inclui fotos de acompanhamento. Faça upgrade para Intermediário ou Completo para enviar fotos pelo painel ou QR.
         </p>
       )}
-      {!permiteEnviar && permiteUploadPlano && (
+      {!permiteEnviar && permiteUploadPlano && !ocultarAvisoFinalizada && (
         <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
           Consulta finalizada — apenas visualizar e comparar fotos.
         </p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Printer } from "lucide-react";
+import { isProntuarioLocalTab } from "./prontuario-utils";
 import { PRONTUARIO_TABS, type ProntuarioTabId } from "./prontuario-types";
 
 interface ProntuarioTabBarProps {
@@ -35,8 +36,11 @@ export function ProntuarioTabBar({
         </button>
       ))}
 
+      {!isProntuarioLocalTab(activeTab) && (
       <div className="hidden sm:block w-px h-6 bg-gray-300 dark:bg-neutral-600 mx-1" />
+      )}
 
+      {!isProntuarioLocalTab(activeTab) && (
       <button
         type="button"
         onClick={onPrintSecao}
@@ -46,6 +50,7 @@ export function ProntuarioTabBar({
         <Printer size={16} />
         <span className="hidden md:inline">Imprimir Seção</span>
       </button>
+      )}
 
       <button
         type="button"

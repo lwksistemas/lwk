@@ -62,3 +62,11 @@ describe('isTipoClinicaGeral', () => {
     );
   });
 });
+
+describe('Clínica da Beleza — home', () => {
+  it('abre o prontuário em vez da lista de consultas', () => {
+    expect(homePathForTipo('clinicaharmonis', 'Clínica da Beleza')).toBe(
+      '/loja/clinicaharmonis/clinica-beleza/prontuario',
+    );
+  });
+});

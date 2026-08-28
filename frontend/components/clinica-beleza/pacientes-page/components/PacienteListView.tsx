@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { BookOpen, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
@@ -24,21 +24,36 @@ export interface PacienteListViewProps {
   onPageChange: (page: number) => void;
   onEdit: (patient: Patient) => void;
   onExclude: (patient: Patient) => void;
+  onVerProntuario: (patient: Patient) => void;
 }
 
 function RowActions({
   patient,
   onEdit,
   onExclude,
+  onVerProntuario,
   showChevron,
 }: {
   patient: Patient;
   onEdit: (patient: Patient) => void;
   onExclude: (patient: Patient) => void;
+  onVerProntuario: (patient: Patient) => void;
   showChevron?: boolean;
 }) {
   return (
     <div className="flex justify-end gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+      {patient.id >= 0 && (
+        <button
+          type="button"
+          onClick={() => onVerProntuario(patient)}
+          className="p-2 rounded-lg hover:bg-[#F5E6EA] dark:hover:bg-neutral-600 transition-colors touch-manipulation"
+          style={{ color: "var(--cb-primary, #8B3D52)" }}
+          title="Ver prontuário"
+          aria-label="Ver prontuário"
+        >
+          <BookOpen size={18} />
+        </button>
+      )}
       <button
         type="button"
         onClick={() => onEdit(patient)}
@@ -77,6 +92,7 @@ export function PacienteListView({
   onPageChange,
   onEdit,
   onExclude,
+  onVerProntuario,
 }: PacienteListViewProps) {
   if (loading) {
     return (
@@ -128,7 +144,12 @@ export function PacienteListView({
                       {formatTelefone(entityPhone(p)) || "Sem telefone"}
                     </p>
                   </div>
-                  <RowActions patient={p} onEdit={onEdit} onExclude={onExclude} />
+                  <RowActions
+                    patient={p}
+                    onEdit={onEdit}
+                    onExclude={onExclude}
+                    onVerProntuario={onVerProntuario}
+                  />
                 </div>
               </li>
             ))}
@@ -207,12 +228,13 @@ export function PacienteListView({
                 {
                   key: "acoes",
                   header: "Ações",
-                  className: "w-28",
+                  className: "w-36",
                   render: (p) => (
                     <RowActions
                       patient={p}
                       onEdit={onEdit}
                       onExclude={onExclude}
+                      onVerProntuario={onVerProntuario}
                       showChevron
                     />
                   ),

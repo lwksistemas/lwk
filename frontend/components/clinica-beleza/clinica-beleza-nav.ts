@@ -3,7 +3,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   Users,
-  Stethoscope,
+  BookOpen,
   ListChecks,
   ClipboardList,
   DollarSign,
@@ -16,6 +16,7 @@ import {
   Receipt,
   ScrollText,
 } from 'lucide-react';
+import { isProntuarioPacientePath } from '@/components/clinica-beleza/prontuario/prontuario-paths';
 
 /** Cor principal do app (mockup Beleza & Vitalidade) */
 export const CLINICA_BELEZA_PRIMARY = '#8B3D52';
@@ -39,7 +40,7 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: 'dashboard' },
   { label: 'Agenda', icon: CalendarDays, path: 'agenda' },
   { label: 'Clientes', icon: Users, path: 'clinica-beleza/pacientes' },
-  { label: 'Consultas', icon: Stethoscope, path: 'clinica-beleza/consultas' },
+  { label: 'Prontuário', icon: BookOpen, path: 'clinica-beleza/prontuario' },
   { label: 'Procedimentos', icon: ListChecks, path: 'clinica-beleza/procedimentos' },
   { label: 'TCLE Interativo', icon: ScrollText, path: 'clinica-beleza/termos-consentimento' },
   { label: 'Protocolos', icon: ClipboardList, path: 'clinica-beleza/protocolos' },
@@ -73,6 +74,13 @@ export function isClinicaBelezaNavActive(pathname: string, slug: string, path: s
   const pathOnly = normalizePath(getClinicaBelezaNavHref(slug, path));
   const current = normalizePath(pathname);
   if (path === 'dashboard') return current === pathOnly;
+  if (path === 'clinica-beleza/prontuario') {
+    return (
+      current === pathOnly ||
+      isProntuarioPacientePath(current, slug) ||
+      current === `/loja/${slug}/clinica-beleza/consultas`
+    );
+  }
   if (MODULE_REDIRECT_PREFIXES.some((prefix) => path.startsWith(prefix))) {
     return current === pathOnly || current.startsWith(`${pathOnly}/`);
   }

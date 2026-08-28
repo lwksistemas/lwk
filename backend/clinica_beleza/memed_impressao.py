@@ -216,10 +216,10 @@ def aviso_timbrado_nao_aplicado(resultado: dict) -> str | None:
     if pendentes and len(pendentes) == len(detalhes):
         nomes = ", ".join((d.get("nome") or "profissional").strip() or "profissional" for d in pendentes)
         return (
-            f"Timbrado salvo no LWK. A Memed ainda não aplica o papel timbrado para {nomes} "
-            "(cadastro Em análise ou termos não aceitos). Quando o status for Ativo, clique em Reaplicar aos prescritores."
+            f"Timbrado salvo no LWK. A Memed não aplicou o papel timbrado para {nomes}. "
+            "Tente Reaplicar aos prescritores; se persistir, o suporte da Memed avalia o layout da conta parceira."
         )
     return (
         "Timbrado salvo no LWK, mas a Memed recusou a aplicação para todos os prescritores. "
-        'Prescritores "Em análise" ou conta parceira sem permissão de layout costumam causar isso.'
+        "Tente Reaplicar ou contate o suporte Memed (conta parceira / permissão de layout)."
     )

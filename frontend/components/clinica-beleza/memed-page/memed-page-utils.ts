@@ -47,44 +47,36 @@ export function buildTimbradoApplyFeedback(data: TimbradoStatus): { msg: string;
       (typeof data.warning === "string" && data.warning) ||
       `Timbrado salvo no LWK, mas a Memed não aplicou (${aplicados}/${total}).` +
         (memedErr ? ` Detalhe: ${String(memedErr).slice(0, 200)}` : "") +
-        ' Isso costuma ocorrer enquanto o prescritor está "Em análise" na Memed — tente de novo quando estiver Ativo, ou contate o suporte Memed.',
+        " Tente Reaplicar ou fale com o suporte Memed (permissão de layout da conta parceira).",
     aviso: "",
   };
 }
 
-export function mensagemPrescritorMemedPendente(prescritor?: {
-  nome?: string;
-  status?: string;
-  terms_accepted?: boolean;
-} | null): string | null {
-  if (!prescritor) return null;
-  const status = String(prescritor.status || "").trim();
-  const emAnalise = /an[aá]lise/i.test(status);
-  const semTermos = prescritor.terms_accepted === false;
-  if (!emAnalise && !semTermos) return null;
-  const quem = prescritor.nome ? ` de ${prescritor.nome}` : "";
-  if (emAnalise && semTermos) {
-    return (
-      `A Memed ainda não liberou o prescritor${quem} (cadastro Em análise e termos não aceitos). ` +
-      "Peça para a médica aceitar os termos no e-mail da Memed e aguarde o status Ativo."
-    );
-  }
-  if (semTermos) {
-    return `O prescritor${quem} ainda não aceitou os termos da Memed. Peça para aceitar no e-mail/cadastro da Memed e tente de novo.`;
-  }
-  return `O prescritor${quem} está "${status}" na Memed. Aguarde a aprovação (status Ativo) para prescrever.`;
+export function mensagemPrescritorMemedPendente(
+  _prescritor?: {
+    nome?: string;
+    status?: string;
+    terms_accepted?: boolean;
+  } | null,
+): string | null {
+  return null;
 }
 
 export function prescritorPodePrescrever(p?: MemedPrescritorDiag | null): boolean {
   if (!p) return false;
   if (typeof p.pode_prescrever === "boolean") return p.pode_prescrever;
-  if (p.terms_accepted === false) return false;
-  return String(p.status || p.label || "").trim().toLowerCase() === "ativo";
+  const st = String(p.status || p.label || p.state || "").trim();
+  if (!st) return false;
+  if (/não cadastrado|nao cadastrado|indispon[ií]vel|erro/i.test(st)) return false;
+  return true;
 }
 
 export function detalhePrescritorMemed(p: MemedPrescritorDiag): string {
-  const partes: string[] = [];
   const status = String(p.status || p.label || "").trim();
+  if (/an[aá]lise/i.test(status)) {
+    return `${status} (não impede emitir receitas)`;
+  }
+  const partes: string[] = [];
   if (status) partes.push(status);
   if (p.terms_accepted === false) partes.push("termos não aceitos");
   else if (p.terms_accepted) partes.push("termos aceitos");
@@ -113,14 +105,14 @@ export function resumoProntoParaPrescrever(diag: MemedDiagStatus): {
     return {
       tom: "aviso",
       texto:
-        "A clínica está conectada à Memed, mas nenhum prescritor está Ativo com os termos aceitos. Isso se resolve no e-mail da Memed, não nesta tela.",
+        "A clínica está conectada à Memed, mas nenhum prescritor foi encontrado no cadastro da Memed.",
     };
   }
   if (liberados.length < lista.length) {
     return {
       tom: "aviso",
-      texto: `${liberados.length} de ${lista.length} prescritor(es) podem prescrever. Os demais precisam aceitar os termos no e-mail da Memed e aguardar o status Ativo.`,
+      texto: `${liberados.length} de ${lista.length} prescritor(es) podem prescrever. Confira CPF e cadastro na Memed dos demais.`,
     };
   }
-  return { tom: "ok", texto: "Pronto para prescrição em produção." };
+  return { tom: "ok", texto: "Pronto para prescrição em produção. O status Em análise na Memed não impede emitir receitas." };
 }

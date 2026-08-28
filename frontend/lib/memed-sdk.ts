@@ -74,19 +74,19 @@ export async function enviarComandoMemed(
   await withTimeout(Promise.resolve(result), timeoutMs, `Memed: tempo esgotado no comando ${command}`);
 }
 
-export function moverIframeMemedParaHost(doc: Document, hostId: string): boolean {
-  const host = doc.getElementById(hostId);
-  if (!host) return false;
-  const noHost = host.querySelector("iframe");
-  const iframe =
-    (noHost instanceof HTMLIFrameElement ? noHost : null) ||
-    Array.from(doc.querySelectorAll("iframe")).find((el) => {
-      const src = el.getAttribute("src") || "";
-      const title = el.getAttribute("title") || "";
-      return title === "Memed Prescrição" || src.includes("v4-embedded") || src.includes("memed.com.br");
-    }) ||
-    null;
-  if (!(iframe instanceof HTMLIFrameElement)) return false;
+export function ehIframeMemed(el: Element): boolean {
+  if (el.tagName !== "IFRAME") return false;
+  const src = el.getAttribute("src") || "";
+  const title = el.getAttribute("title") || "";
+  return title === "Memed Prescrição" || src.includes("v4-embedded") || src.includes("memed.com.br");
+}
+
+export function localizarIframeMemed(doc: Document): HTMLIFrameElement | null {
+  const found = Array.from(doc.querySelectorAll("iframe")).find(ehIframeMemed);
+  return found ? (found as HTMLIFrameElement) : null;
+}
+
+function aplicarEstiloIframeMemed(iframe: HTMLIFrameElement): void {
   iframe.style.display = "block";
   iframe.style.width = "100%";
   iframe.style.height = "100%";
@@ -94,10 +94,50 @@ export function moverIframeMemedParaHost(doc: Document, hostId: string): boolean
   iframe.style.border = "none";
   iframe.style.visibility = "visible";
   iframe.style.pointerEvents = "auto";
-  if (!host.contains(iframe)) {
-    host.appendChild(iframe);
+}
+
+function revelarOverlayMemed(overlay: HTMLElement): void {
+  if (overlay.style.display === "none") overlay.style.display = "";
+  if (overlay.style.visibility === "hidden") overlay.style.visibility = "visible";
+  if (overlay.style.pointerEvents === "none") overlay.style.pointerEvents = "auto";
+  overlay.style.zIndex = "2147483646";
+}
+
+/**
+ * Deixa o editor visível sem mover o iframe de lugar.
+ * appendChild recarrega o iframe (perde o token) e a Memed responde 401.
+ */
+export function garantirEditorMemedVisivel(doc: Document, hostId: string): boolean {
+  const host = doc.getElementById(hostId);
+  const overlay = doc.getElementById(MEMED_V4_OVERLAY_ID) as HTMLElement | null;
+  const iframeNoHost = host
+    ? Array.from(host.querySelectorAll("iframe")).find(ehIframeMemed)
+    : undefined;
+  const iframe = (iframeNoHost as HTMLIFrameElement | undefined) || localizarIframeMemed(doc);
+
+  if (iframe) {
+    aplicarEstiloIframeMemed(iframe);
+    if (overlay) {
+      if (host && host.contains(iframe) && !overlay.contains(iframe) && !overlay.contains(host)) {
+        overlay.style.display = "none";
+        overlay.style.pointerEvents = "none";
+      } else {
+        revelarOverlayMemed(overlay);
+      }
+    }
+    return true;
   }
-  return true;
+
+  if (overlay) {
+    revelarOverlayMemed(overlay);
+    return overlay.childElementCount > 0;
+  }
+  return false;
+}
+
+/** @deprecated Use garantirEditorMemedVisivel — não move o iframe. */
+export function moverIframeMemedParaHost(doc: Document, hostId: string): boolean {
+  return garantirEditorMemedVisivel(doc, hostId);
 }
 
 export function forcarFecharOverlayMemed(win: Window, hostId?: string): void {

@@ -309,7 +309,7 @@ class MemedTimbradoView(APIView):
 
         from tenants.middleware import get_current_loja_id
         from superadmin.plano_features import loja_plano_permite_memed
-        from .memed_impressao import aplicar_timbrado_loja_a_profissionais
+        from .memed_impressao import aplicar_timbrado_loja_a_profissionais, aviso_timbrado_nao_aplicado
         from .models import MemedTimbrado, Professional
 
         ok, err = loja_plano_permite_memed(get_current_loja_id())
@@ -361,8 +361,5 @@ class MemedTimbradoView(APIView):
             "detalhes": resultado["detalhes"],
         }
         if resultado["aplicados"] == 0:
-            payload["warning"] = (
-                'Timbrado salvo no LWK, mas a Memed recusou a aplicação para todos os prescritores. '
-                'Prescritores "Em análise" ou conta parceira sem permissão de layout costumam causar isso.'
-            )
+            payload["warning"] = aviso_timbrado_nao_aplicado(resultado)
         return Response(payload)

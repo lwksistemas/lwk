@@ -8,7 +8,9 @@ import { enviarPacienteMemed, enviarWorkplaceMemed } from "./memed-paciente";
 import {
   abrirModuloPrescricaoMemed,
   aguardarModuloMemed,
+  aguardarWidgetMemedOperacional,
   carregarScriptMemed,
+  enviarComandoPrescricaoMemed,
   fecharModuloPrescricaoMemed,
   logoutMemedSdk,
   preloadMemedScript,
@@ -71,6 +73,14 @@ export function useMemedPrescricao({
   useEffect(() => () => logoutMemedSdk(), []);
 
   useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") fecharModuloPrescricaoMemed();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, []);
+
+  useEffect(() => {
     setPrescricaoImpressaHandler((data: unknown) => {
       const { prescricaoId, itens, resumo, pdfUrl } = parsePrescricaoMemed(data);
       if (!prescricaoId && !itens.length) {
@@ -102,13 +112,28 @@ export function useMemedPrescricao({
   const abrir = useCallback(async () => {
     await garantirPronto();
     if (!window.MdHub) throw new Error("Memed não disponível.");
-    await enviarPacienteMemed(patientId, patientName);
+    try {
+      await aguardarWidgetMemedOperacional();
+    } catch (e) {
+      fecharModuloPrescricaoMemed();
+      throw e;
+    }
+    try {
+      await enviarPacienteMemed(patientId, patientName);
+    } catch (e) {
+      logger.warn("Memed: não foi possível definir o paciente:", e);
+    }
     try {
       await enviarWorkplaceMemed(clinicaRef.current);
     } catch (e) {
       logger.warn("Memed: não foi possível definir o local de atendimento:", e);
     }
     abrirModuloPrescricaoMemed();
+    try {
+      await enviarComandoPrescricaoMemed("newPrescription");
+    } catch (e) {
+      logger.warn("Memed: newPrescription indisponível:", e);
+    }
   }, [garantirPronto, patientId, patientName]);
 
   const fechar = useCallback(() => {

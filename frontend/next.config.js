@@ -40,7 +40,7 @@ const securityHeaders = [
   },
   {
     key: 'Cross-Origin-Opener-Policy',
-    value: 'same-origin',
+    value: 'same-origin-allow-popups',
   },
   {
     key: 'Cross-Origin-Resource-Policy',
@@ -48,7 +48,7 @@ const securityHeaders = [
   },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
+    value: 'camera=(self), microphone=(), clipboard-write=(self "https://memed.com.br" "https://*.memed.com.br" "https://v4-embedded.memed.com.br"), geolocation=(), payment=(), usb=(), browsing-topics=()',
   },
   {
     key: 'Referrer-Policy',

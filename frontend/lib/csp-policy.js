@@ -1,14 +1,21 @@
 /**
  * Origens da Content-Security-Policy do Next.js.
- * A Memed (Sinapse) usa memed.com.br e também memed.rocks (Unleash / WebSocket).
+ * Sinapse 3.25+ (ago/2026) usa v4-embedded.memed.com.br e Unleash em
+ * unleash-proxy.data.memed.rocks — o host aninhado precisa de entrada própria.
  */
 const MEMED_HTTPS = [
   "https://memed.com.br",
   "https://*.memed.com.br",
+  "https://v4-embedded.memed.com.br",
   "https://*.memed.rocks",
+  "https://*.data.memed.rocks",
 ];
 
-const MEMED_WSS = ["wss://*.memed.com.br", "wss://*.memed.rocks"];
+const MEMED_WSS = [
+  "wss://*.memed.com.br",
+  "wss://*.memed.rocks",
+  "wss://*.data.memed.rocks",
+];
 
 function extraConnectSrcOrigins() {
   return [

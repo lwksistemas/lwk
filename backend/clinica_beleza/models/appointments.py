@@ -25,9 +25,19 @@ def _taxa_base_agenda(local_atendimento=None, consulta=None) -> Decimal:
     return Decimal(0)
 
 
-def _aplicar_retorno_na_taxa(taxa: Decimal, *, appointment=None, consulta=None) -> Decimal:
+def _aplicar_retorno_na_taxa(
+    taxa: Decimal,
+    *,
+    appointment=None,
+    consulta=None,
+    retorno_elegivel=None,
+) -> Decimal:
     """Zera taxa quando o atendimento é retorno gratuito elegível."""
     if taxa <= 0:
+        return taxa
+    if retorno_elegivel is True:
+        return Decimal(0)
+    if retorno_elegivel is False:
         return taxa
     if appointment is not None:
         from ..retorno_service import verificar_retorno_appointment
@@ -68,11 +78,17 @@ def calcular_valor_exibicao_agenda(
     procedure=None,
     procedure_id=None,
     appointment=None,
+    retorno_elegivel=None,
 ) -> Decimal:
     """Valor exibido na agenda: taxa do local + procedimentos (sem duplicar legacy procedure)."""
     total_proc = Decimal(str(proc_total or 0))
     taxa = _taxa_base_agenda(local_atendimento, consulta)
-    taxa = _aplicar_retorno_na_taxa(taxa, appointment=appointment, consulta=consulta)
+    taxa = _aplicar_retorno_na_taxa(
+        taxa,
+        appointment=appointment,
+        consulta=consulta,
+        retorno_elegivel=retorno_elegivel,
+    )
     if local_atendimento is not None:
         return taxa + total_proc
     return _fallback_valor_agenda(
@@ -195,46 +211,61 @@ class Appointment(LojaIsolationMixin, models.Model):
         paciente = f"paciente#{self.patient_id}"
         return f"{paciente} - {nomes} - {self.date.strftime('%d/%m/%Y %H:%M')}"
 
+    def _linhas_procedimentos(self):
+        """Usa o prefetch da listagem; .select_related() no related manager dispara N+1."""
+        return list(self.appointment_procedures.all())
+
     def get_duracao_efetiva(self) -> int:
         """Duração efetiva: manual > max(procedimentos, tempo consulta do profissional)."""
+        cached = getattr(self, "_duracao_efetiva_cache", None)
+        if cached is not None:
+            return cached
         from ..duracao_consulta import calcular_duracao_efetiva_agendamento
 
-        appointment_procedures = list(
-            self.appointment_procedures.select_related("procedure").all(),
-        )
-        procedure_principal = self.procedure if self.procedure_id else None
-        return calcular_duracao_efetiva_agendamento(
+        result = calcular_duracao_efetiva_agendamento(
             duracao_manual=self.duracao_minutos,
             professional=self.professional,
             local_atendimento=self.local_atendimento,
-            appointment_procedures=appointment_procedures or None,
-            procedure_principal=procedure_principal,
+            appointment_procedures=self._linhas_procedimentos() or None,
+            procedure_principal=self.procedure if self.procedure_id else None,
         )
+        self._duracao_efetiva_cache = result
+        return result
 
     @property
     def valor_total(self):
         """Valor total: soma dos preços de todos os procedimentos."""
+        cached = getattr(self, "_valor_total_cache", None)
+        if cached is not None:
+            return cached
         from decimal import Decimal
         total = sum(
             (ap.valor or ap.procedure.preco or Decimal(0))
-            for ap in self.appointment_procedures.select_related("procedure").all()
+            for ap in self._linhas_procedimentos()
         )
         if total > 0:
+            self._valor_total_cache = total
             return total
         if self.procedure_id:
-            return self.procedure.preco or Decimal(0)
-        return Decimal(0)
+            valor = self.procedure.preco or Decimal(0)
+            self._valor_total_cache = valor
+            return valor
+        self._valor_total_cache = Decimal(0)
+        return self._valor_total_cache
 
-    def get_valor_exibicao_agenda(self) -> Decimal:
+    def get_valor_exibicao_agenda(self, *, retorno_elegivel=None) -> Decimal:
         """Taxa de consulta (local) + procedimentos, para exibição no calendário."""
         consulta = getattr(self, "consulta", None)
+        if retorno_elegivel is None and consulta is not None and getattr(consulta, "retorno_gratuito", False):
+            retorno_elegivel = True
         return calcular_valor_exibicao_agenda(
             self.valor_total,
             local_atendimento=getattr(self, "local_atendimento", None),
             consulta=consulta,
             procedure=self.procedure if self.procedure_id else None,
             procedure_id=self.procedure_id,
-            appointment=self,
+            appointment=self if retorno_elegivel is None else None,
+            retorno_elegivel=retorno_elegivel,
         )
 
 

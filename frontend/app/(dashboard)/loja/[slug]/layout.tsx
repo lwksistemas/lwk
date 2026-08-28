@@ -7,6 +7,7 @@ import { useSessionMonitor } from '@/hooks/useSessionMonitor';
 import { useInactivityLogout } from '@/hooks/useInactivityLogout';
 import { registrarSincronizacaoAoVoltarOnline } from '@/lib/offline-sync';
 import CapturaErrosNavegador from '@/components/suporte/CapturaErrosNavegador';
+import { PrefetchClinicaAgenda } from '@/hooks/clinica-beleza/agenda-data/PrefetchClinicaAgenda';
 import { authService, syncLojaTenantSlug } from '@/lib/auth';
 import { useLojaInadimplenciaGuard } from '@/hooks/useLojaInadimplenciaGuard';
 import {
@@ -104,6 +105,7 @@ export default function LojaLayout({
   return (
     <RouteGuard allowedUserType="loja" requiredSlug={slug}>
       <CapturaErrosNavegador />
+      <PrefetchClinicaAgenda slug={slug} />
       <LojaAssinaturaAvisoBanner slug={slug} aviso={aviso} visivel={avisoVisivel} />
       <LojaAssinaturaAvisoSpacer visivel={avisoVisivel} />
       {children}

@@ -126,11 +126,7 @@ class AgendaView(APIView):
         if scope is None and (p := request.query_params.get("professional")):
             qs = qs.filter(professional_id=p)
         appointments = list(qs.order_by("date"))
-        logger.info(
-            "GET agenda n=%s %s",
-            len(appointments),
-            [(a.id, a.date.isoformat() if a.date else None, a.version) for a in appointments[:20]],
-        )
+        logger.info("GET agenda n=%s", len(appointments))
         from clinica_beleza.retorno_service import verificar_retorno_appointments_batch
 
         retorno_map = verificar_retorno_appointments_batch(appointments)

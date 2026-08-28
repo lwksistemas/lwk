@@ -16,6 +16,19 @@ export function versaoAgenda(value: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+/** Spinner da página: só eventos + profissionais. Procedimentos servem o modal de criar. */
+export function agendaGradeAindaCarregando(opts: {
+  isOnline: boolean;
+  offlineLoading: boolean;
+  professionalsLoading: boolean;
+  eventsLoading: boolean;
+  eventosCount: number;
+}): boolean {
+  if (!opts.isOnline) return opts.offlineLoading;
+  if (opts.eventosCount > 0) return false;
+  return opts.professionalsLoading || opts.eventsLoading;
+}
+
 export function mergeRawAgendaEvent(
   list: unknown,
   saved: Record<string, unknown>,

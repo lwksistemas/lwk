@@ -271,7 +271,13 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         return obj.get_duracao_efetiva()
 
     def get_procedure_price(self, obj):
-        return float(obj.get_valor_exibicao_agenda())
+        info = self._retorno_info(obj)
+        consulta = getattr(obj, "consulta", None)
+        elegivel = bool(
+            info.elegivel
+            or (consulta is not None and getattr(consulta, "retorno_gratuito", False))
+        )
+        return float(obj.get_valor_exibicao_agenda(retorno_elegivel=elegivel))
 
     def get_convenio_name(self, obj):
         if obj.convenio_id and obj.convenio:

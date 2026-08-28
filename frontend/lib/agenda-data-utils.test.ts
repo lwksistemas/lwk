@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   agendaEventsEqual,
+  agendaGradeAindaCarregando,
   aplicarHorarioAgendaEvento,
   formatarAgendaEvento,
   mergeRawAgendaEvent,
@@ -119,6 +120,38 @@ describe("versaoAgenda", () => {
     expect(versaoAgenda(5)).toBe(5);
     expect(versaoAgenda("5")).toBe(5);
     expect(versaoAgenda(undefined)).toBeUndefined();
+  });
+});
+
+describe("agendaGradeAindaCarregando", () => {
+  it("não espera o catálogo de procedimentos para mostrar a grade", () => {
+    expect(
+      agendaGradeAindaCarregando({
+        isOnline: true,
+        offlineLoading: false,
+        professionalsLoading: false,
+        eventsLoading: false,
+        eventosCount: 0,
+      }),
+    ).toBe(false);
+    expect(
+      agendaGradeAindaCarregando({
+        isOnline: true,
+        offlineLoading: false,
+        professionalsLoading: false,
+        eventsLoading: true,
+        eventosCount: 0,
+      }),
+    ).toBe(true);
+    expect(
+      agendaGradeAindaCarregando({
+        isOnline: true,
+        offlineLoading: false,
+        professionalsLoading: false,
+        eventsLoading: true,
+        eventosCount: 3,
+      }),
+    ).toBe(false);
   });
 });
 

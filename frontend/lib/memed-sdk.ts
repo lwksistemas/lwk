@@ -75,10 +75,14 @@ export async function enviarComandoMemed(
 }
 
 export function forcarFecharOverlayMemed(win: Window): void {
-  const overlay = win.document.getElementById(MEMED_V4_OVERLAY_ID);
-  if (overlay instanceof HTMLElement) {
-    overlay.style.visibility = "hidden";
-    overlay.style.pointerEvents = "none";
+  const ids = [MEMED_V4_OVERLAY_ID, "iframe-container", "memed-sinapse-container"];
+  for (const id of ids) {
+    const el = win.document.getElementById(id);
+    if (el instanceof HTMLElement) {
+      el.style.display = "none";
+      el.style.visibility = "hidden";
+      el.style.pointerEvents = "none";
+    }
   }
   win.document.body.style.overflow = "";
 }

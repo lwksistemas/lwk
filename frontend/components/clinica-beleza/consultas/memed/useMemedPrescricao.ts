@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
 import { parsePrescricaoMemed } from "@/lib/memed-prescricao-parser";
-import { MEMED_PRELOAD_SCRIPT_URL } from "./memed-constants";
+import { withTimeout } from "@/lib/memed-sdk";
+import { MEMED_PRELOAD_SCRIPT_URL, MEMED_TOKEN_TIMEOUT_MS } from "./memed-constants";
 import type { DadosClinicaMemed } from "./memed-paciente";
 import { enviarPacienteMemed, enviarWorkplaceMemed } from "./memed-paciente";
 import {
@@ -16,6 +17,12 @@ import {
   preloadMemedScript,
   setPrescricaoImpressaHandler,
 } from "./memed-script-loader";
+
+function esperarProximoFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
 
 export function useMemedPrescricao({
   consultaId,
@@ -42,7 +49,11 @@ export function useMemedPrescricao({
       preloadMemedScript(MEMED_PRELOAD_SCRIPT_URL);
       const path =
         professionalId != null ? `/memed/token/?professional=${professionalId}` : "/memed/token/";
-      const res = await clinicaBelezaFetch(path);
+      const res = await withTimeout(
+        clinicaBelezaFetch(path, { signal: AbortSignal.timeout(MEMED_TOKEN_TIMEOUT_MS) }),
+        MEMED_TOKEN_TIMEOUT_MS,
+        "Memed: tempo esgotado ao obter o token do prescritor",
+      );
       const cfg = await res.json();
       if (!res.ok) {
         throw new Error(
@@ -71,14 +82,6 @@ export function useMemedPrescricao({
   }, []);
 
   useEffect(() => () => logoutMemedSdk(), []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") fecharModuloPrescricaoMemed();
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, []);
 
   useEffect(() => {
     setPrescricaoImpressaHandler((data: unknown) => {
@@ -110,14 +113,10 @@ export function useMemedPrescricao({
   }, [consultaId, professionalId, onPrescricaoRegistrada]);
 
   const abrir = useCallback(async () => {
+    await esperarProximoFrame();
     await garantirPronto();
     if (!window.MdHub) throw new Error("Memed não disponível.");
-    try {
-      await aguardarWidgetMemedOperacional();
-    } catch (e) {
-      fecharModuloPrescricaoMemed();
-      throw e;
-    }
+    await aguardarWidgetMemedOperacional();
     try {
       await enviarPacienteMemed(patientId, patientName);
     } catch (e) {

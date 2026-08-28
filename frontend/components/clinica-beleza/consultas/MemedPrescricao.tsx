@@ -2,8 +2,7 @@
 
 /**
  * Integração Memed — prescrição digital (Receituário e Exames).
- * Abre num modal do LWK (data-container) para a overlay fullscreen da Memed
- * V4 não travar a consulta.
+ * Barra Fechar do LWK por cima do overlay da Memed (sem mover o iframe).
  */
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";

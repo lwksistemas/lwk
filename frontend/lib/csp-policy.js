@@ -2,6 +2,7 @@
  * Origens da Content-Security-Policy do Next.js.
  * Sinapse 3.25+ (ago/2026) usa v4-embedded.memed.com.br e Unleash em
  * unleash-proxy.data.memed.rocks — o host aninhado precisa de entrada própria.
+ * Telemetria da Memed (RudderStack / IP) também precisa de connect-src.
  */
 const MEMED_HTTPS = [
   "https://memed.com.br",
@@ -17,6 +18,15 @@ const MEMED_WSS = [
   "wss://*.data.memed.rocks",
 ];
 
+const MEMED_TELEMETRIA = [
+  "https://api.rudderstack.com",
+  "https://*.rudderstack.com",
+  "https://cdn.rudderlabs.com",
+  "https://*.rudderlabs.com",
+  "https://ipv4.icanhazip.com",
+  "https://api.ipify.org",
+];
+
 function extraConnectSrcOrigins() {
   return [
     "https://api.lwksistemas.com.br",
@@ -26,6 +36,7 @@ function extraConnectSrcOrigins() {
     "https://brasilapi.com.br",
     ...MEMED_HTTPS,
     ...MEMED_WSS,
+    ...MEMED_TELEMETRIA,
     "https://meet.jit.si",
     "wss://meet.jit.si",
     "https://*.jitsi.net",

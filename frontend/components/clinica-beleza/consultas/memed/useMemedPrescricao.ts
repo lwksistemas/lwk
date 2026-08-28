@@ -3,7 +3,7 @@ import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
 import { parsePrescricaoMemed } from "@/lib/memed-prescricao-parser";
 import { withTimeout } from "@/lib/memed-sdk";
-import { MEMED_PRELOAD_SCRIPT_URL, MEMED_TOKEN_TIMEOUT_MS } from "./memed-constants";
+import { MEMED_TOKEN_TIMEOUT_MS } from "./memed-constants";
 import type { DadosClinicaMemed } from "./memed-paciente";
 import { enviarPacienteMemed, enviarWorkplaceMemed } from "./memed-paciente";
 import {
@@ -11,8 +11,6 @@ import {
   aguardarIframeMemedNoHost,
   carregarScriptMemed,
   fecharModuloPrescricaoMemed,
-  logoutMemedSdk,
-  preloadMemedScript,
   setPrescricaoImpressaHandler,
 } from "./memed-script-loader";
 
@@ -44,7 +42,6 @@ export function useMemedPrescricao({
     if (initPromiseRef.current) return initPromiseRef.current;
 
     const promise = (async () => {
-      preloadMemedScript(MEMED_PRELOAD_SCRIPT_URL);
       const path =
         professionalId != null ? `/memed/token/?professional=${professionalId}` : "/memed/token/";
       const res = await withTimeout(
@@ -73,12 +70,6 @@ export function useMemedPrescricao({
     });
     return promise;
   }, [professionalId]);
-
-  useEffect(() => {
-    preloadMemedScript(MEMED_PRELOAD_SCRIPT_URL);
-  }, []);
-
-  useEffect(() => () => logoutMemedSdk(), []);
 
   useEffect(() => {
     setPrescricaoImpressaHandler((data: unknown) => {

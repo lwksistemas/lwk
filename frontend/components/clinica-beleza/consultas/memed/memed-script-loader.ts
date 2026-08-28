@@ -81,31 +81,50 @@ export function registrarListenerPrescricaoMemed(): void {
   });
 }
 
-export function carregarScriptMemed(scriptUrl: string, token: string): Promise<void> {
+export function esperarMdHub(timeoutMs = MEMED_TIMEOUT_MS): Promise<void> {
   return new Promise((resolve, reject) => {
-    const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
-    if (existing) {
-      existing.setAttribute("data-token", token);
-      existing.setAttribute("data-container", MEMED_CONTAINER_ID);
-      window.MdSinapsePrescricao?.setToken?.(token);
-      registrarListenerPrescricaoMemed();
-      resolve();
-      return;
-    }
-    const script = document.createElement("script");
-    script.id = MEMED_SCRIPT_ID;
-    script.type = "text/javascript";
-    script.src = scriptUrl;
-    script.setAttribute("data-token", token);
-    script.setAttribute("data-container", MEMED_CONTAINER_ID);
-    script.async = true;
-    script.onload = () => {
-      registrarListenerPrescricaoMemed();
-      resolve();
+    const inicio = Date.now();
+    const tick = () => {
+      if (window.MdHub?.module?.show && window.MdHub?.command?.send) {
+        resolve();
+        return;
+      }
+      if (Date.now() - inicio > timeoutMs) {
+        reject(new Error("A Memed não inicializou. Feche e tente novamente."));
+        return;
+      }
+      setTimeout(tick, 100);
     };
-    script.onerror = () => reject(new Error("Falha ao carregar o script da Memed."));
-    document.body.appendChild(script);
+    tick();
   });
+}
+
+export async function carregarScriptMemed(scriptUrl: string, token: string): Promise<void> {
+  const aplicarToken = () => {
+    const el = document.getElementById(MEMED_SCRIPT_ID);
+    el?.setAttribute("data-token", token);
+    el?.removeAttribute("data-container");
+    window.MdSinapsePrescricao?.setToken?.(token);
+    registrarListenerPrescricaoMemed();
+  };
+
+  const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
+  if (!existing) {
+    await new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script");
+      script.id = MEMED_SCRIPT_ID;
+      script.type = "text/javascript";
+      script.async = false;
+      script.setAttribute("data-token", token);
+      script.src = scriptUrl;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Falha ao carregar o script da Memed."));
+      document.body.appendChild(script);
+    });
+  }
+  aplicarToken();
+  await esperarMdHub();
+  aplicarToken();
 }
 
 export function aguardarModuloMemed(): Promise<void> {

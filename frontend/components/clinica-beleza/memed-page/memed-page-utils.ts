@@ -29,5 +29,28 @@ export function buildTimbradoApplyFeedback(data: TimbradoStatus): { msg: string;
       `Timbrado salvo no LWK, mas a Memed não aplicou (${aplicados}/${total}).` +
         (memedErr ? ` Detalhe: ${String(memedErr).slice(0, 200)}` : "") +
         ' Isso costuma ocorrer enquanto o prescritor está "Em análise" na Memed — tente de novo quando estiver Ativo, ou contate o suporte Memed.',
-  };
+    };
+}
+
+export function mensagemPrescritorMemedPendente(prescritor?: {
+  nome?: string;
+  status?: string;
+  terms_accepted?: boolean;
+} | null): string | null {
+  if (!prescritor) return null;
+  const status = String(prescritor.status || "").trim();
+  const emAnalise = /an[aá]lise/i.test(status);
+  const semTermos = prescritor.terms_accepted === false;
+  if (!emAnalise && !semTermos) return null;
+  const quem = prescritor.nome ? ` de ${prescritor.nome}` : "";
+  if (emAnalise && semTermos) {
+    return (
+      `A Memed ainda não liberou o prescritor${quem} (cadastro Em análise e termos não aceitos). ` +
+      "Peça para a médica aceitar os termos no e-mail da Memed e aguarde o status Ativo."
+    );
+  }
+  if (semTermos) {
+    return `O prescritor${quem} ainda não aceitou os termos da Memed. Peça para aceitar no e-mail/cadastro da Memed e tente de novo.`;
+  }
+  return `O prescritor${quem} está "${status}" na Memed. Aguarde a aprovação (status Ativo) para prescrever.`;
 }

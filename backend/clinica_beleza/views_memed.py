@@ -95,7 +95,7 @@ class MemedTokenView(APIView):
 
         from tenants.middleware import get_current_loja_id
         loja_id = get_current_loja_id() or 0
-        cache_key = f"memed_token_{loja_id}_{prescritor_id}"
+        cache_key = f"memed_token_v2_{loja_id}_{prescritor_id}"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)
@@ -152,6 +152,8 @@ class MemedTokenView(APIView):
                 "sobrenome": attrs.get("sobrenome", ""),
                 "crm": attrs.get("crm", ""),
                 "uf": attrs.get("uf", ""),
+                "status": attrs.get("status") or "",
+                "terms_accepted": bool(attrs.get("terms_accepted")),
             },
             "clinica": _dados_clinica(request),
         }

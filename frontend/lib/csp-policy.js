@@ -25,6 +25,8 @@ const MEMED_TELEMETRIA = [
   "https://*.rudderlabs.com",
   "https://ipv4.icanhazip.com",
   "https://api.ipify.org",
+  "https://d2r1yp2w7bby2u.cloudfront.net",
+  "https://*.cloudfront.net",
 ];
 
 function extraConnectSrcOrigins() {

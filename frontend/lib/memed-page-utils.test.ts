@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMemedConfigBasePath, buildTimbradoApplyFeedback, formatTimbradoBytes } from "@/components/clinica-beleza/memed-page/memed-page-utils";
+import { buildMemedConfigBasePath, buildTimbradoApplyFeedback, formatTimbradoBytes, mensagemPrescritorMemedPendente } from "@/components/clinica-beleza/memed-page/memed-page-utils";
 
 describe("buildMemedConfigBasePath", () => {
   it("monta path de configurações", () => {
@@ -30,5 +30,23 @@ describe("buildTimbradoApplyFeedback", () => {
     const r = buildTimbradoApplyFeedback({ tem_timbrado: true, aplicados: 0, total: 1 });
     expect(r.msg).toBe("");
     expect(r.erro).toContain("Memed não aplicou");
+  });
+});
+
+describe("mensagemPrescritorMemedPendente", () => {
+  it("explica cadastro em análise sem termos", () => {
+    const msg = mensagemPrescritorMemedPendente({
+      nome: "Nayara",
+      status: "Em análise",
+      terms_accepted: false,
+    });
+    expect(msg).toContain("Em análise");
+    expect(msg).toContain("termos");
+  });
+
+  it("nao bloqueia prescritor ativo com termos", () => {
+    expect(
+      mensagemPrescritorMemedPendente({ nome: "Nayara", status: "Ativo", terms_accepted: true }),
+    ).toBeNull();
   });
 });

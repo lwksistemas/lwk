@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
+import { mensagemPrescritorMemedPendente } from "@/components/clinica-beleza/memed-page/memed-page-utils";
 import { parsePrescricaoMemed } from "@/lib/memed-prescricao-parser";
 import { withTimeout } from "@/lib/memed-sdk";
 import { MEMED_TOKEN_TIMEOUT_MS } from "./memed-constants";
@@ -60,6 +61,8 @@ export function useMemedPrescricao({
         throw new Error("Configuração da Memed incompleta (token ou script ausente).");
       }
       clinicaRef.current = cfg.clinica ?? null;
+      const pendente = mensagemPrescritorMemedPendente(cfg.prescritor);
+      if (pendente) throw new Error(pendente);
       await carregarScriptMemed(cfg.script_url, cfg.token);
       readyRef.current = true;
     })();

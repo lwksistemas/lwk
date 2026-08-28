@@ -14,7 +14,7 @@ import { AgendaListaColunas } from "./AgendaListaColunas";
 import { AgendaMobileDayView } from "./AgendaMobileDayView";
 import { AgendaDiaColunas } from "./AgendaDiaColunas";
 import { AgendaSemanaColunas } from "./AgendaSemanaColunas";
-import { toAgendaDiaIso } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
+import { marcarIgnorarClickGradeAgenda, toAgendaDiaIso } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 
 const FullCalendar = lazy(() => import("@fullcalendar/react"));
@@ -128,6 +128,7 @@ export function AgendaCalendarSection({
   }, [parentDraggingRef]);
 
   const handleEventDrop = useCallback((info: EventDropArg) => {
+    marcarIgnorarClickGradeAgenda();
     dropHandlingRef.current = true;
     const start = info.event.start?.toISOString();
     const end = info.event.end?.toISOString();
@@ -147,6 +148,7 @@ export function AgendaCalendarSection({
   }, [marcarArrasto, onEventDrop]);
 
   const handleEventResize = useCallback((info: EventResizeDoneArg) => {
+    marcarIgnorarClickGradeAgenda();
     dropHandlingRef.current = true;
     const start = info.event.start?.toISOString();
     const end = info.event.end?.toISOString();

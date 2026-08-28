@@ -8,6 +8,7 @@ import {
   type HorarioTrabalho,
   workHoursRejectionMessage,
 } from "@/lib/clinica-beleza-work-hours";
+import { deveIgnorarClickGradeAgenda } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 import { useToast } from "@/components/ui/Toast";
 import type { DateClickArg } from "@fullcalendar/interaction";
 import type { EventClickArg } from "@fullcalendar/core";
@@ -116,6 +117,7 @@ export function useAgendaPageHandlers({
 
   const handleDateClick = useCallback(
     (info: DateClickArg) => {
+      if (deveIgnorarClickGradeAgenda()) return;
       const date = info.date;
       if (selectedProfessional) {
         const msg = workHoursRejectionMessage(date, 30, horariosTrabalho);

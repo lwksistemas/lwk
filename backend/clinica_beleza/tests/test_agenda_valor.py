@@ -54,6 +54,21 @@ class AgendaValorExibicaoTests(TestCase):
         )
         self.assertEqual(valor, Decimal("50.00"))
 
+    def test_retorno_elegivel_conhecido_nao_precisa_do_appointment(self):
+        local = SimpleNamespace(valor_consulta=Decimal("150.00"))
+        valor = calcular_valor_exibicao_agenda(
+            Decimal("50.00"),
+            local_atendimento=local,
+            retorno_elegivel=True,
+        )
+        self.assertEqual(valor, Decimal("50.00"))
+        valor_sem = calcular_valor_exibicao_agenda(
+            Decimal("50.00"),
+            local_atendimento=local,
+            retorno_elegivel=False,
+        )
+        self.assertEqual(valor_sem, Decimal("200.00"))
+
     def test_retorno_gratuito_sem_local_zera_taxa(self):
         consulta = SimpleNamespace(valor_consulta=Decimal("90.00"), retorno_gratuito=True)
         valor = calcular_valor_exibicao_agenda(Decimal(0), consulta=consulta)

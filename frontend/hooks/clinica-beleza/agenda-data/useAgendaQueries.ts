@@ -156,3 +156,17 @@ export function useAgendaRefresh(
 
   return { carregarDados, recarregarEventos, setPatients };
 }
+
+export function prefetchClinicaAgenda(queryClient: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    queryClient.prefetchQuery({
+      queryKey: clinicaBelezaQueryKeys.schedulingProfessionals(),
+      queryFn: fetchClinicaSchedulingProfessionals,
+    }),
+    queryClient.prefetchQuery({
+      queryKey: clinicaBelezaQueryKeys.agendaEvents(""),
+      queryFn: () => fetchClinicaAgendaEvents(""),
+      staleTime: Infinity,
+    }),
+  ]);
+}

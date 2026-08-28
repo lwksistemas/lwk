@@ -1,6 +1,7 @@
 "use client";
 
 import { useAgendaStatusColors } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
+import { agendaGradeAindaCarregando } from "./agenda-event-mappers";
 import { useAgendaEventos } from "./useAgendaEventos";
 import { useAgendaOnlineStatus } from "./useAgendaOnlineStatus";
 import { useAgendaOfflineCache } from "./useAgendaOfflineCache";
@@ -16,7 +17,6 @@ export function useAgendaData(selectedProfessional: string) {
 
   const {
     professionalsQuery,
-    proceduresQuery,
     professionals,
     patients,
     procedures,
@@ -49,11 +49,13 @@ export function useAgendaData(selectedProfessional: string) {
     loadOffline,
   );
 
-  const loading = isOnline
-    ? professionalsQuery.isLoading ||
-      proceduresQuery.isLoading ||
-      eventsQuery.isLoading
-    : offlineLoading;
+  const loading = agendaGradeAindaCarregando({
+    isOnline,
+    offlineLoading,
+    professionalsLoading: professionalsQuery.isLoading,
+    eventsLoading: eventsQuery.isLoading,
+    eventosCount: eventos.length,
+  });
 
   return {
     eventos,

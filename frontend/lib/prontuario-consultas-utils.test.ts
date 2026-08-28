@@ -9,6 +9,7 @@ import {
   isConsultaFinalizadaProntuario,
   pickConsultasAtuais,
   pickConsultasFinalizadas,
+  ordenarConsultasProntuarioLista,
   prontuarioConsultaAtualAcoes,
 } from "@/components/clinica-beleza/prontuario/prontuario-consultas-utils";
 
@@ -57,6 +58,16 @@ describe("prontuario consultas", () => {
     expect(resumo.atuais).toHaveLength(1);
     expect(resumo.finalizadas).toHaveLength(1);
     expect(resumo.consultaParaFotosId).toBe(10);
+  });
+
+  it("lista unica do prontuario inclui todas as consultas", () => {
+    const lista = ordenarConsultasProntuarioLista([
+      consulta({ id: 1, status: "COMPLETED", data_fim: "2026-01-01T10:00:00" }),
+      consulta({ id: 2, status: "CANCELLED" }),
+      consulta({ id: 3, status: "IN_PROGRESS", data_inicio: "2026-08-28T09:00:00" }),
+      consulta({ id: 4, status: "SCHEDULED", appointment_date: "2026-08-29T10:00:00" }),
+    ]);
+    expect(lista.map((c) => c.id)).toEqual([3, 4, 1, 2]);
   });
 
   it("rótulos de procedimento", () => {

@@ -8,6 +8,7 @@ import { isProntuarioLocalTab } from "./prontuario-utils";
 import { ProntuarioTabBar } from "./ProntuarioTabBar";
 import { ProntuarioTabContent } from "./ProntuarioTabContent";
 import { useProntuarioPage } from "./useProntuarioPage";
+import { buildProntuarioConsultasResumo } from "./prontuario-consultas-utils";
 
 export function ProntuarioPageContent() {
   const {
@@ -41,6 +42,7 @@ export function ProntuarioPageContent() {
   } = useProntuarioPage();
 
   const showDocsLoading = loading && !isProntuarioLocalTab(activeTab);
+  const { atuais, finalizadas } = buildProntuarioConsultasResumo(consultas);
 
   return (
     <>
@@ -68,6 +70,8 @@ export function ProntuarioPageContent() {
             onPrintSecao={() => void handlePrintSecao()}
             onPrintCompleto={() => void handlePrintCompleto()}
             printando={printando}
+            consultaAtualCount={atuais.length}
+            finalizadasCount={finalizadas.length}
           />
         </div>
 

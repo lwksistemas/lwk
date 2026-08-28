@@ -327,6 +327,31 @@ export function duracaoResizeNaGrade(
   return arredondarDuracaoAgendaMin(endMin - startMin);
 }
 
+/** Distância desde o pointerdown — passos pequenos entre pointermove nunca somam o limiar. */
+export const AGENDA_ARRASTO_LIMIAR_PX = 6;
+export const AGENDA_SUPRIMIR_CLICK_MS = 450;
+
+export function arrastoMoveuDesdeOrigem(
+  originX: number,
+  originY: number,
+  x: number,
+  y: number,
+  limiarPx = AGENDA_ARRASTO_LIMIAR_PX,
+): boolean {
+  return Math.hypot(x - originX, y - originY) > limiarPx;
+}
+
+let ignorarClickGradeAte = 0;
+
+/** Após resize/arrasto, o clique fantasma cai no horário vazio e abre "Novo agendamento". */
+export function marcarIgnorarClickGradeAgenda(ms = AGENDA_SUPRIMIR_CLICK_MS): void {
+  ignorarClickGradeAte = ms <= 0 ? 0 : Date.now() + ms;
+}
+
+export function deveIgnorarClickGradeAgenda(): boolean {
+  return Date.now() < ignorarClickGradeAte;
+}
+
 export function mesmoHorarioLocal(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&

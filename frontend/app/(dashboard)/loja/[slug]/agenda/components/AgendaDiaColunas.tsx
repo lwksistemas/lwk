@@ -302,11 +302,13 @@ export function AgendaDiaColunas({
                             onPointerDown={(e) => {
                               if (e.button !== 0) return;
                               if (intervalo || bloqueio) return;
+                              if ((e.target as HTMLElement).closest("[data-agenda-resize]")) return;
                               iniciarMover(evt, start, end, e);
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (deveIgnorarClick() || intervalo) return;
+                              if ((e.target as HTMLElement).closest("[data-agenda-resize]")) return;
                               onOpenEvent(evt);
                             }}
                             onKeyDown={(e) => {
@@ -356,13 +358,16 @@ export function AgendaDiaColunas({
                             ) : null}
                             {!intervalo && !bloqueio ? (
                               <span
-                                className="absolute left-0 right-0 bottom-0 h-2.5 cursor-ns-resize flex items-end justify-center pb-0.5"
+                                data-agenda-resize
+                                className="absolute left-0 right-0 bottom-0 h-4 cursor-ns-resize flex items-end justify-center pb-0.5"
                                 title="Arraste para alterar a duração"
                                 onPointerDown={(e) => {
                                   if (e.button !== 0) return;
                                   e.preventDefault();
+                                  e.stopPropagation();
                                   iniciarResize(evt, start, end, e);
                                 }}
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 <span className="block w-8 h-1 rounded-full bg-black/20" />
                               </span>

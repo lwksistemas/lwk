@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   agendamentoEmAndamento,
   celulasCalendarioMes,
+  arrastoMoveuDesdeOrigem,
   clampLarguraColuna,
   snapshotLargurasColunas,
   templateLarguraColuna,
@@ -11,6 +12,8 @@ import {
   corProfissionalAgenda,
   diasSemanaIso,
   duracaoResizeNaGrade,
+  deveIgnorarClickGradeAgenda,
+  marcarIgnorarClickGradeAgenda,
   eventProfessionalId,
   eventosDoDia,
   eventosDoDiaNaColuna,
@@ -171,6 +174,22 @@ describe("movimento e resize da grade", () => {
     expect(minutosArrastoNaGrade(72, 0, 420, 1.2, 0)).toBe(480);
     expect(duracaoResizeNaGrade(480, 144, 0, 420, 1140, 1.2)).toBe(60);
     expect(clampMinutosInicio(400, 420, 1140, 40)).toBe(420);
+  });
+});
+
+describe("arrasto da duração vs clique fantasma", () => {
+  it("soma o deslocamento desde o pointerdown, não entre pointermoves", () => {
+    expect(arrastoMoveuDesdeOrigem(100, 100, 102, 102)).toBe(false);
+    expect(arrastoMoveuDesdeOrigem(100, 100, 104, 104)).toBe(false);
+    expect(arrastoMoveuDesdeOrigem(100, 100, 100, 107)).toBe(true);
+    expect(arrastoMoveuDesdeOrigem(100, 200, 100, 160)).toBe(true);
+  });
+
+  it("marca a janela em que o slot vazio não deve abrir novo agendamento", () => {
+    marcarIgnorarClickGradeAgenda(400);
+    expect(deveIgnorarClickGradeAgenda()).toBe(true);
+    marcarIgnorarClickGradeAgenda(0);
+    expect(deveIgnorarClickGradeAgenda()).toBe(false);
   });
 });
 

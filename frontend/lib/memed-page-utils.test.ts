@@ -49,14 +49,14 @@ describe("buildTimbradoApplyFeedback", () => {
 });
 
 describe("mensagemPrescritorMemedPendente", () => {
-  it("explica cadastro em análise sem termos", () => {
-    const msg = mensagemPrescritorMemedPendente({
-      nome: "Nayara",
-      status: "Em análise",
-      terms_accepted: false,
-    });
-    expect(msg).toContain("Em análise");
-    expect(msg).toContain("termos");
+  it("nao bloqueia prescritor em analise (suporte Memed)", () => {
+    expect(
+      mensagemPrescritorMemedPendente({
+        nome: "Marina",
+        status: "Em análise",
+        terms_accepted: false,
+      }),
+    ).toBeNull();
   });
 
   it("nao bloqueia prescritor ativo com termos", () => {
@@ -67,21 +67,21 @@ describe("mensagemPrescritorMemedPendente", () => {
 });
 
 describe("resumoProntoParaPrescrever", () => {
-  it("nao diz pronto quando prescritor esta em analise", () => {
+  it("considera em analise apto a prescrever", () => {
     const r = resumoProntoParaPrescrever({
       credentials_configured: true,
       ready_for_production: true,
       prescritores: [
         {
-          nome: "NAYARA",
+          nome: "MARINA",
           status: "Em análise",
           terms_accepted: false,
-          pode_prescrever: false,
+          pode_prescrever: true,
         },
       ],
     });
-    expect(r.tom).toBe("aviso");
-    expect(r.texto).toContain("e-mail da Memed");
+    expect(r.tom).toBe("ok");
+    expect(r.texto).toMatch(/Em análise/i);
   });
 
   it("diz pronto quando todos podem prescrever", () => {

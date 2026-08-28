@@ -188,12 +188,14 @@ def consultar_status_memed(professional) -> dict:
 
 
 def prescritor_liberado_na_memed(st: dict | None) -> bool:
-    """True só quando a Memed já ativou o prescritor e os termos foram aceitos."""
+    """True se o prescritor existe na Memed.
+
+    O status \"Em análise\" e ``terms_accepted: false`` são de outros produtos da Memed
+    e não impedem prescrever (confirmação do suporte Memed, ago/2026).
+    """
     if not st or st.get("state") != "ok":
         return False
-    if not st.get("terms_accepted"):
-        return False
-    return str(st.get("status") or "").strip().casefold() == "ativo"
+    return True
 
 
 def status_prescritor_para_diagnostico(professional) -> dict:

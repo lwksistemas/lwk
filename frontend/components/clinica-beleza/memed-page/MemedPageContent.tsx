@@ -3,12 +3,15 @@
 import { FileText, RefreshCw, Upload } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { formatTimbradoBytes } from "./memed-page-utils";
+import { formatTimbradoBytes, resumoProntoParaPrescrever, detalhePrescritorMemed } from "./memed-page-utils";
 import { useMemedPage } from "./useMemedPage";
 
 export function MemedPageContent() {
   const { base, loading, saving, status, arquivo, setArquivo, msg, erro, memedDiag, enviarPdf } =
     useMemedPage();
+  const resumo = memedDiag ? resumoProntoParaPrescrever(memedDiag) : null;
+  const resumoCor =
+    resumo?.tom === "ok" ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400";
 
   return (
     <>
@@ -35,13 +38,24 @@ export function MemedPageContent() {
             <p className="text-gray-600 dark:text-gray-400">
               Profissionais com CPF (prescrição): {memedDiag.profissionais_com_cpf ?? 0}
             </p>
-            {memedDiag.ready_for_production ? (
-              <p className="text-green-700 dark:text-green-400">Pronto para prescrição em produção.</p>
-            ) : (
-              <p className="text-amber-700 dark:text-amber-400">
-                Complete credenciais, CPF dos prescritores e timbrado antes de ir a produção.
-              </p>
+            {(memedDiag.prescritores ?? []).length > 0 && (
+              <ul className="mt-2 space-y-1.5 border-t border-gray-100 pt-2 dark:border-gray-700">
+                {(memedDiag.prescritores ?? []).map((p) => {
+                  const ok = Boolean(p.pode_prescrever);
+                  return (
+                    <li key={p.professional_id ?? p.nome} className="text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">{p.nome || "Profissional"}</span>
+                      {" — "}
+                      <span className={ok ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}>
+                        {detalhePrescritorMemed(p)}
+                      </span>
+                      {ok ? " · pode prescrever" : " · ainda não pode prescrever"}
+                    </li>
+                  );
+                })}
+              </ul>
             )}
+            {resumo && <p className={`pt-1 ${resumoCor}`}>{resumo.texto}</p>}
           </div>
         )}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">

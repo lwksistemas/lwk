@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from .models import Appointment, Patient
 from .pagination import paginate_queryset
+from .patient_search import apply_patient_search
 from .permissions import CLINICA_RECEPCAO
 from .serializers import PatientSerializer
 from .views_base import GetObjectMixin, map_field_names
@@ -35,27 +36,6 @@ def _map_patient_data(raw_data):
     return map_field_names(raw_data, _PATIENT_FIELD_MAP, _PATIENT_NULL_FIELDS)
 
 
-def _patient_search_q(search: str):
-    """Busca por prefixo do nome; telefone/CPF por dígitos; e-mail por trecho."""
-    from django.db.models import Q
-
-    search = (search or "").strip()
-    if not search:
-        return Q()
-    digits = "".join(c for c in search if c.isdigit())
-    has_letters = any(c.isalpha() for c in search)
-    if "@" in search:
-        return Q(email__icontains=search)
-    if len(digits) >= 3 and not has_letters:
-        return Q(telefone__icontains=digits) | Q(cpf__icontains=digits)
-    q = Q(nome__istartswith=search)
-    if len(digits) >= 3:
-        q |= Q(telefone__icontains=digits) | Q(cpf__icontains=digits)
-    if len(search) >= 3:
-        q |= Q(email__icontains=search)
-    return q
-
-
 class PatientListView(APIView):
     """Listagem e criação de pacientes
     GET /clinica-beleza/patients/
@@ -71,7 +51,7 @@ class PatientListView(APIView):
             queryset = queryset.filter(is_active=True)
         search = (request.query_params.get("search") or "").strip()
         if search:
-            queryset = queryset.filter(_patient_search_q(search))
+            queryset = apply_patient_search(queryset, search)
         return paginate_queryset(queryset, request, PatientSerializer)
 
     def post(self, request):

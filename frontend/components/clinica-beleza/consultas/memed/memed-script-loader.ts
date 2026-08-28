@@ -21,6 +21,7 @@ declare global {
 
 import {
   MEMED_COMMAND_TIMEOUT_MS,
+  MEMED_CONTAINER_ID,
   MEMED_MODULO_PRESCRICAO,
   MEMED_READY_FLAG,
   MEMED_SCRIPT_ID,
@@ -84,6 +85,7 @@ export function carregarScriptMemed(scriptUrl: string, token: string): Promise<v
     const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
     if (existing) {
       existing.setAttribute("data-token", token);
+      existing.setAttribute("data-container", MEMED_CONTAINER_ID);
       window.MdSinapsePrescricao?.setToken?.(token);
       registrarListenerPrescricaoMemed();
       resolve();
@@ -94,6 +96,7 @@ export function carregarScriptMemed(scriptUrl: string, token: string): Promise<v
     script.type = "text/javascript";
     script.src = scriptUrl;
     script.setAttribute("data-token", token);
+    script.setAttribute("data-container", MEMED_CONTAINER_ID);
     script.async = true;
     script.onload = () => {
       registrarListenerPrescricaoMemed();
@@ -125,16 +128,9 @@ export function aguardarModuloMemed(): Promise<void> {
 }
 
 export async function aguardarWidgetMemedOperacional(): Promise<void> {
-  if (!isMemedV4Boot(window)) return;
-  if (window.__memedV4IframeReady) return;
+  if (!isMemedV4Boot(window) || window.__memedV4IframeReady) return;
   registrarListenerV4Ready();
-  const ok = await aguardarMensagemMemedReady(window, MEMED_V4_READY_TIMEOUT_MS);
-  if (window.__memedV4IframeReady) return;
-  if (!ok) {
-    throw new Error(
-      "A Memed não carregou o editor de prescrição. Feche com Esc e tente novamente em instantes.",
-    );
-  }
+  await aguardarMensagemMemedReady(window, MEMED_V4_READY_TIMEOUT_MS);
 }
 
 export function preloadMemedScript(url: string): void {

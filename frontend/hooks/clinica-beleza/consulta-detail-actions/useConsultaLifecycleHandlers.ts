@@ -1,10 +1,8 @@
-import { useCallback, useRef, type RefObject } from "react";
+import { useCallback, type RefObject } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { fetchClinicaSchedulingProfessionals, fetchHistoricoPaciente } from "@/lib/clinica-beleza-cadastros-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
-import { withTimeout } from "@/lib/memed-sdk";
-import { fecharModuloPrescricaoMemed } from "@/components/clinica-beleza/consultas/memed/memed-script-loader";
 import { useToast } from "@/components/ui/Toast";
 import { consultaEstaConcluida, type Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { ConsultaDetailLoaderSlice } from "./consulta-detail-actions-types";
@@ -19,7 +17,6 @@ type LifecycleUiSlice = {
   setEmitindoNfse: (v: boolean) => void;
   setFinalizando: (v: boolean) => void;
   memedRef: RefObject<MemedPrescricaoHandle | null>;
-  setMemedBusy: (v: boolean) => void;
 };
 
 export function useConsultaLifecycleHandlers(
@@ -49,7 +46,6 @@ export function useConsultaLifecycleHandlers(
     setEmitindoNfse,
     setFinalizando,
     memedRef,
-    setMemedBusy,
   } = ui;
 
   const iniciarConsulta = useCallback(
@@ -146,27 +142,13 @@ export function useConsultaLifecycleHandlers(
     }
   }, [selected, setSelected, setTab, loadDetalhes, onListRefresh, setFinalizando, toast]);
 
-  const memedAbrindoRef = useRef(false);
-
-  const abrirMemed = useCallback(async () => {
-    if (!memedRef.current || memedAbrindoRef.current) return;
-    memedAbrindoRef.current = true;
-    setMemedBusy(true);
-    try {
-      await withTimeout(
-        memedRef.current.abrir(),
-        35000,
-        "Memed: a prescrição não abriu a tempo. Pressione Esc e tente novamente",
-      );
-    } catch (e: unknown) {
-      fecharModuloPrescricaoMemed();
+  const abrirMemed = useCallback(() => {
+    if (!memedRef.current) return;
+    void memedRef.current.abrir().catch((e: unknown) => {
       logger.warn("Erro ao abrir a Memed:", e);
       toast.error(e instanceof Error ? e.message : "Erro ao abrir a prescrição da Memed.");
-    } finally {
-      memedAbrindoRef.current = false;
-      setMemedBusy(false);
-    }
-  }, [memedRef, setMemedBusy, toast]);
+    });
+  }, [memedRef, toast]);
 
   const excluirConsulta = useCallback(async () => {
     if (consultaEstaConcluida(selected)) {

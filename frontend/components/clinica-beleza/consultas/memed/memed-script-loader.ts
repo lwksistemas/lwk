@@ -35,6 +35,12 @@ import {
   isMemedMessageReady,
   isMemedV4Boot,
   garantirEditorMemedVisivel,
+  podeReforcarTokenMemed,
+  scriptMemedPrecisaReiniciar,
+  urlScriptWidgetMemed,
+  appUrlWidgetMemed,
+  MEMED_V4_BOOT_KEY,
+  MEMED_V4_OVERLAY_ID,
 } from "@/lib/memed-sdk";
 
 let prescricaoImpressaHandler: ((data: unknown) => void) | null = null;
@@ -58,26 +64,30 @@ export function registrarListenerV4Ready(): void {
   });
 }
 
+function registrarPrescricaoImpressa(): void {
+  const mdhub = window.MdHub;
+  if (!mdhub?.event?.add || window.__memedPrescImpressaRegistrado) return;
+  window.__memedPrescImpressaRegistrado = true;
+  mdhub.event.add("prescricaoImpressa", (data: unknown) => {
+    try {
+      prescricaoImpressaHandler?.(data);
+    } catch {
+      // Não deixa erro de callback quebrar a Memed.
+    }
+  });
+}
+
 export function registrarListenerPrescricaoMemed(): void {
   if (typeof window === "undefined") return;
   registrarListenerV4Ready();
+  registrarPrescricaoImpressa();
   const sinapse = window.MdSinapsePrescricao;
   if (!sinapse?.event?.add || window.__memedListenerRegistrado) return;
   window.__memedListenerRegistrado = true;
   sinapse.event.add("core:moduleInit", (module) => {
     if (module?.name !== MEMED_MODULO_PRESCRICAO) return;
     window[MEMED_READY_FLAG] = true;
-    const mdhub = window.MdHub;
-    if (mdhub?.event?.add && !window.__memedPrescImpressaRegistrado) {
-      window.__memedPrescImpressaRegistrado = true;
-      mdhub.event.add("prescricaoImpressa", (data: unknown) => {
-        try {
-          prescricaoImpressaHandler?.(data);
-        } catch {
-          // Não deixa erro de callback quebrar a Memed.
-        }
-      });
-    }
+    registrarPrescricaoImpressa();
   });
 }
 
@@ -99,32 +109,74 @@ export function esperarMdHub(timeoutMs = MEMED_TIMEOUT_MS): Promise<void> {
   });
 }
 
-export async function carregarScriptMemed(scriptUrl: string, token: string): Promise<void> {
-  const aplicarToken = () => {
-    const el = document.getElementById(MEMED_SCRIPT_ID);
-    el?.setAttribute("data-token", token);
-    el?.removeAttribute("data-container");
-    window.MdSinapsePrescricao?.setToken?.(token);
-    registrarListenerPrescricaoMemed();
-  };
-
-  const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
-  if (!existing) {
-    await new Promise<void>((resolve, reject) => {
-      const script = document.createElement("script");
-      script.id = MEMED_SCRIPT_ID;
-      script.type = "text/javascript";
-      script.async = false;
-      script.setAttribute("data-token", token);
-      script.src = scriptUrl;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Falha ao carregar o script da Memed."));
-      document.body.appendChild(script);
-    });
+export function teardownMemedSdk(): void {
+  try {
+    const boot = (window as Window & { [MEMED_V4_BOOT_KEY]?: { teardown?: () => void } })[MEMED_V4_BOOT_KEY];
+    boot?.teardown?.();
+  } catch {
+    // silencioso
   }
-  aplicarToken();
+  document.getElementById("memed-sinapse-v4")?.remove();
+  document.getElementById(MEMED_SCRIPT_ID)?.remove();
+  document.getElementById(MEMED_V4_OVERLAY_ID)?.remove();
+  document.getElementById("memed-sw-register")?.remove();
+  document.getElementById("iframe-container")?.remove();
+  window[MEMED_READY_FLAG] = false;
+  window.__memedListenerRegistrado = false;
+  window.__memedPrescImpressaRegistrado = false;
+  window.__memedV4ReadyListener = false;
+  window.__memedV4IframeReady = false;
+  try {
+    delete window.MdHub;
+    delete window.MdSinapsePrescricao;
+  } catch {
+    // silencioso
+  }
+}
+
+function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string, scriptUrl: string): void {
+  el.setAttribute("data-token", token);
+  el.removeAttribute("data-container");
+  const appUrl = appUrlWidgetMemed(scriptUrl);
+  if (appUrl) {
+    el.setAttribute("data-app-url", appUrl);
+    el.setAttribute("data-variant", "v4");
+  }
+}
+
+export async function carregarScriptMemed(scriptUrl: string, token: string): Promise<void> {
+  const src = urlScriptWidgetMemed(scriptUrl);
+  const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
+  if (
+    existing &&
+    scriptMemedPrecisaReiniciar(existing.getAttribute("data-token"), token, existing.src, src)
+  ) {
+    teardownMemedSdk();
+  }
+
+  let script = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
+  if (!script) {
+    await new Promise<void>((resolve, reject) => {
+      const el = document.createElement("script");
+      el.id = MEMED_SCRIPT_ID;
+      el.type = "text/javascript";
+      el.async = false;
+      aplicarAtributosScriptMemed(el, token, scriptUrl);
+      el.src = src;
+      el.onload = () => resolve();
+      el.onerror = () => reject(new Error("Falha ao carregar o script da Memed."));
+      document.body.appendChild(el);
+    });
+    script = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
+  }
+  if (script) aplicarAtributosScriptMemed(script, token, scriptUrl);
+  registrarListenerPrescricaoMemed();
   await esperarMdHub();
-  aplicarToken();
+  registrarListenerPrescricaoMemed();
+  // Só o proxy V4 aceita setToken (postMessage). O legado dispara startModules e 401.
+  if (podeReforcarTokenMemed(window)) {
+    window.MdSinapsePrescricao?.setToken?.(token);
+  }
 }
 
 export function aguardarModuloMemed(): Promise<void> {

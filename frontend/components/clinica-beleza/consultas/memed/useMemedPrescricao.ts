@@ -37,6 +37,11 @@ export function useMemedPrescricao({
   const readyRef = useRef(false);
   const clinicaRef = useRef<DadosClinicaMemed | null>(null);
 
+  useEffect(() => {
+    readyRef.current = false;
+    initPromiseRef.current = null;
+  }, [professionalId]);
+
   const garantirPronto = useCallback(() => {
     if (readyRef.current) return Promise.resolve();
     if (initPromiseRef.current) return initPromiseRef.current;

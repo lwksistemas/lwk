@@ -5,6 +5,19 @@
 
 export const MEMED_V4_BOOT_KEY = "__memedSinapseV4Boot";
 export const MEMED_V4_OVERLAY_ID = "memed-auto-generated";
+export const MEMED_V4_SCRIPT_PROD = "https://v4-embedded.memed.com.br/sinapse/sinapse-v4.min.js";
+export const MEMED_V4_APP_URL_PROD = "https://v4-embedded.memed.com.br/";
+
+/** O wrapper sinapse-prescricao.min.js sobe o hub legado + V4 e a API responde 401. */
+export function urlScriptWidgetMemed(scriptUrl: string): string {
+  if (!scriptUrl || scriptUrl.includes("integrations.")) return scriptUrl;
+  return MEMED_V4_SCRIPT_PROD;
+}
+
+export function appUrlWidgetMemed(scriptUrl: string): string | null {
+  if (!scriptUrl || scriptUrl.includes("integrations.")) return null;
+  return MEMED_V4_APP_URL_PROD;
+}
 
 type MemedHubWindow = Window & {
   MdHub?: {
@@ -35,6 +48,30 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): 
 
 export function isMemedV4Boot(win: Window | undefined): boolean {
   return Boolean(win && (win as MemedHubWindow)[MEMED_V4_BOOT_KEY]);
+}
+
+/**
+ * O setToken legado (Sinapse 3.x) chama startModules / recarrega
+ * `#iframe-container iframe`. Sem o token na URL o iframe responde 401 e a
+ * tela fica branca. Só o proxy V4 (postMessage SET_TOKEN) é seguro.
+ */
+export function podeReforcarTokenMemed(win: Window | undefined): boolean {
+  return isMemedV4Boot(win);
+}
+
+export function scriptMemedPrecisaReiniciar(
+  tokenNoScript: string | null | undefined,
+  tokenNovo: string,
+  srcAtual?: string | null,
+  srcAlvo?: string,
+): boolean {
+  if (tokenNoScript && tokenNovo && tokenNoScript !== tokenNovo) return true;
+  if (srcAtual && srcAlvo) {
+    const atual = srcAtual.split("?")[0];
+    const alvo = srcAlvo.split("?")[0];
+    if (atual && alvo && atual !== alvo) return true;
+  }
+  return false;
 }
 
 export function isMemedMessageReady(data: unknown): boolean {
@@ -97,9 +134,13 @@ function aplicarEstiloIframeMemed(iframe: HTMLIFrameElement): void {
 }
 
 function revelarOverlayMemed(overlay: HTMLElement): void {
-  if (overlay.style.display === "none") overlay.style.display = "";
+  if (overlay.style.display === "none") overlay.style.display = "block";
   if (overlay.style.visibility === "hidden") overlay.style.visibility = "visible";
   if (overlay.style.pointerEvents === "none") overlay.style.pointerEvents = "auto";
+  overlay.style.position = "fixed";
+  overlay.style.inset = "0";
+  overlay.style.width = "100vw";
+  overlay.style.height = "100vh";
   overlay.style.zIndex = "2147483646";
 }
 

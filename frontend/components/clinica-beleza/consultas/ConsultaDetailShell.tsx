@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
 import { toUpperCase } from "@/lib/format-br";
@@ -11,8 +10,7 @@ import { ConsultaDetailTabBar } from "./ConsultaDetailTabBar";
 import { ConsultaDetailShellContent } from "./consulta-detail-shell/ConsultaDetailShellContent";
 import { ConsultaDetailShellModals } from "./consulta-detail-shell/ConsultaDetailShellModals";
 import { useConsultaDetailShell } from "./consulta-detail-shell/useConsultaDetailShell";
-
-const MemedPrescricao = dynamic(() => import("./MemedPrescricao"), { ssr: false });
+import MemedPrescricao from "./MemedPrescricao";
 
 interface ConsultaDetailShellProps {
   consulta: Consulta;

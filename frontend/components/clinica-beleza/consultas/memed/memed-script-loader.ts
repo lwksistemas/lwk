@@ -34,7 +34,7 @@ import {
   forcarFecharOverlayMemed,
   isMemedMessageReady,
   isMemedV4Boot,
-  moverIframeMemedParaHost,
+  garantirEditorMemedVisivel,
 } from "@/lib/memed-sdk";
 
 let prescricaoImpressaHandler: ((data: unknown) => void) | null = null;
@@ -138,7 +138,7 @@ export async function aguardarIframeMemedNoHost(timeoutMs = MEMED_V4_READY_TIMEO
   const inicio = Date.now();
   return new Promise((resolve, reject) => {
     const tick = () => {
-      if (moverIframeMemedParaHost(document, MEMED_CONTAINER_ID)) {
+      if (garantirEditorMemedVisivel(document, MEMED_CONTAINER_ID)) {
         resolve();
         return;
       }
@@ -180,7 +180,7 @@ export function logoutMemedSdk(): void {
 
 export function abrirModuloPrescricaoMemed(): void {
   void window.MdHub?.module?.show?.(MEMED_MODULO_PRESCRICAO);
-  moverIframeMemedParaHost(document, MEMED_CONTAINER_ID);
+  garantirEditorMemedVisivel(document, MEMED_CONTAINER_ID);
 }
 
 export async function enviarComandoPrescricaoMemed(

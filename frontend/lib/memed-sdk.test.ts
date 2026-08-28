@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  garantirEditorMemedVisivel,
   isMemedMessageReady,
   isMemedV4Boot,
   MEMED_V4_BOOT_KEY,
-  moverIframeMemedParaHost,
   withTimeout,
 } from "./memed-sdk";
 
@@ -36,12 +36,44 @@ describe("detecção V4", () => {
   });
 });
 
-describe("moverIframeMemedParaHost", () => {
-  it("devolve false sem host", () => {
+describe("garantirEditorMemedVisivel", () => {
+  function iframeMemed() {
+    return {
+      tagName: "IFRAME",
+      style: {} as Record<string, string>,
+      getAttribute: (key: string) => (key === "title" ? "Memed Prescrição" : ""),
+    };
+  }
+
+  it("devolve false sem editor", () => {
     const doc = {
       getElementById: () => null,
       querySelectorAll: () => [],
     } as unknown as Document;
-    expect(moverIframeMemedParaHost(doc, "lwk-memed-host")).toBe(false);
+    expect(garantirEditorMemedVisivel(doc, "lwk-memed-host")).toBe(false);
+  });
+
+  it("nao move o iframe da overlay (appendChild recarrega e perde o token)", () => {
+    const iframe = iframeMemed();
+    const overlay = {
+      style: { display: "none", visibility: "hidden", pointerEvents: "none" } as Record<string, string>,
+      contains: (el: unknown) => el === iframe,
+      childElementCount: 1,
+    };
+    const host = {
+      querySelectorAll: () => [],
+      contains: () => false,
+      appendChild: vi.fn(),
+    };
+    const doc = {
+      getElementById: (id: string) =>
+        id === "lwk-memed-host" ? host : id === "memed-auto-generated" ? overlay : null,
+      querySelectorAll: () => [iframe],
+    } as unknown as Document;
+
+    expect(garantirEditorMemedVisivel(doc, "lwk-memed-host")).toBe(true);
+    expect(host.appendChild).not.toHaveBeenCalled();
+    expect(overlay.style.display).not.toBe("none");
+    expect(overlay.style.visibility).toBe("visible");
   });
 });

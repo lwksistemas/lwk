@@ -10,7 +10,6 @@ import {
   abrirModuloPrescricaoMemed,
   aguardarIframeMemedNoHost,
   carregarScriptMemed,
-  enviarComandoPrescricaoMemed,
   fecharModuloPrescricaoMemed,
   logoutMemedSdk,
   preloadMemedScript,
@@ -120,9 +119,6 @@ export function useMemedPrescricao({
     });
     void enviarWorkplaceMemed(clinicaRef.current).catch((e) => {
       logger.warn("Memed: não foi possível definir o local de atendimento:", e);
-    });
-    void enviarComandoPrescricaoMemed("newPrescription").catch((e) => {
-      logger.warn("Memed: newPrescription indisponível:", e);
     });
   }, [garantirPronto, patientId, patientName]);
 

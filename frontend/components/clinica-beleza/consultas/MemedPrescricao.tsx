@@ -11,7 +11,7 @@ import { flushSync } from "react-dom";
 import { X } from "lucide-react";
 import { MEMED_CONTAINER_ID } from "./memed/memed-constants";
 import { useMemedPrescricao } from "./memed/useMemedPrescricao";
-import { moverIframeMemedParaHost } from "@/lib/memed-sdk";
+import { garantirEditorMemedVisivel } from "@/lib/memed-sdk";
 
 export interface MemedPrescricaoHandle {
   abrir: () => Promise<void>;
@@ -71,7 +71,7 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
       };
       window.addEventListener("keydown", onKey, true);
       const interval = window.setInterval(() => {
-        if (moverIframeMemedParaHost(document, MEMED_CONTAINER_ID) && status === "loading") {
+        if (garantirEditorMemedVisivel(document, MEMED_CONTAINER_ID) && status === "loading") {
           setStatus("ready");
         }
       }, 400);
@@ -82,46 +82,54 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
     }, [aberto, fechar, status]);
 
     return (
-      <div
-        className="fixed inset-0 flex flex-col bg-black/50 p-2 sm:p-4"
-        style={{
-          zIndex: aberto ? 2147483647 : -1,
-          visibility: aberto ? "visible" : "hidden",
-          pointerEvents: aberto ? "auto" : "none",
-        }}
-        role="dialog"
-        aria-modal={aberto}
-        aria-hidden={!aberto}
-        aria-label="Prescrição Memed"
-      >
-        <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-neutral-900">
-          <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-neutral-700">
-            <div>
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Prescrição Memed</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{patientName}</p>
-            </div>
-            <button
-              type="button"
-              onClick={fechar}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-neutral-600 dark:text-gray-100 dark:hover:bg-neutral-800"
-            >
-              <X size={16} />
-              Fechar
-            </button>
+      <>
+        <div
+          className="fixed inset-x-0 top-0 flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-md dark:border-neutral-700 dark:bg-neutral-900"
+          style={{
+            zIndex: aberto ? 2147483647 : -1,
+            visibility: aberto ? "visible" : "hidden",
+            pointerEvents: aberto ? "auto" : "none",
+          }}
+          role="dialog"
+          aria-modal={aberto}
+          aria-hidden={!aberto}
+          aria-label="Prescrição Memed"
+        >
+          <div>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Prescrição Memed</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{patientName}</p>
+            {status === "loading" && aberto && (
+              <p className="text-xs text-gray-500">Carregando o editor da Memed…</p>
+            )}
+            {status === "error" && erro && (
+              <p className="text-xs text-red-700 dark:text-red-400">{erro}</p>
+            )}
           </div>
-          {status === "loading" && aberto && (
-            <p className="px-4 py-2 text-sm text-gray-500">Carregando o editor da Memed…</p>
-          )}
-          {status === "error" && erro && (
-            <p className="px-4 py-2 text-sm text-red-700 dark:text-red-400">{erro}</p>
-          )}
-          <div
-            id={MEMED_CONTAINER_ID}
-            className="w-full flex-1 bg-white"
-            style={{ minHeight: 700, height: "calc(100vh - 9rem)" }}
-          />
+          <button
+            type="button"
+            onClick={fechar}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-neutral-600 dark:text-gray-100 dark:hover:bg-neutral-800"
+          >
+            <X size={16} />
+            Fechar
+          </button>
         </div>
-      </div>
+        <div
+          id={MEMED_CONTAINER_ID}
+          className="bg-white"
+          style={{
+            position: "fixed",
+            top: aberto ? "4.25rem" : 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: aberto ? 2147483645 : -1,
+            visibility: aberto ? "visible" : "hidden",
+            pointerEvents: aberto ? "auto" : "none",
+            minHeight: 400,
+          }}
+        />
+      </>
     );
   },
 );

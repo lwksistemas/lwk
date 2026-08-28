@@ -44,6 +44,22 @@ export function pickConsultasFinalizadas(consultas: Consulta[]): Consulta[] {
     .sort((a, b) => consultaSortTime(b) - consultaSortTime(a));
 }
 
+/** Todas as consultas do paciente, atuais primeiro, depois as demais (mais recentes). */
+export function ordenarConsultasProntuarioLista(consultas: Consulta[]): Consulta[] {
+  const rank = (status: string): number => {
+    if (status === "IN_PROGRESS") return 0;
+    if (status === "RECEBER") return 1;
+    if (status === "SCHEDULED") return 2;
+    if (status === "COMPLETED") return 3;
+    return 4;
+  };
+  return [...consultas].sort((a, b) => {
+    const ordem = rank(a.status) - rank(b.status);
+    if (ordem !== 0) return ordem;
+    return consultaSortTime(b) - consultaSortTime(a);
+  });
+}
+
 export interface ProntuarioConsultasResumo {
   atuais: Consulta[];
   finalizadas: Consulta[];

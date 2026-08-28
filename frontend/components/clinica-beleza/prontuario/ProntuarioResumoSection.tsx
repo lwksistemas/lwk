@@ -189,17 +189,6 @@ export function ProntuarioResumoSection({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 max-w-md">
-        <ClinicaBelezaPanel className="p-4">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Consulta atual</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">{atuais.length}</p>
-        </ClinicaBelezaPanel>
-        <ClinicaBelezaPanel className="p-4">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Finalizadas</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">{finalizadas.length}</p>
-        </ClinicaBelezaPanel>
-      </div>
-
       {atuais.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">

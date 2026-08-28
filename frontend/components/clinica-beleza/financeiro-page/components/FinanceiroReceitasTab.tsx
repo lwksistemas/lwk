@@ -9,6 +9,7 @@ import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { FinanceiroPayment, FinanceiroProfessional } from "../types";
+import { statusPagamentoReceita } from "../payment-status";
 
 interface FinanceiroReceitasTabProps {
   payments: FinanceiroPayment[];
@@ -104,7 +105,9 @@ export function FinanceiroReceitasTab({
                   </td>
                 </tr>
               ) : (
-                payments.map((p) => (
+                payments.map((p) => {
+                  const status = statusPagamentoReceita(p);
+                  return (
                   <tr key={p.id} className="border-b border-gray-100 dark:border-neutral-700">
                     <td className="py-3 px-4 whitespace-nowrap text-gray-600">
                       {p.data_atendimento
@@ -124,18 +127,18 @@ export function FinanceiroReceitasTab({
                     </td>
                     <td className="py-3 px-4">
                       <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                        p.status === "PAID"
+                        status === "PAID"
                           ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                          : p.status === "PENDING"
+                          : status === "PENDING"
                           ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                          : p.status === "PARTIAL"
-                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                          : status === "PARTIAL"
+                          ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
                           : "bg-gray-100 dark:bg-neutral-600"
                       }`}>
-                        {CLINICA_PAGAMENTO_STATUS_LABEL[p.status] || p.status}
+                        {CLINICA_PAGAMENTO_STATUS_LABEL[status] || status}
                       </span>
-                      {p.status === "PARTIAL" && p.saldo_devedor > 0 && (
-                        <span className="block text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                      {status === "PARTIAL" && p.saldo_devedor > 0 && (
+                        <span className="block text-xs text-orange-600 dark:text-orange-400 mt-0.5">
                           Falta {formatCurrency(p.saldo_devedor)}
                         </span>
                       )}
@@ -149,18 +152,19 @@ export function FinanceiroReceitasTab({
                       ) : null}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      {(p.status === "PENDING" || p.status === "PARTIAL") && (
+                      {(status === "PENDING" || status === "PARTIAL") && (
                         <button
                           type="button"
                           onClick={() => onBaixa(p)}
                           className="text-xs px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium whitespace-nowrap"
                         >
-                          {p.status === "PARTIAL" ? "Complementar" : "Dar Baixa"}
+                          {status === "PARTIAL" ? "Complementar" : "Dar Baixa"}
                         </button>
                       )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

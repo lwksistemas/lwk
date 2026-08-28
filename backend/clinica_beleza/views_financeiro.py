@@ -2,7 +2,7 @@
 """
 from decimal import Decimal, InvalidOperation
 
-from django.db.models import Case, DecimalField, F, OuterRef, Q, Subquery, Sum, Value, When
+from django.db.models import Case, DecimalField, Exists, F, OuterRef, Q, Subquery, Sum, Value, When
 from django.db.models.functions import Coalesce, Greatest
 from django.utils.timezone import now
 from rest_framework import status
@@ -74,6 +74,16 @@ def _garantir_categorias_despesa_padrao(loja_id: int) -> None:
         CategoriaDespesa.objects.create(loja_id=loja_id, nome=nome)
 
 
+def _alinhar_pendentes_com_parcela() -> None:
+    """PENDING com entrada já registrada vira PARTIAL (status da lista do Financeiro)."""
+    tem_pago = Exists(
+        PaymentParcela.objects.filter(payment_id=OuterRef("pk"), status="PAID"),
+    )
+    _payments_visiveis_financeiro(Payment.objects.all()).filter(status="PENDING").filter(tem_pago).update(
+        status="PARTIAL",
+    )
+
+
 class PaymentListView(APIView):
     """GET /clinica-beleza/payments/
     POST /clinica-beleza/payments/
@@ -82,6 +92,7 @@ class PaymentListView(APIView):
     permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
+        _alinhar_pendentes_com_parcela()
         queryset = _payments_visiveis_financeiro(
             Payment.objects.select_related(
                 "appointment", "appointment__patient",

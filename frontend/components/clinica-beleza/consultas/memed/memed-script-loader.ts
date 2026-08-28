@@ -34,6 +34,7 @@ import {
   forcarFecharOverlayMemed,
   isMemedMessageReady,
   isMemedV4Boot,
+  moverIframeMemedParaHost,
 } from "@/lib/memed-sdk";
 
 let prescricaoImpressaHandler: ((data: unknown) => void) | null = null;
@@ -133,6 +134,24 @@ export async function aguardarWidgetMemedOperacional(): Promise<void> {
   await aguardarMensagemMemedReady(window, MEMED_V4_READY_TIMEOUT_MS);
 }
 
+export async function aguardarIframeMemedNoHost(timeoutMs = MEMED_V4_READY_TIMEOUT_MS): Promise<void> {
+  const inicio = Date.now();
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      if (moverIframeMemedParaHost(document, MEMED_CONTAINER_ID)) {
+        resolve();
+        return;
+      }
+      if (Date.now() - inicio > timeoutMs) {
+        reject(new Error("O editor da Memed não carregou. Feche e tente novamente."));
+        return;
+      }
+      setTimeout(tick, 200);
+    };
+    tick();
+  });
+}
+
 export function preloadMemedScript(url: string): void {
   if (document.querySelector(`link[href="${url}"]`)) return;
   const link = document.createElement("link");
@@ -148,7 +167,7 @@ export function fecharModuloPrescricaoMemed(): void {
   } catch {
     // silencioso
   }
-  forcarFecharOverlayMemed(window);
+  forcarFecharOverlayMemed(window, MEMED_CONTAINER_ID);
 }
 
 export function logoutMemedSdk(): void {
@@ -161,6 +180,7 @@ export function logoutMemedSdk(): void {
 
 export function abrirModuloPrescricaoMemed(): void {
   void window.MdHub?.module?.show?.(MEMED_MODULO_PRESCRICAO);
+  moverIframeMemedParaHost(document, MEMED_CONTAINER_ID);
 }
 
 export async function enviarComandoPrescricaoMemed(

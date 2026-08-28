@@ -68,7 +68,7 @@ export function ProntuarioTabBar({
       </button>
       )}
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
         <button
           type="button"
           onClick={onPrintCompleto}

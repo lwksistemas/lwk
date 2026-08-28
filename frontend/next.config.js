@@ -153,7 +153,7 @@ const nextConfig = {
       },
       {
         source: '/loja/:slug/clinica-estetica',
-        destination: '/loja/:slug/clinica-beleza/consultas',
+        destination: '/loja/:slug/clinica-beleza/prontuario',
         permanent: true,
       },
       {

@@ -1,7 +1,7 @@
-import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import type { ProntuarioDocItem } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
-import { abrirPdfBlobFromResponse } from "@/lib/consulta-print";
+import { abrirPdfBlobFromResponse, imprimirDocumentoPdf } from "@/lib/consulta-print";
+import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 
 export async function printMemedProntuarioDocument(doc: ProntuarioDocItem): Promise<void> {
   const { abrirPdfPrescricaoMemed } = await import("@/lib/memed-prescricao-pdf");
@@ -9,12 +9,7 @@ export async function printMemedProntuarioDocument(doc: ProntuarioDocItem): Prom
 }
 
 export async function printClinicoProntuarioDocument(doc: ProntuarioDocItem): Promise<void> {
-  const response = await clinicaBelezaFetch(`/documentos/${doc.id}/pdf/`);
-  if (!response.ok) {
-    logger.warn("Erro ao gerar PDF do documento:", response.status);
-    throw new Error("Não foi possível gerar o PDF do documento.");
-  }
-  await abrirPdfBlobFromResponse(response);
+  await imprimirDocumentoPdf(doc);
 }
 
 export async function printProntuarioDocument(doc: ProntuarioDocItem): Promise<void> {

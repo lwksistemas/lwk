@@ -20,6 +20,8 @@ import { useAgendaPageHandlers } from "@/hooks/clinica-beleza/useAgendaPageHandl
 import { AgendaCalendarSection } from "./components/AgendaCalendarSection";
 import { AgendaPageHeaderActions } from "./components/AgendaPageHeaderActions";
 import { AgendaPageModals } from "./components/AgendaPageModals";
+import { AgendaConfigModals } from "@/components/clinica-beleza/consultas/AgendaConfigModals";
+import { useConsultasAgendaModals } from "@/components/clinica-beleza/consultas-page/useConsultasPage";
 
 export default function AgendaPage() {
   const params = useParams();
@@ -140,6 +142,8 @@ export default function AgendaPage() {
     setShowCreateModal(true);
   }, [selectedProfessional]);
 
+  const agendaModals = useConsultasAgendaModals();
+
   if (loading && eventos.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center min-h-[320px]">
@@ -169,6 +173,7 @@ export default function AgendaPage() {
             professionals={professionals}
             onBloquear={() => setShowModalBloqueio(true)}
             onNovo={abrirNovoAgendamento}
+            onConfigurar={() => agendaModals.setShowConfigAgendaMenu(true)}
           />
         }
       />
@@ -252,6 +257,7 @@ export default function AgendaPage() {
         onUseLocal={handleConflitoUseLocal}
         conflictResolving={conflictResolving}
       />
+      <AgendaConfigModals agendaModals={agendaModals} />
     </div>
   );
 }

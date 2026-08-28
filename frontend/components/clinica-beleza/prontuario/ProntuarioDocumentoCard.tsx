@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Printer } from "lucide-react";
+import { Eye } from "lucide-react";
 import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { useToast } from "@/components/ui/Toast";
 import type { ProntuarioDocItem } from "@/lib/clinica-beleza-api";
-import { logger } from "@/lib/logger";
 import { printProntuarioDocument } from "./prontuario-document-print";
 import { formatProntuarioDate, prontuarioTipoLabel } from "./prontuario-utils";
 
@@ -13,17 +13,18 @@ interface ProntuarioDocumentoCardProps {
 }
 
 export function ProntuarioDocumentoCard({ doc }: ProntuarioDocumentoCardProps) {
-  const [printing, setPrinting] = useState(false);
+  const toast = useToast();
+  const [opening, setOpening] = useState(false);
 
-  const handlePrintDocument = async () => {
-    if (printing) return;
-    setPrinting(true);
+  const handleVisualizar = async () => {
+    if (opening) return;
+    setOpening(true);
     try {
       await printProntuarioDocument(doc);
     } catch (e) {
-      logger.warn("Erro ao imprimir documento:", e);
+      toast.error(e instanceof Error ? e.message : "Não foi possível visualizar o documento.");
     } finally {
-      setPrinting(false);
+      setOpening(false);
     }
   };
 
@@ -47,13 +48,13 @@ export function ProntuarioDocumentoCard({ doc }: ProntuarioDocumentoCardProps) {
         </div>
         <button
           type="button"
-          onClick={() => void handlePrintDocument()}
-          disabled={printing}
+          onClick={() => void handleVisualizar()}
+          disabled={opening}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
-          title="Imprimir documento (PDF)"
+          title="Visualizar PDF — imprima pelo visualizador"
         >
-          <Printer size={14} />
-          {printing ? "Gerando..." : "Imprimir"}
+          <Eye size={14} />
+          {opening ? "Abrindo..." : "Visualizar"}
         </button>
       </div>
       <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">

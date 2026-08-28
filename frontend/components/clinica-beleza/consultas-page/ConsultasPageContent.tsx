@@ -20,18 +20,19 @@ import {
 import { useConsultasColunas } from "@/hooks/clinica-beleza/useConsultasColunas";
 import { shouldRedirectConsultasList } from "./consultas-page-utils";
 
-export function ConsultasPageContent() {
-  const params = useParams();
+function ConsultasRedirectToProntuario({ slug }: { slug: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const slug = params.slug as string;
-  const deveRedirecionarLista = shouldRedirectConsultasList(searchParams);
-
   useEffect(() => {
-    if (deveRedirecionarLista) {
-      router.replace(buildProntuarioHubPath(slug));
-    }
-  }, [deveRedirecionarLista, router, slug]);
+    router.replace(buildProntuarioHubPath(slug));
+  }, [router, slug]);
+  return (
+    <div className="text-center py-16 text-gray-500">Redirecionando ao prontuário...</div>
+  );
+}
+
+function ConsultasPageWorkspace({ slug }: { slug: string }) {
+  const searchParams = useSearchParams();
+  const consultaIdParam = searchParams.get("id");
 
   const [receberConsulta, setReceberConsulta] = useState<Consulta | null>(null);
   const [abrindoReceberId, setAbrindoReceberId] = useState<number | null>(null);
@@ -54,13 +55,13 @@ export function ConsultasPageContent() {
   } = useClinicaBelezaPaginatedList<Consulta>({
     path: "/consultas/",
     queryParams,
+    enabled: !consultaIdParam,
   });
 
   const { colunasKeys } = useConsultasColunas();
   const agendaModals = useConsultasAgendaModals();
   const novaConsulta = useConsultasNovaConsulta(slug);
   const deepLink = useConsultasDeepLink(slug, consultas);
-  // Cadastros só quando abre "Nova consulta" (evita 4 fetches na lista)
   const cadastros = useAgendamentoCadastros(novaConsulta.showNovaConsultaModal);
 
   const limparFiltroPaciente = useCallback(() => {
@@ -86,12 +87,6 @@ export function ConsultasPageContent() {
     },
     [loadConsultas],
   );
-
-  if (deveRedirecionarLista) {
-    return (
-      <div className="text-center py-16 text-gray-500">Redirecionando ao prontuário...</div>
-    );
-  }
 
   if (deepLink.selected) {
     return (
@@ -132,7 +127,6 @@ export function ConsultasPageContent() {
         novaConsultaDate={novaConsulta.novaConsultaDate}
         onFecharNovaConsulta={novaConsulta.fecharNovaConsulta}
         onConsultaCreated={(consultaId) => {
-          // Igual agenda "Cliente presente": fica na lista para a secretária receber.
           ClinicaBelezaAPI.consultas
             .get(consultaId)
             .then((c) => {
@@ -160,4 +154,16 @@ export function ConsultasPageContent() {
       )}
     </>
   );
+}
+
+export function ConsultasPageContent() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const slug = params.slug as string;
+
+  if (shouldRedirectConsultasList(searchParams)) {
+    return <ConsultasRedirectToProntuario slug={slug} />;
+  }
+
+  return <ConsultasPageWorkspace slug={slug} />;
 }

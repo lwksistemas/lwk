@@ -100,7 +100,7 @@ export function FinanceiroReceitasTab({
             <tbody>
               {payments.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-gray-500">
+                  <td colSpan={9} className="py-8 text-center text-gray-500">
                     Nenhum lançamento. Receitas são criadas ao finalizar consultas.
                   </td>
                 </tr>

@@ -1,4 +1,3 @@
-import { getClinicaBelezaBaseUrl } from "./fetch";
 import type { MemedApi } from "./client-memed";
 import type { ProntuarioApi } from "./client-prontuario";
 import { consultasApi } from "./client-consultas";
@@ -56,11 +55,6 @@ export class ClinicaBelezaAPI {
 
   static prontuario: ProntuarioApi = {
     get: (patientId, secao) => loadProntuarioApi().then((m) => m.get(patientId, secao)),
-    pdfUrl: (patientId, secao) => {
-      const base = getClinicaBelezaBaseUrl();
-      const query = secao ? `?secao=${secao}` : "";
-      return `${base}/patients/${patientId}/prontuario/pdf/${query}`;
-    },
   };
 
   static locaisAtendimento = locaisAtendimentoApi;

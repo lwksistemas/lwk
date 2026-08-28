@@ -57,7 +57,6 @@ function EvolucaoConsultaBlock({
         </p>
         {!loading && evolucoes.length > 0 && (
           <ConsultaPrintButton
-            labelImprimir={evolucoes.length > 1 ? "Imprimir todas" : "Imprimir"}
             onAction={(modo) => imprimirConsultaPdfLazy(consulta.id, "evolucao", modo)}
           />
         )}

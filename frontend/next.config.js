@@ -26,7 +26,7 @@ const securityHeaders = [
       "object-src 'none'",
       "frame-ancestors 'none'",
       "form-action 'self'",
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: ${memedHttps} https://meet.jit.si https://8x8.vc https://api.rudderstack.com https://*.rudderstack.com https://cdn.rudderlabs.com`,
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: ${memedHttps} https://meet.jit.si https://8x8.vc https://api.rudderstack.com https://*.rudderstack.com https://cdn.rudderlabs.com https://d2r1yp2w7bby2u.cloudfront.net https://*.cloudfront.net`,
       `style-src 'self' 'unsafe-inline' ${memedHttps} https://meet.jit.si`,
       `img-src 'self' data: blob: https://media.lwksistemas.com.br https://i.pravatar.cc ${memedHttps} https://meet.jit.si https://*.jitsi.net`,
       `font-src 'self' data: ${memedHttps} https://meet.jit.si`,
@@ -48,7 +48,7 @@ const securityHeaders = [
   },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(self "https://meet.jit.si" "https://8x8.vc"), microphone=(self "https://meet.jit.si" "https://8x8.vc"), clipboard-write=(self "https://memed.com.br" "https://*.memed.com.br" "https://v4-embedded.memed.com.br"), accelerometer=(self "https://memed.com.br" "https://*.memed.com.br" "https://v4-embedded.memed.com.br"), geolocation=(), payment=(), usb=(), browsing-topics=()',
+    value: 'camera=(self "https://meet.jit.si" "https://8x8.vc"), microphone=(self "https://meet.jit.si" "https://8x8.vc"), clipboard-write=(self "https://memed.com.br" "https://v4-embedded.memed.com.br"), accelerometer=*, geolocation=(), payment=(), usb=(), browsing-topics=()',
   },
   {
     key: 'Referrer-Policy',

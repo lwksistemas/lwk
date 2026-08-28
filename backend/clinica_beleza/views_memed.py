@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 
 from .memed_config import memed_config as _memed_config
 from .memed_config import memed_credentials as _memed_credentials
+from .memed_service import status_prescritor_para_diagnostico
 from .models import Professional
 from .permissions import CLINICA_CLINICAL
 
@@ -239,14 +240,21 @@ class MemedStatusView(APIView):
         env, endpoints = _memed_config()
         api_key, secret_key = _memed_credentials(env)
         timbrado = MemedTimbrado.objects.first()
-        profs_cpf = Professional.objects.filter(is_active=True).exclude(cpf__isnull=True).exclude(cpf="")
-        profs_com_cpf = sum(
-            1 for p in profs_cpf if len("".join(ch for ch in (p.cpf or "") if ch.isdigit())) == 11
+        profs_cpf = list(
+            Professional.objects.filter(is_active=True).exclude(cpf__isnull=True).exclude(cpf="").order_by("nome")
         )
+        prescritores = []
+        for p in profs_cpf:
+            if len("".join(ch for ch in (p.cpf or "") if ch.isdigit())) != 11:
+                continue
+            prescritores.append(status_prescritor_para_diagnostico(p))
+        profs_com_cpf = len(prescritores)
+        prescritores_liberados = sum(1 for item in prescritores if item.get("pode_prescrever"))
 
         prod_keys = bool(
             getattr(settings, "MEMED_API_KEY_PROD", "") and getattr(settings, "MEMED_SECRET_KEY_PROD", ""),
         )
+        clinica_conectada = env == "production" and bool(api_key and secret_key) and profs_com_cpf > 0
 
         return Response({
             "environment": env,
@@ -259,7 +267,9 @@ class MemedStatusView(APIView):
                 "updated_at": timbrado.updated_at.isoformat() if timbrado and timbrado.updated_at else None,
             },
             "profissionais_com_cpf": profs_com_cpf,
-            "ready_for_production": env == "production" and bool(api_key and secret_key) and profs_com_cpf > 0,
+            "prescritores": prescritores,
+            "prescritores_liberados": prescritores_liberados,
+            "ready_for_production": clinica_conectada and prescritores_liberados > 0,
         })
 
 

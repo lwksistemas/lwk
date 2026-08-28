@@ -2,7 +2,22 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+from clinica_beleza.memed_service import prescritor_liberado_na_memed
 from clinica_beleza.views_memed import MemedTokenView
+
+
+class PrescritorLiberadoNaMemedTest(TestCase):
+    def test_em_analise_sem_termos_nao_libera(self):
+        self.assertFalse(
+            prescritor_liberado_na_memed(
+                {"state": "ok", "status": "Em análise", "terms_accepted": False}
+            )
+        )
+
+    def test_ativo_com_termos_libera(self):
+        self.assertTrue(
+            prescritor_liberado_na_memed({"state": "ok", "status": "Ativo", "terms_accepted": True})
+        )
 
 
 class MemedTokenViewTest(TestCase):

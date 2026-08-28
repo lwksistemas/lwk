@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMemedConfigBasePath, buildTimbradoApplyFeedback, formatTimbradoBytes, mensagemPrescritorMemedPendente } from "@/components/clinica-beleza/memed-page/memed-page-utils";
+import { buildMemedConfigBasePath, buildTimbradoApplyFeedback, formatTimbradoBytes, mensagemPrescritorMemedPendente, resumoProntoParaPrescrever } from "@/components/clinica-beleza/memed-page/memed-page-utils";
 
 describe("buildMemedConfigBasePath", () => {
   it("monta path de configurações", () => {
@@ -48,5 +48,32 @@ describe("mensagemPrescritorMemedPendente", () => {
     expect(
       mensagemPrescritorMemedPendente({ nome: "Nayara", status: "Ativo", terms_accepted: true }),
     ).toBeNull();
+  });
+});
+
+describe("resumoProntoParaPrescrever", () => {
+  it("nao diz pronto quando prescritor esta em analise", () => {
+    const r = resumoProntoParaPrescrever({
+      credentials_configured: true,
+      ready_for_production: true,
+      prescritores: [
+        {
+          nome: "NAYARA",
+          status: "Em análise",
+          terms_accepted: false,
+          pode_prescrever: false,
+        },
+      ],
+    });
+    expect(r.tom).toBe("aviso");
+    expect(r.texto).toContain("e-mail da Memed");
+  });
+
+  it("diz pronto quando todos podem prescrever", () => {
+    const r = resumoProntoParaPrescrever({
+      credentials_configured: true,
+      prescritores: [{ nome: "NAYARA", status: "Ativo", terms_accepted: true, pode_prescrever: true }],
+    });
+    expect(r.tom).toBe("ok");
   });
 });

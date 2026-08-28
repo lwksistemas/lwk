@@ -37,6 +37,14 @@ export const memedApi = {
       production_keys_configured: boolean;
       timbrado: { tem_timbrado: boolean; pdf_nome?: string | null };
       profissionais_com_cpf: number;
+      prescritores?: Array<{
+        professional_id: number;
+        nome: string;
+        status: string;
+        terms_accepted: boolean;
+        pode_prescrever: boolean;
+      }>;
+      prescritores_liberados?: number;
       ready_for_production: boolean;
     }>("/memed/status/"),
 

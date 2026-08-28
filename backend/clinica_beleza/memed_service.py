@@ -185,3 +185,27 @@ def consultar_status_memed(professional) -> dict:
         "tem_token": bool(attrs.get("token")),
         "environment": env,
     }
+
+
+def prescritor_liberado_na_memed(st: dict | None) -> bool:
+    """True só quando a Memed já ativou o prescritor e os termos foram aceitos."""
+    if not st or st.get("state") != "ok":
+        return False
+    if not st.get("terms_accepted"):
+        return False
+    return str(st.get("status") or "").strip().casefold() == "ativo"
+
+
+def status_prescritor_para_diagnostico(professional) -> dict:
+    """Item para a tela de configuração Memed (sem expor token)."""
+    st = consultar_status_memed(professional)
+    return {
+        "professional_id": getattr(professional, "id", None),
+        "nome": getattr(professional, "nome", "") or "",
+        "state": st.get("state"),
+        "status": st.get("status") or st.get("label") or "",
+        "label": st.get("label") or "",
+        "terms_accepted": bool(st.get("terms_accepted")),
+        "tem_token": bool(st.get("tem_token")),
+        "pode_prescrever": prescritor_liberado_na_memed(st),
+    }

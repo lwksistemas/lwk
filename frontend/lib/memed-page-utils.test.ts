@@ -67,20 +67,20 @@ describe("mensagemPrescritorMemedPendente", () => {
 });
 
 describe("resumoProntoParaPrescrever", () => {
-  it("considera em analise apto a prescrever", () => {
+  it("nao considera em analise apto a prescrever", () => {
     const r = resumoProntoParaPrescrever({
       credentials_configured: true,
-      ready_for_production: true,
+      ready_for_production: false,
       prescritores: [
         {
           nome: "MARINA",
           status: "Em análise",
           terms_accepted: false,
-          pode_prescrever: true,
+          pode_prescrever: false,
         },
       ],
     });
-    expect(r.tom).toBe("ok");
+    expect(r.tom).toBe("aviso");
     expect(r.texto).toMatch(/Em análise/i);
   });
 

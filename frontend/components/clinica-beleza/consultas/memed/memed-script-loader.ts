@@ -34,8 +34,10 @@ import {
   enviarComandoMemed,
   forcarFecharOverlayMemed,
   isMemedMessageReady,
+  appUrlWidgetMemed,
   isMemedV4Boot,
   garantirEditorMemedVisivel,
+  podeReforcarTokenMemed,
   scriptMemedPrecisaReiniciar,
   urlScriptWidgetMemed,
   MEMED_V4_BOOT_KEY,
@@ -133,17 +135,18 @@ export function teardownMemedSdk(): void {
   }
 }
 
-function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string): void {
+function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string, scriptUrl: string): void {
   el.setAttribute("data-token", token);
-  el.setAttribute("data-container", MEMED_CONTAINER_ID);
-  // Sem manual o hub chama MdHub.init sem apiKey e sobe em modo cliente (401).
-  el.setAttribute("data-init", "manual");
-  el.removeAttribute("data-variant");
-  el.removeAttribute("data-app-url");
-}
-
-function passarTokenMemed(token: string): void {
-  window.MdSinapsePrescricao?.init?.({ token });
+  el.removeAttribute("data-container");
+  el.removeAttribute("data-init");
+  const appUrl = appUrlWidgetMemed(scriptUrl);
+  if (appUrl) {
+    el.setAttribute("data-app-url", appUrl);
+    el.setAttribute("data-variant", "v4");
+  } else {
+    el.removeAttribute("data-variant");
+    el.removeAttribute("data-app-url");
+  }
 }
 
 export async function carregarScriptMemed(scriptUrl: string, token: string): Promise<void> {
@@ -151,9 +154,7 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
   if (
     existing &&
-    (scriptMemedPrecisaReiniciar(existing.getAttribute("data-token"), token, existing.src, src) ||
-      existing.getAttribute("data-container") !== MEMED_CONTAINER_ID ||
-      existing.getAttribute("data-init") !== "manual")
+    scriptMemedPrecisaReiniciar(existing.getAttribute("data-token"), token, existing.src, src)
   ) {
     teardownMemedSdk();
   }
@@ -165,7 +166,7 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
       el.id = MEMED_SCRIPT_ID;
       el.type = "text/javascript";
       el.async = false;
-      aplicarAtributosScriptMemed(el, token);
+      aplicarAtributosScriptMemed(el, token, scriptUrl);
       el.src = src;
       el.onload = () => resolve();
       el.onerror = () => reject(new Error("Falha ao carregar o script da Memed."));
@@ -173,14 +174,13 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
     });
     script = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
   }
-  if (script) aplicarAtributosScriptMemed(script, token);
+  if (script) aplicarAtributosScriptMemed(script, token, scriptUrl);
   registrarListenerPrescricaoMemed();
-  // init({token}) → MdHub.init({apiKey: token}). Sem apiKey o hub vira cliente
-  // anônimo (401 + getPartnerByToken nulo + tela branca). Nunca usar setToken.
-  passarTokenMemed(token);
   await esperarMdHub();
-  passarTokenMemed(token);
   registrarListenerPrescricaoMemed();
+  if (podeReforcarTokenMemed(window)) {
+    window.MdSinapsePrescricao?.setToken?.(token);
+  }
 }
 
 export function aguardarModuloMemed(): Promise<void> {

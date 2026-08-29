@@ -8,16 +8,17 @@ export const MEMED_V4_OVERLAY_ID = "memed-auto-generated";
 export const MEMED_V4_SCRIPT_PROD = "https://v4-embedded.memed.com.br/sinapse/sinapse-v4.min.js";
 export const MEMED_V4_APP_URL_PROD = "https://v4-embedded.memed.com.br/";
 
-/** Usa o script oficial do ambiente (produção ou homologação). Não forçar o V4:
- * o Unleash da Memed decide o widget; o gateway V4 rejeita token se o parceiro
- * ainda não estiver no rollout.
+/** O wrapper sinapse-prescricao.min.js sobe o hub legado sem apiKey (tela branca).
+ * Em produção usamos o V4 direto; homologação permanece no script de integrations.
  */
 export function urlScriptWidgetMemed(scriptUrl: string): string {
-  return scriptUrl;
+  if (!scriptUrl || scriptUrl.includes("integrations.")) return scriptUrl;
+  return MEMED_V4_SCRIPT_PROD;
 }
 
-export function appUrlWidgetMemed(_scriptUrl: string): string | null {
-  return null;
+export function appUrlWidgetMemed(scriptUrl: string): string | null {
+  if (!scriptUrl || scriptUrl.includes("integrations.")) return null;
+  return MEMED_V4_APP_URL_PROD;
 }
 
 type MemedHubWindow = Window & {
@@ -52,11 +53,11 @@ export function isMemedV4Boot(win: Window | undefined): boolean {
 }
 
 /**
- * Nunca chamar setToken depois do script com data-token: no legado isso
- * dispara startModules e recarrega o iframe (401). O V4 já lê o data-token.
+ * Só o proxy V4 aceita setToken (postMessage). No legado isso recarrega o
+ * iframe sem token e a tela fica branca.
  */
-export function podeReforcarTokenMemed(_win: Window | undefined): boolean {
-  return false;
+export function podeReforcarTokenMemed(win: Window | undefined): boolean {
+  return isMemedV4Boot(win);
 }
 
 export function scriptMemedPrecisaReiniciar(
@@ -134,9 +135,14 @@ function aplicarEstiloIframeMemed(iframe: HTMLIFrameElement): void {
 }
 
 function revelarOverlayMemed(overlay: HTMLElement): void {
-  if (overlay.style.display === "none") overlay.style.display = "";
-  if (overlay.style.visibility === "hidden") overlay.style.visibility = "visible";
-  if (overlay.style.pointerEvents === "none") overlay.style.pointerEvents = "auto";
+  overlay.style.display = "block";
+  overlay.style.visibility = "visible";
+  overlay.style.pointerEvents = "auto";
+  overlay.style.position = "fixed";
+  overlay.style.inset = "0";
+  overlay.style.top = "4.25rem";
+  overlay.style.width = "100vw";
+  overlay.style.height = "100vh";
   overlay.style.zIndex = "2147483646";
 }
 

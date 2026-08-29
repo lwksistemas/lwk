@@ -34,10 +34,8 @@ import {
   enviarComandoMemed,
   forcarFecharOverlayMemed,
   isMemedMessageReady,
-  appUrlWidgetMemed,
   isMemedV4Boot,
   garantirEditorMemedVisivel,
-  podeReforcarTokenMemed,
   scriptMemedPrecisaReiniciar,
   urlScriptWidgetMemed,
   MEMED_V4_BOOT_KEY,
@@ -135,18 +133,12 @@ export function teardownMemedSdk(): void {
   }
 }
 
-function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string, scriptUrl: string): void {
+function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string): void {
   el.setAttribute("data-token", token);
+  el.setAttribute("data-init", "manual");
   el.removeAttribute("data-container");
-  el.removeAttribute("data-init");
-  const appUrl = appUrlWidgetMemed(scriptUrl);
-  if (appUrl) {
-    el.setAttribute("data-app-url", appUrl);
-    el.setAttribute("data-variant", "v4");
-  } else {
-    el.removeAttribute("data-variant");
-    el.removeAttribute("data-app-url");
-  }
+  el.removeAttribute("data-variant");
+  el.removeAttribute("data-app-url");
 }
 
 export async function carregarScriptMemed(scriptUrl: string, token: string): Promise<void> {
@@ -154,7 +146,8 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
   if (
     existing &&
-    scriptMemedPrecisaReiniciar(existing.getAttribute("data-token"), token, existing.src, src)
+    (scriptMemedPrecisaReiniciar(existing.getAttribute("data-token"), token, existing.src, src) ||
+      existing.getAttribute("data-init") !== "manual")
   ) {
     teardownMemedSdk();
   }
@@ -166,7 +159,7 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
       el.id = MEMED_SCRIPT_ID;
       el.type = "text/javascript";
       el.async = false;
-      aplicarAtributosScriptMemed(el, token, scriptUrl);
+      aplicarAtributosScriptMemed(el, token);
       el.src = src;
       el.onload = () => resolve();
       el.onerror = () => reject(new Error("Falha ao carregar o script da Memed."));
@@ -174,13 +167,12 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
     });
     script = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
   }
-  if (script) aplicarAtributosScriptMemed(script, token, scriptUrl);
+  if (script) aplicarAtributosScriptMemed(script, token);
   registrarListenerPrescricaoMemed();
+  window.MdSinapsePrescricao?.init?.({ token });
   await esperarMdHub();
+  window.MdSinapsePrescricao?.init?.({ token });
   registrarListenerPrescricaoMemed();
-  if (podeReforcarTokenMemed(window)) {
-    window.MdSinapsePrescricao?.setToken?.(token);
-  }
 }
 
 export function aguardarModuloMemed(): Promise<void> {

@@ -8,17 +8,15 @@ export const MEMED_V4_OVERLAY_ID = "memed-auto-generated";
 export const MEMED_V4_SCRIPT_PROD = "https://v4-embedded.memed.com.br/sinapse/sinapse-v4.min.js";
 export const MEMED_V4_APP_URL_PROD = "https://v4-embedded.memed.com.br/";
 
-/** O wrapper sinapse-prescricao.min.js sobe o hub legado sem apiKey (tela branca).
- * Em produção usamos o V4 direto; homologação permanece no script de integrations.
+/** Script oficial do ambiente. Não forçar V4: o gateway V4 não busca
+ * medicamento com o token da Sinapse (Nenhum resultado).
  */
 export function urlScriptWidgetMemed(scriptUrl: string): string {
-  if (!scriptUrl || scriptUrl.includes("integrations.")) return scriptUrl;
-  return MEMED_V4_SCRIPT_PROD;
+  return scriptUrl;
 }
 
-export function appUrlWidgetMemed(scriptUrl: string): string | null {
-  if (!scriptUrl || scriptUrl.includes("integrations.")) return null;
-  return MEMED_V4_APP_URL_PROD;
+export function appUrlWidgetMemed(_scriptUrl: string): string | null {
+  return null;
 }
 
 type MemedHubWindow = Window & {
@@ -53,11 +51,10 @@ export function isMemedV4Boot(win: Window | undefined): boolean {
 }
 
 /**
- * Só o proxy V4 aceita setToken (postMessage). No legado isso recarrega o
- * iframe sem token e a tela fica branca.
+ * Nunca chamar setToken no legado: recarrega o iframe sem token (401).
  */
-export function podeReforcarTokenMemed(win: Window | undefined): boolean {
-  return isMemedV4Boot(win);
+export function podeReforcarTokenMemed(_win: Window | undefined): boolean {
+  return false;
 }
 
 export function scriptMemedPrecisaReiniciar(

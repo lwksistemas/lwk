@@ -1,8 +1,7 @@
 /**
  * Origens da Content-Security-Policy do Next.js.
- * Sinapse 3.25+ (ago/2026) usa v4-embedded.memed.com.br e Unleash em
- * unleash-proxy.data.memed.rocks — o host aninhado precisa de entrada própria.
- * Telemetria da Memed (RudderStack / IP) também precisa de connect-src.
+ * Sem Unleash (*.memed.rocks): o gate V4 sobe um editor sem catálogo.
+ * O hub clássico em memed.com.br é o que busca medicamento.
  */
 const MEMED_HTTPS = [
   "https://memed.com.br",
@@ -10,14 +9,10 @@ const MEMED_HTTPS = [
   "https://v4-embedded.memed.com.br",
   "https://v4-embedded-qa.memed.com.br",
   "https://gateway.memed.com.br",
-  "https://*.memed.rocks",
-  "https://*.data.memed.rocks",
 ];
 
 const MEMED_WSS = [
   "wss://*.memed.com.br",
-  "wss://*.memed.rocks",
-  "wss://*.data.memed.rocks",
 ];
 
 const MEMED_TELEMETRIA = [

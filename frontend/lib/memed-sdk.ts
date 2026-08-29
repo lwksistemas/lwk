@@ -8,15 +8,16 @@ export const MEMED_V4_OVERLAY_ID = "memed-auto-generated";
 export const MEMED_V4_SCRIPT_PROD = "https://v4-embedded.memed.com.br/sinapse/sinapse-v4.min.js";
 export const MEMED_V4_APP_URL_PROD = "https://v4-embedded.memed.com.br/";
 
-/** O wrapper sinapse-prescricao.min.js sobe o hub legado + V4 e a API responde 401. */
+/** Usa o script oficial do ambiente (produção ou homologação). Não forçar o V4:
+ * o Unleash da Memed decide o widget; o gateway V4 rejeita token se o parceiro
+ * ainda não estiver no rollout.
+ */
 export function urlScriptWidgetMemed(scriptUrl: string): string {
-  if (!scriptUrl || scriptUrl.includes("integrations.")) return scriptUrl;
-  return MEMED_V4_SCRIPT_PROD;
+  return scriptUrl;
 }
 
-export function appUrlWidgetMemed(scriptUrl: string): string | null {
-  if (!scriptUrl || scriptUrl.includes("integrations.")) return null;
-  return MEMED_V4_APP_URL_PROD;
+export function appUrlWidgetMemed(_scriptUrl: string): string | null {
+  return null;
 }
 
 type MemedHubWindow = Window & {
@@ -51,12 +52,11 @@ export function isMemedV4Boot(win: Window | undefined): boolean {
 }
 
 /**
- * O setToken legado (Sinapse 3.x) chama startModules / recarrega
- * `#iframe-container iframe`. Sem o token na URL o iframe responde 401 e a
- * tela fica branca. Só o proxy V4 (postMessage SET_TOKEN) é seguro.
+ * Nunca chamar setToken depois do script com data-token: no legado isso
+ * dispara startModules e recarrega o iframe (401). O V4 já lê o data-token.
  */
-export function podeReforcarTokenMemed(win: Window | undefined): boolean {
-  return isMemedV4Boot(win);
+export function podeReforcarTokenMemed(_win: Window | undefined): boolean {
+  return false;
 }
 
 export function scriptMemedPrecisaReiniciar(
@@ -123,25 +123,10 @@ export function localizarIframeMemed(doc: Document): HTMLIFrameElement | null {
   return found ? (found as HTMLIFrameElement) : null;
 }
 
-function aplicarEstiloIframeMemed(iframe: HTMLIFrameElement): void {
-  iframe.style.display = "block";
-  iframe.style.width = "100%";
-  iframe.style.height = "100%";
-  iframe.style.minHeight = "700px";
-  iframe.style.border = "none";
-  iframe.style.visibility = "visible";
-  iframe.style.pointerEvents = "auto";
-}
-
-function revelarOverlayMemed(overlay: HTMLElement): void {
-  if (overlay.style.display === "none") overlay.style.display = "block";
-  if (overlay.style.visibility === "hidden") overlay.style.visibility = "visible";
-  if (overlay.style.pointerEvents === "none") overlay.style.pointerEvents = "auto";
-  overlay.style.position = "fixed";
-  overlay.style.inset = "0";
-  overlay.style.width = "100vw";
-  overlay.style.height = "100vh";
-  overlay.style.zIndex = "2147483646";
+function desocultarSeNosEscondemos(el: HTMLElement): void {
+  if (el.style.display === "none") el.style.display = "";
+  if (el.style.visibility === "hidden") el.style.visibility = "";
+  if (el.style.pointerEvents === "none") el.style.pointerEvents = "";
 }
 
 /**
@@ -157,20 +142,20 @@ export function garantirEditorMemedVisivel(doc: Document, hostId: string): boole
   const iframe = (iframeNoHost as HTMLIFrameElement | undefined) || localizarIframeMemed(doc);
 
   if (iframe) {
-    aplicarEstiloIframeMemed(iframe);
+    desocultarSeNosEscondemos(iframe);
     if (overlay) {
       if (host && host.contains(iframe) && !overlay.contains(iframe) && !overlay.contains(host)) {
         overlay.style.display = "none";
         overlay.style.pointerEvents = "none";
       } else {
-        revelarOverlayMemed(overlay);
+        desocultarSeNosEscondemos(overlay);
       }
     }
     return true;
   }
 
   if (overlay) {
-    revelarOverlayMemed(overlay);
+    desocultarSeNosEscondemos(overlay);
     return overlay.childElementCount > 0;
   }
   return false;

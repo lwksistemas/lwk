@@ -14,6 +14,8 @@ describe("CSP connect-src Memed", () => {
     const connect = extraConnectSrcOrigins();
     expect(MEMED_HTTPS).toContain("https://*.data.memed.rocks");
     expect(MEMED_HTTPS).toContain("https://v4-embedded.memed.com.br");
+    expect(MEMED_HTTPS).toContain("https://v4-embedded-qa.memed.com.br");
+    expect(MEMED_HTTPS).toContain("https://gateway.memed.com.br");
     expect(MEMED_WSS).toContain("wss://*.data.memed.rocks");
     expect(connect).toContain("https://*.data.memed.rocks");
     expect(connect).toContain("https://v4-embedded.memed.com.br");

@@ -4,7 +4,6 @@ import {
   isMemedMessageReady,
   isMemedV4Boot,
   MEMED_V4_BOOT_KEY,
-  MEMED_V4_SCRIPT_PROD,
   podeReforcarTokenMemed,
   scriptMemedPrecisaReiniciar,
   urlScriptWidgetMemed,
@@ -78,20 +77,15 @@ describe("garantirEditorMemedVisivel", () => {
     expect(garantirEditorMemedVisivel(doc, "lwk-memed-host")).toBe(true);
     expect(host.appendChild).not.toHaveBeenCalled();
     expect(overlay.style.display).not.toBe("none");
-    expect(overlay.style.visibility).toBe("visible");
-    expect(overlay.style.position).toBe("fixed");
-    expect(overlay.style.zIndex).toBe("2147483646");
+    expect(overlay.style.visibility).not.toBe("hidden");
   });
 });
 
 describe("token da Memed", () => {
-  it("nao reforca setToken no stack legado (startModules causa 401)", () => {
-    expect(podeReforcarTokenMemed({} as Window)).toBe(false);
-  });
-
-  it("reforca setToken so depois do boot V4", () => {
+  it("nunca chama setToken depois do data-token (legado recarrega o iframe)", () => {
     const win = { [MEMED_V4_BOOT_KEY]: { teardown() {} } } as unknown as Window;
-    expect(podeReforcarTokenMemed(win)).toBe(true);
+    expect(podeReforcarTokenMemed({} as Window)).toBe(false);
+    expect(podeReforcarTokenMemed(win)).toBe(false);
   });
 
   it("reinicia o script se o token do prescritor mudou", () => {
@@ -100,27 +94,12 @@ describe("token da Memed", () => {
     expect(scriptMemedPrecisaReiniciar(null, "token-a")).toBe(false);
   });
 
-  it("reinicia o script se a URL mudou do wrapper legado para o V4", () => {
-    expect(
-      scriptMemedPrecisaReiniciar(
-        "token-a",
-        "token-a",
-        "https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js",
-        MEMED_V4_SCRIPT_PROD,
-      ),
-    ).toBe(true);
-  });
-
-  it("usa o widget V4 em producao e mantem o wrapper na homologacao", () => {
-    expect(
-      urlScriptWidgetMemed(
-        "https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js",
-      ),
-    ).toBe(MEMED_V4_SCRIPT_PROD);
-    expect(
-      urlScriptWidgetMemed(
-        "https://integrations.memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js",
-      ),
-    ).toContain("integrations.memed.com.br");
+  it("mantem o script oficial do ambiente (Unleash escolhe o widget)", () => {
+    const prod =
+      "https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js";
+    const homo =
+      "https://integrations.memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js";
+    expect(urlScriptWidgetMemed(prod)).toBe(prod);
+    expect(urlScriptWidgetMemed(homo)).toBe(homo);
   });
 });

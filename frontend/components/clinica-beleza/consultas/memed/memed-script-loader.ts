@@ -135,12 +135,14 @@ export function teardownMemedSdk(): void {
 
 function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string): void {
   el.setAttribute("data-token", token);
-  // Hub clássico: só data-token. data-container injeta o iframe num nó do React
-  // (erro #418 / tela branca). data-init=manual + init/setToken recarrega sem token (401).
-  el.removeAttribute("data-init");
+  el.setAttribute("data-init", "manual");
   el.removeAttribute("data-container");
   el.removeAttribute("data-variant");
   el.removeAttribute("data-app-url");
+}
+
+function iniciarMemedComToken(token: string): void {
+  window.MdSinapsePrescricao?.init?.({ token });
 }
 
 export async function carregarScriptMemed(scriptUrl: string, token: string): Promise<void> {
@@ -149,7 +151,7 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   if (
     existing &&
     (scriptMemedPrecisaReiniciar(existing.getAttribute("data-token"), token, existing.src, src) ||
-      existing.hasAttribute("data-init") ||
+      existing.getAttribute("data-init") !== "manual" ||
       existing.hasAttribute("data-container"))
   ) {
     teardownMemedSdk();
@@ -164,13 +166,18 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
       el.async = false;
       aplicarAtributosScriptMemed(el, token);
       el.src = src;
-      el.onload = () => resolve();
+      el.onload = () => {
+        iniciarMemedComToken(token);
+        resolve();
+      };
       el.onerror = () => reject(new Error("Falha ao carregar o script da Memed."));
       document.body.appendChild(el);
     });
     script = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
+  } else {
+    aplicarAtributosScriptMemed(script, token);
+    iniciarMemedComToken(token);
   }
-  if (script) aplicarAtributosScriptMemed(script, token);
   registrarListenerPrescricaoMemed();
   await esperarMdHub();
   registrarListenerPrescricaoMemed();

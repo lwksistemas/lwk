@@ -136,7 +136,7 @@ export function teardownMemedSdk(): void {
 function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string): void {
   el.setAttribute("data-token", token);
   el.setAttribute("data-init", "manual");
-  el.removeAttribute("data-container");
+  el.setAttribute("data-container", MEMED_CONTAINER_ID);
   el.removeAttribute("data-variant");
   el.removeAttribute("data-app-url");
 }
@@ -147,7 +147,8 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   if (
     existing &&
     (scriptMemedPrecisaReiniciar(existing.getAttribute("data-token"), token, existing.src, src) ||
-      existing.getAttribute("data-init") !== "manual")
+      existing.getAttribute("data-init") !== "manual" ||
+      existing.getAttribute("data-container") !== MEMED_CONTAINER_ID)
   ) {
     teardownMemedSdk();
   }

@@ -1,7 +1,8 @@
 /**
  * Origens da Content-Security-Policy do Next.js.
- * Sem Unleash (*.memed.rocks): o gate V4 sobe um editor sem catálogo.
- * O hub clássico em memed.com.br é o que busca medicamento.
+ * Widget V4 da Memed (integration.js) exige o gate Unleash (*.memed.rocks) e a
+ * CDN (cdn.memed.com.br). Sem eles o gate não resolve e o token não é aplicado
+ * (getPartnerByToken null / 401). O script clássico foi descontinuado pela Memed.
  */
 const MEMED_HTTPS = [
   "https://memed.com.br",
@@ -9,10 +10,15 @@ const MEMED_HTTPS = [
   "https://v4-embedded.memed.com.br",
   "https://v4-embedded-qa.memed.com.br",
   "https://gateway.memed.com.br",
+  "https://partners.memed.com.br",
+  // Widget V4: feature-flag gate (Unleash) e CDN de scripts (x-ray/memetrics).
+  "https://*.memed.rocks",
+  "https://cdn.memed.com.br",
 ];
 
 const MEMED_WSS = [
   "wss://*.memed.com.br",
+  "wss://*.memed.rocks",
 ];
 
 const MEMED_TELEMETRIA = [

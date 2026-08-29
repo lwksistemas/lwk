@@ -10,7 +10,9 @@ declare global {
     MdSinapsePrescricao?: {
       event?: { add: (event: string, handler: (module: Record<string, unknown>) => void) => void };
       setToken?: (token: string) => void;
+      init?: (opts?: { token?: string }) => void;
     };
+    __memedManualInitDone?: boolean;
     [MEMED_READY_FLAG]?: boolean;
     __memedListenerRegistrado?: boolean;
     __memedPrescImpressaRegistrado?: boolean;
@@ -124,6 +126,7 @@ export function teardownMemedSdk(): void {
   window.__memedPrescImpressaRegistrado = false;
   window.__memedV4ReadyListener = false;
   window.__memedV4IframeReady = false;
+  window.__memedManualInitDone = false;
   try {
     delete window.MdHub;
     delete window.MdSinapsePrescricao;
@@ -134,7 +137,7 @@ export function teardownMemedSdk(): void {
 
 function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string): void {
   el.setAttribute("data-token", token);
-  el.removeAttribute("data-container");
+  el.setAttribute("data-container", MEMED_CONTAINER_ID);
   el.removeAttribute("data-init");
   el.removeAttribute("data-variant");
   el.removeAttribute("data-app-url");
@@ -145,7 +148,8 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
   if (
     existing &&
-    scriptMemedPrecisaReiniciar(existing.getAttribute("data-token"), token, existing.src, src)
+    (scriptMemedPrecisaReiniciar(existing.getAttribute("data-token"), token, existing.src, src) ||
+      existing.getAttribute("data-container") !== MEMED_CONTAINER_ID)
   ) {
     teardownMemedSdk();
   }
@@ -167,9 +171,15 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   }
   if (script) aplicarAtributosScriptMemed(script, token);
   registrarListenerPrescricaoMemed();
+  // Não chamar setToken: no legado isso faz startModules/reload do iframe e a
+  // Memed sobe anônima (401 em /v1/usuarios + tela branca). O token vai no
+  // data-token; init({token}) só reforça se o hub já existir.
+  if (!window.__memedManualInitDone) {
+    window.__memedManualInitDone = true;
+    window.MdSinapsePrescricao?.init?.({ token });
+  }
   await esperarMdHub();
   registrarListenerPrescricaoMemed();
-  window.MdSinapsePrescricao?.setToken?.(token);
 }
 
 export function aguardarModuloMemed(): Promise<void> {

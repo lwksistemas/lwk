@@ -77,7 +77,8 @@ describe("garantirEditorMemedVisivel", () => {
     expect(garantirEditorMemedVisivel(doc, "lwk-memed-host")).toBe(true);
     expect(host.appendChild).not.toHaveBeenCalled();
     expect(overlay.style.display).not.toBe("none");
-    expect(overlay.style.visibility).not.toBe("hidden");
+    expect(overlay.style.visibility).toBe("visible");
+    expect(overlay.style.zIndex).toBe("2147483646");
   });
 });
 

@@ -187,38 +187,15 @@ def consultar_status_memed(professional) -> dict:
     }
 
 
-def widget_aceita_token_memed(token: str) -> bool:
-    """True se GET /v1/usuarios autentica com o token do prescritor.
-
-    A Sinapse devolve token mesmo com status \"Em análise\", mas o editor
-    (api.memed.com.br/v1/usuarios) responde 401 e a tela fica em branco.
-    """
-    token = (token or "").strip()
-    if not token:
-        return False
-    _env, endpoints = _memed_config()
-    try:
-        resp = requests.get(
-            f"{endpoints['api']}/usuarios",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.api+json",
-            },
-            timeout=12,
-        )
-    except requests.RequestException as e:
-        logger.warning("Memed: falha ao validar token no widget: %s", e)
-        return False
-    return resp.ok
-
-
 def prescritor_liberado_na_memed(st: dict | None) -> bool:
-    """True se o prescritor está ativo na Memed (o editor aceita o token)."""
+    """True se o prescritor existe na Memed.
+
+    O status \"Em análise\" e ``terms_accepted: false`` são de outros produtos da Memed
+    e não impedem prescrever (confirmação do suporte Memed, ago/2026).
+    """
     if not st or st.get("state") != "ok":
         return False
-    if not st.get("tem_token"):
-        return False
-    return str(st.get("status") or "").strip().casefold() == "ativo"
+    return True
 
 
 def status_prescritor_para_diagnostico(professional) -> dict:

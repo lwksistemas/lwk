@@ -68,9 +68,6 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
       setMontado(true);
     }, []);
 
-    const editorAberto = aberto && status === "ready";
-    const avisoAberto = aberto && status !== "ready";
-
     useEffect(() => {
       if (!aberto) return;
       const onKey = (event: KeyboardEvent) => {
@@ -90,48 +87,27 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
 
     const ui = (
       <>
-        {avisoAberto && (
-          <div
-            className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/50 p-4"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Prescrição Memed"
-          >
-            <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-2xl dark:bg-neutral-900">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Prescrição Memed</p>
-              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{patientName}</p>
-              {status === "loading" && (
-                <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">Carregando o editor da Memed…</p>
-              )}
-              {status === "error" && erro && (
-                <p className="mt-3 text-sm text-red-700 dark:text-red-400">{erro}</p>
-              )}
-              <button
-                type="button"
-                onClick={fechar}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-neutral-600 dark:text-gray-100 dark:hover:bg-neutral-800"
-              >
-                <X size={16} />
-                Fechar
-              </button>
-            </div>
-          </div>
-        )}
         <div
           className="fixed inset-x-0 top-0 flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-md dark:border-neutral-700 dark:bg-neutral-900"
           style={{
-            zIndex: editorAberto ? 2147483647 : -1,
-            visibility: editorAberto ? "visible" : "hidden",
-            pointerEvents: editorAberto ? "auto" : "none",
+            zIndex: aberto ? 2147483647 : -1,
+            visibility: aberto ? "visible" : "hidden",
+            pointerEvents: aberto ? "auto" : "none",
           }}
           role="dialog"
-          aria-modal={editorAberto}
-          aria-hidden={!editorAberto}
+          aria-modal={aberto}
+          aria-hidden={!aberto}
           aria-label="Prescrição Memed"
         >
           <div>
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Prescrição Memed</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{patientName}</p>
+            {status === "loading" && (
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Carregando o editor da Memed…</p>
+            )}
+            {status === "error" && erro && (
+              <p className="mt-0.5 text-xs text-red-700 dark:text-red-400">{erro}</p>
+            )}
           </div>
           <button
             type="button"
@@ -147,14 +123,14 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
           className="bg-white"
           style={{
             position: "fixed",
-            top: editorAberto ? "4.25rem" : 0,
+            top: aberto ? "4.25rem" : 0,
             left: 0,
             right: 0,
             bottom: 0,
-            zIndex: editorAberto ? 2147483645 : -1,
-            visibility: editorAberto ? "visible" : "hidden",
-            pointerEvents: editorAberto ? "auto" : "none",
-            minHeight: editorAberto ? 400 : 0,
+            zIndex: aberto ? 2147483645 : -1,
+            visibility: aberto ? "visible" : "hidden",
+            pointerEvents: aberto ? "auto" : "none",
+            minHeight: aberto ? 400 : 0,
           }}
         />
       </>

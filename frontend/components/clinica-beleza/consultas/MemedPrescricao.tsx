@@ -120,17 +120,17 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
         </div>
         <div
           id={MEMED_CONTAINER_ID}
+          className="bg-white"
           style={{
             position: "fixed",
             top: aberto ? "4.25rem" : 0,
             left: 0,
             right: 0,
             bottom: 0,
-            zIndex: -1,
-            visibility: "hidden",
-            pointerEvents: "none",
-            minHeight: 0,
-            background: "transparent",
+            zIndex: aberto ? 2147483645 : -1,
+            visibility: aberto ? "visible" : "hidden",
+            pointerEvents: aberto ? "auto" : "none",
+            minHeight: aberto ? 400 : 0,
           }}
         />
       </>

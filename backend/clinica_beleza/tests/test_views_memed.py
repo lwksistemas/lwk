@@ -8,10 +8,10 @@ from clinica_beleza.views_memed import MemedTokenView
 
 
 class PrescritorLiberadoNaMemedTest(TestCase):
-    def test_em_analise_sem_termos_libera(self):
-        self.assertTrue(
+    def test_em_analise_sem_termos_nao_libera(self):
+        self.assertFalse(
             prescritor_liberado_na_memed(
-                {"state": "ok", "status": "Em análise", "terms_accepted": False}
+                {"state": "ok", "status": "Em análise", "terms_accepted": False, "tem_token": True}
             )
         )
 
@@ -22,7 +22,9 @@ class PrescritorLiberadoNaMemedTest(TestCase):
 
     def test_ativo_com_termos_libera(self):
         self.assertTrue(
-            prescritor_liberado_na_memed({"state": "ok", "status": "Ativo", "terms_accepted": True})
+            prescritor_liberado_na_memed(
+                {"state": "ok", "status": "Ativo", "terms_accepted": True, "tem_token": True}
+            )
         )
 
 

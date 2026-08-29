@@ -10,14 +10,12 @@ declare global {
     MdSinapsePrescricao?: {
       event?: { add: (event: string, handler: (module: Record<string, unknown>) => void) => void };
       setToken?: (token: string) => void;
-      init?: (opts?: { token?: string }) => void;
     };
     [MEMED_READY_FLAG]?: boolean;
     __memedListenerRegistrado?: boolean;
     __memedPrescImpressaRegistrado?: boolean;
     __memedV4ReadyListener?: boolean;
     __memedV4IframeReady?: boolean;
-    __memedManualInitDone?: boolean;
   }
 }
 
@@ -126,7 +124,6 @@ export function teardownMemedSdk(): void {
   window.__memedPrescImpressaRegistrado = false;
   window.__memedV4ReadyListener = false;
   window.__memedV4IframeReady = false;
-  window.__memedManualInitDone = false;
   try {
     delete window.MdHub;
     delete window.MdSinapsePrescricao;
@@ -137,9 +134,8 @@ export function teardownMemedSdk(): void {
 
 function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string): void {
   el.setAttribute("data-token", token);
-  // Sem manual o Unleash cai no hub legado e o MdHub.init sobe sem apiKey (401).
-  el.setAttribute("data-init", "manual");
   el.removeAttribute("data-container");
+  el.removeAttribute("data-init");
   el.removeAttribute("data-variant");
   el.removeAttribute("data-app-url");
 }
@@ -173,11 +169,7 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   registrarListenerPrescricaoMemed();
   await esperarMdHub();
   registrarListenerPrescricaoMemed();
-  if (!window.__memedManualInitDone && !isMemedV4Boot(window)) {
-    window.__memedManualInitDone = true;
-    window.MdSinapsePrescricao?.init?.({ token });
-  }
-  await aguardarModuloMemed();
+  window.MdSinapsePrescricao?.setToken?.(token);
 }
 
 export function aguardarModuloMemed(): Promise<void> {

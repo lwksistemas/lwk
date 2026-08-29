@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 
 from .memed_config import memed_config as _memed_config
 from .memed_config import memed_credentials as _memed_credentials
-from .memed_service import status_prescritor_para_diagnostico, widget_aceita_token_memed
+from .memed_service import status_prescritor_para_diagnostico
 from .models import Professional
 from .permissions import CLINICA_CLINICAL
 
@@ -96,7 +96,7 @@ class MemedTokenView(APIView):
 
         from tenants.middleware import get_current_loja_id
         loja_id = get_current_loja_id() or 0
-        cache_key = f"memed_token_v4_{loja_id}_{prescritor_id}_{env}"
+        cache_key = f"memed_token_v3_{loja_id}_{prescritor_id}_{env}"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)
@@ -142,27 +142,6 @@ class MemedTokenView(APIView):
             return Response(
                 {"error": "Token do prescritor não retornado pela Memed."},
                 status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        if not widget_aceita_token_memed(token):
-            status_val = (attrs.get("status") or "Em análise").strip() or "Em análise"
-            return Response(
-                {
-                    "error": (
-                        f"A Memed recusou o token deste prescritor (status: {status_val}). "
-                        "O editor só abre depois que a Memed ativar o profissional (status Ativo). "
-                        "Fale com o suporte da Memed ou abra Configurações → Memed."
-                    ),
-                    "prescritor": {
-                        "nome": attrs.get("nome", ""),
-                        "sobrenome": attrs.get("sobrenome", ""),
-                        "crm": attrs.get("crm", ""),
-                        "uf": attrs.get("uf", ""),
-                        "status": status_val,
-                        "terms_accepted": bool(attrs.get("terms_accepted")),
-                    },
-                },
-                status=status.HTTP_403_FORBIDDEN,
             )
 
         payload = {

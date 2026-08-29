@@ -67,14 +67,14 @@ export function prescritorPodePrescrever(p?: MemedPrescritorDiag | null): boolea
   if (typeof p.pode_prescrever === "boolean") return p.pode_prescrever;
   const st = String(p.status || p.label || p.state || "").trim();
   if (!st) return false;
-  if (/não cadastrado|nao cadastrado|indispon[ií]vel|erro|an[aá]lise/i.test(st)) return false;
-  return /ativo/i.test(st);
+  if (/não cadastrado|nao cadastrado|indispon[ií]vel|erro/i.test(st)) return false;
+  return true;
 }
 
 export function detalhePrescritorMemed(p: MemedPrescritorDiag): string {
   const status = String(p.status || p.label || "").trim();
   if (/an[aá]lise/i.test(status)) {
-    return `${status} (o editor da Memed recusa o token até o status Ativo)`;
+    return `${status} (não impede emitir receitas)`;
   }
   const partes: string[] = [];
   if (status) partes.push(status);
@@ -105,14 +105,14 @@ export function resumoProntoParaPrescrever(diag: MemedDiagStatus): {
     return {
       tom: "aviso",
       texto:
-        "A clínica está conectada à Memed, mas nenhum prescritor está Ativo. O editor recusa token de cadastro Em análise.",
+        "A clínica está conectada à Memed, mas nenhum prescritor foi encontrado no cadastro da Memed.",
     };
   }
   if (liberados.length < lista.length) {
     return {
       tom: "aviso",
-      texto: `${liberados.length} de ${lista.length} prescritor(es) podem prescrever. Confira CPF e status Ativo na Memed dos demais.`,
+      texto: `${liberados.length} de ${lista.length} prescritor(es) podem prescrever. Confira CPF e cadastro na Memed dos demais.`,
     };
   }
-  return { tom: "ok", texto: "Pronto para prescrição em produção. Os prescritores estão ativos na Memed." };
+  return { tom: "ok", texto: "Pronto para prescrição em produção. O status Em análise na Memed não impede emitir receitas." };
 }

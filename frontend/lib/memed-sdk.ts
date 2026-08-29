@@ -123,10 +123,21 @@ export function localizarIframeMemed(doc: Document): HTMLIFrameElement | null {
   return found ? (found as HTMLIFrameElement) : null;
 }
 
-function desocultarSeNosEscondemos(el: HTMLElement): void {
-  if (el.style.display === "none") el.style.display = "";
-  if (el.style.visibility === "hidden") el.style.visibility = "";
-  if (el.style.pointerEvents === "none") el.style.pointerEvents = "";
+function aplicarEstiloIframeMemed(iframe: HTMLIFrameElement): void {
+  iframe.style.display = "block";
+  iframe.style.width = "100%";
+  iframe.style.height = "100%";
+  iframe.style.minHeight = "700px";
+  iframe.style.border = "none";
+  iframe.style.visibility = "visible";
+  iframe.style.pointerEvents = "auto";
+}
+
+function revelarOverlayMemed(overlay: HTMLElement): void {
+  if (overlay.style.display === "none") overlay.style.display = "";
+  if (overlay.style.visibility === "hidden") overlay.style.visibility = "visible";
+  if (overlay.style.pointerEvents === "none") overlay.style.pointerEvents = "auto";
+  overlay.style.zIndex = "2147483646";
 }
 
 /**
@@ -142,20 +153,20 @@ export function garantirEditorMemedVisivel(doc: Document, hostId: string): boole
   const iframe = (iframeNoHost as HTMLIFrameElement | undefined) || localizarIframeMemed(doc);
 
   if (iframe) {
-    desocultarSeNosEscondemos(iframe);
+    aplicarEstiloIframeMemed(iframe);
     if (overlay) {
       if (host && host.contains(iframe) && !overlay.contains(iframe) && !overlay.contains(host)) {
         overlay.style.display = "none";
         overlay.style.pointerEvents = "none";
       } else {
-        desocultarSeNosEscondemos(overlay);
+        revelarOverlayMemed(overlay);
       }
     }
     return true;
   }
 
   if (overlay) {
-    desocultarSeNosEscondemos(overlay);
+    revelarOverlayMemed(overlay);
     return overlay.childElementCount > 0;
   }
   return false;

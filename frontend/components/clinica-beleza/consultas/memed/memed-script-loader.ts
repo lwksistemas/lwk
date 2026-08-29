@@ -135,8 +135,10 @@ export function teardownMemedSdk(): void {
 
 function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string): void {
   el.setAttribute("data-token", token);
-  el.setAttribute("data-init", "manual");
-  el.setAttribute("data-container", MEMED_CONTAINER_ID);
+  // Hub clássico: só data-token. data-container injeta o iframe num nó do React
+  // (erro #418 / tela branca). data-init=manual + init/setToken recarrega sem token (401).
+  el.removeAttribute("data-init");
+  el.removeAttribute("data-container");
   el.removeAttribute("data-variant");
   el.removeAttribute("data-app-url");
 }
@@ -147,8 +149,8 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   if (
     existing &&
     (scriptMemedPrecisaReiniciar(existing.getAttribute("data-token"), token, existing.src, src) ||
-      existing.getAttribute("data-init") !== "manual" ||
-      existing.getAttribute("data-container") !== MEMED_CONTAINER_ID)
+      existing.hasAttribute("data-init") ||
+      existing.hasAttribute("data-container"))
   ) {
     teardownMemedSdk();
   }
@@ -170,9 +172,7 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   }
   if (script) aplicarAtributosScriptMemed(script, token);
   registrarListenerPrescricaoMemed();
-  window.MdSinapsePrescricao?.init?.({ token });
   await esperarMdHub();
-  window.MdSinapsePrescricao?.init?.({ token });
   registrarListenerPrescricaoMemed();
 }
 

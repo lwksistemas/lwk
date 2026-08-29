@@ -9,7 +9,8 @@ MEMED_ENDPOINTS = {
     },
     "production": {
         "api": "https://api.memed.com.br/v1",
-        "script": "https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js",
+        # V4 (integration.js) — script oficial de produção da Memed.
+        "script": "https://partners.memed.com.br/integration.js",
     },
 }
 

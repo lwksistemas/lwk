@@ -48,7 +48,7 @@ const securityHeaders = [
   },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(self), microphone=(), clipboard-write=(self "https://memed.com.br" "https://v4-embedded.memed.com.br"), accelerometer=*, geolocation=(), payment=(), usb=(), browsing-topics=()',
+    value: 'camera=(self "https://meet.jit.si" "https://8x8.vc"), microphone=(self "https://meet.jit.si" "https://8x8.vc"), clipboard-write=(self "https://memed.com.br" "https://v4-embedded.memed.com.br"), accelerometer=*, geolocation=(), payment=(), usb=(), browsing-topics=()',
   },
   {
     key: 'Referrer-Policy',
@@ -155,6 +155,16 @@ const nextConfig = {
         source: '/loja/:slug/clinica-estetica',
         destination: '/loja/:slug/clinica-beleza/prontuario',
         permanent: true,
+      },
+      {
+        source: '/loja/:slug/clinica-geral',
+        destination: '/loja/:slug/clinica',
+        permanent: false,
+      },
+      {
+        source: '/loja/:slug/clinica-geral/:path*',
+        destination: '/loja/:slug/clinica/:path*',
+        permanent: false,
       },
     ]
   },

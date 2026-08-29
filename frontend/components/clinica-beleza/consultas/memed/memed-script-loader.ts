@@ -35,10 +35,8 @@ import {
   isMemedMessageReady,
   isMemedV4Boot,
   garantirEditorMemedVisivel,
-  podeReforcarTokenMemed,
   scriptMemedPrecisaReiniciar,
   urlScriptWidgetMemed,
-  appUrlWidgetMemed,
   MEMED_V4_BOOT_KEY,
   MEMED_V4_OVERLAY_ID,
 } from "@/lib/memed-sdk";
@@ -134,14 +132,11 @@ export function teardownMemedSdk(): void {
   }
 }
 
-function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string, scriptUrl: string): void {
+function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string): void {
   el.setAttribute("data-token", token);
   el.removeAttribute("data-container");
-  const appUrl = appUrlWidgetMemed(scriptUrl);
-  if (appUrl) {
-    el.setAttribute("data-app-url", appUrl);
-    el.setAttribute("data-variant", "v4");
-  }
+  el.removeAttribute("data-variant");
+  el.removeAttribute("data-app-url");
 }
 
 export async function carregarScriptMemed(scriptUrl: string, token: string): Promise<void> {
@@ -161,7 +156,7 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
       el.id = MEMED_SCRIPT_ID;
       el.type = "text/javascript";
       el.async = false;
-      aplicarAtributosScriptMemed(el, token, scriptUrl);
+      aplicarAtributosScriptMemed(el, token);
       el.src = src;
       el.onload = () => resolve();
       el.onerror = () => reject(new Error("Falha ao carregar o script da Memed."));
@@ -169,14 +164,10 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
     });
     script = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
   }
-  if (script) aplicarAtributosScriptMemed(script, token, scriptUrl);
+  if (script) aplicarAtributosScriptMemed(script, token);
   registrarListenerPrescricaoMemed();
   await esperarMdHub();
   registrarListenerPrescricaoMemed();
-  // Só o proxy V4 aceita setToken (postMessage). O legado dispara startModules e 401.
-  if (podeReforcarTokenMemed(window)) {
-    window.MdSinapsePrescricao?.setToken?.(token);
-  }
 }
 
 export function aguardarModuloMemed(): Promise<void> {

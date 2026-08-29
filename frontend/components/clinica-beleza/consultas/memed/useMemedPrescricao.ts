@@ -9,6 +9,7 @@ import { enviarPacienteMemed, enviarWorkplaceMemed } from "./memed-paciente";
 import {
   abrirModuloPrescricaoMemed,
   aguardarIframeMemedNoHost,
+  aguardarWidgetMemedOperacional,
   carregarScriptMemed,
   fecharModuloPrescricaoMemed,
   setPrescricaoImpressaHandler,
@@ -108,6 +109,7 @@ export function useMemedPrescricao({
   const abrir = useCallback(async () => {
     await esperarProximoFrame();
     await garantirPronto();
+    await aguardarWidgetMemedOperacional();
     abrirModuloPrescricaoMemed();
     await aguardarIframeMemedNoHost();
     void enviarPacienteMemed(patientId, patientName).catch((e) => {

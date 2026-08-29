@@ -8,6 +8,8 @@ const MEMED_HTTPS = [
   "https://memed.com.br",
   "https://*.memed.com.br",
   "https://v4-embedded.memed.com.br",
+  "https://v4-embedded-qa.memed.com.br",
+  "https://gateway.memed.com.br",
   "https://*.memed.rocks",
   "https://*.data.memed.rocks",
 ];

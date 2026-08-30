@@ -182,8 +182,8 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
     document.head.appendChild(el);
   });
 
-  // Aguardar módulo de prescrição ficar disponível antes de prosseguir
-  await aguardarModuloMemed();
+  // Aguarda MdHub estar disponível (não aguarda módulo específico — evita timeout)
+  await esperarMdHub();
 }
 
 export function aguardarModuloMemed(): Promise<void> {
@@ -258,7 +258,6 @@ export function logoutMemedSdk(): void {
 
 export function abrirModuloPrescricaoMemed(): void {
   void window.MdHub?.module?.show?.(MEMED_MODULO_PRESCRICAO);
-  garantirEditorMemedVisivel(document, MEMED_CONTAINER_ID);
 }
 
 export async function enviarComandoPrescricaoMemed(

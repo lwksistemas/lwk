@@ -257,9 +257,6 @@ export function logoutMemedSdk(): void {
 }
 
 export function abrirModuloPrescricaoMemed(): void {
-  // Debug temporário: verificar se script tem data-token e se MdHub está disponível
-  const s = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
-  console.log('[Memed] abrirModulo - script:', s?.id, 'data-token:', s?.getAttribute('data-token')?.substring(0, 20), 'MdHub:', !!window.MdHub?.module?.show);
   void window.MdHub?.module?.show?.(MEMED_MODULO_PRESCRICAO);
 }
 

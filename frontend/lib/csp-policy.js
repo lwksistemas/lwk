@@ -11,9 +11,10 @@ const MEMED_HTTPS = [
   "https://v4-embedded-qa.memed.com.br",
   "https://gateway.memed.com.br",
   "https://partners.memed.com.br",
-  // Widget V4: feature-flag gate (Unleash) e CDN de scripts (x-ray/memetrics).
-  "https://*.memed.rocks",
   "https://cdn.memed.com.br",
+  // Unleash feature toggles — obrigatório para o V4 (sem ele: getPartnerByToken null / 401).
+  "https://*.memed.rocks",
+  "https://data.memed.rocks",
 ];
 
 const MEMED_WSS = [

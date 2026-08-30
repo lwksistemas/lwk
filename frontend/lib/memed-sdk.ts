@@ -8,8 +8,8 @@ export const MEMED_V4_OVERLAY_ID = "memed-auto-generated";
 export const MEMED_V4_SCRIPT_PROD = "https://v4-embedded.memed.com.br/sinapse/sinapse-v4.min.js";
 export const MEMED_V4_APP_URL_PROD = "https://v4-embedded.memed.com.br/";
 
-/** Script oficial do ambiente. Não forçar V4: o gateway V4 não busca
- * medicamento com o token da Sinapse (Nenhum resultado).
+/** Script oficial do ambiente. O V4 (integration.js) agora funciona com o
+ * token da Sinapse após liberação do Unleash na CSP e remoção do data-init manual.
  */
 export function urlScriptWidgetMemed(scriptUrl: string): string {
   return scriptUrl;

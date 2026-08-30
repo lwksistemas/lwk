@@ -148,8 +148,7 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   const src = urlScriptWidgetMemed(scriptUrl);
   const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
 
-  // Se já existe script com o mesmo token, reutiliza (não reinjeta — evita 401).
-  // Só recria se o token/URL mudou.
+  // Se já existe script com o mesmo token e URL, reutiliza sem reinjetar.
   if (existing) {
     const precisaReiniciar = scriptMemedPrecisaReiniciar(
       existing.getAttribute("data-token"),
@@ -158,28 +157,33 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
       src,
     );
     if (!precisaReiniciar) {
+      // Já carregado — registrar listeners e aguardar módulo de prescrição
       registrarListenerPrescricaoMemed();
-      await esperarMdHub();
-      registrarListenerPrescricaoMemed();
+      await aguardarModuloMemed();
       return;
     }
     teardownMemedSdk();
   }
 
+  // Carregar script conforme exemplo oficial da Memed: data-token no script,
+  // listener core:moduleInit registrado no onload, show apenas no clique.
   await new Promise<void>((resolve, reject) => {
     const el = document.createElement("script");
     el.id = MEMED_SCRIPT_ID;
     el.type = "text/javascript";
     aplicarAtributosScriptMemed(el, token);
     el.src = src;
-    el.addEventListener("load", () => resolve());
+    el.addEventListener("load", () => {
+      // Registrar listener de moduleInit no onload (padrão oficial Memed)
+      registrarListenerPrescricaoMemed();
+      resolve();
+    });
     el.addEventListener("error", () => reject(new Error("Falha ao carregar o script da Memed.")));
     document.head.appendChild(el);
   });
 
-  registrarListenerPrescricaoMemed();
-  await esperarMdHub();
-  registrarListenerPrescricaoMemed();
+  // Aguardar módulo de prescrição ficar disponível antes de prosseguir
+  await aguardarModuloMemed();
 }
 
 export function aguardarModuloMemed(): Promise<void> {

@@ -9,8 +9,10 @@ MEMED_ENDPOINTS = {
     },
     "production": {
         "api": "https://api.memed.com.br/v1",
-        # V4 (integration.js) — script oficial de produção da Memed.
-        "script": "https://partners.memed.com.br/integration.js",
+        # Script clássico da Sinapse Prescricao (não-V4). O V4 (integration.js)
+        # rejeita o token da Sinapse (getPartnerByToken null / 401 em cascata).
+        # O script clássico (v3.11.2) ainda está ativo e funciona com o token Sinapse.
+        "script": "https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js",
     },
 }
 

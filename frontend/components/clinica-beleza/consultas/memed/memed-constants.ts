@@ -5,6 +5,6 @@ export const MEMED_TIMEOUT_MS = 20000;
 export const MEMED_COMMAND_TIMEOUT_MS = 5000;
 export const MEMED_V4_READY_TIMEOUT_MS = 12000;
 export const MEMED_PRELOAD_SCRIPT_URL =
-  "https://partners.memed.com.br/integration.js";
+  "https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js";
 export const MEMED_CONTAINER_ID = "lwk-memed-host";
 export const MEMED_TOKEN_TIMEOUT_MS = 12000;

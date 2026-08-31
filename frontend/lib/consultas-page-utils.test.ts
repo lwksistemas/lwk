@@ -3,6 +3,7 @@ import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-t
 import {
   buildConsultaDetailHref,
   buildConsultasBasePath,
+  buildConsultasListQueryParams,
   extractConsultaDeepLinkError,
   findConsultaInList,
   formatConsultaListDate,
@@ -53,5 +54,29 @@ describe("extractConsultaDeepLinkError", () => {
     expect(extractConsultaDeepLinkError(new Error("x"))).toBe(
       "Consulta não encontrada ou sem permissão para visualizá-la.",
     );
+  });
+});
+
+describe("buildConsultasListQueryParams", () => {
+  it("usa a fila quando não há paciente", () => {
+    expect(buildConsultasListQueryParams({})).toEqual({ fila: "iniciar" });
+  });
+
+  it("filtra histórico do paciente sem a fila", () => {
+    expect(buildConsultasListQueryParams({ patientId: 12 })).toEqual({ patient: 12 });
+  });
+
+  it("combina profissional com a fila", () => {
+    expect(buildConsultasListQueryParams({ professionalId: 7 })).toEqual({
+      fila: "iniciar",
+      professional: 7,
+    });
+  });
+
+  it("combina profissional com o paciente", () => {
+    expect(buildConsultasListQueryParams({ patientId: 12, professionalId: 7 })).toEqual({
+      patient: 12,
+      professional: 7,
+    });
   });
 });

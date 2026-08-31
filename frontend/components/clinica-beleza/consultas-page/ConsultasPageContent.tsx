@@ -2,10 +2,14 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { useAgendamentoCadastros } from "@/hooks/clinica-beleza/useAgendamentoCadastros";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import { fetchClinicaSchedulingProfessionals } from "@/lib/clinica-beleza-cadastros-api";
+import {
+  clinicaBelezaQueryKeys,
+  fetchClinicaSchedulingProfessionals,
+} from "@/lib/clinica-beleza-cadastros-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
 import { useToast } from "@/components/ui/Toast";
 import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/ModalReceberConsulta";
@@ -22,7 +26,7 @@ import {
   useConsultasNovaConsulta,
 } from "./useConsultasPage";
 import { useConsultasColunas } from "@/hooks/clinica-beleza/useConsultasColunas";
-import { buildConsultaDetailHref } from "./consultas-page-utils";
+import { buildConsultaDetailHref, buildConsultasListQueryParams } from "./consultas-page-utils";
 
 function ConsultasPageWorkspace({ slug }: { slug: string }) {
   const router = useRouter();
@@ -35,16 +39,26 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
   const [iniciandoId, setIniciandoId] = useState<number | null>(null);
   const [excluindoId, setExcluindoId] = useState<number | null>(null);
   const [filtroPaciente, setFiltroPaciente] = useState<PatientQuickOption | null>(null);
+  const [filtroProfissionalId, setFiltroProfissionalId] = useState<number | null>(null);
   const [consultaParaIniciar, setConsultaParaIniciar] = useState<Consulta | null>(null);
   const [showProfessionalModal, setShowProfessionalModal] = useState(false);
   const [profissionaisDisponiveis, setProfissionaisDisponiveis] = useState<
     Array<{ id: number; nome: string }>
   >([]);
 
-  const queryParams = useMemo(() => {
-    if (filtroPaciente) return { patient: filtroPaciente.id };
-    return { fila: "iniciar" };
-  }, [filtroPaciente]);
+  const queryParams = useMemo(
+    () =>
+      buildConsultasListQueryParams({
+        patientId: filtroPaciente?.id ?? null,
+        professionalId: filtroProfissionalId,
+      }),
+    [filtroPaciente, filtroProfissionalId],
+  );
+
+  const professionalsQuery = useQuery({
+    queryKey: clinicaBelezaQueryKeys.schedulingProfessionals(),
+    queryFn: fetchClinicaSchedulingProfessionals,
+  });
 
   const {
     list: consultas,
@@ -187,6 +201,9 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
         filtroPacienteNome={filtroPaciente ? entityName(filtroPaciente) : null}
         onLimparFiltroPaciente={limparFiltroPaciente}
         onFiltroPaciente={setFiltroPaciente}
+        profissionais={professionalsQuery.data ?? []}
+        filtroProfissionalId={filtroProfissionalId}
+        onFiltroProfissional={setFiltroProfissionalId}
         onNovaConsulta={novaConsulta.abrirNovaConsulta}
         onOpenConfigAgenda={() => agendaModals.setShowConfigAgendaMenu(true)}
         onSelectConsulta={(c) => deepLink.abrirConsulta(c, false)}

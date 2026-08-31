@@ -331,6 +331,7 @@ def registrar_recebimento_consulta(
     mark_as_paid=False,
     desconto=None,
     entradas=None,
+    valor_procedimentos=None,
 ):
     """Registra recebimento na consulta (total ou parcial) como rascunho (DRAFT).
 
@@ -351,6 +352,8 @@ def registrar_recebimento_consulta(
 
     appointment = consulta.appointment
     consulta_service._garantir_valor_consulta_consulta(consulta)
+    if valor_procedimentos not in (None, ""):
+        consulta_service.aplicar_valor_procedimentos_atendimento(appointment, valor_procedimentos)
     valor_bruto = consulta_service._valor_pagamento_padrao(appointment, consulta)
     if isinstance(valor_bruto, (int, float, str)):
         valor_bruto = Decimal(str(valor_bruto))

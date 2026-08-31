@@ -28,6 +28,7 @@ from .valores import (
     _garantir_valor_consulta_consulta,
     _valor_consulta,
     _valor_pagamento_padrao,
+    aplicar_valor_procedimentos_atendimento,
 )
 
 __all__ = [
@@ -43,6 +44,7 @@ __all__ = [
     "_garantir_valor_consulta_consulta",
     "_valor_consulta",
     "_valor_pagamento_padrao",
+    "aplicar_valor_procedimentos_atendimento",
     "calcular_comissao_payment_atendimento",
     "consulta_esta_concluida",
     "criar_consulta_avulsa",

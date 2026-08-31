@@ -43,6 +43,22 @@ describe("formatarAgendaEvento", () => {
     expect(ev.extendedProps.procedures_list).toEqual([
       { id: 8, nome: "BOTOX — TESTA E GLABELA", categoria: "injetavel" },
     ]);
+    expect(ev.extendedProps.patient).toBeUndefined();
+  });
+
+  it("repassa o id do paciente para abrir o prontuário", () => {
+    const ev = formatarAgendaEvento(
+      {
+        id: 3,
+        start: "2026-08-31T16:00:00",
+        end: "2026-08-31T16:35:00",
+        status: "CONFIRMED",
+        patient: 9,
+        patient_name: "Marcia",
+      },
+      false,
+    );
+    expect(ev.extendedProps.patient).toBe(9);
   });
 
   it("calcula o fim pela duração para não misturar fuso de start/end", () => {

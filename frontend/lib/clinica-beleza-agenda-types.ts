@@ -16,6 +16,7 @@ export interface AgendaEventData {
   extendedProps: {
     dbId?: number | string;
     status?: string;
+    patient?: number;
     patient_name?: string;
     patient_phone?: string;
     professional_name?: string;

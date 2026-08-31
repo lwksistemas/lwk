@@ -7,6 +7,16 @@ import type {
 } from "./types-entities";
 import { cbDelete, cbGet, cbGetList, cbPatch, cbPost, cbPut } from "./client-http";
 
+export const meApi = {
+  get: () =>
+    cbGet<{
+      user_display_name?: string;
+      username?: string;
+      professional_id?: number | null;
+      is_administrador?: boolean;
+    }>("/me/"),
+};
+
 export const lojaApi = {
   info: () =>
     cbGet<{

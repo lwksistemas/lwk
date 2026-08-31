@@ -1,5 +1,55 @@
 from decimal import Decimal
 
+from core.decimal_utils import to_decimal
+
+
+def aplicar_valor_procedimentos_atendimento(appointment, novo_valor) -> Decimal:
+    """Atualiza o valor dos procedimentos do atendimento (override em AppointmentProcedure)."""
+    valor = to_decimal(novo_valor, "valor_procedimentos")
+    if valor is None:
+        raise ValueError("Valor do procedimento inválido.")
+    if valor < 0:
+        raise ValueError("Valor do procedimento não pode ser negativo.")
+
+    linhas = list(
+        appointment.appointment_procedures.select_related("procedure").order_by("ordem", "id"),
+    )
+    if not linhas:
+        if not getattr(appointment, "procedure_id", None):
+            raise ValueError("Não há procedimento neste atendimento para alterar o valor.")
+        from clinica_beleza.models import AppointmentProcedure
+
+        AppointmentProcedure.objects.create(
+            appointment=appointment,
+            procedure_id=appointment.procedure_id,
+            valor=valor,
+            ordem=0,
+            loja_id=appointment.loja_id,
+        )
+    elif len(linhas) == 1:
+        linhas[0].valor = valor
+        linhas[0].save(update_fields=["valor"])
+    else:
+        atuais = [Decimal(str(ap.get_valor() or 0)) for ap in linhas]
+        soma = sum(atuais)
+        restante = valor
+        total_linhas = len(linhas)
+        for i, ap in enumerate(linhas):
+            if i == total_linhas - 1:
+                ap.valor = restante
+            elif soma <= 0:
+                ap.valor = valor if i == 0 else Decimal("0")
+                if i == 0:
+                    restante = Decimal("0")
+            else:
+                parte = (atuais[i] / soma * valor).quantize(Decimal("0.01"))
+                ap.valor = parte
+                restante -= parte
+            ap.save(update_fields=["valor"])
+
+    appointment._valor_total_cache = None
+    return valor
+
 
 def _consulta_defaults_from_appointment(appointment, **extra):
     """Campos comuns ao criar Consulta a partir de um Appointment."""

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { X, MessageCircle } from "lucide-react";
+import { X, MessageCircle, BookOpen } from "lucide-react";
 import {
   getAgendaStatusColor,
   getAgendaStatusLabelModal,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/clinica-beleza-constants";
 import { useAgendaStatusColors } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
 import { buildConsultaDetailHref } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
+import { buildProntuarioPacientePath } from "@/components/clinica-beleza/prontuario/prontuario-paths";
 import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
 import {
   groupProceduresByCategoria,
@@ -70,6 +71,7 @@ function procedimentosAgrupadosDoEvento(
 
 const STATUS_EDICAO_BLOQUEADA = new Set(["IN_PROGRESS", "COMPLETED", "CANCELLED"]);
 const STATUS_JA_CONFIRMADO = new Set(["CLIENT_CONFIRMED", "PHONE_CONFIRMED"]);
+const STATUS_COM_PRONTUARIO = new Set(["CONFIRMED", "IN_PROGRESS", "COMPLETED"]);
 
 interface ModalDetalheAgendamentoProps {
   open: boolean;
@@ -170,6 +172,11 @@ export function ModalDetalheAgendamento({
 
   const tipoAgendamento = labelTipoAgendamento(procedureIds.length);
   const gruposSomenteLeitura = procedimentosAgrupadosDoEvento(event, procedures);
+  const patientId = event.extendedProps.patient;
+  const hrefProntuario =
+    STATUS_COM_PRONTUARIO.has(status) && patientId != null && patientId > 0
+      ? buildProntuarioPacientePath(slug, patientId)
+      : null;
 
   const duracaoPreco = (
     <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -187,15 +194,27 @@ export function ModalDetalheAgendamento({
             ? "Em atendimento: o horário da agenda foi atualizado para o início real. Finalize a consulta em Consultas quando terminar (não pela agenda)."
             : "Início e conclusão do atendimento são feitos em Consultas."}
       </p>
-      {status === "IN_PROGRESS" && event.extendedProps.consulta_id != null && (
-        <Link
-          href={buildConsultaDetailHref(slug, event.extendedProps.consulta_id)}
-          className="inline-flex text-sm font-medium text-violet-700 dark:text-violet-300 hover:underline"
-          onClick={onClose}
-        >
-          Abrir consulta em atendimento →
-        </Link>
-      )}
+      <div className="flex flex-col gap-1.5">
+        {status === "IN_PROGRESS" && event.extendedProps.consulta_id != null && (
+          <Link
+            href={buildConsultaDetailHref(slug, event.extendedProps.consulta_id)}
+            className="inline-flex text-sm font-medium text-violet-700 dark:text-violet-300 hover:underline"
+            onClick={onClose}
+          >
+            Abrir consulta em atendimento →
+          </Link>
+        )}
+        {hrefProntuario ? (
+          <Link
+            href={hrefProntuario}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-700 dark:text-violet-300 hover:underline"
+            onClick={onClose}
+          >
+            <BookOpen size={14} />
+            Ver prontuário do paciente →
+          </Link>
+        ) : null}
+      </div>
     </div>
   ) : status === "SCHEDULED" || status === "PENDING" ? (
     <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5">
@@ -215,15 +234,27 @@ export function ModalDetalheAgendamento({
         Consulta criada com status <strong className="text-amber-700 dark:text-amber-400">RECEBER</strong>.
         O pagamento é feito em Consultas (botão Receber), antes ou durante o atendimento — sem bloquear o início.
       </p>
-      {event.extendedProps.consulta_id != null && (
-        <Link
-          href={buildConsultaDetailHref(slug, event.extendedProps.consulta_id)}
-          className="inline-flex text-sm font-medium text-amber-700 dark:text-amber-300 hover:underline"
-          onClick={onClose}
-        >
-          Abrir consulta em Consultas →
-        </Link>
-      )}
+      <div className="flex flex-col gap-1.5">
+        {event.extendedProps.consulta_id != null && (
+          <Link
+            href={buildConsultaDetailHref(slug, event.extendedProps.consulta_id)}
+            className="inline-flex text-sm font-medium text-amber-700 dark:text-amber-300 hover:underline"
+            onClick={onClose}
+          >
+            Abrir consulta em Consultas →
+          </Link>
+        )}
+        {hrefProntuario ? (
+          <Link
+            href={hrefProntuario}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-800 dark:text-amber-300 hover:underline"
+            onClick={onClose}
+          >
+            <BookOpen size={14} />
+            Ver prontuário do paciente →
+          </Link>
+        ) : null}
+      </div>
     </div>
   ) : status === "CANCELLED" ? (
     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
@@ -426,6 +457,16 @@ export function ModalDetalheAgendamento({
             >
               {salvandoDetalhe ? "Salvando…" : "Salvar alterações"}
             </button>
+          ) : null}
+          {hrefProntuario ? (
+            <Link
+              href={hrefProntuario}
+              onClick={onClose}
+              className="sm:flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-neutral-600 text-gray-800 dark:text-gray-100 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+            >
+              <BookOpen size={18} />
+              Ver prontuário
+            </Link>
           ) : null}
           <button
             type="button"

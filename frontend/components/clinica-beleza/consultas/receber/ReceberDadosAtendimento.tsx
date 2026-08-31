@@ -15,6 +15,9 @@ interface ReceberDadosAtendimentoProps {
   desconto: string;
   onDescontoChange: (value: string) => void;
   totalLiquido: number;
+  podeEditarValorProcedimento?: boolean;
+  valorProcedimentoInput?: string;
+  onValorProcedimentoChange?: (value: string) => void;
 }
 
 export function ReceberDadosAtendimento({
@@ -26,6 +29,9 @@ export function ReceberDadosAtendimento({
   desconto,
   onDescontoChange,
   totalLiquido,
+  podeEditarValorProcedimento = false,
+  valorProcedimentoInput = "",
+  onValorProcedimentoChange,
 }: ReceberDadosAtendimentoProps) {
   return (
     <div className="space-y-2 text-sm">
@@ -41,9 +47,27 @@ export function ReceberDadosAtendimento({
       <p>
         <strong>Valor da consulta:</strong> {formatCurrency(valorConsulta)}
       </p>
-      <p>
-        <strong>Valor procedimento:</strong> {formatCurrency(valorProcedimentos)}
-      </p>
+      {podeEditarValorProcedimento && onValorProcedimentoChange ? (
+        <div>
+          <label className="block text-sm font-medium mb-1" htmlFor="receber-valor-procedimento">
+            Valor procedimento (R$)
+          </label>
+          <input
+            id="receber-valor-procedimento"
+            type="number"
+            step="0.01"
+            min="0"
+            value={valorProcedimentoInput}
+            onChange={(e) => onValorProcedimentoChange(e.target.value)}
+            className={fieldClass}
+            placeholder="0,00"
+          />
+        </div>
+      ) : (
+        <p>
+          <strong>Valor procedimento:</strong> {formatCurrency(valorProcedimentos)}
+        </p>
+      )}
       <p className="font-semibold text-gray-800 dark:text-gray-200 pt-1 border-t dark:border-neutral-600">
         Total: {formatCurrency(total)}
       </p>

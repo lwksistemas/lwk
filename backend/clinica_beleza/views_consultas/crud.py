@@ -14,7 +14,7 @@ from ..consulta_service import (
 )
 from ..models import Consulta, Patient, Procedure, ProcedureProtocol, Professional
 from ..pagination import paginate_queryset
-from ..permissions import CLINICA_CLINICAL, CLINICA_FINANCEIRO
+from ..permissions import CLINICA_CLINICAL, CLINICA_FINANCEIRO, IsClinicaAdmin
 from ..serializers import ConsultaSerializer
 from ..views_base import GetObjectMixin, resolve_loja_id_from_request
 from .helpers import get_consulta_or_404, q_consultas_aguardando_inicio
@@ -266,6 +266,12 @@ class ConsultaReceberView(APIView):
         amount = request.data.get("amount")
         desconto = request.data.get("desconto")
         entradas = request.data.get("entradas")
+        valor_procedimentos = request.data.get("valor_procedimentos")
+        if valor_procedimentos not in (None, "") and not IsClinicaAdmin().has_permission(request, self):
+            return Response(
+                {"error": "Apenas o administrador pode alterar o valor do procedimento."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         try:
             payment = registrar_recebimento_consulta(
@@ -275,6 +281,7 @@ class ConsultaReceberView(APIView):
                 mark_as_paid=mark_as_paid,
                 desconto=desconto,
                 entradas=entradas,
+                valor_procedimentos=valor_procedimentos,
             )
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -39,11 +39,8 @@ export function ModalReceberConsulta({
   onSuccess,
 }: ModalReceberConsultaProps) {
   const toast = useToast();
-  const total = valorPagamentoConsulta(consulta);
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
-  const valorProcedimentos = Number(consulta.valor_procedimentos ?? 0);
-  const saldoAtual = saldoReceberConsulta(consulta);
-  const baseReceber = saldoAtual > 0 ? saldoAtual : total;
+  const valorProcCatalogo = Number(consulta.valor_procedimentos ?? 0);
 
   const [desconto, setDesconto] = useState("");
   const [entradas, setEntradas] = useState<EntradaPagamentoLinha[]>([novaLinhaEntrada("CASH")]);
@@ -57,8 +54,23 @@ export function ModalReceberConsulta({
     totalLiquido: number;
     entradas: EntradaPagamentoLinha[];
   } | null>(null);
+  const [podeEditarValorProc, setPodeEditarValorProc] = useState(false);
+  const [valorProcInput, setValorProcInput] = useState(() => String(valorProcCatalogo));
 
   const [prevOpen, setPrevOpen] = useState(false);
+
+  const valorProcedimentosEfetivo = podeEditarValorProc
+    ? parseMoneyInput(valorProcInput)
+    : valorProcCatalogo;
+  const valorProcAlterado =
+    podeEditarValorProc && !valoresQuaseIguais(valorProcedimentosEfetivo, valorProcCatalogo);
+  const total = valorProcAlterado
+    ? valorConsulta + valorProcedimentosEfetivo
+    : valorPagamentoConsulta(consulta);
+  const saldoAtual = valorProcAlterado
+    ? Math.max(0, total - Number(consulta.valor_pago ?? 0))
+    : saldoReceberConsulta(consulta);
+  const baseReceber = saldoAtual > 0 ? saldoAtual : total;
 
   const reiniciarFormularioComplemento = (c: Consulta) => {
     const novoSaldo = saldoReceberConsulta(c);
@@ -71,7 +83,25 @@ export function ModalReceberConsulta({
     setConsultaAtualizada(null);
     setReciboSnapshot(null);
     setConfirmado(false);
+    setValorProcInput(String(Number(c.valor_procedimentos ?? 0)));
   };
+
+  useEffect(() => {
+    if (!open) return;
+    let ativo = true;
+    ClinicaBelezaAPI.me
+      .get()
+      .then((me) => {
+        if (!ativo) return;
+        setPodeEditarValorProc(Boolean(me.is_administrador));
+      })
+      .catch(() => {
+        if (ativo) setPodeEditarValorProc(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (open && !prevOpen) {
@@ -155,6 +185,7 @@ export function ModalReceberConsulta({
         entradas,
         markAsPaid,
         totalLiquido,
+        valorProcedimentos: valorProcAlterado ? valorProcedimentosEfetivo : undefined,
       });
       const data = await ClinicaBelezaAPI.consultas.receber(consulta.id, payload);
       const atualizada = (data as { consulta?: Consulta }).consulta;
@@ -324,12 +355,15 @@ export function ModalReceberConsulta({
             <ReceberDadosAtendimento
               consulta={consulta}
               valorConsulta={valorConsulta}
-              valorProcedimentos={valorProcedimentos}
+              valorProcedimentos={valorProcedimentosEfetivo}
               total={total}
               saldoAtual={saldoAtual}
               desconto={desconto}
               onDescontoChange={setDesconto}
               totalLiquido={totalLiquido}
+              podeEditarValorProcedimento={podeEditarValorProc}
+              valorProcedimentoInput={valorProcInput}
+              onValorProcedimentoChange={setValorProcInput}
             />
 
             <ReceberFormasPagamento

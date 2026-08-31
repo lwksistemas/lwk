@@ -91,6 +91,10 @@ export function formatarAgendaEvento(
     extendedProps: {
       dbId: raw.id as string | number,
       status,
+      patient: (() => {
+        const n = Number(raw.patient ?? raw.patient_id);
+        return Number.isFinite(n) && n > 0 ? n : undefined;
+      })(),
       patient_name: String(raw.patient_name ?? ""),
       patient_phone: String(raw.patient_phone ?? ""),
       professional_name: String(raw.professional_name ?? ""),
@@ -246,6 +250,9 @@ export function buildPendingSyncEvents({
         extendedProps: {
           dbId: `offline-${item.id}`,
           status,
+          patient: Number.isFinite(Number(p.patient)) && Number(p.patient) > 0
+            ? Number(p.patient)
+            : undefined,
           patient_name: patientName,
           patient_phone: "",
           professional_name: professional?.name ?? "",

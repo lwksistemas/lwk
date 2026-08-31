@@ -3,6 +3,29 @@ import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 
 const ETAPAS_FECHADAS = new Set(['closed_won', 'closed_lost']);
 
+/** YYYY-MM-DD no fuso local. Datas ISO só-dia (`2026-08-31`) não passam por `new Date`,
+ * que interpreta como UTC e corta o último dia do mês no Brasil. */
+export function diaCalendarioLocal(value: string): string {
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) return trimmed.slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function dataRefOportunidade(op: Oportunidade): string {
+  if (op.etapa === 'closed_won') {
+    return op.data_fechamento_ganho || op.data_fechamento || op.created_at || '';
+  }
+  if (op.etapa === 'closed_lost') {
+    return op.data_fechamento_perdido || op.created_at || '';
+  }
+  return op.created_at || '';
+}
+
 /** Período filtra por data de criação (abertas) ou data de fechamento (ganho/perdido). */
 export function oportunidadeNoPeriodo(
   op: Oportunidade,
@@ -11,24 +34,13 @@ export function oportunidadeNoPeriodo(
 ): boolean {
   if (!dataInicio && !dataFim) return true;
 
-  let dataRef = '';
-  if (op.etapa === 'closed_won') {
-    dataRef = op.data_fechamento_ganho || op.data_fechamento || op.created_at || '';
-  } else if (op.etapa === 'closed_lost') {
-    dataRef = op.data_fechamento_perdido || op.created_at || '';
-  } else {
-    dataRef = op.created_at || '';
-  }
-
+  const dataRef = dataRefOportunidade(op);
   if (!dataRef) return true;
-  const dataOp = new Date(dataRef);
-  if (Number.isNaN(dataOp.getTime())) return true;
-  if (dataInicio && dataOp < new Date(dataInicio)) return false;
-  if (dataFim) {
-    const dataFimDate = new Date(dataFim);
-    dataFimDate.setHours(23, 59, 59, 999);
-    if (dataOp > dataFimDate) return false;
-  }
+
+  const dia = diaCalendarioLocal(dataRef);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return true;
+  if (dataInicio && dia < dataInicio) return false;
+  if (dataFim && dia > dataFim) return false;
   return true;
 }
 

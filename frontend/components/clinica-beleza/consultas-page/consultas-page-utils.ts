@@ -25,8 +25,3 @@ export function extractConsultaDeepLinkError(e: unknown): string {
 export function isNovaConsultaQuery(searchParams: URLSearchParams): boolean {
   return searchParams.get("novo") === "1";
 }
-
-/** Lista de consultas saiu do menu: só detalhe (?id=) e nova (?novo=1) permanecem. */
-export function shouldRedirectConsultasList(searchParams: URLSearchParams): boolean {
-  return !searchParams.get("id") && !isNovaConsultaQuery(searchParams);
-}

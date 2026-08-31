@@ -29,22 +29,22 @@ describe("prontuario paths", () => {
   });
 });
 
-describe("nav prontuário", () => {
-  it("substitui consultas no menu", () => {
-    expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).toContain("Prontuário");
-    expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).not.toContain("Consultas");
+describe("nav consultas", () => {
+  it("mostra Consultas no menu no lugar do hub Prontuário", () => {
+    expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).toContain("Consultas");
+    expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).not.toContain("Prontuário");
   });
 
-  it("marca ativo no hub, na ficha e na consulta aberta", () => {
+  it("marca ativo na lista, na ficha e no hub legado", () => {
     const slug = "clinicaharmonis";
-    const path = "clinica-beleza/prontuario";
-    expect(isClinicaBelezaNavActive("/loja/clinicaharmonis/clinica-beleza/prontuario", slug, path)).toBe(
+    const path = "clinica-beleza/consultas";
+    expect(isClinicaBelezaNavActive("/loja/clinicaharmonis/clinica-beleza/consultas", slug, path)).toBe(
       true,
     );
     expect(
       isClinicaBelezaNavActive("/loja/clinicaharmonis/clinica-beleza/pacientes/3/prontuario", slug, path),
     ).toBe(true);
-    expect(isClinicaBelezaNavActive("/loja/clinicaharmonis/clinica-beleza/consultas", slug, path)).toBe(
+    expect(isClinicaBelezaNavActive("/loja/clinicaharmonis/clinica-beleza/prontuario", slug, path)).toBe(
       true,
     );
     expect(isClinicaBelezaNavActive("/loja/clinicaharmonis/clinica-beleza/pacientes", slug, path)).toBe(

@@ -40,7 +40,7 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: 'dashboard' },
   { label: 'Agenda', icon: CalendarDays, path: 'agenda' },
   { label: 'Clientes', icon: Users, path: 'clinica-beleza/pacientes' },
-  { label: 'Prontuário', icon: BookOpen, path: 'clinica-beleza/prontuario' },
+  { label: 'Consultas', icon: BookOpen, path: 'clinica-beleza/consultas' },
   { label: 'Procedimentos', icon: ListChecks, path: 'clinica-beleza/procedimentos' },
   { label: 'TCLE Interativo', icon: ScrollText, path: 'clinica-beleza/termos-consentimento' },
   { label: 'Protocolos', icon: ClipboardList, path: 'clinica-beleza/protocolos' },
@@ -74,11 +74,11 @@ export function isClinicaBelezaNavActive(pathname: string, slug: string, path: s
   const pathOnly = normalizePath(getClinicaBelezaNavHref(slug, path));
   const current = normalizePath(pathname);
   if (path === 'dashboard') return current === pathOnly;
-  if (path === 'clinica-beleza/prontuario') {
+  if (path === 'clinica-beleza/consultas') {
     return (
       current === pathOnly ||
       isProntuarioPacientePath(current, slug) ||
-      current === `/loja/${slug}/clinica-beleza/consultas`
+      current === `/loja/${slug}/clinica-beleza/prontuario`
     );
   }
   if (MODULE_REDIRECT_PREFIXES.some((prefix) => path.startsWith(prefix))) {

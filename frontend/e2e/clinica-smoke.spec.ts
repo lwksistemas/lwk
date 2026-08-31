@@ -22,8 +22,8 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     expect(temLogin || lojaInexistente || carregando).toBeTruthy();
   });
 
-  test('prontuário exige autenticação ou loja válida', async ({ page }) => {
-    await page.goto(`/loja/${slug}/clinica-beleza/prontuario`);
+  test('consultas exige autenticação ou loja válida', async ({ page }) => {
+    await page.goto(`/loja/${slug}/clinica-beleza/consultas`);
     await page.waitForLoadState('networkidle');
     const url = page.url();
     const body = await page.locator('body').innerText();
@@ -46,8 +46,8 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     const ok = await loginClinicaLoja(page, slug);
     test.skip(!ok, 'Loja clínica indisponível neste ambiente');
 
-    await visitarClinicaAutenticado(page, '/clinica-beleza/prontuario', slug);
-    await expect(page.getByRole('heading', { name: /^prontuário$/i })).toBeVisible({ timeout: 20000 });
+    await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
+    await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
 
     await visitarClinicaAutenticado(page, '/clinica-beleza/pacientes', slug);
     await expect(page.getByRole('heading', { name: /^clientes$/i })).toBeVisible({ timeout: 20000 });
@@ -62,9 +62,9 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     const ok = await loginClinicaLoja(page, slug);
     test.skip(!ok, 'Loja clínica indisponível neste ambiente');
 
-    await visitarClinicaAutenticado(page, '/clinica-beleza/prontuario', slug);
-    await expect(page.getByRole('heading', { name: /^prontuário$/i })).toBeVisible({ timeout: 20000 });
-    await expect(page.getByPlaceholder(/nome, cpf, telefone/i)).toBeVisible();
+    await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
+    await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('button', { name: /nova consulta/i })).toBeVisible();
 
     await visitarClinicaAutenticado(page, '/clinica-beleza/financeiro', slug);
     await expect(page.getByRole('heading', { name: /financeiro/i })).toBeVisible({ timeout: 20000 });
@@ -76,8 +76,8 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     const ok = await loginClinicaLoja(page, slug);
     test.skip(!ok, 'Loja clínica indisponível neste ambiente');
 
-    await visitarClinicaAutenticado(page, '/clinica-beleza/prontuario', slug);
-    await expect(page.getByRole('heading', { name: /^prontuário$/i })).toBeVisible({ timeout: 20000 });
+    await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
+    await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
 
     const receberBtn = page.getByRole('button', { name: /^receber$/i }).first();
     const parcialBtn = page.getByRole('button', { name: /^parcial$/i }).first();

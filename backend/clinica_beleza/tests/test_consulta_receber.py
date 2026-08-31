@@ -160,6 +160,48 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
     @patch("clinica_beleza.models.Consulta")
+    @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
+    @patch("clinica_beleza.models.financeiro.PaymentParcela")
+    @patch("clinica_beleza.consulta_service.Payment")
+    @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
+    @patch("clinica_beleza.consulta_service._valor_pagamento_padrao")
+    @patch("clinica_beleza.consulta_service.calcular_comissao_payment_atendimento")
+    def test_recebimento_a_prazo_nao_quita(
+        self,
+        mock_comissao,
+        mock_valor_padrao,
+        _mock_garantir,
+        mock_payment_model,
+        mock_parcela_model,
+        mock_atualizar_status,
+        mock_consulta_model,
+    ):
+        mock_comissao.return_value = (Decimal(0), Decimal(0))
+        mock_valor_padrao.return_value = Decimal(200)
+        payment = MagicMock()
+        payment.loja_id = 1
+        payment.notes = None
+        payment.valor_pago_parcelas = Decimal(0)
+        payment.saldo_devedor = Decimal(200)
+        _payment_qs(mock_payment_model, None)
+        mock_payment_model.objects.create.return_value = payment
+
+        consulta = MagicMock(status="RECEBER", appointment=MagicMock(loja_id=1), pk=1)
+        _lock_consulta(mock_consulta_model, consulta)
+
+        _registrar(
+            consulta,
+            payment_method="PRAZO",
+            amount=Decimal(200),
+            mark_as_paid=False,
+        )
+
+        mock_parcela_model.objects.create.assert_not_called()
+        self.assertEqual(payment.status, "PENDING")
+        self.assertEqual(payment.payment_method, "PRAZO")
+        mock_atualizar_status.assert_called_once_with(consulta, payment)
+
+    @patch("clinica_beleza.models.Consulta")
     def test_bloqueia_consulta_finalizada(self, mock_consulta_model):
         consulta = MagicMock(status="COMPLETED", appointment=MagicMock(), pk=1)
         _lock_consulta(mock_consulta_model, consulta)

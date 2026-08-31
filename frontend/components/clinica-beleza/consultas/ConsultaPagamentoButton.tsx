@@ -19,7 +19,7 @@ export function ConsultaPagamentoButton({
   loading = false,
 }: ConsultaPagamentoButtonProps) {
   const toast = useToast();
-  const { mostrarReceber, mostrarPago, mostrarParcial, mostrarRecibo, consultaFinalizada } = consultaPagamentoUi(consulta);
+  const { mostrarReceber, mostrarPago, mostrarParcial, mostrarRecibo, mostrarPrazo, consultaFinalizada } = consultaPagamentoUi(consulta);
   const pad = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-sm";
   const iconSize = size === "sm" ? 14 : 16;
 
@@ -50,6 +50,37 @@ export function ConsultaPagamentoButton({
         >
           <AlertCircle size={iconSize} />
           {loading ? "Registrando…" : "Parcial"}
+        </button>
+      );
+    }
+  }
+
+  if (mostrarPrazo) {
+    if (consultaFinalizada) {
+      return (
+        <button type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toast.info("A prazo — receber na página Financeiro quando o cliente pagar.");
+          }}
+          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-slate-600 ${pad}`}
+          title="A prazo — receber na página Financeiro"
+        >
+          <DollarSign size={iconSize} />
+          A prazo
+        </button>
+      );
+    }
+    if (onReceber) {
+      return (
+        <button type="button" onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
+          disabled={loading}
+          aria-label={`Pagamento a prazo de ${consulta.patient_name}`}
+          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-slate-600 hover:bg-slate-700 ${pad}`}
+          title="A prazo — cliente paga depois. Clique para receber."
+        >
+          <DollarSign size={iconSize} />
+          {loading ? "Registrando…" : "A prazo"}
         </button>
       );
     }

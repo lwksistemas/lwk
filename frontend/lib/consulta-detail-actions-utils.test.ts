@@ -70,6 +70,7 @@ describe("consultaPagamentoUi", () => {
       mostrarPago: false,
       mostrarParcial: false,
       mostrarRecibo: false,
+      mostrarPrazo: false,
       consultaFinalizada: false,
     });
   });
@@ -89,6 +90,7 @@ describe("consultaPagamentoUi", () => {
       mostrarPago: true,
       mostrarParcial: false,
       mostrarRecibo: false,
+      mostrarPrazo: false,
       consultaFinalizada: false,
     });
   });
@@ -108,6 +110,7 @@ describe("consultaPagamentoUi", () => {
       mostrarPago: false,
       mostrarParcial: true,
       mostrarRecibo: false,
+      mostrarPrazo: false,
       consultaFinalizada: false,
     });
   });
@@ -128,6 +131,7 @@ describe("consultaPagamentoUi", () => {
       mostrarPago: true,
       mostrarParcial: false,
       mostrarRecibo: false,
+      mostrarPrazo: false,
       consultaFinalizada: false,
     });
   });
@@ -148,6 +152,7 @@ describe("consultaPagamentoUi", () => {
       mostrarPago: false,
       mostrarParcial: false,
       mostrarRecibo: true,
+      mostrarPrazo: false,
       consultaFinalizada: true,
     });
   });
@@ -168,7 +173,30 @@ describe("consultaPagamentoUi", () => {
       mostrarPago: false,
       mostrarParcial: false,
       mostrarRecibo: true,
+      mostrarPrazo: false,
       consultaFinalizada: true,
+    });
+  });
+
+  it("mostra A prazo quando combinado pagamento depois", () => {
+    expect(
+      consultaPagamentoUi(
+        consulta({
+          status: "RECEBER",
+          payment_status: "PENDING",
+          payment_method: "PRAZO",
+          valor_pagamento: 200,
+          valor_pago: 0,
+          valor_restante: 200,
+        }),
+      ),
+    ).toEqual({
+      mostrarReceber: false,
+      mostrarPago: false,
+      mostrarParcial: false,
+      mostrarRecibo: false,
+      mostrarPrazo: true,
+      consultaFinalizada: false,
     });
   });
 });

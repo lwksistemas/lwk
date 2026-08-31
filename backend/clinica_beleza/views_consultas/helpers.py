@@ -1,8 +1,17 @@
 """Helpers compartilhados das views de consulta."""
+from django.db.models import Q
 from rest_framework import status
 from rest_framework.response import Response
 
 from ..models import Consulta, Patient
+
+
+def q_consultas_aguardando_inicio():
+    """Fila da recepção: cliente presente ainda não iniciado, ou em atendimento."""
+    return (
+        Q(status__in=("SCHEDULED", "RECEBER"), appointment__status="CONFIRMED")
+        | Q(status="IN_PROGRESS")
+    )
 
 _DEFAULT_SELECT = (
     "patient",

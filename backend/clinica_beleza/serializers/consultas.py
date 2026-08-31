@@ -79,6 +79,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     valor_pago = serializers.SerializerMethodField()
     valor_restante = serializers.SerializerMethodField()
     payment_status = serializers.SerializerMethodField()
+    payment_method = serializers.SerializerMethodField()
     payment_id = serializers.SerializerMethodField()
     payment_date = serializers.SerializerMethodField()
     numero = serializers.SerializerMethodField()
@@ -94,7 +95,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             "procedure", "procedure_name", "procedures_list", "protocol", "protocol_name", "status",
             "data_inicio", "data_fim", "duracao_minutos", "observacoes_gerais", "protocolo_notas",
             "valor_consulta", "valor_procedimentos", "valor_pagamento",
-            "valor_pago", "valor_restante", "payment_status", "payment_id", "payment_date",
+            "valor_pago", "valor_restante", "payment_status", "payment_method", "payment_id", "payment_date",
             "retorno_gratuito", "retorno_tipo", "retorno_dias_prazo", "retorno_aviso_recibo",
             "local_atendimento", "local_atendimento_name", "local_atendimento_valor_consulta",
             "convenio", "convenio_name",
@@ -258,6 +259,12 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             except Exception:
                 return "PARTIAL"
         return payment.status
+
+    def get_payment_method(self, obj):
+        payment = self._get_payment(obj)
+        if not payment:
+            return None
+        return getattr(payment, "payment_method", None) or None
 
     def get_payment_date(self, obj):
         """Data/hora do pagamento vinculado (ISO 8601) para exibir no recibo."""

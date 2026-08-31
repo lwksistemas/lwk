@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
+import { CLINICA_FORMA_PAGAMENTO_A_VISTA, CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import type { FinanceiroPayment } from "../types";
@@ -283,9 +283,9 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                         onChange={(e) => setPaymentMethod(e.target.value)}
                         className={inputClass}
                       >
-                        {Object.entries(CLINICA_FORMA_PAGAMENTO_LABEL).map(([v, label]) => (
+                        {CLINICA_FORMA_PAGAMENTO_A_VISTA.map((v) => (
                           <option key={v} value={v}>
-                            {label}
+                            {CLINICA_FORMA_PAGAMENTO_LABEL[v]}
                           </option>
                         ))}
                       </select>

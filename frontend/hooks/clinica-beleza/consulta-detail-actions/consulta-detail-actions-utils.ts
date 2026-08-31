@@ -46,12 +46,21 @@ export function consultaPagamentoUi(c: Consulta): {
   mostrarPago: boolean;
   mostrarParcial: boolean;
   mostrarRecibo: boolean;
+  mostrarPrazo: boolean;
   consultaFinalizada: boolean;
 } {
   const finalizada = c.status === "COMPLETED";
+  const vazio = {
+    mostrarReceber: false,
+    mostrarPago: false,
+    mostrarParcial: false,
+    mostrarRecibo: false,
+    mostrarPrazo: false,
+    consultaFinalizada: finalizada,
+  };
 
   if (c.status === "CANCELLED") {
-    return { mostrarReceber: false, mostrarPago: false, mostrarParcial: false, mostrarRecibo: false, consultaFinalizada: false };
+    return { ...vazio, consultaFinalizada: false };
   }
 
   const saldo = saldoReceberConsulta(c);
@@ -59,32 +68,29 @@ export function consultaPagamentoUi(c: Consulta): {
   const isPago = c.payment_status === "PAID" && saldo <= 0;
 
   if (isPago) {
-    return { mostrarReceber: false, mostrarPago: true, mostrarParcial: false, mostrarRecibo: false, consultaFinalizada: finalizada };
+    return { ...vazio, mostrarPago: true };
   }
 
   if (isParcial) {
-    return { mostrarReceber: false, mostrarPago: false, mostrarParcial: true, mostrarRecibo: false, consultaFinalizada: finalizada };
+    return { ...vazio, mostrarParcial: true };
   }
 
-  // Retorno gratuito finalizado: sem pagamento a cobrar, mas deve mostrar opção de recibo
-  // Consulta finalizada sem saldo pendente e sem pagamento: também mostra recibo
   const isFinalizadaSemPendencia = finalizada && saldo <= 0 && !c.payment_status;
   const isRetornoGratuitoFinalizado = Boolean(c.retorno_gratuito) && finalizada && saldo <= 0;
   if (isRetornoGratuitoFinalizado || isFinalizadaSemPendencia) {
-    return { mostrarReceber: false, mostrarPago: false, mostrarParcial: false, mostrarRecibo: true, consultaFinalizada: true };
+    return { ...vazio, mostrarRecibo: true, consultaFinalizada: true };
   }
 
-  // Pendente ou sem pagamento — saldo em aberto
+  if (c.payment_method === "PRAZO" && saldo > 0) {
+    return { ...vazio, mostrarPrazo: true };
+  }
+
   const mostrarReceber = !finalizada && (c.status === "RECEBER" || saldo > 0 || c.payment_status === "PENDING");
-  // Se finalizada com saldo, mostra "Receber" como badge (não clicável → vai ao financeiro)
   const mostrarReceberFinanceiro = finalizada && saldo > 0;
 
   return {
+    ...vazio,
     mostrarReceber: mostrarReceber || mostrarReceberFinanceiro,
-    mostrarPago: false,
-    mostrarParcial: false,
-    mostrarRecibo: false,
-    consultaFinalizada: finalizada,
   };
 }
 

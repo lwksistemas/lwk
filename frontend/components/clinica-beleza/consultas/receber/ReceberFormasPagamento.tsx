@@ -91,6 +91,11 @@ export function ReceberFormasPagamento({
                 />
               </div>
             </div>
+            {linha.payment_method === "PRAZO" && (
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                Cliente paga depois. O valor fica em aberto no Financeiro até a baixa.
+              </p>
+            )}
             {linha.payment_method === "CREDIT_CARD" && (
               <div className="grid grid-cols-2 gap-2">
                 <div>

@@ -1,4 +1,4 @@
-export type FormaPagamentoCodigo = "CASH" | "CREDIT_CARD" | "DEBIT_CARD" | "PIX" | "TRANSFER";
+export type FormaPagamentoCodigo = "CASH" | "CREDIT_CARD" | "DEBIT_CARD" | "PIX" | "TRANSFER" | "PRAZO";
 
 export interface EntradaPagamentoLinha {
   id: string;

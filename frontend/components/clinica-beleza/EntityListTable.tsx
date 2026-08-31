@@ -43,7 +43,7 @@ export function EntityListTable<T>({
                 {col.header}
               </th>
             ))}
-            {trailingCell && <th className="w-12" />}
+            {trailingCell && <th className="min-w-[12rem]" />}
           </tr>
         </thead>
         <tbody>
@@ -65,7 +65,9 @@ export function EntityListTable<T>({
                   {col.render(row)}
                 </td>
               ))}
-              {trailingCell && <td className="px-4 py-4 text-gray-400">{trailingCell(row)}</td>}
+              {trailingCell && (
+                <td className="px-3 sm:px-4 py-3 sm:py-4 text-gray-400 align-middle">{trailingCell(row)}</td>
+              )}
             </tr>
           ))}
         </tbody>

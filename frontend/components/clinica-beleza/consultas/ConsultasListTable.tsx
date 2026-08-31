@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { BookOpen, Play, Trash2 } from "lucide-react";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
 import {
@@ -12,6 +12,7 @@ import { DEFAULT_COLUNAS_CONSULTAS } from "@/lib/clinica-consultas-colunas-confi
 import { toUpperCase } from "@/lib/format-br";
 import { ConsultaPagamentoButton } from "./ConsultaPagamentoButton";
 import { consultaProcedimentosNomes, type Consulta } from "./consultas-types";
+import { prontuarioConsultaAtualAcoes } from "@/components/clinica-beleza/prontuario/prontuario-consultas-utils";
 
 type ColumnDef = {
   key: string;
@@ -24,7 +25,12 @@ interface Props {
   consultas: Consulta[];
   onSelect: (consulta: Consulta) => void;
   onReceber?: (consulta: Consulta) => void;
+  onIniciar?: (consulta: Consulta) => void;
+  onExcluir?: (consulta: Consulta) => void;
+  onVerProntuario?: (consulta: Consulta) => void;
   recebendoConsultaId?: number | null;
+  iniciandoConsultaId?: number | null;
+  excluindoConsultaId?: number | null;
   formatData: (d?: string | null) => string;
   /** Chaves na ordem desejada; vazio/undefined = padrão sem AGENDA. */
   colunasVisiveis?: string[];
@@ -129,7 +135,12 @@ export function ConsultasListTable({
   consultas,
   onSelect,
   onReceber,
+  onIniciar,
+  onExcluir,
+  onVerProntuario,
   recebendoConsultaId = null,
+  iniciandoConsultaId = null,
+  excluindoConsultaId = null,
   formatData,
   colunasVisiveis,
 }: Props) {
@@ -142,12 +153,79 @@ export function ConsultasListTable({
     return keys.map((key) => registry[key]).filter(Boolean);
   }, [colunasVisiveis, formatData, onReceber, recebendoConsultaId]);
 
+  const btn =
+    "inline-flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap disabled:opacity-50";
+
   return (
     <EntityListTable
       rows={consultas}
       rowKey={(c) => c.id}
       onRowClick={onSelect}
-      trailingCell={() => <ChevronRight size={18} />}
+      trailingCell={(c) => {
+        const acoes = prontuarioConsultaAtualAcoes(c, consultas);
+        const iniciando = iniciandoConsultaId === c.id;
+        const excluindo = excluindoConsultaId === c.id;
+        return (
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            {onExcluir && acoes.podeExcluir && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExcluir(c);
+                }}
+                disabled={excluindo || iniciando}
+                className={`${btn} border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20`}
+              >
+                <Trash2 size={12} />
+                {excluindo ? "Excluindo…" : "Excluir"}
+              </button>
+            )}
+            {onIniciar && acoes.podeIniciar && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onIniciar(c);
+                }}
+                disabled={iniciando || excluindo}
+                className={`${btn} text-white`}
+                style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+              >
+                <Play size={12} />
+                {iniciando ? "Iniciando…" : "Iniciar consulta"}
+              </button>
+            )}
+            {acoes.mostrarContinuar && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(c);
+                }}
+                className={`${btn} text-white`}
+                style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+              >
+                <Play size={12} />
+                Continuar
+              </button>
+            )}
+            {onVerProntuario && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onVerProntuario(c);
+                }}
+                className={`${btn} border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-neutral-800`}
+              >
+                <BookOpen size={12} />
+                Ver prontuário
+              </button>
+            )}
+          </div>
+        );
+      }}
       columns={columns}
     />
   );

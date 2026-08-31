@@ -9,7 +9,6 @@ import {
   findConsultaInList,
   isNovaConsultaQuery,
 } from "./consultas-page-utils";
-import { buildProntuarioHubPath, buildProntuarioPacientePath } from "../prontuario/prontuario-paths";
 
 export function useConsultasDeepLink(slug: string, consultas: Consulta[]) {
   const router = useRouter();
@@ -29,19 +28,14 @@ export function useConsultasDeepLink(slug: string, consultas: Consulta[]) {
   );
 
   const voltarLista = useCallback(() => {
-    const patientId = selected?.patient;
     setSelected(null);
     setDetailPreloaded(false);
-    if (patientId) {
-      router.replace(buildProntuarioPacientePath(slug, patientId), { scroll: false });
-      return;
-    }
-    router.replace(buildProntuarioHubPath(slug), { scroll: false });
-  }, [router, slug, selected?.patient]);
+    router.replace(buildConsultasBasePath(slug), { scroll: false });
+  }, [router, slug]);
 
   const limparDeepLinkError = useCallback(() => {
     setDeepLinkError(null);
-    router.replace(buildProntuarioHubPath(slug), { scroll: false });
+    router.replace(buildConsultasBasePath(slug), { scroll: false });
   }, [router, slug]);
 
   useEffect(() => {
@@ -109,9 +103,9 @@ export function useConsultasNovaConsulta(slug: string) {
   const fecharNovaConsulta = useCallback(() => {
     setShowNovaConsultaModal(false);
     if (isNovaConsultaQuery(searchParams)) {
-      router.replace(buildProntuarioHubPath(slug), { scroll: false });
+      router.replace(basePath, { scroll: false });
     }
-  }, [router, slug, searchParams]);
+  }, [basePath, router, searchParams]);
 
   useEffect(() => {
     if (isNovaConsultaQuery(searchParams)) {

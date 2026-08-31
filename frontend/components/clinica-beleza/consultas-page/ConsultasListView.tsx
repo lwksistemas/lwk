@@ -29,7 +29,12 @@ interface ConsultasListViewProps {
   onOpenConfigAgenda: () => void;
   onSelectConsulta: (c: Consulta) => void;
   onReceberConsulta?: (c: Consulta) => void;
+  onIniciarConsulta?: (c: Consulta) => void;
+  onExcluirConsulta?: (c: Consulta) => void;
+  onVerProntuario?: (c: Consulta) => void;
   recebendoConsultaId?: number | null;
+  iniciandoConsultaId?: number | null;
+  excluindoConsultaId?: number | null;
   onPageChange: (page: number) => void;
   onLimparDeepLinkError: () => void;
 }
@@ -50,7 +55,12 @@ export function ConsultasListView({
   onOpenConfigAgenda,
   onSelectConsulta,
   onReceberConsulta,
+  onIniciarConsulta,
+  onExcluirConsulta,
+  onVerProntuario,
   recebendoConsultaId = null,
+  iniciandoConsultaId = null,
+  excluindoConsultaId = null,
   onPageChange,
   onLimparDeepLinkError,
 }: ConsultasListViewProps) {
@@ -60,7 +70,7 @@ export function ConsultasListView({
     <>
       <ClinicaBelezaStandardPageHeader
         title="Consultas"
-        subtitle="Confirme na Agenda · inicie e finalize aqui"
+        subtitle="Cliente presente na Agenda · inicie, receba ou abra o prontuário"
         onNew={onNovaConsulta}
         newLabel="Nova consulta"
         beforeLogout={
@@ -121,8 +131,8 @@ export function ConsultasListView({
               <>Nenhuma consulta encontrada para <strong>{filtroPacienteNome}</strong>.</>
             ) : (
               <>
-                Nenhuma consulta ainda. Confirme um agendamento na Agenda ou clique em{" "}
-                <strong>Nova consulta</strong> para abrir um atendimento direto pelo cadastro do cliente.
+                Nenhuma consulta para iniciar. Na Agenda, marque o cliente como{" "}
+                <strong>presente</strong>.
               </>
             )}
           </ClinicaBelezaPanel>
@@ -132,7 +142,12 @@ export function ConsultasListView({
               consultas={consultas}
               onSelect={onSelectConsulta}
               onReceber={onReceberConsulta}
+              onIniciar={onIniciarConsulta}
+              onExcluir={onExcluirConsulta}
+              onVerProntuario={onVerProntuario}
               recebendoConsultaId={recebendoConsultaId}
+              iniciandoConsultaId={iniciandoConsultaId}
+              excluindoConsultaId={excluindoConsultaId}
               formatData={formatConsultaListDate}
               colunasVisiveis={colunasVisiveis}
             />

@@ -19,6 +19,7 @@ class Payment(LojaIsolationMixin, models.Model):
         ("DEBIT_CARD", "Cartão de Débito"),
         ("PIX", "PIX"),
         ("TRANSFER", "Transferência"),
+        ("PRAZO", "A prazo"),
     )
 
     STATUS_CHOICES = (

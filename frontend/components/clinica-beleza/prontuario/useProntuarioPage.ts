@@ -6,8 +6,7 @@ import { formatApiErrorBody } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import { useToast } from "@/components/ui/Toast";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
-import { buildConsultaDetailHref } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
-import { buildProntuarioHubPath } from "./prontuario-paths";
+import { buildConsultaDetailHref, buildConsultasBasePath } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
 import { buildProntuarioConsultasResumo } from "./prontuario-consultas-utils";
 import { imprimirProntuarioPdf } from "./prontuario-document-print";
 import { isProntuarioLocalTab, resolvePatientDisplayName } from "./prontuario-utils";
@@ -93,7 +92,7 @@ export function useProntuarioPage() {
   };
 
   const voltarHub = () => {
-    router.push(buildProntuarioHubPath(slug));
+    router.push(buildConsultasBasePath(slug));
   };
 
   const abrirConsulta = (consultaId: number) => {

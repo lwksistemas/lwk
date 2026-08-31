@@ -7,7 +7,6 @@ import {
   findConsultaInList,
   formatConsultaListDate,
   isNovaConsultaQuery,
-  shouldRedirectConsultasList,
 } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
 
 const consulta = (id: number): Consulta =>
@@ -40,14 +39,6 @@ describe("isNovaConsultaQuery", () => {
   it("detecta ?novo=1", () => {
     expect(isNovaConsultaQuery(new URLSearchParams("novo=1"))).toBe(true);
     expect(isNovaConsultaQuery(new URLSearchParams())).toBe(false);
-  });
-});
-
-describe("shouldRedirectConsultasList", () => {
-  it("redireciona lista sem id nem novo", () => {
-    expect(shouldRedirectConsultasList(new URLSearchParams())).toBe(true);
-    expect(shouldRedirectConsultasList(new URLSearchParams("id=12"))).toBe(false);
-    expect(shouldRedirectConsultasList(new URLSearchParams("novo=1"))).toBe(false);
   });
 });
 

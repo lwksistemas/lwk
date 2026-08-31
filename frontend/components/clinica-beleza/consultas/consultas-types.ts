@@ -53,8 +53,10 @@ export interface Consulta {
   valor_pago?: number | null;
   /** Saldo ainda em aberto (valor_pagamento - valor_pago). */
   valor_restante?: number | null;
-  /** Status do pagamento existente: PAID, PENDING, PARTIAL ou null. */
-  payment_status?: 'PAID' | 'PENDING' | 'PARTIAL' | null;
+  /** Status do pagamento existente: PAID, PENDING, PARTIAL, PRAZO ou null. */
+  payment_status?: 'PAID' | 'PENDING' | 'PARTIAL' | 'DRAFT' | null;
+  /** Forma registrada (PIX, PRAZO, etc.). */
+  payment_method?: string | null;
   /** ID do Payment vinculado (para listar parcelas). */
   payment_id?: number | null;
   /** Data/hora do pagamento (ISO 8601) para exibir no recibo. */

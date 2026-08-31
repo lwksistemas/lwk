@@ -8,7 +8,8 @@ from core.decimal_utils import to_decimal
 
 from ._deps import logger
 
-_METODOS_VALIDOS = frozenset({"CASH", "CREDIT_CARD", "DEBIT_CARD", "PIX", "TRANSFER"})
+_METODOS_VALIDOS = frozenset({"CASH", "CREDIT_CARD", "DEBIT_CARD", "PIX", "TRANSFER", "PRAZO"})
+_METODO_PRAZO = "PRAZO"
 
 
 def _tenant_atomic(func):
@@ -78,9 +79,16 @@ def _garantir_ou_criar_payment(consulta_service, appointment, valor_total, metod
 
 
 def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_as_paid, ts):
-    """Cria parcelas, recalcula saldo e salva payment como DRAFT."""
+    """Cria parcelas, recalcula saldo e salva payment como DRAFT.
+
+    Entradas a prazo não geram parcela paga: o valor fica em aberto no Financeiro
+    para o cliente quitar depois.
+    """
     from ..models.financeiro import PaymentParcela
+    so_prazo = all(e["payment_method"] == _METODO_PRAZO for e in lista)
     for entrada in lista:
+        if entrada["payment_method"] == _METODO_PRAZO:
+            continue
         PaymentParcela.objects.create(
             payment=payment,
             valor=entrada["valor"],
@@ -88,6 +96,11 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
             payment_date=ts.date(),
             loja_id=payment.loja_id,
         )
+    if so_prazo:
+        payment.payment_method = _METODO_PRAZO
+        notes = (payment.notes or "").strip()
+        if "A prazo" not in notes:
+            payment.notes = f"{notes} | A prazo — cliente paga depois".strip(" |")
     total_pago = payment.valor_pago_parcelas
     try:
         saldo_apos = payment.saldo_devedor
@@ -95,11 +108,15 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
         logger.warning("Erro saldo_devedor payment %s: %s", payment.pk, exc)
         saldo_apos = max(valor_total - total_pago, Decimal(0))
     quitou = total_pago >= valor_total or (mark_as_paid and saldo_apos <= Decimal("0.01"))
-    payment.status = "DRAFT"
     payment.payment_date = None
-    payment.amount = max(total_pago, valor_total) if quitou else total_pago
+    if so_prazo and total_pago <= Decimal("0.01"):
+        payment.status = "PENDING"
+        payment.amount = Decimal(0)
+    else:
+        payment.status = "DRAFT"
+        payment.amount = max(total_pago, valor_total) if quitou else total_pago
     update_fields = ["amount", "valor_total", "payment_method", "status", "payment_date", "comissao_percentual", "comissao_valor", "updated_at"]
-    if valor_desconto > 0:
+    if valor_desconto > 0 or so_prazo:
         update_fields.append("notes")
     payment.save(update_fields=update_fields)
 

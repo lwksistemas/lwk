@@ -11,7 +11,6 @@ export function ConsultaTermoConsentimentoButton({
   onUpdated,
 }: {
   consultaId: number;
-  exigeTermo?: boolean;
   onUpdated?: () => void;
 }) {
   const { aberto, toggle, containerRef } = useTermoDropdown();
@@ -20,7 +19,6 @@ export function ConsultaTermoConsentimentoButton({
   const { loading, termos, pendentesEnvio, badgeCount, enviar, reenviar, baixarPdf, enviarPdfWhatsapp, assinarProfissional } =
     useTermoConsentimento({
       consultaId,
-      exigeTermo: true,
       onUpdated,
       aberto,
     });

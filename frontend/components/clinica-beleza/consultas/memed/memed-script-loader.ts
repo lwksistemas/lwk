@@ -27,10 +27,8 @@ import {
   MEMED_READY_FLAG,
   MEMED_SCRIPT_ID,
   MEMED_TIMEOUT_MS,
-  MEMED_V4_READY_TIMEOUT_MS,
 } from "./memed-constants";
 import {
-  aguardarMensagemMemedReady,
   enviarComandoMemed,
   forcarFecharOverlayMemed,
   isMemedMessageReady,
@@ -48,12 +46,12 @@ export function setPrescricaoImpressaHandler(handler: ((data: unknown) => void) 
   prescricaoImpressaHandler = handler;
 }
 
-export function moduloMemedPronto(): boolean {
+function moduloMemedPronto(): boolean {
   if (typeof window === "undefined") return false;
   return window[MEMED_READY_FLAG] === true || window.__memedV4IframeReady === true || isMemedV4Boot(window);
 }
 
-export function registrarListenerV4Ready(): void {
+function registrarListenerV4Ready(): void {
   if (typeof window === "undefined" || window.__memedV4ReadyListener) return;
   window.__memedV4ReadyListener = true;
   window.addEventListener("message", (event: MessageEvent) => {
@@ -76,7 +74,7 @@ function registrarPrescricaoImpressa(): void {
   });
 }
 
-export function registrarListenerPrescricaoMemed(token?: string): void {
+function registrarListenerPrescricaoMemed(): void {
   if (typeof window === "undefined") return;
   registrarListenerV4Ready();
   registrarPrescricaoImpressa();
@@ -90,7 +88,7 @@ export function registrarListenerPrescricaoMemed(token?: string): void {
   });
 }
 
-export function esperarMdHub(timeoutMs = MEMED_TIMEOUT_MS): Promise<void> {
+function esperarMdHub(timeoutMs = MEMED_TIMEOUT_MS): Promise<void> {
   return new Promise((resolve, reject) => {
     const inicio = Date.now();
     const tick = () => {
@@ -108,7 +106,7 @@ export function esperarMdHub(timeoutMs = MEMED_TIMEOUT_MS): Promise<void> {
   });
 }
 
-export function teardownMemedSdk(): void {
+function teardownMemedSdk(): void {
   try {
     const boot = (window as Window & { [MEMED_V4_BOOT_KEY]?: { teardown?: () => void } })[MEMED_V4_BOOT_KEY];
     boot?.teardown?.();
@@ -134,9 +132,6 @@ export function teardownMemedSdk(): void {
 }
 
 function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string): void {
-  // V4 (integration.js): o script auto-inicializa com data-token.
-  // Não usar data-init="manual" — a Memed atualizou o V4 e a inicialização
-  // manual não funciona mais (getPartnerByToken null / 401 em cascata).
   el.setAttribute("data-token", token);
   el.removeAttribute("data-container");
   el.removeAttribute("data-variant");
@@ -156,16 +151,14 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
       src,
     );
     if (!precisaReiniciar) {
-      // Já carregado — registrar listeners e aguardar módulo de prescrição
-      registrarListenerPrescricaoMemed(token);
+      registrarListenerPrescricaoMemed();
       await aguardarModuloMemed();
       return;
     }
     teardownMemedSdk();
   }
 
-  // V4 (integration.js): carregar com data-token e deixar o script auto-inicializar.
-  // O V4 gerencia o próprio lifecycle (Unleash → getPartnerByToken → módulos).
+  // Widget V4: data-token no carregamento; o script gerencia o próprio ciclo de vida.
   await new Promise<void>((resolve, reject) => {
     const el = document.createElement("script");
     el.id = MEMED_SCRIPT_ID;
@@ -173,8 +166,7 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
     aplicarAtributosScriptMemed(el, token);
     el.src = src;
     el.addEventListener("load", () => {
-      // Registrar listener de moduleInit no onload (padrão oficial Memed)
-      registrarListenerPrescricaoMemed(token);
+      registrarListenerPrescricaoMemed();
       resolve();
     });
     el.addEventListener("error", () => reject(new Error("Falha ao carregar o script da Memed.")));
@@ -182,10 +174,10 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   });
 
   await esperarMdHub();
-  registrarListenerPrescricaoMemed(token);
+  registrarListenerPrescricaoMemed();
 }
 
-export function aguardarModuloMemed(): Promise<void> {
+function aguardarModuloMemed(): Promise<void> {
   return new Promise((resolve, reject) => {
     registrarListenerPrescricaoMemed();
     const inicio = Date.now();
@@ -205,39 +197,6 @@ export function aguardarModuloMemed(): Promise<void> {
   });
 }
 
-export async function aguardarWidgetMemedOperacional(): Promise<void> {
-  if (!isMemedV4Boot(window) || window.__memedV4IframeReady) return;
-  registrarListenerV4Ready();
-  await aguardarMensagemMemedReady(window, MEMED_V4_READY_TIMEOUT_MS);
-}
-
-export async function aguardarIframeMemedNoHost(timeoutMs = MEMED_V4_READY_TIMEOUT_MS): Promise<void> {
-  const inicio = Date.now();
-  return new Promise((resolve, reject) => {
-    const tick = () => {
-      if (garantirEditorMemedVisivel(document, MEMED_CONTAINER_ID)) {
-        resolve();
-        return;
-      }
-      if (Date.now() - inicio > timeoutMs) {
-        reject(new Error("O editor da Memed não carregou. Feche e tente novamente."));
-        return;
-      }
-      setTimeout(tick, 200);
-    };
-    tick();
-  });
-}
-
-export function preloadMemedScript(url: string): void {
-  if (document.querySelector(`link[href="${url}"]`)) return;
-  const link = document.createElement("link");
-  link.rel = "preload";
-  link.as = "script";
-  link.href = url;
-  document.head.appendChild(link);
-}
-
 export function fecharModuloPrescricaoMemed(): void {
   try {
     void window.MdHub?.module?.hide?.(MEMED_MODULO_PRESCRICAO);
@@ -245,14 +204,6 @@ export function fecharModuloPrescricaoMemed(): void {
     // silencioso
   }
   forcarFecharOverlayMemed(window, MEMED_CONTAINER_ID);
-}
-
-export function logoutMemedSdk(): void {
-  try {
-    void window.MdHub?.command?.send?.("plataforma.sdk", "logout");
-  } catch {
-    // silencioso
-  }
 }
 
 export function abrirModuloPrescricaoMemed(): void {

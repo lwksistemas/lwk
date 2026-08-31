@@ -10,12 +10,10 @@ import {
 
 export function useTermoConsentimento({
   consultaId,
-  exigeTermo,
   onUpdated,
   aberto,
 }: {
   consultaId: number;
-  exigeTermo?: boolean;
   onUpdated?: () => void;
   aberto: boolean;
 }) {
@@ -25,7 +23,6 @@ export function useTermoConsentimento({
   const termosRef = useRef<TermoProcedimento[]>([]);
 
   const carregar = useCallback(async () => {
-    if (!exigeTermo) return;
     try {
       const res = await ClinicaBelezaAPI.consultas.termoConsentimento.get(consultaId);
       const novos = res.termos_procedimentos || [];
@@ -38,7 +35,7 @@ export function useTermoConsentimento({
       termosRef.current = [];
       setTermos([]);
     }
-  }, [consultaId, exigeTermo, onUpdated]);
+  }, [consultaId, onUpdated]);
 
   useEffect(() => {
     void carregar();
@@ -49,7 +46,7 @@ export function useTermoConsentimento({
   );
 
   useEffect(() => {
-    if (!exigeTermo || !aguardandoAssinatura) return;
+    if (!aguardandoAssinatura) return;
 
     const atualizar = () => {
       if (document.visibilityState !== "hidden") void carregar();
@@ -65,7 +62,7 @@ export function useTermoConsentimento({
       document.removeEventListener("visibilitychange", onVisivel);
       window.removeEventListener("focus", onVisivel);
     };
-  }, [exigeTermo, aguardandoAssinatura, aberto, carregar]);
+  }, [aguardandoAssinatura, aberto, carregar]);
 
   useEffect(() => {
     if (aberto) void carregar();

@@ -4,7 +4,6 @@ import {
   isMemedMessageReady,
   isMemedV4Boot,
   MEMED_V4_BOOT_KEY,
-  podeReforcarTokenMemed,
   scriptMemedPrecisaReiniciar,
   urlScriptWidgetMemed,
   withTimeout,
@@ -83,12 +82,6 @@ describe("garantirEditorMemedVisivel", () => {
 });
 
 describe("token da Memed", () => {
-  it("nunca chama setToken depois do data-token (legado recarrega o iframe)", () => {
-    const win = { [MEMED_V4_BOOT_KEY]: { teardown() {} } } as unknown as Window;
-    expect(podeReforcarTokenMemed({} as Window)).toBe(false);
-    expect(podeReforcarTokenMemed(win)).toBe(false);
-  });
-
   it("reinicia o script se o token do prescritor mudou", () => {
     expect(scriptMemedPrecisaReiniciar("token-a", "token-b")).toBe(true);
     expect(scriptMemedPrecisaReiniciar("token-a", "token-a")).toBe(false);

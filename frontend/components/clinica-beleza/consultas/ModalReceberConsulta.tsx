@@ -91,15 +91,6 @@ export function ModalReceberConsulta({
     setPrevOpen(open);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Se a consulta ganhou saldo (ex.: procedimento extra) com o modal ainda aberto no recibo.
-  useEffect(() => {
-    if (!open || !confirmado) return;
-    const c = consultaAtualizada || consulta;
-    if (saldoReceberConsulta(c) > 0) {
-      // Mantém o recibo, mas o botão de complementar fica disponível (saldoAtualizado abaixo).
-    }
-  }, [open, confirmado, consulta, consultaAtualizada]);
-
   const consultaExibida = consultaAtualizada || consulta;
   const saldoProp = saldoReceberConsulta(consulta);
   const saldoAtualizada = consultaAtualizada ? saldoReceberConsulta(consultaAtualizada) : 0;

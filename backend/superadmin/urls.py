@@ -48,7 +48,6 @@ from .views import (
     listar_midia_arquivos,
     excluir_midia_arquivo,
 )
-from .views.radiologia_maquinas import ContratoPacsLojaViewSet, MaquinaRadiologiaViewSet
 from .views.whatsapp_painel import (
     WhatsappPainelView,
     WhatsappParceiroChaveRevogarView,
@@ -71,8 +70,6 @@ router.register(r"violacoes-seguranca", ViolacaoSegurancaViewSet, basename="viol
 router.register(r"estatisticas-auditoria", EstatisticasAuditoriaViewSet, basename="estatisticas-auditoria")
 router.register(r"security-dashboard", SecurityDashboardViewSet, basename="security-dashboard")  # ✅ NOVO: Dashboard de segurança
 router.register(r"login-config-sistema", LoginConfigSistemaViewSet, basename="login-config-sistema")  # ✅ NOVO: Config login sistema
-router.register(r"contratos-pacs", ContratoPacsLojaViewSet, basename="contrato-pacs")
-router.register(r"maquinas-radiologia", MaquinaRadiologiaViewSet, basename="maquina-radiologia")
 
 # Rotas específicas para dashboard financeiro das lojas
 router.register(r"loja-financeiro", FinanceiroViewSet, basename="loja-financeiro")

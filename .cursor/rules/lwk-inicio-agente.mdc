@@ -16,11 +16,11 @@ alwaysApply: true
 | **Mídia** | https://media.lwksistemas.com.br |
 | **Evolution (WhatsApp)** | https://evolution.lwksistemas.com.br |
 
-Beta isolado: API, mídia de teste, Evolution e PACS no `201.54.18.213`. Não usar produção para WhatsApp/DICOM/NFS-e.
+Beta isolado: API, mídia de teste e Evolution no `201.54.18.213`. Não usar produção para WhatsApp/NFS-e.
 
 ## Deploy (só o que mudou)
 
-Não rebuildar o ERP inteiro nem Evolution/Orthanc em bug de um app.
+Não rebuildar o ERP inteiro nem Evolution em bug de um app.
 O Next.js é um único container: “só frontend” = só o serviço `frontend` (não dá para publicar só a clínica sem o CRM no mesmo build).
 
 | Mudança | Produção | Beta |
@@ -30,7 +30,7 @@ O Next.js é um único container: “só frontend” = só o serviço `frontend`
 | API CRM | `… backend crm_vendas` | idem |
 | WhatsApp schema | `… backend whatsapp` | idem |
 | Front + API | `… all clinica_beleza` | idem |
-| Evolution / PACS | `… infra` | `… infra` |
+| Evolution (lojas) | `… infra` | `… infra` |
 
 ```bash
 # Produção (branch main) — exemplo tela
@@ -71,9 +71,9 @@ ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/depl
 
 ## Servidores
 
-- **201.23.81.50** — Produção (API + frontend + banco + workers + Evolution + Orthanc)
+- **201.23.81.50** — Produção (API + frontend + banco + workers + Evolution das lojas)
 - **201.23.87.251** — Mídia de produção (imagens/PDFs por loja)
-- **201.54.18.213** — Beta isolado (staging: API + frontend + Evolution + Orthanc + mídia de teste)
+- **201.54.18.213** — Beta isolado (staging: API + frontend + Evolution + mídia de teste)
 
 ## Logs
 

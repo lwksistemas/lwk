@@ -139,13 +139,6 @@ const MENU_CARDS: MenuCardProps[] = [
     color: 'green',
   },
   {
-    title: 'Máquinas Radiologia',
-    description: 'Cadastrar, cobrar e liberar ultrassom, raio-X e mamógrafo no cliente',
-    icon: '📡',
-    href: '/superadmin/maquinas-radiologia',
-    color: 'teal',
-  },
-  {
     title: 'Servidor de Mídia',
     description: 'Pastas de imagens por loja (nome + CPF/CNPJ) no media.lwksistemas.com.br',
     icon: '🖼️',

@@ -418,7 +418,6 @@ class SecurityIsolationMiddleware:
             "/api/clinica-beleza/",
             "/api/cabeleireiro/",
             "/api/hotel/",
-            "/api/radiologia/",
             "/api/crm-vendas/",
             "/api/stores/",
             "/api/products/",

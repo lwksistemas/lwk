@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Funções de deploy recortado (frontend | backend | all | infra).
-# Não rebuildar Evolution/Orthanc/mídia em bug de tela ou API.
+# Não rebuildar Evolution/mídia em bug de tela ou API.
 
 lwk_deploy_usage() {
   cat <<'EOF'
@@ -8,8 +8,8 @@ Uso: TARGET [app ...]
 
   frontend              só Next.js (tela / JS / CSS)
   backend [app ...]     API + worker; se informar app, migrate/ensure só dele
-  all [app ...]         frontend + backend + worker (sem Evolution/Orthanc/mídia)
-  infra                 Evolution, Orthanc e mídia
+  all [app ...]         frontend + backend + worker (sem Evolution/mídia)
+  infra                 Evolution e mídia
 
 Apps: clinica_beleza  crm_vendas  whatsapp  nfse_integration  cabeleireiro  hotel
 

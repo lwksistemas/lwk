@@ -7,7 +7,7 @@
 #   bash scripts/deploy-beta-isolated.sh all
 #   bash scripts/deploy-beta-isolated.sh infra
 #
-# Sem argumentos = all (frontend+backend+worker, sem Evolution/Orthanc).
+# Sem argumentos = all (frontend+backend+worker, sem Evolution).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,7 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/deploy-scoped-lib.sh"
 
 cd /home/deploy/lwk-beta
-INFRA_SERVICES="${INFRA_SERVICES:-evolution orthanc media}"
+INFRA_SERVICES="${INFRA_SERVICES:-evolution media}"
 
 TARGET="${1:-all}"
 shift || true

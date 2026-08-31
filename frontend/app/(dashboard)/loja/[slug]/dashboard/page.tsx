@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { isTipoCabeleireiro, isTipoClinicaBeleza, isTipoCRMVendas, isTipoHotel, isTipoRadiologia } from '@/lib/loja-tipo';
+import { isTipoCabeleireiro, isTipoClinicaBeleza, isTipoCRMVendas, isTipoHotel } from '@/lib/loja-tipo';
 import {
   readLojaInfoPublicaCache,
   writeLojaInfoPublicaCache,
@@ -24,7 +24,6 @@ const DashboardChunkSkeleton = () => (
 const DashboardClinicaBeleza = dynamic(() => import('./templates/clinica-beleza'), { loading: DashboardChunkSkeleton });
 const DashboardHotel = dynamic(() => import('./templates/hotel'), { loading: DashboardChunkSkeleton });
 const DashboardCabeleireiro = dynamic(() => import('./templates/cabeleireiro'), { loading: DashboardChunkSkeleton });
-const DashboardRadiologia = dynamic(() => import('./templates/radiologia'), { loading: DashboardChunkSkeleton });
 
 interface LojaInfo {
   id: number;
@@ -180,8 +179,7 @@ export default function LojaDashboardDinamicoPage() {
 
   const isClinicaBeleza = isTipoClinicaBeleza(lojaInfo.tipo_loja_nome);
   const isSalao = isTipoCabeleireiro(lojaInfo.tipo_loja_nome);
-  const isRadiologia = isTipoRadiologia(lojaInfo.tipo_loja_nome);
-  const isFullWidth = isClinicaBeleza || isRadiologia;
+  const isFullWidth = isClinicaBeleza;
 
   return (
     <>
@@ -210,15 +208,6 @@ export default function LojaDashboardDinamicoPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
                       <span>Hotel</span>
-                    </button>
-                  )}
-                  {isTipoRadiologia(lojaInfo.tipo_loja_nome) && (
-                    <button
-                      onClick={() => router.push(`/loja/${slug}/radiologia`)}
-                      className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                      title="Ir para o módulo Radiologia"
-                    >
-                      <span>Radiologia</span>
                     </button>
                   )}
                   <button
@@ -301,7 +290,6 @@ function renderDashboardPorTipo(loja: LojaInfo, onLogout: () => void) {
   if (isTipoClinicaBeleza(loja.tipo_loja_nome)) return <DashboardClinicaBeleza loja={loja} onLogout={onLogout} />;
   if (isTipoCabeleireiro(loja.tipo_loja_nome)) return <DashboardCabeleireiro loja={loja} onLogout={onLogout} />;
   if (isTipoHotel(loja.tipo_loja_nome)) return <DashboardHotel loja={loja} />;
-  if (isTipoRadiologia(loja.tipo_loja_nome)) return <DashboardRadiologia loja={loja} />;
   return <DashboardGenerico loja={loja} />;
 }
 

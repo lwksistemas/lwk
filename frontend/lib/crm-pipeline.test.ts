@@ -40,6 +40,23 @@ describe('oportunidadeNoPeriodo', () => {
     });
     expect(oportunidadeNoPeriodo(op, '2026-05-01', '2026-05-31')).toBe(true);
   });
+
+  it('inclui oportunidade criada no último dia do mês à tarde (UTC)', () => {
+    const op = opp({
+      id: 406,
+      etapa: 'prospecting',
+      created_at: '2026-08-31T15:43:57.917615+00:00',
+    });
+    expect(oportunidadeNoPeriodo(op, '2026-08-01', '2026-08-31')).toBe(true);
+  });
+
+  it('exclui oportunidade criada no mês seguinte', () => {
+    const op = opp({
+      id: 5,
+      created_at: '2026-09-01T10:00:00.000Z',
+    });
+    expect(oportunidadeNoPeriodo(op, '2026-08-01', '2026-08-31')).toBe(false);
+  });
 });
 
 describe('filtrarOportunidadesPipeline', () => {

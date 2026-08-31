@@ -40,10 +40,6 @@ interface Props {
   hint?: string;
 }
 
-function procedureCat(p: ProcedureOption): string {
-  return procedureItemCategoriaSlug(p);
-}
-
 export function ProcedureMultiSelect({
   procedures,
   selectedIds,
@@ -62,7 +58,7 @@ export function ProcedureMultiSelect({
     const counts = new Map<string, number>();
     for (const p of procedures) {
       if (selectedIds.includes(p.id)) continue;
-      const slug = procedureCat(p);
+      const slug = procedureItemCategoriaSlug(p);
       counts.set(slug, (counts.get(slug) || 0) + 1);
     }
     const cards: { value: string; label: string; count: number }[] = PROCEDURE_CATEGORIA_OPTIONS.filter((o) => (counts.get(o.value) || 0) > 0).map(
@@ -83,7 +79,7 @@ export function ProcedureMultiSelect({
   const disponiveis = useMemo(() => {
     const base = procedures.filter((p) => !selectedIds.includes(p.id));
     if (!categoriaAtiva) return base;
-    return base.filter((p) => procedureCat(p) === categoriaAtiva);
+    return base.filter((p) => procedureItemCategoriaSlug(p) === categoriaAtiva);
   }, [procedures, selectedIds, categoriaAtiva]);
 
   const selecionados = useMemo(
@@ -200,7 +196,7 @@ export function ProcedureMultiSelect({
             ))
           : disponiveis.map((p) => (
               <option key={p.id} value={p.id}>
-                {procedureSelectLabel(entityName(p), procedureCat(p), {
+                {procedureSelectLabel(entityName(p), procedureItemCategoriaSlug(p), {
                   includeCategorySuffix: !categoriaAtiva,
                 })}
               </option>

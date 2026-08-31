@@ -6,15 +6,11 @@ import { toUpperCase } from "@/lib/format-br";
 import {
   PROCEDURE_CATEGORIA_OPTIONS,
   procedureCategoriaLabel,
+  procedureItemCategoriaSlug,
   procedureSelectLabel,
-  resolveProcedureCategoriaSlug,
 } from "@/lib/clinica-beleza-categories";
 import type { ProcedureOption } from "./procedimentos-consulta-types";
 import { PROCEDIMENTOS_SELECT_CLASS } from "./procedimentos-consulta-types";
-
-function procedureCat(p: ProcedureOption): string {
-  return resolveProcedureCategoriaSlug(p.categoria || "") || "outro";
-}
 
 export function ProcedimentoAdicionarForm({
   opcoesDisponiveis,
@@ -36,7 +32,7 @@ export function ProcedimentoAdicionarForm({
   const categoriasDisponiveis = useMemo(() => {
     const counts = new Map<string, number>();
     for (const p of opcoesDisponiveis) {
-      const slug = procedureCat(p);
+      const slug = procedureItemCategoriaSlug(p);
       counts.set(slug, (counts.get(slug) || 0) + 1);
     }
     const cards: { value: string; label: string; count: number }[] = PROCEDURE_CATEGORIA_OPTIONS.filter((o) => (counts.get(o.value) || 0) > 0).map(
@@ -56,7 +52,7 @@ export function ProcedimentoAdicionarForm({
 
   const filtrados = useMemo(() => {
     if (!categoriaAtiva) return opcoesDisponiveis;
-    return opcoesDisponiveis.filter((p) => procedureCat(p) === categoriaAtiva);
+    return opcoesDisponiveis.filter((p) => procedureItemCategoriaSlug(p) === categoriaAtiva);
   }, [opcoesDisponiveis, categoriaAtiva]);
 
   return (
@@ -120,7 +116,7 @@ export function ProcedimentoAdicionarForm({
         </option>
         {filtrados.map((p) => (
           <option key={p.id} value={p.id}>
-            {procedureSelectLabel(toUpperCase(p.nome), procedureCat(p), {
+            {procedureSelectLabel(toUpperCase(p.nome), procedureItemCategoriaSlug(p), {
               includeCategorySuffix: !categoriaAtiva,
             })}
           </option>

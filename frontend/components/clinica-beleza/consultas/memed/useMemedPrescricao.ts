@@ -8,8 +8,6 @@ import type { DadosClinicaMemed } from "./memed-paciente";
 import { enviarPacienteMemed, enviarWorkplaceMemed } from "./memed-paciente";
 import {
   abrirModuloPrescricaoMemed,
-  aguardarIframeMemedNoHost,
-  aguardarWidgetMemedOperacional,
   carregarScriptMemed,
   fecharModuloPrescricaoMemed,
   setPrescricaoImpressaHandler,

@@ -6,7 +6,6 @@
 export const MEMED_V4_BOOT_KEY = "__memedSinapseV4Boot";
 export const MEMED_V4_OVERLAY_ID = "memed-auto-generated";
 export const MEMED_V4_SCRIPT_PROD = "https://v4-embedded.memed.com.br/sinapse/sinapse-v4.min.js";
-export const MEMED_V4_APP_URL_PROD = "https://v4-embedded.memed.com.br/";
 
 /** V4 embedded é o que abre o editor. O hub clássico injeta HTML no React (#418)
  * e some o modal.
@@ -14,10 +13,6 @@ export const MEMED_V4_APP_URL_PROD = "https://v4-embedded.memed.com.br/";
 export function urlScriptWidgetMemed(scriptUrl: string): string {
   if (!scriptUrl || scriptUrl.includes("integrations.")) return scriptUrl;
   return MEMED_V4_SCRIPT_PROD;
-}
-
-export function appUrlWidgetMemed(_scriptUrl: string): string | null {
-  return null;
 }
 
 type MemedHubWindow = Window & {
@@ -51,13 +46,6 @@ export function isMemedV4Boot(win: Window | undefined): boolean {
   return Boolean(win && (win as MemedHubWindow)[MEMED_V4_BOOT_KEY]);
 }
 
-/**
- * Nunca chamar setToken no legado: recarrega o iframe sem token (401).
- */
-export function podeReforcarTokenMemed(_win: Window | undefined): boolean {
-  return false;
-}
-
 export function scriptMemedPrecisaReiniciar(
   tokenNoScript: string | null | undefined,
   tokenNovo: string,
@@ -77,24 +65,6 @@ export function isMemedMessageReady(data: unknown): boolean {
   return Boolean(data && typeof data === "object" && (data as { type?: string }).type === "MEMED_READY");
 }
 
-export function aguardarMensagemMemedReady(win: Window, timeoutMs: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (ok: boolean) => {
-      if (settled) return;
-      settled = true;
-      win.removeEventListener("message", onMessage);
-      clearTimeout(timer);
-      resolve(ok);
-    };
-    const onMessage = (event: MessageEvent) => {
-      if (isMemedMessageReady(event.data)) finish(true);
-    };
-    const timer = win.setTimeout(() => finish(false), timeoutMs);
-    win.addEventListener("message", onMessage);
-  });
-}
-
 export async function enviarComandoMemed(
   win: Window,
   moduleName: string,
@@ -110,14 +80,14 @@ export async function enviarComandoMemed(
   await withTimeout(Promise.resolve(result), timeoutMs, `Memed: tempo esgotado no comando ${command}`);
 }
 
-export function ehIframeMemed(el: Element): boolean {
+function ehIframeMemed(el: Element): boolean {
   if (el.tagName !== "IFRAME") return false;
   const src = el.getAttribute("src") || "";
   const title = el.getAttribute("title") || "";
   return title === "Memed Prescrição" || src.includes("v4-embedded") || src.includes("memed.com.br");
 }
 
-export function localizarIframeMemed(doc: Document): HTMLIFrameElement | null {
+function localizarIframeMemed(doc: Document): HTMLIFrameElement | null {
   const found = Array.from(doc.querySelectorAll("iframe")).find(ehIframeMemed);
   return found ? (found as HTMLIFrameElement) : null;
 }
@@ -174,11 +144,6 @@ export function garantirEditorMemedVisivel(doc: Document, hostId: string): boole
     return overlay.childElementCount > 0;
   }
   return false;
-}
-
-/** @deprecated Use garantirEditorMemedVisivel — não move o iframe. */
-export function moverIframeMemedParaHost(doc: Document, hostId: string): boolean {
-  return garantirEditorMemedVisivel(doc, hostId);
 }
 
 export function forcarFecharOverlayMemed(win: Window, hostId?: string): void {

@@ -85,7 +85,6 @@ export function ConsultaDetailTabBar({
             {id === "documentos" && (consultaAtiva || consultaFinalizada) && (
               <ConsultaTermoConsentimentoButton
                 consultaId={selected.id}
-                exigeTermo={Boolean(selected.exige_termo_consentimento)}
                 onUpdated={onRefreshConsulta}
               />
             )}

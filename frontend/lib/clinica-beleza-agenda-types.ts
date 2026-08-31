@@ -31,7 +31,7 @@ export interface AgendaEventData {
     bloqueioId?: number;
     motivo?: string;
     professional?: number | null;
-    procedures_list?: { id: number; nome?: string }[];
+    procedures_list?: { id: number; nome?: string; categoria?: string }[];
     intervalo_inicio?: string;
     intervalo_fim?: string;
     consulta_id?: number;

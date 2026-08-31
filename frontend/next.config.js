@@ -1,4 +1,4 @@
-const { extraConnectSrcOrigins, MEMED_HTTPS } = require('./lib/csp-policy');
+const { extraConnectSrcOrigins, extraImgSrcOrigins, MEMED_HTTPS } = require('./lib/csp-policy');
 
 function buildConnectSrc() {
   const origins = new Set(["'self'"]);
@@ -28,7 +28,7 @@ const securityHeaders = [
       "form-action 'self'",
       `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: ${memedHttps} https://meet.jit.si https://8x8.vc https://api.rudderstack.com https://*.rudderstack.com https://cdn.rudderlabs.com https://d2r1yp2w7bby2u.cloudfront.net https://*.cloudfront.net`,
       `style-src 'self' 'unsafe-inline' ${memedHttps} https://meet.jit.si`,
-      `img-src 'self' data: blob: https://media.lwksistemas.com.br https://i.pravatar.cc ${memedHttps} https://meet.jit.si https://*.jitsi.net`,
+      `img-src 'self' data: blob: ${extraImgSrcOrigins()} ${memedHttps} https://meet.jit.si https://*.jitsi.net`,
       `font-src 'self' data: ${memedHttps} https://meet.jit.si`,
       `connect-src ${buildConnectSrc()}`,
       "media-src 'self' blob: mediastream:",
@@ -90,6 +90,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'i.pravatar.cc', pathname: '/**' },
       { protocol: 'https', hostname: 'api.lwksistemas.com.br', pathname: '/**' },
       { protocol: 'https', hostname: 'media.lwksistemas.com.br', pathname: '/**' },
+      { protocol: 'https', hostname: 'beta.lwksistemas.com.br', pathname: '/**' },
       { protocol: 'http', hostname: 'localhost', pathname: '/**' },
     ],
     formats: ['image/avif', 'image/webp'],

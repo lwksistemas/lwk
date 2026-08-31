@@ -245,10 +245,14 @@ def _aplicar_procedimentos(appointment, procedures_ids) -> bool:
         ids = [int(x) for x in procedures_ids]
     except (TypeError, ValueError):
         raise AgendaValidationError("Procedimentos inválidos.")
-    if not ids:
-        raise AgendaValidationError("Selecione ao menos um procedimento.")
-    if ids == _ids_procedimentos_atuais(appointment):
+    atuais = _ids_procedimentos_atuais(appointment)
+    if ids == atuais:
         return False
+    if not ids:
+        appointment.appointment_procedures.all().delete()
+        appointment.procedure = None
+        appointment.duracao_minutos = None
+        return True
 
     from .convenio_service import criar_appointment_procedures
     from .models import Procedure

@@ -106,3 +106,51 @@ export function defaultCategoriaForModule(module: string): string {
   if (module === "estetica") return "estetica";
   return "";
 }
+
+export type ProcedureCategoriaGroup<T> = {
+  slug: string;
+  label: string;
+  items: T[];
+};
+
+export function procedureItemCategoriaSlug(item: {
+  categoria?: string | null;
+  category?: string | null;
+}): string {
+  return resolveProcedureCategoriaSlug(item.categoria || item.category || "") || "outro";
+}
+
+/** Agrupa procedimentos pela categoria cadastrada, na ordem dos chips do formulário. */
+export function groupProceduresByCategoria<
+  T extends { categoria?: string | null; category?: string | null },
+>(items: T[]): ProcedureCategoriaGroup<T>[] {
+  const order = PROCEDURE_CATEGORIA_OPTIONS.map((o) => o.value);
+  const buckets = new Map<string, T[]>();
+  for (const item of items) {
+    const slug = procedureItemCategoriaSlug(item);
+    const list = buckets.get(slug);
+    if (list) list.push(item);
+    else buckets.set(slug, [item]);
+  }
+  return [...buckets.entries()]
+    .sort(([a], [b]) => {
+      const ia = order.indexOf(a as (typeof order)[number]);
+      const ib = order.indexOf(b as (typeof order)[number]);
+      const ra = ia < 0 ? order.length : ia;
+      const rb = ib < 0 ? order.length : ib;
+      if (ra !== rb) return ra - rb;
+      return procedureCategoriaLabel(a).localeCompare(procedureCategoriaLabel(b), "pt-BR");
+    })
+    .map(([slug, grouped]) => ({
+      slug,
+      label: procedureCategoriaLabel(slug) || slug,
+      items: grouped,
+    }));
+}
+
+/** Distingue horário só de consulta de consulta com procedimentos. */
+export function labelTipoAgendamento(procedureCount: number): string {
+  if (procedureCount <= 0) return "Somente consulta";
+  if (procedureCount === 1) return "Consulta + 1 procedimento";
+  return `Consulta + ${procedureCount} procedimentos`;
+}

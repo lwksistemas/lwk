@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   labelCanalTermo,
+  mensagemTermoNaoConfigurado,
   snapshotTermoStatus,
   type TermoProcedimento,
 } from "@/components/clinica-beleza/consultas/termo-consentimento/termo-consentimento-types";
@@ -26,5 +27,11 @@ describe("labelCanalTermo", () => {
   it("formata canais", () => {
     expect(labelCanalTermo("email")).toBe("e-mail");
     expect(labelCanalTermo("whatsapp")).toBe("WhatsApp");
+  });
+});
+
+describe("mensagemTermoNaoConfigurado", () => {
+  it("orienta vincular o TCLE ao procedimento", () => {
+    expect(mensagemTermoNaoConfigurado()).toMatch(/TCLE Interativo/);
   });
 });

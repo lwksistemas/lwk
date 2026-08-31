@@ -31,3 +31,8 @@ export function extrairErroTermo(e: unknown, fallback = "Erro ao enviar."): stri
 export function labelCanalTermo(canal: TermoConsentimentoCanal): string {
   return canal === "whatsapp" ? "WhatsApp" : "e-mail";
 }
+
+/** Texto quando a consulta não tem procedimento com TCLE vinculado. */
+export function mensagemTermoNaoConfigurado(): string {
+  return "Nenhum procedimento desta consulta tem termo de consentimento. Cadastre em TCLE Interativo e vincule ao procedimento (ex.: TIRZEPATIDA).";
+}

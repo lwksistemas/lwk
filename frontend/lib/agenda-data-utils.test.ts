@@ -27,6 +27,24 @@ describe("formatarAgendaEvento", () => {
     expect(ev.id).toBe("1");
   });
 
+  it("repassa a categoria dos procedimentos da agenda", () => {
+    const ev = formatarAgendaEvento(
+      {
+        id: 2,
+        start: "2026-08-31T16:00:00",
+        end: "2026-08-31T16:35:00",
+        status: "CONFIRMED",
+        patient_name: "Luiz",
+        procedure_name: "Botox",
+        procedures_list: [{ id: 8, nome: "BOTOX — TESTA E GLABELA", categoria: "injetavel" }],
+      },
+      false,
+    );
+    expect(ev.extendedProps.procedures_list).toEqual([
+      { id: 8, nome: "BOTOX — TESTA E GLABELA", categoria: "injetavel" },
+    ]);
+  });
+
   it("calcula o fim pela duração para não misturar fuso de start/end", () => {
     const ev = formatarAgendaEvento(
       {

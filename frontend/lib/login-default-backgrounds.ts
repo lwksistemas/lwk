@@ -7,7 +7,6 @@ import {
   isTipoClinicaBeleza,
   isTipoCRMVendas,
   isTipoHotel,
-  isTipoRadiologia,
   isTipoClinicaGeral,
 } from '@/lib/loja-tipo';
 
@@ -47,7 +46,6 @@ export function getLoginThemeColor(tipoLojaNome: string): string {
   if (isTipoCabeleireiro(tipo)) return LOGIN_THEME_COLORS.salao;
   if (isTipoHotel(tipo)) return LOGIN_THEME_COLORS.hotel;
   if (isTipoCRMVendas(tipo)) return LOGIN_THEME_COLORS.crm;
-  if (isTipoRadiologia(tipo)) return '#0F766E';
   if (isTipoClinicaGeral(tipo)) return '#2F2E5B';
   return LOGIN_THEME_COLORS.default;
 }
@@ -63,7 +61,6 @@ export function getDefaultLoginBackground(tipoLojaNome: string): string {
   if (isTipoCabeleireiro(tipo)) return LOCAL.salao;
   if (isTipoHotel(tipo)) return LOCAL.hotel;
   if (isTipoCRMVendas(tipo)) return LOCAL.crm;
-  if (isTipoRadiologia(tipo)) return LOCAL.default;
   return LOCAL.default;
 }
 

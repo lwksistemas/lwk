@@ -1,4 +1,8 @@
-"""Gateway WhatsApp para sistemas PHP: Evolution da VM servidorwhatsapp, isolada das lojas."""
+"""Gateway WhatsApp para sistemas PHP: Evolution de parceiro, isolada das lojas.
+
+Enquanto EVOLUTION_PARCEIRO_* estiver vazio, o gateway recusa números.
+Não usar a Evolution das lojas (EVOLUTION_API_*).
+"""
 from __future__ import annotations
 
 import logging
@@ -42,7 +46,7 @@ def instancia_do_parceiro(customer: WhatsappCustomer, instance_name: str) -> Wha
 
 def _exigir_evolution():
     if not partner_evolution_configured():
-        raise ValueError("Gateway de parceiro ainda não está ligado à servidorwhatsapp.")
+        raise ValueError("Evolution de parceiro não configurada.")
 
 
 def _publicar_numero(inst: WhatsappInstance, extra: dict | None = None) -> dict:

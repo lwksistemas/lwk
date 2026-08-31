@@ -127,8 +127,6 @@ TIPO_LOJA_EXTRA_APPS = {
     "crm-vendas": ["crm_vendas", "nfse_integration", "whatsapp"],
     "hotel-pousada": ["hotel"],
     "hotel": ["hotel"],
-    "radiologia": ["radiologia", "whatsapp"],
-    "clinica-radiologia": ["radiologia", "whatsapp"],
     "clinica-geral": ["clinica_geral", "whatsapp"],
 }
 

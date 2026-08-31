@@ -25,3 +25,20 @@ export function extractConsultaDeepLinkError(e: unknown): string {
 export function isNovaConsultaQuery(searchParams: URLSearchParams): boolean {
   return searchParams.get("novo") === "1";
 }
+
+/** Query da lista: fila da recepção, ou histórico do paciente; profissional é opcional. */
+export function buildConsultasListQueryParams(opts: {
+  patientId?: number | null;
+  professionalId?: number | null;
+}): Record<string, string | number> {
+  const params: Record<string, string | number> = {};
+  if (opts.patientId) {
+    params.patient = opts.patientId;
+  } else {
+    params.fila = "iniciar";
+  }
+  if (opts.professionalId) {
+    params.professional = opts.professionalId;
+  }
+  return params;
+}

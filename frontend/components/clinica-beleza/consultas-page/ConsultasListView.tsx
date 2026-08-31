@@ -11,6 +11,8 @@ import { LocalizarClienteModal } from "@/components/clinica-beleza/localizar-cli
 import { ConsultasListTable } from "@/components/clinica-beleza/consultas/ConsultasListTable";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
+import type { ClinicaProfessionalOption } from "@/lib/clinica-beleza-cadastros-api";
+import { entityName } from "@/lib/clinica-beleza-entities";
 import { formatConsultaListDate } from "./consultas-page-utils";
 
 interface ConsultasListViewProps {
@@ -25,6 +27,9 @@ interface ConsultasListViewProps {
   filtroPacienteNome?: string | null;
   onLimparFiltroPaciente?: () => void;
   onFiltroPaciente: (patient: PatientQuickOption) => void;
+  profissionais: ClinicaProfessionalOption[];
+  filtroProfissionalId: number | null;
+  onFiltroProfissional: (id: number | null) => void;
   onNovaConsulta: () => void;
   onOpenConfigAgenda: () => void;
   onSelectConsulta: (c: Consulta) => void;
@@ -51,6 +56,9 @@ export function ConsultasListView({
   filtroPacienteNome,
   onLimparFiltroPaciente,
   onFiltroPaciente,
+  profissionais,
+  filtroProfissionalId,
+  onFiltroProfissional,
   onNovaConsulta,
   onOpenConfigAgenda,
   onSelectConsulta,
@@ -93,6 +101,29 @@ export function ConsultasListView({
         }
       />
       <ClinicaBelezaPageContent>
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <div className="min-w-[220px] flex-1 sm:flex-none">
+            <label
+              htmlFor="filtro-profissional-consultas"
+              className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Profissional
+            </label>
+            <select
+              id="filtro-profissional-consultas"
+              value={filtroProfissionalId ?? ""}
+              onChange={(e) => onFiltroProfissional(e.target.value ? Number(e.target.value) : null)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 text-sm"
+            >
+              <option value="">Todos os profissionais</option>
+              {profissionais.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {entityName(p)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         {filtroPacienteNome && (
           <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-4 py-3 text-sm">
             <span className="text-gray-600 dark:text-gray-300">
@@ -129,6 +160,8 @@ export function ConsultasListView({
           <ClinicaBelezaPanel className="p-12 text-center text-gray-500 text-sm">
             {filtroPacienteNome ? (
               <>Nenhuma consulta encontrada para <strong>{filtroPacienteNome}</strong>.</>
+            ) : filtroProfissionalId ? (
+              <>Nenhuma consulta para iniciar deste profissional.</>
             ) : (
               <>
                 Nenhuma consulta para iniciar. Na Agenda, marque o cliente como{" "}

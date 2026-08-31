@@ -5,11 +5,13 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
+from ..documento_service import listar_prontuario_paciente
 from ..models import (
     ConsultaEvolucao,
     ConsultaProdutoUtilizado,
     Patient,
     PatientAnamnese,
+    PrescricaoMemed,
 )
 from ..pdf_common import merge_timbrado_fundo
 from .constants import MARGIN
@@ -135,8 +137,6 @@ def gerar_pdf_secao(patient_id: int, secao: str) -> BytesIO:
     """Gera PDF com todos os documentos de uma seção do prontuário.
     Retorna BytesIO pronto para resposta HTTP.
     """
-    from .documento_service import listar_prontuario_paciente
-
     buffer = BytesIO()
     styles = _get_styles()
 
@@ -195,7 +195,6 @@ def gerar_pdf_secao(patient_id: int, secao: str) -> BytesIO:
             elements.append(Paragraph("Nenhuma evolução registrada.", styles["DocBody"]))
     elif secao == "receituario":
         if dados:
-            from ..models import PrescricaoMemed
             for item in dados:
                 if isinstance(item, PrescricaoMemed):
                     elements.extend(_build_prescricao_memed_elements(item, styles))
@@ -221,9 +220,6 @@ def gerar_pdf_prontuario_completo(patient_id: int) -> BytesIO:
     """Gera PDF com prontuário completo (todas as seções).
     Retorna BytesIO pronto para resposta HTTP.
     """
-    from ..models import PrescricaoMemed
-    from .documento_service import listar_prontuario_paciente
-
     buffer = BytesIO()
     styles = _get_styles()
 

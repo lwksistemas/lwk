@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { User } from "lucide-react";
 
 const SIZE_CLASS = {
@@ -28,15 +29,27 @@ export function PacienteAvatar({
   size = "md",
   className = "",
 }: PacienteAvatarProps) {
+  const url = (fotoUrl || "").trim();
+  const [quebrada, setQuebrada] = useState(false);
+  useEffect(() => {
+    setQuebrada(false);
+  }, [url]);
+  const mostrarFoto = Boolean(url) && !quebrada;
   const alt = name ? `Foto de ${name}` : "Foto do cliente";
 
   return (
     <div
       className={`${SIZE_CLASS[size]} rounded-full border border-gray-200 dark:border-neutral-600 overflow-hidden bg-gray-50 dark:bg-neutral-800 flex items-center justify-center shrink-0 ${className}`}
     >
-      {fotoUrl ? (
+      {mostrarFoto ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={fotoUrl} alt={alt} className="w-full h-full object-cover" />
+        <img
+          src={url}
+          alt={alt}
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+          onError={() => setQuebrada(true)}
+        />
       ) : (
         <User size={ICON_SIZE[size]} className="text-gray-300 dark:text-neutral-600" />
       )}

@@ -51,8 +51,26 @@ function extraConnectSrcOrigins() {
   ];
 }
 
+function extraImgSrcOrigins() {
+  const origins = new Set([
+    "https://media.lwksistemas.com.br",
+    "https://beta.lwksistemas.com.br",
+    "https://i.pravatar.cc",
+  ]);
+  const mediaUrl = process.env.NEXT_PUBLIC_MEDIA_URL || "";
+  if (mediaUrl) {
+    try {
+      origins.add(new URL(mediaUrl).origin);
+    } catch {
+      /* ignore */
+    }
+  }
+  return Array.from(origins).join(" ");
+}
+
 module.exports = {
   MEMED_HTTPS,
   MEMED_WSS,
   extraConnectSrcOrigins,
+  extraImgSrcOrigins,
 };

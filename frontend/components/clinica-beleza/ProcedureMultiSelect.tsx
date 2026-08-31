@@ -6,9 +6,10 @@ import { precoProcedimento } from "@/lib/convenio-precos";
 import { entityName, procedureDuration, procedurePrice } from "@/lib/clinica-beleza-entities";
 import {
   PROCEDURE_CATEGORIA_OPTIONS,
+  groupProceduresByCategoria,
   procedureCategoriaLabel,
+  procedureItemCategoriaSlug,
   procedureSelectLabel,
-  resolveProcedureCategoriaSlug,
   stripCategoriaPrefixFromNome,
 } from "@/lib/clinica-beleza-categories";
 
@@ -34,10 +35,13 @@ interface Props {
   showSummary?: boolean;
   /** Quando true, procedimentos não são obrigatórios (ex.: nova consulta avulsa). */
   optional?: boolean;
+  /** Substitui o rótulo padrão "Procedimentos". */
+  label?: string;
+  hint?: string;
 }
 
 function procedureCat(p: ProcedureOption): string {
-  return resolveProcedureCategoriaSlug(p.categoria || p.category || "") || "outro";
+  return procedureItemCategoriaSlug(p);
 }
 
 export function ProcedureMultiSelect({
@@ -49,6 +53,8 @@ export function ProcedureMultiSelect({
   precosMap = {},
   showSummary = true,
   optional = false,
+  label,
+  hint,
 }: Props) {
   const [categoriaAtiva, setCategoriaAtiva] = useState("");
 
@@ -80,6 +86,24 @@ export function ProcedureMultiSelect({
     return base.filter((p) => procedureCat(p) === categoriaAtiva);
   }, [procedures, selectedIds, categoriaAtiva]);
 
+  const selecionados = useMemo(
+    () =>
+      selectedIds
+        .map((id) => procedures.find((p) => p.id === id))
+        .filter((p): p is ProcedureOption => p != null),
+    [selectedIds, procedures],
+  );
+
+  const selecionadosAgrupados = useMemo(
+    () => groupProceduresByCategoria(selecionados),
+    [selecionados],
+  );
+
+  const disponiveisAgrupados = useMemo(
+    () => groupProceduresByCategoria(disponiveis),
+    [disponiveis],
+  );
+
   const resumo = useMemo(() => {
     let duracao = 0;
     let valor = 0;
@@ -94,13 +118,18 @@ export function ProcedureMultiSelect({
     return { duracao, valor };
   }, [selectedIds, procedures, convenioId, precosMap]);
 
+  const usarOptgroups = !categoriaAtiva && disponiveisAgrupados.length > 1;
+  const rotulo = label ?? "Procedimentos";
+  const dica =
+    hint ??
+    (optional ? "(opcional — pode adicionar vários)" : "(pode adicionar vários)");
+
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Procedimentos{optional ? "" : " *"}{" "}
-        <span className="font-normal text-gray-400">
-          {optional ? "(opcional — pode adicionar vários)" : "(pode adicionar vários)"}
-        </span>
+        {rotulo}
+        {optional ? "" : " *"}{" "}
+        <span className="font-normal text-gray-400">{dica}</span>
       </label>
 
       {categoriasDisponiveis.length > 1 && (
@@ -155,48 +184,74 @@ export function ProcedureMultiSelect({
         <option value="">
           {categoriaAtiva
             ? `Adicionar de ${procedureCategoriaLabel(categoriaAtiva)}...`
-            : "Adicionar procedimento..."}
+            : "Adicionar procedimento por categoria..."}
         </option>
-        {disponiveis.map((p) => (
-          <option key={p.id} value={p.id}>
-            {procedureSelectLabel(entityName(p), procedureCat(p), {
-              includeCategorySuffix: !categoriaAtiva,
-            })}
-          </option>
-        ))}
+        {usarOptgroups
+          ? disponiveisAgrupados.map((grupo) => (
+              <optgroup key={grupo.slug} label={grupo.label}>
+                {grupo.items.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {procedureSelectLabel(entityName(p), grupo.slug, {
+                      includeCategorySuffix: false,
+                    })}
+                  </option>
+                ))}
+              </optgroup>
+            ))
+          : disponiveis.map((p) => (
+              <option key={p.id} value={p.id}>
+                {procedureSelectLabel(entityName(p), procedureCat(p), {
+                  includeCategorySuffix: !categoriaAtiva,
+                })}
+              </option>
+            ))}
       </select>
 
+      {optional && selectedIds.length === 0 ? (
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          Nenhum procedimento — este horário fica como{" "}
+          <strong className="font-medium text-gray-700 dark:text-gray-300">somente consulta</strong>.
+        </p>
+      ) : null}
+
       {selectedIds.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {selectedIds.map((id) => {
-            const proc = procedures.find((p) => p.id === id);
-            if (!proc) return null;
-            const particular = Number(procedurePrice(proc)) || 0;
-            const valorProc = precoProcedimento(id, particular, convenioId, precosMap);
-            return (
-              <div
-                key={id}
-                className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-neutral-700/50 rounded-lg"
-              >
-                <div className="text-sm">
-                  <span className="font-medium text-gray-800 dark:text-gray-200">
-                    {stripCategoriaPrefixFromNome(entityName(proc), procedureCat(proc))}
-                  </span>
-                  <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
-                    {procedureDuration(proc)}min
-                    {valorProc > 0 ? ` · R$ ${valorProc.toFixed(2)}` : ""}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onRemove(id)}
-                  className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
+        <div className="mt-3 space-y-3">
+          {selecionadosAgrupados.map((grupo) => (
+            <div key={grupo.slug}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1.5 px-1">
+                {grupo.label}
+              </p>
+              <div className="space-y-2">
+                {grupo.items.map((proc) => {
+                  const particular = Number(procedurePrice(proc)) || 0;
+                  const valorProc = precoProcedimento(proc.id, particular, convenioId, precosMap);
+                  return (
+                    <div
+                      key={proc.id}
+                      className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-neutral-700/50 rounded-lg"
+                    >
+                      <div className="text-sm">
+                        <span className="font-medium text-gray-800 dark:text-gray-200">
+                          {stripCategoriaPrefixFromNome(entityName(proc), grupo.slug)}
+                        </span>
+                        <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
+                          {procedureDuration(proc)}min
+                          {valorProc > 0 ? ` · R$ ${valorProc.toFixed(2)}` : ""}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onRemove(proc.id)}
+                        className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
           {showSummary && (
             <div className="flex items-center justify-between px-4 py-2 text-sm text-gray-600 dark:text-gray-400 border-t dark:border-neutral-600 mt-2 pt-3">
               <span>

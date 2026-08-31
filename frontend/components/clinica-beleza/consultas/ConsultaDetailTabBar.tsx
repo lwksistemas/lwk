@@ -82,10 +82,10 @@ export function ConsultaDetailTabBar({
               <Icon size={16} />
               {label}
             </button>
-            {id === "evolucao" && consultaAtiva && selected.exige_termo_consentimento && (
+            {id === "documentos" && (consultaAtiva || consultaFinalizada) && (
               <ConsultaTermoConsentimentoButton
                 consultaId={selected.id}
-                exigeTermo={selected.exige_termo_consentimento}
+                exigeTermo={Boolean(selected.exige_termo_consentimento)}
                 onUpdated={onRefreshConsulta}
               />
             )}

@@ -12,6 +12,13 @@ import {
 } from "@/lib/clinica-beleza-constants";
 import { useAgendaStatusColors } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
 import { buildConsultaDetailHref } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
+import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
+import {
+  groupProceduresByCategoria,
+  labelTipoAgendamento,
+  stripCategoriaPrefixFromNome,
+  type ProcedureCategoriaGroup,
+} from "@/lib/clinica-beleza-categories";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
@@ -32,8 +39,33 @@ function idsProcedimentosIniciais(
     return list.map((p) => Number(p.id)).filter((id) => Number.isFinite(id));
   }
   const nome = event.extendedProps.procedure_name || "";
+  if (!nome || /^consulta(\s|$|—|-)/i.test(nome.trim())) return [];
   const found = procedures.find((p) => entityName(p) === nome);
   return found ? [found.id] : [];
+}
+
+function procedimentosAgrupadosDoEvento(
+  event: AgendaEventData,
+  procedures: ConsultaFormProcedure[],
+): ProcedureCategoriaGroup<ConsultaFormProcedure>[] {
+  const list = event.extendedProps.procedures_list;
+  const itens: ConsultaFormProcedure[] = [];
+  if (Array.isArray(list) && list.length) {
+    for (const p of list) {
+      const found = procedures.find((c) => c.id === p.id);
+      itens.push({
+        id: p.id,
+        nome: p.nome || found?.nome,
+        categoria: p.categoria || found?.categoria || found?.category,
+      });
+    }
+  } else {
+    for (const id of idsProcedimentosIniciais(event, procedures)) {
+      const found = procedures.find((p) => p.id === id);
+      if (found) itens.push(found);
+    }
+  }
+  return groupProceduresByCategoria(itens);
 }
 
 const STATUS_EDICAO_BLOQUEADA = new Set(["IN_PROGRESS", "COMPLETED", "CANCELLED"]);
@@ -110,16 +142,9 @@ export function ModalDetalheAgendamento({
 
   if (!open || !event) return null;
 
-  const toggleProcedure = (id: number) => {
-    setProcedureIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
-
   const salvar = async () => {
     if (!mudou || !podeEditarCampos) return;
     if (!professionalId) return;
-    if (procedureIds.length === 0) return;
     if (STATUS_JA_CONFIRMADO.has(status)) {
       const ok = window.confirm(
         "O cliente já confirmou este horário. Ao salvar, a confirmação anterior deixa de valer e um novo link será enviado no WhatsApp.",
@@ -142,6 +167,9 @@ export function ModalDetalheAgendamento({
     if (!payload.date && payload.professional == null && !payload.procedures_ids) return;
     await onSalvarDetalhe(payload);
   };
+
+  const tipoAgendamento = labelTipoAgendamento(procedureIds.length);
+  const gruposSomenteLeitura = procedimentosAgrupadosDoEvento(event, procedures);
 
   const duracaoPreco = (
     <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -225,25 +253,59 @@ export function ModalDetalheAgendamento({
             </div>
 
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Procedimento</p>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Atendimento</p>
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    procedureIds.length === 0
+                      ? "bg-sky-50 text-sky-800 dark:bg-sky-900/30 dark:text-sky-200"
+                      : "text-white"
+                  }`}
+                  style={
+                    procedureIds.length > 0
+                      ? { backgroundColor: "var(--cb-primary, #8B3D52)" }
+                      : undefined
+                  }
+                >
+                  {tipoAgendamento}
+                </span>
+              </div>
               {podeEditarCampos ? (
-                <div className="max-h-52 overflow-y-auto space-y-1.5 border border-gray-200 dark:border-neutral-600 rounded-lg p-2">
-                  {procedures.map((proc) => (
-                    <label key={proc.id} className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200">
-                      <input
-                        type="checkbox"
-                        checked={procedureIds.includes(proc.id)}
-                        onChange={() => toggleProcedure(proc.id)}
-                        className="rounded border-gray-300"
-                      />
-                      {entityName(proc)}
-                    </label>
+                <ProcedureMultiSelect
+                  procedures={procedures}
+                  selectedIds={procedureIds}
+                  onAdd={(id) =>
+                    setProcedureIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+                  }
+                  onRemove={(id) => setProcedureIds((prev) => prev.filter((x) => x !== id))}
+                  optional
+                  showSummary
+                  hint="(opcional — escolha a categoria e depois o procedimento)"
+                />
+              ) : gruposSomenteLeitura.length === 0 ? (
+                <p className="font-semibold text-gray-900 dark:text-gray-100">Somente consulta</p>
+              ) : (
+                <div className="space-y-2.5 border border-gray-200 dark:border-neutral-600 rounded-lg p-3">
+                  {gruposSomenteLeitura.map((grupo) => (
+                    <div key={grupo.slug}>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        {grupo.label}
+                      </p>
+                      <ul className="mt-1 space-y-0.5">
+                        {grupo.items.map((p) => (
+                          <li
+                            key={p.id}
+                            className="text-sm font-medium text-gray-900 dark:text-gray-100"
+                          >
+                            {stripCategoriaPrefixFromNome(entityName(p), grupo.slug)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
                 </div>
-              ) : (
-                <p className="font-semibold text-gray-900 dark:text-gray-100">{event.extendedProps.procedure_name}</p>
               )}
-              <div className="mt-1">{duracaoPreco}</div>
+              {!podeEditarCampos ? <div className="mt-1">{duracaoPreco}</div> : null}
             </div>
 
             {event.extendedProps.notes ? (
@@ -358,7 +420,7 @@ export function ModalDetalheAgendamento({
             <button
               type="button"
               onClick={salvar}
-              disabled={!mudou || salvandoDetalhe || !professionalId || procedureIds.length === 0}
+              disabled={!mudou || salvandoDetalhe || !professionalId}
               className="sm:flex-1 px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
             >

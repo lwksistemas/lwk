@@ -58,7 +58,7 @@ export function ConsultaDetailShell({
           <PacienteAvatar
             fotoUrl={selected.patient_foto_url}
             name={selected.patient_name}
-            size="sm"
+            size="md"
           />
         }
         toolbarActions={tab === "fotos" ? fotosToolbar : undefined}

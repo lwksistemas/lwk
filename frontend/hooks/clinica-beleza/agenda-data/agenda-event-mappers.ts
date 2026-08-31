@@ -105,7 +105,11 @@ export function formatarAgendaEvento(
       duracao_minutos: raw.duracao_minutos as number | undefined,
       procedure_price: raw.procedure_price as string | undefined,
       procedures_list: Array.isArray(raw.procedures_list)
-        ? (raw.procedures_list as { id: number; nome?: string }[])
+        ? (raw.procedures_list as { id: number; nome?: string; categoria?: string }[]).map((p) => ({
+            id: Number(p.id),
+            nome: p.nome,
+            categoria: p.categoria,
+          }))
         : undefined,
       notes: String(raw.notes ?? ""),
       version: versaoAgenda(raw.version),

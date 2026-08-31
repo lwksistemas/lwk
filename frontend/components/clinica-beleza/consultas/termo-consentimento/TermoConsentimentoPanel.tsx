@@ -1,5 +1,6 @@
 import { Mail, MessageCircle } from "lucide-react";
 import type { TermoConsentimentoCanal, TermoProcedimento } from "./termo-consentimento-types";
+import { mensagemTermoNaoConfigurado } from "./termo-consentimento-types";
 import { TermoConsentimentoItemRow } from "./TermoConsentimentoItemActions";
 
 export function TermoConsentimentoPanel({
@@ -35,7 +36,11 @@ export function TermoConsentimentoPanel({
       </div>
 
       <div className="max-h-[min(50vh,16rem)] overflow-y-auto">
-        {!termos.length ? (
+        {!loading && !termos.length ? (
+          <p className="px-4 py-5 text-sm text-gray-600 dark:text-gray-300">
+            {mensagemTermoNaoConfigurado()}
+          </p>
+        ) : !termos.length ? (
           <p className="px-4 py-6 text-sm text-gray-500 text-center">Carregando…</p>
         ) : (
           <ul className="divide-y divide-gray-100 dark:divide-neutral-800">

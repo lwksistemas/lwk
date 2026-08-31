@@ -288,11 +288,13 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         procs = obj.appointment_procedures.all()
         if not procs:
             if obj.procedure_id:
+                p = obj.procedure
                 return [{
                     "id": obj.procedure_id,
-                    "nome": obj.procedure.nome,
-                    "duracao": obj.procedure.duracao_minutos,
-                    "valor": float(obj.procedure.preco or 0),
+                    "nome": p.nome,
+                    "duracao": p.duracao_minutos,
+                    "valor": float(p.preco or 0),
+                    "categoria": p.categoria or "",
                 }]
             return []
         return [
@@ -301,6 +303,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
                 "nome": ap.procedure.nome,
                 "duracao": ap.get_duracao(),
                 "valor": float(ap.get_valor()),
+                "categoria": ap.procedure.categoria or "",
             }
             for ap in procs
         ]

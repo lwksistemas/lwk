@@ -8,7 +8,6 @@ import { useTermoDropdown } from "./termo-consentimento/useTermoDropdown";
 
 export function ConsultaTermoConsentimentoButton({
   consultaId,
-  exigeTermo,
   onUpdated,
 }: {
   consultaId: number;
@@ -21,12 +20,10 @@ export function ConsultaTermoConsentimentoButton({
   const { loading, termos, pendentesEnvio, badgeCount, enviar, reenviar, baixarPdf, enviarPdfWhatsapp, assinarProfissional } =
     useTermoConsentimento({
       consultaId,
-      exigeTermo,
+      exigeTermo: true,
       onUpdated,
       aberto,
     });
-
-  if (!exigeTermo) return null;
 
   return (
     <div ref={containerRef} className="relative">

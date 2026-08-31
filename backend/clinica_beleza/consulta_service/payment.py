@@ -488,7 +488,8 @@ def estornar_recebimento_consulta(consulta):
 
     - Cancela PaymentParcela (PAID → CANCELLED)
     - Zera Payment (PENDING, amount=0) e restaura valor_total bruto
-    - Volta consulta para RECEBER
+    - Sem atendimento iniciado: volta para RECEBER
+    - Já em atendimento (data_inicio): mantém IN_PROGRESS para não sumir da fila
     """
     from clinica_beleza import consulta_service
 
@@ -543,7 +544,6 @@ def estornar_recebimento_consulta(consulta):
     ])
 
     if consulta.status not in ("COMPLETED", "CANCELLED"):
-        consulta.status = "RECEBER"
-        consulta.save(update_fields=["status", "updated_at"])
+        _atualizar_status_consulta_apos_recebimento(consulta, payment)
 
     return payment

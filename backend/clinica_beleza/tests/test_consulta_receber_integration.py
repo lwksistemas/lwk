@@ -103,6 +103,45 @@ class ConsultaReceberIntegrationTests(ClinicaBelezaIntegrationTestCase):
         self.assertEqual(payment.valor_pago_parcelas, Decimal(0))
         self.assertTrue(payment.parcelas.filter(status="CANCELLED").exists())
 
+    def test_api_estornar_em_atendimento_mantem_in_progress(self):
+        """Corrigir pagamento com consulta já iniciada não rebaixa para RECEBER (sumiria da fila)."""
+        consulta = self._criar_consulta_receber()
+        consulta.data_inicio = timezone.now()
+        consulta.status = "IN_PROGRESS"
+        consulta.save(update_fields=["data_inicio", "status", "updated_at"])
+        consulta.appointment.status = "IN_PROGRESS"
+        consulta.appointment.save(update_fields=["status", "updated_at"])
+
+        client = self.api_client_as_owner()
+        receber = client.post(
+            f"/api/clinica-beleza/consultas/{consulta.id}/receber/",
+            {"payment_method": "PIX", "amount": "200", "mark_as_paid": True},
+            format="json",
+            **self.tenant_headers(),
+        )
+        self.assertEqual(receber.status_code, 201, receber.content)
+        self.assertEqual(receber.json()["consulta"]["status"], "IN_PROGRESS")
+
+        response = client.post(
+            f"/api/clinica-beleza/consultas/{consulta.id}/estornar-pagamento/",
+            {},
+            format="json",
+            **self.tenant_headers(),
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["consulta"]["status"], "IN_PROGRESS")
+
+        consulta.refresh_from_db()
+        self.assertEqual(consulta.status, "IN_PROGRESS")
+
+        fila = client.get(
+            "/api/clinica-beleza/consultas/?fila=iniciar",
+            **self.tenant_headers(),
+        )
+        self.assertEqual(fila.status_code, 200, fila.content)
+        ids = [item["id"] for item in fila.json()["results"]]
+        self.assertIn(consulta.id, ids)
+
     def test_api_estornar_bloqueia_consulta_finalizada(self):
         consulta = self._criar_consulta_receber()
         client = self.api_client_as_owner()

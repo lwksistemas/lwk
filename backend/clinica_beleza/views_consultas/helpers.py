@@ -7,9 +7,16 @@ from ..models import Consulta, Patient
 
 
 def q_consultas_aguardando_inicio():
-    """Fila da recepção: cliente presente ainda não iniciado, ou em atendimento."""
+    """Fila da recepção: cliente presente ainda não iniciado, ou em atendimento.
+
+    Inclui RECEBER/SCHEDULED com agenda IN_PROGRESS para não perder consulta
+    cujo pagamento foi corrigido no meio do atendimento.
+    """
     return (
-        Q(status__in=("SCHEDULED", "RECEBER"), appointment__status="CONFIRMED")
+        Q(
+            status__in=("SCHEDULED", "RECEBER"),
+            appointment__status__in=("CONFIRMED", "IN_PROGRESS"),
+        )
         | Q(status="IN_PROGRESS")
     )
 

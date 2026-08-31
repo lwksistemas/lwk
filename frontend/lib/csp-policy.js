@@ -1,7 +1,6 @@
 /**
  * Origens da Content-Security-Policy do Next.js.
- * Sem Unleash (*.memed.rocks): o gate sobe o V4 e o gateway recusa o token
- * da Sinapse (busca de medicamento 401). O hub clássico usa api.memed.com.br.
+ * V4 embedded precisa do Unleash (*.memed.rocks) para o iframe subir.
  */
 const MEMED_HTTPS = [
   "https://memed.com.br",
@@ -10,10 +9,13 @@ const MEMED_HTTPS = [
   "https://v4-embedded-qa.memed.com.br",
   "https://gateway.memed.com.br",
   "https://cdn.memed.com.br",
+  "https://*.memed.rocks",
+  "https://data.memed.rocks",
 ];
 
 const MEMED_WSS = [
   "wss://*.memed.com.br",
+  "wss://*.memed.rocks",
 ];
 
 const MEMED_TELEMETRIA = [

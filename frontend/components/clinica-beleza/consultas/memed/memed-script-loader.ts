@@ -183,7 +183,6 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
 
   await esperarMdHub();
   registrarListenerPrescricaoMemed(token);
-  await aguardarModuloMemed();
 }
 
 export function aguardarModuloMemed(): Promise<void> {

@@ -8,11 +8,12 @@ export const MEMED_V4_OVERLAY_ID = "memed-auto-generated";
 export const MEMED_V4_SCRIPT_PROD = "https://v4-embedded.memed.com.br/sinapse/sinapse-v4.min.js";
 export const MEMED_V4_APP_URL_PROD = "https://v4-embedded.memed.com.br/";
 
-/** Script oficial da Sinapse (doc.memed.com.br). O V4 embedded abre o modal
- * mas o gateway.memed.com.br recusa o token da Sinapse (busca 401).
+/** V4 embedded é o que abre o editor. O hub clássico injeta HTML no React (#418)
+ * e some o modal.
  */
 export function urlScriptWidgetMemed(scriptUrl: string): string {
-  return scriptUrl;
+  if (!scriptUrl || scriptUrl.includes("integrations.")) return scriptUrl;
+  return MEMED_V4_SCRIPT_PROD;
 }
 
 export function appUrlWidgetMemed(_scriptUrl: string): string | null {

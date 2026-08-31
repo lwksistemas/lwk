@@ -1,11 +1,22 @@
 """Integração — POST /consultas/<id>/receber/ (total, parcial, procedimento extra)."""
 from decimal import Decimal
 
+from django.contrib.auth.models import User
 from django.utils import timezone
 
 from clinica_beleza.consulta_service import registrar_recebimento_consulta
 from clinica_beleza.consulta_service.payment import _sincronizar_recebimento_apos_procedimento
-from clinica_beleza.models import Appointment, Consulta, Patient, Payment, Professional
+from clinica_beleza.models import (
+    Appointment,
+    AppointmentProcedure,
+    Consulta,
+    Patient,
+    Payment,
+    Procedure,
+    Professional,
+)
+from superadmin.authentication import invalidate_session_cache
+from superadmin.models import ProfissionalUsuario
 
 from .tenant_test_case import ClinicaBelezaIntegrationTestCase
 
@@ -206,3 +217,79 @@ class ConsultaReceberIntegrationTests(ClinicaBelezaIntegrationTestCase):
         payment = Payment.objects.get(appointment=consulta.appointment)
         self.assertEqual(payment.status, "DRAFT")
         self.assertGreater(payment.saldo_devedor, Decimal(0))
+
+    def _consulta_com_procedimento(self, *, preco=Decimal("150.00")):
+        consulta = self._criar_consulta_receber(valor=Decimal("0"))
+        proc = Procedure.objects.create(
+            nome="Injeção de vitaminas",
+            preco=preco,
+            duracao_minutos=30,
+            loja_id=self.loja.id,
+        )
+        AppointmentProcedure.objects.create(
+            appointment=consulta.appointment,
+            procedure=proc,
+            valor=preco,
+            ordem=0,
+            loja_id=self.loja.id,
+        )
+        return consulta
+
+    def _api_client_as(self, user):
+        from rest_framework.test import APIClient
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        from superadmin.session_manager import SessionManager
+
+        invalidate_session_cache(user.id)
+        client = APIClient()
+        token = str(RefreshToken.for_user(user).access_token)
+        sid = SessionManager.create_session(user.id, token)
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}", HTTP_X_SESSION_ID=sid)
+        return client
+
+    def test_admin_pode_alterar_valor_procedimento(self):
+        consulta = self._consulta_com_procedimento()
+        client = self.api_client_as_owner()
+        response = client.post(
+            f"/api/clinica-beleza/consultas/{consulta.id}/receber/",
+            {
+                "payment_method": "CASH",
+                "amount": "80",
+                "mark_as_paid": True,
+                "valor_procedimentos": "80",
+            },
+            format="json",
+            **self.tenant_headers(),
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        linha = AppointmentProcedure.objects.get(appointment=consulta.appointment)
+        self.assertEqual(linha.valor, Decimal("80.00"))
+        self.assertEqual(response.json()["consulta"]["valor_procedimentos"], 80.0)
+        payment = Payment.objects.get(appointment=consulta.appointment)
+        self.assertEqual(payment.valor_total, Decimal("80.00"))
+
+    def test_profissional_nao_pode_alterar_valor_procedimento(self):
+        consulta = self._consulta_com_procedimento()
+        user = User.objects.create_user("prof-receber@t.com", "prof-receber@t.com", "pass12345")
+        ProfissionalUsuario.objects.create(
+            user=user,
+            loja=self.loja,
+            professional_id=consulta.professional_id,
+            perfil=ProfissionalUsuario.PERFIL_PROFISSIONAL,
+        )
+        client = self._api_client_as(user)
+        response = client.post(
+            f"/api/clinica-beleza/consultas/{consulta.id}/receber/",
+            {
+                "payment_method": "CASH",
+                "amount": "80",
+                "mark_as_paid": True,
+                "valor_procedimentos": "80",
+            },
+            format="json",
+            **self.tenant_headers(),
+        )
+        self.assertEqual(response.status_code, 403, response.content)
+        linha = AppointmentProcedure.objects.get(appointment=consulta.appointment)
+        self.assertEqual(linha.valor, Decimal("150.00"))

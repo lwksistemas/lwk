@@ -12,7 +12,7 @@ import {
   templatesApi,
   termosConsentimentoApi,
 } from "./client-entities";
-import { estoqueApi, financeiroApi, locaisAtendimentoApi, lojaApi, nomesAgendaApi, retornoApi } from "./client-ops";
+import { estoqueApi, financeiroApi, locaisAtendimentoApi, lojaApi, meApi, nomesAgendaApi, retornoApi } from "./client-ops";
 import { cbDelete, cbGet, cbGetList, cbPatch, cbPost, cbPut } from "./client-http";
 
 const loadMemedApi = () => import("./client-memed").then((m) => m.memedApi);
@@ -31,6 +31,7 @@ export class ClinicaBelezaAPI {
   static patients = patientsApi;
   static professionals = professionalsApi;
   static loja = lojaApi;
+  static me = meApi;
   static financeiro = financeiroApi;
   static estoque = estoqueApi;
 

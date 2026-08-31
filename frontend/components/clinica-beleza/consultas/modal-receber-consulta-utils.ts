@@ -84,13 +84,20 @@ export function buildReceberPayload(params: {
   entradas: EntradaPagamentoLinha[];
   markAsPaid: boolean;
   totalLiquido: number;
+  valorProcedimentos?: number | null;
 }): {
   desconto: string;
   entradas: Array<{ payment_method: string; valor: string }>;
   mark_as_paid: boolean;
+  valor_procedimentos?: string;
 } {
   const soma = somaEntradas(params.entradas);
-  return {
+  const payload: {
+    desconto: string;
+    entradas: Array<{ payment_method: string; valor: string }>;
+    mark_as_paid: boolean;
+    valor_procedimentos?: string;
+  } = {
     desconto: String(round2(Math.max(0, params.desconto))),
     entradas: params.entradas.map((e) => ({
       payment_method: e.payment_method,
@@ -98,6 +105,10 @@ export function buildReceberPayload(params: {
     })),
     mark_as_paid: params.markAsPaid && valoresQuaseIguais(soma, params.totalLiquido),
   };
+  if (params.valorProcedimentos != null) {
+    payload.valor_procedimentos = String(round2(Math.max(0, params.valorProcedimentos)));
+  }
+  return payload;
 }
 
 export function formatEntradasResumo(

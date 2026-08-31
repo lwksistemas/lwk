@@ -75,5 +75,17 @@ describe("buildReceberPayload", () => {
     expect(body.mark_as_paid).toBe(true);
     expect(body.entradas).toHaveLength(3);
     expect(somaEntradas(body.entradas.map((e, i) => ({ id: String(i), ...e })))).toBe(500);
+    expect(body.valor_procedimentos).toBeUndefined();
+  });
+
+  it("inclui valor_procedimentos quando o admin altera", () => {
+    const body = buildReceberPayload({
+      desconto: 0,
+      totalLiquido: 80,
+      markAsPaid: true,
+      entradas: [linha("CASH", "80")],
+      valorProcedimentos: 80,
+    });
+    expect(body.valor_procedimentos).toBe("80");
   });
 });

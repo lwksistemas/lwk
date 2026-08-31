@@ -95,14 +95,12 @@ describe("token da Memed", () => {
     expect(scriptMemedPrecisaReiniciar(null, "token-a")).toBe(false);
   });
 
-  it("força o widget V4 em produção para abrir o editor", () => {
+  it("usa o script oficial da Sinapse (hub clássico busca medicamento)", () => {
     const prod =
       "https://memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js";
     const homo =
       "https://integrations.memed.com.br/modulos/plataforma.sinapse-prescricao/build/sinapse-prescricao.min.js";
-    expect(urlScriptWidgetMemed(prod)).toBe(
-      "https://v4-embedded.memed.com.br/sinapse/sinapse-v4.min.js",
-    );
+    expect(urlScriptWidgetMemed(prod)).toBe(prod);
     expect(urlScriptWidgetMemed(homo)).toBe(homo);
   });
 });

@@ -181,8 +181,9 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
     document.head.appendChild(el);
   });
 
-  // Aguarda MdHub estar disponível (não aguarda módulo específico — evita timeout)
   await esperarMdHub();
+  registrarListenerPrescricaoMemed(token);
+  await aguardarModuloMemed();
 }
 
 export function aguardarModuloMemed(): Promise<void> {

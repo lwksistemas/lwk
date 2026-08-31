@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { extraConnectSrcOrigins, MEMED_HTTPS, MEMED_WSS } from "./csp-policy.js";
 
 describe("CSP connect-src Memed", () => {
-  it("libera Unleash (*.memed.rocks) — obrigatório para o V4 inicializar o token", () => {
+  it("não libera Unleash — o gate V4 recusa o token da Sinapse na busca", () => {
     const connect = extraConnectSrcOrigins();
-    expect(MEMED_HTTPS).toContain("https://*.memed.rocks");
-    expect(MEMED_HTTPS).toContain("https://data.memed.rocks");
-    expect(connect).toContain("https://*.memed.rocks");
-    expect(connect).toContain("https://data.memed.rocks");
+    expect(MEMED_HTTPS).not.toContain("https://*.memed.rocks");
+    expect(MEMED_HTTPS).not.toContain("https://data.memed.rocks");
+    expect(connect).not.toContain("https://*.memed.rocks");
+    expect(MEMED_WSS).not.toContain("wss://*.memed.rocks");
   });
 
   it("libera o widget e o gateway da Memed", () => {

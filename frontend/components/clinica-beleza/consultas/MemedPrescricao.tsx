@@ -90,7 +90,7 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
       <div
         className="fixed inset-x-0 top-0 flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-md dark:border-neutral-700 dark:bg-neutral-900"
         style={{
-          zIndex: aberto ? 10000 : -1,
+          zIndex: aberto ? 2147483647 : -1,
           visibility: aberto ? "visible" : "hidden",
           pointerEvents: aberto ? "auto" : "none",
         }}

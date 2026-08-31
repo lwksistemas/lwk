@@ -76,7 +76,7 @@ function registrarPrescricaoImpressa(): void {
   });
 }
 
-export function registrarListenerPrescricaoMemed(): void {
+export function registrarListenerPrescricaoMemed(token?: string): void {
   if (typeof window === "undefined") return;
   registrarListenerV4Ready();
   registrarPrescricaoImpressa();
@@ -134,11 +134,10 @@ export function teardownMemedSdk(): void {
 }
 
 function aplicarAtributosScriptMemed(el: HTMLScriptElement, token: string): void {
-  // Conforme doc oficial da Memed: apenas data-token. A autenticação ocorre no
-  // carregamento do script. NÃO usar data-init/init()/setToken — isso recarrega
-  // o iframe sem token e a Memed responde 401.
+  // V4 (integration.js): o script auto-inicializa com data-token.
+  // Não usar data-init="manual" — a Memed atualizou o V4 e a inicialização
+  // manual não funciona mais (getPartnerByToken null / 401 em cascata).
   el.setAttribute("data-token", token);
-  el.removeAttribute("data-init");
   el.removeAttribute("data-container");
   el.removeAttribute("data-variant");
   el.removeAttribute("data-app-url");
@@ -148,8 +147,7 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   const src = urlScriptWidgetMemed(scriptUrl);
   const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
 
-  // Se já existe script com o mesmo token, reutiliza (não reinjeta — evita 401).
-  // Só recria se o token/URL mudou.
+  // Se já existe script com o mesmo token e URL, reutiliza sem reinjetar.
   if (existing) {
     const precisaReiniciar = scriptMemedPrecisaReiniciar(
       existing.getAttribute("data-token"),
@@ -158,28 +156,33 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
       src,
     );
     if (!precisaReiniciar) {
-      registrarListenerPrescricaoMemed();
-      await esperarMdHub();
-      registrarListenerPrescricaoMemed();
+      // Já carregado — registrar listeners e aguardar módulo de prescrição
+      registrarListenerPrescricaoMemed(token);
+      await aguardarModuloMemed();
       return;
     }
     teardownMemedSdk();
   }
 
+  // V4 (integration.js): carregar com data-token e deixar o script auto-inicializar.
+  // O V4 gerencia o próprio lifecycle (Unleash → getPartnerByToken → módulos).
   await new Promise<void>((resolve, reject) => {
     const el = document.createElement("script");
     el.id = MEMED_SCRIPT_ID;
     el.type = "text/javascript";
     aplicarAtributosScriptMemed(el, token);
     el.src = src;
-    el.addEventListener("load", () => resolve());
+    el.addEventListener("load", () => {
+      // Registrar listener de moduleInit no onload (padrão oficial Memed)
+      registrarListenerPrescricaoMemed(token);
+      resolve();
+    });
     el.addEventListener("error", () => reject(new Error("Falha ao carregar o script da Memed.")));
     document.head.appendChild(el);
   });
 
-  registrarListenerPrescricaoMemed();
   await esperarMdHub();
-  registrarListenerPrescricaoMemed();
+  registrarListenerPrescricaoMemed(token);
 }
 
 export function aguardarModuloMemed(): Promise<void> {

@@ -2,13 +2,11 @@ import { describe, expect, it } from "vitest";
 import { extraConnectSrcOrigins, MEMED_HTTPS, MEMED_WSS } from "./csp-policy.js";
 
 describe("CSP connect-src Memed", () => {
-  it("não libera Unleash (gate V4 esvazia a busca de medicamentos)", () => {
+  it("libera Unleash para o widget V4 abrir o iframe", () => {
     const connect = extraConnectSrcOrigins();
-    expect(MEMED_HTTPS).not.toContain("https://*.memed.rocks");
-    expect(MEMED_HTTPS).not.toContain("https://*.data.memed.rocks");
-    expect(MEMED_WSS).not.toContain("wss://*.memed.rocks");
-    expect(connect).not.toContain("https://*.memed.rocks");
-    expect(connect).not.toContain("https://*.data.memed.rocks");
+    expect(MEMED_HTTPS).toContain("https://*.memed.rocks");
+    expect(MEMED_HTTPS).toContain("https://data.memed.rocks");
+    expect(connect).toContain("https://*.memed.rocks");
   });
 
   it("libera o widget e o gateway da Memed", () => {

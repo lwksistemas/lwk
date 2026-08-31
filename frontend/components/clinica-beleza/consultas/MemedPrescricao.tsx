@@ -9,9 +9,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { X } from "lucide-react";
-import { MEMED_CONTAINER_ID } from "./memed/memed-constants";
 import { useMemedPrescricao } from "./memed/useMemedPrescricao";
-import { garantirEditorMemedVisivel } from "@/lib/memed-sdk";
 
 export interface MemedPrescricaoHandle {
   abrir: () => Promise<void>;
@@ -75,22 +73,14 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
         if (event.key === "Escape") fechar();
       };
       window.addEventListener("keydown", onKey, true);
-      const interval = window.setInterval(() => {
-        if (garantirEditorMemedVisivel(document, MEMED_CONTAINER_ID) && status === "loading") {
-          setStatus("ready");
-        }
-      }, 400);
-      return () => {
-        window.removeEventListener("keydown", onKey, true);
-        window.clearInterval(interval);
-      };
-    }, [aberto, fechar, status]);
+      return () => window.removeEventListener("keydown", onKey, true);
+    }, [aberto, fechar]);
 
     const ui = (
       <div
         className="fixed inset-x-0 top-0 flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-md dark:border-neutral-700 dark:bg-neutral-900"
         style={{
-          zIndex: aberto ? 2147483647 : -1,
+          zIndex: aberto ? 10000 : -1,
           visibility: aberto ? "visible" : "hidden",
           pointerEvents: aberto ? "auto" : "none",
         }}

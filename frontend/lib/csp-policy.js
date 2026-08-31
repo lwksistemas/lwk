@@ -1,8 +1,6 @@
 /**
  * Origens da Content-Security-Policy do Next.js.
- * Widget V4 da Memed (integration.js) exige o gate Unleash (*.memed.rocks) e a
- * CDN (cdn.memed.com.br). Sem eles o gate não resolve e o token não é aplicado
- * (getPartnerByToken null / 401). O script clássico foi descontinuado pela Memed.
+ * V4 embedded precisa do Unleash (*.memed.rocks) para o iframe subir.
  */
 const MEMED_HTTPS = [
   "https://memed.com.br",
@@ -10,10 +8,9 @@ const MEMED_HTTPS = [
   "https://v4-embedded.memed.com.br",
   "https://v4-embedded-qa.memed.com.br",
   "https://gateway.memed.com.br",
-  "https://partners.memed.com.br",
-  // Widget V4: feature-flag gate (Unleash) e CDN de scripts (x-ray/memetrics).
-  "https://*.memed.rocks",
   "https://cdn.memed.com.br",
+  "https://*.memed.rocks",
+  "https://data.memed.rocks",
 ];
 
 const MEMED_WSS = [

@@ -109,15 +109,14 @@ export function useMemedPrescricao({
   const abrir = useCallback(async () => {
     await esperarProximoFrame();
     await garantirPronto();
-    await aguardarWidgetMemedOperacional();
-    abrirModuloPrescricaoMemed();
-    await aguardarIframeMemedNoHost();
+    // V4: enviar paciente ANTES de show (padrão doc oficial)
     void enviarPacienteMemed(patientId, patientName).catch((e) => {
       logger.warn("Memed: não foi possível definir o paciente:", e);
     });
     void enviarWorkplaceMemed(clinicaRef.current).catch((e) => {
       logger.warn("Memed: não foi possível definir o local de atendimento:", e);
     });
+    abrirModuloPrescricaoMemed();
   }, [garantirPronto, patientId, patientName]);
 
   const fechar = useCallback(() => {

@@ -9,7 +9,9 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { X } from "lucide-react";
+import { MEMED_CONTAINER_ID } from "./memed/memed-constants";
 import { useMemedPrescricao } from "./memed/useMemedPrescricao";
+import { garantirEditorMemedVisivel } from "@/lib/memed-sdk";
 
 export interface MemedPrescricaoHandle {
   abrir: () => Promise<void>;
@@ -73,13 +75,14 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
         if (event.key === "Escape") fechar();
       };
       window.addEventListener("keydown", onKey, true);
-      // V4: o widget gerencia o próprio overlay/iframe — marcar como pronto após curto delay
-      const timer = window.setTimeout(() => {
-        if (status === "loading") setStatus("ready");
-      }, 2000);
+      const interval = window.setInterval(() => {
+        if (garantirEditorMemedVisivel(document, MEMED_CONTAINER_ID) && status === "loading") {
+          setStatus("ready");
+        }
+      }, 400);
       return () => {
         window.removeEventListener("keydown", onKey, true);
-        window.clearTimeout(timer);
+        window.clearInterval(interval);
       };
     }, [aberto, fechar, status]);
 

@@ -84,9 +84,6 @@ export function registrarListenerPrescricaoMemed(token?: string): void {
   if (!sinapse?.event?.add || window.__memedListenerRegistrado) return;
   window.__memedListenerRegistrado = true;
   sinapse.event.add("core:moduleInit", (module) => {
-    if (module?.name === "plataforma.sdk" && token) {
-      (sinapse as any).command?.send("plataforma.sdk", "setToken", token);
-    }
     if (module?.name !== MEMED_MODULO_PRESCRICAO) return;
     window[MEMED_READY_FLAG] = true;
     registrarPrescricaoImpressa();
@@ -260,6 +257,7 @@ export function logoutMemedSdk(): void {
 
 export function abrirModuloPrescricaoMemed(): void {
   void window.MdHub?.module?.show?.(MEMED_MODULO_PRESCRICAO);
+  garantirEditorMemedVisivel(document, MEMED_CONTAINER_ID);
 }
 
 export async function enviarComandoPrescricaoMemed(

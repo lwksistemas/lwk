@@ -190,11 +190,10 @@ export function ModalReceberConsulta({
     try {
       const res = await ClinicaBelezaAPI.consultas.estornarPagamento(consulta.id);
       const atualizada = res.consulta;
-      setConfirmado(false);
-      setConsultaAtualizada(null);
-      setReciboSnapshot(null);
-      onSuccess(atualizada);
-      onClose();
+      if (!atualizada) throw new Error("Resposta inválida ao corrigir pagamento.");
+      const consultaLimpa = { ...consulta, ...atualizada };
+      onSuccess(consultaLimpa);
+      reiniciarFormularioComplemento(consultaLimpa);
     } catch (e: unknown) {
       setError(formatApiErrorBody(e) || "Erro ao corrigir pagamento.");
     } finally {

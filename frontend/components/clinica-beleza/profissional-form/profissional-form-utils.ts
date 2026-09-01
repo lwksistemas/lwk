@@ -35,6 +35,7 @@ export type ProfissionalApiRow = {
   data_nascimento?: string;
   sexo?: string;
   foto_url?: string;
+  login_username?: string;
 };
 
 export function mapProfissionalFormFromApi(prof: ProfissionalApiRow): ProfissionalFormState {
@@ -51,6 +52,7 @@ export function mapProfissionalFormFromApi(prof: ProfissionalApiRow): Profission
     data_nascimento: prof.data_nascimento || "",
     sexo: prof.sexo || "",
     foto_url: prof.foto_url || "",
+    login_username: prof.login_username || "",
   };
 }
 

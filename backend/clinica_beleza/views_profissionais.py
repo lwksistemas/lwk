@@ -145,6 +145,7 @@ class ProfessionalListView(APIView):
             serializer_context={
                 "admin_professional_ids": admin_professional_ids,
                 "owner_professional_id": owner_professional_id,
+                "login_username_by_professional_id": LojaContextHelper.get_login_username_by_professional_id(),
             },
         )
 
@@ -206,6 +207,7 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
         return Response(ProfessionalSerializer(obj, context={
             "admin_professional_ids": admin_professional_ids,
             "owner_professional_id": owner_professional_id,
+            "login_username_by_professional_id": LojaContextHelper.get_login_username_by_professional_id(),
         }).data)
 
     def put(self, request, pk):

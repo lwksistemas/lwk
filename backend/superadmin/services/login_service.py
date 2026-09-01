@@ -31,6 +31,48 @@ from superadmin.session_manager import SessionManager
 logger = logging.getLogger(__name__)
 
 
+def resolver_username_para_login(identificador: str | None, loja_slug: str | None = None) -> str:
+    """Aceita usuário ou e-mail. No login da loja, prioriza o acesso daquela loja."""
+    from django.contrib.auth.models import User
+
+    raw = (identificador or "").strip()
+    if not raw:
+        return raw
+
+    by_user = User.objects.filter(username__iexact=raw).first()
+    if by_user:
+        return by_user.username
+
+    if "@" not in raw:
+        return raw
+
+    if loja_slug:
+        from superadmin.loja_utils import resolve_loja_by_slug_or_atalho
+
+        loja = resolve_loja_by_slug_or_atalho(loja_slug, is_active=True)
+        if loja:
+            owner = getattr(loja, "owner", None)
+            if owner and (owner.email or "").strip().lower() == raw.lower():
+                return owner.username
+            pu = (
+                ProfissionalUsuario.objects.filter(loja=loja, user__email__iexact=raw)
+                .select_related("user")
+                .first()
+            )
+            if pu and pu.user_id:
+                return pu.user.username
+            vu = (
+                VendedorUsuario.objects.filter(loja=loja, user__email__iexact=raw)
+                .select_related("user")
+                .first()
+            )
+            if vu and vu.user_id:
+                return vu.user.username
+
+    by_email = User.objects.filter(email__iexact=raw).first()
+    return by_email.username if by_email else raw
+
+
 def usuario_precisa_trocar_senha_loja(user, loja, *, pu=None, vu=None) -> bool:
     """True se o usuário deve trocar senha provisória nesta loja
     (proprietário, profissional ou vendedor vinculado).
@@ -84,6 +126,8 @@ class LoginService:
         password = request.data.get("password")
         loja_slug = request.data.get("loja_slug")
         cpf_cnpj = (request.data.get("cpf_cnpj") or "").strip()
+        if user_type == "loja":
+            username = resolver_username_para_login(username, loja_slug)
 
         # 1+3. Validar credenciais e autenticar
         user, cred_err = self._validar_credenciais_login(request, username, password, user_type)

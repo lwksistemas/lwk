@@ -30,3 +30,13 @@ class AdminProfessionalSerializerTest(TestCase):
         prof = self._prof(1)
         serializer = ProfessionalSerializer(context={})
         self.assertFalse(serializer.get_is_administrador_vinculado(prof))
+
+    def test_login_username_do_contexto(self):
+        prof = self._prof(6)
+        serializer = ProfessionalSerializer(context={"login_username_by_professional_id": {6: "marina"}})
+        self.assertEqual(serializer.get_login_username(prof), "marina")
+
+    def test_login_username_vazio_sem_vinculo(self):
+        prof = self._prof(6)
+        serializer = ProfessionalSerializer(context={})
+        self.assertEqual(serializer.get_login_username(prof), "")

@@ -122,6 +122,7 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
     unique_documento_apenas_ativos = True
     is_administrador_vinculado = serializers.SerializerMethodField(read_only=True)
     is_owner = serializers.SerializerMethodField(read_only=True)
+    login_username = serializers.SerializerMethodField(read_only=True)
     horarios_trabalho = HorarioTrabalhoProfissionalSerializer(many=True, read_only=True, required=False)
     uppercase_fields = ["nome", "especialidade"]
     phone_fields = ["telefone"]
@@ -151,6 +152,10 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
         if owner_professional_id is None:
             return False
         return obj.id == owner_professional_id
+
+    def get_login_username(self, obj):
+        mapping = self.context.get("login_username_by_professional_id") or {}
+        return mapping.get(obj.id) or ""
 
     def validate_tempo_consulta_minutos(self, value):
         if value is None:

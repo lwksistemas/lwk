@@ -339,7 +339,7 @@ export default function LojaLoginDinamicoPage() {
             {/* Username */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Usuário
+                Usuário ou e-mail
               </label>
               <input
                 id="username"
@@ -350,7 +350,7 @@ export default function LojaLoginDinamicoPage() {
                 style={{ '--tw-ring-color': corTema } as React.CSSProperties}
                 value={credentials.username}
                 onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
-                placeholder="Digite seu usuário"
+                placeholder="Usuário ou e-mail cadastrado"
                 disabled={loading}
               />
             </div>

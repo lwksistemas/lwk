@@ -165,6 +165,28 @@ class LojaContextHelper:
             return None, None
 
     @staticmethod
+    def get_login_username_by_professional_id() -> dict:
+        """username de login por professional_id da loja atual."""
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return {}
+        try:
+            from superadmin.models import ProfissionalUsuario
+
+            rows = (
+                ProfissionalUsuario.objects.using("default")
+                .filter(loja_id=loja_id)
+                .select_related("user")
+            )
+            return {
+                pu.professional_id: pu.user.username
+                for pu in rows
+                if pu.professional_id and pu.user_id
+            }
+        except Exception:
+            return {}
+
+    @staticmethod
     def invalidate_cache(loja_id):
         """Invalida todos os caches da loja"""
         cache.delete(f"owner_professional_{loja_id}")

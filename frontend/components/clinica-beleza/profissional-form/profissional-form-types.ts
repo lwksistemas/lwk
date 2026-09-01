@@ -41,6 +41,7 @@ export interface ProfissionalFormState {
   criar_acesso: boolean;
   perfil: PerfilAcesso;
   username: string;
+  login_username: string;
   foto_url: string;
 }
 
@@ -81,6 +82,7 @@ export const DEFAULT_PROFISSIONAL_FORM: ProfissionalFormState = {
   criar_acesso: false,
   perfil: "profissional",
   username: "",
+  login_username: "",
   foto_url: "",
 };
 

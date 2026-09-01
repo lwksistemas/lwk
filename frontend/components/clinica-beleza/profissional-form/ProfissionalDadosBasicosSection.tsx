@@ -67,6 +67,19 @@ export function ProfissionalDadosBasicosSection({
             placeholder="email@exemplo.com"
           />
         </div>
+        {form.login_username ? (
+          <div>
+            <label className={LABEL_CLASS}>Usuário de login</label>
+            <input
+              value={form.login_username}
+              readOnly
+              className={`${INPUT_CLASS} bg-gray-50 dark:bg-neutral-800`}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Este é o usuário da tela de login (não use o e-mail no campo Usuário).
+            </p>
+          </div>
+        ) : null}
       </div>
     </section>
   );

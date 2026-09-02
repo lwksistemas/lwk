@@ -6,27 +6,39 @@ from django.test import SimpleTestCase
 from django.utils import timezone
 
 from clinica_beleza.consulta_auto_finalizar_service import (
-    INATIVIDADE_MINIMA_HORAS,
-    MARGEM_COM_PROCEDIMENTO_HORAS,
+    MARGEM_APOS_FIM_AGENDAMENTO_HORAS,
+    _fim_agendamento,
     _horario_limite_finalizacao,
 )
 
 
 class HorarioLimiteAutoFinalizarTest(SimpleTestCase):
-    def test_limite_com_procedimento_usa_margem_longa(self):
+    def test_cinco_horas_apos_fim_do_agendamento(self):
         inicio = timezone.now()
         appointment = MagicMock()
-        appointment.get_duracao_efetiva.return_value = 60
-        appointment.appointment_procedures.exists.return_value = True
-        appointment.procedure_id = 1
+        appointment.date = inicio
+        appointment.get_duracao_efetiva.return_value = 40
         consulta = MagicMock(data_inicio=inicio, appointment=appointment)
 
         limite = _horario_limite_finalizacao(consulta)
 
         self.assertEqual(
             limite,
-            inicio + timedelta(minutes=60, hours=MARGEM_COM_PROCEDIMENTO_HORAS),
+            inicio + timedelta(minutes=40, hours=MARGEM_APOS_FIM_AGENDAMENTO_HORAS),
         )
+        self.assertEqual(MARGEM_APOS_FIM_AGENDAMENTO_HORAS, 5)
 
-    def test_inatividade_minima_configurada(self):
-        self.assertGreaterEqual(INATIVIDADE_MINIMA_HORAS, 3)
+    def test_usa_data_inicio_se_appointment_sem_data(self):
+        inicio = timezone.now()
+        appointment = MagicMock()
+        appointment.date = None
+        appointment.get_duracao_efetiva.return_value = 30
+        consulta = MagicMock(data_inicio=inicio, appointment=appointment)
+
+        self.assertEqual(_fim_agendamento(consulta), inicio + timedelta(minutes=30))
+
+    def test_sem_inicio_nao_tem_limite(self):
+        appointment = MagicMock()
+        appointment.date = None
+        consulta = MagicMock(data_inicio=None, appointment=appointment)
+        self.assertIsNone(_horario_limite_finalizacao(consulta))

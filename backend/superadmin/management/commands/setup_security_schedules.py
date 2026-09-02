@@ -141,7 +141,19 @@ class Command(BaseCommand):
             "a cada hora",
         )
 
-        # 8. Backups automáticos por email
+        # 8. Clínica: finalizar consultas esquecidas 5h após o fim do agendamento
+        _upsert(
+            "clinica_auto_finalizar_consultas",
+            {
+                "func": "clinica_beleza.consulta_auto_finalizar_service.finalizar_consultas_esquecidas",
+                "schedule_type": Schedule.MINUTES,
+                "minutes": 15,
+                "repeats": -1,
+            },
+            "a cada 15 min",
+        )
+
+        # 9. Backups automáticos por email
         # Roda a cada 15 min; a task só envia se estiver no slot 00:00–04:45 da loja.
         _upsert(
             "executar_backups_automaticos",

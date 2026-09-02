@@ -60,6 +60,7 @@ ENSURES = [
     ("ensure_nfse_tenant_clinica_beleza", {}),
     ("ensure_payment_draft_nao_finalizadas", {}),
     ("ensure_consulta_numero", {}),
+    ("ensure_auto_finalizar_consultas_schedule", {}),
     ("ensure_suporte_schema", {}),
     ("verificar_storage_lojas", {}),
     ("setup_security_schedules", {}),

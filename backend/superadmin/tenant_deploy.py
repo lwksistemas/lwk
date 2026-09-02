@@ -42,6 +42,7 @@ ENSURE_POR_APP: dict[str, tuple[str, ...]] = {
         "ensure_patient_foto_url",
         "ensure_payment_draft_nao_finalizadas",
         "ensure_consulta_numero",
+        "ensure_auto_finalizar_consultas_schedule",
     ),
     "crm_vendas": (
         "ensure_relatorio_comissao_table",

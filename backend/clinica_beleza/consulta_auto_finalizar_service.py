@@ -1,11 +1,7 @@
 """Auto-finalização de consultas esquecidas em andamento (IN_PROGRESS).
 
-Regras:
-- Consulta SEM procedimentos: finaliza após o término previsto + margem.
-- Consulta COM procedimentos: finaliza após o término previsto + margem maior.
-- Nunca finaliza se houve atividade recente na consulta (updated_at).
-
-Roda a cada 15 min via cron (executar_cron_lwks).
+Regra: 5 horas após o fim do agendamento (início + duração efetiva).
+Roda a cada 15 min no worker Django-Q e no cron LWK.
 """
 import logging
 from datetime import timedelta
@@ -14,11 +10,7 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-# Margem após o fim previsto (atendimentos longos / multi-procedimento)
-MARGEM_SEM_PROCEDIMENTO_HORAS = 4
-MARGEM_COM_PROCEDIMENTO_HORAS = 8
-# Se o profissional ainda edita a consulta, não auto-finaliza
-INATIVIDADE_MINIMA_HORAS = 3
+MARGEM_APOS_FIM_AGENDAMENTO_HORAS = 5
 
 
 def _lojas_clinica_beleza():
@@ -27,28 +19,33 @@ def _lojas_clinica_beleza():
     return lojas_clinica_beleza_com_schema(apenas_ativas=True)
 
 
-def _consulta_tem_procedimentos(consulta) -> bool:
-    """Verifica se a consulta/appointment tem procedimentos associados."""
-    appointment = consulta.appointment
-    return bool(appointment.appointment_procedures.exists() or appointment.procedure_id)
-
-
-def _horario_limite_finalizacao(consulta) -> timezone.datetime:
-    """Calcula o horário limite para auto-finalização:
-    - data_inicio + duração efetiva + margem de tolerância.
-    """
-    if not consulta.data_inicio:
+def _fim_agendamento(consulta):
+    """Fim previsto do horário agendado: data do appointment + duração efetiva."""
+    appointment = getattr(consulta, "appointment", None)
+    inicio = None
+    if appointment is not None:
+        inicio = getattr(appointment, "date", None)
+    if inicio is None:
+        inicio = getattr(consulta, "data_inicio", None)
+    if inicio is None:
         return None
+    duracao = 30
+    if appointment is not None and hasattr(appointment, "get_duracao_efetiva"):
+        try:
+            duracao = int(appointment.get_duracao_efetiva() or 30)
+        except Exception:
+            duracao = 30
+    if duracao < 1:
+        duracao = 30
+    return inicio + timedelta(minutes=duracao)
 
-    appointment = consulta.appointment
-    duracao_efetiva = appointment.get_duracao_efetiva()
 
-    tem_procedimentos = _consulta_tem_procedimentos(consulta)
-    margem_horas = MARGEM_COM_PROCEDIMENTO_HORAS if tem_procedimentos else MARGEM_SEM_PROCEDIMENTO_HORAS
-
-    fim_previsto = consulta.data_inicio + timedelta(minutes=duracao_efetiva)
-    limite = fim_previsto + timedelta(hours=margem_horas)
-    return limite
+def _horario_limite_finalizacao(consulta) -> timezone.datetime | None:
+    """Horário em que a consulta pode ser auto-finalizada (fim do agendamento + 5h)."""
+    fim = _fim_agendamento(consulta)
+    if fim is None:
+        return None
+    return fim + timedelta(hours=MARGEM_APOS_FIM_AGENDAMENTO_HORAS)
 
 
 def finalizar_consultas_esquecidas() -> int:
@@ -79,20 +76,12 @@ def finalizar_consultas_esquecidas() -> int:
                 .prefetch_related("appointment__appointment_procedures__procedure")
             )
 
-            # Django exige chunk_size quando iterator() é usado com prefetch_related()
             for consulta in consultas_em_andamento.iterator(chunk_size=100):
                 try:
                     limite = _horario_limite_finalizacao(consulta)
-                    if limite is None:
-                        continue
-                    if agora < limite:
-                        continue
-                    # Atividade recente (evolução, produtos, etc.) → ainda em uso
-                    ref_atividade = consulta.updated_at or consulta.data_inicio
-                    if ref_atividade and (agora - ref_atividade) < timedelta(hours=INATIVIDADE_MINIMA_HORAS):
+                    if limite is None or agora < limite:
                         continue
 
-                    # Auto-finalizar a consulta (pula verificação de estoque)
                     finalizar_consulta(consulta, skip_estoque=True)
                     total += 1
                     logger.info(
@@ -100,7 +89,7 @@ def finalizar_consultas_esquecidas() -> int:
                         "(início=%s, limite=%s)",
                         consulta.id, loja.id,
                         consulta.patient.nome if consulta.patient_id else "?",
-                        consulta.data_inicio.isoformat(),
+                        consulta.data_inicio.isoformat() if consulta.data_inicio else "?",
                         limite.isoformat(),
                     )
                 except Exception as exc:

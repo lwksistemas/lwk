@@ -18,7 +18,6 @@ from core.media_storage import (
     normalize_media_folder,
     normalize_media_tenant,
     parse_media_url,
-    pasta_media_paciente,
 )
 from superadmin.models import Loja
 from tenants.middleware import get_current_loja_id
@@ -79,46 +78,54 @@ def _resolve_media_tenant(request):
     return None, Response({"error": "Loja não identificada"}, status=status.HTTP_400_BAD_REQUEST)
 
 
+def _buscar_paciente_midia(patient_id):
+    """Localiza paciente da estética ou do consultório. Não quebra se a tabela não existir no tenant."""
+    try:
+        pk = int(patient_id)
+    except (TypeError, ValueError):
+        return None
+
+    try:
+        from clinica_beleza.models import Patient
+
+        paciente = Patient.objects.filter(pk=pk).first()
+        if paciente:
+            return paciente
+    except Exception:
+        pass
+
+    try:
+        from clinica_geral.models import Paciente
+
+        return Paciente.objects.filter(pk=pk).first()
+    except Exception:
+        return None
+
+
 def _resolver_folder_upload(request) -> str:
-    """Resolve pasta de destino: {paciente}/{tipo} ou admin/{tipo}.
-
-    Nova estrutura:
-      - Com paciente: {slug-paciente}/fotos  ou  {slug-paciente}/docs
-      - Sem paciente: admin/fotos  ou  admin/docs
-
-    O campo 'folder' do request define o tipo (fotos, docs, avatars, etc).
-    """
+    """Resolve pasta de destino: {paciente}/fotos, {paciente}/pdf ou pasta da loja."""
     folder_raw = (request.data.get("folder") or "fotos").strip().strip("/")
-    # Tipo de arquivo: fotos, docs, avatars, recibos, contratos
     tipo = folder_raw.split("/")[0] if folder_raw else "fotos"
     if tipo not in _ALLOWED_ROOT_FOLDERS:
         tipo = "fotos"
 
     patient_id = request.data.get("patient_id")
     if patient_id not in (None, ""):
-        try:
-            from clinica_beleza.models import Patient
-
-            paciente = Patient.objects.filter(pk=int(patient_id)).first()
-            if paciente:
-                slug = pasta_media_paciente(paciente)
-                return f"{slug}/{tipo}"
-        except (TypeError, ValueError, ImportError):
-            pass
+        paciente = _buscar_paciente_midia(patient_id)
+        if paciente:
+            return folder_media_paciente(tipo, paciente)
 
     nome = (request.data.get("patient_nome") or request.data.get("patient_name") or "").strip()
     cpf = (request.data.get("patient_cpf") or "").strip()
     if nome or cpf:
         stub = SimpleNamespace(name=nome or "paciente", nome=nome or "paciente", cpf=cpf, id=None)
-        slug = pasta_media_paciente(stub)
-        return f"{slug}/{tipo}"
+        return folder_media_paciente(tipo, stub)
 
     if "/" in folder_raw:
         normalized = normalize_media_folder(folder_raw)
         if normalized:
             return normalized
 
-    # Sem paciente: pasta admin
     return f"admin/{tipo}"
 
 
@@ -134,7 +141,10 @@ def media_upload(request):
     if not file:
         return Response({"error": "Nenhum arquivo enviado"}, status=status.HTTP_400_BAD_REQUEST)
 
-    folder = _resolver_folder_upload(request)
+    try:
+        folder = _resolver_folder_upload(request)
+    except Exception:
+        folder = "fotos"
 
     url = media_upload_tenant(tenant, file.read(), filename=file.name or "upload", folder=folder)
 

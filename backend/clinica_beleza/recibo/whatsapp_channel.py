@@ -45,6 +45,13 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
             token = hashlib.sha256(token_raw.encode()).hexdigest()[:32]
 
             pdf_bytes = _gerar_pdf_recibo(ctx)
+            from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+            arquivar_pdf_gerado(
+                getattr(payment, "loja_id", None),
+                patient,
+                pdf_bytes,
+                f"recibo_{payment.id}.pdf",
+            )
             django_cache.set(
                 f"recibo_pdf_{token}",
                 {"payment_id": payment.id, "pdf": pdf_bytes},

@@ -399,6 +399,13 @@ def _enviar_recibo_email(payment, cliente, agendamento) -> tuple[bool, str]:
 
         ctx = _obter_dados_contexto(payment, cliente, agendamento)
         pdf_bytes = _gerar_pdf_recibo(ctx)
+        from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+        arquivar_pdf_gerado(
+            getattr(payment, "loja_id", None),
+            cliente,
+            pdf_bytes,
+            f"recibo_{payment.id}.pdf",
+        )
         msg = create_email_multipart(
             subject=f'Recibo de Pagamento — {ctx["loja_nome"] or "Salão"}',
             body=_montar_email_texto(ctx),
@@ -442,6 +449,13 @@ def _enviar_recibo_whatsapp(payment, cliente, agendamento) -> tuple[bool, str]:
 
             token = make_recibo_pdf_token(payment.id, payment.loja_id)
             pdf_bytes = _gerar_pdf_recibo(ctx)
+            from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+            arquivar_pdf_gerado(
+                getattr(payment, "loja_id", None),
+                cliente,
+                pdf_bytes,
+                f"recibo_{payment.id}.pdf",
+            )
             django_cache.set(
                 f"recibo_pdf_salao_{token}",
                 {"payment_id": payment.id, "pdf": pdf_bytes},

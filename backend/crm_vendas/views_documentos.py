@@ -97,7 +97,16 @@ class PropostaViewSet(
         try:
             incluir_assinaturas = proposta.status_assinatura == "concluido"
             pdf_buffer = gerar_pdf_proposta(proposta, incluir_assinaturas=incluir_assinaturas)
-            response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
+            pdf_bytes = pdf_buffer.getvalue()
+            from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+            lead = getattr(getattr(proposta, "oportunidade", None), "lead", None)
+            arquivar_pdf_gerado(
+                getattr(proposta, "loja_id", None),
+                lead,
+                pdf_bytes,
+                f"proposta_{proposta.numero or proposta.id}.pdf",
+            )
+            response = HttpResponse(pdf_bytes, content_type="application/pdf")
             filename = (
                 f'proposta_{proposta.numero or proposta.id}_'
                 f'{proposta.titulo.replace(" ", "_")}.pdf'
@@ -195,7 +204,16 @@ class ContratoViewSet(
         try:
             incluir_assinaturas = contrato.status_assinatura == "concluido"
             pdf_buffer = gerar_pdf_contrato(contrato, incluir_assinaturas=incluir_assinaturas)
-            response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
+            pdf_bytes = pdf_buffer.getvalue()
+            from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+            lead = getattr(getattr(contrato, "oportunidade", None), "lead", None)
+            arquivar_pdf_gerado(
+                getattr(contrato, "loja_id", None),
+                lead,
+                pdf_bytes,
+                f"contrato_{contrato.numero or contrato.id}.pdf",
+            )
+            response = HttpResponse(pdf_bytes, content_type="application/pdf")
             filename = (
                 f'contrato_{contrato.numero or contrato.id}_'
                 f'{contrato.titulo.replace(" ", "_")}.pdf'

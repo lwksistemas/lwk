@@ -61,12 +61,20 @@ class ProntuarioPDFView(APIView):
         secao = request.query_params.get("secao")
 
         try:
+            patient = Patient.objects.filter(pk=patient_id).first()
             if secao:
                 buffer = gerar_pdf_secao(patient_id, secao)
                 filename = f"prontuario_{secao}_{patient_id}.pdf"
             else:
                 buffer = gerar_pdf_prontuario_completo(patient_id)
                 filename = f"prontuario_completo_{patient_id}.pdf"
+            from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+            arquivar_pdf_gerado(
+                getattr(patient, "loja_id", None),
+                patient,
+                buffer.getvalue(),
+                filename,
+            )
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
@@ -105,6 +113,8 @@ class DocumentoPDFView(GetObjectMixin, APIView):
 
         tipo = obj.tipo or "documento"
         filename = f"{tipo}_{obj.id}.pdf"
+        from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+        arquivar_pdf_gerado(obj.loja_id, obj.patient, buffer.getvalue(), filename)
         response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="{filename}"'
         return response

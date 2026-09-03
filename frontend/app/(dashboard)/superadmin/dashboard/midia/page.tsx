@@ -262,7 +262,7 @@ export default function ServidorMidiaPage() {
                     <div className="mt-1 text-xs text-gray-500">
                       {f.file_count} arquivo{f.file_count === 1 ? '' : 's'}
                       {f.subfolder_count
-                        ? ` · ${f.subfolder_count} paciente${f.subfolder_count === 1 ? '' : 's'}`
+                        ? ` · ${f.subfolder_count} pasta${f.subfolder_count === 1 ? '' : 's'}`
                         : ''}
                     </div>
                   </button>
@@ -376,7 +376,7 @@ export default function ServidorMidiaPage() {
                       {!files.length && !!subfolders.length && (
                         <tr>
                           <td colSpan={5} className="px-4 py-4 text-center text-gray-500">
-                            Sem arquivos soltos nesta pasta — abra a pasta do paciente acima.
+                            Sem arquivos soltos nesta pasta — abra uma subpasta acima.
                           </td>
                         </tr>
                       )}

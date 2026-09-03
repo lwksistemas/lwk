@@ -1,6 +1,6 @@
-"""Service para salvar documentos (PDFs) no servidor de mídia na pasta do paciente.
+"""Service para salvar PDFs gerados na pasta do paciente/cliente.
 
-Estrutura: /storage/{cnpj}/{paciente_slug}/docs/{arquivo}.pdf
+Estrutura: /storage/{cnpj}/{paciente_slug}/pdf/{arquivo}.pdf
 """
 import logging
 import re
@@ -28,25 +28,16 @@ def salvar_pdf_paciente(
     pdf_bytes: bytes,
     filename: str,
 ) -> str | None:
-    """Salva PDF na pasta docs/ do paciente no servidor de mídia.
-
-    Args:
-        loja_id: ID da loja
-        patient: objeto Patient (com nome, cpf)
-        pdf_bytes: conteúdo do PDF
-        filename: nome do arquivo (ex: termo_botox_20260815.pdf)
-
-    Returns:
-        URL pública do arquivo ou None em caso de erro.
-    """
+    """Salva PDF na pasta pdf/ do paciente ou cliente no servidor de mídia."""
     tenant = _resolver_tenant_loja(loja_id)
     if not tenant:
         logger.warning("salvar_pdf_paciente: loja %s sem tenant válido", loja_id)
         return None
+    if not patient or not pdf_bytes:
+        return None
 
-    # Pasta: {paciente_slug}/docs/
     slug = pasta_media_paciente(patient)
-    folder = f"{slug}/docs"
+    folder = f"{slug}/pdf"
 
     url = media_upload_tenant(tenant, pdf_bytes, filename=filename, folder=folder)
     if url:
@@ -56,8 +47,24 @@ def salvar_pdf_paciente(
     return url
 
 
+def arquivar_pdf_gerado(
+    loja_id: int | None,
+    pessoa: Any,
+    pdf_bytes: bytes | None,
+    filename: str,
+) -> str | None:
+    """Arquiva PDF gerado sem interromper o fluxo principal."""
+    if not loja_id or not pessoa or not pdf_bytes:
+        return None
+    try:
+        return salvar_pdf_paciente(int(loja_id), pessoa, pdf_bytes, filename)
+    except Exception as exc:
+        logger.warning("Erro ao arquivar PDF %s: %s", filename, exc)
+        return None
+
+
 def _salvar_termo_no_servidor_midia(adapter, termo_proc, loja_id: int) -> str | None:
-    """Salva o PDF do termo de consentimento assinado no servidor de mídia."""
+    """Salva o PDF do termo de consentimento assinado na pasta pdf/ do paciente."""
     try:
         pdf_buffer = adapter.gerar_pdf(termo_proc, incluir_assinaturas=True)
         pdf_buffer.seek(0)
@@ -65,7 +72,6 @@ def _salvar_termo_no_servidor_midia(adapter, termo_proc, loja_id: int) -> str | 
 
         patient = getattr(termo_proc, "patient", None)
         if not patient:
-            # Tentar via consulta
             consulta = getattr(termo_proc, "consulta", None)
             if consulta:
                 patient = getattr(consulta, "patient", None)
@@ -90,7 +96,7 @@ def _salvar_termo_no_servidor_midia(adapter, termo_proc, loja_id: int) -> str | 
 
 
 def salvar_orcamento_no_servidor_midia(orcamento, pdf_bytes: bytes) -> str | None:
-    """Salva o PDF do orçamento no servidor de mídia ({paciente}/docs/)."""
+    """Salva o PDF do orçamento no servidor de mídia ({paciente}/pdf/)."""
     try:
         patient = orcamento.patient
         if not patient:

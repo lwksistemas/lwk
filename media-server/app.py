@@ -1,8 +1,8 @@
 """API de upload/listagem de mídia — LWK Sistemas.
 
 Estrutura em disco:
-  /storage/{tenant}/{fotos|docs|...}/{arquivo}
-  /storage/{tenant}/{fotos|docs|...}/{nome_cpf_paciente}/{arquivo}
+  /storage/{tenant}/{nome_cpf_paciente}/fotos|pdf/{arquivo}
+  /storage/{tenant}/{fotos|docs|...}/{nome_cpf_paciente}/{arquivo}  (legado)
   /storage/{cpf_cnpj}_{nome-empresa}/dicom|docs/{cpf_paciente}/{arquivo}
 
 Endpoints:
@@ -28,11 +28,10 @@ SYSTEM_TENANTS = frozenset({"superadmin", "suporte"})
 TENANT_RE = re.compile(
     r"^(?:\d{11}|\d{14}|superadmin|suporte|\d{11,14}_[a-z0-9][a-z0-9_-]{0,80})$"
 )
-ALLOWED_FOLDERS = ("fotos", "docs", "avatars", "recibos", "contratos", "dicom")
-# pasta raiz OU pasta/paciente (slug_nome + cpf ou só cpf)
+ALLOWED_FOLDERS = ("fotos", "docs", "pdf", "avatars", "recibos", "contratos", "dicom")
+# pasta raiz, tipo/paciente (legado) ou paciente/tipo (fotos|pdf)
 FOLDER_PATH_RE = re.compile(
-    r"^(?P<root>fotos|docs|avatars|recibos|contratos|dicom)"
-    r"(?:/(?P<sub>[a-z0-9][a-z0-9_-]{0,100}|\d{11}|paciente-id\d+))?$"
+    r"^[a-z0-9][a-z0-9_./-]{0,200}$"
 )
 MAX_FILES_PER_FOLDER = 500
 
@@ -61,14 +60,11 @@ def normalize_tenant(raw: str) -> str | None:
 
 def normalize_folder_path(raw: str) -> str | None:
     value = (raw or "").strip().strip("/")
-    if not value:
+    if not value or ".." in value:
         return None
-    match = FOLDER_PATH_RE.fullmatch(value)
-    if not match:
+    if not FOLDER_PATH_RE.fullmatch(value):
         return None
-    root = match.group("root")
-    sub = match.group("sub")
-    return f"{root}/{sub}" if sub else root
+    return value
 
 
 def _safe_under_storage(path: Path) -> bool:
@@ -149,7 +145,7 @@ def list_tenants():
                 continue
             folders = sorted(
                 x.name for x in d.iterdir()
-                if x.is_dir() and x.name in ALLOWED_FOLDERS
+                if x.is_dir() and not x.name.startswith(".")
             )
             tenants.append({
                 "tenant": d.name,
@@ -174,7 +170,7 @@ def list_folders(tenant):
 
     folders = []
     for d in sorted(base.iterdir(), key=lambda p: p.name):
-        if not d.is_dir() or d.name not in ALLOWED_FOLDERS:
+        if not d.is_dir() or d.name.startswith("."):
             continue
         try:
             file_count = sum(1 for f in d.iterdir() if f.is_file())

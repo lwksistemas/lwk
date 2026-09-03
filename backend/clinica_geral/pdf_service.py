@@ -10,7 +10,10 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
-def pdf_response(data: bytes, filename: str) -> HttpResponse:
+def pdf_response(data: bytes, filename: str, paciente=None) -> HttpResponse:
+    if paciente is not None:
+        from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+        arquivar_pdf_gerado(getattr(paciente, "loja_id", None), paciente, data, filename)
     resp = HttpResponse(data, content_type="application/pdf")
     resp["Content-Disposition"] = f'inline; filename="{filename}"'
     return resp

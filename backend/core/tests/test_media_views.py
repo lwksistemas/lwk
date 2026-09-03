@@ -14,7 +14,7 @@ class ResolverFolderUploadTest(SimpleTestCase):
         )
         with patch("core.media_views._buscar_paciente_midia", return_value=None):
             pasta = _resolver_folder_upload(request)
-        self.assertTrue(pasta.startswith("fotos/"))
+        self.assertTrue(pasta.endswith("/fotos"))
         self.assertIn("mariela", pasta)
 
     def test_buscar_paciente_sobrevive_tabela_ausente(self):
@@ -30,3 +30,10 @@ class ResolverFolderUploadTest(SimpleTestCase):
     def test_sem_paciente_fica_na_pasta_do_tipo(self):
         pasta = _resolver_folder_upload(SimpleNamespace(data={"folder": "docs"}))
         self.assertEqual(pasta, "docs")
+
+    def test_docs_do_paciente_vao_para_pdf(self):
+        request = SimpleNamespace(
+            data={"folder": "docs", "patient_nome": "Marcia Bataglia", "patient_cpf": "12345678901"}
+        )
+        pasta = _resolver_folder_upload(request)
+        self.assertEqual(pasta, "marcia-bataglia_12345678901/pdf")

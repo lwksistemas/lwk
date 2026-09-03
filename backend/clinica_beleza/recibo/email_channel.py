@@ -26,6 +26,13 @@ def _enviar_recibo_email(payment, patient, appointment) -> tuple[bool, str]:
 
         ctx = _obter_dados_contexto(payment, patient, appointment)
         pdf_bytes = _gerar_pdf_recibo(ctx)
+        from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+        arquivar_pdf_gerado(
+            getattr(payment, "loja_id", None),
+            patient,
+            pdf_bytes,
+            f"recibo_{payment.id}.pdf",
+        )
 
         assunto = f'Recibo de Pagamento — {ctx["loja_nome"] or "Clínica"}'
         corpo_html = _montar_email_html(ctx)

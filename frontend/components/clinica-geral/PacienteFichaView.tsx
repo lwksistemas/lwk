@@ -156,7 +156,7 @@ export function PacienteFichaView({
         <h3 className="mb-3 text-sm font-semibold text-slate-700">Anexos</h3>
         <ImageUploadMedia
           compact
-          folder="docs"
+          folder="pdf"
           accept="image/*,.pdf,.doc,.docx"
           buttonLabel="Adicionar Documento"
           patientId={paciente.id}

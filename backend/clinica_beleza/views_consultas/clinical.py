@@ -112,6 +112,8 @@ class ConsultaSecaoPDFView(APIView):
             )
 
         filename = f"consulta_{consulta_id}_{secao}.pdf"
+        from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+        arquivar_pdf_gerado(consulta.loja_id, consulta.patient, buffer.getvalue(), filename)
         response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="{filename}"'
         return response

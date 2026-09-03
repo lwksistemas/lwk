@@ -178,7 +178,7 @@ class ConsultaAssinaturaPublicaView(View):
 
         if novo_status == "concluido":
             enviar_pdf_final(adapter, termo_proc, loja_id)
-            # Salvar PDF do termo assinado no servidor de mídia ({paciente}/docs/)
+            # Salvar PDF do termo assinado no servidor de mídia ({paciente}/pdf/)
             with suppress(Exception):
                 _salvar_termo_no_servidor_midia(adapter, termo_proc, loja_id)
             with suppress(Exception):

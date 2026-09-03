@@ -202,11 +202,11 @@ def buscar_pdf_url_memed(prescritor_id: str, prescricao_id: str) -> str:
 
 
 def arquivar_pdf_bytes_media(loja, conteudo: bytes, patient=None) -> str:
-    """Envia bytes de PDF ao servidor de mídia (docs/{paciente}/). Retorna URL ou vazio."""
+    """Envia bytes de PDF ao servidor de mídia ({paciente}/pdf/). Retorna URL ou vazio."""
     if not conteudo or len(conteudo) < 200 or conteudo[:4] != b"%PDF":
         return ""
     try:
-        folder = folder_media_paciente("docs", patient)
+        folder = folder_media_paciente("pdf", patient)
         return (
             media_upload(loja, conteudo, filename="prescricao.pdf", folder=folder) or ""
         ).strip()
@@ -216,14 +216,14 @@ def arquivar_pdf_bytes_media(loja, conteudo: bytes, patient=None) -> str:
 
 
 def arquivar_pdf_media(loja, pdf_url: str, patient=None) -> str:
-    """Baixa o PDF da Memed e salva no servidor de mídia (docs/{paciente}/).
+    """Baixa o PDF da Memed e salva no servidor de mídia ({paciente}/pdf/).
     Retorna URL arquivada ou a original se falhar.
     """
     url = (pdf_url or "").strip()
     if not url or not _URL_HTTP.match(url):
         return ""
     try:
-        folder = folder_media_paciente("docs", patient)
+        folder = folder_media_paciente("pdf", patient)
         arquivada = media_upload_from_url(loja, url, folder=folder)
         return (arquivada or url).strip()
     except Exception as exc:

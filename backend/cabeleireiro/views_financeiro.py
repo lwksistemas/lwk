@@ -156,6 +156,9 @@ class ReciboPdfPublicView(APIView):
                     "agendamento__servico",
                 ).get(pk=pk, loja_id=loja_id)
                 pdf_bytes = gerar_pdf_recibo_payment(payment)
+                from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+                cliente = getattr(getattr(payment, "agendamento", None), "cliente", None)
+                arquivar_pdf_gerado(loja_id, cliente, pdf_bytes, f"recibo_{pk}.pdf")
             finally:
                 set_current_loja_id(None)
                 set_current_tenant_db("default")

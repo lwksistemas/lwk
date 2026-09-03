@@ -51,6 +51,7 @@ class PrescricaoViewSet(BaseModelViewSet):
         return pdf_response(
             pdf_receita(presc, presc.consulta, presc.paciente, get_or_create_config()),
             f"receita-{presc.id}.pdf",
+            paciente=presc.paciente,
         )
 
 
@@ -65,4 +66,5 @@ class EvolucaoPDFView(APIView):
         return pdf_response(
             pdf_evolucao(ev, ev.consulta, ev.paciente, get_or_create_config()),
             f"evolucao-{ev.id}.pdf",
+            paciente=ev.paciente,
         )

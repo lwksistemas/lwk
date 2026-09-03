@@ -290,6 +290,13 @@ class ConsultaDownloadTermoPdfView(GetObjectMixin, APIView):
         nome_proc = termo_proc.procedure.nome.replace(" ", "_")[:40]
         from django.utils import timezone as dj_tz
         stamp = dj_tz.localtime().strftime("%H%M%S")
+        from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+        arquivar_pdf_gerado(
+            consulta.loja_id,
+            consulta.patient,
+            pdf.getvalue(),
+            f"termo_{nome_proc}_{pk}.pdf",
+        )
         response = HttpResponse(pdf.getvalue(), content_type="application/pdf")
         response["Cache-Control"] = "no-store"
         response["Content-Disposition"] = (

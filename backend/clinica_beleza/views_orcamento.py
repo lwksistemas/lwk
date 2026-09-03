@@ -89,6 +89,14 @@ class OrcamentoPDFView(APIView):
     def get(self, request, orcamento_id):
         try:
             pdf_bytes = gerar_pdf_orcamento(orcamento_id)
+            try:
+                from clinica_beleza.media_docs_service import salvar_orcamento_no_servidor_midia
+                from clinica_beleza.models.orcamento import OrcamentoConsulta
+                orcamento = OrcamentoConsulta.objects.select_related("patient").filter(pk=orcamento_id).first()
+                if orcamento:
+                    salvar_orcamento_no_servidor_midia(orcamento, pdf_bytes)
+            except Exception:
+                logger.warning("Falha ao arquivar PDF do orçamento %s", orcamento_id, exc_info=True)
             response = HttpResponse(pdf_bytes, content_type="application/pdf")
             response["Content-Disposition"] = f'inline; filename="orcamento_{orcamento_id}.pdf"'
             return response

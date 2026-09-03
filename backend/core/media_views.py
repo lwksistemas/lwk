@@ -18,7 +18,6 @@ from core.media_storage import (
     normalize_media_folder,
     normalize_media_tenant,
     parse_media_url,
-    pasta_media_paciente,
 )
 from superadmin.models import Loja
 from tenants.middleware import get_current_loja_id
@@ -104,7 +103,7 @@ def _buscar_paciente_midia(patient_id):
 
 
 def _resolver_folder_upload(request) -> str:
-    """Resolve pasta de destino no servidor de mídia: fotos/{paciente} ou fotos."""
+    """Resolve pasta de destino: {paciente}/fotos, {paciente}/pdf ou pasta da loja."""
     folder_raw = (request.data.get("folder") or "fotos").strip().strip("/")
     tipo = folder_raw.split("/")[0] if folder_raw else "fotos"
     if tipo not in _ALLOWED_ROOT_FOLDERS:

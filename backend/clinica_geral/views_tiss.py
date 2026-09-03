@@ -47,4 +47,5 @@ class GuiaTissViewSet(BaseModelViewSet):
         return pdf_response(
             pdf_guia_tiss(guia, guia.consulta, guia.consulta.paciente, get_or_create_config()),
             f"guia-tiss-{guia.numero_guia or guia.id}.pdf",
+            paciente=guia.consulta.paciente,
         )

@@ -19,7 +19,7 @@ HOSTS_BLOQUEADOS = frozenset({
 
 
 def validar_foto_loja(loja, foto_url: str, public_id: str = "") -> None:
-    """Garante host exato do media server + path /files/{cnpj}/fotos[/paciente]/..."""
+    """Garante host exato do media server + path /files/{cnpj}/fotos/... ou /{paciente}/fotos/..."""
     del public_id  # mantido por compatibilidade da assinatura
     url = (foto_url or "").strip()
     if not url.startswith("https://"):
@@ -46,8 +46,8 @@ def validar_foto_loja(loja, foto_url: str, public_id: str = "") -> None:
     cnpj = _cpf_cnpj_digits(loja)
     if not cnpj or tenant != cnpj:
         raise FotoUrlInvalida("Imagem fora da pasta autorizada desta clínica.")
-    root = (folder or "").split("/", 1)[0]
-    if root not in FOLDERS_FOTO_PACIENTE:
+    partes = [p for p in (folder or "").split("/") if p]
+    if not partes or not (partes[0] in FOLDERS_FOTO_PACIENTE or partes[-1] in FOLDERS_FOTO_PACIENTE):
         raise FotoUrlInvalida("Pasta de mídia não autorizada para fotos de paciente.")
     if not filename or ".." in filename or "/" in filename or "\\" in filename:
         raise FotoUrlInvalida("Nome de arquivo inválido.")

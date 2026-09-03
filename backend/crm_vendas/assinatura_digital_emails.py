@@ -135,6 +135,8 @@ def enviar_pdf_final(documento, loja_id):
     pdf_bytes = pdf_buffer.read()
 
     lead = documento.oportunidade.lead
+    from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+    arquivar_pdf_gerado(loja_id, lead, pdf_bytes, filename if False else "")
     vendedor = documento.oportunidade.vendedor
     loja = Loja.objects.using("default").filter(id=loja_id).first()
     loja_nome = loja.nome if loja else "Sistema"
@@ -151,6 +153,8 @@ def enviar_pdf_final(documento, loja_id):
         return False, "Nenhum destinatário com email cadastrado."
 
     filename = f"{tipo_doc.lower()}_{documento.titulo or documento.id}_assinado.pdf"
+    from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+    arquivar_pdf_gerado(loja_id, lead, pdf_bytes, filename)
 
     html_content, texto_plano = montar_email_pdf_final(
         documento=documento,

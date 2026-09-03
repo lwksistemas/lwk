@@ -126,7 +126,7 @@ def enviar_orcamento(orcamento_id: int, canais: list[str]) -> dict[str, Any]:
     if "whatsapp" in canais:
         resultado["whatsapp"] = _enviar_whatsapp(orcamento, pdf_bytes)
 
-    # Salvar PDF no servidor de mídia ({paciente}/docs/)
+    # Salvar PDF no servidor de mídia ({paciente}/pdf/)
     try:
         from clinica_beleza.media_docs_service import salvar_orcamento_no_servidor_midia
         salvar_orcamento_no_servidor_midia(orcamento, pdf_bytes)

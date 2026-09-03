@@ -2,17 +2,20 @@
 
 Faz upload/download no servidor media.lwksistemas.com.br.
 Estrutura:
-  /storage/{cpf_cnpj}/fotos|docs|.../{arquivo}
-  /storage/{cpf_cnpj}/fotos|docs|.../{nome_cpf_paciente}/{arquivo}
-  /storage/{cpf_cnpj}_{nome-empresa}/dicom|docs/{cpf_paciente}/{arquivo}
+  /storage/{cpf_cnpj}/{nome_cpf_paciente}/fotos/{arquivo}
+  /storage/{cpf_cnpj}/{nome_cpf_paciente}/pdf/{arquivo}
+  /storage/{cpf_cnpj}/loja|admin/avatars|fotos/{arquivo}
+  /storage/{cpf_cnpj}_{nome-empresa}/dicom/{cpf_paciente}/{arquivo}
   /storage/superadmin/...
   /storage/suporte/...
+
+Legado ainda lido: /storage/{cpf_cnpj}/fotos|docs/{paciente}/{arquivo}
 
 Uso:
     from core.media_storage import media_upload, media_url
 
-    url = media_upload(loja, file_bytes, filename="foto.jpg", folder="fotos/maria-silva_12345678901")
-    # Retorna: https://media.lwksistemas.com.br/files/41449198000172/fotos/maria-silva_123.../abc.jpg
+    url = media_upload(loja, file_bytes, filename="foto.jpg", folder="maria-silva_12345678901/fotos")
+    # Retorna: https://media.lwksistemas.com.br/files/41449198000172/maria-silva_123.../fotos/abc.jpg
 """
 import logging
 import os
@@ -40,13 +43,13 @@ MEDIA_SYSTEM_TENANTS = frozenset({MEDIA_TENANT_SUPERADMIN, MEDIA_TENANT_SUPORTE}
 # Compat: imports antigos
 MEDIA_SYSTEM_CNPJ = MEDIA_TENANT_SUPERADMIN
 
-_ALLOWED_ROOT_FOLDERS = ("fotos", "docs", "avatars", "recibos", "contratos", "dicom")
+_ALLOWED_ROOT_FOLDERS = ("fotos", "docs", "pdf", "avatars", "recibos", "contratos", "dicom")
+_TIPOS_PDF_PACIENTE = frozenset({"pdf", "docs", "recibos", "contratos"})
 
-# /files/{tenant}/{root}[/{paciente}]/{filename}
+# /files/{tenant}/{pasta}/{arquivo}  ou  /files/{tenant}/{pasta}/{sub}/{arquivo}
 _FILES_PATH_RE = re.compile(
     r"/files/(?P<tenant>\d{11}|\d{14}|superadmin|suporte|\d{11,14}_[a-z0-9][a-z0-9_-]{0,80})"
-    r"/(?P<root>fotos|docs|avatars|recibos|contratos|dicom)"
-    r"(?:/(?P<sub>[a-z0-9][a-z0-9_-]{0,100}|\d{11}|paciente-id\d+))?"
+    r"/(?P<folder>[a-z0-9][a-z0-9_-]{0,100}(?:/[a-z0-9][a-z0-9_-]{0,100})?)"
     r"/(?P<filename>[^/?#]+)$"
 )
 
@@ -118,8 +121,8 @@ def folder_media_paciente_cpf(root: str, patient) -> str:
 
 
 def pasta_media_paciente(patient) -> str:
-    """Slug estável para subpasta do paciente: {nome}_{cpf} ou {nome}_id{id}."""
-    # Patient usa `name`; alguns stubs usam `nome`.
+    """Slug estável para subpasta do paciente/cliente: {nome}_{cpf} ou {nome}_id{id}."""
+    # Patient usa `name`; alguns stubs usam `nome`. CRM Lead usa `cpf_cnpj`.
     nome_raw = (
         getattr(patient, "nome", None)
         or getattr(patient, "name", None)
@@ -130,23 +133,35 @@ def pasta_media_paciente(patient) -> str:
     nome_ascii = "".join(c for c in nome_norm if not unicodedata.combining(c))
     nome_slug = re.sub(r"[^a-z0-9]+", "-", nome_ascii.lower()).strip("-")[:50] or "paciente"
 
-    cpf = re.sub(r"\D", "", getattr(patient, "cpf", None) or "")
-    if len(cpf) == 11:
-        return f"{nome_slug}_{cpf}"
+    doc = re.sub(
+        r"\D",
+        "",
+        getattr(patient, "cpf", None) or getattr(patient, "cpf_cnpj", None) or "",
+    )
+    if len(doc) in (11, 14):
+        return f"{nome_slug}_{doc}"
     pid = getattr(patient, "id", None)
     if pid:
         return f"{nome_slug}_id{pid}"
     return nome_slug
 
 
+def tipo_pasta_paciente(root: str) -> str:
+    """Normaliza o tipo da subpasta do paciente. PDFs do sistema vão para pdf/."""
+    raw = (root or "fotos").strip().strip("/").split("/")[0]
+    if raw in _TIPOS_PDF_PACIENTE:
+        return "pdf"
+    if raw in _ALLOWED_ROOT_FOLDERS:
+        return raw
+    return "fotos"
+
+
 def folder_media_paciente(root: str, patient) -> str:
-    """Pasta raiz ou raiz/{slug-paciente} para separar arquivos por paciente."""
-    root_ok = (root or "fotos").strip().strip("/").split("/")[0]
-    if root_ok not in _ALLOWED_ROOT_FOLDERS:
-        root_ok = "fotos"
+    """Pasta do paciente/cliente: {slug}/fotos ou {slug}/pdf."""
+    tipo = tipo_pasta_paciente(root)
     if patient is None:
-        return root_ok
-    return f"{root_ok}/{pasta_media_paciente(patient)}"
+        return tipo
+    return f"{pasta_media_paciente(patient)}/{tipo}"
 
 
 def normalize_media_tenant(value: str | None) -> str | None:
@@ -369,7 +384,7 @@ def is_media_url(url: str) -> bool:
 def parse_media_url(url: str) -> tuple[str, str, str] | None:
     """Extrai (tenant, folder_path, filename) de uma URL pública de mídia.
 
-    ``folder_path`` é ``fotos`` ou ``fotos/nome_cpf``.
+    ``folder_path`` é ``fotos``, ``fotos/nome_cpf`` ou ``nome_cpf/pdf``.
     """
     from urllib.parse import urlparse
 
@@ -379,10 +394,7 @@ def parse_media_url(url: str) -> tuple[str, str, str] | None:
     match = _FILES_PATH_RE.fullmatch(path)
     if not match:
         return None
-    root = match.group("root")
-    sub = match.group("sub")
-    folder_path = f"{root}/{sub}" if sub else root
-    return match.group("tenant"), folder_path, match.group("filename")
+    return match.group("tenant"), match.group("folder"), match.group("filename")
 
 
 def media_delete_by_url(url: str) -> bool:
@@ -436,6 +448,55 @@ def media_list_folders(tenant: str) -> dict | None:
     except Exception as exc:
         logger.exception("media_list_folders erro: %s", exc)
         return None
+
+
+_PASTAS_SISTEMA = frozenset({"admin", "loja", "avatars", "superadmin", "suporte", "dicom"})
+
+
+def destino_midia_paciente_legado(folder_path: str) -> str | None:
+    """Converte pasta legada tipo/paciente para paciente/fotos ou paciente/pdf.
+
+    Ex.: fotos/maria_123 → maria_123/fotos ; docs/maria_123 → maria_123/pdf
+    Já no formato novo ou pasta da loja → None.
+    """
+    parts = [p for p in (folder_path or "").strip("/").split("/") if p]
+    if len(parts) != 2:
+        return None
+    root, sub = parts
+    if root in _PASTAS_SISTEMA or sub in ("fotos", "pdf", "docs", "avatars"):
+        return None
+    if root == "fotos":
+        return f"{sub}/fotos"
+    if root in _TIPOS_PDF_PACIENTE:
+        return f"{sub}/pdf"
+    return None
+
+
+def media_baixar_arquivo(url: str) -> bytes | None:
+    """Baixa bytes de uma URL pública do servidor de mídia."""
+    if not is_media_url(url):
+        return None
+    try:
+        response = requests.get(url, timeout=60)
+        if response.status_code == 200 and response.content:
+            return response.content
+        logger.error("media_baixar_arquivo falhou: HTTP %s %s", response.status_code, url)
+        return None
+    except Exception as exc:
+        logger.exception("media_baixar_arquivo erro: %s", exc)
+        return None
+
+
+def media_copiar_para_pasta(url: str, nova_pasta: str) -> str | None:
+    """Copia arquivo da URL para outra pasta no mesmo tenant. Devolve a nova URL."""
+    parsed = parse_media_url(url)
+    if not parsed:
+        return None
+    tenant, _folder, filename = parsed
+    conteudo = media_baixar_arquivo(url)
+    if not conteudo:
+        return None
+    return media_upload_tenant(tenant, conteudo, filename=filename, folder=nova_pasta)
 
 
 def media_list_files(tenant: str, folder: str) -> dict | None:

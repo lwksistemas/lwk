@@ -14,7 +14,7 @@ interface ImageUploadMediaProps {
   description?: string;
   disabled?: boolean;
   maxSize?: number; // em MB
-  folder?: string; // subpasta: fotos, docs, avatars, recibos, contratos
+  folder?: string; // subpasta: fotos, pdf, docs, avatars (PDFs do paciente vão para {paciente}/pdf)
   /** Botão inline, sem área de preview */
   compact?: boolean;
   buttonLabel?: string;

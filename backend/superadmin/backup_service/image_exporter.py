@@ -5,11 +5,22 @@ import hashlib
 import json
 import logging
 import re
-import unicodedata
 from typing import Any
 from urllib.parse import unquote, urlparse
 
 import requests
+
+from core.media_storage import (
+    MEDIA_SERVER_URL,
+    _cpf_cnpj_digits,
+    destino_midia_paciente_legado,
+    is_media_url,
+    media_list_files,
+    media_list_folders,
+    normalize_media_tenant,
+    parse_media_url,
+    pasta_media_paciente,
+)
 
 from .database_helper import DatabaseHelper
 from .exporters import ZipBuilder
@@ -21,8 +32,6 @@ MAX_TOTAL_BYTES = 120 * 1024 * 1024
 DOWNLOAD_TIMEOUT = 30
 
 URL_PREFIX_RE = re.compile(r"^https?://", re.IGNORECASE)
-CLOUDINARY_RE = re.compile(r"cloudinary\.com", re.IGNORECASE)
-MEDIA_SERVER_RE = re.compile(r"media\.lwksistemas\.com\.br", re.IGNORECASE)
 MEDIA_EXT_RE = re.compile(r"\.(jpe?g|png|gif|webp|bmp|svg|pdf|heic|heif)(?:\?|#|$)", re.IGNORECASE)
 
 TABLE_URL_COLUMNS: dict[str, tuple[str, ...]] = {
@@ -64,14 +73,15 @@ def _column_might_have_media(column: str) -> bool:
 
 
 def _looks_like_media_url(value: str) -> bool:
+    """Só aceita arquivo do servidor de mídia Magalu (media.lwksistemas.com.br)."""
     url = (value or "").strip()
     if not url or not URL_PREFIX_RE.match(url):
         return False
-    if MEDIA_SERVER_RE.search(url) or CLOUDINARY_RE.search(url):
+    if is_media_url(url):
         return True
-    if MEDIA_EXT_RE.search(urlparse(url).path):
-        return True
-    return "/image/upload/" in url or "/raw/upload/" in url or "/files/" in url
+    host = (urlparse(url).hostname or "").lower()
+    media_host = (urlparse(MEDIA_SERVER_URL).hostname or "media.lwksistemas.com.br").lower()
+    return host == media_host
 
 
 def _split_url_list(raw: str) -> list[str]:
@@ -89,30 +99,39 @@ def _split_url_list(raw: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-_UNSAFE_FOLDER_RE = re.compile(r"[^A-Za-z0-9._-]+")
+def pasta_pessoa(*, nome: str = "", cpf: str = "", fallback: str = "", pessoa_id: int | None = None) -> str:
+    """Pasta do cliente no backup — mesmo slug do servidor de mídia."""
+    from types import SimpleNamespace
+
+    pessoa = SimpleNamespace(
+        nome=nome or fallback or "paciente",
+        cpf=cpf or "",
+        id=pessoa_id,
+    )
+    return pasta_media_paciente(pessoa)
 
 
-def _cpf_digits(cpf: str | None) -> str:
-    return re.sub(r"\D", "", cpf or "")
+def caminho_backup_midia(folder_path: str) -> str:
+    """Pasta no ZIP = pasta do servidor de mídia (docs do paciente vira pdf)."""
+    raw = (folder_path or "").strip().strip("/")
+    legado = destino_midia_paciente_legado(raw)
+    if legado:
+        return legado
+    parts = [p for p in raw.split("/") if p]
+    if len(parts) == 2 and parts[1] in ("docs", "recibos", "contratos"):
+        return f"{parts[0]}/pdf"
+    if raw in ("docs", "recibos", "contratos"):
+        return "admin/pdf"
+    if raw in ("fotos", "avatars"):
+        return f"admin/{raw}"
+    return raw or "admin/fotos"
 
 
-def _safe_folder_part(text: str) -> str:
-    raw = unicodedata.normalize("NFKD", (text or "").strip())
-    raw = raw.encode("ascii", "ignore").decode("ascii")
-    return _UNSAFE_FOLDER_RE.sub("_", raw).strip("._")[:80]
-
-
-def pasta_pessoa(*, nome: str = "", cpf: str = "", fallback: str = "") -> str:
-    """Pasta do backup: NOME, CPF ou NOME_CPF (o que existir)."""
-    nome_part = _safe_folder_part(nome)
-    cpf_part = _cpf_digits(cpf)
-    if nome_part and cpf_part:
-        return f"{nome_part}_{cpf_part}"
-    if nome_part:
-        return nome_part
-    if cpf_part:
-        return cpf_part
-    return _safe_folder_part(fallback) or "sem_identificacao"
+def _prefixo_zip_url(url: str, fallback: str = "admin/fotos") -> str:
+    parsed = parse_media_url(url)
+    if parsed:
+        return f"imagens/{caminho_backup_midia(parsed[1])}"
+    return f"imagens/{caminho_backup_midia(fallback)}"
 
 
 def _safe_zip_name(prefix: str, url: str, ext_fallback: str = ".bin") -> str:
@@ -176,6 +195,7 @@ class BackupImageExporter:
         self.manifest: list[dict[str, Any]] = []
 
     def export_to_zip(self, zip_builder: ZipBuilder, table_names: list[str], loja_id: int) -> dict[str, Any]:
+        self._export_arvore_midia(zip_builder)
         self._export_loja_logos(zip_builder)
         self._export_table_binaries(zip_builder, loja_id)
         self._export_fotos_por_pessoa(zip_builder, loja_id)
@@ -292,15 +312,20 @@ class BackupImageExporter:
         pessoas: dict[int, dict[str, str]] = {}
         for rec in records:
             pid = rec[idx["id"]]
+            cpf = ""
+            if "cpf" in idx and rec[idx["cpf"]]:
+                cpf = str(rec[idx["cpf"]])
+            elif "cpf_cnpj" in idx and rec[idx["cpf_cnpj"]]:
+                cpf = str(rec[idx["cpf_cnpj"]])
             pessoas[int(pid)] = {
                 "nome": str(rec[idx["nome"]] or "") if "nome" in idx else "",
-                "cpf": str(rec[idx["cpf"]] or "") if "cpf" in idx else "",
+                "cpf": cpf,
             }
         self._pessoas_cache[table] = pessoas
         return pessoas
 
     def _pasta_pessoa_unica(self, kind: str, pessoa_id: int, nome: str, cpf: str) -> str:
-        base = pasta_pessoa(nome=nome, cpf=cpf, fallback=f"{kind}_{pessoa_id}")
+        base = pasta_pessoa(nome=nome, cpf=cpf, fallback=kind, pessoa_id=pessoa_id)
         key = (kind, base)
         dono = self._pasta_owners.get(key)
         if dono is None:
@@ -309,6 +334,40 @@ class BackupImageExporter:
         if dono == pessoa_id:
             return base
         return f"{base}_id{pessoa_id}"
+
+    def _export_arvore_midia(self, zip_builder: ZipBuilder) -> None:
+        tenant = normalize_media_tenant(_cpf_cnpj_digits(self.loja))
+        if not tenant:
+            return
+        raw = media_list_folders(tenant)
+        if not raw:
+            return
+        for entry in raw.get("folders") or []:
+            nome = entry.get("folder") if isinstance(entry, dict) else entry
+            if not nome or nome == "backups":
+                continue
+            self._export_pasta_midia(zip_builder, tenant, nome)
+
+    def _export_pasta_midia(self, zip_builder: ZipBuilder, tenant: str, folder: str) -> None:
+        detalhe = media_list_files(tenant, folder) or {}
+        prefix = f"imagens/{caminho_backup_midia(folder)}"
+        for item in detalhe.get("files") or []:
+            rel = item.get("url") or ""
+            public = f"{MEDIA_SERVER_URL.rstrip('/')}{rel}" if rel.startswith("/") else rel
+            if not public:
+                continue
+            self._add_url(
+                zip_builder,
+                public,
+                origem="media-server",
+                referencia=folder,
+                zip_prefix=prefix,
+                filename=item.get("filename"),
+            )
+        for sub in detalhe.get("subfolders") or []:
+            origem = sub.get("path") or f"{folder}/{sub.get('name')}"
+            if origem:
+                self._export_pasta_midia(zip_builder, tenant, origem)
 
     def _export_fotos_por_pessoa(self, zip_builder: ZipBuilder, loja_id: int) -> None:
         for table, meta in PESSOA_PERFIL_TABLES.items():
@@ -337,7 +396,7 @@ class BackupImageExporter:
                         url,
                         origem=table,
                         referencia=f"id={pid}:perfil",
-                        zip_prefix=f"imagens/{meta['kind']}/{pasta}",
+                        zip_prefix=_prefixo_zip_url(url, f"{pasta}/fotos"),
                         filename="perfil",
                     )
 
@@ -371,7 +430,7 @@ class BackupImageExporter:
                         url,
                         origem=table,
                         referencia=f"id={foto_id}:patient_id={pid}",
-                        zip_prefix=f"imagens/{meta['kind']}/{pasta}",
+                        zip_prefix=_prefixo_zip_url(url, f"{pasta}/fotos"),
                         filename=f"foto_{foto_id}",
                     )
 
@@ -385,7 +444,7 @@ class BackupImageExporter:
                 url,
                 origem="loja",
                 referencia=field,
-                zip_prefix=f"imagens/loja/{field}",
+                zip_prefix=_prefixo_zip_url(url, "admin/fotos" if field == "logo" else "admin/avatars"),
             )
 
     def _export_table_binaries(self, zip_builder: ZipBuilder, loja_id: int) -> None:
@@ -429,7 +488,7 @@ class BackupImageExporter:
                     fname = re.sub(r"[^a-zA-Z0-9._-]+", "_", nome_arquivo or f"{table}_{row_id}").strip("._")
                     if not fname.lower().endswith(f".{ext}"):
                         fname = f"{fname}.{ext}"
-                    zip_path = f"imagens/arquivos/{table}/{row_id}_{fname}"
+                    zip_path = f"imagens/admin/pdf/{row_id}_{fname}"
                     self._add_bytes(
                         zip_builder,
                         zip_path,
@@ -461,7 +520,7 @@ class BackupImageExporter:
                             url,
                             origem=table,
                             referencia=f"{pk_col}={pk}",
-                            zip_prefix=f"imagens/urls/{table}/{pk}",
+                            zip_prefix=_prefixo_zip_url(url, f"admin/fotos"),
                         )
 
     def _export_generic_url_columns(
@@ -507,5 +566,8 @@ class BackupImageExporter:
                             url,
                             origem=table,
                             referencia=f"{pk_col}={pk}:{col}",
-                            zip_prefix=f"imagens/urls/{table}/{pk}_{col}",
+                            zip_prefix=_prefixo_zip_url(
+                                url,
+                                "admin/pdf" if str(url).lower().endswith(".pdf") else "admin/fotos",
+                            ),
                         )

@@ -98,6 +98,23 @@ class Command(BaseCommand):
             self.stdout.write(f"  remove pasta vazia {nome}/")
             if apply and not media_rmdir_tenant(tenant, nome):
                 self.stdout.write(self.style.WARNING(f"    não deu para apagar {nome}/ (servidor sem rmdir?)"))
+        for entry in raw.get("folders") or []:
+            nome = entry.get("folder") if isinstance(entry, dict) else entry
+            if not nome or nome in _PASTAS_LEGADO_RAIZ | {"admin", "loja"}:
+                continue
+            detalhe = media_list_files(tenant, nome) or {}
+            tem_docs = any(
+                (sub.get("name") if isinstance(sub, dict) else sub) == "docs"
+                for sub in (detalhe.get("subfolders") or [])
+            )
+            if not tem_docs:
+                continue
+            docs = f"{nome}/docs"
+            if (media_list_files(tenant, docs) or {}).get("files"):
+                continue
+            self.stdout.write(f"  remove pasta vazia {docs}/")
+            if apply and not media_rmdir_tenant(tenant, docs):
+                self.stdout.write(self.style.WARNING(f"    não deu para apagar {docs}/"))
 
     def _arquivos_legados(self, tenant: str) -> list[tuple[str, str]]:
         raw = media_list_folders(tenant)
@@ -121,6 +138,13 @@ class Command(BaseCommand):
                     public = f"{base}{rel}" if rel.startswith("/") else rel
                     if public:
                         saida.append((public, destino))
+            if nome not in _PASTAS_LEGADO_RAIZ | {"admin", "loja"}:
+                docs = media_list_files(tenant, f"{nome}/docs") or {}
+                for f in docs.get("files") or []:
+                    rel = f.get("url") or ""
+                    public = f"{base}{rel}" if rel.startswith("/") else rel
+                    if public:
+                        saida.append((public, f"{nome}/pdf"))
         return saida
 
     def _atualizar_urls(self, loja, old_url: str, nova_url: str) -> None:

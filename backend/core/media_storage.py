@@ -397,6 +397,21 @@ def parse_media_url(url: str) -> tuple[str, str, str] | None:
     return match.group("tenant"), match.group("folder"), match.group("filename")
 
 
+def media_rmdir_tenant(tenant: str, folder: str) -> bool:
+    """Remove pasta vazia (e subpastas vazias) no servidor de mídia."""
+    tenant_key = normalize_media_tenant(tenant)
+    folder_path = normalize_media_folder(folder)
+    if not tenant_key or not folder_path:
+        return False
+    url = f"{MEDIA_SERVER_URL}/upload/{tenant_key}/{folder_path}"
+    try:
+        response = requests.delete(url, headers=_media_auth_headers(), timeout=15)
+        return response.status_code == 200
+    except Exception as exc:
+        logger.warning("media_rmdir erro: %s", exc)
+        return False
+
+
 def media_delete_by_url(url: str) -> bool:
     """Remove arquivo a partir da URL pública completa no servidor de mídia."""
     parsed = parse_media_url(url)

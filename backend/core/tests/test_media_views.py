@@ -29,7 +29,7 @@ class ResolverFolderUploadTest(SimpleTestCase):
 
     def test_sem_paciente_fica_na_pasta_do_tipo(self):
         pasta = _resolver_folder_upload(SimpleNamespace(data={"folder": "docs"}))
-        self.assertEqual(pasta, "docs")
+        self.assertEqual(pasta, "admin/docs")
 
     def test_docs_do_paciente_vao_para_pdf(self):
         request = SimpleNamespace(

@@ -126,7 +126,7 @@ def _resolver_folder_upload(request) -> str:
         if normalized:
             return normalized
 
-    return tipo
+    return f"admin/{tipo}"
 
 
 @api_view(["POST"])

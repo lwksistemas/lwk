@@ -21,8 +21,11 @@ from core.media_storage import (
     media_delete_by_url,
     media_list_files,
     media_list_folders,
+    media_rmdir_tenant,
     normalize_media_tenant,
 )
+
+_PASTAS_LEGADO_RAIZ = frozenset({"fotos", "docs"})
 
 _TABELAS_URL = (
     ("clinica_beleza_paciente_fotos", ("url", "public_id")),
@@ -56,7 +59,6 @@ class Command(BaseCommand):
             listados = self._arquivos_legados(tenant)
             if not listados:
                 self.stdout.write("  nada no formato antigo")
-                continue
             for old_url, nova_pasta in listados:
                 self.stdout.write(f"  {old_url} → {nova_pasta}/")
                 if not apply:
@@ -75,8 +77,27 @@ class Command(BaseCommand):
                     falhas += 1
                     self.stdout.write(self.style.WARNING(f"    copiado mas não apagou o antigo: {nova_url}"))
 
+            self._limpar_pastas_legado(tenant, apply)
+
         modo = "aplicado" if apply else "simulação (use --apply para gravar)"
         self.stdout.write(self.style.SUCCESS(f"\nConcluído ({modo}): {movidos} arquivo(s), {falhas} falha(s)."))
+
+    def _limpar_pastas_legado(self, tenant: str, apply: bool) -> None:
+        raw = media_list_folders(tenant)
+        if not raw:
+            return
+        for entry in raw.get("folders") or []:
+            nome = entry.get("folder") if isinstance(entry, dict) else entry
+            if nome not in _PASTAS_LEGADO_RAIZ:
+                continue
+            detalhe = media_list_files(tenant, nome) or {}
+            soltos = detalhe.get("files") or []
+            if soltos:
+                self.stdout.write(f"  mantém {nome}/ ({len(soltos)} arquivo(s) da loja)")
+                continue
+            self.stdout.write(f"  remove pasta vazia {nome}/")
+            if apply and not media_rmdir_tenant(tenant, nome):
+                self.stdout.write(self.style.WARNING(f"    não deu para apagar {nome}/ (servidor sem rmdir?)"))
 
     def _arquivos_legados(self, tenant: str) -> list[tuple[str, str]]:
         raw = media_list_folders(tenant)

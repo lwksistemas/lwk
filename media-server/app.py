@@ -128,7 +128,30 @@ def delete(tenant, filename):
     if filepath.exists() and filepath.is_file():
         filepath.unlink()
         return jsonify({"success": True}), 200
+    if filepath.exists() and filepath.is_dir():
+        removed = _rmdir_vazio(filepath)
+        if removed:
+            return jsonify({"success": True, "removed": removed}), 200
+        return jsonify({"error": "Pasta não está vazia"}), 409
     return jsonify({"error": "Arquivo não encontrado"}), 404
+
+
+def _rmdir_vazio(path: Path) -> list[str]:
+    """Remove pasta só se não tiver arquivo. Apaga subpastas vazias de dentro para fora."""
+    if not path.is_dir() or not _safe_under_storage(path):
+        return []
+    removed: list[str] = []
+    for child in sorted(path.iterdir(), key=lambda p: len(str(p)), reverse=True):
+        if child.is_dir():
+            removed.extend(_rmdir_vazio(child))
+        elif child.is_file():
+            return []
+    try:
+        path.rmdir()
+        removed.append(str(path.relative_to(STORAGE_ROOT)))
+    except OSError:
+        return removed
+    return removed
 
 
 @app.route("/list/", methods=["GET"])

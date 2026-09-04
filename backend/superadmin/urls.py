@@ -18,7 +18,6 @@ from .financeiro_views import (
     nf_xml_por_payment,
     renovar_assinatura_loja,
     renovar_financeiro_por_id,
-    gerar_link_cartao_loja,
 )
 from .views import (
     EmailRetryViewSet,
@@ -101,7 +100,6 @@ urlpatterns = [
     # Outras rotas públicas
     path("lojas/recuperar_senha/", recuperar_senha_loja, name="loja-recuperar-senha"),
     path("loja/<str:loja_slug>/financeiro/renovar/", renovar_assinatura_loja, name="renovar-financeiro-loja"),
-    path("loja/<str:loja_slug>/financeiro/link-cartao/", gerar_link_cartao_loja, name="link-cartao-financeiro-loja"),
     path("loja/<str:loja_slug>/financeiro/", dashboard_financeiro_loja, name="dashboard-financeiro-loja"),
     path("loja-financeiro/<int:financeiro_id>/renovar/", renovar_financeiro_por_id, name="loja-financeiro-renovar"),
     path("financeiro-unificado/", financeiro_unificado, name="financeiro-unificado"),

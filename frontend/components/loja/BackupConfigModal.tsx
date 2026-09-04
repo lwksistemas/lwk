@@ -37,6 +37,7 @@ interface BackupConfigModalProps {
 
 export default function BackupConfigModal({ open, onClose, lojaId, addToast }: BackupConfigModalProps) {
   const [config, setConfig] = useState<ConfigBackup | null>(null);
+  const [linkMidia, setLinkMidia] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
@@ -48,7 +49,10 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
     apiClient
       .get(`/superadmin/lojas/${lojaId}/configuracao_backup/`)
       .then((res) => {
-        if (!cancelled && res.data?.success && res.data?.config) setConfig(res.data.config);
+        if (!cancelled && res.data?.success && res.data?.config) {
+          setConfig(res.data.config);
+          setLinkMidia(res.data.link_midia || '');
+        }
       })
       .catch(() => {
         if (!cancelled) addToast({ tipo: 'erro', titulo: 'Erro', mensagem: 'Não foi possível carregar a configuração.' });
@@ -69,7 +73,7 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
         frequencia: config.frequencia,
         dia_semana: config.frequencia === 'semanal' ? (config.dia_semana ?? 0) : null,
         dia_mes: config.frequencia === 'mensal' ? (config.dia_mes ?? 1) : null,
-        incluir_imagens: config.incluir_imagens,
+        incluir_imagens: false,
         manter_ultimos_n_backups: Math.min(30, Math.max(1, config.manter_ultimos_n_backups)),
       };
       const res = await apiClient.patch(`/superadmin/lojas/${lojaId}/atualizar_configuracao_backup/`, payload);
@@ -95,9 +99,7 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
     if (!lojaId) return;
     setSending(true);
     try {
-      const res = await apiClient.post(`/superadmin/lojas/${lojaId}/enviar_backup_agora/`, {
-        incluir_imagens: config?.incluir_imagens ?? false,
-      });
+      const res = await apiClient.post(`/superadmin/lojas/${lojaId}/enviar_backup_agora/`, {});
       if (res.data?.success) {
         addToast({
           tipo: 'sucesso',
@@ -142,7 +144,7 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
             ) : config ? (
               <>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  O admin da loja decide como receber o backup: só automático (agendado), só manual (quando quiser) ou os dois.
+                  O e-mail automático já vem ligado: ZIP dos cadastros no anexo e um link para baixar fotos e PDFs no computador (sem compactar imagens no servidor).
                 </p>
 
                 {/* Envio automático */}
@@ -227,22 +229,22 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
                   </button>
                 </div>
 
-                {/* Opções comuns */}
+                {linkMidia ? (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800 dark:bg-emerald-950/40">
+                    <p className="text-sm text-emerald-900 dark:text-emerald-100">Fotos e PDFs</p>
+                    <a
+                      href={linkMidia}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-block text-sm font-medium text-emerald-700 underline dark:text-emerald-300"
+                    >
+                      Abrir pastas para baixar no computador
+                    </a>
+                  </div>
+                ) : null}
+
                 <div className="space-y-2 pt-1 border-t border-gray-200 dark:border-gray-600">
                   <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">Opções gerais</h4>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={config.incluir_imagens}
-                      onChange={(e) => setConfig((c) => (c ? { ...c, incluir_imagens: e.target.checked } : c))}
-                      className="rounded border-gray-300"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Incluir imagens (aumenta o tamanho)</span>
-                  </label>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
-                    Baixa fotos do servidor de mídia (ex.: acompanhamento do paciente), logos da loja e PDF timbrado.
-                    Limite aproximado: 120 MB de mídia por backup.
-                  </p>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Manter últimos N backups</label>
                     <input

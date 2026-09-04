@@ -14,18 +14,6 @@ class LojaBackupMixin:
 
     BACKUP_MAX_UPLOAD_BYTES = 500 * 1024 * 1024
 
-    def _resolver_incluir_imagens(self, loja, request) -> bool:
-        """Usa valor explícito do request ou a configuração salva da loja."""
-        from ...models import ConfiguracaoBackup
-
-        raw = request.data.get("incluir_imagens", None)
-        if raw is not None:
-            return bool(raw)
-        try:
-            return bool(ConfiguracaoBackup.objects.get(loja=loja).incluir_imagens)
-        except ConfiguracaoBackup.DoesNotExist:
-            return False
-
     def _ensure_loja_database_available(self, loja):
         """Garante que o banco da loja está em settings.DATABASES."""
         if not loja.database_name or loja.database_name in settings.DATABASES:
@@ -47,7 +35,7 @@ class LojaBackupMixin:
         from ...models import ConfiguracaoBackup, HistoricoBackup
 
         loja = self.get_object()
-        incluir_imagens = self._resolver_incluir_imagens(loja, request)
+        incluir_imagens = False
 
         ok, err_response = self._ensure_loja_database_available(loja)
         if not ok:
@@ -133,7 +121,7 @@ class LojaBackupMixin:
             service = BackupService()
             result = service.exportar_loja(
                 loja_id=loja.id,
-                incluir_imagens=self._resolver_incluir_imagens(loja, request),
+                incluir_imagens=False,
             )
 
             if not result.get("success"):
@@ -266,6 +254,7 @@ class LojaBackupMixin:
         config, created = ConfiguracaoBackup.objects.get_or_create(
             loja=loja,
             defaults={
+                "backup_automatico_ativo": True,
                 "frequencia": "diario",
                 "horario_envio": horario_envio_slot_noturno(loja.id),
             },
@@ -281,8 +270,14 @@ class LojaBackupMixin:
             )
             config.horario_envio = slot
         serializer = ConfiguracaoBackupSerializer(config)
+        from ...backup_midia_link import url_pagina_backup_midia
 
-        return Response({"success": True, "config": serializer.data, "created": created})
+        return Response({
+            "success": True,
+            "config": serializer.data,
+            "created": created,
+            "link_midia": url_pagina_backup_midia(loja),
+        })
 
     @action(detail=True, methods=["put", "patch"], permission_classes=[IsOwnerOrSuperAdmin])
     def atualizar_configuracao_backup(self, request, pk=None):
@@ -295,6 +290,7 @@ class LojaBackupMixin:
         config, _ = ConfiguracaoBackup.objects.get_or_create(
             loja=loja,
             defaults={
+                "backup_automatico_ativo": True,
                 "frequencia": "diario",
                 "horario_envio": horario_envio_slot_noturno(loja.id),
             },

@@ -140,7 +140,7 @@ def executar_backups_automaticos():
             processar_backup_loja(
                 loja_id=config.loja.id,
                 tipo="automatico",
-                incluir_imagens=config.incluir_imagens,
+                incluir_imagens=False,
             )
 
             total_agendados += 1
@@ -268,7 +268,7 @@ def processar_backup_loja(
         # Atualizar configuração (defaults válidos para criação: diário não exige dia_semana)
         config, _ = ConfiguracaoBackup.objects.get_or_create(
             loja=loja,
-            defaults={"frequencia": "diario"},
+            defaults={"backup_automatico_ativo": True, "frequencia": "diario"},
         )
         config.incrementar_contador()
 

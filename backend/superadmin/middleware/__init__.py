@@ -125,7 +125,7 @@ class SuperAdminSecurityMiddleware:
                 "/api/superadmin/usuarios/recuperar_senha/",  # Recuperação de senha superadmin/suporte
                 "/api/superadmin/lojas/recuperar_senha/",     # Recuperação de senha lojas
                 "/api/superadmin/mercadopago-webhook/",       # Webhook Mercado Pago (notificações de pagamento)
-                "/api/superadmin/public/",                    # ✅ NOVO: Rotas públicas para cadastro de lojas
+                "/api/superadmin/public/",                    # cadastro de lojas + backup-midia (token)
             ]
 
             # Endpoints que proprietários/usuários da loja podem acessar (com autenticação)

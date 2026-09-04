@@ -1,6 +1,11 @@
 """Modelos do Super Admin — re-export centralizado."""
 from .audit import AuditLog
-from .backup import ConfiguracaoBackup, HistoricoBackup, horario_envio_slot_noturno
+from .backup import (
+    ConfiguracaoBackup,
+    HistoricoBackup,
+    ensure_configuracao_backup,
+    horario_envio_slot_noturno,
+)
 from .catalog import PlanoAssinatura, TipoLoja
 from .config import LoginConfigSistema
 from .email import EmailRetry
@@ -18,6 +23,7 @@ from .whatsapp_gateway import WhatsappApiKey, WhatsappCustomer, WhatsappInstance
 __all__ = [
     "AuditLog",
     "ConfiguracaoBackup",
+    "ensure_configuracao_backup",
     "ContratoPacsLoja",
     "EmailRetry",
     "FinanceiroLoja",

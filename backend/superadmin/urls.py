@@ -18,6 +18,7 @@ from .financeiro_views import (
     nf_xml_por_payment,
     renovar_assinatura_loja,
     renovar_financeiro_por_id,
+    gerar_link_cartao_loja,
 )
 from .views import (
     EmailRetryViewSet,
@@ -48,6 +49,7 @@ from .views import (
     listar_midia_arquivos,
     excluir_midia_arquivo,
 )
+from .views.backup_midia_publica import backup_midia_publica
 from .views.whatsapp_painel import (
     WhatsappPainelView,
     WhatsappParceiroChaveRevogarView,
@@ -94,10 +96,12 @@ urlpatterns = [
 
     # ✅ NOVO: Endpoint público para configuração de login do sistema
     path("public/login-config-sistema/<str:tipo>/", login_config_sistema_publico, name="login-config-sistema-publico"),
+    path("public/backup-midia/<path:token>/", backup_midia_publica, name="backup-midia-publica"),
 
     # Outras rotas públicas
     path("lojas/recuperar_senha/", recuperar_senha_loja, name="loja-recuperar-senha"),
     path("loja/<str:loja_slug>/financeiro/renovar/", renovar_assinatura_loja, name="renovar-financeiro-loja"),
+    path("loja/<str:loja_slug>/financeiro/link-cartao/", gerar_link_cartao_loja, name="link-cartao-financeiro-loja"),
     path("loja/<str:loja_slug>/financeiro/", dashboard_financeiro_loja, name="dashboard-financeiro-loja"),
     path("loja-financeiro/<int:financeiro_id>/renovar/", renovar_financeiro_por_id, name="loja-financeiro-renovar"),
     path("financeiro-unificado/", financeiro_unificado, name="financeiro-unificado"),

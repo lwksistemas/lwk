@@ -46,19 +46,9 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
         mensagem: 'Iniciando exportação do backup...'
       });
 
-      let incluirImagens = false;
-      try {
-        const cfg = await apiClient.get(`/superadmin/lojas/${lojaId}/configuracao_backup/`);
-        if (cfg.data?.success && cfg.data.config) {
-          incluirImagens = Boolean(cfg.data.config.incluir_imagens);
-        }
-      } catch {
-        // usa false
-      }
-      
       const response = await apiClient.post(
         `/superadmin/lojas/${lojaId}/exportar_backup/`,
-        { incluir_imagens: incluirImagens },
+        { incluir_imagens: false },
         { responseType: 'blob' }
       );
       

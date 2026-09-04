@@ -62,8 +62,8 @@ class ConfiguracaoBackup(models.Model):
 
     # Configuração de agendamento
     backup_automatico_ativo = models.BooleanField(
-        default=False,
-        help_text="Ativa ou desativa o backup automático",
+        default=True,
+        help_text="Ativa ou desativa o backup automático por e-mail (padrão: ligado)",
     )
     horario_envio = models.TimeField(
         default=time(0, 0),
@@ -106,7 +106,7 @@ class ConfiguracaoBackup(models.Model):
     # Configurações adicionais
     incluir_imagens = models.BooleanField(
         default=False,
-        help_text="Incluir imagens no backup (aumenta significativamente o tamanho)",
+        help_text="Legado: o e-mail automático não compacta fotos (o cliente baixa por link).",
     )
     manter_ultimos_n_backups = models.IntegerField(
         default=5,
@@ -200,6 +200,19 @@ class ConfiguracaoBackup(models.Model):
         self.total_backups_realizados += 1
         self.ultimo_backup = timezone.now()
         self.save(update_fields=["total_backups_realizados", "ultimo_backup"])
+
+
+def ensure_configuracao_backup(loja) -> "ConfiguracaoBackup":
+    """Garante config da loja com envio automático por e-mail ligado."""
+    config, _ = ConfiguracaoBackup.objects.get_or_create(
+        loja=loja,
+        defaults={
+            "backup_automatico_ativo": True,
+            "frequencia": "diario",
+            "horario_envio": horario_envio_slot_noturno(loja.id),
+        },
+    )
+    return config
 
 
 class HistoricoBackup(models.Model):

@@ -60,14 +60,27 @@ def gerar_token(
 
 
 def decodificar_token(token: str) -> dict | None:
-    """Decodifica token e retorna payload ou None."""
+    """Decodifica token e retorna payload ou None.
+
+    A expiração é validada pelo campo ``exp`` embutido no payload, que já reflete
+    o ``expiracao_dias`` usado na geração (ex.: 7 dias no padrão, mas o adapter de
+    consentimento usa validade longa porque a expiração efetiva é o status da
+    consulta). Por isso NÃO se aplica um ``max_age`` fixo aqui — ele barraria
+    indevidamente tokens legitimamente gerados com validade maior.
+    Tokens antigos sem ``exp`` continuam aceitos (retrocompatível).
+    """
     token = normalizar_token_url(token)
     if not token:
         return None
     try:
-        return loads(token)
+        payload = loads(token)
     except (BadSignature, Exception):
         return None
+    # Revalida o exp embutido no payload, quando presente.
+    exp = payload.get("exp") if isinstance(payload, dict) else None
+    if exp and timezone.now().timestamp() > exp:
+        return None
+    return payload
 
 
 # ---------------------------------------------------------------------------

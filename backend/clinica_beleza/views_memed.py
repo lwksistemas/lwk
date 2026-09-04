@@ -193,9 +193,17 @@ class MemedTokenView(APIView):
 
     def _resolver_prescritor_id(self, request, env="integration"):
         """Resolve o identificador do prescritor na Memed (CPF, external_id ou registro+UF)."""
-        # 1) Identificador explícito na query (?prescritor=...) tem prioridade.
+        from tenants.middleware import get_current_loja_id
+
+        em_loja = bool(get_current_loja_id())
+
+        # 1) Identificador explícito na query (?prescritor=...) tem prioridade,
+        #    MAS apenas fora de contexto de loja (teste/superadmin). Dentro de um
+        #    tenant, aceitar um prescritor arbitrário permitiria obter o token de
+        #    prescritor de outra clínica — o vínculo deve vir sempre do Professional
+        #    da loja atual (etapa 2, via ?professional=).
         explicit = (request.query_params.get("prescritor") or "").strip()
-        if explicit:
+        if explicit and not em_loja:
             return explicit
 
         # 2) Registro profissional (CRM) do profissional da consulta + UF.
@@ -209,8 +217,7 @@ class MemedTokenView(APIView):
 
         # 3) Prescritor padrão só fora de loja (teste/superadmin).
         # Em tenant nunca usar MEMED_PRESCRITOR_ID — seria o prescritor de outra clínica.
-        from tenants.middleware import get_current_loja_id
-        if get_current_loja_id():
+        if em_loja:
             return ""
 
         default_id = ""

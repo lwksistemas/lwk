@@ -55,7 +55,7 @@ def _acumular_detalhe_consulta(entry, chave_consulta, vc, comissao_consulta, for
         det["forma_pagamento"] = " + ".join(pagamentos_atuais) if pagamentos_atuais else forma_pagamento
 
 
-def _acumular_detalhe_procedimento(entry, proc, vp, com_proc, convenio_id, regras, local_nome):
+def _acumular_detalhe_procedimento(entry, proc, vp, com_proc, convenio_id, regras, local_nome, convenio_cache=None):
     """Atualiza (ou cria) o detalhe de linha de procedimento no entry do profissional."""
     proc_id = proc["procedure_id"]
     regra_proc = _resolver_regra_procedimento(regras["procedimentos"], proc_id, convenio_id)
@@ -71,7 +71,7 @@ def _acumular_detalhe_procedimento(entry, proc, vp, com_proc, convenio_id, regra
         "local_nome": local_nome,
         "procedimento_nome": proc["procedimento_nome"],
         "procedimento_id": proc_id,
-        "convenio_nome": _rotulo_convenio_comissao(regra_proc, convenio_id),
+        "convenio_nome": _rotulo_convenio_comissao(regra_proc, convenio_id, convenio_cache),
         "vinculado_consulta": True,
         "qtd": 0,
         "valor_consulta": Decimal(0),
@@ -143,7 +143,7 @@ def _finalizar_profissionais(prof_data):
     return profissionais
 
 
-def _processar_grupo_pagamento(grupo, consulta_map, prof_data, regras_cache):
+def _processar_grupo_pagamento(grupo, consulta_map, prof_data, regras_cache, convenio_cache=None):
     """Processa um grupo de pagamentos e acumula dados do profissional."""
     appt = grupo["appointment"]
     if not appt or not appt.professional:
@@ -186,7 +186,7 @@ def _processar_grupo_pagamento(grupo, consulta_map, prof_data, regras_cache):
         )
     for proc in procedimentos:
         vp = vp_map.get(proc["procedure_id"], Decimal(0))
-        _acumular_detalhe_procedimento(entry, proc, vp, Decimal(0), convenio_id, regras, local_nome)
+        _acumular_detalhe_procedimento(entry, proc, vp, Decimal(0), convenio_id, regras, local_nome, convenio_cache)
 
 
 def calcular_comissoes(
@@ -225,10 +225,11 @@ def calcular_comissoes(
 
     prof_data = {}
     regras_cache = {}
+    convenio_cache: dict = {}
 
     payments_list = list(qs.prefetch_related("appointment__appointment_procedures__procedure"))
     for grupo in _agrupar_pagamentos_por_agendamento(payments_list):
-        _processar_grupo_pagamento(grupo, consulta_map, prof_data, regras_cache)
+        _processar_grupo_pagamento(grupo, consulta_map, prof_data, regras_cache, convenio_cache)
 
     profissionais = _finalizar_profissionais(prof_data)
 

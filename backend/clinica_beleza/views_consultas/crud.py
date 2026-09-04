@@ -39,6 +39,7 @@ class ConsultaListView(APIView):
         ).prefetch_related(
             "appointment__appointment_procedures__procedure",
             "appointment__payment_set",
+            "appointment__payment_set__parcelas",
         ).annotate(
             total_evolucoes_count=Count("evolucoes"),
         ).exclude(

@@ -123,17 +123,23 @@ class ComissaoRelatorioHelpersTest(TestCase):
         self.assertEqual(vc + vp_map[1] + vp_map[2], Decimal(1076))
 
     def test_procedimentos_vinculados_via_appointment_procedure(self):
-        appt = MagicMock()
         ap1 = MagicMock(
+            id=1,
+            ordem=0,
             procedure_id=1,
             valor=Decimal(900),
             procedure=MagicMock(nome="Imunidade", preco=Decimal(800)),
         )
         ap2 = MagicMock(
+            id=2,
+            ordem=1,
             procedure_id=2,
             valor=Decimal(1924),
             procedure=MagicMock(nome="Massagem", preco=Decimal(1500)),
         )
+        # Caminho de fallback (sem prefetch): _prefetched_objects_cache é um dict vazio,
+        # então cai na query direta appointment_procedures.select_related().order_by().
+        appt = MagicMock(_prefetched_objects_cache={})
         appt.appointment_procedures.select_related.return_value.order_by.return_value = [
             ap1, ap2,
         ]
@@ -141,6 +147,32 @@ class ComissaoRelatorioHelpersTest(TestCase):
         items = _procedimentos_vinculados_consulta(appt, consulta)
         self.assertEqual(len(items), 2)
         self.assertEqual(items[0]["procedimento_nome"], "Imunidade")
+
+    def test_procedimentos_vinculados_usa_prefetch(self):
+        ap1 = MagicMock(
+            id=1,
+            ordem=0,
+            procedure_id=1,
+            valor=Decimal(900),
+            procedure=MagicMock(nome="Imunidade", preco=Decimal(800)),
+        )
+        ap2 = MagicMock(
+            id=2,
+            ordem=1,
+            procedure_id=2,
+            valor=Decimal(1924),
+            procedure=MagicMock(nome="Massagem", preco=Decimal(1500)),
+        )
+        # Caminho otimizado: procedimentos já prefetched — não deve tocar no banco.
+        appt = MagicMock(
+            _prefetched_objects_cache={"appointment_procedures": [ap2, ap1]},
+        )
+        consulta = MagicMock(procedure_id=None, procedure=None)
+        items = _procedimentos_vinculados_consulta(appt, consulta)
+        self.assertEqual(len(items), 2)
+        # Ordenação em Python por (ordem, id): ap1 (ordem 0) antes de ap2 (ordem 1).
+        self.assertEqual(items[0]["procedimento_nome"], "Imunidade")
+        appt.appointment_procedures.select_related.assert_not_called()
 
     def test_combinar_formas_pagamento_unica(self):
         p = MagicMock(payment_method="DEBIT_CARD")

@@ -42,14 +42,29 @@ def _resolver_regra_procedimento(proc_map: dict, procedure_id: int, convenio_id:
     return proc_map.get((procedure_id, None))
 
 
-def _rotulo_convenio_comissao(regra_proc, convenio_id: int | None) -> str:
+def _nome_convenio_por_id(convenio_id: int, cache: dict | None) -> str | None:
+    """Resolve o nome do convênio com cache opcional {convenio_id: nome} por request.
+
+    Evita repetir a mesma query de Convenio para o mesmo id ao longo do relatório
+    (o fallback é chamado por linha de procedimento sem regra de convênio).
+    """
+    if cache is not None and convenio_id in cache:
+        return cache[convenio_id]
+    conv = Convenio.objects.filter(pk=convenio_id, is_active=True).first()
+    nome = conv.nome if conv else None
+    if cache is not None:
+        cache[convenio_id] = nome
+    return nome
+
+
+def _rotulo_convenio_comissao(regra_proc, convenio_id: int | None, convenio_cache: dict | None = None) -> str:
     """Nome do convênio exibido na linha de comissão do procedimento."""
     if regra_proc and getattr(regra_proc, "convenio", None):
         return regra_proc.convenio.nome
     if convenio_id:
-        conv = Convenio.objects.filter(pk=convenio_id, is_active=True).first()
-        if conv:
-            return conv.nome
+        nome = _nome_convenio_por_id(convenio_id, convenio_cache)
+        if nome:
+            return nome
     return "Particular"
 
 

@@ -385,7 +385,13 @@ class TenantMiddleware:
         if len(parts) <= 2:
             return None
         tenant_slug = parts[0]
+        # Subdomínios reservados de infraestrutura nunca são tenants. O SSR do
+        # frontend (Next) chama o backend em api.<dominio>, o que fazia o middleware
+        # tratar "api" como slug de loja e logar "Loja não encontrada" a cada request.
         ignore_prefixes = {
+            "api", "www", "beta", "media", "static", "cdn", "assets", "admin",
+        }
+        ignore_prefixes |= {
             p.strip().lower()
             for p in os.environ.get("TENANT_IGNORE_SUBDOMAIN_PREFIXES", "").split(",")
             if p.strip()

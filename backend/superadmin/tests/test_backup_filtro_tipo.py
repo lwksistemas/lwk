@@ -28,6 +28,25 @@ class FiltroBackupTipoLojaTest(SimpleTestCase):
             ],
         )
 
+    def test_clinica_geral_exporta_so_prefixo_do_app(self):
+        loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="clinica-geral"))
+        tabelas = [
+            "clinica_geral_paciente",
+            "clinica_geral_consulta",
+            "whatsapp_whatsappconfig",
+            "clinica_beleza_patient",
+            "whatsapp_whatsapplog",
+        ]
+        out = _filtrar_tabelas_por_tipo_loja(loja, tabelas)
+        self.assertEqual(
+            out,
+            [
+                "clinica_geral_paciente",
+                "clinica_geral_consulta",
+                "whatsapp_whatsappconfig",
+            ],
+        )
+
     def test_crm_continua_exportando_tabelas_do_crm(self):
         loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="crm-vendas"))
         tabelas = ["crm_vendas_contato", "clinica_beleza_patient", "whatsapp_whatsapplog"]

@@ -40,8 +40,8 @@ python manage.py migrate --noinput
 log_step "migrate suporte"
 python manage.py migrate --database=suporte --noinput
 
-run_best_effort "migrate_all_lojas" python manage.py migrate_all_lojas ${MIGRATE_APPS:+--apps "$MIGRATE_APPS"}
 run_best_effort "corrigir_migrations_inconsistentes" python manage.py corrigir_migrations_inconsistentes
+run_best_effort "migrate_all_lojas" python manage.py migrate_all_lojas ${MIGRATE_APPS:+--apps "$MIGRATE_APPS"}
 
 log_step "ensure_all"
 python manage.py ensure_all ${MIGRATE_APPS:+--apps "$MIGRATE_APPS"}

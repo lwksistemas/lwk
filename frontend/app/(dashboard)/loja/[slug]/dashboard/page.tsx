@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { isTipoCabeleireiro, isTipoClinicaBeleza, isTipoCRMVendas, isTipoHotel } from '@/lib/loja-tipo';
+import { isTipoCabeleireiro, isTipoClinicaBeleza, isTipoClinicaGeral, isTipoCRMVendas, isTipoHotel } from '@/lib/loja-tipo';
 import {
   readLojaInfoPublicaCache,
   writeLojaInfoPublicaCache,
@@ -161,6 +161,17 @@ export default function LojaDashboardDinamicoPage() {
             Voltar para Login
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (isTipoClinicaGeral(lojaInfo.tipo_loja_nome)) {
+    if (typeof window !== 'undefined') {
+      window.location.replace(`/loja/${slug}/clinica/agenda`);
+    }
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-600 dark:text-gray-400">Redirecionando à agenda...</p>
       </div>
     );
   }

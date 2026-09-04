@@ -325,8 +325,28 @@ def _send_confirmacoes_salao(config, hoje, inicio, fim):
     return enviados
 
 
+def _send_confirmacoes_clinica_geral(config, hoje, inicio, fim):
+    from clinica_geral.models import Consulta
+    from clinica_geral.whatsapp_agenda import STATUS_ACIONAVEIS, ConsultaWhatsAppAdapter
+    from whatsapp.confirmacao_agenda_service import processar_agendamento_hoje
+
+    enviados = 0
+    qs = Consulta.objects.filter(
+        data__gte=inicio,
+        data__lte=fim,
+        is_active=True,
+        status__in=list(STATUS_ACIONAVEIS),
+    ).select_related("paciente")
+    for ag in qs:
+        adapter = ConsultaWhatsAppAdapter(ag)
+        if not _paciente_pode_receber_confirmacao(adapter):
+            continue
+        enviados += processar_agendamento_hoje(adapter, config=config, hoje=hoje)
+    return enviados
+
+
 def send_confirmacoes_agendadas_whatsapp():
-    """Envia o link de confirmação nos dias configurados (e última chance no mesmo dia)."""
+    """Envia o link de confirmação nos dias configurados (nunca no próprio dia da consulta)."""
     from tenants.middleware import set_current_loja_id, set_current_tenant_db
     from whatsapp.confirmacao_agenda_service import (
         antecedencias_da_config,
@@ -356,6 +376,8 @@ def send_confirmacoes_agendadas_whatsapp():
             tipo = getattr(getattr(loja, "tipo_loja", None), "slug", "") or ""
             if tipo == "cabeleireiro":
                 enviados += _send_confirmacoes_salao(config, hoje, inicio, fim)
+            elif tipo == "clinica-geral":
+                enviados += _send_confirmacoes_clinica_geral(config, hoje, inicio, fim)
             else:
                 enviados += _send_confirmacoes_clinica(config, hoje, inicio, fim)
         except Exception as e:

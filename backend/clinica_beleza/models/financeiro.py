@@ -80,17 +80,31 @@ class Payment(LojaIsolationMixin, models.Model):
 
     @property
     def valor_pago_parcelas(self):
-        """Soma das parcelas PAID; se não houver parcelas, usa amount (legado/quitado à vista)."""
+        """Soma das parcelas PAID; se não houver parcelas, usa amount (legado/quitado à vista).
+
+        Quando ``parcelas`` já foi prefetched pela view (lista do Financeiro),
+        soma em Python para evitar N+1 (uma agregação SQL por objeto na lista).
+        Caso contrário, cai para ``.filter().aggregate()`` no banco.
+        """
         from decimal import Decimal
 
         from django.db import DatabaseError
 
         try:
-            total = self.parcelas.filter(status="PAID").aggregate(
-                total=models.Sum("valor"),
-            )["total"]
-            if total is not None:
-                return total
+            prefetched = getattr(self, "_prefetched_objects_cache", {}).get("parcelas")
+            if prefetched is not None:
+                total = sum(
+                    (p.valor for p in prefetched if p.status == "PAID" and p.valor is not None),
+                    Decimal(0),
+                )
+                if total:
+                    return total
+            else:
+                total = self.parcelas.filter(status="PAID").aggregate(
+                    total=models.Sum("valor"),
+                )["total"]
+                if total is not None:
+                    return total
         except (DatabaseError, TypeError, ArithmeticError) as exc:
             logger.warning("Payment %s: erro ao somar parcelas — %s", self.pk, exc)
         # Sem parcelas: amount representa o já pago quando PARTIAL/PAID/DRAFT

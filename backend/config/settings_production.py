@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "asaas_integration.apps.AsaasIntegrationConfig",  # Integração Asaas (signals no ready)
     "nfse_integration.apps.NfseIntegrationConfig",  # NFS-e (emissão/listagem) — deve coincidir com config.settings
     "clinica_beleza.apps.ClinicaBelezaConfig",  # Clínica da Beleza (agenda, profissionais, etc.)
+    "clinica_geral.apps.ClinicaGeralConfig",  # Consultório médico (separado da estética)
     "hotel.apps.HotelConfig",  # App de hotelaria (Hotel / Pousada)
     "cabeleireiro.apps.CabeleireiroConfig",  # Salão de cabeleireiro (Lumina)
     "notificacoes.apps.NotificacoesConfig",  # Base de notificações (in-app, push, email, etc.)

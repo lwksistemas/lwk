@@ -3,6 +3,7 @@
 - Marca stores.0001_initial quando faltando.
 - Marca superadmin.0001_initial quando whatsapp.0002* já está aplicada
   (histórico legado; não cria tabelas superadmin_* no tenant).
+- Marca pais ausentes no grafo (ex.: auth.0004 quando 0005 já está aplicada).
 
 Uso:
     python manage.py corrigir_migrations_inconsistentes
@@ -13,6 +14,7 @@ from django.core.management.base import BaseCommand
 from django.db import connections
 
 from superadmin.models import Loja
+from superadmin.services.migration_history_repair import repair_inconsistent_history
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +98,12 @@ class Command(BaseCommand):
                         _fake_mark(cursor, "superadmin", "0001_initial")
                         self.stdout.write(self.style.SUCCESS(
                             f"  ✅ Loja {loja.nome} (ID: {loja.id}): superadmin.0001_initial marcada (dep. whatsapp)",
+                        ))
+                        mudou = True
+
+                    for app, name in repair_inconsistent_history(conn):
+                        self.stdout.write(self.style.SUCCESS(
+                            f"  ✅ Loja {loja.nome} (ID: {loja.id}): {app}.{name} marcada (pai ausente)",
                         ))
                         mudou = True
 

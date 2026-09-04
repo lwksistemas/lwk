@@ -5,11 +5,15 @@ import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
-import { isTipoCRMVendas } from '@/lib/loja-tipo';
+import { homePathForTipo, isTipoCRMVendas, isTipoClinicaGeral } from '@/lib/loja-tipo';
+import { TEAL } from '@/lib/clinica-geral-theme';
+import { useClinicaGeralDark } from '@/hooks/useClinicaGeralDark';
 import { resolveLoginBackground, getLoginBackgroundHintFromSlug, getLoginBackgroundFallbackColor, preloadLoginBackground, getLoginThemeColor, cacheLojaLoginContext, getInitialLoginBackgroundForSlug, preloadImageUrl } from '@/lib/login-default-backgrounds';
+import { themeLabelForTipo } from '@/lib/loja-theme';
 import { LoginBackgroundLayer } from '@/components/auth/LoginBackgroundLayer';
 import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
+import { Moon, Sun } from 'lucide-react';
 import PasswordInput from '@/components/auth/PasswordInput';
 import ErrorAlert from '@/components/auth/ErrorAlert';
 import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
@@ -125,6 +129,9 @@ export default function LojaLoginDinamicoPage() {
     loadLojaInfo();
   }, [slug, loadLojaInfo]);
 
+  const isClinicaGeralLogin = Boolean(lojaInfo && isTipoClinicaGeral(lojaInfo.tipo_loja_nome));
+  const [cgDark, setCgDark] = useClinicaGeralDark(isClinicaGeralLogin);
+
   // Função para formatar CPF/CNPJ automaticamente
   const formatarCpfCnpj = (valor: string) => {
     // Remove tudo que não é número
@@ -185,9 +192,10 @@ export default function LojaLoginDinamicoPage() {
         }
       }
 
-      // Loja tipo CRM Vendas: ir direto para o Dashboard de Vendas (CRM)
       const usaCrm = lojaInfo && isTipoCRMVendas(lojaInfo.tipo_loja_nome);
-      const destino = usaCrm ? `/loja/${slug}/crm-vendas` : `/loja/${slug}/dashboard`;
+      const destino = lojaInfo
+        ? homePathForTipo(slug, lojaInfo.tipo_loja_nome)
+        : `/loja/${slug}/dashboard`;
       if (typeof document !== 'undefined') {
         document.cookie = usaCrm
           ? 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax'
@@ -277,7 +285,18 @@ export default function LojaLoginDinamicoPage() {
         <LoginBackgroundLayer imageUrl={backgroundUrl} fallbackColor={loginBackgroundFallback} />
       )}
       
-      <div className="max-w-sm w-full space-y-4 sm:space-y-5 p-5 sm:p-6 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-2xl border-t-4" style={{ position: 'relative', zIndex: 2, borderTopColor: corTema }}>
+      <div className="max-w-sm w-full space-y-4 sm:space-y-5 p-5 sm:p-6 bg-white/95 dark:bg-[#1E1D3A]/95 backdrop-blur-sm rounded-2xl shadow-2xl border-t-4 relative" style={{ zIndex: 2, borderTopColor: corTema }}>
+        {isClinicaGeralLogin && (
+          <button
+            type="button"
+            onClick={() => setCgDark(!cgDark)}
+            className="absolute right-4 top-4 rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-white/10"
+            title={cgDark ? 'Modo claro' : 'Modo escuro'}
+            aria-label={cgDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
+          >
+            {cgDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
+        )}
         {/* Header */}
         <div>
           <div className="mx-auto flex items-center justify-center">
@@ -305,7 +324,7 @@ export default function LojaLoginDinamicoPage() {
             {lojaInfo.nome}
           </h2>
           <p className="mt-1 text-center text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-            {lojaInfo.tipo_loja_nome}
+            {themeLabelForTipo(lojaInfo.tipo_loja_nome)}
           </p>
           <p className="text-center text-xs text-gray-500 dark:text-gray-400">
             Portal da Loja
@@ -409,7 +428,7 @@ export default function LojaLoginDinamicoPage() {
           <button
             onClick={() => setShowRecuperarSenha(true)}
             className="text-sm hover:underline min-h-[44px] py-2 px-4 transition-colors"
-            style={{ color: corTema }}
+            style={{ color: isClinicaGeralLogin && cgDark ? TEAL : corTema }}
             disabled={loading}
           >
             Esqueceu sua senha?

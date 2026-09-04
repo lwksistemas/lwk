@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { logger } from '@/lib/logger';
+import { CLINICA_GERAL_DARK_KEY, shouldApplyClinicaGeralTheme } from '@/lib/clinica-geral-theme';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -45,6 +46,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const root = document.documentElement;
       root.classList.remove('light', 'dark');
       root.classList.add(resolved);
+      root.style.colorScheme = resolved;
     }
   }, []);
 
@@ -53,6 +55,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setMounted(true);
     
     try {
+      const path = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (shouldApplyClinicaGeralTheme(path)) {
+        const cgDark = window.localStorage?.getItem(CLINICA_GERAL_DARK_KEY) === 'true';
+        const initial = cgDark ? 'dark' : 'light';
+        setThemeState(initial);
+        setResolvedTheme(initial);
+        applyTheme(initial);
+        return;
+      }
       // Carregar tema salvo (se existir). Caso contrário, usar "light" como padrão.
       const savedTheme = (typeof window !== 'undefined' && window.localStorage) 
         ? localStorage.getItem('theme') as Theme | null 

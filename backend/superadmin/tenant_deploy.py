@@ -55,6 +55,7 @@ ENSURE_POR_APP: dict[str, tuple[str, ...]] = {
         "ensure_vendedor_config_acesso",
         "ensure_assinatura_link_enviado_em",
     ),
+    "clinica_geral": ("ensure_clinica_geral_app",),
     "whatsapp": ("ensure_whatsapp_evolution_fields",),
     "nfse_integration": ("ensure_nfse_tenant_clinica_beleza",),
     "suporte": ("ensure_suporte_schema",),

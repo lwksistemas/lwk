@@ -111,6 +111,7 @@ def is_store_api_path(path: str) -> bool:
     """Rotas de apps tenant (CRM, clínica, etc.), exceto webhooks públicos."""
     store_routes = (
         "/api/clinica/",
+        "/api/clinica-geral/",
         "/api/clinica-beleza/",
         "/api/cabeleireiro/",
         "/api/hotel/",
@@ -139,6 +140,9 @@ def is_store_api_path(path: str) -> bool:
             "/api/clinica-beleza/confirmar-agendamento/",
         )
         if any(path.startswith(p) for p in public):
+            return False
+    if path.startswith("/api/clinica-geral/"):
+        if path.startswith("/api/clinica-geral/teleconsulta/"):
             return False
     return True
 

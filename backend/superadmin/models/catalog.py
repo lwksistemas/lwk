@@ -63,6 +63,7 @@ class TipoLoja(models.Model):
                 # Hotelaria
                 "hotel": "HOTEL", "pousada": "HOTEL", "hotel-pousada": "HOTEL", "pousada-hotel": "HOTEL",
                 "radiologia": "RADIOL", "clinica-radiologia": "RADIOL",
+                "clinica-geral": "CLIGER",
             }
             self.codigo = slug_to_codigo.get((self.slug or "").strip(), "")
         super().save(*args, **kwargs)

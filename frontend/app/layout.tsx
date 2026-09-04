@@ -46,11 +46,34 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
+                  var path = location.pathname || '';
+                  var root = document.documentElement;
+                  var cgDarkKey = 'lwk-clinica-geral-dark';
+                  function applyCg(isDark) {
+                    root.classList.toggle('dark', isDark);
+                    root.style.colorScheme = isDark ? 'dark' : 'light';
+                  }
+                  if (/\\/clinica(?:-geral)?(?:\\/|$)/.test(path) && path.indexOf('clinica-beleza') === -1) {
+                    applyCg(localStorage.getItem(cgDarkKey) === 'true');
+                    return;
+                  }
+                  var loginMatch = path.match(/^\\/loja\\/([^/]+)\\/login\\/?$/);
+                  if (loginMatch) {
+                    try {
+                      var tipo = (sessionStorage.getItem('loja_tipo_' + decodeURIComponent(loginMatch[1])) || '').toLowerCase();
+                      if (tipo.normalize) tipo = tipo.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                      var isCg = tipo === 'clinica' || tipo.indexOf('consultorio') !== -1 || (tipo.indexOf('clinica') !== -1 && (tipo.indexOf('geral') !== -1 || tipo.indexOf('medica') !== -1));
+                      if (isCg && tipo.indexOf('beleza') === -1 && tipo.indexOf('estetica') === -1) {
+                        applyCg(localStorage.getItem(cgDarkKey) === 'true');
+                        return;
+                      }
+                    } catch (e2) {}
+                  }
                   var theme = localStorage.getItem('theme');
                   // Padrão: sempre modo CLARO.
                   // Só ativa dark se o usuário tiver escolhido explicitamente.
                   if (theme === 'dark') {
-                    document.documentElement.classList.add('dark');
+                    root.classList.add('dark');
                   }
                 } catch (e) {}
               })();

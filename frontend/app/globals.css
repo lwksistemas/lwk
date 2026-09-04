@@ -224,6 +224,37 @@
   @apply border-gray-600;
 }
 
+/* Consultório: dark próprio (navy), sem herdar o gray-800 genérico */
+html.dark .clinica-geral-app {
+  color-scheme: dark;
+}
+html.dark .clinica-geral-app .bg-white {
+  background-color: #1e1d3a;
+}
+html.dark .clinica-geral-app .bg-\[\#F7F8FB\] {
+  background-color: #16152b;
+}
+html.dark .clinica-geral-app .bg-\[\#F4F6FB\] {
+  background-color: #252448;
+}
+html.dark .clinica-geral-app .text-slate-800 {
+  color: #f1f5f9;
+}
+html.dark .clinica-geral-app .text-slate-700 {
+  color: #e2e8f0;
+}
+html.dark .clinica-geral-app .text-slate-600 {
+  color: #cbd5e1;
+}
+html.dark .clinica-geral-app .text-slate-500,
+html.dark .clinica-geral-app .text-slate-400 {
+  color: #94a3b8;
+}
+html.dark .clinica-geral-app .border-slate-200,
+html.dark .clinica-geral-app .border-slate-100 {
+  border-color: rgb(255 255 255 / 0.1);
+}
+
 /* Scrollbar personalizada */
 ::-webkit-scrollbar {
   width: 8px;

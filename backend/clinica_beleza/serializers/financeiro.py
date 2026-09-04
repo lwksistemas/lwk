@@ -32,12 +32,23 @@ class DespesaSerializer(serializers.ModelSerializer):
 
 
 def _procedimentos_nome_agendamento(appointment) -> str:
-    """Lista todos os procedimentos do atendimento (appointment_procedures ou legado)."""
+    """Lista todos os procedimentos do atendimento (appointment_procedures ou legado).
+
+    Aproveita o ``prefetch_related('appointment__appointment_procedures__procedure')``
+    da view quando disponível (evita N+1 na lista do Financeiro); ordena em Python
+    para não descartar o cache do prefetch. Cai para query direta se não prefetched.
+    """
     if not appointment:
         return ""
-    procs = list(
-        appointment.appointment_procedures.select_related("procedure").order_by("ordem", "id"),
+    prefetched = getattr(appointment, "_prefetched_objects_cache", {}).get(
+        "appointment_procedures",
     )
+    if prefetched is not None:
+        procs = sorted(prefetched, key=lambda ap: (getattr(ap, "ordem", 0) or 0, ap.id or 0))
+    else:
+        procs = list(
+            appointment.appointment_procedures.select_related("procedure").order_by("ordem", "id"),
+        )
     if procs:
         return " · ".join(ap.procedure.nome for ap in procs if ap.procedure)
     if appointment.procedure_id and appointment.procedure:

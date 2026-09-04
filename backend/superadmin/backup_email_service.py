@@ -63,9 +63,12 @@ class BackupEmailService:
                 return False
 
             # Preparar email
+            from .backup_midia_link import url_pagina_backup_midia
+
+            link_midia = url_pagina_backup_midia(loja)
             assunto = self._criar_assunto(loja, historico)
-            corpo_html = self._criar_corpo_html(loja, historico)
-            corpo_texto = self._criar_corpo_texto(loja, historico)
+            corpo_html = self._criar_corpo_html(loja, historico, link_midia)
+            corpo_texto = self._criar_corpo_texto(loja, historico, link_midia)
 
             # Multipart texto + HTML (Resend API exige alternatives, não content_subtype)
             from core.email_delivery import create_email_multipart, send_prepared
@@ -113,7 +116,7 @@ class BackupEmailService:
         data = data_local.strftime("%d/%m/%Y")
         return f"Backup Automático - {loja.nome} - {data}"
 
-    def _criar_corpo_html(self, loja, historico) -> str:
+    def _criar_corpo_html(self, loja, historico, link_midia: str = "") -> str:
         """Cria corpo HTML do email (data/hora em horário local)."""
         data_local = timezone.localtime(historico.created_at)
         context = {
@@ -125,6 +128,7 @@ class BackupEmailService:
             "total_registros": historico.total_registros,
             "tabelas": historico.tabelas_incluidas,
             "tempo_processamento": historico.get_tempo_processamento_formatado(),
+            "link_midia": link_midia,
         }
 
         # Template HTML inline (pode ser movido para arquivo separado)
@@ -153,7 +157,9 @@ class BackupEmailService:
                 <div class="content">
                     <p>Olá <strong>{context['owner_nome']}</strong>,</p>
 
-                    <p>Segue em anexo o backup automático da sua loja <strong>"{loja.nome}"</strong>.</p>
+                    <p>Segue em anexo o backup dos <strong>cadastros</strong> da loja <strong>"{loja.nome}"</strong> (ZIP com planilhas).</p>
+                    <p>As fotos e PDFs não vão no anexo — baixe no seu computador pelo link abaixo (pasta de cada cliente, como no servidor de mídia).</p>
+                    {f'<div class="info-box"><p><a href="{context["link_midia"]}" style="color:#059669;font-weight:bold;">Baixar fotos e PDFs da loja</a></p><p style="font-size:12px;color:#666;word-break:break-all;">{context["link_midia"]}</p><p style="font-size:12px;">O link vale por 21 dias.</p></div>' if context.get("link_midia") else ""}
 
                     <div class="info-box">
                         <h3>📊 Informações do Backup</h3>
@@ -187,7 +193,7 @@ class BackupEmailService:
 
         return html
 
-    def _criar_corpo_texto(self, loja, historico) -> str:
+    def _criar_corpo_texto(self, loja, historico, link_midia: str = "") -> str:
         """Cria corpo em texto puro do email (data/hora em horário local)."""
         owner_nome = loja.owner.first_name or loja.owner.username
         data_local = timezone.localtime(historico.created_at)
@@ -198,7 +204,9 @@ Backup Automático - {loja.nome}
 
 Olá {owner_nome},
 
-Segue em anexo o backup automático da sua loja "{loja.nome}".
+Segue em anexo o backup dos cadastros da loja "{loja.nome}" (ZIP com planilhas).
+As fotos e PDFs baixe no seu computador (link válido por 21 dias):
+{link_midia or "(sem link de mídia)"}
 
 📊 INFORMAÇÕES DO BACKUP:
 - Data/Hora: {data_backup}

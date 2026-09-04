@@ -41,6 +41,13 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
         return
 
     try:
+        from superadmin.models.backup import ensure_configuracao_backup
+
+        ensure_configuracao_backup(instance)
+    except Exception as exc:
+        logger.warning("Backup automático: não criou config da loja %s: %s", instance.nome, exc)
+
+    try:
         tipo_loja_nome = instance.tipo_loja.nome
         owner = instance.owner
 

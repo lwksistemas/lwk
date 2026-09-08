@@ -75,11 +75,12 @@ class MemedTokenView(APIView):
     Retorna o token do prescritor (para o data-token do script da Memed), a URL do
     script e o ambiente. Mantém api-key/secret-key no servidor.
 
-    Performance: cache do token por 15 minutos (token da Memed dura 24h+).
+    O token do prescritor NÃO é cacheado: a Memed exige recuperar o último token
+    válido a cada chamada (o token rotaciona). A chamada ocorre só ao abrir a
+    prescrição, então o custo é baixo.
     """
 
     permission_classes = CLINICA_CLINICAL
-    CACHE_TTL = 900  # 15 minutos
 
     def get(self, request):
         from tenants.middleware import get_current_loja_id
@@ -104,16 +105,10 @@ class MemedTokenView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Cache do token por prescritor (evita chamada HTTP a cada clique)
-        from django.core.cache import cache
-
-        from tenants.middleware import get_current_loja_id
-        loja_id = get_current_loja_id() or 0
-        cache_key = f"memed_token_v3_{loja_id}_{prescritor_id}_{env}"
-        cached = cache.get(cache_key)
-        if cached:
-            return Response(cached)
-
+        # O token do prescritor NÃO é estático (rotaciona). A doc da Memed exige
+        # recuperar o último token válido a cada chamada — por isso NÃO cacheamos o
+        # token. A chamada é feita só ao abrir a prescrição (baixo volume), então o
+        # custo é aceitável e evita servir um token vencido (que impede prescrever).
         url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{prescritor_id}"
         resp = None
         for tentativa in range(2):
@@ -190,7 +185,7 @@ class MemedTokenView(APIView):
             },
             "clinica": _dados_clinica(request),
         }
-        cache.set(cache_key, payload, self.CACHE_TTL)
+        # Sem cache do token: sempre retornamos o token recém-obtido da Memed.
         return Response(payload)
 
     def _resolver_prescritor_por_professional(self, professional_id, request) -> str:

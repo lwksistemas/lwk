@@ -28,8 +28,17 @@ from .memed_config import memed_credentials as _memed_credentials
 logger = logging.getLogger(__name__)
 
 
+# Prefixos de tratamento removidos antes de separar nome/sobrenome, para não
+# enviar "Dra." como primeiro nome à Memed (comparação sem acento/pontuação).
+_PREFIXOS_TRATAMENTO = {"dr", "dra", "drs", "dro", "sr", "sra", "srta"}
+
+
 def _split_nome(nome: str):
     partes = (nome or "").strip().split()
+    # Remove prefixos de tratamento iniciais (Dr., Dra., Sr., etc.), inclusive
+    # repetidos, comparando sem pontuação: "DRA." -> "dra".
+    while partes and partes[0].rstrip(".").lower() in _PREFIXOS_TRATAMENTO:
+        partes = partes[1:]
     if not partes:
         return "", ""
     if len(partes) == 1:

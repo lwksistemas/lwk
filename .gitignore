@@ -93,3 +93,6 @@ COMMIT_MESSAGE_*.txt
 # Binários e artefatos gerados
 *.phar
 envelope_issnet_para_suporte.xml
+
+# Estado local de deploy (SHA do último deploy de backend por servidor) — não versionar
+.last_deployed_backend_sha

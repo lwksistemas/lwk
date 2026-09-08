@@ -64,10 +64,10 @@ describe('isTipoClinicaGeral', () => {
 });
 
 describe('Clínica da Beleza — home', () => {
-  it('abre a lista de consultas', () => {
+  it('abre no dashboard da loja', () => {
     expect(isTipoClinicaBeleza('Clínica da Beleza')).toBe(true);
     expect(homePathForTipo('clinicaharmonis', 'Clínica da Beleza')).toBe(
-      '/loja/clinicaharmonis/clinica-beleza/consultas',
+      '/loja/clinicaharmonis/dashboard',
     );
   });
 });

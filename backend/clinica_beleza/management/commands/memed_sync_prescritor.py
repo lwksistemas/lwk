@@ -12,7 +12,11 @@ import re
 
 from django.core.management.base import BaseCommand, CommandError
 
-from clinica_beleza.memed_service import external_id_prescritor, sincronizar_prescritor
+from clinica_beleza.memed_service import (
+    atualizar_prescritor,
+    external_id_prescritor,
+    sincronizar_prescritor,
+)
 from clinica_beleza.models import Professional
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
@@ -27,6 +31,11 @@ class Command(BaseCommand):
         parser.add_argument("--professional", type=int, help="ID do profissional na loja.")
         parser.add_argument("--cpf", help="CPF do profissional (alternativa ao --professional).")
         parser.add_argument("--force", action="store_true", help="Ignora a flag MEMED_AUTO_CADASTRO.")
+        parser.add_argument(
+            "--update",
+            action="store_true",
+            help="Atualiza (PATCH) o cadastro existente na Memed. Se não existir, cria.",
+        )
 
     def _resolver_loja(self, ident: str) -> Loja:
         ident = (ident or "").strip()
@@ -63,7 +72,15 @@ class Command(BaseCommand):
             raise CommandError("Profissional não encontrado na loja informada.")
 
         self.stdout.write(f"Profissional: {prof.nome} (id={prof.id}) — external_id={external_id_prescritor(prof)}")
-        resultado = sincronizar_prescritor(prof, force=options.get("force", False))
+        if options.get("update"):
+            # PATCH: atualiza cadastro existente (ex.: corrigir board CRM -> COREN).
+            resultado = atualizar_prescritor(prof)
+            # Se o prescritor ainda não existe na Memed, cai para criação.
+            if resultado.get("not_found"):
+                self.stdout.write(self.style.WARNING("Prescritor não existe na Memed — criando via POST..."))
+                resultado = sincronizar_prescritor(prof, force=True)
+        else:
+            resultado = sincronizar_prescritor(prof, force=options.get("force", False))
         self.stdout.write(self.style.MIGRATE_HEADING("=== Resultado ==="))
         self.stdout.write(str(resultado))
         if resultado.get("ok"):

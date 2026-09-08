@@ -1,11 +1,11 @@
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 
 export const DASHBOARD_STATUS_COLORS: Record<string, string> = {
-  SCHEDULED: "bg-gray-100 text-gray-700",
-  CONFIRMED: "bg-green-100 text-green-700",
-  PENDING: "bg-amber-100 text-amber-800",
-  COMPLETED: "bg-teal-100 text-teal-700",
-  CANCELLED: "bg-red-100 text-red-700",
+  SCHEDULED: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200",
+  CONFIRMED: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  COMPLETED: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
+  CANCELLED: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
 };
 
 /** Paleta dos gráficos — 1ª cor = primária da loja. */

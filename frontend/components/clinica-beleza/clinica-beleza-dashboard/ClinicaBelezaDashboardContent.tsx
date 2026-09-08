@@ -78,12 +78,12 @@ function AppointmentItem({ appt }: { appt: DashboardAppointment }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-gray-50 dark:border-gray-700 last:border-0">
       <div className="flex items-center gap-3 min-w-0">
-        <span className="text-xs font-semibold text-gray-500 w-11 shrink-0">
+        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 w-11 shrink-0">
           {appt.time || appt.date?.slice(11, 16) || "--:--"}
         </span>
         <div className="min-w-0">
           <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{appt.patient_name}</p>
-          <p className="text-xs text-gray-400 truncate">{appt.procedure_name}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{appt.procedure_name}</p>
         </div>
       </div>
       <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium shrink-0 ml-2 ${statusClass}`}>
@@ -212,7 +212,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               {appointments.length > 0 ? (
                 appointments.slice(0, 5).map((appt) => <AppointmentItem key={appt.id} appt={appt} />)
               ) : (
-                <p className="text-sm text-gray-400 text-center py-6">Nenhum agendamento próximo</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Nenhum agendamento próximo</p>
               )}
             </div>
 
@@ -229,7 +229,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                       <div key={i}>
                         <div className="flex justify-between text-xs mb-1">
                           <span className="text-gray-600 dark:text-gray-400 truncate pr-2">{proc.name}</span>
-                          <span className="text-gray-500 font-medium shrink-0">{proc.count}</span>
+                          <span className="text-gray-500 dark:text-gray-400 font-medium shrink-0">{proc.count}</span>
                         </div>
                         <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div
@@ -245,7 +245,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 text-center py-6">Sem consultas concluídas no período</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Sem consultas concluídas no período</p>
               )}
             </div>
 
@@ -255,19 +255,19 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               </h3>
               <div className="space-y-3 flex-1">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Faturamento</span>
-                  <span className="font-semibold text-emerald-600">
+                  <span className="text-gray-500 dark:text-gray-400">Faturamento</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(financial?.faturamento ?? stats?.revenue_month ?? 0)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Despesas</span>
-                  <span className="font-semibold text-red-500">{formatCurrency(financial?.despesas ?? 0)}</span>
+                  <span className="text-gray-500 dark:text-gray-400">Despesas</span>
+                  <span className="font-semibold text-red-500 dark:text-red-400">{formatCurrency(financial?.despesas ?? 0)}</span>
                 </div>
                 <hr className="border-gray-100 dark:border-gray-700" />
                 <div className="flex justify-between text-sm">
                   <span className="font-medium text-gray-700 dark:text-gray-300">Lucro líquido</span>
-                  <span className="font-bold text-emerald-600">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(
                       financial?.lucro ??
                         (financial?.faturamento ?? stats?.revenue_month ?? 0) - (financial?.despesas ?? 0),

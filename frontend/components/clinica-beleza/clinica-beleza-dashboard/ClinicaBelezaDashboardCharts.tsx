@@ -56,13 +56,22 @@ export function ClinicaBelezaDashboardCharts({
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={revenueData}>
                 <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "#374151" : "#f0f0f0"} />
-                <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: darkMode ? "#9ca3af" : "#666" }} stroke="#9ca3af" />
                 <YAxis
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 11, fill: darkMode ? "#9ca3af" : "#666" }}
                   stroke="#9ca3af"
                   tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
                 />
-                <Tooltip formatter={(v) => formatCurrency(Number(v))} />
+                <Tooltip
+                  formatter={(v) => formatCurrency(Number(v))}
+                  contentStyle={
+                    darkMode
+                      ? { backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: 8, color: "#f3f4f6" }
+                      : undefined
+                  }
+                  labelStyle={darkMode ? { color: "#f3f4f6" } : undefined}
+                  itemStyle={darkMode ? { color: "#f3f4f6" } : undefined}
+                />
                 <Line
                   type="monotone"
                   dataKey="value"
@@ -73,7 +82,7 @@ export function ClinicaBelezaDashboardCharts({
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-sm text-gray-400 text-center py-16">Sem faturamento no período</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-16">Sem faturamento no período</p>
           )}
         </div>
       </ChartCard>
@@ -97,15 +106,23 @@ export function ClinicaBelezaDashboardCharts({
                     <Cell key={i} fill={chartColors[i % chartColors.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip
+                  contentStyle={
+                    darkMode
+                      ? { backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: 8, color: "#f3f4f6" }
+                      : undefined
+                  }
+                  labelStyle={darkMode ? { color: "#f3f4f6" } : undefined}
+                  itemStyle={darkMode ? { color: "#f3f4f6" } : undefined}
+                />
               </PieChart>
             </ResponsiveContainer>
           ) : topProceduresVolume.length > 0 ? (
-            <p className="text-sm text-gray-400 text-center px-4">
+            <p className="text-sm text-gray-400 dark:text-gray-500 text-center px-4">
               Soroterapias cadastradas, sem movimento em {filterLabel}.
             </p>
           ) : (
-            <p className="text-sm text-gray-400">Nenhuma soroterapia cadastrada</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">Nenhuma soroterapia cadastrada</p>
           )}
         </div>
         {topProceduresVolume.length > 0 && (

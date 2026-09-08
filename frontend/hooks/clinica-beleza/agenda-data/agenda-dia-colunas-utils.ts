@@ -77,7 +77,11 @@ export function corStatusEventoAgenda(evt: AgendaEventData): string {
 }
 
 export function fundoPastelAgenda(hex: string, pct = 28): string {
-  return `color-mix(in srgb, ${hex} ${pct}%, white)`;
+  // Mistura a cor do status com um tom de fundo que muda conforme o tema:
+  // no claro é branco (pastel claro), no escuro é um cinza-escuro (definido em
+  // globals.css via --agenda-card-base). Assim o mesmo estilo inline serve aos
+  // dois temas sem cards claros ilegíveis no modo escuro.
+  return `color-mix(in srgb, ${hex} ${pct}%, var(--agenda-card-base, white))`;
 }
 
 export function rotuloStatusCardAgenda(evt: AgendaEventData): string {

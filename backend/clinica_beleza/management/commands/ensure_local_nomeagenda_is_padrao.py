@@ -7,9 +7,10 @@ Uso:
 from contextlib import suppress
 
 from django.core.management.base import BaseCommand
-from django.db import connection
+from django.db import connections
 
 from clinica_beleza.schema_ensure import column_exists, table_exists
+from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
 MIGRATION = "0050_local_nomeagenda_is_padrao"
@@ -39,15 +40,23 @@ class Command(BaseCommand):
             ):
                 continue
             schema = (loja.database_name or "").replace("-", "_")
-            if not schema:
+            db_name = loja.database_name
+            if not schema or not db_name:
                 skip += 1
+                continue
+
+            # Padrão A: alias próprio da loja (search_path já vem na URL da conexão,
+            # autocommit). Sem SET search_path na conexão default compartilhada — mais
+            # seguro e pronto para paralelização futura por processo.
+            if not ensure_loja_database_config(db_name, conn_max_age=0):
+                skip += 1
+                self.stdout.write(self.style.WARNING(f"  skip {loja.slug}: DB indisponível"))
                 continue
 
             try:
                 changed = False
-                with connection.cursor() as cursor:
-                    cursor.execute(f'SET search_path TO "{schema}", public')
-
+                conn = connections[db_name]
+                with conn.cursor() as cursor:
                     for table in (LOCAIS_TABLE, NOMES_TABLE):
                         if not table_exists(cursor, table):
                             continue
@@ -73,7 +82,6 @@ class Command(BaseCommand):
                             [MIGRATION, MIGRATION],
                         )
 
-                connection.commit()
                 if changed:
                     ok += 1
                 else:
@@ -83,11 +91,9 @@ class Command(BaseCommand):
                 ))
             except Exception as e:
                 skip += 1
-                with suppress(Exception):
-                    connection.rollback()
                 self.stdout.write(self.style.ERROR(f"  ERRO {loja.slug}: {e}"))
-
-        with suppress(Exception), connection.cursor() as cursor:
-            cursor.execute("SET search_path TO public")
+            finally:
+                with suppress(Exception):
+                    connections[db_name].close()
 
         self.stdout.write(self.style.SUCCESS(f"Concluído: {ok} loja(s), {skip} ignorada(s)/erro."))

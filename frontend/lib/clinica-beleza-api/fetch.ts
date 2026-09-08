@@ -174,9 +174,17 @@ export async function clinicaBelezaFetch(
   }
   // Reportar erros de API ao suporte (exceto 429/401 e Memed 404 esperado sem prescritor)
   const pathNorm = path.startsWith("/") ? path : `/${path}`;
-  const memedToken404 =
-    response.status === 404 && pathNorm.startsWith("/memed/token");
-  if (!response.ok && response.status !== 429 && response.status !== 401 && !memedToken404) {
+  // 404 (sem prescritor) e 409 (prescritor Inativo aguardando ativação) do /memed/token
+  // são estados esperados — não reportar ao suporte como erro de API.
+  const memedTokenEstadoEsperado =
+    (response.status === 404 || response.status === 409) &&
+    pathNorm.startsWith("/memed/token");
+  if (
+    !response.ok &&
+    response.status !== 429 &&
+    response.status !== 401 &&
+    !memedTokenEstadoEsperado
+  ) {
     const clone = response.clone();
     (async () => {
       try {

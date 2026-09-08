@@ -41,6 +41,11 @@ def get_flow(redirect_uri):
         scopes=SCOPES,
         redirect_uri=redirect_uri,
     )
+    # PKCE desativado: 'auth' e 'callback' são requisições HTTP separadas e cada uma
+    # cria um Flow novo, então o code_verifier gerado no auth se perderia no callback,
+    # causando (invalid_grant) Missing code verifier. A proteção CSRF já é feita pelo
+    # state assinado (encode_oauth_state). Sem PKCE, o Google não exige o verifier.
+    flow.autogenerate_code_verifier = False
     return flow
 
 

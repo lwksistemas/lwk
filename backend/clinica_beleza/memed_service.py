@@ -130,6 +130,65 @@ def sincronizar_prescritor(professional, *, force: bool = False) -> dict:
     return {"ok": False, "status": resp.status_code, "detail": corpo[:300], "external_id": ext}
 
 
+def atualizar_prescritor(professional) -> dict:
+    """Atualiza (PATCH) o cadastro de um prescritor já existente na Memed.
+
+    Usado para corrigir dados de cadastro — ex.: board_code errado (CRM em vez de
+    COREN/CRF), que deixa o prescritor "Inativo". Segue a doc oficial:
+    PATCH /sinapse-prescricao/usuarios/{external_id}.
+
+    IMPORTANTE: o external_id NÃO vai no corpo (a doc alerta que enviar o mesmo
+    external_id retorna "prescritor já cadastrado"). Ele identifica o recurso na URL.
+
+    Best-effort: NUNCA lança exceção. Retorna dict para log/diagnóstico.
+    """
+    cpf = re.sub(r"\D", "", getattr(professional, "cpf", "") or "")
+    if len(cpf) != 11:
+        return {"skipped": "sem_cpf_valido"}
+
+    env, endpoints = _memed_config()
+    api_key, secret_key = _memed_credentials(env)
+    if not api_key or not secret_key:
+        return {"skipped": "sem_credenciais"}
+
+    ext = external_id_prescritor(professional)
+    # Atributos a atualizar, sem o external_id (identifica o recurso só na URL).
+    attrs = {k: v for k, v in _payload_prescritor(professional).items() if k != "external_id"}
+    if not attrs:
+        return {"skipped": "sem_dados"}
+
+    url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{ext}"
+    body = {"data": {"type": "usuarios", "attributes": attrs}}
+    try:
+        resp = requests.patch(
+            url,
+            params={"api-key": api_key, "secret-key": secret_key},
+            json=body,
+            headers={
+                "Accept": "application/vnd.api+json",
+                "Content-Type": "application/json",
+            },
+            timeout=20,
+        )
+    except requests.RequestException as e:
+        logger.warning("Memed PATCH: falha de rede (prof %s): %s", getattr(professional, "id", None), e)
+        return {"ok": False, "error": "network"}
+
+    corpo = resp.text or ""
+    if resp.ok:
+        logger.info("Memed PATCH OK prof %s (external_id=%s) HTTP %s", professional.id, ext, resp.status_code)
+        _aplicar_timbrado_automatico(professional)
+        return {"ok": True, "status": resp.status_code, "external_id": ext, "environment": env}
+
+    # 404 = prescritor ainda não existe → cai para criação (POST) via sincronizar_prescritor.
+    if resp.status_code == 404:
+        logger.info("Memed PATCH prof %s: prescritor não existe (external_id=%s) — tentar criar", professional.id, ext)
+        return {"ok": False, "status": 404, "not_found": True, "external_id": ext}
+
+    logger.info("Memed PATCH prof %s -> HTTP %s: %s", professional.id, resp.status_code, corpo[:300])
+    return {"ok": False, "status": resp.status_code, "detail": corpo[:300], "external_id": ext}
+
+
 def _aplicar_timbrado_automatico(professional):
     """Se a loja tiver PDF timbrado salvo, aplica na Memed para o prescritor (best-effort)."""
     try:

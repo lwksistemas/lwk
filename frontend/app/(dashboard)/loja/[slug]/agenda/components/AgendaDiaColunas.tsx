@@ -262,7 +262,7 @@ export function AgendaDiaColunas({
                           style={{ top: (m - minMin) * pxPerMin }}
                         >
                           <span
-                            className={`absolute left-1.5 text-[10px] tabular-nums text-gray-400 dark:text-gray-500 leading-none ${
+                            className={`absolute left-1.5 text-[10px] tabular-nums text-gray-400 dark:text-gray-300 leading-none ${
                               m >= maxMin ? "-translate-y-full" : "pt-0.5"
                             }`}
                           >
@@ -317,7 +317,7 @@ export function AgendaDiaColunas({
                                 if (!intervalo) onOpenEvent(evt);
                               }
                             }}
-                            className={`absolute z-[1] rounded-lg text-left overflow-hidden px-2.5 py-1.5 touch-none ${
+                            className={`agenda-card absolute z-[1] rounded-lg text-left overflow-hidden px-2.5 py-1.5 touch-none ${
                               arrastandoEste ? "opacity-40" : ""
                             }`}
                             style={{
@@ -330,7 +330,7 @@ export function AgendaDiaColunas({
                             }}
                           >
                             <div className="flex items-start justify-between gap-1">
-                              <p className="text-[11px] tabular-nums text-gray-600 dark:text-gray-700">
+                              <p className="agenda-card-hora text-[11px] tabular-nums text-gray-600">
                                 {formatClinicaHora(start)} - {formatClinicaHora(fimPreview)}
                               </p>
                               {height > 42 || bloqueio ? (
@@ -348,11 +348,11 @@ export function AgendaDiaColunas({
                                 />
                               )}
                             </div>
-                            <p className="text-xs font-semibold text-gray-900 truncate leading-tight">
+                            <p className="agenda-card-titulo text-xs font-semibold text-gray-900 truncate leading-tight">
                               {tituloCardAgenda(evt)}
                             </p>
                             {height > 56 ? (
-                              <p className="text-[11px] text-gray-500 truncate">
+                              <p className="agenda-card-sub text-[11px] text-gray-500 truncate">
                                 {subtituloCard(evt)}
                               </p>
                             ) : null}

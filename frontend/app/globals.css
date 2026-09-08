@@ -729,3 +729,28 @@ body.col-resize-active {
 body.col-resize-active * {
   cursor: col-resize !important;
 }
+
+/* ========== AGENDA CLÍNICA (visões Dia/Semana custom) — MODO ESCURO ========== */
+/* As visões Dia e Semana não usam FullCalendar; os cards têm estilo inline com
+   fundo pastel (fundoPastelAgenda). A variável abaixo controla com que tom a cor
+   do status é misturada: branco no claro, cinza-escuro no escuro. Assim os cards
+   deixam de ficar claros e ilegíveis no dark. */
+:root {
+  --agenda-card-base: #ffffff;
+}
+.dark {
+  --agenda-card-base: #1f2937; /* gray-800 */
+}
+
+/* Texto dos cards de agendamento nas visões Dia/Semana no modo escuro.
+   No claro, o fundo é pastel-claro e o texto escuro (padrão Tailwind) já funciona;
+   no escuro, o fundo passa a ser escuro, então o texto precisa clarear. */
+.dark .agenda-card .agenda-card-hora {
+  color: rgb(203 213 225); /* slate-300 */
+}
+.dark .agenda-card .agenda-card-titulo {
+  color: rgb(248 250 252); /* slate-50 */
+}
+.dark .agenda-card .agenda-card-sub {
+  color: rgb(203 213 225); /* slate-300 */
+}

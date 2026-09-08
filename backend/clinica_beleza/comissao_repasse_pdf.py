@@ -26,8 +26,8 @@ from .comissao_relatorio_pdf import (
     _fmt_regra_comissao,
     _logo_image,
     _make_data_table,
-    _merge_timbrado_fundo,
 )
+from .pdf_common import finalize_pdf_com_timbrado
 from .prontuario_pdf import _resolver_cabecalho_relatorio
 
 
@@ -288,11 +288,4 @@ def gerar_pdf_repasse_consulta(
 
     doc.build(elements)
     buffer.seek(0)
-    pdf_bytes = buffer.getvalue()
-
-    if tipo_cab == "timbrado":
-        pdf_bytes = _merge_timbrado_fundo(pdf_bytes, dados_cab)
-
-    out = BytesIO(pdf_bytes)
-    out.seek(0)
-    return out
+    return finalize_pdf_com_timbrado(buffer, tipo_cab, dados_cab)

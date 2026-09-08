@@ -13,7 +13,7 @@ from ..models import (
     PatientAnamnese,
     PrescricaoMemed,
 )
-from ..pdf_common import merge_timbrado_fundo
+from ..pdf_common import finalize_pdf_com_timbrado
 from .constants import MARGIN
 from .elements import (
     _build_anamnese_elements,
@@ -39,12 +39,7 @@ SECOES_CONSULTA_PDF = {
 def _finalize_pdf_bytes(loja_id: int, buffer: BytesIO) -> BytesIO:
     """Aplica papel timbrado de fundo quando configurado para a loja."""
     tipo_cab, dados_cab = _resolver_cabecalho(loja_id)
-    pdf_bytes = buffer.getvalue()
-    if tipo_cab == "timbrado":
-        pdf_bytes = merge_timbrado_fundo(pdf_bytes, dados_cab)
-    out = BytesIO(pdf_bytes)
-    out.seek(0)
-    return out
+    return finalize_pdf_com_timbrado(buffer, tipo_cab, dados_cab)
 
 
 def _build_pdf(loja_id: int, elements: list) -> BytesIO:

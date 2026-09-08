@@ -65,7 +65,7 @@ known-first-party = [
 "superadmin/management/commands/*.py" = ["E402"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "crm_vendas/tests", "clinica_estetica/tests", "core"]
+testpaths = ["tests", "crm_vendas/tests", "clinica_beleza/tests", "clinica_estetica/tests", "core"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"

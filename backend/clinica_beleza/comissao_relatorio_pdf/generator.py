@@ -8,8 +8,8 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm, mm
 from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer
 
+from ..pdf_common import finalize_pdf_com_timbrado
 from ..pdf_common import logo_image as _logo_image
-from ..pdf_common import merge_timbrado_fundo as _merge_timbrado_fundo
 from ..prontuario_pdf import _resolver_cabecalho
 from .blocos import (
     _bloco_consultas_pdf,
@@ -196,10 +196,4 @@ def gerar_pdf_comissoes(
 
     doc.build(elements)
     buffer.seek(0)
-    pdf_bytes = buffer.getvalue()
-    if tipo_cab == "timbrado":
-        pdf_bytes = _merge_timbrado_fundo(pdf_bytes, dados_cab)
-
-    out = BytesIO(pdf_bytes)
-    out.seek(0)
-    return out
+    return finalize_pdf_com_timbrado(buffer, tipo_cab, dados_cab)

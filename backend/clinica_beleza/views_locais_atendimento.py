@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from .models import LocalAtendimento
 from .permissions import CLINICA_RECEPCAO
 from .serializers import LocalAtendimentoSerializer
-from .catalogo_padrao_service import exclusivizar_padrao, garantir_primeiro_padrao
+from .is_padrao_service import exclusivizar_padrao, garantir_primeiro_padrao
 from .views_base import GetObjectMixin
 
 

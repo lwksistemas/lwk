@@ -4,7 +4,24 @@ from unittest.mock import MagicMock, patch
 
 from clinica_beleza.memed_impressao import aviso_timbrado_nao_aplicado
 from clinica_beleza.memed_service import prescritor_liberado_na_memed
-from clinica_beleza.views_memed import MemedTokenView
+from clinica_beleza.views_memed import MemedTokenView, _normalizar_status_memed
+
+
+class NormalizarStatusMemedTest(TestCase):
+    def test_inativo_normaliza(self):
+        # Só "inativo" deve ser bloqueado no MemedTokenView.
+        self.assertEqual(_normalizar_status_memed("Inativo"), "inativo")
+        self.assertEqual(_normalizar_status_memed("  INATIVO "), "inativo")
+
+    def test_em_analise_nao_vira_inativo(self):
+        # "Em análise" (com acento) normaliza sem acento e NÃO é "inativo".
+        self.assertEqual(_normalizar_status_memed("Em análise"), "em analise")
+        self.assertNotEqual(_normalizar_status_memed("Em análise"), "inativo")
+
+    def test_ativo_e_vazio(self):
+        self.assertEqual(_normalizar_status_memed("Ativo"), "ativo")
+        self.assertEqual(_normalizar_status_memed(None), "")
+        self.assertEqual(_normalizar_status_memed(""), "")
 
 
 class PrescritorLiberadoNaMemedTest(TestCase):

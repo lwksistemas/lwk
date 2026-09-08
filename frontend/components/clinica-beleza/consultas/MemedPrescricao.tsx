@@ -95,9 +95,6 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
           {status === "loading" && (
             <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Carregando o editor da Memed…</p>
           )}
-          {status === "error" && erro && (
-            <p className="mt-0.5 text-xs text-red-700 dark:text-red-400">{erro}</p>
-          )}
         </div>
         <button
           type="button"
@@ -110,8 +107,43 @@ const MemedPrescricao = forwardRef<MemedPrescricaoHandle, MemedPrescricaoProps>(
       </div>
     );
 
+    // Painel central de erro: quando o editor não pode abrir (ex.: prescritor
+    // "Inativo" na Memed), mostra uma mensagem clara em vez de deixar o editor vazio.
+    const painelErro =
+      aberto && status === "error" && erro ? (
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black/40 px-4"
+          style={{ zIndex: 10001 }}
+          role="alertdialog"
+          aria-label="Aviso da prescrição Memed"
+        >
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-neutral-900">
+            <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
+              Não foi possível abrir a prescrição
+            </p>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{erro}</p>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={fechar}
+                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white"
+                style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null;
+
     if (!montado) return null;
-    return createPortal(ui, document.body);
+    return createPortal(
+      <>
+        {ui}
+        {painelErro}
+      </>,
+      document.body,
+    );
   },
 );
 

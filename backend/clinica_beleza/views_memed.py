@@ -24,6 +24,19 @@ from .permissions import CLINICA_CLINICAL
 logger = logging.getLogger(__name__)
 
 
+def _normalizar_status_memed(status_val) -> str:
+    """Normaliza o status do prescritor Memed para comparação (sem acento, minúsculo).
+
+    Ex.: 'Inativo' -> 'inativo', 'Em análise' -> 'em analise'.
+    """
+    import unicodedata
+
+    texto = (status_val or "").strip().lower()
+    return "".join(
+        c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn"
+    )
+
+
 def _dados_clinica(request):
     """Dados do estabelecimento (loja atual) para o cabeçalho/rodapé da receita,
     usados pelo comando setWorkplace da Memed. Retorna {} se indisponível —
@@ -142,6 +155,25 @@ class MemedTokenView(APIView):
             return Response(
                 {"error": "Token do prescritor não retornado pela Memed."},
                 status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        # Prescritor "Inativo" na Memed não consegue prescrever (a busca de
+        # medicamentos volta vazia e o editor abre sem funcionar). Bloqueamos aqui
+        # com uma mensagem clara em vez de abrir um widget inutilizável.
+        # "Em análise" e "Ativo" liberam a prescrição (confirmação do suporte Memed).
+        status_prescritor = _normalizar_status_memed(attrs.get("status"))
+        if status_prescritor == "inativo":
+            return Response(
+                {
+                    "error": (
+                        "O cadastro deste profissional na Memed está inativo e ainda não "
+                        "libera a emissão de receitas. O cadastro já foi enviado para ativação; "
+                        "assim que a Memed liberar (status 'Em análise' ou 'Ativo'), a prescrição "
+                        "funcionará normalmente. Se persistir, contate o suporte."
+                    ),
+                    "memed_status": attrs.get("status") or "Inativo",
+                },
+                status=status.HTTP_409_CONFLICT,
             )
 
         payload = {

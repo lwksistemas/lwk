@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, RefreshCw, Upload } from "lucide-react";
+import { FileText, Info, RefreshCw, Upload } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { formatTimbradoBytes, resumoProntoParaPrescrever, detalhePrescritorMemed } from "./memed-page-utils";
@@ -70,6 +70,28 @@ export function MemedPageContent() {
                 já emitida — esse arquivo é a saída da Memed, não o papel de entrada. Cada loja tem o próprio
                 timbrado; o de outra clínica não vale aqui.
               </p>
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3.5">
+            <div className="flex items-start gap-2.5">
+              <Info size={18} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1.5">
+                <p className="font-semibold">Como deve ser o timbrado para a receita sair em 1 página</p>
+                <p>
+                  A arte precisa ficar só no <strong>topo</strong> e no <strong>rodapé</strong>, deixando o
+                  <strong> meio da página em branco</strong>. É no meio que entram os medicamentos.
+                </p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  <li><strong>Cabeçalho (topo):</strong> logo da clínica, até ~3 cm de altura.</li>
+                  <li><strong>Rodapé (base):</strong> faixa/endereço, até ~3 cm de altura.</li>
+                  <li><strong>Miolo (centro):</strong> totalmente em branco — sem marca d’água, curvas ou linhas atravessando.</li>
+                </ul>
+                <p>
+                  Página <strong>A4</strong> (21 × 29,7 cm), <strong>1 página só</strong>, PDF de até 5 MB.
+                  Timbrado com arte no meio faz a receita sair em várias folhas.
+                </p>
+              </div>
             </div>
           </div>
 

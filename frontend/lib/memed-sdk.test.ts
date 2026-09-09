@@ -79,6 +79,32 @@ describe("garantirEditorMemedVisivel", () => {
     expect(overlay.style.visibility).toBe("visible");
     expect(overlay.style.zIndex).toBe("2147483646");
   });
+
+  it("desconta a barra Fechar da altura do overlay (botao nao pode ser cortado)", () => {
+    const iframe = iframeMemed();
+    const overlay = {
+      style: {} as Record<string, string>,
+      // overlay NÃO contém o iframe -> cai no ramo revelarOverlayMemed
+      contains: () => false,
+      childElementCount: 1,
+    };
+    const host = {
+      querySelectorAll: () => [],
+      contains: () => false,
+      appendChild: vi.fn(),
+    };
+    const doc = {
+      getElementById: (id: string) =>
+        id === "lwk-memed-host" ? host : id === "memed-auto-generated" ? overlay : null,
+      querySelectorAll: () => [iframe],
+    } as unknown as Document;
+
+    garantirEditorMemedVisivel(doc, "lwk-memed-host");
+    // top deslocado pela barra Fechar e altura descontando o mesmo valor.
+    expect(overlay.style.top).toBe("4.25rem");
+    expect(overlay.style.height).toBe("calc(100vh - 4.25rem)");
+    expect(overlay.style.bottom).toBe("0");
+  });
 });
 
 describe("token da Memed", () => {

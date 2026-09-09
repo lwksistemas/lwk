@@ -137,10 +137,22 @@ class ConsultaPrescricaoDeleteView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def delete(self, request, consulta_id, pk):
+        from ..consulta_service.messages import consulta_esta_concluida
+
         try:
-            prescricao = PrescricaoMemed.objects.get(pk=pk, consulta_id=consulta_id)
+            prescricao = PrescricaoMemed.objects.select_related("consulta", "consulta__appointment").get(
+                pk=pk, consulta_id=consulta_id,
+            )
         except PrescricaoMemed.DoesNotExist:
             return Response({"error": "Prescrição não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Consulta finalizada: prontuário imutável — só visualizar, não excluir.
+        if prescricao.consulta and consulta_esta_concluida(prescricao.consulta):
+            return Response(
+                {"error": "Consulta finalizada — a receita não pode ser excluída, apenas visualizada."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         remover_pdf_media_prescricao(prescricao)
         prescricao.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -7,9 +7,9 @@ Estrutura em disco:
 
 Endpoints:
   POST   /upload/<tenant>/
-  DELETE /upload/<tenant>/<path:filename>                 (arquivo; ou pasta vazia)
+  DELETE /upload/<tenant>/<path:filename>            (arquivo; ou pasta vazia)
   DELETE /upload/<tenant>/<path:filename>?recursive=true  (pasta do paciente + conteúdo)
-  DELETE /upload/<tenant>/?recursive=true                 (loja inteira: /storage/{tenant})
+  DELETE /upload/<tenant>/?recursive=true            (loja inteira: /storage/{tenant})
   GET    /list/
   GET    /list/<tenant>/
   GET    /list/<tenant>/<path:folder>/
@@ -172,8 +172,10 @@ def _rmtree_seguro(path: Path, tenant_key: str) -> str | None:
     """Remove pasta e todo o conteúdo (recursivo). Retorna caminho relativo removido
     ou None se o alvo for inseguro.
 
-    Salvaguardas: só dentro de /storage; nunca a raiz /storage; o alvo tem que
-    estar sob (ou ser) /storage/{tenant_key}.
+    Salvaguardas: só dentro de /storage; nunca a raiz /storage; nunca a raiz do
+    próprio tenant... exceto quando o alvo É a pasta raiz do tenant (usado para
+    excluir toda a mídia de uma loja) — nesse caso exige que o path resolvido seja
+    exatamente /storage/{tenant_key}.
     """
     if not _safe_under_storage(path) or not path.is_dir():
         return None
@@ -181,6 +183,7 @@ def _rmtree_seguro(path: Path, tenant_key: str) -> str | None:
     storage = STORAGE_ROOT.resolve()
     if resolved == storage:
         return None  # nunca apagar a raiz /storage
+    # o alvo tem que estar sob /storage/{tenant_key}
     tenant_root = (STORAGE_ROOT / tenant_key).resolve()
     if resolved != tenant_root and tenant_root not in resolved.parents:
         return None

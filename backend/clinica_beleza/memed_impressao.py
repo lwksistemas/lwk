@@ -110,6 +110,31 @@ def _montar_config_attrs_timbrado(attrs: dict, upload_attrs: dict) -> dict:
         "tamanho_cabecalho": 3.5,
         "tamanho_rodape": 2.5,
     })
+
+    # Garantir página/margens válidas (A4, em cm). Se o tema vier com largura_papel
+    # ou margens zeradas/ausentes (acontece em temas não inicializados), o PDF falha
+    # com "soma das margens > largura da página". Valores padrão A4 evitam isso.
+    def _num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return 0.0
+
+    if _num(config_attrs.get("largura_papel")) <= 0:
+        config_attrs["largura_papel"] = 21  # A4 = 21 cm
+    largura = _num(config_attrs["largura_papel"])
+    if _num(config_attrs.get("margem_esquerda")) <= 0:
+        config_attrs["margem_esquerda"] = 1.5
+    if _num(config_attrs.get("margem_direita")) <= 0:
+        config_attrs["margem_direita"] = 1.5
+    if _num(config_attrs.get("margem_superior")) <= 0:
+        config_attrs["margem_superior"] = 1.5
+    if _num(config_attrs.get("margem_inferior")) <= 0:
+        config_attrs["margem_inferior"] = 1
+    # Salvaguarda final: a soma das margens laterais nunca pode alcançar a largura.
+    if _num(config_attrs["margem_esquerda"]) + _num(config_attrs["margem_direita"]) >= largura:
+        config_attrs["margem_esquerda"] = 1.5
+        config_attrs["margem_direita"] = 1.5
     if upload_attrs.get("header_image"):
         config_attrs["header_image"] = upload_attrs["header_image"]
     if upload_attrs.get("footer_image"):

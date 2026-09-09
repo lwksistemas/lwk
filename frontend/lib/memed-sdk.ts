@@ -107,10 +107,15 @@ function revelarOverlayMemed(overlay: HTMLElement): void {
   overlay.style.visibility = "visible";
   overlay.style.pointerEvents = "auto";
   overlay.style.position = "fixed";
-  overlay.style.inset = "0";
+  // O overlay começa abaixo da barra "Fechar" (4.25rem). A altura precisa
+  // descontar esse deslocamento, senão o rodapé fica fora da tela e o botão
+  // principal da Memed ("Gerar Prescrição"/"Continuar") é cortado.
+  overlay.style.left = "0";
+  overlay.style.right = "0";
   overlay.style.top = "4.25rem";
+  overlay.style.bottom = "0";
   overlay.style.width = "100vw";
-  overlay.style.height = "100vh";
+  overlay.style.height = "calc(100vh - 4.25rem)";
   overlay.style.zIndex = "2147483646";
 }
 

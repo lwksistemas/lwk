@@ -3,9 +3,14 @@ OAuth2 + criar/atualizar/listar eventos.
 """
 import logging
 from datetime import timedelta
+from datetime import timezone as dt_timezone
 
 from django.conf import settings
 from django.utils import timezone
+
+# django.utils.timezone.utc foi removido em versões recentes do Django;
+# usamos o UTC do datetime padrão.
+UTC = dt_timezone.utc
 
 logger = logging.getLogger(__name__)
 
@@ -55,13 +60,13 @@ def _is_token_expired(expiry):
         return True
     now = timezone.now()
     if timezone.is_naive(expiry):
-        expiry = timezone.make_aware(expiry, timezone.utc)
+        expiry = timezone.make_aware(expiry, UTC)
     else:
-        expiry = expiry.astimezone(timezone.utc)
+        expiry = expiry.astimezone(UTC)
     if timezone.is_naive(now):
-        now = timezone.make_aware(now, timezone.utc)
+        now = timezone.make_aware(now, UTC)
     else:
-        now = now.astimezone(timezone.utc)
+        now = now.astimezone(UTC)
     return now >= expiry
 
 
@@ -82,9 +87,9 @@ def get_credentials(connection):
     if connection.token_expiry:
         expiry = connection.token_expiry
         if timezone.is_naive(expiry):
-            expiry = timezone.make_aware(expiry, timezone.utc)
+            expiry = timezone.make_aware(expiry, UTC)
         else:
-            expiry = expiry.astimezone(timezone.utc)
+            expiry = expiry.astimezone(UTC)
         creds.expiry = expiry
     if _is_token_expired(connection.token_expiry) and creds.refresh_token:
         try:
@@ -92,14 +97,25 @@ def get_credentials(connection):
             connection.access_token = creds.token
             expiry = creds.expiry
             if expiry and timezone.is_naive(expiry):
-                expiry = timezone.make_aware(expiry, timezone.utc)
+                expiry = timezone.make_aware(expiry, UTC)
             connection.token_expiry = expiry
             connection.save(update_fields=["access_token", "token_expiry", "updated_at"])
         except RefreshError as e:
-            logger.warning("Refresh token falhou, removendo conexão inválida: %s", e)
-            connection.delete()
+            # Só apagar a conexão quando o erro é DEFINITIVO (refresh token revogado
+            # ou inválido — invalid_grant). Erros transitórios (rede, timeout, 5xx do
+            # Google) NÃO devem apagar a conexão: apagar forçaria o usuário a reconectar
+            # à toa. Nesses casos, pedimos para tentar de novo.
+            msg = str(e).lower()
+            definitivo = "invalid_grant" in msg or "invalid_rapt" in msg or "token has been expired or revoked" in msg
+            if definitivo:
+                logger.warning("Google Calendar: refresh token inválido/revogado — removendo conexão: %s", e)
+                connection.delete()
+                raise ValueError(
+                    "Token expirado ou inválido. Desconecte e conecte o Google Calendar novamente.",
+                ) from e
+            logger.warning("Google Calendar: falha transitória ao renovar token (conexão mantida): %s", e)
             raise ValueError(
-                "Token expirado ou inválido. Desconecte e conecte o Google Calendar novamente.",
+                "Não foi possível renovar a conexão com o Google agora. Tente sincronizar novamente em instantes.",
             ) from e
     return creds
 

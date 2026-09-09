@@ -89,7 +89,7 @@ export function HistoricoDocumentosSection({
                       )}
                     </div>
                     <ConsultaPrintButton
-                      onAction={(modo) => abrirPdfPrescricaoMemed(p, modo)}
+                      onAction={(modo, janela) => abrirPdfPrescricaoMemed(p, modo, janela)}
                     />
                   </div>
                 </div>

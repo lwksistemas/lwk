@@ -57,6 +57,42 @@ export function abrirPdfUrl(url: string, modo: ConsultaPdfModo = "visualizar"): 
   }
 }
 
+/**
+ * Abre uma aba em branco IMEDIATAMENTE (dentro do clique do usuário) para depois
+ * receber a URL do PDF. Necessário quando a URL só fica disponível após um await
+ * (ex.: buscar/gerar o PDF na API): abrir depois do await é bloqueado como pop-up.
+ * Retorna null se o navegador bloqueou o pop-up já no clique.
+ */
+export function abrirJanelaPdf(): Window | null {
+  return window.open("", "_blank");
+}
+
+/** Direciona uma aba pré-aberta (abrirJanelaPdf) para a URL do PDF já resolvida. */
+export function direcionarJanelaPdf(
+  win: Window | null,
+  url: string,
+  modo: ConsultaPdfModo = "visualizar",
+): void {
+  if (!win) {
+    // Sem aba pré-aberta (pop-up bloqueado no clique): tenta abrir direto.
+    abrirPdfUrl(url, modo);
+    return;
+  }
+  win.location.href = url;
+  if (modo === "imprimir") {
+    dispararImpressao(win);
+  }
+}
+
+/** Fecha a aba pré-aberta quando a resolução do PDF falhou. */
+export function fecharJanelaPdf(win: Window | null): void {
+  try {
+    win?.close();
+  } catch {
+    // silencioso
+  }
+}
+
 export async function abrirPdfBlobFromResponse(
   response: Response,
   modo: ConsultaPdfModo = "visualizar",

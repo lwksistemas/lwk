@@ -3,18 +3,28 @@ import { logger } from "@/lib/logger";
 import { abrirPdfBlobFromResponse, imprimirDocumentoPdf } from "@/lib/consulta-print";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 
-export async function printMemedProntuarioDocument(doc: ProntuarioDocItem): Promise<void> {
+export async function printMemedProntuarioDocument(
+  doc: ProntuarioDocItem,
+  janela?: Window | null,
+): Promise<void> {
   const { abrirPdfPrescricaoMemed } = await import("@/lib/memed-prescricao-pdf");
-  await abrirPdfPrescricaoMemed({ id: doc.id, pdf_url: doc.pdf_url });
+  await abrirPdfPrescricaoMemed({ id: doc.id, pdf_url: doc.pdf_url }, "visualizar", janela);
 }
 
 export async function printClinicoProntuarioDocument(doc: ProntuarioDocItem): Promise<void> {
   await imprimirDocumentoPdf(doc);
 }
 
-export async function printProntuarioDocument(doc: ProntuarioDocItem): Promise<void> {
+/**
+ * @param janela aba pré-aberta no clique do usuário (evita bloqueio de pop-up
+ * quando o PDF precisa ser buscado/gerado na API antes de abrir).
+ */
+export async function printProntuarioDocument(
+  doc: ProntuarioDocItem,
+  janela?: Window | null,
+): Promise<void> {
   if (doc.source === "memed") {
-    await printMemedProntuarioDocument(doc);
+    await printMemedProntuarioDocument(doc, janela);
     return;
   }
   if (doc.source === "documento_clinico") {

@@ -422,6 +422,75 @@ def media_delete_by_url(url: str) -> bool:
     return media_delete_tenant(tenant, filename, folder=folder)
 
 
+def media_delete_dir_tenant(tenant: str, folder: str) -> bool:
+    """Remove uma pasta e TODO o seu conteúdo (recursivo) no servidor de mídia.
+
+    Usado para apagar a pasta de um paciente (ex.: {slug}/pdf ou {slug}). Diferente
+    de media_rmdir_tenant (que só remove pastas vazias). Retorna True se removido.
+    """
+    tenant_key = normalize_media_tenant(tenant)
+    folder_path = normalize_media_folder(folder)
+    if not tenant_key or not folder_path:
+        return False
+    url = f"{MEDIA_SERVER_URL}/upload/{tenant_key}/{folder_path}?recursive=true"
+    try:
+        response = requests.delete(url, headers=_media_auth_headers(), timeout=30)
+        if response.status_code == 200:
+            logger.info("media_delete_dir OK: %s/%s", tenant_key, folder_path)
+            return True
+        logger.warning(
+            "media_delete_dir falhou: HTTP %s — %s", response.status_code, response.text[:200],
+        )
+        return False
+    except Exception as exc:
+        logger.warning("media_delete_dir erro: %s", exc)
+        return False
+
+
+def media_delete_dir_by_url(url: str) -> bool:
+    """Remove a pasta que contém o arquivo da URL (recursivo).
+
+    Ex.: para .../files/{cnpj}/{paciente}/pdf/x.pdf remove a pasta {paciente}/pdf.
+    """
+    parsed = parse_media_url(url)
+    if not parsed:
+        logger.warning("media_delete_dir_by_url: path não reconhecido: %s", url)
+        return False
+    tenant, folder, _filename = parsed
+    return media_delete_dir_tenant(tenant, folder)
+
+
+def media_delete_tenant_root(tenant) -> bool:
+    """Remove TODA a pasta de um tenant (loja): /storage/{cnpj} e tudo dentro.
+
+    Usado ao excluir uma loja no superadmin — elimina todos os dados de mídia
+    daquela clínica (fotos e PDFs de todos os pacientes). Aceita objeto loja ou
+    string de CPF/CNPJ. Retorna True se removido (ou se já não existia).
+    """
+    tenant_key = normalize_media_tenant(tenant if isinstance(tenant, str) else _cpf_cnpj_digits(tenant))
+    if not tenant_key:
+        logger.error("media_delete_tenant_root: tenant inválido %r", tenant)
+        return False
+    # Nunca permitir apagar a raiz de tenants de sistema por engano.
+    if tenant_key in MEDIA_SYSTEM_TENANTS:
+        logger.error("media_delete_tenant_root: recusado para tenant de sistema %r", tenant_key)
+        return False
+    url = f"{MEDIA_SERVER_URL}/upload/{tenant_key}/?recursive=true"
+    try:
+        response = requests.delete(url, headers=_media_auth_headers(), timeout=60)
+        if response.status_code == 200:
+            logger.info("media_delete_tenant_root OK: %s", tenant_key)
+            return True
+        logger.warning(
+            "media_delete_tenant_root falhou: HTTP %s — %s",
+            response.status_code, response.text[:200],
+        )
+        return False
+    except Exception as exc:
+        logger.warning("media_delete_tenant_root erro: %s", exc)
+        return False
+
+
 def _media_auth_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {MEDIA_API_TOKEN}"}
 

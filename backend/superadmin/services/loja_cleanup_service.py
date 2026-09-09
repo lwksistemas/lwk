@@ -24,6 +24,8 @@ class LojaCleanupService:
         self.database_created = loja.database_created
         self.owner = loja.owner
         self.owner_id = loja.owner.id
+        # Capturado no início: o CPF/CNPJ é a chave da pasta de mídia da loja.
+        self.cpf_cnpj = getattr(loja, "cpf_cnpj", "") or ""
 
         # Resultados da limpeza
         self.results = {
@@ -37,6 +39,7 @@ class LojaCleanupService:
             "usuario_proprietario": {},
             "usuarios_staff": {},
             "evolution": {},
+            "midia": {},
             "limpeza_completa": False,
         }
 
@@ -52,6 +55,7 @@ class LojaCleanupService:
             self.cleanup_fk_references()
             self.cleanup_lockout()
             self.cleanup_staff_users()
+            self.cleanup_media()
             self.cleanup_database_file()
             self.cleanup_owner_user()
 
@@ -73,6 +77,32 @@ class LojaCleanupService:
         except Exception as e:
             logger.warning(f"⚠️ Erro ao remover Evolution: {e}")
             self.results["evolution"] = {"ok": False, "error": str(e)}
+
+    def cleanup_media(self):
+        """Remove toda a mídia da loja no servidor de mídia (/storage/{cpf_cnpj}).
+
+        Elimina fotos e PDFs de todos os pacientes da clínica — evita dados órfãos
+        após a exclusão da loja. Best-effort: não interrompe a exclusão da loja.
+        """
+        import re
+
+        from core.media_storage import media_delete_tenant_root, normalize_media_tenant
+
+        tenant = normalize_media_tenant(re.sub(r"\D", "", self.cpf_cnpj))
+        if not tenant:
+            self.results["midia"] = {"ok": False, "motivo": "sem_cpf_cnpj_valido"}
+            logger.warning("cleanup_media: loja %s sem CPF/CNPJ válido para mídia", self.loja_slug)
+            return
+        try:
+            ok = media_delete_tenant_root(tenant)
+            self.results["midia"] = {"ok": bool(ok), "tenant": tenant}
+            if ok:
+                logger.info("✅ Mídia da loja removida: /storage/%s", tenant)
+            else:
+                logger.warning("⚠️ Falha ao remover mídia da loja: /storage/%s", tenant)
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao remover mídia da loja: {e}")
+            self.results["midia"] = {"ok": False, "error": str(e)}
 
     def cleanup_staff_users(self):
         """Remove contas de profissionais/vendedores vinculados só a esta loja.

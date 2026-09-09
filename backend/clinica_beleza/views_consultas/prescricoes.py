@@ -8,6 +8,27 @@ from ..permissions import CLINICA_CLINICAL
 from ..serializers import PrescricaoMemedSerializer
 
 
+def remover_pdf_media_prescricao(prescricao) -> None:
+    """Apaga o PDF arquivado da prescrição no servidor de mídia (best-effort).
+
+    Evita arquivo órfão ao excluir a prescrição. Só remove o arquivo específico
+    (não a pasta), pois {paciente}/pdf pode conter outros documentos.
+    """
+    url = (getattr(prescricao, "pdf_url", "") or "").strip()
+    if not url:
+        return
+    try:
+        from core.media_storage import media_delete_by_url
+
+        media_delete_by_url(url)
+    except Exception:  # noqa: BLE001 — limpeza best-effort não pode quebrar o delete.
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Falha ao remover PDF da prescrição %s no media", getattr(prescricao, "id", "?"),
+        )
+
+
 def _preparar_dados_prescricao(request, consulta) -> tuple[dict, str, object, object]:
     """Retorna (data, pdf_url, loja, professional) a partir da request e consulta."""
     from superadmin.models import Loja
@@ -120,6 +141,7 @@ class ConsultaPrescricaoDeleteView(APIView):
             prescricao = PrescricaoMemed.objects.get(pk=pk, consulta_id=consulta_id)
         except PrescricaoMemed.DoesNotExist:
             return Response({"error": "Prescrição não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        remover_pdf_media_prescricao(prescricao)
         prescricao.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

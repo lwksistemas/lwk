@@ -87,8 +87,8 @@ export function DocumentoListaSection({
               </div>
               <div className="flex-shrink-0 flex items-center gap-1">
                 <ConsultaPrintButton
-                  onAction={async (modo) => {
-                    const url = await abrirPdfPrescricaoMemed(p, modo);
+                  onAction={async (modo, janela) => {
+                    const url = await abrirPdfPrescricaoMemed(p, modo, janela);
                     onPrescricaoPdfUrl(p.id, url);
                   }}
                 />

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Eye } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
-import type { ConsultaPdfModo } from "@/lib/consulta-print";
+import { abrirJanelaPdf, fecharJanelaPdf, type ConsultaPdfModo } from "@/lib/consulta-print";
 
 function mensagemErro(e: unknown, fallback: string): string {
   if (e instanceof Error) return e.message;
@@ -16,7 +16,7 @@ function mensagemErro(e: unknown, fallback: string): string {
 }
 
 type Props = {
-  onAction: (modo: ConsultaPdfModo) => void | Promise<unknown>;
+  onAction: (modo: ConsultaPdfModo, janela?: Window | null) => void | Promise<unknown>;
   labelVisualizar?: string;
   className?: string;
 };
@@ -32,9 +32,13 @@ export function ConsultaPrintButton({
   const run = async () => {
     if (loading) return;
     setLoading(true);
+    // Abre a aba já no clique (dentro do gesto do usuário) para o navegador não
+    // bloquear o pop-up quando o PDF precisa ser buscado/gerado na API (await).
+    const janela = abrirJanelaPdf();
     try {
-      await onAction("visualizar");
+      await onAction("visualizar", janela);
     } catch (e) {
+      fecharJanelaPdf(janela);
       toast.error(mensagemErro(e, "Não foi possível visualizar."));
     } finally {
       setLoading(false);

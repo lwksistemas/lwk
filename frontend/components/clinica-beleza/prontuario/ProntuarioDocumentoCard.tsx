@@ -5,6 +5,7 @@ import { Eye } from "lucide-react";
 import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { useToast } from "@/components/ui/Toast";
 import type { ProntuarioDocItem } from "@/lib/clinica-beleza-api";
+import { abrirJanelaPdf } from "@/lib/consulta-print";
 import { printProntuarioDocument } from "./prontuario-document-print";
 import { formatProntuarioDate, prontuarioTipoLabel } from "./prontuario-utils";
 
@@ -19,8 +20,12 @@ export function ProntuarioDocumentoCard({ doc }: ProntuarioDocumentoCardProps) {
   const handleVisualizar = async () => {
     if (opening) return;
     setOpening(true);
+    // Documentos Memed podem exigir buscar/gerar o PDF na API (await). Abrimos a
+    // aba já no clique para o navegador não bloquear o pop-up; ela é redirecionada
+    // quando a URL fica pronta (ou fechada em caso de erro).
+    const janela = doc.source === "memed" ? abrirJanelaPdf() : undefined;
     try {
-      await printProntuarioDocument(doc);
+      await printProntuarioDocument(doc, janela);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível visualizar o documento.");
     } finally {

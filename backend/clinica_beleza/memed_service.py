@@ -255,6 +255,117 @@ def consultar_status_memed(professional) -> dict:
     }
 
 
+def cpf_e_prescritor_na_memed(cpf: str) -> bool:
+    """True se o CPF informado já está cadastrado como PRESCRITOR na Memed.
+
+    Serve para evitar o conflito de identificação do widget: se o CPF de um
+    *paciente* também for de um prescritor, o editor da Memed quebra ao gerar a
+    receita (verifyIdentifyDataToNavigate). Nesse caso o frontend deve omitir o
+    CPF do paciente. Best-effort: em qualquer falha retorna False (não bloqueia).
+    """
+    cpf = re.sub(r"\D", "", cpf or "")
+    if len(cpf) != 11:
+        return False
+    env, endpoints = _memed_config()
+    api_key, secret_key = _memed_credentials(env)
+    if not api_key or not secret_key:
+        return False
+    try:
+        resp = requests.get(
+            f"{endpoints['api']}/sinapse-prescricao/usuarios/{cpf}",
+            params={"api-key": api_key, "secret-key": secret_key},
+            headers={"Accept": "application/vnd.api+json", "Cache-Control": "no-cache"},
+            timeout=10,
+        )
+    except requests.RequestException:
+        return False
+    # 200 = existe um prescritor com esse CPF; 404 = não existe (caso normal).
+    return resp.status_code == 200
+
+
+def _external_id_memed_por_cpf(cpf: str) -> str | None:
+    """Retorna o external_id que a Memed tem registrado para este CPF (ou None).
+
+    O external_id gravado na Memed pode divergir do gerado pelo sistema (ex.: o
+    prescritor foi criado por outra loja num momento anterior). Para excluir o
+    cadastro certo, usamos o external_id que a própria Memed reporta.
+    """
+    cpf = re.sub(r"\D", "", cpf or "")
+    if len(cpf) != 11:
+        return None
+    env, endpoints = _memed_config()
+    api_key, secret_key = _memed_credentials(env)
+    if not api_key or not secret_key:
+        return None
+    try:
+        resp = requests.get(
+            f"{endpoints['api']}/sinapse-prescricao/usuarios/{cpf}",
+            params={"api-key": api_key, "secret-key": secret_key},
+            headers={"Accept": "application/vnd.api+json", "Cache-Control": "no-cache"},
+            timeout=15,
+        )
+    except requests.RequestException:
+        return None
+    if not resp.ok:
+        return None
+    return ((resp.json() or {}).get("data") or {}).get("attributes", {}).get("external_id")
+
+
+def excluir_prescritor(professional) -> dict:
+    """Exclui (DELETE) o prescritor na Memed.
+
+    Usa o external_id que a Memed reporta para o CPF (que pode divergir do gerado
+    pelo sistema). Best-effort: NUNCA lança exceção. Retorna dict para log.
+
+    ATENÇÃO: a exclusão na Memed é irreversível (apaga o cadastro e o histórico).
+    """
+    prof_id = getattr(professional, "id", None)
+    cpf = re.sub(r"\D", "", getattr(professional, "cpf", "") or "")
+    if len(cpf) != 11:
+        return {"ok": False, "skipped": "sem_cpf_valido"}
+
+    env, endpoints = _memed_config()
+    api_key, secret_key = _memed_credentials(env)
+    if not api_key or not secret_key:
+        return {"ok": False, "skipped": "sem_credenciais"}
+
+    ext_memed = _external_id_memed_por_cpf(cpf) or external_id_prescritor(professional)
+    url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{ext_memed}"
+    try:
+        resp = requests.delete(
+            url,
+            params={"api-key": api_key, "secret-key": secret_key},
+            headers={"Accept": "application/vnd.api+json"},
+            timeout=20,
+        )
+    except requests.RequestException as e:
+        logger.warning("Memed DELETE: falha de rede (prof %s): %s", prof_id, e)
+        return {"ok": False, "error": "network", "external_id": ext_memed}
+
+    if resp.status_code in (200, 202, 204):
+        logger.info("Memed DELETE OK prof %s (external_id=%s)", prof_id, ext_memed)
+        return {"ok": True, "status": resp.status_code, "external_id": ext_memed, "environment": env}
+    if resp.status_code == 404:
+        logger.info("Memed DELETE prof %s: prescritor não existe (external_id=%s)", prof_id, ext_memed)
+        return {"ok": True, "status": 404, "not_found": True, "external_id": ext_memed, "environment": env}
+
+    detail = (resp.text or "")[:300]
+    logger.info("Memed DELETE prof %s -> HTTP %s: %s", prof_id, resp.status_code, detail)
+    return {"ok": False, "status": resp.status_code, "detail": detail, "external_id": ext_memed}
+
+
+def recadastrar_prescritor(professional) -> dict:
+    """Exclui e recria o prescritor na Memed.
+
+    Resolve o caso em que um cadastro antigo ficou "Inativo": um cadastro novo
+    entra "Em análise" (que libera a prescrição). Best-effort: não lança exceção.
+    Retorna {"delete": ..., "create": ...}.
+    """
+    del_res = excluir_prescritor(professional)
+    create_res = sincronizar_prescritor(professional, force=True)
+    return {"delete": del_res, "create": create_res}
+
+
 def prescritor_liberado_na_memed(st: dict | None) -> bool:
     """True se o prescritor existe na Memed.
 

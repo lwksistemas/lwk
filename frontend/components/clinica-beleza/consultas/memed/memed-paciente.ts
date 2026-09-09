@@ -11,6 +11,20 @@ export interface DadosClinicaMemed {
   phone?: string;
 }
 
+/**
+ * True se o CPF do paciente também é de um prescritor na Memed (conflito que faz
+ * o editor quebrar ao gerar a receita). Best-effort: qualquer falha retorna false
+ * (não impede a prescrição).
+ */
+async function cpfPacienteConflitaComPrescritor(cpf: string): Promise<boolean> {
+  try {
+    const r = await ClinicaBelezaAPI.memed.verificarCpfPaciente(cpf);
+    return Boolean(r?.conflito_prescritor);
+  } catch {
+    return false;
+  }
+}
+
 export async function montarPacienteMemed(
   patientId: number,
   patientName: string,
@@ -28,7 +42,14 @@ export async function montarPacienteMemed(
     nome: detalhe?.nome || patientName,
   };
   const cpf = apenasDigitos(String(detalhe?.cpf ?? ""));
-  if (cpf) paciente.cpf = cpf;
+  // Se o CPF do paciente também for de um PRESCRITOR na Memed, enviar esse CPF
+  // faz o editor quebrar ao gerar a receita (verifyIdentifyDataToNavigate:
+  // "Cannot read properties of undefined (reading 'attributes')"). Nesse caso
+  // omitimos o CPF do paciente — a receita é gerada normalmente, só sem o
+  // preenchimento automático a partir do CPF.
+  if (cpf && !(await cpfPacienteConflitaComPrescritor(cpf))) {
+    paciente.cpf = cpf;
+  }
   const telefone = apenasDigitos(String(detalhe?.telefone ?? ""));
   if (telefone) paciente.telefone = telefone;
   if (detalhe?.email) paciente.email = detalhe.email;

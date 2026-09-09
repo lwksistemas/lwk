@@ -5,8 +5,12 @@ suporte da Memed o formato do endpoint de criação de prescritor.
 Uso:
     python manage.py memed_sync_prescritor --slug beleza --professional 4 --force
     python manage.py memed_sync_prescritor --slug beleza --cpf 12345678901 --force
+    python manage.py memed_sync_prescritor --slug beleza --professional 4 --recadastrar
 
 --force ignora a flag MEMED_AUTO_CADASTRO (envia mesmo com ela desligada).
+--recadastrar exclui o cadastro atual e cria de novo (resolve o status "Inativo":
+    um cadastro novo entra "Em análise", que libera a prescrição). Irreversível na
+    Memed — só use quando o prescritor não tiver histórico a preservar.
 """
 import re
 
@@ -14,7 +18,9 @@ from django.core.management.base import BaseCommand, CommandError
 
 from clinica_beleza.memed_service import (
     atualizar_prescritor,
+    consultar_status_memed,
     external_id_prescritor,
+    recadastrar_prescritor,
     sincronizar_prescritor,
 )
 from clinica_beleza.models import Professional
@@ -35,6 +41,11 @@ class Command(BaseCommand):
             "--update",
             action="store_true",
             help="Atualiza (PATCH) o cadastro existente na Memed. Se não existir, cria.",
+        )
+        parser.add_argument(
+            "--recadastrar",
+            action="store_true",
+            help="Exclui e recria o cadastro (resolve 'Inativo'). IRREVERSÍVEL na Memed.",
         )
 
     def _resolver_loja(self, ident: str) -> Loja:
@@ -72,6 +83,17 @@ class Command(BaseCommand):
             raise CommandError("Profissional não encontrado na loja informada.")
 
         self.stdout.write(f"Profissional: {prof.nome} (id={prof.id}) — external_id={external_id_prescritor(prof)}")
+        if options.get("recadastrar"):
+            st_antes = consultar_status_memed(prof)
+            self.stdout.write(f"Status antes: {st_antes.get('status') or st_antes.get('label')}")
+            resultado = recadastrar_prescritor(prof)
+            self.stdout.write(self.style.MIGRATE_HEADING("=== Resultado (recadastro) ==="))
+            self.stdout.write(f"DELETE: {resultado.get('delete')}")
+            self.stdout.write(f"CREATE: {resultado.get('create')}")
+            st_depois = consultar_status_memed(prof)
+            status_final = st_depois.get("status") or st_depois.get("label")
+            self.stdout.write(self.style.SUCCESS(f"Status depois: {status_final}"))
+            return
         if options.get("update"):
             # PATCH: atualiza cadastro existente (ex.: corrigir board CRM -> COREN).
             resultado = atualizar_prescritor(prof)

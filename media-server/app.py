@@ -7,7 +7,9 @@ Estrutura em disco:
 
 Endpoints:
   POST   /upload/<tenant>/
-  DELETE /upload/<tenant>/<path:filename>
+  DELETE /upload/<tenant>/<path:filename>                 (arquivo; ou pasta vazia)
+  DELETE /upload/<tenant>/<path:filename>?recursive=true  (pasta do paciente + conteúdo)
+  DELETE /upload/<tenant>/?recursive=true                 (loja inteira: /storage/{tenant})
   GET    /list/
   GET    /list/<tenant>/
   GET    /list/<tenant>/<path:folder>/
@@ -16,6 +18,7 @@ Endpoints:
 import hmac
 import os
 import re
+import shutil
 import uuid
 from pathlib import Path
 
@@ -113,6 +116,29 @@ def upload(tenant):
     }), 201
 
 
+@app.route("/upload/<tenant>/", methods=["DELETE"])
+def delete_tenant_root(tenant):
+    """Apaga toda a pasta de um tenant (loja) — exige recursive=true.
+
+    Usado quando a loja é excluída no superadmin: remove /storage/{tenant} inteiro.
+    """
+    if not verify_token():
+        return jsonify({"error": "Unauthorized"}), 401
+    tenant_key = normalize_tenant(tenant)
+    if not tenant_key:
+        return jsonify({"error": "Tenant inválido"}), 400
+    recursive = str(request.args.get("recursive", "")).lower() in ("1", "true", "yes")
+    if not recursive:
+        return jsonify({"error": "Exclusão da raiz do tenant exige recursive=true"}), 400
+    base = STORAGE_ROOT / tenant_key
+    if not base.exists():
+        return jsonify({"success": True, "removed": None, "note": "já não existia"}), 200
+    removed = _rmtree_seguro(base, tenant_key)
+    if removed is None:
+        return jsonify({"error": "Path inválido"}), 400
+    return jsonify({"success": True, "removed": removed, "recursive": True}), 200
+
+
 @app.route("/upload/<tenant>/<path:filename>", methods=["DELETE"])
 def delete(tenant, filename):
     if not verify_token():
@@ -129,11 +155,41 @@ def delete(tenant, filename):
         filepath.unlink()
         return jsonify({"success": True}), 200
     if filepath.exists() and filepath.is_dir():
+        recursive = str(request.args.get("recursive", "")).lower() in ("1", "true", "yes")
+        if recursive:
+            removed = _rmtree_seguro(filepath, tenant_key)
+            if removed is None:
+                return jsonify({"error": "Path inválido para exclusão recursiva"}), 400
+            return jsonify({"success": True, "removed": removed, "recursive": True}), 200
         removed = _rmdir_vazio(filepath)
         if removed:
             return jsonify({"success": True, "removed": removed}), 200
         return jsonify({"error": "Pasta não está vazia"}), 409
     return jsonify({"error": "Arquivo não encontrado"}), 404
+
+
+def _rmtree_seguro(path: Path, tenant_key: str) -> str | None:
+    """Remove pasta e todo o conteúdo (recursivo). Retorna caminho relativo removido
+    ou None se o alvo for inseguro.
+
+    Salvaguardas: só dentro de /storage; nunca a raiz /storage; o alvo tem que
+    estar sob (ou ser) /storage/{tenant_key}.
+    """
+    if not _safe_under_storage(path) or not path.is_dir():
+        return None
+    resolved = path.resolve()
+    storage = STORAGE_ROOT.resolve()
+    if resolved == storage:
+        return None  # nunca apagar a raiz /storage
+    tenant_root = (STORAGE_ROOT / tenant_key).resolve()
+    if resolved != tenant_root and tenant_root not in resolved.parents:
+        return None
+    rel = str(resolved.relative_to(storage))
+    try:
+        shutil.rmtree(resolved)
+    except OSError:
+        return None
+    return rel
 
 
 def _rmdir_vazio(path: Path) -> list[str]:

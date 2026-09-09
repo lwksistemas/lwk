@@ -40,6 +40,7 @@ export class ClinicaBelezaAPI {
       get: () => loadMemedApi().then((m) => m.timbrado.get()),
     },
     status: () => loadMemedApi().then((m) => m.status()),
+    verificarCpfPaciente: (cpf) => loadMemedApi().then((m) => m.verificarCpfPaciente(cpf)),
     salvarPrescricao: (consultaId, data) => loadMemedApi().then((m) => m.salvarPrescricao(consultaId, data)),
     listarPrescricoesConsulta: (consultaId) =>
       loadMemedApi().then((m) => m.listarPrescricoesConsulta(consultaId)),

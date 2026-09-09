@@ -255,6 +255,34 @@ def consultar_status_memed(professional) -> dict:
     }
 
 
+def cpf_e_prescritor_na_memed(cpf: str) -> bool:
+    """True se o CPF informado já está cadastrado como PRESCRITOR na Memed.
+
+    Serve para evitar o conflito de identificação do widget: se o CPF de um
+    *paciente* também for de um prescritor, o editor da Memed quebra ao gerar a
+    receita (verifyIdentifyDataToNavigate). Nesse caso o frontend deve omitir o
+    CPF do paciente. Best-effort: em qualquer falha retorna False (não bloqueia).
+    """
+    cpf = re.sub(r"\D", "", cpf or "")
+    if len(cpf) != 11:
+        return False
+    env, endpoints = _memed_config()
+    api_key, secret_key = _memed_credentials(env)
+    if not api_key or not secret_key:
+        return False
+    try:
+        resp = requests.get(
+            f"{endpoints['api']}/sinapse-prescricao/usuarios/{cpf}",
+            params={"api-key": api_key, "secret-key": secret_key},
+            headers={"Accept": "application/vnd.api+json", "Cache-Control": "no-cache"},
+            timeout=10,
+        )
+    except requests.RequestException:
+        return False
+    # 200 = existe um prescritor com esse CPF; 404 = não existe (caso normal).
+    return resp.status_code == 200
+
+
 def _external_id_memed_por_cpf(cpf: str) -> str | None:
     """Retorna o external_id que a Memed tem registrado para este CPF (ou None).
 

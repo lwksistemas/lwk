@@ -48,6 +48,14 @@ export const memedApi = {
       ready_for_production: boolean;
     }>("/memed/status/"),
 
+  /**
+   * Verifica se o CPF de um paciente também é de um prescritor na Memed.
+   * Quando é, enviar esse CPF ao editor quebra a geração da receita — o chamador
+   * deve omitir o CPF do paciente. Best-effort: em erro retorna false.
+   */
+  verificarCpfPaciente: (cpf: string) =>
+    apiGet<{ conflito_prescritor: boolean }>("/memed/verificar-cpf-paciente/", { cpf }),
+
   salvarPrescricao: (
     consultaId: number,
     data: {

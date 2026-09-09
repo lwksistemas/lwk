@@ -254,6 +254,33 @@ class MemedTokenView(APIView):
         return (default_id or "").strip()
 
 
+class MemedVerificarCpfPacienteView(APIView):
+    """GET /clinica-beleza/memed/verificar-cpf-paciente/?cpf=<cpf>
+
+    Retorna {"conflito_prescritor": bool}. Quando o CPF de um paciente também é
+    de um prescritor na Memed, o editor quebra ao gerar a receita
+    (verifyIdentifyDataToNavigate). O frontend usa isso para omitir o CPF do
+    paciente nesse caso, evitando o conflito de identificação.
+    """
+
+    permission_classes = CLINICA_CLINICAL
+
+    def get(self, request):
+        from tenants.middleware import get_current_loja_id
+        from superadmin.plano_features import loja_plano_permite_memed
+        from .memed_service import cpf_e_prescritor_na_memed
+
+        ok, err = loja_plano_permite_memed(get_current_loja_id())
+        if not ok:
+            return Response({"error": err}, status=status.HTTP_403_FORBIDDEN)
+
+        cpf = re.sub(r"\D", "", request.query_params.get("cpf") or "")
+        if len(cpf) != 11:
+            # Sem CPF válido não há conflito a checar.
+            return Response({"conflito_prescritor": False})
+        return Response({"conflito_prescritor": cpf_e_prescritor_na_memed(cpf)})
+
+
 class MemedStatusView(APIView):
     """GET /clinica-beleza/memed/status/
     Diagnóstico: ambiente, credenciais e timbrado (sem expor secrets).

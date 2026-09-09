@@ -73,6 +73,42 @@ class ExcluirPrescritorTest(SimpleTestCase):
 
 
 @override_settings(MEMED_API_KEY="k", MEMED_SECRET_KEY="s")
+class CpfEhPrescritorNaMemedTest(SimpleTestCase):
+    @patch("clinica_beleza.memed_service.requests.get")
+    def test_cpf_de_prescritor_retorna_true(self, mock_get):
+        from clinica_beleza.memed_service import cpf_e_prescritor_na_memed
+
+        resp = MagicMock()
+        resp.status_code = 200  # existe prescritor com esse CPF
+        mock_get.return_value = resp
+        self.assertTrue(cpf_e_prescritor_na_memed("22239255889"))
+
+    @patch("clinica_beleza.memed_service.requests.get")
+    def test_cpf_sem_prescritor_retorna_false(self, mock_get):
+        from clinica_beleza.memed_service import cpf_e_prescritor_na_memed
+
+        resp = MagicMock()
+        resp.status_code = 404  # ninguém cadastrado com esse CPF (caso normal)
+        mock_get.return_value = resp
+        self.assertFalse(cpf_e_prescritor_na_memed("36971645898"))
+
+    def test_cpf_invalido_retorna_false_sem_chamar_api(self):
+        from clinica_beleza.memed_service import cpf_e_prescritor_na_memed
+
+        self.assertFalse(cpf_e_prescritor_na_memed("123"))
+
+    @patch("clinica_beleza.memed_service.requests.get", side_effect=Exception("rede"))
+    def test_falha_de_rede_retorna_false(self, _mock_get):
+        from clinica_beleza.memed_service import cpf_e_prescritor_na_memed
+        import requests as _rq
+
+        # A funcao captura requests.RequestException; simular esse tipo.
+        with patch("clinica_beleza.memed_service.requests.get",
+                   side_effect=_rq.RequestException("timeout")):
+            self.assertFalse(cpf_e_prescritor_na_memed("22239255889"))
+
+
+@override_settings(MEMED_API_KEY="k", MEMED_SECRET_KEY="s")
 class RecadastrarPrescritorTest(SimpleTestCase):
     @patch("clinica_beleza.memed_service.sincronizar_prescritor")
     @patch("clinica_beleza.memed_service.excluir_prescritor")

@@ -103,7 +103,12 @@ from .views_locais_atendimento import (
     LocalAtendimentoDetailView,
     LocalAtendimentoListView,
 )
-from .views_memed import MemedStatusView, MemedTimbradoView, MemedTokenView
+from .views_memed import (
+    MemedStatusView,
+    MemedTimbradoView,
+    MemedTokenView,
+    MemedVerificarCpfPacienteView,
+)
 from .views_nfse_config import NFSeConfigTestISSNetView, NFSeConfigView
 from .views_nomes_agenda import (
     NomeAgendaDetailView,
@@ -225,6 +230,11 @@ urlpatterns = [
     path("memed/token/", MemedTokenView.as_view(), name="memed-token"),
     path("memed/status/", MemedStatusView.as_view(), name="memed-status"),
     path("memed/timbrado/", MemedTimbradoView.as_view(), name="memed-timbrado"),
+    path(
+        "memed/verificar-cpf-paciente/",
+        MemedVerificarCpfPacienteView.as_view(),
+        name="memed-verificar-cpf-paciente",
+    ),
 
     # Profissionais
     path("professionals/", ProfessionalListView.as_view(), name="professionals-list"),

@@ -158,6 +158,7 @@ services:
     restart: always
     environment:
       - MEDIA_API_TOKEN=${MEDIA_API_TOKEN}
+      - MEDIA_REQUIRE_SIGNED=${MEDIA_REQUIRE_SIGNED:-0}
     volumes:
       - /var/lib/lwk-beta-media:/storage
     ports:

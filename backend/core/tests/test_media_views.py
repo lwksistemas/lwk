@@ -37,3 +37,25 @@ class ResolverFolderUploadTest(SimpleTestCase):
         )
         pasta = _resolver_folder_upload(request)
         self.assertEqual(pasta, "marcia-bataglia_12345678901/pdf")
+
+    def test_recusa_folder_injetado_sem_paciente(self):
+        pasta = _resolver_folder_upload(
+            SimpleNamespace(data={"folder": "outro-paciente/fotos"})
+        )
+        self.assertEqual(pasta, "admin/fotos")
+
+    def test_nome_sem_cpf_nao_inventa_pasta(self):
+        pasta = _resolver_folder_upload(
+            SimpleNamespace(data={"folder": "fotos", "patient_nome": "Intruso"})
+        )
+        self.assertEqual(pasta, "admin/fotos")
+
+    def test_cpf_existente_usa_paciente_da_loja_nao_o_nome_enviado(self):
+        request = SimpleNamespace(
+            data={"folder": "fotos", "patient_nome": "Nome Falso", "patient_cpf": "11540472299"}
+        )
+        real = SimpleNamespace(nome="Mariela", cpf="11540472299", id=7)
+        with patch("core.media_views._buscar_paciente_por_cpf", return_value=real):
+            pasta = _resolver_folder_upload(request)
+        self.assertEqual(pasta, "mariela_11540472299/fotos")
+        self.assertNotIn("nome-falso", pasta)

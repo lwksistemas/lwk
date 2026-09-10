@@ -15,6 +15,7 @@ from core.media_storage import (
     media_list_folders,
     media_list_tenants,
     normalize_media_tenant,
+    url_publica_midia,
 )
 
 from ..models import Loja
@@ -153,13 +154,12 @@ def listar_midia_arquivos(request, tenant: str, folder: str):
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
-    base = MEDIA_SERVER_URL.rstrip("/")
     files = []
     for f in raw.get("files") or []:
         rel = f.get("url") or ""
         files.append({
             **f,
-            "public_url": f"{base}{rel}" if rel.startswith("/") else rel,
+            "public_url": url_publica_midia(rel),
         })
 
     loja_map = _loja_map_by_tenant()

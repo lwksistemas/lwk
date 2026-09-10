@@ -3,7 +3,6 @@ import logging
 
 from django.http import HttpResponse
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -14,6 +13,7 @@ from clinica_beleza.orcamento_service import (
     gerar_pdf_orcamento,
     listar_orcamentos_consulta,
 )
+from clinica_beleza.permissions import CLINICA_CLINICAL
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class OrcamentoConsultaView(APIView):
     POST /api/clinica-beleza/orcamentos/
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request):
         consulta_id = request.query_params.get("consulta_id")
@@ -68,7 +68,7 @@ class OrcamentoDetalheView(APIView):
     DELETE /api/clinica-beleza/orcamentos/<id>/
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
 
     def delete(self, request, orcamento_id):
         try:
@@ -84,7 +84,7 @@ class OrcamentoPDFView(APIView):
     GET /api/clinica-beleza/orcamentos/<id>/pdf/
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
 
     def get(self, request, orcamento_id):
         try:
@@ -135,7 +135,7 @@ class OrcamentoEnviarView(APIView):
     Body: {"canais": ["email", "whatsapp"]}
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = CLINICA_CLINICAL
 
     def post(self, request, orcamento_id):
         canais = request.data.get("canais", [])

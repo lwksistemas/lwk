@@ -106,6 +106,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         ]
         read_only_fields = [
             "numero", "created_at", "updated_at", "loja_id", "appointment",
+            "status", "data_inicio", "data_fim",
             "retorno_gratuito", "retorno_tipo", "retorno_dias_prazo", "retorno_aviso_recibo",
             "local_atendimento_valor_consulta",
         ]

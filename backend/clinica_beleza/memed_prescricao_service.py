@@ -1,13 +1,15 @@
 """Busca e arquiva PDFs de prescrições emitidas na Memed."""
 from __future__ import annotations
 
+import ipaddress
 import logging
 import re
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
-from core.media_storage import folder_media_paciente, media_upload, media_upload_from_url
+from core.media_storage import folder_media_paciente, is_media_url, media_upload
 
 from .memed_config import memed_config as _memed_config
 from .memed_config import memed_credentials as _memed_credentials
@@ -15,6 +17,51 @@ from .memed_config import memed_credentials as _memed_credentials
 logger = logging.getLogger(__name__)
 
 _URL_HTTP = re.compile(r"^https?://", re.IGNORECASE)
+_MEMED_HOST = "memed.com.br"
+
+
+def url_pdf_permitida(url: str) -> bool:
+    """True só para HTTPS da Memed (*.memed.com.br) ou do servidor de mídia LWK.
+
+    Impede SSRF: o cliente não pode mandar o backend baixar URL arbitrária.
+    """
+    raw = (url or "").strip()
+    if not raw:
+        return False
+    parsed = urlparse(raw)
+    if parsed.scheme != "https" or not parsed.hostname:
+        return False
+    if parsed.username or parsed.password:
+        return False
+    host = parsed.hostname.lower().rstrip(".")
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    if host == _MEMED_HOST or host.endswith(f".{_MEMED_HOST}"):
+        return True
+    return is_media_url(raw)
+
+
+def _baixar_pdf_url_permitida(url: str) -> bytes | None:
+    """Baixa PDF só se a URL passar na allowlist. Sem follow de redirect."""
+    if not url_pdf_permitida(url):
+        logger.warning("PDF Memed recusado (host não permitido): %s", (url or "")[:120])
+        return None
+    try:
+        resp = requests.get(
+            url,
+            timeout=45,
+            allow_redirects=False,
+            headers={"User-Agent": "LWK-Sistemas/1.0"},
+        )
+    except requests.RequestException as exc:
+        logger.debug("Download PDF Memed falhou: %s", exc)
+        return None
+    if resp.status_code != 200:
+        return None
+    return _resposta_e_pdf_bruto(resp)
 
 
 def resolver_prescritor_id_profissional(professional) -> str | None:
@@ -140,11 +187,9 @@ def buscar_pdf_bytes_memed(prescritor_id: str, prescricao_id: str) -> bytes | No
             except ValueError:
                 url = ""
             if url:
-                resp_arquivo = requests.get(url, timeout=45, headers={"User-Agent": "LWK-Sistemas/1.0"})
-                if resp_arquivo.ok:
-                    pdf = _resposta_e_pdf_bruto(resp_arquivo)
-                    if pdf:
-                        return pdf
+                pdf = _baixar_pdf_url_permitida(url)
+                if pdf:
+                    return pdf
         except requests.RequestException as exc:
             logger.debug("Memed PDF bytes %s: %s", path, exc)
 
@@ -154,9 +199,7 @@ def buscar_pdf_bytes_memed(prescritor_id: str, prescricao_id: str) -> bytes | No
         if resp.ok:
             url = _extrair_url_pdf_de_objeto(resp.json())
             if url:
-                resp_arquivo = requests.get(url, timeout=45, headers={"User-Agent": "LWK-Sistemas/1.0"})
-                if resp_arquivo.ok:
-                    return _resposta_e_pdf_bruto(resp_arquivo)
+                return _baixar_pdf_url_permitida(url)
     except requests.RequestException as exc:
         logger.debug("Memed PDF meta %s: %s", caminho_meta, exc)
     return None
@@ -194,7 +237,7 @@ def buscar_pdf_url_memed(prescritor_id: str, prescricao_id: str) -> str:
             if not resp.ok:
                 continue
             url = _extrair_url_pdf_de_objeto(resp.json())
-            if url:
+            if url and url_pdf_permitida(url):
                 return url
         except (requests.RequestException, ValueError) as exc:
             logger.debug("Memed PDF %s: %s", path, exc)
@@ -217,14 +260,20 @@ def arquivar_pdf_bytes_media(loja, conteudo: bytes, patient=None) -> str:
 
 def arquivar_pdf_media(loja, pdf_url: str, patient=None) -> str:
     """Baixa o PDF da Memed e salva no servidor de mídia ({paciente}/pdf/).
-    Retorna URL arquivada ou a original se falhar.
+
+    Só baixa URL da allowlist. Se o arquivo já estiver no Magalu, devolve a URL.
     """
     url = (pdf_url or "").strip()
-    if not url or not _URL_HTTP.match(url):
+    if not url_pdf_permitida(url):
         return ""
+    if is_media_url(url):
+        return url
     try:
+        conteudo = _baixar_pdf_url_permitida(url)
+        if not conteudo:
+            return url
         folder = folder_media_paciente("pdf", patient)
-        arquivada = media_upload_from_url(loja, url, folder=folder)
+        arquivada = media_upload(loja, conteudo, filename="prescricao.pdf", folder=folder)
         return (arquivada or url).strip()
     except Exception as exc:
         logger.warning("Falha ao arquivar PDF Memed no servidor de mídia: %s", exc)
@@ -238,9 +287,9 @@ def resolver_pdf_prescricao(
     pdf_url_frontend: str = "",
     patient=None,
 ) -> str:
-    """Define URL final do PDF: frontend → API Memed (bytes ou URL) → mídia."""
+    """Define URL final do PDF: frontend (allowlist) → API Memed → mídia."""
     pdf = (pdf_url_frontend or "").strip()[:500]
-    if pdf:
+    if pdf and url_pdf_permitida(pdf):
         return arquivar_pdf_media(loja, pdf, patient=patient) or pdf
 
     prescritor = resolver_prescritor_id_profissional(professional) if prescricao_id else None
@@ -252,6 +301,6 @@ def resolver_pdf_prescricao(
                 return arquivada
 
         pdf_url = buscar_pdf_url_memed(prescritor, prescricao_id)
-        if pdf_url:
+        if pdf_url and url_pdf_permitida(pdf_url):
             return arquivar_pdf_media(loja, pdf_url, patient=patient) or pdf_url
     return ""

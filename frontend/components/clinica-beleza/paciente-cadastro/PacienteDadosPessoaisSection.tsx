@@ -68,6 +68,18 @@ export function PacienteDadosPessoaisSection({
           />
         </div>
         <div>
+          <FieldLabel>Sexo</FieldLabel>
+          <select
+            value={form.sexo}
+            onChange={(e) => onChange({ sexo: e.target.value as "" | "M" | "F" })}
+            className={FORM_SELECT_CLASS}
+          >
+            <option value="">Selecione</option>
+            <option value="M">Masculino</option>
+            <option value="F">Feminino</option>
+          </select>
+        </div>
+        <div>
           <FieldLabel>CPF</FieldLabel>
           <IconInput
             icon={CreditCard}

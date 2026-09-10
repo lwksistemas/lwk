@@ -25,6 +25,7 @@ export interface Patient {
   cpf?: string | null;
   birth_date?: string | null;
   data_nascimento?: string | null;
+  sexo?: string | null;
   address?: string | null;
   endereco?: string | null;
   cidade?: string | null;
@@ -86,6 +87,7 @@ export function patientToForm(p: Patient): PacienteFormState {
     email: entityEmail(p) || '',
     cpf: formatCpf(patientCpf(p) || ''),
     birth_date: patientBirthDate(p) ? patientBirthDate(p)!.slice(0, 10) : '',
+    sexo: (p.sexo === 'M' || p.sexo === 'F' ? p.sexo : '') as '' | 'M' | 'F',
     cep: cepMatch ? formatCep(cepMatch[1]) : '',
     logradouro,
     numero,

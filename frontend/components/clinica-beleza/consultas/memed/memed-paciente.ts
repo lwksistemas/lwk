@@ -1,5 +1,5 @@
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import { apenasDigitos } from "@/lib/format-br";
+import { apenasDigitos, telefoneLocalBr } from "@/lib/format-br";
 import { toBrDateMemed } from "@/lib/memed-prescricao-parser";
 import { enviarComandoPrescricaoMemed } from "./memed-script-loader";
 
@@ -50,13 +50,16 @@ export async function montarPacienteMemed(
   if (cpf && !(await cpfPacienteConflitaComPrescritor(cpf))) {
     paciente.cpf = cpf;
   }
-  const telefone = apenasDigitos(String(detalhe?.telefone ?? ""));
+  // Telefone sem DDI 55 (a Memed espera só DDD + número; com 55 o widget quebra).
+  const telefone = telefoneLocalBr(String(detalhe?.telefone ?? ""));
   if (telefone) paciente.telefone = telefone;
   if (detalhe?.email) paciente.email = detalhe.email;
   if (detalhe?.endereco) paciente.endereco = detalhe.endereco;
   if (detalhe?.cidade) paciente.cidade = detalhe.cidade;
   const dataNascimento = toBrDateMemed(detalhe?.data_nascimento as string | null);
   if (dataNascimento) paciente.data_nascimento = dataNascimento;
+  const sexo = String(detalhe?.sexo ?? "").toUpperCase();
+  if (sexo === "M" || sexo === "F") paciente.sexo = sexo;
 
   return paciente;
 }

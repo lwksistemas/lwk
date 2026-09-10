@@ -52,6 +52,20 @@ def external_id_prescritor(professional) -> str:
     return f"lwk-loja{loja_id}-prof{professional.id}"
 
 
+def telefone_br_memed(telefone: str | None) -> str:
+    """Normaliza telefone para o formato que a Memed espera: só DDD + número
+    (10 ou 11 dígitos), SEM o DDI 55.
+
+    Ex.: '5516997438862' -> '16997438862'; '(16) 99743-8862' -> '16997438862'.
+    Enviar com o 55 faz o widget exibir o telefone quebrado (ex.: '(55) 16997-4388').
+    """
+    d = re.sub(r"\D", "", telefone or "")
+    # Remove DDI 55 quando o número fica com 12-13 dígitos (55 + DDD + numero).
+    if len(d) in (12, 13) and d.startswith("55"):
+        d = d[2:]
+    return d
+
+
 def _payload_prescritor(professional) -> dict:
     cpf = re.sub(r"\D", "", getattr(professional, "cpf", "") or "")
     nome, sobrenome = _split_nome(professional.nome)
@@ -69,7 +83,7 @@ def _payload_prescritor(professional) -> dict:
         "sobrenome": sobrenome,
         "cpf": cpf or None,
         "email": getattr(professional, "email", None) or None,
-        "telefone": re.sub(r"\D", "", getattr(professional, "telefone", "") or "") or None,
+        "telefone": telefone_br_memed(getattr(professional, "telefone", "")) or None,
         "data_nascimento": nascimento.strftime("%d/%m/%Y") if nascimento else None,
         "sexo": sexo if sexo in ("M", "F") else None,
         "board": {k: v for k, v in board.items() if v} or None,

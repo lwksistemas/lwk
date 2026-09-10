@@ -269,11 +269,27 @@ def _build_produtos_consulta_elements(produtos, styles):
 
 
 def _build_prescricao_memed_elements(prescricao, styles):
-    """Constrói elementos para uma prescrição Memed."""
+    """Constrói elementos para uma prescrição Memed (fallback local sem assinatura).
+
+    Inclui os mesmos dados essenciais do PDF da Memed: tipo do documento, paciente
+    (nome + CPF), itens, e profissional (nome + conselho/registro).
+    """
     elements = []
 
     data_str = _format_datetime_br(prescricao.created_at)
-    elements.append(Paragraph(f"Receituário — {data_str}", styles["DocTitle"]))
+    titulo = _titulo_prescricao_memed(prescricao)
+    elements.append(Paragraph(f"{titulo} — {data_str}", styles["DocTitle"]))
+
+    # Dados do paciente (nome + CPF).
+    paciente = getattr(prescricao, "patient", None)
+    if paciente:
+        nome_pac = xml_escape((getattr(paciente, "nome", "") or "").strip())
+        if nome_pac:
+            elements.append(Paragraph(f"<b>Paciente:</b> {nome_pac}", styles["DocMeta"]))
+        cpf_pac = _formatar_cpf(getattr(paciente, "cpf", "") or "")
+        if cpf_pac:
+            elements.append(Paragraph(f"<b>CPF:</b> {cpf_pac}", styles["DocMeta"]))
+        elements.append(Spacer(1, 4 * mm))
 
     if prescricao.resumo:
         texto = xml_escape(str(prescricao.resumo)).replace("\n", "<br/>")
@@ -292,14 +308,62 @@ def _build_prescricao_memed_elements(prescricao, styles):
         if linhas:
             elements.append(Paragraph("<br/>".join(linhas), styles["DocBody"]))
 
-    prof_nome = ""
-    if prescricao.professional_id and prescricao.professional:
-        prof_nome = prescricao.professional.nome
+    # Dados do profissional (nome + conselho/registro/UF).
     elements.append(Spacer(1, 6 * mm))
-    if prof_nome:
-        elements.append(Paragraph(f"Profissional: {prof_nome}", styles["DocFooter"]))
+    prof = getattr(prescricao, "professional", None) if prescricao.professional_id else None
+    if prof:
+        prof_nome = xml_escape((getattr(prof, "nome", "") or "").strip())
+        if prof_nome:
+            elements.append(Paragraph(f"<b>Profissional:</b> {prof_nome}", styles["DocMeta"]))
+        registro = _formatar_registro_profissional(prof)
+        if registro:
+            elements.append(Paragraph(registro, styles["DocFooter"]))
+
+    elements.append(
+        Paragraph(
+            "Este documento não foi assinado eletronicamente. Para ser considerado "
+            "válido, deve conter assinatura eletrônica ou impressão, carimbo e "
+            "assinatura física.",
+            styles["DocAviso"],
+        )
+    )
 
     elements.append(_linha_separadora())
     elements.append(Spacer(1, 3 * mm))
 
     return elements
+
+
+def _titulo_prescricao_memed(prescricao) -> str:
+    """Detecta se é 'Pedido de Exame' (itens/resumo com TUSS ou marcados como exame)
+    ou 'Receituário' (padrão)."""
+    itens = prescricao.itens if isinstance(prescricao.itens, list) else []
+    for item in itens:
+        if not isinstance(item, dict):
+            continue
+        tipo = str(item.get("tipo") or item.get("receituario") or "").lower()
+        if "exame" in tipo or item.get("tuss") or item.get("TUSS"):
+            return "Pedido de Exame"
+    resumo = str(prescricao.resumo or "").lower()
+    if "tuss" in resumo:
+        return "Pedido de Exame"
+    return "Receituário"
+
+
+def _formatar_cpf(cpf: str) -> str:
+    d = re.sub(r"\D", "", cpf or "")
+    if len(d) != 11:
+        return xml_escape((cpf or "").strip())
+    return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}"
+
+
+def _formatar_registro_profissional(prof) -> str:
+    """Ex.: 'COREN 356480 / SP'. Vazio se não houver dados."""
+    conselho = (getattr(prof, "conselho", "") or "").strip().upper()
+    registro = (getattr(prof, "registro_profissional", "") or "").strip()
+    uf = (getattr(prof, "conselho_uf", "") or "").strip().upper()
+    partes = [p for p in [conselho, registro] if p]
+    texto = " ".join(partes)
+    if uf:
+        texto = f"{texto} / {uf}" if texto else uf
+    return xml_escape(texto)

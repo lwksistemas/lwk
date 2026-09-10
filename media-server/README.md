@@ -19,9 +19,17 @@ Estrutura em disco:
 - `DELETE /upload/{tenant}/{path}?recursive=true`           — apaga pasta do paciente + conteúdo
 - `DELETE /upload/{tenant}/?recursive=true`                 — apaga a loja inteira (`/storage/{tenant}`)
 - `GET    /list/`, `/list/{tenant}/`, `/list/{tenant}/{folder}/`
+- `GET    /auth-file`                                         — interno (nginx `auth_request`)
 - `GET    /health`
 
-Autenticação: header `Authorization: Bearer <MEDIA_API_TOKEN>`.
+Autenticação de API: `Authorization: Bearer <MEDIA_API_TOKEN>` (master, lista
+todas as lojas) **ou** Bearer HMAC-SHA256(token, tenant) — só aquela loja.
+
+URLs públicas (`/files/...`): o Django acrescenta `?e=&s=` (HMAC do path +
+expiração). Nginx chama `/auth-file`. Com `MEDIA_REQUIRE_SIGNED=0` (padrão)
+links antigos sem assinatura continuam válidos (WhatsApp/backup).
+
+Snippet nginx: `nginx-media.conf`. No beta: `deploy/nginx-beta.conf`.
 
 Salvaguardas de exclusão recursiva (`_rmtree_seguro`): só dentro de `/storage`,
 nunca a raiz `/storage`, alvo sempre confinado a `/storage/{tenant}`, tenants de

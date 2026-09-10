@@ -7,11 +7,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from core.media_storage import (
-    MEDIA_SERVER_URL,
     _cpf_cnpj_digits,
     media_list_files,
     media_list_folders,
     normalize_media_tenant,
+    url_publica_midia,
 )
 
 from ..backup_midia_link import decodificar_token_backup_midia
@@ -52,7 +52,6 @@ def backup_midia_publica(request, token: str):
         })
 
     folder = (request.query_params.get("folder") or "").strip().strip("/")
-    base = MEDIA_SERVER_URL.rstrip("/")
     if not folder:
         raw = media_list_folders(tenant) or {}
         return Response({
@@ -69,7 +68,7 @@ def backup_midia_publica(request, token: str):
         rel = item.get("url") or ""
         files.append({
             **item,
-            "public_url": f"{base}{rel}" if rel.startswith("/") else rel,
+            "public_url": url_publica_midia(rel, ttl_seconds=21 * 24 * 3600),
         })
     return Response({
         "loja_nome": loja.nome,

@@ -15,38 +15,111 @@ Endpoints:
   GET    /list/<tenant>/<path:folder>/
   GET    /health
 """
+import hashlib
 import hmac
 import os
 import re
 import shutil
+import time
 import uuid
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
-STORAGE_ROOT = Path("/storage")
+STORAGE_ROOT = Path(os.environ.get("MEDIA_STORAGE_ROOT", "/storage"))
 API_TOKEN = os.environ.get("MEDIA_API_TOKEN", "")
+# 0 = links antigos sem ?e=&s= continuam válidos (WhatsApp/backup). 1 = exige assinatura.
+REQUIRE_SIGNED = os.environ.get("MEDIA_REQUIRE_SIGNED", "0").lower() in ("1", "true", "yes")
 SYSTEM_TENANTS = frozenset({"superadmin", "suporte"})
 TENANT_RE = re.compile(
     r"^(?:\d{11}|\d{14}|superadmin|suporte|\d{11,14}_[a-z0-9][a-z0-9_-]{0,80})$"
 )
 ALLOWED_FOLDERS = ("fotos", "docs", "pdf", "avatars", "recibos", "contratos", "dicom")
+PASTAS_LOJA = frozenset({"admin", "loja"})
 # pasta raiz, tipo/paciente (legado) ou paciente/tipo (fotos|pdf)
 FOLDER_PATH_RE = re.compile(
     r"^[a-z0-9][a-z0-9_./-]{0,200}$"
 )
 MAX_FILES_PER_FOLDER = 500
+_IMAGE_EXTS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif"})
+_PDF_EXTS = frozenset({".pdf"})
+_DICOM_EXTS = frozenset({".dcm", ".dicom"})
 
 
-def verify_token():
+def _bearer_token() -> str:
+    auth = request.headers.get("Authorization", "")
+    return auth.replace("Bearer ", "").strip()
+
+
+def token_for_tenant(tenant: str) -> str:
+    return hmac.new(
+        API_TOKEN.encode("utf-8"),
+        tenant.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def verify_token(tenant: str | None = None) -> bool:
+    """Master libera tudo. Token HMAC da loja só vale para aquele tenant."""
     if not API_TOKEN:
         return False
-    auth = request.headers.get("Authorization", "")
-    token = auth.replace("Bearer ", "").strip()
+    token = _bearer_token()
     if not token:
         return False
-    return hmac.compare_digest(token, API_TOKEN)
+    if hmac.compare_digest(token, API_TOKEN):
+        return True
+    if tenant and hmac.compare_digest(token, token_for_tenant(tenant)):
+        return True
+    return False
+
+
+def _assinatura_path(path: str, exp: int) -> str:
+    msg = f"{path}\n{exp}".encode("utf-8")
+    return hmac.new(API_TOKEN.encode("utf-8"), msg, hashlib.sha256).hexdigest()[:32]
+
+
+def _verify_file_sig(path: str, exp: str, sig: str) -> bool:
+    if not API_TOKEN or not path or not exp or not sig:
+        return False
+    try:
+        exp_i = int(exp)
+    except (TypeError, ValueError):
+        return False
+    if exp_i < int(time.time()) or len(sig) != 32:
+        return False
+    esperado = _assinatura_path(path, exp_i)
+    return hmac.compare_digest(esperado, sig)
+
+
+def folder_structure_ok(folder_path: str) -> bool:
+    """Aceita tipo, admin/tipo, paciente/fotos|pdf, legado tipo/paciente ou dicom/cpf."""
+    parts = [p for p in (folder_path or "").split("/") if p]
+    if not parts or any(".." in p for p in parts):
+        return False
+    if len(parts) == 1:
+        return parts[0] in ALLOWED_FOLDERS
+    if len(parts) == 2:
+        a, b = parts
+        if a in PASTAS_LOJA and b in ALLOWED_FOLDERS:
+            return True
+        if b in ("fotos", "pdf"):
+            return True
+        if a in ALLOWED_FOLDERS:
+            return True
+    return False
+
+
+def _ext_permitida(folder_path: str, ext: str) -> bool:
+    last = (folder_path or "").rstrip("/").split("/")[-1]
+    if last in ("fotos", "avatars"):
+        return ext in _IMAGE_EXTS
+    if last in ("pdf", "docs", "recibos", "contratos"):
+        return ext in _PDF_EXTS
+    if last == "dicom":
+        return ext in _DICOM_EXTS or ext in _IMAGE_EXTS
+    return ext in _IMAGE_EXTS | _PDF_EXTS
 
 
 def normalize_tenant(raw: str) -> str | None:
@@ -80,10 +153,9 @@ def _safe_under_storage(path: Path) -> bool:
 
 @app.route("/upload/<tenant>/", methods=["POST"])
 def upload(tenant):
-    if not verify_token():
-        return jsonify({"error": "Unauthorized"}), 401
-
     tenant_key = normalize_tenant(tenant)
+    if not verify_token(tenant_key):
+        return jsonify({"error": "Unauthorized"}), 401
     if not tenant_key:
         return jsonify({"error": "Tenant inválido (CPF/CNPJ, superadmin ou suporte)"}), 400
 
@@ -92,8 +164,8 @@ def upload(tenant):
         return jsonify({"error": "Nenhum arquivo enviado"}), 400
 
     folder_path = normalize_folder_path(request.form.get("folder", "fotos"))
-    if not folder_path:
-        folder_path = "fotos"
+    if not folder_path or not folder_structure_ok(folder_path):
+        return jsonify({"error": "Pasta inválida"}), 400
 
     dest_dir = STORAGE_ROOT / tenant_key / Path(folder_path)
     if not _safe_under_storage(dest_dir):
@@ -101,6 +173,8 @@ def upload(tenant):
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     ext = Path(file.filename).suffix.lower() or ".jpg"
+    if not _ext_permitida(folder_path, ext):
+        return jsonify({"error": "Tipo de arquivo não permitido nesta pasta"}), 400
     filename = f"{uuid.uuid4().hex}{ext}"
     filepath = dest_dir / filename
     file.save(str(filepath))
@@ -122,9 +196,9 @@ def delete_tenant_root(tenant):
 
     Usado quando a loja é excluída no superadmin: remove /storage/{tenant} inteiro.
     """
-    if not verify_token():
-        return jsonify({"error": "Unauthorized"}), 401
     tenant_key = normalize_tenant(tenant)
+    if not verify_token(tenant_key):
+        return jsonify({"error": "Unauthorized"}), 401
     if not tenant_key:
         return jsonify({"error": "Tenant inválido"}), 400
     recursive = str(request.args.get("recursive", "")).lower() in ("1", "true", "yes")
@@ -141,10 +215,9 @@ def delete_tenant_root(tenant):
 
 @app.route("/upload/<tenant>/<path:filename>", methods=["DELETE"])
 def delete(tenant, filename):
-    if not verify_token():
-        return jsonify({"error": "Unauthorized"}), 401
-
     tenant_key = normalize_tenant(tenant)
+    if not verify_token(tenant_key):
+        return jsonify({"error": "Unauthorized"}), 401
     if not tenant_key:
         return jsonify({"error": "Tenant inválido"}), 400
 
@@ -239,10 +312,9 @@ def list_tenants():
 
 @app.route("/list/<tenant>/", methods=["GET"])
 def list_folders(tenant):
-    if not verify_token():
-        return jsonify({"error": "Unauthorized"}), 401
-
     tenant_key = normalize_tenant(tenant)
+    if not verify_token(tenant_key):
+        return jsonify({"error": "Unauthorized"}), 401
     if not tenant_key:
         return jsonify({"error": "Tenant inválido"}), 400
 
@@ -270,10 +342,9 @@ def list_folders(tenant):
 
 @app.route("/list/<tenant>/<path:folder>/", methods=["GET"])
 def list_files(tenant, folder):
-    if not verify_token():
-        return jsonify({"error": "Unauthorized"}), 401
-
     tenant_key = normalize_tenant(tenant)
+    if not verify_token(tenant_key):
+        return jsonify({"error": "Unauthorized"}), 401
     if not tenant_key:
         return jsonify({"error": "Tenant inválido"}), 400
 
@@ -340,6 +411,30 @@ def list_files(tenant, folder):
         "subfolders": subfolders,
         "truncated": truncated,
     })
+
+
+@app.route("/auth-file", methods=["GET"])
+def auth_file():
+    """Usado pelo nginx auth_request em GET /files/.
+
+    Sem assinatura: 200 se MEDIA_REQUIRE_SIGNED=0 (links antigos), 401 se =1.
+    Com ?e=&s=: 200 só se HMAC e prazo forem válidos.
+    """
+    uri = request.headers.get("X-Original-URI") or ""
+    if not uri:
+        return "", 403
+    parsed = urlparse(uri)
+    path = parsed.path or ""
+    if not path.startswith("/files/"):
+        return "", 403
+    qs = parse_qs(parsed.query)
+    exp = (qs.get("e") or [""])[0]
+    sig = (qs.get("s") or [""])[0]
+    if not exp and not sig:
+        return ("", 200) if not REQUIRE_SIGNED else ("", 401)
+    if _verify_file_sig(path, exp, sig):
+        return "", 200
+    return "", 401
 
 
 @app.route("/health", methods=["GET"])

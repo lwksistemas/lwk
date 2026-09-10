@@ -1,4 +1,5 @@
 """Views para upload de mídia — proxy para o servidor media.lwksistemas.com.br."""
+import re
 from types import SimpleNamespace
 
 from rest_framework import status
@@ -15,7 +16,6 @@ from core.media_storage import (
     is_media_url,
     media_delete_tenant,
     media_upload_tenant,
-    normalize_media_folder,
     normalize_media_tenant,
     parse_media_url,
 )
@@ -102,12 +102,56 @@ def _buscar_paciente_midia(patient_id):
         return None
 
 
-def _resolver_folder_upload(request) -> str:
-    """Resolve pasta de destino: {paciente}/fotos, {paciente}/pdf ou pasta da loja."""
-    folder_raw = (request.data.get("folder") or "fotos").strip().strip("/")
-    tipo = folder_raw.split("/")[0] if folder_raw else "fotos"
+def _cpf_variantes(digits: str) -> list[str]:
+    if len(digits) == 11:
+        formatado = f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
+        return [digits, formatado]
+    if len(digits) == 14:
+        formatado = f"{digits[:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:]}"
+        return [digits, formatado]
+    return [digits]
+
+
+def _buscar_paciente_por_cpf(cpf: str):
+    """Localiza paciente da loja pelo CPF/CNPJ. Não inventa pasta com nome livre."""
+    digits = re.sub(r"\D", "", cpf or "")
+    if len(digits) not in (11, 14):
+        return None
+    candidatos = _cpf_variantes(digits)
+
+    try:
+        from clinica_beleza.models import Patient
+
+        paciente = Patient.objects.filter(cpf__in=candidatos).first()
+        if paciente:
+            return paciente
+    except Exception:
+        pass
+
+    try:
+        from clinica_geral.models import Paciente
+
+        return Paciente.objects.filter(cpf__in=candidatos).first()
+    except Exception:
+        return None
+
+
+def _tipo_pasta_upload(folder_raw: str) -> str:
+    """Só o tipo (fotos/pdf/…). Ignora path injetado em folder=outro/fotos."""
+    tipo = (folder_raw or "fotos").strip().strip("/").split("/")[0] or "fotos"
     if tipo not in _ALLOWED_ROOT_FOLDERS:
-        tipo = "fotos"
+        return "fotos"
+    return tipo
+
+
+def _resolver_folder_upload(request) -> str:
+    """Resolve pasta de destino: {paciente}/fotos, {paciente}/pdf ou admin/{tipo}.
+
+    ``folder=`` nunca é usado como path: só o primeiro segmento (tipo). Evita
+    ``folder=outro-paciente/fotos`` gravar fora da pasta autorizada.
+    """
+    folder_raw = (request.data.get("folder") or "fotos").strip().strip("/")
+    tipo = _tipo_pasta_upload(folder_raw)
 
     patient_id = request.data.get("patient_id")
     if patient_id not in (None, ""):
@@ -117,14 +161,14 @@ def _resolver_folder_upload(request) -> str:
 
     nome = (request.data.get("patient_nome") or request.data.get("patient_name") or "").strip()
     cpf = (request.data.get("patient_cpf") or "").strip()
-    if nome or cpf:
-        stub = SimpleNamespace(name=nome or "paciente", nome=nome or "paciente", cpf=cpf, id=None)
-        return folder_media_paciente(tipo, stub)
-
-    if "/" in folder_raw:
-        normalized = normalize_media_folder(folder_raw)
-        if normalized:
-            return normalized
+    digits = re.sub(r"\D", "", cpf)
+    if len(digits) in (11, 14):
+        existente = _buscar_paciente_por_cpf(digits)
+        if existente:
+            return folder_media_paciente(tipo, existente)
+        if nome:
+            stub = SimpleNamespace(name=nome, nome=nome, cpf=digits, id=None)
+            return folder_media_paciente(tipo, stub)
 
     return f"admin/{tipo}"
 

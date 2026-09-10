@@ -17,12 +17,16 @@ Uso:
     url = media_upload(loja, file_bytes, filename="foto.jpg", folder="maria-silva_12345678901/fotos")
     # Retorna: https://media.lwksistemas.com.br/files/41449198000172/maria-silva_123.../fotos/abc.jpg
 """
+import hashlib
+import hmac
 import logging
 import os
 import re
+import time
 import unicodedata
 from io import BytesIO
 from typing import BinaryIO
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import requests
 
@@ -35,6 +39,9 @@ MEDIA_API_TOKEN = os.environ.get(
     "MEDIA_API_TOKEN",
     os.environ.get("SECRET_KEY", ""),
 )
+# TTL padrão das URLs assinadas (7 dias). Links antigos sem ?e=&s= continuam
+# válidos enquanto MEDIA_REQUIRE_SIGNED=0 no servidor de mídia.
+MEDIA_SIGNED_URL_TTL = int(os.environ.get("MEDIA_SIGNED_URL_TTL", str(7 * 24 * 3600)))
 
 MEDIA_TENANT_SUPERADMIN = "superadmin"
 MEDIA_TENANT_SUPORTE = "suporte"
@@ -218,7 +225,7 @@ def media_upload_tenant(
 
     folder_path = normalize_media_folder(folder) or "fotos"
     url = f"{MEDIA_SERVER_URL}/upload/{tenant_key}/"
-    headers = {"Authorization": f"Bearer {MEDIA_API_TOKEN}"}
+    headers = _media_auth_headers(tenant_key)
 
     if isinstance(file_data, bytes):
         file_obj = BytesIO(file_data)
@@ -337,7 +344,7 @@ def media_delete_tenant(tenant: str, filename: str, folder: str = "fotos") -> bo
     if not tenant_key:
         return False
     url = f"{MEDIA_SERVER_URL}/upload/{tenant_key}/{folder}/{filename}"
-    headers = {"Authorization": f"Bearer {MEDIA_API_TOKEN}"}
+    headers = _media_auth_headers(tenant_key)
 
     try:
         response = requests.delete(url, headers=headers, timeout=15)
@@ -405,7 +412,7 @@ def media_rmdir_tenant(tenant: str, folder: str) -> bool:
         return False
     url = f"{MEDIA_SERVER_URL}/upload/{tenant_key}/{folder_path}"
     try:
-        response = requests.delete(url, headers=_media_auth_headers(), timeout=15)
+        response = requests.delete(url, headers=_media_auth_headers(tenant_key), timeout=15)
         return response.status_code == 200
     except Exception as exc:
         logger.warning("media_rmdir erro: %s", exc)
@@ -434,7 +441,7 @@ def media_delete_dir_tenant(tenant: str, folder: str) -> bool:
         return False
     url = f"{MEDIA_SERVER_URL}/upload/{tenant_key}/{folder_path}?recursive=true"
     try:
-        response = requests.delete(url, headers=_media_auth_headers(), timeout=30)
+        response = requests.delete(url, headers=_media_auth_headers(tenant_key), timeout=30)
         if response.status_code == 200:
             logger.info("media_delete_dir OK: %s/%s", tenant_key, folder_path)
             return True
@@ -491,8 +498,69 @@ def media_delete_tenant_root(tenant) -> bool:
         return False
 
 
-def _media_auth_headers() -> dict[str, str]:
-    return {"Authorization": f"Bearer {MEDIA_API_TOKEN}"}
+def media_token_for_tenant(tenant: str) -> str:
+    """Token HMAC por loja: vazamento do token da Harmonis não escreve na Felix."""
+    return hmac.new(
+        (MEDIA_API_TOKEN or "").encode("utf-8"),
+        tenant.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _media_auth_headers(tenant: str | None = None) -> dict[str, str]:
+    """Bearer do tenant (upload/delete/list de uma loja) ou master (listar todas)."""
+    token = media_token_for_tenant(tenant) if tenant else MEDIA_API_TOKEN
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _assinatura_path_midia(path: str, exp: int) -> str:
+    """HMAC-SHA256(token, '{path}\\n{exp}') — mesmo algoritmo do media-server."""
+    msg = f"{path}\n{exp}".encode("utf-8")
+    return hmac.new((MEDIA_API_TOKEN or "").encode("utf-8"), msg, hashlib.sha256).hexdigest()[:32]
+
+
+def assinar_url_midia(url: str, ttl_seconds: int | None = None) -> str:
+    """Acrescenta ?e=&s= à URL pública. O banco pode guardar o path sem assinatura."""
+    raw = (url or "").strip()
+    if not raw or not MEDIA_API_TOKEN or not is_media_url(raw):
+        return raw
+    parsed = urlparse(raw)
+    path = parsed.path or ""
+    ttl = MEDIA_SIGNED_URL_TTL if ttl_seconds is None else int(ttl_seconds)
+    exp = int(time.time()) + max(60, ttl)
+    sig = _assinatura_path_midia(path, exp)
+    query = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k not in {"e", "s"}]
+    query.extend([("e", str(exp)), ("s", sig)])
+    return urlunparse(parsed._replace(query=urlencode(query)))
+
+
+def verificar_assinatura_midia(url: str) -> bool:
+    """True se a URL tiver assinatura HMAC válida e ainda não expirada."""
+    if not is_media_url(url) or not MEDIA_API_TOKEN:
+        return False
+    parsed = urlparse(url)
+    params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    try:
+        exp = int(params.get("e") or "")
+    except ValueError:
+        return False
+    sig = params.get("s") or ""
+    if exp < int(time.time()) or len(sig) != 32:
+        return False
+    esperado = _assinatura_path_midia(parsed.path or "", exp)
+    return hmac.compare_digest(esperado, sig)
+
+
+def url_publica_midia(rel_or_url: str, ttl_seconds: int | None = None) -> str:
+    """Monta URL absoluta do arquivo e assina para exposição (listagem, preview)."""
+    rel = (rel_or_url or "").strip()
+    if not rel:
+        return ""
+    if rel.startswith("http://") or rel.startswith("https://"):
+        url = rel
+    else:
+        url = f"{MEDIA_SERVER_URL.rstrip('/')}{rel if rel.startswith('/') else '/' + rel}"
+    return assinar_url_midia(url, ttl_seconds=ttl_seconds)
 
 
 def media_list_tenants() -> dict | None:
@@ -520,7 +588,7 @@ def media_list_folders(tenant: str) -> dict | None:
         return None
     url = f"{MEDIA_SERVER_URL.rstrip('/')}/list/{tenant_key}/"
     try:
-        response = requests.get(url, headers=_media_auth_headers(), timeout=20)
+        response = requests.get(url, headers=_media_auth_headers(tenant_key), timeout=20)
         if response.status_code == 200:
             return response.json()
         logger.error(
@@ -561,7 +629,7 @@ def media_baixar_arquivo(url: str) -> bytes | None:
     if not is_media_url(url):
         return None
     try:
-        response = requests.get(url, timeout=60)
+        response = requests.get(assinar_url_midia(url, ttl_seconds=300), timeout=60)
         if response.status_code == 200 and response.content:
             return response.content
         logger.error("media_baixar_arquivo falhou: HTTP %s %s", response.status_code, url)
@@ -593,7 +661,7 @@ def media_list_files(tenant: str, folder: str) -> dict | None:
         return None
     url = f"{MEDIA_SERVER_URL.rstrip('/')}/list/{tenant_key}/{folder_path}/"
     try:
-        response = requests.get(url, headers=_media_auth_headers(), timeout=30)
+        response = requests.get(url, headers=_media_auth_headers(tenant_key), timeout=30)
         if response.status_code == 200:
             return response.json()
         logger.error(

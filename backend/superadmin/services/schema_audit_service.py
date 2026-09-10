@@ -188,14 +188,31 @@ def limpar_tabelas_extras_loja(loja) -> dict[str, Any]:
             apps_removidos.add("whatsapp")
         elif table == "django_admin_log":
             apps_removidos.add("admin")
+        elif table == "django_session":
+            apps_removidos.add("sessions")
+        elif table.startswith("token_blacklist_"):
+            apps_removidos.add("token_blacklist")
+        elif table in {"asaas_config", "asaas_customer", "asaas_payment", "loja_assinatura"}:
+            apps_removidos.add("asaas_integration")
 
     try:
         with conn.cursor() as cur:
             cur.execute("SET search_path TO %s, public", [schema])
             for table in extras:
                 cur.execute(f'DROP TABLE IF EXISTS "{table}" CASCADE')
+            # Não apagar django_migrations: se o histórico sumir, o próximo
+            # migrate --database recria as tabelas e o aviso «legado» volta.
             for app in sorted(apps_removidos):
-                cur.execute("DELETE FROM django_migrations WHERE app = %s", [app])
+                cur.execute(
+                    """
+                    INSERT INTO django_migrations (app, name, applied)
+                    SELECT %s, 'legacy_removed', NOW()
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM django_migrations WHERE app = %s
+                    )
+                    """,
+                    [app, app],
+                )
         out["removidas"] = extras
         out["sucesso"] = True
         out["mensagem"] = f"{len(extras)} tabela(s) legado removida(s)."

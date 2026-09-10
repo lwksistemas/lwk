@@ -6,6 +6,25 @@
 Com PostgreSQL, usa schemas isolados no mesmo banco.
 Com SQLite local, usa arquivos separados.
 """
+from functools import lru_cache
+
+
+@lru_cache(maxsize=1)
+def _apps_permitidos_schema_loja() -> frozenset[str]:
+    """Apps que podem criar tabela em schema loja_*.
+
+    Sem esta lista, allow_migrate=True para QUALQUER app no tenant — o Django
+    recria tabelas legado (asaas, admin, token_blacklist) depois do
+    «Limpar legado».
+    """
+    from superadmin.services.database_schema_service import TIPO_LOJA_EXTRA_APPS
+
+    apps = {"contenttypes", "auth", "stores", "products"}
+    for extra in TIPO_LOJA_EXTRA_APPS.values():
+        apps.update(extra)
+    apps.update(MultiTenantRouter.loja_apps)
+    return frozenset(apps)
+
 
 class MultiTenantRouter:
     """Router que direciona queries para o banco correto baseado no app/model
@@ -70,10 +89,10 @@ class MultiTenantRouter:
         if db == "suporte":
             return app_label in self.suporte_dependency_apps
 
-        if app_label in self.loja_apps:
-            return db.startswith("loja_") or db == "loja_template"
-
         if db.startswith("loja_") or db == "loja_template":
-            return True
+            return app_label in _apps_permitidos_schema_loja()
+
+        if app_label in self.loja_apps:
+            return False
 
         return db == "default"

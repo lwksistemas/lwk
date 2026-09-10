@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { X, MessageCircle, BookOpen } from "lucide-react";
+import { X, MessageCircle } from "lucide-react";
 import {
   getAgendaStatusColor,
   getAgendaStatusLabelModal,
@@ -11,7 +9,6 @@ import {
   normalizeAgendaStatus,
 } from "@/lib/clinica-beleza-constants";
 import { useAgendaStatusColors } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
-import { buildProntuarioPacientePath } from "@/components/clinica-beleza/prontuario/prontuario-paths";
 import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
 import {
   groupProceduresByCategoria,
@@ -70,7 +67,6 @@ function procedimentosAgrupadosDoEvento(
 
 const STATUS_EDICAO_BLOQUEADA = new Set(["IN_PROGRESS", "COMPLETED", "CANCELLED"]);
 const STATUS_JA_CONFIRMADO = new Set(["CLIENT_CONFIRMED", "PHONE_CONFIRMED"]);
-const STATUS_COM_PRONTUARIO = new Set(["CONFIRMED", "IN_PROGRESS", "COMPLETED"]);
 
 interface ModalDetalheAgendamentoProps {
   open: boolean;
@@ -105,8 +101,6 @@ export function ModalDetalheAgendamento({
   salvandoDetalhe,
   reenviandoMensagem,
 }: ModalDetalheAgendamentoProps) {
-  const params = useParams();
-  const slug = params.slug as string;
   const statusColors = useAgendaStatusColors();
   const [professionalId, setProfessionalId] = useState("");
   const [procedureIds, setProcedureIds] = useState<number[]>([]);
@@ -171,11 +165,6 @@ export function ModalDetalheAgendamento({
 
   const tipoAgendamento = labelTipoAgendamento(procedureIds.length);
   const gruposSomenteLeitura = procedimentosAgrupadosDoEvento(event, procedures);
-  const patientId = event.extendedProps.patient;
-  const hrefProntuario =
-    STATUS_COM_PRONTUARIO.has(status) && patientId != null && patientId > 0
-      ? buildProntuarioPacientePath(slug, patientId)
-      : null;
 
   const duracaoPreco = (
     <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -206,8 +195,8 @@ export function ModalDetalheAgendamento({
     </p>
   ) : status === "CONFIRMED" ? (
     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-      Cliente presente. A consulta foi criada — o atendimento e o pagamento ficam em Consultas
-      (botão Receber), não por este modal.
+      Consulta criada com status <strong className="text-amber-700 dark:text-amber-400">RECEBER</strong>.
+      O pagamento é feito em Consultas (botão Receber), antes ou durante o atendimento — sem bloquear o início.
     </p>
   ) : status === "CANCELLED" ? (
     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
@@ -410,16 +399,6 @@ export function ModalDetalheAgendamento({
             >
               {salvandoDetalhe ? "Salvando…" : "Salvar alterações"}
             </button>
-          ) : null}
-          {hrefProntuario ? (
-            <Link
-              href={hrefProntuario}
-              onClick={onClose}
-              className="sm:flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-neutral-600 text-gray-800 dark:text-gray-100 rounded-lg hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
-            >
-              <BookOpen size={18} />
-              Ver prontuário
-            </Link>
           ) : null}
           <button
             type="button"

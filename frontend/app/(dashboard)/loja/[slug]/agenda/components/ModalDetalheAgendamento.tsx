@@ -11,7 +11,6 @@ import {
   normalizeAgendaStatus,
 } from "@/lib/clinica-beleza-constants";
 import { useAgendaStatusColors } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
-import { buildConsultaDetailHref } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
 import { buildProntuarioPacientePath } from "@/components/clinica-beleza/prontuario/prontuario-paths";
 import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
 import {
@@ -186,36 +185,13 @@ export function ModalDetalheAgendamento({
   );
 
   const blocoStatusAjuda = statusSomenteLeitura ? (
-    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 space-y-2">
-      <p>
-        {status === "COMPLETED"
-          ? "Consulta finalizada em Consultas — exibido em verde escuro na agenda."
-          : status === "IN_PROGRESS"
-            ? "Em atendimento: o horário da agenda foi atualizado para o início real. Finalize a consulta em Consultas quando terminar (não pela agenda)."
-            : "Início e conclusão do atendimento são feitos em Consultas."}
-      </p>
-      <div className="flex flex-col gap-1.5">
-        {status === "IN_PROGRESS" && event.extendedProps.consulta_id != null && (
-          <Link
-            href={buildConsultaDetailHref(slug, event.extendedProps.consulta_id)}
-            className="inline-flex text-sm font-medium text-violet-700 dark:text-violet-300 hover:underline"
-            onClick={onClose}
-          >
-            Abrir consulta em atendimento →
-          </Link>
-        )}
-        {hrefProntuario ? (
-          <Link
-            href={hrefProntuario}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-violet-700 dark:text-violet-300 hover:underline"
-            onClick={onClose}
-          >
-            <BookOpen size={14} />
-            Ver prontuário do paciente →
-          </Link>
-        ) : null}
-      </div>
-    </div>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+      {status === "COMPLETED"
+        ? "Consulta finalizada em Consultas — exibido em verde escuro na agenda."
+        : status === "IN_PROGRESS"
+          ? "Em atendimento: o horário da agenda foi atualizado para o início real. Finalize a consulta em Consultas quando terminar (não pela agenda)."
+          : "Início e conclusão do atendimento são feitos em Consultas."}
+    </p>
   ) : status === "SCHEDULED" || status === "PENDING" ? (
     <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5">
       Aguardando resposta do cliente no WhatsApp ou pelo link. A agenda atualiza sozinha em alguns segundos.
@@ -229,33 +205,10 @@ export function ModalDetalheAgendamento({
       Confirmado por ligação (recepção). Quando o cliente chegar, altere para &quot;Cliente presente&quot;.
     </p>
   ) : status === "CONFIRMED" ? (
-    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 space-y-2">
-      <p>
-        Consulta criada com status <strong className="text-amber-700 dark:text-amber-400">RECEBER</strong>.
-        O pagamento é feito em Consultas (botão Receber), antes ou durante o atendimento — sem bloquear o início.
-      </p>
-      <div className="flex flex-col gap-1.5">
-        {event.extendedProps.consulta_id != null && (
-          <Link
-            href={buildConsultaDetailHref(slug, event.extendedProps.consulta_id)}
-            className="inline-flex text-sm font-medium text-amber-700 dark:text-amber-300 hover:underline"
-            onClick={onClose}
-          >
-            Abrir consulta em Consultas →
-          </Link>
-        )}
-        {hrefProntuario ? (
-          <Link
-            href={hrefProntuario}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-800 dark:text-amber-300 hover:underline"
-            onClick={onClose}
-          >
-            <BookOpen size={14} />
-            Ver prontuário do paciente →
-          </Link>
-        ) : null}
-      </div>
-    </div>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+      Cliente presente. A consulta foi criada — o atendimento e o pagamento ficam em Consultas
+      (botão Receber), não por este modal.
+    </p>
   ) : status === "CANCELLED" ? (
     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
       Cancelado pelo cliente (WhatsApp) ou pela recepção.

@@ -50,6 +50,22 @@ def _get_styles():
         textColor=colors.HexColor("#444444"),
     ))
     styles.add(ParagraphStyle(
+        "DocMeta",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=14,
+        spaceAfter=1 * mm,
+        textColor=colors.HexColor("#222222"),
+    ))
+    styles.add(ParagraphStyle(
+        "DocAviso",
+        parent=styles["Normal"],
+        fontSize=8,
+        leading=11,
+        spaceBefore=3 * mm,
+        textColor=colors.HexColor("#B00020"),
+    ))
+    styles.add(ParagraphStyle(
         "SectionTitle",
         parent=styles["Normal"],
         fontSize=13,

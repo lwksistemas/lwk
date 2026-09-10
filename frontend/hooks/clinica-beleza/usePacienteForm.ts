@@ -157,6 +157,7 @@ export function usePacienteForm({
       email: form.email.trim() || null,
       cpf: form.cpf.trim() || null,
       birth_date: form.birth_date || null,
+      sexo: form.sexo || "",
       address: montarEnderecoPaciente(form) || null,
       cidade: form.cidade.trim() || null,
       estado: form.uf.trim().toUpperCase() || null,

@@ -30,3 +30,22 @@ class SplitNomeMemedTest(SimpleTestCase):
 
     def test_vazio(self):
         self.assertEqual(_split_nome(""), ("", ""))
+
+
+class TelefoneBrMemedTest(SimpleTestCase):
+    def test_remove_ddi_55(self):
+        from clinica_beleza.memed_service import telefone_br_memed
+
+        self.assertEqual(telefone_br_memed("5516997438862"), "16997438862")
+        self.assertEqual(telefone_br_memed("5516992619024"), "16992619024")
+
+    def test_formatado_vira_ddd_numero(self):
+        from clinica_beleza.memed_service import telefone_br_memed
+
+        self.assertEqual(telefone_br_memed("(16) 99743-8862"), "16997438862")
+
+    def test_ja_sem_ddi_mantem(self):
+        from clinica_beleza.memed_service import telefone_br_memed
+
+        self.assertEqual(telefone_br_memed("16997438862"), "16997438862")
+        self.assertEqual(telefone_br_memed(""), "")

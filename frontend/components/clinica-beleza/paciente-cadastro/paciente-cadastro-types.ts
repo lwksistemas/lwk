@@ -7,6 +7,7 @@ export const PACIENTE_EMPTY_FORM = {
   email: "",
   cpf: "",
   birth_date: "",
+  sexo: "" as "" | "M" | "F",
   cep: "",
   logradouro: "",
   numero: "",

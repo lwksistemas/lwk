@@ -9,6 +9,18 @@ from core.mixins import LojaIsolationManager, LojaIsolationMixin
 class Patient(ClienteBase):
     """Pacientes da clínica (herda de ClienteBase)"""
 
+    SEXO_CHOICES = [
+        ("M", "Masculino"),
+        ("F", "Feminino"),
+    ]
+    sexo = models.CharField(
+        max_length=1,
+        blank=True,
+        default="",
+        choices=SEXO_CHOICES,
+        verbose_name="Sexo",
+        help_text="Usado na identificação do paciente na prescrição digital (Memed).",
+    )
     allow_whatsapp = models.BooleanField(
         default=True,
         verbose_name="Permitir WhatsApp",

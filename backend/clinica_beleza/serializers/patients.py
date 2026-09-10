@@ -46,6 +46,7 @@ class PatientSerializer(
             "email": {"required": False, "allow_blank": True, "allow_null": True},
             "cpf": {"required": False, "allow_blank": True, "allow_null": True},
             "data_nascimento": {"required": False, "allow_null": True},
+            "sexo": {"required": False, "allow_blank": True, "default": ""},
             "endereco": {"required": False, "allow_blank": True, "default": ""},
             "cidade": {"required": False, "allow_blank": True, "default": ""},
             "estado": {"required": False, "allow_blank": True, "default": ""},

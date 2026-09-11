@@ -105,6 +105,23 @@ def _parse_preco(raw: str) -> Decimal:
         return Decimal("0.00")
 
 
+def _texto_parece_planilha(texto: str) -> bool:
+    """CSV/TXT de verdade tem cabeçalho codigo + nome. Texto de PDF com vírgulas não."""
+    primeira = ""
+    for linha in (texto or "").lstrip("\ufeff").splitlines():
+        if linha.strip():
+            primeira = linha
+            break
+    if not primeira:
+        return False
+    delim = ";" if primeira.count(";") >= primeira.count(",") else ","
+    if "\t" in primeira and primeira.count("\t") >= max(primeira.count(delim), 1):
+        delim = "\t"
+    colunas = [re.sub(r"\s+", " ", (c or "").strip().lower()) for c in primeira.split(delim)]
+    mapped = {_HEADER_MAP.get(c) for c in colunas}
+    return "codigo" in mapped and "nome" in mapped
+
+
 def preview_catalogo_arquivo(conteudo: str) -> list[dict]:
     texto = (conteudo or "").lstrip("\ufeff").strip()
     if not texto:
@@ -361,7 +378,11 @@ def _extrair_texto_pdf(data: bytes) -> str:
     partes: list[str] = []
     for page in reader.pages:
         try:
-            partes.append(page.extract_text() or "")
+            try:
+                texto_pagina = page.extract_text(extraction_mode="layout") or ""
+            except TypeError:
+                texto_pagina = page.extract_text() or ""
+            partes.append(texto_pagina)
         except Exception:
             continue
     texto = "\n".join(partes).strip()
@@ -379,16 +400,15 @@ def preview_catalogo_pdf(data: bytes) -> list[dict]:
     if len(data) > CATALOGO_PDF_MAX_BYTES:
         raise FornecedorError("PDF no máximo 8 MB.")
     texto = _extrair_texto_pdf(data)
-    try:
+    if _texto_parece_planilha(texto):
         return preview_catalogo_arquivo(texto)
-    except FornecedorError:
-        itens = _parse_catalogo_texto_livre(texto)
-        if not itens:
-            raise FornecedorError(
-                "Não encontramos produtos com nome e preço neste PDF. "
-                "Confira se o catálogo tem valores em R$ ou envie um CSV/TXT."
-            )
-        return itens
+    itens = _parse_catalogo_texto_livre(texto)
+    if not itens:
+        raise FornecedorError(
+            "Não encontramos produtos com nome e preço neste PDF. "
+            "Confira se o catálogo tem valores em R$ ou envie um CSV/TXT."
+        )
+    return itens
 
 
 def preview_catalogo_entrada(conteudo: str | None = None, arquivo=None) -> list[dict]:

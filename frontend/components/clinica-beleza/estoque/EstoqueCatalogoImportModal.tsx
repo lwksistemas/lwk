@@ -57,8 +57,8 @@ export function EstoqueCatalogoImportModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-3 sm:p-4">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-[96vw] max-w-6xl h-[90vh] max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-700">
           <div>
             <h2 className="text-lg font-semibold">Importar catálogo</h2>
@@ -102,24 +102,24 @@ export function EstoqueCatalogoImportModal({
             </p>
           )}
           {itens.length > 0 && (
-            <div className="text-xs border rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-neutral-800">
+            <div className="text-sm border rounded-lg overflow-auto max-h-[58vh]">
+              <table className="w-full min-w-[720px]">
+                <thead className="bg-gray-50 dark:bg-neutral-800 sticky top-0">
                   <tr>
-                    <th className="text-left p-2">Código</th>
+                    <th className="text-left p-2 w-48">Código</th>
                     <th className="text-left p-2">Nome</th>
-                    <th className="text-left p-2">Un.</th>
-                    <th className="text-right p-2">Preço</th>
-                    {!resultado && <th className="w-8" />}
+                    <th className="text-left p-2 w-16">Un.</th>
+                    <th className="text-right p-2 w-28">Preço</th>
+                    {!resultado && <th className="w-10" />}
                   </tr>
                 </thead>
                 <tbody>
                   {itens.map((i) => (
                     <tr key={i.codigo} className="border-t">
-                      <td className="p-2">{i.codigo}</td>
+                      <td className="p-2 whitespace-nowrap font-mono text-xs">{i.codigo}</td>
                       <td className="p-2">{i.nome}</td>
                       <td className="p-2">{i.unidade}</td>
-                      <td className="p-2 text-right">{i.preco_ref}</td>
+                      <td className="p-2 text-right whitespace-nowrap">{i.preco_ref}</td>
                       {!resultado && (
                         <td className="p-1">
                           <button

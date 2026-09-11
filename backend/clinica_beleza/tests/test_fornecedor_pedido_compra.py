@@ -10,6 +10,7 @@ from clinica_beleza.fornecedor_service import (
     preview_catalogo_arquivo,
     preview_catalogo_pdf,
     _parse_catalogo_texto_livre,
+    _texto_parece_planilha,
     salvar_fornecedor,
 )
 from clinica_beleza.pedido_compra_service import (
@@ -71,6 +72,18 @@ class PreviewCatalogoTests(SimpleTestCase):
     def test_pdf_vazio_falha(self):
         with self.assertRaises(FornecedorError):
             preview_catalogo_pdf(b"")
+
+    def test_catalogo_visual_nao_parece_planilha(self):
+        texto = (
+            "SAÚDE, CIÊNCIA E BELEZA\n"
+            "BIOESTIMULADOR FACIAL + PDRN\n"
+            "Certificado de Garantia R$ 373,00\n"
+        )
+        self.assertFalse(_texto_parece_planilha(texto))
+        self.assertTrue(_texto_parece_planilha("codigo;nome;preco\nA;Botox;10\n"))
+        itens = _parse_catalogo_texto_livre(texto)
+        self.assertEqual(itens[0]["nome"], "BIOESTIMULADOR FACIAL + PDRN")
+        self.assertEqual(itens[0]["preco_ref"], "373.00")
 
 
 class SalvarFornecedorTests(SimpleTestCase):

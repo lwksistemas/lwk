@@ -5,7 +5,7 @@ import type {
   RetornoProcedimentoRegraItem,
   RetornoVerificacaoResult,
 } from "./types-entities";
-import { cbDelete, cbGet, cbGetList, cbPatch, cbPost, cbPut } from "./client-http";
+import { cbDelete, cbGet, cbGetList, cbPatch, cbPost, cbPostFormData, cbPut } from "./client-http";
 
 export const meApi = {
   get: () =>
@@ -112,6 +112,14 @@ export const estoqueApi = {
         `/estoque/fornecedores/${id}/catalogo/preview/`,
         { conteudo },
       ),
+    previewCatalogoArquivo: (id: number, arquivo: File) => {
+      const form = new FormData();
+      form.append("arquivo", arquivo);
+      return cbPostFormData<{ itens: FornecedorProdutoPreview[]; total: number }>(
+        `/estoque/fornecedores/${id}/catalogo/preview/`,
+        form,
+      );
+    },
     importarCatalogo: (id: number, itens: FornecedorProdutoPreview[]) =>
       cbPost<{ criados: number; atualizados: number; total: number }>(
         `/estoque/fornecedores/${id}/catalogo/importar/`,

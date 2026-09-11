@@ -119,5 +119,6 @@ class PedidoCompraAssinaturaPdfPublicaView(View):
         _payload, ass = ctx
         pdf = pdf_bytes_pedido(ass.pedido)
         resp = HttpResponse(pdf, content_type="application/pdf")
-        resp["Content-Disposition"] = f'inline; filename="pedido_compra_{ass.pedido.numero}.pdf"'
+        disposition = "attachment" if request.GET.get("download") == "1" else "inline"
+        resp["Content-Disposition"] = f'{disposition}; filename="pedido_compra_{ass.pedido.numero}.pdf"'
         return resp

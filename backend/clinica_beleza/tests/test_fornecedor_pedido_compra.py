@@ -8,6 +8,8 @@ from clinica_beleza.fornecedor_service import (
     FornecedorError,
     importar_catalogo,
     preview_catalogo_arquivo,
+    preview_catalogo_pdf,
+    _parse_catalogo_texto_livre,
     salvar_fornecedor,
 )
 from clinica_beleza.pedido_compra_service import (
@@ -35,6 +37,40 @@ class PreviewCatalogoTests(SimpleTestCase):
     def test_vazio_falha(self):
         with self.assertRaises(FornecedorError):
             preview_catalogo_arquivo("")
+
+    def test_pdf_catalogo_nome_e_preco(self):
+        texto = (
+            "BIOESTIMULADOR FACIAL + PDRN\n"
+            "Formulação:\n"
+            "1 Frasco - Gel\n"
+            "Certificado de Garantia\tR$ 373,00\n"
+            "PDRN + ÁCIDO HIALURÔNICO\n"
+            "Formulação:\n"
+            "Anti-Aging com hidratação\n"
+            "R$ 217,00\n"
+            "KIT BUMBUM UP\n"
+            "1 caixa de Bioestimulador Corporal\n"
+            "+\n"
+            "1 caixa de Mix Atleta\n"
+            "R$ 1180,00\n"
+            "Certificado de GarantiaR$ 39,00\n"
+            "PROCAÍNA 2%\n"
+        )
+        itens = _parse_catalogo_texto_livre(texto)
+        nomes = {i["nome"] for i in itens}
+        self.assertIn("BIOESTIMULADOR FACIAL + PDRN", nomes)
+        self.assertIn("PDRN + ÁCIDO HIALURÔNICO", nomes)
+        self.assertIn("KIT BUMBUM UP", nomes)
+        self.assertIn("PROCAÍNA 2%", nomes)
+        por_nome = {i["nome"]: i for i in itens}
+        self.assertEqual(por_nome["BIOESTIMULADOR FACIAL + PDRN"]["preco_ref"], "373.00")
+        self.assertEqual(por_nome["KIT BUMBUM UP"]["preco_ref"], "1180.00")
+        self.assertEqual(por_nome["PDRN + ÁCIDO HIALURÔNICO"]["preco_ref"], "217.00")
+        self.assertTrue(por_nome["BIOESTIMULADOR FACIAL + PDRN"]["codigo"])
+
+    def test_pdf_vazio_falha(self):
+        with self.assertRaises(FornecedorError):
+            preview_catalogo_pdf(b"")
 
 
 class SalvarFornecedorTests(SimpleTestCase):

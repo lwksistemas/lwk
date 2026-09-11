@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .fornecedor_service import FornecedorError, importar_catalogo, preview_catalogo_arquivo, salvar_fornecedor
+from .fornecedor_service import FornecedorError, importar_catalogo, preview_catalogo_entrada, salvar_fornecedor
 from .models.fornecedores import Fornecedor, FornecedorProduto
 from .permissions import CLINICA_ESTOQUE, CLINICA_ESTOQUE_LEITURA
 from .serializers.fornecedores import FornecedorProdutoSerializer, FornecedorSerializer
@@ -123,11 +123,11 @@ class FornecedorCatalogoPreviewView(APIView):
         _ensure(request)
         if not Fornecedor.objects.filter(pk=pk).exists():
             return Response({"error": "Fornecedor não encontrado"}, status=status.HTTP_404_NOT_FOUND)
-        conteudo = request.data.get("conteudo")
-        if conteudo is None and request.FILES.get("arquivo"):
-            conteudo = request.FILES["arquivo"].read().decode("utf-8-sig", errors="replace")
         try:
-            itens = preview_catalogo_arquivo(conteudo or "")
+            itens = preview_catalogo_entrada(
+                conteudo=request.data.get("conteudo"),
+                arquivo=request.FILES.get("arquivo"),
+            )
         except FornecedorError as exc:
             return _erro(exc)
         return Response({"itens": itens, "total": len(itens)})
@@ -145,11 +145,11 @@ class FornecedorCatalogoImportarView(APIView):
             return Response({"error": "Fornecedor não encontrado"}, status=status.HTTP_404_NOT_FOUND)
         itens = request.data.get("itens")
         if not itens:
-            conteudo = request.data.get("conteudo")
-            if conteudo is None and request.FILES.get("arquivo"):
-                conteudo = request.FILES["arquivo"].read().decode("utf-8-sig", errors="replace")
             try:
-                itens = preview_catalogo_arquivo(conteudo or "")
+                itens = preview_catalogo_entrada(
+                    conteudo=request.data.get("conteudo"),
+                    arquivo=request.FILES.get("arquivo"),
+                )
             except FornecedorError as exc:
                 return _erro(exc)
         try:

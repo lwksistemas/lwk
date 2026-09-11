@@ -6,6 +6,10 @@ import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api/client";
 import type { FornecedorItem, FornecedorProdutoPreview } from "@/lib/clinica-beleza-api/client-ops";
 import { extractEstoqueApiError } from "./estoque-types";
 
+function ehPdf(file: File) {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
+
 export function EstoqueCatalogoImportModal({
   fornecedor,
   onClose,
@@ -17,16 +21,19 @@ export function EstoqueCatalogoImportModal({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resultado, setResultado] = useState<{ criados: number; atualizados: number } | null>(null);
+  const [origemPdf, setOrigemPdf] = useState(false);
 
   if (!fornecedor) return null;
 
   const lerArquivo = async (file: File) => {
     setError("");
     setResultado(null);
-    const conteudo = await file.text();
+    setOrigemPdf(ehPdf(file));
     setLoading(true);
     try {
-      const data = await ClinicaBelezaAPI.estoque.fornecedores.previewCatalogo(fornecedor.id, conteudo);
+      const data = ehPdf(file)
+        ? await ClinicaBelezaAPI.estoque.fornecedores.previewCatalogoArquivo(fornecedor.id, file)
+        : await ClinicaBelezaAPI.estoque.fornecedores.previewCatalogo(fornecedor.id, await file.text());
       setItens(data.itens);
     } catch (err) {
       setItens([]);
@@ -56,7 +63,7 @@ export function EstoqueCatalogoImportModal({
           <div>
             <h2 className="text-lg font-semibold">Importar catálogo</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              CSV/TXT do fornecedor {fornecedor.nome_fantasia || fornecedor.razao_social}. Não cria produto de estoque.
+              CSV, TXT ou PDF do fornecedor {fornecedor.nome_fantasia || fornecedor.razao_social}. Não cria produto de estoque.
             </p>
           </div>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800">
@@ -78,14 +85,22 @@ export function EstoqueCatalogoImportModal({
           )}
           <input
             type="file"
-            accept=".csv,.txt,text/csv,text/plain"
+            accept=".csv,.txt,.pdf,text/csv,text/plain,application/pdf"
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void lerArquivo(f);
             }}
             className="text-sm"
           />
-          <p className="text-xs text-gray-500">Colunas: codigo, nome, unidade, preco (separador ; ou ,).</p>
+          <p className="text-xs text-gray-500">
+            Planilha: colunas codigo, nome, unidade, preco. PDF de tabela/catálogo: o sistema lê nome e preço em R$ —
+            confira a prévia antes de confirmar.
+          </p>
+          {origemPdf && itens.length > 0 && !resultado && (
+            <p className="text-xs text-amber-700">
+              {itens.length} produtos lidos do PDF. Remova o que não for produto antes de importar.
+            </p>
+          )}
           {itens.length > 0 && (
             <div className="text-xs border rounded-lg overflow-hidden">
               <table className="w-full">
@@ -95,20 +110,32 @@ export function EstoqueCatalogoImportModal({
                     <th className="text-left p-2">Nome</th>
                     <th className="text-left p-2">Un.</th>
                     <th className="text-right p-2">Preço</th>
+                    {!resultado && <th className="w-8" />}
                   </tr>
                 </thead>
                 <tbody>
-                  {itens.slice(0, 40).map((i) => (
+                  {itens.map((i) => (
                     <tr key={i.codigo} className="border-t">
                       <td className="p-2">{i.codigo}</td>
                       <td className="p-2">{i.nome}</td>
                       <td className="p-2">{i.unidade}</td>
                       <td className="p-2 text-right">{i.preco_ref}</td>
+                      {!resultado && (
+                        <td className="p-1">
+                          <button
+                            type="button"
+                            title="Remover da prévia"
+                            onClick={() => setItens((atual) => atual.filter((item) => item.codigo !== i.codigo))}
+                            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-neutral-800"
+                          >
+                            <X size={14} className="text-gray-500" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {itens.length > 40 && <p className="p-2 text-gray-500">+{itens.length - 40} itens</p>}
             </div>
           )}
         </div>

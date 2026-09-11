@@ -32,7 +32,7 @@ const securityHeaders = [
       `font-src 'self' data: ${memedHttps} https://meet.jit.si`,
       `connect-src ${buildConnectSrc()}`,
       "media-src 'self' blob: mediastream:",
-      `frame-src 'self' ${memedHttps} https://meet.jit.si https://8x8.vc https://*.jitsi.net`,
+      `frame-src 'self' blob: ${memedHttps} https://meet.jit.si https://8x8.vc https://*.jitsi.net`,
       `child-src 'self' blob: ${memedHttps} https://meet.jit.si https://8x8.vc`,
       `worker-src 'self' blob: ${memedHttps} https://meet.jit.si`,
       "upgrade-insecure-requests",

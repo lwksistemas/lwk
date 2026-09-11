@@ -374,7 +374,7 @@ def _enviar_link_email(pedido, forn, link: str, clinica: str) -> dict:
         corpo = (
             f"Olá {forn.razao_social},\n\n"
             f"{clinica} enviou o pedido de compra nº {pedido.numero} para sua assinatura.\n\n"
-            f"Abra o link para visualizar e assinar:\n{link}\n\n"
+            f"Abra o link para visualizar o PDF e assinar:\n{link}\n\n"
             f"Atenciosamente,\n{clinica}"
         )
         msg = create_email_message(
@@ -402,7 +402,7 @@ def _enviar_link_whatsapp(pedido, forn, link: str, clinica: str) -> dict:
             return {"sucesso": False, "erro": "WhatsApp não está ativo. Configure em Configurações → WhatsApp."}
         mensagem = (
             f"{clinica} enviou o pedido de compra nº {pedido.numero} para assinatura.\n\n"
-            f"Abra o link para visualizar e assinar:\n{link}"
+            f"Abra o link para visualizar o PDF e assinar:\n{link}"
         )
         ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config)
         if not ok:

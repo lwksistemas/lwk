@@ -39,6 +39,34 @@ class PrescricaoDeleteBloqueioTest(SimpleTestCase):
         mock_remover.assert_called_once_with(presc)
 
 
+class PrescricaoPdfSubstituiFallbackTest(SimpleTestCase):
+    def _view(self):
+        from clinica_beleza.views_consultas.prescricoes import PrescricaoMemedPdfView
+
+        return PrescricaoMemedPdfView()
+
+    @patch("clinica_beleza.memed_prescricao_service.resolver_pdf_prescricao")
+    @patch("clinica_beleza.views_consultas.prescricoes.PrescricaoMemed")
+    @patch("superadmin.models.Loja")
+    def test_pdf_assinado_substitui_url_local(self, mock_loja, mock_model, mock_resolver):
+        presc = MagicMock()
+        presc.loja_id = 6
+        presc.prescricao_id = "295237918"
+        presc.pdf_url = "https://media.lwksistemas.com.br/files/x/local.pdf"
+        presc.professional = MagicMock()
+        presc.patient = MagicMock()
+        presc.consulta_id = 153
+        mock_model.objects.select_related.return_value.get.return_value = presc
+        mock_loja.objects.using.return_value.filter.return_value.first.return_value = MagicMock()
+        mock_resolver.return_value = "https://media.lwksistemas.com.br/files/x/memed.pdf"
+
+        resp = self._view().post(MagicMock(), pk=16)
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["pdf_url"], "https://media.lwksistemas.com.br/files/x/memed.pdf")
+        presc.save.assert_called_once()
+
+
 class FotoDeleteBloqueioTest(SimpleTestCase):
     def test_consulta_finalizada_bloqueia_exclusao_foto(self):
         # _consulta_permite_envio_foto retorna erro (bloqueio) p/ status != IN_PROGRESS/RECEBER

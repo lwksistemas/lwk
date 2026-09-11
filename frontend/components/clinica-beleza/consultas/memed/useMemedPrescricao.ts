@@ -95,10 +95,13 @@ export function useMemedPrescricao({
         });
 
       void salvar().catch((e) => logger.warn("Memed: falha ao registrar prescrição no histórico:", e));
-      if (!pdfUrl && prescricaoId) {
-        window.setTimeout(() => {
-          void salvar().catch(() => {});
-        }, 4000);
+      if (prescricaoId) {
+        // A Memed libera o PDF assinado alguns segundos após o evento.
+        for (const esperaMs of [4000, 12000]) {
+          window.setTimeout(() => {
+            void salvar().catch(() => {});
+          }, esperaMs);
+        }
       }
     });
     return () => setPrescricaoImpressaHandler(null);

@@ -17,28 +17,20 @@ function mensagemErroApi(erro: unknown): string {
 }
 
 /**
- * Abre o PDF da prescrição Memed — busca na API se ainda não estiver salvo.
+ * Abre o PDF da prescrição Memed pedindo de novo à API.
  *
- * Quando o PDF precisa ser buscado/gerado na API (prescrição sem pdf_url salvo,
- * ex.: emitida sem assinatura digital), a abertura ocorre após um await, o que o
- * navegador bloqueia como pop-up. Por isso o chamador deve passar uma aba já
- * aberta no clique (`janela`), que é redirecionada quando a URL fica pronta.
+ * Sempre consulta o backend: o PDF assinado da Memed pode chegar depois do
+ * fallback local. A abertura ocorre após um await, então o chamador deve
+ * passar uma aba já aberta no clique (`janela`).
  */
 export async function abrirPdfPrescricaoMemed(
   prescricao: Pick<PrescricaoMemedItem, "id" | "pdf_url">,
   modo: ConsultaPdfModo = "visualizar",
   janela?: Window | null,
 ): Promise<string> {
-  const salvo = (prescricao.pdf_url || "").trim();
-  if (salvo) {
-    if (janela !== undefined) direcionarJanelaPdf(janela, salvo, modo);
-    else abrirPdfUrl(salvo, modo);
-    return salvo;
-  }
-
   try {
     const res = await ClinicaBelezaAPI.memed.obterPdf(prescricao.id);
-    const url = (res.pdf_url || "").trim();
+    const url = (res.pdf_url || "").trim() || (prescricao.pdf_url || "").trim();
     if (!url) {
       throw new Error("PDF da prescrição não disponível.");
     }
@@ -46,6 +38,12 @@ export async function abrirPdfPrescricaoMemed(
     else abrirPdfUrl(url, modo);
     return url;
   } catch (erro) {
+    const salvo = (prescricao.pdf_url || "").trim();
+    if (salvo) {
+      if (janela !== undefined) direcionarJanelaPdf(janela, salvo, modo);
+      else abrirPdfUrl(salvo, modo);
+      return salvo;
+    }
     if (janela !== undefined) fecharJanelaPdf(janela);
     throw new Error(mensagemErroApi(erro));
   }

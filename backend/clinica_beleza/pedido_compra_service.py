@@ -45,6 +45,14 @@ def _ip_request(request) -> str:
     return (getattr(request, "META", {}) or {}).get("REMOTE_ADDR", "0.0.0.0") or "0.0.0.0"
 
 
+def listar_profissionais_assinantes(loja_id: int) -> list[dict]:
+    """Profissionais ativos da clínica para assinar o pedido."""
+    from .models import Professional
+
+    qs = Professional.objects.filter(loja_id=loja_id, is_active=True).order_by("nome")
+    return [{"id": p.id, "nome": (p.nome or "").strip()} for p in qs if (p.nome or "").strip()]
+
+
 def proximo_numero(loja_id: int) -> int:
     atual = PedidoCompra.objects.filter(loja_id=loja_id).aggregate(m=Max("numero")).get("m") or 0
     return int(atual) + 1

@@ -38,7 +38,8 @@ export function EstoquePedidoModal({
   const [itens, setItens] = useState<Linha[]>([linhaVazia()]);
   const [obs, setObs] = useState("");
   const [pedido, setPedido] = useState<PedidoCompraItem | null>(null);
-  const [nomeAssinante, setNomeAssinante] = useState("");
+  const [profissionais, setProfissionais] = useState<{ id: number; nome: string }[]>([]);
+  const [profissionalId, setProfissionalId] = useState<number | "">("");
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [saving, setSaving] = useState(false);
@@ -47,7 +48,21 @@ export function EstoquePedidoModal({
     if (!open) return;
     setError("");
     setOk("");
+    setProfissionalId("");
     void ClinicaBelezaAPI.estoque.fornecedores.list().then(setFornecedores).catch(() => setFornecedores([]));
+    void Promise.all([
+      ClinicaBelezaAPI.estoque.pedidos.assinantes(),
+      ClinicaBelezaAPI.me.get().catch(() => null),
+    ]).then(([rows, me]) => {
+      const lista = (rows || []).filter((p) => p.nome);
+      setProfissionais(lista);
+      const meuId = me?.professional_id;
+      if (meuId && lista.some((p) => p.id === meuId)) {
+        setProfissionalId(meuId);
+      } else if (lista.length === 1) {
+        setProfissionalId(lista[0].id);
+      }
+    }).catch(() => setProfissionais([]));
     if (pedidoId) {
       void ClinicaBelezaAPI.estoque.pedidos.get(pedidoId).then((p) => {
         setPedido(p);
@@ -118,10 +133,15 @@ export function EstoquePedidoModal({
 
   const assinar = async () => {
     if (!pedido) return;
+    const nome = profissionais.find((p) => p.id === profissionalId)?.nome || "";
+    if (!nome) {
+      setError("Selecione o profissional que assina pela clínica.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
-      setPedido(await ClinicaBelezaAPI.estoque.pedidos.assinarClinica(pedido.id, nomeAssinante));
+      setPedido(await ClinicaBelezaAPI.estoque.pedidos.assinarClinica(pedido.id, nome));
       setOk("Clínica assinou. Envie o link ao fornecedor.");
     } catch (err) {
       setError(extractEstoqueApiError(err, "Erro ao assinar."));
@@ -278,22 +298,32 @@ export function EstoquePedidoModal({
           )}
 
           {pedido && !pedido.assinaturas.clinica.assinado && pedido.status !== "cancelado" && (
-            <div className="flex gap-2">
-              <input
-                className={ESTOQUE_INPUT_CLASS}
-                placeholder="Nome de quem assina pela clínica"
-                value={nomeAssinante}
-                onChange={(e) => setNomeAssinante(e.target.value)}
-              />
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void assinar()}
-                className="px-3 py-2 text-sm rounded-lg text-white whitespace-nowrap"
-                style={{ background: "var(--cb-primary, #8B3D52)" }}
-              >
-                Assinar
-              </button>
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">Quem assina pela clínica</label>
+              <div className="flex gap-2">
+                <select
+                  className={ESTOQUE_INPUT_CLASS}
+                  value={profissionalId}
+                  onChange={(e) => setProfissionalId(e.target.value ? Number(e.target.value) : "")}
+                >
+                  <option value="">Selecione o profissional</option>
+                  {profissionais.map((p) => (
+                    <option key={p.id} value={p.id}>{p.nome}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={saving || !profissionalId}
+                  onClick={() => void assinar()}
+                  className="px-3 py-2 text-sm rounded-lg text-white whitespace-nowrap disabled:opacity-50"
+                  style={{ background: "var(--cb-primary, #8B3D52)" }}
+                >
+                  Assinar
+                </button>
+              </div>
+              {profissionais.length === 0 && (
+                <p className="text-xs text-gray-500">Nenhum profissional ativo. Cadastre em Profissionais.</p>
+              )}
             </div>
           )}
 

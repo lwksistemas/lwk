@@ -13,6 +13,7 @@ from .pedido_compra_service import (
     criar_pedido,
     enviar_link_fornecedor,
     enviar_pedido_assinado,
+    listar_profissionais_assinantes,
     pdf_bytes_pedido,
     pdf_publico_cache,
     serializar_pedido,
@@ -34,6 +35,16 @@ def _erro(exc):
 
 def _pedido_qs():
     return PedidoCompra.objects.select_related("fornecedor").prefetch_related("itens", "assinaturas")
+
+
+class PedidoCompraAssinantesView(APIView):
+    """GET /clinica-beleza/estoque/pedidos/assinantes/"""
+
+    permission_classes = CLINICA_ESTOQUE_LEITURA
+
+    def get(self, request):
+        loja_id = _ensure(request)
+        return Response(listar_profissionais_assinantes(loja_id))
 
 
 class PedidoCompraListView(APIView):

@@ -119,6 +119,8 @@ export const estoqueApi = {
       ),
   },
   pedidos: {
+    assinantes: (loja?: { id?: number; slug?: string } | null) =>
+      cbGet<{ id: number; nome: string }[]>("/estoque/pedidos/assinantes/", undefined, loja),
     list: (params?: { status?: string }, loja?: { id?: number; slug?: string } | null) =>
       cbGet<PedidoCompraItem[]>("/estoque/pedidos/", params, loja),
     get: (id: number) => cbGet<PedidoCompraItem>(`/estoque/pedidos/${id}/`),

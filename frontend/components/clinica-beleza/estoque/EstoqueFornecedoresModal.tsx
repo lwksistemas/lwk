@@ -38,13 +38,16 @@ export function EstoqueFornecedoresModal({
   const [error, setError] = useState("");
   const [form, setForm] = useState({ ...EMPTY });
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [buscandoCnpj, setBuscandoCnpj] = useState(false);
   const [importForn, setImportForn] = useState<FornecedorItem | null>(null);
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (opts?: { abrirFormSeVazio?: boolean }) => {
     setLoading(true);
     try {
-      setLista(await ClinicaBelezaAPI.estoque.fornecedores.list({ todos: 1 }));
+      const data = await ClinicaBelezaAPI.estoque.fornecedores.list({ todos: 1 });
+      setLista(data);
+      if (opts?.abrirFormSeVazio && data.length === 0) setShowForm(true);
     } catch (err) {
       setError(extractEstoqueApiError(err, "Erro ao carregar fornecedores."));
     } finally {
@@ -53,7 +56,12 @@ export function EstoqueFornecedoresModal({
   }, []);
 
   useEffect(() => {
-    if (open) void carregar();
+    if (!open) return;
+    setError("");
+    setForm({ ...EMPTY });
+    setEditingId(null);
+    setShowForm(false);
+    void carregar({ abrirFormSeVazio: true });
   }, [open, carregar]);
 
   const set = (k: string, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
@@ -104,6 +112,7 @@ export function EstoqueFornecedoresModal({
       }
       setForm({ ...EMPTY });
       setEditingId(null);
+      setShowForm(false);
       await carregar();
     } catch (err) {
       setError(extractEstoqueApiError(err, "Erro ao salvar fornecedor."));
@@ -134,6 +143,7 @@ export function EstoqueFornecedoresModal({
                 {error}
               </div>
             )}
+            {showForm ? (
             <form onSubmit={salvar} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="sm:col-span-2 flex gap-2">
                 <input
@@ -167,16 +177,17 @@ export function EstoqueFornecedoresModal({
                 <input className={`${ESTOQUE_INPUT_CLASS} w-20`} placeholder="UF" value={form.uf} maxLength={2} onChange={(e) => set("uf", e.target.value.toUpperCase())} />
               </div>
               <div className="sm:col-span-2 flex justify-end gap-2">
-                {editingId && (
+                {lista.length > 0 && (
                   <button
                     type="button"
                     onClick={() => {
                       setEditingId(null);
                       setForm({ ...EMPTY });
+                      setShowForm(false);
                     }}
                     className="px-3 py-2 text-sm rounded-lg border"
                   >
-                    Novo
+                    Cancelar
                   </button>
                 )}
                 <button
@@ -190,8 +201,24 @@ export function EstoqueFornecedoresModal({
                 </button>
               </div>
             </form>
+            ) : (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(null);
+                    setForm({ ...EMPTY });
+                    setShowForm(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg text-white"
+                  style={{ background: "var(--cb-primary, #8B3D52)" }}
+                >
+                  <Plus size={16} /> Novo fornecedor
+                </button>
+              </div>
+            )}
 
-            <div className="border-t border-gray-200 dark:border-neutral-700 pt-3 space-y-2">
+            <div className={showForm ? "border-t border-gray-200 dark:border-neutral-700 pt-3 space-y-2" : "space-y-2"}>
               {loading ? (
                 <div className="flex justify-center py-6">
                   <Loader2 className="animate-spin text-gray-400" />
@@ -223,6 +250,7 @@ export function EstoqueFornecedoresModal({
                         onClick={() => {
                           setEditingId(f.id);
                           setForm({ ...f });
+                          setShowForm(true);
                         }}
                         className="px-2 py-1 text-xs rounded-lg border"
                       >

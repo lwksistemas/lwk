@@ -36,7 +36,10 @@ export function extrairUrlPdfMemed(obj: unknown, profundidade = 0): string {
   }
   if (typeof obj === "object") {
     const o = obj as Record<string, unknown>;
-    for (const key of ["url_pdf", "pdf_url", "link_pdf", "pdf", "url", "link", "secure_url"]) {
+    for (const key of [
+      "url_pdf", "pdf_url", "link_pdf", "pdf", "url", "link", "secure_url",
+      "url-document", "url_document", "documento_url", "receita_url",
+    ]) {
       const val = o[key];
       if (typeof val === "string" && /^https?:\/\//i.test(val.trim())) return val.trim();
     }

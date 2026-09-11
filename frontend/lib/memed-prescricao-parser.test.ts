@@ -23,6 +23,16 @@ describe("parsePrescricaoMemed", () => {
     });
     expect(result.pdfUrl).toBe("https://cdn.memed.com.br/doc.pdf");
   });
+
+  it("encontra url-document do PDF assinado", () => {
+    const result = parsePrescricaoMemed({
+      prescricao: {
+        id: 295237918,
+        attributes: { "url-document": "https://cdn.memed.com.br/assinado.pdf" },
+      },
+    });
+    expect(result.pdfUrl).toBe("https://cdn.memed.com.br/assinado.pdf");
+  });
 });
 
 describe("stripHtmlMemed", () => {

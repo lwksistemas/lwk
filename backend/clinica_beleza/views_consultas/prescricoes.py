@@ -189,9 +189,6 @@ class PrescricaoMemedPdfView(APIView):
         except PrescricaoMemed.DoesNotExist:
             return Response({"error": "Prescrição não encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
-        if presc.pdf_url:
-            return Response({"pdf_url": presc.pdf_url})
-
         loja = Loja.objects.using("default").filter(id=presc.loja_id).first()
         if not loja:
             return Response({"error": "Loja não encontrada."}, status=status.HTTP_400_BAD_REQUEST)
@@ -205,23 +202,33 @@ class PrescricaoMemedPdfView(APIView):
         )
         pdf_url = ""
         if prescricao_id:
+            # Sempre tenta a Memed de novo: o evento de impressão costuma chegar
+            # antes do PDF assinado, e o fallback local não pode ficar travado.
             pdf_url = resolver_pdf_prescricao(
                 loja, professional, prescricao_id, "", patient=paciente,
             )
 
-        if not pdf_url:
-            from ..memed_prescricao_service import arquivar_pdf_bytes_media
-            from ..prontuario_pdf import gerar_pdf_prescricao_memed
+        if pdf_url:
+            if pdf_url != (presc.pdf_url or "").strip():
+                presc.pdf_url = pdf_url
+                presc.save(update_fields=["pdf_url"])
+            return Response({"pdf_url": pdf_url})
 
-            try:
-                buffer = gerar_pdf_prescricao_memed(presc)
-                pdf_url = arquivar_pdf_bytes_media(loja, buffer.getvalue(), patient=paciente)
-            except Exception:
-                import logging
-                logging.getLogger(__name__).exception(
-                    "Falha ao gerar PDF local da prescrição Memed %s", pk,
-                )
-                pdf_url = ""
+        if presc.pdf_url:
+            return Response({"pdf_url": presc.pdf_url})
+
+        from ..memed_prescricao_service import arquivar_pdf_bytes_media
+        from ..prontuario_pdf import gerar_pdf_prescricao_memed
+
+        try:
+            buffer = gerar_pdf_prescricao_memed(presc)
+            pdf_url = arquivar_pdf_bytes_media(loja, buffer.getvalue(), patient=paciente)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception(
+                "Falha ao gerar PDF local da prescrição Memed %s", pk,
+            )
+            pdf_url = ""
 
         if not pdf_url:
             return Response(

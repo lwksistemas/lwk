@@ -97,7 +97,119 @@ export const estoqueApi = {
       cbPut(`/estoque/categorias/${id}/`, data),
     delete: (id: number) => cbDelete(`/estoque/categorias/${id}/`),
   },
+  fornecedores: {
+    list: (params?: { search?: string; todos?: number }, loja?: { id?: number; slug?: string } | null) =>
+      cbGet<FornecedorItem[]>("/estoque/fornecedores/", params, loja),
+    create: (data: Record<string, unknown>, loja?: { id?: number; slug?: string } | null) =>
+      cbPost<FornecedorItem>("/estoque/fornecedores/", data, loja),
+    update: (id: number, data: Record<string, unknown>) =>
+      cbPut<FornecedorItem>(`/estoque/fornecedores/${id}/`, data),
+    delete: (id: number) => cbDelete(`/estoque/fornecedores/${id}/`),
+    produtos: (id: number, search?: string) =>
+      cbGet<FornecedorProdutoItem[]>(`/estoque/fornecedores/${id}/produtos/`, search ? { search } : undefined),
+    previewCatalogo: (id: number, conteudo: string) =>
+      cbPost<{ itens: FornecedorProdutoPreview[]; total: number }>(
+        `/estoque/fornecedores/${id}/catalogo/preview/`,
+        { conteudo },
+      ),
+    importarCatalogo: (id: number, itens: FornecedorProdutoPreview[]) =>
+      cbPost<{ criados: number; atualizados: number; total: number }>(
+        `/estoque/fornecedores/${id}/catalogo/importar/`,
+        { itens },
+      ),
+  },
+  pedidos: {
+    list: (params?: { status?: string }, loja?: { id?: number; slug?: string } | null) =>
+      cbGet<PedidoCompraItem[]>("/estoque/pedidos/", params, loja),
+    get: (id: number) => cbGet<PedidoCompraItem>(`/estoque/pedidos/${id}/`),
+    create: (data: Record<string, unknown>, loja?: { id?: number; slug?: string } | null) =>
+      cbPost<PedidoCompraItem>("/estoque/pedidos/", data, loja),
+    update: (id: number, data: Record<string, unknown>) =>
+      cbPut<PedidoCompraItem>(`/estoque/pedidos/${id}/`, data),
+    cancelar: (id: number) => cbPost<PedidoCompraItem>(`/estoque/pedidos/${id}/cancelar/`, {}),
+    assinarClinica: (id: number, nome: string) =>
+      cbPost<PedidoCompraItem>(`/estoque/pedidos/${id}/assinar-clinica/`, { nome }),
+    enviarLink: (id: number, canal: "email" | "whatsapp") =>
+      cbPost<{ pedido: PedidoCompraItem; email?: CanalResult; whatsapp?: CanalResult }>(
+        `/estoque/pedidos/${id}/enviar-link/`,
+        { canal },
+      ),
+    enviar: (id: number, canal: "email" | "whatsapp") =>
+      cbPost<{ pedido: PedidoCompraItem; email?: CanalResult; whatsapp?: CanalResult }>(
+        `/estoque/pedidos/${id}/enviar/`,
+        { canal },
+      ),
+  },
 };
+
+export type FornecedorItem = {
+  id: number;
+  cnpj: string;
+  razao_social: string;
+  nome_fantasia: string;
+  inscricao_estadual: string;
+  email: string;
+  telefone: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  municipio: string;
+  uf: string;
+  is_active: boolean;
+};
+
+export type FornecedorProdutoItem = {
+  id: number;
+  codigo: string;
+  nome: string;
+  unidade: string;
+  preco_ref: string;
+};
+
+export type FornecedorProdutoPreview = {
+  codigo: string;
+  nome: string;
+  unidade: string;
+  preco_ref: string;
+};
+
+export type PedidoCompraItem = {
+  id: number;
+  numero: number;
+  status: string;
+  status_display: string;
+  observacoes: string;
+  pdf_url: string;
+  valor_total: string;
+  created_at: string | null;
+  fornecedor: {
+    id: number;
+    cnpj: string;
+    razao_social: string;
+    nome_fantasia: string;
+    email: string;
+    telefone: string;
+  };
+  itens: {
+    id: number;
+    catalogo_id: number | null;
+    codigo: string;
+    nome: string;
+    unidade: string;
+    quantidade: string;
+    preco: string;
+    subtotal: string;
+  }[];
+  assinaturas: {
+    clinica: { assinado: boolean; nome: string; em: string | null };
+    fornecedor: { assinado: boolean; nome: string; em: string | null };
+  };
+  pode_enviar_pdf: boolean;
+};
+
+type CanalResult = { sucesso?: boolean; erro?: string };
 
 export const locaisAtendimentoApi = {
   list: () => cbGet<LocalAtendimentoItem[]>("/locais-atendimento/"),

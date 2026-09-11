@@ -93,6 +93,27 @@ from .views_estoque import (
     ProdutoEstoqueListView,
     ProdutoEstoqueMoverView,
 )
+from .views_fornecedores import (
+    FornecedorCatalogoImportarView,
+    FornecedorCatalogoPreviewView,
+    FornecedorDetailView,
+    FornecedorListView,
+    FornecedorProdutoListView,
+)
+from .views_pedido_compra import (
+    PedidoCompraAssinarClinicaView,
+    PedidoCompraCancelarView,
+    PedidoCompraDetailView,
+    PedidoCompraEnviarLinkView,
+    PedidoCompraEnviarView,
+    PedidoCompraListView,
+    PedidoCompraPdfPublicView,
+    PedidoCompraPdfView,
+)
+from .views_pedido_compra_publico import (
+    PedidoCompraAssinaturaPdfPublicaView,
+    PedidoCompraAssinaturaPublicaView,
+)
 from .views_foto_paciente import (
     ConsultaFotoDeleteView,
     ConsultaFotoQrView,
@@ -201,6 +222,8 @@ urlpatterns = [
     ),
     path("assinar-consentimento/<path:token>/pdf/", ConsultaAssinaturaPdfPublicaView.as_view(), name="assinar-consentimento-pdf"),
     path("assinar-consentimento/<path:token>/", ConsultaAssinaturaPublicaView.as_view(), name="assinar-consentimento"),
+    path("assinar-pedido/<path:token>/pdf/", PedidoCompraAssinaturaPdfPublicaView.as_view(), name="assinar-pedido-pdf"),
+    path("assinar-pedido/<path:token>/", PedidoCompraAssinaturaPublicaView.as_view(), name="assinar-pedido"),
     path("consultas/<int:pk>/fotos/", ConsultaFotosPacienteView.as_view(), name="consultas-fotos"),
     path("consultas/<int:pk>/fotos/qr/", ConsultaFotoQrView.as_view(), name="consultas-fotos-qr"),
     path("consultas/<int:pk>/fotos/<int:foto_id>/", ConsultaFotoDeleteView.as_view(), name="consultas-fotos-delete"),
@@ -293,6 +316,19 @@ urlpatterns = [
     path("estoque/categorias/<int:pk>/", CategoriaEstoqueDetailView.as_view(), name="estoque-categorias-detail"),
     path("estoque/mover/", ProdutoEstoqueMoverView.as_view(), name="estoque-mover"),
     path("estoque/importar-xml/", EstoqueImportarXmlView.as_view(), name="estoque-importar-xml"),
+    path("estoque/fornecedores/", FornecedorListView.as_view(), name="estoque-fornecedores"),
+    path("estoque/fornecedores/<int:pk>/", FornecedorDetailView.as_view(), name="estoque-fornecedores-detail"),
+    path("estoque/fornecedores/<int:pk>/produtos/", FornecedorProdutoListView.as_view(), name="estoque-fornecedores-produtos"),
+    path("estoque/fornecedores/<int:pk>/catalogo/preview/", FornecedorCatalogoPreviewView.as_view(), name="estoque-fornecedores-catalogo-preview"),
+    path("estoque/fornecedores/<int:pk>/catalogo/importar/", FornecedorCatalogoImportarView.as_view(), name="estoque-fornecedores-catalogo-importar"),
+    path("estoque/pedidos/", PedidoCompraListView.as_view(), name="estoque-pedidos"),
+    path("estoque/pedidos/<int:pk>/", PedidoCompraDetailView.as_view(), name="estoque-pedidos-detail"),
+    path("estoque/pedidos/<int:pk>/cancelar/", PedidoCompraCancelarView.as_view(), name="estoque-pedidos-cancelar"),
+    path("estoque/pedidos/<int:pk>/assinar-clinica/", PedidoCompraAssinarClinicaView.as_view(), name="estoque-pedidos-assinar-clinica"),
+    path("estoque/pedidos/<int:pk>/enviar-link/", PedidoCompraEnviarLinkView.as_view(), name="estoque-pedidos-enviar-link"),
+    path("estoque/pedidos/<int:pk>/enviar/", PedidoCompraEnviarView.as_view(), name="estoque-pedidos-enviar"),
+    path("estoque/pedidos/<int:pk>/pdf/", PedidoCompraPdfView.as_view(), name="estoque-pedidos-pdf"),
+    path("estoque/pedidos/<int:pk>/pdf-public/<str:token>/", PedidoCompraPdfPublicView.as_view(), name="estoque-pedidos-pdf-public"),
     path("estoque/<int:pk>/", ProdutoEstoqueDetailView.as_view(), name="estoque-detail"),
     path("estoque/<int:pk>/movimentar/", MovimentacaoEstoqueView.as_view(), name="estoque-movimentar"),
     # Templates de documentos clínicos

@@ -57,6 +57,7 @@ _CLINICA_BELEZA_TIPO_SLUGS = frozenset({
 
 _CLINICA_BELEZA_PUBLIC_PREFIXES = (
     "/api/clinica-beleza/assinar-consentimento/",
+    "/api/clinica-beleza/assinar-pedido/",
     "/api/clinica-beleza/enviar-foto/",
     "/api/clinica-beleza/confirmar-agendamento/",
     "/api/clinica-beleza/termo-consentimento-pdf/",
@@ -366,7 +367,9 @@ class SecurityIsolationMiddleware:
         if any(path.startswith(prefix) for prefix in _CLINICA_BELEZA_PUBLIC_PREFIXES):
             return True
         # Recibo PDF temporário para Evolution (mesmo padrão do termo assinado)
-        return bool(path.startswith("/api/clinica-beleza/payments/") and "/recibo-pdf/" in path)
+        if path.startswith("/api/clinica-beleza/payments/") and "/recibo-pdf/" in path:
+            return True
+        return bool(path.startswith("/api/clinica-beleza/estoque/pedidos/") and "/pdf-public/" in path)
 
     @staticmethod
     def _is_clinica_geral_public_path(path):

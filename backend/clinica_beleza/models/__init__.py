@@ -14,6 +14,13 @@ from .consultas import (
 from .convenios import Convenio, ConvenioProcedimentoPreco, LocalAtendimento, NomeAgenda
 from .documentos import DocumentoClinico, DocumentTemplate
 from .estoque import CategoriaEstoque, ConsultaProdutoUtilizado, MovimentacaoEstoque, ProdutoEstoque
+from .fornecedores import (
+    Fornecedor,
+    FornecedorProduto,
+    PedidoCompra,
+    PedidoCompraAssinatura,
+    PedidoCompraItem,
+)
 from .financeiro import CampanhaPromocao, CategoriaDespesa, Despesa, Payment
 from .fotos import PacienteFotoAcompanhamento
 from .nfse_config import ClinicaBelezaNFSeConfig
@@ -43,6 +50,11 @@ __all__ = [
     "Despesa",
     "DocumentTemplate",
     "DocumentoClinico",
+    "Fornecedor",
+    "FornecedorProduto",
+    "PedidoCompra",
+    "PedidoCompraAssinatura",
+    "PedidoCompraItem",
     "HorarioTrabalhoProfissional",
     "LocalAtendimento",
     "MemedTimbrado",

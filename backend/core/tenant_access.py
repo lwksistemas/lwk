@@ -136,10 +136,13 @@ def is_store_api_path(path: str) -> bool:
     if path.startswith("/api/clinica-beleza/"):
         public = (
             "/api/clinica-beleza/assinar-consentimento/",
+            "/api/clinica-beleza/assinar-pedido/",
             "/api/clinica-beleza/enviar-foto/",
             "/api/clinica-beleza/confirmar-agendamento/",
         )
         if any(path.startswith(p) for p in public):
+            return False
+        if "/pdf-public/" in path:
             return False
     if path.startswith("/api/clinica-geral/"):
         if path.startswith("/api/clinica-geral/teleconsulta/"):

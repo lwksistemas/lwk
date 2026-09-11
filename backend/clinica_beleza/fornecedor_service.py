@@ -366,6 +366,42 @@ def _acrescentar_item_catalogo(itens: list[dict], usados: set[str], nome: str, p
     })
 
 
+def _texto_pagina_pypdf(page) -> str:
+    """Canva/iLovePDF devolve vazio no modo layout; o extract padrão funciona."""
+    padrao = ""
+    try:
+        padrao = page.extract_text() or ""
+    except Exception:
+        padrao = ""
+    if padrao.strip():
+        return padrao
+    try:
+        return page.extract_text(extraction_mode="layout") or ""
+    except Exception:
+        return ""
+
+
+def _extrair_texto_pdftotext(data: bytes) -> str:
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("pdftotext"):
+        return ""
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+        tmp.write(data)
+        tmp.flush()
+        try:
+            out = subprocess.check_output(
+                ["pdftotext", "-layout", "-enc", "UTF-8", tmp.name, "-"],
+                stderr=subprocess.DEVNULL,
+                timeout=45,
+            )
+        except (subprocess.SubprocessError, OSError):
+            return ""
+    return out.decode("utf-8", errors="replace").strip()
+
+
 def _extrair_texto_pdf(data: bytes) -> str:
     try:
         from pypdf import PdfReader
@@ -377,15 +413,10 @@ def _extrair_texto_pdf(data: bytes) -> str:
         raise FornecedorError("Não foi possível abrir o PDF. Envie um arquivo válido.") from exc
     partes: list[str] = []
     for page in reader.pages:
-        try:
-            try:
-                texto_pagina = page.extract_text(extraction_mode="layout") or ""
-            except TypeError:
-                texto_pagina = page.extract_text() or ""
-            partes.append(texto_pagina)
-        except Exception:
-            continue
+        partes.append(_texto_pagina_pypdf(page))
     texto = "\n".join(partes).strip()
+    if len(texto) < 40:
+        texto = _extrair_texto_pdftotext(data) or texto
     if not texto:
         raise FornecedorError(
             "Este PDF não tem texto selecionável (parece imagem). "

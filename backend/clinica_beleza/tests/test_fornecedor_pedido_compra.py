@@ -10,6 +10,7 @@ from clinica_beleza.fornecedor_service import (
     preview_catalogo_arquivo,
     preview_catalogo_pdf,
     _parse_catalogo_texto_livre,
+    _texto_pagina_pypdf,
     _texto_parece_planilha,
     salvar_fornecedor,
 )
@@ -72,6 +73,13 @@ class PreviewCatalogoTests(SimpleTestCase):
     def test_pdf_vazio_falha(self):
         with self.assertRaises(FornecedorError):
             preview_catalogo_pdf(b"")
+
+    def test_pypdf_usa_extract_padrao_se_layout_vier_vazio(self):
+        page = MagicMock()
+        page.extract_text.side_effect = lambda *args, **kwargs: (
+            "" if kwargs.get("extraction_mode") == "layout" else "BIOESTIMULADOR\nR$ 373,00"
+        )
+        self.assertIn("BIOESTIMULADOR", _texto_pagina_pypdf(page))
 
     def test_catalogo_visual_nao_parece_planilha(self):
         texto = (

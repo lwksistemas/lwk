@@ -140,11 +140,9 @@ class PedidoCompraAssinarClinicaView(GetObjectMixin, APIView):
         if error:
             return error
         nome = (request.data.get("nome") or request.data.get("nome_assinante") or "").strip()
-        if not nome:
-            user = getattr(request, "user", None)
-            nome = (getattr(user, "first_name", "") or getattr(user, "username", "") or "").strip()
+        profissional_id = request.data.get("profissional_id") or request.data.get("profissional")
         try:
-            assinar_clinica(obj, nome, _ip_request(request))
+            assinar_clinica(obj, nome, _ip_request(request), profissional_id=profissional_id)
         except PedidoCompraError as exc:
             return _erro(exc)
         obj = _pedido_qs().get(pk=obj.pk)

@@ -2,6 +2,8 @@
 from decimal import Decimal
 from io import BytesIO
 
+from django.utils import timezone
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -56,6 +58,18 @@ def gerar_pdf_pedido_compra(pedido) -> bytes:
     story.extend(_build_header_elements(loja_id, styles))
     story.append(Paragraph(f"Pedido de compra nº {pedido.numero}", styles["Title"]))
 
+    ass_cli = pedido.assinaturas.filter(
+        tipo=PedidoCompraAssinatura.TIPO_CLINICA, assinado=True,
+    ).first()
+    if ass_cli:
+        story.append(Paragraph("<b>Profissional responsável</b>", styles["Meta"]))
+        story.append(Paragraph(escape(ass_cli.nome_assinante or "—"), styles["Meta"]))
+        if ass_cli.cpf_assinante:
+            story.append(Paragraph(f"CPF: {escape(ass_cli.cpf_assinante)}", styles["Small"]))
+        if ass_cli.conselho_display:
+            story.append(Paragraph(escape(ass_cli.conselho_display), styles["Small"]))
+        story.append(Spacer(1, 8))
+
     forn = pedido.fornecedor
     story.append(Paragraph(f"<b>Fornecedor:</b> {escape(forn.razao_social)}", styles["Meta"]))
     if forn.nome_fantasia:
@@ -100,11 +114,24 @@ def gerar_pdf_pedido_compra(pedido) -> bytes:
     ):
         ass = pedido.assinaturas.filter(tipo=tipo, assinado=True).first()
         if ass:
-            quando = ass.assinado_em.strftime("%d/%m/%Y %H:%M") if ass.assinado_em else ""
-            story.append(Paragraph(
-                f"{rotulo}: {escape(ass.nome_assinante or '—')} — assinado em {quando}",
-                styles["Small"],
-            ))
+            quando = ""
+            if ass.assinado_em:
+                quando = timezone.localtime(ass.assinado_em).strftime("%d/%m/%Y - %H:%M:%S (GMT-3)")
+            if tipo == PedidoCompraAssinatura.TIPO_CLINICA:
+                rotulo_prof = ass.nome_assinante or "—"
+                if ass.conselho_display:
+                    rotulo_prof = f"{rotulo_prof} - {ass.conselho_display}"
+                story.append(Paragraph(
+                    f"Assinado por {escape(rotulo_prof)}",
+                    styles["Small"],
+                ))
+                if quando:
+                    story.append(Paragraph(f"Data e hora: {escape(quando)}", styles["Small"]))
+            else:
+                story.append(Paragraph(
+                    f"{rotulo}: {escape(ass.nome_assinante or '—')} — assinado em {quando}",
+                    styles["Small"],
+                ))
         else:
             story.append(Paragraph(f"{rotulo}: pendente", styles["Small"]))
 

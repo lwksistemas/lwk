@@ -38,7 +38,7 @@ export function EstoquePedidoModal({
   const [itens, setItens] = useState<Linha[]>([linhaVazia()]);
   const [obs, setObs] = useState("");
   const [pedido, setPedido] = useState<PedidoCompraItem | null>(null);
-  const [profissionais, setProfissionais] = useState<{ id: number; nome: string }[]>([]);
+  const [profissionais, setProfissionais] = useState<{ id: number; nome: string; conselho?: string }[]>([]);
   const [profissionalId, setProfissionalId] = useState<number | "">("");
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
@@ -133,15 +133,14 @@ export function EstoquePedidoModal({
 
   const assinar = async () => {
     if (!pedido) return;
-    const nome = profissionais.find((p) => p.id === profissionalId)?.nome || "";
-    if (!nome) {
+    if (!profissionalId) {
       setError("Selecione o profissional que assina pela clínica.");
       return;
     }
     setSaving(true);
     setError("");
     try {
-      setPedido(await ClinicaBelezaAPI.estoque.pedidos.assinarClinica(pedido.id, nome));
+      setPedido(await ClinicaBelezaAPI.estoque.pedidos.assinarClinica(pedido.id, Number(profissionalId)));
       setOk("Clínica assinou. Envie o link ao fornecedor.");
     } catch (err) {
       setError(extractEstoqueApiError(err, "Erro ao assinar."));
@@ -292,7 +291,12 @@ export function EstoquePedidoModal({
 
           {pedido && (
             <div className="text-xs text-gray-600 space-y-1">
-              <p>Clínica: {pedido.assinaturas.clinica.assinado ? `assinado por ${pedido.assinaturas.clinica.nome}` : "pendente"}</p>
+              <p>
+                Clínica:{" "}
+                {pedido.assinaturas.clinica.assinado
+                  ? `assinado por ${pedido.assinaturas.clinica.nome}${pedido.assinaturas.clinica.conselho ? ` — ${pedido.assinaturas.clinica.conselho}` : ""}`
+                  : "pendente"}
+              </p>
               <p>Fornecedor: {pedido.assinaturas.fornecedor.assinado ? `assinado por ${pedido.assinaturas.fornecedor.nome}` : "pendente"}</p>
             </div>
           )}
@@ -308,7 +312,9 @@ export function EstoquePedidoModal({
                 >
                   <option value="">Selecione o profissional</option>
                   {profissionais.map((p) => (
-                    <option key={p.id} value={p.id}>{p.nome}</option>
+                    <option key={p.id} value={p.id}>
+                      {p.conselho ? `${p.nome} — ${p.conselho}` : p.nome}
+                    </option>
                   ))}
                 </select>
                 <button

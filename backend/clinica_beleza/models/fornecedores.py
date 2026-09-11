@@ -142,7 +142,16 @@ class PedidoCompraAssinatura(LojaIsolationMixin, models.Model):
         PedidoCompra, on_delete=models.CASCADE, related_name="assinaturas",
     )
     tipo = models.CharField(max_length=15, choices=TIPO_CHOICES)
+    profissional = models.ForeignKey(
+        "clinica_beleza.Professional",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assinaturas_pedido_compra",
+    )
     nome_assinante = models.CharField(max_length=200, blank=True, default="")
+    conselho_display = models.CharField(max_length=80, blank=True, default="")
+    cpf_assinante = models.CharField(max_length=14, blank=True, default="")
     email_assinante = models.EmailField(blank=True, default="")
     ip_address = models.GenericIPAddressField(default="0.0.0.0")
     token = models.CharField(max_length=512, blank=True, default="", db_index=True)

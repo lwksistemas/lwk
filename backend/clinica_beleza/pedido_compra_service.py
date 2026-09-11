@@ -45,12 +45,21 @@ def _ip_request(request) -> str:
     return (getattr(request, "META", {}) or {}).get("REMOTE_ADDR", "0.0.0.0") or "0.0.0.0"
 
 
+def _dados_profissional(prof) -> dict:
+    nome = (getattr(prof, "nome", "") or "").strip()
+    conselho = ""
+    if hasattr(prof, "formatar_conselho"):
+        conselho = (prof.formatar_conselho() or "").strip()
+    cpf = (getattr(prof, "cpf", "") or "").strip()
+    return {"id": prof.id, "nome": nome, "conselho": conselho, "cpf": cpf}
+
+
 def listar_profissionais_assinantes(loja_id: int) -> list[dict]:
     """Profissionais ativos da clínica para assinar o pedido."""
     from .models import Professional
 
     qs = Professional.objects.filter(loja_id=loja_id, is_active=True).order_by("nome")
-    return [{"id": p.id, "nome": (p.nome or "").strip()} for p in qs if (p.nome or "").strip()]
+    return [_dados_profissional(p) for p in qs if (p.nome or "").strip()]
 
 
 def proximo_numero(loja_id: int) -> int:
@@ -211,14 +220,34 @@ def link_assinatura_fornecedor(pedido: PedidoCompra) -> str:
     return _build_link_assinatura(ass.token, "/assinar-pedido/")
 
 
-def assinar_clinica(pedido: PedidoCompra, nome: str, ip: str) -> PedidoCompraAssinatura:
+def assinar_clinica(
+    pedido: PedidoCompra,
+    nome: str,
+    ip: str,
+    profissional_id=None,
+) -> PedidoCompraAssinatura:
     if pedido.status == PedidoCompra.STATUS_CANCELADO:
         raise PedidoCompraError("Pedido cancelado.")
     if not pedido.itens.exists():
         raise PedidoCompraError("Pedido sem itens.")
-    nome = (nome or "").strip()
+    prof = None
+    if profissional_id:
+        from .models import Professional
+        prof = Professional.objects.filter(
+            pk=profissional_id, loja_id=pedido.loja_id, is_active=True,
+        ).first()
+        if not prof:
+            raise PedidoCompraError("Profissional não encontrado no cadastro da clínica.")
+        dados = _dados_profissional(prof)
+        nome = dados["nome"]
+        conselho = dados["conselho"]
+        cpf = dados["cpf"]
+    else:
+        nome = (nome or "").strip()
+        conselho = ""
+        cpf = ""
     if not nome:
-        raise PedidoCompraError("Informe o nome de quem assina pela clínica.")
+        raise PedidoCompraError("Selecione o profissional que assina pela clínica.")
     ass = _assinatura(pedido, PedidoCompraAssinatura.TIPO_CLINICA)
     if ass and ass.assinado:
         raise PedidoCompraError("A clínica já assinou este pedido.")
@@ -228,7 +257,10 @@ def assinar_clinica(pedido: PedidoCompra, nome: str, ip: str) -> PedidoCompraAss
             pedido=pedido,
             tipo=PedidoCompraAssinatura.TIPO_CLINICA,
         )
+    ass.profissional = prof
     ass.nome_assinante = nome[:200]
+    ass.conselho_display = (conselho or "")[:80]
+    ass.cpf_assinante = (cpf or "")[:14]
     ass.ip_address = ip or "0.0.0.0"
     ass.assinado = True
     ass.assinado_em = timezone.now()
@@ -510,6 +542,8 @@ def serializar_pedido(pedido: PedidoCompra) -> dict:
             "clinica": {
                 "assinado": bool(ass_cli and ass_cli.assinado),
                 "nome": (ass_cli.nome_assinante if ass_cli else "") or "",
+                "conselho": (ass_cli.conselho_display if ass_cli else "") or "",
+                "profissional_id": ass_cli.profissional_id if ass_cli else None,
                 "em": ass_cli.assinado_em.isoformat() if ass_cli and ass_cli.assinado_em else None,
             },
             "fornecedor": {

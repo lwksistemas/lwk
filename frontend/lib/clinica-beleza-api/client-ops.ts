@@ -120,7 +120,11 @@ export const estoqueApi = {
   },
   pedidos: {
     assinantes: (loja?: { id?: number; slug?: string } | null) =>
-      cbGet<{ id: number; nome: string }[]>("/estoque/pedidos/assinantes/", undefined, loja),
+      cbGet<{ id: number; nome: string; conselho?: string; cpf?: string }[]>(
+        "/estoque/pedidos/assinantes/",
+        undefined,
+        loja,
+      ),
     list: (params?: { status?: string }, loja?: { id?: number; slug?: string } | null) =>
       cbGet<PedidoCompraItem[]>("/estoque/pedidos/", params, loja),
     get: (id: number) => cbGet<PedidoCompraItem>(`/estoque/pedidos/${id}/`),
@@ -129,8 +133,10 @@ export const estoqueApi = {
     update: (id: number, data: Record<string, unknown>) =>
       cbPut<PedidoCompraItem>(`/estoque/pedidos/${id}/`, data),
     cancelar: (id: number) => cbPost<PedidoCompraItem>(`/estoque/pedidos/${id}/cancelar/`, {}),
-    assinarClinica: (id: number, nome: string) =>
-      cbPost<PedidoCompraItem>(`/estoque/pedidos/${id}/assinar-clinica/`, { nome }),
+    assinarClinica: (id: number, profissionalId: number) =>
+      cbPost<PedidoCompraItem>(`/estoque/pedidos/${id}/assinar-clinica/`, {
+        profissional_id: profissionalId,
+      }),
     enviarLink: (id: number, canal: "email" | "whatsapp") =>
       cbPost<{ pedido: PedidoCompraItem; email?: CanalResult; whatsapp?: CanalResult }>(
         `/estoque/pedidos/${id}/enviar-link/`,
@@ -205,7 +211,7 @@ export type PedidoCompraItem = {
     subtotal: string;
   }[];
   assinaturas: {
-    clinica: { assinado: boolean; nome: string; em: string | null };
+    clinica: { assinado: boolean; nome: string; conselho?: string; profissional_id?: number | null; em: string | null };
     fornecedor: { assinado: boolean; nome: string; em: string | null };
   };
   pode_enviar_pdf: boolean;

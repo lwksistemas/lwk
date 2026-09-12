@@ -220,7 +220,7 @@ export type PedidoCompraItem = {
     subtotal: string;
   }[];
   assinaturas: {
-    clinica: { assinado: boolean; nome: string; conselho?: string; profissional_id?: number | null; em: string | null };
+    clinica: { assinado: boolean; nome: string; conselho?: string; cpf?: string; profissional_id?: number | null; em: string | null };
     fornecedor: { assinado: boolean; nome: string; em: string | null };
   };
   pode_enviar_pdf: boolean;

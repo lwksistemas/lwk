@@ -1,5 +1,6 @@
 """Testes de fornecedor, catálogo e pedido de compra (sem entrada de estoque)."""
 from decimal import Decimal
+from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
@@ -140,10 +141,10 @@ class PedidoCompraServiceTests(SimpleTestCase):
 
     def test_assinatura_incompleta_bloqueia_envio(self):
         pedido = MagicMock()
-        pedido.status = PedidoCompra.STATUS_AGUARDANDO_FORNECEDOR
+        pedido.status = PedidoCompra.STATUS_RASCUNHO
         with self.assertRaises(PedidoCompraError) as ctx:
             enviar_pedido_assinado(pedido, ["email"])
-        self.assertIn("assinado", str(ctx.exception).lower())
+        self.assertIn("assin", str(ctx.exception).lower())
 
     @patch("clinica_beleza.estoque_movimentacao_service.registrar_movimentacao")
     @patch("clinica_beleza.pedido_compra_service.PedidoCompraItem")
@@ -179,3 +180,118 @@ class PedidoCompraServiceTests(SimpleTestCase):
         pedido = MagicMock()
         excluir_pedido(pedido)
         pedido.delete.assert_called_once_with()
+
+
+class PedidoCompraPdfTests(SimpleTestCase):
+    def _pedido(self, assinado=True):
+        from decimal import Decimal
+        from django.utils import timezone
+
+        item = MagicMock()
+        item.nome = "Botox 100u"
+        item.codigo = "BOTX01"
+        item.unidade = "un"
+        item.quantidade = Decimal("2")
+        item.preco = Decimal("850.00")
+        item.subtotal = Decimal("1700.00")
+
+        prof = MagicMock()
+        prof.nome = "Ana Souza"
+        prof.cpf = "12345678901"
+        prof.email = "ana@clinica.com"
+        prof.telefone = "16988881111"
+        prof.especialidade = "Dermatologia"
+        prof.formatar_conselho.return_value = "CRM-SP 12345"
+
+        ass_cli = MagicMock()
+        ass_cli.assinado = True
+        ass_cli.nome_assinante = "Ana Souza"
+        ass_cli.conselho_display = "CRM-SP 12345"
+        ass_cli.cpf_assinante = "12345678901"
+        ass_cli.email_assinante = "ana@clinica.com"
+        ass_cli.ip_address = "10.0.0.1"
+        ass_cli.assinado_em = timezone.now()
+        ass_cli.profissional = prof
+
+        def _assin_filter(**kwargs):
+            qs = MagicMock()
+            qs.first.return_value = ass_cli if assinado and kwargs.get("tipo") == "clinica" else None
+            return qs
+
+        forn = MagicMock()
+        forn.razao_social = "NEXT PHARMA LTDA"
+        forn.nome_fantasia = "Next Pharma"
+        forn.cnpj = "12.345.678/0001-90"
+        forn.telefone = "16999990000"
+        forn.email = "vendas@xyz.com"
+        forn.logradouro = "Rua A"
+        forn.numero = "10"
+        forn.complemento = ""
+        forn.bairro = "Centro"
+        forn.municipio = "Ribeirão Preto"
+        forn.uf = "SP"
+        forn.cep = "14000-000"
+
+        pedido = MagicMock()
+        pedido.loja_id = 1
+        pedido.numero = 7
+        pedido.valor_total = Decimal("1700.00")
+        pedido.observacoes = "Entrega em 5 dias."
+        pedido.fornecedor = forn
+        pedido.itens.all.return_value = [item]
+        assin_qs = MagicMock()
+        assin_qs.filter.side_effect = _assin_filter
+        assin_qs.select_related.return_value = assin_qs
+        pedido.assinaturas = assin_qs
+        return pedido
+
+    @patch("clinica_beleza.pedido_compra_pdf._resolver_cabecalho", create=True)
+    @patch("clinica_beleza.prontuario_pdf.header._resolver_cabecalho", return_value=("logo", ""))
+    @patch("clinica_beleza.pedido_compra_pdf._watermark_bytes", return_value=None)
+    @patch("clinica_beleza.pedido_compra_pdf.logo_image", return_value=None)
+    @patch("clinica_beleza.pedido_compra_service._dados_loja")
+    def test_pdf_assinado_tem_estrutura_da_proposta(self, mock_loja, _logo, _wm, _cab, _cab2):
+        from clinica_beleza.pedido_compra_pdf import gerar_pdf_pedido_compra
+
+        mock_loja.return_value = {
+            "nome": "Clínica Harmonis",
+            "cnpj": "37.302.743/0001-26",
+            "logo": "",
+            "endereco": "Rua X, 100",
+            "telefone": "16988880000",
+            "email": "contato@harmonis.com",
+        }
+        pdf = gerar_pdf_pedido_compra(self._pedido(assinado=True))
+        self.assertTrue(pdf.startswith(b"%PDF-"))
+        from pypdf import PdfReader
+        texto = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages)
+        self.assertIn("PEDIDO DE COMPRA", texto)
+        self.assertIn("Dados da Empresa", texto)
+        self.assertIn("Dados do Fornecedor", texto)
+        self.assertIn("Itens do Pedido", texto)
+        self.assertIn("Assinatura", texto)
+        self.assertIn("123.456.789-01", texto)
+        self.assertIn("CRM-SP 12345", texto)
+        self.assertIn("Dermatologia", texto)
+        self.assertIn("Assinado digitalmente", texto)
+        self.assertIn("profissional responsável", texto)
+
+    @patch("clinica_beleza.prontuario_pdf.header._resolver_cabecalho", return_value=("logo", ""))
+    @patch("clinica_beleza.pedido_compra_pdf.logo_image", return_value=None)
+    @patch("clinica_beleza.pedido_compra_service._dados_loja")
+    def test_pdf_rascunho_sem_assinatura_digital(self, mock_loja, _logo, _cab):
+        from clinica_beleza.pedido_compra_pdf import gerar_pdf_pedido_compra
+
+        mock_loja.return_value = {
+            "nome": "Clínica Harmonis",
+            "cnpj": "",
+            "logo": "",
+            "endereco": "",
+            "telefone": "",
+            "email": "",
+        }
+        pdf = gerar_pdf_pedido_compra(self._pedido(assinado=False))
+        from pypdf import PdfReader
+        texto = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages)
+        self.assertIn("PEDIDO DE COMPRA", texto)
+        self.assertNotIn("Assinado digitalmente", texto)

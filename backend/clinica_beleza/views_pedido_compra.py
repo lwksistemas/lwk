@@ -35,7 +35,9 @@ def _erro(exc):
 
 
 def _pedido_qs():
-    return PedidoCompra.objects.select_related("fornecedor").prefetch_related("itens", "assinaturas")
+    return PedidoCompra.objects.select_related("fornecedor").prefetch_related(
+        "itens", "assinaturas__profissional",
+    )
 
 
 class PedidoCompraAssinantesView(APIView):
@@ -83,7 +85,7 @@ class PedidoCompraDetailView(GetObjectMixin, APIView):
     model_class = PedidoCompra
     not_found_message = "Pedido não encontrado"
     select_related_fields = ("fornecedor",)
-    prefetch_related_fields = ("itens", "assinaturas")
+    prefetch_related_fields = ("itens", "assinaturas__profissional")
 
     def get_permissions(self):
         if self.request.method == "GET":
@@ -144,7 +146,7 @@ class PedidoCompraAssinarClinicaView(GetObjectMixin, APIView):
     model_class = PedidoCompra
     not_found_message = "Pedido não encontrado"
     select_related_fields = ("fornecedor",)
-    prefetch_related_fields = ("itens", "assinaturas")
+    prefetch_related_fields = ("itens", "assinaturas__profissional")
 
     def post(self, request, pk):
         _ensure(request)
@@ -191,7 +193,7 @@ class PedidoCompraEnviarView(GetObjectMixin, APIView):
     model_class = PedidoCompra
     not_found_message = "Pedido não encontrado"
     select_related_fields = ("fornecedor",)
-    prefetch_related_fields = ("itens", "assinaturas")
+    prefetch_related_fields = ("itens", "assinaturas__profissional")
 
     def post(self, request, pk):
         _ensure(request)
@@ -217,7 +219,7 @@ class PedidoCompraPdfView(GetObjectMixin, APIView):
     model_class = PedidoCompra
     not_found_message = "Pedido não encontrado"
     select_related_fields = ("fornecedor",)
-    prefetch_related_fields = ("itens", "assinaturas")
+    prefetch_related_fields = ("itens", "assinaturas__profissional")
 
     def get(self, request, pk):
         _ensure(request)

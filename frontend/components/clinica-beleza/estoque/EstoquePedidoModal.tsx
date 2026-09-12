@@ -160,24 +160,9 @@ export function EstoquePedidoModal({
     setError("");
     try {
       setPedido(await ClinicaBelezaAPI.estoque.pedidos.assinarClinica(pedido.id, Number(profissionalId)));
-      setOk("Clínica assinou. Envie o link ao fornecedor.");
+      setOk("Profissional assinou. Envie o PDF ao fornecedor.");
     } catch (err) {
       setError(extractEstoqueApiError(err, "Erro ao assinar."));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const enviarLink = async (canal: "email" | "whatsapp") => {
-    if (!pedido) return;
-    setSaving(true);
-    setError("");
-    try {
-      const res = await ClinicaBelezaAPI.estoque.pedidos.enviarLink(pedido.id, canal);
-      setPedido(res.pedido);
-      setOk(canalResultado(res, canal));
-    } catch (err) {
-      setError(extractEstoqueApiError(err, "Erro ao enviar link."));
     } finally {
       setSaving(false);
     }
@@ -341,12 +326,12 @@ export function EstoquePedidoModal({
           {pedido && (
             <div className="text-xs text-gray-600 space-y-1">
               <p>
-                Clínica:{" "}
+                Profissional:{" "}
                 {pedido.assinaturas.clinica.assinado
-                  ? `assinado por ${pedido.assinaturas.clinica.nome}${pedido.assinaturas.clinica.conselho ? ` — ${pedido.assinaturas.clinica.conselho}` : ""}`
+                  ? `assinado por ${pedido.assinaturas.clinica.nome}${pedido.assinaturas.clinica.cpf ? ` · CPF ${pedido.assinaturas.clinica.cpf}` : ""}${pedido.assinaturas.clinica.conselho ? ` · ${pedido.assinaturas.clinica.conselho}` : ""}`
                   : "pendente"}
               </p>
-              <p>Fornecedor: {pedido.assinaturas.fornecedor.assinado ? `assinado por ${pedido.assinaturas.fornecedor.nome}` : "pendente"}</p>
+              <p>Fornecedor: recebe o PDF assinado para processar o pedido.</p>
             </div>
           )}
 
@@ -379,17 +364,6 @@ export function EstoquePedidoModal({
               {profissionais.length === 0 && (
                 <p className="text-xs text-gray-500">Nenhum profissional ativo. Cadastre em Profissionais.</p>
               )}
-            </div>
-          )}
-
-          {pedido?.assinaturas.clinica.assinado && !pedido.assinaturas.fornecedor.assinado && (
-            <div className="flex flex-wrap gap-2">
-              <button type="button" disabled={saving} onClick={() => void enviarLink("email")} className="px-3 py-2 text-sm rounded-lg border">
-                Enviar link por e-mail
-              </button>
-              <button type="button" disabled={saving} onClick={() => void enviarLink("whatsapp")} className="px-3 py-2 text-sm rounded-lg border">
-                Enviar link por WhatsApp
-              </button>
             </div>
           )}
 

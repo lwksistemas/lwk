@@ -23,8 +23,6 @@ from .models.fornecedores import (
 
 logger = logging.getLogger(__name__)
 
-STATUS_ENVIAR_PDF = (PedidoCompra.STATUS_ASSINADO, PedidoCompra.STATUS_ENVIADO)
-
 
 class PedidoCompraError(Exception):
     """Erro de validação do pedido de compra."""
@@ -90,7 +88,16 @@ def _dados_profissional(prof) -> dict:
     if hasattr(prof, "formatar_conselho"):
         conselho = (prof.formatar_conselho() or "").strip()
     cpf = (getattr(prof, "cpf", "") or "").strip()
-    return {"id": prof.id, "nome": nome, "conselho": conselho, "cpf": cpf}
+    return {
+        "id": prof.id,
+        "nome": nome,
+        "conselho": conselho,
+        "cpf": cpf,
+        "email": (getattr(prof, "email", "") or "").strip(),
+        "telefone": (getattr(prof, "telefone", "") or "").strip(),
+        "especialidade": (getattr(prof, "especialidade", "") or "").strip(),
+        "registro_profissional": (getattr(prof, "registro_profissional", "") or "").strip(),
+    }
 
 
 def listar_profissionais_assinantes(loja_id: int) -> list[dict]:
@@ -286,10 +293,12 @@ def assinar_clinica(
         nome = dados["nome"]
         conselho = dados["conselho"]
         cpf = dados["cpf"]
+        email_prof = dados["email"]
     else:
         nome = (nome or "").strip()
         conselho = ""
         cpf = ""
+        email_prof = ""
     if not nome:
         raise PedidoCompraError("Selecione o profissional que assina pela clínica.")
     ass = _assinatura(pedido, PedidoCompraAssinatura.TIPO_CLINICA)
@@ -305,20 +314,17 @@ def assinar_clinica(
     ass.nome_assinante = nome[:200]
     ass.conselho_display = (conselho or "")[:80]
     ass.cpf_assinante = (cpf or "")[:14]
+    ass.email_assinante = (email_prof or "")[:254]
     ass.ip_address = ip or "0.0.0.0"
     ass.assinado = True
     ass.assinado_em = timezone.now()
     ass.save()
-    garantir_assinatura_fornecedor(pedido)
-    if pedido.status == PedidoCompra.STATUS_RASCUNHO:
-        pedido.status = PedidoCompra.STATUS_AGUARDANDO_FORNECEDOR
-        pedido.save(update_fields=["status", "updated_at"])
     finalizar_se_completo(pedido)
     return ass
 
 
 def finalizar_se_completo(pedido: PedidoCompra) -> bool:
-    if not ambas_assinaturas(pedido):
+    if not clinica_assinou(pedido):
         return False
     from .media_docs_service import salvar_pdf_loja
     from .pedido_compra_pdf import gerar_pdf_pedido_compra
@@ -490,8 +496,10 @@ def pdf_bytes_pedido(pedido: PedidoCompra) -> bytes:
 
 
 def enviar_pedido_assinado(pedido: PedidoCompra, canais: list[str]) -> dict:
-    if pedido.status not in STATUS_ENVIAR_PDF:
-        raise PedidoCompraError("O pedido precisa estar assinado pela clínica e pelo fornecedor para enviar.")
+    if pedido.status == PedidoCompra.STATUS_CANCELADO:
+        raise PedidoCompraError("Pedido cancelado.")
+    if pedido.status == PedidoCompra.STATUS_RASCUNHO or not clinica_assinou(pedido):
+        raise PedidoCompraError("Assine o pedido pela clínica antes de enviar ao fornecedor.")
     canais = [c for c in (canais or []) if c in ("email", "whatsapp")]
     if not canais:
         raise PedidoCompraError("Informe o canal: email ou whatsapp.")
@@ -626,5 +634,7 @@ def serializar_pedido(pedido: PedidoCompra) -> dict:
                 "em": ass_forn.assinado_em.isoformat() if ass_forn and ass_forn.assinado_em else None,
             },
         },
-        "pode_enviar_pdf": pedido.status in STATUS_ENVIAR_PDF,
+        "pode_enviar_pdf": bool(
+            clinica_assinou(pedido) and pedido.status != PedidoCompra.STATUS_CANCELADO
+        ),
     }

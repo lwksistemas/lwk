@@ -1,204 +1,392 @@
-"""PDF do pedido de compra — logo da clínica + dados da profissional e da loja."""
+"""PDF do pedido de compra — mesma estrutura da proposta do CRM Vendas."""
 from decimal import Decimal
 from io import BytesIO
-
-from django.utils import timezone
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from xml.sax.saxutils import escape
 
-from clinica_beleza.pdf_common import logo_image
+import pytz
+import requests
+from PIL import Image as PILImage
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm, mm
+from reportlab.platypus import Flowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from clinica_beleza.pdf_common import finalize_pdf_com_timbrado, logo_image
 
 VINHO = colors.HexColor("#8B3D52")
+FUNDO_TABELA = colors.HexColor("#f8eef1")
+FUNDO_TOTAL = colors.HexColor("#f8eef1")
+BORDA = colors.HexColor("#e5e7eb")
+
+WM_OPACIDADE = 0.25
+WM_MAX_W_CM = 7.5
+WM_MAX_H_CM = 5.0
+WM_Y_FACTOR = 0.8
 
 
-def _styles():
-    base = getSampleStyleSheet()
-    return {
-        "NomeClinica": ParagraphStyle(
-            "PedNomeClinica", parent=base["Heading2"], fontSize=14, textColor=VINHO, spaceAfter=2,
-        ),
-        "ClinicaSub": ParagraphStyle(
-            "PedClinicaSub", parent=base["Normal"], fontSize=8, textColor=colors.HexColor("#4b5563"), leading=11,
-        ),
-        "Title": ParagraphStyle("PedTitle", parent=base["Heading1"], fontSize=15, textColor=VINHO, spaceAfter=10),
-        "Body": ParagraphStyle("PedBody", parent=base["Normal"], fontSize=9, leading=12),
-        "Meta": ParagraphStyle("PedMeta", parent=base["Normal"], fontSize=9, leading=12),
-        "Small": ParagraphStyle("PedSmall", parent=base["Normal"], fontSize=8, textColor=colors.HexColor("#4b5563"), leading=11),
-        "BoxTitle": ParagraphStyle(
-            "PedBoxTitle", parent=base["Normal"], fontSize=8, textColor=VINHO, fontName="Helvetica-Bold",
-        ),
-    }
+def _ts_local(dt) -> str:
+    if not dt:
+        return "—"
+    tz = pytz.timezone("America/Sao_Paulo")
+    return dt.astimezone(tz).strftime("%d/%m/%Y %H:%M:%S")
 
 
 def _brl(valor: Decimal) -> str:
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-def _cabecalho_clinica(loja: dict, styles):
-    """Logo à esquerda (no lugar do QR da receita) e dados da clínica à direita."""
-    logo = logo_image(loja.get("logo") or "", max_w=4.2 * cm, max_h=2.4 * cm) if loja.get("logo") else None
-    linhas = [f"<b>{escape(loja.get('nome') or 'Clínica')}</b>"]
-    if loja.get("cnpj"):
-        linhas.append(f"CNPJ: {escape(loja['cnpj'])}")
-    if loja.get("endereco"):
-        linhas.append(escape(loja["endereco"]))
-    extra = []
-    if loja.get("telefone"):
-        extra.append(escape(loja["telefone"]))
-    if loja.get("email"):
-        extra.append(escape(loja["email"]))
-    if extra:
-        linhas.append(" · ".join(extra))
-    texto = Paragraph("<br/>".join(linhas), styles["ClinicaSub"])
+def _tel(raw: str) -> str:
+    if not raw:
+        return ""
+    try:
+        from core.phone_utils import telefone_exibicao_brasileiro
+        return telefone_exibicao_brasileiro(raw) or raw.strip()
+    except Exception:
+        return raw.strip()
+
+
+def _endereco_fornecedor(forn) -> str:
+    parts = [
+        getattr(forn, "logradouro", "") or "",
+        f"nº {forn.numero}" if getattr(forn, "numero", "") else "",
+        getattr(forn, "complemento", "") or "",
+        getattr(forn, "bairro", "") or "",
+        (
+            f"{forn.municipio}/{forn.uf}"
+            if getattr(forn, "municipio", "") and getattr(forn, "uf", "")
+            else (getattr(forn, "municipio", "") or getattr(forn, "uf", "") or "")
+        ),
+        f"CEP {forn.cep}" if getattr(forn, "cep", "") else "",
+    ]
+    return ", ".join(p for p in parts if p).strip()
+
+
+def _styles():
+    base = getSampleStyleSheet()
+    return {
+        "Title": ParagraphStyle(
+            "PedCrmTitle",
+            parent=base["Heading1"],
+            fontSize=16,
+            textColor=VINHO,
+            alignment=TA_LEFT,
+            spaceBefore=0,
+            spaceAfter=0,
+            leading=18,
+        ),
+        "Compact": ParagraphStyle(
+            "PedCrmCompact",
+            parent=base["Normal"],
+            fontSize=9,
+            spaceBefore=0,
+            spaceAfter=1,
+            leading=11,
+        ),
+        "Section": ParagraphStyle(
+            "PedCrmSection",
+            parent=base["Normal"],
+            fontSize=10,
+            spaceBefore=2,
+            spaceAfter=1,
+        ),
+        "Validade": ParagraphStyle(
+            "PedCrmValidade",
+            parent=base["Normal"],
+            fontSize=7,
+            textColor=colors.HexColor("#666666"),
+            alignment=TA_CENTER,
+            spaceBefore=2,
+        ),
+    }
+
+
+def _cabecalho(elements, logo_url: str, styles):
+    titulo = Paragraph("PEDIDO DE COMPRA", styles["Title"])
+    logo = logo_image(logo_url, max_w=6 * cm, max_h=3 * cm) if logo_url else None
     if logo:
-        tab = Table([[logo, texto]], colWidths=[4.6 * cm, 13.2 * cm])
+        tab = Table([[logo, titulo]], colWidths=[6.5 * cm, 10.5 * cm])
+        tab.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(tab)
     else:
-        tab = Table([[Paragraph(loja.get("nome") or "Clínica", styles["NomeClinica"])], [texto]], colWidths=[17.8 * cm])
+        styles["Title"].alignment = TA_CENTER
+        elements.append(titulo)
+
+
+def _linha(elements, texto: str, style):
+    elements.append(Paragraph(texto, style))
+
+
+def _watermark_bytes(logo_url: str) -> bytes | None:
+    if not logo_url:
+        return None
+    try:
+        resp = requests.get(logo_url, timeout=5)
+        if resp.status_code != 200:
+            return None
+        pil_img = PILImage.open(BytesIO(resp.content)).convert("RGBA")
+        alpha = pil_img.split()[3]
+        alpha = alpha.point(lambda p: int(p * WM_OPACIDADE))
+        pil_img.putalpha(alpha)
+        out = BytesIO()
+        pil_img.save(out, format="PNG")
+        return out.getvalue()
+    except Exception:
+        return None
+
+
+def _inserir_watermark(elements, wm_data: bytes | None):
+    if not wm_data:
+        return
+
+    class WatermarkFlowable(Flowable):
+        def __init__(self, wm_bytes):
+            Flowable.__init__(self)
+            self.wm_bytes = wm_bytes
+            self.width = 16 * cm
+            self.height = 0
+
+        def draw(self):
+            try:
+                from reportlab.lib.utils import ImageReader
+                img = ImageReader(BytesIO(self.wm_bytes))
+                iw, ih = img.getSize()
+                wm_w = WM_MAX_W_CM * cm
+                wm_h = wm_w * (ih / float(iw))
+                if wm_h > WM_MAX_H_CM * cm:
+                    wm_h = WM_MAX_H_CM * cm
+                    wm_w = wm_h / (ih / float(iw))
+                y_offset = -(wm_h * WM_Y_FACTOR)
+                x_center = (16 * cm - wm_w) / 2
+                self.canv.drawImage(img, x_center, y_offset, width=wm_w, height=wm_h, mask="auto", preserveAspectRatio=True)
+            except Exception:
+                pass
+
+    insert_idx = None
+    for i in range(len(elements) - 1, -1, -1):
+        if isinstance(elements[i], Table):
+            insert_idx = i
+            break
+    if insert_idx is not None:
+        elements.insert(insert_idx, WatermarkFlowable(wm_data))
+
+
+def _formatar_cpf(cpf: str) -> str:
+    d = "".join(c for c in (cpf or "") if c.isdigit())
+    if len(d) != 11:
+        return (cpf or "").strip()
+    return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}"
+
+
+def _linhas_profissional(ass_cli, loja) -> list[str]:
+    prof = getattr(ass_cli, "profissional", None) if ass_cli else None
+    nome = (
+        (getattr(prof, "nome", None) if prof else None)
+        or (ass_cli.nome_assinante if ass_cli else "")
+        or loja.get("nome")
+        or "Clínica"
+    ).strip().upper() or "—"
+    linhas = [f"Profissional: {escape(nome)}"]
+
+    cpf = (getattr(prof, "cpf", None) if prof else None) or (ass_cli.cpf_assinante if ass_cli else "")
+    if cpf:
+        linhas.append(f"<font size='8'>CPF: {escape(_formatar_cpf(cpf))}</font>")
+
+    conselho = ""
+    if prof and hasattr(prof, "formatar_conselho"):
+        conselho = (prof.formatar_conselho() or "").strip()
+    if not conselho and ass_cli:
+        conselho = (ass_cli.conselho_display or "").strip()
+    if conselho:
+        linhas.append(f"<font size='8'>Conselho: {escape(conselho)}</font>")
+
+    especialidade = (getattr(prof, "especialidade", "") or "").strip() if prof else ""
+    if especialidade:
+        linhas.append(f"<font size='8'>Especialidade: {escape(especialidade)}</font>")
+
+    email = (
+        (getattr(prof, "email", "") or "").strip() if prof else ""
+    ) or (ass_cli.email_assinante if ass_cli else "") or loja.get("email") or ""
+    if email:
+        linhas.append(f"<font size='8'>Email: {escape(email)}</font>")
+
+    telefone = (getattr(prof, "telefone", "") or "").strip() if prof else ""
+    if telefone:
+        linhas.append(f"<font size='8'>Telefone: {escape(_tel(telefone))}</font>")
+
+    if ass_cli and ass_cli.assinado:
+        linhas.append(f"<font size='8'>Assinado em: {_ts_local(ass_cli.assinado_em)}</font>")
+        linhas.append(f"<font size='8'>IP: {escape(str(ass_cli.ip_address or '—'))}</font>")
+        linhas.append("<font size='8'>Assinado digitalmente</font>")
+    return linhas
+
+
+def _secao_assinaturas(elements, pedido, loja, styles):
+    from .models.fornecedores import PedidoCompraAssinatura
+
+    compact = styles["Compact"]
+    elements.append(Spacer(1, 0.2 * cm))
+    elements.append(Paragraph("<b>Assinatura</b>", styles["Section"]))
+
+    ass_cli = pedido.assinaturas.select_related("profissional").filter(
+        tipo=PedidoCompraAssinatura.TIPO_CLINICA, assinado=True,
+    ).first()
+
+    clinica_info = _linhas_profissional(ass_cli, loja)
+    rows = [[Paragraph(linha, compact)] for linha in clinica_info]
+    tab = Table(rows, colWidths=[16 * cm])
     tab.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, 0), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, -1), (-1, -1), 36),
+        ("BOX", (0, 0), (0, -1), 0.5, BORDA),
     ]))
-    return tab
+    elements.append(tab)
+    elements.append(Spacer(1, 0.1 * cm))
+    elements.append(Paragraph(
+        "Este documento possui validade jurídica e contém a assinatura digital do profissional responsável, "
+        "com registro de data, hora e endereço IP.",
+        styles["Validade"],
+    ))
+    return ass_cli
 
 
 def gerar_pdf_pedido_compra(pedido) -> bytes:
-    from .models.fornecedores import PedidoCompraAssinatura
     from .pedido_compra_service import _dados_loja
+    from .prontuario_pdf.header import _resolver_cabecalho
 
     loja = _dados_loja(pedido.loja_id)
     styles = _styles()
+    compact = styles["Compact"]
+    section = styles["Section"]
+    tipo_cab, dados_cab = _resolver_cabecalho(pedido.loja_id)
+    top_margin = 3.2 * cm if tipo_cab == "timbrado" else 0.2 * cm
     buf = BytesIO()
     doc = SimpleDocTemplate(
         buf,
         pagesize=A4,
-        leftMargin=1.6 * cm,
-        rightMargin=1.6 * cm,
-        topMargin=1.4 * cm,
-        bottomMargin=1.6 * cm,
+        topMargin=top_margin,
+        bottomMargin=0.5 * cm,
+        leftMargin=2 * cm,
+        rightMargin=2 * cm,
     )
-    story = [_cabecalho_clinica(loja, styles), Spacer(1, 6)]
-    story.append(Table(
-        [[""]],
-        colWidths=[17.8 * cm],
-        rowHeights=[2],
-        style=TableStyle([("LINEABOVE", (0, 0), (-1, 0), 1.2, VINHO)]),
-    ))
-    story.append(Spacer(1, 10))
-    story.append(Paragraph(f"Pedido de compra nº {pedido.numero}", styles["Title"]))
+    elements = []
+    logo_url = loja.get("logo") or ""
+    if tipo_cab == "timbrado":
+        elements.append(Spacer(1, 4 * mm))
+        elements.append(Paragraph("PEDIDO DE COMPRA", styles["Title"]))
+    else:
+        _cabecalho(elements, logo_url, styles)
+    elements.append(Paragraph(f"<b>Título:</b> Pedido nº {pedido.numero}", compact))
 
+    elements.append(Spacer(1, 0.2 * cm))
+    elements.append(Paragraph("<b>Dados da Empresa</b>", section))
+    _linha(elements, f"<b>Nome:</b> {escape(loja.get('nome') or '—')}", compact)
+    if loja.get("endereco"):
+        _linha(elements, f"<b>Endereço:</b> {escape(loja['endereco'])}", compact)
+    if loja.get("cnpj"):
+        _linha(elements, f"<b>CPF/CNPJ:</b> {escape(loja['cnpj'])}", compact)
+    if loja.get("telefone"):
+        _linha(elements, f"<b>Telefone:</b> {escape(_tel(loja['telefone']))}", compact)
+    from .models.fornecedores import PedidoCompraAssinatura
     ass_cli = pedido.assinaturas.filter(
         tipo=PedidoCompraAssinatura.TIPO_CLINICA, assinado=True,
     ).first()
-    if ass_cli:
-        prof_linhas = [
-            "<b>Profissional responsável</b>",
-            escape(ass_cli.nome_assinante or "—"),
-        ]
+    if ass_cli and ass_cli.nome_assinante:
+        resp = escape(ass_cli.nome_assinante)
+        extras = []
         if ass_cli.cpf_assinante:
-            prof_linhas.append(f"CPF: {escape(ass_cli.cpf_assinante)}")
+            extras.append(f"CPF {_formatar_cpf(ass_cli.cpf_assinante)}")
         if ass_cli.conselho_display:
-            prof_linhas.append(escape(ass_cli.conselho_display))
-        story.append(Paragraph("<br/>".join(prof_linhas), styles["Meta"]))
-        story.append(Spacer(1, 8))
+            extras.append(ass_cli.conselho_display)
+        if extras:
+            resp += f" — {escape(' · '.join(extras))}"
+        _linha(elements, f"<b>Responsável:</b> {resp}", compact)
+    if loja.get("email"):
+        _linha(elements, f"<b>Email:</b> {escape(loja['email'])}", compact)
 
     forn = pedido.fornecedor
-    forn_linhas = [f"<b>Fornecedor:</b> {escape(forn.razao_social)}"]
-    if forn.nome_fantasia:
-        forn_linhas.append(f"Nome fantasia: {escape(forn.nome_fantasia)}")
-    forn_linhas.append(f"CNPJ: {escape(forn.cnpj)}")
-    end = " ".join(p for p in [forn.logradouro, forn.numero, forn.bairro, forn.municipio, forn.uf] if p)
-    if end:
-        forn_linhas.append(escape(end))
-    story.append(Paragraph("<br/>".join(forn_linhas), styles["Meta"]))
-    story.append(Spacer(1, 10))
+    elements.append(Spacer(1, 0.2 * cm))
+    elements.append(Paragraph("<b>Dados do Fornecedor</b>", section))
+    _linha(elements, f"<b>Nome:</b> {escape(forn.razao_social or '—')}", compact)
+    if forn.nome_fantasia and forn.nome_fantasia != forn.razao_social:
+        _linha(elements, f"<b>Nome fantasia:</b> {escape(forn.nome_fantasia)}", compact)
+    if forn.cnpj:
+        _linha(elements, f"<b>CPF/CNPJ:</b> {escape(forn.cnpj)}", compact)
+    if forn.telefone:
+        _linha(elements, f"<b>Telefone:</b> {escape(_tel(forn.telefone))}", compact)
+    if forn.email:
+        _linha(elements, f"<b>Email:</b> {escape(forn.email)}", compact)
+    end_forn = _endereco_fornecedor(forn)
+    if end_forn:
+        _linha(elements, f"<b>Endereço:</b> {escape(end_forn)}", compact)
 
-    rows = [["Código", "Produto", "Un.", "Qtd", "Preço", "Subtotal"]]
+    elements.append(Spacer(1, 0.2 * cm))
+    elements.append(Paragraph("<b>Itens do Pedido</b>", section))
+    rows = [["Item", "Código", "Un.", "Qtd", "Preço Unit.", "Subtotal"]]
     for item in pedido.itens.all():
         rows.append([
-            item.codigo,
-            Paragraph(escape(item.nome), styles["Small"]),
-            item.unidade or "un",
+            Paragraph(escape(item.nome), compact),
+            escape(item.codigo or ""),
+            escape(item.unidade or "un"),
             f"{item.quantidade:g}".replace(".", ","),
             _brl(item.preco),
             _brl(item.subtotal),
         ])
-    rows.append(["", "", "", "", "Total", _brl(pedido.valor_total)])
-    table = Table(rows, colWidths=[70, 190, 36, 40, 70, 75])
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f8eef1")),
+    tabela = Table(rows, colWidths=[6.2 * cm, 2.4 * cm, 1.4 * cm, 1.4 * cm, 2.3 * cm, 2.3 * cm])
+    tabela.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), FUNDO_TABELA),
         ("TEXTCOLOR", (0, 0), (-1, 0), VINHO),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#e5e7eb")),
+        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+        ("ALIGN", (0, 0), (0, -1), "LEFT"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN", (3, 1), (-1, -1), "RIGHT"),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#f9fafb")),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
     ]))
-    story.append(table)
+    tabela.hAlign = "LEFT"
+    elements.append(tabela)
+
+    resumo = Table([["Valor Total:", _brl(pedido.valor_total)]], colWidths=[5 * cm, 5 * cm])
+    resumo.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("BACKGROUND", (0, 0), (-1, -1), FUNDO_TOTAL),
+        ("BOX", (0, 0), (-1, -1), 0.5, VINHO),
+        ("TEXTCOLOR", (1, 0), (1, 0), VINHO),
+    ]))
+    resumo.hAlign = "LEFT"
+    elements.append(Spacer(1, 0.2 * cm))
+    elements.append(resumo)
 
     if pedido.observacoes:
-        story.append(Spacer(1, 10))
-        story.append(Paragraph(f"<b>Observações:</b> {escape(pedido.observacoes)}", styles["Body"]))
+        elements.append(Spacer(1, 0.2 * cm))
+        elements.append(Paragraph("<b>Conteúdo</b>", section))
+        elements.append(Paragraph(escape(pedido.observacoes), compact))
 
-    story.append(Spacer(1, 18))
-    story.append(Paragraph("Assinaturas", styles["BoxTitle"]))
-    story.append(Spacer(1, 6))
+    ass_cli = _secao_assinaturas(elements, pedido, loja, styles)
+    if ass_cli:
+        _inserir_watermark(elements, _watermark_bytes(logo_url))
 
-    def _bloco_assinatura(titulo: str, linhas: list[str]) -> list:
-        return [
-            Paragraph(f"<b>{escape(titulo)}</b>", styles["BoxTitle"]),
-            Spacer(1, 4),
-            *[Paragraph(escape(linha), styles["Small"]) for linha in linhas if linha],
-        ]
-
-    cli_linhas = []
-    if ass_cli and ass_cli.assinado:
-        cli_linhas.append(ass_cli.nome_assinante or "—")
-        if ass_cli.cpf_assinante:
-            cli_linhas.append(f"CPF: {ass_cli.cpf_assinante}")
-        if ass_cli.conselho_display:
-            cli_linhas.append(ass_cli.conselho_display)
-        if ass_cli.assinado_em:
-            cli_linhas.append(timezone.localtime(ass_cli.assinado_em).strftime("%d/%m/%Y %H:%M (GMT-3)"))
-        cli_linhas.append(loja.get("nome") or "Clínica")
-        if loja.get("cnpj"):
-            cli_linhas.append(f"CNPJ: {loja['cnpj']}")
-    else:
-        cli_linhas.append("Pendente")
-
-    ass_forn = pedido.assinaturas.filter(
-        tipo=PedidoCompraAssinatura.TIPO_FORNECEDOR, assinado=True,
-    ).first()
-    forn_ass = []
-    if ass_forn and ass_forn.assinado:
-        forn_ass.append(ass_forn.nome_assinante or forn.razao_social)
-        forn_ass.append(f"CNPJ: {forn.cnpj}")
-        if ass_forn.assinado_em:
-            forn_ass.append(timezone.localtime(ass_forn.assinado_em).strftime("%d/%m/%Y %H:%M (GMT-3)"))
-    else:
-        forn_ass.append("Pendente")
-
-    esquerda = _bloco_assinatura("Clínica", cli_linhas)
-    direita = _bloco_assinatura("Fornecedor", forn_ass)
-    boxes = Table([[esquerda, direita]], colWidths=[8.8 * cm, 8.8 * cm])
-    boxes.setStyle(TableStyle([
-        ("BOX", (0, 0), (0, 0), 0.6, colors.HexColor("#e5e7eb")),
-        ("BOX", (1, 0), (1, 0), 0.6, colors.HexColor("#e5e7eb")),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fdfcfc")),
-    ]))
-    story.append(boxes)
-
-    doc.build(story)
-    return buf.getvalue()
+    doc.build(elements)
+    return finalize_pdf_com_timbrado(buf, tipo_cab, dados_cab).getvalue()

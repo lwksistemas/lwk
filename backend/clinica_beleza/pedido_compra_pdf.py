@@ -20,10 +20,7 @@ FUNDO_TABELA = colors.HexColor("#f8eef1")
 FUNDO_TOTAL = colors.HexColor("#f8eef1")
 BORDA = colors.HexColor("#e5e7eb")
 
-WM_OPACIDADE = 0.18
-WM_MAX_W_CM = 4.2
-WM_MAX_H_CM = 2.0
-WM_Y_FACTOR = 0.55
+WM_OPACIDADE = 0.50
 
 
 def _fmt_numero(numero) -> str:
@@ -149,43 +146,45 @@ def _watermark_bytes(logo_url: str) -> bytes | None:
         return None
 
 
-def _inserir_watermark(elements, wm_data: bytes | None):
-    if not wm_data:
-        return
+class QuadroAssinatura(Flowable):
+    """Quadro da assinatura com a logo da clínica centralizada no fundo."""
 
-    class WatermarkFlowable(Flowable):
-        def __init__(self, wm_bytes):
-            Flowable.__init__(self)
-            self.wm_bytes = wm_bytes
-            self.width = 16 * cm
-            self.height = 0
+    def __init__(self, table: Table, wm_bytes: bytes | None):
+        Flowable.__init__(self)
+        self.table = table
+        self.wm_bytes = wm_bytes
+        self.width = 16 * cm
+        self.height = 0
 
-        def draw(self):
+    def wrap(self, availWidth, availHeight):
+        w, h = self.table.wrap(availWidth, availHeight)
+        self.width = w
+        self.height = h
+        return w, h
+
+    def draw(self):
+        if self.wm_bytes and self.width and self.height:
             try:
                 from reportlab.lib.utils import ImageReader
                 img = ImageReader(BytesIO(self.wm_bytes))
                 iw, ih = img.getSize()
-                wm_w = WM_MAX_W_CM * cm
-                wm_h = wm_w * (ih / float(iw))
-                if wm_h > WM_MAX_H_CM * cm:
-                    wm_h = WM_MAX_H_CM * cm
-                    wm_w = wm_h / (ih / float(iw))
-                y_offset = -(wm_h * WM_Y_FACTOR)
-                x_right = 16 * cm - wm_w - 0.4 * cm
-                self.canv.drawImage(
-                    img, x_right, y_offset, width=wm_w, height=wm_h,
-                    mask="auto", preserveAspectRatio=True,
-                )
+                if iw and ih:
+                    max_w = self.width * 0.92
+                    max_h = self.height * 0.88
+                    wm_w = max_w
+                    wm_h = wm_w * (ih / float(iw))
+                    if wm_h > max_h:
+                        wm_h = max_h
+                        wm_w = wm_h / (ih / float(iw))
+                    x = (self.width - wm_w) / 2
+                    y = (self.height - wm_h) / 2
+                    self.canv.drawImage(
+                        img, x, y, width=wm_w, height=wm_h,
+                        mask="auto", preserveAspectRatio=True,
+                    )
             except Exception:
                 pass
-
-    insert_idx = None
-    for i in range(len(elements) - 1, -1, -1):
-        if isinstance(elements[i], Table):
-            insert_idx = i
-            break
-    if insert_idx is not None:
-        elements.insert(insert_idx, WatermarkFlowable(wm_data))
+        self.table.drawOn(self.canv, 0, 0)
 
 
 def _formatar_cpf(cpf: str) -> str:
@@ -238,7 +237,7 @@ def _linhas_profissional(ass_cli, loja) -> list[str]:
     return linhas
 
 
-def _secao_assinaturas(elements, pedido, loja, styles):
+def _secao_assinaturas(elements, pedido, loja, styles, wm_bytes=None):
     from .models.fornecedores import PedidoCompraAssinatura
 
     compact = styles["Compact"]
@@ -259,12 +258,12 @@ def _secao_assinaturas(elements, pedido, loja, styles):
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
         ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, 0), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, -1), (-1, -1), 36),
+        ("TOPPADDING", (0, 0), (-1, 0), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, -1), (-1, -1), 10),
         ("BOX", (0, 0), (0, -1), 0.5, BORDA),
     ]))
-    elements.append(tab)
+    elements.append(QuadroAssinatura(tab, wm_bytes if ass_cli else None))
     elements.append(Spacer(1, 0.1 * cm))
     elements.append(Paragraph(
         "Este documento possui validade jurídica e contém a assinatura digital do profissional responsável, "
@@ -394,9 +393,8 @@ def gerar_pdf_pedido_compra(pedido) -> bytes:
         elements.append(Paragraph("<b>Conteúdo</b>", section))
         elements.append(Paragraph(escape(pedido.observacoes), compact))
 
-    ass_cli = _secao_assinaturas(elements, pedido, loja, styles)
-    if ass_cli:
-        _inserir_watermark(elements, _watermark_bytes(logo_url))
+    wm = _watermark_bytes(logo_url) if logo_url else None
+    _secao_assinaturas(elements, pedido, loja, styles, wm_bytes=wm)
 
     doc.build(elements)
     return finalize_pdf_com_timbrado(buf, tipo_cab, dados_cab).getvalue()

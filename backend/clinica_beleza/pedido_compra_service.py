@@ -208,6 +208,11 @@ def cancelar_pedido(pedido: PedidoCompra) -> PedidoCompra:
     return pedido
 
 
+def excluir_pedido(pedido: PedidoCompra) -> None:
+    """Remove o pedido e itens/assinaturas (CASCADE). Não altera estoque."""
+    pedido.delete()
+
+
 def _assinatura(pedido: PedidoCompra, tipo: str) -> PedidoCompraAssinatura | None:
     return pedido.assinaturas.filter(tipo=tipo).first()
 

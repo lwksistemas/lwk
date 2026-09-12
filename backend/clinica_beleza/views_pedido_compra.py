@@ -11,6 +11,7 @@ from .pedido_compra_service import (
     assinar_clinica,
     cancelar_pedido,
     criar_pedido,
+    excluir_pedido,
     enviar_link_fornecedor,
     enviar_pedido_assinado,
     listar_profissionais_assinantes,
@@ -76,7 +77,7 @@ class PedidoCompraListView(APIView):
 
 
 class PedidoCompraDetailView(GetObjectMixin, APIView):
-    """GET/PUT /clinica-beleza/estoque/pedidos/<id>/"""
+    """GET/PUT/DELETE /clinica-beleza/estoque/pedidos/<id>/"""
 
     permission_classes = CLINICA_ESTOQUE
     model_class = PedidoCompra
@@ -107,6 +108,17 @@ class PedidoCompraDetailView(GetObjectMixin, APIView):
             return _erro(exc)
         obj = _pedido_qs().get(pk=obj.pk)
         return Response(serializar_pedido(obj))
+
+    def delete(self, request, pk):
+        _ensure(request)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        try:
+            excluir_pedido(obj)
+        except PedidoCompraError as exc:
+            return _erro(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PedidoCompraCancelarView(GetObjectMixin, APIView):

@@ -21,6 +21,7 @@ from clinica_beleza.pedido_compra_service import (
     assinar_clinica,
     criar_pedido,
     enviar_pedido_assinado,
+    excluir_pedido,
 )
 
 
@@ -173,3 +174,8 @@ class PedidoCompraServiceTests(SimpleTestCase):
         pedido.itens.exists.return_value = True
         with self.assertRaises(PedidoCompraError):
             assinar_clinica(pedido, "  ", "127.0.0.1")
+
+    def test_excluir_pedido_remove_registro(self):
+        pedido = MagicMock()
+        excluir_pedido(pedido)
+        pedido.delete.assert_called_once_with()

@@ -39,10 +39,12 @@ export function EstoquePedidoModal({
   open,
   pedidoId,
   onClose,
+  onDeleted,
 }: {
   open: boolean;
   pedidoId: number | null;
   onClose: () => void;
+  onDeleted?: () => void;
 }) {
   const [fornecedores, setFornecedores] = useState<FornecedorItem[]>([]);
   const [fornecedorId, setFornecedorId] = useState<number | "">("");
@@ -176,6 +178,22 @@ export function EstoquePedidoModal({
       setOk(canalResultado(res, canal));
     } catch (err) {
       setError(extractEstoqueApiError(err, "Erro ao enviar link."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const excluirPedido = async () => {
+    if (!pedido) return;
+    if (!confirm(`Excluir o pedido nº ${pedido.numero}? Esta ação não pode ser desfeita.`)) return;
+    setSaving(true);
+    setError("");
+    try {
+      await ClinicaBelezaAPI.estoque.pedidos.delete(pedido.id);
+      onDeleted?.();
+      onClose();
+    } catch (err) {
+      setError(extractEstoqueApiError(err, "Erro ao excluir pedido."));
     } finally {
       setSaving(false);
     }
@@ -389,8 +407,21 @@ export function EstoquePedidoModal({
             </div>
           )}
         </div>
-        <div className="px-6 py-3 border-t flex justify-between">
-          <button type="button" onClick={onClose} className="px-3 py-2 text-sm rounded-lg border">Fechar</button>
+        <div className="px-6 py-3 border-t flex justify-between gap-2">
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className="px-3 py-2 text-sm rounded-lg border">Fechar</button>
+            {pedido && (
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void excluirPedido()}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                <Trash2 size={14} />
+                Excluir
+              </button>
+            )}
+          </div>
           {rascunho && (
             <button
               type="button"

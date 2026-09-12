@@ -141,6 +141,7 @@ export const estoqueApi = {
     update: (id: number, data: Record<string, unknown>) =>
       cbPut<PedidoCompraItem>(`/estoque/pedidos/${id}/`, data),
     cancelar: (id: number) => cbPost<PedidoCompraItem>(`/estoque/pedidos/${id}/cancelar/`, {}),
+    delete: (id: number) => cbDelete(`/estoque/pedidos/${id}/`),
     assinarClinica: (id: number, profissionalId: number) =>
       cbPost<PedidoCompraItem>(`/estoque/pedidos/${id}/assinar-clinica/`, {
         profissional_id: profissionalId,

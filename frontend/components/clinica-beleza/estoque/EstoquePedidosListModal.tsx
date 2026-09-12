@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2, Trash2, X } from "lucide-react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api/client";
 import type { PedidoCompraItem } from "@/lib/clinica-beleza-api/client-ops";
 import { extractEstoqueApiError } from "./estoque-types";
@@ -17,6 +17,7 @@ export function EstoquePedidosListModal({
 }) {
   const [lista, setLista] = useState<PedidoCompraItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
   const [error, setError] = useState("");
 
   const carregar = useCallback(async () => {
@@ -34,6 +35,20 @@ export function EstoquePedidosListModal({
   useEffect(() => {
     if (open) void carregar();
   }, [open, carregar]);
+
+  const excluir = async (p: PedidoCompraItem) => {
+    if (!confirm(`Excluir o pedido nº ${p.numero}? Esta ação não pode ser desfeita.`)) return;
+    setExcluindoId(p.id);
+    setError("");
+    try {
+      await ClinicaBelezaAPI.estoque.pedidos.delete(p.id);
+      setLista((atual) => atual.filter((item) => item.id !== p.id));
+    } catch (err) {
+      setError(extractEstoqueApiError(err, "Erro ao excluir pedido."));
+    } finally {
+      setExcluindoId(null);
+    }
+  };
 
   if (!open) return null;
 
@@ -55,20 +70,33 @@ export function EstoquePedidosListModal({
           ) : (
             <div className="space-y-2">
               {lista.map((p) => (
-                <button
+                <div
                   key={p.id}
-                  type="button"
-                  onClick={() => onOpenPedido(p.id)}
-                  className="w-full text-left p-3 rounded-lg border border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800"
+                  className="flex items-center gap-2 p-3 rounded-lg border border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800"
                 >
-                  <div className="flex justify-between gap-2">
-                    <span className="font-medium text-sm">Pedido nº {p.numero}</span>
-                    <span className="text-xs text-gray-500">{p.status_display}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {p.fornecedor.nome_fantasia || p.fornecedor.razao_social} · R$ {p.valor_total}
-                  </p>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenPedido(p.id)}
+                    className="flex-1 text-left min-w-0"
+                  >
+                    <div className="flex justify-between gap-2">
+                      <span className="font-medium text-sm">Pedido nº {p.numero}</span>
+                      <span className="text-xs text-gray-500">{p.status_display}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {p.fornecedor.nome_fantasia || p.fornecedor.razao_social} · R$ {p.valor_total}
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    title="Excluir pedido"
+                    disabled={excluindoId === p.id}
+                    onClick={() => void excluir(p)}
+                    className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-50"
+                  >
+                    {excluindoId === p.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  </button>
+                </div>
               ))}
             </div>
           )}

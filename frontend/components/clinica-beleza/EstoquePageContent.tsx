@@ -226,6 +226,11 @@ export function EstoquePageContent({
           setShowPedido(false);
           setPedidoAbertoId(null);
         }}
+        onDeleted={() => {
+          setShowPedido(false);
+          setPedidoAbertoId(null);
+          setShowPedidos(true);
+        }}
       />
     </>
   );

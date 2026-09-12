@@ -20,6 +20,7 @@ from .fornecedores import (
     PedidoCompra,
     PedidoCompraAssinatura,
     PedidoCompraItem,
+    PedidoCompraPaciente,
 )
 from .financeiro import CampanhaPromocao, CategoriaDespesa, Despesa, Payment
 from .fotos import PacienteFotoAcompanhamento
@@ -55,6 +56,7 @@ __all__ = [
     "PedidoCompra",
     "PedidoCompraAssinatura",
     "PedidoCompraItem",
+    "PedidoCompraPaciente",
     "HorarioTrabalhoProfissional",
     "LocalAtendimento",
     "MemedTimbrado",

@@ -20,6 +20,8 @@ from clinica_beleza.pedido_compra_service import (
     PedidoCompraError,
     _decimal,
     _fmt_numero,
+    _montar_pacientes,
+    _normalizar_cpf,
     assinar_clinica,
     criar_pedido,
     enviar_pedido_assinado,
@@ -186,6 +188,19 @@ class PedidoCompraServiceTests(SimpleTestCase):
         excluir_pedido(pedido)
         pedido.delete.assert_called_once_with()
 
+    def test_pacientes_opcionais_texto_livre(self):
+        self.assertEqual(_normalizar_cpf("12345678901"), "123.456.789-01")
+        self.assertEqual(_montar_pacientes(1, []), [])
+        self.assertEqual(_montar_pacientes(1, [{"nome": "  ", "cpf": ""}]), [])
+        rows = _montar_pacientes(1, [
+            {"nome": "Maria Silva", "cpf": "123.456.789-01"},
+            {"nome": "Maria Silva", "cpf": "12345678901"},
+        ])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["nome"], "Maria Silva")
+        self.assertEqual(rows[0]["cpf"], "123.456.789-01")
+        self.assertIsNone(rows[0]["patient"])
+
 
 class PedidoCompraPdfTests(SimpleTestCase):
     def _pedido(self, assinado=True):
@@ -244,6 +259,7 @@ class PedidoCompraPdfTests(SimpleTestCase):
         pedido.observacoes = "Entrega em 5 dias."
         pedido.fornecedor = forn
         pedido.itens.all.return_value = [item]
+        pedido.pacientes.all.return_value = []
         assin_qs = MagicMock()
         assin_qs.filter.side_effect = _assin_filter
         assin_qs.select_related.return_value = assin_qs
@@ -301,3 +317,29 @@ class PedidoCompraPdfTests(SimpleTestCase):
         self.assertIn("PEDIDO DE COMPRA Nº 07", texto)
         self.assertNotIn("Título:", texto)
         self.assertNotIn("Assinado digitalmente", texto)
+
+    @patch("clinica_beleza.prontuario_pdf.header._resolver_cabecalho", return_value=("logo", ""))
+    @patch("clinica_beleza.pedido_compra_pdf.logo_image", return_value=None)
+    @patch("clinica_beleza.pedido_compra_service._dados_loja")
+    def test_pdf_lista_pacientes(self, mock_loja, _logo, _cab):
+        from clinica_beleza.pedido_compra_pdf import gerar_pdf_pedido_compra
+
+        mock_loja.return_value = {
+            "nome": "Clínica Harmonis",
+            "cnpj": "",
+            "logo": "",
+            "endereco": "",
+            "telefone": "",
+            "email": "",
+        }
+        pedido = self._pedido(assinado=False)
+        pac = MagicMock()
+        pac.nome = "JOANA ALVES"
+        pac.cpf = "12345678901"
+        pedido.pacientes.all.return_value = [pac]
+        pdf = gerar_pdf_pedido_compra(pedido)
+        from pypdf import PdfReader
+        texto = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages)
+        self.assertIn("Pacientes", texto)
+        self.assertIn("JOANA ALVES", texto)
+        self.assertIn("123.456.789-01", texto)

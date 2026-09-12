@@ -20,7 +20,25 @@ type Linha = {
   preco: string;
 };
 
+type PacienteLinha = {
+  patient_id?: number;
+  nome: string;
+  cpf: string;
+};
+
 const linhaVazia = (): Linha => ({ codigo: "", nome: "", unidade: "un", quantidade: "1", preco: "0" });
+
+function maskCpf(raw: string): string {
+  const d = String(raw || "").replace(/\D/g, "").slice(0, 11);
+  return d
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+function cpfDigits(raw: string): string {
+  return String(raw || "").replace(/\D/g, "");
+}
 
 function numeroPedido(raw: string): number {
   const s = String(raw || "").replace("R$", "").trim();
@@ -51,6 +69,11 @@ export function EstoquePedidoModal({
   const [sugestoes, setSugestoes] = useState<FornecedorProdutoItem[]>([]);
   const [busca, setBusca] = useState("");
   const [itens, setItens] = useState<Linha[]>([linhaVazia()]);
+  const [pacientes, setPacientes] = useState<PacienteLinha[]>([]);
+  const [buscaPaciente, setBuscaPaciente] = useState("");
+  const [sugestoesPaciente, setSugestoesPaciente] = useState<{ id: number; nome: string; cpf: string }[]>([]);
+  const [nomeLivre, setNomeLivre] = useState("");
+  const [cpfLivre, setCpfLivre] = useState("");
   const [obs, setObs] = useState("");
   const [pedido, setPedido] = useState<PedidoCompraItem | null>(null);
   const [profissionais, setProfissionais] = useState<{ id: number; nome: string; conselho?: string }[]>([]);
@@ -83,6 +106,13 @@ export function EstoquePedidoModal({
         setPedido(p);
         setFornecedorId(p.fornecedor.id);
         setObs(p.observacoes);
+        setPacientes(
+          (p.pacientes || []).map((row) => ({
+            patient_id: row.patient_id ?? undefined,
+            nome: row.nome,
+            cpf: row.cpf || "",
+          })),
+        );
         setItens(
           p.itens.map((i) => ({
             catalogo_id: i.catalogo_id ?? undefined,
@@ -98,6 +128,11 @@ export function EstoquePedidoModal({
       setPedido(null);
       setFornecedorId("");
       setObs("");
+      setPacientes([]);
+      setBuscaPaciente("");
+      setSugestoesPaciente([]);
+      setNomeLivre("");
+      setCpfLivre("");
       setItens([linhaVazia()]);
     }
   }, [open, pedidoId]);
@@ -115,6 +150,36 @@ export function EstoquePedidoModal({
     return () => clearTimeout(t);
   }, [fornecedorId, busca]);
 
+  useEffect(() => {
+    if (!open || buscaPaciente.trim().length < 2) {
+      setSugestoesPaciente([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      void ClinicaBelezaAPI.estoque.pedidos.buscarPacientes(buscaPaciente.trim())
+        .then(setSugestoesPaciente)
+        .catch(() => setSugestoesPaciente([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [open, buscaPaciente]);
+
+  const adicionarPaciente = (row: PacienteLinha) => {
+    const nome = row.nome.trim();
+    if (!nome) return;
+    const cpf = maskCpf(row.cpf || "");
+    const digits = cpfDigits(cpf);
+    setPacientes((prev) => {
+      if (row.patient_id && prev.some((p) => p.patient_id === row.patient_id)) return prev;
+      if (digits && prev.some((p) => cpfDigits(p.cpf) === digits)) return prev;
+      if (!digits && prev.some((p) => !p.patient_id && p.nome.trim().toLowerCase() === nome.toLowerCase())) return prev;
+      return [...prev, { patient_id: row.patient_id, nome, cpf }];
+    });
+    setBuscaPaciente("");
+    setSugestoesPaciente([]);
+    setNomeLivre("");
+    setCpfLivre("");
+  };
+
   const rascunho = !pedido || pedido.status === "rascunho";
   const totalPedido = itens.reduce(
     (acc, item) => acc + numeroPedido(item.quantidade) * numeroPedido(item.preco),
@@ -131,6 +196,11 @@ export function EstoquePedidoModal({
       unidade: i.unidade,
       quantidade: i.quantidade,
       preco: i.preco,
+    })),
+    pacientes: pacientes.map((p) => ({
+      patient_id: p.patient_id,
+      nome: p.nome,
+      cpf: p.cpf,
     })),
   });
 
@@ -239,6 +309,88 @@ export function EstoquePedidoModal({
               </option>
             ))}
           </select>
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-gray-600">Pacientes (opcional)</p>
+            <p className="text-[11px] text-gray-500">
+              Use quando o fornecedor precisar dos nomes. Pode buscar no cadastro ou escrever nome e CPF.
+            </p>
+            {rascunho && (
+              <>
+                <div className="relative">
+                  <input
+                    className={ESTOQUE_INPUT_CLASS}
+                    placeholder="Buscar paciente no cadastro (nome ou CPF)"
+                    value={buscaPaciente}
+                    onChange={(e) => setBuscaPaciente(e.target.value)}
+                  />
+                  {sugestoesPaciente.length > 0 && (
+                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-neutral-800 border rounded-lg shadow max-h-40 overflow-y-auto">
+                      {sugestoesPaciente.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-neutral-700"
+                          onClick={() => adicionarPaciente({ patient_id: s.id, nome: s.nome, cpf: s.cpf })}
+                        >
+                          {s.nome}{s.cpf ? ` · CPF ${s.cpf}` : ""}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-12 gap-2">
+                  <input
+                    className={`${ESTOQUE_INPUT_CLASS} col-span-6`}
+                    placeholder="Nome (digitado)"
+                    value={nomeLivre}
+                    onChange={(e) => setNomeLivre(e.target.value)}
+                  />
+                  <input
+                    className={`${ESTOQUE_INPUT_CLASS} col-span-4`}
+                    placeholder="CPF"
+                    value={cpfLivre}
+                    onChange={(e) => setCpfLivre(maskCpf(e.target.value))}
+                  />
+                  <button
+                    type="button"
+                    disabled={!nomeLivre.trim()}
+                    onClick={() => adicionarPaciente({ nome: nomeLivre, cpf: cpfLivre })}
+                    className="col-span-2 px-2 py-2 text-sm rounded-lg border disabled:opacity-50"
+                  >
+                    Incluir
+                  </button>
+                </div>
+              </>
+            )}
+            {pacientes.length === 0 ? (
+              <p className="text-xs text-gray-400">Nenhum paciente neste pedido.</p>
+            ) : (
+              <div className="space-y-1">
+                {pacientes.map((p, idx) => (
+                  <div
+                    key={`${p.patient_id || "livre"}-${p.cpf}-${idx}`}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-neutral-700 px-3 py-2 text-sm"
+                  >
+                    <span className="min-w-0 truncate">
+                      {p.nome}
+                      {p.cpf ? ` · CPF ${p.cpf}` : ""}
+                      {!p.patient_id && <span className="text-[11px] text-gray-400"> · digitado</span>}
+                    </span>
+                    {rascunho && (
+                      <button
+                        type="button"
+                        onClick={() => setPacientes((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {rascunho && fornecedorId && (
             <div className="relative">

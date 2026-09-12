@@ -133,6 +133,11 @@ export const estoqueApi = {
         undefined,
         loja,
       ),
+    buscarPacientes: (search: string) =>
+      cbGet<{ id: number; nome: string; cpf: string }[]>(
+        "/estoque/pedidos/buscar-pacientes/",
+        { search },
+      ),
     list: (params?: { status?: string }, loja?: { id?: number; slug?: string } | null) =>
       cbGet<PedidoCompraItem[]>("/estoque/pedidos/", params, loja),
     get: (id: number) => cbGet<PedidoCompraItem>(`/estoque/pedidos/${id}/`),
@@ -212,6 +217,12 @@ export type PedidoCompraItem = {
     quantidade: string;
     preco: string;
     subtotal: string;
+  }[];
+  pacientes: {
+    id: number;
+    patient_id: number | null;
+    nome: string;
+    cpf: string;
   }[];
   assinaturas: {
     clinica: { assinado: boolean; nome: string; conselho?: string; cpf?: string; profissional_id?: number | null; em: string | null };

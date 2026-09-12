@@ -99,6 +99,7 @@ def _styles():
             leading=10,
             spaceBefore=0,
             spaceAfter=0,
+            splitLongWords=True,
         ),
         "CellRight": ParagraphStyle(
             "PedCrmCellRight",
@@ -397,7 +398,7 @@ def gerar_pdf_pedido_compra(pedido) -> bytes:
     for item in pedido.itens.all():
         rows.append([
             Paragraph(escape(item.nome or ""), cell),
-            Paragraph(escape(item.codigo or "").replace("-", "-\u200b"), cell),
+            Paragraph(escape(item.codigo or ""), cell),
             Paragraph(escape(item.unidade or "un"), cell),
             Paragraph(f"{item.quantidade:g}".replace(".", ","), cell_r),
             Paragraph(_brl(item.preco), cell_r),

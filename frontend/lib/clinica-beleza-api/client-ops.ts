@@ -140,17 +140,11 @@ export const estoqueApi = {
       cbPost<PedidoCompraItem>("/estoque/pedidos/", data, loja),
     update: (id: number, data: Record<string, unknown>) =>
       cbPut<PedidoCompraItem>(`/estoque/pedidos/${id}/`, data),
-    cancelar: (id: number) => cbPost<PedidoCompraItem>(`/estoque/pedidos/${id}/cancelar/`, {}),
     delete: (id: number) => cbDelete(`/estoque/pedidos/${id}/`),
     assinarClinica: (id: number, profissionalId: number) =>
       cbPost<PedidoCompraItem>(`/estoque/pedidos/${id}/assinar-clinica/`, {
         profissional_id: profissionalId,
       }),
-    enviarLink: (id: number, canal: "email" | "whatsapp") =>
-      cbPost<{ pedido: PedidoCompraItem; email?: CanalResult; whatsapp?: CanalResult }>(
-        `/estoque/pedidos/${id}/enviar-link/`,
-        { canal },
-      ),
     enviar: (id: number, canal: "email" | "whatsapp") =>
       cbPost<{ pedido: PedidoCompraItem; email?: CanalResult; whatsapp?: CanalResult }>(
         `/estoque/pedidos/${id}/enviar/`,
@@ -221,7 +215,6 @@ export type PedidoCompraItem = {
   }[];
   assinaturas: {
     clinica: { assinado: boolean; nome: string; conselho?: string; cpf?: string; profissional_id?: number | null; em: string | null };
-    fornecedor: { assinado: boolean; nome: string; em: string | null };
   };
   pode_enviar_pdf: boolean;
 };

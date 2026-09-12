@@ -1,5 +1,4 @@
 """PDF do pedido de compra — mesma estrutura da proposta do CRM Vendas."""
-from decimal import Decimal
 from io import BytesIO
 from xml.sax.saxutils import escape
 
@@ -14,6 +13,7 @@ from reportlab.lib.units import cm, mm
 from reportlab.platypus import Flowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from clinica_beleza.pdf_common import finalize_pdf_com_timbrado, logo_image
+from clinica_beleza.pedido_compra_service import _brl, _fmt_numero
 
 VINHO = colors.HexColor("#8B3D52")
 FUNDO_TABELA = colors.HexColor("#f8eef1")
@@ -23,22 +23,11 @@ BORDA = colors.HexColor("#e5e7eb")
 WM_OPACIDADE = 0.50
 
 
-def _fmt_numero(numero) -> str:
-    try:
-        return f"{int(numero):02d}"
-    except (TypeError, ValueError):
-        return str(numero)
-
-
 def _ts_local(dt) -> str:
     if not dt:
         return "—"
     tz = pytz.timezone("America/Sao_Paulo")
     return dt.astimezone(tz).strftime("%d/%m/%Y %H:%M:%S")
-
-
-def _brl(valor: Decimal) -> str:
-    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def _tel(raw: str) -> str:

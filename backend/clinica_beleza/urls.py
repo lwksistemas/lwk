@@ -105,15 +105,10 @@ from .views_pedido_compra import (
     PedidoCompraAssinarClinicaView,
     PedidoCompraCancelarView,
     PedidoCompraDetailView,
-    PedidoCompraEnviarLinkView,
     PedidoCompraEnviarView,
     PedidoCompraListView,
     PedidoCompraPdfPublicView,
     PedidoCompraPdfView,
-)
-from .views_pedido_compra_publico import (
-    PedidoCompraAssinaturaPdfPublicaView,
-    PedidoCompraAssinaturaPublicaView,
 )
 from .views_foto_paciente import (
     ConsultaFotoDeleteView,
@@ -223,8 +218,6 @@ urlpatterns = [
     ),
     path("assinar-consentimento/<path:token>/pdf/", ConsultaAssinaturaPdfPublicaView.as_view(), name="assinar-consentimento-pdf"),
     path("assinar-consentimento/<path:token>/", ConsultaAssinaturaPublicaView.as_view(), name="assinar-consentimento"),
-    path("assinar-pedido/<path:token>/pdf/", PedidoCompraAssinaturaPdfPublicaView.as_view(), name="assinar-pedido-pdf"),
-    path("assinar-pedido/<path:token>/", PedidoCompraAssinaturaPublicaView.as_view(), name="assinar-pedido"),
     path("consultas/<int:pk>/fotos/", ConsultaFotosPacienteView.as_view(), name="consultas-fotos"),
     path("consultas/<int:pk>/fotos/qr/", ConsultaFotoQrView.as_view(), name="consultas-fotos-qr"),
     path("consultas/<int:pk>/fotos/<int:foto_id>/", ConsultaFotoDeleteView.as_view(), name="consultas-fotos-delete"),
@@ -327,7 +320,6 @@ urlpatterns = [
     path("estoque/pedidos/<int:pk>/", PedidoCompraDetailView.as_view(), name="estoque-pedidos-detail"),
     path("estoque/pedidos/<int:pk>/cancelar/", PedidoCompraCancelarView.as_view(), name="estoque-pedidos-cancelar"),
     path("estoque/pedidos/<int:pk>/assinar-clinica/", PedidoCompraAssinarClinicaView.as_view(), name="estoque-pedidos-assinar-clinica"),
-    path("estoque/pedidos/<int:pk>/enviar-link/", PedidoCompraEnviarLinkView.as_view(), name="estoque-pedidos-enviar-link"),
     path("estoque/pedidos/<int:pk>/enviar/", PedidoCompraEnviarView.as_view(), name="estoque-pedidos-enviar"),
     path("estoque/pedidos/<int:pk>/pdf/", PedidoCompraPdfView.as_view(), name="estoque-pedidos-pdf"),
     path("estoque/pedidos/<int:pk>/pdf-public/<str:token>/", PedidoCompraPdfPublicView.as_view(), name="estoque-pedidos-pdf-public"),

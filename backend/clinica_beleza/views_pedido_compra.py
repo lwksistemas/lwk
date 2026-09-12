@@ -12,7 +12,6 @@ from .pedido_compra_service import (
     cancelar_pedido,
     criar_pedido,
     excluir_pedido,
-    enviar_link_fornecedor,
     enviar_pedido_assinado,
     listar_profissionais_assinantes,
     pdf_bytes_pedido,
@@ -161,31 +160,6 @@ class PedidoCompraAssinarClinicaView(GetObjectMixin, APIView):
             return _erro(exc)
         obj = _pedido_qs().get(pk=obj.pk)
         return Response(serializar_pedido(obj))
-
-
-class PedidoCompraEnviarLinkView(GetObjectMixin, APIView):
-    permission_classes = CLINICA_ESTOQUE
-    model_class = PedidoCompra
-    not_found_message = "Pedido não encontrado"
-    select_related_fields = ("fornecedor",)
-
-    def post(self, request, pk):
-        _ensure(request)
-        obj, error = self.object_or_404(pk)
-        if error:
-            return error
-        canais = request.data.get("canais") or []
-        if isinstance(canais, str):
-            canais = [canais]
-        canal = request.data.get("canal")
-        if canal:
-            canais = list(canais) + [canal]
-        try:
-            resultado = enviar_link_fornecedor(obj, canais)
-        except PedidoCompraError as exc:
-            return _erro(exc)
-        obj = _pedido_qs().get(pk=obj.pk)
-        return Response({"pedido": serializar_pedido(obj), **resultado})
 
 
 class PedidoCompraEnviarView(GetObjectMixin, APIView):

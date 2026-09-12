@@ -11,8 +11,6 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from core.assinatura_service import _build_link_assinatura, decodificar_token, gerar_token, normalizar_token_url
-
 from .models.fornecedores import (
     Fornecedor,
     FornecedorProduto,
@@ -236,48 +234,6 @@ def clinica_assinou(pedido: PedidoCompra) -> bool:
     return bool(ass and ass.assinado)
 
 
-def fornecedor_assinou(pedido: PedidoCompra) -> bool:
-    ass = _assinatura(pedido, PedidoCompraAssinatura.TIPO_FORNECEDOR)
-    return bool(ass and ass.assinado)
-
-
-def ambas_assinaturas(pedido: PedidoCompra) -> bool:
-    return clinica_assinou(pedido) and fornecedor_assinou(pedido)
-
-
-def garantir_assinatura_fornecedor(pedido: PedidoCompra) -> PedidoCompraAssinatura:
-    ass = _assinatura(pedido, PedidoCompraAssinatura.TIPO_FORNECEDOR)
-    if ass and ass.token:
-        return ass
-    token = gerar_token(
-        "pedidocompra",
-        pedido.id,
-        PedidoCompraAssinatura.TIPO_FORNECEDOR,
-        pedido.loja_id,
-        modulo="clinica_beleza",
-        expiracao_dias=14,
-    )
-    if ass:
-        ass.token = token
-        ass.nome_assinante = ass.nome_assinante or pedido.fornecedor.razao_social
-        ass.email_assinante = ass.email_assinante or (pedido.fornecedor.email or "")
-        ass.save(update_fields=["token", "nome_assinante", "email_assinante", "updated_at"])
-        return ass
-    return PedidoCompraAssinatura.objects.create(
-        loja_id=pedido.loja_id,
-        pedido=pedido,
-        tipo=PedidoCompraAssinatura.TIPO_FORNECEDOR,
-        nome_assinante=pedido.fornecedor.razao_social,
-        email_assinante=pedido.fornecedor.email or "",
-        token=token,
-    )
-
-
-def link_assinatura_fornecedor(pedido: PedidoCompra) -> str:
-    ass = garantir_assinatura_fornecedor(pedido)
-    return _build_link_assinatura(ass.token, "/assinar-pedido/")
-
-
 def assinar_clinica(
     pedido: PedidoCompra,
     nome: str,
@@ -345,156 +301,10 @@ def finalizar_se_completo(pedido: PedidoCompra) -> bool:
     return True
 
 
-def buscar_assinatura_fornecedor_por_token(token: str) -> PedidoCompraAssinatura | None:
-    token = normalizar_token_url(token)
-    if not token:
-        return None
-    ass = PedidoCompraAssinatura.objects.select_related("pedido", "pedido__fornecedor").filter(
-        token=token, tipo=PedidoCompraAssinatura.TIPO_FORNECEDOR,
-    ).first()
-    if ass:
-        return ass
-    payload = decodificar_token(token)
-    if not payload or payload.get("doc_type") != "pedidocompra":
-        return None
-    doc_id = payload.get("doc_id")
-    if not doc_id:
-        return None
-    return PedidoCompraAssinatura.objects.select_related("pedido", "pedido__fornecedor").filter(
-        pedido_id=doc_id,
-        tipo=PedidoCompraAssinatura.TIPO_FORNECEDOR,
-        assinado=False,
-    ).order_by("-id").first()
-
-
-def assinar_fornecedor(token: str, nome: str, ip: str) -> PedidoCompra:
-    ass = buscar_assinatura_fornecedor_por_token(token)
-    if not ass:
-        raise PedidoCompraError("Link inválido ou expirado.")
-    if ass.assinado:
-        raise PedidoCompraError("Este pedido já foi assinado pelo fornecedor.")
-    pedido = ass.pedido
-    if pedido.status == PedidoCompra.STATUS_CANCELADO:
-        raise PedidoCompraError("Este pedido foi cancelado.")
-    if not clinica_assinou(pedido):
-        raise PedidoCompraError("A clínica ainda não assinou este pedido.")
-    nome = (nome or "").strip()
-    if not nome:
-        raise PedidoCompraError("Informe o nome de quem assina.")
-    ass.nome_assinante = nome[:200]
-    ass.ip_address = ip or "0.0.0.0"
-    ass.assinado = True
-    ass.assinado_em = timezone.now()
-    ass.save()
-    finalizar_se_completo(pedido)
-    pedido.refresh_from_db()
-    return pedido
-
-
 def _loja_nome(loja_id: int) -> str:
     from superadmin.models import Loja
     loja = Loja.objects.using("default").filter(id=loja_id).first()
     return (loja.nome if loja else "") or "Clínica"
-
-
-def enviar_link_fornecedor(pedido: PedidoCompra, canais: list[str]) -> dict:
-    if pedido.status == PedidoCompra.STATUS_CANCELADO:
-        raise PedidoCompraError("Pedido cancelado.")
-    if not clinica_assinou(pedido):
-        raise PedidoCompraError("A clínica precisa assinar antes de enviar o link ao fornecedor.")
-    if fornecedor_assinou(pedido):
-        raise PedidoCompraError("O fornecedor já assinou este pedido.")
-    canais = [c for c in (canais or []) if c in ("email", "whatsapp")]
-    if not canais:
-        raise PedidoCompraError("Informe o canal: email ou whatsapp.")
-    link = link_assinatura_fornecedor(pedido)
-    forn = pedido.fornecedor
-    clinica = _loja_nome(pedido.loja_id)
-    resultado: dict = {}
-    if "email" in canais:
-        resultado["email"] = _enviar_link_email(pedido, forn, link, clinica)
-    if "whatsapp" in canais:
-        resultado["whatsapp"] = _enviar_link_whatsapp(pedido, forn, link, clinica)
-    if pedido.status == PedidoCompra.STATUS_RASCUNHO:
-        pedido.status = PedidoCompra.STATUS_AGUARDANDO_FORNECEDOR
-        pedido.save(update_fields=["status", "updated_at"])
-    return resultado
-
-
-def _enviar_link_email(pedido, forn, link: str, clinica: str) -> dict:
-    email = (forn.email or "").strip()
-    if not email:
-        return {"sucesso": False, "erro": "Fornecedor sem e-mail cadastrado."}
-    try:
-        from core.assinatura_service import _render_email_html
-        from core.email_delivery import create_email_multipart, send_prepared
-
-        total = _brl(pedido.valor_total)
-        qtd_itens = pedido.itens.count()
-        corpo_txt = (
-            f"Olá {forn.razao_social},\n\n"
-            f"{clinica} enviou o pedido de compra nº {pedido.numero} "
-            f"({qtd_itens} {'item' if qtd_itens == 1 else 'itens'}, total {total}) "
-            f"para conferência e assinatura.\n\n"
-            f"Abra o link para visualizar o PDF e assinar:\n{link}\n\n"
-            f"Atenciosamente,\n{clinica}"
-        )
-        corpo_html = f"""
-<p style="color:#333;font-size:16px;line-height:1.6;margin:0 0 16px;">Olá <strong>{forn.razao_social}</strong>,</p>
-<p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px;">
-<strong>{clinica}</strong> enviou o pedido de compra nº <strong>{pedido.numero}</strong> para você conferir e assinar.
-</p>
-<table width="100%" style="background:#f8f9fa;border-left:4px solid #8B3D52;border-radius:4px;margin-bottom:24px;"><tr><td style="padding:20px;">
-<p style="margin:0 0 8px;color:#666;font-size:13px;">Pedido</p>
-<p style="margin:0 0 12px;color:#333;font-size:18px;font-weight:700;">nº {pedido.numero}</p>
-<p style="margin:0 0 4px;color:#666;font-size:13px;">{qtd_itens} {"item" if qtd_itens == 1 else "itens"}</p>
-<p style="margin:0;color:#8B3D52;font-size:20px;font-weight:700;">{total}</p>
-</td></tr></table>
-<table width="100%" style="margin-bottom:24px;"><tr><td align="center">
-<a href="{link}" style="display:inline-block;background:#8B3D52;color:#ffffff !important;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:600;">Visualizar PDF e assinar</a>
-</td></tr></table>
-<p style="color:#888;font-size:13px;margin:0;">O PDF do pedido segue em anexo. O link acima registra a assinatura digital do fornecedor.</p>
-"""
-        html = _render_email_html("Pedido de compra", "#8B3D52 0%, #6B2E3F 100%", corpo_html, clinica)
-        msg = create_email_multipart(
-            subject=f"Pedido de compra nº {pedido.numero} — {clinica}",
-            body=corpo_txt,
-            to=[email],
-            html=html,
-        )
-        try:
-            msg.attach(f"pedido_compra_{pedido.numero}.pdf", pdf_bytes_pedido(pedido), "application/pdf")
-        except Exception as pdf_exc:
-            logger.warning("Anexo PDF do link pedido #%s: %s", pedido.numero, pdf_exc)
-        send_prepared(msg, fail_silently=False)
-        return {"sucesso": True}
-    except Exception as exc:
-        logger.warning("Falha e-mail link pedido #%s: %s", pedido.numero, exc)
-        return {"sucesso": False, "erro": str(exc)}
-
-
-def _enviar_link_whatsapp(pedido, forn, link: str, clinica: str) -> dict:
-    telefone = (forn.telefone or "").strip()
-    if not telefone:
-        return {"sucesso": False, "erro": "Fornecedor sem telefone cadastrado."}
-    try:
-        from whatsapp.models import WhatsAppConfig
-        from whatsapp.services import send_whatsapp
-
-        config = WhatsAppConfig.objects.filter(loja_id=pedido.loja_id).first()
-        if not config or not getattr(config, "whatsapp_ativo", False):
-            return {"sucesso": False, "erro": "WhatsApp não está ativo. Configure em Configurações → WhatsApp."}
-        mensagem = (
-            f"{clinica} enviou o pedido de compra nº {pedido.numero} para assinatura.\n\n"
-            f"Abra o link para visualizar o PDF e assinar:\n{link}"
-        )
-        ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config)
-        if not ok:
-            return {"sucesso": False, "erro": err or "Erro ao enviar WhatsApp."}
-        return {"sucesso": True}
-    except Exception as exc:
-        logger.warning("Falha WhatsApp link pedido #%s: %s", pedido.numero, exc)
-        return {"sucesso": False, "erro": str(exc)}
 
 
 def pdf_bytes_pedido(pedido: PedidoCompra) -> bytes:
@@ -624,7 +434,6 @@ def pdf_publico_cache(pedido_id: int, token: str) -> bytes | None:
 
 def serializar_pedido(pedido: PedidoCompra) -> dict:
     ass_cli = _assinatura(pedido, PedidoCompraAssinatura.TIPO_CLINICA)
-    ass_forn = _assinatura(pedido, PedidoCompraAssinatura.TIPO_FORNECEDOR)
     return {
         "id": pedido.id,
         "numero": pedido.numero,
@@ -665,11 +474,6 @@ def serializar_pedido(pedido: PedidoCompra) -> dict:
                 "cpf": (ass_cli.cpf_assinante if ass_cli else "") or "",
                 "profissional_id": ass_cli.profissional_id if ass_cli else None,
                 "em": ass_cli.assinado_em.isoformat() if ass_cli and ass_cli.assinado_em else None,
-            },
-            "fornecedor": {
-                "assinado": bool(ass_forn and ass_forn.assinado),
-                "nome": (ass_forn.nome_assinante if ass_forn else "") or "",
-                "em": ass_forn.assinado_em.isoformat() if ass_forn and ass_forn.assinado_em else None,
             },
         },
         "pode_enviar_pdf": bool(

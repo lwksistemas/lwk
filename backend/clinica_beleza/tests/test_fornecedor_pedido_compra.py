@@ -250,12 +250,11 @@ class PedidoCompraPdfTests(SimpleTestCase):
         pedido.assinaturas = assin_qs
         return pedido
 
-    @patch("clinica_beleza.pedido_compra_pdf._resolver_cabecalho", create=True)
     @patch("clinica_beleza.prontuario_pdf.header._resolver_cabecalho", return_value=("logo", ""))
     @patch("clinica_beleza.pedido_compra_pdf._watermark_bytes", return_value=None)
     @patch("clinica_beleza.pedido_compra_pdf.logo_image", return_value=None)
     @patch("clinica_beleza.pedido_compra_service._dados_loja")
-    def test_pdf_assinado_tem_estrutura_da_proposta(self, mock_loja, _logo, _wm, _cab, _cab2):
+    def test_pdf_assinado_tem_estrutura_da_proposta(self, mock_loja, _logo, _wm, _cab):
         from clinica_beleza.pedido_compra_pdf import gerar_pdf_pedido_compra
 
         mock_loja.return_value = {

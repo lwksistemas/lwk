@@ -57,7 +57,6 @@ _CLINICA_BELEZA_TIPO_SLUGS = frozenset({
 
 _CLINICA_BELEZA_PUBLIC_PREFIXES = (
     "/api/clinica-beleza/assinar-consentimento/",
-    "/api/clinica-beleza/assinar-pedido/",
     "/api/clinica-beleza/enviar-foto/",
     "/api/clinica-beleza/confirmar-agendamento/",
     "/api/clinica-beleza/termo-consentimento-pdf/",

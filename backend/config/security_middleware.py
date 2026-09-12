@@ -366,7 +366,9 @@ class SecurityIsolationMiddleware:
         if any(path.startswith(prefix) for prefix in _CLINICA_BELEZA_PUBLIC_PREFIXES):
             return True
         # Recibo PDF temporário para Evolution (mesmo padrão do termo assinado)
-        return bool(path.startswith("/api/clinica-beleza/payments/") and "/recibo-pdf/" in path)
+        if path.startswith("/api/clinica-beleza/payments/") and "/recibo-pdf/" in path:
+            return True
+        return bool(path.startswith("/api/clinica-beleza/estoque/pedidos/") and "/pdf-public/" in path)
 
     @staticmethod
     def _is_clinica_geral_public_path(path):

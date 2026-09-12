@@ -22,6 +22,21 @@ def _resolver_tenant_loja(loja_id: int) -> str | None:
     return normalize_media_tenant(cpf_cnpj)
 
 
+def salvar_pdf_loja(loja_id: int, pdf_bytes: bytes, filename: str) -> str | None:
+    """Salva PDF na pasta pdf/ da loja (sem pasta de paciente)."""
+    tenant = _resolver_tenant_loja(loja_id)
+    if not tenant or not pdf_bytes:
+        return None
+    try:
+        url = media_upload_tenant(tenant, pdf_bytes, filename=filename, folder="pdf")
+        if url:
+            logger.info("PDF da loja salvo: %s/pdf/%s", tenant, filename)
+        return url
+    except Exception as exc:
+        logger.warning("Erro ao salvar PDF da loja %s: %s", filename, exc)
+        return None
+
+
 def salvar_pdf_paciente(
     loja_id: int,
     patient: Any,

@@ -141,6 +141,8 @@ def is_store_api_path(path: str) -> bool:
         )
         if any(path.startswith(p) for p in public):
             return False
+        if "/pdf-public/" in path:
+            return False
     if path.startswith("/api/clinica-geral/"):
         if path.startswith("/api/clinica-geral/teleconsulta/"):
             return False

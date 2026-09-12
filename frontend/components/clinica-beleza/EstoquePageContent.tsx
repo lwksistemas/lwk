@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, FileUp, Package, Settings2 } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, ClipboardList, FileUp, Package, Settings2, ShoppingCart, Truck } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
@@ -13,6 +14,9 @@ import { EstoqueProdutoModal } from "@/components/clinica-beleza/estoque/Estoque
 import { EstoqueProdutosTable } from "@/components/clinica-beleza/estoque/EstoqueProdutosTable";
 import { EstoqueResumoCards } from "@/components/clinica-beleza/estoque/EstoqueResumoCards";
 import { EstoqueImportarXmlModal } from "@/components/clinica-beleza/estoque/EstoqueImportarXmlModal";
+import { EstoqueFornecedoresModal } from "@/components/clinica-beleza/estoque/EstoqueFornecedoresModal";
+import { EstoquePedidoModal } from "@/components/clinica-beleza/estoque/EstoquePedidoModal";
+import { EstoquePedidosListModal } from "@/components/clinica-beleza/estoque/EstoquePedidosListModal";
 import { useEstoquePage } from "@/hooks/clinica-beleza/useEstoquePage";
 import { useEstoqueColunas } from "@/hooks/clinica-beleza/useEstoqueColunas";
 
@@ -34,6 +38,10 @@ export function EstoquePageContent({
   const page = useEstoquePage({ defaultCategoria });
   const { colunasKeys } = useEstoqueColunas();
   const emLista = page.viewMode === "lista";
+  const [showFornecedores, setShowFornecedores] = useState(false);
+  const [showPedidos, setShowPedidos] = useState(false);
+  const [showPedido, setShowPedido] = useState(false);
+  const [pedidoAbertoId, setPedidoAbertoId] = useState<number | null>(null);
 
   return (
     <>
@@ -75,6 +83,33 @@ export function EstoquePageContent({
             >
               <FileUp size={16} />
               <span className="hidden sm:inline">Importar XML</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowFornecedores(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
+            >
+              <Truck size={16} />
+              <span className="hidden sm:inline">Fornecedores</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPedidos(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
+            >
+              <ClipboardList size={16} />
+              <span className="hidden sm:inline">Pedidos</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPedidoAbertoId(null);
+                setShowPedido(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
+            >
+              <ShoppingCart size={16} />
+              <span className="hidden sm:inline">Criar pedido</span>
             </button>
           </div>
         }
@@ -174,6 +209,29 @@ export function EstoquePageContent({
           onClose={() => page.setShowHistoricoModal(false)}
         />
       )}
+      <EstoqueFornecedoresModal open={showFornecedores} onClose={() => setShowFornecedores(false)} />
+      <EstoquePedidosListModal
+        open={showPedidos}
+        onClose={() => setShowPedidos(false)}
+        onOpenPedido={(id) => {
+          setShowPedidos(false);
+          setPedidoAbertoId(id);
+          setShowPedido(true);
+        }}
+      />
+      <EstoquePedidoModal
+        open={showPedido}
+        pedidoId={pedidoAbertoId}
+        onClose={() => {
+          setShowPedido(false);
+          setPedidoAbertoId(null);
+        }}
+        onDeleted={() => {
+          setShowPedido(false);
+          setPedidoAbertoId(null);
+          setShowPedidos(true);
+        }}
+      />
     </>
   );
 }

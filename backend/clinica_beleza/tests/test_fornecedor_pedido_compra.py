@@ -17,6 +17,7 @@ from clinica_beleza.fornecedor_service import (
 from clinica_beleza.pedido_compra_service import (
     PedidoCompra,
     PedidoCompraError,
+    _decimal,
     assinar_clinica,
     criar_pedido,
     enviar_pedido_assinado,
@@ -124,6 +125,11 @@ class ImportarCatalogoTests(SimpleTestCase):
 
 
 class PedidoCompraServiceTests(SimpleTestCase):
+    def test_decimal_br_e_subtotal(self):
+        self.assertEqual(_decimal("195,00"), Decimal("195.00"))
+        self.assertEqual(_decimal("3") * _decimal("195.00"), Decimal("585.00"))
+        self.assertEqual(_decimal("1.195,50"), Decimal("1195.50"))
+
     @patch("clinica_beleza.pedido_compra_service.Fornecedor")
     def test_pedido_sem_item(self, MockForn):
         MockForn.objects.filter.return_value.first.return_value = MagicMock(id=1)

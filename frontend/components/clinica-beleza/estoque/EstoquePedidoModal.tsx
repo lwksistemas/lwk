@@ -22,6 +22,19 @@ type Linha = {
 
 const linhaVazia = (): Linha => ({ codigo: "", nome: "", unidade: "un", quantidade: "1", preco: "0" });
 
+function numeroPedido(raw: string): number {
+  const s = String(raw || "").replace("R$", "").trim();
+  if (!s) return 0;
+  const n = s.includes(",")
+    ? Number(s.replace(/\./g, "").replace(",", "."))
+    : Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function brlPedido(valor: number): string {
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 export function EstoquePedidoModal({
   open,
   pedidoId,
@@ -101,6 +114,10 @@ export function EstoquePedidoModal({
   }, [fornecedorId, busca]);
 
   const rascunho = !pedido || pedido.status === "rascunho";
+  const totalPedido = itens.reduce(
+    (acc, item) => acc + numeroPedido(item.quantidade) * numeroPedido(item.preco),
+    0,
+  );
 
   const payload = () => ({
     fornecedor_id: Number(fornecedorId),
@@ -260,24 +277,38 @@ export function EstoquePedidoModal({
           )}
 
           <div className="space-y-2">
-            {itens.map((item, idx) => (
+            <div className="grid grid-cols-12 gap-2 text-[11px] text-gray-500 px-0.5">
+              <span className="col-span-2">Código</span>
+              <span className="col-span-3">Produto</span>
+              <span className="col-span-2">Qtd</span>
+              <span className="col-span-2">Preço</span>
+              <span className="col-span-2 text-right">Subtotal</span>
+            </div>
+            {itens.map((item, idx) => {
+              const subtotal = numeroPedido(item.quantidade) * numeroPedido(item.preco);
+              return (
               <div key={idx} className="grid grid-cols-12 gap-2 items-center">
                 <input className={`${ESTOQUE_INPUT_CLASS} col-span-2`} placeholder="Código" disabled={!rascunho} value={item.codigo} onChange={(e) => setItens((p) => p.map((x, i) => i === idx ? { ...x, codigo: e.target.value } : x))} />
-                <input className={`${ESTOQUE_INPUT_CLASS} col-span-4`} placeholder="Nome" disabled={!rascunho} value={item.nome} onChange={(e) => setItens((p) => p.map((x, i) => i === idx ? { ...x, nome: e.target.value } : x))} />
+                <input className={`${ESTOQUE_INPUT_CLASS} col-span-3`} placeholder="Nome" disabled={!rascunho} value={item.nome} onChange={(e) => setItens((p) => p.map((x, i) => i === idx ? { ...x, nome: e.target.value } : x))} />
                 <input className={`${ESTOQUE_INPUT_CLASS} col-span-2`} placeholder="Qtd" disabled={!rascunho} value={item.quantidade} onChange={(e) => setItens((p) => p.map((x, i) => i === idx ? { ...x, quantidade: e.target.value } : x))} />
-                <input className={`${ESTOQUE_INPUT_CLASS} col-span-3`} placeholder="Preço" disabled={!rascunho} value={item.preco} onChange={(e) => setItens((p) => p.map((x, i) => i === idx ? { ...x, preco: e.target.value } : x))} />
+                <input className={`${ESTOQUE_INPUT_CLASS} col-span-2`} placeholder="Preço" disabled={!rascunho} value={item.preco} onChange={(e) => setItens((p) => p.map((x, i) => i === idx ? { ...x, preco: e.target.value } : x))} />
+                <div className="col-span-2 text-right text-sm font-medium whitespace-nowrap">{brlPedido(subtotal)}</div>
                 {rascunho && (
                   <button type="button" onClick={() => setItens((p) => p.filter((_, i) => i !== idx))} className="col-span-1 text-gray-400 hover:text-red-500">
                     <Trash2 size={16} />
                   </button>
                 )}
               </div>
-            ))}
+              );
+            })}
             {rascunho && (
               <button type="button" onClick={() => setItens((p) => [...p, linhaVazia()])} className="text-sm inline-flex items-center gap-1 text-gray-600">
                 <Plus size={14} /> Item
               </button>
             )}
+            <div className="flex justify-end pt-1 text-sm font-semibold" style={{ color: "var(--cb-primary, #8B3D52)" }}>
+              Total {brlPedido(totalPedido)}
+            </div>
           </div>
 
           <textarea

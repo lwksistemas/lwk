@@ -64,15 +64,11 @@ class PedidoCompraAssinaturaPublicaView(View):
             return err
         _payload, ass = ctx
         pedido = ass.pedido
-        loja_nome = ""
-        from superadmin.models import Loja
-        loja = Loja.objects.using("default").filter(id=pedido.loja_id).first()
-        if loja:
-            loja_nome = loja.nome
         data = serializar_pedido(pedido)
+        loja = data.get("loja") or {}
         data.update({
             "tipo_documento": "pedido_compra",
-            "loja_nome": loja_nome,
+            "loja_nome": loja.get("nome") or "",
             "nome_assinante": ass.nome_assinante or pedido.fornecedor.razao_social,
             "ja_assinado": bool(ass.assinado),
         })

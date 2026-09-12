@@ -31,11 +31,50 @@ class PedidoCompraError(Exception):
 
 
 def _decimal(raw, default="0") -> Decimal:
+    s = str(raw if raw not in (None, "") else default).strip().replace("R$", "").replace(" ", "")
+    if not s:
+        s = str(default)
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")
     try:
-        val = Decimal(str(raw if raw not in (None, "") else default))
+        val = Decimal(s)
     except (InvalidOperation, TypeError, ValueError) as exc:
         raise PedidoCompraError("Valor numérico inválido.") from exc
     return val.quantize(Decimal("0.01"))
+
+
+def _brl(valor) -> str:
+    return f"R$ {Decimal(str(valor or 0)):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _dados_loja(loja_id: int) -> dict:
+    from superadmin.models import Loja
+
+    loja = Loja.objects.using("default").filter(id=loja_id).first()
+    if not loja:
+        return {"nome": "Clínica", "cnpj": "", "logo": "", "endereco": "", "telefone": "", "email": ""}
+    partes = []
+    if loja.logradouro:
+        linha = loja.logradouro
+        if loja.numero:
+            linha += f", {loja.numero}"
+        if loja.bairro:
+            linha += f" — {loja.bairro}"
+        partes.append(linha)
+    if loja.cidade and loja.uf:
+        partes.append(f"{loja.cidade}/{loja.uf}")
+    elif loja.cidade or loja.uf:
+        partes.append(loja.cidade or loja.uf)
+    if loja.cep:
+        partes.append(f"CEP {loja.cep}")
+    return {
+        "nome": loja.nome or "Clínica",
+        "cnpj": loja.cpf_cnpj or "",
+        "logo": (loja.logo or "").strip() or (getattr(loja, "login_logo", "") or "").strip(),
+        "endereco": " · ".join(partes),
+        "telefone": (loja.telefone_contato or loja.owner_telefone or "").strip(),
+        "email": (loja.email_contato or "").strip(),
+    }
 
 
 def _ip_request(request) -> str:
@@ -369,19 +408,46 @@ def _enviar_link_email(pedido, forn, link: str, clinica: str) -> dict:
     if not email:
         return {"sucesso": False, "erro": "Fornecedor sem e-mail cadastrado."}
     try:
-        from core.email_delivery import create_email_message, send_prepared
+        from core.assinatura_service import _render_email_html
+        from core.email_delivery import create_email_multipart, send_prepared
 
-        corpo = (
+        total = _brl(pedido.valor_total)
+        qtd_itens = pedido.itens.count()
+        corpo_txt = (
             f"Olá {forn.razao_social},\n\n"
-            f"{clinica} enviou o pedido de compra nº {pedido.numero} para sua assinatura.\n\n"
+            f"{clinica} enviou o pedido de compra nº {pedido.numero} "
+            f"({qtd_itens} {'item' if qtd_itens == 1 else 'itens'}, total {total}) "
+            f"para conferência e assinatura.\n\n"
             f"Abra o link para visualizar o PDF e assinar:\n{link}\n\n"
             f"Atenciosamente,\n{clinica}"
         )
-        msg = create_email_message(
+        corpo_html = f"""
+<p style="color:#333;font-size:16px;line-height:1.6;margin:0 0 16px;">Olá <strong>{forn.razao_social}</strong>,</p>
+<p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px;">
+<strong>{clinica}</strong> enviou o pedido de compra nº <strong>{pedido.numero}</strong> para você conferir e assinar.
+</p>
+<table width="100%" style="background:#f8f9fa;border-left:4px solid #8B3D52;border-radius:4px;margin-bottom:24px;"><tr><td style="padding:20px;">
+<p style="margin:0 0 8px;color:#666;font-size:13px;">Pedido</p>
+<p style="margin:0 0 12px;color:#333;font-size:18px;font-weight:700;">nº {pedido.numero}</p>
+<p style="margin:0 0 4px;color:#666;font-size:13px;">{qtd_itens} {"item" if qtd_itens == 1 else "itens"}</p>
+<p style="margin:0;color:#8B3D52;font-size:20px;font-weight:700;">{total}</p>
+</td></tr></table>
+<table width="100%" style="margin-bottom:24px;"><tr><td align="center">
+<a href="{link}" style="display:inline-block;background:#8B3D52;color:#ffffff !important;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:600;">Visualizar PDF e assinar</a>
+</td></tr></table>
+<p style="color:#888;font-size:13px;margin:0;">O PDF do pedido segue em anexo. O link acima registra a assinatura digital do fornecedor.</p>
+"""
+        html = _render_email_html("Pedido de compra", "#8B3D52 0%, #6B2E3F 100%", corpo_html, clinica)
+        msg = create_email_multipart(
             subject=f"Pedido de compra nº {pedido.numero} — {clinica}",
-            body=corpo,
+            body=corpo_txt,
             to=[email],
+            html=html,
         )
+        try:
+            msg.attach(f"pedido_compra_{pedido.numero}.pdf", pdf_bytes_pedido(pedido), "application/pdf")
+        except Exception as pdf_exc:
+            logger.warning("Anexo PDF do link pedido #%s: %s", pedido.numero, pdf_exc)
         send_prepared(msg, fail_silently=False)
         return {"sucesso": True}
     except Exception as exc:
@@ -516,6 +582,8 @@ def serializar_pedido(pedido: PedidoCompra) -> dict:
         "observacoes": pedido.observacoes,
         "pdf_url": pedido.pdf_url,
         "valor_total": str(pedido.valor_total),
+        "valor_total_display": _brl(pedido.valor_total),
+        "loja": _dados_loja(pedido.loja_id),
         "created_at": pedido.created_at.isoformat() if pedido.created_at else None,
         "fornecedor": {
             "id": pedido.fornecedor_id,
@@ -543,6 +611,7 @@ def serializar_pedido(pedido: PedidoCompra) -> dict:
                 "assinado": bool(ass_cli and ass_cli.assinado),
                 "nome": (ass_cli.nome_assinante if ass_cli else "") or "",
                 "conselho": (ass_cli.conselho_display if ass_cli else "") or "",
+                "cpf": (ass_cli.cpf_assinante if ass_cli else "") or "",
                 "profissional_id": ass_cli.profissional_id if ass_cli else None,
                 "em": ass_cli.assinado_em.isoformat() if ass_cli and ass_cli.assinado_em else None,
             },

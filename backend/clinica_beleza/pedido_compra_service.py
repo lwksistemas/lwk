@@ -17,6 +17,7 @@ from .models.fornecedores import (
     PedidoCompra,
     PedidoCompraAssinatura,
     PedidoCompraItem,
+    PedidoCompraPaciente,
 )
 
 logger = logging.getLogger(__name__)
@@ -173,6 +174,78 @@ def _substituir_itens(pedido: PedidoCompra, itens: list[dict]) -> None:
     _recalcular_total(pedido)
 
 
+def _cpf_digits(raw) -> str:
+    return "".join(c for c in str(raw or "") if c.isdigit())
+
+
+def _normalizar_cpf(raw) -> str:
+    from core.validators import formatar_cpf
+
+    digits = _cpf_digits(raw)
+    if len(digits) == 11:
+        return formatar_cpf(digits)
+    return str(raw or "").strip()[:14]
+
+
+def buscar_pacientes_pedido(loja_id: int, termo: str) -> list[dict]:
+    from .models import Patient
+    from .patient_search import apply_patient_search
+
+    qs = Patient.objects.filter(loja_id=loja_id, is_active=True).order_by("nome")
+    qs = apply_patient_search(qs, termo)[:12]
+    return [{"id": p.id, "nome": p.nome, "cpf": p.cpf or ""} for p in qs]
+
+
+def _montar_pacientes(loja_id: int, raws) -> list[dict]:
+    if raws in (None, ""):
+        return []
+    if not isinstance(raws, list):
+        raise PedidoCompraError("Lista de pacientes inválida.")
+    from .models import Patient
+
+    montados: list[dict] = []
+    vistos_id: set[int] = set()
+    vistos_cpf: set[str] = set()
+    for raw in raws:
+        if not isinstance(raw, dict):
+            raise PedidoCompraError("Paciente inválido.")
+        patient = None
+        patient_id = raw.get("patient_id") or raw.get("paciente_id")
+        if patient_id:
+            patient = Patient.objects.filter(pk=patient_id, loja_id=loja_id).first()
+            if not patient:
+                raise PedidoCompraError("Paciente não encontrado no cadastro.")
+            if patient.id in vistos_id:
+                continue
+            vistos_id.add(patient.id)
+        nome = str(raw.get("nome") or (patient.nome if patient else "")).strip()
+        cpf = _normalizar_cpf(raw.get("cpf") if raw.get("cpf") not in (None, "") else (patient.cpf if patient else ""))
+        if not nome:
+            if not patient:
+                continue
+            raise PedidoCompraError("Informe o nome do paciente.")
+        cpf_key = _cpf_digits(cpf)
+        if cpf_key:
+            if cpf_key in vistos_cpf:
+                continue
+            vistos_cpf.add(cpf_key)
+        montados.append({
+            "patient": patient,
+            "nome": nome[:200],
+            "cpf": cpf,
+        })
+    return montados
+
+
+def _substituir_pacientes(pedido: PedidoCompra, pacientes: list[dict]) -> None:
+    pedido.pacientes.all().delete()
+    if not pacientes:
+        return
+    PedidoCompraPaciente.objects.bulk_create([
+        PedidoCompraPaciente(pedido=pedido, **item) for item in pacientes
+    ])
+
+
 def _resolver_fornecedor(loja_id: int, data: dict) -> Fornecedor:
     pk = data.get("fornecedor_id") or data.get("fornecedor")
     forn = Fornecedor.objects.filter(pk=pk, loja_id=loja_id).first()
@@ -193,6 +266,7 @@ def criar_pedido(loja_id: int, data: dict) -> PedidoCompra:
             status=PedidoCompra.STATUS_RASCUNHO,
         )
         _substituir_itens(pedido, itens)
+        _substituir_pacientes(pedido, _montar_pacientes(loja_id, data.get("pacientes") or []))
     return pedido
 
 
@@ -207,6 +281,8 @@ def atualizar_pedido(pedido: PedidoCompra, data: dict) -> PedidoCompra:
     if "itens" in data:
         itens = _montar_itens(pedido.fornecedor, data.get("itens") or [])
         _substituir_itens(pedido, itens)
+    if "pacientes" in data:
+        _substituir_pacientes(pedido, _montar_pacientes(pedido.loja_id, data.get("pacientes")))
     return pedido
 
 
@@ -465,6 +541,15 @@ def serializar_pedido(pedido: PedidoCompra) -> dict:
                 "subtotal": str(item.subtotal),
             }
             for item in pedido.itens.all()
+        ],
+        "pacientes": [
+            {
+                "id": row.id,
+                "patient_id": row.patient_id,
+                "nome": row.nome,
+                "cpf": row.cpf,
+            }
+            for row in pedido.pacientes.all()
         ],
         "assinaturas": {
             "clinica": {

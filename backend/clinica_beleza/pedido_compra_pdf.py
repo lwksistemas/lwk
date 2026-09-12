@@ -332,6 +332,16 @@ def gerar_pdf_pedido_compra(pedido) -> bytes:
     if end_forn:
         _linha(elements, f"<b>Endereço:</b> {escape(end_forn)}", compact)
 
+    pacientes = list(pedido.pacientes.all())
+    if pacientes:
+        elements.append(Spacer(1, 0.2 * cm))
+        elements.append(Paragraph("<b>Pacientes</b>", section))
+        for idx, pac in enumerate(pacientes, start=1):
+            linha = f"{idx}. {escape(pac.nome or '—')}"
+            if pac.cpf:
+                linha += f" — CPF {escape(_formatar_cpf(pac.cpf))}"
+            _linha(elements, linha, compact)
+
     elements.append(Spacer(1, 0.2 * cm))
     elements.append(Paragraph("<b>Itens do Pedido</b>", section))
     rows = [["Item", "Código", "Un.", "Qtd", "Preço Unit.", "Subtotal"]]

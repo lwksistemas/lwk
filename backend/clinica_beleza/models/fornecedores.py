@@ -109,6 +109,31 @@ class PedidoCompra(LojaIsolationMixin, models.Model):
         return f"Pedido #{self.numero}"
 
 
+class PedidoCompraPaciente(models.Model):
+    """Paciente vinculado ao pedido — cadastro ou nome/CPF livres. Opcional."""
+
+    pedido = models.ForeignKey(
+        PedidoCompra, on_delete=models.CASCADE, related_name="pacientes",
+    )
+    patient = models.ForeignKey(
+        "clinica_beleza.Patient",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pedidos_compra",
+    )
+    nome = models.CharField(max_length=200)
+    cpf = models.CharField(max_length=14, blank=True, default="")
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_pedido_compra_paciente"
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.nome
+
+
 class PedidoCompraItem(models.Model):
     pedido = models.ForeignKey(PedidoCompra, on_delete=models.CASCADE, related_name="itens")
     catalogo = models.ForeignKey(

@@ -103,6 +103,7 @@ from .views_fornecedores import (
 from .views_pedido_compra import (
     PedidoCompraAssinantesView,
     PedidoCompraAssinarClinicaView,
+    PedidoCompraBuscarPacientesView,
     PedidoCompraCancelarView,
     PedidoCompraDetailView,
     PedidoCompraEnviarView,
@@ -317,6 +318,7 @@ urlpatterns = [
     path("estoque/fornecedores/<int:pk>/catalogo/importar/", FornecedorCatalogoImportarView.as_view(), name="estoque-fornecedores-catalogo-importar"),
     path("estoque/pedidos/", PedidoCompraListView.as_view(), name="estoque-pedidos"),
     path("estoque/pedidos/assinantes/", PedidoCompraAssinantesView.as_view(), name="estoque-pedidos-assinantes"),
+    path("estoque/pedidos/buscar-pacientes/", PedidoCompraBuscarPacientesView.as_view(), name="estoque-pedidos-buscar-pacientes"),
     path("estoque/pedidos/<int:pk>/", PedidoCompraDetailView.as_view(), name="estoque-pedidos-detail"),
     path("estoque/pedidos/<int:pk>/cancelar/", PedidoCompraCancelarView.as_view(), name="estoque-pedidos-cancelar"),
     path("estoque/pedidos/<int:pk>/assinar-clinica/", PedidoCompraAssinarClinicaView.as_view(), name="estoque-pedidos-assinar-clinica"),

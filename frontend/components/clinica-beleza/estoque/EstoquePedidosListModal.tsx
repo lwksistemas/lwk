@@ -86,6 +86,9 @@ export function EstoquePedidosListModal({
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
                       {p.fornecedor.nome_fantasia || p.fornecedor.razao_social} · R$ {p.valor_total}
+                      {p.pacientes?.length
+                        ? ` · ${p.pacientes.length} paciente${p.pacientes.length === 1 ? "" : "s"}`
+                        : ""}
                     </p>
                   </button>
                   <button

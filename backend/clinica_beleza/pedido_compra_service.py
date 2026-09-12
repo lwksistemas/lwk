@@ -45,6 +45,13 @@ def _brl(valor) -> str:
     return f"R$ {Decimal(str(valor or 0)):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _fmt_numero(numero) -> str:
+    try:
+        return f"{int(numero):02d}"
+    except (TypeError, ValueError):
+        return str(numero)
+
+
 def _dados_loja(loja_id: int) -> dict:
     from superadmin.models import Loja
 
@@ -521,20 +528,47 @@ def _enviar_pdf_email(pedido: PedidoCompra, pdf_bytes: bytes) -> dict:
     if not email:
         return {"sucesso": False, "erro": "Fornecedor sem e-mail cadastrado."}
     try:
-        from core.email_delivery import create_email_message, send_prepared
+        from core.assinatura_service import _render_email_html
+        from core.email_delivery import create_email_multipart, send_prepared
 
         clinica = _loja_nome(pedido.loja_id)
-        corpo = (
-            f"Olá {pedido.fornecedor.razao_social},\n\n"
-            f"Segue em anexo o pedido de compra nº {pedido.numero} assinado.\n\n"
+        forn = pedido.fornecedor
+        numero = _fmt_numero(pedido.numero)
+        total = _brl(pedido.valor_total)
+        qtd_itens = pedido.itens.count()
+        destinatario = (forn.nome_fantasia or forn.razao_social or "fornecedor").strip()
+        corpo_txt = (
+            f"Prezado(a) {destinatario},\n\n"
+            f"Encaminhamos o pedido de compra nº {numero} da {clinica}, "
+            f"já assinado pelo profissional responsável, para processamento.\n\n"
+            f"Itens: {qtd_itens}\n"
+            f"Valor total: {total}\n\n"
+            f"O PDF oficial segue em anexo.\n\n"
             f"Atenciosamente,\n{clinica}"
         )
-        msg = create_email_message(
-            subject=f"Pedido de compra nº {pedido.numero} assinado — {clinica}",
-            body=corpo,
+        corpo_html = f"""
+<p style="color:#333;font-size:16px;line-height:1.6;margin:0 0 16px;">Prezado(a) <strong>{destinatario}</strong>,</p>
+<p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 24px;">
+A <strong>{clinica}</strong> encaminha o pedido de compra nº <strong>{numero}</strong>,
+já assinado pelo profissional responsável, para processamento junto à sua empresa.
+</p>
+<table width="100%" style="background:#f8f9fa;border-left:4px solid #8B3D52;border-radius:4px;margin-bottom:24px;"><tr><td style="padding:20px;">
+<p style="margin:0 0 8px;color:#666;font-size:13px;">Pedido de compra</p>
+<p style="margin:0 0 12px;color:#333;font-size:22px;font-weight:700;">nº {numero}</p>
+<p style="margin:0 0 4px;color:#666;font-size:13px;">{qtd_itens} {"item" if qtd_itens == 1 else "itens"}</p>
+<p style="margin:0;color:#8B3D52;font-size:20px;font-weight:700;">{total}</p>
+</td></tr></table>
+<p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 8px;">O documento oficial em PDF segue em anexo.</p>
+<p style="color:#888;font-size:13px;margin:0;">Em caso de dúvidas, responda a este e-mail ou entre em contato com a clínica.</p>
+"""
+        html = _render_email_html("Pedido de compra", "#8B3D52 0%, #6B2E3F 100%", corpo_html, clinica)
+        msg = create_email_multipart(
+            subject=f"Pedido de compra nº {numero} — {clinica}",
+            body=corpo_txt,
             to=[email],
+            html=html,
         )
-        msg.attach(f"pedido_compra_{pedido.numero}.pdf", pdf_bytes, "application/pdf")
+        msg.attach(f"pedido_compra_{numero}.pdf", pdf_bytes, "application/pdf")
         send_prepared(msg, fail_silently=False)
         return {"sucesso": True}
     except Exception as exc:
@@ -554,7 +588,11 @@ def _enviar_pdf_whatsapp(pedido: PedidoCompra, pdf_bytes: bytes) -> dict:
         if not config or not getattr(config, "whatsapp_ativo", False):
             return {"sucesso": False, "erro": "WhatsApp não está ativo. Configure em Configurações → WhatsApp."}
         clinica = _loja_nome(pedido.loja_id)
-        mensagem = f"{clinica} enviou o pedido de compra nº {pedido.numero} assinado."
+        numero = _fmt_numero(pedido.numero)
+        mensagem = (
+            f"{clinica} encaminha o pedido de compra nº {numero}, "
+            f"assinado pelo profissional responsável. O PDF segue em anexo."
+        )
         ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config)
         if not ok:
             return {"sucesso": False, "erro": err or "Erro ao enviar WhatsApp."}
@@ -566,8 +604,8 @@ def _enviar_pdf_whatsapp(pedido: PedidoCompra, pdf_bytes: bytes) -> dict:
         pdf_url = f"{api_base}/api/clinica-beleza/estoque/pedidos/{pedido.id}/pdf-public/{token}/"
         try:
             _send_whatsapp_document_evolution(
-                telefone, pdf_url, f"pedido_compra_{pedido.numero}.pdf",
-                caption=f"Pedido de compra nº {pedido.numero}", config=config,
+                telefone, pdf_url, f"pedido_compra_{numero}.pdf",
+                caption=f"Pedido de compra nº {numero} — {clinica}", config=config,
             )
         except Exception as pdf_err:
             logger.warning("PDF pedido via WhatsApp falhou (texto já enviado): %s", pdf_err)

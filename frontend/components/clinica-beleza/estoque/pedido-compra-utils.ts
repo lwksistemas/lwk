@@ -1,6 +1,11 @@
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api/fetch";
 import { extractEstoqueApiError } from "./estoque-types";
 
+export function numeroPedidoLabel(numero: number | string): string {
+  const n = Number(numero);
+  return Number.isFinite(n) ? String(n).padStart(2, "0") : String(numero);
+}
+
 export function canalResultado(
   res: { email?: { sucesso?: boolean; erro?: string }; whatsapp?: { sucesso?: boolean; erro?: string } },
   canal: "email" | "whatsapp",

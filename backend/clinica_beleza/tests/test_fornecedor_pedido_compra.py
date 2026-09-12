@@ -19,6 +19,7 @@ from clinica_beleza.pedido_compra_service import (
     PedidoCompra,
     PedidoCompraError,
     _decimal,
+    _fmt_numero,
     assinar_clinica,
     criar_pedido,
     enviar_pedido_assinado,
@@ -127,6 +128,10 @@ class ImportarCatalogoTests(SimpleTestCase):
 
 
 class PedidoCompraServiceTests(SimpleTestCase):
+    def test_numero_pedido_com_zero(self):
+        self.assertEqual(_fmt_numero(1), "01")
+        self.assertEqual(_fmt_numero(12), "12")
+
     def test_decimal_br_e_subtotal(self):
         self.assertEqual(_decimal("195,00"), Decimal("195.00"))
         self.assertEqual(_decimal("3") * _decimal("195.00"), Decimal("585.00"))
@@ -265,7 +270,8 @@ class PedidoCompraPdfTests(SimpleTestCase):
         self.assertTrue(pdf.startswith(b"%PDF-"))
         from pypdf import PdfReader
         texto = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages)
-        self.assertIn("PEDIDO DE COMPRA", texto)
+        self.assertIn("PEDIDO DE COMPRA Nº 07", texto)
+        self.assertNotIn("Título:", texto)
         self.assertIn("Dados da Empresa", texto)
         self.assertIn("Dados do Fornecedor", texto)
         self.assertIn("Itens do Pedido", texto)
@@ -293,5 +299,6 @@ class PedidoCompraPdfTests(SimpleTestCase):
         pdf = gerar_pdf_pedido_compra(self._pedido(assinado=False))
         from pypdf import PdfReader
         texto = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages)
-        self.assertIn("PEDIDO DE COMPRA", texto)
+        self.assertIn("PEDIDO DE COMPRA Nº 07", texto)
+        self.assertNotIn("Título:", texto)
         self.assertNotIn("Assinado digitalmente", texto)

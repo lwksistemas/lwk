@@ -5,6 +5,7 @@ import { Loader2, Trash2, X } from "lucide-react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api/client";
 import type { PedidoCompraItem } from "@/lib/clinica-beleza-api/client-ops";
 import { extractEstoqueApiError } from "./estoque-types";
+import { numeroPedidoLabel } from "./pedido-compra-utils";
 
 export function EstoquePedidosListModal({
   open,
@@ -37,7 +38,7 @@ export function EstoquePedidosListModal({
   }, [open, carregar]);
 
   const excluir = async (p: PedidoCompraItem) => {
-    if (!confirm(`Excluir o pedido nº ${p.numero}? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Excluir o pedido nº ${numeroPedidoLabel(p.numero)}? Esta ação não pode ser desfeita.`)) return;
     setExcluindoId(p.id);
     setError("");
     try {
@@ -80,7 +81,7 @@ export function EstoquePedidosListModal({
                     className="flex-1 text-left min-w-0"
                   >
                     <div className="flex justify-between gap-2">
-                      <span className="font-medium text-sm">Pedido nº {p.numero}</span>
+                      <span className="font-medium text-sm">Pedido nº {numeroPedidoLabel(p.numero)}</span>
                       <span className="text-xs text-gray-500">{p.status_display}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">

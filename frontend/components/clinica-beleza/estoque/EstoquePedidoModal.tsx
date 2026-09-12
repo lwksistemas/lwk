@@ -9,7 +9,7 @@ import type {
   PedidoCompraItem,
 } from "@/lib/clinica-beleza-api/client-ops";
 import { ESTOQUE_INPUT_CLASS, extractEstoqueApiError } from "./estoque-types";
-import { abrirPdfPedido, canalResultado } from "./pedido-compra-utils";
+import { abrirPdfPedido, canalResultado, numeroPedidoLabel } from "./pedido-compra-utils";
 
 type Linha = {
   catalogo_id?: number;
@@ -142,7 +142,7 @@ export function EstoquePedidoModal({
         ? await ClinicaBelezaAPI.estoque.pedidos.update(pedido.id, payload())
         : await ClinicaBelezaAPI.estoque.pedidos.create(payload());
       setPedido(p);
-      setOk(`Pedido nº ${p.numero} salvo.`);
+      setOk(`Pedido nº ${numeroPedidoLabel(p.numero)} salvo.`);
     } catch (err) {
       setError(extractEstoqueApiError(err, "Erro ao salvar pedido."));
     } finally {
@@ -170,7 +170,7 @@ export function EstoquePedidoModal({
 
   const excluirPedido = async () => {
     if (!pedido) return;
-    if (!confirm(`Excluir o pedido nº ${pedido.numero}? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Excluir o pedido nº ${numeroPedidoLabel(pedido.numero)}? Esta ação não pode ser desfeita.`)) return;
     setSaving(true);
     setError("");
     try {
@@ -207,7 +207,7 @@ export function EstoquePedidoModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-700">
           <div>
             <h2 className="text-lg font-semibold">
-              {pedido ? `Pedido nº ${pedido.numero}` : "Criar pedido"}
+              {pedido ? `Pedido nº ${numeroPedidoLabel(pedido.numero)}` : "Criar pedido"}
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
               {pedido ? pedido.status_display : "Rascunho — não dá entrada no estoque."}

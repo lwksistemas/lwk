@@ -20,10 +20,17 @@ FUNDO_TABELA = colors.HexColor("#f8eef1")
 FUNDO_TOTAL = colors.HexColor("#f8eef1")
 BORDA = colors.HexColor("#e5e7eb")
 
-WM_OPACIDADE = 0.25
-WM_MAX_W_CM = 7.5
-WM_MAX_H_CM = 5.0
-WM_Y_FACTOR = 0.8
+WM_OPACIDADE = 0.18
+WM_MAX_W_CM = 4.2
+WM_MAX_H_CM = 2.0
+WM_Y_FACTOR = 0.55
+
+
+def _fmt_numero(numero) -> str:
+    try:
+        return f"{int(numero):02d}"
+    except (TypeError, ValueError):
+        return str(numero)
 
 
 def _ts_local(dt) -> str:
@@ -102,8 +109,8 @@ def _styles():
     }
 
 
-def _cabecalho(elements, logo_url: str, styles):
-    titulo = Paragraph("PEDIDO DE COMPRA", styles["Title"])
+def _cabecalho(elements, logo_url: str, styles, titulo_txt: str):
+    titulo = Paragraph(escape(titulo_txt), styles["Title"])
     logo = logo_image(logo_url, max_w=6 * cm, max_h=3 * cm) if logo_url else None
     if logo:
         tab = Table([[logo, titulo]], colWidths=[6.5 * cm, 10.5 * cm])
@@ -164,8 +171,11 @@ def _inserir_watermark(elements, wm_data: bytes | None):
                     wm_h = WM_MAX_H_CM * cm
                     wm_w = wm_h / (ih / float(iw))
                 y_offset = -(wm_h * WM_Y_FACTOR)
-                x_center = (16 * cm - wm_w) / 2
-                self.canv.drawImage(img, x_center, y_offset, width=wm_w, height=wm_h, mask="auto", preserveAspectRatio=True)
+                x_right = 16 * cm - wm_w - 0.4 * cm
+                self.canv.drawImage(
+                    img, x_right, y_offset, width=wm_w, height=wm_h,
+                    mask="auto", preserveAspectRatio=True,
+                )
             except Exception:
                 pass
 
@@ -285,12 +295,12 @@ def gerar_pdf_pedido_compra(pedido) -> bytes:
     )
     elements = []
     logo_url = loja.get("logo") or ""
+    titulo_txt = f"PEDIDO DE COMPRA Nº {_fmt_numero(pedido.numero)}"
     if tipo_cab == "timbrado":
         elements.append(Spacer(1, 4 * mm))
-        elements.append(Paragraph("PEDIDO DE COMPRA", styles["Title"]))
+        elements.append(Paragraph(escape(titulo_txt), styles["Title"]))
     else:
-        _cabecalho(elements, logo_url, styles)
-    elements.append(Paragraph(f"<b>Título:</b> Pedido nº {pedido.numero}", compact))
+        _cabecalho(elements, logo_url, styles, titulo_txt)
 
     elements.append(Spacer(1, 0.2 * cm))
     elements.append(Paragraph("<b>Dados da Empresa</b>", section))

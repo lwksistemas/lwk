@@ -6,7 +6,7 @@ import pytz
 import requests
 from PIL import Image as PILImage
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm, mm
@@ -91,6 +91,44 @@ def _styles():
             textColor=colors.HexColor("#666666"),
             alignment=TA_CENTER,
             spaceBefore=2,
+        ),
+        "Cell": ParagraphStyle(
+            "PedCrmCell",
+            parent=base["Normal"],
+            fontSize=8,
+            leading=10,
+            spaceBefore=0,
+            spaceAfter=0,
+        ),
+        "CellRight": ParagraphStyle(
+            "PedCrmCellRight",
+            parent=base["Normal"],
+            fontSize=8,
+            leading=10,
+            alignment=TA_RIGHT,
+            spaceBefore=0,
+            spaceAfter=0,
+        ),
+        "CellHead": ParagraphStyle(
+            "PedCrmCellHead",
+            parent=base["Normal"],
+            fontSize=8,
+            leading=10,
+            textColor=VINHO,
+            fontName="Helvetica-Bold",
+            spaceBefore=0,
+            spaceAfter=0,
+        ),
+        "CellHeadRight": ParagraphStyle(
+            "PedCrmCellHeadRight",
+            parent=base["Normal"],
+            fontSize=8,
+            leading=10,
+            textColor=VINHO,
+            fontName="Helvetica-Bold",
+            alignment=TA_RIGHT,
+            spaceBefore=0,
+            spaceAfter=0,
         ),
     }
 
@@ -344,28 +382,41 @@ def gerar_pdf_pedido_compra(pedido) -> bytes:
 
     elements.append(Spacer(1, 0.2 * cm))
     elements.append(Paragraph("<b>Itens do Pedido</b>", section))
-    rows = [["Item", "Código", "Un.", "Qtd", "Preço Unit.", "Subtotal"]]
+    cell = styles["Cell"]
+    cell_r = styles["CellRight"]
+    head = styles["CellHead"]
+    head_r = styles["CellHeadRight"]
+    rows = [[
+        Paragraph("Item", head),
+        Paragraph("Código", head),
+        Paragraph("Un.", head),
+        Paragraph("Qtd", head_r),
+        Paragraph("Preço Unit.", head_r),
+        Paragraph("Subtotal", head_r),
+    ]]
     for item in pedido.itens.all():
         rows.append([
-            Paragraph(escape(item.nome), compact),
-            escape(item.codigo or ""),
-            escape(item.unidade or "un"),
-            f"{item.quantidade:g}".replace(".", ","),
-            _brl(item.preco),
-            _brl(item.subtotal),
+            Paragraph(escape(item.nome or ""), cell),
+            Paragraph(escape(item.codigo or "").replace("-", "-\u200b"), cell),
+            Paragraph(escape(item.unidade or "un"), cell),
+            Paragraph(f"{item.quantidade:g}".replace(".", ","), cell_r),
+            Paragraph(_brl(item.preco), cell_r),
+            Paragraph(_brl(item.subtotal), cell_r),
         ])
-    tabela = Table(rows, colWidths=[6.2 * cm, 2.4 * cm, 1.4 * cm, 1.4 * cm, 2.3 * cm, 2.3 * cm])
+    tabela = Table(rows, colWidths=[5.2 * cm, 3.6 * cm, 1.2 * cm, 1.2 * cm, 2.4 * cm, 2.4 * cm])
     tabela.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), FUNDO_TABELA),
         ("TEXTCOLOR", (0, 0), (-1, 0), VINHO),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
-        ("ALIGN", (0, 0), (0, -1), "LEFT"),
+        ("ALIGN", (0, 0), (2, -1), "LEFT"),
+        ("ALIGN", (3, 0), (-1, -1), "RIGHT"),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
     ]))
     tabela.hAlign = "LEFT"
     elements.append(tabela)

@@ -343,3 +343,28 @@ class PedidoCompraPdfTests(SimpleTestCase):
         self.assertIn("Pacientes", texto)
         self.assertIn("JOANA ALVES", texto)
         self.assertIn("123.456.789-01", texto)
+
+    @patch("clinica_beleza.prontuario_pdf.header._resolver_cabecalho", return_value=("logo", ""))
+    @patch("clinica_beleza.pedido_compra_pdf.logo_image", return_value=None)
+    @patch("clinica_beleza.pedido_compra_service._dados_loja")
+    def test_pdf_codigo_longo_nao_invade_nome(self, mock_loja, _logo, _cab):
+        from clinica_beleza.pedido_compra_pdf import gerar_pdf_pedido_compra
+
+        mock_loja.return_value = {
+            "nome": "Clínica Harmonis",
+            "cnpj": "",
+            "logo": "",
+            "endereco": "",
+            "telefone": "",
+            "email": "",
+        }
+        pedido = self._pedido(assinado=False)
+        item = pedido.itens.all.return_value[0]
+        item.nome = "ANTIINFLAMATÓRIO E RECUPERATIVO"
+        item.codigo = "ANTIINFLAMATORIO-E-RECUPERATIVO"
+        pdf = gerar_pdf_pedido_compra(pedido)
+        from pypdf import PdfReader
+        texto = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages)
+        self.assertIn("ANTIINFLAMATÓRIO E RECUPERATIVO", texto.replace("\n", " "))
+        self.assertIn("ANTIINFLAMATORIO", texto)
+        self.assertIn("RECUPERATIVO", texto)

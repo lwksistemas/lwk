@@ -4,6 +4,7 @@ import {
   isMemedMessageReady,
   isMemedV4Boot,
   MEMED_V4_BOOT_KEY,
+  deveRecarregarWidgetMemed,
   scriptMemedPrecisaReiniciar,
   urlScriptWidgetMemed,
   withTimeout,
@@ -112,6 +113,23 @@ describe("token da Memed", () => {
     expect(scriptMemedPrecisaReiniciar("token-a", "token-b")).toBe(true);
     expect(scriptMemedPrecisaReiniciar("token-a", "token-a")).toBe(false);
     expect(scriptMemedPrecisaReiniciar(null, "token-a")).toBe(false);
+  });
+
+  it("recarrega o widget depois que a sessão de impressão encerrou", () => {
+    expect(
+      deveRecarregarWidgetMemed({
+        tokenNoScript: "token-a",
+        tokenNovo: "token-a",
+        sessaoEncerrada: true,
+      }),
+    ).toBe(true);
+    expect(
+      deveRecarregarWidgetMemed({
+        tokenNoScript: "token-a",
+        tokenNovo: "token-a",
+        sessaoEncerrada: false,
+      }),
+    ).toBe(false);
   });
 
   it("força o widget V4 em produção para abrir o editor", () => {

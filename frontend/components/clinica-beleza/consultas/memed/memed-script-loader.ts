@@ -33,17 +33,22 @@ import {
   forcarFecharOverlayMemed,
   isMemedMessageReady,
   isMemedV4Boot,
+  deveRecarregarWidgetMemed,
   garantirEditorMemedVisivel,
-  scriptMemedPrecisaReiniciar,
   urlScriptWidgetMemed,
   MEMED_V4_BOOT_KEY,
   MEMED_V4_OVERLAY_ID,
 } from "@/lib/memed-sdk";
 
 let prescricaoImpressaHandler: ((data: unknown) => void) | null = null;
+let sessaoMemedEncerrada = false;
 
 export function setPrescricaoImpressaHandler(handler: ((data: unknown) => void) | null): void {
   prescricaoImpressaHandler = handler;
+}
+
+export function sessaoMemedEstaEncerrada(): boolean {
+  return sessaoMemedEncerrada;
 }
 
 function moduloMemedPronto(): boolean {
@@ -66,6 +71,7 @@ function registrarPrescricaoImpressa(): void {
   if (!mdhub?.event?.add || window.__memedPrescImpressaRegistrado) return;
   window.__memedPrescImpressaRegistrado = true;
   mdhub.event.add("prescricaoImpressa", (data: unknown) => {
+    sessaoMemedEncerrada = true;
     try {
       prescricaoImpressaHandler?.(data);
     } catch {
@@ -106,7 +112,7 @@ function esperarMdHub(timeoutMs = MEMED_TIMEOUT_MS): Promise<void> {
   });
 }
 
-function teardownMemedSdk(): void {
+export function teardownMemedSdk(): void {
   try {
     const boot = (window as Window & { [MEMED_V4_BOOT_KEY]?: { teardown?: () => void } })[MEMED_V4_BOOT_KEY];
     boot?.teardown?.();
@@ -123,6 +129,7 @@ function teardownMemedSdk(): void {
   window.__memedPrescImpressaRegistrado = false;
   window.__memedV4ReadyListener = false;
   window.__memedV4IframeReady = false;
+  sessaoMemedEncerrada = false;
   try {
     delete window.MdHub;
     delete window.MdSinapsePrescricao;
@@ -142,14 +149,15 @@ export async function carregarScriptMemed(scriptUrl: string, token: string): Pro
   const src = urlScriptWidgetMemed(scriptUrl);
   const existing = document.getElementById(MEMED_SCRIPT_ID) as HTMLScriptElement | null;
 
-  // Se já existe script com o mesmo token e URL, reutiliza sem reinjetar.
+  // Depois de imprimir o V4 esconde o editor; reutilizar o iframe deixa tela branca.
   if (existing) {
-    const precisaReiniciar = scriptMemedPrecisaReiniciar(
-      existing.getAttribute("data-token"),
-      token,
-      existing.src,
-      src,
-    );
+    const precisaReiniciar = deveRecarregarWidgetMemed({
+      tokenNoScript: existing.getAttribute("data-token"),
+      tokenNovo: token,
+      srcAtual: existing.src,
+      srcAlvo: src,
+      sessaoEncerrada: sessaoMemedEncerrada,
+    });
     if (!precisaReiniciar) {
       registrarListenerPrescricaoMemed();
       await aguardarModuloMemed();
@@ -204,11 +212,16 @@ export function fecharModuloPrescricaoMemed(): void {
     // silencioso
   }
   forcarFecharOverlayMemed(window, MEMED_CONTAINER_ID);
+  if (sessaoMemedEncerrada) {
+    teardownMemedSdk();
+  }
 }
 
 export function abrirModuloPrescricaoMemed(): void {
   void window.MdHub?.module?.show?.(MEMED_MODULO_PRESCRICAO);
   garantirEditorMemedVisivel(document, MEMED_CONTAINER_ID);
+  window.setTimeout(() => garantirEditorMemedVisivel(document, MEMED_CONTAINER_ID), 200);
+  window.setTimeout(() => garantirEditorMemedVisivel(document, MEMED_CONTAINER_ID), 800);
 }
 
 export async function enviarComandoPrescricaoMemed(

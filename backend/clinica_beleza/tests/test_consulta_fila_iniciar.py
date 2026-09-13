@@ -2,7 +2,7 @@
 from django.db.models import Q
 from django.test import SimpleTestCase
 
-from clinica_beleza.views_consultas.helpers import q_consultas_aguardando_inicio
+from clinica_beleza.views_consultas.helpers import ORDEM_FILA_INICIAR, q_consultas_aguardando_inicio
 
 
 class FilaConsultasAguardandoInicioTest(SimpleTestCase):
@@ -21,3 +21,7 @@ class FilaConsultasAguardandoInicioTest(SimpleTestCase):
             | Q(status="IN_PROGRESS")
         )
         self.assertEqual(q_consultas_aguardando_inicio(), expected)
+
+    def test_ordem_fila_segue_horario_da_agenda(self):
+        self.assertEqual(ORDEM_FILA_INICIAR, ("appointment__date", "numero", "created_at"))
+        self.assertNotIn("-status", ORDEM_FILA_INICIAR)

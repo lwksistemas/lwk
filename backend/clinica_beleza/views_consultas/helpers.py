@@ -1,5 +1,6 @@
 """Helpers compartilhados das views de consulta."""
 from django.db.models import Q
+from django.db.models.functions import Coalesce, TruncDate
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -21,8 +22,17 @@ def q_consultas_aguardando_inicio():
     )
 
 
-# Horário da agenda primeiro. Status (RECEBER vs SCHEDULED) não pode furar a fila.
-ORDEM_FILA_INICIAR = ("appointment__date", "numero", "created_at")
+# Dia mais recente na frente (hoje primeiro); no mesmo dia, horário da agenda.
+# Pendências antigas ficam nas últimas páginas. Status não fura a fila.
+ORDEM_FILA_INICIAR = ("-fila_dia", "fila_quando", "numero", "created_at")
+
+
+def aplicar_ordem_fila_iniciar(qs):
+    return qs.annotate(
+        fila_quando=Coalesce("appointment__date", "created_at"),
+    ).annotate(
+        fila_dia=TruncDate("fila_quando"),
+    ).order_by(*ORDEM_FILA_INICIAR)
 
 _DEFAULT_SELECT = (
     "patient",

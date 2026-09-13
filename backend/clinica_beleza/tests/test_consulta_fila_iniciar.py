@@ -22,6 +22,7 @@ class FilaConsultasAguardandoInicioTest(SimpleTestCase):
         )
         self.assertEqual(q_consultas_aguardando_inicio(), expected)
 
-    def test_ordem_fila_segue_horario_da_agenda(self):
-        self.assertEqual(ORDEM_FILA_INICIAR, ("appointment__date", "numero", "created_at"))
+    def test_ordem_fila_hoje_primeiro_depois_horario(self):
+        self.assertEqual(ORDEM_FILA_INICIAR[0], "-fila_dia")
+        self.assertEqual(ORDEM_FILA_INICIAR[1], "fila_quando")
         self.assertNotIn("-status", ORDEM_FILA_INICIAR)

@@ -20,6 +20,10 @@ def q_consultas_aguardando_inicio():
         | Q(status="IN_PROGRESS")
     )
 
+
+# Horário da agenda primeiro. Status (RECEBER vs SCHEDULED) não pode furar a fila.
+ORDEM_FILA_INICIAR = ("appointment__date", "numero", "created_at")
+
 _DEFAULT_SELECT = (
     "patient",
     "professional",

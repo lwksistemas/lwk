@@ -17,7 +17,7 @@ from ..pagination import paginate_queryset
 from ..permissions import CLINICA_CLINICAL, CLINICA_FINANCEIRO, IsClinicaAdmin
 from ..serializers import ConsultaSerializer
 from ..views_base import GetObjectMixin, resolve_loja_id_from_request
-from .helpers import get_consulta_or_404, q_consultas_aguardando_inicio
+from .helpers import ORDEM_FILA_INICIAR, get_consulta_or_404, q_consultas_aguardando_inicio
 
 
 class ConsultaListView(APIView):
@@ -54,9 +54,7 @@ class ConsultaListView(APIView):
         if appointment_id := request.query_params.get("appointment"):
             qs = qs.filter(appointment_id=appointment_id)
         if (request.query_params.get("fila") or "").strip().lower() == "iniciar":
-            qs = qs.filter(q_consultas_aguardando_inicio()).order_by(
-                "-status", "appointment__date", "-created_at",
-            )
+            qs = qs.filter(q_consultas_aguardando_inicio()).order_by(*ORDEM_FILA_INICIAR)
         return paginate_queryset(qs, request, ConsultaListSerializer)
 
     def post(self, request):

@@ -10,6 +10,7 @@ import {
   abrirModuloPrescricaoMemed,
   carregarScriptMemed,
   fecharModuloPrescricaoMemed,
+  sessaoMemedEstaEncerrada,
   setPrescricaoImpressaHandler,
 } from "./memed-script-loader";
 
@@ -108,23 +109,35 @@ export function useMemedPrescricao({
   }, [consultaId, professionalId, onPrescricaoRegistrada]);
 
   const abrir = useCallback(async () => {
+    if (sessaoMemedEstaEncerrada()) {
+      readyRef.current = false;
+      initPromiseRef.current = null;
+    }
     await esperarProximoFrame();
     await garantirPronto();
-    // V4: enviar paciente ANTES de show (padrão doc oficial)
-    void enviarPacienteMemed(patientId, patientName).catch((e) => {
+    try {
+      await enviarPacienteMemed(patientId, patientName);
+    } catch (e) {
       logger.warn("Memed: não foi possível definir o paciente:", e);
-    });
-    void enviarWorkplaceMemed(clinicaRef.current).catch((e) => {
+    }
+    try {
+      await enviarWorkplaceMemed(clinicaRef.current);
+    } catch (e) {
       logger.warn("Memed: não foi possível definir o local de atendimento:", e);
-    });
+    }
     abrirModuloPrescricaoMemed();
   }, [garantirPronto, patientId, patientName]);
 
   const fechar = useCallback(() => {
+    const precisaRecarregar = sessaoMemedEstaEncerrada();
     try {
       fecharModuloPrescricaoMemed();
     } catch (e) {
       logger.warn("Memed: falha ao fechar o módulo de prescrição:", e);
+    }
+    if (precisaRecarregar) {
+      readyRef.current = false;
+      initPromiseRef.current = null;
     }
   }, []);
 

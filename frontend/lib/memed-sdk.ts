@@ -61,6 +61,18 @@ export function scriptMemedPrecisaReiniciar(
   return false;
 }
 
+/** Depois de imprimir, o V4 esconde o editor; reutilizar o iframe deixa tela branca. */
+export function deveRecarregarWidgetMemed(args: {
+  tokenNoScript?: string | null;
+  tokenNovo: string;
+  srcAtual?: string | null;
+  srcAlvo?: string;
+  sessaoEncerrada?: boolean;
+}): boolean {
+  if (args.sessaoEncerrada) return true;
+  return scriptMemedPrecisaReiniciar(args.tokenNoScript, args.tokenNovo, args.srcAtual, args.srcAlvo);
+}
+
 export function isMemedMessageReady(data: unknown): boolean {
   return Boolean(data && typeof data === "object" && (data as { type?: string }).type === "MEMED_READY");
 }

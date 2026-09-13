@@ -5,6 +5,16 @@ import { DollarSign, Eye, FileText, Mail, MessageCircle, Plus, Trash2, X } from 
 import apiClient from "@/lib/api-client";
 import { useToast } from "@/components/ui/Toast";
 import { formatCurrency } from "@/lib/financeiro-helpers";
+import { toUpperCase } from "@/lib/format-br";
+import {
+  procedureCategoriaLabel,
+  procedureItemCategoriaSlug,
+  procedureSelectLabel,
+} from "@/lib/clinica-beleza-categories";
+import {
+  ProcedimentoCategoriaChips,
+  useProcedimentoCategoriaFiltro,
+} from "../procedimentos-consulta/procedimento-categoria-filtro";
 import type { ConsultaDetailTabPanelsProps } from "./tab-panels-types";
 
 interface OrcamentoItem {
@@ -80,6 +90,8 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
   const [showProcSelector, setShowProcSelector] = useState(true);
   const [visualizando, setVisualizando] = useState<Orcamento | null>(null);
   const [abrindoPdf, setAbrindoPdf] = useState<number | null>(null);
+  const { categoriaAtiva, setCategoriaAtiva, categoriasDisponiveis, filtrados } =
+    useProcedimentoCategoriaFiltro(procedures);
 
   useEffect(() => {
     if (!visualizando) return;
@@ -253,9 +265,21 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
 
           {/* Adicionar procedimento — ocultar após adicionar itens */}
           {itensForm.length === 0 || showProcSelector ? (
-            <div className="flex flex-wrap gap-2 items-end">
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                Incluir procedimento
+              </label>
+              <ProcedimentoCategoriaChips
+                categoriasDisponiveis={categoriasDisponiveis}
+                categoriaAtiva={categoriaAtiva}
+                onChange={(slug) => {
+                  setCategoriaAtiva(slug);
+                  setSelectedProc("");
+                  setValorCustom("");
+                }}
+              />
+              <div className="flex flex-wrap gap-2 items-end">
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-xs text-gray-500 mb-1">Procedimento</label>
                 <select
                   value={selectedProc}
                   onChange={(e) => {
@@ -265,10 +289,17 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
                   }}
                   className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
                 >
-                  <option value="">Selecione...</option>
-                  {procedures.map((p) => (
+                  <option value="">
+                    {categoriaAtiva
+                      ? `Selecione de ${procedureCategoriaLabel(categoriaAtiva)}...`
+                      : "Selecione..."}
+                  </option>
+                  {filtrados.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.nome} — R$ {Number(p.preco).toFixed(2)}
+                      {procedureSelectLabel(toUpperCase(p.nome), procedureItemCategoriaSlug(p), {
+                        includeCategorySuffix: !categoriaAtiva,
+                      })}{" "}
+                      — R$ {Number(p.preco).toFixed(2)}
                     </option>
                   ))}
                 </select>
@@ -301,6 +332,7 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
               >
                 Adicionar
               </button>
+              </div>
             </div>
           ) : (
             <button

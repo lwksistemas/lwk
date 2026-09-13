@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toUpperCase } from "@/lib/format-br";
 import {
-  PROCEDURE_CATEGORIA_OPTIONS,
   procedureCategoriaLabel,
   procedureItemCategoriaSlug,
   procedureSelectLabel,
 } from "@/lib/clinica-beleza-categories";
+import { ProcedimentoCategoriaChips, useProcedimentoCategoriaFiltro } from "./procedimento-categoria-filtro";
 import type { ProcedureOption } from "./procedimentos-consulta-types";
 import { PROCEDIMENTOS_SELECT_CLASS } from "./procedimentos-consulta-types";
 
@@ -27,33 +26,8 @@ export function ProcedimentoAdicionarForm({
   onAdicionar: () => void;
   onCancel: () => void;
 }) {
-  const [categoriaAtiva, setCategoriaAtiva] = useState("");
-
-  const categoriasDisponiveis = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const p of opcoesDisponiveis) {
-      const slug = procedureItemCategoriaSlug(p);
-      counts.set(slug, (counts.get(slug) || 0) + 1);
-    }
-    const cards: { value: string; label: string; count: number }[] = PROCEDURE_CATEGORIA_OPTIONS.filter((o) => (counts.get(o.value) || 0) > 0).map(
-      (o) => ({ value: o.value, label: o.label, count: counts.get(o.value) || 0 }),
-    );
-    for (const [slug, count] of counts) {
-      if (!cards.some((c) => c.value === slug)) {
-        cards.push({
-          value: slug,
-          label: procedureCategoriaLabel(slug) || slug,
-          count,
-        });
-      }
-    }
-    return cards.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-  }, [opcoesDisponiveis]);
-
-  const filtrados = useMemo(() => {
-    if (!categoriaAtiva) return opcoesDisponiveis;
-    return opcoesDisponiveis.filter((p) => procedureItemCategoriaSlug(p) === categoriaAtiva);
-  }, [opcoesDisponiveis, categoriaAtiva]);
+  const { categoriaAtiva, setCategoriaAtiva, categoriasDisponiveis, filtrados } =
+    useProcedimentoCategoriaFiltro(opcoesDisponiveis);
 
   return (
     <div className="p-3 rounded-lg border border-gray-200 dark:border-neutral-700 bg-gray-50/80 dark:bg-neutral-800/40 space-y-2">
@@ -61,47 +35,14 @@ export function ProcedimentoAdicionarForm({
         Incluir procedimento
       </label>
 
-      {categoriasDisponiveis.length > 1 && (
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              setCategoriaAtiva("");
-              onProcedureChange("");
-            }}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-              !categoriaAtiva
-                ? "text-white border-transparent"
-                : "border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-gray-300"
-            }`}
-            style={!categoriaAtiva ? { backgroundColor: "var(--cb-primary, #8B3D52)" } : undefined}
-          >
-            Todas
-          </button>
-          {categoriasDisponiveis.map((cat) => (
-            <button
-              key={cat.value}
-              type="button"
-              onClick={() => {
-                setCategoriaAtiva(cat.value);
-                onProcedureChange("");
-              }}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                categoriaAtiva === cat.value
-                  ? "text-white border-transparent"
-                  : "border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-gray-300"
-              }`}
-              style={
-                categoriaAtiva === cat.value
-                  ? { backgroundColor: "var(--cb-primary, #8B3D52)" }
-                  : undefined
-              }
-            >
-              {cat.label} ({cat.count})
-            </button>
-          ))}
-        </div>
-      )}
+      <ProcedimentoCategoriaChips
+        categoriasDisponiveis={categoriasDisponiveis}
+        categoriaAtiva={categoriaAtiva}
+        onChange={(slug) => {
+          setCategoriaAtiva(slug);
+          onProcedureChange("");
+        }}
+      />
 
       <select
         value={procedureId}

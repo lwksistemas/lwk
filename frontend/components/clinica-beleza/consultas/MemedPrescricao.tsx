@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Integração Memed — prescrição digital (Receituário e Exames).
+ * Integração Memed — prescrição digital (Receituário, Exames, Atestado e Documento).
  * Só a barra Fechar é do React. O iframe fica no overlay da Memed
  * (memed-auto-generated): um host no JSX causa o erro #418 e tela branca.
  */

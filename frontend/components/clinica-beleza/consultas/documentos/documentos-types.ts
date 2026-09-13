@@ -17,6 +17,6 @@ export interface DocumentoButtonConfig {
 export const DOCUMENTO_BUTTONS: DocumentoButtonConfig[] = [
   { tipo: "receituario", label: "Receituário", icon: Pill, hasMemed: true },
   { tipo: "pedido_exame", label: "Exames", icon: FlaskConical, hasMemed: true },
-  { tipo: "atestado", label: "Atestado", icon: ClipboardCheck, hasMemed: false },
-  { tipo: "documento_personalizado", label: "Documento", icon: File, hasMemed: false },
+  { tipo: "atestado", label: "Atestado", icon: ClipboardCheck, hasMemed: true },
+  { tipo: "documento_personalizado", label: "Documento", icon: File, hasMemed: true },
 ];

@@ -1,4 +1,6 @@
 """Schema loja_* só aceita apps do tipo da loja — não recria legado."""
+from unittest.mock import patch
+
 from django.test import SimpleTestCase
 
 from config.db_router import MultiTenantRouter, _apps_permitidos_schema_loja
@@ -27,3 +29,8 @@ class TenantAllowMigrateTest(SimpleTestCase):
         self.assertIn("clinica_beleza", permitidos)
         self.assertIn("clinica_geral", permitidos)
         self.assertNotIn("asaas_integration", permitidos)
+
+    @patch("config.db_router._tipo_slug_para_db", return_value="crm-vendas")
+    def test_clinica_nao_migra_em_schema_crm(self, _mock):
+        self.assertFalse(self.r.allow_migrate("loja_41449198000172", "clinica_beleza"))
+        self.assertTrue(self.r.allow_migrate("loja_41449198000172", "crm_vendas"))

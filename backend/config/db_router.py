@@ -26,6 +26,36 @@ def _apps_permitidos_schema_loja() -> frozenset[str]:
     return frozenset(apps)
 
 
+def _tipo_slug_para_db(db: str) -> str | None:
+    """Slug do tipo da loja dona deste alias (loja_CNPJ). None se ainda não houver cadastro."""
+    if not db or db == "loja_template":
+        return None
+    try:
+        from superadmin.models import Loja
+
+        loja = (
+            Loja.objects.using("default")
+            .filter(database_name=db)
+            .select_related("tipo_loja")
+            .first()
+        )
+        if loja and loja.tipo_loja:
+            return (loja.tipo_loja.slug or "").strip() or None
+    except Exception:
+        return None
+    return None
+
+
+def _apps_permitidos_para_db(db: str) -> frozenset[str]:
+    """CRM não recebe migrate/ensure de clínica; clínica não recebe hotel, etc."""
+    from superadmin.services.database_schema_service import apps_permitidos_para_tipo
+
+    slug = _tipo_slug_para_db(db)
+    if not slug:
+        return _apps_permitidos_schema_loja()
+    return apps_permitidos_para_tipo(slug)
+
+
 class MultiTenantRouter:
     """Router que direciona queries para o banco correto baseado no app/model
     """
@@ -90,7 +120,7 @@ class MultiTenantRouter:
             return app_label in self.suporte_dependency_apps
 
         if db.startswith("loja_") or db == "loja_template":
-            return app_label in _apps_permitidos_schema_loja()
+            return app_label in _apps_permitidos_para_db(db)
 
         if app_label in self.loja_apps:
             return False

@@ -317,9 +317,21 @@ def ensure_consulta_produto_utilizado_for_tenant() -> bool:
         return False
 
 
+def queryset_lojas_clinica_beleza():
+    """Só lojas cujo tipo usa o app clinica_beleza — não Felix/CRM."""
+    from superadmin.services.database_schema_service import TIPO_LOJA_EXTRA_APPS
+
+    slugs = [k for k, apps in TIPO_LOJA_EXTRA_APPS.items() if "clinica_beleza" in apps]
+    return Loja.objects.using("default").filter(
+        is_active=True,
+        database_created=True,
+        tipo_loja__slug__in=slugs,
+    ).select_related("tipo_loja")
+
+
 def iter_lojas(slug_filter: str = "") -> Iterable[Loja]:
     slug = (slug_filter or "").strip().lower()
-    lojas = Loja.objects.filter(is_active=True, database_created=True)
+    lojas = queryset_lojas_clinica_beleza()
     for loja in lojas:
         if slug and slug not in (
             (loja.slug or "").lower(),

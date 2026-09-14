@@ -7,9 +7,8 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.db import connections
 
-from clinica_beleza.schema_ensure import column_exists, table_exists
+from clinica_beleza.schema_ensure import queryset_lojas_clinica_beleza, column_exists, table_exists
 from core.db_config import ensure_loja_database_config
-from superadmin.models import Loja
 
 MIGRATIONS = ("0032_convenio", "0033_convenioprocedimentopreco_modo")
 
@@ -22,7 +21,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         slug_filter = (options.get("slug") or "").strip().lower()
-        lojas = Loja.objects.filter(is_active=True, database_created=True)
+        lojas = queryset_lojas_clinica_beleza()
         ok = skip = 0
 
         for loja in lojas:

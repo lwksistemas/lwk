@@ -18,13 +18,13 @@ export function NomeAgendaFormSection({
   return (
     <div className="mb-4 p-3 rounded-lg border-2 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/10 space-y-3">
       <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
-        Nome da agenda *
+        Tipo de agenda *
       </label>
       <input
         type="text"
         value={formNome}
         onChange={(e) => onNomeChange(e.target.value)}
-        placeholder="Ex: Estética, Dermatologia..."
+        placeholder="Ex: Estética, Avaliação..."
         className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm"
         autoFocus
       />

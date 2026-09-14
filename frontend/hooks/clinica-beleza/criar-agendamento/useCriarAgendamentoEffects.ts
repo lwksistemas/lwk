@@ -4,6 +4,7 @@ import {
   formatTimeFromDate,
   resolveDefaultLocalId,
   resolveDefaultNomeAgendaId,
+  resolveNomeAgendaIdParaRetorno,
 } from "@/components/clinica-beleza/criar-agendamento/criar-agendamento-utils";
 import { ClinicaBelezaAPI, clinicaBelezaFetch, type RetornoVerificacaoResult } from "@/lib/clinica-beleza-api";
 import { type HorarioTrabalho } from "@/lib/clinica-beleza-work-hours";
@@ -34,6 +35,7 @@ export function useCriarAgendamentoEffects(
     setRetornoProcedureId: (v: number | "") => void;
     setShowAdvanced: (v: boolean) => void;
     retornoProcedureId: number | "";
+    retornoInfo: RetornoVerificacaoResult | null;
     professionalId: number | "";
     dateInput: string;
     setHorariosProfissional: (h: HorarioTrabalho[]) => void;
@@ -53,6 +55,7 @@ export function useCriarAgendamentoEffects(
     setRetornoProcedureId,
     setShowAdvanced,
     retornoProcedureId,
+    retornoInfo,
     professionalId,
     dateInput,
     setHorariosProfissional,
@@ -119,8 +122,10 @@ export function useCriarAgendamentoEffects(
 
   useEffect(() => {
     if (!open || nomesAgenda.length === 0) return;
-    setNomeAgendaId((current) => current || resolveDefaultNomeAgendaId(nomesAgenda));
-  }, [open, nomesAgenda, setNomeAgendaId]);
+    setNomeAgendaId((current) =>
+      resolveNomeAgendaIdParaRetorno(nomesAgenda, current, Boolean(retornoInfo?.elegivel)),
+    );
+  }, [open, nomesAgenda, retornoInfo, setNomeAgendaId]);
 
   useEffect(() => {
     if (!open || locaisAtendimento.length === 0) return;

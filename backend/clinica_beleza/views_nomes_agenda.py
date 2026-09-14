@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 
 from .models import NomeAgenda
 from .permissions import CLINICA_RECEPCAO
+from .procedimentos_catalogo import is_tipo_agenda_sistema
 from .serializers import NomeAgendaSerializer
 from .is_padrao_service import exclusivizar_padrao, garantir_primeiro_padrao
 from .views_base import GetObjectMixin
@@ -35,7 +36,7 @@ class NomeAgendaDetailView(GetObjectMixin, APIView):
 
     permission_classes = CLINICA_RECEPCAO
     model_class = NomeAgenda
-    not_found_message = "Nome de agenda não encontrado"
+    not_found_message = "Tipo de agenda não encontrado"
 
     def get(self, request, pk):
         obj, error = self.object_or_404(pk)
@@ -64,6 +65,11 @@ class NomeAgendaDetailView(GetObjectMixin, APIView):
         obj, error = self.object_or_404(pk)
         if error:
             return error
+        if is_tipo_agenda_sistema(obj.nome):
+            return Response(
+                {"detail": "Consulta e Retorno são tipos padrão do sistema e não podem ser removidos."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         obj.is_active = False
         obj.save(update_fields=["is_active", "updated_at"])
         return Response(status=status.HTTP_204_NO_CONTENT)

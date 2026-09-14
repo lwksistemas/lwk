@@ -17,10 +17,25 @@ LOCAIS_CATALOGO = [
 # Convênio padrão (particular) — sempre cadastrado na loja.
 CONVENIO_PARTICULAR_CATALOGO = ("Particular", "PARTICULAR")
 
-# Nome de agenda padrão — sempre cadastrado na loja.
+# Tipos de agenda padrão do sistema — o cliente pode cadastrar outros (Estética, Avaliação…).
 NOMES_AGENDA_CATALOGO = [
     "Consulta",
+    "Retorno",
 ]
+
+
+def normalizar_tipo_agenda(nome: str) -> str:
+    return (nome or "").strip().casefold()
+
+
+def is_tipo_agenda_sistema(nome: str) -> bool:
+    return normalizar_tipo_agenda(nome) in {normalizar_tipo_agenda(n) for n in NOMES_AGENDA_CATALOGO}
+
+
+def nomes_agenda_faltando(existentes: list[str]) -> list[str]:
+    """Tipos de catálogo que ainda não existem na loja (ignora capitalização)."""
+    have = {normalizar_tipo_agenda(n) for n in existentes}
+    return [n for n in NOMES_AGENDA_CATALOGO if normalizar_tipo_agenda(n) not in have]
 
 # Locais de demonstração antigos — desativados ao reaplicar o catálogo padrão.
 LOCAIS_CATALOGO_LEGADO = [

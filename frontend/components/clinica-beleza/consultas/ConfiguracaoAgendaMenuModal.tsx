@@ -21,8 +21,8 @@ const OPTIONS = [
   },
   {
     id: "nomes",
-    label: "Nomes de Agenda",
-    description: "Tipos de agenda exibidos ao agendar (ex.: Consulta, Retorno)",
+    label: "Tipos de agenda",
+    description: "Consulta e Retorno vêm no sistema; cadastre outros tipos se precisar",
     icon: CalendarDays,
   },
   {

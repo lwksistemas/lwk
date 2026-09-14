@@ -60,6 +60,7 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     setRetornoProcedureId,
     setShowAdvanced,
     retornoProcedureId,
+    retornoInfo,
     professionalId: novaConsulta.professionalId,
     dateInput,
     setHorariosProfissional,

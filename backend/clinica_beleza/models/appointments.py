@@ -149,7 +149,7 @@ class Appointment(LojaIsolationMixin, models.Model):
         null=True,
         blank=True,
         related_name="agendamentos",
-        verbose_name="Nome da agenda",
+        verbose_name="Tipo de agenda",
     )
     local_atendimento = models.ForeignKey(
         LocalAtendimento,

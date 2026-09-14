@@ -13,6 +13,7 @@ from clinica_beleza.procedimentos_catalogo import (
     LOCAIS_CATALOGO_LEGADO,
     NOMES_AGENDA_CATALOGO,
     PROCEDIMENTOS_CATALOGO,
+    nomes_agenda_faltando,
     procedimento_catalogo_defaults,
 )
 from core.db_config import ensure_loja_database_config
@@ -188,6 +189,36 @@ def is_clinica_beleza_loja(loja) -> bool:
     return nome == TIPO_CLINICA_BELEZA_NOME or slug in TIPO_CLINICA_BELEZA_SLUGS
 
 
+def garantir_nomes_agenda_padrao(db: str, lid: int) -> int:
+    """Garante Consulta e Retorno sem duplicar se já existirem com outra caixa."""
+    from clinica_beleza.models import NomeAgenda
+
+    existentes = list(NomeAgenda.objects.using(db).filter(loja_id=lid))
+    sistema_keys = {n.strip().casefold() for n in NOMES_AGENDA_CATALOGO}
+    alterados = 0
+    for obj in existentes:
+        if (obj.nome or "").strip().casefold() in sistema_keys and not obj.is_active:
+            obj.is_active = True
+            obj.save(update_fields=["is_active", "updated_at"])
+            alterados += 1
+
+    faltando = nomes_agenda_faltando([n.nome for n in existentes])
+    tem_padrao = any(n.is_padrao for n in existentes)
+    for i, nome in enumerate(NOMES_AGENDA_CATALOGO):
+        if nome not in faltando:
+            continue
+        NomeAgenda.objects.using(db).create(
+            nome=nome,
+            loja_id=lid,
+            is_active=True,
+            is_padrao=(i == 0 and not tem_padrao),
+        )
+        if i == 0:
+            tem_padrao = True
+        alterados += 1
+    return alterados
+
+
 def lojas_clinica_beleza_com_schema(*, apenas_ativas: bool = True):
     from django.db.models import Q
 
@@ -231,20 +262,13 @@ def aplicar_catalogo_padrao(loja, *, log: Callable[[str], None] | None = None) -
         Convenio,
         ConvenioProcedimentoPreco,
         LocalAtendimento,
-        NomeAgenda,
         Patient,
         Procedure,
     )
 
     emit(f"Catálogo padrão — {loja.nome} ({loja.slug})")
 
-    # Nomes de agenda padrão
-    for nome_agenda in NOMES_AGENDA_CATALOGO:
-        NomeAgenda.objects.using(db).update_or_create(
-            nome=nome_agenda,
-            loja_id=lid,
-            defaults={"is_active": True},
-        )
+    garantir_nomes_agenda_padrao(db, lid)
 
     locais_aplicados = _aplicar_locais_catalogo(db, lid, emit)
     duplicados = _desativar_locais_catalogo_duplicados(db, lid)

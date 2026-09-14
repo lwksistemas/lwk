@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ClinicaBelezaAPI, type NomeAgendaItem } from "@/lib/clinica-beleza-api";
+import { isTipoAgendaSistema } from "@/lib/clinica-beleza-tipo-agenda";
 import { extractNomesAgendaError } from "./nomes-agenda-utils";
 
 export function useNomesAgenda(open: boolean) {
@@ -17,7 +18,7 @@ export function useNomesAgenda(open: boolean) {
       const data = await ClinicaBelezaAPI.nomesAgenda.list();
       setNomes(Array.isArray(data) ? data : []);
     } catch {
-      setError("Erro ao carregar nomes de agenda.");
+      setError("Erro ao carregar tipos de agenda.");
     } finally {
       setLoading(false);
     }
@@ -57,7 +58,7 @@ export function useNomesAgenda(open: boolean) {
   const handleSave = async () => {
     const nome = formNome.trim();
     if (!nome) {
-      setError("O nome da agenda é obrigatório.");
+      setError("O tipo de agenda é obrigatório.");
       return;
     }
     setSaving(true);
@@ -71,7 +72,7 @@ export function useNomesAgenda(open: boolean) {
       resetForm();
       await loadNomes();
     } catch (err) {
-      setError(extractNomesAgendaError(err, "Erro ao salvar nome de agenda."));
+      setError(extractNomesAgendaError(err, "Erro ao salvar tipo de agenda."));
     } finally {
       setSaving(false);
     }
@@ -87,7 +88,12 @@ export function useNomesAgenda(open: boolean) {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Deseja excluir este nome de agenda?")) return;
+    const item = nomes.find((n) => n.id === id);
+    if (item && isTipoAgendaSistema(item.nome)) {
+      setError("Consulta e Retorno são tipos padrão do sistema e não podem ser removidos.");
+      return;
+    }
+    if (!confirm("Deseja excluir este tipo de agenda?")) return;
     try {
       await ClinicaBelezaAPI.nomesAgenda.delete(id);
       if (editingId === id) resetForm();

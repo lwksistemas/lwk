@@ -9,6 +9,10 @@ import {
   extractCriarAgendamentoSubmitError,
   mapSubmitValidationError,
 } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-submit-utils";
+import {
+  resolveDefaultNomeAgendaId,
+  resolveNomeAgendaIdParaRetorno,
+} from "@/components/clinica-beleza/criar-agendamento/criar-agendamento-utils";
 
 describe("buildAppointmentDate", () => {
   it("combina data e hora", () => {
@@ -74,5 +78,48 @@ describe("mapSubmitValidationError", () => {
 describe("extractCriarAgendamentoSubmitError", () => {
   it("usa mensagem de Error", () => {
     expect(extractCriarAgendamentoSubmitError(new Error("Falha rede"), false)).toBe("Falha rede");
+  });
+});
+
+describe("tipo de agenda no retorno", () => {
+  const consulta = {
+    id: 1,
+    nome: "CONSULTA",
+    is_padrao: true,
+    is_active: true,
+    created_at: "",
+    updated_at: "",
+  };
+  const retorno = {
+    id: 2,
+    nome: "Retorno",
+    is_padrao: false,
+    is_active: true,
+    created_at: "",
+    updated_at: "",
+  };
+  const estetica = {
+    id: 3,
+    nome: "Estética",
+    is_padrao: false,
+    is_active: true,
+    created_at: "",
+    updated_at: "",
+  };
+
+  it("escolhe Consulta como padrão mesmo se is_padrao estiver em outro", () => {
+    expect(resolveDefaultNomeAgendaId([retorno, consulta])).toBe(1);
+  });
+
+  it("muda para Retorno quando o paciente está no prazo", () => {
+    expect(resolveNomeAgendaIdParaRetorno([consulta, retorno], 1, true)).toBe(2);
+  });
+
+  it("volta para Consulta quando sai do prazo", () => {
+    expect(resolveNomeAgendaIdParaRetorno([consulta, retorno], 2, false)).toBe(1);
+  });
+
+  it("não sobrescreve tipo cadastrado pelo cliente", () => {
+    expect(resolveNomeAgendaIdParaRetorno([consulta, retorno, estetica], 3, true)).toBe(3);
   });
 });

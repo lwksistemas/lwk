@@ -35,8 +35,8 @@ export function NomesAgendaModal({ open, onClose }: NomesAgendaModalProps) {
     <ClinicaBelezaPortraitModal
       open={open}
       onClose={onClose}
-      title="Nomes de Agenda"
-      subtitle="Cadastre os nomes usados ao agendar (ex: Estética, Dermatologia)"
+      title="Tipos de agenda"
+      subtitle="Consulta e Retorno já vêm no sistema. Cadastre outros tipos conforme a clínica (ex.: Estética, Avaliação)."
       icon={<CalendarDays size={20} className="text-purple-600 shrink-0 mt-0.5" />}
       footer={
         <div className="flex justify-between gap-2">

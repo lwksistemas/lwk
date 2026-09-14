@@ -5,6 +5,7 @@ import {
 } from "@/components/clinica-beleza/criar-agendamento/criar-agendamento-utils";
 import type { UseCriarAgendamentoReturn } from "@/hooks/clinica-beleza/useCriarAgendamento";
 import { entityName } from "@/lib/clinica-beleza-entities";
+import { sortTiposAgenda } from "@/lib/clinica-beleza-tipo-agenda";
 import { FieldLabel, SectionTitle } from "./CriarAgendamentoFormFields";
 
 type Props = Pick<
@@ -63,22 +64,22 @@ export function CriarAgendamentoAgendaSection({
 
   const campoNomeAgenda = nomeAgendaUnico ? (
     <div>
-      <FieldLabel>Nome da agenda *</FieldLabel>
+      <FieldLabel>Tipo de agenda *</FieldLabel>
       <div className="px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-gray-50/80 dark:bg-neutral-900/50 text-gray-900 dark:text-gray-100">
         {nomeAgendaUnico.nome}
       </div>
     </div>
   ) : (
     <div>
-      <FieldLabel>Nome da agenda *</FieldLabel>
+      <FieldLabel>Tipo de agenda *</FieldLabel>
       <select
         value={nomeAgendaId}
         onChange={(e) => setNomeAgendaId(e.target.value ? Number(e.target.value) : "")}
         className={inputClass}
         required
       >
-        <option value="">Selecione a agenda</option>
-        {nomesAgenda.map((a) => (
+        <option value="">Selecione o tipo</option>
+        {sortTiposAgenda(nomesAgenda).map((a) => (
           <option key={a.id} value={a.id}>
             {a.nome}
           </option>
@@ -86,7 +87,7 @@ export function CriarAgendamentoAgendaSection({
       </select>
       {nomesAgenda.length === 0 && (
         <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-          Cadastre nomes de agenda em Consultas → ícone de calendário.
+          Cadastre tipos de agenda em Consultas → ícone de calendário.
         </p>
       )}
     </div>

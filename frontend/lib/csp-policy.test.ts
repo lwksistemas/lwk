@@ -16,6 +16,10 @@ describe("CSP connect-src Memed", () => {
     expect(connect).toContain("https://v4-embedded.memed.com.br");
   });
 
+  it("libera a CNPJA como fallback de consulta de CNPJ", () => {
+    expect(extraConnectSrcOrigins()).toContain("https://publica.cnpj.ws");
+  });
+
   it("mantém os hosts clássicos memed.com.br", () => {
     const connect = extraConnectSrcOrigins();
     expect(connect).toContain("https://memed.com.br");

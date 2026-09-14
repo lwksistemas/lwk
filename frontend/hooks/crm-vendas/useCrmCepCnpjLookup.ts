@@ -58,7 +58,7 @@ export function useCrmCepCnpjLookup<T extends CrmCnpjFields>(
             uf: data.uf || f.uf,
           }));
         } else {
-          toast.warning('CNPJ não encontrado ou serviço indisponível.');
+          toast.warning('CNPJ não encontrado nas bases públicas. Preencha os dados manualmente.');
         }
       } catch {
         toast.error('Erro ao consultar CNPJ. Tente novamente.');

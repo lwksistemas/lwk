@@ -36,6 +36,7 @@ function extraConnectSrcOrigins() {
     "https://media.lwksistemas.com.br",
     "https://viacep.com.br",
     "https://brasilapi.com.br",
+    "https://publica.cnpj.ws",
     ...MEMED_HTTPS,
     ...MEMED_WSS,
     ...MEMED_TELEMETRIA,

@@ -1,5 +1,6 @@
 import { Pencil, Trash2 } from "lucide-react";
 import type { NomeAgendaItem } from "@/lib/clinica-beleza-api";
+import { isTipoAgendaSistema } from "@/lib/clinica-beleza-tipo-agenda";
 
 export function NomeAgendaListItem({
   item,
@@ -30,6 +31,11 @@ export function NomeAgendaListItem({
         <div className="space-y-2">
           <div className="min-w-0">
             <span className="font-medium text-sm text-gray-900 dark:text-gray-100 break-words">{item.nome}</span>
+            {isTipoAgendaSistema(item.nome) && (
+              <span className="ml-1.5 text-xs font-normal px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 dark:bg-neutral-700 dark:text-gray-200 whitespace-nowrap">
+                Sistema
+              </span>
+            )}
             {item.is_padrao && (
               <span className="ml-1.5 text-xs font-normal px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 whitespace-nowrap">
                 Padrão
@@ -57,6 +63,7 @@ export function NomeAgendaListItem({
             >
               <Pencil size={14} className="text-gray-500" />
             </button>
+            {!isTipoAgendaSistema(item.nome) && (
             <button
               type="button"
               onClick={() => onDelete(item.id)}
@@ -66,6 +73,7 @@ export function NomeAgendaListItem({
             >
               <Trash2 size={14} className="text-red-500" />
             </button>
+            )}
           </div>
         </div>
       )}

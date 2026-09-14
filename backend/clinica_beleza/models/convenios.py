@@ -44,11 +44,11 @@ class LocalAtendimento(LojaIsolationMixin, models.Model):
 class NomeAgenda(LojaIsolationMixin, models.Model):
     """Nome/categoria de agenda exibida no calendário e nas consultas (ex: Estética, Dermatologia)."""
 
-    nome = models.CharField(max_length=200, verbose_name="Nome da agenda")
+    nome = models.CharField(max_length=200, verbose_name="Tipo de agenda")
     is_padrao = models.BooleanField(
         default=False,
         verbose_name="Padrão",
-        help_text="Nome de agenda pré-selecionado ao criar agendamento.",
+        help_text="Tipo pré-selecionado ao criar agendamento (Consulta, salvo retorno no prazo).",
     )
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -60,8 +60,8 @@ class NomeAgenda(LojaIsolationMixin, models.Model):
         app_label = "clinica_beleza"
         db_table = "clinica_beleza_nomes_agenda"
         ordering = ["nome"]
-        verbose_name = "Nome da agenda"
-        verbose_name_plural = "Nomes de agenda"
+        verbose_name = "Tipo de agenda"
+        verbose_name_plural = "Tipos de agenda"
 
     def __str__(self):
         return self.nome

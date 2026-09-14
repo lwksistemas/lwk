@@ -1,4 +1,10 @@
 import type { LocalAtendimentoItem, NomeAgendaItem } from "@/lib/clinica-beleza-api";
+import {
+  findNomeAgendaByTipo,
+  isTipoAgendaSistema,
+  TIPO_AGENDA_CONSULTA,
+  TIPO_AGENDA_RETORNO,
+} from "@/lib/clinica-beleza-tipo-agenda";
 
 export type ModalCriarAgendamentoMode = "agenda" | "consulta";
 
@@ -35,8 +41,26 @@ export const CRIAR_AGENDAMENTO_TIME_SLOTS = buildTimeSlotOptions();
 
 export function resolveDefaultNomeAgendaId(items: NomeAgendaItem[]): number | "" {
   if (items.length === 0) return "";
+  const consulta = findNomeAgendaByTipo(items, TIPO_AGENDA_CONSULTA);
   const padrao = items.find((n) => n.is_padrao);
-  return padrao?.id ?? items[0].id;
+  return consulta?.id ?? padrao?.id ?? items[0].id;
+}
+
+/** Consulta/Retorno acompanham o prazo; tipos cadastrados pelo cliente não são sobrescritos. */
+export function resolveNomeAgendaIdParaRetorno(
+  items: NomeAgendaItem[],
+  currentId: number | "",
+  elegivel: boolean,
+): number | "" {
+  const current = items.find((n) => n.id === currentId);
+  if (current && !isTipoAgendaSistema(current.nome)) {
+    return currentId;
+  }
+  if (elegivel) {
+    const retorno = findNomeAgendaByTipo(items, TIPO_AGENDA_RETORNO);
+    if (retorno) return retorno.id;
+  }
+  return resolveDefaultNomeAgendaId(items);
 }
 
 export function resolveDefaultLocalId(items: LocalAtendimentoItem[]): number | "" {

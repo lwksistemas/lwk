@@ -104,5 +104,5 @@ class NomeAgendaSerializer(TextNormalizationMixin, serializers.ModelSerializer):
 
     def validate_nome(self, value):
         if not value or not value.strip():
-            raise serializers.ValidationError("O nome da agenda é obrigatório.")
+            raise serializers.ValidationError("O tipo de agenda é obrigatório.")
         return value.strip()

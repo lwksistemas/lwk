@@ -99,7 +99,7 @@ export function useCriarAgendamentoSubmit(
     }
     const agendaId = nomeAgendaId || resolveDefaultNomeAgendaId(nomesAgenda);
     if (!agendaId) {
-      setCreateError("Selecione o nome da agenda.");
+      setCreateError("Selecione o tipo de agenda.");
       return;
     }
     const localId = localAtendimentoId || resolveDefaultLocalId(locaisAtendimento);

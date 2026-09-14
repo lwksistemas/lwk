@@ -7,7 +7,7 @@ import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { formatCpf, formatTelefone } from "@/lib/format-br";
 import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
-import { splitPatientMatch } from "./localizar-cliente-utils";
+import { isLocalizarPainelExpandido, splitPatientMatch } from "./localizar-cliente-utils";
 import {
   useLocalizarClienteModal,
   type LocalizarClienteMode,
@@ -61,6 +61,7 @@ export function LocalizarClienteModal({
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
   const { query, setQuery, searching, resultados } = useLocalizarClienteModal(open);
+  const expandido = isLocalizarPainelExpandido(query);
 
   useEffect(() => {
     setMounted(true);
@@ -115,41 +116,67 @@ export function LocalizarClienteModal({
   };
 
   const mostrarLista = resultados.length > 0;
-  const mostrarVazio = query.trim().length >= 1 && !searching && resultados.length === 0;
+  const mostrarVazio = expandido && !searching && resultados.length === 0;
 
-  const modal = (
+  const overlay = (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/50"
+      className={`fixed inset-0 z-[200] bg-black/40 ${
+        expandido
+          ? "flex items-center justify-center p-3 sm:p-6"
+          : "flex items-start justify-center px-3 pt-20 sm:pt-24"
+      }`}
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-[min(96vw,72rem)] h-[min(78vh,40rem)] flex flex-col"
+        className={
+          expandido
+            ? "bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-[min(96vw,72rem)] h-[min(78vh,40rem)] flex flex-col"
+            : "bg-white dark:bg-neutral-900 rounded-xl shadow-xl border border-gray-200 dark:border-neutral-700 w-full max-w-xl p-3"
+        }
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal
         aria-label={title}
       >
-        <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Search size={16} style={{ color: "var(--cb-primary, #8B3D52)" }} />
-              <span className="truncate">{title}</span>
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5 truncate">{hint}</p>
+        {expandido ? (
+          <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Search size={16} style={{ color: "var(--cb-primary, #8B3D52)" }} />
+                <span className="truncate">{title}</span>
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5 truncate">{hint}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 shrink-0"
+              aria-label="Fechar"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 shrink-0"
-            aria-label="Fechar"
-          >
-            <X size={18} />
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2 px-1 pb-2">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{title}</p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 shrink-0"
+              aria-label="Fechar"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         <form
-          className="px-5 py-3 flex flex-col gap-3 min-h-0 flex-1 overflow-hidden"
+          className={
+            expandido
+              ? "px-5 py-3 flex flex-col gap-3 min-h-0 flex-1 overflow-hidden"
+              : "flex flex-col"
+          }
           autoComplete="off"
           onSubmit={(e) => e.preventDefault()}
         >
@@ -190,81 +217,67 @@ export function LocalizarClienteModal({
             ) : null}
           </div>
 
-          <div className="overflow-y-auto flex-1 min-h-0">
-            {query.trim().length < 1 ? (
-              <div className="h-full min-h-[12rem] flex flex-col items-center justify-center gap-3 text-center px-4">
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Digite o nome — a lista aparece na hora, em duas colunas.
+          {expandido ? (
+            <div className="overflow-y-auto flex-1 min-h-0">
+              {mostrarVazio ? (
+                <p className="text-sm text-gray-500 py-10 text-center">
+                  Nenhum cliente encontrado para “{query.trim()}”.
                 </p>
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  {["Nome", "CPF", "Telefone", "E-mail"].map((label) => (
-                    <span
-                      key={label}
-                      className="px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300"
-                    >
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : mostrarVazio ? (
-              <p className="text-sm text-gray-500 py-10 text-center">
-                Nenhum cliente encontrado para “{query.trim()}”.
-              </p>
-            ) : mostrarLista ? (
-              <>
-                <p className="text-xs text-gray-500 px-1 pb-2">
-                  {resultados.length} cliente{resultados.length === 1 ? "" : "s"} · setas e Enter
-                </p>
-                <ul
-                  ref={listRef}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-1.5"
-                  role="listbox"
-                >
-                  {resultados.map((p, index) => {
-                    const ativo = index === activeIndex;
-                    return (
-                      <li key={p.id} role="option" aria-selected={ativo} data-active={ativo ? "true" : "false"}>
-                        <button
-                          type="button"
-                          onClick={() => escolher(p)}
-                          onMouseEnter={() => setActiveIndex(index)}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                            ativo
-                              ? "bg-[#F5E6EA]/80 dark:bg-neutral-800"
-                              : "hover:bg-gray-50 dark:hover:bg-neutral-800"
-                          }`}
-                        >
-                          <PacienteAvatar fotoUrl={p.foto_url} name={entityName(p)} size="sm" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                              <HighlightedName text={entityName(p)} query={query} />
-                            </p>
-                            <p className="text-xs text-gray-500 truncate">{patientSubtitle(p)}</p>
-                          </div>
-                          <span
-                            className="shrink-0 text-[11px] font-medium"
-                            style={{ color: "var(--cb-primary, #8B3D52)" }}
+              ) : mostrarLista ? (
+                <>
+                  <p className="text-xs text-gray-500 px-1 pb-2">
+                    {resultados.length} cliente{resultados.length === 1 ? "" : "s"} · setas e Enter
+                  </p>
+                  <ul
+                    ref={listRef}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-1.5"
+                    role="listbox"
+                  >
+                    {resultados.map((p, index) => {
+                      const ativo = index === activeIndex;
+                      return (
+                        <li key={p.id} role="option" aria-selected={ativo} data-active={ativo ? "true" : "false"}>
+                          <button
+                            type="button"
+                            onClick={() => escolher(p)}
+                            onMouseEnter={() => setActiveIndex(index)}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                              ativo
+                                ? "bg-[#F5E6EA]/80 dark:bg-neutral-800"
+                                : "hover:bg-gray-50 dark:hover:bg-neutral-800"
+                            }`}
                           >
-                            {acao}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </>
-            ) : searching ? (
-              <div className="flex items-center justify-center gap-2 py-12 text-sm text-gray-500">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Buscando...
-              </div>
-            ) : null}
-          </div>
+                            <PacienteAvatar fotoUrl={p.foto_url} name={entityName(p)} size="sm" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                <HighlightedName text={entityName(p)} query={query} />
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">{patientSubtitle(p)}</p>
+                            </div>
+                            <span
+                              className="shrink-0 text-[11px] font-medium"
+                              style={{ color: "var(--cb-primary, #8B3D52)" }}
+                            >
+                              {acao}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              ) : searching ? (
+                <div className="flex items-center justify-center gap-2 py-12 text-sm text-gray-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Buscando...
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </form>
       </div>
     </div>
   );
 
-  return createPortal(modal, document.body);
+  return createPortal(overlay, document.body);
 }

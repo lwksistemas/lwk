@@ -34,3 +34,7 @@ export function splitPatientMatch(text: string, query: string): { text: string; 
     hit: part.toLocaleLowerCase("pt-BR") === needle,
   }));
 }
+
+export function isLocalizarPainelExpandido(query: string): boolean {
+  return query.trim().length >= 1;
+}

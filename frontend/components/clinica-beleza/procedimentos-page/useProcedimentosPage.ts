@@ -11,6 +11,7 @@ import { useLojaTheme } from "@/hooks/useLojaTheme";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
   buildProcedimentoCategoriaCards,
+  buildProcedimentosListQuery,
   filterProcedimentosList,
 } from "./procedimentos-page-utils";
 import type { Procedure } from "./procedimentos-page-types";
@@ -35,9 +36,12 @@ export function useProcedimentosPage({
   const { isNovo, editIdParam, isFormView } = useClinicaBelezaFormRouting();
 
   const moduleKey = defaultCategoria || "";
+  const categoriaInicial = searchParams.get("categoria") || "";
   const [showAllCategories, setShowAllCategories] = useState(false);
-  const [viewMode, setViewMode] = useState<ProcedimentosViewMode>("categorias");
-  const [categoriaFilter, setCategoriaFilter] = useState("");
+  const [viewMode, setViewMode] = useState<ProcedimentosViewMode>(() =>
+    categoriaInicial || searchParams.get("todos") === "1" ? "lista" : "categorias",
+  );
+  const [categoriaFilter, setCategoriaFilter] = useState(categoriaInicial);
 
   const presetCategoria =
     categoriaFilter ||
@@ -122,12 +126,24 @@ export function useProcedimentosPage({
     });
   };
 
+  const queryParams = useMemo(
+    () =>
+      buildProcedimentosListQuery({
+        viewMode,
+        categoriaFilter,
+        moduleKey,
+        showAllCategories,
+      }),
+    [viewMode, categoriaFilter, moduleKey, showAllCategories],
+  );
+
   const { list, setList, loading, load, page, setPage, totalPages, pageSize, totalCount } =
     useClinicaBelezaEntityList<Procedure>({
       path: "/procedures/",
       fetchOffline: buscarProcedimentosOffline,
       saveOffline: salvarProcedimentosOffline,
-      reloadDeps: [moduleKey, showAllCategories],
+      queryParams,
+      reloadDeps: [moduleKey, showAllCategories, categoriaFilter, viewMode],
     });
 
   const matrix = useProcedimentosMatrix(list.length);

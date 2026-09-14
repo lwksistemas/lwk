@@ -46,27 +46,60 @@ def _normalize_categoria(value: str) -> str:
     )
 
 
-# Aliases alinhados ao frontend (clinica-beleza-categories.ts)
-_MODULE_CATEGORIA_ALIASES: dict[str, list[str]] = {
-    "soroterapia": ["soroterapia", "soro"],
-    "estetica": ["estetica", "estética", "facial", "corporal", "capilar"],
+# Grafias da MESMA categoria (não misturar facial/corporal em "estetica").
+_CATEGORIA_SPELLINGS: dict[str, list[str]] = {
+    "estetica": ["estetica", "estética", "Estética (geral)"],
+    "soroterapia": ["soroterapia"],
     "facial": ["facial"],
     "corporal": ["corporal"],
     "capilar": ["capilar"],
     "depilacao": ["depilacao", "depilação"],
+    "injetavel": ["injetavel", "injetável"],
+    "geral": ["geral"],
+    "outro": ["outro"],
+}
+
+# Módulo estética: especialidades irmãs. Só para ?modulo=
+_MODULE_CATEGORIA_ALIASES: dict[str, list[str]] = {
+    "soroterapia": ["soroterapia", "soro"],
+    "estetica": [
+        "estetica", "estética", "facial", "corporal", "capilar",
+        "depilacao", "depilação", "injetavel", "injetável",
+    ],
 }
 
 
-def _filter_procedures_by_categoria(queryset, categoria: str):
-    categoria = (categoria or "").strip()
-    if not categoria:
-        return queryset
+def categoria_lookup_terms(categoria: str) -> list[str]:
     key = _normalize_categoria(categoria)
-    aliases = _MODULE_CATEGORIA_ALIASES.get(key, [categoria])
+    if not key:
+        return []
+    return list(_CATEGORIA_SPELLINGS.get(key, [categoria, key]))
+
+
+def _filter_by_categoria_terms(queryset, terms: list[str], *, exact: bool):
+    if not terms:
+        return queryset
     q = Q()
-    for alias in aliases:
-        q |= Q(categoria__icontains=alias)
+    lookup = "categoria__iexact" if exact else "categoria__icontains"
+    for term in terms:
+        q |= Q(**{lookup: term})
     return queryset.filter(q)
+
+
+def _filter_procedures_by_categoria(queryset, categoria: str):
+    """Filtra uma categoria específica (Estética geral ≠ Facial)."""
+    terms = categoria_lookup_terms(categoria)
+    return _filter_by_categoria_terms(queryset, terms, exact=True)
+
+
+def _filter_procedures_by_modulo(queryset, modulo: str):
+    """Filtra o módulo inteiro (estética inclui facial, corporal, etc.)."""
+    modulo = (modulo or "").strip()
+    if not modulo:
+        return queryset
+    key = _normalize_categoria(modulo)
+    aliases = _MODULE_CATEGORIA_ALIASES.get(key, [modulo])
+    return _filter_by_categoria_terms(queryset, aliases, exact=False)
 
 
 class ProcedureListView(APIView):
@@ -79,11 +112,14 @@ class ProcedureListView(APIView):
     def get(self, request):
         active_only = request.query_params.get("active", "true").lower() == "true"
         categoria = (request.query_params.get("categoria") or "").strip()
+        modulo = (request.query_params.get("modulo") or "").strip()
         queryset = Procedure.objects.select_related("termo_template").all().order_by("nome")
         if active_only:
             queryset = queryset.filter(is_active=True)
         if categoria:
             queryset = _filter_procedures_by_categoria(queryset, categoria)
+        elif modulo:
+            queryset = _filter_procedures_by_modulo(queryset, modulo)
         search = (request.query_params.get("search") or "").strip()
         if search:
             queryset = queryset.filter(Q(nome__icontains=search) | Q(descricao__icontains=search))

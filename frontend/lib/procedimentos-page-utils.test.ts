@@ -3,6 +3,7 @@ import {
   buildPrecosConvenioPayload,
   buildPrecosMapFromMatrix,
   buildProcedimentoSaveBody,
+  buildProcedimentosListQuery,
   filterProcedimentosList,
   formatPrecoCelula,
   mapPrecosConvenioFromApi,
@@ -97,6 +98,30 @@ describe("filterProcedimentosList", () => {
     const { filteredList } = filterProcedimentosList(list, "", false, "facial");
     expect(filteredList).toHaveLength(1);
     expect(filteredList[0].id).toBe(1);
+  });
+});
+
+describe("buildProcedimentosListQuery", () => {
+  it("na grade pede a lista completa para contar categorias", () => {
+    expect(buildProcedimentosListQuery({ viewMode: "categorias", categoriaFilter: "" })).toEqual({
+      all: 1,
+    });
+  });
+
+  it("na lista envia a categoria para a API paginar o recorte certo", () => {
+    expect(
+      buildProcedimentosListQuery({ viewMode: "lista", categoriaFilter: "estetica" }),
+    ).toEqual({ categoria: "estetica" });
+  });
+
+  it("ver todos no módulo envia modulo, não a categoria irmã", () => {
+    expect(
+      buildProcedimentosListQuery({
+        viewMode: "lista",
+        categoriaFilter: "",
+        moduleKey: "estetica",
+      }),
+    ).toEqual({ modulo: "estetica" });
   });
 });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isLocalizarPainelExpandido,
   patientSearchRank,
   sortPatientSearchResults,
   splitPatientMatch,
@@ -32,5 +33,13 @@ describe("splitPatientMatch", () => {
   it("marca o trecho buscado", () => {
     const parts = splitPatientMatch("RENATA AMICCI", "rena");
     expect(parts.some((p) => p.hit && p.text.toLowerCase() === "rena")).toBe(true);
+  });
+});
+
+describe("isLocalizarPainelExpandido", () => {
+  it("só abre o painel depois de digitar", () => {
+    expect(isLocalizarPainelExpandido("")).toBe(false);
+    expect(isLocalizarPainelExpandido("  ")).toBe(false);
+    expect(isLocalizarPainelExpandido("l")).toBe(true);
   });
 });

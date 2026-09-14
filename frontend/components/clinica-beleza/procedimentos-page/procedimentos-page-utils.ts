@@ -77,6 +77,18 @@ export function buildProcedimentoSaveBody(
   };
 }
 
+export function buildProcedimentosListQuery(opts: {
+  viewMode: "categorias" | "lista";
+  categoriaFilter: string;
+  moduleKey?: string;
+  showAllCategories?: boolean;
+}): Record<string, string | number> {
+  if (opts.viewMode !== "lista") return { all: 1 };
+  if (opts.categoriaFilter) return { categoria: opts.categoriaFilter };
+  if (opts.moduleKey && !opts.showAllCategories) return { modulo: opts.moduleKey };
+  return {};
+}
+
 export function filterProcedimentosList(
   list: Procedure[],
   moduleKey: string,

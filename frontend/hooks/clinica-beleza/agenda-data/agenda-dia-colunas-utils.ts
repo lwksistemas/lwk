@@ -437,6 +437,21 @@ export function templateLarguraColuna(
   return `minmax(${defaultWidth}px, 1fr)`;
 }
 
+/** Um profissional no modo dia: a grade ocupa o espaço; o calendário fica na barra estreita. */
+export function deveExpandirLateralAgenda(numColunas: number, hasCustomWidths: boolean): boolean {
+  return hasCustomWidths && numColunas > 1;
+}
+
+export function templateColunaAgendaDia(
+  storedPx: number | undefined,
+  defaultWidth: number,
+  hasCustomWidths: boolean,
+  numColunas: number,
+): string {
+  if (numColunas <= 1) return `minmax(${defaultWidth}px, 1fr)`;
+  return templateLarguraColuna(storedPx, defaultWidth, hasCustomWidths);
+}
+
 export function snapshotLargurasColunas(grid: HTMLElement | null): Record<string, number> {
   const snapshot: Record<string, number> = {};
   if (!grid) return snapshot;

@@ -6,6 +6,8 @@ import {
   clampLarguraColuna,
   snapshotLargurasColunas,
   templateLarguraColuna,
+  templateColunaAgendaDia,
+  deveExpandirLateralAgenda,
   clampMinutosInicio,
   colunasProfissionaisDia,
   combinarDiaEHorario,
@@ -239,6 +241,21 @@ describe("templateLarguraColuna", () => {
   it("trava todas em px para o calendário lateral crescer", () => {
     expect(templateLarguraColuna(undefined, 280, true)).toBe("280px");
     expect(templateLarguraColuna(220, 280, true)).toBe("220px");
+  });
+});
+
+describe("deveExpandirLateralAgenda", () => {
+  it("não estica o calendário quando há um profissional só", () => {
+    expect(deveExpandirLateralAgenda(1, true)).toBe(false);
+    expect(deveExpandirLateralAgenda(3, true)).toBe(true);
+    expect(deveExpandirLateralAgenda(3, false)).toBe(false);
+  });
+});
+
+describe("templateColunaAgendaDia", () => {
+  it("um profissional preenche o espaço mesmo com largura salva", () => {
+    expect(templateColunaAgendaDia(320, 280, true, 1)).toBe("minmax(280px, 1fr)");
+    expect(templateColunaAgendaDia(320, 280, true, 3)).toBe("320px");
   });
 });
 

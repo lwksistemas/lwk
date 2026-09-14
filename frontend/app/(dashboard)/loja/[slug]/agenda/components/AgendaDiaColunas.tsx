@@ -8,6 +8,7 @@ import { formatClinicaHora } from "@/lib/clinica-beleza-datetime";
 import {
   addDaysIso,
   colunasProfissionaisDia,
+  deveExpandirLateralAgenda,
   eventosDoDiaNaColuna,
   horasGradeAgenda,
   minutesToHm,
@@ -15,6 +16,7 @@ import {
   sameDayIso,
   slotDateFromMinutes,
   snapMinutos,
+  templateColunaAgendaDia,
   estiloCardStatusAgenda,
   estiloInlineCardAgenda,
   rotuloStatusCardAgenda,
@@ -116,6 +118,7 @@ export function AgendaDiaColunas({
     hasCustomWidths,
   } = useAgendaColunaLargura("agenda-col-w-dia", COL_MIN_WIDTH);
   const deveIgnorarClick = () => deveIgnorarArrasto() || deveIgnorarLargura();
+  const expandirLateral = deveExpandirLateralAgenda(colunas.length, hasCustomWidths);
 
   useEffect(() => {
     onArrastoAtivo?.(Boolean(arrasto) || arrastandoLargura);
@@ -188,13 +191,19 @@ export function AgendaDiaColunas({
         <div className="flex flex-1 min-h-0">
           <div
             className={`min-h-0 overflow-auto agenda-scroll-root flex-1 ${
-              hasCustomWidths ? "lg:flex-none lg:max-w-[calc(100%-16rem)]" : ""
+              expandirLateral ? "lg:flex-none lg:max-w-[calc(100%-16rem)]" : ""
             }`}
           >
             <div
-              className={`grid h-full ${hasCustomWidths ? "w-max min-w-full lg:min-w-0" : "min-w-full"}`}
+              className={`grid h-full ${expandirLateral ? "w-max min-w-full lg:min-w-0" : "min-w-full"}`}
               style={{
-                gridTemplateColumns: colunas.map((col) => template(`prof-${col.id}`)).join(" "),
+                gridTemplateColumns: colunas
+                  .map((col) =>
+                    colunas.length <= 1
+                      ? templateColunaAgendaDia(undefined, COL_MIN_WIDTH, hasCustomWidths, 1)
+                      : template(`prof-${col.id}`),
+                  )
+                  .join(" "),
               }}
             >
               {colunas.map((col) => {
@@ -390,7 +399,7 @@ export function AgendaDiaColunas({
             hoverDiaIso={arrasto?.modo === "mover" ? arrasto.hoverDiaIso : null}
             deveIgnorarClick={deveIgnorarClick}
             onOpenEvent={onOpenEvent}
-            expandToFill={hasCustomWidths}
+            expandToFill={expandirLateral}
           />
         </div>
       )}

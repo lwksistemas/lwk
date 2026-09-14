@@ -51,7 +51,7 @@ export default function NovaContaPage() {
     try {
       const data = await consultaCnpj(formData.cnpj);
       if (!data) {
-        setFormErro('CNPJ não encontrado ou serviço indisponível.');
+        setFormErro('CNPJ não encontrado nas bases públicas. Preencha os dados manualmente.');
         return;
       }
       setFormData((f) => ({
@@ -59,6 +59,7 @@ export default function NovaContaPage() {
         razao_social: data.razao_social || f.razao_social,
         nome: data.nome_fantasia || data.razao_social || f.nome,
         email: data.email || f.email,
+        telefone: data.telefone ? formatTelefone(data.telefone) : f.telefone,
         cep: data.cep || f.cep,
         logradouro: data.logradouro || f.logradouro,
         numero: data.numero || f.numero,

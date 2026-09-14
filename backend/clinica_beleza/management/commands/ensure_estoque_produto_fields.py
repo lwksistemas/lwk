@@ -9,11 +9,12 @@ from contextlib import suppress
 from django.core.management.base import BaseCommand
 from django.db import connection
 
-from clinica_beleza.schema_ensure import queryset_lojas_clinica_beleza, (
+from clinica_beleza.schema_ensure import (
     CONSULTA_TABLE,
     PRODUTO_ESTOQUE_TABLE,
     column_exists,
     ensure_consulta_produto_utilizado_table,
+    queryset_lojas_clinica_beleza,
     table_exists,
 )
 

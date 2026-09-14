@@ -32,13 +32,8 @@ export const DEFAULT_COLUNAS_CONSULTAS = [
 export function resolveColunasConsultas(
   keys: string[] | undefined | null,
 ): ConsultasColunaDef[] {
-  // Preferências antigas sem "numero": inclui Nº no início da listagem.
-  let resolvedKeys = keys;
-  if (keys && keys.length > 0 && !keys.includes("numero")) {
-    resolvedKeys = ["numero", ...keys];
-  }
   return colunasVisiveisFromConfig(
-    resolvedKeys,
+    keys,
     COLUNAS_CONSULTAS_DISPONIVEIS,
     DEFAULT_COLUNAS_CONSULTAS,
   );

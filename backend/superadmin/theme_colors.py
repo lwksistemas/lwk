@@ -50,6 +50,7 @@ def sanitize_agenda_status_colors(raw: Any) -> dict:
 
 
 COLUNAS_CONSULTAS_ALLOWED = frozenset({
+    "numero",
     "patient",
     "agenda",
     "procedure",

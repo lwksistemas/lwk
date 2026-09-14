@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { searchClinicaPatients } from "@/lib/clinica-beleza-cadastros-api";
 import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
+import { sortPatientSearchResults } from "./localizar-cliente-utils";
 
 export type LocalizarClienteMode = "edit" | "historico";
 
@@ -49,7 +50,7 @@ export function useLocalizarClienteModal(open: boolean) {
         try {
           const rows = await searchClinicaPatients(q);
           if (requestId !== requestIdRef.current) return;
-          setResultados(rows);
+          setResultados(sortPatientSearchResults(rows, q));
         } catch {
           if (requestId !== requestIdRef.current) return;
           setResultados([]);
@@ -57,7 +58,7 @@ export function useLocalizarClienteModal(open: boolean) {
           if (requestId === requestIdRef.current) setSearching(false);
         }
       })();
-    }, 300);
+    }, 150);
 
     return () => {
       if (debounceRef.current != null) {

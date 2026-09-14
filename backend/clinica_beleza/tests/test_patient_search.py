@@ -1,7 +1,17 @@
 """Busca de pacientes: nome por trecho e CPF com/sem pontuação."""
+from django.test import SimpleTestCase
+
 from clinica_beleza.models import Patient
-from clinica_beleza.patient_search import apply_patient_search, digits_only
+from clinica_beleza.patient_search import apply_patient_search, digits_only, patient_search_rank
 from clinica_beleza.tests.tenant_test_case import ClinicaBelezaIntegrationTestCase
+
+
+class PatientSearchRankTest(SimpleTestCase):
+    def test_prioriza_nome_que_comeca_com_o_termo(self):
+        self.assertEqual(patient_search_rank("RENATA AMICCI", "renata"), 0)
+        self.assertEqual(patient_search_rank("ELISETE PRIMA RENATA CLIENTE", "renata"), 1)
+        self.assertEqual(patient_search_rank("LUIZ BOM", "luiz"), 0)
+        self.assertEqual(patient_search_rank("ANA LUIZA JUSTINO", "luiz"), 1)
 
 
 class PatientSearchTest(ClinicaBelezaIntegrationTestCase):
@@ -41,3 +51,9 @@ class PatientSearchTest(ClinicaBelezaIntegrationTestCase):
     def test_digits_only(self):
         self.assertEqual(digits_only("123.456.789-00"), "12345678900")
         self.assertEqual(digits_only("12345678900"), "12345678900")
+
+    def test_busca_ordena_quem_comeca_com_o_termo(self):
+        Patient.objects.create(nome="SILVA COSTA", loja_id=self.loja.id)
+        nomes = self._buscar("silva")
+        self.assertEqual(nomes[0], "SILVA COSTA")
+        self.assertIn("MARIA SILVA SANTOS", nomes)

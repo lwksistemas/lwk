@@ -4,9 +4,8 @@ from contextlib import suppress
 from django.core.management.base import BaseCommand
 from django.db import connections
 
-from clinica_beleza.schema_ensure import ensure_retorno_gratuito_tables, table_exists
+from clinica_beleza.schema_ensure import queryset_lojas_clinica_beleza, ensure_retorno_gratuito_tables, table_exists
 from core.db_config import ensure_loja_database_config
-from superadmin.models import Loja
 
 
 class Command(BaseCommand):
@@ -17,7 +16,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         slug_filter = (options.get("slug") or "").strip().lower()
-        lojas = Loja.objects.filter(is_active=True, database_created=True)
+        lojas = queryset_lojas_clinica_beleza()
         ok = skip = 0
 
         for loja in lojas:

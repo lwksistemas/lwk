@@ -9,14 +9,13 @@ from contextlib import suppress
 from django.core.management.base import BaseCommand
 from django.db import connection
 
-from clinica_beleza.schema_ensure import (
+from clinica_beleza.schema_ensure import queryset_lojas_clinica_beleza, (
     CONSULTA_TABLE,
     PRODUTO_ESTOQUE_TABLE,
     column_exists,
     ensure_consulta_produto_utilizado_table,
     table_exists,
 )
-from superadmin.models import Loja
 
 
 class Command(BaseCommand):
@@ -28,7 +27,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         slug_filter = (options.get("slug") or "").strip().lower()
         lojas = (
-            Loja.objects.filter(is_active=True)
+            queryset_lojas_clinica_beleza()
             .exclude(database_name="")
             .exclude(database_name__isnull=True)
         )

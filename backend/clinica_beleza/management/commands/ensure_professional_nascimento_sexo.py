@@ -14,9 +14,8 @@ from contextlib import suppress
 from django.core.management.base import BaseCommand
 from django.db import connections
 
-from clinica_beleza.schema_ensure import column_exists, table_exists
+from clinica_beleza.schema_ensure import queryset_lojas_clinica_beleza, column_exists, table_exists
 from core.db_config import ensure_loja_database_config
-from superadmin.models import Loja
 
 MIGRATION_NAME = "0024_professional_nascimento_sexo"
 COLUNAS = (
@@ -35,7 +34,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         slug_filter = (options.get("slug") or "").strip().lower()
-        lojas = Loja.objects.filter(is_active=True, database_created=True)
+        lojas = queryset_lojas_clinica_beleza()
         ok = 0
         skip = 0
 

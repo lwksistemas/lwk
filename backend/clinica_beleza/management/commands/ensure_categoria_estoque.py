@@ -11,8 +11,7 @@ from contextlib import suppress
 from django.core.management.base import BaseCommand
 from django.db import connection
 
-from clinica_beleza.schema_ensure import column_exists, table_exists
-from superadmin.models import Loja
+from clinica_beleza.schema_ensure import queryset_lojas_clinica_beleza, column_exists, table_exists
 
 CATEGORIAS_PADRAO = [
     ("injetavel", "Injetável", 1),
@@ -44,7 +43,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         slug_filter = (options.get("slug") or "").strip().lower()
         lojas = (
-            Loja.objects.filter(is_active=True, database_created=True)
+            queryset_lojas_clinica_beleza()
             .exclude(database_name="")
             .exclude(database_name__isnull=True)
             .select_related("tipo_loja")

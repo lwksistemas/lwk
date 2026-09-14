@@ -144,6 +144,17 @@ def get_apps_esperados_para_loja(loja) -> list[str]:
     return base + TIPO_LOJA_EXTRA_APPS.get(tipo_slug, [])
 
 
+def tipo_usa_app(tipo_slug: str, app_label: str) -> bool:
+    return app_label in TIPO_LOJA_EXTRA_APPS.get((tipo_slug or "").strip(), [])
+
+
+def apps_permitidos_para_tipo(tipo_slug: str) -> frozenset[str]:
+    """Apps que podem migrar no schema de uma loja deste tipo."""
+    base = {"contenttypes", "auth", "stores", "products"}
+    extra = TIPO_LOJA_EXTRA_APPS.get((tipo_slug or "").strip(), [])
+    return frozenset(base) | frozenset(extra)
+
+
 class DatabaseSchemaService:
     """Serviço responsável por criar e configurar schemas de banco de dados
     """

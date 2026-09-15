@@ -16,9 +16,13 @@ class AsaasConfigPostTests(SimpleTestCase):
         config.webhook_token_masked = "tttttt...tttt"
         return config
 
+    @patch(
+        "asaas_integration.webhook_asaas_sync.sincronizar_token_webhook_asaas",
+        return_value={"success": True, "webhook_id": "wh_1"},
+    )
     @patch("asaas_integration.views_config.config_views._asaas_webhook_url", return_value="https://api.example/api/asaas/webhook/")
     @patch("asaas_integration.views_config.config_views.AsaasConfig")
-    def test_salva_so_o_token_e_mantem_enabled(self, MockCfg, _url):
+    def test_salva_so_o_token_e_mantem_enabled(self, MockCfg, _url, mock_sync):
         config = self._config()
         MockCfg.resolve_webhook_token.return_value = "t" * 40
         MockCfg.resolve_api_key.return_value = "chave"
@@ -30,6 +34,8 @@ class AsaasConfigPostTests(SimpleTestCase):
         self.assertTrue(config.enabled)
         config.save.assert_called_once()
         self.assertTrue(resp.data["webhook_token_configured"])
+        mock_sync.assert_called_once()
+        self.assertTrue(resp.data["asaas_webhook_sync"]["success"])
 
     @patch("asaas_integration.views_config.config_views._asaas_webhook_url", return_value="https://api.example/api/asaas/webhook/")
     @patch("asaas_integration.views_config.config_views.AsaasConfig")

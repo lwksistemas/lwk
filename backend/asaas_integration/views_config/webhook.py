@@ -12,6 +12,7 @@ from ._common import REQUESTS_AVAILABLE, AsaasClient, IsSuperAdmin, _asaas_webho
 logger = logging.getLogger(__name__)
 
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([])  # Webhook público, sem autenticação
 def asaas_webhook(request):

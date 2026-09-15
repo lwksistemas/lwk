@@ -176,15 +176,37 @@ def preview_catalogo_arquivo(conteudo: str) -> list[dict]:
 CATALOGO_PDF_MAX_BYTES = 8 * 1024 * 1024
 
 _PRECO_RE = re.compile(r"R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})")
+_PRECO_SO_LINHA_RE = re.compile(r"^(?:R\$\s*)?(\d{1,3}(?:\.\d{3})?,\d{2})$")
+_PRECO_FIM_RE = re.compile(r"(\d{1,3}(?:\.\d{3})?,\d{2})\s*$")
+_CODIGO_LINHA_RE = re.compile(r"(?i)^c[oó]digo\s*:?\s*(\d{2,5})$")
 _NOME_RUIDO_RE = re.compile(
     r"^(área|area|técnica|tecnica|volume|intervalo|apresentação|apresentacao|"
     r"aplicação|aplicacao|local|agulha|formulação|formulacao|certificado|"
     r"1 frasco|1 caixa|2 frascos|5 frascos|5 ampolas|10 ampolas|uso |"
     r"protocolo|diluidor para|promove |diminuição |tratamento da|"
-    r"anti-aging|regeneração|rejuvenescimento|semana #|intramuscular|"
-    r"endovenos)",
+    r"anti-aging|regeneração da|rejuvenescimento da|semana #|intramuscular|"
+    r"endovenos|ativos para|qualidade|certificada|testado|lançamento|"
+    r"caixa com|preço por sessão|preco por sessao|embalagem econômica|"
+    r"embalagem economica|dermatologicamente|rev\.|cód ativos)",
     re.I,
 )
+_INGREDIENTE_SOLTO = {
+    "zinco", "cobre", "luteina", "luteína", "astaxantina", "picnogenol",
+    "licopeno", "biotina", "fitase", "colina", "taurina", "de calcio",
+    "de cálcio", "pantotenato", "selenometionina", "feno grego",
+    "cisteina", "cisteína", "vitamina c", "vitamina a", "vitamina b6",
+    "magnesio", "magnésio", "laranja moro", "citrus sinenses",
+}
+_TITULO_SKIP = {
+    "ativos para", "ativos", "ativo", "aplicacao id", "aplicacao sc",
+    "aplicacao im", "qualidade", "certificada", "testado",
+    "dermatologicamente", "lancamento", "formula", "formulacao",
+    "formula exclusiva", "fase 1", "fase 2", "2 fases de", "tratamento",
+    "beleza em outro nivel", "uso facial", "uso corporal", "face",
+    "pescoco", "busto", "maos", "labios", "indicado tambem", "para os",
+    "caixa com", "2 sessoes", "preco por sessao", "embalagem economica",
+    "sobre nos", "indicado", "ativo",
+}
 _SECOES_CATALOGO = {
     "estética",
     "estetica",
@@ -281,6 +303,8 @@ def _eh_nome_produto(line: str) -> bool:
         return False
     if s.startswith("--") or s.startswith("+"):
         return False
+    if low in _INGREDIENTE_SOLTO:
+        return False
     if not s[0].isalpha():
         return False
     if ":" in s or "tecnologia" in low or " molecula" in low:
@@ -301,12 +325,226 @@ def _linhas_catalogo(texto: str) -> list[str]:
     texto = (texto or "").replace("\r\n", "\n").replace("\r", "\n")
     texto = re.sub(r"(?i)(garantia)\s*(R\$)", r"\1\n\2", texto)
     texto = re.sub(r"(R\$\s*\d[\d.]*,\d{2})(?=\S)", r"\1\n", texto)
-    linhas: list[str] = []
+    brutas: list[str] = []
     for raw in texto.splitlines():
         line = re.sub(r"[\t|]+", " ", raw).strip()
         if line:
-            linhas.append(line)
+            brutas.append(line)
+    linhas: list[str] = []
+    i = 0
+    while i < len(brutas):
+        if brutas[i] == "R$" and i + 1 < len(brutas) and _PRECO_SO_LINHA_RE.match(brutas[i + 1]):
+            linhas.append(f"R$ {brutas[i + 1]}")
+            i += 2
+            continue
+        linhas.append(brutas[i])
+        i += 1
     return linhas
+
+
+def _preco_da_linha(line: str) -> str | None:
+    m = _PRECO_SO_LINHA_RE.match((line or "").strip())
+    if m:
+        return m.group(1)
+    m = _PRECO_RE.search(line or "")
+    return m.group(1) if m else None
+
+
+def _eh_ingrediente(line: str) -> bool:
+    s = re.sub(r"\s+", " ", (line or "")).strip()
+    if re.search(r"\d+\s*(mg|ml|mcg|ui|%|amp)\b", s, re.I) and not _CODIGO_LINHA_RE.match(s):
+        return True
+    if s.startswith("+") or s.startswith("*ATIVOS"):
+        return True
+    return False
+
+
+def _juntar_titulo(partes: list[str]) -> str:
+    if not partes:
+        return ""
+    out = partes[0].rstrip()
+    for p in partes[1:]:
+        if out.endswith("-"):
+            out = out + p.lstrip()
+        else:
+            out = f"{out} {p}"
+    return re.sub(r"\s+", " ", out).strip()
+
+
+def _eh_titulo_protocolo(line: str) -> bool:
+    s = re.sub(r"\s+", " ", (line or "")).strip(" -–—|")
+    if not s or len(s) > 55:
+        return False
+    if _preco_da_linha(s) or _CODIGO_LINHA_RE.match(s):
+        return False
+    if _NOME_RUIDO_RE.search(s) or _eh_ingrediente(s):
+        return False
+    if re.match(r"^\d+\s+sess", s, re.I):
+        return False
+    low = _norm_nome(s)
+    if low in _SECOES_CATALOGO or low in _TITULO_SKIP or low in _INGREDIENTE_SOLTO:
+        return False
+    if s.startswith("+") or s.startswith("-"):
+        return False
+    if _eh_nome_produto(s):
+        return True
+    words = [w for w in re.split(r"[+\s]+", s) if w and w[0].isalpha()]
+    if words and all(w[0].isupper() for w in words) and 3 <= len(s) <= 55:
+        return True
+    letters = [c for c in s if c.isalpha()]
+    if s.endswith("-") and s[0].isalpha() and len(s) <= 20:
+        return True
+    if len(letters) >= 3 and s[0].isalpha() and sum(1 for c in letters if c.isupper()) / len(letters) >= 0.55:
+        return True
+    return bool(re.match(r"^(NC|50)\b", s, re.I))
+
+
+def _coletar_titulo(linhas: list[str], start: int, limite: int, step: int) -> str:
+    bloco: list[str] = []
+    j = start
+    while (step < 0 and j >= limite) or (step > 0 and j < limite):
+        if abs(start - j) > 10:
+            break
+        s = linhas[j]
+        if _CODIGO_LINHA_RE.match(s):
+            break
+        if _preco_da_linha(s):
+            if bloco:
+                break
+            j += step
+            continue
+        if re.search(r"(?i)c[oó]d\s+ativos", s) or _NOME_RUIDO_RE.search(s):
+            j += step
+            continue
+        if _eh_titulo_protocolo(s):
+            bloco.append(s)
+            if len(bloco) >= 4:
+                break
+            j += step
+            continue
+        if bloco:
+            break
+        j += step
+    if step < 0:
+        bloco.reverse()
+    return _juntar_titulo(bloco)
+
+
+def _melhor_nome(*nomes: str) -> str:
+    valid = []
+    for n in nomes:
+        if not n:
+            continue
+        low = _norm_nome(n)
+        if low in _INGREDIENTE_SOLTO or low in _TITULO_SKIP:
+            continue
+        if re.match(r"^\d{3,}", n) or "(" in n:
+            continue
+        valid.append(n)
+    if not valid:
+        return ""
+    return max(valid, key=lambda n: (_forca_nome(n), len(n)))
+
+
+def _preco_proximo_codigo(linhas: list[str], idx: int, prev: int, nxt: int) -> str | None:
+    antes_j = antes_p = None
+    for j in range(idx - 1, prev - 1, -1):
+        p = _preco_da_linha(linhas[j])
+        if p:
+            antes_j, antes_p = j, p
+            break
+    depois_j = depois_p = None
+    for j in range(idx + 1, nxt):
+        if _CODIGO_LINHA_RE.match(linhas[j]):
+            break
+        p = _preco_da_linha(linhas[j])
+        if p:
+            depois_j, depois_p = j, p
+            break
+    if antes_p and depois_p:
+        return antes_p if (idx - antes_j) <= (depois_j - idx) else depois_p
+    return antes_p or depois_p
+
+
+def _limpar_nome_tabela(resto: str) -> str:
+    s = re.sub(r"\s+", " ", resto or "").strip(" *")
+    s = re.sub(r"\b(?:EV|IM|SC|ID)(?:/(?:EV|IM|SC|ID))*\b", " ", s, flags=re.I)
+    return re.sub(r"\s+", " ", s).strip(" -.*")
+
+
+def _parece_linha_tabela(resto: str) -> bool:
+    return bool(re.search(r"(?i)(\bAMP\b|\bFR\b|Cx\s*\d|fras\.|amp\.)", resto or ""))
+
+
+def _linha_tabela_completa(resto: str) -> bool:
+    if not resto or not _parece_linha_tabela(resto):
+        return False
+    return bool(_PRECO_FIM_RE.search(resto))
+
+
+def _fechar_item_tabela(itens: list[dict], usados: set[str], codigo: str, resto: str) -> None:
+    m_fim = _PRECO_FIM_RE.search(resto or "")
+    if not m_fim or not _parece_linha_tabela(resto):
+        return
+    nome = _limpar_nome_tabela(resto[: m_fim.start()])
+    if nome:
+        _acrescentar_item_catalogo(itens, usados, nome, m_fim.group(1), codigo=codigo)
+
+
+def _parse_tabela_ativos(linhas: list[str], itens: list[dict], usados: set[str]) -> None:
+    """Tabela CÓD / ATIVOS / VALOR (ortomolecular PHD)."""
+    na_tabela = False
+    pendente_cod: str | None = None
+    pendente_txt = ""
+    pendente_linhas = 0
+    for line in linhas:
+        if re.search(r"(?i)c[oó]d\s+ativos", line):
+            na_tabela = True
+            continue
+        if not na_tabela:
+            continue
+        m = re.match(r"^(\d{3,4})(?:\s+\*?\s*(.*))?$", line)
+        if m and not (m.group(2) or "").startswith(","):
+            if pendente_cod:
+                _fechar_item_tabela(itens, usados, pendente_cod, pendente_txt)
+            pendente_cod = m.group(1)
+            pendente_txt = (m.group(2) or "").strip()
+            pendente_linhas = 1
+            if _linha_tabela_completa(pendente_txt):
+                _fechar_item_tabela(itens, usados, pendente_cod, pendente_txt)
+                pendente_cod = None
+                pendente_txt = ""
+            continue
+        if pendente_cod:
+            pendente_txt = f"{pendente_txt} {line}".strip()
+            pendente_linhas += 1
+            if _linha_tabela_completa(pendente_txt):
+                _fechar_item_tabela(itens, usados, pendente_cod, pendente_txt)
+                pendente_cod = None
+                pendente_txt = ""
+            elif pendente_linhas >= 8:
+                pendente_cod = None
+                pendente_txt = ""
+    if pendente_cod:
+        _fechar_item_tabela(itens, usados, pendente_cod, pendente_txt)
+
+
+def _parse_produtos_por_codigo(linhas: list[str], itens: list[dict], usados: set[str]) -> None:
+    """Kits de protocolo: CÓDIGO 1719 + preço 375,50 (com ou sem R$)."""
+    indices = [i for i, line in enumerate(linhas) if _CODIGO_LINHA_RE.match(line)]
+    for n, idx in enumerate(indices):
+        codigo = _CODIGO_LINHA_RE.match(linhas[idx]).group(1)
+        prev = indices[n - 1] + 1 if n else max(0, idx - 24)
+        nxt = indices[n + 1] if n + 1 < len(indices) else min(len(linhas), idx + 10)
+        preco = _preco_proximo_codigo(linhas, idx, prev, nxt)
+        if not preco:
+            continue
+        antes = _coletar_titulo(linhas, idx - 1, prev, -1)
+        depois = _coletar_titulo(linhas, idx + 1, min(nxt, idx + 7), 1)
+        nome = _melhor_nome(antes, depois)
+        if not nome or sum(1 for c in nome if c.isalpha()) < 4:
+            continue
+        _acrescentar_item_catalogo(itens, usados, nome, preco, codigo=codigo)
 
 
 def _nome_antes_do_preco(line: str) -> str | None:
@@ -320,15 +558,16 @@ def _nome_antes_do_preco(line: str) -> str | None:
     return None
 
 
-def _parse_catalogo_texto_livre(texto: str) -> list[dict]:
-    """Extrai nome + preço de catálogo em PDF (ex.: tabela de ativos)."""
-    itens: list[dict] = []
-    usados: set[str] = set()
+def _parse_catalogo_rs(linhas: list[str], itens: list[dict], usados: set[str]) -> None:
+    """Catálogos visuais com preço em R$ (não usa tabela CÓD/VALOR)."""
     last_name: str | None = None
-    linhas = _linhas_catalogo(texto)
     i = 0
     while i < len(linhas):
         line = linhas[i]
+        if re.match(r"(?i)^c[oó]d\.?\s*:?\s*\d{2,5}$", line):
+            last_name = None
+            i += 1
+            continue
         nome_linha = _nome_antes_do_preco(line)
         precos = list(_PRECO_RE.finditer(line))
         if nome_linha and precos:
@@ -343,6 +582,11 @@ def _parse_catalogo_texto_livre(texto: str) -> list[dict]:
             i += 1
             continue
         if precos:
+            janela = " ".join(linhas[max(0, i - 8): i + 8])
+            if re.search(r"(?i)c[oó]d(?:igo|\.?)\s*:?\s*\d{2,5}", janela):
+                last_name = None
+                i += 1
+                continue
             nome = last_name
             if not nome or _norm_nome(nome) in usados:
                 ahead = linhas[i + 1] if i + 1 < len(linhas) else ""
@@ -353,23 +597,50 @@ def _parse_catalogo_texto_livre(texto: str) -> list[dict]:
                 _acrescentar_item_catalogo(itens, usados, nome, precos[0].group(1))
                 last_name = None
         i += 1
+
+
+def _parse_catalogo_texto_livre(texto: str) -> list[dict]:
+    """Extrai nome + preço de catálogo em PDF (tabela, CÓDIGO ou R$)."""
+    itens: list[dict] = []
+    usados: set[str] = set()
+    linhas = _linhas_catalogo(texto)
+    _parse_tabela_ativos(linhas, itens, usados)
+    _parse_produtos_por_codigo(linhas, itens, usados)
+    _parse_catalogo_rs(linhas, itens, usados)
     return itens
 
 
-def _acrescentar_item_catalogo(itens: list[dict], usados: set[str], nome: str, preco_raw: str) -> None:
+def _acrescentar_item_catalogo(
+    itens: list[dict],
+    usados: set[str],
+    nome: str,
+    preco_raw: str,
+    codigo: str | None = None,
+) -> None:
+    nome = re.sub(r"\s+", " ", (nome or "")).strip(" -–—*")
     key = _norm_nome(nome)
-    if not key or key in usados:
+    if not key or key in _INGREDIENTE_SOLTO or key in _SECOES_CATALOGO:
         return
-    usados.add(key)
-    codigo = _codigo_de_nome(nome)
+    if _NOME_RUIDO_RE.search(nome):
+        return
     existentes = {item["codigo"] for item in itens}
-    base = codigo
-    n = 2
-    while codigo in existentes:
-        codigo = f"{base[:36]}-{n}"
-        n += 1
+    if codigo:
+        codigo = str(codigo).strip()[:60]
+        if not codigo or codigo in existentes:
+            return
+    else:
+        if key in usados:
+            return
+        codigo = _codigo_de_nome(nome)
+        base = codigo
+        n = 2
+        while codigo in existentes:
+            codigo = f"{base[:36]}-{n}"
+            n += 1
+        codigo = codigo[:60]
+    usados.add(key)
     itens.append({
-        "codigo": codigo[:60],
+        "codigo": codigo,
         "nome": nome[:200],
         "unidade": "un",
         "preco_ref": str(_parse_preco(preco_raw)),
@@ -447,7 +718,7 @@ def preview_catalogo_pdf(data: bytes) -> list[dict]:
     if not itens:
         raise FornecedorError(
             "Não encontramos produtos com nome e preço neste PDF. "
-            "Confira se o catálogo tem valores em R$ ou envie um CSV/TXT."
+            "Confira se o catálogo tem código/preço ou valores em R$, ou envie um CSV/TXT."
         )
     return itens
 

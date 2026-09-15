@@ -1,13 +1,10 @@
 """Agenda: datas, slots, recepção e disparo de confirmação."""
 from __future__ import annotations
 
-import logging
 from datetime import date, datetime, time, timedelta
 
 from .config_service import agenda_janela
 from .models import Consulta
-
-logger = logging.getLogger(__name__)
 
 CAMPOS_RECEPCAO = (
     "numero_prontuario",
@@ -84,14 +81,8 @@ def nome_usuario(user) -> str:
 
 
 def disparar_confirmacao_consulta(consulta: Consulta) -> None:
-    try:
-        from whatsapp.confirmacao_agenda_service import disparar_confirmacao_se_hoje
-
-        from .whatsapp_agenda import ConsultaWhatsAppAdapter
-
-        disparar_confirmacao_se_hoje(ConsultaWhatsAppAdapter(consulta))
-    except Exception:
-        logger.exception("WhatsApp confirmação clínica geral consulta %s", getattr(consulta, "id", None))
+    """Mantido por compatibilidade. O worker envia no dia da regra; não dispara na criação."""
+    return
 
 
 def aplicar_recepcao(consulta: Consulta, dados: dict) -> Consulta:

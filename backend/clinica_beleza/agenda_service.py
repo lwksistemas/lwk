@@ -188,15 +188,8 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
     except Exception:
         logger.exception("Erro ao executar regras pós-criação do agendamento %s", appointment.id)
 
-    # Link de confirmação: só na criação se hoje já é um dia exato da regra.
-    try:
-        from whatsapp.confirmacao_agenda_service import disparar_confirmacao_se_hoje
-
-        disparar_confirmacao_se_hoje(appointment)
-    except Exception:
-        logger.exception(
-            "WhatsApp confirmação na criação do agendamento %s", appointment.id,
-        )
+    # Link de confirmação: o worker envia no dia da regra (ex.: 1 dia antes).
+    # Não dispara na criação — a secretaria ainda pode corrigir o horário.
 
     return appointment
 
@@ -447,7 +440,7 @@ def _sync_consulta(appointment, new_status, old_status):
 
 
 def enviar_confirmacao_reagendamento(appointment_id: int, loja_id: int) -> None:
-    """Worker/thread: envia WhatsApp após remarcar, fora do PATCH da agenda."""
+    """Avisa mudança de horário só quando o cliente já tinha o link e a consulta é hoje."""
     from django.db import connections
     from superadmin.models import Loja
     from tenants.middleware import _configure_tenant_db_for_loja
@@ -510,16 +503,22 @@ def _agendar_confirmacao_reagendamento(appointment_id: int, loja_id: int) -> Non
 
 
 def _redisparar_confirmacao_por_mudanca_data(appointment):
-    """Limpa registros de envio anteriores e agenda nova confirmação WhatsApp.
+    """Invalida o link antigo. Não manda WhatsApp na hora da correção.
 
-    Quando o agendamento é arrastado para outro horário, a mensagem antiga fica
-    com a data errada. O envio roda em segundo plano para o PATCH responder
-    na hora — senão o arrasto na agenda falha de forma intermitente.
+    O worker envia no dia da regra (ex.: 1 dia antes) com o horário certo.
+    Só avisa agora se o cliente já tinha recebido o link e a consulta já é hoje.
     """
     try:
+        from whatsapp.confirmacao_agenda_service import (
+            antecedencias_da_config,
+            dias_ate_consulta,
+        )
         from whatsapp.models import WhatsAppConfirmacaoEnvio, WhatsAppConfig
         from tenants.middleware import get_current_loja_id
 
+        ja_enviou = WhatsAppConfirmacaoEnvio.objects.filter(
+            appointment_id=appointment.id,
+        ).exists()
         WhatsAppConfirmacaoEnvio.objects.filter(
             appointment_id=appointment.id,
         ).delete()
@@ -533,7 +532,10 @@ def _redisparar_confirmacao_por_mudanca_data(appointment):
         if not getattr(config, "enviar_confirmacao", False):
             return
 
-        _agendar_confirmacao_reagendamento(appointment.id, loja_id)
+        regras = antecedencias_da_config(config)
+        dias = dias_ate_consulta(appointment)
+        if ja_enviou and dias is not None and regras and 0 <= dias < min(regras):
+            _agendar_confirmacao_reagendamento(appointment.id, loja_id)
     except Exception:
         logger.exception(
             "Erro ao re-disparar confirmação após mudança de data do agendamento %s",

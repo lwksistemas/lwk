@@ -193,7 +193,7 @@ export default function MfaSecurityPanel({
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <nav className={`${t.nav} text-white shadow-lg`}>
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div>
               <h1 className="text-xl font-bold">{title}</h1>
@@ -210,7 +210,7 @@ export default function MfaSecurityPanel({
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <main className="w-full max-w-full px-4 py-8 sm:px-6 lg:px-8">
         {message && (
           <Alert
             className={`mb-6 ${message.type === 'error' ? 'border-red-300 bg-red-50 dark:bg-red-950/30' : 'border-green-300 bg-green-50 dark:bg-green-950/30'}`}

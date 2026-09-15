@@ -301,7 +301,7 @@ function AlertasContent() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="bg-white dark:bg-gray-800 shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-4">
             <Link
               href="/superadmin/dashboard"
@@ -319,7 +319,7 @@ function AlertasContent() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-8">
         {loadError && (
           <div className="mb-6 rounded-lg border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-red-800 dark:text-red-200">
             {loadError}
@@ -334,7 +334,7 @@ function AlertasContent() {
         )}
 
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
               <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total</h3>
               <p className="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-2">{stats.total}</p>

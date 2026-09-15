@@ -40,6 +40,7 @@ describe("buildCriarAgendamentoPayload", () => {
       retornoProcedureId: "",
     });
     expect(payload.patient).toBe(1);
+    expect(payload.professional).toBe(3);
     expect(payload.procedures_ids).toEqual([10, 11]);
     expect(payload.procedure).toBe(10);
   });
@@ -72,6 +73,10 @@ describe("buildQuickPatientBody", () => {
 describe("mapSubmitValidationError", () => {
   it("troca cliente por paciente", () => {
     expect(mapSubmitValidationError("Selecione o cliente.")).toBe("Selecione o paciente.");
+  });
+
+  it("mantém mensagem de profissional obrigatório", () => {
+    expect(mapSubmitValidationError("Selecione o profissional.")).toBe("Selecione o profissional.");
   });
 });
 

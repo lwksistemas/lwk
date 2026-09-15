@@ -88,7 +88,15 @@ class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializ
         ]
         extra_kwargs = {
             "procedure": {"required": False, "allow_null": True},
-            "professional": {"required": False, "allow_null": True},
+            "professional": {
+                "required": True,
+                "allow_null": False,
+                "error_messages": {
+                    "required": "Selecione o profissional.",
+                    "null": "Selecione o profissional.",
+                    "does_not_exist": "Profissional não encontrado.",
+                },
+            },
         }
 
     def validate(self, attrs):

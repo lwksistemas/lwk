@@ -19,7 +19,7 @@ export interface CriarAgendamentoPayload {
   nome_agenda: number;
   notes: string | null;
   date: string;
-  professional?: number;
+  professional: number;
   local_atendimento?: number;
   convenio?: number;
   procedure?: number;
@@ -53,8 +53,8 @@ export function buildCriarAgendamentoPayload({
     nome_agenda: Number(agendaId),
     notes: notes.trim() || null,
     date: date.toISOString(),
+    professional: Number(professionalId),
   };
-  if (professionalId) basePayload.professional = Number(professionalId);
   if (localId) basePayload.local_atendimento = Number(localId);
   if (convenioId) basePayload.convenio = Number(convenioId);
   if (selectedProcedures.length === 1) {

@@ -29,6 +29,7 @@ from clinica_beleza.pedido_compra_service import (
     criar_pedido,
     enviar_pedido_assinado,
     excluir_pedido,
+    content_disposition_anexo,
     nome_arquivo_pdf_pedido,
 )
 
@@ -243,6 +244,11 @@ class NomeArquivoPedidoPdfTests(SimpleTestCase):
         pedido.fornecedor.nome_fantasia = ""
         pedido.fornecedor.razao_social = "Farmácia São José"
         self.assertEqual(nome_arquivo_pdf_pedido(pedido), "Pedido_12_FARMACIA_SAO_JOSE.pdf")
+
+    def test_content_disposition_com_nome_do_fornecedor(self):
+        header = content_disposition_anexo("Pedido_01_PHD_DO_BRASIL.pdf")
+        self.assertIn('filename="Pedido_01_PHD_DO_BRASIL.pdf"', header)
+        self.assertIn("filename*=UTF-8''Pedido_01_PHD_DO_BRASIL.pdf", header)
 
 
 class PedidoCompraServiceTests(SimpleTestCase):

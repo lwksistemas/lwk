@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  filenameFromContentDisposition,
   nomeArquivoPedidoPdf,
   numeroPedidoLabel,
   slugNomeArquivo,
@@ -23,5 +24,17 @@ describe("pedido-compra-utils", () => {
         fornecedor: { nome_fantasia: "PHD DO BRASIL", razao_social: "Outro" },
       }),
     ).toBe("Pedido_01_PHD_DO_BRASIL.pdf");
+  });
+
+  it("lê o nome no Content-Disposition", () => {
+    expect(
+      filenameFromContentDisposition(
+        'attachment; filename="Pedido_01_PHD_DO_BRASIL.pdf"; filename*=UTF-8\'\'Pedido_01_PHD_DO_BRASIL.pdf',
+        "fallback.pdf",
+      ),
+    ).toBe("Pedido_01_PHD_DO_BRASIL.pdf");
+    expect(filenameFromContentDisposition(null, "Pedido_01_PHD_DO_BRASIL.pdf")).toBe(
+      "Pedido_01_PHD_DO_BRASIL.pdf",
+    );
   });
 });

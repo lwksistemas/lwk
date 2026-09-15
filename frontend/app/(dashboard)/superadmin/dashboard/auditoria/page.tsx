@@ -236,7 +236,7 @@ export default function AuditoriaPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
               <a href="/superadmin/dashboard" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
@@ -253,7 +253,7 @@ export default function AuditoriaPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Seletor de Período */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Período de Análise</h3>

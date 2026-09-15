@@ -40,3 +40,22 @@ class AsaasConfigPostTests(SimpleTestCase):
         resp = _asaas_config_post(request, config, resolved_key="chave")
         self.assertEqual(resp.status_code, 400)
         config.save.assert_not_called()
+
+
+class AsaasConfigViewDecoratorTests(SimpleTestCase):
+    def test_asaas_config_tem_api_view(self):
+        from asaas_integration.views_config.config_views import asaas_config
+
+        self.assertTrue(
+            hasattr(asaas_config, "cls"),
+            "asaas_config precisa de @api_view — sem isso GET/POST não gravam o token",
+        )
+
+    def test_get_anonimo_nao_acessa_config(self):
+        from rest_framework.test import APIRequestFactory
+
+        from asaas_integration.views_config.config_views import asaas_config
+
+        request = APIRequestFactory().get("/api/asaas/config/")
+        resp = asaas_config(request)
+        self.assertIn(resp.status_code, (401, 403))

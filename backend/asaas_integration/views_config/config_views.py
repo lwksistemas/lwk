@@ -35,7 +35,6 @@ def _asaas_config_post(request, config, resolved_key):
     """Handler POST de asaas_config."""
     from asaas_integration.api_key_utils import is_valid_asaas_api_key, normalize_asaas_api_key
     api_key = request.data.get("api_key", "").strip()
-    enabled = request.data.get("enabled", False)
     webhook_token = request.data.get("webhook_token")
     if api_key and "..." in api_key:
         api_key = ""
@@ -53,7 +52,8 @@ def _asaas_config_post(request, config, resolved_key):
     try:
         if api_key:
             config.api_key = api_key
-        config.enabled = enabled
+        if "enabled" in request.data:
+            config.enabled = bool(request.data.get("enabled"))
         if webhook_incoming:
             config.webhook_token = webhook_incoming
         config.save()

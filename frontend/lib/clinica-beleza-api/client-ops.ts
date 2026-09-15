@@ -120,11 +120,12 @@ export const estoqueApi = {
         form,
       );
     },
-    importarCatalogo: (id: number, itens: FornecedorProdutoPreview[]) =>
-      cbPost<{ criados: number; atualizados: number; total: number }>(
+    importarCatalogo: (id: number, itens: FornecedorProdutoPreview[], substituir = true) =>
+      cbPost<{ criados: number; atualizados: number; removidos?: number; total: number }>(
         `/estoque/fornecedores/${id}/catalogo/importar/`,
-        { itens },
+        { itens, substituir },
       ),
+    deleteCatalogo: (id: number) => cbDelete(`/estoque/fornecedores/${id}/catalogo/`),
   },
   pedidos: {
     assinantes: (loja?: { id?: number; slug?: string } | null) =>

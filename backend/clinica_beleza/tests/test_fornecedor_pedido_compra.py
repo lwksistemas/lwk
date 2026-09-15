@@ -7,6 +7,7 @@ from django.test import SimpleTestCase
 
 from clinica_beleza.fornecedor_service import (
     FornecedorError,
+    excluir_catalogo,
     excluir_fornecedor,
     importar_catalogo,
     preview_catalogo_arquivo,
@@ -180,6 +181,21 @@ class ExcluirFornecedorTests(SimpleTestCase):
         forn.delete.assert_not_called()
 
 
+class ExcluirCatalogoTests(SimpleTestCase):
+    def test_apaga_produtos_e_mantem_fornecedor(self):
+        forn = MagicMock()
+        forn.produtos.all.return_value.delete.return_value = (12, {})
+        self.assertEqual(excluir_catalogo(forn), {"removidos": 12})
+        forn.produtos.all.return_value.delete.assert_called_once()
+        forn.delete.assert_not_called()
+
+    def test_catalogo_vazio(self):
+        forn = MagicMock()
+        forn.produtos.all.return_value.delete.return_value = (0, {})
+        self.assertEqual(excluir_catalogo(forn), {"removidos": 0})
+        forn.delete.assert_not_called()
+
+
 class ImportarCatalogoTests(SimpleTestCase):
     @patch("clinica_beleza.fornecedor_service.FornecedorProduto")
     def test_upsert_por_codigo(self, MockProd):
@@ -194,7 +210,23 @@ class ImportarCatalogoTests(SimpleTestCase):
         ])
         self.assertEqual(res["criados"], 1)
         self.assertEqual(res["atualizados"], 1)
+        self.assertEqual(res["removidos"], 0)
         self.assertEqual(MockProd.objects.update_or_create.call_count, 2)
+
+    @patch("clinica_beleza.fornecedor_service.excluir_catalogo", return_value={"removidos": 5})
+    @patch("clinica_beleza.fornecedor_service.FornecedorProduto")
+    def test_substituir_apaga_antes_de_importar(self, MockProd, mock_exc):
+        MockProd.objects.update_or_create.return_value = (MagicMock(), True)
+        forn = MagicMock(loja_id=1)
+        res = importar_catalogo(
+            forn,
+            [{"codigo": "A", "nome": "Um", "unidade": "un", "preco_ref": "10"}],
+            substituir=True,
+        )
+        mock_exc.assert_called_once_with(forn)
+        self.assertEqual(res["removidos"], 5)
+        self.assertEqual(res["criados"], 1)
+        self.assertEqual(res["atualizados"], 0)
 
 
 class NomeArquivoPedidoPdfTests(SimpleTestCase):

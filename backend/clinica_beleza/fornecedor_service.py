@@ -76,6 +76,12 @@ def excluir_fornecedor(fornecedor: Fornecedor) -> Fornecedor | None:
     return None
 
 
+def excluir_catalogo(fornecedor: Fornecedor) -> dict:
+    """Apaga só produtos/preços do catálogo. Pedidos e cadastro do fornecedor ficam."""
+    removidos, _ = fornecedor.produtos.all().delete()
+    return {"removidos": int(removidos)}
+
+
 _HEADER_MAP = {
     "codigo": "codigo",
     "código": "codigo",
@@ -737,7 +743,10 @@ def preview_catalogo_entrada(conteudo: str | None = None, arquivo=None) -> list[
     return preview_catalogo_arquivo(conteudo or "")
 
 
-def importar_catalogo(fornecedor: Fornecedor, itens: list[dict]) -> dict:
+def importar_catalogo(fornecedor: Fornecedor, itens: list[dict], substituir: bool = False) -> dict:
+    removidos = 0
+    if substituir:
+        removidos = excluir_catalogo(fornecedor)["removidos"]
     criados = atualizados = 0
     for item in itens:
         codigo = (item.get("codigo") or "").strip()
@@ -758,4 +767,9 @@ def importar_catalogo(fornecedor: Fornecedor, itens: list[dict]) -> dict:
             criados += 1
         else:
             atualizados += 1
-    return {"criados": criados, "atualizados": atualizados, "total": criados + atualizados}
+    return {
+        "criados": criados,
+        "atualizados": atualizados,
+        "removidos": removidos,
+        "total": criados + atualizados,
+    }

@@ -20,8 +20,13 @@ export function EstoqueCatalogoImportModal({
   const [itens, setItens] = useState<FornecedorProdutoPreview[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [resultado, setResultado] = useState<{ criados: number; atualizados: number } | null>(null);
+  const [resultado, setResultado] = useState<{
+    criados: number;
+    atualizados: number;
+    removidos?: number;
+  } | null>(null);
   const [origemPdf, setOrigemPdf] = useState(false);
+  const [substituir, setSubstituir] = useState(true);
 
   if (!fornecedor) return null;
 
@@ -47,7 +52,11 @@ export function EstoqueCatalogoImportModal({
     setLoading(true);
     setError("");
     try {
-      const data = await ClinicaBelezaAPI.estoque.fornecedores.importarCatalogo(fornecedor.id, itens);
+      const data = await ClinicaBelezaAPI.estoque.fornecedores.importarCatalogo(
+        fornecedor.id,
+        itens,
+        substituir,
+      );
       setResultado(data);
     } catch (err) {
       setError(extractEstoqueApiError(err, "Erro ao importar catálogo."));
@@ -80,7 +89,8 @@ export function EstoqueCatalogoImportModal({
           {resultado && (
             <div className="p-3 rounded-lg bg-green-50 text-green-700 text-sm flex gap-2">
               <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
-              {resultado.criados} criados, {resultado.atualizados} atualizados.
+              {resultado.criados} criados, {resultado.atualizados} atualizados
+              {resultado.removidos ? `, ${resultado.removidos} antigos removidos` : ""}.
             </div>
           )}
           <input
@@ -96,6 +106,19 @@ export function EstoqueCatalogoImportModal({
             Planilha: colunas codigo, nome, unidade, preco. PDF de tabela/catálogo: o sistema lê nome e preço em R$ —
             confira a prévia antes de confirmar.
           </p>
+          <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={substituir}
+              onChange={(e) => setSubstituir(e.target.checked)}
+              disabled={Boolean(resultado)}
+            />
+            <span>
+              Substituir catálogo atual (apaga produtos e preços antigos antes de importar). O cadastro do fornecedor
+              permanece.
+            </span>
+          </label>
           {origemPdf && itens.length > 0 && !resultado && (
             <p className="text-xs text-amber-700">
               {itens.length} produtos lidos do PDF. Remova o que não for produto antes de importar.

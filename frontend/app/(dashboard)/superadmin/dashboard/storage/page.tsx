@@ -150,25 +150,23 @@ export default function MonitoramentoStoragePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+      <div className="w-full max-w-full flex-1 flex flex-col px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <a href="/superadmin/dashboard" className="text-gray-400 hover:text-gray-600 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-              </a>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">💾 Monitoramento de Storage</h1>
-                <p className="text-gray-600 mt-1">Acompanhe o crescimento do banco de todas as lojas em tempo real</p>
-              </div>
+        <div className="mb-6 shrink-0">
+          <div className="flex items-center gap-4">
+            <a href="/superadmin/dashboard" className="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            </a>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Monitoramento de Storage</h1>
+              <p className="text-gray-600 mt-1">Acompanhe o crescimento do banco de todas as lojas em tempo real</p>
             </div>
           </div>
         </div>
 
         {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6 shrink-0">
           <div className="bg-white rounded-lg shadow p-4">
             <div className="text-sm text-gray-500">Total de Lojas</div>
             <div className="text-2xl font-bold text-gray-900">{estatisticas.total}</div>
@@ -197,7 +195,7 @@ export default function MonitoramentoStoragePage() {
         </div>
 
         {/* Controles */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-4 mb-6 shrink-0">
           <div className="flex flex-wrap items-center gap-4">
             <div>
               <label className="text-sm text-gray-600 mr-2">Ordenar por:</label>
@@ -285,16 +283,16 @@ export default function MonitoramentoStoragePage() {
 
         {/* Lista de Lojas */}
         {lojas.length > 0 && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="bg-white rounded-lg shadow overflow-hidden flex-1 flex flex-col min-h-0">
+            <div className="overflow-auto flex-1">
+              <table className="w-full min-w-[960px] divide-y divide-gray-200">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plano</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Uso</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Limite</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Percentual</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-[28%]">Percentual</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Última Verificação</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
@@ -303,15 +301,11 @@ export default function MonitoramentoStoragePage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {lojasFiltradas.map((loja) => (
                   <tr key={loja.id} className={!loja.is_active ? 'opacity-50' : ''}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{loja.nome}</div>
-                          <div className="text-sm text-gray-500">{loja.slug}</div>
-                        </div>
-                      </div>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">{loja.nome}</div>
+                      <div className="text-sm text-gray-500">{loja.slug}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4">
                       <span className="text-sm text-gray-900">{loja.plano_nome}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -324,9 +318,9 @@ export default function MonitoramentoStoragePage() {
                         {(loja.storage_limite_mb / 1024).toFixed(0)} GB
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 min-w-[8rem] bg-gray-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full ${
                               loja.storage_status === 'critical'
@@ -343,7 +337,7 @@ export default function MonitoramentoStoragePage() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4">
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded-full ${
                           loja.storage_status === 'critical'
@@ -389,7 +383,7 @@ export default function MonitoramentoStoragePage() {
         )}
 
         {/* Informações */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 shrink-0">
           <h3 className="text-sm font-medium text-blue-900 mb-2">ℹ️ Informações</h3>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• Os dados são recalculados automaticamente a cada 6 horas (ou ao subir o servidor)</li>

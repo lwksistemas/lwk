@@ -69,6 +69,7 @@ class AtualizarAgendamentoProfissionalTest(SimpleTestCase):
             confirmacao_generation=1,
         )
         appointment.get_duracao_efetiva.return_value = 40
+        mock_sync.return_value = (None, None)
 
         result = atualizar_agendamento(appointment, new_professional=7, user=None)
 

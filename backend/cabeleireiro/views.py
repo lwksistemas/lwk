@@ -1,6 +1,4 @@
 
-import logging
-
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
@@ -32,8 +30,6 @@ from .serializers import (
     ProfissionalSerializer,
     ServicoSerializer,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class ClienteViewSet(BaseModelViewSet):
@@ -219,17 +215,6 @@ class AgendamentoViewSet(BaseModelViewSet):
         if profissional_id:
             qs = qs.filter(profissional_id=profissional_id)
         return qs
-
-    def perform_create(self, serializer):
-        ag = serializer.save()
-        try:
-            from whatsapp.confirmacao_agenda_service import disparar_confirmacao_se_hoje
-
-            from .whatsapp_agenda import SalaoAgendamentoWhatsAppAdapter
-
-            disparar_confirmacao_se_hoje(SalaoAgendamentoWhatsAppAdapter(ag))
-        except Exception:
-            logger.exception("WhatsApp confirmação na criação do agendamento salão %s", ag.id)
 
     @action(detail=True, methods=["post"], url_path="confirmar-chegada")
     def confirmar_chegada(self, request, pk=None):

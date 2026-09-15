@@ -1,8 +1,10 @@
 """Quando enviar o link de confirmação da agenda.
 
 O admin escolhe os dias de antecedência (ex.: 3 e 1). O worker envia em
-cada um desses dias. Marcação no mesmo dia da consulta não dispara o link
-— o lembrete de 2h (se ativo) cobre o aviso perto do horário.
+cada um desses dias. Não dispara na criação nem ao corrigir o horário —
+a secretaria pode ajustar a agenda primeiro. Marcação no mesmo dia da
+consulta não dispara o link; o lembrete de 2h (se ativo) cobre o aviso
+perto do horário.
 """
 from __future__ import annotations
 
@@ -227,7 +229,7 @@ def processar_agendamento_hoje(agendamento, *, config, hoje=None, user=None) -> 
 
 
 def disparar_confirmacao_se_hoje(agendamento, *, user=None) -> int:
-    """Na criação: envia só se hoje já é um dia exato da regra (ex.: consulta amanhã com “1 dia antes”)."""
+    """Envia só se hoje já é um dia exato da regra. Usado pelo worker, não na criação."""
     from tenants.middleware import get_current_loja_id
     from whatsapp.models import WhatsAppConfig
 

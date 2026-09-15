@@ -325,9 +325,10 @@ export function LojaWhatsAppConfigPanel({
                   {enviarConfirmacao && (
                     <div className="ml-6 space-y-2 rounded-lg bg-gray-50 dark:bg-gray-900/40 px-3 py-2">
                       <p className="text-xs text-gray-600 dark:text-gray-400">
-                        O link sai só no dia da regra (ex.: “1 dia antes”). Consulta marcada
-                        para hoje não dispara confirmação — o lembrete de 2h cobre esse caso.
-                        Pode repetir (ex.: 3 dias e 1 dia antes).
+                        O link não sai na hora do lançamento nem ao corrigir o horário.
+                        O sistema envia no dia da regra (ex.: “1 dia antes”). Consulta
+                        marcada para hoje não dispara confirmação — o lembrete de 2h
+                        cobre esse caso. Pode repetir (ex.: 3 dias e 1 dia antes).
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {antecedenciasDias.length === 0 && (

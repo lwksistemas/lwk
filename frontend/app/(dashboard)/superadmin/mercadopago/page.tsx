@@ -200,7 +200,7 @@ export default function MercadoPagoConfigPage() {
         </Alert>
       )}
 
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="w-5 h-5" />

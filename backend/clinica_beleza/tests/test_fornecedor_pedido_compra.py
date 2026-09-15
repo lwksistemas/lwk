@@ -11,6 +11,7 @@ from clinica_beleza.fornecedor_service import (
     importar_catalogo,
     preview_catalogo_arquivo,
     preview_catalogo_pdf,
+    _norm_nome,
     _parse_catalogo_texto_livre,
     _texto_pagina_pypdf,
     _texto_parece_planilha,
@@ -99,6 +100,55 @@ class PreviewCatalogoTests(SimpleTestCase):
         itens = _parse_catalogo_texto_livre(texto)
         self.assertEqual(itens[0]["nome"], "BIOESTIMULADOR FACIAL + PDRN")
         self.assertEqual(itens[0]["preco_ref"], "373.00")
+
+    def test_pdf_tabela_phd_ativos_e_codigo(self):
+        texto = (
+            "MULTI\n"
+            "PDRN\n"
+            "R$\n"
+            "375,50\n"
+            "Pdrn + Multiativos\n"
+            "CÓDIGO 1719\n"
+            "CÓD ATIVOS APL. APRESENT. VALOR\n"
+            "501 *5-OH-Triptofano 10mg/2ml - AMP 2ml EV/IM/SC Cx 10 amp. 44,72\n"
+            "506 Ácido Hialurônico não reticulado 30mg/2ml - FR 2ml SC/ID Cx 5 fras. 139,78\n"
+            "511 Ácido Mandélico 20mg + Ác. Kojico 20mg/ml -\n"
+            "AMP 2ml ID Cx 10 amp. 163,71\n"
+            "REDUTOR\n"
+            "POWER III\n"
+            "CÓDIGO 1866\n"
+            "235,95\n"
+            "+ ZINCO\n"
+            "+ PANTOTENATO\n"
+            "DE CÁLCIO\n"
+            "Cód.: 2009\n"
+            "R$ 99,00\n"
+            "ZINCO\n"
+            "R$ 108,00\n"
+        )
+        itens = _parse_catalogo_texto_livre(texto)
+        por_cod = {i["codigo"]: i for i in itens}
+        self.assertIn("1719", por_cod)
+        self.assertEqual(por_cod["1719"]["preco_ref"], "375.50")
+        self.assertIn("501", por_cod)
+        self.assertEqual(por_cod["501"]["preco_ref"], "44.72")
+        self.assertIn("5-OH-Triptofano", por_cod["501"]["nome"])
+        self.assertIn("506", por_cod)
+        self.assertIn("Cx 5", por_cod["506"]["nome"])
+        self.assertEqual(por_cod["506"]["preco_ref"], "139.78")
+        self.assertIn("511", por_cod)
+        self.assertEqual(por_cod["511"]["preco_ref"], "163.71")
+        self.assertIn("1866", por_cod)
+        self.assertIn("POWER III", por_cod["1866"]["nome"].upper())
+        self.assertEqual(por_cod["1866"]["preco_ref"], "235.95")
+        nomes = {_norm_nome(i["nome"]) for i in itens}
+        self.assertNotIn("zinco", nomes)
+        self.assertNotIn("de calcio", nomes)
+        self.assertGreaterEqual(len(itens), 5)
+
+    def test_pdf_ignora_ingrediente_solto(self):
+        texto = "ZINCO\nR$ 108,00\nDE CÁLCIO\nR$ 99,00\n"
+        self.assertEqual(_parse_catalogo_texto_livre(texto), [])
 
 
 class SalvarFornecedorTests(SimpleTestCase):

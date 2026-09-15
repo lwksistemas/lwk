@@ -15,6 +15,7 @@ from .pedido_compra_service import (
     excluir_pedido,
     enviar_pedido_assinado,
     listar_profissionais_assinantes,
+    nome_arquivo_pdf_pedido,
     pdf_bytes_pedido,
     pdf_publico_cache,
     serializar_pedido,
@@ -215,8 +216,9 @@ class PedidoCompraPdfView(GetObjectMixin, APIView):
         if error:
             return error
         pdf = pdf_bytes_pedido(obj)
+        filename = nome_arquivo_pdf_pedido(obj)
         resp = HttpResponse(pdf, content_type="application/pdf")
-        resp["Content-Disposition"] = f'inline; filename="pedido_compra_{obj.numero}.pdf"'
+        resp["Content-Disposition"] = f'attachment; filename="{filename}"'
         return resp
 
 
@@ -230,6 +232,8 @@ class PedidoCompraPdfPublicView(APIView):
         pdf = pdf_publico_cache(int(pk), token)
         if not pdf:
             return Response({"error": "Link expirado."}, status=status.HTTP_404_NOT_FOUND)
+        pedido = PedidoCompra.objects.select_related("fornecedor").filter(pk=pk).first()
+        filename = nome_arquivo_pdf_pedido(pedido) if pedido else f"Pedido_{pk}.pdf"
         resp = HttpResponse(pdf, content_type="application/pdf")
-        resp["Content-Disposition"] = f'inline; filename="pedido_compra_{pk}.pdf"'
+        resp["Content-Disposition"] = f'attachment; filename="{filename}"'
         return resp

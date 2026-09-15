@@ -28,6 +28,7 @@ from clinica_beleza.pedido_compra_service import (
     criar_pedido,
     enviar_pedido_assinado,
     excluir_pedido,
+    nome_arquivo_pdf_pedido,
 )
 
 
@@ -194,6 +195,22 @@ class ImportarCatalogoTests(SimpleTestCase):
         self.assertEqual(res["criados"], 1)
         self.assertEqual(res["atualizados"], 1)
         self.assertEqual(MockProd.objects.update_or_create.call_count, 2)
+
+
+class NomeArquivoPedidoPdfTests(SimpleTestCase):
+    def test_usa_nome_fantasia_do_fornecedor(self):
+        pedido = MagicMock()
+        pedido.numero = 1
+        pedido.fornecedor.nome_fantasia = "PHD DO BRASIL"
+        pedido.fornecedor.razao_social = "PHD DO BRASIL FARMACIA"
+        self.assertEqual(nome_arquivo_pdf_pedido(pedido), "Pedido_01_PHD_DO_BRASIL.pdf")
+
+    def test_cai_na_razao_social(self):
+        pedido = MagicMock()
+        pedido.numero = 12
+        pedido.fornecedor.nome_fantasia = ""
+        pedido.fornecedor.razao_social = "Farmácia São José"
+        self.assertEqual(nome_arquivo_pdf_pedido(pedido), "Pedido_12_FARMACIA_SAO_JOSE.pdf")
 
 
 class PedidoCompraServiceTests(SimpleTestCase):

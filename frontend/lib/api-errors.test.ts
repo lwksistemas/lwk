@@ -24,6 +24,18 @@ describe('formatApiErrorBody', () => {
       'email: Insira um endereço de e-mail válido.',
     );
   });
+
+  it('mostra atalho duplicado sem quebrar com objeto Axios', () => {
+    expect(
+      formatApiErrorBody({
+        response: {
+          status: 400,
+          data: { atalho: ['O atalho "felix" já está em uso.'] },
+        },
+        config: { url: '/superadmin/lojas/' },
+      }),
+    ).toBe('O atalho "felix" já está em uso.');
+  });
 });
 
 describe('getCrmApiErrorDetail', () => {

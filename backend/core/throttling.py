@@ -94,7 +94,7 @@ class RelaxedUserThrottle(UserRateThrottle):
 class PublicLojaCreateThrottle(AnonRateThrottle):
     """Cadastro público de loja — limite por IP."""
 
-    rate = "5/hour"
+    rate = "20/hour"
     scope = "public_loja_create"
 
 

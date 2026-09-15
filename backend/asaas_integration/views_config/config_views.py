@@ -57,6 +57,7 @@ def _asaas_config_post(request, config, resolved_key):
         if webhook_incoming:
             config.webhook_token = webhook_incoming
         config.save()
+        config.refresh_from_db()
         effective_webhook = config.webhook_token_decrypted or AsaasConfig.resolve_webhook_token()
         return Response({
             "message": "Configuração salva com sucesso no banco de dados.",
@@ -75,6 +76,8 @@ def _asaas_config_post(request, config, resolved_key):
         return Response({"detail": f"Erro ao salvar configuração: {e!s}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(["GET", "POST"])
+@permission_classes([IsSuperAdmin])
 def asaas_config(request):
     """Gerenciar configurações do Asaas"""
     if not REQUESTS_AVAILABLE:

@@ -146,6 +146,10 @@ export default function AsaasConfigPage() {
       setWebhookToken('')
     } catch (error) {
       logger.warn('Erro ao carregar configuração Asaas:', error)
+      setMessage({
+        type: 'error',
+        text: 'Não foi possível carregar a configuração do banco LWK. O token digitado abaixo só vale depois de clicar em Salvar token.',
+      })
     }
   }
 
@@ -200,22 +204,28 @@ export default function AsaasConfigPage() {
 
   const applyConfigResponse = (data: Record<string, unknown>, opts?: { keepToken?: boolean }) => {
     setWebhookUrl(webhookUrlPadrao(typeof data.webhook_url === 'string' ? data.webhook_url : ''))
-    setWebhookConfigured(Boolean(data.webhook_token_configured))
+    const configured = Boolean(data.webhook_token_configured)
+    setWebhookConfigured(configured)
     setWebhookTokenLength(typeof data.webhook_token_length === 'number' ? data.webhook_token_length : 0)
     if (!opts?.keepToken) {
       setWebhookToken('')
     }
-    if (data.api_key_masked !== undefined) {
-      setConfig((prev) => ({
-        ...prev,
-        api_key: '',
-        api_key_masked: data.api_key_masked as string,
-        api_key_configured: data.api_key_configured as boolean,
-        api_key_length: data.api_key_length as number,
-        sandbox: data.sandbox as boolean,
-        enabled: data.enabled as boolean,
-      }))
-    }
+    setConfig((prev) => ({
+      ...prev,
+      webhook_token: typeof data.webhook_token === 'string' ? data.webhook_token : prev.webhook_token,
+      webhook_token_configured: configured,
+      webhook_token_length: typeof data.webhook_token_length === 'number' ? data.webhook_token_length : prev.webhook_token_length,
+      ...(data.api_key_masked !== undefined
+        ? {
+            api_key: '',
+            api_key_masked: data.api_key_masked as string,
+            api_key_configured: data.api_key_configured as boolean,
+            api_key_length: data.api_key_length as number,
+            sandbox: data.sandbox as boolean,
+            enabled: data.enabled as boolean,
+          }
+        : {}),
+    }))
   }
 
   const saveConfig = async () => {
@@ -261,9 +271,16 @@ export default function AsaasConfigPage() {
       })
       applyConfigResponse(data, { keepToken: true })
       setWebhookToken(valor)
+      if (!data.webhook_token_configured) {
+        setMessage({
+          type: 'error',
+          text: 'O token não ficou gravado no banco LWK. Tente Salvar token de novo.',
+        })
+        return
+      }
       setMessage({
         type: 'success',
-        text: 'Token salvo nesta página. Copie e cole o mesmo valor no painel Asaas → Webhooks.',
+        text: 'Token gravado no LWK. Use o mesmo valor no painel Asaas → Webhooks e ative o webhook.',
       })
       loadDiagnostico()
     } catch (error: unknown) {
@@ -555,9 +572,15 @@ export default function AsaasConfigPage() {
                     {showWebhookToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                {webhookToken.trim().length >= 32 && !webhookConfigured && (
+                  <p className="text-sm text-amber-700">
+                    Este token ainda não está gravado no LWK. Salvar só no painel Asaas não muda o indicador.
+                    Clique em <strong>Salvar token</strong> nesta página.
+                  </p>
+                )}
                 {config.webhook_token && (
                   <p className="text-xs text-muted-foreground">
-                    Token salvo: {config.webhook_token}
+                    Token salvo no LWK: {config.webhook_token}
                   </p>
                 )}
               </div>
@@ -566,12 +589,15 @@ export default function AsaasConfigPage() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-sm space-y-2">
                   <p>
+                    O token precisa ser o mesmo nos dois lados. Gravá-lo só no Asaas deixa este indicador vermelho.
+                  </p>
+                  <p>
                     No <strong>Asaas</strong> → Integrações → Webhooks → <strong>LWK Sistemas</strong>:
                   </p>
                   <ol className="list-decimal list-inside space-y-1">
                     <li>URL: use a URL acima</li>
                     <li>Token: o mesmo valor salvo aqui (copie o token completo — Asaas exige 32+ caracteres)</li>
-                    <li>Ative o webhook e aguarde a fila de sincronização retomar</li>
+                    <li>Ligue <strong>Este Webhook ficará ativo</strong> e a fila de sincronização</li>
                   </ol>
                 </AlertDescription>
               </Alert>

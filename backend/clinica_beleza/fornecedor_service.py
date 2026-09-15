@@ -66,6 +66,16 @@ def salvar_fornecedor(loja_id: int, data: dict, fornecedor: Fornecedor | None = 
     return Fornecedor.objects.create(loja_id=loja_id, **campos)
 
 
+def excluir_fornecedor(fornecedor: Fornecedor) -> Fornecedor | None:
+    """Remove o cadastro. Com pedidos de compra, só desativa (FK protegida)."""
+    if fornecedor.pedidos.exists():
+        fornecedor.is_active = False
+        fornecedor.save(update_fields=["is_active", "updated_at"])
+        return fornecedor
+    fornecedor.delete()
+    return None
+
+
 _HEADER_MAP = {
     "codigo": "codigo",
     "código": "codigo",

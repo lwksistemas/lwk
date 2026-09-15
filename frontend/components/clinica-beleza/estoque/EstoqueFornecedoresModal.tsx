@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, FileUp, Loader2, Plus, X } from "lucide-react";
+import { AlertCircle, FileUp, Loader2, Plus, Trash2, X } from "lucide-react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api/client";
 import type { FornecedorItem } from "@/lib/clinica-beleza-api/client-ops";
 import { consultaCnpj, formatCpfCnpj, resolverCepDadosCnpj } from "@/lib/consulta-cnpj";
@@ -45,7 +45,7 @@ export function EstoqueFornecedoresModal({
   const carregar = useCallback(async (opts?: { abrirFormSeVazio?: boolean }) => {
     setLoading(true);
     try {
-      const data = await ClinicaBelezaAPI.estoque.fornecedores.list({ todos: 1 });
+      const data = await ClinicaBelezaAPI.estoque.fornecedores.list();
       setLista(data);
       if (opts?.abrirFormSeVazio && data.length === 0) setShowForm(true);
     } catch (err) {
@@ -116,6 +116,26 @@ export function EstoqueFornecedoresModal({
       await carregar();
     } catch (err) {
       setError(extractEstoqueApiError(err, "Erro ao salvar fornecedor."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const excluir = async (f: FornecedorItem) => {
+    const nome = f.nome_fantasia || f.razao_social;
+    if (!confirm(`Excluir o fornecedor "${nome}"?`)) return;
+    setSaving(true);
+    setError("");
+    try {
+      await ClinicaBelezaAPI.estoque.fornecedores.delete(f.id);
+      if (editingId === f.id) {
+        setEditingId(null);
+        setForm({ ...EMPTY });
+        setShowForm(false);
+      }
+      await carregar();
+    } catch (err) {
+      setError(extractEstoqueApiError(err, "Não foi possível excluir o fornecedor."));
     } finally {
       setSaving(false);
     }
@@ -255,6 +275,15 @@ export function EstoqueFornecedoresModal({
                         className="px-2 py-1 text-xs rounded-lg border"
                       >
                         Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void excluir(f)}
+                        disabled={saving}
+                        className="px-2 py-1 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:hover:bg-red-900/20 inline-flex items-center gap-1"
+                        title="Excluir fornecedor"
+                      >
+                        <Trash2 size={12} /> Excluir
                       </button>
                     </div>
                   </div>

@@ -7,6 +7,7 @@ from django.test import SimpleTestCase
 
 from clinica_beleza.fornecedor_service import (
     FornecedorError,
+    excluir_fornecedor,
     importar_catalogo,
     preview_catalogo_arquivo,
     preview_catalogo_pdf,
@@ -110,6 +111,22 @@ class SalvarFornecedorTests(SimpleTestCase):
     def test_cnpj_invalido(self):
         with self.assertRaises(FornecedorError):
             salvar_fornecedor(1, {"cnpj": "123", "razao_social": "ACME"})
+
+
+class ExcluirFornecedorTests(SimpleTestCase):
+    def test_sem_pedido_apaga(self):
+        forn = MagicMock()
+        forn.pedidos.exists.return_value = False
+        self.assertIsNone(excluir_fornecedor(forn))
+        forn.delete.assert_called_once()
+
+    def test_com_pedido_desativa(self):
+        forn = MagicMock()
+        forn.pedidos.exists.return_value = True
+        self.assertIs(excluir_fornecedor(forn), forn)
+        self.assertFalse(forn.is_active)
+        forn.save.assert_called_once()
+        forn.delete.assert_not_called()
 
 
 class ImportarCatalogoTests(SimpleTestCase):

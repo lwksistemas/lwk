@@ -3,7 +3,13 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .fornecedor_service import FornecedorError, importar_catalogo, preview_catalogo_entrada, salvar_fornecedor
+from .fornecedor_service import (
+    FornecedorError,
+    excluir_fornecedor,
+    importar_catalogo,
+    preview_catalogo_entrada,
+    salvar_fornecedor,
+)
 from .models.fornecedores import Fornecedor, FornecedorProduto
 from .permissions import CLINICA_ESTOQUE, CLINICA_ESTOQUE_LEITURA
 from .serializers.fornecedores import FornecedorProdutoSerializer, FornecedorSerializer
@@ -87,12 +93,10 @@ class FornecedorDetailView(GetObjectMixin, APIView):
         obj, error = self.object_or_404(pk)
         if error:
             return error
-        if obj.pedidos.exists():
-            obj.is_active = False
-            obj.save(update_fields=["is_active", "updated_at"])
-            return Response(FornecedorSerializer(obj).data)
-        obj.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        restante = excluir_fornecedor(obj)
+        if restante is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(FornecedorSerializer(restante).data)
 
 
 class FornecedorProdutoListView(APIView):

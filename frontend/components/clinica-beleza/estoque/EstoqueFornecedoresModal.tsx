@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, FileUp, Loader2, Plus, Trash2, X } from "lucide-react";
+import { AlertCircle, FileUp, FileX, Loader2, Plus, Trash2, X } from "lucide-react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api/client";
 import type { FornecedorItem } from "@/lib/clinica-beleza-api/client-ops";
 import { consultaCnpj, formatCpfCnpj, resolverCepDadosCnpj } from "@/lib/consulta-cnpj";
@@ -141,6 +141,27 @@ export function EstoqueFornecedoresModal({
     }
   };
 
+  const excluirCatalogo = async (f: FornecedorItem) => {
+    const nome = f.nome_fantasia || f.razao_social;
+    if (
+      !confirm(
+        `Excluir só o catálogo de "${nome}"? O cadastro do fornecedor permanece. Pedidos já feitos não são alterados.`,
+      )
+    ) {
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await ClinicaBelezaAPI.estoque.fornecedores.deleteCatalogo(f.id);
+      await carregar();
+    } catch (err) {
+      setError(extractEstoqueApiError(err, "Não foi possível excluir o catálogo."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -257,13 +278,23 @@ export function EstoqueFornecedoresModal({
                       </div>
                       <div className="text-xs text-gray-500">{f.cnpj} · {f.email || "sem e-mail"}</div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
+                    <div className="flex flex-wrap justify-end gap-1 shrink-0">
                       <button
                         type="button"
                         onClick={() => setImportForn(f)}
                         className="px-2 py-1 text-xs rounded-lg border inline-flex items-center gap-1"
+                        title="Importar catálogo (PDF/CSV)"
                       >
                         <FileUp size={12} /> Catálogo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void excluirCatalogo(f)}
+                        disabled={saving}
+                        className="px-2 py-1 text-xs rounded-lg border border-amber-200 text-amber-800 hover:bg-amber-50 dark:border-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/20 inline-flex items-center gap-1"
+                        title="Apagar produtos e preços do catálogo, sem excluir o fornecedor"
+                      >
+                        <FileX size={12} /> Excluir catálogo
                       </button>
                       <button
                         type="button"

@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 
 from .fornecedor_service import (
     FornecedorError,
+    excluir_catalogo,
     excluir_fornecedor,
     importar_catalogo,
     preview_catalogo_entrada,
@@ -117,6 +118,19 @@ class FornecedorProdutoListView(APIView):
         return Response(FornecedorProdutoSerializer(qs[:80], many=True).data)
 
 
+class FornecedorCatalogoView(APIView):
+    """DELETE /clinica-beleza/estoque/fornecedores/<id>/catalogo/"""
+
+    permission_classes = CLINICA_ESTOQUE
+
+    def delete(self, request, pk):
+        _ensure(request)
+        forn = Fornecedor.objects.filter(pk=pk).first()
+        if not forn:
+            return Response({"error": "Fornecedor não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(excluir_catalogo(forn))
+
+
 class FornecedorCatalogoPreviewView(APIView):
     """POST /clinica-beleza/estoque/fornecedores/<id>/catalogo/preview/"""
 
@@ -156,8 +170,9 @@ class FornecedorCatalogoImportarView(APIView):
                 )
             except FornecedorError as exc:
                 return _erro(exc)
+        substituir = request.data.get("substituir") in (True, "true", "True", "1", 1)
         try:
-            resultado = importar_catalogo(forn, itens)
+            resultado = importar_catalogo(forn, itens, substituir=substituir)
         except FornecedorError as exc:
             return _erro(exc)
         return Response(resultado)

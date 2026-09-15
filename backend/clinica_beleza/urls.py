@@ -96,6 +96,7 @@ from .views_estoque import (
 from .views_fornecedores import (
     FornecedorCatalogoImportarView,
     FornecedorCatalogoPreviewView,
+    FornecedorCatalogoView,
     FornecedorDetailView,
     FornecedorListView,
     FornecedorProdutoListView,
@@ -314,6 +315,7 @@ urlpatterns = [
     path("estoque/fornecedores/", FornecedorListView.as_view(), name="estoque-fornecedores"),
     path("estoque/fornecedores/<int:pk>/", FornecedorDetailView.as_view(), name="estoque-fornecedores-detail"),
     path("estoque/fornecedores/<int:pk>/produtos/", FornecedorProdutoListView.as_view(), name="estoque-fornecedores-produtos"),
+    path("estoque/fornecedores/<int:pk>/catalogo/", FornecedorCatalogoView.as_view(), name="estoque-fornecedores-catalogo"),
     path("estoque/fornecedores/<int:pk>/catalogo/preview/", FornecedorCatalogoPreviewView.as_view(), name="estoque-fornecedores-catalogo-preview"),
     path("estoque/fornecedores/<int:pk>/catalogo/importar/", FornecedorCatalogoImportarView.as_view(), name="estoque-fornecedores-catalogo-importar"),
     path("estoque/pedidos/", PedidoCompraListView.as_view(), name="estoque-pedidos"),

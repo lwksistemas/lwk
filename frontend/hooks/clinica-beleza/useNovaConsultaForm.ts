@@ -85,11 +85,14 @@ export function useNovaConsultaForm({
     if (!patientId) {
       return "Selecione o paciente.";
     }
+    if (!professionalId) {
+      return "Selecione o profissional.";
+    }
     if (requireProcedure && selectedProcedures.length === 0) {
       return "Selecione pelo menos um procedimento.";
     }
     return null;
-  }, [patientId, selectedProcedures, requireProcedure]);
+  }, [patientId, professionalId, selectedProcedures, requireProcedure]);
 
   return {
     patientId,

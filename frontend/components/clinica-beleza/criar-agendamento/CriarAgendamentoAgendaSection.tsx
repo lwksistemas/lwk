@@ -161,13 +161,14 @@ export function CriarAgendamentoAgendaSection({
           </select>
         </div>
         <div className="sm:col-span-2">
-          <FieldLabel>Profissional</FieldLabel>
+          <FieldLabel>Profissional *</FieldLabel>
           <select
             value={professionalId}
             onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
             className={inputClass}
+            required
           >
-            <option value="">Selecione o profissional (opcional)</option>
+            <option value="">Selecione o profissional</option>
             {professionals.map((p) => (
               <option key={p.id} value={p.id}>
                 {entityName(p)}

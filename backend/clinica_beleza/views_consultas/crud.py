@@ -67,6 +67,11 @@ class ConsultaListView(APIView):
                 {"error": "Informe o paciente."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if not professional_id:
+            return Response(
+                {"error": "Selecione o profissional."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not procedures_ids and not procedure_id:
             proc_list = []
         elif procedures_ids:

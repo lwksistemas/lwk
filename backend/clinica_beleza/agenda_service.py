@@ -143,6 +143,8 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
     """
     date_start = validated_data["date"]
     professional = validated_data.get("professional")
+    if not professional:
+        raise AgendaValidationError("Selecione o profissional.")
     local_atendimento = validated_data.get("local_atendimento")
 
     from .duracao_consulta import calcular_duracao_novo_agendamento

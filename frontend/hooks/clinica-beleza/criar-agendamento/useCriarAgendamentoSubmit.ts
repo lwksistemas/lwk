@@ -97,6 +97,10 @@ export function useCriarAgendamentoSubmit(
       setCreateError(mapSubmitValidationError(validationError));
       return;
     }
+    if (!professionalId) {
+      setCreateError("Selecione o profissional.");
+      return;
+    }
     const agendaId = nomeAgendaId || resolveDefaultNomeAgendaId(nomesAgenda);
     if (!agendaId) {
       setCreateError("Selecione o tipo de agenda.");

@@ -36,7 +36,24 @@ export function nomeArquivoPedidoPdf(pedido: {
   return `Pedido_${numeroPedidoLabel(pedido.numero ?? "")}_${forn}.pdf`;
 }
 
-export async function abrirPdfPedido(id: number, filename: string): Promise<void> {
+export function filenameFromContentDisposition(header: string | null | undefined, fallback: string): string {
+  const fb = fallback.endsWith(".pdf") ? fallback : `${fallback}.pdf`;
+  if (!header) return fb;
+  const star = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(header);
+  if (star) {
+    try {
+      return decodeURIComponent(star[1].trim().replace(/^"(.*)"$/, "$1"));
+    } catch {
+      /* usa fallback abaixo */
+    }
+  }
+  const quoted = /filename="([^"]+)"/i.exec(header);
+  if (quoted?.[1]) return quoted[1];
+  const plain = /filename=([^;]+)/i.exec(header);
+  return plain?.[1]?.trim() || fb;
+}
+
+export async function abrirPdfPedido(id: number, filename: string): Promise<string> {
   const res = await clinicaBelezaFetch(`/estoque/pedidos/${id}/pdf/`);
   if (!res.ok) {
     throw new Error("Não foi possível gerar o PDF.");
@@ -45,9 +62,11 @@ export async function abrirPdfPedido(id: number, filename: string): Promise<void
   if (blob.size < 100) {
     throw new Error("PDF vazio ou inválido.");
   }
-  const nome = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
+  const nome = filenameFromContentDisposition(
+    res.headers.get("Content-Disposition"),
+    filename,
+  );
+  // Não abrir blob: em nova aba — o visualizador do Chrome não consegue salvar (UUID + erro de rede).
   downloadBlobFile(blob, nome);
-  const url = window.URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+  return nome;
 }

@@ -523,11 +523,16 @@ export function EstoquePedidoModal({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() =>
-                  void abrirPdfPedido(pedido.id, nomeArquivoPedidoPdf(pedido)).catch((e) =>
-                    setError(String(e.message || e)),
-                  )
-                }
+                onClick={() => {
+                  const fornSel = fornecedores.find((f) => f.id === Number(fornecedorId));
+                  const nome = nomeArquivoPedidoPdf({
+                    numero: pedido.numero,
+                    fornecedor: pedido.fornecedor || fornSel,
+                  });
+                  void abrirPdfPedido(pedido.id, nome)
+                    .then((salvo) => setOk(`PDF salvo: ${salvo}`))
+                    .catch((e) => setError(String(e.message || e)));
+                }}
                 className="px-3 py-2 text-sm rounded-lg border"
               >
                 Visualizar / imprimir

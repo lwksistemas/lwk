@@ -63,6 +63,13 @@ def nome_arquivo_pdf_pedido(pedido) -> str:
     return f"Pedido_{_fmt_numero(getattr(pedido, 'numero', ''))}_{slug.upper()}.pdf"
 
 
+def content_disposition_anexo(filename: str) -> str:
+    from urllib.parse import quote
+
+    safe = (filename or "arquivo.pdf").replace('"', "").replace("\n", "")
+    return f'attachment; filename="{safe}"; filename*=UTF-8\'\'{quote(safe)}'
+
+
 def _dados_loja(loja_id: int) -> dict:
     from superadmin.models import Loja
 

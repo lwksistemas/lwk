@@ -16,6 +16,7 @@ from .pedido_compra_service import (
     enviar_pedido_assinado,
     listar_profissionais_assinantes,
     nome_arquivo_pdf_pedido,
+    content_disposition_anexo,
     pdf_bytes_pedido,
     pdf_publico_cache,
     serializar_pedido,
@@ -218,7 +219,8 @@ class PedidoCompraPdfView(GetObjectMixin, APIView):
         pdf = pdf_bytes_pedido(obj)
         filename = nome_arquivo_pdf_pedido(obj)
         resp = HttpResponse(pdf, content_type="application/pdf")
-        resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+        resp["Content-Disposition"] = content_disposition_anexo(filename)
+        resp["Access-Control-Expose-Headers"] = "Content-Disposition"
         return resp
 
 
@@ -235,5 +237,6 @@ class PedidoCompraPdfPublicView(APIView):
         pedido = PedidoCompra.objects.select_related("fornecedor").filter(pk=pk).first()
         filename = nome_arquivo_pdf_pedido(pedido) if pedido else f"Pedido_{pk}.pdf"
         resp = HttpResponse(pdf, content_type="application/pdf")
-        resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+        resp["Content-Disposition"] = content_disposition_anexo(filename)
+        resp["Access-Control-Expose-Headers"] = "Content-Disposition"
         return resp

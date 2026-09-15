@@ -411,6 +411,7 @@ CORS_ALLOW_HEADERS = [
 # Expor headers customizados para o frontend
 CORS_EXPOSE_HEADERS = [
     "content-type",
+    "content-disposition",
     "x-loja-id",
     "x-tenant-slug",
 ]

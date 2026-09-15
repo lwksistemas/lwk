@@ -51,6 +51,18 @@ def _fmt_numero(numero) -> str:
         return str(numero)
 
 
+def nome_arquivo_pdf_pedido(pedido) -> str:
+    """Pedido_01_PHD_DO_BRASIL.pdf — nome estável para baixar/enviar."""
+    from django.utils.text import slugify
+
+    forn = ""
+    fornecedor = getattr(pedido, "fornecedor", None)
+    if fornecedor is not None:
+        forn = (getattr(fornecedor, "nome_fantasia", "") or getattr(fornecedor, "razao_social", "") or "")
+    slug = (slugify(forn) or "fornecedor").replace("-", "_")[:60].strip("_") or "fornecedor"
+    return f"Pedido_{_fmt_numero(getattr(pedido, 'numero', ''))}_{slug.upper()}.pdf"
+
+
 def _dados_loja(loja_id: int) -> dict:
     from superadmin.models import Loja
 
@@ -369,7 +381,7 @@ def finalizar_se_completo(pedido: PedidoCompra) -> bool:
     from .pedido_compra_pdf import gerar_pdf_pedido_compra
 
     pdf_bytes = gerar_pdf_pedido_compra(pedido)
-    url = salvar_pdf_loja(pedido.loja_id, pdf_bytes, f"pedido_compra_{pedido.numero}.pdf")
+    url = salvar_pdf_loja(pedido.loja_id, pdf_bytes, nome_arquivo_pdf_pedido(pedido))
     pedido.pdf_url = url or pedido.pdf_url or ""
     if pedido.status not in (PedidoCompra.STATUS_ENVIADO, PedidoCompra.STATUS_CANCELADO):
         pedido.status = PedidoCompra.STATUS_ASSINADO
@@ -454,7 +466,7 @@ já assinado pelo profissional responsável, para processamento junto à sua emp
             to=[email],
             html=html,
         )
-        msg.attach(f"pedido_compra_{numero}.pdf", pdf_bytes, "application/pdf")
+        msg.attach(nome_arquivo_pdf_pedido(pedido), pdf_bytes, "application/pdf")
         send_prepared(msg, fail_silently=False)
         return {"sucesso": True}
     except Exception as exc:
@@ -490,7 +502,7 @@ def _enviar_pdf_whatsapp(pedido: PedidoCompra, pdf_bytes: bytes) -> dict:
         pdf_url = f"{api_base}/api/clinica-beleza/estoque/pedidos/{pedido.id}/pdf-public/{token}/"
         try:
             _send_whatsapp_document_evolution(
-                telefone, pdf_url, f"pedido_compra_{numero}.pdf",
+                telefone, pdf_url, nome_arquivo_pdf_pedido(pedido),
                 caption=f"Pedido de compra nº {numero} — {clinica}", config=config,
             )
         except Exception as pdf_err:

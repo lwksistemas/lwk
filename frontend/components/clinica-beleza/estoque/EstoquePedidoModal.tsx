@@ -9,7 +9,7 @@ import type {
   PedidoCompraItem,
 } from "@/lib/clinica-beleza-api/client-ops";
 import { ESTOQUE_INPUT_CLASS, extractEstoqueApiError } from "./estoque-types";
-import { abrirPdfPedido, canalResultado, numeroPedidoLabel } from "./pedido-compra-utils";
+import { abrirPdfPedido, canalResultado, nomeArquivoPedidoPdf, numeroPedidoLabel } from "./pedido-compra-utils";
 
 type Linha = {
   catalogo_id?: number;
@@ -521,7 +521,15 @@ export function EstoquePedidoModal({
 
           {pedido?.pode_enviar_pdf && (
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => void abrirPdfPedido(pedido.id).catch((e) => setError(String(e.message || e)))} className="px-3 py-2 text-sm rounded-lg border">
+              <button
+                type="button"
+                onClick={() =>
+                  void abrirPdfPedido(pedido.id, nomeArquivoPedidoPdf(pedido)).catch((e) =>
+                    setError(String(e.message || e)),
+                  )
+                }
+                className="px-3 py-2 text-sm rounded-lg border"
+              >
                 Visualizar / imprimir
               </button>
               <button type="button" disabled={saving} onClick={() => void enviarPdf("email")} className="px-3 py-2 text-sm rounded-lg border">

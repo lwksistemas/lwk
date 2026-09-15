@@ -29,6 +29,7 @@ import {
 import Link from 'next/link'
 import { formatCurrency, formatDateTime } from '@/lib/financeiro-helpers'
 import apiClient from '@/lib/api-client'
+import { getPrimaryApiBaseUrl } from '@/lib/api-base'
 import { logger } from '@/lib/logger'
 
 interface AsaasConfig {
@@ -78,6 +79,17 @@ interface DiagnosticoResponse {
   checked_at: string
 }
 
+function webhookUrlPadrao(url?: string | null): string {
+  if (url) return url
+  return `${getPrimaryApiBaseUrl()}/asaas/webhook/`
+}
+
+function novoTokenWebhook(): string {
+  const part1 = crypto.randomUUID().replace(/-/g, '')
+  const part2 = crypto.randomUUID().replace(/-/g, '').slice(0, 11)
+  return `${part1}${part2}`
+}
+
 export default function AsaasConfigPage() {
   const [config, setConfig] = useState<AsaasConfig>({
     api_key: '',
@@ -108,7 +120,7 @@ export default function AsaasConfigPage() {
   const [showApiKey, setShowApiKey] = useState(false)
   const [showWebhookToken, setShowWebhookToken] = useState(false)
   const [webhookToken, setWebhookToken] = useState('')
-  const [webhookUrl, setWebhookUrl] = useState('')
+  const [webhookUrl, setWebhookUrl] = useState(() => webhookUrlPadrao())
   const [webhookConfigured, setWebhookConfigured] = useState(false)
   const [webhookTokenLength, setWebhookTokenLength] = useState(0)
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null)
@@ -128,7 +140,7 @@ export default function AsaasConfigPage() {
       const { data } = await apiClient.get('/asaas/config/')
       setConfig(data)
       setApiKeyInput('')
-      setWebhookUrl(data.webhook_url || '')
+      setWebhookUrl(webhookUrlPadrao(data.webhook_url))
       setWebhookConfigured(Boolean(data.webhook_token_configured))
       setWebhookTokenLength(data.webhook_token_length || 0)
       setWebhookToken('')
@@ -186,6 +198,26 @@ export default function AsaasConfigPage() {
     return <CreditCard className="h-4 w-4" />
   }
 
+  const applyConfigResponse = (data: Record<string, unknown>, opts?: { keepToken?: boolean }) => {
+    setWebhookUrl(webhookUrlPadrao(typeof data.webhook_url === 'string' ? data.webhook_url : ''))
+    setWebhookConfigured(Boolean(data.webhook_token_configured))
+    setWebhookTokenLength(typeof data.webhook_token_length === 'number' ? data.webhook_token_length : 0)
+    if (!opts?.keepToken) {
+      setWebhookToken('')
+    }
+    if (data.api_key_masked !== undefined) {
+      setConfig((prev) => ({
+        ...prev,
+        api_key: '',
+        api_key_masked: data.api_key_masked as string,
+        api_key_configured: data.api_key_configured as boolean,
+        api_key_length: data.api_key_length as number,
+        sandbox: data.sandbox as boolean,
+        enabled: data.enabled as boolean,
+      }))
+    }
+  }
+
   const saveConfig = async () => {
     setSaving(true)
     try {
@@ -201,21 +233,7 @@ export default function AsaasConfigPage() {
       }
       const { data } = await apiClient.post('/asaas/config/', payload)
       setMessage({ type: 'success', text: data.message || 'Configuração salva com sucesso!' })
-      setWebhookUrl(data.webhook_url || webhookUrl)
-      setWebhookConfigured(Boolean(data.webhook_token_configured))
-      setWebhookTokenLength(data.webhook_token_length || 0)
-      setWebhookToken('')
-      if (data.api_key_masked !== undefined) {
-        setConfig(prev => ({
-          ...prev,
-          api_key: '',
-          api_key_masked: data.api_key_masked,
-          api_key_configured: data.api_key_configured,
-          api_key_length: data.api_key_length,
-          sandbox: data.sandbox,
-          enabled: data.enabled,
-        }))
-      }
+      applyConfigResponse(data, { keepToken: Boolean(webhookToken.trim()) })
       setApiKeyInput('')
       checkStatus()
       loadDiagnostico()
@@ -224,6 +242,35 @@ export default function AsaasConfigPage() {
       setMessage({
         type: 'error',
         text: err.response?.data?.detail || 'Erro de conexão ao salvar configuração'
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const persistWebhookToken = async (token: string) => {
+    const valor = token.trim()
+    if (valor.length < 32) {
+      setMessage({ type: 'error', text: 'Token do webhook deve ter pelo menos 32 caracteres.' })
+      return
+    }
+    setSaving(true)
+    try {
+      const { data } = await apiClient.post('/asaas/config/', {
+        webhook_token: valor,
+      })
+      applyConfigResponse(data, { keepToken: true })
+      setWebhookToken(valor)
+      setMessage({
+        type: 'success',
+        text: 'Token salvo nesta página. Copie e cole o mesmo valor no painel Asaas → Webhooks.',
+      })
+      loadDiagnostico()
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } }
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.detail || 'Não foi possível salvar o token do webhook',
       })
     } finally {
       setSaving(false)
@@ -256,9 +303,10 @@ export default function AsaasConfigPage() {
   }
 
   const gerarTokenWebhook = () => {
-    const part1 = crypto.randomUUID().replace(/-/g, '')
-    const part2 = crypto.randomUUID().replace(/-/g, '').slice(0, 11)
-    setWebhookToken(`${part1}${part2}`)
+    const token = novoTokenWebhook()
+    setWebhookToken(token)
+    setShowWebhookToken(true)
+    void persistWebhookToken(token)
   }
 
   const copyWebhookToken = async () => {
@@ -529,8 +577,16 @@ export default function AsaasConfigPage() {
               </Alert>
 
               <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" onClick={gerarTokenWebhook}>
-                  Gerar token
+                <Button type="button" variant="outline" onClick={gerarTokenWebhook} disabled={saving}>
+                  {saving ? 'Salvando...' : 'Gerar e salvar token'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void persistWebhookToken(webhookToken)}
+                  disabled={saving || webhookToken.trim().length < 32}
+                >
+                  Salvar token
                 </Button>
                 <Button type="button" variant="outline" onClick={copyWebhookToken} disabled={!webhookToken.trim()}>
                   Copiar token para o Asaas

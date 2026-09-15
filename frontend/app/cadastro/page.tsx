@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
-import { formatApiErrorBody } from '@/lib/api-errors';
+import { formatApiError } from '@/lib/api-errors';
 import { cepDigitosValidos, cpfCnpjValido, mensagemCpfCnpjInvalido } from '@/lib/format-br';
 import { logger } from '@/lib/logger';
 import { useLojaForm, type LojaCadastrada } from '@/hooks/useLojaForm';
@@ -51,7 +51,7 @@ function CadastroPublicoContent() {
       setShowSuccess(true);
     } catch (error) {
       logger.warn('Erro ao criar loja:', error);
-      const formatted = formatApiErrorBody(error);
+      const formatted = formatApiError(error);
       alert(`❌ Erro ao criar cadastro:\n\n${formatted || 'Erro desconhecido ao criar cadastro'}`);
     } finally {
       setLoading(false);

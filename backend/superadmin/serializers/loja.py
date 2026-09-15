@@ -107,6 +107,13 @@ class LojaCreateSerializer(
             "logo", "cor_primaria", "cor_secundaria", "dominio_customizado",
             "atalho", "subdomain",  # ✅ NOVO v1421: Sistema híbrido de acesso
         ]
+        extra_kwargs = {
+            "atalho": {
+                "error_messages": {
+                    "unique": 'Este atalho já está em uso. Escolha outro (ex.: clinica-felix).',
+                },
+            },
+        }
 
     @staticmethod
     def _tentar_enriquecer_cep_attrs(attrs: dict, cep_raw: str) -> str:
@@ -162,6 +169,20 @@ class LojaCreateSerializer(
         raise serializers.ValidationError(
             {"cep": "CEP é obrigatório para emissão da nota fiscal após o pagamento."}
         )
+
+    def validate_atalho(self, value):
+        atalho = (value or "").strip().lower()
+        if not atalho:
+            return atalho
+        qs = Loja.objects.filter(atalho__iexact=atalho)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                f'O atalho "{atalho}" já está em uso (lwksistemas.com.br/{atalho}). '
+                "Escolha outro, por exemplo clinica-felix ou felix-beleza.",
+            )
+        return atalho
 
     def _validate_cep_enriquecer(self, attrs: dict) -> dict:
         """Tenta enriquecer CEP e normaliza campos de endereço. Retorna attrs modificado."""
@@ -318,6 +339,8 @@ class LojaCreateSerializer(
 
             return loja
 
+        except serializers.ValidationError:
+            raise
         except Exception as e:
             logger.error(f"Erro ao criar loja: {e}")
             logger.error(traceback.format_exc())

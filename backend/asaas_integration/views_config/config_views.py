@@ -59,6 +59,13 @@ def _asaas_config_post(request, config, resolved_key):
         config.save()
         config.refresh_from_db()
         effective_webhook = config.webhook_token_decrypted or AsaasConfig.resolve_webhook_token()
+        asaas_webhook_sync = None
+        if effective_webhook:
+            from asaas_integration.webhook_asaas_sync import sincronizar_token_webhook_asaas
+
+            asaas_webhook_sync = sincronizar_token_webhook_asaas(effective_webhook)
+            if not asaas_webhook_sync.get("success"):
+                logger.warning("Token salvo no LWK, mas o Asaas não foi atualizado: %s", asaas_webhook_sync.get("error"))
         return Response({
             "message": "Configuração salva com sucesso no banco de dados.",
             "api_key": "",
@@ -71,6 +78,7 @@ def _asaas_config_post(request, config, resolved_key):
             "webhook_token": config.webhook_token_masked,
             "webhook_token_configured": bool(effective_webhook),
             "webhook_token_length": len(effective_webhook) if effective_webhook else 0,
+            "asaas_webhook_sync": asaas_webhook_sync,
         })
     except Exception as e:
         return Response({"detail": f"Erro ao salvar configuração: {e!s}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

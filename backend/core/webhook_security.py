@@ -45,8 +45,19 @@ def verify_asaas_access_token(request, expected_token: str | None = None) -> boo
         return not _reject_unconfigured("Asaas")
 
     received = (request.headers.get("asaas-access-token") or "").strip()
-    if not received or not hmac.compare_digest(received, token):
-        logger.warning("Webhook Asaas: token inválido ou ausente")
+    if not received:
+        logger.warning("Webhook Asaas: header asaas-access-token ausente")
+        return False
+    try:
+        token_ok = hmac.compare_digest(received, token)
+    except ValueError:
+        token_ok = False
+    if not token_ok:
+        logger.warning(
+            "Webhook Asaas: token divergente (recebido=%s chars, esperado=%s chars)",
+            len(received),
+            len(token),
+        )
         return False
     return True
 

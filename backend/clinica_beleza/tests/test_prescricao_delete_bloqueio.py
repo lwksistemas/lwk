@@ -12,27 +12,29 @@ class PrescricaoDeleteBloqueioTest(SimpleTestCase):
 
         return ConsultaPrescricaoDeleteView()
 
-    @patch("clinica_beleza.views_consultas.prescricoes.remover_pdf_media_prescricao")
-    @patch("clinica_beleza.views_consultas.prescricoes.PrescricaoMemed")
-    def test_consulta_finalizada_bloqueia_exclusao(self, mock_model, mock_remover):
-        consulta = SimpleNamespace(status="COMPLETED", data_fim=None, appointment=None)
-        presc = MagicMock(consulta=consulta)
-        mock_model.objects.select_related.return_value.get.return_value = presc
+    def _presc(self, status):
+        consulta = SimpleNamespace(status=status, data_fim=None, appointment=None)
+        return MagicMock(consulta=consulta, consulta_id=1)
 
-        resp = self._view().delete(MagicMock(), consulta_id=1, pk=1)
+    @patch("clinica_beleza.views_consultas.prescricoes.remover_pdf_media_prescricao")
+    def test_consulta_finalizada_bloqueia_exclusao(self, mock_remover):
+        presc = self._presc("COMPLETED")
+        view = self._view()
+        view.get_object = MagicMock(return_value=presc)
+
+        resp = view.delete(MagicMock(), consulta_id=1, pk=1)
 
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
         presc.delete.assert_not_called()
         mock_remover.assert_not_called()
 
     @patch("clinica_beleza.views_consultas.prescricoes.remover_pdf_media_prescricao")
-    @patch("clinica_beleza.views_consultas.prescricoes.PrescricaoMemed")
-    def test_consulta_em_andamento_permite_exclusao(self, mock_model, mock_remover):
-        consulta = SimpleNamespace(status="IN_PROGRESS", data_fim=None, appointment=None)
-        presc = MagicMock(consulta=consulta)
-        mock_model.objects.select_related.return_value.get.return_value = presc
+    def test_consulta_em_andamento_permite_exclusao(self, mock_remover):
+        presc = self._presc("IN_PROGRESS")
+        view = self._view()
+        view.get_object = MagicMock(return_value=presc)
 
-        resp = self._view().delete(MagicMock(), consulta_id=1, pk=1)
+        resp = view.delete(MagicMock(), consulta_id=1, pk=1)
 
         self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
         presc.delete.assert_called_once()

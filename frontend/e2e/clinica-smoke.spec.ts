@@ -56,7 +56,7 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     await expect(page.getByRole('heading', { name: /^agenda$/i })).toBeVisible({ timeout: 20000 });
   });
 
-  test('fluxo autenticado — prontuário e financeiro', async ({ page }) => {
+  test('fluxo autenticado — prontuário e menu sem financeiro', async ({ page }) => {
     test.skip(!clinicaE2eCredentials(), 'Defina CLINICA_E2E_* ou CRM_E2E_*');
 
     const ok = await loginClinicaLoja(page, slug);
@@ -65,9 +65,7 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
     await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
     await expect(page.getByRole('button', { name: /nova consulta/i })).toBeVisible();
-
-    await visitarClinicaAutenticado(page, '/clinica-beleza/financeiro', slug);
-    await expect(page.getByRole('heading', { name: /financeiro/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('link', { name: /^financeiro$/i })).toHaveCount(0);
   });
 
   test('fluxo autenticado — abrir Receber na consulta quando houver saldo', async ({ page }) => {

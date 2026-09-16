@@ -275,13 +275,6 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                   </span>
                 </div>
               </div>
-              <Link
-                href={`/loja/${slug}/clinica-beleza/financeiro`}
-                className="mt-5 block w-full text-center py-3 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
-              >
-                Ver relatório financeiro
-              </Link>
             </div>
           </div>
 

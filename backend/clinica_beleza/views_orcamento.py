@@ -6,7 +6,9 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from clinica_beleza.models.orcamento import OrcamentoConsulta
 from clinica_beleza.orcamento_service import (
+    atualizar_status_orcamento,
     criar_orcamento,
     enviar_orcamento,
     excluir_orcamento,
@@ -15,8 +17,15 @@ from clinica_beleza.orcamento_service import (
 )
 from clinica_beleza.permissions import CLINICA_CLINICAL
 from clinica_beleza.throttles import PublicPdfThrottle
+from clinica_beleza.views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
+
+
+class _OrcamentoObjectMixin(GetObjectMixin):
+    model_class = OrcamentoConsulta
+    not_found_message = "Orçamento não encontrado"
+    select_related_fields = ("patient", "professional", "consulta")
 
 
 class OrcamentoConsultaView(APIView):
@@ -63,23 +72,37 @@ class OrcamentoConsultaView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class OrcamentoDetalheView(APIView):
+class OrcamentoDetalheView(_OrcamentoObjectMixin, APIView):
     """Ações em um orçamento específico.
 
+    PATCH  /api/clinica-beleza/orcamentos/<id>/  {"status": "ACEITO"|"RECUSADO"}
     DELETE /api/clinica-beleza/orcamentos/<id>/
     """
 
     permission_classes = CLINICA_CLINICAL
 
-    def delete(self, request, orcamento_id):
+    def patch(self, request, orcamento_id):
+        orcamento, err = self.object_or_404(orcamento_id)
+        if err:
+            return err
         try:
-            excluir_orcamento(orcamento_id)
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Exception as e:
+            atualizar_status_orcamento(orcamento, request.data.get("status"))
+        except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"id": orcamento.id, "status": orcamento.status})
+
+    def delete(self, request, orcamento_id):
+        orcamento, err = self.object_or_404(orcamento_id)
+        if err:
+            return err
+        try:
+            excluir_orcamento(orcamento)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class OrcamentoPDFView(APIView):
+class OrcamentoPDFView(_OrcamentoObjectMixin, APIView):
     """Gera PDF do orçamento.
 
     GET /api/clinica-beleza/orcamentos/<id>/pdf/
@@ -88,11 +111,13 @@ class OrcamentoPDFView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request, orcamento_id):
+        _, err = self.object_or_404(orcamento_id)
+        if err:
+            return err
         try:
             pdf_bytes = gerar_pdf_orcamento(orcamento_id)
             try:
                 from clinica_beleza.media_docs_service import salvar_orcamento_no_servidor_midia
-                from clinica_beleza.models.orcamento import OrcamentoConsulta
                 orcamento = OrcamentoConsulta.objects.select_related("patient").filter(pk=orcamento_id).first()
                 if orcamento:
                     salvar_orcamento_no_servidor_midia(orcamento, pdf_bytes)
@@ -101,6 +126,8 @@ class OrcamentoPDFView(APIView):
             response = HttpResponse(pdf_bytes, content_type="application/pdf")
             response["Content-Disposition"] = f'inline; filename="orcamento_{orcamento_id}.pdf"'
             return response
+        except OrcamentoConsulta.DoesNotExist:
+            return Response({"error": "Orçamento não encontrado"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             logger.exception("Erro ao gerar PDF do orçamento: %s", e)
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -130,7 +157,7 @@ class OrcamentoPDFPublicView(APIView):
         return response
 
 
-class OrcamentoEnviarView(APIView):
+class OrcamentoEnviarView(_OrcamentoObjectMixin, APIView):
     """Envia orçamento por email/WhatsApp.
 
     POST /api/clinica-beleza/orcamentos/<id>/enviar/
@@ -140,6 +167,9 @@ class OrcamentoEnviarView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def post(self, request, orcamento_id):
+        _, err = self.object_or_404(orcamento_id)
+        if err:
+            return err
         canais = request.data.get("canais", [])
         if not canais:
             return Response({"error": "Informe ao menos um canal (email, whatsapp)"}, status=status.HTTP_400_BAD_REQUEST)
@@ -147,6 +177,8 @@ class OrcamentoEnviarView(APIView):
         try:
             resultado = enviar_orcamento(orcamento_id, canais)
             return Response(resultado)
+        except OrcamentoConsulta.DoesNotExist:
+            return Response({"error": "Orçamento não encontrado"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             logger.exception("Erro ao enviar orçamento: %s", e)
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

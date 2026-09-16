@@ -139,20 +139,24 @@ class AgendaView(APIView):
         )
 
 
-class AgendaUpdateView(APIView):
+class AgendaUpdateView(GetObjectMixin, APIView):
     """PATCH /clinica-beleza/agenda/<id>/update/"""
 
     permission_classes = CLINICA_AGENDA
+    model_class = Appointment
+    not_found_message = "Agendamento não encontrado"
+
+    def get_object(self, pk):
+        try:
+            return _agenda_events_queryset().get(pk=pk)
+        except Appointment.DoesNotExist:
+            return None
 
     def patch(self, request, pk):
         logger.info("PATCH agenda/%s data=%s", pk, dict(request.data))
-        try:
-            appointment = (
-                _agenda_events_queryset()
-                .get(pk=pk)
-            )
-        except Appointment.DoesNotExist:
-            return Response({"error": "Agendamento não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        appointment, err = self.object_or_404(pk)
+        if err:
+            return err
 
         scope = resolve_agenda_professional_scope(request)
         if not appointment_in_agenda_scope(appointment, scope):

@@ -10,28 +10,22 @@ from ..consulta_procedimentos_service import (
 from ..models import Consulta
 from ..permissions import CLINICA_CLINICAL
 from ..serializers import AppointmentProcedureSerializer, ConsultaSerializer
+from ..views_base import GetObjectMixin
 
 
-class ConsultaProcedimentoListView(APIView):
+class ConsultaProcedimentoListView(GetObjectMixin, APIView):
     """GET  /clinica-beleza/consultas/<consulta_id>/procedimentos/
     POST /clinica-beleza/consultas/<consulta_id>/procedimentos/
     """
 
     permission_classes = CLINICA_CLINICAL
-
-    def _get_consulta(self, consulta_id):
-        try:
-            return (
-                Consulta.objects.select_related("appointment")
-                .prefetch_related("appointment__appointment_procedures__procedure")
-                .get(pk=consulta_id),
-                None,
-            )
-        except Consulta.DoesNotExist:
-            return None, Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+    model_class = Consulta
+    not_found_message = "Consulta não encontrada"
+    select_related_fields = ("appointment",)
+    prefetch_related_fields = ("appointment__appointment_procedures__procedure",)
 
     def get(self, request, consulta_id):
-        consulta, error = self._get_consulta(consulta_id)
+        consulta, error = self.object_or_404(consulta_id)
         if error:
             return error
         from ..consulta_procedimentos_service import _garantir_procedimentos_legacy
@@ -41,7 +35,7 @@ class ConsultaProcedimentoListView(APIView):
         return Response(AppointmentProcedureSerializer(qs, many=True).data)
 
     def post(self, request, consulta_id):
-        consulta, error = self._get_consulta(consulta_id)
+        consulta, error = self.object_or_404(consulta_id)
         if error:
             return error
 
@@ -65,16 +59,18 @@ class ConsultaProcedimentoListView(APIView):
         )
 
 
-class ConsultaProcedimentoDetailView(APIView):
+class ConsultaProcedimentoDetailView(GetObjectMixin, APIView):
     """DELETE /clinica-beleza/consultas/<consulta_id>/procedimentos/<pk>/"""
 
     permission_classes = CLINICA_CLINICAL
+    model_class = Consulta
+    not_found_message = "Consulta não encontrada"
+    select_related_fields = ("appointment",)
 
     def delete(self, request, consulta_id, pk):
-        try:
-            consulta = Consulta.objects.select_related("appointment").get(pk=consulta_id)
-        except Consulta.DoesNotExist:
-            return Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        consulta, error = self.object_or_404(consulta_id)
+        if error:
+            return error
 
         try:
             remover_procedimento_consulta(consulta, int(pk))

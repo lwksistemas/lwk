@@ -14,16 +14,12 @@ from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
 
 def _documentos_da_consulta(consulta):
-    """Lista documentos da consulta no schema correto (evita lista vazia após POST 201)."""
-    from tenants.middleware import get_current_tenant_db
-
-    tenant_db = get_current_tenant_db()
-    qs = DocumentoClinico.objects.all_without_filter().filter(
-        consulta_id=consulta.id,
-    ).select_related("professional", "template").order_by("-created_at")
-    if tenant_db and tenant_db != "default":
-        qs = qs.using(tenant_db)
-    return qs
+    """Lista documentos da consulta no schema da loja (manager aplica loja_id)."""
+    return (
+        DocumentoClinico.objects.filter(consulta_id=consulta.id)
+        .select_related("professional", "template")
+        .order_by("-created_at")
+    )
 
 
 def _get_professional_from_request(request, *, consulta=None, professional_id=None):

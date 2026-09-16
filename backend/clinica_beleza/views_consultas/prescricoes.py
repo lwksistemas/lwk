@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from ..models import Consulta, PrescricaoMemed, Professional
 from ..permissions import CLINICA_CLINICAL
 from ..serializers import PrescricaoMemedSerializer
+from ..views_base import GetObjectMixin
 
 
 def remover_pdf_media_prescricao(prescricao) -> None:
@@ -131,19 +132,21 @@ class ConsultaPrescricaoView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ConsultaPrescricaoDeleteView(APIView):
+class ConsultaPrescricaoDeleteView(GetObjectMixin, APIView):
     """DELETE /clinica-beleza/consultas/<consulta_id>/prescricoes/<pk>/ — exclui prescrição Memed."""
 
     permission_classes = CLINICA_CLINICAL
+    model_class = PrescricaoMemed
+    not_found_message = "Prescrição não encontrada."
+    select_related_fields = ("consulta", "consulta__appointment")
 
     def delete(self, request, consulta_id, pk):
         from ..consulta_service.messages import consulta_esta_concluida
 
-        try:
-            prescricao = PrescricaoMemed.objects.select_related("consulta", "consulta__appointment").get(
-                pk=pk, consulta_id=consulta_id,
-            )
-        except PrescricaoMemed.DoesNotExist:
+        prescricao, error = self.object_or_404(pk)
+        if error:
+            return error
+        if prescricao.consulta_id != consulta_id:
             return Response({"error": "Prescrição não encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
         # Consulta finalizada: prontuário imutável — só visualizar, não excluir.

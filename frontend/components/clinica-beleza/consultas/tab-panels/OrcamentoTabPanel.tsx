@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { DollarSign, Eye, FileText, Mail, MessageCircle, Plus, Trash2, X } from "lucide-react";
+import { Ban, Check, DollarSign, Eye, FileText, Mail, MessageCircle, Plus, Trash2, X } from "lucide-react";
 import apiClient from "@/lib/api-client";
 import { useToast } from "@/components/ui/Toast";
 import { formatCurrency } from "@/lib/financeiro-helpers";
@@ -58,6 +58,19 @@ const STATUS_LABEL: Record<string, string> = {
   RECUSADO: "Recusado",
 };
 
+function statusBadgeClass(status: string): string {
+  if (status === "ACEITO") {
+    return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+  }
+  if (status === "RECUSADO") {
+    return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+  }
+  if (status === "ENVIADO") {
+    return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+  }
+  return "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300";
+}
+
 function formatarObservacoesOrcamento(texto: string): string {
   const t = (texto || "").trim();
   if (!t) return "";
@@ -90,6 +103,7 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
   const [showProcSelector, setShowProcSelector] = useState(true);
   const [visualizando, setVisualizando] = useState<Orcamento | null>(null);
   const [abrindoPdf, setAbrindoPdf] = useState<number | null>(null);
+  const [decidindoStatus, setDecidindoStatus] = useState<number | null>(null);
   const { categoriaAtiva, setCategoriaAtiva, categoriasDisponiveis, filtrados } =
     useProcedimentoCategoriaFiltro(procedures);
 
@@ -216,6 +230,20 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
       await carregarOrcamentos();
     } catch {
       toast.error("Erro ao excluir.");
+    }
+  };
+
+  const decidirStatus = async (id: number, status: "ACEITO" | "RECUSADO") => {
+    setDecidindoStatus(id);
+    try {
+      await apiClient.patch(`/clinica-beleza/orcamentos/${id}/`, { status });
+      toast.success(status === "ACEITO" ? "Orçamento aceito." : "Orçamento recusado.");
+      setVisualizando((atual) => (atual && atual.id === id ? { ...atual, status } : atual));
+      await carregarOrcamentos();
+    } catch {
+      toast.error("Não foi possível atualizar o status.");
+    } finally {
+      setDecidindoStatus(null);
     }
   };
 
@@ -438,7 +466,7 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
               <span className="text-lg font-semibold text-gray-900 dark:text-white">
                 {formatCurrency(orc.valor_total)}
               </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+              <span className={`text-xs px-2 py-0.5 rounded-full ${statusBadgeClass(orc.status)}`}>
                 {STATUS_LABEL[orc.status] || orc.status}
               </span>
               {orc.enviado_email && <span className="text-xs text-green-600">✓ E-mail</span>}
@@ -500,20 +528,44 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
             >
               <MessageCircle size={14} /> WhatsApp
             </button>
-            <button
-              type="button"
-              onClick={() => editarOrcamento(orc)}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-amber-50 text-amber-700 rounded hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-300"
-            >
-              <Plus size={14} /> Editar
-            </button>
-            <button
-              type="button"
-              onClick={() => excluir(orc.id)}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-50 text-red-700 rounded hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 ml-auto"
-            >
-              <Trash2 size={14} /> Excluir
-            </button>
+            {orc.status !== "ACEITO" && (
+              <button
+                type="button"
+                onClick={() => decidirStatus(orc.id, "ACEITO")}
+                disabled={decidindoStatus === orc.id}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-emerald-50 text-emerald-800 rounded hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 disabled:opacity-50"
+              >
+                <Check size={14} /> Aceitar
+              </button>
+            )}
+            {orc.status !== "RECUSADO" && (
+              <button
+                type="button"
+                onClick={() => decidirStatus(orc.id, "RECUSADO")}
+                disabled={decidindoStatus === orc.id}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-50 text-red-700 rounded hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 disabled:opacity-50"
+              >
+                <Ban size={14} /> Recusar
+              </button>
+            )}
+            {orc.status !== "ACEITO" && (
+              <button
+                type="button"
+                onClick={() => editarOrcamento(orc)}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-amber-50 text-amber-700 rounded hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-300"
+              >
+                <Plus size={14} /> Editar
+              </button>
+            )}
+            {orc.status !== "ACEITO" && (
+              <button
+                type="button"
+                onClick={() => excluir(orc.id)}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-50 text-red-700 rounded hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 ml-auto"
+              >
+                <Trash2 size={14} /> Excluir
+              </button>
+            )}
           </div>
         </div>
       ))}
@@ -610,6 +662,26 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
               >
                 <FileText size={16} /> {abrindoPdf === visualizando.id ? "Abrindo..." : "Abrir PDF"}
               </button>
+              {visualizando.status !== "ACEITO" && (
+                <button
+                  type="button"
+                  onClick={() => decidirStatus(visualizando.id, "ACEITO")}
+                  disabled={decidindoStatus === visualizando.id}
+                  className="flex items-center gap-1 px-4 py-2 text-sm border border-emerald-300 text-emerald-800 rounded-lg disabled:opacity-50"
+                >
+                  <Check size={16} /> Aceitar
+                </button>
+              )}
+              {visualizando.status !== "RECUSADO" && (
+                <button
+                  type="button"
+                  onClick={() => decidirStatus(visualizando.id, "RECUSADO")}
+                  disabled={decidindoStatus === visualizando.id}
+                  className="flex items-center gap-1 px-4 py-2 text-sm border border-red-300 text-red-700 rounded-lg disabled:opacity-50"
+                >
+                  <Ban size={16} /> Recusar
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setVisualizando(null)}

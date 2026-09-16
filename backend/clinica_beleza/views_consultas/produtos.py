@@ -8,23 +8,20 @@ from rest_framework.views import APIView
 from ..models import Consulta, ConsultaProdutoUtilizado, ProdutoEstoque
 from ..permissions import CLINICA_CLINICAL
 from ..serializers import ConsultaProdutoUtilizadoSerializer
+from ..views_base import GetObjectMixin
 
 
-class ConsultaProdutoListView(APIView):
+class ConsultaProdutoListView(GetObjectMixin, APIView):
     """GET  /clinica-beleza/consultas/<consulta_id>/produtos/
     POST /clinica-beleza/consultas/<consulta_id>/produtos/
     """
 
     permission_classes = CLINICA_CLINICAL
-
-    def _get_consulta(self, consulta_id):
-        try:
-            return Consulta.objects.get(pk=consulta_id), None
-        except Consulta.DoesNotExist:
-            return None, Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+    model_class = Consulta
+    not_found_message = "Consulta não encontrada"
 
     def get(self, request, consulta_id):
-        consulta, error = self._get_consulta(consulta_id)
+        consulta, error = self.object_or_404(consulta_id)
         if error:
             return error
         qs = ConsultaProdutoUtilizado.objects.filter(
@@ -33,7 +30,7 @@ class ConsultaProdutoListView(APIView):
         return Response(ConsultaProdutoUtilizadoSerializer(qs, many=True).data)
 
     def post(self, request, consulta_id):
-        consulta, error = self._get_consulta(consulta_id)
+        consulta, error = self.object_or_404(consulta_id)
         if error:
             return error
         if consulta.status != "IN_PROGRESS":
@@ -79,27 +76,27 @@ class ConsultaProdutoListView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ConsultaProdutoDetailView(APIView):
+class ConsultaProdutoDetailView(GetObjectMixin, APIView):
     """DELETE /clinica-beleza/consultas/<consulta_id>/produtos/<pk>/"""
 
     permission_classes = CLINICA_CLINICAL
+    model_class = ConsultaProdutoUtilizado
+    not_found_message = "Registro não encontrado."
+    select_related_fields = ("consulta", "produto")
 
     def delete(self, request, consulta_id, pk):
-        try:
-            consulta = Consulta.objects.get(pk=consulta_id)
-        except Consulta.DoesNotExist:
-            return Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        item, error = self.object_or_404(pk)
+        if error:
+            return error
+        if item.consulta_id != consulta_id:
+            return Response({"error": "Registro não encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
+        consulta = item.consulta
         if consulta.status != "IN_PROGRESS":
             return Response(
                 {"error": "Não é possível remover produtos após finalizar a consulta."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        try:
-            item = ConsultaProdutoUtilizado.objects.get(pk=pk, consulta=consulta)
-        except ConsultaProdutoUtilizado.DoesNotExist:
-            return Response({"error": "Registro não encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
         if item.estoque_baixado:
             return Response(

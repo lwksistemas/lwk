@@ -33,6 +33,7 @@ describe("nav consultas", () => {
   it("mostra Consultas no menu no lugar do hub Prontuário", () => {
     expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).toContain("Consultas");
     expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).not.toContain("Prontuário");
+    expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).not.toContain("Financeiro");
   });
 
   it("marca ativo na lista, na ficha e no hub legado", () => {

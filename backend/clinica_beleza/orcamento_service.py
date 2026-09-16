@@ -155,9 +155,25 @@ def enviar_orcamento(orcamento_id: int, canais: list[str]) -> dict[str, Any]:
     return resultado
 
 
-def excluir_orcamento(orcamento_id: int) -> None:
-    """Exclui orçamento."""
-    OrcamentoConsulta.objects.filter(id=orcamento_id).delete()
+def atualizar_status_orcamento(orcamento: OrcamentoConsulta, novo_status: str) -> OrcamentoConsulta:
+    """Marca orçamento como ACEITO ou RECUSADO (RASCUNHO/ENVIADO ou troca entre os dois)."""
+    novo = (novo_status or "").strip().upper()
+    if novo not in ("ACEITO", "RECUSADO"):
+        raise ValueError("Status deve ser ACEITO ou RECUSADO.")
+    if orcamento.status not in ("RASCUNHO", "ENVIADO", "ACEITO", "RECUSADO"):
+        raise ValueError(f"Não é possível alterar orçamento com status {orcamento.status}.")
+    if orcamento.status == novo:
+        return orcamento
+    orcamento.status = novo
+    orcamento.save(update_fields=["status", "updated_at"])
+    return orcamento
+
+
+def excluir_orcamento(orcamento: OrcamentoConsulta) -> None:
+    """Exclui orçamento (aceito permanece no histórico)."""
+    if orcamento.status == "ACEITO":
+        raise ValueError("Não é possível excluir um orçamento aceito.")
+    orcamento.delete()
 
 
 # ---------------------------------------------------------------------------

@@ -30,6 +30,8 @@ export function EstoqueCatalogoImportModal({
 
   if (!fornecedor) return null;
 
+  const temPrevia = itens.length > 0;
+
   const lerArquivo = async (file: File) => {
     setError("");
     setResultado(null);
@@ -67,8 +69,12 @@ export function EstoqueCatalogoImportModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-3 sm:p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-[96vw] max-w-6xl h-[90vh] max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-700">
+      <div
+        className={`bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full flex flex-col ${
+          temPrevia ? "max-w-4xl max-h-[90vh]" : "max-w-lg"
+        }`}
+      >
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-neutral-700">
           <div>
             <h2 className="text-lg font-semibold">Importar catálogo</h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -79,7 +85,7 @@ export function EstoqueCatalogoImportModal({
             <X size={20} className="text-gray-500" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        <div className={`px-5 py-4 space-y-3 ${temPrevia ? "flex-1 min-h-0 overflow-y-auto" : ""}`}>
           {error && (
             <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm flex gap-2">
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
@@ -125,7 +131,7 @@ export function EstoqueCatalogoImportModal({
             </p>
           )}
           {itens.length > 0 && (
-            <div className="text-sm border rounded-lg overflow-auto max-h-[58vh]">
+            <div className="text-sm border rounded-lg overflow-auto max-h-[min(52vh,28rem)]">
               <table className="w-full min-w-[720px]">
                 <thead className="bg-gray-50 dark:bg-neutral-800 sticky top-0">
                   <tr>
@@ -162,7 +168,7 @@ export function EstoqueCatalogoImportModal({
             </div>
           )}
         </div>
-        <div className="px-6 py-3 border-t flex justify-end gap-2">
+        <div className="px-5 py-3 border-t flex justify-end gap-2">
           <button type="button" onClick={onClose} className="px-3 py-2 text-sm rounded-lg border">
             Fechar
           </button>

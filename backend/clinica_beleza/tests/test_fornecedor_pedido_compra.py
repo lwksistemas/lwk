@@ -227,6 +227,21 @@ class ExcluirCatalogoTests(SimpleTestCase):
         forn.delete.assert_not_called()
 
 
+class FornecedorSerializerCountTests(SimpleTestCase):
+    def test_usa_annotate_quando_existe(self):
+        from clinica_beleza.serializers.fornecedores import FornecedorSerializer
+
+        obj = MagicMock(produtos_count=7)
+        self.assertEqual(FornecedorSerializer().get_produtos_count(obj), 7)
+
+    def test_conta_relacionados_sem_annotate(self):
+        from clinica_beleza.serializers.fornecedores import FornecedorSerializer
+
+        obj = MagicMock(spec=["produtos"])
+        obj.produtos.count.return_value = 3
+        self.assertEqual(FornecedorSerializer().get_produtos_count(obj), 3)
+
+
 class ImportarCatalogoTests(SimpleTestCase):
     @patch("clinica_beleza.fornecedor_service.FornecedorProduto")
     def test_upsert_por_codigo(self, MockProd):

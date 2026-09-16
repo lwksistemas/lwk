@@ -5,9 +5,17 @@ from ..models.fornecedores import Fornecedor, FornecedorProduto
 
 
 class FornecedorSerializer(serializers.ModelSerializer):
+    produtos_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Fornecedor
         exclude = ["loja_id"]
+
+    def get_produtos_count(self, obj):
+        count = getattr(obj, "produtos_count", None)
+        if count is not None:
+            return int(count)
+        return obj.produtos.count()
 
 
 class FornecedorProdutoSerializer(serializers.ModelSerializer):

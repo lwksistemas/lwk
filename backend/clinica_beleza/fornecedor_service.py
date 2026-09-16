@@ -542,9 +542,7 @@ def _parse_produtos_por_codigo(linhas: list[str], itens: list[dict], usados: set
         codigo = _CODIGO_LINHA_RE.match(linhas[idx]).group(1)
         prev = indices[n - 1] + 1 if n else max(0, idx - 24)
         nxt = indices[n + 1] if n + 1 < len(indices) else min(len(linhas), idx + 10)
-        preco = _preco_proximo_codigo(linhas, idx, prev, nxt)
-        if not preco:
-            continue
+        preco = _preco_proximo_codigo(linhas, idx, prev, nxt) or "0,00"
         antes = _coletar_titulo(linhas, idx - 1, prev, -1)
         depois = _coletar_titulo(linhas, idx + 1, min(nxt, idx + 7), 1)
         nome = _melhor_nome(antes, depois)

@@ -149,6 +149,36 @@ class PreviewCatalogoTests(SimpleTestCase):
         self.assertNotIn("de calcio", nomes)
         self.assertGreaterEqual(len(itens), 5)
 
+    def test_pdf_codigo_sem_preco_ainda_entra_no_catalogo(self):
+        """PHD visual: CÓDIGO 216 (skinbooster) vem sem R$ colado no bloco."""
+        texto = (
+            "HIPERCROMIA PÓS\n"
+            "INFLAMATÓRIA\n"
+            "4 SESSÕES\n"
+            "243,52\n"
+            "CÓDIGO 204\n"
+            "SKINBOOSTER\n"
+            "EFEITO LIFTING\n"
+            "Ativos para\n"
+            "Aplicação ID\n"
+            "CÓDIGO 216\n"
+            "Ácido Hialurônico não reticulado 4%/3ml\n"
+            "SKINBOOSTER\n"
+            "EFEITO LIKE\n"
+            "CÓDIGO 217\n"
+            "1 SESSÃO\n"
+            "116,10\n"
+        )
+        itens = _parse_catalogo_texto_livre(texto)
+        por_cod = {i["codigo"]: i for i in itens}
+        self.assertIn("204", por_cod)
+        self.assertEqual(por_cod["204"]["preco_ref"], "243.52")
+        self.assertIn("216", por_cod)
+        self.assertIn("LIFTING", por_cod["216"]["nome"].upper())
+        self.assertEqual(por_cod["216"]["preco_ref"], "0.00")
+        self.assertIn("217", por_cod)
+        self.assertEqual(por_cod["217"]["preco_ref"], "116.10")
+
     def test_pdf_ignora_ingrediente_solto(self):
         texto = "ZINCO\nR$ 108,00\nDE CÁLCIO\nR$ 99,00\n"
         self.assertEqual(_parse_catalogo_texto_livre(texto), [])
@@ -278,13 +308,16 @@ class PedidoCompraServiceTests(SimpleTestCase):
     @patch("clinica_beleza.estoque_movimentacao_service.registrar_movimentacao")
     @patch("clinica_beleza.pedido_compra_service.PedidoCompraItem")
     @patch("clinica_beleza.pedido_compra_service.PedidoCompra.objects")
+    @patch("clinica_beleza.pedido_compra_service.FornecedorProduto")
     @patch("clinica_beleza.pedido_compra_service.Fornecedor")
     @patch("clinica_beleza.pedido_compra_service.transaction.atomic")
-    def test_criar_pedido_nao_altera_estoque(self, mock_atomic, MockForn, mock_ped_objs, _Item, mock_mov):
+    def test_criar_pedido_nao_altera_estoque(self, mock_atomic, MockForn, MockProd, mock_ped_objs, _Item, mock_mov):
         mock_atomic.return_value = MagicMock(
             __enter__=MagicMock(), __exit__=MagicMock(return_value=False),
         )
         MockForn.objects.filter.return_value.first.return_value = MagicMock(id=1)
+        MockProd.objects.filter.return_value.first.return_value = None
+        MockProd.objects.create.return_value = MagicMock()
         pedido = MagicMock(id=9, numero=1)
         qs = MagicMock()
         qs.delete.return_value = None
@@ -297,6 +330,28 @@ class PedidoCompraServiceTests(SimpleTestCase):
             "itens": [{"codigo": "X", "nome": "Produto", "quantidade": 2, "preco": "10"}],
         })
         mock_mov.assert_not_called()
+
+    @patch("clinica_beleza.pedido_compra_service.FornecedorProduto")
+    def test_item_digitado_grava_no_catalogo(self, MockProd):
+        from clinica_beleza.pedido_compra_service import _montar_itens
+
+        forn = MagicMock(id=1, loja_id=9)
+        MockProd.objects.filter.return_value.first.return_value = None
+        criado = MagicMock()
+        MockProd.objects.create.return_value = criado
+
+        montados = _montar_itens(forn, [{
+            "codigo": "216",
+            "nome": "skinbooster efeito lifting",
+            "quantidade": "1",
+            "preco": "269.90",
+        }])
+        MockProd.objects.create.assert_called_once()
+        kwargs = MockProd.objects.create.call_args.kwargs
+        self.assertEqual(kwargs["codigo"], "216")
+        self.assertEqual(kwargs["nome"], "skinbooster efeito lifting")
+        self.assertEqual(kwargs["preco_ref"], Decimal("269.90"))
+        self.assertIs(montados[0]["catalogo"], criado)
 
     def test_assinar_clinica_exige_nome(self):
         pedido = MagicMock()

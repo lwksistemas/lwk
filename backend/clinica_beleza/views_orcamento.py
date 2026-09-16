@@ -16,8 +16,9 @@ from clinica_beleza.orcamento_service import (
     listar_orcamentos_consulta,
 )
 from clinica_beleza.permissions import CLINICA_CLINICAL
+from clinica_beleza.serializers import OrcamentoCreateSerializer, OrcamentoStatusSerializer
 from clinica_beleza.throttles import PublicPdfThrottle
-from clinica_beleza.views_base import GetObjectMixin
+from clinica_beleza.views_base import GetObjectMixin, MSG_ERRO_PDF, resposta_erro_interno
 
 logger = logging.getLogger(__name__)
 
@@ -42,34 +43,35 @@ class OrcamentoConsultaView(APIView):
         if not consulta_id:
             return Response({"error": "consulta_id obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            dados = listar_orcamentos_consulta(int(consulta_id))
+            consulta_id_int = int(consulta_id)
+        except (TypeError, ValueError):
+            return Response({"error": "consulta_id inválido"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            dados = listar_orcamentos_consulta(consulta_id_int)
             return Response(dados)
         except Exception as e:
-            logger.exception("Erro ao listar orçamentos: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return resposta_erro_interno(logger, "Erro ao listar orçamentos", e)
 
     def post(self, request):
-        data = request.data
-        consulta_id = data.get("consulta_id")
-        itens = data.get("itens", [])
-        observacoes = data.get("observacoes", "")
-        validade_dias = int(data.get("validade_dias", 30))
-
-        if not consulta_id or not itens:
-            return Response(
-                {"error": "consulta_id e itens são obrigatórios"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+        serializer = OrcamentoCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        data = serializer.validated_data
         try:
-            orcamento = criar_orcamento(consulta_id, itens, observacoes, validade_dias)
+            orcamento = criar_orcamento(
+                data["consulta_id"],
+                data["itens"],
+                data.get("observacoes", ""),
+                data.get("validade_dias", 30),
+            )
             return Response(
                 {"id": orcamento.id, "valor_total": str(orcamento.valor_total)},
                 status=status.HTTP_201_CREATED,
             )
-        except Exception as e:
-            logger.exception("Erro ao criar orçamento: %s", e)
+        except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return resposta_erro_interno(logger, "Erro ao criar orçamento", e)
 
 
 class OrcamentoDetalheView(_OrcamentoObjectMixin, APIView):
@@ -85,8 +87,11 @@ class OrcamentoDetalheView(_OrcamentoObjectMixin, APIView):
         orcamento, err = self.object_or_404(orcamento_id)
         if err:
             return err
+        serializer = OrcamentoStatusSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         try:
-            atualizar_status_orcamento(orcamento, request.data.get("status"))
+            atualizar_status_orcamento(orcamento, serializer.validated_data["status"])
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"id": orcamento.id, "status": orcamento.status})
@@ -129,8 +134,9 @@ class OrcamentoPDFView(_OrcamentoObjectMixin, APIView):
         except OrcamentoConsulta.DoesNotExist:
             return Response({"error": "Orçamento não encontrado"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.exception("Erro ao gerar PDF do orçamento: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return resposta_erro_interno(
+                logger, "Erro ao gerar PDF do orçamento", e, error=MSG_ERRO_PDF,
+            )
 
 
 class OrcamentoPDFPublicView(APIView):
@@ -180,5 +186,4 @@ class OrcamentoEnviarView(_OrcamentoObjectMixin, APIView):
         except OrcamentoConsulta.DoesNotExist:
             return Response({"error": "Orçamento não encontrado"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.exception("Erro ao enviar orçamento: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return resposta_erro_interno(logger, "Erro ao enviar orçamento", e)

@@ -13,7 +13,7 @@ from reportlab.lib.units import cm, mm
 from reportlab.platypus import Flowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from clinica_beleza.pdf_common import finalize_pdf_com_timbrado, logo_image
-from clinica_beleza.pedido_compra_service import _brl, _fmt_numero
+from clinica_beleza.pedido_compra.formatters import _brl, _fmt_numero
 
 VINHO = colors.HexColor("#8B3D52")
 FUNDO_TABELA = colors.HexColor("#f8eef1")
@@ -302,8 +302,8 @@ def _secao_assinaturas(elements, pedido, loja, styles, wm_bytes=None):
 
 
 def gerar_pdf_pedido_compra(pedido) -> bytes:
-    from .pedido_compra_service import _dados_loja
-    from .prontuario_pdf.header import _resolver_cabecalho
+    from clinica_beleza.pedido_compra.context import _dados_loja
+    from clinica_beleza.prontuario_pdf.header import _resolver_cabecalho
 
     loja = _dados_loja(pedido.loja_id)
     styles = _styles()

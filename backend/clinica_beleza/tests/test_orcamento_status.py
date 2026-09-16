@@ -1,5 +1,5 @@
 """Status ACEITO/RECUSADO e mixin das views de orçamento."""
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
@@ -76,3 +76,75 @@ class TestOrcamentoViewsMixin(SimpleTestCase):
         resp = view.patch(request, orcamento_id=9)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["status"], "ACEITO")
+
+    def test_patch_enviado_retorna_400_do_serializer(self):
+        orc = MagicMock(id=9, status="RASCUNHO")
+        view = OrcamentoDetalheView()
+        view.get_object = MagicMock(return_value=orc)
+        request = MagicMock()
+        request.data = {"status": "ENVIADO"}
+        resp = view.patch(request, orcamento_id=9)
+        self.assertEqual(resp.status_code, 400)
+        orc.save.assert_not_called()
+
+
+class TestOrcamentoNaoVazaException(SimpleTestCase):
+    def test_get_500_sem_detalhe_interno(self):
+        from clinica_beleza.views_base import MSG_ERRO_INTERNO
+        from clinica_beleza.views_orcamento import OrcamentoConsultaView
+
+        view = OrcamentoConsultaView()
+        request = MagicMock()
+        request.query_params = {"consulta_id": "1"}
+        with patch(
+            "clinica_beleza.views_orcamento.listar_orcamentos_consulta",
+            side_effect=RuntimeError("segredo interno xyz"),
+        ):
+            resp = view.get(request)
+        self.assertEqual(resp.status_code, 500)
+        self.assertEqual(resp.data["error"], MSG_ERRO_INTERNO)
+        self.assertNotIn("segredo", str(resp.data).lower())
+
+    def test_post_valueerror_continua_400(self):
+        from clinica_beleza.views_orcamento import OrcamentoConsultaView
+
+        view = OrcamentoConsultaView()
+        request = MagicMock()
+        request.data = {
+            "consulta_id": 1,
+            "itens": [{"procedure_id": 2, "quantidade": 1}],
+        }
+        with patch(
+            "clinica_beleza.views_orcamento.criar_orcamento",
+            side_effect=ValueError("Consulta não encontrada."),
+        ):
+            resp = view.post(request)
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.data["error"], "Consulta não encontrada.")
+
+    def test_post_500_sem_detalhe_interno(self):
+        from clinica_beleza.views_base import MSG_ERRO_INTERNO
+        from clinica_beleza.views_orcamento import OrcamentoConsultaView
+
+        view = OrcamentoConsultaView()
+        request = MagicMock()
+        request.data = {
+            "consulta_id": 1,
+            "itens": [{"procedure_id": 2, "quantidade": 1}],
+        }
+        with patch(
+            "clinica_beleza.views_orcamento.criar_orcamento",
+            side_effect=RuntimeError("traceback secreto"),
+        ):
+            resp = view.post(request)
+        self.assertEqual(resp.status_code, 500)
+        self.assertEqual(resp.data["error"], MSG_ERRO_INTERNO)
+        self.assertNotIn("traceback", str(resp.data).lower())
+
+    def test_delete_produto_consulta_id_diferente_404(self):
+        item = MagicMock(consulta_id=2)
+        view = ConsultaProdutoDetailView()
+        view.get_object = MagicMock(return_value=item)
+        resp = view.delete(MagicMock(), consulta_id=1, pk=9)
+        self.assertEqual(resp.status_code, 404)
+        item.delete.assert_not_called()

@@ -1,17 +1,19 @@
-"""Compat: re-exporta o pacote clinica_beleza.fornecedor."""
-from .fornecedor import (  # noqa: F401
-    FornecedorError,
-    excluir_catalogo,
-    excluir_fornecedor,
-    importar_catalogo,
+"""Pacote de fornecedor e catálogo."""
+from .catalogo import (
     preview_catalogo_arquivo,
     preview_catalogo_entrada,
     preview_catalogo_pdf,
-    salvar_fornecedor,
     _norm_nome,
     _parse_catalogo_texto_livre,
     _texto_pagina_pypdf,
     _texto_parece_planilha,
+)
+from .errors import FornecedorError
+from .service import (
+    excluir_catalogo,
+    excluir_fornecedor,
+    importar_catalogo,
+    salvar_fornecedor,
 )
 
 __all__ = [

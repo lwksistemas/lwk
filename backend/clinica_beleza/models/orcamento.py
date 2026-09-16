@@ -61,7 +61,7 @@ class OrcamentoConsulta(LojaIsolationMixin, models.Model):
         return f"Orçamento #{self.id} — {self.patient.nome if self.patient else '?'} (R$ {self.valor_total})"
 
 
-class OrcamentoItem(models.Model):
+class OrcamentoItem(LojaIsolationMixin, models.Model):
     """Item do orçamento — procedimento com valor customizado."""
 
     orcamento = models.ForeignKey(
@@ -76,6 +76,8 @@ class OrcamentoItem(models.Model):
     valor_customizado = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor Orçado")
     quantidade = models.PositiveIntegerField(default=1, verbose_name="Quantidade")
     observacao_item = models.TextField(blank=True, default="", verbose_name="Observação")
+
+    objects = LojaIsolationManager()
 
     class Meta:
         app_label = "clinica_beleza"

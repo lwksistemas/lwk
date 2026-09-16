@@ -48,6 +48,7 @@ def criar_orcamento(
             valor_customizado=valor_custom,
             quantidade=quantidade,
             observacao_item=item_data.get("observacao_item", ""),
+            loja_id=consulta.loja_id,
         )
         valor_total += valor_custom * quantidade
 

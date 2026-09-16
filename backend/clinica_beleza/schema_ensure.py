@@ -19,6 +19,7 @@ MIGRATION_RETORNO_GRATUITO = "0047_retorno_gratuito_agenda"
 MIGRATION_PATIENT_FOTO_URL = "0048_patient_foto_url"
 MIGRATION_PATIENT_ANAMNESE = "0019_consulta_anamnese_evolucao"
 MIGRATION_ORCAMENTO = "0077_orcamento_consulta"
+MIGRATION_ORCAMENTO_ITEM_LOJA = "0078_orcamento_item_loja_id"
 PATIENT_TABLE = "clinica_beleza_patient"
 PROFESSIONAL_TABLE = "clinica_beleza_professional"
 PROCEDURE_TABLE = "clinica_beleza_procedure"
@@ -293,11 +294,33 @@ def ensure_patient_anamnese_table(cursor) -> bool:
     return True
 
 
+def _ensure_orcamento_item_loja_id(cursor) -> None:
+    """ADD COLUMN + copia do pai. Nunca DROP/DELETE."""
+    if not table_exists(cursor, ORCAMENTO_ITEM_TABLE):
+        return
+    if not column_exists(cursor, ORCAMENTO_ITEM_TABLE, "loja_id"):
+        cursor.execute(f"ALTER TABLE {ORCAMENTO_ITEM_TABLE} ADD COLUMN loja_id INTEGER")
+    if table_exists(cursor, ORCAMENTO_CONSULTA_TABLE):
+        cursor.execute(f"""
+            UPDATE {ORCAMENTO_ITEM_TABLE} AS i
+            SET loja_id = o.loja_id
+            FROM {ORCAMENTO_CONSULTA_TABLE} AS o
+            WHERE i.orcamento_id = o.id
+              AND i.loja_id IS NULL
+        """)
+    cursor.execute(
+        f"CREATE INDEX IF NOT EXISTS {ORCAMENTO_ITEM_TABLE}_loja_id_idx "
+        f"ON {ORCAMENTO_ITEM_TABLE} (loja_id)",
+    )
+    _record_clinica_migration(cursor, MIGRATION_ORCAMENTO_ITEM_LOJA)
+
+
 def ensure_orcamento_tables(cursor) -> bool:
     """Cria tabelas de orçamento da consulta se ausentes no schema atual."""
     consulta_ok = table_exists(cursor, ORCAMENTO_CONSULTA_TABLE)
     item_ok = table_exists(cursor, ORCAMENTO_ITEM_TABLE)
     if consulta_ok and item_ok:
+        _ensure_orcamento_item_loja_id(cursor)
         _record_clinica_migration(cursor, MIGRATION_ORCAMENTO)
         return True
 
@@ -365,14 +388,20 @@ def ensure_orcamento_tables(cursor) -> bool:
                 orcamento_id {orcamento_pk_type} NOT NULL
                     REFERENCES {ORCAMENTO_CONSULTA_TABLE}(id) ON DELETE CASCADE,
                 procedure_id {procedure_id_type} NULL
-                    REFERENCES {PROCEDURE_TABLE}(id) ON DELETE SET NULL
+                    REFERENCES {PROCEDURE_TABLE}(id) ON DELETE SET NULL,
+                loja_id INTEGER NOT NULL
             )
         """)
         cursor.execute(
             f"CREATE INDEX IF NOT EXISTS {ORCAMENTO_ITEM_TABLE}_orcamento_id_idx "
             f"ON {ORCAMENTO_ITEM_TABLE} (orcamento_id)",
         )
+        cursor.execute(
+            f"CREATE INDEX IF NOT EXISTS {ORCAMENTO_ITEM_TABLE}_loja_id_idx "
+            f"ON {ORCAMENTO_ITEM_TABLE} (loja_id)",
+        )
 
+    _ensure_orcamento_item_loja_id(cursor)
     _record_clinica_migration(cursor, MIGRATION_ORCAMENTO)
     return True
 

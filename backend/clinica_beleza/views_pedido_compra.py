@@ -23,6 +23,7 @@ from .pedido_compra_service import (
     _ip_request,
 )
 from .permissions import CLINICA_ESTOQUE, CLINICA_ESTOQUE_LEITURA
+from .throttles import PublicPdfThrottle
 from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
 
@@ -229,6 +230,7 @@ class PedidoCompraPdfPublicView(APIView):
 
     authentication_classes = []
     permission_classes = []
+    throttle_classes = [PublicPdfThrottle]
 
     def get(self, request, pk, token):
         pdf = pdf_publico_cache(int(pk), token)

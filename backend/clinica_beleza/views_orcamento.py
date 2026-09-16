@@ -14,6 +14,7 @@ from clinica_beleza.orcamento_service import (
     listar_orcamentos_consulta,
 )
 from clinica_beleza.permissions import CLINICA_CLINICAL
+from clinica_beleza.throttles import PublicPdfThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +111,7 @@ class OrcamentoPDFPublicView(APIView):
 
     permission_classes = []
     authentication_classes = []
+    throttle_classes = [PublicPdfThrottle]
 
     def get(self, request, orcamento_id, token):
         from django.core.cache import cache as django_cache

@@ -29,6 +29,7 @@ from .consentimento_service import (
 )
 from .models import Consulta
 from .permissions import CLINICA_CLINICAL
+from .throttles import PublicPdfThrottle
 from .views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
@@ -350,6 +351,7 @@ class TermoConsentimentoPdfPublicView(APIView):
 
     permission_classes = [AllowAny]  # Acesso público intencional
     authentication_classes = []
+    throttle_classes = [PublicPdfThrottle]
 
     def get(self, request, consulta_id, procedure_id, token):
         from django.core.cache import cache as django_cache

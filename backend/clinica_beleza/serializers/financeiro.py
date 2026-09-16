@@ -104,3 +104,17 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         exclude = ["loja_id"]
+        read_only_fields = [
+            "status",
+            "comissao_percentual",
+            "comissao_valor",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_fields(self):
+        fields = super().get_fields()
+        if self.instance is not None:
+            for name in ("appointment", "amount", "valor_total", "desconto"):
+                fields[name].read_only = True
+        return fields

@@ -33,6 +33,13 @@ class PublicFotoThrottle(AnonRateThrottle):
     rate = "10/min"
 
 
+class PublicPdfThrottle(AnonRateThrottle):
+    """30 req/min por IP — PDF público (recibo, orçamento, pedido, termo)."""
+
+    scope = "public_pdf"
+    rate = "30/min"
+
+
 def _get_client_ip(request) -> str:
     """Extrai IP real do request respeitando proxies."""
     forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")

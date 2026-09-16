@@ -8,6 +8,7 @@ from django.test import SimpleTestCase
 from clinica_beleza.schema_ensure import (
     CONSULTA_TABLE,
     MIGRATION_ORCAMENTO,
+    MIGRATION_ORCAMENTO_ITEM_LOJA,
     ORCAMENTO_CONSULTA_TABLE,
     ORCAMENTO_ITEM_TABLE,
     PATIENT_TABLE,
@@ -23,6 +24,7 @@ class _FakeCursor:
     def __init__(self, existing, id_types=None):
         self.existing = set(existing)
         self.id_types = dict(id_types or {})
+        self.columns = {}
         self.executed = []
         self.db = SimpleNamespace(vendor="postgresql")
         self.connection = "postgresql"
@@ -38,6 +40,9 @@ class _FakeCursor:
             self.existing.add(ORCAMENTO_CONSULTA_TABLE)
         if f"create table {ORCAMENTO_ITEM_TABLE}" in compact:
             self.existing.add(ORCAMENTO_ITEM_TABLE)
+            self.columns[ORCAMENTO_ITEM_TABLE] = {"id", "loja_id", "orcamento_id"}
+        if "add column loja_id" in compact:
+            self.columns.setdefault(ORCAMENTO_ITEM_TABLE, set()).add("loja_id")
 
     def fetchone(self):
         sql = " ".join(self._last_sql.split()).lower()
@@ -46,6 +51,9 @@ class _FakeCursor:
             name = params[0]
             return (1,) if name in self.existing else None
         if "information_schema.columns" in sql:
+            if len(params) >= 2:
+                table, col = params[0], params[1]
+                return (1,) if col in self.columns.get(table, set()) else None
             table = params[0]
             return (self.id_types.get(table, "bigint"),)
         return None
@@ -58,6 +66,8 @@ class TestOrcamentoSchemaWiring(SimpleTestCase):
         ]
         self.assertEqual(names, ["OrcamentoConsulta", "OrcamentoItem"])
         self.assertEqual(Migration.dependencies, [("clinica_beleza", "0076_pedido_compra_paciente")])
+        m0078 = import_module("clinica_beleza.migrations.0078_orcamento_item_loja_id").Migration
+        self.assertEqual(m0078.dependencies, [("clinica_beleza", "0077_orcamento_consulta")])
 
     def test_ensure_registrado_no_deploy_e_auditoria(self):
         from superadmin.management.commands.ensure_all import ENSURES
@@ -92,6 +102,7 @@ class TestEnsureOrcamentoTables(SimpleTestCase):
         sqls = " ".join(sql for sql, _ in cursor.executed)
         self.assertIn(ORCAMENTO_CONSULTA_TABLE, sqls)
         self.assertIn(ORCAMENTO_ITEM_TABLE, sqls)
+        self.assertIn("loja_id INTEGER NOT NULL", sqls)
         self.assertTrue(
             any(
                 params == [MIGRATION_ORCAMENTO, MIGRATION_ORCAMENTO]
@@ -111,12 +122,28 @@ class TestEnsureOrcamentoTables(SimpleTestCase):
         self.assertTrue(ensure_orcamento_tables(cursor))
         sqls = " ".join(sql for sql, _ in cursor.executed)
         self.assertNotIn("CREATE TABLE", sqls)
+        self.assertIn("ADD COLUMN loja_id", sqls)
         self.assertTrue(
             any(
-                params == [MIGRATION_ORCAMENTO, MIGRATION_ORCAMENTO]
+                params == [MIGRATION_ORCAMENTO_ITEM_LOJA, MIGRATION_ORCAMENTO_ITEM_LOJA]
                 for _, params in cursor.executed
             ),
         )
+
+    def test_nao_recria_quando_item_ja_tem_loja_id(self):
+        cursor = _FakeCursor({
+            CONSULTA_TABLE,
+            PATIENT_TABLE,
+            PROFESSIONAL_TABLE,
+            PROCEDURE_TABLE,
+            ORCAMENTO_CONSULTA_TABLE,
+            ORCAMENTO_ITEM_TABLE,
+        })
+        cursor.columns[ORCAMENTO_ITEM_TABLE] = {"id", "loja_id", "orcamento_id"}
+        self.assertTrue(ensure_orcamento_tables(cursor))
+        sqls = " ".join(sql for sql, _ in cursor.executed)
+        self.assertNotIn("ADD COLUMN loja_id", sqls)
+        self.assertIn("SET loja_id = o.loja_id", sqls)
 
     def test_nao_cria_sem_tabela_de_consulta(self):
         cursor = _FakeCursor({PATIENT_TABLE, PROFESSIONAL_TABLE, PROCEDURE_TABLE})

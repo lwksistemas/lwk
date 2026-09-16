@@ -18,8 +18,13 @@ MIGRATION_CONSULTA_PRODUTO = "0034_consulta_produto_numero_nota"
 MIGRATION_RETORNO_GRATUITO = "0047_retorno_gratuito_agenda"
 MIGRATION_PATIENT_FOTO_URL = "0048_patient_foto_url"
 MIGRATION_PATIENT_ANAMNESE = "0019_consulta_anamnese_evolucao"
+MIGRATION_ORCAMENTO = "0077_orcamento_consulta"
 PATIENT_TABLE = "clinica_beleza_patient"
+PROFESSIONAL_TABLE = "clinica_beleza_professional"
+PROCEDURE_TABLE = "clinica_beleza_procedure"
 ANAMNESE_TABLE = "clinica_beleza_anamneses"
+ORCAMENTO_CONSULTA_TABLE = "clinica_beleza_orcamento_consulta"
+ORCAMENTO_ITEM_TABLE = "clinica_beleza_orcamento_item"
 
 
 def _is_sqlite(cursor) -> bool:
@@ -41,6 +46,41 @@ def table_exists(cursor, table: str) -> bool:
             [table],
         )
     return cursor.fetchone() is not None
+
+
+def _record_clinica_migration(cursor, name: str) -> None:
+    cursor.execute(
+        """
+        INSERT INTO django_migrations (app, name, applied)
+        SELECT 'clinica_beleza', %s, NOW()
+        WHERE NOT EXISTS (
+            SELECT 1 FROM django_migrations
+            WHERE app = 'clinica_beleza' AND name = %s
+        )
+        """,
+        [name, name],
+    )
+
+
+def _fk_id_type(cursor, table: str) -> str:
+    """INTEGER/BIGINT da PK da tabela pai — lojas antigas usam INTEGER."""
+    if _is_sqlite(cursor):
+        return "INTEGER"
+    cursor.execute(
+        """
+        SELECT data_type
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = %s
+          AND column_name = 'id'
+        LIMIT 1
+        """,
+        [table],
+    )
+    row = cursor.fetchone()
+    if row and str(row[0]).lower() == "bigint":
+        return "BIGINT"
+    return "INTEGER"
 
 
 def column_exists(cursor, table: str, column: str) -> bool:
@@ -250,6 +290,90 @@ def ensure_patient_anamnese_table(cursor) -> bool:
         """,
         [MIGRATION_PATIENT_ANAMNESE, MIGRATION_PATIENT_ANAMNESE],
     )
+    return True
+
+
+def ensure_orcamento_tables(cursor) -> bool:
+    """Cria tabelas de orçamento da consulta se ausentes no schema atual."""
+    consulta_ok = table_exists(cursor, ORCAMENTO_CONSULTA_TABLE)
+    item_ok = table_exists(cursor, ORCAMENTO_ITEM_TABLE)
+    if consulta_ok and item_ok:
+        _record_clinica_migration(cursor, MIGRATION_ORCAMENTO)
+        return True
+
+    if not table_exists(cursor, CONSULTA_TABLE):
+        logger.warning("ensure_orcamento: tabela %s ausente", CONSULTA_TABLE)
+        return False
+    if not table_exists(cursor, PATIENT_TABLE):
+        logger.warning("ensure_orcamento: tabela %s ausente", PATIENT_TABLE)
+        return False
+    if not table_exists(cursor, PROFESSIONAL_TABLE):
+        logger.warning("ensure_orcamento: tabela %s ausente", PROFESSIONAL_TABLE)
+        return False
+    if not table_exists(cursor, PROCEDURE_TABLE):
+        logger.warning("ensure_orcamento: tabela %s ausente", PROCEDURE_TABLE)
+        return False
+
+    consulta_id_type = _fk_id_type(cursor, CONSULTA_TABLE)
+    patient_id_type = _fk_id_type(cursor, PATIENT_TABLE)
+    professional_id_type = _fk_id_type(cursor, PROFESSIONAL_TABLE)
+    procedure_id_type = _fk_id_type(cursor, PROCEDURE_TABLE)
+    orcamento_pk_type = _fk_id_type(cursor, ORCAMENTO_CONSULTA_TABLE) if consulta_ok else "BIGINT"
+
+    if not consulta_ok:
+        cursor.execute(f"""
+            CREATE TABLE {ORCAMENTO_CONSULTA_TABLE} (
+                id BIGSERIAL PRIMARY KEY,
+                loja_id INTEGER NOT NULL,
+                observacoes TEXT NOT NULL DEFAULT '',
+                valor_total NUMERIC(10, 2) NOT NULL DEFAULT 0,
+                validade_dias INTEGER NOT NULL DEFAULT 30,
+                status VARCHAR(20) NOT NULL DEFAULT 'RASCUNHO',
+                enviado_email BOOLEAN NOT NULL DEFAULT FALSE,
+                enviado_whatsapp BOOLEAN NOT NULL DEFAULT FALSE,
+                data_envio TIMESTAMPTZ NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                consulta_id {consulta_id_type} NOT NULL
+                    REFERENCES {CONSULTA_TABLE}(id) ON DELETE CASCADE,
+                patient_id {patient_id_type} NOT NULL
+                    REFERENCES {PATIENT_TABLE}(id) ON DELETE CASCADE,
+                professional_id {professional_id_type} NULL
+                    REFERENCES {PROFESSIONAL_TABLE}(id) ON DELETE SET NULL
+            )
+        """)
+        cursor.execute(
+            f"CREATE INDEX IF NOT EXISTS {ORCAMENTO_CONSULTA_TABLE}_loja_id_idx "
+            f"ON {ORCAMENTO_CONSULTA_TABLE} (loja_id)",
+        )
+        cursor.execute(
+            f"CREATE INDEX IF NOT EXISTS {ORCAMENTO_CONSULTA_TABLE}_consulta_id_idx "
+            f"ON {ORCAMENTO_CONSULTA_TABLE} (consulta_id)",
+        )
+        orcamento_pk_type = "BIGINT"
+
+    if not item_ok:
+        cursor.execute(f"""
+            CREATE TABLE {ORCAMENTO_ITEM_TABLE} (
+                id BIGSERIAL PRIMARY KEY,
+                nome_procedimento VARCHAR(200) NOT NULL,
+                descricao_procedimento TEXT NOT NULL DEFAULT '',
+                valor_original NUMERIC(10, 2) NOT NULL,
+                valor_customizado NUMERIC(10, 2) NOT NULL,
+                quantidade INTEGER NOT NULL DEFAULT 1,
+                observacao_item TEXT NOT NULL DEFAULT '',
+                orcamento_id {orcamento_pk_type} NOT NULL
+                    REFERENCES {ORCAMENTO_CONSULTA_TABLE}(id) ON DELETE CASCADE,
+                procedure_id {procedure_id_type} NULL
+                    REFERENCES {PROCEDURE_TABLE}(id) ON DELETE SET NULL
+            )
+        """)
+        cursor.execute(
+            f"CREATE INDEX IF NOT EXISTS {ORCAMENTO_ITEM_TABLE}_orcamento_id_idx "
+            f"ON {ORCAMENTO_ITEM_TABLE} (orcamento_id)",
+        )
+
+    _record_clinica_migration(cursor, MIGRATION_ORCAMENTO)
     return True
 
 

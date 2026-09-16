@@ -35,6 +35,7 @@ ENSURE_POR_APP: dict[str, tuple[str, ...]] = {
         "ensure_estoque_produto_fields",
         "ensure_categoria_estoque",
         "ensure_despesas_tables",
+        "ensure_orcamento_tables",
         "ensure_document_templates_tables",
         "ensure_termo_consentimento",
         "ensure_procedimentos_catalogo",

@@ -45,6 +45,8 @@ TABELAS_OBRIGATORIAS_POR_TIPO: dict[str, list[str]] = {
     "clinica-beleza": [
         "clinica_beleza_consulta_assinaturas_termo",
         "clinica_beleza_consulta_termo_procedimento",
+        "clinica_beleza_orcamento_consulta",
+        "clinica_beleza_orcamento_item",
     ],
 }
 
@@ -69,6 +71,7 @@ ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
         "ensure_estoque_produto_fields",
         "ensure_categoria_estoque",
         "ensure_despesas_tables",
+        "ensure_orcamento_tables",
         "ensure_document_templates_tables",
         "ensure_termo_consentimento",
         "ensure_paciente_fotos_table",

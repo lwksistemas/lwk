@@ -51,6 +51,35 @@ def _fmt_numero(numero) -> str:
         return str(numero)
 
 
+def _garantir_produto_catalogo(fornecedor: Fornecedor, *, codigo: str, nome: str, unidade: str, preco: Decimal):
+    """Grava no catálogo o item digitado no pedido, se o código ainda não existir."""
+    codigo = (codigo or "").strip()[:60]
+    nome = (nome or "").strip()[:200]
+    if not codigo or not nome:
+        return None
+    existente = FornecedorProduto.objects.filter(fornecedor=fornecedor, codigo=codigo).first()
+    if existente:
+        campos = []
+        if preco > 0 and (existente.preco_ref or Decimal("0")) <= 0:
+            existente.preco_ref = preco
+            campos.append("preco_ref")
+        if nome and not (existente.nome or "").strip():
+            existente.nome = nome
+            campos.append("nome")
+        if campos:
+            campos.append("updated_at")
+            existente.save(update_fields=campos)
+        return existente
+    return FornecedorProduto.objects.create(
+        fornecedor=fornecedor,
+        loja_id=fornecedor.loja_id,
+        codigo=codigo,
+        nome=nome,
+        unidade=(unidade or "un")[:20] or "un",
+        preco_ref=preco,
+    )
+
+
 def nome_arquivo_pdf_pedido(pedido) -> str:
     """Pedido_01_PHD_DO_BRASIL.pdf — nome estável para baixar/enviar."""
     from django.utils.text import slugify
@@ -174,6 +203,13 @@ def _montar_itens(fornecedor: Fornecedor, itens_raw) -> list[dict]:
             preco_raw = catalogo.preco_ref
         preco = _decimal(preco_raw, "0")
         unidade = str(raw.get("unidade") or (catalogo.unidade if catalogo else "un") or "un").strip()[:20]
+        if not catalogo:
+            catalogo = _garantir_produto_catalogo(
+                fornecedor, codigo=codigo, nome=nome, unidade=unidade, preco=preco,
+            )
+        elif preco > 0 and (catalogo.preco_ref or Decimal("0")) <= 0:
+            catalogo.preco_ref = preco
+            catalogo.save(update_fields=["preco_ref", "updated_at"])
         montados.append({
             "catalogo": catalogo,
             "codigo": codigo[:60],

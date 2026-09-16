@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { valorPagamentoConsulta } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
-import { consultaProcedimentosNomes, type Consulta } from "../consultas-types";
+import { consultaProcedimentoLabel, type Consulta } from "../consultas-types";
 import {
   formatEntradasResumo,
   type EntradaPagamentoLinha,
@@ -80,9 +80,11 @@ export function ReceberSucessoPanel({
             <p>
               <strong>Paciente:</strong> {consultaExibida.patient_name}
             </p>
-            <p>
-              <strong>Procedimento:</strong> {consultaProcedimentosNomes(consultaExibida)}
-            </p>
+            {consultaProcedimentoLabel(consultaExibida) && (
+              <p>
+                <strong>Procedimento:</strong> {consultaProcedimentoLabel(consultaExibida)}
+              </p>
+            )}
             {valorTotalConsulta > 0 && (
               <p>
                 <strong>Valor:</strong> {formatCurrency(valorTotalConsulta)}

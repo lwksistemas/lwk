@@ -149,6 +149,27 @@ export function consultaProcedimentosNomes(c: Consulta): string {
   return nomes.length ? nomes.join(" · ") : "Consulta";
 }
 
+function nomeEhSomenteConsulta(nome: string | undefined): boolean {
+  const n = (nome || "").trim().toUpperCase();
+  return !n || n === "CONSULTA";
+}
+
+/** Há procedimento cobrável além da taxa de consulta. */
+export function consultaTemProcedimento(c: Consulta): boolean {
+  if (Number(c.valor_procedimentos ?? 0) > 0) return true;
+  return consultaProcedimentos(c).some(
+    (p) => Number(p.valor) > 0 || !nomeEhSomenteConsulta(p.nome),
+  );
+}
+
+/** Nome dos procedimentos para o modal de recebimento; null quando só há consulta. */
+export function consultaProcedimentoLabel(c: Consulta): string | null {
+  if (!consultaTemProcedimento(c)) return null;
+  const nomes = consultaProcedimentosNomes(c);
+  if (!nomes || nomeEhSomenteConsulta(nomes)) return null;
+  return nomes;
+}
+
 export const EMPTY_ANAMNESE: Anamnese = {
   queixa_principal: "",
   historico_medico: "",

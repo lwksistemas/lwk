@@ -57,6 +57,9 @@ export function validateReceberForm(params: {
   const { totalLiquido, desconto, base, entradas, markAsPaid } = params;
   if (desconto < 0) return "Desconto não pode ser negativo.";
   if (desconto > base + TOLERANCIA) return "Desconto não pode ser maior que o total.";
+  const descontoIntegral =
+    totalLiquido <= TOLERANCIA && desconto > 0 && desconto >= base - TOLERANCIA;
+  if (descontoIntegral) return null;
   if (totalLiquido <= 0) return "Total a receber deve ser maior que zero.";
   if (!entradas.length) return "Adicione ao menos uma forma de pagamento.";
 
@@ -91,7 +94,8 @@ export function buildReceberPayload(params: {
   mark_as_paid: boolean;
   valor_procedimentos?: string;
 } {
-  const soma = somaEntradas(params.entradas);
+  const descontoIntegral = params.totalLiquido <= TOLERANCIA && params.desconto > 0;
+  const soma = descontoIntegral ? 0 : somaEntradas(params.entradas);
   const payload: {
     desconto: string;
     entradas: Array<{ payment_method: string; valor: string }>;
@@ -99,11 +103,13 @@ export function buildReceberPayload(params: {
     valor_procedimentos?: string;
   } = {
     desconto: String(round2(Math.max(0, params.desconto))),
-    entradas: params.entradas.map((e) => ({
-      payment_method: e.payment_method,
-      valor: String(round2(parseMoneyInput(e.valor))),
-    })),
-    mark_as_paid: params.markAsPaid && valoresQuaseIguais(soma, params.totalLiquido),
+    entradas: descontoIntegral
+      ? []
+      : params.entradas.map((e) => ({
+          payment_method: e.payment_method,
+          valor: String(round2(parseMoneyInput(e.valor))),
+        })),
+    mark_as_paid: descontoIntegral || (params.markAsPaid && valoresQuaseIguais(soma, params.totalLiquido)),
   };
   if (params.valorProcedimentos != null) {
     payload.valor_procedimentos = String(round2(Math.max(0, params.valorProcedimentos)));

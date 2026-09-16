@@ -1,4 +1,6 @@
 """Anamnese, evolução, histórico e PDF de consulta."""
+import logging
+
 from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.response import Response
@@ -8,6 +10,7 @@ from ..models import Consulta, ConsultaEvolucao, PatientAnamnese
 from ..pagination import paginate_queryset
 from ..permissions import CLINICA_CLINICAL
 from ..serializers import ConsultaEvolucaoSerializer, PatientAnamneseSerializer
+from ..views_base import MSG_ERRO_PDF, resposta_erro_interno
 from .helpers import get_patient_or_404
 
 
@@ -104,11 +107,11 @@ class ConsultaSecaoPDFView(APIView):
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).exception("Erro PDF consulta %s secao %s", consulta_id, secao)
-            return Response(
-                {"error": f"Erro ao gerar PDF: {e!s}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return resposta_erro_interno(
+                logging.getLogger(__name__),
+                f"Erro PDF consulta {consulta_id} secao {secao}",
+                e,
+                error=MSG_ERRO_PDF,
             )
 
         filename = f"consulta_{consulta_id}_{secao}.pdf"

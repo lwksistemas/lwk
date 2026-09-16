@@ -12,7 +12,7 @@ from .models import DocumentoClinico, Patient
 from .permissions import CLINICA_CLINICAL
 from .prontuario_pdf import gerar_pdf_documento, gerar_pdf_prontuario_completo, gerar_pdf_secao
 from .serializers import ProntuarioSectionSerializer
-from .views_base import GetObjectMixin
+from .views_base import GetObjectMixin, MSG_ERRO_PDF, resposta_erro_interno
 
 logger = logging.getLogger(__name__)
 
@@ -106,9 +106,8 @@ class DocumentoPDFView(GetObjectMixin, APIView):
         try:
             buffer = gerar_pdf_documento(obj)
         except Exception as e:
-            return Response(
-                {"error": f"Erro ao gerar PDF: {e!s}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            return resposta_erro_interno(
+                logger, f"Erro ao gerar PDF do documento {doc_id}", e, error=MSG_ERRO_PDF,
             )
 
         tipo = obj.tipo or "documento"

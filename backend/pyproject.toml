@@ -67,6 +67,6 @@ known-first-party = [
 [tool.pytest.ini_options]
 testpaths = ["tests", "crm_vendas/tests", "clinica_beleza/tests", "clinica_estetica/tests", "core"]
 python_files = "test_*.py"
-python_classes = "Test*"
+python_classes = "Test* *Test *Tests"
 python_functions = "test_*"
 addopts = "-q --tb=short"

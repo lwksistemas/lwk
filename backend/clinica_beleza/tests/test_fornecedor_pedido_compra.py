@@ -185,7 +185,7 @@ class PreviewCatalogoTests(SimpleTestCase):
 
 
 class SalvarFornecedorTests(SimpleTestCase):
-    @patch("clinica_beleza.fornecedor_service.existe_documento_duplicado", return_value=True)
+    @patch("clinica_beleza.fornecedor.service.existe_documento_duplicado", return_value=True)
     def test_cnpj_duplicado(self, _dup):
         with self.assertRaises(FornecedorError) as ctx:
             salvar_fornecedor(1, {"cnpj": "11.222.333/0001-81", "razao_social": "ACME"})
@@ -243,7 +243,7 @@ class FornecedorSerializerCountTests(SimpleTestCase):
 
 
 class ImportarCatalogoTests(SimpleTestCase):
-    @patch("clinica_beleza.fornecedor_service.FornecedorProduto")
+    @patch("clinica_beleza.fornecedor.service.FornecedorProduto")
     def test_upsert_por_codigo(self, MockProd):
         MockProd.objects.update_or_create.side_effect = [
             (MagicMock(), True),
@@ -259,8 +259,8 @@ class ImportarCatalogoTests(SimpleTestCase):
         self.assertEqual(res["removidos"], 0)
         self.assertEqual(MockProd.objects.update_or_create.call_count, 2)
 
-    @patch("clinica_beleza.fornecedor_service.excluir_catalogo", return_value={"removidos": 5})
-    @patch("clinica_beleza.fornecedor_service.FornecedorProduto")
+    @patch("clinica_beleza.fornecedor.service.excluir_catalogo", return_value={"removidos": 5})
+    @patch("clinica_beleza.fornecedor.service.FornecedorProduto")
     def test_substituir_apaga_antes_de_importar(self, MockProd, mock_exc):
         MockProd.objects.update_or_create.return_value = (MagicMock(), True)
         forn = MagicMock(loja_id=1)
@@ -306,7 +306,7 @@ class PedidoCompraServiceTests(SimpleTestCase):
         self.assertEqual(_decimal("3") * _decimal("195.00"), Decimal("585.00"))
         self.assertEqual(_decimal("1.195,50"), Decimal("1195.50"))
 
-    @patch("clinica_beleza.pedido_compra_service.Fornecedor")
+    @patch("clinica_beleza.pedido_compra.service.Fornecedor")
     def test_pedido_sem_item(self, MockForn):
         MockForn.objects.filter.return_value.first.return_value = MagicMock(id=1)
         with self.assertRaises(PedidoCompraError) as ctx:
@@ -321,11 +321,11 @@ class PedidoCompraServiceTests(SimpleTestCase):
         self.assertIn("assin", str(ctx.exception).lower())
 
     @patch("clinica_beleza.estoque_movimentacao_service.registrar_movimentacao")
-    @patch("clinica_beleza.pedido_compra_service.PedidoCompraItem")
-    @patch("clinica_beleza.pedido_compra_service.PedidoCompra.objects")
-    @patch("clinica_beleza.pedido_compra_service.FornecedorProduto")
-    @patch("clinica_beleza.pedido_compra_service.Fornecedor")
-    @patch("clinica_beleza.pedido_compra_service.transaction.atomic")
+    @patch("clinica_beleza.pedido_compra.service.PedidoCompraItem")
+    @patch("clinica_beleza.pedido_compra.service.PedidoCompra.objects")
+    @patch("clinica_beleza.pedido_compra.service.FornecedorProduto")
+    @patch("clinica_beleza.pedido_compra.service.Fornecedor")
+    @patch("clinica_beleza.pedido_compra.service.transaction.atomic")
     def test_criar_pedido_nao_altera_estoque(self, mock_atomic, MockForn, MockProd, mock_ped_objs, _Item, mock_mov):
         mock_atomic.return_value = MagicMock(
             __enter__=MagicMock(), __exit__=MagicMock(return_value=False),
@@ -346,7 +346,7 @@ class PedidoCompraServiceTests(SimpleTestCase):
         })
         mock_mov.assert_not_called()
 
-    @patch("clinica_beleza.pedido_compra_service.FornecedorProduto")
+    @patch("clinica_beleza.pedido_compra.service.FornecedorProduto")
     def test_item_digitado_grava_no_catalogo(self, MockProd):
         from clinica_beleza.pedido_compra_service import _montar_itens
 
@@ -461,7 +461,7 @@ class PedidoCompraPdfTests(SimpleTestCase):
     @patch("clinica_beleza.prontuario_pdf.header._resolver_cabecalho", return_value=("logo", ""))
     @patch("clinica_beleza.pedido_compra_pdf._watermark_bytes", return_value=None)
     @patch("clinica_beleza.pedido_compra_pdf.logo_image", return_value=None)
-    @patch("clinica_beleza.pedido_compra_service._dados_loja")
+    @patch("clinica_beleza.pedido_compra.context._dados_loja")
     def test_pdf_assinado_tem_estrutura_da_proposta(self, mock_loja, _logo, _wm, _cab):
         from clinica_beleza.pedido_compra_pdf import gerar_pdf_pedido_compra
 
@@ -491,7 +491,7 @@ class PedidoCompraPdfTests(SimpleTestCase):
 
     @patch("clinica_beleza.prontuario_pdf.header._resolver_cabecalho", return_value=("logo", ""))
     @patch("clinica_beleza.pedido_compra_pdf.logo_image", return_value=None)
-    @patch("clinica_beleza.pedido_compra_service._dados_loja")
+    @patch("clinica_beleza.pedido_compra.context._dados_loja")
     def test_pdf_rascunho_sem_assinatura_digital(self, mock_loja, _logo, _cab):
         from clinica_beleza.pedido_compra_pdf import gerar_pdf_pedido_compra
 
@@ -512,7 +512,7 @@ class PedidoCompraPdfTests(SimpleTestCase):
 
     @patch("clinica_beleza.prontuario_pdf.header._resolver_cabecalho", return_value=("logo", ""))
     @patch("clinica_beleza.pedido_compra_pdf.logo_image", return_value=None)
-    @patch("clinica_beleza.pedido_compra_service._dados_loja")
+    @patch("clinica_beleza.pedido_compra.context._dados_loja")
     def test_pdf_lista_pacientes(self, mock_loja, _logo, _cab):
         from clinica_beleza.pedido_compra_pdf import gerar_pdf_pedido_compra
 
@@ -538,7 +538,7 @@ class PedidoCompraPdfTests(SimpleTestCase):
 
     @patch("clinica_beleza.prontuario_pdf.header._resolver_cabecalho", return_value=("logo", ""))
     @patch("clinica_beleza.pedido_compra_pdf.logo_image", return_value=None)
-    @patch("clinica_beleza.pedido_compra_service._dados_loja")
+    @patch("clinica_beleza.pedido_compra.context._dados_loja")
     def test_pdf_codigo_longo_nao_invade_nome(self, mock_loja, _logo, _cab):
         from clinica_beleza.pedido_compra_pdf import gerar_pdf_pedido_compra
 

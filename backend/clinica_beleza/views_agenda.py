@@ -340,9 +340,9 @@ class AgendaReenviarMensagemView(APIView):
             if ok:
                 return Response({"sent": True, "message": "Mensagem reenviada com sucesso."})
             return Response({"sent": False, "message": err_msg or "Não foi possível enviar."})
-        except Exception as e:
-            logger.warning("WhatsApp reenvio agendamento %s: %s", pk, e)
-            return Response({"sent": False, "message": f"Erro ao enviar: {e!s}"})
+        except Exception:
+            logger.exception("WhatsApp reenvio agendamento %s", pk)
+            return Response({"sent": False, "message": "Não foi possível enviar. Tente novamente."})
 
 
 # ---------------------------------------------------------------------------

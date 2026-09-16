@@ -1,8 +1,22 @@
 """Mixins e classes base para views da Clínica da Beleza.
 Elimina repetição do padrão try/except DoesNotExist e simplifica CRUD.
 """
+import logging
+
 from rest_framework import status
 from rest_framework.response import Response
+
+MSG_ERRO_INTERNO = "Não foi possível concluir a operação. Tente novamente."
+MSG_ERRO_PDF = "Não foi possível gerar o PDF. Tente novamente."
+
+
+def resposta_erro_interno(log: logging.Logger, mensagem: str, exc: BaseException | None = None, *, error=MSG_ERRO_INTERNO):
+    """500 genérico: loga o traceback e não devolve str(exc) no JSON."""
+    if exc is not None:
+        log.exception("%s: %s", mensagem, exc)
+    else:
+        log.exception("%s", mensagem)
+    return Response({"error": error}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class GetObjectMixin:

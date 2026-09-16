@@ -62,6 +62,8 @@ __all__ = [
     "MemedTimbrado",
     "MovimentacaoEstoque",
     "NomeAgenda",
+    "OrcamentoConsulta",
+    "OrcamentoItem",
     "PacienteFotoAcompanhamento",
     "Patient",
     "PatientAnamnese",

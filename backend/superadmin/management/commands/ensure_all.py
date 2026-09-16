@@ -47,6 +47,7 @@ ENSURES = [
     ("ensure_estoque_produto_fields", {}),
     ("ensure_categoria_estoque", {}),
     ("ensure_despesas_tables", {}),
+    ("ensure_orcamento_tables", {}),
     ("ensure_document_templates_tables", {}),
     ("ensure_termo_consentimento", {}),
     ("ensure_procedimentos_catalogo", {"all_clinica_beleza": True}),

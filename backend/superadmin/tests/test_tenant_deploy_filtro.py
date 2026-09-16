@@ -41,3 +41,4 @@ class TenantDeployFiltroTest(SimpleTestCase):
         names = [n for n, _ in out]
         self.assertEqual(names, ["ensure_clinica_beleza_consultas"])
         self.assertTrue("ensure_crm_config_colunas" in ENSURE_POR_APP["crm_vendas"])
+        self.assertIn("ensure_orcamento_tables", ENSURE_POR_APP["clinica_beleza"])

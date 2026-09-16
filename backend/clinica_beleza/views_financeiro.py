@@ -14,6 +14,7 @@ from .models import CategoriaDespesa, Despesa, Payment
 from .models.financeiro import CATEGORIAS_DESPESA_PADRAO, PaymentParcela
 from .pagination import paginate_queryset
 from .permissions import CLINICA_FINANCEIRO
+from .throttles import PublicPdfThrottle
 from .serializers.financeiro import (
     CategoriaDespesaSerializer,
     DespesaSerializer,
@@ -364,6 +365,7 @@ class ReciboPdfPublicView(APIView):
 
     permission_classes = [AllowAny]  # Acesso público intencional
     authentication_classes = []
+    throttle_classes = [PublicPdfThrottle]
 
     def get(self, request, pk, token):
         from django.core.cache import cache as django_cache

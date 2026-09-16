@@ -23,3 +23,8 @@ class OrcamentoPermissionClassesTest(SimpleTestCase):
 
     def test_pdf_publico_continua_sem_auth(self):
         self.assertEqual(OrcamentoPDFPublicView.permission_classes, [])
+
+    def test_pdf_publico_tem_rate_limit(self):
+        from clinica_beleza.throttles import PublicPdfThrottle
+
+        self.assertEqual(OrcamentoPDFPublicView.throttle_classes, [PublicPdfThrottle])

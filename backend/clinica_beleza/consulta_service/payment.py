@@ -85,7 +85,7 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
     para o cliente quitar depois.
     """
     from ..models.financeiro import PaymentParcela
-    so_prazo = all(e["payment_method"] == _METODO_PRAZO for e in lista)
+    so_prazo = bool(lista) and all(e["payment_method"] == _METODO_PRAZO for e in lista)
     for entrada in lista:
         if entrada["payment_method"] == _METODO_PRAZO:
             continue
@@ -366,18 +366,25 @@ def registrar_recebimento_consulta(
     valor_total = _calcular_valor_total_com_desconto(valor_bruto, desconto, payment)
     valor_desconto = valor_bruto - valor_total
 
-    lista = _normalize_entradas(entradas, payment_method=payment_method, amount=amount)
-    if lista is None:
-        if valor_total <= 0:
+    if valor_total <= 0:
+        if valor_desconto <= 0:
             raise ValueError("Valor deve ser maior que zero.")
-        metodo = (payment_method or "CASH").strip().upper() or "CASH"
-        if metodo not in _METODOS_VALIDOS:
-            raise ValueError("Forma de pagamento inválida.")
-        lista = [{"payment_method": metodo, "valor": valor_total}]
+        lista = []
+        soma_entradas = Decimal(0)
+        mark_as_paid = True
+        metodo_principal = "CASH"
+    else:
+        lista = _normalize_entradas(entradas, payment_method=payment_method, amount=amount)
+        if lista is None:
+            metodo = (payment_method or "CASH").strip().upper() or "CASH"
+            if metodo not in _METODOS_VALIDOS:
+                raise ValueError("Forma de pagamento inválida.")
+            lista = [{"payment_method": metodo, "valor": valor_total}]
 
-    soma_entradas = sum((e["valor"] for e in lista), Decimal(0))
-    if soma_entradas <= 0:
-        raise ValueError("Valor deve ser maior que zero.")
+        soma_entradas = sum((e["valor"] for e in lista), Decimal(0))
+        if soma_entradas <= 0:
+            raise ValueError("Valor deve ser maior que zero.")
+        metodo_principal = lista[-1]["payment_method"]
 
     comissao_pct, comissao_val = consulta_service.calcular_comissao_payment_atendimento(
         appointment=appointment,
@@ -386,7 +393,6 @@ def registrar_recebimento_consulta(
     )
 
     ts = now()
-    metodo_principal = lista[-1]["payment_method"]
     payment = _garantir_ou_criar_payment(
         consulta_service, appointment, valor_total, metodo_principal,
         comissao_pct, comissao_val, valor_desconto, payment,

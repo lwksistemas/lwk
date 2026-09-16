@@ -130,6 +130,7 @@ export function ModalReceberConsulta({
     saldoProp >= saldoAtualizada ? consulta : consultaExibida;
   const valorDesconto = parseMoneyInput(desconto);
   const totalLiquido = calcularTotalLiquido(baseReceber, valorDesconto);
+  const descontoIntegral = totalLiquido <= 0 && valorDesconto > 0;
   const distribuido = useMemo(() => somaEntradas(entradas), [entradas]);
 
   // Ao mudar desconto/total líquido com 1 linha, sincroniza o valor da linha
@@ -147,8 +148,12 @@ export function ModalReceberConsulta({
 
   useEffect(() => {
     if (!open || confirmado) return;
+    if (descontoIntegral) {
+      setMarkAsPaid(true);
+      return;
+    }
     setMarkAsPaid(valoresQuaseIguais(distribuido, totalLiquido) && totalLiquido > 0);
-  }, [distribuido, totalLiquido, open, confirmado]);
+  }, [descontoIntegral, distribuido, totalLiquido, open, confirmado]);
 
   if (!open) return null;
 
@@ -339,7 +344,7 @@ export function ModalReceberConsulta({
     );
   }
 
-  const somaOk = valoresQuaseIguais(distribuido, totalLiquido) && totalLiquido > 0;
+  const somaOk = descontoIntegral || (valoresQuaseIguais(distribuido, totalLiquido) && totalLiquido > 0);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
@@ -366,6 +371,11 @@ export function ModalReceberConsulta({
               onValorProcedimentoChange={setValorProcInput}
             />
 
+            {descontoIntegral ? (
+              <p className="text-sm text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-neutral-600 p-3">
+                Desconto integral. Nada a receber — confirme para quitar o atendimento.
+              </p>
+            ) : (
             <ReceberFormasPagamento
               entradas={entradas}
               distribuido={distribuido}
@@ -375,6 +385,7 @@ export function ModalReceberConsulta({
               onRemove={removeEntrada}
               onUpdate={updateEntrada}
             />
+            )}
           </div>
 
           {error && (
@@ -386,7 +397,8 @@ export function ModalReceberConsulta({
           <label className="flex items-center gap-2 text-sm pt-1">
             <input
               type="checkbox"
-              checked={markAsPaid}
+              checked={markAsPaid || descontoIntegral}
+              disabled={descontoIntegral}
               onChange={(e) => setMarkAsPaid(e.target.checked)}
             />
             Quitar pagamento completo

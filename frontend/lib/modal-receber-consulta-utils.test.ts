@@ -46,6 +46,30 @@ describe("validateReceberForm", () => {
     ).toContain("quitar");
   });
 
+  it("permite desconto igual ao total (nada a receber)", () => {
+    expect(
+      validateReceberForm({
+        totalLiquido: 0,
+        desconto: 150,
+        base: 150,
+        entradas: [linha("CASH", "0")],
+        markAsPaid: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("ainda bloqueia total zero sem desconto", () => {
+    expect(
+      validateReceberForm({
+        totalLiquido: 0,
+        desconto: 0,
+        base: 150,
+        entradas: [linha("CASH", "0")],
+        markAsPaid: true,
+      }),
+    ).toBe("Total a receber deve ser maior que zero.");
+  });
+
   it("permite parcial sem quitar", () => {
     expect(
       validateReceberForm({
@@ -76,6 +100,18 @@ describe("buildReceberPayload", () => {
     expect(body.entradas).toHaveLength(3);
     expect(somaEntradas(body.entradas.map((e, i) => ({ id: String(i), ...e })))).toBe(500);
     expect(body.valor_procedimentos).toBeUndefined();
+  });
+
+  it("desconto integral envia entradas vazias e quita", () => {
+    const body = buildReceberPayload({
+      desconto: 150,
+      totalLiquido: 0,
+      markAsPaid: true,
+      entradas: [linha("CASH", "0")],
+    });
+    expect(body.desconto).toBe("150");
+    expect(body.entradas).toEqual([]);
+    expect(body.mark_as_paid).toBe(true);
   });
 
   it("inclui valor_procedimentos quando o admin altera", () => {

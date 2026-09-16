@@ -1,7 +1,7 @@
 "use client";
 
 import { formatCurrency } from "@/lib/financeiro-helpers";
-import { consultaProcedimentosNomes, type Consulta } from "../consultas-types";
+import { consultaProcedimentoLabel, consultaTemProcedimento, type Consulta } from "../consultas-types";
 
 const fieldClass =
   "w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600";
@@ -33,6 +33,13 @@ export function ReceberDadosAtendimento({
   valorProcedimentoInput = "",
   onValorProcedimentoChange,
 }: ReceberDadosAtendimentoProps) {
+  const temProcedimento =
+    consultaTemProcedimento(consulta) || Number(valorProcedimentos) > 0;
+  const nomesProcedimento = consultaProcedimentoLabel(consulta);
+  const mostrarValorProcedimento = temProcedimento;
+  const editarValorProcedimento =
+    mostrarValorProcedimento && podeEditarValorProcedimento && Boolean(onValorProcedimentoChange);
+
   return (
     <div className="space-y-2 text-sm">
       <p className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold">
@@ -41,13 +48,15 @@ export function ReceberDadosAtendimento({
       <p>
         <strong>Paciente:</strong> {consulta.patient_name}
       </p>
-      <p>
-        <strong>Procedimento:</strong> {consultaProcedimentosNomes(consulta)}
-      </p>
+      {nomesProcedimento && (
+        <p>
+          <strong>Procedimento:</strong> {nomesProcedimento}
+        </p>
+      )}
       <p>
         <strong>Valor da consulta:</strong> {formatCurrency(valorConsulta)}
       </p>
-      {podeEditarValorProcedimento && onValorProcedimentoChange ? (
+      {editarValorProcedimento ? (
         <div>
           <label className="block text-sm font-medium mb-1" htmlFor="receber-valor-procedimento">
             Valor procedimento (R$)
@@ -58,16 +67,16 @@ export function ReceberDadosAtendimento({
             step="0.01"
             min="0"
             value={valorProcedimentoInput}
-            onChange={(e) => onValorProcedimentoChange(e.target.value)}
+            onChange={(e) => onValorProcedimentoChange?.(e.target.value)}
             className={fieldClass}
             placeholder="0,00"
           />
         </div>
-      ) : (
+      ) : mostrarValorProcedimento ? (
         <p>
           <strong>Valor procedimento:</strong> {formatCurrency(valorProcedimentos)}
         </p>
-      )}
+      ) : null}
       <p className="font-semibold text-gray-800 dark:text-gray-200 pt-1 border-t dark:border-neutral-600">
         Total: {formatCurrency(total)}
       </p>

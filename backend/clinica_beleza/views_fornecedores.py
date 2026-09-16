@@ -1,4 +1,5 @@
 """Views de fornecedor e catálogo — Clínica da Beleza."""
+from django.db.models import Count
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -39,7 +40,9 @@ class FornecedorListView(APIView):
 
     def get(self, request):
         loja_id = _ensure(request)
-        qs = Fornecedor.objects.filter(loja_id=loja_id)
+        qs = Fornecedor.objects.filter(loja_id=loja_id).annotate(
+            produtos_count=Count("produtos"),
+        )
         if request.query_params.get("todos") not in ("1", "true", "True"):
             qs = qs.filter(is_active=True)
         q = (request.query_params.get("search") or "").strip()

@@ -88,9 +88,10 @@ export async function cbPostFormData<T = never>(
   return body as T;
 }
 
-export async function cbDelete(path: string): Promise<void> {
+export async function cbDelete<T = void>(path: string): Promise<T> {
   const res = await clinicaBelezaFetch(path, { method: "DELETE" });
-  if (res.status === 204) return;
+  if (res.status === 204) return undefined as T;
   const body = await parseClinicaBelezaResponseBody(res);
   if (!res.ok) throw body;
+  return body as T;
 }

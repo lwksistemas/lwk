@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, FileUp, FileX, Loader2, Plus, Trash2, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileUp, FileX, Loader2, Plus, Trash2, X } from "lucide-react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api/client";
 import type { FornecedorItem } from "@/lib/clinica-beleza-api/client-ops";
 import { consultaCnpj, formatCpfCnpj, resolverCepDadosCnpj } from "@/lib/consulta-cnpj";
@@ -36,6 +36,7 @@ export function EstoqueFornecedoresModal({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [form, setForm] = useState({ ...EMPTY });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -58,6 +59,7 @@ export function EstoqueFornecedoresModal({
   useEffect(() => {
     if (!open) return;
     setError("");
+    setSuccess("");
     setForm({ ...EMPTY });
     setEditingId(null);
     setShowForm(false);
@@ -104,6 +106,7 @@ export function EstoqueFornecedoresModal({
     e.preventDefault();
     setSaving(true);
     setError("");
+    setSuccess("");
     try {
       if (editingId) {
         await ClinicaBelezaAPI.estoque.fornecedores.update(editingId, form);
@@ -126,6 +129,7 @@ export function EstoqueFornecedoresModal({
     if (!confirm(`Excluir o fornecedor "${nome}"?`)) return;
     setSaving(true);
     setError("");
+    setSuccess("");
     try {
       await ClinicaBelezaAPI.estoque.fornecedores.delete(f.id);
       if (editingId === f.id) {
@@ -152,8 +156,15 @@ export function EstoqueFornecedoresModal({
     }
     setSaving(true);
     setError("");
+    setSuccess("");
     try {
-      await ClinicaBelezaAPI.estoque.fornecedores.deleteCatalogo(f.id);
+      const result = await ClinicaBelezaAPI.estoque.fornecedores.deleteCatalogo(f.id);
+      const n = Number(result?.removidos ?? 0);
+      setSuccess(
+        n > 0
+          ? `Catálogo excluído: ${n} produto(s). O cadastro de "${nome}" e os pedidos foram mantidos.`
+          : `O catálogo de "${nome}" já estava vazio. O fornecedor e os pedidos foram mantidos.`,
+      );
       await carregar();
     } catch (err) {
       setError(extractEstoqueApiError(err, "Não foi possível excluir o catálogo."));
@@ -182,6 +193,12 @@ export function EstoqueFornecedoresModal({
               <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 text-sm flex gap-2">
                 <AlertCircle size={16} className="shrink-0 mt-0.5" />
                 {error}
+              </div>
+            )}
+            {success && (
+              <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200 text-sm flex gap-2">
+                <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
+                {success}
               </div>
             )}
             {showForm ? (
@@ -276,7 +293,10 @@ export function EstoqueFornecedoresModal({
                       <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
                         {f.nome_fantasia || f.razao_social}
                       </div>
-                      <div className="text-xs text-gray-500">{f.cnpj} · {f.email || "sem e-mail"}</div>
+                      <div className="text-xs text-gray-500">
+                        {f.cnpj} · {f.email || "sem e-mail"} · {f.produtos_count ?? 0} produto
+                        {(f.produtos_count ?? 0) === 1 ? "" : "s"} no catálogo
+                      </div>
                     </div>
                     <div className="flex flex-wrap justify-end gap-1 shrink-0">
                       <button
@@ -290,9 +310,13 @@ export function EstoqueFornecedoresModal({
                       <button
                         type="button"
                         onClick={() => void excluirCatalogo(f)}
-                        disabled={saving}
-                        className="px-2 py-1 text-xs rounded-lg border border-amber-200 text-amber-800 hover:bg-amber-50 dark:border-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/20 inline-flex items-center gap-1"
-                        title="Apagar produtos e preços do catálogo, sem excluir o fornecedor"
+                        disabled={saving || f.produtos_count === 0}
+                        className="px-2 py-1 text-xs rounded-lg border border-amber-200 text-amber-800 hover:bg-amber-50 dark:border-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/20 inline-flex items-center gap-1 disabled:opacity-50"
+                        title={
+                          f.produtos_count === 0
+                            ? "Catálogo já está vazio"
+                            : "Apagar produtos e preços do catálogo, sem excluir o fornecedor"
+                        }
                       >
                         <FileX size={12} /> Excluir catálogo
                       </button>
@@ -326,7 +350,10 @@ export function EstoqueFornecedoresModal({
       </div>
       <EstoqueCatalogoImportModal
         fornecedor={importForn}
-        onClose={() => setImportForn(null)}
+        onClose={() => {
+          setImportForn(null);
+          void carregar();
+        }}
       />
     </>
   );

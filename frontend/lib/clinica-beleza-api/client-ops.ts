@@ -125,7 +125,8 @@ export const estoqueApi = {
         `/estoque/fornecedores/${id}/catalogo/importar/`,
         { itens, substituir },
       ),
-    deleteCatalogo: (id: number) => cbDelete(`/estoque/fornecedores/${id}/catalogo/`),
+    deleteCatalogo: (id: number) =>
+      cbDelete<{ removidos: number }>(`/estoque/fornecedores/${id}/catalogo/`),
   },
   pedidos: {
     assinantes: (loja?: { id?: number; slug?: string } | null) =>
@@ -175,6 +176,7 @@ export type FornecedorItem = {
   municipio: string;
   uf: string;
   is_active: boolean;
+  produtos_count?: number;
 };
 
 export type FornecedorProdutoItem = {

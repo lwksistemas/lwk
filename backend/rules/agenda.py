@@ -6,6 +6,9 @@ from django.core.exceptions import ValidationError
 
 from clinica_beleza.models import Appointment
 
+# Cancelado e faltou liberam o horário; os demais status continuam ocupando a agenda.
+STATUS_NAO_OCUPAM_HORARIO = ("CANCELLED", "NO_SHOW")
+
 
 def bloquear_conflitos(contexto):
     """Impede agendamento no mesmo horário para o mesmo profissional.
@@ -19,16 +22,18 @@ def bloquear_conflitos(contexto):
     if not profissional or not date_start or not date_end:
         return
 
-    # Outros agendamentos do mesmo profissional no mesmo dia
     outros = (
         Appointment.objects.filter(
             professional=profissional,
             date__date=date_start.date(),
         )
         .exclude(pk=appointment_id or 0)
+        .exclude(status__in=STATUS_NAO_OCUPAM_HORARIO)
         .select_related("procedure")
     )
     for outro in outros:
+        if getattr(outro, "status", None) in STATUS_NAO_OCUPAM_HORARIO:
+            continue
         dur = outro.get_duracao_efetiva()
         o_end = outro.date + timedelta(minutes=dur)
         if date_start < o_end and date_end > outro.date:

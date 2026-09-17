@@ -4,6 +4,7 @@
 
 import { clearSessionAndRedirect, getLoginUrlForRedirect, getCurrentApiBaseUrl, SESSION_CODES, tryRefreshAccessToken } from "@/lib/api-client";
 import { USE_JWT_HTTPONLY_COOKIES } from "@/lib/auth-cookies";
+import { deveReportarErroApiParaSuporte } from "@/lib/clinica-beleza-api/erro-api-suporte";
 
 function getAuthToken(): string | null {
   if (typeof window === "undefined" || USE_JWT_HTTPONLY_COOKIES) return null;
@@ -103,7 +104,7 @@ function getLojaSlugForReport(): string {
 
 /**
  * Envia erro de API para o painel do suporte (erros no navegador). Fire-and-forget.
- * Assim o suporte vê falhas como 400/500 da API da loja no mesmo lugar que erros JS.
+ * Assim o suporte vê falhas 5xx da API da loja no mesmo lugar que erros JS.
  */
 function reportarErroApiParaSuporte(
   method: string,
@@ -132,7 +133,7 @@ function reportarErroApiParaSuporte(
 /**
  * Fetch para API Clínica da Beleza. Em 401 com código de sessão (outra sessão ativa), faz logout e redireciona.
  * Use este método para que o bloqueio de sessão única funcione em todas as telas da loja.
- * Erros 4xx/5xx são reportados ao suporte para aparecer em "Erros no navegador".
+ * Falhas de servidor (e 4xx inesperados) são reportadas ao suporte. 400/422 não.
  */
 export async function clinicaBelezaFetch(
   path: string,
@@ -172,19 +173,8 @@ export async function clinicaBelezaFetch(
     );
     throw new Error("SESSION_ENDED");
   }
-  // Reportar erros de API ao suporte (exceto 429/401 e Memed 404 esperado sem prescritor)
   const pathNorm = path.startsWith("/") ? path : `/${path}`;
-  // 404 (sem prescritor) e 409 (prescritor Inativo aguardando ativação) do /memed/token
-  // são estados esperados — não reportar ao suporte como erro de API.
-  const memedTokenEstadoEsperado =
-    (response.status === 404 || response.status === 409) &&
-    pathNorm.startsWith("/memed/token");
-  if (
-    !response.ok &&
-    response.status !== 429 &&
-    response.status !== 401 &&
-    !memedTokenEstadoEsperado
-  ) {
+  if (deveReportarErroApiParaSuporte(response.status, pathNorm)) {
     const clone = response.clone();
     (async () => {
       try {

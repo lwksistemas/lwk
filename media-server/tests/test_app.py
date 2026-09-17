@@ -102,14 +102,12 @@ class MediaServerAppTest(unittest.TestCase):
         self.assertEqual(data["filename"], "Pedido_01_PHD_DO_BRASIL.pdf")
         self.assertIn("/admin/pdf/Pedido_01_PHD_DO_BRASIL.pdf", data["url"])
 
-    def test_pdf_duplicado_ganha_sufixo(self):
+    def test_pdf_mesmo_nome_sobrescreve(self):
         dest = Path(self.tmp.name) / "dup"
         dest.mkdir()
         (dest / "termo.pdf").write_bytes(b"a")
         segundo = media_app.nome_arquivo_destino("termo.pdf", ".pdf", dest)
-        self.assertTrue(segundo.startswith("termo_"))
-        self.assertTrue(segundo.endswith(".pdf"))
-        self.assertNotEqual(segundo, "termo.pdf")
+        self.assertEqual(segundo, "termo.pdf")
 
     def test_foto_continua_uuid(self):
         dest = Path(self.tmp.name)

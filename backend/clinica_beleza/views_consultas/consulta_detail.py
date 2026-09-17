@@ -66,9 +66,9 @@ class ConsultaDetailView(GetObjectMixin, APIView):
             appointment.version = (appointment.version or 1) + 1
             appointment.save(update_fields=["status", "version", "updated_at"])
 
-        from ..foto_paciente_service import limpar_fotos_media_da_consulta
+        from ..media_consulta_cleanup import limpar_midia_da_consulta
 
-        limpar_fotos_media_da_consulta(consulta)
+        limpar_midia_da_consulta(consulta)
 
         consulta.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

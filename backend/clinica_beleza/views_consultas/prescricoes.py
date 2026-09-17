@@ -34,7 +34,7 @@ def _preparar_dados_prescricao(request, consulta) -> tuple[dict, str, object, ob
     """Retorna (data, pdf_url, loja, professional) a partir da request e consulta."""
     from superadmin.models import Loja
 
-    from ..memed_prescricao_service import resolver_pdf_prescricao
+    from ..memed_prescricao_service import nome_arquivo_pdf_prescricao, resolver_pdf_prescricao
     itens = request.data.get("itens") or []
     if not isinstance(itens, list):
         itens = []
@@ -52,6 +52,7 @@ def _preparar_dados_prescricao(request, consulta) -> tuple[dict, str, object, ob
             prescricao_id,
             str(request.data.get("pdf_url") or ""),
             patient=consulta.patient,
+            filename=nome_arquivo_pdf_prescricao(prescricao_id),
         )
     data = {
         "consulta": consulta.id,
@@ -67,7 +68,7 @@ def _preparar_dados_prescricao(request, consulta) -> tuple[dict, str, object, ob
 
 def _atualizar_prescricao_existente(existente, data: dict, pdf_url: str, loja, professional, prescricao_id: str, prof_id) -> None:
     """Atualiza campos de uma PrescricaoMemed existente e salva."""
-    from ..memed_prescricao_service import resolver_pdf_prescricao
+    from ..memed_prescricao_service import nome_arquivo_pdf_prescricao, resolver_pdf_prescricao
     existente.resumo = data["resumo"] or existente.resumo
     existente.itens = data["itens"] or existente.itens
     if pdf_url:
@@ -77,7 +78,12 @@ def _atualizar_prescricao_existente(existente, data: dict, pdf_url: str, loja, p
         if not paciente and existente.consulta_id:
             paciente = getattr(existente.consulta, "patient", None)
         novo_pdf = resolver_pdf_prescricao(
-            loja, professional, prescricao_id, "", patient=paciente,
+            loja,
+            professional,
+            prescricao_id,
+            "",
+            patient=paciente,
+            filename=nome_arquivo_pdf_prescricao(prescricao_id, existente.pk),
         )
         if novo_pdf:
             existente.pdf_url = novo_pdf
@@ -183,7 +189,11 @@ class PrescricaoMemedPdfView(APIView):
     def post(self, request, pk):
         from superadmin.models import Loja
 
-        from ..memed_prescricao_service import resolver_pdf_prescricao
+        from ..memed_prescricao_service import (
+            nome_arquivo_pdf_prescricao,
+            pdf_midia_estavel,
+            resolver_pdf_prescricao,
+        )
 
         try:
             presc = PrescricaoMemed.objects.select_related(
@@ -203,18 +213,31 @@ class PrescricaoMemedPdfView(APIView):
         paciente = presc.patient or (
             presc.consulta.patient if presc.consulta_id else None
         )
+        filename = nome_arquivo_pdf_prescricao(prescricao_id, presc.pk)
+        url_atual = (presc.pdf_url or "").strip()
+        if prescricao_id and pdf_midia_estavel(url_atual, filename):
+            return Response({"pdf_url": url_atual})
+
         pdf_url = ""
         if prescricao_id:
-            # Sempre tenta a Memed de novo: o evento de impressão costuma chegar
-            # antes do PDF assinado, e o fallback local não pode ficar travado.
+            # UUID/local.pdf ainda reconsulta a Memed (PDF assinado pode chegar depois).
+            # prescricao_{id}.pdf já no Magalu não grava de novo.
             pdf_url = resolver_pdf_prescricao(
-                loja, professional, prescricao_id, "", patient=paciente,
+                loja, professional, prescricao_id, "", patient=paciente, filename=filename,
             )
 
         if pdf_url:
-            if pdf_url != (presc.pdf_url or "").strip():
+            if pdf_url != url_atual:
                 presc.pdf_url = pdf_url
                 presc.save(update_fields=["pdf_url"])
+                if url_atual:
+                    try:
+                        from core.media_storage import is_media_url, media_delete_by_url
+
+                        if is_media_url(url_atual) and not pdf_midia_estavel(url_atual, filename):
+                            media_delete_by_url(url_atual)
+                    except Exception:  # noqa: BLE001
+                        pass
             return Response({"pdf_url": pdf_url})
 
         if presc.pdf_url:
@@ -225,7 +248,9 @@ class PrescricaoMemedPdfView(APIView):
 
         try:
             buffer = gerar_pdf_prescricao_memed(presc)
-            pdf_url = arquivar_pdf_bytes_media(loja, buffer.getvalue(), patient=paciente)
+            pdf_url = arquivar_pdf_bytes_media(
+                loja, buffer.getvalue(), patient=paciente, filename=filename,
+            )
         except Exception:
             import logging
             logging.getLogger(__name__).exception(

@@ -67,6 +67,36 @@ class PrescricaoPdfSubstituiFallbackTest(SimpleTestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data["pdf_url"], "https://media.lwksistemas.com.br/files/x/memed.pdf")
         presc.save.assert_called_once()
+        mock_resolver.assert_called_once()
+
+    @patch("clinica_beleza.memed_prescricao_service.resolver_pdf_prescricao")
+    @patch("clinica_beleza.views_consultas.prescricoes.PrescricaoMemed")
+    @patch("superadmin.models.Loja")
+    @patch(
+        "clinica_beleza.memed_prescricao_service.pdf_midia_estavel",
+        return_value=True,
+    )
+    def test_pdf_estavel_nao_grava_de_novo(self, mock_estavel, mock_loja, mock_model, mock_resolver):
+        presc = MagicMock()
+        presc.pk = 16
+        presc.loja_id = 6
+        presc.prescricao_id = "295237918"
+        presc.pdf_url = (
+            "https://media.lwksistemas.com.br/files/x/paciente/pdf/prescricao_295237918.pdf"
+        )
+        presc.professional = MagicMock()
+        presc.patient = MagicMock()
+        presc.consulta_id = 153
+        mock_model.objects.select_related.return_value.get.return_value = presc
+        mock_loja.objects.using.return_value.filter.return_value.first.return_value = MagicMock()
+
+        resp = self._view().post(MagicMock(), pk=16)
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["pdf_url"], presc.pdf_url)
+        mock_resolver.assert_not_called()
+        presc.save.assert_not_called()
+        mock_estavel.assert_called()
 
 
 class FotoDeleteBloqueioTest(SimpleTestCase):

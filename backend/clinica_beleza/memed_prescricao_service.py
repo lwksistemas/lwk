@@ -20,6 +20,24 @@ _URL_HTTP = re.compile(r"^https?://", re.IGNORECASE)
 _MEMED_HOST = "memed.com.br"
 
 
+def nome_arquivo_pdf_prescricao(prescricao_id: str, pk: int | None = None) -> str:
+    """Nome estável no servidor de mídia — abrir de novo sobrescreve, não duplica."""
+    ident = re.sub(r"[^A-Za-z0-9_-]", "", (prescricao_id or "").strip())[:64]
+    if not ident:
+        ident = str(pk or "prescricao")
+    return f"prescricao_{ident}.pdf"
+
+
+def pdf_midia_estavel(url: str, filename: str) -> bool:
+    """True se a URL já é o arquivo definitivo no Magalu (não precisa gravar de novo)."""
+    from core.media_storage import parse_media_url
+
+    if not filename or not is_media_url(url):
+        return False
+    parsed = parse_media_url(url)
+    return bool(parsed and parsed[2] == filename)
+
+
 def url_pdf_permitida(url: str) -> bool:
     """True só para HTTPS da Memed (*.memed.com.br) ou do servidor de mídia LWK.
 
@@ -271,21 +289,22 @@ def buscar_pdf_url_memed(prescritor_id: str, prescricao_id: str) -> str:
     return ""
 
 
-def arquivar_pdf_bytes_media(loja, conteudo: bytes, patient=None) -> str:
+def arquivar_pdf_bytes_media(loja, conteudo: bytes, patient=None, filename: str = "prescricao.pdf") -> str:
     """Envia bytes de PDF ao servidor de mídia ({paciente}/pdf/). Retorna URL ou vazio."""
     if not conteudo or len(conteudo) < 200 or conteudo[:4] != b"%PDF":
         return ""
     try:
         folder = folder_media_paciente("pdf", patient)
+        nome = (filename or "prescricao.pdf").strip() or "prescricao.pdf"
         return (
-            media_upload(loja, conteudo, filename="prescricao.pdf", folder=folder) or ""
+            media_upload(loja, conteudo, filename=nome, folder=folder) or ""
         ).strip()
     except Exception as exc:
         logger.warning("Falha ao arquivar bytes PDF Memed no servidor de mídia: %s", exc)
         return ""
 
 
-def arquivar_pdf_media(loja, pdf_url: str, patient=None) -> str:
+def arquivar_pdf_media(loja, pdf_url: str, patient=None, filename: str = "prescricao.pdf") -> str:
     """Baixa o PDF da Memed e salva no servidor de mídia ({paciente}/pdf/).
 
     Só baixa URL da allowlist. Se o arquivo já estiver no Magalu, devolve a URL.
@@ -300,7 +319,8 @@ def arquivar_pdf_media(loja, pdf_url: str, patient=None) -> str:
         if not conteudo:
             return url
         folder = folder_media_paciente("pdf", patient)
-        arquivada = media_upload(loja, conteudo, filename="prescricao.pdf", folder=folder)
+        nome = (filename or "prescricao.pdf").strip() or "prescricao.pdf"
+        arquivada = media_upload(loja, conteudo, filename=nome, folder=folder)
         return (arquivada or url).strip()
     except Exception as exc:
         logger.warning("Falha ao arquivar PDF Memed no servidor de mídia: %s", exc)
@@ -313,21 +333,23 @@ def resolver_pdf_prescricao(
     prescricao_id: str,
     pdf_url_frontend: str = "",
     patient=None,
+    filename: str = "",
 ) -> str:
     """Define URL final do PDF: frontend (allowlist) → API Memed → mídia."""
+    nome = filename or nome_arquivo_pdf_prescricao(prescricao_id)
     pdf = (pdf_url_frontend or "").strip()[:500]
     if pdf and url_pdf_permitida(pdf):
-        return arquivar_pdf_media(loja, pdf, patient=patient) or pdf
+        return arquivar_pdf_media(loja, pdf, patient=patient, filename=nome) or pdf
 
     prescritor = resolver_prescritor_id_profissional(professional) if prescricao_id else None
     if prescritor:
         pdf_bytes = buscar_pdf_bytes_memed(prescritor, prescricao_id)
         if pdf_bytes:
-            arquivada = arquivar_pdf_bytes_media(loja, pdf_bytes, patient=patient)
+            arquivada = arquivar_pdf_bytes_media(loja, pdf_bytes, patient=patient, filename=nome)
             if arquivada:
                 return arquivada
 
         pdf_url = buscar_pdf_url_memed(prescritor, prescricao_id)
         if pdf_url and url_pdf_permitida(pdf_url):
-            return arquivar_pdf_media(loja, pdf_url, patient=patient) or pdf_url
+            return arquivar_pdf_media(loja, pdf_url, patient=patient, filename=nome) or pdf_url
     return ""

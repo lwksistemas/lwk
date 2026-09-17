@@ -375,7 +375,8 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
             Q(detalhes__icontains=query) |
             Q(url__icontains=query) |
             Q(user_agent__icontains=query) |
-            Q(ip_address__icontains=query),
+            Q(ip_address__icontains=query) |
+            Q(erro__icontains=query),
         )
 
         page = self.paginate_queryset(queryset)

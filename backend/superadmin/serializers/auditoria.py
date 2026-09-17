@@ -1,6 +1,7 @@
 """Serializers de auditoria e segurança."""
 from rest_framework import serializers
 
+from ..historico_mensagens import mensagem_resultado, tipo_resultado
 from ..models import HistoricoAcessoGlobal, ViolacaoSeguranca
 
 
@@ -24,6 +25,8 @@ class HistoricoAcessoGlobalSerializer(serializers.ModelSerializer):
 
     # Formatação de data
     data_hora = serializers.SerializerMethodField()
+    mensagem_status = serializers.SerializerMethodField()
+    tipo_resultado = serializers.SerializerMethodField()
 
     class Meta:
         model = HistoricoAcessoGlobal
@@ -50,6 +53,8 @@ class HistoricoAcessoGlobalSerializer(serializers.ModelSerializer):
             "url",
             "sucesso",
             "erro",
+            "mensagem_status",
+            "tipo_resultado",
             "created_at",
             "data_hora",
         ]
@@ -58,9 +63,14 @@ class HistoricoAcessoGlobalSerializer(serializers.ModelSerializer):
     def get_data_hora(self, obj):
         """Formata data e hora para exibição (timezone local)"""
         from django.utils import timezone
-        # Converter de UTC para timezone local (America/Sao_Paulo)
         local_time = timezone.localtime(obj.created_at)
         return local_time.strftime("%d/%m/%Y %H:%M:%S")
+
+    def get_mensagem_status(self, obj):
+        return mensagem_resultado(obj)
+
+    def get_tipo_resultado(self, obj):
+        return tipo_resultado(obj.sucesso, obj.erro)
 
 
 class HistoricoAcessoGlobalListSerializer(serializers.ModelSerializer):
@@ -74,7 +84,10 @@ class HistoricoAcessoGlobalListSerializer(serializers.ModelSerializer):
 
     acao_display = serializers.CharField(source="get_acao_display", read_only=True)
     navegador = serializers.ReadOnlyField()
+    sistema_operacional = serializers.ReadOnlyField()
     data_hora = serializers.SerializerMethodField()
+    mensagem_status = serializers.SerializerMethodField()
+    tipo_resultado = serializers.SerializerMethodField()
 
     class Meta:
         model = HistoricoAcessoGlobal
@@ -89,7 +102,14 @@ class HistoricoAcessoGlobalListSerializer(serializers.ModelSerializer):
             "recurso",
             "ip_address",
             "navegador",
+            "sistema_operacional",
+            "metodo_http",
+            "url",
+            "user_agent",
             "sucesso",
+            "erro",
+            "mensagem_status",
+            "tipo_resultado",
             "created_at",
             "data_hora",
         ]
@@ -97,9 +117,14 @@ class HistoricoAcessoGlobalListSerializer(serializers.ModelSerializer):
     def get_data_hora(self, obj):
         """Formata data e hora para exibição (timezone local)"""
         from django.utils import timezone
-        # Converter de UTC para timezone local (America/Sao_Paulo)
         local_time = timezone.localtime(obj.created_at)
         return local_time.strftime("%d/%m/%Y %H:%M:%S")
+
+    def get_mensagem_status(self, obj):
+        return mensagem_resultado(obj)
+
+    def get_tipo_resultado(self, obj):
+        return tipo_resultado(obj.sucesso, obj.erro)
 
 
 

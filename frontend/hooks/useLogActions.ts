@@ -87,7 +87,11 @@ export function useLogActions() {
       const response = await apiClient.get(
         `/superadmin/historico-acessos/${logId}/contexto_temporal/?antes=10&depois=10`
       );
-      setContextoTemporal(response.data);
+      const data = response.data || {};
+      setContextoTemporal({
+        antes: data.antes || data.logs_anteriores || [],
+        depois: data.depois || data.logs_posteriores || [],
+      });
     } catch (error) {
       logger.warn('Erro ao carregar contexto temporal:', error);
       setContextoTemporal({ antes: [], depois: [] });

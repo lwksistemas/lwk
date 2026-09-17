@@ -7,6 +7,8 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authService } from '@/lib/auth';
+import apiClient from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 import { useLogsList } from '@/hooks/useLogsList';
 import { useLogActions } from '@/hooks/useLogActions';
 import { LogFilters, LogTable, LogDetalhesModal, SalvarBuscaModal } from '@/components/superadmin/logs';
@@ -53,6 +55,12 @@ function BuscaLogsContent() {
   const handleVerDetalhes = async (log: Log) => {
     setLogSelecionado(log);
     setMostrarDetalhes(true);
+    try {
+      const { data } = await apiClient.get(`/superadmin/historico-acessos/${log.id}/`);
+      setLogSelecionado({ ...log, ...data });
+    } catch (error) {
+      logger.warn('Não foi possível carregar o detalhe completo do log:', error);
+    }
     await carregarContextoTemporal(log.id);
   };
 

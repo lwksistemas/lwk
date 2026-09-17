@@ -5,6 +5,12 @@
 import { formatDateTime } from '@/lib/financeiro-helpers';
 import type { Log } from '@/hooks/useLogsList';
 import { logger } from '@/lib/logger';
+import {
+  classeStatusLog,
+  mensagemStatusLog,
+  tipoResultadoLog,
+  tituloStatusLog,
+} from '@/lib/log-status';
 
 interface LogTableProps {
   logs: Log[];
@@ -88,20 +94,26 @@ export function LogTable({ logs, loading, searchQuery, onVerDetalhes }: LogTable
                 </td>
                 <td className="px-4 py-3 text-sm">
                   <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs">
-                    {highlightText(log.acao, searchQuery)}
+                    {highlightText(log.acao_display || log.acao, searchQuery)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                   {highlightText(log.recurso, searchQuery)}
                 </td>
-                <td className="px-4 py-3 text-sm">
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    log.sucesso 
-                      ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' 
-                      : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
-                  }`}>
-                    {log.sucesso ? '✓ Sucesso' : '✗ Erro'}
-                  </span>
+                <td className="px-4 py-3 text-sm max-w-xs">
+                  {(() => {
+                    const tipo = tipoResultadoLog(log);
+                    return (
+                      <div>
+                        <span className={`px-2 py-1 rounded text-xs ${classeStatusLog(tipo)}`}>
+                          {tituloStatusLog(tipo)}
+                        </span>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                          {mensagemStatusLog(log)}
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                   {log.ip_address}

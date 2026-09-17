@@ -21,6 +21,7 @@ import os
 import re
 import shutil
 import time
+import unicodedata
 import uuid
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -46,6 +47,24 @@ MAX_FILES_PER_FOLDER = 500
 _IMAGE_EXTS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif"})
 _PDF_EXTS = frozenset({".pdf"})
 _DICOM_EXTS = frozenset({".dcm", ".dicom"})
+_GENERIC_PDF_STEMS = frozenset({"upload", "file", "document", "arquivo", "pdf", "unnamed"})
+
+
+def nome_arquivo_destino(original: str, ext: str, dest_dir: Path) -> str:
+    """PDF: nome enviado (sanitizado). Foto: uuid para não sobrescrever foto.jpg."""
+    ext = (ext or "").lower() or ".bin"
+    if ext not in _PDF_EXTS:
+        return f"{uuid.uuid4().hex}{ext}"
+    stem = Path((original or "").replace("\\", "/")).name
+    stem = Path(stem).stem
+    stem = unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode("ascii")
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("._-")[:80]
+    if not stem or stem.lower() in _GENERIC_PDF_STEMS:
+        stem = uuid.uuid4().hex
+    candidato = f"{stem}{ext}"
+    if not (dest_dir / candidato).exists():
+        return candidato
+    return f"{stem}_{uuid.uuid4().hex[:8]}{ext}"
 
 
 def _bearer_token() -> str:
@@ -172,10 +191,10 @@ def upload(tenant):
         return jsonify({"error": "Pasta inválida"}), 400
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    ext = Path(file.filename).suffix.lower() or ".jpg"
+    ext = Path(file.filename or "").suffix.lower() or ".jpg"
     if not _ext_permitida(folder_path, ext):
         return jsonify({"error": "Tipo de arquivo não permitido nesta pasta"}), 400
-    filename = f"{uuid.uuid4().hex}{ext}"
+    filename = nome_arquivo_destino(file.filename or "", ext, dest_dir)
     filepath = dest_dir / filename
     file.save(str(filepath))
 

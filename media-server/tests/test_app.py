@@ -84,6 +84,43 @@ class MediaServerAppTest(unittest.TestCase):
         )
         self.assertEqual(resp.status_code, 200)
 
+    def test_pdf_mantem_nome_enviado(self):
+        dest = Path(self.tmp.name)
+        nome = media_app.nome_arquivo_destino(
+            "Pedido_01_PHD_DO_BRASIL.pdf", ".pdf", dest,
+        )
+        self.assertEqual(nome, "Pedido_01_PHD_DO_BRASIL.pdf")
+        resp = self._upload(
+            self.harmonis,
+            "master-test",
+            folder="admin/pdf",
+            filename="Pedido_01_PHD_DO_BRASIL.pdf",
+            body=b"%PDF-1.4 test",
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = resp.get_json()
+        self.assertEqual(data["filename"], "Pedido_01_PHD_DO_BRASIL.pdf")
+        self.assertIn("/admin/pdf/Pedido_01_PHD_DO_BRASIL.pdf", data["url"])
+
+    def test_pdf_duplicado_ganha_sufixo(self):
+        dest = Path(self.tmp.name) / "dup"
+        dest.mkdir()
+        (dest / "termo.pdf").write_bytes(b"a")
+        segundo = media_app.nome_arquivo_destino("termo.pdf", ".pdf", dest)
+        self.assertTrue(segundo.startswith("termo_"))
+        self.assertTrue(segundo.endswith(".pdf"))
+        self.assertNotEqual(segundo, "termo.pdf")
+
+    def test_foto_continua_uuid(self):
+        dest = Path(self.tmp.name)
+        nome = media_app.nome_arquivo_destino("foto.jpg", ".jpg", dest)
+        self.assertRegex(nome, r"^[a-f0-9]{32}\.jpg$")
+
+    def test_pdf_ignora_path_no_nome(self):
+        dest = Path(self.tmp.name)
+        nome = media_app.nome_arquivo_destino("../../etc/passwd.pdf", ".pdf", dest)
+        self.assertEqual(nome, "passwd.pdf")
+
 
 if __name__ == "__main__":
     unittest.main()

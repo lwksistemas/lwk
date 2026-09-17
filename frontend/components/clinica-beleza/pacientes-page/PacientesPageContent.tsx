@@ -26,6 +26,7 @@ import { usePacienteForm } from "@/hooks/clinica-beleza/usePacienteForm";
 import { entityActive, entityName } from "@/lib/clinica-beleza-entities";
 import { buscarPacientesOffline, salvarPacientesOffline } from "@/lib/offline-db";
 import { buildProntuarioPacientePath } from "@/components/clinica-beleza/prontuario/prontuario-paths";
+import { useClinicaPodeVerConsulta } from "@/hooks/clinica-beleza/useClinicaPodeVerConsulta";
 import type { Patient } from "./lib/paciente-form-utils";
 
 export function PacientesPageContent() {
@@ -36,6 +37,7 @@ export function PacientesPageContent() {
   const { theme } = useLojaTheme(slug);
   const toast = useToast();
   const [showLocalizar, setShowLocalizar] = useState(false);
+  const { podeVerConsulta, loaded: meLoaded } = useClinicaPodeVerConsulta();
 
   const { isNovo, editIdParam, isFormView, voltarLista, abrirNovo, abrirEditar } =
     useClinicaBelezaFormRouting(basePath);
@@ -129,7 +131,11 @@ export function PacientesPageContent() {
           onPageChange={setPage}
           onEdit={(p) => abrirEditar(p.id)}
           onExclude={exclude}
-          onVerProntuario={(p) => router.push(buildProntuarioPacientePath(slug, p.id))}
+          onVerProntuario={
+            meLoaded && podeVerConsulta
+              ? (p) => router.push(buildProntuarioPacientePath(slug, p.id))
+              : undefined
+          }
         />
       </ClinicaBelezaPageContent>
       <LocalizarClienteModal

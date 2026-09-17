@@ -5,8 +5,13 @@
  * Lista em tela cheia; detalhe da consulta selecionada em shell dedicado.
  */
 
+import { ClinicaConsultaAccessGate } from "@/components/clinica-beleza/ClinicaConsultaAccessGate";
 import { ConsultasPageContent } from "@/components/clinica-beleza/consultas-page/ConsultasPageContent";
 
 export default function ConsultasPage() {
-  return <ConsultasPageContent />;
+  return (
+    <ClinicaConsultaAccessGate>
+      <ConsultasPageContent />
+    </ClinicaConsultaAccessGate>
+  );
 }

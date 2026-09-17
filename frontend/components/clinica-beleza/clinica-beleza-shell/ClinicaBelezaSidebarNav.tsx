@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import {
-  CLINICA_BELEZA_NAV_ITEMS,
   getClinicaBelezaNavHref,
   isClinicaBelezaNavActive,
   isClinicaBelezaNavGroupActive,
+  navItemsClinicaBeleza,
   type ClinicaBelezaNavItem,
 } from "../clinica-beleza-nav";
 import { CB_PRIMARY_CSS } from "@/lib/clinica-beleza-theme-utils";
+import { useClinicaPodeVerConsulta } from "@/hooks/clinica-beleza/useClinicaPodeVerConsulta";
 import { buildInitialOpenGroups } from "./clinica-beleza-shell-utils";
 import { ClinicaBelezaNavItemButton } from "./ClinicaBelezaNavItemButton";
 
@@ -26,6 +27,8 @@ export function ClinicaBelezaSidebarNav({
   onNavigate,
 }: ClinicaBelezaSidebarNavProps) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const { podeVerConsulta } = useClinicaPodeVerConsulta();
+  const navItems = navItemsClinicaBeleza(podeVerConsulta);
 
   useEffect(() => {
     const initial = buildInitialOpenGroups(pathname, slug);
@@ -105,7 +108,7 @@ export function ClinicaBelezaSidebarNav({
     <nav
       className={`space-y-0.5 shrink-0 ${collapsed ? "p-2" : "px-3 py-2"} max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-y-auto lg:overflow-visible`}
     >
-      {CLINICA_BELEZA_NAV_ITEMS.map(renderItem)}
+      {navItems.map(renderItem)}
     </nav>
   );
 }

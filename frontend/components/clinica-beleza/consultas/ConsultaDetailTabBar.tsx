@@ -15,14 +15,14 @@ import {
 import { ConsultaTermoConsentimentoButton } from "./ConsultaTermoConsentimentoButton";
 import type { Consulta, TabId } from "./consultas-types";
 
-const ALL_TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
-  { id: "atendimento", label: "Atendimento", icon: ClipboardList },
-  { id: "produtos", label: "Produtos", icon: Package },
-  { id: "documentos", label: "Documentos", icon: FolderOpen },
+export const CONSULTA_DETAIL_TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: "anamnese", label: "Anamnese", icon: FileText },
   { id: "evolucao", label: "Evolução", icon: Activity },
+  { id: "atendimento", label: "Procedimento", icon: ClipboardList },
+  { id: "produtos", label: "Produtos", icon: Package },
+  { id: "documentos", label: "Documentos", icon: FolderOpen },
   { id: "fotos", label: "Fotos", icon: Camera },
-  { id: "orcamento", label: "Orçamento", icon: DollarSign },
+  { id: "orcamento", label: "Orçamentos", icon: DollarSign },
   { id: "historico", label: "Histórico", icon: History },
 ];
 
@@ -45,19 +45,13 @@ export function ConsultaDetailTabBar({
   onTabChange,
   onRefreshConsulta,
 }: ConsultaDetailTabBarProps) {
-  const tabsConsultaFinalizada: TabId[] = [
-    "atendimento",
-    "produtos",
-    "documentos",
-    "anamnese",
-    "evolucao",
-    "fotos",
-    "orcamento",
-  ];
+  const tabsConsultaFinalizada: TabId[] = CONSULTA_DETAIL_TABS.filter((t) => t.id !== "historico").map(
+    (t) => t.id,
+  );
 
   const visibleTabs = (consultaFinalizada
-    ? ALL_TABS.filter((t) => tabsConsultaFinalizada.includes(t.id))
-    : ALL_TABS
+    ? CONSULTA_DETAIL_TABS.filter((t) => tabsConsultaFinalizada.includes(t.id))
+    : CONSULTA_DETAIL_TABS
   ).filter((t) => t.id !== "historico" || temHistoricoAnterior);
 
   return (

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CONSULTA_DETAIL_TABS } from "@/components/clinica-beleza/consultas/ConsultaDetailTabBar";
 import {
   deveExibirAguardandoInicio,
   loadingConsultaLabel,
@@ -25,5 +26,20 @@ describe("loadingConsultaLabel", () => {
   it("diferencia carregamento inicial e de aba", () => {
     expect(loadingConsultaLabel(true)).toBe("Carregando consulta...");
     expect(loadingConsultaLabel(false)).toBe("Carregando aba...");
+  });
+});
+
+describe("ordem das abas da consulta", () => {
+  it("começa em anamnese e troca atendimento por procedimento", () => {
+    expect(CONSULTA_DETAIL_TABS.map((t) => t.label)).toEqual([
+      "Anamnese",
+      "Evolução",
+      "Procedimento",
+      "Produtos",
+      "Documentos",
+      "Fotos",
+      "Orçamentos",
+      "Histórico",
+    ]);
   });
 });

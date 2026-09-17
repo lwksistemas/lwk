@@ -19,7 +19,7 @@ export function useConsultaDetailShellEffects({
 
   useEffect(() => {
     if (tab === "historico" && !temHistoricoAnterior) {
-      setTab("atendimento");
+      setTab("anamnese");
     }
   }, [tab, temHistoricoAnterior, setTab]);
 }

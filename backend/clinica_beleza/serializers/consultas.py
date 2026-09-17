@@ -11,6 +11,17 @@ from ..models import Consulta, ConsultaEvolucao, Convenio, LocalAtendimento, Pre
 class ConsultaEvolucaoSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source="patient.nome", read_only=True)
     professional_name = serializers.CharField(source="professional.nome", read_only=True, default=None)
+    satisfacao = serializers.IntegerField(
+        min_value=1,
+        max_value=5,
+        error_messages={
+            "invalid": "Informe a satisfação do cliente (1 a 5). É obrigatório.",
+            "required": "Informe a satisfação do cliente (1 a 5). É obrigatório.",
+            "null": "Informe a satisfação do cliente (1 a 5). É obrigatório.",
+            "min_value": "A satisfação deve ser de 1 a 5.",
+            "max_value": "A satisfação deve ser de 1 a 5.",
+        },
+    )
 
     class Meta:
         model = ConsultaEvolucao

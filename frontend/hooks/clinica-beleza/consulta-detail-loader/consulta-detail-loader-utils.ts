@@ -25,7 +25,7 @@ export function extractObservacoesConsulta(c: Consulta): string {
 
 export function resolveInitialConsultaTab(status: string, historicoCount: number): TabId {
   const temHistoricoAnterior = historicoCount > 1;
-  return status === "SCHEDULED" && temHistoricoAnterior ? "historico" : "atendimento";
+  return status === "SCHEDULED" && temHistoricoAnterior ? "historico" : "anamnese";
 }
 
 export function mergeConsultaFresh(base: Consulta, fresh: Partial<Consulta> | null): Consulta {

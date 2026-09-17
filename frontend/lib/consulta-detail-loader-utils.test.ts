@@ -58,9 +58,9 @@ describe("resolveInitialConsultaTab", () => {
     expect(resolveInitialConsultaTab("SCHEDULED", 2)).toBe("historico");
   });
 
-  it("abre atendimento por padrão", () => {
-    expect(resolveInitialConsultaTab("SCHEDULED", 1)).toBe("atendimento");
-    expect(resolveInitialConsultaTab("IN_PROGRESS", 3)).toBe("atendimento");
+  it("abre anamnese por padrão", () => {
+    expect(resolveInitialConsultaTab("SCHEDULED", 1)).toBe("anamnese");
+    expect(resolveInitialConsultaTab("IN_PROGRESS", 3)).toBe("anamnese");
   });
 });
 

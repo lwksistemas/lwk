@@ -31,7 +31,7 @@ export function useConsultaDetailLoader({
 }: UseConsultaDetailLoaderArgs) {
   const [selected, setSelected] = useState(consulta);
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
-  const [tab, setTab] = useState<TabId>("atendimento");
+  const [tab, setTab] = useState<TabId>("anamnese");
   const [protocolos, setProtocolos] = useState<Protocolo[]>([]);
   const [anamnese, setAnamnese] = useState<Anamnese>(EMPTY_ANAMNESE);
   const [anamneseDraft, setAnamneseDraft] = useState<Anamnese>(EMPTY_ANAMNESE);
@@ -84,10 +84,10 @@ export function useConsultaDetailLoader({
           setSelected(consultaAtual);
         }
 
-        // Atendimento primeiro (UI rápida); histórico em paralelo — sem waterfall.
-        setTab("atendimento");
+        // Anamnese primeiro (primeira aba); histórico em paralelo — sem waterfall.
+        setTab("anamnese");
         const histPromise = fetchHistoricoPaciente(consultaAtual.patient).catch(() => []);
-        await loadTabData("atendimento", consultaAtual, true);
+        await loadTabData("anamnese", consultaAtual, true);
 
         const histList = normalizeConsultaList(await histPromise);
         setHistorico(histList);

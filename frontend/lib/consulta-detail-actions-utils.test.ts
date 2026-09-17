@@ -3,6 +3,7 @@ import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-t
 import {
   computeConsultaFlags,
   consultaPagamentoUi,
+  mensagemValidacaoEvolucao,
   valorPagamentoConsulta,
 } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 
@@ -198,5 +199,27 @@ describe("consultaPagamentoUi", () => {
       mostrarPrazo: true,
       consultaFinalizada: false,
     });
+  });
+});
+
+describe("mensagemValidacaoEvolucao", () => {
+  it("pede satisfação quando a nota está vazia", () => {
+    expect(
+      mensagemValidacaoEvolucao({
+        descricao: "Evoluiu bem",
+        procedimento_realizado: "",
+        satisfacao: "",
+      }),
+    ).toBe("Informe a satisfação do cliente (1 a 5). É obrigatório.");
+  });
+
+  it("aceita nota de 1 a 5", () => {
+    expect(
+      mensagemValidacaoEvolucao({
+        descricao: "Evoluiu bem",
+        procedimento_realizado: "",
+        satisfacao: "4",
+      }),
+    ).toBeNull();
   });
 });

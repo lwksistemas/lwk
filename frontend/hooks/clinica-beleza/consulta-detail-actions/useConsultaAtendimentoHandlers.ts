@@ -3,6 +3,7 @@ import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import type { EvolucaoFormState } from "@/components/clinica-beleza/consultas/tab-panels/tab-panels-types";
 import { useToast } from "@/components/ui/Toast";
 import { EMPTY_EVOLUCAO_FORM, type ConsultaDetailLoaderSlice } from "./consulta-detail-actions-types";
+import { mensagemValidacaoEvolucao } from "./consulta-detail-actions-utils";
 import type { Protocolo, Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 
 type AtendimentoUiSlice = {
@@ -136,15 +137,18 @@ export function useConsultaAtendimentoHandlers(
   }, [anamneseDraft, selected.patient, setAnamnese, setEditAnamnese, setSaving, toast]);
 
   const salvarEvolucao = useCallback(async () => {
-    if (!evolucaoForm.descricao.trim() && !evolucaoForm.procedimento_realizado.trim()) {
-      toast.warning("Preencha a evolução ou o procedimento realizado.");
+    const aviso = mensagemValidacaoEvolucao(evolucaoForm);
+    if (aviso) {
+      toast.warning(aviso);
       return;
     }
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = { ...evolucaoForm };
+      const payload: Record<string, unknown> = {
+        ...evolucaoForm,
+        satisfacao: Number(evolucaoForm.satisfacao),
+      };
       if (selected.protocolo_notas) payload.protocolo_snapshot = selected.protocolo_notas;
-      if (evolucaoForm.satisfacao) payload.satisfacao = Number(evolucaoForm.satisfacao);
       await ClinicaBelezaAPI.consultas.evolucoes.create(selected.id, payload);
       const evol = await ClinicaBelezaAPI.consultas.evolucoes.list(selected.id);
       setEvolucoes(Array.isArray(evol) ? evol : []);

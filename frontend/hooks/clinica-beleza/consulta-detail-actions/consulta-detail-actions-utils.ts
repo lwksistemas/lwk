@@ -122,4 +122,18 @@ export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) 
   };
 }
 
+export function mensagemValidacaoEvolucao(form: {
+  descricao: string;
+  procedimento_realizado: string;
+  satisfacao: string;
+}): string | null {
+  if (!form.descricao.trim() && !form.procedimento_realizado.trim()) {
+    return "Preencha a evolução ou o procedimento realizado.";
+  }
+  if (!["1", "2", "3", "4", "5"].includes(String(form.satisfacao))) {
+    return "Informe a satisfação do cliente (1 a 5). É obrigatório.";
+  }
+  return null;
+}
+
 export { consultaProcedimentos };

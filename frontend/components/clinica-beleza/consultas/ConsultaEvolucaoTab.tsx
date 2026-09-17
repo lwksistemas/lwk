@@ -55,6 +55,9 @@ export function ConsultaEvolucaoTab({
               {ev.procedimento_realizado && <PreviewBlock label="Procedimento" value={ev.procedimento_realizado} />}
               {ev.produtos_utilizados && <PreviewBlock label="Produtos" value={ev.produtos_utilizados} />}
               {ev.orientacoes && <PreviewBlock label="Orientações" value={ev.orientacoes} />}
+              {ev.satisfacao != null ? (
+                <p className="text-sm text-gray-700 dark:text-gray-300">Satisfação do cliente: {ev.satisfacao}/5</p>
+              ) : null}
             </div>
           ))}
         </div>
@@ -88,12 +91,26 @@ export function ConsultaEvolucaoTab({
             <textarea placeholder="Procedimento realizado" rows={2} value={evolucaoForm.procedimento_realizado} onChange={(e) => onChangeForm((f) => ({ ...f, procedimento_realizado: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600" />
             <textarea placeholder="Produtos utilizados" rows={2} value={evolucaoForm.produtos_utilizados} onChange={(e) => onChangeForm((f) => ({ ...f, produtos_utilizados: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600" />
             <textarea placeholder="Orientações ao cliente" rows={2} value={evolucaoForm.orientacoes} onChange={(e) => onChangeForm((f) => ({ ...f, orientacoes: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600" />
-            <select value={evolucaoForm.satisfacao} onChange={(e) => onChangeForm((f) => ({ ...f, satisfacao: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600">
-              <option value="">Satisfação (opcional)</option>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+                Satisfação do cliente <span className="text-red-600">*</span>
+              </label>
+              <select
+                required
+                aria-required="true"
+                value={evolucaoForm.satisfacao}
+                onChange={(e) => onChangeForm((f) => ({ ...f, satisfacao: e.target.value }))}
+                className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
+              >
+                <option value="">Selecione a nota (obrigatório)</option>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Obrigatório. Informe de 1 a 5 antes de confirmar.
+              </p>
+            </div>
             <button type="button" onClick={onSave} disabled={saving} className="px-4 py-2 rounded-lg text-white disabled:opacity-50" style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}>
               Confirmar evolução
             </button>

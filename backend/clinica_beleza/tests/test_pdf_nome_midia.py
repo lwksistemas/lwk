@@ -26,6 +26,10 @@ class NomePdfConsultaTextoTests(SimpleTestCase):
         texto = "Produtos utilizados\nConsulta: #22\n"
         self.assertEqual(nome_pdf_consulta_do_texto(texto), "consulta_22_produtos.pdf")
 
+    def test_escolhe_titulo_mais_cedo(self):
+        texto = "Atendimento\nConsulta: #10\nHistórico: ver Anamnese no prontuário\n"
+        self.assertEqual(nome_pdf_consulta_do_texto(texto), "consulta_10_atendimento.pdf")
+
 
 class NomeEstavelTextoTests(SimpleTestCase):
     def test_prontuario_completo(self):

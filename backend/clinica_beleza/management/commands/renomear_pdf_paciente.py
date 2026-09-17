@@ -139,6 +139,7 @@ class Command(BaseCommand):
             arquivos = list((media_list_files(tenant, folder) or {}).get("files") or [])
             patient_id = id_por_slug.get(nome)
             tamanhos_estaveis: dict[int, str] = {}
+            nome_para_size: dict[str, int] = {}
             mapped: list[dict] = []
             others: list[dict] = []
             for item in arquivos:
@@ -146,7 +147,9 @@ class Command(BaseCommand):
                 if not filename.lower().endswith(".pdf"):
                     continue
                 if not precisa_renomear_pdf(filename):
-                    tamanhos_estaveis[int(item.get("size") or 0)] = filename
+                    size = int(item.get("size") or 0)
+                    tamanhos_estaveis[size] = filename
+                    nome_para_size[filename] = size
                     continue
                 if (folder, filename) in destinos_por_arquivo:
                     mapped.append(item)
@@ -183,6 +186,11 @@ class Command(BaseCommand):
                     else:
                         movidos += 1
                     continue
+                if destino in nome_para_size and nome_para_size[destino] != size:
+                    self.stdout.write(
+                        f"  {folder}/{filename} não sobrescreve {destino} (já existe com outro tamanho)"
+                    )
+                    continue
                 ok, fail = self._mover(
                     tenant, folder, old_url, filename, destino, apply, loja, conteudo_cache=conteudo,
                 )
@@ -190,6 +198,7 @@ class Command(BaseCommand):
                 falhas += fail
                 if ok and size:
                     tamanhos_estaveis[size] = destino
+                    nome_para_size[destino] = size
         return movidos, falhas
 
     def _mover(

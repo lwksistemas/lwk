@@ -4,7 +4,12 @@ from unittest.mock import MagicMock, patch
 
 from clinica_beleza.memed_impressao import aviso_timbrado_nao_aplicado
 from clinica_beleza.memed_service import prescritor_liberado_na_memed
-from clinica_beleza.views_memed import MemedTokenView, _normalizar_status_memed
+from clinica_beleza.views_memed import (
+    MemedTokenView,
+    _normalizar_status_memed,
+    mensagem_falha_token_memed,
+    prescritor_demo_homologacao,
+)
 
 
 class NormalizarStatusMemedTest(TestCase):
@@ -85,3 +90,36 @@ class MemedTokenViewTest(TestCase):
 
         view = MemedTokenView()
         self.assertEqual(view._resolver_prescritor_id(request, env="production"), "")
+
+
+class PrescritorDemoHomologacaoTest(TestCase):
+    def test_usa_demo_quando_medico_da_loja_nao_existe_na_homologacao(self):
+        self.assertEqual(
+            prescritor_demo_homologacao("integration", 404, "22239255889", "demo-id"),
+            "demo-id",
+        )
+
+    def test_nao_usa_demo_em_producao(self):
+        self.assertEqual(
+            prescritor_demo_homologacao("production", 404, "22239255889", "demo-id"),
+            "",
+        )
+
+    def test_nao_usa_demo_quando_memed_esta_fora(self):
+        self.assertEqual(
+            prescritor_demo_homologacao("integration", 503, "22239255889", "demo-id"),
+            "",
+        )
+
+
+class MensagemFalhaTokenMemedTest(TestCase):
+    def test_homologacao_indisponivel(self):
+        msg = mensagem_falha_token_memed("integration", 503, "<html><title>503")
+        self.assertIn("homologação", msg)
+        self.assertIn("indisponível", msg)
+
+    def test_erro_generico_quando_nao_e_queda(self):
+        self.assertEqual(
+            mensagem_falha_token_memed("integration", 401, '{"errors":[]}'),
+            "Erro ao obter o token do prescritor na Memed.",
+        )

@@ -62,9 +62,7 @@ def nome_arquivo_destino(original: str, ext: str, dest_dir: Path) -> str:
     if not stem or stem.lower() in _GENERIC_PDF_STEMS:
         stem = uuid.uuid4().hex
     candidato = f"{stem}{ext}"
-    if not (dest_dir / candidato).exists():
-        return candidato
-    return f"{stem}_{uuid.uuid4().hex[:8]}{ext}"
+    return candidato
 
 
 def _bearer_token() -> str:

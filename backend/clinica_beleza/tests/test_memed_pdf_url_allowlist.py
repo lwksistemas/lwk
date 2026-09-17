@@ -5,6 +5,8 @@ from django.test import SimpleTestCase
 
 from clinica_beleza.memed_prescricao_service import (
     arquivar_pdf_media,
+    nome_arquivo_pdf_prescricao,
+    pdf_midia_estavel,
     resolver_pdf_prescricao,
     url_pdf_permitida,
 )
@@ -133,3 +135,23 @@ class BuscarPdfUrlMemedTest(SimpleTestCase):
         chamado = mock_get.call_args[0][0]
         self.assertIn("/prescricoes/295237918/url-document/full", chamado)
         self.assertNotIn("/sinapse-prescricao/", chamado)
+
+
+class NomeArquivoPdfPrescricaoTest(SimpleTestCase):
+    def test_identificador_memed(self):
+        self.assertEqual(nome_arquivo_pdf_prescricao("295237918"), "prescricao_295237918.pdf")
+
+    def test_pdf_midia_estavel_pelo_nome(self):
+        url = (
+            "https://media.lwksistemas.com.br/files/37302743000126/"
+            "luis-querino-teixeira_id10/pdf/prescricao_295237918.pdf"
+        )
+        self.assertTrue(pdf_midia_estavel(url, "prescricao_295237918.pdf"))
+        self.assertFalse(pdf_midia_estavel(url, "prescricao.pdf"))
+        self.assertFalse(
+            pdf_midia_estavel(
+                "https://media.lwksistemas.com.br/files/37302743000126/"
+                "luis-querino-teixeira_id10/pdf/abcd.pdf",
+                "prescricao_295237918.pdf",
+            ),
+        )

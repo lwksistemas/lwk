@@ -37,6 +37,54 @@ def _normalizar_status_memed(status_val) -> str:
     )
 
 
+def prescritor_demo_homologacao(env: str, status_code: int, prescritor_id: str, demo_id: str) -> str:
+    """Em homologação, se o médico da loja não existe na Memed, usa o prescritor de demo.
+
+    Backup de produção no beta traz CPF de prescritor real; a API de homologação
+    não tem essa pessoa. Produção nunca cai neste fallback.
+    """
+    if env != "integration" or status_code != 404:
+        return ""
+    demo = (demo_id or "").strip()
+    atual = (prescritor_id or "").strip()
+    if demo and demo != atual:
+        return demo
+    return ""
+
+
+def mensagem_falha_token_memed(env: str, status_code: int, corpo: str) -> str:
+    """Mensagem para o usuário quando a Memed não devolve o token."""
+    html = (corpo or "").lstrip().startswith("<html")
+    if status_code in (502, 503) or html:
+        if env == "integration":
+            return (
+                "A Memed de homologação está temporariamente indisponível. "
+                "Tente novamente em alguns minutos."
+            )
+        return "A Memed está temporariamente indisponível. Tente novamente em alguns minutos."
+    return "Erro ao obter o token do prescritor na Memed."
+
+
+def _consultar_usuario_memed(endpoints, api_key, secret_key, prescritor_id):
+    url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{prescritor_id}"
+    resp = None
+    for tentativa in range(2):
+        try:
+            resp = requests.get(
+                url,
+                params={"api-key": api_key, "secret-key": secret_key},
+                headers={
+                    "Accept": "application/vnd.api+json",
+                    "Content-Type": "application/json",
+                },
+                timeout=15,
+            )
+            break
+        except requests.RequestException as e:
+            logger.warning("Memed: falha ao conectar (tentativa %s/2): %s", tentativa + 1, e)
+    return resp
+
+
 def _dados_clinica(request):
     """Dados do estabelecimento (loja atual) para o cabeçalho/rodapé da receita,
     usados pelo comando setWorkplace da Memed. Retorna {} se indisponível —
@@ -109,27 +157,31 @@ class MemedTokenView(APIView):
         # recuperar o último token válido a cada chamada — por isso NÃO cacheamos o
         # token. A chamada é feita só ao abrir a prescrição (baixo volume), então o
         # custo é aceitável e evita servir um token vencido (que impede prescrever).
-        url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{prescritor_id}"
-        resp = None
-        for tentativa in range(2):
-            try:
-                resp = requests.get(
-                    url,
-                    params={"api-key": api_key, "secret-key": secret_key},
-                    headers={
-                        "Accept": "application/vnd.api+json",
-                        "Content-Type": "application/json",
-                    },
-                    timeout=15,
-                )
-                break
-            except requests.RequestException as e:
-                logger.warning("Memed: falha ao conectar (tentativa %s/2): %s", tentativa + 1, e)
+        resp = _consultar_usuario_memed(endpoints, api_key, secret_key, prescritor_id)
         if resp is None:
             return Response(
                 {"error": "Não foi possível conectar à Memed. Tente novamente."},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+
+        demo = prescritor_demo_homologacao(
+            env,
+            resp.status_code,
+            prescritor_id,
+            getattr(settings, "MEMED_PRESCRITOR_ID", "") or "",
+        )
+        if demo:
+            logger.info(
+                "Memed homologação: prescritor da loja %s não existe; usando prescritor de demonstração",
+                prescritor_id,
+            )
+            prescritor_id = demo
+            resp = _consultar_usuario_memed(endpoints, api_key, secret_key, prescritor_id)
+            if resp is None:
+                return Response(
+                    {"error": "Não foi possível conectar à Memed. Tente novamente."},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
 
         if resp.status_code == 404:
             return Response(
@@ -140,7 +192,7 @@ class MemedTokenView(APIView):
         if not resp.ok:
             logger.warning("Memed: resposta %s — %s", resp.status_code, resp.text[:400])
             return Response(
-                {"error": "Erro ao obter o token do prescritor na Memed."},
+                {"error": mensagem_falha_token_memed(env, resp.status_code, resp.text or "")},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 

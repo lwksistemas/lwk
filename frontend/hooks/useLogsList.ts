@@ -12,13 +12,19 @@ export interface Log {
   usuario_email: string;
   loja_nome: string;
   acao: string;
+  acao_display?: string;
   recurso: string;
-  detalhes: string;
+  detalhes?: string;
   ip_address: string;
-  user_agent: string;
-  url: string;
-  metodo_http: string;
-  status_code: number;
+  user_agent?: string;
+  navegador?: string;
+  sistema_operacional?: string;
+  url?: string;
+  metodo_http?: string;
+  erro?: string;
+  mensagem_status?: string;
+  tipo_resultado?: "sucesso" | "recusado" | "erro";
+  status_code?: number;
   sucesso: boolean;
   created_at: string;
 }

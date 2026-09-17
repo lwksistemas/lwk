@@ -14,6 +14,7 @@ import {
   FileText,
   Receipt,
   ScrollText,
+  Wallet,
 } from 'lucide-react';
 import { isProntuarioPacientePath } from '@/components/clinica-beleza/prontuario/prontuario-paths';
 
@@ -45,6 +46,7 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Protocolos', icon: ClipboardList, path: 'clinica-beleza/protocolos' },
   { label: 'Templates', icon: FileText, path: 'clinica-beleza/templates' },
   { label: 'Estoque', icon: Package, path: 'clinica-beleza/estoque' },
+  { label: 'Financeiro', icon: Wallet, path: 'clinica-beleza/financeiro' },
   { label: 'NFS-e', icon: Receipt, path: 'clinica-beleza/nfse' },
   { label: 'Marketing', icon: Megaphone, path: 'clinica-beleza/campanhas' },
   { label: 'Relatórios', icon: BarChart3, path: 'relatorios' },

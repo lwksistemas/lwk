@@ -354,10 +354,10 @@ class TermoConsentimentoPdfPublicView(APIView):
     throttle_classes = [PublicPdfThrottle]
 
     def get(self, request, consulta_id, procedure_id, token):
-        from django.core.cache import cache as django_cache
+        from clinica_beleza.public_pdf import PREFIX_TERMO, ler_pdf_publico
 
-        cached = django_cache.get(f"termo_pdf_{token}")
-        if not isinstance(cached, dict):
+        cached = ler_pdf_publico(PREFIX_TERMO, token)
+        if not cached:
             return Response({"error": "PDF expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
         if cached.get("consulta_id") != consulta_id or cached.get("procedure_id") != procedure_id:
             return Response({"error": "PDF expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)

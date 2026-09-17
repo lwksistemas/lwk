@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 
 from clinica_beleza.prontuario_pdf import _resolver_cabecalho
+from clinica_beleza.prontuario_pdf.header import _buscar_timbrado
 
 
 class ResolverCabecalhoTest(TestCase):
@@ -12,8 +13,10 @@ class ResolverCabecalhoTest(TestCase):
 
     def _mock_timbrado_qs(self, mock_objects, timbrado=None):
         mock_qs = MagicMock()
-        mock_qs.filter.return_value.first.return_value = timbrado
-        mock_objects.all_without_filter.return_value = mock_qs
+        mock_qs.filter.return_value = mock_qs
+        mock_qs.using.return_value = mock_qs
+        mock_qs.first.return_value = timbrado
+        mock_objects.filter.return_value = mock_qs
         return mock_qs
 
     @patch("clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects")
@@ -27,7 +30,8 @@ class ResolverCabecalhoTest(TestCase):
 
         self.assertEqual(tipo, "timbrado")
         self.assertEqual(dados, b"%PDF-1.4 fake content")
-        mock_timbrado_qs.all_without_filter.assert_called_once_with()
+        mock_timbrado_qs.filter.assert_called()
+        mock_timbrado_qs.all_without_filter.assert_not_called()
 
     @patch("clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects")
     @patch("superadmin.models.Loja.objects")
@@ -118,3 +122,15 @@ class ResolverCabecalhoTest(TestCase):
 
         self.assertEqual(tipo, "timbrado")
         self.assertEqual(dados, b"%PDF content")
+
+    @patch("clinica_beleza.prontuario_pdf.header.MemedTimbrado.objects")
+    def test_buscar_timbrado_restaura_loja_do_contexto(self, mock_objects):
+        from tenants.middleware import get_current_loja_id, set_current_loja_id
+
+        self._mock_timbrado_qs(mock_objects, None)
+        set_current_loja_id(77)
+        try:
+            _buscar_timbrado(loja_id=12)
+            self.assertEqual(get_current_loja_id(), 77)
+        finally:
+            set_current_loja_id(None)

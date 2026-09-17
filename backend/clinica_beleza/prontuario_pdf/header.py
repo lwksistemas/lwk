@@ -8,6 +8,24 @@ from ..pdf_common import logo_image
 from .constants import MARGIN, PAGE_WIDTH
 
 
+def _buscar_timbrado(loja_id):
+    """Timbrado da loja pelo manager (com loja_id no contexto). Sem all_without_filter."""
+    from tenants.middleware import get_current_loja_id, get_current_tenant_db, set_current_loja_id
+
+    if not loja_id:
+        return None
+    anterior = get_current_loja_id()
+    try:
+        set_current_loja_id(loja_id)
+        qs = MemedTimbrado.objects.filter(loja_id=loja_id)
+        tenant_db = get_current_tenant_db()
+        if tenant_db and tenant_db != "default":
+            qs = qs.using(tenant_db)
+        return qs.first()
+    finally:
+        set_current_loja_id(anterior)
+
+
 def _resolver_cabecalho(loja_id):
     """Resolve qual cabeçalho usar no PDF.
 
@@ -19,14 +37,7 @@ def _resolver_cabecalho(loja_id):
     Retorna tupla:
         ('timbrado', bytes) | ('logo', url_string) | ('texto', loja_instance)
     """
-    # 1. Timbrado PDF (prioridade máxima) — schema do tenant
-    from tenants.middleware import get_current_tenant_db
-
-    tenant_db = get_current_tenant_db()
-    timbrado_qs = MemedTimbrado.objects.all_without_filter().filter(loja_id=loja_id)
-    if tenant_db and tenant_db != "default":
-        timbrado_qs = timbrado_qs.using(tenant_db)
-    timbrado = timbrado_qs.first()
+    timbrado = _buscar_timbrado(loja_id)
     if timbrado and timbrado.pdf:
         return ("timbrado", bytes(timbrado.pdf))
 
@@ -52,13 +63,7 @@ def _resolver_cabecalho_relatorio(loja_id):
     if logo_url:
         return ("logo", logo_url)
 
-    from tenants.middleware import get_current_tenant_db
-
-    tenant_db = get_current_tenant_db()
-    timbrado_qs = MemedTimbrado.objects.all_without_filter().filter(loja_id=loja_id)
-    if tenant_db and tenant_db != "default":
-        timbrado_qs = timbrado_qs.using(tenant_db)
-    timbrado = timbrado_qs.first()
+    timbrado = _buscar_timbrado(loja_id)
     if timbrado and timbrado.pdf:
         return ("timbrado", bytes(timbrado.pdf))
 

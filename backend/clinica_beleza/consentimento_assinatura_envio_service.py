@@ -137,13 +137,11 @@ def enviar_termo_assinado_whatsapp(
     Usa URL pública do PDF, igual ao recibo de pagamento, para compatibilidade
     com Meta Cloud API e Evolution (WhatsApp Web).
     """
-    import hashlib
     import logging
-    import time
 
     from django.conf import settings
-    from django.core.cache import cache as django_cache
 
+    from clinica_beleza.public_pdf import PREFIX_TERMO, gravar_pdf_publico
     from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
     from whatsapp.models import WhatsAppConfig
     from whatsapp.services import send_whatsapp, send_whatsapp_document
@@ -181,14 +179,13 @@ def enviar_termo_assinado_whatsapp(
         if not pdf_bytes:
             return False, "Não foi possível gerar o PDF do termo assinado."
 
-        ts = str(int(time.time()))
-        token_raw = f"termo-{consulta.id}-{termo_proc.procedure_id}-{ts}-{settings.SECRET_KEY[:16]}"
-        token = hashlib.sha256(token_raw.encode()).hexdigest()[:32]
-
-        django_cache.set(
-            f"termo_pdf_{token}",
-            {"consulta_id": consulta.id, "procedure_id": termo_proc.procedure_id, "pdf": pdf_bytes},
-            300,
+        token = gravar_pdf_publico(
+            PREFIX_TERMO,
+            {
+                "consulta_id": consulta.id,
+                "procedure_id": termo_proc.procedure_id,
+                "pdf": pdf_bytes,
+            },
         )
 
         api_base = getattr(settings, "API_BASE_URL", "") or "https://api.lwksistemas.com.br"

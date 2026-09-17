@@ -102,10 +102,7 @@ def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
         return {"sucesso": False, "erro": "Paciente sem telefone cadastrado."}
 
     try:
-        import hashlib
-        import time
         from django.conf import settings
-        from django.core.cache import cache as django_cache
         from whatsapp.models import WhatsAppConfig
         from whatsapp.services import send_whatsapp, _send_whatsapp_document_evolution
 
@@ -129,14 +126,11 @@ def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
             return {"sucesso": False, "erro": err or "Erro ao enviar WhatsApp."}
 
         try:
-            ts = str(int(time.time()))
-            token_raw = f"orcamento-{orcamento.id}-{ts}-{settings.SECRET_KEY[:16]}"
-            token = hashlib.sha256(token_raw.encode()).hexdigest()[:32]
+            from clinica_beleza.public_pdf import PREFIX_ORCAMENTO, gravar_pdf_publico
 
-            django_cache.set(
-                f"orcamento_pdf_{token}",
+            token = gravar_pdf_publico(
+                PREFIX_ORCAMENTO,
                 {"orcamento_id": orcamento.id, "pdf": pdf_bytes},
-                300,
             )
 
             api_base = getattr(settings, "API_BASE_URL", "") or "https://api.lwksistemas.com.br"

@@ -1,12 +1,9 @@
 """Envio de pedido de compra por e-mail e WhatsApp."""
 from __future__ import annotations
 
-import hashlib
 import logging
-import time
 
 from django.conf import settings
-from django.core.cache import cache as django_cache
 
 from clinica_beleza.models.fornecedores import PedidoCompra
 from clinica_beleza.pedido_compra.context import _loja_nome
@@ -111,10 +108,12 @@ def _enviar_pdf_whatsapp(pedido: PedidoCompra, pdf_bytes: bytes) -> dict:
         ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config)
         if not ok:
             return {"sucesso": False, "erro": err or "Erro ao enviar WhatsApp."}
-        token = hashlib.sha256(
-            f"pedido-{pedido.id}-{int(time.time())}-{settings.SECRET_KEY[:16]}".encode()
-        ).hexdigest()[:32]
-        django_cache.set(f"pedido_compra_pdf_{token}", {"pedido_id": pedido.id, "pdf": pdf_bytes}, 300)
+        from clinica_beleza.public_pdf import PREFIX_PEDIDO, gravar_pdf_publico
+
+        token = gravar_pdf_publico(
+            PREFIX_PEDIDO,
+            {"pedido_id": pedido.id, "pdf": pdf_bytes},
+        )
         api_base = getattr(settings, "API_BASE_URL", "") or "https://api.lwksistemas.com.br"
         pdf_url = f"{api_base}/api/clinica-beleza/estoque/pedidos/{pedido.id}/pdf-public/{token}/"
         try:
@@ -131,7 +130,9 @@ def _enviar_pdf_whatsapp(pedido: PedidoCompra, pdf_bytes: bytes) -> dict:
 
 
 def pdf_publico_cache(pedido_id: int, token: str) -> bytes | None:
-    cached = django_cache.get(f"pedido_compra_pdf_{token}") or {}
+    from clinica_beleza.public_pdf import PREFIX_PEDIDO, ler_pdf_publico
+
+    cached = ler_pdf_publico(PREFIX_PEDIDO, token) or {}
     if cached.get("pedido_id") != pedido_id:
         return None
     return cached.get("pdf")

@@ -1,112 +1,17 @@
-"""Parse de catálogo de fornecedor (CSV/TXT/PDF). Não grava estoque clínico."""
+"""Parse de catálogo em PDF (texto livre, tabela PHD, extração pypdf)."""
 from __future__ import annotations
 
-import csv
 import io
 import re
-import unicodedata
-from decimal import Decimal, InvalidOperation
 
+from clinica_beleza.fornecedor.catalogo.comum import (
+    CATALOGO_PDF_MAX_BYTES,
+    _codigo_de_nome,
+    _norm_nome,
+    _parse_preco,
+)
+from clinica_beleza.fornecedor.catalogo.planilha import preview_catalogo_arquivo, _texto_parece_planilha
 from clinica_beleza.fornecedor.errors import FornecedorError
-
-_HEADER_MAP = {
-    "codigo": "codigo",
-    "código": "codigo",
-    "cod": "codigo",
-    "sku": "codigo",
-    "nome": "nome",
-    "produto": "nome",
-    "descricao": "nome",
-    "descrição": "nome",
-    "unidade": "unidade",
-    "un": "unidade",
-    "preco": "preco",
-    "preço": "preco",
-    "valor": "preco",
-    "preco_ref": "preco",
-}
-
-
-def _detectar_delimiter(texto: str) -> str:
-    sample = texto[:2000]
-    if sample.count(";") >= sample.count(","):
-        return ";"
-    return ","
-
-
-def _parse_preco(raw: str) -> Decimal:
-    s = (raw or "").strip().replace("R$", "").replace(" ", "")
-    if not s:
-        return Decimal("0.00")
-    if "," in s and "." in s:
-        s = s.replace(".", "").replace(",", ".")
-    elif "," in s:
-        s = s.replace(",", ".")
-    try:
-        return Decimal(s).quantize(Decimal("0.01"))
-    except InvalidOperation:
-        return Decimal("0.00")
-
-
-def _texto_parece_planilha(texto: str) -> bool:
-    """CSV/TXT de verdade tem cabeçalho codigo + nome. Texto de PDF com vírgulas não."""
-    primeira = ""
-    for linha in (texto or "").lstrip("\ufeff").splitlines():
-        if linha.strip():
-            primeira = linha
-            break
-    if not primeira:
-        return False
-    delim = ";" if primeira.count(";") >= primeira.count(",") else ","
-    if "\t" in primeira and primeira.count("\t") >= max(primeira.count(delim), 1):
-        delim = "\t"
-    colunas = [re.sub(r"\s+", " ", (c or "").strip().lower()) for c in primeira.split(delim)]
-    mapped = {_HEADER_MAP.get(c) for c in colunas}
-    return "codigo" in mapped and "nome" in mapped
-
-
-def preview_catalogo_arquivo(conteudo: str) -> list[dict]:
-    texto = (conteudo or "").lstrip("\ufeff").strip()
-    if not texto:
-        raise FornecedorError("Arquivo vazio.")
-    delim = _detectar_delimiter(texto)
-    reader = csv.reader(io.StringIO(texto), delimiter=delim)
-    rows = [r for r in reader if any((c or "").strip() for c in r)]
-    if not rows:
-        raise FornecedorError("Nenhuma linha válida no arquivo.")
-
-    first = [re.sub(r"\s+", " ", (c or "").strip().lower()) for c in rows[0]]
-    mapped = [_HEADER_MAP.get(c) for c in first]
-    tem_header = any(mapped)
-
-    itens: list[dict] = []
-    data_rows = rows[1:] if tem_header else rows
-    for raw in data_rows:
-        if tem_header:
-            rec = {mapped[i]: (raw[i] if i < len(raw) else "") for i in range(len(mapped)) if mapped[i]}
-        else:
-            rec = {
-                "codigo": raw[0] if len(raw) > 0 else "",
-                "nome": raw[1] if len(raw) > 1 else "",
-                "unidade": raw[2] if len(raw) > 2 else "un",
-                "preco": raw[3] if len(raw) > 3 else "0",
-            }
-        codigo = str(rec.get("codigo") or "").strip()
-        nome = str(rec.get("nome") or "").strip()
-        if not codigo or not nome:
-            continue
-        itens.append({
-            "codigo": codigo[:60],
-            "nome": nome[:200],
-            "unidade": (str(rec.get("unidade") or "un").strip() or "un")[:20],
-            "preco_ref": str(_parse_preco(str(rec.get("preco") or ""))),
-        })
-    if not itens:
-        raise FornecedorError("Nenhum produto com código e nome encontrado.")
-    return itens
-
-
-CATALOGO_PDF_MAX_BYTES = 8 * 1024 * 1024
 
 _PRECO_RE = re.compile(r"R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})")
 _PRECO_SO_LINHA_RE = re.compile(r"^(?:R\$\s*)?(\d{1,3}(?:\.\d{3})?,\d{2})$")
@@ -184,18 +89,6 @@ _SECOES_CATALOGO = {
     "sachês",
     "saches",
 }
-
-
-def _norm_nome(nome: str) -> str:
-    nfd = unicodedata.normalize("NFD", (nome or "").strip().lower())
-    return "".join(c for c in nfd if unicodedata.category(c) != "Mn")
-
-
-def _codigo_de_nome(nome: str) -> str:
-    nfd = unicodedata.normalize("NFD", nome)
-    ascii_txt = "".join(c for c in nfd if unicodedata.category(c) != "Mn")
-    slug = re.sub(r"[^A-Za-z0-9]+", "-", ascii_txt).strip("-").upper()
-    return (slug[:40] or "PROD").rstrip("-")
 
 
 def _forca_nome(line: str) -> int:
@@ -652,17 +545,3 @@ def preview_catalogo_pdf(data: bytes) -> list[dict]:
             "Confira se o catálogo tem código/preço ou valores em R$, ou envie um CSV/TXT."
         )
     return itens
-
-
-def preview_catalogo_entrada(conteudo: str | None = None, arquivo=None) -> list[dict]:
-    """Lê CSV/TXT (texto) ou PDF (upload) e devolve prévia do catálogo."""
-    if arquivo is not None:
-        tamanho = getattr(arquivo, "size", None)
-        if tamanho and tamanho > CATALOGO_PDF_MAX_BYTES:
-            raise FornecedorError("Arquivo no máximo 8 MB.")
-        nome = (getattr(arquivo, "name", "") or "").lower()
-        data = arquivo.read()
-        if nome.endswith(".pdf") or (data[:5] == b"%PDF-"):
-            return preview_catalogo_pdf(data)
-        return preview_catalogo_arquivo(data.decode("utf-8-sig", errors="replace"))
-    return preview_catalogo_arquivo(conteudo or "")

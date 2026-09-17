@@ -147,11 +147,10 @@ class OrcamentoPDFPublicView(APIView):
     throttle_classes = [PublicPdfThrottle]
 
     def get(self, request, orcamento_id, token):
-        from django.core.cache import cache as django_cache
+        from clinica_beleza.public_pdf import PREFIX_ORCAMENTO, ler_pdf_publico
 
-        cache_key = f"orcamento_pdf_{token}"
-        cached = django_cache.get(cache_key)
-        if not cached or not isinstance(cached, dict) or cached.get("orcamento_id") != orcamento_id:
+        cached = ler_pdf_publico(PREFIX_ORCAMENTO, token)
+        if not cached or cached.get("orcamento_id") != orcamento_id:
             return Response({"error": "Orçamento expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
 
         pdf_bytes = cached.get("pdf")

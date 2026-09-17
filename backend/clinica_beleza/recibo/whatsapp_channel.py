@@ -1,7 +1,5 @@
 """Envio de recibo por WhatsApp e templates de mensagem."""
-import hashlib
 import logging
-import time
 
 from .context import (
     _formas_pagamento_texto,
@@ -22,7 +20,6 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
 
     try:
         from django.conf import settings
-        from django.core.cache import cache as django_cache
 
         from whatsapp.models import WhatsAppConfig
         from whatsapp.services import send_whatsapp
@@ -40,9 +37,7 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
             return False, err or "Erro ao enviar WhatsApp."
 
         try:
-            ts = str(int(time.time()))
-            token_raw = f"recibo-{payment.id}-{ts}-{settings.SECRET_KEY[:16]}"
-            token = hashlib.sha256(token_raw.encode()).hexdigest()[:32]
+            from clinica_beleza.public_pdf import PREFIX_RECIBO, gravar_pdf_publico
 
             pdf_bytes = _gerar_pdf_recibo(ctx)
             from clinica_beleza.media_docs_service import arquivar_pdf_gerado
@@ -52,10 +47,9 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
                 pdf_bytes,
                 f"recibo_{payment.id}.pdf",
             )
-            django_cache.set(
-                f"recibo_pdf_{token}",
+            token = gravar_pdf_publico(
+                PREFIX_RECIBO,
                 {"payment_id": payment.id, "pdf": pdf_bytes},
-                300,
             )
 
             api_base = getattr(settings, "API_BASE_URL", "") or "https://api.lwksistemas.com.br"

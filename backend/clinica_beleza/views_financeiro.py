@@ -204,14 +204,10 @@ class ReciboPdfPublicView(APIView):
     throttle_classes = [PublicPdfThrottle]
 
     def get(self, request, pk, token):
-        from django.core.cache import cache as django_cache
+        from clinica_beleza.public_pdf import PREFIX_RECIBO, ler_pdf_publico
 
-        cache_key = f"recibo_pdf_{token}"
-        cached = django_cache.get(cache_key)
-        if not cached:
-            return Response({"error": "Recibo expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
-
-        if not isinstance(cached, dict) or cached.get("payment_id") != pk:
+        cached = ler_pdf_publico(PREFIX_RECIBO, token)
+        if not cached or cached.get("payment_id") != pk:
             return Response({"error": "Recibo expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
         pdf_bytes = cached.get("pdf")
         if not pdf_bytes:

@@ -5,6 +5,7 @@ from .catalogo import (
     preview_catalogo_pdf,
     _norm_nome,
     _parse_catalogo_texto_livre,
+    _parse_preco,
     _texto_pagina_pypdf,
     _texto_parece_planilha,
 )
@@ -27,6 +28,7 @@ __all__ = [
     "salvar_fornecedor",
     "_norm_nome",
     "_parse_catalogo_texto_livre",
+    "_parse_preco",
     "_texto_pagina_pypdf",
     "_texto_parece_planilha",
 ]

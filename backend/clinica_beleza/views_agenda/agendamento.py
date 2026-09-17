@@ -1,142 +1,31 @@
-"""Views de Agenda, Bloqueios de Horário e Agendamentos — Clínica da Beleza
-"""
+"""Criar, alterar, excluir e reenviar confirmação de agendamento."""
 import logging
 
-from django.db.models import Q
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .agenda_service import (
+from clinica_beleza.agenda_service import (
     AgendaConflictError,
     AgendaValidationError,
     atualizar_agendamento,
     detectar_conflito,
 )
-from .models import Appointment, BloqueioHorario
-from .permissions import (
+from clinica_beleza.models import Appointment
+from clinica_beleza.permissions import (
     CLINICA_AGENDA,
     appointment_in_agenda_scope,
     resolve_agenda_professional_scope,
 )
-from .serializers import (
-    AgendaEventSerializer,
-    AppointmentCreateSerializer,
-    BloqueioHorarioSerializer,
+from clinica_beleza.serializers import AgendaEventSerializer, AppointmentCreateSerializer
+from clinica_beleza.utils import LojaContextHelper
+from clinica_beleza.views_agenda.helpers import (
+    _agenda_events_queryset,
+    _agenda_scope_forbidden_response,
 )
-from .utils import LojaContextHelper
-from .views_base import GetObjectMixin
+from clinica_beleza.views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
-
-
-def _apply_agenda_appointment_scope(qs, request):
-    """Profissional vê só agendamentos atribuídos a si; recepção/admin veem todos."""
-    scope = resolve_agenda_professional_scope(request)
-    if scope is None:
-        return qs
-    if not scope:
-        return qs.none()
-    return qs.filter(professional_id=scope)
-
-
-def _apply_agenda_bloqueio_scope(qs, request):
-    """Profissional: bloqueios próprios + globais (sem profissional)."""
-    scope = resolve_agenda_professional_scope(request)
-    if scope is None:
-        return qs
-    if not scope:
-        return qs.filter(professional_id__isnull=True)
-    return qs.filter(Q(professional_id=scope) | Q(professional_id__isnull=True))
-
-
-def _agenda_scope_forbidden_response():
-    return Response(
-        {"error": "Sem permissão para acessar este agendamento."},
-        status=status.HTTP_403_FORBIDDEN,
-    )
-
-
-def _agenda_events_queryset():
-    """Queryset otimizado para AgendaEventSerializer (evita N+1 em appointment_procedures)."""
-    return (
-        Appointment.objects
-        .select_related(
-            "patient", "professional", "procedure",
-            "convenio", "nome_agenda", "local_atendimento", "consulta",
-        )
-        .prefetch_related("appointment_procedures__procedure")
-    )
-
-
-# ---------------------------------------------------------------------------
-# Agenda (calendário FullCalendar)
-# ---------------------------------------------------------------------------
-
-class AgendaView(APIView):
-    """GET /clinica-beleza/agenda/"""
-
-    permission_classes = CLINICA_AGENDA
-
-    def get(self, request):
-        from datetime import timedelta
-
-        from django.db.models import Q
-        from django.utils import timezone
-        from django.utils.dateparse import parse_datetime, parse_date
-
-        qs = (
-            _agenda_events_queryset()
-            .filter(
-                patient__is_active=True,
-            )
-            .filter(
-                Q(professional__isnull=True) | Q(professional__is_active=True),
-            )
-        )
-        qs = _apply_agenda_appointment_scope(qs, request)
-        start_raw = request.query_params.get("start")
-        end_raw = request.query_params.get("end")
-        if start_raw:
-            qs = qs.filter(date__gte=start_raw)
-        if end_raw:
-            qs = qs.filter(date__lte=end_raw)
-
-        # Evita payload enorme: janela máx. ~3 meses; sem params → ~2 meses em torno de agora
-        max_span_days = 93
-
-        def _bound_date(raw: str):
-            dt = parse_datetime(raw)
-            if dt is not None:
-                return timezone.localtime(dt).date() if timezone.is_aware(dt) else dt.date()
-            return parse_date(raw[:10] if len(raw) >= 10 else raw)
-
-        if start_raw and end_raw:
-            start_d = _bound_date(start_raw)
-            end_d = _bound_date(end_raw)
-            if start_d and end_d and (end_d - start_d).days > max_span_days:
-                return Response(
-                    {"error": f"Intervalo máximo da agenda: {max_span_days} dias."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        elif not start_raw and not end_raw:
-            agora = timezone.now()
-            qs = qs.filter(date__gte=agora - timedelta(days=7), date__lte=agora + timedelta(days=60))
-        scope = resolve_agenda_professional_scope(request)
-        if scope is None and (p := request.query_params.get("professional")):
-            qs = qs.filter(professional_id=p)
-        appointments = list(qs.order_by("date"))
-        logger.info("GET agenda n=%s", len(appointments))
-        from clinica_beleza.retorno_service import verificar_retorno_appointments_batch
-
-        retorno_map = verificar_retorno_appointments_batch(appointments)
-        return Response(
-            AgendaEventSerializer(
-                appointments,
-                many=True,
-                context={"request": request, "retorno_by_appointment_id": retorno_map},
-            ).data,
-        )
 
 
 class AgendaUpdateView(GetObjectMixin, APIView):
@@ -162,7 +51,6 @@ class AgendaUpdateView(GetObjectMixin, APIView):
         if not appointment_in_agenda_scope(appointment, scope):
             return _agenda_scope_forbidden_response()
 
-        # Detecção de conflito offline
         local_version = request.data.get("version")
         resolve_use_local = request.data.get("resolve_use_local") is True
         if not resolve_use_local:
@@ -243,7 +131,7 @@ class AgendaCreateView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        from .agenda_service import criar_agendamento
+        from clinica_beleza.agenda_service import criar_agendamento
         try:
             appointment = criar_agendamento(
                 serializer.validated_data,
@@ -278,7 +166,6 @@ class AgendaDeleteView(GetObjectMixin, APIView):
         if not appointment_in_agenda_scope(obj, scope):
             return _agenda_scope_forbidden_response()
 
-        # Impede exclusão se houver consulta finalizada (protege dados financeiros)
         consulta = getattr(obj, "consulta", None)
         if consulta and consulta.status in ("COMPLETED", "IN_PROGRESS"):
             msg = (
@@ -343,96 +230,3 @@ class AgendaReenviarMensagemView(APIView):
         except Exception:
             logger.exception("WhatsApp reenvio agendamento %s", pk)
             return Response({"sent": False, "message": "Não foi possível enviar. Tente novamente."})
-
-
-# ---------------------------------------------------------------------------
-# Bloqueios de Horário
-# ---------------------------------------------------------------------------
-
-class BloqueioHorarioListView(APIView):
-    """GET /clinica-beleza/bloqueios/  POST /clinica-beleza/bloqueios/"""
-
-    permission_classes = CLINICA_AGENDA
-
-    def get(self, request):
-        qs = BloqueioHorario.objects.all().select_related("professional").order_by("-data_inicio")
-        if s := request.query_params.get("start"):
-            qs = qs.filter(data_fim__gte=s)
-        if e := request.query_params.get("end"):
-            qs = qs.filter(data_inicio__lte=e)
-        scope = resolve_agenda_professional_scope(request)
-        if scope is None and (p := request.query_params.get("professional")):
-            qs = qs.filter(Q(professional_id=p) | Q(professional_id__isnull=True))
-        else:
-            qs = _apply_agenda_bloqueio_scope(qs, request)
-        return Response(BloqueioHorarioSerializer(qs, many=True).data)
-
-    def post(self, request):
-        scope = resolve_agenda_professional_scope(request)
-        data = dict(request.data)
-        if scope is not None:
-            prof_in = data.get("professional")
-            if prof_in and int(prof_in) != scope:
-                return _agenda_scope_forbidden_response()
-            if not prof_in:
-                data["professional"] = scope
-        serializer = BloqueioHorarioSerializer(data=data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        except Exception as e:
-            logger.exception("Erro ao criar BloqueioHorario: %s", e)
-            return Response(
-                {"error": "Erro ao salvar bloqueio. Verifique data/hora e tente novamente."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-
-class BloqueioHorarioDetailView(GetObjectMixin, APIView):
-    """GET /clinica-beleza/bloqueios/<id>/  PUT  DELETE"""
-
-    permission_classes = CLINICA_AGENDA
-    model_class = BloqueioHorario
-    not_found_message = "Bloqueio não encontrado"
-    select_related_fields = ["professional"]
-
-    def get(self, request, pk):
-        obj, error = self.object_or_404(pk)
-        if error:
-            return error
-        scope = resolve_agenda_professional_scope(request)
-        if scope is not None and scope and obj.professional_id not in (scope, None):
-            return _agenda_scope_forbidden_response()
-        return Response(BloqueioHorarioSerializer(obj).data)
-
-    def put(self, request, pk):
-        obj, error = self.object_or_404(pk)
-        if error:
-            return error
-        scope = resolve_agenda_professional_scope(request)
-        if scope is not None and scope and obj.professional_id not in (scope, None):
-            return _agenda_scope_forbidden_response()
-        if scope is not None:
-            prof_in = request.data.get("professional")
-            if prof_in and int(prof_in) != scope:
-                return _agenda_scope_forbidden_response()
-        serializer = BloqueioHorarioSerializer(obj, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def patch(self, request, pk):
-        return self.put(request, pk)
-
-    def delete(self, request, pk):
-        obj, error = self.object_or_404(pk)
-        if error:
-            return error
-        scope = resolve_agenda_professional_scope(request)
-        if scope is not None and scope and obj.professional_id not in (scope, None):
-            return _agenda_scope_forbidden_response()
-        obj.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)

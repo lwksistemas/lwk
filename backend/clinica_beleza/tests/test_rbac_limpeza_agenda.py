@@ -143,7 +143,7 @@ class ProfissionalAgendaAccessTest(TestCase):
             HTTP_X_SESSION_ID=sid,
         )
 
-    @patch("clinica_beleza.views_agenda._agenda_events_queryset")
+    @patch("clinica_beleza.views_agenda.calendario._agenda_events_queryset")
     def test_profissional_pode_listar_agenda(self, mock_qs):
         qs = MagicMock()
         qs.filter.return_value = qs

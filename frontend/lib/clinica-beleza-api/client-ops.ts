@@ -14,6 +14,8 @@ export const meApi = {
       username?: string;
       professional_id?: number | null;
       is_administrador?: boolean;
+      perfil?: string | null;
+      pode_ver_consulta?: boolean;
     }>("/me/"),
 };
 

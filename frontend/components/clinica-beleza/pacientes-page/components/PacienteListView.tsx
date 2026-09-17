@@ -24,7 +24,7 @@ export interface PacienteListViewProps {
   onPageChange: (page: number) => void;
   onEdit: (patient: Patient) => void;
   onExclude: (patient: Patient) => void;
-  onVerProntuario: (patient: Patient) => void;
+  onVerProntuario?: (patient: Patient) => void;
 }
 
 function RowActions({
@@ -37,12 +37,12 @@ function RowActions({
   patient: Patient;
   onEdit: (patient: Patient) => void;
   onExclude: (patient: Patient) => void;
-  onVerProntuario: (patient: Patient) => void;
+  onVerProntuario?: (patient: Patient) => void;
   showChevron?: boolean;
 }) {
   return (
     <div className="flex justify-end gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-      {patient.id >= 0 && (
+      {patient.id >= 0 && onVerProntuario && (
         <button
           type="button"
           onClick={() => onVerProntuario(patient)}

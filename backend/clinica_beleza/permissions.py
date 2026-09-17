@@ -131,14 +131,15 @@ class IsClinicaAdmin(_BaseClinicaProfilePermission):
 
 
 class IsClinicaClinicalStaff(_BaseClinicaProfilePermission):
-    """Prontuário, prescrição e documentos clínicos."""
+    """Consulta, prontuário, prescrição e documentos — só profissional e admin.
 
-    message = "Acesso permitido apenas à equipe clínica autorizada."
+    Recepção agenda e cadastra cliente; não abre consulta.
+    """
+
+    message = "Acesso permitido apenas ao profissional ou administrador da clínica."
     allowed_profiles = (
         ProfissionalUsuario.PERFIL_ADMINISTRADOR,
         ProfissionalUsuario.PERFIL_PROFISSIONAL,
-        ProfissionalUsuario.PERFIL_RECEPCAO,
-        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
     )
 
 
@@ -173,8 +174,6 @@ class IsClinicalOrEstoqueStaff(_BaseClinicaProfilePermission):
     allowed_profiles = (
         ProfissionalUsuario.PERFIL_ADMINISTRADOR,
         ProfissionalUsuario.PERFIL_PROFISSIONAL,
-        ProfissionalUsuario.PERFIL_RECEPCAO,
-        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
         ProfissionalUsuario.PERFIL_ESTOQUE,
     )
 

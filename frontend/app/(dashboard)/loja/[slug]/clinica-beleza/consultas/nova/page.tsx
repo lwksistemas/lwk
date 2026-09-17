@@ -2,9 +2,10 @@
 
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { ClinicaConsultaAccessGate } from "@/components/clinica-beleza/ClinicaConsultaAccessGate";
 
 /** Redireciona rota legada para ?novo=1 na lista de consultas. */
-export default function NovaConsultaRedirectPage() {
+function NovaConsultaRedirect() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
@@ -14,4 +15,12 @@ export default function NovaConsultaRedirectPage() {
   }, [slug, router]);
 
   return null;
+}
+
+export default function NovaConsultaRedirectPage() {
+  return (
+    <ClinicaConsultaAccessGate>
+      <NovaConsultaRedirect />
+    </ClinicaConsultaAccessGate>
+  );
 }

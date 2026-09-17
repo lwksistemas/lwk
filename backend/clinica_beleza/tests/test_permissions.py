@@ -8,6 +8,7 @@ from django.test import SimpleTestCase
 from clinica_beleza.permissions import (
     IsAgendaOrAdmin,
     IsClinicaAdmin,
+    IsClinicaClinicalStaff,
     IsClinicaEstoque,
     IsClinicaFinanceiro,
     IsClinicaLojaMember,
@@ -303,8 +304,55 @@ class IsClinicaEstoqueTests(SimpleTestCase):
         self.assertFalse(self.perm.has_permission(request, None))
 
 
+class IsClinicaClinicalStaffTests(SimpleTestCase):
+    """Consulta/prontuário: owner, admin e profissional. Recepção não vê."""
+
+    def setUp(self):
+        self.perm = IsClinicaClinicalStaff()
+
+    @patch(PATCH_TARGET)
+    def test_profissional_allowed(self, mock_lp):
+        loja = _make_loja(owner_id=1)
+        mock_lp.return_value = (loja, _make_prof("profissional"))
+        request = _make_request()
+        request.user.id = 99
+        self.assertTrue(self.perm.has_permission(request, None))
+
+    @patch(PATCH_TARGET)
+    def test_administrador_allowed(self, mock_lp):
+        loja = _make_loja(owner_id=1)
+        mock_lp.return_value = (loja, _make_prof("administrador"))
+        request = _make_request()
+        request.user.id = 99
+        self.assertTrue(self.perm.has_permission(request, None))
+
+    @patch(PATCH_TARGET)
+    def test_owner_allowed(self, mock_lp):
+        loja = _make_loja(owner_id=5)
+        mock_lp.return_value = (loja, None)
+        request = _make_request()
+        request.user.id = 5
+        self.assertTrue(self.perm.has_permission(request, None))
+
+    @patch(PATCH_TARGET)
+    def test_recepcao_denied(self, mock_lp):
+        loja = _make_loja(owner_id=1)
+        mock_lp.return_value = (loja, _make_prof("recepcao"))
+        request = _make_request()
+        request.user.id = 99
+        self.assertFalse(self.perm.has_permission(request, None))
+
+    @patch(PATCH_TARGET)
+    def test_recepcionista_denied(self, mock_lp):
+        loja = _make_loja(owner_id=1)
+        mock_lp.return_value = (loja, _make_prof("recepcionista"))
+        request = _make_request()
+        request.user.id = 99
+        self.assertFalse(self.perm.has_permission(request, None))
+
+
 class IsClinicalOrEstoqueStaffTests(SimpleTestCase):
-    """IsClinicalOrEstoqueStaff: admin, profissional, recepcao, recepcionista, estoque."""
+    """IsClinicalOrEstoqueStaff: admin, profissional, estoque (sem recepção)."""
 
     def setUp(self):
         self.perm = IsClinicalOrEstoqueStaff()
@@ -337,6 +385,14 @@ class IsClinicalOrEstoqueStaffTests(SimpleTestCase):
     def test_limpeza_denied(self, mock_lp):
         loja = _make_loja(owner_id=1)
         mock_lp.return_value = (loja, _make_prof("limpeza"))
+        request = _make_request()
+        request.user.id = 99
+        self.assertFalse(self.perm.has_permission(request, None))
+
+    @patch(PATCH_TARGET)
+    def test_recepcao_denied(self, mock_lp):
+        loja = _make_loja(owner_id=1)
+        mock_lp.return_value = (loja, _make_prof("recepcao"))
         request = _make_request()
         request.user.id = 99
         self.assertFalse(self.perm.has_permission(request, None))

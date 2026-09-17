@@ -16,20 +16,23 @@ def resolve_user_display_name(user, *, professional_nome: str | None = None) -> 
 
 def build_me_payload(user, loja_id: int | None) -> dict:
     """Monta GET /clinica-beleza/me/."""
+    from superadmin.models import Loja, ProfissionalUsuario
+
+    from .models import Professional
+
     professional_id = None
     professional_nome = None
+    perfil = None
     is_administrador = bool(getattr(user, "is_superuser", False))
     if loja_id:
-        from superadmin.models import Loja, ProfissionalUsuario
-
-        from .models import Professional
-
         if not is_administrador:
             loja = Loja.objects.filter(pk=loja_id).only("owner_id").first()
             if loja and loja.owner_id == getattr(user, "id", None):
                 is_administrador = True
 
         pu = ProfissionalUsuario.objects.filter(user=user, loja_id=loja_id).first()
+        if pu:
+            perfil = pu.perfil
         if pu and pu.professional_id:
             professional_id = pu.professional_id
             try:
@@ -47,9 +50,16 @@ def build_me_payload(user, loja_id: int | None) -> dict:
         ):
             is_administrador = True
 
+    pode_ver_consulta = bool(
+        is_administrador
+        or perfil == ProfissionalUsuario.PERFIL_PROFISSIONAL
+        or getattr(user, "is_superuser", False)
+    )
     return {
         "user_display_name": resolve_user_display_name(user, professional_nome=professional_nome),
         "username": getattr(user, "username", "") or "",
         "professional_id": professional_id,
         "is_administrador": is_administrador,
+        "perfil": perfil,
+        "pode_ver_consulta": pode_ver_consulta,
     }

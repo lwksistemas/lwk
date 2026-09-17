@@ -52,6 +52,23 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Suporte', icon: Headphones, path: 'suporte' },
 ];
 
+export const CONSULTAS_NAV_PATH = 'clinica-beleza/consultas';
+
+export function usuarioPodeVerConsulta(me: {
+  is_administrador?: boolean;
+  perfil?: string | null;
+  pode_ver_consulta?: boolean;
+}): boolean {
+  if (typeof me.pode_ver_consulta === 'boolean') return me.pode_ver_consulta;
+  if (me.is_administrador) return true;
+  return me.perfil === 'profissional';
+}
+
+export function navItemsClinicaBeleza(podeVerConsulta: boolean): ClinicaBelezaNavItem[] {
+  if (podeVerConsulta) return CLINICA_BELEZA_NAV_ITEMS;
+  return CLINICA_BELEZA_NAV_ITEMS.filter((item) => item.path !== CONSULTAS_NAV_PATH);
+}
+
 export function getClinicaBelezaNavHref(slug: string, path: string): string {
   const [pathname, search] = path.split('?');
   const base = `/loja/${slug}/${pathname}`;

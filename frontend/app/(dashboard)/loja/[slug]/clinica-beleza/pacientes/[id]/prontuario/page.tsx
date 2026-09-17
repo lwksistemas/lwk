@@ -1,5 +1,6 @@
 "use client";
 
+import { ClinicaConsultaAccessGate } from "@/components/clinica-beleza/ClinicaConsultaAccessGate";
 import { ProntuarioPageContent } from "@/components/clinica-beleza/prontuario/ProntuarioPageContent";
 
 /**
@@ -7,5 +8,9 @@ import { ProntuarioPageContent } from "@/components/clinica-beleza/prontuario/Pr
  * Cada aba carrega GET /patients/<id>/prontuario/?secao=X
  */
 export default function ProntuarioPage() {
-  return <ProntuarioPageContent />;
+  return (
+    <ClinicaConsultaAccessGate>
+      <ProntuarioPageContent />
+    </ClinicaConsultaAccessGate>
+  );
 }

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   CLINICA_BELEZA_NAV_ITEMS,
   isClinicaBelezaNavActive,
+  navItemsClinicaBeleza,
+  usuarioPodeVerConsulta,
 } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
   buildProntuarioHubPath,
@@ -51,5 +53,16 @@ describe("nav consultas", () => {
     expect(isClinicaBelezaNavActive("/loja/clinicaharmonis/clinica-beleza/pacientes", slug, path)).toBe(
       false,
     );
+  });
+
+  it("esconde Consultas para recepção e mantém para profissional/admin", () => {
+    expect(usuarioPodeVerConsulta({ perfil: "recepcionista" })).toBe(false);
+    expect(usuarioPodeVerConsulta({ perfil: "recepcao" })).toBe(false);
+    expect(usuarioPodeVerConsulta({ perfil: "profissional" })).toBe(true);
+    expect(usuarioPodeVerConsulta({ is_administrador: true, perfil: "recepcionista" })).toBe(true);
+    expect(usuarioPodeVerConsulta({ pode_ver_consulta: false, perfil: "profissional" })).toBe(false);
+    expect(navItemsClinicaBeleza(false).map((i) => i.label)).not.toContain("Consultas");
+    expect(navItemsClinicaBeleza(true).map((i) => i.label)).toContain("Consultas");
+    expect(navItemsClinicaBeleza(false).map((i) => i.label)).toContain("Agenda");
   });
 });

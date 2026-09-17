@@ -13,6 +13,7 @@ _CONSULTA_ID_RE = re.compile(r"Consulta:\s*#(\d+)")
 _SECAO_MARCAS = (
     ("Produtos utilizados", "produtos"),
     ("Notas do atendimento", "atendimento"),
+    ("Atendimento", "atendimento"),
     ("Anamnese", "anamnese"),
     ("Evolução", "evolucao"),
     ("Evolucao", "evolucao"),
@@ -52,12 +53,17 @@ def nome_pdf_consulta_do_texto(texto: str) -> str | None:
     m = _CONSULTA_ID_RE.search(texto or "")
     if not m:
         return None
-    secao = "atendimento"
+    head = (texto or "")[:1200]
+    escolhida = None
+    pos = len(head) + 1
     for marca, chave in _SECAO_MARCAS:
-        if marca in (texto or ""):
-            secao = chave
-            break
-    return f"consulta_{m.group(1)}_{secao}.pdf"
+        i = head.find(marca)
+        if i >= 0 and i < pos:
+            pos = i
+            escolhida = chave
+    if not escolhida and re.search(r"(?m)^Atendimento\b", head):
+        escolhida = "atendimento"
+    return f"consulta_{m.group(1)}_{escolhida or 'atendimento'}.pdf"
 
 
 def nome_pdf_prontuario_do_texto(texto: str, patient_id: int | None) -> str | None:

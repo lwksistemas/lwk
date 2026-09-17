@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, MessageCircle } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { BookOpen, MessageCircle, X } from "lucide-react";
+import { buildProntuarioAgendamentoPath } from "@/components/clinica-beleza/prontuario/prontuario-paths";
+import { useClinicaPodeVerConsulta } from "@/hooks/clinica-beleza/useClinicaPodeVerConsulta";
 import {
   getAgendaStatusColor,
   getAgendaStatusLabelModal,
@@ -102,6 +106,8 @@ export function ModalDetalheAgendamento({
   reenviandoMensagem,
 }: ModalDetalheAgendamentoProps) {
   const statusColors = useAgendaStatusColors();
+  const slug = String(useParams()?.slug ?? "");
+  const { podeVerConsulta, loaded: podeVerConsultaCarregado } = useClinicaPodeVerConsulta();
   const [professionalId, setProfessionalId] = useState("");
   const [procedureIds, setProcedureIds] = useState<number[]>([]);
   const [dateLocal, setDateLocal] = useState("");
@@ -165,6 +171,8 @@ export function ModalDetalheAgendamento({
 
   const tipoAgendamento = labelTipoAgendamento(procedureIds.length);
   const gruposSomenteLeitura = procedimentosAgrupadosDoEvento(event, procedures);
+  const prontuarioHref = buildProntuarioAgendamentoPath(slug, event.extendedProps.patient);
+  const mostrarProntuario = podeVerConsultaCarregado && podeVerConsulta && Boolean(prontuarioHref);
 
   const duracaoPreco = (
     <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -223,6 +231,16 @@ export function ModalDetalheAgendamento({
               <p className="text-sm text-gray-500 dark:text-gray-400">Cliente</p>
               <p className="font-semibold text-gray-900 dark:text-gray-100">{event.extendedProps.patient_name}</p>
               <p className="text-sm text-gray-600 dark:text-gray-400">{event.extendedProps.patient_phone}</p>
+              {mostrarProntuario && prontuarioHref ? (
+                <Link
+                  href={prontuarioHref}
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+                >
+                  <BookOpen size={16} />
+                  Ver prontuário
+                </Link>
+              ) : null}
             </div>
 
             <div>

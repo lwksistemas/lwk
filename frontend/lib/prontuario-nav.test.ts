@@ -6,6 +6,7 @@ import {
   usuarioPodeVerConsulta,
 } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
+  buildProntuarioAgendamentoPath,
   buildProntuarioHubPath,
   buildProntuarioPacientePath,
   isProntuarioPacientePath,
@@ -19,6 +20,18 @@ describe("prontuario paths", () => {
     expect(buildProntuarioPacientePath("clinicaharmonis", 9)).toBe(
       "/loja/clinicaharmonis/clinica-beleza/pacientes/9/prontuario",
     );
+  });
+
+  it("monta ficha a partir do paciente do agendamento", () => {
+    expect(buildProntuarioAgendamentoPath("clinicaharmonis", 9)).toBe(
+      "/loja/clinicaharmonis/clinica-beleza/pacientes/9/prontuario",
+    );
+    expect(buildProntuarioAgendamentoPath("clinicaharmonis", "12")).toBe(
+      "/loja/clinicaharmonis/clinica-beleza/pacientes/12/prontuario",
+    );
+    expect(buildProntuarioAgendamentoPath("", 9)).toBe(null);
+    expect(buildProntuarioAgendamentoPath("clinicaharmonis", 0)).toBe(null);
+    expect(buildProntuarioAgendamentoPath("clinicaharmonis", undefined)).toBe(null);
   });
 
   it("reconhece path da ficha", () => {

@@ -56,6 +56,8 @@ export function ConsultaDetailStatusBar({
   const statusColors =
     CLINICA_CONSULTA_STATUS_COLORS[selected.status] ?? CLINICA_CONSULTA_STATUS_COLORS.SCHEDULED;
   const consultaFinalizada = selected.status === "COMPLETED";
+  const consultaCancelada = selected.status === "CANCELLED";
+  const podeEditarConvenio = !consultaCancelada;
   const [editandoLocal, setEditandoLocal] = useState(false);
   const [editandoConvenio, setEditandoConvenio] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -63,17 +65,19 @@ export function ConsultaDetailStatusBar({
   const [convenios, setConvenios] = useState<Array<{ id: number; nome: string }>>([]);
 
   useEffect(() => {
-    if (!consultaFinalizada) return;
-    ClinicaBelezaAPI.locaisAtendimento.list().then((data) => {
-      setLocaisAtendimento(Array.isArray(data) ? data.map((l: { id: number; nome: string }) => ({ id: l.id, nome: l.nome })) : []);
-    }).catch(() => {});
+    if (consultaCancelada) return;
+    if (consultaFinalizada) {
+      ClinicaBelezaAPI.locaisAtendimento.list().then((data) => {
+        setLocaisAtendimento(Array.isArray(data) ? data.map((l: { id: number; nome: string }) => ({ id: l.id, nome: l.nome })) : []);
+      }).catch(() => {});
+    }
     ClinicaBelezaAPI.convenios.list({ all: 1 }).then((data) => {
       const items: Array<{ id: number; nome: string }> = Array.isArray(data)
         ? data
         : ((data as { results?: Array<{ id: number; nome: string }> })?.results ?? []);
       setConvenios(items.map((c) => ({ id: c.id, nome: c.nome })));
     }).catch(() => {});
-  }, [consultaFinalizada]);
+  }, [consultaCancelada, consultaFinalizada]);
 
   const salvarCampo = async (campo: "local_atendimento" | "convenio", valor: number | null) => {
     setSalvando(true);
@@ -156,8 +160,8 @@ export function ConsultaDetailStatusBar({
           <strong className="text-gray-800 dark:text-gray-200 uppercase">
             {toUpperCase(selected.convenio_name || "Particular")}
           </strong>
-          {consultaFinalizada && convenios.length > 0 && (
-            <button type="button" onClick={() => setEditandoConvenio(true)} className="text-gray-400 hover:text-gray-600" title="Editar convênio">
+          {podeEditarConvenio && convenios.length > 0 && (
+            <button type="button" onClick={() => setEditandoConvenio(true)} className="text-gray-400 hover:text-gray-600" title="Editar convênio (aplica a tabela de preços)">
               <Pencil size={12} />
             </button>
           )}

@@ -62,7 +62,7 @@ def calcular_faturamento(
     Retorna dict com 'linhas' (lista) e 'totais'.
     """
     # Filtrar pagamentos pagos no período (mesmo padrão do relatório de comissões)
-    qs = Payment.objects.filter(status="PAID").select_related(
+    qs = Payment.objects.filter(status="PAID").exclude(payment_method="DESPESA").select_related(
         "appointment__professional",
         "appointment__patient",
         "appointment__procedure",

@@ -79,6 +79,26 @@ export function buildProntuarioConsultasResumo(consultas: Consulta[]): Prontuari
   };
 }
 
+function localEfetivoConsulta(c: Pick<Consulta, "local_atendimento">): number | null {
+  return c.local_atendimento ?? null;
+}
+
+export function profissionalOcupadoNoMesmoLocal(
+  consulta: Pick<Consulta, "id" | "professional" | "local_atendimento">,
+  outras: Array<Pick<Consulta, "id" | "status" | "professional" | "local_atendimento">>,
+): boolean {
+  const profissionalId = consulta.professional ?? null;
+  if (!profissionalId) return false;
+  const localId = localEfetivoConsulta(consulta);
+  return outras.some(
+    (c) =>
+      c.id !== consulta.id &&
+      c.status === "IN_PROGRESS" &&
+      (c.professional ?? null) === profissionalId &&
+      localEfetivoConsulta(c) === localId,
+  );
+}
+
 /** Ainda não entrou em atendimento — o botão Iniciar dispara a API e abre a ficha. */
 export function consultaPodeIniciarAtendimento(c: Pick<Consulta, "status" | "data_inicio">): boolean {
   return (c.status === "SCHEDULED" || c.status === "RECEBER") && !c.data_inicio;
@@ -103,8 +123,12 @@ export function prontuarioConsultaAtualAcoes(
   todas: Consulta[],
 ): ProntuarioConsultaAtualAcoes {
   const podeIniciarBase = consultaPodeIniciarAtendimento(consulta);
+  const outraDoMesmoPaciente = todas.some(
+    (c) => c.id !== consulta.id && c.status === "IN_PROGRESS" && c.patient === consulta.patient,
+  );
   const bloqueadaPorOutraEmAndamento =
-    podeIniciarBase && todas.some((c) => c.id !== consulta.id && c.status === "IN_PROGRESS");
+    podeIniciarBase &&
+    (outraDoMesmoPaciente || profissionalOcupadoNoMesmoLocal(consulta, todas));
   const mostrarContinuar =
     consulta.status === "IN_PROGRESS" ||
     (!!consulta.data_inicio && consulta.status !== "COMPLETED" && consulta.status !== "CANCELLED");

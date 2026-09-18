@@ -36,6 +36,7 @@ class NFSeConsultaServiceTest(TestCase):
         payment.status = kwargs.get("status", "PAID")
         payment.amount = Decimal(str(kwargs.get("amount", "150.00")))
         payment.loja_id = 10
+        payment.payment_method = kwargs.get("payment_method", "PIX")
         return payment
 
     def _config(self, **kwargs):

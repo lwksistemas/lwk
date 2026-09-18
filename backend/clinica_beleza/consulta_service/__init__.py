@@ -10,6 +10,7 @@ from .lifecycle import criar_consulta_avulsa, finalizar_consulta, iniciar_consul
 from .messages import (
     MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI,
     MSG_PACIENTE_CONSULTA_EM_ANDAMENTO,
+    MSG_PROFISSIONAL_LOCAL_EM_ANDAMENTO,
     consulta_esta_concluida,
     motivo_bloqueio_exclusao_consulta,
 )
@@ -21,7 +22,11 @@ from .payment import (
     registrar_recebimento_consulta,
 )
 from .sync import sync_consulta_from_appointment_status
-from .validation import validar_paciente_sem_consulta_em_andamento
+from .validation import (
+    local_id_efetivo_consulta,
+    validar_paciente_sem_consulta_em_andamento,
+    validar_profissional_livre_no_local,
+)
 from .valores import (
     _aplicar_local_na_consulta,
     _consulta_defaults_from_appointment,
@@ -34,6 +39,7 @@ from .valores import (
 __all__ = [
     "MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI",
     "MSG_PACIENTE_CONSULTA_EM_ANDAMENTO",
+    "MSG_PROFISSIONAL_LOCAL_EM_ANDAMENTO",
     "Appointment",
     "Consulta",
     "Decimal",
@@ -52,10 +58,12 @@ __all__ = [
     "finalizar_consulta",
     "garantir_conta_pendente_consulta",
     "iniciar_consulta",
+    "local_id_efetivo_consulta",
     "logger",
     "motivo_bloqueio_exclusao_consulta",
     "publicar_pagamento_financeiro",
     "registrar_recebimento_consulta",
     "sync_consulta_from_appointment_status",
     "validar_paciente_sem_consulta_em_andamento",
+    "validar_profissional_livre_no_local",
 ]

@@ -2,6 +2,10 @@ MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI = "Consultas concluídas não podem ser exclu�
 MSG_PACIENTE_CONSULTA_EM_ANDAMENTO = (
     "Este paciente já possui uma consulta em andamento. Finalize-a antes de iniciar outra."
 )
+MSG_PROFISSIONAL_LOCAL_EM_ANDAMENTO = (
+    "Este profissional já está em atendimento neste local. "
+    "Finalize essa consulta ou inicie em outro local de atendimento."
+)
 
 
 def consulta_esta_concluida(consulta) -> bool:

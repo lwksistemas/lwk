@@ -5,6 +5,7 @@ export interface FinanceiroResumo {
   comissao_mes: number;
   despesas_operacionais?: number;
   despesas_pendentes?: number;
+  despesas_atendimento?: number;
   despesas: number;
   lucro: number;
 }

@@ -98,7 +98,7 @@ export function useFinanceiroPage() {
     loadingResumo || (tab === "receitas" ? paymentsList.loading : despesasList.loading);
 
   const totalListaReceitas = paymentsList.list.reduce(
-    (s, p) => s + (p.status === "PAID" ? Number(p.amount) : 0),
+    (s, p) => s + (p.status === "PAID" && p.payment_method !== "DESPESA" ? Number(p.amount) : 0),
     0,
   );
 

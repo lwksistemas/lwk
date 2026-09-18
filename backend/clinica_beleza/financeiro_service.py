@@ -12,6 +12,7 @@ from .models import CategoriaDespesa, Despesa, Payment
 from .models.financeiro import CATEGORIAS_DESPESA_PADRAO, PaymentParcela
 
 _DEC = DecimalField(max_digits=14, decimal_places=2)
+METODO_DESPESA = "DESPESA"
 
 
 def payments_visiveis_financeiro(qs=None):
@@ -153,9 +154,14 @@ def criar_parcela_e_atualizar_payment(payment, valor, dados):
     total_devedor = payment.valor_total_efetivo
     payment.status = "PAID" if total_pago >= total_devedor else "PARTIAL"
     payment.amount = total_pago
+    metodo = (dados.get("payment_method") or "").strip()
+    if metodo:
+        payment.payment_method = metodo
     if payment.status == "PAID":
         payment.payment_date = now()
     update_fields = ["status", "amount", "updated_at"]
+    if metodo:
+        update_fields.append("payment_method")
     if payment.status == "PAID":
         update_fields.append("payment_date")
     payment.save(update_fields=update_fields)
@@ -187,9 +193,11 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
         payment_date__date__gte=first_day,
         payment_date__date__lte=period_end,
     ))
-    faturamento = _sum(pagos_mes)
+    pagos_caixa = pagos_mes.exclude(payment_method=METODO_DESPESA)
+    faturamento = _sum(pagos_caixa)
     contas_a_receber = somar_contas_a_receber()
-    comissao_mes = float(pagos_mes.aggregate(total=Sum("comissao_valor"))["total"] or 0)
+    comissao_mes = float(pagos_caixa.aggregate(total=Sum("comissao_valor"))["total"] or 0)
+    despesas_atendimento = _sum(pagos_mes.filter(payment_method=METODO_DESPESA))
 
     def _sum_despesa(qs):
         return float(qs.aggregate(total=Sum("valor"))["total"] or 0)
@@ -200,17 +208,18 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
         data_pagamento__lte=period_end,
     ))
     despesas_pendentes = _sum_despesa(Despesa.objects.filter(status="PENDING"))
-    despesas_total = comissao_mes + despesas_operacionais
+    despesas_total = comissao_mes + despesas_operacionais + despesas_atendimento
 
     return {
         "caixa_diario": _sum(payments_visiveis_financeiro(
             Payment.objects.filter(status="PAID", payment_date__date=today),
-        )),
+        ).exclude(payment_method=METODO_DESPESA)),
         "total_mes": faturamento,
         "contas_a_receber": contas_a_receber,
         "comissao_mes": comissao_mes,
         "despesas_operacionais": despesas_operacionais,
         "despesas_pendentes": despesas_pendentes,
+        "despesas_atendimento": despesas_atendimento,
         "faturamento": faturamento,
         "despesas": despesas_total,
         "lucro": faturamento - despesas_total,

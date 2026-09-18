@@ -78,6 +78,10 @@ def criar_consulta_avulsa(
 
     if iniciar:
         consulta_service.validar_paciente_sem_consulta_em_andamento(patient.id)
+        consulta_service.validar_profissional_livre_no_local(
+            getattr(professional, "id", None) or professional,
+            getattr(local_atendimento, "id", None) if local_atendimento else local_atendimento_id,
+        )
 
     nome_agenda = None
     if nome_agenda_id:
@@ -132,6 +136,12 @@ def iniciar_consulta(consulta):
 
     consulta_service.validar_paciente_sem_consulta_em_andamento(
         consulta.patient_id, exclude_consulta_id=consulta.id,
+    )
+    professional_id = consulta.professional_id or getattr(appointment, "professional_id", None)
+    consulta_service.validar_profissional_livre_no_local(
+        professional_id,
+        consulta_service.local_id_efetivo_consulta(consulta),
+        exclude_consulta_id=consulta.id,
     )
 
     old_status = appointment.status

@@ -20,6 +20,7 @@ class TestFaturamentoRelatorioCampos(TestCase):
         qs_mock.__iter__ = MagicMock(return_value=iter([]))
         qs_mock.prefetch_related.return_value = qs_mock
         qs_mock.filter.return_value = qs_mock
+        qs_mock.exclude.return_value = qs_mock
         qs_mock.select_related.return_value = qs_mock
         qs_mock.values_list.return_value = []
         mock_payment.objects.filter.return_value = qs_mock
@@ -43,6 +44,7 @@ class TestFaturamentoRelatorioCampos(TestCase):
             qs_mock.__iter__ = MagicMock(return_value=iter([]))
             qs_mock.prefetch_related.return_value = qs_mock
             qs_mock.filter.return_value = qs_mock
+            qs_mock.exclude.return_value = qs_mock
             qs_mock.select_related.return_value = qs_mock
             qs_mock.values_list.return_value = []
             mock_payment.objects.filter.return_value = qs_mock

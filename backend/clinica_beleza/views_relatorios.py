@@ -233,6 +233,29 @@ class RelatorioFaturamentoView(APIView):
         return Response(resultado)
 
 
+class RelatorioLancamentosView(APIView):
+    """GET /clinica-beleza/relatorios/lancamentos/?data_inicio=&data_fim=&forma=&professional_id="""
+
+    permission_classes = CLINICA_FINANCEIRO
+
+    def get(self, request):
+        from .lancamentos_relatorio_service import calcular_lancamentos
+        from .models import Payment
+
+        data_inicio, data_fim, professional_id = _parse_filtros_comissoes(request)
+        forma = (request.query_params.get("forma") or "").strip().upper() or None
+        metodos = {c[0] for c in Payment.PAYMENT_METHOD_CHOICES}
+        if forma and forma not in metodos:
+            forma = None
+
+        return Response(calcular_lancamentos(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            professional_id=professional_id,
+            forma=forma,
+        ))
+
+
 class RelatorioRepasseConsultaView(APIView):
     """GET /clinica-beleza/relatorios/repasse-consultas/ — atendimento a atendimento."""
 

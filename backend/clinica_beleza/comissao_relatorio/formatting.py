@@ -23,6 +23,7 @@ def _label_forma_pagamento(method: str) -> str:
         "DEBIT_CARD": "Cartão de débito",
         "TRANSFER": "Transferência",
         "PRAZO": "A prazo",
+        "DESPESA": "Despesa (clínica)",
         "CARTAO": "Cartão",
         "DINHEIRO": "Dinheiro",
     }

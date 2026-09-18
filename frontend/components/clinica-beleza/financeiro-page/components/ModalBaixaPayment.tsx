@@ -142,6 +142,10 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                 <p>
                   <strong>Procedimento:</strong> {payment.procedimento_nome || "—"}
                 </p>
+                <p>
+                  <strong>Comissão:</strong> {formatCurrency(payment.comissao_valor || 0)}
+                  {payment.comissao_percentual ? ` (regra ${payment.comissao_percentual}%)` : ""}
+                </p>
               </div>
 
               <div
@@ -223,7 +227,7 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
 
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Valor recebido (R$){" "}
+                      {paymentMethod === "DESPESA" ? "Valor da despesa (R$)" : "Valor recebido (R$)"}{" "}
                       <span className="text-gray-400 font-normal text-xs">
                         — saldo: {formatCurrency(saldoDevedor)}
                       </span>
@@ -280,7 +284,13 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                       <label className="block text-sm font-medium mb-1">Forma de pagamento</label>
                       <select
                         value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setPaymentMethod(next);
+                          if (next === "DESPESA" && !valor) {
+                            setValor(saldoDevedor.toFixed(2));
+                          }
+                        }}
                         className={inputClass}
                       >
                         {CLINICA_FORMA_PAGAMENTO_A_VISTA.map((v) => (
@@ -289,6 +299,11 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                           </option>
                         ))}
                       </select>
+                      {paymentMethod === "DESPESA" && (
+                        <p className="text-xs mt-1 text-amber-700 dark:text-amber-300">
+                          Despesa da clínica (família/funcionário). Não entra no caixa.
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1">Data do pagamento</label>
@@ -309,7 +324,7 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                       type="text"
                       value={observacoes}
                       onChange={(e) => setObservacoes(e.target.value)}
-                      placeholder="Ex: 1ª parcela, cheque nº 123..."
+                      placeholder="Ex: família/funcionário, 1ª parcela..."
                       className={inputClass}
                     />
                   </div>
@@ -339,7 +354,13 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
               className="flex-1 md:flex-none md:min-w-[160px] py-2 px-4 rounded-lg text-white disabled:opacity-50 font-medium"
               style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
             >
-              {saving ? "Registrando..." : quitaTotal ? "Quitar Tudo" : "Registrar Entrada"}
+              {saving
+                ? "Registrando..."
+                : paymentMethod === "DESPESA"
+                  ? "Registrar despesa"
+                  : quitaTotal
+                    ? "Quitar Tudo"
+                    : "Registrar Entrada"}
             </button>
           )}
         </div>

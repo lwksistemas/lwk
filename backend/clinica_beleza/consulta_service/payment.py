@@ -8,7 +8,7 @@ from core.decimal_utils import to_decimal
 
 from ._deps import logger
 
-_METODOS_VALIDOS = frozenset({"CASH", "CREDIT_CARD", "DEBIT_CARD", "PIX", "TRANSFER", "PRAZO"})
+_METODOS_VALIDOS = frozenset({"CASH", "CREDIT_CARD", "DEBIT_CARD", "PIX", "TRANSFER", "PRAZO", "DESPESA"})
 _METODO_PRAZO = "PRAZO"
 
 

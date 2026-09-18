@@ -114,6 +114,11 @@ class Loja(models.Model):
         blank=True,
         help_text="Colunas visíveis na listagem de Estoque (clínica). Vazio = todas as colunas padrão.",
     )
+    colunas_pacientes = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Colunas visíveis na listagem de Clientes (clínica). Vazio = padrão sem Ações.",
+    )
     dominio_customizado = models.CharField(max_length=255, blank=True, unique=True, null=True)
 
     # ✅ NOVO v1421: Sistema híbrido de acesso às lojas

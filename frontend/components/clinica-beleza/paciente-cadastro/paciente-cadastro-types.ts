@@ -51,4 +51,5 @@ export interface PacienteCadastroFormProps {
   hideConvenio?: boolean;
   /** ID do paciente em edição (pasta no servidor de mídia). */
   patientId?: number | null;
+  onVerProntuario?: () => void;
 }

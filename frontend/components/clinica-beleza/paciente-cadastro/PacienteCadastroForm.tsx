@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, BookOpen, Loader2, Save } from "lucide-react";
 import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { PacienteDadosPessoaisSection } from "./PacienteDadosPessoaisSection";
 import { PacienteEnderecoSection } from "./PacienteEnderecoSection";
@@ -28,6 +28,7 @@ export function PacienteCadastroForm({
   showHeader = true,
   hideConvenio = false,
   patientId,
+  onVerProntuario,
 }: PacienteCadastroFormProps) {
   const onChange = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -84,6 +85,17 @@ export function PacienteCadastroForm({
       <div className="shrink-0 border-t border-gray-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-800/80 px-4 md:px-6 lg:px-8 py-4">
         <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 w-full">
           <div className="flex gap-3">
+            {editing && onVerProntuario && (
+              <button
+                type="button"
+                onClick={onVerProntuario}
+                disabled={deleting || saving}
+                className="inline-flex items-center gap-1.5 py-2.5 px-5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800 disabled:opacity-50"
+              >
+                <BookOpen size={16} />
+                Ver prontuário
+              </button>
+            )}
             {editing && onDelete && (
               <button
                 type="button"

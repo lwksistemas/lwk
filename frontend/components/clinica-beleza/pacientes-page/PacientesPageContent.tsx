@@ -8,22 +8,19 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Users } from "lucide-react";
-import {
-  deleteClinicaBelezaEntity,
-  useClinicaBelezaEntityList,
-} from "@/hooks/clinica-beleza";
+import { useClinicaBelezaEntityList } from "@/hooks/clinica-beleza";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { LocalizarClienteButton } from "@/components/clinica-beleza/localizar-cliente/LocalizarClienteButton";
 import { LocalizarClienteModal } from "@/components/clinica-beleza/localizar-cliente/LocalizarClienteModal";
-import { useToast } from "@/components/ui/Toast";
 import { PacienteCadastroForm } from "./components/PacienteCadastroForm";
 import { PacienteListView } from "./components/PacienteListView";
 import { useLojaTheme } from "@/hooks/useLojaTheme";
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
 import { usePacienteForm } from "@/hooks/clinica-beleza/usePacienteForm";
-import { entityActive, entityName } from "@/lib/clinica-beleza-entities";
+import { usePacientesColunas } from "@/hooks/clinica-beleza/usePacientesColunas";
+import { entityActive } from "@/lib/clinica-beleza-entities";
 import { buscarPacientesOffline, salvarPacientesOffline } from "@/lib/offline-db";
 import { buildProntuarioPacientePath } from "@/components/clinica-beleza/prontuario/prontuario-paths";
 import { useClinicaPodeVerConsulta } from "@/hooks/clinica-beleza/useClinicaPodeVerConsulta";
@@ -35,9 +32,9 @@ export function PacientesPageContent() {
   const slug = params.slug as string;
   const basePath = `/loja/${slug}/clinica-beleza/pacientes`;
   const { theme } = useLojaTheme(slug);
-  const toast = useToast();
   const [showLocalizar, setShowLocalizar] = useState(false);
   const { podeVerConsulta, loaded: meLoaded } = useClinicaPodeVerConsulta();
+  const { colunasKeys } = usePacientesColunas();
 
   const { isNovo, editIdParam, isFormView, voltarLista, abrirNovo, abrirEditar } =
     useClinicaBelezaFormRouting(basePath);
@@ -59,17 +56,9 @@ export function PacientesPageContent() {
     voltarLista,
   });
 
-  const exclude = async (p: Patient) => {
-    if (!confirm(`Desativar o cliente "${entityName(p)}"?`)) return;
-    try {
-      await deleteClinicaBelezaEntity(`/patients/${p.id}/`);
-      load();
-    } catch {
-      toast.error("Erro ao desativar.");
-    }
-  };
-
   const activeList = list.filter((p) => entityActive(p));
+  const patientId = formState.editing?.id ?? (editIdParam ? Number(editIdParam) : null);
+  const podeAbrirProntuario = Boolean(meLoaded && podeVerConsulta && patientId && patientId > 0);
 
   if (isFormView) {
     return (
@@ -98,7 +87,12 @@ export function PacientesPageContent() {
             deleting={formState.deleting}
             accentColor={theme.corPrimaria || CLINICA_BELEZA_PRIMARY}
             lojaSlug={slug}
-            patientId={formState.editing?.id ?? (editIdParam ? Number(editIdParam) : null)}
+            patientId={patientId}
+            onVerProntuario={
+              podeAbrirProntuario
+                ? () => router.push(buildProntuarioPacientePath(slug, patientId as number))
+                : undefined
+            }
           />
         </ClinicaBelezaPageContent>
       </>
@@ -130,12 +124,7 @@ export function PacientesPageContent() {
           pageSize={pageSize}
           onPageChange={setPage}
           onEdit={(p) => abrirEditar(p.id)}
-          onExclude={exclude}
-          onVerProntuario={
-            meLoaded && podeVerConsulta
-              ? (p) => router.push(buildProntuarioPacientePath(slug, p.id))
-              : undefined
-          }
+          colunasVisiveis={colunasKeys}
         />
       </ClinicaBelezaPageContent>
       <LocalizarClienteModal

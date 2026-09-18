@@ -2,6 +2,7 @@ import type { ConvenioItem } from "@/lib/clinica-beleza-api";
 import { entityActive, procedureCategoria } from "@/lib/clinica-beleza-entities";
 import {
   PROCEDURE_CATEGORIA_OPTIONS,
+  procedureCategoriaLabel,
   procedureMatchesModule,
   resolveProcedureCategoriaSlug,
 } from "@/lib/clinica-beleza-categories";
@@ -115,11 +116,37 @@ export function filterProcedimentosList(
   return { activeList, filteredList: scoped, hiddenByCategoryCount };
 }
 
-/** Cards da grade de categorias (contagem a partir da lista carregada). */
+export function labelCategoriaProcedimento(
+  slug: string | undefined | null,
+  catalog?: { slug: string; nome: string }[],
+): string {
+  if (!slug) return "";
+  const resolved = resolveProcedureCategoriaSlug(slug);
+  const fromCatalog = catalog?.find(
+    (c) => c.slug === resolved || c.slug === slug,
+  );
+  if (fromCatalog?.nome) return fromCatalog.nome;
+  return procedureCategoriaLabel(slug);
+}
+
+/** Cards da grade: catálogo da API, com fallback na lista hardcoded. */
 export function buildProcedimentoCategoriaCards(
   list: Procedure[],
   moduleKey = "",
+  catalog: { slug: string; nome: string; procedimentos_count?: number; cor?: string }[] = [],
 ): ProcedimentoCategoriaCard[] {
+  if (catalog.length > 0) {
+    return catalog
+      .filter((c) => !moduleKey || procedureMatchesModule(c.slug, moduleKey) || procedureMatchesModule(c.nome, moduleKey))
+      .map((c) => ({
+        value: c.slug,
+        label: c.nome,
+        count: c.procedimentos_count ?? 0,
+        cor: c.cor,
+      }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"));
+  }
+
   const active = list.filter((p) => entityActive(p));
   const scoped = moduleKey
     ? active.filter((p) => procedureMatchesModule(procedureCategoria(p), moduleKey))
@@ -136,7 +163,7 @@ export function buildProcedimentoCategoriaCards(
     return procedureMatchesModule(o.value, moduleKey);
   });
 
-  const cards: { value: string; label: string; count: number }[] = options.map((o) => ({
+  const cards: ProcedimentoCategoriaCard[] = options.map((o) => ({
     value: o.value,
     label: o.label,
     count: counts.get(o.value) || 0,
@@ -146,11 +173,11 @@ export function buildProcedimentoCategoriaCards(
     if (!cards.some((c) => c.value === slug)) {
       const label =
         PROCEDURE_CATEGORIA_OPTIONS.find((o) => o.value === slug)?.label ?? slug;
-      cards.push({ value: slug as string, label, count });
+      cards.push({ value: slug, label, count });
     }
   }
 
-  return cards.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  return cards.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"));
 }
 
 export function mapPrecosConvenioFromApi(

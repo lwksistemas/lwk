@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase
 
-from clinica_beleza.views_procedimentos import categoria_lookup_terms
+from clinica_beleza.procedimentos_categorias import categoria_lookup_terms
 
 
 class CategoriaLookupTermsTest(SimpleTestCase):

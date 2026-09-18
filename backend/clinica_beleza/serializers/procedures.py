@@ -3,7 +3,22 @@ from rest_framework import serializers
 
 from core.serializer_mixins import TextNormalizationMixin
 
-from ..models import Procedure, ProcedureProtocol
+from ..models import CategoriaProcedimento, Procedure, ProcedureProtocol
+
+
+class CategoriaProcedimentoSerializer(serializers.ModelSerializer):
+    procedimentos_count = serializers.IntegerField(read_only=True, required=False, default=0)
+
+    class Meta:
+        model = CategoriaProcedimento
+        exclude = ["loja_id"]
+        read_only_fields = ["slug", "created_at", "updated_at"]
+
+    def validate_nome(self, value):
+        nome = (value or "").strip()
+        if not nome:
+            raise serializers.ValidationError("Nome é obrigatório.")
+        return nome
 
 
 class ProcedureSerializer(TextNormalizationMixin, serializers.ModelSerializer):

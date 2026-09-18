@@ -1,7 +1,6 @@
 """Views de Procedimentos — Clínica da Beleza
 """
 import logging
-import unicodedata
 from decimal import Decimal, InvalidOperation
 
 from django.db.models import Q
@@ -9,11 +8,26 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Convenio, ConvenioProcedimentoPreco, Procedure
+from .models import CategoriaProcedimento, Convenio, ConvenioProcedimentoPreco, Procedure
 from .pagination import paginate_queryset
 from .permissions import CLINICA_RECEPCAO
-from .serializers import ConvenioListSerializer, ConvenioPrecoSerializer, ProcedureSerializer
-from .views_base import GetObjectMixin, map_field_names
+from .procedimentos_categorias import (
+    CategoriaProcedimentoError,
+    atualizar_categoria_procedimento,
+    categorias_com_contagem,
+    contar_procedimentos_ativos,
+    criar_categoria_procedimento,
+    excluir_categoria_procedimento,
+    filter_procedures_by_categoria,
+    filter_procedures_by_modulo,
+)
+from .serializers import (
+    CategoriaProcedimentoSerializer,
+    ConvenioListSerializer,
+    ConvenioPrecoSerializer,
+    ProcedureSerializer,
+)
+from .views_base import GetObjectMixin, map_field_names, resolve_loja_id_from_request
 
 logger = logging.getLogger(__name__)
 
@@ -39,68 +53,12 @@ def _map_procedure_data(raw_data):
     return data
 
 
-def _normalize_categoria(value: str) -> str:
-    value = (value or "").lower()
-    return "".join(
-        c for c in unicodedata.normalize("NFD", value) if unicodedata.category(c) != "Mn"
-    )
-
-
-# Grafias da MESMA categoria (não misturar facial/corporal em "estetica").
-_CATEGORIA_SPELLINGS: dict[str, list[str]] = {
-    "estetica": ["estetica", "estética", "Estética (geral)"],
-    "soroterapia": ["soroterapia"],
-    "facial": ["facial"],
-    "corporal": ["corporal"],
-    "capilar": ["capilar"],
-    "depilacao": ["depilacao", "depilação"],
-    "injetavel": ["injetavel", "injetável"],
-    "geral": ["geral"],
-    "outro": ["outro"],
-}
-
-# Módulo estética: especialidades irmãs. Só para ?modulo=
-_MODULE_CATEGORIA_ALIASES: dict[str, list[str]] = {
-    "soroterapia": ["soroterapia", "soro"],
-    "estetica": [
-        "estetica", "estética", "facial", "corporal", "capilar",
-        "depilacao", "depilação", "injetavel", "injetável",
-    ],
-}
-
-
-def categoria_lookup_terms(categoria: str) -> list[str]:
-    key = _normalize_categoria(categoria)
-    if not key:
-        return []
-    return list(_CATEGORIA_SPELLINGS.get(key, [categoria, key]))
-
-
-def _filter_by_categoria_terms(queryset, terms: list[str], *, exact: bool):
-    if not terms:
-        return queryset
-    q = Q()
-    lookup = "categoria__iexact" if exact else "categoria__icontains"
-    for term in terms:
-        q |= Q(**{lookup: term})
-    return queryset.filter(q)
-
-
 def _filter_procedures_by_categoria(queryset, categoria: str):
-    """Filtra uma categoria específica (Estética geral ≠ Facial)."""
-    terms = categoria_lookup_terms(categoria)
-    return _filter_by_categoria_terms(queryset, terms, exact=True)
+    return filter_procedures_by_categoria(queryset, categoria)
 
 
 def _filter_procedures_by_modulo(queryset, modulo: str):
-    """Filtra o módulo inteiro (estética inclui facial, corporal, etc.)."""
-    modulo = (modulo or "").strip()
-    if not modulo:
-        return queryset
-    key = _normalize_categoria(modulo)
-    aliases = _MODULE_CATEGORIA_ALIASES.get(key, [modulo])
-    return _filter_by_categoria_terms(queryset, aliases, exact=False)
-
+    return filter_procedures_by_modulo(queryset, modulo)
 
 class ProcedureListView(APIView):
     """GET /clinica-beleza/procedures/
@@ -305,3 +263,89 @@ class ProcedurePrecosConvenioView(GetObjectMixin, APIView):
             procedure=obj, is_active=True, convenio__is_active=True,
         ).select_related("convenio").order_by("convenio__nome")
         return Response(ConvenioPrecoSerializer(rows, many=True).data)
+
+
+class CategoriaProcedimentoListView(APIView):
+    """GET/POST /clinica-beleza/procedures/categorias/"""
+
+    permission_classes = CLINICA_RECEPCAO
+
+    def get(self, request):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        loja_id = resolve_loja_id_from_request(request)
+        qs = categorias_com_contagem(loja_id)
+        return Response(CategoriaProcedimentoSerializer(qs, many=True).data)
+
+    def post(self, request):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        loja_id = resolve_loja_id_from_request(request)
+        if not loja_id:
+            return Response({"error": "Loja não identificada."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = CategoriaProcedimentoSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            obj = criar_categoria_procedimento(
+                loja_id,
+                nome=serializer.validated_data["nome"],
+                cor=serializer.validated_data.get("cor"),
+                ordem=serializer.validated_data.get("ordem"),
+            )
+        except CategoriaProcedimentoError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(CategoriaProcedimentoSerializer(obj).data, status=status.HTTP_201_CREATED)
+
+
+class CategoriaProcedimentoDetailView(GetObjectMixin, APIView):
+    """GET/PUT/DELETE /clinica-beleza/procedures/categorias/<id>/"""
+
+    permission_classes = CLINICA_RECEPCAO
+    model_class = CategoriaProcedimento
+    not_found_message = "Categoria não encontrada"
+
+    def get(self, request, pk):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        obj.procedimentos_count = contar_procedimentos_ativos(obj)
+        return Response(CategoriaProcedimentoSerializer(obj).data)
+
+    def put(self, request, pk):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        serializer = CategoriaProcedimentoSerializer(obj, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            obj = atualizar_categoria_procedimento(
+                obj,
+                nome=serializer.validated_data.get("nome"),
+                cor=serializer.validated_data.get("cor"),
+            )
+        except CategoriaProcedimentoError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(CategoriaProcedimentoSerializer(obj).data)
+
+    def delete(self, request, pk):
+        from tenants.middleware import ensure_loja_context
+
+        ensure_loja_context(request)
+        obj, error = self.object_or_404(pk)
+        if error:
+            return error
+        try:
+            excluir_categoria_procedimento(obj)
+        except CategoriaProcedimentoError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)

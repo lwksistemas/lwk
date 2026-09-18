@@ -2,7 +2,7 @@
 
 import { Loader2, Save, Stethoscope } from "lucide-react";
 import { entityName } from "@/lib/clinica-beleza-entities";
-import type { ConvenioItem } from "@/lib/clinica-beleza-api";
+import type { ConvenioItem, ProcedimentoCategoriaItem } from "@/lib/clinica-beleza-api";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ProcedimentoDadosFields } from "./ProcedimentoDadosFields";
@@ -13,6 +13,7 @@ interface ProcedimentoFormViewProps {
   editing: Procedure | null;
   form: ProcedimentoFormState;
   convenios: ConvenioItem[];
+  categorias?: ProcedimentoCategoriaItem[];
   precosConvenio: Record<number, string>;
   error: string;
   saving: boolean;
@@ -27,6 +28,7 @@ export function ProcedimentoFormView({
   editing,
   form,
   convenios,
+  categorias = [],
   precosConvenio,
   error,
   saving,
@@ -55,7 +57,7 @@ export function ProcedimentoFormView({
 
             <ClinicaBelezaPanel className="p-5 md:p-6 lg:p-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full max-w-none">
-                <ProcedimentoDadosFields form={form} onChange={onFormChange} />
+                <ProcedimentoDadosFields form={form} categorias={categorias} onChange={onFormChange} />
                 <div className="space-y-6">
                   <ProcedimentoPrecosFields
                     convenios={convenios}

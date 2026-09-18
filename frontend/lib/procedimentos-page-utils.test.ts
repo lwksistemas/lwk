@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   buildPrecosConvenioPayload,
   buildPrecosMapFromMatrix,
+  buildProcedimentoCategoriaCards,
   buildProcedimentoSaveBody,
   buildProcedimentosListQuery,
   filterProcedimentosList,
   formatPrecoCelula,
+  labelCategoriaProcedimento,
   mapPrecosConvenioFromApi,
   validateProcedimentoForm,
 } from "@/components/clinica-beleza/procedimentos-page/procedimentos-page-utils";
@@ -122,6 +124,30 @@ describe("buildProcedimentosListQuery", () => {
         moduleKey: "estetica",
       }),
     ).toEqual({ modulo: "estetica" });
+  });
+});
+
+describe("buildProcedimentoCategoriaCards", () => {
+  it("usa o catálogo da API quando informado", () => {
+    const cards = buildProcedimentoCategoriaCards(
+      [{ id: 1, nome: "A", categoria: "facial", is_active: true }],
+      "",
+      [
+        { slug: "facial", nome: "Facial", procedimentos_count: 3, cor: "#111111" },
+        { slug: "harmonizacao", nome: "Harmonização", procedimentos_count: 1 },
+      ],
+    );
+    expect(cards.map((c) => c.value)).toEqual(["facial", "harmonizacao"]);
+    expect(cards[0].count).toBe(3);
+    expect(cards[0].label).toBe("Facial");
+  });
+});
+
+describe("labelCategoriaProcedimento", () => {
+  it("prefere o nome do catálogo", () => {
+    expect(
+      labelCategoriaProcedimento("facial", [{ slug: "facial", nome: "Harmonização facial" }]),
+    ).toBe("Harmonização facial");
   });
 });
 

@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowLeft, Stethoscope } from "lucide-react";
+import { ArrowLeft, Settings2, Stethoscope } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ProcedimentoFormView } from "./ProcedimentoFormView";
 import { ProcedimentosCategoriasGrid } from "./ProcedimentosCategoriasGrid";
+import { ProcedimentosCategoriasModal } from "./ProcedimentosCategoriasModal";
 import { ProcedimentosListView } from "./ProcedimentosListView";
 import type { ProcedimentosPageContentProps } from "./procedimentos-page-types";
 import { useProcedimentosPage } from "./useProcedimentosPage";
@@ -29,6 +30,7 @@ export function ProcedimentosPageContent({
         form={page.form.form}
         convenios={page.matrix.convenios}
         precosConvenio={page.form.precosConvenio}
+        categorias={page.categoriasCatalogo}
         error={page.form.error}
         saving={page.form.saving}
         accentColor={page.accentColor}
@@ -56,16 +58,26 @@ export function ProcedimentosPageContent({
         newLabel="Novo Procedimento"
         onNew={page.abrirNovo}
         extraActions={
-          emLista ? (
+          <div className="flex items-center gap-1.5">
+            {emLista ? (
+              <button
+                type="button"
+                onClick={page.voltarCategorias}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
+              >
+                <ArrowLeft size={16} />
+                <span className="hidden sm:inline">Categorias</span>
+              </button>
+            ) : null}
             <button
               type="button"
-              onClick={page.voltarCategorias}
+              onClick={() => page.setShowCategoriasModal(true)}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
             >
-              <ArrowLeft size={16} />
+              <Settings2 size={16} />
               <span className="hidden sm:inline">Categorias</span>
             </button>
-          ) : null
+          </div>
         }
       />
 
@@ -91,10 +103,11 @@ export function ProcedimentosPageContent({
           )}
           <ProcedimentosCategoriasGrid
             categorias={page.categoriaCards}
-            loading={page.loading}
+            loading={page.loading || page.loadingCategorias}
             totalProcedimentos={page.activeList.length}
             onSelect={page.selecionarCategoria}
             onVerTodos={page.verTodos}
+            onGerenciar={() => page.setShowCategoriasModal(true)}
           />
           <ClinicaBelezaRelatedLinks slug={page.slug} items={relatedLinks} />
         </ClinicaBelezaPageContent>
@@ -126,6 +139,15 @@ export function ProcedimentosPageContent({
           onPageChange={page.setPage}
         />
       )}
+
+      <ProcedimentosCategoriasModal
+        open={page.showCategoriasModal}
+        onClose={() => page.setShowCategoriasModal(false)}
+        onChanged={() => {
+          void page.recarregarCategorias();
+        }}
+        lojaCtx={{ slug: page.slug }}
+      />
     </>
   );
 }

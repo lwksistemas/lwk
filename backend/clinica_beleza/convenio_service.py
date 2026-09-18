@@ -45,28 +45,6 @@ def resolver_preco_procedimento(convenio, procedure):
     return procedure.preco or Decimal(0)
 
 
-def aplicar_precos_agendamento(appointment, convenio=None):
-    """Grava valor em cada AppointmentProcedure conforme convênio do agendamento."""
-    convenio = convenio or getattr(appointment, "convenio", None)
-    for ap in appointment.appointment_procedures.select_related("procedure").all():
-        ap.valor = resolver_preco_procedimento(convenio, ap.procedure)
-        ap.save(update_fields=["valor"])
-
-
-def mapa_precos_convenio(convenio):
-    """Dict procedure_id → preço efetivo cobrado para o convênio."""
-    if not convenio:
-        return {}
-    rows = ConvenioProcedimentoPreco.objects.filter(
-        convenio=convenio,
-        is_active=True,
-    ).select_related("procedure")
-    return {
-        row.procedure_id: row.calcular_preco_efetivo(row.procedure)
-        for row in rows
-    }
-
-
 def convenio_particular_id() -> int | None:
     """ID do convênio Particular da loja (para fallback em comissões/preços)."""
     row = Convenio.objects.filter(is_active=True, nome__icontains="particular").order_by("id").first()

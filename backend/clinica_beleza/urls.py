@@ -14,6 +14,8 @@ from .views import (
     CampanhaPromocaoEnviarView,
     CampanhaPromocaoListView,
     CategoriaDespesaListView,
+    CategoriaProcedimentoDetailView,
+    CategoriaProcedimentoListView,
     DashboardView,
     DespesaDetailView,
     DespesaListView,
@@ -268,6 +270,12 @@ urlpatterns = [
         "procedures/convenio-precos-matrix/",
         ProcedimentoConvenioPrecosMatrixView.as_view(),
         name="procedures-convenio-precos-matrix",
+    ),
+    path("procedures/categorias/", CategoriaProcedimentoListView.as_view(), name="procedures-categorias"),
+    path(
+        "procedures/categorias/<int:pk>/",
+        CategoriaProcedimentoDetailView.as_view(),
+        name="procedures-categorias-detail",
     ),
     path("procedures/", ProcedureListView.as_view(), name="procedures-list"),
     path(

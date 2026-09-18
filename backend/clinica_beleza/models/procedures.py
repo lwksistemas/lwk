@@ -1,9 +1,57 @@
 """Models — procedimentos e protocolos."""
 
 from django.db import models
+from django.utils.text import slugify
 
 from agenda_base.models import ServicoBase
 from core.mixins import LojaIsolationManager, LojaIsolationMixin
+
+# slug → nome (seed da loja)
+CATEGORIAS_PROCEDIMENTO_PADRAO = [
+    ("soroterapia", "Soroterapia"),
+    ("estetica", "Estética (geral)"),
+    ("facial", "Facial"),
+    ("corporal", "Corporal"),
+    ("capilar", "Capilar"),
+    ("depilacao", "Depilação"),
+    ("injetavel", "Injetável"),
+    ("geral", "Geral"),
+    ("outro", "Outro"),
+]
+
+
+class CategoriaProcedimento(LojaIsolationMixin, models.Model):
+    """Categoria configurável de procedimentos da clínica."""
+
+    nome = models.CharField(max_length=100, verbose_name="Nome")
+    slug = models.SlugField(max_length=50, verbose_name="Slug")
+    cor = models.CharField(max_length=7, default="#8B3D52", verbose_name="Cor")
+    ordem = models.IntegerField(default=0, verbose_name="Ordem")
+    is_active = models.BooleanField(default=True, verbose_name="Ativa")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        verbose_name = "Categoria de procedimento"
+        verbose_name_plural = "Categorias de procedimento"
+        ordering = ["ordem", "nome"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["loja_id", "slug"],
+                name="cb_proc_cat_loja_slug_uniq",
+            ),
+        ]
+
+    def __str__(self):
+        return self.nome
+
+    def save(self, *args, **kwargs):
+        if not self.slug and self.nome:
+            self.slug = slugify(self.nome)[:50] or "categoria"
+        super().save(*args, **kwargs)
 
 
 class Procedure(ServicoBase):

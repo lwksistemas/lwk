@@ -76,6 +76,50 @@ def _parse_filtros_comissoes(request):
     return data_inicio, data_fim, professional_id
 
 
+def _loja_atual():
+    from superadmin.models import Loja
+    from tenants.middleware import get_current_loja_id
+
+    loja_id = get_current_loja_id()
+    return Loja.objects.filter(id=loja_id).first()
+
+
+def _filename_periodo(prefix: str, data_inicio, data_fim, nome: str | None = None) -> str:
+    parts = [prefix]
+    if nome:
+        safe = "".join(c if c.isalnum() or c in " -_" else "" for c in nome)[:40].strip()
+        if safe:
+            parts.append(safe.replace(" ", "_"))
+    if data_inicio and data_fim:
+        parts.append(f"{data_inicio}_{data_fim}")
+    return "_".join(parts)
+
+
+def _pdf_response(pdf_buffer, filename: str) -> HttpResponse:
+    response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{filename}.pdf"'
+    return response
+
+
+def _profissional_nome(professional_id) -> str | None:
+    if not professional_id:
+        return None
+    from .models import Professional
+
+    prof = Professional.objects.filter(pk=professional_id).first()
+    return prof.nome if prof else None
+
+
+def _parse_forma(request) -> str | None:
+    from .models import Payment
+
+    forma = (request.query_params.get("forma") or "").strip().upper() or None
+    metodos = {c[0] for c in Payment.PAYMENT_METHOD_CHOICES}
+    if forma and forma not in metodos:
+        return None
+    return forma
+
+
 class RelatorioComissoesView(APIView):
     """GET /clinica-beleza/relatorios/comissoes/"""
 
@@ -120,48 +164,42 @@ class RelatorioComissoesPdfView(APIView):
     permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
-        from superadmin.models import Loja
-        from tenants.middleware import get_current_loja_id
-
         from .comissao_relatorio_pdf import gerar_pdf_comissoes
-        from .models import Professional
 
         data_inicio, data_fim, professional_id = _parse_filtros_comissoes(request)
-
         resultado = calcular_comissoes(
             data_inicio=data_inicio,
             data_fim=data_fim,
             professional_id=professional_id,
         )
-
-        loja_id = get_current_loja_id()
-        loja = Loja.objects.filter(id=loja_id).first()
+        loja = _loja_atual()
         if not loja:
             return Response({"error": "Loja não encontrada."}, status=404)
 
-        prof_nome = None
-        if professional_id:
-            prof = Professional.objects.filter(pk=professional_id).first()
-            prof_nome = prof.nome if prof else None
+        prof_nome = _profissional_nome(professional_id)
+        agrupar = (request.query_params.get("agrupar") or "profissional").strip()
+        if agrupar in ("local", "convenio"):
+            from .relatorio_tabela_pdf import gerar_pdf_comissoes_agrupado
 
-        pdf_buffer = gerar_pdf_comissoes(
-            resultado=resultado,
-            loja=loja,
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-            profissional_filtro_nome=prof_nome,
-        )
+            pdf_buffer = gerar_pdf_comissoes_agrupado(
+                resultado=resultado,
+                loja=loja,
+                data_inicio=data_inicio,
+                data_fim=data_fim,
+                agrupar=agrupar,
+            )
+            prefix = f"comissoes_{agrupar}"
+        else:
+            pdf_buffer = gerar_pdf_comissoes(
+                resultado=resultado,
+                loja=loja,
+                data_inicio=data_inicio,
+                data_fim=data_fim,
+                profissional_filtro_nome=prof_nome,
+            )
+            prefix = "comissoes"
 
-        filename = "comissoes"
-        if prof_nome:
-            safe = "".join(c if c.isalnum() or c in " -_" else "" for c in prof_nome)[:40].strip()
-            filename = f'comissoes_{safe.replace(" ", "_")}'
-        if data_inicio and data_fim:
-            filename += f"_{data_inicio}_{data_fim}"
-
-        response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
-        response["Content-Disposition"] = f'attachment; filename="{filename}.pdf"'
-        return response
+        return _pdf_response(pdf_buffer, _filename_periodo(prefix, data_inicio, data_fim, prof_nome))
 
 
 def _serialize_procedimento_repasse(p: dict) -> dict:
@@ -233,6 +271,40 @@ class RelatorioFaturamentoView(APIView):
         return Response(resultado)
 
 
+class RelatorioFaturamentoPdfView(APIView):
+    """GET /clinica-beleza/relatorios/faturamento/pdf/?data_inicio=&data_fim=&agrupar="""
+
+    permission_classes = CLINICA_FINANCEIRO
+
+    def get(self, request):
+        from .faturamento_relatorio_service import calcular_faturamento
+        from .relatorio_tabela_pdf import gerar_pdf_faturamento
+
+        data_inicio = RelatorioComissoesView._parse_date(request.query_params.get("data_inicio"))
+        data_fim = RelatorioComissoesView._parse_date(request.query_params.get("data_fim"))
+        agrupar = request.query_params.get("agrupar", "profissional")
+        if agrupar not in ("profissional", "procedimento", "local", "convenio"):
+            agrupar = "profissional"
+
+        loja = _loja_atual()
+        if not loja:
+            return Response({"error": "Loja não encontrada."}, status=404)
+
+        resultado = calcular_faturamento(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            agrupar=agrupar,
+        )
+        pdf_buffer = gerar_pdf_faturamento(
+            resultado=resultado,
+            loja=loja,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            agrupar=agrupar,
+        )
+        return _pdf_response(pdf_buffer, _filename_periodo(f"faturamento_{agrupar}", data_inicio, data_fim))
+
+
 class RelatorioLancamentosView(APIView):
     """GET /clinica-beleza/relatorios/lancamentos/?data_inicio=&data_fim=&forma=&professional_id="""
 
@@ -240,20 +312,51 @@ class RelatorioLancamentosView(APIView):
 
     def get(self, request):
         from .lancamentos_relatorio_service import calcular_lancamentos
-        from .models import Payment
 
         data_inicio, data_fim, professional_id = _parse_filtros_comissoes(request)
-        forma = (request.query_params.get("forma") or "").strip().upper() or None
-        metodos = {c[0] for c in Payment.PAYMENT_METHOD_CHOICES}
-        if forma and forma not in metodos:
-            forma = None
-
+        forma = _parse_forma(request)
         return Response(calcular_lancamentos(
             data_inicio=data_inicio,
             data_fim=data_fim,
             professional_id=professional_id,
             forma=forma,
         ))
+
+
+class RelatorioLancamentosPdfView(APIView):
+    """GET /clinica-beleza/relatorios/lancamentos/pdf/"""
+
+    permission_classes = CLINICA_FINANCEIRO
+
+    def get(self, request):
+        from .lancamentos_relatorio_service import calcular_lancamentos
+        from .models import Payment
+        from .relatorio_tabela_pdf import gerar_pdf_lancamentos
+
+        data_inicio, data_fim, professional_id = _parse_filtros_comissoes(request)
+        forma = _parse_forma(request)
+        loja = _loja_atual()
+        if not loja:
+            return Response({"error": "Loja não encontrada."}, status=404)
+
+        resultado = calcular_lancamentos(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            professional_id=professional_id,
+            forma=forma,
+        )
+        forma_label = dict(Payment.PAYMENT_METHOD_CHOICES).get(forma) if forma else None
+        pdf_buffer = gerar_pdf_lancamentos(
+            resultado=resultado,
+            loja=loja,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            forma_label=forma_label,
+        )
+        return _pdf_response(
+            pdf_buffer,
+            _filename_periodo("lancamentos", data_inicio, data_fim, _profissional_nome(professional_id)),
+        )
 
 
 class RelatorioRepasseConsultaView(APIView):
@@ -289,11 +392,7 @@ class RelatorioRepasseConsultaPdfView(APIView):
     permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
-        from superadmin.models import Loja
-        from tenants.middleware import get_current_loja_id
-
         from .comissao_repasse_pdf import gerar_pdf_repasse_consulta
-        from .models import Professional
 
         data_inicio, data_fim, professional_id = _parse_filtros_comissoes(request)
         resultado = calcular_repasse_por_consulta(
@@ -301,17 +400,11 @@ class RelatorioRepasseConsultaPdfView(APIView):
             data_fim=data_fim,
             professional_id=professional_id,
         )
-
-        loja_id = get_current_loja_id()
-        loja = Loja.objects.filter(id=loja_id).first()
+        loja = _loja_atual()
         if not loja:
             return Response({"error": "Loja não encontrada."}, status=404)
 
-        prof_nome = None
-        if professional_id:
-            prof = Professional.objects.filter(pk=professional_id).first()
-            prof_nome = prof.nome if prof else None
-
+        prof_nome = _profissional_nome(professional_id)
         pdf_buffer = gerar_pdf_repasse_consulta(
             resultado=resultado,
             loja=loja,
@@ -319,14 +412,5 @@ class RelatorioRepasseConsultaPdfView(APIView):
             data_fim=data_fim,
             profissional_filtro_nome=prof_nome,
         )
-
-        filename = "repasse_consultas"
-        if prof_nome:
-            safe = "".join(c if c.isalnum() or c in " -_" else "" for c in prof_nome)[:40].strip()
-            filename = f'repasse_{safe.replace(" ", "_")}'
-        if data_inicio and data_fim:
-            filename += f"_{data_inicio}_{data_fim}"
-
-        response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
-        response["Content-Disposition"] = f'attachment; filename="{filename}.pdf"'
-        return response
+        prefix = "repasse" if prof_nome else "repasse_consultas"
+        return _pdf_response(pdf_buffer, _filename_periodo(prefix, data_inicio, data_fim, prof_nome))

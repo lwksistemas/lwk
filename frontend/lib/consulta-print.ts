@@ -96,6 +96,7 @@ export function fecharJanelaPdf(win: Window | null): void {
 export async function abrirPdfBlobFromResponse(
   response: Response,
   modo: ConsultaPdfModo = "visualizar",
+  janela?: Window | null,
 ): Promise<void> {
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("pdf") && !contentType.includes("octet-stream")) {
@@ -108,7 +109,11 @@ export async function abrirPdfBlobFromResponse(
   }
   const url = window.URL.createObjectURL(blob);
   try {
-    abrirPdfUrl(url, modo);
+    if (janela !== undefined) {
+      direcionarJanelaPdf(janela, url, modo);
+    } else {
+      abrirPdfUrl(url, modo);
+    }
   } catch (e) {
     window.URL.revokeObjectURL(url);
     throw e;

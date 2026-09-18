@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Download, Search } from "lucide-react";
+import { ArrowLeft, Search } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { formatRelatorioCurrency } from "@/components/clinica-beleza/relatorios-shared/relatorios-shared-utils";
+import { RelatorioPdfActions } from "@/components/clinica-beleza/relatorios-shared/RelatorioPdfActions";
+import { abrirRelatorioPdf } from "@/components/clinica-beleza/relatorios-shared/abrir-relatorio-pdf";
 import { RepasseCardAtendimento } from "./RepasseCardAtendimento";
 import { useRepasseConsultasPage } from "./useRepasseConsultasPage";
 
@@ -20,10 +22,14 @@ export function RepasseConsultasPageContent() {
     data,
     loading,
     error,
-    pdfLoading,
     buscar,
-    exportarPDF,
   } = useRepasseConsultasPage();
+
+  const abrirPdf = (modo: "visualizar" | "imprimir", janela: Window | null) => {
+    const qp = new URLSearchParams({ data_inicio: dataInicio, data_fim: dataFim });
+    if (professionalId) qp.set("professional_id", professionalId);
+    return abrirRelatorioPdf(`/relatorios/repasse-consultas/pdf/?${qp.toString()}`, modo, janela);
+  };
 
   return (
     <ClinicaBelezaPageContent>
@@ -41,16 +47,9 @@ export function RepasseConsultasPageContent() {
             Cada atendimento com consulta e procedimentos — para o profissional apresentar à clínica.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void exportarPDF()}
-          disabled={pdfLoading || !data?.profissionais.length}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50 shrink-0"
-          style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
-        >
-          <Download size={16} />
-          {pdfLoading ? "Gerando PDF…" : "PDF"}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <RelatorioPdfActions disabled={!data?.profissionais.length} onPdf={abrirPdf} />
+        </div>
       </div>
 
       <ClinicaBelezaPanel className="p-4 md:p-5 mb-6">

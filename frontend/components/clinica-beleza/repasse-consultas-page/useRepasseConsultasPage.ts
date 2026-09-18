@@ -1,11 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
-import {
-  buildRelatorioPdfFilename,
-  downloadBlob,
-  getDefaultRelatorioPeriod,
-} from "@/components/clinica-beleza/relatorios-shared/relatorios-shared-utils";
+import { getDefaultRelatorioPeriod } from "@/components/clinica-beleza/relatorios-shared/relatorios-shared-utils";
 import { useRelatorioProfessionals } from "@/components/clinica-beleza/relatorios-shared/useRelatorioProfessionals";
 import type { RelatorioRepasseData } from "./repasse-consultas-page-types";
 
@@ -19,15 +15,9 @@ export function useRepasseConsultasPage() {
   const [professionalId, setProfessionalId] = useState("");
   const [data, setData] = useState<RelatorioRepasseData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
   const [error, setError] = useState("");
 
   const professionals = useRelatorioProfessionals();
-
-  const profissionalNome = useMemo(() => {
-    if (!professionalId) return null;
-    return professionals.find((x) => String(x.id) === professionalId)?.nome ?? null;
-  }, [professionalId, professionals]);
 
   const buscar = useCallback(async () => {
     setLoading(true);
@@ -54,29 +44,6 @@ export function useRepasseConsultasPage() {
     void buscar();
   }, [buscar]);
 
-  const exportarPDF = useCallback(async () => {
-    setPdfLoading(true);
-    setError("");
-    try {
-      const qp = new URLSearchParams({ data_inicio: dataInicio, data_fim: dataFim });
-      if (professionalId) qp.set("professional_id", professionalId);
-      const res = await clinicaBelezaFetch(`/relatorios/repasse-consultas/pdf/?${qp.toString()}`);
-      if (!res.ok) {
-        setError("Não foi possível gerar o PDF.");
-        return;
-      }
-      const blob = await res.blob();
-      const nome = profissionalNome
-        ? buildRelatorioPdfFilename("repasse", profissionalNome, dataInicio, dataFim)
-        : `repasse_consultas_${dataInicio}_${dataFim}.pdf`;
-      downloadBlob(blob, nome);
-    } catch {
-      setError("Não foi possível gerar o PDF.");
-    } finally {
-      setPdfLoading(false);
-    }
-  }, [dataFim, dataInicio, profissionalNome, professionalId]);
-
   return {
     slug,
     dataInicio,
@@ -89,8 +56,6 @@ export function useRepasseConsultasPage() {
     data,
     loading,
     error,
-    pdfLoading,
     buscar,
-    exportarPDF,
   };
 }

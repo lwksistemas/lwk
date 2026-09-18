@@ -4,8 +4,17 @@ import {
   formatRelatorioCurrency,
   getDefaultRelatorioPeriod,
 } from "@/components/clinica-beleza/relatorios-shared/relatorios-shared-utils";
+import { abrirRelatorioPdf } from "@/components/clinica-beleza/relatorios-shared/abrir-relatorio-pdf";
+
+vi.mock("@/lib/clinica-beleza-api", () => ({
+  clinicaBelezaFetch: vi.fn(),
+}));
+vi.mock("@/lib/consulta-print", () => ({
+  abrirPdfBlobFromResponse: vi.fn(),
+}));
 
 describe("getDefaultRelatorioPeriod", () => {
+
   it("retorna início do mês e hoje em ISO", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-20T12:00:00"));
@@ -32,6 +41,26 @@ describe("buildRelatorioPdfFilename", () => {
   it("omite profissional quando null", () => {
     expect(buildRelatorioPdfFilename("repasse", null, "2026-01-01", "2026-01-31")).toBe(
       "repasse_2026-01-01_2026-01-31.pdf",
+    );
+  });
+});
+
+describe("abrirRelatorioPdf", () => {
+  it("abre o blob quando a API responde ok", async () => {
+    const { clinicaBelezaFetch } = await import("@/lib/clinica-beleza-api");
+    const { abrirPdfBlobFromResponse } = await import("@/lib/consulta-print");
+    const res = { ok: true } as Response;
+    vi.mocked(clinicaBelezaFetch).mockResolvedValue(res);
+    await abrirRelatorioPdf("/relatorios/lancamentos/pdf/", "visualizar", null);
+    expect(clinicaBelezaFetch).toHaveBeenCalledWith("/relatorios/lancamentos/pdf/");
+    expect(abrirPdfBlobFromResponse).toHaveBeenCalledWith(res, "visualizar", null);
+  });
+
+  it("lança erro quando a API falha", async () => {
+    const { clinicaBelezaFetch } = await import("@/lib/clinica-beleza-api");
+    vi.mocked(clinicaBelezaFetch).mockResolvedValue({ ok: false } as Response);
+    await expect(abrirRelatorioPdf("/relatorios/lancamentos/pdf/", "imprimir")).rejects.toThrow(
+      "Não foi possível gerar o PDF",
     );
   });
 });

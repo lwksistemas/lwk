@@ -7,6 +7,8 @@ import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { CLINICA_FORMA_PAGAMENTO_LABEL } from '@/lib/clinica-beleza-constants';
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
+import { RelatorioPdfActions } from '@/components/clinica-beleza/relatorios-shared/RelatorioPdfActions';
+import { abrirRelatorioPdf } from '@/components/clinica-beleza/relatorios-shared/abrir-relatorio-pdf';
 
 interface LancamentoItem {
   payment_id: number;
@@ -109,6 +111,12 @@ export default function LancamentosRelatorioPage() {
     URL.revokeObjectURL(link.href);
   };
 
+  const abrirPdf = (modo: 'visualizar' | 'imprimir', janela: Window | null) => {
+    const qp = new URLSearchParams({ data_inicio: dataInicio, data_fim: dataFim });
+    if (forma) qp.set('forma', forma);
+    return abrirRelatorioPdf(`/relatorios/lancamentos/pdf/?${qp.toString()}`, modo, janela);
+  };
+
   return (
     <>
       <ClinicaBelezaStandardPageHeader
@@ -116,16 +124,21 @@ export default function LancamentosRelatorioPage() {
         subtitle={`Período: ${dataInicio} a ${dataFim}`}
         backHref={`/loja/${slug}/relatorios`}
         extraActions={
-          <button
-            type="button"
-            onClick={exportarCSV}
-            disabled={!data?.profissionais.length}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 disabled:opacity-50"
-          >
-            <Download size={16} />
-            <span className="hidden sm:inline">Exportar CSV</span>
-            <span className="sm:hidden">CSV</span>
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={exportarCSV}
+              disabled={!data?.profissionais.length}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 disabled:opacity-50"
+            >
+              <Download size={16} />
+              <span className="hidden sm:inline">CSV</span>
+            </button>
+            <RelatorioPdfActions
+              disabled={!data?.profissionais.length}
+              onPdf={abrirPdf}
+            />
+          </>
         }
       />
       <ClinicaBelezaPageContent>

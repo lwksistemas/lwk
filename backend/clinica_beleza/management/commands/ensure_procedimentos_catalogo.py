@@ -12,8 +12,8 @@ from superadmin.models import Loja
 
 class Command(BaseCommand):
     help = (
-        "Cadastra/atualiza locais e procedimentos padrão de estética "
-        "(descrição + TCLE quando aplicável) sem apagar atendimentos."
+        "Semeia locais e procedimentos padrão só em loja nova (sem cadastro). "
+        "Não reativa nem reescreve o que a clínica já cadastrou, editou ou excluiu."
     )
 
     def add_arguments(self, parser):

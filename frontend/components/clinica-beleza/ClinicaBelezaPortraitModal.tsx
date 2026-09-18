@@ -12,9 +12,15 @@ interface ClinicaBelezaPortraitModalProps {
   children: ReactNode;
   footer?: ReactNode;
   closeDisabled?: boolean;
+  layout?: "portrait" | "landscape";
 }
 
-/** Modal estreito (retrato) — padrão da Clínica da Beleza para configurações. */
+const LAYOUT_CLASS = {
+  portrait: "w-full max-w-[22rem] max-h-[min(90vh,640px)]",
+  landscape: "w-full max-w-3xl lg:max-w-4xl max-h-[min(88vh,640px)]",
+};
+
+/** Modal da Clínica da Beleza — retrato (estreito) ou paisagem (largo). */
 export function ClinicaBelezaPortraitModal({
   open,
   onClose,
@@ -24,12 +30,13 @@ export function ClinicaBelezaPortraitModal({
   children,
   footer,
   closeDisabled = false,
+  layout = "portrait",
 }: ClinicaBelezaPortraitModalProps) {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-[22rem] max-h-[min(90vh,640px)] flex flex-col overflow-hidden">
+      <div className={`bg-white dark:bg-neutral-900 rounded-2xl shadow-xl flex flex-col overflow-hidden ${LAYOUT_CLASS[layout]}`}>
         <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-200 dark:border-neutral-700 shrink-0">
           <div className="min-w-0 flex items-start gap-2">
             {icon}

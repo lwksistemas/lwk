@@ -120,63 +120,34 @@ export function LocalizarClienteModal({
 
   const overlay = (
     <div
-      className={`fixed inset-0 z-[200] bg-black/40 ${
-        expandido
-          ? "flex items-center justify-center p-3 sm:p-6"
-          : "flex items-start justify-center px-3 pt-20 sm:pt-24"
-      }`}
+      className="fixed inset-0 z-[200] flex items-start justify-center bg-black/40 px-3 pt-20 sm:pt-24"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className={
-          expandido
-            ? "bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-[min(96vw,72rem)] h-[min(78vh,40rem)] flex flex-col"
-            : "bg-white dark:bg-neutral-900 rounded-xl shadow-xl border border-gray-200 dark:border-neutral-700 w-full max-w-xl p-3"
-        }
+        className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl border border-gray-200 dark:border-neutral-700 w-full max-w-xl max-h-[min(70vh,32rem)] flex flex-col p-3"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal
         aria-label={title}
       >
-        {expandido ? (
-          <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                <Search size={16} style={{ color: "var(--cb-primary, #8B3D52)" }} />
-                <span className="truncate">{title}</span>
-              </h2>
-              <p className="text-xs text-gray-500 mt-0.5 truncate">{hint}</p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 shrink-0"
-              aria-label="Fechar"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-2 px-1 pb-2">
+        <div className="flex items-center justify-between gap-2 px-1 pb-2 shrink-0">
+          <div className="min-w-0">
             <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{title}</p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 shrink-0"
-              aria-label="Fechar"
-            >
-              <X size={16} />
-            </button>
+            {expandido ? <p className="text-xs text-gray-500 mt-0.5 truncate">{hint}</p> : null}
           </div>
-        )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 shrink-0"
+            aria-label="Fechar"
+          >
+            <X size={16} />
+          </button>
+        </div>
 
         <form
-          className={
-            expandido
-              ? "px-5 py-3 flex flex-col gap-3 min-h-0 flex-1 overflow-hidden"
-              : "flex flex-col"
-          }
+          className={`flex flex-col gap-2 min-h-0 ${expandido ? "flex-1 overflow-hidden" : ""}`}
           autoComplete="off"
           onSubmit={(e) => e.preventDefault()}
         >
@@ -218,21 +189,17 @@ export function LocalizarClienteModal({
           </div>
 
           {expandido ? (
-            <div className="overflow-y-auto flex-1 min-h-0">
+            <div className="overflow-y-auto min-h-0 flex-1">
               {mostrarVazio ? (
-                <p className="text-sm text-gray-500 py-10 text-center">
+                <p className="text-sm text-gray-500 py-3 text-center">
                   Nenhum cliente encontrado para “{query.trim()}”.
                 </p>
               ) : mostrarLista ? (
                 <>
-                  <p className="text-xs text-gray-500 px-1 pb-2">
+                  <p className="text-xs text-gray-500 px-1 pb-1.5">
                     {resultados.length} cliente{resultados.length === 1 ? "" : "s"} · setas e Enter
                   </p>
-                  <ul
-                    ref={listRef}
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-1.5"
-                    role="listbox"
-                  >
+                  <ul ref={listRef} className="flex flex-col gap-0.5" role="listbox">
                     {resultados.map((p, index) => {
                       const ativo = index === activeIndex;
                       return (
@@ -267,7 +234,7 @@ export function LocalizarClienteModal({
                   </ul>
                 </>
               ) : searching ? (
-                <div className="flex items-center justify-center gap-2 py-12 text-sm text-gray-500">
+                <div className="flex items-center justify-center gap-2 py-3 text-sm text-gray-500">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Buscando...
                 </div>

@@ -188,6 +188,8 @@ def tentar_emitir_nfse_consulta(consulta, payment, *, loja=None) -> None:
     """
     if payment is None or getattr(payment, "status", "") != "PAID":
         return
+    if getattr(payment, "payment_method", "") == "DESPESA":
+        return
     valor = getattr(payment, "amount", None)
     if valor is None or Decimal(str(valor)) <= 0:
         return

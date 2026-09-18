@@ -701,6 +701,13 @@ html.dark .clinica-geral-app .border-slate-100 {
   max-width: 0;
 }
 
+.table-cols-resizable td.col-allow-wrap {
+  white-space: normal;
+  text-overflow: clip;
+  overflow: hidden;
+  max-width: none;
+}
+
 .col-resize-th {
   position: relative;
 }

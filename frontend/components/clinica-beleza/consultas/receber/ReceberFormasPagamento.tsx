@@ -96,6 +96,11 @@ export function ReceberFormasPagamento({
                 Cliente paga depois. O valor fica em aberto no Financeiro até a baixa.
               </p>
             )}
+            {linha.payment_method === "DESPESA" && (
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                Despesa da clínica (ex.: convênio família/funcionário). Não entra no caixa.
+              </p>
+            )}
             {linha.payment_method === "CREDIT_CARD" && (
               <div className="grid grid-cols-2 gap-2">
                 <div>

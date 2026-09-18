@@ -83,7 +83,7 @@ export function FinanceiroReceitasTab({
       </div>
       <section className="bg-white dark:bg-neutral-800 rounded-xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="text-sm">
             <thead className="bg-gray-50 dark:bg-neutral-700 border-b border-gray-200 dark:border-neutral-600">
               <tr>
                 <th className="text-left py-3 px-4 font-semibold">Data</th>
@@ -93,8 +93,10 @@ export function FinanceiroReceitasTab({
                 <th className="text-right py-3 px-4 font-semibold">Valor</th>
                 <th className="text-left py-3 px-4 font-semibold">Pagamento</th>
                 <th className="text-left py-3 px-4 font-semibold">Status</th>
-                <th className="text-right py-3 px-4 font-semibold">Comissão</th>
-                <th className="py-3 px-4"></th>
+                <th className="text-right py-3 px-4 font-semibold whitespace-nowrap min-w-[8.5rem]">
+                  Comissão
+                </th>
+                <th className="py-3 px-3 min-w-[7.5rem]"></th>
               </tr>
             </thead>
             <tbody>
@@ -116,7 +118,7 @@ export function FinanceiroReceitasTab({
                     </td>
                     <td className="py-3 px-4">{p.paciente_nome || "—"}</td>
                     <td className="py-3 px-4">{p.profissional_nome || "—"}</td>
-                    <td className="py-3 px-4 max-w-[220px] text-sm leading-snug">
+                    <td className="py-3 px-4 max-w-[220px] text-sm leading-snug col-allow-wrap">
                       {p.procedimento_nome || "Consulta"}
                     </td>
                     <td className="py-3 px-4 text-right font-medium">
@@ -125,7 +127,7 @@ export function FinanceiroReceitasTab({
                     <td className="py-3 px-4">
                       {CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 col-allow-wrap">
                       <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
                         status === "PAID"
                           ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
@@ -143,7 +145,7 @@ export function FinanceiroReceitasTab({
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                    <td className="py-3 px-4 text-right col-allow-wrap">
                       {formatCurrency(p.comissao_valor || 0)}
                       {p.comissao_percentual ? (
                         <span className="block text-xs text-gray-500 font-normal">
@@ -151,7 +153,7 @@ export function FinanceiroReceitasTab({
                         </span>
                       ) : null}
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3 px-3 text-center">
                       {(status === "PENDING" || status === "PARTIAL") && (
                         <button
                           type="button"

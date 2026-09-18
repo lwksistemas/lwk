@@ -20,6 +20,7 @@ class Payment(LojaIsolationMixin, models.Model):
         ("PIX", "PIX"),
         ("TRANSFER", "Transferência"),
         ("PRAZO", "A prazo"),
+        ("DESPESA", "Despesa (clínica)"),
     )
 
     STATUS_CHOICES = (

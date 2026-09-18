@@ -119,7 +119,9 @@ export function DespesaFormModal({ open, editing, saving: savingProp, onClose, o
                   onChange={(e) => setForm({ ...form, forma_pagamento: e.target.value })}
                   className={DESPESA_FORM_INPUT_CLASS}
                 >
-                  {Object.entries(CLINICA_FORMA_PAGAMENTO_LABEL).map(([v, l]) => (
+                  {Object.entries(CLINICA_FORMA_PAGAMENTO_LABEL)
+                    .filter(([v]) => v !== "DESPESA")
+                    .map(([v, l]) => (
                     <option key={v} value={v}>
                       {l}
                     </option>

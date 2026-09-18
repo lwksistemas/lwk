@@ -9,6 +9,7 @@ export const CLINICA_FORMA_PAGAMENTO_LABEL: Record<string, string> = {
   PIX: 'PIX',
   TRANSFER: 'Transferência',
   PRAZO: 'A prazo',
+  DESPESA: 'Despesa (clínica)',
 };
 
 /** Formas à vista — baixa no Financeiro não usa "A prazo". */
@@ -18,6 +19,7 @@ export const CLINICA_FORMA_PAGAMENTO_A_VISTA = [
   'DEBIT_CARD',
   'PIX',
   'TRANSFER',
+  'DESPESA',
 ] as const;
 
 export const CLINICA_PAGAMENTO_STATUS_LABEL: Record<string, string> = {

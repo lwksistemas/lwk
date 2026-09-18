@@ -196,6 +196,18 @@ export function ConsultasListTable({
                 {iniciando ? "Iniciando…" : "Iniciar consulta"}
               </button>
             )}
+            {onIniciar && acoes.bloqueadaPorOutraEmAndamento && (
+              <button
+                type="button"
+                disabled
+                title="Este profissional já está em atendimento neste local. Finalize essa consulta ou inicie em outro local."
+                className={`${btn} text-white opacity-50 cursor-not-allowed`}
+                style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+              >
+                <Play size={12} />
+                Iniciar consulta
+              </button>
+            )}
             {acoes.mostrarContinuar && (
               <button
                 type="button"

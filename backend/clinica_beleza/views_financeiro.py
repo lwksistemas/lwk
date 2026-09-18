@@ -98,6 +98,9 @@ class PaymentDetailView(GetObjectMixin, APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def patch(self, request, pk):
+        return self.put(request, pk)
+
     def delete(self, request, pk):
         obj, err = self.object_or_404(pk)
         if err:

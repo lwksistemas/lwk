@@ -1,18 +1,21 @@
 /**
  * Redimensionamento de colunas em tabelas HTML — arrastar a borda do cabeçalho.
+ * A largura da tabela segue a soma das colunas (não 100%), para a última
+ * coluna não absorver espaço em branco nem ficar esmagada.
  * Persiste larguras no localStorage por página + índice da tabela.
  */
 
 const MIN_COL_WIDTH = 56;
-const STORAGE_PREFIX = 'lwk-table-cols:';
+const STORAGE_PREFIX = 'lwk-table-cols-v2:';
 
-function loadWidths(key: string): number[] {
+function loadWidths(key: string, count: number): number[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((n) => typeof n === 'number' && n >= MIN_COL_WIDTH) : [];
+    if (!Array.isArray(parsed) || parsed.length !== count) return [];
+    return parsed.map((n) => (typeof n === 'number' && n >= MIN_COL_WIDTH ? n : 0));
   } catch {
     return [];
   }
@@ -50,6 +53,35 @@ function ensureColgroup(table: HTMLTableElement, count: number): HTMLElement[] {
   return Array.from(colgroup.querySelectorAll('col'));
 }
 
+function readColWidth(col: HTMLElement): number {
+  const parsed = Number.parseFloat(col.style.width);
+  if (Number.isFinite(parsed) && parsed >= MIN_COL_WIDTH) return parsed;
+  return Math.max(MIN_COL_WIDTH, Math.round(col.getBoundingClientRect().width) || MIN_COL_WIDTH);
+}
+
+function syncTableWidth(table: HTMLTableElement, cols: HTMLElement[]) {
+  const total = cols.reduce((sum, col) => sum + readColWidth(col), 0);
+  table.style.width = `${total}px`;
+  table.style.minWidth = `${total}px`;
+  table.style.maxWidth = 'none';
+}
+
+function measureDefaultWidths(table: HTMLTableElement, ths: HTMLTableCellElement[]): number[] {
+  const prevWidth = table.style.width;
+  const prevMin = table.style.minWidth;
+  const prevLayout = table.style.tableLayout;
+  table.style.tableLayout = 'auto';
+  table.style.width = 'max-content';
+  table.style.minWidth = '0';
+  const widths = ths.map((th) =>
+    Math.max(MIN_COL_WIDTH, Math.round(th.scrollWidth) || Math.round(th.getBoundingClientRect().width) || 120),
+  );
+  table.style.tableLayout = prevLayout;
+  table.style.width = prevWidth;
+  table.style.minWidth = prevMin;
+  return widths;
+}
+
 export function attachResizableTableColumns(table: HTMLTableElement, storageKey: string): void {
   if (shouldSkipTable(table)) return;
 
@@ -59,23 +91,23 @@ export function attachResizableTableColumns(table: HTMLTableElement, storageKey:
   const ths = Array.from(headerRow.querySelectorAll('th'));
   if (ths.length < 2) return;
 
-  const defaultWidths = ths.map((th) =>
-    Math.max(MIN_COL_WIDTH, Math.round(th.getBoundingClientRect().width) || 120),
-  );
+  const defaultWidths = measureDefaultWidths(table, ths);
   table.dataset.colDefaultWidths = JSON.stringify(defaultWidths);
 
   table.dataset.resizableEnhanced = 'true';
   table.classList.add('table-cols-resizable');
   table.style.tableLayout = 'fixed';
-  table.style.width = '100%';
 
   const cols = ensureColgroup(table, ths.length);
-  const saved = loadWidths(storageKey);
+  const saved = loadWidths(storageKey, ths.length);
 
   ths.forEach((th, index) => {
-    const width = saved[index] ?? defaultWidths[index];
+    const width = (saved[index] || defaultWidths[index]);
     cols[index].style.width = `${Math.max(MIN_COL_WIDTH, width)}px`;
+  });
+  syncTableWidth(table, cols);
 
+  ths.forEach((th, index) => {
     if (th.querySelector('.col-resize-handle')) return;
 
     th.classList.add('col-resize-th');
@@ -87,11 +119,9 @@ export function attachResizableTableColumns(table: HTMLTableElement, storageKey:
     handle.title = 'Arrastar para redimensionar · duplo clique para restaurar';
 
     const persistWidths = () => {
-      const widths = cols.map((col) => {
-        const w = col.getBoundingClientRect().width;
-        return Math.max(MIN_COL_WIDTH, Math.round(w));
-      });
+      const widths = cols.map((col) => Math.round(readColWidth(col)));
       saveWidths(storageKey, widths);
+      syncTableWidth(table, cols);
     };
 
     handle.addEventListener('dblclick', (event) => {
@@ -116,11 +146,12 @@ export function attachResizableTableColumns(table: HTMLTableElement, storageKey:
       event.stopPropagation();
 
       const startX = event.clientX;
-      const startWidth = cols[index].getBoundingClientRect().width || defaultWidths[index];
+      const startWidth = readColWidth(cols[index]);
 
       const onMove = (e: MouseEvent) => {
         const next = Math.max(MIN_COL_WIDTH, startWidth + e.clientX - startX);
         cols[index].style.width = `${next}px`;
+        syncTableWidth(table, cols);
       };
 
       const onUp = () => {

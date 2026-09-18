@@ -104,6 +104,7 @@ def revenue_by_day(first_day: date, period_end: date) -> list[dict]:
     rows_db = (
         Payment.objects
         .filter(status="PAID", payment_date__date__gte=first_day, payment_date__date__lte=period_end)
+        .exclude(payment_method="DESPESA")
         .annotate(day=TruncDay("payment_date"))
         .values("day")
         .annotate(total=Sum("amount"))
@@ -217,10 +218,10 @@ def build_dashboard_statistics(*, today: date, period_start: date, period_end: d
         status="PAID",
         payment_date__date__gte=period_start,
         payment_date__date__lte=period_end,
-    ).aggregate(total=Sum("amount"))["total"] or 0
+    ).exclude(payment_method="DESPESA").aggregate(total=Sum("amount"))["total"] or 0
     revenue_today = Payment.objects.filter(
         status="PAID", payment_date__date=today,
-    ).aggregate(total=Sum("amount"))["total"] or 0
+    ).exclude(payment_method="DESPESA").aggregate(total=Sum("amount"))["total"] or 0
     return {
         "appointments_today": Appointment.objects.filter(date__date=today).count(),
         "appointments_yesterday": Appointment.objects.filter(date__date=yesterday).count(),

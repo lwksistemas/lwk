@@ -109,6 +109,42 @@ describe("prontuario consultas", () => {
     expect(bloqueada.podeIniciar).toBe(false);
     expect(bloqueada.bloqueadaPorOutraEmAndamento).toBe(true);
 
+    const marina = 9;
+    const salaLaser = 3;
+    const emAndamentoLocal = consulta({
+      id: 20,
+      status: "IN_PROGRESS",
+      patient: 2,
+      professional: marina,
+      local_atendimento: salaLaser,
+      data_inicio: "2026-09-18T14:25:00",
+    });
+    const mesmaSala = prontuarioConsultaAtualAcoes(
+      consulta({
+        id: 21,
+        status: "RECEBER",
+        patient: 3,
+        professional: marina,
+        local_atendimento: salaLaser,
+      }),
+      [emAndamentoLocal],
+    );
+    expect(mesmaSala.podeIniciar).toBe(false);
+    expect(mesmaSala.bloqueadaPorOutraEmAndamento).toBe(true);
+
+    const outroLocal = prontuarioConsultaAtualAcoes(
+      consulta({
+        id: 22,
+        status: "RECEBER",
+        patient: 4,
+        professional: marina,
+        local_atendimento: 8,
+      }),
+      [emAndamentoLocal],
+    );
+    expect(outroLocal.podeIniciar).toBe(true);
+    expect(outroLocal.bloqueadaPorOutraEmAndamento).toBe(false);
+
     const finalizada = consulta({
       id: 15,
       status: "COMPLETED",

@@ -56,6 +56,9 @@ export function FinanceiroResumoCards({ resumo }: FinanceiroResumoCardsProps) {
           {(resumo?.despesas_operacionais ?? 0) > 0 && (
             <> · Operacionais {formatCurrency(resumo?.despesas_operacionais ?? 0)}</>
           )}
+          {(resumo?.despesas_atendimento ?? 0) > 0 && (
+            <> · Atendimentos {formatCurrency(resumo?.despesas_atendimento ?? 0)}</>
+          )}
         </p>
         <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-1">
           Lucro: {formatCurrency(resumo?.lucro ?? 0)}

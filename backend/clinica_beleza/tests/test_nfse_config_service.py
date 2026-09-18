@@ -111,6 +111,13 @@ class TentarEmitirNFSeConsultaTests(SimpleTestCase):
         mock_config.assert_not_called()
 
     @patch("clinica_beleza.nfse_consulta_service._get_nfse_config")
+    def test_despesa_clinica_skips(self, mock_config):
+        consulta = MagicMock(loja_id=1)
+        payment = MagicMock(status="PAID", amount=280, loja_id=1, payment_method="DESPESA")
+        tentar_emitir_nfse_consulta(consulta, payment)
+        mock_config.assert_not_called()
+
+    @patch("clinica_beleza.nfse_consulta_service._get_nfse_config")
     def test_valor_zero_skips(self, mock_config):
         consulta = MagicMock(loja_id=1)
         payment = MagicMock(status="PAID", amount=0, loja_id=1)

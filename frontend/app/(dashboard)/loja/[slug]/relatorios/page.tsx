@@ -92,6 +92,12 @@ const CATEGORIAS: CategoriaRelatorio[] = [
         href: 'faturamento?agrupar=convenio',
         icon: Building2,
       },
+      {
+        titulo: 'Lançamentos por profissional',
+        descricao: 'Total por profissional com o nome de cada paciente lançado no financeiro',
+        href: 'lancamentos',
+        icon: ClipboardList,
+      },
     ],
   },
 ];

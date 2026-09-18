@@ -29,6 +29,23 @@ describe("gerarHtmlRecibo", () => {
     expect(html).toContain("- R$ 150.00");
   });
 
+  it("mostra Desconto retorno sem o prazo em dias", () => {
+    const html = gerarHtmlRecibo({
+      consulta: {
+        ...consulta,
+        retorno_gratuito: true,
+        local_atendimento_valor_consulta: 150,
+        retorno_dias_prazo: 30,
+      } as Consulta,
+      valorPago: 200,
+      desconto: 0,
+      entradas: [{ id: "1", payment_method: "CASH", valor: "200" }],
+      lojaData: { nome: "HARMONIS" },
+    });
+    expect(html).toContain(">Desconto retorno<");
+    expect(html).not.toContain("prazo");
+  });
+
   it("omite Desconto quando o valor é zero", () => {
     const html = gerarHtmlRecibo({
       consulta,

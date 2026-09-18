@@ -61,15 +61,10 @@ export function gerarHtmlRecibo(params: {
   const valorConsultaReferencia = Number(
     consulta.local_atendimento_valor_consulta ?? valorConsulta,
   );
-  const retornoDias = consulta.retorno_dias_prazo != null ? Number(consulta.retorno_dias_prazo) : null;
   const retornoAviso = (consulta.retorno_aviso_recibo || "").trim();
   const taxaExibida = retornoGratuito ? valorConsultaReferencia : valorConsulta;
   const descontoRetorno =
     retornoGratuito && valorConsultaReferencia > 0 ? valorConsultaReferencia : 0;
-  const labelDescontoRetorno =
-    retornoDias && retornoDias > 0
-      ? `Desconto retorno (prazo ${retornoDias} dias)`
-      : "Desconto retorno";
   const telCep = linhaTelCep(lojaData.telefone, lojaData.cep);
 
   const taxaConsultaHtml =
@@ -78,7 +73,7 @@ export function gerarHtmlRecibo(params: {
       : "";
   const descontosHtml = [
     descontoRetorno > 0
-      ? `<tr><td>${labelDescontoRetorno}</td><td style="text-align:right">- R$ ${descontoRetorno.toFixed(2)}</td></tr>`
+      ? `<tr><td>Desconto retorno</td><td style="text-align:right">- R$ ${descontoRetorno.toFixed(2)}</td></tr>`
       : "",
     desconto > 0
       ? `<tr><td>Desconto</td><td style="text-align:right">- R$ ${desconto.toFixed(2)}</td></tr>`

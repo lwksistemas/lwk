@@ -721,10 +721,10 @@ html.dark .clinica-geral-app .border-slate-100 {
   position: absolute;
   top: 0;
   right: 0;
-  width: 8px;
+  width: 14px;
   height: 100%;
   cursor: col-resize;
-  z-index: 3;
+  z-index: 6;
   touch-action: none;
 }
 

@@ -1,6 +1,8 @@
 """Catálogo padrão (locais + procedimentos) — Clínica da Beleza.
 
-Idempotente: update_or_create por nome, sem apagar cadastros personalizados.
+Loja nova (sem cadastro): cria locais e procedimentos do seed.
+Loja que já tem cadastro: não recria, não reativa e não reescreve o que a clínica
+editou ou excluiu. O ensure_all do deploy não pode desfazer o catálogo da loja.
 """
 from __future__ import annotations
 
@@ -33,40 +35,62 @@ def _normalizar_nome_procedimento(nome: str) -> str:
     return (nome or "").strip().upper()
 
 
-def _upsert_procedimento_catalogo(db, lid, item) -> None:
-    """Cria/atualiza procedimento pelo nome normalizado (case-insensitive).
-
-    Evita duplicata quando o catálogo usa title-case e a API já salvou em MAIÚSCULAS.
-    """
+def _procedimento_catalogo_existente(db, lid, item):
+    """Encontra procedimento do catálogo pelo nome (inclui inativos e nome legado)."""
     from clinica_beleza.models import Procedure
 
     nome_norm = _normalizar_nome_procedimento(item.nome)
-    defaults = procedimento_catalogo_defaults(item)
-    defaults["nome"] = nome_norm
-
     cat_prefix = (item.categoria or "").strip().upper()
     nome_legado = f"{cat_prefix} — {nome_norm}" if cat_prefix and not nome_norm.startswith(cat_prefix) else ""
-
     existente = (
         Procedure.objects.using(db)
         .filter(loja_id=lid, nome__iexact=nome_norm)
         .order_by("id")
         .first()
     )
-    if not existente and nome_legado:
-        existente = (
-            Procedure.objects.using(db)
-            .filter(loja_id=lid, nome__iexact=nome_legado)
-            .order_by("id")
-            .first()
-        )
-    if existente:
-        for field, value in defaults.items():
-            setattr(existente, field, value)
-        existente.save(update_fields=[*defaults.keys(), "updated_at"])
-        return
+    if existente or not nome_legado:
+        return existente
+    return (
+        Procedure.objects.using(db)
+        .filter(loja_id=lid, nome__iexact=nome_legado)
+        .order_by("id")
+        .first()
+    )
 
+
+def _upsert_procedimento_catalogo(db, lid, item) -> None:
+    """Cria procedimento do seed só se ainda não existir (mesmo inativo).
+
+    Não reescreve preço, descrição, termo nem reativa exclusão (is_active=False).
+    """
+    from clinica_beleza.models import Procedure
+
+    if _procedimento_catalogo_existente(db, lid, item):
+        return
+    defaults = procedimento_catalogo_defaults(item)
+    defaults["nome"] = _normalizar_nome_procedimento(item.nome)
     Procedure.objects.using(db).create(loja_id=lid, **defaults)
+
+
+def _aplicar_procedimentos_catalogo(db, lid, emit) -> tuple[int, int]:
+    """Só semeia o catálogo se a loja ainda não tiver nenhum procedimento.
+
+    Exclusão na tela é soft-delete (is_active=False). Se já há linhas, o deploy
+    não reativa nem recria o padrão.
+    """
+    from clinica_beleza.models import Procedure
+
+    if Procedure.objects.using(db).filter(loja_id=lid).exists():
+        emit("  procedimentos: mantidos (já cadastrados)")
+        return 0, 0
+
+    com_termo = 0
+    for item in PROCEDIMENTOS_CATALOGO:
+        defaults = procedimento_catalogo_defaults(item)
+        if defaults["termo_consentimento_ativo"]:
+            com_termo += 1
+        _upsert_procedimento_catalogo(db, lid, item)
+    return len(PROCEDIMENTOS_CATALOGO), com_termo
 
 
 def _desativar_procedimentos_duplicados(db, lid) -> int:
@@ -284,32 +308,32 @@ def aplicar_catalogo_padrao(loja, *, log: Callable[[str], None] | None = None) -
         if desativados:
             emit(f"  {desativados} local(is) de demonstração desativado(s)")
 
-    com_termo = 0
-    for item in PROCEDIMENTOS_CATALOGO:
-        defaults = procedimento_catalogo_defaults(item)
-        if defaults["termo_consentimento_ativo"]:
-            com_termo += 1
-        _upsert_procedimento_catalogo(db, lid, item)
-
-    proc_dups = _desativar_procedimentos_duplicados(db, lid)
-    if proc_dups:
-        emit(f"  {proc_dups} procedimento(s) duplicado(s) desativado(s)")
+    n_proc, com_termo = _aplicar_procedimentos_catalogo(db, lid, emit)
+    if n_proc:
+        proc_dups = _desativar_procedimentos_duplicados(db, lid)
+        if proc_dups:
+            emit(f"  {proc_dups} procedimento(s) duplicado(s) desativado(s)")
 
     nome_particular, codigo_particular = CONVENIO_PARTICULAR_CATALOGO
-    particular, _ = Convenio.objects.using(db).update_or_create(
+    particular, _ = Convenio.objects.using(db).get_or_create(
         nome=nome_particular,
         loja_id=lid,
         defaults={"codigo": codigo_particular, "is_active": True},
     )
     precos_particular = 0
-    for proc in Procedure.objects.using(db).filter(loja_id=lid, is_active=True):
-        ConvenioProcedimentoPreco.objects.using(db).update_or_create(
-            convenio=particular,
-            procedure=proc,
-            loja_id=lid,
-            defaults={"modo": "fixo", "preco": proc.preco, "is_active": True},
-        )
-        precos_particular += 1
+    if n_proc:
+        for proc in Procedure.objects.using(db).filter(loja_id=lid, is_active=True):
+            ConvenioProcedimentoPreco.objects.using(db).update_or_create(
+                convenio=particular,
+                procedure=proc,
+                loja_id=lid,
+                defaults={"modo": "fixo", "preco": proc.preco, "is_active": True},
+            )
+            precos_particular += 1
+    else:
+        precos_particular = ConvenioProcedimentoPreco.objects.using(db).filter(
+            convenio=particular, loja_id=lid,
+        ).count()
 
     vinculados = (
         Patient.objects.using(db)
@@ -323,7 +347,7 @@ def aplicar_catalogo_padrao(loja, *, log: Callable[[str], None] | None = None) -
         "loja_id": lid,
         "slug": loja.slug,
         "locais": locais_aplicados,
-        "procedimentos": len(PROCEDIMENTOS_CATALOGO),
+        "procedimentos": n_proc if n_proc else Procedure.objects.using(db).filter(loja_id=lid).count(),
         "com_termo": com_termo,
         "convenio_particular_id": particular.id,
         "precos_particular": precos_particular,

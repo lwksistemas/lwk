@@ -1,34 +1,53 @@
 /**
- * Redimensionamento de colunas em tabelas HTML — arrastar a borda do cabeçalho.
- *
- * Larguras persistidas são as que o usuário escolheu. Se a soma for menor que
- * o container, o espaço extra vai para a primeira coluna (a tabela preenche a
- * tela e a última coluna não fica esticada).
+ * Redimensionamento de colunas — arrastar a borda entre duas colunas.
+ * A tabela preenche o container; o espaço extra é rateado em todas as colunas.
+ * Arrastar a borda da coluna i troca largura com a coluna i+1.
  */
 
 const MIN_COL_WIDTH = 72;
 const HEADER_PAD = 32;
-const STORAGE_PREFIX = 'lwk-table-cols-v3:';
+const STORAGE_PREFIX = 'lwk-table-cols-v4:';
+
+export function splitPairWidths(widths: number[], index: number, delta: number): number[] {
+  if (index < 0 || index >= widths.length - 1) return widths.slice();
+  const left = Math.max(MIN_COL_WIDTH, widths[index] ?? MIN_COL_WIDTH);
+  const right = Math.max(MIN_COL_WIDTH, widths[index + 1] ?? MIN_COL_WIDTH);
+  const pair = left + right;
+  const nextLeft = Math.min(pair - MIN_COL_WIDTH, Math.max(MIN_COL_WIDTH, left + delta));
+  const next = widths.slice();
+  next[index] = nextLeft;
+  next[index + 1] = pair - nextLeft;
+  return next;
+}
 
 export function applyIntendedColumnWidths(
   table: HTMLTableElement,
   cols: HTMLElement[],
   intended: number[],
 ): void {
-  const total = intended.reduce((sum, w) => sum + Math.max(MIN_COL_WIDTH, w), 0);
+  const clamped = intended.map((w) => Math.max(MIN_COL_WIDTH, w || MIN_COL_WIDTH));
+  const total = clamped.reduce((sum, w) => sum + w, 0);
   const available = table.parentElement?.clientWidth ?? 0;
-  const extra = Math.max(0, available - total);
 
+  let applied = clamped;
   table.style.tableLayout = 'fixed';
-  table.style.minWidth = `${total}px`;
   table.style.maxWidth = 'none';
-  table.style.width = extra > 0 ? '100%' : `${total}px`;
+
+  if (available > 0 && total > 0) {
+    applied = clamped.map((w) => Math.max(MIN_COL_WIDTH, (w / total) * available));
+    const drift = available - applied.reduce((sum, w) => sum + w, 0);
+    applied[applied.length - 1] = Math.max(MIN_COL_WIDTH, applied[applied.length - 1] + drift);
+    table.style.width = '100%';
+    table.style.minWidth = '0';
+  } else {
+    table.style.width = `${total}px`;
+    table.style.minWidth = `${total}px`;
+  }
 
   cols.forEach((col, i) => {
-    const base = Math.max(MIN_COL_WIDTH, intended[i] ?? MIN_COL_WIDTH);
-    col.style.width = `${i === 0 ? base + extra : base}px`;
+    col.style.width = `${applied[i]}px`;
   });
-  table.dataset.colIntendedWidths = JSON.stringify(intended.map((w) => Math.max(MIN_COL_WIDTH, w)));
+  table.dataset.colIntendedWidths = JSON.stringify(applied.map((w) => Math.round(w)));
 }
 
 function loadWidths(key: string, count: number): number[] {
@@ -159,6 +178,7 @@ export function attachResizableTableColumns(table: HTMLTableElement, storageKey:
 
   ths.forEach((th, index) => {
     if (th.querySelector('.col-resize-handle')) return;
+    if (index === ths.length - 1) return;
 
     th.classList.add('col-resize-th');
     const handle = document.createElement('div');
@@ -168,27 +188,12 @@ export function attachResizableTableColumns(table: HTMLTableElement, storageKey:
     handle.setAttribute('aria-label', 'Redimensionar coluna');
     handle.title = 'Arrastar para redimensionar · duplo clique para restaurar';
 
-    const persistWidths = (next: number[]) => {
-      saveWidths(storageKey, next);
-      applyIntendedColumnWidths(table, cols, next);
-    };
-
     handle.addEventListener('dblclick', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      let defaults: number[] = defaultWidths;
-      try {
-        const parsed = JSON.parse(table.dataset.colDefaultWidths || '[]');
-        if (Array.isArray(parsed) && parsed[index] != null) {
-          defaults = parsed;
-        }
-      } catch {
-        /* mantém defaultWidths */
-      }
-      const current = readIntended(table, cols.length);
-      const next = (current.length ? current : intended).slice();
-      next[index] = Math.max(MIN_COL_WIDTH, defaults[index] ?? 120);
-      persistWidths(next);
+      applyIntendedColumnWidths(table, cols, defaultWidths);
+      const reset = readIntended(table, cols.length);
+      if (reset.length) saveWidths(storageKey, reset);
     });
 
     handle.addEventListener('mousedown', (event) => {
@@ -198,12 +203,9 @@ export function attachResizableTableColumns(table: HTMLTableElement, storageKey:
       const startX = event.clientX;
       const stored = readIntended(table, cols.length);
       const startIntended = (stored.length ? stored : intended).slice();
-      const startWidth =
-        Math.round(cols[index].getBoundingClientRect().width) || startIntended[index] || MIN_COL_WIDTH;
 
       const onMove = (e: MouseEvent) => {
-        const next = startIntended.slice();
-        next[index] = Math.max(MIN_COL_WIDTH, startWidth + e.clientX - startX);
+        const next = splitPairWidths(startIntended, index, e.clientX - startX);
         applyIntendedColumnWidths(table, cols, next);
       };
 

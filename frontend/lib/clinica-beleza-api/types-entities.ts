@@ -38,6 +38,16 @@ export interface ProcedureConvenioPrecoItem {
   preco_efetivo?: number | null;
 }
 
+export interface ProcedimentoCategoriaItem {
+  id: number;
+  nome: string;
+  slug: string;
+  cor: string;
+  ordem: number;
+  is_active: boolean;
+  procedimentos_count?: number;
+}
+
 /** Local de atendimento para consultas */
 export interface LocalAtendimentoItem {
   id: number;

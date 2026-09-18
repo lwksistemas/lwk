@@ -7,7 +7,7 @@ from __future__ import annotations
 import calendar
 from datetime import date, datetime, timedelta
 
-from django.db.models import Count, F, Q, Sum
+from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncDay
 from django.utils.timezone import now
 
@@ -75,11 +75,6 @@ def dashboard_filter_meta(*, filter_mes: int, filter_ano: int, today: date, peri
         "period_start": period_start.isoformat(),
         "period_end": period_end.isoformat(),
     }
-
-
-def backfill_consultas_data_fim():
-    """Consultas concluídas sem data_fim (legado) — usa updated_at para o dashboard."""
-    Consulta.objects.filter(status="COMPLETED", data_fim__isnull=True).update(data_fim=F("updated_at"))
 
 
 def consulta_realizada_no_periodo_q(period_start: date, period_end: date) -> Q:

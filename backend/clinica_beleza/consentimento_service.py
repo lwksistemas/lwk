@@ -39,15 +39,6 @@ def aviso_email_paciente_suspeito(email: str) -> str | None:
     )
 
 
-def procedure_exige_termo(proc) -> bool:
-    if not proc or not getattr(proc, "termo_consentimento_ativo", False):
-        return False
-    tpl = getattr(proc, "termo_template", None)
-    if tpl and getattr(tpl, "is_active", True):
-        return True
-    return bool((getattr(proc, "termo_consentimento", None) or "").strip())
-
-
 def _procedimentos_com_termo_ativo(consulta) -> list[Procedure]:
     """Procedimentos da consulta com termo de consentimento ativo."""
     vistos: set[int] = set()
@@ -81,12 +72,6 @@ def _procedimentos_com_termo_ativo(consulta) -> list[Procedure]:
 def consulta_exige_termo_consentimento(consulta) -> bool:
     """True se há produto/procedimento com termo ativo na consulta."""
     return bool(_procedimentos_com_termo_ativo(consulta))
-
-
-def nomes_procedimentos_termo(consulta) -> str:
-    """Nomes dos procedimentos com termo ativo, para título do e-mail e tela de assinatura."""
-    nomes = [p.nome for p in _procedimentos_com_termo_ativo(consulta)]
-    return ", ".join(nomes) if nomes else "Procedimento clínico"
 
 
 def _dados_loja(loja_id: int) -> dict:
@@ -189,14 +174,6 @@ def montar_conteudo_termo_procedimento(consulta, procedure: Procedure) -> str:
     ctx_base = _ctx_base_termo(consulta)
     ctx = {**ctx_base, "procedimento": procedure.nome, "procedimentos": procedure.nome}
     return _renderizar_bloco_termo(tpl, ctx)
-
-
-def montar_conteudo_termo_consentimento(consulta) -> str:
-    """Legado — concatena todos os procedimentos (preferir termos por procedimento)."""
-    procs = _procedimentos_com_termo_ativo(consulta)
-    blocos = [montar_conteudo_termo_procedimento(consulta, p) for p in procs]
-    blocos = [b for b in blocos if b]
-    return "\n\n".join(blocos) if blocos else ""
 
 
 def sincronizar_status_consulta(consulta) -> None:

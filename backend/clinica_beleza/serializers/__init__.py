@@ -40,7 +40,11 @@ from .orcamento import (
     OrcamentoStatusSerializer,
 )
 from .patients import PatientAnamneseSerializer, PatientSerializer
-from .procedures import ProcedureProtocolSerializer, ProcedureSerializer
+from .procedures import (
+    CategoriaProcedimentoSerializer,
+    ProcedureProtocolSerializer,
+    ProcedureSerializer,
+)
 from .professionals import (
     HorarioTrabalhoProfissionalSerializer,
     ProfessionalCommissionSerializer,
@@ -55,6 +59,7 @@ __all__ = [
     "AppointmentProcedureSerializer",
     "BloqueioHorarioSerializer",
     "CategoriaEstoqueSerializer",
+    "CategoriaProcedimentoSerializer",
     "ConsultaEvolucaoSerializer",
     "ConsultaListSerializer",
     "ConsultaProdutoUtilizadoSerializer",

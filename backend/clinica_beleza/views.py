@@ -45,6 +45,8 @@ from .views_pacientes import PatientDetailView, PatientListView  # noqa: F401
 
 # Procedimentos
 from .views_procedimentos import (  # noqa: F401
+    CategoriaProcedimentoDetailView,
+    CategoriaProcedimentoListView,
     ProcedimentoConvenioPrecosMatrixView,
     ProcedureDetailView,
     ProcedureListView,

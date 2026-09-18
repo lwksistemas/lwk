@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { buscarProcedimentosOffline, salvarProcedimentosOffline } from "@/lib/offline-db";
 import { useClinicaBelezaEntityList } from "@/hooks/clinica-beleza";
 import {
   defaultCategoriaForModule,
-  procedureCategoriaLabel,
 } from "@/lib/clinica-beleza-categories";
 import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBelezaFormRouting";
 import { useLojaTheme } from "@/hooks/useLojaTheme";
@@ -13,12 +13,14 @@ import {
   buildProcedimentoCategoriaCards,
   buildProcedimentosListQuery,
   filterProcedimentosList,
+  labelCategoriaProcedimento,
 } from "./procedimentos-page-utils";
 import type { Procedure } from "./procedimentos-page-types";
 import { useProcedimentosForm } from "./useProcedimentosForm";
 import { useProcedimentosMatrix } from "./useProcedimentosMatrix";
 import type { ProcedimentosPageContentProps } from "./procedimentos-page-types";
 import type { ProcedimentoCategoriaCard } from "./ProcedimentosCategoriasGrid";
+import type { ProcedimentoCategoriaItem } from "@/lib/clinica-beleza-api";
 
 export type ProcedimentosViewMode = "categorias" | "lista";
 
@@ -42,6 +44,25 @@ export function useProcedimentosPage({
     categoriaInicial || searchParams.get("todos") === "1" ? "lista" : "categorias",
   );
   const [categoriaFilter, setCategoriaFilter] = useState(categoriaInicial);
+  const [categoriasCatalogo, setCategoriasCatalogo] = useState<ProcedimentoCategoriaItem[]>([]);
+  const [loadingCategorias, setLoadingCategorias] = useState(false);
+  const [showCategoriasModal, setShowCategoriasModal] = useState(false);
+
+  const loadCategorias = useCallback(async () => {
+    setLoadingCategorias(true);
+    try {
+      const data = await ClinicaBelezaAPI.procedures.categorias.list({ slug });
+      setCategoriasCatalogo(Array.isArray(data) ? data : []);
+    } catch {
+      setCategoriasCatalogo([]);
+    } finally {
+      setLoadingCategorias(false);
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    void loadCategorias();
+  }, [loadCategorias]);
 
   const presetCategoria =
     categoriaFilter ||
@@ -170,12 +191,17 @@ export function useProcedimentosPage({
   );
 
   const categoriaCards = useMemo(
-    () => buildProcedimentoCategoriaCards(list, moduleKey && !showAllCategories ? moduleKey : ""),
-    [list, moduleKey, showAllCategories],
+    () =>
+      buildProcedimentoCategoriaCards(
+        list,
+        moduleKey && !showAllCategories ? moduleKey : "",
+        categoriasCatalogo,
+      ),
+    [list, moduleKey, showAllCategories, categoriasCatalogo],
   );
 
   const categoriaAtualLabel = categoriaFilter
-    ? procedureCategoriaLabel(categoriaFilter) || categoriaFilter
+    ? labelCategoriaProcedimento(categoriaFilter, categoriasCatalogo)
     : "";
 
   return {
@@ -206,5 +232,10 @@ export function useProcedimentosPage({
     voltarLista,
     matrix,
     form,
+    categoriasCatalogo,
+    loadingCategorias,
+    showCategoriasModal,
+    setShowCategoriasModal,
+    recarregarCategorias: loadCategorias,
   };
 }

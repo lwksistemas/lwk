@@ -5,6 +5,7 @@ import type {
   DocumentTemplateItem,
   DocumentoClinicoItem,
   ProcedureConvenioPrecoItem,
+  ProcedimentoCategoriaItem,
   ProcedimentoConvenioPrecosMatrix,
   TermoConsentimentoConfigItem,
   TermoConsentimentoTemplateItem,
@@ -99,6 +100,15 @@ export const proceduresApi = {
   precosConvenio: (id: number) => cbGet<ProcedureConvenioPrecoItem[]>(`/procedures/${id}/precos-convenio/`),
   savePrecosConvenio: (id: number, precos: { convenio: number; preco: number | string | null }[]) =>
     cbPut<ConvenioPrecoItem[]>(`/procedures/${id}/precos-convenio/`, { precos }),
+  categorias: {
+    list: (loja?: { id?: number; slug?: string } | null) =>
+      cbGet<ProcedimentoCategoriaItem[]>("/procedures/categorias/", undefined, loja),
+    create: (data: { nome: string; cor?: string; ordem?: number }, loja?: { id?: number; slug?: string } | null) =>
+      cbPost<ProcedimentoCategoriaItem>("/procedures/categorias/", data, loja),
+    update: (id: number, data: { nome?: string; cor?: string; ordem?: number; is_active?: boolean }) =>
+      cbPut<ProcedimentoCategoriaItem>(`/procedures/categorias/${id}/`, data),
+    delete: (id: number) => cbDelete(`/procedures/categorias/${id}/`),
+  },
 };
 
 export const termosConsentimentoApi = {

@@ -1,5 +1,6 @@
 import { PROCEDURE_CATEGORIA_OPTIONS } from "@/lib/clinica-beleza-categories";
 import { toUpperCase } from "@/lib/format-br";
+import type { ProcedimentoCategoriaItem } from "@/lib/clinica-beleza-api";
 import {
   FORM_INPUT_CLASS,
   FORM_LABEL_CLASS,
@@ -9,10 +10,15 @@ import {
 
 interface ProcedimentoDadosFieldsProps {
   form: ProcedimentoFormState;
+  categorias?: ProcedimentoCategoriaItem[];
   onChange: (patch: Partial<ProcedimentoFormState>) => void;
 }
 
-export function ProcedimentoDadosFields({ form, onChange }: ProcedimentoDadosFieldsProps) {
+export function ProcedimentoDadosFields({ form, categorias = [], onChange }: ProcedimentoDadosFieldsProps) {
+  const opcoes =
+    categorias.length > 0
+      ? categorias.map((c) => ({ value: c.slug, label: c.nome }))
+      : PROCEDURE_CATEGORIA_OPTIONS.map((o) => ({ value: o.value, label: o.label }));
   return (
     <div className="space-y-4">
       <p className={FORM_SECTION_TITLE_CLASS}>Dados do procedimento</p>
@@ -35,7 +41,10 @@ export function ProcedimentoDadosFields({ form, onChange }: ProcedimentoDadosFie
             className={FORM_INPUT_CLASS}
           >
             <option value="">Selecione...</option>
-            {PROCEDURE_CATEGORIA_OPTIONS.map((opt) => (
+            {form.categoria && !opcoes.some((o) => o.value === form.categoria) && (
+              <option value={form.categoria}>{form.categoria}</option>
+            )}
+            {opcoes.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>

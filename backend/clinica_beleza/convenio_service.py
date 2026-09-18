@@ -117,3 +117,38 @@ def criar_appointment_procedures(appointment, procedures_list, *, convenio=None)
             valor=valor,
             loja_id=appointment.loja_id,
         )
+
+
+def aplicar_precos_convenio_atendimento(appointment, convenio=None) -> bool:
+    """Recalcula o valor de cada procedimento pela tabela do convênio escolhido."""
+    if appointment is None:
+        return False
+    changed = False
+    for ap in appointment.appointment_procedures.select_related("procedure").all():
+        novo = resolver_preco_procedimento(convenio, ap.procedure)
+        if ap.valor != novo:
+            ap.valor = novo
+            ap.save(update_fields=["valor"])
+            changed = True
+    cache = getattr(appointment, "_prefetched_objects_cache", None)
+    if isinstance(cache, dict):
+        cache.pop("appointment_procedures", None)
+    if changed:
+        appointment._valor_total_cache = None
+    return changed
+
+
+def sincronizar_convenio_consulta(consulta) -> None:
+    """Espelha o convênio no agendamento, aplica a tabela de preços e atualiza o recebimento."""
+    appointment = getattr(consulta, "appointment", None)
+    if appointment is None:
+        return
+    convenio = getattr(consulta, "convenio", None)
+    convenio_id = convenio.id if convenio is not None else None
+    if appointment.convenio_id != convenio_id:
+        appointment.convenio = convenio
+        appointment.save(update_fields=["convenio", "updated_at"])
+    aplicar_precos_convenio_atendimento(appointment, convenio)
+    from .consulta_service.payment import _sincronizar_recebimento_apos_procedimento
+
+    _sincronizar_recebimento_apos_procedimento(consulta)

@@ -120,17 +120,38 @@ def revenue_by_day(first_day: date, period_end: date) -> list[dict]:
 
 
 def top_procedures_realizados_periodo(period_start: date, period_end: date) -> list[dict]:
-    rows = (
-        consultas_concluidas_no_periodo(period_start, period_end)
-        .filter(procedure__isnull=False)
+    """Top 5 procedimentos das consultas finalizadas no período.
+
+    Conta cada linha de AppointmentProcedure (consultas com vários procedimentos).
+    Consultas só com o FK legado `procedure` entram se não tiverem linhas.
+    """
+    consultas = consultas_concluidas_no_periodo(period_start, period_end)
+    counts: dict[str, int] = {}
+
+    def add_rows(rows):
+        for item in rows:
+            name = item["procedure__nome"] or "Consulta"
+            counts[name] = counts.get(name, 0) + item["count"]
+
+    add_rows(
+        AppointmentProcedure.objects.filter(
+            appointment_id__in=consultas.values("appointment_id"),
+        )
         .values("procedure__nome")
-        .annotate(count=Count("id"))
-        .order_by("-count")[:5]
+        .annotate(count=Count("id")),
     )
-    return [
-        {"name": item["procedure__nome"] or "Consulta", "count": item["count"]}
-        for item in rows
-    ]
+    add_rows(
+        consultas.filter(procedure__isnull=False)
+        .annotate(n_ap=Count("appointment__appointment_procedures"))
+        .filter(n_ap=0)
+        .values("procedure__nome")
+        .annotate(count=Count("id")),
+    )
+
+    return sorted(
+        [{"name": name, "count": count} for name, count in counts.items() if count > 0],
+        key=lambda item: (-item["count"], item["name"] or ""),
+    )[:5]
 
 
 def top_soroterapia_periodo(period_start: date, period_end: date) -> list[dict]:

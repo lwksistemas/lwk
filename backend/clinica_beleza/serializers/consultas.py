@@ -300,6 +300,16 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         from ..consentimento_service import consulta_exige_termo_consentimento
         return consulta_exige_termo_consentimento(obj)
 
+    def update(self, instance, validated_data):
+        convenio_enviado = "convenio" in validated_data
+        instance = super().update(instance, validated_data)
+        if convenio_enviado:
+            from ..convenio_service import sincronizar_convenio_consulta
+
+            sincronizar_convenio_consulta(instance)
+            instance.refresh_from_db()
+        return instance
+
 
 class ConsultaListSerializer(ConsultaSerializer):
     """Serializer leve para listagens — evita N+1 em total_evolucoes e consultas de termo.

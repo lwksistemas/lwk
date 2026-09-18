@@ -34,7 +34,7 @@ class LinhasTaxaConsultaReciboTests(TestCase):
         )
         self.assertEqual(
             linhas,
-            [("Desconto retorno (prazo 30 dias)", 300.0)],
+            [("Desconto retorno", 300.0)],
         )
 
     def test_desconto_retorno_e_comercial(self):

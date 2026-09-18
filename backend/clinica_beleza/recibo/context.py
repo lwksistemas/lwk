@@ -309,13 +309,6 @@ def _linhas_taxa_consulta_recibo(ctx: dict) -> list[tuple[str, float]]:
     return []
 
 
-def _label_desconto_retorno_recibo(ctx: dict) -> str:
-    dias = ctx.get("retorno_dias")
-    if dias:
-        return f"Desconto retorno (prazo {int(dias)} dias)"
-    return "Desconto retorno"
-
-
 def _linhas_descontos_recibo(ctx: dict) -> list[tuple[str, float]]:
     """Linhas de desconto (retorno gratuito e desconto comercial)."""
     linhas: list[tuple[str, float]] = []
@@ -323,7 +316,7 @@ def _linhas_descontos_recibo(ctx: dict) -> list[tuple[str, float]]:
     if desconto_retorno <= 0 and ctx.get("retorno_gratuito"):
         desconto_retorno = float(ctx.get("taxa_consulta_referencia") or 0)
     if desconto_retorno > 0:
-        linhas.append((_label_desconto_retorno_recibo(ctx), desconto_retorno))
+        linhas.append(("Desconto retorno", desconto_retorno))
     desconto = float(ctx.get("desconto") or 0)
     if desconto > 0:
         linhas.append(("Desconto", desconto))

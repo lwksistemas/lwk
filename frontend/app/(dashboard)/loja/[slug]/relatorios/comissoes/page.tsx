@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Download, Printer, Search } from 'lucide-react';
+import { Download, Search } from 'lucide-react';
 import { clinicaBelezaFetch } from '@/lib/clinica-beleza-api';
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
+import { RelatorioPdfActions } from '@/components/clinica-beleza/relatorios-shared/RelatorioPdfActions';
+import { abrirRelatorioPdf } from '@/components/clinica-beleza/relatorios-shared/abrir-relatorio-pdf';
 
 interface DetalheComissao {
   local_nome: string;
@@ -386,8 +388,6 @@ export default function RelatorioComissoesPage() {
   const [professionals, setProfessionals] = useState<ProfessionalOption[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [clinicaNome, setClinicaNome] = useState('');
-  const [temTimbrado, setTemTimbrado] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
 
   const setAgrupamento = (value: AgrupamentoComissao) => {
     const qp = new URLSearchParams(searchParams.toString());
@@ -422,14 +422,6 @@ export default function RelatorioComissoesPage() {
           if (info.logo) setLogoUrl(info.logo);
           else if (info.login_logo) setLogoUrl(info.login_logo);
           if (info.nome) setClinicaNome(info.nome);
-        }
-      })
-      .catch(() => {});
-    clinicaBelezaFetch('/memed/timbrado/')
-      .then(async (res) => {
-        if (res.ok) {
-          const t = await res.json();
-          setTemTimbrado(Boolean(t.tem_timbrado));
         }
       })
       .catch(() => {});
@@ -530,31 +522,10 @@ export default function RelatorioComissoesPage() {
     URL.revokeObjectURL(link.href);
   };
 
-  const exportarPDF = async () => {
-    setPdfLoading(true);
-    setError('');
-    try {
-      const qp = new URLSearchParams({ data_inicio: dataInicio, data_fim: dataFim });
-      if (professionalId) qp.set('professional_id', professionalId);
-      const res = await clinicaBelezaFetch(`/relatorios/comissoes/pdf/?${qp.toString()}`);
-      if (!res.ok) {
-        setError('Não foi possível gerar o PDF. Tente novamente.');
-        return;
-      }
-      const blob = await res.blob();
-      const nomeArquivo = profissionalNome
-        ? `comissoes_${profissionalNome.replace(/\s+/g, '_')}_${dataInicio}_${dataFim}.pdf`
-        : `comissoes_${dataInicio}_${dataFim}.pdf`;
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = nomeArquivo;
-      link.click();
-      URL.revokeObjectURL(link.href);
-    } catch {
-      setError('Não foi possível gerar o PDF. Tente novamente.');
-    } finally {
-      setPdfLoading(false);
-    }
+  const abrirPdf = (modo: 'visualizar' | 'imprimir', janela: Window | null) => {
+    const qp = new URLSearchParams({ data_inicio: dataInicio, data_fim: dataFim, agrupar: agrupamento });
+    if (porProfissional && professionalId) qp.set('professional_id', professionalId);
+    return abrirRelatorioPdf(`/relatorios/comissoes/pdf/?${qp.toString()}`, modo, janela);
   };
 
   const temDados = porProfissional
@@ -572,24 +543,7 @@ export default function RelatorioComissoesPage() {
         <Download size={16} />
         <span className="hidden sm:inline">CSV</span>
       </button>
-      {porProfissional && (
-        <button
-          type="button"
-          onClick={exportarPDF}
-          disabled={!data?.profissionais.length || pdfLoading}
-          className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-white disabled:opacity-50"
-          style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
-          title={
-            !logoUrl && temTimbrado
-              ? 'PDF com papel timbrado (Configurações → Memed). Para imprimir, use o visualizador do PDF.'
-              : 'Baixar relatório em PDF. Para imprimir, use o visualizador do PDF.'
-          }
-        >
-          <Printer size={16} />
-          <span className="hidden sm:inline">{pdfLoading ? 'Gerando…' : 'PDF'}</span>
-          <span className="sm:hidden">{pdfLoading ? '…' : 'PDF'}</span>
-        </button>
-      )}
+      <RelatorioPdfActions disabled={!temDados} onPdf={abrirPdf} />
     </>
   );
 

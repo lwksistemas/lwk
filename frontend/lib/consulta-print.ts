@@ -10,8 +10,50 @@ export interface ConsultaPrintMeta {
 
 export type ConsultaPrintSecao = "atendimento" | "produtos" | "anamnese" | "evolucao" | "evolucoes";
 
-/** visualizar = abrir PDF; imprimir = abrir e acionar diálogo de impressão. */
+/** visualizar = abrir PDF na aba; imprimir = acionar o diálogo da impressora. */
 export type ConsultaPdfModo = "visualizar" | "imprimir";
+
+function escaparUrlHtml(url: string): string {
+  return url.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+/** Página HTML com o PDF embutido + window.print() — o viewer nativo ignora print(). */
+export function escreverPaginaImpressaoPdf(win: Window, url: string): void {
+  const src = escaparUrlHtml(url);
+  win.document.open();
+  win.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Imprimir</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #525659; }
+    iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  </style>
+</head>
+<body>
+  <iframe id="pdf" title="PDF" src="${src}"></iframe>
+  <script>
+    (function () {
+      var frame = document.getElementById("pdf");
+      var printed = false;
+      function go() {
+        if (printed) return;
+        printed = true;
+        try {
+          var cw = frame && frame.contentWindow;
+          if (cw) { cw.focus(); cw.print(); return; }
+        } catch (e) {}
+        try { window.focus(); window.print(); } catch (e2) {}
+      }
+      if (frame) frame.addEventListener("load", function () { setTimeout(go, 400); });
+      setTimeout(go, 1600);
+    })();
+  </script>
+</body>
+</html>`);
+  win.document.close();
+}
 
 async function extrairErroApi(response: Response): Promise<string> {
   const fallback = `Erro ao gerar PDF (${response.status})`;
@@ -29,31 +71,18 @@ async function extrairErroApi(response: Response): Promise<string> {
   return fallback;
 }
 
-function dispararImpressao(win: Window): void {
-  const tentar = () => {
-    try {
-      win.focus();
-      win.print();
-    } catch {
-      // usuário pode imprimir manualmente na aba
-    }
-  };
-  // blob:/PDF: load costuma ser imediato; espera curta cobre render do viewer
-  if (win.document?.readyState === "complete") {
-    setTimeout(tentar, 350);
-  } else {
-    win.addEventListener("load", () => setTimeout(tentar, 350), { once: true });
-    setTimeout(tentar, 800);
-  }
-}
-
 export function abrirPdfUrl(url: string, modo: ConsultaPdfModo = "visualizar"): void {
+  if (modo === "imprimir") {
+    const opened = window.open("", "_blank");
+    if (!opened) {
+      throw new Error("Permita pop-ups para imprimir o PDF.");
+    }
+    escreverPaginaImpressaoPdf(opened, url);
+    return;
+  }
   const opened = window.open(url, "_blank");
   if (!opened) {
     throw new Error("Permita pop-ups para abrir o PDF.");
-  }
-  if (modo === "imprimir") {
-    dispararImpressao(opened);
   }
 }
 
@@ -74,14 +103,14 @@ export function direcionarJanelaPdf(
   modo: ConsultaPdfModo = "visualizar",
 ): void {
   if (!win) {
-    // Sem aba pré-aberta (pop-up bloqueado no clique): tenta abrir direto.
     abrirPdfUrl(url, modo);
     return;
   }
-  win.location.href = url;
   if (modo === "imprimir") {
-    dispararImpressao(win);
+    escreverPaginaImpressaoPdf(win, url);
+    return;
   }
+  win.location.href = url;
 }
 
 /** Fecha a aba pré-aberta quando a resolução do PDF falhou. */

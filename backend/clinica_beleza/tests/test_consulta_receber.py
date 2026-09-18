@@ -252,6 +252,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         # Verifica que Payment.objects.create foi chamado com valor_total=500 (700-200 desconto)
         create_kwargs = mock_payment_model.objects.create.call_args.kwargs
         self.assertEqual(create_kwargs["valor_total"], Decimal(500))
+        self.assertEqual(create_kwargs["desconto"], Decimal(200))
         self.assertEqual(payment.status, "DRAFT")
         self.assertEqual(mock_parcela_model.objects.create.call_count, 3)
         mock_atualizar_status.assert_called_once_with(consulta, payment)

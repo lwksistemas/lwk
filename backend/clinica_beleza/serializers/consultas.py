@@ -89,6 +89,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     exige_termo_consentimento = serializers.SerializerMethodField()
     valor_pago = serializers.SerializerMethodField()
     valor_restante = serializers.SerializerMethodField()
+    desconto = serializers.SerializerMethodField()
     payment_status = serializers.SerializerMethodField()
     payment_method = serializers.SerializerMethodField()
     payment_id = serializers.SerializerMethodField()
@@ -106,7 +107,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             "procedure", "procedure_name", "procedures_list", "protocol", "protocol_name", "status",
             "data_inicio", "data_fim", "duracao_minutos", "observacoes_gerais", "protocolo_notas",
             "valor_consulta", "valor_procedimentos", "valor_pagamento",
-            "valor_pago", "valor_restante", "payment_status", "payment_method", "payment_id", "payment_date",
+            "valor_pago", "valor_restante", "desconto", "payment_status", "payment_method", "payment_id", "payment_date",
             "retorno_gratuito", "retorno_tipo", "retorno_dias_prazo", "retorno_aviso_recibo",
             "local_atendimento", "local_atendimento_name", "local_atendimento_valor_consulta",
             "convenio", "convenio_name",
@@ -250,6 +251,14 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         except Exception:
             vc = float(self.get_valor_pagamento(obj) or 0)
             return max(0.0, vc - float(payment.amount or 0))
+
+    def get_desconto(self, obj):
+        payment = self._get_payment(obj)
+        if payment is None:
+            return 0.0
+        from ..recibo.context import desconto_concedido
+
+        return desconto_concedido(payment)
 
     def get_payment_id(self, obj):
         """ID do Payment vinculado (para acessar parcelas via /payments/<id>/parcelas/)."""

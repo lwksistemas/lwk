@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { enhanceResizableTables } from '@/lib/resizable-table-columns';
+import { enhanceResizableTables, resyncResizableTables } from '@/lib/resizable-table-columns';
 
 function isDashboardPath(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -35,10 +35,12 @@ export function TableColumnsResizer() {
 
     const observer = new MutationObserver(run);
     observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener('resize', resyncResizableTables);
 
     return () => {
       if (debounceId) clearTimeout(debounceId);
       observer.disconnect();
+      window.removeEventListener('resize', resyncResizableTables);
     };
   }, [pathname]);
 

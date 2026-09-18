@@ -67,6 +67,7 @@ def _garantir_ou_criar_payment(consulta_service, appointment, valor_total, metod
             comissao_percentual=comissao_pct,
             comissao_valor=comissao_val,
             loja_id=appointment.loja_id,
+            desconto=valor_desconto if valor_desconto > 0 else Decimal(0),
             notes=f"Desconto: R$ {valor_desconto}" if valor_desconto > 0 else None,
         )
     payment.valor_total = valor_total
@@ -74,6 +75,7 @@ def _garantir_ou_criar_payment(consulta_service, appointment, valor_total, metod
     payment.comissao_percentual = comissao_pct
     payment.comissao_valor = comissao_val
     if valor_desconto > 0:
+        payment.desconto = valor_desconto
         payment.notes = f"Desconto: R$ {valor_desconto}"
     return payment
 
@@ -116,6 +118,9 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
         payment.status = "DRAFT"
         payment.amount = max(total_pago, valor_total) if quitou else total_pago
     update_fields = ["amount", "valor_total", "payment_method", "status", "payment_date", "comissao_percentual", "comissao_valor", "updated_at"]
+    if valor_desconto > 0:
+        payment.desconto = valor_desconto
+        update_fields.append("desconto")
     if valor_desconto > 0 or so_prazo:
         update_fields.append("notes")
     payment.save(update_fields=update_fields)

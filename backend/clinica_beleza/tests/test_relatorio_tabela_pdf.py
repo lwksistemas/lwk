@@ -9,6 +9,7 @@ from clinica_beleza.relatorio_tabela_pdf import (
     _fmt_iso_br,
     agrupar_comissoes_para_pdf,
     gerar_pdf_comissoes_agrupado,
+    gerar_pdf_descontos,
     gerar_pdf_faturamento,
     gerar_pdf_lancamentos,
 )
@@ -124,7 +125,40 @@ class GerarPdfTabelaTest(SimpleTestCase):
         )
         self.assertTrue(buf.getvalue().startswith(b"%PDF"))
 
-    def test_faturamento_gera_pdf(self):
+    def test_descontos_gera_pdf(self):
+        resultado = {
+            "profissionais": [{
+                "professional_id": 1,
+                "nome": "Marina",
+                "total_atendimentos": 1,
+                "desconto_total": 150,
+                "valor_bruto": 450,
+                "valor_liquido": 300,
+                "lancamentos": [{
+                    "payment_id": 22,
+                    "data": "2026-09-18",
+                    "paciente": "TAMIRES FURONI",
+                    "procedimentos": "DEPILAÇÃO A LASER",
+                    "convenio": "Particular",
+                    "valor_bruto": 450,
+                    "desconto": 150,
+                    "valor_liquido": 300,
+                }],
+            }],
+            "totais": {
+                "total_atendimentos": 1,
+                "desconto_total": 150,
+                "valor_bruto": 450,
+                "valor_liquido": 300,
+            },
+        }
+        buf = gerar_pdf_descontos(
+            resultado=resultado,
+            loja=self.loja,
+            data_inicio=date(2026, 9, 1),
+            data_fim=date(2026, 9, 18),
+        )
+        self.assertTrue(buf.getvalue().startswith(b"%PDF"))
         resultado = {
             "linhas": [{
                 "nome": "Marina",

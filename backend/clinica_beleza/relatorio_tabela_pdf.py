@@ -282,6 +282,81 @@ def gerar_pdf_lancamentos(
     return finalize_pdf_com_timbrado(buffer, tipo_cab, dados_cab)
 
 
+def gerar_pdf_descontos(
+    *,
+    resultado: dict,
+    loja,
+    data_inicio: date | None,
+    data_fim: date | None,
+) -> BytesIO:
+    buffer, doc, styles, titulo_style, subtitulo_style, secao_style, tipo_cab, dados_cab, largura = (
+        _iniciar_pdf(loja, usar_paisagem=True)
+    )
+    elements = []
+    elements.extend(_cabecalho_elements(tipo_cab, dados_cab, titulo_style))
+    elements.extend(_periodo_elements(
+        "Descontos concedidos", titulo_style, subtitulo_style, data_inicio, data_fim, None,
+    ))
+
+    totais = resultado.get("totais") or {}
+    elements.append(Paragraph(
+        f'{totais.get("total_atendimentos", 0)} atendimentos com desconto · '
+        f'Desconto {_fmt_brl(totais.get("desconto_total"))} · '
+        f'Bruto {_fmt_brl(totais.get("valor_bruto"))} · '
+        f'Líquido {_fmt_brl(totais.get("valor_liquido"))}',
+        subtitulo_style,
+    ))
+    elements.append(Spacer(1, 2 * mm))
+
+    profissionais = resultado.get("profissionais") or []
+    if not profissionais:
+        elements.append(Paragraph("Nenhum desconto no período.", styles["Normal"]))
+    else:
+        col_w = [
+            largura * 0.10,
+            largura * 0.22,
+            largura * 0.26,
+            largura * 0.12,
+            largura * 0.10,
+            largura * 0.10,
+            largura * 0.10,
+        ]
+        headers = ["Data", "Paciente", "Procedimentos", "Convênio", "Bruto", "Desconto", "Líquido"]
+        for p in profissionais:
+            n = p.get("total_atendimentos") or 0
+            elements.append(Paragraph(
+                f'{p.get("nome") or "—"} — {n} cliente{"s" if n != 1 else ""} · '
+                f'desconto {_fmt_brl(p.get("desconto_total"))}',
+                secao_style,
+            ))
+            rows = [
+                [
+                    _fmt_iso_br(l.get("data")),
+                    l.get("paciente") or "—",
+                    l.get("procedimentos") or "—",
+                    l.get("convenio") or "—",
+                    _fmt_brl(l.get("valor_bruto")),
+                    _fmt_brl(l.get("desconto")),
+                    _fmt_brl(l.get("valor_liquido")),
+                ]
+                for l in (p.get("lancamentos") or [])
+            ]
+            footer = [
+                "Total",
+                "",
+                "",
+                "",
+                _fmt_brl(p.get("valor_bruto")),
+                _fmt_brl(p.get("desconto_total")),
+                _fmt_brl(p.get("valor_liquido")),
+            ]
+            elements.append(_tabela_mista(headers, rows, footer, col_w, n_texto=4))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return finalize_pdf_com_timbrado(buffer, tipo_cab, dados_cab)
+
+
 _FATURAMENTO_TITULO = {
     "profissional": "Faturamento por Profissional",
     "procedimento": "Faturamento por Procedimento",

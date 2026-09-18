@@ -47,7 +47,7 @@ export function RelatorioPdfActions({ disabled, onPdf }: Props) {
         type="button"
         onClick={() => void run("visualizar")}
         disabled={disabled || Boolean(loading)}
-        title="Visualizar PDF"
+        title="Abrir PDF em nova aba"
         className={`${btnBase} text-white`}
         style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
       >
@@ -58,11 +58,11 @@ export function RelatorioPdfActions({ disabled, onPdf }: Props) {
         type="button"
         onClick={() => void run("imprimir")}
         disabled={disabled || Boolean(loading)}
-        title="Imprimir PDF"
+        title="Enviar para a impressora"
         className={`${btnBase} border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100`}
       >
         <Printer size={16} />
-        <span className="hidden sm:inline">{loading === "imprimir" ? "Abrindo…" : "Imprimir"}</span>
+        <span className="hidden sm:inline">{loading === "imprimir" ? "Imprimindo…" : "Imprimir"}</span>
       </button>
     </>
   );

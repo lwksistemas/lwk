@@ -51,6 +51,8 @@ export interface Consulta {
   valor_pagamento?: string | number;
   /** Valor já pago pelo cliente (pagamento antecipado na recepção). */
   valor_pago?: number | null;
+  /** Desconto comercial (R$) concedido no Receber. */
+  desconto?: number | null;
   /** Saldo ainda em aberto (valor_pagamento - valor_pago). */
   valor_restante?: number | null;
   /** Status do pagamento existente: PAID, PENDING, PARTIAL, PRAZO ou null. */

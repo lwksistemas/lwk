@@ -248,7 +248,7 @@ export function ModalReceberConsulta({
     // Recibo do cliente: todas as formas já pagas + total acumulado (não só esta operação).
     let entradasRecibo = reciboSnapshot?.entradas ?? [];
     let valorPagoRecibo = reciboSnapshot?.totalLiquido ?? Number(c.valor_pago ?? 0);
-    let descontoRecibo = reciboSnapshot?.desconto ?? 0;
+    let descontoRecibo = reciboSnapshot?.desconto ?? Number(c.desconto ?? 0);
     if (c.payment_id) {
       try {
         const parcelasRes = (await ClinicaBelezaAPI.financeiro.payments.parcelas.list(

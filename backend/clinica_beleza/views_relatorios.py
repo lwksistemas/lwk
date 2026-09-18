@@ -359,6 +359,53 @@ class RelatorioLancamentosPdfView(APIView):
         )
 
 
+class RelatorioDescontosView(APIView):
+    """GET /clinica-beleza/relatorios/descontos/?data_inicio=&data_fim=&professional_id="""
+
+    permission_classes = CLINICA_FINANCEIRO
+
+    def get(self, request):
+        from .descontos_relatorio_service import calcular_descontos
+
+        data_inicio, data_fim, professional_id = _parse_filtros_comissoes(request)
+        return Response(calcular_descontos(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            professional_id=professional_id,
+        ))
+
+
+class RelatorioDescontosPdfView(APIView):
+    """GET /clinica-beleza/relatorios/descontos/pdf/"""
+
+    permission_classes = CLINICA_FINANCEIRO
+
+    def get(self, request):
+        from .descontos_relatorio_service import calcular_descontos
+        from .relatorio_tabela_pdf import gerar_pdf_descontos
+
+        data_inicio, data_fim, professional_id = _parse_filtros_comissoes(request)
+        loja = _loja_atual()
+        if not loja:
+            return Response({"error": "Loja não encontrada."}, status=404)
+
+        resultado = calcular_descontos(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            professional_id=professional_id,
+        )
+        pdf_buffer = gerar_pdf_descontos(
+            resultado=resultado,
+            loja=loja,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+        )
+        return _pdf_response(
+            pdf_buffer,
+            _filename_periodo("descontos", data_inicio, data_fim, _profissional_nome(professional_id)),
+        )
+
+
 class RelatorioRepasseConsultaView(APIView):
     """GET /clinica-beleza/relatorios/repasse-consultas/ — atendimento a atendimento."""
 

@@ -49,6 +49,17 @@ def _extrair_desconto_notes(payment) -> float:
         return 0.0
 
 
+def desconto_concedido(payment) -> float:
+    """Desconto comercial do atendimento: campo Payment.desconto, senão notes."""
+    try:
+        campo = float(getattr(payment, "desconto", 0) or 0)
+    except (TypeError, ValueError):
+        campo = 0.0
+    if campo > 0:
+        return campo
+    return _extrair_desconto_notes(payment)
+
+
 def _buscar_procedimentos_recibo(appointment) -> list[dict]:
     procs = []
     try:
@@ -142,7 +153,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     procs = _buscar_procedimentos_recibo(appointment)
 
     taxa_info = _calcular_taxa_retorno_recibo(appointment, payment.loja_id)
-    desconto = _extrair_desconto_notes(payment)
+    desconto = desconto_concedido(payment)
     valor_total = float(payment.valor_total_efetivo)
     valor_pago = float(payment.amount or 0)
     subtotal, desconto_retorno = _calcular_subtotal_recibo(taxa_info, procs, valor_total, desconto)

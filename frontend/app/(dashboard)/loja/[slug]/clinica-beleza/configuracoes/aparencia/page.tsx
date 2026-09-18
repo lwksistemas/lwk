@@ -31,6 +31,10 @@ import {
   COLUNAS_ESTOQUE_DISPONIVEIS,
   DEFAULT_COLUNAS_ESTOQUE,
 } from '@/lib/clinica-estoque-colunas-config';
+import {
+  COLUNAS_PACIENTES_DISPONIVEIS,
+  DEFAULT_COLUNAS_PACIENTES,
+} from '@/lib/clinica-pacientes-colunas-config';
 
 const CORES_PRE_DEFINIDAS: LoginColorPreset[] = [
   { nome: 'Burgundy', primaria: '#8B3D52', secundaria: '#6B2F40' },
@@ -58,6 +62,7 @@ type LoginConfigResponse = {
   agenda_status_colors?: Record<string, { bg?: string; border?: string }> | null;
   colunas_consultas?: string[] | null;
   colunas_estoque?: string[] | null;
+  colunas_pacientes?: string[] | null;
 };
 
 function toHexInput(value: string, fallback: string): string {
@@ -87,6 +92,9 @@ export default function ClinicaBelezaAparenciaPage() {
   const [colunasEstoque, setColunasEstoque] = useState<string[]>(
     () => [...DEFAULT_COLUNAS_ESTOQUE],
   );
+  const [colunasPacientes, setColunasPacientes] = useState<string[]>(
+    () => [...DEFAULT_COLUNAS_PACIENTES],
+  );
   /** Evita auto-save no carregamento inicial. */
   const coresProntasRef = useRef(false);
   const autoSaveTimerRef = useRef<number | null>(null);
@@ -109,6 +117,11 @@ export default function ClinicaBelezaAparenciaPage() {
         data.colunas_estoque && data.colunas_estoque.length > 0
           ? data.colunas_estoque
           : [...DEFAULT_COLUNAS_ESTOQUE],
+      );
+      setColunasPacientes(
+        data.colunas_pacientes && data.colunas_pacientes.length > 0
+          ? data.colunas_pacientes
+          : [...DEFAULT_COLUNAS_PACIENTES],
       );
     } catch (err) {
       logger.warn('Erro ao carregar identidade visual:', err);
@@ -238,6 +251,7 @@ export default function ClinicaBelezaAparenciaPage() {
         agenda_status_colors: agendaPayload,
         colunas_consultas: colunasConsultas,
         colunas_estoque: colunasEstoque,
+        colunas_pacientes: colunasPacientes,
       });
       applyColors(
         {
@@ -526,6 +540,18 @@ export default function ClinicaBelezaAparenciaPage() {
               colunasDisponiveis={COLUNAS_ESTOQUE_DISPONIVEIS}
               colunas={colunasEstoque}
               onSave={setColunasEstoque}
+              onError={(msg) => toast.error(msg)}
+              minColunas={3}
+              className="!border-0 !shadow-none !p-0 !bg-transparent dark:!bg-transparent"
+            />
+
+            <ColunasSection
+              sectionId="colunas-pacientes"
+              title="Colunas da listagem de Clientes"
+              description="Escolha quais informações aparecem em Clínica → Clientes. Clique na linha para editar; prontuário e exclusão ficam na ficha do cliente."
+              colunasDisponiveis={COLUNAS_PACIENTES_DISPONIVEIS}
+              colunas={colunasPacientes}
+              onSave={setColunasPacientes}
               onError={(msg) => toast.error(msg)}
               minColunas={3}
               className="!border-0 !shadow-none !p-0 !bg-transparent dark:!bg-transparent"

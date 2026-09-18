@@ -73,6 +73,17 @@ COLUNAS_ESTOQUE_ALLOWED = frozenset({
     "status",
 })
 
+COLUNAS_PACIENTES_ALLOWED = frozenset({
+    "nome",
+    "telefone",
+    "email",
+    "cpf",
+    "convenio",
+    "data_nascimento",
+    "cidade",
+    "sexo",
+})
+
 
 def _sanitize_colunas_keys(raw: Any, allowed: frozenset[str]) -> list[str]:
     if not isinstance(raw, list):
@@ -97,3 +108,8 @@ def sanitize_colunas_consultas(raw: Any) -> list[str]:
 def sanitize_colunas_estoque(raw: Any) -> list[str]:
     """Lista ordenada de chaves de coluna do Estoque (sem duplicatas)."""
     return _sanitize_colunas_keys(raw, COLUNAS_ESTOQUE_ALLOWED)
+
+
+def sanitize_colunas_pacientes(raw: Any) -> list[str]:
+    """Lista ordenada de chaves de coluna de Clientes (sem duplicatas, sem Ações)."""
+    return _sanitize_colunas_keys(raw, COLUNAS_PACIENTES_ALLOWED)

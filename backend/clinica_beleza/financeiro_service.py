@@ -133,9 +133,11 @@ def aplicar_desconto_payment(payment, desconto_raw):
         return Decimal(0)
     novo_total = max(Decimal(0), payment.valor_total_efetivo - desconto)
     payment.valor_total = novo_total
+    atual = Decimal(str(payment.desconto or 0))
+    payment.desconto = atual + desconto
     notas_desc = f"Desconto: R$ {desconto:.2f}"
     payment.notes = f"{payment.notes or ''}\n{notas_desc}".strip() if payment.notes else notas_desc
-    payment.save(update_fields=["valor_total", "notes", "updated_at"])
+    payment.save(update_fields=["valor_total", "notes", "desconto", "updated_at"])
     return desconto
 
 

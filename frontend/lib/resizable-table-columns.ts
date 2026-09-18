@@ -1,12 +1,35 @@
 /**
  * Redimensionamento de colunas em tabelas HTML — arrastar a borda do cabeçalho.
- * A largura da tabela segue a soma das colunas (não 100%), para a última
- * coluna não absorver espaço em branco nem ficar esmagada.
- * Persiste larguras no localStorage por página + índice da tabela.
+ *
+ * Larguras persistidas são as que o usuário escolheu. Se a soma for menor que
+ * o container, o espaço extra vai para a primeira coluna (a tabela preenche a
+ * tela e a última coluna não fica esticada).
  */
 
-const MIN_COL_WIDTH = 56;
-const STORAGE_PREFIX = 'lwk-table-cols-v2:';
+const MIN_COL_WIDTH = 72;
+const HEADER_PAD = 32;
+const STORAGE_PREFIX = 'lwk-table-cols-v3:';
+
+export function applyIntendedColumnWidths(
+  table: HTMLTableElement,
+  cols: HTMLElement[],
+  intended: number[],
+): void {
+  const total = intended.reduce((sum, w) => sum + Math.max(MIN_COL_WIDTH, w), 0);
+  const available = table.parentElement?.clientWidth ?? 0;
+  const extra = Math.max(0, available - total);
+
+  table.style.tableLayout = 'fixed';
+  table.style.minWidth = `${total}px`;
+  table.style.maxWidth = 'none';
+  table.style.width = extra > 0 ? '100%' : `${total}px`;
+
+  cols.forEach((col, i) => {
+    const base = Math.max(MIN_COL_WIDTH, intended[i] ?? MIN_COL_WIDTH);
+    col.style.width = `${i === 0 ? base + extra : base}px`;
+  });
+  table.dataset.colIntendedWidths = JSON.stringify(intended.map((w) => Math.max(MIN_COL_WIDTH, w)));
+}
 
 function loadWidths(key: string, count: number): number[] {
   if (typeof window === 'undefined') return [];
@@ -29,13 +52,42 @@ function saveWidths(key: string, widths: number[]) {
   }
 }
 
+const resizeObservers = new WeakMap<HTMLTableElement, ResizeObserver>();
+
+function readIntended(table: HTMLTableElement, count: number): number[] {
+  try {
+    const parsed = JSON.parse(table.dataset.colIntendedWidths || '[]');
+    if (Array.isArray(parsed) && parsed.length === count) {
+      return parsed.map((n) =>
+        typeof n === 'number' && n >= MIN_COL_WIDTH ? n : MIN_COL_WIDTH,
+      );
+    }
+  } catch {
+    /* ignora */
+  }
+  return [];
+}
+
+function resetEnhancement(table: HTMLTableElement) {
+  resizeObservers.get(table)?.disconnect();
+  resizeObservers.delete(table);
+  delete table.dataset.colResizeObserver;
+  table.dataset.resizableEnhanced = 'false';
+  table.querySelectorAll('.col-resize-handle').forEach((h) => h.remove());
+}
+
 function shouldSkipTable(table: HTMLTableElement): boolean {
   if (table.dataset.resizableColumns === 'off') return true;
   if (table.closest('[data-resizable-columns="off"]')) return true;
   if (table.closest('.fc')) return true;
-  if (table.dataset.resizableEnhanced === 'true') return true;
   const ths = table.querySelectorAll('thead tr:first-child th');
-  return ths.length < 2;
+  if (ths.length < 2) return true;
+  if (table.dataset.resizableEnhanced === 'true') {
+    const cols = table.querySelectorAll('colgroup col');
+    if (cols.length === ths.length) return true;
+    resetEnhancement(table);
+  }
+  return false;
 }
 
 function ensureColgroup(table: HTMLTableElement, count: number): HTMLElement[] {
@@ -53,19 +105,6 @@ function ensureColgroup(table: HTMLTableElement, count: number): HTMLElement[] {
   return Array.from(colgroup.querySelectorAll('col'));
 }
 
-function readColWidth(col: HTMLElement): number {
-  const parsed = Number.parseFloat(col.style.width);
-  if (Number.isFinite(parsed) && parsed >= MIN_COL_WIDTH) return parsed;
-  return Math.max(MIN_COL_WIDTH, Math.round(col.getBoundingClientRect().width) || MIN_COL_WIDTH);
-}
-
-function syncTableWidth(table: HTMLTableElement, cols: HTMLElement[]) {
-  const total = cols.reduce((sum, col) => sum + readColWidth(col), 0);
-  table.style.width = `${total}px`;
-  table.style.minWidth = `${total}px`;
-  table.style.maxWidth = 'none';
-}
-
 function measureDefaultWidths(table: HTMLTableElement, ths: HTMLTableCellElement[]): number[] {
   const prevWidth = table.style.width;
   const prevMin = table.style.minWidth;
@@ -73,9 +112,11 @@ function measureDefaultWidths(table: HTMLTableElement, ths: HTMLTableCellElement
   table.style.tableLayout = 'auto';
   table.style.width = 'max-content';
   table.style.minWidth = '0';
-  const widths = ths.map((th) =>
-    Math.max(MIN_COL_WIDTH, Math.round(th.scrollWidth) || Math.round(th.getBoundingClientRect().width) || 120),
-  );
+  const widths = ths.map((th) => {
+    const rect = Math.round(th.getBoundingClientRect().width);
+    const scroll = Math.round(th.scrollWidth);
+    return Math.max(MIN_COL_WIDTH, rect, scroll + HEADER_PAD);
+  });
   table.style.tableLayout = prevLayout;
   table.style.width = prevWidth;
   table.style.minWidth = prevMin;
@@ -96,16 +137,25 @@ export function attachResizableTableColumns(table: HTMLTableElement, storageKey:
 
   table.dataset.resizableEnhanced = 'true';
   table.classList.add('table-cols-resizable');
-  table.style.tableLayout = 'fixed';
 
   const cols = ensureColgroup(table, ths.length);
   const saved = loadWidths(storageKey, ths.length);
+  const intended = ths.map((_, index) => saved[index] || defaultWidths[index]);
+  applyIntendedColumnWidths(table, cols, intended);
 
-  ths.forEach((th, index) => {
-    const width = (saved[index] || defaultWidths[index]);
-    cols[index].style.width = `${Math.max(MIN_COL_WIDTH, width)}px`;
-  });
-  syncTableWidth(table, cols);
+  if (!table.dataset.colResizeObserver) {
+    table.dataset.colResizeObserver = '1';
+    const parent = table.parentElement;
+    if (parent && typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        const liveCols = Array.from(table.querySelectorAll('colgroup col')) as HTMLElement[];
+        const current = readIntended(table, liveCols.length);
+        if (current.length) applyIntendedColumnWidths(table, liveCols, current);
+      });
+      ro.observe(parent);
+      resizeObservers.set(table, ro);
+    }
+  }
 
   ths.forEach((th, index) => {
     if (th.querySelector('.col-resize-handle')) return;
@@ -118,10 +168,9 @@ export function attachResizableTableColumns(table: HTMLTableElement, storageKey:
     handle.setAttribute('aria-label', 'Redimensionar coluna');
     handle.title = 'Arrastar para redimensionar · duplo clique para restaurar';
 
-    const persistWidths = () => {
-      const widths = cols.map((col) => Math.round(readColWidth(col)));
-      saveWidths(storageKey, widths);
-      syncTableWidth(table, cols);
+    const persistWidths = (next: number[]) => {
+      saveWidths(storageKey, next);
+      applyIntendedColumnWidths(table, cols, next);
     };
 
     handle.addEventListener('dblclick', (event) => {
@@ -136,9 +185,10 @@ export function attachResizableTableColumns(table: HTMLTableElement, storageKey:
       } catch {
         /* mantém defaultWidths */
       }
-      const resetW = Math.max(MIN_COL_WIDTH, defaults[index] ?? 120);
-      cols[index].style.width = `${resetW}px`;
-      persistWidths();
+      const current = readIntended(table, cols.length);
+      const next = (current.length ? current : intended).slice();
+      next[index] = Math.max(MIN_COL_WIDTH, defaults[index] ?? 120);
+      persistWidths(next);
     });
 
     handle.addEventListener('mousedown', (event) => {
@@ -146,19 +196,23 @@ export function attachResizableTableColumns(table: HTMLTableElement, storageKey:
       event.stopPropagation();
 
       const startX = event.clientX;
-      const startWidth = readColWidth(cols[index]);
+      const stored = readIntended(table, cols.length);
+      const startIntended = (stored.length ? stored : intended).slice();
+      const startWidth =
+        Math.round(cols[index].getBoundingClientRect().width) || startIntended[index] || MIN_COL_WIDTH;
 
       const onMove = (e: MouseEvent) => {
-        const next = Math.max(MIN_COL_WIDTH, startWidth + e.clientX - startX);
-        cols[index].style.width = `${next}px`;
-        syncTableWidth(table, cols);
+        const next = startIntended.slice();
+        next[index] = Math.max(MIN_COL_WIDTH, startWidth + e.clientX - startX);
+        applyIntendedColumnWidths(table, cols, next);
       };
 
       const onUp = () => {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         document.body.classList.remove('col-resize-active');
-        persistWidths();
+        const next = readIntended(table, cols.length);
+        if (next.length) saveWidths(storageKey, next);
       };
 
       document.body.classList.add('col-resize-active');
@@ -178,5 +232,17 @@ export function enhanceResizableTables(pathname: string): void {
     const table = node as HTMLTableElement;
     const key = `${pathname}#${index}`;
     attachResizableTableColumns(table, key);
+  });
+}
+
+export function resyncResizableTables(): void {
+  if (typeof document === 'undefined') return;
+  document.querySelectorAll('table.table-cols-resizable').forEach((node) => {
+    const table = node as HTMLTableElement;
+    const cols = Array.from(table.querySelectorAll('colgroup col')) as HTMLElement[];
+    const intended = readIntended(table, cols.length);
+    if (intended.length && cols.length === intended.length) {
+      applyIntendedColumnWidths(table, cols, intended);
+    }
   });
 }

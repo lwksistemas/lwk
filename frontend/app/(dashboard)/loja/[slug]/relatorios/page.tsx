@@ -11,6 +11,7 @@ import {
   FileText,
   Heart,
   MapPin,
+  Percent,
   User,
 } from 'lucide-react';
 
@@ -97,6 +98,12 @@ const CATEGORIAS: CategoriaRelatorio[] = [
         descricao: 'Total por profissional com o nome de cada paciente lançado no financeiro',
         href: 'lancamentos',
         icon: ClipboardList,
+      },
+      {
+        titulo: 'Descontos concedidos',
+        descricao: 'Total de descontos por profissional, com o nome de cada cliente',
+        href: 'descontos',
+        icon: Percent,
       },
     ],
   },

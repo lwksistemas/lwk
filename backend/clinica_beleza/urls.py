@@ -153,6 +153,8 @@ from .views_relatorios import (
     RelatorioFaturamentoView,
     RelatorioLancamentosPdfView,
     RelatorioLancamentosView,
+    RelatorioDescontosPdfView,
+    RelatorioDescontosView,
     RelatorioRepasseConsultaPdfView,
     RelatorioRepasseConsultaView,
 )
@@ -361,6 +363,8 @@ urlpatterns = [
     path("relatorios/faturamento/pdf/", RelatorioFaturamentoPdfView.as_view(), name="relatorio-faturamento-pdf"),
     path("relatorios/lancamentos/", RelatorioLancamentosView.as_view(), name="relatorio-lancamentos"),
     path("relatorios/lancamentos/pdf/", RelatorioLancamentosPdfView.as_view(), name="relatorio-lancamentos-pdf"),
+    path("relatorios/descontos/", RelatorioDescontosView.as_view(), name="relatorio-descontos"),
+    path("relatorios/descontos/pdf/", RelatorioDescontosPdfView.as_view(), name="relatorio-descontos-pdf"),
     path("relatorios/repasse-consultas/", RelatorioRepasseConsultaView.as_view(), name="relatorio-repasse-consultas"),
     path("relatorios/repasse-consultas/pdf/", RelatorioRepasseConsultaPdfView.as_view(), name="relatorio-repasse-consultas-pdf"),
 

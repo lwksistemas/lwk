@@ -693,7 +693,12 @@ html.dark .clinica-geral-app .border-slate-100 {
   table-layout: fixed;
 }
 
-.table-cols-resizable th.col-resize-th,
+.table-cols-resizable th.col-resize-th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .table-cols-resizable td {
   overflow: hidden;
   text-overflow: ellipsis;

@@ -84,11 +84,18 @@ class GerarPdfReciboTests(SimpleTestCase):
         self.assertTrue(pdf[:5] == b"%PDF-")
 
     def test_gera_pdf_com_desconto(self):
-        """PDF com desconto aplicado."""
+        """PDF com desconto aplicado mostra a linha Desconto."""
+        from io import BytesIO
+
+        from pypdf import PdfReader
+
         from clinica_beleza.recibo_service import _gerar_pdf_recibo
-        ctx = self._ctx(desconto=100.0, valor_pago=2100.0)
+        ctx = self._ctx(desconto=100.0, valor_pago=2100.0, valor_total=2100.0, subtotal=2200.0)
         pdf = _gerar_pdf_recibo(ctx)
         self.assertGreater(len(pdf), 100)
+        texto = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages)
+        self.assertIn("Desconto", texto)
+        self.assertIn("100.00", texto)
 
     def test_gera_pdf_dados_loja_vazios(self):
         """PDF com dados da loja vazios não quebra."""

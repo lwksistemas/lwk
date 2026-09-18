@@ -113,6 +113,7 @@ export function ProcedimentosCategoriasModal({ open, onClose, onChanged, lojaCtx
   return (
     <ClinicaBelezaPortraitModal
       open={open}
+      layout="landscape"
       onClose={() => {
         resetForm();
         onClose();
@@ -156,24 +157,26 @@ export function ProcedimentosCategoriasModal({ open, onClose, onChanged, lojaCtx
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
             {editingId ? "Editar categoria" : "Nova categoria"}
           </p>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nome</label>
-            <input
-              type="text"
-              value={formNome}
-              onChange={(e) => setFormNome(e.target.value)}
-              className={FORM_INPUT_CLASS}
-              placeholder="Ex.: Harmonização facial"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Cor</label>
-            <input
-              type="color"
-              value={formCor}
-              onChange={(e) => setFormCor(e.target.value)}
-              className="h-9 w-16 rounded border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nome</label>
+              <input
+                type="text"
+                value={formNome}
+                onChange={(e) => setFormNome(e.target.value)}
+                className={FORM_INPUT_CLASS}
+                placeholder="Ex.: Harmonização facial"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Cor</label>
+              <input
+                type="color"
+                value={formCor}
+                onChange={(e) => setFormCor(e.target.value)}
+                className="h-9 w-16 rounded border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-800"
+              />
+            </div>
           </div>
           <div className="flex gap-2">
             <button
@@ -206,7 +209,7 @@ export function ProcedimentosCategoriasModal({ open, onClose, onChanged, lojaCtx
           Nenhuma categoria cadastrada.
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {categorias.map((cat) => (
             <li
               key={cat.id}

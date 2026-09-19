@@ -119,13 +119,25 @@ export function ConsultaPagamentoButton({
   }
 
   if (mostrarPago) {
+    // Comprovante só disponível após finalizar a consulta.
+    const podeComprovante = consultaFinalizada && onReceber;
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-green-600 cursor-pointer hover:bg-green-700 ${pad}`}
-        title="Pago — clique para reimprimir/reenviar recibo"
+        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-green-600 ${pad} ${
+          podeComprovante ? "cursor-pointer hover:bg-green-700" : "cursor-default opacity-90"
+        }`}
+        title={
+          podeComprovante
+            ? "Pago — clique para reimprimir/reenviar recibo"
+            : "Pago — o comprovante fica disponível após finalizar a consulta"
+        }
         onClick={(e) => {
           e.stopPropagation();
-          if (onReceber) onReceber(consulta);
+          if (podeComprovante) {
+            onReceber(consulta);
+          } else if (!consultaFinalizada) {
+            toast.info("O comprovante fica disponível após finalizar a consulta.");
+          }
         }}
       >
         <CheckCircle2 size={iconSize} />
@@ -135,6 +147,7 @@ export function ConsultaPagamentoButton({
   }
 
   if (mostrarRecibo) {
+    // Recibo (retorno gratuito) já pressupõe consulta finalizada.
     return (
       <span
         className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-green-600 cursor-pointer hover:bg-green-700 ${pad}`}

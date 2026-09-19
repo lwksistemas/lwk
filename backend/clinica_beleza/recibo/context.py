@@ -9,6 +9,13 @@ from core.phone_utils import telefone_exibicao_brasileiro
 logger = logging.getLogger(__name__)
 
 
+def _agora_recibo():
+    """Momento atual (aware) para a data de emissão do recibo."""
+    from django.utils import timezone as dj_tz
+
+    return dj_tz.now()
+
+
 def _formatar_data_recibo(dt) -> str:
     """Formata data/hora do recibo no fuso America/Sao_Paulo (evita UTC no PDF)."""
     if not dt:
@@ -191,6 +198,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         ),
         "formas_pagamento": _listar_formas_pagamento(payment),
         "data": _formatar_data_recibo(payment.payment_date),
+        "data_emissao": _formatar_data_recibo(_agora_recibo()),
         "data_atendimento": _formatar_data_recibo(getattr(appointment, "date", None)),
         **taxa_info,
     }

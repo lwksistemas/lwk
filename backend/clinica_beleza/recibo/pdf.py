@@ -56,7 +56,7 @@ def _cabecalho_recibo_pdf(ctx, styles, col_w, mm_unit):
     story.append(Spacer(1, 3 * mm_unit))
     story.append(hr)
     story.append(Paragraph("RECIBO DE PAGAMENTO", s_title))
-    story.append(Paragraph(ctx["data"], s_center))
+    story.append(Paragraph(f"Emitido em {ctx.get('data_emissao') or ctx['data']}", s_center))
     story.append(hr)
 
     story.append(Paragraph(f"<b>Cliente:</b> {ctx['paciente_nome']}", s_left))

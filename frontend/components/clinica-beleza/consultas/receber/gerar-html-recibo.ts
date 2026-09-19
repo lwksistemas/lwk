@@ -42,23 +42,15 @@ export function gerarHtmlRecibo(params: {
   const vencimentoBr = vencimento
     ? vencimento.split("-").reverse().join("/")
     : "";
-  const dataHora = consulta.payment_date
-    ? new Date(consulta.payment_date).toLocaleString("pt-BR", {
-        timeZone: "America/Sao_Paulo",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : new Date().toLocaleString("pt-BR", {
-        timeZone: "America/Sao_Paulo",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+  // Data/hora da EMISSÃO do comprovante (impressão) — sempre o momento atual.
+  const dataHoraEmissao = new Date().toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
   const valorProcs = Number(consulta.valor_procedimentos ?? 0);
   const retornoGratuito = Boolean(consulta.retorno_gratuito);
@@ -174,7 +166,7 @@ export function gerarHtmlRecibo(params: {
   ${telCep ? `<p>${telCep}</p>` : ""}
   ${lojaData.email ? `<p>${lojaData.email}</p>` : ""}
   <p style="margin-top:4px;font-weight:bold">RECIBO DE PAGAMENTO</p>
-  <p>${dataHora}</p>
+  <p>Emitido em ${dataHoraEmissao}</p>
 </div>
 
 <div class="section">

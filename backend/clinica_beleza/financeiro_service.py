@@ -249,8 +249,32 @@ def criar_parcela_e_atualizar_payment(payment, valor, dados):
         update_fields.append("payment_method")
     if payment.status == "PAID":
         update_fields.append("payment_date")
+        # Quitado deixa de ser conta a receber a prazo.
+        if payment.data_vencimento:
+            payment.data_vencimento = None
+            update_fields.append("data_vencimento")
+    elif metodo == "PRAZO":
+        # Baixa "a prazo" no Financeiro: carimba o vencimento a partir de hoje.
+        venc = _calcular_vencimento_baixa_prazo(payment)
+        if venc != payment.data_vencimento:
+            payment.data_vencimento = venc
+            update_fields.append("data_vencimento")
     payment.save(update_fields=update_fields)
     return parcela
+
+
+def _calcular_vencimento_baixa_prazo(payment):
+    """Vencimento para baixa a prazo pelo Financeiro (base = hoje). Retorna date ou None."""
+    appointment = getattr(payment, "appointment", None)
+    patient = getattr(appointment, "patient", None)
+    if patient is None:
+        return None
+    from .prazo_service import PrazoNaoConfiguradoError, calcular_vencimento
+
+    try:
+        return calcular_vencimento(patient, now().date())
+    except PrazoNaoConfiguradoError:
+        return None
 
 
 def erro_excluir_payment(payment) -> str | None:

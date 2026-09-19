@@ -45,24 +45,25 @@ def _validar_prazo_paciente_para_entradas(consulta, lista) -> None:
         raise PrazoNaoConfiguradoError()
 
 
-def _carimbar_vencimento_prazo(payment, consulta, data_base) -> None:
-    """Define payment.data_vencimento conforme a política do paciente (só se a prazo)."""
+def _calcular_vencimento_prazo(payment, data_base):
+    """Calcula a data de vencimento conforme a política do paciente do payment.
+
+    Retorna date ou None (se não é a prazo, sem paciente, ou sem política).
+    A base é a data do lançamento a prazo (não a finalização da consulta).
+    """
     if payment.payment_method != _METODO_PRAZO:
-        return
-    patient = getattr(getattr(consulta, "appointment", None), "patient", None) or getattr(consulta, "patient", None)
+        return None
+    appointment = getattr(payment, "appointment", None)
+    patient = getattr(appointment, "patient", None)
     if patient is None:
-        return
+        return None
     from ..prazo_service import PrazoNaoConfiguradoError, calcular_vencimento
 
     try:
-        vencimento = calcular_vencimento(patient, data_base)
+        return calcular_vencimento(patient, data_base)
     except PrazoNaoConfiguradoError:
-        # Não deveria ocorrer (validado no recebimento); loga e não bloqueia a finalização.
         logger.warning("Payment %s a prazo sem política de prazo do paciente", getattr(payment, "pk", None))
-        return
-    if payment.data_vencimento != vencimento:
-        payment.data_vencimento = vencimento
-        payment.save(update_fields=["data_vencimento", "updated_at"])
+        return None
 
 
 def _tentar_nfse_pos_pagamento(consulta, payment):
@@ -138,11 +139,15 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
             payment_date=ts.date(),
             loja_id=payment.loja_id,
         )
+    venc_prazo = None
     if so_prazo:
         payment.payment_method = _METODO_PRAZO
         notes = (payment.notes or "").strip()
         if "A prazo" not in notes:
             payment.notes = f"{notes} | A prazo — cliente paga depois".strip(" |")
+        # Carimba o vencimento no momento do lançamento a prazo (não na finalização).
+        venc_prazo = _calcular_vencimento_prazo(payment, ts.date())
+        payment.data_vencimento = venc_prazo
     total_pago = payment.valor_pago_parcelas
     try:
         saldo_apos = payment.saldo_devedor
@@ -163,6 +168,8 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
         update_fields.append("desconto")
     if valor_desconto > 0 or so_prazo:
         update_fields.append("notes")
+    if so_prazo:
+        update_fields.append("data_vencimento")
     payment.save(update_fields=update_fields)
 
 
@@ -499,13 +506,10 @@ def publicar_pagamento_financeiro(consulta):
         valor_total = Decimal(str(valor_total))
 
     ts = now()
-    data_base_venc = getattr(consulta, "data_fim", None)
-    data_base_venc = data_base_venc.date() if data_base_venc else ts.date()
 
     if total_pago <= 0 and payment.status == "PENDING":
         # Conta pendente sem recebimento — permanece PENDING no financeiro.
-        # Se for a prazo, carimba o vencimento a partir da finalização.
-        _carimbar_vencimento_prazo(payment, consulta, data_base_venc)
+        # O vencimento (se a prazo) já foi carimbado no lançamento, não aqui.
         return payment
 
     if total_pago >= valor_total - Decimal("0.01"):
@@ -524,13 +528,10 @@ def publicar_pagamento_financeiro(consulta):
 
     payment.save(update_fields=["status", "amount", "payment_date", "updated_at"])
 
-    # Conta a receber a prazo (parcial ou pendente): carimba vencimento; se quitou, limpa.
-    if payment.status == "PAID":
-        if payment.data_vencimento:
-            payment.data_vencimento = None
-            payment.save(update_fields=["data_vencimento", "updated_at"])
-    else:
-        _carimbar_vencimento_prazo(payment, consulta, data_base_venc)
+    # Ao quitar, limpa o vencimento (não é mais conta a receber a prazo).
+    if payment.status == "PAID" and payment.data_vencimento:
+        payment.data_vencimento = None
+        payment.save(update_fields=["data_vencimento", "updated_at"])
 
     if payment.status == "PAID":
         payment_id = payment.id

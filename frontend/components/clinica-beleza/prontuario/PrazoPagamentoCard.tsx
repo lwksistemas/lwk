@@ -101,14 +101,14 @@ export function PrazoPagamentoCard({ patientId, open, onClose }: PrazoPagamentoC
               className={fieldClass}
             >
               <option value="">Sem prazo (não recebe a prazo)</option>
-              <option value="DIAS_APOS">Dias após finalizar a consulta</option>
+              <option value="DIAS_APOS">Dias para pagar (a partir do lançamento)</option>
               <option value="DIA_FIXO">Dia fixo do mês</option>
             </select>
           </div>
 
           {modo === "DIAS_APOS" && (
             <div>
-              <label className="block text-xs font-medium mb-1">Dias após finalizar</label>
+              <label className="block text-xs font-medium mb-1">Dias para pagar</label>
               <input
                 type="number"
                 min={1}
@@ -118,6 +118,7 @@ export function PrazoPagamentoCard({ patientId, open, onClose }: PrazoPagamentoC
                 placeholder="ex.: 10"
                 className={fieldClass}
               />
+              <p className="text-xs text-gray-500 mt-1">Conta a partir do dia em que a recepção lança o pagamento a prazo.</p>
             </div>
           )}
 

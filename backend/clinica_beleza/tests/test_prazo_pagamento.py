@@ -96,6 +96,38 @@ class PaymentVencidoTest(SimpleTestCase):
         self.assertFalse(p.esta_vencido)
 
 
+class CalcularVencimentoPrazoTest(SimpleTestCase):
+    """_calcular_vencimento_prazo usa a política do paciente do payment, base = data do lançamento."""
+
+    def _payment(self, *, metodo, patient):
+        p = MagicMock()
+        p.payment_method = metodo
+        p.appointment = MagicMock()
+        p.appointment.patient = patient
+        return p
+
+    def test_prazo_dias_apos_carimba_a_partir_do_lancamento(self):
+        from clinica_beleza.consulta_service.payment import _calcular_vencimento_prazo
+
+        patient = Patient(prazo_pagamento_modo="DIAS_APOS", prazo_pagamento_dias=10)
+        pay = self._payment(metodo="PRAZO", patient=patient)
+        self.assertEqual(_calcular_vencimento_prazo(pay, date(2026, 10, 5)), date(2026, 10, 15))
+
+    def test_nao_prazo_retorna_none(self):
+        from clinica_beleza.consulta_service.payment import _calcular_vencimento_prazo
+
+        patient = Patient(prazo_pagamento_modo="DIAS_APOS", prazo_pagamento_dias=10)
+        pay = self._payment(metodo="CASH", patient=patient)
+        self.assertIsNone(_calcular_vencimento_prazo(pay, date(2026, 10, 5)))
+
+    def test_prazo_sem_politica_retorna_none(self):
+        from clinica_beleza.consulta_service.payment import _calcular_vencimento_prazo
+
+        patient = Patient(prazo_pagamento_modo="")
+        pay = self._payment(metodo="PRAZO", patient=patient)
+        self.assertIsNone(_calcular_vencimento_prazo(pay, date(2026, 10, 5)))
+
+
 class MensagemCobrancaTest(SimpleTestCase):
     def _ctx(self):
         return {

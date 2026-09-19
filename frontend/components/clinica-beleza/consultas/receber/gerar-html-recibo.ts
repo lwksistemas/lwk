@@ -36,8 +36,12 @@ export function gerarHtmlRecibo(params: {
     cep?: string;
   };
   saldoRestante?: number;
+  vencimento?: string | null;
 }): string {
-  const { consulta, valorPago, desconto, entradas, lojaData, saldoRestante = 0 } = params;
+  const { consulta, valorPago, desconto, entradas, lojaData, saldoRestante = 0, vencimento = null } = params;
+  const vencimentoBr = vencimento
+    ? vencimento.split("-").reverse().join("/")
+    : "";
   const dataHora = consulta.payment_date
     ? new Date(consulta.payment_date).toLocaleString("pt-BR", {
         timeZone: "America/Sao_Paulo",
@@ -104,11 +108,13 @@ export function gerarHtmlRecibo(params: {
       formasAgrupadas.set(key, { label, valor, parcInfo });
     }
   }
+  const temPrazo = entradas.some((e) => e.payment_method === "PRAZO");
   const formasHtml = Array.from(formasAgrupadas.values())
-    .map(
-      (f) =>
-        `<tr><td>${f.label}${f.parcInfo}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`,
-    )
+    .map((f) => {
+      const ehPrazo = f.label === CLINICA_FORMA_PAGAMENTO_LABEL.PRAZO;
+      const vencInfo = ehPrazo && vencimentoBr ? ` (vence em ${vencimentoBr})` : "";
+      return `<tr><td>${f.label}${f.parcInfo}${vencInfo}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`;
+    })
     .join("");
 
 
@@ -223,10 +229,10 @@ export function gerarHtmlRecibo(params: {
   </table>
 </div>
 
-${valorPago > 0 ? `<div class="total">VALOR PAGO: R$ ${valorPago.toFixed(2)}</div>` : ""}
+<div class="total">VALOR PAGO: R$ ${valorPago.toFixed(2)}</div>
 ${
   saldoRestante > 0.009
-    ? `<div class="total" style="font-size:12px;">SALDO: R$ ${saldoRestante.toFixed(2)}</div>`
+    ? `<div class="total" style="font-size:12px;">SALDO A PAGAR: R$ ${saldoRestante.toFixed(2)}${vencimentoBr ? ` — vencimento ${vencimentoBr}` : ""}</div>`
     : `<div class="footer" style="border-top:none;margin-top:0;"><p style="font-weight:bold;color:#333;">Quitado</p></div>`
 }
 

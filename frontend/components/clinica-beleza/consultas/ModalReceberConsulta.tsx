@@ -16,6 +16,7 @@ import {
   novaLinhaEntrada,
   parseMoneyInput,
   somaEntradas,
+  somaEntradasPagas,
   validateReceberForm,
   valoresQuaseIguais,
   type EntradaPagamentoLinha,
@@ -197,7 +198,8 @@ export function ModalReceberConsulta({
       if (!atualizada) throw new Error("Resposta inválida ao registrar recebimento.");
       setReciboSnapshot({
         desconto: valorDesconto,
-        totalLiquido: distribuido,
+        // Valor pago no recibo = só o efetivamente recebido; "a prazo" não é pago.
+        totalLiquido: somaEntradasPagas(entradas),
         entradas: [...entradas],
       });
       setConsultaAtualizada(atualizada);
@@ -287,6 +289,7 @@ export function ModalReceberConsulta({
       entradas: entradasRecibo,
       lojaData,
       saldoRestante: saldoReceberConsulta(c),
+      vencimento: c.payment_data_vencimento ?? null,
     });
     const w = window.open("", "_blank", "width=320,height=700");
     if (!w) return;

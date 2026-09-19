@@ -162,9 +162,16 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
 
     story = []
     valor_pago = ctx.get("valor_pago", 0)
-    if valor_pago > 0:
-        story.append(Paragraph(f"VALOR PAGO: R$ {valor_pago:.2f}", s_total))
-    if valor_pago >= ctx.get("valor_total", 0) and ctx.get("valor_total", 0) >= 0:
+    saldo = ctx.get("saldo_devedor", max(ctx.get("valor_total", 0) - valor_pago, 0))
+    vencimento = (ctx.get("vencimento") or "").strip()
+    story.append(Paragraph(f"VALOR PAGO: R$ {valor_pago:.2f}", s_total))
+    if saldo > 0.009:
+        story.append(Spacer(1, 1 * mm_unit))
+        saldo_txt = f"SALDO A PAGAR: R$ {saldo:.2f}"
+        if vencimento:
+            saldo_txt += f" — vencimento {vencimento}"
+        story.append(Paragraph(saldo_txt, s_center))
+    elif valor_pago >= ctx.get("valor_total", 0) and ctx.get("valor_total", 0) >= 0:
         story.append(Spacer(1, 1 * mm_unit))
         story.append(Paragraph("<b>Quitado</b>", s_center))
     story.append(Spacer(1, 2 * mm_unit))

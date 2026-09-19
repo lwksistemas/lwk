@@ -155,7 +155,17 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     taxa_info = _calcular_taxa_retorno_recibo(appointment, payment.loja_id)
     desconto = desconto_concedido(payment)
     valor_total = float(payment.valor_total_efetivo)
-    valor_pago = float(payment.amount or 0)
+    # Valor pago = só o que foi efetivamente recebido (parcelas). "A prazo" não é pago.
+    try:
+        valor_pago = float(payment.valor_pago_parcelas)
+    except Exception:
+        valor_pago = float(payment.amount or 0)
+    try:
+        saldo_devedor = float(payment.saldo_devedor)
+    except Exception:
+        saldo_devedor = max(valor_total - valor_pago, 0.0)
+    venc = getattr(payment, "data_vencimento", None)
+    vencimento = venc.strftime("%d/%m/%Y") if venc else ""
     subtotal, desconto_retorno = _calcular_subtotal_recibo(taxa_info, procs, valor_total, desconto)
 
     ctx = _dados_loja_recibo(loja)
@@ -172,6 +182,8 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         "desconto_retorno": desconto_retorno,
         "valor_total": valor_total,
         "valor_pago": valor_pago,
+        "saldo_devedor": saldo_devedor,
+        "vencimento": vencimento,
         "metodo": (
             payment.get_payment_method_display()
             if hasattr(payment, "get_payment_method_display")
@@ -245,6 +257,16 @@ def _listar_formas_pagamento(payment) -> list[dict]:
     except Exception:
         logger.exception("Erro ao listar parcelas do recibo (payment %s)", payment.id)
     metodo_label = METODOS.get(payment.payment_method, payment.payment_method)
+    # A prazo sem parcela paga: mostra o valor em aberto (saldo), não amount (que é 0).
+    if payment.payment_method == "PRAZO":
+        try:
+            valor_prazo = float(payment.saldo_devedor)
+        except Exception:
+            valor_prazo = float(payment.valor_total_efetivo or 0)
+        venc = getattr(payment, "data_vencimento", None)
+        if venc:
+            metodo_label = f"{metodo_label} (vence em {venc.strftime('%d/%m/%Y')})"
+        return [{"metodo": metodo_label, "valor": valor_prazo}]
     return [{"metodo": metodo_label, "valor": float(payment.amount or 0)}]
 
 

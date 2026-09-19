@@ -22,6 +22,15 @@ export function calcularTotalLiquido(base: number, desconto: number): number {
   return Math.max(0, round2(base - Math.max(0, desconto)));
 }
 
+/** Soma só as entradas realmente pagas — "a prazo" não conta como pago. */
+export function somaEntradasPagas(entradas: EntradaPagamentoLinha[]): number {
+  return round2(
+    entradas
+      .filter((e) => e.payment_method !== "PRAZO")
+      .reduce((acc, e) => acc + parseMoneyInput(e.valor), 0),
+  );
+}
+
 export function somaEntradas(entradas: EntradaPagamentoLinha[]): number {
   return round2(entradas.reduce((acc, e) => acc + parseMoneyInput(e.valor), 0));
 }

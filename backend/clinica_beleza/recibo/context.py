@@ -258,14 +258,12 @@ def _listar_formas_pagamento(payment) -> list[dict]:
         logger.exception("Erro ao listar parcelas do recibo (payment %s)", payment.id)
     metodo_label = METODOS.get(payment.payment_method, payment.payment_method)
     # A prazo sem parcela paga: mostra o valor em aberto (saldo), não amount (que é 0).
+    # O vencimento aparece só no bloco "SALDO A PAGAR" (evita redundância na linha).
     if payment.payment_method == "PRAZO":
         try:
             valor_prazo = float(payment.saldo_devedor)
         except Exception:
             valor_prazo = float(payment.valor_total_efetivo or 0)
-        venc = getattr(payment, "data_vencimento", None)
-        if venc:
-            metodo_label = f"{metodo_label} (vence em {venc.strftime('%d/%m/%Y')})"
         return [{"metodo": metodo_label, "valor": valor_prazo}]
     return [{"metodo": metodo_label, "valor": float(payment.amount or 0)}]
 

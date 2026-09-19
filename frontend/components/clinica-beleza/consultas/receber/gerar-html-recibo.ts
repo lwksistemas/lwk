@@ -108,13 +108,11 @@ export function gerarHtmlRecibo(params: {
       formasAgrupadas.set(key, { label, valor, parcInfo });
     }
   }
-  const temPrazo = entradas.some((e) => e.payment_method === "PRAZO");
   const formasHtml = Array.from(formasAgrupadas.values())
-    .map((f) => {
-      const ehPrazo = f.label === CLINICA_FORMA_PAGAMENTO_LABEL.PRAZO;
-      const vencInfo = ehPrazo && vencimentoBr ? ` (vence em ${vencimentoBr})` : "";
-      return `<tr><td>${f.label}${f.parcInfo}${vencInfo}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`;
-    })
+    .map(
+      (f) =>
+        `<tr><td>${f.label}${f.parcInfo}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`,
+    )
     .join("");
 
 

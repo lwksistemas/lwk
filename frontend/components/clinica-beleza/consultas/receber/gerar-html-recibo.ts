@@ -79,15 +79,8 @@ export function gerarHtmlRecibo(params: {
   const fmtDataBr = (iso?: string | null): string =>
     iso ? String(iso).slice(0, 10).split("-").reverse().join("/") : "";
 
-  // Se houver pagamentos em datas diferentes, exibe a data em cada forma.
-  const datasPagas = new Set(
-    entradas
-      .filter((e) => parseMoneyInput(e.valor) > 0 && e.payment_date)
-      .map((e) => String(e.payment_date).slice(0, 10)),
-  );
-  const mostrarDataPorForma = datasPagas.size > 1;
-
-  // Mesmo dia / mesma forma: soma numa linha. Datas diferentes: linhas separadas por data.
+  // Sempre mostra a data em que o cliente pagou cada forma (não confundir com a emissão do recibo).
+  // Agrupa por forma + data do pagamento.
   const formasAgrupadas = new Map<
     string,
     { label: string; valor: number; parcInfo: string; dataInfo: string }
@@ -103,8 +96,8 @@ export function gerarHtmlRecibo(params: {
       e.payment_method === "CREDIT_CARD" && nParc > 1
         ? ` (${nParc}x R$ ${e.valorParcela || (valor / nParc).toFixed(2)})`
         : "";
-    const dataKey = mostrarDataPorForma ? String(e.payment_date || "").slice(0, 10) : "";
-    const dataInfo = mostrarDataPorForma && dataKey ? ` (${fmtDataBr(dataKey)})` : "";
+    const dataKey = String(e.payment_date || "").slice(0, 10);
+    const dataInfo = dataKey ? ` (${fmtDataBr(dataKey)})` : "";
     const key = `${e.payment_method}|${parcInfo}|${dataKey}`;
     const prev = formasAgrupadas.get(key);
     if (prev) {

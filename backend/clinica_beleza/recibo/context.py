@@ -228,9 +228,9 @@ def _formas_pagamento_html(ctx: dict) -> str:
 def _listar_formas_pagamento(payment) -> list[dict]:
     """Retorna formas de pagamento do recibo.
 
-    No mesmo dia, a mesma forma é somada em uma linha (ex.: dois PIX no dia → um PIX).
-    Em dias diferentes, não soma — mantém linhas separadas (com a data quando houver
-    mais de um dia de pagamento).
+    Agrupa por forma + data do pagamento (mesma forma no mesmo dia soma numa linha).
+    Sempre exibe a data em que o cliente pagou cada forma — não confundir com a data
+    de emissão do recibo.
     """
     from collections import OrderedDict
 
@@ -254,11 +254,12 @@ def _listar_formas_pagamento(payment) -> list[dict]:
                 grupos[key]["valor"] += float(p.valor or 0)
 
             datas = {g["data"] for g in grupos.values() if g["data"]}
-            multi_data = len(datas) > 1
+            del datas  # mantido por compatibilidade histórica
             result = []
             for g in grupos.values():
                 label = METODOS.get(g["metodo_code"], g["metodo_code"])
-                if multi_data and g["data"] is not None and hasattr(g["data"], "strftime"):
+                # Sempre mostra a data do pagamento (não confundir com a emissão do recibo).
+                if g["data"] is not None and hasattr(g["data"], "strftime"):
                     label = f"{label} ({g['data'].strftime('%d/%m/%Y')})"
                 result.append({"metodo": label, "valor": round(g["valor"], 2)})
             return result

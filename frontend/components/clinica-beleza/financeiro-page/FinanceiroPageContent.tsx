@@ -5,6 +5,9 @@ import { RefreshCw } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { useFinanceiroPage } from "@/hooks/clinica-beleza/useFinanceiroPage";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { formatApiErrorBody } from "@/lib/api-errors";
+import { useToast } from "@/components/ui/Toast";
 import { DespesaFormModal } from "./DespesaFormModal";
 import { FinanceiroDespesasTab } from "./components/FinanceiroDespesasTab";
 import { FinanceiroReceitasTab } from "./components/FinanceiroReceitasTab";
@@ -15,7 +18,21 @@ import type { FinanceiroPayment } from "./types";
 
 export function FinanceiroPageContent() {
   const f = useFinanceiroPage();
+  const toast = useToast();
   const [baixaPayment, setBaixaPayment] = useState<FinanceiroPayment | null>(null);
+  const [cobrandoId, setCobrandoId] = useState<number | null>(null);
+
+  const handleCobrar = async (payment: FinanceiroPayment, canal: "whatsapp" | "email") => {
+    setCobrandoId(payment.id);
+    try {
+      const res = await ClinicaBelezaAPI.financeiro.payments.cobrar(payment.id, canal);
+      toast.success(res.message || "Cobrança enviada.");
+    } catch (e) {
+      toast.error(formatApiErrorBody(e) || "Erro ao enviar cobrança.");
+    } finally {
+      setCobrandoId(null);
+    }
+  };
 
   return (
     <>
@@ -66,6 +83,8 @@ export function FinanceiroPageContent() {
                 onDateFilterChange={f.setDateFilter}
                 onPageChange={f.setPaymentsPage}
                 onBaixa={(p) => setBaixaPayment(p)}
+                cobrandoId={cobrandoId}
+                onCobrar={handleCobrar}
               />
             ) : (
               <FinanceiroDespesasTab

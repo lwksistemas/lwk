@@ -56,6 +56,7 @@ export function LojaWhatsAppConfigPanel({
   const [enviarLembrete24h, setEnviarLembrete24h] = useState(true);
   const [enviarLembrete2h, setEnviarLembrete2h] = useState(true);
   const [enviarCobranca, setEnviarCobranca] = useState(true);
+  const [mensagemCobranca, setMensagemCobranca] = useState('');
   const [enviarLembreteTarefas, setEnviarLembreteTarefas] = useState(true);
   const [enviarPropostaWhatsapp, setEnviarPropostaWhatsapp] = useState(true);
   const [enviarContratoWhatsapp, setEnviarContratoWhatsapp] = useState(true);
@@ -76,6 +77,7 @@ export function LojaWhatsAppConfigPanel({
     setEnviarLembrete24h(data.enviar_lembrete_24h ?? true);
     setEnviarLembrete2h(data.enviar_lembrete_2h ?? true);
     setEnviarCobranca(data.enviar_cobranca ?? true);
+    setMensagemCobranca(data.mensagem_cobranca ?? '');
     setEnviarLembreteTarefas(data.enviar_lembrete_tarefas ?? true);
     setEnviarPropostaWhatsapp(data.enviar_proposta_whatsapp ?? true);
     setEnviarContratoWhatsapp(data.enviar_contrato_whatsapp ?? true);
@@ -129,6 +131,7 @@ export function LojaWhatsAppConfigPanel({
         enviar_lembrete_24h: enviarLembrete24h,
         enviar_lembrete_2h: enviarLembrete2h,
         enviar_cobranca: enviarCobranca,
+        mensagem_cobranca: mensagemCobranca.trim(),
         enviar_lembrete_tarefas: enviarLembreteTarefas,
         enviar_proposta_whatsapp: enviarPropostaWhatsapp,
         enviar_contrato_whatsapp: enviarContratoWhatsapp,
@@ -394,6 +397,24 @@ export function LojaWhatsAppConfigPanel({
                   <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
                 </label>
               ))}
+              {features.showAgendaMessages && enviarCobranca && (
+                <div className="ml-6 space-y-1 rounded-lg bg-gray-50 dark:bg-gray-900/40 px-3 py-2">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Mensagem de cobrança (inadimplência)
+                  </label>
+                  <textarea
+                    value={mensagemCobranca}
+                    onChange={(e) => setMensagemCobranca(e.target.value)}
+                    rows={4}
+                    placeholder="Deixe em branco para usar a mensagem padrão do sistema."
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Placeholders: {'{nome}'}, {'{valor}'}, {'{vencimento}'}, {'{dias_atraso}'}, {'{clinica}'}.
+                    Usada ao enviar cobrança (WhatsApp ou e-mail) de pagamentos vencidos.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

@@ -13,6 +13,7 @@ import { buildProntuarioConsultasResumo } from "./prontuario-consultas-utils";
 export function ProntuarioPageContent() {
   const {
     slug,
+    patientId,
     activeTab,
     data,
     loading,
@@ -84,6 +85,7 @@ export function ProntuarioPageContent() {
             <ProntuarioTabContent
               data={data}
               activeTab={activeTab}
+              patientId={patientId}
               consultas={consultas}
               consultasLoading={consultasLoading}
               consultaParaFotosId={consultaParaFotosId}

@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
+  AlertTriangle,
   BarChart3,
   Building2,
   ChevronRight,
@@ -104,6 +105,12 @@ const CATEGORIAS: CategoriaRelatorio[] = [
         descricao: 'Total de descontos por profissional, com o nome de cada cliente',
         href: 'descontos',
         icon: Percent,
+      },
+      {
+        titulo: 'Inadimplentes',
+        descricao: 'Pagamentos a prazo vencidos e em aberto, com valor e dias de atraso',
+        href: 'inadimplentes',
+        icon: AlertTriangle,
       },
     ],
   },

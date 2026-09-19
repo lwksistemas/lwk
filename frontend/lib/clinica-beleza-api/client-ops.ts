@@ -54,7 +54,25 @@ export const financeiroApi = {
       add: (paymentId: number, data: { valor: number; payment_method: string; payment_date: string; observacoes?: string; desconto?: number }) =>
         cbPost(`/payments/${paymentId}/parcelas/`, data),
     },
+    // Cobrança manual de inadimplente (pagamento a prazo vencido) por WhatsApp ou e-mail.
+    cobrar: (paymentId: number, canal: "whatsapp" | "email") =>
+      cbPost<{ success: boolean; message: string }>(`/payments/${paymentId}/cobrar/`, { canal }),
   },
+  inadimplentes: () =>
+    cbGet<{
+      linhas: {
+        payment_id: number;
+        patient_id: number | null;
+        paciente_nome: string;
+        telefone: string;
+        email: string;
+        valor_aberto: number;
+        vencimento: string | null;
+        dias_atraso: number;
+        status: string;
+      }[];
+      totais: { total_inadimplentes: number; valor_total: number };
+    }>("/relatorios/inadimplentes/"),
   despesas: {
     list: (params?: { status?: string; categoria?: number; date?: string; page?: number; page_size?: number }) =>
       cbGetList("/despesas/", params),

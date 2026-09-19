@@ -57,14 +57,15 @@ export function ConsultaPagamentoButton({
 
   if (mostrarPrazo) {
     if (consultaFinalizada) {
+      // Finalizada a prazo: abre o comprovante (imprimir/enviar) ao clicar.
       return (
         <button type="button"
           onClick={(e) => {
             e.stopPropagation();
-            toast.info("A prazo — receber na página Financeiro quando o cliente pagar.");
+            if (onReceber) onReceber(consulta);
           }}
-          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-slate-600 ${pad}`}
-          title="A prazo — receber na página Financeiro"
+          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-slate-600 hover:bg-slate-700 ${pad}`}
+          title="A prazo — clique para ver/enviar o comprovante"
         >
           <DollarSign size={iconSize} />
           A prazo

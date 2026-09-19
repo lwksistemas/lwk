@@ -110,7 +110,9 @@ export function ModalReceberConsulta({
       const quitado = novoSaldo <= 0 && consulta.payment_status === "PAID";
       const retornoGratuitoFinalizado = Boolean(consulta.retorno_gratuito) && consulta.status === "COMPLETED" && novoSaldo <= 0;
       const finalizadaSemPagamento = consulta.status === "COMPLETED" && novoSaldo <= 0 && !consulta.payment_status;
-      if (quitado || retornoGratuitoFinalizado || finalizadaSemPagamento) {
+      // A prazo já lançado (finalizada): abre direto o comprovante, não o formulário.
+      const aPrazoFinalizado = consulta.status === "COMPLETED" && consulta.payment_method === "PRAZO";
+      if (quitado || retornoGratuitoFinalizado || finalizadaSemPagamento || aPrazoFinalizado) {
         setConfirmado(true);
         setConsultaAtualizada(consulta);
         setReciboSnapshot(null);

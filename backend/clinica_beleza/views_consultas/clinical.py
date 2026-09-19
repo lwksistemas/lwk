@@ -136,6 +136,10 @@ class PatientHistoricoConsultasView(APIView):
             "professional", "procedure", "protocol", "appointment", "patient",
         ).prefetch_related(
             "appointment__appointment_procedures__procedure",
+            # Alinhado à tela de Consultas: resolve payment_status/valor_restante sem
+            # depender do fallback por query (que decide o badge de pagamento).
+            "appointment__payment_set",
+            "appointment__payment_set__parcelas",
         ).annotate(
             total_evolucoes_count=Count("evolucoes"),
         ).order_by("-data_inicio", "-created_at")

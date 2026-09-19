@@ -232,6 +232,10 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             from ..models import Payment
             return Payment.objects.filter(appointment=appointment).order_by("-id").first()
         except Exception:
+            import logging
+            logging.getLogger(__name__).exception(
+                "Falha ao resolver payment da consulta %s", getattr(obj, "id", None),
+            )
             return None
 
     def get_valor_pago(self, obj):

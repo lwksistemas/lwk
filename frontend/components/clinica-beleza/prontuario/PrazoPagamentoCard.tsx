@@ -12,6 +12,10 @@ type Modo = "" | "DIAS_APOS" | "DIA_FIXO";
 
 interface PrazoPagamentoCardProps {
   patientId: number;
+  /** Controla a visibilidade do painel (abre/fecha pelo botão da tab bar). */
+  open: boolean;
+  /** Fecha o painel após salvar com sucesso. */
+  onClose: () => void;
 }
 
 const fieldClass =
@@ -19,12 +23,11 @@ const fieldClass =
 
 /**
  * Painel de política de prazo de pagamento do paciente.
- * Só o administrador vê/edita (regra de negócio: recepção não configura prazo).
- * Fica na aba Resumo do prontuário.
+ * Visível só quando aberto (pelo botão "Prazo de pagamento" na tab bar).
+ * A regra de negócio (só admin) é aplicada no botão que controla este painel.
  */
-export function PrazoPagamentoCard({ patientId }: PrazoPagamentoCardProps) {
+export function PrazoPagamentoCard({ patientId, open, onClose }: PrazoPagamentoCardProps) {
   const toast = useToast();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [modo, setModo] = useState<Modo>("");
@@ -32,22 +35,7 @@ export function PrazoPagamentoCard({ patientId }: PrazoPagamentoCardProps) {
   const [diaMes, setDiaMes] = useState("");
 
   useEffect(() => {
-    let ativo = true;
-    ClinicaBelezaAPI.me
-      .get()
-      .then((me) => {
-        if (ativo) setIsAdmin(Boolean(me.is_administrador));
-      })
-      .catch(() => {
-        if (ativo) setIsAdmin(false);
-      });
-    return () => {
-      ativo = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isAdmin !== true) return;
+    if (!open) return;
     let ativo = true;
     setCarregando(true);
     ClinicaBelezaAPI.patients.prazoPagamento
@@ -67,9 +55,9 @@ export function PrazoPagamentoCard({ patientId }: PrazoPagamentoCardProps) {
     return () => {
       ativo = false;
     };
-  }, [isAdmin, patientId]);
+  }, [open, patientId]);
 
-  if (isAdmin !== true) return null;
+  if (!open) return null;
 
   const handleSalvar = async () => {
     const payload: Partial<PrazoPagamentoPolitica> = { prazo_pagamento_modo: modo };
@@ -80,6 +68,7 @@ export function PrazoPagamentoCard({ patientId }: PrazoPagamentoCardProps) {
     try {
       await ClinicaBelezaAPI.patients.prazoPagamento.save(patientId, payload);
       toast.success("Prazo de pagamento salvo.");
+      onClose();
     } catch (e) {
       toast.error(formatApiErrorBody(e) || "Erro ao salvar o prazo de pagamento.");
     } finally {
@@ -148,7 +137,7 @@ export function PrazoPagamentoCard({ patientId }: PrazoPagamentoCardProps) {
             </div>
           )}
 
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-2 flex items-center gap-2">
             <button
               type="button"
               onClick={handleSalvar}
@@ -157,6 +146,14 @@ export function PrazoPagamentoCard({ patientId }: PrazoPagamentoCardProps) {
               style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
             >
               {salvando ? "Salvando…" : "Salvar prazo"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={salvando}
+              className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+            >
+              Cancelar
             </button>
           </div>
         </div>

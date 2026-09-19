@@ -6,14 +6,12 @@ import { ProntuarioDocumentoCard } from "./ProntuarioDocumentoCard";
 import { ProntuarioEvolucaoSection } from "./ProntuarioEvolucaoSection";
 import { ProntuarioFotosSection } from "./ProntuarioFotosSection";
 import { ProntuarioResumoSection } from "./ProntuarioResumoSection";
-import { PrazoPagamentoCard } from "./PrazoPagamentoCard";
 import { documentoCardKey, getProntuarioDocsForTab, isProntuarioDocTab } from "./prontuario-utils";
 import type { ProntuarioTabId } from "./prontuario-types";
 
 interface ProntuarioTabContentProps {
   data: ProntuarioData | null;
   activeTab: ProntuarioTabId;
-  patientId: number;
   consultas: Consulta[];
   consultasLoading: boolean;
   consultaParaFotosId: number | null;
@@ -29,7 +27,6 @@ interface ProntuarioTabContentProps {
 export function ProntuarioTabContent({
   data,
   activeTab,
-  patientId,
   consultas,
   consultasLoading,
   consultaParaFotosId,
@@ -43,20 +40,17 @@ export function ProntuarioTabContent({
 }: ProntuarioTabContentProps) {
   if (activeTab === "resumo") {
     return (
-      <div className="space-y-4">
-        <PrazoPagamentoCard patientId={patientId} />
-        <ProntuarioResumoSection
-          consultas={consultas}
-          loading={consultasLoading}
-          iniciandoId={iniciandoId}
-          excluindoId={excluindoId}
-          recebendoId={recebendoId}
-          onAbrirConsulta={onAbrirConsulta}
-          onIniciarConsulta={onIniciarConsulta}
-          onReceberConsulta={onReceberConsulta}
-          onExcluirConsulta={onExcluirConsulta}
-        />
-      </div>
+      <ProntuarioResumoSection
+        consultas={consultas}
+        loading={consultasLoading}
+        iniciandoId={iniciandoId}
+        excluindoId={excluindoId}
+        recebendoId={recebendoId}
+        onAbrirConsulta={onAbrirConsulta}
+        onIniciarConsulta={onIniciarConsulta}
+        onReceberConsulta={onReceberConsulta}
+        onExcluirConsulta={onExcluirConsulta}
+      />
     );
   }
 

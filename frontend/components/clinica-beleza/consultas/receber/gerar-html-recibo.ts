@@ -76,10 +76,21 @@ export function gerarHtmlRecibo(params: {
       : "",
   ].join("");
 
-  // Mesmo dia / mesmo comprovante: soma valores da mesma forma (não repetir linha).
+  const fmtDataBr = (iso?: string | null): string =>
+    iso ? String(iso).slice(0, 10).split("-").reverse().join("/") : "";
+
+  // Se houver pagamentos em datas diferentes, exibe a data em cada forma.
+  const datasPagas = new Set(
+    entradas
+      .filter((e) => parseMoneyInput(e.valor) > 0 && e.payment_date)
+      .map((e) => String(e.payment_date).slice(0, 10)),
+  );
+  const mostrarDataPorForma = datasPagas.size > 1;
+
+  // Mesmo dia / mesma forma: soma numa linha. Datas diferentes: linhas separadas por data.
   const formasAgrupadas = new Map<
     string,
-    { label: string; valor: number; parcInfo: string }
+    { label: string; valor: number; parcInfo: string; dataInfo: string }
   >();
   for (const e of entradas) {
     const valor = parseMoneyInput(e.valor);
@@ -92,18 +103,20 @@ export function gerarHtmlRecibo(params: {
       e.payment_method === "CREDIT_CARD" && nParc > 1
         ? ` (${nParc}x R$ ${e.valorParcela || (valor / nParc).toFixed(2)})`
         : "";
-    const key = `${e.payment_method}|${parcInfo}`;
+    const dataKey = mostrarDataPorForma ? String(e.payment_date || "").slice(0, 10) : "";
+    const dataInfo = mostrarDataPorForma && dataKey ? ` (${fmtDataBr(dataKey)})` : "";
+    const key = `${e.payment_method}|${parcInfo}|${dataKey}`;
     const prev = formasAgrupadas.get(key);
     if (prev) {
       prev.valor += valor;
     } else {
-      formasAgrupadas.set(key, { label, valor, parcInfo });
+      formasAgrupadas.set(key, { label, valor, parcInfo, dataInfo });
     }
   }
   const formasHtml = Array.from(formasAgrupadas.values())
     .map(
       (f) =>
-        `<tr><td>${f.label}${f.parcInfo}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`,
+        `<tr><td>${f.label}${f.parcInfo}${f.dataInfo}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`,
     )
     .join("");
 

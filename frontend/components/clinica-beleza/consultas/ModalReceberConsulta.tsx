@@ -263,18 +263,18 @@ export function ModalReceberConsulta({
         const parcelasRes = (await ClinicaBelezaAPI.financeiro.payments.parcelas.list(
           c.payment_id,
         )) as {
-          parcelas?: Array<{ status?: string; valor?: number | string; payment_method?: string }>;
+          parcelas?: Array<{ status?: string; valor?: number | string; payment_method?: string; payment_date?: string | null }>;
           valor_pago?: number;
         };
         const parcelas = Array.isArray(parcelasRes?.parcelas)
           ? parcelasRes.parcelas
           : Array.isArray(parcelasRes)
-            ? (parcelasRes as Array<{ status?: string; valor?: number | string; payment_method?: string }>)
+            ? (parcelasRes as Array<{ status?: string; valor?: number | string; payment_method?: string; payment_date?: string | null }>)
             : [];
         const pagas = parcelas.filter((p) => (p.status || "PAID") === "PAID");
         if (pagas.length > 0) {
           entradasRecibo = pagas.map((p) =>
-            novaLinhaEntrada(p.payment_method || "CASH", Number(p.valor ?? 0)),
+            novaLinhaEntrada(p.payment_method || "CASH", Number(p.valor ?? 0), p.payment_date ?? null),
           );
           valorPagoRecibo =
             typeof parcelasRes?.valor_pago === "number"

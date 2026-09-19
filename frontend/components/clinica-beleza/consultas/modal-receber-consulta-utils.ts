@@ -7,6 +7,8 @@ export interface EntradaPagamentoLinha {
   /** Parcelas do cartão de crédito (só UI/recibo). */
   parcelas?: string;
   valorParcela?: string;
+  /** Data do pagamento desta parcela (ISO YYYY-MM-DD) — usada no recibo quando há várias datas. */
+  payment_date?: string | null;
 }
 
 const TOLERANCIA = 0.01;
@@ -46,6 +48,7 @@ export function valoresQuaseIguais(a: number, b: number): boolean {
 export function novaLinhaEntrada(
   payment_method: string = "CASH",
   valor: number | string = "",
+  payment_date: string | null = null,
 ): EntradaPagamentoLinha {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -53,6 +56,7 @@ export function novaLinhaEntrada(
     valor: valor === "" ? "" : String(round2(Number(valor))),
     parcelas: "1",
     valorParcela: "",
+    payment_date,
   };
 }
 

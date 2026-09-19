@@ -197,7 +197,7 @@ export function ProntuarioResumoSection({
                       )}
                     </td>
                     <td className="py-3 px-4 text-right font-medium hidden md:table-cell whitespace-nowrap">
-                      {formatCurrency(Number(c.valor_consulta) || 0)}
+                      {formatCurrency(Number(c.valor_pagamento ?? c.valor_consulta) || 0)}
                     </td>
                     <td className="py-3 px-4">
                       <ConsultaPagamentoButton

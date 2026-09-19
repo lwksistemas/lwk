@@ -26,14 +26,15 @@ export function ConsultaPagamentoButton({
   // Parcial: badge laranja — se finalizada, aviso ao clicar
   if (mostrarParcial) {
     if (consultaFinalizada) {
+      // Finalizada e parcial: abre o comprovante (imprimir/enviar); saldo se recebe no Financeiro.
       return (
         <button type="button"
           onClick={(e) => {
             e.stopPropagation();
-            toast.info("Pagamento parcial — receber saldo na página Financeiro.");
+            if (onReceber) onReceber(consulta);
           }}
-          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-orange-500 ${pad}`}
-          title="Pagamento parcial — receber saldo na página Financeiro"
+          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-orange-500 hover:bg-orange-600 ${pad}`}
+          title="Parcial — clique para ver/enviar o comprovante (saldo se recebe no Financeiro)"
         >
           <AlertCircle size={iconSize} />
           Parcial

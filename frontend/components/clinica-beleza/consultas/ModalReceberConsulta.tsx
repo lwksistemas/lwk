@@ -112,7 +112,9 @@ export function ModalReceberConsulta({
       const finalizadaSemPagamento = consulta.status === "COMPLETED" && novoSaldo <= 0 && !consulta.payment_status;
       // A prazo já lançado (finalizada): abre direto o comprovante, não o formulário.
       const aPrazoFinalizado = consulta.status === "COMPLETED" && consulta.payment_method === "PRAZO";
-      if (quitado || retornoGratuitoFinalizado || finalizadaSemPagamento || aPrazoFinalizado) {
+      // Parcial em consulta finalizada: abre o comprovante (saldo se recebe no Financeiro).
+      const parcialFinalizado = consulta.status === "COMPLETED" && consulta.payment_status === "PARTIAL";
+      if (quitado || retornoGratuitoFinalizado || finalizadaSemPagamento || aPrazoFinalizado || parcialFinalizado) {
         setConfirmado(true);
         setConsultaAtualizada(consulta);
         setReciboSnapshot(null);

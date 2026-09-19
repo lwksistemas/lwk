@@ -53,6 +53,9 @@ export function ReceberSucessoPanel({
     ? formatEntradasResumo(snap.entradas, CLINICA_FORMA_PAGAMENTO_LABEL as Record<string, string>)
     : "";
   const valorTotalConsulta = valorPagamentoConsulta(consultaExibida);
+  const consultaJaFinalizada = consultaStatus === "COMPLETED";
+  // Complementar direto só antes de finalizar; depois, o saldo é recebido no Financeiro.
+  const podeComplementarAqui = precisaComplementar && !consultaJaFinalizada;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
@@ -136,13 +139,15 @@ export function ReceberSucessoPanel({
               O recibo impresso/WhatsApp/e-mail lista todas as formas e o total já pago.
             </p>              {precisaComplementar && (
               <p className="font-semibold text-orange-800 dark:text-orange-300 pt-1">
-                Saldo em aberto: {formatCurrency(saldoAposRecebimento)} — inclua outras formas para
-                complementar.
+                Saldo em aberto: {formatCurrency(saldoAposRecebimento)}
+                {consultaJaFinalizada
+                  ? " — receba o saldo na página Financeiro."
+                  : " — inclua outras formas para complementar."}
               </p>
             )}
           </div>
 
-          {precisaComplementar && (
+          {podeComplementarAqui && (
             <button
               type="button"
               onClick={onComplementar}

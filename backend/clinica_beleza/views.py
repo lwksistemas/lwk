@@ -33,6 +33,8 @@ from .views_financeiro import (  # noqa: F401
     DespesaDetailView,
     DespesaListView,
     FinanceiroResumoView,
+    PaymentCobrarView,
+    PaymentCobrarWhatsAppView,
     PaymentDetailView,
     PaymentEnviarReciboView,
     PaymentListView,
@@ -41,7 +43,11 @@ from .views_financeiro import (  # noqa: F401
 )
 
 # Pacientes
-from .views_pacientes import PatientDetailView, PatientListView  # noqa: F401
+from .views_pacientes import (  # noqa: F401
+    PatientDetailView,
+    PatientListView,
+    PatientPrazoPagamentoView,
+)
 
 # Procedimentos
 from .views_procedimentos import (  # noqa: F401

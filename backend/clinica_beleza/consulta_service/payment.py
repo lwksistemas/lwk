@@ -25,6 +25,46 @@ def _tenant_atomic(func):
     return wrapper
 
 
+def _tem_entrada_prazo(lista) -> bool:
+    """True se alguma entrada usa a forma 'a prazo'."""
+    return bool(lista) and any(e.get("payment_method") == _METODO_PRAZO for e in lista)
+
+
+def _validar_prazo_paciente_para_entradas(consulta, lista) -> None:
+    """Bloqueia recebimento a prazo quando o paciente não tem política configurada.
+
+    Feedback imediato à recepção no 'Receber pagamento' — evita conta a receber
+    sem vencimento. A configuração é feita só pelo admin no prontuário.
+    """
+    if not _tem_entrada_prazo(lista):
+        return
+    from ..prazo_service import PrazoNaoConfiguradoError
+
+    patient = getattr(getattr(consulta, "appointment", None), "patient", None) or getattr(consulta, "patient", None)
+    if patient is None or not getattr(patient, "tem_prazo_pagamento", False):
+        raise PrazoNaoConfiguradoError()
+
+
+def _carimbar_vencimento_prazo(payment, consulta, data_base) -> None:
+    """Define payment.data_vencimento conforme a política do paciente (só se a prazo)."""
+    if payment.payment_method != _METODO_PRAZO:
+        return
+    patient = getattr(getattr(consulta, "appointment", None), "patient", None) or getattr(consulta, "patient", None)
+    if patient is None:
+        return
+    from ..prazo_service import PrazoNaoConfiguradoError, calcular_vencimento
+
+    try:
+        vencimento = calcular_vencimento(patient, data_base)
+    except PrazoNaoConfiguradoError:
+        # Não deveria ocorrer (validado no recebimento); loga e não bloqueia a finalização.
+        logger.warning("Payment %s a prazo sem política de prazo do paciente", getattr(payment, "pk", None))
+        return
+    if payment.data_vencimento != vencimento:
+        payment.data_vencimento = vencimento
+        payment.save(update_fields=["data_vencimento", "updated_at"])
+
+
 def _tentar_nfse_pos_pagamento(consulta, payment):
     """Dispara emissão NFS-e após pagamento confirmado (não bloqueia fluxo)."""
     try:
@@ -391,6 +431,9 @@ def registrar_recebimento_consulta(
             raise ValueError("Valor deve ser maior que zero.")
         metodo_principal = lista[-1]["payment_method"]
 
+    # Bloqueia recebimento a prazo se o paciente não tem política configurada pelo admin.
+    _validar_prazo_paciente_para_entradas(consulta, lista)
+
     comissao_pct, comissao_val = consulta_service.calcular_comissao_payment_atendimento(
         appointment=appointment,
         consulta=consulta,
@@ -456,8 +499,13 @@ def publicar_pagamento_financeiro(consulta):
         valor_total = Decimal(str(valor_total))
 
     ts = now()
+    data_base_venc = getattr(consulta, "data_fim", None)
+    data_base_venc = data_base_venc.date() if data_base_venc else ts.date()
+
     if total_pago <= 0 and payment.status == "PENDING":
-        # Conta pendente sem recebimento — permanece PENDING no financeiro
+        # Conta pendente sem recebimento — permanece PENDING no financeiro.
+        # Se for a prazo, carimba o vencimento a partir da finalização.
+        _carimbar_vencimento_prazo(payment, consulta, data_base_venc)
         return payment
 
     if total_pago >= valor_total - Decimal("0.01"):
@@ -475,6 +523,14 @@ def publicar_pagamento_financeiro(consulta):
         payment.payment_date = None
 
     payment.save(update_fields=["status", "amount", "payment_date", "updated_at"])
+
+    # Conta a receber a prazo (parcial ou pendente): carimba vencimento; se quitou, limpa.
+    if payment.status == "PAID":
+        if payment.data_vencimento:
+            payment.data_vencimento = None
+            payment.save(update_fields=["data_vencimento", "updated_at"])
+    else:
+        _carimbar_vencimento_prazo(payment, consulta, data_base_venc)
 
     if payment.status == "PAID":
         payment_id = payment.id

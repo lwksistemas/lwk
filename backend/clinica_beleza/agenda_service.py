@@ -134,6 +134,22 @@ def detectar_conflito(appointment, local_version, request_data, serializer_class
 # Criar agendamento
 # ---------------------------------------------------------------------------
 
+def _bloquear_se_paciente_inadimplente(patient, *, request=None) -> None:
+    """Impede agendar para paciente com pagamento a prazo vencido. Admin fura o bloqueio."""
+    patient_id = getattr(patient, "id", None) or patient
+    if not patient_id:
+        return
+    from .permissions import is_clinica_admin
+
+    if is_clinica_admin(request):
+        return
+    from .financeiro_service import mensagem_bloqueio_inadimplencia
+
+    msg = mensagem_bloqueio_inadimplencia(patient_id)
+    if msg:
+        raise AgendaValidationError(msg)
+
+
 def criar_agendamento(validated_data, *, user=None, request=None, serializer=None):
     """Cria um agendamento com todas as validações de negócio.
     Retorna o Appointment criado.
@@ -146,6 +162,9 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
     if not professional:
         raise AgendaValidationError("Selecione o profissional.")
     local_atendimento = validated_data.get("local_atendimento")
+
+    # Bloqueio de inadimplência: recepção não agenda para paciente em atraso; admin fura.
+    _bloquear_se_paciente_inadimplente(validated_data.get("patient"), request=request)
 
     from .duracao_consulta import calcular_duracao_novo_agendamento
     procedures_list = validated_data.get("_procedures_list")

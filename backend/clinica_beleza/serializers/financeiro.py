@@ -80,9 +80,23 @@ class PaymentSerializer(serializers.ModelSerializer):
     data_atendimento = serializers.DateTimeField(source="appointment.date", read_only=True)
     valor_total_efetivo = serializers.SerializerMethodField()
     saldo_devedor = serializers.SerializerMethodField()
+    vencido = serializers.SerializerMethodField()
+    dias_atraso = serializers.SerializerMethodField()
 
     def get_procedimento_nome(self, obj):
         return _procedimentos_nome_agendamento(obj.appointment)
+
+    def get_vencido(self, obj):
+        try:
+            return bool(obj.esta_vencido)
+        except Exception:
+            return False
+
+    def get_dias_atraso(self, obj):
+        try:
+            return int(obj.dias_atraso)
+        except Exception:
+            return 0
 
     def get_valor_total_efetivo(self, obj):
         try:

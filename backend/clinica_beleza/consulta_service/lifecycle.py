@@ -35,6 +35,17 @@ def _resolver_statuses_avulso(iniciar: bool) -> tuple[str, str]:
     return "CONFIRMED", "RECEBER"
 
 
+def _bloquear_abertura_se_inadimplente(patient_id) -> None:
+    """Impede abrir/iniciar consulta para paciente inadimplente (lança ValueError)."""
+    if not patient_id:
+        return
+    from ..financeiro_service import mensagem_bloqueio_inadimplencia
+
+    msg = mensagem_bloqueio_inadimplencia(patient_id)
+    if msg:
+        raise ValueError(msg)
+
+
 def criar_consulta_avulsa(
     *,
     patient,
@@ -50,6 +61,7 @@ def criar_consulta_avulsa(
     appointment_date=None,
     notes=None,
     retorno_procedure_id=None,
+    bypass_inadimplencia=False,
 ):
     """Cria uma consulta "avulsa" (sem agendamento prévio na agenda), a partir do
     cadastro do cliente. Gera o Appointment correspondente e a Consulta vinculada.
@@ -77,6 +89,8 @@ def criar_consulta_avulsa(
     local_atendimento, convenio = _resolver_local_convenio_avulso(local_atendimento_id, convenio_id, patient, loja_id)
 
     if iniciar:
+        if not bypass_inadimplencia:
+            _bloquear_abertura_se_inadimplente(getattr(patient, "id", None))
         consulta_service.validar_paciente_sem_consulta_em_andamento(patient.id)
         consulta_service.validar_profissional_livre_no_local(
             getattr(professional, "id", None) or professional,
@@ -123,7 +137,7 @@ def criar_consulta_avulsa(
     return consulta
 
 
-def iniciar_consulta(consulta):
+def iniciar_consulta(consulta, *, bypass_inadimplencia=False):
     """Profissional inicia atendimento: consulta → IN_PROGRESS, agenda → IN_PROGRESS, data_inicio.
     """
     from clinica_beleza import consulta_service
@@ -133,6 +147,9 @@ def iniciar_consulta(consulta):
         raise ValueError("A consulta precisa estar aguardando início ou recebimento para ser iniciada.")
     if appointment.status != "CONFIRMED":
         raise ValueError("Registre a chegada do cliente na agenda (status Cliente presente) antes de iniciar a consulta.")
+
+    if not bypass_inadimplencia:
+        _bloquear_abertura_se_inadimplente(consulta.patient_id)
 
     consulta_service.validar_paciente_sem_consulta_em_andamento(
         consulta.patient_id, exclude_consulta_id=consulta.id,

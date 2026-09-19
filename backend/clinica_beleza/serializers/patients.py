@@ -40,6 +40,13 @@ class PatientSerializer(
     class Meta:
         model = Patient
         exclude = ["loja_id"]
+        # Política de prazo é configurada só pelo admin, via endpoint dedicado
+        # (PatientPrazoPagamentoView). Aqui é somente-leitura para exibir no prontuário.
+        read_only_fields = [
+            "prazo_pagamento_modo",
+            "prazo_pagamento_dias",
+            "prazo_pagamento_dia_mes",
+        ]
         extra_kwargs = {
             "nome": {"required": True},
             "telefone": {"required": False, "allow_blank": True, "default": ""},
@@ -61,6 +68,54 @@ class PatientSerializer(
         if obj.convenio_id and obj.convenio:
             return obj.convenio.nome
         return "Particular"
+
+
+class PatientPrazoPagamentoSerializer(serializers.ModelSerializer):
+    """Política de prazo de pagamento do paciente (configurada só pelo admin).
+
+    Valida a coerência entre o modo escolhido e o campo correspondente:
+    - DIAS_APOS exige prazo_pagamento_dias.
+    - DIA_FIXO exige prazo_pagamento_dia_mes.
+    - '' (sem prazo) limpa os dois campos.
+    """
+
+    tem_prazo_pagamento = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Patient
+        fields = [
+            "id",
+            "prazo_pagamento_modo",
+            "prazo_pagamento_dias",
+            "prazo_pagamento_dia_mes",
+            "tem_prazo_pagamento",
+        ]
+        read_only_fields = ["id", "tem_prazo_pagamento"]
+
+    def validate(self, attrs):
+        modo = attrs.get("prazo_pagamento_modo", getattr(self.instance, "prazo_pagamento_modo", ""))
+        dias = attrs.get("prazo_pagamento_dias", getattr(self.instance, "prazo_pagamento_dias", None))
+        dia_mes = attrs.get("prazo_pagamento_dia_mes", getattr(self.instance, "prazo_pagamento_dia_mes", None))
+
+        if modo == Patient.PRAZO_MODO_DIAS_APOS:
+            if not dias or int(dias) < 1:
+                raise serializers.ValidationError(
+                    {"prazo_pagamento_dias": "Informe a quantidade de dias após finalizar (mínimo 1)."},
+                )
+            attrs["prazo_pagamento_dia_mes"] = None
+        elif modo == Patient.PRAZO_MODO_DIA_FIXO:
+            if not dia_mes or not (1 <= int(dia_mes) <= 28):
+                raise serializers.ValidationError(
+                    {"prazo_pagamento_dia_mes": "Informe o dia fixo do mês (1 a 28)."},
+                )
+            attrs["prazo_pagamento_dias"] = None
+        elif modo in ("", Patient.PRAZO_MODO_SEM):
+            attrs["prazo_pagamento_modo"] = Patient.PRAZO_MODO_SEM
+            attrs["prazo_pagamento_dias"] = None
+            attrs["prazo_pagamento_dia_mes"] = None
+        else:
+            raise serializers.ValidationError({"prazo_pagamento_modo": "Modo de prazo inválido."})
+        return attrs
 
 
 class PatientAnamneseSerializer(serializers.ModelSerializer):

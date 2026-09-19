@@ -9,8 +9,8 @@ from rest_framework.views import APIView
 from .models import Appointment, Patient
 from .pagination import paginate_queryset
 from .patient_search import apply_patient_search
-from .permissions import CLINICA_RECEPCAO
-from .serializers import PatientSerializer
+from .permissions import CLINICA_ADMIN, CLINICA_RECEPCAO
+from .serializers import PatientPrazoPagamentoSerializer, PatientSerializer
 from .views_base import GetObjectMixin, map_field_names
 
 # Status de agendamento ainda "em aberto" (não terminais)
@@ -113,3 +113,31 @@ class PatientDetailView(GetObjectMixin, APIView):
             {"message": f"Paciente desativado. {canceladas} agendamento(s) futuro(s) cancelado(s)."},
             status=status.HTTP_200_OK,
         )
+
+
+class PatientPrazoPagamentoView(GetObjectMixin, APIView):
+    """Política de prazo de pagamento do paciente (só administrador).
+
+    GET  /clinica-beleza/patients/<id>/prazo-pagamento/  → lê a política
+    PUT  /clinica-beleza/patients/<id>/prazo-pagamento/  → configura a política
+    """
+
+    permission_classes = CLINICA_ADMIN
+    model_class = Patient
+    not_found_message = "Paciente não encontrado"
+
+    def get(self, request, pk):
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        return Response(PatientPrazoPagamentoSerializer(obj).data)
+
+    def put(self, request, pk):
+        obj, err = self.object_or_404(pk)
+        if err:
+            return err
+        serializer = PatientPrazoPagamentoSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

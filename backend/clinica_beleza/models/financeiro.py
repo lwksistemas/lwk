@@ -41,6 +41,11 @@ class Payment(LojaIsolationMixin, models.Model):
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, verbose_name="Método de Pagamento")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING", verbose_name="Status")
     payment_date = models.DateTimeField(blank=True, null=True, verbose_name="Data do Pagamento")
+    data_vencimento = models.DateField(
+        blank=True, null=True,
+        verbose_name="Vencimento (a prazo)",
+        help_text="Data limite para pagamento quando a consulta é recebida a prazo.",
+    )
     notes = models.TextField(blank=True, null=True, verbose_name="Observações")
     desconto = models.DecimalField(
         max_digits=10, decimal_places=2, default=0,
@@ -63,6 +68,7 @@ class Payment(LojaIsolationMixin, models.Model):
             models.Index(fields=["status", "payment_date"]),
             models.Index(fields=["appointment", "status"]),
             models.Index(fields=["loja_id", "payment_date"]),
+            models.Index(fields=["loja_id", "status", "data_vencimento"], name="cb_payment_venc_idx"),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -124,6 +130,36 @@ class Payment(LojaIsolationMixin, models.Model):
         except (TypeError, ArithmeticError, InvalidOperation) as exc:
             logger.warning("Payment %s: erro ao calcular saldo_devedor — %s", self.pk, exc)
             return self.valor_total_efetivo
+
+    @property
+    def em_aberto(self) -> bool:
+        """Conta a receber ainda pendente (há saldo e não está cancelada/paga)."""
+        from decimal import Decimal
+
+        if self.status in ("PAID", "CANCELLED"):
+            return False
+        try:
+            return self.saldo_devedor > Decimal("0.01")
+        except (TypeError, ArithmeticError):
+            return self.status in ("PENDING", "PARTIAL")
+
+    @property
+    def esta_vencido(self) -> bool:
+        """True se é conta a receber com vencimento no passado e ainda em aberto."""
+        from django.utils.timezone import now
+
+        if not self.data_vencimento or not self.em_aberto:
+            return False
+        return self.data_vencimento < now().date()
+
+    @property
+    def dias_atraso(self) -> int:
+        """Dias corridos desde o vencimento (0 se não vencido)."""
+        from django.utils.timezone import now
+
+        if not self.esta_vencido:
+            return 0
+        return (now().date() - self.data_vencimento).days
 
 
 def status_pagamento_exibido(payment) -> str:

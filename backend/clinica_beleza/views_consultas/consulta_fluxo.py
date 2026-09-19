@@ -52,8 +52,10 @@ class ConsultaIniciarView(APIView):
             consulta.professional = prof
             consulta.save(update_fields=["professional", "updated_at"])
 
+        from ..permissions import is_clinica_admin
+
         try:
-            iniciar_consulta(consulta)
+            iniciar_consulta(consulta, bypass_inadimplencia=is_clinica_admin(request))
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

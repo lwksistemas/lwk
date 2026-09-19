@@ -178,6 +178,22 @@ class IsClinicalOrEstoqueStaff(_BaseClinicaProfilePermission):
     )
 
 
+def is_clinica_admin(request) -> bool:
+    """True se o usuário é superuser, owner da loja ou perfil administrador.
+
+    Usado para permitir que o admin 'fure' bloqueios operacionais (ex.: inadimplência),
+    enquanto a recepção é bloqueada.
+    """
+    if request is None:
+        return False
+    loja, prof = _loja_and_profissional(request)
+    if prof == "superuser":
+        return True
+    if loja and getattr(request, "user", None) and loja.owner_id == request.user.id:
+        return True
+    return bool(prof) and prof.perfil == ProfissionalUsuario.PERFIL_ADMINISTRADOR
+
+
 def resolve_agenda_professional_scope(request) -> int | None:
     """Escopo de agenda para o usuário autenticado.
 

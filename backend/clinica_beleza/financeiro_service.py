@@ -57,6 +57,89 @@ def somar_contas_a_receber(qs=None) -> float:
     return float(agregado["t"] or 0)
 
 
+def _anotar_saldo_em_aberto(base):
+    """Anota _saldo (valor total - pago) nos payments PENDING/PARTIAL da base."""
+    pago_sub = (
+        PaymentParcela.objects.filter(payment_id=OuterRef("pk"), status="PAID")
+        .values("payment_id")
+        .annotate(s=Sum("valor"))
+        .values("s")[:1]
+    )
+    return (
+        base.annotate(
+            _pago_parc=Subquery(pago_sub, output_field=_DEC),
+            _total=Coalesce(F("valor_total"), F("amount"), Value(0), output_field=_DEC),
+        )
+        .annotate(
+            _pago=Case(
+                When(_pago_parc__isnull=False, then=F("_pago_parc")),
+                When(
+                    status__in=("PARTIAL", "PAID", "DRAFT"),
+                    then=Coalesce(F("amount"), Value(0), output_field=_DEC),
+                ),
+                default=Value(0),
+                output_field=_DEC,
+            ),
+        )
+        .annotate(_saldo=Greatest(F("_total") - F("_pago"), Value(0), output_field=_DEC))
+    )
+
+
+def queryset_inadimplentes(qs=None, *, hoje: date | None = None):
+    """Payments a prazo vencidos e com saldo em aberto (inadimplência).
+
+    Vencido = status PENDING/PARTIAL, data_vencimento < hoje e _saldo > 0.
+    """
+    hoje = hoje or now().date()
+    base = payments_visiveis_financeiro(qs).filter(
+        status__in=("PENDING", "PARTIAL"),
+        data_vencimento__isnull=False,
+        data_vencimento__lt=hoje,
+    )
+    return _anotar_saldo_em_aberto(base).filter(_saldo__gt=Decimal("0.01"))
+
+
+def somar_inadimplencia(qs=None, *, hoje: date | None = None) -> float:
+    """Soma o saldo em aberto de todos os pagamentos vencidos (1 query)."""
+    agregado = queryset_inadimplentes(qs, hoje=hoje).aggregate(t=Sum("_saldo"))
+    return float(agregado["t"] or 0)
+
+
+def contar_inadimplentes(qs=None, *, hoje: date | None = None) -> int:
+    """Quantidade de pagamentos vencidos em aberto."""
+    return queryset_inadimplentes(qs, hoje=hoje).count()
+
+
+def pagamento_vencido_do_paciente(patient_id: int, *, hoje: date | None = None):
+    """Retorna o pagamento vencido mais antigo do paciente, ou None."""
+    if not patient_id:
+        return None
+    return (
+        queryset_inadimplentes(hoje=hoje)
+        .filter(appointment__patient_id=patient_id)
+        .order_by("data_vencimento")
+        .first()
+    )
+
+
+def paciente_em_atraso(patient_id: int, *, hoje: date | None = None) -> bool:
+    """True se o paciente tem algum pagamento a prazo vencido em aberto."""
+    return pagamento_vencido_do_paciente(patient_id, hoje=hoje) is not None
+
+
+def mensagem_bloqueio_inadimplencia(patient_id: int, *, hoje: date | None = None) -> str | None:
+    """Mensagem de bloqueio se o paciente está inadimplente; None caso contrário."""
+    pgto = pagamento_vencido_do_paciente(patient_id, hoje=hoje)
+    if pgto is None:
+        return None
+    venc = pgto.data_vencimento
+    venc_txt = venc.strftime("%d/%m/%Y") if venc else "—"
+    return (
+        f"Paciente com pagamento em atraso desde {venc_txt}. "
+        f"Regularize no Financeiro antes de agendar ou abrir uma nova consulta."
+    )
+
+
 def garantir_categorias_despesa_padrao(loja_id: int) -> None:
     if CategoriaDespesa.objects.exists():
         return

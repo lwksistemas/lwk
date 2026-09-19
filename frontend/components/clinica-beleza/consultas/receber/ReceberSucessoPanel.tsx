@@ -15,6 +15,7 @@ interface ReceberSucessoPanelProps {
   consultaExibida: Consulta;
   consultaStatus: string;
   precisaComplementar: boolean;
+  ehAPrazo?: boolean;
   saldoAposRecebimento: number;
   reciboSnapshot: {
     desconto: number;
@@ -35,6 +36,7 @@ export function ReceberSucessoPanel({
   consultaExibida,
   consultaStatus,
   precisaComplementar,
+  ehAPrazo = false,
   saldoAposRecebimento,
   reciboSnapshot,
   error,
@@ -60,10 +62,16 @@ export function ReceberSucessoPanel({
             className={`text-lg font-bold ${
               precisaComplementar
                 ? "text-orange-700 dark:text-orange-400"
-                : "text-green-700 dark:text-green-400"
+                : ehAPrazo
+                  ? "text-slate-700 dark:text-slate-300"
+                  : "text-green-700 dark:text-green-400"
             }`}
           >
-            {precisaComplementar ? "✓ Pagamento parcial registrado" : "✓ Pagamento registrado"}
+            {precisaComplementar
+              ? "✓ Pagamento parcial registrado"
+              : ehAPrazo
+                ? "✓ Pagamento a prazo registrado"
+                : "✓ Pagamento registrado"}
           </h2>
           <button type="button" onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
             <X size={18} />
@@ -74,7 +82,9 @@ export function ReceberSucessoPanel({
             className={`text-sm space-y-1 rounded-lg p-4 ${
               precisaComplementar
                 ? "bg-orange-50 dark:bg-orange-900/20"
-                : "bg-green-50 dark:bg-green-900/20"
+                : ehAPrazo
+                  ? "bg-slate-50 dark:bg-slate-800/40"
+                  : "bg-green-50 dark:bg-green-900/20"
             }`}
           >
             <p>
@@ -104,6 +114,14 @@ export function ReceberSucessoPanel({
               <strong>Valor recebido nesta operação:</strong>{" "}
               {formatCurrency(snap?.totalLiquido ?? Number(consultaExibida.valor_pago ?? 0))}
             </p>
+            {ehAPrazo && (
+              <p className="font-semibold text-slate-800 dark:text-slate-200 pt-1">
+                A prazo: {formatCurrency(Number(consultaExibida.valor_restante ?? 0))}
+                {consultaExibida.payment_data_vencimento
+                  ? ` — vencimento ${consultaExibida.payment_data_vencimento.split("-").reverse().join("/")}`
+                  : ""}
+              </p>
+            )}
             {resumoFormas && (
               <p>
                 <strong>Formas nesta operação:</strong> {resumoFormas}

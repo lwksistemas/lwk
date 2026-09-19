@@ -132,7 +132,7 @@ export function FinanceiroReceitasTab({
                       {p.procedimento_nome || "Consulta"}
                     </td>
                     <td className="py-3 px-4 text-right font-medium">
-                      {formatCurrency(p.amount)}
+                      {formatCurrency(p.valor_total_efetivo ?? p.amount)}
                     </td>
                     <td className="py-3 px-4">
                       {CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}

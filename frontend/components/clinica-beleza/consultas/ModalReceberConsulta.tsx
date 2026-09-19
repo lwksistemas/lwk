@@ -128,7 +128,10 @@ export function ModalReceberConsulta({
   const saldoProp = saldoReceberConsulta(consulta);
   const saldoAtualizada = consultaAtualizada ? saldoReceberConsulta(consultaAtualizada) : 0;
   const saldoAposRecebimento = Math.max(saldoProp, saldoAtualizada);
-  const precisaComplementar = confirmado && saldoAposRecebimento > 0;
+  // "A prazo" = método PRAZO e nada pago ainda. Não é "parcial".
+  const ehAPrazo =
+    consultaExibida.payment_method === "PRAZO" && Number(consultaExibida.valor_pago ?? 0) <= 0;
+  const precisaComplementar = confirmado && saldoAposRecebimento > 0 && !ehAPrazo;
   const consultaParaComplemento =
     saldoProp >= saldoAtualizada ? consulta : consultaExibida;
   const valorDesconto = parseMoneyInput(desconto);
@@ -335,6 +338,7 @@ export function ModalReceberConsulta({
         consultaExibida={consultaExibida}
         consultaStatus={consulta.status}
         precisaComplementar={precisaComplementar}
+        ehAPrazo={ehAPrazo}
         saldoAposRecebimento={saldoAposRecebimento}
         reciboSnapshot={reciboSnapshot}
         error={error}

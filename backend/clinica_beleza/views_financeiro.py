@@ -168,6 +168,33 @@ class PaymentParcelaView(GetObjectMixin, APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class PaymentReciboHtmlView(GetObjectMixin, APIView):
+    """GET /clinica-beleza/payments/<id>/recibo-html/ — cupom de impressão (mesmo ctx do PDF)."""
+
+    permission_classes = CLINICA_FINANCEIRO
+    model_class = Payment
+    not_found_message = "Pagamento não encontrado"
+    select_related_fields = (
+        "appointment",
+        "appointment__patient",
+        "appointment__local_atendimento",
+        "appointment__consulta",
+        "appointment__consulta__local_atendimento",
+    )
+
+    def get(self, request, pk):
+        from .recibo.html import gerar_html_recibo_do_payment
+
+        payment, err = self.object_or_404(pk)
+        if err:
+            return err
+        try:
+            html_recibo = gerar_html_recibo_do_payment(payment)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return HttpResponse(html_recibo, content_type="text/html; charset=utf-8")
+
+
 class PaymentEnviarReciboView(GetObjectMixin, APIView):
     """POST /clinica-beleza/payments/<id>/enviar-recibo/"""
 

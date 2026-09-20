@@ -59,7 +59,7 @@ describe("groupProceduresByCategoria", () => {
   });
 
   it("coloca sem categoria em Outro", () => {
-    const grupos = groupProceduresByCategoria([{ id: 9, nome: "AVULSO" }]);
+    const grupos = groupProceduresByCategoria([{ id: 9, nome: "AVULSO" } as { id: number; nome: string; categoria?: string | null }]);
     expect(grupos).toHaveLength(1);
     expect(grupos[0].slug).toBe("outro");
     expect(grupos[0].label).toBe("Outro");

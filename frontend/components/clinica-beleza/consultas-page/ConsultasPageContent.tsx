@@ -43,7 +43,7 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
   const [consultaParaIniciar, setConsultaParaIniciar] = useState<Consulta | null>(null);
   const [showProfessionalModal, setShowProfessionalModal] = useState(false);
   const [profissionaisDisponiveis, setProfissionaisDisponiveis] = useState<
-    Array<{ id: number; nome: string }>
+    Array<{ id: number; nome?: string; name?: string }>
   >([]);
 
   const queryParams = useMemo(

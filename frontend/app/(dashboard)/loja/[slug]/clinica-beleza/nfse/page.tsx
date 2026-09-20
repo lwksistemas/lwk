@@ -1,5 +1,6 @@
 'use client';
 
+import { useParams } from 'next/navigation';
 import { X } from 'lucide-react';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { ClinicaBelezaNFSeConfigProvider } from '@/contexts/ClinicaBelezaNFSeConfigContext';
@@ -17,6 +18,8 @@ import { NfseLojaTable } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/com
 import { ModalEmitirNFSeClinica } from './components/ModalEmitirNFSeClinica';
 
 function ClinicaNFSePageContent() {
+  const params = useParams();
+  const slug = params.slug as string;
   const {
     lojaProvedor,
     whatsappAtivo,
@@ -64,6 +67,7 @@ function ClinicaNFSePageContent() {
   return (
     <div className="space-y-6">
       <NfseLojaHeader
+        slug={slug}
         onEmitir={() => setShowModal(true)}
         onRecuperar={lojaProvedor === 'issnet' ? () => setShowRecuperarModal(true) : undefined}
       />

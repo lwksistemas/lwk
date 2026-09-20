@@ -17,6 +17,39 @@ _WM_OPACIDADE_RECIBO = 0.22
 _WM_MAX_W_MM = 55
 _WM_MAX_H_MM = 55
 
+# Logo (imagem nítida) no rodapé do recibo — parte branca, aparece em todo recibo.
+_LOGO_RODAPE_MAX_W_MM = 32
+_LOGO_RODAPE_MAX_H_MM = 20
+
+
+def _logo_rodape_recibo(logo_url: str, mm_unit):
+    """Baixa a logo da loja e retorna um Image do reportlab para o rodapé, ou None."""
+    if not logo_url:
+        return None
+    try:
+        import requests as http_requests
+        from PIL import Image as PILImage
+        from reportlab.platypus import Image as RLImage
+
+        resp = http_requests.get(logo_url, timeout=5)
+        if resp.status_code != 200:
+            return None
+        raw = io.BytesIO(resp.content)
+        pil = PILImage.open(raw)
+        iw, ih = pil.size
+        if not iw or not ih:
+            return None
+        max_w = _LOGO_RODAPE_MAX_W_MM * mm_unit
+        max_h = _LOGO_RODAPE_MAX_H_MM * mm_unit
+        ratio = min(max_w / iw, max_h / ih)
+        raw.seek(0)
+        img = RLImage(raw, width=iw * ratio, height=ih * ratio)
+        img.hAlign = "CENTER"
+        return img
+    except Exception as e:
+        logger.warning("Logo do rodapé do recibo indisponível: %s", e)
+        return None
+
 
 def _marca_dagua_bytes_recibo(logo_url: str) -> bytes | None:
     """Baixa a logo e aplica opacidade baixa para uso como marca d'água de fundo."""
@@ -313,6 +346,12 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
     story.append(Spacer(1, 2 * mm_unit))
     story.append(Paragraph("Agradecemos pela confiança!", s_footer))
     story.append(Paragraph("Documento não fiscal — gerado pelo sistema.", s_footer))
+
+    # Logo da clínica no rodapé (parte branca) — aparece em todo recibo, com ou sem assinatura.
+    logo = _logo_rodape_recibo((ctx.get("logo_url") or "").strip(), mm_unit)
+    if logo is not None:
+        story.append(Spacer(1, 3 * mm_unit))
+        story.append(logo)
     return story
 
 

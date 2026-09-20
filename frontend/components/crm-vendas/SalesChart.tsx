@@ -291,16 +291,19 @@ export default function SalesChart({ data, title = 'Pipeline por etapa' }: Sales
               className="text-blue-800 dark:text-blue-300"
             />
             <Tooltip
-              formatter={(value: number | undefined) => [
-                value != null
-                  ? new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                      minimumFractionDigits: 0,
-                    }).format(value)
-                  : '',
-                'Valor',
-              ]}
+              formatter={(value) => {
+                const num = typeof value === 'number' ? value : Number(value);
+                return [
+                  Number.isFinite(num)
+                    ? new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                        minimumFractionDigits: 0,
+                      }).format(num)
+                    : '',
+                  'Valor',
+                ];
+              }}
               contentStyle={{
                 backgroundColor: 'white',
                 border: '1px solid rgba(0,0,0,0.08)',

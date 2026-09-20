@@ -79,9 +79,6 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
         : null;
       const tamanhoMb = response.headers['x-tamanho-mb'];
       let mensagem = 'Backup exportado com sucesso!';
-      if (incluirImagens) {
-        mensagem = 'Backup exportado com imagens incluídas!';
-      }
       if (totalRegistros !== null || tamanhoMb) {
         const partes: string[] = [];
         if (totalRegistros !== null) partes.push(`${totalRegistros.toLocaleString('pt-BR')} registro(s)`);

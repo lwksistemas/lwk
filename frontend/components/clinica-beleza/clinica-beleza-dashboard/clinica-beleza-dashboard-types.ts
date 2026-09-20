@@ -6,6 +6,8 @@ export interface DashboardStats {
   revenue_month: number;
   revenue_today?: number;
   sessions_month?: number;
+  inadimplencia_total?: number;
+  inadimplentes_count?: number;
 }
 
 export interface DashboardFilter {

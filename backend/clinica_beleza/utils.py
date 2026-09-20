@@ -196,7 +196,7 @@ class LojaContextHelper:
         invalidate_dashboard_cache(loja_id)
 
 
-DASHBOARD_CACHE_VERSION = "v9"
+DASHBOARD_CACHE_VERSION = "v10"
 
 
 def invalidate_dashboard_cache(loja_id, *, mes=None, ano=None, professional_id=None):

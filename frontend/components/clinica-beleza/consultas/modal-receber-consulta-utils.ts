@@ -7,6 +7,8 @@ export interface EntradaPagamentoLinha {
   /** Parcelas do cartão de crédito (só UI/recibo). */
   parcelas?: string;
   valorParcela?: string;
+  /** Data do pagamento desta parcela (ISO YYYY-MM-DD) — usada no recibo quando há várias datas. */
+  payment_date?: string | null;
 }
 
 const TOLERANCIA = 0.01;
@@ -20,6 +22,15 @@ export function parseMoneyInput(value: string | number | null | undefined): numb
 /** Total a receber = base (saldo ou total) − desconto, mínimo 0. */
 export function calcularTotalLiquido(base: number, desconto: number): number {
   return Math.max(0, round2(base - Math.max(0, desconto)));
+}
+
+/** Soma só as entradas realmente pagas — "a prazo" não conta como pago. */
+export function somaEntradasPagas(entradas: EntradaPagamentoLinha[]): number {
+  return round2(
+    entradas
+      .filter((e) => e.payment_method !== "PRAZO")
+      .reduce((acc, e) => acc + parseMoneyInput(e.valor), 0),
+  );
 }
 
 export function somaEntradas(entradas: EntradaPagamentoLinha[]): number {
@@ -37,6 +48,7 @@ export function valoresQuaseIguais(a: number, b: number): boolean {
 export function novaLinhaEntrada(
   payment_method: string = "CASH",
   valor: number | string = "",
+  payment_date: string | null = null,
 ): EntradaPagamentoLinha {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -44,6 +56,7 @@ export function novaLinhaEntrada(
     valor: valor === "" ? "" : String(round2(Number(valor))),
     parcelas: "1",
     valorParcela: "",
+    payment_date,
   };
 }
 

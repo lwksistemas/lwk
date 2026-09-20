@@ -90,6 +90,7 @@ export function ConsultaDetailShell({
             onReceber={actions.abrirReceberModal}
             onEmitirNfse={actions.emitirNfseConsulta}
             onFinalizar={actions.abrirFinalizarModal}
+            onReabrir={actions.reabrirConsulta}
             onExcluir={actions.excluirConsulta}
             onRefreshConsulta={refreshConsulta}
           />

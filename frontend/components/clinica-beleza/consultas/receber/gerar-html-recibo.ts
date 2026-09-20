@@ -36,25 +36,21 @@ export function gerarHtmlRecibo(params: {
     cep?: string;
   };
   saldoRestante?: number;
+  vencimento?: string | null;
 }): string {
-  const { consulta, valorPago, desconto, entradas, lojaData, saldoRestante = 0 } = params;
-  const dataHora = consulta.payment_date
-    ? new Date(consulta.payment_date).toLocaleString("pt-BR", {
-        timeZone: "America/Sao_Paulo",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : new Date().toLocaleString("pt-BR", {
-        timeZone: "America/Sao_Paulo",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+  const { consulta, valorPago, desconto, entradas, lojaData, saldoRestante = 0, vencimento = null } = params;
+  const vencimentoBr = vencimento
+    ? vencimento.split("-").reverse().join("/")
+    : "";
+  // Data/hora da EMISSÃO do comprovante (impressão) — sempre o momento atual.
+  const dataHoraEmissao = new Date().toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
   const valorProcs = Number(consulta.valor_procedimentos ?? 0);
   const retornoGratuito = Boolean(consulta.retorno_gratuito);
@@ -80,10 +76,14 @@ export function gerarHtmlRecibo(params: {
       : "",
   ].join("");
 
-  // Mesmo dia / mesmo comprovante: soma valores da mesma forma (não repetir linha).
+  const fmtDataBr = (iso?: string | null): string =>
+    iso ? String(iso).slice(0, 10).split("-").reverse().join("/") : "";
+
+  // Sempre mostra a data em que o cliente pagou cada forma (não confundir com a emissão do recibo).
+  // Agrupa por forma + data do pagamento.
   const formasAgrupadas = new Map<
     string,
-    { label: string; valor: number; parcInfo: string }
+    { label: string; valor: number; parcInfo: string; dataInfo: string }
   >();
   for (const e of entradas) {
     const valor = parseMoneyInput(e.valor);
@@ -96,18 +96,20 @@ export function gerarHtmlRecibo(params: {
       e.payment_method === "CREDIT_CARD" && nParc > 1
         ? ` (${nParc}x R$ ${e.valorParcela || (valor / nParc).toFixed(2)})`
         : "";
-    const key = `${e.payment_method}|${parcInfo}`;
+    const dataKey = String(e.payment_date || "").slice(0, 10);
+    const dataInfo = dataKey ? ` (${fmtDataBr(dataKey)})` : "";
+    const key = `${e.payment_method}|${parcInfo}|${dataKey}`;
     const prev = formasAgrupadas.get(key);
     if (prev) {
       prev.valor += valor;
     } else {
-      formasAgrupadas.set(key, { label, valor, parcInfo });
+      formasAgrupadas.set(key, { label, valor, parcInfo, dataInfo });
     }
   }
   const formasHtml = Array.from(formasAgrupadas.values())
     .map(
       (f) =>
-        `<tr><td>${f.label}${f.parcInfo}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`,
+        `<tr><td>${f.label}${f.parcInfo}${f.dataInfo}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`,
     )
     .join("");
 
@@ -170,7 +172,7 @@ export function gerarHtmlRecibo(params: {
   ${telCep ? `<p>${telCep}</p>` : ""}
   ${lojaData.email ? `<p>${lojaData.email}</p>` : ""}
   <p style="margin-top:4px;font-weight:bold">RECIBO DE PAGAMENTO</p>
-  <p>${dataHora}</p>
+  <p>Emitido em ${dataHoraEmissao}</p>
 </div>
 
 <div class="section">
@@ -223,10 +225,10 @@ export function gerarHtmlRecibo(params: {
   </table>
 </div>
 
-${valorPago > 0 ? `<div class="total">VALOR PAGO: R$ ${valorPago.toFixed(2)}</div>` : ""}
+<div class="total">VALOR PAGO: R$ ${valorPago.toFixed(2)}</div>
 ${
   saldoRestante > 0.009
-    ? `<div class="total" style="font-size:12px;">SALDO: R$ ${saldoRestante.toFixed(2)}</div>`
+    ? `<div class="total" style="font-size:12px;">SALDO A PAGAR: R$ ${saldoRestante.toFixed(2)}${vencimentoBr ? ` — vencimento ${vencimentoBr}` : ""}</div>`
     : `<div class="footer" style="border-top:none;margin-top:0;"><p style="font-weight:bold;color:#333;">Quitado</p></div>`
 }
 

@@ -31,6 +31,12 @@ class Payment(LojaIsolationMixin, models.Model):
         ("CANCELLED", "Cancelado"),
     )
 
+    STATUS_ASSINATURA_RECIBO_CHOICES = (
+        ("rascunho", "Rascunho"),
+        ("aguardando_paciente", "Aguardando Paciente"),
+        ("concluido", "Concluído"),
+    )
+
     appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, verbose_name="Agendamento")
     amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor cobrado")
     valor_total = models.DecimalField(
@@ -41,7 +47,18 @@ class Payment(LojaIsolationMixin, models.Model):
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, verbose_name="Método de Pagamento")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING", verbose_name="Status")
     payment_date = models.DateTimeField(blank=True, null=True, verbose_name="Data do Pagamento")
+    data_vencimento = models.DateField(
+        blank=True, null=True,
+        verbose_name="Vencimento (a prazo)",
+        help_text="Data limite para pagamento quando a consulta é recebida a prazo.",
+    )
     notes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    status_assinatura_recibo = models.CharField(
+        max_length=30,
+        choices=STATUS_ASSINATURA_RECIBO_CHOICES,
+        default="rascunho",
+        verbose_name="Status assinatura do recibo",
+    )
     desconto = models.DecimalField(
         max_digits=10, decimal_places=2, default=0,
         verbose_name="Desconto (R$)",
@@ -63,6 +80,7 @@ class Payment(LojaIsolationMixin, models.Model):
             models.Index(fields=["status", "payment_date"]),
             models.Index(fields=["appointment", "status"]),
             models.Index(fields=["loja_id", "payment_date"]),
+            models.Index(fields=["loja_id", "status", "data_vencimento"], name="cb_payment_venc_idx"),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -125,6 +143,36 @@ class Payment(LojaIsolationMixin, models.Model):
             logger.warning("Payment %s: erro ao calcular saldo_devedor — %s", self.pk, exc)
             return self.valor_total_efetivo
 
+    @property
+    def em_aberto(self) -> bool:
+        """Conta a receber ainda pendente (há saldo e não está cancelada/paga)."""
+        from decimal import Decimal
+
+        if self.status in ("PAID", "CANCELLED"):
+            return False
+        try:
+            return self.saldo_devedor > Decimal("0.01")
+        except (TypeError, ArithmeticError):
+            return self.status in ("PENDING", "PARTIAL")
+
+    @property
+    def esta_vencido(self) -> bool:
+        """True se é conta a receber com vencimento no passado e ainda em aberto."""
+        from django.utils.timezone import now
+
+        if not self.data_vencimento or not self.em_aberto:
+            return False
+        return self.data_vencimento < now().date()
+
+    @property
+    def dias_atraso(self) -> int:
+        """Dias corridos desde o vencimento (0 se não vencido)."""
+        from django.utils.timezone import now
+
+        if not self.esta_vencido:
+            return 0
+        return (now().date() - self.data_vencimento).days
+
 
 def status_pagamento_exibido(payment) -> str:
     """Status na lista do Financeiro: Parcial se já houve entrada e ainda há saldo."""
@@ -182,6 +230,48 @@ class PaymentParcela(LojaIsolationMixin, models.Model):
         return f"Parcela {self.id} — R$ {self.valor} em {self.payment_date}"
 
 
+class ReciboAssinatura(LojaIsolationMixin, models.Model):
+    """Assinatura digital do recibo de um pagamento (procedimento realizado).
+
+    Reusa o motor genérico de assinatura (core.assinatura_service). O valor jurídico
+    vem do token assinado + IP + user_agent + data/hora do aceite. Só o paciente assina.
+    """
+
+    TIPO_CHOICES = (
+        ("paciente", "Paciente"),
+    )
+
+    payment = models.ForeignKey(
+        Payment, on_delete=models.CASCADE, related_name="assinaturas_recibo",
+        verbose_name="Pagamento",
+    )
+    tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default="paciente")
+    nome_assinante = models.CharField(max_length=200)
+    email_assinante = models.EmailField(blank=True, default="")
+    ip_address = models.GenericIPAddressField(default="0.0.0.0")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    user_agent = models.TextField(blank=True, default="")
+    token = models.CharField(max_length=255, unique=True, db_index=True)
+    token_expira_em = models.DateTimeField()
+    assinado = models.BooleanField(default=False)
+    assinado_em = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_recibo_assinaturas"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["loja_id", "token"], name="cb_recibo_assin_loja_tok_idx"),
+            models.Index(fields=["payment", "tipo"], name="cb_recibo_assin_pay_tipo_idx"),
+        ]
+
+    def __str__(self):
+        status = "Assinado" if self.assinado else "Pendente"
+        return f"Recibo #{self.payment_id} — {self.nome_assinante} ({status})"
 
 
 class CampanhaPromocao(LojaIsolationMixin, models.Model):

@@ -1,7 +1,11 @@
 "use client";
 
-import { X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, PenLine, X } from "lucide-react";
 import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { formatApiErrorBody } from "@/lib/api-errors";
+import { useToast } from "@/components/ui/Toast";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { valorPagamentoConsulta } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import { consultaProcedimentoLabel, type Consulta } from "../consultas-types";
@@ -11,10 +15,91 @@ import {
 } from "../modal-receber-consulta-utils";
 import { ReceberReciboActions } from "./ReceberReciboActions";
 
+function EnviarReciboAssinaturaAcao({ paymentId }: { paymentId: number }) {
+  const toast = useToast();
+  const [enviando, setEnviando] = useState<"email" | "whatsapp" | null>(null);
+  const [assinado, setAssinado] = useState(false);
+
+  // Consulta o status ao montar: se já assinado, oculta os botões de envio para assinatura.
+  useEffect(() => {
+    let ativo = true;
+    ClinicaBelezaAPI.payments
+      .assinaturaReciboStatus(paymentId)
+      .then((r) => {
+        if (ativo) setAssinado(r?.status_assinatura === "concluido");
+      })
+      .catch(() => {
+        /* silencioso: mantém os botões disponíveis */
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [paymentId]);
+
+  const enviar = async (canal: "email" | "whatsapp") => {
+    setEnviando(canal);
+    try {
+      await ClinicaBelezaAPI.payments.enviarReciboParaAssinatura(paymentId, canal);
+      toast.success(
+        canal === "email"
+          ? "Recibo enviado para assinatura por e-mail."
+          : "Recibo enviado para assinatura por WhatsApp.",
+      );
+    } catch (e: unknown) {
+      toast.error(formatApiErrorBody(e) || "Erro ao enviar recibo para assinatura.");
+    } finally {
+      setEnviando(null);
+    }
+  };
+
+  if (assinado) {
+    return (
+      <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50/70 dark:bg-green-950/30 p-3">
+        <p className="text-sm font-medium text-green-800 dark:text-green-300 flex items-center gap-1.5">
+          <CheckCircle2 size={15} /> Recibo assinado digitalmente pelo cliente
+        </p>
+        <p className="text-xs text-green-700/80 dark:text-green-300/80 mt-0.5">
+          O cliente já recebeu o PDF assinado por e-mail e WhatsApp.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/70 dark:bg-purple-950/30 p-3">
+      <p className="text-sm font-medium text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
+        <PenLine size={15} /> Assinatura digital do recibo
+      </p>
+      <p className="text-xs text-purple-800/80 dark:text-purple-300/80 mt-0.5 mb-2">
+        Envie o recibo para o cliente assinar. Após assinar, ele recebe o PDF assinado por e-mail e WhatsApp.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => void enviar("email")}
+          disabled={enviando !== null}
+          className="py-2 rounded-lg text-sm font-medium bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 disabled:opacity-50"
+        >
+          {enviando === "email" ? "Enviando…" : "Assinar por e-mail"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void enviar("whatsapp")}
+          disabled={enviando !== null}
+          className="py-2 rounded-lg text-sm font-medium bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 disabled:opacity-50"
+        >
+          {enviando === "whatsapp" ? "Enviando…" : "Assinar por WhatsApp"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface ReceberSucessoPanelProps {
   consultaExibida: Consulta;
   consultaStatus: string;
   precisaComplementar: boolean;
+  ehAPrazo?: boolean;
   saldoAposRecebimento: number;
   reciboSnapshot: {
     desconto: number;
@@ -35,6 +120,7 @@ export function ReceberSucessoPanel({
   consultaExibida,
   consultaStatus,
   precisaComplementar,
+  ehAPrazo = false,
   saldoAposRecebimento,
   reciboSnapshot,
   error,
@@ -51,6 +137,9 @@ export function ReceberSucessoPanel({
     ? formatEntradasResumo(snap.entradas, CLINICA_FORMA_PAGAMENTO_LABEL as Record<string, string>)
     : "";
   const valorTotalConsulta = valorPagamentoConsulta(consultaExibida);
+  const consultaJaFinalizada = consultaStatus === "COMPLETED";
+  // Complementar direto só antes de finalizar; depois, o saldo é recebido no Financeiro.
+  const podeComplementarAqui = precisaComplementar && !consultaJaFinalizada;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
@@ -60,10 +149,16 @@ export function ReceberSucessoPanel({
             className={`text-lg font-bold ${
               precisaComplementar
                 ? "text-orange-700 dark:text-orange-400"
-                : "text-green-700 dark:text-green-400"
+                : ehAPrazo
+                  ? "text-slate-700 dark:text-slate-300"
+                  : "text-green-700 dark:text-green-400"
             }`}
           >
-            {precisaComplementar ? "✓ Pagamento parcial registrado" : "✓ Pagamento registrado"}
+            {precisaComplementar
+              ? "✓ Pagamento parcial registrado"
+              : ehAPrazo
+                ? "✓ Pagamento a prazo registrado"
+                : "✓ Pagamento registrado"}
           </h2>
           <button type="button" onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
             <X size={18} />
@@ -74,7 +169,9 @@ export function ReceberSucessoPanel({
             className={`text-sm space-y-1 rounded-lg p-4 ${
               precisaComplementar
                 ? "bg-orange-50 dark:bg-orange-900/20"
-                : "bg-green-50 dark:bg-green-900/20"
+                : ehAPrazo
+                  ? "bg-slate-50 dark:bg-slate-800/40"
+                  : "bg-green-50 dark:bg-green-900/20"
             }`}
           >
             <p>
@@ -104,6 +201,14 @@ export function ReceberSucessoPanel({
               <strong>Valor recebido nesta operação:</strong>{" "}
               {formatCurrency(snap?.totalLiquido ?? Number(consultaExibida.valor_pago ?? 0))}
             </p>
+            {ehAPrazo && (
+              <p className="font-semibold text-slate-800 dark:text-slate-200 pt-1">
+                A prazo: {formatCurrency(Number(consultaExibida.valor_restante ?? 0))}
+                {consultaExibida.payment_data_vencimento
+                  ? ` — vencimento ${consultaExibida.payment_data_vencimento.split("-").reverse().join("/")}`
+                  : ""}
+              </p>
+            )}
             {resumoFormas && (
               <p>
                 <strong>Formas nesta operação:</strong> {resumoFormas}
@@ -118,13 +223,15 @@ export function ReceberSucessoPanel({
               O recibo impresso/WhatsApp/e-mail lista todas as formas e o total já pago.
             </p>              {precisaComplementar && (
               <p className="font-semibold text-orange-800 dark:text-orange-300 pt-1">
-                Saldo em aberto: {formatCurrency(saldoAposRecebimento)} — inclua outras formas para
-                complementar.
+                Saldo em aberto: {formatCurrency(saldoAposRecebimento)}
+                {consultaJaFinalizada
+                  ? " — receba o saldo na página Financeiro."
+                  : " — inclua outras formas para complementar."}
               </p>
             )}
           </div>
 
-          {precisaComplementar && (
+          {podeComplementarAqui && (
             <button
               type="button"
               onClick={onComplementar}
@@ -135,14 +242,26 @@ export function ReceberSucessoPanel({
             </button>
           )}
 
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Envie o recibo de pagamento para o cliente:
-          </p>
-          <ReceberReciboActions
-            onImprimir={onImprimir}
-            onEmail={onEmail}
-            onWhatsApp={onWhatsApp}
-          />
+          {consultaJaFinalizada ? (
+            <>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Envie o recibo de pagamento para o cliente:
+              </p>
+              <ReceberReciboActions
+                onImprimir={onImprimir}
+                onEmail={onEmail}
+                onWhatsApp={onWhatsApp}
+              />
+              {(ehAPrazo || precisaComplementar) && consultaExibida.payment_id ? (
+                <EnviarReciboAssinaturaAcao paymentId={consultaExibida.payment_id} />
+              ) : null}
+            </>
+          ) : (
+            <p className="text-sm text-gray-600 dark:text-gray-400 rounded-lg border border-gray-200 dark:border-neutral-600 p-3">
+              Pagamento registrado. O comprovante fica disponível para impressão/envio
+              após <strong>finalizar a consulta</strong>.
+            </p>
+          )}
 
           {error && (
             <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">

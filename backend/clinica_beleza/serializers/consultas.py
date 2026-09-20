@@ -94,6 +94,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     payment_method = serializers.SerializerMethodField()
     payment_id = serializers.SerializerMethodField()
     payment_date = serializers.SerializerMethodField()
+    payment_data_vencimento = serializers.SerializerMethodField()
     numero = serializers.SerializerMethodField()
     status_assinatura_termo_display = serializers.CharField(
         source="get_status_assinatura_termo_display", read_only=True,
@@ -108,6 +109,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             "data_inicio", "data_fim", "duracao_minutos", "observacoes_gerais", "protocolo_notas",
             "valor_consulta", "valor_procedimentos", "valor_pagamento",
             "valor_pago", "valor_restante", "desconto", "payment_status", "payment_method", "payment_id", "payment_date",
+            "payment_data_vencimento",
             "retorno_gratuito", "retorno_tipo", "retorno_dias_prazo", "retorno_aviso_recibo",
             "local_atendimento", "local_atendimento_name", "local_atendimento_valor_consulta",
             "convenio", "convenio_name",
@@ -230,6 +232,10 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             from ..models import Payment
             return Payment.objects.filter(appointment=appointment).order_by("-id").first()
         except Exception:
+            import logging
+            logging.getLogger(__name__).exception(
+                "Falha ao resolver payment da consulta %s", getattr(obj, "id", None),
+            )
             return None
 
     def get_valor_pago(self, obj):
@@ -299,6 +305,12 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
                 dt = dj_tz.localtime(dt)
             return dt.isoformat()
         return None
+
+    def get_payment_data_vencimento(self, obj):
+        """Data de vencimento (a prazo), em ISO (YYYY-MM-DD), para exibir no recibo."""
+        payment = self._get_payment(obj)
+        venc = getattr(payment, "data_vencimento", None) if payment else None
+        return venc.isoformat() if venc else None
 
     def get_convenio_name(self, obj):
         if obj.convenio_id and obj.convenio:

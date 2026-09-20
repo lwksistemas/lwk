@@ -105,6 +105,15 @@ class WhatsAppConfig(models.Model):
             "Deixe em branco para usar a mensagem padrão."
         ),
     )
+    mensagem_cobranca = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Mensagem personalizada de cobrança",
+        help_text=(
+            "Placeholders: {nome}, {valor}, {vencimento}, {dias_atraso}, {clinica}. "
+            "Deixe em branco para usar a mensagem padrão."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

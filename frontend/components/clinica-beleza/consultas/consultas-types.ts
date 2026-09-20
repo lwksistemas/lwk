@@ -63,6 +63,8 @@ export interface Consulta {
   payment_id?: number | null;
   /** Data/hora do pagamento (ISO 8601) para exibir no recibo. */
   payment_date?: string | null;
+  /** Data de vencimento (a prazo), ISO YYYY-MM-DD, para exibir no recibo. */
+  payment_data_vencimento?: string | null;
   local_atendimento?: number | null;
   local_atendimento_name?: string | null;
   convenio?: number | null;

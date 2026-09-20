@@ -142,6 +142,33 @@ export function useConsultaLifecycleHandlers(
     }
   }, [selected, setSelected, setTab, loadDetalhes, onListRefresh, setFinalizando, toast]);
 
+  const reabrirConsulta = useCallback(async () => {
+    if (
+      !confirm(
+        "Reabrir esta consulta finalizada?\n\n" +
+          "• Ela volta para 'Em atendimento' para incluir procedimentos ou correções.\n" +
+          "• O pagamento já recebido e a nota fiscal NÃO são desfeitos.\n" +
+          "• Enquanto estiver reaberta, o lançamento sai temporariamente da tela do Financeiro e volta ao finalizar de novo.\n" +
+          "• Se incluir procedimento, o saldo extra entra como valor a receber ao finalizar.",
+      )
+    )
+      return;
+    setFinalizando(true);
+    try {
+      const updated = await ClinicaBelezaAPI.consultas.reabrir(selected.id);
+      const consultaAtualizada = { ...selected, ...updated };
+      setSelected(consultaAtualizada);
+      setTab("atendimento");
+      await loadDetalhes(consultaAtualizada);
+      await onListRefresh();
+      toast.success("Consulta reaberta. Você já pode incluir procedimentos ou correções.");
+    } catch (e: unknown) {
+      toast.error(formatApiErrorBody(e) || "Erro ao reabrir consulta.");
+    } finally {
+      setFinalizando(false);
+    }
+  }, [selected, setSelected, setTab, loadDetalhes, onListRefresh, setFinalizando, toast]);
+
   const abrirMemed = useCallback(() => {
     if (!memedRef.current) return;
     void memedRef.current.abrir().catch((e: unknown) => {
@@ -188,6 +215,7 @@ export function useConsultaLifecycleHandlers(
     abrirReceberModal,
     aposRecebimento,
     abrirFinalizarModal,
+    reabrirConsulta,
     abrirMemed,
     excluirConsulta,
     emitirNfseConsulta,

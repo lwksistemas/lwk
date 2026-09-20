@@ -185,7 +185,7 @@ export function sameDayIso(date: Date, iso: string): boolean {
 
 export function eventProfessionalId(evt: AgendaEventData): number | null {
   const raw = evt.extendedProps?.professional;
-  if (raw == null || raw === "") return null;
+  if (raw == null) return null;
   const n = Number(raw);
   return Number.isFinite(n) ? n : null;
 }

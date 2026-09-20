@@ -16,6 +16,7 @@ import {
   novaLinhaEntrada,
   parseMoneyInput,
   somaEntradas,
+  somaEntradasPagas,
   validateReceberForm,
   valoresQuaseIguais,
   type EntradaPagamentoLinha,
@@ -109,7 +110,11 @@ export function ModalReceberConsulta({
       const quitado = novoSaldo <= 0 && consulta.payment_status === "PAID";
       const retornoGratuitoFinalizado = Boolean(consulta.retorno_gratuito) && consulta.status === "COMPLETED" && novoSaldo <= 0;
       const finalizadaSemPagamento = consulta.status === "COMPLETED" && novoSaldo <= 0 && !consulta.payment_status;
-      if (quitado || retornoGratuitoFinalizado || finalizadaSemPagamento) {
+      // A prazo já lançado (finalizada): abre direto o comprovante, não o formulário.
+      const aPrazoFinalizado = consulta.status === "COMPLETED" && consulta.payment_method === "PRAZO";
+      // Parcial em consulta finalizada: abre o comprovante (saldo se recebe no Financeiro).
+      const parcialFinalizado = consulta.status === "COMPLETED" && consulta.payment_status === "PARTIAL";
+      if (quitado || retornoGratuitoFinalizado || finalizadaSemPagamento || aPrazoFinalizado || parcialFinalizado) {
         setConfirmado(true);
         setConsultaAtualizada(consulta);
         setReciboSnapshot(null);
@@ -125,7 +130,10 @@ export function ModalReceberConsulta({
   const saldoProp = saldoReceberConsulta(consulta);
   const saldoAtualizada = consultaAtualizada ? saldoReceberConsulta(consultaAtualizada) : 0;
   const saldoAposRecebimento = Math.max(saldoProp, saldoAtualizada);
-  const precisaComplementar = confirmado && saldoAposRecebimento > 0;
+  // "A prazo" = método PRAZO e nada pago ainda. Não é "parcial".
+  const ehAPrazo =
+    consultaExibida.payment_method === "PRAZO" && Number(consultaExibida.valor_pago ?? 0) <= 0;
+  const precisaComplementar = confirmado && saldoAposRecebimento > 0 && !ehAPrazo;
   const consultaParaComplemento =
     saldoProp >= saldoAtualizada ? consulta : consultaExibida;
   const valorDesconto = parseMoneyInput(desconto);
@@ -197,7 +205,8 @@ export function ModalReceberConsulta({
       if (!atualizada) throw new Error("Resposta inválida ao registrar recebimento.");
       setReciboSnapshot({
         desconto: valorDesconto,
-        totalLiquido: distribuido,
+        // Valor pago no recibo = só o efetivamente recebido; "a prazo" não é pago.
+        totalLiquido: somaEntradasPagas(entradas),
         entradas: [...entradas],
       });
       setConsultaAtualizada(atualizada);
@@ -230,6 +239,25 @@ export function ModalReceberConsulta({
 
   const handleImprimir = async () => {
     const c = consultaAtualizada || consulta;
+
+    // Se o recibo já foi assinado digitalmente, imprime o PDF oficial do backend
+    // (com logomarca e a seção de assinatura digital), igual ao enviado por e-mail/WhatsApp.
+    if (c.payment_id) {
+      try {
+        const st = await ClinicaBelezaAPI.payments.assinaturaReciboStatus(c.payment_id);
+        if (st?.status_assinatura === "concluido") {
+          const resp = await ClinicaBelezaAPI.payments.assinaturaReciboPdf(c.payment_id);
+          if (resp.ok) {
+            const { abrirPdfBlobFromResponse } = await import("@/lib/consulta-print");
+            await abrirPdfBlobFromResponse(resp, "imprimir");
+            return;
+          }
+        }
+      } catch {
+        /* fallback: gera o cupom HTML abaixo */
+      }
+    }
+
     let lojaData: {
       nome?: string;
       cpf_cnpj?: string;
@@ -254,18 +282,18 @@ export function ModalReceberConsulta({
         const parcelasRes = (await ClinicaBelezaAPI.financeiro.payments.parcelas.list(
           c.payment_id,
         )) as {
-          parcelas?: Array<{ status?: string; valor?: number | string; payment_method?: string }>;
+          parcelas?: Array<{ status?: string; valor?: number | string; payment_method?: string; payment_date?: string | null }>;
           valor_pago?: number;
         };
         const parcelas = Array.isArray(parcelasRes?.parcelas)
           ? parcelasRes.parcelas
           : Array.isArray(parcelasRes)
-            ? (parcelasRes as Array<{ status?: string; valor?: number | string; payment_method?: string }>)
+            ? (parcelasRes as Array<{ status?: string; valor?: number | string; payment_method?: string; payment_date?: string | null }>)
             : [];
         const pagas = parcelas.filter((p) => (p.status || "PAID") === "PAID");
         if (pagas.length > 0) {
           entradasRecibo = pagas.map((p) =>
-            novaLinhaEntrada(p.payment_method || "CASH", Number(p.valor ?? 0)),
+            novaLinhaEntrada(p.payment_method || "CASH", Number(p.valor ?? 0), p.payment_date ?? null),
           );
           valorPagoRecibo =
             typeof parcelasRes?.valor_pago === "number"
@@ -287,6 +315,7 @@ export function ModalReceberConsulta({
       entradas: entradasRecibo,
       lojaData,
       saldoRestante: saldoReceberConsulta(c),
+      vencimento: c.payment_data_vencimento ?? null,
     });
     const w = window.open("", "_blank", "width=320,height=700");
     if (!w) return;
@@ -330,6 +359,7 @@ export function ModalReceberConsulta({
         consultaExibida={consultaExibida}
         consultaStatus={consulta.status}
         precisaComplementar={precisaComplementar}
+        ehAPrazo={ehAPrazo}
         saldoAposRecebimento={saldoAposRecebimento}
         reciboSnapshot={reciboSnapshot}
         error={error}

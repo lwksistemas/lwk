@@ -222,6 +222,8 @@ def build_dashboard_statistics(*, today: date, period_start: date, period_end: d
     revenue_today = Payment.objects.filter(
         status="PAID", payment_date__date=today,
     ).exclude(payment_method="DESPESA").aggregate(total=Sum("amount"))["total"] or 0
+    from .financeiro_service import contar_inadimplentes, somar_inadimplencia
+
     return {
         "appointments_today": Appointment.objects.filter(date__date=today).count(),
         "appointments_yesterday": Appointment.objects.filter(date__date=yesterday).count(),
@@ -230,6 +232,9 @@ def build_dashboard_statistics(*, today: date, period_start: date, period_end: d
         "revenue_month": float(revenue_month),
         "revenue_today": float(revenue_today),
         "sessions_month": consultas_concluidas_no_periodo(period_start, period_end).count(),
+        # Inadimplência é uma foto atual (não depende do período do filtro).
+        "inadimplencia_total": somar_inadimplencia(hoje=today),
+        "inadimplentes_count": contar_inadimplentes(hoje=today),
     }
 
 

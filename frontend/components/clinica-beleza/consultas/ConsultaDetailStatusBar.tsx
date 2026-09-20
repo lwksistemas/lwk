@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, FileText, Pencil, Play, Trash2 } from "lucide-react";
+import { CheckCircle2, FileText, Pencil, Play, RotateCcw, Trash2 } from "lucide-react";
 import {
   CLINICA_CONSULTA_STATUS_COLORS,
   CLINICA_CONSULTA_STATUS_LABEL,
@@ -29,6 +29,7 @@ interface ConsultaDetailStatusBarProps {
   onReceber: () => void;
   onEmitirNfse?: () => void;
   onFinalizar: () => void;
+  onReabrir?: () => void;
   onExcluir: () => void;
   onRefreshConsulta?: () => void;
 }
@@ -50,6 +51,7 @@ export function ConsultaDetailStatusBar({
   onReceber,
   onEmitirNfse,
   onFinalizar,
+  onReabrir,
   onExcluir,
   onRefreshConsulta,
 }: ConsultaDetailStatusBarProps) {
@@ -63,6 +65,23 @@ export function ConsultaDetailStatusBar({
   const [salvando, setSalvando] = useState(false);
   const [locaisAtendimento, setLocaisAtendimento] = useState<Array<{ id: number; nome: string }>>([]);
   const [convenios, setConvenios] = useState<Array<{ id: number; nome: string }>>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!consultaFinalizada) return;
+    let ativo = true;
+    ClinicaBelezaAPI.me
+      .get()
+      .then((me) => {
+        if (ativo) setIsAdmin(Boolean(me.is_administrador));
+      })
+      .catch(() => {
+        if (ativo) setIsAdmin(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [consultaFinalizada]);
 
   useEffect(() => {
     if (consultaCancelada) return;
@@ -213,6 +232,17 @@ export function ConsultaDetailStatusBar({
           >
             <FileText size={16} />
             {emitindoNfse ? "Emitindo…" : "Emitir NFS-e"}
+          </button>
+        )}
+        {consultaFinalizada && isAdmin && onReabrir && (
+          <button
+            type="button"
+            onClick={onReabrir}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+            title="Reabrir consulta finalizada para incluir procedimentos ou correções (somente administrador)"
+          >
+            <RotateCcw size={16} />
+            Reabrir consulta
           </button>
         )}
         {/* Em atendimento, Finalizar/Excluir ficam no header — aqui só pagamento */}

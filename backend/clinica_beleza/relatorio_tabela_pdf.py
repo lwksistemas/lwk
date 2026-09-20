@@ -490,3 +490,53 @@ def gerar_pdf_comissoes_agrupado(
     doc.build(elements)
     buffer.seek(0)
     return finalize_pdf_com_timbrado(buffer, tipo_cab, dados_cab)
+
+
+def gerar_pdf_inadimplentes(*, resultado: dict, loja) -> BytesIO:
+    """PDF do relatório de inadimplentes (pagamentos a prazo vencidos)."""
+    buffer, doc, styles, titulo_style, subtitulo_style, secao_style, tipo_cab, dados_cab, largura = (
+        _iniciar_pdf(loja, usar_paisagem=True)
+    )
+    elements = []
+    elements.extend(_cabecalho_elements(tipo_cab, dados_cab, titulo_style))
+    elements.extend(_periodo_elements(
+        "Inadimplentes", titulo_style, subtitulo_style, None, None, None,
+    ))
+
+    totais = resultado.get("totais") or {}
+    n = totais.get("total_inadimplentes", 0)
+    elements.append(Paragraph(
+        f'{n} inadimplente{"s" if n != 1 else ""} · '
+        f'Total em aberto {_fmt_brl(totais.get("valor_total"))}',
+        subtitulo_style,
+    ))
+    elements.append(Spacer(1, 2 * mm))
+
+    linhas = resultado.get("linhas") or []
+    if not linhas:
+        elements.append(Paragraph("Nenhum pagamento vencido em aberto.", styles["Normal"]))
+    else:
+        col_w = [
+            largura * 0.30,
+            largura * 0.22,
+            largura * 0.16,
+            largura * 0.16,
+            largura * 0.16,
+        ]
+        headers = ["Paciente", "Telefone", "Vencimento", "Atraso", "Valor em aberto"]
+        rows = [
+            [
+                l.get("paciente_nome") or "—",
+                l.get("telefone") or "—",
+                _fmt_iso_br(l.get("vencimento")),
+                f'{l.get("dias_atraso", 0)} dia(s)',
+                _fmt_brl(l.get("valor_aberto")),
+            ]
+            for l in linhas
+        ]
+        footer = ["Total", "", "", "", _fmt_brl(totais.get("valor_total"))]
+        elements.append(_tabela_mista(headers, rows, footer, col_w, n_texto=2))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return finalize_pdf_com_timbrado(buffer, tipo_cab, dados_cab)

@@ -80,9 +80,37 @@ class PaymentSerializer(serializers.ModelSerializer):
     data_atendimento = serializers.DateTimeField(source="appointment.date", read_only=True)
     valor_total_efetivo = serializers.SerializerMethodField()
     saldo_devedor = serializers.SerializerMethodField()
+    vencido = serializers.SerializerMethodField()
+    dias_atraso = serializers.SerializerMethodField()
+    retorno_gratuito = serializers.SerializerMethodField()
 
     def get_procedimento_nome(self, obj):
         return _procedimentos_nome_agendamento(obj.appointment)
+
+    def get_retorno_gratuito(self, obj):
+        """True só quando é retorno gratuito E não há valor a cobrar (isento de fato).
+
+        Retorno isenta a taxa de consulta; se houver procedimento pago, NÃO é isento.
+        """
+        consulta = getattr(getattr(obj, "appointment", None), "consulta", None)
+        if not getattr(consulta, "retorno_gratuito", False):
+            return False
+        try:
+            return float(obj.valor_total_efetivo or 0) <= 0.009
+        except Exception:
+            return float(obj.amount or 0) <= 0.009
+
+    def get_vencido(self, obj):
+        try:
+            return bool(obj.esta_vencido)
+        except Exception:
+            return False
+
+    def get_dias_atraso(self, obj):
+        try:
+            return int(obj.dias_atraso)
+        except Exception:
+            return 0
 
     def get_valor_total_efetivo(self, obj):
         try:

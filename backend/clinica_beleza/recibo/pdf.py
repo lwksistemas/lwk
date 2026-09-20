@@ -1,5 +1,6 @@
 """Geração de PDF do recibo de pagamento."""
 import io
+import logging
 
 from .context import (
     _linha_documento_loja,
@@ -7,6 +8,52 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _saldo_devedor_recibo(ctx: dict) -> float:
+    """Saldo em aberto do recibo (a prazo ou pagamento parcial).
+
+    Usa 'saldo_devedor' quando presente; senão, deriva de valor_total - valor_pago.
+    """
+    valor_pago = ctx.get("valor_pago", 0) or 0
+    valor_total = ctx.get("valor_total", 0) or 0
+    return ctx.get("saldo_devedor", max(valor_total - valor_pago, 0))
+
+
+# Logo (imagem nítida) no rodapé do recibo — parte branca, aparece em todo recibo.
+_LOGO_RODAPE_MAX_W_MM = 48
+_LOGO_RODAPE_MAX_H_MM = 30
+
+
+def _logo_rodape_recibo(logo_url: str, mm_unit):
+    """Baixa a logo da loja e retorna um Image do reportlab para o rodapé, ou None."""
+    if not logo_url:
+        return None
+    try:
+        import requests as http_requests
+        from PIL import Image as PILImage
+        from reportlab.platypus import Image as RLImage
+
+        resp = http_requests.get(logo_url, timeout=5)
+        if resp.status_code != 200:
+            return None
+        raw = io.BytesIO(resp.content)
+        pil = PILImage.open(raw)
+        iw, ih = pil.size
+        if not iw or not ih:
+            return None
+        max_w = _LOGO_RODAPE_MAX_W_MM * mm_unit
+        max_h = _LOGO_RODAPE_MAX_H_MM * mm_unit
+        ratio = min(max_w / iw, max_h / ih)
+        raw.seek(0)
+        img = RLImage(raw, width=iw * ratio, height=ih * ratio)
+        img.hAlign = "CENTER"
+        return img
+    except Exception as e:
+        logger.warning("Logo do rodapé do recibo indisponível: %s", e)
+        return None
 
 
 def _estilos_pdf():
@@ -55,11 +102,19 @@ def _cabecalho_recibo_pdf(ctx, styles, col_w, mm_unit):
         story.append(Paragraph(ctx["loja_email"], s_center))
     story.append(Spacer(1, 3 * mm_unit))
     story.append(hr)
-    story.append(Paragraph("RECIBO DE PAGAMENTO", s_title))
-    story.append(Paragraph(ctx["data"], s_center))
+    # Com saldo em aberto (a prazo ou pagamento parcial) o documento não é um recibo de
+    # quitação, e sim um comprovante de atendimento com reconhecimento de dívida.
+    tem_saldo = _saldo_devedor_recibo(ctx) > 0.009
+    titulo_doc = "COMPROVANTE DE ATENDIMENTO" if tem_saldo else "RECIBO DE PAGAMENTO"
+    story.append(Paragraph(titulo_doc, s_title))
+    if tem_saldo:
+        story.append(Paragraph("(reconhecimento de dívida — valor em aberto)", s_center))
+    story.append(Paragraph(f"Emitido em {ctx.get('data_emissao') or ctx['data']}", s_center))
     story.append(hr)
 
     story.append(Paragraph(f"<b>Cliente:</b> {ctx['paciente_nome']}", s_left))
+    if ctx.get("paciente_cpf"):
+        story.append(Paragraph(f"<b>CPF:</b> {ctx['paciente_cpf']}", s_left))
     if ctx["profissional_nome"]:
         story.append(Paragraph(f"<b>Profissional:</b> {ctx['profissional_nome']}", s_left))
     if ctx.get("data_atendimento"):
@@ -152,6 +207,62 @@ def _tabela_totais_recibo_pdf(ctx, styles, col_w):
     return totals_table
 
 
+def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
+    """Bloco de assinatura digital do recibo (paciente), com valor jurídico.
+
+    Só é incluído quando o ctx traz 'assinatura_recibo' (dict com nome/ip/assinado_em/email).
+    """
+    from reportlab.platypus import Paragraph, Spacer
+
+    assinatura = ctx.get("assinatura_recibo") or {}
+    if not assinatura:
+        return []
+
+    s_title = styles["s_title"]
+    s_center = styles["s_center"]
+    s_footer = styles["s_footer"]
+    hr = styles["hr"]
+
+    # Título e dados do cliente centralizados para alinhar todo o bloco de assinatura.
+    story = [Spacer(1, 2 * mm_unit), hr, Paragraph("ASSINATURA DIGITAL", s_title), Spacer(1, 1 * mm_unit)]
+    nome = (assinatura.get("nome") or ctx.get("paciente_nome") or "").strip().upper() or "—"
+    # Nome e CPF centralizados para alinhar com o restante do bloco (email/IP/data e texto jurídico).
+    story.append(Paragraph(f"<b>Cliente:</b> {nome}", s_center))
+    cpf = (assinatura.get("cpf") or ctx.get("paciente_cpf") or "").strip()
+    if cpf:
+        story.append(Paragraph(f"<b>CPF:</b> {cpf}", s_center))
+
+    # Declaração de reconhecimento de dívida — só quando há saldo em aberto
+    # (pagamento a prazo ou parcial). Dá força ao documento como base de cobrança.
+    saldo = _saldo_devedor_recibo(ctx)
+    if saldo > 0.009:
+        vencimento = (ctx.get("vencimento") or "").strip()
+        venc_txt = f", com vencimento em {vencimento}" if vencimento else ""
+        story.append(Spacer(1, 1 * mm_unit))
+        story.append(Paragraph(
+            f"Declaro que recebi o(s) serviço(s)/atendimento(s) descrito(s) acima e "
+            f"reconheço o saldo devedor de R$ {saldo:.2f}{venc_txt}, "
+            f"comprometendo-me a efetuar o pagamento na forma acordada.",
+            s_footer,
+        ))
+        story.append(Spacer(1, 1 * mm_unit))
+
+    if assinatura.get("email"):
+        story.append(Paragraph(f"Email: {assinatura['email']}", s_footer))
+    if assinatura.get("assinado_em"):
+        story.append(Paragraph(f"Assinado em: {assinatura['assinado_em']}", s_footer))
+    if assinatura.get("ip"):
+        story.append(Paragraph(f"IP: {assinatura['ip']}", s_footer))
+    story.append(Paragraph("Assinado digitalmente", s_footer))
+    story.append(Spacer(1, 1 * mm_unit))
+    story.append(Paragraph(
+        "Este documento possui validade jurídica e contém a assinatura digital do cliente, "
+        "com registro de data, hora e endereço IP.",
+        s_footer,
+    ))
+    return story
+
+
 def _rodape_recibo_pdf(ctx, styles, mm_unit):
     from reportlab.platypus import Paragraph, Spacer
 
@@ -162,9 +273,16 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
 
     story = []
     valor_pago = ctx.get("valor_pago", 0)
-    if valor_pago > 0:
-        story.append(Paragraph(f"VALOR PAGO: R$ {valor_pago:.2f}", s_total))
-    if valor_pago >= ctx.get("valor_total", 0) and ctx.get("valor_total", 0) >= 0:
+    saldo = _saldo_devedor_recibo(ctx)
+    vencimento = (ctx.get("vencimento") or "").strip()
+    story.append(Paragraph(f"VALOR PAGO: R$ {valor_pago:.2f}", s_total))
+    if saldo > 0.009:
+        story.append(Spacer(1, 1 * mm_unit))
+        saldo_txt = f"SALDO A PAGAR: R$ {saldo:.2f}"
+        if vencimento:
+            saldo_txt += f" — vencimento {vencimento}"
+        story.append(Paragraph(saldo_txt, s_center))
+    elif valor_pago >= ctx.get("valor_total", 0) and ctx.get("valor_total", 0) >= 0:
         story.append(Spacer(1, 1 * mm_unit))
         story.append(Paragraph("<b>Quitado</b>", s_center))
     story.append(Spacer(1, 2 * mm_unit))
@@ -175,9 +293,17 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
         story.append(Spacer(1, 2 * mm_unit))
         story.append(Paragraph(aviso, s_footer))
 
+    story.extend(_secao_assinatura_recibo_pdf(ctx, styles, mm_unit))
+
     story.append(Spacer(1, 2 * mm_unit))
     story.append(Paragraph("Agradecemos pela confiança!", s_footer))
     story.append(Paragraph("Documento não fiscal — gerado pelo sistema.", s_footer))
+
+    # Logo da clínica no rodapé (parte branca) — aparece em todo recibo, com ou sem assinatura.
+    logo = _logo_rodape_recibo((ctx.get("logo_url") or "").strip(), mm_unit)
+    if logo is not None:
+        story.append(Spacer(1, 3 * mm_unit))
+        story.append(logo)
     return story
 
 

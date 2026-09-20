@@ -11,6 +11,11 @@ import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { FinanceiroPayment, FinanceiroProfessional } from "../types";
 import { statusPagamentoReceita } from "../payment-status";
 
+function formatVencimento(iso: string | null): string {
+  if (!iso) return "—";
+  return String(iso).slice(0, 10).split("-").reverse().join("/");
+}
+
 interface FinanceiroReceitasTabProps {
   payments: FinanceiroPayment[];
   professionals: FinanceiroProfessional[];
@@ -23,11 +28,13 @@ interface FinanceiroReceitasTabProps {
   statusFilter: string;
   professionalFilter: string;
   dateFilter: string;
+  cobrandoId: number | null;
   onStatusFilterChange: (value: string) => void;
   onProfessionalFilterChange: (value: string) => void;
   onDateFilterChange: (value: string) => void;
   onPageChange: (page: number) => void;
   onBaixa: (payment: FinanceiroPayment) => void;
+  onCobrar: (payment: FinanceiroPayment, canal: "whatsapp" | "email") => void;
 }
 
 export function FinanceiroReceitasTab({
@@ -42,11 +49,13 @@ export function FinanceiroReceitasTab({
   statusFilter,
   professionalFilter,
   dateFilter,
+  cobrandoId,
   onStatusFilterChange,
   onProfessionalFilterChange,
   onDateFilterChange,
   onPageChange,
   onBaixa,
+  onCobrar,
 }: FinanceiroReceitasTabProps) {
   return (
     <>
@@ -92,17 +101,18 @@ export function FinanceiroReceitasTab({
                 <th className="text-left py-3 px-4 font-semibold">Procedimentos</th>
                 <th className="text-right py-3 px-4 font-semibold">Valor</th>
                 <th className="text-left py-3 px-4 font-semibold">Pagamento</th>
+                <th className="text-left py-3 px-4 font-semibold whitespace-nowrap">Vencimento</th>
                 <th className="text-left py-3 px-4 font-semibold">Status</th>
                 <th className="text-right py-3 px-4 font-semibold whitespace-nowrap min-w-[8.5rem]">
                   Comissão
                 </th>
-                <th className="py-3 px-3 min-w-[7.5rem]"></th>
+                <th className="py-3 px-3 min-w-[9rem]"></th>
               </tr>
             </thead>
             <tbody>
               {payments.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-gray-500">
+                  <td colSpan={10} className="py-8 text-center text-gray-500">
                     Nenhum lançamento. Receitas são criadas ao finalizar consultas.
                   </td>
                 </tr>
@@ -122,27 +132,53 @@ export function FinanceiroReceitasTab({
                       {p.procedimento_nome || "Consulta"}
                     </td>
                     <td className="py-3 px-4 text-right font-medium">
-                      {formatCurrency(p.amount)}
+                      {formatCurrency(p.valor_total_efetivo ?? p.amount)}
                     </td>
                     <td className="py-3 px-4">
-                      {CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
+                      {p.retorno_gratuito
+                        ? "Retorno"
+                        : CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      {!p.retorno_gratuito && p.data_vencimento ? (
+                        <>
+                          <span className={p.vencido ? "text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400"}>
+                            {formatVencimento(p.data_vencimento)}
+                          </span>
+                          {p.vencido && (
+                            <span className="block text-xs text-red-600 dark:text-red-400">
+                              {p.dias_atraso} dia(s) em atraso
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                     <td className="py-3 px-4 col-allow-wrap">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                        status === "PAID"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                          : status === "PENDING"
-                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                          : status === "PARTIAL"
-                          ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
-                          : "bg-gray-100 dark:bg-neutral-600"
-                      }`}>
-                        {CLINICA_PAGAMENTO_STATUS_LABEL[status] || status}
-                      </span>
-                      {status === "PARTIAL" && p.saldo_devedor > 0 && (
-                        <span className="block text-xs text-orange-600 dark:text-orange-400 mt-0.5">
-                          Falta {formatCurrency(p.saldo_devedor)}
+                      {p.retorno_gratuito ? (
+                        <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">
+                          Isento
                         </span>
+                      ) : (
+                        <>
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                            status === "PAID"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              : status === "PENDING"
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                              : status === "PARTIAL"
+                              ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
+                              : "bg-gray-100 dark:bg-neutral-600"
+                          }`}>
+                            {CLINICA_PAGAMENTO_STATUS_LABEL[status] || status}
+                          </span>
+                          {status === "PARTIAL" && p.saldo_devedor > 0 && (
+                            <span className="block text-xs text-orange-600 dark:text-orange-400 mt-0.5">
+                              Falta {formatCurrency(p.saldo_devedor)}
+                            </span>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="py-3 px-4 text-right col-allow-wrap">
@@ -154,15 +190,39 @@ export function FinanceiroReceitasTab({
                       ) : null}
                     </td>
                     <td className="py-3 px-3 text-center">
-                      {(status === "PENDING" || status === "PARTIAL") && (
-                        <button
-                          type="button"
-                          onClick={() => onBaixa(p)}
-                          className="text-xs px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium whitespace-nowrap"
-                        >
-                          {status === "PARTIAL" ? "Complementar" : "Dar Baixa"}
-                        </button>
-                      )}
+                      <div className="flex flex-col items-stretch gap-1">
+                        {!p.retorno_gratuito && (status === "PENDING" || status === "PARTIAL") && (
+                          <button
+                            type="button"
+                            onClick={() => onBaixa(p)}
+                            className="text-xs px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium whitespace-nowrap"
+                          >
+                            {status === "PARTIAL" ? "Complementar" : "Dar Baixa"}
+                          </button>
+                        )}
+                        {p.vencido && (
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => onCobrar(p, "whatsapp")}
+                              disabled={cobrandoId === p.id}
+                              title="Cobrar por WhatsApp"
+                              className="text-xs px-2 py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium disabled:opacity-50"
+                            >
+                              Zap
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onCobrar(p, "email")}
+                              disabled={cobrandoId === p.id}
+                              title="Cobrar por e-mail"
+                              className="text-xs px-2 py-1 rounded-lg border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-200 font-medium disabled:opacity-50"
+                            >
+                              E-mail
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                   );

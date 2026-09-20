@@ -9,6 +9,13 @@ from core.phone_utils import telefone_exibicao_brasileiro
 logger = logging.getLogger(__name__)
 
 
+def _agora_recibo():
+    """Momento atual (aware) para a data de emissão do recibo."""
+    from django.utils import timezone as dj_tz
+
+    return dj_tz.now()
+
+
 def _formatar_data_recibo(dt) -> str:
     """Formata data/hora do recibo no fuso America/Sao_Paulo (evita UTC no PDF)."""
     if not dt:
@@ -131,6 +138,9 @@ def _dados_loja_recibo(loja):
     tel_raw, email_raw = contato_publico_loja(loja)
     loja_telefone = telefone_exibicao_brasileiro(tel_raw)
     loja_cep = _formatar_cep(cep_raw)
+    logo_url = ""
+    if loja:
+        logo_url = (getattr(loja, "logo", "") or "").strip() or (getattr(loja, "login_logo", "") or "").strip()
     return {
         "loja_nome": getattr(loja, "nome", "") if loja else "",
         "loja_documento": normalizar_cpf_cnpj(doc_raw),
@@ -141,7 +151,43 @@ def _dados_loja_recibo(loja):
         "loja_cep": loja_cep,
         "loja_email": email_raw,
         "loja_tel_cep": _linha_tel_cep(loja_telefone, loja_cep),
+        "logo_url": logo_url,
     }
+
+
+def _dados_assinatura_recibo(payment) -> dict | None:
+    """Se o recibo já foi assinado pelo cliente, retorna os dados da assinatura
+    (para o PDF exibir a seção de assinatura em qualquer canal: email/WhatsApp/download).
+    """
+    try:
+        from clinica_beleza.models import ReciboAssinatura
+
+        ass = (
+            ReciboAssinatura.objects.filter(payment=payment, tipo="paciente", assinado=True)
+            .order_by("assinado_em")
+            .first()
+        )
+        if not ass:
+            return None
+        assinado_em = ass.assinado_em
+        if assinado_em is not None and hasattr(assinado_em, "strftime"):
+            from django.utils import timezone as dj_tz
+
+            if dj_tz.is_aware(assinado_em):
+                assinado_em = dj_tz.localtime(assinado_em)
+            assinado_em = assinado_em.strftime("%d/%m/%Y %H:%M")
+        return {
+            "nome": ass.nome_assinante,
+            "cpf": normalizar_cpf_cnpj(
+                (getattr(payment.appointment.patient, "cpf", "") or "") if payment.appointment else "",
+            ),
+            "email": (ass.email_assinante or "").strip(),
+            "ip": ass.ip_address,
+            "assinado_em": assinado_em or "",
+        }
+    except Exception:
+        logger.exception("Erro ao ler assinatura do recibo (payment %s)", getattr(payment, "id", None))
+        return None
 
 
 def _obter_dados_contexto(payment, patient, appointment) -> dict:
@@ -155,14 +201,27 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     taxa_info = _calcular_taxa_retorno_recibo(appointment, payment.loja_id)
     desconto = desconto_concedido(payment)
     valor_total = float(payment.valor_total_efetivo)
-    valor_pago = float(payment.amount or 0)
+    # Valor pago = só o que foi efetivamente recebido (parcelas). "A prazo" não é pago.
+    try:
+        valor_pago = float(payment.valor_pago_parcelas)
+    except Exception:
+        valor_pago = float(payment.amount or 0)
+    try:
+        saldo_devedor = float(payment.saldo_devedor)
+    except Exception:
+        saldo_devedor = max(valor_total - valor_pago, 0.0)
+    venc = getattr(payment, "data_vencimento", None)
+    vencimento = venc.strftime("%d/%m/%Y") if venc else ""
     subtotal, desconto_retorno = _calcular_subtotal_recibo(taxa_info, procs, valor_total, desconto)
 
     ctx = _dados_loja_recibo(loja)
+    assinatura_recibo = _dados_assinatura_recibo(payment)
 
     return {
         **ctx,
+        "assinatura_recibo": assinatura_recibo,
         "paciente_nome": getattr(patient, "nome", "Cliente"),
+        "paciente_cpf": normalizar_cpf_cnpj(getattr(patient, "cpf", "") or ""),
         "paciente_email": (getattr(patient, "email", "") or "").strip(),
         "paciente_telefone": telefone_exibicao_brasileiro(getattr(patient, "telefone", "") or ""),
         "profissional_nome": getattr(professional, "nome", "") if professional else "",
@@ -172,6 +231,8 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         "desconto_retorno": desconto_retorno,
         "valor_total": valor_total,
         "valor_pago": valor_pago,
+        "saldo_devedor": saldo_devedor,
+        "vencimento": vencimento,
         "metodo": (
             payment.get_payment_method_display()
             if hasattr(payment, "get_payment_method_display")
@@ -179,6 +240,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         ),
         "formas_pagamento": _listar_formas_pagamento(payment),
         "data": _formatar_data_recibo(payment.payment_date),
+        "data_emissao": _formatar_data_recibo(_agora_recibo()),
         "data_atendimento": _formatar_data_recibo(getattr(appointment, "date", None)),
         **taxa_info,
     }
@@ -208,9 +270,9 @@ def _formas_pagamento_html(ctx: dict) -> str:
 def _listar_formas_pagamento(payment) -> list[dict]:
     """Retorna formas de pagamento do recibo.
 
-    No mesmo dia, a mesma forma é somada em uma linha (ex.: dois PIX no dia → um PIX).
-    Em dias diferentes, não soma — mantém linhas separadas (com a data quando houver
-    mais de um dia de pagamento).
+    Agrupa por forma + data do pagamento (mesma forma no mesmo dia soma numa linha).
+    Sempre exibe a data em que o cliente pagou cada forma — não confundir com a data
+    de emissão do recibo.
     """
     from collections import OrderedDict
 
@@ -234,17 +296,26 @@ def _listar_formas_pagamento(payment) -> list[dict]:
                 grupos[key]["valor"] += float(p.valor or 0)
 
             datas = {g["data"] for g in grupos.values() if g["data"]}
-            multi_data = len(datas) > 1
+            del datas  # mantido por compatibilidade histórica
             result = []
             for g in grupos.values():
                 label = METODOS.get(g["metodo_code"], g["metodo_code"])
-                if multi_data and g["data"] is not None and hasattr(g["data"], "strftime"):
+                # Sempre mostra a data do pagamento (não confundir com a emissão do recibo).
+                if g["data"] is not None and hasattr(g["data"], "strftime"):
                     label = f"{label} ({g['data'].strftime('%d/%m/%Y')})"
                 result.append({"metodo": label, "valor": round(g["valor"], 2)})
             return result
     except Exception:
         logger.exception("Erro ao listar parcelas do recibo (payment %s)", payment.id)
     metodo_label = METODOS.get(payment.payment_method, payment.payment_method)
+    # A prazo sem parcela paga: mostra o valor em aberto (saldo), não amount (que é 0).
+    # O vencimento aparece só no bloco "SALDO A PAGAR" (evita redundância na linha).
+    if payment.payment_method == "PRAZO":
+        try:
+            valor_prazo = float(payment.saldo_devedor)
+        except Exception:
+            valor_prazo = float(payment.valor_total_efetivo or 0)
+        return [{"metodo": metodo_label, "valor": valor_prazo}]
     return [{"metodo": metodo_label, "valor": float(payment.amount or 0)}]
 
 

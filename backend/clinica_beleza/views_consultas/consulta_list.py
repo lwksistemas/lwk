@@ -106,6 +106,8 @@ class ConsultaListView(APIView):
             if appointment_date is None:
                 return Response({"error": "Data/hora inválida."}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            from ..permissions import is_clinica_admin
+
             consulta = criar_consulta_avulsa(
                 patient=patient,
                 professional=professional,
@@ -119,6 +121,7 @@ class ConsultaListView(APIView):
                 appointment_date=appointment_date,
                 notes=notes,
                 retorno_procedure_id=retorno_procedure_id,
+                bypass_inadimplencia=is_clinica_admin(request),
             )
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

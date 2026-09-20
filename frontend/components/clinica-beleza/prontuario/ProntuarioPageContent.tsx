@@ -1,10 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { ConsultaProfessionalSelectModal } from "@/components/clinica-beleza/consultas/ConsultaProfessionalSelectModal";
 import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/ModalReceberConsulta";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { isProntuarioLocalTab } from "./prontuario-utils";
+import { PrazoPagamentoCard } from "./PrazoPagamentoCard";
 import { ProntuarioTabBar } from "./ProntuarioTabBar";
 import { ProntuarioTabContent } from "./ProntuarioTabContent";
 import { useProntuarioPage } from "./useProntuarioPage";
@@ -13,6 +16,7 @@ import { buildProntuarioConsultasResumo } from "./prontuario-consultas-utils";
 export function ProntuarioPageContent() {
   const {
     slug,
+    patientId,
     activeTab,
     data,
     loading,
@@ -41,8 +45,27 @@ export function ProntuarioPageContent() {
     excluirConsulta,
   } = useProntuarioPage();
 
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [prazoAberto, setPrazoAberto] = useState(false);
+
+  useEffect(() => {
+    let ativo = true;
+    ClinicaBelezaAPI.me
+      .get()
+      .then((me) => {
+        if (ativo) setIsAdmin(Boolean(me.is_administrador));
+      })
+      .catch(() => {
+        if (ativo) setIsAdmin(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
   const showDocsLoading = loading && !isProntuarioLocalTab(activeTab);
   const { atuais, finalizadas } = buildProntuarioConsultasResumo(consultas);
+  const mostrarPrazoButton = isAdmin && activeTab === "resumo";
 
   return (
     <>
@@ -72,10 +95,20 @@ export function ProntuarioPageContent() {
             printando={printando}
             consultaAtualCount={atuais.length}
             finalizadasCount={finalizadas.length}
+            showPrazoButton={mostrarPrazoButton}
+            prazoAberto={prazoAberto}
+            onTogglePrazo={() => setPrazoAberto((v) => !v)}
           />
         </div>
 
-        <div className="flex-1 p-4 md:p-6 lg:p-8 w-full">
+        <div className="flex-1 p-4 md:p-6 lg:p-8 w-full space-y-4">
+          {mostrarPrazoButton && (
+            <PrazoPagamentoCard
+              patientId={patientId}
+              open={prazoAberto}
+              onClose={() => setPrazoAberto(false)}
+            />
+          )}
           {showDocsLoading ? (
             <div className="text-center py-16 text-gray-500 dark:text-gray-400">
               Carregando prontuário...

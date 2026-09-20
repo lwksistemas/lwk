@@ -26,14 +26,15 @@ export function ConsultaPagamentoButton({
   // Parcial: badge laranja — se finalizada, aviso ao clicar
   if (mostrarParcial) {
     if (consultaFinalizada) {
+      // Finalizada e parcial: abre o comprovante (imprimir/enviar); saldo se recebe no Financeiro.
       return (
         <button type="button"
           onClick={(e) => {
             e.stopPropagation();
-            toast.info("Pagamento parcial — receber saldo na página Financeiro.");
+            if (onReceber) onReceber(consulta);
           }}
-          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-orange-500 ${pad}`}
-          title="Pagamento parcial — receber saldo na página Financeiro"
+          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-orange-500 hover:bg-orange-600 ${pad}`}
+          title="Parcial — clique para ver/enviar o comprovante (saldo se recebe no Financeiro)"
         >
           <AlertCircle size={iconSize} />
           Parcial
@@ -57,14 +58,15 @@ export function ConsultaPagamentoButton({
 
   if (mostrarPrazo) {
     if (consultaFinalizada) {
+      // Finalizada a prazo: abre o comprovante (imprimir/enviar) ao clicar.
       return (
         <button type="button"
           onClick={(e) => {
             e.stopPropagation();
-            toast.info("A prazo — receber na página Financeiro quando o cliente pagar.");
+            if (onReceber) onReceber(consulta);
           }}
-          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-slate-600 ${pad}`}
-          title="A prazo — receber na página Financeiro"
+          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-slate-600 hover:bg-slate-700 ${pad}`}
+          title="A prazo — clique para ver/enviar o comprovante"
         >
           <DollarSign size={iconSize} />
           A prazo
@@ -118,13 +120,25 @@ export function ConsultaPagamentoButton({
   }
 
   if (mostrarPago) {
+    // Comprovante só disponível após finalizar a consulta.
+    const podeComprovante = consultaFinalizada && onReceber;
     return (
       <span
-        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-green-600 cursor-pointer hover:bg-green-700 ${pad}`}
-        title="Pago — clique para reimprimir/reenviar recibo"
+        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-green-600 ${pad} ${
+          podeComprovante ? "cursor-pointer hover:bg-green-700" : "cursor-default opacity-90"
+        }`}
+        title={
+          podeComprovante
+            ? "Pago — clique para reimprimir/reenviar recibo"
+            : "Pago — o comprovante fica disponível após finalizar a consulta"
+        }
         onClick={(e) => {
           e.stopPropagation();
-          if (onReceber) onReceber(consulta);
+          if (podeComprovante) {
+            onReceber(consulta);
+          } else if (!consultaFinalizada) {
+            toast.info("O comprovante fica disponível após finalizar a consulta.");
+          }
         }}
       >
         <CheckCircle2 size={iconSize} />
@@ -134,6 +148,7 @@ export function ConsultaPagamentoButton({
   }
 
   if (mostrarRecibo) {
+    // Recibo (retorno gratuito) já pressupõe consulta finalizada.
     return (
       <span
         className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-green-600 cursor-pointer hover:bg-green-700 ${pad}`}

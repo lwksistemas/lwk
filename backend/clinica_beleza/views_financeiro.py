@@ -199,6 +199,38 @@ class PaymentEnviarReciboView(GetObjectMixin, APIView):
         return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class PaymentCobrarView(GetObjectMixin, APIView):
+    """POST /clinica-beleza/payments/<id>/cobrar/ — cobrança manual de inadimplente.
+
+    Body: {"canal": "whatsapp" | "email"}. Sem canal, assume whatsapp (retrocompat).
+    """
+
+    permission_classes = CLINICA_FINANCEIRO
+    model_class = Payment
+    not_found_message = "Pagamento não encontrado"
+    select_related_fields = (
+        "appointment",
+        "appointment__patient",
+    )
+
+    def post(self, request, pk):
+        from .cobranca_service import enviar_cobranca
+
+        payment, err = self.object_or_404(pk)
+        if err:
+            return err
+
+        canal = (request.data.get("canal") or "whatsapp").strip().lower()
+        ok, msg = enviar_cobranca(payment, canal=canal)
+        if ok:
+            return Response({"success": True, "message": msg})
+        return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Alias retrocompatível (rota antiga cobrar-whatsapp/).
+PaymentCobrarWhatsAppView = PaymentCobrarView
+
+
 class ReciboPdfPublicView(APIView):
     """GET /clinica-beleza/payments/<id>/recibo-pdf/<token>/"""
 

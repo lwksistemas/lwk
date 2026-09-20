@@ -122,6 +122,38 @@ def msg_termo_consentimento(
     return "\n".join(linhas)
 
 
+def msg_assinatura_recibo(
+    *,
+    nome: str,
+    titulo: str | None,
+    loja_nome: str,
+    link: str,
+) -> str:
+    """Mensagem para o CLIENTE assinar o recibo de pagamento (Clínica da Beleza)."""
+    ref_linha = f"🧾 *Procedimento realizado:* {titulo}" if titulo else ""
+    linhas = [
+        "🧾 *Recibo de Pagamento*",
+        SEPARADOR,
+        f"Olá *{nome}*!",
+        "",
+        f"*{loja_nome}* enviou o recibo do seu atendimento",
+        "para assinatura digital:",
+        "",
+    ]
+    if ref_linha:
+        linhas.append(ref_linha)
+        linhas.append("")
+    linhas.extend([
+        "👇 *Toque para ler e assinar:*",
+        link,
+        "",
+        "🔒 Documento verificado por LWK Sistemas",
+        SEPARADOR,
+        "_Sua assinatura confirma o recebimento do recibo e o reconhecimento do valor a pagar._",
+    ])
+    return "\n".join(linhas)
+
+
 def msg_orcamento(
     *,
     nome: str,

@@ -20,7 +20,10 @@ MIGRATION_PATIENT_FOTO_URL = "0048_patient_foto_url"
 MIGRATION_PATIENT_ANAMNESE = "0019_consulta_anamnese_evolucao"
 MIGRATION_ORCAMENTO = "0077_orcamento_consulta"
 MIGRATION_ORCAMENTO_ITEM_LOJA = "0078_orcamento_item_loja_id"
+MIGRATION_PATIENT_PRAZO = "0081_patient_prazo_pagamento"
+MIGRATION_PAYMENT_VENCIMENTO = "0082_payment_data_vencimento"
 PATIENT_TABLE = "clinica_beleza_patient"
+PAYMENT_TABLE = "clinica_beleza_payment"
 PROFESSIONAL_TABLE = "clinica_beleza_professional"
 PROCEDURE_TABLE = "clinica_beleza_procedure"
 ANAMNESE_TABLE = "clinica_beleza_anamneses"
@@ -253,6 +256,64 @@ def ensure_patient_foto_url_column(cursor) -> bool:
     return True
 
 
+def ensure_patient_prazo_columns(cursor) -> bool:
+    """Adiciona colunas de política de prazo de pagamento em clinica_beleza_patient."""
+    if not table_exists(cursor, PATIENT_TABLE):
+        logger.warning("ensure_patient_prazo: tabela %s ausente", PATIENT_TABLE)
+        return False
+    if not column_exists(cursor, PATIENT_TABLE, "prazo_pagamento_modo"):
+        cursor.execute(
+            f"ALTER TABLE {PATIENT_TABLE} ADD COLUMN prazo_pagamento_modo VARCHAR(20) NOT NULL DEFAULT ''",
+        )
+    if not column_exists(cursor, PATIENT_TABLE, "prazo_pagamento_dias"):
+        cursor.execute(
+            f"ALTER TABLE {PATIENT_TABLE} ADD COLUMN prazo_pagamento_dias SMALLINT NULL",
+        )
+    if not column_exists(cursor, PATIENT_TABLE, "prazo_pagamento_dia_mes"):
+        cursor.execute(
+            f"ALTER TABLE {PATIENT_TABLE} ADD COLUMN prazo_pagamento_dia_mes SMALLINT NULL",
+        )
+    cursor.execute(
+        """
+        INSERT INTO django_migrations (app, name, applied)
+        SELECT 'clinica_beleza', %s, NOW()
+        WHERE NOT EXISTS (
+            SELECT 1 FROM django_migrations
+            WHERE app = 'clinica_beleza' AND name = %s
+        )
+        """,
+        [MIGRATION_PATIENT_PRAZO, MIGRATION_PATIENT_PRAZO],
+    )
+    return True
+
+
+def ensure_payment_vencimento_column(cursor) -> bool:
+    """Adiciona coluna data_vencimento em clinica_beleza_payment (contas a receber a prazo)."""
+    if not table_exists(cursor, PAYMENT_TABLE):
+        logger.warning("ensure_payment_vencimento: tabela %s ausente", PAYMENT_TABLE)
+        return False
+    if not column_exists(cursor, PAYMENT_TABLE, "data_vencimento"):
+        cursor.execute(
+            f"ALTER TABLE {PAYMENT_TABLE} ADD COLUMN data_vencimento DATE NULL",
+        )
+    cursor.execute(
+        f"CREATE INDEX IF NOT EXISTS cb_payment_venc_idx "
+        f"ON {PAYMENT_TABLE} (loja_id, status, data_vencimento)",
+    )
+    cursor.execute(
+        """
+        INSERT INTO django_migrations (app, name, applied)
+        SELECT 'clinica_beleza', %s, NOW()
+        WHERE NOT EXISTS (
+            SELECT 1 FROM django_migrations
+            WHERE app = 'clinica_beleza' AND name = %s
+        )
+        """,
+        [MIGRATION_PAYMENT_VENCIMENTO, MIGRATION_PAYMENT_VENCIMENTO],
+    )
+    return True
+
+
 def ensure_patient_anamnese_table(cursor) -> bool:
     """Cria clinica_beleza_anamneses se ausente no schema atual."""
     if table_exists(cursor, ANAMNESE_TABLE):
@@ -435,6 +496,38 @@ def ensure_patient_foto_url_for_tenant() -> bool:
             return ensure_patient_foto_url_column(cursor)
     except Exception as exc:
         logger.exception("ensure_patient_foto_url_for_tenant falhou: %s", exc)
+        return False
+
+
+def ensure_patient_prazo_for_tenant() -> bool:
+    """Garante colunas de prazo de pagamento no tenant da requisição atual."""
+    from tenants.middleware import get_current_tenant_db
+
+    tenant_db = get_current_tenant_db()
+    if not tenant_db or tenant_db == "default":
+        return True
+    try:
+        conn = connections[tenant_db]
+        with conn.cursor() as cursor:
+            return ensure_patient_prazo_columns(cursor)
+    except Exception as exc:
+        logger.exception("ensure_patient_prazo_for_tenant falhou: %s", exc)
+        return False
+
+
+def ensure_payment_vencimento_for_tenant() -> bool:
+    """Garante coluna data_vencimento no tenant da requisição atual."""
+    from tenants.middleware import get_current_tenant_db
+
+    tenant_db = get_current_tenant_db()
+    if not tenant_db or tenant_db == "default":
+        return True
+    try:
+        conn = connections[tenant_db]
+        with conn.cursor() as cursor:
+            return ensure_payment_vencimento_column(cursor)
+    except Exception as exc:
+        logger.exception("ensure_payment_vencimento_for_tenant falhou: %s", exc)
         return False
 
 

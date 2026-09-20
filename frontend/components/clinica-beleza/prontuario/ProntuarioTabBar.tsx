@@ -1,6 +1,6 @@
 "use client";
 
-import { Printer } from "lucide-react";
+import { CalendarClock, Printer } from "lucide-react";
 import { isProntuarioLocalTab } from "./prontuario-utils";
 import { PRONTUARIO_TABS, type ProntuarioTabId } from "./prontuario-types";
 
@@ -12,6 +12,9 @@ interface ProntuarioTabBarProps {
   printando?: "secao" | "completo" | null;
   consultaAtualCount?: number;
   finalizadasCount?: number;
+  showPrazoButton?: boolean;
+  prazoAberto?: boolean;
+  onTogglePrazo?: () => void;
 }
 
 function ContagemConsulta({ label, value }: { label: string; value: number }) {
@@ -31,6 +34,9 @@ export function ProntuarioTabBar({
   printando = null,
   consultaAtualCount = 0,
   finalizadasCount = 0,
+  showPrazoButton = false,
+  prazoAberto = false,
+  onTogglePrazo,
 }: ProntuarioTabBarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -69,6 +75,23 @@ export function ProntuarioTabBar({
       )}
 
       <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
+        {showPrazoButton && (
+          <button
+            type="button"
+            onClick={onTogglePrazo}
+            aria-pressed={prazoAberto}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              prazoAberto
+                ? "text-white"
+                : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
+            }`}
+            style={prazoAberto ? { backgroundColor: "var(--cb-primary, #8B3D52)" } : undefined}
+            title="Configurar prazo de pagamento do paciente"
+          >
+            <CalendarClock size={16} />
+            <span className="hidden md:inline">Prazo de pagamento</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={onPrintCompleto}

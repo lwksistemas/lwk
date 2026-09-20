@@ -20,6 +20,10 @@ export interface FinanceiroPayment {
   payment_method: string;
   status: string;
   payment_date: string | null;
+  data_vencimento: string | null;
+  vencido: boolean;
+  dias_atraso: number;
+  retorno_gratuito: boolean;
   comissao_percentual: number;
   comissao_valor: string;
   paciente_nome: string;

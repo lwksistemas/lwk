@@ -21,11 +21,24 @@ export const anamneseApi = {
     cbPut<Anamnese>(`/patients/${patientId}/anamnese/`, data),
 };
 
+export interface PrazoPagamentoPolitica {
+  id?: number;
+  prazo_pagamento_modo: "" | "DIAS_APOS" | "DIA_FIXO";
+  prazo_pagamento_dias: number | null;
+  prazo_pagamento_dia_mes: number | null;
+  tem_prazo_pagamento?: boolean;
+}
+
 export const patientsApi = {
   list: (params?: { active?: boolean; page?: number; page_size?: number; all?: boolean | number | string }) =>
     cbGetList<ClinicaPatient>("/patients/", params),
   get: (id: number) => cbGet<ClinicaPatient>(`/patients/${id}/`),
   delete: (id: number) => cbDelete(`/patients/${id}/`),
+  prazoPagamento: {
+    get: (id: number) => cbGet<PrazoPagamentoPolitica>(`/patients/${id}/prazo-pagamento/`),
+    save: (id: number, data: Partial<PrazoPagamentoPolitica>) =>
+      cbPut<PrazoPagamentoPolitica>(`/patients/${id}/prazo-pagamento/`, data),
+  },
 };
 
 type ProfessionalRow = ProfissionalApiRow & { id: number; tempo_consulta_minutos?: number | null };

@@ -461,3 +461,32 @@ class RelatorioRepasseConsultaPdfView(APIView):
         )
         prefix = "repasse" if prof_nome else "repasse_consultas"
         return _pdf_response(pdf_buffer, _filename_periodo(prefix, data_inicio, data_fim, prof_nome))
+
+
+class RelatorioInadimplentesView(APIView):
+    """GET /clinica-beleza/relatorios/inadimplentes/ — pagamentos a prazo vencidos em aberto."""
+
+    permission_classes = CLINICA_FINANCEIRO
+
+    def get(self, request):
+        from .inadimplentes_relatorio_service import calcular_inadimplentes
+
+        return Response(calcular_inadimplentes())
+
+
+class RelatorioInadimplentesPdfView(APIView):
+    """GET /clinica-beleza/relatorios/inadimplentes/pdf/"""
+
+    permission_classes = CLINICA_FINANCEIRO
+
+    def get(self, request):
+        from .inadimplentes_relatorio_service import calcular_inadimplentes
+        from .relatorio_tabela_pdf import gerar_pdf_inadimplentes
+
+        loja = _loja_atual()
+        if not loja:
+            return Response({"error": "Loja não encontrada."}, status=404)
+
+        resultado = calcular_inadimplentes()
+        pdf_buffer = gerar_pdf_inadimplentes(resultado=resultado, loja=loja)
+        return _pdf_response(pdf_buffer, "inadimplentes")

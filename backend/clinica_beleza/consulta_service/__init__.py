@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from ..comissao_relatorio_service import calcular_comissao_payment_atendimento
 from ._deps import Appointment, Consulta, Payment, logger
-from .lifecycle import criar_consulta_avulsa, finalizar_consulta, iniciar_consulta
+from .lifecycle import criar_consulta_avulsa, finalizar_consulta, iniciar_consulta, reabrir_consulta
 from .messages import (
     MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI,
     MSG_PACIENTE_CONSULTA_EM_ANDAMENTO,
@@ -62,6 +62,7 @@ __all__ = [
     "logger",
     "motivo_bloqueio_exclusao_consulta",
     "publicar_pagamento_financeiro",
+    "reabrir_consulta",
     "registrar_recebimento_consulta",
     "sync_consulta_from_appointment_status",
     "validar_paciente_sem_consulta_em_andamento",

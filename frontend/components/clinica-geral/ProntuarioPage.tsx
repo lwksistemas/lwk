@@ -25,6 +25,7 @@ import { TEAL } from '@/lib/clinica-geral-theme';
 import {
   emptyPaciente,
   type Consulta,
+  type Evolucao,
   type Paciente,
   type PacienteAnexo,
   type Prescricao,

@@ -25,6 +25,47 @@ def _tenant_atomic(func):
     return wrapper
 
 
+def _tem_entrada_prazo(lista) -> bool:
+    """True se alguma entrada usa a forma 'a prazo'."""
+    return bool(lista) and any(e.get("payment_method") == _METODO_PRAZO for e in lista)
+
+
+def _validar_prazo_paciente_para_entradas(consulta, lista) -> None:
+    """Bloqueia recebimento a prazo quando o paciente não tem política configurada.
+
+    Feedback imediato à recepção no 'Receber pagamento' — evita conta a receber
+    sem vencimento. A configuração é feita só pelo admin no prontuário.
+    """
+    if not _tem_entrada_prazo(lista):
+        return
+    from ..prazo_service import PrazoNaoConfiguradoError
+
+    patient = getattr(getattr(consulta, "appointment", None), "patient", None) or getattr(consulta, "patient", None)
+    if patient is None or not getattr(patient, "tem_prazo_pagamento", False):
+        raise PrazoNaoConfiguradoError()
+
+
+def _calcular_vencimento_prazo(payment, data_base):
+    """Calcula a data de vencimento conforme a política do paciente do payment.
+
+    Retorna date ou None (se não é a prazo, sem paciente, ou sem política).
+    A base é a data do lançamento a prazo (não a finalização da consulta).
+    """
+    if payment.payment_method != _METODO_PRAZO:
+        return None
+    appointment = getattr(payment, "appointment", None)
+    patient = getattr(appointment, "patient", None)
+    if patient is None:
+        return None
+    from ..prazo_service import PrazoNaoConfiguradoError, calcular_vencimento
+
+    try:
+        return calcular_vencimento(patient, data_base)
+    except PrazoNaoConfiguradoError:
+        logger.warning("Payment %s a prazo sem política de prazo do paciente", getattr(payment, "pk", None))
+        return None
+
+
 def _tentar_nfse_pos_pagamento(consulta, payment):
     """Dispara emissão NFS-e após pagamento confirmado (não bloqueia fluxo)."""
     try:
@@ -98,11 +139,15 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
             payment_date=ts.date(),
             loja_id=payment.loja_id,
         )
+    venc_prazo = None
     if so_prazo:
         payment.payment_method = _METODO_PRAZO
         notes = (payment.notes or "").strip()
         if "A prazo" not in notes:
             payment.notes = f"{notes} | A prazo — cliente paga depois".strip(" |")
+        # Carimba o vencimento no momento do lançamento a prazo (não na finalização).
+        venc_prazo = _calcular_vencimento_prazo(payment, ts.date())
+        payment.data_vencimento = venc_prazo
     total_pago = payment.valor_pago_parcelas
     try:
         saldo_apos = payment.saldo_devedor
@@ -123,6 +168,8 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
         update_fields.append("desconto")
     if valor_desconto > 0 or so_prazo:
         update_fields.append("notes")
+    if so_prazo:
+        update_fields.append("data_vencimento")
     payment.save(update_fields=update_fields)
 
 
@@ -391,6 +438,9 @@ def registrar_recebimento_consulta(
             raise ValueError("Valor deve ser maior que zero.")
         metodo_principal = lista[-1]["payment_method"]
 
+    # Bloqueia recebimento a prazo se o paciente não tem política configurada pelo admin.
+    _validar_prazo_paciente_para_entradas(consulta, lista)
+
     comissao_pct, comissao_val = consulta_service.calcular_comissao_payment_atendimento(
         appointment=appointment,
         consulta=consulta,
@@ -456,8 +506,10 @@ def publicar_pagamento_financeiro(consulta):
         valor_total = Decimal(str(valor_total))
 
     ts = now()
+
     if total_pago <= 0 and payment.status == "PENDING":
-        # Conta pendente sem recebimento — permanece PENDING no financeiro
+        # Conta pendente sem recebimento — permanece PENDING no financeiro.
+        # O vencimento (se a prazo) já foi carimbado no lançamento, não aqui.
         return payment
 
     if total_pago >= valor_total - Decimal("0.01"):
@@ -475,6 +527,11 @@ def publicar_pagamento_financeiro(consulta):
         payment.payment_date = None
 
     payment.save(update_fields=["status", "amount", "payment_date", "updated_at"])
+
+    # Ao quitar, limpa o vencimento (não é mais conta a receber a prazo).
+    if payment.status == "PAID" and payment.data_vencimento:
+        payment.data_vencimento = None
+        payment.save(update_fields=["data_vencimento", "updated_at"])
 
     if payment.status == "PAID":
         payment_id = payment.id

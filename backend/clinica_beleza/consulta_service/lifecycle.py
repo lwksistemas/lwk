@@ -35,6 +35,17 @@ def _resolver_statuses_avulso(iniciar: bool) -> tuple[str, str]:
     return "CONFIRMED", "RECEBER"
 
 
+def _bloquear_abertura_se_inadimplente(patient_id) -> None:
+    """Impede abrir/iniciar consulta para paciente inadimplente (lança ValueError)."""
+    if not patient_id:
+        return
+    from ..financeiro_service import mensagem_bloqueio_inadimplencia
+
+    msg = mensagem_bloqueio_inadimplencia(patient_id)
+    if msg:
+        raise ValueError(msg)
+
+
 def criar_consulta_avulsa(
     *,
     patient,
@@ -50,6 +61,7 @@ def criar_consulta_avulsa(
     appointment_date=None,
     notes=None,
     retorno_procedure_id=None,
+    bypass_inadimplencia=False,
 ):
     """Cria uma consulta "avulsa" (sem agendamento prévio na agenda), a partir do
     cadastro do cliente. Gera o Appointment correspondente e a Consulta vinculada.
@@ -77,6 +89,8 @@ def criar_consulta_avulsa(
     local_atendimento, convenio = _resolver_local_convenio_avulso(local_atendimento_id, convenio_id, patient, loja_id)
 
     if iniciar:
+        if not bypass_inadimplencia:
+            _bloquear_abertura_se_inadimplente(getattr(patient, "id", None))
         consulta_service.validar_paciente_sem_consulta_em_andamento(patient.id)
         consulta_service.validar_profissional_livre_no_local(
             getattr(professional, "id", None) or professional,
@@ -123,7 +137,7 @@ def criar_consulta_avulsa(
     return consulta
 
 
-def iniciar_consulta(consulta):
+def iniciar_consulta(consulta, *, bypass_inadimplencia=False):
     """Profissional inicia atendimento: consulta → IN_PROGRESS, agenda → IN_PROGRESS, data_inicio.
     """
     from clinica_beleza import consulta_service
@@ -133,6 +147,9 @@ def iniciar_consulta(consulta):
         raise ValueError("A consulta precisa estar aguardando início ou recebimento para ser iniciada.")
     if appointment.status != "CONFIRMED":
         raise ValueError("Registre a chegada do cliente na agenda (status Cliente presente) antes de iniciar a consulta.")
+
+    if not bypass_inadimplencia:
+        _bloquear_abertura_se_inadimplente(consulta.patient_id)
 
     consulta_service.validar_paciente_sem_consulta_em_andamento(
         consulta.patient_id, exclude_consulta_id=consulta.id,
@@ -266,5 +283,53 @@ def finalizar_consulta(
         consulta, appointment,
         payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
     )
+    consulta.refresh_from_db()
+    return consulta
+
+
+def reabrir_consulta(consulta):
+    """Reabre uma consulta finalizada (COMPLETED → IN_PROGRESS) para permitir
+    incluir procedimentos ou correções. Ação restrita ao administrador (garantida na view).
+
+    Preserva estado financeiro e fiscal — NÃO estorna pagamento, NÃO reverte estoque
+    e NÃO cancela NFS-e. Apenas volta o status da consulta e do agendamento para
+    "em atendimento", limpando a data de fim. Ao finalizar novamente, o fluxo normal
+    de finalização republica o pagamento e baixa apenas o que houver de novo.
+    """
+    from clinica_beleza import consulta_service
+
+    from ..models import Consulta
+    from ..estoque_service import tenant_atomic
+    from ._deps import logger
+
+    with tenant_atomic():
+        consulta = (
+            Consulta.objects.select_for_update(of=("self",))
+            .select_related("appointment")
+            .get(pk=consulta.pk)
+        )
+
+        if consulta.status != "COMPLETED":
+            raise ValueError("Apenas consultas finalizadas podem ser reabertas.")
+
+        appointment = consulta.appointment
+        if appointment is None:
+            raise ValueError("Consulta sem agendamento vinculado.")
+
+        old_status = appointment.status
+
+        appointment.status = "IN_PROGRESS"
+        appointment.version = (appointment.version or 1) + 1
+        appointment.save(update_fields=["status", "version", "updated_at"])
+
+        consulta.status = "IN_PROGRESS"
+        if not consulta.data_inicio:
+            consulta.data_inicio = now()
+        consulta.data_fim = None
+        consulta.save(update_fields=["status", "data_inicio", "data_fim", "updated_at"])
+
+        consulta_service.sync_consulta_from_appointment_status(appointment, "IN_PROGRESS", old_status)
+
+    logger.info("Consulta %s reaberta (COMPLETED → IN_PROGRESS)", consulta.pk)
     consulta.refresh_from_db()
     return consulta

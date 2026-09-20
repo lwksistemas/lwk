@@ -3,7 +3,7 @@
 import type { ElementType } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Activity, CalendarDays, RefreshCw, TrendingUp, Users } from "lucide-react";
+import { Activity, AlertTriangle, CalendarDays, RefreshCw, TrendingUp, Users } from "lucide-react";
 import { ClinicaBelezaShell } from "@/components/clinica-beleza/clinica-beleza-shell/ClinicaBelezaShell";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import {
@@ -169,7 +169,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
         </div>
       ) : (
         <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
             <StatCard
               title="Atendimentos hoje"
               value={stats?.appointments_today ?? 0}
@@ -194,6 +194,17 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               value={stats?.sessions_month ?? 0}
               icon={Activity}
               changeLabel={filterLabel}
+            />
+            <StatCard
+              title="Inadimplência"
+              value={formatCurrency(stats?.inadimplencia_total ?? 0)}
+              icon={AlertTriangle}
+              changeLabel={
+                (stats?.inadimplentes_count ?? 0) > 0
+                  ? `${stats?.inadimplentes_count} em atraso`
+                  : "Em dia"
+              }
+              positive={(stats?.inadimplentes_count ?? 0) === 0}
             />
           </div>
 

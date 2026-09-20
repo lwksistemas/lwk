@@ -267,8 +267,7 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
         toast.warning(
           'Cancelamento automático indisponível no padrão Nacional. ' +
           'Abra o portal da prefeitura para solicitar o cancelamento, ' +
-          'depois use "Sincronizar" para atualizar o status.',
-          { duration: 8000 }
+          'depois use "Sincronizar" para atualizar o status.'
         );
         // Abrir portal em nova aba
         window.open(

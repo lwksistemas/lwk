@@ -6,6 +6,15 @@ import {
   type EntradaPagamentoLinha,
 } from "../modal-receber-consulta-utils";
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function labelDocumentoLoja(cpfCnpj?: string): string {
   const d = (cpfCnpj || "").replace(/\D/g, "");
   if (d.length === 11) return "CPF";
@@ -61,7 +70,13 @@ export function gerarHtmlRecibo(params: {
   const taxaExibida = retornoGratuito ? valorConsultaReferencia : valorConsulta;
   const descontoRetorno =
     retornoGratuito && valorConsultaReferencia > 0 ? valorConsultaReferencia : 0;
-  const telCep = linhaTelCep(lojaData.telefone, lojaData.cep);
+  const telCep = escapeHtml(linhaTelCep(lojaData.telefone, lojaData.cep));
+  const nomeLoja = escapeHtml(lojaData.nome || consulta.local_atendimento_name || "CLÍNICA");
+  const enderecoLoja = escapeHtml(lojaData.endereco || "");
+  const emailLoja = escapeHtml(lojaData.email || "");
+  const nomeCliente = escapeHtml(consulta.patient_name || "");
+  const nomeProfissional = escapeHtml(consulta.professional_name || "—");
+  const avisoRetorno = escapeHtml(retornoAviso);
 
   const taxaConsultaHtml =
     taxaExibida > 0
@@ -109,7 +124,7 @@ export function gerarHtmlRecibo(params: {
   const formasHtml = Array.from(formasAgrupadas.values())
     .map(
       (f) =>
-        `<tr><td>${f.label}${f.parcInfo}${f.dataInfo}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`,
+        `<tr><td>${escapeHtml(f.label)}${escapeHtml(f.parcInfo)}${escapeHtml(f.dataInfo)}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`,
     )
     .join("");
 
@@ -137,13 +152,13 @@ export function gerarHtmlRecibo(params: {
       ? procsVisiveis
           .map(
             (p) =>
-              `<tr><td style="padding-left:8px">• ${p.nome}</td><td style="text-align:right">R$ ${Number(p.valor).toFixed(2)}</td></tr>`,
+              `<tr><td style="padding-left:8px">• ${escapeHtml(p.nome)}</td><td style="text-align:right">R$ ${Number(p.valor).toFixed(2)}</td></tr>`,
           )
           .join("")
       : procs.length > 0
         ? ""
         : valorProcs > 0
-          ? `<tr><td style="padding-left:8px">• ${consulta.procedure_name || "Procedimento"}</td><td style="text-align:right">R$ ${valorProcs.toFixed(2)}</td></tr>`
+          ? `<tr><td style="padding-left:8px">• ${escapeHtml(consulta.procedure_name || "Procedimento")}</td><td style="text-align:right">R$ ${valorProcs.toFixed(2)}</td></tr>`
           : "";
 
   return `<!DOCTYPE html>
@@ -166,11 +181,11 @@ export function gerarHtmlRecibo(params: {
 </style>
 </head><body>
 <div class="header">
-  <h1>${lojaData.nome || consulta.local_atendimento_name || "CLÍNICA"}</h1>
-  ${lojaData.cpf_cnpj ? `<p>${labelDocumentoLoja(lojaData.cpf_cnpj)}: ${formatCpfCnpj(lojaData.cpf_cnpj)}</p>` : ""}
-  ${lojaData.endereco ? `<p>${lojaData.endereco}</p>` : ""}
+  <h1>${nomeLoja}</h1>
+  ${lojaData.cpf_cnpj ? `<p>${escapeHtml(labelDocumentoLoja(lojaData.cpf_cnpj))}: ${escapeHtml(formatCpfCnpj(lojaData.cpf_cnpj))}</p>` : ""}
+  ${enderecoLoja ? `<p>${enderecoLoja}</p>` : ""}
   ${telCep ? `<p>${telCep}</p>` : ""}
-  ${lojaData.email ? `<p>${lojaData.email}</p>` : ""}
+  ${emailLoja ? `<p>${emailLoja}</p>` : ""}
   <p style="margin-top:4px;font-weight:bold">RECIBO DE PAGAMENTO</p>
   <p>Emitido em ${dataHoraEmissao}</p>
 </div>
@@ -178,14 +193,14 @@ export function gerarHtmlRecibo(params: {
 <div class="section">
   <div class="section-title">Cliente</div>
   <table>
-    <tr><td>${consulta.patient_name}</td></tr>
+    <tr><td>${nomeCliente}</td></tr>
   </table>
 </div>
 
 <div class="section">
   <div class="section-title">Profissional</div>
   <table>
-    <tr><td>${consulta.professional_name || "—"}</td></tr>
+    <tr><td>${nomeProfissional}</td></tr>
   </table>
 </div>
 
@@ -228,12 +243,12 @@ export function gerarHtmlRecibo(params: {
 <div class="total">VALOR PAGO: R$ ${valorPago.toFixed(2)}</div>
 ${
   saldoRestante > 0.009
-    ? `<div class="total" style="font-size:12px;">SALDO A PAGAR: R$ ${saldoRestante.toFixed(2)}${vencimentoBr ? ` — vencimento ${vencimentoBr}` : ""}</div>`
+    ? `<div class="total" style="font-size:12px;">SALDO A PAGAR: R$ ${saldoRestante.toFixed(2)}${vencimentoBr ? ` — vencimento ${escapeHtml(vencimentoBr)}` : ""}</div>`
     : `<div class="footer" style="border-top:none;margin-top:0;"><p style="font-weight:bold;color:#333;">Quitado</p></div>`
 }
 
 <div class="footer">
-  ${retornoAviso ? `<p style="color:#333;margin-bottom:6px;">${retornoAviso}</p>` : ""}
+  ${avisoRetorno ? `<p style="color:#333;margin-bottom:6px;">${avisoRetorno}</p>` : ""}
   <p>Agradecemos pela confiança!</p>
   <p>Documento não fiscal — gerado pelo sistema.</p>
   <button onclick="window.print()" style="margin-top:8px;padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #333;border-radius:4px;background:#fff;">Imprimir</button>

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # Marca d'água da logo no recibo (cupom 80mm). Opacidade baixa para não competir
 # com o texto; tamanho máximo ajustado à largura estreita do cupom.
-_WM_OPACIDADE_RECIBO = 0.12
+_WM_OPACIDADE_RECIBO = 0.22
 _WM_MAX_W_MM = 55
 _WM_MAX_H_MM = 55
 

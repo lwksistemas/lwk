@@ -130,7 +130,7 @@ def msg_assinatura_recibo(
     link: str,
 ) -> str:
     """Mensagem para o CLIENTE assinar o recibo de pagamento (Clínica da Beleza)."""
-    ref_linha = f"🧾 *Referente a:* {titulo}" if titulo else ""
+    ref_linha = f"🧾 *Procedimento realizado:* {titulo}" if titulo else ""
     linhas = [
         "🧾 *Recibo de Pagamento*",
         SEPARADOR,

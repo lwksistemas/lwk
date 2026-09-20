@@ -184,6 +184,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     return {
         **ctx,
         "paciente_nome": getattr(patient, "nome", "Cliente"),
+        "paciente_cpf": normalizar_cpf_cnpj(getattr(patient, "cpf", "") or ""),
         "paciente_email": (getattr(patient, "email", "") or "").strip(),
         "paciente_telefone": telefone_exibicao_brasileiro(getattr(patient, "telefone", "") or ""),
         "profissional_nome": getattr(professional, "nome", "") if professional else "",

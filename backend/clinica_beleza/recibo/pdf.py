@@ -41,34 +41,52 @@ def _marca_dagua_bytes_recibo(logo_url: str) -> bytes | None:
         return None
 
 
-def _fazer_desenho_marca_dagua(wm_bytes: bytes, page_w, page_h):
-    """Cria o callback onPage que desenha a logo centralizada no fundo do cupom."""
+def _marca_dagua_flowable_base():
+    """Classe Flowable que desenha a logo (marca d'água) abaixo do bloco de assinatura."""
     from reportlab.lib.pagesizes import mm
     from reportlab.lib.utils import ImageReader
+    from reportlab.platypus import Flowable
 
-    def _draw(canvas, _doc):
-        try:
-            img = ImageReader(io.BytesIO(wm_bytes))
-            iw, ih = img.getSize()
-            if not iw or not ih:
-                return
-            max_w = _WM_MAX_W_MM * mm
-            max_h = _WM_MAX_H_MM * mm
-            ratio = min(max_w / iw, max_h / ih)
-            wm_w = iw * ratio
-            wm_h = ih * ratio
-            x = (page_w - wm_w) / 2
-            y = (page_h - wm_h) / 2
-            canvas.saveState()
-            canvas.drawImage(
-                img, x, y, width=wm_w, height=wm_h,
-                mask="auto", preserveAspectRatio=True,
-            )
-            canvas.restoreState()
-        except Exception as e:
-            logger.warning("Falha ao desenhar marca d'água do recibo: %s", e)
+    class _MarcaDaguaAssinaturaReciboImpl(Flowable):
+        """Desenha a logo semitransparente ocupando a largura do cupom, sem empurrar o texto seguinte."""
 
-    return _draw
+        def __init__(self, wm_bytes: bytes):
+            Flowable.__init__(self)
+            self._wm_bytes = wm_bytes
+            self.width = 0
+            self.height = 0  # não ocupa altura no fluxo; desenha "atrás" do texto abaixo
+
+        def draw(self):
+            try:
+                img = ImageReader(io.BytesIO(self._wm_bytes))
+                iw, ih = img.getSize()
+                if not iw or not ih:
+                    return
+                max_w = _WM_MAX_W_MM * mm
+                max_h = _WM_MAX_H_MM * mm
+                ratio = min(max_w / iw, max_h / ih)
+                wm_w = iw * ratio
+                wm_h = ih * ratio
+                # Centralizada na largura do cupom; desenhada logo abaixo (para trás) do nome/CPF.
+                avail = getattr(self, "_frame_width", 72 * mm) or 72 * mm
+                x = (avail - wm_w) / 2
+                self.canv.saveState()
+                self.canv.drawImage(
+                    img, x, -wm_h, width=wm_w, height=wm_h,
+                    mask="auto", preserveAspectRatio=True,
+                )
+                self.canv.restoreState()
+            except Exception as e:
+                logger.warning("Falha ao desenhar marca d'água do recibo: %s", e)
+
+        def wrap(self, avail_w, avail_h):
+            self._frame_width = avail_w
+            return (avail_w, 0)
+
+    return _MarcaDaguaAssinaturaReciboImpl
+
+
+_MarcaDaguaAssinaturaRecibo = _marca_dagua_flowable_base()
 
 
 def _estilos_pdf():
@@ -122,6 +140,8 @@ def _cabecalho_recibo_pdf(ctx, styles, col_w, mm_unit):
     story.append(hr)
 
     story.append(Paragraph(f"<b>Cliente:</b> {ctx['paciente_nome']}", s_left))
+    if ctx.get("paciente_cpf"):
+        story.append(Paragraph(f"<b>CPF:</b> {ctx['paciente_cpf']}", s_left))
     if ctx["profissional_nome"]:
         story.append(Paragraph(f"<b>Profissional:</b> {ctx['profissional_nome']}", s_left))
     if ctx.get("data_atendimento"):
@@ -233,6 +253,15 @@ def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
     story = [Spacer(1, 2 * mm_unit), hr, Paragraph("<b>ASSINATURA DIGITAL</b>", s_bold), Spacer(1, 1 * mm_unit)]
     nome = (assinatura.get("nome") or ctx.get("paciente_nome") or "").strip().upper() or "—"
     story.append(Paragraph(f"Cliente: {nome}", s_left))
+    cpf = (assinatura.get("cpf") or ctx.get("paciente_cpf") or "").strip()
+    if cpf:
+        story.append(Paragraph(f"CPF: {cpf}", s_left))
+
+    # Marca d'água da logo logo abaixo do nome e do CPF (mesma ideia do termo de consentimento).
+    wm_bytes = _marca_dagua_bytes_recibo((ctx.get("logo_url") or "").strip())
+    if wm_bytes:
+        story.append(_MarcaDaguaAssinaturaRecibo(wm_bytes))
+
     if assinatura.get("email"):
         story.append(Paragraph(f"Email: {assinatura['email']}", s_footer))
     if assinatura.get("assinado_em"):
@@ -314,10 +343,5 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     story.append(Spacer(1, 3 * mm))
     story.extend(_rodape_recibo_pdf(ctx, styles, mm))
 
-    wm_bytes = _marca_dagua_bytes_recibo((ctx.get("logo_url") or "").strip())
-    if wm_bytes:
-        desenhar = _fazer_desenho_marca_dagua(wm_bytes, page_w, page_h)
-        doc.build(story, onFirstPage=desenhar, onLaterPages=desenhar)
-    else:
-        doc.build(story)
+    doc.build(story)
     return buf.getvalue()

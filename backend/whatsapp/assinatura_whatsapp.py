@@ -37,7 +37,7 @@ def enviar_whatsapp_link_assinatura(
     telefone: str,
     user=None,
 ) -> tuple[bool, str | None]:
-    from .message_templates import msg_assinatura_cliente, msg_termo_consentimento
+    from .message_templates import msg_assinatura_cliente, msg_assinatura_recibo, msg_termo_consentimento
     from .services import send_whatsapp
     from .sync_context import whatsapp_sync_only
 
@@ -58,7 +58,15 @@ def enviar_whatsapp_link_assinatura(
     label_tipo = adapter.get_tipo_documento_label(documento)
 
     # Template de mensagem profissional por tipo de documento
-    if modulo == "clinica_beleza":
+    is_recibo = adapter.get_pagina_assinatura_path() == "/assinar-recibo/"
+    if is_recibo:
+        mensagem = msg_assinatura_recibo(
+            nome=nome or "cliente",
+            titulo=tipo_doc,
+            loja_nome=loja_nome,
+            link=link,
+        )
+    elif modulo == "clinica_beleza":
         procedimento = getattr(documento, "procedure", None)
         proc_nome = getattr(procedimento, "nome", None) if procedimento else None
         mensagem = msg_termo_consentimento(

@@ -30,11 +30,8 @@ def gravar_pdf_publico(prefix: str, payload: dict, *, ttl: int = TTL_PDF_PUBLICO
 
 
 def ler_pdf_publico(prefix: str, token: str) -> dict | None:
-    """Lê o payload. Aceita chave hasheada e a chave legada (token em claro)."""
+    """Lê o payload só pela chave hasheada (o token da URL não fica no Redis)."""
     if not token or len(token) > 200:
         return None
     cached = django_cache.get(_chave_hash(prefix, token))
-    if isinstance(cached, dict):
-        return cached
-    legado = django_cache.get(f"{prefix}_{token}")
-    return legado if isinstance(legado, dict) else None
+    return cached if isinstance(cached, dict) else None

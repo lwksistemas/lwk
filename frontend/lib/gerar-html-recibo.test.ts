@@ -46,6 +46,34 @@ describe("gerarHtmlRecibo", () => {
     expect(html).not.toContain("prazo");
   });
 
+  it("escapa HTML no nome do cliente e da clínica", () => {
+    const html = gerarHtmlRecibo({
+      consulta: {
+        ...consulta,
+        patient_name: '<img src=x onerror="alert(1)">',
+        professional_name: "<b>Dr</b>",
+        procedure_name: "<script>x</script>",
+        procedures_list: [{ id: 1, nome: "<svg onload=alert(1)>", valor: 300 }],
+        retorno_aviso_recibo: "<i>aviso</i>",
+      } as Consulta,
+      valorPago: 450,
+      desconto: 0,
+      entradas: [{ id: "1", payment_method: "CASH", valor: "450" }],
+      lojaData: {
+        nome: "<Clinica>",
+        endereco: 'Rua "A"',
+        email: "a@b.com",
+      },
+    });
+    expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
+    expect(html).toContain("&lt;Clinica&gt;");
+    expect(html).toContain("&lt;b&gt;Dr&lt;/b&gt;");
+    expect(html).toContain("&lt;svg onload=alert(1)&gt;");
+    expect(html).toContain("&lt;i&gt;aviso&lt;/i&gt;");
+    expect(html).not.toContain("<img src=x");
+    expect(html).not.toContain("<script>");
+  });
+
   it("omite Desconto quando o valor é zero", () => {
     const html = gerarHtmlRecibo({
       consulta,

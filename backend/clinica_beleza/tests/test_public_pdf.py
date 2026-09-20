@@ -1,4 +1,4 @@
-"""Token de PDF público: cache por hash, leitura legada, sem uso único."""
+"""Token de PDF público: cache por hash, sem chave em claro, sem uso único."""
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 
@@ -36,12 +36,9 @@ class PublicPdfTokenTest(SimpleTestCase):
         gravar_pdf_publico(PREFIX_ORCAMENTO, {"orcamento_id": 1, "pdf": b"x"})
         self.assertIsNone(ler_pdf_publico(PREFIX_ORCAMENTO, "token-inventado"))
 
-    def test_ainda_le_chave_legada_em_claro(self):
+    def test_nao_le_chave_legada_em_claro(self):
         cache.set(f"{PREFIX_ORCAMENTO}_legado32charsxxxxxxxxxxxxxxxx", {"orcamento_id": 4, "pdf": b"old"}, 60)
-        self.assertEqual(
-            ler_pdf_publico(PREFIX_ORCAMENTO, "legado32charsxxxxxxxxxxxxxxxx"),
-            {"orcamento_id": 4, "pdf": b"old"},
-        )
+        self.assertIsNone(ler_pdf_publico(PREFIX_ORCAMENTO, "legado32charsxxxxxxxxxxxxxxxx"))
 
     def test_segunda_leitura_ainda_vale(self):
         token = gravar_pdf_publico(PREFIX_ORCAMENTO, {"orcamento_id": 2, "pdf": b"pdf"})

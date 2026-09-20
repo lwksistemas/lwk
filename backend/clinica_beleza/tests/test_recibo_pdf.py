@@ -97,6 +97,32 @@ class GerarPdfReciboTests(SimpleTestCase):
         self.assertIn("Desconto", texto)
         self.assertIn("100.00", texto)
 
+    def test_escapa_html_do_nome_no_pdf(self):
+        from clinica_beleza.recibo.pdf import _texto_pdf
+        from clinica_beleza.recibo_service import _gerar_pdf_recibo
+
+        self.assertEqual(_texto_pdf("<b>X</b>"), "&lt;b&gt;X&lt;/b&gt;")
+        pdf = _gerar_pdf_recibo(self._ctx(paciente_nome="<img src=x>"))
+        self.assertTrue(pdf[:5] == b"%PDF-")
+
+    def test_logo_so_do_servidor_de_midia(self):
+        from urllib.parse import urlparse
+
+        from core.media_storage import MEDIA_SERVER_URL
+        from clinica_beleza.recibo.pdf import logo_url_permitida_para_download
+
+        host = urlparse(MEDIA_SERVER_URL).hostname or "media.lwksistemas.com.br"
+        scheme = "https" if str(MEDIA_SERVER_URL).startswith("https") else "http"
+        midia_ok = f"{scheme}://{host}/files/41449198000172/loja/logo.png"
+        self.assertTrue(logo_url_permitida_para_download(midia_ok))
+        self.assertFalse(logo_url_permitida_para_download("http://127.0.0.1:6379/"))
+        self.assertFalse(logo_url_permitida_para_download("https://evil.example/logo.png"))
+        self.assertFalse(
+            logo_url_permitida_para_download(
+                "https://media.lwksistemas.com.br.evil.com/files/41449198000172/loja/logo.png",
+            ),
+        )
+
     def test_gera_pdf_dados_loja_vazios(self):
         """PDF com dados da loja vazios não quebra."""
         from clinica_beleza.recibo_service import _gerar_pdf_recibo

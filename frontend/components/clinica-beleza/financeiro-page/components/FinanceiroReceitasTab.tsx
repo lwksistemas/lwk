@@ -135,14 +135,12 @@ export function FinanceiroReceitasTab({
                       {formatCurrency(p.valor_total_efetivo ?? p.amount)}
                     </td>
                     <td className="py-3 px-4">
-                      {CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
+                      {p.retorno_gratuito
+                        ? "Retorno"
+                        : CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
-                      {p.retorno_gratuito ? (
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {p.data_atendimento ? formatVencimento(p.data_atendimento) : "—"}
-                        </span>
-                      ) : p.data_vencimento ? (
+                      {!p.retorno_gratuito && p.data_vencimento ? (
                         <>
                           <span className={p.vencido ? "text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400"}>
                             {formatVencimento(p.data_vencimento)}
@@ -193,7 +191,7 @@ export function FinanceiroReceitasTab({
                     </td>
                     <td className="py-3 px-3 text-center">
                       <div className="flex flex-col items-stretch gap-1">
-                        {(status === "PENDING" || status === "PARTIAL") && (
+                        {!p.retorno_gratuito && (status === "PENDING" || status === "PARTIAL") && (
                           <button
                             type="button"
                             onClick={() => onBaixa(p)}

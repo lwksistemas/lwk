@@ -11,6 +11,17 @@ from .context import (
 
 logger = logging.getLogger(__name__)
 
+
+def _saldo_devedor_recibo(ctx: dict) -> float:
+    """Saldo em aberto do recibo (a prazo ou pagamento parcial).
+
+    Usa 'saldo_devedor' quando presente; senão, deriva de valor_total - valor_pago.
+    """
+    valor_pago = ctx.get("valor_pago", 0) or 0
+    valor_total = ctx.get("valor_total", 0) or 0
+    return ctx.get("saldo_devedor", max(valor_total - valor_pago, 0))
+
+
 # Logo (imagem nítida) no rodapé do recibo — parte branca, aparece em todo recibo.
 _LOGO_RODAPE_MAX_W_MM = 48
 _LOGO_RODAPE_MAX_H_MM = 30
@@ -91,7 +102,13 @@ def _cabecalho_recibo_pdf(ctx, styles, col_w, mm_unit):
         story.append(Paragraph(ctx["loja_email"], s_center))
     story.append(Spacer(1, 3 * mm_unit))
     story.append(hr)
-    story.append(Paragraph("RECIBO DE PAGAMENTO", s_title))
+    # Com saldo em aberto (a prazo ou pagamento parcial) o documento não é um recibo de
+    # quitação, e sim um comprovante de atendimento com reconhecimento de dívida.
+    tem_saldo = _saldo_devedor_recibo(ctx) > 0.009
+    titulo_doc = "COMPROVANTE DE ATENDIMENTO" if tem_saldo else "RECIBO DE PAGAMENTO"
+    story.append(Paragraph(titulo_doc, s_title))
+    if tem_saldo:
+        story.append(Paragraph("(reconhecimento de dívida — valor em aberto)", s_center))
     story.append(Paragraph(f"Emitido em {ctx.get('data_emissao') or ctx['data']}", s_center))
     story.append(hr)
 
@@ -201,17 +218,34 @@ def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
     if not assinatura:
         return []
 
-    s_bold = styles["s_bold"]
-    s_left = styles["s_left"]
+    s_title = styles["s_title"]
+    s_center = styles["s_center"]
     s_footer = styles["s_footer"]
     hr = styles["hr"]
 
-    story = [Spacer(1, 2 * mm_unit), hr, Paragraph("<b>ASSINATURA DIGITAL</b>", s_bold), Spacer(1, 1 * mm_unit)]
+    # Título e dados do cliente centralizados para alinhar todo o bloco de assinatura.
+    story = [Spacer(1, 2 * mm_unit), hr, Paragraph("ASSINATURA DIGITAL", s_title), Spacer(1, 1 * mm_unit)]
     nome = (assinatura.get("nome") or ctx.get("paciente_nome") or "").strip().upper() or "—"
-    story.append(Paragraph(f"Cliente: {nome}", s_left))
+    # Nome e CPF centralizados para alinhar com o restante do bloco (email/IP/data e texto jurídico).
+    story.append(Paragraph(f"<b>Cliente:</b> {nome}", s_center))
     cpf = (assinatura.get("cpf") or ctx.get("paciente_cpf") or "").strip()
     if cpf:
-        story.append(Paragraph(f"CPF: {cpf}", s_left))
+        story.append(Paragraph(f"<b>CPF:</b> {cpf}", s_center))
+
+    # Declaração de reconhecimento de dívida — só quando há saldo em aberto
+    # (pagamento a prazo ou parcial). Dá força ao documento como base de cobrança.
+    saldo = _saldo_devedor_recibo(ctx)
+    if saldo > 0.009:
+        vencimento = (ctx.get("vencimento") or "").strip()
+        venc_txt = f", com vencimento em {vencimento}" if vencimento else ""
+        story.append(Spacer(1, 1 * mm_unit))
+        story.append(Paragraph(
+            f"Declaro que recebi o(s) serviço(s)/atendimento(s) descrito(s) acima e "
+            f"reconheço o saldo devedor de R$ {saldo:.2f}{venc_txt}, "
+            f"comprometendo-me a efetuar o pagamento na forma acordada.",
+            s_footer,
+        ))
+        story.append(Spacer(1, 1 * mm_unit))
 
     if assinatura.get("email"):
         story.append(Paragraph(f"Email: {assinatura['email']}", s_footer))
@@ -239,7 +273,7 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
 
     story = []
     valor_pago = ctx.get("valor_pago", 0)
-    saldo = ctx.get("saldo_devedor", max(ctx.get("valor_total", 0) - valor_pago, 0))
+    saldo = _saldo_devedor_recibo(ctx)
     vencimento = (ctx.get("vencimento") or "").strip()
     story.append(Paragraph(f"VALOR PAGO: R$ {valor_pago:.2f}", s_total))
     if saldo > 0.009:

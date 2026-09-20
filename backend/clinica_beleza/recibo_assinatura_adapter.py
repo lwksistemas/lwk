@@ -14,14 +14,6 @@ from core.assinatura_service import AssinaturaAdapter
 logger = logging.getLogger(__name__)
 
 
-def _formatar_ts_local(dt) -> str:
-    if not dt:
-        return ""
-    if timezone.is_aware(dt):
-        dt = timezone.localtime(dt)
-    return dt.strftime("%d/%m/%Y %H:%M")
-
-
 class ReciboAssinaturaAdapter(AssinaturaAdapter):
     """Assinatura do recibo de um Payment. Só o paciente assina."""
 
@@ -162,26 +154,13 @@ class ReciboAssinaturaAdapter(AssinaturaAdapter):
         patient = self._patient(payment)
         ctx = _obter_dados_contexto(payment, patient, appointment)
 
-        if incluir_assinaturas:
-            ass = self._assinatura_paciente(payment)
-            if ass:
-                ctx["assinatura_recibo"] = {
-                    "nome": ass.nome_assinante,
-                    "email": (ass.email_assinante or "").strip(),
-                    "ip": ass.ip_address,
-                    "assinado_em": _formatar_ts_local(ass.assinado_em),
-                }
+        # O contexto já injeta 'assinatura_recibo' quando o recibo foi assinado.
+        # No PDF "para ler antes de assinar" (incluir_assinaturas=False), remove a seção.
+        if not incluir_assinaturas:
+            ctx.pop("assinatura_recibo", None)
 
         pdf_bytes = _gerar_pdf_recibo(ctx)
         return io.BytesIO(pdf_bytes)
-
-    def _assinatura_paciente(self, payment):
-        from .models import ReciboAssinatura
-        return (
-            ReciboAssinatura.objects.filter(payment=payment, tipo="paciente", assinado=True)
-            .order_by("assinado_em")
-            .first()
-        )
 
     def get_todos_destinatarios_pdf_final(self, payment, loja_id: int) -> list[str]:
         _, email = self.get_destinatario_parte1(payment)

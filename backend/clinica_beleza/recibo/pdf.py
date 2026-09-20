@@ -18,8 +18,8 @@ _WM_MAX_W_MM = 55
 _WM_MAX_H_MM = 55
 
 # Logo (imagem nítida) no rodapé do recibo — parte branca, aparece em todo recibo.
-_LOGO_RODAPE_MAX_W_MM = 32
-_LOGO_RODAPE_MAX_H_MM = 20
+_LOGO_RODAPE_MAX_W_MM = 48
+_LOGO_RODAPE_MAX_H_MM = 30
 
 
 def _logo_rodape_recibo(logo_url: str, mm_unit):

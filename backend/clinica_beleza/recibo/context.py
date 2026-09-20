@@ -155,6 +155,41 @@ def _dados_loja_recibo(loja):
     }
 
 
+def _dados_assinatura_recibo(payment) -> dict | None:
+    """Se o recibo já foi assinado pelo cliente, retorna os dados da assinatura
+    (para o PDF exibir a seção de assinatura em qualquer canal: email/WhatsApp/download).
+    """
+    try:
+        from clinica_beleza.models import ReciboAssinatura
+
+        ass = (
+            ReciboAssinatura.objects.filter(payment=payment, tipo="paciente", assinado=True)
+            .order_by("assinado_em")
+            .first()
+        )
+        if not ass:
+            return None
+        assinado_em = ass.assinado_em
+        if assinado_em is not None and hasattr(assinado_em, "strftime"):
+            from django.utils import timezone as dj_tz
+
+            if dj_tz.is_aware(assinado_em):
+                assinado_em = dj_tz.localtime(assinado_em)
+            assinado_em = assinado_em.strftime("%d/%m/%Y %H:%M")
+        return {
+            "nome": ass.nome_assinante,
+            "cpf": normalizar_cpf_cnpj(
+                (getattr(payment.appointment.patient, "cpf", "") or "") if payment.appointment else "",
+            ),
+            "email": (ass.email_assinante or "").strip(),
+            "ip": ass.ip_address,
+            "assinado_em": assinado_em or "",
+        }
+    except Exception:
+        logger.exception("Erro ao ler assinatura do recibo (payment %s)", getattr(payment, "id", None))
+        return None
+
+
 def _obter_dados_contexto(payment, patient, appointment) -> dict:
     """Obtém dados completos para o recibo."""
     from superadmin.models import Loja
@@ -180,9 +215,11 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     subtotal, desconto_retorno = _calcular_subtotal_recibo(taxa_info, procs, valor_total, desconto)
 
     ctx = _dados_loja_recibo(loja)
+    assinatura_recibo = _dados_assinatura_recibo(payment)
 
     return {
         **ctx,
+        "assinatura_recibo": assinatura_recibo,
         "paciente_nome": getattr(patient, "nome", "Cliente"),
         "paciente_cpf": normalizar_cpf_cnpj(getattr(patient, "cpf", "") or ""),
         "paciente_email": (getattr(patient, "email", "") or "").strip(),

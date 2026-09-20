@@ -158,14 +158,23 @@ export function ReceberSucessoPanel({
             </button>
           )}
 
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Envie o recibo de pagamento para o cliente:
-          </p>
-          <ReceberReciboActions
-            onImprimir={onImprimir}
-            onEmail={onEmail}
-            onWhatsApp={onWhatsApp}
-          />
+          {consultaJaFinalizada ? (
+            <>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Envie o recibo de pagamento para o cliente:
+              </p>
+              <ReceberReciboActions
+                onImprimir={onImprimir}
+                onEmail={onEmail}
+                onWhatsApp={onWhatsApp}
+              />
+            </>
+          ) : (
+            <p className="text-sm text-gray-600 dark:text-gray-400 rounded-lg border border-gray-200 dark:border-neutral-600 p-3">
+              Pagamento registrado. O comprovante fica disponível para impressão/envio
+              após <strong>finalizar a consulta</strong>.
+            </p>
+          )}
 
           {error && (
             <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">

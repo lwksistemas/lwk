@@ -162,6 +162,8 @@ def queryset_payments_listagem(*, status=None, date_filter=None, professional_id
         Payment.objects.select_related(
             "appointment", "appointment__patient",
             "appointment__professional", "appointment__procedure",
+            # consulta usada para exibir "Isento" (retorno gratuito) sem N+1.
+            "appointment__consulta",
         ).prefetch_related(
             "appointment__appointment_procedures__procedure",
             "parcelas",

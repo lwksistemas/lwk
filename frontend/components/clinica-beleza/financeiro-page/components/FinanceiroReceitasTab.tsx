@@ -138,7 +138,11 @@ export function FinanceiroReceitasTab({
                       {CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
-                      {p.data_vencimento ? (
+                      {p.retorno_gratuito ? (
+                        <span className="text-gray-600 dark:text-gray-400">
+                          {p.data_atendimento ? formatVencimento(p.data_atendimento) : "—"}
+                        </span>
+                      ) : p.data_vencimento ? (
                         <>
                           <span className={p.vencido ? "text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400"}>
                             {formatVencimento(p.data_vencimento)}
@@ -154,21 +158,29 @@ export function FinanceiroReceitasTab({
                       )}
                     </td>
                     <td className="py-3 px-4 col-allow-wrap">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                        status === "PAID"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                          : status === "PENDING"
-                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                          : status === "PARTIAL"
-                          ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
-                          : "bg-gray-100 dark:bg-neutral-600"
-                      }`}>
-                        {CLINICA_PAGAMENTO_STATUS_LABEL[status] || status}
-                      </span>
-                      {status === "PARTIAL" && p.saldo_devedor > 0 && (
-                        <span className="block text-xs text-orange-600 dark:text-orange-400 mt-0.5">
-                          Falta {formatCurrency(p.saldo_devedor)}
+                      {p.retorno_gratuito ? (
+                        <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">
+                          Isento
                         </span>
+                      ) : (
+                        <>
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                            status === "PAID"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              : status === "PENDING"
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                              : status === "PARTIAL"
+                              ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
+                              : "bg-gray-100 dark:bg-neutral-600"
+                          }`}>
+                            {CLINICA_PAGAMENTO_STATUS_LABEL[status] || status}
+                          </span>
+                          {status === "PARTIAL" && p.saldo_devedor > 0 && (
+                            <span className="block text-xs text-orange-600 dark:text-orange-400 mt-0.5">
+                              Falta {formatCurrency(p.saldo_devedor)}
+                            </span>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="py-3 px-4 text-right col-allow-wrap">

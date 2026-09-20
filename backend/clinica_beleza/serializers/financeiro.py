@@ -82,9 +82,15 @@ class PaymentSerializer(serializers.ModelSerializer):
     saldo_devedor = serializers.SerializerMethodField()
     vencido = serializers.SerializerMethodField()
     dias_atraso = serializers.SerializerMethodField()
+    retorno_gratuito = serializers.SerializerMethodField()
 
     def get_procedimento_nome(self, obj):
         return _procedimentos_nome_agendamento(obj.appointment)
+
+    def get_retorno_gratuito(self, obj):
+        """True se a consulta vinculada é retorno gratuito (isento)."""
+        consulta = getattr(getattr(obj, "appointment", None), "consulta", None)
+        return bool(getattr(consulta, "retorno_gratuito", False))
 
     def get_vencido(self, obj):
         try:

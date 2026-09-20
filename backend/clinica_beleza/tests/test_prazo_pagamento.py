@@ -24,15 +24,23 @@ class CalcularVencimentoTest(SimpleTestCase):
         p = Patient(prazo_pagamento_modo="DIAS_APOS", prazo_pagamento_dias=10)
         self.assertEqual(calcular_vencimento(p, date(2026, 10, 5)), date(2026, 10, 15))
 
-    def test_dia_fixo_vai_para_mes_seguinte_quando_finaliza_antes(self):
+    def test_dia_fixo_mes_corrente_quando_ainda_da_tempo(self):
+        # Lançou dia 5, dia fixo 10 → vence 10 do mês corrente (ainda dá tempo).
         p = Patient(prazo_pagamento_modo="DIA_FIXO", prazo_pagamento_dia_mes=10)
-        self.assertEqual(calcular_vencimento(p, date(2026, 10, 5)), date(2026, 11, 10))
+        self.assertEqual(calcular_vencimento(p, date(2026, 10, 5)), date(2026, 10, 10))
 
-    def test_dia_fixo_vai_para_mes_seguinte_quando_finaliza_depois(self):
+    def test_dia_fixo_no_proprio_dia_vence_no_dia(self):
+        # Lançou exatamente no dia 10 → vence 10/10.
+        p = Patient(prazo_pagamento_modo="DIA_FIXO", prazo_pagamento_dia_mes=10)
+        self.assertEqual(calcular_vencimento(p, date(2026, 10, 10)), date(2026, 10, 10))
+
+    def test_dia_fixo_mes_seguinte_quando_ja_passou(self):
+        # Lançou dia 15, dia fixo 10 → já passou, vai para 10/11.
         p = Patient(prazo_pagamento_modo="DIA_FIXO", prazo_pagamento_dia_mes=10)
         self.assertEqual(calcular_vencimento(p, date(2026, 10, 15)), date(2026, 11, 10))
 
     def test_dia_fixo_vira_o_ano_em_dezembro(self):
+        # Lançou 20/12, dia fixo 10 → já passou, vai para 10/01 do ano seguinte.
         p = Patient(prazo_pagamento_modo="DIA_FIXO", prazo_pagamento_dia_mes=10)
         self.assertEqual(calcular_vencimento(p, date(2026, 12, 20)), date(2027, 1, 10))
 

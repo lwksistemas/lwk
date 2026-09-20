@@ -134,7 +134,7 @@ export function PrazoPagamentoCard({ patientId, open, onClose }: PrazoPagamentoC
                 placeholder="ex.: 10"
                 className={fieldClass}
               />
-              <p className="text-xs text-gray-500 mt-1">Vence sempre no dia escolhido do mês seguinte.</p>
+              <p className="text-xs text-gray-500 mt-1">Vence no próximo dia escolhido: neste mês se ainda não passou, senão no mês seguinte.</p>
             </div>
           )}
 

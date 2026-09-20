@@ -27,14 +27,20 @@ class PrazoNaoConfiguradoError(ValueError):
         super().__init__(mensagem)
 
 
-def _dia_do_mes_seguinte(referencia: date, dia: int) -> date:
-    """Retorna o dia `dia` do mês seguinte a `referencia`.
+def _proximo_dia_fixo(referencia: date, dia: int) -> date:
+    """Retorna o próximo 'dia X' a partir de `referencia` (inclusive).
 
-    `dia` é limitado a 1..28 na configuração, então nunca estoura o mês.
-    Ainda assim clampa por segurança contra o último dia do mês.
+    Se ainda não passou o dia X no mês corrente, vence neste mês;
+    se já passou (ou é depois), vence no mês seguinte.
+    Ex.: dia fixo 10 — lançou 05/10 → 10/10; lançou 15/10 → 10/11; lançou 10/10 → 10/10.
+
+    `dia` é 1..28 na configuração; clampa por segurança contra o último dia do mês.
     """
-    ano = referencia.year + (1 if referencia.month == 12 else 0)
-    mes = 1 if referencia.month == 12 else referencia.month + 1
+    if dia >= referencia.day:
+        ano, mes = referencia.year, referencia.month
+    else:
+        ano = referencia.year + (1 if referencia.month == 12 else 0)
+        mes = 1 if referencia.month == 12 else referencia.month + 1
     ultimo_dia = calendar.monthrange(ano, mes)[1]
     return date(ano, mes, min(dia, ultimo_dia))
 
@@ -67,6 +73,6 @@ def calcular_vencimento(patient: Patient, data_finalizacao: date) -> date:
         dia = patient.prazo_pagamento_dia_mes
         if not dia or dia < 1:
             raise PrazoNaoConfiguradoError()
-        return _dia_do_mes_seguinte(data_finalizacao, int(dia))
+        return _proximo_dia_fixo(data_finalizacao, int(dia))
 
     raise PrazoNaoConfiguradoError()

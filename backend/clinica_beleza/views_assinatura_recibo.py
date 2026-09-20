@@ -71,10 +71,16 @@ class ReciboAssinaturaEnviarView(GetObjectMixin, APIView):
         if not canal:
             return Response({"error": 'Canal deve ser "email" ou "whatsapp".'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Assinatura do recibo é exclusiva de pagamento a prazo.
-        if payment.payment_method != "PRAZO":
+        # Assinatura do recibo é para pagamentos com saldo a receber (a prazo ou parcial).
+        from decimal import Decimal
+
+        try:
+            saldo = payment.saldo_devedor
+        except Exception:
+            saldo = Decimal(0)
+        if payment.payment_method != "PRAZO" and saldo <= Decimal("0.01"):
             return Response(
-                {"error": "A assinatura do recibo está disponível apenas para pagamento a prazo."},
+                {"error": "A assinatura do recibo está disponível apenas para pagamento a prazo ou parcial (com saldo a receber)."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

@@ -25,6 +25,7 @@ COLUMNS = (
     ("enviar_contrato_whatsapp", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("enviar_termo_consentimento_whatsapp", "BOOLEAN NOT NULL DEFAULT TRUE"),
     ("mensagem_confirmacao_agenda", "TEXT NOT NULL DEFAULT ''" ),
+    ("mensagem_cobranca", "TEXT NOT NULL DEFAULT ''" ),
     ("confirmacao_antecedencias_dias", "JSONB NOT NULL DEFAULT '[1]'::jsonb"),
 )
 

@@ -31,6 +31,12 @@ class Payment(LojaIsolationMixin, models.Model):
         ("CANCELLED", "Cancelado"),
     )
 
+    STATUS_ASSINATURA_RECIBO_CHOICES = (
+        ("rascunho", "Rascunho"),
+        ("aguardando_paciente", "Aguardando Paciente"),
+        ("concluido", "Concluído"),
+    )
+
     appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, verbose_name="Agendamento")
     amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor cobrado")
     valor_total = models.DecimalField(
@@ -47,6 +53,12 @@ class Payment(LojaIsolationMixin, models.Model):
         help_text="Data limite para pagamento quando a consulta é recebida a prazo.",
     )
     notes = models.TextField(blank=True, null=True, verbose_name="Observações")
+    status_assinatura_recibo = models.CharField(
+        max_length=30,
+        choices=STATUS_ASSINATURA_RECIBO_CHOICES,
+        default="rascunho",
+        verbose_name="Status assinatura do recibo",
+    )
     desconto = models.DecimalField(
         max_digits=10, decimal_places=2, default=0,
         verbose_name="Desconto (R$)",
@@ -218,6 +230,48 @@ class PaymentParcela(LojaIsolationMixin, models.Model):
         return f"Parcela {self.id} — R$ {self.valor} em {self.payment_date}"
 
 
+class ReciboAssinatura(LojaIsolationMixin, models.Model):
+    """Assinatura digital do recibo de um pagamento (procedimento realizado).
+
+    Reusa o motor genérico de assinatura (core.assinatura_service). O valor jurídico
+    vem do token assinado + IP + user_agent + data/hora do aceite. Só o paciente assina.
+    """
+
+    TIPO_CHOICES = (
+        ("paciente", "Paciente"),
+    )
+
+    payment = models.ForeignKey(
+        Payment, on_delete=models.CASCADE, related_name="assinaturas_recibo",
+        verbose_name="Pagamento",
+    )
+    tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default="paciente")
+    nome_assinante = models.CharField(max_length=200)
+    email_assinante = models.EmailField(blank=True, default="")
+    ip_address = models.GenericIPAddressField(default="0.0.0.0")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    user_agent = models.TextField(blank=True, default="")
+    token = models.CharField(max_length=255, unique=True, db_index=True)
+    token_expira_em = models.DateTimeField()
+    assinado = models.BooleanField(default=False)
+    assinado_em = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_recibo_assinaturas"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["loja_id", "token"], name="cb_recibo_assin_loja_tok_idx"),
+            models.Index(fields=["payment", "tipo"], name="cb_recibo_assin_pay_tipo_idx"),
+        ]
+
+    def __str__(self):
+        status = "Assinado" if self.assinado else "Pendente"
+        return f"Recibo #{self.payment_id} — {self.nome_assinante} ({status})"
 
 
 class CampanhaPromocao(LojaIsolationMixin, models.Model):

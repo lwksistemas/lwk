@@ -55,6 +55,13 @@ from .views_assinatura_consentimento import (
     ConsultaTermoConsentimentoStatusView,
     TermoConsentimentoPdfPublicView,
 )
+from .views_assinatura_recibo import (
+    ReciboAssinaturaEnviarView,
+    ReciboAssinaturaPdfPublicaView,
+    ReciboAssinaturaPdfView,
+    ReciboAssinaturaPublicaView,
+    ReciboAssinaturaStatusView,
+)
 from .views_consultas import (
     ConsultaAplicarProtocoloView,
     ConsultaDetailView,
@@ -70,6 +77,7 @@ from .views_consultas import (
     ConsultaProcedimentoListView,
     ConsultaProdutoDetailView,
     ConsultaProdutoListView,
+    ConsultaReabrirView,
     ConsultaReceberView,
     ConsultaSecaoPDFView,
     PatientAnamneseView,
@@ -202,6 +210,7 @@ urlpatterns = [
     path("consultas/<int:pk>/estornar-pagamento/", ConsultaEstornarPagamentoView.as_view(), name="consultas-estornar-pagamento"),
     path("consultas/<int:pk>/emitir-nfse/", ConsultaEmitirNfseView.as_view(), name="consultas-emitir-nfse"),
     path("consultas/<int:pk>/finalizar/", ConsultaFinalizarView.as_view(), name="consultas-finalizar"),
+    path("consultas/<int:pk>/reabrir/", ConsultaReabrirView.as_view(), name="consultas-reabrir"),
     path("consultas/<int:pk>/aplicar-protocolo/", ConsultaAplicarProtocoloView.as_view(), name="consultas-aplicar-protocolo"),
     path("consultas/<int:consulta_id>/evolucoes/", ConsultaEvolucaoListView.as_view(), name="consultas-evolucoes"),
     path("consultas/<int:consulta_id>/prescricoes/", ConsultaPrescricaoView.as_view(), name="consultas-prescricoes"),
@@ -233,6 +242,8 @@ urlpatterns = [
     ),
     path("assinar-consentimento/<path:token>/pdf/", ConsultaAssinaturaPdfPublicaView.as_view(), name="assinar-consentimento-pdf"),
     path("assinar-consentimento/<path:token>/", ConsultaAssinaturaPublicaView.as_view(), name="assinar-consentimento"),
+    path("assinar-recibo/<path:token>/pdf/", ReciboAssinaturaPdfPublicaView.as_view(), name="assinar-recibo-pdf"),
+    path("assinar-recibo/<path:token>/", ReciboAssinaturaPublicaView.as_view(), name="assinar-recibo"),
     path("consultas/<int:pk>/fotos/", ConsultaFotosPacienteView.as_view(), name="consultas-fotos"),
     path("consultas/<int:pk>/fotos/qr/", ConsultaFotoQrView.as_view(), name="consultas-fotos-qr"),
     path("consultas/<int:pk>/fotos/<int:foto_id>/", ConsultaFotoDeleteView.as_view(), name="consultas-fotos-delete"),
@@ -307,6 +318,9 @@ urlpatterns = [
     path("payments/<int:pk>/cobrar/", PaymentCobrarView.as_view(), name="payments-cobrar"),
     path("payments/<int:pk>/cobrar-whatsapp/", PaymentCobrarWhatsAppView.as_view(), name="payments-cobrar-whatsapp"),
     path("payments/<int:pk>/recibo-pdf/<str:token>/", ReciboPdfPublicView.as_view(), name="payments-recibo-pdf"),
+    path("payments/<int:pk>/assinatura-recibo/enviar/", ReciboAssinaturaEnviarView.as_view(), name="payments-assinatura-recibo-enviar"),
+    path("payments/<int:pk>/assinatura-recibo/pdf/", ReciboAssinaturaPdfView.as_view(), name="payments-assinatura-recibo-pdf"),
+    path("payments/<int:pk>/assinatura-recibo/", ReciboAssinaturaStatusView.as_view(), name="payments-assinatura-recibo"),
     path("financeiro/resumo/", FinanceiroResumoView.as_view(), name="financeiro-resumo"),
     path("despesas/categorias/", CategoriaDespesaListView.as_view(), name="despesas-categorias"),
     path("despesas/", DespesaListView.as_view(), name="despesas-list"),

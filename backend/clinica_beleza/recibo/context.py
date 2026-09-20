@@ -138,6 +138,9 @@ def _dados_loja_recibo(loja):
     tel_raw, email_raw = contato_publico_loja(loja)
     loja_telefone = telefone_exibicao_brasileiro(tel_raw)
     loja_cep = _formatar_cep(cep_raw)
+    logo_url = ""
+    if loja:
+        logo_url = (getattr(loja, "logo", "") or "").strip() or (getattr(loja, "login_logo", "") or "").strip()
     return {
         "loja_nome": getattr(loja, "nome", "") if loja else "",
         "loja_documento": normalizar_cpf_cnpj(doc_raw),
@@ -148,6 +151,7 @@ def _dados_loja_recibo(loja):
         "loja_cep": loja_cep,
         "loja_email": email_raw,
         "loja_tel_cep": _linha_tel_cep(loja_telefone, loja_cep),
+        "logo_url": logo_url,
     }
 
 

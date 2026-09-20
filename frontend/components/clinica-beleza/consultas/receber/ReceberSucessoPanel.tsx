@@ -1,7 +1,11 @@
 "use client";
 
-import { X } from "lucide-react";
+import { useState } from "react";
+import { PenLine, X } from "lucide-react";
 import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { formatApiErrorBody } from "@/lib/api-errors";
+import { useToast } from "@/components/ui/Toast";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { valorPagamentoConsulta } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import { consultaProcedimentoLabel, type Consulta } from "../consultas-types";
@@ -10,6 +14,56 @@ import {
   type EntradaPagamentoLinha,
 } from "../modal-receber-consulta-utils";
 import { ReceberReciboActions } from "./ReceberReciboActions";
+
+function EnviarReciboAssinaturaAcao({ paymentId }: { paymentId: number }) {
+  const toast = useToast();
+  const [enviando, setEnviando] = useState<"email" | "whatsapp" | null>(null);
+
+  const enviar = async (canal: "email" | "whatsapp") => {
+    setEnviando(canal);
+    try {
+      await ClinicaBelezaAPI.payments.enviarReciboParaAssinatura(paymentId, canal);
+      toast.success(
+        canal === "email"
+          ? "Recibo enviado para assinatura por e-mail."
+          : "Recibo enviado para assinatura por WhatsApp.",
+      );
+    } catch (e: unknown) {
+      toast.error(formatApiErrorBody(e) || "Erro ao enviar recibo para assinatura.");
+    } finally {
+      setEnviando(null);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/70 dark:bg-purple-950/30 p-3">
+      <p className="text-sm font-medium text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
+        <PenLine size={15} /> Assinatura digital do recibo
+      </p>
+      <p className="text-xs text-purple-800/80 dark:text-purple-300/80 mt-0.5 mb-2">
+        Envie o recibo para o cliente assinar. Após assinar, ele recebe o PDF assinado por e-mail e WhatsApp.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => void enviar("email")}
+          disabled={enviando !== null}
+          className="py-2 rounded-lg text-sm font-medium bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 disabled:opacity-50"
+        >
+          {enviando === "email" ? "Enviando…" : "Assinar por e-mail"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void enviar("whatsapp")}
+          disabled={enviando !== null}
+          className="py-2 rounded-lg text-sm font-medium bg-white dark:bg-neutral-800 border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 disabled:opacity-50"
+        >
+          {enviando === "whatsapp" ? "Enviando…" : "Assinar por WhatsApp"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface ReceberSucessoPanelProps {
   consultaExibida: Consulta;
@@ -168,6 +222,9 @@ export function ReceberSucessoPanel({
                 onEmail={onEmail}
                 onWhatsApp={onWhatsApp}
               />
+              {ehAPrazo && consultaExibida.payment_id ? (
+                <EnviarReciboAssinaturaAcao paymentId={consultaExibida.payment_id} />
+              ) : null}
             </>
           ) : (
             <p className="text-sm text-gray-600 dark:text-gray-400 rounded-lg border border-gray-200 dark:border-neutral-600 p-3">

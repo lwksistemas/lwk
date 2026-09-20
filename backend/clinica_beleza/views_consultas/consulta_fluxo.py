@@ -7,10 +7,11 @@ from ..consulta_service import (
     estornar_recebimento_consulta,
     finalizar_consulta,
     iniciar_consulta,
+    reabrir_consulta,
     registrar_recebimento_consulta,
 )
 from ..models import Consulta, ProcedureProtocol, Professional
-from ..permissions import CLINICA_CLINICAL, CLINICA_FINANCEIRO, IsClinicaAdmin
+from ..permissions import CLINICA_ADMIN, CLINICA_CLINICAL, CLINICA_FINANCEIRO, IsClinicaAdmin
 from ..serializers import ConsultaSerializer
 from .helpers import get_consulta_or_404
 
@@ -208,6 +209,33 @@ class ConsultaFinalizarView(APIView):
                 amount=amount,
                 local_atendimento_id=local_atendimento_id,
             )
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        consulta = Consulta.objects.select_related(
+            "patient", "professional", "procedure", "protocol", "appointment",
+        ).get(pk=pk)
+        return Response(ConsultaSerializer(consulta).data)
+
+
+class ConsultaReabrirView(APIView):
+    """POST /clinica-beleza/consultas/<id>/reabrir/ — reabre consulta finalizada (só admin).
+
+    Volta o status para "em atendimento" para incluir procedimentos ou corrigir.
+    Não estorna pagamento, não reverte estoque e não cancela NFS-e.
+    """
+
+    permission_classes = CLINICA_ADMIN
+
+    def post(self, request, pk):
+        consulta, error = get_consulta_or_404(pk, select_related=(
+            "patient", "professional", "procedure", "protocol", "appointment", "appointment__procedure",
+        ))
+        if error:
+            return error
+
+        try:
+            reabrir_consulta(consulta)
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

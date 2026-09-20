@@ -13,6 +13,7 @@ from .crud import (
     ConsultaFinalizarView,
     ConsultaIniciarView,
     ConsultaListView,
+    ConsultaReabrirView,
     ConsultaReceberView,
 )
 from .prescricoes import (
@@ -39,6 +40,7 @@ __all__ = [
     "ConsultaProcedimentoListView",
     "ConsultaProdutoDetailView",
     "ConsultaProdutoListView",
+    "ConsultaReabrirView",
     "ConsultaReceberView",
     "ConsultaSecaoPDFView",
     "PatientAnamneseView",

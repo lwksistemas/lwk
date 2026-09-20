@@ -69,5 +69,11 @@ export class ClinicaBelezaAPI {
   static payments = {
     enviarRecibo: (paymentId: number, canal: 'email' | 'whatsapp') =>
       ClinicaBelezaAPI.post(`/payments/${paymentId}/enviar-recibo/`, { canal }),
+    assinaturaReciboStatus: (paymentId: number) =>
+      ClinicaBelezaAPI.get<{ status_assinatura: string; status_assinatura_display: string }>(
+        `/payments/${paymentId}/assinatura-recibo/`,
+      ),
+    enviarReciboParaAssinatura: (paymentId: number, canal: 'email' | 'whatsapp') =>
+      ClinicaBelezaAPI.post(`/payments/${paymentId}/assinatura-recibo/enviar/`, { canal }),
   };
 }

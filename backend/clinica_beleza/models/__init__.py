@@ -22,7 +22,7 @@ from .fornecedores import (
     PedidoCompraItem,
     PedidoCompraPaciente,
 )
-from .financeiro import CampanhaPromocao, CategoriaDespesa, Despesa, Payment
+from .financeiro import CampanhaPromocao, CategoriaDespesa, Despesa, Payment, ReciboAssinatura
 from .fotos import PacienteFotoAcompanhamento
 from .nfse_config import ClinicaBelezaNFSeConfig
 from .patients import Patient, PatientAnamnese
@@ -69,6 +69,7 @@ __all__ = [
     "Patient",
     "PatientAnamnese",
     "Payment",
+    "ReciboAssinatura",
     "PrescricaoMemed",
     "Procedure",
     "ProcedureProtocol",

@@ -285,3 +285,51 @@ def finalizar_consulta(
     )
     consulta.refresh_from_db()
     return consulta
+
+
+def reabrir_consulta(consulta):
+    """Reabre uma consulta finalizada (COMPLETED → IN_PROGRESS) para permitir
+    incluir procedimentos ou correções. Ação restrita ao administrador (garantida na view).
+
+    Preserva estado financeiro e fiscal — NÃO estorna pagamento, NÃO reverte estoque
+    e NÃO cancela NFS-e. Apenas volta o status da consulta e do agendamento para
+    "em atendimento", limpando a data de fim. Ao finalizar novamente, o fluxo normal
+    de finalização republica o pagamento e baixa apenas o que houver de novo.
+    """
+    from clinica_beleza import consulta_service
+
+    from ..models import Consulta
+    from ..estoque_service import tenant_atomic
+    from ._deps import logger
+
+    with tenant_atomic():
+        consulta = (
+            Consulta.objects.select_for_update(of=("self",))
+            .select_related("appointment")
+            .get(pk=consulta.pk)
+        )
+
+        if consulta.status != "COMPLETED":
+            raise ValueError("Apenas consultas finalizadas podem ser reabertas.")
+
+        appointment = consulta.appointment
+        if appointment is None:
+            raise ValueError("Consulta sem agendamento vinculado.")
+
+        old_status = appointment.status
+
+        appointment.status = "IN_PROGRESS"
+        appointment.version = (appointment.version or 1) + 1
+        appointment.save(update_fields=["status", "version", "updated_at"])
+
+        consulta.status = "IN_PROGRESS"
+        if not consulta.data_inicio:
+            consulta.data_inicio = now()
+        consulta.data_fim = None
+        consulta.save(update_fields=["status", "data_inicio", "data_fim", "updated_at"])
+
+        consulta_service.sync_consulta_from_appointment_status(appointment, "IN_PROGRESS", old_status)
+
+    logger.info("Consulta %s reaberta (COMPLETED → IN_PROGRESS)", consulta.pk)
+    consulta.refresh_from_db()
+    return consulta

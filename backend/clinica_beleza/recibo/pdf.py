@@ -1,5 +1,6 @@
 """Geração de PDF do recibo de pagamento."""
 import io
+import logging
 
 from .context import (
     _linha_documento_loja,
@@ -7,6 +8,67 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
 )
+
+logger = logging.getLogger(__name__)
+
+# Marca d'água da logo no recibo (cupom 80mm). Opacidade baixa para não competir
+# com o texto; tamanho máximo ajustado à largura estreita do cupom.
+_WM_OPACIDADE_RECIBO = 0.12
+_WM_MAX_W_MM = 55
+_WM_MAX_H_MM = 55
+
+
+def _marca_dagua_bytes_recibo(logo_url: str) -> bytes | None:
+    """Baixa a logo e aplica opacidade baixa para uso como marca d'água de fundo."""
+    if not logo_url:
+        return None
+    try:
+        import requests as http_requests
+        from PIL import Image as PILImage
+
+        resp = http_requests.get(logo_url, timeout=5)
+        if resp.status_code != 200:
+            return None
+        pil_img = PILImage.open(io.BytesIO(resp.content)).convert("RGBA")
+        alpha = pil_img.split()[3]
+        alpha = alpha.point(lambda p: int(p * _WM_OPACIDADE_RECIBO))
+        pil_img.putalpha(alpha)
+        out_buf = io.BytesIO()
+        pil_img.save(out_buf, format="PNG")
+        return out_buf.getvalue()
+    except Exception as e:
+        logger.warning("Marca d'água do recibo indisponível: %s", e)
+        return None
+
+
+def _fazer_desenho_marca_dagua(wm_bytes: bytes, page_w, page_h):
+    """Cria o callback onPage que desenha a logo centralizada no fundo do cupom."""
+    from reportlab.lib.pagesizes import mm
+    from reportlab.lib.utils import ImageReader
+
+    def _draw(canvas, _doc):
+        try:
+            img = ImageReader(io.BytesIO(wm_bytes))
+            iw, ih = img.getSize()
+            if not iw or not ih:
+                return
+            max_w = _WM_MAX_W_MM * mm
+            max_h = _WM_MAX_H_MM * mm
+            ratio = min(max_w / iw, max_h / ih)
+            wm_w = iw * ratio
+            wm_h = ih * ratio
+            x = (page_w - wm_w) / 2
+            y = (page_h - wm_h) / 2
+            canvas.saveState()
+            canvas.drawImage(
+                img, x, y, width=wm_w, height=wm_h,
+                mask="auto", preserveAspectRatio=True,
+            )
+            canvas.restoreState()
+        except Exception as e:
+            logger.warning("Falha ao desenhar marca d'água do recibo: %s", e)
+
+    return _draw
 
 
 def _estilos_pdf():
@@ -152,6 +214,41 @@ def _tabela_totais_recibo_pdf(ctx, styles, col_w):
     return totals_table
 
 
+def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
+    """Bloco de assinatura digital do recibo (paciente), com valor jurídico.
+
+    Só é incluído quando o ctx traz 'assinatura_recibo' (dict com nome/ip/assinado_em/email).
+    """
+    from reportlab.platypus import Paragraph, Spacer
+
+    assinatura = ctx.get("assinatura_recibo") or {}
+    if not assinatura:
+        return []
+
+    s_bold = styles["s_bold"]
+    s_left = styles["s_left"]
+    s_footer = styles["s_footer"]
+    hr = styles["hr"]
+
+    story = [Spacer(1, 2 * mm_unit), hr, Paragraph("<b>ASSINATURA DIGITAL</b>", s_bold), Spacer(1, 1 * mm_unit)]
+    nome = (assinatura.get("nome") or ctx.get("paciente_nome") or "").strip().upper() or "—"
+    story.append(Paragraph(f"Cliente: {nome}", s_left))
+    if assinatura.get("email"):
+        story.append(Paragraph(f"Email: {assinatura['email']}", s_footer))
+    if assinatura.get("assinado_em"):
+        story.append(Paragraph(f"Assinado em: {assinatura['assinado_em']}", s_footer))
+    if assinatura.get("ip"):
+        story.append(Paragraph(f"IP: {assinatura['ip']}", s_footer))
+    story.append(Paragraph("Assinado digitalmente", s_footer))
+    story.append(Spacer(1, 1 * mm_unit))
+    story.append(Paragraph(
+        "Este documento possui validade jurídica e contém a assinatura digital do cliente, "
+        "com registro de data, hora e endereço IP.",
+        s_footer,
+    ))
+    return story
+
+
 def _rodape_recibo_pdf(ctx, styles, mm_unit):
     from reportlab.platypus import Paragraph, Spacer
 
@@ -181,6 +278,8 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
     if aviso:
         story.append(Spacer(1, 2 * mm_unit))
         story.append(Paragraph(aviso, s_footer))
+
+    story.extend(_secao_assinatura_recibo_pdf(ctx, styles, mm_unit))
 
     story.append(Spacer(1, 2 * mm_unit))
     story.append(Paragraph("Agradecemos pela confiança!", s_footer))
@@ -215,5 +314,10 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     story.append(Spacer(1, 3 * mm))
     story.extend(_rodape_recibo_pdf(ctx, styles, mm))
 
-    doc.build(story)
+    wm_bytes = _marca_dagua_bytes_recibo((ctx.get("logo_url") or "").strip())
+    if wm_bytes:
+        desenhar = _fazer_desenho_marca_dagua(wm_bytes, page_w, page_h)
+        doc.build(story, onFirstPage=desenhar, onLaterPages=desenhar)
+    else:
+        doc.build(story)
     return buf.getvalue()

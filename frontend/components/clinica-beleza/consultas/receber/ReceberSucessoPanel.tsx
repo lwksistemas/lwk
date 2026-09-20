@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { PenLine, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, PenLine, X } from "lucide-react";
 import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
@@ -18,6 +18,23 @@ import { ReceberReciboActions } from "./ReceberReciboActions";
 function EnviarReciboAssinaturaAcao({ paymentId }: { paymentId: number }) {
   const toast = useToast();
   const [enviando, setEnviando] = useState<"email" | "whatsapp" | null>(null);
+  const [assinado, setAssinado] = useState(false);
+
+  // Consulta o status ao montar: se já assinado, oculta os botões de envio para assinatura.
+  useEffect(() => {
+    let ativo = true;
+    ClinicaBelezaAPI.payments
+      .assinaturaReciboStatus(paymentId)
+      .then((r) => {
+        if (ativo) setAssinado(r?.status_assinatura === "concluido");
+      })
+      .catch(() => {
+        /* silencioso: mantém os botões disponíveis */
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [paymentId]);
 
   const enviar = async (canal: "email" | "whatsapp") => {
     setEnviando(canal);
@@ -34,6 +51,19 @@ function EnviarReciboAssinaturaAcao({ paymentId }: { paymentId: number }) {
       setEnviando(null);
     }
   };
+
+  if (assinado) {
+    return (
+      <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50/70 dark:bg-green-950/30 p-3">
+        <p className="text-sm font-medium text-green-800 dark:text-green-300 flex items-center gap-1.5">
+          <CheckCircle2 size={15} /> Recibo assinado digitalmente pelo cliente
+        </p>
+        <p className="text-xs text-green-700/80 dark:text-green-300/80 mt-0.5">
+          O cliente já recebeu o PDF assinado por e-mail e WhatsApp.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50/70 dark:bg-purple-950/30 p-3">

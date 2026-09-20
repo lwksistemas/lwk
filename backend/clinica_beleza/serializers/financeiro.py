@@ -88,9 +88,17 @@ class PaymentSerializer(serializers.ModelSerializer):
         return _procedimentos_nome_agendamento(obj.appointment)
 
     def get_retorno_gratuito(self, obj):
-        """True se a consulta vinculada é retorno gratuito (isento)."""
+        """True só quando é retorno gratuito E não há valor a cobrar (isento de fato).
+
+        Retorno isenta a taxa de consulta; se houver procedimento pago, NÃO é isento.
+        """
         consulta = getattr(getattr(obj, "appointment", None), "consulta", None)
-        return bool(getattr(consulta, "retorno_gratuito", False))
+        if not getattr(consulta, "retorno_gratuito", False):
+            return False
+        try:
+            return float(obj.valor_total_efetivo or 0) <= 0.009
+        except Exception:
+            return float(obj.amount or 0) <= 0.009
 
     def get_vencido(self, obj):
         try:

@@ -5,10 +5,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import Q
-
 from .financeiro_service import payments_visiveis_financeiro
-from .recibo.context import desconto_concedido
 from .serializers.financeiro import _procedimentos_nome_agendamento
 
 
@@ -22,7 +19,7 @@ def calcular_descontos(
     qs = (
         payments_visiveis_financeiro()
         .exclude(status="CANCELLED")
-        .filter(Q(desconto__gt=0) | Q(notes__icontains="Desconto:"))
+        .filter(desconto__gt=0)
         .select_related(
             "appointment__professional",
             "appointment__patient",
@@ -53,7 +50,7 @@ def calcular_descontos(
         appt = payment.appointment
         if not appt:
             continue
-        desconto = Decimal(str(desconto_concedido(payment)))
+        desconto = Decimal(str(payment.desconto or 0))
         if desconto <= 0:
             continue
         liquido = Decimal(str(payment.valor_total_efetivo or payment.amount or 0))

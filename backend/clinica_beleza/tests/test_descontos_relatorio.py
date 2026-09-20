@@ -52,3 +52,19 @@ class CalcularDescontosTest(SimpleTestCase):
         item = prof["lancamentos"][0]
         self.assertEqual(item["paciente"], "TAMIRES FURONI")
         self.assertEqual(item["desconto"], 150.0)
+
+    @patch("clinica_beleza.descontos_relatorio_service.payments_visiveis_financeiro")
+    def test_ignora_desconto_so_em_notes(self, mock_visiveis):
+        payment = MagicMock()
+        payment.desconto = Decimal("0")
+        payment.notes = "Desconto: R$ 80.00"
+        payment.appointment = MagicMock()
+        qs = MagicMock()
+        qs.exclude.return_value.filter.return_value.select_related.return_value.prefetch_related.return_value.order_by.return_value = qs
+        qs.filter.return_value = qs
+        qs.__iter__ = MagicMock(return_value=iter([payment]))
+        mock_visiveis.return_value = qs
+
+        result = calcular_descontos()
+        self.assertEqual(result["totais"]["total_atendimentos"], 0)
+        self.assertEqual(result["totais"]["desconto_total"], 0)

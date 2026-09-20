@@ -258,6 +258,22 @@ export function ModalReceberConsulta({
       }
     }
 
+    if (c.payment_id) {
+      try {
+        const resp = await ClinicaBelezaAPI.payments.reciboHtml(c.payment_id);
+        if (resp.ok) {
+          const html = await resp.text();
+          const w = window.open("", "_blank", "width=320,height=700");
+          if (!w) return;
+          w.document.write(html);
+          w.document.close();
+          return;
+        }
+      } catch {
+        /* fallback: cupom local abaixo */
+      }
+    }
+
     let lojaData: {
       nome?: string;
       cpf_cnpj?: string;

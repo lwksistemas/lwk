@@ -11,12 +11,6 @@ from .context import (
 
 logger = logging.getLogger(__name__)
 
-# Marca d'água da logo no recibo (cupom 80mm). Opacidade baixa para não competir
-# com o texto; tamanho máximo ajustado à largura estreita do cupom.
-_WM_OPACIDADE_RECIBO = 0.22
-_WM_MAX_W_MM = 55
-_WM_MAX_H_MM = 55
-
 # Logo (imagem nítida) no rodapé do recibo — parte branca, aparece em todo recibo.
 _LOGO_RODAPE_MAX_W_MM = 48
 _LOGO_RODAPE_MAX_H_MM = 30
@@ -49,77 +43,6 @@ def _logo_rodape_recibo(logo_url: str, mm_unit):
     except Exception as e:
         logger.warning("Logo do rodapé do recibo indisponível: %s", e)
         return None
-
-
-def _marca_dagua_bytes_recibo(logo_url: str) -> bytes | None:
-    """Baixa a logo e aplica opacidade baixa para uso como marca d'água de fundo."""
-    if not logo_url:
-        return None
-    try:
-        import requests as http_requests
-        from PIL import Image as PILImage
-
-        resp = http_requests.get(logo_url, timeout=5)
-        if resp.status_code != 200:
-            return None
-        pil_img = PILImage.open(io.BytesIO(resp.content)).convert("RGBA")
-        alpha = pil_img.split()[3]
-        alpha = alpha.point(lambda p: int(p * _WM_OPACIDADE_RECIBO))
-        pil_img.putalpha(alpha)
-        out_buf = io.BytesIO()
-        pil_img.save(out_buf, format="PNG")
-        return out_buf.getvalue()
-    except Exception as e:
-        logger.warning("Marca d'água do recibo indisponível: %s", e)
-        return None
-
-
-def _marca_dagua_flowable_base():
-    """Classe Flowable que desenha a logo (marca d'água) abaixo do bloco de assinatura."""
-    from reportlab.lib.pagesizes import mm
-    from reportlab.lib.utils import ImageReader
-    from reportlab.platypus import Flowable
-
-    class _MarcaDaguaAssinaturaReciboImpl(Flowable):
-        """Desenha a logo semitransparente ocupando a largura do cupom, sem empurrar o texto seguinte."""
-
-        def __init__(self, wm_bytes: bytes):
-            Flowable.__init__(self)
-            self._wm_bytes = wm_bytes
-            self.width = 0
-            self.height = 0  # não ocupa altura no fluxo; desenha "atrás" do texto abaixo
-
-        def draw(self):
-            try:
-                img = ImageReader(io.BytesIO(self._wm_bytes))
-                iw, ih = img.getSize()
-                if not iw or not ih:
-                    return
-                max_w = _WM_MAX_W_MM * mm
-                max_h = _WM_MAX_H_MM * mm
-                ratio = min(max_w / iw, max_h / ih)
-                wm_w = iw * ratio
-                wm_h = ih * ratio
-                # Centralizada na largura do cupom; desenhada logo abaixo (para trás) do nome/CPF.
-                avail = getattr(self, "_frame_width", 72 * mm) or 72 * mm
-                x = (avail - wm_w) / 2
-                self.canv.saveState()
-                self.canv.drawImage(
-                    img, x, -wm_h, width=wm_w, height=wm_h,
-                    mask="auto", preserveAspectRatio=True,
-                )
-                self.canv.restoreState()
-            except Exception as e:
-                logger.warning("Falha ao desenhar marca d'água do recibo: %s", e)
-
-        def wrap(self, avail_w, avail_h):
-            self._frame_width = avail_w
-            return (avail_w, 0)
-
-    return _MarcaDaguaAssinaturaReciboImpl
-
-
-_MarcaDaguaAssinaturaRecibo = _marca_dagua_flowable_base()
 
 
 def _estilos_pdf():
@@ -289,11 +212,6 @@ def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
     cpf = (assinatura.get("cpf") or ctx.get("paciente_cpf") or "").strip()
     if cpf:
         story.append(Paragraph(f"CPF: {cpf}", s_left))
-
-    # Marca d'água da logo logo abaixo do nome e do CPF (mesma ideia do termo de consentimento).
-    wm_bytes = _marca_dagua_bytes_recibo((ctx.get("logo_url") or "").strip())
-    if wm_bytes:
-        story.append(_MarcaDaguaAssinaturaRecibo(wm_bytes))
 
     if assinatura.get("email"):
         story.append(Paragraph(f"Email: {assinatura['email']}", s_footer))

@@ -14,6 +14,7 @@ import {
 } from "./client-entities";
 import { estoqueApi, financeiroApi, locaisAtendimentoApi, lojaApi, meApi, nomesAgendaApi, retornoApi } from "./client-ops";
 import { cbDelete, cbGet, cbGetList, cbPatch, cbPost, cbPut } from "./client-http";
+import { clinicaBelezaFetch } from "./fetch";
 
 const loadMemedApi = () => import("./client-memed").then((m) => m.memedApi);
 const loadProntuarioApi = () => import("./client-prontuario").then((m) => m.prontuarioApi);
@@ -75,5 +76,9 @@ export class ClinicaBelezaAPI {
       ),
     enviarReciboParaAssinatura: (paymentId: number, canal: 'email' | 'whatsapp') =>
       ClinicaBelezaAPI.post(`/payments/${paymentId}/assinatura-recibo/enviar/`, { canal }),
+    // Baixa o PDF do recibo (com logo e, se já assinado, a seção de assinatura digital).
+    // Retorna a Response para reaproveitar abrirPdfBlobFromResponse (visualizar/imprimir).
+    assinaturaReciboPdf: (paymentId: number) =>
+      clinicaBelezaFetch(`/payments/${paymentId}/assinatura-recibo/pdf/`),
   };
 }

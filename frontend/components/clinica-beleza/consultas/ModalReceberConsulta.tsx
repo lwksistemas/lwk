@@ -239,6 +239,25 @@ export function ModalReceberConsulta({
 
   const handleImprimir = async () => {
     const c = consultaAtualizada || consulta;
+
+    // Se o recibo já foi assinado digitalmente, imprime o PDF oficial do backend
+    // (com logomarca e a seção de assinatura digital), igual ao enviado por e-mail/WhatsApp.
+    if (c.payment_id) {
+      try {
+        const st = await ClinicaBelezaAPI.payments.assinaturaReciboStatus(c.payment_id);
+        if (st?.status_assinatura === "concluido") {
+          const resp = await ClinicaBelezaAPI.payments.assinaturaReciboPdf(c.payment_id);
+          if (resp.ok) {
+            const { abrirPdfBlobFromResponse } = await import("@/lib/consulta-print");
+            await abrirPdfBlobFromResponse(resp, "imprimir");
+            return;
+          }
+        }
+      } catch {
+        /* fallback: gera o cupom HTML abaixo */
+      }
+    }
+
     let lojaData: {
       nome?: string;
       cpf_cnpj?: string;

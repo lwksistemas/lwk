@@ -84,7 +84,7 @@ class ReciboAssinaturaAdapter(AssinaturaAdapter):
             nome_assinante=nome,
             email_assinante=email or "",
             token=token,
-            token_expira_em=timezone.now() + timedelta(days=self.token_expiracao_dias()),
+            token_expira_em=timezone.now() + self.prazo_token(),
             loja_id=loja_id,
         )
 
@@ -180,10 +180,10 @@ class ReciboAssinaturaAdapter(AssinaturaAdapter):
         return "clinica_beleza"
 
     def aviso_validade_link(self) -> str:
-        return f"Link válido por <strong>{self.token_expiracao_dias()} dias</strong>."
+        return "Link válido por <strong>2 horas</strong>."
 
-    def token_expiracao_dias(self) -> int:
-        return 30
+    def prazo_token(self) -> timedelta:
+        return timedelta(hours=2)
 
     def get_pagina_assinatura_path(self) -> str:
         return "/assinar-recibo/"

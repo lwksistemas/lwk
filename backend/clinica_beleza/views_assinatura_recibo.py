@@ -5,6 +5,7 @@ Públicas (paciente): página de assinatura (GET/POST) e PDF para leitura.
 Reusa o motor genérico core.assinatura_service e o adapter ReciboAssinaturaAdapter.
 """
 from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -147,7 +148,10 @@ def _carregar_assinatura_recibo_publica(token):
     token = normalizar_token_url(token)
     payload = decodificar_token(token)
     if not payload or not payload.get("loja_id"):
-        return None, JsonResponse({"error": "Link inválido."}, status=400)
+        return None, JsonResponse(
+            {"error": "Link inválido ou expirado. Solicite um novo envio à clínica."},
+            status=400,
+        )
 
     err = configurar_tenant_publico_clinica(payload["loja_id"])
     if err:
@@ -159,6 +163,11 @@ def _carregar_assinatura_recibo_publica(token):
         return None, JsonResponse({"error": ass_err or "Link inválido."}, status=400)
     if assinatura.assinado:
         return None, JsonResponse({"error": "Este recibo já foi assinado."}, status=400)
+    if assinatura.token_expira_em and timezone.now() >= assinatura.token_expira_em:
+        return None, JsonResponse(
+            {"error": "Link expirado. Solicite um novo envio à clínica."},
+            status=400,
+        )
 
     payment = adapter.get_documento_da_assinatura(assinatura)
     if not payment:

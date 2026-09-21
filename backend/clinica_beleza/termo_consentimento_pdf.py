@@ -5,7 +5,6 @@ import logging
 from io import BytesIO
 
 import pytz
-import requests as http_requests
 from PIL import Image as PILImage
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -46,10 +45,12 @@ def _watermark_bytes(logo_url: str) -> bytes | None:
     if not logo_url:
         return None
     try:
-        resp = http_requests.get(logo_url, timeout=5)
-        if resp.status_code != 200:
+        from clinica_beleza.pdf_common.logo import baixar_logo
+
+        conteudo = baixar_logo(logo_url, timeout=5)
+        if not conteudo:
             return None
-        pil_img = PILImage.open(BytesIO(resp.content)).convert("RGBA")
+        pil_img = PILImage.open(BytesIO(conteudo)).convert("RGBA")
         alpha = pil_img.split()[3]
         alpha = alpha.point(lambda p: int(p * WM_OPACIDADE))
         pil_img.putalpha(alpha)
@@ -250,9 +251,11 @@ def _build_cabecalho_logo_termo(elements: list, loja, styles, nome_clinica: str)
     logo_url = _logo_url_loja(loja)
     if logo_url:
         try:
-            resp = http_requests.get(logo_url, timeout=5)
-            if resp.status_code == 200:
-                img_buf = BytesIO(resp.content)
+            from clinica_beleza.pdf_common.logo import baixar_logo
+
+            conteudo = baixar_logo(logo_url, timeout=5)
+            if conteudo:
+                img_buf = BytesIO(conteudo)
                 pil = PILImage.open(img_buf)
                 iw, ih = pil.size
                 w = min(5 * cm, iw)

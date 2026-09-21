@@ -147,6 +147,7 @@ def msg_assinatura_recibo(
         "👇 *Toque para ler e assinar:*",
         link,
         "",
+        "_Link válido por 2 horas._",
         "🔒 Documento verificado por LWK Sistemas",
         SEPARADOR,
         "_Sua assinatura confirma o recebimento do recibo e o reconhecimento do valor a pagar._",

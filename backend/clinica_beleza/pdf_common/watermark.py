@@ -1,8 +1,9 @@
 """Logo semitransparente para marca d'água em caixas do PDF (pedido/orçamento)."""
 from io import BytesIO
 
-import requests
 from PIL import Image as PILImage
+
+from .logo import baixar_logo
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Flowable, Table
 
@@ -13,10 +14,10 @@ def watermark_logo_bytes(logo_url: str) -> bytes | None:
     if not logo_url:
         return None
     try:
-        resp = requests.get(logo_url, timeout=5)
-        if resp.status_code != 200:
+        conteudo = baixar_logo(logo_url, timeout=5)
+        if not conteudo:
             return None
-        pil_img = PILImage.open(BytesIO(resp.content)).convert("RGBA")
+        pil_img = PILImage.open(BytesIO(conteudo)).convert("RGBA")
         alpha = pil_img.split()[3]
         alpha = alpha.point(lambda p: int(p * WM_OPACIDADE))
         pil_img.putalpha(alpha)

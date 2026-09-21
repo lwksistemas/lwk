@@ -3,7 +3,6 @@ from io import BytesIO
 from xml.sax.saxutils import escape
 
 import pytz
-import requests
 from PIL import Image as PILImage
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
@@ -160,10 +159,12 @@ def _watermark_bytes(logo_url: str) -> bytes | None:
     if not logo_url:
         return None
     try:
-        resp = requests.get(logo_url, timeout=5)
-        if resp.status_code != 200:
+        from clinica_beleza.pdf_common.logo import baixar_logo
+
+        conteudo = baixar_logo(logo_url, timeout=5)
+        if not conteudo:
             return None
-        pil_img = PILImage.open(BytesIO(resp.content)).convert("RGBA")
+        pil_img = PILImage.open(BytesIO(conteudo)).convert("RGBA")
         alpha = pil_img.split()[3]
         alpha = alpha.point(lambda p: int(p * WM_OPACIDADE))
         pil_img.putalpha(alpha)

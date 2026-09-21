@@ -45,16 +45,21 @@ def gerar_token(
     loja_id: int,
     modulo: str = "crm",
     expiracao_dias: int | None = None,
+    expiracao: timedelta | None = None,
 ) -> str:
     """Gera token assinado com payload."""
-    dias = TOKEN_EXPIRACAO_DIAS if expiracao_dias is None else expiracao_dias
+    if expiracao is not None:
+        delta = expiracao
+    else:
+        dias = TOKEN_EXPIRACAO_DIAS if expiracao_dias is None else expiracao_dias
+        delta = timedelta(days=dias)
     payload = {
         "doc_type": doc_type,
         "doc_id": doc_id,
         "tipo": tipo,
         "loja_id": loja_id,
         "modulo": modulo,
-        "exp": int((timezone.now() + timedelta(days=dias)).timestamp()),
+        "exp": int((timezone.now() + delta).timestamp()),
     }
     return dumps(payload)
 
@@ -161,6 +166,10 @@ class AssinaturaAdapter:
     def token_expiracao_dias(self) -> int:
         return TOKEN_EXPIRACAO_DIAS
 
+    def prazo_token(self) -> timedelta:
+        """Prazo real do link. O recibo usa horas; os demais, dias."""
+        return timedelta(days=self.token_expiracao_dias())
+
     def get_pagina_assinatura_path(self) -> str:
         """Path da página pública de assinatura. Ex: '/assinar/', '/assinar-reserva/'."""
         return "/assinar/"
@@ -224,7 +233,7 @@ def criar_assinatura(adapter: AssinaturaAdapter, documento, tipo: str, loja_id: 
         tipo,
         loja_id,
         modulo=adapter.get_modulo(),
-        expiracao_dias=adapter.token_expiracao_dias(),
+        expiracao=adapter.prazo_token(),
     )
 
     assinatura = adapter.criar_registro_assinatura(

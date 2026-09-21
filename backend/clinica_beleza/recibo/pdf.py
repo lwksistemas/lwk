@@ -20,9 +20,9 @@ def _texto_pdf(valor) -> str:
 
 def logo_url_permitida_para_download(logo_url: str) -> bool:
     """Só baixa logo do servidor de mídia da loja (anti-SSRF)."""
-    from core.media_storage import is_media_url
+    from clinica_beleza.pdf_common.logo import logo_url_permitida
 
-    return is_media_url((logo_url or "").strip())
+    return logo_url_permitida(logo_url)
 
 
 def _saldo_devedor_recibo(ctx: dict) -> float:
@@ -48,14 +48,15 @@ def _logo_rodape_recibo(logo_url: str, mm_unit):
         logger.warning("Logo do recibo recusada (URL fora da mídia)")
         return None
     try:
-        import requests as http_requests
         from PIL import Image as PILImage
         from reportlab.platypus import Image as RLImage
 
-        resp = http_requests.get(logo_url, timeout=5, allow_redirects=False)
-        if resp.status_code != 200:
+        from clinica_beleza.pdf_common.logo import baixar_logo
+
+        conteudo = baixar_logo(logo_url, timeout=5)
+        if not conteudo:
             return None
-        raw = io.BytesIO(resp.content)
+        raw = io.BytesIO(conteudo)
         pil = PILImage.open(raw)
         iw, ih = pil.size
         if not iw or not ih:

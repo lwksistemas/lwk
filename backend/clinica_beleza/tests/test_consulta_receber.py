@@ -78,7 +78,7 @@ class AtualizarStatusAposRecebimentoTest(SimpleTestCase):
 
 class RegistrarRecebimentoConsultaTest(SimpleTestCase):
     @patch("clinica_beleza.models.Consulta")
-    @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
+    @patch("clinica_beleza.consulta_service.payment.receber._atualizar_status_consulta_apos_recebimento")
     @patch("clinica_beleza.models.financeiro.PaymentParcela")
     @patch("clinica_beleza.consulta_service.Payment")
     @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
@@ -119,7 +119,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
     @patch("clinica_beleza.models.Consulta")
-    @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
+    @patch("clinica_beleza.consulta_service.payment.receber._atualizar_status_consulta_apos_recebimento")
     @patch("clinica_beleza.models.financeiro.PaymentParcela")
     @patch("clinica_beleza.consulta_service.Payment")
     @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
@@ -160,7 +160,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
     @patch("clinica_beleza.models.Consulta")
-    @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
+    @patch("clinica_beleza.consulta_service.payment.receber._atualizar_status_consulta_apos_recebimento")
     @patch("clinica_beleza.models.financeiro.PaymentParcela")
     @patch("clinica_beleza.consulta_service.Payment")
     @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
@@ -209,7 +209,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
             _registrar(consulta, amount=Decimal(50))
 
     @patch("clinica_beleza.models.Consulta")
-    @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
+    @patch("clinica_beleza.consulta_service.payment.receber._atualizar_status_consulta_apos_recebimento")
     @patch("clinica_beleza.models.financeiro.PaymentParcela")
     @patch("clinica_beleza.consulta_service.Payment")
     @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
@@ -258,7 +258,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
     @patch("clinica_beleza.models.Consulta")
-    @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
+    @patch("clinica_beleza.consulta_service.payment.receber._atualizar_status_consulta_apos_recebimento")
     @patch("clinica_beleza.models.financeiro.PaymentParcela")
     @patch("clinica_beleza.consulta_service.Payment")
     @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
@@ -301,7 +301,7 @@ class RegistrarRecebimentoConsultaTest(SimpleTestCase):
         mock_atualizar_status.assert_called_once_with(consulta, payment)
 
     @patch("clinica_beleza.models.Consulta")
-    @patch("clinica_beleza.consulta_service.payment._atualizar_status_consulta_apos_recebimento")
+    @patch("clinica_beleza.consulta_service.payment.receber._atualizar_status_consulta_apos_recebimento")
     @patch("clinica_beleza.models.financeiro.PaymentParcela")
     @patch("clinica_beleza.consulta_service.Payment")
     @patch("clinica_beleza.consulta_service.aplicar_valor_procedimentos_atendimento")

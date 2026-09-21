@@ -93,4 +93,17 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     });
     await page.getByRole('button', { name: /cancelar/i }).click();
   });
+
+  test('fluxo autenticado — relatórios de comissão e descontos carregam', async ({ page }) => {
+    test.skip(!clinicaE2eCredentials(), 'Defina CLINICA_E2E_* ou CRM_E2E_*');
+
+    const ok = await loginClinicaLoja(page, slug);
+    test.skip(!ok, 'Loja clínica indisponível neste ambiente');
+
+    await visitarClinicaAutenticado(page, '/relatorios/comissoes', slug);
+    await expect(page.locator('body')).not.toContainText(/erro interno|internal server error/i);
+
+    await visitarClinicaAutenticado(page, '/relatorios/descontos', slug);
+    await expect(page.locator('body')).not.toContainText(/erro interno|internal server error/i);
+  });
 });

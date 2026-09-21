@@ -41,6 +41,7 @@ from .views import (
     ProfessionalDetailView,
     ProfessionalListView,
     ReciboPdfPublicView,
+    ReciboImagemPublicView,
 )
 from .views_admin_professional import AdminProfessionalStatusView, AdminProfessionalToggleView
 from .views_agenda_confirmacao import ConfirmarAgendamentoPublicaView
@@ -320,6 +321,7 @@ urlpatterns = [
     path("payments/<int:pk>/cobrar/", PaymentCobrarView.as_view(), name="payments-cobrar"),
     path("payments/<int:pk>/cobrar-whatsapp/", PaymentCobrarWhatsAppView.as_view(), name="payments-cobrar-whatsapp"),
     path("payments/<int:pk>/recibo-pdf/<str:token>/", ReciboPdfPublicView.as_view(), name="payments-recibo-pdf"),
+    path("payments/<int:pk>/recibo-img/<str:token>/", ReciboImagemPublicView.as_view(), name="payments-recibo-img"),
     path("payments/<int:pk>/assinatura-recibo/enviar/", ReciboAssinaturaEnviarView.as_view(), name="payments-assinatura-recibo-enviar"),
     path("payments/<int:pk>/assinatura-recibo/pdf/", ReciboAssinaturaPdfView.as_view(), name="payments-assinatura-recibo-pdf"),
     path("payments/<int:pk>/assinatura-recibo/", ReciboAssinaturaStatusView.as_view(), name="payments-assinatura-recibo"),

@@ -38,6 +38,7 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
 
         try:
             from clinica_beleza.public_pdf import PREFIX_RECIBO, gravar_pdf_publico
+            from clinica_beleza.recibo.imagem import pdf_para_jpeg
 
             pdf_bytes = _gerar_pdf_recibo(ctx)
             from clinica_beleza.media_docs_service import arquivar_pdf_gerado
@@ -47,19 +48,43 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
                 pdf_bytes,
                 f"recibo_{payment.id}.pdf",
             )
-            token = gravar_pdf_publico(
-                PREFIX_RECIBO,
-                {"payment_id": payment.id, "pdf": pdf_bytes},
-            )
+            jpeg_bytes = None
+            try:
+                jpeg_bytes = pdf_para_jpeg(pdf_bytes)
+            except Exception as conv_err:
+                logger.warning("Conversão do recibo em foto falhou: %s", conv_err)
+
+            payload = {"payment_id": payment.id, "pdf": pdf_bytes}
+            if jpeg_bytes:
+                payload["imagem"] = jpeg_bytes
+            token = gravar_pdf_publico(PREFIX_RECIBO, payload)
 
             api_base = getattr(settings, "API_BASE_URL", "") or "https://api.lwksistemas.com.br"
-            pdf_url = f"{api_base}/api/clinica-beleza/payments/{payment.id}/recibo-pdf/{token}/"
+            if jpeg_bytes:
+                from whatsapp.services import _send_whatsapp_image_evolution
 
-            from whatsapp.services import _send_whatsapp_document_evolution
-            _send_whatsapp_document_evolution(
-                telefone, pdf_url, f"recibo_{payment.id}.pdf",
-                caption="Recibo de Pagamento", config=config,
-            )
+                img_url = f"{api_base}/api/clinica-beleza/payments/{payment.id}/recibo-img/{token}/"
+                ok_img, err_img = _send_whatsapp_image_evolution(
+                    telefone, img_url, f"recibo_{payment.id}.jpg",
+                    caption="Recibo de Pagamento", config=config,
+                )
+                if not ok_img:
+                    logger.warning("Foto do recibo via WhatsApp falhou, tentando PDF: %s", err_img)
+                    from whatsapp.services import _send_whatsapp_document_evolution
+
+                    pdf_url = f"{api_base}/api/clinica-beleza/payments/{payment.id}/recibo-pdf/{token}/"
+                    _send_whatsapp_document_evolution(
+                        telefone, pdf_url, f"recibo_{payment.id}.pdf",
+                        caption="Recibo de Pagamento", config=config,
+                    )
+            else:
+                from whatsapp.services import _send_whatsapp_document_evolution
+
+                pdf_url = f"{api_base}/api/clinica-beleza/payments/{payment.id}/recibo-pdf/{token}/"
+                _send_whatsapp_document_evolution(
+                    telefone, pdf_url, f"recibo_{payment.id}.pdf",
+                    caption="Recibo de Pagamento", config=config,
+                )
         except Exception as pdf_err:
             logger.warning("PDF via WhatsApp falhou (texto já enviado): %s", pdf_err)
 
@@ -111,6 +136,6 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
         f'💰 *Valor pago: R$ {valor_pago}*\n'
         f'━━━━━━━━━━━━━━━━━━━━\n\n'
         f'{("ℹ️ " + ctx["retorno_aviso"] + "\n\n") if (ctx.get("retorno_aviso") or "").strip() else ""}'
-        f'_O recibo completo em PDF segue em anexo._\n'
+        f'_O recibo segue como foto nesta conversa._\n'
         f'Agradecemos pela confiança! 🙏'
     )

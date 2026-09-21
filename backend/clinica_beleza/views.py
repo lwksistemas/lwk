@@ -41,6 +41,7 @@ from .views_financeiro import (  # noqa: F401
     PaymentListView,
     PaymentParcelaView,
     ReciboPdfPublicView,
+    ReciboImagemPublicView,
 )
 
 # Pacientes

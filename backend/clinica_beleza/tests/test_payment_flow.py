@@ -161,3 +161,4 @@ class MensagemWhatsAppTests(SimpleTestCase):
         self.assertIn("Dra. Ana", msg)
         self.assertIn("Botox", msg)
         self.assertIn("RECIBO DE PAGAMENTO", msg)
+        self.assertIn("foto", msg.lower())

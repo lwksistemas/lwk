@@ -44,7 +44,24 @@ def _enviar_recibo_email(payment, patient, appointment) -> tuple[bool, str]:
             to=[email],
             html=corpo_html,
         )
-        msg.attach(f"recibo_{payment.id}.pdf", pdf_bytes, "application/pdf")
+        jpeg_bytes = None
+        try:
+            from clinica_beleza.recibo.imagem import pdf_para_jpeg
+
+            jpeg_bytes = pdf_para_jpeg(pdf_bytes)
+        except Exception as conv_err:
+            logger.warning("Conversão do recibo em foto falhou: %s", conv_err)
+
+        if jpeg_bytes:
+            from email.mime.image import MIMEImage
+
+            foto = MIMEImage(jpeg_bytes, _subtype="jpeg")
+            foto.add_header("Content-ID", "<recibo>")
+            foto.add_header("Content-Disposition", "inline", filename=f"recibo_{payment.id}.jpg")
+            msg.attach(foto)
+            msg.attach(f"recibo_{payment.id}.jpg", jpeg_bytes, "image/jpeg")
+        else:
+            msg.attach(f"recibo_{payment.id}.pdf", pdf_bytes, "application/pdf")
 
         token = email_sync_only.set(True)
         try:
@@ -90,7 +107,7 @@ def _montar_email_html(ctx: dict) -> str:
       </div>
 
       <p>Olá <strong>{ctx['paciente_nome']}</strong>,</p>
-      <p>Segue o resumo do seu atendimento e o recibo em PDF anexo.</p>
+      <p>Segue o resumo do seu atendimento e o recibo em foto.</p>
 
       <div style="background:#f8f8f8;border-radius:8px;padding:16px;margin:16px 0;">
         <p style="margin:4px 0;"><strong>Data do pagamento:</strong> {ctx['data']}</p>
@@ -108,8 +125,12 @@ def _montar_email_html(ctx: dict) -> str:
         {f'<p style="margin:12px 0 0;font-size:12px;color:#555;">{ctx["retorno_aviso"]}</p>' if (ctx.get("retorno_aviso") or "").strip() else ''}
       </div>
 
+      <p style="margin:16px 0;text-align:center;">
+        <img src="cid:recibo" alt="Recibo de pagamento" style="max-width:100%;height:auto;border:1px solid #eee;" />
+      </p>
+
       <p style="font-size:12px;color:#666;">
-        O recibo completo está em anexo (PDF). Guarde para seus registros.
+        O recibo também segue anexado como foto. Guarde para seus registros.
       </p>
 
       <p style="margin-top:20px;">Atenciosamente,<br><strong>{ctx['loja_nome']}</strong></p>
@@ -149,7 +170,7 @@ def _montar_email_texto(ctx: dict) -> str:
         f'{ctx["loja_nome"] or "Clínica"}\n'
         f'{header_extra}\n'
         f'Olá {ctx["paciente_nome"]},\n\n'
-        f'Segue o resumo do seu atendimento e o recibo em PDF anexo.\n\n'
+        f'Segue o resumo do seu atendimento e o recibo em foto anexa.\n\n'
         f'Data do pagamento: {ctx["data"]}\n'
         f'Profissional: {ctx["profissional_nome"] or "—"}\n'
         f'Data/Hora do atendimento: {ctx.get("data_atendimento") or "—"}\n'

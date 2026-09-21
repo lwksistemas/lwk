@@ -280,6 +280,28 @@ class ReciboPdfPublicView(APIView):
         return response
 
 
+class ReciboImagemPublicView(APIView):
+    """GET /clinica-beleza/payments/<id>/recibo-img/<token>/ — JPEG para WhatsApp."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [PublicPdfThrottle]
+
+    def get(self, request, pk, token):
+        from clinica_beleza.public_pdf import PREFIX_RECIBO, ler_pdf_publico
+
+        cached = ler_pdf_publico(PREFIX_RECIBO, token)
+        if not cached or cached.get("payment_id") != pk:
+            return Response({"error": "Recibo expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
+        imagem = cached.get("imagem")
+        if not imagem:
+            return Response({"error": "Recibo expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
+
+        response = HttpResponse(imagem, content_type="image/jpeg")
+        response["Content-Disposition"] = f'inline; filename="recibo_{pk}.jpg"'
+        return response
+
+
 class FinanceiroResumoView(APIView):
     """GET /clinica-beleza/financeiro/resumo/"""
 

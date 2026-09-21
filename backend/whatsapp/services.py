@@ -293,6 +293,53 @@ def _send_whatsapp_document_evolution(
         )
         return False, str(exc)
 
+
+def _send_whatsapp_image_evolution(
+    telefone, image_url, filename, caption=None, user=None, config=None, mimetype=None,
+):
+    from .evolution_client import EvolutionAPIError, send_image
+
+    phone = _normalize_phone(telefone)
+    loja_id = _config_loja_id(config)
+    ok_plano, err_plano = _loja_plano_permite_whatsapp(loja_id)
+    if not ok_plano:
+        return False, err_plano
+    if not phone:
+        return False, "Telefone inválido ou incompleto."
+
+    ok, instance_or_err = _evolution_ready(config)
+    if not ok:
+        return False, instance_or_err
+
+    try:
+        data = send_image(
+            instance_or_err,
+            phone,
+            image_url,
+            filename=filename,
+            caption=caption,
+            mimetype=mimetype or "image/jpeg",
+        )
+        _write_whatsapp_log(
+            loja_id=loja_id,
+            telefone=phone,
+            mensagem=f"[imagem] {filename}",
+            status="enviado",
+            response=data,
+            user=user,
+        )
+        return True, None
+    except EvolutionAPIError as exc:
+        _write_whatsapp_log(
+            loja_id=loja_id,
+            telefone=phone,
+            mensagem=f"[imagem] {filename}",
+            status="falhou",
+            response={"error": str(exc), "response": exc.response},
+            user=user,
+        )
+        return False, str(exc)
+
 def _loja_plano_permite_whatsapp(loja_or_id):
     """Bloqueia envio se o plano da loja não inclui integração WhatsApp."""
     loja_id = loja_or_id if isinstance(loja_or_id, int) else getattr(loja_or_id, "pk", None)

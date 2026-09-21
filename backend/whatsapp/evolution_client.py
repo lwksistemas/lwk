@@ -548,6 +548,20 @@ def send_document(instance_name, number, document_url, filename, caption=None, m
     return _request("POST", f"/message/sendMedia/{instance_name}", json_body=body)
 
 
+def send_image(instance_name, number, image_url, filename=None, caption=None, mimetype=None):
+    resolved = resolve_recipient_number(instance_name, number)
+    body = {
+        "number": resolved,
+        "mediatype": "image",
+        "mimetype": mimetype or "image/jpeg",
+        "media": image_url,
+        "fileName": filename or "imagem.jpg",
+    }
+    if caption:
+        body["caption"] = str(caption)[:1024]
+    return _request("POST", f"/message/sendMedia/{instance_name}", json_body=body)
+
+
 def send_buttons(instance_name, number, *, title, description, footer, buttons):
     """Botões interativos (reply). buttons: list of {id, displayText}.
     """

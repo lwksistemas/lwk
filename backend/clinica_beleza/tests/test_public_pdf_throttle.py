@@ -6,7 +6,7 @@ from django.test import SimpleTestCase
 from clinica_beleza.serializers.financeiro import PaymentSerializer
 from clinica_beleza.throttles import PublicPdfThrottle
 from clinica_beleza.views_assinatura_consentimento_internas import TermoConsentimentoPdfPublicView
-from clinica_beleza.views_financeiro import ReciboPdfPublicView
+from clinica_beleza.views_financeiro import ReciboImagemPublicView, ReciboPdfPublicView
 from clinica_beleza.views_orcamento import OrcamentoPDFPublicView
 from clinica_beleza.views_pedido_compra import PedidoCompraPdfPublicView
 
@@ -16,6 +16,7 @@ class TestPublicPdfThrottle(SimpleTestCase):
         for view in (
             OrcamentoPDFPublicView,
             ReciboPdfPublicView,
+            ReciboImagemPublicView,
             PedidoCompraPdfPublicView,
             TermoConsentimentoPdfPublicView,
         ):

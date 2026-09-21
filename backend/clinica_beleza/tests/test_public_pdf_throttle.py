@@ -7,17 +7,19 @@ from clinica_beleza.serializers.financeiro import PaymentSerializer
 from clinica_beleza.throttles import PublicPdfThrottle
 from clinica_beleza.views_assinatura_consentimento_internas import TermoConsentimentoPdfPublicView
 from clinica_beleza.views_financeiro import ReciboImagemPublicView, ReciboPdfPublicView
-from clinica_beleza.views_orcamento import OrcamentoPDFPublicView
-from clinica_beleza.views_pedido_compra import PedidoCompraPdfPublicView
+from clinica_beleza.views_orcamento import OrcamentoImagemPublicView, OrcamentoPDFPublicView
+from clinica_beleza.views_pedido_compra import PedidoCompraImagemPublicView, PedidoCompraPdfPublicView
 
 
 class TestPublicPdfThrottle(SimpleTestCase):
     def test_quatro_endpoints_publicos_usam_o_mesmo_throttle(self):
         for view in (
             OrcamentoPDFPublicView,
+            OrcamentoImagemPublicView,
             ReciboPdfPublicView,
             ReciboImagemPublicView,
             PedidoCompraPdfPublicView,
+            PedidoCompraImagemPublicView,
             TermoConsentimentoPdfPublicView,
         ):
             self.assertEqual(view.throttle_classes, [PublicPdfThrottle])

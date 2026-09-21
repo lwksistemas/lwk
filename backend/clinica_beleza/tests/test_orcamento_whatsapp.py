@@ -59,7 +59,7 @@ class MsgOrcamentoWhatsappTest(SimpleTestCase):
         self.assertIn("Clínica Harmonis", msg)
         self.assertIn("BOTOX", msg)
         self.assertIn("3.580,00", msg)
-        self.assertIn("anexo", msg.lower())
+        self.assertIn("foto", msg.lower())
 
     def test_template_curto(self):
         msg = msg_orcamento(

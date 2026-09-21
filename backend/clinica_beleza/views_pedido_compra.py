@@ -242,3 +242,21 @@ class PedidoCompraPdfPublicView(APIView):
         resp["Content-Disposition"] = content_disposition_anexo(filename)
         resp["Access-Control-Expose-Headers"] = "Content-Disposition"
         return resp
+
+
+class PedidoCompraImagemPublicView(APIView):
+    """GET público temporário para Evolution enviar a foto do pedido no WhatsApp."""
+
+    authentication_classes = []
+    permission_classes = []
+    throttle_classes = [PublicPdfThrottle]
+
+    def get(self, request, pk, token):
+        from .pedido_compra.envio import imagem_publica_cache
+
+        imagem = imagem_publica_cache(int(pk), token)
+        if not imagem:
+            return Response({"error": "Link expirado."}, status=status.HTTP_404_NOT_FOUND)
+        resp = HttpResponse(imagem, content_type="image/jpeg")
+        resp["Content-Disposition"] = f'inline; filename="pedido_{pk}.jpg"'
+        return resp

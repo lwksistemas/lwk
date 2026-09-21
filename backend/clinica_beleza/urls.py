@@ -125,6 +125,7 @@ from .views_pedido_compra import (
     PedidoCompraEnviarView,
     PedidoCompraListView,
     PedidoCompraPdfPublicView,
+    PedidoCompraImagemPublicView,
     PedidoCompraPdfView,
 )
 from .views_foto_paciente import (
@@ -184,6 +185,7 @@ from .views_orcamento import (
     OrcamentoDetalheView,
     OrcamentoEnviarView,
     OrcamentoPDFPublicView,
+    OrcamentoImagemPublicView,
     OrcamentoPDFView,
 )
 
@@ -366,6 +368,7 @@ urlpatterns = [
     path("estoque/pedidos/<int:pk>/enviar/", PedidoCompraEnviarView.as_view(), name="estoque-pedidos-enviar"),
     path("estoque/pedidos/<int:pk>/pdf/", PedidoCompraPdfView.as_view(), name="estoque-pedidos-pdf"),
     path("estoque/pedidos/<int:pk>/pdf-public/<str:token>/", PedidoCompraPdfPublicView.as_view(), name="estoque-pedidos-pdf-public"),
+    path("estoque/pedidos/<int:pk>/img-public/<str:token>/", PedidoCompraImagemPublicView.as_view(), name="estoque-pedidos-img-public"),
     path("estoque/<int:pk>/", ProdutoEstoqueDetailView.as_view(), name="estoque-detail"),
     path("estoque/<int:pk>/movimentar/", MovimentacaoEstoqueView.as_view(), name="estoque-movimentar"),
     # Templates de documentos clínicos
@@ -408,5 +411,6 @@ urlpatterns = [
     path("orcamentos/<int:orcamento_id>/", OrcamentoDetalheView.as_view(), name="orcamento-detalhe"),
     path("orcamentos/<int:orcamento_id>/pdf/", OrcamentoPDFView.as_view(), name="orcamento-pdf"),
     path("orcamentos/<int:orcamento_id>/pdf-public/<str:token>/", OrcamentoPDFPublicView.as_view(), name="orcamento-pdf-public"),
+    path("orcamentos/<int:orcamento_id>/img-public/<str:token>/", OrcamentoImagemPublicView.as_view(), name="orcamento-img-public"),
     path("orcamentos/<int:orcamento_id>/enviar/", OrcamentoEnviarView.as_view(), name="orcamento-enviar"),
 ]

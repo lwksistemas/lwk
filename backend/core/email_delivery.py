@@ -211,3 +211,13 @@ def send_mail_with_reply(
         from_email=kwargs.get("from_email"),
         html_message=kwargs.get("html_message"),
     )
+
+
+def attach_inline_jpeg(msg, jpeg_bytes: bytes, *, cid: str, filename: str) -> None:
+    """Coloca a foto no corpo do e-mail (Content-ID), sem anexo para download."""
+    from email.mime.image import MIMEImage
+
+    foto = MIMEImage(jpeg_bytes, _subtype="jpeg")
+    foto.add_header("Content-ID", f"<{cid}>")
+    foto.add_header("Content-Disposition", "inline", filename=filename)
+    msg.attach(foto)

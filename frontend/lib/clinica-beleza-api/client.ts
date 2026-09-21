@@ -80,5 +80,7 @@ export class ClinicaBelezaAPI {
     // Retorna a Response para reaproveitar abrirPdfBlobFromResponse (visualizar/imprimir).
     assinaturaReciboPdf: (paymentId: number) =>
       clinicaBelezaFetch(`/payments/${paymentId}/assinatura-recibo/pdf/`),
+    reciboHtml: (paymentId: number) =>
+      clinicaBelezaFetch(`/payments/${paymentId}/recibo-html/`),
   };
 }

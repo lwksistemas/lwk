@@ -418,22 +418,27 @@ export function ModalDetalheAgendamento({
               {salvandoDetalhe ? "Salvando…" : "Salvar alterações"}
             </button>
           ) : null}
-          <button
-            type="button"
-            onClick={onReenviarWhatsApp}
-            disabled={reenviandoMensagem || !event.extendedProps.patient_phone}
-            className="sm:flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            title="Reenviar solicitação de confirmação por WhatsApp"
-          >
-            <MessageCircle size={18} />
-            {reenviandoMensagem ? "Enviando…" : "Reenviar WhatsApp"}
-          </button>
-          <button
-            onClick={onDelete}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Deletar
-          </button>
+          {status !== "COMPLETED" ? (
+            <button
+              type="button"
+              onClick={onReenviarWhatsApp}
+              disabled={reenviandoMensagem || !event.extendedProps.patient_phone}
+              className="sm:flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Reenviar solicitação de confirmação por WhatsApp"
+            >
+              <MessageCircle size={18} />
+              {reenviandoMensagem ? "Enviando…" : "Reenviar WhatsApp"}
+            </button>
+          ) : null}
+          {status !== "COMPLETED" ? (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Deletar
+            </button>
+          ) : null}
           <button
             onClick={onClose}
             className="px-4 py-2 bg-gray-200 dark:bg-neutral-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-neutral-500 transition-colors"
@@ -441,7 +446,7 @@ export function ModalDetalheAgendamento({
             Fechar
           </button>
         </div>
-        {!event.extendedProps.patient_phone ? (
+        {status !== "COMPLETED" && !event.extendedProps.patient_phone ? (
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Cliente sem telefone; não é possível reenviar.</p>
         ) : null}
       </div>

@@ -162,6 +162,27 @@ class OrcamentoPDFPublicView(APIView):
         return response
 
 
+class OrcamentoImagemPublicView(APIView):
+    """GET /clinica-beleza/orcamentos/<id>/img-public/<token>/ — JPEG para WhatsApp."""
+
+    permission_classes = []
+    authentication_classes = []
+    throttle_classes = [PublicPdfThrottle]
+
+    def get(self, request, orcamento_id, token):
+        from clinica_beleza.public_pdf import PREFIX_ORCAMENTO, ler_pdf_publico
+
+        cached = ler_pdf_publico(PREFIX_ORCAMENTO, token)
+        if not cached or cached.get("orcamento_id") != orcamento_id:
+            return Response({"error": "Orçamento expirado ou inválido."}, status=status.HTTP_404_NOT_FOUND)
+        imagem = cached.get("imagem")
+        if not imagem:
+            return Response({"error": "Imagem não disponível."}, status=status.HTTP_404_NOT_FOUND)
+        response = HttpResponse(imagem, content_type="image/jpeg")
+        response["Content-Disposition"] = f'inline; filename="orcamento_{orcamento_id}.jpg"'
+        return response
+
+
 class OrcamentoEnviarView(_OrcamentoObjectMixin, APIView):
     """Envia orçamento por email/WhatsApp.
 

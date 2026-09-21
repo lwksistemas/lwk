@@ -162,9 +162,9 @@ def msg_orcamento(
     total: str,
     validade_dias: int = 30,
 ) -> str:
-    """Orçamento da Clínica da Beleza: resumo curto + PDF em anexo.
+    """Orçamento da Clínica da Beleza: resumo curto + foto do PDF.
 
-    Não inclui observações/cadastro/LGPD — esses dados ficam só no PDF.
+    Não inclui observações/cadastro/LGPD — esses dados ficam só na foto.
     """
     linhas = [
         "📋 *Orçamento*",
@@ -178,7 +178,7 @@ def msg_orcamento(
         f"💰 *Total: {total}*",
         f"⏳ Válido por {validade_dias} dias",
         SEPARADOR,
-        "_O PDF completo segue em anexo._",
+        "_A foto do orçamento segue nesta conversa._",
         "_Qualquer dúvida, estamos à disposição._",
     ]
     return "\n".join(linhas)

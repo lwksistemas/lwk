@@ -53,13 +53,14 @@ def _enviar_recibo_email(payment, patient, appointment) -> tuple[bool, str]:
             logger.warning("Conversão do recibo em foto falhou: %s", conv_err)
 
         if jpeg_bytes:
-            from email.mime.image import MIMEImage
+            from core.email_delivery import attach_inline_jpeg
 
-            foto = MIMEImage(jpeg_bytes, _subtype="jpeg")
-            foto.add_header("Content-ID", "<recibo>")
-            foto.add_header("Content-Disposition", "inline", filename=f"recibo_{payment.id}.jpg")
-            msg.attach(foto)
-            msg.attach(f"recibo_{payment.id}.jpg", jpeg_bytes, "image/jpeg")
+            attach_inline_jpeg(
+                msg,
+                jpeg_bytes,
+                cid="recibo",
+                filename=f"recibo_{payment.id}.jpg",
+            )
         else:
             msg.attach(f"recibo_{payment.id}.pdf", pdf_bytes, "application/pdf")
 
@@ -130,7 +131,7 @@ def _montar_email_html(ctx: dict) -> str:
       </p>
 
       <p style="font-size:12px;color:#666;">
-        O recibo também segue anexado como foto. Guarde para seus registros.
+        O recibo está na foto acima. Guarde para seus registros.
       </p>
 
       <p style="margin-top:20px;">Atenciosamente,<br><strong>{ctx['loja_nome']}</strong></p>
@@ -170,7 +171,7 @@ def _montar_email_texto(ctx: dict) -> str:
         f'{ctx["loja_nome"] or "Clínica"}\n'
         f'{header_extra}\n'
         f'Olá {ctx["paciente_nome"]},\n\n'
-        f'Segue o resumo do seu atendimento e o recibo em foto anexa.\n\n'
+        f'Segue o resumo do seu atendimento. O recibo está na foto do e-mail.\n\n'
         f'Data do pagamento: {ctx["data"]}\n'
         f'Profissional: {ctx["profissional_nome"] or "—"}\n'
         f'Data/Hora do atendimento: {ctx.get("data_atendimento") or "—"}\n'

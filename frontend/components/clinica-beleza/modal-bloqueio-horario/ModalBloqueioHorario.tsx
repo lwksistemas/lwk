@@ -213,36 +213,6 @@ export function ModalBloqueioHorario({
                     ? "Nenhum dia marcado."
                     : `${state.diasSelecionados.length} dia(s): ${[...state.diasSelecionados].sort().map((d) => d.slice(8) + "/" + d.slice(5, 7)).join(", ")}`}
                 </p>
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Incluir do dia
-                    </label>
-                    <input
-                      type="date"
-                      value={state.dataInicioDia}
-                      onChange={(e) => {
-                        state.setDataInicioDia(e.target.value);
-                        state.definirPeloIntervalo(e.target.value, state.dataFimDia);
-                      }}
-                      className={fieldClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      até o dia
-                    </label>
-                    <input
-                      type="date"
-                      value={state.dataFimDia}
-                      onChange={(e) => {
-                        state.setDataFimDia(e.target.value);
-                        state.definirPeloIntervalo(state.dataInicioDia, e.target.value);
-                      }}
-                      className={fieldClass}
-                    />
-                  </div>
-                </div>
               </div>
             ) : (
               <>
@@ -298,7 +268,7 @@ export function ModalBloqueioHorario({
 
           <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
             {state.modo === "dias"
-              ? "Clique nos dias do mês para marcar ou desmarcar. Mudar o intervalo substitui os dias marcados. Cada dia vira um bloqueio próprio."
+              ? "Clique nos dias do mês para marcar ou desmarcar. Cada dia vira um bloqueio próprio."
               : "Bloqueia apenas o horário no dia escolhido (ex.: 13:00–17:00). Na agenda, puxe a borda de baixo do bloqueio para aumentar ou diminuir o horário."}{" "}
             O intervalo de almoço do profissional é configurado em Profissionais → Horários de trabalho.
           </p>

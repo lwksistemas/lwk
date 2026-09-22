@@ -5,7 +5,6 @@ import {
   TIPOS_BLOQUEIO,
   buildBloqueioRequestBody,
   buildBloqueiosPorDia,
-  enumerarDiasInclusivo,
   extractBloqueioApiError,
   formatDateInput,
   formatTimeInput,
@@ -77,14 +76,6 @@ export function useModalBloqueioHorario({
   const onTipoChange = useCallback((tipo: string) => {
     setTipoSelecionado(tipo);
     setModo(modoSugeridoParaTipo(tipo));
-  }, []);
-
-  const definirPeloIntervalo = useCallback((inicio: string, fim: string) => {
-    const dias = enumerarDiasInclusivo(inicio, fim);
-    if (dias.length) {
-      setDiasSelecionados(dias);
-      setMesCursor(inicio);
-    }
   }, []);
 
   const toggleDia = useCallback((dia: string) => {
@@ -177,13 +168,9 @@ export function useModalBloqueioHorario({
     modo,
     setModo,
     dataInicioDia,
-    setDataInicioDia,
-    dataFimDia,
-    setDataFimDia,
     diasSelecionados,
     mesCursor,
     setMesCursor,
-    definirPeloIntervalo,
     toggleDia,
     dataHorario,
     setDataHorario,

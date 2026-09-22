@@ -306,15 +306,14 @@ export function ModalAtendimento({
           </div>
           )}
 
-          {/* Descrição — também oculta quando os logs estão expandidos */}
-          {!detalhesAberto && (
-          <div className="mb-6">
-            <label className="text-sm font-medium text-gray-500 block mb-2">Descrição</label>
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <p className="text-gray-900 whitespace-pre-wrap">{descricaoLimpa(chamado.descricao)}</p>
+          {/* Descrição — sempre visível (mesmo com logs abertos), para o suporte ver a reclamação junto dos erros.
+              Com os logs expandidos, fica compacta para poupar espaço. */}
+          <div className={detalhesAberto ? 'mb-3' : 'mb-6'}>
+            <label className="text-sm font-medium text-gray-500 block mb-1">Descrição {detalhesAberto && <span className="text-gray-400 font-normal">(reclamação do cliente)</span>}</label>
+            <div className={`bg-gray-50 rounded-lg border border-gray-200 ${detalhesAberto ? 'p-3' : 'p-4'}`}>
+              <p className={`text-gray-900 whitespace-pre-wrap ${detalhesAberto ? 'text-sm max-h-24 overflow-y-auto' : ''}`}>{descricaoLimpa(chamado.descricao)}</p>
             </div>
           </div>
-          )}
 
           {/* Logs de diagnóstico — 3 abas (navegador/frontend/backend), 3 colunas por severidade */}
           <div className="mb-6">

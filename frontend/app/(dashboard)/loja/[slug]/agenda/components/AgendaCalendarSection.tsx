@@ -276,6 +276,13 @@ export function AgendaCalendarSection({
           editable
           eventStartEditable
           eventDurationEditable
+          eventAllow={(_info, dragged) => {
+            const props = dragged?.extendedProps || {};
+            if (props.isBloqueio || props.isIntervalo) return true;
+            const inicio = dragged?.start;
+            if (!inicio) return true;
+            return inicio.getTime() >= Date.now();
+          }}
           selectable
           selectMirror
           selectConstraint={temHorarioExpediente ? "businessHours" : undefined}

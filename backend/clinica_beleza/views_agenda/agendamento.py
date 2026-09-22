@@ -10,6 +10,7 @@ from clinica_beleza.agenda_service import (
     AgendaValidationError,
     atualizar_agendamento,
     detectar_conflito,
+    horario_agendamento_passou,
 )
 from clinica_beleza.models import Appointment
 from clinica_beleza.permissions import (
@@ -166,6 +167,12 @@ class AgendaDeleteView(GetObjectMixin, APIView):
         if not appointment_in_agenda_scope(obj, scope):
             return _agenda_scope_forbidden_response()
 
+        if horario_agendamento_passou(obj):
+            return Response(
+                {"error": "Não é possível excluir um agendamento cujo horário já passou."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         consulta = getattr(obj, "consulta", None)
         if consulta and consulta.status in ("COMPLETED", "IN_PROGRESS"):
             msg = (
@@ -192,6 +199,12 @@ class AgendaReenviarMensagemView(APIView):
         scope = resolve_agenda_professional_scope(request)
         if not appointment_in_agenda_scope(appointment, scope):
             return _agenda_scope_forbidden_response()
+
+        if horario_agendamento_passou(appointment):
+            return Response({
+                "sent": False,
+                "message": "Horário já passou. A confirmação não é reenviada.",
+            })
 
         if not getattr(appointment.patient, "allow_whatsapp", True):
             return Response({"sent": False, "message": "Paciente não permite receber WhatsApp."})

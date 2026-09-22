@@ -120,6 +120,7 @@ export function useAgendaDiaArrasto({
   ) => {
     if (evt.extendedProps?.isIntervalo) return;
     if (evt.extendedProps?.isBloqueio && !bloqueioHorarioArrastavel(evt)) return;
+    if (!evt.extendedProps?.isBloqueio && start.getTime() < Date.now()) return;
     const professionalId = eventProfessionalId(evt);
     if (professionalId == null && !evt.extendedProps?.isBloqueio) return;
     const card = (e.currentTarget as HTMLElement).closest("[data-agenda-card]") as HTMLElement | null;
@@ -151,6 +152,7 @@ export function useAgendaDiaArrasto({
     e.stopPropagation();
     if (evt.extendedProps?.isIntervalo) return;
     if (evt.extendedProps?.isBloqueio && !bloqueioHorarioArrastavel(evt)) return;
+    if (!evt.extendedProps?.isBloqueio && start.getTime() < Date.now()) return;
     const professionalId = eventProfessionalId(evt);
     if (professionalId == null && !evt.extendedProps?.isBloqueio) return;
     try {

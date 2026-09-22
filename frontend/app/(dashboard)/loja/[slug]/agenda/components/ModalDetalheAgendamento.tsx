@@ -24,6 +24,12 @@ import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 
+function horarioAgendamentoPassou(iso: string): boolean {
+  const inicio = new Date(iso);
+  if (Number.isNaN(inicio.getTime())) return false;
+  return inicio.getTime() < Date.now();
+}
+
 function toDatetimeLocalValue(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
@@ -122,8 +128,10 @@ export function ModalDetalheAgendamento({
   }, [open, event, procedures]);
 
   const status = event?.extendedProps.status || "SCHEDULED";
+  const horarioPassou = event ? horarioAgendamentoPassou(event.start) : false;
   const statusSomenteLeitura = status === "IN_PROGRESS" || status === "COMPLETED";
-  const podeEditarCampos = !STATUS_EDICAO_BLOQUEADA.has(status);
+  const podeEditarCampos = !STATUS_EDICAO_BLOQUEADA.has(status) && !horarioPassou;
+  const podeExcluirOuReenviar = status !== "COMPLETED" && !horarioPassou;
   const statusLabel = getAgendaStatusLabelModal(status);
   const opcoesStatus = getAgendaStatusOpcoesModal(status);
   const coresStatus = getAgendaStatusColor(status, statusColors);
@@ -418,7 +426,7 @@ export function ModalDetalheAgendamento({
               {salvandoDetalhe ? "Salvando…" : "Salvar alterações"}
             </button>
           ) : null}
-          {status !== "COMPLETED" ? (
+          {podeExcluirOuReenviar ? (
             <button
               type="button"
               onClick={onReenviarWhatsApp}
@@ -430,7 +438,7 @@ export function ModalDetalheAgendamento({
               {reenviandoMensagem ? "Enviando…" : "Reenviar WhatsApp"}
             </button>
           ) : null}
-          {status !== "COMPLETED" ? (
+          {podeExcluirOuReenviar ? (
             <button
               type="button"
               onClick={onDelete}
@@ -446,7 +454,7 @@ export function ModalDetalheAgendamento({
             Fechar
           </button>
         </div>
-        {status !== "COMPLETED" && !event.extendedProps.patient_phone ? (
+        {podeExcluirOuReenviar && !event.extendedProps.patient_phone ? (
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Cliente sem telefone; não é possível reenviar.</p>
         ) : null}
       </div>

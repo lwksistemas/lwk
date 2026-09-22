@@ -11,7 +11,7 @@ from datetime import timedelta
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils.dateparse import parse_datetime
-from django.utils.timezone import now
+from django.utils.timezone import get_current_timezone, is_naive, make_aware, now
 
 from .bloqueio_utils import bloqueio_datetime_range, intervalos_sobrepoem
 from .models import Appointment, BloqueioHorario, Consulta, Professional
@@ -226,6 +226,9 @@ class UpdateResult:
 
 
 STATUS_EDICAO_MATERIAL_BLOQUEADA = frozenset({"IN_PROGRESS", "COMPLETED", "CANCELLED"})
+MSG_HISTORICO = (
+    "Horário já passou. O agendamento fica no histórico e só o status pode ser alterado."
+)
 STATUS_INVALIDA_CONFIRMACAO = frozenset({
     "SCHEDULED", "PENDING", "CLIENT_CONFIRMED", "PHONE_CONFIRMED",
 })
@@ -298,6 +301,45 @@ def _datas_iguais_minuto(a, b) -> bool:
     return abs((a - b).total_seconds()) < 60
 
 
+def horario_agendamento_passou(appointment) -> bool:
+    """True quando a data e a hora de início do agendamento já passaram."""
+    inicio = getattr(appointment, "date", None)
+    if inicio is None:
+        return False
+    if is_naive(inicio):
+        inicio = make_aware(inicio, get_current_timezone())
+    return inicio < now()
+
+
+def _pedindo_alteracao_material(appointment, new_date, new_professional, new_procedures_ids, new_duracao=None) -> bool:
+    if new_date is not None:
+        date_start_preview = (
+            parse_datetime(new_date) if isinstance(new_date, str) else new_date
+        ) or now()
+        if not _datas_iguais_minuto(date_start_preview, appointment.date):
+            return True
+    if new_professional is not None and new_professional != "":
+        try:
+            if int(new_professional) != appointment.professional_id:
+                return True
+        except (TypeError, ValueError):
+            return True
+    if new_procedures_ids is not None:
+        try:
+            ids_preview = [int(x) for x in new_procedures_ids]
+        except (TypeError, ValueError):
+            ids_preview = []
+        if ids_preview != _ids_procedimentos_atuais(appointment):
+            return True
+    if new_duracao is not None:
+        try:
+            if int(new_duracao) != int(getattr(appointment, "duracao_minutos", 0) or 0):
+                return True
+        except (TypeError, ValueError):
+            return True
+    return False
+
+
 def _profissional_ativo(new_professional):
     try:
         pid = int(new_professional)
@@ -332,32 +374,18 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     professional_changed = False
     old_status = appointment.status
 
-    if old_status in STATUS_EDICAO_MATERIAL_BLOQUEADA:
-        pedindo_material = False
-        if new_date is not None:
-            date_start_preview = (
-                parse_datetime(new_date) if isinstance(new_date, str) else new_date
-            ) or now()
-            if not _datas_iguais_minuto(date_start_preview, appointment.date):
-                pedindo_material = True
-        if new_professional is not None and new_professional != "":
-            try:
-                if int(new_professional) != appointment.professional_id:
-                    pedindo_material = True
-            except (TypeError, ValueError):
-                pedindo_material = True
-        if new_procedures_ids is not None:
-            try:
-                ids_preview = [int(x) for x in new_procedures_ids]
-            except (TypeError, ValueError):
-                ids_preview = []
-            if ids_preview != _ids_procedimentos_atuais(appointment):
-                pedindo_material = True
-        if pedindo_material:
-            raise AgendaValidationError(
-                "Não é possível alterar data, profissional ou procedimento neste status. "
-                "Ajuste em Consultas se o atendimento já começou.",
-            )
+    pedindo_campos = _pedindo_alteracao_material(
+        appointment, new_date, new_professional, new_procedures_ids,
+    )
+    if old_status in STATUS_EDICAO_MATERIAL_BLOQUEADA and pedindo_campos:
+        raise AgendaValidationError(
+            "Não é possível alterar data, profissional ou procedimento neste status. "
+            "Ajuste em Consultas se o atendimento já começou.",
+        )
+    if horario_agendamento_passou(appointment) and _pedindo_alteracao_material(
+        appointment, new_date, new_professional, new_procedures_ids, new_duracao,
+    ):
+        raise AgendaValidationError(MSG_HISTORICO)
 
     procedures_changed = _aplicar_procedimentos(appointment, new_procedures_ids)
 

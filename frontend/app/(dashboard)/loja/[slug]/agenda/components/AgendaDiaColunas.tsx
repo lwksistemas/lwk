@@ -310,7 +310,10 @@ export function AgendaDiaColunas({
                         const height = Math.max(36, durationMin * pxPerMin - 4);
                         const intervalo = Boolean(evt.extendedProps?.isIntervalo);
                         const bloqueio = Boolean(evt.extendedProps?.isBloqueio);
-                        const arrastaHorario = !intervalo && (!bloqueio || bloqueioHorarioArrastavel(evt));
+                        const arrastaHorario =
+                          !intervalo &&
+                          (bloqueio || start.getTime() >= Date.now()) &&
+                          (!bloqueio || bloqueioHorarioArrastavel(evt));
                         const estilo = estiloCardStatusAgenda(evt);
                         const arrastandoEste = arrasto?.modo === "mover" && arrasto.evt.id === evt.id && arrasto.moved;
                         const fimPreview = new Date(start.getTime() + durationMin * 60_000);

@@ -12,6 +12,44 @@ from .services import get_chamados_queryset_for_user
 logger = logging.getLogger(__name__)
 
 
+# Palavras que indicam cada severidade nas mensagens/erros (heurística — não há
+# campo estruturado de severidade ainda; classifica pelo texto e pelo status HTTP).
+_KW_TIMEOUT = ("timeout", "timed out", "tempo esgotado", "etimedout", "deadline", "504", "gateway time")
+_KW_FALHA = ("warn", "aviso", "falha", "failed", "cancel", "abort", "404", "409", "422", "400")
+
+
+def classificar_severidade(texto: str = "", status_http: int | None = None) -> str:
+    """Classifica um log em 'timeout', 'falha' ou 'erro' por heurística.
+
+    - timeout: menções a tempo esgotado / 504.
+    - falha: avisos, cancelamentos, erros de validação/cliente (4xx exceto graves).
+    - erro: o restante (padrão), inclui 5xx e exceções não classificadas.
+    """
+    t = (texto or "").lower()
+    if any(k in t for k in _KW_TIMEOUT):
+        return "timeout"
+    if status_http is not None:
+        if status_http in (408, 504):
+            return "timeout"
+        if 400 <= status_http < 500:
+            return "falha"
+        if status_http >= 500:
+            return "erro"
+    if any(k in t for k in _KW_FALHA):
+        return "falha"
+    return "erro"
+
+
+def _status_http_do_texto(texto: str) -> int | None:
+    """Extrai um código HTTP (3 dígitos 100-599) do texto, se houver."""
+    import re
+
+    m = re.search(r"\b([1-5]\d{2})\b", texto or "")
+    if m:
+        return int(m.group(1))
+    return None
+
+
 class ChamadoViewSet(viewsets.ModelViewSet):
     """ViewSet para gerenciar chamados de suporte - Banco 'suporte'"""
 
@@ -62,6 +100,7 @@ class ChamadoViewSet(viewsets.ModelViewSet):
 
         loja_slug = chamado.loja_slug
         erros_backend = []
+        erros_navegador = []
         erros_frontend = []
 
         # Erros backend: falhas da loja no HistoricoAcessoGlobal (banco default)
@@ -71,40 +110,54 @@ class ChamadoViewSet(viewsets.ModelViewSet):
                 loja_slug=loja_slug,
                 sucesso=False,
             ).order_by("-created_at")[:50]
-            erros_backend = [
-                {
+            for h in qs:
+                erro_txt = (h.erro or "")[:1000]
+                sev = classificar_severidade(erro_txt, _status_http_do_texto(erro_txt))
+                erros_backend.append({
                     "created_at": h.created_at.isoformat() if h.created_at else None,
                     "url": h.url or "",
                     "metodo_http": h.metodo_http or "",
-                    "erro": (h.erro or "")[:1000],
+                    "erro": erro_txt,
                     "usuario_email": h.usuario_email or "",
-                }
-                for h in qs
-            ]
+                    "severidade": sev,
+                })
         except Exception as e:
             logger.warning("detalhes_contexto HistoricoAcessoGlobal: %s", e)
 
-        # Erros frontend: tabela ErroFrontend (banco suporte)
+        # Erros do cliente (ErroFrontend): separa navegador vs frontend (React) por heurística,
+        # já que a tabela ainda não persiste o tipo de origem.
         try:
-            qs = ErroFrontend.objects.filter(loja_slug=loja_slug).order_by("-created_at")[:50]
-            erros_frontend = [
-                {
+            qs = ErroFrontend.objects.filter(loja_slug=loja_slug).order_by("-created_at")[:100]
+            for e in qs:
+                msg = e.mensagem or ""
+                stack = (e.stack or "")[:2000]
+                base = f"{msg} {stack}".lower()
+                item = {
                     "created_at": e.created_at.isoformat() if e.created_at else None,
-                    "mensagem": e.mensagem,
-                    "stack": (e.stack or "")[:2000],
+                    "mensagem": msg,
+                    "stack": stack,
                     "url": e.url or "",
                     "user_agent": (e.user_agent or "")[:300],
+                    "severidade": classificar_severidade(base, _status_http_do_texto(base)),
                 }
-                for e in qs
-            ]
+                # Erros de React/framework → frontend; window.onerror/promise → navegador.
+                is_frontend = any(k in base for k in (
+                    "react", "hydration", "hydrat", "component", "minified react",
+                    "render", "hook", "jsx", "next", "chunkloaderror", "loading chunk",
+                ))
+                if is_frontend:
+                    erros_frontend.append(item)
+                else:
+                    erros_navegador.append(item)
         except Exception as e:
             logger.warning("detalhes_contexto ErroFrontend: %s", e)
 
         return Response({
             "loja_slug": loja_slug,
+            "erros_navegador": erros_navegador[:50],
+            "erros_frontend": erros_frontend[:50],
             "erros_backend": erros_backend,
-            "erros_frontend": erros_frontend,
-            "periodo_exibido": "Últimos 50 erros de cada tipo (backend e frontend), do mais recente ao mais antigo.",
+            "periodo_exibido": "Erros recentes da loja, do mais recente ao mais antigo.",
             "limite_por_tipo": 50,
         })
 

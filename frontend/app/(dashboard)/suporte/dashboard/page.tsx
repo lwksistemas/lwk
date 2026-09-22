@@ -133,7 +133,7 @@ export default function SuporteDashboardPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <nav className="bg-blue-900 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-6 lg:px-10">
           <div className="flex justify-between h-16 items-center">
             <div>
               <h1 className="text-2xl font-bold">Portal de Suporte</h1>
@@ -158,10 +158,10 @@ export default function SuporteDashboardPage() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main className="w-full px-6 lg:px-10 py-6">
+        <div className="py-2">
           {/* Estatísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
             <CardEstatisticas 
               titulo="Total de Chamados" 
               valor={chamados.length} 

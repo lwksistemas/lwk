@@ -68,6 +68,91 @@ const getTipoDisplay = (tipo: string) => {
   return tipos[tipo] || tipo;
 };
 
+// ---- Logs de diagnóstico (navegador / frontend / backend) ----
+type Severidade = 'erro' | 'falha' | 'timeout';
+
+interface LogCliente {
+  created_at: string | null;
+  mensagem: string;
+  stack: string;
+  url: string;
+  user_agent: string;
+  severidade: Severidade;
+}
+
+interface LogBackend {
+  created_at: string | null;
+  url: string;
+  metodo_http: string;
+  erro: string;
+  usuario_email: string;
+  severidade: Severidade;
+}
+
+type LogItem = LogCliente | LogBackend;
+
+const SEVERIDADES: { chave: Severidade; titulo: string; cor: string; borda: string; badge: string }[] = [
+  { chave: 'erro', titulo: '🔴 Erros', cor: 'bg-red-50', borda: 'border-red-200', badge: 'bg-red-100 text-red-800' },
+  { chave: 'falha', titulo: '🟠 Falhas', cor: 'bg-amber-50', borda: 'border-amber-200', badge: 'bg-amber-100 text-amber-800' },
+  { chave: 'timeout', titulo: '⏱️ Tempo esgotado', cor: 'bg-sky-50', borda: 'border-sky-200', badge: 'bg-sky-100 text-sky-800' },
+];
+
+function textoDoLog(item: LogItem): string {
+  return 'erro' in item ? item.erro : item.mensagem;
+}
+
+function ColunaSeveridade({ sev, itens }: { sev: typeof SEVERIDADES[number]; itens: LogItem[] }) {
+  return (
+    <div className={`flex flex-col rounded-lg border ${sev.borda} ${sev.cor} overflow-hidden min-h-0`}>
+      <div className={`flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase ${sev.badge} border-b ${sev.borda}`}>
+        <span>{sev.titulo}</span>
+        <span className="tabular-nums">{itens.length}</span>
+      </div>
+      <div className="p-2 space-y-2 overflow-y-auto max-h-[46vh]">
+        {itens.length === 0 ? (
+          <p className="text-gray-400 text-xs px-1 py-2">Nenhum registro.</p>
+        ) : (
+          itens.map((item, i) => {
+            const isBackend = 'erro' in item;
+            return (
+              <div key={i} className="bg-white rounded border border-gray-200 p-2 text-xs">
+                <div className="text-gray-500 mb-1">
+                  {item.created_at ? formatDateTime(item.created_at) : ''}
+                  {isBackend && (item as LogBackend).metodo_http ? ` · ${(item as LogBackend).metodo_http}` : ''}
+                </div>
+                <p className="font-mono text-gray-900 break-all whitespace-pre-wrap">{textoDoLog(item)}</p>
+                {item.url && <p className="text-gray-400 break-all mt-1">URL: {item.url}</p>}
+                {isBackend && (item as LogBackend).usuario_email && (
+                  <p className="text-gray-400 mt-0.5">Usuário: {(item as LogBackend).usuario_email}</p>
+                )}
+                {!isBackend && (item as LogCliente).stack && (
+                  <pre className="mt-1 text-gray-500 whitespace-pre-wrap break-all max-h-24 overflow-y-auto bg-gray-50 p-1 rounded">
+                    {(item as LogCliente).stack}
+                  </pre>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PainelLogs({ itens }: { itens: LogItem[] }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {SEVERIDADES.map((sev) => (
+        <ColunaSeveridade
+          key={sev.chave}
+          sev={sev}
+          itens={itens.filter((it) => it.severidade === sev.chave)}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function ModalAtendimento({
   chamado,
   isOpen,
@@ -79,9 +164,11 @@ export function ModalAtendimento({
   const [resposta, setResposta] = useState('');
   const [enviandoResposta, setEnviandoResposta] = useState(false);
   const [detalhesAberto, setDetalhesAberto] = useState(false);
+  const [abaLog, setAbaLog] = useState<'navegador' | 'frontend' | 'backend'>('navegador');
   const [detalhes, setDetalhes] = useState<{
-    erros_backend: Array<{ created_at: string | null; url: string; metodo_http: string; erro: string; usuario_email: string }>;
-    erros_frontend: Array<{ created_at: string | null; mensagem: string; stack: string; url: string; user_agent: string }>;
+    erros_navegador: LogCliente[];
+    erros_frontend: LogCliente[];
+    erros_backend: LogBackend[];
     periodo_exibido?: string;
     limite_por_tipo?: number;
   } | null>(null);
@@ -98,8 +185,9 @@ export function ModalAtendimento({
       })
       .catch(() => {
         if (!cancelled) setDetalhes({
-          erros_backend: [],
+          erros_navegador: [],
           erros_frontend: [],
+          erros_backend: [],
           periodo_exibido: 'Não foi possível carregar.',
           limite_por_tipo: 50,
         });
@@ -127,8 +215,8 @@ export function ModalAtendimento({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl min-h-[85vh] max-h-[95vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-5">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-[96vw] h-[94vh] flex flex-col">
         {/* Header */}
         <div className="bg-blue-900 text-white px-6 py-4 rounded-t-lg">
           <div className="flex justify-between items-start">
@@ -194,87 +282,53 @@ export function ModalAtendimento({
             </div>
           </div>
 
-          {/* Detalhes técnicos (erros backend + frontend da loja) */}
+          {/* Logs de diagnóstico — 3 abas (navegador/frontend/backend), 3 colunas por severidade */}
           <div className="mb-6">
             <button
               type="button"
               onClick={() => setDetalhesAberto(!detalhesAberto)}
               className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600"
             >
-              {detalhesAberto ? '▼' : '▶'} Detalhes técnicos (erros da loja)
+              {detalhesAberto ? '▼' : '▶'} Logs de diagnóstico da loja (navegador · frontend · backend)
             </button>
             {detalhesAberto && (
-              <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+              <div className="mt-3">
                 {detalhesLoading ? (
                   <p className="text-gray-500 text-sm">Carregando...</p>
                 ) : detalhes ? (
-                  <>
-                    {/* Quando é exibido: período/limite */}
-                    {detalhes.periodo_exibido && (
-                      <div className="text-xs text-gray-500 bg-white/80 rounded px-3 py-2 border border-gray-200">
-                        <span className="font-medium text-gray-600">Quando é exibido:</span>{' '}
-                        {detalhes.periodo_exibido}
-                        {detalhes.limite_por_tipo != null && (
-                          <span> (máx. {detalhes.limite_por_tipo} por tipo)</span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Backend: cor vermelha */}
-                    <div className="rounded-lg border-2 border-red-200 bg-red-50/70 overflow-hidden">
-                      <h4 className="text-xs font-semibold uppercase px-3 py-2 bg-red-100 text-red-800 border-b border-red-200">
-                        🔴 Erros no backend (API)
-                      </h4>
-                      <div className="p-3">
-                        {detalhes.erros_backend.length === 0 ? (
-                          <p className="text-gray-500 text-sm">Nenhum erro recente.</p>
-                        ) : (
-                          <ul className="space-y-2 max-h-48 overflow-y-auto">
-                            {detalhes.erros_backend.map((e, i) => (
-                              <li key={i} className="text-sm border-l-4 border-red-500 pl-2 py-1.5 bg-white rounded pr-2">
-                                <span className="text-gray-500 text-xs block">
-                                  {e.created_at ? formatDateTime(e.created_at) : ''} — {e.metodo_http} {e.url}
-                                </span>
-                                <p className="text-red-900 font-mono text-xs break-all mt-0.5">{e.erro}</p>
-                                {e.usuario_email && (
-                                  <p className="text-gray-500 text-xs">Usuário: {e.usuario_email}</p>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    {/* Abas */}
+                    <div className="flex border-b border-gray-200 bg-gray-50">
+                      {([
+                        { chave: 'navegador', rotulo: '🌐 Navegador do cliente', itens: detalhes.erros_navegador },
+                        { chave: 'frontend', rotulo: '⚛️ Frontend', itens: detalhes.erros_frontend },
+                        { chave: 'backend', rotulo: '🖥️ Backend (API)', itens: detalhes.erros_backend },
+                      ] as const).map((aba) => (
+                        <button
+                          key={aba.chave}
+                          type="button"
+                          onClick={() => setAbaLog(aba.chave)}
+                          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                            abaLog === aba.chave
+                              ? 'border-blue-600 text-blue-700 bg-white'
+                              : 'border-transparent text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          {aba.rotulo}
+                          <span className="ml-1.5 text-xs text-gray-400">({aba.itens.length})</span>
+                        </button>
+                      ))}
                     </div>
-
-                    {/* Frontend: cor azul/laranja para diferenciar */}
-                    <div className="rounded-lg border-2 border-amber-300 bg-amber-50/70 overflow-hidden">
-                      <h4 className="text-xs font-semibold uppercase px-3 py-2 bg-amber-100 text-amber-900 border-b border-amber-200">
-                        🟠 Erros no navegador / frontend
-                      </h4>
-                      <div className="p-3">
-                        {detalhes.erros_frontend.length === 0 ? (
-                          <p className="text-gray-500 text-sm">Nenhum erro reportado pelo navegador da loja.</p>
-                        ) : (
-                          <ul className="space-y-2 max-h-48 overflow-y-auto">
-                            {detalhes.erros_frontend.map((e, i) => (
-                              <li key={i} className="text-sm border-l-4 border-amber-500 pl-2 py-1.5 bg-white rounded pr-2">
-                                <span className="text-gray-500 text-xs block">
-                                  {e.created_at ? formatDateTime(e.created_at) : ''}
-                                </span>
-                                <p className="text-amber-900 font-mono text-xs mt-0.5">{e.mensagem}</p>
-                                {e.url && <p className="text-gray-500 text-xs">URL: {e.url}</p>}
-                                {e.stack && (
-                                  <pre className="mt-1 text-xs text-gray-600 whitespace-pre-wrap break-all max-h-24 overflow-y-auto bg-gray-50 p-1 rounded">
-                                    {e.stack}
-                                  </pre>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
+                    {/* Conteúdo da aba: 3 colunas por severidade */}
+                    <div className="p-4 bg-white">
+                      {detalhes.periodo_exibido && (
+                        <p className="text-xs text-gray-400 mb-3">{detalhes.periodo_exibido}</p>
+                      )}
+                      {abaLog === 'navegador' && <PainelLogs itens={detalhes.erros_navegador} />}
+                      {abaLog === 'frontend' && <PainelLogs itens={detalhes.erros_frontend} />}
+                      {abaLog === 'backend' && <PainelLogs itens={detalhes.erros_backend} />}
                     </div>
-                  </>
+                  </div>
                 ) : null}
               </div>
             )}

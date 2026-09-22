@@ -114,6 +114,14 @@ class FotoQrLinkTests(TestCase):
 
 
 class ConsultaFotoPermissaoStatusTests(TestCase):
+    def setUp(self):
+        patcher = patch(
+            "superadmin.plano_features.loja_plano_permite_fotos",
+            return_value=(True, None),
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def _consulta(self, status_value, data_inicio=None):
         return SimpleNamespace(
             id=1, patient_id=2, loja_id=3, status=status_value, data_inicio=data_inicio,

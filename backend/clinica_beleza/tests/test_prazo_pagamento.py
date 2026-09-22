@@ -2,11 +2,12 @@
 
 Foco na lógica pura (SimpleTestCase + MagicMock), sem tocar o banco.
 """
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
+from django.utils import timezone
 
 from clinica_beleza.cobranca_service import (
     MENSAGEM_COBRANCA_PADRAO,
@@ -72,6 +73,12 @@ class TemPrazoPagamentoTest(SimpleTestCase):
 class PaymentVencidoTest(SimpleTestCase):
     """Properties esta_vencido / dias_atraso / em_aberto do Payment."""
 
+    def setUp(self):
+        hoje = timezone.make_aware(datetime(2026, 9, 21, 15, 0))
+        patcher = patch("django.utils.timezone.now", return_value=hoje)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def _payment(self, **kwargs):
         from clinica_beleza.models.financeiro import Payment
 
@@ -83,8 +90,8 @@ class PaymentVencidoTest(SimpleTestCase):
         return p
 
     def test_vencido_quando_venc_no_passado_e_em_aberto(self):
-        ontem = date.today() - timedelta(days=3)
-        p = self._payment(status="PENDING", data_vencimento=ontem)
+        vencimento = date(2026, 9, 18)
+        p = self._payment(status="PENDING", data_vencimento=vencimento)
         self.assertTrue(p.esta_vencido)
         self.assertEqual(p.dias_atraso, 3)
 
@@ -94,13 +101,11 @@ class PaymentVencidoTest(SimpleTestCase):
         self.assertEqual(p.dias_atraso, 0)
 
     def test_nao_vencido_com_venc_futuro(self):
-        amanha = date.today() + timedelta(days=5)
-        p = self._payment(status="PENDING", data_vencimento=amanha)
+        p = self._payment(status="PENDING", data_vencimento=date(2026, 9, 26))
         self.assertFalse(p.esta_vencido)
 
     def test_pago_nao_esta_vencido(self):
-        ontem = date.today() - timedelta(days=3)
-        p = self._payment(status="PAID", amount=Decimal(1000), data_vencimento=ontem)
+        p = self._payment(status="PAID", amount=Decimal(1000), data_vencimento=date(2026, 9, 18))
         self.assertFalse(p.esta_vencido)
 
 

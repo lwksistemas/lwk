@@ -71,7 +71,7 @@ class ReciboFormasPagamentoTests(SimpleTestCase):
         self.assertEqual(result[0]["valor"], 200.0)
 
     def test_listar_formas_payment_com_parcelas(self):
-        """Com parcelas PAID no mesmo dia: lista cada método (soma se repetir)."""
+        """Com parcelas PAID: cada forma traz a data em que o cliente pagou."""
         from datetime import date
 
         from clinica_beleza.recibo_service import _listar_formas_pagamento
@@ -90,9 +90,9 @@ class ReciboFormasPagamentoTests(SimpleTestCase):
 
         result = _listar_formas_pagamento(payment)
         self.assertEqual(len(result), 2)
-        self.assertEqual(result[0]["metodo"], "PIX")
+        self.assertEqual(result[0]["metodo"], "PIX (19/07/2026)")
         self.assertEqual(result[0]["valor"], 300.0)
-        self.assertEqual(result[1]["metodo"], "Cartão de Crédito")
+        self.assertEqual(result[1]["metodo"], "Cartão de Crédito (19/07/2026)")
         self.assertEqual(result[1]["valor"], 200.0)
 
     def test_listar_formas_soma_mesmo_dia_nao_soma_outro_dia(self):

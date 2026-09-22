@@ -136,7 +136,7 @@ export function FinanceiroReceitasTab({
                     </td>
                     <td className="py-3 px-4">
                       {p.retorno_gratuito
-                        ? "Retorno"
+                        ? "Isento"
                         : CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
@@ -158,7 +158,7 @@ export function FinanceiroReceitasTab({
                     <td className="py-3 px-4 col-allow-wrap">
                       {p.retorno_gratuito ? (
                         <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">
-                          Isento
+                          Retorno
                         </span>
                       ) : (
                         <>

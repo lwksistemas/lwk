@@ -237,7 +237,8 @@ export function ModalAtendimento({
 
         {/* Conteúdo - área rolável em tela grande */}
         <div className="p-6 overflow-y-auto flex-1">
-          {/* Informações do Chamado */}
+          {/* Informações do Chamado — ocultadas quando os logs de diagnóstico estão expandidos (mais espaço) */}
+          {!detalhesAberto && (
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <label className="text-sm font-medium text-gray-500">Loja</label>
@@ -273,14 +274,17 @@ export function ModalAtendimento({
               </p>
             </div>
           </div>
+          )}
 
-          {/* Descrição */}
+          {/* Descrição — também oculta quando os logs estão expandidos */}
+          {!detalhesAberto && (
           <div className="mb-6">
             <label className="text-sm font-medium text-gray-500 block mb-2">Descrição</label>
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
               <p className="text-gray-900 whitespace-pre-wrap">{chamado.descricao}</p>
             </div>
           </div>
+          )}
 
           {/* Logs de diagnóstico — 3 abas (navegador/frontend/backend), 3 colunas por severidade */}
           <div className="mb-6">

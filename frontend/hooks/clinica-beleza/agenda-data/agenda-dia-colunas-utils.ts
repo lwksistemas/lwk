@@ -450,6 +450,13 @@ export function templateLarguraColuna(
   return `minmax(${defaultWidth}px, 1fr)`;
 }
 
+/** Painel lateral oculto: cada coluna reparte a largura toda da grade. */
+export function templateColunasPreenchendo(quantidade: number, minPx: number): string {
+  if (quantidade <= 0) return "";
+  const faixa = `minmax(${minPx}px, 1fr)`;
+  return Array.from({ length: quantidade }, () => faixa).join(" ");
+}
+
 /** Um profissional no modo dia: a grade ocupa o espaço; o calendário fica na barra estreita. */
 export function deveExpandirLateralAgenda(numColunas: number, hasCustomWidths: boolean): boolean {
   return hasCustomWidths && numColunas > 1;

@@ -187,18 +187,19 @@ export function useCrmPropostasPage(slug: string) {
     }
   };
 
-  const filtroOpcoes = ['', 'rascunho', 'enviada', 'pedido', 'cancelada'].map((s) => ({
+  const filtroOpcoes = ['', 'rascunho', 'enviada', 'aguardando_vendedor', 'pedido', 'cancelada'].map((s) => ({
     value: s,
     label:
       s === ''
         ? `Todos (${filtroStatus === '' ? totalCount : propostas.length})`
-        : `${STATUS_LABEL[s] || s} (${
+        : `${s === 'aguardando_vendedor' ? 'Cliente assinou' : STATUS_LABEL[s] || s} (${
             filtroStatus === s
               ? totalCount
-              : propostas.filter(
-                  (p) =>
-                    p.status === s ||
-                    (s === 'pedido' && (p.status === 'aceita' || p.status === 'pedido')),
+              : propostas.filter((p) =>
+                  s === 'aguardando_vendedor'
+                    ? p.status_assinatura === 'aguardando_vendedor'
+                    : p.status === s ||
+                      (s === 'pedido' && (p.status === 'aceita' || p.status === 'pedido')),
                 ).length
           })`,
   }));

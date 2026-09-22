@@ -69,7 +69,7 @@ export function crmAssinaturaColunaLabels(statusAssinatura?: string): {
   subtitulo?: string;
 } {
   if (statusAssinatura === 'aguardando_vendedor') {
-    return { titulo: 'Vendedor assinar' };
+    return { titulo: 'Vendedor assinar', subtitulo: 'Reenviar' };
   }
   if (statusAssinatura === 'aguardando_cliente') {
     return { titulo: 'Cliente assinar', subtitulo: 'Reenviar' };

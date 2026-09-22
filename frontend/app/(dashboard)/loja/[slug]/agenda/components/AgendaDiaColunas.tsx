@@ -28,6 +28,7 @@ import {
 import { AlcaLarguraColuna, useAgendaColunaLargura } from "./useAgendaColunaLargura";
 import { useAgendaDiaArrasto } from "./useAgendaDiaArrasto";
 import { AgendaLateralDireita } from "./AgendaLateralDireita";
+import { BotaoOcultarLateralAgenda, useOcultarLateralAgenda } from "./useOcultarLateralAgenda";
 
 const PX_PER_HOUR = 72;
 const COL_MIN_WIDTH = 280;
@@ -119,7 +120,8 @@ export function AgendaDiaColunas({
     hasCustomWidths,
   } = useAgendaColunaLargura("agenda-col-w-dia", COL_MIN_WIDTH);
   const deveIgnorarClick = () => deveIgnorarArrasto() || deveIgnorarLargura();
-  const expandirLateral = deveExpandirLateralAgenda(colunas.length, hasCustomWidths);
+  const { ocultar: ocultarLateral, setOcultar: setOcultarLateral } = useOcultarLateralAgenda();
+  const expandirLateral = deveExpandirLateralAgenda(colunas.length, hasCustomWidths) && !ocultarLateral;
 
   useEffect(() => {
     onArrastoAtivo?.(Boolean(arrasto) || arrastandoLargura);
@@ -160,7 +162,11 @@ export function AgendaDiaColunas({
           </h2>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{weekday}</p>
         </div>
-        <div className="flex justify-end">
+        <div className="flex justify-end items-center gap-2">
+          <BotaoOcultarLateralAgenda
+            ocultar={ocultarLateral}
+            onToggle={() => setOcultarLateral((atual) => !atual)}
+          />
           <div className="inline-flex items-center rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 text-sm">
             <span
               className="px-3 py-1.5 font-medium text-white"
@@ -393,16 +399,18 @@ export function AgendaDiaColunas({
             </div>
           </div>
 
-          <AgendaLateralDireita
-            dateIso={dateIso}
-            onDateChange={onDateChange}
-            eventos={eventos}
-            selectedProfessional={selectedProfessional}
-            hoverDiaIso={arrasto?.modo === "mover" ? arrasto.hoverDiaIso : null}
-            deveIgnorarClick={deveIgnorarClick}
-            onOpenEvent={onOpenEvent}
-            expandToFill={expandirLateral}
-          />
+          {ocultarLateral ? null : (
+            <AgendaLateralDireita
+              dateIso={dateIso}
+              onDateChange={onDateChange}
+              eventos={eventos}
+              selectedProfessional={selectedProfessional}
+              hoverDiaIso={arrasto?.modo === "mover" ? arrasto.hoverDiaIso : null}
+              deveIgnorarClick={deveIgnorarClick}
+              onOpenEvent={onOpenEvent}
+              expandToFill={expandirLateral}
+            />
+          )}
         </div>
       )}
       {arrasto?.modo === "mover" && arrasto.moved && typeof document !== "undefined"

@@ -26,6 +26,7 @@ import {
 import { AlcaLarguraColuna, useAgendaColunaLargura } from "./useAgendaColunaLargura";
 import { useAgendaDiaArrasto } from "./useAgendaDiaArrasto";
 import { AgendaLateralDireita } from "./AgendaLateralDireita";
+import { BotaoOcultarLateralAgenda, useOcultarLateralAgenda } from "./useOcultarLateralAgenda";
 
 const PX_PER_HOUR = 72;
 const COL_MIN_WIDTH = 168;
@@ -133,6 +134,8 @@ export function AgendaSemanaColunas({
     hasCustomWidths,
   } = useAgendaColunaLargura("agenda-col-w-semana", COL_MIN_WIDTH);
   const deveIgnorarClick = () => deveIgnorarArrasto() || deveIgnorarLargura();
+  const { ocultar: ocultarLateral, setOcultar: setOcultarLateral } = useOcultarLateralAgenda();
+  const expandirLateral = hasCustomWidths && !ocultarLateral;
 
   useEffect(() => {
     onArrastoAtivo?.(Boolean(arrasto) || arrastandoLargura);
@@ -172,7 +175,11 @@ export function AgendaSemanaColunas({
             {tituloFaixa}
           </h2>
         </div>
-        <div className="flex justify-end">
+        <div className="flex justify-end items-center gap-2">
+          <BotaoOcultarLateralAgenda
+            ocultar={ocultarLateral}
+            onToggle={() => setOcultarLateral((atual) => !atual)}
+          />
           <div className="inline-flex items-center rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 text-sm">
             <button
               type="button"
@@ -198,11 +205,11 @@ export function AgendaSemanaColunas({
       <div className="flex flex-1 min-h-0">
         <div
           className={`min-h-0 overflow-auto agenda-scroll-root flex-1 ${
-            hasCustomWidths ? "lg:flex-none lg:max-w-[calc(100%-16rem)]" : ""
+            expandirLateral ? "lg:flex-none lg:max-w-[calc(100%-16rem)]" : ""
           }`}
         >
           <div
-            className={`grid h-full ${hasCustomWidths ? "w-max min-w-full lg:min-w-0" : "min-w-full"}`}
+            className={`grid h-full ${expandirLateral ? "w-max min-w-full lg:min-w-0" : "min-w-full"}`}
             style={{
               gridTemplateColumns: colunas.map((colIso) => template(chaveColunaSemana(colIso))).join(" "),
             }}
@@ -379,16 +386,18 @@ export function AgendaSemanaColunas({
           </div>
         </div>
 
-        <AgendaLateralDireita
-          dateIso={dateIso}
-          onDateChange={onDateChange}
-          eventos={eventos}
-          selectedProfessional={selectedProfessional}
-          hoverDiaIso={arrasto?.modo === "mover" ? arrasto.hoverDiaIso : null}
-          deveIgnorarClick={deveIgnorarClick}
-          onOpenEvent={onOpenEvent}
-          expandToFill={hasCustomWidths}
-        />
+        {ocultarLateral ? null : (
+          <AgendaLateralDireita
+            dateIso={dateIso}
+            onDateChange={onDateChange}
+            eventos={eventos}
+            selectedProfessional={selectedProfessional}
+            hoverDiaIso={arrasto?.modo === "mover" ? arrasto.hoverDiaIso : null}
+            deveIgnorarClick={deveIgnorarClick}
+            onOpenEvent={onOpenEvent}
+            expandToFill={expandirLateral}
+          />
+        )}
       </div>
 
       {arrasto?.modo === "mover" && arrasto.moved && typeof document !== "undefined"

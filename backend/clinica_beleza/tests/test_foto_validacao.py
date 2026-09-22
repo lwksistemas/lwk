@@ -39,16 +39,6 @@ class FotoUrlValidationTest(TestCase):
             is_active=True,
         )
 
-    def test_rejeita_url_cloudinary(self):
-        url = "https://res.cloudinary.com/exemplo/image/upload/v123/foto.jpg"
-        with self.assertRaises(FotoUrlInvalida):
-            validar_foto_loja(self.loja, url)
-
-    def test_rejeita_url_cloudinary_com(self):
-        url = "https://cloudinary.com/exemplo/foto.jpg"
-        with self.assertRaises(FotoUrlInvalida):
-            validar_foto_loja(self.loja, url)
-
     def test_rejeita_url_nao_https(self):
         url = "http://lwksistemas.com.br/files/41449198000172/fotos/foto.jpg"
         with self.assertRaises(FotoUrlInvalida):

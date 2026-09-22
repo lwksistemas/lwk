@@ -108,7 +108,7 @@ export function AgendaCalendarSection({
   isDraggingRef?: React.MutableRefObject<boolean>;
   professionals?: ClinicaProfessional[];
   onNovoHorario?: (date: Date, professionalId: number) => void;
-  onMoverGrade?: (evt: AgendaEventData, start: Date, professionalId: number) => void;
+  onMoverGrade?: (evt: AgendaEventData, start: Date, professionalId: number | null) => void;
   onRedimensionarGrade?: (evt: AgendaEventData, duracaoMinutos: number) => void;
 }) {
   const [gradeView, setGradeView] = useState<"day" | "week" | "month">("day");

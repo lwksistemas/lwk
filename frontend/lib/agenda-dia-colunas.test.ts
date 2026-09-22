@@ -16,6 +16,7 @@ import {
   duracaoResizeNaGrade,
   deveIgnorarClickGradeAgenda,
   marcarIgnorarClickGradeAgenda,
+  bloqueioHorarioArrastavel,
   eventProfessionalId,
   eventosDoDia,
   eventosDoDiaNaColuna,
@@ -437,6 +438,26 @@ describe("visual do bloqueio", () => {
     );
     expect(aguardando.borderLeft).toContain("solid");
     expect(aguardando.backgroundImage).toBeUndefined();
+    expect(
+      bloqueioHorarioArrastavel(
+        evt({
+          id: "b2",
+          start: "2026-09-22T12:00:00",
+          end: "2026-09-22T19:00:00",
+          extendedProps: { isBloqueio: true },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      bloqueioHorarioArrastavel(
+        evt({
+          id: "b3",
+          start: "2026-09-17T00:00:00",
+          end: "2026-09-25T23:59:00",
+          extendedProps: { isBloqueio: true },
+        }),
+      ),
+    ).toBe(false);
     expect(estilo.cor).not.toBe(aguardando.cor);
   });
 });

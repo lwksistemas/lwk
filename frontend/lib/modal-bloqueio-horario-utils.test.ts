@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBloqueioRequestBody,
+  buildBloqueiosPorDia,
+  enumerarDiasInclusivo,
   extractBloqueioApiError,
   modoSugeridoParaTipo,
   resolveMotivoBloqueio,
+  toggleDiaIso,
   validateBloqueioForm,
 } from "@/components/clinica-beleza/modal-bloqueio-horario/modal-bloqueio-horario-utils";
 
@@ -55,6 +58,20 @@ describe("validateBloqueioForm", () => {
         motivoFinal: "Férias",
         dataInicioDia: "2026-07-17",
         dataFimDia: "2026-07-17",
+      }),
+    ).toBeNull();
+    expect(
+      validateBloqueioForm({
+        modo: "dias",
+        motivoFinal: "Férias",
+        diasSelecionados: [],
+      }),
+    ).toContain("calendário");
+    expect(
+      validateBloqueioForm({
+        modo: "dias",
+        motivoFinal: "Férias",
+        diasSelecionados: ["2026-09-03", "2026-09-22"],
       }),
     ).toBeNull();
   });
@@ -123,6 +140,35 @@ describe("buildBloqueioRequestBody", () => {
     expect(body.professional).toBeUndefined();
     expect(typeof body.data_inicio).toBe("string");
     expect(typeof body.data_fim).toBe("string");
+  });
+});
+
+describe("dias soltos do mês", () => {
+  it("enumera o intervalo e aceita dias fora de sequência", () => {
+    expect(enumerarDiasInclusivo("2026-09-21", "2026-09-23")).toEqual([
+      "2026-09-21",
+      "2026-09-22",
+      "2026-09-23",
+    ]);
+    expect(enumerarDiasInclusivo("2026-09-23", "2026-09-21")).toEqual([]);
+    expect(toggleDiaIso(["2026-09-03", "2026-09-22"], "2026-09-10")).toEqual([
+      "2026-09-03",
+      "2026-09-10",
+      "2026-09-22",
+    ]);
+    expect(toggleDiaIso(["2026-09-03", "2026-09-22"], "2026-09-03")).toEqual(["2026-09-22"]);
+  });
+
+  it("gera um bloqueio de dia inteiro por data", () => {
+    const bodies = buildBloqueiosPorDia({
+      dias: ["2026-09-22", "2026-09-03"],
+      motivo: "Férias",
+      observacoes: "",
+      professionalId: "",
+    });
+    expect(bodies).toHaveLength(2);
+    expect(bodies.every((b) => b.dia_inteiro === true && b.motivo === "Férias")).toBe(true);
+    expect(bodies[0].data_inicio).not.toBe(bodies[1].data_inicio);
   });
 });
 

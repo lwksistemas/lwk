@@ -190,6 +190,19 @@ export function eventProfessionalId(evt: AgendaEventData): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Bloqueio de um dia só: a grade pode mover e puxar a borda, como o agendamento. */
+export function bloqueioHorarioArrastavel(evt: AgendaEventData): boolean {
+  if (!evt.extendedProps?.isBloqueio) return false;
+  const start = parseEventDate(evt.start);
+  const end = parseEventDate(evt.end);
+  if (!start || !end) return false;
+  return (
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth() &&
+    start.getDate() === end.getDate()
+  );
+}
+
 export type AgendaDiaProfissionalColuna = {
   id: number;
   nome: string;
@@ -369,7 +382,7 @@ export function mesmoHorarioLocal(a: Date, b: Date): boolean {
 export function movimentoGradeAlterou(
   evt: AgendaEventData,
   start: Date,
-  professionalId: number,
+  professionalId: number | null,
 ): boolean {
   const oldStart = parseEventDate(evt.start);
   const oldPid = eventProfessionalId(evt);

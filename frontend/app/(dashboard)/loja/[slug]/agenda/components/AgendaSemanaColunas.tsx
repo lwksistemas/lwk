@@ -21,6 +21,7 @@ import {
   snapMinutos,
   capitalizarAgenda,
   tituloCardAgenda,
+  templateColunasPreenchendo,
   toAgendaDiaIso,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 import { AlcaLarguraColuna, useAgendaColunaLargura } from "./useAgendaColunaLargura";
@@ -204,14 +205,18 @@ export function AgendaSemanaColunas({
 
       <div className="flex flex-1 min-h-0">
         <div
-          className={`min-h-0 overflow-auto agenda-scroll-root flex-1 ${
-            expandirLateral ? "lg:flex-none lg:max-w-[calc(100%-16rem)]" : ""
+          className={`min-h-0 min-w-0 overflow-auto agenda-scroll-root flex-1 ${
+            expandirLateral ? "lg:flex-none lg:max-w-[calc(100%-16rem)]" : "w-full"
           }`}
         >
           <div
-            className={`grid h-full ${expandirLateral ? "w-max min-w-full lg:min-w-0" : "min-w-full"}`}
+            className={`grid h-full ${
+              ocultarLateral ? "w-full" : expandirLateral ? "w-max min-w-full lg:min-w-0" : "min-w-full"
+            }`}
             style={{
-              gridTemplateColumns: colunas.map((colIso) => template(chaveColunaSemana(colIso))).join(" "),
+              gridTemplateColumns: ocultarLateral
+                ? templateColunasPreenchendo(colunas.length, COL_MIN_WIDTH)
+                : colunas.map((colIso) => template(chaveColunaSemana(colIso))).join(" "),
             }}
           >
             {colunas.map((colIso) => {

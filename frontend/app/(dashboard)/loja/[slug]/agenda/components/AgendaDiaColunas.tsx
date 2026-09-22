@@ -18,6 +18,7 @@ import {
   slotDateFromMinutes,
   snapMinutos,
   templateColunaAgendaDia,
+  templateColunasPreenchendo,
   estiloCardStatusAgenda,
   estiloInlineCardAgenda,
   rotuloStatusCardAgenda,
@@ -197,20 +198,24 @@ export function AgendaDiaColunas({
       ) : (
         <div className="flex flex-1 min-h-0">
           <div
-            className={`min-h-0 overflow-auto agenda-scroll-root flex-1 ${
-              expandirLateral ? "lg:flex-none lg:max-w-[calc(100%-16rem)]" : ""
+            className={`min-h-0 min-w-0 overflow-auto agenda-scroll-root flex-1 ${
+              expandirLateral ? "lg:flex-none lg:max-w-[calc(100%-16rem)]" : "w-full"
             }`}
           >
             <div
-              className={`grid h-full ${expandirLateral ? "w-max min-w-full lg:min-w-0" : "min-w-full"}`}
+              className={`grid h-full ${
+                ocultarLateral ? "w-full" : expandirLateral ? "w-max min-w-full lg:min-w-0" : "min-w-full"
+              }`}
               style={{
-                gridTemplateColumns: colunas
-                  .map((col) =>
-                    colunas.length <= 1
-                      ? templateColunaAgendaDia(undefined, COL_MIN_WIDTH, hasCustomWidths, 1)
-                      : template(`prof-${col.id}`),
-                  )
-                  .join(" "),
+                gridTemplateColumns: ocultarLateral
+                  ? templateColunasPreenchendo(colunas.length, COL_MIN_WIDTH)
+                  : colunas
+                      .map((col) =>
+                        colunas.length <= 1
+                          ? templateColunaAgendaDia(undefined, COL_MIN_WIDTH, hasCustomWidths, 1)
+                          : template(`prof-${col.id}`),
+                      )
+                      .join(" "),
               }}
             >
               {colunas.map((col) => {

@@ -5,6 +5,7 @@ import {
   arrastoMoveuDesdeOrigem,
   clampLarguraColuna,
   snapshotLargurasColunas,
+  templateColunasPreenchendo,
   templateLarguraColuna,
   templateColunaAgendaDia,
   deveExpandirLateralAgenda,
@@ -242,6 +243,15 @@ describe("templateLarguraColuna", () => {
   it("trava todas em px para o calendário lateral crescer", () => {
     expect(templateLarguraColuna(undefined, 280, true)).toBe("280px");
     expect(templateLarguraColuna(220, 280, true)).toBe("220px");
+  });
+});
+
+describe("templateColunasPreenchendo", () => {
+  it("reparte a largura entre as colunas quando o painel está oculto", () => {
+    expect(templateColunasPreenchendo(3, 280)).toBe(
+      "minmax(280px, 1fr) minmax(280px, 1fr) minmax(280px, 1fr)",
+    );
+    expect(templateColunasPreenchendo(0, 280)).toBe("");
   });
 });
 

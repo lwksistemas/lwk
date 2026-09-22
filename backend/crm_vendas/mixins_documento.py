@@ -43,6 +43,9 @@ class DocumentoQuerysetMixin:
         if status == "pedido":
             # Aba "Concluída" no CRM: aceita (assinada) + pedido (confirmado).
             qs = qs.filter(status__in=["aceita", "pedido"])
+        elif status == "aguardando_vendedor":
+            # Cliente já assinou; o comercial continua "enviada" até o vendedor assinar.
+            qs = qs.filter(status_assinatura="aguardando_vendedor")
         elif status:
             qs = qs.filter(status=status)
         return qs

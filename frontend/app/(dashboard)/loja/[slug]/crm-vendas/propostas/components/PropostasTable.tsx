@@ -5,7 +5,7 @@ import {
   CRM_STATUS_ASSINATURA_LABEL as STATUS_ASSINATURA_LABEL,
 } from '@/lib/crm-constants';
 import { formatDate } from '@/lib/financeiro-helpers';
-import { Eye, Edit2, Trash2, ClipboardList, FileSignature, Ban, ShoppingCart } from 'lucide-react';
+import { Eye, Edit2, Trash2, ClipboardList, FileSignature, Ban, ShoppingCart, Mail, MessageCircle } from 'lucide-react';
 import CrmEnviarAssinaturaColuna from '@/components/crm-vendas/CrmEnviarAssinaturaColuna';
 import CrmDocumentoStatusBadge from '@/components/crm-vendas/CrmDocumentoStatusBadge';
 import { CrmDocumentoEmptyState } from '@/components/crm-vendas/documentos/CrmDocumentoListPageShell';
@@ -177,6 +177,32 @@ export function PropostasTable({
                       {p.status !== 'cancelada' && (
                         <>
                           <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                          {p.status_assinatura === 'aguardando_vendedor' && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onEnviarCliente(p, 'whatsapp');
+                                  setMenuAberto(null);
+                                }}
+                                disabled={enviandoId !== null}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                              >
+                                <MessageCircle size={15} className="text-green-600" /> Reenviar ao vendedor (WhatsApp)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onEnviarCliente(p, 'email');
+                                  setMenuAberto(null);
+                                }}
+                                disabled={enviandoId !== null}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+                              >
+                                <Mail size={15} className="text-blue-600" /> Reenviar ao vendedor (e-mail)
+                              </button>
+                            </>
+                          )}
                           {p.status_assinatura !== 'concluido' && (
                             <button
                               type="button"

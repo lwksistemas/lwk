@@ -24,6 +24,6 @@ export const CRM_CONTRATO_STATUS_LABEL: Record<string, string> = {
 export const CRM_STATUS_ASSINATURA_LABEL: Record<string, string> = {
   rascunho: 'Rascunho',
   aguardando_cliente: 'Aguardando Cliente',
-  aguardando_vendedor: 'Aguardando Vendedor',
+  aguardando_vendedor: 'Cliente assinou',
   concluido: 'Concluído',
 };

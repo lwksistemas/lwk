@@ -229,24 +229,34 @@ class ReciboAssinaturaPublicaView(View):
             ip = ip.split(",")[0].strip()
         ua = request.META.get("HTTP_USER_AGENT", "")
 
-        # Recibo tem uma única parte (paciente): marca a assinatura e conclui.
-        assinatura.assinado = True
-        assinatura.assinado_em = timezone.now()
-        assinatura.ip_address = ip or "0.0.0.0"
-        assinatura.user_agent = (ua or "")[:500]
-        assinatura.save(update_fields=["assinado", "assinado_em", "ip_address", "user_agent", "updated_at"])
+        from .estoque_service import tenant_atomic
+        from .models import ReciboAssinatura
 
-        adapter.atualizar_status_assinatura(payment, "concluido")
-        adapter.on_assinatura_concluida(payment, loja_id)
-
-        # Envia o recibo assinado por email e WhatsApp (não bloqueia a resposta ao paciente).
-        from contextlib import suppress
-
-        with suppress(Exception):
-            enviar_recibo_assinado(
-                payment=payment, adapter=adapter, loja_id=loja_id,
-                user=request.user if request.user.is_authenticated else None,
+        with tenant_atomic():
+            locked = (
+                ReciboAssinatura.objects.select_for_update()
+                .filter(pk=assinatura.pk)
+                .first()
             )
+            if not locked or locked.assinado:
+                return JsonResponse({"error": "Este recibo já foi assinado."}, status=400)
+            if locked.token_expira_em and timezone.now() >= locked.token_expira_em:
+                return JsonResponse(
+                    {"error": "Link expirado. Solicite um novo envio à clínica."},
+                    status=400,
+                )
+            locked.assinado = True
+            locked.assinado_em = timezone.now()
+            locked.ip_address = ip or "0.0.0.0"
+            locked.user_agent = (ua or "")[:500]
+            locked.save(update_fields=["assinado", "assinado_em", "ip_address", "user_agent", "updated_at"])
+            adapter.atualizar_status_assinatura(payment, "concluido")
+
+        adapter.on_assinatura_concluida(payment, loja_id)
+        enviar_recibo_assinado(
+            payment=payment, adapter=adapter, loja_id=loja_id,
+            user=request.user if getattr(request.user, "is_authenticated", False) else None,
+        )
 
         return JsonResponse({
             "success": True,

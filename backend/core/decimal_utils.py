@@ -10,6 +10,9 @@ def to_decimal(value, field_name="valor"):
     if value is None or value == "":
         return None
     try:
-        return Decimal(str(value))
+        result = Decimal(str(value))
     except (InvalidOperation, TypeError, ValueError) as exc:
         raise ValueError(f"{field_name} inválido.") from exc
+    if not result.is_finite():
+        raise ValueError(f"{field_name} inválido.")
+    return result

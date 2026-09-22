@@ -9,6 +9,7 @@ from ._common import (
     _calcular_valor_total_com_desconto,
     _finalizar_payment_draft,
     _garantir_ou_criar_payment,
+    _log_movimento_financeiro,
     _normalize_entradas,
     _tenant_atomic,
     _tentar_nfse_pos_pagamento,
@@ -16,7 +17,21 @@ from ._common import (
 )
 
 
-def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=None, mark_as_paid=False, amount=None):
+def _agendar_nfse_pos_pagamento(consulta, payment):
+    """Emite a NFS-e só depois do commit. Rollback não deixa nota emitida."""
+    from tenants.middleware import get_current_tenant_db
+
+    using = get_current_tenant_db() or "default"
+
+    def _emitir_nfse():
+        _tentar_nfse_pos_pagamento(consulta, payment)
+
+    transaction.on_commit(_emitir_nfse, using=using)
+
+
+def _ensure_payment_for_appointment(
+    appointment, consulta, *, payment_method=None, mark_as_paid=False, amount=None, usuario=None,
+):
     """Garante lançamento financeiro do atendimento (cria ou atualiza)."""
     from clinica_beleza import consulta_service
 
@@ -44,7 +59,8 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
             loja_id=appointment.loja_id,
         )
         if mark_as_paid:
-            _tentar_nfse_pos_pagamento(consulta, payment)
+            _log_movimento_financeiro("Pagamento lançado", consulta, payment, usuario)
+            _agendar_nfse_pos_pagamento(consulta, payment)
         return payment
 
     if payment_method:
@@ -60,7 +76,8 @@ def _ensure_payment_for_appointment(appointment, consulta, *, payment_method=Non
     payment.comissao_valor = comissao_val
     payment.save()
     if mark_as_paid and not was_paid:
-        _tentar_nfse_pos_pagamento(consulta, payment)
+        _log_movimento_financeiro("Pagamento lançado", consulta, payment, usuario)
+        _agendar_nfse_pos_pagamento(consulta, payment)
     return payment
 
 
@@ -195,6 +212,7 @@ def registrar_recebimento_consulta(
     desconto=None,
     entradas=None,
     valor_procedimentos=None,
+    usuario=None,
 ):
     """Registra recebimento na consulta (total ou parcial) como rascunho (DRAFT).
 
@@ -274,18 +292,18 @@ def registrar_recebimento_consulta(
 
     _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_as_paid, ts)
     _atualizar_status_consulta_apos_recebimento(consulta, payment)
+    _log_movimento_financeiro("Recebimento registrado", consulta, payment, usuario)
     return payment
 
 
 @_tenant_atomic
-def publicar_pagamento_financeiro(consulta):
+def publicar_pagamento_financeiro(consulta, *, usuario=None):
     """Publica o rascunho de pagamento no Financeiro ao finalizar a consulta.
 
     DRAFT → PAID/PARTIAL + payment_date; dispara NFS-e se quitado.
     """
     from clinica_beleza import consulta_service
     from clinica_beleza.models import Consulta
-    from tenants.middleware import get_current_tenant_db
 
     consulta = (
         Consulta.objects.select_for_update(of=("self",))
@@ -344,21 +362,9 @@ def publicar_pagamento_financeiro(consulta):
         payment.data_vencimento = None
         payment.save(update_fields=["data_vencimento", "updated_at"])
 
+    if payment.status in ("PAID", "PARTIAL"):
+        _log_movimento_financeiro("Pagamento publicado", consulta, payment, usuario)
     if payment.status == "PAID":
-        payment_id = payment.id
-        consulta_id = consulta.id
-        using = get_current_tenant_db() or "default"
-
-        def _emitir_nfse():
-            from clinica_beleza import consulta_service as cs
-
-            from ...models.consultas import Consulta as ConsultaModel
-
-            pay = cs.Payment.objects.filter(pk=payment_id).first()
-            cons = ConsultaModel.objects.filter(pk=consulta_id).first()
-            if pay and cons:
-                _tentar_nfse_pos_pagamento(cons, pay)
-
-        transaction.on_commit(_emitir_nfse, using=using)
+        _agendar_nfse_pos_pagamento(consulta, payment)
 
     return payment

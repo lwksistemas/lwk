@@ -2,7 +2,6 @@
 from io import BytesIO
 from xml.sax.saxutils import escape
 
-import pytz
 from PIL import Image as PILImage
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
@@ -25,8 +24,11 @@ WM_OPACIDADE = 0.50
 def _ts_local(dt) -> str:
     if not dt:
         return "—"
-    tz = pytz.timezone("America/Sao_Paulo")
-    return dt.astimezone(tz).strftime("%d/%m/%Y %H:%M:%S")
+    from django.utils import timezone
+
+    if timezone.is_aware(dt):
+        dt = timezone.localtime(dt)
+    return dt.strftime("%d/%m/%Y %H:%M:%S")
 
 
 def _tel(raw: str) -> str:

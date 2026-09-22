@@ -56,17 +56,25 @@ def enviar_recibo_para_assinatura(*, payment, adapter, loja_id: int, canal: str,
 def enviar_recibo_assinado(*, payment, adapter, loja_id: int, user=None) -> None:
     """Envia o recibo já assinado por email (PDF anexado) e WhatsApp (documento).
 
-    Chamado quando a assinatura conclui. Não levanta — apenas registra falhas.
+    Chamado quando a assinatura conclui. Não levanta — registra a falha no log.
     """
-    from contextlib import suppress
-
-    with suppress(Exception):
+    try:
         from core.assinatura_service import enviar_pdf_final
 
         enviar_pdf_final(adapter, payment, loja_id)
+    except Exception:
+        logger.exception(
+            "Falha ao enviar recibo assinado por e-mail (payment %s)",
+            getattr(payment, "id", None),
+        )
 
-    with suppress(Exception):
+    try:
         _enviar_recibo_assinado_whatsapp(payment=payment, adapter=adapter, loja_id=loja_id, user=user)
+    except Exception:
+        logger.exception(
+            "Falha ao enviar recibo assinado por WhatsApp (payment %s)",
+            getattr(payment, "id", None),
+        )
 
 
 def _enviar_recibo_assinado_whatsapp(*, payment, adapter, loja_id: int, user=None) -> tuple[bool, str]:

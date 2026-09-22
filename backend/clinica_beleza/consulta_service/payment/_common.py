@@ -22,6 +22,23 @@ def _tenant_atomic(func):
     return wrapper
 
 
+def _log_movimento_financeiro(acao, consulta, payment, usuario=None, *, valor=None):
+    """Rastro de sucesso do financeiro: quem, quanto, método e quando (o logger traz o horário)."""
+    usuario_id = None
+    if usuario is not None and getattr(usuario, "is_authenticated", False):
+        usuario_id = getattr(usuario, "pk", None)
+    logger.info(
+        "%s consulta=%s payment=%s status=%s valor=%s metodo=%s usuario_id=%s",
+        acao,
+        getattr(consulta, "id", None),
+        getattr(payment, "pk", None),
+        getattr(payment, "status", None),
+        valor if valor is not None else getattr(payment, "amount", None),
+        getattr(payment, "payment_method", None),
+        usuario_id,
+    )
+
+
 def _tem_entrada_prazo(lista) -> bool:
     """True se alguma entrada usa a forma 'a prazo'."""
     return bool(lista) and any(e.get("payment_method") == _METODO_PRAZO for e in lista)

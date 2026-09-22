@@ -185,6 +185,7 @@ def _publicar_ou_garantir_pagamento_ao_finalizar(
     payment_method=None,
     mark_as_paid=False,
     amount=None,
+    usuario=None,
 ):
     """Publica DRAFT no Financeiro ou cria lançamento se ainda não houver PAID."""
     from clinica_beleza import consulta_service
@@ -193,11 +194,12 @@ def _publicar_ou_garantir_pagamento_ao_finalizar(
 
     payment = Payment.objects.filter(appointment=appointment).first()
     if payment and payment.status == "DRAFT":
-        consulta_service.publicar_pagamento_financeiro(consulta)
+        consulta_service.publicar_pagamento_financeiro(consulta, usuario=usuario)
     elif not Payment.objects.filter(appointment=appointment, status="PAID").exists():
         consulta_service._ensure_payment_for_appointment(
             appointment, consulta,
             payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
+            usuario=usuario,
         )
 
 
@@ -209,6 +211,7 @@ def finalizar_consulta(
     amount=None,
     local_atendimento_id=None,
     skip_estoque=False,
+    usuario=None,
 ):
     """Finaliza consulta clínica: agenda → COMPLETED, consulta concluída e lançamento financeiro.
     Baixa produtos do estoque registrados na consulta.
@@ -239,6 +242,7 @@ def finalizar_consulta(
         _publicar_ou_garantir_pagamento_ao_finalizar(
             consulta, appointment,
             payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
+            usuario=usuario,
         )
         consulta.refresh_from_db()
         return consulta
@@ -282,6 +286,7 @@ def finalizar_consulta(
     _publicar_ou_garantir_pagamento_ao_finalizar(
         consulta, appointment,
         payment_method=payment_method, mark_as_paid=mark_as_paid, amount=amount,
+        usuario=usuario,
     )
     consulta.refresh_from_db()
     return consulta

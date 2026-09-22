@@ -3,7 +3,12 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from nfse_integration.queue_tasks import run_emissao_nfse_loja
+
+# close_old_connections() só toca o banco depois que outro teste da suíte abriu conexão.
+pytestmark = pytest.mark.django_db
 
 
 class NFSeQueueTenantTest(TestCase):

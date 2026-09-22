@@ -50,7 +50,9 @@ def _busca_contas(term, term_digits, vendedor_id, request, limit, q_icontains_se
     """Busca contas por nome/razão social/cnpj/email/telefone."""
     f = q_icontains_sem_acento(term, "nome", "razao_social", "email") | Q(telefone__icontains=term) | Q(cnpj__icontains=term)
     if term_digits and len(term_digits) >= 3:
-        f |= Q(cnpj__icontains=term_digits) | Q(telefone__icontains=term_digits)
+        from .views_common import q_contem_digitos_ignorando_mascara
+        f |= q_contem_digitos_ignorando_mascara("cnpj", term_digits)
+        f |= q_contem_digitos_ignorando_mascara("telefone", term_digits)
     qs = _aplicar_filtro_vendedor(Conta.objects.filter(f), vendedor_id, request)
     return list(qs.values("id", "nome", "segmento", "cnpj")[:limit])
 

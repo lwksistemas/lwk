@@ -32,6 +32,17 @@ def filtrar_queryset_por_query_params(queryset, request, param_field_map: dict[s
     return queryset
 
 
+def q_contem_digitos_ignorando_mascara(campo: str, digitos: str):
+    """Casa os dígitos mesmo quando o valor salvo tem pontuação (CNPJ, CPF, telefone)."""
+    from django.db.models import Q
+
+    numeros = re.sub(r"\D", "", digitos or "")
+    if len(numeros) < 3:
+        return Q()
+    padrao = r"\D*".join(re.escape(d) for d in numeros)
+    return Q(**{f"{campo}__iregex": padrao})
+
+
 def filtrar_queryset_busca_texto(queryset, request, q_filter_builder):
     """Filtra ?q=termo (mín. 2 caracteres) usando builder que recebe (term, term_digits).
     """
@@ -53,7 +64,8 @@ def _build_q_lead_busca(term: str, term_digits: str):
         | Q(cpf_cnpj__icontains=term)
     )
     if term_digits and len(term_digits) >= 3:
-        q_filter |= Q(cpf_cnpj__icontains=term_digits) | Q(telefone__icontains=term_digits)
+        q_filter |= q_contem_digitos_ignorando_mascara("cpf_cnpj", term_digits)
+        q_filter |= q_contem_digitos_ignorando_mascara("telefone", term_digits)
     return q_filter
 
 
@@ -68,7 +80,8 @@ def _build_q_conta_busca(term: str, term_digits: str):
         | Q(cnpj__icontains=term)
     )
     if term_digits and len(term_digits) >= 3:
-        q_filter |= Q(cnpj__icontains=term_digits) | Q(telefone__icontains=term_digits)
+        q_filter |= q_contem_digitos_ignorando_mascara("cnpj", term_digits)
+        q_filter |= q_contem_digitos_ignorando_mascara("telefone", term_digits)
     return q_filter
 
 

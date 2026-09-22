@@ -4,8 +4,10 @@ import { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { clinicaBelezaQueryKeys } from "@/lib/clinica-beleza-cadastros-api";
-import { arredondarDuracaoAgendaMin } from "@/lib/clinica-beleza-datetime";
+import { arredondarDuracaoAgendaMin, parseEventDate } from "@/lib/clinica-beleza-datetime";
+import type { BloqueioHorario } from "@/lib/clinica-beleza-entities";
 import type { AgendaConflictPayload, AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
+import { duracaoEventoMinutos, eventProfessionalId } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 import type { ConflitoAgendaData } from "@/components/clinica-beleza/ModalConflitoAgenda";
 import { mergeRawAgendaEvent, versaoAgenda } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import { useToast } from "@/components/ui/Toast";
@@ -171,12 +173,84 @@ export function useAgendaMutations({
     }
   }, [atualizarBloqueioHorario, gravarEventoSalvo, patchAgendamento, queryClient, selectedProfessional, toast]);
 
+  const salvarHorarioBloqueioGrade = useCallback(async (
+    evt: AgendaEventData,
+    start: Date,
+    end: Date,
+    professionalId: number | null,
+  ) => {
+    const bloqueioId = Number(evt.extendedProps?.bloqueioId);
+    if (!bloqueioId || end <= start) {
+      toast.error("O fim do bloqueio deve ser depois do início.");
+      return;
+    }
+    if (isMutatingRef.current) {
+      toast.warning("Aguarde o bloqueio salvar antes de ajustar de novo.");
+      return;
+    }
+    const motivoRaw = evt.extendedProps?.motivo || evt.title || "Bloqueio";
+    const motivo = String(motivoRaw).replace(/^🚫\s*/, "").trim() || "Bloqueio";
+    const body: Record<string, unknown> = {
+      data_inicio: start.toISOString(),
+      data_fim: end.toISOString(),
+      motivo,
+    };
+    const profOriginal = eventProfessionalId(evt);
+    const profNovo = profOriginal == null ? null : professionalId;
+    if (profNovo != null) body.professional = profNovo;
+
+    const cacheKey = clinicaBelezaQueryKeys.agendaBloqueios(selectedProfessional);
+    const previous = queryClient.getQueryData<BloqueioHorario[]>(cacheKey);
+    queryClient.setQueryData<BloqueioHorario[]>(cacheKey, (old) =>
+      (old ?? []).map((b) =>
+        b.id === bloqueioId
+          ? {
+              ...b,
+              data_inicio: start.toISOString(),
+              data_fim: end.toISOString(),
+              professional: profNovo ?? b.professional,
+            }
+          : b,
+      ),
+    );
+    isMutatingRef.current = true;
+    try {
+      const res = await clinicaBelezaFetch(`/bloqueios/${bloqueioId}/`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        queryClient.setQueryData(cacheKey, previous);
+        const msg = data.error || data.detail || (Array.isArray(data.data_fim) ? data.data_fim[0] : null) || "Erro ao atualizar bloqueio.";
+        toast.error(typeof msg === "string" ? msg : "Erro ao atualizar bloqueio.");
+        return;
+      }
+      await queryClient.refetchQueries({ queryKey: cacheKey });
+    } catch (error) {
+      queryClient.setQueryData(cacheKey, previous);
+      logger.warn("Erro ao atualizar bloqueio na grade:", error);
+      toast.error("Erro ao atualizar bloqueio. Tente novamente.");
+    } finally {
+      setTimeout(() => { isMutatingRef.current = false; }, 400);
+    }
+  }, [queryClient, selectedProfessional, toast]);
+
   const moverAgendamentoGrade = useCallback(async (
     evt: AgendaEventData,
     start: Date,
-    professionalId: number,
+    professionalId: number | null,
   ) => {
-    if (evt.extendedProps?.isIntervalo || evt.extendedProps?.isBloqueio) return;
+    if (evt.extendedProps?.isIntervalo) return;
+    if (evt.extendedProps?.isBloqueio) {
+      const antigo = parseEventDate(evt.start);
+      const fimAntigo = parseEventDate(evt.end) || antigo;
+      if (!antigo || !fimAntigo) return;
+      const duracao = duracaoEventoMinutos(evt, antigo, fimAntigo);
+      const end = new Date(start.getTime() + Math.max(5, duracao) * 60_000);
+      await salvarHorarioBloqueioGrade(evt, start, end, professionalId);
+      return;
+    }
     const dbId = evt.extendedProps?.dbId ?? evt.id;
     if (typeof dbId === "string" && dbId.startsWith("offline-")) {
       toast.warning("Agendamento offline. Aguarde a sincronização para mover.");
@@ -224,13 +298,21 @@ export function useAgendaMutations({
     } finally {
       setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [patchAgendamento, queryClient, selectedProfessional, toast]);
+  }, [patchAgendamento, queryClient, salvarHorarioBloqueioGrade, selectedProfessional, toast]);
 
   const redimensionarAgendamentoGrade = useCallback(async (
     evt: AgendaEventData,
     duracaoMinutos: number,
   ) => {
-    if (evt.extendedProps?.isIntervalo || evt.extendedProps?.isBloqueio) return;
+    if (evt.extendedProps?.isIntervalo) return;
+    if (evt.extendedProps?.isBloqueio) {
+      const start = parseEventDate(evt.start);
+      if (!start) return;
+      const duracao = arredondarDuracaoAgendaMin(duracaoMinutos);
+      const end = new Date(start.getTime() + duracao * 60_000);
+      await salvarHorarioBloqueioGrade(evt, start, end, eventProfessionalId(evt));
+      return;
+    }
     if (evt.extendedProps?.status === "CANCELLED") {
       toast.warning("Não é possível alterar a duração de um agendamento cancelado.");
       return;
@@ -280,7 +362,7 @@ export function useAgendaMutations({
     } finally {
       setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [patchAgendamento, queryClient, selectedProfessional, toast]);
+  }, [patchAgendamento, queryClient, salvarHorarioBloqueioGrade, selectedProfessional, toast]);
 
   const redimensionarEvento = useCallback(async (info: EventResizeDoneArg) => {
     if (info.event.extendedProps?.isIntervalo) {

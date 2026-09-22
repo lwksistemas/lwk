@@ -6,6 +6,7 @@ import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { formatClinicaHora } from "@/lib/clinica-beleza-datetime";
 import {
   addDaysIso,
+  bloqueioHorarioArrastavel,
   diasSemanaIso,
   estiloCardStatusAgenda,
   estiloInlineCardAgenda,
@@ -77,7 +78,7 @@ export function AgendaSemanaColunas({
   onOpenEvent: (evt: AgendaEventData) => void;
   onSlotClick: (date: Date, professionalId: number) => void;
   onMudarVisao: (view: "day" | "month") => void;
-  onMover?: (evt: AgendaEventData, start: Date, professionalId: number) => void;
+  onMover?: (evt: AgendaEventData, start: Date, professionalId: number | null) => void;
   onRedimensionar?: (evt: AgendaEventData, duracaoMinutos: number) => void;
   onArrastoAtivo?: (ativo: boolean) => void;
 }) {
@@ -288,6 +289,7 @@ export function AgendaSemanaColunas({
                       const height = Math.max(36, durationMin * pxPerMin - 4);
                       const intervalo = Boolean(evt.extendedProps?.isIntervalo);
                       const bloqueio = Boolean(evt.extendedProps?.isBloqueio);
+                      const arrastaHorario = !intervalo && (!bloqueio || bloqueioHorarioArrastavel(evt));
                       const estilo = estiloCardStatusAgenda(evt);
                       const arrastandoEste = arrasto?.modo === "mover" && arrasto.evt.id === evt.id && arrasto.moved;
                       const fimPreview = new Date(start.getTime() + durationMin * 60_000);
@@ -300,7 +302,7 @@ export function AgendaSemanaColunas({
                           data-agenda-card-id={evt.id}
                           onPointerDown={(e) => {
                             if (e.button !== 0) return;
-                            if (intervalo || bloqueio) return;
+                            if (!arrastaHorario) return;
                             if ((e.target as HTMLElement).closest("[data-agenda-resize]")) return;
                             iniciarMover(evt, start, end, e);
                           }}
@@ -325,7 +327,7 @@ export function AgendaSemanaColunas({
                             left: `calc(${TIME_COL_W}px + ${lane} * ((100% - ${TIME_COL_W + 6}px) / ${lanes}))`,
                             width: `calc((100% - ${TIME_COL_W + 6}px) / ${lanes} - 4px)`,
                             ...estiloInlineCardAgenda(evt),
-                            cursor: intervalo || bloqueio ? "default" : "grab",
+                            cursor: arrastaHorario ? "grab" : "default",
                           }}
                         >
                           <div className="flex items-start justify-between gap-1">
@@ -351,7 +353,7 @@ export function AgendaSemanaColunas({
                           {height > 56 ? (
                             <p className="agenda-card-sub text-[11px] text-gray-500 truncate">{subtituloCard(evt)}</p>
                           ) : null}
-                          {!intervalo && !bloqueio ? (
+                          {arrastaHorario ? (
                             <span
                               data-agenda-resize
                               className="absolute left-0 right-0 bottom-0 h-4 cursor-ns-resize flex items-end justify-center pb-0.5"

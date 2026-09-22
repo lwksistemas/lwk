@@ -5,6 +5,7 @@ import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import {
   AGENDA_SUPRIMIR_CLICK_MS,
   arrastoMoveuDesdeOrigem,
+  bloqueioHorarioArrastavel,
   clampMinutosInicio,
   combinarDiaEHorario,
   deveIgnorarClickGradeAgenda,
@@ -23,7 +24,7 @@ export type AgendaDiaArrasto =
       evt: AgendaEventData;
       start: Date;
       end: Date;
-      professionalId: number;
+      professionalId: number | null;
       durationMin: number;
       offsetY: number;
       originX: number;
@@ -38,7 +39,7 @@ export type AgendaDiaArrasto =
       modo: "resize";
       evt: AgendaEventData;
       start: Date;
-      professionalId: number;
+      professionalId: number | null;
       startMin: number;
       durationMin: number;
       originalDurationMin: number;
@@ -76,7 +77,7 @@ export function useAgendaDiaArrasto({
   minMin: number;
   maxMin: number;
   pxPerMin: number;
-  onMover?: (evt: AgendaEventData, start: Date, professionalId: number) => void;
+  onMover?: (evt: AgendaEventData, start: Date, professionalId: number | null) => void;
   onRedimensionar?: (evt: AgendaEventData, duracaoMinutos: number) => void;
   onDateChange: (iso: string) => void;
 }) {
@@ -117,9 +118,10 @@ export function useAgendaDiaArrasto({
     end: Date,
     e: React.PointerEvent,
   ) => {
-    if (evt.extendedProps?.isIntervalo || evt.extendedProps?.isBloqueio) return;
+    if (evt.extendedProps?.isIntervalo) return;
+    if (evt.extendedProps?.isBloqueio && !bloqueioHorarioArrastavel(evt)) return;
     const professionalId = eventProfessionalId(evt);
-    if (professionalId == null) return;
+    if (professionalId == null && !evt.extendedProps?.isBloqueio) return;
     const card = (e.currentTarget as HTMLElement).closest("[data-agenda-card]") as HTMLElement | null;
     const top = card?.getBoundingClientRect().top ?? e.clientY;
     const next: AgendaDiaArrasto = {
@@ -147,9 +149,10 @@ export function useAgendaDiaArrasto({
     e: React.PointerEvent,
   ) => {
     e.stopPropagation();
-    if (evt.extendedProps?.isIntervalo || evt.extendedProps?.isBloqueio) return;
+    if (evt.extendedProps?.isIntervalo) return;
+    if (evt.extendedProps?.isBloqueio && !bloqueioHorarioArrastavel(evt)) return;
     const professionalId = eventProfessionalId(evt);
-    if (professionalId == null) return;
+    if (professionalId == null && !evt.extendedProps?.isBloqueio) return;
     try {
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     } catch {
@@ -267,6 +270,10 @@ export function useAgendaDiaArrasto({
       }
       const pid = Number(hit.getAttribute("data-agenda-coluna"));
       if (!Number.isFinite(pid)) return;
+      const professionalId =
+        atual.evt.extendedProps?.isBloqueio && eventProfessionalId(atual.evt) == null
+          ? null
+          : pid;
       const gridTop = hit.getBoundingClientRect().top;
       const minutes = clampMinutosInicio(
         minutosArrastoNaGrade(e.clientY, gridTop, minMin, pxPerMin, atual.offsetY),
@@ -275,8 +282,8 @@ export function useAgendaDiaArrasto({
         atual.durationMin,
       );
       const start = slotDateFromMinutes(dateIso, minutes);
-      if (movimentoGradeAlterou(atual.evt, start, pid)) {
-        onMover?.(atual.evt, start, pid);
+      if (movimentoGradeAlterou(atual.evt, start, professionalId)) {
+        onMover?.(atual.evt, start, professionalId);
       }
     };
 

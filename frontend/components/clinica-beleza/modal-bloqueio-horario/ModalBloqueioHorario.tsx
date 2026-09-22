@@ -1,10 +1,13 @@
 "use client";
 
-import { X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
   MODOS_BLOQUEIO_INTERVALO,
   TIPOS_BLOQUEIO,
+  deslocarMes,
+  gradeMesSegunda,
   profissionalBloqueioLabel,
+  rotuloMesBloqueio,
   type BloqueioProfessional,
 } from "./modal-bloqueio-horario-utils";
 import { useModalBloqueioHorario } from "./useModalBloqueioHorario";
@@ -20,6 +23,8 @@ export interface ModalBloqueioHorarioProps {
 
 const fieldClass =
   "w-full px-3 py-2.5 min-h-[44px] border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-[#8B4557] focus:border-transparent";
+
+const DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 export function ModalBloqueioHorario({
   isOpen,
@@ -146,30 +151,99 @@ export function ModalBloqueioHorario({
             )}
 
             {state.modo === "dias" ? (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Data início *
-                  </label>
-                  <input
-                    type="date"
-                    value={state.dataInicioDia}
-                    onChange={(e) => state.setDataInicioDia(e.target.value)}
-                    className={fieldClass}
-                  />
+              <div className="md:col-span-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Dias do mês
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700"
+                      aria-label="Mês anterior"
+                      onClick={() => state.setMesCursor(deslocarMes(state.mesCursor || state.dataInicioDia, -1))}
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <span className="min-w-[9.5rem] text-center text-sm font-semibold text-gray-800 dark:text-gray-100 capitalize">
+                      {rotuloMesBloqueio(state.mesCursor || state.dataInicioDia)}
+                    </span>
+                    <button
+                      type="button"
+                      className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700"
+                      aria-label="Próximo mês"
+                      onClick={() => state.setMesCursor(deslocarMes(state.mesCursor || state.dataInicioDia, 1))}
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Data fim *
-                  </label>
-                  <input
-                    type="date"
-                    value={state.dataFimDia}
-                    onChange={(e) => state.setDataFimDia(e.target.value)}
-                    className={fieldClass}
-                  />
+                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  {DIAS_SEMANA.map((dia) => (
+                    <span key={dia}>{dia}</span>
+                  ))}
                 </div>
-              </>
+                <div className="grid grid-cols-7 gap-1">
+                  {gradeMesSegunda(state.mesCursor || state.dataInicioDia).map((cell) => {
+                    const marcado = state.diasSelecionados.includes(cell.iso);
+                    const numero = Number(cell.iso.slice(8, 10));
+                    return (
+                      <button
+                        key={cell.iso}
+                        type="button"
+                        disabled={!cell.inMonth}
+                        onClick={() => state.toggleDia(cell.iso)}
+                        className={`h-9 rounded-lg text-sm font-medium transition-colors ${
+                          !cell.inMonth
+                            ? "text-transparent cursor-default"
+                            : marcado
+                              ? "bg-[#8B4557] text-white"
+                              : "text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-neutral-700"
+                        }`}
+                        aria-pressed={marcado}
+                        aria-label={cell.iso.split("-").reverse().join("/")}
+                      >
+                        {cell.inMonth ? numero : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  {state.diasSelecionados.length === 0
+                    ? "Nenhum dia marcado."
+                    : `${state.diasSelecionados.length} dia(s): ${[...state.diasSelecionados].sort().map((d) => d.slice(8) + "/" + d.slice(5, 7)).join(", ")}`}
+                </p>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Incluir do dia
+                    </label>
+                    <input
+                      type="date"
+                      value={state.dataInicioDia}
+                      onChange={(e) => {
+                        state.setDataInicioDia(e.target.value);
+                        state.definirPeloIntervalo(e.target.value, state.dataFimDia);
+                      }}
+                      className={fieldClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      até o dia
+                    </label>
+                    <input
+                      type="date"
+                      value={state.dataFimDia}
+                      onChange={(e) => {
+                        state.setDataFimDia(e.target.value);
+                        state.definirPeloIntervalo(state.dataInicioDia, e.target.value);
+                      }}
+                      className={fieldClass}
+                    />
+                  </div>
+                </div>
+              </div>
             ) : (
               <>
                 <div className="md:col-span-2">
@@ -224,8 +298,8 @@ export function ModalBloqueioHorario({
 
           <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
             {state.modo === "dias"
-              ? "Bloqueia o(s) dia(s) inteiro(s) no intervalo (ex.: férias de 17 a 25)."
-              : "Bloqueia apenas o horário no dia escolhido (ex.: 13:00–17:00)."}{" "}
+              ? "Clique nos dias do mês para marcar ou desmarcar. Mudar o intervalo substitui os dias marcados. Cada dia vira um bloqueio próprio."
+              : "Bloqueia apenas o horário no dia escolhido (ex.: 13:00–17:00). Na agenda, puxe a borda de baixo do bloqueio para aumentar ou diminuir o horário."}{" "}
             O intervalo de almoço do profissional é configurado em Profissionais → Horários de trabalho.
           </p>
         </div>

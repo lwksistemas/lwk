@@ -36,12 +36,76 @@ export function modoSugeridoParaTipo(tipoSelecionado: string): ModoBloqueioInter
   return (TIPOS_SUGEREM_DIAS as readonly string[]).includes(tipoSelecionado) ? "dias" : "horario";
 }
 
+export function ymdLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Dias inclusivos entre duas datas YYYY-MM-DD. Vazio se o intervalo for inválido. */
+export function enumerarDiasInclusivo(inicio: string, fim: string, limite = 62): string[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(fim)) return [];
+  if (fim < inicio) return [];
+  const [y, m, d] = inicio.split("-").map(Number);
+  const cur = new Date(y, (m || 1) - 1, d || 1);
+  const [y2, m2, d2] = fim.split("-").map(Number);
+  const end = new Date(y2, (m2 || 1) - 1, d2 || 1);
+  const out: string[] = [];
+  while (cur <= end && out.length < limite) {
+    out.push(ymdLocal(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
+
+export function toggleDiaIso(dias: string[], dia: string): string[] {
+  if (dias.includes(dia)) return dias.filter((d) => d !== dia);
+  return [...dias, dia].sort();
+}
+
+/** Grade do mês começando na segunda-feira. */
+export function gradeMesSegunda(iso: string): { iso: string; inMonth: boolean }[] {
+  const [y, mo] = iso.split("-").map(Number);
+  const first = new Date(y, (mo || 1) - 1, 1);
+  const weekday = first.getDay();
+  const delta = weekday === 0 ? -6 : 1 - weekday;
+  const start = new Date(first);
+  start.setDate(1 + delta);
+  const cells: { iso: string; inMonth: boolean }[] = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    cells.push({
+      iso: ymdLocal(d),
+      inMonth: d.getMonth() === first.getMonth(),
+    });
+  }
+  return cells;
+}
+
+export function deslocarMes(iso: string, delta: number): string {
+  const [y, mo] = iso.split("-").map(Number);
+  return ymdLocal(new Date(y, (mo || 1) - 1 + delta, 1));
+}
+
+export function rotuloMesBloqueio(iso: string): string {
+  const [y, mo] = iso.split("-").map(Number);
+  const label = new Date(y, (mo || 1) - 1, 1).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 export function validateBloqueioForm(params: {
   modo: ModoBloqueioIntervalo;
   motivoFinal: string;
   /** YYYY-MM-DD — modo dias */
   dataInicioDia?: string;
   dataFimDia?: string;
+  /** Dias marcados no calendário. Se vier a lista, ela manda no modo dias. */
+  diasSelecionados?: string[];
   /** YYYY-MM-DD — modo horario */
   dataHorario?: string;
   horaInicio?: string;
@@ -51,6 +115,10 @@ export function validateBloqueioForm(params: {
   if (!motivoFinal.trim()) return "Informe o motivo (tipo ou outro).";
 
   if (modo === "dias") {
+    if (params.diasSelecionados) {
+      if (params.diasSelecionados.length === 0) return "Marque pelo menos um dia no calendário.";
+      return null;
+    }
     const { dataInicioDia, dataFimDia } = params;
     if (!dataInicioDia || !dataFimDia) return "Preencha a data de início e a data de fim.";
     if (dataFimDia < dataInicioDia) return "A data de fim deve ser igual ou depois da data de início.";
@@ -104,6 +172,25 @@ export function buildBloqueioRequestBody(params: {
   body.data_inicio = inicioDate.toISOString();
   body.data_fim = fimDate.toISOString();
   return body;
+}
+
+/** Um bloqueio de dia inteiro para cada data marcada. */
+export function buildBloqueiosPorDia(params: {
+  dias: string[];
+  motivo: string;
+  observacoes: string;
+  professionalId: string;
+}): Record<string, unknown>[] {
+  return [...params.dias].sort().map((dia) =>
+    buildBloqueioRequestBody({
+      modo: "dias",
+      motivo: params.motivo,
+      observacoes: params.observacoes,
+      professionalId: params.professionalId,
+      dataInicioDia: dia,
+      dataFimDia: dia,
+    }),
+  );
 }
 
 export function extractBloqueioApiError(data: Record<string, unknown>, status: number): string {

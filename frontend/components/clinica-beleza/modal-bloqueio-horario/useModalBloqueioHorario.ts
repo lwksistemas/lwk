@@ -4,11 +4,14 @@ import type { BloqueioProfessional, ModoBloqueioIntervalo } from "./modal-bloque
 import {
   TIPOS_BLOQUEIO,
   buildBloqueioRequestBody,
+  buildBloqueiosPorDia,
+  enumerarDiasInclusivo,
   extractBloqueioApiError,
   formatDateInput,
   formatTimeInput,
   modoSugeridoParaTipo,
   resolveMotivoBloqueio,
+  toggleDiaIso,
   validateBloqueioForm,
 } from "./modal-bloqueio-horario-utils";
 
@@ -30,6 +33,8 @@ export function useModalBloqueioHorario({
   const [modo, setModo] = useState<ModoBloqueioIntervalo>("horario");
   const [dataInicioDia, setDataInicioDia] = useState("");
   const [dataFimDia, setDataFimDia] = useState("");
+  const [diasSelecionados, setDiasSelecionados] = useState<string[]>([]);
+  const [mesCursor, setMesCursor] = useState("");
   const [dataHorario, setDataHorario] = useState("");
   const [horaInicio, setHoraInicio] = useState("");
   const [horaFim, setHoraFim] = useState("");
@@ -57,6 +62,8 @@ export function useModalBloqueioHorario({
     const dia = formatDateInput(base);
     setDataInicioDia(dia);
     setDataFimDia(dia);
+    setDiasSelecionados([dia]);
+    setMesCursor(dia);
     setDataHorario(dia);
 
     const inicio = new Date(base);
@@ -72,12 +79,26 @@ export function useModalBloqueioHorario({
     setModo(modoSugeridoParaTipo(tipo));
   }, []);
 
+  const definirPeloIntervalo = useCallback((inicio: string, fim: string) => {
+    const dias = enumerarDiasInclusivo(inicio, fim);
+    if (dias.length) {
+      setDiasSelecionados(dias);
+      setMesCursor(inicio);
+    }
+  }, []);
+
+  const toggleDia = useCallback((dia: string) => {
+    setDiasSelecionados((atual) => toggleDiaIso(atual, dia));
+    setMesCursor(dia);
+  }, []);
+
   const salvar = useCallback(async () => {
     const validationError = validateBloqueioForm({
       modo,
       motivoFinal,
       dataInicioDia,
       dataFimDia,
+      diasSelecionados: modo === "dias" ? diasSelecionados : undefined,
       dataHorario,
       horaInicio,
       horaFim,
@@ -89,24 +110,46 @@ export function useModalBloqueioHorario({
     setLoading(true);
     setErro("");
     try {
-      const body = buildBloqueioRequestBody({
-        modo,
-        motivo: motivoFinal,
-        observacoes,
-        professionalId,
-        dataInicioDia,
-        dataFimDia,
-        dataHorario,
-        horaInicio,
-        horaFim,
-      });
-      const res = await clinicaBelezaFetch("/bloqueios/", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(extractBloqueioApiError(data, res.status));
+      const diasOrdenados = [...diasSelecionados].sort();
+      const bodies =
+        modo === "dias"
+          ? buildBloqueiosPorDia({
+              dias: diasOrdenados,
+              motivo: motivoFinal,
+              observacoes,
+              professionalId,
+            })
+          : [
+              buildBloqueioRequestBody({
+                modo,
+                motivo: motivoFinal,
+                observacoes,
+                professionalId,
+                dataInicioDia,
+                dataFimDia,
+                dataHorario,
+                horaInicio,
+                horaFim,
+              }),
+            ];
+      const gravados: string[] = [];
+      for (let i = 0; i < bodies.length; i++) {
+        const body = bodies[i];
+        const res = await clinicaBelezaFetch("/bloqueios/", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (gravados.length) onSuccess();
+          setDiasSelecionados((atual) => atual.filter((dia) => !gravados.includes(dia)));
+          throw new Error(
+            gravados.length
+              ? `Bloqueou ${gravados.length} dia(s). ${extractBloqueioApiError(data, res.status)}`
+              : extractBloqueioApiError(data, res.status),
+          );
+        }
+        if (modo === "dias" && diasOrdenados[i]) gravados.push(diasOrdenados[i]);
       }
       onSuccess();
       onClose();
@@ -119,6 +162,7 @@ export function useModalBloqueioHorario({
     dataFimDia,
     dataHorario,
     dataInicioDia,
+    diasSelecionados,
     horaFim,
     horaInicio,
     modo,
@@ -136,6 +180,11 @@ export function useModalBloqueioHorario({
     setDataInicioDia,
     dataFimDia,
     setDataFimDia,
+    diasSelecionados,
+    mesCursor,
+    setMesCursor,
+    definirPeloIntervalo,
+    toggleDia,
     dataHorario,
     setDataHorario,
     horaInicio,

@@ -101,6 +101,29 @@ function textoDoLog(item: LogItem): string {
   return 'erro' in item ? item.erro : item.mensagem;
 }
 
+// Remove o bloco de logs automáticos concatenado na descrição — esses logs já aparecem
+// estruturados nas abas de diagnóstico, então na descrição fica só o texto do cliente.
+function descricaoLimpa(descricao: string): string {
+  if (!descricao) return '';
+  const marcadores = [
+    'LOGS DE DIAGNÓSTICO AUTOMÁTICO',
+    '📋 LOGS DE DIAGNÓSTICO',
+    'ERROS NAVEGADOR:',
+    'ERROS FRONTEND',
+    'ERROS API/BACKEND',
+    'INFORMAÇÕES DO SISTEMA',
+  ];
+  let corte = descricao.length;
+  for (const m of marcadores) {
+    const idx = descricao.indexOf(m);
+    if (idx !== -1 && idx < corte) corte = idx;
+  }
+  // Remove também a linha de "===" que costuma preceder o bloco de logs.
+  let texto = descricao.slice(0, corte);
+  texto = texto.replace(/\n*=+\s*$/,'').trimEnd();
+  return texto || descricao.trim();
+}
+
 function ColunaSeveridade({ sev, itens }: { sev: typeof SEVERIDADES[number]; itens: LogItem[] }) {
   return (
     <div className={`flex flex-col rounded-lg border ${sev.borda} ${sev.cor} overflow-hidden min-h-0`}>
@@ -109,10 +132,7 @@ function ColunaSeveridade({ sev, itens }: { sev: typeof SEVERIDADES[number]; ite
         <span className="tabular-nums">{itens.length}</span>
       </div>
       <div className="p-2 space-y-2 overflow-y-auto max-h-[46vh]">
-        {itens.length === 0 ? (
-          <p className="text-gray-400 text-xs px-1 py-2">Nenhum registro.</p>
-        ) : (
-          itens.map((item, i) => {
+        {itens.map((item, i) => {
             const isBackend = 'erro' in item;
             return (
               <div key={i} className="bg-white rounded border border-gray-200 p-2 text-xs">
@@ -132,22 +152,32 @@ function ColunaSeveridade({ sev, itens }: { sev: typeof SEVERIDADES[number]; ite
                 )}
               </div>
             );
-          })
-        )}
+          })}
       </div>
     </div>
   );
 }
 
 function PainelLogs({ itens }: { itens: LogItem[] }) {
+  // Só mostra as colunas de severidade que têm registros; as visíveis dividem a largura.
+  const colunas = SEVERIDADES
+    .map((sev) => ({ sev, itens: itens.filter((it) => it.severidade === sev.chave) }))
+    .filter((c) => c.itens.length > 0);
+
+  if (colunas.length === 0) {
+    return <p className="text-gray-400 text-sm py-4 text-center">Nenhum registro nesta origem.</p>;
+  }
+
+  const gridCols = colunas.length === 1
+    ? 'lg:grid-cols-1'
+    : colunas.length === 2
+      ? 'lg:grid-cols-2'
+      : 'lg:grid-cols-3';
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      {SEVERIDADES.map((sev) => (
-        <ColunaSeveridade
-          key={sev.chave}
-          sev={sev}
-          itens={itens.filter((it) => it.severidade === sev.chave)}
-        />
+    <div className={`grid grid-cols-1 ${gridCols} gap-4`}>
+      {colunas.map(({ sev, itens: itensCol }) => (
+        <ColunaSeveridade key={sev.chave} sev={sev} itens={itensCol} />
       ))}
     </div>
   );
@@ -281,7 +311,7 @@ export function ModalAtendimento({
           <div className="mb-6">
             <label className="text-sm font-medium text-gray-500 block mb-2">Descrição</label>
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <p className="text-gray-900 whitespace-pre-wrap">{chamado.descricao}</p>
+              <p className="text-gray-900 whitespace-pre-wrap">{descricaoLimpa(chamado.descricao)}</p>
             </div>
           </div>
           )}

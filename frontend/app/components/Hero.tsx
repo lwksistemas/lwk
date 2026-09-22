@@ -20,9 +20,6 @@ function isUsableHeroImage(url: string): boolean {
   if (!url || !url.startsWith("http")) return false;
   try {
     const host = new URL(url).hostname.toLowerCase();
-    if (host.includes("cloudinary.com") || host.includes("res.cloudinary")) {
-      return false;
-    }
     return ALLOWED_IMAGE_HOSTS.has(host);
   } catch {
     return false;

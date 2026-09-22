@@ -8,7 +8,7 @@ from .constants import (
     PATH_PUBLICO,
     TOKEN_EXPIRACAO_HORAS,
 )
-from .exceptions import FotoCloudinaryInvalida, FotoUploadInvalida, FotoUrlInvalida
+from .exceptions import FotoUploadInvalida, FotoUrlInvalida
 from .persistence import (
     contar_fotos_consulta,
     excluir_foto_paciente,
@@ -44,7 +44,6 @@ __all__ = [
     "MODULO",
     "PATH_PUBLICO",
     "TOKEN_EXPIRACAO_HORAS",
-    "FotoCloudinaryInvalida",
     "FotoUrlInvalida",
     "FotoUploadInvalida",
     "ambiente_do_token_foto",

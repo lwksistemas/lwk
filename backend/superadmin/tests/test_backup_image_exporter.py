@@ -15,8 +15,7 @@ class BackupImageExporterHelpersTest(SimpleTestCase):
         url = "https://media.lwksistemas.com.br/files/12345678901/fotos/sample.jpg"
         self.assertTrue(_looks_like_media_url(url))
 
-    def test_cloudinary_e_outros_hosts_rejeitados(self):
-        self.assertFalse(_looks_like_media_url("https://res.cloudinary.com/demo/image/upload/v1/sample.jpg"))
+    def test_hosts_de_fora_rejeitados(self):
         self.assertFalse(_looks_like_media_url("https://example.com/page"))
         self.assertFalse(_looks_like_media_url("https://example.com/foto.jpg"))
         self.assertFalse(_looks_like_media_url(""))

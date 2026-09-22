@@ -90,7 +90,7 @@ class EnviarFotoPublicaIdorTest(TestCase):
             loja_id=3,
             status="IN_PROGRESS",
         )
-        mock_consulta.get.return_value = consulta
+        mock_consulta.select_related.return_value.get.return_value = consulta
 
         request = self.factory.post(
             "/enviar-foto/tok/",
@@ -130,8 +130,9 @@ class EnviarFotoPublicaIdorTest(TestCase):
             patient_id=2,
             loja_id=3,
             status="IN_PROGRESS",
+            patient=SimpleNamespace(nome="Paciente"),
         )
-        mock_consulta.get.return_value = consulta
+        mock_consulta.select_related.return_value.get.return_value = consulta
         mock_extrair.return_value = b"imagem"
         mock_upload.return_value = {
             "secure_url": "https://media.lwksistemas.com.br/files/00000000000000/fotos/foto.jpg",
@@ -143,40 +144,3 @@ class EnviarFotoPublicaIdorTest(TestCase):
         response = self.view(request, token="tok")
         self.assertEqual(response.status_code, 200)
         self.assertTrue(json.loads(response.content)["success"])
-
-    @patch("superadmin.models.Loja.objects")
-    @patch("clinica_beleza.views_foto_paciente.decodificar_token_foto")
-    @patch("clinica_beleza.views_foto_paciente.configurar_tenant_publico_clinica")
-    @patch("clinica_beleza.views_foto_paciente.Consulta.objects")
-    @patch("clinica_beleza.views_foto_paciente.extrair_bytes_upload_request")
-    def test_post_foto_url_cloudinary_rejeita_validacao(
-        self,
-        mock_extrair,
-        mock_consulta,
-        mock_tenant,
-        mock_decode,
-        mock_loja,
-    ):
-        mock_decode.return_value = {
-            "consulta_id": 1,
-            "patient_id": 2,
-            "loja_id": 3,
-        }
-        mock_tenant.return_value = None
-        mock_loja.using.return_value.filter.return_value.first.return_value = SimpleNamespace(nome="Clínica")
-        consulta = SimpleNamespace(
-            id=1,
-            patient_id=2,
-            loja_id=3,
-            status="IN_PROGRESS",
-        )
-        mock_consulta.get.return_value = consulta
-        mock_extrair.return_value = None
-
-        request = self.factory.post(
-            "/enviar-foto/tok/",
-            data={"url": "https://res.cloudinary.com/exemplo/foto.jpg"},
-            content_type="application/json",
-        )
-        response = self.view(request, token="tok")
-        self.assertEqual(response.status_code, 400)

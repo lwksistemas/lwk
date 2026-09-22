@@ -39,7 +39,7 @@
 
 | Serviço | Função | Hospedagem |
 |---------|--------|-----------|
-| Servidor de Mídia | Upload imagens/PDFs (substituiu Cloudinary) | Magalu SP (201.23.87.251) |
+| Servidor de Mídia | Upload imagens/PDFs | Magalu SP (201.23.87.251) |
 | Evolution API | WhatsApp (mensagens, notificações) | Magalu SP (mesmo servidor) |
 | Asaas | Cobranças, boletos, PIX | API externa |
 | Resend | Email transacional | API externa |

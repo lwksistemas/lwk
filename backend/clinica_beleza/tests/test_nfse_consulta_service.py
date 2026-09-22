@@ -119,12 +119,13 @@ class NFSeConsultaServiceTest(TestCase):
         self.assertTrue(result["success"])
         mock_processar.assert_called_once()
 
+    @patch("clinica_beleza.consulta_service.payment.receber.transaction.on_commit", side_effect=lambda fn, using=None: fn())
     @patch("clinica_beleza.consulta_service._garantir_valor_consulta_consulta")
     @patch("clinica_beleza.consulta_service._valor_pagamento_padrao", return_value=Decimal(100))
     @patch("clinica_beleza.nfse_consulta_service.tentar_emitir_nfse_consulta")
     @patch("clinica_beleza.consulta_service.calcular_comissao_payment_atendimento", return_value=(None, None))
     @patch("clinica_beleza.consulta_service.Payment")
-    def test_finalizar_chama_nfse_quando_pago(self, mock_payment_cls, _comissao, mock_nfse, _valor, _garantir):
+    def test_finalizar_chama_nfse_quando_pago(self, mock_payment_cls, _comissao, mock_nfse, _valor, _garantir, _on_commit):
         from clinica_beleza.consulta_service import _ensure_payment_for_appointment
 
         appointment = MagicMock()

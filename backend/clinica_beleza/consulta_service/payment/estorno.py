@@ -1,12 +1,12 @@
 from decimal import Decimal
 
 from .._deps import logger
-from ._common import _tenant_atomic
+from ._common import _log_movimento_financeiro, _tenant_atomic
 from .receber import _atualizar_status_consulta_apos_recebimento
 
 
 @_tenant_atomic
-def estornar_recebimento_consulta(consulta):
+def estornar_recebimento_consulta(consulta, *, usuario=None):
     """Estorna lançamentos de pagamento de uma consulta ainda não finalizada.
 
     - Cancela PaymentParcela (PAID → CANCELLED)
@@ -69,4 +69,5 @@ def estornar_recebimento_consulta(consulta):
     if consulta.status not in ("COMPLETED", "CANCELLED"):
         _atualizar_status_consulta_apos_recebimento(consulta, payment)
 
+    _log_movimento_financeiro("Estorno", consulta, payment, usuario, valor=ja_pago)
     return payment

@@ -4,7 +4,6 @@ Assinaturas no padrão CRM Vendas (lado a lado + logo como marca d'água).
 import logging
 from io import BytesIO
 
-import pytz
 from PIL import Image as PILImage
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -21,8 +20,11 @@ COR_PRIMARIA = colors.HexColor("#8B3D52")
 def _ts_local(dt):
     if not dt:
         return "—"
-    tz = pytz.timezone("America/Sao_Paulo")
-    return dt.astimezone(tz).strftime("%d/%m/%Y %H:%M:%S")
+    from django.utils import timezone
+
+    if timezone.is_aware(dt):
+        dt = timezone.localtime(dt)
+    return dt.strftime("%d/%m/%Y %H:%M:%S")
 
 
 def _logo_url_loja(loja) -> str:

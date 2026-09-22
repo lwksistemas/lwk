@@ -100,6 +100,7 @@ class ConsultaReceberView(APIView):
                 desconto=desconto,
                 entradas=entradas,
                 valor_procedimentos=valor_procedimentos,
+                usuario=request.user,
             )
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -129,7 +130,7 @@ class ConsultaEstornarPagamentoView(APIView):
             return error
 
         try:
-            payment = estornar_recebimento_consulta(consulta)
+            payment = estornar_recebimento_consulta(consulta, usuario=request.user)
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -208,6 +209,7 @@ class ConsultaFinalizarView(APIView):
                 mark_as_paid=mark_as_paid,
                 amount=amount,
                 local_atendimento_id=local_atendimento_id,
+                usuario=request.user,
             )
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

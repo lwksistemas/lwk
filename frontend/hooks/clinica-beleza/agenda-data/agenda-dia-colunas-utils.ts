@@ -232,6 +232,36 @@ export function colunasProfissionaisDia(
   });
 }
 
+/** Evento próprio do profissional naquele dia (agendamento, bloqueio ou intervalo). */
+export function profissionalTemAgendaNoDia(
+  eventos: AgendaEventData[],
+  dateIso: string,
+  professionalId: number,
+): boolean {
+  return eventosDoDiaNaColuna(eventos, dateIso, professionalId).some(
+    (row) => eventProfessionalId(row.evt) === professionalId,
+  );
+}
+
+/**
+ * No dia, só entram profissionais com horário. Quem está vazio some e o espaço
+ * fica com os demais. Um profissional filtrado no topo continua visível.
+ * Se ninguém tiver horário, a grade inteira permanece para o primeiro agendamento.
+ */
+export function colunasVisiveisAgendaDia(
+  professionals: ClinicaProfessional[],
+  selectedProfessional: string,
+  eventos: AgendaEventData[],
+  dateIso: string,
+): AgendaDiaProfissionalColuna[] {
+  const todas = colunasProfissionaisDia(professionals, selectedProfessional);
+  if (selectedProfessional) return todas;
+  const comAgenda = todas.filter((col) =>
+    profissionalTemAgendaNoDia(eventos, dateIso, col.id),
+  );
+  return comAgenda.length > 0 ? comAgenda : todas;
+}
+
 export type AgendaDiaItem = { evt: AgendaEventData; start: Date; end: Date };
 
 export function eventosDoDiaNaColuna(

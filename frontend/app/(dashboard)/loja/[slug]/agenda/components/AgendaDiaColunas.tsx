@@ -8,7 +8,7 @@ import { formatClinicaHora } from "@/lib/clinica-beleza-datetime";
 import {
   addDaysIso,
   bloqueioHorarioArrastavel,
-  colunasProfissionaisDia,
+  colunasVisiveisAgendaDia,
   deveExpandirLateralAgenda,
   eventosDoDiaNaColuna,
   horasGradeAgenda,
@@ -78,8 +78,8 @@ export function AgendaDiaColunas({
   const pxPerMin = PX_PER_HOUR / 60;
   const gridH = totalMin * pxPerMin;
   const colunas = useMemo(
-    () => colunasProfissionaisDia(professionals, selectedProfessional),
-    [professionals, selectedProfessional],
+    () => colunasVisiveisAgendaDia(professionals, selectedProfessional, eventos, dateIso),
+    [professionals, selectedProfessional, eventos, dateIso],
   );
 
   const horas = useMemo(() => horasGradeAgenda(minMin, maxMin), [minMin, maxMin]);

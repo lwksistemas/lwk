@@ -11,6 +11,7 @@ import {
   deveExpandirLateralAgenda,
   clampMinutosInicio,
   colunasProfissionaisDia,
+  colunasVisiveisAgendaDia,
   combinarDiaEHorario,
   corProfissionalAgenda,
   diasSemanaIso,
@@ -71,6 +72,45 @@ describe("colunasProfissionaisDia", () => {
 
   it("filtra um profissional", () => {
     expect(colunasProfissionaisDia(profs, "2").map((c) => c.id)).toEqual([2]);
+  });
+
+  it("esconde quem não tem horário e reparte a grade entre os demais", () => {
+    const tres = [
+      { id: 1, nome: "Bruna Tucci", especialidade: "Esteticista" },
+      { id: 2, nome: "Marina Garcia", especialidade: "Esteta" },
+      { id: 3, nome: "Nayara Souza", especialidade: "Enfermeira" },
+    ];
+    const eventos = [
+      evt({
+        id: "b",
+        start: "2026-09-24T07:00:00-03:00",
+        end: "2026-09-24T13:55:00-03:00",
+        extendedProps: { isBloqueio: true, professional: 2, motivo: "Evento Interno" },
+      }),
+      evt({
+        id: "a",
+        start: "2026-09-24T09:00:00-03:00",
+        end: "2026-09-24T11:00:00-03:00",
+        extendedProps: { professional: 3, patient_name: "Sandryara" },
+      }),
+    ];
+    expect(colunasVisiveisAgendaDia(tres, "", eventos, "2026-09-24").map((c) => c.id)).toEqual([2, 3]);
+  });
+
+  it("mostra a coluna vazia quando o filtro é um profissional só", () => {
+    const tres = [
+      { id: 1, nome: "Bruna Tucci", especialidade: "Esteticista" },
+      { id: 2, nome: "Marina Garcia", especialidade: "Esteta" },
+    ];
+    expect(colunasVisiveisAgendaDia(tres, "1", [], "2026-09-24").map((c) => c.id)).toEqual([1]);
+  });
+
+  it("mantém todas as colunas quando o dia ainda não tem horário", () => {
+    const tres = [
+      { id: 1, nome: "Bruna Tucci", especialidade: "Esteticista" },
+      { id: 2, nome: "Marina Garcia", especialidade: "Esteta" },
+    ];
+    expect(colunasVisiveisAgendaDia(tres, "", [], "2026-09-24").map((c) => c.id)).toEqual([1, 2]);
   });
 
   it("leva a foto para o cabeçalho da coluna", () => {

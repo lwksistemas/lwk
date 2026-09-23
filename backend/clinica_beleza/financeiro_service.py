@@ -249,13 +249,14 @@ def criar_parcela_e_atualizar_payment(payment, valor, dados):
     metodo = (dados.get("payment_method") or "").strip()
     if metodo:
         payment.payment_method = metodo
-    if payment.status == "PAID":
-        payment.payment_date = now()
+    if payment.status in ("PAID", "PARTIAL"):
+        payment.payment_date = _datetime_do_lancamento(dados.get("payment_date"))
     update_fields = ["status", "amount", "updated_at"]
     if metodo:
         update_fields.append("payment_method")
-    if payment.status == "PAID":
+    if payment.status in ("PAID", "PARTIAL"):
         update_fields.append("payment_date")
+    if payment.status == "PAID":
         # Quitado deixa de ser conta a receber a prazo.
         if payment.data_vencimento:
             payment.data_vencimento = None
@@ -268,6 +269,22 @@ def criar_parcela_e_atualizar_payment(payment, valor, dados):
             update_fields.append("data_vencimento")
     payment.save(update_fields=update_fields)
     return parcela
+
+
+def _datetime_do_lancamento(raw):
+    """Data escolhida no Registrar Pagamento, no fuso da clínica."""
+    from datetime import datetime
+
+    from django.utils.timezone import get_current_timezone, make_aware
+
+    if isinstance(raw, datetime):
+        return raw if raw.tzinfo else make_aware(raw, get_current_timezone())
+    text = str(raw or "").strip()[:10]
+    try:
+        dia = datetime.strptime(text, "%Y-%m-%d")
+    except ValueError:
+        return now()
+    return make_aware(dia, get_current_timezone())
 
 
 def _calcular_vencimento_baixa_prazo(payment):

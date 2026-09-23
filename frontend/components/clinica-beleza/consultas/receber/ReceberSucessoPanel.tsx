@@ -252,7 +252,7 @@ export function ReceberSucessoPanel({
                 onEmail={onEmail}
                 onWhatsApp={onWhatsApp}
               />
-              {(ehAPrazo || precisaComplementar) && consultaExibida.payment_id ? (
+              {ehAPrazo && consultaExibida.payment_id ? (
                 <EnviarReciboAssinaturaAcao paymentId={consultaExibida.payment_id} />
               ) : null}
             </>

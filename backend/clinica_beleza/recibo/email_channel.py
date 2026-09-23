@@ -14,8 +14,20 @@ from .pdf import _gerar_pdf_recibo
 logger = logging.getLogger(__name__)
 
 
-def _enviar_recibo_email(payment, patient, appointment) -> tuple[bool, str]:
-    """Envia recibo por email com PDF em anexo."""
+def _email_somente_foto(ctx: dict) -> tuple[str, str, str]:
+    """E-mail do recibo assinado: só a foto no corpo, sem o resumo do atendimento."""
+    loja = (ctx.get("loja_nome") or "").strip()
+    assunto = f"Recibo assinado — {loja}" if loja else "Recibo assinado"
+    html = (
+        '<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:12px;">'
+        '<img src="cid:recibo" alt="Recibo assinado" style="max-width:100%;height:auto;" />'
+        "</div>"
+    )
+    return assunto, html, "Recibo assinado."
+
+
+def _enviar_recibo_email(payment, patient, appointment, *, somente_foto=False) -> tuple[bool, str]:
+    """Envia o recibo por e-mail. Depois de assinar, só a foto no corpo."""
     email = (getattr(patient, "email", "") or "").strip()
     if not email:
         return False, "Paciente não possui email cadastrado."
@@ -34,9 +46,12 @@ def _enviar_recibo_email(payment, patient, appointment) -> tuple[bool, str]:
             f"recibo_{payment.id}.pdf",
         )
 
-        assunto = f'Recibo de Pagamento — {ctx["loja_nome"] or "Clínica"}'
-        corpo_html = _montar_email_html(ctx)
-        corpo_texto = _montar_email_texto(ctx)
+        if somente_foto:
+            assunto, corpo_html, corpo_texto = _email_somente_foto(ctx)
+        else:
+            assunto = f'Recibo de Pagamento — {ctx["loja_nome"] or "Clínica"}'
+            corpo_html = _montar_email_html(ctx)
+            corpo_texto = _montar_email_texto(ctx)
 
         msg = create_email_multipart(
             subject=assunto,

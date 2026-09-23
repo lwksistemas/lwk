@@ -12,8 +12,11 @@ from .pdf import _gerar_pdf_recibo
 logger = logging.getLogger(__name__)
 
 
-def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
-    """Envia recibo por WhatsApp: mensagem de texto + PDF se possível."""
+def _enviar_recibo_whatsapp(payment, patient, appointment, *, somente_foto=False) -> tuple[bool, str]:
+    """Envia recibo por WhatsApp.
+
+    Sem assinatura: resumo em texto e a foto. Depois de assinar: só a foto.
+    """
     telefone = (getattr(patient, "telefone", "") or "").strip()
     if not telefone:
         return False, "Paciente não possui telefone cadastrado."
@@ -30,11 +33,12 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
             return False, "WhatsApp não está ativo. Configure em Configurações → WhatsApp."
 
         ctx = _obter_dados_contexto(payment, patient, appointment)
-        mensagem = _montar_mensagem_whatsapp(ctx)
-
-        ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config)
-        if not ok:
-            return False, err or "Erro ao enviar WhatsApp."
+        if not somente_foto:
+            mensagem = _montar_mensagem_whatsapp(ctx)
+            ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config)
+            if not ok:
+                return False, err or "Erro ao enviar WhatsApp."
+        legenda = "Recibo assinado" if somente_foto else "Recibo de Pagamento"
 
         try:
             from clinica_beleza.public_pdf import PREFIX_RECIBO, gravar_pdf_publico
@@ -66,7 +70,7 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
                 img_url = f"{api_base}/api/clinica-beleza/payments/{payment.id}/recibo-img/{token}/"
                 ok_img, err_img = _send_whatsapp_image_evolution(
                     telefone, img_url, f"recibo_{payment.id}.jpg",
-                    caption="Recibo de Pagamento", config=config,
+                    caption=legenda, config=config,
                 )
                 if not ok_img:
                     logger.warning("Foto do recibo via WhatsApp falhou, tentando PDF: %s", err_img)
@@ -75,7 +79,7 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
                     pdf_url = f"{api_base}/api/clinica-beleza/payments/{payment.id}/recibo-pdf/{token}/"
                     _send_whatsapp_document_evolution(
                         telefone, pdf_url, f"recibo_{payment.id}.pdf",
-                        caption="Recibo de Pagamento", config=config,
+                        caption=legenda, config=config,
                     )
             else:
                 from whatsapp.services import _send_whatsapp_document_evolution
@@ -83,10 +87,12 @@ def _enviar_recibo_whatsapp(payment, patient, appointment) -> tuple[bool, str]:
                 pdf_url = f"{api_base}/api/clinica-beleza/payments/{payment.id}/recibo-pdf/{token}/"
                 _send_whatsapp_document_evolution(
                     telefone, pdf_url, f"recibo_{payment.id}.pdf",
-                    caption="Recibo de Pagamento", config=config,
+                    caption=legenda, config=config,
                 )
         except Exception as pdf_err:
-            logger.warning("PDF via WhatsApp falhou (texto já enviado): %s", pdf_err)
+            logger.warning("Foto do recibo via WhatsApp falhou: %s", pdf_err)
+            if somente_foto:
+                return False, "Não foi possível enviar a foto do recibo assinado."
 
         logger.info("Recibo enviado por WhatsApp para %s (payment_id=%s)", telefone, payment.id)
         return True, f"Recibo enviado para {telefone}"

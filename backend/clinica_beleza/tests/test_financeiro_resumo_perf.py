@@ -5,6 +5,18 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase
 
 
+class TestPaymentsVisiveisFinanceiro(SimpleTestCase):
+    def test_agendamento_cancelado_fica_fora_da_listagem(self):
+        from clinica_beleza.financeiro_service import payments_visiveis_financeiro
+
+        qs = MagicMock()
+        qs.exclude.return_value = qs
+        qs.filter.return_value = qs
+        payments_visiveis_financeiro(qs)
+        qs.exclude.assert_any_call(status="DRAFT")
+        qs.exclude.assert_any_call(appointment__status="CANCELLED")
+
+
 class TestSomarContasAReceber(SimpleTestCase):
     def test_usa_agregacao_sem_iterar_payments(self):
         from clinica_beleza.financeiro_service import somar_contas_a_receber

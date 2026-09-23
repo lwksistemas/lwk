@@ -6,12 +6,11 @@ import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { FinanceiroPayment, FinanceiroProfessional } from "../types";
-import { rotuloFormaPagamentoReceita, statusPagamentoReceita } from "../payment-status";
-
-function formatVencimento(iso: string | null): string {
-  if (!iso) return "—";
-  return String(iso).slice(0, 10).split("-").reverse().join("/");
-}
+import {
+  rotuloDataLancamentoReceita,
+  rotuloFormaPagamentoReceita,
+  statusPagamentoReceita,
+} from "../payment-status";
 
 interface FinanceiroReceitasTabProps {
   payments: FinanceiroPayment[];
@@ -132,21 +131,8 @@ export function FinanceiroReceitasTab({
                       {formatCurrency(p.valor_total_efetivo ?? p.amount)}
                     </td>
                     <td className="py-3 px-4">{rotuloFormaPagamentoReceita(p)}</td>
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      {!p.retorno_gratuito && p.data_vencimento ? (
-                        <>
-                          <span className={p.vencido ? "text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400"}>
-                            {formatVencimento(p.data_vencimento)}
-                          </span>
-                          {p.vencido && (
-                            <span className="block text-xs text-red-600 dark:text-red-400">
-                              {p.dias_atraso} dia(s) em atraso
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                    <td className="py-3 px-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                      {rotuloDataLancamentoReceita(p)}
                     </td>
                     <td className="py-3 px-4 col-allow-wrap">
                       {p.retorno_gratuito ? (

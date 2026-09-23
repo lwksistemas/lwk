@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  rotuloDataLancamentoReceita,
   rotuloFormaPagamentoReceita,
   statusPagamentoReceita,
 } from "@/components/clinica-beleza/financeiro-page/payment-status";
@@ -47,6 +48,23 @@ describe("statusPagamentoReceita", () => {
     expect(rotuloFormaPagamentoReceita(payment({ status: "PENDING", payment_method: "CASH" }))).toBe("—");
     expect(rotuloFormaPagamentoReceita(payment({ status: "PAID", payment_method: "CASH" }))).toBe("Dinheiro");
     expect(rotuloFormaPagamentoReceita(payment({ status: "PENDING", payment_method: "PRAZO" }))).toBe("A prazo");
+  });
+
+  it("preenche Vencimento com o dia do recebimento e deixa pendente em branco", () => {
+    expect(rotuloDataLancamentoReceita(payment({ status: "PENDING", payment_date: null }))).toBe("—");
+    expect(
+      rotuloDataLancamentoReceita(payment({ status: "PAID", saldo_devedor: 0, payment_date: "2026-09-23" })),
+    ).toBe("23/09/2026");
+    expect(
+      rotuloDataLancamentoReceita(
+        payment({ status: "PARTIAL", saldo_devedor: 40, payment_date: "2026-09-23T18:10:00-03:00" }),
+      ),
+    ).toBe("23/09/2026");
+    expect(
+      rotuloDataLancamentoReceita(
+        payment({ status: "PAID", saldo_devedor: 0, retorno_gratuito: true, payment_date: "2026-09-23" }),
+      ),
+    ).toBe("—");
   });
 
   it("respeita PARTIAL e PAID da API", () => {

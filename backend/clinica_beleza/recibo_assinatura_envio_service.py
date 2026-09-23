@@ -1,4 +1,4 @@
-"""Envio de recibo para assinatura digital e do PDF assinado (email/WhatsApp)."""
+"""Envio de recibo para assinatura digital e da foto do recibo assinado (email/WhatsApp)."""
 from __future__ import annotations
 
 import logging
@@ -54,14 +54,31 @@ def enviar_recibo_para_assinatura(*, payment, adapter, loja_id: int, canal: str,
 
 
 def enviar_recibo_assinado(*, payment, adapter, loja_id: int, user=None) -> None:
-    """Envia o recibo já assinado por email (PDF anexado) e WhatsApp (documento).
+    """Envia o recibo já assinado como foto, no mesmo caminho do recibo sem assinatura.
 
+    A assinatura já está gravada, então a foto inclui a seção de assinatura digital.
     Chamado quando a assinatura conclui. Não levanta — registra a falha no log.
     """
-    try:
-        from core.assinatura_service import enviar_pdf_final
+    appointment = adapter._appointment(payment)
+    patient = adapter._patient(payment)
+    if patient is None or appointment is None:
+        logger.warning(
+            "Recibo assinado sem paciente (payment %s, loja %s)",
+            getattr(payment, "id", None),
+            loja_id,
+        )
+        return
 
-        enviar_pdf_final(adapter, payment, loja_id)
+    try:
+        from clinica_beleza.recibo.email_channel import _enviar_recibo_email
+
+        ok, err = _enviar_recibo_email(payment, patient, appointment)
+        if not ok:
+            logger.warning(
+                "Recibo assinado por e-mail não enviado (payment %s): %s",
+                getattr(payment, "id", None),
+                err,
+            )
     except Exception:
         logger.exception(
             "Falha ao enviar recibo assinado por e-mail (payment %s)",
@@ -69,59 +86,18 @@ def enviar_recibo_assinado(*, payment, adapter, loja_id: int, user=None) -> None
         )
 
     try:
-        _enviar_recibo_assinado_whatsapp(payment=payment, adapter=adapter, loja_id=loja_id, user=user)
+        from clinica_beleza.recibo.whatsapp_channel import _enviar_recibo_whatsapp
+
+        ok, err = _enviar_recibo_whatsapp(payment, patient, appointment)
+        if not ok:
+            logger.warning(
+                "Recibo assinado por WhatsApp não enviado (payment %s, user=%s): %s",
+                getattr(payment, "id", None),
+                getattr(user, "id", None),
+                err,
+            )
     except Exception:
         logger.exception(
             "Falha ao enviar recibo assinado por WhatsApp (payment %s)",
             getattr(payment, "id", None),
         )
-
-
-def _enviar_recibo_assinado_whatsapp(*, payment, adapter, loja_id: int, user=None) -> tuple[bool, str]:
-    """Envia o PDF do recibo assinado via WhatsApp (usa URL pública, igual ao recibo)."""
-    from django.conf import settings
-
-    from clinica_beleza.public_pdf import PREFIX_RECIBO, gravar_pdf_publico
-    from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
-    from whatsapp.models import WhatsAppConfig
-    from whatsapp.services import send_whatsapp, send_whatsapp_document
-
-    config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
-    ok_cfg, err_cfg = whatsapp_envio_permitido(config, termo=True)
-    if not ok_cfg:
-        return False, err_cfg or "WhatsApp indisponível."
-
-    telefone = adapter.get_telefone_parte1(payment)
-    if not telefone:
-        return False, "Paciente não possui telefone cadastrado."
-
-    nome_paciente, _ = adapter.get_destinatario_parte1(payment)
-    mensagem = (
-        f"Olá {nome_paciente or 'cliente'}! Segue o PDF do recibo assinado "
-        f"({adapter.get_titulo(payment)})."
-    )
-    ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, config=config, user=user)
-    if not ok:
-        return False, err or "Erro ao enviar WhatsApp."
-
-    pdf_buffer = adapter.gerar_pdf(payment, incluir_assinaturas=True)
-    pdf_bytes = pdf_buffer.getvalue() if hasattr(pdf_buffer, "getvalue") else bytes(pdf_buffer)
-    if not pdf_bytes:
-        return False, "Não foi possível gerar o PDF do recibo assinado."
-
-    token = gravar_pdf_publico(PREFIX_RECIBO, {"payment_id": payment.id, "pdf": pdf_bytes})
-    api_base = getattr(settings, "API_BASE_URL", "") or "https://api.lwksistemas.com.br"
-    pdf_url = f"{api_base}/api/clinica-beleza/payments/{payment.id}/recibo-pdf/{token}/"
-
-    ok_doc, err_doc = send_whatsapp_document(
-        telefone=telefone,
-        document_url=pdf_url,
-        filename=f"recibo_{payment.id}_assinado.pdf",
-        caption="Recibo Assinado",
-        config=config,
-        user=user,
-    )
-    if not ok_doc:
-        logger.warning("PDF do recibo assinado via WhatsApp falhou payment=%s: %s", payment.id, err_doc)
-        return False, err_doc or "Erro ao enviar o documento."
-    return True, f"Recibo assinado enviado por WhatsApp para {telefone}"

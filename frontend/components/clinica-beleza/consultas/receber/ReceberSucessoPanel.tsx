@@ -59,7 +59,7 @@ function EnviarReciboAssinaturaAcao({ paymentId }: { paymentId: number }) {
           <CheckCircle2 size={15} /> Recibo assinado digitalmente pelo cliente
         </p>
         <p className="text-xs text-green-700/80 dark:text-green-300/80 mt-0.5">
-          O cliente já recebeu o PDF assinado por e-mail e WhatsApp.
+          O cliente já recebeu a foto do recibo assinado por e-mail e WhatsApp.
         </p>
       </div>
     );
@@ -71,7 +71,7 @@ function EnviarReciboAssinaturaAcao({ paymentId }: { paymentId: number }) {
         <PenLine size={15} /> Assinatura digital do recibo
       </p>
       <p className="text-xs text-purple-800/80 dark:text-purple-300/80 mt-0.5 mb-2">
-        Envie o recibo para o cliente assinar. Após assinar, ele recebe o PDF assinado por e-mail e WhatsApp.
+        Envie o recibo para o cliente assinar. Após assinar, ele recebe só a foto do recibo por e-mail e WhatsApp.
       </p>
       <div className="grid grid-cols-2 gap-2">
         <button

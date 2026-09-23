@@ -75,12 +75,42 @@ class ReciboAssinadoFotoTests(SimpleTestCase):
         mock_email.assert_called_once_with(payment, patient, appointment, somente_foto=True)
         mock_whatsapp.assert_called_once_with(payment, patient, appointment, somente_foto=True)
 
+    def test_reenvio_de_recibo_ja_assinado_manda_so_a_foto(self):
+        from clinica_beleza.recibo.service import enviar_recibo_pagamento
+
+        payment = MagicMock()
+        payment.status_assinatura_recibo = "concluido"
+        payment.appointment = MagicMock()
+        with (
+            patch("clinica_beleza.recibo.service._enviar_recibo_whatsapp", return_value=(True, "ok")) as mock_whatsapp,
+            patch("clinica_beleza.models.Appointment.objects") as appointments,
+        ):
+            appointments.select_related.return_value.prefetch_related.return_value.get.side_effect = Exception("sem banco")
+            payment.appointment.patient = MagicMock()
+            enviar_recibo_pagamento(payment, canal="whatsapp")
+
+        mock_whatsapp.assert_called_once_with(
+            payment,
+            payment.appointment.patient,
+            payment.appointment,
+            somente_foto=True,
+        )
+
     def test_email_assinado_traz_so_a_foto(self):
         from clinica_beleza.recibo.email_channel import _email_somente_foto
 
-        assunto, html, texto = _email_somente_foto({"loja_nome": "CLINICA LWK"})
+        assunto, html, texto = _email_somente_foto({"loja_nome": "CLINICA LWK"}, assinado=True)
         self.assertEqual(assunto, "Recibo assinado — CLINICA LWK")
         self.assertIn('src="cid:recibo"', html)
         self.assertNotIn("Serviços", html)
         self.assertNotIn("Forma de pagamento", html)
         self.assertEqual(texto, "Recibo assinado.")
+
+    def test_email_sem_assinatura_tambem_traz_so_a_foto(self):
+        from clinica_beleza.recibo.email_channel import _email_somente_foto
+
+        assunto, html, texto = _email_somente_foto({"loja_nome": "CLINICA LWK"})
+        self.assertEqual(assunto, "Recibo de Pagamento — CLINICA LWK")
+        self.assertIn('src="cid:recibo"', html)
+        self.assertNotIn("Serviços", html)
+        self.assertEqual(texto, "Recibo de Pagamento.")

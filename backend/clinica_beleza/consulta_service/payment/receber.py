@@ -167,15 +167,24 @@ def _status_rascunho_ou_financeiro(consulta, *, quitado: bool, tem_pago: bool) -
     return "PENDING"
 
 
+def _invalidar_totais_agendamento(appointment) -> None:
+    """A view da consulta pré-carrega os procedimentos. Sem isso, o total ignora o item recém-incluído."""
+    appointment._valor_total_cache = None
+    cache = getattr(appointment, "_prefetched_objects_cache", None)
+    if isinstance(cache, dict):
+        cache.pop("appointment_procedures", None)
+
+
 def _sincronizar_recebimento_apos_procedimento(consulta) -> None:
     """Após incluir/remover procedimento: atualiza valor_total do Payment.
-    Se total sobe após quitado → RECEBER; se total cai e cobre o pago → rascunho/PAID.
+    Se total sobe após quitado → saldo em aberto (parcial); se total cai e cobre o pago → rascunho/PAID.
     """
     from clinica_beleza import consulta_service
 
     appointment = getattr(consulta, "appointment", None)
     if not appointment:
         return
+    _invalidar_totais_agendamento(appointment)
 
     payment = consulta_service.Payment.objects.filter(appointment=appointment).first()
     if not payment or payment.status == "CANCELLED":

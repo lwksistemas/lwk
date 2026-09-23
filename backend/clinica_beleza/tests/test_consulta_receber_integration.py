@@ -218,6 +218,47 @@ class ConsultaReceberIntegrationTests(ClinicaBelezaIntegrationTestCase):
         self.assertEqual(payment.status, "DRAFT")
         self.assertGreater(payment.saldo_devedor, Decimal(0))
 
+    def test_procedimento_extra_com_lista_precarregada_abre_saldo(self):
+        """A tela pré-carrega os procedimentos. Incluir outro depois do pagamento tem que abrir o saldo."""
+        from clinica_beleza.consulta_procedimentos_service import adicionar_procedimento_consulta
+
+        consulta = self._criar_consulta_receber(valor=Decimal("0"))
+        detox = Procedure.objects.create(
+            nome="Detox", preco=Decimal("250.00"), duracao_minutos=30, loja_id=self.loja.id,
+        )
+        tirzepatida = Procedure.objects.create(
+            nome="Tirzepatida", preco=Decimal("150.00"), duracao_minutos=30, loja_id=self.loja.id,
+        )
+        AppointmentProcedure.objects.create(
+            appointment=consulta.appointment,
+            procedure=detox,
+            valor=Decimal("250.00"),
+            ordem=0,
+            loja_id=self.loja.id,
+        )
+        consulta.status = "IN_PROGRESS"
+        consulta.data_inicio = timezone.now()
+        consulta.save(update_fields=["status", "data_inicio", "updated_at"])
+        registrar_recebimento_consulta(
+            consulta, payment_method="CASH", amount=Decimal("250.00"), mark_as_paid=True,
+        )
+
+        consulta = (
+            Consulta.objects.select_related("appointment")
+            .prefetch_related("appointment__appointment_procedures__procedure")
+            .get(pk=consulta.pk)
+        )
+        self.assertEqual(consulta.appointment.valor_total, Decimal("250.00"))
+        adicionar_procedimento_consulta(consulta, tirzepatida.id)
+
+        payment = Payment.objects.get(appointment_id=consulta.appointment_id)
+        self.assertEqual(payment.valor_total, Decimal("400.00"))
+        self.assertEqual(payment.amount, Decimal("250.00"))
+        self.assertEqual(payment.status, "DRAFT")
+        self.assertEqual(payment.saldo_devedor, Decimal("150.00"))
+        consulta.refresh_from_db()
+        self.assertEqual(consulta.status, "IN_PROGRESS")
+
     def _consulta_com_procedimento(self, *, preco=Decimal("150.00")):
         consulta = self._criar_consulta_receber(valor=Decimal("0"))
         proc = Procedure.objects.create(

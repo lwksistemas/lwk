@@ -27,12 +27,36 @@ class ReciboAssinaturaAdapter(AssinaturaAdapter):
         appointment = self._appointment(payment)
         return getattr(appointment, "patient", None) if appointment else None
 
-    def get_titulo(self, payment) -> str:
+    def get_procedimentos(self, payment) -> list[dict]:
         appointment = self._appointment(payment)
-        proc = getattr(appointment, "procedure", None) if appointment else None
-        if proc and getattr(proc, "nome", ""):
-            return proc.nome
+        if appointment is None:
+            return []
+        from .recibo.context import _buscar_procedimentos_recibo
+
+        return _buscar_procedimentos_recibo(appointment)
+
+    def get_titulo(self, payment) -> str:
+        nomes = [
+            (p.get("nome") or "").strip()
+            for p in self.get_procedimentos(payment)
+            if (p.get("nome") or "").strip()
+        ]
+        if nomes:
+            return " · ".join(nomes)
         return f"Recibo #{payment.id}"
+
+    def get_itens_titulo(self, payment) -> list[str]:
+        linhas = []
+        for proc in self.get_procedimentos(payment):
+            nome = (proc.get("nome") or "").strip()
+            if not nome:
+                continue
+            try:
+                valor = float(proc.get("valor") or 0)
+            except (TypeError, ValueError):
+                valor = 0.0
+            linhas.append(f"{nome} — R$ {valor:.2f}")
+        return linhas
 
     def get_valor_display(self, payment) -> str:
         try:
@@ -44,7 +68,7 @@ class ReciboAssinaturaAdapter(AssinaturaAdapter):
         return True
 
     def get_rotulo_titulo_email(self) -> str:
-        return "Procedimento"
+        return "Procedimentos realizados"
 
     def get_tipo_documento_label(self, payment) -> str:
         return "Recibo de Pagamento"

@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPrimaryApiBaseUrl } from "@/lib/api-base";
 
+export interface ReciboProcedimentoAssinatura {
+  nome: string;
+  valor?: string;
+}
+
 export interface ReciboAssinaturaData {
   tipo_documento?: string;
   titulo?: string;
+  procedimentos?: ReciboProcedimentoAssinatura[];
   valor?: string;
   nome_assinante?: string;
   paciente_nome?: string;

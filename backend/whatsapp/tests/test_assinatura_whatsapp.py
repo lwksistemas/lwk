@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase
 
 from whatsapp.assinatura_whatsapp import enviar_whatsapp_link_assinatura
+from whatsapp.message_templates import msg_assinatura_recibo
 from whatsapp.sync_context import whatsapp_sync_only
 
 
@@ -48,3 +49,15 @@ class EnviarWhatsappLinkAssinaturaTest(SimpleTestCase):
         self.assertTrue(ok)
         self.assertIsNone(err)
         self.assertEqual(sync_durante_envio, [True])
+
+    def test_recibo_lista_todos_os_procedimentos(self):
+        texto = msg_assinatura_recibo(
+            nome="Luiz",
+            titulo="DETOX · BOTOX — FULL FACE",
+            loja_nome="CLINICA LWK",
+            link="https://example.com/assinar-recibo/x",
+            procedimentos=["DETOX — R$ 300.00", "BOTOX — FULL FACE — R$ 700.00"],
+        )
+        self.assertIn("• DETOX — R$ 300.00", texto)
+        self.assertIn("• BOTOX — FULL FACE — R$ 700.00", texto)
+        self.assertNotIn("Procedimento realizado: DETOX", texto)

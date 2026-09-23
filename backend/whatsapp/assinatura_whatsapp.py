@@ -65,6 +65,7 @@ def enviar_whatsapp_link_assinatura(
             titulo=tipo_doc,
             loja_nome=loja_nome,
             link=link,
+            procedimentos=adapter.get_itens_titulo(documento),
         )
     elif modulo == "clinica_beleza":
         procedimento = getattr(documento, "procedure", None)

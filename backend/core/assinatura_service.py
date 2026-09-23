@@ -188,6 +188,10 @@ class AssinaturaAdapter:
     def get_rotulo_titulo_email(self) -> str:
         return "Título"
 
+    def get_itens_titulo(self, documento) -> list[str]:
+        """Linhas quando o documento tem vários itens. Vazio usa só get_titulo."""
+        return []
+
     def get_assunto_email_parte1(self, documento, loja_nome: str) -> str | None:
         return None
 
@@ -302,6 +306,18 @@ def _render_email_html(titulo_header: str, cor_gradient: str, corpo_html: str, l
 </td></tr></table></body></html>"""
 
 
+def _bloco_titulo_email(rotulo: str, titulo: str, itens: list[str]) -> str:
+    """Uma linha de título, ou cada procedimento quando o recibo tem vários."""
+    from html import escape
+
+    linhas = [item.strip() for item in itens if (item or "").strip()]
+    corpo = "<br>".join(escape(item) for item in linhas) if linhas else (titulo or "")
+    return (
+        f'<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>{rotulo}:</strong></td></tr>'
+        f'<tr><td style="color:#333;font-size:16px;font-weight:600;padding-bottom:12px;">{corpo}</td></tr>'
+    )
+
+
 def enviar_email_parte1(adapter: AssinaturaAdapter, documento, assinatura, loja_id: int) -> tuple[bool, str | None]:
     """Envia email para a primeira parte (cliente/hóspede) com link de assinatura."""
     nome, email = adapter.get_destinatario_parte1(documento)
@@ -320,6 +336,7 @@ def enviar_email_parte1(adapter: AssinaturaAdapter, documento, assinatura, loja_
         info_extra_html += f'<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>{label}:</strong></td></tr><tr><td style="color:#333;font-size:15px;padding-bottom:12px;">{val}</td></tr>'
 
     rotulo_titulo = adapter.get_rotulo_titulo_email()
+    bloco_titulo = _bloco_titulo_email(rotulo_titulo, titulo, adapter.get_itens_titulo(documento))
     valor_html = ""
     if adapter.incluir_valor_no_email() and (valor or "").strip() and valor.strip() != "—":
         valor_html = f"""<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>Valor:</strong></td></tr>
@@ -330,8 +347,7 @@ def enviar_email_parte1(adapter: AssinaturaAdapter, documento, assinatura, loja_
 <p style="color:#555;font-size:15px;line-height:1.6;margin:0 0 30px;">Você recebeu um(a) <strong>{tipo_doc.lower()}</strong> de <strong>{loja_nome}</strong> para assinatura digital.</p>
 <table width="100%" style="background:#f8f9fa;border-left:4px solid #667eea;border-radius:4px;margin-bottom:30px;"><tr><td style="padding:20px;">
 <table width="100%">
-<tr><td style="color:#666;font-size:13px;padding-bottom:4px;"><strong>{rotulo_titulo}:</strong></td></tr>
-<tr><td style="color:#333;font-size:16px;font-weight:600;padding-bottom:12px;">{titulo}</td></tr>
+{bloco_titulo}
 {info_extra_html}
 {valor_html}
 </table></td></tr></table>

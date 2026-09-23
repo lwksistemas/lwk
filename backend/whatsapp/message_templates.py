@@ -128,9 +128,10 @@ def msg_assinatura_recibo(
     titulo: str | None,
     loja_nome: str,
     link: str,
+    procedimentos: list[str] | None = None,
 ) -> str:
     """Mensagem para o CLIENTE assinar o recibo de pagamento (Clínica da Beleza)."""
-    ref_linha = f"🧾 *Procedimento realizado:* {titulo}" if titulo else ""
+    itens = [item.strip() for item in (procedimentos or []) if (item or "").strip()]
     linhas = [
         "🧾 *Recibo de Pagamento*",
         SEPARADOR,
@@ -140,8 +141,12 @@ def msg_assinatura_recibo(
         "para assinatura digital:",
         "",
     ]
-    if ref_linha:
-        linhas.append(ref_linha)
+    if len(itens) > 1:
+        linhas.append("💉 *Procedimentos realizados:*")
+        linhas.extend(f"• {item}" for item in itens)
+        linhas.append("")
+    elif titulo:
+        linhas.append(f"🧾 *Procedimento realizado:* {titulo}")
         linhas.append("")
     linhas.extend([
         "👇 *Toque para ler e assinar:*",

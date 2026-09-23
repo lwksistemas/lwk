@@ -111,9 +111,26 @@ function ReciboForm({
               <FileText className="w-5 h-5 text-gray-400 dark:text-slate-500 mt-1" />
               <div className="flex-1">
                 <p className="text-sm text-gray-500 dark:text-slate-400">Referente a</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">{recibo.titulo || "Recibo"}</p>
+                {(recibo.procedimentos?.length ?? 0) > 1 ? (
+                  <ul className="mt-1 space-y-1">
+                    {recibo.procedimentos?.map((proc) => (
+                      <li key={proc.nome} className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {proc.nome}
+                        {proc.valor ? (
+                          <span className="ml-2 text-base font-semibold text-emerald-600 dark:text-emerald-400">
+                            {proc.valor}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{recibo.titulo || "Recibo"}</p>
+                )}
                 {recibo.valor && (
-                  <p className="text-base font-semibold text-emerald-600 dark:text-emerald-400 mt-1">{recibo.valor}</p>
+                  <p className="text-base font-semibold text-emerald-600 dark:text-emerald-400 mt-1">
+                    {(recibo.procedimentos?.length ?? 0) > 1 ? `Total ${recibo.valor}` : recibo.valor}
+                  </p>
                 )}
               </div>
             </div>

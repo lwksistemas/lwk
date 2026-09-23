@@ -205,9 +205,16 @@ class ReciboAssinaturaPublicaView(View):
         patient = getattr(appointment, "patient", None) if appointment else None
         professional = getattr(appointment, "professional", None) if appointment else None
 
+        procedimentos = [
+            {"nome": (proc.get("nome") or "").strip(), "valor": f"R$ {float(proc.get('valor') or 0):.2f}"}
+            for proc in adapter.get_procedimentos(payment)
+            if (proc.get("nome") or "").strip()
+        ]
+
         return JsonResponse({
             "tipo_documento": "recibo_pagamento",
             "titulo": adapter.get_titulo(payment),
+            "procedimentos": procedimentos,
             "valor": adapter.get_valor_display(payment),
             "nome_assinante": assinatura.nome_assinante,
             "paciente_nome": getattr(patient, "nome", "") if patient else "",

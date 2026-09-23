@@ -19,7 +19,7 @@ export function ConsultaPagamentoButton({
   loading = false,
 }: ConsultaPagamentoButtonProps) {
   const toast = useToast();
-  const { mostrarReceber, mostrarPago, mostrarParcial, mostrarRecibo, mostrarPrazo, consultaFinalizada } = consultaPagamentoUi(consulta);
+  const { mostrarReceber, mostrarPago, mostrarParcial, mostrarRecibo, mostrarPrazo, mostrarIsento, consultaFinalizada } = consultaPagamentoUi(consulta);
   const pad = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-sm";
   const iconSize = size === "sm" ? 14 : 16;
 
@@ -87,6 +87,18 @@ export function ConsultaPagamentoButton({
         <DollarSign size={iconSize} />
         A prazo
       </button>
+    );
+  }
+
+  if (mostrarIsento) {
+    return (
+      <span
+        className={`inline-flex items-center rounded-full font-medium bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300 ${pad}`}
+        title="Retorno — taxa de consulta isenta"
+        onClick={(e) => e.stopPropagation()}
+      >
+        Isento
+      </span>
     );
   }
 

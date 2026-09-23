@@ -47,6 +47,7 @@ export function consultaPagamentoUi(c: Consulta): {
   mostrarParcial: boolean;
   mostrarRecibo: boolean;
   mostrarPrazo: boolean;
+  mostrarIsento: boolean;
   consultaFinalizada: boolean;
 } {
   const finalizada = c.status === "COMPLETED";
@@ -56,6 +57,7 @@ export function consultaPagamentoUi(c: Consulta): {
     mostrarParcial: false,
     mostrarRecibo: false,
     mostrarPrazo: false,
+    mostrarIsento: false,
     consultaFinalizada: finalizada,
   };
 
@@ -64,8 +66,12 @@ export function consultaPagamentoUi(c: Consulta): {
   }
 
   const saldo = saldoReceberConsulta(c);
-  const isParcial = c.payment_status === "PARTIAL";
+  const isParcial = c.payment_status === "PARTIAL" && saldo > 0;
   const isPago = c.payment_status === "PAID" && saldo <= 0;
+
+  if (Boolean(c.retorno_gratuito) && saldo <= 0) {
+    return { ...vazio, mostrarIsento: true, consultaFinalizada: finalizada };
+  }
 
   if (isPago) {
     return { ...vazio, mostrarPago: true };

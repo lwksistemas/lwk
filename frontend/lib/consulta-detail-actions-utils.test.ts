@@ -72,6 +72,7 @@ describe("consultaPagamentoUi", () => {
       mostrarParcial: false,
       mostrarRecibo: false,
       mostrarPrazo: false,
+      mostrarIsento: false,
       consultaFinalizada: false,
     });
   });
@@ -92,6 +93,7 @@ describe("consultaPagamentoUi", () => {
       mostrarParcial: false,
       mostrarRecibo: false,
       mostrarPrazo: false,
+      mostrarIsento: false,
       consultaFinalizada: false,
     });
   });
@@ -112,6 +114,7 @@ describe("consultaPagamentoUi", () => {
       mostrarParcial: true,
       mostrarRecibo: false,
       mostrarPrazo: false,
+      mostrarIsento: false,
       consultaFinalizada: false,
     });
   });
@@ -133,11 +136,34 @@ describe("consultaPagamentoUi", () => {
       mostrarParcial: false,
       mostrarRecibo: false,
       mostrarPrazo: false,
+      mostrarIsento: false,
       consultaFinalizada: false,
     });
   });
 
-  it("mostra Recibo para retorno gratuito finalizado", () => {
+  it("mostra Isento no retorno, como no financeiro", () => {
+    const esperado = {
+      mostrarReceber: false,
+      mostrarPago: false,
+      mostrarParcial: false,
+      mostrarRecibo: false,
+      mostrarPrazo: false,
+      mostrarIsento: true,
+      consultaFinalizada: false,
+    };
+    expect(
+      consultaPagamentoUi(
+        consulta({
+          status: "IN_PROGRESS",
+          retorno_gratuito: true,
+          payment_status: "PENDING",
+          valor_pagamento: 0,
+          valor_consulta: 0,
+          valor_pago: 0,
+          valor_restante: 0,
+        }),
+      ),
+    ).toEqual(esperado);
     expect(
       consultaPagamentoUi(
         consulta({
@@ -148,14 +174,7 @@ describe("consultaPagamentoUi", () => {
           valor_restante: 0,
         }),
       ),
-    ).toEqual({
-      mostrarReceber: false,
-      mostrarPago: false,
-      mostrarParcial: false,
-      mostrarRecibo: true,
-      mostrarPrazo: false,
-      consultaFinalizada: true,
-    });
+    ).toEqual({ ...esperado, consultaFinalizada: true });
   });
 
   it("mostra Recibo para consulta finalizada sem pagamento", () => {
@@ -175,6 +194,7 @@ describe("consultaPagamentoUi", () => {
       mostrarParcial: false,
       mostrarRecibo: true,
       mostrarPrazo: false,
+      mostrarIsento: false,
       consultaFinalizada: true,
     });
   });
@@ -197,6 +217,7 @@ describe("consultaPagamentoUi", () => {
       mostrarParcial: false,
       mostrarRecibo: false,
       mostrarPrazo: true,
+      mostrarIsento: false,
       consultaFinalizada: false,
     });
   });

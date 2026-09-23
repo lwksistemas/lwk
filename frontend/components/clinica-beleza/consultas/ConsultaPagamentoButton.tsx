@@ -73,19 +73,21 @@ export function ConsultaPagamentoButton({
         </button>
       );
     }
-    if (onReceber) {
-      return (
-        <button type="button" onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
-          disabled={loading}
-          aria-label={`Pagamento a prazo de ${consulta.patient_name}`}
-          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-slate-600 hover:bg-slate-700 ${pad}`}
-          title="A prazo — cliente paga depois. Clique para receber."
-        >
-          <DollarSign size={iconSize} />
-          {loading ? "Registrando…" : "A prazo"}
-        </button>
-      );
-    }
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          toast.info("O comprovante fica disponível após finalizar a consulta.");
+        }}
+        aria-label={`Pagamento a prazo de ${consulta.patient_name}`}
+        className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-slate-600 ${pad}`}
+        title="A prazo — o comprovante fica disponível após finalizar a consulta"
+      >
+        <DollarSign size={iconSize} />
+        A prazo
+      </button>
+    );
   }
 
   // Receber: se finalizada → aviso, senão → botão

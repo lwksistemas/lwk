@@ -41,8 +41,11 @@ def enviar_recibo_pagamento(payment, *, canal: str) -> tuple[bool, str]:
     if not patient:
         return False, "Paciente não encontrado no agendamento."
 
+    # A foto do PDF já traz valores e formas. A mensagem não repete esse texto.
+    somente_foto = (getattr(payment, "status_assinatura_recibo", "") or "") == "concluido"
+
     if canal == "email":
-        return _enviar_recibo_email(payment, patient, appointment)
+        return _enviar_recibo_email(payment, patient, appointment, somente_foto=somente_foto)
     if canal == "whatsapp":
-        return _enviar_recibo_whatsapp(payment, patient, appointment)
+        return _enviar_recibo_whatsapp(payment, patient, appointment, somente_foto=somente_foto)
     return False, f"Canal desconhecido: {canal}"

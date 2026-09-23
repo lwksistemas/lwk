@@ -1,3 +1,4 @@
+import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import type { FinanceiroPayment } from "./types";
 
 /** Status exibido na lista: Parcial quando já houve entrada e ainda há saldo. */
@@ -13,4 +14,15 @@ export function statusPagamentoReceita(p: FinanceiroPayment): string {
     return "PARTIAL";
   }
   return p.status;
+}
+
+/** Pendente ainda não foi pago: a forma gravada é só o padrão Dinheiro. */
+export function rotuloFormaPagamentoReceita(p: FinanceiroPayment): string {
+  if (p.retorno_gratuito) return "Isento";
+  const status = statusPagamentoReceita(p);
+  if (status === "PENDING") {
+    if (p.payment_method === "PRAZO") return CLINICA_FORMA_PAGAMENTO_LABEL.PRAZO;
+    return "—";
+  }
+  return CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method || "—";
 }

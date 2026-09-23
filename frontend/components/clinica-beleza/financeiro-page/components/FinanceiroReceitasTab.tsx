@@ -1,15 +1,12 @@
 "use client";
 
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
-import {
-  CLINICA_FORMA_PAGAMENTO_LABEL,
-  CLINICA_PAGAMENTO_STATUS_LABEL,
-} from "@/lib/clinica-beleza-constants";
+import { CLINICA_PAGAMENTO_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { FinanceiroPayment, FinanceiroProfessional } from "../types";
-import { statusPagamentoReceita } from "../payment-status";
+import { rotuloFormaPagamentoReceita, statusPagamentoReceita } from "../payment-status";
 
 function formatVencimento(iso: string | null): string {
   if (!iso) return "—";
@@ -134,11 +131,7 @@ export function FinanceiroReceitasTab({
                     <td className="py-3 px-4 text-right font-medium">
                       {formatCurrency(p.valor_total_efetivo ?? p.amount)}
                     </td>
-                    <td className="py-3 px-4">
-                      {p.retorno_gratuito
-                        ? "Isento"
-                        : CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method}
-                    </td>
+                    <td className="py-3 px-4">{rotuloFormaPagamentoReceita(p)}</td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       {!p.retorno_gratuito && p.data_vencimento ? (
                         <>

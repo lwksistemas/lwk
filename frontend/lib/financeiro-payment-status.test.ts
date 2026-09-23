@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { statusPagamentoReceita } from "@/components/clinica-beleza/financeiro-page/payment-status";
+import {
+  rotuloFormaPagamentoReceita,
+  statusPagamentoReceita,
+} from "@/components/clinica-beleza/financeiro-page/payment-status";
 import type { FinanceiroPayment } from "@/components/clinica-beleza/financeiro-page/types";
 
 const payment = (partial: Partial<FinanceiroPayment>): FinanceiroPayment =>
@@ -38,6 +41,12 @@ describe("statusPagamentoReceita", () => {
         payment({ status: "PENDING", valor_total_efetivo: 530, saldo_devedor: 300 }),
       ),
     ).toBe("PARTIAL");
+  });
+
+  it("não mostra Dinheiro enquanto o lançamento está pendente", () => {
+    expect(rotuloFormaPagamentoReceita(payment({ status: "PENDING", payment_method: "CASH" }))).toBe("—");
+    expect(rotuloFormaPagamentoReceita(payment({ status: "PAID", payment_method: "CASH" }))).toBe("Dinheiro");
+    expect(rotuloFormaPagamentoReceita(payment({ status: "PENDING", payment_method: "PRAZO" }))).toBe("A prazo");
   });
 
   it("respeita PARTIAL e PAID da API", () => {

@@ -2,14 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, FileText, Pencil, Play, RotateCcw, Trash2 } from "lucide-react";
-import {
-  CLINICA_CONSULTA_STATUS_COLORS,
-  CLINICA_CONSULTA_STATUS_LABEL,
-} from "@/lib/clinica-beleza-constants";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { toUpperCase } from "@/lib/format-br";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { ConsultaPagamentoButton } from "./ConsultaPagamentoButton";
+import { ConsultaStatusBadge } from "./ConsultaStatusBadge";
 import type { Consulta, ConsultaProcedimento } from "./consultas-types";
 
 interface ConsultaDetailStatusBarProps {
@@ -55,8 +52,6 @@ export function ConsultaDetailStatusBar({
   onExcluir,
   onRefreshConsulta,
 }: ConsultaDetailStatusBarProps) {
-  const statusColors =
-    CLINICA_CONSULTA_STATUS_COLORS[selected.status] ?? CLINICA_CONSULTA_STATUS_COLORS.SCHEDULED;
   const consultaFinalizada = selected.status === "COMPLETED";
   const consultaCancelada = selected.status === "CANCELLED";
   const podeEditarConvenio = !consultaCancelada;
@@ -117,21 +112,17 @@ export function ConsultaDetailStatusBar({
       <span>Início: {formatData(selected.data_inicio)}</span>
       <span>Fim: {formatData(selected.data_fim)}</span>
       <span>Total: {formatCurrency(valorPagamentoConsulta(selected))}</span>
-      {procedimentosRealizados.length > 0 && (
-        <span>
-          Procedimentos:{" "}
-          <strong className="text-gray-800 dark:text-gray-200 uppercase">
-            {procedimentosRealizados
-              .map((p) => `${toUpperCase(p.nome)} (${formatCurrency(p.valor)})`)
-              .join(" · ")}
-          </strong>
-        </span>
-      )}
-      <span
-        className={`px-2 py-0.5 rounded-full text-xs font-medium uppercase ${statusColors.bg} ${statusColors.text}`}
-      >
-        {CLINICA_CONSULTA_STATUS_LABEL[selected.status] || toUpperCase(selected.status)}
+      <span>
+        Procedimentos:{" "}
+        <strong className="text-gray-800 dark:text-gray-200 uppercase">
+          {procedimentosRealizados.length > 0
+            ? procedimentosRealizados
+                .map((p) => `${toUpperCase(p.nome)} (${formatCurrency(p.valor)})`)
+                .join(" · ")
+            : "Consulta"}
+        </strong>
       </span>
+      <ConsultaStatusBadge consulta={selected} />
       {selected.protocol_name && (
         <span>
           Protocolo:{" "}

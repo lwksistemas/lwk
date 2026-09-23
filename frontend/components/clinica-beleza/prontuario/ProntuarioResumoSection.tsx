@@ -3,10 +3,7 @@
 import { Play, Trash2 } from "lucide-react";
 import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ConsultaPagamentoButton } from "@/components/clinica-beleza/consultas/ConsultaPagamentoButton";
-import {
-  CLINICA_CONSULTA_STATUS_COLORS,
-  CLINICA_CONSULTA_STATUS_LABEL,
-} from "@/lib/clinica-beleza-constants";
+import { ConsultaStatusBadge } from "@/components/clinica-beleza/consultas/ConsultaStatusBadge";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { formatConsultaListDate } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
@@ -26,15 +23,6 @@ interface ProntuarioResumoSectionProps {
   onIniciarConsulta: (consulta: Consulta) => void;
   onReceberConsulta: (consulta: Consulta) => void;
   onExcluirConsulta: (consulta: Consulta) => void;
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const colors = CLINICA_CONSULTA_STATUS_COLORS[status] ?? CLINICA_CONSULTA_STATUS_COLORS.SCHEDULED;
-  return (
-    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
-      {CLINICA_CONSULTA_STATUS_LABEL[status] || status}
-    </span>
-  );
 }
 
 function AcoesConsulta({
@@ -213,7 +201,7 @@ export function ProntuarioResumoSection({
                       />
                     </td>
                     <td className="py-3 px-4">
-                      <StatusBadge status={c.status} />
+                      <ConsultaStatusBadge consulta={c} />
                     </td>
                     <td className="py-3 px-4 text-right">
                       <AcoesConsulta

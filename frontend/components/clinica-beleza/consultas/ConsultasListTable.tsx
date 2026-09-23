@@ -4,10 +4,7 @@ import { useMemo, type ReactNode } from "react";
 import { BookOpen, Play, Trash2 } from "lucide-react";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
-import {
-  CLINICA_CONSULTA_STATUS_COLORS,
-  CLINICA_CONSULTA_STATUS_LABEL,
-} from "@/lib/clinica-beleza-constants";
+import { ConsultaStatusBadge } from "./ConsultaStatusBadge";
 import { DEFAULT_COLUNAS_CONSULTAS } from "@/lib/clinica-consultas-colunas-config";
 import { toUpperCase } from "@/lib/format-br";
 import { ConsultaPagamentoButton } from "./ConsultaPagamentoButton";
@@ -118,15 +115,7 @@ function buildColumnRegistry(
       key: "status",
       header: "STATUS",
       className: "hidden lg:table-cell",
-      render: (c) => {
-        const colors =
-          CLINICA_CONSULTA_STATUS_COLORS[c.status] ?? CLINICA_CONSULTA_STATUS_COLORS.SCHEDULED;
-        return (
-          <span className={`text-xs px-2 py-0.5 rounded-full uppercase ${colors.bg} ${colors.text}`}>
-            {CLINICA_CONSULTA_STATUS_LABEL[c.status] || toUpperCase(c.status)}
-          </span>
-        );
-      },
+      render: (c) => <ConsultaStatusBadge consulta={c} />,
     },
   };
 }

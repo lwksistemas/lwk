@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   rotuloDataLancamentoReceita,
   rotuloFormaPagamentoReceita,
+  rotuloVencimentoPrazo,
   statusPagamentoReceita,
 } from "@/components/clinica-beleza/financeiro-page/payment-status";
 import type { FinanceiroPayment } from "@/components/clinica-beleza/financeiro-page/types";
@@ -50,14 +51,19 @@ describe("statusPagamentoReceita", () => {
     expect(rotuloFormaPagamentoReceita(payment({ status: "PENDING", payment_method: "PRAZO" }))).toBe("A prazo");
   });
 
-  it("preenche Vencimento com o dia do recebimento e deixa pendente em branco", () => {
+  it("preenche Recebido em com o dia do recebimento em qualquer forma", () => {
     expect(rotuloDataLancamentoReceita(payment({ status: "PENDING", payment_date: null }))).toBe("—");
     expect(
-      rotuloDataLancamentoReceita(payment({ status: "PAID", saldo_devedor: 0, payment_date: "2026-09-23" })),
+      rotuloDataLancamentoReceita(payment({ status: "PAID", saldo_devedor: 0, payment_method: "PIX", payment_date: "2026-09-23" })),
     ).toBe("23/09/2026");
     expect(
       rotuloDataLancamentoReceita(
-        payment({ status: "PARTIAL", saldo_devedor: 40, payment_date: "2026-09-23T18:10:00-03:00" }),
+        payment({ status: "PAID", saldo_devedor: 0, payment_method: "CREDIT_CARD", payment_date: "2026-09-23T18:10:00-03:00" }),
+      ),
+    ).toBe("23/09/2026");
+    expect(
+      rotuloDataLancamentoReceita(
+        payment({ status: "PARTIAL", saldo_devedor: 40, payment_method: "DEBIT_CARD", payment_date: "2026-09-23T18:10:00-03:00" }),
       ),
     ).toBe("23/09/2026");
     expect(
@@ -65,6 +71,15 @@ describe("statusPagamentoReceita", () => {
         payment({ status: "PAID", saldo_devedor: 0, retorno_gratuito: true, payment_date: "2026-09-23" }),
       ),
     ).toBe("—");
+  });
+
+  it("mostra o vencimento só enquanto o pagamento está a prazo", () => {
+    expect(
+      rotuloVencimentoPrazo(payment({ status: "PENDING", payment_method: "PRAZO", data_vencimento: "2026-10-23" })),
+    ).toBe("23/10/2026");
+    expect(
+      rotuloVencimentoPrazo(payment({ status: "PAID", saldo_devedor: 0, payment_method: "PIX", data_vencimento: "2026-10-23" })),
+    ).toBeNull();
   });
 
   it("respeita PARTIAL e PAID da API", () => {

@@ -9,6 +9,7 @@ import type { FinanceiroPayment, FinanceiroProfessional } from "../types";
 import {
   rotuloDataLancamentoReceita,
   rotuloFormaPagamentoReceita,
+  rotuloVencimentoPrazo,
   statusPagamentoReceita,
 } from "../payment-status";
 
@@ -97,7 +98,7 @@ export function FinanceiroReceitasTab({
                 <th className="text-left py-3 px-4 font-semibold">Procedimentos</th>
                 <th className="text-right py-3 px-4 font-semibold">Valor</th>
                 <th className="text-left py-3 px-4 font-semibold">Pagamento</th>
-                <th className="text-left py-3 px-4 font-semibold whitespace-nowrap">Vencimento</th>
+                <th className="text-left py-3 px-4 font-semibold whitespace-nowrap">Recebido em</th>
                 <th className="text-left py-3 px-4 font-semibold">Status</th>
                 <th className="text-right py-3 px-4 font-semibold whitespace-nowrap min-w-[8.5rem]">
                   Comissão
@@ -115,6 +116,7 @@ export function FinanceiroReceitasTab({
               ) : (
                 payments.map((p) => {
                   const status = statusPagamentoReceita(p);
+                  const vencimentoPrazo = rotuloVencimentoPrazo(p);
                   return (
                   <tr key={p.id} className="border-b border-gray-100 dark:border-neutral-700">
                     <td className="py-3 px-4 whitespace-nowrap text-gray-600">
@@ -130,7 +132,15 @@ export function FinanceiroReceitasTab({
                     <td className="py-3 px-4 text-right font-medium">
                       {formatCurrency(p.valor_total_efetivo ?? p.amount)}
                     </td>
-                    <td className="py-3 px-4">{rotuloFormaPagamentoReceita(p)}</td>
+                    <td className="py-3 px-4">
+                      {rotuloFormaPagamentoReceita(p)}
+                      {vencimentoPrazo && (
+                        <span className={`block text-xs mt-0.5 ${p.vencido ? "text-red-600 dark:text-red-400 font-medium" : "text-gray-500 dark:text-gray-400"}`}>
+                          Venc. {vencimentoPrazo}
+                          {p.vencido && p.dias_atraso > 0 ? ` · ${p.dias_atraso} dia(s) em atraso` : ""}
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
                       {rotuloDataLancamentoReceita(p)}
                     </td>

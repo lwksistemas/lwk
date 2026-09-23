@@ -18,11 +18,16 @@ METODO_DESPESA = "DESPESA"
 def payments_visiveis_financeiro(qs=None):
     """Financeiro só mostra lançamentos de consultas finalizadas.
     Rascunhos (DRAFT) do Receber ficam só na consulta até Finalizar.
+    Agendamento cancelado não entra na lista nem em A receber.
     """
     if qs is None:
         qs = Payment.objects.all()
-    return qs.exclude(status="DRAFT").filter(
-        Q(appointment__consulta__status="COMPLETED") | Q(appointment__consulta__isnull=True),
+    return (
+        qs.exclude(status="DRAFT")
+        .exclude(appointment__status="CANCELLED")
+        .filter(
+            Q(appointment__consulta__status="COMPLETED") | Q(appointment__consulta__isnull=True),
+        )
     )
 
 

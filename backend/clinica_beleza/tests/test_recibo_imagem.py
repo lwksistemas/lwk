@@ -1,4 +1,6 @@
 """Recibo enviado como foto (JPEG) no WhatsApp e no e-mail."""
+from unittest.mock import MagicMock, patch
+
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 
@@ -53,3 +55,22 @@ class ReciboImagemCacheTests(SimpleTestCase):
         cached = ler_pdf_publico(PREFIX_RECIBO, token)
         self.assertEqual(cached["payment_id"], 118)
         self.assertEqual(cached["imagem"][:3], b"\xff\xd8\xff")
+
+
+class ReciboAssinadoFotoTests(SimpleTestCase):
+    @patch("clinica_beleza.recibo.whatsapp_channel._enviar_recibo_whatsapp", return_value=(True, "ok"))
+    @patch("clinica_beleza.recibo.email_channel._enviar_recibo_email", return_value=(True, "ok"))
+    def test_depois_de_assinar_usa_o_envio_em_foto(self, mock_email, mock_whatsapp):
+        from clinica_beleza.recibo_assinatura_envio_service import enviar_recibo_assinado
+
+        patient = MagicMock()
+        appointment = MagicMock()
+        payment = MagicMock()
+        adapter = MagicMock()
+        adapter._patient.return_value = patient
+        adapter._appointment.return_value = appointment
+
+        enviar_recibo_assinado(payment=payment, adapter=adapter, loja_id=6)
+
+        mock_email.assert_called_once_with(payment, patient, appointment)
+        mock_whatsapp.assert_called_once_with(payment, patient, appointment)

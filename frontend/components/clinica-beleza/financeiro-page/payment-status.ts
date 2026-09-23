@@ -17,8 +17,8 @@ export function statusPagamentoReceita(p: FinanceiroPayment): string {
 }
 
 /**
- * Data do recebimento na coluna Vencimento.
- * Recepção e Registrar Pagamento preenchem payment_date; pendente fica em branco.
+ * Data do recebimento na coluna Recebido em.
+ * Vale para dinheiro, PIX, cartão e transferência. Pendente fica em branco.
  */
 export function rotuloDataLancamentoReceita(p: FinanceiroPayment): string {
   if (p.retorno_gratuito) return "—";
@@ -41,6 +41,14 @@ function formatarDataLancamento(value: string | null): string {
     month: "2-digit",
     year: "numeric",
   });
+}
+
+/** Vencimento de quem ainda está a prazo. Some depois do recebimento. */
+export function rotuloVencimentoPrazo(p: FinanceiroPayment): string | null {
+  if (rotuloFormaPagamentoReceita(p) !== CLINICA_FORMA_PAGAMENTO_LABEL.PRAZO) return null;
+  const dia = String(p.data_vencimento || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return null;
+  return dia.split("-").reverse().join("/");
 }
 
 /** Pendente ainda não foi pago: a forma gravada é só o padrão Dinheiro. */

@@ -72,22 +72,33 @@ def build_resend_payload(message: EmailMessage) -> dict:
     return payload
 
 
+def _content_id_anexo(attachment: MIMEBase) -> str:
+    """Content-ID sem os sinais < >, para o Resend embutir a imagem no HTML (cid:)."""
+    bruto = (attachment.get("Content-ID") or "").strip()
+    return bruto.strip("<>").strip()
+
+
 def _build_attachments(message: EmailMessage) -> list[dict]:
     out: list[dict] = []
     for attachment in message.attachments or []:
+        content_id = ""
         if isinstance(attachment, MIMEBase):
             filename = attachment.get_filename() or "anexo"
             payload = attachment.get_payload(decode=True) or b""
+            content_id = _content_id_anexo(attachment)
         elif isinstance(attachment, (tuple, list)) and len(attachment) >= 2:
             filename = attachment[0] or "anexo"
             content = attachment[1]
             payload = content if isinstance(content, bytes) else str(content).encode("utf-8")
         else:
             continue
-        out.append({
+        item = {
             "filename": filename,
             "content": base64.b64encode(payload).decode("ascii"),
-        })
+        }
+        if content_id:
+            item["content_id"] = content_id
+        out.append(item)
     return out
 
 

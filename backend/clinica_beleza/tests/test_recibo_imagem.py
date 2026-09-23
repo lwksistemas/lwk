@@ -72,5 +72,15 @@ class ReciboAssinadoFotoTests(SimpleTestCase):
 
         enviar_recibo_assinado(payment=payment, adapter=adapter, loja_id=6)
 
-        mock_email.assert_called_once_with(payment, patient, appointment)
-        mock_whatsapp.assert_called_once_with(payment, patient, appointment)
+        mock_email.assert_called_once_with(payment, patient, appointment, somente_foto=True)
+        mock_whatsapp.assert_called_once_with(payment, patient, appointment, somente_foto=True)
+
+    def test_email_assinado_traz_so_a_foto(self):
+        from clinica_beleza.recibo.email_channel import _email_somente_foto
+
+        assunto, html, texto = _email_somente_foto({"loja_nome": "CLINICA LWK"})
+        self.assertEqual(assunto, "Recibo assinado — CLINICA LWK")
+        self.assertIn('src="cid:recibo"', html)
+        self.assertNotIn("Serviços", html)
+        self.assertNotIn("Forma de pagamento", html)
+        self.assertEqual(texto, "Recibo assinado.")

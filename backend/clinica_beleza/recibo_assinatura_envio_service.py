@@ -54,7 +54,7 @@ def enviar_recibo_para_assinatura(*, payment, adapter, loja_id: int, canal: str,
 
 
 def enviar_recibo_assinado(*, payment, adapter, loja_id: int, user=None) -> None:
-    """Envia o recibo já assinado como foto, no mesmo caminho do recibo sem assinatura.
+    """Envia só a foto do recibo assinado, sem repetir o resumo do atendimento.
 
     A assinatura já está gravada, então a foto inclui a seção de assinatura digital.
     Chamado quando a assinatura conclui. Não levanta — registra a falha no log.
@@ -72,7 +72,7 @@ def enviar_recibo_assinado(*, payment, adapter, loja_id: int, user=None) -> None
     try:
         from clinica_beleza.recibo.email_channel import _enviar_recibo_email
 
-        ok, err = _enviar_recibo_email(payment, patient, appointment)
+        ok, err = _enviar_recibo_email(payment, patient, appointment, somente_foto=True)
         if not ok:
             logger.warning(
                 "Recibo assinado por e-mail não enviado (payment %s): %s",
@@ -88,7 +88,7 @@ def enviar_recibo_assinado(*, payment, adapter, loja_id: int, user=None) -> None
     try:
         from clinica_beleza.recibo.whatsapp_channel import _enviar_recibo_whatsapp
 
-        ok, err = _enviar_recibo_whatsapp(payment, patient, appointment)
+        ok, err = _enviar_recibo_whatsapp(payment, patient, appointment, somente_foto=True)
         if not ok:
             logger.warning(
                 "Recibo assinado por WhatsApp não enviado (payment %s, user=%s): %s",

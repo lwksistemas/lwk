@@ -208,16 +208,16 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 h-full">
+              <div className="flex items-center justify-between mb-4 gap-2">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Próximos agendamentos</h3>
                 <Link
                   href={`/loja/${slug}/agenda`}
-                  className="text-xs font-medium hover:underline"
+                  className="text-xs font-medium hover:underline shrink-0"
                   style={{ color: 'var(--cb-primary, #8B3D52)' }}
                 >
-                  Ver agenda completa
+                  Ver completo
                 </Link>
               </div>
               {appointments.length > 0 ? (
@@ -227,7 +227,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               )}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 h-full">
               <div className="flex items-center justify-between mb-4 gap-2">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                   Procedimentos realizados — {filterLabel}
@@ -269,7 +269,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               )}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 h-full">
               <div className="flex items-center justify-between mb-4 gap-2">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                   Resumo financeiro — {filterLabel}

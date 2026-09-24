@@ -197,6 +197,85 @@ class ChamadoViewSet(viewsets.ModelViewSet):
             "limite_por_tipo": 50,
         })
 
+    @action(detail=True, methods=["get"], url_path="logs-loja")
+    def logs_loja(self, request, pk=None):
+        """Retorna logs COMPLETOS da loja (sucesso + erro) na janela de ±30 min
+        da abertura do chamado — igual à página /superadmin/dashboard/logs, mas
+        restrito à loja e ao período do chamado.
+
+        Formato de cada log alinhado ao HistoricoAcessoGlobalListSerializer para
+        que o frontend possa reusar os mesmos helpers de exibição (tipo_resultado,
+        mensagem_status, rotuloHttpLog, navegador, etc.).
+        """
+        chamado = self.get_object()
+        if not request.user.is_superuser and not request.user.groups.filter(name="suporte").exists():
+            return Response({"detail": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
+
+        JANELA_MIN = 30
+        abertura = chamado.created_at
+        inicio = abertura - timezone.timedelta(minutes=JANELA_MIN)
+        fim    = abertura + timezone.timedelta(minutes=JANELA_MIN)
+
+        try:
+            from superadmin.models import HistoricoAcessoGlobal, Loja
+            from superadmin.serializers import HistoricoAcessoGlobalListSerializer
+            from superadmin.historico_mensagens import mensagem_resultado, tipo_resultado
+
+            loja_obj = Loja.objects.using("default").filter(slug=chamado.loja_slug).first()
+            hist_loja_slug = (
+                loja_obj.database_name if loja_obj and loja_obj.database_name
+                else chamado.loja_slug
+            )
+            loja_id = loja_obj.id if loja_obj else None
+
+            qs = HistoricoAcessoGlobal.objects.using("default").filter(
+                loja_slug=hist_loja_slug,
+                created_at__gte=inicio,
+                created_at__lte=fim,
+            ).select_related("user", "loja").order_by("-created_at")[:200]
+
+            logs = []
+            for h in qs:
+                tipo = tipo_resultado(h.sucesso, h.erro)
+                from django.utils import timezone as dj_tz
+                local_time = dj_tz.localtime(h.created_at)
+                logs.append({
+                    "id": h.id,
+                    "usuario_nome": h.usuario_nome or "",
+                    "usuario_email": h.usuario_email or "",
+                    "loja_nome": h.loja_nome or "",
+                    "acao": h.acao or "",
+                    "acao_display": h.get_acao_display() if h.acao else "",
+                    "recurso": h.recurso or "",
+                    "ip_address": h.ip_address or "",
+                    "navegador": h.navegador,
+                    "sistema_operacional": h.sistema_operacional,
+                    "metodo_http": h.metodo_http or "",
+                    "url": h.url or "",
+                    "user_agent": (h.user_agent or "")[:300],
+                    "sucesso": h.sucesso,
+                    "erro": (h.erro or "")[:500],
+                    "mensagem_status": mensagem_resultado(h),
+                    "tipo_resultado": tipo,
+                    "detalhes": (h.detalhes or "")[:2000],
+                    "created_at": h.created_at.isoformat(),
+                    "data_hora": local_time.strftime("%d/%m/%Y %H:%M:%S"),
+                })
+
+            periodo = (
+                f"±{JANELA_MIN} min da abertura ({abertura.strftime('%d/%m/%Y %H:%M')} BRT) — "
+                f"{inicio.strftime('%H:%M')} até {fim.strftime('%H:%M')}"
+            )
+            return Response({
+                "loja_slug": chamado.loja_slug,
+                "loja_id": loja_id,
+                "periodo": periodo,
+                "total": len(logs),
+                "logs": logs,
+            })
+        except Exception as e:
+            logger.exception("logs_loja chamado %s: %s", pk, e)
+            return Response({"detail": "Erro ao carregar logs."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])

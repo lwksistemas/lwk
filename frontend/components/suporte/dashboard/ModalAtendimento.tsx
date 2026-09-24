@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import apiClient from '@/lib/api-client';
 import { formatDateTime } from '@/lib/financeiro-helpers';
+import { LogsLoja } from './LogsLoja';
 
 interface Resposta {
   id: number;
@@ -325,6 +326,9 @@ export function ModalAtendimento({
               <p className={`text-gray-900 whitespace-pre-wrap ${detalhesAberto ? 'text-sm max-h-24 overflow-y-auto' : ''}`}>{descricaoLimpa(chamado.descricao)}</p>
             </div>
           </div>
+
+          {/* Logs da loja — carregados automaticamente ao abrir o chamado */}
+          <LogsLoja chamadoId={chamado.id} />
 
           {/* Logs de diagnóstico — 3 abas (navegador/frontend/backend), 3 colunas por severidade */}
           <div className="mb-6">

@@ -1,13 +1,19 @@
 from datetime import datetime
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
+from django.utils.timezone import now as dj_now
 
 from clinica_beleza.agenda_service import (
     AgendaValidationError,
     _profissional_ativo,
     atualizar_agendamento,
 )
+
+# Datas sempre no futuro para evitar o bloqueio de histórico do agenda_service.
+_DATA_BASE   = dj_now() + timedelta(days=30)
+_DATA_NOVA   = dj_now() + timedelta(days=35)
 
 
 class ProfissionalAtivoTest(SimpleTestCase):
@@ -36,7 +42,7 @@ class AtualizarAgendamentoProfissionalTest(SimpleTestCase):
         appointment = MagicMock(
             id=10,
             professional_id=3,
-            date=datetime(2026, 8, 26, 8, 10),
+            date=_DATA_BASE,
             status="SCHEDULED",
             version=1,
         )
@@ -63,7 +69,7 @@ class AtualizarAgendamentoProfissionalTest(SimpleTestCase):
         appointment = MagicMock(
             id=10,
             professional_id=3,
-            date=datetime(2026, 8, 26, 8, 10),
+            date=_DATA_BASE,
             status="CLIENT_CONFIRMED",
             version=1,
             confirmacao_generation=1,
@@ -88,7 +94,7 @@ class AtualizarAgendamentoProfissionalTest(SimpleTestCase):
         appointment = MagicMock(
             id=10,
             professional_id=3,
-            date=datetime(2026, 8, 26, 8, 10),
+            date=_DATA_BASE,
             status="SCHEDULED",
             version=1,
         )
@@ -107,7 +113,7 @@ class AtualizarAgendamentoMaterialTest(SimpleTestCase):
         appointment = MagicMock(
             id=10,
             professional_id=3,
-            date=datetime(2026, 8, 26, 8, 10),
+            date=_DATA_BASE,
             status="CLIENT_CONFIRMED",
             version=1,
             confirmacao_generation=1,
@@ -115,7 +121,7 @@ class AtualizarAgendamentoMaterialTest(SimpleTestCase):
         appointment.get_duracao_efetiva.return_value = 40
 
         result = atualizar_agendamento(
-            appointment, new_date=datetime(2026, 8, 31, 9, 25), user=None,
+            appointment, new_date=_DATA_NOVA, user=None,
         )
 
         self.assertEqual(appointment.status, "SCHEDULED")
@@ -131,7 +137,7 @@ class AtualizarAgendamentoMaterialTest(SimpleTestCase):
         appointment = MagicMock(
             id=10,
             professional_id=3,
-            date=datetime(2026, 8, 26, 8, 10),
+            date=_DATA_BASE,
             status="SCHEDULED",
             version=1,
             confirmacao_generation=1,

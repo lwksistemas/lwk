@@ -24,6 +24,7 @@ CATEGORIA_SPELLINGS: dict[str, list[str]] = {
     "depilacao": ["depilacao", "depilação"],
     "injetavel": ["injetavel", "injetável"],
     "geral": ["geral"],
+    "protocolo": ["protocolo"],
     "outro": ["outro"],
 }
 
@@ -145,12 +146,35 @@ def _importar_slugs_usados(loja_id: int) -> None:
         ordem += 1
 
 
+def _garantir_padrao_ausente(loja_id: int) -> None:
+    """Inclui categorias padrão que a loja ainda não tem, sem alterar as existentes."""
+    existentes = {
+        normalize_categoria(slug)
+        for slug in CategoriaProcedimento.objects.filter(loja_id=loja_id).values_list("slug", flat=True)
+    }
+    last = CategoriaProcedimento.objects.filter(loja_id=loja_id).order_by("-ordem").first()
+    ordem = (last.ordem + 1) if last else 1
+    for slug, nome in CATEGORIAS_PROCEDIMENTO_PADRAO:
+        chave = normalize_categoria(slug)
+        if chave in existentes:
+            continue
+        CategoriaProcedimento.objects.get_or_create(
+            loja_id=loja_id,
+            slug=slug,
+            defaults={"nome": nome, "ordem": ordem, "cor": "#8B3D52", "is_active": True},
+        )
+        existentes.add(chave)
+        ordem += 1
+
+
 def garantir_categorias_procedimento(loja_id: int | None) -> None:
     """Cria o catálogo padrão e inclui slugs já usados nos procedimentos."""
     if not loja_id:
         return
     if not CategoriaProcedimento.objects.filter(loja_id=loja_id).exists():
         _seed_padrao(loja_id)
+    else:
+        _garantir_padrao_ausente(loja_id)
     _importar_slugs_usados(loja_id)
 
 

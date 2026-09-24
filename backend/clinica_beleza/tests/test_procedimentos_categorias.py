@@ -40,6 +40,7 @@ class CategoriaProcedimentoApiTests(ClinicaBelezaIntegrationTestCase):
         slugs = {row["slug"] for row in listed.json()}
         self.assertIn("facial", slugs)
         self.assertIn("estetica", slugs)
+        self.assertIn("protocolo", slugs)
 
         created = client.post(
             "/api/clinica-beleza/procedures/categorias/",

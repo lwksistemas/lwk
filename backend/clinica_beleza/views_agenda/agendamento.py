@@ -133,6 +133,45 @@ class AgendaCreateView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         from clinica_beleza.agenda_service import criar_agendamento
+        from clinica_beleza.protocolo_comercial import ProtocoloAgendaConflito, agendar_protocolo_da_selecao
+
+        procedures = list(serializer.validated_data.get("_procedures_list") or [])
+        if not procedures and serializer.validated_data.get("procedure"):
+            procedures = [serializer.validated_data["procedure"]]
+        forma = str(request.data.get("forma_cobranca") or "").strip()
+        try:
+            resultado = agendar_protocolo_da_selecao(
+                procedures=procedures,
+                patient=serializer.validated_data.get("patient"),
+                professional=serializer.validated_data.get("professional"),
+                local_atendimento=serializer.validated_data.get("local_atendimento"),
+                data_inicio=serializer.validated_data.get("date"),
+                forma_cobranca=forma,
+                request=request,
+                convenio=serializer.validated_data.get("convenio"),
+                nome_agenda=serializer.validated_data.get("nome_agenda"),
+                observacao=serializer.validated_data.get("notes") or "",
+            )
+        except ProtocoloAgendaConflito as exc:
+            return Response(
+                {"error": str(exc), "conflitos": exc.conflitos},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except AgendaValidationError as e:
+            return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
+        if resultado is not None:
+            appointment = Appointment.objects.select_related(
+                "patient",
+                "professional",
+                "procedure",
+                "convenio",
+                "nome_agenda",
+                "local_atendimento",
+            ).get(pk=resultado["agendamentos"][0]["id"])
+            data = AgendaEventSerializer(appointment).data
+            data["sessoes_criadas"] = len(resultado["agendamentos"])
+            return Response(data, status=status.HTTP_201_CREATED)
+
         try:
             appointment = criar_agendamento(
                 serializer.validated_data,

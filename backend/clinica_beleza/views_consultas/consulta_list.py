@@ -106,7 +106,41 @@ class ConsultaListView(APIView):
             if appointment_date is None:
                 return Response({"error": "Data/hora inválida."}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            from django.utils import timezone
+
+            from ..agenda_service import AgendaValidationError
+            from ..convenio_service import resolver_convenio
+            from ..models import LocalAtendimento, NomeAgenda
             from ..permissions import is_clinica_admin
+            from ..protocolo_comercial import ProtocoloAgendaConflito, agendar_protocolo_da_selecao
+
+            if proc_list:
+                local = None
+                if local_atendimento_id:
+                    local = LocalAtendimento.objects.filter(pk=local_atendimento_id, is_active=True).first()
+                nome_agenda = None
+                if nome_agenda_id:
+                    nome_agenda = NomeAgenda.objects.filter(pk=nome_agenda_id, is_active=True).first()
+                resultado = agendar_protocolo_da_selecao(
+                    procedures=proc_list,
+                    patient=patient,
+                    professional=professional,
+                    local_atendimento=local,
+                    data_inicio=appointment_date or timezone.now(),
+                    forma_cobranca=str(request.data.get("forma_cobranca") or "").strip(),
+                    request=request,
+                    convenio=resolver_convenio(convenio_id, loja_id=patient.loja_id),
+                    nome_agenda=nome_agenda,
+                    abrir_primeira=True,
+                    observacao=notes or "",
+                )
+                if resultado is not None:
+                    consulta = Consulta.objects.select_related(
+                        "patient", "professional", "procedure", "protocol", "appointment",
+                    ).get(pk=resultado["consulta_id"])
+                    data = ConsultaSerializer(consulta).data
+                    data["sessoes_criadas"] = len(resultado["agendamentos"])
+                    return Response(data, status=status.HTTP_201_CREATED)
 
             consulta = criar_consulta_avulsa(
                 patient=patient,
@@ -123,6 +157,13 @@ class ConsultaListView(APIView):
                 retorno_procedure_id=retorno_procedure_id,
                 bypass_inadimplencia=is_clinica_admin(request),
             )
+        except ProtocoloAgendaConflito as exc:
+            return Response(
+                {"error": str(exc), "conflitos": exc.conflitos},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except AgendaValidationError as exc:
+            return Response({"error": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         consulta = Consulta.objects.select_related(

@@ -6,7 +6,7 @@ import {
 import { calcularDuracaoAgendamento } from "@/lib/clinica-beleza-duracao";
 import { isBrowserOffline, isFetchNetworkError } from "@/lib/clinica-beleza-offline";
 import { workHoursRejectionMessage } from "@/lib/clinica-beleza-work-hours";
-import { buildAppointmentDate, buildCriarAgendamentoPayload } from "./criar-agendamento-builders";
+import { buildAppointmentDate, buildCriarAgendamentoPayload, classificarSelecaoProtocolo } from "./criar-agendamento-builders";
 import {
   buildOfflineAgendaEvent,
   enqueueAgendamentoOffline,
@@ -54,6 +54,9 @@ export function useCriarAgendamentoSubmit(
     localAtendimentoId,
     retornoProcedureId,
     horariosProfissional,
+    protocolos,
+    protocolosCarregando,
+    formaCobranca,
     setCreateLoading,
     setCreateError,
     setTime,
@@ -113,9 +116,21 @@ export function useCriarAgendamentoSubmit(
       return;
     }
 
+    if (protocolosCarregando && selectedProcedures.length > 0) {
+      setCreateError("Carregando protocolos. Tente novamente.");
+      return;
+    }
+    const selecao = classificarSelecaoProtocolo(procedures, selectedProcedures, protocolos);
+    if (selecao.tipo === "erro") {
+      setCreateError(selecao.mensagem);
+      return;
+    }
+    const protocolo = selecao.tipo === "agendar" ? selecao.protocolo : null;
+
     const localSel = localId ? locaisAtendimento.find((l) => l.id === localId) : undefined;
     const profSel = professionalId ? professionals.find((p) => p.id === professionalId) : undefined;
-    const duracaoChecagem = calcularDuracaoAgendamento(resumo.duracao, profSel, localSel);
+    const duracaoBase = protocolo?.tempo_estimado || resumo.duracao;
+    const duracaoChecagem = calcularDuracaoAgendamento(duracaoBase, profSel, localSel);
 
     const horarioMsg = workHoursRejectionMessage(date, duracaoChecagem, horariosProfissional);
     if (horarioMsg) {
@@ -135,7 +150,8 @@ export function useCriarAgendamentoSubmit(
       localId,
       convenioId,
       selectedProcedures,
-      retornoProcedureId,
+      retornoProcedureId: protocolo ? "" : retornoProcedureId,
+      formaCobranca: protocolo ? formaCobranca : undefined,
     });
 
     const finishConsultaOffline = async () => {

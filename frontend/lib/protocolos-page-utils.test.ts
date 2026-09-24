@@ -46,12 +46,8 @@ describe("validateProtocoloForm", () => {
         ...EMPTY_PROTOCOLO_FORM,
         nome: "Teste",
         procedure: "1",
-        valor: "1200",
       }),
     ).toBeNull();
-    expect(
-      validateProtocoloForm({ ...EMPTY_PROTOCOLO_FORM, nome: "Teste", procedure: "1" }),
-    ).toBe("Informe o valor do protocolo.");
   });
 });
 
@@ -82,7 +78,7 @@ describe("buildProtocoloSaveBody", () => {
     expect(body.tempo_estimado).toBe(40);
     expect(body.execucao).toBe("Passos");
     expect(body.sessoes).toBe(4);
-    expect(body.valor).toBe("1200.50");
+    expect(body.valor).toBeUndefined();
     expect(body.produtos).toEqual([{ produto: 9, quantidade: "1.50" }]);
   });
 });

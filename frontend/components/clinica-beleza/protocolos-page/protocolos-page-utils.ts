@@ -104,10 +104,6 @@ export function validateProtocoloForm(form: ProtocoloFormState): string | null {
   if (!UNIDADES.has(form.intervalo_unidade)) {
     return "Escolha dias, semanas ou meses.";
   }
-  const valor = numeroFormulario(form.valor);
-  if (!Number.isFinite(valor) || valor < 0 || form.valor.trim() === "") {
-    return "Informe o valor do protocolo.";
-  }
   const produtos = new Set<string>();
   for (const linha of form.produtos) {
     if (!linha.produto) return "Selecione o produto.";
@@ -136,7 +132,6 @@ export function buildProtocoloSaveBody(form: ProtocoloFormState): Record<string,
     sessoes: Number(form.sessoes),
     intervalo_quantidade: Number(form.intervalo_quantidade),
     intervalo_unidade: form.intervalo_unidade,
-    valor: numeroFormulario(form.valor).toFixed(2),
     produtos: form.produtos.map((linha) => ({
       produto: Number(linha.produto),
       quantidade: numeroFormulario(linha.quantidade).toFixed(2),

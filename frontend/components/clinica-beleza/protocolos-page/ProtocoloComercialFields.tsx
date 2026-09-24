@@ -9,20 +9,14 @@ import {
 
 interface ProtocoloComercialFieldsProps {
   form: ProtocoloFormState;
-  produtos: ProtocoloProdutoOption[];
   onChange: (patch: Partial<ProtocoloFormState>) => void;
 }
 
-export function ProtocoloComercialFields({ form, produtos, onChange }: ProtocoloComercialFieldsProps) {
-  const atualizarLinha = (indice: number, patch: Partial<ProtocoloFormState["produtos"][number]>) => {
-    const linhas = form.produtos.map((linha, i) => (i === indice ? { ...linha, ...patch } : linha));
-    onChange({ produtos: linhas });
-  };
-
+export function ProtocoloComercialFields({ form, onChange }: ProtocoloComercialFieldsProps) {
   return (
-    <div className="space-y-4 mt-6">
+    <div className="space-y-4">
       <p className={FORM_SECTION_TITLE_CLASS}>Pacote comercial</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label className={FORM_LABEL_CLASS}>Sessões *</label>
           <input
@@ -57,22 +51,29 @@ export function ProtocoloComercialFields({ form, produtos, onChange }: Protocolo
             <option value="meses">Meses</option>
           </select>
         </div>
-        <div>
-          <label className={FORM_LABEL_CLASS}>Valor do protocolo (R$) *</label>
-          <input
-            inputMode="decimal"
-            value={form.valor}
-            onChange={(e) => onChange({ valor: e.target.value })}
-            className={FORM_INPUT_CLASS}
-            placeholder="1200,00"
-          />
-        </div>
       </div>
       <p className="text-xs text-gray-500">
         O intervalo é entre uma sessão e a outra. Quatro sessões a cada 7 dias ocupam 21 dias.
-        O valor é o preço fechado do pacote e não soma a taxa do consultório.
+        O preço do pacote é o valor do procedimento, por convênio, na página Procedimentos.
       </p>
+    </div>
+  );
+}
 
+interface ProtocoloProdutosFieldsProps {
+  form: ProtocoloFormState;
+  produtos: ProtocoloProdutoOption[];
+  onChange: (patch: Partial<ProtocoloFormState>) => void;
+}
+
+export function ProtocoloProdutosFields({ form, produtos, onChange }: ProtocoloProdutosFieldsProps) {
+  const atualizarLinha = (indice: number, patch: Partial<ProtocoloFormState["produtos"][number]>) => {
+    const linhas = form.produtos.map((linha, i) => (i === indice ? { ...linha, ...patch } : linha));
+    onChange({ produtos: linhas });
+  };
+
+  return (
+    <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className={FORM_SECTION_TITLE_CLASS}>Produtos por sessão</p>
         <button
@@ -90,7 +91,7 @@ export function ProtocoloComercialFields({ form, produtos, onChange }: Protocolo
       ) : (
         <div className="space-y-3">
           {form.produtos.map((linha, indice) => (
-            <div key={`${indice}-${linha.produto}`} className="grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] gap-3 items-end">
+            <div key={`${indice}-${linha.produto}`} className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-3 items-end">
               <div>
                 <label className={FORM_LABEL_CLASS}>Produto</label>
                 <select

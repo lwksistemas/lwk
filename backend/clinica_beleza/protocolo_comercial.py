@@ -68,6 +68,34 @@ def _rotulo_quando(dt: datetime) -> str:
     return timezone.localtime(dt).strftime("%d/%m/%Y %H:%M")
 
 
+def classificar_selecao_protocolo(procedures, protocolos_ativos):
+    """Um procedimento com um protocolo ativo segue para o pacote.
+    Procedimento da categoria Protocolo sem cadastro, mistura ou mais de um protocolo ativo são erro.
+    Sem protocolo, o agendamento comum segue.
+    """
+    from .agenda_service import AgendaValidationError
+
+    procedures = list(procedures or [])
+    ids = {item.id for item in procedures}
+    ligados = [item for item in protocolos_ativos if item.procedure_id in ids]
+    da_categoria = [
+        item for item in procedures if (getattr(item, "categoria", None) or "").strip().lower() == "protocolo"
+    ]
+    if len(procedures) > 1 and (ligados or da_categoria):
+        raise AgendaValidationError("O protocolo é agendado sozinho.")
+    if len(ligados) > 1:
+        raise AgendaValidationError(
+            "Há mais de um protocolo ativo neste procedimento. Deixe só um ativo."
+        )
+    if len(ligados) == 1:
+        return ligados[0]
+    if da_categoria:
+        raise AgendaValidationError(
+            "Cadastre o protocolo deste procedimento em Protocolos antes de agendar."
+        )
+    return None
+
+
 def copiar_produtos_protocolo_na_consulta(consulta) -> None:
     """Copia os produtos do protocolo para a consulta, sem baixar o estoque."""
     appointment = getattr(consulta, "appointment", None)
@@ -100,6 +128,10 @@ def agendar_protocolo(
     data_inicio: datetime,
     forma_cobranca: str,
     request=None,
+    convenio=None,
+    nome_agenda=None,
+    abrir_primeira=False,
+    observacao="",
 ) -> dict:
     """Cria o contrato e as N sessões. Se houver conflito, não grava nada."""
     from .agenda_service import (
@@ -127,6 +159,14 @@ def agendar_protocolo(
     if duracao < 1:
         raise AgendaValidationError("Informe a duração de cada sessão, em minutos.")
 
+    if convenio is None:
+        convenio_paciente = getattr(patient, "convenio", None)
+        if convenio_paciente is not None and getattr(convenio_paciente, "is_active", False):
+            convenio = convenio_paciente
+
+    from .convenio_service import resolver_preco_procedimento
+
+    valor_pacote = resolver_preco_procedimento(convenio, protocol.procedure)
     _bloquear_se_paciente_inadimplente(patient, request=request)
     inicio = _ciente(data_inicio)
     datas = [
@@ -138,7 +178,7 @@ def agendar_protocolo(
             protocol.intervalo_unidade,
         )
     ]
-    partes = dividir_valor_protocolo(protocol.valor, sessoes, forma_cobranca)
+    partes = dividir_valor_protocolo(valor_pacote, sessoes, forma_cobranca)
     slots = []
     for indice, quando in enumerate(datas):
         fim = quando + timedelta(minutes=duracao)
@@ -163,13 +203,18 @@ def agendar_protocolo(
             professional=professional,
             local_atendimento=local_atendimento,
             forma_cobranca=forma_cobranca,
-            valor_total=Decimal(str(protocol.valor or 0)).quantize(Decimal("0.01")),
+            valor_total=Decimal(str(valor_pacote or 0)).quantize(Decimal("0.01")),
             data_inicio=slots[0]["inicio"],
             sessoes=sessoes,
             loja_id=protocol.loja_id,
         )
+        observacao = (observacao or "").strip()
         criados = []
+        primeira = None
         for slot in slots:
+            notes = f"Protocolo {protocol.nome} — sessão {slot['sessao']} de {sessoes}"
+            if observacao:
+                notes = f"{notes}\n{observacao}"
             appointment = Appointment.objects.create(
                 date=slot["inicio"],
                 status="SCHEDULED",
@@ -177,12 +222,16 @@ def agendar_protocolo(
                 professional=professional,
                 procedure=protocol.procedure,
                 local_atendimento=local_atendimento,
+                convenio=convenio,
+                nome_agenda=nome_agenda,
                 duracao_minutos=duracao,
                 protocolo_contrato=contrato,
                 sessao_numero=slot["sessao"],
-                notes=f"Protocolo {protocol.nome} — sessão {slot['sessao']} de {sessoes}",
+                notes=notes,
                 loja_id=protocol.loja_id,
             )
+            if primeira is None:
+                primeira = appointment
             AppointmentProcedure.objects.create(
                 appointment=appointment,
                 procedure=protocol.procedure,
@@ -199,7 +248,58 @@ def agendar_protocolo(
                     "valor": str(slot["valor"]),
                 }
             )
-    return {"contrato_id": contrato.id, "agendamentos": criados}
+        consulta_id = None
+        if abrir_primeira and primeira is not None:
+            primeira.status = "CONFIRMED"
+            primeira.save(update_fields=["status", "updated_at"])
+            from .consulta_service.sync import sync_consulta_from_appointment_status
+
+            consulta = sync_consulta_from_appointment_status(primeira, "CONFIRMED", "SCHEDULED")
+            consulta_id = getattr(consulta, "id", None)
+            if consulta_id is None:
+                raise AgendaValidationError("Não foi possível abrir a primeira sessão para recebimento.")
+    return {"contrato_id": contrato.id, "agendamentos": criados, "consulta_id": consulta_id}
+
+
+def agendar_protocolo_da_selecao(
+    *,
+    procedures,
+    patient,
+    professional,
+    local_atendimento,
+    data_inicio: datetime,
+    forma_cobranca: str,
+    request=None,
+    convenio=None,
+    nome_agenda=None,
+    abrir_primeira=False,
+    observacao="",
+) -> dict | None:
+    """Agenda o pacote quando a seleção é um protocolo. Retorna None no agendamento comum."""
+    from .models import ProcedureProtocol
+
+    procedures = list(procedures or [])
+    protocolos = []
+    if procedures:
+        protocolos = list(
+            ProcedureProtocol.objects.filter(procedure__in=procedures, is_active=True).select_related("procedure")
+        )
+    protocol = classificar_selecao_protocolo(procedures, protocolos)
+    if protocol is None:
+        return None
+    return agendar_protocolo(
+        protocol=protocol,
+        patient=patient,
+        professional=professional,
+        local_atendimento=local_atendimento,
+        data_inicio=data_inicio,
+        forma_cobranca=forma_cobranca,
+        request=request,
+        convenio=convenio,
+        nome_agenda=nome_agenda,
+        abrir_primeira=abrir_primeira,
+        observacao=observacao,
+    )
 
 
 def _conflitos_das_sessoes(slots: list[dict], professional) -> list[dict]:

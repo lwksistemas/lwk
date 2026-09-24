@@ -16,6 +16,7 @@ CATEGORIAS_PROCEDIMENTO_PADRAO = [
     ("depilacao", "Depilação"),
     ("injetavel", "Injetável"),
     ("geral", "Geral"),
+    ("protocolo", "Protocolo"),
     ("outro", "Outro"),
 ]
 

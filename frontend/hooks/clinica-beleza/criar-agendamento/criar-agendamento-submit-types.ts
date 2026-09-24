@@ -1,4 +1,5 @@
 import type { HorarioTrabalho } from "@/lib/clinica-beleza-work-hours";
+import type { ProtocoloAgendaResumo, ProtocoloFormaCobranca } from "./criar-agendamento-builders";
 import type { UseCriarAgendamentoOptions } from "./criar-agendamento-types";
 
 export interface CriarAgendamentoSubmitContext {
@@ -17,6 +18,9 @@ export interface CriarAgendamentoSubmitContext {
   localAtendimentoId: number | "";
   retornoProcedureId: number | "";
   horariosProfissional: HorarioTrabalho[];
+  protocolos: ProtocoloAgendaResumo[];
+  protocolosCarregando: boolean;
+  formaCobranca: ProtocoloFormaCobranca;
   setCreateLoading: (v: boolean) => void;
   setCreateError: (v: string) => void;
   setTime: (v: string) => void;

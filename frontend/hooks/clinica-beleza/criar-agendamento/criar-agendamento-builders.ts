@@ -1,5 +1,56 @@
 import type { RetornoVerificacaoResult } from "@/lib/clinica-beleza-api";
 import type { LocalAtendimentoItem } from "@/lib/clinica-beleza-api";
+import { resolveProcedureCategoriaSlug } from "@/lib/clinica-beleza-categories";
+
+export type ProtocoloFormaCobranca = "POR_CONSULTA" | "TOTAL";
+
+export interface ProtocoloAgendaResumo {
+  id: number;
+  nome: string;
+  procedure: number;
+  sessoes: number;
+  tempo_estimado: number;
+  intervalo_quantidade: number;
+  intervalo_unidade: "dias" | "semanas" | "meses";
+}
+
+export type SelecaoProtocolo =
+  | { tipo: "normal" }
+  | { tipo: "agendar"; protocolo: ProtocoloAgendaResumo }
+  | { tipo: "erro"; mensagem: string };
+
+export function classificarSelecaoProtocolo(
+  procedures: { id: number; categoria?: string | null; category?: string | null }[],
+  selectedIds: number[],
+  protocolos: ProtocoloAgendaResumo[],
+): SelecaoProtocolo {
+  const selecionados = selectedIds
+    .map((id) => procedures.find((item) => item.id === id))
+    .filter((item): item is { id: number; categoria?: string | null; category?: string | null } => Boolean(item));
+  const ligados = protocolos.filter((item) => selectedIds.includes(item.procedure));
+  const daCategoria = selecionados.some(
+    (item) => resolveProcedureCategoriaSlug(item.categoria || item.category) === "protocolo",
+  );
+  if (selectedIds.length > 1 && (ligados.length > 0 || daCategoria)) {
+    return { tipo: "erro", mensagem: "O protocolo é agendado sozinho." };
+  }
+  if (ligados.length > 1) {
+    return {
+      tipo: "erro",
+      mensagem: "Há mais de um protocolo ativo neste procedimento. Deixe só um ativo.",
+    };
+  }
+  if (ligados.length === 1 && selectedIds.length === 1) {
+    return { tipo: "agendar", protocolo: ligados[0] };
+  }
+  if (daCategoria) {
+    return {
+      tipo: "erro",
+      mensagem: "Cadastre o protocolo deste procedimento em Protocolos antes de agendar.",
+    };
+  }
+  return { tipo: "normal" };
+}
 
 export function buildAppointmentDate(
   dateInput: string,
@@ -25,6 +76,7 @@ export interface CriarAgendamentoPayload {
   procedure?: number;
   procedures_ids?: number[];
   retorno_procedure?: number;
+  forma_cobranca?: ProtocoloFormaCobranca;
 }
 
 export function buildCriarAgendamentoPayload({
@@ -37,6 +89,7 @@ export function buildCriarAgendamentoPayload({
   convenioId,
   selectedProcedures,
   retornoProcedureId,
+  formaCobranca,
 }: {
   patientId: number | "";
   agendaId: number;
@@ -47,6 +100,7 @@ export function buildCriarAgendamentoPayload({
   convenioId: number | "";
   selectedProcedures: number[];
   retornoProcedureId: number | "";
+  formaCobranca?: ProtocoloFormaCobranca;
 }): CriarAgendamentoPayload {
   const basePayload: CriarAgendamentoPayload = {
     patient: Number(patientId),
@@ -63,9 +117,10 @@ export function buildCriarAgendamentoPayload({
     basePayload.procedures_ids = selectedProcedures;
     basePayload.procedure = selectedProcedures[0];
   }
-  if (retornoProcedureId) {
+  if (retornoProcedureId && !formaCobranca) {
     basePayload.retorno_procedure = Number(retornoProcedureId);
   }
+  if (formaCobranca) basePayload.forma_cobranca = formaCobranca;
   return basePayload;
 }
 

@@ -1,12 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNovaConsultaForm } from "@/hooks/clinica-beleza/useNovaConsultaForm";
-import type { RetornoVerificacaoResult } from "@/lib/clinica-beleza-api";
+import {
+  clinicaBelezaFetch,
+  parseClinicaBelezaListResponse,
+  parseClinicaBelezaResponseBody,
+  type RetornoVerificacaoResult,
+} from "@/lib/clinica-beleza-api";
+import { dividirValorProtocolo } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
 import { type HorarioTrabalho } from "@/lib/clinica-beleza-work-hours";
 import {
+  classificarSelecaoProtocolo,
   computeCriarAgendamentoPricing,
   getCriarAgendamentoModalLabels,
+  type ProtocoloAgendaResumo,
+  type ProtocoloFormaCobranca,
 } from "./criar-agendamento-builders";
 import type { UseCriarAgendamentoOptions } from "./criar-agendamento-types";
 import { useCriarAgendamentoEffects } from "./useCriarAgendamentoEffects";
@@ -38,6 +47,34 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
   const [retornoProcedureId, setRetornoProcedureId] = useState<number | "">("");
   const [verificandoRetorno, setVerificandoRetorno] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [protocolos, setProtocolos] = useState<ProtocoloAgendaResumo[]>([]);
+  const [protocolosCarregando, setProtocolosCarregando] = useState(false);
+  const [formaCobranca, setFormaCobranca] = useState<ProtocoloFormaCobranca>("POR_CONSULTA");
+
+  useEffect(() => {
+    if (!open) {
+      setFormaCobranca("POR_CONSULTA");
+      setProtocolos([]);
+      return;
+    }
+    let ativo = true;
+    setProtocolosCarregando(true);
+    void (async () => {
+      try {
+        const res = await clinicaBelezaFetch("/protocolos/?active=true&all=1");
+        const dados = await parseClinicaBelezaResponseBody(res);
+        if (!ativo) return;
+        setProtocolos(parseClinicaBelezaListResponse<ProtocoloAgendaResumo>(dados));
+      } catch {
+        if (ativo) setProtocolos([]);
+      } finally {
+        if (ativo) setProtocolosCarregando(false);
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [open]);
 
   const nomeAgendaUnico = nomesAgenda.length === 1 ? nomesAgenda[0] : null;
   const localUnico = locaisAtendimento.length === 1 ? locaisAtendimento[0] : null;
@@ -83,6 +120,9 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     localAtendimentoId,
     retornoProcedureId,
     horariosProfissional,
+    protocolos,
+    protocolosCarregando,
+    formaCobranca,
     setCreateLoading,
     setCreateError,
     setTime,
@@ -92,16 +132,41 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     setLocalAtendimentoId,
   });
 
-  const pricing = useMemo(
-    () =>
-      computeCriarAgendamentoPricing(
-        localAtendimentoId,
-        locaisAtendimento,
-        retornoInfo,
-        novaConsulta.resumo.valor,
-      ),
-    [localAtendimentoId, locaisAtendimento, retornoInfo, novaConsulta.resumo.valor],
+  const selecaoProtocolo = useMemo(
+    () => classificarSelecaoProtocolo(procedures, novaConsulta.selectedProcedures, protocolos),
+    [procedures, novaConsulta.selectedProcedures, protocolos],
   );
+  const protocoloSelecionado =
+    !protocolosCarregando && selecaoProtocolo.tipo === "agendar" ? selecaoProtocolo.protocolo : null;
+  const protocoloErro =
+    !protocolosCarregando && selecaoProtocolo.tipo === "erro" ? selecaoProtocolo.mensagem : "";
+
+  const pricing = useMemo(() => {
+    const base = computeCriarAgendamentoPricing(
+      localAtendimentoId,
+      locaisAtendimento,
+      protocoloSelecionado ? null : retornoInfo,
+      novaConsulta.resumo.valor,
+    );
+    if (!protocoloSelecionado) return base;
+    const partes = dividirValorProtocolo(
+      novaConsulta.resumo.valor,
+      protocoloSelecionado.sessoes || 1,
+      formaCobranca,
+    );
+    return {
+      ...base,
+      taxaConsultaBase: 0,
+      totalEstimado: partes[0] ?? 0,
+    };
+  }, [
+    localAtendimentoId,
+    locaisAtendimento,
+    retornoInfo,
+    novaConsulta.resumo.valor,
+    protocoloSelecionado,
+    formaCobranca,
+  ]);
 
   const labels = getCriarAgendamentoModalLabels(isConsulta, createLoading);
 
@@ -138,6 +203,10 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     showAdvanced,
     setShowAdvanced,
     ...pricing,
+    protocoloSelecionado,
+    protocoloErro,
+    formaCobranca,
+    setFormaCobranca,
     handleCreatePatient,
     onPatientsChange,
   };

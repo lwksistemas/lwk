@@ -24,17 +24,6 @@ class ProtocoloAgendaConflito(Exception):
         super().__init__("Horário ocupado ou bloqueado. Ajuste a data da primeira sessão.")
 
 
-def isentar_sessoes_no_prazo_de_retorno(partes: list[Decimal], elegiveis: list[bool]) -> list[Decimal]:
-    """Cada sessão cuja data ainda está no prazo de retorno de outra consulta fica sem cobrança."""
-    if not partes or not any(elegiveis):
-        return partes
-    ajustadas = list(partes)
-    for indice, elegivel in enumerate(elegiveis[: len(ajustadas)]):
-        if elegivel:
-            ajustadas[indice] = Decimal("0.00")
-    return ajustadas
-
-
 def dividir_valor_protocolo(valor, sessoes: int, forma: str) -> list[Decimal]:
     """Por consulta: partes iguais e o resto de centavos na última sessão.
     Valor total: o pacote inteiro na primeira sessão e zero nas seguintes.
@@ -189,22 +178,7 @@ def agendar_protocolo(
             protocol.intervalo_unidade,
         )
     ]
-    from .retorno_service import verificar_retorno
-
-    procedure_ids = [protocol.procedure_id] if protocol.procedure_id else []
-    loja_id = getattr(protocol, "loja_id", None) or getattr(patient, "loja_id", None)
-    partes = isentar_sessoes_no_prazo_de_retorno(
-        dividir_valor_protocolo(valor_pacote, sessoes, forma_cobranca),
-        [
-            verificar_retorno(
-                patient.id,
-                procedure_ids,
-                loja_id,
-                reference_date=quando,
-            ).elegivel
-            for quando in datas
-        ],
-    )
+    partes = dividir_valor_protocolo(valor_pacote, sessoes, forma_cobranca)
     slots = []
     for indice, quando in enumerate(datas):
         fim = quando + timedelta(minutes=duracao)

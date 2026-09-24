@@ -10,7 +10,6 @@ import {
   dividirValorProtocolo,
   formatarValorProtocolo,
   rotuloIntervaloProtocolo,
-  sessoesIsentasPeloRetorno,
 } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
 import { FieldLabel, SectionTitle } from "./CriarAgendamentoFormFields";
 
@@ -222,9 +221,6 @@ export function CriarAgendamentoAgendaSection({
           onForma={setFormaCobranca}
           isConsulta={isConsulta}
           totalDestaVisita={totalEstimado}
-          retornoElegivel={Boolean(retornoInfo?.elegivel)}
-          diasRestantes={retornoInfo?.dias_restantes}
-          dataInicio={dateInput}
         />
       )}
 
@@ -278,9 +274,6 @@ function ProtocoloCobrancaBox({
   onForma,
   isConsulta,
   totalDestaVisita,
-  retornoElegivel,
-  diasRestantes,
-  dataInicio,
 }: {
   nome: string;
   sessoes: number;
@@ -291,37 +284,10 @@ function ProtocoloCobrancaBox({
   onForma: (forma: "POR_CONSULTA" | "TOTAL") => void;
   isConsulta: boolean;
   totalDestaVisita: number;
-  retornoElegivel: boolean;
-  diasRestantes?: number | null;
-  dataInicio?: string;
 }) {
   const partes = dividirValorProtocolo(valorPacote, sessoes, "POR_CONSULTA");
   const parcela = formatarValorProtocolo(partes[0] || 0);
   const pacote = formatarValorProtocolo(valorPacote);
-  const isentas = sessoesIsentasPeloRetorno(
-    sessoes,
-    intervaloQuantidade,
-    intervaloUnidade,
-    retornoElegivel,
-    diasRestantes,
-    dataInicio,
-  );
-  const quantidadeIsenta = isentas.filter(Boolean).length;
-  const primeiraIsenta = Boolean(isentas[0]);
-  const textoPorConsulta =
-    quantidadeIsenta <= 0
-      ? `Por consulta — ${sessoes}x de ${parcela}`
-      : quantidadeIsenta >= sessoes
-        ? "Por consulta — todas as sessões isentas pelo retorno de outra consulta."
-        : quantidadeIsenta === 1
-          ? `Por consulta — primeira sessão isenta. Depois, ${parcela} por sessão.`
-          : `Por consulta — sessões 1 a ${quantidadeIsenta} isentas. Depois, ${parcela} por sessão.`;
-  const textoPrazo =
-    quantidadeIsenta >= sessoes
-      ? "Todas as sessões ficam isentas: o prazo de retorno de outra consulta cobre essas datas."
-      : quantidadeIsenta === 1
-        ? "A primeira sessão fica isenta, porque essa data ainda está no prazo de retorno de outra consulta. Depois do prazo, a cobrança volta."
-        : `As sessões 1 a ${quantidadeIsenta} ficam isentas, porque essas datas ainda estão no prazo de retorno de outra consulta. Depois do prazo, a cobrança volta.`;
 
   return (
     <div className="p-3 rounded-lg bg-gray-50 dark:bg-neutral-900/50 text-sm space-y-3 border border-gray-100 dark:border-neutral-700">
@@ -341,7 +307,7 @@ function ProtocoloCobrancaBox({
             checked={forma === "POR_CONSULTA"}
             onChange={() => onForma("POR_CONSULTA")}
           />
-          <span>{textoPorConsulta}</span>
+          <span>Por consulta — {sessoes}x de {parcela}</span>
         </label>
         <label className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
           <input
@@ -351,20 +317,10 @@ function ProtocoloCobrancaBox({
             checked={forma === "TOTAL"}
             onChange={() => onForma("TOTAL")}
           />
-          <span>
-            {primeiraIsenta
-              ? "Valor total — o pacote não é cobrado, porque a primeira sessão ainda está no prazo de retorno."
-              : `Valor total — ${pacote} na primeira sessão. As demais não geram nova cobrança.`}
-          </span>
+          <span>Valor total — {pacote} na primeira sessão. As demais não geram nova cobrança.</span>
         </label>
       </fieldset>
-      {quantidadeIsenta > 0 && (
-        <p className="text-xs text-emerald-800 dark:text-emerald-300">
-          {textoPrazo}
-          {forma === "TOTAL" && primeiraIsenta ? " No valor total, o pacote não é cobrado." : ""}
-        </p>
-      )}
-      {valorPacote <= 0 && quantidadeIsenta <= 0 && (
+      {valorPacote <= 0 && (
         <p className="text-xs text-amber-800 dark:text-amber-200">
           O preço deste procedimento está zerado. Ajuste em Procedimentos, nos valores por convênio.
         </p>
@@ -374,12 +330,10 @@ function ProtocoloCobrancaBox({
         <span>{formatarValorProtocolo(totalDestaVisita)}</span>
       </div>
       <p className="text-xs text-gray-500">
-        {quantidadeIsenta > 0
-          ? "Cada sessão dentro do prazo abre como retorno isento."
-          : isConsulta
-            ? "A primeira sessão abre agora para recebimento. As demais ficam na agenda."
-            : "Todas as sessões entram na agenda."}{" "}
-        A taxa do consultório não entra no protocolo.
+        {isConsulta
+          ? "A primeira sessão abre agora para recebimento. As demais ficam na agenda."
+          : "Todas as sessões entram na agenda."}{" "}
+        A taxa do consultório não entra no protocolo. O valor acima é o do protocolo.
       </p>
     </div>
   );

@@ -72,51 +72,6 @@ export function dividirValorProtocolo(
   return partes.map((centavos) => centavos / 100);
 }
 
-function diasAteSessao(
-  indice: number,
-  quantidade: number,
-  unidade: "dias" | "semanas" | "meses",
-  dataInicio?: string,
-): number {
-  if (indice <= 0) return 0;
-  const passo = Math.max(1, quantidade);
-  if (unidade === "semanas") return indice * passo * 7;
-  if (unidade === "meses") {
-    const texto = (dataInicio || "").slice(0, 10);
-    const inicio = new Date(`${texto}T12:00:00`);
-    if (Number.isNaN(inicio.getTime())) return indice * passo * 30;
-    const fim = new Date(inicio);
-    fim.setMonth(fim.getMonth() + indice * passo);
-    return Math.round((fim.getTime() - inicio.getTime()) / 86_400_000);
-  }
-  return indice * passo;
-}
-
-/** Sessões cuja data ainda cabe no prazo de retorno já conferido na primeira data. */
-export function sessoesIsentasPeloRetorno(
-  sessoes: number,
-  intervaloQuantidade: number,
-  intervaloUnidade: "dias" | "semanas" | "meses",
-  elegivel: boolean,
-  diasRestantes: number | null | undefined,
-  dataInicio?: string,
-): boolean[] {
-  const total = Math.max(0, sessoes);
-  if (!elegivel) return Array.from({ length: total }, () => false);
-  if (diasRestantes == null || !Number.isFinite(diasRestantes)) {
-    return Array.from({ length: total }, (_, indice) => indice === 0);
-  }
-  return Array.from(
-    { length: total },
-    (_, indice) =>
-      diasAteSessao(indice, intervaloQuantidade, intervaloUnidade, dataInicio) <= diasRestantes,
-  );
-}
-
-export function aplicarIsencaoRetornoNasPartes(partes: number[], isentas: boolean[]): number[] {
-  return partes.map((valor, indice) => (isentas[indice] ? 0 : valor));
-}
-
 export function formatarValorProtocolo(valor: string | number | null | undefined): string {
   const n = typeof valor === "number" ? valor : numeroFormulario(String(valor ?? ""));
   if (!Number.isFinite(n)) return "—";

@@ -37,6 +37,32 @@ function toDatetimeLocalValue(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function moeda(valor: number): string {
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function observacaoVisivel(notes: string | undefined, temProtocolo: boolean): string {
+  const texto = (notes || "").trim();
+  if (!texto || !temProtocolo) return texto;
+  return texto
+    .split("\n")
+    .filter((linha) => !/^Protocolo .+ — sessão \d+ de \d+$/i.test(linha.trim()))
+    .join("\n")
+    .trim();
+}
+
+function textoCobrancaProtocolo(
+  protocolo: NonNullable<AgendaEventData["extendedProps"]["protocolo"]>,
+): string {
+  if (protocolo.forma_cobranca === "TOTAL") {
+    if (protocolo.valor_sessao <= 0) {
+      return "Esta sessão não gera nova cobrança. O pacote foi cobrado na primeira.";
+    }
+    return `Valor total do protocolo nesta sessão. As demais não geram nova cobrança. Pacote: ${moeda(protocolo.valor_total)}.`;
+  }
+  return `Por consulta. O pacote de ${moeda(protocolo.valor_total)} foi dividido entre as sessões.`;
+}
+
 function idsProcedimentosIniciais(
   event: AgendaEventData,
   procedures: ConsultaFormProcedure[],
@@ -177,7 +203,11 @@ export function ModalDetalheAgendamento({
     await onSalvarDetalhe(payload);
   };
 
-  const tipoAgendamento = labelTipoAgendamento(procedureIds.length);
+  const protocolo = event.extendedProps.protocolo;
+  const tipoAgendamento = protocolo
+    ? `Protocolo · sessão ${protocolo.sessao || 1} de ${protocolo.sessoes || 1}`
+    : labelTipoAgendamento(procedureIds.length);
+  const observacao = observacaoVisivel(event.extendedProps.notes, Boolean(protocolo));
   const gruposSomenteLeitura = procedimentosAgrupadosDoEvento(event, procedures);
   const prontuarioHref = buildProntuarioAgendamentoPath(slug, event.extendedProps.patient);
   const mostrarProntuario = podeVerConsultaCarregado && podeVerConsulta && Boolean(prontuarioHref);
@@ -256,12 +286,12 @@ export function ModalDetalheAgendamento({
                 <p className="text-sm text-gray-500 dark:text-gray-400">Atendimento</p>
                 <span
                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                    procedureIds.length === 0
+                    !protocolo && procedureIds.length === 0
                       ? "bg-sky-50 text-sky-800 dark:bg-sky-900/30 dark:text-sky-200"
                       : "text-white"
                   }`}
                   style={
-                    procedureIds.length > 0
+                    protocolo || procedureIds.length > 0
                       ? { backgroundColor: "var(--cb-primary, #8B3D52)" }
                       : undefined
                   }
@@ -269,7 +299,25 @@ export function ModalDetalheAgendamento({
                   {tipoAgendamento}
                 </span>
               </div>
-              {podeEditarCampos ? (
+              {protocolo ? (
+                <div className="rounded-lg border border-gray-200 dark:border-neutral-600 p-3 space-y-1">
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{protocolo.nome}</p>
+                  {event.extendedProps.procedure_name ? (
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{event.extendedProps.procedure_name}</p>
+                  ) : null}
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Duração: {event.extendedProps.duracao_minutos ?? event.extendedProps.procedure_duration} min
+                  </p>
+                  <p className="text-sm text-gray-900 dark:text-gray-100">
+                    Valor desta sessão: <strong>{moeda(protocolo.valor_sessao)}</strong>
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {event.extendedProps.retorno_gratuito && protocolo.valor_sessao <= 0
+                      ? "Retorno isento de outra consulta. Esta sessão não cobra o protocolo."
+                      : textoCobrancaProtocolo(protocolo)}
+                  </p>
+                </div>
+              ) : podeEditarCampos ? (
                 <ProcedureMultiSelect
                   procedures={procedures}
                   selectedIds={procedureIds}
@@ -304,13 +352,13 @@ export function ModalDetalheAgendamento({
                   ))}
                 </div>
               )}
-              {!podeEditarCampos ? <div className="mt-1">{duracaoPreco}</div> : null}
+              {!podeEditarCampos && !protocolo ? <div className="mt-1">{duracaoPreco}</div> : null}
             </div>
 
-            {event.extendedProps.notes ? (
+            {observacao ? (
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Observações</p>
-                <p className="text-sm text-gray-800 dark:text-gray-200">{event.extendedProps.notes}</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-line">{observacao}</p>
               </div>
             ) : null}
           </div>
@@ -354,7 +402,9 @@ export function ModalDetalheAgendamento({
 
             {podeEditarCampos && (status === "SCHEDULED" || status === "PENDING") ? (
               <p className="text-xs text-amber-700 dark:text-amber-400">
-                Ao mudar profissional, procedimento ou horário, o link de confirmação anterior deixa de valer.
+                {protocolo
+                  ? "Ao mudar profissional ou horário, o link de confirmação anterior deixa de valer."
+                  : "Ao mudar profissional, procedimento ou horário, o link de confirmação anterior deixa de valer."}
                 O cliente recebe um novo link no WhatsApp.
               </p>
             ) : null}

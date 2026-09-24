@@ -30,7 +30,7 @@ export function ProtocoloDadosFields({ form, procedures, onChange }: ProtocoloDa
     <div className="space-y-4">
       <p className={FORM_SECTION_TITLE_CLASS}>Dados do protocolo</p>
       <div>
-        <label className={FORM_LABEL_CLASS}>Nome *</label>
+        <label className={FORM_LABEL_CLASS}>Nome do protocolo *</label>
         <input
           value={form.nome}
           onChange={(e) => onChange({ nome: toUpperCase(e.target.value) })}
@@ -38,10 +38,13 @@ export function ProtocoloDadosFields({ form, procedures, onChange }: ProtocoloDa
           placeholder="Ex.: Protocolo limpeza de pele"
           autoFocus
         />
+        <p className="mt-1 text-xs text-gray-500">
+          Este é o nome do pacote na agenda. Ele é diferente do nome do procedimento.
+        </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className={FORM_LABEL_CLASS}>Procedimento *</label>
+          <label className={FORM_LABEL_CLASS}>Procedimento com o preço *</label>
           <select
             value={form.procedure}
             onChange={(e) => onChange({ procedure: e.target.value })}
@@ -56,7 +59,7 @@ export function ProtocoloDadosFields({ form, procedures, onChange }: ProtocoloDa
           </select>
           <p className="mt-1 text-xs text-gray-500">
             {temCategoria
-              ? "O valor por convênio fica neste procedimento, na página Procedimentos."
+              ? "Escolha o procedimento cadastrado em Procedimentos. O preço por convênio fica lá, não neste nome do protocolo."
               : "Cadastre antes o procedimento na categoria Protocolo, em Procedimentos, e defina o valor por convênio lá."}
           </p>
         </div>

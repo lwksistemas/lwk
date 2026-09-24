@@ -57,6 +57,7 @@ export function CriarAgendamentoClienteSection({
         onRemove={removerProcedimento}
         convenioId={convenioId}
         precosMap={precosMap}
+        showSummary={selectedProcedures.length > 1}
         optional
       />
     </div>

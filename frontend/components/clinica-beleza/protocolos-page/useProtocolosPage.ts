@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { clinicaBelezaFetch, parseClinicaBelezaListResponse, parseClinicaBelezaResponseBody } from "@/lib/clinica-beleza-api";
 import { useParams } from "next/navigation";
 import {
   CLINICA_BELEZA_ONLINE_ONLY,
@@ -8,7 +9,7 @@ import { useClinicaBelezaFormRouting } from "@/hooks/clinica-beleza/useClinicaBe
 import { useLojaTheme } from "@/hooks/useLojaTheme";
 import { CLINICA_BELEZA_PRIMARY } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { buildProtocolosListPath } from "./protocolos-page-utils";
-import type { Protocol, ProtocolosPageContentProps } from "./protocolos-page-types";
+import type { Protocol, ProtocoloProdutoOption, ProtocolosPageContentProps } from "./protocolos-page-types";
 import { useProtocolosForm } from "./useProtocolosForm";
 import { useProtocolosProcedures } from "./useProtocolosProcedures";
 
@@ -36,6 +37,21 @@ export function useProtocolosPage({
     });
 
   const { procedures } = useProtocolosProcedures(defaultCategoria);
+  const [produtos, setProdutos] = useState<ProtocoloProdutoOption[]>([]);
+  const [agendando, setAgendando] = useState<Protocol | null>(null);
+
+  useEffect(() => {
+    let ativo = true;
+    void (async () => {
+      const res = await clinicaBelezaFetch("/protocolos/produtos/");
+      const dados = await parseClinicaBelezaResponseBody(res);
+      if (!ativo) return;
+      setProdutos(parseClinicaBelezaListResponse<ProtocoloProdutoOption>(dados));
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   const form = useProtocolosForm({
     isFormView,
@@ -58,6 +74,9 @@ export function useProtocolosPage({
     pageSize,
     totalCount,
     procedures,
+    produtos,
+    agendando,
+    setAgendando,
     abrirNovo,
     abrirEditar,
     voltarLista,

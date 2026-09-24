@@ -57,15 +57,25 @@ def _consulta_defaults_from_appointment(appointment, **extra):
 
     from ..retorno_service import valor_consulta_com_retorno
 
-    valor_base = consulta_service._valor_consulta(appointment)
-    valor_ajustado, retorno = valor_consulta_com_retorno(appointment, valor_base)
+    if getattr(appointment, "protocolo_contrato_id", None):
+        valor_ajustado = Decimal(0)
+        retorno_gratuito = False
+        retorno_tipo = ""
+        protocol_id = appointment.protocolo_contrato.protocol_id
+    else:
+        valor_base = consulta_service._valor_consulta(appointment)
+        valor_ajustado, retorno = valor_consulta_com_retorno(appointment, valor_base)
+        retorno_gratuito = retorno.elegivel
+        retorno_tipo = retorno.tipo or ""
+        protocol_id = None
     defaults = {
         "patient_id": appointment.patient_id,
         "professional_id": appointment.professional_id,
         "procedure_id": appointment.procedure_id,
         "valor_consulta": valor_ajustado,
-        "retorno_gratuito": retorno.elegivel,
-        "retorno_tipo": retorno.tipo or "",
+        "retorno_gratuito": retorno_gratuito,
+        "retorno_tipo": retorno_tipo,
+        "protocol_id": protocol_id,
         "convenio_id": appointment.convenio_id,
         "loja_id": appointment.loja_id,
     }
@@ -92,9 +102,14 @@ def _valor_consulta(appointment, consulta=None):
         return Decimal(0)
 
 
+def _consulta_de_protocolo(consulta) -> bool:
+    appointment = getattr(consulta, "appointment", None)
+    return bool(appointment and getattr(appointment, "protocolo_contrato_id", None))
+
+
 def _garantir_valor_consulta_consulta(consulta) -> None:
     """Persiste taxa de consulta a partir do local quando ainda está zerada."""
-    if getattr(consulta, "retorno_gratuito", False):
+    if _consulta_de_protocolo(consulta) or getattr(consulta, "retorno_gratuito", False):
         return
     if Decimal(str(consulta.valor_consulta or 0)) > 0:
         return
@@ -120,9 +135,11 @@ def _aplicar_local_na_consulta(consulta, local_atendimento_id=None) -> None:
         raise ValueError("Local de atendimento inválido.")
 
     consulta.local_atendimento = local
-    if Decimal(str(consulta.valor_consulta or 0)) <= 0:
+    campos = ["local_atendimento", "updated_at"]
+    if not _consulta_de_protocolo(consulta) and Decimal(str(consulta.valor_consulta or 0)) <= 0:
         consulta.valor_consulta = Decimal(str(local.valor_consulta or 0))
-    consulta.save(update_fields=["local_atendimento", "valor_consulta", "updated_at"])
+        campos.append("valor_consulta")
+    consulta.save(update_fields=campos)
 
 
 def _valor_pagamento_padrao(appointment, consulta):

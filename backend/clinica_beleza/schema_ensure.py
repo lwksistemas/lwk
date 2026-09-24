@@ -22,6 +22,7 @@ MIGRATION_ORCAMENTO = "0077_orcamento_consulta"
 MIGRATION_ORCAMENTO_ITEM_LOJA = "0078_orcamento_item_loja_id"
 MIGRATION_PATIENT_PRAZO = "0081_patient_prazo_pagamento"
 MIGRATION_PAYMENT_VENCIMENTO = "0082_payment_data_vencimento"
+MIGRATION_PROTOCOLO_COMERCIAL = "0084_protocolo_comercial"
 PATIENT_TABLE = "clinica_beleza_patient"
 PAYMENT_TABLE = "clinica_beleza_payment"
 PROFESSIONAL_TABLE = "clinica_beleza_professional"
@@ -561,6 +562,117 @@ def ensure_consulta_produto_utilizado_for_tenant() -> bool:
     except Exception as exc:
         logger.exception("ensure_consulta_produto_for_tenant falhou: %s", exc)
         return False
+
+
+def ensure_protocolo_comercial(cursor) -> bool:
+    """Colunas e tabelas do protocolo comercial (IF NOT EXISTS). Não apaga dados."""
+    if not table_exists(cursor, "clinica_beleza_protocolos"):
+        logger.warning("ensure_protocolo_comercial: tabela clinica_beleza_protocolos ausente")
+        return False
+    if not table_exists(cursor, "clinica_beleza_appointment"):
+        logger.warning("ensure_protocolo_comercial: tabela clinica_beleza_appointment ausente")
+        return False
+
+    colunas_protocolo = (
+        ("sessoes", "INTEGER NOT NULL DEFAULT 1"),
+        ("intervalo_quantidade", "INTEGER NOT NULL DEFAULT 1"),
+        ("intervalo_unidade", "VARCHAR(10) NOT NULL DEFAULT 'dias'"),
+        ("valor", "NUMERIC(10,2) NOT NULL DEFAULT 0"),
+    )
+    for nome, tipo in colunas_protocolo:
+        if not column_exists(cursor, "clinica_beleza_protocolos", nome):
+            cursor.execute(
+                f"ALTER TABLE clinica_beleza_protocolos ADD COLUMN {nome} {tipo}",
+            )
+
+    if (
+        table_exists(cursor, PRODUTO_ESTOQUE_TABLE)
+        and not table_exists(cursor, "clinica_beleza_protocolo_produto")
+    ):
+        cursor.execute("""
+            CREATE TABLE clinica_beleza_protocolo_produto (
+                id BIGSERIAL PRIMARY KEY,
+                loja_id INTEGER NOT NULL,
+                quantidade NUMERIC(10,2) NOT NULL,
+                produto_id BIGINT NOT NULL
+                    REFERENCES clinica_beleza_produtoestoque(id) ON DELETE RESTRICT,
+                protocol_id BIGINT NOT NULL
+                    REFERENCES clinica_beleza_protocolos(id) ON DELETE CASCADE,
+                CONSTRAINT cb_protocolo_produto_uniq UNIQUE (protocol_id, produto_id)
+            )
+        """)
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS clinica_beleza_protocolo_produto_loja_id_idx "
+            "ON clinica_beleza_protocolo_produto (loja_id)",
+        )
+
+    if (
+        table_exists(cursor, PATIENT_TABLE)
+        and table_exists(cursor, PROFESSIONAL_TABLE)
+        and table_exists(cursor, "clinica_beleza_locais_atendimento")
+        and not table_exists(cursor, "clinica_beleza_protocolo_contrato")
+    ):
+        cursor.execute("""
+            CREATE TABLE clinica_beleza_protocolo_contrato (
+                id BIGSERIAL PRIMARY KEY,
+                loja_id INTEGER NOT NULL,
+                forma_cobranca VARCHAR(20) NOT NULL,
+                valor_total NUMERIC(10,2) NOT NULL,
+                data_inicio TIMESTAMPTZ NOT NULL,
+                sessoes INTEGER NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                local_atendimento_id BIGINT NULL
+                    REFERENCES clinica_beleza_locais_atendimento(id) ON DELETE SET NULL,
+                patient_id BIGINT NOT NULL
+                    REFERENCES clinica_beleza_patient(id) ON DELETE CASCADE,
+                professional_id BIGINT NOT NULL
+                    REFERENCES clinica_beleza_professional(id) ON DELETE RESTRICT,
+                protocol_id BIGINT NOT NULL
+                    REFERENCES clinica_beleza_protocolos(id) ON DELETE RESTRICT
+            )
+        """)
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS clinica_beleza_protocolo_contrato_loja_id_idx "
+            "ON clinica_beleza_protocolo_contrato (loja_id)",
+        )
+
+    if (
+        table_exists(cursor, "clinica_beleza_protocolo_contrato")
+        and not column_exists(cursor, "clinica_beleza_appointment", "protocolo_contrato_id")
+    ):
+        cursor.execute("""
+            ALTER TABLE clinica_beleza_appointment
+            ADD COLUMN protocolo_contrato_id BIGINT NULL
+            REFERENCES clinica_beleza_protocolo_contrato(id) ON DELETE SET NULL
+        """)
+    if not column_exists(cursor, "clinica_beleza_appointment", "sessao_numero"):
+        cursor.execute(
+            "ALTER TABLE clinica_beleza_appointment ADD COLUMN sessao_numero INTEGER NULL",
+        )
+
+    pronto = (
+        column_exists(cursor, "clinica_beleza_protocolos", "sessoes")
+        and column_exists(cursor, "clinica_beleza_protocolos", "valor")
+        and table_exists(cursor, "clinica_beleza_protocolo_produto")
+        and table_exists(cursor, "clinica_beleza_protocolo_contrato")
+        and column_exists(cursor, "clinica_beleza_appointment", "protocolo_contrato_id")
+        and column_exists(cursor, "clinica_beleza_appointment", "sessao_numero")
+    )
+    if not pronto:
+        return False
+
+    cursor.execute(
+        """
+        INSERT INTO django_migrations (app, name, applied)
+        SELECT 'clinica_beleza', %s, NOW()
+        WHERE NOT EXISTS (
+            SELECT 1 FROM django_migrations
+            WHERE app = 'clinica_beleza' AND name = %s
+        )
+        """,
+        [MIGRATION_PROTOCOLO_COMERCIAL, MIGRATION_PROTOCOLO_COMERCIAL],
+    )
+    return True
 
 
 def queryset_lojas_clinica_beleza():

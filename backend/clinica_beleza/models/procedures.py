@@ -109,6 +109,20 @@ class ProcedureProtocol(LojaIsolationMixin, models.Model):
     materiais_necessarios = models.TextField(blank=True, default="", verbose_name="Materiais necessários")
     contraindicacoes = models.TextField(blank=True, default="", verbose_name="Contraindicações")
     cuidados_especiais = models.TextField(blank=True, default="", verbose_name="Cuidados especiais")
+    sessoes = models.PositiveIntegerField(default=1, verbose_name="Sessões")
+    intervalo_quantidade = models.PositiveIntegerField(default=1, verbose_name="Intervalo")
+    intervalo_unidade = models.CharField(
+        max_length=10,
+        choices=[("dias", "Dias"), ("semanas", "Semanas"), ("meses", "Meses")],
+        default="dias",
+        verbose_name="Unidade do intervalo",
+    )
+    valor = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Valor do protocolo (R$)",
+    )
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

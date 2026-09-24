@@ -1,5 +1,7 @@
 "use client";
 
+import { useToast } from "@/components/ui/Toast";
+import { ProtocoloAgendarModal } from "./ProtocoloAgendarModal";
 import { ProtocoloFormView } from "./ProtocoloFormView";
 import { ProtocolosListView } from "./ProtocolosListView";
 import type { ProtocolosPageContentProps } from "./protocolos-page-types";
@@ -14,6 +16,7 @@ export function ProtocolosPageContent({
   backHref,
   relatedLinks = [],
 }: ProtocolosPageContentProps) {
+  const toast = useToast();
   const {
     slug,
     accentColor,
@@ -26,6 +29,9 @@ export function ProtocolosPageContent({
     pageSize,
     totalCount,
     procedures,
+    produtos,
+    agendando,
+    setAgendando,
     abrirNovo,
     abrirEditar,
     voltarLista,
@@ -38,6 +44,7 @@ export function ProtocolosPageContent({
         editing={form.editing}
         form={form.form}
         procedures={procedures}
+        produtos={produtos}
         error={form.error}
         saving={form.saving}
         accentColor={accentColor}
@@ -49,6 +56,7 @@ export function ProtocolosPageContent({
   }
 
   return (
+    <>
     <ProtocolosListView
       slug={slug}
       title={title}
@@ -64,7 +72,19 @@ export function ProtocolosPageContent({
       onNew={abrirNovo}
       onEdit={abrirEditar}
       onExclude={(p) => void form.exclude(p)}
+      onAgendar={setAgendando}
       onPageChange={setPage}
     />
+    {agendando && (
+      <ProtocoloAgendarModal
+        protocol={agendando}
+        onClose={() => setAgendando(null)}
+        onSaved={(mensagem) => {
+          setAgendando(null);
+          toast.success(mensagem);
+        }}
+      />
+    )}
+  </>
   );
 }

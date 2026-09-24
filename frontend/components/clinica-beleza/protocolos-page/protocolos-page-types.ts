@@ -12,7 +12,33 @@ export interface Protocol {
   pos_procedimento?: string;
   contraindicacoes?: string;
   cuidados_especiais?: string;
+  sessoes?: number;
+  intervalo_quantidade?: number;
+  intervalo_unidade?: ProtocoloIntervaloUnidade;
+  valor?: string | number;
+  produtos?: ProtocoloProdutoLinha[];
   created_at?: string;
+}
+
+export type ProtocoloIntervaloUnidade = "dias" | "semanas" | "meses";
+
+export interface ProtocoloProdutoLinha {
+  id?: number;
+  produto: number;
+  quantidade: string | number;
+  produto_nome?: string;
+  unidade_medida?: string;
+}
+
+export interface ProtocoloProdutoFormLinha {
+  produto: string;
+  quantidade: string;
+}
+
+export interface ProtocoloProdutoOption {
+  id: number;
+  nome: string;
+  unidade_medida?: string;
 }
 
 export interface ProtocoloProcedureOption {
@@ -33,6 +59,11 @@ export interface ProtocoloFormState {
   pos_procedimento: string;
   contraindicacoes: string;
   cuidados_especiais: string;
+  sessoes: string;
+  intervalo_quantidade: string;
+  intervalo_unidade: ProtocoloIntervaloUnidade;
+  valor: string;
+  produtos: ProtocoloProdutoFormLinha[];
 }
 
 export const EMPTY_PROTOCOLO_FORM: ProtocoloFormState = {
@@ -46,6 +77,11 @@ export const EMPTY_PROTOCOLO_FORM: ProtocoloFormState = {
   pos_procedimento: "",
   contraindicacoes: "",
   cuidados_especiais: "",
+  sessoes: "1",
+  intervalo_quantidade: "1",
+  intervalo_unidade: "semanas",
+  valor: "",
+  produtos: [],
 };
 
 export const FORM_INPUT_CLASS =

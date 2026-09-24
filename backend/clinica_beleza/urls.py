@@ -154,7 +154,12 @@ from .views_prontuario import (
     ProntuarioPDFView,
     ProntuarioView,
 )
-from .views_protocolos import ProtocolDetailView, ProtocolListView
+from .views_protocolos import (
+    ProtocolAgendarView,
+    ProtocolDetailView,
+    ProtocolListView,
+    ProtocolProdutosOpcoesView,
+)
 from .views_termos_consentimento import (
     TermoConsentimentoConfigView,
     TermoConsentimentoTemplateDetailView,
@@ -312,7 +317,9 @@ urlpatterns = [
     path("procedures/<int:pk>/", ProcedureDetailView.as_view(), name="procedures-detail"),
     # Protocolos de procedimentos
     path("protocolos/", ProtocolListView.as_view(), name="protocolos-list"),
+    path("protocolos/produtos/", ProtocolProdutosOpcoesView.as_view(), name="protocolos-produtos"),
     path("protocolos/<int:pk>/", ProtocolDetailView.as_view(), name="protocolos-detail"),
+    path("protocolos/<int:pk>/agendar/", ProtocolAgendarView.as_view(), name="protocolos-agendar"),
 
     # Pagamentos / Financeiro
     path("payments/", PaymentListView.as_view(), name="payments-list"),

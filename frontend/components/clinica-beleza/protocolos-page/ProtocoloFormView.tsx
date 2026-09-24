@@ -3,14 +3,21 @@
 import { ClipboardList, Loader2, Save } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { ProtocoloComercialFields } from "./ProtocoloComercialFields";
 import { ProtocoloDadosFields } from "./ProtocoloDadosFields";
 import { ProtocoloEtapasFields } from "./ProtocoloEtapasFields";
-import type { Protocol, ProtocoloFormState, ProtocoloProcedureOption } from "./protocolos-page-types";
+import type {
+  Protocol,
+  ProtocoloFormState,
+  ProtocoloProcedureOption,
+  ProtocoloProdutoOption,
+} from "./protocolos-page-types";
 
 interface ProtocoloFormViewProps {
   editing: Protocol | null;
   form: ProtocoloFormState;
   procedures: ProtocoloProcedureOption[];
+  produtos: ProtocoloProdutoOption[];
   error: string;
   saving: boolean;
   accentColor: string;
@@ -23,6 +30,7 @@ export function ProtocoloFormView({
   editing,
   form,
   procedures,
+  produtos,
   error,
   saving,
   accentColor,
@@ -52,6 +60,7 @@ export function ProtocoloFormView({
                 <ProtocoloDadosFields form={form} procedures={procedures} onChange={onFormChange} />
                 <ProtocoloEtapasFields form={form} onChange={onFormChange} />
               </div>
+              <ProtocoloComercialFields form={form} produtos={produtos} onChange={onFormChange} />
             </ClinicaBelezaPanel>
           </div>
 

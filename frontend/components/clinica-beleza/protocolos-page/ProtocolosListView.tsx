@@ -1,6 +1,7 @@
 "use client";
 
-import { ClipboardList, Pencil, Trash2 } from "lucide-react";
+import { CalendarPlus, ClipboardList, Pencil, Trash2 } from "lucide-react";
+import { formatarValorProtocolo, rotuloIntervaloProtocolo } from "./protocolos-page-utils";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ClinicaBelezaRelatedLinks } from "@/components/clinica-beleza/ClinicaBelezaRelatedLinks";
@@ -23,6 +24,7 @@ interface ProtocolosListViewProps {
   onNew: () => void;
   onEdit: (id: number) => void;
   onExclude: (p: Protocol) => void;
+  onAgendar: (p: Protocol) => void;
   onPageChange: (page: number) => void;
 }
 
@@ -41,6 +43,7 @@ export function ProtocolosListView({
   onNew,
   onEdit,
   onExclude,
+  onAgendar,
   onPageChange,
 }: ProtocolosListViewProps) {
   return (
@@ -81,10 +84,20 @@ export function ProtocolosListView({
                   ),
                 },
                 {
-                  key: "tempo",
-                  header: "Duração",
+                  key: "plano",
+                  header: "Sessões",
                   className: "hidden sm:table-cell",
-                  render: (p) => <span className="text-gray-600">{p.tempo_estimado} min</span>,
+                  render: (p) => (
+                    <span className="text-gray-600">
+                      {p.sessoes || 1}x · {rotuloIntervaloProtocolo(p.intervalo_quantidade || 1, p.intervalo_unidade || "dias")}
+                    </span>
+                  ),
+                },
+                {
+                  key: "valor",
+                  header: "Valor",
+                  className: "hidden md:table-cell",
+                  render: (p) => <span className="text-gray-700">{formatarValorProtocolo(p.valor ?? 0)}</span>,
                 },
                 {
                   key: "desc",
@@ -97,6 +110,14 @@ export function ProtocolosListView({
               ]}
               trailingCell={(p) => (
                 <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => onAgendar(p)}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700"
+                    title="Agendar sessões"
+                  >
+                    <CalendarPlus size={16} style={{ color: "var(--cb-primary, #8B3D52)" }} />
+                  </button>
                   <button
                     type="button"
                     onClick={() => onEdit(p.id)}

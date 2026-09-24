@@ -208,8 +208,8 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Próximos agendamentos</h3>
                 <Link
@@ -221,13 +221,13 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                 </Link>
               </div>
               {appointments.length > 0 ? (
-                appointments.slice(0, 7).map((appt) => <AppointmentItem key={appt.id} appt={appt} />)
+                appointments.slice(0, 5).map((appt) => <AppointmentItem key={appt.id} appt={appt} />)
               ) : (
                 <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Nenhum agendamento próximo</p>
               )}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4 gap-2">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                   Procedimentos realizados — {filterLabel}
@@ -269,7 +269,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               )}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4 gap-2">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                   Resumo financeiro — {filterLabel}
@@ -282,7 +282,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                   Ver completo
                 </Link>
               </div>
-              <div className="flex flex-col flex-1 justify-between gap-3 min-h-0">
+              <div className="space-y-3">
                 {(
                   [
                     ["Faturamento", financial?.faturamento ?? stats?.revenue_month ?? 0, "text-emerald-600 dark:text-emerald-400"],
@@ -298,7 +298,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                     ["A prazo", financial?.a_prazo ?? 0, "text-violet-600 dark:text-violet-400"],
                   ] as const
                 ).map(([label, valor, cor]) => (
-                  <div key={label} className="flex justify-between items-center gap-3 text-sm min-h-8">
+                  <div key={label} className="flex justify-between items-center gap-3 text-sm">
                     <span className="text-gray-600 dark:text-gray-400">{label}</span>
                     <span className={`font-semibold shrink-0 ${cor}`}>{formatCurrency(valor)}</span>
                   </div>

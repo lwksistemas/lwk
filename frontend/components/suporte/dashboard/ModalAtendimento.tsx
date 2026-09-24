@@ -309,7 +309,18 @@ export function ModalAtendimento({
           {/* Descrição — sempre visível (mesmo com logs abertos), para o suporte ver a reclamação junto dos erros.
               Com os logs expandidos, fica compacta para poupar espaço. */}
           <div className={detalhesAberto ? 'mb-3' : 'mb-6'}>
-            <label className="text-sm font-medium text-gray-500 block mb-1">Descrição {detalhesAberto && <span className="text-gray-400 font-normal">(reclamação do cliente)</span>}</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium text-gray-500">
+                Descrição {detalhesAberto && <span className="text-gray-400 font-normal">(reclamação do cliente)</span>}
+              </label>
+              {/* Identifica quem abriu — visível sempre, compacto com logs expandidos */}
+              <span className="text-xs text-gray-500 flex items-center gap-1">
+                👤 <span className="font-medium text-gray-700">{chamado.usuario_nome}</span>
+                {!detalhesAberto && chamado.usuario_email && (
+                  <span className="text-gray-400">· {chamado.usuario_email}</span>
+                )}
+              </span>
+            </div>
             <div className={`bg-gray-50 rounded-lg border border-gray-200 ${detalhesAberto ? 'p-3' : 'p-4'}`}>
               <p className={`text-gray-900 whitespace-pre-wrap ${detalhesAberto ? 'text-sm max-h-24 overflow-y-auto' : ''}`}>{descricaoLimpa(chamado.descricao)}</p>
             </div>

@@ -111,6 +111,31 @@ def listar_a_receber_periodo(first_day: date, last_day: date) -> tuple[float, li
     return float(total), itens
 
 
+def somar_a_receber_periodo(first_day: date, last_day: date, *, payment_method: str | None = None) -> float:
+    """Soma o saldo em aberto dos atendimentos do mês. Com método, só essa forma."""
+    base = payments_visiveis_financeiro().filter(
+        status__in=("PENDING", "PARTIAL"),
+        appointment__date__date__gte=first_day,
+        appointment__date__date__lte=last_day,
+    )
+    if payment_method:
+        base = base.filter(payment_method=payment_method)
+    agregado = _anotar_saldo_em_aberto(base).aggregate(t=Sum("_saldo"))
+    return float(agregado["t"] or 0)
+
+
+def somar_desconto_periodo(first_day: date, last_day: date) -> float:
+    """Desconto comercial dos atendimentos do mês."""
+    total = payments_visiveis_financeiro(
+        Payment.objects.filter(
+            appointment__date__date__gte=first_day,
+            appointment__date__date__lte=last_day,
+            desconto__gt=0,
+        ),
+    ).exclude(status="CANCELLED").aggregate(t=Sum("desconto"))["t"]
+    return float(total or 0)
+
+
 def _anotar_saldo_em_aberto(base):
     """Anota _saldo (valor total - pago) nos payments PENDING/PARTIAL da base."""
     pago_sub = (
@@ -378,7 +403,9 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
     pagos_caixa = pagos_mes.exclude(payment_method=METODO_DESPESA)
     faturamento = _sum(pagos_caixa)
     contas_a_receber = somar_contas_a_receber()
-    a_receber_mes, a_receber_itens = listar_a_receber_periodo(first_day, last_day)
+    a_receber_mes = somar_a_receber_periodo(first_day, last_day)
+    a_prazo_mes = somar_a_receber_periodo(first_day, last_day, payment_method="PRAZO")
+    desconto_mes = somar_desconto_periodo(first_day, last_day)
     comissao_mes = float(pagos_caixa.aggregate(total=Sum("comissao_valor"))["total"] or 0)
     despesas_atendimento = _sum(pagos_mes.filter(payment_method=METODO_DESPESA))
 
@@ -407,6 +434,7 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
         "despesas": despesas_total,
         "lucro": faturamento - despesas_total,
         "a_receber": a_receber_mes,
-        "a_receber_itens": a_receber_itens,
+        "desconto": desconto_mes,
+        "a_prazo": a_prazo_mes,
         "filter": {"mes": mes, "ano": ano},
     }

@@ -37,18 +37,13 @@ export interface TopProcedure {
   count: number;
 }
 
-export interface AReceberItem {
-  paciente: string;
-  procedimento: string;
-  saldo: number;
-}
-
 export interface FinancialSummary {
   faturamento: number;
   despesas: number;
   lucro: number;
   a_receber?: number;
-  a_receber_itens?: AReceberItem[];
+  desconto?: number;
+  a_prazo?: number;
 }
 
 export interface DashboardData {

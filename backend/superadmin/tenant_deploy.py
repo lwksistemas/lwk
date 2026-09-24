@@ -28,6 +28,7 @@ ENSURE_POR_APP: dict[str, tuple[str, ...]] = {
         "ensure_convenio_tables",
         "ensure_nomes_agenda_table",
         "ensure_retorno_gratuito_tables",
+        "ensure_protocolo_comercial",
         "ensure_appointment_local_atendimento",
         "ensure_local_tempo_consulta",
         "ensure_local_nomeagenda_is_padrao",

@@ -159,6 +159,19 @@ class Appointment(LojaIsolationMixin, models.Model):
         related_name="agendamentos",
         verbose_name="Local de atendimento",
     )
+    protocolo_contrato = models.ForeignKey(
+        "ProtocoloContrato",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="agendamentos",
+        verbose_name="Contrato do protocolo",
+    )
+    sessao_numero = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Sessão do protocolo",
+    )
     retorno_procedure = models.ForeignKey(
         Procedure,
         on_delete=models.SET_NULL,
@@ -239,11 +252,12 @@ class Appointment(LojaIsolationMixin, models.Model):
         if cached is not None:
             return cached
         from decimal import Decimal
-        total = sum(
-            (ap.valor or ap.procedure.preco or Decimal(0))
-            for ap in self._linhas_procedimentos()
-        )
-        if total > 0:
+        linhas = self._linhas_procedimentos()
+        if linhas:
+            total = sum(
+                (ap.valor if ap.valor is not None else (ap.procedure.preco or Decimal(0)))
+                for ap in linhas
+            )
             self._valor_total_cache = total
             return total
         if self.procedure_id:
@@ -255,6 +269,8 @@ class Appointment(LojaIsolationMixin, models.Model):
 
     def get_valor_exibicao_agenda(self, *, retorno_elegivel=None) -> Decimal:
         """Taxa de consulta (local) + procedimentos, para exibição no calendário."""
+        if getattr(self, "protocolo_contrato_id", None):
+            return Decimal(str(self.valor_total or 0))
         consulta = getattr(self, "consulta", None)
         if retorno_elegivel is None and consulta is not None and getattr(consulta, "retorno_gratuito", False):
             retorno_elegivel = True
@@ -314,7 +330,9 @@ class AppointmentProcedure(LojaIsolationMixin, models.Model):
 
     def get_valor(self):
         from decimal import Decimal
-        return self.valor or self.procedure.preco or Decimal(0)
+        if self.valor is None:
+            return self.procedure.preco or Decimal(0)
+        return self.valor
 
 
 

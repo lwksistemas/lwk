@@ -3,6 +3,13 @@ from django.utils.timezone import now
 from .valores import _consulta_defaults_from_appointment
 
 
+def _com_produtos_protocolo(consulta):
+    from clinica_beleza.protocolo_comercial import copiar_produtos_protocolo_na_consulta
+
+    copiar_produtos_protocolo_na_consulta(consulta)
+    return consulta
+
+
 def _status_inicial_consulta(appointment, defaults: dict) -> str:
     """RECEBER quando há valor a cobrar; SCHEDULED se gratuito ou retorno isento."""
     if defaults.get("retorno_gratuito"):
@@ -37,7 +44,7 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
         if consulta.status == "RECEBER":
             from .payment import garantir_conta_pendente_consulta
             garantir_conta_pendente_consulta(consulta)
-        return consulta
+        return _com_produtos_protocolo(consulta)
 
     if new_status in ("CLIENT_CONFIRMED", "PHONE_CONFIRMED"):
         return None
@@ -54,7 +61,7 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
             if not consulta.data_inicio:
                 consulta.data_inicio = ts
             consulta.save(update_fields=["status", "data_inicio", "updated_at"])
-        return consulta
+        return _com_produtos_protocolo(consulta)
 
     if new_status == "COMPLETED":
         try:
@@ -66,13 +73,13 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
                     appointment, status="COMPLETED", data_inicio=ts, data_fim=ts,
                 ),
             )
-            return consulta
+            return _com_produtos_protocolo(consulta)
         consulta.status = "COMPLETED"
         if not consulta.data_inicio:
             consulta.data_inicio = ts
         consulta.data_fim = ts
         consulta.save(update_fields=["status", "data_inicio", "data_fim", "updated_at"])
-        return consulta
+        return _com_produtos_protocolo(consulta)
 
     if new_status in ("CANCELLED", "NO_SHOW"):
         try:
@@ -82,10 +89,10 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
                 appointment=appointment,
                 **_consulta_defaults_from_appointment(appointment, status="CANCELLED"),
             )
-            return consulta
+            return _com_produtos_protocolo(consulta)
         if consulta.status not in ("IN_PROGRESS", "COMPLETED"):
             consulta.status = "CANCELLED"
             consulta.save(update_fields=["status", "updated_at"])
-        return consulta
+        return _com_produtos_protocolo(consulta)
 
     return None

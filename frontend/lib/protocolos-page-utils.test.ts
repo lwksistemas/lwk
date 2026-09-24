@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildProtocoloSaveBody,
   buildProtocolosListPath,
+  dividirValorProtocolo,
   extractProtocoloSaveError,
   protocolToForm,
   validateProtocoloForm,
@@ -41,8 +42,24 @@ describe("validateProtocoloForm", () => {
   it("exige nome e procedimento", () => {
     expect(validateProtocoloForm(EMPTY_PROTOCOLO_FORM)).toBe("Nome e procedimento são obrigatórios.");
     expect(
-      validateProtocoloForm({ ...EMPTY_PROTOCOLO_FORM, nome: "Teste", procedure: "1" }),
+      validateProtocoloForm({
+        ...EMPTY_PROTOCOLO_FORM,
+        nome: "Teste",
+        procedure: "1",
+        valor: "1200",
+      }),
     ).toBeNull();
+    expect(
+      validateProtocoloForm({ ...EMPTY_PROTOCOLO_FORM, nome: "Teste", procedure: "1" }),
+    ).toBe("Informe o valor do protocolo.");
+  });
+});
+
+describe("dividirValorProtocolo", () => {
+  it("divide o pacote em partes iguais e deixa o centavo na última sessão", () => {
+    expect(dividirValorProtocolo(1200, 4, "POR_CONSULTA")).toEqual([300, 300, 300, 300]);
+    expect(dividirValorProtocolo(1000, 3, "POR_CONSULTA")).toEqual([333.33, 333.33, 333.34]);
+    expect(dividirValorProtocolo(1200, 4, "TOTAL")).toEqual([1200, 0, 0, 0]);
   });
 });
 
@@ -54,11 +71,19 @@ describe("buildProtocoloSaveBody", () => {
       procedure: "3",
       tempo_estimado: "40",
       execucao: " Passos ",
+      sessoes: "4",
+      intervalo_quantidade: "7",
+      intervalo_unidade: "dias",
+      valor: "1.200,50",
+      produtos: [{ produto: "9", quantidade: "1,5" }],
     });
     expect(body.nome).toBe("Protocolo");
     expect(body.procedure).toBe(3);
     expect(body.tempo_estimado).toBe(40);
     expect(body.execucao).toBe("Passos");
+    expect(body.sessoes).toBe(4);
+    expect(body.valor).toBe("1200.50");
+    expect(body.produtos).toEqual([{ produto: 9, quantidade: "1.50" }]);
   });
 });
 

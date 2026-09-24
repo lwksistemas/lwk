@@ -27,6 +27,7 @@ import {
 } from "./useConsultasPage";
 import { useConsultasColunas } from "@/hooks/clinica-beleza/useConsultasColunas";
 import { buildConsultaDetailHref, buildConsultasListQueryParams } from "./consultas-page-utils";
+import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 
 function ConsultasPageWorkspace({ slug }: { slug: string }) {
   const router = useRouter();
@@ -226,7 +227,9 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
             .get(consultaId)
             .then((c) => {
               void loadConsultas();
-              setReceberConsulta(c as Consulta);
+              const criada = c as Consulta;
+              if (consultaPagamentoUi(criada).mostrarIsento) return;
+              setReceberConsulta(criada);
             })
             .catch(() => {
               void loadConsultas();

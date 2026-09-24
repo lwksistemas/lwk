@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildAppointmentDate,
   buildCriarAgendamentoPayload,
+  classificarSelecaoProtocolo,
   computeCriarAgendamentoPricing,
+  type ProtocoloAgendaResumo,
 } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-builders";
 import {
   buildQuickPatientBody,
@@ -43,6 +45,71 @@ describe("buildCriarAgendamentoPayload", () => {
     expect(payload.professional).toBe(3);
     expect(payload.procedures_ids).toEqual([10, 11]);
     expect(payload.procedure).toBe(10);
+  });
+});
+
+const protocolo = (overrides: Partial<ProtocoloAgendaResumo> = {}): ProtocoloAgendaResumo => ({
+  id: 1,
+  nome: "Tirzepatida",
+  procedure: 4,
+  sessoes: 4,
+  tempo_estimado: 40,
+  intervalo_quantidade: 7,
+  intervalo_unidade: "dias",
+  ...overrides,
+});
+
+describe("classificarSelecaoProtocolo", () => {
+  it("agenda o protocolo quando só ele está selecionado", () => {
+    const item = protocolo();
+    const selecao = classificarSelecaoProtocolo(
+      [{ id: 4, categoria: "protocolo" }],
+      [4],
+      [item],
+    );
+    expect(selecao).toEqual({ tipo: "agendar", protocolo: item });
+  });
+
+  it("pede o cadastro quando a categoria Protocolo ainda não tem protocolo", () => {
+    expect(
+      classificarSelecaoProtocolo([{ id: 4, categoria: "protocolo" }], [4], []),
+    ).toEqual({
+      tipo: "erro",
+      mensagem: "Cadastre o protocolo deste procedimento em Protocolos antes de agendar.",
+    });
+  });
+
+  it("recusa misturar o protocolo com outro procedimento", () => {
+    expect(
+      classificarSelecaoProtocolo(
+        [
+          { id: 4, categoria: "protocolo" },
+          { id: 5, categoria: "facial" },
+        ],
+        [4, 5],
+        [protocolo()],
+      ),
+    ).toEqual({ tipo: "erro", mensagem: "O protocolo é agendado sozinho." });
+  });
+});
+
+describe("buildCriarAgendamentoPayload forma do protocolo", () => {
+  it("envia a forma de cobrança e não marca retorno", () => {
+    const payload = buildCriarAgendamentoPayload({
+      patientId: 1,
+      agendaId: 2,
+      notes: "",
+      date: new Date("2026-06-15T14:30:00"),
+      professionalId: 3,
+      localId: 4,
+      convenioId: 8,
+      selectedProcedures: [4],
+      retornoProcedureId: 9,
+      formaCobranca: "POR_CONSULTA",
+    });
+    expect(payload.forma_cobranca).toBe("POR_CONSULTA");
+    expect(payload.retorno_procedure).toBeUndefined();
+    expect(payload.convenio).toBe(8);
   });
 });
 

@@ -1,4 +1,5 @@
 import { entityName } from "@/lib/clinica-beleza-entities";
+import { resolveProcedureCategoriaSlug } from "@/lib/clinica-beleza-categories";
 import { toUpperCase } from "@/lib/format-br";
 import {
   FORM_INPUT_CLASS,
@@ -17,6 +18,14 @@ interface ProtocoloDadosFieldsProps {
 }
 
 export function ProtocoloDadosFields({ form, procedures, onChange }: ProtocoloDadosFieldsProps) {
+  const opcoes = procedures.filter(
+    (pr) =>
+      resolveProcedureCategoriaSlug(pr.categoria) === "protocolo" || String(pr.id) === form.procedure,
+  );
+  const temCategoria = procedures.some(
+    (pr) => resolveProcedureCategoriaSlug(pr.categoria) === "protocolo",
+  );
+
   return (
     <div className="space-y-4">
       <p className={FORM_SECTION_TITLE_CLASS}>Dados do protocolo</p>
@@ -39,12 +48,17 @@ export function ProtocoloDadosFields({ form, procedures, onChange }: ProtocoloDa
             className={FORM_INPUT_CLASS}
           >
             <option value="">Selecione...</option>
-            {procedures.map((pr) => (
+            {opcoes.map((pr) => (
               <option key={pr.id} value={pr.id}>
                 {entityName(pr)}
               </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-gray-500">
+            {temCategoria
+              ? "O valor por convênio fica neste procedimento, na página Procedimentos."
+              : "Cadastre antes o procedimento na categoria Protocolo, em Procedimentos, e defina o valor por convênio lá."}
+          </p>
         </div>
         <div>
           <label className={FORM_LABEL_CLASS}>Tempo estimado (min) *</label>

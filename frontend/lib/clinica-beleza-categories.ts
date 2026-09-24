@@ -16,6 +16,7 @@ export const PROCEDURE_CATEGORIA_OPTIONS = [
   { value: "depilacao", label: "Depilação", group: "estética" },
   { value: "injetavel", label: "Injetável", group: "estética" },
   { value: "geral", label: "Geral", group: "outros" },
+  { value: "protocolo", label: "Protocolo", group: "outros" },
   { value: "outro", label: "Outro", group: "outros" },
 ] as const;
 

@@ -38,7 +38,6 @@ export function useProtocolosPage({
 
   const { procedures } = useProtocolosProcedures(defaultCategoria);
   const [produtos, setProdutos] = useState<ProtocoloProdutoOption[]>([]);
-  const [agendando, setAgendando] = useState<Protocol | null>(null);
 
   useEffect(() => {
     let ativo = true;
@@ -75,8 +74,6 @@ export function useProtocolosPage({
     totalCount,
     procedures,
     produtos,
-    agendando,
-    setAgendando,
     abrirNovo,
     abrirEditar,
     voltarLista,

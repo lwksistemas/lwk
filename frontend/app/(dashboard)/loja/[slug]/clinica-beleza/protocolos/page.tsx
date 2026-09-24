@@ -8,7 +8,7 @@ export default function ProtocolosPage() {
   return (
     <ProtocolosPageContent
       title="Protocolos"
-      subtitle="Todos os protocolos da clínica, de qualquer módulo"
+      subtitle="Nome, sessões, produtos e cuidados. O valor fica no procedimento da categoria Protocolo."
       relatedLinks={[
         { label: 'Soroterapia — protocolos', href: `/loja/${slug}/clinica-beleza/soroterapia/protocolos` },
       ]}

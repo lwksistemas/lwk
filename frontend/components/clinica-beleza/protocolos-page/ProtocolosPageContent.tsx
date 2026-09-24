@@ -1,7 +1,5 @@
 "use client";
 
-import { useToast } from "@/components/ui/Toast";
-import { ProtocoloAgendarModal } from "./ProtocoloAgendarModal";
 import { ProtocoloFormView } from "./ProtocoloFormView";
 import { ProtocolosListView } from "./ProtocolosListView";
 import type { ProtocolosPageContentProps } from "./protocolos-page-types";
@@ -11,12 +9,11 @@ export type { ProtocolosPageContentProps } from "./protocolos-page-types";
 
 export function ProtocolosPageContent({
   title = "Protocolos",
-  subtitle = "Padronize procedimentos com etapas, materiais e cuidados",
+  subtitle = "Nome, sessões, produtos e cuidados. O valor fica no procedimento da categoria Protocolo.",
   defaultCategoria = "",
   backHref,
   relatedLinks = [],
 }: ProtocolosPageContentProps) {
-  const toast = useToast();
   const {
     slug,
     accentColor,
@@ -30,8 +27,6 @@ export function ProtocolosPageContent({
     totalCount,
     procedures,
     produtos,
-    agendando,
-    setAgendando,
     abrirNovo,
     abrirEditar,
     voltarLista,
@@ -56,7 +51,6 @@ export function ProtocolosPageContent({
   }
 
   return (
-    <>
     <ProtocolosListView
       slug={slug}
       title={title}
@@ -72,19 +66,7 @@ export function ProtocolosPageContent({
       onNew={abrirNovo}
       onEdit={abrirEditar}
       onExclude={(p) => void form.exclude(p)}
-      onAgendar={setAgendando}
       onPageChange={setPage}
     />
-    {agendando && (
-      <ProtocoloAgendarModal
-        protocol={agendando}
-        onClose={() => setAgendando(null)}
-        onSaved={(mensagem) => {
-          setAgendando(null);
-          toast.success(mensagem);
-        }}
-      />
-    )}
-  </>
   );
 }

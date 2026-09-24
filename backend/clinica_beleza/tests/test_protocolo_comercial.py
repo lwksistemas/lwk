@@ -1,9 +1,15 @@
 from datetime import datetime
 from decimal import Decimal
+from types import SimpleNamespace
 
 from django.test import SimpleTestCase
 
-from clinica_beleza.protocolo_comercial import datas_das_sessoes, dividir_valor_protocolo
+from clinica_beleza.agenda_service import AgendaValidationError
+from clinica_beleza.protocolo_comercial import (
+    classificar_selecao_protocolo,
+    datas_das_sessoes,
+    dividir_valor_protocolo,
+)
 
 
 class DividirValorProtocoloTests(SimpleTestCase):
@@ -21,6 +27,34 @@ class DividirValorProtocoloTests(SimpleTestCase):
             partes,
             [Decimal("1200.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00")],
         )
+
+
+class ClassificarSelecaoProtocoloTests(SimpleTestCase):
+    def test_procedimento_comum_segue_agendamento_normal(self):
+        proc = SimpleNamespace(id=1, categoria="facial")
+        self.assertIsNone(classificar_selecao_protocolo([proc], []))
+
+    def test_protocolo_unico_e_agendado(self):
+        proc = SimpleNamespace(id=4, categoria="protocolo")
+        proto = SimpleNamespace(procedure_id=4)
+        self.assertIs(classificar_selecao_protocolo([proc], [proto]), proto)
+
+    def test_categoria_sem_cadastro_pede_o_protocolo(self):
+        proc = SimpleNamespace(id=4, categoria="protocolo")
+        with self.assertRaisesMessage(
+            AgendaValidationError,
+            "Cadastre o protocolo deste procedimento em Protocolos antes de agendar.",
+        ):
+            classificar_selecao_protocolo([proc], [])
+
+    def test_mistura_com_outro_procedimento_e_recusada(self):
+        procedimentos = [
+            SimpleNamespace(id=4, categoria="protocolo"),
+            SimpleNamespace(id=5, categoria="facial"),
+        ]
+        proto = SimpleNamespace(procedure_id=4)
+        with self.assertRaisesMessage(AgendaValidationError, "O protocolo é agendado sozinho."):
+            classificar_selecao_protocolo(procedimentos, [proto])
 
 
 class DatasSessoesTests(SimpleTestCase):

@@ -3,7 +3,7 @@
 import { ClipboardList, Loader2, Save } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
-import { ProtocoloComercialFields } from "./ProtocoloComercialFields";
+import { ProtocoloComercialFields, ProtocoloProdutosFields } from "./ProtocoloComercialFields";
 import { ProtocoloDadosFields } from "./ProtocoloDadosFields";
 import { ProtocoloEtapasFields } from "./ProtocoloEtapasFields";
 import type {
@@ -56,11 +56,18 @@ export function ProtocoloFormView({
             )}
 
             <ClinicaBelezaPanel className="p-5 md:p-6 lg:p-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full max-w-none">
+              <div className="space-y-8 w-full max-w-none">
                 <ProtocoloDadosFields form={form} procedures={procedures} onChange={onFormChange} />
-                <ProtocoloEtapasFields form={form} onChange={onFormChange} />
+                <div className="border-t border-gray-200 dark:border-neutral-700 pt-8">
+                  <ProtocoloComercialFields form={form} onChange={onFormChange} />
+                </div>
+                <div className="border-t border-gray-200 dark:border-neutral-700 pt-8">
+                  <ProtocoloProdutosFields form={form} produtos={produtos} onChange={onFormChange} />
+                </div>
+                <div className="border-t border-gray-200 dark:border-neutral-700 pt-8">
+                  <ProtocoloEtapasFields form={form} onChange={onFormChange} />
+                </div>
               </div>
-              <ProtocoloComercialFields form={form} produtos={produtos} onChange={onFormChange} />
             </ClinicaBelezaPanel>
           </div>
 

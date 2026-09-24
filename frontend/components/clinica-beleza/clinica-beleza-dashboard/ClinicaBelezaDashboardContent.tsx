@@ -221,19 +221,28 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                 </Link>
               </div>
               {appointments.length > 0 ? (
-                appointments.slice(0, 5).map((appt) => <AppointmentItem key={appt.id} appt={appt} />)
+                appointments.slice(0, 7).map((appt) => <AppointmentItem key={appt.id} appt={appt} />)
               ) : (
                 <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Nenhum agendamento próximo</p>
               )}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col max-h-[32rem]">
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4 shrink-0">
-                Procedimentos realizados — {filterLabel}
-              </h3>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-4 gap-2">
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                  Procedimentos realizados — {filterLabel}
+                </h3>
+                <Link
+                  href={`/loja/${slug}/clinica-beleza/consultas`}
+                  className="text-xs font-medium hover:underline shrink-0"
+                  style={{ color: 'var(--cb-primary, #8B3D52)' }}
+                >
+                  Ver completo
+                </Link>
+              </div>
               {topProcedures.length > 0 ? (
-                <div className="space-y-3 overflow-y-auto min-h-0 pr-1">
-                  {topProcedures.map((proc, i) => {
+                <div className="space-y-3">
+                  {topProcedures.slice(0, 7).map((proc, i) => {
                     const max = topProcedures[0]?.count || 1;
                     const pct = Math.round((proc.count / max) * 100);
                     return (
@@ -260,12 +269,21 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               )}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col min-h-0 max-h-[32rem]">
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4 shrink-0">
-                Resumo financeiro — {filterLabel}
-              </h3>
-              <div className="flex flex-col flex-1 min-h-0 gap-3">
-                <div className="space-y-3 shrink-0">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-4 gap-2">
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                  Resumo financeiro — {filterLabel}
+                </h3>
+                <Link
+                  href={`/loja/${slug}/clinica-beleza/financeiro`}
+                  className="text-xs font-medium hover:underline shrink-0"
+                  style={{ color: 'var(--cb-primary, #8B3D52)' }}
+                >
+                  Ver completo
+                </Link>
+              </div>
+              <div className="space-y-3">
+                <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500 dark:text-gray-400">Faturamento</span>
                     <span className="font-semibold text-emerald-600 dark:text-emerald-400">
@@ -287,15 +305,15 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                     </span>
                   </div>
                 </div>
-                <div className="flex justify-between text-sm shrink-0">
+                <div className="flex justify-between text-sm">
                   <span className="font-medium text-gray-700 dark:text-gray-300">A receber</span>
                   <span className="font-bold text-amber-600 dark:text-amber-400">
                     {formatCurrency(financial?.a_receber ?? 0)}
                   </span>
                 </div>
-                <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
+                <div className="space-y-2">
                   {(financial?.a_receber_itens ?? []).length > 0 ? (
-                    financial?.a_receber_itens?.map((item, i) => (
+                    financial?.a_receber_itens?.slice(0, 7).map((item, i) => (
                       <div
                         key={`${item.paciente}-${item.procedimento}-${i}`}
                         className="flex justify-between gap-2 text-xs"

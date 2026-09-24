@@ -9,6 +9,7 @@ from clinica_beleza.protocolo_comercial import (
     classificar_selecao_protocolo,
     datas_das_sessoes,
     dividir_valor_protocolo,
+    isentar_sessoes_no_prazo_de_retorno,
 )
 
 
@@ -26,6 +27,29 @@ class DividirValorProtocoloTests(SimpleTestCase):
         self.assertEqual(
             partes,
             [Decimal("1200.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00")],
+        )
+
+
+class RetornoNasSessoesDoProtocoloTests(SimpleTestCase):
+    def test_sessoes_dentro_do_prazo_ficam_isentas_e_as_seguintes_cobram(self):
+        partes = dividir_valor_protocolo(Decimal("1200"), 4, "POR_CONSULTA")
+        self.assertEqual(
+            isentar_sessoes_no_prazo_de_retorno(partes, [True, True, False, False]),
+            [Decimal("0.00"), Decimal("0.00"), Decimal("300.00"), Decimal("300.00")],
+        )
+
+    def test_valor_total_nao_cobra_o_pacote_quando_a_primeira_esta_no_prazo(self):
+        partes = dividir_valor_protocolo(Decimal("1200"), 4, "TOTAL")
+        self.assertEqual(
+            isentar_sessoes_no_prazo_de_retorno(partes, [True, True, False, False]),
+            [Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00")],
+        )
+
+    def test_sem_retorno_mantem_a_cobranca(self):
+        partes = dividir_valor_protocolo(Decimal("1200"), 4, "POR_CONSULTA")
+        self.assertEqual(
+            isentar_sessoes_no_prazo_de_retorno(partes, [False, False, False, False]),
+            partes,
         )
 
 

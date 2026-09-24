@@ -11,6 +11,22 @@ import type {
 import { intervalosEventsFromHorarios } from "@/lib/clinica-beleza-work-hours";
 import { corBloqueioAgenda } from "./agenda-dia-colunas-utils";
 
+function protocoloDoEvento(raw: Record<string, unknown>): AgendaEventData["extendedProps"]["protocolo"] {
+  const origem = raw.protocolo ?? (raw.extendedProps as { protocolo?: unknown } | undefined)?.protocolo;
+  if (!origem || typeof origem !== "object") return undefined;
+  const item = origem as Record<string, unknown>;
+  const nome = String(item.nome ?? "").trim();
+  if (!nome) return undefined;
+  return {
+    nome,
+    sessao: Number(item.sessao) || 0,
+    sessoes: Number(item.sessoes) || 0,
+    forma_cobranca: item.forma_cobranca === "TOTAL" ? "TOTAL" : "POR_CONSULTA",
+    valor_total: Number(item.valor_total) || 0,
+    valor_sessao: Number(item.valor_sessao) || 0,
+  };
+}
+
 export function versaoAgenda(value: unknown): number | undefined {
   const n = Number(value);
   return Number.isFinite(n) ? n : undefined;
@@ -115,7 +131,12 @@ export function formatarAgendaEvento(
             categoria: p.categoria,
           }))
         : undefined,
-      notes: String(raw.notes ?? ""),
+      notes: String(raw.notes ?? (raw.extendedProps as { notes?: unknown } | undefined)?.notes ?? ""),
+      protocolo: protocoloDoEvento(raw),
+      retorno_gratuito: Boolean(
+        raw.retorno_gratuito ??
+          (raw.extendedProps as { retorno_gratuito?: unknown } | undefined)?.retorno_gratuito,
+      ),
       version: versaoAgenda(raw.version),
       updated_at: raw.updated_at ? String(raw.updated_at) : undefined,
       consulta_id: (() => {

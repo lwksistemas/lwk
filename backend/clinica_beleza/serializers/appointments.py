@@ -179,6 +179,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
     duracao_minutos = serializers.SerializerMethodField()
     procedure_price = serializers.SerializerMethodField()
     procedures_list = serializers.SerializerMethodField()
+    protocolo = serializers.SerializerMethodField()
     convenio_id = serializers.IntegerField(source="convenio.id", read_only=True, allow_null=True)
     convenio_name = serializers.SerializerMethodField()
     nome_agenda_id = serializers.IntegerField(source="nome_agenda.id", read_only=True, allow_null=True)
@@ -209,7 +210,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             "patient", "patient_name", "patient_phone",
             "professional", "professional_name", "professional_id",
             "procedure", "procedure_name", "procedure_duration", "duracao_minutos",
-            "procedure_price", "procedures_list",
+            "procedure_price", "procedures_list", "protocolo",
             "convenio", "convenio_id", "convenio_name",
             "nome_agenda", "nome_agenda_id", "nome_agenda_name",
             "local_atendimento", "local_atendimento_id", "local_atendimento_name",
@@ -315,6 +316,22 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             }
             for ap in procs
         ]
+
+    def get_protocolo(self, obj):
+        if not getattr(obj, "protocolo_contrato_id", None):
+            return None
+        contrato = obj.protocolo_contrato
+        protocol = getattr(contrato, "protocol", None)
+        if protocol is None:
+            return None
+        return {
+            "nome": protocol.nome,
+            "sessao": obj.sessao_numero,
+            "sessoes": contrato.sessoes,
+            "forma_cobranca": contrato.forma_cobranca,
+            "valor_total": float(contrato.valor_total or 0),
+            "valor_sessao": float(obj.valor_total or 0),
+        }
 
     def get_end(self, obj):
         from datetime import timedelta

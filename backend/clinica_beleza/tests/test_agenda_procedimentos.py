@@ -30,6 +30,31 @@ class AplicarProcedimentosTest(SimpleTestCase):
         appointment.appointment_procedures.all.return_value.delete.assert_not_called()
 
 
+class ProtocoloAgendaSerializerTest(SimpleTestCase):
+    def test_sessao_de_protocolo_expoe_o_valor_da_sessao(self):
+        protocol = MagicMock(nome="TESTE PROTOCOLO")
+        contrato = MagicMock(
+            protocol=protocol,
+            sessoes=4,
+            forma_cobranca="POR_CONSULTA",
+            valor_total=300,
+        )
+        obj = MagicMock(protocolo_contrato_id=9, protocolo_contrato=contrato, sessao_numero=1)
+        obj.valor_total = 75
+
+        data = AgendaEventSerializer().get_protocolo(obj)
+
+        self.assertEqual(data["nome"], "TESTE PROTOCOLO")
+        self.assertEqual(data["sessao"], 1)
+        self.assertEqual(data["sessoes"], 4)
+        self.assertEqual(data["valor_sessao"], 75.0)
+        self.assertEqual(data["valor_total"], 300.0)
+
+    def test_agendamento_comum_nao_tem_protocolo(self):
+        obj = MagicMock(protocolo_contrato_id=None)
+        self.assertIsNone(AgendaEventSerializer().get_protocolo(obj))
+
+
 class ProceduresListCategoriaTest(SimpleTestCase):
     def test_inclui_categoria_dos_procedimentos(self):
         proc = MagicMock(id=3, nome="BOTOX", duracao_minutos=30, preco=150, categoria="injetavel")

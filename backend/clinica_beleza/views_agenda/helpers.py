@@ -41,6 +41,7 @@ def _agenda_events_queryset():
         .select_related(
             "patient", "professional", "procedure",
             "convenio", "nome_agenda", "local_atendimento", "consulta",
+            "protocolo_contrato__protocol",
         )
         .prefetch_related("appointment_procedures__procedure")
     )

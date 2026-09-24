@@ -8,7 +8,11 @@ import {
   parseClinicaBelezaResponseBody,
   type RetornoVerificacaoResult,
 } from "@/lib/clinica-beleza-api";
-import { dividirValorProtocolo } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
+import {
+  aplicarIsencaoRetornoNasPartes,
+  dividirValorProtocolo,
+  sessoesIsentasPeloRetorno,
+} from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
 import { type HorarioTrabalho } from "@/lib/clinica-beleza-work-hours";
 import {
   classificarSelecaoProtocolo,
@@ -149,15 +153,23 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
       novaConsulta.resumo.valor,
     );
     if (!protocoloSelecionado) return base;
-    const partes = dividirValorProtocolo(
-      novaConsulta.resumo.valor,
-      protocoloSelecionado.sessoes || 1,
-      formaCobranca,
+    const sessoes = protocoloSelecionado.sessoes || 1;
+    const partes = aplicarIsencaoRetornoNasPartes(
+      dividirValorProtocolo(novaConsulta.resumo.valor, sessoes, formaCobranca),
+      sessoesIsentasPeloRetorno(
+        sessoes,
+        protocoloSelecionado.intervalo_quantidade || 1,
+        protocoloSelecionado.intervalo_unidade || "dias",
+        Boolean(retornoInfo?.elegivel),
+        retornoInfo?.dias_restantes,
+        dateInput,
+      ),
     );
+    const primeira = partes[0] ?? 0;
     return {
       ...base,
       taxaConsultaBase: 0,
-      totalEstimado: partes[0] ?? 0,
+      totalEstimado: primeira,
     };
   }, [
     localAtendimentoId,
@@ -166,6 +178,7 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     novaConsulta.resumo.valor,
     protocoloSelecionado,
     formaCobranca,
+    dateInput,
   ]);
 
   const labels = getCriarAgendamentoModalLabels(isConsulta, createLoading);

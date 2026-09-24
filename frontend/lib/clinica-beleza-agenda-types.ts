@@ -32,7 +32,16 @@ export interface AgendaEventData {
     bloqueioId?: number;
     motivo?: string;
     professional?: number | null;
-    procedures_list?: { id: number; nome?: string; categoria?: string }[];
+    procedures_list?: { id: number; nome?: string; categoria?: string; valor?: number }[];
+    retorno_gratuito?: boolean;
+    protocolo?: {
+      nome: string;
+      sessao: number;
+      sessoes: number;
+      forma_cobranca: "POR_CONSULTA" | "TOTAL";
+      valor_total: number;
+      valor_sessao: number;
+    };
     intervalo_inicio?: string;
     intervalo_fim?: string;
     consulta_id?: number;

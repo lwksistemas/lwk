@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  aplicarIsencaoRetornoNasPartes,
   buildProtocoloSaveBody,
   buildProtocolosListPath,
   dividirValorProtocolo,
   extractProtocoloSaveError,
   protocolToForm,
+  sessoesIsentasPeloRetorno,
   validateProtocoloForm,
 } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
 import {
@@ -56,6 +58,23 @@ describe("dividirValorProtocolo", () => {
     expect(dividirValorProtocolo(1200, 4, "POR_CONSULTA")).toEqual([300, 300, 300, 300]);
     expect(dividirValorProtocolo(1000, 3, "POR_CONSULTA")).toEqual([333.33, 333.33, 333.34]);
     expect(dividirValorProtocolo(1200, 4, "TOTAL")).toEqual([1200, 0, 0, 0]);
+  });
+});
+
+describe("sessoesIsentasPeloRetorno", () => {
+  it("isenta as sessões que ainda cabem no prazo e cobra as seguintes", () => {
+    const isentas = sessoesIsentasPeloRetorno(4, 7, "dias", true, 15, "2026-10-01");
+    expect(isentas).toEqual([true, true, true, false]);
+    expect(aplicarIsencaoRetornoNasPartes([300, 300, 300, 300], isentas)).toEqual([0, 0, 0, 300]);
+  });
+
+  it("sem retorno mantém a cobrança de todas as sessões", () => {
+    expect(sessoesIsentasPeloRetorno(4, 1, "semanas", false, 30, "2026-10-01")).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
   });
 });
 

@@ -46,6 +46,38 @@ describe("formatarAgendaEvento", () => {
     expect(ev.extendedProps.patient).toBeUndefined();
   });
 
+  it("repassa a sessão do protocolo com o valor desta sessão", () => {
+    const ev = formatarAgendaEvento(
+      {
+        id: 4,
+        start: "2026-10-12T10:25:00",
+        end: "2026-10-12T10:55:00",
+        status: "SCHEDULED",
+        patient_name: "Luiz",
+        procedure_name: "TIRZEPATIDA (DOSE MINIMA)",
+        protocolo: {
+          nome: "TESTE PROTOCOLO",
+          sessao: 1,
+          sessoes: 4,
+          forma_cobranca: "POR_CONSULTA",
+          valor_total: 300,
+          valor_sessao: 75,
+        },
+        retorno_gratuito: true,
+      },
+      false,
+    );
+    expect(ev.extendedProps.retorno_gratuito).toBe(true);
+    expect(ev.extendedProps.protocolo).toEqual({
+      nome: "TESTE PROTOCOLO",
+      sessao: 1,
+      sessoes: 4,
+      forma_cobranca: "POR_CONSULTA",
+      valor_total: 300,
+      valor_sessao: 75,
+    });
+  });
+
   it("repassa o id do paciente para abrir o prontuário", () => {
     const ev = formatarAgendaEvento(
       {

@@ -62,6 +62,55 @@ def somar_contas_a_receber(qs=None) -> float:
     return float(agregado["t"] or 0)
 
 
+def _nome_procedimento_payment(payment) -> str:
+    appt = getattr(payment, "appointment", None)
+    if not appt:
+        return ""
+    prefetched = getattr(appt, "_prefetched_objects_cache", {}).get("appointment_procedures")
+    if prefetched is not None:
+        nomes = [
+            ap.procedure.nome
+            for ap in prefetched
+            if getattr(getattr(ap, "procedure", None), "nome", None)
+        ]
+        if nomes:
+            return " · ".join(nomes)
+    procedure = getattr(appt, "procedure", None)
+    return getattr(procedure, "nome", "") or ""
+
+
+def listar_a_receber_periodo(first_day: date, last_day: date) -> tuple[float, list[dict]]:
+    """Saldos em aberto de atendimentos do mês, do maior para o menor."""
+    base = payments_visiveis_financeiro(
+        Payment.objects.select_related(
+            "appointment",
+            "appointment__patient",
+            "appointment__procedure",
+        ).prefetch_related("appointment__appointment_procedures__procedure"),
+    ).filter(
+        status__in=("PENDING", "PARTIAL"),
+        appointment__date__date__gte=first_day,
+        appointment__date__date__lte=last_day,
+    )
+    anotados = (
+        _anotar_saldo_em_aberto(base)
+        .filter(_saldo__gt=Decimal("0.01"))
+        .order_by("-_saldo", "appointment__date")
+    )
+    itens: list[dict] = []
+    total = Decimal(0)
+    for payment in anotados:
+        saldo = Decimal(str(getattr(payment, "_saldo", 0) or 0))
+        total += saldo
+        patient = getattr(payment.appointment, "patient", None)
+        itens.append({
+            "paciente": getattr(patient, "nome", "") or "—",
+            "procedimento": _nome_procedimento_payment(payment) or "—",
+            "saldo": float(saldo),
+        })
+    return float(total), itens
+
+
 def _anotar_saldo_em_aberto(base):
     """Anota _saldo (valor total - pago) nos payments PENDING/PARTIAL da base."""
     pago_sub = (
@@ -329,6 +378,7 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
     pagos_caixa = pagos_mes.exclude(payment_method=METODO_DESPESA)
     faturamento = _sum(pagos_caixa)
     contas_a_receber = somar_contas_a_receber()
+    a_receber_mes, a_receber_itens = listar_a_receber_periodo(first_day, last_day)
     comissao_mes = float(pagos_caixa.aggregate(total=Sum("comissao_valor"))["total"] or 0)
     despesas_atendimento = _sum(pagos_mes.filter(payment_method=METODO_DESPESA))
 
@@ -356,5 +406,7 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
         "faturamento": faturamento,
         "despesas": despesas_total,
         "lucro": faturamento - despesas_total,
+        "a_receber": a_receber_mes,
+        "a_receber_itens": a_receber_itens,
         "filter": {"mes": mes, "ano": ano},
     }

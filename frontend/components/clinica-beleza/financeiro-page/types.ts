@@ -26,6 +26,7 @@ export interface FinanceiroPayment {
   retorno_gratuito: boolean;
   comissao_percentual: number;
   comissao_valor: string;
+  desconto?: string | number;
   paciente_nome: string;
   profissional_nome: string;
   procedimento_nome: string;

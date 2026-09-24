@@ -121,7 +121,7 @@ def revenue_by_day(first_day: date, period_end: date) -> list[dict]:
 
 
 def top_procedures_realizados_periodo(period_start: date, period_end: date) -> list[dict]:
-    """Top 5 procedimentos das consultas finalizadas no período.
+    """Procedimentos das consultas finalizadas no período, do mais feito ao menos feito.
 
     Conta cada linha de AppointmentProcedure (consultas com vários procedimentos).
     Consultas só com o FK legado `procedure` entram se não tiverem linhas.
@@ -152,7 +152,7 @@ def top_procedures_realizados_periodo(period_start: date, period_end: date) -> l
     return sorted(
         [{"name": name, "count": count} for name, count in counts.items() if count > 0],
         key=lambda item: (-item["count"], item["name"] or ""),
-    )[:5]
+    )
 
 
 def top_soroterapia_periodo(period_start: date, period_end: date) -> list[dict]:

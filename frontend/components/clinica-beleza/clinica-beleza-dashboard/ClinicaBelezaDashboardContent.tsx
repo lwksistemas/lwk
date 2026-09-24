@@ -227,17 +227,17 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               )}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col max-h-[32rem]">
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4 shrink-0">
                 Procedimentos realizados — {filterLabel}
               </h3>
               {topProcedures.length > 0 ? (
-                <div className="space-y-3">
-                  {topProcedures.slice(0, 5).map((proc, i) => {
+                <div className="space-y-3 overflow-y-auto min-h-0 pr-1">
+                  {topProcedures.map((proc, i) => {
                     const max = topProcedures[0]?.count || 1;
                     const pct = Math.round((proc.count / max) * 100);
                     return (
-                      <div key={i}>
+                      <div key={proc.name || i}>
                         <div className="flex justify-between text-xs mb-1">
                           <span className="text-gray-600 dark:text-gray-400 truncate pr-2">{proc.name}</span>
                           <span className="text-gray-500 dark:text-gray-400 font-medium shrink-0">{proc.count}</span>

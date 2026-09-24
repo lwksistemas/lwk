@@ -61,13 +61,6 @@ def _consulta_defaults_from_appointment(appointment, **extra):
         valor_ajustado = Decimal(0)
         retorno_gratuito = False
         retorno_tipo = ""
-        from ..retorno_service import verificar_retorno_appointment
-
-        retorno = verificar_retorno_appointment(appointment)
-        if retorno.elegivel:
-            retorno_gratuito = True
-            retorno_tipo = retorno.tipo or ""
-            _zerar_cobranca_da_sessao(appointment)
         protocol_id = appointment.protocolo_contrato.protocol_id
     else:
         valor_base = consulta_service._valor_consulta(appointment)
@@ -90,15 +83,6 @@ def _consulta_defaults_from_appointment(appointment, **extra):
         defaults["local_atendimento_id"] = appointment.local_atendimento_id
     defaults.update(extra)
     return defaults
-
-
-def _zerar_cobranca_da_sessao(appointment) -> None:
-    """Zera o valor dos procedimentos desta sessão para o pagamento ficar isento."""
-    for linha in appointment.appointment_procedures.all():
-        if linha.valor != Decimal(0):
-            linha.valor = Decimal("0.00")
-            linha.save(update_fields=["valor"])
-    appointment._valor_total_cache = None
 
 
 def _valor_consulta(appointment, consulta=None):

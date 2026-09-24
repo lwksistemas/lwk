@@ -2,8 +2,8 @@
 
 import type { ReactNode } from "react";
 import {
-  Line,
-  LineChart,
+  Bar,
+  BarChart,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -15,6 +15,16 @@ import {
 } from "recharts";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { RevenueDay, TopProcedure } from "./clinica-beleza-dashboard-types";
+
+const BARRAS_FATURAMENTO = [
+  "#E11D48",
+  "#F59E0B",
+  "#10B981",
+  "#6366F1",
+  "#EC4899",
+  "#14B8A6",
+  "#F97316",
+];
 
 function ChartCard({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -54,7 +64,7 @@ export function ClinicaBelezaDashboardCharts({
         <div className="h-56">
           {revenueComValor ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={revenueData}>
+              <BarChart data={revenueData}>
                 <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "#374151" : "#f0f0f0"} />
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: darkMode ? "#9ca3af" : "#666" }} stroke="#9ca3af" />
                 <YAxis
@@ -72,14 +82,15 @@ export function ClinicaBelezaDashboardCharts({
                   labelStyle={darkMode ? { color: "#f3f4f6" } : undefined}
                   itemStyle={darkMode ? { color: "#f3f4f6" } : undefined}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke={primary}
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: primary }}
-                />
-              </LineChart>
+                <Bar dataKey="value" radius={[3, 3, 0, 0]} maxBarSize={16}>
+                  {revenueData.map((dia, i) => (
+                    <Cell
+                      key={dia.day || i}
+                      fill={[primary, ...BARRAS_FATURAMENTO][i % (BARRAS_FATURAMENTO.length + 1)]}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           ) : (
             <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-16">Sem faturamento no período</p>

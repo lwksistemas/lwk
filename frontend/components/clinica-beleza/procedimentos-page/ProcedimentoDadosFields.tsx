@@ -23,7 +23,7 @@ export function ProcedimentoDadosFields({ form, categorias = [], onChange }: Pro
     <div className="space-y-4">
       <p className={FORM_SECTION_TITLE_CLASS}>Dados do procedimento</p>
       <div>
-        <label className={FORM_LABEL_CLASS}>Nome *</label>
+        <label className={FORM_LABEL_CLASS}>Nome do procedimento *</label>
         <input
           value={form.name}
           onChange={(e) => onChange({ name: toUpperCase(e.target.value) })}
@@ -31,6 +31,11 @@ export function ProcedimentoDadosFields({ form, categorias = [], onChange }: Pro
           placeholder="Ex.: Limpeza de pele"
           autoFocus
         />
+        {form.categoria === "protocolo" && (
+          <p className="mt-1 text-xs text-gray-500">
+            Este é o item da lista de Procedimentos, com o preço por convênio. Na página Protocolos, o pacote tem outro nome e aponta para este procedimento.
+          </p>
+        )}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>

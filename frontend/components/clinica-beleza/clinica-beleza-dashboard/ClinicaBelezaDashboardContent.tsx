@@ -260,30 +260,58 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               )}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
-              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col min-h-0 max-h-[32rem]">
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4 shrink-0">
                 Resumo financeiro — {filterLabel}
               </h3>
-              <div className="space-y-3 flex-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Faturamento</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                    {formatCurrency(financial?.faturamento ?? stats?.revenue_month ?? 0)}
+              <div className="flex flex-col flex-1 min-h-0 gap-3">
+                <div className="space-y-3 shrink-0">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">Faturamento</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(financial?.faturamento ?? stats?.revenue_month ?? 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">Despesas</span>
+                    <span className="font-semibold text-red-500 dark:text-red-400">{formatCurrency(financial?.despesas ?? 0)}</span>
+                  </div>
+                  <hr className="border-gray-100 dark:border-gray-700" />
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Lucro líquido</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(
+                        financial?.lucro ??
+                          (financial?.faturamento ?? stats?.revenue_month ?? 0) - (financial?.despesas ?? 0),
+                      )}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-between text-sm shrink-0">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">A receber</span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400">
+                    {formatCurrency(financial?.a_receber ?? 0)}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Despesas</span>
-                  <span className="font-semibold text-red-500 dark:text-red-400">{formatCurrency(financial?.despesas ?? 0)}</span>
-                </div>
-                <hr className="border-gray-100 dark:border-gray-700" />
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium text-gray-700 dark:text-gray-300">Lucro líquido</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                    {formatCurrency(
-                      financial?.lucro ??
-                        (financial?.faturamento ?? stats?.revenue_month ?? 0) - (financial?.despesas ?? 0),
-                    )}
-                  </span>
+                <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
+                  {(financial?.a_receber_itens ?? []).length > 0 ? (
+                    financial?.a_receber_itens?.map((item, i) => (
+                      <div
+                        key={`${item.paciente}-${item.procedimento}-${i}`}
+                        className="flex justify-between gap-2 text-xs"
+                      >
+                        <span className="text-gray-600 dark:text-gray-400 truncate">
+                          {item.paciente}
+                          {item.procedimento && item.procedimento !== "—" ? ` · ${item.procedimento}` : ""}
+                        </span>
+                        <span className="font-medium text-amber-700 dark:text-amber-300 shrink-0">
+                          {formatCurrency(item.saldo)}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-400 dark:text-gray-500">Nada em aberto no período</p>
+                  )}
                 </div>
               </div>
             </div>

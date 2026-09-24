@@ -35,6 +35,29 @@ class TestSomarContasAReceber(SimpleTestCase):
         mock_qs.filter.assert_called()
 
 
+class TestNomeProcedimentoPayment(SimpleTestCase):
+    def test_prefere_linhas_do_agendamento(self):
+        from clinica_beleza.financeiro_service import _nome_procedimento_payment
+
+        proc = SimpleNamespace(nome="DRENAGEM")
+        linha = SimpleNamespace(procedure=proc)
+        appt = SimpleNamespace(
+            _prefetched_objects_cache={"appointment_procedures": [linha]},
+            procedure=SimpleNamespace(nome="LEGADO"),
+        )
+        payment = SimpleNamespace(appointment=appt)
+        self.assertEqual(_nome_procedimento_payment(payment), "DRENAGEM")
+
+    def test_cai_no_procedimento_legado(self):
+        from clinica_beleza.financeiro_service import _nome_procedimento_payment
+
+        appt = SimpleNamespace(
+            _prefetched_objects_cache={},
+            procedure=SimpleNamespace(nome="CONSULTA"),
+        )
+        self.assertEqual(_nome_procedimento_payment(SimpleNamespace(appointment=appt)), "CONSULTA")
+
+
 class TestErroExcluirPayment(SimpleTestCase):
     def test_bloqueia_pago_e_parcial(self):
         from clinica_beleza.financeiro_service import erro_excluir_payment

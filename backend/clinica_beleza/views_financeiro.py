@@ -128,6 +128,7 @@ class PaymentParcelaView(GetObjectMixin, APIView):
             "valor_total": float(payment.valor_total_efetivo),
             "valor_pago": float(payment.valor_pago_parcelas),
             "saldo_devedor": float(payment.saldo_devedor),
+            "desconto": float(payment.desconto or 0),
             "status": payment.status,
             "parcelas": PaymentParcelaSerializer(parcelas, many=True).data,
         })

@@ -21,6 +21,7 @@ interface ParcelasData {
   valor_total: number;
   valor_pago: number;
   saldo_devedor: number;
+  desconto?: number;
   status: string;
   parcelas: Parcela[];
 }
@@ -75,6 +76,9 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
 
   const valorEntrada = Number(valor) || 0;
   const valorDesconto = Number(desconto) || 0;
+  const descontoRegistrado = Number(parcelasData?.desconto ?? payment.desconto ?? 0) || 0;
+  const descontoResumo = descontoRegistrado + valorDesconto;
+  const saldoResumo = Math.max(0, saldoDevedor - valorDesconto);
   const saldoAposEntrada = Math.max(0, saldoDevedor - valorEntrada - valorDesconto);
   const quitaTotal = (valorEntrada + valorDesconto) > 0 && (valorEntrada + valorDesconto) >= saldoDevedor;
 
@@ -165,16 +169,22 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                     {formatCurrency(valorPago)}
                   </span>
                 </div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-gray-600 dark:text-gray-400">Desconto (R$):</span>
+                  <span className="font-semibold text-orange-700 dark:text-orange-400">
+                    {formatCurrency(descontoResumo)}
+                  </span>
+                </div>
                 <div className="flex justify-between border-t dark:border-neutral-600 pt-1 mt-1">
                   <span className="font-semibold">Saldo devedor:</span>
                   <span
                     className={`font-bold text-base ${
-                      saldoDevedor <= 0
+                      saldoResumo <= 0
                         ? "text-green-700 dark:text-green-400"
                         : "text-amber-700 dark:text-amber-300"
                     }`}
                   >
-                    {saldoDevedor <= 0 ? "Quitado" : formatCurrency(saldoDevedor)}
+                    {saldoDevedor <= 0 ? "Quitado" : formatCurrency(saldoResumo)}
                   </span>
                 </div>
               </div>

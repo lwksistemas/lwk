@@ -71,6 +71,9 @@ export function TabelaChamados({ chamados, loading, onAtender }: TabelaChamadosP
               Loja
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Aberto por
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
               Status
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -87,6 +90,12 @@ export function TabelaChamados({ chamados, loading, onAtender }: TabelaChamadosP
               <td className="px-6 py-4 whitespace-nowrap">#{chamado.id}</td>
               <td className="px-6 py-4">{chamado.titulo}</td>
               <td className="px-6 py-4 whitespace-nowrap">{chamado.loja_nome}</td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className="text-gray-900 text-sm font-medium block">👤 {chamado.usuario_nome || '—'}</span>
+                {chamado.usuario_email && (
+                  <span className="text-gray-400 text-xs">{chamado.usuario_email}</span>
+                )}
+              </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(chamado.status)}`}>
                   {chamado.status.replace('_', ' ')}

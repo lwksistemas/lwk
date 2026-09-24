@@ -90,25 +90,44 @@ class ChamadoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"], url_path="detalhes-contexto")
     def detalhes_contexto(self, request, pk=None):
-        """Retorna erros recentes da loja (backend + frontend) para o suporte.
-        Usa dados da sessão/contexto da loja — não consulta Heroku/Vercel.
+        """Retorna erros da loja na janela de ±30 min da abertura do chamado.
+
+        - Backend: HistoricoAcessoGlobal (gravado pelo CNPJ/database_name da loja).
+        - Navegador/Frontend: ErroFrontend (gravado pelo slug da loja).
+        Cada item recebe 'severidade': erro | falha | timeout (heurística).
         """
         chamado = self.get_object()
-        # Apenas suporte ou superadmin
         if not request.user.is_superuser and not request.user.groups.filter(name="suporte").exists():
             return Response({"detail": "Sem permissão"}, status=status.HTTP_403_FORBIDDEN)
 
         loja_slug = chamado.loja_slug
-        erros_backend = []
-        erros_navegador = []
-        erros_frontend = []
 
-        # Erros backend: falhas da loja no HistoricoAcessoGlobal (banco default)
+        # Janela de tempo: 30 minutos antes e depois da abertura do chamado.
+        JANELA_MIN = 30
+        abertura = chamado.created_at
+        inicio = abertura - timezone.timedelta(minutes=JANELA_MIN)
+        fim    = abertura + timezone.timedelta(minutes=JANELA_MIN)
+
+        erros_backend  = []
+        erros_navegador = []
+        erros_frontend  = []
+
+        # ── Backend ──────────────────────────────────────────────────────────
+        # HistoricoAcessoGlobal grava loja_slug com o CNPJ/database_name da loja
+        # (ex.: "37302743000126"), não com o slug legível. Precisa buscar o
+        # database_name a partir do slug do chamado.
         try:
-            from superadmin.models import HistoricoAcessoGlobal
+            from superadmin.models import HistoricoAcessoGlobal, Loja
+            loja_obj = Loja.objects.using("default").filter(slug=loja_slug).first()
+            hist_loja_slug = (
+                loja_obj.database_name if loja_obj and loja_obj.database_name
+                else loja_slug
+            )
             qs = HistoricoAcessoGlobal.objects.using("default").filter(
-                loja_slug=loja_slug,
+                loja_slug=hist_loja_slug,
                 sucesso=False,
+                created_at__gte=inicio,
+                created_at__lte=fim,
             ).order_by("-created_at")[:50]
             for h in qs:
                 erro_txt = (h.erro or "")[:1000]
@@ -124,40 +143,57 @@ class ChamadoViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.warning("detalhes_contexto HistoricoAcessoGlobal: %s", e)
 
-        # Erros do cliente (ErroFrontend): separa navegador vs frontend (React) por heurística,
-        # já que a tabela ainda não persiste o tipo de origem.
+        # ── Navegador / Frontend / API do cliente ────────────────────────────
+        # ErroFrontend mistura 3 origens numa única tabela:
+        #   • "API: METHOD /path — STATUS — {...}" → erro de chamada HTTP (vai para backend)
+        #   • palavras React/hydration/chunk         → erro de framework (vai para frontend)
+        #   • resto (window.onerror, promise)        → erro do navegador (vai para navegador)
         try:
-            qs = ErroFrontend.objects.filter(loja_slug=loja_slug).order_by("-created_at")[:100]
+            qs = ErroFrontend.objects.filter(
+                loja_slug=loja_slug,
+                created_at__gte=inicio,
+                created_at__lte=fim,
+            ).order_by("-created_at")[:100]
             for e in qs:
-                msg = e.mensagem or ""
+                msg   = e.mensagem or ""
                 stack = (e.stack or "")[:2000]
-                base = f"{msg} {stack}".lower()
-                item = {
+                base  = f"{msg} {stack}".lower()
+                sev   = classificar_severidade(base, _status_http_do_texto(base))
+                item  = {
                     "created_at": e.created_at.isoformat() if e.created_at else None,
                     "mensagem": msg,
                     "stack": stack,
                     "url": e.url or "",
                     "user_agent": (e.user_agent or "")[:300],
-                    "severidade": classificar_severidade(base, _status_http_do_texto(base)),
+                    "severidade": sev,
                 }
-                # Erros de React/framework → frontend; window.onerror/promise → navegador.
-                is_frontend = any(k in base for k in (
+                # Erro de chamada HTTP capturado pelo frontend → aba Backend
+                if msg.startswith("API:") or msg.startswith("api:"):
+                    erros_backend.append({**item, "erro": msg, "metodo_http": "", "usuario_email": ""})
+                # Erro de framework React → aba Frontend
+                elif any(k in base for k in (
                     "react", "hydration", "hydrat", "component", "minified react",
                     "render", "hook", "jsx", "next", "chunkloaderror", "loading chunk",
-                ))
-                if is_frontend:
+                )):
                     erros_frontend.append(item)
+                # Erro real do navegador (window.onerror, promise) → aba Navegador
                 else:
                     erros_navegador.append(item)
         except Exception as e:
             logger.warning("detalhes_contexto ErroFrontend: %s", e)
 
+        periodo = (
+            f"±{JANELA_MIN} min da abertura do chamado "
+            f"({abertura.strftime('%d/%m/%Y %H:%M')} BRT) — "
+            f"de {inicio.strftime('%H:%M')} até {fim.strftime('%H:%M')}."
+        )
+
         return Response({
             "loja_slug": loja_slug,
             "erros_navegador": erros_navegador[:50],
-            "erros_frontend": erros_frontend[:50],
-            "erros_backend": erros_backend,
-            "periodo_exibido": "Erros recentes da loja, do mais recente ao mais antigo.",
+            "erros_frontend":  erros_frontend[:50],
+            "erros_backend":   erros_backend,
+            "periodo_exibido": periodo,
             "limite_por_tipo": 50,
         })
 

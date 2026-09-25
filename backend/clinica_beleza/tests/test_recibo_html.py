@@ -108,6 +108,26 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertIn("Convênio", html)
         self.assertIn("PARTICULAR", html)
 
+    def test_so_consulta_sem_retorno_usa_taxa_do_local(self):
+        html = gerar_html_recibo(
+            self._ctx(
+                procedimentos=[{"nome": "Consulta", "valor": 0.0}],
+                taxa_consulta=0.0,
+                taxa_consulta_referencia=150.0,
+                retorno_gratuito=False,
+                subtotal=0.0,
+                valor_total=0.0,
+                valor_pago=0.0,
+                saldo_devedor=0.0,
+                formas_pagamento=[],
+                metodo="",
+            ),
+        )
+        self.assertIn("Taxa de consulta", html)
+        self.assertIn("150.00", html)
+        self.assertNotIn("Desconto retorno", html)
+        self.assertIn("SALDO A PAGAR", html)
+
     def test_procedimento_com_valor_nao_repete_local(self):
         html = gerar_html_recibo(
             self._ctx(local_nome="CONSULTÓRIO", convenio_nome="PARTICULAR"),

@@ -1,4 +1,8 @@
-from .messages import MSG_PACIENTE_CONSULTA_EM_ANDAMENTO, MSG_PROFISSIONAL_LOCAL_EM_ANDAMENTO
+from .messages import (
+    MSG_PACIENTE_CONSULTA_EM_ANDAMENTO,
+    MSG_PROFISSIONAL_LOCAL_EM_ANDAMENTO,
+    MSG_PROFISSIONAL_OBRIGATORIO,
+)
 
 
 def local_id_efetivo_consulta(consulta) -> int | None:
@@ -22,7 +26,7 @@ def validar_paciente_sem_consulta_em_andamento(patient_id, *, exclude_consulta_i
 
 
 def validar_profissional_livre_no_local(professional_id, local_id, *, exclude_consulta_id=None):
-    """Um profissional só atende uma consulta por vez no mesmo local.
+    """Exige profissional e impede dois atendimentos no mesmo local.
 
     Outro local de atendimento pode iniciar em paralelo.
     """
@@ -31,7 +35,7 @@ def validar_profissional_livre_no_local(professional_id, local_id, *, exclude_co
     from clinica_beleza import consulta_service
 
     if not professional_id:
-        return
+        raise ValueError(MSG_PROFISSIONAL_OBRIGATORIO)
     qs = (
         consulta_service.Consulta.objects.filter(
             professional_id=professional_id,

@@ -86,6 +86,11 @@ def criar_consulta_avulsa(
     proc_list = procedures or ([procedure] if procedure else [])
     primary_procedure = proc_list[0] if proc_list else None
 
+    if not professional:
+        from .messages import MSG_PROFISSIONAL_OBRIGATORIO
+
+        raise ValueError(MSG_PROFISSIONAL_OBRIGATORIO)
+
     local_atendimento, convenio = _resolver_local_convenio_avulso(local_atendimento_id, convenio_id, patient, loja_id)
 
     if iniciar:

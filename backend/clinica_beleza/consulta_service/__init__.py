@@ -11,6 +11,7 @@ from .messages import (
     MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI,
     MSG_PACIENTE_CONSULTA_EM_ANDAMENTO,
     MSG_PROFISSIONAL_LOCAL_EM_ANDAMENTO,
+    MSG_PROFISSIONAL_OBRIGATORIO,
     consulta_esta_concluida,
     motivo_bloqueio_exclusao_consulta,
 )
@@ -40,6 +41,7 @@ __all__ = [
     "MSG_CONSULTA_CONCLUIDA_NAO_EXCLUI",
     "MSG_PACIENTE_CONSULTA_EM_ANDAMENTO",
     "MSG_PROFISSIONAL_LOCAL_EM_ANDAMENTO",
+    "MSG_PROFISSIONAL_OBRIGATORIO",
     "Appointment",
     "Consulta",
     "Decimal",

@@ -6,6 +6,7 @@ from django.test import SimpleTestCase
 from clinica_beleza.consulta_service import (
     MSG_PACIENTE_CONSULTA_EM_ANDAMENTO,
     MSG_PROFISSIONAL_LOCAL_EM_ANDAMENTO,
+    MSG_PROFISSIONAL_OBRIGATORIO,
     iniciar_consulta,
     local_id_efetivo_consulta,
     validar_paciente_sem_consulta_em_andamento,
@@ -47,8 +48,9 @@ class ValidarProfissionalLivreNoLocalTest(SimpleTestCase):
         mock_consulta_model.objects.filter.return_value = _qs_exists(False)
         validar_profissional_livre_no_local(9, 7, exclude_consulta_id=1)
 
-    def test_sem_profissional_nao_bloqueia(self):
-        validar_profissional_livre_no_local(None, 3)
+    def test_sem_profissional_bloqueia(self):
+        with self.assertRaisesMessage(ValueError, MSG_PROFISSIONAL_OBRIGATORIO):
+            validar_profissional_livre_no_local(None, 3)
 
     def test_local_efetivo_usa_consulta_depois_agenda(self):
         consulta = MagicMock(local_atendimento_id=5)
@@ -92,6 +94,20 @@ class IniciarConsultaPacienteEmAndamentoTest(SimpleTestCase):
 
         mock_validar.assert_called_once_with(10, exclude_consulta_id=4)
         self.assertEqual(consulta.status, "IN_PROGRESS")
+
+    @patch("clinica_beleza.consulta_service.validar_paciente_sem_consulta_em_andamento")
+    @patch("clinica_beleza.consulta_service.sync_consulta_from_appointment_status")
+    def test_iniciar_sem_profissional_bloqueia(self, _mock_sync, _mock_validar):
+        consulta = MagicMock()
+        consulta.status = "SCHEDULED"
+        consulta.patient_id = 10
+        consulta.professional_id = None
+        consulta.local_atendimento_id = 3
+        consulta.id = 4
+        consulta.appointment = MagicMock(status="CONFIRMED", professional_id=None, local_atendimento_id=3)
+
+        with self.assertRaisesMessage(ValueError, MSG_PROFISSIONAL_OBRIGATORIO):
+            iniciar_consulta(consulta)
 
     @patch("clinica_beleza.consulta_service.validar_profissional_livre_no_local")
     @patch("clinica_beleza.consulta_service.validar_paciente_sem_consulta_em_andamento")

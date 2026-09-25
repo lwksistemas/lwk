@@ -35,11 +35,17 @@ def _ensure_payment_for_appointment(
     """Garante lançamento financeiro do atendimento (cria ou atualiza)."""
     from clinica_beleza import consulta_service
 
+    _invalidar_totais_agendamento(appointment)
     consulta_service._garantir_valor_consulta_consulta(consulta)
     payment = consulta_service.Payment.objects.filter(appointment=appointment).first()
     valor = amount if amount is not None else consulta_service._valor_pagamento_padrao(appointment, consulta)
     if isinstance(valor, (int, float, str)):
         valor = Decimal(str(valor))
+
+    # Retorno zera só a taxa: com procedimento cobrado ainda há valor a receber.
+    # Não marcar PAID automático em atendimento isento (R$ 0) sem recebimento real.
+    if valor <= 0:
+        mark_as_paid = False
 
     comissao_pct, comissao_val = consulta_service.calcular_comissao_payment_atendimento(
         appointment=appointment,
@@ -50,7 +56,8 @@ def _ensure_payment_for_appointment(
     if not payment:
         payment = consulta_service.Payment.objects.create(
             appointment=appointment,
-            amount=valor,
+            amount=Decimal(0) if not mark_as_paid else valor,
+            valor_total=valor,
             payment_method=payment_method or "CASH",
             status="PAID" if mark_as_paid else "PENDING",
             payment_date=now() if mark_as_paid else None,
@@ -67,6 +74,8 @@ def _ensure_payment_for_appointment(
         payment.payment_method = payment_method
     if amount is not None:
         payment.amount = valor
+    if payment.valor_total is None or Decimal(str(payment.valor_total or 0)) <= 0:
+        payment.valor_total = valor
     was_paid = payment.status == "PAID"
     if mark_as_paid:
         payment.status = "PAID"
@@ -195,8 +204,9 @@ def _sincronizar_recebimento_apos_procedimento(consulta) -> None:
     pago = payment.valor_pago_parcelas
 
     payment.valor_total = novo_total
+    # Total 0 (retorno sem procedimento) não é quitação: evita PAID fantasma no Financeiro.
     if novo_total <= 0:
-        quitado, tem_pago = True, pago > 0
+        quitado, tem_pago = False, pago > 0
     elif pago >= novo_total:
         quitado, tem_pago = True, True
     else:
@@ -204,7 +214,7 @@ def _sincronizar_recebimento_apos_procedimento(consulta) -> None:
 
     payment.status = _status_rascunho_ou_financeiro(consulta, quitado=quitado, tem_pago=tem_pago)
     payment.amount = pago
-    if payment.status == "DRAFT":
+    if payment.status in ("DRAFT", "PENDING"):
         payment.payment_date = None
     payment.save(update_fields=["valor_total", "status", "amount", "payment_date", "updated_at"])
     if consulta.status not in ("COMPLETED", "CANCELLED"):
@@ -331,6 +341,19 @@ def publicar_pagamento_financeiro(consulta, *, usuario=None):
     if not payment or payment.status == "CANCELLED":
         return payment
 
+    # Recalcula total se o lançamento ficou zerado (ex.: retorno aplicado antes do procedimento).
+    _invalidar_totais_agendamento(appointment)
+    consulta_service._garantir_valor_consulta_consulta(consulta)
+    valor_atual = consulta_service._valor_pagamento_padrao(appointment, consulta)
+    if isinstance(valor_atual, (int, float, str)):
+        valor_atual = Decimal(str(valor_atual))
+    valor_salvo = payment.valor_total_efetivo
+    if isinstance(valor_salvo, (int, float, str)):
+        valor_salvo = Decimal(str(valor_salvo or 0))
+    if valor_atual > 0 and valor_salvo <= 0:
+        payment.valor_total = valor_atual
+        payment.save(update_fields=["valor_total", "updated_at"])
+
     if payment.status not in ("DRAFT", "PENDING", "PARTIAL"):
         # Já publicado (PAID) — nada a fazer
         if payment.status == "PAID" and not payment.payment_date:
@@ -348,6 +371,14 @@ def publicar_pagamento_financeiro(consulta, *, usuario=None):
     if total_pago <= 0 and payment.status == "PENDING":
         # Conta pendente sem recebimento — permanece PENDING no financeiro.
         # O vencimento (se a prazo) já foi carimbado no lançamento, não aqui.
+        return payment
+
+    # R$ 0 sem parcela paga: não vira PAID (caso típico de retorno só com taxa isenta).
+    if valor_total <= 0 and total_pago <= 0:
+        payment.status = "PENDING"
+        payment.amount = Decimal(0)
+        payment.payment_date = None
+        payment.save(update_fields=["status", "amount", "payment_date", "updated_at"])
         return payment
 
     if total_pago >= valor_total - Decimal("0.01"):

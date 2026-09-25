@@ -17,16 +17,11 @@ function fakeWindow() {
 }
 
 describe("escreverPaginaImpressaoPdf", () => {
-  it("grava HTML com iframe do PDF e chama print, sem navegar para o blob", () => {
+  it("abre o PDF nativo em vez de iframe+print (Chrome fica em branco)", () => {
     const win = fakeWindow();
     escreverPaginaImpressaoPdf(win as unknown as Window, "blob:http://localhost/abc");
-    expect(win.document.open).toHaveBeenCalled();
-    expect(win.document.write).toHaveBeenCalled();
-    const html = String(win.document.write.mock.calls[0][0]);
-    expect(html).toContain('src="blob:http://localhost/abc"');
-    expect(html).toContain("cw.print()");
-    expect(win.document.close).toHaveBeenCalled();
-    expect(win.location.href).toBe("");
+    expect(win.location.href).toBe("blob:http://localhost/abc");
+    expect(win.document.write).not.toHaveBeenCalled();
   });
 });
 
@@ -38,11 +33,11 @@ describe("direcionarJanelaPdf", () => {
     expect(win.document.write).not.toHaveBeenCalled();
   });
 
-  it("imprimir monta a página de impressão em vez de só abrir o PDF", () => {
+  it("imprimir também abre o PDF nativo (sem wrapper iframe)", () => {
     const win = fakeWindow();
     direcionarJanelaPdf(win as unknown as Window, "blob:http://localhost/pdf", "imprimir");
-    expect(win.location.href).toBe("");
-    expect(win.document.write).toHaveBeenCalled();
+    expect(win.location.href).toBe("blob:http://localhost/pdf");
+    expect(win.document.write).not.toHaveBeenCalled();
   });
 });
 
@@ -51,13 +46,12 @@ describe("abrirPdfUrl", () => {
     vi.unstubAllGlobals();
   });
 
-  it("imprimir abre aba em branco e escreve a página de impressão", () => {
+  it("imprimir abre o PDF direto na aba", () => {
     const win = fakeWindow();
     const open = vi.fn(() => win);
     vi.stubGlobal("window", { open });
     abrirPdfUrl("https://media.example/relatorio.pdf", "imprimir");
-    expect(open).toHaveBeenCalledWith("", "_blank");
-    expect(win.document.write).toHaveBeenCalled();
+    expect(open).toHaveBeenCalledWith("https://media.example/relatorio.pdf", "_blank");
   });
 
   it("visualizar abre o PDF direto", () => {
@@ -66,6 +60,5 @@ describe("abrirPdfUrl", () => {
     vi.stubGlobal("window", { open });
     abrirPdfUrl("https://media.example/relatorio.pdf", "visualizar");
     expect(open).toHaveBeenCalledWith("https://media.example/relatorio.pdf", "_blank");
-    expect(win.document.write).not.toHaveBeenCalled();
   });
 });

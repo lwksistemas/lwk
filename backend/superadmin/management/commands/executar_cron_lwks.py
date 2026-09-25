@@ -68,9 +68,11 @@ class Command(BaseCommand):
         if now.minute < 15:
             call_command("executar_backups_automaticos", verbosity=1)
 
-        # VACUUM semanal: domingo às 3h — corrige bloat em tabelas pequenas que o
-        # autovacuum ignora (scale_factor=0.2 nunca dispara em tabelas com 1 linha).
+        # Manutenção semanal: domingo às 3h
+        # - VACUUM nas tabelas tenant (corrige bloat em tabelas pequenas ignoradas pelo autovacuum)
+        # - Limpeza de erros de frontend de lojas extintas e registros antigos
         if now.weekday() == 6 and now.hour == 3 and now.minute < 15:
             call_command("vacuum_tenants", verbosity=1)
+            call_command("limpar_erros_frontend", verbosity=1)
 
         self.stdout.write(self.style.SUCCESS("=== Cron LWK concluído ==="))

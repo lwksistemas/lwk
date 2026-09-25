@@ -1,4 +1,4 @@
-"""superadmin/views — pacote refatorado (antes: views.py monolítico com 4029 linhas).
+  """superadmin/views — pacote refatorado (antes: views.py monolítico com 4029 linhas).
 
 Módulos:
     permissions   — Classes de permissão (IsOwnerOrSuperAdmin, IsSuperAdmin)
@@ -33,7 +33,7 @@ from .sistema import (
     verificar_storage_todas,
 )
 from .midia import (
-    excluir_midia_arquivo,
+    excluir_midia_arquivo,  # noqa: F401 — reexportado para superadmin.urls
     listar_midia_arquivos,
     listar_midia_pastas,
     listar_midia_tenants,

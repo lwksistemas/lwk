@@ -104,6 +104,11 @@ class PaymentSerializer(serializers.ModelSerializer):
     vencido = serializers.SerializerMethodField()
     dias_atraso = serializers.SerializerMethodField()
     retorno_gratuito = serializers.SerializerMethodField()
+    consulta_id = serializers.SerializerMethodField()
+
+    def get_consulta_id(self, obj):
+        consulta = getattr(getattr(obj, "appointment", None), "consulta", None)
+        return getattr(consulta, "id", None)
 
     def get_procedimento_nome(self, obj):
         return _procedimentos_nome_agendamento(obj.appointment)

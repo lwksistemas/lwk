@@ -135,19 +135,34 @@ class PatientDetailView(GetObjectMixin, APIView):
         if err:
             return err
         agora = timezone.now()
-        # Cancela os agendamentos futuros em aberto, liberando os horários.
-        # O histórico (concluídos/cancelados/faltas) é preservado.
-        canceladas = Appointment.objects.filter(
-            patient=obj,
-            date__gte=agora,
-            status__in=_OPEN_APPOINTMENT_STATUSES,
-        ).update(status="CANCELLED", updated_at=agora, version=F("version") + 1)
-        obj.is_active = False
-        obj.save()
-        return Response(
-            {"message": f"Paciente desativado. {canceladas} agendamento(s) futuro(s) cancelado(s)."},
-            status=status.HTTP_200_OK,
-        )
+
+        # Verifica se o paciente tem histórico clínico ou financeiro.
+        # Com histórico: soft delete (preserva integridade referencial).
+        # Sem histórico: hard delete (remove fisicamente — sem rastro).
+        tem_agendamento = Appointment.objects.filter(patient=obj).exists()
+        tem_consulta = obj.consultas.exists() if hasattr(obj, "consultas") else False
+        tem_historico = tem_agendamento or tem_consulta
+
+        if tem_historico:
+            # Soft delete: cancela futuros e desativa.
+            canceladas = Appointment.objects.filter(
+                patient=obj,
+                date__gte=agora,
+                status__in=_OPEN_APPOINTMENT_STATUSES,
+            ).update(status="CANCELLED", updated_at=agora, version=F("version") + 1)
+            obj.is_active = False
+            obj.save()
+            return Response(
+                {"message": f"Paciente desativado. {canceladas} agendamento(s) futuro(s) cancelado(s)."},
+                status=status.HTTP_200_OK,
+            )
+        else:
+            # Hard delete: sem histórico, remove fisicamente.
+            obj.delete()
+            return Response(
+                {"message": "Cliente excluído com sucesso."},
+                status=status.HTTP_200_OK,
+            )
 
 
 class PatientPrazoPagamentoView(GetObjectMixin, APIView):

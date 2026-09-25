@@ -167,12 +167,15 @@ class ContratoViewSet(
     CrmGranularPermissionMixin,
     AssinaturaDigitalMixin,
     DocumentoQuerysetMixin,
+    VendedorFilterMixin,
     BaseModelViewSet,
 ):
     queryset = Contrato.objects.all()
     serializer_class = ContratoSerializer
     pagination_class = CRMPagination
 
+    vendedor_filter_field = "oportunidade__vendedor_id"
+    vendedor_filter_related = []
     assinatura_doc_label = "Contrato"
     assinatura_cache_key = "contratos"
     crm_permission_model = "contrato"

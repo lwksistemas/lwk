@@ -28,7 +28,7 @@ export function isNovaConsultaQuery(searchParams: URLSearchParams): boolean {
 
 export type ConsultasListaVista = "finalizadas" | "iniciar";
 
-/** Query da lista. Finalizadas vêm em ordem alfabética pelo cliente. */
+/** Query da lista. Finalizadas abrem da consulta mais recente para a mais antiga. */
 export function buildConsultasListQueryParams(opts: {
   patientId?: number | null;
   professionalId?: number | null;
@@ -41,7 +41,6 @@ export function buildConsultasListQueryParams(opts: {
   }
   if (vista === "finalizadas") {
     params.status = "COMPLETED";
-    params.ordem = "nome";
   } else if (!opts.patientId) {
     params.fila = "iniciar";
   }

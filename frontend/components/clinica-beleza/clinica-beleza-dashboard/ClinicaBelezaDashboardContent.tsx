@@ -282,25 +282,38 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                   Ver completo
                 </Link>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-1.5">
                 {(
                   [
-                    ["Faturamento", financial?.faturamento ?? stats?.revenue_month ?? 0, "text-emerald-600 dark:text-emerald-400"],
-                    ["Despesas", financial?.despesas ?? 0, "text-red-500 dark:text-red-400"],
+                    ["Faturamento",  financial?.faturamento ?? stats?.revenue_month ?? 0, "text-emerald-600 dark:text-emerald-400", true],
+                    ["Despesas",     financial?.despesas ?? 0,                             "text-red-500 dark:text-red-400",        false],
                     [
                       "Lucro líquido",
                       financial?.lucro ??
                         (financial?.faturamento ?? stats?.revenue_month ?? 0) - (financial?.despesas ?? 0),
                       "text-emerald-600 dark:text-emerald-400",
+                      true,
                     ],
-                    ["A receber", financial?.a_receber ?? 0, "text-amber-600 dark:text-amber-400"],
-                    ["Desconto", financial?.desconto ?? 0, "text-orange-600 dark:text-orange-400"],
-                    ["A prazo", financial?.a_prazo ?? 0, "text-violet-600 dark:text-violet-400"],
+                    ["A receber", financial?.a_receber ?? 0, "text-amber-600 dark:text-amber-400",  false],
+                    ["Desconto",  financial?.desconto  ?? 0, "text-orange-600 dark:text-orange-400", false],
+                    ["A prazo",   financial?.a_prazo   ?? 0, "text-violet-600 dark:text-violet-400", false],
                   ] as const
-                ).map(([label, valor, cor]) => (
-                  <div key={label} className="flex justify-between items-center gap-3 text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">{label}</span>
-                    <span className={`font-semibold shrink-0 ${cor}`}>{formatCurrency(valor)}</span>
+                ).map(([label, valor, cor, destaque], idx) => (
+                  <div key={label}>
+                    {/* separador antes de "A receber" para dividir resultado vs pendências */}
+                    {idx === 3 && (
+                      <div className="border-t border-gray-100 dark:border-gray-700 my-2" />
+                    )}
+                    <div className={`flex justify-between items-center gap-3 py-1 px-2 rounded-lg text-sm ${
+                      destaque ? 'bg-gray-50 dark:bg-gray-700/40' : ''
+                    }`}>
+                      <span className={`${destaque ? 'font-medium text-gray-700 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                        {label}
+                      </span>
+                      <span className={`font-semibold shrink-0 tabular-nums ${cor} ${destaque ? 'text-base' : 'text-sm'}`}>
+                        {formatCurrency(valor)}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>

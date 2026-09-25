@@ -58,10 +58,9 @@ describe("extractConsultaDeepLinkError", () => {
 });
 
 describe("buildConsultasListQueryParams", () => {
-  it("abre nas finalizadas em ordem alfabética", () => {
+  it("abre nas finalizadas, da mais recente para a mais antiga", () => {
     expect(buildConsultasListQueryParams({})).toEqual({
       status: "COMPLETED",
-      ordem: "nome",
     });
   });
 
@@ -73,14 +72,12 @@ describe("buildConsultasListQueryParams", () => {
     expect(buildConsultasListQueryParams({ patientId: 12 })).toEqual({
       patient: 12,
       status: "COMPLETED",
-      ordem: "nome",
     });
   });
 
   it("combina profissional com as finalizadas", () => {
     expect(buildConsultasListQueryParams({ professionalId: 7 })).toEqual({
       status: "COMPLETED",
-      ordem: "nome",
       professional: 7,
     });
   });
@@ -96,7 +93,6 @@ describe("buildConsultasListQueryParams", () => {
     expect(buildConsultasListQueryParams({ patientId: 12, professionalId: 7 })).toEqual({
       patient: 12,
       status: "COMPLETED",
-      ordem: "nome",
       professional: 7,
     });
   });

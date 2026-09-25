@@ -334,3 +334,53 @@ class ConsultaReceberIntegrationTests(ClinicaBelezaIntegrationTestCase):
         self.assertEqual(response.status_code, 403, response.content)
         linha = AppointmentProcedure.objects.get(appointment=consulta.appointment)
         self.assertEqual(linha.valor, Decimal("150.00"))
+
+    def test_retorno_com_procedimento_finaliza_pendente_no_financeiro(self):
+        """Retorno isenta só a taxa; procedimento cobrado entra PENDING (não PAID R$0)."""
+        from clinica_beleza.consulta_service import finalizar_consulta
+        from clinica_beleza.consulta_service.payment import publicar_pagamento_financeiro
+
+        consulta = self._criar_consulta_receber(valor=Decimal("0"))
+        consulta.retorno_gratuito = True
+        consulta.status = "IN_PROGRESS"
+        consulta.data_inicio = timezone.now()
+        consulta.save(update_fields=["retorno_gratuito", "status", "data_inicio", "updated_at"])
+        proc = Procedure.objects.create(
+            nome="TIRZEPATIDA 2,5 MG",
+            preco=Decimal("300.00"),
+            duracao_minutos=30,
+            loja_id=self.loja.id,
+        )
+        AppointmentProcedure.objects.create(
+            appointment=consulta.appointment,
+            procedure=proc,
+            valor=Decimal("150.00"),
+            ordem=0,
+            loja_id=self.loja.id,
+        )
+        # Simula rascunho zerado (retorno aplicado antes de sincronizar o procedimento).
+        payment = Payment.objects.create(
+            appointment=consulta.appointment,
+            amount=Decimal("0"),
+            valor_total=Decimal("0"),
+            payment_method="CASH",
+            status="DRAFT",
+            loja_id=self.loja.id,
+        )
+
+        finalizar_consulta(consulta, skip_estoque=True)
+        payment.refresh_from_db()
+        self.assertEqual(payment.valor_total, Decimal("150.00"))
+        self.assertEqual(payment.status, "PENDING")
+        self.assertIsNone(payment.payment_date)
+
+        # Publicar de novo não marca PAID fantasma em R$ 0.
+        payment.valor_total = Decimal("0")
+        payment.status = "DRAFT"
+        payment.save(update_fields=["valor_total", "status", "updated_at"])
+        AppointmentProcedure.objects.filter(appointment=consulta.appointment).delete()
+        publicar_pagamento_financeiro(consulta)
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, "PENDING")
+        self.assertEqual(Decimal(str(payment.valor_total or 0)), Decimal("0"))
+        self.assertIsNone(payment.payment_date)

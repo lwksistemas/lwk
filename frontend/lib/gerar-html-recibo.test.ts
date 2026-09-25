@@ -109,6 +109,29 @@ describe("gerarHtmlRecibo", () => {
     expect(html).toContain("PARTICULAR");
   });
 
+  it("consulta sem retorno usa a taxa do local, a mesma do retorno, sem desconto", () => {
+    const html = gerarHtmlRecibo({
+      consulta: {
+        ...consulta,
+        procedure_name: "Consulta",
+        procedures_list: [],
+        valor_consulta: 0,
+        valor_procedimentos: 0,
+        retorno_gratuito: false,
+        local_atendimento_valor_consulta: 150,
+        local_atendimento_name: "CONSULTÓRIO",
+      } as Consulta,
+      valorPago: 0,
+      desconto: 0,
+      entradas: [],
+      lojaData: { nome: "HARMONIS" },
+    });
+    expect(html).toContain("Taxa de consulta");
+    expect(html).toContain("R$ 150.00");
+    expect(html).not.toContain("Desconto retorno");
+    expect(html).toContain("SALDO A PAGAR");
+  });
+
   it("procedimento com valor não repete local no recibo", () => {
     const html = gerarHtmlRecibo({
       consulta: {

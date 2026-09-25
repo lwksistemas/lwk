@@ -9,6 +9,7 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    aplicar_valor_consulta_do_local,
     linhas_local_convenio_recibo,
 )
 
@@ -25,6 +26,7 @@ def _saldo(ctx: dict) -> float:
 
 def gerar_html_recibo(ctx: dict) -> str:
     """Monta o cupom de impressão a partir do mesmo ctx do PDF."""
+    ctx = aplicar_valor_consulta_do_local(ctx)
     saldo = _saldo(ctx)
     retorno_sem_valor = bool(ctx.get("retorno_gratuito")) and float(ctx.get("valor_total") or 0) <= 0.009
     if retorno_sem_valor:

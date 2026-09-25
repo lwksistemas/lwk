@@ -72,7 +72,19 @@ export function gerarHtmlRecibo(params: {
     consulta.local_atendimento_valor_consulta ?? valorConsulta,
   );
   const retornoAviso = (consulta.retorno_aviso_recibo || "").trim();
-  const taxaExibida = retornoGratuito ? valorConsultaReferencia : valorConsulta;
+  const procsPrevios = consulta.procedures_list ?? [];
+  const soConsultaSemRetorno =
+    !retornoGratuito &&
+    valorProcs <= 0.009 &&
+    procsPrevios.every((p) => nomeSoConsulta(p.nome || "")) &&
+    nomeSoConsulta(consulta.procedure_name || "");
+  const taxaExibida = retornoGratuito
+    ? valorConsultaReferencia
+    : valorConsulta > 0.009
+      ? valorConsulta
+      : soConsultaSemRetorno
+        ? valorConsultaReferencia
+        : valorConsulta;
   const descontoRetorno =
     retornoGratuito && valorConsultaReferencia > 0 ? valorConsultaReferencia : 0;
   const telCep = escapeHtml(linhaTelCep(lojaData.telefone, lojaData.cep));
@@ -261,8 +273,8 @@ export function gerarHtmlRecibo(params: {
 
 <div class="total">VALOR PAGO: R$ ${valorPago.toFixed(2)}</div>
 ${
-  saldoRestante > 0.009
-    ? `<div class="total" style="font-size:12px;">SALDO A PAGAR: R$ ${saldoRestante.toFixed(2)}${vencimentoBr ? ` — vencimento ${escapeHtml(vencimentoBr)}` : ""}</div>`
+  Math.max(saldoRestante, totalFinal - valorPago) > 0.009
+    ? `<div class="total" style="font-size:12px;">SALDO A PAGAR: R$ ${Math.max(saldoRestante, totalFinal - valorPago).toFixed(2)}${vencimentoBr ? ` — vencimento ${escapeHtml(vencimentoBr)}` : ""}</div>`
     : `<div class="footer" style="border-top:none;margin-top:0;"><p style="font-weight:bold;color:#333;">Quitado</p></div>`
 }
 

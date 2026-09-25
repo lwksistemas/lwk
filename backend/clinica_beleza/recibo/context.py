@@ -251,6 +251,25 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     vencimento = venc.strftime("%d/%m/%Y") if venc else ""
     subtotal, desconto_retorno = _calcular_subtotal_recibo(taxa_info, procs, valor_total, desconto)
 
+    ctx = aplicar_valor_consulta_do_local({
+        **taxa_info,
+        "procedimentos": procs,
+        "subtotal": float(subtotal),
+        "valor_total": valor_total,
+        "valor_pago": valor_pago,
+        "saldo_devedor": saldo_devedor,
+    })
+    subtotal = float(ctx["subtotal"])
+    valor_total = float(ctx["valor_total"])
+    saldo_devedor = float(ctx["saldo_devedor"])
+    taxa_info = {
+        "taxa_consulta": ctx["taxa_consulta"],
+        "taxa_consulta_referencia": ctx["taxa_consulta_referencia"],
+        "retorno_gratuito": ctx["retorno_gratuito"],
+        "retorno_dias": ctx["retorno_dias"],
+        "retorno_aviso": ctx["retorno_aviso"],
+    }
+
     ctx = _dados_loja_recibo(loja)
     assinatura_recibo = _dados_assinatura_recibo(payment)
 
@@ -447,6 +466,27 @@ def linhas_local_convenio_recibo(ctx: dict) -> list[tuple[str, str]]:
     if isinstance(convenio, str) and convenio:
         linhas.append(("Convênio", convenio))
     return linhas
+
+
+def aplicar_valor_consulta_do_local(ctx: dict) -> dict:
+    """Consulta sem outro procedimento usa a taxa do local quando a consulta ficou zerada."""
+    if ctx.get("retorno_gratuito"):
+        return ctx
+    if float(ctx.get("taxa_consulta") or 0) > 0.009:
+        return ctx
+    if not recibo_so_consulta(ctx):
+        return ctx
+    ref = float(ctx.get("taxa_consulta_referencia") or 0)
+    if ref <= 0.009:
+        return ctx
+    ctx = dict(ctx)
+    ctx["taxa_consulta"] = ref
+    if float(ctx.get("valor_total") or 0) <= 0.009:
+        ctx["subtotal"] = ref
+        ctx["valor_total"] = ref
+        pago = float(ctx.get("valor_pago") or 0)
+        ctx["saldo_devedor"] = max(ref - pago, 0.0)
+    return ctx
 
 
 def _linhas_taxa_consulta_recibo(ctx: dict) -> list[tuple[str, float]]:

@@ -8,6 +8,7 @@ from .context import (
     _linha_tel_cep,
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
+    aplicar_valor_consulta_do_local,
     linhas_local_convenio_recibo,
 )
 
@@ -332,6 +333,7 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
 
 def _gerar_pdf_recibo(ctx: dict) -> bytes:
     """Gera PDF do recibo em formato cupom fiscal com layout profissional."""
+    ctx = aplicar_valor_consulta_do_local(ctx)
     from reportlab.lib.pagesizes import mm
     from reportlab.platypus import SimpleDocTemplate, Spacer
 

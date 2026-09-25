@@ -14,6 +14,8 @@ export interface PatientQuickRegisterFieldProps {
   patients: PatientQuickOption[];
   patientId: number | "";
   onSelect: (id: number) => void;
+  /** Paciente escolhido na busca, com o convênio do cadastro. */
+  onSelectPatient?: (patient: PatientQuickOption) => void;
   onClear: () => void;
   onPatientCreated: (patient: PatientQuickOption) => void;
   onCreatePatient: (data: { nome: string; telefone: string; cpf: string }) => Promise<PatientQuickOption>;

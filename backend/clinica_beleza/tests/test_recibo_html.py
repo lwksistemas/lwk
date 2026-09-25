@@ -55,6 +55,30 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertIn("&lt;img src=x&gt;", html)
         self.assertNotIn("<img src=x>", html)
 
+    def test_retorno_sem_valor_lista_procedimento_e_isento(self):
+        html = gerar_html_recibo(
+            self._ctx(
+                retorno_gratuito=True,
+                taxa_consulta=0.0,
+                taxa_consulta_referencia=150.0,
+                desconto_retorno=150.0,
+                desconto=0.0,
+                procedimentos=[{"nome": "LASER ETHEREA", "valor": 0.0}],
+                subtotal=150.0,
+                valor_total=0.0,
+                valor_pago=0.0,
+                saldo_devedor=0.0,
+                formas_pagamento=[],
+                metodo="",
+            ),
+        )
+        self.assertIn("RECIBO DE RETORNO", html)
+        self.assertIn("LASER ETHEREA", html)
+        self.assertIn("Isento — retorno", html)
+        self.assertIn("Retorno isento", html)
+        self.assertIn("Desconto retorno", html)
+        self.assertNotIn(">Desconto<", html)
+
     def test_quitado_quando_sem_saldo(self):
         html = gerar_html_recibo(self._ctx())
         self.assertIn("Quitado", html)

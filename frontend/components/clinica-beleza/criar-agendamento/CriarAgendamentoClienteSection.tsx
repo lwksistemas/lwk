@@ -14,6 +14,7 @@ type Props = Pick<
   | "adicionarProcedimento"
   | "removerProcedimento"
   | "convenioId"
+  | "aplicarConvenioDoPaciente"
   | "precosMap"
   | "createLoading"
   | "handleCreatePatient"
@@ -31,6 +32,7 @@ export function CriarAgendamentoClienteSection({
   adicionarProcedimento,
   removerProcedimento,
   convenioId,
+  aplicarConvenioDoPaciente,
   precosMap,
   createLoading,
   handleCreatePatient,
@@ -44,6 +46,11 @@ export function CriarAgendamentoClienteSection({
         patients={patients}
         patientId={patientId}
         onSelect={setPatientId}
+        onSelectPatient={(p) => {
+          const demais = patients.filter((item) => item.id !== p.id);
+          onPatientsChange([...demais, p]);
+          aplicarConvenioDoPaciente(p);
+        }}
         onClear={() => setPatientId("")}
         onPatientCreated={(p) => onPatientsChange([...patients, p])}
         onCreatePatient={handleCreatePatient}

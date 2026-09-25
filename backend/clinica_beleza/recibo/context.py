@@ -76,7 +76,41 @@ def _buscar_procedimentos_recibo(appointment) -> list[dict]:
     except Exception:
         logger.exception("Erro ao listar procedimentos do recibo")
     if not procs and appointment.procedure:
-        procs = [{"nome": appointment.procedure.nome, "valor": float(appointment.procedure.preco or 0)}]
+        nome_legado = getattr(appointment.procedure, "nome", "") or ""
+        if isinstance(nome_legado, str) and nome_legado.strip() and nome_legado.strip().casefold() != "consulta":
+            procs = [{"nome": nome_legado.strip(), "valor": float(appointment.procedure.preco or 0)}]
+    return _anexar_procedimento_do_retorno(appointment, procs)
+
+
+def _anexar_procedimento_do_retorno(appointment, procs: list[dict]) -> list[dict]:
+    """Retorno sem valor ainda precisa citar o procedimento realizado."""
+    nomes = {
+        (p.get("nome") or "").strip().casefold()
+        for p in procs
+        if isinstance(p.get("nome"), str)
+    }
+    retorno = getattr(appointment, "retorno_procedure", None)
+    nome_retorno = getattr(retorno, "nome", None)
+    if isinstance(nome_retorno, str) and nome_retorno.strip() and nome_retorno.strip().casefold() not in nomes:
+        procs.append({"nome": nome_retorno.strip(), "valor": 0.0})
+        return procs
+    if procs:
+        return procs
+    consulta = getattr(appointment, "consulta", None)
+    if consulta is None or not getattr(consulta, "pk", None):
+        return procs
+    try:
+        from django.db.models import Model
+
+        if not isinstance(consulta, Model):
+            return procs
+        evo = consulta.evolucoes.order_by("-created_at").first()
+    except Exception:
+        logger.exception("Erro ao ler procedimento realizado do retorno")
+        return procs
+    texto = getattr(evo, "procedimento_realizado", "") if evo else ""
+    if isinstance(texto, str) and texto.strip():
+        procs.append({"nome": texto.strip(), "valor": 0.0})
     return procs
 
 

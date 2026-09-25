@@ -197,7 +197,7 @@ export function CriarAgendamentoAgendaSection({
             convenios={convenios}
             value={convenioId}
             onChange={setConvenioId}
-            hint=""
+            hint="Particular é o padrão. Outro convênio no cadastro vale só para esse cliente."
             className={inputClass}
           />
         </div>

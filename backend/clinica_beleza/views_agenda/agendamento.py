@@ -208,7 +208,7 @@ class AgendaDeleteView(GetObjectMixin, APIView):
 
         if horario_agendamento_passou(obj):
             return Response(
-                {"error": "Não é possível excluir um agendamento cujo horário já passou."},
+                {"error": "Não é possível excluir um agendamento cujo horário passou há mais de 2 dias."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -242,7 +242,7 @@ class AgendaReenviarMensagemView(APIView):
         if horario_agendamento_passou(appointment):
             return Response({
                 "sent": False,
-                "message": "Horário já passou. A confirmação não é reenviada.",
+                "message": "O horário passou há mais de 2 dias. A confirmação não é reenviada.",
             })
 
         if not getattr(appointment.patient, "allow_whatsapp", True):

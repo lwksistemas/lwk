@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvenioPrecos } from "@/hooks/clinica-beleza/useConvenioPrecos";
 import { useConveniosList } from "@/hooks/clinica-beleza/useConveniosList";
 import { procedureDuration, procedurePrice } from "@/lib/clinica-beleza-entities";
-import { precoProcedimento } from "@/lib/convenio-precos";
+import { convenioPadraoDoPaciente, precoProcedimento } from "@/lib/convenio-precos";
 
 export interface ConsultaFormPatient {
   id: number;
@@ -46,12 +46,28 @@ export function useNovaConsultaForm({
 
   const convenios = useConveniosList(enabled);
   const precosMap = useConvenioPrecos(convenioId);
+  /** Evita recolocar o convênio do cadastro depois que a recepção troca o select. */
+  const convenioAplicadoPara = useRef<number | "">("");
 
   useEffect(() => {
-    if (!patientId) return;
+    if (!patientId) {
+      if (convenioAplicadoPara.current !== "") {
+        convenioAplicadoPara.current = "";
+        setConvenioId("");
+      }
+      return;
+    }
+    if (convenioAplicadoPara.current === patientId) return;
     const paciente = patients.find((p) => p.id === patientId);
-    setConvenioId(paciente?.convenio ?? "");
+    if (!paciente) return;
+    convenioAplicadoPara.current = patientId;
+    setConvenioId(convenioPadraoDoPaciente(paciente));
   }, [patientId, patients]);
+
+  const aplicarConvenioDoPaciente = useCallback((paciente: ConsultaFormPatient) => {
+    convenioAplicadoPara.current = paciente.id;
+    setConvenioId(convenioPadraoDoPaciente(paciente));
+  }, []);
 
   const adicionarProcedimento = useCallback((id: number) => {
     setSelectedProcedures((prev) => (id && !prev.includes(id) ? [...prev, id] : prev));
@@ -101,6 +117,7 @@ export function useNovaConsultaForm({
     setProfessionalId,
     convenioId,
     setConvenioId,
+    aplicarConvenioDoPaciente,
     selectedProcedures,
     setSelectedProcedures,
     convenios,

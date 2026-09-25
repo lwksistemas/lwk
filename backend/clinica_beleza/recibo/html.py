@@ -25,7 +25,13 @@ def _saldo(ctx: dict) -> float:
 def gerar_html_recibo(ctx: dict) -> str:
     """Monta o cupom de impressão a partir do mesmo ctx do PDF."""
     saldo = _saldo(ctx)
-    titulo = "COMPROVANTE DE ATENDIMENTO" if saldo > 0.009 else "RECIBO DE PAGAMENTO"
+    retorno_sem_valor = bool(ctx.get("retorno_gratuito")) and float(ctx.get("valor_total") or 0) <= 0.009
+    if retorno_sem_valor:
+        titulo = "RECIBO DE RETORNO"
+    elif saldo > 0.009:
+        titulo = "COMPROVANTE DE ATENDIMENTO"
+    else:
+        titulo = "RECIBO DE PAGAMENTO"
     doc_line = _linha_documento_loja(ctx)
     tel_cep = ctx.get("loja_tel_cep") or _linha_tel_cep(
         ctx.get("loja_telefone", ""), ctx.get("loja_cep", ""),
@@ -85,6 +91,11 @@ def gerar_html_recibo(ctx: dict) -> str:
             f"<tr><td>{_t(ctx.get('metodo') or 'Pagamento')}</td>"
             f'<td style="text-align:right">R$ {valor_pago:.2f}</td></tr>'
         )
+    elif ctx.get("retorno_gratuito"):
+        formas_html = (
+            '<tr><td>Isento — retorno</td>'
+            '<td style="text-align:right">R$ 0.00</td></tr>'
+        )
     else:
         formas_html = ""
 
@@ -93,6 +104,11 @@ def gerar_html_recibo(ctx: dict) -> str:
         saldo_bloco = (
             f'<div class="total" style="font-size:12px;">SALDO A PAGAR: R$ {saldo:.2f}'
             f"{f' — vencimento {_t(vencimento)}' if vencimento else ''}</div>"
+        )
+    elif ctx.get("retorno_gratuito") and valor_pago <= 0.009:
+        saldo_bloco = (
+            '<div class="footer" style="border-top:none;margin-top:0;">'
+            '<p style="font-weight:bold;color:#333;">Retorno isento</p></div>'
         )
     else:
         saldo_bloco = (

@@ -6,6 +6,7 @@ export function usePatientQuickRegister({
   patients,
   patientId,
   onSelect,
+  onSelectPatient,
   onClear,
   onPatientCreated,
   onCreatePatient,
@@ -68,10 +69,11 @@ export function usePatientQuickRegister({
   const handleSelecionar = useCallback(
     (p: PatientQuickOption) => {
       onSelect(p.id);
+      onSelectPatient?.(p);
       setSelectedCache(p);
       setErro("");
     },
-    [onSelect],
+    [onSelect, onSelectPatient],
   );
 
   const handleTrocar = useCallback(() => {

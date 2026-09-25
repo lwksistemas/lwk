@@ -31,12 +31,16 @@ class DespesaSerializer(serializers.ModelSerializer):
         return attrs
 
 
-def _procedimentos_nome_agendamento(appointment) -> str:
-    """Lista todos os procedimentos do atendimento (appointment_procedures ou legado).
+def _texto_nome(valor) -> str:
+    if not isinstance(valor, str):
+        return ""
+    return valor.strip()
 
-    Aproveita o ``prefetch_related('appointment__appointment_procedures__procedure')``
-    da view quando disponível (evita N+1 na lista do Financeiro); ordena em Python
-    para não descartar o cache do prefetch. Cai para query direta se não prefetched.
+
+def _procedimentos_nome_agendamento(appointment) -> str:
+    """Lista procedimentos do atendimento, inclusive o do retorno sem cobrança.
+
+    Aproveita o prefetch da listagem do Financeiro. Cai para query direta se não prefetched.
     """
     if not appointment:
         return ""
@@ -49,11 +53,28 @@ def _procedimentos_nome_agendamento(appointment) -> str:
         procs = list(
             appointment.appointment_procedures.select_related("procedure").order_by("ordem", "id"),
         )
-    if procs:
-        return " · ".join(ap.procedure.nome for ap in procs if ap.procedure)
-    if appointment.procedure_id and appointment.procedure:
-        return appointment.procedure.nome
-    return ""
+    nomes = [
+        _texto_nome(ap.procedure.nome)
+        for ap in procs
+        if getattr(ap, "procedure", None) and _texto_nome(getattr(ap.procedure, "nome", ""))
+    ]
+    if not nomes and getattr(appointment, "procedure_id", None) and getattr(appointment, "procedure", None):
+        legado = _texto_nome(getattr(appointment.procedure, "nome", ""))
+        if legado and legado.casefold() != "consulta":
+            nomes.append(legado)
+    retorno = _texto_nome(
+        getattr(getattr(appointment, "retorno_procedure", None), "nome", ""),
+    )
+    if retorno and retorno.casefold() not in {n.casefold() for n in nomes}:
+        nomes.append(retorno)
+    if not nomes:
+        consulta = getattr(appointment, "consulta", None)
+        recentes = getattr(consulta, "evolucoes_recentes", None) if consulta is not None else None
+        if recentes:
+            feito = _texto_nome(getattr(recentes[0], "procedimento_realizado", ""))
+            if feito:
+                nomes.append(feito)
+    return " · ".join(nomes)
 
 
 class PaymentParcelaSerializer(serializers.ModelSerializer):

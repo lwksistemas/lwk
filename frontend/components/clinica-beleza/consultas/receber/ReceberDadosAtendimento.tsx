@@ -2,6 +2,7 @@
 
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { consultaProcedimentoLabel, consultaTemProcedimento, type Consulta } from "../consultas-types";
+import { parseMoneyInput } from "../modal-receber-consulta-utils";
 
 const fieldClass =
   "w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600";
@@ -36,6 +37,8 @@ export function ReceberDadosAtendimento({
   const temProcedimento =
     consultaTemProcedimento(consulta) || Number(valorProcedimentos) > 0;
   const nomesProcedimento = consultaProcedimentoLabel(consulta);
+  const valorDesconto = parseMoneyInput(desconto);
+  const retornoIsento = Boolean(consulta.retorno_gratuito);
   const mostrarValorProcedimento = temProcedimento;
   const editarValorProcedimento =
     mostrarValorProcedimento && podeEditarValorProcedimento && Boolean(onValorProcedimentoChange);
@@ -54,7 +57,8 @@ export function ReceberDadosAtendimento({
         </p>
       )}
       <p>
-        <strong>Valor da consulta:</strong> {formatCurrency(valorConsulta)}
+        <strong>Valor da consulta:</strong>{" "}
+        {retornoIsento ? "Isento (retorno)" : formatCurrency(valorConsulta)}
       </p>
       {editarValorProcedimento ? (
         <div>
@@ -80,6 +84,16 @@ export function ReceberDadosAtendimento({
       <p className="font-semibold text-gray-800 dark:text-gray-200 pt-1 border-t dark:border-neutral-600">
         Total: {formatCurrency(total)}
       </p>
+      {valorDesconto > 0 && (
+        <p>
+          <strong>Desconto:</strong> − {formatCurrency(valorDesconto)}
+        </p>
+      )}
+      {retornoIsento && (
+        <p className="text-xs text-sky-700 dark:text-sky-300">
+          O retorno isenta só a taxa de consulta. O desconto reduz o valor dos procedimentos.
+        </p>
+      )}
       {Number(consulta.valor_pago ?? 0) > 0 && (
         <p className="text-orange-600 dark:text-orange-400 font-medium">
           Já pago: {formatCurrency(Number(consulta.valor_pago))} · Saldo:{" "}

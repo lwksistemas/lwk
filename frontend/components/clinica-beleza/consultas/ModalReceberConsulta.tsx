@@ -65,10 +65,12 @@ export function ModalReceberConsulta({
     : valorProcCatalogo;
   const valorProcAlterado =
     podeEditarValorProc && !valoresQuaseIguais(valorProcedimentosEfetivo, valorProcCatalogo);
-  const total = valorProcAlterado
-    ? valorConsulta + valorProcedimentosEfetivo
+  const retornoIsento = Boolean(consulta.retorno_gratuito);
+  const taxaCobrada = retornoIsento ? 0 : valorConsulta;
+  const total = valorProcAlterado || retornoIsento
+    ? taxaCobrada + valorProcedimentosEfetivo
     : valorPagamentoConsulta(consulta);
-  const saldoAtual = valorProcAlterado
+  const saldoAtual = valorProcAlterado || retornoIsento
     ? Math.max(0, total - Number(consulta.valor_pago ?? 0))
     : saldoReceberConsulta(consulta);
   const baseReceber = saldoAtual > 0 ? saldoAtual : total;

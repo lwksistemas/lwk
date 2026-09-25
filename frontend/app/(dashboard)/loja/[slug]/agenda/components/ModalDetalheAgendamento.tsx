@@ -24,10 +24,12 @@ import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 
+const JANELA_EDICAO_APOS_HORARIO_MS = 2 * 24 * 60 * 60 * 1000;
+
 function horarioAgendamentoPassou(iso: string): boolean {
   const inicio = new Date(iso);
   if (Number.isNaN(inicio.getTime())) return false;
-  return inicio.getTime() < Date.now();
+  return inicio.getTime() < Date.now() - JANELA_EDICAO_APOS_HORARIO_MS;
 }
 
 function toDatetimeLocalValue(iso: string): string {

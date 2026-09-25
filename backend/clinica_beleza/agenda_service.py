@@ -226,8 +226,11 @@ class UpdateResult:
 
 
 STATUS_EDICAO_MATERIAL_BLOQUEADA = frozenset({"IN_PROGRESS", "COMPLETED", "CANCELLED"})
+# Depois do horário ainda dá para corrigir ou excluir por 2 dias.
+JANELA_EDICAO_APOS_HORARIO = timedelta(days=2)
 MSG_HISTORICO = (
-    "Horário já passou. O agendamento fica no histórico e só o status pode ser alterado."
+    "O horário passou há mais de 2 dias. "
+    "O agendamento fica no histórico e só o status pode ser alterado."
 )
 STATUS_INVALIDA_CONFIRMACAO = frozenset({
     "SCHEDULED", "PENDING", "CLIENT_CONFIRMED", "PHONE_CONFIRMED",
@@ -302,13 +305,16 @@ def _datas_iguais_minuto(a, b) -> bool:
 
 
 def horario_agendamento_passou(appointment) -> bool:
-    """True quando a data e a hora de início do agendamento já passaram."""
+    """True quando o início passou há mais de 2 dias.
+
+    Dentro dessa janela o agendamento ainda pode ser editado ou excluído.
+    """
     inicio = getattr(appointment, "date", None)
     if inicio is None:
         return False
     if is_naive(inicio):
         inicio = make_aware(inicio, get_current_timezone())
-    return inicio < now()
+    return inicio < now() - JANELA_EDICAO_APOS_HORARIO
 
 
 def _pedindo_alteracao_material(appointment, new_date, new_professional, new_procedures_ids, new_duracao=None) -> bool:

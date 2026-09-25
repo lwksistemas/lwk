@@ -4,11 +4,11 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from django.db.models import Case, DecimalField, Exists, F, OuterRef, Q, Subquery, Sum, Value, When
+from django.db.models import Case, DecimalField, Exists, F, OuterRef, Prefetch, Q, Subquery, Sum, Value, When
 from django.db.models.functions import Coalesce, Greatest
 from django.utils.timezone import now
 
-from .models import CategoriaDespesa, Despesa, Payment
+from .models import CategoriaDespesa, ConsultaEvolucao, Despesa, Payment
 from .models.financeiro import CATEGORIAS_DESPESA_PADRAO, PaymentParcela
 
 _DEC = DecimalField(max_digits=14, decimal_places=2)
@@ -241,11 +241,17 @@ def queryset_payments_listagem(*, status=None, date_filter=None, professional_id
         Payment.objects.select_related(
             "appointment", "appointment__patient",
             "appointment__professional", "appointment__procedure",
+            "appointment__retorno_procedure",
             # consulta usada para exibir "Isento" (retorno gratuito) sem N+1.
             "appointment__consulta",
         ).prefetch_related(
             "appointment__appointment_procedures__procedure",
             "parcelas",
+            Prefetch(
+                "appointment__consulta__evolucoes",
+                queryset=ConsultaEvolucao.objects.order_by("-created_at"),
+                to_attr="evolucoes_recentes",
+            ),
         ),
     ).order_by("-created_at")
     if status:

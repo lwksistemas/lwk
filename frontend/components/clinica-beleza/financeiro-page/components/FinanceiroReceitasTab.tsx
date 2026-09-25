@@ -32,6 +32,9 @@ interface FinanceiroReceitasTabProps {
   onPageChange: (page: number) => void;
   onBaixa: (payment: FinanceiroPayment) => void;
   onCobrar: (payment: FinanceiroPayment, canal: "whatsapp" | "email") => void;
+  onImprimirRecibo: (payment: FinanceiroPayment) => void;
+  onEnviarRecibo: (payment: FinanceiroPayment, canal: "whatsapp" | "email") => void;
+  reciboId: number | null;
 }
 
 export function FinanceiroReceitasTab({
@@ -53,6 +56,9 @@ export function FinanceiroReceitasTab({
   onPageChange,
   onBaixa,
   onCobrar,
+  onImprimirRecibo,
+  onEnviarRecibo,
+  reciboId,
 }: FinanceiroReceitasTabProps) {
   return (
     <>
@@ -180,6 +186,34 @@ export function FinanceiroReceitasTab({
                     </td>
                     <td className="py-3 px-3 text-center">
                       <div className="flex flex-col items-stretch gap-1">
+                        {p.retorno_gratuito && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onImprimirRecibo(p)}
+                              disabled={reciboId === p.id}
+                              className="text-xs px-2 py-1 rounded-lg border border-sky-300 text-sky-800 dark:border-sky-700 dark:text-sky-200 font-medium whitespace-nowrap disabled:opacity-50"
+                            >
+                              Imprimir
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onEnviarRecibo(p, "email")}
+                              disabled={reciboId === p.id}
+                              className="text-xs px-2 py-1 rounded-lg border border-gray-300 dark:border-neutral-600 font-medium whitespace-nowrap disabled:opacity-50"
+                            >
+                              E-mail
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onEnviarRecibo(p, "whatsapp")}
+                              disabled={reciboId === p.id}
+                              className="text-xs px-2 py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium whitespace-nowrap disabled:opacity-50"
+                            >
+                              WhatsApp
+                            </button>
+                          </>
+                        )}
                         {!p.retorno_gratuito && (status === "PENDING" || status === "PARTIAL") && (
                           <button
                             type="button"

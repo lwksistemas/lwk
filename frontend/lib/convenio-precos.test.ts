@@ -2,8 +2,21 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPrecosMap,
   calcularPrecoEfetivo,
+  convenioPadraoDoPaciente,
   precoProcedimento,
 } from './convenio-precos';
+
+describe('convenioPadraoDoPaciente', () => {
+  it('sem convênio no cadastro usa o particular do sistema', () => {
+    expect(convenioPadraoDoPaciente(null)).toBe('');
+    expect(convenioPadraoDoPaciente({})).toBe('');
+    expect(convenioPadraoDoPaciente({ convenio: null })).toBe('');
+  });
+
+  it('convênio do cadastro vale só para aquele cliente', () => {
+    expect(convenioPadraoDoPaciente({ convenio: 8 })).toBe(8);
+  });
+});
 
 describe('calcularPrecoEfetivo', () => {
   it('modo fixo retorna o valor informado', () => {

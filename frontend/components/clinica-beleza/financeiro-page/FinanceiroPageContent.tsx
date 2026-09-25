@@ -21,6 +21,42 @@ export function FinanceiroPageContent() {
   const toast = useToast();
   const [baixaPayment, setBaixaPayment] = useState<FinanceiroPayment | null>(null);
   const [cobrandoId, setCobrandoId] = useState<number | null>(null);
+  const [reciboId, setReciboId] = useState<number | null>(null);
+
+  const handleImprimirRecibo = async (payment: FinanceiroPayment) => {
+    setReciboId(payment.id);
+    try {
+      const resp = await ClinicaBelezaAPI.payments.reciboHtml(payment.id);
+      if (!resp.ok) {
+        toast.error("Não foi possível abrir o recibo.");
+        return;
+      }
+      const html = await resp.text();
+      const janela = window.open("", "_blank", "width=320,height=700");
+      if (!janela) {
+        toast.error("Permita pop-ups para imprimir o recibo.");
+        return;
+      }
+      janela.document.write(html);
+      janela.document.close();
+    } catch (e) {
+      toast.error(formatApiErrorBody(e) || "Erro ao imprimir o recibo.");
+    } finally {
+      setReciboId(null);
+    }
+  };
+
+  const handleEnviarRecibo = async (payment: FinanceiroPayment, canal: "whatsapp" | "email") => {
+    setReciboId(payment.id);
+    try {
+      await ClinicaBelezaAPI.payments.enviarRecibo(payment.id, canal);
+      toast.success(canal === "email" ? "Recibo enviado por e-mail." : "Recibo enviado por WhatsApp.");
+    } catch (e) {
+      toast.error(formatApiErrorBody(e) || "Erro ao enviar o recibo.");
+    } finally {
+      setReciboId(null);
+    }
+  };
 
   const handleCobrar = async (payment: FinanceiroPayment, canal: "whatsapp" | "email") => {
     setCobrandoId(payment.id);
@@ -85,6 +121,9 @@ export function FinanceiroPageContent() {
                 onBaixa={(p) => setBaixaPayment(p)}
                 cobrandoId={cobrandoId}
                 onCobrar={handleCobrar}
+                onImprimirRecibo={(p) => { void handleImprimirRecibo(p); }}
+                onEnviarRecibo={(p, canal) => { void handleEnviarRecibo(p, canal); }}
+                reciboId={reciboId}
               />
             ) : (
               <FinanceiroDespesasTab

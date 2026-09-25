@@ -21,9 +21,14 @@ class StatusInicialConsultaTest(SimpleTestCase):
         defaults = {"valor_consulta": Decimal(0), "retorno_gratuito": False}
         self.assertEqual(_status_inicial_consulta(appointment, defaults), "SCHEDULED")
 
-    def test_scheduled_quando_retorno_gratuito(self):
+    def test_receber_quando_retorno_tem_procedimento(self):
         appointment = MagicMock(valor_total=Decimal(200))
-        defaults = {"valor_consulta": Decimal(50), "retorno_gratuito": True}
+        defaults = {"valor_consulta": Decimal(0), "retorno_gratuito": True}
+        self.assertEqual(_status_inicial_consulta(appointment, defaults), "RECEBER")
+
+    def test_scheduled_quando_retorno_sem_valor(self):
+        appointment = MagicMock(valor_total=Decimal(0))
+        defaults = {"valor_consulta": Decimal(0), "retorno_gratuito": True}
         self.assertEqual(_status_inicial_consulta(appointment, defaults), "SCHEDULED")
 
 

@@ -383,7 +383,9 @@ class AtividadeViewSet(
 
     def get_queryset(self):
         qs = super().get_queryset()
-        qs = qs.select_related("oportunidade", "lead").defer("google_event_id")
+        qs = qs.select_related(
+            "oportunidade", "lead", "oportunidade__lead", "oportunidade__vendedor",
+        ).defer("google_event_id")
         concluido = self.request.query_params.get("concluido")
         if concluido is not None:
             qs = qs.filter(concluido=concluido.lower() == "true")

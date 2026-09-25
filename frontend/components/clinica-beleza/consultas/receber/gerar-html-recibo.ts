@@ -195,7 +195,9 @@ export function gerarHtmlRecibo(params: {
 <html><head><meta charset="UTF-8">
 <title>Recibo de Pagamento</title>
 <style>
-  @page { size: 80mm auto; margin: 4mm; }
+  /* size:auto no @page deixa o Chrome com preview em branco ao salvar PDF */
+  @page { margin: 5mm; }
+  html, body { background: #fff; color: #000; }
   body { font-family: 'Courier New', monospace; width: 72mm; margin: 0 auto; padding: 8px; font-size: 11px; line-height: 1.4; }
   .header { text-align: center; border-bottom: 1px dashed #333; padding-bottom: 6px; margin-bottom: 8px; }
   .header h1 { font-size: 13px; margin: 0 0 2px; }
@@ -207,7 +209,10 @@ export function gerarHtmlRecibo(params: {
   .divider { border-top: 1px dashed #333; margin: 8px 0; }
   .total { font-size: 14px; font-weight: bold; text-align: center; margin: 8px 0; }
   .footer { text-align: center; font-size: 9px; color: #666; margin-top: 10px; border-top: 1px dashed #333; padding-top: 6px; }
-  @media print { body { margin: 0; width: 72mm; } }
+  @media print {
+    html, body { width: 72mm !important; max-width: 72mm !important; margin: 0 !important; padding: 4px !important; background: #fff !important; }
+    .no-print, button { display: none !important; }
+  }
 </style>
 </head><body>
 <div class="header">
@@ -282,7 +287,7 @@ ${
   ${avisoRetorno ? `<p style="color:#333;margin-bottom:6px;">${avisoRetorno}</p>` : ""}
   <p>Agradecemos pela confiança!</p>
   <p>Documento não fiscal — gerado pelo sistema.</p>
-  <button onclick="window.print()" style="margin-top:8px;padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #333;border-radius:4px;background:#fff;">Imprimir</button>
+  <button type="button" class="no-print" onclick="try{window.focus()}catch(e){};setTimeout(function(){window.print()},50)" style="margin-top:8px;padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #333;border-radius:4px;background:#fff;">Imprimir</button>
 </div>
 </body></html>`;
 }

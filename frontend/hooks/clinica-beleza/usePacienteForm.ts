@@ -186,8 +186,11 @@ export function usePacienteForm({
     setDeleting(true);
     setError("");
     try {
-      await ClinicaBelezaAPI.patients.delete(editing.id);
-      toast.success("Cliente excluído com sucesso.");
+      // Usa apiClient direto para receber o body da resposta (cbDelete tipado como void).
+      const { default: apiClient } = await import("@/lib/api-client");
+      const res = await apiClient.delete<{ message?: string }>(`/clinica-beleza/patients/${editing.id}/`);
+      const msg = res.data?.message || "Cliente excluído com sucesso.";
+      toast.success(msg);
       voltarLista();
       load();
     } catch (err: unknown) {

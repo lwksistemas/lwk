@@ -84,4 +84,45 @@ describe("gerarHtmlRecibo", () => {
     });
     expect(html).not.toContain(">Desconto<");
   });
+
+  it("consulta sem procedimento mostra Consulta, local e convênio", () => {
+    const html = gerarHtmlRecibo({
+      consulta: {
+        ...consulta,
+        procedure_name: "Consulta",
+        procedures_list: [],
+        valor_consulta: 0,
+        valor_procedimentos: 0,
+        local_atendimento_name: "CONSULTÓRIO",
+        convenio_name: "PARTICULAR",
+      } as Consulta,
+      valorPago: 0,
+      desconto: 0,
+      entradas: [],
+      lojaData: { nome: "CLINICA LWK" },
+    });
+    expect(html).toContain("Consulta");
+    expect(html).toContain("R$ 0.00");
+    expect(html).toContain("Local");
+    expect(html).toContain("CONSULTÓRIO");
+    expect(html).toContain("Convênio");
+    expect(html).toContain("PARTICULAR");
+  });
+
+  it("procedimento com valor não repete local no recibo", () => {
+    const html = gerarHtmlRecibo({
+      consulta: {
+        ...consulta,
+        local_atendimento_name: "CONSULTÓRIO",
+        convenio_name: "PARTICULAR",
+      } as Consulta,
+      valorPago: 450,
+      desconto: 0,
+      entradas: [{ id: "1", payment_method: "CASH", valor: "450" }],
+      lojaData: { nome: "HARMONIS" },
+    });
+    expect(html).toContain("DEPILAÇÃO A LASER");
+    expect(html).not.toContain(">Local<");
+    expect(html).not.toContain("CONSULTÓRIO");
+  });
 });

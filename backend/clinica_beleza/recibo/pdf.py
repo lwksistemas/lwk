@@ -8,6 +8,7 @@ from .context import (
     _linha_tel_cep,
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
+    linhas_local_convenio_recibo,
 )
 
 logger = logging.getLogger(__name__)
@@ -163,6 +164,11 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
         svc_data.append([
             Paragraph(f'• {_texto_pdf(p["nome"])}', s_left),
             Paragraph(f'R$ {p["valor"]:.2f}', s_right),
+        ])
+    for label, valor in linhas_local_convenio_recibo(ctx):
+        svc_data.append([
+            Paragraph(_texto_pdf(label), s_left),
+            Paragraph(_texto_pdf(valor), s_right),
         ])
 
     if not svc_data:

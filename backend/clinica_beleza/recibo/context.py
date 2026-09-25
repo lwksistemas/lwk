@@ -79,7 +79,10 @@ def _buscar_procedimentos_recibo(appointment) -> list[dict]:
         nome_legado = getattr(appointment.procedure, "nome", "") or ""
         if isinstance(nome_legado, str) and nome_legado.strip() and nome_legado.strip().casefold() != "consulta":
             procs = [{"nome": nome_legado.strip(), "valor": float(appointment.procedure.preco or 0)}]
-    return _anexar_procedimento_do_retorno(appointment, procs)
+    procs = _anexar_procedimento_do_retorno(appointment, procs)
+    if not procs:
+        procs.append({"nome": "Consulta", "valor": 0.0})
+    return procs
 
 
 def _anexar_procedimento_do_retorno(appointment, procs: list[dict]) -> list[dict]:
@@ -260,6 +263,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         "paciente_telefone": telefone_exibicao_brasileiro(getattr(patient, "telefone", "") or ""),
         "profissional_nome": getattr(professional, "nome", "") if professional else "",
         "procedimentos": procs,
+        **_local_convenio_recibo(appointment),
         "subtotal": float(subtotal),
         "desconto": desconto,
         "desconto_retorno": desconto_retorno,
@@ -399,6 +403,50 @@ def _linha_documento_loja(ctx: dict) -> str:
         return ""
     label = ctx.get("loja_documento_label") or _label_documento_loja(doc)
     return f"{label}: {doc}"
+
+
+def recibo_so_consulta(ctx: dict) -> bool:
+    """Atendimento sem procedimento cobrado: o recibo precisa citar a consulta."""
+    for p in ctx.get("procedimentos") or []:
+        if float(p.get("valor") or 0) > 0.009:
+            return False
+        nome = (p.get("nome") or "").strip().casefold()
+        if nome and nome not in ("consulta", "taxa de consulta"):
+            return False
+    return True
+
+
+def _nome_cadastro(obj) -> str:
+    nome = getattr(obj, "nome", "") if obj is not None else ""
+    return nome.strip() if isinstance(nome, str) else ""
+
+
+def _local_convenio_recibo(appointment) -> dict:
+    consulta = getattr(appointment, "consulta", None)
+    local = getattr(consulta, "local_atendimento", None) if consulta is not None else None
+    if local is None:
+        local = getattr(appointment, "local_atendimento", None)
+    convenio = getattr(consulta, "convenio", None) if consulta is not None else None
+    if convenio is None:
+        convenio = getattr(appointment, "convenio", None)
+    return {
+        "local_nome": _nome_cadastro(local),
+        "convenio_nome": _nome_cadastro(convenio) or "Particular",
+    }
+
+
+def linhas_local_convenio_recibo(ctx: dict) -> list[tuple[str, str]]:
+    """Local e convênio só no recibo de consulta, sem outro procedimento."""
+    if not recibo_so_consulta(ctx):
+        return []
+    linhas = []
+    local = (ctx.get("local_nome") or "").strip()
+    convenio = (ctx.get("convenio_nome") or "").strip()
+    if isinstance(local, str) and local:
+        linhas.append(("Local", local))
+    if isinstance(convenio, str) and convenio:
+        linhas.append(("Convênio", convenio))
+    return linhas
 
 
 def _linhas_taxa_consulta_recibo(ctx: dict) -> list[tuple[str, float]]:

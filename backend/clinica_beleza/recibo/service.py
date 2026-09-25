@@ -28,8 +28,10 @@ def enviar_recibo_pagamento(payment, *, canal: str) -> tuple[bool, str]:
                 "procedure",
                 "professional",
                 "local_atendimento",
+                "convenio",
                 "consulta",
                 "consulta__local_atendimento",
+                "consulta__convenio",
             )
             .prefetch_related("appointment_procedures__procedure")
             .get(pk=appointment.pk)

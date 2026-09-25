@@ -1,4 +1,4 @@
-  """superadmin/views — pacote refatorado (antes: views.py monolítico com 4029 linhas).
+"""superadmin/views — pacote refatorado (antes: views.py monolítico com 4029 linhas).
 
 Módulos:
     permissions   — Classes de permissão (IsOwnerOrSuperAdmin, IsSuperAdmin)

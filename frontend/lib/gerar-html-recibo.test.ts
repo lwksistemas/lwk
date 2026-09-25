@@ -72,6 +72,7 @@ describe("gerarHtmlRecibo", () => {
     expect(html).toContain("&lt;i&gt;aviso&lt;/i&gt;");
     expect(html).not.toContain("<img src=x");
     expect(html).not.toContain("<script>");
+    expect(html).not.toContain("80mm auto");
   });
 
   it("omite Desconto quando o valor é zero", () => {

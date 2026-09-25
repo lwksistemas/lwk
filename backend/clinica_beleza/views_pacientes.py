@@ -36,6 +36,39 @@ def _map_patient_data(raw_data):
     return map_field_names(raw_data, _PATIENT_FIELD_MAP, _PATIENT_NULL_FIELDS)
 
 
+_SITUACOES_PACIENTE = ("com_consulta", "ativos", "inativos", "todos")
+
+
+def situacao_lista_pacientes(situacao: str | None, active: str | None = None) -> str:
+    """com_consulta, ativos, inativos ou todos.
+
+    Sem ``situacao``, a API segue ativos. ``active=false`` continua listando todos.
+    A tela de clientes pede ``com_consulta``: ativo com consulta finalizada.
+    """
+    escolha = (situacao or "").strip().lower()
+    if escolha in _SITUACOES_PACIENTE:
+        return escolha
+    if (active or "true").strip().lower() == "false":
+        return "todos"
+    return "ativos"
+
+
+def aplicar_situacao_pacientes(queryset, situacao: str):
+    """Filtra a lista. A ordenação alfabética por nome fica no queryset de origem."""
+    if situacao == "inativos":
+        return queryset.filter(is_active=False)
+    if situacao == "todos":
+        return queryset
+    if situacao == "com_consulta":
+        from django.db.models import Exists, OuterRef
+
+        from .models import Consulta
+
+        finalizadas = Consulta.objects.filter(patient_id=OuterRef("pk"), status="COMPLETED")
+        return queryset.filter(is_active=True).filter(Exists(finalizadas))
+    return queryset.filter(is_active=True)
+
+
 class PatientListView(APIView):
     """Listagem e criação de pacientes
     GET /clinica-beleza/patients/
@@ -45,10 +78,12 @@ class PatientListView(APIView):
     permission_classes = CLINICA_RECEPCAO
 
     def get(self, request):
-        active_only = request.query_params.get("active", "true").lower() == "true"
         queryset = Patient.objects.select_related("convenio").order_by("nome")
-        if active_only:
-            queryset = queryset.filter(is_active=True)
+        situacao = situacao_lista_pacientes(
+            request.query_params.get("situacao"),
+            request.query_params.get("active"),
+        )
+        queryset = aplicar_situacao_pacientes(queryset, situacao)
         search = (request.query_params.get("search") or "").strip()
         if search:
             queryset = apply_patient_search(queryset, search)

@@ -30,6 +30,7 @@ export interface PacienteListViewProps {
   onPageChange: (page: number) => void;
   onEdit: (patient: Patient) => void;
   colunasVisiveis?: string[];
+  situacao?: "com_consulta" | "ativos" | "inativos" | "todos";
 }
 
 function sexoLabel(sexo: string | null | undefined): string {
@@ -135,6 +136,7 @@ export function PacienteListView({
   onPageChange,
   onEdit,
   colunasVisiveis,
+  situacao = "com_consulta",
 }: PacienteListViewProps) {
   const columns = useMemo(() => {
     const registry = buildColumnRegistry();
@@ -159,9 +161,17 @@ export function PacienteListView({
     );
   }
 
+  const emptyText =
+    situacao === "com_consulta"
+      ? "Nenhum cliente ativo com consulta finalizada."
+      : situacao === "inativos"
+        ? "Nenhum cliente inativo."
+        : situacao === "ativos"
+          ? "Nenhum cliente ativo."
+          : "Nenhum cliente cadastrado. Clique em \"Novo Cliente\" para começar.";
   const empty = (
     <div className="p-12 text-center text-gray-500 dark:text-gray-400">
-      Nenhum cliente cadastrado. Clique em &quot;Novo Cliente&quot; para começar.
+      {emptyText}
     </div>
   );
 

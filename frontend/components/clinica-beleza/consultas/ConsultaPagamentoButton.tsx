@@ -91,29 +91,27 @@ export function ConsultaPagamentoButton({
   }
 
   if (mostrarIsento) {
-    if (consultaFinalizada && onReceber) {
-      return (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onReceber(consulta);
-          }}
-          className={`inline-flex items-center rounded-full font-medium bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:hover:bg-sky-900/50 ${pad}`}
-          title="Retorno — clique para imprimir ou enviar o recibo"
-        >
-          Isento
-        </button>
-      );
-    }
+    const podeComprovante = consultaFinalizada && Boolean(onReceber);
     return (
-      <span
-        className={`inline-flex items-center rounded-full font-medium bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300 ${pad}`}
-        title="Retorno — taxa de consulta isenta"
-        onClick={(e) => e.stopPropagation()}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (podeComprovante && onReceber) {
+            onReceber(consulta);
+            return;
+          }
+          toast.info("O comprovante fica disponível após finalizar a consulta.");
+        }}
+        className={`inline-flex items-center rounded-full font-medium bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:hover:bg-sky-900/50 ${pad}`}
+        title={
+          podeComprovante
+            ? "Retorno — clique para imprimir ou enviar o recibo"
+            : "Isento — o comprovante fica disponível após finalizar a consulta"
+        }
       >
         Isento
-      </span>
+      </button>
     );
   }
 

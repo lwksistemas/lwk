@@ -5,7 +5,7 @@
  * Lista em tela cheia; novo/editar ocupa a página inteira (sem modal).
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Users } from "lucide-react";
 import { useClinicaBelezaEntityList } from "@/hooks/clinica-beleza";
@@ -26,6 +26,15 @@ import { buildProntuarioPacientePath } from "@/components/clinica-beleza/prontua
 import { useClinicaPodeVerConsulta } from "@/hooks/clinica-beleza/useClinicaPodeVerConsulta";
 import type { Patient } from "./lib/paciente-form-utils";
 
+type SituacaoClientes = "com_consulta" | "ativos" | "inativos" | "todos";
+
+const SITUACOES_CLIENTES: { id: SituacaoClientes; label: string }[] = [
+  { id: "com_consulta", label: "Consulta finalizada" },
+  { id: "ativos", label: "Ativos" },
+  { id: "inativos", label: "Inativos" },
+  { id: "todos", label: "Todos" },
+];
+
 export function PacientesPageContent() {
   const params = useParams();
   const router = useRouter();
@@ -33,6 +42,8 @@ export function PacientesPageContent() {
   const basePath = `/loja/${slug}/clinica-beleza/pacientes`;
   const { theme } = useLojaTheme(slug);
   const [showLocalizar, setShowLocalizar] = useState(false);
+  const [situacao, setSituacao] = useState<SituacaoClientes>("com_consulta");
+  const queryParams = useMemo(() => ({ situacao }), [situacao]);
   const { podeVerConsulta, loaded: meLoaded } = useClinicaPodeVerConsulta();
   const { colunasKeys } = usePacientesColunas();
 
@@ -44,6 +55,8 @@ export function PacientesPageContent() {
       path: "/patients/",
       fetchOffline: buscarPacientesOffline,
       saveOffline: salvarPacientesOffline,
+      queryParams,
+      reloadDeps: [situacao],
     });
 
   const formState = usePacienteForm({
@@ -56,7 +69,11 @@ export function PacientesPageContent() {
     voltarLista,
   });
 
-  const activeList = list.filter((p) => entityActive(p));
+  const visibleList = list.filter((p) => {
+    if (situacao === "todos" || situacao === "com_consulta") return true;
+    const ativo = entityActive(p);
+    return situacao === "inativos" ? !ativo : ativo;
+  });
   const patientId = formState.editing?.id ?? (editIdParam ? Number(editIdParam) : null);
   const podeAbrirProntuario = Boolean(meLoaded && podeVerConsulta && patientId && patientId > 0);
 
@@ -115,9 +132,33 @@ export function PacientesPageContent() {
         }
       />
       <ClinicaBelezaPageContent>
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <span className="text-sm text-gray-600 dark:text-gray-400">Mostrar</span>
+          <div className="inline-flex rounded-lg border border-gray-200 dark:border-neutral-600 overflow-hidden">
+            {SITUACOES_CLIENTES.map((opcao) => {
+              const selecionado = situacao === opcao.id;
+              return (
+                <button
+                  key={opcao.id}
+                  type="button"
+                  onClick={() => setSituacao(opcao.id)}
+                  className={`px-3 py-1.5 text-sm font-medium ${
+                    selecionado
+                      ? "text-white"
+                      : "bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
+                  }`}
+                  style={selecionado ? { backgroundColor: theme.corPrimaria || CLINICA_BELEZA_PRIMARY } : undefined}
+                >
+                  {opcao.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <PacienteListView
-          list={activeList}
+          list={visibleList}
           loading={loading}
+          situacao={situacao}
           page={page}
           totalPages={totalPages}
           totalCount={totalCount ?? 0}

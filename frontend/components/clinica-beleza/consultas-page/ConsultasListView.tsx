@@ -109,8 +109,8 @@ export function ConsultasListView({
           <div className="inline-flex rounded-lg border border-gray-200 dark:border-neutral-600 overflow-hidden self-end">
             {(
               [
-                { id: "finalizadas", label: "Finalizadas" },
                 { id: "iniciar", label: "Para iniciar" },
+                { id: "finalizadas", label: "Finalizadas" },
               ] as { id: ConsultasListaVista; label: string }[]
             ).map((opcao) => {
               const selecionado = vista === opcao.id;

@@ -11,9 +11,7 @@ def _com_produtos_protocolo(consulta):
 
 
 def _status_inicial_consulta(appointment, defaults: dict) -> str:
-    """RECEBER quando há valor a cobrar; SCHEDULED se gratuito ou retorno isento."""
-    if defaults.get("retorno_gratuito"):
-        return "SCHEDULED"
+    """RECEBER quando há valor a cobrar. Retorno zera só a taxa; procedimento continua."""
     from decimal import Decimal
     vc = Decimal(str(defaults.get("valor_consulta") or 0))
     vp = Decimal(str(getattr(appointment, "valor_total", None) or 0))

@@ -29,14 +29,29 @@ export function buildConsultaPrintMeta(selected: Consulta): ConsultaPrintMeta {
   };
 }
 
+/** Valor da coluna da lista (taxa + procedimentos já somados pela API). */
+export function valorListadoConsulta(c: Consulta): number {
+  const bruto = Number(c.valor_pagamento ?? c.valor_consulta);
+  if (Number.isNaN(bruto)) return 0;
+  return Math.max(0, bruto);
+}
+
 export function saldoReceberConsulta(c: Consulta): number {
+  const pago = Number(c.valor_pago ?? 0);
   // API já calcula saldo_devedor (respeita desconto em valor_total)
   if (c.valor_restante != null) {
     const api = Number(c.valor_restante);
-    if (!Number.isNaN(api)) return Math.max(0, api);
+    if (!Number.isNaN(api)) {
+      const saldo = Math.max(0, api);
+      // Retorno zera só a taxa. Se o pagamento ficou em R$ 0 e o procedimento tem valor, ainda há o que receber.
+      const listado = valorListadoConsulta(c);
+      if (Boolean(c.retorno_gratuito) && listado > 0.009 && pago <= 0.009 && saldo <= 0.009) {
+        return listado;
+      }
+      return saldo;
+    }
   }
   const total = valorPagamentoConsulta(c);
-  const pago = Number(c.valor_pago ?? 0);
   return Math.max(0, total - pago);
 }
 
@@ -68,8 +83,10 @@ export function consultaPagamentoUi(c: Consulta): {
   const saldo = saldoReceberConsulta(c);
   const isParcial = c.payment_status === "PARTIAL" && saldo > 0;
   const isPago = c.payment_status === "PAID" && saldo <= 0;
+  const listado = valorListadoConsulta(c);
 
-  if (Boolean(c.retorno_gratuito) && saldo <= 0) {
+  // Isento/Retorno só quando o atendimento inteiro está sem valor. Procedimento cobrado não é retorno.
+  if (Boolean(c.retorno_gratuito) && listado <= 0.009 && saldo <= 0.009) {
     return { ...vazio, mostrarIsento: true, consultaFinalizada: finalizada };
   }
 
@@ -81,9 +98,8 @@ export function consultaPagamentoUi(c: Consulta): {
     return { ...vazio, mostrarParcial: true };
   }
 
-  const isFinalizadaSemPendencia = finalizada && saldo <= 0 && !c.payment_status;
-  const isRetornoGratuitoFinalizado = Boolean(c.retorno_gratuito) && finalizada && saldo <= 0;
-  if (isRetornoGratuitoFinalizado || isFinalizadaSemPendencia) {
+  const isFinalizadaSemPendencia = finalizada && saldo <= 0.009 && !c.payment_status;
+  if (isFinalizadaSemPendencia) {
     return { ...vazio, mostrarRecibo: true, consultaFinalizada: true };
   }
 

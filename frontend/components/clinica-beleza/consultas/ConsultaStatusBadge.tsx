@@ -8,7 +8,7 @@ import { toUpperCase } from "@/lib/format-br";
 import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import type { Consulta } from "./consultas-types";
 
-/** Mesma pílula do financeiro: retorno sem saldo é "Retorno"; o restante segue o atendimento. */
+/** Retorno só quando o atendimento está sem valor. Procedimento cobrado segue o status da consulta. */
 export function ConsultaStatusBadge({ consulta }: { consulta: Consulta }) {
   const { mostrarIsento } = consultaPagamentoUi(consulta);
   if (mostrarIsento) {

@@ -248,15 +248,26 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             return float(payment.amount or 0)
 
     def get_valor_restante(self, obj):
-        """Saldo em aberto (alinhado a Payment.saldo_devedor)."""
+        """Saldo em aberto (alinhado a Payment.saldo_devedor).
+
+        Retorno isenta só a taxa de consulta. Se o pagamento foi gravado em zero
+        e o procedimento ainda tem valor, o saldo é esse valor.
+        """
+        live = float(self.get_valor_pagamento(obj) or 0)
         payment = self._get_payment(obj)
         if payment is None:
-            return float(self.get_valor_pagamento(obj) or 0)
+            return live
         try:
-            return float(payment.saldo_devedor)
+            saldo = float(payment.saldo_devedor)
         except Exception:
-            vc = float(self.get_valor_pagamento(obj) or 0)
-            return max(0.0, vc - float(payment.amount or 0))
+            saldo = max(0.0, live - float(payment.amount or 0))
+        try:
+            pago = float(payment.valor_pago_parcelas)
+        except Exception:
+            pago = float(payment.amount or 0)
+        if getattr(obj, "retorno_gratuito", False) and live > 0.009 and pago <= 0.009 and saldo <= 0.009:
+            return live
+        return saldo
 
     def get_desconto(self, obj):
         payment = self._get_payment(obj)

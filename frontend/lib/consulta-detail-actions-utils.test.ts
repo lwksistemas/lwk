@@ -141,6 +141,54 @@ describe("consultaPagamentoUi", () => {
     });
   });
 
+  it("procedimento com valor não vira retorno isento", () => {
+    expect(
+      consultaPagamentoUi(
+        consulta({
+          status: "COMPLETED",
+          retorno_gratuito: true,
+          payment_status: "PENDING",
+          valor_pagamento: 280,
+          valor_consulta: 0,
+          valor_pago: 0,
+          valor_restante: 0,
+        }),
+      ),
+    ).toEqual({
+      mostrarReceber: true,
+      mostrarPago: false,
+      mostrarParcial: false,
+      mostrarRecibo: false,
+      mostrarPrazo: false,
+      mostrarIsento: false,
+      consultaFinalizada: true,
+    });
+  });
+
+  it("procedimento pago continua pago mesmo com a taxa de retorno", () => {
+    expect(
+      consultaPagamentoUi(
+        consulta({
+          status: "COMPLETED",
+          retorno_gratuito: true,
+          payment_status: "PAID",
+          valor_pagamento: 1000,
+          valor_consulta: 0,
+          valor_pago: 1000,
+          valor_restante: 0,
+        }),
+      ),
+    ).toEqual({
+      mostrarReceber: false,
+      mostrarPago: true,
+      mostrarParcial: false,
+      mostrarRecibo: false,
+      mostrarPrazo: false,
+      mostrarIsento: false,
+      consultaFinalizada: true,
+    });
+  });
+
   it("mostra Isento no retorno, como no financeiro", () => {
     const esperado = {
       mostrarReceber: false,

@@ -128,7 +128,7 @@ def criar_consulta_avulsa(
     consulta.refresh_from_db()
     if not iniciar:
         total = consulta_service._valor_pagamento_padrao(appointment, consulta)
-        if consulta.retorno_gratuito or total <= 0:
+        if total <= 0:
             consulta.status = "SCHEDULED"
             consulta.save(update_fields=["status", "updated_at"])
     if consulta.status == "RECEBER":

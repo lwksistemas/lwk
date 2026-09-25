@@ -10,49 +10,69 @@ export interface ConsultaPrintMeta {
 
 export type ConsultaPrintSecao = "atendimento" | "produtos" | "anamnese" | "evolucao" | "evolucoes";
 
-/** visualizar = abrir PDF na aba; imprimir = acionar o diálogo da impressora. */
+/** visualizar = abrir PDF na aba; imprimir = mesma coisa (viewer nativo do Chrome imprime certo).
+ *  O wrapper com iframe+print() gera preview em branco no Chrome — não usar. */
 export type ConsultaPdfModo = "visualizar" | "imprimir";
 
-function escaparUrlHtml(url: string): string {
-  return url.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+/**
+ * @deprecated Preferir abrir o PDF nativo (location.href). Mantido só para testes legados.
+ * iframe + print() no Chrome deixa o preview em branco.
+ */
+export function escreverPaginaImpressaoPdf(win: Window, url: string): void {
+  win.location.href = url;
 }
 
-/** Página HTML com o PDF embutido + window.print() — o viewer nativo ignora print(). */
-export function escreverPaginaImpressaoPdf(win: Window, url: string): void {
-  const src = escaparUrlHtml(url);
-  win.document.open();
-  win.document.write(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8" />
-  <title>Imprimir</title>
-  <style>
-    html, body { margin: 0; height: 100%; background: #525659; }
-    iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-  </style>
-</head>
-<body>
-  <iframe id="pdf" title="PDF" src="${src}"></iframe>
-  <script>
-    (function () {
-      var frame = document.getElementById("pdf");
-      var printed = false;
-      function go() {
-        if (printed) return;
-        printed = true;
-        try {
-          var cw = frame && frame.contentWindow;
-          if (cw) { cw.focus(); cw.print(); return; }
-        } catch (e) {}
-        try { window.focus(); window.print(); } catch (e2) {}
+/** Imprime HTML de cupom via iframe oculto na página atual (evita popup 320px com print quebrado). */
+export function imprimirHtmlDocumento(html: string): void {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.setAttribute("title", "Impressão");
+  Object.assign(iframe.style, {
+    position: "fixed",
+    right: "0",
+    bottom: "0",
+    width: "0",
+    height: "0",
+    border: "0",
+    opacity: "0",
+    pointerEvents: "none",
+  });
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument;
+  const win = iframe.contentWindow;
+  if (!doc || !win) {
+    iframe.remove();
+    throw new Error("Não foi possível preparar a impressão.");
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  let done = false;
+  const cleanup = () => {
+    if (done) return;
+    done = true;
+    setTimeout(() => {
+      try {
+        iframe.remove();
+      } catch {
+        /* silencioso */
       }
-      if (frame) frame.addEventListener("load", function () { setTimeout(go, 400); });
-      setTimeout(go, 1600);
-    })();
-  </script>
-</body>
-</html>`);
-  win.document.close();
+    }, 1500);
+  };
+
+  const go = () => {
+    try {
+      win.focus();
+      win.print();
+    } finally {
+      cleanup();
+    }
+  };
+
+  // load nem sempre dispara após document.write; agenda os dois caminhos
+  iframe.addEventListener("load", () => setTimeout(go, 50));
+  setTimeout(go, 300);
 }
 
 async function extrairErroApi(response: Response): Promise<string> {
@@ -72,14 +92,7 @@ async function extrairErroApi(response: Response): Promise<string> {
 }
 
 export function abrirPdfUrl(url: string, modo: ConsultaPdfModo = "visualizar"): void {
-  if (modo === "imprimir") {
-    const opened = window.open("", "_blank");
-    if (!opened) {
-      throw new Error("Permita pop-ups para imprimir o PDF.");
-    }
-    escreverPaginaImpressaoPdf(opened, url);
-    return;
-  }
+  void modo;
   const opened = window.open(url, "_blank");
   if (!opened) {
     throw new Error("Permita pop-ups para abrir o PDF.");
@@ -102,12 +115,9 @@ export function direcionarJanelaPdf(
   url: string,
   modo: ConsultaPdfModo = "visualizar",
 ): void {
+  void modo;
   if (!win) {
-    abrirPdfUrl(url, modo);
-    return;
-  }
-  if (modo === "imprimir") {
-    escreverPaginaImpressaoPdf(win, url);
+    abrirPdfUrl(url, "visualizar");
     return;
   }
   win.location.href = url;

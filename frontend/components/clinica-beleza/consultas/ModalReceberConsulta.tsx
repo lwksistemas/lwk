@@ -241,38 +241,34 @@ export function ModalReceberConsulta({
 
   const handleImprimir = async () => {
     const c = consultaAtualizada || consulta;
+    // Pop-up sincronizado com o clique (antes de qualquer await).
+    const janelaPdf = c.payment_id ? window.open("", "_blank") : null;
 
-    // Se o recibo já foi assinado digitalmente, imprime o PDF oficial do backend
-    // (com logomarca e a seção de assinatura digital), igual ao enviado por e-mail/WhatsApp.
+    const { fecharJanelaPdf, abrirPdfBlobFromResponse, imprimirHtmlDocumento } =
+      await import("@/lib/consulta-print");
+
+    // PDF oficial (mesmo do e-mail/WhatsApp) — o cupom HTML em popup + window.print()
+    // gera preview em branco / fora do layout no Chrome.
     if (c.payment_id) {
       try {
-        const st = await ClinicaBelezaAPI.payments.assinaturaReciboStatus(c.payment_id);
-        if (st?.status_assinatura === "concluido") {
-          const resp = await ClinicaBelezaAPI.payments.assinaturaReciboPdf(c.payment_id);
-          if (resp.ok) {
-            const { abrirPdfBlobFromResponse } = await import("@/lib/consulta-print");
-            await abrirPdfBlobFromResponse(resp, "imprimir");
-            return;
-          }
+        const resp = await ClinicaBelezaAPI.payments.assinaturaReciboPdf(c.payment_id);
+        if (resp.ok) {
+          await abrirPdfBlobFromResponse(resp, "visualizar", janelaPdf);
+          return;
         }
+        fecharJanelaPdf(janelaPdf);
       } catch {
-        /* fallback: gera o cupom HTML abaixo */
+        fecharJanelaPdf(janelaPdf);
       }
-    }
 
-    if (c.payment_id) {
       try {
         const resp = await ClinicaBelezaAPI.payments.reciboHtml(c.payment_id);
         if (resp.ok) {
-          const html = await resp.text();
-          const w = window.open("", "_blank", "width=320,height=700");
-          if (!w) return;
-          w.document.write(html);
-          w.document.close();
+          imprimirHtmlDocumento(await resp.text());
           return;
         }
       } catch {
-        /* fallback: cupom local abaixo */
+        /* fallback local */
       }
     }
 
@@ -335,10 +331,7 @@ export function ModalReceberConsulta({
       saldoRestante: saldoReceberConsulta(c),
       vencimento: c.payment_data_vencimento ?? null,
     });
-    const w = window.open("", "_blank", "width=320,height=700");
-    if (!w) return;
-    w.document.write(html);
-    w.document.close();
+    imprimirHtmlDocumento(html);
   };
 
   const handleEnviarEmail = async () => {

@@ -13,6 +13,8 @@ import { FinanceiroDespesasTab } from "./components/FinanceiroDespesasTab";
 import { FinanceiroReceitasTab } from "./components/FinanceiroReceitasTab";
 import { FinanceiroResumoCards } from "./components/FinanceiroResumoCards";
 import { FinanceiroTabBar } from "./components/FinanceiroTabBar";
+import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/ModalReceberConsulta";
+import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import { ModalBaixaPayment } from "./components/ModalBaixaPayment";
 import type { FinanceiroPayment } from "./types";
 
@@ -22,37 +24,19 @@ export function FinanceiroPageContent() {
   const [baixaPayment, setBaixaPayment] = useState<FinanceiroPayment | null>(null);
   const [cobrandoId, setCobrandoId] = useState<number | null>(null);
   const [reciboId, setReciboId] = useState<number | null>(null);
+  const [receberConsulta, setReceberConsulta] = useState<Consulta | null>(null);
 
-  const handleImprimirRecibo = async (payment: FinanceiroPayment) => {
-    setReciboId(payment.id);
-    try {
-      const resp = await ClinicaBelezaAPI.payments.reciboHtml(payment.id);
-      if (!resp.ok) {
-        toast.error("Não foi possível abrir o recibo.");
-        return;
-      }
-      const html = await resp.text();
-      const janela = window.open("", "_blank", "width=320,height=700");
-      if (!janela) {
-        toast.error("Permita pop-ups para imprimir o recibo.");
-        return;
-      }
-      janela.document.write(html);
-      janela.document.close();
-    } catch (e) {
-      toast.error(formatApiErrorBody(e) || "Erro ao imprimir o recibo.");
-    } finally {
-      setReciboId(null);
+  const handleAbrirRecibo = async (payment: FinanceiroPayment) => {
+    if (!payment.consulta_id) {
+      toast.error("Consulta não encontrada para este lançamento.");
+      return;
     }
-  };
-
-  const handleEnviarRecibo = async (payment: FinanceiroPayment, canal: "whatsapp" | "email") => {
     setReciboId(payment.id);
     try {
-      await ClinicaBelezaAPI.payments.enviarRecibo(payment.id, canal);
-      toast.success(canal === "email" ? "Recibo enviado por e-mail." : "Recibo enviado por WhatsApp.");
+      const fresh = await ClinicaBelezaAPI.consultas.get(payment.consulta_id);
+      setReceberConsulta(fresh);
     } catch (e) {
-      toast.error(formatApiErrorBody(e) || "Erro ao enviar o recibo.");
+      toast.error(formatApiErrorBody(e) || "Erro ao abrir o recibo.");
     } finally {
       setReciboId(null);
     }
@@ -121,8 +105,7 @@ export function FinanceiroPageContent() {
                 onBaixa={(p) => setBaixaPayment(p)}
                 cobrandoId={cobrandoId}
                 onCobrar={handleCobrar}
-                onImprimirRecibo={(p) => { void handleImprimirRecibo(p); }}
-                onEnviarRecibo={(p, canal) => { void handleEnviarRecibo(p, canal); }}
+                onAbrirRecibo={(p) => { void handleAbrirRecibo(p); }}
                 reciboId={reciboId}
               />
             ) : (
@@ -147,6 +130,14 @@ export function FinanceiroPageContent() {
         )}
       </ClinicaBelezaPageContent>
 
+      {receberConsulta && (
+        <ModalReceberConsulta
+          open
+          consulta={receberConsulta}
+          onClose={() => setReceberConsulta(null)}
+          onSuccess={(c) => setReceberConsulta((prev) => (prev ? { ...prev, ...c } : prev))}
+        />
+      )}
       <ModalBaixaPayment
         payment={baixaPayment}
         onClose={() => setBaixaPayment(null)}

@@ -254,6 +254,10 @@ def queryset_payments_listagem(*, status=None, date_filter=None, professional_id
             ),
         ),
     ).order_by("-created_at")
+    # Lista só movimento de dinheiro. Pago com valor fica. Retorno ou consulta a R$ 0,00 não entra.
+    qs = qs.filter(
+        Q(valor_total__gt=0) | Q(valor_total__isnull=True, amount__gt=0),
+    )
     if status:
         qs = qs.filter(status=status)
     if date_filter:

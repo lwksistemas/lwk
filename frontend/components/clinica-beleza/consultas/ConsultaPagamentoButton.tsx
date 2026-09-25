@@ -91,6 +91,21 @@ export function ConsultaPagamentoButton({
   }
 
   if (mostrarIsento) {
+    if (consultaFinalizada && onReceber) {
+      return (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onReceber(consulta);
+          }}
+          className={`inline-flex items-center rounded-full font-medium bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:hover:bg-sky-900/50 ${pad}`}
+          title="Retorno — clique para imprimir ou enviar o recibo"
+        >
+          Isento
+        </button>
+      );
+    }
     return (
       <span
         className={`inline-flex items-center rounded-full font-medium bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300 ${pad}`}

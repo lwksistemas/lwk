@@ -24,6 +24,7 @@ export interface FinanceiroPayment {
   vencido: boolean;
   dias_atraso: number;
   retorno_gratuito: boolean;
+  consulta_id?: number | null;
   comissao_percentual: number;
   comissao_valor: string;
   desconto?: string | number;

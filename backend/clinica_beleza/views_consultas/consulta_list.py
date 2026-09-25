@@ -47,6 +47,8 @@ class ConsultaListView(APIView):
             qs = qs.filter(appointment_id=appointment_id)
         if (request.query_params.get("fila") or "").strip().lower() == "iniciar":
             qs = aplicar_ordem_fila_iniciar(qs.filter(q_consultas_aguardando_inicio()))
+        elif (request.query_params.get("ordem") or "").strip().lower() == "nome":
+            qs = qs.order_by("patient__nome", "patient_id", "-data_inicio", "-id")
         return paginate_queryset(qs, request, ConsultaListSerializer)
 
     def post(self, request):

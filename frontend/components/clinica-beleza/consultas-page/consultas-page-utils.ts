@@ -26,15 +26,23 @@ export function isNovaConsultaQuery(searchParams: URLSearchParams): boolean {
   return searchParams.get("novo") === "1";
 }
 
-/** Query da lista: fila da recepção, ou histórico do paciente; profissional é opcional. */
+export type ConsultasListaVista = "finalizadas" | "iniciar";
+
+/** Query da lista. Finalizadas vêm em ordem alfabética pelo cliente. */
 export function buildConsultasListQueryParams(opts: {
   patientId?: number | null;
   professionalId?: number | null;
+  vista?: ConsultasListaVista;
 }): Record<string, string | number> {
+  const vista = opts.vista ?? "finalizadas";
   const params: Record<string, string | number> = {};
   if (opts.patientId) {
     params.patient = opts.patientId;
-  } else {
+  }
+  if (vista === "finalizadas") {
+    params.status = "COMPLETED";
+    params.ordem = "nome";
+  } else if (!opts.patientId) {
     params.fila = "iniciar";
   }
   if (opts.professionalId) {

@@ -26,7 +26,11 @@ import {
   useConsultasNovaConsulta,
 } from "./useConsultasPage";
 import { useConsultasColunas } from "@/hooks/clinica-beleza/useConsultasColunas";
-import { buildConsultaDetailHref, buildConsultasListQueryParams } from "./consultas-page-utils";
+import {
+  buildConsultaDetailHref,
+  buildConsultasListQueryParams,
+  type ConsultasListaVista,
+} from "./consultas-page-utils";
 import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 
 function ConsultasPageWorkspace({ slug }: { slug: string }) {
@@ -41,6 +45,7 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
   const [excluindoId, setExcluindoId] = useState<number | null>(null);
   const [filtroPaciente, setFiltroPaciente] = useState<PatientQuickOption | null>(null);
   const [filtroProfissionalId, setFiltroProfissionalId] = useState<number | null>(null);
+  const [vista, setVista] = useState<ConsultasListaVista>("finalizadas");
   const [consultaParaIniciar, setConsultaParaIniciar] = useState<Consulta | null>(null);
   const [showProfessionalModal, setShowProfessionalModal] = useState(false);
   const [profissionaisDisponiveis, setProfissionaisDisponiveis] = useState<
@@ -52,8 +57,9 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
       buildConsultasListQueryParams({
         patientId: filtroPaciente?.id ?? null,
         professionalId: filtroProfissionalId,
+        vista,
       }),
-    [filtroPaciente, filtroProfissionalId],
+    [filtroPaciente, filtroProfissionalId, vista],
   );
 
   const professionalsQuery = useQuery({
@@ -205,6 +211,8 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
         profissionais={professionalsQuery.data ?? []}
         filtroProfissionalId={filtroProfissionalId}
         onFiltroProfissional={setFiltroProfissionalId}
+        vista={vista}
+        onVista={setVista}
         onNovaConsulta={novaConsulta.abrirNovaConsulta}
         onOpenConfigAgenda={() => agendaModals.setShowConfigAgendaMenu(true)}
         onSelectConsulta={(c) => deepLink.abrirConsulta(c, false)}

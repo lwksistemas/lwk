@@ -45,7 +45,7 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
   const [excluindoId, setExcluindoId] = useState<number | null>(null);
   const [filtroPaciente, setFiltroPaciente] = useState<PatientQuickOption | null>(null);
   const [filtroProfissionalId, setFiltroProfissionalId] = useState<number | null>(null);
-  const [vista, setVista] = useState<ConsultasListaVista>("finalizadas");
+  const [vista, setVista] = useState<ConsultasListaVista>("iniciar");
   const [consultaParaIniciar, setConsultaParaIniciar] = useState<Consulta | null>(null);
   const [showProfessionalModal, setShowProfessionalModal] = useState(false);
   const [profissionaisDisponiveis, setProfissionaisDisponiveis] = useState<

@@ -58,33 +58,34 @@ describe("extractConsultaDeepLinkError", () => {
 });
 
 describe("buildConsultasListQueryParams", () => {
-  it("abre nas finalizadas, da mais recente para a mais antiga", () => {
+  it("abre na fila para iniciar", () => {
     expect(buildConsultasListQueryParams({})).toEqual({
-      status: "COMPLETED",
+      fila: "iniciar",
     });
   });
 
-  it("usa a fila quando a vista é para iniciar", () => {
-    expect(buildConsultasListQueryParams({ vista: "iniciar" })).toEqual({ fila: "iniciar" });
+  it("usa finalizadas quando a vista é finalizadas", () => {
+    expect(buildConsultasListQueryParams({ vista: "finalizadas" })).toEqual({
+      status: "COMPLETED",
+    });
   });
 
   it("filtra histórico do paciente sem a fila", () => {
     expect(buildConsultasListQueryParams({ patientId: 12 })).toEqual({
       patient: 12,
-      status: "COMPLETED",
-    });
-  });
-
-  it("combina profissional com as finalizadas", () => {
-    expect(buildConsultasListQueryParams({ professionalId: 7 })).toEqual({
-      status: "COMPLETED",
-      professional: 7,
     });
   });
 
   it("combina profissional com a fila de iniciar", () => {
-    expect(buildConsultasListQueryParams({ vista: "iniciar", professionalId: 7 })).toEqual({
+    expect(buildConsultasListQueryParams({ professionalId: 7 })).toEqual({
       fila: "iniciar",
+      professional: 7,
+    });
+  });
+
+  it("combina profissional com as finalizadas", () => {
+    expect(buildConsultasListQueryParams({ vista: "finalizadas", professionalId: 7 })).toEqual({
+      status: "COMPLETED",
       professional: 7,
     });
   });
@@ -92,7 +93,6 @@ describe("buildConsultasListQueryParams", () => {
   it("combina profissional com o paciente", () => {
     expect(buildConsultasListQueryParams({ patientId: 12, professionalId: 7 })).toEqual({
       patient: 12,
-      status: "COMPLETED",
       professional: 7,
     });
   });

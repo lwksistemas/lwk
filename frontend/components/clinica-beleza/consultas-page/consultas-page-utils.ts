@@ -28,13 +28,13 @@ export function isNovaConsultaQuery(searchParams: URLSearchParams): boolean {
 
 export type ConsultasListaVista = "finalizadas" | "iniciar";
 
-/** Query da lista. Finalizadas abrem da consulta mais recente para a mais antiga. */
+/** Query da lista. Abre em Para iniciar; Finalizadas vão da mais recente para a mais antiga. */
 export function buildConsultasListQueryParams(opts: {
   patientId?: number | null;
   professionalId?: number | null;
   vista?: ConsultasListaVista;
 }): Record<string, string | number> {
-  const vista = opts.vista ?? "finalizadas";
+  const vista = opts.vista ?? "iniciar";
   const params: Record<string, string | number> = {};
   if (opts.patientId) {
     params.patient = opts.patientId;

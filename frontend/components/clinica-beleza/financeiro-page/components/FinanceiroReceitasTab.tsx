@@ -2,7 +2,6 @@
 
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { CLINICA_PAGAMENTO_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
-import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { FinanceiroPayment, FinanceiroProfessional } from "../types";
@@ -96,7 +95,6 @@ export function FinanceiroReceitasTab({
           <table className="text-sm">
             <thead className="bg-gray-50 dark:bg-neutral-700 border-b border-gray-200 dark:border-neutral-600">
               <tr>
-                <th className="text-left py-3 px-4 font-semibold">Data</th>
                 <th className="text-left py-3 px-4 font-semibold">Cliente</th>
                 <th className="text-left py-3 px-4 font-semibold">Profissional</th>
                 <th className="text-left py-3 px-4 font-semibold">Procedimentos</th>
@@ -113,7 +111,7 @@ export function FinanceiroReceitasTab({
             <tbody>
               {payments.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-gray-500">
+                  <td colSpan={9} className="py-8 text-center text-gray-500">
                     Nenhum lançamento. Receitas são criadas ao finalizar consultas.
                   </td>
                 </tr>
@@ -123,11 +121,6 @@ export function FinanceiroReceitasTab({
                   const vencimentoPrazo = rotuloVencimentoPrazo(p);
                   return (
                   <tr key={p.id} className="border-b border-gray-100 dark:border-neutral-700">
-                    <td className="py-3 px-4 whitespace-nowrap text-gray-600">
-                      {p.data_atendimento
-                        ? formatClinicaDateTime(new Date(p.data_atendimento))
-                        : "—"}
-                    </td>
                     <td className="py-3 px-4">{p.paciente_nome || "—"}</td>
                     <td className="py-3 px-4">{p.profissional_nome || "—"}</td>
                     <td className="py-3 px-4 max-w-[220px] text-sm leading-snug col-allow-wrap">

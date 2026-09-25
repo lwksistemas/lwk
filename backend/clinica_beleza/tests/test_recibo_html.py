@@ -1,6 +1,9 @@
 """Cupom HTML do recibo usa o mesmo contexto do PDF."""
+from unittest.mock import MagicMock
+
 from django.test import SimpleTestCase
 
+from clinica_beleza.recibo.context import _buscar_procedimentos_recibo
 from clinica_beleza.recibo.html import gerar_html_recibo
 
 
@@ -83,3 +86,43 @@ class GerarHtmlReciboTests(SimpleTestCase):
         html = gerar_html_recibo(self._ctx())
         self.assertIn("Quitado", html)
         self.assertIn("RECIBO DE PAGAMENTO", html)
+
+    def test_so_consulta_mostra_servico_local_e_convenio(self):
+        html = gerar_html_recibo(
+            self._ctx(
+                procedimentos=[{"nome": "Consulta", "valor": 0.0}],
+                taxa_consulta=0.0,
+                subtotal=0.0,
+                valor_total=0.0,
+                valor_pago=0.0,
+                saldo_devedor=0.0,
+                formas_pagamento=[],
+                metodo="",
+                local_nome="CONSULTÓRIO",
+                convenio_nome="PARTICULAR",
+            ),
+        )
+        self.assertIn("Consulta", html)
+        self.assertIn("Local", html)
+        self.assertIn("CONSULTÓRIO", html)
+        self.assertIn("Convênio", html)
+        self.assertIn("PARTICULAR", html)
+
+    def test_procedimento_com_valor_nao_repete_local(self):
+        html = gerar_html_recibo(
+            self._ctx(local_nome="CONSULTÓRIO", convenio_nome="PARTICULAR"),
+        )
+        self.assertIn("CRIOGENIA", html)
+        self.assertNotIn(">Local<", html)
+        self.assertNotIn("CONSULTÓRIO", html)
+
+    def test_sem_procedimento_cita_consulta(self):
+        appointment = MagicMock()
+        appointment.appointment_procedures.select_related.return_value.all.return_value = []
+        appointment.procedure = None
+        appointment.retorno_procedure = None
+        appointment.consulta = None
+        self.assertEqual(
+            _buscar_procedimentos_recibo(appointment),
+            [{"nome": "Consulta", "valor": 0.0}],
+        )

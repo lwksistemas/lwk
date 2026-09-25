@@ -22,6 +22,11 @@ function labelDocumentoLoja(cpfCnpj?: string): string {
   return "CPF/CNPJ";
 }
 
+function nomeSoConsulta(nome: string): boolean {
+  const n = nome.trim().toLowerCase();
+  return !n || n === "consulta" || n === "taxa de consulta";
+}
+
 function linhaTelCep(telefone?: string, cep?: string): string {
   const partes: string[] = [];
   const tel = formatTelefone(telefone || "");
@@ -147,7 +152,7 @@ export function gerarHtmlRecibo(params: {
         : valorProcs;
   const subtotalBruto = taxaExibida + procsSoma;
   const totalFinal = Math.max(0, subtotalBruto - descontoRetorno - desconto);
-  const procsHtml =
+  let procsHtml =
     procsVisiveis.length > 0
       ? procsVisiveis
           .map(
@@ -160,6 +165,19 @@ export function gerarHtmlRecibo(params: {
         : valorProcs > 0
           ? `<tr><td style="padding-left:8px">• ${escapeHtml(consulta.procedure_name || "Procedimento")}</td><td style="text-align:right">R$ ${valorProcs.toFixed(2)}</td></tr>`
           : "";
+  if (!taxaConsultaHtml && !procsHtml) {
+    const nomeConsulta = (consulta.procedure_name || "").trim() || "Consulta";
+    procsHtml = `<tr><td style="padding-left:8px">• ${escapeHtml(nomeConsulta)}</td><td style="text-align:right">R$ ${valorConsulta.toFixed(2)}</td></tr>`;
+  }
+  const soConsulta =
+    procsVisiveis.length > 0
+      ? procsVisiveis.every((p) => nomeSoConsulta(p.nome || ""))
+      : nomeSoConsulta(consulta.procedure_name || "");
+  const localNome = (consulta.local_atendimento_name || "").trim();
+  const convenioNome = (consulta.convenio_name || "").trim() || "Particular";
+  const localConvenioHtml = soConsulta
+    ? `${localNome ? `<tr><td>Local</td><td style="text-align:right">${escapeHtml(localNome)}</td></tr>` : ""}<tr><td>Convênio</td><td style="text-align:right">${escapeHtml(convenioNome)}</td></tr>`
+    : "";
 
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
@@ -223,6 +241,7 @@ export function gerarHtmlRecibo(params: {
   <table>
     ${taxaConsultaHtml}
     ${procsHtml}
+    ${localConvenioHtml}
   </table>
 </div>
 

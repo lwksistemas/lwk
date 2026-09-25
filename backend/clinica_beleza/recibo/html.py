@@ -9,6 +9,7 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    linhas_local_convenio_recibo,
 )
 
 
@@ -56,6 +57,11 @@ def gerar_html_recibo(ctx: dict) -> str:
         servicos.append(
             f'<tr><td style="padding-left:8px">• {_t(nome)}</td>'
             f'<td style="text-align:right">R$ {valor:.2f}</td></tr>'
+        )
+    for label, valor in linhas_local_convenio_recibo(ctx):
+        servicos.append(
+            f"<tr><td>{_t(label)}</td>"
+            f'<td style="text-align:right">{_t(valor)}</td></tr>'
         )
 
     descontos = _linhas_descontos_recibo(ctx)
@@ -208,8 +214,10 @@ def gerar_html_recibo_do_payment(payment) -> str:
                 "procedure",
                 "professional",
                 "local_atendimento",
+                "convenio",
                 "consulta",
                 "consulta__local_atendimento",
+                "consulta__convenio",
             )
             .prefetch_related("appointment_procedures__procedure")
             .get(pk=appointment.pk)

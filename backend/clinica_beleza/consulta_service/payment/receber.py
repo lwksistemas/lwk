@@ -74,7 +74,13 @@ def _ensure_payment_for_appointment(
         payment.payment_method = payment_method
     if amount is not None:
         payment.amount = valor
-    if payment.valor_total is None or Decimal(str(payment.valor_total or 0)) <= 0:
+    # Alinha total (taxa + procedimentos) enquanto não quitado; evita recibo só com proc.
+    if (
+        amount is not None
+        or payment.valor_total is None
+        or Decimal(str(payment.valor_total or 0)) <= 0
+        or payment.status in ("DRAFT", "PENDING")
+    ):
         payment.valor_total = valor
     was_paid = payment.status == "PAID"
     if mark_as_paid:

@@ -469,23 +469,26 @@ def linhas_local_convenio_recibo(ctx: dict) -> list[tuple[str, str]]:
 
 
 def aplicar_valor_consulta_do_local(ctx: dict) -> dict:
-    """Consulta sem outro procedimento usa a taxa do local quando a consulta ficou zerada."""
+    """Usa a taxa do local quando a consulta ficou zerada (com ou sem procedimento).
+
+    Fora do retorno gratuito a taxa entra no recibo sempre; no retorno a linha
+    e o desconto vêm de taxa_consulta_referencia / desconto_retorno.
+    """
     if ctx.get("retorno_gratuito"):
         return ctx
     if float(ctx.get("taxa_consulta") or 0) > 0.009:
-        return ctx
-    if not recibo_so_consulta(ctx):
         return ctx
     ref = float(ctx.get("taxa_consulta_referencia") or 0)
     if ref <= 0.009:
         return ctx
     ctx = dict(ctx)
     ctx["taxa_consulta"] = ref
+    procs_soma = sum(float(p.get("valor") or 0) for p in (ctx.get("procedimentos") or []))
+    ctx["subtotal"] = ref + procs_soma
     if float(ctx.get("valor_total") or 0) <= 0.009:
-        ctx["subtotal"] = ref
-        ctx["valor_total"] = ref
+        ctx["valor_total"] = ctx["subtotal"]
         pago = float(ctx.get("valor_pago") or 0)
-        ctx["saldo_devedor"] = max(ref - pago, 0.0)
+        ctx["saldo_devedor"] = max(ctx["valor_total"] - pago, 0.0)
     return ctx
 
 
@@ -497,6 +500,8 @@ def _linhas_taxa_consulta_recibo(ctx: dict) -> list[tuple[str, float]]:
             return [("Taxa de consulta", ref)]
         return []
     taxa = float(ctx.get("taxa_consulta") or 0)
+    if taxa <= 0:
+        taxa = float(ctx.get("taxa_consulta_referencia") or 0)
     if taxa > 0:
         return [("Taxa de consulta", taxa)]
     return []

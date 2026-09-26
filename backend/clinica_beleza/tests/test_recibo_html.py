@@ -128,6 +128,26 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertNotIn("Desconto retorno", html)
         self.assertIn("SALDO A PAGAR", html)
 
+    def test_procedimento_sem_retorno_mostra_taxa_do_local(self):
+        html = gerar_html_recibo(
+            self._ctx(
+                procedimentos=[{"nome": "TIRZEPATIDA 2,5 MG", "valor": 150.0}],
+                taxa_consulta=0.0,
+                taxa_consulta_referencia=150.0,
+                retorno_gratuito=False,
+                subtotal=150.0,
+                valor_total=300.0,
+                valor_pago=300.0,
+                desconto=0.0,
+                formas_pagamento=[{"metodo": "Dinheiro (20/09/2026)", "valor": 300.0}],
+            ),
+        )
+        self.assertIn("Taxa de consulta", html)
+        self.assertIn("TIRZEPATIDA", html)
+        self.assertIn("R$ 150.00", html)
+        self.assertIn("R$ 300.00", html)
+        self.assertNotIn("Desconto retorno", html)
+
     def test_procedimento_com_valor_nao_repete_local(self):
         html = gerar_html_recibo(
             self._ctx(local_nome="CONSULTÓRIO", convenio_nome="PARTICULAR"),

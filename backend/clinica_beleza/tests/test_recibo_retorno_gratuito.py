@@ -6,6 +6,7 @@ from django.test import TestCase
 from clinica_beleza.recibo.context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
+    aplicar_valor_consulta_do_local,
 )
 from clinica_beleza.recibo.retorno_info import montar_info_retorno_recibo
 
@@ -21,6 +22,26 @@ class LinhasTaxaConsultaReciboTests(TestCase):
             },
         )
         self.assertEqual(linhas, [("Taxa de consulta", 300.0)])
+
+    def test_sem_retorno_com_procedimento_usa_taxa_do_local(self):
+        ctx = aplicar_valor_consulta_do_local(
+            {
+                "retorno_gratuito": False,
+                "taxa_consulta": 0.0,
+                "taxa_consulta_referencia": 150.0,
+                "procedimentos": [{"nome": "TIRZEPATIDA 2,5 MG", "valor": 150.0}],
+                "subtotal": 150.0,
+                "valor_total": 150.0,
+                "valor_pago": 150.0,
+                "saldo_devedor": 0.0,
+            },
+        )
+        self.assertEqual(ctx["taxa_consulta"], 150.0)
+        self.assertEqual(ctx["subtotal"], 300.0)
+        self.assertEqual(
+            _linhas_taxa_consulta_recibo(ctx),
+            [("Taxa de consulta", 150.0)],
+        )
 
     def test_desconto_retorno_com_prazo(self):
         linhas = _linhas_descontos_recibo(

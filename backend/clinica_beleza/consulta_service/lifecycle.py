@@ -170,9 +170,10 @@ def iniciar_consulta(consulta, *, bypass_inadimplencia=False):
     ts = now()
 
     appointment.status = "IN_PROGRESS"
-    appointment.date = ts
+    # Mantém o horário agendado na agenda. O início real fica em consulta.data_inicio.
+    # Sobrescrever appointment.date movia o card para outro dia (ex.: marcado no 25, inicia no 26).
     appointment.version = (appointment.version or 1) + 1
-    appointment.save(update_fields=["status", "date", "version", "updated_at"])
+    appointment.save(update_fields=["status", "version", "updated_at"])
 
     consulta.status = "IN_PROGRESS"
     consulta.data_inicio = ts

@@ -225,12 +225,17 @@ class UpdateResult:
     confirmacao_reiniciada: bool = False
 
 
-STATUS_EDICAO_MATERIAL_BLOQUEADA = frozenset({"IN_PROGRESS", "COMPLETED", "CANCELLED"})
+STATUS_EDICAO_MATERIAL_BLOQUEADA = frozenset({"IN_PROGRESS", "CANCELLED"})
+# Finalizada: só a data pode mudar, e apenas dentro da janela de 2 dias.
+STATUS_PERMITE_SO_DATA = frozenset({"COMPLETED"})
 # Depois do horário ainda dá para corrigir ou excluir por 2 dias.
 JANELA_EDICAO_APOS_HORARIO = timedelta(days=2)
 MSG_HISTORICO = (
     "O horário passou há mais de 2 dias. "
     "O agendamento fica no histórico e só o status pode ser alterado."
+)
+MSG_FINALIZADA_SO_DATA = (
+    "Consulta finalizada: dentro de 2 dias só é possível alterar a data/hora do agendamento."
 )
 STATUS_INVALIDA_CONFIRMACAO = frozenset({
     "SCHEDULED", "PENDING", "CLIENT_CONFIRMED", "PHONE_CONFIRMED",
@@ -368,6 +373,24 @@ def _sync_consulta_profissional(appointment, prof):
     consulta.save(update_fields=["professional", "updated_at"])
 
 
+def _sincronizar_horario_consulta_finalizada(appointment, old_date, new_date) -> None:
+    """Mantém data_inicio/data_fim da consulta alinhados ao novo slot da agenda."""
+    try:
+        consulta = appointment.consulta
+    except Consulta.DoesNotExist:
+        return
+    if consulta.status != "COMPLETED":
+        return
+    duracao = appointment.get_duracao_efetiva()
+    try:
+        duracao = max(1, int(duracao or 30))
+    except (TypeError, ValueError):
+        duracao = 30
+    consulta.data_inicio = new_date
+    consulta.data_fim = new_date + timedelta(minutes=duracao)
+    consulta.save(update_fields=["data_inicio", "data_fim", "updated_at"])
+
+
 def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
                           new_duracao=None, new_professional=None,
                           new_procedures_ids=None, user=None, request=None) -> UpdateResult:
@@ -379,6 +402,7 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     duracao_changed = new_duracao is not None
     professional_changed = False
     old_status = appointment.status
+    old_date = appointment.date
 
     pedindo_campos = _pedindo_alteracao_material(
         appointment, new_date, new_professional, new_procedures_ids,
@@ -388,6 +412,26 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
             "Não é possível alterar data, profissional ou procedimento neste status. "
             "Ajuste em Consultas se o atendimento já começou.",
         )
+    if old_status in STATUS_PERMITE_SO_DATA and pedindo_campos:
+        mudando_outro = False
+        if new_professional is not None and new_professional != "":
+            try:
+                mudando_outro = int(new_professional) != appointment.professional_id
+            except (TypeError, ValueError):
+                mudando_outro = True
+        if not mudando_outro and new_procedures_ids is not None:
+            try:
+                ids_preview = [int(x) for x in new_procedures_ids]
+            except (TypeError, ValueError):
+                ids_preview = []
+            mudando_outro = ids_preview != _ids_procedimentos_atuais(appointment)
+        if not mudando_outro and new_duracao is not None:
+            try:
+                mudando_outro = int(new_duracao) != int(getattr(appointment, "duracao_minutos", 0) or 0)
+            except (TypeError, ValueError):
+                mudando_outro = True
+        if mudando_outro or new_date is None:
+            raise AgendaValidationError(MSG_FINALIZADA_SO_DATA)
     if horario_agendamento_passou(appointment) and _pedindo_alteracao_material(
         appointment, new_date, new_professional, new_procedures_ids, new_duracao,
     ):
@@ -458,6 +502,9 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
     appointment.version = (appointment.version or 1) + 1
     appointment.updated_by_id = getattr(user, "id", None) if user else None
     appointment.save()
+
+    if date_changed and old_status == "COMPLETED" and old_date is not None and date_start is not None:
+        _sincronizar_horario_consulta_finalizada(appointment, old_date, date_start)
 
     # Side effects
     result = UpdateResult(appointment=appointment, confirmacao_reiniciada=confirmacao_reiniciada)

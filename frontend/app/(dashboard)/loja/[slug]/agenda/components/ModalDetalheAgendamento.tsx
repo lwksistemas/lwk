@@ -103,7 +103,7 @@ function procedimentosAgrupadosDoEvento(
   return groupProceduresByCategoria(itens);
 }
 
-const STATUS_EDICAO_BLOQUEADA = new Set(["IN_PROGRESS", "COMPLETED", "CANCELLED"]);
+const STATUS_EDICAO_BLOQUEADA = new Set(["IN_PROGRESS", "CANCELLED"]);
 const STATUS_JA_CONFIRMADO = new Set(["CLIENT_CONFIRMED", "PHONE_CONFIRMED"]);
 
 interface ModalDetalheAgendamentoProps {
@@ -158,7 +158,9 @@ export function ModalDetalheAgendamento({
   const status = event?.extendedProps.status || "SCHEDULED";
   const horarioPassou = event ? horarioAgendamentoPassou(event.start) : false;
   const statusSomenteLeitura = status === "IN_PROGRESS" || status === "COMPLETED";
-  const podeEditarCampos = !STATUS_EDICAO_BLOQUEADA.has(status) && !horarioPassou;
+  const finalizadaNaJanela = status === "COMPLETED" && !horarioPassou;
+  const podeEditarCampos = !STATUS_EDICAO_BLOQUEADA.has(status) && !horarioPassou && status !== "COMPLETED";
+  const podeEditarData = (podeEditarCampos || finalizadaNaJanela) && !horarioPassou;
   const podeExcluirOuReenviar = status !== "COMPLETED" && !horarioPassou;
   const statusLabel = getAgendaStatusLabelModal(status);
   const opcoesStatus = getAgendaStatusOpcoesModal(status);
@@ -174,14 +176,17 @@ export function ModalDetalheAgendamento({
     const procsIguais =
       idsAtual.length === procedureIds.length &&
       idsAtual.every((id, i) => id === procedureIds[i]);
+    if (finalizadaNaJanela) {
+      return dateAtual !== dateLocal;
+    }
     return profAtual !== professionalId || !procsIguais || dateAtual !== dateLocal;
-  }, [event, procedures, professionalId, procedureIds, dateLocal]);
+  }, [event, procedures, professionalId, procedureIds, dateLocal, finalizadaNaJanela]);
 
   if (!open || !event) return null;
 
   const salvar = async () => {
-    if (!mudou || !podeEditarCampos) return;
-    if (!professionalId) return;
+    if (!mudou || !podeEditarData) return;
+    if (podeEditarCampos && !professionalId) return;
     if (STATUS_JA_CONFIRMADO.has(status)) {
       const ok = window.confirm(
         "O cliente já confirmou este horário. Ao salvar, a confirmação anterior deixa de valer e um novo link será enviado no WhatsApp.",
@@ -189,19 +194,22 @@ export function ModalDetalheAgendamento({
       if (!ok) return;
     }
     const payload: { date?: string; professional?: number; procedures_ids?: number[] } = {};
-    const profAtual = event.extendedProps.professional != null
-      ? String(event.extendedProps.professional)
-      : "";
-    if (professionalId !== profAtual) payload.professional = Number(professionalId);
-    const idsAtual = idsProcedimentosIniciais(event, procedures);
-    const procsIguais =
-      idsAtual.length === procedureIds.length &&
-      idsAtual.every((id, i) => id === procedureIds[i]);
-    if (!procsIguais) payload.procedures_ids = procedureIds;
-    if (dateLocal !== toDatetimeLocalValue(event.start) && dateLocal) {
+    const dateAtual = toDatetimeLocalValue(event.start);
+    if (dateLocal !== dateAtual) {
       payload.date = new Date(dateLocal).toISOString();
     }
-    if (!payload.date && payload.professional == null && !payload.procedures_ids) return;
+    if (podeEditarCampos) {
+      const profAtual = event.extendedProps.professional != null
+        ? String(event.extendedProps.professional)
+        : "";
+      if (professionalId !== profAtual) payload.professional = Number(professionalId);
+      const idsAtual = idsProcedimentosIniciais(event, procedures);
+      const procsIguais =
+        idsAtual.length === procedureIds.length &&
+        idsAtual.every((id, i) => id === procedureIds[i]);
+      if (!procsIguais) payload.procedures_ids = procedureIds;
+    }
+    if (Object.keys(payload).length === 0) return;
     await onSalvarDetalhe(payload);
   };
 
@@ -388,7 +396,7 @@ export function ModalDetalheAgendamento({
 
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Data e Hora</p>
-              {podeEditarCampos ? (
+              {podeEditarData ? (
                 <input
                   type="datetime-local"
                   value={dateLocal}
@@ -400,6 +408,11 @@ export function ModalDetalheAgendamento({
                   {new Date(event.start).toLocaleString("pt-BR")}
                 </p>
               )}
+              {finalizadaNaJanela ? (
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Consulta finalizada: dentro de 2 dias você pode corrigir só a data/hora.
+                </p>
+              ) : null}
             </div>
 
             {podeEditarCampos && (status === "SCHEDULED" || status === "PENDING") ? (
@@ -467,11 +480,11 @@ export function ModalDetalheAgendamento({
         </div>
 
         <div className="mt-5 flex flex-col sm:flex-row gap-2">
-          {podeEditarCampos ? (
+          {podeEditarData ? (
             <button
               type="button"
               onClick={salvar}
-              disabled={!mudou || salvandoDetalhe || !professionalId}
+              disabled={!mudou || salvandoDetalhe || (podeEditarCampos && !professionalId)}
               className="sm:flex-1 px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
             >

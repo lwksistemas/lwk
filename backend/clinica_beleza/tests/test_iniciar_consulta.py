@@ -113,11 +113,17 @@ class IniciarConsultaPacienteEmAndamentoTest(SimpleTestCase):
     @patch("clinica_beleza.consulta_service.validar_paciente_sem_consulta_em_andamento")
     @patch("clinica_beleza.consulta_service.sync_consulta_from_appointment_status")
     @patch("clinica_beleza.consulta_service.lifecycle.now")
-    def test_iniciar_atualiza_data_hora_agendamento(self, mock_now, _mock_sync, _mock_validar, _mock_local):
+    def test_iniciar_preserva_horario_agendado_e_grava_data_inicio(self, mock_now, _mock_sync, _mock_validar, _mock_local):
         from django.utils.timezone import datetime
         ts = datetime(2026, 7, 20, 14, 30)
+        horario_agendado = datetime(2026, 7, 20, 9, 0)
         mock_now.return_value = ts
-        appointment = MagicMock(status="CONFIRMED", professional_id=9, local_atendimento_id=1)
+        appointment = MagicMock(
+            status="CONFIRMED",
+            professional_id=9,
+            local_atendimento_id=1,
+            date=horario_agendado,
+        )
         consulta = MagicMock()
         consulta.status = "SCHEDULED"
         consulta.patient_id = 10
@@ -128,5 +134,7 @@ class IniciarConsultaPacienteEmAndamentoTest(SimpleTestCase):
 
         iniciar_consulta(consulta)
 
-        self.assertEqual(appointment.date, ts)
+        self.assertEqual(appointment.date, horario_agendado)
         self.assertEqual(consulta.data_inicio, ts)
+        appointment.save.assert_called_once()
+        self.assertNotIn("date", appointment.save.call_args.kwargs.get("update_fields", []))

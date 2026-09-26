@@ -218,9 +218,15 @@ def finalizar_consulta(
     local_atendimento_id=None,
     skip_estoque=False,
     usuario=None,
+    permitir_sem_iniciar=False,
+    data_inicio_forcada=None,
+    data_fim_forcada=None,
 ):
     """Finaliza consulta clínica: agenda → COMPLETED, consulta concluída e lançamento financeiro.
     Baixa produtos do estoque registrados na consulta.
+
+    permitir_sem_iniciar: auto-finalização de Cliente presente sem a profissional ter iniciado.
+    data_inicio_forcada / data_fim_forcada: usam o horário agendado (não o momento do job).
     """
     from clinica_beleza import consulta_service
     from rules.base import MotorRegras
@@ -239,7 +245,7 @@ def finalizar_consulta(
             appointment.save(update_fields=["status", "version", "updated_at"])
             consulta_service.sync_consulta_from_appointment_status(appointment, "COMPLETED", old_status)
         if not consulta.data_fim:
-            consulta.data_fim = now()
+            consulta.data_fim = data_fim_forcada or now()
             consulta.save(update_fields=["data_fim", "updated_at"])
         try:
             MotorRegras().executar("AGENDAMENTO_FINALIZADO", {"appointment": appointment})
@@ -253,9 +259,14 @@ def finalizar_consulta(
         consulta.refresh_from_db()
         return consulta
 
-    if consulta.status not in ("IN_PROGRESS", "RECEBER"):
+    status_ok = ("IN_PROGRESS", "RECEBER")
+    if permitir_sem_iniciar:
+        status_ok = ("IN_PROGRESS", "RECEBER", "SCHEDULED")
+    if consulta.status not in status_ok:
         raise ValueError("Inicie a consulta antes de finalizar.")
-    if consulta.status == "RECEBER" and not consulta.data_inicio:
+    if consulta.status == "RECEBER" and not consulta.data_inicio and not permitir_sem_iniciar:
+        raise ValueError("Inicie a consulta antes de finalizar.")
+    if consulta.status == "SCHEDULED" and not permitir_sem_iniciar:
         raise ValueError("Inicie a consulta antes de finalizar.")
 
     if not skip_estoque:
@@ -268,6 +279,8 @@ def finalizar_consulta(
             )
 
     ts = now()
+    inicio = data_inicio_forcada or consulta.data_inicio or ts
+    fim = data_fim_forcada or ts
 
     with tenant_atomic():
         baixar_produtos_consulta(consulta)
@@ -277,9 +290,8 @@ def finalizar_consulta(
     appointment.save(update_fields=["status", "version", "updated_at"])
 
     consulta.status = "COMPLETED"
-    if not consulta.data_inicio:
-        consulta.data_inicio = ts
-    consulta.data_fim = ts
+    consulta.data_inicio = inicio
+    consulta.data_fim = fim
     consulta.save(update_fields=["status", "data_inicio", "data_fim", "updated_at"])
 
     consulta_service.sync_consulta_from_appointment_status(appointment, "COMPLETED", old_status)

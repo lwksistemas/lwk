@@ -4,7 +4,10 @@ from django_q.models import Schedule
 
 
 class Command(BaseCommand):
-    help = "Agenda auto-finalização de consultas 5h após o fim do agendamento"
+    help = (
+        "Agenda auto-finalização: em andamento esquecida, ou Cliente presente "
+        "sem iniciar (5h após o fim do horário agendado)"
+    )
 
     def handle(self, *args, **options):
         schedule, created = Schedule.objects.update_or_create(

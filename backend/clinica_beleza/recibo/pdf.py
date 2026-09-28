@@ -347,27 +347,65 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
     return story
 
 
-def _altura_pagina_recibo(story, page_w, mm_unit) -> float:
-    """Altura da página acompanha o conteúdo, sem folha longa em branco."""
-    largura = page_w - 8 * mm_unit
-    altura = 12 * mm_unit
-    for item in story:
-        try:
-            _largura, altura_item = item.wrap(largura, 4000 * mm_unit)
-        except Exception:
-            altura_item = 8 * mm_unit
-        altura += altura_item
-    return max(altura + 4 * mm_unit, 90 * mm_unit)
+def _recortar_pdf_apos_conteudo(pdf_bytes: bytes, y_conteudo: float | None, mm_unit) -> bytes:
+    """Corta a folha alta logo abaixo da logomarca, sem faixa branca no fim."""
+    if y_conteudo is None:
+        return pdf_bytes
+    from pypdf import PdfReader, PdfWriter
+
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    if not reader.pages:
+        return pdf_bytes
+    page = reader.pages[0]
+    llx, _lly, urx, ury = (float(v) for v in page.mediabox)
+    corte = max(0.0, float(y_conteudo) - 3 * mm_unit)
+    if corte >= ury - 20 * mm_unit:
+        return pdf_bytes
+    page.mediabox.lower_left = (llx, corte)
+    page.mediabox.upper_right = (urx, ury)
+    page.cropbox.lower_left = (llx, corte)
+    page.cropbox.upper_right = (urx, ury)
+    writer = PdfWriter()
+    writer.add_page(page)
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
 
 
 def _gerar_pdf_recibo(ctx: dict) -> bytes:
     """Gera PDF do recibo em formato cupom fiscal com layout profissional."""
     ctx = reconciliar_conta_recibo(ctx)
     from reportlab.lib.pagesizes import mm
-    from reportlab.platypus import SimpleDocTemplate, Spacer
+    from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate, Spacer
+
+    class _ReciboDoc(BaseDocTemplate):
+        def __init__(self, buffer, pagesize):
+            super().__init__(
+                buffer,
+                pagesize=pagesize,
+                leftMargin=4 * mm,
+                rightMargin=4 * mm,
+                topMargin=6 * mm,
+                bottomMargin=6 * mm,
+            )
+            self.y_conteudo = None
+            frame = Frame(
+                self.leftMargin,
+                self.bottomMargin,
+                self.width,
+                self.height,
+                id="recibo",
+                showBoundary=0,
+            )
+            self.addPageTemplates([PageTemplate(id="recibo", frames=[frame])])
+
+        def afterFlowable(self, flowable):
+            self.y_conteudo = self.frame._y
 
     buf = io.BytesIO()
     page_w = 80 * mm
+    # Folha alta de uma página só; o corte final tira o branco depois da logo.
+    page_h = 900 * mm
     styles = _estilos_pdf()
     col_w = page_w - 8 * mm
     story = _cabecalho_recibo_pdf(ctx, styles, col_w, mm)
@@ -381,11 +419,6 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     story.append(Spacer(1, 3 * mm))
     story.extend(_rodape_recibo_pdf(ctx, styles, mm))
 
-    page_h = _altura_pagina_recibo(story, page_w, mm)
-    doc = SimpleDocTemplate(
-        buf, pagesize=(page_w, page_h),
-        leftMargin=4 * mm, rightMargin=4 * mm,
-        topMargin=6 * mm, bottomMargin=6 * mm,
-    )
+    doc = _ReciboDoc(buf, pagesize=(page_w, page_h))
     doc.build(story)
-    return buf.getvalue()
+    return _recortar_pdf_apos_conteudo(buf.getvalue(), doc.y_conteudo, mm)

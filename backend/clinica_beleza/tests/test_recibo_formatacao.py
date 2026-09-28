@@ -80,3 +80,28 @@ class ReciboMoedaEContaTests(SimpleTestCase):
         self.assertIn(("Abatimento — BIOESTIMULADOR DE COLÁGENO", 1800), linhas)
         soma_descontos = sum(valor for _label, valor in linhas)
         self.assertEqual(round(ctx["subtotal"] - soma_descontos, 2), 610)
+
+    def test_linha_zerada_usa_preco_de_cadastro_que_fecha_a_conta(self):
+        from clinica_beleza.recibo.context import reconciliar_conta_recibo
+
+        ctx = reconciliar_conta_recibo({
+            "retorno_gratuito": True,
+            "taxa_consulta": 0,
+            "taxa_consulta_referencia": 150,
+            "desconto_retorno": 150,
+            "desconto": 80,
+            "procedimentos": [{"nome": "LASER ETHEREA", "valor": 0, "preco_cadastro": 380}],
+            "subtotal": 150,
+            "valor_total": 300,
+            "valor_pago": 300,
+            "saldo_devedor": 0,
+        })
+        self.assertEqual(ctx["procedimentos"][0]["valor"], 380)
+        self.assertEqual(ctx["subtotal"], 530)
+        self.assertNotIn("abatimento", ctx)
+
+    def test_recebido_a_maior(self):
+        from clinica_beleza.recibo.context import recebido_a_maior_recibo
+
+        self.assertEqual(recebido_a_maior_recibo({"valor_total": 1900, "valor_pago": 2300}), 400)
+        self.assertEqual(recebido_a_maior_recibo({"valor_total": 300, "valor_pago": 300}), 0)

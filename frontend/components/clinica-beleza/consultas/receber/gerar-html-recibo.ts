@@ -233,6 +233,11 @@ export function gerarHtmlRecibo(params: {
   const pagoBloco = semSaldo
     ? ""
     : `<div class="total">${parcial ? "PAGO" : "VALOR PAGO"}: ${formatarMoedaRecibo(valorPago)}</div>`;
+  const recebidoAMaior = Math.round((valorPago - totalFinal) * 100) / 100;
+  const extraBloco =
+    recebidoAMaior > 0.009
+      ? `<div class="total" style="font-size:12px;">RECEBIDO A MAIOR: ${formatarMoedaRecibo(recebidoAMaior)}</div>`
+      : "";
   const statusBloco = semSaldo
     ? `<div class="footer" style="border-top:none;margin-top:0;"><p style="font-weight:bold;color:#333;">${escapeHtml(subtituloDoc)}</p></div>`
     : saldo > 0.009
@@ -315,6 +320,7 @@ export function gerarHtmlRecibo(params: {
 ${formasBloco}
 
 ${pagoBloco}
+${extraBloco}
 ${statusBloco}
 
 <div class="footer">

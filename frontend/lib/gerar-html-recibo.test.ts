@@ -152,4 +152,22 @@ describe("gerarHtmlRecibo", () => {
     expect(html).not.toContain(">Local<");
     expect(html).not.toContain("CONSULTÓRIO");
   });
+
+  it("mostra o valor recebido acima do total", () => {
+    const html = gerarHtmlRecibo({
+      consulta: {
+        ...consulta,
+        valor_consulta: 1900,
+        valor_procedimentos: 0,
+        procedure_name: "Consulta",
+        procedures_list: [],
+      } as Consulta,
+      valorPago: 2300,
+      desconto: 0,
+      entradas: [{ id: "1", payment_method: "CASH", valor: "2300" }],
+      lojaData: { nome: "HARMONIS" },
+    });
+    expect(html).toContain("RECEBIDO A MAIOR");
+    expect(html).toContain("R$ 400,00");
+  });
 });

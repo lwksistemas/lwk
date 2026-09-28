@@ -8,7 +8,9 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    reconciliar_conta_recibo,
 )
+from .moeda import formatar_moeda_recibo
 from .pdf import _gerar_pdf_recibo
 
 logger = logging.getLogger(__name__)
@@ -90,23 +92,24 @@ def _enviar_recibo_email(payment, patient, appointment, *, somente_foto=False) -
 
 def _montar_email_html(ctx: dict) -> str:
     """Email profissional com resumo completo — PDF vai em anexo."""
+    ctx = reconciliar_conta_recibo(ctx)
     procs_html = "".join(
-        f"<li>{label} — R$ {valor:.2f}</li>"
+        f"<li>{label} — {formatar_moeda_recibo(valor)}</li>"
         for label, valor in _linhas_taxa_consulta_recibo(ctx)
     )
     procs_html += "".join(
-        f'<li>{p["nome"]} — R$ {p["valor"]:.2f}</li>' for p in ctx["procedimentos"]
+        f'<li>{p["nome"]} — {formatar_moeda_recibo(p["valor"])}</li>' for p in ctx["procedimentos"]
     )
     doc_line = _linha_documento_loja(ctx)
     descontos = _linhas_descontos_recibo(ctx)
     desconto_html = ""
     if descontos:
         linhas_desc = "".join(
-            f'<p style="margin:4px 0;"><strong>{label}:</strong> - R$ {valor:.2f}</p>'
+            f'<p style="margin:4px 0;"><strong>{label}:</strong> - {formatar_moeda_recibo(valor)}</p>'
             for label, valor in descontos
         )
         desconto_html = (
-            f'<p style="margin:4px 0;"><strong>Subtotal:</strong> R$ {ctx.get("subtotal", 0):.2f}</p>'
+            f'<p style="margin:4px 0;"><strong>Subtotal:</strong> {formatar_moeda_recibo(ctx.get("subtotal", 0))}</p>'
             f"{linhas_desc}"
         )
     return f"""
@@ -128,11 +131,11 @@ def _montar_email_html(ctx: dict) -> str:
         <p style="margin:4px 0;"><strong>Serviços:</strong></p>
         <ul style="margin:4px 0;padding-left:20px;">{procs_html or '<li>—</li>'}</ul>
         {desconto_html}
-        <p style="margin:4px 0;"><strong>Total:</strong> R$ {ctx['valor_total']:.2f}</p>
+        <p style="margin:4px 0;"><strong>Total:</strong> {formatar_moeda_recibo(ctx['valor_total'])}</p>
         <p style="margin:4px 0;"><strong>Forma(s) de pagamento:</strong></p>
         <ul style="margin:4px 0;padding-left:20px;">{_formas_pagamento_html(ctx)}</ul>
         <p style="margin:12px 0 0;font-size:16px;font-weight:bold;color:#2e7d32;">
-          Valor pago: R$ {ctx['valor_pago']:.2f}
+          Valor pago: {formatar_moeda_recibo(ctx['valor_pago'])}
         </p>
         {f'<p style="margin:12px 0 0;font-size:12px;color:#555;">{ctx["retorno_aviso"]}</p>' if (ctx.get("retorno_aviso") or "").strip() else ''}
       </div>
@@ -153,19 +156,24 @@ def _montar_email_html(ctx: dict) -> str:
 
 def _montar_email_texto(ctx: dict) -> str:
     """Versão texto puro do email."""
+    ctx = reconciliar_conta_recibo(ctx)
     procs_lines = [
-        f"  • {label} — R$ {valor:.2f}"
+        f"  • {label} — {formatar_moeda_recibo(valor)}"
         for label, valor in _linhas_taxa_consulta_recibo(ctx)
     ]
-    procs_lines.extend(f'  • {p["nome"]} — R$ {p["valor"]:.2f}' for p in ctx["procedimentos"])
+    procs_lines.extend(
+        f'  • {p["nome"]} — {formatar_moeda_recibo(p["valor"])}' for p in ctx["procedimentos"]
+    )
     procs = "\n".join(procs_lines) or "  —"
     doc_line = _linha_documento_loja(ctx)
     descontos = _linhas_descontos_recibo(ctx)
     desconto_lines = ""
     if descontos:
-        linhas_desc = "".join(f"{label}: - R$ {valor:.2f}\n" for label, valor in descontos)
+        linhas_desc = "".join(
+            f"{label}: - {formatar_moeda_recibo(valor)}\n" for label, valor in descontos
+        )
         desconto_lines = (
-            f'Subtotal: R$ {ctx.get("subtotal", 0):.2f}\n'
+            f'Subtotal: {formatar_moeda_recibo(ctx.get("subtotal", 0))}\n'
             f"{linhas_desc}"
         )
     header_extra = ""
@@ -188,9 +196,9 @@ def _montar_email_texto(ctx: dict) -> str:
         f'Data/Hora do atendimento: {ctx.get("data_atendimento") or "—"}\n'
         f'Serviços:\n{procs}\n'
         f'{desconto_lines}'
-        f'Total: R$ {ctx["valor_total"]:.2f}\n'
+        f'Total: {formatar_moeda_recibo(ctx["valor_total"])}\n'
         f'Forma(s) de pagamento:\n{_formas_pagamento_texto(ctx)}'
-        f'Valor pago: R$ {ctx["valor_pago"]:.2f}\n'
+        f'Valor pago: {formatar_moeda_recibo(ctx["valor_pago"])}\n'
         f'{((ctx.get("retorno_aviso") or "").strip() + "\n") if (ctx.get("retorno_aviso") or "").strip() else ""}'
         f'\nAtenciosamente,\n{ctx["loja_nome"]}\n'
     )

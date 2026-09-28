@@ -9,9 +9,11 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
-    aplicar_valor_consulta_do_local,
     linhas_local_convenio_recibo,
+    reconciliar_conta_recibo,
+    resumo_financeiro_recibo,
 )
+from .moeda import formatar_moeda_recibo
 
 
 def _t(valor) -> str:
@@ -26,7 +28,7 @@ def _saldo(ctx: dict) -> float:
 
 def gerar_html_recibo(ctx: dict) -> str:
     """Monta o cupom de impressão a partir do mesmo ctx do PDF."""
-    ctx = aplicar_valor_consulta_do_local(ctx)
+    ctx = reconciliar_conta_recibo(ctx)
     saldo = _saldo(ctx)
     retorno_sem_valor = bool(ctx.get("retorno_gratuito")) and float(ctx.get("valor_total") or 0) <= 0.009
     if retorno_sem_valor:
@@ -48,7 +50,7 @@ def gerar_html_recibo(ctx: dict) -> str:
     for label, valor in linhas_taxa:
         servicos.append(
             f"<tr><td>{_t(label)}</td>"
-            f'<td style="text-align:right">R$ {valor:.2f}</td></tr>'
+            f'<td style="text-align:right">{formatar_moeda_recibo(valor)}</td></tr>'
         )
     for p in ctx.get("procedimentos") or []:
         nome = p.get("nome") or ""
@@ -58,7 +60,7 @@ def gerar_html_recibo(ctx: dict) -> str:
             continue
         servicos.append(
             f'<tr><td style="padding-left:8px">• {_t(nome)}</td>'
-            f'<td style="text-align:right">R$ {valor:.2f}</td></tr>'
+            f'<td style="text-align:right">{formatar_moeda_recibo(valor)}</td></tr>'
         )
     for label, valor in linhas_local_convenio_recibo(ctx):
         servicos.append(
@@ -70,20 +72,20 @@ def gerar_html_recibo(ctx: dict) -> str:
     subtotal = float(ctx.get("subtotal", ctx.get("valor_total") or 0))
     descontos_html = "".join(
         f"<tr><td>{_t(label)}</td>"
-        f'<td style="text-align:right">- R$ {valor:.2f}</td></tr>'
+        f'<td style="text-align:right">- {formatar_moeda_recibo(valor)}</td></tr>'
         for label, valor in descontos
     )
     if descontos:
         totais = (
             f'<tr><td><strong>Subtotal</strong></td>'
-            f'<td style="text-align:right"><strong>R$ {subtotal:.2f}</strong></td></tr>'
+            f'<td style="text-align:right"><strong>{formatar_moeda_recibo(subtotal)}</strong></td></tr>'
             f"{descontos_html}"
         )
     else:
         totais = ""
     totais += (
         f'<tr><td><strong>Total</strong></td>'
-        f'<td style="text-align:right"><strong>R$ {float(ctx.get("valor_total") or 0):.2f}</strong></td></tr>'
+        f'<td style="text-align:right"><strong>{formatar_moeda_recibo(ctx.get("valor_total") or 0)}</strong></td></tr>'
     )
 
     valor_pago = float(ctx.get("valor_pago") or 0)
@@ -91,18 +93,18 @@ def gerar_html_recibo(ctx: dict) -> str:
     if formas:
         formas_html = "".join(
             f"<tr><td>{_t(f.get('metodo'))}</td>"
-            f'<td style="text-align:right">R$ {float(f.get("valor") or 0):.2f}</td></tr>'
+            f'<td style="text-align:right">{formatar_moeda_recibo(f.get("valor") or 0)}</td></tr>'
             for f in formas
         )
     elif valor_pago > 0:
         formas_html = (
             f"<tr><td>{_t(ctx.get('metodo') or 'Pagamento')}</td>"
-            f'<td style="text-align:right">R$ {valor_pago:.2f}</td></tr>'
+            f'<td style="text-align:right">{formatar_moeda_recibo(valor_pago)}</td></tr>'
         )
     elif ctx.get("retorno_gratuito"):
         formas_html = (
             '<tr><td>Isento — retorno</td>'
-            '<td style="text-align:right">R$ 0.00</td></tr>'
+            '<td style="text-align:right">R$ 0,00</td></tr>'
         )
     else:
         formas_html = ""
@@ -110,7 +112,7 @@ def gerar_html_recibo(ctx: dict) -> str:
     vencimento = (ctx.get("vencimento") or "").strip()
     if saldo > 0.009:
         saldo_bloco = (
-            f'<div class="total" style="font-size:12px;">SALDO A PAGAR: R$ {saldo:.2f}'
+            f'<div class="total" style="font-size:12px;">SALDO A PAGAR: {formatar_moeda_recibo(saldo)}'
             f"{f' — vencimento {_t(vencimento)}' if vencimento else ''}</div>"
         )
     elif ctx.get("retorno_gratuito") and valor_pago <= 0.009:
@@ -145,6 +147,7 @@ def gerar_html_recibo(ctx: dict) -> str:
   .divider {{ border-top: 1px dashed #333; margin: 8px 0; }}
   .total {{ font-size: 14px; font-weight: bold; text-align: center; margin: 8px 0; }}
   .footer {{ text-align: center; font-size: 9px; color: #666; margin-top: 10px; border-top: 1px dashed #333; padding-top: 6px; }}
+  .aviso {{ text-align: center; font-size: 12px; color: #333; margin: 8px 0; }}
   @media print {{
     html, body {{ width: 72mm !important; max-width: 72mm !important; margin: 0 !important; padding: 4px !important; background: #fff !important; }}
     .no-print, button {{ display: none !important; }}
@@ -159,6 +162,7 @@ def gerar_html_recibo(ctx: dict) -> str:
   {f'<p>{_t(ctx.get("loja_email"))}</p>' if ctx.get("loja_email") else ''}
   <p style="margin-top:4px;font-weight:bold">{titulo}</p>
   <p>Emitido em {_t(data_emissao)}</p>
+  {f'<p>Recibo nº {_t(ctx.get("recibo_numero"))}</p>' if ctx.get("recibo_numero") else ''}
 </div>
 
 <div class="section">
@@ -195,11 +199,12 @@ def gerar_html_recibo(ctx: dict) -> str:
   </table>
 </div>
 
-<div class="total">VALOR PAGO: R$ {valor_pago:.2f}</div>
+<div class="total">VALOR PAGO: {formatar_moeda_recibo(valor_pago)}</div>
 {saldo_bloco}
 
+  {f'<p class="aviso">{_t(resumo_financeiro_recibo(ctx))}</p>' if saldo > 0.009 else ''}
 <div class="footer">
-  {f'<p style="color:#333;margin-bottom:6px;">{_t(aviso)}</p>' if aviso else ''}
+  {f'<p class="aviso">{_t(aviso)}</p>' if aviso else ''}
   <p>Agradecemos pela confiança!</p>
   <p>Documento não fiscal — gerado pelo sistema.</p>
   <button type="button" class="no-print" onclick="try{{window.focus()}}catch(e){{}};setTimeout(function(){{window.print()}},50)" style="margin-top:8px;padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #333;border-radius:4px;background:#fff;">Imprimir</button>

@@ -157,7 +157,7 @@ class MensagemWhatsAppTests(SimpleTestCase):
         msg = _montar_mensagem_whatsapp(ctx)
         self.assertIn("Clínica Estética", msg)
         self.assertIn("Maria", msg)
-        self.assertIn("1000.00", msg)
+        self.assertIn("1.000,00", msg)
         self.assertIn("Dra. Ana", msg)
         self.assertIn("Botox", msg)
         self.assertIn("RECIBO DE PAGAMENTO", msg)

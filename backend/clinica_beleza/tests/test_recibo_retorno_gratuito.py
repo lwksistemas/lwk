@@ -110,7 +110,9 @@ class MontarInfoRetornoReciboTests(TestCase):
         self.assertEqual(info["taxa_consulta_referencia"], 180.0)
         self.assertEqual(info["retorno_dias"], 30)
         self.assertIn("30", info["retorno_aviso"])
-        self.assertIn("isenta", info["retorno_aviso"].lower())
+        self.assertIn("descontada", info["retorno_aviso"].lower())
+        self.assertIn("R$ 180,00", info["retorno_aviso"])
+        self.assertNotIn("configurado", info["retorno_aviso"])
 
     @patch("clinica_beleza.models.RetornoProcedimentoRegra.objects")
     @patch("clinica_beleza.retorno_service.get_agenda_retorno_config")
@@ -136,3 +138,5 @@ class MontarInfoRetornoReciboTests(TestCase):
         self.assertEqual(info["retorno_dias"], 20)
         self.assertIn("20", info["retorno_aviso"])
         self.assertIn("Retorno gratuito", info["retorno_aviso"])
+        self.assertNotIn("configurado", info["retorno_aviso"])
+        self.assertNotIn("dia(s)", info["retorno_aviso"])

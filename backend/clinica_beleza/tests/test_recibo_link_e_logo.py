@@ -55,17 +55,17 @@ class ReciboTituloProcedimentosTest(SimpleTestCase):
         self.assertEqual(adapter.get_titulo(payment), "DETOX · BOTOX — FULL FACE")
         self.assertEqual(
             adapter.get_itens_titulo(payment),
-            ["DETOX — R$ 300.00", "BOTOX — FULL FACE — R$ 700.00"],
+            ["DETOX — R$ 300,00", "BOTOX — FULL FACE — R$ 700,00"],
         )
 
     def test_email_de_assinatura_lista_cada_procedimento(self):
         html = _bloco_titulo_email(
             "Procedimentos realizados",
             "DETOX · BOTOX — FULL FACE",
-            ["DETOX — R$ 300.00", "BOTOX — FULL FACE — R$ 700.00"],
+            ["DETOX — R$ 300,00", "BOTOX — FULL FACE — R$ 700,00"],
         )
-        self.assertIn("DETOX — R$ 300.00", html)
-        self.assertIn("BOTOX — FULL FACE — R$ 700.00", html)
+        self.assertIn("DETOX — R$ 300,00", html)
+        self.assertIn("BOTOX — FULL FACE — R$ 700,00", html)
         self.assertIn("<br>", html)
 
 

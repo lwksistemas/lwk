@@ -6,7 +6,9 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    reconciliar_conta_recibo,
 )
+from .moeda import formatar_moeda_recibo
 from .pdf import _gerar_pdf_recibo
 
 logger = logging.getLogger(__name__)
@@ -92,26 +94,25 @@ def _enviar_recibo_whatsapp(payment, patient, appointment, *, somente_foto=False
 
 def _montar_mensagem_whatsapp(ctx: dict) -> str:
     """Mensagem profissional formatada para WhatsApp."""
+    ctx = reconciliar_conta_recibo(ctx)
     procs_lines = []
     for label, valor in _linhas_taxa_consulta_recibo(ctx):
-        procs_lines.append(f"  • {label} ......... R$ {valor:.2f}")
+        procs_lines.append(f"  • {label} ......... {formatar_moeda_recibo(valor)}")
     for p in ctx["procedimentos"]:
         nome = p["nome"][:35]
-        val = f'{p["valor"]:.2f}'
-        procs_lines.append(f"  • {nome} ... R$ {val}")
+        procs_lines.append(f"  • {nome} ... {formatar_moeda_recibo(p['valor'])}")
     procs = "\n".join(procs_lines)
     prof_line = f'👩‍⚕️ *Profissional:* {ctx["profissional_nome"]}\n' if ctx["profissional_nome"] else ""
-    valor_pago = f'{ctx["valor_pago"]:.2f}'
     descontos = _linhas_descontos_recibo(ctx)
     desconto_block = ""
     if descontos:
         linhas_desc = "\n".join(
-            f"🏷️ *{label}:* - R$ {valor:.2f}" for label, valor in descontos
+            f"🏷️ *{label}:* - {formatar_moeda_recibo(valor)}" for label, valor in descontos
         )
         desconto_block = (
-            f'🧾 *Subtotal:* R$ {ctx.get("subtotal", 0):.2f}\n'
+            f'🧾 *Subtotal:* {formatar_moeda_recibo(ctx.get("subtotal", 0))}\n'
             f"{linhas_desc}\n"
-            f'💵 *Total:* R$ {ctx.get("valor_total", 0):.2f}\n'
+            f'💵 *Total:* {formatar_moeda_recibo(ctx.get("valor_total", 0))}\n'
         )
     return (
         f'🏥 *{ctx["loja_nome"] or "Clínica"}*\n'
@@ -128,7 +129,7 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
         f'━━━━━━━━━━━━━━━━━━━━\n'
         f'💳 *Forma de pagamento:*\n'
         f'{_formas_pagamento_texto(ctx)}'
-        f'💰 *Valor pago: R$ {valor_pago}*\n'
+        f'💰 *Valor pago: {formatar_moeda_recibo(ctx.get("valor_pago", 0))}*\n'
         f'━━━━━━━━━━━━━━━━━━━━\n\n'
         f'{("ℹ️ " + ctx["retorno_aviso"] + "\n\n") if (ctx.get("retorno_aviso") or "").strip() else ""}'
         f'_O recibo segue como foto nesta conversa._\n'

@@ -60,10 +60,25 @@ def montar_info_retorno_recibo(
         consulta=consulta,
         retorno_gratuito=retorno_gratuito,
         retorno_tipo=retorno_tipo,
+        taxa_referencia=info["taxa_consulta_referencia"],
     )
     info["retorno_dias"] = dias
     info["retorno_aviso"] = aviso
     return info
+
+
+def _aviso_taxa_descontada(dias: int, taxa: float, nome: str | None = None) -> str:
+    from .moeda import formatar_moeda_recibo
+
+    valor = f" de {formatar_moeda_recibo(taxa)}" if taxa > 0.009 else ""
+    prazo = f" dentro de {dias} dias" if dias > 0 else ""
+    if nome and nome != "procedimento":
+        motivo = f" — retorno gratuito de {nome}{prazo}"
+    elif prazo:
+        motivo = f" — retorno gratuito{prazo}"
+    else:
+        motivo = " — retorno gratuito"
+    return f"Taxa de consulta{valor} descontada neste atendimento{motivo}."
 
 
 def _resolver_prazo_e_aviso(
@@ -73,6 +88,7 @@ def _resolver_prazo_e_aviso(
     consulta,
     retorno_gratuito: bool,
     retorno_tipo: str,
+    taxa_referencia: float = 0.0,
 ) -> tuple[int | None, str]:
     try:
         from clinica_beleza.models import RetornoProcedimentoRegra
@@ -115,42 +131,34 @@ def _resolver_prazo_e_aviso(
         else 0
     )
 
-    # Prazo aplicado neste atendimento (quando já isento)
+    taxa = float(taxa_referencia or 0)
+    # Prazo aplicado neste atendimento (quando a taxa já foi descontada)
     if retorno_gratuito:
         if retorno_tipo == "procedimento" and dias_proc > 0:
             nome = nomes_proc[0] if len(nomes_proc) == 1 else "procedimento"
-            return dias_proc, (
-                f"Taxa de consulta isenta — retorno gratuito de {nome} "
-                f"no prazo de {dias_proc} dia(s) configurado."
-            )
+            return dias_proc, _aviso_taxa_descontada(dias_proc, taxa, nome)
         if dias_cons > 0:
-            return dias_cons, (
-                f"Taxa de consulta isenta — retorno gratuito "
-                f"no prazo de {dias_cons} dia(s) configurado."
-            )
+            return dias_cons, _aviso_taxa_descontada(dias_cons, taxa)
         if dias_proc > 0:
-            return dias_proc, (
-                f"Taxa de consulta isenta — retorno gratuito "
-                f"no prazo de {dias_proc} dia(s) configurado."
-            )
-        return None, "Taxa de consulta isenta — retorno gratuito."
+            return dias_proc, _aviso_taxa_descontada(dias_proc, taxa)
+        return None, _aviso_taxa_descontada(0, taxa)
 
     # Atendimento pago: informar política vigente para o cliente
     avisos: list[str] = []
     if dias_proc > 0:
         if len(nomes_proc) == 1:
             avisos.append(
-                f"Retorno gratuito da taxa de consulta em até {dias_proc} dia(s) "
+                f"Retorno gratuito da taxa de consulta em até {dias_proc} dias "
                 f"para acompanhamento de {nomes_proc[0]}.",
             )
         else:
             avisos.append(
-                f"Retorno gratuito da taxa de consulta em até {dias_proc} dia(s) "
+                f"Retorno gratuito da taxa de consulta em até {dias_proc} dias "
                 f"para acompanhamento do(s) procedimento(s).",
             )
     if dias_cons > 0:
         avisos.append(
-            f"Retorno gratuito da taxa de consulta em até {dias_cons} dia(s) "
+            f"Retorno gratuito da taxa de consulta em até {dias_cons} dias "
             f"após este atendimento.",
         )
     if not avisos:

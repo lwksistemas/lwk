@@ -124,7 +124,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
             ),
         )
         self.assertIn("Taxa de consulta", html)
-        self.assertIn("150.00", html)
+        self.assertIn("150,00", html)
         self.assertNotIn("Desconto retorno", html)
         self.assertIn("SALDO A PAGAR", html)
 
@@ -144,8 +144,8 @@ class GerarHtmlReciboTests(SimpleTestCase):
         )
         self.assertIn("Taxa de consulta", html)
         self.assertIn("TIRZEPATIDA", html)
-        self.assertIn("R$ 150.00", html)
-        self.assertIn("R$ 300.00", html)
+        self.assertIn("R$ 150,00", html)
+        self.assertIn("R$ 300,00", html)
         self.assertNotIn("Desconto retorno", html)
 
     def test_procedimento_com_valor_nao_repete_local(self):

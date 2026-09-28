@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 
 from .models import Payment
 from .permissions import CLINICA_FINANCEIRO
+from .recibo.moeda import formatar_moeda_recibo
 from .recibo_assinatura_adapter import ReciboAssinaturaAdapter
 from .recibo_assinatura_envio_service import (
     enviar_recibo_assinado,
@@ -206,7 +207,7 @@ class ReciboAssinaturaPublicaView(View):
         professional = getattr(appointment, "professional", None) if appointment else None
 
         procedimentos = [
-            {"nome": (proc.get("nome") or "").strip(), "valor": f"R$ {float(proc.get('valor') or 0):.2f}"}
+            {"nome": (proc.get("nome") or "").strip(), "valor": formatar_moeda_recibo(proc.get("valor") or 0)}
             for proc in adapter.get_procedimentos(payment)
             if (proc.get("nome") or "").strip()
         ]

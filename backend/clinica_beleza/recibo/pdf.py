@@ -301,11 +301,12 @@ def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
     if assinatura.get("email"):
         story.append(Paragraph(f"Email: {_texto_pdf(assinatura['email'])}", s_footer))
     if assinatura.get("assinado_em"):
-        story.append(Paragraph(f"Assinado em: {_texto_pdf(assinatura['assinado_em'])}", s_footer))
+        story.append(Paragraph(
+            f"Aceite registrado em: {_texto_pdf(assinatura['assinado_em'])}",
+            s_footer,
+        ))
     if assinatura.get("ip"):
         story.append(Paragraph(f"IP: {_texto_pdf(assinatura['ip'])}", s_footer))
-    if saldo > 0.009:
-        story.append(Paragraph("Aceite registrado", s_footer))
     story.append(Spacer(1, 1 * mm_unit))
     story.append(Paragraph(
         "Registro do aceite do cliente: nome, data, hora e endereço IP.",

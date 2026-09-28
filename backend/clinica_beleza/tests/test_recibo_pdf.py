@@ -95,7 +95,7 @@ class GerarPdfReciboTests(SimpleTestCase):
         self.assertGreater(len(pdf), 100)
         texto = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages)
         self.assertIn("Desconto", texto)
-        self.assertIn("100.00", texto)
+        self.assertIn("100,00", texto)
 
     def test_escapa_html_do_nome_no_pdf(self):
         from clinica_beleza.recibo.pdf import _texto_pdf

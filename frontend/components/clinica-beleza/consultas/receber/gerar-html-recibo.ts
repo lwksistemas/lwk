@@ -27,6 +27,26 @@ function nomeSoConsulta(nome: string): boolean {
   return !n || n === "consulta" || n === "taxa de consulta";
 }
 
+function formatarMoedaRecibo(valor: number): string {
+  const negativo = valor < -0.004;
+  const [inteiro, frac] = Math.abs(valor).toFixed(2).split(".");
+  const grupos = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${negativo ? "-" : ""}R$ ${grupos},${frac}`;
+}
+
+function formatarDataHoraBr(data: Date): string {
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(data);
+  const ler = (tipo: string) => parts.find((p) => p.type === tipo)?.value ?? "";
+  return `${ler("day")}/${ler("month")}/${ler("year")} ${ler("hour")}:${ler("minute")}`;
+}
+
 function linhaTelCep(telefone?: string, cep?: string): string {
   const partes: string[] = [];
   const tel = formatTelefone(telefone || "");
@@ -57,14 +77,7 @@ export function gerarHtmlRecibo(params: {
     ? vencimento.split("-").reverse().join("/")
     : "";
   // Data/hora da EMISSÃO do comprovante (impressão) — sempre o momento atual.
-  const dataHoraEmissao = new Date().toLocaleString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const dataHoraEmissao = formatarDataHoraBr(new Date());
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
   const valorProcs = Number(consulta.valor_procedimentos ?? 0);
   const retornoGratuito = Boolean(consulta.retorno_gratuito);
@@ -97,14 +110,14 @@ export function gerarHtmlRecibo(params: {
 
   const taxaConsultaHtml =
     taxaExibida > 0
-      ? `<tr><td>Taxa de consulta</td><td style="text-align:right">R$ ${taxaExibida.toFixed(2)}</td></tr>`
+      ? `<tr><td>Taxa de consulta</td><td style="text-align:right">${formatarMoedaRecibo(taxaExibida)}</td></tr>`
       : "";
   const descontosHtml = [
     descontoRetorno > 0
-      ? `<tr><td>Desconto retorno</td><td style="text-align:right">- R$ ${descontoRetorno.toFixed(2)}</td></tr>`
+      ? `<tr><td>Desconto retorno</td><td style="text-align:right">- ${formatarMoedaRecibo(descontoRetorno)}</td></tr>`
       : "",
     desconto > 0
-      ? `<tr><td>Desconto</td><td style="text-align:right">- R$ ${desconto.toFixed(2)}</td></tr>`
+      ? `<tr><td>Desconto</td><td style="text-align:right">- ${formatarMoedaRecibo(desconto)}</td></tr>`
       : "",
   ].join("");
 
@@ -126,7 +139,7 @@ export function gerarHtmlRecibo(params: {
     const nParc = Number(e.parcelas) || 1;
     const parcInfo =
       e.payment_method === "CREDIT_CARD" && nParc > 1
-        ? ` (${nParc}x R$ ${e.valorParcela || (valor / nParc).toFixed(2)})`
+        ? ` (${nParc}x ${formatarMoedaRecibo(Number(e.valorParcela) || valor / nParc)})`
         : "";
     const dataKey = String(e.payment_date || "").slice(0, 10);
     const dataInfo = dataKey ? ` (${fmtDataBr(dataKey)})` : "";
@@ -141,7 +154,7 @@ export function gerarHtmlRecibo(params: {
   const formasHtml = Array.from(formasAgrupadas.values())
     .map(
       (f) =>
-        `<tr><td>${escapeHtml(f.label)}${escapeHtml(f.parcInfo)}${escapeHtml(f.dataInfo)}</td><td style="text-align:right">R$ ${f.valor.toFixed(2)}</td></tr>`,
+        `<tr><td>${escapeHtml(f.label)}${escapeHtml(f.parcInfo)}${escapeHtml(f.dataInfo)}</td><td style="text-align:right">${formatarMoedaRecibo(f.valor)}</td></tr>`,
     )
     .join("");
 
@@ -169,17 +182,17 @@ export function gerarHtmlRecibo(params: {
       ? procsVisiveis
           .map(
             (p) =>
-              `<tr><td style="padding-left:8px">• ${escapeHtml(p.nome)}</td><td style="text-align:right">R$ ${Number(p.valor).toFixed(2)}</td></tr>`,
+              `<tr><td style="padding-left:8px">• ${escapeHtml(p.nome)}</td><td style="text-align:right">${formatarMoedaRecibo(Number(p.valor))}</td></tr>`,
           )
           .join("")
       : procs.length > 0
         ? ""
         : valorProcs > 0
-          ? `<tr><td style="padding-left:8px">• ${escapeHtml(consulta.procedure_name || "Procedimento")}</td><td style="text-align:right">R$ ${valorProcs.toFixed(2)}</td></tr>`
+          ? `<tr><td style="padding-left:8px">• ${escapeHtml(consulta.procedure_name || "Procedimento")}</td><td style="text-align:right">${formatarMoedaRecibo(valorProcs)}</td></tr>`
           : "";
   if (!taxaConsultaHtml && !procsHtml) {
     const nomeConsulta = (consulta.procedure_name || "").trim() || "Consulta";
-    procsHtml = `<tr><td style="padding-left:8px">• ${escapeHtml(nomeConsulta)}</td><td style="text-align:right">R$ ${valorConsulta.toFixed(2)}</td></tr>`;
+    procsHtml = `<tr><td style="padding-left:8px">• ${escapeHtml(nomeConsulta)}</td><td style="text-align:right">${formatarMoedaRecibo(valorConsulta)}</td></tr>`;
   }
   const soConsulta =
     procsVisiveis.length > 0
@@ -188,15 +201,50 @@ export function gerarHtmlRecibo(params: {
   const localNome = (consulta.local_atendimento_name || "").trim();
   const convenioNome = (consulta.convenio_name || "").trim() || "Particular";
   const localConvenioHtml = soConsulta
-    ? `${localNome ? `<tr><td>Local</td><td style="text-align:right">${escapeHtml(localNome)}</td></tr>` : ""}<tr><td>Convênio</td><td style="text-align:right">${escapeHtml(convenioNome)}</td></tr>`
+    ? `${localNome ? `<tr><td colspan="2">Local<br>${escapeHtml(localNome)}</td></tr>` : ""}<tr><td colspan="2">Convênio<br>${escapeHtml(convenioNome)}</td></tr>`
     : "";
+  const saldo = Math.max(saldoRestante, totalFinal - valorPago);
+  const semSaldo = totalFinal <= 0.009 && valorPago <= 0.009;
+  const emAberto = saldo > 0.009 && valorPago <= 0.009;
+  const parcial = saldo > 0.009 && valorPago > 0.009;
+  let tituloDoc = "RECIBO DE PAGAMENTO";
+  let subtituloDoc = "";
+  if (semSaldo) {
+    tituloDoc = "COMPROVANTE DE ATENDIMENTO";
+    subtituloDoc = "Sem saldo — consulta integralmente descontada";
+  } else if (emAberto) {
+    tituloDoc = "COMPROVANTE DE ATENDIMENTO";
+    subtituloDoc = "Valor em aberto";
+  } else if (parcial) {
+    tituloDoc = "COMPROVANTE DE ATENDIMENTO";
+    subtituloDoc = "Pagamento parcial — saldo em aberto";
+  }
+  const numeroRecibo = consulta.payment_id;
+  const dataAtendimento = consulta.appointment_date
+    ? formatarDataHoraBr(new Date(consulta.appointment_date))
+    : "—";
+  const formasBloco = formasHtml
+    ? `<div class="section"><div class="section-title">Formas de pagamento:</div><table>${formasHtml}</table></div>`
+    : emAberto && vencimentoBr
+      ? `<p style="text-align:center">Condição de cobrança: a prazo — vencimento ${escapeHtml(vencimentoBr)}</p>`
+      : valorPago > 0
+        ? `<div class="section"><div class="section-title">Formas de pagamento:</div><table><tr><td>Pagamento</td><td style="text-align:right">${formatarMoedaRecibo(valorPago)}</td></tr></table></div>`
+        : "";
+  const pagoBloco = semSaldo
+    ? ""
+    : `<div class="total">${parcial ? "PAGO" : "VALOR PAGO"}: ${formatarMoedaRecibo(valorPago)}</div>`;
+  const statusBloco = semSaldo
+    ? `<div class="footer" style="border-top:none;margin-top:0;"><p style="font-weight:bold;color:#333;">${escapeHtml(subtituloDoc)}</p></div>`
+    : saldo > 0.009
+      ? `<div class="total" style="font-size:12px;">SALDO A PAGAR: ${formatarMoedaRecibo(saldo)}${vencimentoBr && !emAberto ? ` — vencimento ${escapeHtml(vencimentoBr)}` : ""}</div>`
+      : `<div class="footer" style="border-top:none;margin-top:0;"><p style="font-weight:bold;color:#333;">Quitado</p></div>`;
 
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 <title>Recibo de Pagamento</title>
 <style>
-  /* size:auto no @page deixa o Chrome com preview em branco ao salvar PDF */
-  @page { margin: 5mm; }
+  /* Largura do cupom. size:auto deixa o Chrome com preview em branco. */
+  @page { size: 80mm 297mm; margin: 4mm; }
   html, body { background: #fff; color: #000; }
   body { font-family: 'Courier New', monospace; width: 72mm; margin: 0 auto; padding: 8px; font-size: 11px; line-height: 1.4; }
   .header { text-align: center; border-bottom: 1px dashed #333; padding-bottom: 6px; margin-bottom: 8px; }
@@ -221,8 +269,10 @@ export function gerarHtmlRecibo(params: {
   ${enderecoLoja ? `<p>${enderecoLoja}</p>` : ""}
   ${telCep ? `<p>${telCep}</p>` : ""}
   ${emailLoja ? `<p>${emailLoja}</p>` : ""}
-  <p style="margin-top:4px;font-weight:bold">RECIBO DE PAGAMENTO</p>
+  <p style="margin-top:4px;font-weight:bold">${tituloDoc}</p>
+  ${subtituloDoc ? `<p>${escapeHtml(subtituloDoc)}</p>` : ""}
   <p>Emitido em ${dataHoraEmissao}</p>
+  ${numeroRecibo ? `<p>Recibo nº ${escapeHtml(numeroRecibo)}</p>` : ""}
 </div>
 
 <div class="section">
@@ -242,14 +292,7 @@ export function gerarHtmlRecibo(params: {
 <div class="section">
   <div class="section-title">Data/Hora do atendimento</div>
   <table>
-    <tr><td>${consulta.appointment_date ? new Date(consulta.appointment_date).toLocaleString("pt-BR", {
-      timeZone: "America/Sao_Paulo",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }) : "—"}</td></tr>
+    <tr><td>${dataAtendimento}</td></tr>
   </table>
 </div>
 
@@ -264,24 +307,15 @@ export function gerarHtmlRecibo(params: {
 
 <div class="divider"></div>
 <table>
-  <tr><td><strong>Subtotal</strong></td><td style="text-align:right"><strong>R$ ${subtotalBruto.toFixed(2)}</strong></td></tr>
+  <tr><td><strong>Subtotal</strong></td><td style="text-align:right"><strong>${formatarMoedaRecibo(subtotalBruto)}</strong></td></tr>
   ${descontosHtml}
-  <tr><td><strong>Total</strong></td><td style="text-align:right"><strong>R$ ${totalFinal.toFixed(2)}</strong></td></tr>
+  <tr><td><strong>Total</strong></td><td style="text-align:right"><strong>${formatarMoedaRecibo(totalFinal)}</strong></td></tr>
 </table>
 
-<div class="section">
-  <div class="section-title">Formas de pagamento:</div>
-  <table>
-    ${formasHtml || (valorPago > 0 ? `<tr><td>Pagamento</td><td style="text-align:right">R$ ${valorPago.toFixed(2)}</td></tr>` : "")}
-  </table>
-</div>
+${formasBloco}
 
-<div class="total">VALOR PAGO: R$ ${valorPago.toFixed(2)}</div>
-${
-  Math.max(saldoRestante, totalFinal - valorPago) > 0.009
-    ? `<div class="total" style="font-size:12px;">SALDO A PAGAR: R$ ${Math.max(saldoRestante, totalFinal - valorPago).toFixed(2)}${vencimentoBr ? ` — vencimento ${escapeHtml(vencimentoBr)}` : ""}</div>`
-    : `<div class="footer" style="border-top:none;margin-top:0;"><p style="font-weight:bold;color:#333;">Quitado</p></div>`
-}
+${pagoBloco}
+${statusBloco}
 
 <div class="footer">
   ${avisoRetorno ? `<p style="color:#333;margin-bottom:6px;">${avisoRetorno}</p>` : ""}

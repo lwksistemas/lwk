@@ -28,9 +28,17 @@ export function ConsultaPagamentoButton({
       return (
         <button type="button" onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
           disabled={loading}
-          aria-label={`Receber pagamento parcial de ${consulta.patient_name}`}
+          aria-label={
+            consultaFinalizada
+              ? `Recibo do pagamento parcial de ${consulta.patient_name}`
+              : `Receber pagamento parcial de ${consulta.patient_name}`
+          }
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-orange-500 hover:bg-orange-600 ${pad}`}
-          title={`Parcial — receber saldo: R$ ${Number(consulta.valor_restante ?? 0).toFixed(2)}`}
+          title={
+            consultaFinalizada
+              ? "Parcial — clique para imprimir ou enviar o recibo"
+              : `Parcial — receber saldo: R$ ${Number(consulta.valor_restante ?? 0).toFixed(2)}`
+          }
         >
           <AlertCircle size={iconSize} />
           {loading ? "Registrando…" : "Parcial"}
@@ -45,7 +53,11 @@ export function ConsultaPagamentoButton({
         <button type="button"
           onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-slate-600 hover:bg-slate-700 ${pad}`}
-          title="A prazo — clique para receber ou ver o comprovante"
+          title={
+            consultaFinalizada
+              ? "A prazo — clique para imprimir ou enviar o recibo"
+              : "A prazo — clique para receber"
+          }
         >
           <DollarSign size={iconSize} />
           A prazo

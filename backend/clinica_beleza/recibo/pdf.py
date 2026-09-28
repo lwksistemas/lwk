@@ -8,9 +8,12 @@ from .context import (
     _linha_tel_cep,
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
-    aplicar_valor_consulta_do_local,
     linhas_local_convenio_recibo,
+    reconciliar_conta_recibo,
+    situacao_recibo,
+    titulo_recibo,
 )
+from .moeda import formatar_moeda_recibo
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +94,9 @@ def _estilos_pdf():
         "s_footer": ParagraphStyle(
             "f", fontSize=7, alignment=TA_CENTER, leading=10, textColor=colors.HexColor("#666666"),
         ),
+        "s_aviso": ParagraphStyle(
+            "aviso", fontSize=9, alignment=TA_CENTER, leading=12, textColor=colors.HexColor("#333333"),
+        ),
         "s_right": ParagraphStyle("r", fontSize=8, alignment=TA_RIGHT, leading=11),
         "hr": HRFlowable(width="100%", thickness=0.5, dash=[2, 2], spaceAfter=3, spaceBefore=3),
     }
@@ -121,14 +127,14 @@ def _cabecalho_recibo_pdf(ctx, styles, col_w, mm_unit):
         story.append(Paragraph(_texto_pdf(ctx["loja_email"]), s_center))
     story.append(Spacer(1, 3 * mm_unit))
     story.append(hr)
-    # Com saldo em aberto (a prazo ou pagamento parcial) o documento não é um recibo de
-    # quitação, e sim um comprovante de atendimento com reconhecimento de dívida.
-    tem_saldo = _saldo_devedor_recibo(ctx) > 0.009
-    titulo_doc = "COMPROVANTE DE ATENDIMENTO" if tem_saldo else "RECIBO DE PAGAMENTO"
+    titulo_doc, subtitulo_doc = titulo_recibo(ctx)
     story.append(Paragraph(titulo_doc, s_title))
-    if tem_saldo:
-        story.append(Paragraph("(reconhecimento de dívida — valor em aberto)", s_center))
+    if subtitulo_doc:
+        story.append(Paragraph(_texto_pdf(subtitulo_doc), s_center))
     story.append(Paragraph(f"Emitido em {_texto_pdf(ctx.get('data_emissao') or ctx['data'])}", s_center))
+    numero = ctx.get("recibo_numero")
+    if numero:
+        story.append(Paragraph(f"Recibo nº {_texto_pdf(numero)}", s_center))
     story.append(hr)
 
     story.append(Paragraph(f"<b>Cliente:</b> {_texto_pdf(ctx['paciente_nome'])}", s_left))
@@ -156,7 +162,7 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
     for label, valor in linhas_taxa:
         svc_data.append([
             Paragraph(_texto_pdf(label), s_left),
-            Paragraph(f"R$ {valor:.2f}", s_right),
+            Paragraph(formatar_moeda_recibo(valor), s_right),
         ])
     for p in ctx["procedimentos"]:
         nome_lower = (p["nome"] or "").strip().lower()
@@ -164,13 +170,16 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
             continue
         svc_data.append([
             Paragraph(f'• {_texto_pdf(p["nome"])}', s_left),
-            Paragraph(f'R$ {p["valor"]:.2f}', s_right),
+            Paragraph(formatar_moeda_recibo(p["valor"]), s_right),
         ])
+    spans = []
     for label, valor in linhas_local_convenio_recibo(ctx):
+        row = len(svc_data)
         svc_data.append([
-            Paragraph(_texto_pdf(label), s_left),
-            Paragraph(_texto_pdf(valor), s_right),
+            Paragraph(f"{_texto_pdf(label)}<br/>{_texto_pdf(valor)}", s_left),
+            Paragraph("", s_right),
         ])
+        spans.append(("SPAN", (0, row), (-1, row)))
 
     if not svc_data:
         return None
@@ -180,6 +189,8 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
         ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
         ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        *spans,
     ]))
     return svc_table
 
@@ -196,30 +207,33 @@ def _tabela_totais_recibo_pdf(ctx, styles, col_w):
     if descontos:
         totals_data.append([
             Paragraph("Subtotal", s_left),
-            Paragraph(f'R$ {ctx.get("subtotal", ctx["valor_total"]):.2f}', s_right),
+            Paragraph(formatar_moeda_recibo(ctx.get("subtotal", ctx["valor_total"])), s_right),
         ])
         for label, valor in descontos:
             totals_data.append([
                 Paragraph(_texto_pdf(label), s_left),
-                Paragraph(f"- R$ {valor:.2f}", s_right),
+                Paragraph(f"- {formatar_moeda_recibo(valor)}", s_right),
             ])
     totals_data.append([
         Paragraph("<b>Total</b>", s_bold),
-        Paragraph(f'<b>R$ {ctx["valor_total"]:.2f}</b>', s_right),
+        Paragraph(f"<b>{formatar_moeda_recibo(ctx['valor_total'])}</b>", s_right),
     ])
 
-    formas = ctx.get("formas_pagamento", [])
+    formas = [
+        f for f in (ctx.get("formas_pagamento") or [])
+        if float(f.get("valor") or 0) > 0.009
+    ]
     valor_pago = ctx.get("valor_pago", 0)
     if formas:
         totals_data.append([Paragraph("<b>Formas de pagamento:</b>", s_bold), Paragraph("", s_right)])
         for f in formas:
             totals_data.append([
                 Paragraph(f'  {_texto_pdf(f["metodo"])}', s_left),
-                Paragraph(f'R$ {f["valor"]:.2f}', s_right),
+                Paragraph(formatar_moeda_recibo(f["valor"]), s_right),
             ])
     elif valor_pago > 0:
         metodo = ctx.get("metodo", "")
-        totals_data.append([Paragraph(_texto_pdf(metodo), s_left), Paragraph(f'R$ {valor_pago:.2f}', s_right)])
+        totals_data.append([Paragraph(_texto_pdf(metodo), s_left), Paragraph(formatar_moeda_recibo(valor_pago), s_right)])
 
     totals_table = Table(totals_data, colWidths=[col_w * 0.55, col_w * 0.45])
     totals_table.setStyle(TableStyle([
@@ -248,7 +262,7 @@ def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
     hr = styles["hr"]
 
     # Título e dados do cliente centralizados para alinhar todo o bloco de assinatura.
-    story = [Spacer(1, 2 * mm_unit), hr, Paragraph("ASSINATURA DIGITAL", s_title), Spacer(1, 1 * mm_unit)]
+    story = [Spacer(1, 2 * mm_unit), hr, Paragraph("ACEITE DO CLIENTE", s_title), Spacer(1, 1 * mm_unit)]
     nome = (assinatura.get("nome") or ctx.get("paciente_nome") or "").strip().upper() or "—"
     # Nome e CPF centralizados para alinhar com o restante do bloco (email/IP/data e texto jurídico).
     story.append(Paragraph(f"<b>Cliente:</b> {_texto_pdf(nome)}", s_center))
@@ -261,12 +275,25 @@ def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
     saldo = _saldo_devedor_recibo(ctx)
     if saldo > 0.009:
         vencimento = (ctx.get("vencimento") or "").strip()
-        venc_txt = f", com vencimento em {_texto_pdf(vencimento)}" if vencimento else ""
+        if vencimento:
+            declaracao = (
+                f"Declaro que recebi o(s) serviço(s)/atendimento(s) descrito(s) acima e "
+                f"reconheço o saldo devedor de {formatar_moeda_recibo(saldo)}, "
+                f"com vencimento em {_texto_pdf(vencimento)}."
+            )
+        else:
+            declaracao = (
+                f"Declaro que recebi o(s) serviço(s)/atendimento(s) descrito(s) acima e "
+                f"reconheço o saldo devedor de {formatar_moeda_recibo(saldo)}."
+            )
+        story.append(Spacer(1, 1 * mm_unit))
+        story.append(Paragraph(declaracao, s_footer))
+        story.append(Spacer(1, 1 * mm_unit))
+    elif assinatura.get("assinado_em"):
         story.append(Spacer(1, 1 * mm_unit))
         story.append(Paragraph(
-            f"Declaro que recebi o(s) serviço(s)/atendimento(s) descrito(s) acima e "
-            f"reconheço o saldo devedor de R$ {saldo:.2f}{venc_txt}, "
-            f"comprometendo-me a efetuar o pagamento na forma acordada.",
+            f"Aceite do saldo em aberto registrado em {_texto_pdf(assinatura['assinado_em'])}. "
+            "Não confirma pagamentos feitos depois deste registro.",
             s_footer,
         ))
         story.append(Spacer(1, 1 * mm_unit))
@@ -274,14 +301,15 @@ def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
     if assinatura.get("email"):
         story.append(Paragraph(f"Email: {_texto_pdf(assinatura['email'])}", s_footer))
     if assinatura.get("assinado_em"):
-        story.append(Paragraph(f"Assinado em: {_texto_pdf(assinatura['assinado_em'])}", s_footer))
+        story.append(Paragraph(
+            f"Aceite registrado em: {_texto_pdf(assinatura['assinado_em'])}",
+            s_footer,
+        ))
     if assinatura.get("ip"):
         story.append(Paragraph(f"IP: {_texto_pdf(assinatura['ip'])}", s_footer))
-    story.append(Paragraph("Assinado digitalmente", s_footer))
     story.append(Spacer(1, 1 * mm_unit))
     story.append(Paragraph(
-        "Este documento possui validade jurídica e contém a assinatura digital do cliente, "
-        "com registro de data, hora e endereço IP.",
+        "Registro do aceite do cliente: nome, data, hora e endereço IP.",
         s_footer,
     ))
     return story
@@ -299,23 +327,33 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
     valor_pago = ctx.get("valor_pago", 0)
     saldo = _saldo_devedor_recibo(ctx)
     vencimento = (ctx.get("vencimento") or "").strip()
-    story.append(Paragraph(f"VALOR PAGO: R$ {valor_pago:.2f}", s_total))
-    if saldo > 0.009:
+    situacao = situacao_recibo(ctx)
+    condicao = (ctx.get("condicao_cobranca") or "").strip()
+    if condicao and not ctx.get("formas_pagamento"):
+        story.append(Paragraph(f"Condição de cobrança: {_texto_pdf(condicao)}", s_center))
         story.append(Spacer(1, 1 * mm_unit))
-        saldo_txt = f"SALDO A PAGAR: R$ {saldo:.2f}"
-        if vencimento:
-            saldo_txt += f" — vencimento {_texto_pdf(vencimento)}"
-        story.append(Paragraph(saldo_txt, s_center))
-    elif valor_pago >= ctx.get("valor_total", 0) and ctx.get("valor_total", 0) >= 0:
-        story.append(Spacer(1, 1 * mm_unit))
-        story.append(Paragraph("<b>Quitado</b>", s_center))
+    if situacao == "sem_saldo":
+        _, subtitulo = titulo_recibo(ctx)
+        story.append(Paragraph(f"<b>{_texto_pdf(subtitulo)}</b>", s_center))
+    else:
+        rotulo_pago = "PAGO" if situacao == "parcial" else "VALOR PAGO"
+        story.append(Paragraph(f"{rotulo_pago}: {formatar_moeda_recibo(valor_pago)}", s_total))
+        if saldo > 0.009:
+            story.append(Spacer(1, 1 * mm_unit))
+            saldo_txt = f"SALDO A PAGAR: {formatar_moeda_recibo(saldo)}"
+            if vencimento:
+                saldo_txt += f" — vencimento {_texto_pdf(vencimento)}"
+            story.append(Paragraph(saldo_txt, s_center))
+        elif situacao == "quitado":
+            story.append(Spacer(1, 1 * mm_unit))
+            story.append(Paragraph("<b>Quitado</b>", s_center))
     story.append(Spacer(1, 2 * mm_unit))
     story.append(hr)
 
     aviso = (ctx.get("retorno_aviso") or "").strip()
     if aviso:
         story.append(Spacer(1, 2 * mm_unit))
-        story.append(Paragraph(_texto_pdf(aviso), s_footer))
+        story.append(Paragraph(_texto_pdf(aviso), styles["s_aviso"]))
 
     story.extend(_secao_assinatura_recibo_pdf(ctx, styles, mm_unit))
 
@@ -331,21 +369,65 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
     return story
 
 
+def _recortar_pdf_apos_conteudo(pdf_bytes: bytes, y_conteudo: float | None, mm_unit) -> bytes:
+    """Corta a folha alta logo abaixo da logomarca, sem faixa branca no fim."""
+    if y_conteudo is None:
+        return pdf_bytes
+    from pypdf import PdfReader, PdfWriter
+
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    if not reader.pages:
+        return pdf_bytes
+    page = reader.pages[0]
+    llx, _lly, urx, ury = (float(v) for v in page.mediabox)
+    corte = max(0.0, float(y_conteudo) - 3 * mm_unit)
+    if corte >= ury - 20 * mm_unit:
+        return pdf_bytes
+    page.mediabox.lower_left = (llx, corte)
+    page.mediabox.upper_right = (urx, ury)
+    page.cropbox.lower_left = (llx, corte)
+    page.cropbox.upper_right = (urx, ury)
+    writer = PdfWriter()
+    writer.add_page(page)
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
 def _gerar_pdf_recibo(ctx: dict) -> bytes:
     """Gera PDF do recibo em formato cupom fiscal com layout profissional."""
-    ctx = aplicar_valor_consulta_do_local(ctx)
+    ctx = reconciliar_conta_recibo(ctx)
     from reportlab.lib.pagesizes import mm
-    from reportlab.platypus import SimpleDocTemplate, Spacer
+    from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate, Spacer
+
+    class _ReciboDoc(BaseDocTemplate):
+        def __init__(self, buffer, pagesize):
+            super().__init__(
+                buffer,
+                pagesize=pagesize,
+                leftMargin=4 * mm,
+                rightMargin=4 * mm,
+                topMargin=6 * mm,
+                bottomMargin=6 * mm,
+            )
+            self.y_conteudo = None
+            frame = Frame(
+                self.leftMargin,
+                self.bottomMargin,
+                self.width,
+                self.height,
+                id="recibo",
+                showBoundary=0,
+            )
+            self.addPageTemplates([PageTemplate(id="recibo", frames=[frame])])
+
+        def afterFlowable(self, flowable):
+            self.y_conteudo = self.frame._y
 
     buf = io.BytesIO()
     page_w = 80 * mm
-    page_h = 240 * mm
-    doc = SimpleDocTemplate(
-        buf, pagesize=(page_w, page_h),
-        leftMargin=4 * mm, rightMargin=4 * mm,
-        topMargin=6 * mm, bottomMargin=6 * mm,
-    )
-
+    # Folha alta de uma página só; o corte final tira o branco depois da logo.
+    page_h = 900 * mm
     styles = _estilos_pdf()
     col_w = page_w - 8 * mm
     story = _cabecalho_recibo_pdf(ctx, styles, col_w, mm)
@@ -359,5 +441,6 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     story.append(Spacer(1, 3 * mm))
     story.extend(_rodape_recibo_pdf(ctx, styles, mm))
 
+    doc = _ReciboDoc(buf, pagesize=(page_w, page_h))
     doc.build(story)
-    return buf.getvalue()
+    return _recortar_pdf_apos_conteudo(buf.getvalue(), doc.y_conteudo, mm)

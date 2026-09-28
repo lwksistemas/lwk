@@ -11,6 +11,8 @@ from django.utils import timezone
 
 from core.assinatura_service import AssinaturaAdapter
 
+from .recibo.moeda import formatar_moeda_recibo
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,12 +57,12 @@ class ReciboAssinaturaAdapter(AssinaturaAdapter):
                 valor = float(proc.get("valor") or 0)
             except (TypeError, ValueError):
                 valor = 0.0
-            linhas.append(f"{nome} — R$ {valor:.2f}")
+            linhas.append(f"{nome} — {formatar_moeda_recibo(valor)}")
         return linhas
 
     def get_valor_display(self, payment) -> str:
         try:
-            return f"R$ {float(payment.valor_total_efetivo):.2f}"
+            return formatar_moeda_recibo(payment.valor_total_efetivo)
         except Exception:
             return ""
 

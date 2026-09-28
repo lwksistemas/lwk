@@ -116,6 +116,18 @@ export function consultaPagamentoUi(c: Consulta): {
   };
 }
 
+/** Consulta já tem comprovante: abrir impressão/envio, sem o formulário de recebimento. */
+export function deveAbrirComprovanteRecibo(c: Consulta): boolean {
+  const saldo = saldoReceberConsulta(c);
+  const finalizada = consultaEstaConcluida(c);
+  if (saldo <= 0.009 && c.payment_status === "PAID") return true;
+  if (Boolean(c.retorno_gratuito) && finalizada && saldo <= 0.009) return true;
+  if (finalizada && saldo <= 0.009 && !c.payment_status) return true;
+  if (!finalizada || !c.payment_id) return false;
+  if (c.payment_method === "PRAZO" && Number(c.valor_pago ?? 0) <= 0.009) return true;
+  return c.payment_status === "PARTIAL" && saldo > 0.009;
+}
+
 export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) {
   const outraConsultaEmAndamento = historico.find(
     (c) => c.id !== selected.id && c.status === "IN_PROGRESS",

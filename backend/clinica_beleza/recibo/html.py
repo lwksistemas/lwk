@@ -9,9 +9,12 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
-    aplicar_valor_consulta_do_local,
     linhas_local_convenio_recibo,
+    reconciliar_conta_recibo,
+    situacao_recibo,
+    titulo_recibo,
 )
+from .moeda import formatar_moeda_recibo
 
 
 def _t(valor) -> str:
@@ -26,15 +29,10 @@ def _saldo(ctx: dict) -> float:
 
 def gerar_html_recibo(ctx: dict) -> str:
     """Monta o cupom de impressão a partir do mesmo ctx do PDF."""
-    ctx = aplicar_valor_consulta_do_local(ctx)
+    ctx = reconciliar_conta_recibo(ctx)
     saldo = _saldo(ctx)
-    retorno_sem_valor = bool(ctx.get("retorno_gratuito")) and float(ctx.get("valor_total") or 0) <= 0.009
-    if retorno_sem_valor:
-        titulo = "RECIBO DE RETORNO"
-    elif saldo > 0.009:
-        titulo = "COMPROVANTE DE ATENDIMENTO"
-    else:
-        titulo = "RECIBO DE PAGAMENTO"
+    titulo, subtitulo = titulo_recibo(ctx)
+    situacao = situacao_recibo(ctx)
     doc_line = _linha_documento_loja(ctx)
     tel_cep = ctx.get("loja_tel_cep") or _linha_tel_cep(
         ctx.get("loja_telefone", ""), ctx.get("loja_cep", ""),
@@ -48,7 +46,7 @@ def gerar_html_recibo(ctx: dict) -> str:
     for label, valor in linhas_taxa:
         servicos.append(
             f"<tr><td>{_t(label)}</td>"
-            f'<td style="text-align:right">R$ {valor:.2f}</td></tr>'
+            f'<td style="text-align:right">{formatar_moeda_recibo(valor)}</td></tr>'
         )
     for p in ctx.get("procedimentos") or []:
         nome = p.get("nome") or ""
@@ -58,71 +56,89 @@ def gerar_html_recibo(ctx: dict) -> str:
             continue
         servicos.append(
             f'<tr><td style="padding-left:8px">• {_t(nome)}</td>'
-            f'<td style="text-align:right">R$ {valor:.2f}</td></tr>'
+            f'<td style="text-align:right">{formatar_moeda_recibo(valor)}</td></tr>'
         )
     for label, valor in linhas_local_convenio_recibo(ctx):
         servicos.append(
-            f"<tr><td>{_t(label)}</td>"
-            f'<td style="text-align:right">{_t(valor)}</td></tr>'
+            f'<tr><td colspan="2">{_t(label)}<br>{_t(valor)}</td></tr>'
         )
 
     descontos = _linhas_descontos_recibo(ctx)
     subtotal = float(ctx.get("subtotal", ctx.get("valor_total") or 0))
     descontos_html = "".join(
         f"<tr><td>{_t(label)}</td>"
-        f'<td style="text-align:right">- R$ {valor:.2f}</td></tr>'
+        f'<td style="text-align:right">- {formatar_moeda_recibo(valor)}</td></tr>'
         for label, valor in descontos
     )
     if descontos:
         totais = (
             f'<tr><td><strong>Subtotal</strong></td>'
-            f'<td style="text-align:right"><strong>R$ {subtotal:.2f}</strong></td></tr>'
+            f'<td style="text-align:right"><strong>{formatar_moeda_recibo(subtotal)}</strong></td></tr>'
             f"{descontos_html}"
         )
     else:
         totais = ""
     totais += (
         f'<tr><td><strong>Total</strong></td>'
-        f'<td style="text-align:right"><strong>R$ {float(ctx.get("valor_total") or 0):.2f}</strong></td></tr>'
+        f'<td style="text-align:right"><strong>{formatar_moeda_recibo(ctx.get("valor_total") or 0)}</strong></td></tr>'
     )
 
     valor_pago = float(ctx.get("valor_pago") or 0)
-    formas = ctx.get("formas_pagamento") or []
+    formas = [
+        f for f in (ctx.get("formas_pagamento") or [])
+        if float(f.get("valor") or 0) > 0.009
+    ]
     if formas:
         formas_html = "".join(
             f"<tr><td>{_t(f.get('metodo'))}</td>"
-            f'<td style="text-align:right">R$ {float(f.get("valor") or 0):.2f}</td></tr>'
+            f'<td style="text-align:right">{formatar_moeda_recibo(f.get("valor") or 0)}</td></tr>'
             for f in formas
         )
     elif valor_pago > 0:
         formas_html = (
             f"<tr><td>{_t(ctx.get('metodo') or 'Pagamento')}</td>"
-            f'<td style="text-align:right">R$ {valor_pago:.2f}</td></tr>'
-        )
-    elif ctx.get("retorno_gratuito"):
-        formas_html = (
-            '<tr><td>Isento — retorno</td>'
-            '<td style="text-align:right">R$ 0.00</td></tr>'
+            f'<td style="text-align:right">{formatar_moeda_recibo(valor_pago)}</td></tr>'
         )
     else:
         formas_html = ""
 
     vencimento = (ctx.get("vencimento") or "").strip()
-    if saldo > 0.009:
-        saldo_bloco = (
-            f'<div class="total" style="font-size:12px;">SALDO A PAGAR: R$ {saldo:.2f}'
-            f"{f' — vencimento {_t(vencimento)}' if vencimento else ''}</div>"
-        )
-    elif ctx.get("retorno_gratuito") and valor_pago <= 0.009:
+    condicao = (ctx.get("condicao_cobranca") or "").strip()
+    if situacao == "sem_saldo":
+        valor_pago_bloco = ""
         saldo_bloco = (
             '<div class="footer" style="border-top:none;margin-top:0;">'
-            '<p style="font-weight:bold;color:#333;">Retorno isento</p></div>'
+            f'<p style="font-weight:bold;color:#333;">{_t(subtitulo)}</p></div>'
         )
     else:
-        saldo_bloco = (
-            '<div class="footer" style="border-top:none;margin-top:0;">'
-            '<p style="font-weight:bold;color:#333;">Quitado</p></div>'
+        rotulo_pago = "PAGO" if situacao == "parcial" else "VALOR PAGO"
+        valor_pago_bloco = (
+            f'<div class="total">{rotulo_pago}: {formatar_moeda_recibo(valor_pago)}</div>'
         )
+        if saldo > 0.009:
+            saldo_bloco = (
+                f'<div class="total" style="font-size:12px;">SALDO A PAGAR: {formatar_moeda_recibo(saldo)}'
+                f"{f' — vencimento {_t(vencimento)}' if vencimento else ''}</div>"
+            )
+        elif situacao == "quitado":
+            saldo_bloco = (
+                '<div class="footer" style="border-top:none;margin-top:0;">'
+                '<p style="font-weight:bold;color:#333;">Quitado</p></div>'
+            )
+        else:
+            saldo_bloco = ""
+    if formas_html:
+        formas_bloco = (
+            '<div class="section">'
+            '<div class="section-title">Formas de pagamento:</div>'
+            f"<table>{formas_html}</table></div>"
+        )
+    elif condicao:
+        formas_bloco = (
+            f'<p style="text-align:center">Condição de cobrança: {_t(condicao)}</p>'
+        )
+    else:
+        formas_bloco = ""
 
     aviso = (ctx.get("retorno_aviso") or "").strip()
     nome_loja = (ctx.get("loja_nome") or "CLÍNICA").upper()
@@ -131,8 +147,8 @@ def gerar_html_recibo(ctx: dict) -> str:
 <html><head><meta charset="UTF-8">
 <title>Recibo de Pagamento</title>
 <style>
-  /* size:auto no @page deixa o Chrome com preview em branco ao salvar PDF */
-  @page {{ margin: 5mm; }}
+  /* Largura do cupom. size:auto deixa o Chrome com preview em branco. */
+  @page {{ size: 80mm 297mm; margin: 4mm; }}
   html, body {{ background: #fff; color: #000; }}
   body {{ font-family: 'Courier New', monospace; width: 72mm; margin: 0 auto; padding: 8px; font-size: 11px; line-height: 1.4; }}
   .header {{ text-align: center; border-bottom: 1px dashed #333; padding-bottom: 6px; margin-bottom: 8px; }}
@@ -145,6 +161,7 @@ def gerar_html_recibo(ctx: dict) -> str:
   .divider {{ border-top: 1px dashed #333; margin: 8px 0; }}
   .total {{ font-size: 14px; font-weight: bold; text-align: center; margin: 8px 0; }}
   .footer {{ text-align: center; font-size: 9px; color: #666; margin-top: 10px; border-top: 1px dashed #333; padding-top: 6px; }}
+  .aviso {{ text-align: center; font-size: 12px; color: #333; margin: 8px 0; }}
   @media print {{
     html, body {{ width: 72mm !important; max-width: 72mm !important; margin: 0 !important; padding: 4px !important; background: #fff !important; }}
     .no-print, button {{ display: none !important; }}
@@ -158,7 +175,9 @@ def gerar_html_recibo(ctx: dict) -> str:
   {f'<p>{_t(tel_cep)}</p>' if tel_cep else ''}
   {f'<p>{_t(ctx.get("loja_email"))}</p>' if ctx.get("loja_email") else ''}
   <p style="margin-top:4px;font-weight:bold">{titulo}</p>
+  {f'<p>{_t(subtitulo)}</p>' if subtitulo else ''}
   <p>Emitido em {_t(data_emissao)}</p>
+  {f'<p>Recibo nº {_t(ctx.get("recibo_numero"))}</p>' if ctx.get("recibo_numero") else ''}
 </div>
 
 <div class="section">
@@ -188,18 +207,13 @@ def gerar_html_recibo(ctx: dict) -> str:
   {totais}
 </table>
 
-<div class="section">
-  <div class="section-title">Formas de pagamento:</div>
-  <table>
-    {formas_html}
-  </table>
-</div>
+{formas_bloco}
 
-<div class="total">VALOR PAGO: R$ {valor_pago:.2f}</div>
+{valor_pago_bloco}
 {saldo_bloco}
 
 <div class="footer">
-  {f'<p style="color:#333;margin-bottom:6px;">{_t(aviso)}</p>' if aviso else ''}
+  {f'<p class="aviso">{_t(aviso)}</p>' if aviso else ''}
   <p>Agradecemos pela confiança!</p>
   <p>Documento não fiscal — gerado pelo sistema.</p>
   <button type="button" class="no-print" onclick="try{{window.focus()}}catch(e){{}};setTimeout(function(){{window.print()}},50)" style="margin-top:8px;padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #333;border-radius:4px;background:#fff;">Imprimir</button>

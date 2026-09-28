@@ -198,10 +198,9 @@ export function gerarHtmlRecibo(params: {
     procsVisiveis.length > 0
       ? procsVisiveis.every((p) => nomeSoConsulta(p.nome || ""))
       : nomeSoConsulta(consulta.procedure_name || "");
-  const localNome = (consulta.local_atendimento_name || "").trim();
   const convenioNome = (consulta.convenio_name || "").trim() || "Particular";
   const localConvenioHtml = soConsulta
-    ? `${localNome ? `<tr><td colspan="2">Local ${escapeHtml(localNome)}</td></tr>` : ""}<tr><td colspan="2">Convênio ${escapeHtml(convenioNome)}</td></tr>`
+    ? `<tr><td colspan="2">Convênio ${escapeHtml(convenioNome)}</td></tr>`
     : "";
   const saldo = Math.max(saldoRestante, totalFinal - valorPago);
   const semSaldo = totalFinal <= 0.009 && valorPago <= 0.009;

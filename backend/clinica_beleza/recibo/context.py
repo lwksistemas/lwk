@@ -468,17 +468,13 @@ def _local_convenio_recibo(appointment) -> dict:
 
 
 def linhas_local_convenio_recibo(ctx: dict) -> list[tuple[str, str]]:
-    """Local e convênio só no recibo de consulta, sem outro procedimento."""
+    """Convênio só no recibo de consulta, sem outro procedimento. O local não entra no cupom."""
     if not recibo_so_consulta(ctx):
         return []
-    linhas = []
-    local = (ctx.get("local_nome") or "").strip()
     convenio = (ctx.get("convenio_nome") or "").strip()
-    if isinstance(local, str) and local:
-        linhas.append(("Local", local))
     if isinstance(convenio, str) and convenio:
-        linhas.append(("Convênio", convenio))
-    return linhas
+        return [("Convênio", convenio)]
+    return []
 
 
 def aplicar_valor_consulta_do_local(ctx: dict) -> dict:

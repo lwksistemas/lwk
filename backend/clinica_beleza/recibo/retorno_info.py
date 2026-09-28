@@ -70,15 +70,13 @@ def montar_info_retorno_recibo(
 def _aviso_taxa_descontada(dias: int, taxa: float, nome: str | None = None) -> str:
     from .moeda import formatar_moeda_recibo
 
+    del nome  # a frase é a mesma com ou sem procedimento
     valor = f" de {formatar_moeda_recibo(taxa)}" if taxa > 0.009 else ""
-    prazo = f" dentro de {dias} dias" if dias > 0 else ""
-    if nome and nome != "procedimento":
-        motivo = f" — retorno gratuito de {nome}{prazo}"
-    elif prazo:
-        motivo = f" — retorno gratuito{prazo}"
+    if dias > 0:
+        prazo = f" Retorno gratuito em até {dias} dias após o atendimento."
     else:
-        motivo = " — retorno gratuito"
-    return f"Taxa de consulta{valor} descontada neste atendimento{motivo}."
+        prazo = ""
+    return f"A taxa de consulta{valor} foi integralmente descontada neste atendimento.{prazo}"
 
 
 def _resolver_prazo_e_aviso(

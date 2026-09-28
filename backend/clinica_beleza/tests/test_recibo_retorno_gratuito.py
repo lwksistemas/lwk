@@ -110,7 +110,8 @@ class MontarInfoRetornoReciboTests(TestCase):
         self.assertEqual(info["taxa_consulta_referencia"], 180.0)
         self.assertEqual(info["retorno_dias"], 30)
         self.assertIn("30", info["retorno_aviso"])
-        self.assertIn("descontada", info["retorno_aviso"].lower())
+        self.assertIn("foi integralmente descontada neste atendimento", info["retorno_aviso"])
+        self.assertIn("após o atendimento", info["retorno_aviso"])
         self.assertIn("R$ 180,00", info["retorno_aviso"])
         self.assertNotIn("configurado", info["retorno_aviso"])
 

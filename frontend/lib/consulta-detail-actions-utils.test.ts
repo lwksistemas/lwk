@@ -299,6 +299,21 @@ describe("consultaPagamentoUi", () => {
       ),
     ).toBe(false);
   });
+
+  it("abre o comprovante de pagamento parcial finalizado", () => {
+    expect(
+      deveAbrirComprovanteRecibo(
+        consulta({
+          status: "COMPLETED",
+          payment_status: "PARTIAL",
+          payment_id: 205,
+          valor_pagamento: 700,
+          valor_pago: 300,
+          valor_restante: 400,
+        }),
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("mensagemValidacaoEvolucao", () => {

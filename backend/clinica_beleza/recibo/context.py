@@ -371,12 +371,15 @@ def _listar_formas_pagamento(payment) -> list[dict]:
                 # Sempre mostra a data do pagamento (não confundir com a emissão do recibo).
                 if g["data"] is not None and hasattr(g["data"], "strftime"):
                     label = f"{label} ({g['data'].strftime('%d/%m/%Y')})"
-                result.append({"metodo": label, "valor": round(g["valor"], 2)})
+                valor = round(g["valor"], 2)
+                if valor <= 0.009:
+                    continue
+                result.append({"metodo": label, "valor": valor})
             return result
     except Exception:
         logger.exception("Erro ao listar parcelas do recibo (payment %s)", payment.id)
-    # A prazo sem parcela paga não é forma de pagamento: o vencimento fica no saldo.
-    if payment.payment_method == "PRAZO":
+    # A prazo, ou método gravado com valor zero, não é forma de pagamento.
+    if payment.payment_method == "PRAZO" or float(payment.amount or 0) <= 0.009:
         return []
     metodo_label = METODOS.get(payment.payment_method, payment.payment_method)
     return [{"metodo": metodo_label, "valor": float(payment.amount or 0)}]

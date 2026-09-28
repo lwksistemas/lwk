@@ -60,8 +60,7 @@ def gerar_html_recibo(ctx: dict) -> str:
         )
     for label, valor in linhas_local_convenio_recibo(ctx):
         servicos.append(
-            f"<tr><td>{_t(label)}</td>"
-            f'<td style="text-align:right">{_t(valor)}</td></tr>'
+            f'<tr><td colspan="2">{_t(label)}<br>{_t(valor)}</td></tr>'
         )
 
     descontos = _linhas_descontos_recibo(ctx)
@@ -85,7 +84,10 @@ def gerar_html_recibo(ctx: dict) -> str:
     )
 
     valor_pago = float(ctx.get("valor_pago") or 0)
-    formas = ctx.get("formas_pagamento") or []
+    formas = [
+        f for f in (ctx.get("formas_pagamento") or [])
+        if float(f.get("valor") or 0) > 0.009
+    ]
     if formas:
         formas_html = "".join(
             f"<tr><td>{_t(f.get('metodo'))}</td>"
@@ -145,8 +147,8 @@ def gerar_html_recibo(ctx: dict) -> str:
 <html><head><meta charset="UTF-8">
 <title>Recibo de Pagamento</title>
 <style>
-  /* size:auto no @page deixa o Chrome com preview em branco ao salvar PDF */
-  @page {{ margin: 5mm; }}
+  /* Largura do cupom. size:auto deixa o Chrome com preview em branco. */
+  @page {{ size: 80mm 297mm; margin: 4mm; }}
   html, body {{ background: #fff; color: #000; }}
   body {{ font-family: 'Courier New', monospace; width: 72mm; margin: 0 auto; padding: 8px; font-size: 11px; line-height: 1.4; }}
   .header {{ text-align: center; border-bottom: 1px dashed #333; padding-bottom: 6px; margin-bottom: 8px; }}

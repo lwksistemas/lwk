@@ -123,12 +123,9 @@ export function deveAbrirComprovanteRecibo(c: Consulta): boolean {
   if (saldo <= 0.009 && c.payment_status === "PAID") return true;
   if (Boolean(c.retorno_gratuito) && finalizada && saldo <= 0.009) return true;
   if (finalizada && saldo <= 0.009 && !c.payment_status) return true;
-  return (
-    finalizada &&
-    c.payment_method === "PRAZO" &&
-    Number(c.valor_pago ?? 0) <= 0.009 &&
-    Boolean(c.payment_id)
-  );
+  if (!finalizada || !c.payment_id) return false;
+  if (c.payment_method === "PRAZO" && Number(c.valor_pago ?? 0) <= 0.009) return true;
+  return c.payment_status === "PARTIAL" && saldo > 0.009;
 }
 
 export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) {

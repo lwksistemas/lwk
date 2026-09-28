@@ -201,7 +201,7 @@ export function gerarHtmlRecibo(params: {
   const localNome = (consulta.local_atendimento_name || "").trim();
   const convenioNome = (consulta.convenio_name || "").trim() || "Particular";
   const localConvenioHtml = soConsulta
-    ? `${localNome ? `<tr><td>Local</td><td style="text-align:right">${escapeHtml(localNome)}</td></tr>` : ""}<tr><td>Convênio</td><td style="text-align:right">${escapeHtml(convenioNome)}</td></tr>`
+    ? `${localNome ? `<tr><td colspan="2">Local<br>${escapeHtml(localNome)}</td></tr>` : ""}<tr><td colspan="2">Convênio<br>${escapeHtml(convenioNome)}</td></tr>`
     : "";
   const saldo = Math.max(saldoRestante, totalFinal - valorPago);
   const semSaldo = totalFinal <= 0.009 && valorPago <= 0.009;
@@ -243,8 +243,8 @@ export function gerarHtmlRecibo(params: {
 <html><head><meta charset="UTF-8">
 <title>Recibo de Pagamento</title>
 <style>
-  /* size:auto no @page deixa o Chrome com preview em branco ao salvar PDF */
-  @page { margin: 5mm; }
+  /* Largura do cupom. size:auto deixa o Chrome com preview em branco. */
+  @page { size: 80mm 297mm; margin: 4mm; }
   html, body { background: #fff; color: #000; }
   body { font-family: 'Courier New', monospace; width: 72mm; margin: 0 auto; padding: 8px; font-size: 11px; line-height: 1.4; }
   .header { text-align: center; border-bottom: 1px dashed #333; padding-bottom: 6px; margin-bottom: 8px; }

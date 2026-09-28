@@ -172,11 +172,14 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
             Paragraph(f'• {_texto_pdf(p["nome"])}', s_left),
             Paragraph(formatar_moeda_recibo(p["valor"]), s_right),
         ])
+    spans = []
     for label, valor in linhas_local_convenio_recibo(ctx):
+        row = len(svc_data)
         svc_data.append([
-            Paragraph(_texto_pdf(label), s_left),
-            Paragraph(_texto_pdf(valor), s_right),
+            Paragraph(f"{_texto_pdf(label)}<br/>{_texto_pdf(valor)}", s_left),
+            Paragraph("", s_right),
         ])
+        spans.append(("SPAN", (0, row), (-1, row)))
 
     if not svc_data:
         return None
@@ -186,6 +189,8 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
         ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
         ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        *spans,
     ]))
     return svc_table
 
@@ -214,7 +219,10 @@ def _tabela_totais_recibo_pdf(ctx, styles, col_w):
         Paragraph(f"<b>{formatar_moeda_recibo(ctx['valor_total'])}</b>", s_right),
     ])
 
-    formas = ctx.get("formas_pagamento", [])
+    formas = [
+        f for f in (ctx.get("formas_pagamento") or [])
+        if float(f.get("valor") or 0) > 0.009
+    ]
     valor_pago = ctx.get("valor_pago", 0)
     if formas:
         totals_data.append([Paragraph("<b>Formas de pagamento:</b>", s_bold), Paragraph("", s_right)])

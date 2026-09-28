@@ -3,6 +3,7 @@ import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-t
 import {
   computeConsultaFlags,
   consultaPagamentoUi,
+  deveAbrirComprovanteRecibo,
   mensagemValidacaoEvolucao,
   valorPagamentoConsulta,
 } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
@@ -268,6 +269,35 @@ describe("consultaPagamentoUi", () => {
       mostrarIsento: false,
       consultaFinalizada: false,
     });
+  });
+
+  it("abre o comprovante de a prazo finalizado em vez do recebimento", () => {
+    expect(
+      deveAbrirComprovanteRecibo(
+        consulta({
+          status: "COMPLETED",
+          payment_status: "PENDING",
+          payment_method: "PRAZO",
+          payment_id: 204,
+          valor_pagamento: 500,
+          valor_pago: 0,
+          valor_restante: 500,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      deveAbrirComprovanteRecibo(
+        consulta({
+          status: "RECEBER",
+          payment_status: "PENDING",
+          payment_method: "PRAZO",
+          payment_id: 204,
+          valor_pagamento: 500,
+          valor_pago: 0,
+          valor_restante: 500,
+        }),
+      ),
+    ).toBe(false);
   });
 });
 

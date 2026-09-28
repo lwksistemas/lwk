@@ -45,7 +45,11 @@ export function ConsultaPagamentoButton({
         <button type="button"
           onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-slate-600 hover:bg-slate-700 ${pad}`}
-          title="A prazo — clique para receber ou ver o comprovante"
+          title={
+            consultaFinalizada
+              ? "A prazo — clique para imprimir ou enviar o recibo"
+              : "A prazo — clique para receber"
+          }
         >
           <DollarSign size={iconSize} />
           A prazo

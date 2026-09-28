@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
 import {
+  deveAbrirComprovanteRecibo,
   saldoReceberConsulta,
   valorPagamentoConsulta,
 } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
@@ -108,11 +109,7 @@ export function ModalReceberConsulta({
 
   useEffect(() => {
     if (open && !prevOpen) {
-      const novoSaldo = saldoReceberConsulta(consulta);
-      const quitado = novoSaldo <= 0 && consulta.payment_status === "PAID";
-      const retornoGratuitoFinalizado = Boolean(consulta.retorno_gratuito) && consulta.status === "COMPLETED" && novoSaldo <= 0;
-      const finalizadaSemPagamento = consulta.status === "COMPLETED" && novoSaldo <= 0 && !consulta.payment_status;
-      if (quitado || retornoGratuitoFinalizado || finalizadaSemPagamento) {
+      if (deveAbrirComprovanteRecibo(consulta)) {
         setConfirmado(true);
         setConsultaAtualizada(consulta);
         setReciboSnapshot(null);

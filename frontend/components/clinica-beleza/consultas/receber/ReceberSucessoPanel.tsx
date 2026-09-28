@@ -133,6 +133,7 @@ export function ReceberSucessoPanel({
   onWhatsApp,
 }: ReceberSucessoPanelProps) {
   const snap = reciboSnapshot;
+  const visualizandoReciboPrazo = ehAPrazo && !snap;
   const resumoFormas = snap
     ? formatEntradasResumo(snap.entradas, CLINICA_FORMA_PAGAMENTO_LABEL as Record<string, string>)
     : "";
@@ -156,9 +157,11 @@ export function ReceberSucessoPanel({
           >
             {precisaComplementar
               ? "✓ Pagamento parcial registrado"
-              : ehAPrazo
-                ? "✓ Pagamento a prazo registrado"
-                : "✓ Pagamento registrado"}
+              : visualizandoReciboPrazo
+                ? "Recibo a prazo"
+                : ehAPrazo
+                  ? "✓ Pagamento a prazo registrado"
+                  : "✓ Pagamento registrado"}
           </h2>
           <button type="button" onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded-lg">
             <X size={18} />
@@ -197,10 +200,12 @@ export function ReceberSucessoPanel({
                 <strong>Desconto retorno:</strong> {formatCurrency(valorTotalConsulta)}
               </p>
             )}
-            <p>
-              <strong>Valor recebido nesta operação:</strong>{" "}
-              {formatCurrency(snap?.totalLiquido ?? Number(consultaExibida.valor_pago ?? 0))}
-            </p>
+            {!visualizandoReciboPrazo && (
+              <p>
+                <strong>Valor recebido nesta operação:</strong>{" "}
+                {formatCurrency(snap?.totalLiquido ?? Number(consultaExibida.valor_pago ?? 0))}
+              </p>
+            )}
             {ehAPrazo && (
               <p className="font-semibold text-slate-800 dark:text-slate-200 pt-1">
                 A prazo: {formatCurrency(Number(consultaExibida.valor_restante ?? 0))}
@@ -242,10 +247,12 @@ export function ReceberSucessoPanel({
             </button>
           )}
 
-          {consultaJaFinalizada ? (
+          {consultaJaFinalizada || visualizandoReciboPrazo ? (
             <>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Envie o recibo de pagamento para o cliente:
+                {visualizandoReciboPrazo
+                  ? "Imprima ou reenvie o recibo assinado para o cliente:"
+                  : "Envie o recibo de pagamento para o cliente:"}
               </p>
               <ReceberReciboActions
                 onImprimir={onImprimir}

@@ -4,12 +4,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..consulta_service import criar_consulta_avulsa
+from ..consultas_lista_service import filtrar_consultas_lista, resumo_financeiro_consultas
 from ..models import Consulta, Patient, Procedure, Professional
 from ..pagination import paginate_queryset
 from ..permissions import CLINICA_CLINICAL
 from ..serializers import ConsultaSerializer
 from ..views_base import resolve_loja_id_from_request
-from .helpers import aplicar_ordem_fila_iniciar, q_consultas_aguardando_inicio
 
 
 class ConsultaListView(APIView):
@@ -37,19 +37,19 @@ class ConsultaListView(APIView):
         ).exclude(
             status="CANCELLED",
         ).order_by("-data_inicio", "-created_at")
-        if patient_id := request.query_params.get("patient"):
-            qs = qs.filter(patient_id=patient_id)
-        if professional_id := request.query_params.get("professional"):
-            qs = qs.filter(professional_id=professional_id)
-        if st := request.query_params.get("status"):
-            qs = qs.filter(status=st)
-        if appointment_id := request.query_params.get("appointment"):
-            qs = qs.filter(appointment_id=appointment_id)
-        if (request.query_params.get("fila") or "").strip().lower() == "iniciar":
-            qs = aplicar_ordem_fila_iniciar(qs.filter(q_consultas_aguardando_inicio()))
-        elif (request.query_params.get("ordem") or "").strip().lower() == "nome":
-            qs = qs.order_by("patient__nome", "patient_id", "-data_inicio", "-id")
+        qs = filtrar_consultas_lista(qs, request.query_params)
         return paginate_queryset(qs, request, ConsultaListSerializer)
+
+
+class ConsultaResumoFinanceiroView(APIView):
+    """GET /clinica-beleza/consultas/resumo-financeiro/ — totais do filtro da lista."""
+
+    permission_classes = CLINICA_CLINICAL
+
+    def get(self, request):
+        qs = Consulta.objects.exclude(status="CANCELLED")
+        qs = filtrar_consultas_lista(qs, request.query_params)
+        return Response(resumo_financeiro_consultas(qs))
 
     def post(self, request):
         patient_id = request.data.get("patient")

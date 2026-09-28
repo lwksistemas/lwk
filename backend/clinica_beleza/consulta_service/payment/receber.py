@@ -253,8 +253,9 @@ def registrar_recebimento_consulta(
         .get(pk=consulta.pk)
     )
 
-    if consulta.status in ("COMPLETED", "CANCELLED"):
-        raise ValueError("Consulta não está aberta para recebimento.")
+    if consulta.status == "CANCELLED":
+        raise ValueError("Consulta cancelada não aceita recebimento.")
+    ja_finalizada = consulta.status == "COMPLETED"
 
     appointment = consulta.appointment
     consulta_service._garantir_valor_consulta_consulta(consulta)
@@ -316,6 +317,10 @@ def registrar_recebimento_consulta(
         raise ValueError(f"Soma das formas (R$ {soma_entradas}) excede o saldo a receber (R$ {saldo}).")
 
     _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_as_paid, ts)
+    if ja_finalizada:
+        # Mantém COMPLETED e publica no Financeiro na hora (não volta para rascunho).
+        _log_movimento_financeiro("Recebimento registrado", consulta, payment, usuario)
+        return publicar_pagamento_financeiro(consulta, usuario=usuario) or payment
     _atualizar_status_consulta_apos_recebimento(consulta, payment)
     _log_movimento_financeiro("Recebimento registrado", consulta, payment, usuario)
     return payment

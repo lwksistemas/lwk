@@ -9,6 +9,7 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     linhas_local_convenio_recibo,
+    recebido_a_maior_recibo,
     reconciliar_conta_recibo,
     situacao_recibo,
     titulo_recibo,
@@ -234,6 +235,12 @@ def _tabela_totais_recibo_pdf(ctx, styles, col_w):
     elif valor_pago > 0:
         metodo = ctx.get("metodo", "")
         totals_data.append([Paragraph(_texto_pdf(metodo), s_left), Paragraph(formatar_moeda_recibo(valor_pago), s_right)])
+    extra = recebido_a_maior_recibo(ctx)
+    if extra > 0.009:
+        totals_data.append([
+            Paragraph("Recebido a maior", s_left),
+            Paragraph(formatar_moeda_recibo(extra), s_right),
+        ])
 
     totals_table = Table(totals_data, colWidths=[col_w * 0.55, col_w * 0.45])
     totals_table.setStyle(TableStyle([

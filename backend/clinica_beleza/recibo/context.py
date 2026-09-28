@@ -74,7 +74,11 @@ def _buscar_procedimentos_recibo(appointment) -> list[dict]:
     try:
         ap_procs = appointment.appointment_procedures.select_related("procedure").all()
         for ap in ap_procs:
-            procs.append({"nome": ap.procedure.nome, "valor": float(ap.get_valor())})
+            procs.append({
+                "nome": ap.procedure.nome,
+                "valor": float(ap.get_valor()),
+                "preco_cadastro": float(getattr(ap.procedure, "preco", 0) or 0),
+            })
     except Exception:
         logger.exception("Erro ao listar procedimentos do recibo")
     if not procs and appointment.procedure:
@@ -538,13 +542,45 @@ def _rotulo_abatimento(procedimentos, gap: float) -> str:
     return "Abatimento"
 
 
+def recebido_a_maior_recibo(ctx: dict) -> float:
+    """Dinheiro recebido acima do total cobrado, sem troco lançado."""
+    total = float(ctx.get("valor_total") or 0)
+    pago = float(ctx.get("valor_pago") or 0)
+    extra = round(pago - total, 2)
+    return extra if extra > 0.009 else 0.0
+
+
+def _repor_preco_que_fecha_conta(ctx: dict) -> dict:
+    """Linha gravada a R$ 0 cujo preço de cadastro fecha a conta com o total cobrado."""
+    desconto_retorno, desconto = _descontos_conhecidos_recibo(ctx)
+    subtotal = float(ctx.get("subtotal") or 0)
+    valor_total = float(ctx.get("valor_total") or 0)
+    falta = round(valor_total - (subtotal - desconto_retorno - desconto), 2)
+    if falta <= 0.009:
+        return ctx
+    procs = [dict(p) for p in (ctx.get("procedimentos") or [])]
+    candidatos = []
+    for proc in procs:
+        valor = float(proc.get("valor") or 0)
+        catalogo = float(proc.get("preco_cadastro") or 0)
+        if valor <= 0.009 and abs(catalogo - falta) <= 0.02:
+            candidatos.append(proc)
+    if len(candidatos) != 1:
+        return ctx
+    candidatos[0]["valor"] = round(falta, 2)
+    ctx["procedimentos"] = procs
+    ctx["subtotal"] = round(subtotal + falta, 2)
+    return ctx
+
+
 def reconciliar_conta_recibo(ctx: dict) -> dict:
     """Fecha a conta impressa: taxa omitida entra no total; o resto vira abatimento.
 
     O total cobrado permanece. Se a soma dos itens menos os descontos conhecidos
     for maior, a diferença sai como linha própria (ex.: procedimento não cobrado).
+    Linha a R$ 0 cujo preço de cadastro explica o total cobrado volta a esse preço.
     """
-    ctx = aplicar_valor_consulta_do_local(dict(ctx))
+    ctx = _repor_preco_que_fecha_conta(aplicar_valor_consulta_do_local(dict(ctx)))
     desconto_retorno, desconto = _descontos_conhecidos_recibo(ctx)
     subtotal = float(ctx.get("subtotal") or 0)
     valor_total = float(ctx.get("valor_total") or 0)

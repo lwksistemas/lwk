@@ -11,6 +11,7 @@ from .context import (
     _obter_dados_contexto,
     linhas_local_convenio_recibo,
     reconciliar_conta_recibo,
+    recebido_a_maior_recibo,
     situacao_recibo,
     titulo_recibo,
 )
@@ -101,6 +102,12 @@ def gerar_html_recibo(ctx: dict) -> str:
         )
     else:
         formas_html = ""
+    extra = recebido_a_maior_recibo(ctx)
+    extra_bloco = (
+        f'<div class="total" style="font-size:12px;">RECEBIDO A MAIOR: {formatar_moeda_recibo(extra)}</div>'
+        if extra > 0.009
+        else ""
+    )
 
     vencimento = (ctx.get("vencimento") or "").strip()
     condicao = (ctx.get("condicao_cobranca") or "").strip()
@@ -210,6 +217,7 @@ def gerar_html_recibo(ctx: dict) -> str:
 {formas_bloco}
 
 {valor_pago_bloco}
+{extra_bloco}
 {saldo_bloco}
 
 <div class="footer">

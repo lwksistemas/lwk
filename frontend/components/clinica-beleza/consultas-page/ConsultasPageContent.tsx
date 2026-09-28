@@ -26,6 +26,7 @@ import {
   useConsultasNovaConsulta,
 } from "./useConsultasPage";
 import { useConsultasColunas } from "@/hooks/clinica-beleza/useConsultasColunas";
+import { useClinicaPodeVerConsulta } from "@/hooks/clinica-beleza/useClinicaPodeVerConsulta";
 import {
   buildConsultaDetailHref,
   buildConsultasListQueryParams,
@@ -41,6 +42,8 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const consultaIdParam = searchParams.get("id");
+  const { podeVerConsulta, loaded: acessoCarregado } = useClinicaPodeVerConsulta();
+  const acessoClinico = acessoCarregado && podeVerConsulta;
 
   const [receberConsulta, setReceberConsulta] = useState<Consulta | null>(null);
   const [abrindoReceberId, setAbrindoReceberId] = useState<number | null>(null);
@@ -202,7 +205,7 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
     [router, slug],
   );
 
-  if (deepLink.selected) {
+  if (acessoClinico && deepLink.selected) {
     return (
       <ConsultaDetailView
         consulta={deepLink.selected}
@@ -247,7 +250,8 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
         onReceberConsulta={abrirReceberNaLista}
         onIniciarConsulta={iniciarNaLista}
         onExcluirConsulta={excluirNaLista}
-        onVerProntuario={verProntuario}
+        onVerProntuario={acessoClinico ? verProntuario : undefined}
+        acessoClinico={acessoClinico}
         recebendoConsultaId={abrindoReceberId}
         iniciandoConsultaId={iniciandoId}
         excluindoConsultaId={excluindoId}

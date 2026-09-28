@@ -11,7 +11,7 @@ from ..consulta_service import (
     registrar_recebimento_consulta,
 )
 from ..models import Consulta, ProcedureProtocol, Professional
-from ..permissions import CLINICA_ADMIN, CLINICA_CLINICAL, CLINICA_FINANCEIRO, IsClinicaAdmin
+from ..permissions import CLINICA_ADMIN, CLINICA_CLINICAL, CLINICA_CONSULTA_OPERACIONAL, CLINICA_FINANCEIRO, IsClinicaAdmin
 from ..serializers import ConsultaSerializer
 from .helpers import get_consulta_or_404
 
@@ -69,7 +69,7 @@ class ConsultaIniciarView(APIView):
 class ConsultaReceberView(APIView):
     """POST /clinica-beleza/consultas/<id>/receber/ — registra pagamento (total ou parcial)."""
 
-    permission_classes = CLINICA_CLINICAL
+    permission_classes = CLINICA_CONSULTA_OPERACIONAL
 
     def post(self, request, pk):
         consulta, error = get_consulta_or_404(pk, select_related=(

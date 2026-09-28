@@ -130,6 +130,21 @@ class IsClinicaAdmin(_BaseClinicaProfilePermission):
     allowed_profiles = (ProfissionalUsuario.PERFIL_ADMINISTRADOR,)
 
 
+class IsClinicaConsultaOperacional(_BaseClinicaProfilePermission):
+    """Lista e recebimento da consulta: profissional, administrador e recepção.
+
+    A recepção controla o financeiro. O prontuário continua só com profissional e admin.
+    """
+
+    message = "Acesso permitido apenas ao profissional, administrador ou recepção da clínica."
+    allowed_profiles = (
+        ProfissionalUsuario.PERFIL_ADMINISTRADOR,
+        ProfissionalUsuario.PERFIL_PROFISSIONAL,
+        ProfissionalUsuario.PERFIL_RECEPCAO,
+        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+    )
+
+
 class IsClinicaClinicalStaff(_BaseClinicaProfilePermission):
     """Consulta, prontuário, prescrição e documentos — só profissional e admin.
 
@@ -225,6 +240,7 @@ CLINICA_RECEPCAO = [IsAuthenticated, IsClinicaLojaMember, IsRecepcaoOrAdmin]
 CLINICA_AGENDA = [IsAuthenticated, IsClinicaLojaMember, IsAgendaOrAdmin]
 CLINICA_ADMIN = [IsAuthenticated, IsClinicaLojaMember, IsClinicaAdmin]
 CLINICA_CLINICAL = [IsAuthenticated, IsClinicaLojaMember, IsClinicaClinicalStaff]
+CLINICA_CONSULTA_OPERACIONAL = [IsAuthenticated, IsClinicaLojaMember, IsClinicaConsultaOperacional]
 CLINICA_FINANCEIRO = [IsAuthenticated, IsClinicaLojaMember, IsClinicaFinanceiro]
 CLINICA_ESTOQUE = [IsAuthenticated, IsClinicaLojaMember, IsClinicaEstoque]
 CLINICA_ESTOQUE_LEITURA = [IsAuthenticated, IsClinicaLojaMember, IsClinicalOrEstoqueStaff]

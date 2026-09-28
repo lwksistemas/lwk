@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usuarioPodeVerConsulta } from "@/components/clinica-beleza/clinica-beleza-nav";
+import { usuarioPodeAbrirConsultas, usuarioPodeVerConsulta } from "@/components/clinica-beleza/clinica-beleza-nav";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 
 export function useClinicaPodeVerConsulta() {
   const [podeVerConsulta, setPodeVerConsulta] = useState(true);
+  const [podeAbrirConsultas, setPodeAbrirConsultas] = useState(true);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -14,12 +15,15 @@ export function useClinicaPodeVerConsulta() {
       .get()
       .then((me) => {
         if (!ativo) return;
-        setPodeVerConsulta(usuarioPodeVerConsulta(me ?? {}));
+        const dados = me ?? {};
+        setPodeVerConsulta(usuarioPodeVerConsulta(dados));
+        setPodeAbrirConsultas(usuarioPodeAbrirConsultas(dados));
         setLoaded(true);
       })
       .catch(() => {
         if (!ativo) return;
         setPodeVerConsulta(false);
+        setPodeAbrirConsultas(false);
         setLoaded(true);
       });
     return () => {
@@ -27,5 +31,5 @@ export function useClinicaPodeVerConsulta() {
     };
   }, []);
 
-  return { podeVerConsulta, loaded };
+  return { podeVerConsulta, podeAbrirConsultas, loaded };
 }

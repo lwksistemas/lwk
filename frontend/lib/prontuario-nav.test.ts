@@ -3,6 +3,7 @@ import {
   CLINICA_BELEZA_NAV_ITEMS,
   isClinicaBelezaNavActive,
   navItemsClinicaBeleza,
+  usuarioPodeAbrirConsultas,
   usuarioPodeVerConsulta,
 } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
@@ -74,6 +75,11 @@ describe("nav consultas", () => {
     expect(usuarioPodeVerConsulta({ perfil: "profissional" })).toBe(true);
     expect(usuarioPodeVerConsulta({ is_administrador: true, perfil: "recepcionista" })).toBe(true);
     expect(usuarioPodeVerConsulta({ pode_ver_consulta: false, perfil: "profissional" })).toBe(false);
+    expect(usuarioPodeAbrirConsultas({ perfil: "recepcionista" })).toBe(true);
+    expect(usuarioPodeAbrirConsultas({ perfil: "recepcao" })).toBe(true);
+    expect(usuarioPodeAbrirConsultas({ perfil: "caixa" })).toBe(false);
+    expect(usuarioPodeAbrirConsultas({ pode_abrir_consultas: true, perfil: "recepcionista" })).toBe(true);
+    expect(usuarioPodeAbrirConsultas({ pode_ver_consulta: false, pode_abrir_consultas: false })).toBe(false);
     expect(navItemsClinicaBeleza(false).map((i) => i.label)).not.toContain("Consultas");
     expect(navItemsClinicaBeleza(true).map((i) => i.label)).toContain("Consultas");
     expect(navItemsClinicaBeleza(false).map((i) => i.label)).toContain("Agenda");

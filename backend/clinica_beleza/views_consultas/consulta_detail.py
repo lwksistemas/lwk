@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 
 from ..consulta_service import consulta_esta_concluida, motivo_bloqueio_exclusao_consulta
 from ..models import Consulta
-from ..permissions import CLINICA_CLINICAL
+from ..permissions import CLINICA_CLINICAL, CLINICA_CONSULTA_OPERACIONAL
 from ..serializers import ConsultaSerializer
 from ..views_base import GetObjectMixin
 
@@ -16,6 +16,11 @@ class ConsultaDetailView(GetObjectMixin, APIView):
     permission_classes = CLINICA_CLINICAL
     model_class = Consulta
     not_found_message = "Consulta não encontrada"
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [perm() for perm in CLINICA_CONSULTA_OPERACIONAL]
+        return [perm() for perm in CLINICA_CLINICAL]
     select_related_fields = (
         "patient", "professional", "procedure", "protocol", "appointment",
         "appointment__nome_agenda", "local_atendimento", "convenio",

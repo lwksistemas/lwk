@@ -34,6 +34,7 @@ class BuildMePayloadTests(SimpleTestCase):
         self.assertFalse(payload["is_administrador"])
         self.assertIsNone(payload["perfil"])
         self.assertFalse(payload["pode_ver_consulta"])
+        self.assertFalse(payload["pode_abrir_consultas"])
 
     def test_usa_nome_do_profissional_vinculado(self):
         user = SimpleNamespace(username="bruna.login", get_full_name=lambda: "", id=9, is_superuser=False)
@@ -51,6 +52,7 @@ class BuildMePayloadTests(SimpleTestCase):
         self.assertFalse(payload["is_administrador"])
         self.assertEqual(payload["perfil"], "profissional")
         self.assertTrue(payload["pode_ver_consulta"])
+        self.assertTrue(payload["pode_abrir_consultas"])
 
     def test_owner_eh_administrador(self):
         user = SimpleNamespace(username="dona", get_full_name=lambda: "", id=4, is_superuser=False)
@@ -64,6 +66,7 @@ class BuildMePayloadTests(SimpleTestCase):
             payload = build_me_payload(user, 6)
         self.assertTrue(payload["is_administrador"])
         self.assertTrue(payload["pode_ver_consulta"])
+        self.assertTrue(payload["pode_abrir_consultas"])
 
     def test_perfil_administrador(self):
         from superadmin.models import ProfissionalUsuario
@@ -77,6 +80,7 @@ class BuildMePayloadTests(SimpleTestCase):
             payload = build_me_payload(user, 6)
         self.assertTrue(payload["is_administrador"])
         self.assertTrue(payload["pode_ver_consulta"])
+        self.assertTrue(payload["pode_abrir_consultas"])
 
     def test_recepcao_nao_ve_consulta(self):
         user = SimpleNamespace(username="recep", get_full_name=lambda: "", id=11, is_superuser=False)
@@ -89,9 +93,11 @@ class BuildMePayloadTests(SimpleTestCase):
         self.assertEqual(payload["perfil"], "recepcionista")
         self.assertFalse(payload["is_administrador"])
         self.assertFalse(payload["pode_ver_consulta"])
+        self.assertTrue(payload["pode_abrir_consultas"])
 
     def test_superuser_eh_administrador(self):
         user = SimpleNamespace(username="root", get_full_name=lambda: "", id=1, is_superuser=True)
         payload = build_me_payload(user, None)
         self.assertTrue(payload["is_administrador"])
         self.assertTrue(payload["pode_ver_consulta"])
+        self.assertTrue(payload["pode_abrir_consultas"])

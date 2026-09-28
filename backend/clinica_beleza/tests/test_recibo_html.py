@@ -104,10 +104,10 @@ class GerarHtmlReciboTests(SimpleTestCase):
             ),
         )
         self.assertIn("Consulta", html)
-        self.assertIn("Local", html)
-        self.assertIn("CONSULTÓRIO", html)
-        self.assertIn("Convênio", html)
-        self.assertIn("PARTICULAR", html)
+        self.assertIn("Local CONSULTÓRIO", html)
+        self.assertIn("Convênio PARTICULAR", html)
+        self.assertNotIn("Local<br>", html)
+        self.assertNotIn("Convênio<br>", html)
 
     def test_so_consulta_sem_retorno_usa_taxa_do_local(self):
         html = gerar_html_recibo(

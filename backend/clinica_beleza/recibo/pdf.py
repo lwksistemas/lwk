@@ -177,7 +177,7 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
     for label, valor in linhas_local_convenio_recibo(ctx):
         row = len(svc_data)
         svc_data.append([
-            Paragraph(f"{_texto_pdf(label)}<br/>{_texto_pdf(valor)}", s_left),
+            Paragraph(f"{_texto_pdf(label)} {_texto_pdf(valor)}", s_left),
             Paragraph("", s_right),
         ])
         spans.append(("SPAN", (0, row), (-1, row)))

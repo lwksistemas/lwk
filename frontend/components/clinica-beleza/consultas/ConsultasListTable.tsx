@@ -25,6 +25,8 @@ interface Props {
   onIniciar?: (consulta: Consulta) => void;
   onExcluir?: (consulta: Consulta) => void;
   onVerProntuario?: (consulta: Consulta) => void;
+  /** Profissional e administrador abrem a ficha. Recepção só recebe. */
+  acessoClinico?: boolean;
   recebendoConsultaId?: number | null;
   iniciandoConsultaId?: number | null;
   excluindoConsultaId?: number | null;
@@ -127,6 +129,7 @@ export function ConsultasListTable({
   onIniciar,
   onExcluir,
   onVerProntuario,
+  acessoClinico = true,
   recebendoConsultaId = null,
   iniciandoConsultaId = null,
   excluindoConsultaId = null,
@@ -149,14 +152,14 @@ export function ConsultasListTable({
     <EntityListTable
       rows={consultas}
       rowKey={(c) => c.id}
-      onRowClick={onSelect}
+      onRowClick={acessoClinico ? onSelect : undefined}
       trailingCell={(c) => {
         const acoes = prontuarioConsultaAtualAcoes(c, consultas);
         const iniciando = iniciandoConsultaId === c.id;
         const excluindo = excluindoConsultaId === c.id;
         return (
           <div className="flex flex-wrap items-center justify-end gap-1.5">
-            {onExcluir && acoes.podeExcluir && (
+            {acessoClinico && onExcluir && acoes.podeExcluir && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -170,7 +173,7 @@ export function ConsultasListTable({
                 {excluindo ? "Excluindo…" : "Excluir"}
               </button>
             )}
-            {onIniciar && acoes.podeIniciar && (
+            {acessoClinico && onIniciar && acoes.podeIniciar && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -185,7 +188,7 @@ export function ConsultasListTable({
                 {iniciando ? "Iniciando…" : "Iniciar consulta"}
               </button>
             )}
-            {onIniciar && acoes.bloqueadaPorOutraEmAndamento && (
+            {acessoClinico && onIniciar && acoes.bloqueadaPorOutraEmAndamento && (
               <button
                 type="button"
                 disabled
@@ -197,7 +200,7 @@ export function ConsultasListTable({
                 Iniciar consulta
               </button>
             )}
-            {acoes.mostrarContinuar && (
+            {acessoClinico && acoes.mostrarContinuar && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -211,7 +214,7 @@ export function ConsultasListTable({
                 Continuar
               </button>
             )}
-            {onVerProntuario && (
+            {acessoClinico && onVerProntuario && (
               <button
                 type="button"
                 onClick={(e) => {

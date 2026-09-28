@@ -66,6 +66,18 @@ export function usuarioPodeVerConsulta(me: {
   return me.perfil === 'profissional';
 }
 
+/** Lista de consultas (financeiro): profissional, administrador e recepção. */
+export function usuarioPodeAbrirConsultas(me: {
+  is_administrador?: boolean;
+  perfil?: string | null;
+  pode_ver_consulta?: boolean;
+  pode_abrir_consultas?: boolean;
+}): boolean {
+  if (typeof me.pode_abrir_consultas === 'boolean') return me.pode_abrir_consultas;
+  if (usuarioPodeVerConsulta(me)) return true;
+  return me.perfil === 'recepcionista' || me.perfil === 'recepcao';
+}
+
 export function navItemsClinicaBeleza(podeVerConsulta: boolean): ClinicaBelezaNavItem[] {
   if (podeVerConsulta) return CLINICA_BELEZA_NAV_ITEMS;
   return CLINICA_BELEZA_NAV_ITEMS.filter((item) => item.path !== CONSULTAS_NAV_PATH);

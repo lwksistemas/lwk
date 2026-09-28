@@ -55,6 +55,10 @@ def build_me_payload(user, loja_id: int | None) -> dict:
         or perfil == ProfissionalUsuario.PERFIL_PROFISSIONAL
         or getattr(user, "is_superuser", False)
     )
+    pode_abrir_consultas = pode_ver_consulta or perfil in (
+        ProfissionalUsuario.PERFIL_RECEPCAO,
+        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+    )
     return {
         "user_display_name": resolve_user_display_name(user, professional_nome=professional_nome),
         "username": getattr(user, "username", "") or "",
@@ -62,4 +66,5 @@ def build_me_payload(user, loja_id: int | None) -> dict:
         "is_administrador": is_administrador,
         "perfil": perfil,
         "pode_ver_consulta": pode_ver_consulta,
+        "pode_abrir_consultas": pode_abrir_consultas,
     }

@@ -27,8 +27,8 @@ export function ClinicaBelezaSidebarNav({
   onNavigate,
 }: ClinicaBelezaSidebarNavProps) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  const { podeVerConsulta } = useClinicaPodeVerConsulta();
-  const navItems = navItemsClinicaBeleza(podeVerConsulta);
+  const { podeAbrirConsultas } = useClinicaPodeVerConsulta();
+  const navItems = navItemsClinicaBeleza(podeAbrirConsultas);
 
   useEffect(() => {
     const initial = buildInitialOpenGroups(pathname, slug);

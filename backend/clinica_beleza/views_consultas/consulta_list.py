@@ -7,7 +7,7 @@ from ..consulta_service import criar_consulta_avulsa
 from ..consultas_lista_service import filtrar_consultas_lista, resumo_financeiro_consultas
 from ..models import Consulta, Patient, Procedure, Professional
 from ..pagination import paginate_queryset
-from ..permissions import CLINICA_CLINICAL
+from ..permissions import CLINICA_CLINICAL, CLINICA_CONSULTA_OPERACIONAL
 from ..serializers import ConsultaSerializer
 from ..views_base import resolve_loja_id_from_request
 
@@ -18,7 +18,12 @@ class ConsultaListView(APIView):
          agenda) a partir do cadastro do cliente.
     """
 
-    permission_classes = CLINICA_CLINICAL
+    permission_classes = CLINICA_CONSULTA_OPERACIONAL
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [perm() for perm in CLINICA_CONSULTA_OPERACIONAL]
+        return [perm() for perm in CLINICA_CLINICAL]
 
     def get(self, request):
         from django.db.models import Count
@@ -44,7 +49,7 @@ class ConsultaListView(APIView):
 class ConsultaResumoFinanceiroView(APIView):
     """GET /clinica-beleza/consultas/resumo-financeiro/ — totais do filtro da lista."""
 
-    permission_classes = CLINICA_CLINICAL
+    permission_classes = CLINICA_CONSULTA_OPERACIONAL
 
     def get(self, request):
         qs = Consulta.objects.exclude(status="CANCELLED")

@@ -48,6 +48,7 @@ interface ConsultasListViewProps {
   onIniciarConsulta?: (c: Consulta) => void;
   onExcluirConsulta?: (c: Consulta) => void;
   onVerProntuario?: (c: Consulta) => void;
+  acessoClinico?: boolean;
   recebendoConsultaId?: number | null;
   iniciandoConsultaId?: number | null;
   excluindoConsultaId?: number | null;
@@ -87,6 +88,7 @@ export function ConsultasListView({
   onIniciarConsulta,
   onExcluirConsulta,
   onVerProntuario,
+  acessoClinico = true,
   recebendoConsultaId = null,
   iniciandoConsultaId = null,
   excluindoConsultaId = null,
@@ -100,7 +102,7 @@ export function ConsultasListView({
       <ClinicaBelezaStandardPageHeader
         title="Consultas"
         subtitle="Cliente presente na Agenda · inicie, receba ou abra o prontuário"
-        onNew={onNovaConsulta}
+        onNew={acessoClinico ? onNovaConsulta : undefined}
         newLabel="Nova consulta"
         beforeLogout={
           <LocalizarClienteButton
@@ -282,6 +284,7 @@ export function ConsultasListView({
               onIniciar={onIniciarConsulta}
               onExcluir={onExcluirConsulta}
               onVerProntuario={onVerProntuario}
+              acessoClinico={acessoClinico}
               recebendoConsultaId={recebendoConsultaId}
               iniciandoConsultaId={iniciandoConsultaId}
               excluindoConsultaId={excluindoConsultaId}

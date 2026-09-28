@@ -137,6 +137,7 @@ class MontarInfoRetornoReciboTests(TestCase):
         self.assertFalse(info["retorno_gratuito"])
         self.assertEqual(info["retorno_dias"], 20)
         self.assertIn("20", info["retorno_aviso"])
-        self.assertIn("Retorno gratuito", info["retorno_aviso"])
+        self.assertIn("dá direito a retorno gratuito", info["retorno_aviso"])
+        self.assertNotIn("após este atendimento", info["retorno_aviso"])
         self.assertNotIn("configurado", info["retorno_aviso"])
         self.assertNotIn("dia(s)", info["retorno_aviso"])

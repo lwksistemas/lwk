@@ -298,6 +298,9 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
             else payment.payment_method
         ),
         "formas_pagamento": _listar_formas_pagamento(payment),
+        "condicao_cobranca": (
+            "a prazo" if getattr(payment, "payment_method", "") == "PRAZO" else ""
+        ),
         "data": _formatar_data_recibo(payment.payment_date),
         "data_emissao": _formatar_data_recibo(_agora_recibo()),
         "data_atendimento": _formatar_data_recibo(getattr(appointment, "date", None)),
@@ -310,6 +313,11 @@ def _formas_pagamento_texto(ctx: dict) -> str:
     """Formata formas de pagamento para texto (WhatsApp/email)."""
     formas = ctx.get("formas_pagamento", [])
     if not formas:
+        if float(ctx.get("valor_pago") or 0) <= 0.009:
+            condicao = (ctx.get("condicao_cobranca") or "").strip()
+            if condicao:
+                return f"  Condição de cobrança: {condicao}\n"
+            return ""
         metodo = ctx.get("metodo", "")
         return f"  {metodo} — {formatar_moeda_recibo(ctx.get('valor_pago', 0))}\n"
     lines = [f'  • {f["metodo"]} — {formatar_moeda_recibo(f["valor"])}' for f in formas]
@@ -367,15 +375,10 @@ def _listar_formas_pagamento(payment) -> list[dict]:
             return result
     except Exception:
         logger.exception("Erro ao listar parcelas do recibo (payment %s)", payment.id)
-    metodo_label = METODOS.get(payment.payment_method, payment.payment_method)
-    # A prazo sem parcela paga: mostra o valor em aberto (saldo), não amount (que é 0).
-    # O vencimento aparece só no bloco "SALDO A PAGAR" (evita redundância na linha).
+    # A prazo sem parcela paga não é forma de pagamento: o vencimento fica no saldo.
     if payment.payment_method == "PRAZO":
-        try:
-            valor_prazo = float(payment.saldo_devedor)
-        except Exception:
-            valor_prazo = float(payment.valor_total_efetivo or 0)
-        return [{"metodo": metodo_label, "valor": valor_prazo}]
+        return []
+    metodo_label = METODOS.get(payment.payment_method, payment.payment_method)
     return [{"metodo": metodo_label, "valor": float(payment.amount or 0)}]
 
 
@@ -560,27 +563,38 @@ def reconciliar_conta_recibo(ctx: dict) -> dict:
     return ctx
 
 
-def data_curta_recibo(texto: str | None) -> str:
-    bruto = (texto or "").strip()
-    if len(bruto) >= 10 and bruto[2] == "/" and bruto[5] == "/":
-        return bruto[:10]
-    return bruto
-
-
-def resumo_financeiro_recibo(ctx: dict) -> str:
-    """Linha única do status quando ainda há saldo."""
+def situacao_recibo(ctx: dict) -> str:
+    """sem_saldo | em_aberto | parcial | quitado."""
     valor_total = float(ctx.get("valor_total") or 0)
     valor_pago = float(ctx.get("valor_pago") or 0)
     saldo = float(ctx.get("saldo_devedor", max(valor_total - valor_pago, 0)) or 0)
-    if saldo <= 0.009:
-        return ""
-    quando = data_curta_recibo(ctx.get("data"))
-    pago_txt = f"Pago em {quando}" if quando else "Pago"
-    return (
-        f"Total do atendimento: {formatar_moeda_recibo(valor_total)} · "
-        f"{pago_txt}: {formatar_moeda_recibo(valor_pago)} · "
-        f"Saldo a pagar: {formatar_moeda_recibo(saldo)}"
-    )
+    if valor_total <= 0.009 and valor_pago <= 0.009:
+        return "sem_saldo"
+    if saldo > 0.009 and valor_pago <= 0.009:
+        return "em_aberto"
+    if saldo > 0.009:
+        return "parcial"
+    return "quitado"
+
+
+def titulo_recibo(ctx: dict) -> tuple[str, str]:
+    """Título e subtítulo conforme o que já foi pago."""
+    situacao = situacao_recibo(ctx)
+    if situacao == "sem_saldo":
+        return (
+            "COMPROVANTE DE ATENDIMENTO",
+            "Sem saldo — consulta integralmente descontada",
+        )
+    if situacao == "em_aberto":
+        return "COMPROVANTE DE ATENDIMENTO", "Valor em aberto"
+    if situacao == "parcial":
+        return "COMPROVANTE DE ATENDIMENTO", "Pagamento parcial — saldo em aberto"
+    return "RECIBO DE PAGAMENTO", ""
+
+
+def resumo_financeiro_recibo(ctx: dict) -> str:
+    """Mantido por compatibilidade. O saldo já aparece na linha própria."""
+    return ""
 
 
 def _linhas_descontos_recibo(ctx: dict) -> list[tuple[str, float]]:

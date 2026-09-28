@@ -30,8 +30,8 @@ class ReciboFormasPagamentoTests(SimpleTestCase):
         result = _formas_pagamento_texto(ctx)
         self.assertIn("• PIX", result)
         self.assertIn("• Cartão de Crédito", result)
-        self.assertIn("300.00", result)
-        self.assertIn("200.00", result)
+        self.assertIn("300,00", result)
+        self.assertIn("200,00", result)
 
     def test_formas_pagamento_html_unica(self):
         """HTML com uma forma: single <li> com valor."""

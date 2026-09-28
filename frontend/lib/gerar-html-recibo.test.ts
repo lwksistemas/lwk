@@ -26,7 +26,7 @@ describe("gerarHtmlRecibo", () => {
       lojaData: { nome: "HARMONIS" },
     });
     expect(html).toContain("Desconto");
-    expect(html).toContain("- R$ 150.00");
+    expect(html).toContain("- R$ 150,00");
   });
 
   it("mostra Desconto retorno sem o prazo em dias", () => {
@@ -103,7 +103,9 @@ describe("gerarHtmlRecibo", () => {
       lojaData: { nome: "CLINICA LWK" },
     });
     expect(html).toContain("Consulta");
-    expect(html).toContain("R$ 0.00");
+    expect(html).toContain("R$ 0,00");
+    expect(html).toContain("integralmente descontada");
+    expect(html).not.toContain("Quitado");
     expect(html).toContain("Local");
     expect(html).toContain("CONSULTÓRIO");
     expect(html).toContain("Convênio");
@@ -128,7 +130,8 @@ describe("gerarHtmlRecibo", () => {
       lojaData: { nome: "HARMONIS" },
     });
     expect(html).toContain("Taxa de consulta");
-    expect(html).toContain("R$ 150.00");
+    expect(html).toContain("R$ 150,00");
+    expect(html).toContain("Valor em aberto");
     expect(html).not.toContain("Desconto retorno");
     expect(html).toContain("SALDO A PAGAR");
   });

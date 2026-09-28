@@ -148,18 +148,18 @@ def _resolver_prazo_e_aviso(
     if dias_proc > 0:
         if len(nomes_proc) == 1:
             avisos.append(
-                f"Retorno gratuito da taxa de consulta em até {dias_proc} dias "
-                f"para acompanhamento de {nomes_proc[0]}.",
+                f"Este atendimento dá direito a retorno gratuito da taxa de consulta "
+                f"em até {dias_proc} dias para acompanhamento de {nomes_proc[0]}.",
             )
         else:
             avisos.append(
-                f"Retorno gratuito da taxa de consulta em até {dias_proc} dias "
-                f"para acompanhamento do(s) procedimento(s).",
+                f"Este atendimento dá direito a retorno gratuito da taxa de consulta "
+                f"em até {dias_proc} dias para acompanhamento do(s) procedimento(s).",
             )
     if dias_cons > 0:
         avisos.append(
-            f"Retorno gratuito da taxa de consulta em até {dias_cons} dias "
-            f"após este atendimento.",
+            f"Este atendimento dá direito a retorno gratuito da taxa de consulta "
+            f"em até {dias_cons} dias.",
         )
     if not avisos:
         return None, ""

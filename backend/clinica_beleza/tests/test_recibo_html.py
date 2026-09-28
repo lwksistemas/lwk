@@ -75,10 +75,11 @@ class GerarHtmlReciboTests(SimpleTestCase):
                 metodo="",
             ),
         )
-        self.assertIn("RECIBO DE RETORNO", html)
+        self.assertIn("COMPROVANTE DE ATENDIMENTO", html)
+        self.assertIn("integralmente descontada", html)
         self.assertIn("LASER ETHEREA", html)
-        self.assertIn("Isento — retorno", html)
-        self.assertIn("Retorno isento", html)
+        self.assertNotIn("Quitado", html)
+        self.assertNotIn("Isento — retorno", html)
         self.assertIn("Desconto retorno", html)
         self.assertNotIn(">Desconto<", html)
 

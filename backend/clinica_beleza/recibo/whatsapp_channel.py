@@ -7,6 +7,7 @@ from .context import (
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
     reconciliar_conta_recibo,
+    titulo_recibo,
 )
 from .moeda import formatar_moeda_recibo
 from .pdf import _gerar_pdf_recibo
@@ -117,7 +118,7 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
     return (
         f'🏥 *{ctx["loja_nome"] or "Clínica"}*\n'
         f'━━━━━━━━━━━━━━━━━━━━\n'
-        f'✅ *RECIBO DE PAGAMENTO*\n'
+        f'✅ *{titulo_recibo(ctx)[0]}*\n'
         f'━━━━━━━━━━━━━━━━━━━━\n\n'
         f'👤 *Cliente:* {ctx["paciente_nome"]}\n'
         f'📅 *Data do pagamento:* {ctx["data"]}\n'

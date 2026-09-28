@@ -10,7 +10,8 @@ from .context import (
     _linhas_taxa_consulta_recibo,
     linhas_local_convenio_recibo,
     reconciliar_conta_recibo,
-    resumo_financeiro_recibo,
+    situacao_recibo,
+    titulo_recibo,
 )
 from .moeda import formatar_moeda_recibo
 
@@ -126,13 +127,10 @@ def _cabecalho_recibo_pdf(ctx, styles, col_w, mm_unit):
         story.append(Paragraph(_texto_pdf(ctx["loja_email"]), s_center))
     story.append(Spacer(1, 3 * mm_unit))
     story.append(hr)
-    # Com saldo em aberto (a prazo ou pagamento parcial) o documento não é um recibo de
-    # quitação, e sim um comprovante de atendimento com reconhecimento de dívida.
-    tem_saldo = _saldo_devedor_recibo(ctx) > 0.009
-    titulo_doc = "COMPROVANTE DE ATENDIMENTO" if tem_saldo else "RECIBO DE PAGAMENTO"
+    titulo_doc, subtitulo_doc = titulo_recibo(ctx)
     story.append(Paragraph(titulo_doc, s_title))
-    if tem_saldo:
-        story.append(Paragraph("(reconhecimento de dívida — valor em aberto)", s_center))
+    if subtitulo_doc:
+        story.append(Paragraph(_texto_pdf(subtitulo_doc), s_center))
     story.append(Paragraph(f"Emitido em {_texto_pdf(ctx.get('data_emissao') or ctx['data'])}", s_center))
     numero = ctx.get("recibo_numero")
     if numero:
@@ -283,6 +281,14 @@ def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
         story.append(Spacer(1, 1 * mm_unit))
         story.append(Paragraph(declaracao, s_footer))
         story.append(Spacer(1, 1 * mm_unit))
+    elif assinatura.get("assinado_em"):
+        story.append(Spacer(1, 1 * mm_unit))
+        story.append(Paragraph(
+            f"Aceite do saldo em aberto registrado em {_texto_pdf(assinatura['assinado_em'])}. "
+            "Não confirma pagamentos feitos depois deste registro.",
+            s_footer,
+        ))
+        story.append(Spacer(1, 1 * mm_unit))
 
     if assinatura.get("email"):
         story.append(Paragraph(f"Email: {_texto_pdf(assinatura['email'])}", s_footer))
@@ -290,7 +296,8 @@ def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
         story.append(Paragraph(f"Assinado em: {_texto_pdf(assinatura['assinado_em'])}", s_footer))
     if assinatura.get("ip"):
         story.append(Paragraph(f"IP: {_texto_pdf(assinatura['ip'])}", s_footer))
-    story.append(Paragraph("Aceite registrado", s_footer))
+    if saldo > 0.009:
+        story.append(Paragraph("Aceite registrado", s_footer))
     story.append(Spacer(1, 1 * mm_unit))
     story.append(Paragraph(
         "Registro do aceite do cliente: nome, data, hora e endereço IP.",
@@ -311,20 +318,26 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
     valor_pago = ctx.get("valor_pago", 0)
     saldo = _saldo_devedor_recibo(ctx)
     vencimento = (ctx.get("vencimento") or "").strip()
-    story.append(Paragraph(f"VALOR PAGO: {formatar_moeda_recibo(valor_pago)}", s_total))
-    if saldo > 0.009:
+    situacao = situacao_recibo(ctx)
+    condicao = (ctx.get("condicao_cobranca") or "").strip()
+    if condicao and not ctx.get("formas_pagamento"):
+        story.append(Paragraph(f"Condição de cobrança: {_texto_pdf(condicao)}", s_center))
         story.append(Spacer(1, 1 * mm_unit))
-        resumo = resumo_financeiro_recibo(ctx)
-        if resumo:
-            story.append(Paragraph(_texto_pdf(resumo), styles["s_aviso"]))
+    if situacao == "sem_saldo":
+        _, subtitulo = titulo_recibo(ctx)
+        story.append(Paragraph(f"<b>{_texto_pdf(subtitulo)}</b>", s_center))
+    else:
+        rotulo_pago = "PAGO" if situacao == "parcial" else "VALOR PAGO"
+        story.append(Paragraph(f"{rotulo_pago}: {formatar_moeda_recibo(valor_pago)}", s_total))
+        if saldo > 0.009:
             story.append(Spacer(1, 1 * mm_unit))
-        saldo_txt = f"SALDO A PAGAR: {formatar_moeda_recibo(saldo)}"
-        if vencimento:
-            saldo_txt += f" — vencimento {_texto_pdf(vencimento)}"
-        story.append(Paragraph(saldo_txt, s_center))
-    elif valor_pago >= ctx.get("valor_total", 0) and ctx.get("valor_total", 0) >= 0:
-        story.append(Spacer(1, 1 * mm_unit))
-        story.append(Paragraph("<b>Quitado</b>", s_center))
+            saldo_txt = f"SALDO A PAGAR: {formatar_moeda_recibo(saldo)}"
+            if vencimento:
+                saldo_txt += f" — vencimento {_texto_pdf(vencimento)}"
+            story.append(Paragraph(saldo_txt, s_center))
+        elif situacao == "quitado":
+            story.append(Spacer(1, 1 * mm_unit))
+            story.append(Paragraph("<b>Quitado</b>", s_center))
     story.append(Spacer(1, 2 * mm_unit))
     story.append(hr)
 

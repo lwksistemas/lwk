@@ -61,7 +61,7 @@ def gerar_html_recibo(ctx: dict) -> str:
         )
     for label, valor in linhas_local_convenio_recibo(ctx):
         servicos.append(
-            f'<tr><td colspan="2">{_t(label)}<br>{_t(valor)}</td></tr>'
+            f'<tr><td colspan="2">{_t(label)} {_t(valor)}</td></tr>'
         )
 
     descontos = _linhas_descontos_recibo(ctx)

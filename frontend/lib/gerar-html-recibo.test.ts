@@ -106,10 +106,10 @@ describe("gerarHtmlRecibo", () => {
     expect(html).toContain("R$ 0,00");
     expect(html).toContain("integralmente descontada");
     expect(html).not.toContain("Quitado");
-    expect(html).toContain("Local");
-    expect(html).toContain("CONSULTÓRIO");
-    expect(html).toContain("Convênio");
-    expect(html).toContain("PARTICULAR");
+    expect(html).toContain("Local CONSULTÓRIO");
+    expect(html).toContain("Convênio PARTICULAR");
+    expect(html).not.toContain("Local<br>");
+    expect(html).not.toContain("Convênio<br>");
   });
 
   it("consulta sem retorno usa a taxa do local, a mesma do retorno, sem desconto", () => {

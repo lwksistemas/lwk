@@ -201,7 +201,7 @@ export function gerarHtmlRecibo(params: {
   const localNome = (consulta.local_atendimento_name || "").trim();
   const convenioNome = (consulta.convenio_name || "").trim() || "Particular";
   const localConvenioHtml = soConsulta
-    ? `${localNome ? `<tr><td colspan="2">Local<br>${escapeHtml(localNome)}</td></tr>` : ""}<tr><td colspan="2">Convênio<br>${escapeHtml(convenioNome)}</td></tr>`
+    ? `${localNome ? `<tr><td colspan="2">Local ${escapeHtml(localNome)}</td></tr>` : ""}<tr><td colspan="2">Convênio ${escapeHtml(convenioNome)}</td></tr>`
     : "";
   const saldo = Math.max(saldoRestante, totalFinal - valorPago);
   const semSaldo = totalFinal <= 0.009 && valorPago <= 0.009;

@@ -13,7 +13,8 @@ import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-t
 import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import type { ClinicaProfessionalOption } from "@/lib/clinica-beleza-cadastros-api";
 import { entityName } from "@/lib/clinica-beleza-entities";
-import { formatConsultaListDate, type ConsultasListaVista } from "./consultas-page-utils";
+import { formatConsultaListDate, intervaloPeriodoConsultas, type ConsultasListaVista, type ConsultasPeriodo } from "./consultas-page-utils";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 
 interface ConsultasListViewProps {
   consultas: Consulta[];
@@ -30,6 +31,14 @@ interface ConsultasListViewProps {
   profissionais: ClinicaProfessionalOption[];
   filtroProfissionalId: number | null;
   onFiltroProfissional: (id: number | null) => void;
+  periodo: ConsultasPeriodo;
+  onPeriodo: (periodo: ConsultasPeriodo) => void;
+  periodoInicio: string;
+  periodoFim: string;
+  onPeriodoInicio: (valor: string) => void;
+  onPeriodoFim: (valor: string) => void;
+  totalPago: number;
+  aReceber: number;
   vista: ConsultasListaVista;
   onVista: (vista: ConsultasListaVista) => void;
   onNovaConsulta: () => void;
@@ -61,6 +70,14 @@ export function ConsultasListView({
   profissionais,
   filtroProfissionalId,
   onFiltroProfissional,
+  periodo,
+  onPeriodo,
+  periodoInicio,
+  periodoFim,
+  onPeriodoInicio,
+  onPeriodoFim,
+  totalPago,
+  aReceber,
   vista,
   onVista,
   onNovaConsulta,
@@ -151,6 +168,62 @@ export function ConsultasListView({
                 </option>
               ))}
             </select>
+          </div>
+          <div className="flex flex-wrap items-end gap-2 self-end">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900 dark:bg-emerald-950/40">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-800 dark:text-emerald-300">Total pago</p>
+              <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">{formatCurrency(totalPago)}</p>
+            </div>
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-900 dark:bg-red-950/40">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-red-800 dark:text-red-300">A receber</p>
+              <p className="text-sm font-semibold text-red-900 dark:text-red-100">{formatCurrency(aReceber)}</p>
+            </div>
+          </div>
+          <div className="self-end">
+            <div className="inline-flex rounded-lg border border-gray-200 dark:border-neutral-600 overflow-hidden">
+              {(
+                [
+                  { id: "mes_atual", label: "Mês atual" },
+                  { id: "mes_passado", label: "Mês passado" },
+                  { id: "periodo", label: "Por período" },
+                ] as { id: ConsultasPeriodo; label: string }[]
+              ).map((opcao) => {
+                const selecionado = periodo === opcao.id;
+                return (
+                  <button
+                    key={opcao.id}
+                    type="button"
+                    onClick={() => onPeriodo(opcao.id)}
+                    className={`px-3 py-2 text-sm font-medium ${
+                      selecionado
+                        ? "text-white"
+                        : "bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-700"
+                    }`}
+                    style={selecionado ? { backgroundColor: "var(--cb-primary, #8B3D52)" } : undefined}
+                  >
+                    {opcao.label}
+                  </button>
+                );
+              })}
+            </div>
+            {periodo === "periodo" && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                <input
+                  type="date"
+                  aria-label="Início do período"
+                  value={periodoInicio}
+                  onChange={(e) => onPeriodoInicio(e.target.value)}
+                  className="px-2 py-1.5 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-sm"
+                />
+                <input
+                  type="date"
+                  aria-label="Fim do período"
+                  value={periodoFim}
+                  onChange={(e) => onPeriodoFim(e.target.value)}
+                  className="px-2 py-1.5 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-sm"
+                />
+              </div>
+            )}
           </div>
         </div>
         {filtroPacienteNome && (

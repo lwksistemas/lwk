@@ -9,7 +9,7 @@ from .consulta_fluxo import (
     ConsultaReabrirView,
     ConsultaReceberView,
 )
-from .consulta_list import ConsultaListView
+from .consulta_list import ConsultaListView, ConsultaResumoFinanceiroView
 
 __all__ = [
     "ConsultaAplicarProtocoloView",
@@ -19,6 +19,7 @@ __all__ = [
     "ConsultaFinalizarView",
     "ConsultaIniciarView",
     "ConsultaListView",
+    "ConsultaResumoFinanceiroView",
     "ConsultaReabrirView",
     "ConsultaReceberView",
 ]

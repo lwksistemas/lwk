@@ -27,12 +27,44 @@ export function isNovaConsultaQuery(searchParams: URLSearchParams): boolean {
 }
 
 export type ConsultasListaVista = "finalizadas" | "iniciar";
+export type ConsultasPeriodo = "mes_atual" | "mes_passado" | "periodo";
+
+function isoDataLocal(d: Date): string {
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
+
+/** Intervalo do filtro da lista. Por período usa as datas informadas. */
+export function intervaloPeriodoConsultas(
+  periodo: ConsultasPeriodo,
+  custom: { inicio: string; fim: string } = { inicio: "", fim: "" },
+  hoje: Date = new Date(),
+): { data_inicio: string; data_fim: string } {
+  if (periodo === "periodo") {
+    return { data_inicio: custom.inicio, data_fim: custom.fim };
+  }
+  const ano = hoje.getFullYear();
+  const mes = hoje.getMonth();
+  if (periodo === "mes_passado") {
+    return {
+      data_inicio: isoDataLocal(new Date(ano, mes - 1, 1)),
+      data_fim: isoDataLocal(new Date(ano, mes, 0)),
+    };
+  }
+  return {
+    data_inicio: isoDataLocal(new Date(ano, mes, 1)),
+    data_fim: isoDataLocal(new Date(ano, mes + 1, 0)),
+  };
+}
 
 /** Query da lista. Abre em Para iniciar; Finalizadas vão da mais recente para a mais antiga. */
 export function buildConsultasListQueryParams(opts: {
   patientId?: number | null;
   professionalId?: number | null;
   vista?: ConsultasListaVista;
+  dataInicio?: string | null;
+  dataFim?: string | null;
 }): Record<string, string | number> {
   const vista = opts.vista ?? "iniciar";
   const params: Record<string, string | number> = {};
@@ -47,5 +79,7 @@ export function buildConsultasListQueryParams(opts: {
   if (opts.professionalId) {
     params.professional = opts.professionalId;
   }
+  if (opts.dataInicio) params.data_inicio = opts.dataInicio;
+  if (opts.dataFim) params.data_fim = opts.dataFim;
   return params;
 }

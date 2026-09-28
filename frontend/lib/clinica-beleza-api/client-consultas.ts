@@ -15,6 +15,8 @@ export const consultasApi = {
     convenio?: number | null;
   }) => cbPost<{ id?: number }>("/consultas/", data),
   get: (id: number) => cbGet<Consulta>(`/consultas/${id}/`),
+  resumoFinanceiro: (params: Record<string, string | number>) =>
+    cbGet<{ total_pago: number; a_receber: number }>("/consultas/resumo-financeiro/", params),
   update: (id: number, data: Partial<Consulta> | Record<string, unknown>) =>
     cbPatch<Consulta>(`/consultas/${id}/`, data),
   excluir: (id: number) => cbDelete(`/consultas/${id}/`),

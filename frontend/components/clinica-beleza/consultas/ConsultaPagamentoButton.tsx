@@ -2,7 +2,7 @@
 
 import { CheckCircle2, DollarSign, AlertCircle, Printer } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
-import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
+import { consultaPagamentoUi, saldoReceberConsulta } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import type { Consulta } from "./consultas-types";
 
 interface ConsultaPagamentoButtonProps {
@@ -23,31 +23,14 @@ export function ConsultaPagamentoButton({
   const pad = size === "sm" ? "px-2 py-1 text-xs" : "px-3 py-1.5 text-sm";
   const iconSize = size === "sm" ? 14 : 16;
 
-  // Parcial: badge laranja — se finalizada, aviso ao clicar
   if (mostrarParcial) {
-    if (consultaFinalizada) {
-      // Finalizada e parcial: abre o comprovante (imprimir/enviar); saldo se recebe no Financeiro.
-      return (
-        <button type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onReceber) onReceber(consulta);
-          }}
-          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-orange-500 hover:bg-orange-600 ${pad}`}
-          title="Parcial — clique para ver/enviar o comprovante (saldo se recebe no Financeiro)"
-        >
-          <AlertCircle size={iconSize} />
-          Parcial
-        </button>
-      );
-    }
     if (onReceber) {
       return (
         <button type="button" onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
           disabled={loading}
           aria-label={`Receber pagamento parcial de ${consulta.patient_name}`}
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-orange-500 hover:bg-orange-600 ${pad}`}
-          title={`Parcial — saldo: R$ ${Number(consulta.valor_restante ?? 0).toFixed(2)}`}
+          title={`Parcial — receber saldo: R$ ${Number(consulta.valor_restante ?? 0).toFixed(2)}`}
         >
           <AlertCircle size={iconSize} />
           {loading ? "Registrando…" : "Parcial"}
@@ -57,16 +40,12 @@ export function ConsultaPagamentoButton({
   }
 
   if (mostrarPrazo) {
-    if (consultaFinalizada) {
-      // Finalizada a prazo: abre o comprovante (imprimir/enviar) ao clicar.
+    if (onReceber && (consultaFinalizada || saldoReceberConsulta(consulta) > 0)) {
       return (
         <button type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onReceber) onReceber(consulta);
-          }}
+          onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-slate-600 hover:bg-slate-700 ${pad}`}
-          title="A prazo — clique para ver/enviar o comprovante"
+          title="A prazo — clique para receber ou ver o comprovante"
         >
           <DollarSign size={iconSize} />
           A prazo
@@ -115,32 +94,17 @@ export function ConsultaPagamentoButton({
     );
   }
 
-  // Receber: se finalizada → aviso, senão → botão
   if (mostrarReceber) {
-    if (consultaFinalizada) {
-      return (
-        <button type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            toast.info("Pagamento pendente — receber na página Financeiro.");
-          }}
-          className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-red-600 ${pad}`}
-          title="Pagamento pendente — receber na página Financeiro"
-        >
-          <DollarSign size={iconSize} />
-          Pendente
-        </button>
-      );
-    }
     if (onReceber) {
       return (
         <button type="button" onClick={(e) => { e.stopPropagation(); onReceber(consulta); }}
           disabled={loading}
           aria-label={`Receber pagamento de ${consulta.patient_name}`}
           className={`inline-flex items-center gap-1 rounded-lg text-white font-medium disabled:opacity-50 bg-red-600 hover:bg-red-700 ${pad}`}
+          title={consultaFinalizada ? "Consulta finalizada — receber o pagamento" : "Receber pagamento"}
         >
           <DollarSign size={iconSize} />
-          {loading ? "Registrando…" : "Receber"}
+          {loading ? "Registrando…" : consultaFinalizada ? "Pendente" : "Receber"}
         </button>
       );
     }

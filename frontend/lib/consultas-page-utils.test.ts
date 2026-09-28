@@ -7,6 +7,7 @@ import {
   extractConsultaDeepLinkError,
   findConsultaInList,
   formatConsultaListDate,
+  intervaloPeriodoConsultas,
   isNovaConsultaQuery,
 } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
 
@@ -94,6 +95,36 @@ describe("buildConsultasListQueryParams", () => {
     expect(buildConsultasListQueryParams({ patientId: 12, professionalId: 7 })).toEqual({
       patient: 12,
       professional: 7,
+    });
+  });
+
+  it("inclui o período quando informado", () => {
+    expect(
+      buildConsultasListQueryParams({
+        vista: "finalizadas",
+        dataInicio: "2026-09-01",
+        dataFim: "2026-09-30",
+      }),
+    ).toEqual({
+      status: "COMPLETED",
+      data_inicio: "2026-09-01",
+      data_fim: "2026-09-30",
+    });
+  });
+});
+
+describe("intervaloPeriodoConsultas", () => {
+  it("mês atual de setembro de 2026", () => {
+    expect(intervaloPeriodoConsultas("mes_atual", { inicio: "", fim: "" }, new Date(2026, 8, 28))).toEqual({
+      data_inicio: "2026-09-01",
+      data_fim: "2026-09-30",
+    });
+  });
+
+  it("mês passado de setembro de 2026", () => {
+    expect(intervaloPeriodoConsultas("mes_passado", { inicio: "", fim: "" }, new Date(2026, 8, 28))).toEqual({
+      data_inicio: "2026-08-01",
+      data_fim: "2026-08-31",
     });
   });
 });

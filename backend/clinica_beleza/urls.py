@@ -73,6 +73,7 @@ from .views_consultas import (
     ConsultaFinalizarView,
     ConsultaIniciarView,
     ConsultaListView,
+    ConsultaResumoFinanceiroView,
     ConsultaPrescricaoDeleteView,
     ConsultaPrescricaoView,
     ConsultaProcedimentoDetailView,
@@ -213,6 +214,7 @@ urlpatterns = [
 
     # Consultas (criadas via agenda)
     path("consultas/", ConsultaListView.as_view(), name="consultas-list"),
+    path("consultas/resumo-financeiro/", ConsultaResumoFinanceiroView.as_view(), name="consultas-resumo-financeiro"),
     path("consultas/<int:pk>/", ConsultaDetailView.as_view(), name="consultas-detail"),
     path("consultas/<int:pk>/iniciar/", ConsultaIniciarView.as_view(), name="consultas-iniciar"),
     path("consultas/<int:pk>/receber/", ConsultaReceberView.as_view(), name="consultas-receber"),

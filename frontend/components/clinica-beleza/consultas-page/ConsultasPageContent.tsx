@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { useAgendamentoCadastros } from "@/hooks/clinica-beleza/useAgendamentoCadastros";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
@@ -29,13 +29,16 @@ import { useConsultasColunas } from "@/hooks/clinica-beleza/useConsultasColunas"
 import {
   buildConsultaDetailHref,
   buildConsultasListQueryParams,
+  intervaloPeriodoConsultas,
   type ConsultasListaVista,
+  type ConsultasPeriodo,
 } from "./consultas-page-utils";
 import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 
 function ConsultasPageWorkspace({ slug }: { slug: string }) {
   const router = useRouter();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const consultaIdParam = searchParams.get("id");
 
@@ -46,11 +49,19 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
   const [filtroPaciente, setFiltroPaciente] = useState<PatientQuickOption | null>(null);
   const [filtroProfissionalId, setFiltroProfissionalId] = useState<number | null>(null);
   const [vista, setVista] = useState<ConsultasListaVista>("iniciar");
+  const [periodo, setPeriodo] = useState<ConsultasPeriodo>("mes_atual");
+  const [periodoInicio, setPeriodoInicio] = useState("");
+  const [periodoFim, setPeriodoFim] = useState("");
   const [consultaParaIniciar, setConsultaParaIniciar] = useState<Consulta | null>(null);
   const [showProfessionalModal, setShowProfessionalModal] = useState(false);
   const [profissionaisDisponiveis, setProfissionaisDisponiveis] = useState<
     Array<{ id: number; nome?: string; name?: string }>
   >([]);
+
+  const intervalo = useMemo(
+    () => intervaloPeriodoConsultas(periodo, { inicio: periodoInicio, fim: periodoFim }),
+    [periodo, periodoInicio, periodoFim],
+  );
 
   const queryParams = useMemo(
     () =>
@@ -58,9 +69,17 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
         patientId: filtroPaciente?.id ?? null,
         professionalId: filtroProfissionalId,
         vista,
+        dataInicio: intervalo.data_inicio || null,
+        dataFim: intervalo.data_fim || null,
       }),
-    [filtroPaciente, filtroProfissionalId, vista],
+    [filtroPaciente, filtroProfissionalId, vista, intervalo],
   );
+
+  const resumoQuery = useQuery({
+    queryKey: ["consultas-resumo-financeiro", queryParams],
+    queryFn: () => ClinicaBelezaAPI.consultas.resumoFinanceiro(queryParams),
+    enabled: !consultaIdParam,
+  });
 
   const professionalsQuery = useQuery({
     queryKey: clinicaBelezaQueryKeys.schedulingProfessionals(),
@@ -108,8 +127,9 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
     async (atualizada: Partial<Consulta>) => {
       setReceberConsulta((prev) => (prev ? { ...prev, ...atualizada } : null));
       await loadConsultas();
+      await queryClient.invalidateQueries({ queryKey: ["consultas-resumo-financeiro"] });
     },
-    [loadConsultas],
+    [loadConsultas, queryClient],
   );
 
   const executarInicio = useCallback(
@@ -211,6 +231,14 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
         profissionais={professionalsQuery.data ?? []}
         filtroProfissionalId={filtroProfissionalId}
         onFiltroProfissional={setFiltroProfissionalId}
+        periodo={periodo}
+        onPeriodo={setPeriodo}
+        periodoInicio={periodoInicio}
+        periodoFim={periodoFim}
+        onPeriodoInicio={setPeriodoInicio}
+        onPeriodoFim={setPeriodoFim}
+        totalPago={resumoQuery.data?.total_pago ?? 0}
+        aReceber={resumoQuery.data?.a_receber ?? 0}
         vista={vista}
         onVista={setVista}
         onNovaConsulta={novaConsulta.abrirNovaConsulta}

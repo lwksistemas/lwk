@@ -175,7 +175,7 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
         payment.amount = Decimal(0)
     else:
         payment.status = "DRAFT"
-        payment.amount = max(total_pago, valor_total) if quitou else total_pago
+        payment.amount = min(total_pago, valor_total) if quitou else total_pago
     update_fields = ["amount", "valor_total", "payment_method", "status", "payment_date", "comissao_percentual", "comissao_valor", "updated_at"]
     if valor_desconto > 0:
         payment.desconto = valor_desconto

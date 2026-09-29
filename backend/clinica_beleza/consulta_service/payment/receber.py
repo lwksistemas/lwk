@@ -291,6 +291,24 @@ def registrar_recebimento_consulta(
         soma_entradas = sum((e["valor"] for e in lista), Decimal(0))
         if soma_entradas <= 0:
             raise ValueError("Valor deve ser maior que zero.")
+        from clinica_beleza.consulta_service.valores import (
+            _decimal_ou_none,
+            mensagem_pagamento_acima_do_teto,
+        )
+
+        ja_pago = Decimal(0)
+        if payment is not None:
+            ja_lido = _decimal_ou_none(getattr(payment, "valor_pago_parcelas", None))
+            if ja_lido is not None:
+                ja_pago = ja_lido
+        acima = mensagem_pagamento_acima_do_teto(
+            getattr(appointment, "valor_total", None),
+            getattr(consulta, "valor_consulta", None),
+            ja_pago,
+            soma_entradas,
+        )
+        if acima:
+            raise ValueError(acima)
         metodo_principal = lista[-1]["payment_method"]
 
     # Bloqueia recebimento a prazo se o paciente não tem política configurada pelo admin.
@@ -394,7 +412,7 @@ def publicar_pagamento_financeiro(consulta, *, usuario=None):
 
     if total_pago >= valor_total - Decimal("0.01"):
         payment.status = "PAID"
-        payment.amount = max(total_pago, valor_total)
+        payment.amount = min(total_pago, valor_total)
         payment.payment_date = ts
     elif total_pago > 0:
         payment.status = "PARTIAL"

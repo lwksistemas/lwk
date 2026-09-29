@@ -81,7 +81,11 @@ export function consultaPagamentoUi(c: Consulta): {
   }
 
   const saldo = saldoReceberConsulta(c);
-  const isParcial = c.payment_status === "PARTIAL" && saldo > 0;
+  const jaRecebeu = Number(c.valor_pago ?? 0) > 0.009;
+  const isParcial =
+    saldo > 0.009 &&
+    jaRecebeu &&
+    (c.payment_status === "PARTIAL" || c.payment_status === "PAID");
   const isPago = c.payment_status === "PAID" && saldo <= 0;
   const listado = valorListadoConsulta(c);
 

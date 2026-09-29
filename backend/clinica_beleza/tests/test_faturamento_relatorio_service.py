@@ -28,11 +28,9 @@ class TestFaturamentoRelatorioCampos(TestCase):
 
         calcular_faturamento()
 
-        # Deve chamar Payment.objects.filter com status='PAID'
+        # PAID e PARTIAL: o parcial entra só pelo valor já recebido.
         call_args = mock_payment.objects.filter.call_args
-        self.assertIn("status", call_args.kwargs or {})
-        if call_args.kwargs:
-            self.assertEqual(call_args.kwargs["status"], "PAID")
+        self.assertEqual(call_args.kwargs.get("status__in"), ("PAID", "PARTIAL"))
 
     def test_retorno_vazio_sem_pagamentos(self):
         """Sem pagamentos, retorna linhas vazias e totais zero."""

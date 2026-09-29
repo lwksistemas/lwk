@@ -296,6 +296,12 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
                 return "PARTIAL"
             except Exception:
                 return "PARTIAL"
+        if payment.status == "PAID":
+            try:
+                if payment.saldo_devedor > Decimal("0.01"):
+                    return "PARTIAL"
+            except Exception:
+                pass
         return payment.status
 
     def get_payment_method(self, obj):

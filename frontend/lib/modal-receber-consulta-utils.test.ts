@@ -70,6 +70,46 @@ describe("validateReceberForm", () => {
     ).toBe("Total a receber deve ser maior que zero.");
   });
 
+  it("recusa pagamento maior que o procedimento", () => {
+    const erro = validateReceberForm({
+      totalLiquido: 1500,
+      desconto: 0,
+      base: 1500,
+      entradas: [linha("PIX", "1500")],
+      markAsPaid: true,
+      valorProcedimento: 1200,
+      taxaConsulta: 0,
+    });
+    expect(erro).toContain("não pode ser maior que o valor do procedimento");
+  });
+
+  it("recusa procedimento acima do cadastro", () => {
+    const erro = validateReceberForm({
+      totalLiquido: 1500,
+      desconto: 0,
+      base: 1500,
+      entradas: [linha("PIX", "1500")],
+      markAsPaid: true,
+      valorProcedimento: 1500,
+      valorProcedimentoCatalogo: 1200,
+    });
+    expect(erro).toContain("não pode ser maior que o cadastrado");
+  });
+
+  it("permite pagar a taxa junto com o procedimento", () => {
+    expect(
+      validateReceberForm({
+        totalLiquido: 1350,
+        desconto: 0,
+        base: 1350,
+        entradas: [linha("PIX", "1350")],
+        markAsPaid: true,
+        valorProcedimento: 1200,
+        taxaConsulta: 150,
+      }),
+    ).toBeNull();
+  });
+
   it("permite parcial sem quitar", () => {
     expect(
       validateReceberForm({

@@ -224,10 +224,10 @@ export function ModalBloqueioHorario({
                     );
                   })}
                 </div>
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-2 text-sm font-medium text-gray-800 dark:text-gray-100">
                   {state.diasSelecionados.length === 0
                     ? "Nenhum dia marcado."
-                    : `${state.diasSelecionados.length} dia(s): ${[...state.diasSelecionados].sort().map((d) => d.slice(8) + "/" + d.slice(5, 7)).join(", ")}`}
+                    : `Vai bloquear: ${state.rotuloSelecao}`}
                 </p>
               </div>
             ) : (
@@ -297,7 +297,7 @@ export function ModalBloqueioHorario({
             disabled={state.loading}
             className="min-w-[140px] px-5 py-2.5 min-h-[44px] bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
           >
-            {state.loading ? "Salvando..." : "Bloquear"}
+            {state.loading ? "Salvando..." : state.modo === "dias" && state.rotuloSelecao ? `Bloquear ${state.rotuloSelecao}` : "Bloquear"}
           </button>
           <button
             type="button"

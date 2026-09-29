@@ -18,12 +18,17 @@ AgrupamentoType = Literal["profissional", "procedimento", "local", "convenio"]
 
 def _calcular_valor_pagamento(payment, consulta_map: dict) -> tuple[Decimal, Decimal, bool]:
     """Retorna (valor_consulta, valor_proc, usar_amount_total).
+
+    O preço do procedimento fica o do cadastro. O desconto dado no pagamento
+    sai do faturamento (o relatório de descontos mostra o que a clínica deixou
+    de receber). Retorno gratuito não puxa a taxa do local: a consulta isenta
+    não entra na receita.
     Quando usar_amount_total=True, o chamador deve usar payment.amount como valor_total.
     """
     appt = payment.appointment
     consulta = consulta_map.get(appt.id) if appt else None
     valor_consulta = Decimal(0)
-    if consulta:
+    if consulta and not getattr(consulta, "retorno_gratuito", False):
         vc = Decimal(str(consulta.valor_consulta or 0))
         if vc > 0:
             valor_consulta = vc
@@ -33,7 +38,28 @@ def _calcular_valor_pagamento(payment, consulta_map: dict) -> tuple[Decimal, Dec
     if appt:
         for ap in appt.appointment_procedures.all():
             valor_proc += ap.valor or ap.procedure.preco or Decimal(0)
-    return valor_consulta, valor_proc, (valor_consulta == 0 and valor_proc == 0)
+    sem_itens = valor_consulta == 0 and valor_proc == 0
+    valor_consulta, valor_proc = _abater_desconto_comercial(
+        valor_consulta, valor_proc, getattr(payment, "desconto", 0),
+    )
+    return valor_consulta, valor_proc, sem_itens
+
+
+def _abater_desconto_comercial(
+    valor_consulta: Decimal,
+    valor_proc: Decimal,
+    desconto,
+) -> tuple[Decimal, Decimal]:
+    """Tira o desconto do procedimento e, se sobrar, da taxa cobrada."""
+    restante = Decimal(str(desconto or 0))
+    if restante <= 0:
+        return valor_consulta, valor_proc
+    abate_proc = min(valor_proc, restante)
+    valor_proc -= abate_proc
+    restante -= abate_proc
+    if restante > 0:
+        valor_consulta = max(Decimal(0), valor_consulta - restante)
+    return valor_consulta, valor_proc
 
 
 def _carregar_consultas_map(payments_list: list) -> dict:
@@ -56,8 +82,8 @@ def calcular_faturamento(
     """Calcula faturamento da clínica agrupado pelo critério selecionado.
 
     Fonte: Payment.status='PAID' com payment_date no período.
-    Valores: taxa de consulta (via Consulta.valor_consulta) + procedimentos
-    (via AppointmentProcedure.valor).
+    Valores: taxa cobrada (Consulta.valor_consulta; retorno gratuito fica de fora)
+    + procedimentos (AppointmentProcedure.valor) − desconto do pagamento.
 
     Retorna dict com 'linhas' (lista) e 'totais'.
     """

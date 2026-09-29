@@ -58,6 +58,73 @@ class TestFaturamentoRelatorioCampos(TestCase):
             self.assertEqual(result["agrupamento"], "profissional")
 
 
+class TestFaturamentoDescontoERetorno(TestCase):
+    """Desconto comercial e consulta de retorno não entram na receita."""
+
+    def _pagamento(self, *, valor_proc, desconto, valor_consulta=0, retorno=False, taxa_local=0):
+        from types import SimpleNamespace
+
+        proc = SimpleNamespace(
+            valor=Decimal(valor_proc),
+            procedure=SimpleNamespace(preco=Decimal(valor_proc)),
+        )
+        appt = MagicMock()
+        appt.id = 1
+        appt.appointment_procedures.all.return_value = [proc]
+        local = SimpleNamespace(valor_consulta=Decimal(taxa_local)) if taxa_local else None
+        consulta = SimpleNamespace(
+            valor_consulta=Decimal(valor_consulta),
+            local_atendimento=local,
+            retorno_gratuito=retorno,
+        )
+        payment = SimpleNamespace(appointment=appt, desconto=Decimal(desconto))
+        return payment, {1: consulta}
+
+    def test_desconto_sai_do_procedimento(self):
+        from clinica_beleza.faturamento_relatorio_service import _calcular_valor_pagamento
+
+        payment, consultas = self._pagamento(valor_proc="1500", desconto="500")
+        valor_consulta, valor_proc, usar_amount = _calcular_valor_pagamento(payment, consultas)
+        self.assertEqual(valor_proc, Decimal("1000"))
+        self.assertEqual(valor_consulta, Decimal(0))
+        self.assertFalse(usar_amount)
+
+    def test_retorno_gratuito_nao_puxa_taxa_do_local(self):
+        from clinica_beleza.faturamento_relatorio_service import _calcular_valor_pagamento
+
+        payment, consultas = self._pagamento(
+            valor_proc="1500",
+            desconto="0",
+            retorno=True,
+            taxa_local="150",
+        )
+        valor_consulta, valor_proc, usar_amount = _calcular_valor_pagamento(payment, consultas)
+        self.assertEqual(valor_consulta, Decimal(0))
+        self.assertEqual(valor_proc, Decimal("1500"))
+        self.assertFalse(usar_amount)
+
+    def test_taxa_cobrada_permanece_e_desconto_sai_do_procedimento(self):
+        from clinica_beleza.faturamento_relatorio_service import _calcular_valor_pagamento
+
+        payment, consultas = self._pagamento(
+            valor_proc="1500",
+            desconto="500",
+            valor_consulta="150",
+        )
+        valor_consulta, valor_proc, _usar = _calcular_valor_pagamento(payment, consultas)
+        self.assertEqual(valor_consulta, Decimal("150"))
+        self.assertEqual(valor_proc, Decimal("1000"))
+
+    def test_desconto_integral_nao_volta_para_o_valor_pago(self):
+        from clinica_beleza.faturamento_relatorio_service import _calcular_valor_pagamento
+
+        payment, consultas = self._pagamento(valor_proc="1500", desconto="1500")
+        valor_consulta, valor_proc, usar_amount = _calcular_valor_pagamento(payment, consultas)
+        self.assertEqual(valor_proc, Decimal(0))
+        self.assertEqual(valor_consulta, Decimal(0))
+        self.assertFalse(usar_amount)
+
+
 class TestCobrancaDuplicadaConsultaAvulsa(TestCase):
     """Verifica que criar_consulta_avulsa não gera cobrança 2x."""
 

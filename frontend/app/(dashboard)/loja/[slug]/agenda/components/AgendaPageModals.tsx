@@ -5,6 +5,7 @@ import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import type { LocalAtendimentoItem, NomeAgendaItem } from "@/lib/clinica-beleza-api";
+import type { BloqueioSelecionado } from "@/lib/bloqueio-serie";
 import { ModalBloqueio } from "./ModalBloqueio";
 import { ModalDetalheAgendamento } from "./ModalDetalheAgendamento";
 
@@ -42,7 +43,7 @@ export function AgendaPageModals({
   onUseLocal,
   conflictResolving,
 }: {
-  selectedBloqueio: { id: number; motivo: string; professional_name: string } | null;
+  selectedBloqueio: BloqueioSelecionado | null;
   onCloseBloqueio: () => void;
   showModal: boolean;
   selectedEvent: AgendaEventData | null;

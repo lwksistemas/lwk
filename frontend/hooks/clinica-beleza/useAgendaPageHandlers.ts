@@ -9,6 +9,12 @@ import {
   workHoursRejectionMessage,
 } from "@/lib/clinica-beleza-work-hours";
 import { deveIgnorarClickGradeAgenda } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
+import {
+  type BloqueioSelecionado,
+  ehBloqueioDiaInteiro,
+  formatarDiaBloqueio,
+  serieBloqueioDiaInteiro,
+} from "@/lib/bloqueio-serie";
 import { useToast } from "@/components/ui/Toast";
 import type { DateClickArg } from "@fullcalendar/interaction";
 import type { EventClickArg } from "@fullcalendar/core";
@@ -47,9 +53,7 @@ export function useAgendaPageHandlers({
   bloqueios: BloqueioHorario[];
   setSelectedEvent: (event: AgendaEventData | null) => void;
   setShowModal: (open: boolean) => void;
-  setSelectedBloqueio: (
-    bloqueio: { id: number; motivo: string; professional_name: string } | null,
-  ) => void;
+  setSelectedBloqueio: (bloqueio: BloqueioSelecionado | null) => void;
   setSelectedDate: (date: Date | null) => void;
   setShowCreateModal: (open: boolean) => void;
 }) {
@@ -75,10 +79,21 @@ export function useAgendaPageHandlers({
       const ext = info.event.extendedProps;
       if (ext?.isIntervalo) return;
       if (ext?.isBloqueio) {
+        const id = ext.bloqueioId!;
+        const serie = serieBloqueioDiaInteiro(bloqueios, id);
+        const primeiro = serie[0];
+        const ultimo = serie[serie.length - 1];
         setSelectedBloqueio({
-          id: ext.bloqueioId!,
+          id,
           motivo: ext.motivo || info.event.title,
           professional_name: ext.professional_name || "Todos",
+          diaInteiro: ehBloqueioDiaInteiro(
+            primeiro?.data_inicio || info.event.start?.toISOString() || "",
+            ultimo?.data_fim || info.event.end?.toISOString() || "",
+          ),
+          idsSerie: serie.map((b) => b.id),
+          de: formatarDiaBloqueio(primeiro?.data_inicio || ""),
+          ate: formatarDiaBloqueio(ultimo?.data_inicio || ""),
         });
         return;
       }
@@ -94,7 +109,7 @@ export function useAgendaPageHandlers({
       });
       setShowModal(true);
     },
-    [setSelectedBloqueio, setSelectedEvent, setShowModal],
+    [bloqueios, setSelectedBloqueio, setSelectedEvent, setShowModal],
   );
 
   const abrirEventoDaLista = useCallback(

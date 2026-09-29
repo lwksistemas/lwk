@@ -178,6 +178,22 @@ export function ModalBloqueioHorario({
                     </button>
                   </div>
                 </div>
+                <div className="mb-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={state.selecionarMesInteiro}
+                    className="px-3 py-1.5 min-h-[36px] text-sm font-medium rounded-lg bg-[#8B4557] text-white hover:opacity-90"
+                  >
+                    Mês inteiro
+                  </button>
+                  <button
+                    type="button"
+                    onClick={state.limparMes}
+                    className="px-3 py-1.5 min-h-[36px] text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-700"
+                  >
+                    Limpar mês
+                  </button>
+                </div>
                 <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">
                   {DIAS_SEMANA.map((dia) => (
                     <span key={dia}>{dia}</span>
@@ -268,7 +284,7 @@ export function ModalBloqueioHorario({
 
           <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
             {state.modo === "dias"
-              ? "Clique nos dias do mês para marcar ou desmarcar. Cada dia vira um bloqueio próprio."
+              ? "Clique nos dias ou use Mês inteiro para marcar o mês de uma vez. Cada dia vira um bloqueio próprio."
               : "Bloqueia apenas o horário no dia escolhido (ex.: 13:00–17:00). Na agenda, puxe a borda de baixo do bloqueio para aumentar ou diminuir o horário."}{" "}
             O intervalo de almoço do profissional é configurado em Profissionais → Horários de trabalho.
           </p>

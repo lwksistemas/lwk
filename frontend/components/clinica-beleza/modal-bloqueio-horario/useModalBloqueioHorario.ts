@@ -10,7 +10,9 @@ import {
   formatTimeInput,
   modoSugeridoParaTipo,
   resolveMotivoBloqueio,
+  removerDiasDoMes,
   toggleDiaIso,
+  unirDiasDoMes,
   validateBloqueioForm,
 } from "./modal-bloqueio-horario-utils";
 
@@ -82,6 +84,18 @@ export function useModalBloqueioHorario({
     setDiasSelecionados((atual) => toggleDiaIso(atual, dia));
     setMesCursor(dia);
   }, []);
+
+  const selecionarMesInteiro = useCallback(() => {
+    const base = mesCursor || dataInicioDia;
+    if (!base) return;
+    setDiasSelecionados((atual) => unirDiasDoMes(atual, base));
+  }, [dataInicioDia, mesCursor]);
+
+  const limparMes = useCallback(() => {
+    const base = mesCursor || dataInicioDia;
+    if (!base) return;
+    setDiasSelecionados((atual) => removerDiasDoMes(atual, base));
+  }, [dataInicioDia, mesCursor]);
 
   const salvar = useCallback(async () => {
     const validationError = validateBloqueioForm({
@@ -172,6 +186,8 @@ export function useModalBloqueioHorario({
     mesCursor,
     setMesCursor,
     toggleDia,
+    selecionarMesInteiro,
+    limparMes,
     dataHorario,
     setDataHorario,
     horaInicio,

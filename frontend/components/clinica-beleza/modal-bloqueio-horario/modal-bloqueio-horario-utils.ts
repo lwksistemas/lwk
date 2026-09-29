@@ -84,6 +84,21 @@ export function gradeMesSegunda(iso: string): { iso: string; inMonth: boolean }[
   return cells;
 }
 
+export function diasDoMes(iso: string): string[] {
+  return gradeMesSegunda(iso)
+    .filter((cell) => cell.inMonth)
+    .map((cell) => cell.iso);
+}
+
+export function unirDiasDoMes(dias: string[], iso: string): string[] {
+  return [...new Set([...dias, ...diasDoMes(iso)])].sort();
+}
+
+export function removerDiasDoMes(dias: string[], iso: string): string[] {
+  const doMes = new Set(diasDoMes(iso));
+  return dias.filter((dia) => !doMes.has(dia));
+}
+
 export function deslocarMes(iso: string, delta: number): string {
   const [y, mo] = iso.split("-").map(Number);
   return ymdLocal(new Date(y, (mo || 1) - 1 + delta, 1));

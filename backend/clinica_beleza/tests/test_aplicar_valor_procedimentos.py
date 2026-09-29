@@ -59,6 +59,24 @@ class AplicarValorProcedimentosTests(SimpleTestCase):
         self.assertEqual(kwargs["procedure_id"], 4)
         self.assertEqual(kwargs["valor"], Decimal("120"))
 
+    def test_acima_do_cadastro_rejeita(self):
+        ap = MagicMock()
+        ap.procedure.preco = Decimal("1200")
+        appointment = _appointment_com_linhas([ap])
+
+        with self.assertRaises(ValueError) as ctx:
+            aplicar_valor_procedimentos_atendimento(appointment, "1500")
+        self.assertIn("cadastrado", str(ctx.exception).lower())
+        ap.save.assert_not_called()
+
+    def test_pagamento_maior_que_o_procedimento_rejeita(self):
+        from clinica_beleza.consulta_service.valores import mensagem_pagamento_acima_do_teto
+
+        msg = mensagem_pagamento_acima_do_teto(Decimal("1200"), 0, 0, Decimal("1500"))
+        self.assertIn("procedimento", msg)
+        self.assertIsNone(mensagem_pagamento_acima_do_teto(Decimal("1200"), Decimal("150"), 0, Decimal("1350")))
+        self.assertIn("atendimento", mensagem_pagamento_acima_do_teto(Decimal("1200"), Decimal("150"), 0, Decimal("1400")))
+
     def test_valor_negativo_rejeita(self):
         appointment = _appointment_com_linhas([MagicMock()])
         with self.assertRaises(ValueError):

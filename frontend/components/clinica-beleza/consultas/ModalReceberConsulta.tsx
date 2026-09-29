@@ -8,7 +8,6 @@ import { formatApiErrorBody } from "@/lib/api-errors";
 import {
   deveAbrirComprovanteRecibo,
   saldoReceberConsulta,
-  valorPagamentoConsulta,
 } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import { type Consulta } from "./consultas-types";
 import {
@@ -16,6 +15,7 @@ import {
   calcularTotalLiquido,
   novaLinhaEntrada,
   parseMoneyInput,
+  round2,
   somaEntradas,
   somaEntradasPagas,
   validateReceberForm,
@@ -66,19 +66,33 @@ export function ModalReceberConsulta({
   const valorProcAlterado =
     podeEditarValorProc && !valoresQuaseIguais(valorProcedimentosEfetivo, valorProcCatalogo);
   const retornoIsento = Boolean(consulta.retorno_gratuito);
-  const taxaCobrada = retornoIsento ? 0 : valorConsulta;
-  const total = valorProcAlterado || retornoIsento
-    ? taxaCobrada + valorProcedimentosEfetivo
-    : valorPagamentoConsulta(consulta);
-  const saldoAtual = valorProcAlterado || retornoIsento
-    ? Math.max(0, total - Number(consulta.valor_pago ?? 0))
-    : saldoReceberConsulta(consulta);
+  const taxaLocal = Number(consulta.local_atendimento_valor_consulta ?? 0);
+  const taxaCobrada = retornoIsento
+    ? 0
+    : valorConsulta > 0.009
+      ? valorConsulta
+      : Math.max(0, taxaLocal);
+  const total = round2(taxaCobrada + valorProcedimentosEfetivo);
+  const pagoAteAgora = Number(consulta.valor_pago ?? 0);
+  const saldoApi = saldoReceberConsulta(consulta);
+  const saldoBruto = Math.max(0, round2(total - pagoAteAgora));
+  const saldoAtual =
+    pagoAteAgora > 0.009 && saldoApi + 0.009 < saldoBruto ? saldoApi : saldoBruto;
   const baseReceber = saldoAtual > 0 ? saldoAtual : total;
 
   const reiniciarFormularioComplemento = (c: Consulta) => {
-    const novoSaldo = saldoReceberConsulta(c);
-    const novoTotal = valorPagamentoConsulta(c);
-    const base = novoSaldo > 0 ? novoSaldo : novoTotal;
+    const taxa = c.retorno_gratuito
+      ? 0
+      : Number(c.valor_consulta ?? 0) > 0.009
+        ? Number(c.valor_consulta ?? 0)
+        : Math.max(0, Number(c.local_atendimento_valor_consulta ?? 0));
+    const bruto = round2(taxa + Number(c.valor_procedimentos ?? 0));
+    const pago = Number(c.valor_pago ?? 0);
+    const saldoApiReset = saldoReceberConsulta(c);
+    const saldoBrutoReset = Math.max(0, round2(bruto - pago));
+    const saldoReset =
+      pago > 0.009 && saldoApiReset + 0.009 < saldoBrutoReset ? saldoApiReset : saldoBrutoReset;
+    const base = saldoReset > 0 ? saldoReset : bruto;
     setDesconto("");
     setEntradas([novaLinhaEntrada("CASH", base)]);
     setMarkAsPaid(true);
@@ -179,6 +193,10 @@ export function ModalReceberConsulta({
       base: baseReceber,
       entradas,
       markAsPaid,
+      valorProcedimento: valorProcedimentosEfetivo,
+      valorProcedimentoCatalogo: valorProcCatalogo,
+      taxaConsulta: taxaCobrada,
+      jaPago: Number(consulta.valor_pago ?? 0),
     });
     if (validationError) {
       setError(validationError);
@@ -323,7 +341,7 @@ export function ModalReceberConsulta({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ReceberDadosAtendimento
               consulta={consulta}
-              valorConsulta={valorConsulta}
+              valorConsulta={taxaCobrada}
               valorProcedimentos={valorProcedimentosEfetivo}
               total={total}
               saldoAtual={saldoAtual}

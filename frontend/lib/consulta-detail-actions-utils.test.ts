@@ -99,6 +99,28 @@ describe("consultaPagamentoUi", () => {
     });
   });
 
+  it("mostra Parcial quando está pago no cadastro mas ainda há saldo", () => {
+    expect(
+      consultaPagamentoUi(
+        consulta({
+          status: "COMPLETED",
+          payment_status: "PAID",
+          valor_pagamento: 1350,
+          valor_pago: 990,
+          valor_restante: 150,
+        }),
+      ),
+    ).toEqual({
+      mostrarReceber: false,
+      mostrarPago: false,
+      mostrarParcial: true,
+      mostrarRecibo: false,
+      mostrarPrazo: false,
+      mostrarIsento: false,
+      consultaFinalizada: true,
+    });
+  });
+
   it("mostra Parcial após pagamento parcial", () => {
     expect(
       consultaPagamentoUi(

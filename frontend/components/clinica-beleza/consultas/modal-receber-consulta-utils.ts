@@ -60,14 +60,36 @@ export function novaLinhaEntrada(
   };
 }
 
+function formatReais(valor: number): string {
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 export function validateReceberForm(params: {
   totalLiquido: number;
   desconto: number;
   base: number;
   entradas: EntradaPagamentoLinha[];
   markAsPaid: boolean;
+  /** Preço do procedimento neste atendimento. Sem procedimento, o teto é o total. */
+  valorProcedimento?: number | null;
+  /** Preço de cadastro. Não deixa gravar um procedimento mais caro. */
+  valorProcedimentoCatalogo?: number | null;
+  /** Taxa de consulta cobrada junto (0 no retorno). */
+  taxaConsulta?: number | null;
+  /** O que já foi recebido antes deste lançamento. */
+  jaPago?: number | null;
 }): string | null {
-  const { totalLiquido, desconto, base, entradas, markAsPaid } = params;
+  const {
+    totalLiquido,
+    desconto,
+    base,
+    entradas,
+    markAsPaid,
+    valorProcedimento,
+    valorProcedimentoCatalogo,
+    taxaConsulta,
+    jaPago,
+  } = params;
   if (desconto < 0) return "Desconto não pode ser negativo.";
   if (desconto > base + TOLERANCIA) return "Desconto não pode ser maior que o total.";
   const descontoIntegral =
@@ -83,6 +105,24 @@ export function validateReceberForm(params: {
 
   const soma = somaEntradas(entradas);
   if (soma <= 0) return "Informe um valor maior que zero.";
+  if (
+    valorProcedimentoCatalogo != null &&
+    valorProcedimentoCatalogo > TOLERANCIA &&
+    valorProcedimento != null &&
+    valorProcedimento > valorProcedimentoCatalogo + TOLERANCIA
+  ) {
+    return `O valor do procedimento não pode ser maior que o cadastrado (${formatReais(valorProcedimentoCatalogo)}).`;
+  }
+  if (valorProcedimento != null && valorProcedimento > TOLERANCIA) {
+    const taxa = Math.max(0, taxaConsulta ?? 0);
+    const teto = round2(valorProcedimento + taxa);
+    const acumulado = round2(Math.max(0, jaPago ?? 0) + soma);
+    if (acumulado > teto + TOLERANCIA) {
+      const alvo = taxa > TOLERANCIA ? "atendimento" : "procedimento";
+      const limite = taxa > TOLERANCIA ? teto : valorProcedimento;
+      return `O pagamento (${formatReais(acumulado)}) não pode ser maior que o valor do ${alvo} (${formatReais(limite)}).`;
+    }
+  }
   if (soma > totalLiquido + TOLERANCIA) {
     return `Soma das formas (${soma.toFixed(2)}) excede o total a receber (${totalLiquido.toFixed(2)}).`;
   }

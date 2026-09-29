@@ -1,8 +1,8 @@
 """Service para relatório de faturamento — Clínica da Beleza.
 
 Agrupa receita por profissional, procedimento, local de atendimento ou convênio.
-Baseado em Payment (status=PAID) como fonte de verdade — espelha o padrão
-de comissao_relatorio_service.py para consistência.
+Baseado em Payment (status PAID ou PARTIAL) como fonte de verdade — espelha o padrão
+de comissao_relatorio_service.py para consistência. O parcial soma só o recebido.
 """
 from __future__ import annotations
 
@@ -81,14 +81,15 @@ def calcular_faturamento(
 ) -> dict:
     """Calcula faturamento da clínica agrupado pelo critério selecionado.
 
-    Fonte: Payment.status='PAID' com payment_date no período.
-    Valores: taxa cobrada (Consulta.valor_consulta; retorno gratuito fica de fora)
+    Fonte: Payment status PAID ou PARTIAL com payment_date no período.
+    PAID: taxa cobrada (Consulta.valor_consulta; retorno gratuito fica de fora)
     + procedimentos (AppointmentProcedure.valor) − desconto do pagamento.
+    PARTIAL: só o valor já recebido (amount), sem lançar o procedimento em aberto.
 
     Retorna dict com 'linhas' (lista) e 'totais'.
     """
     # Filtrar pagamentos pagos no período (mesmo padrão do relatório de comissões)
-    qs = Payment.objects.filter(status="PAID").exclude(payment_method="DESPESA").select_related(
+    qs = Payment.objects.filter(status__in=("PAID", "PARTIAL")).exclude(payment_method="DESPESA").select_related(
         "appointment__professional",
         "appointment__patient",
         "appointment__procedure",
@@ -126,6 +127,14 @@ def calcular_faturamento(
         nome = _get_grupo_nome(appt, consulta, agrupar)
         grupo = grupos[chave]
         grupo["nome"] = nome
+        if getattr(payment, "status", "PAID") == "PARTIAL":
+            recebido = Decimal(str(payment.amount or 0))
+            if recebido <= 0:
+                continue
+            grupo["total_atendimentos"] += 1
+            grupo["valor_procedimento"] += recebido
+            grupo["valor_total"] += recebido
+            continue
         grupo["total_atendimentos"] += 1
         valor_consulta, valor_proc, usar_amount = _calcular_valor_pagamento(payment, consulta_map)
         if usar_amount:

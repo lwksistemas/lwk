@@ -318,6 +318,16 @@ def aplicar_desconto_payment(payment, desconto_raw):
 def criar_parcela_e_atualizar_payment(payment, valor, dados):
     parcela = None
     if valor > 0:
+        from clinica_beleza.consulta_service.valores import mensagem_pagamento_acima_do_teto
+
+        acima = mensagem_pagamento_acima_do_teto(
+            payment.valor_total_efetivo,
+            0,
+            payment.valor_pago_parcelas,
+            valor,
+        )
+        if acima:
+            raise ValueError(acima)
         parcela = PaymentParcela.objects.create(
             payment=payment,
             valor=valor,
@@ -411,7 +421,12 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
         payment_date__date__lte=period_end,
     ))
     pagos_caixa = pagos_mes.exclude(payment_method=METODO_DESPESA)
-    faturamento = _sum(pagos_caixa)
+    parciais_mes = payments_visiveis_financeiro(Payment.objects.filter(
+        status="PARTIAL",
+        payment_date__date__gte=first_day,
+        payment_date__date__lte=period_end,
+    )).exclude(payment_method=METODO_DESPESA)
+    faturamento = _sum(pagos_caixa) + _sum(parciais_mes)
     contas_a_receber = somar_contas_a_receber()
     a_receber_mes = somar_a_receber_periodo(first_day, last_day)
     a_prazo_mes = somar_a_receber_periodo(first_day, last_day, payment_method="PRAZO")
@@ -433,6 +448,8 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
     return {
         "caixa_diario": _sum(payments_visiveis_financeiro(
             Payment.objects.filter(status="PAID", payment_date__date=today),
+        ).exclude(payment_method=METODO_DESPESA)) + _sum(payments_visiveis_financeiro(
+            Payment.objects.filter(status="PARTIAL", payment_date__date=today),
         ).exclude(payment_method=METODO_DESPESA)),
         "total_mes": faturamento,
         "contas_a_receber": contas_a_receber,

@@ -1,6 +1,70 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from core.decimal_utils import to_decimal
+
+
+def _decimal_ou_none(valor) -> Decimal | None:
+    """Decimal finito, ou None quando o valor não é numérico (ex.: mock)."""
+    if isinstance(valor, bool) or not isinstance(valor, (int, float, Decimal, str)):
+        return None
+    try:
+        numero = Decimal(str(valor))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    if not numero.is_finite():
+        return None
+    return numero
+
+
+def _fmt_reais(valor: Decimal) -> str:
+    quantizado = Decimal(valor).quantize(Decimal("0.01"))
+    texto = f"{quantizado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {texto}"
+
+
+def mensagem_pagamento_acima_do_teto(valor_proc, taxa, ja_pago, soma) -> str | None:
+    """Recusa pagamento maior que o procedimento (mais a taxa, quando houver)."""
+    proc = _decimal_ou_none(valor_proc)
+    if proc is None or proc <= 0:
+        return None
+    taxa_dec = _decimal_ou_none(taxa) or Decimal(0)
+    if taxa_dec < 0:
+        taxa_dec = Decimal(0)
+    ja = _decimal_ou_none(ja_pago) or Decimal(0)
+    pago = _decimal_ou_none(soma) or Decimal(0)
+    teto = proc + taxa_dec
+    acumulado = ja + pago
+    if acumulado <= teto + Decimal("0.01"):
+        return None
+    if taxa_dec > Decimal("0.01"):
+        return (
+            f"O pagamento ({_fmt_reais(acumulado)}) não pode ser maior que o valor do atendimento ({_fmt_reais(teto)})."
+        )
+    return (
+        f"O pagamento ({_fmt_reais(acumulado)}) não pode ser maior que o valor do procedimento ({_fmt_reais(proc)})."
+    )
+
+
+def _rejeitar_valor_acima_do_cadastro(linhas, appointment, valor: Decimal) -> None:
+    """O atendimento pode baixar o preço; não pode passar do cadastro."""
+    precos: list[Decimal] = []
+    if linhas:
+        for ap in linhas:
+            preco = _decimal_ou_none(getattr(getattr(ap, "procedure", None), "preco", None))
+            if preco is None:
+                return
+            precos.append(preco)
+    else:
+        preco = _decimal_ou_none(getattr(getattr(appointment, "procedure", None), "preco", None))
+        if preco is None:
+            return
+        precos.append(preco)
+    catalogo = sum(precos, Decimal(0))
+    if catalogo <= 0 or valor <= catalogo + Decimal("0.01"):
+        return
+    raise ValueError(
+        f"O valor do procedimento não pode ser maior que o cadastrado ({_fmt_reais(catalogo)}).",
+    )
 
 
 def aplicar_valor_procedimentos_atendimento(appointment, novo_valor) -> Decimal:
@@ -14,6 +78,7 @@ def aplicar_valor_procedimentos_atendimento(appointment, novo_valor) -> Decimal:
     linhas = list(
         appointment.appointment_procedures.select_related("procedure").order_by("ordem", "id"),
     )
+    _rejeitar_valor_acima_do_cadastro(linhas, appointment, valor)
     if not linhas:
         if not getattr(appointment, "procedure_id", None):
             raise ValueError("Não há procedimento neste atendimento para alterar o valor.")

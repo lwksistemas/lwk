@@ -9,6 +9,7 @@ import { useCallback, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
+import type { BloqueioSelecionado } from "@/lib/bloqueio-serie";
 import { useAgendaMutations } from "@/hooks/useAgendaMutations";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { searchClinicaPatients } from "@/lib/clinica-beleza-cadastros-api";
@@ -34,11 +35,7 @@ export default function AgendaPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showModalBloqueio, setShowModalBloqueio] = useState(false);
-  const [selectedBloqueio, setSelectedBloqueio] = useState<{
-    id: number;
-    motivo: string;
-    professional_name: string;
-  } | null>(null);
+  const [selectedBloqueio, setSelectedBloqueio] = useState<BloqueioSelecionado | null>(null);
   const [modoAgenda, setModoAgenda] = useState<"grade" | "lista">("grade");
   const [createProfessionalId, setCreateProfessionalId] = useState("");
 

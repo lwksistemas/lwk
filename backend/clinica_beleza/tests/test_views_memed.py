@@ -1,9 +1,14 @@
 """Memed token — regressão de import settings."""
+from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 from clinica_beleza.memed_impressao import aviso_timbrado_nao_aplicado
-from clinica_beleza.memed_service import prescritor_liberado_na_memed
+from clinica_beleza.memed_service import (
+    eh_prescritor_teste_homologacao,
+    identificador_prescritor_memed,
+    prescritor_liberado_na_memed,
+)
 from clinica_beleza.views_memed import (
     MemedTokenView,
     _normalizar_status_memed,
@@ -123,3 +128,16 @@ class MensagemFalhaTokenMemedTest(TestCase):
             mensagem_falha_token_memed("integration", 401, '{"errors":[]}'),
             "Erro ao obter o token do prescritor na Memed.",
         )
+
+
+class PrescritorTesteHomologacaoTest(TestCase):
+    def test_crm_de_demonstracao_sem_cpf(self):
+        prof = SimpleNamespace(cpf="", registro_profissional="123456", conselho_uf="SP")
+        self.assertEqual(identificador_prescritor_memed(prof), "123456SP")
+        self.assertTrue(eh_prescritor_teste_homologacao(prof, "integration", "123456SP"))
+        self.assertFalse(eh_prescritor_teste_homologacao(prof, "production", "123456SP"))
+
+    def test_cpf_nao_e_prescritor_de_teste(self):
+        prof = SimpleNamespace(cpf="369.716.458-98", registro_profissional="123456", conselho_uf="SP")
+        self.assertEqual(identificador_prescritor_memed(prof), "36971645898")
+        self.assertFalse(eh_prescritor_teste_homologacao(prof, "integration", "123456SP"))

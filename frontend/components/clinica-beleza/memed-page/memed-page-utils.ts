@@ -89,6 +89,17 @@ export function resumoProntoParaPrescrever(diag: MemedDiagStatus): {
 } {
   const lista = diag.prescritores ?? [];
   const liberados = lista.filter(prescritorPodePrescrever);
+  const testes = liberados.filter((p) => p.prescritor_teste);
+  const homologacao = diag.environment !== "production";
+  if (homologacao && testes.length > 0 && testes.length === liberados.length) {
+    const nomes = testes.map((p) => p.nome).filter(Boolean).join(", ");
+    return {
+      tom: "ok",
+      texto: nomes
+        ? `Profissional de teste configurado: ${nomes}. A homologação já pode prescrever na Memed.`
+        : "Profissional de teste configurado. A homologação já pode prescrever na Memed.",
+    };
+  }
   if (!diag.credentials_configured) {
     return {
       tom: "pendente",

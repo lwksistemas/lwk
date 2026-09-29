@@ -84,6 +84,24 @@ describe("resumoProntoParaPrescrever", () => {
     expect(r.texto).toMatch(/Em análise/i);
   });
 
+  it("na homologação avisa que o profissional de teste está configurado", () => {
+    const r = resumoProntoParaPrescrever({
+      environment: "integration",
+      credentials_configured: true,
+      profissionais_com_cpf: 0,
+      prescritores: [
+        {
+          nome: "PRESCRITOR TESTE MEMED",
+          status: "Ativo",
+          pode_prescrever: true,
+          prescritor_teste: true,
+        },
+      ],
+    });
+    expect(r.tom).toBe("ok");
+    expect(r.texto).toContain("Profissional de teste configurado: PRESCRITOR TESTE MEMED");
+  });
+
   it("diz pronto quando todos podem prescrever", () => {
     const r = resumoProntoParaPrescrever({
       credentials_configured: true,

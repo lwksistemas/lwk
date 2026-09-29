@@ -224,13 +224,37 @@ def _aplicar_timbrado_automatico(professional):
         logger.warning("Memed timbrado automático ignorado (prof %s): %s", getattr(professional, "id", None), e)
 
 
+def identificador_prescritor_memed(professional) -> str:
+    """CPF (11 dígitos) ou registro do conselho + UF, no formato que a Memed consulta."""
+    cpf = re.sub(r"\D", "", getattr(professional, "cpf", "") or "")
+    if len(cpf) == 11:
+        return cpf
+    registro = re.sub(r"[^0-9A-Za-z]", "", (getattr(professional, "registro_profissional", "") or ""))
+    uf = (getattr(professional, "conselho_uf", "") or "").strip().upper()
+    if registro and uf:
+        return f"{registro}{uf}"
+    return ""
+
+
+def eh_prescritor_teste_homologacao(professional, env: str, demo_id: str) -> bool:
+    """Profissional sem CPF cujo CRM é o prescritor de demonstração da homologação."""
+    if env != "integration":
+        return False
+    demo = (demo_id or "").strip().upper()
+    ident = identificador_prescritor_memed(professional).upper()
+    if not demo or ident != demo:
+        return False
+    cpf = re.sub(r"\D", "", getattr(professional, "cpf", "") or "")
+    return len(cpf) != 11
+
+
 def consultar_status_memed(professional) -> dict:
-    """Consulta o status do prescritor na Memed (GET por CPF).
+    """Consulta o status do prescritor na Memed (GET por CPF ou CRM+UF).
     Best-effort: nunca lança exceção.
     """
     prof_id = getattr(professional, "id", None)
-    cpf = re.sub(r"\D", "", getattr(professional, "cpf", "") or "")
-    if len(cpf) != 11:
+    ident = identificador_prescritor_memed(professional)
+    if not ident:
         return {"professional_id": prof_id, "state": "sem_cpf", "label": "Sem CPF"}
 
     env, endpoints = _memed_config()
@@ -238,7 +262,7 @@ def consultar_status_memed(professional) -> dict:
     if not api_key or not secret_key:
         return {"professional_id": prof_id, "state": "sem_credenciais", "label": "Memed não configurada"}
 
-    url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{cpf}"
+    url = f"{endpoints['api']}/sinapse-prescricao/usuarios/{ident}"
     try:
         resp = requests.get(
             url,

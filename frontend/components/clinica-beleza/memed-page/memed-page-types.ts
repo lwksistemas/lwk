@@ -28,6 +28,7 @@ export interface MemedPrescritorDiag {
   terms_accepted?: boolean;
   tem_token?: boolean;
   pode_prescrever?: boolean;
+  prescritor_teste?: boolean;
 }
 
 export interface MemedDiagStatus {

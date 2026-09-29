@@ -7,7 +7,10 @@ from rest_framework.views import APIView
 
 from clinica_beleza.memed_config import memed_config as _memed_config
 from clinica_beleza.memed_config import memed_credentials as _memed_credentials
-from clinica_beleza.memed_service import status_prescritor_para_diagnostico
+from clinica_beleza.memed_service import (
+    eh_prescritor_teste_homologacao,
+    status_prescritor_para_diagnostico,
+)
 from clinica_beleza.permissions import CLINICA_CLINICAL
 from django.conf import settings
 
@@ -59,15 +62,20 @@ class MemedStatusView(APIView):
         env, endpoints = _memed_config()
         api_key, secret_key = _memed_credentials(env)
         timbrado = MemedTimbrado.objects.first()
-        profs_cpf = list(
-            Professional.objects.filter(is_active=True).exclude(cpf__isnull=True).exclude(cpf="").order_by("nome")
-        )
+        demo_id = getattr(settings, "MEMED_PRESCRITOR_ID", "") or ""
         prescritores = []
-        for p in profs_cpf:
-            if len("".join(ch for ch in (p.cpf or "") if ch.isdigit())) != 11:
+        profs_com_cpf = 0
+        for p in Professional.objects.filter(is_active=True).order_by("nome"):
+            cpf = "".join(ch for ch in (p.cpf or "") if ch.isdigit())
+            teste = eh_prescritor_teste_homologacao(p, env, demo_id)
+            if len(cpf) != 11 and not teste:
                 continue
-            prescritores.append(status_prescritor_para_diagnostico(p))
-        profs_com_cpf = len(prescritores)
+            item = status_prescritor_para_diagnostico(p)
+            if teste:
+                item["prescritor_teste"] = True
+            else:
+                profs_com_cpf += 1
+            prescritores.append(item)
         prescritores_liberados = sum(1 for item in prescritores if item.get("pode_prescrever"))
 
         prod_keys = bool(

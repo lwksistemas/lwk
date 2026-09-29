@@ -6,6 +6,7 @@ import { CLINICA_FORMA_PAGAMENTO_A_VISTA, CLINICA_FORMA_PAGAMENTO_LABEL } from "
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import type { FinanceiroPayment } from "../types";
+import { baixaPagamentoPodeConfirmar } from "./modal-baixa-payment-utils";
 
 interface Parcela {
   id: number;
@@ -79,23 +80,28 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
   const descontoRegistrado = Number(parcelasData?.desconto ?? payment.desconto ?? 0) || 0;
   const descontoResumo = descontoRegistrado + valorDesconto;
   const saldoResumo = Math.max(0, saldoDevedor - valorDesconto);
-  const saldoAposEntrada = Math.max(0, saldoDevedor - valorEntrada - valorDesconto);
-  const quitaTotal = (valorEntrada + valorDesconto) > 0 && (valorEntrada + valorDesconto) >= saldoDevedor;
+  const confirmacao = baixaPagamentoPodeConfirmar({
+    saldoDevedor,
+    valorRecebido: valorEntrada,
+    desconto: valorDesconto,
+  });
+  const saldoAposEntrada = Math.max(0, saldoDevedor - confirmacao.valorEnviado - valorDesconto);
+  const quitaTotal = confirmacao.quitaTotal;
 
   const handleConfirm = async () => {
-    if ((!valor || Number(valor) <= 0) && valorDesconto <= 0) {
-      setError("Informe o valor recebido ou um desconto.");
-      return;
-    }
-    if (valorDesconto > saldoDevedor) {
-      setError("Desconto não pode ser maior que o saldo devedor.");
+    if (!confirmacao.pode) {
+      setError(
+        confirmacao.descontoExcede
+          ? "Desconto não pode ser maior que o saldo devedor."
+          : "Informe o valor recebido ou um desconto que quite o saldo.",
+      );
       return;
     }
     setSaving(true);
     setError("");
     try {
       await ClinicaBelezaAPI.financeiro.payments.parcelas.add(payment.id, {
-        valor: valorEntrada,
+        valor: confirmacao.valorEnviado,
         payment_method: paymentMethod,
         payment_date: paymentDate,
         observacoes,
@@ -239,20 +245,20 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                     <label className="block text-sm font-medium mb-1">
                       {paymentMethod === "DESPESA" ? "Valor da despesa (R$)" : "Valor recebido (R$)"}{" "}
                       <span className="text-gray-400 font-normal text-xs">
-                        — saldo: {formatCurrency(saldoDevedor)}
+                        — saldo: {formatCurrency(saldoResumo)}
                       </span>
                     </label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      max={saldoDevedor}
+                      max={saldoResumo}
                       value={valor}
                       onChange={(e) => setValor(e.target.value)}
-                      placeholder={String(saldoDevedor.toFixed(2))}
+                      placeholder={saldoResumo > 0 ? saldoResumo.toFixed(2) : "0.00"}
                       className={inputClass}
                     />
-                    {valorEntrada > 0 && (
+                    {(valorEntrada > 0 || (quitaTotal && valorDesconto > 0)) && (
                       <p
                         className={`text-xs mt-1 font-medium ${
                           quitaTotal
@@ -278,7 +284,15 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                       min="0"
                       max={saldoDevedor}
                       value={desconto}
-                      onChange={(e) => setDesconto(e.target.value)}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setDesconto(next);
+                        const desc = Number(next) || 0;
+                        const restante = Math.max(0, saldoDevedor - desc);
+                        if (valorEntrada > restante + 0.001) {
+                          setValor(restante > 0.009 ? restante.toFixed(2) : "");
+                        }
+                      }}
                       placeholder="0,00"
                       className={inputClass}
                     />
@@ -360,7 +374,7 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
             <button
               type="button"
               onClick={handleConfirm}
-              disabled={saving || !valor || Number(valor) <= 0}
+              disabled={saving || !confirmacao.pode}
               className="flex-1 md:flex-none md:min-w-[160px] py-2 px-4 rounded-lg text-white disabled:opacity-50 font-medium"
               style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
             >

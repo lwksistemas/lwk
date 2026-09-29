@@ -1,6 +1,4 @@
 """Timbrado A4 (PDF) para receituário e exames na Memed — por loja."""
-import re
-
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -42,7 +40,14 @@ class MemedTimbradoView(APIView):
     def post(self, request):
         from tenants.middleware import get_current_loja_id
         from superadmin.plano_features import loja_plano_permite_memed
-        from clinica_beleza.memed_impressao import aplicar_timbrado_loja_a_profissionais, aviso_timbrado_nao_aplicado
+        from django.conf import settings
+
+        from clinica_beleza.memed_config import memed_config
+        from clinica_beleza.memed_impressao import (
+            aplicar_timbrado_loja_a_profissionais,
+            aviso_timbrado_nao_aplicado,
+            profissionais_para_aplicar_timbrado,
+        )
         from clinica_beleza.models import MemedTimbrado, Professional
 
         ok, err = loja_plano_permite_memed(get_current_loja_id())
@@ -74,14 +79,21 @@ class MemedTimbradoView(APIView):
                 defaults={"pdf": pdf_bytes, "pdf_nome": filename},
             )
 
-        profs = [
-            p for p in Professional.objects.filter(is_active=True)
-            if len(re.sub(r"\D", "", p.cpf or "")) == 11
-        ]
+        env, _endpoints = memed_config()
+        profs = profissionais_para_aplicar_timbrado(
+            Professional.objects.filter(is_active=True),
+            env=env,
+            demo_id=getattr(settings, "MEMED_PRESCRITOR_ID", "") or "",
+        )
         if not profs:
             return Response({
-                "error": "Timbrado salvo, mas nenhum profissional ativo com CPF para aplicar na Memed.",
-            }, status=status.HTTP_400_BAD_REQUEST)
+                "tem_timbrado": True,
+                "pdf_nome": filename,
+                "tamanho_bytes": len(pdf_bytes),
+                "aplicados": 0,
+                "total": 0,
+                "warning": "Timbrado salvo no LWK. Nenhum prescritor ativo para aplicar na Memed.",
+            })
 
         resultado = aplicar_timbrado_loja_a_profissionais(pdf_bytes, filename, profs)
         payload = {

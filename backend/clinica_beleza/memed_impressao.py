@@ -13,18 +13,34 @@ import requests
 
 from .memed_config import memed_config as _memed_config
 from .memed_config import memed_credentials as _memed_credentials
-from .memed_service import consultar_status_memed, external_id_prescritor, prescritor_liberado_na_memed
+from .memed_service import (
+    consultar_status_memed,
+    eh_prescritor_teste_homologacao,
+    external_id_prescritor,
+    identificador_prescritor_memed,
+    prescritor_liberado_na_memed,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def _prescritor_id(professional) -> str | None:
-    cpf = re.sub(r"\D", "", getattr(professional, "cpf", "") or "")
-    if len(cpf) == 11:
-        return cpf
+    ident = identificador_prescritor_memed(professional)
+    if ident:
+        return ident
     if getattr(professional, "id", None):
         return external_id_prescritor(professional)
     return None
+
+
+def profissionais_para_aplicar_timbrado(professionals, *, env: str, demo_id: str) -> list:
+    """Prescritores que recebem o timbrado: CPF válido ou o CRM de teste da homologação."""
+    alvo = []
+    for professional in professionals:
+        cpf = re.sub(r"\D", "", getattr(professional, "cpf", "") or "")
+        if len(cpf) == 11 or eh_prescritor_teste_homologacao(professional, env, demo_id):
+            alvo.append(professional)
+    return alvo
 
 
 def _token_prescritor(prescritor_id: str) -> str | None:

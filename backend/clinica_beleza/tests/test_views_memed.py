@@ -3,7 +3,11 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
-from clinica_beleza.memed_impressao import aviso_timbrado_nao_aplicado
+from clinica_beleza.memed_impressao import (
+    _prescritor_id,
+    aviso_timbrado_nao_aplicado,
+    profissionais_para_aplicar_timbrado,
+)
 from clinica_beleza.memed_service import (
     eh_prescritor_teste_homologacao,
     identificador_prescritor_memed,
@@ -141,3 +145,18 @@ class PrescritorTesteHomologacaoTest(TestCase):
         prof = SimpleNamespace(cpf="369.716.458-98", registro_profissional="123456", conselho_uf="SP")
         self.assertEqual(identificador_prescritor_memed(prof), "36971645898")
         self.assertFalse(eh_prescritor_teste_homologacao(prof, "integration", "123456SP"))
+
+
+class TimbradoPrescritorTesteTest(TestCase):
+    def test_crm_de_teste_entra_na_aplicacao_e_identifica_123456sp(self):
+        teste = SimpleNamespace(cpf="", registro_profissional="123456", conselho_uf="SP", id=7, is_active=True)
+        com_cpf = SimpleNamespace(cpf="369.716.458-98", registro_profissional="", conselho_uf="", id=1, is_active=True)
+        sem_dado = SimpleNamespace(cpf="", registro_profissional="", conselho_uf="", id=5, is_active=True)
+        alvo = profissionais_para_aplicar_timbrado(
+            [teste, com_cpf, sem_dado],
+            env="integration",
+            demo_id="123456SP",
+        )
+        self.assertEqual(alvo, [teste, com_cpf])
+        self.assertEqual(_prescritor_id(teste), "123456SP")
+        self.assertEqual(_prescritor_id(com_cpf), "36971645898")

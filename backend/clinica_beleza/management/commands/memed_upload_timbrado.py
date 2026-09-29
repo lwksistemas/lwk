@@ -4,12 +4,16 @@ Uso:
     python manage.py memed_upload_timbrado --slug beleza --file "/caminho/Timbrado A4.pdf"
     python manage.py memed_upload_timbrado --slug beleza --file timbrado.pdf --aplicar
 """
-import re
 from pathlib import Path
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from clinica_beleza.memed_impressao import aplicar_timbrado_loja_a_profissionais
+from clinica_beleza.memed_config import memed_config
+from clinica_beleza.memed_impressao import (
+    aplicar_timbrado_loja_a_profissionais,
+    profissionais_para_aplicar_timbrado,
+)
 from clinica_beleza.models import MemedTimbrado, Professional
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
@@ -73,12 +77,14 @@ class Command(BaseCommand):
             self.stdout.write("Use --aplicar para enviar à Memed agora.")
             return
 
-        profs = [
-            p for p in Professional.objects.filter(loja_id=loja.id, is_active=True)
-            if len(re.sub(r"\D", "", p.cpf or "")) == 11
-        ]
+        env, _endpoints = memed_config()
+        profs = profissionais_para_aplicar_timbrado(
+            Professional.objects.filter(loja_id=loja.id, is_active=True),
+            env=env,
+            demo_id=getattr(settings, "MEMED_PRESCRITOR_ID", "") or "",
+        )
         if not profs:
-            raise CommandError("Nenhum profissional ativo com CPF na loja.")
+            raise CommandError("Nenhum prescritor ativo para aplicar o timbrado.")
 
         resultado = aplicar_timbrado_loja_a_profissionais(pdf_bytes, path.name, profs)
         self.stdout.write(self.style.MIGRATE_HEADING(

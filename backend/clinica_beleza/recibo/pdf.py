@@ -451,3 +451,33 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     doc = _ReciboDoc(buf, pagesize=(page_w, page_h))
     doc.build(story)
     return _recortar_pdf_apos_conteudo(buf.getvalue(), doc.y_conteudo, mm)
+
+
+def gerar_pdf_recibo_da_consulta(consulta):
+    """PDF oficial do recibo. Sem pagamento gravado (retorno a R$ 0), usa o mesmo gerador."""
+    from decimal import Decimal
+
+    from ..models import Payment
+    from ..recibo_assinatura_adapter import ReciboAssinaturaAdapter
+
+    adapter = ReciboAssinaturaAdapter()
+    payment = (
+        Payment.objects.filter(appointment_id=consulta.appointment_id)
+        .order_by("-id")
+        .first()
+    )
+    if payment is not None:
+        assinado = payment.status_assinatura_recibo == "concluido"
+        return adapter.gerar_pdf(payment, incluir_assinaturas=assinado)
+
+    stub = Payment(
+        loja_id=consulta.loja_id,
+        appointment=consulta.appointment,
+        amount=Decimal("0"),
+        valor_total=Decimal("0"),
+        desconto=Decimal("0"),
+        payment_method="CASH",
+        status="PENDING",
+    )
+    stub._prefetched_objects_cache = {"parcelas": []}
+    return adapter.gerar_pdf(stub, incluir_assinaturas=False)

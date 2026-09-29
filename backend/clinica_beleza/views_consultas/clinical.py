@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from ..models import Consulta, ConsultaEvolucao, PatientAnamnese
 from ..pagination import paginate_queryset
-from ..permissions import CLINICA_CLINICAL
+from ..permissions import CLINICA_CLINICAL, CLINICA_CONSULTA_OPERACIONAL
 from ..serializers import ConsultaEvolucaoSerializer, PatientAnamneseSerializer
 from ..views_base import MSG_ERRO_PDF, resposta_erro_interno
 from .helpers import get_patient_or_404
@@ -81,6 +81,48 @@ class ConsultaEvolucaoListView(APIView):
             serializer.save(loja_id=consulta.loja_id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ConsultaReciboPdfView(APIView):
+    """GET /clinica-beleza/consultas/<id>/recibo-pdf/ — mesmo PDF da página de consultas."""
+
+    permission_classes = CLINICA_CONSULTA_OPERACIONAL
+
+    def get(self, request, pk):
+        from .helpers import get_consulta_or_404
+        from ..recibo.pdf import gerar_pdf_recibo_da_consulta
+
+        consulta, error = get_consulta_or_404(pk, select_related=(
+            "patient",
+            "professional",
+            "appointment",
+            "appointment__patient",
+            "appointment__professional",
+            "appointment__procedure",
+            "appointment__local_atendimento",
+            "appointment__convenio",
+            "local_atendimento",
+        ))
+        if error:
+            return error
+        if consulta.status != "COMPLETED":
+            return Response(
+                {"error": "O comprovante fica disponível após finalizar a consulta."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            pdf = gerar_pdf_recibo_da_consulta(consulta)
+        except Exception as exc:
+            return resposta_erro_interno(
+                logging.getLogger(__name__),
+                f"Erro PDF recibo consulta {pk}",
+                exc,
+                error=MSG_ERRO_PDF,
+            )
+        payload = pdf.getvalue() if hasattr(pdf, "getvalue") else pdf
+        response = HttpResponse(payload, content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="recibo_consulta_{pk}.pdf"'
+        return response
 
 
 class ConsultaSecaoPDFView(APIView):

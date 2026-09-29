@@ -234,3 +234,29 @@ class FormatarEnderecoLojaTests(SimpleTestCase):
         loja.cep = ""
         result = _formatar_endereco_loja(loja)
         self.assertEqual(result, "")
+
+
+class ReciboSemPagamentoTests(SimpleTestCase):
+    def test_retorno_sem_pagamento_usa_o_mesmo_pdf(self):
+        from types import SimpleNamespace
+        import io
+
+        from clinica_beleza.models import Appointment
+
+        consulta = SimpleNamespace(
+            loja_id=6,
+            appointment_id=203,
+            appointment=Appointment(id=203),
+        )
+        qs = MagicMock()
+        qs.order_by.return_value.first.return_value = None
+        with patch("clinica_beleza.models.Payment.objects.filter", return_value=qs), \
+             patch("clinica_beleza.recibo_assinatura_adapter.ReciboAssinaturaAdapter.gerar_pdf") as gerar:
+            gerar.return_value = io.BytesIO(b"%PDF-1.4")
+            from clinica_beleza.recibo.pdf import gerar_pdf_recibo_da_consulta
+            out = gerar_pdf_recibo_da_consulta(consulta)
+        stub = gerar.call_args.args[0]
+        self.assertIsNone(stub.pk)
+        self.assertEqual(stub._prefetched_objects_cache["parcelas"], [])
+        self.assertFalse(gerar.call_args.kwargs["incluir_assinaturas"])
+        self.assertTrue(out.getvalue().startswith(b"%PDF"))

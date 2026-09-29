@@ -100,6 +100,57 @@ class ReciboMoedaEContaTests(SimpleTestCase):
         self.assertEqual(ctx["subtotal"], 530)
         self.assertNotIn("abatimento", ctx)
 
+    def test_desconto_comercial_sai_do_total(self):
+        from clinica_beleza.recibo.context import reconciliar_conta_recibo
+
+        ctx = reconciliar_conta_recibo({
+            "retorno_gratuito": False,
+            "taxa_consulta": 0,
+            "desconto": 500,
+            "procedimentos": [{"nome": "PROCEDIMENTO", "valor": 1500}],
+            "subtotal": 1500,
+            "valor_total": 1500,
+            "valor_pago": 0,
+            "saldo_devedor": 1500,
+        })
+        self.assertEqual(ctx["valor_total"], 1000)
+        self.assertEqual(ctx["saldo_devedor"], 1000)
+        self.assertNotIn("abatimento", ctx)
+
+    def test_desconto_ja_liquido_nao_sai_de_novo(self):
+        from clinica_beleza.recibo.context import reconciliar_conta_recibo
+
+        ctx = reconciliar_conta_recibo({
+            "retorno_gratuito": False,
+            "taxa_consulta": 0,
+            "desconto": 500,
+            "procedimentos": [{"nome": "PROCEDIMENTO", "valor": 1500}],
+            "subtotal": 1500,
+            "valor_total": 1000,
+            "valor_pago": 0,
+            "saldo_devedor": 1000,
+        })
+        self.assertEqual(ctx["valor_total"], 1000)
+        self.assertEqual(ctx["saldo_devedor"], 1000)
+
+    def test_retorno_e_desconto_comercial_fecham_o_saldo(self):
+        from clinica_beleza.recibo.context import reconciliar_conta_recibo
+
+        ctx = reconciliar_conta_recibo({
+            "retorno_gratuito": True,
+            "taxa_consulta": 0,
+            "taxa_consulta_referencia": 150,
+            "desconto_retorno": 150,
+            "desconto": 200,
+            "procedimentos": [{"nome": "BOTOX", "valor": 1500}],
+            "subtotal": 1650,
+            "valor_total": 1500,
+            "valor_pago": 0,
+            "saldo_devedor": 1500,
+        })
+        self.assertEqual(ctx["valor_total"], 1300)
+        self.assertEqual(ctx["saldo_devedor"], 1300)
+
     def test_recebido_a_maior(self):
         from clinica_beleza.recibo.context import recebido_a_maior_recibo
 

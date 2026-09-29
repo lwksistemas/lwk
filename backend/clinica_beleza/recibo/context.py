@@ -569,14 +569,38 @@ def _repor_preco_que_fecha_conta(ctx: dict) -> dict:
     return ctx
 
 
+def _desconto_comercial_sai_do_total(ctx: dict) -> dict:
+    """Procedimento 1.500 e desconto 500 deixam saldo 1.000.
+
+    Só reduz quando o total gravado ainda é o preço antes do desconto comercial.
+    Se o pagamento já guardou o líquido, o total permanece.
+    """
+    _desconto_retorno, desconto = _descontos_conhecidos_recibo(ctx)
+    if desconto <= 0.009:
+        return ctx
+    subtotal = float(ctx.get("subtotal") or 0)
+    valor_total = float(ctx.get("valor_total") or 0)
+    sem_comercial = round(subtotal - _desconto_retorno, 2)
+    if abs(sem_comercial - valor_total) > 0.02:
+        return ctx
+    ctx = dict(ctx)
+    ctx["valor_total"] = round(max(0.0, valor_total - desconto), 2)
+    pago = float(ctx.get("valor_pago") or 0)
+    ctx["saldo_devedor"] = round(max(ctx["valor_total"] - pago, 0.0), 2)
+    return ctx
+
+
 def reconciliar_conta_recibo(ctx: dict) -> dict:
     """Fecha a conta impressa: taxa omitida entra no total; o resto vira abatimento.
 
-    O total cobrado permanece. Se a soma dos itens menos os descontos conhecidos
-    for maior, a diferença sai como linha própria (ex.: procedimento não cobrado).
+    O desconto comercial sai do total quando ainda estava somado no valor cobrado.
+    Se a soma dos itens menos os descontos conhecidos for maior, a diferença sai
+    como linha própria (ex.: procedimento não cobrado).
     Linha a R$ 0 cujo preço de cadastro explica o total cobrado volta a esse preço.
     """
-    ctx = _repor_preco_que_fecha_conta(aplicar_valor_consulta_do_local(dict(ctx)))
+    ctx = _desconto_comercial_sai_do_total(
+        _repor_preco_que_fecha_conta(aplicar_valor_consulta_do_local(dict(ctx)))
+    )
     desconto_retorno, desconto = _descontos_conhecidos_recibo(ctx)
     subtotal = float(ctx.get("subtotal") or 0)
     valor_total = float(ctx.get("valor_total") or 0)

@@ -11,8 +11,9 @@ import {
   modoSugeridoParaTipo,
   resolveMotivoBloqueio,
   removerDiasDoMes,
+  rotuloDiasSelecionados,
+  selecionarSomenteMes,
   toggleDiaIso,
-  unirDiasDoMes,
   validateBloqueioForm,
 } from "./modal-bloqueio-horario-utils";
 
@@ -88,7 +89,7 @@ export function useModalBloqueioHorario({
   const selecionarMesInteiro = useCallback(() => {
     const base = mesCursor || dataInicioDia;
     if (!base) return;
-    setDiasSelecionados((atual) => unirDiasDoMes(atual, base));
+    setDiasSelecionados(selecionarSomenteMes(base));
   }, [dataInicioDia, mesCursor]);
 
   const limparMes = useCallback(() => {
@@ -205,6 +206,7 @@ export function useModalBloqueioHorario({
     loading,
     erro,
     salvar,
+    rotuloSelecao: rotuloDiasSelecionados(diasSelecionados),
   };
 }
 

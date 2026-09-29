@@ -90,8 +90,20 @@ export function diasDoMes(iso: string): string[] {
     .map((cell) => cell.iso);
 }
 
-export function unirDiasDoMes(dias: string[], iso: string): string[] {
-  return [...new Set([...dias, ...diasDoMes(iso)])].sort();
+export function selecionarSomenteMes(iso: string): string[] {
+  return diasDoMes(iso);
+}
+
+export function rotuloDiasSelecionados(dias: string[]): string {
+  const meses = new Map<string, number>();
+  for (const dia of [...dias].sort()) {
+    const chave = dia.slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(chave)) continue;
+    meses.set(chave, (meses.get(chave) || 0) + 1);
+  }
+  return [...meses.entries()]
+    .map(([chave, qtd]) => `${rotuloMesBloqueio(`${chave}-01`)} (${qtd} dias)`)
+    .join(" e ");
 }
 
 export function removerDiasDoMes(dias: string[], iso: string): string[] {

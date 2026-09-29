@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   buildBloqueioRequestBody,
   buildBloqueiosPorDia,
-  diasDoMes,
   enumerarDiasInclusivo,
   extractBloqueioApiError,
   modoSugeridoParaTipo,
   resolveMotivoBloqueio,
+  rotuloDiasSelecionados,
+  selecionarSomenteMes,
   removerDiasDoMes,
   toggleDiaIso,
-  unirDiasDoMes,
   validateBloqueioForm,
 } from "@/components/clinica-beleza/modal-bloqueio-horario/modal-bloqueio-horario-utils";
 
@@ -23,14 +23,13 @@ describe("resolveMotivoBloqueio", () => {
 
 describe("diasDoMes", () => {
   it("marca outubro inteiro e limpa só esse mês", () => {
-    const outubro = diasDoMes("2026-10-01");
+    const outubro = selecionarSomenteMes("2026-10-01");
     expect(outubro).toHaveLength(31);
     expect(outubro[0]).toBe("2026-10-01");
     expect(outubro[30]).toBe("2026-10-31");
-    const comSetembro = unirDiasDoMes(["2026-09-29"], "2026-10-01");
-    expect(comSetembro).toContain("2026-09-29");
-    expect(comSetembro).toContain("2026-10-31");
-    expect(removerDiasDoMes(comSetembro, "2026-10-01")).toEqual(["2026-09-29"]);
+    expect(rotuloDiasSelecionados(outubro)).toContain("Outubro de 2026");
+    expect(rotuloDiasSelecionados(outubro)).toContain("(31 dias)");
+    expect(removerDiasDoMes(["2026-09-29", ...outubro], "2026-10-01")).toEqual(["2026-09-29"]);
   });
 });
 

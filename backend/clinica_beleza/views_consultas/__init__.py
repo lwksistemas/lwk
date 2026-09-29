@@ -1,6 +1,7 @@
 """Views de consultas — re-export do pacote modular."""
 from .clinical import (
     ConsultaEvolucaoListView,
+    ConsultaReciboPdfView,
     ConsultaSecaoPDFView,
     PatientAnamneseView,
     PatientHistoricoConsultasView,
@@ -44,6 +45,7 @@ __all__ = [
     "ConsultaProdutoListView",
     "ConsultaReabrirView",
     "ConsultaReceberView",
+    "ConsultaReciboPdfView",
     "ConsultaSecaoPDFView",
     "PatientAnamneseView",
     "PatientHistoricoConsultasView",

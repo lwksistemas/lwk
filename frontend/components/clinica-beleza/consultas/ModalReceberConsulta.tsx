@@ -22,7 +22,6 @@ import {
   valoresQuaseIguais,
   type EntradaPagamentoLinha,
 } from "./modal-receber-consulta-utils";
-import { gerarHtmlRecibo } from "./receber/gerar-html-recibo";
 import { ReceberDadosAtendimento } from "./receber/ReceberDadosAtendimento";
 import { ReceberFormasPagamento } from "./receber/ReceberFormasPagamento";
 import { ReceberSucessoPanel } from "./receber/ReceberSucessoPanel";
@@ -234,97 +233,28 @@ export function ModalReceberConsulta({
 
   const handleImprimir = async () => {
     const c = consultaAtualizada || consulta;
-    // Pop-up sincronizado com o clique (antes de qualquer await).
-    const janelaPdf = c.payment_id ? window.open("", "_blank") : null;
+    // Aba no clique, igual à consulta: o Chrome mostra o PDF e o usuário imprime dali.
+    const janelaPdf = window.open("", "_blank");
+    const { fecharJanelaPdf, abrirPdfBlobFromResponse } = await import("@/lib/consulta-print");
 
-    const { fecharJanelaPdf, abrirPdfBlobFromResponse, imprimirHtmlDocumento } =
-      await import("@/lib/consulta-print");
-
-    // PDF oficial (mesmo do e-mail/WhatsApp) — o cupom HTML em popup + window.print()
-    // gera preview em branco / fora do layout no Chrome.
-    if (c.payment_id) {
-      try {
-        const resp = await ClinicaBelezaAPI.payments.assinaturaReciboPdf(c.payment_id);
-        if (resp.ok) {
-          await abrirPdfBlobFromResponse(resp, "visualizar", janelaPdf);
-          return;
-        }
-        fecharJanelaPdf(janelaPdf);
-      } catch {
-        fecharJanelaPdf(janelaPdf);
-      }
-
-      try {
-        const resp = await ClinicaBelezaAPI.payments.reciboHtml(c.payment_id);
-        if (resp.ok) {
-          imprimirHtmlDocumento(await resp.text());
-          return;
-        }
-      } catch {
-        /* fallback local */
-      }
-    }
-
-    let lojaData: {
-      nome?: string;
-      cpf_cnpj?: string;
-      endereco?: string;
-      telefone?: string;
-      email?: string;
-      cep?: string;
-    } = {};
     try {
-      const info = await ClinicaBelezaAPI.loja.info();
-      lojaData = info;
-    } catch {
-      /* usa defaults */
-    }
-
-    // Recibo do cliente: todas as formas já pagas + total acumulado (não só esta operação).
-    let entradasRecibo = reciboSnapshot?.entradas ?? [];
-    let valorPagoRecibo = reciboSnapshot?.totalLiquido ?? Number(c.valor_pago ?? 0);
-    let descontoRecibo = reciboSnapshot?.desconto ?? Number(c.desconto ?? 0);
-    if (c.payment_id) {
-      try {
-        const parcelasRes = (await ClinicaBelezaAPI.financeiro.payments.parcelas.list(
-          c.payment_id,
-        )) as {
-          parcelas?: Array<{ status?: string; valor?: number | string; payment_method?: string; payment_date?: string | null }>;
-          valor_pago?: number;
-        };
-        const parcelas = Array.isArray(parcelasRes?.parcelas)
-          ? parcelasRes.parcelas
-          : Array.isArray(parcelasRes)
-            ? (parcelasRes as Array<{ status?: string; valor?: number | string; payment_method?: string; payment_date?: string | null }>)
-            : [];
-        const pagas = parcelas.filter((p) => (p.status || "PAID") === "PAID");
-        if (pagas.length > 0) {
-          entradasRecibo = pagas.map((p) =>
-            novaLinhaEntrada(p.payment_method || "CASH", Number(p.valor ?? 0), p.payment_date ?? null),
-          );
-          valorPagoRecibo =
-            typeof parcelasRes?.valor_pago === "number"
-              ? parcelasRes.valor_pago
-              : pagas.reduce((s, p) => s + Number(p.valor ?? 0), 0);
-        }
-      } catch {
-        /* mantém snapshot da operação */
+      let resp: Response | null = null;
+      if (c.payment_id) {
+        resp = await ClinicaBelezaAPI.payments.assinaturaReciboPdf(c.payment_id);
       }
+      if (!resp?.ok) {
+        resp = await ClinicaBelezaAPI.consultas.reciboPdf(c.id);
+      }
+      if (!resp.ok) {
+        fecharJanelaPdf(janelaPdf);
+        toast.error("Não foi possível abrir o recibo.");
+        return;
+      }
+      await abrirPdfBlobFromResponse(resp, "visualizar", janelaPdf);
+    } catch (e: unknown) {
+      fecharJanelaPdf(janelaPdf);
+      toast.error(formatApiErrorBody(e) || "Não foi possível abrir o recibo.");
     }
-    if (Number(c.valor_pago ?? 0) > valorPagoRecibo) {
-      valorPagoRecibo = Number(c.valor_pago);
-    }
-
-    const html = gerarHtmlRecibo({
-      consulta: c,
-      valorPago: valorPagoRecibo,
-      desconto: descontoRecibo,
-      entradas: entradasRecibo,
-      lojaData,
-      saldoRestante: saldoReceberConsulta(c),
-      vencimento: c.payment_data_vencimento ?? null,
-    });
-    imprimirHtmlDocumento(html);
   };
 
   const handleEnviarEmail = async () => {

@@ -11,6 +11,7 @@ from clinica_beleza.dashboard_service import (
     parse_dashboard_period,
     parse_next_appointments_period,
     parse_professional_id,
+    procedimentos_realizados_lista,
     top_procedures_realizados_periodo,
 )
 from clinica_beleza.models import (
@@ -123,3 +124,52 @@ class TopProceduresRealizadosTests(ClinicaBelezaIntegrationTestCase):
         counts = {row["name"]: row["count"] for row in rows}
         self.assertEqual(counts.get("TIRZEPATIDA (DOSE MINIMA)"), 1)
         self.assertEqual(counts.get("DEPILAÇÃO A LASER FAIXA DA BARBA"), 1)
+
+    def test_lista_cada_procedimento_da_consulta_finalizada(self):
+        patient = Patient.objects.create(nome="Paciente Lista", loja_id=self.loja.id)
+        professional = Professional.objects.create(nome="Dra Lista", loja_id=self.loja.id)
+        laser = Procedure.objects.create(
+            nome="LASER ETHEREA",
+            preco=Decimal("400.00"),
+            duracao_minutos=30,
+            loja_id=self.loja.id,
+        )
+        detox = Procedure.objects.create(
+            nome="DETOX",
+            preco=Decimal("250.00"),
+            duracao_minutos=20,
+            loja_id=self.loja.id,
+        )
+        now = timezone.now()
+        appt = Appointment.objects.create(
+            date=now,
+            status="COMPLETED",
+            patient=patient,
+            professional=professional,
+            procedure=laser,
+            loja_id=self.loja.id,
+        )
+        AppointmentProcedure.objects.create(
+            appointment=appt, procedure=laser, ordem=0, valor=Decimal("400.00"), loja_id=self.loja.id,
+        )
+        AppointmentProcedure.objects.create(
+            appointment=appt, procedure=detox, ordem=1, valor=Decimal("250.00"), loja_id=self.loja.id,
+        )
+        consulta = Consulta.objects.create(
+            appointment=appt,
+            patient=patient,
+            professional=professional,
+            procedure=laser,
+            status="COMPLETED",
+            data_inicio=now,
+            data_fim=now,
+            loja_id=self.loja.id,
+        )
+
+        today = timezone.localdate()
+        linhas = procedimentos_realizados_lista(today.replace(day=1), today)
+        nomes = [linha["nome"] for linha in linhas]
+        self.assertEqual(nomes, ["LASER ETHEREA", "DETOX"])
+        self.assertTrue(all(linha["paciente"] == "Paciente Lista" for linha in linhas))
+        self.assertTrue(all(linha["profissional"] == "Dra Lista" for linha in linhas))
+        self.assertTrue(all(linha["consulta_id"] == consulta.id for linha in linhas))

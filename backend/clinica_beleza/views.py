@@ -24,7 +24,7 @@ from .views_agenda import (  # noqa: F401
     BloqueioHorarioDetailView,
     BloqueioHorarioListView,
 )
-from .views_dashboard import DashboardView, LojaInfoView  # noqa: F401
+from .views_dashboard import DashboardView, LojaInfoView, ProcedimentosRealizadosView  # noqa: F401
 from .views_me import MeView  # noqa: F401
 
 # Financeiro

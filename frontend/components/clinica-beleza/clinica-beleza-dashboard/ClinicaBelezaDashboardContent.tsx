@@ -18,6 +18,7 @@ import type { DashboardAppointment } from "./clinica-beleza-dashboard-types";
 import {
   DASHBOARD_STATUS_COLORS,
   getDashboardChartColors,
+  parseDashboardMesAno,
   pctChangeDashboard,
 } from "./clinica-beleza-dashboard-utils";
 import { useClinicaBelezaDashboard } from "./useClinicaBelezaDashboard";
@@ -131,6 +132,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
   const faturamentoChartTitle = isCurrentMonth
     ? `Faturamento (${filterLabel})`
     : `Faturamento — ${filterLabel}`;
+  const periodoDashboard = parseDashboardMesAno(mesAno);
 
   return (
     <ClinicaBelezaShell loja={loja} onLogout={onLogout}>
@@ -233,7 +235,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                   Procedimentos realizados — {filterLabel}
                 </h3>
                 <Link
-                  href={`/loja/${slug}/clinica-beleza/consultas`}
+                  href={`/loja/${slug}/clinica-beleza/procedimentos-realizados?mes=${periodoDashboard.mes}&ano=${periodoDashboard.ano}`}
                   className="text-xs font-medium hover:underline shrink-0"
                   style={{ color: 'var(--cb-primary, #8B3D52)' }}
                 >

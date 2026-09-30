@@ -38,6 +38,7 @@ from .views import (
     ProcedureDetailView,
     ProcedureListView,
     ProcedurePrecosConvenioView,
+    ProcedimentosRealizadosView,
     ProfessionalCommissionView,
     ProfessionalDetailView,
     ProfessionalListView,
@@ -203,6 +204,11 @@ app_name = "clinica_beleza"
 urlpatterns = [
     # Dashboard
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
+    path(
+        "dashboard/procedimentos-realizados/",
+        ProcedimentosRealizadosView.as_view(),
+        name="dashboard-procedimentos-realizados",
+    ),
     # Dados do administrador da loja (nome, email, telefone)
     path("loja-info/", LojaInfoView.as_view(), name="loja-info"),
     path("me/", MeView.as_view(), name="me"),

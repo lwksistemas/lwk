@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta
 
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncDay
-from django.utils.timezone import now
+from django.utils.timezone import is_aware, localtime, now
 
 from .models import Appointment, AppointmentProcedure, Consulta, Patient, Payment, Procedure
 
@@ -153,6 +153,71 @@ def top_procedures_realizados_periodo(period_start: date, period_end: date) -> l
         [{"name": name, "count": count} for name, count in counts.items() if count > 0],
         key=lambda item: (-item["count"], item["name"] or ""),
     )
+
+
+def _iso_local(value) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime) and is_aware(value):
+        value = localtime(value)
+    return value.isoformat()
+
+
+def _momento_consulta(consulta) -> datetime | None:
+    if consulta.data_fim:
+        return consulta.data_fim
+    if consulta.data_inicio:
+        return consulta.data_inicio
+    appointment = getattr(consulta, "appointment", None)
+    return appointment.date if appointment is not None else None
+
+
+def procedimentos_realizados_lista(period_start: date, period_end: date) -> list[dict]:
+    """Cada procedimento das consultas finalizadas no período, do mais recente ao mais antigo.
+
+    Usa a mesma regra do gráfico: uma linha por AppointmentProcedure e, se a consulta
+    não tiver linhas, o procedimento do campo legado.
+    """
+    consultas = list(
+        consultas_concluidas_no_periodo(period_start, period_end).select_related(
+            "patient", "professional", "procedure", "appointment",
+        )
+    )
+    if not consultas:
+        return []
+
+    appointment_ids = [consulta.appointment_id for consulta in consultas]
+    por_agendamento: dict[int, list] = {}
+    for item in (
+        AppointmentProcedure.objects.filter(appointment_id__in=appointment_ids)
+        .select_related("procedure")
+        .order_by("ordem", "id")
+    ):
+        por_agendamento.setdefault(item.appointment_id, []).append(item)
+
+    linhas: list[dict] = []
+    for consulta in consultas:
+        quando = _iso_local(_momento_consulta(consulta))
+        paciente = consulta.patient.nome if consulta.patient_id else ""
+        profissional = consulta.professional.nome if consulta.professional_id else ""
+        itens = por_agendamento.get(consulta.appointment_id) or []
+        if itens:
+            nomes = [item.procedure.nome or "Consulta" for item in itens]
+        elif consulta.procedure_id:
+            nomes = [consulta.procedure.nome or "Consulta"]
+        else:
+            nomes = []
+        for nome in nomes:
+            linhas.append({
+                "nome": nome,
+                "paciente": paciente,
+                "profissional": profissional,
+                "realizado_em": quando,
+                "consulta_id": consulta.id,
+            })
+
+    linhas.sort(key=lambda item: item["realizado_em"] or "", reverse=True)
+    return linhas
 
 
 def top_soroterapia_periodo(period_start: date, period_end: date) -> list[dict]:

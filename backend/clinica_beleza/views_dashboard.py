@@ -10,8 +10,10 @@ from tenants.middleware import get_current_loja_id
 
 from .dashboard_service import (
     build_dashboard_data,
+    dashboard_filter_meta,
     next_appointments_queryset,
     parse_dashboard_period,
+    procedimentos_realizados_lista,
 )
 from .loja_contato_api import patch_contato_loja
 from .permissions import CLINICA_ADMIN, CLINICA_RECEPCAO
@@ -104,3 +106,45 @@ class DashboardView(APIView):
 
         cache.set(cache_key, payload, 120)
         return Response(payload)
+
+
+class ProcedimentosRealizadosView(APIView):
+    """GET /clinica-beleza/dashboard/procedimentos-realizados/?mes=&ano="""
+
+    permission_classes = CLINICA_RECEPCAO
+
+    def get(self, request):
+        if not get_current_loja_id():
+            return Response(
+                {"error": "Contexto de loja não encontrado"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        qp = request.query_params
+        today = now().date()
+
+        def _query_int(value):
+            if not value:
+                return None
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return None
+
+        period_start, period_end, filter_mes, filter_ano = parse_dashboard_period(
+            mes=_query_int(qp.get("mes")),
+            ano=_query_int(qp.get("ano")),
+            today=today,
+        )
+        itens = procedimentos_realizados_lista(period_start, period_end)
+        return Response({
+            "filter": dashboard_filter_meta(
+                filter_mes=filter_mes,
+                filter_ano=filter_ano,
+                today=today,
+                period_start=period_start,
+                period_end=period_end,
+            ),
+            "total": len(itens),
+            "itens": itens,
+        })

@@ -14,6 +14,7 @@ interface Parcela {
   payment_method: string;
   payment_method_label?: string;
   payment_date: string;
+  status?: string;
   observacoes?: string;
   created_at: string;
 }
@@ -42,6 +43,7 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
   const [observacoes, setObservacoes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [removendoId, setRemovendoId] = useState<number | null>(null);
   const [error, setError] = useState("");
 
   const carregarParcelas = useCallback(async (id: number) => {
@@ -63,6 +65,7 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
     setPaymentMethod("CASH");
     setPaymentDate(new Date().toISOString().slice(0, 10));
     setObservacoes("");
+    setRemovendoId(null);
     setError("");
     setParcelasData(null);
     void carregarParcelas(payment.id);
@@ -73,7 +76,7 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
   const valorTotal = parcelasData?.valor_total ?? Number(payment.amount) ?? 0;
   const saldoDevedor = parcelasData?.saldo_devedor ?? valorTotal;
   const valorPago = parcelasData?.valor_pago ?? 0;
-  const parcelas = parcelasData?.parcelas ?? [];
+  const parcelas = (parcelasData?.parcelas ?? []).filter((p) => p.status !== "CANCELLED");
 
   const valorEntrada = Number(valor) || 0;
   const valorDesconto = Number(desconto) || 0;
@@ -123,6 +126,28 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
     }
   };
 
+  const handleRemoverParcela = async (parcela: Parcela) => {
+    const valorTexto = formatCurrency(Number(parcela.valor));
+    const quando = new Date(parcela.payment_date + "T12:00:00").toLocaleDateString("pt-BR");
+    const confirmar = window.confirm(
+      `Remover ${valorTexto} de ${quando} do histórico? O saldo será recalculado.`,
+    );
+    if (!confirmar) return;
+    setRemovendoId(parcela.id);
+    setError("");
+    try {
+      await ClinicaBelezaAPI.financeiro.payments.parcelas.remove(payment.id, parcela.id);
+      onSuccess();
+      await carregarParcelas(payment.id);
+    } catch (err) {
+      const msg =
+        err && typeof err === "object" && "error" in err ? String((err as { error: unknown }).error) : "";
+      setError(msg || "Não foi possível remover este lançamento.");
+    } finally {
+      setRemovendoId(null);
+    }
+  };
+
   const inputClass =
     "w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600";
 
@@ -142,6 +167,11 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
         </div>
 
         <div className="overflow-y-auto flex-1 p-4 sm:p-5">
+          {error && (
+            <div className="mb-4 p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+              {error}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 md:items-start">
             {/* Coluna esquerda — contexto + saldo + histórico */}
             <div className="space-y-4 min-w-0">
@@ -217,9 +247,19 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                               p.payment_method}
                           </span>
                         </div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
-                          {new Date(p.payment_date + "T12:00:00").toLocaleDateString("pt-BR")}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(p.payment_date + "T12:00:00").toLocaleDateString("pt-BR")}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void handleRemoverParcela(p)}
+                            disabled={removendoId !== null}
+                            className="text-xs font-medium text-red-700 dark:text-red-300 hover:underline disabled:opacity-50"
+                          >
+                            {removendoId === p.id ? "Removendo..." : "Remover"}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -234,12 +274,6 @@ export function ModalBaixaPayment({ payment, onClose, onSuccess }: ModalBaixaPay
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                     Registrar novo pagamento
                   </p>
-
-                  {error && (
-                    <div className="p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
-                      {error}
-                    </div>
-                  )}
 
                   <div>
                     <label className="block text-sm font-medium mb-1">

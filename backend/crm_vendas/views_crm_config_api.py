@@ -112,13 +112,13 @@ def crm_config_asaas_test(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    from asaas_integration.api_key_utils import asaas_key_is_sandbox, normalize_asaas_api_key
+    from asaas_integration.api_key_utils import asaas_key_is_sandbox, chave_asaas_em_claro
 
     body = request.data if isinstance(request.data, dict) else {}
     api_key = (body.get("api_key") or "").strip()
     if not api_key:
         api_key = (getattr(cfg, "asaas_api_key", None) or "").strip()
-    api_key = normalize_asaas_api_key(api_key)
+    api_key = chave_asaas_em_claro(api_key)
 
     if body.get("asaas_sandbox") is None:
         sandbox = asaas_key_is_sandbox(api_key) if api_key else bool(getattr(cfg, "asaas_sandbox", False))

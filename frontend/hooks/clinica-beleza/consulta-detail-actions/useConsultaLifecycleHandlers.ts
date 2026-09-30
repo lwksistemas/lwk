@@ -5,6 +5,7 @@ import { formatApiErrorBody } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import { useToast } from "@/components/ui/Toast";
 import { consultaEstaConcluida, type Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
+import { passoInicioConsulta } from "@/components/clinica-beleza/consultas/consulta-acesso";
 import type { ConsultaDetailLoaderSlice } from "./consulta-detail-actions-types";
 import type { MemedPrescricaoHandle } from "@/components/clinica-beleza/consultas/MemedPrescricao";
 
@@ -50,7 +51,9 @@ export function useConsultaLifecycleHandlers(
 
   const iniciarConsulta = useCallback(
     async (professionalId?: number) => {
-      if (!selected.professional && !professionalId) {
+      const me = await ClinicaBelezaAPI.me.get().catch(() => null);
+      const passo = passoInicioConsulta(selected, me?.professional_id ?? null, professionalId);
+      if (passo.tipo === "modal") {
         try {
           const profs = await fetchClinicaSchedulingProfessionals();
           setProfissionaisDisponiveis(Array.isArray(profs) ? profs : []);
@@ -61,11 +64,31 @@ export function useConsultaLifecycleHandlers(
         return;
       }
 
+      if (passo.tipo === "trocar") {
+        setIniciando(true);
+        try {
+          const atualizada = await ClinicaBelezaAPI.consultas.trocarProfissional(
+            selected.id,
+            passo.professionalId,
+          );
+          setSelected({ ...selected, ...atualizada });
+          await onListRefresh();
+          if (!passo.iniciarDepois) {
+            toast.success("Profissional da agenda atualizado. Quem for atender inicia a consulta.");
+            return;
+          }
+        } catch (e: unknown) {
+          toast.error(formatApiErrorBody(e) || "Erro ao trocar o profissional.");
+          return;
+        } finally {
+          setIniciando(false);
+        }
+      }
+
       if (!confirm("Iniciar atendimento? A agenda será marcada como Em atendimento.")) return;
       setIniciando(true);
       try {
-        const body = professionalId ? { professional: professionalId } : undefined;
-        const data = await ClinicaBelezaAPI.consultas.iniciar(selected.id, body);
+        const data = await ClinicaBelezaAPI.consultas.iniciar(selected.id);
         setSelected({ ...selected, ...data });
         await onListRefresh();
         const hist = await fetchHistoricoPaciente(selected.patient).catch(() => []);

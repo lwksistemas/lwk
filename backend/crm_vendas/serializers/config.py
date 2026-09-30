@@ -111,7 +111,8 @@ class CRMConfigSerializer(serializers.ModelSerializer):
                             "($aact_prod_... produção ou $aact_hmlg_... sandbox)."
                         ),
                     })
-                validated_data["asaas_api_key"] = norm
+                from asaas_integration.api_key_utils import criptografar_asaas_api_key
+                validated_data["asaas_api_key"] = criptografar_asaas_api_key(norm)
                 if "asaas_sandbox" not in validated_data:
                     validated_data["asaas_sandbox"] = asaas_key_is_sandbox(norm)
 

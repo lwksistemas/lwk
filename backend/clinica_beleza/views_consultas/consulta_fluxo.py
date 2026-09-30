@@ -9,9 +9,10 @@ from ..consulta_service import (
     iniciar_consulta,
     reabrir_consulta,
     registrar_recebimento_consulta,
+    trocar_profissional_consulta,
 )
 from ..models import Consulta, ProcedureProtocol, Professional
-from ..permissions import CLINICA_ADMIN, CLINICA_CLINICAL, CLINICA_CONSULTA_OPERACIONAL, CLINICA_FINANCEIRO, IsClinicaAdmin
+from ..permissions import CLINICA_CLINICAL, CLINICA_CONSULTA_OPERACIONAL, CLINICA_FINANCEIRO, IsClinicaAdmin
 from ..serializers import ConsultaSerializer
 from .helpers import get_consulta_or_404
 
@@ -28,32 +29,19 @@ class ConsultaIniciarView(APIView):
         if error:
             return error
 
-        appointment = consulta.appointment
-        if not appointment.professional_id:
-            professional_id = request.data.get("professional")
-            if not professional_id:
-                return Response(
-                    {"error": "Selecione o profissional para iniciar a consulta.", "code": "PROFESSIONAL_REQUIRED"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            try:
-                prof = Professional.objects.get(pk=professional_id)
-            except Professional.DoesNotExist:
-                return Response({"error": "Profissional não encontrado."}, status=status.HTTP_404_NOT_FOUND)
-            if prof.is_profissional is False:
-                return Response(
-                    {
-                        "error": "Este cadastro não está habilitado como profissional para atendimento.",
-                        "code": "PROFESSIONAL_NOT_SCHEDULABLE",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            appointment.professional = prof
-            appointment.save(update_fields=["professional", "updated_at"])
-            consulta.professional = prof
-            consulta.save(update_fields=["professional", "updated_at"])
+        from ..permissions import is_clinica_admin, usuario_e_profissional_da_consulta
 
-        from ..permissions import is_clinica_admin
+        if not usuario_e_profissional_da_consulta(request, consulta):
+            return Response(
+                {
+                    "error": (
+                        "Só o profissional vinculado na agenda pode iniciar esta consulta. "
+                        "Se ele não puder atender, troque o profissional."
+                    ),
+                    "code": "PROFESSIONAL_MISMATCH",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         try:
             iniciar_consulta(consulta, bypass_inadimplencia=is_clinica_admin(request))
@@ -64,6 +52,37 @@ class ConsultaIniciarView(APIView):
             "patient", "professional", "procedure", "protocol", "appointment",
         ).get(pk=pk)
         return Response(ConsultaSerializer(consulta).data)
+
+
+class ConsultaTrocarProfissionalView(APIView):
+    """POST /consultas/<id>/trocar-profissional/ — troca quem vai atender, sem iniciar."""
+
+    permission_classes = CLINICA_CONSULTA_OPERACIONAL
+
+    def post(self, request, pk):
+        consulta, error = get_consulta_or_404(pk, select_related=(
+            "patient", "professional", "appointment",
+        ))
+        if error:
+            return error
+        professional_id = request.data.get("professional")
+        if not professional_id:
+            return Response(
+                {"error": "Selecione o profissional."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            prof = Professional.objects.get(pk=professional_id)
+        except (Professional.DoesNotExist, ValueError, TypeError):
+            return Response({"error": "Profissional não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            trocar_profissional_consulta(consulta, prof)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        consulta = Consulta.objects.select_related(
+            "patient", "professional", "procedure", "protocol", "appointment",
+        ).get(pk=pk)
+        return Response(ConsultaSerializer(consulta, context={"request": request}).data)
 
 
 class ConsultaReceberView(APIView):
@@ -111,7 +130,7 @@ class ConsultaReceberView(APIView):
             "patient", "professional", "procedure", "protocol", "appointment",
         ).get(pk=pk)
         return Response({
-            "consulta": ConsultaSerializer(consulta).data,
+            "consulta": ConsultaSerializer(consulta, context={"request": request}).data,
             "payment": PaymentSerializer(payment).data,
         }, status=status.HTTP_201_CREATED)
 
@@ -197,6 +216,10 @@ class ConsultaFinalizarView(APIView):
         ))
         if error:
             return error
+        from ..permissions import recusar_andamento_alheio
+
+        if bloqueio := recusar_andamento_alheio(request, consulta):
+            return bloqueio
         mark_as_paid = bool(request.data.get("mark_as_paid"))
         payment_method = (request.data.get("payment_method") or request.data.get("forma_pagamento") or "").strip() or None
         amount = request.data.get("amount") or request.data.get("valor")
@@ -221,20 +244,24 @@ class ConsultaFinalizarView(APIView):
 
 
 class ConsultaReabrirView(APIView):
-    """POST /clinica-beleza/consultas/<id>/reabrir/ — reabre consulta finalizada (só admin).
+    """POST /clinica-beleza/consultas/<id>/reabrir/ — só o profissional que fez a consulta.
 
     Volta o status para "em atendimento" para incluir procedimentos ou corrigir.
     Não estorna pagamento, não reverte estoque e não cancela NFS-e.
     """
 
-    permission_classes = CLINICA_ADMIN
+    permission_classes = CLINICA_CLINICAL
 
     def post(self, request, pk):
+        from ..permissions import MSG_REABRIR_SO_QUEM_FEZ, usuario_e_profissional_da_consulta
+
         consulta, error = get_consulta_or_404(pk, select_related=(
             "patient", "professional", "procedure", "protocol", "appointment", "appointment__procedure",
         ))
         if error:
             return error
+        if not usuario_e_profissional_da_consulta(request, consulta):
+            return Response({"error": MSG_REABRIR_SO_QUEM_FEZ}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             reabrir_consulta(consulta)
@@ -256,6 +283,10 @@ class ConsultaAplicarProtocoloView(APIView):
         consulta, error = get_consulta_or_404(pk, select_related=("procedure",))
         if error:
             return error
+        from ..permissions import recusar_andamento_alheio
+
+        if bloqueio := recusar_andamento_alheio(request, consulta):
+            return bloqueio
 
         protocol_id = request.data.get("protocol_id")
         if not protocol_id:

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { BookOpen, MessageCircle, X } from "lucide-react";
 import { buildProntuarioAgendamentoPath } from "@/components/clinica-beleza/prontuario/prontuario-paths";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import { useClinicaPodeVerConsulta } from "@/hooks/clinica-beleza/useClinicaPodeVerConsulta";
 import {
   getAgendaStatusColor,
@@ -39,10 +40,6 @@ function toDatetimeLocalValue(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function moeda(valor: number): string {
-  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
 function observacaoVisivel(notes: string | undefined, temProtocolo: boolean): string {
   const texto = (notes || "").trim();
   if (!texto || !temProtocolo) return texto;
@@ -60,9 +57,9 @@ function textoCobrancaProtocolo(
     if (protocolo.valor_sessao <= 0) {
       return "Esta sessão não gera nova cobrança. O pacote foi cobrado na primeira.";
     }
-    return `Valor total do protocolo nesta sessão. As demais não geram nova cobrança. Pacote: ${moeda(protocolo.valor_total)}.`;
+    return `Valor total do protocolo nesta sessão. As demais não geram nova cobrança. Pacote: ${formatCurrency(protocolo.valor_total)}.`;
   }
-  return `Por consulta. O pacote de ${moeda(protocolo.valor_total)} foi dividido entre as sessões.`;
+  return `Por consulta. O pacote de ${formatCurrency(protocolo.valor_total)} foi dividido entre as sessões.`;
 }
 
 function idsProcedimentosIniciais(
@@ -319,7 +316,7 @@ export function ModalDetalheAgendamento({
                     Duração: {event.extendedProps.duracao_minutos ?? event.extendedProps.procedure_duration} min
                   </p>
                   <p className="text-sm text-gray-900 dark:text-gray-100">
-                    Valor desta sessão: <strong>{moeda(protocolo.valor_sessao)}</strong>
+                    Valor desta sessão: <strong>{formatCurrency(protocolo.valor_sessao)}</strong>
                   </p>
                   <p className="text-xs text-gray-500">
                     {event.extendedProps.retorno_gratuito && protocolo.valor_sessao <= 0

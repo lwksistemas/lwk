@@ -20,6 +20,23 @@ def is_valid_asaas_api_key(key: str) -> bool:
     )
 
 
+def criptografar_asaas_api_key(key: str) -> str:
+    """Normaliza e grava com o prefixo enc::. Cada app guarda o resultado no próprio campo."""
+    from core.encryption import encrypt_value, is_encrypted
+
+    norm = normalize_asaas_api_key(key)
+    if not norm or is_encrypted(norm):
+        return norm
+    return encrypt_value(norm)
+
+
+def chave_asaas_em_claro(key: str) -> str:
+    """Devolve a chave utilizável, venha em texto ou já criptografada."""
+    from core.encryption import decrypt_value
+
+    return normalize_asaas_api_key(decrypt_value(key or ""))
+
+
 def asaas_key_is_sandbox(key: str) -> bool:
     key = normalize_asaas_api_key(key)
     if not key:

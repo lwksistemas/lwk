@@ -128,6 +128,23 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             "local_atendimento_valor_consulta",
         ]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if request is None:
+            return data
+        from ..permissions import oculta_notas_clinicas
+
+        if oculta_notas_clinicas(request):
+            data["observacoes_gerais"] = ""
+            data["protocolo_notas"] = ""
+        from ..permissions import recusar_andamento_alheio
+
+        if recusar_andamento_alheio(request, instance) is not None:
+            data["observacoes_gerais"] = ""
+            data["protocolo_notas"] = ""
+        return data
+
     def get_numero(self, obj):
         n = getattr(obj, "numero", None)
         if n is None:

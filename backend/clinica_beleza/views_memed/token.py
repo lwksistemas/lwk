@@ -52,6 +52,16 @@ class MemedTokenView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
+        professional_id = request.query_params.get("professional")
+        if professional_id:
+            from clinica_beleza.permissions import login_e_o_prescritor
+
+            if not login_e_o_prescritor(request, professional_id):
+                return Response(
+                    {"error": "A prescrição Memed usa só o profissional deste login."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         prescritor_id = self._resolver_prescritor_id(request, env)
         if not prescritor_id:
             return Response(
@@ -191,9 +201,7 @@ class MemedTokenView(APIView):
         if explicit and not em_loja:
             return explicit
 
-        # 2) Registro profissional (CRM) do profissional da consulta + UF.
-        #    O campo registro_profissional pode vir como "016964-SP" (CRM-UF);
-        #    extraímos a UF do próprio campo, com fallback para ?uf ou MEMED_DEFAULT_UF.
+        # 2) Registro do profissional deste login. O get() já recusou outro id.
         professional_id = request.query_params.get("professional")
         if professional_id:
             prescritor = self._resolver_prescritor_por_professional(professional_id, request)

@@ -311,6 +311,8 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
+    # Um nginx na frente. O IP do cliente é o último de X-Forwarded-For.
+    "NUM_PROXIES": 1,
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",
         "user": "10000/hour",  # 166 req/min = 2.7 req/seg por usuário (suporta 500 usuários)

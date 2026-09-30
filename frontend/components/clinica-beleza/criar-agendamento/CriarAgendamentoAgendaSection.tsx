@@ -11,6 +11,7 @@ import {
   formatarValorProtocolo,
   rotuloIntervaloProtocolo,
 } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import { FieldLabel, SectionTitle } from "./CriarAgendamentoFormFields";
 
 type Props = Pick<
@@ -239,24 +240,24 @@ export function CriarAgendamentoAgendaSection({
               {retornoInfo?.elegivel ? (
                 <>
                   <span className="line-through opacity-60 mr-1">
-                    {taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    {formatCurrency(taxaConsultaBase)}
                   </span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-medium">R$ 0,00</span>
                 </>
               ) : (
-                taxaConsultaBase.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                formatCurrency(taxaConsultaBase)
               )}
             </span>
           </div>
           {resumo.valor > 0 && (
             <div className="flex justify-between text-gray-600 dark:text-gray-400">
               <span>Procedimentos</span>
-              <span>{resumo.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+              <span>{formatCurrency(resumo.valor)}</span>
             </div>
           )}
           <div className="flex justify-between font-medium text-gray-900 dark:text-gray-100 pt-1 border-t border-gray-200 dark:border-neutral-700">
             <span>Total estimado</span>
-            <span>{totalEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+            <span>{formatCurrency(totalEstimado)}</span>
           </div>
         </div>
       )}

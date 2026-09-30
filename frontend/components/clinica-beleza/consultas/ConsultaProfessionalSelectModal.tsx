@@ -5,6 +5,8 @@ interface ConsultaProfessionalSelectModalProps {
   profissionais: { id: number; nome?: string; name?: string }[];
   onSelect: (id: number) => void;
   onClose: () => void;
+  titulo?: string;
+  descricao?: string;
 }
 
 export function ConsultaProfessionalSelectModal({
@@ -12,6 +14,8 @@ export function ConsultaProfessionalSelectModal({
   profissionais,
   onSelect,
   onClose,
+  titulo = "Selecione o Profissional",
+  descricao = "Este agendamento não possui profissional. Informe quem realizará o atendimento.",
 }: ConsultaProfessionalSelectModalProps) {
   if (!open) return null;
 
@@ -20,10 +24,10 @@ export function ConsultaProfessionalSelectModal({
       <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full max-w-sm">
         <div className="px-5 py-4 border-b border-gray-200 dark:border-neutral-700">
           <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            Selecione o Profissional
+            {titulo}
           </h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            Este agendamento não possui profissional. Informe quem realizará o atendimento.
+            {descricao}
           </p>
         </div>
         <div className="p-4 max-h-60 overflow-y-auto space-y-2">

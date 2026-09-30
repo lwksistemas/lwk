@@ -2,6 +2,7 @@
 
 import type { Consulta } from "../consultas-types";
 import { ConsultaProfessionalSelectModal } from "../ConsultaProfessionalSelectModal";
+import { textoModalProfissional } from "../consulta-acesso";
 import { ModalReceberConsulta } from "../ModalReceberConsulta";
 import type { ConsultaDetailActionsState } from "./useConsultaDetailShell";
 
@@ -23,6 +24,8 @@ export function ConsultaDetailShellModals({ selected, actions }: ConsultaDetailS
       <ConsultaProfessionalSelectModal
         open={actions.showProfessionalModal}
         profissionais={actions.profissionaisDisponiveis}
+        titulo={textoModalProfissional(selected).titulo}
+        descricao={textoModalProfissional(selected).descricao}
         onSelect={(id) => {
           actions.setShowProfessionalModal(false);
           void actions.iniciarConsulta(id);

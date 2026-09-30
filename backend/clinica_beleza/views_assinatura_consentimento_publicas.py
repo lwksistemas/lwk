@@ -165,9 +165,9 @@ class ConsultaAssinaturaPublicaView(View):
             termo_proc.respostas_interativo = respostas
             termo_proc.save(update_fields=["respostas_interativo", "updated_at"])
 
-        ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", "0.0.0.0"))
-        if "," in ip:
-            ip = ip.split(",")[0].strip()
+        from .throttles import _get_client_ip
+
+        ip = _get_client_ip(request)
         ua = request.META.get("HTTP_USER_AGENT", "")
 
         novo_status = registrar_assinatura(adapter, assinatura, ip, ua)

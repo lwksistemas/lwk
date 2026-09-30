@@ -407,7 +407,10 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
         # Migration 0045: asaas_api_key, asaas_sandbox
         cursor.execute(
             "ALTER TABLE crm_vendas_config "
-            "ADD COLUMN IF NOT EXISTS asaas_api_key VARCHAR(255) NOT NULL DEFAULT '';",
+            "ADD COLUMN IF NOT EXISTS asaas_api_key TEXT NOT NULL DEFAULT '';",
+        )
+        cursor.execute(
+            "ALTER TABLE crm_vendas_config ALTER COLUMN asaas_api_key TYPE TEXT;",
         )
         cursor.execute(
             "ALTER TABLE crm_vendas_config "

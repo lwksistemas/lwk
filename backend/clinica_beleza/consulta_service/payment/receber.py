@@ -9,6 +9,7 @@ from ._common import (
     _calcular_valor_total_com_desconto,
     _finalizar_payment_draft,
     _garantir_ou_criar_payment,
+    _liquido_com_desconto_gravado,
     _log_movimento_financeiro,
     _normalize_entradas,
     _tenant_atomic,
@@ -41,10 +42,13 @@ def _ensure_payment_for_appointment(
     valor = amount if amount is not None else consulta_service._valor_pagamento_padrao(appointment, consulta)
     if isinstance(valor, (int, float, str)):
         valor = Decimal(str(valor))
+    # amount explícito é o valor informado pelo caixa. Sem ele, o padrão é o bruto:
+    # o desconto já gravado continua valendo no total (a prazo / pendente).
+    valor_total = valor if amount is not None else _liquido_com_desconto_gravado(valor, payment)
 
     # Retorno zera só a taxa: com procedimento cobrado ainda há valor a receber.
     # Não marcar PAID automático em atendimento isento (R$ 0) sem recebimento real.
-    if valor <= 0:
+    if valor_total <= 0:
         mark_as_paid = False
 
     comissao_pct, comissao_val = consulta_service.calcular_comissao_payment_atendimento(
@@ -57,7 +61,7 @@ def _ensure_payment_for_appointment(
         payment = consulta_service.Payment.objects.create(
             appointment=appointment,
             amount=Decimal(0) if not mark_as_paid else valor,
-            valor_total=valor,
+            valor_total=valor_total,
             payment_method=payment_method or "CASH",
             status="PAID" if mark_as_paid else "PENDING",
             payment_date=now() if mark_as_paid else None,
@@ -81,7 +85,7 @@ def _ensure_payment_for_appointment(
         or Decimal(str(payment.valor_total or 0)) <= 0
         or payment.status in ("DRAFT", "PENDING")
     ):
-        payment.valor_total = valor
+        payment.valor_total = valor_total
     was_paid = payment.status == "PAID"
     if mark_as_paid:
         payment.status = "PAID"
@@ -142,7 +146,7 @@ def _garantir_conta_pendente_consulta_inner(consulta) -> None:
         return
 
     if payment.status in ("PENDING", "PARTIAL", "DRAFT"):
-        payment.valor_total = valor_total
+        payment.valor_total = _liquido_com_desconto_gravado(valor_total, payment)
         payment.comissao_percentual = comissao_pct
         payment.comissao_valor = comissao_val
         payment.save(update_fields=[
@@ -206,7 +210,10 @@ def _sincronizar_recebimento_apos_procedimento(consulta) -> None:
         return
 
     consulta_service._garantir_valor_consulta_consulta(consulta)
-    novo_total = consulta_service._valor_pagamento_padrao(appointment, consulta)
+    novo_total = _liquido_com_desconto_gravado(
+        consulta_service._valor_pagamento_padrao(appointment, consulta),
+        payment,
+    )
     pago = payment.valor_pago_parcelas
 
     payment.valor_total = novo_total

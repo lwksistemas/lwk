@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import {
+  MSG_CONSULTA_EM_ANDAMENTO,
+  consultaEmAndamentoDeOutro,
+} from "../consultas/consulta-acesso";
 import type { Consulta } from "../consultas/consultas-types";
 import {
   buildConsultaDetailHref,
@@ -17,14 +21,36 @@ export function useConsultasDeepLink(slug: string, consultas: Consulta[]) {
   const [selected, setSelected] = useState<Consulta | null>(null);
   const [detailPreloaded, setDetailPreloaded] = useState(false);
   const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
+  const [meuProfessionalId, setMeuProfessionalId] = useState<number | null | undefined>(undefined);
+
+  useEffect(() => {
+    let ativo = true;
+    ClinicaBelezaAPI.me
+      .get()
+      .then((me) => {
+        if (ativo) setMeuProfessionalId(me.professional_id ?? null);
+      })
+      .catch(() => {
+        if (ativo) setMeuProfessionalId(null);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   const abrirConsulta = useCallback(
     (consulta: Consulta, preloaded = false) => {
+      const bloqueio = consultaEmAndamentoDeOutro(consulta, meuProfessionalId);
+      if (bloqueio !== false) {
+        if (bloqueio === true) setDeepLinkError(MSG_CONSULTA_EM_ANDAMENTO);
+        return;
+      }
+      setDeepLinkError(null);
       setDetailPreloaded(preloaded);
       setSelected(consulta);
       router.replace(buildConsultaDetailHref(slug, consulta.id), { scroll: false });
     },
-    [router, slug],
+    [meuProfessionalId, router, slug],
   );
 
   const voltarLista = useCallback(() => {
@@ -47,6 +73,13 @@ export function useConsultasDeepLink(slug: string, consultas: Consulta[]) {
     }
     const found = findConsultaInList(consultas, idParam);
     if (found) {
+      const bloqueio = consultaEmAndamentoDeOutro(found, meuProfessionalId);
+      if (bloqueio === null) return;
+      if (bloqueio) {
+        setSelected(null);
+        setDeepLinkError(MSG_CONSULTA_EM_ANDAMENTO);
+        return;
+      }
       setDeepLinkError(null);
       if (found.id !== selected?.id) {
         setDetailPreloaded(false);
@@ -74,7 +107,7 @@ export function useConsultasDeepLink(slug: string, consultas: Consulta[]) {
       cancelled = true;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, consultas, selected?.id]);
+  }, [searchParams, consultas, selected?.id, meuProfessionalId]);
 
   return {
     selected,

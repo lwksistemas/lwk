@@ -8,6 +8,7 @@ import type {
   FornecedorProdutoItem,
   PedidoCompraItem,
 } from "@/lib/clinica-beleza-api/client-ops";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import { ESTOQUE_INPUT_CLASS, extractEstoqueApiError } from "./estoque-types";
 import { abrirPdfPedido, canalResultado, nomeArquivoPedidoPdf, numeroPedidoLabel } from "./pedido-compra-utils";
 
@@ -47,10 +48,6 @@ function numeroPedido(raw: string): number {
     ? Number(s.replace(/\./g, "").replace(",", "."))
     : Number(s);
   return Number.isFinite(n) ? n : 0;
-}
-
-function brlPedido(valor: number): string {
-  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 export function EstoquePedidoModal({
@@ -447,7 +444,7 @@ export function EstoquePedidoModal({
                 <input className={`${ESTOQUE_INPUT_CLASS} col-span-3`} placeholder="Nome" disabled={!rascunho} value={item.nome} onChange={(e) => setItens((p) => p.map((x, i) => i === idx ? { ...x, nome: e.target.value } : x))} />
                 <input className={`${ESTOQUE_INPUT_CLASS} col-span-2`} placeholder="Qtd" disabled={!rascunho} value={item.quantidade} onChange={(e) => setItens((p) => p.map((x, i) => i === idx ? { ...x, quantidade: e.target.value } : x))} />
                 <input className={`${ESTOQUE_INPUT_CLASS} col-span-2`} placeholder="Preço" disabled={!rascunho} value={item.preco} onChange={(e) => setItens((p) => p.map((x, i) => i === idx ? { ...x, preco: e.target.value } : x))} />
-                <div className="col-span-2 text-right text-sm font-medium whitespace-nowrap">{brlPedido(subtotal)}</div>
+                <div className="col-span-2 text-right text-sm font-medium whitespace-nowrap">{formatCurrency(subtotal)}</div>
                 {rascunho && (
                   <button type="button" onClick={() => setItens((p) => p.filter((_, i) => i !== idx))} className="col-span-1 text-gray-400 hover:text-red-500">
                     <Trash2 size={16} />
@@ -462,7 +459,7 @@ export function EstoquePedidoModal({
               </button>
             )}
             <div className="flex justify-end pt-1 text-sm font-semibold" style={{ color: "var(--cb-primary, #8B3D52)" }}>
-              Total {brlPedido(totalPedido)}
+              Total {formatCurrency(totalPedido)}
             </div>
           </div>
 

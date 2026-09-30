@@ -14,6 +14,7 @@ class ConsultaDetailView(GetObjectMixin, APIView):
     """GET / PUT / PATCH /clinica-beleza/consultas/<id>/"""
 
     permission_classes = CLINICA_CLINICAL
+    bloquear_andamento_alheio = True
     model_class = Consulta
     not_found_message = "Consulta não encontrada"
 
@@ -34,7 +35,7 @@ class ConsultaDetailView(GetObjectMixin, APIView):
         obj, err = self.object_or_404(pk)
         if err:
             return err
-        return Response(ConsultaSerializer(obj).data)
+        return Response(ConsultaSerializer(obj, context={"request": request}).data)
 
     def put(self, request, pk):
         obj, err = self.object_or_404(pk)

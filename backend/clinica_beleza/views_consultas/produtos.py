@@ -17,6 +17,7 @@ class ConsultaProdutoListView(GetObjectMixin, APIView):
     """
 
     permission_classes = CLINICA_CLINICAL
+    bloquear_andamento_alheio = True
     model_class = Consulta
     not_found_message = "Consulta não encontrada"
 
@@ -92,6 +93,10 @@ class ConsultaProdutoDetailView(GetObjectMixin, APIView):
             return Response({"error": "Registro não encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
         consulta = item.consulta
+        from ..permissions import recusar_andamento_alheio
+
+        if bloqueio := recusar_andamento_alheio(request, consulta):
+            return bloqueio
         if consulta.status != "IN_PROGRESS":
             return Response(
                 {"error": "Não é possível remover produtos após finalizar a consulta."},

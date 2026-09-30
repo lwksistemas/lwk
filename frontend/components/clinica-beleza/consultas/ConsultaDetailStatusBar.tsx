@@ -5,6 +5,7 @@ import { CheckCircle2, FileText, Pencil, Play, RotateCcw, Trash2 } from "lucide-
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { toUpperCase } from "@/lib/format-br";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { podeReabrirConsulta } from "./consulta-acesso";
 import { ConsultaPagamentoButton } from "./ConsultaPagamentoButton";
 import { ConsultaStatusBadge } from "./ConsultaStatusBadge";
 import type { Consulta, ConsultaProcedimento } from "./consultas-types";
@@ -60,7 +61,7 @@ export function ConsultaDetailStatusBar({
   const [salvando, setSalvando] = useState(false);
   const [locaisAtendimento, setLocaisAtendimento] = useState<Array<{ id: number; nome: string }>>([]);
   const [convenios, setConvenios] = useState<Array<{ id: number; nome: string }>>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [meuProfessionalId, setMeuProfessionalId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!consultaFinalizada) return;
@@ -68,10 +69,10 @@ export function ConsultaDetailStatusBar({
     ClinicaBelezaAPI.me
       .get()
       .then((me) => {
-        if (ativo) setIsAdmin(Boolean(me.is_administrador));
+        if (ativo) setMeuProfessionalId(me.professional_id ?? null);
       })
       .catch(() => {
-        if (ativo) setIsAdmin(false);
+        if (ativo) setMeuProfessionalId(null);
       });
     return () => {
       ativo = false;
@@ -225,12 +226,12 @@ export function ConsultaDetailStatusBar({
             {emitindoNfse ? "Emitindo…" : "Emitir NFS-e"}
           </button>
         )}
-        {consultaFinalizada && isAdmin && onReabrir && (
+        {podeReabrirConsulta(selected, meuProfessionalId) && onReabrir && (
           <button
             type="button"
             onClick={onReabrir}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-            title="Reabrir consulta finalizada para incluir procedimentos ou correções (somente administrador)"
+            title="Reabrir esta consulta. Só quem realizou o atendimento pode reabrir."
           >
             <RotateCcw size={16} />
             Reabrir consulta

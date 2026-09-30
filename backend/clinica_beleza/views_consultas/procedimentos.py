@@ -19,6 +19,7 @@ class ConsultaProcedimentoListView(GetObjectMixin, APIView):
     """
 
     permission_classes = CLINICA_CLINICAL
+    bloquear_andamento_alheio = True
     model_class = Consulta
     not_found_message = "Consulta não encontrada"
     select_related_fields = ("appointment",)
@@ -63,6 +64,7 @@ class ConsultaProcedimentoDetailView(GetObjectMixin, APIView):
     """DELETE /clinica-beleza/consultas/<consulta_id>/procedimentos/<pk>/"""
 
     permission_classes = CLINICA_CLINICAL
+    bloquear_andamento_alheio = True
     model_class = Consulta
     not_found_message = "Consulta não encontrada"
     select_related_fields = ("appointment",)

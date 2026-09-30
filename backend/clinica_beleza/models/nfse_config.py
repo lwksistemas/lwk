@@ -166,8 +166,9 @@ class ClinicaBelezaNFSeConfig(LojaIsolationMixin, models.Model):
     )
 
     # === Asaas da loja (conta própria) ===
-    asaas_api_key = models.CharField(
-        max_length=255, blank=True,
+    asaas_api_key = models.TextField(
+        blank=True,
+        default="",
         verbose_name="API Key Asaas (loja)",
     )
     asaas_sandbox = models.BooleanField(

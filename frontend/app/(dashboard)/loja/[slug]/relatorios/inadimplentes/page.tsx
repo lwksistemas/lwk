@@ -8,6 +8,7 @@ import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clini
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { RelatorioPdfActions } from '@/components/clinica-beleza/relatorios-shared/RelatorioPdfActions';
 import { abrirRelatorioPdf } from '@/components/clinica-beleza/relatorios-shared/abrir-relatorio-pdf';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 
 interface InadimplenteItem {
   payment_id: number;
@@ -24,10 +25,6 @@ interface InadimplenteItem {
 interface InadimplentesData {
   linhas: InadimplenteItem[];
   totais: { total_inadimplentes: number; valor_total: number };
-}
-
-function formatCurrency(value: number) {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function formatDate(iso: string | null) {

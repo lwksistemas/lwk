@@ -346,6 +346,7 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
+    "NUM_PROXIES": 1,
     "DEFAULT_THROTTLE_RATES": {
         # SPA CRM dispara várias chamadas por tela; 200/min bloqueava listagens (ex.: propostas Felix).
         "anon": os.environ.get("DRF_THROTTLE_ANON_RATE", "500/hour"),

@@ -193,6 +193,19 @@ class IsClinicalOrEstoqueStaff(_BaseClinicaProfilePermission):
     )
 
 
+def oculta_notas_clinicas(request) -> bool:
+    """Recepção opera lista e caixa, sem ler nota de evolução do prontuário."""
+    if request is None:
+        return False
+    _loja, prof = _loja_and_profissional(request)
+    if prof in (None, "superuser"):
+        return False
+    return prof.perfil in (
+        ProfissionalUsuario.PERFIL_RECEPCAO,
+        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+    )
+
+
 def is_clinica_admin(request) -> bool:
     """True se o usuário é superuser, owner da loja ou perfil administrador.
 
@@ -223,6 +236,53 @@ def resolve_agenda_professional_scope(request) -> int | None:
     if prof.perfil == ProfissionalUsuario.PERFIL_PROFISSIONAL:
         return prof.professional_id or 0
     return None
+
+
+MSG_CONSULTA_EM_ANDAMENTO = (
+    "Consulta em andamento. Só o profissional deste atendimento pode abri-la até finalizar."
+)
+MSG_REABRIR_SO_QUEM_FEZ = "Só o profissional que realizou esta consulta pode reabri-la."
+
+
+def login_e_o_prescritor(request, professional_id) -> bool:
+    """True só quando o id pedido é o profissional vinculado a este login."""
+    meu = professional_id_do_usuario(request)
+    if meu is None:
+        return False
+    try:
+        pedido = int(professional_id)
+    except (TypeError, ValueError):
+        return False
+    return pedido == int(meu)
+
+
+def professional_id_do_usuario(request) -> int | None:
+    """Professional.id vinculado ao login. Dono e superuser sem vínculo não contam."""
+    if request is None:
+        return None
+    _loja, prof = _loja_and_profissional(request)
+    if not prof or prof == "superuser":
+        return None
+    return prof.professional_id or None
+
+
+def usuario_e_profissional_da_consulta(request, consulta) -> bool:
+    """True quando o login é o profissional gravado na consulta."""
+    meu_id = professional_id_do_usuario(request)
+    consulta_id = getattr(consulta, "professional_id", None)
+    return bool(meu_id and consulta_id and meu_id == consulta_id)
+
+
+def recusar_andamento_alheio(request, consulta):
+    """403 se a consulta está em atendimento e o login não é o profissional dela."""
+    from rest_framework import status
+    from rest_framework.response import Response
+
+    if consulta is None or getattr(consulta, "status", None) != "IN_PROGRESS":
+        return None
+    if usuario_e_profissional_da_consulta(request, consulta):
+        return None
+    return Response({"error": MSG_CONSULTA_EM_ANDAMENTO}, status=status.HTTP_403_FORBIDDEN)
 
 
 def appointment_in_agenda_scope(appointment, scope_professional_id: int | None) -> bool:

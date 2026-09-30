@@ -74,9 +74,13 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
     select_related_fields = ("patient",)
 
     def get(self, request, pk):
-        consulta, err = self.object_or_404(pk)
-        if err:
-            return err
+        # Histórico do paciente: leitura não exige ser o profissional do atendimento em andamento.
+        consulta = self.get_object(pk)
+        if consulta is None:
+            return Response(
+                {"error": self.not_found_message},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         return Response({
             "patient_id": consulta.patient_id,
             "patient_nome": consulta.patient.nome if consulta.patient else "",

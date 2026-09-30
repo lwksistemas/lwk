@@ -14,6 +14,7 @@ export function useConsultaFotosTab(
   ativa: boolean | undefined,
 ) {
   const toast = useToast();
+  const toastError = toast.error;
 
   const [fotos, setFotos] = useState<PacienteFotoItem[]>([]);
   const [fotosConsultaCount, setFotosConsultaCount] = useState(0);
@@ -27,7 +28,7 @@ export function useConsultaFotosTab(
   const [salvando, setSalvando] = useState(false);
   const [zoomFoto, setZoomFoto] = useState<PacienteFotoItem | null>(null);
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (opcoes?: { silencioso?: boolean }) => {
     try {
       const res = await ClinicaBelezaAPI.consultas.fotos.list(consultaId);
       const lista = res.fotos || [];
@@ -44,11 +45,13 @@ export function useConsultaFotosTab(
     } catch (e: unknown) {
       setFotos([]);
       setFotosConsultaCount(0);
-      toast.error(e instanceof Error ? e.message : "Erro ao carregar fotos.");
+      if (!opcoes?.silencioso) {
+        toastError(e instanceof Error ? e.message : "Erro ao carregar fotos.");
+      }
     } finally {
       setLoading(false);
     }
-  }, [consultaId, toast]);
+  }, [consultaId, toastError]);
 
   useEffect(() => {
     void carregar();
@@ -57,7 +60,7 @@ export function useConsultaFotosTab(
   useEffect(() => {
     if (!ativa) return;
     const id = window.setInterval(() => {
-      if (document.visibilityState !== "hidden") void carregar();
+      if (document.visibilityState !== "hidden") void carregar({ silencioso: true });
     }, 15000);
     return () => clearInterval(id);
   }, [ativa, carregar]);

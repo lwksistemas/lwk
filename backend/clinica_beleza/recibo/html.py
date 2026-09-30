@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import html
+import re
 
 from .context import (
     _linha_documento_loja,
@@ -21,6 +22,16 @@ from .moeda import formatar_moeda_recibo
 
 def _t(valor) -> str:
     return html.escape(str(valor or ""), quote=True)
+
+
+def _nome_servico_html(nome: str) -> str:
+    """A quantidade e a unidade permanecem na mesma linha do cupom."""
+    return re.sub(
+        r"(\d+(?:[.,]\d+)?) ([A-Za-zµμ]+)",
+        lambda m: f"{m.group(1)}&nbsp;{m.group(2)}",
+        _t(nome),
+        count=1,
+    )
 
 
 def _saldo(ctx: dict) -> float:
@@ -50,8 +61,8 @@ def gerar_html_recibo(ctx: dict) -> str:
         )
     for nome, valor in procedimentos_exibidos_recibo(ctx):
         servicos.append(
-            f'<tr><td style="padding-left:8px">• {_t(nome)}</td>'
-            f'<td style="text-align:right">{formatar_moeda_recibo(valor)}</td></tr>'
+            f'<tr><td style="padding-left:8px">• {_nome_servico_html(nome)}</td>'
+            f'<td style="text-align:right;white-space:nowrap">{formatar_moeda_recibo(valor)}</td></tr>'
         )
     for label, valor in linhas_local_convenio_recibo(ctx):
         servicos.append(

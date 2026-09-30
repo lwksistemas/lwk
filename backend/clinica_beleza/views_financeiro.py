@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from .financeiro_service import (
     alinhar_pendentes_com_parcela,
     aplicar_desconto_payment,
+    cancelar_parcela_pagamento,
     criar_parcela_e_atualizar_payment,
     decimal_ou_none,
     erro_consulta_para_parcela,
@@ -123,7 +124,7 @@ class PaymentParcelaView(GetObjectMixin, APIView):
         payment, err = self.object_or_404(pk)
         if err:
             return err
-        parcelas = payment.parcelas.all()
+        parcelas = payment.parcelas.filter(status="PAID").order_by("payment_date", "id")
         return Response({
             "valor_total": float(payment.valor_total_efetivo),
             "valor_pago": float(payment.valor_pago_parcelas),
@@ -167,6 +168,35 @@ class PaymentParcelaView(GetObjectMixin, APIView):
             "saldo_devedor": float(payment.saldo_devedor),
             "status": payment.status,
         }, status=status.HTTP_201_CREATED)
+
+
+class PaymentParcelaDetailView(GetObjectMixin, APIView):
+    """DELETE /clinica-beleza/payments/<id>/parcelas/<parcela_id>/ — corrige o histórico."""
+
+    permission_classes = CLINICA_FINANCEIRO
+    model_class = Payment
+    not_found_message = "Pagamento não encontrado"
+    select_related_fields = ("appointment", "appointment__consulta")
+
+    def delete(self, request, pk, parcela_id):
+        payment, err = self.object_or_404(pk)
+        if err:
+            return err
+        if motivo := erro_consulta_para_parcela(payment):
+            return Response({"error": motivo}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            cancelar_parcela_pagamento(payment, parcela_id)
+        except LookupError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        payment.refresh_from_db()
+        return Response({
+            "valor_total": float(payment.valor_total_efetivo),
+            "valor_pago": float(payment.valor_pago_parcelas),
+            "saldo_devedor": float(payment.saldo_devedor),
+            "status": payment.status,
+        })
 
 
 class PaymentReciboHtmlView(GetObjectMixin, APIView):

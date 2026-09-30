@@ -53,6 +53,8 @@ export const financeiroApi = {
       list: (paymentId: number) => cbGet(`/payments/${paymentId}/parcelas/`),
       add: (paymentId: number, data: { valor: number; payment_method: string; payment_date: string; observacoes?: string; desconto?: number }) =>
         cbPost(`/payments/${paymentId}/parcelas/`, data),
+      remove: (paymentId: number, parcelaId: number) =>
+        cbDelete(`/payments/${paymentId}/parcelas/${parcelaId}/`),
     },
     // Cobrança manual de inadimplente (pagamento a prazo vencido) por WhatsApp ou e-mail.
     cobrar: (paymentId: number, canal: "whatsapp" | "email") =>

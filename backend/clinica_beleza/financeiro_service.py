@@ -365,6 +365,60 @@ def criar_parcela_e_atualizar_payment(payment, valor, dados):
     return parcela
 
 
+def cancelar_parcela_pagamento(payment, parcela_id):
+    """Tira um lançamento do histórico e recalcula o saldo.
+
+    A linha não é apagada: fica CANCELLED, como no estorno da consulta.
+    """
+    from clinica_beleza.estoque_service import tenant_atomic
+
+    with tenant_atomic():
+        parcela = (
+            PaymentParcela.objects.select_for_update()
+            .filter(pk=parcela_id, payment_id=payment.pk)
+            .first()
+        )
+        if parcela is None:
+            raise LookupError("Lançamento não encontrado neste pagamento.")
+        if parcela.status != "PAID":
+            raise ValueError("Este lançamento já foi removido do histórico.")
+        parcela.status = "CANCELLED"
+        parcela.save(update_fields=["status"])
+        _recalcular_payment_pelas_parcelas_pagas(payment)
+        return parcela
+
+
+def _recalcular_payment_pelas_parcelas_pagas(payment):
+    """Status, valor recebido e forma passam a refletir só as parcelas PAID."""
+    cache = getattr(payment, "_prefetched_objects_cache", None)
+    if isinstance(cache, dict):
+        cache.pop("parcelas", None)
+    pagas = list(payment.parcelas.filter(status="PAID").order_by("-payment_date", "-id"))
+    total_pago = sum((p.valor or Decimal(0) for p in pagas), Decimal(0))
+    total_devedor = payment.valor_total_efetivo or Decimal(0)
+    update_fields = ["status", "amount", "payment_method", "payment_date", "updated_at"]
+    if total_pago <= Decimal("0"):
+        payment.status = "PENDING"
+        payment.amount = Decimal(0)
+        payment.payment_date = None
+        if payment.data_vencimento:
+            payment.payment_method = "PRAZO"
+    elif total_pago + Decimal("0.009") >= total_devedor:
+        payment.status = "PAID"
+        payment.amount = total_pago
+        payment.payment_method = pagas[0].payment_method
+        payment.payment_date = _datetime_do_lancamento(pagas[0].payment_date)
+        if payment.data_vencimento:
+            payment.data_vencimento = None
+            update_fields.append("data_vencimento")
+    else:
+        payment.status = "PARTIAL"
+        payment.amount = total_pago
+        payment.payment_method = pagas[0].payment_method
+        payment.payment_date = _datetime_do_lancamento(pagas[0].payment_date)
+    payment.save(update_fields=update_fields)
+
+
 def _datetime_do_lancamento(raw):
     """Data escolhida no Registrar Pagamento, no fuso da clínica."""
     from datetime import datetime

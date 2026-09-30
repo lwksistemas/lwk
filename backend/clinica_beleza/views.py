@@ -39,6 +39,7 @@ from .views_financeiro import (  # noqa: F401
     PaymentEnviarReciboView,
     PaymentReciboHtmlView,
     PaymentListView,
+    PaymentParcelaDetailView,
     PaymentParcelaView,
     ReciboPdfPublicView,
     ReciboImagemPublicView,

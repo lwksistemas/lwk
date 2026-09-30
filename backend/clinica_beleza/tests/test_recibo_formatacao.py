@@ -74,7 +74,7 @@ class ReciboMoedaEContaTests(SimpleTestCase):
         })
         self.assertEqual(ctx["valor_total"], 610)
         self.assertEqual(ctx["abatimento"], 1800)
-        self.assertEqual(ctx["abatimento_label"], "Abatimento — BIOESTIMULADOR DE COLÁGENO")
+        self.assertEqual(ctx["abatimento_label"], "Abatimento — Bioestimulador de colágeno")
         linhas = _linhas_descontos_recibo(ctx)
         self.assertNotIn(("Desconto retorno", 150), linhas)
         self.assertIn(("Abatimento — BIOESTIMULADOR DE COLÁGENO", 1800), linhas)
@@ -152,6 +152,68 @@ class ReciboMoedaEContaTests(SimpleTestCase):
         })
         self.assertEqual(ctx["valor_total"], 1300)
         self.assertEqual(ctx["saldo_devedor"], 1300)
+
+    def test_consulta_nao_lancada_nao_afirma_desconto(self):
+        from clinica_beleza.recibo.context import (
+            _linhas_descontos_recibo,
+            _linhas_taxa_consulta_recibo,
+            nome_exibicao_procedimento_recibo,
+            reconciliar_conta_recibo,
+        )
+
+        ctx = reconciliar_conta_recibo({
+            "retorno_gratuito": True,
+            "taxa_consulta": 0,
+            "taxa_consulta_referencia": 150,
+            "desconto_retorno": 150,
+            "desconto": 0,
+            "procedimentos": [{"nome": "PREENCHIMENTO DE GLÚTEOS 100 ML", "valor": 6000}],
+            "subtotal": 6150,
+            "valor_total": 6000,
+            "valor_pago": 650,
+            "saldo_devedor": 5350,
+            "retorno_aviso": "Retorno gratuito em até 30 dias após o atendimento.",
+        })
+        self.assertEqual(ctx["valor_total"], 6000)
+        self.assertEqual(ctx["saldo_devedor"], 5350)
+        self.assertEqual(_linhas_taxa_consulta_recibo(ctx), [])
+        self.assertEqual(_linhas_descontos_recibo(ctx), [])
+        self.assertEqual(
+            nome_exibicao_procedimento_recibo(ctx["procedimentos"][0]["nome"]),
+            "Preenchimento de glúteos — 100 mL",
+        )
+        self.assertNotIn("descontada", ctx["retorno_aviso"])
+
+    def test_consulta_lancada_e_descontada_mostra_a_conta(self):
+        from clinica_beleza.recibo.context import (
+            _linhas_descontos_recibo,
+            _linhas_taxa_consulta_recibo,
+            reconciliar_conta_recibo,
+        )
+
+        ctx = reconciliar_conta_recibo({
+            "retorno_gratuito": True,
+            "taxa_consulta": 150,
+            "taxa_consulta_referencia": 150,
+            "desconto_retorno": 150,
+            "desconto": 0,
+            "procedimentos": [{"nome": "PREENCHIMENTO DE GLÚTEOS 100 ML", "valor": 6000}],
+            "subtotal": 6150,
+            "valor_total": 6150,
+            "valor_pago": 650,
+            "saldo_devedor": 5500,
+        })
+        self.assertEqual(
+            _linhas_taxa_consulta_recibo(ctx),
+            [("Taxa de consulta", 150.0)],
+        )
+        self.assertEqual(
+            _linhas_descontos_recibo(ctx),
+            [("Desconto da consulta", 150.0)],
+        )
+        self.assertEqual(ctx["subtotal"], 6150)
+        self.assertEqual(ctx["valor_total"], 6000)
+        self.assertEqual(ctx["saldo_devedor"], 5350)
 
     def test_recebido_a_maior(self):
         from clinica_beleza.recibo.context import recebido_a_maior_recibo

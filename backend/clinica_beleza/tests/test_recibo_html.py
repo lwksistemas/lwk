@@ -77,8 +77,9 @@ class GerarHtmlReciboTests(SimpleTestCase):
             ),
         )
         self.assertIn("COMPROVANTE DE ATENDIMENTO", html)
-        self.assertIn("integralmente descontada", html)
-        self.assertIn("LASER ETHEREA", html)
+        self.assertIn("Sem saldo", html)
+        self.assertNotIn("integralmente descontada", html)
+        self.assertIn("Laser etherea", html)
         self.assertNotIn("Quitado", html)
         self.assertNotIn("Isento — retorno", html)
         self.assertNotIn("Desconto retorno", html)
@@ -145,7 +146,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
             ),
         )
         self.assertIn("Taxa de consulta", html)
-        self.assertIn("TIRZEPATIDA", html)
+        self.assertIn("Tirzepatida — 2,5 mg", html)
         self.assertIn("R$ 150,00", html)
         self.assertIn("R$ 300,00", html)
         self.assertNotIn("Desconto retorno", html)
@@ -154,7 +155,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
         html = gerar_html_recibo(
             self._ctx(local_nome="CONSULTÓRIO", convenio_nome="PARTICULAR"),
         )
-        self.assertIn("CRIOGENIA", html)
+        self.assertIn("Criogenia", html)
         self.assertNotIn(">Local<", html)
         self.assertNotIn("CONSULTÓRIO", html)
 

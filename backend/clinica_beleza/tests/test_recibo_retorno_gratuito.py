@@ -90,7 +90,7 @@ class LinhasTaxaConsultaReciboTests(TestCase):
         )
         self.assertEqual(
             linhas,
-            [("Desconto retorno", 300.0)],
+            [("Desconto da consulta", 300.0)],
         )
 
     def test_desconto_retorno_e_comercial(self):
@@ -105,7 +105,7 @@ class LinhasTaxaConsultaReciboTests(TestCase):
         self.assertEqual(
             linhas,
             [
-                ("Desconto retorno", 300.0),
+                ("Desconto da consulta", 300.0),
                 ("Desconto", 50.0),
             ],
         )
@@ -145,9 +145,9 @@ class MontarInfoRetornoReciboTests(TestCase):
         self.assertEqual(info["taxa_consulta_referencia"], 180.0)
         self.assertEqual(info["retorno_dias"], 30)
         self.assertIn("30", info["retorno_aviso"])
-        self.assertIn("foi integralmente descontada neste atendimento", info["retorno_aviso"])
-        self.assertIn("após o atendimento", info["retorno_aviso"])
-        self.assertIn("R$ 180,00", info["retorno_aviso"])
+        self.assertIn("Retorno gratuito em até 30 dias após o atendimento.", info["retorno_aviso"])
+        self.assertNotIn("descontada", info["retorno_aviso"])
+        self.assertNotIn("R$", info["retorno_aviso"])
         self.assertNotIn("configurado", info["retorno_aviso"])
 
     @patch("clinica_beleza.models.RetornoProcedimentoRegra.objects")

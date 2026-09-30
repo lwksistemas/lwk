@@ -10,6 +10,53 @@ from .moeda import formatar_moeda_recibo
 
 logger = logging.getLogger(__name__)
 
+_UNIDADE_RECIBO = {
+    "ml": "mL",
+    "mg": "mg",
+    "g": "g",
+    "un": "un",
+    "ui": "UI",
+    "mcg": "mcg",
+    "ug": "µg",
+    "µg": "µg",
+}
+_QTD_NO_NOME = re.compile(
+    r"^(?P<nome>.*?)\s+(?P<qtd>\d+(?:[.,]\d+)?)\s*(?P<un>ml|mg|mcg|µg|ug|ui|un|g)$",
+    re.IGNORECASE,
+)
+
+
+def nome_exibicao_procedimento_recibo(nome: str) -> str:
+    """Junta a dose ao procedimento e tira o caixa-alta do cadastro.
+
+    ``PREENCHIMENTO DE GLÚTEOS 100 ML`` vira ``Preenchimento de glúteos — 100 mL``.
+    Nome que já veio com maiúsculas e minúsculas permanece.
+    """
+    texto = " ".join(str(nome or "").split())
+    if not texto:
+        return ""
+    qtd = ""
+    achado = _QTD_NO_NOME.match(texto)
+    if achado:
+        texto = achado.group("nome").strip(" -–—")
+        unidade = _UNIDADE_RECIBO.get(achado.group("un").casefold(), achado.group("un"))
+        qtd = f"{achado.group('qtd')} {unidade}"
+    if _nome_em_caixa_alta(texto):
+        texto = _frase_recibo(texto)
+    if qtd:
+        return f"{texto} — {qtd}"
+    return texto
+
+
+def _nome_em_caixa_alta(texto: str) -> bool:
+    letras = [c for c in texto if c.isalpha()]
+    return bool(letras) and all(c.isupper() for c in letras)
+
+
+def _frase_recibo(texto: str) -> str:
+    baixa = texto.casefold()
+    return baixa[:1].upper() + baixa[1:]
+
 
 def _agora_recibo():
     """Momento atual (aware) para a data de emissão do recibo."""
@@ -519,8 +566,17 @@ def aplicar_valor_consulta_do_local(ctx: dict) -> dict:
 
 
 def _linhas_taxa_consulta_recibo(ctx: dict) -> list[tuple[str, float]]:
-    """Linha da taxa cobrada. No retorno a taxa não aparece: o aviso fica no rodapé."""
-    if ctx.get("retorno_gratuito") or _omitir_taxa_junto_do_procedimento(ctx):
+    """Linha da taxa cobrada.
+
+    No retorno, a taxa só entra se foi lançada na consulta. Aí o desconto
+    aparece na conta. Taxa que não foi lançada não vira linha nem desconto.
+    """
+    if _omitir_taxa_junto_do_procedimento(ctx):
+        return []
+    if ctx.get("retorno_gratuito"):
+        taxa = float(ctx.get("taxa_consulta") or 0)
+        if taxa > 0.009 and not ctx.get("ocultar_desconto_retorno"):
+            return [("Taxa de consulta", taxa)]
         return []
     taxa = float(ctx.get("taxa_consulta") or 0)
     if taxa <= 0:
@@ -530,23 +586,76 @@ def _linhas_taxa_consulta_recibo(ctx: dict) -> list[tuple[str, float]]:
     return []
 
 
+def procedimentos_exibidos_recibo(ctx: dict) -> list[tuple[str, float]]:
+    """Procedimentos do cupom, com a dose junto do nome e sem consulta zerada repetida."""
+    taxa_exibida = 0.0
+    linhas_taxa = _linhas_taxa_consulta_recibo(ctx)
+    if linhas_taxa:
+        taxa_exibida = float(linhas_taxa[0][1] or 0)
+    linhas: list[tuple[str, float]] = []
+    for proc in ctx.get("procedimentos") or []:
+        nome = nome_exibicao_procedimento_recibo(proc.get("nome") or "")
+        try:
+            valor = float(proc.get("valor") or 0)
+        except (TypeError, ValueError):
+            valor = 0.0
+        if taxa_exibida > 0.009 and valor == 0.0 and nome.casefold() in ("consulta", "taxa de consulta"):
+            continue
+        linhas.append((nome, valor))
+    return linhas
+
+
+def saldo_aberto_recibo(ctx: dict) -> float:
+    valor_pago = float(ctx.get("valor_pago") or 0)
+    valor_total = float(ctx.get("valor_total") or 0)
+    try:
+        saldo = float(ctx.get("saldo_devedor", max(valor_total - valor_pago, 0)))
+    except (TypeError, ValueError):
+        saldo = max(valor_total - valor_pago, 0.0)
+    return saldo if saldo > 0.009 else 0.0
+
+
 def _descontos_conhecidos_recibo(ctx: dict) -> tuple[float, float]:
     if ctx.get("ocultar_desconto_retorno"):
         return 0.0, float(ctx.get("desconto") or 0)
     desconto_retorno = float(ctx.get("desconto_retorno") or 0)
     if desconto_retorno <= 0 and ctx.get("retorno_gratuito"):
-        desconto_retorno = float(ctx.get("taxa_consulta_referencia") or 0)
+        cobrada = float(ctx.get("taxa_consulta") or 0)
+        desconto_retorno = cobrada if cobrada > 0.009 else float(ctx.get("taxa_consulta_referencia") or 0)
     desconto = float(ctx.get("desconto") or 0)
     return desconto_retorno, desconto
 
 
-def _ocultar_taxa_impressa_no_retorno(ctx: dict) -> dict:
-    """Retorno não imprime a taxa e depois risca. O total já fechado permanece.
+def _alinhar_total_com_desconto_da_consulta(ctx: dict) -> dict:
+    """Se o total ainda inclui a consulta lançada, o desconto sai desse total."""
+    desconto = float(ctx.get("desconto_retorno") or 0)
+    if desconto <= 0.009:
+        return ctx
+    subtotal = float(ctx.get("subtotal") or 0)
+    valor_total = float(ctx.get("valor_total") or 0)
+    if abs(subtotal - valor_total) > 0.02:
+        return ctx
+    ctx = dict(ctx)
+    ctx["valor_total"] = round(max(0.0, valor_total - desconto), 2)
+    pago = float(ctx.get("valor_pago") or 0)
+    ctx["saldo_devedor"] = round(max(ctx["valor_total"] - pago, 0.0), 2)
+    return ctx
 
-    A referência da taxa fica para o aviso do rodapé.
+
+def _ocultar_taxa_impressa_no_retorno(ctx: dict) -> dict:
+    """Consulta lançada e descontada permanece na conta.
+
+    Consulta que não foi lançada não ganha linha nem frase de desconto.
+    O total já fechado permanece.
     """
     if not ctx.get("retorno_gratuito"):
         return ctx
+    taxa_cobrada = float(ctx.get("taxa_consulta") or 0)
+    if taxa_cobrada > 0.009:
+        ctx = dict(ctx)
+        if float(ctx.get("desconto_retorno") or 0) <= 0.009:
+            ctx["desconto_retorno"] = taxa_cobrada
+        return _alinhar_total_com_desconto_da_consulta(ctx)
     ref = float(ctx.get("taxa_consulta_referencia") or 0)
     if ref <= 0.009:
         ref = float(ctx.get("desconto_retorno") or 0)
@@ -569,7 +678,7 @@ def _rotulo_abatimento(procedimentos, gap: float) -> str:
         if abs(valor - gap) <= 0.02 and (proc.get("nome") or "").strip():
             iguais.append((proc.get("nome") or "").strip())
     if len(iguais) == 1:
-        return f"Abatimento — {iguais[0]}"
+        return f"Abatimento — {nome_exibicao_procedimento_recibo(iguais[0])}"
     return "Abatimento"
 
 
@@ -681,10 +790,7 @@ def titulo_recibo(ctx: dict) -> tuple[str, str]:
     """Título e subtítulo conforme o que já foi pago."""
     situacao = situacao_recibo(ctx)
     if situacao == "sem_saldo":
-        return (
-            "COMPROVANTE DE ATENDIMENTO",
-            "Sem saldo — consulta integralmente descontada",
-        )
+        return "COMPROVANTE DE ATENDIMENTO", "Sem saldo"
     if situacao == "em_aberto":
         return "COMPROVANTE DE ATENDIMENTO", "Valor em aberto"
     if situacao == "parcial":
@@ -702,7 +808,7 @@ def _linhas_descontos_recibo(ctx: dict) -> list[tuple[str, float]]:
     linhas: list[tuple[str, float]] = []
     desconto_retorno, desconto = _descontos_conhecidos_recibo(ctx)
     if desconto_retorno > 0:
-        linhas.append(("Desconto retorno", desconto_retorno))
+        linhas.append(("Desconto da consulta", desconto_retorno))
     if desconto > 0:
         linhas.append(("Desconto", desconto))
     abatimento = float(ctx.get("abatimento") or 0)

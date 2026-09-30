@@ -195,9 +195,10 @@ export function ReceberSucessoPanel({
                 <strong>Desconto:</strong> {formatCurrency(snap.desconto)}
               </p>
             )}
-            {Boolean(consultaExibida.retorno_gratuito) && snap && snap.desconto <= 0 && (
+            {Boolean(consultaExibida.retorno_gratuito) && Number(consultaExibida.valor_consulta) > 0.009 && (
               <p>
-                <strong>Desconto retorno:</strong> {formatCurrency(valorTotalConsulta)}
+                <strong>Desconto da consulta:</strong>{" "}
+                {formatCurrency(Number(consultaExibida.valor_consulta))}
               </p>
             )}
             {!visualizandoReciboPrazo && (

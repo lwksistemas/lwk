@@ -67,16 +67,14 @@ def montar_info_retorno_recibo(
     return info
 
 
-def _aviso_taxa_descontada(dias: int, taxa: float, nome: str | None = None) -> str:
-    from .moeda import formatar_moeda_recibo
+def _aviso_retorno_aplicado(dias: int) -> str:
+    """O desconto da consulta, quando existe, fica nas linhas da conta.
 
-    del nome  # a frase é a mesma com ou sem procedimento
-    valor = f" de {formatar_moeda_recibo(taxa)}" if taxa > 0.009 else ""
+    O rodapé só informa o retorno. Não afirma desconto que o recibo não mostra.
+    """
     if dias > 0:
-        prazo = f" Retorno gratuito em até {dias} dias após o atendimento."
-    else:
-        prazo = ""
-    return f"A taxa de consulta{valor} foi integralmente descontada neste atendimento.{prazo}"
+        return f"Retorno gratuito em até {dias} dias após o atendimento."
+    return "Retorno gratuito neste atendimento."
 
 
 def _resolver_prazo_e_aviso(
@@ -88,6 +86,7 @@ def _resolver_prazo_e_aviso(
     retorno_tipo: str,
     taxa_referencia: float = 0.0,
 ) -> tuple[int | None, str]:
+    del taxa_referencia  # a linha de desconto usa o valor lançado, não a tabela do local
     try:
         from clinica_beleza.models import RetornoProcedimentoRegra
         from clinica_beleza.retorno_service import (
@@ -129,17 +128,15 @@ def _resolver_prazo_e_aviso(
         else 0
     )
 
-    taxa = float(taxa_referencia or 0)
-    # Prazo aplicado neste atendimento (quando a taxa já foi descontada)
+    # Prazo já usado neste atendimento. O valor da taxa, se foi lançado, entra nas linhas.
     if retorno_gratuito:
         if retorno_tipo == "procedimento" and dias_proc > 0:
-            nome = nomes_proc[0] if len(nomes_proc) == 1 else "procedimento"
-            return dias_proc, _aviso_taxa_descontada(dias_proc, taxa, nome)
+            return dias_proc, _aviso_retorno_aplicado(dias_proc)
         if dias_cons > 0:
-            return dias_cons, _aviso_taxa_descontada(dias_cons, taxa)
+            return dias_cons, _aviso_retorno_aplicado(dias_cons)
         if dias_proc > 0:
-            return dias_proc, _aviso_taxa_descontada(dias_proc, taxa)
-        return None, _aviso_taxa_descontada(0, taxa)
+            return dias_proc, _aviso_retorno_aplicado(dias_proc)
+        return None, _aviso_retorno_aplicado(0)
 
     # Atendimento pago: informar política vigente para o cliente
     avisos: list[str] = []

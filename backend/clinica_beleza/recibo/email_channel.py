@@ -1,4 +1,5 @@
 """Envio de recibo por email e templates de mensagem."""
+import html
 import logging
 
 from .context import (
@@ -8,7 +9,9 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    procedimentos_exibidos_recibo,
     reconciliar_conta_recibo,
+    saldo_aberto_recibo,
 )
 from .moeda import formatar_moeda_recibo
 from .pdf import _gerar_pdf_recibo
@@ -90,6 +93,32 @@ def _enviar_recibo_email(payment, patient, appointment, *, somente_foto=False) -
         return False, f"Erro ao enviar email: {e}"
 
 
+def _texto_saldo_recibo(ctx: dict) -> str:
+    saldo = saldo_aberto_recibo(ctx)
+    if saldo <= 0:
+        return ""
+    linhas = f"Saldo a pagar: {formatar_moeda_recibo(saldo)}\n"
+    vencimento = (ctx.get("vencimento") or "").strip()
+    if vencimento:
+        linhas += f"Vencimento: {vencimento}\n"
+    return linhas
+
+
+def _bloco_saldo_email(ctx: dict) -> str:
+    saldo = saldo_aberto_recibo(ctx)
+    if saldo <= 0:
+        return ""
+    vencimento = html.escape((ctx.get("vencimento") or "").strip())
+    vencimento_html = (
+        f'<p style="margin:4px 0;">Vencimento: {vencimento}</p>' if vencimento else ""
+    )
+    return (
+        f'<p style="margin:8px 0 0;font-size:15px;font-weight:bold;">'
+        f"Saldo a pagar: {formatar_moeda_recibo(saldo)}</p>"
+        f"{vencimento_html}"
+    )
+
+
 def _montar_email_html(ctx: dict) -> str:
     """Email profissional com resumo completo — PDF vai em anexo."""
     ctx = reconciliar_conta_recibo(ctx)
@@ -98,7 +127,8 @@ def _montar_email_html(ctx: dict) -> str:
         for label, valor in _linhas_taxa_consulta_recibo(ctx)
     )
     procs_html += "".join(
-        f'<li>{p["nome"]} — {formatar_moeda_recibo(p["valor"])}</li>' for p in ctx["procedimentos"]
+        f"<li>{html.escape(nome)} — {formatar_moeda_recibo(valor)}</li>"
+        for nome, valor in procedimentos_exibidos_recibo(ctx)
     )
     doc_line = _linha_documento_loja(ctx)
     descontos = _linhas_descontos_recibo(ctx)
@@ -137,6 +167,7 @@ def _montar_email_html(ctx: dict) -> str:
         <p style="margin:12px 0 0;font-size:16px;font-weight:bold;color:#2e7d32;">
           Valor pago: {formatar_moeda_recibo(ctx['valor_pago'])}
         </p>
+        {_bloco_saldo_email(ctx)}
         {f'<p style="margin:12px 0 0;font-size:12px;color:#555;">{ctx["retorno_aviso"]}</p>' if (ctx.get("retorno_aviso") or "").strip() else ''}
       </div>
 
@@ -162,7 +193,8 @@ def _montar_email_texto(ctx: dict) -> str:
         for label, valor in _linhas_taxa_consulta_recibo(ctx)
     ]
     procs_lines.extend(
-        f'  • {p["nome"]} — {formatar_moeda_recibo(p["valor"])}' for p in ctx["procedimentos"]
+        f"  • {nome} — {formatar_moeda_recibo(valor)}"
+        for nome, valor in procedimentos_exibidos_recibo(ctx)
     )
     procs = "\n".join(procs_lines) or "  —"
     doc_line = _linha_documento_loja(ctx)
@@ -199,6 +231,7 @@ def _montar_email_texto(ctx: dict) -> str:
         f'Total: {formatar_moeda_recibo(ctx["valor_total"])}\n'
         f'Forma(s) de pagamento:\n{_formas_pagamento_texto(ctx)}'
         f'Valor pago: {formatar_moeda_recibo(ctx["valor_pago"])}\n'
+        f'{_texto_saldo_recibo(ctx)}'
         f'{((ctx.get("retorno_aviso") or "").strip() + "\n") if (ctx.get("retorno_aviso") or "").strip() else ""}'
         f'\nAtenciosamente,\n{ctx["loja_nome"]}\n'
     )

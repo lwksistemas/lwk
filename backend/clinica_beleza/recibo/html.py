@@ -10,6 +10,7 @@ from .context import (
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
     linhas_local_convenio_recibo,
+    procedimentos_exibidos_recibo,
     reconciliar_conta_recibo,
     recebido_a_maior_recibo,
     situacao_recibo,
@@ -41,20 +42,13 @@ def gerar_html_recibo(ctx: dict) -> str:
     data_emissao = ctx.get("data_emissao") or ctx.get("data") or "—"
     data_atend = ctx.get("data_atendimento") or "—"
 
-    linhas_taxa = _linhas_taxa_consulta_recibo(ctx)
-    taxa_exibida = linhas_taxa[0][1] if linhas_taxa else 0.0
     servicos = []
-    for label, valor in linhas_taxa:
+    for label, valor in _linhas_taxa_consulta_recibo(ctx):
         servicos.append(
             f"<tr><td>{_t(label)}</td>"
             f'<td style="text-align:right">{formatar_moeda_recibo(valor)}</td></tr>'
         )
-    for p in ctx.get("procedimentos") or []:
-        nome = p.get("nome") or ""
-        valor = float(p.get("valor") or 0)
-        nome_lower = nome.strip().lower()
-        if taxa_exibida > 0 and valor == 0.0 and nome_lower in ("consulta", "taxa de consulta"):
-            continue
+    for nome, valor in procedimentos_exibidos_recibo(ctx):
         servicos.append(
             f'<tr><td style="padding-left:8px">• {_t(nome)}</td>'
             f'<td style="text-align:right">{formatar_moeda_recibo(valor)}</td></tr>'
@@ -123,9 +117,14 @@ def gerar_html_recibo(ctx: dict) -> str:
             f'<div class="total">{rotulo_pago}: {formatar_moeda_recibo(valor_pago)}</div>'
         )
         if saldo > 0.009:
+            vencimento_bloco = (
+                f'<div class="total" style="font-size:12px;font-weight:normal;">Vencimento: {_t(vencimento)}</div>'
+                if vencimento
+                else ""
+            )
             saldo_bloco = (
-                f'<div class="total" style="font-size:12px;">SALDO A PAGAR: {formatar_moeda_recibo(saldo)}'
-                f"{f' — vencimento {_t(vencimento)}' if vencimento else ''}</div>"
+                f'<div class="total" style="font-size:12px;">SALDO A PAGAR: {formatar_moeda_recibo(saldo)}</div>'
+                f"{vencimento_bloco}"
             )
         elif situacao == "quitado":
             saldo_bloco = (
@@ -157,7 +156,7 @@ def gerar_html_recibo(ctx: dict) -> str:
   /* Largura do cupom. size:auto deixa o Chrome com preview em branco. */
   @page {{ size: 80mm 297mm; margin: 4mm; }}
   html, body {{ background: #fff; color: #000; }}
-  body {{ font-family: 'Courier New', monospace; width: 72mm; margin: 0 auto; padding: 8px; font-size: 11px; line-height: 1.4; }}
+  body {{ font-family: 'Courier New', monospace; width: 72mm; margin: 0 auto; padding: 8px; font-size: 12px; line-height: 1.55; letter-spacing: 0.2px; }}
   .header {{ text-align: center; border-bottom: 1px dashed #333; padding-bottom: 6px; margin-bottom: 8px; }}
   .header h1 {{ font-size: 13px; margin: 0 0 2px; }}
   .header p {{ margin: 1px 0; font-size: 10px; color: #444; }}

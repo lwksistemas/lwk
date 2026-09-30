@@ -66,6 +66,25 @@ export function RetornoAgendaModal({ open, onClose }: RetornoAgendaModalProps) {
               Carregando...
             </div>
           ) : config ? (
+            <>
+            <label className="flex items-start gap-3 rounded-lg border border-gray-200 dark:border-neutral-700 p-3">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={config.cobrar_taxa_com_procedimento !== false}
+                disabled={salvando}
+                onChange={(e) => void salvarConfig({ cobrar_taxa_com_procedimento: e.target.checked })}
+              />
+              <span>
+                <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                  Cobrar taxa de consulta junto com o procedimento
+                </span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Desmarcado, o recibo do procedimento não inclui a taxa. Consulta sem procedimento
+                  continua cobrando a taxa do local. O retorno gratuito da visita seguinte permanece.
+                </span>
+              </span>
+            </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
               <RetornoConsultaSection
                 config={config}
@@ -88,6 +107,7 @@ export function RetornoAgendaModal({ open, onClose }: RetornoAgendaModalProps) {
                 onExcluirRegra={(id) => void excluirRegra(id)}
               />
             </div>
+            </>
           ) : null}
         </div>
 

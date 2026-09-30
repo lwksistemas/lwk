@@ -12,7 +12,7 @@ from clinica_beleza.recibo.retorno_info import montar_info_retorno_recibo
 
 
 class LinhasTaxaConsultaReciboTests(TestCase):
-    def test_retorno_gratuito_mostra_apenas_taxa_de_tabela(self):
+    def test_retorno_gratuito_nao_imprime_a_taxa(self):
         linhas = _linhas_taxa_consulta_recibo(
             {
                 "retorno_gratuito": True,
@@ -21,7 +21,42 @@ class LinhasTaxaConsultaReciboTests(TestCase):
                 "retorno_dias": 30,
             },
         )
-        self.assertEqual(linhas, [("Taxa de consulta", 300.0)])
+        self.assertEqual(linhas, [])
+
+    def test_opcao_desligada_nao_injeta_taxa_com_procedimento(self):
+        ctx = aplicar_valor_consulta_do_local(
+            {
+                "retorno_gratuito": False,
+                "cobrar_taxa_com_procedimento": False,
+                "taxa_consulta": 0.0,
+                "taxa_consulta_referencia": 150.0,
+                "procedimentos": [{"nome": "BOTOX", "valor": 1500.0}],
+                "subtotal": 1500.0,
+                "valor_total": 1500.0,
+                "valor_pago": 1500.0,
+                "saldo_devedor": 0.0,
+            },
+        )
+        self.assertEqual(ctx["taxa_consulta"], 0.0)
+        self.assertEqual(ctx["subtotal"], 1500.0)
+        self.assertEqual(_linhas_taxa_consulta_recibo(ctx), [])
+
+    def test_opcao_desligada_consulta_sem_procedimento_mantem_taxa(self):
+        ctx = aplicar_valor_consulta_do_local(
+            {
+                "retorno_gratuito": False,
+                "cobrar_taxa_com_procedimento": False,
+                "taxa_consulta": 0.0,
+                "taxa_consulta_referencia": 150.0,
+                "procedimentos": [{"nome": "Consulta", "valor": 0.0}],
+                "subtotal": 0.0,
+                "valor_total": 0.0,
+                "valor_pago": 0.0,
+                "saldo_devedor": 0.0,
+            },
+        )
+        self.assertEqual(ctx["taxa_consulta"], 150.0)
+        self.assertEqual(ctx["valor_total"], 150.0)
 
     def test_sem_retorno_com_procedimento_usa_taxa_do_local(self):
         ctx = aplicar_valor_consulta_do_local(

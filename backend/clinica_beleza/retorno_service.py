@@ -58,7 +58,23 @@ def get_agenda_retorno_config(loja_id):
         retorno_procedimento_ativo=False,
         retorno_consulta_ativo=False,
         dias_retorno_consulta=30,
+        cobrar_taxa_com_procedimento=True,
     )
+
+
+def cobrar_taxa_com_procedimento(loja_id) -> bool:
+    """True cobra a taxa do local mesmo quando o atendimento tem procedimento.
+
+    Sem configuração, ou se a leitura falhar, permanece o comportamento atual.
+    """
+    if not loja_id:
+        return True
+    try:
+        config = get_agenda_retorno_config(loja_id)
+    except Exception:
+        logger.exception("Erro ao ler cobrança da taxa com procedimento")
+        return True
+    return bool(getattr(config, "cobrar_taxa_com_procedimento", True))
 
 
 def _aware_dt(dt):

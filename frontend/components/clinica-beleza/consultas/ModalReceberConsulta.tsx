@@ -9,7 +9,7 @@ import {
   deveAbrirComprovanteRecibo,
   saldoReceberConsulta,
 } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
-import { type Consulta } from "./consultas-types";
+import { consultaTemProcedimento, type Consulta } from "./consultas-types";
 import {
   buildReceberPayload,
   calcularTotalLiquido,
@@ -18,6 +18,7 @@ import {
   round2,
   somaEntradas,
   somaEntradasPagas,
+  taxaConsultaCobrada,
   validateReceberForm,
   valoresQuaseIguais,
   type EntradaPagamentoLinha,
@@ -65,13 +66,13 @@ export function ModalReceberConsulta({
     : valorProcCatalogo;
   const valorProcAlterado =
     podeEditarValorProc && !valoresQuaseIguais(valorProcedimentosEfetivo, valorProcCatalogo);
-  const retornoIsento = Boolean(consulta.retorno_gratuito);
-  const taxaLocal = Number(consulta.local_atendimento_valor_consulta ?? 0);
-  const taxaCobrada = retornoIsento
-    ? 0
-    : valorConsulta > 0.009
-      ? valorConsulta
-      : Math.max(0, taxaLocal);
+  const taxaCobrada = taxaConsultaCobrada({
+    retornoGratuito: Boolean(consulta.retorno_gratuito),
+    valorConsulta,
+    taxaLocal: Number(consulta.local_atendimento_valor_consulta ?? 0),
+    cobrarTaxaComProcedimento: consulta.cobrar_taxa_com_procedimento,
+    temProcedimento: consultaTemProcedimento(consulta),
+  });
   const total = round2(taxaCobrada + valorProcedimentosEfetivo);
   const pagoAteAgora = Number(consulta.valor_pago ?? 0);
   const saldoApi = saldoReceberConsulta(consulta);
@@ -81,11 +82,13 @@ export function ModalReceberConsulta({
   const baseReceber = saldoAtual > 0 ? saldoAtual : total;
 
   const reiniciarFormularioComplemento = (c: Consulta) => {
-    const taxa = c.retorno_gratuito
-      ? 0
-      : Number(c.valor_consulta ?? 0) > 0.009
-        ? Number(c.valor_consulta ?? 0)
-        : Math.max(0, Number(c.local_atendimento_valor_consulta ?? 0));
+    const taxa = taxaConsultaCobrada({
+      retornoGratuito: Boolean(c.retorno_gratuito),
+      valorConsulta: Number(c.valor_consulta ?? 0),
+      taxaLocal: Number(c.local_atendimento_valor_consulta ?? 0),
+      cobrarTaxaComProcedimento: c.cobrar_taxa_com_procedimento,
+      temProcedimento: consultaTemProcedimento(c),
+    });
     const bruto = round2(taxa + Number(c.valor_procedimentos ?? 0));
     const pago = Number(c.valor_pago ?? 0);
     const saldoApiReset = saldoReceberConsulta(c);

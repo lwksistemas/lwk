@@ -81,3 +81,46 @@ class AplicarValorProcedimentosTests(SimpleTestCase):
         appointment = _appointment_com_linhas([MagicMock()])
         with self.assertRaises(ValueError):
             aplicar_valor_procedimentos_atendimento(appointment, "-10")
+
+
+class GarantirTaxaComProcedimentoTests(SimpleTestCase):
+    def _consulta(self, nome="BOTOX"):
+        from types import SimpleNamespace
+
+        linha = SimpleNamespace(procedure=SimpleNamespace(nome=nome), valor=Decimal("1500"))
+        appointment = MagicMock()
+        appointment.loja_id = 1
+        appointment.protocolo_contrato_id = None
+        appointment.appointment_procedures.all.return_value = [linha]
+        consulta = MagicMock()
+        consulta.retorno_gratuito = False
+        consulta.appointment = appointment
+        consulta.valor_consulta = Decimal(0)
+        consulta.local_atendimento = SimpleNamespace(valor_consulta=Decimal("150"))
+        return consulta
+
+    @patch("clinica_beleza.retorno_service.cobrar_taxa_com_procedimento", return_value=False)
+    def test_opcao_desligada_nao_grava_taxa_com_procedimento(self, _cobrar):
+        from clinica_beleza.consulta_service.valores import _garantir_valor_consulta_consulta
+
+        consulta = self._consulta()
+        _garantir_valor_consulta_consulta(consulta)
+        consulta.save.assert_not_called()
+
+    @patch("clinica_beleza.retorno_service.cobrar_taxa_com_procedimento", return_value=False)
+    def test_opcao_desligada_consulta_pura_grava_taxa(self, _cobrar):
+        from clinica_beleza.consulta_service.valores import _garantir_valor_consulta_consulta
+
+        consulta = self._consulta(nome="Consulta")
+        _garantir_valor_consulta_consulta(consulta)
+        self.assertEqual(consulta.valor_consulta, Decimal("150"))
+        consulta.save.assert_called_once()
+
+    @patch("clinica_beleza.retorno_service.cobrar_taxa_com_procedimento", return_value=True)
+    def test_opcao_ligada_grava_taxa_com_procedimento(self, _cobrar):
+        from clinica_beleza.consulta_service.valores import _garantir_valor_consulta_consulta
+
+        consulta = self._consulta()
+        _garantir_valor_consulta_consulta(consulta)
+        self.assertEqual(consulta.valor_consulta, Decimal("150"))
+        consulta.save.assert_called_once()

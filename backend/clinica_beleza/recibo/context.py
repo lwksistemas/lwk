@@ -144,12 +144,15 @@ def _calcular_taxa_retorno_recibo(appointment, loja_id):
             taxa_consulta_referencia = taxa_consulta
     except Exception:
         logger.exception("Erro ao ler taxa de consulta do recibo")
+    from clinica_beleza.retorno_service import cobrar_taxa_com_procedimento
+
     return {
         "taxa_consulta": taxa_consulta,
         "taxa_consulta_referencia": taxa_consulta_referencia,
         "retorno_gratuito": retorno_gratuito,
         "retorno_dias": retorno_dias,
         "retorno_aviso": retorno_aviso,
+        "cobrar_taxa_com_procedimento": cobrar_taxa_com_procedimento(loja_id),
     }
 
 
@@ -274,6 +277,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         "retorno_gratuito": ctx["retorno_gratuito"],
         "retorno_dias": ctx["retorno_dias"],
         "retorno_aviso": ctx["retorno_aviso"],
+        "cobrar_taxa_com_procedimento": ctx.get("cobrar_taxa_com_procedimento", True),
     }
 
     ctx = _dados_loja_recibo(loja)
@@ -477,13 +481,26 @@ def linhas_local_convenio_recibo(ctx: dict) -> list[tuple[str, str]]:
     return []
 
 
+def _omitir_taxa_junto_do_procedimento(ctx: dict) -> bool:
+    """Clínica desligou a taxa e o atendimento tem procedimento além da consulta.
+
+    Taxa já gravada na consulta continua no recibo (atendimento antigo).
+    """
+    if ctx.get("cobrar_taxa_com_procedimento") is not False:
+        return False
+    if float(ctx.get("taxa_consulta") or 0) > 0.009:
+        return False
+    return not recibo_so_consulta(ctx)
+
+
 def aplicar_valor_consulta_do_local(ctx: dict) -> dict:
     """Usa a taxa do local quando a consulta ficou zerada (com ou sem procedimento).
 
     Fora do retorno gratuito a taxa entra no recibo sempre; no retorno a linha
     e o desconto vêm de taxa_consulta_referencia / desconto_retorno.
+    Com a opção desligada, procedimento sem taxa gravada não recebe a taxa.
     """
-    if ctx.get("retorno_gratuito"):
+    if ctx.get("retorno_gratuito") or _omitir_taxa_junto_do_procedimento(ctx):
         return ctx
     if float(ctx.get("taxa_consulta") or 0) > 0.009:
         return ctx
@@ -502,11 +519,8 @@ def aplicar_valor_consulta_do_local(ctx: dict) -> dict:
 
 
 def _linhas_taxa_consulta_recibo(ctx: dict) -> list[tuple[str, float]]:
-    """Linha da taxa de consulta no recibo (valor de tabela quando há retorno)."""
-    if ctx.get("retorno_gratuito"):
-        ref = float(ctx.get("taxa_consulta_referencia") or 0)
-        if ref > 0:
-            return [("Taxa de consulta", ref)]
+    """Linha da taxa cobrada. No retorno a taxa não aparece: o aviso fica no rodapé."""
+    if ctx.get("retorno_gratuito") or _omitir_taxa_junto_do_procedimento(ctx):
         return []
     taxa = float(ctx.get("taxa_consulta") or 0)
     if taxa <= 0:
@@ -517,11 +531,32 @@ def _linhas_taxa_consulta_recibo(ctx: dict) -> list[tuple[str, float]]:
 
 
 def _descontos_conhecidos_recibo(ctx: dict) -> tuple[float, float]:
+    if ctx.get("ocultar_desconto_retorno"):
+        return 0.0, float(ctx.get("desconto") or 0)
     desconto_retorno = float(ctx.get("desconto_retorno") or 0)
     if desconto_retorno <= 0 and ctx.get("retorno_gratuito"):
         desconto_retorno = float(ctx.get("taxa_consulta_referencia") or 0)
     desconto = float(ctx.get("desconto") or 0)
     return desconto_retorno, desconto
+
+
+def _ocultar_taxa_impressa_no_retorno(ctx: dict) -> dict:
+    """Retorno não imprime a taxa e depois risca. O total já fechado permanece.
+
+    A referência da taxa fica para o aviso do rodapé.
+    """
+    if not ctx.get("retorno_gratuito"):
+        return ctx
+    ref = float(ctx.get("taxa_consulta_referencia") or 0)
+    if ref <= 0.009:
+        ref = float(ctx.get("desconto_retorno") or 0)
+    ctx = dict(ctx)
+    if ref > 0.009:
+        ctx["subtotal"] = round(max(0.0, float(ctx.get("subtotal") or 0) - ref), 2)
+    ctx["desconto_retorno"] = 0
+    ctx["taxa_consulta"] = 0
+    ctx["ocultar_desconto_retorno"] = True
+    return ctx
 
 
 def _rotulo_abatimento(procedimentos, gap: float) -> str:
@@ -608,18 +643,24 @@ def reconciliar_conta_recibo(ctx: dict) -> dict:
     ctx.pop("abatimento", None)
     ctx.pop("abatimento_label", None)
     if gap <= 0.009:
-        return ctx
+        return _ocultar_taxa_impressa_no_retorno(ctx)
     taxa = float(ctx.get("taxa_consulta") or 0)
     if taxa <= 0.009:
         taxa = float(ctx.get("taxa_consulta_referencia") or 0)
-    if not ctx.get("retorno_gratuito") and taxa > 0.009 and abs(gap - taxa) <= 0.02:
+    omitir_taxa = _omitir_taxa_junto_do_procedimento(ctx)
+    if (
+        not omitir_taxa
+        and not ctx.get("retorno_gratuito")
+        and taxa > 0.009
+        and abs(gap - taxa) <= 0.02
+    ):
         ctx["valor_total"] = round(valor_total + gap, 2)
         pago = float(ctx.get("valor_pago") or 0)
         ctx["saldo_devedor"] = round(max(ctx["valor_total"] - pago, 0.0), 2)
-        return ctx
+        return _ocultar_taxa_impressa_no_retorno(ctx)
     ctx["abatimento"] = gap
     ctx["abatimento_label"] = _rotulo_abatimento(ctx.get("procedimentos"), gap)
-    return ctx
+    return _ocultar_taxa_impressa_no_retorno(ctx)
 
 
 def situacao_recibo(ctx: dict) -> str:

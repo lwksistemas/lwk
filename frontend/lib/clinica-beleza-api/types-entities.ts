@@ -76,6 +76,8 @@ export interface AgendaRetornoConfigItem {
   retorno_procedimento_ativo: boolean;
   retorno_consulta_ativo: boolean;
   dias_retorno_consulta: number;
+  /** True cobra a taxa do local mesmo com procedimento. Ausente = ligado. */
+  cobrar_taxa_com_procedimento?: boolean;
   created_at: string;
   updated_at: string;
   loja_id?: number;

@@ -76,7 +76,7 @@ class ReciboMoedaEContaTests(SimpleTestCase):
         self.assertEqual(ctx["abatimento"], 1800)
         self.assertEqual(ctx["abatimento_label"], "Abatimento — BIOESTIMULADOR DE COLÁGENO")
         linhas = _linhas_descontos_recibo(ctx)
-        self.assertIn(("Desconto retorno", 150), linhas)
+        self.assertNotIn(("Desconto retorno", 150), linhas)
         self.assertIn(("Abatimento — BIOESTIMULADOR DE COLÁGENO", 1800), linhas)
         soma_descontos = sum(valor for _label, valor in linhas)
         self.assertEqual(round(ctx["subtotal"] - soma_descontos, 2), 610)
@@ -97,7 +97,9 @@ class ReciboMoedaEContaTests(SimpleTestCase):
             "saldo_devedor": 0,
         })
         self.assertEqual(ctx["procedimentos"][0]["valor"], 380)
-        self.assertEqual(ctx["subtotal"], 530)
+        self.assertEqual(ctx["subtotal"], 380)
+        self.assertEqual(ctx["desconto_retorno"], 0)
+        self.assertEqual(ctx["valor_total"], 300)
         self.assertNotIn("abatimento", ctx)
 
     def test_desconto_comercial_sai_do_total(self):

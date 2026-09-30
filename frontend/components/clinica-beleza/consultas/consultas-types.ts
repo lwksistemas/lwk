@@ -38,6 +38,8 @@ export interface Consulta {
   valor_consulta: string | number;
   /** Taxa isenta por retorno dentro do prazo. */
   retorno_gratuito?: boolean;
+  /** False: não soma a taxa do local quando há procedimento. Ausente = cobra. */
+  cobrar_taxa_com_procedimento?: boolean;
   retorno_tipo?: string | null;
   /** Prazo (dias) da regra de retorno aplicável (configuração da clínica). */
   retorno_dias_prazo?: number | null;

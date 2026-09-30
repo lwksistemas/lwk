@@ -110,7 +110,7 @@ export function RepasseConsultasPageContent() {
       {!loading && data && (
         <div className="space-y-8">
           {data.profissionais.length === 0 ? (
-            <p className="text-center py-12 text-gray-500">Nenhum atendimento pago no período.</p>
+            <p className="text-center py-12 text-gray-500">Nenhum atendimento com comissão a repassar neste período.</p>
           ) : (
             data.profissionais.map((p) => (
               <section key={p.professional_id}>

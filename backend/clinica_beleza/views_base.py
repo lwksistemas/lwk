@@ -48,6 +48,12 @@ class GetObjectMixin:
                 {"error": self.not_found_message},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        if getattr(self, "bloquear_andamento_alheio", False):
+            from .permissions import recusar_andamento_alheio
+
+            bloqueio = recusar_andamento_alheio(getattr(self, "request", None), obj)
+            if bloqueio is not None:
+                return None, bloqueio
         return obj, None
 
 

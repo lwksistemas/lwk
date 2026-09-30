@@ -102,6 +102,14 @@ class ConsultaPrescricaoView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request, consulta_id):
+        from ..models import Consulta
+        from ..permissions import recusar_andamento_alheio
+
+        consulta = Consulta.objects.filter(pk=consulta_id).only("status", "professional_id").first()
+        if consulta is None:
+            return Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        if bloqueio := recusar_andamento_alheio(request, consulta):
+            return bloqueio
         qs = PrescricaoMemed.objects.filter(consulta_id=consulta_id).select_related(
             "patient", "professional",
         ).order_by("-created_at")
@@ -114,6 +122,11 @@ class ConsultaPrescricaoView(APIView):
             consulta = Consulta.objects.select_related("professional", "patient").get(pk=consulta_id)
         except Consulta.DoesNotExist:
             return Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        from ..permissions import recusar_andamento_alheio
+
+        if bloqueio := recusar_andamento_alheio(request, consulta):
+            return bloqueio
 
         ok, err = loja_plano_permite_memed(consulta.loja_id)
         if not ok:

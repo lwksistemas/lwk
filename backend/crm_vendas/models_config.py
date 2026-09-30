@@ -289,9 +289,9 @@ class CRMConfig(LojaIsolationMixin, models.Model):
     )
 
     # Conta Asaas da própria loja (NFS-e para clientes — não confundir com cobrança LWK)
-    asaas_api_key = models.CharField(
-        max_length=255,
+    asaas_api_key = models.TextField(
         blank=True,
+        default="",
         verbose_name="API Key Asaas (loja)",
         help_text="Chave de API v3 da conta Asaas da loja (Integrações). Necessária para emissão via Asaas por loja.",
     )

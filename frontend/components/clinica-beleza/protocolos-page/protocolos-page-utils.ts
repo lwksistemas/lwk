@@ -1,4 +1,5 @@
 import { procedureCategoria } from "@/lib/clinica-beleza-entities";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import { procedureMatchesModule } from "@/lib/clinica-beleza-categories";
 import type {
   Protocol,
@@ -75,7 +76,7 @@ export function dividirValorProtocolo(
 export function formatarValorProtocolo(valor: string | number | null | undefined): string {
   const n = typeof valor === "number" ? valor : numeroFormulario(String(valor ?? ""));
   if (!Number.isFinite(n)) return "—";
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return formatCurrency(n);
 }
 
 export function rotuloIntervaloProtocolo(quantidade: number, unidade: string): string {

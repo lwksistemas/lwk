@@ -142,8 +142,26 @@ def criar_consulta_avulsa(
     return consulta
 
 
+def trocar_profissional_consulta(consulta, professional):
+    """Troca o profissional da agenda antes do início. Não inicia a consulta."""
+    if consulta.status not in ("SCHEDULED", "RECEBER"):
+        raise ValueError("Só é possível trocar o profissional antes de iniciar a consulta.")
+    appointment = consulta.appointment
+    if appointment is None:
+        raise ValueError("Consulta sem agendamento vinculado.")
+    if getattr(professional, "is_profissional", True) is False:
+        raise ValueError("Este cadastro não está habilitado como profissional para atendimento.")
+    if professional.loja_id != consulta.loja_id:
+        raise ValueError("Profissional não pertence a esta loja.")
+    appointment.professional = professional
+    appointment.save(update_fields=["professional", "updated_at"])
+    consulta.professional = professional
+    consulta.save(update_fields=["professional", "updated_at"])
+    return consulta
+
+
 def iniciar_consulta(consulta, *, bypass_inadimplencia=False):
-    """Profissional inicia atendimento: consulta → IN_PROGRESS, agenda → IN_PROGRESS, data_inicio.
+    """Profissional vinculado na agenda inicia o atendimento.
     """
     from clinica_beleza import consulta_service
 
@@ -312,7 +330,7 @@ def finalizar_consulta(
 
 def reabrir_consulta(consulta):
     """Reabre uma consulta finalizada (COMPLETED → IN_PROGRESS) para permitir
-    incluir procedimentos ou correções. Ação restrita ao administrador (garantida na view).
+    incluir procedimentos ou correções. Só o profissional que realizou a consulta (garantido na view).
 
     Preserva estado financeiro e fiscal — NÃO estorna pagamento, NÃO reverte estoque
     e NÃO cancela NFS-e. Apenas volta o status da consulta e do agendamento para

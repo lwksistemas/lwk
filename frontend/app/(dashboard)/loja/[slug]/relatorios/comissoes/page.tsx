@@ -8,6 +8,7 @@ import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clini
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { RelatorioPdfActions } from '@/components/clinica-beleza/relatorios-shared/RelatorioPdfActions';
 import { abrirRelatorioPdf } from '@/components/clinica-beleza/relatorios-shared/abrir-relatorio-pdf';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 
 interface DetalheComissao {
   local_nome: string;
@@ -464,9 +465,6 @@ export default function RelatorioComissoesPage() {
   useEffect(() => {
     buscar();
   }, [buscar]);
-
-  const formatCurrency = (value: number) =>
-    value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const exportarCSV = () => {
     if (!data) return;

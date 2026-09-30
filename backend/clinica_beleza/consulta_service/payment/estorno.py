@@ -57,12 +57,13 @@ def estornar_recebimento_consulta(consulta, *, usuario=None):
     payment.status = "PENDING"
     payment.amount = Decimal(0)
     payment.valor_total = valor_bruto
+    payment.desconto = Decimal(0)
     payment.payment_date = None
     payment.notes = None
     payment.comissao_percentual = comissao_pct
     payment.comissao_valor = comissao_val
     payment.save(update_fields=[
-        "status", "amount", "valor_total", "payment_date", "notes",
+        "status", "amount", "valor_total", "desconto", "payment_date", "notes",
         "comissao_percentual", "comissao_valor", "updated_at",
     ])
 

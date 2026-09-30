@@ -7,6 +7,7 @@ from .consulta_fluxo import (
     ConsultaFinalizarView,
     ConsultaIniciarView,
     ConsultaReabrirView,
+    ConsultaTrocarProfissionalView,
     ConsultaReceberView,
 )
 from .consulta_list import ConsultaListView, ConsultaResumoFinanceiroView
@@ -19,6 +20,7 @@ __all__ = [
     "ConsultaFinalizarView",
     "ConsultaIniciarView",
     "ConsultaListView",
+    "ConsultaTrocarProfissionalView",
     "ConsultaResumoFinanceiroView",
     "ConsultaReabrirView",
     "ConsultaReceberView",

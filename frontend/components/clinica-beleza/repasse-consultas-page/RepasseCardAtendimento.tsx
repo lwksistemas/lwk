@@ -1,10 +1,10 @@
 "use client";
 
-import { formatRelatorioCurrency } from "@/components/clinica-beleza/relatorios-shared/relatorios-shared-utils";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { AtendimentoRepasse } from "./repasse-consultas-page-types";
 
 export function RepasseCardAtendimento({ at }: { at: AtendimentoRepasse }) {
-  const fmt = formatRelatorioCurrency;
+  const fmt = formatCurrency;
 
   return (
     <article className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">

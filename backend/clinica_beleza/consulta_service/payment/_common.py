@@ -90,8 +90,27 @@ def _tentar_nfse_pos_pagamento(consulta, payment):
         logger.exception("Erro ao tentar NFS-e após pagamento (consulta %s)", consulta.id)
 
 
+def _desconto_gravado(payment) -> Decimal:
+    """Desconto já persistido no Payment. Ausência ou valor inválido vira zero."""
+    if payment is None:
+        return Decimal(0)
+    try:
+        valor = Decimal(str(getattr(payment, "desconto", 0) or 0))
+    except (ArithmeticError, ValueError, TypeError):
+        return Decimal(0)
+    return valor if valor > 0 else Decimal(0)
+
+
+def _liquido_com_desconto_gravado(valor_bruto, payment) -> Decimal:
+    """Bruto do atendimento menos o desconto já gravado, sem ficar negativo."""
+    bruto = Decimal(str(valor_bruto or 0))
+    return max(bruto - _desconto_gravado(payment), Decimal(0))
+
+
 def _calcular_valor_total_com_desconto(valor_bruto: Decimal, desconto, payment) -> Decimal:
     """Calcula valor_total após desconto, preservando desconto anterior se nenhum novo informado."""
+    if desconto in (None, ""):
+        desconto = _desconto_gravado(payment)
     valor_desconto = to_decimal(desconto, "desconto") if desconto not in (None, "") else Decimal(0)
     if valor_desconto is None:
         valor_desconto = Decimal(0)
@@ -129,9 +148,11 @@ def _garantir_ou_criar_payment(consulta_service, appointment, valor_total, metod
     payment.payment_method = metodo_principal
     payment.comissao_percentual = comissao_pct
     payment.comissao_valor = comissao_val
+    payment.desconto = valor_desconto if valor_desconto > 0 else Decimal(0)
     if valor_desconto > 0:
-        payment.desconto = valor_desconto
         payment.notes = f"Desconto: R$ {valor_desconto}"
+    elif isinstance(payment.notes, str) and payment.notes.startswith("Desconto:") and "A prazo" not in payment.notes:
+        payment.notes = None
     return payment
 
 
@@ -154,6 +175,11 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
             loja_id=payment.loja_id,
         )
     venc_prazo = None
+    nota = payment.notes if isinstance(payment.notes, str) else ""
+    limpou_nota_desconto = False
+    if valor_desconto <= 0 and nota.startswith("Desconto:") and "A prazo" not in nota:
+        payment.notes = None
+        limpou_nota_desconto = True
     if so_prazo:
         payment.payment_method = _METODO_PRAZO
         notes = (payment.notes or "").strip()
@@ -176,11 +202,12 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
     else:
         payment.status = "DRAFT"
         payment.amount = min(total_pago, valor_total) if quitou else total_pago
-    update_fields = ["amount", "valor_total", "payment_method", "status", "payment_date", "comissao_percentual", "comissao_valor", "updated_at"]
-    if valor_desconto > 0:
-        payment.desconto = valor_desconto
-        update_fields.append("desconto")
-    if valor_desconto > 0 or so_prazo:
+    update_fields = [
+        "amount", "valor_total", "payment_method", "status", "payment_date",
+        "comissao_percentual", "comissao_valor", "desconto", "updated_at",
+    ]
+    payment.desconto = valor_desconto if valor_desconto > 0 else Decimal(0)
+    if valor_desconto > 0 or so_prazo or limpou_nota_desconto:
         update_fields.append("notes")
     if so_prazo:
         update_fields.append("data_vencimento")

@@ -1,4 +1,3 @@
-export { gerarHtmlRecibo } from "./gerar-html-recibo";
 export { ReceberDadosAtendimento } from "./ReceberDadosAtendimento";
 export { ReceberFormasPagamento } from "./ReceberFormasPagamento";
 export { ReceberSucessoPanel } from "./ReceberSucessoPanel";

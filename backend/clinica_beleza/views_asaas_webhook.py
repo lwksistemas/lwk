@@ -39,8 +39,6 @@ def clinica_beleza_asaas_webhook(request, loja_slug: str):
         return Response({
             "ok": True,
             "message": "Webhook Asaas (Clínica Beleza) ativo.",
-            "loja_slug": loja.slug,
-            "loja_id": loja.id,
         })
 
     if not _configure_tenant_db_for_loja(loja, request):

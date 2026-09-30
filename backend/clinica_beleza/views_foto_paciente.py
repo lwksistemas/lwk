@@ -68,6 +68,7 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
     """GET — fotos do paciente (todas as consultas). POST — registrar foto do painel."""
 
     permission_classes = CLINICA_CLINICAL
+    bloquear_andamento_alheio = True
     model_class = Consulta
     not_found_message = "Consulta não encontrada"
     select_related_fields = ("patient",)
@@ -122,6 +123,7 @@ class ConsultaFotoQrView(GetObjectMixin, APIView):
     """POST — gera link e QR para o paciente enviar foto pelo celular."""
 
     permission_classes = CLINICA_CLINICAL
+    bloquear_andamento_alheio = True
     model_class = Consulta
     not_found_message = "Consulta não encontrada"
     select_related_fields = ("patient",)
@@ -154,6 +156,7 @@ class ConsultaFotoDeleteView(GetObjectMixin, APIView):
     """DELETE — remove foto do acompanhamento."""
 
     permission_classes = CLINICA_CLINICAL
+    bloquear_andamento_alheio = True
     model_class = Consulta
     not_found_message = "Consulta não encontrada"
 

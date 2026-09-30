@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { ConsultaProfessionalSelectModal } from "@/components/clinica-beleza/consultas/ConsultaProfessionalSelectModal";
+import { textoModalProfissional } from "@/components/clinica-beleza/consultas/consulta-acesso";
 import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/ModalReceberConsulta";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
@@ -31,6 +32,7 @@ export function ProntuarioPageContent() {
     abrindoReceberId,
     showProfessionalModal,
     profissionaisDisponiveis,
+    consultaParaIniciar,
     handleTabChange,
     voltarHub,
     abrirConsulta,
@@ -144,6 +146,8 @@ export function ProntuarioPageContent() {
       <ConsultaProfessionalSelectModal
         open={showProfessionalModal}
         profissionais={profissionaisDisponiveis}
+        titulo={consultaParaIniciar ? textoModalProfissional(consultaParaIniciar).titulo : undefined}
+        descricao={consultaParaIniciar ? textoModalProfissional(consultaParaIniciar).descricao : undefined}
         onSelect={confirmarProfissional}
         onClose={fecharProfessionalModal}
       />

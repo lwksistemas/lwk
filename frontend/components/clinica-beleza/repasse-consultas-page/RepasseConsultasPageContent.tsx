@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, Search } from "lucide-react";
 import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
-import { formatRelatorioCurrency } from "@/components/clinica-beleza/relatorios-shared/relatorios-shared-utils";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import { RelatorioPdfActions } from "@/components/clinica-beleza/relatorios-shared/RelatorioPdfActions";
 import { abrirRelatorioPdf } from "@/components/clinica-beleza/relatorios-shared/abrir-relatorio-pdf";
 import { RepasseCardAtendimento } from "./RepasseCardAtendimento";
@@ -117,7 +117,7 @@ export function RepasseConsultasPageContent() {
                 <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--cb-primary, #8B3D52)' }}>
                   {p.nome}
                   <span className="text-sm font-normal text-gray-500 ml-2">
-                    {p.total_atendimentos} atendimento(s) · Comissão {formatRelatorioCurrency(p.comissao_total)}
+                    {p.total_atendimentos} atendimento(s) · Comissão {formatCurrency(p.comissao_total)}
                   </span>
                 </h2>
                 <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4">
@@ -137,7 +137,7 @@ export function RepasseConsultasPageContent() {
               <p className="text-sm font-semibold mb-2">Totais do período</p>
               <p className="text-lg font-bold tabular-nums">
                 {data.totais.total_atendimentos} atendimentos · Comissão{" "}
-                {formatRelatorioCurrency(data.totais.comissao_total)}
+                {formatCurrency(data.totais.comissao_total)}
               </p>
             </div>
           )}

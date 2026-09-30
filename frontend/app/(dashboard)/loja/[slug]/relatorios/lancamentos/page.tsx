@@ -9,6 +9,7 @@ import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from '@/components/clini
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
 import { RelatorioPdfActions } from '@/components/clinica-beleza/relatorios-shared/RelatorioPdfActions';
 import { abrirRelatorioPdf } from '@/components/clinica-beleza/relatorios-shared/abrir-relatorio-pdf';
+import { formatCurrency } from '@/lib/financeiro-helpers';
 
 interface LancamentoItem {
   payment_id: number;
@@ -39,10 +40,6 @@ interface LancamentosData {
     valor_total: number;
     comissao_total: number;
   };
-}
-
-function formatCurrency(value: number) {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function formatDate(iso: string | null) {

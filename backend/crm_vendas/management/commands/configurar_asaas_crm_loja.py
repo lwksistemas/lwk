@@ -37,6 +37,8 @@ class Command(BaseCommand):
 
         from asaas_integration.api_key_utils import (
             asaas_key_is_sandbox,
+            chave_asaas_em_claro,
+            criptografar_asaas_api_key,
             is_valid_asaas_api_key,
             normalize_asaas_api_key,
         )
@@ -47,7 +49,7 @@ class Command(BaseCommand):
                 raise CommandError(
                     "Chave API inválida. Use $aact_prod_... (produção) ou $aact_hmlg_... (sandbox).",
                 )
-            cfg.asaas_api_key = api_key
+            cfg.asaas_api_key = criptografar_asaas_api_key(api_key)
             if options["sandbox"]:
                 cfg.asaas_sandbox = True
             elif options["producao"]:
@@ -60,7 +62,7 @@ class Command(BaseCommand):
             ))
 
         if options["test"]:
-            key = api_key or normalize_asaas_api_key((cfg.asaas_api_key or "").strip())
+            key = api_key or chave_asaas_em_claro(cfg.asaas_api_key or "")
             if not key:
                 raise CommandError("Nenhuma API Key configurada. Use --api-key ou configure antes.")
             sandbox = cfg.asaas_sandbox

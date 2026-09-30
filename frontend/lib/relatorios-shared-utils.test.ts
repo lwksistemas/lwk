@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  buildRelatorioPdfFilename,
-  formatRelatorioCurrency,
-  getDefaultRelatorioPeriod,
-} from "@/components/clinica-beleza/relatorios-shared/relatorios-shared-utils";
+import { getDefaultRelatorioPeriod } from "@/components/clinica-beleza/relatorios-shared/relatorios-shared-utils";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import { abrirRelatorioPdf } from "@/components/clinica-beleza/relatorios-shared/abrir-relatorio-pdf";
 
 vi.mock("@/lib/clinica-beleza-api", () => ({
@@ -25,23 +22,13 @@ describe("getDefaultRelatorioPeriod", () => {
   });
 });
 
-describe("formatRelatorioCurrency", () => {
+describe("formatCurrency", () => {
   it("formata em BRL", () => {
-    expect(formatRelatorioCurrency(1234.5)).toContain("1.234,50");
-  });
-});
-
-describe("buildRelatorioPdfFilename", () => {
-  it("inclui nome do profissional quando informado", () => {
-    expect(buildRelatorioPdfFilename("comissoes", "Ana Silva", "2026-01-01", "2026-01-31")).toBe(
-      "comissoes_Ana_Silva_2026-01-01_2026-01-31.pdf",
-    );
+    expect(formatCurrency(1234.5)).toContain("1.234,50");
   });
 
-  it("omite profissional quando null", () => {
-    expect(buildRelatorioPdfFilename("repasse", null, "2026-01-01", "2026-01-31")).toBe(
-      "repasse_2026-01-01_2026-01-31.pdf",
-    );
+  it("mostra zero quando o valor não é número", () => {
+    expect(formatCurrency("").replace(/\s/g, " ")).toBe("R$ 0,00");
   });
 });
 

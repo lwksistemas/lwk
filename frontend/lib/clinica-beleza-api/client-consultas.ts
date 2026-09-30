@@ -25,6 +25,8 @@ export const consultasApi = {
     cbPost<Consulta>(`/consultas/${id}/aplicar-protocolo/`, { protocol_id: protocolId }),
   iniciar: (id: number, body?: { professional?: number }) =>
     cbPost<Partial<Consulta>>(`/consultas/${id}/iniciar/`, body || {}),
+  trocarProfissional: (id: number, professionalId: number) =>
+    cbPost<Partial<Consulta>>(`/consultas/${id}/trocar-profissional/`, { professional: professionalId }),
   receber: (
     id: number,
     data: {

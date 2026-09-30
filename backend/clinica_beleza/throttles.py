@@ -12,40 +12,50 @@ Uso em views Django puras (View):
 from rest_framework.throttling import AnonRateThrottle
 
 
-class PublicConfirmacaoThrottle(AnonRateThrottle):
+def _get_client_ip(request) -> str:
+    """IP que o proxy acrescentou no fim de X-Forwarded-For.
+
+    O primeiro endereço da lista é enviado pelo cliente e não serve de limite.
+    Sem o cabeçalho, vale o endereço da conexão.
+    """
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    partes = [parte.strip() for parte in forwarded.split(",") if parte.strip()]
+    if partes:
+        return partes[-1]
+    return request.META.get("REMOTE_ADDR", "0.0.0.0")
+
+
+class _IpDoProxyMixin:
+    def get_ident(self, request):
+        return _get_client_ip(request)
+
+
+class PublicConfirmacaoThrottle(_IpDoProxyMixin, AnonRateThrottle):
     """30 req/min por IP — confirmação de agendamento pelo paciente."""
 
     scope = "public_confirmacao"
     rate = "30/min"
 
 
-class PublicAssinaturaThrottle(AnonRateThrottle):
+class PublicAssinaturaThrottle(_IpDoProxyMixin, AnonRateThrottle):
     """30 req/min por IP — assinatura de termo de consentimento."""
 
     scope = "public_assinatura"
     rate = "30/min"
 
 
-class PublicFotoThrottle(AnonRateThrottle):
+class PublicFotoThrottle(_IpDoProxyMixin, AnonRateThrottle):
     """10 req/min por IP — envio de foto pelo paciente via QR."""
 
     scope = "public_foto"
     rate = "10/min"
 
 
-class PublicPdfThrottle(AnonRateThrottle):
+class PublicPdfThrottle(_IpDoProxyMixin, AnonRateThrottle):
     """30 req/min por IP — PDF público (recibo, orçamento, pedido, termo)."""
 
     scope = "public_pdf"
     rate = "30/min"
-
-
-def _get_client_ip(request) -> str:
-    """Extrai IP real do request respeitando proxies."""
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "0.0.0.0")
 
 
 def check_rate_limit(request, scope: str, rate: str) -> bool:

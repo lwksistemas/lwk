@@ -232,9 +232,9 @@ class ReciboAssinaturaPublicaView(View):
         _payload, adapter, assinatura, payment = ctx
         loja_id = payment.loja_id
 
-        ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", "0.0.0.0"))
-        if "," in ip:
-            ip = ip.split(",")[0].strip()
+        from .throttles import _get_client_ip
+
+        ip = _get_client_ip(request)
         ua = request.META.get("HTTP_USER_AGENT", "")
 
         from .estoque_service import tenant_atomic

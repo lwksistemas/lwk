@@ -53,6 +53,13 @@ class ConsultaEvolucaoListView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request, consulta_id):
+        from ..permissions import recusar_andamento_alheio
+
+        consulta = Consulta.objects.filter(pk=consulta_id).only("status", "professional_id").first()
+        if consulta is None:
+            return Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        if bloqueio := recusar_andamento_alheio(request, consulta):
+            return bloqueio
         qs = ConsultaEvolucao.objects.filter(consulta_id=consulta_id).select_related(
             "patient", "professional",
         ).order_by("-created_at")
@@ -63,6 +70,11 @@ class ConsultaEvolucaoListView(APIView):
             consulta = Consulta.objects.get(pk=consulta_id)
         except Consulta.DoesNotExist:
             return Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        from ..permissions import recusar_andamento_alheio
+
+        if bloqueio := recusar_andamento_alheio(request, consulta):
+            return bloqueio
 
         if consulta.status == "COMPLETED":
             return Response(
@@ -142,6 +154,11 @@ class ConsultaSecaoPDFView(APIView):
         if not consulta:
             return Response({"error": "Consulta não encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
+        from ..permissions import recusar_andamento_alheio
+
+        if bloqueio := recusar_andamento_alheio(request, consulta):
+            return bloqueio
+
         secao = request.query_params.get("secao", "atendimento")
         try:
             from ..prontuario_pdf import gerar_pdf_consulta_secao
@@ -185,4 +202,6 @@ class PatientHistoricoConsultasView(APIView):
         ).annotate(
             total_evolucoes_count=Count("evolucoes"),
         ).order_by("-data_inicio", "-created_at")
-        return paginate_queryset(qs, request, ConsultaListSerializer)
+        return paginate_queryset(
+            qs, request, ConsultaListSerializer, serializer_context={"request": request},
+        )

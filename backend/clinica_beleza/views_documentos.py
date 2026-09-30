@@ -214,6 +214,11 @@ class ConsultaDocumentoListView(APIView):
         if not consulta:
             return Response({"error": "Consulta não encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
+        from .permissions import recusar_andamento_alheio
+
+        if bloqueio := recusar_andamento_alheio(request, consulta):
+            return bloqueio
+
         documentos = _documentos_da_consulta(consulta)
         serializer = DocumentoClinicoSerializer(documentos, many=True)
         return Response(serializer.data)
@@ -222,6 +227,11 @@ class ConsultaDocumentoListView(APIView):
         consulta = _get_consulta_or_none(consulta_id)
         if not consulta:
             return Response({"error": "Consulta não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+        from .permissions import recusar_andamento_alheio
+
+        if bloqueio := recusar_andamento_alheio(request, consulta):
+            return bloqueio
 
         if consulta.status != "IN_PROGRESS":
             return Response(

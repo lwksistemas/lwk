@@ -33,10 +33,9 @@ def _dados_loja(loja_id: int) -> dict:
 
 
 def _ip_request(request) -> str:
-    forwarded = (getattr(request, "META", {}) or {}).get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()[:45]
-    return (getattr(request, "META", {}) or {}).get("REMOTE_ADDR", "0.0.0.0") or "0.0.0.0"
+    from clinica_beleza.throttles import _get_client_ip
+
+    return (_get_client_ip(request) or "0.0.0.0")[:45]
 
 
 def _dados_profissional(prof) -> dict:

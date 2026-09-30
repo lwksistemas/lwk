@@ -43,18 +43,9 @@ class ConsultaListView(APIView):
             status="CANCELLED",
         ).order_by("-data_inicio", "-created_at")
         qs = filtrar_consultas_lista(qs, request.query_params)
-        return paginate_queryset(qs, request, ConsultaListSerializer)
-
-
-class ConsultaResumoFinanceiroView(APIView):
-    """GET /clinica-beleza/consultas/resumo-financeiro/ — totais do filtro da lista."""
-
-    permission_classes = CLINICA_CONSULTA_OPERACIONAL
-
-    def get(self, request):
-        qs = Consulta.objects.exclude(status="CANCELLED")
-        qs = filtrar_consultas_lista(qs, request.query_params)
-        return Response(resumo_financeiro_consultas(qs))
+        return paginate_queryset(
+            qs, request, ConsultaListSerializer, serializer_context={"request": request},
+        )
 
     def post(self, request):
         patient_id = request.data.get("patient")
@@ -174,4 +165,18 @@ class ConsultaResumoFinanceiroView(APIView):
         consulta = Consulta.objects.select_related(
             "patient", "professional", "procedure", "protocol", "appointment",
         ).get(pk=consulta.id)
-        return Response(ConsultaSerializer(consulta).data, status=status.HTTP_201_CREATED)
+        return Response(
+            ConsultaSerializer(consulta, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ConsultaResumoFinanceiroView(APIView):
+    """GET /clinica-beleza/consultas/resumo-financeiro/ — totais do filtro da lista."""
+
+    permission_classes = CLINICA_CONSULTA_OPERACIONAL
+
+    def get(self, request):
+        qs = Consulta.objects.exclude(status="CANCELLED")
+        qs = filtrar_consultas_lista(qs, request.query_params)
+        return Response(resumo_financeiro_consultas(qs))

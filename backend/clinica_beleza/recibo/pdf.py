@@ -2,6 +2,7 @@
 import html
 import io
 import logging
+import re
 
 from .context import (
     _linha_documento_loja,
@@ -23,6 +24,17 @@ logger = logging.getLogger(__name__)
 def _texto_pdf(valor) -> str:
     """Texto de cadastro no Paragraph do ReportLab (sem interpretar tags)."""
     return html.escape(str(valor or ""), quote=True)
+
+
+def _nome_servico_pdf(nome: str) -> str:
+    """A dose fica inteira: o cupom não pode quebrar só o «mL» na linha de baixo."""
+    texto = _texto_pdf(nome)
+    return re.sub(
+        r"(\d+(?:[.,]\d+)?) ([A-Za-zµμ]+)",
+        lambda m: f"{m.group(1)}&nbsp;{m.group(2)}",
+        texto,
+        count=1,
+    )
 
 
 def logo_url_permitida_para_download(logo_url: str) -> bool:
@@ -168,7 +180,7 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
         ])
     for nome, valor in procedimentos_exibidos_recibo(ctx):
         svc_data.append([
-            Paragraph(f"• {_texto_pdf(nome)}", s_left),
+            Paragraph(f"• {_nome_servico_pdf(nome)}", s_left),
             Paragraph(formatar_moeda_recibo(valor), s_right),
         ])
     spans = []
@@ -182,13 +194,14 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
 
     if not svc_data:
         return None
-    svc_table = Table(svc_data, colWidths=[col_w * 0.65, col_w * 0.35])
+    # 73% cabe «Preenchimento de glúteos — 100 mL» numa linha; 65% cortava o mL.
+    svc_table = Table(svc_data, colWidths=[col_w * 0.73, col_w * 0.27])
     svc_table.setStyle(TableStyle([
         ("TOPPADDING", (0, 0), (-1, -1), 2),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
         ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         *spans,
     ]))
     return svc_table

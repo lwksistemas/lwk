@@ -14,6 +14,7 @@ class AgendaRetornoConfigSerializer(serializers.ModelSerializer):
             "retorno_procedimento_ativo",
             "retorno_consulta_ativo",
             "dias_retorno_consulta",
+            "cobrar_taxa_com_procedimento",
             "created_at",
             "updated_at",
             "loja_id",

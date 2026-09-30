@@ -113,6 +113,50 @@ class TestFaturamentoDescontoERetorno(TestCase):
         self.assertEqual(valor_consulta, Decimal("150"))
         self.assertEqual(valor_proc, Decimal("1000"))
 
+    def test_opcao_desligada_nao_puxa_taxa_com_procedimento(self):
+        from clinica_beleza.faturamento_relatorio_service import _calcular_valor_pagamento
+
+        payment, consultas = self._pagamento(
+            valor_proc="1500",
+            desconto="0",
+            taxa_local="150",
+        )
+        valor_consulta, valor_proc, usar_amount = _calcular_valor_pagamento(
+            payment, consultas, cobrar_taxa_com_procedimento=False,
+        )
+        self.assertEqual(valor_consulta, Decimal(0))
+        self.assertEqual(valor_proc, Decimal("1500"))
+        self.assertFalse(usar_amount)
+
+    def test_opcao_desligada_consulta_sem_procedimento_puxa_taxa(self):
+        from clinica_beleza.faturamento_relatorio_service import _calcular_valor_pagamento
+
+        payment, consultas = self._pagamento(
+            valor_proc="0",
+            desconto="0",
+            taxa_local="150",
+        )
+        valor_consulta, valor_proc, _usar = _calcular_valor_pagamento(
+            payment, consultas, cobrar_taxa_com_procedimento=False,
+        )
+        self.assertEqual(valor_consulta, Decimal("150"))
+        self.assertEqual(valor_proc, Decimal(0))
+
+    def test_taxa_ja_gravada_permanece_com_opcao_desligada(self):
+        from clinica_beleza.faturamento_relatorio_service import _calcular_valor_pagamento
+
+        payment, consultas = self._pagamento(
+            valor_proc="1500",
+            desconto="0",
+            valor_consulta="150",
+            taxa_local="150",
+        )
+        valor_consulta, valor_proc, _usar = _calcular_valor_pagamento(
+            payment, consultas, cobrar_taxa_com_procedimento=False,
+        )
+        self.assertEqual(valor_consulta, Decimal("150"))
+        self.assertEqual(valor_proc, Decimal("1500"))
+
     def test_desconto_integral_nao_volta_para_o_valor_pago(self):
         from clinica_beleza.faturamento_relatorio_service import _calcular_valor_pagamento
 

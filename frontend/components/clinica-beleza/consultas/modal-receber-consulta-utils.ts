@@ -41,6 +41,21 @@ export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/** Taxa que entra no receber. Taxa já gravada permanece; opção desligada não injeta a do local. */
+export function taxaConsultaCobrada(params: {
+  retornoGratuito?: boolean;
+  valorConsulta?: number;
+  taxaLocal?: number;
+  cobrarTaxaComProcedimento?: boolean;
+  temProcedimento?: boolean;
+}): number {
+  if (params.retornoGratuito) return 0;
+  const valorConsulta = Number(params.valorConsulta ?? 0);
+  if (valorConsulta > 0.009) return valorConsulta;
+  if (params.cobrarTaxaComProcedimento === false && params.temProcedimento) return 0;
+  return Math.max(0, Number(params.taxaLocal ?? 0));
+}
+
 export function valoresQuaseIguais(a: number, b: number): boolean {
   return Math.abs(a - b) <= TOLERANCIA;
 }

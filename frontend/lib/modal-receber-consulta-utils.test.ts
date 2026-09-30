@@ -3,6 +3,7 @@ import {
   buildReceberPayload,
   calcularTotalLiquido,
   somaEntradas,
+  taxaConsultaCobrada,
   validateReceberForm,
   type EntradaPagamentoLinha,
 } from "@/components/clinica-beleza/consultas/modal-receber-consulta-utils";
@@ -10,6 +11,38 @@ import {
 function linha(method: string, valor: string): EntradaPagamentoLinha {
   return { id: "1", payment_method: method, valor };
 }
+
+describe("taxaConsultaCobrada", () => {
+  it("não injeta a taxa do local quando a opção está desligada e há procedimento", () => {
+    expect(
+      taxaConsultaCobrada({
+        valorConsulta: 0,
+        taxaLocal: 150,
+        cobrarTaxaComProcedimento: false,
+        temProcedimento: true,
+      }),
+    ).toBe(0);
+  });
+
+  it("mantém a taxa já gravada e a consulta sem procedimento", () => {
+    expect(
+      taxaConsultaCobrada({
+        valorConsulta: 150,
+        taxaLocal: 150,
+        cobrarTaxaComProcedimento: false,
+        temProcedimento: true,
+      }),
+    ).toBe(150);
+    expect(
+      taxaConsultaCobrada({
+        valorConsulta: 0,
+        taxaLocal: 150,
+        cobrarTaxaComProcedimento: false,
+        temProcedimento: false,
+      }),
+    ).toBe(150);
+  });
+});
 
 describe("calcularTotalLiquido", () => {
   it("aplica desconto", () => {

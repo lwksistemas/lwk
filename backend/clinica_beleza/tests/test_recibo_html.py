@@ -50,7 +50,8 @@ class GerarHtmlReciboTests(SimpleTestCase):
                 valor_pago=200.0,
             ),
         )
-        self.assertIn("Desconto retorno", html)
+        self.assertNotIn("Desconto retorno", html)
+        self.assertNotIn("Taxa de consulta", html)
         self.assertNotIn("prazo", html)
 
     def test_escapa_html_do_nome(self):
@@ -80,7 +81,8 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertIn("LASER ETHEREA", html)
         self.assertNotIn("Quitado", html)
         self.assertNotIn("Isento — retorno", html)
-        self.assertIn("Desconto retorno", html)
+        self.assertNotIn("Desconto retorno", html)
+        self.assertNotIn("Taxa de consulta", html)
         self.assertNotIn(">Desconto<", html)
 
     def test_quitado_quando_sem_saldo(self):

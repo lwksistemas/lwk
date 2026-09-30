@@ -133,6 +133,8 @@ def _consulta_defaults_from_appointment(appointment, **extra):
         retorno_gratuito = retorno.elegivel
         retorno_tipo = retorno.tipo or ""
         protocol_id = None
+        if not retorno_gratuito and not _cobrar_taxa_com_procedimento_no_atendimento(appointment):
+            valor_ajustado = Decimal(0)
     defaults = {
         "patient_id": appointment.patient_id,
         "professional_id": appointment.professional_id,
@@ -172,9 +174,46 @@ def _consulta_de_protocolo(consulta) -> bool:
     return bool(appointment and getattr(appointment, "protocolo_contrato_id", None))
 
 
+_NOMES_SO_CONSULTA = frozenset({"consulta", "taxa de consulta"})
+
+
+def _tem_procedimento_alem_da_consulta(appointment) -> bool:
+    """Procedimento real no atendimento. Linha só de consulta não conta."""
+    if appointment is None:
+        return False
+    try:
+        linhas = appointment.appointment_procedures.all()
+    except Exception:
+        return False
+    for linha in linhas:
+        proc = getattr(linha, "procedure", None)
+        nome = (getattr(proc, "nome", None) or "").strip().casefold()
+        if not nome:
+            valor = getattr(linha, "valor", None)
+            if valor is not None and Decimal(str(valor or 0)) > 0:
+                return True
+            continue
+        if nome not in _NOMES_SO_CONSULTA:
+            return True
+    return False
+
+
+def _cobrar_taxa_com_procedimento_no_atendimento(appointment) -> bool:
+    """False só quando a clínica desligou a taxa e há procedimento no atendimento."""
+    from ..retorno_service import cobrar_taxa_com_procedimento
+
+    if appointment is None:
+        return True
+    if cobrar_taxa_com_procedimento(getattr(appointment, "loja_id", None)):
+        return True
+    return not _tem_procedimento_alem_da_consulta(appointment)
+
+
 def _garantir_valor_consulta_consulta(consulta) -> None:
     """Persiste taxa de consulta a partir do local quando ainda está zerada."""
     if _consulta_de_protocolo(consulta) or getattr(consulta, "retorno_gratuito", False):
+        return
+    if not _cobrar_taxa_com_procedimento_no_atendimento(getattr(consulta, "appointment", None)):
         return
     if Decimal(str(consulta.valor_consulta or 0)) > 0:
         return
@@ -201,7 +240,12 @@ def _aplicar_local_na_consulta(consulta, local_atendimento_id=None) -> None:
 
     consulta.local_atendimento = local
     campos = ["local_atendimento", "updated_at"]
-    if not _consulta_de_protocolo(consulta) and Decimal(str(consulta.valor_consulta or 0)) <= 0:
+    sem_taxa = Decimal(str(consulta.valor_consulta or 0)) <= 0
+    if (
+        sem_taxa
+        and not _consulta_de_protocolo(consulta)
+        and _cobrar_taxa_com_procedimento_no_atendimento(getattr(consulta, "appointment", None))
+    ):
         consulta.valor_consulta = Decimal(str(local.valor_consulta or 0))
         campos.append("valor_consulta")
     consulta.save(update_fields=campos)

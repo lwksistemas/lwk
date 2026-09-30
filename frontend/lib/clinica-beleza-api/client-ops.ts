@@ -277,7 +277,7 @@ export const nomesAgendaApi = {
 export const retornoApi = {
   getConfig: () => cbGet<AgendaRetornoConfigItem>("/retorno/config/"),
   updateConfig: (
-    data: Partial<Pick<AgendaRetornoConfigItem, "retorno_procedimento_ativo" | "retorno_consulta_ativo" | "dias_retorno_consulta">>,
+    data: Partial<Pick<AgendaRetornoConfigItem, "retorno_procedimento_ativo" | "retorno_consulta_ativo" | "dias_retorno_consulta" | "cobrar_taxa_com_procedimento">>,
   ) => cbPatch<AgendaRetornoConfigItem>("/retorno/config/", data),
   listRegras: () => cbGet<RetornoProcedimentoRegraItem[]>("/retorno/procedimentos/"),
   createRegra: (data: { procedure: number; dias_retorno: number }) =>

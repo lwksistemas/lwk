@@ -95,6 +95,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     payment_id = serializers.SerializerMethodField()
     payment_date = serializers.SerializerMethodField()
     payment_data_vencimento = serializers.SerializerMethodField()
+    cobrar_taxa_com_procedimento = serializers.SerializerMethodField()
     numero = serializers.SerializerMethodField()
     status_assinatura_termo_display = serializers.CharField(
         source="get_status_assinatura_termo_display", read_only=True,
@@ -111,6 +112,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             "valor_pago", "valor_restante", "desconto", "payment_status", "payment_method", "payment_id", "payment_date",
             "payment_data_vencimento",
             "retorno_gratuito", "retorno_tipo", "retorno_dias_prazo", "retorno_aviso_recibo",
+            "cobrar_taxa_com_procedimento",
             "local_atendimento", "local_atendimento_name", "local_atendimento_valor_consulta",
             "convenio", "convenio_name",
             "nome_agenda_id", "nome_agenda_name",
@@ -122,6 +124,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             "numero", "created_at", "updated_at", "loja_id", "appointment",
             "status", "data_inicio", "data_fim",
             "retorno_gratuito", "retorno_tipo", "retorno_dias_prazo", "retorno_aviso_recibo",
+            "cobrar_taxa_com_procedimento",
             "local_atendimento_valor_consulta",
         ]
 
@@ -152,6 +155,15 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
 
     def get_retorno_aviso_recibo(self, obj):
         return self._info_retorno_recibo(obj).get("retorno_aviso") or ""
+
+    def get_cobrar_taxa_com_procedimento(self, obj):
+        cache = self.context.setdefault("_cobrar_taxa_com_procedimento", {})
+        loja_id = getattr(obj, "loja_id", None)
+        if loja_id not in cache:
+            from clinica_beleza.retorno_service import cobrar_taxa_com_procedimento
+
+            cache[loja_id] = cobrar_taxa_com_procedimento(loja_id)
+        return cache[loja_id]
 
     def get_total_evolucoes(self, obj):
         annotated = getattr(obj, "total_evolucoes_count", None)

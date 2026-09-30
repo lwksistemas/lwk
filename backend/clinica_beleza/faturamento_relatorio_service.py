@@ -16,7 +16,12 @@ from .models import Consulta, Payment
 AgrupamentoType = Literal["profissional", "procedimento", "local", "convenio"]
 
 
-def _calcular_valor_pagamento(payment, consulta_map: dict) -> tuple[Decimal, Decimal, bool]:
+def _calcular_valor_pagamento(
+    payment,
+    consulta_map: dict,
+    *,
+    cobrar_taxa_com_procedimento: bool = True,
+) -> tuple[Decimal, Decimal, bool]:
     """Retorna (valor_consulta, valor_proc, usar_amount_total).
 
     O preço do procedimento fica o do cadastro. O desconto dado no pagamento
@@ -27,17 +32,17 @@ def _calcular_valor_pagamento(payment, consulta_map: dict) -> tuple[Decimal, Dec
     """
     appt = payment.appointment
     consulta = consulta_map.get(appt.id) if appt else None
+    valor_proc = Decimal(0)
+    if appt:
+        for ap in appt.appointment_procedures.all():
+            valor_proc += ap.valor or ap.procedure.preco or Decimal(0)
     valor_consulta = Decimal(0)
     if consulta and not getattr(consulta, "retorno_gratuito", False):
         vc = Decimal(str(consulta.valor_consulta or 0))
         if vc > 0:
             valor_consulta = vc
-        elif consulta.local_atendimento:
+        elif consulta.local_atendimento and (cobrar_taxa_com_procedimento or valor_proc <= 0):
             valor_consulta = Decimal(str(consulta.local_atendimento.valor_consulta or 0))
-    valor_proc = Decimal(0)
-    if appt:
-        for ap in appt.appointment_procedures.all():
-            valor_proc += ap.valor or ap.procedure.preco or Decimal(0)
     sem_itens = valor_consulta == 0 and valor_proc == 0
     valor_consulta, valor_proc = _abater_desconto_comercial(
         valor_consulta, valor_proc, getattr(payment, "desconto", 0),
@@ -107,6 +112,10 @@ def calcular_faturamento(
     # Carregar consultas vinculadas para ter valor_consulta e local
     payments_list = list(qs.prefetch_related("appointment__appointment_procedures__procedure"))
     consulta_map = _carregar_consultas_map(payments_list)
+    from .retorno_service import cobrar_taxa_com_procedimento as _cobrar_taxa_com_procedimento
+
+    loja_id = getattr(payments_list[0], "loja_id", None) if payments_list else None
+    cobrar_taxa = _cobrar_taxa_com_procedimento(loja_id) if loja_id else True
 
     # Acumular dados por grupo
     grupos: dict[str, dict] = defaultdict(lambda: {
@@ -136,7 +145,9 @@ def calcular_faturamento(
             grupo["valor_total"] += recebido
             continue
         grupo["total_atendimentos"] += 1
-        valor_consulta, valor_proc, usar_amount = _calcular_valor_pagamento(payment, consulta_map)
+        valor_consulta, valor_proc, usar_amount = _calcular_valor_pagamento(
+            payment, consulta_map, cobrar_taxa_com_procedimento=cobrar_taxa,
+        )
         if usar_amount:
             grupo["valor_total"] += payment.amount or Decimal(0)
         else:

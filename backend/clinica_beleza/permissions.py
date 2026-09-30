@@ -257,13 +257,31 @@ def login_e_o_prescritor(request, professional_id) -> bool:
 
 
 def professional_id_do_usuario(request) -> int | None:
-    """Professional.id vinculado ao login. Dono e superuser sem vínculo não contam."""
+    """Professional.id vinculado ao login.
+
+    Superuser sem cadastro não conta. O dono da loja conta quando o login tem
+    o vínculo: o atalho de owner devolve o profissional vazio e escondia esse id.
+    """
     if request is None:
         return None
-    _loja, prof = _loja_and_profissional(request)
-    if not prof or prof == "superuser":
+    loja, prof = _loja_and_profissional(request)
+    if prof == "superuser":
         return None
-    return prof.professional_id or None
+    if prof and getattr(prof, "professional_id", None):
+        return prof.professional_id
+    user = getattr(request, "user", None)
+    if not loja or not user or not getattr(user, "is_authenticated", False):
+        return None
+    if loja.owner_id != user.id:
+        return None
+    vinculo = (
+        ProfissionalUsuario.objects.filter(user=user, loja=loja)
+        .only("professional_id")
+        .first()
+    )
+    if vinculo and vinculo.professional_id:
+        return vinculo.professional_id
+    return None
 
 
 def usuario_e_profissional_da_consulta(request, consulta) -> bool:

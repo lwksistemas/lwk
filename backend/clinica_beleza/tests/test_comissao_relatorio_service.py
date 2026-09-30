@@ -251,3 +251,50 @@ class ComissaoRelatorioHelpersTest(TestCase):
         )
         self.assertEqual(total, Decimal(45))
         self.assertEqual(pct, 30)
+
+
+class RepasseOmiteSemComissaoTest(TestCase):
+    def test_tira_atendimento_zerado_e_recalcula_profissional(self):
+        from clinica_beleza.comissao_repasse_service import _manter_atendimentos_com_comissao
+
+        entry = {
+            "atendimentos": [
+                {
+                    "valor_consulta": Decimal("120"),
+                    "valor_procedimentos": Decimal("0"),
+                    "valor_atendimento": Decimal("120"),
+                    "comissao_consulta": Decimal("0"),
+                    "comissao_procedimentos": Decimal("0"),
+                    "comissao_atendimento": Decimal("0"),
+                },
+                {
+                    "valor_consulta": Decimal("150"),
+                    "valor_procedimentos": Decimal("80"),
+                    "valor_atendimento": Decimal("230"),
+                    "comissao_consulta": Decimal("30"),
+                    "comissao_procedimentos": Decimal("20"),
+                    "comissao_atendimento": Decimal("50"),
+                },
+            ],
+        }
+        filtrado = _manter_atendimentos_com_comissao(entry)
+        self.assertEqual(filtrado["total_atendimentos"], 1)
+        self.assertEqual(filtrado["comissao_total"], Decimal("50"))
+        self.assertEqual(filtrado["valor_total"], Decimal("230"))
+
+    def test_profissional_so_com_zero_sai_da_lista(self):
+        from clinica_beleza.comissao_repasse_service import _manter_atendimentos_com_comissao
+
+        entry = {
+            "atendimentos": [
+                {
+                    "valor_consulta": Decimal("120"),
+                    "valor_procedimentos": Decimal("0"),
+                    "valor_atendimento": Decimal("120"),
+                    "comissao_consulta": Decimal("0"),
+                    "comissao_procedimentos": Decimal("0"),
+                    "comissao_atendimento": Decimal("0"),
+                },
+            ],
+        }
+        self.assertIsNone(_manter_atendimentos_com_comissao(entry))

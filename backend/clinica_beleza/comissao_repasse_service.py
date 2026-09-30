@@ -93,6 +93,22 @@ def _processar_grupo_repasse(grupo: dict, consulta, regras: dict, convenio_id) -
     }
 
 
+def _manter_atendimentos_com_comissao(entry: dict) -> dict | None:
+    """Tira atendimento sem comissão e recalcula o profissional. Sem resto, omite."""
+    atendimentos = [a for a in entry["atendimentos"] if a["comissao_atendimento"] > 0]
+    if not atendimentos:
+        return None
+    entry["atendimentos"] = atendimentos
+    entry["total_atendimentos"] = len(atendimentos)
+    entry["valor_consulta"] = sum((a["valor_consulta"] for a in atendimentos), Decimal(0))
+    entry["valor_procedimento"] = sum((a["valor_procedimentos"] for a in atendimentos), Decimal(0))
+    entry["valor_total"] = sum((a["valor_atendimento"] for a in atendimentos), Decimal(0))
+    entry["comissao_consulta"] = sum((a["comissao_consulta"] for a in atendimentos), Decimal(0))
+    entry["comissao_procedimento"] = sum((a["comissao_procedimentos"] for a in atendimentos), Decimal(0))
+    entry["comissao_total"] = sum((a["comissao_atendimento"] for a in atendimentos), Decimal(0))
+    return entry
+
+
 def _calcular_totais_repasse(profissionais: list) -> dict:
     """Suma totais globais a partir da lista de profissionais."""
     return {
@@ -162,5 +178,10 @@ def calcular_repasse_por_consulta(
         atendimento = _processar_grupo_repasse(grupo, consulta, regras, convenio_id)
         _acumular_atendimento_prof(prof_map, prof_id, appt, atendimento)
 
-    profissionais = sorted(prof_map.values(), key=lambda p: p["nome"])
+    profissionais = []
+    for entry in prof_map.values():
+        filtrado = _manter_atendimentos_com_comissao(entry)
+        if filtrado is not None:
+            profissionais.append(filtrado)
+    profissionais.sort(key=lambda p: p["nome"])
     return {"profissionais": profissionais, "totais": _calcular_totais_repasse(profissionais)}

@@ -124,7 +124,9 @@ function agruparDetalhes(
       row.comissao_total = row.comissao_consulta + row.comissao_procedimento;
     }
   }
-  return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  return Array.from(map.values())
+    .filter((row) => row.comissao_total > 0.009)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
 function MiniTabela({
@@ -666,7 +668,9 @@ export default function RelatorioComissoesPage() {
       {!loading && data && (
         <div className="space-y-6">
           {!temDados ? (
-            <p className="text-center py-12 text-gray-500">Nenhum dado no período.</p>
+            <p className="text-center py-12 text-gray-500">
+              Nenhum profissional com comissão a receber neste período.
+            </p>
           ) : porProfissional ? (
             <>
               {data.profissionais.map((p) => (

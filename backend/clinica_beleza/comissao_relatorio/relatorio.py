@@ -139,6 +139,7 @@ def _finalizar_profissionais(prof_data):
             del detalhe["_chave"]
         entry["detalhes"].sort(key=lambda d: (0 if d["procedimento_nome"] == LABEL_CONSULTA else 1, d.get("convenio_nome", ""), d["procedimento_nome"]))
         profissionais.append(entry)
+    profissionais = [p for p in profissionais if p["comissao_total"] > 0]
     profissionais.sort(key=lambda p: p["nome"])
     return profissionais
 

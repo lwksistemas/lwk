@@ -11,6 +11,37 @@ from clinica_beleza.serializers.nfse_config import ClinicaBelezaNFSeConfigSerial
 from clinica_beleza.throttles import PublicConfirmacaoThrottle, _get_client_ip
 
 
+class DonoComVinculoDeProfissionalTest(SimpleTestCase):
+    def test_dona_inicia_a_propria_consulta(self):
+        from clinica_beleza.permissions import professional_id_do_usuario, usuario_e_profissional_da_consulta
+
+        loja = SimpleNamespace(owner_id=6)
+        user = SimpleNamespace(id=6, is_authenticated=True)
+        request = SimpleNamespace(user=user)
+        vinculo = SimpleNamespace(professional_id=1)
+        consulta = SimpleNamespace(professional_id=1)
+        with (
+            patch("clinica_beleza.permissions._loja_and_profissional", return_value=(loja, None)),
+            patch("clinica_beleza.permissions.ProfissionalUsuario.objects") as objects,
+        ):
+            objects.filter.return_value.only.return_value.first.return_value = vinculo
+            self.assertEqual(professional_id_do_usuario(request), 1)
+            self.assertTrue(usuario_e_profissional_da_consulta(request, consulta))
+
+    def test_dona_sem_vinculo_nao_vira_profissional(self):
+        from clinica_beleza.permissions import professional_id_do_usuario
+
+        loja = SimpleNamespace(owner_id=6)
+        user = SimpleNamespace(id=6, is_authenticated=True)
+        request = SimpleNamespace(user=user)
+        with (
+            patch("clinica_beleza.permissions._loja_and_profissional", return_value=(loja, None)),
+            patch("clinica_beleza.permissions.ProfissionalUsuario.objects") as objects,
+        ):
+            objects.filter.return_value.only.return_value.first.return_value = None
+            self.assertIsNone(professional_id_do_usuario(request))
+
+
 class PrescritorMemedTest(SimpleTestCase):
     @patch("clinica_beleza.permissions.professional_id_do_usuario", return_value=4)
     def test_so_o_profissional_do_login(self, _meu):

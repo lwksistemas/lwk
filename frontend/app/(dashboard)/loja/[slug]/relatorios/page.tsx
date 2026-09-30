@@ -5,13 +5,10 @@ import Link from 'next/link';
 import {
   AlertTriangle,
   BarChart3,
-  Building2,
   ChevronRight,
   ClipboardList,
   DollarSign,
   FileText,
-  Heart,
-  MapPin,
   Percent,
   User,
 } from 'lucide-react';
@@ -35,26 +32,14 @@ const CATEGORIAS: CategoriaRelatorio[] = [
   {
     id: 'comissoes',
     titulo: 'Comissões',
-    descricao: 'Relatórios de comissão por diferentes agrupamentos',
+    descricao: 'Comissão do período e o documento de repasse',
     icon: DollarSign,
     relatorios: [
       {
-        titulo: 'Comissão por Profissional',
-        descricao: 'Resumo consolidado de comissões — consultas e procedimentos no período',
-        href: 'comissoes?agrupar=profissional',
+        titulo: 'Comissão',
+        descricao: 'Por profissional, local de atendimento ou convênio. O agrupamento fica na própria tela.',
+        href: 'comissoes',
         icon: User,
-      },
-      {
-        titulo: 'Comissão por Local de Atendimento',
-        descricao: 'Comissões detalhadas por sala ou local onde o atendimento foi realizado',
-        href: 'comissoes?agrupar=local',
-        icon: MapPin,
-      },
-      {
-        titulo: 'Comissão por Convênio',
-        descricao: 'Comissões com detalhamento por convênio do paciente',
-        href: 'comissoes?agrupar=convenio',
-        icon: Heart,
       },
       {
         titulo: 'Repasse por Consulta',
@@ -67,32 +52,14 @@ const CATEGORIAS: CategoriaRelatorio[] = [
   {
     id: 'faturamento',
     titulo: 'Faturamento',
-    descricao: 'Relatórios de receita e faturamento da clínica',
+    descricao: 'Receita do período, lançamentos, descontos e inadimplência',
     icon: BarChart3,
     relatorios: [
       {
-        titulo: 'Faturamento por Profissional',
-        descricao: 'Receita total da clínica agrupada por profissional',
-        href: 'faturamento?agrupar=profissional',
-        icon: User,
-      },
-      {
-        titulo: 'Faturamento por Procedimento',
-        descricao: 'Receita agrupada por tipo de procedimento',
-        href: 'faturamento?agrupar=procedimento',
-        icon: ClipboardList,
-      },
-      {
-        titulo: 'Faturamento por Local',
-        descricao: 'Receita separada por local de atendimento',
-        href: 'faturamento?agrupar=local',
-        icon: MapPin,
-      },
-      {
-        titulo: 'Faturamento por Convênio',
-        descricao: 'Receita agrupada por convênio (Particular, Unimed, etc.)',
-        href: 'faturamento?agrupar=convenio',
-        icon: Building2,
+        titulo: 'Faturamento',
+        descricao: 'Por profissional, procedimento, local ou convênio. O agrupamento fica na própria tela.',
+        href: 'faturamento',
+        icon: BarChart3,
       },
       {
         titulo: 'Lançamentos por profissional',

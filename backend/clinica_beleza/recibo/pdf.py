@@ -9,6 +9,7 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     linhas_local_convenio_recibo,
+    procedimentos_exibidos_recibo,
     recebido_a_maior_recibo,
     reconciliar_conta_recibo,
     situacao_recibo,
@@ -86,19 +87,21 @@ def _estilos_pdf():
     from reportlab.platypus import HRFlowable
 
     return {
-        "s_center": ParagraphStyle("c", fontSize=8, alignment=TA_CENTER, leading=11),
-        "s_bold_center": ParagraphStyle("bc", fontSize=11, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=14),
-        "s_title": ParagraphStyle("ti", fontSize=9, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=12),
-        "s_left": ParagraphStyle("l", fontSize=8, leading=11),
-        "s_bold": ParagraphStyle("b", fontSize=8, fontName="Helvetica-Bold", leading=11),
-        "s_total": ParagraphStyle("t", fontSize=12, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=15),
+        "s_center": ParagraphStyle("c", fontSize=8, alignment=TA_CENTER, leading=13, spaceAfter=1),
+        "s_bold_center": ParagraphStyle(
+            "bc", fontSize=11, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=15, spaceAfter=1,
+        ),
+        "s_title": ParagraphStyle("ti", fontSize=9, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=13),
+        "s_left": ParagraphStyle("l", fontSize=8, leading=13, spaceAfter=1),
+        "s_bold": ParagraphStyle("b", fontSize=8, fontName="Helvetica-Bold", leading=13),
+        "s_total": ParagraphStyle("t", fontSize=12, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=16),
         "s_footer": ParagraphStyle(
-            "f", fontSize=7, alignment=TA_CENTER, leading=10, textColor=colors.HexColor("#666666"),
+            "f", fontSize=7, alignment=TA_CENTER, leading=11, textColor=colors.HexColor("#666666"),
         ),
         "s_aviso": ParagraphStyle(
-            "aviso", fontSize=9, alignment=TA_CENTER, leading=12, textColor=colors.HexColor("#333333"),
+            "aviso", fontSize=9, alignment=TA_CENTER, leading=14, textColor=colors.HexColor("#333333"),
         ),
-        "s_right": ParagraphStyle("r", fontSize=8, alignment=TA_RIGHT, leading=11),
+        "s_right": ParagraphStyle("r", fontSize=8, alignment=TA_RIGHT, leading=13),
         "hr": HRFlowable(width="100%", thickness=0.5, dash=[2, 2], spaceAfter=3, spaceBefore=3),
     }
 
@@ -158,20 +161,15 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
     s_right = styles["s_right"]
 
     svc_data = []
-    linhas_taxa = _linhas_taxa_consulta_recibo(ctx)
-    taxa_exibida = linhas_taxa[0][1] if linhas_taxa else 0.0
-    for label, valor in linhas_taxa:
+    for label, valor in _linhas_taxa_consulta_recibo(ctx):
         svc_data.append([
             Paragraph(_texto_pdf(label), s_left),
             Paragraph(formatar_moeda_recibo(valor), s_right),
         ])
-    for p in ctx["procedimentos"]:
-        nome_lower = (p["nome"] or "").strip().lower()
-        if taxa_exibida > 0 and float(p["valor"]) == 0.0 and nome_lower in ("consulta", "taxa de consulta"):
-            continue
+    for nome, valor in procedimentos_exibidos_recibo(ctx):
         svc_data.append([
-            Paragraph(f'• {_texto_pdf(p["nome"])}', s_left),
-            Paragraph(formatar_moeda_recibo(p["valor"]), s_right),
+            Paragraph(f"• {_texto_pdf(nome)}", s_left),
+            Paragraph(formatar_moeda_recibo(valor), s_right),
         ])
     spans = []
     for label, valor in linhas_local_convenio_recibo(ctx):
@@ -186,8 +184,8 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
         return None
     svc_table = Table(svc_data, colWidths=[col_w * 0.65, col_w * 0.35])
     svc_table.setStyle(TableStyle([
-        ("TOPPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
         ("RIGHTPADDING", (0, 0), (-1, -1), 0),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -347,10 +345,9 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
         story.append(Paragraph(f"{rotulo_pago}: {formatar_moeda_recibo(valor_pago)}", s_total))
         if saldo > 0.009:
             story.append(Spacer(1, 1 * mm_unit))
-            saldo_txt = f"SALDO A PAGAR: {formatar_moeda_recibo(saldo)}"
+            story.append(Paragraph(f"SALDO A PAGAR: {formatar_moeda_recibo(saldo)}", s_center))
             if vencimento:
-                saldo_txt += f" — vencimento {_texto_pdf(vencimento)}"
-            story.append(Paragraph(saldo_txt, s_center))
+                story.append(Paragraph(f"Vencimento: {_texto_pdf(vencimento)}", s_center))
         elif situacao == "quitado":
             story.append(Spacer(1, 1 * mm_unit))
             story.append(Paragraph("<b>Quitado</b>", s_center))

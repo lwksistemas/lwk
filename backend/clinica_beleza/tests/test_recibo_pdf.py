@@ -83,6 +83,40 @@ class GerarPdfReciboTests(SimpleTestCase):
         pdf = _gerar_pdf_recibo(ctx)
         self.assertTrue(pdf[:5] == b"%PDF-")
 
+    def test_vencimento_fica_em_linha_propria_e_dose_junto_do_nome(self):
+        from io import BytesIO
+
+        from pypdf import PdfReader
+
+        from clinica_beleza.recibo_service import _gerar_pdf_recibo
+
+        ctx = self._ctx(
+            procedimentos=[{"nome": "PREENCHIMENTO DE GLÚTEOS 100 ML", "valor": 6000.0}],
+            taxa_consulta=0.0,
+            taxa_consulta_referencia=150.0,
+            desconto_retorno=150.0,
+            retorno_gratuito=True,
+            retorno_aviso="Retorno gratuito em até 30 dias após o atendimento.",
+            subtotal=6150.0,
+            valor_total=6000.0,
+            valor_pago=650.0,
+            saldo_devedor=5350.0,
+            vencimento="12/10/2026",
+            formas_pagamento=[{"metodo": "Cartão de Débito (30/09/2026)", "valor": 650.0}],
+            loja_email="clinicaharmonis@gmail.com",
+        )
+        pdf = _gerar_pdf_recibo(ctx)
+        texto = " ".join(
+            "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages).split()
+        )
+        self.assertIn("Preenchimento de glúteos — 100 mL", texto)
+        self.assertIn("Vencimento: 12/10/2026", texto)
+        self.assertNotIn("— vencimento", texto)
+        self.assertIn("Retorno gratuito em até 30 dias após o atendimento.", texto)
+        self.assertNotIn("descontada", texto)
+        self.assertIn("Emitido em", texto)
+        self.assertIn("clinicaharmonis@gmail.com", texto)
+
     def test_gera_pdf_com_desconto(self):
         """PDF com desconto aplicado mostra a linha Desconto."""
         from io import BytesIO

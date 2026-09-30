@@ -6,7 +6,9 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    procedimentos_exibidos_recibo,
     recebido_a_maior_recibo,
+    saldo_aberto_recibo,
     reconciliar_conta_recibo,
     titulo_recibo,
 )
@@ -94,15 +96,25 @@ def _enviar_recibo_whatsapp(payment, patient, appointment, *, somente_foto=False
         return False, f"Erro ao enviar WhatsApp: {e}"
 
 
+def _texto_saldo_whatsapp(ctx: dict) -> str:
+    saldo = saldo_aberto_recibo(ctx)
+    if saldo <= 0:
+        return ""
+    linhas = f"Saldo a pagar: {formatar_moeda_recibo(saldo)}\n"
+    vencimento = (ctx.get("vencimento") or "").strip()
+    if vencimento:
+        linhas += f"Vencimento: {vencimento}\n"
+    return linhas
+
+
 def _montar_mensagem_whatsapp(ctx: dict) -> str:
     """Mensagem profissional formatada para WhatsApp."""
     ctx = reconciliar_conta_recibo(ctx)
     procs_lines = []
     for label, valor in _linhas_taxa_consulta_recibo(ctx):
         procs_lines.append(f"  • {label} ......... {formatar_moeda_recibo(valor)}")
-    for p in ctx["procedimentos"]:
-        nome = p["nome"][:35]
-        procs_lines.append(f"  • {nome} ... {formatar_moeda_recibo(p['valor'])}")
+    for nome, valor in procedimentos_exibidos_recibo(ctx):
+        procs_lines.append(f"  • {nome} ... {formatar_moeda_recibo(valor)}")
     procs = "\n".join(procs_lines)
     prof_line = f'👩‍⚕️ *Profissional:* {ctx["profissional_nome"]}\n' if ctx["profissional_nome"] else ""
     descontos = _linhas_descontos_recibo(ctx)
@@ -136,6 +148,7 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
         f'💳 *Forma de pagamento:*\n'
         f'{_formas_pagamento_texto(ctx)}'
         f'💰 *Valor pago: {formatar_moeda_recibo(ctx.get("valor_pago", 0))}*\n'
+        f'{_texto_saldo_whatsapp(ctx)}'
         f'{extra_linha}'
         f'━━━━━━━━━━━━━━━━━━━━\n\n'
         f'{("ℹ️ " + ctx["retorno_aviso"] + "\n\n") if (ctx.get("retorno_aviso") or "").strip() else ""}'

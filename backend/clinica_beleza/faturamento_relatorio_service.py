@@ -86,14 +86,16 @@ def calcular_faturamento(
 ) -> dict:
     """Calcula faturamento da clínica agrupado pelo critério selecionado.
 
-    Fonte: Payment status PAID ou PARTIAL com payment_date no período.
+    Fonte: Payment status PAID ou PARTIAL no dia do agendamento.
+    O carimbo do pagamento não muda o mês: uma visita de setembro
+    recebida ou alterada em outubro continua em setembro.
     PAID: taxa cobrada (Consulta.valor_consulta; retorno gratuito fica de fora)
     + procedimentos (AppointmentProcedure.valor) − desconto do pagamento.
     PARTIAL: só o valor já recebido (amount), sem lançar o procedimento em aberto.
 
     Retorna dict com 'linhas' (lista) e 'totais'.
     """
-    # Filtrar pagamentos pagos no período (mesmo padrão do relatório de comissões)
+    # Mês do atendimento, não o dia em que o pagamento foi carimbado.
     qs = Payment.objects.filter(status__in=("PAID", "PARTIAL")).exclude(payment_method="DESPESA").select_related(
         "appointment__professional",
         "appointment__patient",
@@ -103,9 +105,9 @@ def calcular_faturamento(
     )
 
     if data_inicio:
-        qs = qs.filter(payment_date__date__gte=data_inicio)
+        qs = qs.filter(appointment__date__date__gte=data_inicio)
     if data_fim:
-        qs = qs.filter(payment_date__date__lte=data_fim)
+        qs = qs.filter(appointment__date__date__lte=data_fim)
     if professional_id:
         qs = qs.filter(appointment__professional_id=professional_id)
 

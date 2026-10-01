@@ -26,6 +26,31 @@ class TextoErroLegivelTests(SimpleTestCase):
     def test_vazio(self):
         self.assertEqual(texto_erro_legivel(""), "")
 
+    def test_conflito_de_agenda_com_datetime_no_meio(self):
+        bruto = (
+            "{'conflict': True, 'server': {'id': 463, "
+            "'title': 'BIANCA ORNELLAS DE ALMEIDA - TIRZEPATIDA DOSE DE 5 MG', "
+            "'start': '2026-10-01T16:50:00-03:00', "
+            "'end': datetime.datetime(2026, 10, 1, 17, 10, "
+            "tzinfo=zoneinfo.ZoneInfo(key='America/Sao_Paulo')), "
+            "'backgroundColor': '#22c55e', 'borde…"
+        )
+        self.assertEqual(
+            texto_erro_legivel(bruto),
+            "Este agendamento foi alterado em outro dispositivo. A edição não foi salva. "
+            "Versão que permanece: BIANCA ORNELLAS DE ALMEIDA - TIRZEPATIDA DOSE DE 5 MG · 01/10/2026 16:50.",
+        )
+
+    def test_conflito_json_cancelado(self):
+        self.assertEqual(
+            texto_erro_legivel(
+                '{"conflict": true, "resolution_hint": "server_cancelled", '
+                '"server": {"title": "Consulta", "start": "2026-10-01T16:50:00-03:00", "status": "CANCELLED"}}'
+            ),
+            "Este agendamento está cancelado no servidor. A edição não foi salva. "
+            "Versão que permanece: Consulta · 01/10/2026 16:50.",
+        )
+
 
 class TipoResultadoTests(SimpleTestCase):
     def test_sucesso(self):

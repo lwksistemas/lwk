@@ -342,8 +342,8 @@ class AgendaEventSerializer(serializers.ModelSerializer):
 
         end = obj.date + timedelta(minutes=obj.get_duracao_efetiva())
         if timezone.is_aware(end):
-            return timezone.localtime(end)
-        return end
+            end = timezone.localtime(end)
+        return end.isoformat()
 
     def get_backgroundColor(self, obj):
         colors = {

@@ -13,6 +13,19 @@ describe("textoErroLegivel", () => {
       textoErroLegivel("{'error': 'Horário já ocupado para este profissional.'}"),
     ).toBe("Horário já ocupado para este profissional.");
   });
+
+  it("traduz o conflito da agenda mesmo com datetime no meio", () => {
+    const bruto =
+      "{'conflict': True, 'server': {'id': 463, " +
+      "'title': 'BIANCA ORNELLAS DE ALMEIDA - TIRZEPATIDA DOSE DE 5 MG', " +
+      "'start': '2026-10-01T16:50:00-03:00', " +
+      "'end': datetime.datetime(2026, 10, 1, 17, 10, tzinfo=zoneinfo.ZoneInfo(key='America/Sao_Paulo')), " +
+      "'backgroundColor': '#22c55e', 'borde…";
+    expect(textoErroLegivel(bruto)).toBe(
+      "Este agendamento foi alterado em outro dispositivo. A edição não foi salva. " +
+        "Versão que permanece: BIANCA ORNELLAS DE ALMEIDA - TIRZEPATIDA DOSE DE 5 MG · 01/10/2026 16:50.",
+    );
+  });
 });
 
 describe("mensagemStatusLog", () => {

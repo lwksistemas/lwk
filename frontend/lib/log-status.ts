@@ -33,9 +33,14 @@ export function textoErroLegivel(raw?: string | null): string {
 
   const parsed = parseEstrutura(texto);
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const conflito = mensagemConflitoAgenda(parsed as Record<string, unknown>);
+    if (conflito) return conflito;
     const extraido = mensagemDoDict(parsed as Record<string, unknown>);
     if (extraido) return extraido;
   }
+
+  const conflito = mensagemConflitoTexto(texto);
+  if (conflito) return conflito;
 
   const detalhe = texto.match(/string='([^']+)'/);
   if (detalhe?.[1]) return detalhe[1].trim();
@@ -102,6 +107,51 @@ function rotuloRecurso(recurso?: string | null): string {
   const nome = (recurso || "").trim();
   if (!nome) return "";
   return RECURSO_LABEL[nome] || nome.replace(/-/g, " ").toLowerCase();
+}
+
+function mensagemConflitoAgenda(dados: Record<string, unknown>): string {
+  if (dados.conflict !== true) return "";
+  const server = dados.server && typeof dados.server === "object"
+    ? (dados.server as Record<string, unknown>)
+    : {};
+  const cancelado = dados.resolution_hint === "server_cancelled" || server.status === "CANCELLED";
+  const base = cancelado
+    ? "Este agendamento está cancelado no servidor. A edição não foi salva."
+    : "Este agendamento foi alterado em outro dispositivo. A edição não foi salva.";
+  const permanece = rotuloVersaoServidor(server.title, server.start);
+  return permanece ? `${base} Versão que permanece: ${permanece}.` : base;
+}
+
+function mensagemConflitoTexto(texto: string): string {
+  if (!/['"]conflict['"]\s*:\s*(?:True|true)\b/.test(texto)) return "";
+  const titulo = campoTexto(texto, "title");
+  const inicio = campoTexto(texto, "start");
+  const cancelado = texto.includes("server_cancelled") || /['"]status['"]\s*:\s*['"]CANCELLED['"]/.test(texto);
+  const base = cancelado
+    ? "Este agendamento está cancelado no servidor. A edição não foi salva."
+    : "Este agendamento foi alterado em outro dispositivo. A edição não foi salva.";
+  const permanece = rotuloVersaoServidor(titulo, inicio);
+  return permanece ? `${base} Versão que permanece: ${permanece}.` : base;
+}
+
+function rotuloVersaoServidor(titulo: unknown, inicio: unknown): string {
+  const nome = String(titulo || "").trim();
+  const quando = formatarInicio(inicio);
+  return [nome, quando].filter(Boolean).join(" · ");
+}
+
+function campoTexto(texto: string, campo: string): string {
+  const achado = texto.match(new RegExp(`['"]${campo}['"]\\s*:\\s*'([^']*)'|['"]${campo}['"]\\s*:\\s*"([^"]*)"`));
+  if (!achado) return "";
+  return (achado[1] ?? achado[2] ?? "").trim();
+}
+
+function formatarInicio(valor: unknown): string {
+  const texto = String(valor || "").trim();
+  const achado = texto.match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (!achado) return "";
+  const [, ano, mes, dia, hora, minuto] = achado;
+  return `${dia}/${mes}/${ano} ${hora}:${minuto}`;
 }
 
 function parseEstrutura(texto: string): unknown {

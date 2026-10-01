@@ -10,10 +10,13 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    custeado_pela_clinica,
+    linha_vencimento_recibo,
     linhas_local_convenio_recibo,
     procedimentos_exibidos_recibo,
     reconciliar_conta_recibo,
     recebido_a_maior_recibo,
+    rotulo_forma_recibo,
     situacao_recibo,
     titulo_recibo,
 )
@@ -56,7 +59,7 @@ def gerar_html_recibo(ctx: dict) -> str:
     servicos = []
     for label, valor in _linhas_taxa_consulta_recibo(ctx):
         servicos.append(
-            f"<tr><td>{_t(label)}</td>"
+            f'<tr><td style="padding-left:8px">• {_t(label)}</td>'
             f'<td style="text-align:right">{formatar_moeda_recibo(valor)}</td></tr>'
         )
     for nome, valor in procedimentos_exibidos_recibo(ctx):
@@ -96,13 +99,13 @@ def gerar_html_recibo(ctx: dict) -> str:
     ]
     if formas:
         formas_html = "".join(
-            f"<tr><td>{_t(f.get('metodo'))}</td>"
+            f"<tr><td>{_t(rotulo_forma_recibo(f.get('metodo') or ''))}</td>"
             f'<td style="text-align:right">{formatar_moeda_recibo(f.get("valor") or 0)}</td></tr>'
             for f in formas
         )
     elif valor_pago > 0:
         formas_html = (
-            f"<tr><td>{_t(ctx.get('metodo') or 'Pagamento')}</td>"
+            f"<tr><td>{_t(rotulo_forma_recibo(ctx.get('metodo') or 'Pagamento'))}</td>"
             f'<td style="text-align:right">{formatar_moeda_recibo(valor_pago)}</td></tr>'
         )
     else:
@@ -114,9 +117,9 @@ def gerar_html_recibo(ctx: dict) -> str:
         else ""
     )
 
-    vencimento = (ctx.get("vencimento") or "").strip()
     condicao = (ctx.get("condicao_cobranca") or "").strip()
-    if situacao == "sem_saldo":
+    custeio = situacao == "quitado" and custeado_pela_clinica(ctx)
+    if situacao == "sem_saldo" or custeio:
         valor_pago_bloco = ""
         saldo_bloco = (
             '<div class="footer" style="border-top:none;margin-top:0;">'
@@ -128,14 +131,10 @@ def gerar_html_recibo(ctx: dict) -> str:
             f'<div class="total">{rotulo_pago}: {formatar_moeda_recibo(valor_pago)}</div>'
         )
         if saldo > 0.009:
-            vencimento_bloco = (
-                f'<div class="total" style="font-size:12px;font-weight:normal;">Vencimento: {_t(vencimento)}</div>'
-                if vencimento
-                else ""
-            )
             saldo_bloco = (
-                f'<div class="total" style="font-size:12px;">SALDO A PAGAR: {formatar_moeda_recibo(saldo)}</div>'
-                f"{vencimento_bloco}"
+                f'<div class="total">SALDO A PAGAR: {formatar_moeda_recibo(saldo)}</div>'
+                f'<div class="total" style="font-size:12px;font-weight:normal;">'
+                f'{_t(linha_vencimento_recibo(ctx))}</div>'
             )
         elif situacao == "quitado":
             saldo_bloco = (

@@ -145,7 +145,11 @@ class MontarInfoRetornoReciboTests(TestCase):
         self.assertEqual(info["taxa_consulta_referencia"], 180.0)
         self.assertEqual(info["retorno_dias"], 30)
         self.assertIn("30", info["retorno_aviso"])
-        self.assertIn("Retorno gratuito em até 30 dias após o atendimento.", info["retorno_aviso"])
+        self.assertIn(
+            "Retorno da consulta, sem nova taxa, em até 30 dias após o atendimento anterior.",
+            info["retorno_aviso"],
+        )
+        self.assertNotIn("Retorno gratuito em até", info["retorno_aviso"])
         self.assertNotIn("descontada", info["retorno_aviso"])
         self.assertNotIn("R$", info["retorno_aviso"])
         self.assertNotIn("configurado", info["retorno_aviso"])

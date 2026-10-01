@@ -77,7 +77,8 @@ class GerarHtmlReciboTests(SimpleTestCase):
             ),
         )
         self.assertIn("COMPROVANTE DE ATENDIMENTO", html)
-        self.assertIn("Sem saldo", html)
+        self.assertIn("Sem valor a pagar", html)
+        self.assertNotIn("Sem saldo", html)
         self.assertNotIn("integralmente descontada", html)
         self.assertIn("Laser etherea", html)
         self.assertNotIn("Quitado", html)
@@ -158,6 +159,33 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertIn("Criogenia", html)
         self.assertNotIn(">Local<", html)
         self.assertNotIn("CONSULTÓRIO", html)
+
+    def test_custeio_da_clinica_nao_parece_pagamento_do_cliente(self):
+        html = gerar_html_recibo(
+            self._ctx(
+                metodo="Despesa (clínica)",
+                formas_pagamento=[{"metodo": "Despesa (clínica) (18/09/2026)", "valor": 350.0}],
+            ),
+        )
+        self.assertIn("COMPROVANTE DE ATENDIMENTO", html)
+        self.assertIn("Custeado pela clínica", html)
+        self.assertNotIn("RECIBO DE PAGAMENTO", html)
+        self.assertNotIn("VALOR PAGO", html)
+        self.assertNotIn("Quitado", html)
+        self.assertNotIn("Despesa (clínica)", html)
+
+    def test_saldo_sem_data_informa_que_nao_ha_vencimento(self):
+        html = gerar_html_recibo(
+            self._ctx(
+                valor_pago=190.0,
+                saldo_devedor=160.0,
+                vencimento="",
+                formas_pagamento=[{"metodo": "PIX (14/09/2026)", "valor": 190.0}],
+            ),
+        )
+        self.assertIn("SALDO A PAGAR", html)
+        self.assertIn("Sem vencimento", html)
+        self.assertIn("• Taxa de consulta", html)
 
     def test_sem_procedimento_cita_consulta(self):
         appointment = MagicMock()

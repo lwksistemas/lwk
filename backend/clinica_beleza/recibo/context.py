@@ -364,6 +364,49 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     }
 
 
+_ROTULO_DESPESA_RECIBO = "Despesa (clínica)"
+_ROTULO_CUSTEIO_RECIBO = "Custeado pela clínica"
+
+
+def forma_e_custeio_clinica(metodo: str) -> bool:
+    """A forma interna DESPESA, com ou sem a data entre parênteses."""
+    texto = (metodo or "").strip()
+    return (
+        texto == _ROTULO_DESPESA_RECIBO
+        or texto.startswith(_ROTULO_DESPESA_RECIBO + " ")
+        or texto.startswith(_ROTULO_DESPESA_RECIBO + "(")
+    )
+
+
+def rotulo_forma_recibo(metodo: str) -> str:
+    """No papel do paciente, custeio da clínica não aparece como forma de pagamento."""
+    texto = (metodo or "").strip()
+    if not forma_e_custeio_clinica(texto):
+        return texto
+    return _ROTULO_CUSTEIO_RECIBO + texto[len(_ROTULO_DESPESA_RECIBO):]
+
+
+def custeado_pela_clinica(ctx: dict) -> bool:
+    """True quando todo o valor lançado foi custeado pela clínica."""
+    formas = [
+        f for f in (ctx.get("formas_pagamento") or [])
+        if float(f.get("valor") or 0) > 0.009
+    ]
+    if formas:
+        return all(forma_e_custeio_clinica(str(f.get("metodo") or "")) for f in formas)
+    if float(ctx.get("valor_pago") or 0) <= 0.009:
+        return False
+    return forma_e_custeio_clinica(str(ctx.get("metodo") or ""))
+
+
+def linha_vencimento_recibo(ctx: dict) -> str:
+    """Data combinada, ou o aviso de que o saldo não tem vencimento."""
+    vencimento = (ctx.get("vencimento") or "").strip()
+    if vencimento:
+        return f"Vencimento: {vencimento}"
+    return "Sem vencimento"
+
+
 def _formas_pagamento_texto(ctx: dict) -> str:
     """Formata formas de pagamento para texto (WhatsApp/email)."""
     formas = ctx.get("formas_pagamento", [])
@@ -373,9 +416,12 @@ def _formas_pagamento_texto(ctx: dict) -> str:
             if condicao:
                 return f"  Condição de cobrança: {condicao}\n"
             return ""
-        metodo = ctx.get("metodo", "")
+        metodo = rotulo_forma_recibo(ctx.get("metodo", ""))
         return f"  {metodo} — {formatar_moeda_recibo(ctx.get('valor_pago', 0))}\n"
-    lines = [f'  • {f["metodo"]} — {formatar_moeda_recibo(f["valor"])}' for f in formas]
+    lines = [
+        f'  • {rotulo_forma_recibo(f["metodo"])} — {formatar_moeda_recibo(f["valor"])}'
+        for f in formas
+    ]
     return "\n".join(lines) + "\n"
 
 
@@ -383,10 +429,11 @@ def _formas_pagamento_html(ctx: dict) -> str:
     """Formata formas de pagamento para HTML (corpo do email)."""
     formas = ctx.get("formas_pagamento", [])
     if not formas:
-        metodo = ctx.get("metodo", "")
+        metodo = rotulo_forma_recibo(ctx.get("metodo", ""))
         return f"<li>{metodo} — {formatar_moeda_recibo(ctx.get('valor_pago', 0))}</li>"
     return "".join(
-        f'<li>{f["metodo"]} — {formatar_moeda_recibo(f["valor"])}</li>' for f in formas
+        f'<li>{rotulo_forma_recibo(f["metodo"])} — {formatar_moeda_recibo(f["valor"])}</li>'
+        for f in formas
     )
 
 
@@ -789,8 +836,10 @@ def situacao_recibo(ctx: dict) -> str:
 def titulo_recibo(ctx: dict) -> tuple[str, str]:
     """Título e subtítulo conforme o que já foi pago."""
     situacao = situacao_recibo(ctx)
+    if situacao == "quitado" and custeado_pela_clinica(ctx):
+        return "COMPROVANTE DE ATENDIMENTO", "Custeado pela clínica"
     if situacao == "sem_saldo":
-        return "COMPROVANTE DE ATENDIMENTO", "Sem saldo"
+        return "COMPROVANTE DE ATENDIMENTO", "Sem valor a pagar"
     if situacao == "em_aberto":
         return "COMPROVANTE DE ATENDIMENTO", "Valor em aberto"
     if situacao == "parcial":

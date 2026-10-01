@@ -9,10 +9,13 @@ from .context import (
     _linha_tel_cep,
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
+    custeado_pela_clinica,
+    linha_vencimento_recibo,
     linhas_local_convenio_recibo,
     procedimentos_exibidos_recibo,
     recebido_a_maior_recibo,
     reconciliar_conta_recibo,
+    rotulo_forma_recibo,
     situacao_recibo,
     titulo_recibo,
 )
@@ -107,6 +110,9 @@ def _estilos_pdf():
         "s_left": ParagraphStyle("l", fontSize=8, leading=13, spaceAfter=1),
         "s_bold": ParagraphStyle("b", fontSize=8, fontName="Helvetica-Bold", leading=13),
         "s_total": ParagraphStyle("t", fontSize=12, fontName="Helvetica-Bold", alignment=TA_CENTER, leading=16),
+        "s_aceite": ParagraphStyle(
+            "aceite", fontSize=8, alignment=TA_CENTER, leading=11, textColor=colors.black,
+        ),
         "s_footer": ParagraphStyle(
             "f", fontSize=7, alignment=TA_CENTER, leading=11, textColor=colors.HexColor("#666666"),
         ),
@@ -175,7 +181,7 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
     svc_data = []
     for label, valor in _linhas_taxa_consulta_recibo(ctx):
         svc_data.append([
-            Paragraph(_texto_pdf(label), s_left),
+            Paragraph(f"• {_texto_pdf(label)}", s_left),
             Paragraph(formatar_moeda_recibo(valor), s_right),
         ])
     for nome, valor in procedimentos_exibidos_recibo(ctx):
@@ -240,11 +246,11 @@ def _tabela_totais_recibo_pdf(ctx, styles, col_w):
         totals_data.append([Paragraph("<b>Formas de pagamento:</b>", s_bold), Paragraph("", s_right)])
         for f in formas:
             totals_data.append([
-                Paragraph(f'  {_texto_pdf(f["metodo"])}', s_left),
+                Paragraph(f'  {_texto_pdf(rotulo_forma_recibo(f["metodo"]))}', s_left),
                 Paragraph(formatar_moeda_recibo(f["valor"]), s_right),
             ])
     elif valor_pago > 0:
-        metodo = ctx.get("metodo", "")
+        metodo = rotulo_forma_recibo(ctx.get("metodo", ""))
         totals_data.append([Paragraph(_texto_pdf(metodo), s_left), Paragraph(formatar_moeda_recibo(valor_pago), s_right)])
     extra = recebido_a_maior_recibo(ctx)
     if extra > 0.009:
@@ -276,7 +282,7 @@ def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
 
     s_title = styles["s_title"]
     s_center = styles["s_center"]
-    s_footer = styles["s_footer"]
+    s_aceite = styles["s_aceite"]
     hr = styles["hr"]
 
     # Título e dados do cliente centralizados para alinhar todo o bloco de assinatura.
@@ -302,33 +308,34 @@ def _secao_assinatura_recibo_pdf(ctx, styles, mm_unit):
         else:
             declaracao = (
                 f"Declaro que recebi o(s) serviço(s)/atendimento(s) descrito(s) acima e "
-                f"reconheço o saldo devedor de {formatar_moeda_recibo(saldo)}."
+                f"reconheço o saldo devedor de {formatar_moeda_recibo(saldo)}, "
+                f"sem vencimento combinado."
             )
         story.append(Spacer(1, 1 * mm_unit))
-        story.append(Paragraph(declaracao, s_footer))
+        story.append(Paragraph(declaracao, s_aceite))
         story.append(Spacer(1, 1 * mm_unit))
     elif assinatura.get("assinado_em"):
         story.append(Spacer(1, 1 * mm_unit))
         story.append(Paragraph(
             f"Aceite do saldo em aberto registrado em {_texto_pdf(assinatura['assinado_em'])}. "
             "Não confirma pagamentos feitos depois deste registro.",
-            s_footer,
+            s_aceite,
         ))
         story.append(Spacer(1, 1 * mm_unit))
 
     if assinatura.get("email"):
-        story.append(Paragraph(f"Email: {_texto_pdf(assinatura['email'])}", s_footer))
+        story.append(Paragraph(f"E-mail: {_texto_pdf(assinatura['email'])}", s_aceite))
     if assinatura.get("assinado_em"):
         story.append(Paragraph(
             f"Aceite registrado em: {_texto_pdf(assinatura['assinado_em'])}",
-            s_footer,
+            s_aceite,
         ))
     if assinatura.get("ip"):
-        story.append(Paragraph(f"IP: {_texto_pdf(assinatura['ip'])}", s_footer))
+        story.append(Paragraph(f"IP: {_texto_pdf(assinatura['ip'])}", s_aceite))
     story.append(Spacer(1, 1 * mm_unit))
     story.append(Paragraph(
         "Registro do aceite do cliente: nome, data, hora e endereço IP.",
-        s_footer,
+        s_aceite,
     ))
     return story
 
@@ -344,13 +351,13 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
     story = []
     valor_pago = ctx.get("valor_pago", 0)
     saldo = _saldo_devedor_recibo(ctx)
-    vencimento = (ctx.get("vencimento") or "").strip()
     situacao = situacao_recibo(ctx)
     condicao = (ctx.get("condicao_cobranca") or "").strip()
+    custeio = situacao == "quitado" and custeado_pela_clinica(ctx)
     if condicao and not ctx.get("formas_pagamento"):
         story.append(Paragraph(f"Condição de cobrança: {_texto_pdf(condicao)}", s_center))
         story.append(Spacer(1, 1 * mm_unit))
-    if situacao == "sem_saldo":
+    if situacao == "sem_saldo" or custeio:
         _, subtitulo = titulo_recibo(ctx)
         story.append(Paragraph(f"<b>{_texto_pdf(subtitulo)}</b>", s_center))
     else:
@@ -358,9 +365,8 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
         story.append(Paragraph(f"{rotulo_pago}: {formatar_moeda_recibo(valor_pago)}", s_total))
         if saldo > 0.009:
             story.append(Spacer(1, 1 * mm_unit))
-            story.append(Paragraph(f"SALDO A PAGAR: {formatar_moeda_recibo(saldo)}", s_center))
-            if vencimento:
-                story.append(Paragraph(f"Vencimento: {_texto_pdf(vencimento)}", s_center))
+            story.append(Paragraph(f"SALDO A PAGAR: {formatar_moeda_recibo(saldo)}", s_total))
+            story.append(Paragraph(_texto_pdf(linha_vencimento_recibo(ctx)), s_center))
         elif situacao == "quitado":
             story.append(Spacer(1, 1 * mm_unit))
             story.append(Paragraph("<b>Quitado</b>", s_center))

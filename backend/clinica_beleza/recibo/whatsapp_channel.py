@@ -6,10 +6,13 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    custeado_pela_clinica,
+    linha_vencimento_recibo,
     procedimentos_exibidos_recibo,
     recebido_a_maior_recibo,
     saldo_aberto_recibo,
     reconciliar_conta_recibo,
+    situacao_recibo,
     titulo_recibo,
 )
 from .moeda import formatar_moeda_recibo
@@ -100,11 +103,10 @@ def _texto_saldo_whatsapp(ctx: dict) -> str:
     saldo = saldo_aberto_recibo(ctx)
     if saldo <= 0:
         return ""
-    linhas = f"Saldo a pagar: {formatar_moeda_recibo(saldo)}\n"
-    vencimento = (ctx.get("vencimento") or "").strip()
-    if vencimento:
-        linhas += f"Vencimento: {vencimento}\n"
-    return linhas
+    return (
+        f"Saldo a pagar: {formatar_moeda_recibo(saldo)}\n"
+        f"{linha_vencimento_recibo(ctx)}\n"
+    )
 
 
 def _montar_mensagem_whatsapp(ctx: dict) -> str:
@@ -132,6 +134,12 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
     extra_linha = (
         f"Recebido a maior: {formatar_moeda_recibo(extra)}\n" if extra > 0.009 else ""
     )
+    if situacao_recibo(ctx) == "quitado" and custeado_pela_clinica(ctx):
+        valor_pago_linha = ""
+    else:
+        valor_pago_linha = (
+            f'💰 *Valor pago: {formatar_moeda_recibo(ctx.get("valor_pago", 0))}*\n'
+        )
     return (
         f'🏥 *{ctx["loja_nome"] or "Clínica"}*\n'
         f'━━━━━━━━━━━━━━━━━━━━\n'
@@ -147,7 +155,7 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
         f'━━━━━━━━━━━━━━━━━━━━\n'
         f'💳 *Forma de pagamento:*\n'
         f'{_formas_pagamento_texto(ctx)}'
-        f'💰 *Valor pago: {formatar_moeda_recibo(ctx.get("valor_pago", 0))}*\n'
+        f'{valor_pago_linha}'
         f'{_texto_saldo_whatsapp(ctx)}'
         f'{extra_linha}'
         f'━━━━━━━━━━━━━━━━━━━━\n\n'

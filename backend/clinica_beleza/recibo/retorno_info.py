@@ -70,11 +70,15 @@ def montar_info_retorno_recibo(
 def _aviso_retorno_aplicado(dias: int) -> str:
     """O desconto da consulta, quando existe, fica nas linhas da conta.
 
-    O rodapé só informa o retorno. Não afirma desconto que o recibo não mostra.
+    O rodapé diz que a taxa de consulta não foi cobrada de novo.
+    Não afirma que o procedimento também foi de graça.
     """
     if dias > 0:
-        return f"Retorno gratuito em até {dias} dias após o atendimento."
-    return "Retorno gratuito neste atendimento."
+        return (
+            f"Retorno da consulta, sem nova taxa, em até {dias} dias "
+            f"após o atendimento anterior."
+        )
+    return "Retorno da consulta, sem nova taxa."
 
 
 def _resolver_prazo_e_aviso(

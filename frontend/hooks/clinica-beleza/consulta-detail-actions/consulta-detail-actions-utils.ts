@@ -5,9 +5,10 @@ import {
   type Consulta,
 } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { ConsultaPrintMeta } from "@/lib/consulta-print";
+import { formatConsultaListDate as formatConsultaData } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
 import { consultaQueBloqueiaInicio } from "@/components/clinica-beleza/prontuario/prontuario-consultas-utils";
 
-export { formatConsultaListDate as formatConsultaData } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
+export { formatConsultaData };
 
 export function valorPagamentoConsulta(c: Consulta): number {
   const total = Number(c.valor_pagamento ?? 0);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import {
+  buildConsultaPrintMeta,
   computeConsultaFlags,
   consultaPagamentoUi,
   deveAbrirComprovanteRecibo,
@@ -31,6 +32,17 @@ describe("valorPagamentoConsulta", () => {
 
   it("soma taxa e procedimentos quando valor_pagamento zero", () => {
     expect(valorPagamentoConsulta(consulta({ valor_pagamento: 0 }))).toBe(150);
+  });
+});
+
+describe("buildConsultaPrintMeta", () => {
+  it("formata a data do atendimento sem depender de reexport sem binding", () => {
+    const meta = buildConsultaPrintMeta(
+      consulta({ data_inicio: "2026-10-01T19:25:35.000Z", procedure_name: "" }),
+    );
+    expect(meta.consultaId).toBe(1);
+    expect(meta.dataConsulta).not.toBe("—");
+    expect(meta.patientName).toBe("Paciente");
   });
 });
 

@@ -12,6 +12,7 @@ from clinica_beleza.relatorio_tabela_pdf import (
     gerar_pdf_descontos,
     gerar_pdf_faturamento,
     gerar_pdf_lancamentos,
+    gerar_pdf_venda_prazo,
 )
 
 
@@ -216,5 +217,42 @@ class GerarPdfTabelaTest(SimpleTestCase):
             data_inicio=date(2026, 9, 1),
             data_fim=date(2026, 9, 18),
             agrupar="local",
+        )
+        self.assertTrue(buf.getvalue().startswith(b"%PDF"))
+
+    def test_venda_prazo_gera_pdf(self):
+        resultado = {
+            "profissionais": [{
+                "professional_id": 6,
+                "nome": "Marina",
+                "total_vendas": 1,
+                "valor_total": 300,
+                "valor_pago": 0,
+                "valor_aberto": 300,
+                "vendas": [{
+                    "payment_id": 70,
+                    "data": "2026-09-30",
+                    "paciente": "FERNANDA",
+                    "procedimentos": "Tirzepatida",
+                    "vencimento": "2026-10-15",
+                    "situacao_label": "Em dia",
+                    "valor": 300,
+                    "valor_pago": 0,
+                    "valor_aberto": 300,
+                }],
+            }],
+            "totais": {
+                "total_vendas": 1,
+                "valor_total": 300,
+                "valor_pago": 0,
+                "valor_aberto": 300,
+            },
+        }
+        buf = gerar_pdf_venda_prazo(
+            resultado=resultado,
+            loja=self.loja,
+            data_inicio=date(2026, 9, 1),
+            data_fim=date(2026, 9, 30),
+            profissional_nome="Marina",
         )
         self.assertTrue(buf.getvalue().startswith(b"%PDF"))

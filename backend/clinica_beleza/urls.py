@@ -183,6 +183,8 @@ from .views_relatorios import (
     RelatorioInadimplentesView,
     RelatorioRepasseConsultaPdfView,
     RelatorioRepasseConsultaView,
+    RelatorioVendaPrazoPdfView,
+    RelatorioVendaPrazoView,
 )
 from .views_retorno import (
     RetornoConfigView,
@@ -419,6 +421,8 @@ urlpatterns = [
     path("relatorios/lancamentos/pdf/", RelatorioLancamentosPdfView.as_view(), name="relatorio-lancamentos-pdf"),
     path("relatorios/descontos/", RelatorioDescontosView.as_view(), name="relatorio-descontos"),
     path("relatorios/descontos/pdf/", RelatorioDescontosPdfView.as_view(), name="relatorio-descontos-pdf"),
+    path("relatorios/venda-prazo/", RelatorioVendaPrazoView.as_view(), name="relatorio-venda-prazo"),
+    path("relatorios/venda-prazo/pdf/", RelatorioVendaPrazoPdfView.as_view(), name="relatorio-venda-prazo-pdf"),
     path("relatorios/inadimplentes/", RelatorioInadimplentesView.as_view(), name="relatorio-inadimplentes"),
     path("relatorios/inadimplentes/pdf/", RelatorioInadimplentesPdfView.as_view(), name="relatorio-inadimplentes-pdf"),
     path("relatorios/repasse-consultas/", RelatorioRepasseConsultaView.as_view(), name="relatorio-repasse-consultas"),

@@ -9,6 +9,8 @@ from .financeiro import (
     RelatorioInadimplentesView,
     RelatorioLancamentosPdfView,
     RelatorioLancamentosView,
+    RelatorioVendaPrazoPdfView,
+    RelatorioVendaPrazoView,
 )
 from .repasse import RelatorioRepasseConsultaPdfView, RelatorioRepasseConsultaView
 
@@ -23,6 +25,8 @@ __all__ = [
     "RelatorioInadimplentesView",
     "RelatorioLancamentosPdfView",
     "RelatorioLancamentosView",
+    "RelatorioVendaPrazoPdfView",
+    "RelatorioVendaPrazoView",
     "RelatorioRepasseConsultaPdfView",
     "RelatorioRepasseConsultaView",
 ]

@@ -492,6 +492,87 @@ def gerar_pdf_comissoes_agrupado(
     return finalize_pdf_com_timbrado(buffer, tipo_cab, dados_cab)
 
 
+def gerar_pdf_venda_prazo(
+    *,
+    resultado: dict,
+    loja,
+    data_inicio: date | None,
+    data_fim: date | None,
+    profissional_nome: str | None = None,
+) -> BytesIO:
+    buffer, doc, styles, titulo_style, subtitulo_style, secao_style, tipo_cab, dados_cab, largura = (
+        _iniciar_pdf(loja, usar_paisagem=True)
+    )
+    extra = f"Profissional: {profissional_nome}" if profissional_nome else None
+    elements = []
+    elements.extend(_cabecalho_elements(tipo_cab, dados_cab, titulo_style))
+    elements.extend(_periodo_elements(
+        "Venda a prazo", titulo_style, subtitulo_style, data_inicio, data_fim, extra,
+    ))
+
+    totais = resultado.get("totais") or {}
+    n = totais.get("total_vendas", 0)
+    elements.append(Paragraph(
+        f'{n} venda{"s" if n != 1 else ""} · '
+        f'Total {_fmt_brl(totais.get("valor_total"))} · '
+        f'Recebido {_fmt_brl(totais.get("valor_pago"))} · '
+        f'Em aberto {_fmt_brl(totais.get("valor_aberto"))}',
+        subtitulo_style,
+    ))
+    elements.append(Spacer(1, 2 * mm))
+
+    profissionais = resultado.get("profissionais") or []
+    if not profissionais:
+        elements.append(Paragraph("Nenhuma venda a prazo no período.", styles["Normal"]))
+    else:
+        col_w = [
+            largura * 0.09,
+            largura * 0.20,
+            largura * 0.22,
+            largura * 0.11,
+            largura * 0.12,
+            largura * 0.09,
+            largura * 0.08,
+            largura * 0.09,
+        ]
+        headers = ["Data", "Paciente", "Procedimentos", "Vencimento", "Situação", "Valor", "Recebido", "Em aberto"]
+        for p in profissionais:
+            qtd = p.get("total_vendas") or 0
+            elements.append(Paragraph(
+                f'{p.get("nome") or "—"} — {qtd} venda{"s" if qtd != 1 else ""} · '
+                f'em aberto {_fmt_brl(p.get("valor_aberto"))}',
+                secao_style,
+            ))
+            rows = [
+                [
+                    _fmt_iso_br(v.get("data")),
+                    v.get("paciente") or "—",
+                    v.get("procedimentos") or "—",
+                    _fmt_iso_br(v.get("vencimento")),
+                    v.get("situacao_label") or "—",
+                    _fmt_brl(v.get("valor")),
+                    _fmt_brl(v.get("valor_pago")),
+                    _fmt_brl(v.get("valor_aberto")),
+                ]
+                for v in (p.get("vendas") or [])
+            ]
+            footer = [
+                "Total",
+                "",
+                "",
+                "",
+                "",
+                _fmt_brl(p.get("valor_total")),
+                _fmt_brl(p.get("valor_pago")),
+                _fmt_brl(p.get("valor_aberto")),
+            ]
+            elements.append(_tabela_mista(headers, rows, footer, col_w, n_texto=5))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return finalize_pdf_com_timbrado(buffer, tipo_cab, dados_cab)
+
+
 def gerar_pdf_inadimplentes(*, resultado: dict, loja) -> BytesIO:
     """PDF do relatório de inadimplentes (pagamentos a prazo vencidos)."""
     buffer, doc, styles, titulo_style, subtitulo_style, secao_style, tipo_cab, dados_cab, largura = (

@@ -57,9 +57,16 @@ def texto_erro_legivel(raw: str | None) -> str:
 
     parsed = _parse_estrutura(texto)
     if isinstance(parsed, dict):
+        conflito = _mensagem_conflito_agenda(parsed)
+        if conflito:
+            return conflito
         extraido = _mensagem_do_dict(parsed)
         if extraido:
             return extraido
+
+    conflito = _mensagem_conflito_texto(texto)
+    if conflito:
+        return conflito
 
     detalhe = re.search(r"string='([^']+)'", texto)
     if detalhe:
@@ -105,6 +112,67 @@ def mensagem_resultado(obj) -> str:
     if texto:
         return texto
     return "A ação não foi concluída."
+
+
+def _mensagem_conflito_agenda(dados: dict) -> str:
+    """409 da agenda: a tela estava desatualizada e a edição não entrou."""
+    if dados.get("conflict") is not True:
+        return ""
+    server = dados.get("server") if isinstance(dados.get("server"), dict) else {}
+    if dados.get("resolution_hint") == "server_cancelled" or server.get("status") == "CANCELLED":
+        base = "Este agendamento está cancelado no servidor. A edição não foi salva."
+    else:
+        base = "Este agendamento foi alterado em outro dispositivo. A edição não foi salva."
+    permanece = _rotulo_versao_servidor(server.get("title"), server.get("start"))
+    if permanece:
+        return f"{base} Versão que permanece: {permanece}."
+    return base
+
+
+def _mensagem_conflito_texto(texto: str) -> str:
+    """O histórico guarda o dict Python, às vezes com datetime no meio e cortado."""
+    if not re.search(r"""['"]conflict['"]\s*:\s*(?:True|true)\b""", texto):
+        return ""
+    titulo = _campo_texto(texto, "title")
+    inicio = _formatar_inicio(_campo_texto(texto, "start"))
+    cancelado = "server_cancelled" in texto or re.search(
+        r"""['"]status['"]\s*:\s*['"]CANCELLED['"]""", texto,
+    )
+    if cancelado:
+        base = "Este agendamento está cancelado no servidor. A edição não foi salva."
+    else:
+        base = "Este agendamento foi alterado em outro dispositivo. A edição não foi salva."
+    permanece = _rotulo_versao_servidor(titulo, inicio if _ja_formatado(inicio) else _campo_texto(texto, "start"))
+    if permanece:
+        return f"{base} Versão que permanece: {permanece}."
+    return base
+
+
+def _rotulo_versao_servidor(titulo, inicio) -> str:
+    nome = str(titulo or "").strip()
+    quando = _formatar_inicio(inicio) if inicio and not _ja_formatado(str(inicio)) else str(inicio or "").strip()
+    return " · ".join(parte for parte in (nome, quando) if parte)
+
+
+def _ja_formatado(texto: str) -> bool:
+    return bool(re.match(r"\d{2}/\d{2}/\d{4} \d{2}:\d{2}$", texto))
+
+
+def _campo_texto(texto: str, campo: str) -> str:
+    padrao = rf"""['"]{campo}['"]\s*:\s*'([^']*)'|['"]{campo}['"]\s*:\s*"([^"]*)\""""
+    achado = re.search(padrao, texto)
+    if not achado:
+        return ""
+    return (achado.group(1) if achado.group(1) is not None else achado.group(2) or "").strip()
+
+
+def _formatar_inicio(valor) -> str:
+    texto = str(valor or "").strip()
+    achado = re.match(r"(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})", texto)
+    if not achado:
+        return ""
+    ano, mes, dia, hora, minuto = achado.groups()
+    return f"{dia}/{mes}/{ano} {hora}:{minuto}"
 
 
 def _parse_estrutura(texto: str):

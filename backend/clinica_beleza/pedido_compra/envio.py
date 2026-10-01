@@ -10,6 +10,7 @@ from clinica_beleza.pedido_compra.context import _loja_nome
 from clinica_beleza.pedido_compra.errors import PedidoCompraError
 from clinica_beleza.pedido_compra.formatters import _brl, _fmt_numero, nome_arquivo_pdf_pedido
 from clinica_beleza.pedido_compra.service import clinica_assinou, finalizar_se_completo, pdf_bytes_pedido
+from clinica_beleza.recibo.imagem import jpeg_de_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def _enviar_pdf_email(pedido: PedidoCompra, pdf_bytes: bytes) -> dict:
             f"A foto do pedido está no corpo deste e-mail.\n\n"
             f"Atenciosamente,\n{clinica}"
         )
-        jpeg_bytes = _jpeg_do_pdf(pdf_bytes)
+        jpeg_bytes = jpeg_de_pdf(pdf_bytes, contexto="pedido de compra")
         foto_html = ""
         if jpeg_bytes:
             foto_html = (
@@ -128,7 +129,7 @@ def _enviar_pdf_whatsapp(pedido: PedidoCompra, pdf_bytes: bytes) -> dict:
             return {"sucesso": False, "erro": err or "Erro ao enviar WhatsApp."}
         from clinica_beleza.public_pdf import PREFIX_PEDIDO, gravar_pdf_publico
 
-        jpeg_bytes = _jpeg_do_pdf(pdf_bytes)
+        jpeg_bytes = jpeg_de_pdf(pdf_bytes, contexto="pedido de compra")
         payload = {"pedido_id": pedido.id, "pdf": pdf_bytes}
         if jpeg_bytes:
             payload["imagem"] = jpeg_bytes
@@ -169,16 +170,6 @@ def pdf_publico_cache(pedido_id: int, token: str) -> bytes | None:
     if cached.get("pedido_id") != pedido_id:
         return None
     return cached.get("pdf")
-
-
-def _jpeg_do_pdf(pdf_bytes: bytes) -> bytes | None:
-    try:
-        from clinica_beleza.recibo.imagem import pdf_para_jpeg
-
-        return pdf_para_jpeg(pdf_bytes)
-    except Exception as exc:
-        logger.warning("Conversão do pedido em foto falhou: %s", exc)
-        return None
 
 
 def imagem_publica_cache(pedido_id: int, token: str) -> bytes | None:

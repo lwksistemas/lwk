@@ -1,9 +1,6 @@
 export const MSG_CONSULTA_EM_ANDAMENTO =
   "Consulta em andamento. Só o profissional deste atendimento pode abri-la até finalizar.";
 
-export const MSG_REABRIR_SO_QUEM_FEZ =
-  "Só o profissional que realizou esta consulta pode reabri-la.";
-
 type ConsultaAcesso = {
   status?: string;
   professional?: number | null;

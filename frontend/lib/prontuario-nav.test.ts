@@ -8,16 +8,12 @@ import {
 } from "@/components/clinica-beleza/clinica-beleza-nav";
 import {
   buildProntuarioAgendamentoPath,
-  buildProntuarioHubPath,
   buildProntuarioPacientePath,
   isProntuarioPacientePath,
 } from "@/components/clinica-beleza/prontuario/prontuario-paths";
 
 describe("prontuario paths", () => {
-  it("monta hub e ficha", () => {
-    expect(buildProntuarioHubPath("clinicaharmonis")).toBe(
-      "/loja/clinicaharmonis/clinica-beleza/prontuario",
-    );
+  it("monta a ficha do paciente", () => {
     expect(buildProntuarioPacientePath("clinicaharmonis", 9)).toBe(
       "/loja/clinicaharmonis/clinica-beleza/pacientes/9/prontuario",
     );

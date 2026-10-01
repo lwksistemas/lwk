@@ -39,6 +39,16 @@ def aviso_email_paciente_suspeito(email: str) -> str | None:
     )
 
 
+def procedimento_exige_termo(proc) -> bool:
+    """True quando o procedimento tem termo ativo: template ligado ou texto legado."""
+    if proc is None or not getattr(proc, "termo_consentimento_ativo", False):
+        return False
+    template = getattr(proc, "termo_template", None)
+    if getattr(proc, "termo_template_id", None) and template is not None and getattr(template, "is_active", True):
+        return True
+    return bool((getattr(proc, "termo_consentimento", None) or "").strip())
+
+
 def _procedimentos_com_termo_ativo(consulta) -> list[Procedure]:
     """Procedimentos da consulta com termo de consentimento ativo."""
     vistos: set[int] = set()
@@ -47,9 +57,7 @@ def _procedimentos_com_termo_ativo(consulta) -> list[Procedure]:
     def _add(proc: Procedure | None):
         if not proc or proc.id in vistos:
             return
-        tpl = getattr(proc, "termo_template", None)
-        tem_template = bool(tpl and getattr(tpl, "is_active", True))
-        if proc.termo_consentimento_ativo and (tem_template or (proc.termo_consentimento or "").strip()):
+        if procedimento_exige_termo(proc):
             vistos.add(proc.id)
             resultado.append(proc)
 
@@ -58,7 +66,7 @@ def _procedimentos_com_termo_ativo(consulta) -> list[Procedure]:
         for ap in appointment.appointment_procedures.select_related("procedure__termo_template").all():
             _add(ap.procedure)
 
-    for cpu in consulta.produtos_estoque.select_related("produto__procedure").all():
+    for cpu in consulta.produtos_estoque.select_related("produto__procedure__termo_template").all():
         prod = cpu.produto
         if prod and prod.procedure_id:
             _add(prod.procedure)

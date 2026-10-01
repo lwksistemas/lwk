@@ -100,6 +100,17 @@ def calcular_valor_exibicao_agenda(
     )
 
 
+# Agendamento ainda não encerrado. PENDING é o valor legado de SCHEDULED.
+APPOINTMENT_STATUSES_EM_ABERTO = (
+    "PENDING",
+    "SCHEDULED",
+    "CLIENT_CONFIRMED",
+    "PHONE_CONFIRMED",
+    "CONFIRMED",
+    "IN_PROGRESS",
+)
+
+
 class Appointment(LojaIsolationMixin, models.Model):
     """Agendamentos"""
 
@@ -191,6 +202,10 @@ class Appointment(LojaIsolationMixin, models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
     # Sincronização offline: version para detectar conflitos; updated_by_id = ID do user (schema public)
     version = models.PositiveIntegerField(default=1, verbose_name="Versão")
+    created_by_id = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="Criado por (user id)",
+        help_text="Usuário autenticado que criou o agendamento. Não muda nas edições seguintes.",
+    )
     updated_by_id = models.PositiveIntegerField(null=True, blank=True, verbose_name="Atualizado por (user id)")
     confirmacao_generation = models.PositiveIntegerField(
         default=1,

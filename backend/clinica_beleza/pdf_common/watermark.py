@@ -10,16 +10,17 @@ from reportlab.platypus import Flowable, Table
 WM_OPACIDADE = 0.50
 
 
-def watermark_logo_bytes(logo_url: str) -> bytes | None:
+def watermark_logo_bytes(logo_url: str, opacidade: float | None = None) -> bytes | None:
     if not logo_url:
         return None
+    fator = WM_OPACIDADE if opacidade is None else opacidade
     try:
         conteudo = baixar_logo(logo_url, timeout=5)
         if not conteudo:
             return None
         pil_img = PILImage.open(BytesIO(conteudo)).convert("RGBA")
         alpha = pil_img.split()[3]
-        alpha = alpha.point(lambda p: int(p * WM_OPACIDADE))
+        alpha = alpha.point(lambda p: int(p * fator))
         pil_img.putalpha(alpha)
         out = BytesIO()
         pil_img.save(out, format="PNG")

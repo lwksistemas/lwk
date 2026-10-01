@@ -20,6 +20,7 @@ class AuditLog(models.Model):
         ("config_alterar", "Alteração de configuração sensível"),
         ("config_issnet_test", "Teste de conexão ISSNet"),
         ("login_superadmin", "Login no superadmin"),
+        ("agendamento_criado", "Criação de agendamento"),
         ("outro", "Outra ação"),
     ]
 

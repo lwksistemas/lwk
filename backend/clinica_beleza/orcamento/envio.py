@@ -5,6 +5,7 @@ from typing import Any
 from django.utils import timezone
 
 from clinica_beleza.models import OrcamentoConsulta
+from clinica_beleza.recibo.imagem import jpeg_de_pdf
 from clinica_beleza.orcamento.pdf import _format_brl, gerar_pdf_orcamento
 from superadmin.models import Loja
 
@@ -81,7 +82,7 @@ def _enviar_email(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
             f"Qualquer dúvida, estamos à disposição.\n\n"
             f"Atenciosamente,\n{profissional}"
         )
-        jpeg_bytes = _jpeg_do_pdf(pdf_bytes)
+        jpeg_bytes = jpeg_de_pdf(pdf_bytes, contexto="orçamento")
         html = (
             f"<p>Olá <strong>{orcamento.patient.nome}</strong>,</p>"
             f"<p>Segue a foto do orçamento dos procedimentos conversados.</p>"
@@ -103,16 +104,6 @@ def _enviar_email(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
     except Exception as e:
         logger.warning("Erro ao enviar orçamento por email: %s", e)
         return {"sucesso": False, "erro": str(e)}
-
-
-def _jpeg_do_pdf(pdf_bytes: bytes) -> bytes | None:
-    try:
-        from clinica_beleza.recibo.imagem import pdf_para_jpeg
-
-        return pdf_para_jpeg(pdf_bytes)
-    except Exception as exc:
-        logger.warning("Conversão do PDF em foto falhou: %s", exc)
-        return None
 
 
 def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
@@ -152,7 +143,7 @@ def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
         try:
             from clinica_beleza.public_pdf import PREFIX_ORCAMENTO, gravar_pdf_publico
 
-            jpeg_bytes = _jpeg_do_pdf(pdf_bytes)
+            jpeg_bytes = jpeg_de_pdf(pdf_bytes, contexto="orçamento")
             payload = {"orcamento_id": orcamento.id, "pdf": pdf_bytes}
             if jpeg_bytes:
                 payload["imagem"] = jpeg_bytes

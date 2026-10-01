@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..consulta_service import criar_consulta_avulsa
+from ..consulta_service import MSG_PROFISSIONAL_OBRIGATORIO, criar_consulta_avulsa
 from ..consultas_lista_service import filtrar_consultas_lista, resumo_financeiro_consultas
 from ..models import Consulta, Patient, Procedure, Professional
 from ..pagination import paginate_queryset
@@ -34,7 +34,7 @@ class ConsultaListView(APIView):
             "patient", "professional", "procedure", "protocol", "appointment",
             "appointment__nome_agenda",
         ).prefetch_related(
-            "appointment__appointment_procedures__procedure",
+            "appointment__appointment_procedures__procedure__termo_template",
             "appointment__payment_set",
             "appointment__payment_set__parcelas",
         ).annotate(
@@ -59,7 +59,7 @@ class ConsultaListView(APIView):
             )
         if not professional_id:
             return Response(
-                {"error": "Selecione o profissional."},
+                {"error": MSG_PROFISSIONAL_OBRIGATORIO},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if not procedures_ids and not procedure_id:
@@ -152,6 +152,8 @@ class ConsultaListView(APIView):
                 notes=notes,
                 retorno_procedure_id=retorno_procedure_id,
                 bypass_inadimplencia=is_clinica_admin(request),
+                usuario=request.user,
+                request=request,
             )
         except ProtocoloAgendaConflito as exc:
             return Response(

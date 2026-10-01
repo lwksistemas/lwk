@@ -1,12 +1,8 @@
 import type { DocumentoClinicoItem } from "@/lib/clinica-beleza-api";
 import type { PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
+import { DOCUMENTO_TIPO_LABEL } from "../documentos/documentos-types";
 
-export const TIPO_LABELS: Record<string, string> = {
-  receituario: "Receituário",
-  pedido_exame: "Pedido de Exame",
-  atestado: "Atestado",
-  documento_personalizado: "Documento",
-};
+export const TIPO_LABELS: Record<string, string> = DOCUMENTO_TIPO_LABEL;
 
 export function parseListaDocumentos(data: unknown): DocumentoClinicoItem[] {
   if (Array.isArray(data)) return data;

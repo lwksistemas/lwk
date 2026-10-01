@@ -4,6 +4,7 @@ from rest_framework import serializers
 from core.serializer_mixins import TenantQuerysetMixin
 
 from ..bloqueio_utils import bloqueio_datetime_range, split_datetime_range
+from ..consulta_service.messages import MSG_PROFISSIONAL_OBRIGATORIO
 from ..models import (
     Appointment,
     AppointmentProcedure,
@@ -92,8 +93,8 @@ class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializ
                 "required": True,
                 "allow_null": False,
                 "error_messages": {
-                    "required": "Selecione o profissional.",
-                    "null": "Selecione o profissional.",
+                    "required": MSG_PROFISSIONAL_OBRIGATORIO,
+                    "null": MSG_PROFISSIONAL_OBRIGATORIO,
                     "does_not_exist": "Profissional não encontrado.",
                 },
             },
@@ -199,6 +200,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
 
     version = serializers.IntegerField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
+    created_by_id = serializers.IntegerField(read_only=True, allow_null=True)
     updated_by_id = serializers.IntegerField(read_only=True, allow_null=True)
 
     class Meta:
@@ -215,7 +217,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             "nome_agenda", "nome_agenda_id", "nome_agenda_name",
             "local_atendimento", "local_atendimento_id", "local_atendimento_name",
             "retorno_gratuito", "retorno_tipo", "retorno_mensagem", "retorno_procedure_id",
-            "version", "updated_at", "updated_by_id",
+            "version", "updated_at", "created_by_id", "updated_by_id",
         ]
 
     def _retorno_info(self, obj):

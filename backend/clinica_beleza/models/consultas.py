@@ -101,9 +101,6 @@ class Consulta(LojaIsolationMixin, models.Model):
         default="rascunho",
         verbose_name="Status assinatura termo",
     )
-    conteudo_termo_consentimento = models.TextField(
-        blank=True, default="", verbose_name="Conteúdo do termo de consentimento",
-    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

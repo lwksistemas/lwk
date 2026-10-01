@@ -1,9 +1,4 @@
-export const TEMPLATE_TIPO_OPTIONS = [
-  { value: "receituario", label: "Receituário" },
-  { value: "pedido_exame", label: "Pedido de Exame" },
-  { value: "atestado", label: "Atestado" },
-  { value: "documento_personalizado", label: "Documento Personalizado" },
-] as const;
+export { TEMPLATE_TIPO_OPTIONS } from "../templates-page/templates-page-utils";
 
 export const TEMPLATE_PLACEHOLDERS = [
   { tag: "{{paciente_nome}}", desc: "Nome do paciente" },

@@ -459,7 +459,7 @@ class PedidoCompraPdfTests(SimpleTestCase):
         return pedido
 
     @patch("clinica_beleza.prontuario_pdf.header._resolver_cabecalho", return_value=("logo", ""))
-    @patch("clinica_beleza.pedido_compra_pdf._watermark_bytes", return_value=None)
+    @patch("clinica_beleza.pedido_compra_pdf.watermark_logo_bytes", return_value=None)
     @patch("clinica_beleza.pedido_compra_pdf.logo_image", return_value=None)
     @patch("clinica_beleza.pedido_compra.context._dados_loja")
     def test_pdf_assinado_tem_estrutura_da_proposta(self, mock_loja, _logo, _wm, _cab):

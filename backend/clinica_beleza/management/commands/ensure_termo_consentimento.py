@@ -65,11 +65,6 @@ class Command(BaseCommand):
                                 "ALTER TABLE clinica_beleza_consultas "
                                 "ADD COLUMN status_assinatura_termo VARCHAR(30) NOT NULL DEFAULT 'rascunho'",
                             )
-                        if not column_exists(cursor, "clinica_beleza_consultas", "conteudo_termo_consentimento"):
-                            cursor.execute(
-                                "ALTER TABLE clinica_beleza_consultas "
-                                "ADD COLUMN conteudo_termo_consentimento TEXT NOT NULL DEFAULT ''",
-                            )
                     if not table_exists(cursor, "clinica_beleza_consulta_assinaturas_termo"):
                         cursor.execute("""
                             CREATE TABLE clinica_beleza_consulta_assinaturas_termo (

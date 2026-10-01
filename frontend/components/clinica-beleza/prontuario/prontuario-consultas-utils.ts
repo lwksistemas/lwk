@@ -104,6 +104,30 @@ export function consultaPodeIniciarAtendimento(c: Pick<Consulta, "status" | "dat
   return (c.status === "SCHEDULED" || c.status === "RECEBER") && !c.data_inicio;
 }
 
+/** Consulta em andamento que impede iniciar esta: o mesmo paciente, ou o profissional no mesmo local. */
+export function consultaQueBloqueiaInicio<T extends Pick<Consulta, "id" | "status" | "patient" | "professional" | "local_atendimento">>(
+  consulta: Pick<Consulta, "id" | "patient" | "professional" | "local_atendimento">,
+  outras: T[],
+): T | undefined {
+  const mesmoPaciente = outras.find(
+    (c) =>
+      c.id !== consulta.id &&
+      c.status === "IN_PROGRESS" &&
+      c.patient === consulta.patient,
+  );
+  if (mesmoPaciente) return mesmoPaciente;
+  if (!profissionalOcupadoNoMesmoLocal(consulta, outras)) return undefined;
+  const profissionalId = consulta.professional ?? null;
+  const localId = localEfetivoConsulta(consulta);
+  return outras.find(
+    (c) =>
+      c.id !== consulta.id &&
+      c.status === "IN_PROGRESS" &&
+      (c.professional ?? null) === profissionalId &&
+      localEfetivoConsulta(c) === localId,
+  );
+}
+
 export function consultaPodeExcluirNoProntuario(
   c: Pick<Consulta, "status" | "data_fim" | "appointment_status">,
 ): boolean {
@@ -123,12 +147,8 @@ export function prontuarioConsultaAtualAcoes(
   todas: Consulta[],
 ): ProntuarioConsultaAtualAcoes {
   const podeIniciarBase = consultaPodeIniciarAtendimento(consulta);
-  const outraDoMesmoPaciente = todas.some(
-    (c) => c.id !== consulta.id && c.status === "IN_PROGRESS" && c.patient === consulta.patient,
-  );
   const bloqueadaPorOutraEmAndamento =
-    podeIniciarBase &&
-    (outraDoMesmoPaciente || profissionalOcupadoNoMesmoLocal(consulta, todas));
+    podeIniciarBase && Boolean(consultaQueBloqueiaInicio(consulta, todas));
   const mostrarContinuar =
     consulta.status === "IN_PROGRESS" ||
     (!!consulta.data_inicio && consulta.status !== "COMPLETED" && consulta.status !== "CANCELLED");
@@ -140,9 +160,4 @@ export function prontuarioConsultaAtualAcoes(
   };
 }
 
-export function consultaProcedimentoLabel(c: Consulta): string {
-  if (c.procedures_list?.length) {
-    return c.procedures_list.map((p) => p.nome).filter(Boolean).join(", ");
-  }
-  return c.procedure_name || "Consulta";
-}
+export { consultaProcedimentoLabelLista as consultaProcedimentoLabel } from "../consultas/consultas-types";

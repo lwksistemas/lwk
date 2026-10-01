@@ -44,24 +44,9 @@ WM_DESCER_CM = 0.48  # ~1 linha abaixo do nome (antes: 2 linhas)
 
 def _watermark_bytes(logo_url: str) -> bytes | None:
     """Logo da clínica a 55% de opacidade — marca d'água abaixo do nome nas assinaturas."""
-    if not logo_url:
-        return None
-    try:
-        from clinica_beleza.pdf_common.logo import baixar_logo
+    from clinica_beleza.pdf_common.watermark import watermark_logo_bytes
 
-        conteudo = baixar_logo(logo_url, timeout=5)
-        if not conteudo:
-            return None
-        pil_img = PILImage.open(BytesIO(conteudo)).convert("RGBA")
-        alpha = pil_img.split()[3]
-        alpha = alpha.point(lambda p: int(p * WM_OPACIDADE))
-        pil_img.putalpha(alpha)
-        out_buf = BytesIO()
-        pil_img.save(out_buf, format="PNG")
-        return out_buf.getvalue()
-    except Exception as e:
-        logger.warning("Marca dágua termo consentimento: %s", e)
-        return None
+    return watermark_logo_bytes(logo_url, opacidade=WM_OPACIDADE)
 
 
 def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assinaturas: bool):

@@ -137,6 +137,7 @@ def agendar_protocolo(
     from .agenda_service import (
         AgendaValidationError,
         _bloquear_se_paciente_inadimplente,
+        registrar_criacao_agendamento,
         validar_regras_agendamento,
     )
     from .models import Appointment, AppointmentProcedure, ProtocoloContrato
@@ -144,7 +145,9 @@ def agendar_protocolo(
     if not protocol.is_active:
         raise AgendaValidationError("Protocolo inativo.")
     if not professional:
-        raise AgendaValidationError("Selecione o profissional.")
+        from .consulta_service.messages import MSG_PROFISSIONAL_OBRIGATORIO
+
+        raise AgendaValidationError(MSG_PROFISSIONAL_OBRIGATORIO)
     if not patient:
         raise AgendaValidationError("Selecione o paciente.")
     if not local_atendimento:
@@ -229,6 +232,11 @@ def agendar_protocolo(
                 sessao_numero=slot["sessao"],
                 notes=notes,
                 loja_id=protocol.loja_id,
+            )
+            registrar_criacao_agendamento(
+                appointment,
+                getattr(request, "user", None) if request is not None else None,
+                request=request,
             )
             if primeira is None:
                 primeira = appointment

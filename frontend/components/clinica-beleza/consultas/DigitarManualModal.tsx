@@ -3,13 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, PenLine } from "lucide-react";
 import type { DocumentoTipo } from "./ConsultaDocumentosTab";
-
-const TIPO_LABELS: Record<DocumentoTipo, string> = {
-  receituario: "Receituário",
-  pedido_exame: "Pedido de Exame",
-  atestado: "Atestado",
-  documento_personalizado: "Documento",
-};
+import { documentoTipoLabel } from "./documentos/documentos-types";
 
 interface DigitarManualModalProps {
   open: boolean;
@@ -61,7 +55,7 @@ export function DigitarManualModal({
           <div className="flex items-center gap-2">
             <PenLine size={18} className="text-green-500" />
             <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              {TIPO_LABELS[tipo]} — Texto Livre
+              {documentoTipoLabel(tipo)} — Texto Livre
             </h2>
           </div>
           <button
@@ -84,7 +78,7 @@ export function DigitarManualModal({
               type="text"
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
-              placeholder={`Ex: ${TIPO_LABELS[tipo]} - ${new Date().toLocaleDateString("pt-BR")}`}
+              placeholder={`Ex: ${documentoTipoLabel(tipo)} - ${new Date().toLocaleDateString("pt-BR")}`}
               className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--cb-primary)] focus:border-transparent"
             />
           </div>

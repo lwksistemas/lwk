@@ -5,11 +5,9 @@ import {
   type Consulta,
 } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { ConsultaPrintMeta } from "@/lib/consulta-print";
-import { formatClinicaDateTime } from "@/lib/clinica-beleza-datetime";
+import { consultaQueBloqueiaInicio } from "@/components/clinica-beleza/prontuario/prontuario-consultas-utils";
 
-export function formatConsultaData(d?: string | null): string {
-  return d ? formatClinicaDateTime(new Date(d)) : "—";
-}
+export { formatConsultaListDate as formatConsultaData } from "@/components/clinica-beleza/consultas-page/consultas-page-utils";
 
 export function valorPagamentoConsulta(c: Consulta): number {
   const total = Number(c.valor_pagamento ?? 0);
@@ -133,9 +131,7 @@ export function deveAbrirComprovanteRecibo(c: Consulta): boolean {
 }
 
 export function computeConsultaFlags(selected: Consulta, historico: Consulta[]) {
-  const outraConsultaEmAndamento = historico.find(
-    (c) => c.id !== selected.id && c.status === "IN_PROGRESS",
-  );
+  const outraConsultaEmAndamento = consultaQueBloqueiaInicio(selected, historico);
   const consultaConcluida = consultaEstaConcluida(selected);
   const emAtendimento =
     selected.status === "IN_PROGRESS" ||

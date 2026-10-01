@@ -176,6 +176,14 @@ export function consultaProcedimentoLabel(c: Consulta): string | null {
   return nomes;
 }
 
+/** Nome na lista e no prontuário. Sem procedimento, mostra Consulta. */
+export function consultaProcedimentoLabelLista(c: Consulta): string {
+  const nomes = consultaProcedimentos(c)
+    .map((p) => (p.nome || "").trim())
+    .filter(Boolean);
+  return nomes.length ? nomes.join(", ") : "Consulta";
+}
+
 export const EMPTY_ANAMNESE: Anamnese = {
   queixa_principal: "",
   historico_medico: "",

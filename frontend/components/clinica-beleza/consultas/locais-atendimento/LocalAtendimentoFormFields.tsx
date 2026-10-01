@@ -36,7 +36,7 @@ export function LocalAtendimentoFormFields({
       </div>
       <div>
         <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-          Valor da consulta (R$)
+          Valor da avaliação (R$)
         </label>
         <input
           type="number"

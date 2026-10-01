@@ -22,7 +22,7 @@ export function ConsultaDetailHeaderActions({
         style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
       >
         <CheckCircle2 size={15} />
-        <span className="hidden sm:inline">Finalizar consulta</span>
+        <span className="hidden sm:inline">Finalizar atendimento</span>
         <span className="sm:hidden">Finalizar</span>
       </button>
       {podeExcluir && (

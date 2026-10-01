@@ -69,11 +69,11 @@ export function ConsultaPagamentoButton({
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          toast.info("O comprovante fica disponível após finalizar a consulta.");
+          toast.info("O comprovante fica disponível após finalizar o atendimento.");
         }}
         aria-label={`Pagamento a prazo de ${consulta.patient_name}`}
         className={`inline-flex items-center gap-1 rounded-lg text-white font-medium bg-slate-600 ${pad}`}
-        title="A prazo — o comprovante fica disponível após finalizar a consulta"
+        title="A prazo — o comprovante fica disponível após finalizar o atendimento"
       >
         <DollarSign size={iconSize} />
         A prazo
@@ -92,13 +92,13 @@ export function ConsultaPagamentoButton({
             onReceber(consulta);
             return;
           }
-          toast.info("O comprovante fica disponível após finalizar a consulta.");
+          toast.info("O comprovante fica disponível após finalizar o atendimento.");
         }}
         className={`inline-flex items-center rounded-full font-medium bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:hover:bg-sky-900/50 ${pad}`}
         title={
           podeComprovante
             ? "Retorno — clique para imprimir ou enviar o recibo"
-            : "Isento — o comprovante fica disponível após finalizar a consulta"
+            : "Isento — o comprovante fica disponível após finalizar o atendimento"
         }
       >
         Isento
@@ -123,7 +123,7 @@ export function ConsultaPagamentoButton({
   }
 
   if (mostrarPago) {
-    // Comprovante só disponível após finalizar a consulta.
+    // Comprovante só disponível após finalizar o atendimento.
     const podeComprovante = consultaFinalizada && onReceber;
     return (
       <span
@@ -133,14 +133,14 @@ export function ConsultaPagamentoButton({
         title={
           podeComprovante
             ? "Pago — clique para reimprimir/reenviar recibo"
-            : "Pago — o comprovante fica disponível após finalizar a consulta"
+            : "Pago — o comprovante fica disponível após finalizar o atendimento"
         }
         onClick={(e) => {
           e.stopPropagation();
           if (podeComprovante) {
             onReceber(consulta);
           } else if (!consultaFinalizada) {
-            toast.info("O comprovante fica disponível após finalizar a consulta.");
+            toast.info("O comprovante fica disponível após finalizar o atendimento.");
           }
         }}
       >

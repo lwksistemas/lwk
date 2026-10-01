@@ -29,7 +29,7 @@ export function buildFaturamentoCsv(
 ): string {
   const BOM = "\ufeff";
   const label = AGRUPAMENTO_LABELS[agrupamento];
-  let csv = `${label};Atendimentos;Valor Consultas (R$);Valor Procedimentos (R$);Valor Total (R$)\n`;
+  let csv = `${label};Atendimentos;Valor avaliação (R$);Valor Procedimentos (R$);Valor Total (R$)\n`;
   for (const linha of data.linhas) {
     csv +=
       `${linha.nome};${linha.total_atendimentos};${linha.valor_consulta.toFixed(2)};` +

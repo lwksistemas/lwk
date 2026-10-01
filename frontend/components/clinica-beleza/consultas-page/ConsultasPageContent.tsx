@@ -188,7 +188,7 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
 
   const excluirNaLista = useCallback(
     async (consulta: Consulta) => {
-      if (!confirm("Excluir esta consulta? O agendamento vinculado será cancelado.")) return;
+      if (!confirm("Excluir este atendimento? O agendamento vinculado será cancelado.")) return;
       setExcluindoId(consulta.id);
       try {
         await ClinicaBelezaAPI.consultas.excluir(consulta.id);

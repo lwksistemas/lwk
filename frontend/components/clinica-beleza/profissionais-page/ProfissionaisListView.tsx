@@ -111,7 +111,7 @@ export function ProfissionaisListView({
                       type="button"
                       onClick={() => onTempoConsulta(p)}
                       className="p-2 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded"
-                      title="Tempo da consulta (min)"
+                      title="Tempo do atendimento (min)"
                     >
                       <Timer size={18} />
                     </button>

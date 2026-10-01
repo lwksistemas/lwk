@@ -249,9 +249,9 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         if consulta is not None and getattr(consulta, "retorno_gratuito", False):
             tipo = getattr(consulta, "retorno_tipo", "")
             if tipo == "procedimento":
-                return "Retorno de acompanhamento — taxa de consulta isenta."
+                return "Retorno de acompanhamento — taxa de avaliação isenta."
             if tipo == "consulta":
-                return "Retorno por consulta — taxa de consulta isenta."
+                return "Retorno da avaliação — taxa de avaliação isenta."
         info = self._retorno_info(obj)
         return info.mensagem if info.elegivel else None
 

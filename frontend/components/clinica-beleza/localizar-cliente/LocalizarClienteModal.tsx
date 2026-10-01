@@ -92,8 +92,8 @@ export function LocalizarClienteModal({
   const hint =
     mode === "edit"
       ? "Ao digitar, os cadastros aparecem. Clique para editar."
-      : "Ao digitar, os cadastros aparecem. Clique para ver as consultas do cliente.";
-  const acao = mode === "edit" ? "Editar" : "Consultas";
+      : "Ao digitar, os cadastros aparecem. Clique para ver os atendimentos do cliente.";
+  const acao = mode === "edit" ? "Editar" : "Atendimentos";
   const lastIndex = Math.max(resultados.length - 1, 0);
 
   const escolher = (p: PatientQuickOption) => {

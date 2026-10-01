@@ -130,7 +130,7 @@ export function useConsultaLifecycleHandlers(
   );
 
   const abrirFinalizarModal = useCallback(async () => {
-    if (!confirm("Finalizar consulta? A agenda será marcada como Concluída.")) return;
+    if (!confirm("Finalizar atendimento? A agenda será marcada como Concluída.")) return;
     setFinalizando(true);
     try {
       const updated = await ClinicaBelezaAPI.consultas.finalizar(selected.id, {});
@@ -150,8 +150,8 @@ export function useConsultaLifecycleHandlers(
   const reabrirConsulta = useCallback(async () => {
     if (
       !confirm(
-        "Reabrir esta consulta finalizada?\n\n" +
-          "• Ela volta para 'Em atendimento' para incluir procedimentos ou correções.\n" +
+        "Reabrir este atendimento finalizado?\n\n" +
+          "• Ele volta para 'Em atendimento' para incluir procedimentos ou correções.\n" +
           "• O pagamento já recebido e a nota fiscal NÃO são desfeitos.\n" +
           "• Enquanto estiver reaberta, o lançamento sai temporariamente da tela do Financeiro e volta ao finalizar de novo.\n" +
           "• Se incluir procedimento, o saldo extra entra como valor a receber ao finalizar.",
@@ -187,7 +187,7 @@ export function useConsultaLifecycleHandlers(
       toast.warning("Consultas concluídas não podem ser excluídas.");
       return;
     }
-    if (!confirm("Excluir esta consulta? O agendamento vinculado será cancelado.")) return;
+    if (!confirm("Excluir este atendimento? O agendamento vinculado será cancelado.")) return;
     try {
       await ClinicaBelezaAPI.consultas.excluir(selected.id);
       await onListRefresh();
@@ -203,7 +203,7 @@ export function useConsultaLifecycleHandlers(
       toast.warning("Só é possível emitir nota quando o pagamento estiver quitado.");
       return;
     }
-    if (!confirm("Emitir NFS-e desta consulta paga?")) return;
+    if (!confirm("Emitir NFS-e deste atendimento pago?")) return;
     setEmitindoNfse(true);
     try {
       const res = await ClinicaBelezaAPI.consultas.emitirNfse(selected.id);

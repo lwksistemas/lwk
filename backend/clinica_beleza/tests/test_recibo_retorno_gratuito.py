@@ -75,7 +75,7 @@ class LinhasTaxaConsultaReciboTests(TestCase):
         self.assertEqual(ctx["subtotal"], 300.0)
         self.assertEqual(
             _linhas_taxa_consulta_recibo(ctx),
-            [("Taxa de consulta", 150.0)],
+            [("Taxa de avaliação", 150.0)],
         )
 
     def test_desconto_retorno_com_prazo(self):
@@ -90,7 +90,7 @@ class LinhasTaxaConsultaReciboTests(TestCase):
         )
         self.assertEqual(
             linhas,
-            [("Desconto da consulta", 300.0)],
+            [("Desconto da avaliação", 300.0)],
         )
 
     def test_desconto_retorno_e_comercial(self):
@@ -105,7 +105,7 @@ class LinhasTaxaConsultaReciboTests(TestCase):
         self.assertEqual(
             linhas,
             [
-                ("Desconto da consulta", 300.0),
+                ("Desconto da avaliação", 300.0),
                 ("Desconto", 50.0),
             ],
         )
@@ -114,7 +114,7 @@ class LinhasTaxaConsultaReciboTests(TestCase):
         linhas = _linhas_taxa_consulta_recibo(
             {"retorno_gratuito": False, "taxa_consulta": 200.0},
         )
-        self.assertEqual(linhas, [("Taxa de consulta", 200.0)])
+        self.assertEqual(linhas, [("Taxa de avaliação", 200.0)])
 
     def test_sem_taxa_e_sem_retorno(self):
         linhas = _linhas_taxa_consulta_recibo(
@@ -146,7 +146,7 @@ class MontarInfoRetornoReciboTests(TestCase):
         self.assertEqual(info["retorno_dias"], 30)
         self.assertIn("30", info["retorno_aviso"])
         self.assertIn(
-            "Retorno da consulta, sem nova taxa, em até 30 dias após o atendimento anterior.",
+            "Retorno da avaliação, sem nova taxa, em até 30 dias após o atendimento anterior.",
             info["retorno_aviso"],
         )
         self.assertNotIn("Retorno gratuito em até", info["retorno_aviso"])

@@ -32,7 +32,7 @@ export function RetornoProcedimentoSection({
     <section className="space-y-3 md:pt-0 pt-2 border-t md:border-t-0 border-gray-100 dark:border-neutral-800">
       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Retorno por procedimento</h3>
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        Após procedimento concluído, acompanhamento dentro do prazo → taxa de consulta isenta
+        Após procedimento concluído, acompanhamento dentro do prazo → taxa de avaliação isenta
         (procedimentos cobram normalmente).
       </p>
       <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200">

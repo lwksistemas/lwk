@@ -399,7 +399,7 @@ def gerar_pdf_faturamento(
     if not linhas:
         elements.append(Paragraph("Nenhum dado no período selecionado.", styles["Normal"]))
     else:
-        headers = [col_nome, "Atendimentos", "Consultas", "Procedimentos", "Total"]
+        headers = [col_nome, "Atendimentos", "Avaliação", "Procedimentos", "Total"]
         rows = [
             [
                 (ln.get("nome") or "—")[:80],

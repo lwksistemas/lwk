@@ -205,11 +205,11 @@ class ReciboMoedaEContaTests(SimpleTestCase):
         })
         self.assertEqual(
             _linhas_taxa_consulta_recibo(ctx),
-            [("Taxa de consulta", 150.0)],
+            [("Taxa de avaliação", 150.0)],
         )
         self.assertEqual(
             _linhas_descontos_recibo(ctx),
-            [("Desconto da consulta", 150.0)],
+            [("Desconto da avaliação", 150.0)],
         )
         self.assertEqual(ctx["subtotal"], 6150)
         self.assertEqual(ctx["valor_total"], 6000)

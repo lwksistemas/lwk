@@ -74,7 +74,7 @@ export function ModalTempoConsulta({
       <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-md flex flex-col border dark:border-neutral-700">
         <div className="flex justify-between items-center p-4 border-b dark:border-neutral-700 shrink-0">
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            Tempo da consulta — {professionalName}
+            Tempo do atendimento — {professionalName}
           </h2>
           <button
             onClick={onClose}
@@ -101,7 +101,7 @@ export function ModalTempoConsulta({
                 Duração padrão dos agendamentos deste profissional. Se os procedimentos somarem mais tempo, prevalece a soma dos procedimentos.
               </p>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                Tempo da consulta (min)
+                Tempo do atendimento (min)
               </label>
               <input
                 type="number"

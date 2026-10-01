@@ -57,7 +57,7 @@ export function ReceberDadosAtendimento({
         </p>
       )}
       <p>
-        <strong>Valor da consulta:</strong>{" "}
+        <strong>Valor da avaliação:</strong>{" "}
         {retornoIsento ? "Isento (retorno)" : formatCurrency(valorConsulta)}
       </p>
       {editarValorProcedimento ? (
@@ -91,7 +91,7 @@ export function ReceberDadosAtendimento({
       )}
       {retornoIsento && (
         <p className="text-xs text-sky-700 dark:text-sky-300">
-          O retorno isenta só a taxa de consulta. O desconto reduz o valor dos procedimentos.
+          O retorno isenta só a taxa de avaliação. O desconto reduz o valor dos procedimentos.
         </p>
       )}
       {Number(consulta.valor_pago ?? 0) > 0 && (

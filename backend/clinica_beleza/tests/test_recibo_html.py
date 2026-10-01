@@ -51,7 +51,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
             ),
         )
         self.assertNotIn("Desconto retorno", html)
-        self.assertNotIn("Taxa de consulta", html)
+        self.assertNotIn("Taxa de avaliação", html)
         self.assertNotIn("prazo", html)
 
     def test_escapa_html_do_nome(self):
@@ -84,7 +84,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertNotIn("Quitado", html)
         self.assertNotIn("Isento — retorno", html)
         self.assertNotIn("Desconto retorno", html)
-        self.assertNotIn("Taxa de consulta", html)
+        self.assertNotIn("Taxa de avaliação", html)
         self.assertNotIn(">Desconto<", html)
 
     def test_quitado_quando_sem_saldo(self):
@@ -127,7 +127,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
                 metodo="",
             ),
         )
-        self.assertIn("Taxa de consulta", html)
+        self.assertIn("Taxa de avaliação", html)
         self.assertIn("150,00", html)
         self.assertNotIn("Desconto retorno", html)
         self.assertIn("SALDO A PAGAR", html)
@@ -146,7 +146,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
                 formas_pagamento=[{"metodo": "Dinheiro (20/09/2026)", "valor": 300.0}],
             ),
         )
-        self.assertIn("Taxa de consulta", html)
+        self.assertIn("Taxa de avaliação", html)
         self.assertIn("Tirzepatida — 2,5 mg", html)
         self.assertIn("R$ 150,00", html)
         self.assertIn("R$ 300,00", html)
@@ -185,7 +185,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
         )
         self.assertIn("SALDO A PAGAR", html)
         self.assertIn("Sem vencimento", html)
-        self.assertIn("• Taxa de consulta", html)
+        self.assertIn("• Taxa de avaliação", html)
 
     def test_sem_procedimento_cita_consulta(self):
         appointment = MagicMock()

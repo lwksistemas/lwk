@@ -37,7 +37,7 @@ export async function prepararInicioConsulta(
         passo.professionalId,
       );
       if (!passo.iniciarDepois) {
-        avisar.sucesso("Profissional da agenda atualizado. Quem for atender inicia a consulta.");
+        avisar.sucesso("Profissional da agenda atualizado. Quem for atender inicia o atendimento.");
       }
       return { acao: "trocou", atualizada, seguir: passo.iniciarDepois };
     } catch (e: unknown) {

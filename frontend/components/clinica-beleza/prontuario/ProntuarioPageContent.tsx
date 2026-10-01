@@ -73,7 +73,7 @@ export function ProntuarioPageContent() {
     <>
       <ClinicaBelezaStandardPageHeader
         title={`Prontuário — ${patientName || "Paciente"}`}
-        subtitle="Resumo, consultas, fotos e evolução. Inclusões só dentro da consulta."
+        subtitle="Resumo, atendimentos, fotos e evolução. Inclusões só dentro do atendimento."
         backHref={`/loja/${slug}/clinica-beleza/consultas`}
         icon={BookOpen}
       />

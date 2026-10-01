@@ -35,7 +35,7 @@ const OPTIONS = [
   {
     id: "retorno",
     label: "Retorno gratuito",
-    description: "Retorno por consulta ou por procedimento — prazo definido pelo administrador",
+    description: "Retorno da avaliação ou do procedimento — prazo definido pelo administrador",
     icon: RotateCcw,
   },
   {

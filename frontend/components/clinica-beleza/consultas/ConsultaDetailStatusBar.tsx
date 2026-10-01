@@ -202,7 +202,7 @@ export function ConsultaDetailStatusBar({
         {outraConsultaEmAndamento &&
           (selected.status === "SCHEDULED" || selected.status === "RECEBER") && (
           <p className="text-xs text-amber-700 dark:text-amber-400 max-w-xs">
-            Já existe consulta em andamento para este paciente. Finalize-a antes de iniciar outra.
+            Já existe atendimento em andamento para este paciente. Finalize-o antes de iniciar outro.
           </p>
         )}
         <ConsultaPagamentoButton
@@ -220,7 +220,7 @@ export function ConsultaDetailStatusBar({
             disabled={emitindoNfse}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-50"
             style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
-            title="Emitir NFS-e desta consulta"
+            title="Emitir NFS-e deste atendimento"
           >
             <FileText size={16} />
             {emitindoNfse ? "Emitindo…" : "Emitir NFS-e"}
@@ -231,10 +231,10 @@ export function ConsultaDetailStatusBar({
             type="button"
             onClick={onReabrir}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-            title="Reabrir esta consulta. Só quem realizou o atendimento pode reabrir."
+            title="Reabrir este atendimento. Só quem realizou pode reabrir."
           >
             <RotateCcw size={16} />
-            Reabrir consulta
+            Reabrir atendimento
           </button>
         )}
         {/* Em atendimento, Finalizar/Excluir ficam no header — aqui só pagamento */}
@@ -247,7 +247,7 @@ export function ConsultaDetailStatusBar({
             style={{ backgroundColor: "#2563eb" }}
           >
             <Play size={16} />
-            {iniciando ? "Iniciando…" : "Iniciar consulta"}
+            {iniciando ? "Iniciando…" : "Iniciar atendimento"}
           </button>
         )}
         {!consultaAtiva && podeFinalizar && (
@@ -258,7 +258,7 @@ export function ConsultaDetailStatusBar({
             style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
           >
             <CheckCircle2 size={16} />
-            Finalizar consulta
+            Finalizar atendimento
           </button>
         )}
         {!consultaAtiva && podeExcluir && (

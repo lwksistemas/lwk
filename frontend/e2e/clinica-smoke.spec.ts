@@ -47,7 +47,7 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     test.skip(!ok, 'Loja clínica indisponível neste ambiente');
 
     await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
-    await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: /^atendimentos$/i })).toBeVisible({ timeout: 20000 });
 
     await visitarClinicaAutenticado(page, '/clinica-beleza/pacientes', slug);
     await expect(page.getByRole('heading', { name: /^clientes$/i })).toBeVisible({ timeout: 20000 });
@@ -63,8 +63,8 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     test.skip(!ok, 'Loja clínica indisponível neste ambiente');
 
     await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
-    await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
-    await expect(page.getByRole('button', { name: /nova consulta/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^atendimentos$/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('button', { name: /novo atendimento/i })).toBeVisible();
     await expect(page.getByRole('link', { name: /^financeiro$/i })).toHaveCount(0);
   });
 
@@ -75,7 +75,7 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     test.skip(!ok, 'Loja clínica indisponível neste ambiente');
 
     await visitarClinicaAutenticado(page, '/clinica-beleza/consultas', slug);
-    await expect(page.getByRole('heading', { name: /^consultas$/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: /^atendimentos$/i })).toBeVisible({ timeout: 20000 });
 
     const receberBtn = page.getByRole('button', { name: /^receber$/i }).first();
     const parcialBtn = page.getByRole('button', { name: /^parcial$/i }).first();

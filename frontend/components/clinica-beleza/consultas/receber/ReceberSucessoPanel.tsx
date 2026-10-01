@@ -197,7 +197,7 @@ export function ReceberSucessoPanel({
             )}
             {Boolean(consultaExibida.retorno_gratuito) && Number(consultaExibida.valor_consulta) > 0.009 && (
               <p>
-                <strong>Desconto da consulta:</strong>{" "}
+                <strong>Desconto da avaliação:</strong>{" "}
                 {formatCurrency(Number(consultaExibida.valor_consulta))}
               </p>
             )}
@@ -267,7 +267,7 @@ export function ReceberSucessoPanel({
           ) : (
             <p className="text-sm text-gray-600 dark:text-gray-400 rounded-lg border border-gray-200 dark:border-neutral-600 p-3">
               Pagamento registrado. O comprovante fica disponível para impressão/envio
-              após <strong>finalizar a consulta</strong>.
+              após <strong>finalizar o atendimento</strong>.
             </p>
           )}
 

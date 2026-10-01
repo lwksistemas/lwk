@@ -125,7 +125,7 @@ export function ConsultaDetailShellContent({
       <div className="text-center py-16">
         <p className="text-gray-500 dark:text-gray-400 text-sm">
           Consulta aguardando início. O profissional deve clicar em{" "}
-          <strong>&quot;Iniciar consulta&quot;</strong> para habilitar o atendimento.
+          <strong>&quot;Iniciar atendimento&quot;</strong> para habilitar o atendimento.
         </p>
       </div>
     );

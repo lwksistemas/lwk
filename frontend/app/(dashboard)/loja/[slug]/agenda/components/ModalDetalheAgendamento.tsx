@@ -59,7 +59,7 @@ function textoCobrancaProtocolo(
     }
     return `Valor total do protocolo nesta sessão. As demais não geram nova cobrança. Pacote: ${formatCurrency(protocolo.valor_total)}.`;
   }
-  return `Por consulta. O pacote de ${formatCurrency(protocolo.valor_total)} foi dividido entre as sessões.`;
+  return `Por atendimento. O pacote de ${formatCurrency(protocolo.valor_total)} foi dividido entre as sessões.`;
 }
 
 function idsProcedimentosIniciais(
@@ -229,10 +229,10 @@ export function ModalDetalheAgendamento({
   const blocoStatusAjuda = statusSomenteLeitura ? (
     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
       {status === "COMPLETED"
-        ? "Consulta finalizada em Consultas — exibido em verde escuro na agenda."
+        ? "Atendimento finalizado em Atendimentos — exibido em verde escuro na agenda."
         : status === "IN_PROGRESS"
-          ? "Em atendimento: o horário da agenda foi atualizado para o início real. Finalize a consulta em Consultas quando terminar (não pela agenda)."
-          : "Início e conclusão do atendimento são feitos em Consultas."}
+          ? "Em atendimento: o horário da agenda foi atualizado para o início real. Finalize em Atendimentos quando terminar (não pela agenda)."
+          : "Início e conclusão do atendimento são feitos em Atendimentos."}
     </p>
   ) : status === "SCHEDULED" || status === "PENDING" ? (
     <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5">
@@ -249,7 +249,7 @@ export function ModalDetalheAgendamento({
   ) : status === "CONFIRMED" ? (
     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
       Consulta criada com status <strong className="text-amber-700 dark:text-amber-400">RECEBER</strong>.
-      O pagamento é feito em Consultas (botão Receber), antes ou durante o atendimento — sem bloquear o início.
+      O pagamento é feito em Atendimentos (botão Receber), antes ou durante o atendimento — sem bloquear o início.
     </p>
   ) : status === "CANCELLED" ? (
     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">

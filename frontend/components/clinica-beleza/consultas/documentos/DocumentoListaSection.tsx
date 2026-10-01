@@ -50,7 +50,7 @@ export function DocumentoListaSection({
 }) {
   return (
     <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 md:p-6">
-      <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Documentos da consulta</h3>
+      <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Documentos do atendimento</h3>
 
       {loading ? (
         <div className="flex items-center gap-2 py-4 justify-center text-gray-400">

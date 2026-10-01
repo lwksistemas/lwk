@@ -109,7 +109,7 @@ export default function FaturamentoPage() {
     if (!data) return;
     const BOM = '\ufeff';
     const label = AGRUPAMENTO_LABELS[agrupamento];
-    let csv = `${label};Atendimentos;Valor Consultas (R$);Valor Procedimentos (R$);Valor Total (R$)\n`;
+    let csv = `${label};Atendimentos;Valor avaliação (R$);Valor Procedimentos (R$);Valor Total (R$)\n`;
     for (const linha of data.linhas) {
       csv += `${linha.nome};${linha.total_atendimentos};${linha.valor_consulta.toFixed(2)};${linha.valor_procedimento.toFixed(2)};${linha.valor_total.toFixed(2)}\n`;
     }
@@ -240,7 +240,7 @@ export default function FaturamentoPage() {
                           Atendimentos
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase hidden sm:table-cell">
-                          Consultas
+                          Avaliação
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase hidden sm:table-cell">
                           Procedimentos
@@ -297,7 +297,7 @@ export default function FaturamentoPage() {
                 {/* Cards resumo mobile */}
                 <div className="sm:hidden p-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-3">
                   <div className="text-center">
-                    <p className="text-xs text-gray-500 uppercase">Consultas</p>
+                    <p className="text-xs text-gray-500 uppercase">Avaliação</p>
                     <p className="text-base font-bold tabular-nums text-gray-900 dark:text-white">
                       {formatCurrency(data.totais.valor_consulta)}
                     </p>

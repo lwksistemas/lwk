@@ -39,7 +39,7 @@ export function RetornoAgendaModal({ open, onClose }: RetornoAgendaModalProps) {
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Retorno gratuito</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Isenta a taxa de consulta (local de atendimento) dentro do prazo configurado
+              Isenta a taxa de avaliação (local de atendimento) dentro do prazo configurado
             </p>
           </div>
           <button
@@ -77,7 +77,7 @@ export function RetornoAgendaModal({ open, onClose }: RetornoAgendaModalProps) {
               />
               <span>
                 <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                  Cobrar taxa de consulta junto com o procedimento
+                  Cobrar taxa de avaliação junto com o procedimento
                 </span>
                 <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   Desmarcado, o recibo do procedimento não inclui a taxa. Consulta sem procedimento

@@ -267,7 +267,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Sem consultas concluídas no período</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Sem atendimentos concluídos no período</p>
               )}
             </div>
 

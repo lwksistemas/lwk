@@ -70,15 +70,15 @@ def montar_info_retorno_recibo(
 def _aviso_retorno_aplicado(dias: int) -> str:
     """O desconto da consulta, quando existe, fica nas linhas da conta.
 
-    O rodapé diz que a taxa de consulta não foi cobrada de novo.
+    O rodapé diz que a taxa de avaliação não foi cobrada de novo.
     Não afirma que o procedimento também foi de graça.
     """
     if dias > 0:
         return (
-            f"Retorno da consulta, sem nova taxa, em até {dias} dias "
+            f"Retorno da avaliação, sem nova taxa, em até {dias} dias "
             f"após o atendimento anterior."
         )
-    return "Retorno da consulta, sem nova taxa."
+    return "Retorno da avaliação, sem nova taxa."
 
 
 def _resolver_prazo_e_aviso(
@@ -147,17 +147,17 @@ def _resolver_prazo_e_aviso(
     if dias_proc > 0:
         if len(nomes_proc) == 1:
             avisos.append(
-                f"Este atendimento dá direito a retorno gratuito da taxa de consulta "
+                f"Este atendimento dá direito a retorno gratuito da taxa de avaliação "
                 f"em até {dias_proc} dias para acompanhamento de {nomes_proc[0]}.",
             )
         else:
             avisos.append(
-                f"Este atendimento dá direito a retorno gratuito da taxa de consulta "
+                f"Este atendimento dá direito a retorno gratuito da taxa de avaliação "
                 f"em até {dias_proc} dias para acompanhamento do(s) procedimento(s).",
             )
     if dias_cons > 0:
         avisos.append(
-            f"Este atendimento dá direito a retorno gratuito da taxa de consulta "
+            f"Este atendimento dá direito a retorno gratuito da taxa de avaliação "
             f"em até {dias_cons} dias.",
         )
     if not avisos:

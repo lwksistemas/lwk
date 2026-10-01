@@ -541,7 +541,7 @@ def recibo_so_consulta(ctx: dict) -> bool:
         if float(p.get("valor") or 0) > 0.009:
             return False
         nome = (p.get("nome") or "").strip().casefold()
-        if nome and nome not in ("consulta", "taxa de consulta"):
+        if nome and nome not in ("consulta", "taxa de consulta", "taxa de avaliação"):
             return False
     return True
 
@@ -623,13 +623,13 @@ def _linhas_taxa_consulta_recibo(ctx: dict) -> list[tuple[str, float]]:
     if ctx.get("retorno_gratuito"):
         taxa = float(ctx.get("taxa_consulta") or 0)
         if taxa > 0.009 and not ctx.get("ocultar_desconto_retorno"):
-            return [("Taxa de consulta", taxa)]
+            return [("Taxa de avaliação", taxa)]
         return []
     taxa = float(ctx.get("taxa_consulta") or 0)
     if taxa <= 0:
         taxa = float(ctx.get("taxa_consulta_referencia") or 0)
     if taxa > 0:
-        return [("Taxa de consulta", taxa)]
+        return [("Taxa de avaliação", taxa)]
     return []
 
 
@@ -646,7 +646,9 @@ def procedimentos_exibidos_recibo(ctx: dict) -> list[tuple[str, float]]:
             valor = float(proc.get("valor") or 0)
         except (TypeError, ValueError):
             valor = 0.0
-        if taxa_exibida > 0.009 and valor == 0.0 and nome.casefold() in ("consulta", "taxa de consulta"):
+        if taxa_exibida > 0.009 and valor == 0.0 and nome.casefold() in (
+            "consulta", "taxa de consulta", "taxa de avaliação",
+        ):
             continue
         linhas.append((nome, valor))
     return linhas
@@ -857,7 +859,7 @@ def _linhas_descontos_recibo(ctx: dict) -> list[tuple[str, float]]:
     linhas: list[tuple[str, float]] = []
     desconto_retorno, desconto = _descontos_conhecidos_recibo(ctx)
     if desconto_retorno > 0:
-        linhas.append(("Desconto da consulta", desconto_retorno))
+        linhas.append(("Desconto da avaliação", desconto_retorno))
     if desconto > 0:
         linhas.append(("Desconto", desconto))
     abatimento = float(ctx.get("abatimento") or 0)

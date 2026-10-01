@@ -20,7 +20,7 @@ export function HistoricoAtendimentosSection({
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   if (historico.length === 0) {
-    return <p className="text-gray-500 text-sm">Nenhuma consulta encontrada para este paciente.</p>;
+    return <p className="text-gray-500 text-sm">Nenhum atendimento encontrado para este paciente.</p>;
   }
 
   return (

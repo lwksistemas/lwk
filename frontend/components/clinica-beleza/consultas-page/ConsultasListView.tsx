@@ -100,15 +100,15 @@ export function ConsultasListView({
   return (
     <>
       <ClinicaBelezaStandardPageHeader
-        title="Consultas"
+        title="Atendimentos"
         subtitle="Cliente presente na Agenda · inicie, receba ou abra o prontuário"
         onNew={acessoClinico ? onNovaConsulta : undefined}
-        newLabel="Nova consulta"
+        newLabel="Novo atendimento"
         beforeLogout={
           <LocalizarClienteButton
             onClick={() => setShowLocalizar(true)}
-            label="Consultas do paciente"
-            title="Localizar paciente e ver suas consultas"
+            label="Atendimentos do paciente"
+            title="Localizar paciente e ver os atendimentos"
           />
         }
         extraActions={
@@ -263,14 +263,14 @@ export function ConsultasListView({
         ) : consultas.length === 0 ? (
           <ClinicaBelezaPanel className="p-12 text-center text-gray-500 text-sm">
             {filtroPacienteNome ? (
-              <>Nenhuma consulta encontrada para <strong>{filtroPacienteNome}</strong>.</>
+              <>Nenhum atendimento encontrado para <strong>{filtroPacienteNome}</strong>.</>
             ) : filtroProfissionalId && vista === "iniciar" ? (
-              <>Nenhuma consulta para iniciar deste profissional.</>
+              <>Nenhum atendimento para iniciar deste profissional.</>
             ) : vista === "finalizadas" ? (
-              <>Nenhuma consulta finalizada.</>
+              <>Nenhum atendimento finalizado.</>
             ) : (
               <>
-                Nenhuma consulta para iniciar. Na Agenda, marque o cliente como{" "}
+                Nenhum atendimento para iniciar. Na Agenda, marque o cliente como{" "}
                 <strong>presente</strong>.
               </>
             )}
@@ -298,7 +298,7 @@ export function ConsultasListView({
               pageSize={pageSize}
               loading={loading}
               onPageChange={onPageChange}
-              itemLabel="consultas"
+              itemLabel="atendimentos"
             />
           </ClinicaBelezaPanel>
         )}
@@ -320,7 +320,7 @@ const ConsultaDetailShell = dynamic(
     })),
   {
     ssr: false,
-    loading: () => <div className="text-center py-16 text-gray-500">Carregando consulta...</div>,
+    loading: () => <div className="text-center py-16 text-gray-500">Carregando atendimento...</div>,
   },
 );
 

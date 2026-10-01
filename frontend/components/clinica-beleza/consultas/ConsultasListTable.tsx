@@ -185,19 +185,19 @@ export function ConsultasListTable({
                 style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
               >
                 <Play size={12} />
-                {iniciando ? "Iniciando…" : "Iniciar consulta"}
+                {iniciando ? "Iniciando…" : "Iniciar atendimento"}
               </button>
             )}
             {acessoClinico && onIniciar && acoes.bloqueadaPorOutraEmAndamento && (
               <button
                 type="button"
                 disabled
-                title="Este profissional já está em atendimento neste local. Finalize essa consulta ou inicie em outro local."
+                title="Este profissional já está em atendimento neste local. Finalize esse atendimento ou inicie em outro local."
                 className={`${btn} text-white opacity-50 cursor-not-allowed`}
                 style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
               >
                 <Play size={12} />
-                Iniciar consulta
+                Iniciar atendimento
               </button>
             )}
             {acessoClinico && acoes.mostrarContinuar && (

@@ -195,7 +195,7 @@ def verificar_retorno_procedimento(
                     mensagem=(
                         f"Retorno de acompanhamento — {regra.procedure.nome} "
                         f"({restantes} dia(s) restantes no prazo de {regra.dias_retorno}). "
-                        f"Taxa de consulta isenta."
+                        f"Taxa de avaliação isenta."
                     ),
                 )
     return None
@@ -229,8 +229,8 @@ def verificar_retorno_consulta(
                 dias_restantes=max(0, restantes),
                 consulta_origem_id=consulta.id,
                 mensagem=(
-                    f"Retorno por consulta ({restantes} dia(s) restantes no prazo de {dias_limite}). "
-                    f"Taxa de consulta isenta."
+                    f"Retorno da avaliação ({restantes} dia(s) restantes no prazo de {dias_limite}). "
+                    f"Taxa de avaliação isenta."
                 ),
             )
     return None
@@ -363,7 +363,7 @@ def _match_retorno_procedimento(appt, hist, regra_por_proc, ref):
                     mensagem=(
                         f"Retorno de acompanhamento — {regra.procedure.nome} "
                         f"({restantes} dia(s) restantes no prazo de {regra.dias_retorno}). "
-                        f"Taxa de consulta isenta."
+                        f"Taxa de avaliação isenta."
                     ),
                 )
     return None
@@ -387,8 +387,8 @@ def _match_retorno_consulta(appt, hist, dias_limite, ref):
                 dias_restantes=max(0, restantes),
                 consulta_origem_id=consulta.id,
                 mensagem=(
-                    f"Retorno por consulta ({restantes} dia(s) restantes no prazo de {dias_limite}). "
-                    f"Taxa de consulta isenta."
+                    f"Retorno da avaliação ({restantes} dia(s) restantes no prazo de {dias_limite}). "
+                    f"Taxa de avaliação isenta."
                 ),
             )
     return None

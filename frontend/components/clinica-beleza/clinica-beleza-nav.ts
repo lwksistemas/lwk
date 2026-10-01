@@ -40,7 +40,7 @@ export const CLINICA_BELEZA_NAV_ITEMS: ClinicaBelezaNavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: 'dashboard' },
   { label: 'Agenda', icon: CalendarDays, path: 'agenda' },
   { label: 'Clientes', icon: Users, path: 'clinica-beleza/pacientes' },
-  { label: 'Consultas', icon: BookOpen, path: 'clinica-beleza/consultas' },
+  { label: 'Atendimentos', icon: BookOpen, path: 'clinica-beleza/consultas' },
   { label: 'Procedimentos', icon: ListChecks, path: 'clinica-beleza/procedimentos' },
   { label: 'TCLE Interativo', icon: ScrollText, path: 'clinica-beleza/termos-consentimento' },
   { label: 'Protocolos', icon: ClipboardList, path: 'clinica-beleza/protocolos' },

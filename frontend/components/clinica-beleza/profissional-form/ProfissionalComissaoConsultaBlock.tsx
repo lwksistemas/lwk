@@ -24,7 +24,7 @@ export function ProfissionalComissaoConsultaBlock({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-xs font-semibold text-purple-800 dark:text-purple-300">
-            Comissão da consulta por local de atendimento
+            Comissão da avaliação por local de atendimento
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Adicione cada local e defina percentual ou valor fixo. A regra vale só no local escolhido.

@@ -103,7 +103,7 @@ export function CriarAgendamentoAgendaSection({
       </select>
       {nomesAgenda.length === 0 && (
         <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-          Cadastre tipos de agenda em Consultas → ícone de calendário.
+          Cadastre tipos de agenda em Atendimentos → ícone de calendário.
         </p>
       )}
     </div>
@@ -133,7 +133,7 @@ export function CriarAgendamentoAgendaSection({
       </select>
       {locaisAtendimento.length === 0 && (
         <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-          Cadastre locais em Consultas → ícone de engrenagem.
+          Cadastre locais em Atendimentos → ícone de engrenagem.
         </p>
       )}
     </div>
@@ -235,7 +235,7 @@ export function CriarAgendamentoAgendaSection({
       {localAtendimentoId && !protocoloSelecionado && (
         <div className="p-3 rounded-lg bg-gray-50 dark:bg-neutral-900/50 text-sm space-y-1 border border-gray-100 dark:border-neutral-700">
           <div className="flex justify-between text-gray-600 dark:text-gray-400">
-            <span>Taxa de consulta</span>
+            <span>Taxa de avaliação</span>
             <span>
               {retornoInfo?.elegivel ? (
                 <>
@@ -308,7 +308,7 @@ function ProtocoloCobrancaBox({
             checked={forma === "POR_CONSULTA"}
             onChange={() => onForma("POR_CONSULTA")}
           />
-          <span>Por consulta — {sessoes}x de {parcela}</span>
+          <span>Por atendimento — {sessoes}x de {parcela}</span>
         </label>
         <label className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
           <input

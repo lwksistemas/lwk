@@ -295,7 +295,7 @@ export default function ClinicaBelezaAparenciaPage() {
               Identidade visual
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Cores do menu, fundo das páginas, status da agenda e colunas de Consultas e Estoque.
+              Cores do menu, fundo das páginas, status da agenda e colunas de Atendimentos e Estoque.
             </p>
           </div>
         </div>
@@ -523,8 +523,8 @@ export default function ClinicaBelezaAparenciaPage() {
 
             <ColunasSection
               sectionId="colunas-consultas"
-              title="Colunas da listagem de Consultas"
-              description="Escolha quais informações aparecem em Clínica → Consultas."
+              title="Colunas da listagem de Atendimentos"
+              description="Escolha quais informações aparecem em Clínica → Atendimentos."
               colunasDisponiveis={COLUNAS_CONSULTAS_DISPONIVEIS}
               colunas={colunasConsultas}
               onSave={setColunasConsultas}

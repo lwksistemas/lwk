@@ -16,9 +16,9 @@ export function RetornoConsultaSection({
 }) {
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Retorno por consulta</h3>
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Retorno da avaliação</h3>
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        Paciente com consulta concluída retorna dentro do prazo → não paga taxa de consulta.
+        Cliente com avaliação concluída retorna dentro do prazo → não paga taxa de avaliação.
       </p>
       <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200">
         <input
@@ -28,7 +28,7 @@ export function RetornoConsultaSection({
           onChange={(e) => onToggleAtivo(e.target.checked)}
           className="rounded border-gray-300"
         />
-        Ativar retorno por consulta
+        Ativar retorno da avaliação
       </label>
       {config.retorno_consulta_ativo && (
         <div>

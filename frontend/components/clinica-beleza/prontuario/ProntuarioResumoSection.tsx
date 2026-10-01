@@ -129,8 +129,8 @@ export function ProntuarioResumoSection({
   if (consultas.length === 0) {
     return (
       <ClinicaBelezaPanel className="p-12 text-center text-sm text-gray-500 dark:text-gray-400">
-        Nenhuma consulta ainda. Agende na Agenda para iniciar o atendimento.
-        Fotos e demais registros entram somente dentro da consulta.
+        Nenhum atendimento ainda. Agende na Agenda para iniciar.
+        Fotos e demais registros entram somente dentro do atendimento.
       </ClinicaBelezaPanel>
     );
   }

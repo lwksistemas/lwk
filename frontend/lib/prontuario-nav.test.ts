@@ -42,9 +42,10 @@ describe("prontuario paths", () => {
 });
 
 describe("nav consultas", () => {
-  it("mostra Consultas no menu no lugar do hub Prontuário", () => {
-    expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).toContain("Consultas");
+  it("mostra Atendimentos no menu no lugar do hub Prontuário", () => {
+    expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).toContain("Atendimentos");
     expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).not.toContain("Prontuário");
+    expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).not.toContain("Consultas");
     expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).toContain("Financeiro");
   });
 
@@ -65,7 +66,7 @@ describe("nav consultas", () => {
     );
   });
 
-  it("esconde Consultas para recepção e mantém para profissional/admin", () => {
+  it("esconde Atendimentos para quem não pode abrir e mantém para profissional/admin", () => {
     expect(usuarioPodeVerConsulta({ perfil: "recepcionista" })).toBe(false);
     expect(usuarioPodeVerConsulta({ perfil: "recepcao" })).toBe(false);
     expect(usuarioPodeVerConsulta({ perfil: "profissional" })).toBe(true);
@@ -76,8 +77,8 @@ describe("nav consultas", () => {
     expect(usuarioPodeAbrirConsultas({ perfil: "caixa" })).toBe(false);
     expect(usuarioPodeAbrirConsultas({ pode_abrir_consultas: true, perfil: "recepcionista" })).toBe(true);
     expect(usuarioPodeAbrirConsultas({ pode_ver_consulta: false, pode_abrir_consultas: false })).toBe(false);
-    expect(navItemsClinicaBeleza(false).map((i) => i.label)).not.toContain("Consultas");
-    expect(navItemsClinicaBeleza(true).map((i) => i.label)).toContain("Consultas");
+    expect(navItemsClinicaBeleza(false).map((i) => i.label)).not.toContain("Atendimentos");
+    expect(navItemsClinicaBeleza(true).map((i) => i.label)).toContain("Atendimentos");
     expect(navItemsClinicaBeleza(false).map((i) => i.label)).toContain("Agenda");
   });
 });

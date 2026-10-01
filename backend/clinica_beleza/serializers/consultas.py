@@ -198,7 +198,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         if prefetched is not None:
             return sorted(prefetched, key=lambda ap: (getattr(ap, "ordem", 0) or 0, ap.id or 0))
         return list(
-            appointment.appointment_procedures.select_related("procedure").order_by("ordem", "id"),
+            appointment.appointment_procedures.select_related("procedure__termo_template").order_by("ordem", "id"),
         )
 
     def get_procedure_name(self, obj):
@@ -210,6 +210,8 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         return ""
 
     def get_procedures_list(self, obj):
+        from ..consentimento_service import procedimento_exige_termo
+
         procs = self._appointment_procedures(obj)
         if procs:
             return [
@@ -218,13 +220,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
                     "appointment_procedure_id": ap.id,
                     "nome": ap.procedure.nome,
                     "valor": float(ap.get_valor()),
-                    "exige_termo": bool(
-                        ap.procedure.termo_consentimento_ativo
-                        and (
-                            getattr(ap.procedure, "termo_template_id", None)
-                            or (ap.procedure.termo_consentimento or "").strip()
-                        ),
-                    ),
+                    "exige_termo": procedimento_exige_termo(ap.procedure),
                 }
                 for ap in procs
             ]

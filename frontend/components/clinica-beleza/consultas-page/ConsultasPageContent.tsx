@@ -14,7 +14,8 @@ import { formatApiErrorBody } from "@/lib/api-errors";
 import { useToast } from "@/components/ui/Toast";
 import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/ModalReceberConsulta";
 import { ConsultaProfessionalSelectModal } from "@/components/clinica-beleza/consultas/ConsultaProfessionalSelectModal";
-import { passoInicioConsulta, textoModalProfissional } from "@/components/clinica-beleza/consultas/consulta-acesso";
+import { textoModalProfissional } from "@/components/clinica-beleza/consultas/consulta-acesso";
+import { prepararInicioConsulta } from "@/components/clinica-beleza/consultas/iniciar-consulta-fluxo";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import { entityName } from "@/lib/clinica-beleza-entities";
@@ -141,7 +142,7 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
       setIniciandoId(consulta.id);
       try {
         await ClinicaBelezaAPI.consultas.iniciar(consulta.id);
-        toast.success("Consulta iniciada. Data e horário atualizados.");
+        toast.success("Consulta iniciada.");
         await loadConsultas();
         router.push(buildConsultaDetailHref(slug, consulta.id));
       } catch (e: unknown) {
@@ -155,31 +156,20 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
 
   const iniciarNaLista = useCallback(
     async (consulta: Consulta, professionalId?: number) => {
-      const me = await ClinicaBelezaAPI.me.get().catch(() => null);
-      const passo = passoInicioConsulta(consulta, me?.professional_id ?? null, professionalId);
-      if (passo.tipo === "modal") {
-        try {
-          const profs = await fetchClinicaSchedulingProfessionals();
-          setProfissionaisDisponiveis(Array.isArray(profs) ? profs : []);
-        } catch {
-          setProfissionaisDisponiveis([]);
-        }
+      const prep = await prepararInicioConsulta(consulta, professionalId, {
+        sucesso: toast.success,
+        erro: toast.error,
+      });
+      if (prep.acao === "modal") {
+        setProfissionaisDisponiveis(prep.profissionais);
         setConsultaParaIniciar(consulta);
         setShowProfessionalModal(true);
         return;
       }
-      if (passo.tipo === "trocar") {
-        try {
-          await ClinicaBelezaAPI.consultas.trocarProfissional(consulta.id, passo.professionalId);
-          await loadConsultas();
-          if (!passo.iniciarDepois) {
-            toast.success("Profissional da agenda atualizado. Quem for atender inicia a consulta.");
-            return;
-          }
-        } catch (e: unknown) {
-          toast.error(formatApiErrorBody(e) || "Erro ao trocar o profissional.");
-          return;
-        }
+      if (prep.acao === "erro") return;
+      if (prep.acao === "trocou") {
+        await loadConsultas();
+        if (!prep.seguir) return;
       }
       await executarInicio(consulta);
     },

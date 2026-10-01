@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..consulta_service import (
+    MSG_PROFISSIONAL_OBRIGATORIO,
     estornar_recebimento_consulta,
     finalizar_consulta,
     iniciar_consulta,
@@ -68,7 +69,7 @@ class ConsultaTrocarProfissionalView(APIView):
         professional_id = request.data.get("professional")
         if not professional_id:
             return Response(
-                {"error": "Selecione o profissional."},
+                {"error": MSG_PROFISSIONAL_OBRIGATORIO},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:

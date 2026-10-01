@@ -13,10 +13,11 @@ from contextlib import suppress
 from django.core.management.base import BaseCommand
 from django.db import connections
 
+from clinica_beleza.models.appointments import APPOINTMENT_STATUSES_EM_ABERTO
 from core.db_config import ensure_loja_database_config
 from superadmin.models import Loja
 
-_OPEN_STATUSES = ("PENDING", "SCHEDULED", "CLIENT_CONFIRMED", "PHONE_CONFIRMED", "CONFIRMED", "IN_PROGRESS")
+_OPEN_STATUSES = APPOINTMENT_STATUSES_EM_ABERTO
 
 
 def _table_exists(cursor, table: str) -> bool:

@@ -5,13 +5,7 @@ import { X, Layers, Eye, Loader2 } from "lucide-react";
 import { ClinicaBelezaAPI, type DocumentTemplateItem, type DocumentoClinicoItem } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
 import type { DocumentoTipo } from "./ConsultaDocumentosTab";
-
-const TIPO_LABEL: Record<DocumentoTipo, string> = {
-  receituario: "Receituário",
-  pedido_exame: "Pedido de Exame",
-  atestado: "Atestado",
-  documento_personalizado: "Documento",
-};
+import { documentoTipoLabel } from "./documentos/documentos-types";
 
 /**
  * UsarTemplateModal — Modal para selecionar um template e criar documento na consulta.
@@ -100,7 +94,7 @@ export function UsarTemplateModal({
           <div className="flex items-center gap-2">
             <Layers size={18} className="text-purple-500" />
             <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              Usar Template — {TIPO_LABEL[tipo]}
+              Usar Template — {documentoTipoLabel(tipo)}
             </h2>
           </div>
           <button
@@ -122,7 +116,7 @@ export function UsarTemplateModal({
           ) : templates.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Nenhum template de {TIPO_LABEL[tipo].toLowerCase()} disponível.
+                Nenhum template de {documentoTipoLabel(tipo).toLowerCase()} disponível.
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                 Crie templates em Configurações → Templates.

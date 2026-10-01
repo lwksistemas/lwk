@@ -36,15 +36,7 @@ export function formatProntuarioDate(dateStr: string): string {
   }
 }
 
-export function prontuarioTipoLabel(tipo: string): string {
-  const labels: Record<string, string> = {
-    receituario: "Receituário",
-    pedido_exame: "Pedido de Exame",
-    atestado: "Atestado",
-    documento_personalizado: "Documento",
-  };
-  return labels[tipo] || tipo;
-}
+export { documentoTipoLabel as prontuarioTipoLabel } from "../consultas/documentos/documentos-types";
 
 export function resolvePatientDisplayName(patient: { name?: string; nome?: string }): string {
   return patient.name || patient.nome || "Paciente";

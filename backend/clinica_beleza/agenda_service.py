@@ -136,18 +136,65 @@ def detectar_conflito(appointment, local_version, request_data, serializer_class
 
 def _bloquear_se_paciente_inadimplente(patient, *, request=None) -> None:
     """Impede agendar para paciente com pagamento a prazo vencido. Admin fura o bloqueio."""
-    patient_id = getattr(patient, "id", None) or patient
-    if not patient_id:
-        return
-    from .permissions import is_clinica_admin
+    from .financeiro_service import recusar_paciente_inadimplente
 
-    if is_clinica_admin(request):
-        return
-    from .financeiro_service import mensagem_bloqueio_inadimplencia
-
-    msg = mensagem_bloqueio_inadimplencia(patient_id)
+    msg = recusar_paciente_inadimplente(patient, request=request)
     if msg:
         raise AgendaValidationError(msg)
+
+
+def id_usuario_autenticado(user):
+    """ID do login no schema public. Anônimo ou sistema não contam."""
+    if user is None or not getattr(user, "is_authenticated", False):
+        return None
+    return getattr(user, "pk", None)
+
+
+def registrar_criacao_agendamento(appointment, user, request=None):
+    """Grava quem criou e deixa o registro no log de auditoria.
+
+    Agendamentos antigos ficam sem autor: o login não era guardado na criação.
+    """
+    usuario_id = id_usuario_autenticado(user)
+    if usuario_id and not appointment.created_by_id:
+        appointment.created_by_id = usuario_id
+        appointment.save(update_fields=["created_by_id"])
+
+    nome = ""
+    if usuario_id:
+        nome = (
+            (user.get_full_name() if hasattr(user, "get_full_name") else "")
+            or getattr(user, "username", "")
+            or ""
+        ).strip()
+    slot = appointment.date.isoformat() if getattr(appointment, "date", None) else ""
+    logger.info(
+        "Agendamento criado appointment=%s paciente_id=%s profissional_id=%s slot=%s usuario_id=%s usuario=%s",
+        appointment.id,
+        appointment.patient_id,
+        appointment.professional_id,
+        slot,
+        usuario_id,
+        nome or "-",
+    )
+    if request is None:
+        return
+    from core.audit import registrar_audit_manual
+
+    registrar_audit_manual(
+        request,
+        "agendamento_criado",
+        f"Agendamento {appointment.id} criado",
+        sucesso=True,
+        detalhes={
+            "appointment_id": appointment.id,
+            "patient_id": appointment.patient_id,
+            "professional_id": appointment.professional_id,
+            "slot": slot,
+            "usuario_id": usuario_id,
+            "usuario": nome,
+        },
+    )
 
 
 def criar_agendamento(validated_data, *, user=None, request=None, serializer=None):
@@ -160,7 +207,9 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
     date_start = validated_data["date"]
     professional = validated_data.get("professional")
     if not professional:
-        raise AgendaValidationError("Selecione o profissional.")
+        from .consulta_service.messages import MSG_PROFISSIONAL_OBRIGATORIO
+
+        raise AgendaValidationError(MSG_PROFISSIONAL_OBRIGATORIO)
     local_atendimento = validated_data.get("local_atendimento")
 
     # Bloqueio de inadimplência: recepção não agenda para paciente em atraso; admin fura.
@@ -193,6 +242,8 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
     else:
         clean_data = {k: v for k, v in validated_data.items() if not k.startswith("_")}
         appointment = Appointment.objects.create(**clean_data)
+
+    registrar_criacao_agendamento(appointment, user, request=request)
 
     # Regras pós-criação (best-effort)
     try:

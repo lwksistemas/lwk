@@ -1,9 +1,12 @@
+import { DOCUMENTO_TIPO_LABEL, type DocumentoTipo } from "../consultas/documentos/documentos-types";
+
+export const TEMPLATE_TIPO_OPTIONS = (
+  Object.entries(DOCUMENTO_TIPO_LABEL) as [DocumentoTipo, string][]
+).map(([value, label]) => ({ value, label }));
+
 export const TEMPLATE_FILTER_TIPO_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Todos os tipos" },
-  { value: "receituario", label: "Receituário" },
-  { value: "pedido_exame", label: "Pedido de Exame" },
-  { value: "atestado", label: "Atestado" },
-  { value: "documento_personalizado", label: "Documento Personalizado" },
+  ...TEMPLATE_TIPO_OPTIONS,
 ];
 
 export function buildTemplateNovoPath(slug: string, templateId?: number): string {

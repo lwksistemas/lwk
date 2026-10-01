@@ -51,3 +51,12 @@ def pdf_para_jpeg(pdf_bytes: bytes, *, scale: float = 2.0, quality: int = 85) ->
     if not jpeg:
         raise ValueError("Falha ao gerar JPEG do recibo.")
     return jpeg
+
+
+def jpeg_de_pdf(pdf_bytes: bytes, *, contexto: str = "PDF") -> bytes | None:
+    """Converte PDF em JPEG para WhatsApp e e-mail. Falha vira None e fica no log."""
+    try:
+        return pdf_para_jpeg(pdf_bytes)
+    except Exception as exc:
+        logger.warning("Conversão do PDF em foto falhou (%s): %s", contexto, exc)
+        return None

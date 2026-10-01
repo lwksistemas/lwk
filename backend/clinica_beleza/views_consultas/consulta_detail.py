@@ -27,7 +27,7 @@ class ConsultaDetailView(GetObjectMixin, APIView):
         "appointment__nome_agenda", "local_atendimento", "convenio",
     )
     prefetch_related_fields = (
-        "appointment__appointment_procedures__procedure",
+        "appointment__appointment_procedures__procedure__termo_template",
         "appointment__payment_set",
     )
 

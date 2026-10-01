@@ -45,7 +45,7 @@ _DEFAULT_SELECT = (
     "convenio",
 )
 _DEFAULT_PREFETCH = (
-    "appointment__appointment_procedures__procedure",
+    "appointment__appointment_procedures__procedure__termo_template",
     "appointment__payment_set",
 )
 

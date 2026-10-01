@@ -35,13 +35,11 @@ def _resolver_statuses_avulso(iniciar: bool) -> tuple[str, str]:
     return "CONFIRMED", "RECEBER"
 
 
-def _bloquear_abertura_se_inadimplente(patient_id) -> None:
+def _bloquear_abertura_se_inadimplente(patient_id, *, bypass=False) -> None:
     """Impede abrir/iniciar consulta para paciente inadimplente (lança ValueError)."""
-    if not patient_id:
-        return
-    from ..financeiro_service import mensagem_bloqueio_inadimplencia
+    from ..financeiro_service import recusar_paciente_inadimplente
 
-    msg = mensagem_bloqueio_inadimplencia(patient_id)
+    msg = recusar_paciente_inadimplente(patient_id, bypass=bypass)
     if msg:
         raise ValueError(msg)
 
@@ -62,6 +60,8 @@ def criar_consulta_avulsa(
     notes=None,
     retorno_procedure_id=None,
     bypass_inadimplencia=False,
+    usuario=None,
+    request=None,
 ):
     """Cria uma consulta "avulsa" (sem agendamento prévio na agenda), a partir do
     cadastro do cliente. Gera o Appointment correspondente e a Consulta vinculada.
@@ -94,8 +94,9 @@ def criar_consulta_avulsa(
     local_atendimento, convenio = _resolver_local_convenio_avulso(local_atendimento_id, convenio_id, patient, loja_id)
 
     if iniciar:
-        if not bypass_inadimplencia:
-            _bloquear_abertura_se_inadimplente(getattr(patient, "id", None))
+        _bloquear_abertura_se_inadimplente(
+            getattr(patient, "id", None), bypass=bypass_inadimplencia,
+        )
         consulta_service.validar_paciente_sem_consulta_em_andamento(patient.id)
         consulta_service.validar_profissional_livre_no_local(
             getattr(professional, "id", None) or professional,
@@ -119,6 +120,9 @@ def criar_consulta_avulsa(
         nome_agenda=nome_agenda, retorno_procedure=retorno_procedure,
         notes=(notes or "").strip() or None, loja_id=loja_id,
     )
+    from ..agenda_service import registrar_criacao_agendamento
+
+    registrar_criacao_agendamento(appointment, usuario, request=request)
     if proc_list:
         criar_appointment_procedures(appointment, proc_list, convenio=convenio)
 
@@ -171,8 +175,7 @@ def iniciar_consulta(consulta, *, bypass_inadimplencia=False):
     if appointment.status != "CONFIRMED":
         raise ValueError("Registre a chegada do cliente na agenda (status Cliente presente) antes de iniciar a consulta.")
 
-    if not bypass_inadimplencia:
-        _bloquear_abertura_se_inadimplente(consulta.patient_id)
+    _bloquear_abertura_se_inadimplente(consulta.patient_id, bypass=bypass_inadimplencia)
 
     consulta_service.validar_paciente_sem_consulta_em_andamento(
         consulta.patient_id, exclude_consulta_id=consulta.id,

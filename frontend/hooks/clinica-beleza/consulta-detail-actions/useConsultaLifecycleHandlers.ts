@@ -1,11 +1,11 @@
 import { useCallback, type RefObject } from "react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
-import { fetchClinicaSchedulingProfessionals, fetchHistoricoPaciente } from "@/lib/clinica-beleza-cadastros-api";
+import { fetchHistoricoPaciente } from "@/lib/clinica-beleza-cadastros-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import { useToast } from "@/components/ui/Toast";
 import { consultaEstaConcluida, type Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
-import { passoInicioConsulta } from "@/components/clinica-beleza/consultas/consulta-acesso";
+import { prepararInicioConsulta } from "@/components/clinica-beleza/consultas/iniciar-consulta-fluxo";
 import type { ConsultaDetailLoaderSlice } from "./consulta-detail-actions-types";
 import type { MemedPrescricaoHandle } from "@/components/clinica-beleza/consultas/MemedPrescricao";
 
@@ -51,38 +51,20 @@ export function useConsultaLifecycleHandlers(
 
   const iniciarConsulta = useCallback(
     async (professionalId?: number) => {
-      const me = await ClinicaBelezaAPI.me.get().catch(() => null);
-      const passo = passoInicioConsulta(selected, me?.professional_id ?? null, professionalId);
-      if (passo.tipo === "modal") {
-        try {
-          const profs = await fetchClinicaSchedulingProfessionals();
-          setProfissionaisDisponiveis(Array.isArray(profs) ? profs : []);
-        } catch {
-          /* fallback empty */
-        }
+      const prep = await prepararInicioConsulta(selected, professionalId, {
+        sucesso: toast.success,
+        erro: toast.error,
+      });
+      if (prep.acao === "modal") {
+        setProfissionaisDisponiveis(prep.profissionais);
         setShowProfessionalModal(true);
         return;
       }
-
-      if (passo.tipo === "trocar") {
-        setIniciando(true);
-        try {
-          const atualizada = await ClinicaBelezaAPI.consultas.trocarProfissional(
-            selected.id,
-            passo.professionalId,
-          );
-          setSelected({ ...selected, ...atualizada });
-          await onListRefresh();
-          if (!passo.iniciarDepois) {
-            toast.success("Profissional da agenda atualizado. Quem for atender inicia a consulta.");
-            return;
-          }
-        } catch (e: unknown) {
-          toast.error(formatApiErrorBody(e) || "Erro ao trocar o profissional.");
-          return;
-        } finally {
-          setIniciando(false);
-        }
+      if (prep.acao === "erro") return;
+      if (prep.acao === "trocou") {
+        setSelected({ ...selected, ...prep.atualizada });
+        await onListRefresh();
+        if (!prep.seguir) return;
       }
 
       if (!confirm("Iniciar atendimento? A agenda será marcada como Em atendimento.")) return;

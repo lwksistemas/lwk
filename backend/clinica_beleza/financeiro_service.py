@@ -219,6 +219,24 @@ def mensagem_bloqueio_inadimplencia(patient_id: int, *, hoje: date | None = None
     )
 
 
+def recusar_paciente_inadimplente(patient, *, request=None, bypass=False) -> str | None:
+    """Mensagem se o paciente está em atraso. None quando pode seguir.
+
+    Admin autenticado no request, ou bypass explícito, libera.
+    """
+    if bypass:
+        return None
+    if request is not None:
+        from .permissions import is_clinica_admin
+
+        if is_clinica_admin(request):
+            return None
+    patient_id = getattr(patient, "id", None) or patient
+    if not patient_id:
+        return None
+    return mensagem_bloqueio_inadimplencia(patient_id)
+
+
 def garantir_categorias_despesa_padrao(loja_id: int) -> None:
     if CategoriaDespesa.objects.exists():
         return

@@ -7,14 +7,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Appointment, Patient
+from .models.appointments import APPOINTMENT_STATUSES_EM_ABERTO
 from .pagination import paginate_queryset
 from .patient_search import apply_patient_search
 from .permissions import CLINICA_ADMIN, CLINICA_RECEPCAO
 from .serializers import PatientPrazoPagamentoSerializer, PatientSerializer
 from .views_base import GetObjectMixin, map_field_names
-
-# Status de agendamento ainda "em aberto" (não terminais)
-_OPEN_APPOINTMENT_STATUSES = ("PENDING", "SCHEDULED", "CLIENT_CONFIRMED", "PHONE_CONFIRMED", "CONFIRMED", "IN_PROGRESS")
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +146,7 @@ class PatientDetailView(GetObjectMixin, APIView):
             canceladas = Appointment.objects.filter(
                 patient=obj,
                 date__gte=agora,
-                status__in=_OPEN_APPOINTMENT_STATUSES,
+                status__in=APPOINTMENT_STATUSES_EM_ABERTO,
             ).update(status="CANCELLED", updated_at=agora, version=F("version") + 1)
             obj.is_active = False
             obj.save()

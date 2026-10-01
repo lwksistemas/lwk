@@ -28,6 +28,48 @@ from .views_base import GetObjectMixin, map_field_names
 logger = logging.getLogger(__name__)
 
 
+def _criar_acesso_se_pedido(professional, *, criar_acesso, username, perfil):
+    """Cria login de um profissional que já existe. None quando não foi pedido ou deu certo."""
+    if not criar_acesso:
+        return None
+    if not username:
+        return Response(
+            {"detail": "Usuário para login é obrigatório."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    email = (getattr(professional, "email", None) or "").strip()
+    if not email:
+        return Response(
+            {"detail": "E-mail é obrigatório para enviar a senha."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    from tenants.middleware import get_current_loja_id
+
+    from superadmin.models import ProfissionalUsuario
+
+    loja_id = get_current_loja_id()
+    if loja_id and ProfissionalUsuario.objects.using("default").filter(
+        loja_id=loja_id, professional_id=professional.id,
+    ).exists():
+        return Response(
+            {"detail": "Este profissional já tem acesso ao sistema."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    from .professional_service import ProfessionalAccessError, criar_profissional_com_acesso
+
+    try:
+        criar_profissional_com_acesso(
+            professional,
+            email=email,
+            username=username,
+            name=getattr(professional, "nome", "") or "",
+            perfil=perfil,
+        )
+    except ProfessionalAccessError as e:
+        return Response({e.field: e.message, "detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
+    return None
+
+
 def _sync_memed(professional):
     """Dispara o auto-cadastro do prescritor na Memed (best-effort; nunca quebra o save)."""
     try:
@@ -212,7 +254,14 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
 
     def put(self, request, pk):
         owner_professional_id = LojaContextHelper.get_owner_professional_id()
-        data = _map_professional_data(request.data)
+        raw = request.data if isinstance(request.data, dict) else dict(request.data)
+        raw = {k: (v[0] if isinstance(v, list) and len(v) == 1 else v) for k, v in raw.items()}
+        criar_acesso = raw.pop("criar_acesso", False)
+        if isinstance(criar_acesso, str):
+            criar_acesso = criar_acesso.strip().lower() in ("1", "true", "yes", "on")
+        username_acesso = (raw.pop("username", "") or "").strip()
+        perfil_acesso = (raw.pop("perfil", "") or "profissional").strip() or "profissional"
+        data = _map_professional_data(raw)
         if owner_professional_id is not None and int(pk) == owner_professional_id:
             # Bloquear desativação do owner
             if "is_active" in data and data["is_active"] is False:
@@ -232,6 +281,14 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
         serializer = ProfessionalSerializer(obj, data=data, partial=True)
         if serializer.is_valid():
             professional = serializer.save()
+            acesso_erro = _criar_acesso_se_pedido(
+                professional,
+                criar_acesso=bool(criar_acesso),
+                username=username_acesso,
+                perfil=perfil_acesso,
+            )
+            if acesso_erro is not None:
+                return acesso_erro
             _sync_memed(professional)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

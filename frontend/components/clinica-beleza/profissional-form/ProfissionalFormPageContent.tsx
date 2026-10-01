@@ -96,7 +96,7 @@ export function ProfissionalFormPageContent({ slug, editId, onDone }: Profission
             />
           </section>
 
-          {!editId && <ProfissionalAcessoSection form={form} onFieldChange={setField} />}
+          <ProfissionalAcessoSection form={form} onFieldChange={setField} />
 
           <div className="flex gap-3 pb-8">
             <button

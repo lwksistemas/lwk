@@ -1,4 +1,5 @@
 """Testes unitários do relatório de faturamento (reescrito P0)."""
+from datetime import date
 from decimal import Decimal
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
@@ -54,6 +55,27 @@ class TestFaturamentoRelatorioCampos(TestCase):
             self.assertEqual(result["totais"]["valor_total"], 0)
             self.assertEqual(result["totais"]["total_atendimentos"], 0)
             self.assertEqual(result["agrupamento"], "profissional")
+
+    def test_periodo_segue_o_dia_do_agendamento(self):
+        from clinica_beleza.faturamento_relatorio_service import calcular_faturamento
+
+        with patch("clinica_beleza.faturamento_relatorio_service.Payment") as mock_payment, \
+             patch("clinica_beleza.faturamento_relatorio_service.Consulta") as mock_consulta:
+            qs_mock = MagicMock()
+            qs_mock.__iter__ = MagicMock(return_value=iter([]))
+            qs_mock.prefetch_related.return_value = qs_mock
+            qs_mock.filter.return_value = qs_mock
+            qs_mock.exclude.return_value = qs_mock
+            qs_mock.select_related.return_value = qs_mock
+            mock_payment.objects.filter.return_value = qs_mock
+            mock_consulta.objects.filter.return_value.select_related.return_value = []
+
+            calcular_faturamento(data_inicio=date(2026, 10, 1), data_fim=date(2026, 10, 1))
+
+            filtros = [chamada.kwargs for chamada in qs_mock.filter.call_args_list]
+            self.assertIn({"appointment__date__date__gte": date(2026, 10, 1)}, filtros)
+            self.assertIn({"appointment__date__date__lte": date(2026, 10, 1)}, filtros)
+            self.assertFalse(any("payment_date__date__gte" in chamada.kwargs for chamada in qs_mock.filter.call_args_list))
 
 
 class TestFaturamentoDescontoERetorno(TestCase):

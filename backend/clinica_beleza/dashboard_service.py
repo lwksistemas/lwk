@@ -36,9 +36,8 @@ NEXT_APPOINTMENT_STATUSES = (
     "SCHEDULED", "CLIENT_CONFIRMED", "PHONE_CONFIRMED", "CONFIRMED", "IN_PROGRESS",
 )
 
-VOLUME_APPOINTMENT_STATUSES = (
-    "COMPLETED", "CONFIRMED", "CLIENT_CONFIRMED", "PHONE_CONFIRMED", "SCHEDULED", "IN_PROGRESS",
-)
+# Quem chegou, está em atendimento ou já finalizou. Confirmado no WhatsApp ainda não é atendimento.
+ATENDIMENTO_REALIZADO_STATUSES = ("CONFIRMED", "IN_PROGRESS", "COMPLETED")
 
 
 def parse_dashboard_period(
@@ -78,18 +77,18 @@ def dashboard_filter_meta(*, filter_mes: int, filter_ano: int, today: date, peri
 
 
 def consulta_realizada_no_periodo_q(period_start: date, period_end: date) -> Q:
-    """Consulta concluída no intervalo se data_fim, updated_at ou agendamento cair nele."""
+    """Mês da sessão é o dia do agendamento.
 
-    def in_period(prefix: str) -> Q:
-        return (
-            Q(**{f"{prefix}__date__gte": period_start})
-            & Q(**{f"{prefix}__date__lte": period_end})
-        )
-
+    data_fim da auto-finalização e updated_at de uma correção não puxam
+    a visita de setembro para outubro.
+    """
     return (
-        in_period("data_fim")
-        | in_period("updated_at")
-        | in_period("appointment__date")
+        Q(appointment__date__date__gte=period_start, appointment__date__date__lte=period_end)
+        | (
+            Q(appointment__isnull=True)
+            & Q(data_inicio__date__gte=period_start)
+            & Q(data_inicio__date__lte=period_end)
+        )
     )
 
 
@@ -100,12 +99,16 @@ def consultas_concluidas_no_periodo(period_start: date, period_end: date):
 
 
 def revenue_by_day(first_day: date, period_end: date) -> list[dict]:
-    """Faturamento por dia usando agregação SQL (uma query em vez de N)."""
+    """Faturamento por dia do atendimento, não pelo instante em que o pagamento foi gravado."""
     rows_db = (
         Payment.objects
-        .filter(status="PAID", payment_date__date__gte=first_day, payment_date__date__lte=period_end)
+        .filter(
+            status="PAID",
+            appointment__date__date__gte=first_day,
+            appointment__date__date__lte=period_end,
+        )
         .exclude(payment_method="DESPESA")
-        .annotate(day=TruncDay("payment_date"))
+        .annotate(day=TruncDay("appointment__date"))
         .values("day")
         .annotate(total=Sum("amount"))
         .order_by("day")
@@ -221,7 +224,7 @@ def procedimentos_realizados_lista(period_start: date, period_end: date) -> list
 
 
 def top_soroterapia_periodo(period_start: date, period_end: date) -> list[dict]:
-    """Top soroterapias no mês: consultas concluídas + agendamentos (volume).
+    """Top soroterapias das consultas concluídas no mês do agendamento.
     Se não houver movimento, lista cadastros ativos de soroterapia (count=0).
     """
     counts: dict[str, int] = {}
@@ -238,20 +241,8 @@ def top_soroterapia_periodo(period_start: date, period_end: date) -> list[dict]:
         .annotate(count=Count("id")),
     )
     add_rows(
-        Appointment.objects.filter(
-            date__date__gte=period_start,
-            date__date__lte=period_end,
-            status__in=VOLUME_APPOINTMENT_STATUSES,
-        )
-        .filter(SOROTERAPIA_PROCEDURE_Q)
-        .values("procedure__nome")
-        .annotate(count=Count("id")),
-    )
-    add_rows(
         AppointmentProcedure.objects.filter(
-            appointment__date__date__gte=period_start,
-            appointment__date__date__lte=period_end,
-            appointment__status__in=VOLUME_APPOINTMENT_STATUSES,
+            appointment_id__in=consultas_concluidas_no_periodo(period_start, period_end).values("appointment_id"),
         )
         .filter(SOROTERAPIA_PROCEDURE_Q)
         .values("procedure__nome")
@@ -281,17 +272,21 @@ def build_dashboard_statistics(*, today: date, period_start: date, period_end: d
     yesterday = today - timedelta(days=1)
     revenue_month = Payment.objects.filter(
         status="PAID",
-        payment_date__date__gte=period_start,
-        payment_date__date__lte=period_end,
+        appointment__date__date__gte=period_start,
+        appointment__date__date__lte=period_end,
     ).exclude(payment_method="DESPESA").aggregate(total=Sum("amount"))["total"] or 0
     revenue_today = Payment.objects.filter(
-        status="PAID", payment_date__date=today,
+        status="PAID", appointment__date__date=today,
     ).exclude(payment_method="DESPESA").aggregate(total=Sum("amount"))["total"] or 0
     from .financeiro_service import contar_inadimplentes, somar_inadimplencia
 
     return {
-        "appointments_today": Appointment.objects.filter(date__date=today).count(),
-        "appointments_yesterday": Appointment.objects.filter(date__date=yesterday).count(),
+        "appointments_today": Appointment.objects.filter(
+            date__date=today, status__in=ATENDIMENTO_REALIZADO_STATUSES,
+        ).count(),
+        "appointments_yesterday": Appointment.objects.filter(
+            date__date=yesterday, status__in=ATENDIMENTO_REALIZADO_STATUSES,
+        ).count(),
         "patients_total": Patient.objects.filter(is_active=True).count(),
         "procedures_total": Procedure.objects.filter(is_active=True).count(),
         "revenue_month": float(revenue_month),

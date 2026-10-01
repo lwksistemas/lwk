@@ -8,6 +8,11 @@ import { arredondarDuracaoAgendaMin, parseEventDate } from "@/lib/clinica-beleza
 import type { BloqueioHorario } from "@/lib/clinica-beleza-entities";
 import type { AgendaConflictPayload, AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { duracaoEventoMinutos, eventProfessionalId } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
+import {
+  descreverAlteracaoAgenda,
+  nomeProfissionalAgenda,
+  type DescricaoAlteracaoAgenda,
+} from "@/lib/agenda-confirmar-alteracao";
 import type { ConflitoAgendaData } from "@/components/clinica-beleza/ModalConflitoAgenda";
 import { mergeRawAgendaEvent, versaoAgenda } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import { useToast } from "@/components/ui/Toast";
@@ -23,6 +28,7 @@ type ConflictState = (ConflitoAgendaData & {
 interface UseAgendaMutationsOptions {
   onReload: () => void;
   selectedProfessional?: string;
+  professionals?: { id: number; nome?: string; name?: string }[];
   selectedEvent: AgendaEventData | null;
   setSelectedEvent: React.Dispatch<React.SetStateAction<AgendaEventData | null>>;
   setShowModal: (open: boolean) => void;
@@ -32,6 +38,7 @@ interface UseAgendaMutationsOptions {
 export function useAgendaMutations({
   onReload,
   selectedProfessional = "",
+  professionals = [],
   selectedEvent,
   setSelectedEvent,
   setShowModal,
@@ -46,8 +53,28 @@ export function useAgendaMutations({
   const [conflictResolving, setConflictResolving] = useState(false);
   const internalMutatingRef = useRef(false);
   const isMutatingRef = externalMutatingRef ?? internalMutatingRef;
+  const [confirmacaoAlteracao, setConfirmacaoAlteracao] = useState<DescricaoAlteracaoAgenda | null>(null);
+  const confirmacaoResolver = useRef<((ok: boolean) => void) | null>(null);
 
-  const atualizarBloqueioHorario = useCallback(async (info: { event: { extendedProps?: Record<string, unknown>; start: Date | null; end: Date | null; title?: string }; revert: () => void }) => {
+  const pedirConfirmacao = useCallback((pedido: DescricaoAlteracaoAgenda) => {
+    if (confirmacaoResolver.current) confirmacaoResolver.current(false);
+    return new Promise<boolean>((resolve) => {
+      confirmacaoResolver.current = resolve;
+      setConfirmacaoAlteracao(pedido);
+    });
+  }, []);
+
+  const responderConfirmacao = useCallback((ok: boolean) => {
+    confirmacaoResolver.current?.(ok);
+    confirmacaoResolver.current = null;
+    setConfirmacaoAlteracao(null);
+  }, []);
+
+  const atualizarBloqueioHorario = useCallback(async (info: {
+    event: { extendedProps?: Record<string, unknown>; start: Date | null; end: Date | null; title?: string };
+    oldEvent?: { start: Date | null; end: Date | null };
+    revert: () => void;
+  }) => {
     const bloqueioId = info.event.extendedProps?.bloqueioId;
     const start = info.event.start;
     const end = info.event.end;
@@ -60,8 +87,21 @@ export function useAgendaMutations({
       info.revert();
       return;
     }
+    const inicioAntes = info.oldEvent?.start || start;
+    const fimAntes = info.oldEvent?.end || end;
     const motivoRaw = info.event.extendedProps?.motivo || info.event.title || "Bloqueio";
     const motivo = String(motivoRaw).replace(/^🚫\s*/, "").trim() || "Bloqueio";
+    const confirmado = await pedirConfirmacao(descreverAlteracaoAgenda({
+      nome: motivo,
+      inicioAntes,
+      inicioDepois: start,
+      duracaoAntes: Math.round((fimAntes.getTime() - inicioAntes.getTime()) / 60000),
+      duracaoDepois: Math.round((end.getTime() - start.getTime()) / 60000),
+    }));
+    if (!confirmado) {
+      info.revert();
+      return;
+    }
     const body: Record<string, unknown> = {
       data_inicio: start.toISOString(),
       data_fim: end.toISOString(),
@@ -88,7 +128,7 @@ export function useAgendaMutations({
       toast.error("Erro ao atualizar bloqueio. Tente novamente.");
       info.revert();
     }
-  }, [onReload, toast]);
+  }, [onReload, pedirConfirmacao, toast]);
 
   const patchAgendamento = useCallback(async (
     id: number | string,
@@ -146,7 +186,23 @@ export function useAgendaMutations({
       await atualizarBloqueioHorario(info as Parameters<typeof atualizarBloqueioHorario>[0]);
       return;
     }
-    const startIso = info.event.start.toISOString();
+    const inicioAntes = info.oldEvent.start;
+    const inicioDepois = info.event.start;
+    if (!inicioAntes || !inicioDepois) {
+      info.revert();
+      return;
+    }
+    const nome = String(info.event.extendedProps?.patient_name || info.event.title || "Agendamento");
+    const confirmado = await pedirConfirmacao(descreverAlteracaoAgenda({
+      nome,
+      inicioAntes,
+      inicioDepois,
+    }));
+    if (!confirmado) {
+      info.revert();
+      return;
+    }
+    const startIso = inicioDepois.toISOString();
     const endIso = info.event.end?.toISOString();
     const version = versaoAgenda(info.event.extendedProps?.version);
     const updatedAt = info.event.extendedProps?.updated_at;
@@ -171,7 +227,7 @@ export function useAgendaMutations({
     } finally {
       setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [atualizarBloqueioHorario, gravarEventoSalvo, patchAgendamento, queryClient, selectedProfessional, toast]);
+  }, [atualizarBloqueioHorario, gravarEventoSalvo, patchAgendamento, pedirConfirmacao, queryClient, selectedProfessional, toast]);
 
   const salvarHorarioBloqueioGrade = useCallback(async (
     evt: AgendaEventData,
@@ -198,6 +254,21 @@ export function useAgendaMutations({
     const profOriginal = eventProfessionalId(evt);
     const profNovo = profOriginal == null ? null : professionalId;
     if (profNovo != null) body.professional = profNovo;
+
+    const inicioAntes = parseEventDate(evt.start) || start;
+    const fimAntes = parseEventDate(evt.end) || end;
+    const profAntesNome = String(evt.extendedProps?.professional_name || "");
+    const profDepoisNome = nomeProfissionalAgenda(profNovo, professionals, profAntesNome);
+    const confirmado = await pedirConfirmacao(descreverAlteracaoAgenda({
+      nome: motivo,
+      inicioAntes,
+      inicioDepois: start,
+      duracaoAntes: Math.round((fimAntes.getTime() - inicioAntes.getTime()) / 60000),
+      duracaoDepois: Math.round((end.getTime() - start.getTime()) / 60000),
+      profissionalAntes: profAntesNome,
+      profissionalDepois: profNovo != null && profOriginal !== profNovo ? profDepoisNome : profAntesNome,
+    }));
+    if (!confirmado) return;
 
     const cacheKey = clinicaBelezaQueryKeys.agendaBloqueios(selectedProfessional);
     const previous = queryClient.getQueryData<BloqueioHorario[]>(cacheKey);
@@ -234,7 +305,7 @@ export function useAgendaMutations({
     } finally {
       setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [queryClient, selectedProfessional, toast]);
+  }, [pedirConfirmacao, professionals, queryClient, selectedProfessional, toast]);
 
   const moverAgendamentoGrade = useCallback(async (
     evt: AgendaEventData,
@@ -272,6 +343,21 @@ export function useAgendaMutations({
     if (professionalId && Number(atual) !== professionalId) {
       body.professional = professionalId;
     }
+    const inicioAntes = parseEventDate(evt.start);
+    if (!inicioAntes) return;
+    const nome = String(evt.extendedProps?.patient_name || evt.title || "Agendamento");
+    const profAntesNome = String(evt.extendedProps?.professional_name || "");
+    const profMudou = Boolean(professionalId && Number(atual) !== professionalId);
+    const confirmado = await pedirConfirmacao(descreverAlteracaoAgenda({
+      nome,
+      inicioAntes,
+      inicioDepois: start,
+      profissionalAntes: profAntesNome,
+      profissionalDepois: profMudou
+        ? nomeProfissionalAgenda(professionalId, professionals, profAntesNome)
+        : profAntesNome,
+    }));
+    if (!confirmado) return;
     const cacheKey = clinicaBelezaQueryKeys.agendaEvents(selectedProfessional);
     const previous = queryClient.getQueryData(cacheKey);
     queryClient.setQueryData(cacheKey, (old) =>
@@ -298,7 +384,7 @@ export function useAgendaMutations({
     } finally {
       setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [patchAgendamento, queryClient, salvarHorarioBloqueioGrade, selectedProfessional, toast]);
+  }, [patchAgendamento, pedirConfirmacao, professionals, queryClient, salvarHorarioBloqueioGrade, selectedProfessional, toast]);
 
   const redimensionarAgendamentoGrade = useCallback(async (
     evt: AgendaEventData,
@@ -329,6 +415,17 @@ export function useAgendaMutations({
     const duracao = arredondarDuracaoAgendaMin(duracaoMinutos);
     const atual = Number(evt.extendedProps?.duracao_minutos || evt.extendedProps?.procedure_duration || 0);
     if (duracao === atual) return;
+    const inicio = parseEventDate(evt.start);
+    if (!inicio) return;
+    const nome = String(evt.extendedProps?.patient_name || evt.title || "Agendamento");
+    const confirmado = await pedirConfirmacao(descreverAlteracaoAgenda({
+      nome,
+      inicioAntes: inicio,
+      inicioDepois: inicio,
+      duracaoAntes: atual,
+      duracaoDepois: duracao,
+    }));
+    if (!confirmado) return;
     const version = versaoAgenda(evt.extendedProps?.version);
     const updatedAt = evt.extendedProps?.updated_at;
     const body: Record<string, unknown> = { duracao_minutos: duracao };
@@ -362,7 +459,7 @@ export function useAgendaMutations({
     } finally {
       setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [patchAgendamento, queryClient, salvarHorarioBloqueioGrade, selectedProfessional, toast]);
+  }, [patchAgendamento, pedirConfirmacao, queryClient, salvarHorarioBloqueioGrade, selectedProfessional, toast]);
 
   const redimensionarEvento = useCallback(async (info: EventResizeDoneArg) => {
     if (info.event.extendedProps?.isIntervalo) {
@@ -393,6 +490,23 @@ export function useAgendaMutations({
     const duracaoMinutos = arredondarDuracaoAgendaMin(
       Math.round((end.getTime() - start.getTime()) / 60000),
     );
+    const oldStart = info.oldEvent.start;
+    const oldEnd = info.oldEvent.end;
+    const duracaoAntes = oldStart && oldEnd
+      ? Math.round((oldEnd.getTime() - oldStart.getTime()) / 60000)
+      : undefined;
+    const nome = String(info.event.extendedProps?.patient_name || info.event.title || "Agendamento");
+    const confirmado = await pedirConfirmacao(descreverAlteracaoAgenda({
+      nome,
+      inicioAntes: start,
+      inicioDepois: start,
+      duracaoAntes,
+      duracaoDepois: duracaoMinutos,
+    }));
+    if (!confirmado) {
+      info.revert();
+      return;
+    }
     const version = versaoAgenda(info.event.extendedProps?.version);
     const updatedAt = info.event.extendedProps?.updated_at;
     const body: Record<string, unknown> = { duracao_minutos: duracaoMinutos };
@@ -409,7 +523,7 @@ export function useAgendaMutations({
     } finally {
       setTimeout(() => { isMutatingRef.current = false; }, 400);
     }
-  }, [atualizarBloqueioHorario, gravarEventoSalvo, patchAgendamento, toast]);
+  }, [atualizarBloqueioHorario, gravarEventoSalvo, patchAgendamento, pedirConfirmacao, toast]);
 
   const deletarEvento = useCallback(async () => {
     if (!selectedEvent) return;
@@ -591,6 +705,8 @@ export function useAgendaMutations({
     salvandoDetalhe,
     conflictData,
     conflictResolving,
+    confirmacaoAlteracao,
+    responderConfirmacao,
     moverEvento,
     moverAgendamentoGrade,
     redimensionarEvento,

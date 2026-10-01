@@ -6,7 +6,9 @@ import type { PatientQuickOption } from "@/components/clinica-beleza/patient-qui
 import type { ConsultaFormProcedure } from "@/hooks/clinica-beleza/useNovaConsultaForm";
 import type { LocalAtendimentoItem, NomeAgendaItem } from "@/lib/clinica-beleza-api";
 import type { BloqueioSelecionado } from "@/lib/bloqueio-serie";
+import type { DescricaoAlteracaoAgenda } from "@/lib/agenda-confirmar-alteracao";
 import { ModalBloqueio } from "./ModalBloqueio";
+import { ModalConfirmarAlteracaoAgenda } from "./ModalConfirmarAlteracaoAgenda";
 import { ModalDetalheAgendamento } from "./ModalDetalheAgendamento";
 
 export function AgendaPageModals({
@@ -42,6 +44,9 @@ export function AgendaPageModals({
   onUseServer,
   onUseLocal,
   conflictResolving,
+  confirmacaoAlteracao,
+  onConfirmarAlteracao,
+  onCancelarAlteracao,
 }: {
   selectedBloqueio: BloqueioSelecionado | null;
   onCloseBloqueio: () => void;
@@ -79,6 +84,9 @@ export function AgendaPageModals({
   onUseServer: () => void;
   onUseLocal: () => void;
   conflictResolving: boolean;
+  confirmacaoAlteracao: DescricaoAlteracaoAgenda | null;
+  onConfirmarAlteracao: () => void;
+  onCancelarAlteracao: () => void;
 }) {
   return (
     <>
@@ -123,6 +131,11 @@ export function AgendaPageModals({
         onSuccess={onReload}
         professionals={professionals}
         defaultProfessionalId={defaultProfessionalId}
+      />
+      <ModalConfirmarAlteracaoAgenda
+        pedido={confirmacaoAlteracao}
+        onConfirmar={onConfirmarAlteracao}
+        onCancelar={onCancelarAlteracao}
       />
       <ModalConflitoAgenda
         open={conflictData != null}

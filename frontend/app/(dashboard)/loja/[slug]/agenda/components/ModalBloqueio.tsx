@@ -73,7 +73,7 @@ export function ModalBloqueio({ open, onClose, onSuccess, bloqueio }: ModalBloqu
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{periodo || "Dia inteiro"}</p>
         ) : (
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-            Arraste o bloqueio para outro horário ou puxe a borda inferior para ajustar a duração.
+            Arraste o bloqueio para outro horário ou puxe a borda inferior para ajustar a duração. A agenda pede confirmação antes de gravar.
           </p>
         )}
         <div className="flex flex-col gap-3">

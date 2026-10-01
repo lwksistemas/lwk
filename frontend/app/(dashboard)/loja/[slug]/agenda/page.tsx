@@ -91,6 +91,8 @@ export default function AgendaPage() {
     salvandoDetalhe,
     conflictData,
     conflictResolving,
+    confirmacaoAlteracao,
+    responderConfirmacao,
     moverEvento,
     moverAgendamentoGrade,
     redimensionarEvento,
@@ -105,6 +107,7 @@ export default function AgendaPage() {
   } = useAgendaMutations({
     onReload: carregarDados,
     selectedProfessional,
+    professionals,
     selectedEvent,
     setSelectedEvent,
     setShowModal,
@@ -253,6 +256,9 @@ export default function AgendaPage() {
         onUseServer={handleConflitoUseServer}
         onUseLocal={handleConflitoUseLocal}
         conflictResolving={conflictResolving}
+        confirmacaoAlteracao={confirmacaoAlteracao}
+        onConfirmarAlteracao={() => responderConfirmacao(true)}
+        onCancelarAlteracao={() => responderConfirmacao(false)}
       />
       <AgendaConfigModals agendaModals={agendaModals} />
     </div>

@@ -84,7 +84,7 @@ describe("validateProfissionalForm", () => {
 });
 
 describe("buildProfissionalSaveBody", () => {
-  it("inclui dados de acesso apenas em criação com flag", () => {
+  it("inclui dados de acesso na criação e na edição sem login", () => {
     const form = {
       ...DEFAULT_PROFISSIONAL_FORM,
       name: "Ana Silva",
@@ -99,6 +99,21 @@ describe("buildProfissionalSaveBody", () => {
     expect(body.username).toBe("ana");
     expect(body.name).toBe("Ana Silva");
     expect(body.foto_url).toBe("");
+    const edicao = buildProfissionalSaveBody(form, "7");
+    expect(edicao.criar_acesso).toBe(true);
+    expect(edicao.username).toBe("ana");
+  });
+
+  it("não pede novo login para quem já entra no sistema", () => {
+    const form = {
+      ...DEFAULT_PROFISSIONAL_FORM,
+      name: "Ana Silva",
+      specialty: "Esteticista",
+      criar_acesso: true,
+      username: "ana",
+      login_username: "ana",
+    };
+    expect(buildProfissionalSaveBody(form, "7").criar_acesso).toBeUndefined();
   });
 
   it("envia a foto do profissional", () => {

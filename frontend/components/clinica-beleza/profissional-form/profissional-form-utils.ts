@@ -129,14 +129,15 @@ export function validateProfissionalForm(
   form: ProfissionalFormState,
   comissoes: ProfissionalCommission[],
   comissoesConsultaLocal: ProfissionalCommission[],
-  isEditing: boolean,
+  _isEditing: boolean,
 ): string | null {
   if (!form.name.trim()) return "Nome é obrigatório.";
   if (!form.specialty.trim()) return "Especialidade é obrigatória.";
-  if (!isEditing && form.criar_acesso && !form.username.trim()) {
+  const vaiCriarAcesso = form.criar_acesso && !form.login_username;
+  if (vaiCriarAcesso && !form.username.trim()) {
     return "Usuário para login é obrigatório.";
   }
-  if (!isEditing && form.criar_acesso && !form.email.trim()) {
+  if (vaiCriarAcesso && !form.email.trim()) {
     return "E-mail é obrigatório para enviar a senha.";
   }
 
@@ -182,7 +183,7 @@ export function buildProfissionalSaveBody(
     foto_url: form.foto_url.trim() || "",
     active: true,
   };
-  if (!editId && form.criar_acesso) {
+  if (form.criar_acesso && !form.login_username) {
     body.criar_acesso = true;
     body.perfil = form.perfil;
     body.username = form.username.trim();

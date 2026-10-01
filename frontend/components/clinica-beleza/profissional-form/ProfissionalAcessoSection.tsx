@@ -7,6 +7,17 @@ interface ProfissionalAcessoSectionProps {
 }
 
 export function ProfissionalAcessoSection({ form, onFieldChange }: ProfissionalAcessoSectionProps) {
+  if (form.login_username) {
+    return (
+      <section className="bg-white dark:bg-neutral-800 rounded-xl border dark:border-neutral-700 p-5 space-y-2">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Acesso ao sistema</h3>
+        <p className="text-sm text-gray-700 dark:text-gray-300">
+          Este profissional já entra com o usuário <strong>{form.login_username}</strong>.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className="bg-white dark:bg-neutral-800 rounded-xl border dark:border-neutral-700 p-5 space-y-4">
       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Acesso ao sistema</h3>

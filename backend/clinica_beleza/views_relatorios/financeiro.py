@@ -1,4 +1,4 @@
-"""Faturamento, lançamentos, descontos e inadimplentes."""
+"""Faturamento, lançamentos, descontos, venda a prazo e inadimplentes."""
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -170,6 +170,55 @@ class RelatorioDescontosPdfView(APIView):
         return pdf_response(
             pdf_buffer,
             filename_periodo("descontos", data_inicio, data_fim, profissional_nome(professional_id)),
+        )
+
+
+class RelatorioVendaPrazoView(APIView):
+    """GET /clinica-beleza/relatorios/venda-prazo/?data_inicio=&data_fim=&professional_id="""
+
+    permission_classes = CLINICA_FINANCEIRO
+
+    def get(self, request):
+        from clinica_beleza.venda_prazo_relatorio_service import calcular_venda_prazo
+
+        data_inicio, data_fim, professional_id = parse_filtros_comissoes(request)
+        return Response(calcular_venda_prazo(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            professional_id=professional_id,
+        ))
+
+
+class RelatorioVendaPrazoPdfView(APIView):
+    """GET /clinica-beleza/relatorios/venda-prazo/pdf/"""
+
+    permission_classes = CLINICA_FINANCEIRO
+
+    def get(self, request):
+        from clinica_beleza.relatorio_tabela_pdf import gerar_pdf_venda_prazo
+        from clinica_beleza.venda_prazo_relatorio_service import calcular_venda_prazo
+
+        data_inicio, data_fim, professional_id = parse_filtros_comissoes(request)
+        loja = loja_atual()
+        if not loja:
+            return Response({"error": "Loja não encontrada."}, status=404)
+
+        resultado = calcular_venda_prazo(
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            professional_id=professional_id,
+        )
+        nome = profissional_nome(professional_id)
+        pdf_buffer = gerar_pdf_venda_prazo(
+            resultado=resultado,
+            loja=loja,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            profissional_nome=nome,
+        )
+        return pdf_response(
+            pdf_buffer,
+            filename_periodo("venda_prazo", data_inicio, data_fim, nome),
         )
 
 

@@ -7,6 +7,7 @@ import {
   BarChart3,
   ChevronRight,
   ClipboardList,
+  Clock,
   DollarSign,
   FileText,
   Percent,
@@ -52,7 +53,7 @@ const CATEGORIAS: CategoriaRelatorio[] = [
   {
     id: 'faturamento',
     titulo: 'Faturamento',
-    descricao: 'Receita do período, lançamentos, descontos e inadimplência',
+    descricao: 'Receita do período, lançamentos, descontos, venda a prazo e inadimplência',
     icon: BarChart3,
     relatorios: [
       {
@@ -72,6 +73,12 @@ const CATEGORIAS: CategoriaRelatorio[] = [
         descricao: 'Total de descontos por profissional, com o nome de cada cliente',
         href: 'descontos',
         icon: Percent,
+      },
+      {
+        titulo: 'Venda a prazo',
+        descricao: 'Por período e por profissional, com vencimento e saldo em aberto',
+        href: 'venda-prazo',
+        icon: Clock,
       },
       {
         titulo: 'Inadimplentes',

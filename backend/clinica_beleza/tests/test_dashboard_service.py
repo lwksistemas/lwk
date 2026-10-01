@@ -1,11 +1,12 @@
 """Testes unitários do service de dashboard."""
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from django.test import SimpleTestCase
 from django.utils import timezone
 
 from clinica_beleza.dashboard_service import (
+    consulta_realizada_no_periodo_q,
     dashboard_filter_meta,
     next_appointments_limit,
     parse_dashboard_period,
@@ -63,6 +64,14 @@ class DashboardFilterMetaTests(SimpleTestCase):
         self.assertEqual(meta["label"], "Junho/2026")
         self.assertTrue(meta["is_current_month"])
         self.assertEqual(meta["period_start"], "2026-06-01")
+
+
+class ConsultaRealizadaNoPeriodoTests(SimpleTestCase):
+    def test_conta_pelo_dia_do_agendamento(self):
+        texto = str(consulta_realizada_no_periodo_q(date(2026, 10, 1), date(2026, 10, 1)))
+        self.assertIn("appointment__date__date", texto)
+        self.assertNotIn("updated_at", texto)
+        self.assertNotIn("data_fim", texto)
 
 
 class DashboardQueryParamParsingTests(SimpleTestCase):
@@ -173,3 +182,41 @@ class TopProceduresRealizadosTests(ClinicaBelezaIntegrationTestCase):
         self.assertTrue(all(linha["paciente"] == "Paciente Lista" for linha in linhas))
         self.assertTrue(all(linha["profissional"] == "Dra Lista" for linha in linhas))
         self.assertTrue(all(linha["consulta_id"] == consulta.id for linha in linhas))
+
+    def test_visita_de_setembro_nao_entra_em_outubro(self):
+        patient = Patient.objects.create(nome="Paciente Setembro", loja_id=self.loja.id)
+        professional = Professional.objects.create(nome="Dra Setembro", loja_id=self.loja.id)
+        proc = Procedure.objects.create(
+            nome="TIRZEPATIDA 2,5 MG",
+            preco=Decimal("300.00"),
+            duracao_minutos=20,
+            loja_id=self.loja.id,
+        )
+        visita = timezone.make_aware(datetime(2026, 9, 30, 17, 0))
+        fechamento = timezone.make_aware(datetime(2026, 10, 1, 0, 4))
+        appt = Appointment.objects.create(
+            date=visita,
+            status="COMPLETED",
+            patient=patient,
+            professional=professional,
+            procedure=proc,
+            loja_id=self.loja.id,
+        )
+        AppointmentProcedure.objects.create(
+            appointment=appt, procedure=proc, ordem=0, valor=Decimal("300.00"), loja_id=self.loja.id,
+        )
+        Consulta.objects.create(
+            appointment=appt,
+            patient=patient,
+            professional=professional,
+            procedure=proc,
+            status="COMPLETED",
+            data_inicio=visita,
+            data_fim=fechamento,
+            loja_id=self.loja.id,
+        )
+
+        outubro = top_procedures_realizados_periodo(date(2026, 10, 1), date(2026, 10, 1))
+        self.assertEqual(outubro, [])
+        setembro = top_procedures_realizados_periodo(date(2026, 9, 1), date(2026, 9, 30))
+        self.assertEqual(setembro, [{"name": "TIRZEPATIDA 2,5 MG", "count": 1}])

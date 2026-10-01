@@ -489,14 +489,14 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
 
     pagos_mes = payments_visiveis_financeiro(Payment.objects.filter(
         status="PAID",
-        payment_date__date__gte=first_day,
-        payment_date__date__lte=period_end,
+        appointment__date__date__gte=first_day,
+        appointment__date__date__lte=period_end,
     ))
     pagos_caixa = pagos_mes.exclude(payment_method=METODO_DESPESA)
     parciais_mes = payments_visiveis_financeiro(Payment.objects.filter(
         status="PARTIAL",
-        payment_date__date__gte=first_day,
-        payment_date__date__lte=period_end,
+        appointment__date__date__gte=first_day,
+        appointment__date__date__lte=period_end,
     )).exclude(payment_method=METODO_DESPESA)
     faturamento = _sum(pagos_caixa) + _sum(parciais_mes)
     contas_a_receber = somar_contas_a_receber()

@@ -69,6 +69,7 @@ class PrescricaoPdfSubstituiFallbackTest(SimpleTestCase):
         presc.save.assert_called_once()
         mock_resolver.assert_called_once()
 
+    @patch("core.media_storage.arquivo_midia_disponivel", return_value=True)
     @patch("clinica_beleza.memed_prescricao_service.resolver_pdf_prescricao")
     @patch("clinica_beleza.views_consultas.prescricoes.PrescricaoMemed")
     @patch("superadmin.models.Loja")
@@ -76,7 +77,7 @@ class PrescricaoPdfSubstituiFallbackTest(SimpleTestCase):
         "clinica_beleza.memed_prescricao_service.pdf_midia_estavel",
         return_value=True,
     )
-    def test_pdf_estavel_nao_grava_de_novo(self, mock_estavel, mock_loja, mock_model, mock_resolver):
+    def test_pdf_estavel_nao_grava_de_novo(self, mock_estavel, mock_loja, mock_model, mock_resolver, _disponivel):
         presc = MagicMock()
         presc.pk = 16
         presc.loja_id = 6
@@ -97,6 +98,44 @@ class PrescricaoPdfSubstituiFallbackTest(SimpleTestCase):
         mock_resolver.assert_not_called()
         presc.save.assert_not_called()
         mock_estavel.assert_called()
+
+    @patch("clinica_beleza.prontuario_pdf.gerar_pdf_prescricao_memed")
+    @patch("clinica_beleza.memed_prescricao_service.arquivar_pdf_bytes_media")
+    @patch("core.media_storage.arquivo_midia_disponivel", return_value=False)
+    @patch("clinica_beleza.memed_prescricao_service.resolver_pdf_prescricao", return_value="")
+    @patch("clinica_beleza.views_consultas.prescricoes.PrescricaoMemed")
+    @patch("superadmin.models.Loja")
+    def test_url_de_midia_ausente_gera_pdf_local(
+        self, mock_loja, mock_model, _resolver, _ausente, mock_arquivar, mock_gerar,
+    ):
+        from io import BytesIO
+
+        presc = MagicMock()
+        presc.pk = 7
+        presc.loja_id = 6
+        presc.prescricao_id = "289104931"
+        presc.pdf_url = (
+            "https://media.lwksistemas.com.br/files/37302743000126/"
+            "docs/marcia-bataglia_id1825/956f51b7059d4eb08e1793ba274332b0.pdf"
+        )
+        presc.professional = MagicMock()
+        presc.patient = MagicMock()
+        presc.consulta_id = 36
+        mock_model.objects.select_related.return_value.get.return_value = presc
+        mock_loja.objects.using.return_value.filter.return_value.first.return_value = MagicMock()
+        mock_gerar.return_value = BytesIO(b"%PDF" + b"x" * 200)
+        nova = (
+            "https://media.lwksistemas.com.br/files/37302743000126/"
+            "marcia-bataglia_id1825/pdf/prescricao_289104931.pdf"
+        )
+        mock_arquivar.return_value = nova
+
+        resp = self._view().post(MagicMock(), pk=7)
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["pdf_url"], nova)
+        self.assertNotIn("/docs/", resp.data["pdf_url"])
+        presc.save.assert_called_once()
 
 
 class FotoDeleteBloqueioTest(SimpleTestCase):

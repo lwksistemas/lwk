@@ -22,6 +22,15 @@ export const CLINICA_FORMA_PAGAMENTO_A_VISTA = [
   'DESPESA',
 ] as const;
 
+/** Formas que o financeiro pode corrigir num recebimento já pago. */
+export const CLINICA_FORMA_PAGAMENTO_CORRIGIVEL = [
+  'CASH',
+  'CREDIT_CARD',
+  'DEBIT_CARD',
+  'PIX',
+  'TRANSFER',
+] as const;
+
 export const CLINICA_PAGAMENTO_STATUS_LABEL: Record<string, string> = {
   PENDING: 'Pendente',
   DRAFT: 'Rascunho (consulta)',

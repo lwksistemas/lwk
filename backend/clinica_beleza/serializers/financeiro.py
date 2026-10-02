@@ -169,6 +169,6 @@ class PaymentSerializer(serializers.ModelSerializer):
     def get_fields(self):
         fields = super().get_fields()
         if self.instance is not None:
-            for name in ("appointment", "amount", "valor_total", "desconto"):
+            for name in ("appointment", "amount", "valor_total", "desconto", "payment_method"):
                 fields[name].read_only = True
         return fields

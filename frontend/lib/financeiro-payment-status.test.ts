@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  podeCorrigirFormaPagamento,
   rotuloDataLancamentoReceita,
   rotuloFormaPagamentoReceita,
   rotuloVencimentoPrazo,
@@ -85,5 +86,19 @@ describe("statusPagamentoReceita", () => {
   it("respeita PARTIAL e PAID da API", () => {
     expect(statusPagamentoReceita(payment({ status: "PARTIAL", saldo_devedor: 300 }))).toBe("PARTIAL");
     expect(statusPagamentoReceita(payment({ status: "PAID", saldo_devedor: 0 }))).toBe("PAID");
+  });
+});
+
+describe("podeCorrigirFormaPagamento", () => {
+  it("libera pago e parcial com valor recebido", () => {
+    expect(podeCorrigirFormaPagamento(payment({ status: "PAID", amount: "200", saldo_devedor: 0, payment_method: "CASH" }))).toBe(true);
+    expect(podeCorrigirFormaPagamento(payment({ status: "PARTIAL", amount: "100", saldo_devedor: 50, payment_method: "PIX" }))).toBe(true);
+  });
+
+  it("esconde pendente, desconto integral e despesa da clínica", () => {
+    expect(podeCorrigirFormaPagamento(payment({ status: "PENDING", amount: "0", payment_method: "CASH" }))).toBe(false);
+    expect(podeCorrigirFormaPagamento(payment({ status: "PAID", amount: "0", saldo_devedor: 0, payment_method: "CASH" }))).toBe(false);
+    expect(podeCorrigirFormaPagamento(payment({ status: "PAID", amount: "150", saldo_devedor: 0, payment_method: "DESPESA" }))).toBe(false);
+    expect(podeCorrigirFormaPagamento(payment({ status: "PAID", amount: "0", retorno_gratuito: true }))).toBe(false);
   });
 });

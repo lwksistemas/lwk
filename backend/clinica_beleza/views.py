@@ -37,6 +37,7 @@ from .views_financeiro import (  # noqa: F401
     PaymentCobrarWhatsAppView,
     PaymentDetailView,
     PaymentEnviarReciboView,
+    PaymentFormaView,
     PaymentReciboHtmlView,
     PaymentListView,
     PaymentParcelaDetailView,

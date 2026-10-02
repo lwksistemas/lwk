@@ -7,6 +7,7 @@ from .._deps import logger
 from ._common import (
     _METODOS_VALIDOS,
     _calcular_valor_total_com_desconto,
+    _desconto_gravado,
     _finalizar_payment_draft,
     _garantir_ou_criar_payment,
     _liquido_com_desconto_gravado,
@@ -386,8 +387,12 @@ def publicar_pagamento_financeiro(consulta, *, usuario=None):
     valor_salvo = payment.valor_total_efetivo
     if isinstance(valor_salvo, (int, float, str)):
         valor_salvo = Decimal(str(valor_salvo or 0))
-    if valor_atual > 0 and valor_salvo <= 0:
-        payment.valor_total = valor_atual
+    desconto_gravado = _desconto_gravado(payment)
+    # Total zerado só volta se ainda houver valor depois do desconto já lançado.
+    # Desconto integral (taxa coberta) não pode recolocar a taxa como pendente.
+    liquido = max(valor_atual - desconto_gravado, Decimal(0))
+    if valor_atual > 0 and valor_salvo <= 0 and liquido > valor_salvo:
+        payment.valor_total = liquido
         payment.save(update_fields=["valor_total", "updated_at"])
 
     if payment.status not in ("DRAFT", "PENDING", "PARTIAL"):
@@ -405,16 +410,43 @@ def publicar_pagamento_financeiro(consulta, *, usuario=None):
     ts = now()
 
     if total_pago <= 0 and payment.status == "PENDING":
-        # Conta pendente sem recebimento — permanece PENDING no financeiro.
-        # O vencimento (se a prazo) já foi carimbado no lançamento, não aqui.
+        # Desconto que já cobre o total não pode ficar pendente (finalização antiga
+        # recolocava a taxa e deixava o desconto gravado).
+        cobre_total = (
+            desconto_gravado > Decimal("0.01")
+            and desconto_gravado + Decimal("0.01") >= max(valor_atual, valor_total)
+        )
+        if not cobre_total:
+            return payment
+        payment.status = "PAID"
+        payment.amount = Decimal(0)
+        payment.valor_total = Decimal(0)
+        payment.payment_date = payment.payment_date or getattr(consulta, "data_fim", None) or ts
+        payment.save(update_fields=["status", "amount", "valor_total", "payment_date", "updated_at"])
+        if payment.data_vencimento:
+            payment.data_vencimento = None
+            payment.save(update_fields=["data_vencimento", "updated_at"])
+        _log_movimento_financeiro("Pagamento publicado", consulta, payment, usuario)
         return payment
 
-    # R$ 0 sem parcela paga: não vira PAID (caso típico de retorno só com taxa isenta).
-    if valor_total <= 0 and total_pago <= 0:
-        payment.status = "PENDING"
-        payment.amount = Decimal(0)
-        payment.payment_date = None
-        payment.save(update_fields=["status", "amount", "payment_date", "updated_at"])
+    # R$ 0 sem parcela paga: retorno (sem desconto) fica pendente.
+    # Desconto que cobre o atendimento quita, sem recolocar a taxa.
+    if valor_total <= Decimal("0.01") and total_pago <= Decimal("0.01"):
+        if desconto_gravado > Decimal("0.01"):
+            payment.status = "PAID"
+            payment.amount = Decimal(0)
+            payment.valor_total = Decimal(0)
+            payment.payment_date = payment.payment_date or getattr(consulta, "data_fim", None) or ts
+        else:
+            payment.status = "PENDING"
+            payment.amount = Decimal(0)
+            payment.payment_date = None
+        payment.save(update_fields=["status", "amount", "valor_total", "payment_date", "updated_at"])
+        if payment.status == "PAID" and payment.data_vencimento:
+            payment.data_vencimento = None
+            payment.save(update_fields=["data_vencimento", "updated_at"])
+        if payment.status == "PAID":
+            _log_movimento_financeiro("Pagamento publicado", consulta, payment, usuario)
         return payment
 
     if total_pago >= valor_total - Decimal("0.01"):

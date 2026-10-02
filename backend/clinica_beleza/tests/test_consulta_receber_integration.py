@@ -335,6 +335,35 @@ class ConsultaReceberIntegrationTests(ClinicaBelezaIntegrationTestCase):
         linha = AppointmentProcedure.objects.get(appointment=consulta.appointment)
         self.assertEqual(linha.valor, Decimal("150.00"))
 
+    def test_desconto_integral_quita_ao_finalizar(self):
+        """Desconto da taxa inteira não volta como pendente na finalização."""
+        from clinica_beleza.consulta_service import finalizar_consulta
+
+        consulta = self._criar_consulta_receber(valor=Decimal("150.00"))
+        consulta.status = "IN_PROGRESS"
+        consulta.data_inicio = timezone.now()
+        consulta.save(update_fields=["status", "data_inicio", "updated_at"])
+
+        registrar_recebimento_consulta(
+            consulta,
+            desconto=Decimal("150"),
+            entradas=[],
+            mark_as_paid=True,
+        )
+        payment = Payment.objects.get(appointment=consulta.appointment)
+        self.assertEqual(payment.status, "DRAFT")
+        self.assertEqual(payment.valor_total, Decimal("0"))
+        self.assertEqual(payment.desconto, Decimal("150"))
+
+        finalizar_consulta(consulta, skip_estoque=True)
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, "PAID")
+        self.assertEqual(payment.valor_total, Decimal("0"))
+        self.assertEqual(payment.amount, Decimal("0"))
+        self.assertEqual(payment.desconto, Decimal("150"))
+        self.assertIsNotNone(payment.payment_date)
+        self.assertEqual(payment.saldo_devedor, Decimal("0"))
+
     def test_retorno_com_procedimento_finaliza_pendente_no_financeiro(self):
         """Retorno isenta só a taxa; procedimento cobrado entra PENDING (não PAID R$0)."""
         from clinica_beleza.consulta_service import finalizar_consulta

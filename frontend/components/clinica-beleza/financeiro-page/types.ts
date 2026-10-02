@@ -29,6 +29,7 @@ export interface FinanceiroPayment {
   comissao_valor: string;
   desconto?: string | number;
   paciente_nome: string;
+  paciente_tem_prazo?: boolean;
   profissional_nome: string;
   procedimento_nome: string;
   data_atendimento: string;

@@ -44,12 +44,14 @@ export function saldoReceberConsulta(c: Consulta): number {
       const saldo = Math.max(0, api);
       // Retorno zera só a taxa. Se o pagamento ficou em R$ 0 e o procedimento tem valor, ainda há o que receber.
       const listado = valorListadoConsulta(c);
+      const desconto = Number(c.desconto ?? 0);
       if (
         Boolean(c.retorno_gratuito)
         && listado > 0.009
         && pago <= 0.009
         && saldo <= 0.009
         && c.payment_status !== "PAID"
+        && !(desconto > 0.009)
       ) {
         return listado;
       }

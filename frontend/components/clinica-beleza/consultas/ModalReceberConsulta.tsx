@@ -140,7 +140,8 @@ export function ModalReceberConsulta({
   const consultaExibida = consultaAtualizada || consulta;
   const saldoProp = saldoReceberConsulta(consulta);
   const saldoAtualizada = consultaAtualizada ? saldoReceberConsulta(consultaAtualizada) : 0;
-  const saldoAposRecebimento = Math.max(saldoProp, saldoAtualizada);
+  // Depois de confirmar, o saldo é o da resposta. O anterior ainda não tem o desconto.
+  const saldoAposRecebimento = confirmado && consultaAtualizada ? saldoAtualizada : saldoProp;
   // "A prazo" = método PRAZO e nada pago ainda. Não é "parcial".
   const ehAPrazo =
     consultaExibida.payment_method === "PRAZO" && Number(consultaExibida.valor_pago ?? 0) <= 0;

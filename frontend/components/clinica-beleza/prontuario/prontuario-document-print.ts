@@ -1,7 +1,8 @@
 import type { ProntuarioDocItem } from "@/lib/clinica-beleza-api";
 import { logger } from "@/lib/logger";
-import { abrirPdfBlobFromResponse, imprimirDocumentoPdf } from "@/lib/consulta-print";
+import { imprimirDocumentoPdf } from "@/lib/consulta-print";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { downloadBlobFile } from "@/lib/download-blob";
 
 export async function printMemedProntuarioDocument(
   doc: ProntuarioDocItem,
@@ -32,8 +33,37 @@ export async function printProntuarioDocument(
   }
 }
 
-/** PDF autenticado do prontuário (seção ou completo). */
-export async function imprimirProntuarioPdf(patientId: number, secao?: string): Promise<void> {
+function nomeArquivoProntuario(nomeCliente?: string, secao?: string): string {
+  const slug = (nomeCliente || "cliente")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, 60)
+    .toUpperCase() || "CLIENTE";
+  return secao ? `Prontuario_${secao}_${slug}.pdf` : `Prontuario_${slug}.pdf`;
+}
+
+function nomeDoHeader(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const star = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(header);
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1].trim().replace(/^"(.*)"$/, "$1"));
+    } catch {
+      /* fallback */
+    }
+  }
+  const quoted = /filename="([^"]+)"/i.exec(header);
+  return quoted?.[1] || fallback;
+}
+
+/** PDF autenticado do prontuário (seção ou completo), baixado com o nome da cliente. */
+export async function imprimirProntuarioPdf(
+  patientId: number,
+  secao?: string,
+  nomeCliente?: string,
+): Promise<void> {
   const query = secao ? `?secao=${encodeURIComponent(secao)}` : "";
   const response = await clinicaBelezaFetch(`/patients/${patientId}/prontuario/pdf/${query}`);
   if (!response.ok) {
@@ -50,5 +80,13 @@ export async function imprimirProntuarioPdf(patientId: number, secao?: string): 
     logger.warn("Erro ao gerar PDF do prontuário:", response.status, detail);
     throw new Error(detail);
   }
-  await abrirPdfBlobFromResponse(response);
+  const blob = await response.blob();
+  if (blob.size < 100) {
+    throw new Error("PDF vazio ou inválido.");
+  }
+  const nome = nomeDoHeader(
+    response.headers.get("Content-Disposition"),
+    nomeArquivoProntuario(nomeCliente, secao),
+  );
+  downloadBlobFile(blob, nome);
 }

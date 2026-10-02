@@ -104,7 +104,7 @@ export function useProntuarioPage() {
     if (isProntuarioLocalTab(activeTab) || printando) return;
     setPrintando("secao");
     try {
-      await imprimirProntuarioPdf(patientId, activeTab);
+      await imprimirProntuarioPdf(patientId, activeTab, patientName);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao gerar PDF da seção.");
     } finally {
@@ -116,7 +116,7 @@ export function useProntuarioPage() {
     if (printando) return;
     setPrintando("completo");
     try {
-      await imprimirProntuarioPdf(patientId);
+      await imprimirProntuarioPdf(patientId, undefined, patientName);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao gerar PDF do prontuário.");
     } finally {

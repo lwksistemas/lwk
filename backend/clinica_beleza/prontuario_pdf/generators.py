@@ -29,6 +29,31 @@ from .elements import (
 from .header import _build_header_elements, _resolver_cabecalho, get_top_margin
 from .styles import _get_styles
 
+_ROTULOS_ARQUIVO_SECAO = {
+    "evolucao": "Evolucao",
+    "anamnese": "Anamnese",
+    "receituario": "Receituario",
+    "pedido_exame": "Pedido_de_exame",
+    "atestado": "Atestado",
+    "documento_personalizado": "Atendimento",
+}
+
+
+def nome_arquivo_pdf_prontuario(nome_paciente: str, secao: str | None = None) -> str:
+    """Prontuario_Evolucao_BIANCA_ORNELLAS_DE_ALMEIDA.pdf."""
+    from django.utils.text import slugify
+
+    slug = (slugify(nome_paciente or "") or "cliente").replace("-", "_")[:60].strip("_") or "cliente"
+    nome = slug.upper()
+    secao_key = (secao or "").strip().lower()
+    if secao_key:
+        rotulo = _ROTULOS_ARQUIVO_SECAO.get(secao_key) or (
+            (slugify(secao_key) or "secao").replace("-", "_").title()
+        )
+        return f"Prontuario_{rotulo}_{nome}.pdf"
+    return f"Prontuario_{nome}.pdf"
+
+
 SECOES_CONSULTA_PDF = {
     "atendimento": "Atendimento",
     "produtos": "Produtos utilizados",

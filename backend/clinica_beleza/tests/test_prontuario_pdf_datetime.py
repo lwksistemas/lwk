@@ -9,6 +9,7 @@ from clinica_beleza.prontuario_pdf.elements import (
     _linhas_identificacao_paciente,
     _rotulo_profissional,
 )
+from clinica_beleza.prontuario_pdf.generators import nome_arquivo_pdf_prontuario
 
 
 @override_settings(TIME_ZONE="America/Sao_Paulo", USE_TZ=True)
@@ -50,9 +51,9 @@ class RotuloProfissionalProntuarioTest(SimpleTestCase):
     def test_paciente_so_imprime_o_que_esta_cadastrado(self):
         from datetime import date
 
-        patient = SimpleNamespace(cpf="", data_nascimento=None, telefone="11999990000")
+        patient = SimpleNamespace(cpf="", data_nascimento=None, telefone="5516997056366")
         linhas = _linhas_identificacao_paciente(patient)
-        self.assertEqual(linhas, ["<b>Telefone:</b> 11999990000"])
+        self.assertEqual(linhas, ["<b>Telefone:</b> (16) 99705-6366"])
 
         completo = SimpleNamespace(
             cpf="12345678901",
@@ -68,3 +69,13 @@ class RotuloProfissionalProntuarioTest(SimpleTestCase):
         self.assertIn("02/05/1990", texto)
         self.assertIn("Feminino", texto)
         self.assertIn("Rua das Flores, 10 — Campinas/SP", texto)
+
+    def test_nome_do_arquivo_leva_o_cliente(self):
+        self.assertEqual(
+            nome_arquivo_pdf_prontuario("BIANCA ORNELLAS DE ALMEIDA", "evolucao"),
+            "Prontuario_Evolucao_BIANCA_ORNELLAS_DE_ALMEIDA.pdf",
+        )
+        self.assertEqual(
+            nome_arquivo_pdf_prontuario("AMANDA TENELLO"),
+            "Prontuario_AMANDA_TENELLO.pdf",
+        )

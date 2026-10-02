@@ -67,10 +67,10 @@ export function ProntuarioTabBar({
         onClick={onPrintSecao}
         disabled={!!printando}
         className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
-        title="Imprimir todos os documentos desta seção"
+        title="Baixa o PDF desta seção com o nome da cliente"
       >
         <Printer size={16} />
-        <span className="hidden md:inline">{printando === "secao" ? "Gerando…" : "Imprimir Seção"}</span>
+        <span className="hidden md:inline">{printando === "secao" ? "Gerando…" : "Baixar seção"}</span>
       </button>
       )}
 
@@ -98,10 +98,10 @@ export function ProntuarioTabBar({
           disabled={!!printando}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
           style={{ backgroundColor: 'var(--cb-primary, #8B3D52)' }}
-          title="Imprimir prontuário completo do paciente"
+          title="Baixa o prontuário completo com o nome da cliente"
         >
           <Printer size={16} />
-          <span className="hidden md:inline">{printando === "completo" ? "Gerando…" : "Imprimir Completo"}</span>
+          <span className="hidden md:inline">{printando === "completo" ? "Gerando…" : "Baixar completo"}</span>
         </button>
         <ContagemConsulta label="Consulta atual" value={consultaAtualCount} />
         <ContagemConsulta label="Finalizadas" value={finalizadasCount} />

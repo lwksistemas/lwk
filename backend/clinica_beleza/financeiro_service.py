@@ -479,7 +479,11 @@ def erro_excluir_payment(payment) -> str | None:
 
 
 def corrigir_forma_pagamento_recebido(payment, nova_forma, *, parcela_id=None, usuario=None):
-    """Troca a forma de um recebimento já pago. Valor, data e status ficam."""
+    """Troca a forma de um recebimento já pago.
+
+    Entre dinheiro, PIX e cartão, valor e status ficam.
+    A prazo desfaz o recebimento e grava o vencimento do paciente.
+    """
     from .estoque_service import tenant_atomic
     from .forma_pagamento_correcao import plano_correcao_forma_pagamento
     from .models.financeiro import status_pagamento_exibido
@@ -510,6 +514,10 @@ def corrigir_forma_pagamento_recebido(payment, nova_forma, *, parcela_id=None, u
         if not plano["alterado"]:
             return bloqueado
         forma_anterior = bloqueado.payment_method
+        if plano.get("virar_prazo"):
+            _aplicar_correcao_para_prazo(bloqueado, pagas, plano["parcelas_cancelar"])
+            _log_correcao_forma(bloqueado, forma_anterior, usuario)
+            return bloqueado
         por_id = {parcela.id: parcela for parcela in pagas}
         for parcela_pk, metodo in plano["parcelas"].items():
             parcela = por_id[parcela_pk]
@@ -518,17 +526,78 @@ def corrigir_forma_pagamento_recebido(payment, nova_forma, *, parcela_id=None, u
         if bloqueado.payment_method != plano["payment_method"]:
             bloqueado.payment_method = plano["payment_method"]
             bloqueado.save(update_fields=["payment_method", "updated_at"])
-        usuario_id = None
-        if usuario is not None and getattr(usuario, "is_authenticated", False):
-            usuario_id = getattr(usuario, "pk", None)
-        logger.info(
-            "Forma de pagamento corrigida payment=%s de=%s para=%s usuario_id=%s",
-            bloqueado.pk,
-            forma_anterior,
-            bloqueado.payment_method,
-            usuario_id,
-        )
+        _log_correcao_forma(bloqueado, forma_anterior, usuario)
         return bloqueado
+
+
+def _log_correcao_forma(payment, forma_anterior, usuario):
+    usuario_id = None
+    if usuario is not None and getattr(usuario, "is_authenticated", False):
+        usuario_id = getattr(usuario, "pk", None)
+    logger.info(
+        "Forma de pagamento corrigida payment=%s de=%s para=%s status=%s usuario_id=%s",
+        payment.pk,
+        forma_anterior,
+        payment.payment_method,
+        payment.status,
+        usuario_id,
+    )
+
+
+def _data_base_correcao_prazo(payment):
+    """Data em que o recebimento foi lançado, para calcular o vencimento."""
+    from datetime import datetime
+
+    from django.utils.timezone import localtime
+
+    bruto = payment.payment_date or getattr(getattr(payment, "appointment", None), "date", None)
+    if isinstance(bruto, datetime):
+        return localtime(bruto).date() if bruto.tzinfo else bruto.date()
+    if isinstance(bruto, date):
+        return bruto
+    return now().date()
+
+
+def _aplicar_correcao_para_prazo(payment, pagas, parcelas_cancelar):
+    """Desfaz o recebimento errado e deixa a conta a prazo, com vencimento."""
+    from .prazo_service import MSG_PRAZO_NAO_CONFIGURADO, PrazoNaoConfiguradoError, calcular_vencimento
+
+    patient = getattr(getattr(payment, "appointment", None), "patient", None)
+    if patient is None:
+        raise ValueError(MSG_PRAZO_NAO_CONFIGURADO)
+    try:
+        vencimento = calcular_vencimento(patient, _data_base_correcao_prazo(payment))
+    except PrazoNaoConfiguradoError as exc:
+        raise ValueError(str(exc)) from exc
+
+    cancelar = set(parcelas_cancelar)
+    for parcela in pagas:
+        if parcela.id in cancelar and parcela.status == "PAID":
+            parcela.status = "CANCELLED"
+            parcela.save(update_fields=["status"])
+
+    total = payment.valor_total
+    if total is None or total <= Decimal("0.01"):
+        total = payment.amount or Decimal(0)
+    payment.valor_total = total
+    payment.payment_method = "PRAZO"
+    payment.status = "PENDING"
+    payment.amount = Decimal(0)
+    payment.payment_date = None
+    payment.data_vencimento = vencimento
+    notes = (payment.notes or "").strip()
+    if "A prazo" not in notes:
+        payment.notes = f"{notes} | A prazo — cliente paga depois".strip(" |")
+    payment.save(update_fields=[
+        "valor_total",
+        "payment_method",
+        "status",
+        "amount",
+        "payment_date",
+        "data_vencimento",
+        "notes",
+        "updated_at",
+    ])
 
 
 def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -> dict:

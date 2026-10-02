@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import {
   CLINICA_FORMA_PAGAMENTO_CORRIGIVEL,
+  CLINICA_FORMA_PAGAMENTO_CORRIGIVEL_ATENDIMENTO,
   CLINICA_FORMA_PAGAMENTO_LABEL,
 } from "@/lib/clinica-beleza-constants";
 import { formatCurrency, formatDate } from "@/lib/financeiro-helpers";
@@ -30,11 +31,13 @@ export function ModalCorrigirForma({ payment, onClose, onSuccess }: ModalCorrigi
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [prazoInteiro, setPrazoInteiro] = useState(false);
 
   useEffect(() => {
     if (!payment) return;
     let ativo = true;
     setError("");
+    setPrazoInteiro(false);
     setLoading(true);
     setFormas({ pagamento: payment.payment_method });
     setParcelas([]);
@@ -66,15 +69,20 @@ export function ModalCorrigirForma({ payment, onClose, onSuccess }: ModalCorrigi
 
   const varias = new Set(parcelas.map((p) => p.payment_method)).size > 1;
   const formaAtual = CLINICA_FORMA_PAGAMENTO_LABEL[payment.payment_method] || payment.payment_method;
-  const mudou = varias
+  const virouPrazo = prazoInteiro || (!varias && (formas.pagamento || payment.payment_method) === "PRAZO");
+  const mudou = virouPrazo || (varias
     ? parcelas.some((p) => formas[String(p.id)] && formas[String(p.id)] !== p.payment_method)
-    : (formas.pagamento || payment.payment_method) !== payment.payment_method;
+    : (formas.pagamento || payment.payment_method) !== payment.payment_method);
 
   const salvar = async () => {
     setSaving(true);
     setError("");
     try {
-      if (varias) {
+      if (virouPrazo) {
+        await ClinicaBelezaAPI.financeiro.payments.corrigirForma(payment.id, {
+          payment_method: "PRAZO",
+        });
+      } else if (varias) {
         for (const parcela of parcelas) {
           const nova = formas[String(parcela.id)];
           if (!nova || nova === parcela.payment_method) continue;
@@ -122,17 +130,30 @@ export function ModalCorrigirForma({ payment, onClose, onSuccess }: ModalCorrigi
             <p><strong>Recebido:</strong> {formatCurrency(payment.amount)}</p>
             <p><strong>Forma lançada:</strong> {formaAtual}</p>
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            O valor recebido continua o mesmo. O recibo passa a mostrar a forma correta.
+          <p className={`text-sm ${virouPrazo ? "text-amber-800 dark:text-amber-200" : "text-gray-600 dark:text-gray-300"}`}>
+            {virouPrazo
+              ? "O valor deixa de contar como recebido e volta para A receber, com o vencimento do paciente."
+              : "O valor recebido continua o mesmo. O recibo passa a mostrar a forma correta."}
           </p>
           {loading ? (
             <p className="text-sm text-gray-500">Carregando...</p>
           ) : varias ? (
             <div className="space-y-3">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={prazoInteiro}
+                  onChange={(e) => setPrazoInteiro(e.target.checked)}
+                />
+                <span>O atendimento inteiro ficou a prazo</span>
+              </label>
+              {!prazoInteiro && (
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 Este recebimento teve mais de uma forma. Corrija a que ficou errada.
               </p>
-              {parcelas.map((parcela) => (
+              )}
+              {!prazoInteiro && parcelas.map((parcela) => (
                 <label key={parcela.id} className="block text-sm">
                   <span className="font-medium">
                     {formatCurrency(Number(parcela.valor))} · {formatDate(parcela.payment_date)}
@@ -159,7 +180,7 @@ export function ModalCorrigirForma({ payment, onClose, onSuccess }: ModalCorrigi
                 onChange={(e) => setFormas({ pagamento: e.target.value })}
                 className="mt-1 w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
               >
-                {CLINICA_FORMA_PAGAMENTO_CORRIGIVEL.map((codigo) => (
+                {CLINICA_FORMA_PAGAMENTO_CORRIGIVEL_ATENDIMENTO.map((codigo) => (
                   <option key={codigo} value={codigo}>
                     {CLINICA_FORMA_PAGAMENTO_LABEL[codigo]}
                   </option>

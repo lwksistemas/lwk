@@ -31,6 +31,12 @@ export const CLINICA_FORMA_PAGAMENTO_CORRIGIVEL = [
   'TRANSFER',
 ] as const;
 
+/** O atendimento inteiro pode ter sido lançado a prazo por engano. */
+export const CLINICA_FORMA_PAGAMENTO_CORRIGIVEL_ATENDIMENTO = [
+  ...CLINICA_FORMA_PAGAMENTO_CORRIGIVEL,
+  'PRAZO',
+] as const;
+
 export const CLINICA_PAGAMENTO_STATUS_LABEL: Record<string, string> = {
   PENDING: 'Pendente',
   DRAFT: 'Rascunho (consulta)',

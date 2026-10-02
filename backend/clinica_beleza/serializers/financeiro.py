@@ -105,6 +105,11 @@ class PaymentSerializer(serializers.ModelSerializer):
     dias_atraso = serializers.SerializerMethodField()
     retorno_gratuito = serializers.SerializerMethodField()
     consulta_id = serializers.SerializerMethodField()
+    paciente_tem_prazo = serializers.SerializerMethodField()
+
+    def get_paciente_tem_prazo(self, obj):
+        patient = getattr(getattr(obj, "appointment", None), "patient", None)
+        return bool(getattr(patient, "tem_prazo_pagamento", False))
 
     def get_consulta_id(self, obj):
         consulta = getattr(getattr(obj, "appointment", None), "consulta", None)

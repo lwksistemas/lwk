@@ -68,8 +68,12 @@ export function ModalCorrigirForma({ payment, onClose, onSuccess }: ModalCorrigi
   if (!payment) return null;
 
   const varias = new Set(parcelas.map((p) => p.payment_method)).size > 1;
+  const podePrazo = payment.paciente_tem_prazo === true;
+  const formasDoAtendimento = podePrazo
+    ? CLINICA_FORMA_PAGAMENTO_CORRIGIVEL_ATENDIMENTO
+    : CLINICA_FORMA_PAGAMENTO_CORRIGIVEL;
   const formaAtual = CLINICA_FORMA_PAGAMENTO_LABEL[payment.payment_method] || payment.payment_method;
-  const virouPrazo = prazoInteiro || (!varias && (formas.pagamento || payment.payment_method) === "PRAZO");
+  const virouPrazo = podePrazo && (prazoInteiro || (!varias && (formas.pagamento || payment.payment_method) === "PRAZO"));
   const mudou = virouPrazo || (varias
     ? parcelas.some((p) => formas[String(p.id)] && formas[String(p.id)] !== p.payment_method)
     : (formas.pagamento || payment.payment_method) !== payment.payment_method);
@@ -139,6 +143,7 @@ export function ModalCorrigirForma({ payment, onClose, onSuccess }: ModalCorrigi
             <p className="text-sm text-gray-500">Carregando...</p>
           ) : varias ? (
             <div className="space-y-3">
+              {podePrazo && (
               <label className="flex items-start gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -148,6 +153,7 @@ export function ModalCorrigirForma({ payment, onClose, onSuccess }: ModalCorrigi
                 />
                 <span>O atendimento inteiro ficou a prazo</span>
               </label>
+              )}
               {!prazoInteiro && (
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 Este recebimento teve mais de uma forma. Corrija a que ficou errada.
@@ -180,7 +186,7 @@ export function ModalCorrigirForma({ payment, onClose, onSuccess }: ModalCorrigi
                 onChange={(e) => setFormas({ pagamento: e.target.value })}
                 className="mt-1 w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600"
               >
-                {CLINICA_FORMA_PAGAMENTO_CORRIGIVEL_ATENDIMENTO.map((codigo) => (
+                {formasDoAtendimento.map((codigo) => (
                   <option key={codigo} value={codigo}>
                     {CLINICA_FORMA_PAGAMENTO_LABEL[codigo]}
                   </option>

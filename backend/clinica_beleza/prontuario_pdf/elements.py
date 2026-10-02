@@ -384,7 +384,7 @@ def _linha_assinatura_profissional() -> str:
 
 
 def _linhas_identificacao_paciente(patient) -> list[str]:
-    """CPF, nascimento e telefone quando existem. O nome vai no título."""
+    """CPF, nascimento, sexo, telefone e endereço quando existem. O nome vai no título."""
     if patient is None:
         return []
     linhas = []
@@ -394,10 +394,31 @@ def _linhas_identificacao_paciente(patient) -> list[str]:
     nasc = getattr(patient, "data_nascimento", None)
     if nasc:
         linhas.append(f"<b>Nascimento:</b> {nasc.strftime('%d/%m/%Y')}")
+    sexo = (getattr(patient, "sexo", "") or "").strip().upper()
+    if sexo == "F":
+        linhas.append("<b>Sexo:</b> Feminino")
+    elif sexo == "M":
+        linhas.append("<b>Sexo:</b> Masculino")
     telefone = (getattr(patient, "telefone", "") or "").strip()
     if telefone:
         linhas.append(f"<b>Telefone:</b> {xml_escape(telefone)}")
+    endereco = _formatar_endereco_paciente(patient)
+    if endereco:
+        linhas.append(f"<b>Endereço:</b> {endereco}")
     return linhas
+
+
+def _formatar_endereco_paciente(patient) -> str:
+    logradouro = (getattr(patient, "endereco", "") or "").strip()
+    cidade = (getattr(patient, "cidade", "") or "").strip()
+    estado = (getattr(patient, "estado", "") or "").strip()
+    local = ""
+    if cidade and estado:
+        local = f"{cidade}/{estado}"
+    else:
+        local = cidade or estado
+    texto = " — ".join(parte for parte in (logradouro, local) if parte)
+    return xml_escape(texto)
 
 
 def _build_identificacao_paciente(patient, styles) -> list:

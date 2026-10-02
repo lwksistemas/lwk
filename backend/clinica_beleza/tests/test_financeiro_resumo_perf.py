@@ -81,3 +81,37 @@ class TestErroExcluirPayment(SimpleTestCase):
         parcelas.filter.return_value.exists.return_value = False
         payment = SimpleNamespace(status="PENDING", parcelas=parcelas)
         self.assertIsNone(erro_excluir_payment(payment))
+
+
+class TestResumoSeparaPrazo(SimpleTestCase):
+    def test_a_receber_do_mes_nao_repete_o_prazo(self):
+        from datetime import date
+
+        from clinica_beleza.financeiro_service import montar_resumo_financeiro
+
+        qs = MagicMock()
+        qs.exclude.return_value = qs
+        qs.filter.return_value = qs
+        qs.aggregate.return_value = {"total": 0}
+
+        def somar(first, last, payment_method=None, excluir_metodo=None):
+            if payment_method == "PRAZO":
+                return 300.0
+            if excluir_metodo == "PRAZO":
+                return 300.0
+            return 600.0
+
+        with (
+            patch("clinica_beleza.financeiro_service.somar_a_receber_periodo", side_effect=somar),
+            patch("clinica_beleza.financeiro_service.somar_desconto_periodo", return_value=0),
+            patch("clinica_beleza.financeiro_service.somar_contas_a_receber", return_value=0),
+            patch("clinica_beleza.financeiro_service.payments_visiveis_financeiro", return_value=qs),
+            patch("clinica_beleza.financeiro_service.Payment") as payment,
+            patch("clinica_beleza.financeiro_service.Despesa") as despesa,
+        ):
+            payment.objects.filter.return_value = qs
+            despesa.objects.filter.return_value = qs
+            resumo = montar_resumo_financeiro(ano=2026, mes=10, today=date(2026, 10, 2))
+
+        self.assertEqual(resumo["a_receber"], 300.0)
+        self.assertEqual(resumo["a_prazo"], 300.0)

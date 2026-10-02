@@ -113,7 +113,13 @@ def listar_a_receber_periodo(first_day: date, last_day: date) -> tuple[float, li
     return float(total), itens
 
 
-def somar_a_receber_periodo(first_day: date, last_day: date, *, payment_method: str | None = None) -> float:
+def somar_a_receber_periodo(
+    first_day: date,
+    last_day: date,
+    *,
+    payment_method: str | None = None,
+    excluir_metodo: str | None = None,
+) -> float:
     """Soma o saldo em aberto dos atendimentos do mês. Com método, só essa forma."""
     base = payments_visiveis_financeiro().filter(
         status__in=("PENDING", "PARTIAL"),
@@ -122,6 +128,8 @@ def somar_a_receber_periodo(first_day: date, last_day: date, *, payment_method: 
     )
     if payment_method:
         base = base.filter(payment_method=payment_method)
+    if excluir_metodo:
+        base = base.exclude(payment_method=excluir_metodo)
     agregado = _anotar_saldo_em_aberto(base).aggregate(t=Sum("_saldo"))
     return float(agregado["t"] or 0)
 
@@ -624,7 +632,7 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
     )).exclude(payment_method=METODO_DESPESA)
     faturamento = _sum(pagos_caixa) + _sum(parciais_mes)
     contas_a_receber = somar_contas_a_receber()
-    a_receber_mes = somar_a_receber_periodo(first_day, last_day)
+    a_receber_mes = somar_a_receber_periodo(first_day, last_day, excluir_metodo="PRAZO")
     a_prazo_mes = somar_a_receber_periodo(first_day, last_day, payment_method="PRAZO")
     desconto_mes = somar_desconto_periodo(first_day, last_day)
     comissao_mes = float(pagos_caixa.aggregate(total=Sum("comissao_valor"))["total"] or 0)

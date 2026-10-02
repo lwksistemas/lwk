@@ -200,6 +200,31 @@ describe("consultaPagamentoUi", () => {
     });
   });
 
+  it("desconto integral no retorno quita e não reabre o procedimento", () => {
+    expect(
+      consultaPagamentoUi(
+        consulta({
+          status: "COMPLETED",
+          retorno_gratuito: true,
+          payment_status: "PAID",
+          valor_pagamento: 290,
+          valor_consulta: 0,
+          valor_pago: 0,
+          valor_restante: 0,
+          desconto: 290,
+        }),
+      ),
+    ).toEqual({
+      mostrarReceber: false,
+      mostrarPago: true,
+      mostrarParcial: false,
+      mostrarRecibo: false,
+      mostrarPrazo: false,
+      mostrarIsento: false,
+      consultaFinalizada: true,
+    });
+  });
+
   it("procedimento pago continua pago mesmo com a taxa de retorno", () => {
     expect(
       consultaPagamentoUi(

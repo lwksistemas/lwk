@@ -202,6 +202,8 @@ class PrescricaoMemedPdfView(APIView):
     def post(self, request, pk):
         from superadmin.models import Loja
 
+        from core.media_storage import arquivo_midia_disponivel
+
         from ..memed_prescricao_service import (
             nome_arquivo_pdf_prescricao,
             pdf_midia_estavel,
@@ -228,7 +230,11 @@ class PrescricaoMemedPdfView(APIView):
         )
         filename = nome_arquivo_pdf_prescricao(prescricao_id, presc.pk)
         url_atual = (presc.pdf_url or "").strip()
-        if prescricao_id and pdf_midia_estavel(url_atual, filename):
+        if (
+            prescricao_id
+            and pdf_midia_estavel(url_atual, filename)
+            and arquivo_midia_disponivel(url_atual)
+        ):
             return Response({"pdf_url": url_atual})
 
         pdf_url = ""
@@ -253,8 +259,8 @@ class PrescricaoMemedPdfView(APIView):
                         pass
             return Response({"pdf_url": pdf_url})
 
-        if presc.pdf_url:
-            return Response({"pdf_url": presc.pdf_url})
+        if url_atual and arquivo_midia_disponivel(url_atual):
+            return Response({"pdf_url": url_atual})
 
         from ..memed_prescricao_service import arquivar_pdf_bytes_media
         from ..prontuario_pdf import gerar_pdf_prescricao_memed

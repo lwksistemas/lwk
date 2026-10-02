@@ -21,8 +21,10 @@ from .elements import (
     _build_consulta_meta_elements,
     _build_documento_elements,
     _build_evolucao_elements,
+    _build_identificacao_paciente,
     _build_prescricao_memed_elements,
     _build_produtos_consulta_elements,
+    _build_rodape_impressao,
 )
 from .header import _build_header_elements, _resolver_cabecalho, get_top_margin
 from .styles import _get_styles
@@ -125,6 +127,7 @@ def gerar_pdf_consulta_secao(consulta, secao: str) -> BytesIO:
         else:
             elements.append(Paragraph("Nenhuma evolução registrada nesta consulta.", styles["DocBody"]))
 
+    elements.extend(_build_rodape_impressao(styles))
     return _build_pdf(loja_id, elements)
 
 
@@ -171,7 +174,9 @@ def gerar_pdf_secao(patient_id: int, secao: str) -> BytesIO:
         styles["SectionTitle"],
     ))
     elements.append(Paragraph(titulo_secao, styles["DocTitle"]))
-    elements.append(Spacer(1, 4 * mm))
+    elements.append(Spacer(1, 2 * mm))
+    elements.extend(_build_identificacao_paciente(patient, styles))
+    elements.append(Spacer(1, 2 * mm))
 
     # Dados da seção
     prontuario = listar_prontuario_paciente(patient_id, secao=secao)
@@ -206,6 +211,7 @@ def gerar_pdf_secao(patient_id: int, secao: str) -> BytesIO:
     else:
         elements.append(Paragraph("Nenhum documento registrado nesta seção.", styles["DocBody"]))
 
+    elements.extend(_build_rodape_impressao(styles))
     doc.build(elements)
     buffer.seek(0)
     return _finalize_pdf_bytes(loja_id, buffer)
@@ -244,7 +250,9 @@ def gerar_pdf_prontuario_completo(patient_id: int) -> BytesIO:
         f"Prontuário Completo — {patient.nome}",
         styles["SectionTitle"],
     ))
-    elements.append(Spacer(1, 4 * mm))
+    elements.append(Spacer(1, 2 * mm))
+    elements.extend(_build_identificacao_paciente(patient, styles))
+    elements.append(Spacer(1, 2 * mm))
 
     # Obter todos os dados
     prontuario = listar_prontuario_paciente(patient_id)
@@ -298,6 +306,7 @@ def gerar_pdf_prontuario_completo(patient_id: int) -> BytesIO:
 
         elements.append(Spacer(1, 6 * mm))
 
+    elements.extend(_build_rodape_impressao(styles))
     doc.build(elements)
     buffer.seek(0)
     return _finalize_pdf_bytes(loja_id, buffer)

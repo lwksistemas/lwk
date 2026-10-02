@@ -103,18 +103,10 @@ def _build_documento_elements(documento, styles, include_header=True):
     elements.append(Spacer(1, 2 * mm))
 
     if documento.professional:
-        prof = documento.professional
-        nome_prof = prof.nome or ""
-        conselho = prof.conselho or ""
-        registro = getattr(prof, "registro_profissional", "") or ""
-        uf = getattr(prof, "conselho_uf", "") or ""
-
-        prof_line = f"Profissional: {nome_prof}"
-        if conselho and registro:
-            prof_line += f"  |  {conselho}: {registro}"
-            if uf:
-                prof_line += f"/{uf}"
-        elements.append(Paragraph(prof_line, styles["DocFooter"]))
+        rotulo = _rotulo_profissional(documento.professional)
+        if rotulo:
+            elements.append(Paragraph(f"Profissional: {rotulo}", styles["DocFooter"]))
+        elements.append(Paragraph(_linha_assinatura_profissional(), styles["DocFooter"]))
 
     if documento.created_at:
         data_str = _format_datetime_br(documento.created_at)
@@ -142,8 +134,10 @@ def _build_evolucao_elements(evolucao, styles):
     elements.append(Spacer(1, 3 * mm))
 
     if evolucao.professional:
-        prof = evolucao.professional
-        elements.append(Paragraph(f"Profissional: {prof.nome}", styles["DocFooter"]))
+        rotulo = _rotulo_profissional(evolucao.professional)
+        if rotulo:
+            elements.append(Paragraph(f"Profissional: {rotulo}", styles["DocFooter"]))
+        elements.append(Paragraph(_linha_assinatura_profissional(), styles["DocFooter"]))
 
     elements.append(_linha_separadora())
     elements.append(Spacer(1, 3 * mm))
@@ -193,10 +187,13 @@ def _build_consulta_meta_elements(consulta, titulo: str, styles):
 
     linhas = []
     if getattr(consulta, "patient", None):
-        linhas.append(f"<b>Paciente:</b> {consulta.patient.nome}")
+        linhas.append(f"<b>Paciente:</b> {xml_escape(consulta.patient.nome or '')}")
+        linhas.extend(_linhas_identificacao_paciente(consulta.patient))
     prof = getattr(consulta, "professional", None)
     if prof:
-        linhas.append(f"<b>Profissional:</b> {prof.nome}")
+        rotulo = _rotulo_profissional(prof)
+        if rotulo:
+            linhas.append(f"<b>Profissional:</b> {rotulo}")
     proc = getattr(consulta, "procedure", None)
     if proc:
         linhas.append(f"<b>Procedimento:</b> {proc.nome}")
@@ -312,12 +309,10 @@ def _build_prescricao_memed_elements(prescricao, styles):
     elements.append(Spacer(1, 6 * mm))
     prof = getattr(prescricao, "professional", None) if prescricao.professional_id else None
     if prof:
-        prof_nome = xml_escape((getattr(prof, "nome", "") or "").strip())
-        if prof_nome:
-            elements.append(Paragraph(f"<b>Profissional:</b> {prof_nome}", styles["DocMeta"]))
-        registro = _formatar_registro_profissional(prof)
-        if registro:
-            elements.append(Paragraph(registro, styles["DocFooter"]))
+        rotulo = _rotulo_profissional(prof)
+        if rotulo:
+            elements.append(Paragraph(f"<b>Profissional:</b> {rotulo}", styles["DocMeta"]))
+        elements.append(Paragraph(_linha_assinatura_profissional(), styles["DocFooter"]))
 
     elements.append(
         Paragraph(
@@ -367,3 +362,56 @@ def _formatar_registro_profissional(prof) -> str:
     if uf:
         texto = f"{texto} / {uf}" if texto else uf
     return xml_escape(texto)
+
+
+def _rotulo_profissional(prof) -> str:
+    """Nome, especialidade e conselho com número e UF. Sem CPF da profissional."""
+    if prof is None:
+        return ""
+    nome = xml_escape((getattr(prof, "nome", "") or "").strip())
+    especialidade = xml_escape((getattr(prof, "especialidade", "") or "").strip())
+    registro = _formatar_registro_profissional(prof)
+    cabeca = nome
+    if especialidade:
+        cabeca = f"{cabeca} — {especialidade}" if cabeca else especialidade
+    if registro:
+        return f"{cabeca} · {registro}" if cabeca else registro
+    return cabeca
+
+
+def _linha_assinatura_profissional() -> str:
+    return "Assinatura do profissional: ________________________________"
+
+
+def _linhas_identificacao_paciente(patient) -> list[str]:
+    """CPF, nascimento e telefone quando existem. O nome vai no título."""
+    if patient is None:
+        return []
+    linhas = []
+    cpf = _formatar_cpf(getattr(patient, "cpf", "") or "")
+    if cpf:
+        linhas.append(f"<b>CPF:</b> {cpf}")
+    nasc = getattr(patient, "data_nascimento", None)
+    if nasc:
+        linhas.append(f"<b>Nascimento:</b> {nasc.strftime('%d/%m/%Y')}")
+    telefone = (getattr(patient, "telefone", "") or "").strip()
+    if telefone:
+        linhas.append(f"<b>Telefone:</b> {xml_escape(telefone)}")
+    return linhas
+
+
+def _build_identificacao_paciente(patient, styles) -> list:
+    linhas = _linhas_identificacao_paciente(patient)
+    if not linhas:
+        return []
+    elements = [Paragraph(linha, styles["DocBody"]) for linha in linhas]
+    elements.append(Spacer(1, 3 * mm))
+    return elements
+
+
+def _build_rodape_impressao(styles) -> list:
+    agora = _format_datetime_br(timezone.now())
+    return [
+        Spacer(1, 4 * mm),
+        Paragraph(f"Cópia impressa em {agora}.", styles["DocFooter"]),
+    ]

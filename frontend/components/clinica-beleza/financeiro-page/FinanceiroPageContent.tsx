@@ -16,12 +16,14 @@ import { FinanceiroTabBar } from "./components/FinanceiroTabBar";
 import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/ModalReceberConsulta";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import { ModalBaixaPayment } from "./components/ModalBaixaPayment";
+import { ModalCorrigirForma } from "./components/ModalCorrigirForma";
 import type { FinanceiroPayment } from "./types";
 
 export function FinanceiroPageContent() {
   const f = useFinanceiroPage();
   const toast = useToast();
   const [baixaPayment, setBaixaPayment] = useState<FinanceiroPayment | null>(null);
+  const [formaPayment, setFormaPayment] = useState<FinanceiroPayment | null>(null);
   const [cobrandoId, setCobrandoId] = useState<number | null>(null);
   const [reciboId, setReciboId] = useState<number | null>(null);
   const [receberConsulta, setReceberConsulta] = useState<Consulta | null>(null);
@@ -103,6 +105,7 @@ export function FinanceiroPageContent() {
                 onDateFilterChange={f.setDateFilter}
                 onPageChange={f.setPaymentsPage}
                 onBaixa={(p) => setBaixaPayment(p)}
+                onCorrigirForma={(p) => setFormaPayment(p)}
                 cobrandoId={cobrandoId}
                 onCobrar={handleCobrar}
                 onAbrirRecibo={(p) => { void handleAbrirRecibo(p); }}
@@ -142,6 +145,14 @@ export function FinanceiroPageContent() {
         payment={baixaPayment}
         onClose={() => setBaixaPayment(null)}
         onSuccess={() => { void f.loadAll(); }}
+      />
+      <ModalCorrigirForma
+        payment={formaPayment}
+        onClose={() => setFormaPayment(null)}
+        onSuccess={() => {
+          toast.success("Forma de pagamento corrigida.");
+          void f.loadAll();
+        }}
       />
       <DespesaFormModal
         open={f.showDespesaModal}

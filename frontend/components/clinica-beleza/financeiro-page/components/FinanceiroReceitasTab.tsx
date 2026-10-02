@@ -9,6 +9,7 @@ import {
   rotuloDataLancamentoReceita,
   rotuloFormaPagamentoReceita,
   rotuloVencimentoPrazo,
+  podeCorrigirFormaPagamento,
   statusPagamentoReceita,
 } from "../payment-status";
 
@@ -30,6 +31,7 @@ interface FinanceiroReceitasTabProps {
   onDateFilterChange: (value: string) => void;
   onPageChange: (page: number) => void;
   onBaixa: (payment: FinanceiroPayment) => void;
+  onCorrigirForma: (payment: FinanceiroPayment) => void;
   onCobrar: (payment: FinanceiroPayment, canal: "whatsapp" | "email") => void;
   onAbrirRecibo: (payment: FinanceiroPayment) => void;
   reciboId: number | null;
@@ -53,6 +55,7 @@ export function FinanceiroReceitasTab({
   onDateFilterChange,
   onPageChange,
   onBaixa,
+  onCorrigirForma,
   onCobrar,
   onAbrirRecibo,
   reciboId,
@@ -196,6 +199,15 @@ export function FinanceiroReceitasTab({
                             className="text-xs px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium whitespace-nowrap"
                           >
                             {status === "PARTIAL" ? "Complementar" : "Dar Baixa"}
+                          </button>
+                        )}
+                        {podeCorrigirFormaPagamento(p) && (
+                          <button
+                            type="button"
+                            onClick={() => onCorrigirForma(p)}
+                            className="text-xs px-2 py-1 rounded-lg border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-200 font-medium whitespace-nowrap hover:bg-gray-50 dark:hover:bg-neutral-700"
+                          >
+                            Corrigir forma
                           </button>
                         )}
                         {p.vencido && (

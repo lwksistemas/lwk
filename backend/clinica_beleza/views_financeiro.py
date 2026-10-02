@@ -11,6 +11,7 @@ from .financeiro_service import (
     alinhar_pendentes_com_parcela,
     aplicar_desconto_payment,
     cancelar_parcela_pagamento,
+    corrigir_forma_pagamento_recebido,
     criar_parcela_e_atualizar_payment,
     decimal_ou_none,
     erro_consulta_para_parcela,
@@ -197,6 +198,55 @@ class PaymentParcelaDetailView(GetObjectMixin, APIView):
             "saldo_devedor": float(payment.saldo_devedor),
             "status": payment.status,
         })
+
+
+class PaymentFormaView(GetObjectMixin, APIView):
+    """POST /clinica-beleza/payments/<id>/forma/ — corrige a forma de um pago."""
+
+    permission_classes = CLINICA_FINANCEIRO
+    model_class = Payment
+    not_found_message = "Pagamento não encontrado"
+    select_related_fields = (
+        "appointment", "appointment__patient",
+        "appointment__professional", "appointment__procedure",
+    )
+    prefetch_related_fields = (
+        "appointment__appointment_procedures__procedure",
+        "parcelas",
+    )
+
+    def post(self, request, pk):
+        payment, err = self.object_or_404(pk)
+        if err:
+            return err
+        parcela_id, erro_id = _parcela_id_da_correcao(request.data.get("parcela_id"))
+        if erro_id:
+            return Response({"error": erro_id}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            corrigir_forma_pagamento_recebido(
+                payment,
+                request.data.get("payment_method"),
+                parcela_id=parcela_id,
+                usuario=request.user,
+            )
+        except LookupError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        payment.refresh_from_db()
+        return Response(PaymentSerializer(payment).data)
+
+
+def _parcela_id_da_correcao(raw):
+    if raw in (None, ""):
+        return None, None
+    try:
+        valor = int(raw)
+    except (TypeError, ValueError):
+        return None, "Lançamento inválido."
+    if valor <= 0:
+        return None, "Lançamento inválido."
+    return valor, None
 
 
 class PaymentReciboHtmlView(GetObjectMixin, APIView):

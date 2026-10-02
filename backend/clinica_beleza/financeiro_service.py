@@ -1,6 +1,7 @@
 """Regras do financeiro da clínica — listagem, resumo, parcelas e exclusão."""
 from __future__ import annotations
 
+import logging
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
@@ -13,6 +14,7 @@ from .models.financeiro import CATEGORIAS_DESPESA_PADRAO, PaymentParcela
 
 _DEC = DecimalField(max_digits=14, decimal_places=2)
 METODO_DESPESA = "DESPESA"
+logger = logging.getLogger(__name__)
 
 
 def payments_visiveis_financeiro(qs=None):
@@ -474,6 +476,59 @@ def erro_excluir_payment(payment) -> str | None:
     if payment.parcelas.filter(status="PAID").exists():
         return "Pagamento com parcelas não pode ser excluído."
     return None
+
+
+def corrigir_forma_pagamento_recebido(payment, nova_forma, *, parcela_id=None, usuario=None):
+    """Troca a forma de um recebimento já pago. Valor, data e status ficam."""
+    from .estoque_service import tenant_atomic
+    from .forma_pagamento_correcao import plano_correcao_forma_pagamento
+    from .models.financeiro import status_pagamento_exibido
+
+    with tenant_atomic():
+        bloqueado = Payment.objects.select_for_update().get(pk=payment.pk)
+        pagas = list(
+            PaymentParcela.objects.select_for_update()
+            .filter(payment_id=bloqueado.pk, status="PAID")
+            .order_by("payment_date", "id"),
+        )
+        plano = plano_correcao_forma_pagamento(
+            status=status_pagamento_exibido(bloqueado),
+            payment_method=bloqueado.payment_method,
+            amount=bloqueado.amount,
+            parcelas=[
+                {
+                    "id": parcela.id,
+                    "payment_method": parcela.payment_method,
+                    "payment_date": parcela.payment_date,
+                    "valor": parcela.valor,
+                }
+                for parcela in pagas
+            ],
+            nova_forma=nova_forma,
+            parcela_id=parcela_id,
+        )
+        if not plano["alterado"]:
+            return bloqueado
+        forma_anterior = bloqueado.payment_method
+        por_id = {parcela.id: parcela for parcela in pagas}
+        for parcela_pk, metodo in plano["parcelas"].items():
+            parcela = por_id[parcela_pk]
+            parcela.payment_method = metodo
+            parcela.save(update_fields=["payment_method"])
+        if bloqueado.payment_method != plano["payment_method"]:
+            bloqueado.payment_method = plano["payment_method"]
+            bloqueado.save(update_fields=["payment_method", "updated_at"])
+        usuario_id = None
+        if usuario is not None and getattr(usuario, "is_authenticated", False):
+            usuario_id = getattr(usuario, "pk", None)
+        logger.info(
+            "Forma de pagamento corrigida payment=%s de=%s para=%s usuario_id=%s",
+            bloqueado.pk,
+            forma_anterior,
+            bloqueado.payment_method,
+            usuario_id,
+        )
+        return bloqueado
 
 
 def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -> dict:

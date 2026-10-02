@@ -1,4 +1,7 @@
-import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
+import {
+  CLINICA_FORMA_PAGAMENTO_CORRIGIVEL,
+  CLINICA_FORMA_PAGAMENTO_LABEL,
+} from "@/lib/clinica-beleza-constants";
 import type { FinanceiroPayment } from "./types";
 
 /** Status exibido na lista: Parcial quando já houve entrada e ainda há saldo. */
@@ -60,4 +63,16 @@ export function rotuloFormaPagamentoReceita(p: FinanceiroPayment): string {
     return "—";
   }
   return CLINICA_FORMA_PAGAMENTO_LABEL[p.payment_method] || p.payment_method || "—";
+}
+
+const FORMAS_CORRIGIVEIS = new Set<string>(CLINICA_FORMA_PAGAMENTO_CORRIGIVEL);
+
+/** Pago ou parcial com valor recebido: a secretaria pode ter escolhido a forma errada. */
+export function podeCorrigirFormaPagamento(p: FinanceiroPayment): boolean {
+  if (p.retorno_gratuito) return false;
+  const status = statusPagamentoReceita(p);
+  if (status !== "PAID" && status !== "PARTIAL") return false;
+  if (!FORMAS_CORRIGIVEIS.has(p.payment_method)) return false;
+  const recebido = Number(p.amount);
+  return Number.isFinite(recebido) && recebido > 0.009;
 }

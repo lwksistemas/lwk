@@ -43,7 +43,7 @@ class TestPaymentSerializerNaoAlteraStatus(SimpleTestCase):
             comissao_valor="0.00",
         )
         serializer = PaymentSerializer(instance=instance)
-        for name in ("appointment", "amount", "valor_total", "desconto", "status"):
+        for name in ("appointment", "amount", "valor_total", "desconto", "status", "payment_method"):
             self.assertTrue(serializer.fields[name].read_only, name)
 
     def test_status_no_payload_e_ignorado_na_validacao(self):

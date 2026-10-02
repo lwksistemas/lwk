@@ -49,13 +49,28 @@ class PlanoCorrecaoFormaTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             _plano(amount=Decimal("0"))
 
-    def test_despesa_e_prazo_nao_entram(self):
+    def test_despesa_nao_entra_e_prazo_ja_lancado_nao_troca(self):
         with self.assertRaises(ValueError):
             _plano(payment_method="DESPESA")
         with self.assertRaises(ValueError):
             _plano(payment_method="PRAZO", amount=Decimal("150"))
         with self.assertRaises(ValueError):
             _plano(nova_forma="DESPESA")
+
+    def test_pago_em_dinheiro_pode_virar_a_prazo(self):
+        plano = _plano(nova_forma="PRAZO", parcelas=[
+            {"id": 7, "payment_method": "CASH", "payment_date": date(2026, 10, 1), "valor": Decimal("200")},
+        ])
+        self.assertTrue(plano["virar_prazo"])
+        self.assertEqual(plano["payment_method"], "PRAZO")
+        self.assertEqual(plano["parcelas"], {})
+        self.assertEqual(plano["parcelas_cancelar"], [7])
+
+    def test_a_prazo_nao_vale_para_um_lancamento_so(self):
+        with self.assertRaises(ValueError):
+            _plano(nova_forma="PRAZO", parcela_id=1, parcelas=[
+                {"id": 1, "payment_method": "CASH", "payment_date": date(2026, 10, 1), "valor": Decimal("200")},
+            ])
 
     def test_formas_diferentes_exigem_o_lancamento(self):
         parcelas = [

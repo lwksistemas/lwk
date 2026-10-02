@@ -291,13 +291,18 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         except Exception:
             pago = float(payment.amount or 0)
         # Retorno sem desconto e com o total zerado ainda deve o procedimento.
-        # Desconto integral quita de verdade (PAID, saldo 0): não reabre o valor.
+        # Desconto que já zerou o saldo não reabre o valor, pago ou ainda em rascunho.
+        try:
+            desconto = float(getattr(payment, "desconto", 0) or 0)
+        except (TypeError, ValueError):
+            desconto = 0.0
         if (
             getattr(obj, "retorno_gratuito", False)
             and live > 0.009
             and pago <= 0.009
             and saldo <= 0.009
             and getattr(payment, "status", None) != "PAID"
+            and desconto <= 0.009
         ):
             return live
         return saldo

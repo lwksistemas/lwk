@@ -6,6 +6,7 @@ import {
   consultaPagamentoUi,
   deveAbrirComprovanteRecibo,
   mensagemValidacaoEvolucao,
+  saldoReceberConsulta,
   valorPagamentoConsulta,
 } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 
@@ -198,6 +199,22 @@ describe("consultaPagamentoUi", () => {
       mostrarIsento: false,
       consultaFinalizada: true,
     });
+  });
+
+  it("desconto integral no retorno não reabre o saldo nem antes de constar como pago", () => {
+    expect(
+      saldoReceberConsulta(
+        consulta({
+          status: "IN_PROGRESS",
+          retorno_gratuito: true,
+          payment_status: "PENDING",
+          valor_pagamento: 290,
+          valor_pago: 0,
+          valor_restante: 0,
+          desconto: 290,
+        }),
+      ),
+    ).toBe(0);
   });
 
   it("desconto integral no retorno quita e não reabre o procedimento", () => {

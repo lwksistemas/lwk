@@ -54,7 +54,17 @@ class RotuloProfissionalProntuarioTest(SimpleTestCase):
         linhas = _linhas_identificacao_paciente(patient)
         self.assertEqual(linhas, ["<b>Telefone:</b> 11999990000"])
 
-        completo = SimpleNamespace(cpf="12345678901", data_nascimento=date(1990, 5, 2), telefone="")
+        completo = SimpleNamespace(
+            cpf="12345678901",
+            data_nascimento=date(1990, 5, 2),
+            telefone="",
+            sexo="F",
+            endereco="Rua das Flores, 10",
+            cidade="Campinas",
+            estado="SP",
+        )
         texto = " ".join(_linhas_identificacao_paciente(completo))
         self.assertIn("123.456.789-01", texto)
         self.assertIn("02/05/1990", texto)
+        self.assertIn("Feminino", texto)
+        self.assertIn("Rua das Flores, 10 — Campinas/SP", texto)

@@ -10,7 +10,12 @@ from rest_framework.views import APIView
 from .documento_service import listar_prontuario_paciente
 from .models import DocumentoClinico, Patient
 from .permissions import CLINICA_CLINICAL
-from .prontuario_pdf import gerar_pdf_documento, gerar_pdf_prontuario_completo, gerar_pdf_secao
+from .prontuario_pdf import (
+    gerar_pdf_documento,
+    gerar_pdf_prontuario_completo,
+    gerar_pdf_secao,
+    nome_arquivo_pdf_prontuario,
+)
 from .serializers import ProntuarioSectionSerializer
 from .views_base import GetObjectMixin, MSG_ERRO_PDF, resposta_erro_interno
 
@@ -64,10 +69,9 @@ class ProntuarioPDFView(APIView):
             patient = Patient.objects.filter(pk=patient_id).first()
             if secao:
                 buffer = gerar_pdf_secao(patient_id, secao)
-                filename = f"prontuario_{secao}_{patient_id}.pdf"
             else:
                 buffer = gerar_pdf_prontuario_completo(patient_id)
-                filename = f"prontuario_completo_{patient_id}.pdf"
+            filename = nome_arquivo_pdf_prontuario(getattr(patient, "nome", ""), secao)
             from clinica_beleza.media_docs_service import arquivar_pdf_gerado
             arquivar_pdf_gerado(
                 getattr(patient, "loja_id", None),

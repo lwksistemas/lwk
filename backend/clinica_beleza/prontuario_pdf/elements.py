@@ -399,13 +399,20 @@ def _linhas_identificacao_paciente(patient) -> list[str]:
         linhas.append("<b>Sexo:</b> Feminino")
     elif sexo == "M":
         linhas.append("<b>Sexo:</b> Masculino")
-    telefone = (getattr(patient, "telefone", "") or "").strip()
+    telefone = _telefone_exibicao_paciente(getattr(patient, "telefone", "") or "")
     if telefone:
         linhas.append(f"<b>Telefone:</b> {xml_escape(telefone)}")
     endereco = _formatar_endereco_paciente(patient)
     if endereco:
         linhas.append(f"<b>Endereço:</b> {endereco}")
     return linhas
+
+
+def _telefone_exibicao_paciente(telefone: str) -> str:
+    """(16) 99705-6366, mesmo quando o cadastro guardou 5516997056366."""
+    from core.phone_utils import telefone_exibicao_brasileiro
+
+    return (telefone_exibicao_brasileiro(telefone) or "").strip()
 
 
 def _formatar_endereco_paciente(patient) -> str:

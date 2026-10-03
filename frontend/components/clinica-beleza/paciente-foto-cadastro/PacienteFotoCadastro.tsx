@@ -1,7 +1,9 @@
 "use client";
 
+import { useRef } from "react";
 import { Camera, Loader2, User, X } from "lucide-react";
 import { ImageUploadMedia as ImageUpload } from "@/components/ImageUploadMedia";
+import apiClient from "@/lib/api-client";
 import { usePacienteFotoCadastro } from "./usePacienteFotoCadastro";
 
 export interface PacienteFotoCadastroProps {
@@ -31,6 +33,19 @@ export function PacienteFotoCadastro({
   folder = "fotos",
   captureFilename = "foto-cliente.jpg",
 }: PacienteFotoCadastroProps) {
+  const enviadasNestaTela = useRef(new Set<string>());
+
+  function definirFoto(url: string) {
+    const proxima = (url || "").trim();
+    const anterior = (value || "").trim();
+    if (anterior && anterior !== proxima && enviadasNestaTela.current.has(anterior)) {
+      enviadasNestaTela.current.delete(anterior);
+      void apiClient.post("/media/delete/", { url: anterior }).catch(() => undefined);
+    }
+    if (proxima) enviadasNestaTela.current.add(proxima);
+    onChange(proxima);
+  }
+
   const {
     folder: pastaUpload,
     uploadDisabled,
@@ -46,7 +61,7 @@ export function PacienteFotoCadastro({
   } = usePacienteFotoCadastro({
     slug,
     value,
-    onChange,
+    onChange: definirFoto,
     disabled,
     folder,
     patientId,
@@ -72,7 +87,7 @@ export function PacienteFotoCadastro({
             {value && !disabled && (
               <button
                 type="button"
-                onClick={() => onChange("")}
+                onClick={() => definirFoto("")}
                 className="absolute -top-1 -right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 shadow"
                 title="Remover foto"
               >
@@ -87,7 +102,7 @@ export function PacienteFotoCadastro({
               <ImageUpload
                 compact
                 value={value}
-                onChange={onChange}
+                onChange={definirFoto}
                 folder={pastaUpload || "fotos"}
                 maxSize={5}
                 disabled={uploadDisabled || uploading}

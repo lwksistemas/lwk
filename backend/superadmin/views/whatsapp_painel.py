@@ -6,12 +6,13 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from superadmin.models import WhatsappApiKey, WhatsappCustomer
+from superadmin.models import Loja, WhatsappApiKey, WhatsappCustomer
 from superadmin.services.whatsapp_painel_service import (
     QUOTA_PARCEIRO_PADRAO,
     criar_parceiro,
     emitir_chave,
     montar_painel,
+    relatorio_falhas_loja,
 )
 from superadmin.views.permissions import IsSuperAdmin
 
@@ -28,6 +29,24 @@ class WhatsappPainelView(APIView):
 
     def get(self, request):
         return Response(montar_painel())
+
+
+class WhatsappFalhasLojaView(APIView):
+    """Relatório de falhas de envio WhatsApp de uma loja (agrupado por motivo/número)."""
+
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request, loja_id: int):
+        loja = Loja.objects.filter(id=loja_id).first()
+        if not loja:
+            return Response({"error": "Loja não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            dias = int(request.query_params.get("dias") or 30)
+        except (TypeError, ValueError):
+            dias = 30
+        dias = max(1, min(dias, 365))
+        rel = relatorio_falhas_loja(loja, dias=dias)
+        return Response({"loja_id": loja.id, "loja_nome": loja.nome, **rel})
 
 
 class WhatsappParceiroCreateView(APIView):

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 import { formatClinicaHora } from "@/lib/clinica-beleza-datetime";
@@ -231,17 +232,21 @@ export function AgendaDiaColunas({
                     <AlcaLarguraColuna onPointerDown={(e) => iniciarLargura(colKey, e)} />
                     <div className="sticky top-0 z-20 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 py-2.5">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className="shrink-0 w-9 h-9 rounded-full text-white text-xs font-bold flex items-center justify-center overflow-hidden"
-                          style={{ backgroundColor: col.cor }}
-                        >
-                          {col.foto_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={col.foto_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            col.iniciais
-                          )}
-                        </span>
+                        {col.foto_url ? (
+                          <PacienteAvatar
+                            fotoUrl={col.foto_url}
+                            name={col.nome}
+                            size="sm"
+                            className="!h-9 !w-9 border-0"
+                          />
+                        ) : (
+                          <span
+                            className="shrink-0 w-9 h-9 rounded-full text-white text-xs font-bold flex items-center justify-center overflow-hidden"
+                            style={{ backgroundColor: col.cor }}
+                          >
+                            {col.iniciais}
+                          </span>
+                        )}
                         <div className="min-w-0 flex-1">
                           <p className="text-[11px] sm:text-xs font-semibold text-gray-900 dark:text-gray-100 truncate uppercase tracking-wide">
                             {col.nome}

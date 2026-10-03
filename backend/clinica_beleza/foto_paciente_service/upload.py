@@ -183,6 +183,39 @@ def _parse_media_path(url: str) -> tuple[str, str] | None:
     return folder, filename
 
 
+def descartar_foto_perfil_substituida(loja, anterior: str, nova: str) -> bool:
+    """Apaga no servidor de mídia a foto de perfil que deixou de ser a atual.
+
+    Vale ao trocar a foto e ao salvar o cadastro sem foto. A URL que continua
+    no cadastro não é apagada. Falha de mídia não desfaz o salvamento.
+    """
+    antiga = (anterior or "").strip()
+    atual = (nova or "").strip()
+    if not antiga or antiga == atual or loja is None:
+        return False
+    if excluir_foto_media(loja, antiga):
+        return True
+    return _excluir_avatar_da_loja(loja, antiga)
+
+
+def _excluir_avatar_da_loja(loja, url: str) -> bool:
+    """Foto de profissional fica em avatars, fora da pasta fotos do cliente."""
+    from core.media_storage import _cpf_cnpj_digits, is_media_url, media_delete_by_url, parse_media_url
+
+    if not url.startswith("https://") or not is_media_url(url):
+        return False
+    parsed = parse_media_url(url)
+    if not parsed:
+        return False
+    tenant, folder, _filename = parsed
+    if tenant != _cpf_cnpj_digits(loja):
+        return False
+    partes = [p for p in (folder or "").split("/") if p]
+    if not partes or "avatars" not in (partes[0], partes[-1]):
+        return False
+    return media_delete_by_url(url)
+
+
 def excluir_foto_media(loja, foto_url: str, public_id: str = "") -> bool:
     """Remove imagem do servidor de mídia (fail-closed se URL inválida)."""
     from core.media_storage import media_delete

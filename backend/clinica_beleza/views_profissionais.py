@@ -278,9 +278,14 @@ class ProfessionalDetailView(GetObjectMixin, APIView):
         obj, err = self.object_or_404(pk)
         if err:
             return err
+        foto_anterior = (obj.foto_url or "").strip()
         serializer = ProfessionalSerializer(obj, data=data, partial=True)
         if serializer.is_valid():
             professional = serializer.save()
+            if "foto_url" in data:
+                from .views_pacientes import _descartar_foto_perfil_anterior
+
+                _descartar_foto_perfil_anterior(foto_anterior, professional.foto_url or "")
             acesso_erro = _criar_acesso_se_pedido(
                 professional,
                 criar_acesso=bool(criar_acesso),

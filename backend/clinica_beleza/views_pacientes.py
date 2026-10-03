@@ -34,6 +34,29 @@ def _map_patient_data(raw_data):
     return map_field_names(raw_data, _PATIENT_FIELD_MAP, _PATIENT_NULL_FIELDS)
 
 
+def _loja_atual():
+    from tenants.middleware import get_current_loja_id
+    from superadmin.models import Loja
+
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return None
+    return Loja.objects.using("default").filter(pk=loja_id).first()
+
+
+def _descartar_foto_perfil_anterior(anterior: str, nova: str) -> None:
+    """Remove do servidor de mídia a foto de perfil substituída ou retirada."""
+    from .foto_paciente_service.upload import descartar_foto_perfil_substituida
+
+    loja = _loja_atual()
+    if not loja:
+        return
+    try:
+        descartar_foto_perfil_substituida(loja, anterior, nova)
+    except Exception:
+        logger.warning("Falha ao remover foto de perfil anterior da mídia", exc_info=True)
+
+
 _SITUACOES_PACIENTE = ("com_consulta", "ativos", "inativos", "todos")
 
 
@@ -119,9 +142,12 @@ class PatientDetailView(GetObjectMixin, APIView):
         if err:
             return err
         data = _map_patient_data(request.data)
+        foto_anterior = (obj.foto_url or "").strip()
         serializer = PatientSerializer(obj, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            if "foto_url" in data:
+                _descartar_foto_perfil_anterior(foto_anterior, serializer.instance.foto_url or "")
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -155,8 +181,10 @@ class PatientDetailView(GetObjectMixin, APIView):
                 status=status.HTTP_200_OK,
             )
         else:
-            # Hard delete: sem histórico, remove fisicamente.
+            # Hard delete: sem histórico, remove fisicamente e a foto de perfil.
+            foto_anterior = (obj.foto_url or "").strip()
             obj.delete()
+            _descartar_foto_perfil_anterior(foto_anterior, "")
             return Response(
                 {"message": "Cliente excluído com sucesso."},
                 status=status.HTTP_200_OK,

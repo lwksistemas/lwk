@@ -9,6 +9,7 @@ from django.db.models import Case, DecimalField, Exists, F, OuterRef, Prefetch, 
 from django.db.models.functions import Coalesce, Greatest
 from django.utils.timezone import now
 
+from .dashboard_service import data_hoje_clinica
 from .models import CategoriaDespesa, ConsultaEvolucao, Despesa, Payment
 from .models.financeiro import CATEGORIAS_DESPESA_PADRAO, PaymentParcela
 
@@ -611,7 +612,7 @@ def _aplicar_correcao_para_prazo(payment, pagas, parcelas_cancelar):
 def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -> dict:
     import calendar
 
-    today = today or now().date()
+    today = today or data_hoje_clinica()
     first_day = date(ano, mes, 1)
     last_day = date(ano, mes, calendar.monthrange(ano, mes)[1])
     period_end = today if (ano == today.year and mes == today.month) else last_day

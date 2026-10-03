@@ -196,16 +196,16 @@ class LojaContextHelper:
         invalidate_dashboard_cache(loja_id)
 
 
-DASHBOARD_CACHE_VERSION = "v11"
+DASHBOARD_CACHE_VERSION = "v12"
 
 
 def invalidate_dashboard_cache(loja_id, *, mes=None, ano=None, professional_id=None):
     """Limpa cache do dashboard para o mês informado (ou mês atual).
     Chamado após pagamentos, consultas e agendamentos.
     """
-    from django.utils.timezone import now
+    from clinica_beleza.dashboard_service import data_hoje_clinica
 
-    today = now().date()
+    today = data_hoje_clinica()
     mes = mes or today.month
     ano = ano or today.year
     prof_key = str(professional_id) if professional_id else "all"

@@ -11,6 +11,7 @@ from tenants.middleware import get_current_loja_id
 from .dashboard_service import (
     build_dashboard_data,
     dashboard_filter_meta,
+    data_hoje_clinica,
     next_appointments_queryset,
     parse_dashboard_period,
     procedimentos_realizados_lista,
@@ -55,7 +56,7 @@ class DashboardView(APIView):
             )
 
         qp = request.query_params
-        today = now().date()
+        today = data_hoje_clinica()
         current = now()
 
         def _query_int(value):
@@ -121,7 +122,7 @@ class ProcedimentosRealizadosView(APIView):
             )
 
         qp = request.query_params
-        today = now().date()
+        today = data_hoje_clinica()
 
         def _query_int(value):
             if not value:

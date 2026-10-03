@@ -1,12 +1,12 @@
 """Views de Pagamentos e Financeiro — Clínica da Beleza
 """
 from django.http import HttpResponse
-from django.utils.timezone import now
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .dashboard_service import data_hoje_clinica
 from .financeiro_service import (
     alinhar_pendentes_com_parcela,
     aplicar_desconto_payment,
@@ -159,7 +159,7 @@ class PaymentParcelaView(GetObjectMixin, APIView):
         aplicar_desconto_payment(payment, desconto_param)
         parcela = criar_parcela_e_atualizar_payment(payment, valor, {
             "payment_method": (request.data.get("payment_method") or "CASH").strip(),
-            "payment_date": request.data.get("payment_date") or now().date().isoformat(),
+            "payment_date": request.data.get("payment_date") or data_hoje_clinica().isoformat(),
             "observacoes": request.data.get("observacoes") or "",
         })
         return Response({
@@ -389,7 +389,7 @@ class FinanceiroResumoView(APIView):
     permission_classes = CLINICA_FINANCEIRO
 
     def get(self, request):
-        today = now().date()
+        today = data_hoje_clinica()
         try:
             ano = int(request.query_params.get("ano") or today.year)
             mes = int(request.query_params.get("mes") or today.month)

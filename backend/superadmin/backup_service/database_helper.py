@@ -17,7 +17,7 @@ class DatabaseHelper:
 
     Encapsula lógica de conexão e queries ao banco isolado da loja.
     No PostgreSQL usa schema explícito (database_name com - trocado por _) para
-    não depender de search_path no one-off dyno do Scheduler.
+    não depender de search_path da sessão.
     """
 
     def __init__(self, database_name: str):

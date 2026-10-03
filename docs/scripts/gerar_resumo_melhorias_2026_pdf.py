@@ -98,10 +98,10 @@ def cover(st, el):
 def section_intro(st, el):
     el.append(Paragraph("1. Visão geral", st["h1"]))
     el.extend(bullets(st, [
-        "SaaS multi-tenant: Django/Railway (API) + Next.js/Vercel (frontend).",
+        "SaaS multi-tenant: Django (API) + Next.js (frontend) no Magalu.",
         "Princípio do plano: limpeza segura, docs corretas, menos duplicação, deploy previsível — sem breaking changes.",
         "Produção: api.lwksistemas.com.br · lwksistemas.com.br · fila django-q + Redis (4 workers).",
-        "Beta: beta.lwksistemas.com.br → branch staging (Vercel Preview + lwks-backend-staging).",
+        "Beta: beta.lwksistemas.com.br → branch staging, servidor isolado.",
     ]))
 
 
@@ -109,10 +109,10 @@ def section_fase1(st, el):
     el.append(Paragraph("2. Fase 1 — Limpeza e documentação", st["h1"]))
     el.extend(bullets(st, [
         ".gitignore: backend/backups/, *.phar, output/, *.pdf.",
-        "README_REFATORACAO.md removido; README.md atualizado (Railway, Vercel, Django 5, Next 15).",
-        "Docs de deploy corrigidos (Vercel na raiz do repo; BUILD_ID no Dockerfile.railway).",
+        "README_REFATORACAO.md removido; README.md atualizado.",
+        "Docs de deploy corrigidos para o Magalu.",
         "Regra Cursor .cursor/rules/lwk-inicio-agente.mdc + RESUMO_SISTEMA_PARA_AGENTES.md.",
-        "CI: deps atualizadas, Bandit, watchPaths Railway só para backend/.",
+        "CI: deps atualizadas, Bandit, watch só para backend/.",
     ]))
 
 
@@ -181,7 +181,7 @@ def section_fila(st, el):
     el.extend(bullets(st, [
         "Q_CLUSTER sempre usa REDIS_URL em produção (worker com USE_TASK_QUEUE=false).",
         "Health: task_queue (fila, workers_alive, failures_24h).",
-        "railway.worker.toml + start_worker.sh.",
+        "Worker django-q (start_worker.sh).",
     ]))
 
 
@@ -240,9 +240,8 @@ def section_ops(st, el):
     cmds = """# Health produção
 curl -s https://api.lwksistemas.com.br/api/superadmin/health/ | jq .
 
-# Deploy backend (após mudança Python — bump BUILD_ID)
-railway up --service lwks-backend --detach
-RAILWAY_CONFIG_FILE=railway.worker.toml railway up --service lwks-worker --detach
+# Deploy backend (produção)
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh backend'
 
 # Regenerar este PDF
 python3 docs/scripts/gerar_resumo_melhorias_2026_pdf.py

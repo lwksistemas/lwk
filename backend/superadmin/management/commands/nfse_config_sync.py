@@ -1,7 +1,7 @@
 """Exporta / importa SuperadminNFSeConfig entre ambientes (ex.: produção → beta).
 
 Uso:
-  # Na produção (Railway SSH ou local com DB prod)
+  # Na produção (container do backend ou local com DB prod)
   python manage.py nfse_config_sync export --output /tmp/nfse_config.json
 
   # No beta/staging

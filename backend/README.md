@@ -11,7 +11,7 @@ API REST multi-tenant em Django 4.2 + Django REST Framework para gestão de loja
 | Cache | Redis (django-redis) |
 | Task queue | django-q |
 | Auth | JWT (simplejwt) com sessão única |
-| Deploy | Railway (Docker multi-role) |
+| Deploy | Magalu (Docker) |
 | Email | Resend API (fallback: Gmail SMTP) |
 
 ## Estrutura de Diretórios
@@ -78,13 +78,13 @@ Cada loja opera em um **schema PostgreSQL isolado**. O isolamento funciona em 3 
 2. **Manager** (`core/mixins.py: LojaIsolationManager`) — filtra automaticamente por `loja_id`
 3. **Router** (`config/db_router.py`) — direciona queries para o schema correto
 
-## Deploy (Railway)
+## Deploy (Magalu)
 
-O `Dockerfile.railway` suporta 3 roles via `LWK_PROCESS_ROLE`:
+O `Dockerfile.magalu` sobe a API. O mesmo código também roda o worker django-q e o cron `executar_cron_lwks` (lembretes, backups, cobrança), via `LWK_PROCESS_ROLE`:
 
 - **web** — Gunicorn (API HTTP)
 - **worker** — django-q (tasks assíncronas)
-- **cron** — `executar_cron_lwks` a cada 15 min (lembretes, backups, cobrança)
+- **cron** — `executar_cron_lwks` a cada 15 min
 
 ## Testes
 

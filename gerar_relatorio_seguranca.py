@@ -184,7 +184,7 @@ def build_content(S):
             ["Arquivos TS/TSX", "~1.023 (excl. node_modules/.next)"],
             ["Testes Backend", "~130 arquivos"],
             ["Testes E2E", "3 specs Playwright"],
-            ["Infraestrutura", "Docker Compose + Railway"],
+            ["Infraestrutura", "Docker Compose no Magalu"],
         ],
         col_widths=[5 * cm, 11 * cm],
     ))

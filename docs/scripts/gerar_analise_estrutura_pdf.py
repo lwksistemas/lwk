@@ -136,7 +136,7 @@ def build_pdf():
     # === 1. VISÃO GERAL ===
     story.append(Paragraph('1. Visão Geral da Arquitetura', styles['SectionTitle']))
     story.append(Paragraph(
-        'SaaS multi-tenant com Django 5 / DRF no backend (Railway) e Next.js 14 / App Router '
+        'SaaS multi-tenant com Django / DRF no backend e Next.js / App Router '
         'no frontend (Vercel). PostgreSQL com schemas isolados por loja, Redis como cache e '
         'broker da fila django-q.',
         styles['Body']
@@ -334,7 +334,7 @@ def build_pdf():
     conf_data = [
         ['Recomendação', 'Status'],
         ['PostgreSQL schemas por loja', '✅ Implementado (3 camadas)'],
-        ['Next.js + Django desacoplados', '✅ Vercel + Railway'],
+        ['Next.js + Django desacoplados', '✅ Magalu (containers separados)'],
         ['Worker assíncrono', '✅ django-q + Redis (4 workers)'],
         ['Staging separado', '✅ beta.lwksistemas.com.br'],
         ['migrate_all_lojas principal / ensure_all fallback', '✅ Implementado'],

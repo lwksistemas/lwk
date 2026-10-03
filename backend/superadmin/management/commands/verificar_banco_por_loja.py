@@ -4,9 +4,6 @@ Verifica se cada loja possui banco/schema isolado criado.
 Uso:
   python manage.py verificar_banco_por_loja
   python manage.py verificar_banco_por_loja --slug clinica-luiz-5889 --slug clinica-linda-1845
-
-Em produção (Heroku):
-  heroku run python backend/manage.py verificar_banco_por_loja -a lwksistemas
 """
 from django.core.management.base import BaseCommand
 from django.db import connection

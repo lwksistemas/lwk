@@ -47,11 +47,11 @@ def _forward(apps, schema_editor):
 
 
 def _reverse(apps, schema_editor):
-    _rename_columns(apps, schema_editor, {"url": "cloudinary_url", "public_id": "cloudinary_public_id"})
+    pass
 
 
 class Migration(migrations.Migration):
-    """Renomeia colunas físicas cloudinary_* → url / public_id."""
+    """Renomeia colunas físicas antigas para url / public_id, se ainda existirem."""
 
     dependencies = [
         ("clinica_beleza", "0065_paciente_foto_url_fields_state"),

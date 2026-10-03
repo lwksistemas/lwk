@@ -1,4 +1,4 @@
-"""Cron central LWK (serviço Railway lwks-cron).
+"""Cron central LWK (container com LWK_PROCESS_ROLE=cron).
 
 Executa a cada 15 minutos:
 - Lembretes WhatsApp de atividades CRM (24h e 2h antes)
@@ -8,8 +8,7 @@ Executa a cada 15 minutos:
 - Backups automáticos por email (no minuto :00)
 - Boletos de assinatura (~8h) e verificação de bloqueio por inadimplência
 
-Deploy:
-  railway up --service lwks-cron -c railway.cron.toml
+Roda no servidor Magalu, a cada 15 minutos.
 """
 from django.core.management import call_command
 from django.core.management.base import BaseCommand

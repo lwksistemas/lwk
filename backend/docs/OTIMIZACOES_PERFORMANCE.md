@@ -79,7 +79,7 @@ conn_max_age=120  # 2 minutos (configurável via env CONN_MAX_AGE)
 
 ### Efeito
 Com `gthread` workers, conexões ao PostgreSQL são reutilizadas por mais tempo.
-Reduz overhead de handshake TCP+TLS em ~50% (Railway proxy público usa TLS).
+Reduz overhead de handshake TCP+TLS em ~50% (o proxy público usa TLS).
 
 ---
 
@@ -98,6 +98,6 @@ Reduz overhead de handshake TCP+TLS em ~50% (Railway proxy público usa TLS).
 ## 5. Próxima Escala (se necessário)
 
 Para ir além de 80 lojas:
-1. `WEB_CONCURRENCY=6` (env var Railway) — +50% sem rebuild
-2. Horizontal scale (2 instâncias lwks-backend) — dobra capacidade
-3. Aumentar RAM do serviço Railway — permite mais workers
+1. `WEB_CONCURRENCY=6` (variável do container) — +50% sem rebuild
+2. Horizontal scale (2 instâncias da API) — dobra capacidade
+3. Aumentar a RAM do servidor — permite mais workers

@@ -88,8 +88,8 @@ co# Tasks — Clinica da Beleza Refactoring
 - [ ] 11.1 Rodar `python3 manage.py check` no backend — 0 issues
 - [ ] 11.2 Rodar `getDiagnostics` nos arquivos frontend modificados — sem erros
 - [ ] 11.3 Commit: `refactor(clinica-beleza): unificar padrões, rate limiting, extrair hooks`
-- [ ] 11.4 Deploy backend beta: `npx railway up --detach -e staging`
+- [ ] 11.4 Deploy backend beta: `deploy-beta-isolated.sh backend clinica_beleza`
 - [ ] 11.5 Deploy frontend beta: `npx vercel --yes` (em `/frontend`, branch `staging`)
 - [ ] 11.6 Validar em `https://beta.lwksistemas.com.br` — agenda, pacientes, dashboard funcionando
-- [ ] 11.7 Deploy produção backend: `npx railway up --detach`
+- [ ] 11.7 Deploy produção backend: `deploy-prod-magalu.sh backend clinica_beleza`
 - [ ] 11.8 Deploy produção frontend: `npx vercel --prod --yes` (em `/frontend`)

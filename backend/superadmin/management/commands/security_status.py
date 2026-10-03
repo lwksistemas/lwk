@@ -141,14 +141,14 @@ class Command(BaseCommand):
         if not ultima_deteccao:
             self.stdout.write("  ⚠️  SecurityDetector nunca foi executado.")
             self.stdout.write("     Execute: python manage.py detect_security_violations")
-            self.stdout.write("     Configure o Heroku Scheduler para execução automática.")
+            self.stdout.write("     Confira se o cron do servidor está ativo.")
         else:
             tempo_desde = timezone.now() - ultima_deteccao.created_at
             minutos = int(tempo_desde.total_seconds() / 60)
 
             if minutos > 60:
                 self.stdout.write("  ⚠️  SecurityDetector não executa há muito tempo.")
-                self.stdout.write("     Verifique se o Heroku Scheduler está configurado.")
+                self.stdout.write("     Verifique se o cron do servidor está ativo.")
 
         # Verificar violações não resolvidas
         nao_resolvidas = ViolacaoSeguranca.objects.filter(

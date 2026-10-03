@@ -50,7 +50,7 @@ TABELAS_OBRIGATORIAS_POR_TIPO: dict[str, list[str]] = {
     ],
 }
 
-# Comandos ensure_* do ensure_all (fallback pós migrate_all_lojas no release Railway).
+# Comandos ensure_* do ensure_all (fallback depois de migrate_all_lojas).
 ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
     "clinica-beleza": [
         "ensure_clinica_beleza_consultas",
@@ -588,7 +588,7 @@ def auditar_e_opcionalmente_corrigir(
     if not _usando_postgresql():
         return {
             "postgresql": False,
-            "mensagem": "Auditoria de schema por loja requer PostgreSQL (ex.: Heroku).",
+            "mensagem": "Auditoria de schema por loja requer PostgreSQL.",
             "resultados": [],
             "resumo": {"total": 0, "ok": 0, "falhas": 0, "corrigidos": 0},
         }

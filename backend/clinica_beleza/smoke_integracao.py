@@ -2,7 +2,7 @@
 
 Uso CLI (PostgreSQL / schema loja_*):
   python manage.py smoke_test_clinica_integracao --slug novaimagem
-  railway run --service lwks-backend-staging python manage.py smoke_test_clinica_integracao --slug novaimagem --write
+  python manage.py smoke_test_clinica_integracao --slug novaimagem --write
 """
 from __future__ import annotations
 

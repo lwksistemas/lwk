@@ -71,7 +71,7 @@ class Chamado(models.Model):
 
 class ErroFrontend(models.Model):
     """Erros de frontend/navegador reportados pela loja (sessão única por loja).
-    Usado no painel 'Detalhes' do suporte para ver falhas da loja sem consultar Heroku/Vercel.
+    Usado no painel 'Detalhes' do suporte para ver falhas da loja.
     """
 
     loja_slug = models.CharField(max_length=100, db_index=True)

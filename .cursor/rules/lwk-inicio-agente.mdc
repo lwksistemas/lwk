@@ -44,7 +44,7 @@ ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/depl
 ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh backend clinica_beleza'
 ```
 
-**NÃO usar:** `npx railway up`, `npx vercel`, `heroku`, nem `up -d --build` sem serviço.
+**NÃO usar:** `up -d --build` sem serviço. Deploy só com `deploy-prod-magalu.sh` ou `deploy-beta-isolated.sh`.
 
 ## Regra de ambientes
 

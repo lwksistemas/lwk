@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
             field=models.URLField(
                 blank=True,
                 default="",
-                help_text="Foto de perfil do cliente (Cloudinary).",
+                help_text="Foto de perfil do cliente (servidor de mídia).",
                 max_length=500,
                 verbose_name="Foto",
             ),

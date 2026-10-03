@@ -59,7 +59,7 @@ export default function RelatoriosPage() {
   const loadDados = async () => {
     try {
       setLoading(true);
-      // Requisições em paralelo (menos tempo no Render/Heroku)
+      // Requisições em paralelo
       const [statsRes, lojasRes, finRes, usersRes] = await Promise.all([
         apiClient.get('/superadmin/lojas/estatisticas/'),
         apiClient.get('/superadmin/lojas/'),

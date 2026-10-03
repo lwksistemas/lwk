@@ -1,10 +1,10 @@
 """Emite uma NFS-e de teste via ISSNet usando a CRMConfig da loja (producao).
 
-Uso no Heroku (exemplo):
-  heroku run "cd backend && python manage.py test_emitir_issnet --slug=41449198000172" -a lwksistemas
+Uso:
+  python manage.py test_emitir_issnet --slug=41449198000172
 
 Requisitos: loja com provedor_nf=issnet, certificado e credenciais salvos;
-DATABASE_URL e demais vars de producao carregadas (como no dyno).
+DATABASE_URL e demais vars de producao carregadas.
 """
 from decimal import Decimal
 

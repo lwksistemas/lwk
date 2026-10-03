@@ -200,7 +200,7 @@ def processar_backup_loja(
         # Buscar loja
         loja = Loja.objects.get(id=loja_id)
 
-        # Garantir que o banco da loja está em settings.DATABASES (necessário no one-off dyno do Heroku Scheduler)
+        # Garantir que o banco da loja está em settings.DATABASES
         from django.conf import settings
         if loja.database_name and loja.database_name not in settings.DATABASES:
             from core.db_config import ensure_loja_database_config
@@ -217,7 +217,7 @@ def processar_backup_loja(
                     arquivo_nome="",
                 )
                 historico_err.marcar_como_erro("Não foi possível conectar ao banco de dados da loja.")
-                logger.error(f"❌ Banco da loja {loja.nome} não disponível no dyno")
+                logger.error(f"❌ Banco da loja {loja.nome} não disponível")
                 return {"success": False, "erro": "Banco da loja não disponível"}
 
         # Buscar usuário (se fornecido)

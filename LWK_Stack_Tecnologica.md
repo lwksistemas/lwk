@@ -88,12 +88,12 @@
 
 ## Performance
 
-| Métrica | Antes (Railway + Vercel) | Agora (Magalu SP) |
+| Métrica | Antes | Agora (Magalu SP) |
 |---------|------------------------|-------------------|
 | Latência API | ~200ms (EUA→BR) | ~5-20ms (local SP) |
 | Build frontend | ~75s (Vercel) | ~75s (Docker) |
 | Cold start | 1-3s (serverless) | 0ms (sempre quente) |
-| Uptime | 99.9% (Railway SLA) | depende de nós |
+| Uptime | 99.9% (SLA do provedor anterior) | depende de nós |
 
 ## Deploy
 
@@ -120,5 +120,5 @@ ssh deploy@201.23.81.50 'cd /opt/lwk-erp && ./deploy-beta.sh'
 | Domínio (Registro.br) | ~R$ 4 |
 | **Total** | **~R$ 504/mês** |
 
-**Economia vs anterior:** Railway + Vercel Pro = ~R$ 650/mês → **economia de ~R$ 150/mês**
+**Economia vs anterior:** hospedagem anterior ~R$ 650/mês → **economia de ~R$ 150/mês**
 **Ganho adicional:** latência 10x menor, controle total, SSH direto, sem limites de build

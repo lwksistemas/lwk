@@ -298,22 +298,18 @@ python manage.py shell
 >>> # Testar queries...
 ```
 
-### Produção (Heroku)
+### Produção (Magalu)
 
 ```bash
-# 1. Commit e push
+# 1. Commit na main e deploy do backend
 git add .
 git commit -m "feat: adicionar isolamento automático de dados por loja"
-git push heroku master
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh backend'
 
-# 2. Popular dados em produção
-heroku run python backend/popular_loja_id_produtos.py
+# 2. Popular dados em produção, no container do backend
+# python backend/popular_loja_id_produtos.py
 
-# 3. Verificar logs
-heroku logs --tail
-
-# 4. Testar
-# Fazer login e testar criação/listagem de produtos
+# 3. Testar login e criação/listagem de produtos
 ```
 
 ---

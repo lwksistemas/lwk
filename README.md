@@ -10,12 +10,12 @@ Sistema multi-tenant completo para gestão de diferentes tipos de negócios (cl�
 - **Django 5** + Django REST Framework
 - **PostgreSQL** (schemas por loja)
 - **Redis** (cache, opcional)
-- **Railway** — hospedagem backend (`lwks-backend`)
+- **Magalu Cloud** — API, frontend, banco e Evolution (`deploy-prod-magalu.sh`)
 
 ### Frontend
 - **Next.js 15** (App Router)
 - **TypeScript** + **Tailwind CSS**
-- **Vercel** — hospedagem frontend (projeto `frontend`, Root Directory `frontend/`)
+- **Magalu Cloud** — frontend Next.js (`Dockerfile.frontend`)
 
 ## Tipos de App Disponíveis
 
@@ -60,35 +60,35 @@ npm run dev
 - [Deploy e rollback](docs/DEPLOY_E_ROLLBACK.md)
 - [Refatoração e limpeza](docs/REFATORACAO-LIMPEZA-SISTEMA.md)
 
-## Deploy Manual (emergência)
+## Deploy
 
 ```bash
-export PATH="$HOME/.local/npm-global/bin:$PATH"
+# Produção (branch main)
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh frontend'
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh backend clinica_beleza'
 
-# Backend (raiz do repo)
-npx railway up --service lwks-backend --detach
-
-# Frontend (raiz do repo — Root Directory = frontend/ no painel Vercel)
-npx vercel --prod --yes
+# Beta isolado (branch staging)
+ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh frontend'
+ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh backend clinica_beleza'
 ```
 
-Conta deploy: `lwksistemas@gmail.com`. Guia completo: [`docs/DEPLOY_E_ROLLBACK.md`](docs/DEPLOY_E_ROLLBACK.md).
+Guia: [`docs/DEPLOY_E_ROLLBACK.md`](docs/DEPLOY_E_ROLLBACK.md).
 
 ## Estrutura do Projeto
 
 ```
 lwksistemas/
-├── backend/              # Django (Railway)
+├── backend/              # Django
 │   ├── config/           # settings, urls, db_router
 │   ├── superadmin/       # gestão global
 │   ├── clinica_beleza/   # app clínica beleza
 │   ├── crm_vendas/       # CRM + Asaas
 │   └── ...
-├── frontend/             # Next.js (Vercel)
+├── frontend/             # Next.js
 │   ├── app/              # App Router
 │   └── lib/              # api-client, módulos por app
-├── railway.toml          # release/start commands Railway
-├── Dockerfile.railway
+├── Dockerfile.magalu     # Backend
+├── Dockerfile.frontend   # Frontend
 └── docs/
 ```
 

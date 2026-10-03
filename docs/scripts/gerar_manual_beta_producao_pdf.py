@@ -165,7 +165,7 @@ def cover_page(st, elements):
     elements.append(Paragraph(
         f"<b>Atualizado:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}<br/>"
         "<b>Repositório:</b> github.com/lwksistemas/lwk<br/>"
-        "<b>Projeto Railway:</b> refreshing-contentment",
+        "<b>Produção:</b> Magalu 201.23.81.50 · <b>Beta:</b> 201.54.18.213",
         st["body"],
     ))
     elements.append(Spacer(1, 0.5 * cm))
@@ -182,10 +182,10 @@ def section_overview(st, elements):
     elements.append(table([
         ["", "Beta (homologação)", "Produção"],
         ["Site", "beta.lwksistemas.com.br", "lwksistemas.com.br"],
-        ["API", "lwks-backend-staging-staging.up.railway.app", "api.lwksistemas.com.br"],
+        ["API", "beta.lwksistemas.com.br", "api.lwksistemas.com.br"],
         ["Branch Git", "staging", "main"],
-        ["Railway", "lwks-backend-staging (env staging)", "lwks-backend (env production)"],
-        ["Frontend Vercel", "Preview / branch staging", "Production / branch main"],
+        ["Servidor", "201.54.18.213 (beta isolado)", "201.23.81.50 (Magalu)"],
+        ["Frontend", "container frontend no beta", "container frontend na produção"],
         ["Banco Postgres", "Postgres staging (isolado)", "Postgres produção (isolado)"],
         ["Uso", "Testar código antes de liberar", "Clientes reais e cobranças reais"],
     ], col_widths=[3.2 * cm, 6.4 * cm, 6.4 * cm]))
@@ -206,22 +206,22 @@ def section_segregation(st, elements):
         "<b>Banco de dados:</b> lojas, financeiro, NFS-e, usuários — cada ambiente tem seu Postgres.",
         "<b>Configurações no Superadmin:</b> NFS-e, Asaas, planos — salvas no banco do ambiente.",
         "<b>Schemas de loja:</b> bancos isolados por loja existem só no ambiente onde a loja foi criada.",
-        "<b>Deploy:</b> Railway staging e production são serviços separados.",
-        "<b>Domínios:</b> beta e produção apontam para builds diferentes na Vercel.",
+        "<b>Deploy:</b> beta isolado e produção Magalu são servidores separados.",
+        "<b>Domínios:</b> beta e produção apontam para builds diferentes.",
     ]))
 
     elements.append(Paragraph("2.2 O que é compartilhado (código)", st["h2"]))
     elements.extend(bullets(st, [
         "Mesmo repositório Git (monorepo lwksistemas/lwk).",
         "Após merge staging → main, o <b>código</b> fica igual; os <b>dados</b> não são copiados.",
-        "Migrations rodam em cada ambiente no releaseCommand do Railway.",
+        "Migrations rodam em cada ambiente no deploy do backend.",
     ]))
 
     elements.append(Paragraph("2.3 Integrações — diferenças práticas", st["h2"]))
     elements.append(table([
         ["Integração", "Beta", "Produção"],
         ["Asaas", "Sandbox ou prod (configurável)", "Conta produção ($aact_prod_)"],
-        ["Webhook Asaas", "...staging.up.railway.app/api/asaas/webhook/", "api.lwksistemas.com.br/api/asaas/webhook/"],
+        ["Webhook Asaas", "beta.lwksistemas.com.br/api/asaas/webhook/", "api.lwksistemas.com.br/api/asaas/webhook/"],
         ["NFS-e ISSNet", "Config no banco staging (pode espelhar prod)", "Config no banco prod — emissão real"],
         ["E-mail Resend", "Ativo (testes)", "Ativo (clientes reais)"],
         ["WhatsApp Evolution", "Pode estar desligado (evolution_available: false)", "Conforme config prod"],
@@ -231,7 +231,7 @@ def section_segregation(st, elements):
     elements.append(Paragraph("2.4 Boas práticas de segurança", st["h2"]))
     elements.extend(bullets(st, [
         "Não usar dados reais de clientes no beta sem necessidade.",
-        "Secrets (SECRET_KEY, FIELD_ENCRYPTION_KEY, ASAAS_API_KEY) são por ambiente no Railway.",
+        "Secrets (SECRET_KEY, FIELD_ENCRYPTION_KEY, ASAAS_API_KEY) são por ambiente, no servidor.",
         "Certificado NFS-e exportado via nfse_config_sync contém senhas — apagar após importar.",
         "Emissão ISSNet em produção no beta gera nota fiscal real na prefeitura.",
         "Manter ultimo_rps sincronizado ou usar --keep-counters ao importar config NFS-e.",
@@ -243,45 +243,27 @@ def section_deploy_flow(st, elements):
     elements.append(Paragraph("3. Fluxo de deploy (padrão)", st["h1"]))
     elements.append(code_block(st, """1. Desenvolver / corrigir no código
 2. Commit + push na branch staging
-3. Deploy automático (Vercel Preview + Railway staging)
-   ou manual: railway up --service lwks-backend-staging
+3. Deploy no beta isolado (frontend e/ou backend)
 4. Testar em https://beta.lwksistemas.com.br
 5. Aprovar com equipe / cliente
-6. git checkout main && git merge staging && git push origin main
-7. Deploy produção (Vercel main + Railway lwks-backend)"""))
+6. Publicar na main e deploy Magalu"""))
 
     elements.append(Paragraph("3.1 Deploy manual — Beta", st["h2"]))
-    elements.append(code_block(st, """export PATH="$HOME/.local/npm-global/bin:$PATH"
-cd /caminho/para/lwksistemas
-railway environment staging
-railway service lwks-backend-staging
-railway up --detach
-
-# Frontend: push em staging dispara Preview na Vercel
-# Domínio: beta.lwksistemas.com.br → branch staging"""))
+    elements.append(code_block(st, """ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh frontend'
+ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh backend clinica_beleza'"""))
 
     elements.append(Paragraph("3.2 Promover para produção", st["h2"]))
-    elements.append(code_block(st, """git checkout main
-git merge staging
+    elements.append(code_block(st, """# Publicar o commit já testado no beta (cherry-pick ou merge, conforme o histórico)
 git push origin main
-# Vercel (main) + Railway production disparam se Git conectado"""))
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh frontend'
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh backend clinica_beleza'"""))
 
-    elements.append(Paragraph("3.3 Deploy manual — Produção (emergência)", st["h2"]))
-    elements.append(code_block(st, """export PATH="$HOME/.local/npm-global/bin:$PATH"
-cd /caminho/para/lwksistemas
-railway environment production
-railway service lwks-backend
-railway up --detach
-
-# Frontend produção:
-npx vercel --prod --yes"""))
-
-    elements.append(Paragraph("3.4 Verificações pós-deploy", st["h2"]))
+    elements.append(Paragraph("3.3 Verificações pós-deploy", st["h2"]))
     elements.extend(bullets(st, [
         "GET /api/superadmin/health → status healthy",
         "Login superadmin senha errada → 401 (não 500)",
-        "Railway: releaseCommand (migrate) sem erro nos logs",
-        "Vercel: deploy Ready em produção",
+        "Log do deploy sem erro de migrate",
+        "Site https://lwksistemas.com.br abre",
     ]))
     elements.append(PageBreak())
 
@@ -306,10 +288,10 @@ def section_nfse(st, elements):
     ]))
 
     elements.append(Paragraph("4.2 Sincronizar via comando", st["h2"]))
-    elements.append(code_block(st, """# Produção (Railway SSH lwks-backend)
+    elements.append(code_block(st, """# Produção (container do backend)
 python manage.py nfse_config_sync export -o /tmp/nfse_config.json
 
-# Beta (Railway SSH lwks-backend-staging)
+# Beta (container do backend)
 python manage.py nfse_config_sync import -i /tmp/nfse_config.json --keep-counters"""))
 
     elements.append(Paragraph(
@@ -332,9 +314,9 @@ def section_rollback(st, elements):
         "CLI: vercel promote <URL_DO_DEPLOY_BOM> --prod",
     ]))
 
-    elements.append(Paragraph("5.2 Backend — Railway", st["h2"]))
+    elements.append(Paragraph("5.2 Backend — Magalu", st["h2"]))
     elements.extend(bullets(st, [
-        "Railway → lwks-backend → Deployments → Redeploy do build Successful anterior",
+        "No servidor, volte ao commit bom e rode deploy-prod-magalu.sh backend",
         "Verificar: curl https://api.lwksistemas.com.br/api/superadmin/health",
     ]))
 
@@ -378,7 +360,7 @@ def section_checklist(st, elements):
     elements.append(HRFlowable(width="100%", thickness=1, color=C_MUTED))
     elements.append(Spacer(1, 0.3 * cm))
     elements.append(Paragraph(
-        "<b>Resumo:</b> GitHub → Vercel (frontend/) + Railway (lwks-backend). "
+        "<b>Resumo:</b> GitHub → Magalu (frontend e API). "
         "Beta = staging. Produção = main. Config fiscal e pagamentos ficam no banco de cada ambiente.",
         st["muted"],
     ))

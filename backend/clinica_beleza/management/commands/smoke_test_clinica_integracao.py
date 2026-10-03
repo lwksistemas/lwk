@@ -4,18 +4,14 @@ Loja de testes em produção: **vida** (https://lwksistemas.com.br/loja/vida/das
 
 Preferir staging/beta para --write. Testes com escrita usam rollback automático no tenant (--write).
 
-Uso local (DATABASE_URL pública ou `railway connect` — internal *.railway.internal não resolve fora da rede Railway):
+Uso local:
   cd backend
   export DJANGO_SETTINGS_MODULE=config.settings_production
   python manage.py smoke_test_clinica_integracao --slug vida --allow-production
 
-Após deploy do backend (comando precisa existir na imagem):
-  railway ssh -s lwks-backend -- python manage.py smoke_test_clinica_integracao --slug vida --allow-production
-  railway ssh -s lwks-backend -- python manage.py smoke_test_clinica_integracao --slug vida --write --allow-production
-
-Railway staging:
-  railway run --environment staging --service lwks-backend-staging \\
-    sh -c 'cd backend && DJANGO_SETTINGS_MODULE=config.settings_production python manage.py smoke_test_clinica_integracao --slug vida --write'
+No servidor, depois do deploy do backend:
+  python manage.py smoke_test_clinica_integracao --slug vida --allow-production
+  python manage.py smoke_test_clinica_integracao --slug vida --write --allow-production
 """
 import os
 import sys

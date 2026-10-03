@@ -1,7 +1,7 @@
 """Adiciona coluna cpf_cnpj em crm_vendas_lead em schemas que não a possuem.
 Corrige erro 500 "column cpf_cnpj does not exist" em lojas CRM.
 
-Uso: heroku run "cd backend && python manage.py add_cpf_cnpj_lead_schemas" --app lwksistemas
+Uso: python manage.py add_cpf_cnpj_lead_schemas
 """
 from django.core.management.base import BaseCommand
 from django.db import connection

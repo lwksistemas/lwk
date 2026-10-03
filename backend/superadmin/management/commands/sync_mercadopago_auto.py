@@ -1,8 +1,8 @@
 """Comando para sincronização automática de pagamentos Mercado Pago.
 Atualiza status de pagamentos e financeiro das lojas consultando a API do MP.
 
-Para atualização em tempo real no Heroku (como o Asaas), agende no Heroku Scheduler:
-  - Comando: cd backend && python manage.py sync_mercadopago_auto
+Para atualização periódica, agende no cron do servidor:
+  - Comando: python manage.py sync_mercadopago_auto
   - Frequência sugerida: a cada 10 minutos (ou a cada hora)
 """
 import logging
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Sincroniza pagamentos Mercado Pago (consulta API e atualiza status). Agende no Heroku Scheduler para tempo real."
+    help = "Sincroniza pagamentos Mercado Pago (consulta API e atualiza status)."
 
     def add_arguments(self, parser):
         parser.add_argument(

@@ -422,7 +422,7 @@ def build_pdf():
                 "Cada loja = schema <b>loja_*</b> com apps <b>clinica_beleza</b> + <b>whatsapp</b>.",
                 "Headers <b>X-Tenant-Slug</b> e JWT garantem isolamento entre clínicas.",
                 "<b>security_middleware</b> bloqueia rotas CRM em tenants clínica-beleza.",
-                "Migrations via <b>migrate_all_lojas</b> + comandos <b>ensure_*</b> no release Railway.",
+                "Migrations via <b>migrate_all_lojas</b> + comandos <b>ensure_*</b> no deploy do backend.",
             ],
         )
     )
@@ -439,7 +439,7 @@ def build_pdf():
                 ["Memed", "Prescrição digital (receituário)", "Configurações → Memed"],
                 ["NFS-e", "Nota ao fechar consulta paga", "Configurações → Nota fiscal"],
                 ["Servidor de mídia", "Fotos paciente, PDFs", "Automático (backend)"],
-                ["django-q + Redis", "Envio assíncrono campanhas/mensagens", "Railway lwks-worker"],
+                ["django-q + Redis", "Envio assíncrono campanhas/mensagens", "worker no Magalu"],
             ],
             [3.5 * cm, 6 * cm, 6 * cm],
         )

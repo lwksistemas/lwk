@@ -244,7 +244,7 @@ export function WhatsAppWebConnect({
           <p className="text-xs text-amber-700 dark:text-amber-300">
             WhatsApp Web indisponível neste servidor (
             {typeof window !== 'undefined' && window.location.hostname === 'beta.lwksistemas.com.br'
-              ? 'beta: configure EVOLUTION_API_URL e EVOLUTION_API_KEY no Railway staging — ver docs/DEPLOY_E_ROLLBACK.md §0.4'
+              ? 'beta: configure EVOLUTION_API_URL e EVOLUTION_API_KEY no servidor de teste'
               : 'Evolution API não configurada'}
             ). Use a Meta Cloud API abaixo ou peça ao suporte LWK para habilitar a Evolution API.
           </p>

@@ -214,7 +214,7 @@ def cover_page(st, elements):
     ))
     elements.append(Spacer(1, 0.3 * cm))
     elements.append(Paragraph(
-        "<b>Ordem:</b> estabilizar produção primeiro (Vercel + Railway) → testar → "
+        "<b>Ordem:</b> estabilizar produção primeiro (deploy do commit bom no Magalu) → testar → "
         "depois corrigir no Git com git revert.",
         st["alert"],
     ))
@@ -234,14 +234,14 @@ def section_when(st, elements):
     elements.append(table([
         ["Passo", "Ação", "Tempo típico"],
         ["1", "Promote deploy anterior na Vercel (frontend)", "~30 segundos"],
-        ["2", "Redeploy deploy anterior no Railway (backend)", "~1–3 minutos"],
+        ["2", "Deploy do commit anterior no Magalu (backend)", "~1–3 minutos"],
         ["3", "Testar login + uma tela de loja", "~1 minuto"],
         ["Total", "Produção estável de novo", "~2–5 minutos"],
     ], col_widths=[1.5 * cm, 9.5 * cm, 5 * cm], header_bg=C_ACCENT))
     elements.append(Spacer(1, 0.3 * cm))
     elements.append(Paragraph(
         "Se o bug for <b>só no front</b>, reverta só a Vercel. "
-        "Se for <b>só na API</b>, reverta só o Railway. "
+        "Se for <b>só na API</b>, rode só o deploy do backend. "
         "Se mudou front + API juntos, reverta <b>os dois</b> para o mesmo momento (deploy anterior ao bug).",
         st["body"],
     ))
@@ -287,32 +287,15 @@ vercel promote <URL_DO_DEPLOY_BOM> --prod"""))
     elements.append(PageBreak())
 
 
-def section_railway(st, elements):
-    elements.append(Paragraph("3. Backend — Railway (3 cliques)", st["h1"]))
+def section_backend(st, elements):
+    elements.append(Paragraph("3. Backend — Magalu", st["h1"]))
     elements.append(Paragraph(
-        "<b>Link direto:</b> railway.com → projeto refreshing-contentment → serviço <b>lwks-backend</b>",
+        "Volte o Git para o commit bom e rode de novo o deploy do serviço que quebrou.",
         st["body"],
     ))
     elements.append(Spacer(1, 0.2 * cm))
-    elements.append(step_box(
-        st, "1",
-        "Abrir Deployments",
-        "Railway → projeto refreshing-contentment → serviço lwks-backend → aba Deployments",
-    ))
-    elements.append(Spacer(1, 0.15 * cm))
-    elements.append(step_box(
-        st, "2",
-        "Escolher o deploy bom",
-        "Selecione o deployment com status <b>Successful</b> imediatamente <b>antes</b> "
-        "do deploy que introduziu o bug.",
-    ))
-    elements.append(Spacer(1, 0.15 * cm))
-    elements.append(step_box(
-        st, "3",
-        "Redeploy",
-        "Clique em <b>Redeploy</b> / reativar esse deployment (volta a imagem daquele build). "
-        "Aguarde ~1–3 min até ficar Successful.",
-    ))
+    elements.append(code_block(st, """ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git fetch && git checkout <commit_bom> && bash scripts/deploy-prod-magalu.sh backend'
+# Tela: troque backend por frontend"""))
     elements.append(Spacer(1, 0.4 * cm))
     elements.append(Paragraph("Verificar API", st["h2"]))
     elements.append(code_block(st, """curl -s https://api.lwksistemas.com.br/api/superadmin/health
@@ -353,14 +336,14 @@ git push origin main
         ["Bug só em Python ou TypeScript", "✅ Sim"],
         ["Bug só na interface (UI)", "✅ Sim (Vercel)"],
         ["Migration aditiva já aplicada (coluna nova)", "⚠️ Parcial — app antigo costuma funcionar"],
-        ["Migration destrutiva ou dados apagados", "❌ Não — restore backup Postgres no Railway"],
+        ["Migration destrutiva ou dados apagados", "❌ Não — restore do backup Postgres"],
     ], col_widths=[8 * cm, 8 * cm]))
 
     elements.append(Spacer(1, 0.5 * cm))
     elements.append(Paragraph("6. Checklist pós-rollback", st["h1"]))
     for item in [
         "Vercel: deploy anterior promovido → Ready em produção",
-        "Railway: redeploy Successful → health healthy",
+        "API: health healthy depois do deploy do backend",
         "Login superadmin (senha errada) → 401, não 500",
         "Uma rota de loja autenticada abre sem 500",
         "git revert do commit ruim agendado ou feito",
@@ -371,7 +354,7 @@ git push origin main
     elements.append(HRFlowable(width="100%", thickness=1, color=C_MUTED))
     elements.append(Spacer(1, 0.3 * cm))
     elements.append(Paragraph(
-        "<b>Resumo:</b> Bug grave em produção → Promote Vercel (~30 s) + Redeploy Railway (~2 min) "
+        "<b>Resumo:</b> Bug grave em produção → deploy do commit bom no Magalu "
         "→ testar → git revert → corrigir no beta antes do próximo deploy.",
         st["muted"],
     ))
@@ -404,7 +387,7 @@ def build_pdf(path: Path):
     cover_page(st, elements)
     section_when(st, elements)
     section_vercel(st, elements)
-    section_railway(st, elements)
+    section_backend(st, elements)
     section_after(st, elements)
     doc.build(elements)
 

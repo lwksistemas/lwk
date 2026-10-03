@@ -56,7 +56,7 @@ class EvolutionWebhookAuthTest(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
 
     @override_settings(EVOLUTION_API_KEY="secret-key", DEBUG=False)
-    def test_ip_railway_nao_bypassa_sem_apikey(self):
+    def test_ip_interno_nao_bypassa_sem_apikey(self):
         """IP interno não substitui Apikey (allowlist removida)."""
         request = self.factory.post(
             "/api/whatsapp/evolution/webhook/",

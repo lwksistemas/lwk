@@ -444,7 +444,7 @@ def page_checklist(c: canvas.Canvas):
         "Superadmin → Lojas: loja criada com financeiro pendente",
         "Painel Asaas: cobrança com externalReference loja_{slug}_assinatura",
         "Preferir PIX para confirmação rápida (webhook em segundos)",
-        "Logs Railway: Pagamento confirmado, Senha provisória enviada, NFS-e emitida",
+        "Logs do backend: Pagamento confirmado, Senha provisória enviada, NFS-e emitida",
         "Caixa de entrada + spam: e-mail com senha provisória",
         "Superadmin → NFS-e: nota emitida com status correto",
         "Login em /{atalho}/login ou /loja/{slug}/login com senha recebida",

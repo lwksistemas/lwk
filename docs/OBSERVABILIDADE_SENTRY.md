@@ -1,10 +1,10 @@
 # Observabilidade — Sentry (opcional)
 
-O Sentry é **opcional**: sem `SENTRY_DSN` no Railway, nada muda no comportamento atual.
+O Sentry é **opcional**: sem `SENTRY_DSN` no servidor, nada muda no comportamento atual.
 
-## Backend (Railway)
+## Backend
 
-Variáveis em `lwks-backend` e `lwks-worker`:
+Variáveis no container da API e no worker:
 
 ```env
 SENTRY_DSN=https://xxx@o000.ingest.sentry.io/000
@@ -45,7 +45,7 @@ Recomendado: `@sentry/nextjs` (wizard oficial). Não é obrigatório para o back
 Configure alertas no Sentry para:
 
 - Spike de erros 5xx
-- `task_queue.workers_alive == 0` com fila > 0 (via cron externo ou Railway metrics)
+- `task_queue.workers_alive == 0` com fila > 0 (via cron ou health da API)
 
 ## Backup / restore
 

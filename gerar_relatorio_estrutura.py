@@ -184,7 +184,7 @@ def capa(story, s):
         [Paragraph("<b>Plataforma</b>", s["body"]), Paragraph("SaaS Multi-tenant para Gestão de Lojas/Clínicas", s["body"])],
         [Paragraph("<b>Backend</b>", s["body"]), Paragraph("Django 5 + Django REST Framework + PostgreSQL", s["body"])],
         [Paragraph("<b>Frontend</b>", s["body"]), Paragraph("Next.js 15 + TypeScript + TailwindCSS + shadcn/ui", s["body"])],
-        [Paragraph("<b>Infraestrutura</b>", s["body"]), Paragraph("API/Workers: Railway · Frontend: Vercel", s["body"])],
+        [Paragraph("<b>Infraestrutura</b>", s["body"]), Paragraph("API, workers e frontend no Magalu (Docker)", s["body"])],
         [Paragraph("<b>Versão</b>", s["body"]), Paragraph("Lote 13 batch 4 — CC crítico eliminado", s["body"])],
     ]
     t2 = Table(intro_data, colWidths=[4*cm, 12*cm])
@@ -345,7 +345,7 @@ def secao_apps_backend(story, s, apps, linhas_total):
         ["PDF", "ReportLab", "NFS-e, comissões, propostas, recibos"],
         ["Cache / Retry", "execute_with_db_retry", "Tolerância a picos DB"],
         ["Linter", "Ruff", "Zero erros — obrigatório no CI"],
-        ["Deploy API", "Railway (auto-deploy)", "Push em main → API/workers"],
+        ["Deploy API", "Magalu", "git pull + deploy-prod-magalu.sh backend"],
         ["Deploy Frontend", "Vercel", "Production em main; beta em staging"],
     ]
     t2 = Table(stack_data, colWidths=[3.5*cm, 5*cm, 7.5*cm])
@@ -378,7 +378,7 @@ def secao_frontend(story, s, ts_count, tsx_count, pages, components):
         ["Forms", "React Hook Form + Zod", "Validação type-safe"],
         ["Gráficos", "Recharts", "Dashboards e relatórios"],
         ["HTTP", "Axios + interceptors", "Auth automática via cookie JWT"],
-        ["Deploy", "Vercel", "NÃO Railway — plataforma dedicada Next.js"],
+        ["Deploy", "Magalu", "container frontend (Dockerfile.frontend)"],
     ]
     t = Table(stack_fe, colWidths=[3.5*cm, 4.5*cm, 8*cm])
     t.setStyle(tabela_estilo_padrao())
@@ -425,8 +425,8 @@ def secao_escalabilidade(story, s):
     story.append(Paragraph("4.1 Infraestrutura Real por Serviço", s["h2"]))
     infra_data = [
         ["Serviço", "Produção Real", "Observação"],
-        ["Backend (API Django)", "Railway", "Auto-deploy via push no main"],
-        ["Frontend (Next.js)", "Vercel", "NÃO Railway — deploy independente"],
+        ["Backend (API Django)", "Magalu", "deploy-prod-magalu.sh backend"],
+        ["Frontend (Next.js)", "Magalu", "deploy-prod-magalu.sh frontend"],
         ["WhatsApp (principal)", "Evolution API (WA Web)", "Meta Cloud API existe mas é secundário"],
         ["WhatsApp (oficial)", "Meta Business API", "Usado em paralelo / fallback"],
         ["E-mail (principal)", "Resend (HTTP API)", "Primário em produção"],
@@ -434,7 +434,7 @@ def secao_escalabilidade(story, s):
         ["Fila de tarefas", "Django-Q + Redis", "Prod OK; beta pode estar sem fila ativa"],
         ["Cache", "Redis (django-redis)", "Condicional: USE_REDIS=true + REDIS_URL"],
         ["Banco de dados", "PostgreSQL multi-schema", "Schema isolado por loja (tenant)"],
-        ["Workers adicionais", "Railway (Evolution, workers)", "Serviços separados no projeto Railway"],
+        ["Workers adicionais", "Docker no Magalu", "Evolution e worker django-q em serviços separados"],
     ]
     t = Table(infra_data, colWidths=[4*cm, 4.5*cm, 7.5*cm])
     ts = tabela_estilo_padrao()
@@ -452,7 +452,7 @@ def secao_escalabilidade(story, s):
         ["Fila assíncrona", "Django-Q + Redis (tarefas pesadas)", "✅ Prod / ⚠️ Beta"],
         ["Cache Redis", "Response cache + CRM cache (5 min TTL)", "✅ Prod / ⚠️ Beta"],
         ["Webhooks assíncronos", "Asaas + Mercado Pago + Evolution", "✅ Produção"],
-        ["Auto-scaling Railway", "Depende de plano e replicas configuradas", "⚠️ Não garantido no Starter"],
+        ["Réplicas do backend", "Definidas no compose do servidor", "⚠️ Sem auto-scaling"],
         ["PgBouncer", "Pool de conexões DB", "❌ Não configurado"],
         ["Load test", "Validação de capacidade real", "❌ Pendente"],
     ]

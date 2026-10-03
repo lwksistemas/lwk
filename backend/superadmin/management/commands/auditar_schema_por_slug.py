@@ -6,9 +6,6 @@ apenas os apps esperados para o slug do TipoLoja.
 Uso:
   python manage.py auditar_schema_por_slug --slug 41449198000172
   python manage.py auditar_schema_por_slug --slug a --slug b --all-active
-
-Heroku:
-  heroku run "python backend/manage.py auditar_schema_por_slug --slug 37302743000126" -a lwksistemas
 """
 import contextlib
 import os
@@ -62,7 +59,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.WARNING(
                     "DATABASE default não é PostgreSQL; a auditoria de schema por nome "
-                    "é principalmente para produção (Heroku).",
+                    "é principalmente para o PostgreSQL de produção.",
                 ),
             )
 

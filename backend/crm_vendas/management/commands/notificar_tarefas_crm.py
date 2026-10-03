@@ -3,9 +3,8 @@ Cria notificações in-app para o owner da loja e envia resumo por WhatsApp quan
 
 Uso:
   python manage.py notificar_tarefas_crm
-  heroku run "cd backend && python manage.py notificar_tarefas_crm" -a lwksistemas
 
-Agende no Heroku Scheduler para rodar a cada hora.
+O cron do servidor chama este comando a cada hora.
 """
 import os
 from datetime import timedelta

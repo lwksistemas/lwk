@@ -15,8 +15,8 @@ class Migration(migrations.Migration):
             fields=[
                 ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("loja_id", models.IntegerField(db_index=True)),
-                ("cloudinary_url", models.URLField(max_length=500)),
-                ("cloudinary_public_id", models.CharField(blank=True, default="", max_length=255)),
+                ("url", models.URLField(max_length=500)),
+                ("public_id", models.CharField(blank=True, default="", max_length=255)),
                 ("origem", models.CharField(
                     choices=[("qr", "QR / Celular"), ("painel", "Painel da consulta")],
                     default="qr",

@@ -1,15 +1,13 @@
-"""Configurações para desenvolvimento local
-Usa o banco PostgreSQL do Heroku (produção) para testes
+"""Configurações para desenvolvimento local.
+Se DATABASE_URL existir, usa esse PostgreSQL.
 """
 import dj_database_url
 
 from .settings import *
 
-# Sobrescrever DATABASES para usar PostgreSQL do Heroku
 DATABASE_URL = config("DATABASE_URL", default="")
 
 if DATABASE_URL:
-    # Usar PostgreSQL do Heroku
     DATABASES = {
         "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600),
     }
@@ -19,7 +17,7 @@ if DATABASE_URL:
         "sslmode": "require",
     }
 
-    print("✅ [Local] Usando PostgreSQL do Heroku")
+    print("✅ [Local] Usando PostgreSQL (DATABASE_URL)")
 else:
     print("⚠️ [Local] DATABASE_URL não configurado, usando SQLite")
 

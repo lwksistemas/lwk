@@ -36,7 +36,7 @@ ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod
 ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh backend clinica_beleza'
 ```
 
-**NÃO usar:** `npx railway up`, `npx vercel`, `heroku` — serviços descontinuados.
+Deploy só com os scripts acima. Não use `up -d --build` sem o nome do serviço.
 
 ## Arquitetura multi-tenant
 

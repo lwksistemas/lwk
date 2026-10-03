@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 def sync_all_mercadopago_payments():
     """Sincroniza todos os pagamentos pendentes do Mercado Pago (consulta a API e atualiza status).
-    Pode ser executado periodicamente no servidor (ex.: Heroku Scheduler a cada 10 min) para
+    Pode ser executado periodicamente no servidor (a cada 10 min) para
     atualização em tempo real, similar ao sync do Asaas.
     """
     from .models import MercadoPagoConfig

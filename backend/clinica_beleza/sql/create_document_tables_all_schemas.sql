@@ -2,8 +2,8 @@
 -- SQL para criar tabelas de DocumentTemplate e DocumentoClinico
 -- em TODOS os schemas de lojas ativas.
 --
--- Uso em produção (Railway):
---   npx railway run python manage.py ensure_document_templates_tables
+-- Uso em produção:
+--   python manage.py ensure_document_templates_tables
 --
 -- Ou executar este SQL diretamente no banco (substituir <SCHEMA> pelo schema
 -- de cada loja, ex: loja_12345678000190):

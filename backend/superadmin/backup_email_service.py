@@ -232,8 +232,8 @@ Este é um email automático, não responda.
     def _anexar_arquivo(self, email: EmailMessage, historico):
         """Anexa arquivo de backup ao email.
 
-        Tenta ler do filesystem. Se o arquivo não existir (ex: após redeploy do
-        Railway onde o container é efêmero), loga um aviso e retorna sem anexo
+        Tenta ler do filesystem. Se o arquivo não existir (container
+        recriado no deploy), loga um aviso e retorna sem anexo
         — o email ainda é enviado com as informações do backup no corpo.
         """
         import os

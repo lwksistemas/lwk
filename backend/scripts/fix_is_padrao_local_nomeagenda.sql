@@ -1,6 +1,6 @@
 -- Idempotente: coluna is_padrao em locais de atendimento e nomes de agenda (migration 0050).
 -- Uso manual (schema da loja): SET search_path TO "loja_XXXXX", public; \i fix_is_padrao_local_nomeagenda.sql
--- Ou via Railway SSH: python manage.py ensure_local_nomeagenda_is_padrao --slug NOME
+-- Ou no servidor: python manage.py ensure_local_nomeagenda_is_padrao --slug NOME
 
 ALTER TABLE clinica_beleza_locais_atendimento
 ADD COLUMN IF NOT EXISTS is_padrao BOOLEAN NOT NULL DEFAULT FALSE;

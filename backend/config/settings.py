@@ -189,7 +189,7 @@ if "DATABASE_URL" in os.environ:
         "CONN_HEALTH_CHECKS": True,
     }
 
-    # ✅ Banco suporte: mesmo PostgreSQL, schema isolado (evita SQLite efêmero no Heroku)
+    # Banco suporte: mesmo PostgreSQL, schema isolado
     DATABASES["suporte"] = {
         **default_db_config,
         "OPTIONS": {

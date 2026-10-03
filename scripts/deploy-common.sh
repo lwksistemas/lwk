@@ -9,10 +9,6 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 log() { echo ">> $*" >&2; }
 warn() { echo ">> WARN: $*" >&2; }
 
-get_expected_build_id() {
-  grep -m1 '^ARG BUILD_ID=' "$REPO_ROOT/Dockerfile.railway" | sed 's/ARG BUILD_ID=//'
-}
-
 wait_api_health() {
   local url="$1"
   local max_wait="${2:-600}"
@@ -30,7 +26,7 @@ wait_api_health() {
         log "API OK (build=${build:-?})"
         return 0
       fi
-      log "API healthy, build=$build (esperado $expected_build) — aguardando deploy Railway..."
+      log "API healthy, build=$build (esperado $expected_build) — aguardando deploy..."
     fi
     sleep 15
     elapsed=$((elapsed + 15))
@@ -82,18 +78,6 @@ link_beta_domains() {
 
 verify_beta_csp() {
   curl -sI "https://beta.lwksistemas.com.br/superadmin/login" | tr '\r' '\n' | grep -i connect-src || true
-}
-
-railway_tenant_ensure() {
-  local environment="$1"
-  local service="$2"
-  cd "$REPO_ROOT/backend"
-  railway environment "$environment" >/dev/null 2>&1 || true
-  log "Schemas tenant ($service / $environment)..."
-  railway ssh --service "$service" python manage.py ensure_all 2>&1 | tail -20 || warn "ensure_all falhou (ver logs Railway)"
-  railway ssh --service "$service" python manage.py ensure_all_clinica_beleza 2>&1 | tail -15 || warn "ensure_all_clinica_beleza falhou"
-  railway ssh --service "$service" python manage.py corrigir_schema_crm 2>&1 | tail -15 || warn "corrigir_schema_crm falhou"
-  railway ssh --service "$service" python manage.py ensure_crm_financeiro_tabelas 2>&1 | tail -10 || true
 }
 
 git_require_clean_or_stash() {

@@ -4,15 +4,12 @@ para que as tabelas (ex.: clinica_beleza) existam no schema isolado.
 IMPORTANTE: Sem rodar este comando, a loja NÃO terá tabelas no schema isolado
 e nada será salvo (agendamentos, pacientes, etc.). Sempre rodar após criar uma nova loja.
 
-Uso (produção Heroku):
-  heroku run "cd backend && python manage.py setup_loja_schema SLUG_DA_LOJA" --app lwksistemas
-  Ex.: heroku run "cd backend && python manage.py setup_loja_schema felix-representacoes-000172" --app lwksistemas
+Uso:
+  python manage.py setup_loja_schema SLUG_DA_LOJA
+  Ex.: python manage.py setup_loja_schema felix-representacoes-000172
 
 Se a loja CRM já existia antes do schema por loja e dá "relation crm_vendas_lead does not exist":
-  heroku run "cd backend && python manage.py setup_loja_schema SLUG_DA_LOJA --force-crm" --app lwksistemas
-
-Uso (local):
-  python backend/manage.py setup_loja_schema SLUG_DA_LOJA
+  python manage.py setup_loja_schema SLUG_DA_LOJA --force-crm
 """
 import os
 

@@ -44,13 +44,13 @@ check_endpoint() {
 # 1. Verificar logs recentes
 echo "1. LOGS RECENTES"
 echo "--------------------------------------------------------------------------------"
-heroku logs --app lwksistemas --num 20 | tail -10
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && docker compose -f docker-compose.prod.yml logs --tail=20 backend'
 echo ""
 
 # 2. Verificar endpoints de segurança
 echo "2. ENDPOINTS DE SEGURANÇA"
 echo "--------------------------------------------------------------------------------"
-BASE_URL="https://lwksistemas-38ad47519238.herokuapp.com/api"
+BASE_URL="https://api.lwksistemas.com.br/api"
 
 check_endpoint "$BASE_URL/superadmin/security-dashboard/resumo_seguranca/" "Resumo de Segurança"
 check_endpoint "$BASE_URL/superadmin/violacoes-seguranca/estatisticas/" "Estatísticas de Violações"
@@ -61,14 +61,14 @@ echo ""
 # 3. Verificar status do sistema
 echo "3. STATUS DO SISTEMA"
 echo "--------------------------------------------------------------------------------"
-echo -n "Backend (Heroku)... "
-if curl -s -o /dev/null -w "%{http_code}" "https://lwksistemas-38ad47519238.herokuapp.com/api/" | grep -q "200\|404"; then
+echo -n "Backend (API)... "
+if curl -s -o /dev/null -w "%{http_code}" "https://api.lwksistemas.com.br/api/superadmin/health/" | grep -q "200"; then
     echo -e "${GREEN}✅ Online${NC}"
 else
     echo -e "${RED}❌ Offline${NC}"
 fi
 
-echo -n "Frontend (Vercel)... "
+echo -n "Site... "
 if curl -s -o /dev/null -w "%{http_code}" "https://lwksistemas.com.br" | grep -q "200"; then
     echo -e "${GREEN}✅ Online${NC}"
 else
@@ -79,7 +79,7 @@ echo ""
 # 4. Verificar Redis
 echo "4. REDIS STATUS"
 echo "--------------------------------------------------------------------------------"
-heroku redis:info --app lwksistemas | grep -E "Plan|Status|Connections|Memory" || echo "Erro ao obter info do Redis"
+curl -s "https://api.lwksistemas.com.br/api/superadmin/health/" || echo "Erro ao consultar o health"
 echo ""
 
 # 5. Verificar violações recentes (se houver)
@@ -101,5 +101,5 @@ echo "  2. Verificar taxa de erro nos últimos logs"
 echo "  3. Monitorar performance dos endpoints"
 echo ""
 echo "Para logs em tempo real:"
-echo "  heroku logs --tail --app lwksistemas"
+echo "  ssh deploy@201.23.81.50 'cd /opt/lwk-erp && docker compose -f docker-compose.prod.yml logs -f backend'"
 echo ""

@@ -32,7 +32,7 @@ export function MemedPageContent() {
             <p className="text-gray-600 dark:text-gray-400">
               Credenciais no servidor: {memedDiag.credentials_configured ? "OK" : "Pendente"}
               {memedDiag.environment === "production" && !memedDiag.production_keys_configured && (
-                <span className="text-amber-600"> — configure MEMED_*_PROD no Railway</span>
+                <span className="text-amber-600"> — configure MEMED_*_PROD no servidor</span>
               )}
             </p>
             <p className="text-gray-600 dark:text-gray-400">

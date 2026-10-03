@@ -1,5 +1,5 @@
 # Generated manually
-"""Muda issnet_certificado de FileField para BinaryField (Heroku disco efêmero).
+"""Muda issnet_certificado de FileField para BinaryField (arquivo fica no banco).
 Adiciona issnet_certificado_nome para guardar o nome original do arquivo.
 """
 from django.db import migrations, models

@@ -62,6 +62,9 @@ class Command(BaseCommand):
         from superadmin.tasks import detect_security_violations
         detect_security_violations()
 
+        # Métricas de capacidade (load, RAM, Postgres, fila, lojas) a cada execução (~15 min).
+        call_command("registrar_metricas_capacidade", verbosity=0)
+
         if now.hour == 4 and now.minute < 15:
             call_command("limpar_evolution_instancias", "--execute", verbosity=1)
 

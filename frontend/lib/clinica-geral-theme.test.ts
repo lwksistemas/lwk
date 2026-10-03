@@ -85,7 +85,7 @@ describe('clinica-geral-theme', () => {
     persistClinicaGeralDark(false);
     expect(isClinicaGeralDarkEnabled()).toBe(false);
     expect(darkClass.on).toBe(false);
-    expect(style.colorScheme).toBe('light');
+    expect(style.colorScheme).toBe('only light');
   });
 
   it('applyClinicaGeralDark não grava localStorage', () => {

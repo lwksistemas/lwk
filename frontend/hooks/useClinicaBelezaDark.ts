@@ -6,7 +6,9 @@ const STORAGE_KEY = "lwk-clinica-dark";
 
 function applyDarkToDocument(isDark: boolean) {
   if (typeof document === "undefined") return;
-  document.documentElement.classList.toggle("dark", isDark);
+  const root = document.documentElement;
+  root.classList.toggle("dark", isDark);
+  root.style.colorScheme = isDark ? "dark" : "only light";
 }
 
 /**

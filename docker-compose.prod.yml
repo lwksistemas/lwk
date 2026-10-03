@@ -135,25 +135,28 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
 
-  evolution:
-    image: evoapicloud/evolution-api:v2.3.7
-    restart: always
-    environment:
-      - SERVER_URL=https://evolution.lwksistemas.com.br
-      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
-      - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/evolution
-      - DATABASE_CONNECTION_CLIENT_NAME=evolution
-      - CACHE_REDIS_ENABLED=true
-      - CACHE_REDIS_URI=redis://redis:6379/1
-      - LOG_LEVEL=WARN
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:8081:8080"
+  # Evolution API migrada para VM dedicada (169.150.0.111 / evolution.lwksistemas.com.br).
+  # Setup: deploy/evolution/. Mantido comentado para não recriar a instância antiga
+  # (que compartilhava o Postgres/Redis do ERP) em deploys futuros.
+  # evolution:
+  #   image: evoapicloud/evolution-api:v2.3.7
+  #   restart: always
+  #   environment:
+  #     - SERVER_URL=https://evolution.lwksistemas.com.br
+  #     - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+  #     - DATABASE_PROVIDER=postgresql
+  #     - DATABASE_CONNECTION_URI=postgres://lwk:${POSTGRES_PASSWORD}@postgres:5432/evolution
+  #     - DATABASE_CONNECTION_CLIENT_NAME=evolution
+  #     - CACHE_REDIS_ENABLED=true
+  #     - CACHE_REDIS_URI=redis://redis:6379/1
+  #     - LOG_LEVEL=WARN
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   ports:
+  #     - "127.0.0.1:8081:8080"
 
   frontend-beta:
     build:

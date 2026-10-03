@@ -71,8 +71,10 @@ class Command(BaseCommand):
         # Manutenção semanal: domingo às 3h
         # - VACUUM nas tabelas tenant (corrige bloat em tabelas pequenas ignoradas pelo autovacuum)
         # - Limpeza de erros de frontend de lojas extintas e registros antigos
+        # - Retenção do histórico global de acessos (mantém 90 dias)
         if now.weekday() == 6 and now.hour == 3 and now.minute < 15:
             call_command("vacuum_tenants", verbosity=1)
             call_command("limpar_erros_frontend", verbosity=1)
+            call_command("limpar_historico_antigo", "--dias=90", verbosity=1)
 
         self.stdout.write(self.style.SUCCESS("=== Cron LWK concluído ==="))

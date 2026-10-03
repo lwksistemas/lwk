@@ -2,7 +2,6 @@ import logging
 import re
 
 from django.conf import settings
-from django.core.management import call_command
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
@@ -36,7 +35,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
         return LojaSerializer
 
     def get_permissions(self):
-        if self.action in ["info_publica", "debug_auth", "create", "buscar_por_documento", "por_atalho"]:
+        if self.action in ["info_publica", "create", "buscar_por_documento", "por_atalho"]:
             return []
         if self.action == "heartbeat":
             return [permissions.IsAuthenticated()]
@@ -47,7 +46,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
 
         if self.action == "create":
             return [PublicLojaCreateThrottle()]
-        if self.action == "buscar_por_documento":
+        if self.action in ("buscar_por_documento", "info_publica", "por_atalho"):
             return [PublicLojaLookupThrottle()]
         return super().get_throttles()
 
@@ -321,25 +320,6 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             "assinatura_aviso": assinatura_aviso,
         }, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=["get"], permission_classes=[IsSuperAdmin])
-    def debug_auth(self, request):
-        """Debug endpoint para verificar autenticação - APENAS SUPERADMIN"""
-        if not settings.DEBUG:
-            return Response(
-                {"error": "Endpoint disponível apenas em modo DEBUG"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        return Response({
-            "authenticated": request.user.is_authenticated if hasattr(request, "user") else False,
-            "user": str(request.user) if hasattr(request, "user") and request.user.is_authenticated else "Anonymous",
-            "headers": dict(request.headers),
-            "method": request.method,
-            "path": request.path,
-            "query_params": dict(request.query_params),
-            "permissions_checked": True,
-        })
-
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
     def verificar_senha_provisoria(self, request):
         """Verifica se o usuário logado precisa trocar a senha provisória."""
@@ -392,37 +372,6 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
                 "precisa_trocar_senha": False,
                 "mensagem": "Usuário não possui loja associada",
             })
-
-    @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
-    def debug_senha_status(self, request):
-        """DEBUG: Verifica o estado dos campos de senha de uma loja por slug"""
-        if not settings.DEBUG:
-            return Response(
-                {"error": "Endpoint disponível apenas em modo DEBUG"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        slug = request.query_params.get("slug")
-        if not slug:
-            return Response({"error": "Parâmetro slug é obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            loja = Loja.objects.get(slug=slug)
-            precisa_trocar = not loja.senha_foi_alterada and bool(loja.senha_provisoria)
-
-            return Response({
-                "loja_id": loja.id,
-                "loja_slug": loja.slug,
-                "loja_nome": loja.nome,
-                "senha_provisoria_existe": bool(loja.senha_provisoria),
-                "senha_provisoria_valor": loja.senha_provisoria[:3] + "***" if loja.senha_provisoria else None,
-                "senha_foi_alterada": loja.senha_foi_alterada,
-                "precisa_trocar_senha": precisa_trocar,
-                "owner_username": loja.owner.username,
-                "is_active": loja.is_active,
-            })
-        except Loja.DoesNotExist:
-            return Response({"error": f'Loja com slug "{slug}" não encontrada'}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=["post"], permission_classes=[IsOwnerOrSuperAdmin])
     def alterar_senha_primeiro_acesso(self, request, pk=None):
@@ -703,59 +652,6 @@ Equipe de Suporte
         except Exception as e:
             return Response(
                 {"error": f"Erro ao enviar email: {e!s}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-    @action(detail=True, methods=["post"])
-    def criar_banco(self, request, pk=None):
-        """Cria banco de dados isolado para a loja"""
-        loja = self.get_object()
-
-        if loja.database_created:
-            return Response(
-                {"error": "Banco já foi criado para esta loja"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            db_name = loja.database_name
-            db_path = settings.BASE_DIR / f"db_{db_name}.sqlite3"
-
-            settings.DATABASES[db_name] = {
-                "ENGINE": "django.db.backends.sqlite3",
-                "NAME": db_path,
-                "ATOMIC_REQUESTS": False,
-                "AUTOCOMMIT": True,
-                "CONN_MAX_AGE": 0,
-                "CONN_HEALTH_CHECKS": False,
-                "OPTIONS": {},
-                "TIME_ZONE": None,
-            }
-
-            call_command("migrate", "--database", db_name, verbosity=0)
-
-            from django.contrib.auth.models import User as UserModel
-            UserModel.objects.db_manager(db_name).create_user(
-                username=loja.owner.username,
-                email=loja.owner.email,
-                password="senha123",
-                is_staff=True,
-            )
-
-            loja.database_created = True
-            loja.save()
-
-            return Response({
-                "message": "Banco criado com sucesso",
-                "database_name": db_name,
-                "database_path": str(db_path),
-                "admin_username": loja.owner.username,
-                "admin_password": "senha123",
-            })
-
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

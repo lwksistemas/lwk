@@ -185,19 +185,10 @@ class LojaCreationService:
             senha_provisoria: Senha provisória gerada
 
         """
-        print(f"\n{'='*80}")
-        print(f"✅ Loja criada: {loja.nome}")
-        print(f"   - Provedor boleto preferido: {getattr(loja, 'provedor_boleto_preferido', 'asaas')}")
-        print(f"   - ID: {loja.id}")
-        print(f"   - Slug: {loja.slug}")
-        print(f"   - Database name: {loja.database_name}")
-        print(f"   - Owner: {owner.username} ({owner.email})")
-        print(f"   - Senha provisória: {senha_provisoria[:3]}***")
-        print(f"   - Senha foi alterada: {loja.senha_foi_alterada}")
-        print(f"{'='*80}\n")
+        from core.logging_utils import mask_email
 
         logger.info(
             "Loja criada com sucesso: %s (owner: %s). Senha será enviada após confirmação do pagamento.",
             loja.slug,
-            owner.email,
+            mask_email(owner.email),
         )

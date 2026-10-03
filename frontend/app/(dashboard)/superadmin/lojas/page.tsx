@@ -31,7 +31,7 @@ export default function GerenciarLojasPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   const { lojas, loading, error, reload } = useLojaList();
-  const { excluirLoja, reenviarSenha, criarBanco, loading: actionLoading } = useLojaActions();
+  const { excluirLoja, reenviarSenha, loading: actionLoading } = useLojaActions();
   const { lojaInfo, loading: infoLoading, loadLojaInfo } = useLojaInfo();
 
   useEffect(() => {
@@ -39,13 +39,6 @@ export default function GerenciarLojasPage() {
       router.push('/superadmin/login');
     }
   }, [router]);
-
-  const handleCriarBanco = async (lojaId: number) => {
-    if (!confirm('Deseja criar o banco de dados isolado para esta loja?')) return;
-    const result = await criarBanco(lojaId);
-    alert(result.message);
-    if (result.success) reload();
-  };
 
   const handleReenviarSenha = async (loja: Loja) => {
     if (!loja.senha_provisoria) {
@@ -244,7 +237,6 @@ export default function GerenciarLojasPage() {
                   onInfo={handleAbrirInfo}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
-                  onCriarBanco={handleCriarBanco}
                   onReenviarSenha={handleReenviarSenha}
                   actionLoading={actionLoading}
                 />
@@ -332,13 +324,7 @@ export default function GerenciarLojasPage() {
                           {loja.database_created ? (
                             <span className="text-green-600">✓ Criado</span>
                           ) : (
-                            <button
-                              onClick={() => handleCriarBanco(loja.id)}
-                              disabled={actionLoading}
-                              className="text-blue-600 hover:text-blue-800 text-sm"
-                            >
-                              Criar Banco
-                            </button>
+                            <span className="text-gray-500 text-sm">Provisionado automaticamente</span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

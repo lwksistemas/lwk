@@ -6,10 +6,12 @@ import apiClient from "@/lib/api-client";
 import { authService } from "@/lib/auth";
 import {
   classeStatusWhatsapp,
+  dataHoraCurta,
   filtrarClientesWhatsapp,
   formatarDocumentoWhatsapp,
   labelStatusWhatsapp,
   labelTipoWhatsapp,
+  tempoConectado,
   type WhatsappCliente,
 } from "@/lib/whatsapp-painel-utils";
 import { cpfCnpjValido, formatCpfCnpj, mensagemCpfCnpjInvalido } from "@/lib/format-br";
@@ -22,6 +24,10 @@ type Painel = {
     aguardando_qr: number;
     desconectados: number;
     parceiros: number;
+    mensagens_total: number;
+    mensagens_24h: number;
+    mensagens_7d: number;
+    mensagens_falhas: number;
   };
   clientes: WhatsappCliente[];
 };
@@ -173,6 +179,20 @@ export default function SuperadminWhatsappPage() {
               ))}
             </div>
 
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                ["Mensagens (total)", painel.resumo.mensagens_total, "text-gray-900 dark:text-gray-100"],
+                ["Últimas 24h", painel.resumo.mensagens_24h, "text-green-700 dark:text-green-300"],
+                ["Últimos 7 dias", painel.resumo.mensagens_7d, "text-gray-900 dark:text-gray-100"],
+                ["Falhas", painel.resumo.mensagens_falhas, "text-red-600 dark:text-red-400"],
+              ].map(([label, value, cls]) => (
+                <div key={String(label)} className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+                  <p className={`text-2xl font-semibold tabular-nums ${cls}`}>{value}</p>
+                </div>
+              ))}
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm space-y-3">
                 <div>
@@ -251,8 +271,18 @@ export default function SuperadminWhatsappPage() {
                           <span className="ml-2 text-xs text-gray-400">{formatarDocumentoWhatsapp(c.documento)}</span>
                         )}
                       </span>
-                      <span className="text-sm text-gray-500">
-                        {c.numeros.filter((n) => n.status === "connected").length}/{c.numeros.length || 0} conectado(s)
+                      <span className="text-right">
+                        <span className="block text-sm text-gray-500">
+                          {c.numeros.filter((n) => n.status === "connected").length}/{c.numeros.length || 0} conectado(s)
+                        </span>
+                        {c.mensagens && c.mensagens.total > 0 && (
+                          <span className="block text-xs text-gray-400">
+                            {c.mensagens.total} msg · {c.mensagens.ultimas_24h} em 24h
+                            {c.mensagens.falhas > 0 && (
+                              <span className="text-red-500"> · {c.mensagens.falhas} falhas</span>
+                            )}
+                          </span>
+                        )}
                       </span>
                     </button>
                     {abertoAgora && (
@@ -265,14 +295,47 @@ export default function SuperadminWhatsappPage() {
                               <li key={n.instance_name} className="flex items-center justify-between text-sm">
                                 <span className="font-mono text-gray-800 dark:text-gray-200">
                                   {n.telefone || n.instance_name}
+                                  {n.profile_name && (
+                                    <span className="block text-xs text-gray-500 font-sans">{n.profile_name}</span>
+                                  )}
                                   <span className="block text-xs text-gray-400">{n.instance_name}</span>
                                 </span>
-                                <span className={`px-2 py-0.5 rounded-full text-xs ${classeStatusWhatsapp(n.status)}`}>
-                                  {labelStatusWhatsapp(n.status)}
+                                <span className="text-right">
+                                  <span className={`px-2 py-0.5 rounded-full text-xs ${classeStatusWhatsapp(n.status)}`}>
+                                    {labelStatusWhatsapp(n.status)}
+                                  </span>
+                                  {n.status === "connected" && n.conectado_desde && (
+                                    <span className="block text-xs text-gray-400 mt-0.5">
+                                      {tempoConectado(n.conectado_desde)}
+                                    </span>
+                                  )}
                                 </span>
                               </li>
                             ))}
                           </ul>
+                        )}
+                        {c.mensagens && c.loja_id != null && (
+                          <div className="grid grid-cols-3 gap-2 rounded-md bg-gray-50 dark:bg-gray-900/40 p-3">
+                            <div>
+                              <p className="text-[11px] text-gray-500">Enviadas</p>
+                              <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{c.mensagens.enviadas}</p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-gray-500">Falhas</p>
+                              <p className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">{c.mensagens.falhas}</p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-gray-500">7 dias</p>
+                              <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{c.mensagens.ultimos_7d}</p>
+                            </div>
+                            {c.mensagens.ultimo_envio && (
+                              <div className="col-span-3">
+                                <p className="text-[11px] text-gray-500">
+                                  Último envio: {dataHoraCurta(c.mensagens.ultimo_envio)}
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         )}
                         {c.tipo === "parceiro" && c.id != null && (
                           <div className="space-y-2">

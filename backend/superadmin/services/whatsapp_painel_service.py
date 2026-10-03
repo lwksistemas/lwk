@@ -7,6 +7,8 @@ import re
 import secrets
 from collections import defaultdict
 
+from superadmin.models import Loja, WhatsappApiKey, WhatsappCustomer
+from whatsapp.evolution_cleanup import loja_id_from_instance_name
 from whatsapp.evolution_client import (
     _extract_phone,
     _normalize_evolution_state,
@@ -15,9 +17,6 @@ from whatsapp.evolution_client import (
     fetch_instances,
     partner_evolution_configured,
 )
-from whatsapp.evolution_cleanup import loja_id_from_instance_name
-
-from superadmin.models import Loja, WhatsappApiKey, WhatsappCustomer
 
 logger = logging.getLogger(__name__)
 
@@ -75,13 +74,87 @@ def snapshot_evolution_item(item: dict) -> dict:
         return {"instance_name": "", "status": "disconnected", "telefone": ""}
     inst = item.get("instance") if isinstance(item.get("instance"), dict) else item
     name = (inst.get("instanceName") or inst.get("name") or "").strip()
-    state_raw = inst.get("status") or inst.get("state") or item.get("status") or item.get("state")
+    # Evolution v2.3.x usa "connectionStatus" (open/connecting/close) no fetchInstances;
+    # versões antigas usavam "status"/"state". Lê todos para não quebrar na troca de versão.
+    state_raw = (
+        inst.get("connectionStatus")
+        or inst.get("status")
+        or inst.get("state")
+        or item.get("connectionStatus")
+        or item.get("status")
+        or item.get("state")
+    )
     return {
         "instance_name": name,
         "status": _normalize_evolution_state(state_raw),
         "telefone": _extract_phone(inst) or _extract_phone(item),
         "raw_state": (state_raw or "").strip(),
+        "profile_name": (inst.get("profileName") or item.get("profileName") or "").strip(),
     }
+
+
+def _metricas_mensagens_loja(loja) -> dict:
+    """Agrega mensagens WhatsApp enviadas da loja (WhatsAppLog vive no schema da loja).
+
+    Retorna totais e janela de 24h/7d. Best-effort: se o schema estiver indisponível,
+    retorna zeros (nunca derruba o painel).
+    """
+    from datetime import timedelta
+
+    from django.db.models import Count, Max, Q
+    from django.utils import timezone
+
+    from core.db_config import ensure_loja_database_config
+    from whatsapp.models import WhatsAppLog
+
+    vazio = {"total": 0, "enviadas": 0, "falhas": 0, "ultimas_24h": 0, "ultimos_7d": 0, "ultimo_envio": None}
+    db_name = getattr(loja, "database_name", None)
+    if not db_name or not ensure_loja_database_config(db_name, conn_max_age=0):
+        return vazio
+    try:
+        agora = timezone.now()
+        qs = WhatsAppLog.objects.using(db_name).filter(loja_id=loja.id)
+        agg = qs.aggregate(
+            total=Count("id"),
+            enviadas=Count("id", filter=Q(status="enviado")),
+            falhas=Count("id", filter=Q(status="falhou")),
+            ultimas_24h=Count("id", filter=Q(created_at__gte=agora - timedelta(hours=24))),
+            ultimos_7d=Count("id", filter=Q(created_at__gte=agora - timedelta(days=7))),
+            ultimo_envio=Max("created_at"),
+        )
+        return {
+            "total": agg["total"] or 0,
+            "enviadas": agg["enviadas"] or 0,
+            "falhas": agg["falhas"] or 0,
+            "ultimas_24h": agg["ultimas_24h"] or 0,
+            "ultimos_7d": agg["ultimos_7d"] or 0,
+            "ultimo_envio": agg["ultimo_envio"].isoformat() if agg["ultimo_envio"] else None,
+        }
+    except Exception as exc:
+        logger.warning("Painel WhatsApp: métricas da loja %s indisponíveis: %s", loja.id, exc)
+        return vazio
+
+
+def _conexao_loja(loja) -> dict:
+    """Lê status/telefone/conectado_desde do WhatsAppConfig da loja (schema da loja)."""
+    from core.db_config import ensure_loja_database_config
+    from whatsapp.models import WhatsAppConfig
+
+    vazio = {"conectado_desde": None, "numero_salvo": ""}
+    db_name = getattr(loja, "database_name", None)
+    if not db_name or not ensure_loja_database_config(db_name, conn_max_age=0):
+        return vazio
+    try:
+        cfg = WhatsAppConfig.objects.using(db_name).filter(loja_id=loja.id).first()
+        if not cfg:
+            return vazio
+        return {
+            "conectado_desde": cfg.whatsapp_connected_at.isoformat() if cfg.whatsapp_connected_at else None,
+            "numero_salvo": (cfg.whatsapp_connected_phone or "").strip(),
+        }
+    except Exception as exc:
+        logger.warning("Painel WhatsApp: conexão da loja %s indisponível: %s", loja.id, exc)
+        return vazio
 
 
 def _chave_publica(key: WhatsappApiKey) -> dict:
@@ -170,8 +243,8 @@ def montar_painel() -> dict:
             evolution["error"] = f"{evolution['error']} | {extra}" if evolution["error"] else extra
 
     lojas = {
-        l.id: l
-        for l in Loja.objects.select_related("tipo_loja", "plano")
+        loja.id: loja
+        for loja in Loja.objects.select_related("tipo_loja", "plano")
     }
     by_loja: dict[int, list[dict]] = defaultdict(list)
     by_parceiro: dict[int, list[dict]] = defaultdict(list)
@@ -186,6 +259,7 @@ def montar_painel() -> dict:
             "telefone": snap["telefone"],
             "status": snap["status"],
             "rotulo": "",
+            "profile_name": snap.get("profile_name", ""),
         }
         if lid is not None and lid in lojas:
             by_loja[lid].append(numero)
@@ -199,6 +273,11 @@ def montar_painel() -> dict:
     clientes: list[dict] = []
     for lid, numeros in sorted(by_loja.items(), key=lambda kv: lojas[kv[0]].nome.lower()):
         loja = lojas[lid]
+        conexao = _conexao_loja(loja)
+        metricas = _metricas_mensagens_loja(loja)
+        # Injeta conectado_desde em cada número conectado desta loja.
+        for n in numeros:
+            n["conectado_desde"] = conexao["conectado_desde"] if n["status"] == "connected" else None
         clientes.append(
             {
                 "id": None,
@@ -212,6 +291,7 @@ def montar_painel() -> dict:
                 "app": getattr(loja.tipo_loja, "nome", "") if loja.tipo_loja_id else "",
                 "chaves": [],
                 "numeros": numeros,
+                "mensagens": metricas,
             }
         )
 
@@ -272,6 +352,7 @@ def montar_painel() -> dict:
         )
 
     conectados = qr = off = 0
+    msgs_total = msgs_24h = msgs_7d = msgs_falhas = 0
     for c in clientes:
         for n in c["numeros"]:
             if n["status"] == "connected":
@@ -280,6 +361,12 @@ def montar_painel() -> dict:
                 qr += 1
             else:
                 off += 1
+        m = c.get("mensagens")
+        if m:
+            msgs_total += m.get("total", 0)
+            msgs_24h += m.get("ultimas_24h", 0)
+            msgs_7d += m.get("ultimos_7d", 0)
+            msgs_falhas += m.get("falhas", 0)
 
     return {
         "evolution": evolution,
@@ -289,6 +376,10 @@ def montar_painel() -> dict:
             "aguardando_qr": qr,
             "desconectados": off,
             "parceiros": WhatsappCustomer.objects.filter(tipo=WhatsappCustomer.TIPO_PARCEIRO).count(),
+            "mensagens_total": msgs_total,
+            "mensagens_24h": msgs_24h,
+            "mensagens_7d": msgs_7d,
+            "mensagens_falhas": msgs_falhas,
         },
         "clientes": clientes,
     }

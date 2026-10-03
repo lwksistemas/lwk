@@ -93,6 +93,87 @@ def snapshot_evolution_item(item: dict) -> dict:
     }
 
 
+def _motivo_falha(response) -> str:
+    """Motivo legível e agrupável a partir do response de um WhatsAppLog com falha."""
+    if isinstance(response, dict):
+        err = (response.get("error") or response.get("message") or "").strip()
+    elif isinstance(response, str):
+        err = response.strip()
+    else:
+        err = ""
+    if not err:
+        return "Sem detalhe de erro"
+    low = err.lower()
+    if "não encontrado no whatsapp" in low or "nao encontrado no whatsapp" in low:
+        return "Número sem WhatsApp / inválido"
+    if "connection closed" in low or "desconect" in low:
+        return "WhatsApp Web desconectado no envio"
+    if "bad request" in low:
+        return "Requisição recusada (Bad Request)"
+    if "timeout" in low or "timed out" in low:
+        return "Timeout na Evolution"
+    if "internal server error" in low:
+        return "Erro interno da Evolution"
+    return re.sub(r"\s+", " ", err)[:80]
+
+
+def relatorio_falhas_loja(loja, *, dias: int = 30, limite_lista: int = 50) -> dict:
+    """Relatório de falhas de envio WhatsApp de uma loja (schema da loja).
+
+    Retorna: total, janela, agregado por motivo, números com mais falhas e
+    uma lista recente detalhada. Best-effort: schema indisponível → vazio.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from core.db_config import ensure_loja_database_config
+    from whatsapp.models import WhatsAppLog
+
+    vazio = {"total": 0, "dias": dias, "por_motivo": [], "por_numero": [], "recentes": []}
+    db_name = getattr(loja, "database_name", None)
+    if not db_name or not ensure_loja_database_config(db_name, conn_max_age=0):
+        return vazio
+    try:
+        desde = timezone.now() - timedelta(days=dias)
+        falhas = list(
+            WhatsAppLog.objects.using(db_name)
+            .filter(loja_id=loja.id, status="falhou", created_at__gte=desde)
+            .order_by("-created_at")
+            .values("created_at", "telefone", "mensagem", "response")[:1000],
+        )
+    except Exception as exc:
+        logger.warning("Painel WhatsApp: falhas da loja %s indisponíveis: %s", loja.id, exc)
+        return vazio
+
+    from collections import Counter, defaultdict
+
+    por_motivo: Counter = Counter()
+    por_numero: dict[str, int] = defaultdict(int)
+    recentes: list[dict] = []
+    for f in falhas:
+        motivo = _motivo_falha(f["response"])
+        por_motivo[motivo] += 1
+        por_numero[f["telefone"] or "(sem número)"] += 1
+        if len(recentes) < limite_lista:
+            recentes.append({
+                "data": f["created_at"].isoformat(),
+                "telefone": f["telefone"] or "",
+                "motivo": motivo,
+                "mensagem": (f["mensagem"] or "")[:120],
+            })
+    return {
+        "total": len(falhas),
+        "dias": dias,
+        "por_motivo": [{"motivo": m, "qtd": q} for m, q in por_motivo.most_common()],
+        "por_numero": [
+            {"telefone": n, "qtd": q}
+            for n, q in sorted(por_numero.items(), key=lambda kv: -kv[1])[:10]
+        ],
+        "recentes": recentes,
+    }
+
+
 def _metricas_mensagens_loja(loja) -> dict:
     """Agrega mensagens WhatsApp enviadas da loja (WhatsAppLog vive no schema da loja).
 

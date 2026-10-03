@@ -32,6 +32,16 @@ type Painel = {
   clientes: WhatsappCliente[];
 };
 
+type RelatorioFalhas = {
+  loja_id: number;
+  loja_nome: string;
+  total: number;
+  dias: number;
+  por_motivo: { motivo: string; qtd: number }[];
+  por_numero: { telefone: string; qtd: number }[];
+  recentes: { data: string; telefone: string; motivo: string; mensagem: string }[];
+};
+
 export default function SuperadminWhatsappPage() {
   const router = useRouter();
   const [painel, setPainel] = useState<Painel | null>(null);
@@ -40,6 +50,28 @@ export default function SuperadminWhatsappPage() {
   const [ok, setOk] = useState("");
   const [aberto, setAberto] = useState<string | null>(null);
   const [chaveNova, setChaveNova] = useState("");
+  const [falhasLojaId, setFalhasLojaId] = useState<number | null>(null);
+  const [falhas, setFalhas] = useState<RelatorioFalhas | null>(null);
+  const [falhasLoading, setFalhasLoading] = useState(false);
+
+  const verFalhas = useCallback(async (lojaId: number) => {
+    if (falhasLojaId === lojaId) {
+      setFalhasLojaId(null);
+      setFalhas(null);
+      return;
+    }
+    setFalhasLojaId(lojaId);
+    setFalhas(null);
+    setFalhasLoading(true);
+    try {
+      const { data } = await apiClient.get<RelatorioFalhas>(`/superadmin/whatsapp/falhas/${lojaId}/?dias=60`);
+      setFalhas(data);
+    } catch {
+      setFalhas(null);
+    } finally {
+      setFalhasLoading(false);
+    }
+  }, [falhasLojaId]);
 
   const carregar = useCallback(async () => {
     setError("");
@@ -243,6 +275,68 @@ export default function SuperadminWhatsappPage() {
                                 <p className="text-[11px] text-gray-500">
                                   Último envio: {dataHoraCurta(c.mensagens.ultimo_envio)}
                                 </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {c.loja_id != null && c.mensagens && c.mensagens.falhas > 0 && (
+                          <div className="space-y-2">
+                            <button
+                              type="button"
+                              onClick={() => void verFalhas(c.loja_id as number)}
+                              className="text-sm px-3 py-1.5 rounded-md border border-red-300 text-red-700 dark:text-red-300 dark:border-red-700"
+                            >
+                              {falhasLojaId === c.loja_id ? "Ocultar falhas" : `Ver falhas (${c.mensagens.falhas})`}
+                            </button>
+                            {falhasLojaId === c.loja_id && (
+                              <div className="rounded-md border border-gray-200 dark:border-gray-700 p-3 space-y-3">
+                                {falhasLoading && <p className="text-xs text-gray-500">Carregando relatório...</p>}
+                                {!falhasLoading && falhas && falhas.total === 0 && (
+                                  <p className="text-xs text-gray-500">Sem falhas nos últimos {falhas.dias} dias.</p>
+                                )}
+                                {!falhasLoading && falhas && falhas.total > 0 && (
+                                  <>
+                                    <p className="text-xs text-gray-600 dark:text-gray-300">
+                                      <span className="font-semibold">{falhas.total}</span> falhas nos últimos {falhas.dias} dias
+                                    </p>
+                                    <div>
+                                      <p className="text-[11px] font-medium text-gray-500 mb-1">Por motivo</p>
+                                      <ul className="space-y-0.5">
+                                        {falhas.por_motivo.map((m) => (
+                                          <li key={m.motivo} className="flex justify-between text-xs text-gray-700 dark:text-gray-200">
+                                            <span>{m.motivo}</span>
+                                            <span className="tabular-nums font-semibold">{m.qtd}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                    <div>
+                                      <p className="text-[11px] font-medium text-gray-500 mb-1">Números com mais falhas</p>
+                                      <ul className="space-y-0.5">
+                                        {falhas.por_numero.map((n) => (
+                                          <li key={n.telefone} className="flex justify-between text-xs font-mono text-gray-700 dark:text-gray-200">
+                                            <span>{n.telefone}</span>
+                                            <span className="tabular-nums font-semibold">{n.qtd}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                    {falhas.recentes.length > 0 && (
+                                      <div>
+                                        <p className="text-[11px] font-medium text-gray-500 mb-1">Falhas recentes</p>
+                                        <ul className="space-y-1">
+                                          {falhas.recentes.slice(0, 8).map((r, i) => (
+                                            <li key={`${r.data}-${i}`} className="text-xs text-gray-600 dark:text-gray-300">
+                                              <span className="text-gray-400">{dataHoraCurta(r.data)}</span>{" · "}
+                                              <span className="font-mono">{r.telefone}</span>{" — "}
+                                              <span>{r.motivo}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>

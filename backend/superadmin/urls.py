@@ -33,7 +33,11 @@ from .views import (
     TipoLojaViewSet,
     UsuarioSistemaViewSet,
     ViolacaoSegurancaViewSet,
+    excluir_midia_arquivo,
     health_check,  # ✅ NOVO v750
+    listar_midia_arquivos,
+    listar_midia_pastas,
+    listar_midia_tenants,
     listar_storage_lojas,
     login_config_sistema_publico,
     mercadopago_config,
@@ -43,19 +47,16 @@ from .views import (
     sync_mercadopago_loja,
     verificar_storage_loja,  # ✅ NOVO v738
     verificar_storage_todas,
-    listar_midia_tenants,
-    listar_midia_pastas,
-    listar_midia_arquivos,
-    excluir_midia_arquivo,
 )
+from .views import lockouts as lockout_views
 from .views.backup_midia_publica import backup_midia_publica
 from .views.whatsapp_painel import (
+    WhatsappFalhasLojaView,
     WhatsappPainelView,
     WhatsappParceiroChaveRevogarView,
     WhatsappParceiroChaveView,
     WhatsappParceiroCreateView,
 )
-from .views import lockouts as lockout_views
 from .views_security_enhancements import SecurityDashboardViewSet  # ✅ NOVO: Melhorias de segurança
 
 router = DefaultRouter()
@@ -143,6 +144,7 @@ urlpatterns = [
 
     # WhatsApp (Evolution dedicada + parceiros)
     path("whatsapp/painel/", WhatsappPainelView.as_view(), name="whatsapp-painel"),
+    path("whatsapp/falhas/<int:loja_id>/", WhatsappFalhasLojaView.as_view(), name="whatsapp-falhas-loja"),
     path("whatsapp/parceiros/", WhatsappParceiroCreateView.as_view(), name="whatsapp-parceiros-create"),
     path("whatsapp/parceiros/<int:customer_id>/chaves/", WhatsappParceiroChaveView.as_view(), name="whatsapp-parceiros-chave"),
     path(

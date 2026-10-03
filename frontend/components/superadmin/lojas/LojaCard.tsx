@@ -7,7 +7,6 @@ interface LojaCardProps {
   onInfo: (loja: Loja) => void;
   onEdit: (loja: Loja) => void;
   onDelete: (loja: Loja) => void;
-  onCriarBanco: (lojaId: number) => void;
   onReenviarSenha: (loja: Loja) => void;
   actionLoading: boolean;
 }
@@ -17,7 +16,6 @@ export function LojaCard({
   onInfo,
   onEdit,
   onDelete,
-  onCriarBanco,
   onReenviarSenha,
   actionLoading,
 }: LojaCardProps) {
@@ -69,13 +67,7 @@ export function LojaCard({
           {loja.database_created ? (
             <span className="text-green-600 text-sm font-medium">✓ Criado</span>
           ) : (
-            <button
-              onClick={() => onCriarBanco(loja.id)}
-              className="text-xs px-3 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 disabled:opacity-50"
-              disabled={actionLoading}
-            >
-              Criar Banco
-            </button>
+            <span className="text-gray-500 text-sm font-medium">Provisionado automaticamente</span>
           )}
         </div>
       </div>

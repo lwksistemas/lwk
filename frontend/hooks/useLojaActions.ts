@@ -194,35 +194,9 @@ export function useLojaActions() {
     }
   };
 
-  const criarBanco = async (lojaId: number): Promise<{ success: boolean; message: string; data?: Record<string, unknown> }> => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await apiClient.post(`/superadmin/lojas/${lojaId}/criar_banco/`);
-      return {
-        success: true,
-        message: `✅ Banco criado com sucesso!\n\nUsuário: ${response.data.admin_username}\nSenha: ${response.data.admin_password}`,
-        data: response.data
-      };
-    } catch (err) {
-      logger.warn('Erro ao criar banco:', err);
-      const { data } = extractApiError(err);
-      const mensagemErro = `❌ Erro: ${data?.error || 'Erro ao criar banco'}`;
-      setError(mensagemErro);
-      return {
-        success: false,
-        message: mensagemErro
-      };
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return {
     excluirLoja,
     reenviarSenha,
-    criarBanco,
     loading,
     error,
     clearError: () => setError(null)

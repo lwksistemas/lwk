@@ -46,7 +46,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const root = document.documentElement;
       root.classList.remove('light', 'dark');
       root.classList.add(resolved);
-      root.style.colorScheme = resolved;
+      root.style.colorScheme = resolved === 'dark' ? 'dark' : 'only light';
     }
   }, []);
 
@@ -56,6 +56,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     
     try {
       const path = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (
+        path.startsWith('/confirmar-agendamento') ||
+        path.startsWith('/assinar')
+      ) {
+        setThemeState('light');
+        setResolvedTheme('light');
+        applyTheme('light');
+        return;
+      }
+      if (/\/loja\/[^/]+\/agenda(?:\/|$)/.test(path) || path.includes('clinica-beleza')) {
+        return;
+      }
       if (shouldApplyClinicaGeralTheme(path)) {
         const cgDark = window.localStorage?.getItem(CLINICA_GERAL_DARK_KEY) === 'true';
         const initial = cgDark ? 'dark' : 'light';
@@ -68,7 +80,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const savedTheme = (typeof window !== 'undefined' && window.localStorage) 
         ? localStorage.getItem('theme') as Theme | null 
         : null;
-      const initialTheme = savedTheme || 'light';
+      const initialTheme = savedTheme === 'dark' ? 'dark' : 'light';
       setThemeState(initialTheme);
       
       const resolved = resolveTheme(initialTheme);

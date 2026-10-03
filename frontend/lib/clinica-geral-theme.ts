@@ -45,7 +45,7 @@ export function isClinicaGeralDarkEnabled(): boolean {
 export function applyClinicaGeralDark(isDark: boolean): void {
   if (typeof document === 'undefined') return;
   document.documentElement.classList.toggle('dark', isDark);
-  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+  document.documentElement.style.colorScheme = isDark ? 'dark' : 'only light';
 }
 
 export function persistClinicaGeralDark(isDark: boolean): void {

@@ -9,6 +9,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const viewport: Viewport = {
   themeColor: "#46cce4ff",
   viewportFit: "cover",
+  colorScheme: "only light",
 };
 
 export const metadata: Metadata = {
@@ -49,9 +50,18 @@ export default function RootLayout({
                   var path = location.pathname || '';
                   var root = document.documentElement;
                   var cgDarkKey = 'lwk-clinica-geral-dark';
-                  function applyCg(isDark) {
+                  function aplicar(isDark) {
                     root.classList.toggle('dark', isDark);
-                    root.style.colorScheme = isDark ? 'dark' : 'light';
+                    root.style.colorScheme = isDark ? 'dark' : 'only light';
+                  }
+                  function applyCg(isDark) { aplicar(isDark); }
+                  if (path.indexOf('/confirmar-agendamento') === 0 || path.indexOf('/assinar') === 0) {
+                    aplicar(false);
+                    return;
+                  }
+                  if (/\\/loja\\/[^/]+\\/agenda(?:\\/|$)/.test(path) || path.indexOf('clinica-beleza') !== -1) {
+                    aplicar(localStorage.getItem('lwk-clinica-dark') === 'true');
+                    return;
                   }
                   if (/\\/clinica(?:-geral)?(?:\\/|$)/.test(path) && path.indexOf('clinica-beleza') === -1) {
                     applyCg(localStorage.getItem(cgDarkKey) === 'true');
@@ -70,11 +80,9 @@ export default function RootLayout({
                     } catch (e2) {}
                   }
                   var theme = localStorage.getItem('theme');
-                  // Padrão: sempre modo CLARO.
+                  // Padrão: sempre modo CLARO, inclusive no celular.
                   // Só ativa dark se o usuário tiver escolhido explicitamente.
-                  if (theme === 'dark') {
-                    root.classList.add('dark');
-                  }
+                  aplicar(theme === 'dark');
                 } catch (e) {}
               })();
             `,

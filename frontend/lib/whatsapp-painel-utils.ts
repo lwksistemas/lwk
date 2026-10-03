@@ -5,6 +5,17 @@ export type WhatsappNumero = {
   telefone: string;
   status: string;
   rotulo?: string;
+  profile_name?: string;
+  conectado_desde?: string | null;
+};
+
+export type WhatsappMensagens = {
+  total: number;
+  enviadas: number;
+  falhas: number;
+  ultimas_24h: number;
+  ultimos_7d: number;
+  ultimo_envio: string | null;
 };
 
 export type WhatsappChave = {
@@ -28,6 +39,7 @@ export type WhatsappCliente = {
   webhook_url?: string;
   chaves: WhatsappChave[];
   numeros: WhatsappNumero[];
+  mensagens?: WhatsappMensagens;
 };
 
 export function filtrarClientesWhatsapp(clientes: WhatsappCliente[], q: string): WhatsappCliente[] {
@@ -64,4 +76,31 @@ export function formatarDocumentoWhatsapp(documento: string): string {
   const d = (documento || "").replace(/\D/g, "");
   if (!d) return "";
   return formatCpfCnpj(d);
+}
+
+/** "conectado há 3h 12min" a partir de um ISO timestamp. */
+export function tempoConectado(desde: string | null | undefined): string {
+  if (!desde) return "";
+  const inicio = new Date(desde).getTime();
+  if (Number.isNaN(inicio)) return "";
+  const seg = Math.max(0, Math.floor((Date.now() - inicio) / 1000));
+  const dias = Math.floor(seg / 86400);
+  const horas = Math.floor((seg % 86400) / 3600);
+  const min = Math.floor((seg % 3600) / 60);
+  if (dias > 0) return `conectado há ${dias}d ${horas}h`;
+  if (horas > 0) return `conectado há ${horas}h ${min}min`;
+  return `conectado há ${min}min`;
+}
+
+/** Data/hora curta em pt-BR a partir de ISO; vazio se nulo. */
+export function dataHoraCurta(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

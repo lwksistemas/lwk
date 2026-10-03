@@ -12,6 +12,7 @@ interface HeroProps {
 const ALLOWED_IMAGE_HOSTS = new Set([
   "media.lwksistemas.com.br",
   "api.lwksistemas.com.br",
+  "beta.lwksistemas.com.br",
   "i.pravatar.cc",
   "localhost",
 ]);

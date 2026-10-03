@@ -40,6 +40,14 @@ NEXT_APPOINTMENT_STATUSES = (
 ATENDIMENTO_REALIZADO_STATUSES = ("CONFIRMED", "IN_PROGRESS", "COMPLETED")
 
 
+def data_hoje_clinica() -> date:
+    """Dia civil da clínica, até 23:59 em Brasília.
+
+    now().date() é a data UTC e vira o dia às 21:00.
+    """
+    return localtime(now()).date()
+
+
 def parse_dashboard_period(
     *,
     mes: int | None,
@@ -350,7 +358,7 @@ def build_dashboard_data(
     current: datetime | None = None,
 ) -> dict:
     """Monta payload completo do dashboard (sem cache)."""
-    today = today or now().date()
+    today = today or data_hoje_clinica()
     current = current or now()
     period_start, period_end, filter_mes, filter_ano = parse_dashboard_period(
         mes=mes, ano=ano, today=today,

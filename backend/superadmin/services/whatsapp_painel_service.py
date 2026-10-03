@@ -140,7 +140,7 @@ def _conexao_loja(loja) -> dict:
     from core.db_config import ensure_loja_database_config
     from whatsapp.models import WhatsAppConfig
 
-    vazio = {"conectado_desde": None, "numero_salvo": ""}
+    vazio = {"conectado_desde": None, "numero_salvo": "", "status_atualizado_em": None}
     db_name = getattr(loja, "database_name", None)
     if not db_name or not ensure_loja_database_config(db_name, conn_max_age=0):
         return vazio
@@ -151,6 +151,7 @@ def _conexao_loja(loja) -> dict:
         return {
             "conectado_desde": cfg.whatsapp_connected_at.isoformat() if cfg.whatsapp_connected_at else None,
             "numero_salvo": (cfg.whatsapp_connected_phone or "").strip(),
+            "status_atualizado_em": cfg.updated_at,
         }
     except Exception as exc:
         logger.warning("Painel WhatsApp: conexão da loja %s indisponível: %s", loja.id, exc)
@@ -270,10 +271,22 @@ def montar_painel() -> dict:
         else:
             orfas.append(numero)
 
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    limite_oculto = timezone.now() - timedelta(days=2)
+
     clientes: list[dict] = []
     for lid, numeros in sorted(by_loja.items(), key=lambda kv: lojas[kv[0]].nome.lower()):
         loja = lojas[lid]
         conexao = _conexao_loja(loja)
+        # Oculta lojas 100% desconectadas há mais de 2 dias (nenhum número conectado/em QR
+        # e o status não muda há >2 dias). Mantém as que têm atividade recente.
+        algum_ativo = any(n["status"] in ("connected", "qr_pending") for n in numeros)
+        atualizado = conexao.get("status_atualizado_em")
+        if not algum_ativo and atualizado and atualizado < limite_oculto:
+            continue
         metricas = _metricas_mensagens_loja(loja)
         # Injeta conectado_desde em cada número conectado desta loja.
         for n in numeros:
@@ -299,6 +312,10 @@ def montar_painel() -> dict:
     vistos = set()
     for p in parceiros:
         vistos.add(p.id)
+        numeros_parceiro = by_parceiro.get(p.id, [])
+        # Oculta parceiros sem nenhum número conectado/em QR (ex.: 0/0 "Nenhum número").
+        if not any(n["status"] in ("connected", "qr_pending") for n in numeros_parceiro):
+            continue
         clientes.append(
             {
                 "id": p.id,
@@ -312,7 +329,7 @@ def montar_painel() -> dict:
                 "app": "API parceiro",
                 "webhook_url": p.webhook_url,
                 "chaves": [_chave_publica(k) for k in p.api_keys.all()],
-                "numeros": by_parceiro.get(p.id, []),
+                "numeros": numeros_parceiro,
             }
         )
     for cid, numeros in by_parceiro.items():

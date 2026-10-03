@@ -14,7 +14,7 @@ import {
   tempoConectado,
   type WhatsappCliente,
 } from "@/lib/whatsapp-painel-utils";
-import { cpfCnpjValido, formatCpfCnpj, mensagemCpfCnpjInvalido } from "@/lib/format-br";
+
 
 type Painel = {
   evolution: { configured: boolean; ok: boolean; error: string | null };
@@ -38,11 +38,7 @@ export default function SuperadminWhatsappPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
-  const [filtro, setFiltro] = useState("");
   const [aberto, setAberto] = useState<string | null>(null);
-  const [parceiroNome, setParceiroNome] = useState("");
-  const [parceiroDoc, setParceiroDoc] = useState("");
-  const [parceiroQuota, setParceiroQuota] = useState("50");
   const [chaveNova, setChaveNova] = useState("");
 
   const carregar = useCallback(async () => {
@@ -66,36 +62,9 @@ export default function SuperadminWhatsappPage() {
   }, [carregar, router]);
 
   const clientes = useMemo(
-    () => filtrarClientesWhatsapp(painel?.clientes ?? [], filtro),
-    [filtro, painel],
+    () => filtrarClientesWhatsapp(painel?.clientes ?? [], ""),
+    [painel],
   );
-
-  const criarParceiro = async () => {
-    setError("");
-    setOk("");
-    const docErro = mensagemCpfCnpjInvalido(parceiroDoc);
-    if (docErro) {
-      setError(docErro);
-      return;
-    }
-    const quota = Math.max(1, Math.min(Number(parceiroQuota) || 50, 500));
-    try {
-      const { data } = await apiClient.post<{ chave: string }>("/superadmin/whatsapp/parceiros/", {
-        nome: parceiroNome,
-        documento: parceiroDoc.replace(/\D/g, ""),
-        quota_numeros: quota,
-      });
-      setParceiroNome("");
-      setParceiroDoc("");
-      setParceiroQuota("50");
-      setChaveNova(data.chave);
-      setOk("Parceiro cadastrado. Copie a chave agora — ela não aparece de novo. O PHP usa esta chave para todos os clientes dele.");
-      await carregar();
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setError(msg || "Não foi possível cadastrar o parceiro.");
-    }
-  };
 
   const emitirChave = async (customerId: number) => {
     setError("");
@@ -191,65 +160,6 @@ export default function SuperadminWhatsappPage() {
                   <p className={`text-2xl font-semibold tabular-nums ${cls}`}>{value}</p>
                 </div>
               ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Novo parceiro (API PHP / MySQL)</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Uma chave por CPF ou CNPJ. O sistema do parceiro autentica com essa chave e conecta os clientes dele.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="text-sm text-gray-700 dark:text-gray-300">
-                    Nome do sistema
-                    <input
-                      value={parceiroNome}
-                      onChange={(e) => setParceiroNome(e.target.value)}
-                      className="mt-1 w-full border rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-600"
-                      placeholder="Nome do sistema cliente"
-                    />
-                  </label>
-                  <label className="text-sm text-gray-700 dark:text-gray-300">
-                    CPF ou CNPJ
-                    <input
-                      value={parceiroDoc}
-                      onChange={(e) => setParceiroDoc(formatCpfCnpj(e.target.value))}
-                      className="mt-1 w-full border rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-600"
-                      placeholder="000.000.000-00 ou 00.000.000/0001-00"
-                      inputMode="numeric"
-                    />
-                  </label>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-                  <label className="text-sm text-gray-700 dark:text-gray-300 sm:w-40">
-                    Limite de números
-                    <input
-                      type="number"
-                      min={1}
-                      max={500}
-                      value={parceiroQuota}
-                      onChange={(e) => setParceiroQuota(e.target.value)}
-                      className="mt-1 w-full border rounded-md px-3 py-2 dark:bg-gray-900 dark:border-gray-600"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => void criarParceiro()}
-                    disabled={!parceiroNome.trim() || !cpfCnpjValido(parceiroDoc)}
-                    className="px-4 py-2 rounded-md bg-green-700 text-white text-sm disabled:opacity-50"
-                  >
-                    Cadastrar e gerar chave
-                  </button>
-                </div>
-              </div>
-              <input
-                value={filtro}
-                onChange={(e) => setFiltro(e.target.value)}
-                placeholder="Buscar cliente, loja ou número..."
-                className="w-full h-full min-h-14 border rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-600"
-              />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -370,7 +280,7 @@ export default function SuperadminWhatsappPage() {
                 );
               })}
               {clientes.length === 0 && (
-                <p className="text-sm text-gray-500">Nenhum cliente neste filtro.</p>
+                <p className="text-sm text-gray-500">Nenhuma loja ou parceiro com WhatsApp ativo.</p>
               )}
             </div>
           </>

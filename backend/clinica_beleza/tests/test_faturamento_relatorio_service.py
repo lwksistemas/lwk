@@ -78,6 +78,28 @@ class TestFaturamentoRelatorioCampos(TestCase):
             self.assertFalse(any("payment_date__date__gte" in chamada.kwargs for chamada in qs_mock.filter.call_args_list))
 
 
+class TestAgrupamentoConvenio(TestCase):
+    def test_particular_cadastrado_e_sem_convenio_usam_a_mesma_chave(self):
+        from types import SimpleNamespace
+
+        from clinica_beleza.faturamento_relatorio_service import _get_grupo_chave, _get_grupo_nome
+
+        cadastrado = SimpleNamespace(convenio_id=1, convenio=SimpleNamespace(nome="Particular"))
+        sem_plano = SimpleNamespace(convenio_id=None, convenio=None)
+        outro = SimpleNamespace(convenio_id=4, convenio=SimpleNamespace(nome="DONATIVO"))
+
+        self.assertEqual(
+            _get_grupo_chave(cadastrado, None, "convenio"),
+            _get_grupo_chave(sem_plano, None, "convenio"),
+        )
+        self.assertEqual(_get_grupo_nome(sem_plano, None, "convenio"), "Particular")
+        self.assertNotEqual(
+            _get_grupo_chave(cadastrado, None, "convenio"),
+            _get_grupo_chave(outro, None, "convenio"),
+        )
+        self.assertEqual(_get_grupo_nome(outro, None, "convenio"), "DONATIVO")
+
+
 class TestFaturamentoDescontoERetorno(TestCase):
     """Desconto comercial e consulta de retorno não entram na receita."""
 

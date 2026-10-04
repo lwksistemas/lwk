@@ -5,6 +5,7 @@ import {
   loginClinicaLoja,
   visitarClinicaAutenticado,
 } from './clinica-auth';
+import { ROTAS_CLINICA_E2E } from './clinica-rotas';
 
 const slug = CLINICA_E2E_SLUG;
 
@@ -12,7 +13,7 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
   test('rota de login da loja responde', async ({ page }) => {
     const response = await page.goto(`/loja/${slug}/login`);
     expect(response?.status()).toBeLessThan(500);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     const body = await page.locator('body').innerText();
     const temLogin =
       (await page.getByPlaceholder(/digite sua senha/i).count()) > 0 ||
@@ -23,8 +24,7 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
   });
 
   test('consultas exige autenticação ou loja válida', async ({ page }) => {
-    await page.goto(`/loja/${slug}/clinica-beleza/consultas`);
-    await page.waitForLoadState('networkidle');
+    await page.goto(`/loja/${slug}/clinica-beleza/consultas`, { waitUntil: 'domcontentloaded' });
     const url = page.url();
     const body = await page.locator('body').innerText();
     const protegido = /login/i.test(url) || /acesso|entrar|não existe/i.test(body);
@@ -53,7 +53,10 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
     await expect(page.getByRole('heading', { name: /^clientes$/i })).toBeVisible({ timeout: 20000 });
 
     await visitarClinicaAutenticado(page, '/agenda', slug);
-    await expect(page.getByRole('heading', { name: /^agenda$/i })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('banner').getByRole('heading', { name: /^agenda$/i })).toBeVisible({
+      timeout: 20000,
+    });
+    await expect(page.getByRole('button', { name: /novo agendamento/i })).toBeVisible();
   });
 
   test('fluxo autenticado — prontuário e menu sem financeiro', async ({ page }) => {
@@ -92,6 +95,21 @@ test.describe('Clínica da Beleza — smoke E2E', () => {
       timeout: 15000,
     });
     await page.getByRole('button', { name: /cancelar/i }).click();
+  });
+
+  test('rotas da clínica abrem sem erro de servidor', async ({ page }) => {
+    test.setTimeout(240_000);
+    test.skip(!clinicaE2eCredentials(), 'Defina CLINICA_E2E_* ou CRM_E2E_*');
+
+    const ok = await loginClinicaLoja(page, slug);
+    test.skip(!ok, 'Loja clínica indisponível neste ambiente');
+
+    for (const rota of ROTAS_CLINICA_E2E) {
+      const response = await page.goto(`/loja/${slug}/${rota}`, { waitUntil: 'domcontentloaded' });
+      expect(response?.status() ?? 0, rota).toBeLessThan(500);
+      await expect(page, rota).not.toHaveURL(/\/login/);
+      await expect(page.locator('body'), rota).not.toContainText(/erro interno|internal server error/i);
+    }
   });
 
   test('fluxo autenticado — relatórios de comissão e descontos carregam', async ({ page }) => {

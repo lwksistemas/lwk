@@ -7,10 +7,14 @@ import {
 } from './convenio-precos';
 
 describe('convenioPadraoDoPaciente', () => {
-  it('sem convênio no cadastro usa o particular do sistema', () => {
+  it('sem convênio no cadastro usa o particular da loja', () => {
+    const convenios = [
+      { id: 4, nome: 'DONATIVO' },
+      { id: 1, nome: 'Particular' },
+    ];
+    expect(convenioPadraoDoPaciente(null, convenios)).toBe(1);
+    expect(convenioPadraoDoPaciente({ convenio: null }, convenios)).toBe(1);
     expect(convenioPadraoDoPaciente(null)).toBe('');
-    expect(convenioPadraoDoPaciente({})).toBe('');
-    expect(convenioPadraoDoPaciente({ convenio: null })).toBe('');
   });
 
   it('convênio do cadastro vale só para aquele cliente', () => {

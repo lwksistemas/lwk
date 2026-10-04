@@ -135,6 +135,12 @@ class Consulta(LojaIsolationMixin, models.Model):
         return str(self.numero).zfill(3)
 
     def save(self, *args, **kwargs):
+        from ..convenio_service import aplicar_convenio_obrigatorio
+
+        if aplicar_convenio_obrigatorio(self):
+            fields = kwargs.get("update_fields")
+            if fields is not None:
+                kwargs["update_fields"] = list(dict.fromkeys([*fields, "convenio"]))
         if not self.loja_id:
             from tenants.middleware import get_current_loja_id
 

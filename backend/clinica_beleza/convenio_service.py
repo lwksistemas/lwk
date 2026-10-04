@@ -45,10 +45,26 @@ def resolver_preco_procedimento(convenio, procedure):
     return procedure.preco or Decimal(0)
 
 
+def convenio_particular():
+    """Convênio Particular ativo da loja, quando existir."""
+    return Convenio.objects.filter(is_active=True, nome__icontains="particular").order_by("id").first()
+
+
 def convenio_particular_id() -> int | None:
     """ID do convênio Particular da loja (para fallback em comissões/preços)."""
-    row = Convenio.objects.filter(is_active=True, nome__icontains="particular").order_by("id").first()
+    row = convenio_particular()
     return row.id if row else None
+
+
+def aplicar_convenio_obrigatorio(instance) -> bool:
+    """Atendimento sem plano fica no Particular. Não troca um convênio já escolhido."""
+    if getattr(instance, "convenio_id", None):
+        return False
+    particular = convenio_particular()
+    if particular is None:
+        return False
+    instance.convenio_id = particular.id
+    return True
 
 
 def inferir_convenio_por_valores_procedimentos(procedimentos: list[dict]) -> int | None:
@@ -144,6 +160,11 @@ def sincronizar_convenio_consulta(consulta) -> None:
     if appointment is None:
         return
     convenio = getattr(consulta, "convenio", None)
+    if convenio is None:
+        convenio = convenio_particular()
+        if convenio is not None and consulta.convenio_id != convenio.id:
+            consulta.convenio = convenio
+            consulta.save(update_fields=["convenio", "updated_at"])
     convenio_id = convenio.id if convenio is not None else None
     if appointment.convenio_id != convenio_id:
         appointment.convenio = convenio

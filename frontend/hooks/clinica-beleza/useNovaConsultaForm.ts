@@ -51,23 +51,23 @@ export function useNovaConsultaForm({
 
   useEffect(() => {
     if (!patientId) {
-      if (convenioAplicadoPara.current !== "") {
-        convenioAplicadoPara.current = "";
-        setConvenioId("");
-      }
+      convenioAplicadoPara.current = "";
+      setConvenioId((atual) => (atual === "" ? convenioPadraoDoPaciente(null, convenios) : atual));
       return;
     }
     if (convenioAplicadoPara.current === patientId) return;
     const paciente = patients.find((p) => p.id === patientId);
     if (!paciente) return;
+    const escolhido = convenioPadraoDoPaciente(paciente, convenios);
+    if (escolhido === "" && convenios.length === 0) return;
     convenioAplicadoPara.current = patientId;
-    setConvenioId(convenioPadraoDoPaciente(paciente));
-  }, [patientId, patients]);
+    setConvenioId(escolhido);
+  }, [patientId, patients, convenios]);
 
   const aplicarConvenioDoPaciente = useCallback((paciente: ConsultaFormPatient) => {
     convenioAplicadoPara.current = paciente.id;
-    setConvenioId(convenioPadraoDoPaciente(paciente));
-  }, []);
+    setConvenioId(convenioPadraoDoPaciente(paciente, convenios));
+  }, [convenios]);
 
   const adicionarProcedimento = useCallback((id: number) => {
     setSelectedProcedures((prev) => (id && !prev.includes(id) ? [...prev, id] : prev));

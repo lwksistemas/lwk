@@ -115,6 +115,12 @@ class AppointmentCreateSerializer(TenantQuerysetMixin, serializers.ModelSerializ
             patient = attrs["patient"]
             if getattr(patient, "convenio_id", None) and patient.convenio and patient.convenio.is_active:
                 attrs["convenio"] = patient.convenio
+        if attrs.get("convenio") is None:
+            from ..convenio_service import convenio_particular
+
+            particular = convenio_particular()
+            if particular is not None:
+                attrs["convenio"] = particular
         return attrs
 
     def create(self, validated_data):

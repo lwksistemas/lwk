@@ -239,6 +239,15 @@ class Appointment(LojaIsolationMixin, models.Model):
         paciente = f"paciente#{self.patient_id}"
         return f"{paciente} - {nomes} - {self.date.strftime('%d/%m/%Y %H:%M')}"
 
+    def save(self, *args, **kwargs):
+        from ..convenio_service import aplicar_convenio_obrigatorio
+
+        if aplicar_convenio_obrigatorio(self):
+            fields = kwargs.get("update_fields")
+            if fields is not None:
+                kwargs["update_fields"] = list(dict.fromkeys([*fields, "convenio"]))
+        super().save(*args, **kwargs)
+
     def _linhas_procedimentos(self):
         """Usa o prefetch da listagem; .select_related() no related manager dispara N+1."""
         return list(self.appointment_procedures.all())

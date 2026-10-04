@@ -118,3 +118,23 @@ class ConvenioPrecoConsultaIntegrationTests(ClinicaBelezaIntegrationTestCase):
         self.assertEqual(consulta.appointment.convenio_id, familia.id)
         linha = consulta.appointment.appointment_procedures.get()
         self.assertEqual(linha.valor, Decimal("150.00"))
+
+
+class AplicarConvenioObrigatorioTest(SimpleTestCase):
+    @patch("clinica_beleza.convenio_service.convenio_particular")
+    def test_sem_plano_grava_o_particular(self, mock_particular):
+        from clinica_beleza.convenio_service import aplicar_convenio_obrigatorio
+
+        mock_particular.return_value = MagicMock(id=1)
+        atendimento = MagicMock(convenio_id=None)
+        self.assertTrue(aplicar_convenio_obrigatorio(atendimento))
+        self.assertEqual(atendimento.convenio_id, 1)
+
+    @patch("clinica_beleza.convenio_service.convenio_particular")
+    def test_convenio_escolhido_permanece(self, mock_particular):
+        from clinica_beleza.convenio_service import aplicar_convenio_obrigatorio
+
+        atendimento = MagicMock(convenio_id=4)
+        self.assertFalse(aplicar_convenio_obrigatorio(atendimento))
+        self.assertEqual(atendimento.convenio_id, 4)
+        mock_particular.assert_not_called()

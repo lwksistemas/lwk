@@ -51,6 +51,8 @@ class Command(BaseCommand):
         failures = status.get("failures_24h")
         if failures is not None:
             self.stdout.write(f"Falhas 24h: {failures}")
+        for item in status.get("failures_by_task_24h") or []:
+            self.stdout.write(f"  {item.get('count')} {item.get('name')}")
 
         if status.get("error"):
             self.stdout.write(self.style.ERROR(f"Erro ao consultar fila: {status['error']}"))

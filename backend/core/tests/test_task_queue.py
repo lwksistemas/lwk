@@ -4,7 +4,19 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase, override_settings
 
 from core.q_cluster_settings import parse_redis_url
-from core.task_queue import enqueue_task
+from core.task_queue import contagem_falhas_por_tarefa, enqueue_task, nome_curto_tarefa
+
+
+class ContagemFalhasTest(SimpleTestCase):
+    def test_agrupa_pelo_nome_curto_e_omite_o_caminho(self):
+        self.assertEqual(nome_curto_tarefa("whatsapp.tasks.send_lembretes"), "send_lembretes")
+        resumo = contagem_falhas_por_tarefa(
+            ["whatsapp.tasks.send_lembretes", "send_lembretes", None, "nfse.emitir"],
+            limite=2,
+        )
+        self.assertEqual(resumo[0], {"name": "send_lembretes", "count": 2})
+        self.assertEqual(resumo[1]["name"], "sem_nome")
+        self.assertEqual(len(resumo), 2)
 
 
 class ParseRedisUrlTest(SimpleTestCase):

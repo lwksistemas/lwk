@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections import Counter
 from collections.abc import Callable
 from importlib import import_module
 from typing import Any, Literal
@@ -22,6 +23,17 @@ QueueHealthLevel = Literal["degraded", "unhealthy"] | None
 
 QUEUE_BACKLOG_DEGRADED = int(os.environ.get("LWK_QUEUE_BACKLOG_DEGRADED", "50"))
 QUEUE_BACKLOG_UNHEALTHY = int(os.environ.get("LWK_QUEUE_BACKLOG_UNHEALTHY", "200"))
+
+
+def nome_curto_tarefa(name: str | None) -> str:
+    """Último trecho do nome, sem caminho do módulo nem mensagem de erro."""
+    texto = (name or "").strip() or "sem_nome"
+    return texto.rsplit(".", 1)[-1][:80]
+
+
+def contagem_falhas_por_tarefa(nomes: list[str | None], limite: int = 8) -> list[dict[str, int | str]]:
+    contagem = Counter(nome_curto_tarefa(nome) for nome in nomes)
+    return [{"name": nome, "count": total} for nome, total in contagem.most_common(limite)]
 
 
 def task_queue_enabled() -> bool:
@@ -100,7 +112,12 @@ def queue_status() -> dict:
             from django_q.models import Failure
 
             since = timezone.now() - timedelta(hours=24)
-            status["failures_24h"] = Failure.objects.filter(stopped__gte=since).count()
+            falhas = Failure.objects.filter(stopped__gte=since)
+            status["failures_24h"] = falhas.count()
+            nomes = list(falhas.order_by("-stopped").values_list("name", flat=True)[:500])
+            status["failures_by_task_24h"] = contagem_falhas_por_tarefa(nomes)
+            if status["failures_24h"] > len(nomes):
+                status["failures_by_task_truncated"] = True
         except Exception as exc:
             logger.debug("queue_status: failures_24h indisponível: %s", exc)
     except Exception as exc:

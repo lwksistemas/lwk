@@ -117,25 +117,18 @@ class Command(BaseCommand):
 
             for schema in schemas:
                 try:
-                    # Usar schema_context se disponível
-                    try:
-                        from django_tenants.utils import schema_context
-                        with schema_context(schema):
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            f"SET search_path TO {connection.ops.quote_name(schema)}, public",
+                        )
+                        try:
                             count = Lead.objects.count()
-                            if count > 0:
-                                self.stdout.write(
-                                    self.style.SUCCESS(f'✅ Schema "{schema}": {count} leads'),
-                                )
-                    except ImportError:
-                        # Fallback: usar SET search_path
-                        with connection.cursor() as cursor:
-                            cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema)}, public")
-                            count = Lead.objects.count()
-                            if count > 0:
-                                self.stdout.write(
-                                    self.style.SUCCESS(f'✅ Schema "{schema}": {count} leads'),
-                                )
+                        finally:
                             cursor.execute("SET search_path TO public")
+                        if count > 0:
+                            self.stdout.write(
+                                self.style.SUCCESS(f'✅ Schema "{schema}": {count} leads'),
+                            )
 
                 except Exception:
                     # Silenciar erros de schemas sem tabela de leads

@@ -1,13 +1,14 @@
-# Bibliotecas necessárias para integração NFS-e
+# Espelho das libs de NFS-e. A instalação do sistema usa backend/requirements.txt.
+# Este arquivo não substitui o principal e não deve pinar uma cryptography mais antiga.
 
 # Cliente SOAP para webservices
-zeep==4.2.1
+zeep==4.3.3
 
 # Manipulação de XML
-lxml==6.1.0
+lxml>=5.2.1,<7.0.0
 
 # Assinatura digital de XML
 signxml==5.1.0
 
-# Manipulação de certificados digitais
-cryptography==42.0.0
+# Manipulação de certificados digitais (mesmo intervalo do requirements principal)
+cryptography>=45.0.0,<51.0.0

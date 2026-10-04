@@ -16,6 +16,10 @@ def _resolver_local_convenio_avulso(local_atendimento_id, convenio_id, patient, 
     convenio = resolver_convenio(convenio_id, loja_id=loja_id)
     if convenio is None and getattr(patient, "convenio_id", None):
         convenio = resolver_convenio(patient.convenio_id, loja_id=loja_id)
+    if convenio is None:
+        from ..convenio_service import convenio_particular
+
+        convenio = convenio_particular()
     return local_atendimento, convenio
 
 

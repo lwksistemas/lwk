@@ -2,16 +2,19 @@
 export const CONVENIO_PARTICULAR_LABEL = "Particular";
 
 /**
- * Particular (vazio) é o padrão do sistema.
- * O convênio gravado no cadastro do cliente vale só para ele.
+ * Sem plano no cadastro, o atendimento usa o convênio Particular da loja.
+ * O convênio gravado no cliente vale só para ele.
  */
 export function convenioPadraoDoPaciente(
   paciente?: { convenio?: number | null } | null,
+  convenios?: { id: number; nome: string }[],
 ): number | "" {
   const id = paciente?.convenio;
-  if (id == null) return "";
-  const n = Number(id);
-  return Number.isFinite(n) && n > 0 ? n : "";
+  if (id != null) {
+    const n = Number(id);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return findConvenioParticular(convenios ?? [])?.id ?? "";
 }
 
 export function isConvenioParticularNome(nome: string | undefined | null): boolean {

@@ -146,6 +146,7 @@ export const conveniosApi = {
     all?: boolean | number | string;
   }) => cbGetList<ConvenioItem>("/convenios/", params),
   create: (data: { nome: string; codigo?: string }) => cbPost<ConvenioDetailItem>("/convenios/", data),
+  update: (id: number, data: { nome: string }) => cbPut<ConvenioDetailItem>(`/convenios/${id}/`, data),
   delete: (id: number) => cbDelete(`/convenios/${id}/`),
   precos: (id: number) => cbGet<ConvenioPrecoItem[]>(`/convenios/${id}/precos/`),
 };

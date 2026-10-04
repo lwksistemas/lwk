@@ -63,6 +63,13 @@ class ConvenioDetailView(GetObjectMixin, APIView):
             return error
         serializer = ConvenioSerializer(obj, data=request.data, partial=True)
         if serializer.is_valid():
+            novo_nome = (serializer.validated_data.get("nome") or obj.nome or "").strip()
+            era_particular = (obj.nome or "").strip().casefold() == "particular"
+            if era_particular and "particular" not in novo_nome.casefold():
+                return Response(
+                    {"nome": ["O convênio padrão precisa continuar se chamando Particular."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

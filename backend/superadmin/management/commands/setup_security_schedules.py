@@ -6,11 +6,10 @@ Uso:
 Este comando cria/atualiza os schedules para:
 1. Detecção de violações de segurança (a cada 5 minutos)
 2. Limpeza de logs antigos (diariamente às 3h)
-3. Envio de notificações (a cada 15 minutos)
-4. Resumo diário de violações (diariamente às 8h)
-5. WhatsApp: lembretes 24h e 2h antes; link de confirmação nos dias configurados
-6. CRM Vendas: notificações de tarefas pendentes (a cada hora)
-7. Backups automáticos por email (a cada 15 minutos, na madrugada por slot da loja)
+3. Resumo diário de violações (diariamente às 8h)
+4. WhatsApp: lembretes 24h e 2h antes; link de confirmação nos dias configurados
+5. CRM Vendas: notificações de tarefas pendentes (a cada hora)
+6. Backups automáticos por email (a cada 15 minutos, na madrugada por slot da loja)
 
 Em Magalu rode via worker django-q ou scheduler local.
 """
@@ -61,19 +60,12 @@ class Command(BaseCommand):
             "diariamente",
         )
 
-        # 3. Envio de notificações (a cada 15 minutos)
-        _upsert(
-            "send_security_notifications",
-            {
-                "func": "superadmin.tasks.send_security_notifications",
-                "schedule_type": Schedule.MINUTES,
-                "minutes": 15,
-                "repeats": -1,
-            },
-            "a cada 15 minutos",
-        )
+        # A função nunca existiu; a detecção já avisa a violação na hora.
+        removidos, _ = Schedule.objects.filter(name="send_security_notifications").delete()
+        if removidos:
+            self.stdout.write(self.style.WARNING("Schedule removido: send_security_notifications"))
 
-        # 4. Resumo diário de violações (diariamente às 8h)
+        # 3. Resumo diário de violações (diariamente às 8h)
         _upsert(
             "send_daily_summary",
             {

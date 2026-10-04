@@ -114,7 +114,8 @@ def queue_status() -> dict:
             since = timezone.now() - timedelta(hours=24)
             falhas = Failure.objects.filter(stopped__gte=since)
             status["failures_24h"] = falhas.count()
-            nomes = list(falhas.order_by("-stopped").values_list("name", flat=True)[:500])
+            # name no django-q é um apelido aleatório; func é a tarefa de verdade.
+            nomes = list(falhas.order_by("-stopped").values_list("func", flat=True)[:500])
             status["failures_by_task_24h"] = contagem_falhas_por_tarefa(nomes)
             if status["failures_24h"] > len(nomes):
                 status["failures_by_task_truncated"] = True

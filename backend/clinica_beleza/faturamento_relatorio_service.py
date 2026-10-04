@@ -180,6 +180,19 @@ def calcular_faturamento(
     }
 
 
+def _rotulo_convenio(appt, consulta) -> str:
+    """Nome do convênio do atendimento. Sem plano e o cadastro Particular são o mesmo grupo."""
+    convenio = None
+    if appt is not None and getattr(appt, "convenio_id", None):
+        convenio = getattr(appt, "convenio", None)
+    elif consulta is not None and getattr(consulta, "convenio_id", None):
+        convenio = getattr(consulta, "convenio", None)
+    nome = (getattr(convenio, "nome", None) or "").strip()
+    if not nome or nome.casefold() == "particular":
+        return "Particular"
+    return nome
+
+
 def _get_grupo_chave(appt, consulta, agrupar: AgrupamentoType) -> str:
     """Retorna chave única para agrupamento."""
     if agrupar == "profissional":
@@ -200,8 +213,7 @@ def _get_grupo_chave(appt, consulta, agrupar: AgrupamentoType) -> str:
             local = appt.local_atendimento
         return f"local_{local.id if local else 0}"
     if agrupar == "convenio":
-        conv_id = appt.convenio_id or 0
-        return f"conv_{conv_id}"
+        return f"conv_{_rotulo_convenio(appt, consulta).casefold()}"
     return "outros"
 
 
@@ -227,8 +239,5 @@ def _get_grupo_nome(appt, consulta, agrupar: AgrupamentoType) -> str:
             return getattr(local, "nome", "") or "Local sem nome"
         return "Sem local definido"
     if agrupar == "convenio":
-        convenio = appt.convenio
-        if convenio:
-            return convenio.nome
-        return "Particular"
+        return _rotulo_convenio(appt, consulta)
     return "Outros"

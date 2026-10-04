@@ -196,7 +196,7 @@ export function ClinicaBelezaStandardPageHeader({
   return (
     <ClinicaBelezaPageHeader>
       <div className="flex flex-col gap-2 w-full min-w-0 sm:flex-row sm:items-center sm:gap-3">
-        <div className="flex items-center gap-2 min-w-0 w-full sm:flex-1">
+        <div className="flex items-center gap-2 min-w-[7rem] w-full sm:w-auto sm:max-w-[18rem] shrink-0">
           {showBack && (
             <button
               type="button"
@@ -216,7 +216,7 @@ export function ClinicaBelezaStandardPageHeader({
             </div>
           )}
           {leadingContent}
-          <div className="flex-1 min-w-0">
+          <div className="min-w-[4.5rem] flex-1">
             <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
               {title}
             </h1>

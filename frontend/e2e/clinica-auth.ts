@@ -18,7 +18,7 @@ function slugRegex(slug: string): string {
 /** Login na loja; retorna false se a loja não estiver disponível. */
 export async function loginClinicaLoja(page: Page, slug = CLINICA_E2E_SLUG): Promise<boolean> {
   await page.goto(`/loja/${slug}/login`);
-  const usuario = page.getByPlaceholder(/digite seu usuário/i);
+  const usuario = page.getByLabel(/usuário ou e-mail/i);
   const senha = page.getByPlaceholder(/digite sua senha/i);
   try {
     await usuario.waitFor({ state: 'visible', timeout: 25000 });
@@ -54,8 +54,7 @@ export async function visitarClinicaAutenticado(
   slug = CLINICA_E2E_SLUG,
 ): Promise<void> {
   const normalized = path.startsWith('/') ? path : `/${path}`;
-  await page.goto(`/loja/${slug}${normalized}`);
-  await page.waitForLoadState('networkidle');
+  await page.goto(`/loja/${slug}${normalized}`, { waitUntil: 'domcontentloaded' });
   const url = page.url();
   expect(url).toMatch(new RegExp(`/loja/${slugRegex(slug)}/`));
   expect(url).not.toMatch(/\/login/);

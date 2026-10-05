@@ -144,8 +144,9 @@ export function OrcamentoForm({
         </button>
       )}
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
       {itensForm.length > 0 && (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="border rounded-lg overflow-hidden lg:col-span-1">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
@@ -184,15 +185,16 @@ export function OrcamentoForm({
         </div>
       )}
 
-      <div>
+      <div className={itensForm.length > 0 ? "" : "lg:col-span-2"}>
         <label className="block text-xs text-gray-500 mb-1">Observações (opcional)</label>
         <textarea
           value={observacoes}
           onChange={(e) => onObservacoes(e.target.value)}
-          rows={5}
+          rows={itensForm.length > 0 ? 8 : 4}
           className="w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-900 dark:border-gray-600"
           placeholder="Condições de pagamento, validade especial... (aparecem no PDF; o WhatsApp envia só o resumo + anexo)"
         />
+      </div>
       </div>
 
       <div className="flex gap-2">

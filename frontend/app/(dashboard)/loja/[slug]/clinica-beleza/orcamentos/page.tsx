@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { DollarSign } from "lucide-react";
 import apiClient from "@/lib/api-client";
+import {
+  ClinicaBelezaPageContent,
+  ClinicaBelezaPanel,
+} from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { OrcamentoPainel } from "@/components/clinica-beleza/consultas/tab-panels/orcamento-tab/OrcamentoTabPanel";
 import { useClinicaPodeVerConsulta } from "@/hooks/clinica-beleza/useClinicaPodeVerConsulta";
 
@@ -56,66 +62,75 @@ export default function CriarOrcamentoPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Criar orçamento</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Escolha o cliente e monte o orçamento. Não abre atendimento.
-        </p>
-      </div>
+    <>
+      <ClinicaBelezaStandardPageHeader
+        title="Criar orçamento"
+        subtitle="Não abre atendimento"
+        icon={DollarSign}
+        showBack={false}
+      />
+      <ClinicaBelezaPageContent className="space-y-4">
+        <ClinicaBelezaPanel className="p-4 md:p-5">
+          <label
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            htmlFor="busca-cliente-orcamento"
+          >
+            Cliente
+          </label>
+          {cliente ? (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-base text-gray-900 dark:text-white min-w-0 truncate">
+                {cliente.nome}
+                {cliente.cpf ? <span className="text-gray-500"> · {cliente.cpf}</span> : null}
+              </p>
+              <button
+                type="button"
+                className="text-sm font-medium shrink-0"
+                style={{ color: "var(--cb-primary, #8B3D52)" }}
+                onClick={() => {
+                  setCliente(null);
+                  setTermo("");
+                }}
+              >
+                Trocar
+              </button>
+            </div>
+          ) : (
+            <>
+              <input
+                id="busca-cliente-orcamento"
+                value={termo}
+                onChange={(e) => setTermo(e.target.value)}
+                placeholder="Nome ou CPF"
+                className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+              {buscando && <p className="text-xs text-gray-500 mt-2">Buscando...</p>}
+              {clientes.length > 0 && (
+                <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                  {clientes.map((item) => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        className="w-full text-left px-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        onClick={() => setCliente(item)}
+                      >
+                        <span className="block font-medium text-gray-900 dark:text-white truncate">
+                          {item.nome}
+                        </span>
+                        {item.cpf ? (
+                          <span className="block text-xs text-gray-500 mt-0.5">{item.cpf}</span>
+                        ) : null}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </ClinicaBelezaPanel>
 
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="busca-cliente-orcamento">
-          Cliente
-        </label>
-        {cliente ? (
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-gray-900 dark:text-white">
-              {cliente.nome}
-              {cliente.cpf ? <span className="text-gray-500"> · {cliente.cpf}</span> : null}
-            </p>
-            <button
-              type="button"
-              className="text-sm text-[#8B3D52] hover:underline"
-              onClick={() => {
-                setCliente(null);
-                setTermo("");
-              }}
-            >
-              Trocar
-            </button>
-          </div>
-        ) : (
-          <>
-            <input
-              id="busca-cliente-orcamento"
-              value={termo}
-              onChange={(e) => setTermo(e.target.value)}
-              placeholder="Nome ou CPF"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            />
-            {buscando && <p className="text-xs text-gray-500">Buscando...</p>}
-            {clientes.length > 0 && (
-              <ul className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-700">
-                {clientes.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
-                      onClick={() => setCliente(item)}
-                    >
-                      {item.nome}
-                      {item.cpf ? <span className="text-gray-500"> · {item.cpf}</span> : null}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-      </div>
-
-      {cliente && <OrcamentoPainel patientId={cliente.id} />}
-    </div>
+        {cliente && <OrcamentoPainel patientId={cliente.id} largo />}
+      </ClinicaBelezaPageContent>
+    </>
   );
 }

@@ -5,7 +5,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("clinica_beleza", "0087_appointment_created_by"),
+        ("clinica_beleza", "0088_remove_consulta_conteudo_termo"),
     ]
 
     operations = [

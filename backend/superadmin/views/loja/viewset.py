@@ -42,11 +42,17 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
         return super().get_permissions()
 
     def get_throttles(self):
-        from core.throttling import PublicLojaCreateThrottle, PublicLojaLookupThrottle
+        from core.throttling import (
+            PublicLojaCreateThrottle,
+            PublicLojaInfoThrottle,
+            PublicLojaLookupThrottle,
+        )
 
         if self.action == "create":
             return [PublicLojaCreateThrottle()]
-        if self.action in ("buscar_por_documento", "info_publica", "por_atalho"):
+        if self.action == "info_publica":
+            return [PublicLojaInfoThrottle()]
+        if self.action in ("buscar_por_documento", "por_atalho"):
             return [PublicLojaLookupThrottle()]
         return super().get_throttles()
 
@@ -212,6 +218,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
 
             return Response({
                 "slug": loja.slug,
+                "atalho": loja.atalho or "",
                 "nome": loja.nome,
                 "logo": loja.logo or None,
             })

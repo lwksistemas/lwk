@@ -86,7 +86,9 @@ export default function LojaLoginDinamicoPage() {
       if (status === 404) {
         setError('Loja não encontrada');
       } else {
-        setError('Erro ao carregar informações da loja');
+        setError(status === 429
+          ? 'Muitas tentativas agora. Aguarde um pouco e tente de novo.'
+          : 'Não foi possível carregar a loja. Tente novamente.');
       }
     } finally {
       setLoadingInfo(false);
@@ -228,8 +230,9 @@ export default function LojaLoginDinamicoPage() {
     );
   }
 
-  // Loja não encontrada
+  // Loja não encontrada, ou a busca pública estourou o limite
   if (!lojaInfo && !redirecting) {
+    const ausente = !error || error === 'Loja não encontrada';
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-900 to-red-700 p-4">
         <div className="max-w-md w-full space-y-6 sm:space-y-8 p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-lg shadow-2xl">
@@ -239,8 +242,12 @@ export default function LojaLoginDinamicoPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4">Loja não encontrada</h2>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-6">A loja "{slug}" não existe ou não está ativa.</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              {ausente ? 'Loja não encontrada' : 'Não foi possível abrir a loja'}
+            </h2>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-6">
+              {ausente ? `A loja "${slug}" não existe ou não está ativa.` : error}
+            </p>
             <Link
               href="/"
               className="inline-block px-6 py-3 min-h-[44px] bg-red-600 text-white rounded-md hover:bg-red-700 active:scale-95 transition-transform"

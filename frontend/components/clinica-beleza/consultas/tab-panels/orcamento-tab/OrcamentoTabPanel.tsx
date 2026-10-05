@@ -12,9 +12,12 @@ import type { ItemForm, Orcamento, Procedure } from "./types";
 export function OrcamentoPainel({
   consultaId,
   patientId,
+  largo = false,
 }: {
   consultaId?: number | null;
   patientId: number;
+  /** Na página do menu, ocupa a largura da tela e organiza os cartões em colunas. */
+  largo?: boolean;
 }) {
   const toast = useToast();
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
@@ -188,7 +191,7 @@ export function OrcamentoPainel({
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className={largo ? "space-y-4 w-full" : "p-4 space-y-4"}>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <DollarSign size={20} /> Orçamentos
@@ -236,21 +239,23 @@ export function OrcamentoPainel({
         </div>
       )}
 
-      {orcamentos.map((orc) => (
-        <OrcamentoCard
-          key={orc.id}
-          orc={orc}
-          abrindoPdf={abrindoPdf}
-          decidindoStatus={decidindoStatus}
-          onVisualizar={setVisualizando}
-          onPdf={visualizarPdf}
-          onEnviar={enviar}
-          onAceitar={(id) => decidirStatus(id, "ACEITO")}
-          onRecusar={(id) => decidirStatus(id, "RECUSADO")}
-          onEditar={editarOrcamento}
-          onExcluir={excluir}
-        />
-      ))}
+      <div className={largo ? "grid grid-cols-1 xl:grid-cols-2 gap-4 items-start" : "space-y-4"}>
+        {orcamentos.map((orc) => (
+          <OrcamentoCard
+            key={orc.id}
+            orc={orc}
+            abrindoPdf={abrindoPdf}
+            decidindoStatus={decidindoStatus}
+            onVisualizar={setVisualizando}
+            onPdf={visualizarPdf}
+            onEnviar={enviar}
+            onAceitar={(id) => decidirStatus(id, "ACEITO")}
+            onRecusar={(id) => decidirStatus(id, "RECUSADO")}
+            onEditar={editarOrcamento}
+            onExcluir={excluir}
+          />
+        ))}
+      </div>
 
       {visualizando && (
         <OrcamentoViewerModal

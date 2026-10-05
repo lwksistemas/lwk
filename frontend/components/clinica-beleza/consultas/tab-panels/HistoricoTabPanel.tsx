@@ -16,6 +16,7 @@ export function HistoricoTabPanel({
       historico={historico}
       selectedId={selected.id}
       consultaId={selected.id}
+      patientId={selected.patient}
       anamnese={anamnese}
       prescricoes={prescricoes}
       observacoesAtual={observacoes}

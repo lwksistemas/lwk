@@ -21,6 +21,8 @@ class OrcamentoConsulta(LojaIsolationMixin, models.Model):
         on_delete=models.CASCADE,
         related_name="orcamentos",
         verbose_name="Consulta",
+        null=True,
+        blank=True,
     )
     patient = models.ForeignKey(
         "clinica_beleza.Patient",

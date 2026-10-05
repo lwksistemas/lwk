@@ -4,13 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 import { DollarSign, Plus } from "lucide-react";
 import apiClient from "@/lib/api-client";
 import { useToast } from "@/components/ui/Toast";
-import type { ConsultaDetailTabPanelsProps } from "../tab-panels-types";
 import { OrcamentoCard } from "./OrcamentoCard";
 import { OrcamentoForm } from "./OrcamentoForm";
 import { OrcamentoViewerModal } from "./OrcamentoViewerModal";
 import type { ItemForm, Orcamento, Procedure } from "./types";
 
-export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
+export function OrcamentoPainel({
+  consultaId,
+  patientId,
+}: {
+  consultaId?: number | null;
+  patientId: number;
+}) {
   const toast = useToast();
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
@@ -42,16 +47,16 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
   }, [visualizando]);
 
   const carregarOrcamentos = useCallback(async () => {
-    if (!selected?.id) return;
+    if (!patientId) return;
     try {
-      const { data } = await apiClient.get(`/clinica-beleza/orcamentos/?consulta_id=${selected.id}`);
+      const { data } = await apiClient.get(`/clinica-beleza/orcamentos/?patient_id=${patientId}`);
       setOrcamentos(Array.isArray(data) ? data : []);
     } catch {
       // silencioso
     } finally {
       setLoading(false);
     }
-  }, [selected?.id]);
+  }, [patientId]);
 
   const carregarProcedimentos = useCallback(async () => {
     try {
@@ -89,7 +94,7 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
     setCriando(true);
     try {
       await apiClient.post("/clinica-beleza/orcamentos/", {
-        consulta_id: selected.id,
+        ...(consultaId ? { consulta_id: consultaId } : { patient_id: patientId }),
         observacoes,
         itens: itensForm.map((it) => ({
           procedure_id: it.procedure_id,
@@ -226,7 +231,7 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
       {orcamentos.length === 0 && !showForm && (
         <div className="text-center py-8 text-gray-500">
           <DollarSign size={40} className="mx-auto mb-2 opacity-30" />
-          <p>Nenhum orçamento criado para esta consulta.</p>
+          <p>Nenhum orçamento deste cliente.</p>
           <p className="text-xs mt-1">Clique em "Novo Orçamento" para criar.</p>
         </div>
       )}
@@ -260,4 +265,8 @@ export function OrcamentoTabPanel({ selected }: ConsultaDetailTabPanelsProps) {
       )}
     </div>
   );
+}
+
+export function OrcamentoTabPanel({ selected }: { selected: { id: number; patient: number } }) {
+  return <OrcamentoPainel consultaId={selected.id} patientId={selected.patient} />;
 }

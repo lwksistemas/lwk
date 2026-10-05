@@ -23,6 +23,7 @@ export default function CriarOrcamentoPage() {
   const [clientes, setClientes] = useState<ClienteBusca[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [cliente, setCliente] = useState<ClienteBusca | null>(null);
+  const [mostrarFeitos, setMostrarFeitos] = useState(false);
 
   useEffect(() => {
     if (loaded && !podeVerConsulta) {
@@ -79,9 +80,20 @@ export default function CriarOrcamentoPage() {
           </label>
           {cliente ? (
             <div className="flex items-center justify-between gap-3">
-              <p className="text-base text-gray-900 dark:text-white min-w-0 truncate">
-                {cliente.nome}
-                {cliente.cpf ? <span className="text-gray-500"> · {cliente.cpf}</span> : null}
+              <p className="text-base text-gray-900 dark:text-white min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="truncate">{cliente.nome}</span>
+                <button
+                  type="button"
+                  className="shrink-0 px-2.5 py-1 text-xs font-medium rounded-lg border"
+                  style={{
+                    color: "var(--cb-primary, #8B3D52)",
+                    borderColor: "var(--cb-primary, #8B3D52)",
+                  }}
+                  onClick={() => setMostrarFeitos((atual) => !atual)}
+                >
+                  {mostrarFeitos ? "Ocultar orçamentos" : "Mostrar orçamentos"}
+                </button>
+                {cliente.cpf ? <span className="text-gray-500">{cliente.cpf}</span> : null}
               </p>
               <button
                 type="button"
@@ -90,6 +102,7 @@ export default function CriarOrcamentoPage() {
                 onClick={() => {
                   setCliente(null);
                   setTermo("");
+                  setMostrarFeitos(false);
                 }}
               >
                 Trocar
@@ -112,7 +125,10 @@ export default function CriarOrcamentoPage() {
                       <button
                         type="button"
                         className="w-full text-left px-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                        onClick={() => setCliente(item)}
+                        onClick={() => {
+                          setCliente(item);
+                          setMostrarFeitos(false);
+                        }}
                       >
                         <span className="block font-medium text-gray-900 dark:text-white truncate">
                           {item.nome}
@@ -129,7 +145,14 @@ export default function CriarOrcamentoPage() {
           )}
         </ClinicaBelezaPanel>
 
-        {cliente && <OrcamentoPainel patientId={cliente.id} largo />}
+        {cliente && (
+          <OrcamentoPainel
+            patientId={cliente.id}
+            largo
+            mostrarFeitos={mostrarFeitos}
+            onOrcamentoCriado={() => setMostrarFeitos(true)}
+          />
+        )}
       </ClinicaBelezaPageContent>
     </>
   );

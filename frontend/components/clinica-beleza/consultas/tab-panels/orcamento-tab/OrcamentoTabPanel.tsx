@@ -13,11 +13,16 @@ export function OrcamentoPainel({
   consultaId,
   patientId,
   largo = false,
+  mostrarFeitos = true,
+  onOrcamentoCriado,
 }: {
   consultaId?: number | null;
   patientId: number;
   /** Na página do menu, ocupa a largura da tela e organiza os cartões em colunas. */
   largo?: boolean;
+  /** Na página do menu, a lista pronta fica oculta até o profissional pedir. */
+  mostrarFeitos?: boolean;
+  onOrcamentoCriado?: () => void;
 }) {
   const toast = useToast();
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
@@ -109,6 +114,7 @@ export function OrcamentoPainel({
       setShowForm(false);
       setItensForm([]);
       setObservacoes("");
+      onOrcamentoCriado?.();
       await carregarOrcamentos();
     } catch {
       toast.error("Erro ao criar orçamento.");
@@ -231,7 +237,7 @@ export function OrcamentoPainel({
         />
       )}
 
-      {orcamentos.length === 0 && !showForm && (
+      {mostrarFeitos && orcamentos.length === 0 && !showForm && (
         <div className="text-center py-8 text-gray-500">
           <DollarSign size={40} className="mx-auto mb-2 opacity-30" />
           <p>Nenhum orçamento deste cliente.</p>
@@ -239,23 +245,25 @@ export function OrcamentoPainel({
         </div>
       )}
 
-      <div className={largo ? "grid grid-cols-1 xl:grid-cols-2 gap-4 items-start" : "space-y-4"}>
-        {orcamentos.map((orc) => (
-          <OrcamentoCard
-            key={orc.id}
-            orc={orc}
-            abrindoPdf={abrindoPdf}
-            decidindoStatus={decidindoStatus}
-            onVisualizar={setVisualizando}
-            onPdf={visualizarPdf}
-            onEnviar={enviar}
-            onAceitar={(id) => decidirStatus(id, "ACEITO")}
-            onRecusar={(id) => decidirStatus(id, "RECUSADO")}
-            onEditar={editarOrcamento}
-            onExcluir={excluir}
-          />
-        ))}
-      </div>
+      {mostrarFeitos && (
+        <div className={largo ? "grid grid-cols-1 xl:grid-cols-2 gap-4 items-start" : "space-y-4"}>
+          {orcamentos.map((orc) => (
+            <OrcamentoCard
+              key={orc.id}
+              orc={orc}
+              abrindoPdf={abrindoPdf}
+              decidindoStatus={decidindoStatus}
+              onVisualizar={setVisualizando}
+              onPdf={visualizarPdf}
+              onEnviar={enviar}
+              onAceitar={(id) => decidirStatus(id, "ACEITO")}
+              onRecusar={(id) => decidirStatus(id, "RECUSADO")}
+              onEditar={editarOrcamento}
+              onExcluir={excluir}
+            />
+          ))}
+        </div>
+      )}
 
       {visualizando && (
         <OrcamentoViewerModal

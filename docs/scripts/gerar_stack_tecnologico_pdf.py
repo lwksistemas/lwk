@@ -10,7 +10,6 @@ Saída: docs/LWK_Stack_Tecnologico.pdf
 """
 from __future__ import annotations
 
-import json
 import re
 from datetime import date
 from pathlib import Path
@@ -31,15 +30,16 @@ MUTED = colors.HexColor("#6B7280")
 ROW_ALT = colors.HexColor("#F3F4F6")
 GREEN = colors.HexColor("#16A34A")
 
-# Infra/runtime confirmados nos contêineres de produção (out/2026).
+# Infra confirmada nos contêineres em 05/10/2026.
 INFRA = [
-    ("Python", "3.13.16", "Runtime do backend"),
-    ("Node.js", "22.23.3", "Runtime do frontend (Active LTS)"),
-    ("PostgreSQL (server)", "18.6", "Banco de dados (um schema por loja)"),
-    ("Redis (server)", "7.4.10", "Cache + broker da fila"),
-    ("Docker Compose", "—", "Orquestração (Magalu Cloud SP)"),
-    ("Evolution API", "v2.3.7", "WhatsApp das lojas"),
-    ("Servidor de mídia", "próprio", "Imagens e PDFs por loja"),
+    ("Python (API)", "3.13.16", "Runtime do backend"),
+    ("Python (mídia)", "3.12.3", "Runtime do servidor de mídia"),
+    ("Node.js", "22.23.3", "Runtime do frontend"),
+    ("PostgreSQL", "18.6", "Banco, um schema por loja"),
+    ("Redis", "7.4.10", "Cache e fila"),
+    ("Flask (mídia)", "3.1.3", "API de arquivos"),
+    ("Gunicorn (mídia)", "26.0.0", "Servidor da mídia"),
+    ("Evolution API", "v2.3.7", "WhatsApp, em servidor próprio"),
 ]
 
 # Pacotes a destacar no relatório, agrupados por área.
@@ -111,7 +111,33 @@ _PROD_RESOLVED = {
     "cryptography": "50.0.2",
     "sentry-sdk": "2.71.0",
     "drf-spectacular": "0.30.0",
-    "pypdf": "6.x",
+    "pypdf": "6.19.0",
+    "lxml": "6.1.3",
+}
+
+# Versões da tela em produção (lock da main, imagem no ar).
+# Next empacota essas libs; o contêiner só expõe next e react soltos.
+FRONTEND_PROD = {
+    "next": "16.3.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "7.0.2",
+    "tailwindcss": "4.3.3",
+    "@tanstack/react-query": "5.104.1",
+    "zustand": "5.0.15",
+    "axios": "1.20.0",
+    "framer-motion": "14.0.0",
+    "lucide-react": "1.52.0",
+    "@fullcalendar/react": "6.1.21",
+    "recharts": "3.10.1",
+    "tailwind-merge": "3.7.0",
+    "@radix-ui/react-dialog": "1.1.23",
+    "idb": "8.0.3",
+    "vite": "8.2.1",
+    "vitest": "5.0.3",
+    "@playwright/test": "1.62.1",
+    "eslint": "9.39.5",
+    "@types/node": "22.20.5",
 }
 
 
@@ -151,10 +177,8 @@ def _backend_version(pkg: str) -> str:
 
 
 def _frontend_versions() -> dict:
-    pkg = json.loads((ROOT / "frontend" / "package.json").read_text(encoding="utf-8"))
-    deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
-    # Remove acento de ^ ~ para exibir limpo.
-    return {k: v.lstrip("^~") for k, v in deps.items()}
+    """Versões resolvidas da tela de produção, não o package.json do staging."""
+    return dict(FRONTEND_PROD)
 
 
 def build_styles():
@@ -168,10 +192,10 @@ def build_styles():
     }
 
 
-def version_table(rows, destaque=None):
+def version_table(rows, destaque=None, headers=None):
     """rows: lista de (nome, versao, descricao). destaque: set de nomes a marcar."""
     destaque = destaque or set()
-    data = [["Tecnologia", "Versão", "Função"]]
+    data = [headers or ["Tecnologia", "Versão", "Função"]]
     for nome, versao, desc in rows:
         data.append([nome, versao, desc])
     t = Table(data, colWidths=[5.2 * cm, 2.8 * cm, 8.5 * cm], repeatRows=1)
@@ -210,8 +234,8 @@ def build_pdf():
     story.append(Paragraph(f"Gerado em {date.today().strftime('%d/%m/%Y')}", st["sub"]))
     story.append(Spacer(1, 4 * mm))
     story.append(Paragraph(
-        "Inventário das tecnologias em produção. As versões de backend e frontend são lidas "
-        "automaticamente dos arquivos de dependência do projeto; infraestrutura confirmada nos contêineres.",
+        "Inventário da produção, conferido nos contêineres em 05/10/2026. "
+        "A API foi lida do processo em execução. A tela lista o pacote que gerou a imagem publicada.",
         st["body"],
     ))
     story.append(Spacer(1, 3 * mm))
@@ -241,9 +265,9 @@ def build_pdf():
     story.append(HRFlowable(width="100%", color=PRIMARY, thickness=0.5))
     story.append(Spacer(1, 3 * mm))
     story.append(Paragraph(
-        "Observação: cada loja usa um schema PostgreSQL próprio (app tenants), sem o pacote django-tenants. "
-        "FullCalendar permanece na série 6 por estabilidade da agenda. "
-        "Demais pacotes nas versões estáveis mais recentes.",
+        "Cada loja usa um schema PostgreSQL próprio, sem o pacote django-tenants. "
+        "O driver é o psycopg 3.3.6. FullCalendar permanece na série 6: a 7 troca o CSS da agenda. "
+        "A tela do beta usa as mesmas versões da produção.",
         st["muted"],
     ))
     story.append(Paragraph(

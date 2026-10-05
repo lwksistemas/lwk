@@ -10,29 +10,17 @@ html.dark {
   color-scheme: dark;
 }
 
-/* Computador com mouse: o visual padrão é 80%. Celular e tablet ficam em 100%. */
+/* Computador com mouse: textos e espaços em 80%, ocupando a tela inteira.
+   Celular e tablet ficam em 100%. */
 @media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   html {
-    zoom: 0.8;
+    font-size: 80%;
   }
 }
 
 @media print {
   html {
-    zoom: 1;
-  }
-}
-
-/* Computador com mouse: o visual padrão é 80%. Celular e tablet ficam em 100%. */
-@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
-  html {
-    zoom: 0.8;
-  }
-}
-
-@media print {
-  html {
-    zoom: 1;
+    font-size: 100%;
   }
 }
 

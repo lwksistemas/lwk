@@ -318,6 +318,8 @@ REST_FRAMEWORK = {
         "user": "10000/hour",  # 166 req/min = 2.7 req/seg por usuário (suporta 500 usuários)
         "public_loja_create": "5/hour",
         "public_loja_lookup": "20/hour",
+        "public_loja_documento": "60/hour",
+        "public_loja_info": "600/hour",
         "auth_login": "20/minute",
         "password_reset": "3/hour",
     },

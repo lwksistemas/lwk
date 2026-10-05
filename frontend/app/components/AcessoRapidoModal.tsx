@@ -73,6 +73,8 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
         if (!response.ok) {
           if (response.status === 404) {
             setError('Nenhuma loja encontrada com este atalho');
+          } else if (response.status === 429) {
+            setError('Muitas tentativas agora. Aguarde um pouco e tente de novo.');
           } else {
             setError('Erro ao buscar loja. Tente novamente.');
           }
@@ -81,9 +83,8 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
         }
 
         const data = await response.json();
-        
-        // Redirecionar para página de login da loja
-        router.push(`/loja/${data.slug}/login?from=${atalho.trim()}`);
+        const destino = data.atalho || data.slug;
+        router.push(`/loja/${destino}/login?from=${atalho.trim()}`);
         
       } else {
         // Buscar por CPF/CNPJ (código original)
@@ -105,6 +106,8 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
         if (!response.ok) {
           if (response.status === 404) {
             setError('Nenhuma loja encontrada com este CPF/CNPJ');
+          } else if (response.status === 429) {
+            setError('Muitas tentativas agora. Aguarde um pouco e tente de novo.');
           } else {
             setError('Erro ao buscar loja. Tente novamente.');
           }
@@ -113,9 +116,8 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
         }
 
         const data = await response.json();
-        
-        // Redirecionar para página de login da loja
-        router.push(`/loja/${data.slug}/login`);
+        const destino = data.atalho || data.slug;
+        router.push(`/loja/${destino}/login`);
       }
       
     } catch (err) {

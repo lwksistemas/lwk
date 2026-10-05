@@ -99,10 +99,20 @@ class PublicLojaCreateThrottle(AnonRateThrottle):
 
 
 class PublicLojaLookupThrottle(AnonRateThrottle):
-    """Busca pública por CPF/CNPJ — limite por IP."""
+    """Busca pública por CPF/CNPJ ou atalho — limite por IP.
 
-    rate = "20/hour"
-    scope = "public_loja_lookup"
+    Escopo próprio para não dividir a cota com a tela de login.
+    """
+
+    rate = "60/hour"
+    scope = "public_loja_documento"
+
+
+class PublicLojaInfoThrottle(AnonRateThrottle):
+    """Dados públicos da loja na tela de login. Várias chamadas por visita."""
+
+    rate = "600/hour"
+    scope = "public_loja_info"
 
 
 class DashboardRateThrottle(UserRateThrottle):

@@ -9,12 +9,15 @@ from rest_framework.views import APIView
 from clinica_beleza.models.orcamento import OrcamentoConsulta
 from clinica_beleza.orcamento_service import (
     atualizar_status_orcamento,
+    buscar_clientes_orcamento,
     criar_orcamento,
     enviar_orcamento,
     excluir_orcamento,
     gerar_pdf_orcamento,
     listar_orcamentos_consulta,
+    listar_orcamentos_paciente,
 )
+from clinica_beleza.permissions import CLINICA_CLINICAL, _loja_and_profissional
 from clinica_beleza.permissions import CLINICA_CLINICAL
 from clinica_beleza.serializers import OrcamentoCreateSerializer, OrcamentoStatusSerializer
 from clinica_beleza.throttles import PublicPdfThrottle
@@ -39,16 +42,24 @@ class OrcamentoConsultaView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request):
+        busca = (request.query_params.get("search") or "").strip()
+        patient_id = request.query_params.get("patient_id")
         consulta_id = request.query_params.get("consulta_id")
-        if not consulta_id:
-            return Response({"error": "consulta_id obrigatório"}, status=status.HTTP_400_BAD_REQUEST)
+        if busca and not patient_id and not consulta_id:
+            return Response(buscar_clientes_orcamento(busca))
         try:
-            consulta_id_int = int(consulta_id)
-        except (TypeError, ValueError):
-            return Response({"error": "consulta_id inválido"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            dados = listar_orcamentos_consulta(consulta_id_int)
+            if patient_id:
+                dados = listar_orcamentos_paciente(int(patient_id))
+            elif consulta_id:
+                dados = listar_orcamentos_consulta(int(consulta_id))
+            else:
+                return Response(
+                    {"error": "Informe o cliente ou o atendimento."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             return Response(dados)
+        except (TypeError, ValueError):
+            return Response({"error": "Identificador inválido"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return resposta_erro_interno(logger, "Erro ao listar orçamentos", e)
 
@@ -57,12 +68,19 @@ class OrcamentoConsultaView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         data = serializer.validated_data
+        professional_id = None
+        if not data.get("consulta_id"):
+            _loja, prof = _loja_and_profissional(request)
+            if prof and prof != "superuser":
+                professional_id = getattr(prof, "professional_id", None)
         try:
             orcamento = criar_orcamento(
-                data["consulta_id"],
+                data.get("consulta_id"),
                 data["itens"],
                 data.get("observacoes", ""),
                 data.get("validade_dias", 30),
+                patient_id=data.get("patient_id"),
+                professional_id=professional_id,
             )
             return Response(
                 {"id": orcamento.id, "valor_total": str(orcamento.valor_total)},

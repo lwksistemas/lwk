@@ -3,6 +3,7 @@ import {
   Activity,
   Camera,
   ClipboardList,
+  DollarSign,
   FileText,
   FolderOpen,
 } from "lucide-react";
@@ -12,6 +13,7 @@ export type HistoricoSection =
   | "anamnese"
   | "fotos"
   | "documentos"
+  | "orcamentos"
   | "evolucoes";
 
 export type HistoricoSectionConfig = {
@@ -26,5 +28,6 @@ export const HISTORICO_SECTION_ICONS = {
   anamnese: FileText,
   fotos: Camera,
   documentos: FolderOpen,
+  orcamentos: DollarSign,
   evolucoes: Activity,
 } as const;

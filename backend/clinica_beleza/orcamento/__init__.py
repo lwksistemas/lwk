@@ -9,18 +9,22 @@ from .pdf import (
 )
 from .service import (
     atualizar_status_orcamento,
+    buscar_clientes_orcamento,
     criar_orcamento,
     excluir_orcamento,
     listar_orcamentos_consulta,
+    listar_orcamentos_paciente,
 )
 
 __all__ = [
     "atualizar_status_orcamento",
+    "buscar_clientes_orcamento",
     "criar_orcamento",
     "enviar_orcamento",
     "excluir_orcamento",
     "gerar_pdf_orcamento",
     "listar_orcamentos_consulta",
+    "listar_orcamentos_paciente",
     "montar_mensagem_whatsapp_orcamento",
     "observacoes_para_exibicao",
     "_build_pdf",

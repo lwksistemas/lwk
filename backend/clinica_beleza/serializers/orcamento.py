@@ -15,10 +15,16 @@ class OrcamentoItemInputSerializer(serializers.Serializer):
 
 
 class OrcamentoCreateSerializer(serializers.Serializer):
-    consulta_id = serializers.IntegerField()
+    consulta_id = serializers.IntegerField(required=False, allow_null=True)
+    patient_id = serializers.IntegerField(required=False, allow_null=True)
     itens = OrcamentoItemInputSerializer(many=True)
     observacoes = serializers.CharField(required=False, allow_blank=True, default="")
     validade_dias = serializers.IntegerField(min_value=1, max_value=365, default=30)
+
+    def validate(self, attrs):
+        if not attrs.get("consulta_id") and not attrs.get("patient_id"):
+            raise serializers.ValidationError("Informe a consulta ou o cliente.")
+        return attrs
 
     def validate_itens(self, value):
         if not value:

@@ -10,11 +10,23 @@ class OrcamentoCreateSerializerTest(SimpleTestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("itens", serializer.errors)
 
-    def test_exige_consulta_e_procedimento(self):
-        serializer = OrcamentoCreateSerializer(data={"itens": [{"quantidade": 1}]})
+    def test_exige_consulta_ou_cliente(self):
+        serializer = OrcamentoCreateSerializer(
+            data={"itens": [{"procedure_id": 3, "quantidade": 1}]},
+        )
         self.assertFalse(serializer.is_valid())
-        self.assertIn("consulta_id", serializer.errors)
-        self.assertIn("itens", serializer.errors)
+        self.assertIn("non_field_errors", serializer.errors)
+
+    def test_aceita_cliente_sem_consulta(self):
+        serializer = OrcamentoCreateSerializer(
+            data={
+                "patient_id": 8,
+                "itens": [{"procedure_id": 3, "quantidade": 1}],
+            },
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["patient_id"], 8)
+        self.assertIsNone(serializer.validated_data.get("consulta_id"))
 
     def test_payload_valido(self):
         serializer = OrcamentoCreateSerializer(

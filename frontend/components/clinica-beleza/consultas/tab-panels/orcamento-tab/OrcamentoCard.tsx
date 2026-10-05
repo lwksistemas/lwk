@@ -40,6 +40,11 @@ export function OrcamentoCard({
           <span className={`text-xs px-2 py-0.5 rounded-full ${statusBadgeClass(orc.status)}`}>
             {STATUS_LABEL[orc.status] || orc.status}
           </span>
+          {!orc.consulta_id && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+              Sem atendimento
+            </span>
+          )}
           {orc.enviado_email && <span className="text-xs text-green-600">✓ E-mail</span>}
           {orc.enviado_whatsapp && <span className="text-xs text-green-600">✓ WhatsApp</span>}
         </div>

@@ -11,7 +11,8 @@ export interface OrcamentoItem {
 
 export interface Orcamento {
   id: number;
-  consulta_id: number;
+  consulta_id: number | null;
+  patient_id?: number;
   patient_name: string;
   professional_name: string;
   observacoes: string;

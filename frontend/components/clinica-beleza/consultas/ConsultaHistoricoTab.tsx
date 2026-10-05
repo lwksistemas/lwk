@@ -10,6 +10,7 @@ import { HistoricoAtendimentosSection } from "./historico/HistoricoAtendimentosS
 import { HistoricoDocumentosSection } from "./historico/HistoricoDocumentosSection";
 import { HistoricoEvolucoesSection } from "./historico/HistoricoEvolucoesSection";
 import { HistoricoFotosSection } from "./historico/HistoricoFotosSection";
+import { HistoricoOrcamentosSection } from "./historico/HistoricoOrcamentosSection";
 import { HistoricoSectionNav } from "./historico/HistoricoSectionNav";
 import type { HistoricoSection } from "./historico/historico-types";
 import { useHistoricoTabData } from "./historico/useHistoricoTabData";
@@ -18,6 +19,7 @@ export function ConsultaHistoricoTab({
   historico,
   selectedId,
   consultaId,
+  patientId,
   anamnese,
   prescricoes = [],
   observacoesAtual = "",
@@ -29,6 +31,7 @@ export function ConsultaHistoricoTab({
   historico: Consulta[];
   selectedId: number;
   consultaId: number;
+  patientId?: number | null;
   anamnese: Anamnese;
   prescricoes?: PrescricaoMemedItem[];
   observacoesAtual?: string;
@@ -47,11 +50,14 @@ export function ConsultaHistoricoTab({
     loadingFotos,
     documentosPorConsulta,
     loadingDocumentos,
+    orcamentos,
+    loadingOrcamentos,
     sections,
   } = useHistoricoTabData({
     historico,
     selectedId,
     consultaId,
+    patientId,
     anamnese,
     prescricoes,
     observacoesAtual,
@@ -98,6 +104,9 @@ export function ConsultaHistoricoTab({
             loading={loadingDocumentos}
             formatData={formatData}
           />
+        )}
+        {section === "orcamentos" && (
+          <HistoricoOrcamentosSection orcamentos={orcamentos} loading={loadingOrcamentos} />
         )}
         {section === "evolucoes" && (
           <HistoricoEvolucoesSection

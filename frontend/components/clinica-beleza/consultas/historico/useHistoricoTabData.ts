@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import apiClient from "@/lib/api-client";
 import { ClinicaBelezaAPI, type DocumentoClinicoItem, type PacienteFotoItem, type PrescricaoMemedItem } from "@/lib/clinica-beleza-api";
+import type { Orcamento } from "../tab-panels/orcamento-tab/types";
 import type { Anamnese, Consulta } from "../consultas-types";
 import { ANAMNESE_FIELDS } from "../consultas-types";
 import type { HistoricoSection, HistoricoSectionConfig } from "./historico-types";
@@ -10,6 +12,7 @@ export function useHistoricoTabData({
   historico,
   selectedId,
   consultaId,
+  patientId,
   anamnese,
   prescricoes = [],
   observacoesAtual = "",
@@ -19,6 +22,7 @@ export function useHistoricoTabData({
   historico: Consulta[];
   selectedId: number;
   consultaId: number;
+  patientId?: number | null;
   anamnese: Anamnese;
   prescricoes?: PrescricaoMemedItem[];
   observacoesAtual?: string;
@@ -29,6 +33,8 @@ export function useHistoricoTabData({
   const [loadingFotos, setLoadingFotos] = useState(false);
   const [documentosPorConsulta, setDocumentosPorConsulta] = useState<Record<number, DocumentoClinicoItem[]>>({});
   const [loadingDocumentos, setLoadingDocumentos] = useState(false);
+  const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
+  const [loadingOrcamentos, setLoadingOrcamentos] = useState(false);
 
   const historicoEnriquecido = useMemo(
     () =>
@@ -95,6 +101,29 @@ export function useHistoricoTabData({
     };
   }, [consultaId]);
 
+  useEffect(() => {
+    if (!patientId) {
+      setOrcamentos([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingOrcamentos(true);
+    apiClient
+      .get<Orcamento[]>(`/clinica-beleza/orcamentos/?patient_id=${patientId}`)
+      .then((res) => {
+        if (!cancelled) setOrcamentos(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setOrcamentos([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingOrcamentos(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [patientId]);
+
   const consultaAtual = historicoEnriquecido.find((h) => h.id === selectedId);
   const totalDocumentos =
     Object.values(documentosPorConsulta).reduce((sum, docs) => sum + docs.length, 0) + prescricoes.length;
@@ -109,6 +138,7 @@ export function useHistoricoTabData({
     { id: "anamnese", label: "Anamnese", icon: HISTORICO_SECTION_ICONS.anamnese, count: camposAnamnesePreenchidos },
     { id: "fotos", label: "Fotos", icon: HISTORICO_SECTION_ICONS.fotos, count: fotos.length },
     { id: "documentos", label: "Documentos", icon: HISTORICO_SECTION_ICONS.documentos, count: totalDocumentos },
+    { id: "orcamentos", label: "Orçamentos", icon: HISTORICO_SECTION_ICONS.orcamentos, count: orcamentos.length },
     { id: "evolucoes", label: "Evoluções", icon: HISTORICO_SECTION_ICONS.evolucoes, count: totalEvolucoes },
   ];
 
@@ -119,6 +149,8 @@ export function useHistoricoTabData({
     loadingFotos,
     documentosPorConsulta,
     loadingDocumentos,
+    orcamentos,
+    loadingOrcamentos,
     sections,
   };
 }

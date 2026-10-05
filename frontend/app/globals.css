@@ -10,6 +10,32 @@ html.dark {
   color-scheme: dark;
 }
 
+/* Computador com mouse: o visual padrão é 80%. Celular e tablet ficam em 100%. */
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  html {
+    zoom: 0.8;
+  }
+}
+
+@media print {
+  html {
+    zoom: 1;
+  }
+}
+
+/* Computador com mouse: o visual padrão é 80%. Celular e tablet ficam em 100%. */
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  html {
+    zoom: 0.8;
+  }
+}
+
+@media print {
+  html {
+    zoom: 1;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

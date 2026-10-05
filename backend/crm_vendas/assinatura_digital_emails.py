@@ -135,8 +135,6 @@ def enviar_pdf_final(documento, loja_id):
     pdf_bytes = pdf_buffer.read()
 
     lead = documento.oportunidade.lead
-    from clinica_beleza.media_docs_service import arquivar_pdf_gerado
-    arquivar_pdf_gerado(loja_id, lead, pdf_bytes, filename if False else "")
     vendedor = documento.oportunidade.vendedor
     loja = Loja.objects.using("default").filter(id=loja_id).first()
     loja_nome = loja.nome if loja else "Sistema"

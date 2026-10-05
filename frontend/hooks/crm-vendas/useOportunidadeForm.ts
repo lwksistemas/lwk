@@ -12,6 +12,7 @@ import {
   type CrmOportunidadeLeadOption,
   type CrmOportunidadeProdutoOption,
 } from '@/lib/crm-oportunidade-form-types';
+import { valorComissaoParaApi } from '@/lib/crm-oportunidade-comissao';
 import { atualizarOportunidadeItem, calcularTotalOportunidadeItens } from '@/lib/crm-oportunidade-itens-utils';
 
 async function syncVendedorAposCriarOportunidade() {
@@ -194,7 +195,7 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
       titulo,
       valor,
       etapa: form.etapa,
-      valor_comissao: form.valor_comissao ? parseFloat(form.valor_comissao) : null,
+      valor_comissao: valorComissaoParaApi(form.valor_comissao),
       empresa_prestadora: parseInt(form.empresa_prestadora_id, 10),
     };
     const vendedorId = authService.getVendedorId();

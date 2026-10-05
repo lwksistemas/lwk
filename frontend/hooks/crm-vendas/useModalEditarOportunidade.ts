@@ -7,6 +7,7 @@ import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import { useToast } from '@/components/ui/Toast';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
+import { valorComissaoParaApi } from '@/lib/crm-oportunidade-comissao';
 import {
   atualizarOportunidadeItem,
   calcularTotalOportunidadeItens,
@@ -167,9 +168,7 @@ export function useModalEditarOportunidade(
         empresa_prestadora: parseInt(empresaPrestadoraId, 10),
       };
 
-      if (valorComissaoEdit) {
-        payload.valor_comissao = parseFloat(valorComissaoEdit);
-      }
+      payload.valor_comissao = valorComissaoParaApi(valorComissaoEdit);
 
       if (etapaSelecionada === 'closed_won' && !dataFechamentoGanho) {
         payload.data_fechamento_ganho = new Date().toISOString().split('T')[0];

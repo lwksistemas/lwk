@@ -30,7 +30,7 @@ export function OrcamentoViewerModal({
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full min-w-0 max-w-3xl max-h-[min(90vh,100%)] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -58,13 +58,13 @@ export function OrcamentoViewerModal({
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-4">
-          <table className="w-full text-sm">
+        <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden p-5 sm:p-6 space-y-4">
+          <table className="w-full table-fixed text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b">
                 <th className="pb-2 font-medium">Procedimento</th>
                 <th className="pb-2 font-medium text-center w-14">Qtd</th>
-                <th className="pb-2 font-medium text-right">Valor</th>
+                <th className="pb-2 font-medium text-right w-36">Valor</th>
               </tr>
             </thead>
             <tbody>

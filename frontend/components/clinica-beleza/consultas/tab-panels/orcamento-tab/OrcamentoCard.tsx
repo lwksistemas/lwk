@@ -31,7 +31,7 @@ export function OrcamentoCard({
   onExcluir,
 }: OrcamentoCardProps) {
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -66,15 +66,15 @@ export function OrcamentoCard({
       </div>
 
       {orc.observacoes && (
-        <div className="mb-3 rounded-md bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 px-3 py-2 max-h-48 overflow-y-auto">
+        <div className="mb-3 rounded-md bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 px-3 py-2">
           <p className="text-xs font-medium text-gray-500 mb-1">Observações</p>
-          <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words leading-relaxed">
+          <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words leading-relaxed line-clamp-3">
             {formatarObservacoesOrcamento(orc.observacoes)}
           </p>
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+      <div className="mt-auto flex flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
         <button
           type="button"
           onClick={() => onVisualizar(orc)}
@@ -137,7 +137,7 @@ export function OrcamentoCard({
           <button
             type="button"
             onClick={() => onExcluir(orc.id)}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-50 text-red-700 rounded hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 ml-auto"
+            className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-50 text-red-700 rounded hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300"
           >
             <Trash2 size={14} /> Excluir
           </button>

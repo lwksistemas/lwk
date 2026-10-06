@@ -35,6 +35,7 @@ export function OrcamentoViewerModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="orcamento-visualizar-titulo"
+        data-resizable-columns="off"
       >
         <div className="shrink-0 flex items-start justify-between gap-3 px-5 sm:px-6 py-3.5 border-b border-gray-200 dark:border-neutral-700">
           <div className="min-w-0">
@@ -59,38 +60,34 @@ export function OrcamentoViewerModal({
         </div>
 
         <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden p-5 sm:p-6 space-y-4">
-          <table className="w-full table-fixed text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="pb-2 font-medium">Procedimento</th>
-                <th className="pb-2 font-medium text-center w-14">Qtd</th>
-                <th className="pb-2 font-medium text-right w-36">Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visualizando.itens.map((it) => (
-                <tr key={it.id} className="border-b border-gray-100 dark:border-gray-700">
-                  <td className="py-2 pr-2 text-gray-900 dark:text-gray-100 break-words">
-                    {it.nome_procedimento}
-                  </td>
-                  <td className="py-2 text-center text-gray-600">{it.quantidade}</td>
-                  <td className="py-2 text-right font-medium whitespace-nowrap">
-                    {formatCurrency(it.subtotal)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={2} className="pt-3 text-right font-semibold">
-                  Total
-                </td>
-                <td className="pt-3 text-right font-bold text-lg whitespace-nowrap">
-                  {formatCurrency(visualizando.valor_total)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+          <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_2.75rem_max-content] gap-x-3 text-sm">
+            <div className="pb-2 font-medium text-gray-500 border-b border-gray-200 dark:border-gray-700">
+              Procedimento
+            </div>
+            <div className="pb-2 font-medium text-center text-gray-500 border-b border-gray-200 dark:border-gray-700">
+              Qtd
+            </div>
+            <div className="pb-2 font-medium text-right text-gray-500 border-b border-gray-200 dark:border-gray-700">
+              Valor
+            </div>
+            {visualizando.itens.map((it) => (
+              <div key={it.id} className="contents">
+                <div className="min-w-0 py-2 break-words text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700">
+                  {it.nome_procedimento}
+                </div>
+                <div className="py-2 text-center text-gray-600 border-b border-gray-100 dark:border-gray-700">
+                  {it.quantidade}
+                </div>
+                <div className="py-2 pl-3 text-right font-medium tabular-nums whitespace-nowrap border-b border-gray-100 dark:border-gray-700">
+                  {formatCurrency(it.subtotal)}
+                </div>
+              </div>
+            ))}
+            <div className="col-span-2 pt-3 text-right font-semibold">Total</div>
+            <div className="pt-3 pl-3 text-right font-bold tabular-nums whitespace-nowrap">
+              {formatCurrency(visualizando.valor_total)}
+            </div>
+          </div>
 
           {visualizando.observacoes ? (
             <div className="pt-3 border-t border-gray-100 dark:border-neutral-700">

@@ -246,7 +246,7 @@ export function OrcamentoPainel({
       )}
 
       {mostrarFeitos && (
-        <div className={largo ? "grid grid-cols-1 xl:grid-cols-2 gap-4 items-start" : "space-y-4"}>
+        <div className={largo ? "grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch" : "space-y-4"}>
           {orcamentos.map((orc) => (
             <OrcamentoCard
               key={orc.id}

@@ -5,7 +5,7 @@ import {
 } from "@/components/clinica-beleza/criar-agendamento/criar-agendamento-utils";
 import type { UseCriarAgendamentoReturn } from "@/hooks/clinica-beleza/useCriarAgendamento";
 import { entityName } from "@/lib/clinica-beleza-entities";
-import { sortTiposAgenda } from "@/lib/clinica-beleza-tipo-agenda";
+import { normalizarTipoAgendaNome, sortTiposAgenda } from "@/lib/clinica-beleza-tipo-agenda";
 import {
   dividirValorProtocolo,
   formatarValorProtocolo,
@@ -44,6 +44,11 @@ type Props = Pick<
   | "protocoloErro"
   | "formaCobranca"
   | "setFormaCobranca"
+  | "protocoloCliente"
+  | "protocolosDaCliente"
+  | "protocoloClienteId"
+  | "setProtocoloClienteId"
+  | "setSelectedProcedures"
 >;
 
 export function CriarAgendamentoAgendaSection({
@@ -75,8 +80,15 @@ export function CriarAgendamentoAgendaSection({
   protocoloErro,
   formaCobranca,
   setFormaCobranca,
+  protocoloCliente,
+  protocolosDaCliente,
+  protocoloClienteId,
+  setProtocoloClienteId,
+  setSelectedProcedures,
 }: Props) {
   const inputClass = CRIAR_AGENDAMENTO_INPUT_CLASS;
+  const tipoSelecionado = nomesAgenda.find((item) => item.id === nomeAgendaId);
+  const agendaEhProtocolo = normalizarTipoAgendaNome(tipoSelecionado?.nome || "") === "PROTOCOLO";
 
   const campoNomeAgenda = nomeAgendaUnico ? (
     <div>
@@ -211,7 +223,41 @@ export function CriarAgendamentoAgendaSection({
         </div>
       )}
 
-      {protocoloSelecionado && (
+      {agendaEhProtocolo && patientId ? (
+        <div className="space-y-2">
+          <FieldLabel>Protocolo</FieldLabel>
+          {protocolosDaCliente.length === 0 ? (
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              Esta cliente não tem protocolo personalizado para agendar.
+            </p>
+          ) : (
+            <select
+              value={protocoloClienteId}
+              onChange={(e) => {
+                const id = e.target.value ? Number(e.target.value) : "";
+                setProtocoloClienteId(id);
+                if (id) setSelectedProcedures([]);
+              }}
+              className={inputClass}
+              required
+            >
+              <option value="">Selecione o protocolo</option>
+              {protocolosDaCliente.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.nome}
+                </option>
+              ))}
+            </select>
+          )}
+          {protocoloCliente ? (
+            <p className="text-xs text-gray-500">
+              {protocoloCliente.sessoes} sessões de {protocoloCliente.tempo_minutos} min · {formatCurrency(protocoloCliente.valor_total)} já com desconto. Depois de Cliente presente, o recebimento escolhe o valor total ou o parcelamento por sessão.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {protocoloSelecionado && !protocoloCliente && (
         <ProtocoloCobrancaBox
           nome={protocoloSelecionado.nome}
           sessoes={protocoloSelecionado.sessoes || 1}
@@ -225,14 +271,14 @@ export function CriarAgendamentoAgendaSection({
         />
       )}
 
-      {retornoInfo?.elegivel && patientId && !protocoloSelecionado && (
+      {retornoInfo?.elegivel && patientId && !protocoloSelecionado && !protocoloCliente && (
         <div className="p-2.5 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
           <span className="font-medium">Retorno gratuito</span>
           <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
         </div>
       )}
 
-      {localAtendimentoId && !protocoloSelecionado && (
+      {localAtendimentoId && !protocoloSelecionado && !protocoloCliente && (
         <div className="p-3 rounded-lg bg-gray-50 dark:bg-neutral-900/50 text-sm space-y-1 border border-gray-100 dark:border-neutral-700">
           <div className="flex justify-between text-gray-600 dark:text-gray-400">
             <span>Taxa de avaliação</span>

@@ -684,6 +684,12 @@ def _ensure_protocolo_personalizado(cursor) -> None:
     cursor.execute(
         "ALTER TABLE clinica_beleza_protocolo_contrato ALTER COLUMN protocol_id DROP NOT NULL",
     )
+    cursor.execute(
+        "ALTER TABLE clinica_beleza_protocolo_contrato ALTER COLUMN professional_id DROP NOT NULL",
+    )
+    cursor.execute(
+        "ALTER TABLE clinica_beleza_protocolo_contrato ALTER COLUMN data_inicio DROP NOT NULL",
+    )
     colunas = (
         ("nome", "VARCHAR(200) NOT NULL DEFAULT ''"),
         ("valor_bruto", "NUMERIC(10,2) NOT NULL DEFAULT 0"),

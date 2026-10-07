@@ -21,7 +21,12 @@ function protocoloDoEvento(raw: Record<string, unknown>): AgendaEventData["exten
     nome,
     sessao: Number(item.sessao) || 0,
     sessoes: Number(item.sessoes) || 0,
-    forma_cobranca: item.forma_cobranca === "TOTAL" ? "TOTAL" : "POR_CONSULTA",
+    forma_cobranca:
+      item.forma_cobranca === "TOTAL"
+        ? "TOTAL"
+        : item.forma_cobranca === "POR_CONSULTA"
+          ? "POR_CONSULTA"
+          : "",
     valor_total: Number(item.valor_total) || 0,
     valor_sessao: Number(item.valor_sessao) || 0,
   };

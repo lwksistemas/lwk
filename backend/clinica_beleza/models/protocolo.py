@@ -52,6 +52,7 @@ class ProtocoloContrato(LojaIsolationMixin, models.Model):
     """Plano vendido a um paciente: sessões na agenda e forma de cobrança."""
 
     FORMA_CHOICES = (
+        ("", "A definir"),
         ("POR_CONSULTA", "Por consulta"),
         ("TOTAL", "Valor total"),
     )
@@ -75,6 +76,8 @@ class ProtocoloContrato(LojaIsolationMixin, models.Model):
         on_delete=models.PROTECT,
         related_name="protocolos_contratados",
         verbose_name="Profissional",
+        null=True,
+        blank=True,
     )
     local_atendimento = models.ForeignKey(
         LocalAtendimento,
@@ -92,7 +95,9 @@ class ProtocoloContrato(LojaIsolationMixin, models.Model):
         (DESCONTO_PERCENTUAL, "Porcentagem"),
     )
 
-    forma_cobranca = models.CharField(max_length=20, choices=FORMA_CHOICES, verbose_name="Forma de cobrança")
+    forma_cobranca = models.CharField(
+        max_length=20, choices=FORMA_CHOICES, blank=True, default="", verbose_name="Forma de cobrança",
+    )
     nome = models.CharField(max_length=200, blank=True, default="", verbose_name="Nome do tratamento")
     valor_bruto = models.DecimalField(
         max_digits=10, decimal_places=2, default=Decimal("0.00"), verbose_name="Soma dos procedimentos (R$)",
@@ -109,7 +114,7 @@ class ProtocoloContrato(LojaIsolationMixin, models.Model):
     )
     intervalo_quantidade = models.PositiveIntegerField(null=True, blank=True, verbose_name="Intervalo")
     intervalo_unidade = models.CharField(max_length=10, blank=True, default="", verbose_name="Unidade do intervalo")
-    data_inicio = models.DateTimeField(verbose_name="Primeira sessão")
+    data_inicio = models.DateTimeField(null=True, blank=True, verbose_name="Primeira sessão")
     sessoes = models.PositiveIntegerField(verbose_name="Sessões")
     created_at = models.DateTimeField(auto_now_add=True)
 

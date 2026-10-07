@@ -84,6 +84,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
     def apply_tenant_querysets(self):
         self.bind_tenant_queryset("local_atendimento", LocalAtendimento.objects.all())
         self.bind_tenant_queryset("convenio", Convenio.objects.filter(is_active=True))
+    cobranca_protocolo = serializers.SerializerMethodField()
     valor_procedimentos = serializers.SerializerMethodField()
     valor_pagamento = serializers.SerializerMethodField()
     exige_termo_consentimento = serializers.SerializerMethodField()
@@ -108,7 +109,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             "professional", "professional_name",
             "procedure", "procedure_name", "procedures_list", "protocol", "protocol_name", "status",
             "data_inicio", "data_fim", "duracao_minutos", "observacoes_gerais", "protocolo_notas",
-            "valor_consulta", "valor_procedimentos", "valor_pagamento",
+            "valor_consulta", "valor_procedimentos", "valor_pagamento", "cobranca_protocolo",
             "valor_pago", "valor_restante", "desconto", "payment_status", "payment_method", "payment_id", "payment_date",
             "payment_data_vencimento",
             "retorno_gratuito", "retorno_tipo", "retorno_dias_prazo", "retorno_aviso_recibo",
@@ -237,6 +238,32 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         if not appointment:
             return Decimal(0)
         return Decimal(str(appointment.valor_total or 0))
+
+    def get_cobranca_protocolo(self, obj):
+        """Pacote personalizado ainda sem forma de pagamento. O recebimento escolhe."""
+        appointment = getattr(obj, "appointment", None)
+        contrato = getattr(appointment, "protocolo_contrato", None) if appointment is not None else None
+        if contrato is None or getattr(contrato, "protocol_id", None):
+            return None
+        from ..protocolo_comercial import dividir_valor_protocolo
+
+        sessoes = int(contrato.sessoes or 1)
+        partes = dividir_valor_protocolo(contrato.valor_total, sessoes, "POR_CONSULTA")
+        indice = (getattr(appointment, "sessao_numero", None) or 1) - 1
+        parcela = partes[indice] if 0 <= indice < len(partes) else Decimal(0)
+        bruto = Decimal(str(contrato.valor_bruto or 0))
+        liquido = Decimal(str(contrato.valor_total or 0))
+        forma = (contrato.forma_cobranca or "").strip()
+        return {
+            "nome": contrato.nome or "Protocolo personalizado",
+            "forma_cobranca": forma,
+            "valor_total": float(liquido),
+            "desconto": float((bruto - liquido).quantize(Decimal("0.01"))),
+            "sessoes": sessoes,
+            "sessao": getattr(appointment, "sessao_numero", None) or 1,
+            "valor_parcela": float(parcela),
+            "pendente": forma not in ("POR_CONSULTA", "TOTAL"),
+        }
 
     def get_valor_procedimentos(self, obj):
         return float(self._appointment_valor_procedimentos(obj))

@@ -4,6 +4,7 @@ import {
   resolveDefaultNomeAgendaId,
 } from "@/components/clinica-beleza/criar-agendamento/criar-agendamento-utils";
 import { calcularDuracaoAgendamento } from "@/lib/clinica-beleza-duracao";
+import { normalizarTipoAgendaNome } from "@/lib/clinica-beleza-tipo-agenda";
 import { isBrowserOffline, isFetchNetworkError } from "@/lib/clinica-beleza-offline";
 import { workHoursRejectionMessage } from "@/lib/clinica-beleza-work-hours";
 import { buildAppointmentDate, buildCriarAgendamentoPayload, classificarSelecaoProtocolo } from "./criar-agendamento-builders";
@@ -12,7 +13,12 @@ import {
   enqueueAgendamentoOffline,
   enqueueConsultaOffline,
 } from "./criar-agendamento-offline";
-import { createQuickPatient, submitAgendamentoOnline, submitConsultaOnline } from "./criar-agendamento-submit-api";
+import {
+  createQuickPatient,
+  submitAgendamentoOnline,
+  submitConsultaOnline,
+  submitProtocoloPersonalizado,
+} from "./criar-agendamento-submit-api";
 import type { CriarAgendamentoSubmitContext, CriarAgendamentoSubmitOptions } from "./criar-agendamento-submit-types";
 import {
   CRIAR_AGENDAMENTO_DEFAULT_TIME,
@@ -57,6 +63,9 @@ export function useCriarAgendamentoSubmit(
     protocolos,
     protocolosCarregando,
     formaCobranca,
+    protocoloClienteId,
+    protocolosDaCliente,
+    setProtocoloClienteId,
     setCreateLoading,
     setCreateError,
     setTime,
@@ -73,6 +82,7 @@ export function useCriarAgendamentoSubmit(
     setNotes("");
     setNomeAgendaId("");
     setLocalAtendimentoId("");
+    setProtocoloClienteId("");
     setCreateError("");
     setCreateLoading(false);
     onClose();
@@ -85,6 +95,7 @@ export function useCriarAgendamentoSubmit(
     setLocalAtendimentoId,
     setNomeAgendaId,
     setNotes,
+    setProtocoloClienteId,
     setTime,
   ]);
 
@@ -113,6 +124,65 @@ export function useCriarAgendamentoSubmit(
     const date = buildAppointmentDate(dateInput, time, selectedDate);
     if (!date) {
       setCreateError("Data não definida.");
+      return;
+    }
+
+    const protocoloDaCliente = protocolosDaCliente.find((item) => item.id === protocoloClienteId) ?? null;
+    const tipoAgenda = nomesAgenda.find((item) => item.id === Number(agendaId))?.nome || "";
+    if (
+      normalizarTipoAgendaNome(tipoAgenda) === "PROTOCOLO" &&
+      !protocoloDaCliente &&
+      selectedProcedures.length === 0
+    ) {
+      setCreateError(
+        protocolosDaCliente.length > 0
+          ? "Escolha o protocolo."
+          : "Esta cliente não tem protocolo personalizado para agendar.",
+      );
+      return;
+    }
+    if (protocoloDaCliente && selectedProcedures.length > 0) {
+      setCreateError("O protocolo personalizado é agendado sozinho. Tire os outros procedimentos.");
+      return;
+    }
+    if (protocoloDaCliente) {
+      if (!localId) {
+        setCreateError("Selecione o local de atendimento.");
+        return;
+      }
+      const duracaoProtocolo = protocoloDaCliente.tempo_minutos || resumo.duracao;
+      const localSelProtocolo = locaisAtendimento.find((l) => l.id === localId);
+      const profSelProtocolo = professionals.find((p) => p.id === professionalId);
+      const duracaoChecagemProtocolo = calcularDuracaoAgendamento(
+        duracaoProtocolo,
+        profSelProtocolo,
+        localSelProtocolo,
+      );
+      const horarioProtocolo = workHoursRejectionMessage(date, duracaoChecagemProtocolo, horariosProfissional);
+      if (horarioProtocolo) {
+        setCreateError(horarioProtocolo);
+        return;
+      }
+      if (isBrowserOffline()) {
+        setCreateError("O protocolo personalizado precisa de conexão para criar as sessões.");
+        return;
+      }
+      setCreateLoading(true);
+      setCreateError("");
+      try {
+        await submitProtocoloPersonalizado({
+          contratoId: protocoloDaCliente.id,
+          professionalId: Number(professionalId),
+          localId,
+          date,
+        });
+        resetAndClose();
+        onSuccess();
+      } catch (err: unknown) {
+        setCreateError(extractCriarAgendamentoSubmitError(err, false));
+      } finally {
+        setCreateLoading(false);
+      }
       return;
     }
 

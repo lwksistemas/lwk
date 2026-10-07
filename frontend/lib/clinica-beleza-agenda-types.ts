@@ -38,7 +38,7 @@ export interface AgendaEventData {
       nome: string;
       sessao: number;
       sessoes: number;
-      forma_cobranca: "POR_CONSULTA" | "TOTAL";
+      forma_cobranca: "" | "POR_CONSULTA" | "TOTAL";
       valor_total: number;
       valor_sessao: number;
     };

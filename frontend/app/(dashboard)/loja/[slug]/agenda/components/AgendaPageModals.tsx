@@ -54,7 +54,7 @@ export function AgendaPageModals({
   selectedEvent: AgendaEventData | null;
   onCloseDetalhe: () => void;
   onReload: () => void;
-  onUpdateStatus: (status: string) => Promise<void>;
+  onUpdateStatus: (status: string, formaCobranca?: string) => Promise<void>;
   onSalvarDetalhe: (payload: {
     date?: string;
     professional?: number;

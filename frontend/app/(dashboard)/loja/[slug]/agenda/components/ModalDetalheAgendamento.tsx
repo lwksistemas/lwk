@@ -53,6 +53,9 @@ function observacaoVisivel(notes: string | undefined, temProtocolo: boolean): st
 function textoCobrancaProtocolo(
   protocolo: NonNullable<AgendaEventData["extendedProps"]["protocolo"]>,
 ): string {
+  if (!protocolo.forma_cobranca) {
+    return "Depois de Cliente presente, o recebimento escolhe o valor total com desconto ou o parcelamento por sessão.";
+  }
   if (protocolo.forma_cobranca === "TOTAL") {
     if (protocolo.valor_sessao <= 0) {
       return "Esta sessão não gera nova cobrança. O pacote foi cobrado na primeira.";
@@ -109,7 +112,7 @@ interface ModalDetalheAgendamentoProps {
   event: AgendaEventData;
   professionals: { id: number; nome?: string; name?: string }[];
   procedures: ConsultaFormProcedure[];
-  onUpdateStatus: (status: string) => Promise<void>;
+  onUpdateStatus: (status: string, formaCobranca?: string) => Promise<void>;
   onSalvarDetalhe: (payload: {
     date?: string;
     professional?: number;

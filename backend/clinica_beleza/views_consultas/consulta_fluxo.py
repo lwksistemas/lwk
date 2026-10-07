@@ -111,17 +111,34 @@ class ConsultaReceberView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        forma = str(request.data.get("forma_cobranca") or "").strip()
         try:
-            payment = registrar_recebimento_consulta(
-                consulta,
-                payment_method=payment_method,
-                amount=amount,
-                mark_as_paid=mark_as_paid,
-                desconto=desconto,
-                entradas=entradas,
-                valor_procedimentos=valor_procedimentos,
-                usuario=request.user,
-            )
+            from django.db import transaction
+
+            from ..agenda_service import AgendaValidationError
+            from ..protocolo_personalizado import definir_pagamento_protocolo
+
+            with transaction.atomic():
+                if forma and getattr(consulta, "appointment_id", None):
+                    contrato = getattr(consulta.appointment, "protocolo_contrato", None)
+                    if contrato is not None and not getattr(contrato, "protocol_id", None):
+                        definir_pagamento_protocolo(
+                            contrato,
+                            forma,
+                            appointment_id=consulta.appointment_id,
+                        )
+                payment = registrar_recebimento_consulta(
+                    consulta,
+                    payment_method=payment_method,
+                    amount=amount,
+                    mark_as_paid=mark_as_paid,
+                    desconto=desconto,
+                    entradas=entradas,
+                    valor_procedimentos=valor_procedimentos,
+                    usuario=request.user,
+                )
+        except AgendaValidationError as exc:
+            return Response({"error": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

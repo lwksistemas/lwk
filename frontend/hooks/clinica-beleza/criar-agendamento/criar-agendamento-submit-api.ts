@@ -26,6 +26,27 @@ export async function submitConsultaOnline(
   return ClinicaBelezaAPI.consultas.criar(payload);
 }
 
+export async function submitProtocoloPersonalizado(input: {
+  contratoId: number;
+  professionalId: number;
+  localId: number | "";
+  date: Date;
+}): Promise<{ agendamentos: Array<{ ajustado?: boolean }> }> {
+  const res = await clinicaBelezaFetch(`/protocolos/personalizados/${input.contratoId}/agendar/`, {
+    method: "POST",
+    body: JSON.stringify({
+      professional: input.professionalId,
+      local_atendimento: input.localId || undefined,
+      data_inicio: input.date.toISOString(),
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(formatApiErrorBody(data) || "Erro ao agendar o protocolo");
+  }
+  return data;
+}
+
 export async function submitAgendamentoOnline(payload: CriarAgendamentoPayload): Promise<void> {
   const res = await clinicaBelezaFetch("/agenda/create/", {
     method: "POST",

@@ -17,6 +17,7 @@ type Props = Pick<
   | "notes"
   | "setNotes"
   | "protocoloSelecionado"
+  | "protocoloCliente"
 >;
 
 export function CriarAgendamentoAdvancedSection({
@@ -32,6 +33,7 @@ export function CriarAgendamentoAdvancedSection({
   notes,
   setNotes,
   protocoloSelecionado,
+  protocoloCliente,
 }: Props) {
   const inputClass = CRIAR_AGENDAMENTO_INPUT_CLASS;
 
@@ -48,7 +50,7 @@ export function CriarAgendamentoAdvancedSection({
 
       {showAdvanced && (
         <div className="space-y-4 pt-2">
-          {retornoProcAtivo && regrasRetornoProc.length > 0 && patientId && !protocoloSelecionado && (
+          {retornoProcAtivo && regrasRetornoProc.length > 0 && patientId && !protocoloSelecionado && !protocoloCliente && (
             <div>
               <FieldLabel>Retorno do procedimento</FieldLabel>
               <select

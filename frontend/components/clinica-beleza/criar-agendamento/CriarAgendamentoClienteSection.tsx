@@ -19,6 +19,7 @@ type Props = Pick<
   | "createLoading"
   | "handleCreatePatient"
   | "onPatientsChange"
+  | "protocoloCliente"
 > & {
   onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
 };
@@ -38,6 +39,7 @@ export function CriarAgendamentoClienteSection({
   handleCreatePatient,
   onPatientsChange,
   onSearchPatients,
+  protocoloCliente,
 }: Props) {
   return (
     <div className="space-y-4">
@@ -57,6 +59,7 @@ export function CriarAgendamentoClienteSection({
         onSearchPatients={onSearchPatients}
         disabled={createLoading}
       />
+      {protocoloCliente ? null : (
       <ProcedureMultiSelect
         procedures={procedures}
         selectedIds={selectedProcedures}
@@ -67,6 +70,7 @@ export function CriarAgendamentoClienteSection({
         showSummary={selectedProcedures.length > 1}
         optional
       />
+      )}
     </div>
   );
 }

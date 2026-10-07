@@ -165,6 +165,8 @@ from .views_protocolos import (
     ProtocolDetailView,
     ProtocolListView,
     ProtocolProdutosOpcoesView,
+    ProtocoloPersonalizadoCreateView,
+    ProtocoloPersonalizadoOpcoesView,
 )
 from .views_termos_consentimento import (
     TermoConsentimentoConfigView,
@@ -334,6 +336,16 @@ urlpatterns = [
     # Protocolos de procedimentos
     path("protocolos/", ProtocolListView.as_view(), name="protocolos-list"),
     path("protocolos/produtos/", ProtocolProdutosOpcoesView.as_view(), name="protocolos-produtos"),
+    path(
+        "protocolos/personalizados/opcoes/",
+        ProtocoloPersonalizadoOpcoesView.as_view(),
+        name="protocolos-personalizados-opcoes",
+    ),
+    path(
+        "protocolos/personalizados/",
+        ProtocoloPersonalizadoCreateView.as_view(),
+        name="protocolos-personalizados-criar",
+    ),
     path("protocolos/<int:pk>/", ProtocolDetailView.as_view(), name="protocolos-detail"),
     path("protocolos/<int:pk>/agendar/", ProtocolAgendarView.as_view(), name="protocolos-agendar"),
 

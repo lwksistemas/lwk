@@ -27,7 +27,12 @@ from .fotos import PacienteFotoAcompanhamento
 from .nfse_config import ClinicaBelezaNFSeConfig
 from .patients import Patient, PatientAnamnese
 from .procedures import CategoriaProcedimento, Procedure, ProcedureProtocol
-from .protocolo import ProtocoloContrato, ProtocoloProduto
+from .protocolo import (
+    ProtocoloContrato,
+    ProtocoloContratoProcedimento,
+    ProtocoloContratoProduto,
+    ProtocoloProduto,
+)
 from .professionals import HorarioTrabalhoProfissional, Professional, ProfessionalCommission
 from .termos_consentimento import TermoConsentimentoConfig, TermoConsentimentoTemplate
 from .retorno import AgendaRetornoConfig, RetornoProcedimentoRegra
@@ -75,6 +80,8 @@ __all__ = [
     "Procedure",
     "ProcedureProtocol",
     "ProtocoloContrato",
+    "ProtocoloContratoProcedimento",
+    "ProtocoloContratoProduto",
     "ProtocoloProduto",
     "TermoConsentimentoConfig",
     "TermoConsentimentoTemplate",

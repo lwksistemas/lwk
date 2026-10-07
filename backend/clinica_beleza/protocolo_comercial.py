@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from decimal import ROUND_DOWN, Decimal
 
 from dateutil.relativedelta import relativedelta
 from django.db import transaction
 from django.utils import timezone
 
-from .bloqueio_utils import intervalos_sobrepoem
+from .bloqueio_utils import bloqueio_datetime_range, intervalos_sobrepoem
 
 UNIDADES_INTERVALO = ("dias", "semanas", "meses")
 FORMAS_COBRANCA = ("POR_CONSULTA", "TOTAL")
@@ -96,6 +96,121 @@ def classificar_selecao_protocolo(procedures, protocolos_ativos):
     return None
 
 
+LIMITE_BUSCA_HORARIO = timedelta(days=120)
+
+
+def proximo_horario_livre(inicio: datetime, duracao_minutos: int, ocupados) -> datetime:
+    """Primeiro início, a partir do horário pedido, em que a duração cabe fora dos intervalos ocupados."""
+    if int(duracao_minutos) < 1:
+        raise ValueError("Informe a duração de cada atendimento, em minutos.")
+    cursor = _ciente(inicio)
+    prazo = cursor + LIMITE_BUSCA_HORARIO
+    duracao = timedelta(minutes=int(duracao_minutos))
+    intervalos = [(_ciente(ini), _ciente(fim)) for ini, fim in ocupados]
+    while cursor < prazo:
+        fim = cursor + duracao
+        corte = None
+        for ini, end in intervalos:
+            if intervalos_sobrepoem(cursor, fim, ini, end) and end > cursor:
+                corte = end if corte is None else min(corte, end)
+        if corte is None:
+            return cursor
+        cursor = corte if corte > cursor else cursor + timedelta(minutes=1)
+    from .agenda_service import AgendaValidationError
+
+    raise AgendaValidationError(
+        "Não há horário livre para a profissional nos próximos 120 dias."
+    )
+
+
+def encaixar_horarios(inicios, duracao_minutos: int, ocupados) -> list[dict]:
+    """Cada sessão fica no horário calculado, ou no próximo livre. As já encaixadas também ocupam a agenda."""
+    colocados = list(ocupados)
+    saida = []
+    for desejado in inicios:
+        pedido = _ciente(desejado)
+        livre = proximo_horario_livre(pedido, duracao_minutos, colocados)
+        fim = livre + timedelta(minutes=int(duracao_minutos))
+        colocados.append((livre, fim))
+        saida.append({"inicio": livre, "fim": fim, "ajustado": livre != pedido})
+    return saida
+
+
+def intervalos_fora_do_expediente(horarios, inicio: datetime, fim: datetime) -> list[tuple[datetime, datetime]]:
+    """Fora do expediente e o intervalo (almoço) viram horário ocupado. Sem cadastro, não restringe."""
+    ativos = [item for item in horarios if getattr(item, "ativo", True)]
+    if not ativos:
+        return []
+    por_dia = {item.dia_semana: item for item in ativos}
+    inicio = _ciente(inicio)
+    fim = _ciente(fim)
+    dia = timezone.localtime(inicio).date()
+    ultimo = timezone.localtime(fim).date()
+    tz = timezone.get_current_timezone()
+    saida = []
+    while dia <= ultimo:
+        dia_ini = timezone.make_aware(datetime.combine(dia, time.min), tz)
+        dia_fim = timezone.make_aware(datetime.combine(dia, time.max.replace(microsecond=0)), tz)
+        horario = por_dia.get(dia.weekday())
+        if horario is None:
+            saida.append((dia_ini, dia_fim))
+        else:
+            entrada = timezone.make_aware(datetime.combine(dia, horario.hora_entrada), tz)
+            saida_expediente = timezone.make_aware(datetime.combine(dia, horario.hora_saida), tz)
+            if entrada > dia_ini:
+                saida.append((dia_ini, entrada))
+            if saida_expediente < dia_fim:
+                saida.append((saida_expediente, dia_fim))
+            almoco_ini = getattr(horario, "intervalo_inicio", None)
+            almoco_fim = getattr(horario, "intervalo_fim", None)
+            if almoco_ini and almoco_fim and almoco_fim > almoco_ini:
+                saida.append((
+                    timezone.make_aware(datetime.combine(dia, almoco_ini), tz),
+                    timezone.make_aware(datetime.combine(dia, almoco_fim), tz),
+                ))
+        dia += timedelta(days=1)
+    return saida
+
+
+def intervalos_ocupados_profissional(professional, inicio: datetime, fim_busca: datetime):
+    """Agendamentos, bloqueios e o que está fora do expediente da profissional."""
+    from django.db.models import Q
+
+    from .models import Appointment, BloqueioHorario, HorarioTrabalhoProfissional
+
+    inicio = _ciente(inicio)
+    fim_busca = _ciente(fim_busca)
+    ocupados = []
+    existentes = (
+        Appointment.objects.filter(
+            professional_id=professional.id,
+            date__lt=fim_busca,
+            date__gte=inicio - timedelta(days=2),
+        ).exclude(status__in=_STATUS_LIVRE)
+    )
+    for appointment in existentes:
+        ocupados.append((
+            _ciente(appointment.date),
+            _ciente(appointment.date + timedelta(minutes=appointment.get_duracao_efetiva())),
+        ))
+    bloqueios = BloqueioHorario.objects.filter(
+        Q(professional_id=professional.id) | Q(professional_id__isnull=True),
+        data_inicio__lte=timezone.localtime(fim_busca).date(),
+        data_fim__gte=timezone.localtime(inicio).date(),
+    )
+    for bloqueio in bloqueios:
+        if bloqueio.professional_id not in (None, professional.id):
+            continue
+        b_ini, b_fim = bloqueio_datetime_range(bloqueio)
+        ocupados.append((_ciente(b_ini), _ciente(b_fim)))
+    horarios = HorarioTrabalhoProfissional.objects.filter(
+        professional_id=professional.id,
+        ativo=True,
+    )
+    ocupados.extend(intervalos_fora_do_expediente(horarios, inicio, fim_busca))
+    return ocupados
+
+
 def copiar_produtos_protocolo_na_consulta(consulta) -> None:
     """Copia os produtos do protocolo para a consulta, sem baixar o estoque."""
     appointment = getattr(consulta, "appointment", None)
@@ -103,7 +218,9 @@ def copiar_produtos_protocolo_na_consulta(consulta) -> None:
     if not contrato_id:
         return
     contrato = appointment.protocolo_contrato
-    linhas = contrato.protocol.produtos.select_related("produto").all()
+    linhas = list(contrato.produtos_sessao.select_related("produto").all())
+    if not linhas and getattr(contrato, "protocol_id", None):
+        linhas = contrato.protocol.produtos.select_related("produto").all()
     ja = set(consulta.produtos_estoque.values_list("produto_id", flat=True))
     from .models import ConsultaProdutoUtilizado
 
@@ -182,14 +299,20 @@ def agendar_protocolo(
         )
     ]
     partes = dividir_valor_protocolo(valor_pacote, sessoes, forma_cobranca)
+    encaixes = encaixar_horarios(
+        datas,
+        duracao,
+        intervalos_ocupados_profissional(professional, datas[0], datas[-1] + LIMITE_BUSCA_HORARIO),
+    )
     slots = []
-    for indice, quando in enumerate(datas):
-        fim = quando + timedelta(minutes=duracao)
-        slots.append({"sessao": indice + 1, "inicio": quando, "fim": fim, "valor": partes[indice]})
-
-    conflitos = _conflitos_das_sessoes(slots, professional)
-    if conflitos:
-        raise ProtocoloAgendaConflito(conflitos)
+    for indice, encaixe in enumerate(encaixes):
+        slots.append({
+            "sessao": indice + 1,
+            "inicio": encaixe["inicio"],
+            "fim": encaixe["fim"],
+            "valor": partes[indice],
+            "ajustado": encaixe["ajustado"],
+        })
     for slot in slots:
         validar_regras_agendamento(
             "AGENDAMENTO_CRIADO",
@@ -216,6 +339,8 @@ def agendar_protocolo(
         primeira = None
         for slot in slots:
             notes = f"Protocolo {protocol.nome} — sessão {slot['sessao']} de {sessoes}"
+            if slot["ajustado"]:
+                notes = f"{notes}\nHorário ajustado para o próximo horário livre."
             if observacao:
                 notes = f"{notes}\n{observacao}"
             appointment = Appointment.objects.create(
@@ -254,6 +379,7 @@ def agendar_protocolo(
                     "sessao": slot["sessao"],
                     "date": timezone.localtime(slot["inicio"]).isoformat(),
                     "valor": str(slot["valor"]),
+                    "ajustado": slot["ajustado"],
                 }
             )
         consulta_id = None

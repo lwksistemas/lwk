@@ -13,6 +13,7 @@ import { ProntuarioTabBar } from "./ProntuarioTabBar";
 import { ProntuarioTabContent } from "./ProntuarioTabContent";
 import { useProntuarioPage } from "./useProntuarioPage";
 import { buildProntuarioConsultasResumo } from "./prontuario-consultas-utils";
+import { ProtocoloPersonalizadoModal } from "./ProtocoloPersonalizadoModal";
 
 export function ProntuarioPageContent() {
   const {
@@ -49,6 +50,7 @@ export function ProntuarioPageContent() {
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [prazoAberto, setPrazoAberto] = useState(false);
+  const [protocoloAberto, setProtocoloAberto] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -66,7 +68,7 @@ export function ProntuarioPageContent() {
   }, []);
 
   const showDocsLoading = loading && !isProntuarioLocalTab(activeTab);
-  const { atuais, finalizadas } = buildProntuarioConsultasResumo(consultas);
+  const { finalizadas } = buildProntuarioConsultasResumo(consultas);
   const mostrarPrazoButton = isAdmin && activeTab === "resumo";
 
   return (
@@ -95,8 +97,8 @@ export function ProntuarioPageContent() {
             onPrintSecao={() => void handlePrintSecao()}
             onPrintCompleto={() => void handlePrintCompleto()}
             printando={printando}
-            consultaAtualCount={atuais.length}
             finalizadasCount={finalizadas.length}
+            onAbrirProtocolo={() => setProtocoloAberto(true)}
             showPrazoButton={mostrarPrazoButton}
             prazoAberto={prazoAberto}
             onTogglePrazo={() => setPrazoAberto((v) => !v)}
@@ -104,6 +106,12 @@ export function ProntuarioPageContent() {
         </div>
 
         <div className="flex-1 p-4 md:p-6 lg:p-8 w-full space-y-4">
+          {protocoloAberto && (
+            <ProtocoloPersonalizadoModal
+              patientId={patientId}
+              onClose={() => setProtocoloAberto(false)}
+            />
+          )}
           {mostrarPrazoButton && (
             <PrazoPagamentoCard
               patientId={patientId}

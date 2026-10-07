@@ -50,6 +50,23 @@ class ProtocoloAgendaSerializerTest(SimpleTestCase):
         self.assertEqual(data["valor_sessao"], 75.0)
         self.assertEqual(data["valor_total"], 300.0)
 
+    def test_protocolo_personalizado_usa_o_nome_do_tratamento(self):
+        contrato = MagicMock(
+            protocol_id=None,
+            protocol=None,
+            nome="Pacote facial",
+            sessoes=5,
+            forma_cobranca="TOTAL",
+            valor_total=3285,
+        )
+        obj = MagicMock(protocolo_contrato_id=3, protocolo_contrato=contrato, sessao_numero=2)
+        obj.valor_total = 0
+
+        data = AgendaEventSerializer().get_protocolo(obj)
+
+        self.assertEqual(data["nome"], "Pacote facial")
+        self.assertEqual(data["sessao"], 2)
+
     def test_agendamento_comum_nao_tem_protocolo(self):
         obj = MagicMock(protocolo_contrato_id=None)
         self.assertIsNone(AgendaEventSerializer().get_protocolo(obj))

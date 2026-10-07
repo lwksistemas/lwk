@@ -661,6 +661,8 @@ def ensure_protocolo_comercial(cursor) -> bool:
     if not pronto:
         return False
 
+    _ensure_protocolo_personalizado(cursor)
+
     cursor.execute(
         """
         INSERT INTO django_migrations (app, name, applied)
@@ -673,6 +675,63 @@ def ensure_protocolo_comercial(cursor) -> bool:
         [MIGRATION_PROTOCOLO_COMERCIAL, MIGRATION_PROTOCOLO_COMERCIAL],
     )
     return True
+
+
+def _ensure_protocolo_personalizado(cursor) -> None:
+    """Colunas e tabelas do protocolo montado na ficha da cliente. Não apaga dados."""
+    if not table_exists(cursor, "clinica_beleza_protocolo_contrato"):
+        return
+    cursor.execute(
+        "ALTER TABLE clinica_beleza_protocolo_contrato ALTER COLUMN protocol_id DROP NOT NULL",
+    )
+    colunas = (
+        ("nome", "VARCHAR(200) NOT NULL DEFAULT ''"),
+        ("valor_bruto", "NUMERIC(10,2) NOT NULL DEFAULT 0"),
+        ("desconto_tipo", "VARCHAR(20) NOT NULL DEFAULT ''"),
+        ("desconto_valor", "NUMERIC(10,2) NOT NULL DEFAULT 0"),
+        ("tempo_minutos", "INTEGER NULL"),
+        ("intervalo_quantidade", "INTEGER NULL"),
+        ("intervalo_unidade", "VARCHAR(10) NOT NULL DEFAULT ''"),
+    )
+    for nome, tipo in colunas:
+        if not column_exists(cursor, "clinica_beleza_protocolo_contrato", nome):
+            cursor.execute(
+                f"ALTER TABLE clinica_beleza_protocolo_contrato ADD COLUMN {nome} {tipo}",
+            )
+    if not table_exists(cursor, "clinica_beleza_protocolo_contrato_procedimento"):
+        cursor.execute("""
+            CREATE TABLE clinica_beleza_protocolo_contrato_procedimento (
+                id BIGSERIAL PRIMARY KEY,
+                loja_id INTEGER NOT NULL,
+                valor NUMERIC(10,2) NOT NULL,
+                contrato_id BIGINT NOT NULL
+                    REFERENCES clinica_beleza_protocolo_contrato(id) ON DELETE CASCADE,
+                procedure_id BIGINT NOT NULL
+                    REFERENCES clinica_beleza_procedure(id) ON DELETE RESTRICT,
+                CONSTRAINT cb_protocolo_contrato_proc_uniq UNIQUE (contrato_id, procedure_id)
+            )
+        """)
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS clinica_beleza_protocolo_contrato_procedimento_loja_id_idx "
+            "ON clinica_beleza_protocolo_contrato_procedimento (loja_id)",
+        )
+    if not table_exists(cursor, "clinica_beleza_protocolo_contrato_produto"):
+        cursor.execute("""
+            CREATE TABLE clinica_beleza_protocolo_contrato_produto (
+                id BIGSERIAL PRIMARY KEY,
+                loja_id INTEGER NOT NULL,
+                quantidade NUMERIC(10,2) NOT NULL,
+                contrato_id BIGINT NOT NULL
+                    REFERENCES clinica_beleza_protocolo_contrato(id) ON DELETE CASCADE,
+                produto_id BIGINT NOT NULL
+                    REFERENCES clinica_beleza_produtoestoque(id) ON DELETE RESTRICT,
+                CONSTRAINT cb_protocolo_contrato_produto_uniq UNIQUE (contrato_id, produto_id)
+            )
+        """)
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS clinica_beleza_protocolo_contrato_produto_loja_id_idx "
+            "ON clinica_beleza_protocolo_contrato_produto (loja_id)",
+        )
 
 
 def queryset_lojas_clinica_beleza():

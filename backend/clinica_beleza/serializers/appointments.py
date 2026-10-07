@@ -329,11 +329,10 @@ class AgendaEventSerializer(serializers.ModelSerializer):
         if not getattr(obj, "protocolo_contrato_id", None):
             return None
         contrato = obj.protocolo_contrato
-        protocol = getattr(contrato, "protocol", None)
-        if protocol is None:
-            return None
+        protocol = contrato.protocol if getattr(contrato, "protocol_id", None) else None
+        nome = protocol.nome if protocol is not None else (getattr(contrato, "nome", None) or "Protocolo personalizado")
         return {
-            "nome": protocol.nome,
+            "nome": nome,
             "sessao": obj.sessao_numero,
             "sessoes": contrato.sessoes,
             "forma_cobranca": contrato.forma_cobranca,

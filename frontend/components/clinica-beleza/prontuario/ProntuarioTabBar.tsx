@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Printer } from "lucide-react";
+import { CalendarClock, ClipboardList, Printer } from "lucide-react";
 import { isProntuarioLocalTab } from "./prontuario-utils";
 import { PRONTUARIO_TABS, type ProntuarioTabId } from "./prontuario-types";
 
@@ -10,8 +10,8 @@ interface ProntuarioTabBarProps {
   onPrintSecao: () => void;
   onPrintCompleto: () => void;
   printando?: "secao" | "completo" | null;
-  consultaAtualCount?: number;
   finalizadasCount?: number;
+  onAbrirProtocolo: () => void;
   showPrazoButton?: boolean;
   prazoAberto?: boolean;
   onTogglePrazo?: () => void;
@@ -32,14 +32,14 @@ export function ProntuarioTabBar({
   onPrintSecao,
   onPrintCompleto,
   printando = null,
-  consultaAtualCount = 0,
   finalizadasCount = 0,
+  onAbrirProtocolo,
   showPrazoButton = false,
   prazoAberto = false,
   onTogglePrazo,
 }: ProntuarioTabBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto">
       {PRONTUARIO_TABS.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
@@ -103,7 +103,15 @@ export function ProntuarioTabBar({
           <Printer size={16} />
           <span className="hidden md:inline">{printando === "completo" ? "Gerando…" : "Baixar completo"}</span>
         </button>
-        <ContagemConsulta label="Consulta atual" value={consultaAtualCount} />
+        <button
+          type="button"
+          onClick={onAbrirProtocolo}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white shrink-0"
+          style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+        >
+          <ClipboardList size={16} />
+          <span className="whitespace-nowrap">Protocolo personalizado</span>
+        </button>
         <ContagemConsulta label="Finalizadas" value={finalizadasCount} />
       </div>
     </div>

@@ -2,6 +2,16 @@ import type { HorarioTrabalho } from "@/lib/clinica-beleza-work-hours";
 import type { ProtocoloAgendaResumo, ProtocoloFormaCobranca } from "./criar-agendamento-builders";
 import type { UseCriarAgendamentoOptions } from "./criar-agendamento-types";
 
+export interface ProtocoloClientePendente {
+  id: number;
+  nome: string;
+  sessoes: number;
+  intervalo_quantidade: number;
+  intervalo_unidade: "dias" | "semanas" | "meses";
+  tempo_minutos: number;
+  valor_total: string;
+}
+
 export interface CriarAgendamentoSubmitContext {
   isConsulta: boolean;
   validateBase: () => string | null;
@@ -21,6 +31,9 @@ export interface CriarAgendamentoSubmitContext {
   protocolos: ProtocoloAgendaResumo[];
   protocolosCarregando: boolean;
   formaCobranca: ProtocoloFormaCobranca;
+  protocoloClienteId: number | "";
+  protocolosDaCliente: ProtocoloClientePendente[];
+  setProtocoloClienteId: (id: number | "") => void;
   setCreateLoading: (v: boolean) => void;
   setCreateError: (v: string) => void;
   setTime: (v: string) => void;

@@ -73,6 +73,17 @@ export interface Consulta {
   convenio_name?: string | null;
   nome_agenda_id?: number | null;
   nome_agenda_name?: string | null;
+  /** Protocolo personalizado: a escolha do valor acontece no recebimento. */
+  cobranca_protocolo?: {
+    nome: string;
+    forma_cobranca: string;
+    valor_total: number;
+    desconto: number;
+    sessoes: number;
+    sessao: number;
+    valor_parcela: number;
+    pendente: boolean;
+  } | null;
   appointment_date?: string;
   appointment_status?: string;
   total_evolucoes: number;

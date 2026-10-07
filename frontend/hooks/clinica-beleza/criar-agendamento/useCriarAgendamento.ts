@@ -9,7 +9,7 @@ import {
   type RetornoVerificacaoResult,
 } from "@/lib/clinica-beleza-api";
 import { dividirValorProtocolo } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
-import { findNomeAgendaByTipo } from "@/lib/clinica-beleza-tipo-agenda";
+import { findNomeAgendaByTipo, normalizarTipoAgendaNome } from "@/lib/clinica-beleza-tipo-agenda";
 import { type HorarioTrabalho } from "@/lib/clinica-beleza-work-hours";
 import {
   classificarSelecaoProtocolo,
@@ -20,6 +20,7 @@ import {
 } from "./criar-agendamento-builders";
 import type { UseCriarAgendamentoOptions } from "./criar-agendamento-types";
 import { useCriarAgendamentoEffects } from "./useCriarAgendamentoEffects";
+import type { ProtocoloClientePendente } from "./criar-agendamento-submit-types";
 import { useCriarAgendamentoSubmit } from "./useCriarAgendamentoSubmit";
 
 export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
@@ -51,6 +52,8 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
   const [protocolos, setProtocolos] = useState<ProtocoloAgendaResumo[]>([]);
   const [protocolosCarregando, setProtocolosCarregando] = useState(false);
   const [formaCobranca, setFormaCobranca] = useState<ProtocoloFormaCobranca>("POR_CONSULTA");
+  const [protocolosDaCliente, setProtocolosDaCliente] = useState<ProtocoloClientePendente[]>([]);
+  const [protocoloClienteId, setProtocoloClienteId] = useState<number | "">("");
 
   useEffect(() => {
     if (!open) {
@@ -86,6 +89,32 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     enabled: open,
     requireProcedure: false,
   });
+
+  useEffect(() => {
+    if (!open || !novaConsulta.patientId) {
+      setProtocolosDaCliente([]);
+      setProtocoloClienteId("");
+      return;
+    }
+    let ativo = true;
+    void (async () => {
+      try {
+        const res = await clinicaBelezaFetch(
+          `/protocolos/personalizados/pendentes/?patient=${novaConsulta.patientId}`,
+        );
+        const dados = await parseClinicaBelezaResponseBody(res);
+        if (!ativo) return;
+        const lista = Array.isArray(dados) ? (dados as ProtocoloClientePendente[]) : [];
+        setProtocolosDaCliente(lista);
+        setProtocoloClienteId((atual) => (lista.some((item) => item.id === atual) ? atual : ""));
+      } catch {
+        if (ativo) setProtocolosDaCliente([]);
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [open, novaConsulta.patientId]);
 
   const { mounted } = useCriarAgendamentoEffects(options, novaConsulta, {
     setDateInput,
@@ -124,6 +153,9 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     protocolos,
     protocolosCarregando,
     formaCobranca,
+    protocoloClienteId,
+    protocolosDaCliente,
+    setProtocoloClienteId,
     setCreateLoading,
     setCreateError,
     setTime,
@@ -170,11 +202,30 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     formaCobranca,
   ]);
 
+  const protocoloCliente =
+    protocolosDaCliente.find((item) => item.id === protocoloClienteId) ?? null;
+  const agendaEhProtocolo =
+    normalizarTipoAgendaNome(nomesAgenda.find((item) => item.id === nomeAgendaId)?.nome || "") === "PROTOCOLO";
+
   useEffect(() => {
-    if (!open || !protocoloSelecionado || nomesAgenda.length === 0) return;
+    if (!agendaEhProtocolo) {
+      if (protocoloClienteId) setProtocoloClienteId("");
+      return;
+    }
+    if (
+      protocolosDaCliente.length === 1 &&
+      protocoloClienteId !== protocolosDaCliente[0].id &&
+      novaConsulta.selectedProcedures.length === 0
+    ) {
+      setProtocoloClienteId(protocolosDaCliente[0].id);
+    }
+  }, [agendaEhProtocolo, protocoloClienteId, protocolosDaCliente, novaConsulta.selectedProcedures.length]);
+
+  useEffect(() => {
+    if (!open || (!protocoloSelecionado && !protocoloCliente) || nomesAgenda.length === 0) return;
     const tipoProtocolo = findNomeAgendaByTipo(nomesAgenda, "PROTOCOLO");
     if (tipoProtocolo) setNomeAgendaId(tipoProtocolo.id);
-  }, [open, protocoloSelecionado, nomesAgenda]);
+  }, [open, protocoloSelecionado, protocoloCliente, nomesAgenda]);
 
   const labels = getCriarAgendamentoModalLabels(isConsulta, createLoading);
 
@@ -215,6 +266,10 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     protocoloErro,
     formaCobranca,
     setFormaCobranca,
+    protocolosDaCliente,
+    protocoloClienteId,
+    setProtocoloClienteId,
+    protocoloCliente,
     handleCreatePatient,
     onPatientsChange,
   };

@@ -584,7 +584,7 @@ export function useAgendaMutations({
     }
   }, [onReload, patchAgendamento, queryClient, selectedEvent, selectedProfessional, toast]);
 
-  const atualizarStatusAgendamento = useCallback(async (novoStatus: string) => {
+  const atualizarStatusAgendamento = useCallback(async (novoStatus: string, formaCobranca?: string) => {
     if (!selectedEvent) return;
     const dbId = selectedEvent.extendedProps.dbId;
     if (typeof dbId === "string" && dbId.startsWith("offline-")) {
@@ -594,6 +594,7 @@ export function useAgendaMutations({
     setUpdatingStatus(true);
     try {
       const body: Record<string, unknown> = { status: novoStatus };
+      if (formaCobranca) body.forma_cobranca = formaCobranca;
       if (selectedEvent.extendedProps.version != null) body.version = selectedEvent.extendedProps.version;
       if (selectedEvent.extendedProps.updated_at) body.updated_at = selectedEvent.extendedProps.updated_at;
       const res = await clinicaBelezaFetch(`/agenda/${dbId}/update/`, {
@@ -628,6 +629,7 @@ export function useAgendaMutations({
               extendedProps: {
                 ...prev.extendedProps,
                 status: novoStatus,
+                ...(data.protocolo ? { protocolo: data.protocolo } : {}),
                 ...(data.consulta_id != null ? { consulta_id: Number(data.consulta_id) } : {}),
               },
             }

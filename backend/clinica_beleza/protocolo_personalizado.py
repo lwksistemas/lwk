@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from decimal import ROUND_DOWN, Decimal
+from decimal import ROUND_DOWN, Decimal, InvalidOperation
 
 from django.db import transaction
 from django.utils import timezone
@@ -61,59 +61,7 @@ def repartir_valor(total, pesos) -> list[Decimal]:
     return partes
 
 
-def criar_protocolo_personalizado(
-    *,
-    patient,
-    professional,
-    local_atendimento,
-    procedimentos,
-    produtos,
-    data_inicio,
-    forma_cobranca: str,
-    desconto_tipo: str,
-    desconto_valor,
-    sessoes: int,
-    intervalo_quantidade: int,
-    intervalo_unidade: str,
-    tempo_minutos: int,
-    nome: str = "",
-    observacao: str = "",
-    request=None,
-) -> dict:
-    """Grava o pacote da cliente e cria as sessões. Horário ocupado vai para o próximo livre."""
-    from .agenda_service import (
-        _bloquear_se_paciente_inadimplente,
-        registrar_criacao_agendamento,
-        validar_regras_agendamento,
-    )
-    from .convenio_service import resolver_preco_procedimento
-    from .models import (
-        Appointment,
-        AppointmentProcedure,
-        ProtocoloContrato,
-        ProtocoloContratoProcedimento,
-        ProtocoloContratoProduto,
-    )
-
-    if not professional:
-        from .consulta_service.messages import MSG_PROFISSIONAL_OBRIGATORIO
-
-        raise AgendaValidationError(MSG_PROFISSIONAL_OBRIGATORIO)
-    if not patient:
-        raise AgendaValidationError("Selecione a cliente.")
-    if not local_atendimento:
-        raise AgendaValidationError("Selecione o local de atendimento.")
-    if forma_cobranca not in FORMAS_COBRANCA:
-        raise AgendaValidationError("Escolha pagar na primeira sessão ou dividir pelas sessões.")
-    if intervalo_unidade not in UNIDADES_INTERVALO:
-        raise AgendaValidationError("Escolha o intervalo em dias, semanas ou meses.")
-    if int(sessoes) < 1:
-        raise AgendaValidationError("O protocolo precisa de ao menos uma sessão.")
-    if int(intervalo_quantidade) < 1:
-        raise AgendaValidationError("Informe o intervalo entre as sessões.")
-    if int(tempo_minutos) < 1:
-        raise AgendaValidationError("Informe a duração de cada atendimento, em minutos.")
-
+def _validar_itens(procedimentos, produtos):
     procedimentos = list(procedimentos or [])
     if not procedimentos:
         raise AgendaValidationError("Inclua ao menos um procedimento.")
@@ -129,71 +77,80 @@ def criar_protocolo_personalizado(
     produtos_vistos = set()
     for item in produtos:
         produto = item["produto"]
-        quantidade = Decimal(str(item["quantidade"]))
+        try:
+            quantidade = Decimal(str(item["quantidade"]).replace(",", "."))
+        except (InvalidOperation, TypeError, ValueError):
+            raise AgendaValidationError("A quantidade do produto por sessão precisa ser maior que zero.")
         if quantidade <= 0:
             raise AgendaValidationError("A quantidade do produto por sessão precisa ser maior que zero.")
         if produto.id in produtos_vistos:
             raise AgendaValidationError("Cada produto entra uma vez por sessão.")
         if not getattr(produto, "is_active", True):
             raise AgendaValidationError(f"O produto {produto.nome} está inativo.")
+        item["quantidade"] = quantidade
         produtos_vistos.add(produto.id)
+    return procedimentos, produtos
+
+
+def _linhas_de_preco(patient, procedimentos):
+    from .convenio_service import resolver_preco_procedimento
 
     convenio = None
     convenio_paciente = getattr(patient, "convenio", None)
     if convenio_paciente is not None and getattr(convenio_paciente, "is_active", False):
         convenio = convenio_paciente
-
     linhas = []
     for procedure in procedimentos:
         preco = Decimal(str(resolver_preco_procedimento(convenio, procedure) or 0)).quantize(Decimal("0.01"))
         linhas.append((procedure, preco))
+    return convenio, linhas
+
+
+def criar_protocolo_personalizado(
+    *,
+    patient,
+    procedimentos,
+    produtos,
+    desconto_tipo: str,
+    desconto_valor,
+    sessoes: int,
+    intervalo_quantidade: int,
+    intervalo_unidade: str,
+    tempo_minutos: int,
+    nome: str = "",
+    request=None,
+) -> dict:
+    """Grava o pacote da cliente. Profissional, agenda e pagamento ficam para depois."""
+    from .agenda_service import _bloquear_se_paciente_inadimplente
+    from .models import ProtocoloContrato, ProtocoloContratoProcedimento, ProtocoloContratoProduto
+
+    if not patient:
+        raise AgendaValidationError("Selecione a cliente.")
+    if intervalo_unidade not in UNIDADES_INTERVALO:
+        raise AgendaValidationError("Escolha o intervalo em dias, semanas ou meses.")
+    if int(sessoes) < 1:
+        raise AgendaValidationError("O protocolo precisa de ao menos uma sessão.")
+    if int(intervalo_quantidade) < 1:
+        raise AgendaValidationError("Informe o intervalo entre as sessões.")
+    if int(tempo_minutos) < 1:
+        raise AgendaValidationError("Informe a duração de cada atendimento, em minutos.")
+
+    procedimentos, produtos = _validar_itens(procedimentos, produtos)
+    _convenio, linhas = _linhas_de_preco(patient, procedimentos)
     bruto = sum((preco for _, preco in linhas), Decimal("0.00")).quantize(Decimal("0.01"))
     desconto, liquido = aplicar_desconto_protocolo(bruto, desconto_tipo, desconto_valor)
     _bloquear_se_paciente_inadimplente(patient, request=request)
 
-    from .protocolo_comercial import _ciente
-
-    inicio = _ciente(data_inicio)
-    datas = [
-        _ciente(item)
-        for item in datas_das_sessoes(inicio, int(sessoes), int(intervalo_quantidade), intervalo_unidade)
-    ]
-    partes = dividir_valor_protocolo(liquido, int(sessoes), forma_cobranca)
-    encaixes = encaixar_horarios(
-        datas,
-        int(tempo_minutos),
-        intervalos_ocupados_profissional(professional, datas[0], datas[-1] + LIMITE_BUSCA_HORARIO),
-    )
-    slots = []
-    for indice, encaixe in enumerate(encaixes):
-        slots.append({
-            "sessao": indice + 1,
-            "inicio": encaixe["inicio"],
-            "fim": encaixe["fim"],
-            "valor": partes[indice],
-            "ajustado": encaixe["ajustado"],
-        })
-    for slot in slots:
-        validar_regras_agendamento(
-            "AGENDAMENTO_CRIADO",
-            professional,
-            slot["inicio"],
-            slot["fim"],
-            appointment_id=None,
-        )
-
     titulo = (nome or "").strip() or "Protocolo personalizado"
-    observacao = (observacao or "").strip()
-    primeiro = linhas[0][0]
     loja_id = patient.loja_id
 
     with transaction.atomic():
         contrato = ProtocoloContrato.objects.create(
             protocol=None,
             patient=patient,
-            professional=professional,
-            local_atendimento=local_atendimento,
-            forma_cobranca=forma_cobranca,
+            professional=None,
+            local_atendimento=None,
+            forma_cobranca="",
             nome=titulo,
             valor_bruto=bruto,
             desconto_tipo=(desconto_tipo or "").strip().lower(),
@@ -202,7 +159,7 @@ def criar_protocolo_personalizado(
             tempo_minutos=int(tempo_minutos),
             intervalo_quantidade=int(intervalo_quantidade),
             intervalo_unidade=intervalo_unidade,
-            data_inicio=slots[0]["inicio"],
+            data_inicio=None,
             sessoes=int(sessoes),
             loja_id=loja_id,
         )
@@ -220,23 +177,102 @@ def criar_protocolo_personalizado(
                 quantidade=Decimal(str(item["quantidade"])).quantize(Decimal("0.01")),
                 loja_id=loja_id,
             )
+
+    return {
+        "contrato_id": contrato.id,
+        "nome": titulo,
+        "valor_bruto": str(bruto),
+        "desconto": str(desconto),
+        "valor_total": str(liquido),
+    }
+
+
+def agendar_protocolo_personalizado(
+    *,
+    contrato,
+    professional,
+    local_atendimento,
+    data_inicio,
+    request=None,
+) -> dict:
+    """A secretaria escolhe a profissional e cria as sessões no horário livre dela."""
+    from .agenda_service import registrar_criacao_agendamento, validar_regras_agendamento
+    from .models import Appointment, AppointmentProcedure
+    from .protocolo_comercial import _ciente
+
+    if getattr(contrato, "protocol_id", None):
+        raise AgendaValidationError("Este protocolo é do catálogo. Agende pelo procedimento.")
+    if contrato.agendamentos.exists():
+        raise AgendaValidationError("Este protocolo já está na agenda.")
+    if not professional:
+        raise AgendaValidationError("Selecione a profissional.")
+    if not local_atendimento:
+        raise AgendaValidationError("Selecione o local de atendimento.")
+    if not contrato.tempo_minutos or not contrato.intervalo_quantidade or not contrato.intervalo_unidade:
+        raise AgendaValidationError("O protocolo está sem duração ou intervalo.")
+
+    linhas = list(contrato.procedimentos.select_related("procedure").order_by("id"))
+    if not linhas:
+        raise AgendaValidationError("O protocolo não tem procedimentos.")
+    inicio = _ciente(data_inicio)
+    datas = [
+        _ciente(item)
+        for item in datas_das_sessoes(
+            inicio,
+            int(contrato.sessoes),
+            int(contrato.intervalo_quantidade),
+            contrato.intervalo_unidade,
+        )
+    ]
+    encaixes = encaixar_horarios(
+        datas,
+        int(contrato.tempo_minutos),
+        intervalos_ocupados_profissional(professional, datas[0], datas[-1] + LIMITE_BUSCA_HORARIO),
+    )
+    slots = []
+    for indice, encaixe in enumerate(encaixes):
+        slots.append({
+            "sessao": indice + 1,
+            "inicio": encaixe["inicio"],
+            "fim": encaixe["fim"],
+            "ajustado": encaixe["ajustado"],
+        })
+    for slot in slots:
+        validar_regras_agendamento(
+            "AGENDAMENTO_CRIADO",
+            professional,
+            slot["inicio"],
+            slot["fim"],
+            appointment_id=None,
+        )
+
+    titulo = contrato.nome or "Protocolo personalizado"
+    primeiro = linhas[0].procedure
+    loja_id = contrato.loja_id
+    convenio = None
+    convenio_paciente = getattr(contrato.patient, "convenio", None)
+    if convenio_paciente is not None and getattr(convenio_paciente, "is_active", False):
+        convenio = convenio_paciente
+
+    with transaction.atomic():
+        contrato.professional = professional
+        contrato.local_atendimento = local_atendimento
+        contrato.data_inicio = slots[0]["inicio"]
+        contrato.save(update_fields=["professional", "local_atendimento", "data_inicio"])
         criados = []
-        pesos = [preco for _, preco in linhas]
         for slot in slots:
-            notes = f"{titulo} — sessão {slot['sessao']} de {sessoes}"
+            notes = f"{titulo} — sessão {slot['sessao']} de {contrato.sessoes}"
             if slot["ajustado"]:
                 notes = f"{notes}\nHorário ajustado para o próximo horário livre."
-            if observacao:
-                notes = f"{notes}\n{observacao}"
             appointment = Appointment.objects.create(
                 date=slot["inicio"],
                 status="SCHEDULED",
-                patient=patient,
+                patient=contrato.patient,
                 professional=professional,
                 procedure=primeiro,
                 local_atendimento=local_atendimento,
                 convenio=convenio,
-                duracao_minutos=int(tempo_minutos),
+                duracao_minutos=int(contrato.tempo_minutos),
                 protocolo_contrato=contrato,
                 sessao_numero=slot["sessao"],
                 notes=notes,
@@ -247,13 +283,12 @@ def criar_protocolo_personalizado(
                 getattr(request, "user", None) if request is not None else None,
                 request=request,
             )
-            valores = repartir_valor(slot["valor"], pesos)
-            for ordem, ((procedure, _preco), valor_linha) in enumerate(zip(linhas, valores)):
+            for ordem, linha in enumerate(linhas):
                 AppointmentProcedure.objects.create(
                     appointment=appointment,
-                    procedure=procedure,
-                    duracao_minutos=int(tempo_minutos),
-                    valor=valor_linha,
+                    procedure=linha.procedure,
+                    duracao_minutos=int(contrato.tempo_minutos),
+                    valor=Decimal("0.00"),
                     ordem=ordem,
                     loja_id=loja_id,
                 )
@@ -262,7 +297,6 @@ def criar_protocolo_personalizado(
                     "id": appointment.id,
                     "sessao": slot["sessao"],
                     "date": timezone.localtime(slot["inicio"]).isoformat(),
-                    "valor": str(slot["valor"]),
                     "ajustado": slot["ajustado"],
                 }
             )
@@ -270,8 +304,63 @@ def criar_protocolo_personalizado(
     return {
         "contrato_id": contrato.id,
         "nome": titulo,
-        "valor_bruto": str(bruto),
-        "desconto": str(desconto),
-        "valor_total": str(liquido),
+        "valor_total": str(contrato.valor_total),
         "agendamentos": criados,
     }
+
+
+def definir_pagamento_protocolo(contrato, forma: str, appointment_id=None) -> None:
+    """Grava o valor total nesta sessão ou divide pelas sessões, no recebimento."""
+    from .models import AppointmentProcedure
+
+    atual = (getattr(contrato, "forma_cobranca", None) or "").strip()
+    if atual in FORMAS_COBRANCA:
+        return
+    forma = (forma or "").strip()
+    if forma not in FORMAS_COBRANCA:
+        raise AgendaValidationError(
+            "Escolha pagar tudo na primeira sessão ou dividir pelas sessões.",
+        )
+    if getattr(contrato, "protocol_id", None):
+        raise AgendaValidationError("O pagamento deste protocolo já foi definido no agendamento.")
+    linhas = list(contrato.procedimentos.order_by("id"))
+    if not linhas:
+        raise AgendaValidationError("O protocolo não tem procedimentos.")
+    agendamentos = list(contrato.agendamentos.order_by("sessao_numero", "date"))
+    if not agendamentos:
+        raise AgendaValidationError("Agende o protocolo antes de definir o pagamento.")
+
+    pesos = [linha.valor for linha in linhas]
+    try:
+        alvo = int(appointment_id) if appointment_id else None
+    except (TypeError, ValueError):
+        alvo = None
+    if forma == "TOTAL" and alvo:
+        liquido = Decimal(str(contrato.valor_total or 0)).quantize(Decimal("0.01"))
+        partes = [Decimal("0.00")] * int(contrato.sessoes)
+        for item in agendamentos:
+            if item.id != alvo:
+                continue
+            indice_total = (item.sessao_numero or 1) - 1
+            if 0 <= indice_total < len(partes):
+                partes[indice_total] = liquido
+            break
+    else:
+        partes = dividir_valor_protocolo(contrato.valor_total, int(contrato.sessoes), forma)
+    with transaction.atomic():
+        contrato.forma_cobranca = forma
+        contrato.save(update_fields=["forma_cobranca"])
+        for appointment in agendamentos:
+            indice = (appointment.sessao_numero or 1) - 1
+            valor = partes[indice] if 0 <= indice < len(partes) else Decimal("0.00")
+            valores = repartir_valor(valor, pesos)
+            procs = {
+                item.procedure_id: item
+                for item in AppointmentProcedure.objects.filter(appointment=appointment)
+            }
+            for linha, valor_linha in zip(linhas, valores):
+                procedimento = procs.get(linha.procedure_id)
+                if procedimento is None:
+                    continue
+                procedimento.valor = valor_linha
+                procedimento.save(update_fields=["valor"])

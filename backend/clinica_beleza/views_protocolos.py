@@ -10,11 +10,29 @@ from rest_framework.views import APIView
 from django.utils.dateparse import parse_datetime
 
 from .agenda_service import AgendaValidationError
-from .models import LocalAtendimento, Patient, Procedure, ProcedureProtocol, ProdutoEstoque, Professional
+from .models import (
+    LocalAtendimento,
+    Patient,
+    Procedure,
+    ProcedureProtocol,
+    ProdutoEstoque,
+    Professional,
+    ProtocoloContrato,
+)
 from .pagination import paginate_queryset
-from .permissions import CLINICA_CLINICAL, CLINICA_RECEPCAO, professional_id_do_usuario, _loja_and_profissional
+from .permissions import (
+    CLINICA_AGENDA,
+    CLINICA_CLINICAL,
+    CLINICA_RECEPCAO,
+    professional_id_do_usuario,
+    resolve_agenda_professional_scope,
+    _loja_and_profissional,
+)
 from .protocolo_comercial import FORMAS_COBRANCA, ProtocoloAgendaConflito, agendar_protocolo
-from .protocolo_personalizado import criar_protocolo_personalizado
+from .protocolo_personalizado import (
+    agendar_protocolo_personalizado,
+    criar_protocolo_personalizado,
+)
 from .serializers import ProcedureProtocolSerializer
 from .views_base import GetObjectMixin
 
@@ -201,7 +219,84 @@ class ProtocoloPersonalizadoCreateView(APIView):
         patient = _buscar(Patient, data.get("patient"), "Cliente não encontrada.")
         if isinstance(patient, Response):
             return patient
-        professional_id = _profissional_fixo(request) or data.get("professional")
+        try:
+            procedimentos = _procedimentos_do_pedido(data.get("procedimentos"))
+            produtos = _produtos_do_pedido(data.get("produtos"))
+            resultado = criar_protocolo_personalizado(
+                patient=patient,
+                procedimentos=procedimentos,
+                produtos=produtos,
+                desconto_tipo=str(data.get("desconto_tipo") or "").strip(),
+                desconto_valor=data.get("desconto_valor") or 0,
+                sessoes=int(data.get("sessoes") or 0),
+                intervalo_quantidade=int(data.get("intervalo_quantidade") or 0),
+                intervalo_unidade=str(data.get("intervalo_unidade") or "").strip(),
+                tempo_minutos=int(data.get("tempo_minutos") or 0),
+                nome=str(data.get("nome") or ""),
+                request=request,
+            )
+        except (TypeError, ValueError):
+            return Response({"detail": "Revise sessões, intervalo, duração e desconto."}, status=status.HTTP_400_BAD_REQUEST)
+        except AgendaValidationError as exc:
+            return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(resultado, status=status.HTTP_201_CREATED)
+
+
+class ProtocoloPersonalizadoPendentesView(APIView):
+    """GET /clinica-beleza/protocolos/personalizados/pendentes/?patient="""
+
+    permission_classes = CLINICA_AGENDA
+
+    def get(self, request):
+        from django.db.models import Count
+
+        patient = _buscar(Patient, request.query_params.get("patient"), "Cliente não encontrada.")
+        if isinstance(patient, Response):
+            return patient
+        contratos = (
+            ProtocoloContrato.objects.filter(patient=patient, protocol__isnull=True)
+            .annotate(sessoes_na_agenda=Count("agendamentos"))
+            .filter(sessoes_na_agenda=0)
+            .order_by("-created_at")
+        )
+        return Response([
+            {
+                "id": item.id,
+                "nome": item.nome or "Protocolo personalizado",
+                "sessoes": item.sessoes,
+                "intervalo_quantidade": item.intervalo_quantidade,
+                "intervalo_unidade": item.intervalo_unidade,
+                "tempo_minutos": item.tempo_minutos,
+                "valor_total": str(item.valor_total),
+            }
+            for item in contratos
+        ])
+
+
+class ProtocoloPersonalizadoAgendarView(APIView):
+    """POST /clinica-beleza/protocolos/personalizados/<id>/agendar/"""
+
+    permission_classes = CLINICA_AGENDA
+
+    def post(self, request, pk):
+        data = request.data or {}
+        try:
+            contrato = ProtocoloContrato.objects.select_related("patient", "patient__convenio").get(
+                pk=pk,
+                protocol__isnull=True,
+            )
+        except ProtocoloContrato.DoesNotExist:
+            return Response({"detail": "Protocolo não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        scope = resolve_agenda_professional_scope(request)
+        professional_id = data.get("professional")
+        if scope is not None:
+            if scope and str(professional_id or scope) != str(scope):
+                return Response(
+                    {"detail": "Você só pode agendar na sua agenda."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            professional_id = scope
         professional = _buscar(Professional, professional_id, "Profissional não encontrada.")
         local = _buscar(LocalAtendimento, data.get("local_atendimento"), "Local de atendimento não encontrado.")
         for item in (professional, local):
@@ -214,28 +309,13 @@ class ProtocoloPersonalizadoCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
-            procedimentos = _procedimentos_do_pedido(data.get("procedimentos"))
-            produtos = _produtos_do_pedido(data.get("produtos"))
-            resultado = criar_protocolo_personalizado(
-                patient=patient,
+            resultado = agendar_protocolo_personalizado(
+                contrato=contrato,
                 professional=professional,
                 local_atendimento=local,
-                procedimentos=procedimentos,
-                produtos=produtos,
                 data_inicio=inicio,
-                forma_cobranca=str(data.get("forma_cobranca") or "").strip(),
-                desconto_tipo=str(data.get("desconto_tipo") or "").strip(),
-                desconto_valor=data.get("desconto_valor") or 0,
-                sessoes=int(data.get("sessoes") or 0),
-                intervalo_quantidade=int(data.get("intervalo_quantidade") or 0),
-                intervalo_unidade=str(data.get("intervalo_unidade") or "").strip(),
-                tempo_minutos=int(data.get("tempo_minutos") or 0),
-                nome=str(data.get("nome") or ""),
-                observacao=str(data.get("observacao") or ""),
                 request=request,
             )
-        except (TypeError, ValueError):
-            return Response({"detail": "Revise sessões, intervalo, duração e desconto."}, status=status.HTTP_400_BAD_REQUEST)
         except AgendaValidationError as exc:
             return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         return Response(resultado, status=status.HTTP_201_CREATED)

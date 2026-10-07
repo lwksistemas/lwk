@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import {
   deveAbrirComprovanteRecibo,
   saldoReceberConsulta,
@@ -57,13 +58,25 @@ export function ModalReceberConsulta({
     entradas: EntradaPagamentoLinha[];
   } | null>(null);
   const [podeEditarValorProc, setPodeEditarValorProc] = useState(false);
+  const [formaProtocolo, setFormaProtocolo] = useState<"" | "TOTAL" | "POR_CONSULTA">("");
+  const cobrancaProtocolo = consulta.cobranca_protocolo;
+  const escolhaPendente = Boolean(cobrancaProtocolo?.pendente);
   const [valorProcInput, setValorProcInput] = useState(() => String(valorProcCatalogo));
 
   const [prevOpen, setPrevOpen] = useState(false);
 
-  const valorProcedimentosEfetivo = podeEditarValorProc
-    ? parseMoneyInput(valorProcInput)
-    : valorProcCatalogo;
+  const valorEscolhaProtocolo = !escolhaPendente
+    ? null
+    : formaProtocolo === "TOTAL"
+      ? Number(cobrancaProtocolo?.valor_total ?? 0)
+      : formaProtocolo === "POR_CONSULTA"
+        ? Number(cobrancaProtocolo?.valor_parcela ?? 0)
+        : 0;
+  const valorProcedimentosEfetivo = valorEscolhaProtocolo != null
+    ? valorEscolhaProtocolo
+    : podeEditarValorProc
+      ? parseMoneyInput(valorProcInput)
+      : valorProcCatalogo;
   const valorProcAlterado =
     podeEditarValorProc && !valoresQuaseIguais(valorProcedimentosEfetivo, valorProcCatalogo);
   const taxaCobrada = taxaConsultaCobrada({
@@ -104,6 +117,7 @@ export function ModalReceberConsulta({
     setReciboSnapshot(null);
     setConfirmado(false);
     setValorProcInput(String(Number(c.valor_procedimentos ?? 0)));
+    setFormaProtocolo("");
   };
 
   useEffect(() => {
@@ -191,6 +205,10 @@ export function ModalReceberConsulta({
   };
 
   const handleConfirm = async () => {
+    if (escolhaPendente && !formaProtocolo) {
+      setError("Escolha o valor total com desconto ou o parcelamento por sessão.");
+      return;
+    }
     const validationError = validateReceberForm({
       totalLiquido,
       desconto: valorDesconto,
@@ -214,7 +232,8 @@ export function ModalReceberConsulta({
         entradas,
         markAsPaid,
         totalLiquido,
-        valorProcedimentos: valorProcAlterado ? valorProcedimentosEfetivo : undefined,
+        valorProcedimentos: escolhaPendente || !valorProcAlterado ? undefined : valorProcedimentosEfetivo,
+        formaCobranca: escolhaPendente ? formaProtocolo : undefined,
       });
       const data = await ClinicaBelezaAPI.consultas.receber(consulta.id, payload);
       const atualizada = (data as { consulta?: Consulta }).consulta;
@@ -342,6 +361,42 @@ export function ModalReceberConsulta({
           </button>
         </div>
         <div className="p-5 space-y-4">
+          {escolhaPendente ? (
+            <fieldset className="space-y-2 rounded-lg border border-gray-200 dark:border-neutral-600 p-3">
+              <legend className="px-1 text-sm font-medium text-gray-800 dark:text-gray-100">
+                {cobrancaProtocolo?.nome} · sessão {cobrancaProtocolo?.sessao} de {cobrancaProtocolo?.sessoes}
+              </legend>
+              <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
+                <input
+                  type="radio"
+                  name="forma-protocolo-receber"
+                  className="mt-1"
+                  checked={formaProtocolo === "TOTAL"}
+                  onChange={() => setFormaProtocolo("TOTAL")}
+                />
+                <span>
+                  Valor total com desconto — {formatCurrency(cobrancaProtocolo?.valor_total ?? 0)}
+                  {Number(cobrancaProtocolo?.desconto ?? 0) > 0
+                    ? ` (desconto ${formatCurrency(cobrancaProtocolo?.desconto ?? 0)})`
+                    : ""}
+                  . As outras sessões não geram nova cobrança.
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
+                <input
+                  type="radio"
+                  name="forma-protocolo-receber"
+                  className="mt-1"
+                  checked={formaProtocolo === "POR_CONSULTA"}
+                  onChange={() => setFormaProtocolo("POR_CONSULTA")}
+                />
+                <span>
+                  Parcelado por sessão — {formatCurrency(cobrancaProtocolo?.valor_parcela ?? 0)} nesta sessão.
+                  As demais cobram a parcela delas.
+                </span>
+              </label>
+            </fieldset>
+          ) : null}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ReceberDadosAtendimento
               consulta={consulta}
@@ -352,7 +407,7 @@ export function ModalReceberConsulta({
               desconto={desconto}
               onDescontoChange={setDesconto}
               totalLiquido={totalLiquido}
-              podeEditarValorProcedimento={podeEditarValorProc}
+              podeEditarValorProcedimento={podeEditarValorProc && !escolhaPendente}
               valorProcedimentoInput={valorProcInput}
               onValorProcedimentoChange={setValorProcInput}
             />

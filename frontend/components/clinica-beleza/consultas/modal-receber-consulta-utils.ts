@@ -156,11 +156,13 @@ export function buildReceberPayload(params: {
   markAsPaid: boolean;
   totalLiquido: number;
   valorProcedimentos?: number | null;
+  formaCobranca?: "TOTAL" | "POR_CONSULTA" | "";
 }): {
   desconto: string;
   entradas: Array<{ payment_method: string; valor: string }>;
   mark_as_paid: boolean;
   valor_procedimentos?: string;
+  forma_cobranca?: "TOTAL" | "POR_CONSULTA";
 } {
   const descontoIntegral = params.totalLiquido <= TOLERANCIA && params.desconto > 0;
   const soma = descontoIntegral ? 0 : somaEntradas(params.entradas);
@@ -169,6 +171,7 @@ export function buildReceberPayload(params: {
     entradas: Array<{ payment_method: string; valor: string }>;
     mark_as_paid: boolean;
     valor_procedimentos?: string;
+    forma_cobranca?: "TOTAL" | "POR_CONSULTA";
   } = {
     desconto: String(round2(Math.max(0, params.desconto))),
     entradas: descontoIntegral
@@ -181,6 +184,9 @@ export function buildReceberPayload(params: {
   };
   if (params.valorProcedimentos != null) {
     payload.valor_procedimentos = String(round2(Math.max(0, params.valorProcedimentos)));
+  }
+  if (params.formaCobranca === "TOTAL" || params.formaCobranca === "POR_CONSULTA") {
+    payload.forma_cobranca = params.formaCobranca;
   }
   return payload;
 }

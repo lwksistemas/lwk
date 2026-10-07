@@ -9,6 +9,10 @@ from .context import (
     _linha_tel_cep,
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
+    linha_valor_com_desconto_recibo,
+    linhas_protocolo_informativo,
+    rotulo_subtotal_recibo,
+    rotulo_total_recibo,
     custeado_pela_clinica,
     linha_vencimento_recibo,
     linhas_local_convenio_recibo,
@@ -224,7 +228,7 @@ def _tabela_totais_recibo_pdf(ctx, styles, col_w):
     descontos = _linhas_descontos_recibo(ctx)
     if descontos:
         totals_data.append([
-            Paragraph("Subtotal", s_left),
+            Paragraph(_texto_pdf(rotulo_subtotal_recibo(ctx)), s_left),
             Paragraph(formatar_moeda_recibo(ctx.get("subtotal", ctx["valor_total"])), s_right),
         ])
         for label, valor in descontos:
@@ -232,8 +236,25 @@ def _tabela_totais_recibo_pdf(ctx, styles, col_w):
                 Paragraph(_texto_pdf(label), s_left),
                 Paragraph(f"- {formatar_moeda_recibo(valor)}", s_right),
             ])
+    protocolo_info = linhas_protocolo_informativo(ctx)
+    if protocolo_info:
+        totals_data.append([
+            Paragraph("<b>Protocolo</b>", s_bold),
+            Paragraph("", s_right),
+        ])
+        for label, valor in protocolo_info:
+            totals_data.append([
+                Paragraph(_texto_pdf(label), s_left),
+                Paragraph(formatar_moeda_recibo(valor), s_right),
+            ])
+    valor_com_desconto = linha_valor_com_desconto_recibo(ctx)
+    if valor_com_desconto:
+        totals_data.append([
+            Paragraph(_texto_pdf(valor_com_desconto[0]), s_left),
+            Paragraph(formatar_moeda_recibo(valor_com_desconto[1]), s_right),
+        ])
     totals_data.append([
-        Paragraph("<b>Total</b>", s_bold),
+        Paragraph(f"<b>{_texto_pdf(rotulo_total_recibo(ctx))}</b>", s_bold),
         Paragraph(f"<b>{formatar_moeda_recibo(ctx['valor_total'])}</b>", s_right),
     ])
 

@@ -4,6 +4,10 @@ import logging
 from .context import (
     _formas_pagamento_texto,
     _linhas_descontos_recibo,
+    linha_valor_com_desconto_recibo,
+    linhas_protocolo_informativo,
+    rotulo_subtotal_recibo,
+    rotulo_total_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
     custeado_pela_clinica,
@@ -126,9 +130,21 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
             f"🏷️ *{label}:* - {formatar_moeda_recibo(valor)}" for label, valor in descontos
         )
         desconto_block = (
-            f'🧾 *Subtotal:* {formatar_moeda_recibo(ctx.get("subtotal", 0))}\n'
+            f'🧾 *{rotulo_subtotal_recibo(ctx)}:* {formatar_moeda_recibo(ctx.get("subtotal", 0))}\n'
             f"{linhas_desc}\n"
-            f'💵 *Total:* {formatar_moeda_recibo(ctx.get("valor_total", 0))}\n'
+        )
+    valor_com_desconto = linha_valor_com_desconto_recibo(ctx)
+    if valor_com_desconto:
+        desconto_block += f'*{valor_com_desconto[0]}:* {formatar_moeda_recibo(valor_com_desconto[1])}\n'
+    protocolo_info = linhas_protocolo_informativo(ctx)
+    if protocolo_info:
+        linhas_proto = "\n".join(
+            f"*{label}:* {formatar_moeda_recibo(valor)}" for label, valor in protocolo_info
+        )
+        desconto_block += f"*Protocolo*\n{linhas_proto}\n"
+    if descontos or protocolo_info:
+        desconto_block += (
+            f'💵 *{rotulo_total_recibo(ctx)}:* {formatar_moeda_recibo(ctx.get("valor_total", 0))}\n'
         )
     extra = recebido_a_maior_recibo(ctx)
     extra_linha = (

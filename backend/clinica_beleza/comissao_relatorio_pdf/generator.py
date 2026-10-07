@@ -71,9 +71,10 @@ def _titulo_periodo_elements(
     data_inicio,
     data_fim,
     profissional_filtro_nome,
+    titulo="Relatório de Comissões",
 ):
     elements = [
-        Paragraph("Relatório de Comissões", titulo_style),
+        Paragraph(titulo, titulo_style),
         Paragraph(
             f"Período: {_fmt_data_br(data_inicio)} a {_fmt_data_br(data_fim)}",
             subtitulo_style,
@@ -146,6 +147,90 @@ def _corpo_profissionais(resultado, *, profissional_filtro_nome, styles, subtitu
     return elements
 
 
+def _corpo_clientes(resultado, *, styles):
+    """Uma tabela por cliente, agrupada no profissional."""
+    from .constants import _LARGURA_UTIL
+    from .formatting import _fmt_brl
+    from .tables import _make_data_table
+
+    profissionais = resultado.get("profissionais") or []
+    if not profissionais:
+        return [Paragraph("Nenhum dado encontrado no período.", styles["Normal"])]
+
+    w = _LARGURA_UTIL
+    elements = []
+    for idx, profissional in enumerate(profissionais):
+        elements.append(Paragraph(
+            profissional.get("nome", ""),
+            _nome_profissional_style(styles, idx),
+        ))
+        clientes = profissional.get("clientes") or []
+        elements.append(Paragraph(
+            f"{len(clientes)} cliente(s) · Comissão {_fmt_brl(profissional.get('comissao_total'))}",
+            ParagraphStyle(
+                "SubCli",
+                parent=styles["Normal"],
+                fontSize=8,
+                textColor=_CINZA,
+                spaceAfter=2 * mm,
+            ),
+        ))
+        for cliente in clientes:
+            cabecalho = (
+                f"{cliente.get('data', '—')} às {cliente.get('hora', '—')} · "
+                f"{cliente.get('paciente_nome', '—')} · {cliente.get('forma_pagamento') or '—'}"
+            )
+            elements.append(Paragraph(
+                cabecalho,
+                ParagraphStyle(
+                    "CliCab",
+                    parent=styles["Normal"],
+                    fontSize=8,
+                    fontName="Helvetica-Bold",
+                    textColor=colors.HexColor("#111827"),
+                    spaceBefore=1.5 * mm,
+                    spaceAfter=1 * mm,
+                ),
+            ))
+            rows = []
+            if cliente.get("regra_consulta") and (
+                float(cliente.get("valor_consulta") or 0) > 0
+                or float(cliente.get("comissao_consulta") or 0) > 0
+            ):
+                rows.append([
+                    "Taxa de avaliação",
+                    "—",
+                    _fmt_brl(cliente.get("valor_consulta")),
+                    cliente.get("regra_consulta") or "—",
+                    _fmt_brl(cliente.get("comissao_consulta")),
+                ])
+            for proc in cliente.get("procedimentos") or []:
+                rows.append([
+                    (proc.get("nome") or "")[:36],
+                    (proc.get("convenio_nome") or "—")[:16],
+                    _fmt_brl(proc.get("valor")),
+                    proc.get("regra") or "—",
+                    _fmt_brl(proc.get("comissao")),
+                ])
+            if not rows:
+                continue
+            elements.append(_make_data_table(
+                ["Serviço", "Convênio", "Valor", "Regra", "Comissão"],
+                rows,
+                footer=[
+                    "Total da cliente",
+                    "",
+                    _fmt_brl(cliente.get("valor")),
+                    "",
+                    _fmt_brl(cliente.get("comissao")),
+                ],
+                col_widths=[w * 0.34, w * 0.16, w * 0.16, w * 0.16, w * 0.18],
+                font_size=7,
+            ))
+        elements.append(Spacer(1, 2 * mm))
+    return elements
+
+
 def gerar_pdf_comissoes(
     *,
     resultado: dict,
@@ -153,6 +238,7 @@ def gerar_pdf_comissoes(
     data_inicio: date | None,
     data_fim: date | None,
     profissional_filtro_nome: str | None = None,
+    modo: str = "profissional",
 ) -> BytesIO:
     """Gera PDF do relatório de comissões.
     resultado: retorno de calcular_comissoes (dict com profissionais e totais).
@@ -175,6 +261,7 @@ def gerar_pdf_comissoes(
 
     elements = []
     elements.extend(_cabecalho_elements(tipo_cab, dados_cab, titulo_style))
+    detalhado = modo == "detalhado"
     elements.extend(
         _titulo_periodo_elements(
             titulo_style,
@@ -183,16 +270,20 @@ def gerar_pdf_comissoes(
             data_inicio=data_inicio,
             data_fim=data_fim,
             profissional_filtro_nome=profissional_filtro_nome,
+            titulo="Comissão por cliente" if detalhado else "Relatório de Comissões",
         )
     )
-    elements.extend(
-        _corpo_profissionais(
-            resultado,
-            profissional_filtro_nome=profissional_filtro_nome,
-            styles=styles,
-            subtitulo_style=subtitulo_style,
+    if detalhado:
+        elements.extend(_corpo_clientes(resultado, styles=styles))
+    else:
+        elements.extend(
+            _corpo_profissionais(
+                resultado,
+                profissional_filtro_nome=profissional_filtro_nome,
+                styles=styles,
+                subtitulo_style=subtitulo_style,
+            )
         )
-    )
 
     doc.build(elements)
     buffer.seek(0)

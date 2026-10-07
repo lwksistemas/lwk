@@ -109,6 +109,21 @@ class ComissaoRelatorioHelpersTest(TestCase):
             taxa = _resolver_valor_consulta_cadastro(consulta_local, Decimal(1076), procs, regras)
             self.assertEqual(taxa, Decimal(300))
 
+    def test_taxa_do_local_nao_zera_procedimento_quando_pagamento_e_so_o_procedimento(self):
+        consulta = MagicMock(valor_consulta=Decimal(0), local_atendimento_id=1)
+        consulta.local_atendimento = MagicMock(valor_consulta=Decimal(150))
+        procs = [{"procedure_id": 11, "procedimento_nome": "Drenagem", "valor": Decimal(120)}]
+        regras = {"consulta": None, "consultas_local": {}, "procedimentos": {}, "procedimento_ids": {11}}
+        vc = _resolver_valor_consulta_cadastro(consulta, Decimal(120), procs, regras)
+        self.assertEqual(vc, Decimal(0))
+        alocado, vp_map = _alocar_valores_pagamento(Decimal(120), vc, procs, {11})
+        self.assertEqual(alocado, Decimal(0))
+        self.assertEqual(vp_map[11], Decimal(120))
+        self.assertEqual(
+            _calcular_comissao_regra(_comissao("percentual", "40"), vp_map[11]),
+            Decimal("48.00"),
+        )
+
     def test_alocar_prioriza_taxa_consulta_e_mantem_procedimento_com_regra(self):
         procs = [
             {"procedure_id": 1, "procedimento_nome": "Botox", "valor": Decimal(800)},

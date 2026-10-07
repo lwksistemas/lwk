@@ -2,12 +2,12 @@ from datetime import date
 from decimal import Decimal
 
 from ..convenio_service import resolver_convenio_atendimento_comissao
-from ..models import Payment
 from .alocacao import _alocar_valores_pagamento
+from .finalizados import grupos_atendimentos_finalizados
 from .constants import CHAVE_CONSULTA, LABEL_CONSULTA
 from .formatting import _combinar_formas_pagamento, _formatar_regra
 from .local_consulta import _resolver_local_atendimento_efetivo, _resolver_valor_consulta_cadastro
-from .pagamentos import _agrupar_pagamentos_por_agendamento, _obter_ou_criar_detalhe
+from .pagamentos import _obter_ou_criar_detalhe
 from .procedimentos import _procedimentos_vinculados_consulta
 from .regras import (
     _calcular_comissao_regra,
@@ -147,15 +147,18 @@ def _finalizar_profissionais(prof_data):
 def _processar_grupo_pagamento(grupo, consulta_map, prof_data, regras_cache, convenio_cache=None):
     """Processa um grupo de pagamentos e acumula dados do profissional."""
     appt = grupo["appointment"]
-    if not appt or not appt.professional:
+    if not appt:
         return
     consulta = consulta_map.get(appt.id)
     if not consulta:
         return
-    procedimentos = _procedimentos_vinculados_consulta(appt, consulta)
-    if not procedimentos:
+    profissional = grupo.get("profissional") or appt.professional
+    if profissional is None:
         return
-    prof_id = appt.professional_id
+    procedimentos = _procedimentos_vinculados_consulta(appt, consulta)
+    if not procedimentos and grupo["total_amount"] <= 0:
+        return
+    prof_id = profissional.id
     amount = grupo["total_amount"]
     if prof_id not in regras_cache:
         regras_cache[prof_id] = _regras_profissional(prof_id)
@@ -176,7 +179,7 @@ def _processar_grupo_pagamento(grupo, consulta_map, prof_data, regras_cache, con
         for p in procedimentos
     )
     entry = _acumular_entry_prof(
-        prof_data, prof_id, appt.professional.nome, amount, vc, vp_map,
+        prof_data, prof_id, profissional.nome, amount, vc, vp_map,
         comissao_consulta, comissao_procedimentos,
     )
     modo_cc, regra_cc = _formatar_regra(regra_consulta)
@@ -197,39 +200,22 @@ def calcular_comissoes(
     professional_id: int | None = None,
 ) -> dict:
     """Calcula comissões dos profissionais.
-    Apenas pagamentos com consulta vinculada; cada procedimento do agendamento
-    gera linha de detalhe associada à consulta (local + taxa de consulta).
+
+    Entra toda consulta finalizada no período do atendimento. O valor é o do
+    serviço. Pagamento pendente ou a prazo não tira a comissão: o prejuízo
+    de quem não paga fica com a clínica.
     """
-    qs = Payment.objects.filter(status="PAID").select_related(
-        "appointment__professional",
-        "appointment__procedure",
-        "appointment__patient",
-        "appointment__convenio",
+    grupos, consulta_map = grupos_atendimentos_finalizados(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        professional_id=professional_id,
     )
-
-    if data_inicio:
-        qs = qs.filter(payment_date__date__gte=data_inicio)
-    if data_fim:
-        qs = qs.filter(payment_date__date__lte=data_fim)
-    if professional_id:
-        qs = qs.filter(appointment__professional_id=professional_id)
-
-    from ..models import Consulta
-
-    consulta_map = {}
-    consulta_ids = qs.values_list("appointment_id", flat=True)
-    consultas = Consulta.objects.filter(
-        appointment_id__in=consulta_ids,
-    ).select_related("local_atendimento", "procedure", "convenio")
-    for c in consultas:
-        consulta_map[c.appointment_id] = c
 
     prof_data = {}
     regras_cache = {}
     convenio_cache: dict = {}
 
-    payments_list = list(qs.prefetch_related("appointment__appointment_procedures__procedure"))
-    for grupo in _agrupar_pagamentos_por_agendamento(payments_list):
+    for grupo in grupos:
         _processar_grupo_pagamento(grupo, consulta_map, prof_data, regras_cache, convenio_cache)
 
     profissionais = _finalizar_profissionais(prof_data)

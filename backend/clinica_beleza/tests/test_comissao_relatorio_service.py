@@ -109,6 +109,17 @@ class ComissaoRelatorioHelpersTest(TestCase):
             taxa = _resolver_valor_consulta_cadastro(consulta_local, Decimal(1076), procs, regras)
             self.assertEqual(taxa, Decimal(300))
 
+    def test_servico_finalizado_vale_o_procedimento_mesmo_sem_pagamento(self):
+        from clinica_beleza.comissao_relatorio.finalizados import _valor_servico_atendimento
+
+        consulta = MagicMock(valor_consulta=Decimal(0), retorno_gratuito=False)
+        procs = [{"procedure_id": 11, "valor": Decimal(120)}]
+        self.assertEqual(_valor_servico_atendimento(consulta, procs), Decimal("120.00"))
+        self.assertEqual(
+            _calcular_comissao_regra(_comissao("percentual", "40"), Decimal(120)),
+            Decimal("48.00"),
+        )
+
     def test_taxa_do_local_nao_zera_procedimento_quando_pagamento_e_so_o_procedimento(self):
         consulta = MagicMock(valor_consulta=Decimal(0), local_atendimento_id=1)
         consulta.local_atendimento = MagicMock(valor_consulta=Decimal(150))

@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
 
+from django.utils import timezone
+
 from ..convenio_service import resolver_convenio_atendimento_comissao
 from .alocacao import _alocar_valores_pagamento
 from .finalizados import grupos_atendimentos_finalizados
@@ -16,6 +18,69 @@ from .regras import (
     _resolver_regra_procedimento,
     _rotulo_convenio_comissao,
 )
+
+
+def _conta_linha_consulta(regra_consulta, vc: Decimal, comissao_consulta: Decimal) -> bool:
+    """A taxa só entra no relatório quando a profissional tem comissão de consulta."""
+    return bool(regra_consulta) and (vc > 0 or comissao_consulta > 0)
+
+
+def _quando_atendimento(appt) -> tuple[str, str]:
+    dt = getattr(appt, "date", None)
+    if dt is not None and timezone.is_aware(dt):
+        dt = timezone.localtime(dt)
+    if not dt:
+        return "—", "—"
+    return dt.strftime("%d/%m/%Y"), dt.strftime("%H:%M")
+
+
+def _montar_linha_cliente(
+    appt,
+    consulta,
+    *,
+    local_nome,
+    forma_pagamento,
+    procedimentos,
+    vp_map,
+    regras,
+    convenio_id,
+    convenio_cache,
+    vc,
+    comissao_consulta,
+    regra_cc,
+) -> dict:
+    """Um atendimento finalizado, com o nome da cliente e a comissão de cada serviço."""
+    paciente = getattr(consulta, "patient", None) or getattr(appt, "patient", None)
+    data_str, hora_str = _quando_atendimento(appt)
+    linhas = []
+    for proc in procedimentos:
+        proc_id = proc["procedure_id"]
+        vp = vp_map.get(proc_id, Decimal(0))
+        regra_proc = _resolver_regra_procedimento(regras["procedimentos"], proc_id, convenio_id)
+        com_proc = _calcular_comissao_regra(regra_proc, vp)
+        _, regra_pc = _formatar_regra(regra_proc)
+        linhas.append({
+            "nome": proc["procedimento_nome"],
+            "convenio_nome": _rotulo_convenio_comissao(regra_proc, convenio_id, convenio_cache),
+            "valor": vp,
+            "regra": regra_pc,
+            "comissao": com_proc,
+        })
+    valor_proc = sum((linha["valor"] for linha in linhas), Decimal(0))
+    comissao_proc = sum((linha["comissao"] for linha in linhas), Decimal(0))
+    return {
+        "data": data_str,
+        "hora": hora_str,
+        "paciente_nome": getattr(paciente, "nome", None) or "—",
+        "forma_pagamento": forma_pagamento or "—",
+        "local_nome": local_nome or "—",
+        "valor_consulta": vc,
+        "comissao_consulta": comissao_consulta,
+        "regra_consulta": regra_cc,
+        "procedimentos": linhas,
+        "valor": vc + valor_proc,
+        "comissao": comissao_consulta + comissao_proc,
+    }
 
 
 def _acumular_detalhe_consulta(entry, chave_consulta, vc, comissao_consulta, forma_pagamento, local_nome, modo_cc, regra_cc):
@@ -109,6 +174,7 @@ def _acumular_entry_prof(prof_data, prof_id, prof_nome, amount, vc, vp_map, comi
             "comissao_consulta_regra": None,
             "comissao_consulta_regras_por_local": [],
             "detalhes": [],
+            "clientes": [],
         }
     entry = prof_data[prof_id]
     entry["total_atendimentos"] += 1
@@ -183,7 +249,8 @@ def _processar_grupo_pagamento(grupo, consulta_map, prof_data, regras_cache, con
         comissao_consulta, comissao_procedimentos,
     )
     modo_cc, regra_cc = _formatar_regra(regra_consulta)
-    if vc > 0 or comissao_consulta > 0 or regra_consulta or local_id:
+    inclui_consulta = _conta_linha_consulta(regra_consulta, vc, comissao_consulta)
+    if inclui_consulta:
         _acumular_detalhe_consulta(
             entry, f"{local_nome}||{CHAVE_CONSULTA}", vc, comissao_consulta,
             forma_pagamento, local_nome, modo_cc, regra_cc,
@@ -191,6 +258,19 @@ def _processar_grupo_pagamento(grupo, consulta_map, prof_data, regras_cache, con
     for proc in procedimentos:
         vp = vp_map.get(proc["procedure_id"], Decimal(0))
         _acumular_detalhe_procedimento(entry, proc, vp, Decimal(0), convenio_id, regras, local_nome, convenio_cache)
+    entry["clientes"].append(_montar_linha_cliente(
+        appt, consulta,
+        local_nome=local_nome,
+        forma_pagamento=forma_pagamento,
+        procedimentos=procedimentos,
+        vp_map=vp_map,
+        regras=regras,
+        convenio_id=convenio_id,
+        convenio_cache=convenio_cache,
+        vc=vc if inclui_consulta else Decimal(0),
+        comissao_consulta=comissao_consulta if inclui_consulta else Decimal(0),
+        regra_cc=regra_cc if inclui_consulta else "",
+    ))
 
 
 def calcular_comissoes(

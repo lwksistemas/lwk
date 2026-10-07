@@ -87,14 +87,18 @@ def _bloco_resumo_profissional(p: dict) -> list:
         spaceBefore=3 * mm,
         spaceAfter=2 * mm,
     )
-    data = [
-        ["Total consultas — valor", _fmt_brl(p.get("valor_consulta"))],
-        ["Total consultas — comissão", _fmt_brl(p.get("comissao_consulta"))],
+    data = []
+    if float(p.get("valor_consulta") or 0) or float(p.get("comissao_consulta") or 0):
+        data.extend([
+            ["Total consultas — valor", _fmt_brl(p.get("valor_consulta"))],
+            ["Total consultas — comissão", _fmt_brl(p.get("comissao_consulta"))],
+        ])
+    data.extend([
         ["Total procedimentos — valor", _fmt_brl(p.get("valor_procedimento"))],
         ["Total procedimentos — comissão", _fmt_brl(p.get("comissao_procedimento"))],
         ["Comissão total", _fmt_brl(p.get("comissao_total"))],
         ["Valor total geral", _fmt_brl(p.get("valor_total"))],
-    ]
+    ])
     table = Table(data, colWidths=[8.5 * cm, None])
     table.setStyle(TableStyle([
         ("FONTSIZE", (0, 0), (-1, -1), 8),

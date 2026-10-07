@@ -28,6 +28,28 @@ interface DetalheComissao {
   convenio_nome?: string;
 }
 
+interface ProcedimentoCliente {
+  nome: string;
+  convenio_nome: string;
+  valor: number;
+  regra: string;
+  comissao: number;
+}
+
+interface ClienteComissao {
+  data: string;
+  hora: string;
+  paciente_nome: string;
+  forma_pagamento: string;
+  local_nome: string;
+  valor_consulta: number;
+  comissao_consulta: number;
+  regra_consulta: string;
+  valor: number;
+  comissao: number;
+  procedimentos: ProcedimentoCliente[];
+}
+
 interface ProfissionalComissao {
   professional_id: number;
   nome: string;
@@ -39,6 +61,7 @@ interface ProfissionalComissao {
   comissao_procedimento: number;
   comissao_total: number;
   detalhes: DetalheComissao[];
+  clientes?: ClienteComissao[];
 }
 
 interface RelatorioData {
@@ -59,15 +82,16 @@ interface ProfessionalOption {
   nome: string;
 }
 
-type AgrupamentoComissao = 'profissional' | 'local' | 'convenio';
+type AgrupamentoComissao = 'profissional' | 'detalhado' | 'local' | 'convenio';
 
 function parseAgrupamentoComissao(raw: string | null): AgrupamentoComissao {
-  if (raw === 'local' || raw === 'convenio' || raw === 'profissional') return raw;
+  if (raw === 'local' || raw === 'convenio' || raw === 'profissional' || raw === 'detalhado') return raw;
   return 'profissional';
 }
 
 const AGRUPAMENTO_TITULOS: Record<AgrupamentoComissao, string> = {
   profissional: 'Comissão por Profissional',
+  detalhado: 'Comissão por cliente',
   local: 'Comissão por Local de Atendimento',
   convenio: 'Comissão por Convênio',
 };
@@ -224,6 +248,9 @@ function BlocoProfissional({
     [p.detalhes],
   );
 
+  const temConsultas = linhasConsulta.length > 0;
+  const numeroProcedimentos = temConsultas ? '2' : '1';
+  const numeroResumo = temConsultas ? '3' : '2';
   const qtdProcedimentos = linhasProcedimento.reduce((s, d) => s + d.qtd, 0);
   const valorProcedimentosVisivel = linhasProcedimento.reduce(
     (s, d) => s + d.valor_procedimento,
@@ -254,6 +281,7 @@ function BlocoProfissional({
       </header>
 
       <div className="p-4 flex flex-col gap-4">
+        {temConsultas && (
         <MiniTabela
           titulo="1. Consultas"
           colunas={['Local', 'Pagamento', 'Qtd', 'Valor consulta (R$)', 'Regra', 'Comissão consulta (R$)']}
@@ -278,8 +306,9 @@ function BlocoProfissional({
               : undefined
           }
         />
+        )}
         <MiniTabela
-          titulo="2. Procedimentos"
+          titulo={`${numeroProcedimentos}. Procedimentos`}
           colunas={['Procedimento', 'Convênio', 'Qtd', 'Valor procedimento (R$)', 'Regra', 'Comissão procedimento (R$)']}
           linhas={linhasProcedimento.map((d) => [
             d.procedimento_nome,
@@ -305,8 +334,9 @@ function BlocoProfissional({
       </div>
 
       <footer className="px-4 py-4 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 space-y-3 text-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">3. Resumo</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{numeroResumo}. Resumo</p>
         <div className="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
+          {temConsultas && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 py-2.5 bg-white dark:bg-gray-800/80">
             <span className="text-gray-600 dark:text-gray-400 sm:col-span-2">Consultas</span>
             <span className="text-right tabular-nums font-medium text-gray-900 dark:text-white">
@@ -316,6 +346,7 @@ function BlocoProfissional({
               Comissão {formatCurrency(p.comissao_consulta)}
             </span>
           </div>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 py-2.5 bg-white dark:bg-gray-800/80">
             <span className="text-gray-600 dark:text-gray-400 sm:col-span-2">Procedimentos</span>
             <span className="text-right tabular-nums font-medium text-gray-900 dark:text-white">
@@ -354,6 +385,91 @@ function BlocoProfissional({
   );
 }
 
+function BlocoPorCliente({
+  p,
+  formatCurrency,
+}: {
+  p: ProfissionalComissao;
+  formatCurrency: (n: number) => string;
+}) {
+  const clientes = p.clientes || [];
+  return (
+    <article className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden print:break-inside-avoid">
+      <header
+        className="px-4 py-3"
+        style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 7%, transparent)' }}
+      >
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white">{p.nome}</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+          {clientes.length} {clientes.length === 1 ? 'cliente' : 'clientes'}
+          <span className="text-gray-400"> · Comissão {formatCurrency(p.comissao_total)}</span>
+        </p>
+      </header>
+      <div className="p-4 flex flex-col gap-4">
+        {clientes.map((cliente, indice) => {
+          const mostraAvaliacao = Boolean(cliente.regra_consulta)
+            && (cliente.valor_consulta > 0 || cliente.comissao_consulta > 0);
+          return (
+            <section key={`${cliente.data}-${cliente.hora}-${cliente.paciente_nome}-${indice}`} className="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+              <header className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {cliente.data} às {cliente.hora}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {cliente.paciente_nome}
+                  {' · '}
+                  {cliente.forma_pagamento || '—'}
+                </p>
+              </header>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500">
+                    <th className="text-left px-3 py-2">Serviço</th>
+                    <th className="text-left px-3 py-2">Convênio</th>
+                    <th className="text-right px-3 py-2">Valor</th>
+                    <th className="text-right px-3 py-2">Regra</th>
+                    <th className="text-right px-3 py-2">Comissão</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mostraAvaliacao && (
+                    <tr className="border-b border-gray-50 dark:border-gray-800">
+                      <td className="px-3 py-2">Taxa de avaliação</td>
+                      <td className="px-3 py-2">—</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(cliente.valor_consulta)}</td>
+                      <td className="px-3 py-2 text-right text-xs">{cliente.regra_consulta}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(cliente.comissao_consulta)}</td>
+                    </tr>
+                  )}
+                  {cliente.procedimentos.map((proc) => (
+                    <tr key={proc.nome} className="border-b border-gray-50 dark:border-gray-800 last:border-0">
+                      <td className="px-3 py-2">{proc.nome}</td>
+                      <td className="px-3 py-2">{proc.convenio_nome || '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(proc.valor)}</td>
+                      <td className="px-3 py-2 text-right text-xs">{proc.regra || '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(proc.comissao)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gray-50 dark:bg-gray-800/40 font-semibold text-sm">
+                    <td className="px-3 py-2" colSpan={2}>Total da cliente</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(cliente.valor)}</td>
+                    <td />
+                    <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--cb-primary, #8B3D52)' }}>
+                      {formatCurrency(cliente.comissao)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </section>
+          );
+        })}
+      </div>
+    </article>
+  );
+}
+
 if (typeof window !== 'undefined') {
   const style = document.createElement('style');
   style.textContent = `
@@ -376,7 +492,8 @@ export default function RelatorioComissoesPage() {
   const slug = params.slug as string;
 
   const agrupamento = parseAgrupamentoComissao(searchParams.get('agrupar'));
-  const porProfissional = agrupamento === 'profissional';
+  const porProfissional = agrupamento === 'profissional' || agrupamento === 'detalhado';
+  const detalhado = agrupamento === 'detalhado';
 
   const [dataInicio, setDataInicio] = useState(() => {
     const d = new Date();
@@ -485,6 +602,23 @@ export default function RelatorioComissoesPage() {
         `TOTAL;${data.totais.total_atendimentos};${data.totais.valor_consulta.toFixed(2)};${data.totais.comissao_consulta.toFixed(2)};` +
         `${data.totais.valor_procedimento.toFixed(2)};${data.totais.comissao_procedimento.toFixed(2)};` +
         `${data.totais.valor_total.toFixed(2)};${data.totais.comissao_total.toFixed(2)}\n`;
+    } else if (detalhado) {
+      csv = 'Profissional;Data;Hora;Cliente;Serviço;Convênio;Valor (R$);Regra;Comissão (R$)\n';
+      for (const p of data.profissionais) {
+        for (const cliente of p.clientes || []) {
+          if (cliente.regra_consulta && (cliente.valor_consulta > 0 || cliente.comissao_consulta > 0)) {
+            csv +=
+              `${p.nome};${cliente.data};${cliente.hora};${cliente.paciente_nome};Taxa de avaliação;;` +
+              `${cliente.valor_consulta.toFixed(2)};${cliente.regra_consulta};${cliente.comissao_consulta.toFixed(2)}\n`;
+          }
+          for (const proc of cliente.procedimentos) {
+            csv +=
+              `${p.nome};${cliente.data};${cliente.hora};${cliente.paciente_nome};${proc.nome};${proc.convenio_nome || ''};` +
+              `${proc.valor.toFixed(2)};${proc.regra || ''};${proc.comissao.toFixed(2)}\n`;
+          }
+        }
+        csv += `${p.nome};;;;;Total;;${p.comissao_total.toFixed(2)}\n`;
+      }
     } else {
       csv =
         'Profissional;Tipo;Item;Convênio;Local;Qtd;Valor (R$);Regra;Comissão (R$)\n';
@@ -555,11 +689,13 @@ export default function RelatorioComissoesPage() {
       <ClinicaBelezaStandardPageHeader
         title={titulo}
         subtitle={
-          porProfissional
-            ? 'Consultas, procedimentos e total por profissional'
-            : agrupamento === 'local'
-              ? 'Totais consolidados apenas por local de atendimento'
-              : 'Totais consolidados apenas por convênio'
+          detalhado
+            ? 'Cada cliente do período, com o serviço e a comissão do profissional'
+            : porProfissional
+              ? 'Consultas, procedimentos e total por profissional'
+              : agrupamento === 'local'
+                ? 'Totais consolidados apenas por local de atendimento'
+                : 'Totais consolidados apenas por convênio'
         }
         backHref={`/loja/${slug}/relatorios`}
         extraActions={exportActions}
@@ -619,6 +755,7 @@ export default function RelatorioComissoesPage() {
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               <option value="profissional">Profissional</option>
+              <option value="detalhado">Profissional — por cliente</option>
               <option value="local">Local de Atendimento</option>
               <option value="convenio">Convênio</option>
             </select>
@@ -674,7 +811,9 @@ export default function RelatorioComissoesPage() {
           ) : porProfissional ? (
             <>
               {data.profissionais.map((p) => (
-                <BlocoProfissional key={p.professional_id} p={p} formatCurrency={formatCurrency} />
+                detalhado
+                  ? <BlocoPorCliente key={p.professional_id} p={p} formatCurrency={formatCurrency} />
+                  : <BlocoProfissional key={p.professional_id} p={p} formatCurrency={formatCurrency} />
               ))}
 
               {data.profissionais.length > 1 && (

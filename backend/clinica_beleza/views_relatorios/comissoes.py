@@ -62,6 +62,32 @@ def _serialize_profissional(p: dict) -> dict:
         "comissao_consulta_regra": _serialize_regra(p.get("comissao_consulta_regra")),
         "comissao_consulta_regras_por_local": p.get("comissao_consulta_regras_por_local") or [],
         "detalhes": [_serialize_detalhe(d) for d in p["detalhes"]],
+        "clientes": [_serialize_cliente(c) for c in p.get("clientes") or []],
+    }
+
+
+def _serialize_cliente(c: dict) -> dict:
+    return {
+        "data": c.get("data", ""),
+        "hora": c.get("hora", ""),
+        "paciente_nome": c.get("paciente_nome", ""),
+        "forma_pagamento": c.get("forma_pagamento", ""),
+        "local_nome": c.get("local_nome", ""),
+        "valor_consulta": float_or_zero(c.get("valor_consulta")),
+        "comissao_consulta": float_or_zero(c.get("comissao_consulta")),
+        "regra_consulta": c.get("regra_consulta", ""),
+        "valor": float_or_zero(c.get("valor")),
+        "comissao": float_or_zero(c.get("comissao")),
+        "procedimentos": [
+            {
+                "nome": item.get("nome", ""),
+                "convenio_nome": item.get("convenio_nome", ""),
+                "valor": float_or_zero(item.get("valor")),
+                "regra": item.get("regra", ""),
+                "comissao": float_or_zero(item.get("comissao")),
+            }
+            for item in c.get("procedimentos") or []
+        ],
     }
 
 
@@ -118,7 +144,17 @@ class RelatorioComissoesPdfView(APIView):
 
         prof_nome = profissional_nome(professional_id)
         agrupar = (request.query_params.get("agrupar") or "profissional").strip()
-        if agrupar in ("local", "convenio"):
+        if agrupar == "detalhado":
+            pdf_buffer = gerar_pdf_comissoes(
+                resultado=resultado,
+                loja=loja,
+                data_inicio=data_inicio,
+                data_fim=data_fim,
+                profissional_filtro_nome=prof_nome,
+                modo="detalhado",
+            )
+            prefix = "comissoes_clientes"
+        elif agrupar in ("local", "convenio"):
             from clinica_beleza.relatorio_tabela_pdf import gerar_pdf_comissoes_agrupado
 
             pdf_buffer = gerar_pdf_comissoes_agrupado(

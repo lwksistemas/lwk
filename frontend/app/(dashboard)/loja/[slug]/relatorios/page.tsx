@@ -38,7 +38,7 @@ const CATEGORIAS: CategoriaRelatorio[] = [
     relatorios: [
       {
         titulo: 'Comissão',
-        descricao: 'Por profissional, local de atendimento ou convênio. O agrupamento fica na própria tela.',
+        descricao: 'Por profissional, por cliente, local ou convênio. O agrupamento fica na própria tela.',
         href: 'comissoes',
         icon: User,
       },

@@ -120,6 +120,40 @@ class ComissaoRelatorioHelpersTest(TestCase):
             Decimal("48.00"),
         )
 
+    def test_detalhe_por_cliente_guarda_o_nome_e_omite_taxa_sem_regra(self):
+        from datetime import datetime
+
+        from clinica_beleza.comissao_relatorio.relatorio import (
+            _conta_linha_consulta,
+            _montar_linha_cliente,
+        )
+
+        self.assertFalse(_conta_linha_consulta(None, Decimal(0), Decimal(0)))
+        regra = _comissao("percentual", "40")
+        regra.convenio = MagicMock(nome="Particular")
+        appt = MagicMock(date=datetime(2026, 10, 3, 9, 0), patient=None)
+        consulta = MagicMock(patient=MagicMock(nome="RENATA COELHO"))
+        linha = _montar_linha_cliente(
+            appt,
+            consulta,
+            local_nome="CONSULTÓRIO",
+            forma_pagamento="A prazo",
+            procedimentos=[{"procedure_id": 11, "procedimento_nome": "DRENAGEM LINFÁTICA MANUAL"}],
+            vp_map={11: Decimal(120)},
+            regras={"procedimentos": {(11, 1): regra}},
+            convenio_id=1,
+            convenio_cache={},
+            vc=Decimal(0),
+            comissao_consulta=Decimal(0),
+            regra_cc="",
+        )
+        self.assertEqual(linha["paciente_nome"], "RENATA COELHO")
+        self.assertEqual(linha["data"], "03/10/2026")
+        self.assertEqual(linha["hora"], "09:00")
+        self.assertEqual(linha["regra_consulta"], "")
+        self.assertEqual(linha["procedimentos"][0]["comissao"], Decimal("48.00"))
+        self.assertEqual(linha["comissao"], Decimal("48.00"))
+
     def test_taxa_do_local_nao_zera_procedimento_quando_pagamento_e_so_o_procedimento(self):
         consulta = MagicMock(valor_consulta=Decimal(0), local_atendimento_id=1)
         consulta.local_atendimento = MagicMock(valor_consulta=Decimal(150))

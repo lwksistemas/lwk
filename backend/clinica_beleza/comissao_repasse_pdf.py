@@ -59,19 +59,22 @@ def _bloco_atendimento(at: dict) -> list:
     )
 
     w = _LARGURA_UTIL
-    consulta_tbl = _make_data_table(
-        ["Item", "Valor", "Regra", "Comissão"],
-        [[
-            "Consulta",
-            _fmt_brl(at.get("valor_consulta")),
-            _fmt_regra_comissao(at.get("modo_consulta", ""), at.get("regra_consulta", "")),
-            _fmt_brl(at.get("comissao_consulta")),
-        ]],
-        col_widths=[w * 0.40, w * 0.20, w * 0.22, w * 0.18],
-        font_size=7,
+    mostra_avaliacao = bool(at.get("regra_consulta")) and (
+        float(at.get("valor_consulta") or 0) > 0 or float(at.get("comissao_consulta") or 0) > 0
     )
-
-    flow = [titulo, info, consulta_tbl]
+    flow = [titulo, info]
+    if mostra_avaliacao:
+        flow.append(_make_data_table(
+            ["Item", "Valor", "Regra", "Comissão"],
+            [[
+                "Taxa de avaliação",
+                _fmt_brl(at.get("valor_consulta")),
+                _fmt_regra_comissao(at.get("modo_consulta", ""), at.get("regra_consulta", "")),
+                _fmt_brl(at.get("comissao_consulta")),
+            ]],
+            col_widths=[w * 0.40, w * 0.20, w * 0.22, w * 0.18],
+            font_size=7,
+        ))
 
     procs = at.get("procedimentos") or []
     if procs:

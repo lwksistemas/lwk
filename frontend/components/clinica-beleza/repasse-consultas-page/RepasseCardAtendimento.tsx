@@ -25,26 +25,28 @@ export function RepasseCardAtendimento({ at }: { at: AtendimentoRepasse }) {
       </header>
 
       <div className="p-4 space-y-4">
-        <div className="rounded-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-gray-800/50 text-xs text-gray-500">
-                <th className="text-left px-3 py-2">Avaliação</th>
-                <th className="text-right px-3 py-2">Valor</th>
-                <th className="text-right px-3 py-2">Regra</th>
-                <th className="text-right px-3 py-2">Comissão</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="px-3 py-2">Taxa de avaliação</td>
-                <td className="px-3 py-2 text-right tabular-nums">{fmt(at.valor_consulta)}</td>
-                <td className="px-3 py-2 text-right text-xs">{at.regra_consulta || "—"}</td>
-                <td className="px-3 py-2 text-right tabular-nums font-medium">{fmt(at.comissao_consulta)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        {Boolean(at.regra_consulta) && (at.valor_consulta > 0 || at.comissao_consulta > 0) && (
+          <div className="rounded-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-800/50 text-xs text-gray-500">
+                  <th className="text-left px-3 py-2">Avaliação</th>
+                  <th className="text-right px-3 py-2">Valor</th>
+                  <th className="text-right px-3 py-2">Regra</th>
+                  <th className="text-right px-3 py-2">Comissão</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="px-3 py-2">Taxa de avaliação</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{fmt(at.valor_consulta)}</td>
+                  <td className="px-3 py-2 text-right text-xs">{at.regra_consulta}</td>
+                  <td className="px-3 py-2 text-right tabular-nums font-medium">{fmt(at.comissao_consulta)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {at.procedimentos.length > 0 && (
           <div className="rounded-lg border border-gray-100 dark:border-gray-700 overflow-hidden">

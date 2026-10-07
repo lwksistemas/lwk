@@ -5,8 +5,10 @@ Destinado ao profissional apresentar à clínica o que foi realizado e a comiss�
 from datetime import date
 from decimal import Decimal
 
+from django.utils import timezone
+
+from .comissao_relatorio.finalizados import grupos_atendimentos_finalizados
 from .comissao_relatorio_service import (
-    _agrupar_pagamentos_por_agendamento,
     _alocar_valores_pagamento,
     _calcular_comissao_regra,
     _combinar_formas_pagamento,
@@ -19,15 +21,15 @@ from .comissao_relatorio_service import (
     _resolver_valor_consulta_cadastro,
 )
 from .convenio_service import resolver_convenio_atendimento_comissao
-from .models import Payment
 
 
-def _acumular_atendimento_prof(prof_map: dict, prof_id: int, appt, atendimento: dict) -> None:
+def _acumular_atendimento_prof(prof_map: dict, profissional, atendimento: dict) -> None:
     """Acumula dados de atendimento no agrupamento por profissional."""
+    prof_id = profissional.id
     if prof_id not in prof_map:
         prof_map[prof_id] = {
             "professional_id": prof_id,
-            "nome": appt.professional.nome,
+            "nome": profissional.nome,
             "atendimentos": [],
             "total_atendimentos": 0,
             "valor_consulta": Decimal(0),
@@ -52,7 +54,7 @@ def _processar_grupo_repasse(grupo: dict, consulta, regras: dict, convenio_id) -
     """Processa um grupo de pagamento e retorna dict atendimento."""
     appt = grupo["appointment"]
     amount = grupo["total_amount"]
-    payment_ref = grupo["payments"][0]
+    payments = grupo.get("payments") or []
     procedimentos = _procedimentos_vinculados_consulta(appt, consulta)
     valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
     proc_com_regra = regras.get("procedimento_ids") or set()
@@ -76,14 +78,16 @@ def _processar_grupo_repasse(grupo: dict, consulta, regras: dict, convenio_id) -
             "procedure_id": proc_id, "nome": proc["procedimento_nome"],
             "valor": vp, "comissao": com_proc, "modo": modo_pc, "regra": regra_pc,
         })
-    dt = payment_ref.payment_date or appt.date
+    dt = appt.date
+    if dt is not None and timezone.is_aware(dt):
+        dt = timezone.localtime(dt)
     data_str, hora_str = (dt.strftime("%d/%m/%Y"), dt.strftime("%H:%M")) if dt else ("—", "—")
     return {
         "appointment_id": appt.id,
         "data_atendimento": data_str, "hora_atendimento": hora_str,
         "paciente_nome": consulta.patient.nome if consulta.patient else (appt.patient.nome if appt.patient else "—"),
         "local_nome": local_nome or "—",
-        "forma_pagamento": _combinar_formas_pagamento(grupo["payments"]),
+        "forma_pagamento": _combinar_formas_pagamento(payments),
         "valor_consulta": vc, "comissao_consulta": comissao_consulta,
         "modo_consulta": modo_cc, "regra_consulta": regra_cc,
         "procedimentos": procs_linhas, "valor_procedimentos": valor_procedimentos,
@@ -128,55 +132,33 @@ def calcular_repasse_por_consulta(
     data_fim: date | None = None,
     professional_id: int | None = None,
 ) -> dict:
-    qs = Payment.objects.filter(status="PAID").select_related(
-        "appointment__professional",
-        "appointment__patient",
-        "appointment__procedure",
-        "appointment__convenio",
+    grupos, consulta_map = grupos_atendimentos_finalizados(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        professional_id=professional_id,
     )
-
-    if data_inicio:
-        qs = qs.filter(payment_date__date__gte=data_inicio)
-    if data_fim:
-        qs = qs.filter(payment_date__date__lte=data_fim)
-    if professional_id:
-        qs = qs.filter(appointment__professional_id=professional_id)
-
-    from .models import Consulta
-
-    consulta_map = {}
-    consulta_ids = qs.values_list("appointment_id", flat=True)
-    consultas = Consulta.objects.filter(
-        appointment_id__in=consulta_ids,
-    ).select_related("local_atendimento", "patient", "procedure", "convenio")
-    for c in consultas:
-        consulta_map[c.appointment_id] = c
 
     prof_map: dict[int, dict] = {}
     regras_cache: dict[int, dict] = {}
 
-    payments_list = list(
-        qs.prefetch_related("appointment__appointment_procedures__procedure").order_by(
-            "payment_date", "id",
-        ),
-    )
-    for grupo in _agrupar_pagamentos_por_agendamento(payments_list):
+    for grupo in grupos:
         appt = grupo["appointment"]
-        if not appt or not appt.professional:
+        profissional = grupo.get("profissional") or appt.professional
+        if not appt or not profissional:
             continue
         consulta = consulta_map.get(appt.id)
         if not consulta:
             continue
         procedimentos = _procedimentos_vinculados_consulta(appt, consulta)
-        if not procedimentos:
+        if not procedimentos and grupo["total_amount"] <= 0:
             continue
-        prof_id = appt.professional_id
+        prof_id = profissional.id
         if prof_id not in regras_cache:
             regras_cache[prof_id] = _regras_profissional(prof_id)
         regras = regras_cache[prof_id]
         convenio_id = resolver_convenio_atendimento_comissao(appt, consulta, procedimentos)
         atendimento = _processar_grupo_repasse(grupo, consulta, regras, convenio_id)
-        _acumular_atendimento_prof(prof_map, prof_id, appt, atendimento)
+        _acumular_atendimento_prof(prof_map, profissional, atendimento)
 
     profissionais = []
     for entry in prof_map.values():

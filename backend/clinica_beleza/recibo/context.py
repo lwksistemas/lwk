@@ -329,6 +329,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
 
     ctx = _dados_loja_recibo(loja)
     assinatura_recibo = _dados_assinatura_recibo(payment)
+    protocolo_recibo = _dados_protocolo_recibo(appointment)
 
     return {
         **ctx,
@@ -361,7 +362,118 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         "data_atendimento": _formatar_data_recibo(getattr(appointment, "date", None)),
         "recibo_numero": getattr(payment, "id", None),
         **taxa_info,
+        **protocolo_recibo,
     }
+
+
+def _dados_protocolo_recibo(appointment) -> dict:
+    """Valores do protocolo personalizado, para o cliente ver o desconto no recibo."""
+    contrato = getattr(appointment, "protocolo_contrato", None)
+    if contrato is None or getattr(contrato, "protocol_id", None):
+        return {}
+    try:
+        bruto = round(float(contrato.valor_bruto or 0), 2)
+        liquido = round(float(contrato.valor_total or 0), 2)
+    except (TypeError, ValueError):
+        return {}
+    if bruto <= liquido + 0.009:
+        return {}
+    precos = []
+    try:
+        for linha in contrato.procedimentos.select_related("procedure").order_by("id"):
+            precos.append({
+                "nome": getattr(getattr(linha, "procedure", None), "nome", "") or "",
+                "valor": round(float(linha.valor or 0), 2),
+            })
+    except Exception:
+        logger.exception("Erro ao ler procedimentos do protocolo no recibo")
+        precos = []
+    return {
+        "protocolo_valor_sem_desconto": bruto,
+        "protocolo_valor_com_desconto": liquido,
+        "protocolo_procedimentos": precos,
+    }
+
+
+def _precos_brutos_das_linhas(procs: list[dict], precos: list[dict]) -> list[dict] | None:
+    """Troca o valor líquido de cada linha pelo preço do protocolo, quando os nomes batem."""
+    if not procs or len(procs) != len(precos):
+        return None
+    usados: set[int] = set()
+    saida = []
+    for proc in procs:
+        nome = (proc.get("nome") or "").strip().casefold()
+        achou = None
+        for indice, bruto in enumerate(precos):
+            if indice in usados:
+                continue
+            if (bruto.get("nome") or "").strip().casefold() == nome and nome:
+                achou = indice
+                break
+        if achou is None:
+            return None
+        usados.add(achou)
+        item = dict(proc)
+        item["valor"] = round(float(precos[achou].get("valor") or 0), 2)
+        saida.append(item)
+    soma = round(sum(item["valor"] for item in saida), 2)
+    bruto = round(sum(float(item.get("valor") or 0) for item in precos), 2)
+    if abs(soma - bruto) > 0.05:
+        return None
+    return saida
+
+
+def _escalar_valores_recibo(procs: list[dict], alvo: float) -> list[dict]:
+    soma = round(sum(float(p.get("valor") or 0) for p in procs), 2)
+    if soma <= 0.009:
+        return procs
+    restante = round(alvo, 2)
+    saida = []
+    for indice, proc in enumerate(procs):
+        item = dict(proc)
+        if indice == len(procs) - 1:
+            item["valor"] = round(max(restante, 0.0), 2)
+        else:
+            parte = round(float(proc.get("valor") or 0) / soma * alvo, 2)
+            item["valor"] = parte
+            restante = round(restante - parte, 2)
+        saida.append(item)
+    return saida
+
+
+def _visita_cobra_pacote(soma: float, liquido: float) -> bool:
+    """A visita cobra o pacote quando as linhas somam o valor já com desconto."""
+    return abs(soma - liquido) <= 0.05
+
+
+def _aplicar_desconto_do_protocolo(ctx: dict) -> dict:
+    """No pagamento do pacote, as linhas voltam ao preço cheio e o desconto entra na conta.
+
+    Na parcela, o total da visita permanece a parte da sessão. Os dois valores do
+    protocolo saem à parte, para a cliente ver.
+    """
+    bruto = float(ctx.get("protocolo_valor_sem_desconto") or 0)
+    liquido = float(ctx.get("protocolo_valor_com_desconto") or 0)
+    if bruto <= liquido + 0.009:
+        return ctx
+    procs = [dict(p) for p in (ctx.get("procedimentos") or [])]
+    soma = round(sum(float(p.get("valor") or 0) for p in procs), 2)
+    valor_visita = float(ctx.get("valor_total") or 0)
+    if soma <= 0.009 and valor_visita <= 0.009:
+        return ctx
+    ctx = dict(ctx)
+    if _visita_cobra_pacote(soma, liquido) and soma > 0.009:
+        ajustados = _precos_brutos_das_linhas(procs, ctx.get("protocolo_procedimentos") or [])
+        if ajustados is None:
+            ajustados = _escalar_valores_recibo(procs, bruto)
+        taxa_parte = round(float(ctx.get("subtotal") or 0) - soma, 2)
+        ctx["procedimentos"] = ajustados
+        ctx["subtotal"] = round(bruto + max(taxa_parte, 0.0), 2)
+        ctx["desconto_protocolo"] = round(bruto - liquido, 2)
+        ctx.pop("protocolo_valores_informativos", None)
+        return ctx
+    ctx["protocolo_valores_informativos"] = True
+    return ctx
 
 
 _ROTULO_DESPESA_RECIBO = "Despesa (clínica)"
@@ -790,14 +902,18 @@ def reconciliar_conta_recibo(ctx: dict) -> dict:
     Se a soma dos itens menos os descontos conhecidos for maior, a diferença sai
     como linha própria (ex.: procedimento não cobrado).
     Linha a R$ 0 cujo preço de cadastro explica o total cobrado volta a esse preço.
+    O desconto do protocolo personalizado entra como linha quando a visita cobra o pacote.
     """
-    ctx = _desconto_comercial_sai_do_total(
-        _repor_preco_que_fecha_conta(aplicar_valor_consulta_do_local(dict(ctx)))
+    ctx = _aplicar_desconto_do_protocolo(
+        _desconto_comercial_sai_do_total(
+            _repor_preco_que_fecha_conta(aplicar_valor_consulta_do_local(dict(ctx)))
+        )
     )
     desconto_retorno, desconto = _descontos_conhecidos_recibo(ctx)
+    desconto_protocolo = float(ctx.get("desconto_protocolo") or 0)
     subtotal = float(ctx.get("subtotal") or 0)
     valor_total = float(ctx.get("valor_total") or 0)
-    gap = round(subtotal - desconto_retorno - desconto - valor_total, 2)
+    gap = round(subtotal - desconto_retorno - desconto - desconto_protocolo - valor_total, 2)
     ctx.pop("abatimento", None)
     ctx.pop("abatimento_label", None)
     if gap <= 0.009:
@@ -854,12 +970,55 @@ def resumo_financeiro_recibo(ctx: dict) -> str:
     return ""
 
 
+def _outro_desconto_na_conta(ctx: dict) -> bool:
+    desconto_retorno, desconto = _descontos_conhecidos_recibo(ctx)
+    if desconto_retorno > 0.009 or desconto > 0.009:
+        return True
+    return float(ctx.get("abatimento") or 0) > 0.009
+
+
+def rotulo_subtotal_recibo(ctx: dict) -> str:
+    if float(ctx.get("desconto_protocolo") or 0) > 0.009:
+        return "Valor sem desconto"
+    return "Subtotal"
+
+
+def rotulo_total_recibo(ctx: dict) -> str:
+    if float(ctx.get("desconto_protocolo") or 0) > 0.009 and not _outro_desconto_na_conta(ctx):
+        return "Valor com desconto"
+    return "Total"
+
+
+def linha_valor_com_desconto_recibo(ctx: dict) -> tuple[str, float] | None:
+    """Quando ainda há outro desconto, o líquido do protocolo sai numa linha própria."""
+    if float(ctx.get("desconto_protocolo") or 0) <= 0.009 or not _outro_desconto_na_conta(ctx):
+        return None
+    return ("Valor com desconto", float(ctx.get("protocolo_valor_com_desconto") or 0))
+
+
+def linhas_protocolo_informativo(ctx: dict) -> list[tuple[str, float]]:
+    """Parcela da sessão: os dois valores do protocolo, sem alterar o total da visita."""
+    if not ctx.get("protocolo_valores_informativos"):
+        return []
+    bruto = float(ctx.get("protocolo_valor_sem_desconto") or 0)
+    liquido = float(ctx.get("protocolo_valor_com_desconto") or 0)
+    if bruto <= liquido + 0.009:
+        return []
+    return [
+        ("Valor sem desconto", bruto),
+        ("Valor com desconto", liquido),
+    ]
+
+
 def _linhas_descontos_recibo(ctx: dict) -> list[tuple[str, float]]:
-    """Linhas de desconto (retorno gratuito, desconto comercial e abatimento)."""
+    """Linhas de desconto (retorno gratuito, protocolo, desconto comercial e abatimento)."""
     linhas: list[tuple[str, float]] = []
     desconto_retorno, desconto = _descontos_conhecidos_recibo(ctx)
     if desconto_retorno > 0:
         linhas.append(("Desconto da avaliação", desconto_retorno))
+    desconto_protocolo = float(ctx.get("desconto_protocolo") or 0)
+    if desconto_protocolo > 0.009:
+        linhas.append(("Desconto do protocolo", desconto_protocolo))
     if desconto > 0:
         linhas.append(("Desconto", desconto))
     abatimento = float(ctx.get("abatimento") or 0)

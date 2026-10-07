@@ -197,3 +197,83 @@ class GerarHtmlReciboTests(SimpleTestCase):
             _buscar_procedimentos_recibo(appointment),
             [{"nome": "Consulta", "valor": 0.0}],
         )
+
+    def _ctx_protocolo(self, **overrides):
+        base = self._ctx(
+            taxa_consulta=0,
+            taxa_consulta_referencia=0,
+            retorno_gratuito=False,
+            desconto=0,
+            desconto_retorno=0,
+        )
+        base.update(overrides)
+        return base
+
+    def test_pacote_mostra_valor_sem_e_com_desconto(self):
+        html = gerar_html_recibo(
+            self._ctx_protocolo(
+                procedimentos=[
+                    {"nome": "BOTOX", "valor": 150.0},
+                    {"nome": "PREENCHIMENTO", "valor": 650.0},
+                ],
+                subtotal=800.0,
+                valor_total=800.0,
+                valor_pago=800.0,
+                saldo_devedor=0.0,
+                formas_pagamento=[{"metodo": "PIX", "valor": 800.0}],
+                protocolo_valor_sem_desconto=1000.0,
+                protocolo_valor_com_desconto=800.0,
+                protocolo_procedimentos=[
+                    {"nome": "BOTOX", "valor": 200.0},
+                    {"nome": "PREENCHIMENTO", "valor": 800.0},
+                ],
+            ),
+        )
+        self.assertIn("Valor sem desconto", html)
+        self.assertIn("R$ 1.000,00", html)
+        self.assertIn("Desconto do protocolo", html)
+        self.assertIn("- R$ 200,00", html)
+        self.assertIn("Valor com desconto", html)
+        self.assertIn("R$ 800,00", html)
+        self.assertIn("R$ 200,00", html)
+        self.assertNotIn("Abatimento", html)
+        self.assertNotIn(">Total<", html)
+
+    def test_parcela_mostra_os_dois_valores_do_protocolo(self):
+        html = gerar_html_recibo(
+            self._ctx_protocolo(
+                procedimentos=[{"nome": "BOTOX", "valor": 200.0}],
+                subtotal=200.0,
+                valor_total=200.0,
+                valor_pago=200.0,
+                saldo_devedor=0.0,
+                formas_pagamento=[{"metodo": "PIX", "valor": 200.0}],
+                protocolo_valor_sem_desconto=1000.0,
+                protocolo_valor_com_desconto=800.0,
+            ),
+        )
+        self.assertIn("Protocolo", html)
+        self.assertIn("Valor sem desconto", html)
+        self.assertIn("R$ 1.000,00", html)
+        self.assertIn("Valor com desconto", html)
+        self.assertIn("R$ 800,00", html)
+        self.assertIn(">Total<", html)
+        self.assertIn("R$ 200,00", html)
+        self.assertNotIn("Abatimento", html)
+        self.assertNotIn("Desconto do protocolo", html)
+
+    def test_sessao_zerada_nao_repete_o_desconto_do_pacote(self):
+        html = gerar_html_recibo(
+            self._ctx_protocolo(
+                procedimentos=[{"nome": "BOTOX", "valor": 0.0}],
+                subtotal=0.0,
+                valor_total=0.0,
+                valor_pago=0.0,
+                saldo_devedor=0.0,
+                formas_pagamento=[],
+                protocolo_valor_sem_desconto=1000.0,
+                protocolo_valor_com_desconto=800.0,
+            ),
+        )
+        self.assertNotIn("Valor sem desconto", html)
+        self.assertNotIn("Valor com desconto", html)

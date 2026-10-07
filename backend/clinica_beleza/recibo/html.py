@@ -10,6 +10,10 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    linha_valor_com_desconto_recibo,
+    linhas_protocolo_informativo,
+    rotulo_subtotal_recibo,
+    rotulo_total_recibo,
     custeado_pela_clinica,
     linha_vencimento_recibo,
     linhas_local_convenio_recibo,
@@ -81,14 +85,28 @@ def gerar_html_recibo(ctx: dict) -> str:
     )
     if descontos:
         totais = (
-            f'<tr><td><strong>Subtotal</strong></td>'
+            f'<tr><td><strong>{_t(rotulo_subtotal_recibo(ctx))}</strong></td>'
             f'<td style="text-align:right"><strong>{formatar_moeda_recibo(subtotal)}</strong></td></tr>'
             f"{descontos_html}"
         )
     else:
         totais = ""
+    protocolo_info = linhas_protocolo_informativo(ctx)
+    if protocolo_info:
+        totais += '<tr><td colspan="2"><strong>Protocolo</strong></td></tr>'
+        totais += "".join(
+            f"<tr><td>{_t(label)}</td>"
+            f'<td style="text-align:right">{formatar_moeda_recibo(valor)}</td></tr>'
+            for label, valor in protocolo_info
+        )
+    valor_com_desconto = linha_valor_com_desconto_recibo(ctx)
+    if valor_com_desconto:
+        totais += (
+            f"<tr><td>{_t(valor_com_desconto[0])}</td>"
+            f'<td style="text-align:right">{formatar_moeda_recibo(valor_com_desconto[1])}</td></tr>'
+        )
     totais += (
-        f'<tr><td><strong>Total</strong></td>'
+        f'<tr><td><strong>{_t(rotulo_total_recibo(ctx))}</strong></td>'
         f'<td style="text-align:right"><strong>{formatar_moeda_recibo(ctx.get("valor_total") or 0)}</strong></td></tr>'
     )
 

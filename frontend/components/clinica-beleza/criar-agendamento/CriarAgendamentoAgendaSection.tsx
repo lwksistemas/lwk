@@ -214,23 +214,12 @@ export function CriarAgendamentoAgendaSection({
             className={inputClass}
           />
         </div>
-        <div>{campoLocalAtendimento}</div>
-      </div>
-
-      {protocoloErro && (
-        <div className="p-2.5 rounded-lg text-sm bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800">
-          {protocoloErro}
+        <div className={agendaEhProtocolo && patientId && protocolosDaCliente.length > 0 ? undefined : "sm:col-span-2"}>
+          {campoLocalAtendimento}
         </div>
-      )}
-
-      {agendaEhProtocolo && patientId ? (
-        <div className="space-y-2">
-          <FieldLabel>Protocolo</FieldLabel>
-          {protocolosDaCliente.length === 0 ? (
-            <p className="text-sm text-amber-800 dark:text-amber-200">
-              Esta cliente não tem protocolo personalizado para agendar.
-            </p>
-          ) : (
+        {agendaEhProtocolo && patientId && protocolosDaCliente.length > 0 ? (
+          <div>
+            <FieldLabel>Protocolo *</FieldLabel>
             <select
               value={protocoloClienteId}
               onChange={(e) => {
@@ -248,13 +237,20 @@ export function CriarAgendamentoAgendaSection({
                 </option>
               ))}
             </select>
-          )}
-          {protocoloCliente ? (
-            <p className="text-xs text-gray-500">
-              {protocoloCliente.sessoes} sessões de {protocoloCliente.tempo_minutos} min · {formatCurrency(protocoloCliente.valor_total)} já com desconto. Depois de Cliente presente, o recebimento escolhe o valor total ou o parcelamento por sessão.
-            </p>
-          ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      {protocoloErro && (
+        <div className="p-2.5 rounded-lg text-sm bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800">
+          {protocoloErro}
         </div>
+      )}
+
+      {agendaEhProtocolo && patientId && protocolosDaCliente.length === 0 ? (
+        <p className="text-sm text-amber-800 dark:text-amber-200">
+          Esta cliente não tem protocolo personalizado para agendar.
+        </p>
       ) : null}
 
       {protocoloSelecionado && !protocoloCliente && (

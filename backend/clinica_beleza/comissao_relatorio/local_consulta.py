@@ -44,18 +44,18 @@ def _resolver_valor_consulta_cadastro(
     """Valor da taxa de consulta usado no relatório de comissões.
 
     Consultas criadas pela agenda costumam gravar valor_consulta=0 quando há
-    procedimentos; usa o local de atendimento, o restante do pagamento ou a
-    taxa do local quando o profissional tem comissão de consulta cadastrada.
+    procedimentos. O que sobra do pagamento acima dos procedimentos é a taxa.
+    A taxa do local só entra quando cabe no valor recebido e a profissional
+    tem comissão da avaliação. Pagamento menor que a taxa não zera o procedimento.
     """
     vc = Decimal(str(getattr(consulta, "valor_consulta", None) or 0))
     if vc > 0:
         return vc
 
     local = getattr(consulta, "local_atendimento", None)
+    local_vc = Decimal(0)
     if local is not None:
         local_vc = Decimal(str(getattr(local, "valor_consulta", None) or 0))
-        if local_vc > 0:
-            return local_vc
 
     if amount is not None and amount > 0 and procedimentos:
         soma_proc = sum(Decimal(str(p.get("valor") or 0)) for p in procedimentos)
@@ -63,12 +63,24 @@ def _resolver_valor_consulta_cadastro(
         if restante > 0:
             return restante.quantize(Decimal("0.01"))
 
+        if (
+            regras
+            and regras.get("consultas_local")
+            and soma_proc >= amount
+            and local_vc > 0
+            and amount >= local_vc
+            and getattr(consulta, "local_atendimento_id", None)
+        ):
+            return local_vc
         if regras and regras.get("consultas_local") and soma_proc >= amount:
             local_id, _ = _escolher_local_consulta_comissao(consulta, regras)
             taxa = _taxa_consulta_do_local(local_id)
             if taxa > 0 and amount >= taxa:
                 return taxa
+        return Decimal(0)
 
+    if local_vc > 0 and (amount is None or amount >= local_vc):
+        return local_vc
     return Decimal(0)
 
 

@@ -196,7 +196,7 @@ export function ClinicaBelezaStandardPageHeader({
   return (
     <ClinicaBelezaPageHeader>
       <div className="flex flex-col gap-2 w-full min-w-0 sm:flex-row sm:items-center sm:gap-3">
-        <div className="flex items-center gap-2 min-w-[7rem] w-full sm:w-auto sm:max-w-[18rem] shrink-0">
+        <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto sm:flex-1">
           {showBack && (
             <button
               type="button"
@@ -216,8 +216,8 @@ export function ClinicaBelezaStandardPageHeader({
             </div>
           )}
           {leadingContent}
-          <div className="min-w-[4.5rem] flex-1">
-            <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-tight sm:whitespace-normal">
               {title}
             </h1>
             {subtitle && (
@@ -226,10 +226,10 @@ export function ClinicaBelezaStandardPageHeader({
               </p>
             )}
           </div>
+        </div>
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 w-full sm:w-auto sm:ml-auto shrink-0 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {beforeLogout}
           {logoutButton}
-        </div>
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 w-full sm:w-auto sm:ml-auto overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {rightActions}
         </div>
       </div>

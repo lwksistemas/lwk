@@ -12,7 +12,6 @@ import { PrazoPagamentoCard } from "./PrazoPagamentoCard";
 import { ProntuarioTabBar } from "./ProntuarioTabBar";
 import { ProntuarioTabContent } from "./ProntuarioTabContent";
 import { useProntuarioPage } from "./useProntuarioPage";
-import { buildProntuarioConsultasResumo } from "./prontuario-consultas-utils";
 import { ProtocoloPersonalizadoModal } from "./ProtocoloPersonalizadoModal";
 
 export function ProntuarioPageContent() {
@@ -68,7 +67,6 @@ export function ProntuarioPageContent() {
   }, []);
 
   const showDocsLoading = loading && !isProntuarioLocalTab(activeTab);
-  const { finalizadas } = buildProntuarioConsultasResumo(consultas);
   const mostrarPrazoButton = isAdmin && activeTab === "resumo";
 
   return (
@@ -97,7 +95,6 @@ export function ProntuarioPageContent() {
             onPrintSecao={() => void handlePrintSecao()}
             onPrintCompleto={() => void handlePrintCompleto()}
             printando={printando}
-            finalizadasCount={finalizadas.length}
             onAbrirProtocolo={() => setProtocoloAberto(true)}
             showPrazoButton={mostrarPrazoButton}
             prazoAberto={prazoAberto}

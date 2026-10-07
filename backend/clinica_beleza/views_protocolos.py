@@ -11,6 +11,7 @@ from django.utils.dateparse import parse_datetime
 
 from .agenda_service import AgendaValidationError
 from .models import (
+    CategoriaProcedimento,
     LocalAtendimento,
     Patient,
     Procedure,
@@ -183,13 +184,27 @@ class ProtocoloPersonalizadoOpcoesView(APIView):
         from .convenio_service import resolver_preco_procedimento
 
         convenio = patient.convenio if getattr(patient, "convenio_id", None) and patient.convenio.is_active else None
+        rotulos_procedimento = _rotulos_categoria_procedimento()
         procedimentos = []
-        for procedure in Procedure.objects.filter(is_active=True).order_by("nome"):
+        for procedure in Procedure.objects.filter(is_active=True).order_by("categoria", "nome"):
             preco = resolver_preco_procedimento(convenio, procedure)
+            slug, rotulo = _categoria_de_procedimento(procedure.categoria, rotulos_procedimento)
             procedimentos.append({
                 "id": procedure.id,
                 "nome": procedure.nome,
                 "preco": str(Decimal(str(preco or 0)).quantize(Decimal("0.01"))),
+                "categoria": slug,
+                "categoria_nome": rotulo,
+            })
+        produtos = []
+        for produto in ProdutoEstoque.objects.filter(is_active=True).select_related("categoria").order_by("nome"):
+            slug, rotulo = _categoria_de_produto(produto)
+            produtos.append({
+                "id": produto.id,
+                "nome": produto.nome,
+                "unidade_medida": produto.unidade_medida,
+                "categoria": slug,
+                "categoria_nome": rotulo,
             })
         return Response({
             "profissional_id": _profissional_fixo(request),
@@ -202,10 +217,7 @@ class ProtocoloPersonalizadoOpcoesView(APIView):
                 for item in LocalAtendimento.objects.filter(is_active=True).order_by("nome")
             ],
             "procedimentos": procedimentos,
-            "produtos": [
-                {"id": item.id, "nome": item.nome, "unidade_medida": item.unidade_medida}
-                for item in ProdutoEstoque.objects.filter(is_active=True).order_by("nome")
-            ],
+            "produtos": produtos,
         })
 
 
@@ -319,6 +331,36 @@ class ProtocoloPersonalizadoAgendarView(APIView):
         except AgendaValidationError as exc:
             return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         return Response(resultado, status=status.HTTP_201_CREATED)
+
+
+def _rotulos_categoria_procedimento():
+    """Slug e nome das categorias cadastradas, para não misturar o rótulo cru."""
+    por_slug = {}
+    por_nome = {}
+    for item in CategoriaProcedimento.objects.filter(is_active=True).order_by("ordem", "nome"):
+        por_slug[item.slug.lower()] = (item.slug, item.nome)
+        por_nome[item.nome.strip().lower()] = (item.slug, item.nome)
+    return por_slug, por_nome
+
+
+def _categoria_de_procedimento(raw, rotulos):
+    por_slug, por_nome = rotulos
+    texto = (raw or "").strip()
+    if not texto:
+        return "outro", "Outro"
+    chave = texto.lower()
+    if chave in por_slug:
+        return por_slug[chave]
+    if chave in por_nome:
+        return por_nome[chave]
+    return chave, texto
+
+
+def _categoria_de_produto(produto):
+    categoria = getattr(produto, "categoria", None)
+    if categoria is not None and getattr(categoria, "is_active", True):
+        return categoria.slug, categoria.nome
+    return "outro", "Outro"
 
 
 def _profissional_fixo(request):

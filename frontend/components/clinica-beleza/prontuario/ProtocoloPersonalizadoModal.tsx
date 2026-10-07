@@ -15,10 +15,19 @@ interface Opcao {
 
 interface ProcedimentoOpcao extends Opcao {
   preco: string;
+  categoria: string;
+  categoria_nome: string;
 }
 
 interface ProdutoOpcao extends Opcao {
   unidade_medida: string;
+  categoria: string;
+  categoria_nome: string;
+}
+
+interface CategoriaOpcao {
+  slug: string;
+  nome: string;
 }
 
 interface OpcoesProtocolo {
@@ -41,15 +50,27 @@ interface ProtocoloPersonalizadoModalProps {
 
 const CAMPO = "w-full min-w-0 border border-gray-300 dark:border-neutral-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-neutral-900";
 
+function categoriasDe(itens: Array<{ categoria: string; categoria_nome: string }>): CategoriaOpcao[] {
+  const mapa = new Map<string, string>();
+  for (const item of itens) {
+    if (!mapa.has(item.categoria)) mapa.set(item.categoria, item.categoria_nome || item.categoria);
+  }
+  return [...mapa.entries()]
+    .map(([slug, nome]) => ({ slug, nome }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
 export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPersonalizadoModalProps) {
   const toast = useToast();
   const [opcoes, setOpcoes] = useState<OpcoesProtocolo | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  const [categoriaProcedimento, setCategoriaProcedimento] = useState("");
   const [procedimentoId, setProcedimentoId] = useState("");
   const [escolhidos, setEscolhidos] = useState<ProcedimentoOpcao[]>([]);
-  const [buscaProduto, setBuscaProduto] = useState("");
+  const [categoriaProduto, setCategoriaProduto] = useState("");
+  const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("1");
   const [erroProduto, setErroProduto] = useState("");
   const [produtos, setProdutos] = useState<ProdutoEscolhido[]>([]);
@@ -83,38 +104,69 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
   const bruto = escolhidos.reduce((soma, item) => soma + Number(item.preco), 0);
   const conta = aplicarDescontoProtocolo(bruto, descontoTipo, Number(descontoValor || 0));
 
-  const sugestoes = useMemo(() => {
-    const termo = buscaProduto.trim().toLowerCase();
-    if (!termo) return [];
-    return (opcoes?.produtos ?? [])
-      .filter((item) => item.nome.toLowerCase().includes(termo))
-      .filter((item) => !produtos.some((escolhido) => escolhido.produto_id === item.id))
-      .slice(0, 8);
-  }, [buscaProduto, opcoes, produtos]);
+  const categoriasProcedimento = useMemo(
+    () => categoriasDe(opcoes?.procedimentos ?? []),
+    [opcoes],
+  );
+  const procedimentosDaCategoria = useMemo(
+    () =>
+      (opcoes?.procedimentos ?? []).filter(
+        (item) => item.categoria === categoriaProcedimento && !escolhidos.some((escolhido) => escolhido.id === item.id),
+      ),
+    [opcoes, categoriaProcedimento, escolhidos],
+  );
+  const categoriasProduto = useMemo(
+    () => categoriasDe(opcoes?.produtos ?? []),
+    [opcoes],
+  );
+  const produtosDaCategoria = useMemo(
+    () =>
+      (opcoes?.produtos ?? []).filter(
+        (item) => item.categoria === categoriaProduto && !produtos.some((escolhido) => escolhido.produto_id === item.id),
+      ),
+    [opcoes, categoriaProduto, produtos],
+  );
 
   const adicionarProcedimento = () => {
-    const item = opcoes?.procedimentos.find((p) => String(p.id) === procedimentoId);
-    if (!item || escolhidos.some((p) => p.id === item.id)) return;
+    if (!categoriaProcedimento) {
+      setErro("Escolha a categoria do procedimento.");
+      return;
+    }
+    const item = procedimentosDaCategoria.find((p) => String(p.id) === procedimentoId);
+    if (!item) {
+      setErro("Escolha o procedimento.");
+      return;
+    }
+    if (escolhidos.some((p) => p.id === item.id)) {
+      setErro("Este procedimento já está no protocolo.");
+      return;
+    }
+    setErro("");
     setEscolhidos((lista) => [...lista, item]);
     setProcedimentoId("");
   };
 
-  const adicionarProduto = (item: ProdutoOpcao) => {
+  const adicionarProduto = () => {
+    if (!categoriaProduto) {
+      setErroProduto("Escolha a categoria do produto.");
+      return;
+    }
+    const item = produtosDaCategoria.find((p) => String(p.id) === produtoId);
+    if (!item) {
+      setErroProduto("Escolha o produto.");
+      return;
+    }
     const qtd = quantidade.replace(",", ".").trim();
     const numero = Number(qtd);
     if (!qtd || !Number.isFinite(numero) || numero <= 0) {
       setErroProduto("Informe uma quantidade maior que zero.");
       return;
     }
-    if (produtos.some((escolhido) => escolhido.produto_id === item.id)) {
-      setErroProduto("Este produto já está na lista.");
-      return;
-    }
     setProdutos((lista) => [
       ...lista,
       { produto_id: item.id, nome: item.nome, quantidade: qtd, unidade: item.unidade_medida },
     ]);
-    setBuscaProduto("");
+    setProdutoId("");
     setQuantidade("1");
     setErroProduto("");
   };
@@ -175,14 +227,34 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
             <p className="text-sm text-gray-500">Carregando procedimentos...</p>
           ) : (
             <>
-              <div className="flex flex-wrap gap-2 min-w-0">
+              <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto] gap-2 min-w-0">
+                <select
+                  value={categoriaProcedimento}
+                  onChange={(e) => {
+                    setCategoriaProcedimento(e.target.value);
+                    setProcedimentoId("");
+                    setErro("");
+                  }}
+                  className={CAMPO}
+                  aria-label="Categoria do procedimento"
+                >
+                  <option value="">Categoria</option>
+                  {categoriasProcedimento.map((item) => (
+                    <option key={item.slug} value={item.slug}>{item.nome}</option>
+                  ))}
+                </select>
                 <select
                   value={procedimentoId}
-                  onChange={(e) => setProcedimentoId(e.target.value)}
-                  className={`${CAMPO} max-w-md flex-1`}
+                  onChange={(e) => {
+                    setProcedimentoId(e.target.value);
+                    setErro("");
+                  }}
+                  disabled={!categoriaProcedimento}
+                  className={CAMPO}
+                  aria-label="Procedimento"
                 >
-                  <option value="">Adicionar procedimento</option>
-                  {opcoes?.procedimentos.map((item) => (
+                  <option value="">{categoriaProcedimento ? "Procedimento" : "Escolha a categoria"}</option>
+                  {procedimentosDaCategoria.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.nome} — {formatCurrency(item.preco)}
                     </option>
@@ -194,7 +266,11 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
               </div>
               {escolhidos.map((item) => (
                 <div key={item.id} className="flex items-start justify-between gap-3 text-sm min-w-0">
-                  <span className="min-w-0 break-words">{item.nome}</span>
+                  <span className="min-w-0 break-words">
+                    <span className="text-gray-500">{item.categoria_nome}</span>
+                    {" · "}
+                    {item.nome}
+                  </span>
                   <span className="flex items-center gap-3 shrink-0">
                     {formatCurrency(item.preco)}
                     <button type="button" className="text-red-600" onClick={() => setEscolhidos((lista) => lista.filter((p) => p.id !== item.id))}>
@@ -244,43 +320,48 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
 
               <div className="min-w-0 space-y-2">
                 <p className="text-sm text-gray-700 dark:text-gray-200">Produto por sessão</p>
-                <div className="flex gap-2 min-w-0">
-                  <input
-                    value={buscaProduto}
+                <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_5rem_auto] gap-2 min-w-0">
+                  <select
+                    value={categoriaProduto}
                     onChange={(e) => {
-                      setBuscaProduto(e.target.value);
+                      setCategoriaProduto(e.target.value);
+                      setProdutoId("");
                       setErroProduto("");
                     }}
-                    placeholder="Buscar produto pelo nome"
                     className={CAMPO}
-                  />
+                    aria-label="Categoria do produto"
+                  >
+                    <option value="">Categoria</option>
+                    {categoriasProduto.map((item) => (
+                      <option key={item.slug} value={item.slug}>{item.nome}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={produtoId}
+                    onChange={(e) => {
+                      setProdutoId(e.target.value);
+                      setErroProduto("");
+                    }}
+                    disabled={!categoriaProduto}
+                    className={CAMPO}
+                    aria-label="Produto"
+                  >
+                    <option value="">{categoriaProduto ? "Produto" : "Escolha a categoria"}</option>
+                    {produtosDaCategoria.map((item) => (
+                      <option key={item.id} value={item.id}>{item.nome}</option>
+                    ))}
+                  </select>
                   <input
                     value={quantidade}
                     onChange={(e) => setQuantidade(e.target.value)}
                     aria-label="Quantidade por sessão"
-                    className="w-20 shrink-0 border border-gray-300 dark:border-neutral-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-neutral-900"
+                    className={CAMPO}
                     inputMode="decimal"
                   />
+                  <button type="button" onClick={adicionarProduto} className="px-3 py-2 text-sm rounded-lg border shrink-0">
+                    Incluir
+                  </button>
                 </div>
-                {sugestoes.length > 0 ? (
-                  <ul className="border border-gray-200 dark:border-neutral-600 rounded-lg max-h-40 overflow-y-auto">
-                    {sugestoes.map((item) => (
-                      <li key={item.id}>
-                        <button
-                          type="button"
-                          onClick={() => adicionarProduto(item)}
-                          className="w-full text-left px-3 py-2 text-sm break-words hover:bg-gray-50 dark:hover:bg-neutral-700"
-                        >
-                          {item.nome}
-                          {item.unidade_medida ? ` · ${item.unidade_medida}` : ""}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                {buscaProduto.trim() && sugestoes.length === 0 ? (
-                  <p className="text-sm text-gray-500">Nenhum produto com esse nome.</p>
-                ) : null}
                 {erroProduto ? <p className="text-sm text-red-600">{erroProduto}</p> : null}
               </div>
               {produtos.map((item) => (
@@ -312,7 +393,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                 </div>
               ))}
               <p className="text-xs text-gray-500">
-                Busque o produto e clique no nome para incluir, com a quantidade ao lado. O estoque baixa quando a sessão é finalizada.
+                Escolha a categoria e depois o produto. A quantidade é por sessão. O estoque baixa quando a sessão é finalizada.
               </p>
 
               <label className="text-sm block min-w-0">Nome do tratamento

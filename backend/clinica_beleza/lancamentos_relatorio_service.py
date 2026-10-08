@@ -5,6 +5,9 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
+from django.core.exceptions import ObjectDoesNotExist
+
+from .comissao_relatorio.relatorio import comissao_do_atendimento
 from .financeiro_service import payments_visiveis_financeiro
 from .models import Payment
 from .models.financeiro import status_pagamento_exibido
@@ -13,6 +16,23 @@ from .serializers.financeiro import _procedimentos_nome_agendamento
 
 def _forma_label(method: str) -> str:
     return dict(Payment.PAYMENT_METHOD_CHOICES).get(method or "", method or "—")
+
+
+def _consulta_do_agendamento(appt):
+    try:
+        return appt.consulta
+    except ObjectDoesNotExist:
+        return None
+
+
+def _comissao_lancamento(payment, appt, regras_cache: dict) -> Decimal:
+    """Despesa não gera comissão. No demais, usa a regra do atendimento finalizado."""
+    if (payment.payment_method or "") == "DESPESA":
+        return Decimal(0)
+    consulta = _consulta_do_agendamento(appt)
+    if consulta is not None and getattr(consulta, "status", "") == "COMPLETED":
+        return comissao_do_atendimento(appt, consulta, regras_cache=regras_cache)
+    return Decimal(str(payment.comissao_valor or 0))
 
 
 def calcular_lancamentos(
@@ -30,6 +50,11 @@ def calcular_lancamentos(
             "appointment__professional",
             "appointment__patient",
             "appointment__convenio",
+            "appointment__procedure",
+            "appointment__consulta",
+            "appointment__consulta__professional",
+            "appointment__consulta__procedure",
+            "appointment__consulta__local_atendimento",
         )
         .prefetch_related("appointment__appointment_procedures__procedure")
         .order_by("appointment__professional__nome", "appointment__date", "id")
@@ -52,6 +77,7 @@ def calcular_lancamentos(
         "comissao_total": Decimal(0),
         "lancamentos": [],
     })
+    regras_cache: dict = {}
 
     for payment in qs:
         appt = payment.appointment
@@ -63,7 +89,7 @@ def calcular_lancamentos(
         if appt.professional_id and appt.professional:
             grupo["nome"] = appt.professional.nome
         valor = Decimal(str(payment.valor_total_efetivo or payment.amount or 0))
-        comissao = Decimal(str(payment.comissao_valor or 0))
+        comissao = _comissao_lancamento(payment, appt, regras_cache)
         paciente = getattr(appt.patient, "nome", "") if appt.patient_id else "—"
         convenio = ""
         if appt.convenio_id and appt.convenio:

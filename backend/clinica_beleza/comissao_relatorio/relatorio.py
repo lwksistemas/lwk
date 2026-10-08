@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from ..convenio_service import resolver_convenio_atendimento_comissao
 from .alocacao import _alocar_valores_pagamento
-from .finalizados import grupos_atendimentos_finalizados
+from .finalizados import _valor_servico_atendimento, grupos_atendimentos_finalizados
 from .constants import CHAVE_CONSULTA, LABEL_CONSULTA
 from .formatting import _combinar_formas_pagamento, _formatar_regra
 from .local_consulta import _resolver_local_atendimento_efetivo, _resolver_valor_consulta_cadastro
@@ -271,6 +271,49 @@ def _processar_grupo_pagamento(grupo, consulta_map, prof_data, regras_cache, con
         comissao_consulta=comissao_consulta if inclui_consulta else Decimal(0),
         regra_cc=regra_cc if inclui_consulta else "",
     ))
+
+
+def comissao_do_atendimento(appt, consulta, *, regras_cache: dict) -> Decimal:
+    """Comissão do serviço finalizado. Não usa o valor já gravado no pagamento.
+
+    Atendimento a prazo fica com comissao_valor 0 no lançamento. A regra da
+    profissional continua valendo, como no relatório de comissões.
+    """
+    if not appt or not consulta:
+        return Decimal(0)
+    profissional = getattr(appt, "professional", None) or getattr(consulta, "professional", None)
+    if profissional is None:
+        return Decimal(0)
+    procedimentos = _procedimentos_vinculados_consulta(appt, consulta)
+    amount = _valor_servico_atendimento(consulta, procedimentos)
+    if amount <= 0 and not procedimentos:
+        return Decimal(0)
+    prof_id = profissional.id
+    if prof_id not in regras_cache:
+        regras_cache[prof_id] = _regras_profissional(prof_id)
+    regras = regras_cache[prof_id]
+    valor_consulta_cad = _resolver_valor_consulta_cadastro(consulta, amount, procedimentos, regras)
+    proc_com_regra = regras.get("procedimento_ids") or set()
+    convenio_id = resolver_convenio_atendimento_comissao(appt, consulta, procedimentos)
+    vc, vp_map = _alocar_valores_pagamento(
+        amount, valor_consulta_cad, procedimentos, proc_com_regra,
+    )
+    local_id, _local_nome = _resolver_local_atendimento_efetivo(consulta, regras, valor_consulta_cad)
+    regra_consulta = _resolver_regra_consulta(regras, local_id)
+    comissao_consulta = _calcular_comissao_regra(regra_consulta, vc)
+    if not _conta_linha_consulta(regra_consulta, vc, comissao_consulta):
+        comissao_consulta = Decimal(0)
+    comissao_procedimentos = sum(
+        (
+            _calcular_comissao_regra(
+                _resolver_regra_procedimento(regras["procedimentos"], p["procedure_id"], convenio_id),
+                vp_map.get(p["procedure_id"], Decimal(0)),
+            )
+            for p in procedimentos
+        ),
+        Decimal(0),
+    )
+    return (comissao_consulta + comissao_procedimentos).quantize(Decimal("0.01"))
 
 
 def calcular_comissoes(

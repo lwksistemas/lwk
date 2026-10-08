@@ -9,6 +9,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.utils.timezone import now
 
@@ -21,6 +22,18 @@ def _dinheiro(valor) -> float:
         return float(Decimal(str(valor or 0)).quantize(Decimal("0.01")))
     except (InvalidOperation, TypeError, ValueError):
         return 0.0
+
+
+def _numero_consulta(appt) -> int | None:
+    try:
+        consulta = appt.consulta
+    except (ObjectDoesNotExist, AttributeError):
+        return None
+    numero = getattr(consulta, "numero", None) if consulta is not None else None
+    try:
+        return int(numero) if numero else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _situacao(vencimento: date | None, hoje: date) -> tuple[str, str, int]:
@@ -47,6 +60,7 @@ def calcular_venda_prazo(
         .select_related(
             "appointment__professional",
             "appointment__patient",
+            "appointment__consulta",
         )
         .prefetch_related(
             "parcelas",
@@ -69,6 +83,16 @@ def calcular_venda_prazo(
         "valor_pago": Decimal(0),
         "valor_aberto": Decimal(0),
         "vendas": [],
+    })
+    clientes: dict[int | str, dict] = defaultdict(lambda: {
+        "patient_id": 0,
+        "nome": "—",
+        "telefone": "",
+        "total_consultas": 0,
+        "valor_total": Decimal(0),
+        "valor_pago": Decimal(0),
+        "valor_aberto": Decimal(0),
+        "consultas": [],
     })
 
     for payment in qs:
@@ -97,14 +121,20 @@ def calcular_venda_prazo(
             grupo["nome"] = appt.professional.nome
 
         patient = appt.patient if appt.patient_id else None
+        paciente_nome = getattr(patient, "nome", "") or "—"
+        telefone = getattr(patient, "telefone", "") or ""
+        profissional_nome = grupo["nome"]
         venc = payment.data_vencimento
         codigo, rotulo, dias = _situacao(venc, hoje)
         dt = appt.date
-        grupo["vendas"].append({
+        linha = {
             "payment_id": payment.id,
             "data": dt.date().isoformat() if dt else None,
-            "paciente": getattr(patient, "nome", "") or "—",
-            "telefone": getattr(patient, "telefone", "") or "",
+            "patient_id": appt.patient_id or 0,
+            "paciente": paciente_nome,
+            "telefone": telefone,
+            "profissional": profissional_nome,
+            "consulta_numero": _numero_consulta(appt),
             "procedimentos": _procedimentos_nome_agendamento(appt) or "Consulta",
             "vencimento": venc.isoformat() if venc else None,
             "situacao": codigo,
@@ -113,11 +143,23 @@ def calcular_venda_prazo(
             "valor": _dinheiro(total),
             "valor_pago": _dinheiro(pago),
             "valor_aberto": _dinheiro(saldo),
-        })
+        }
+        grupo["vendas"].append(linha)
         grupo["total_vendas"] += 1
         grupo["valor_total"] += total
         grupo["valor_pago"] += pago
         grupo["valor_aberto"] += saldo
+
+        chave = appt.patient_id or paciente_nome
+        cliente = clientes[chave]
+        cliente["patient_id"] = appt.patient_id or 0
+        cliente["nome"] = paciente_nome
+        cliente["telefone"] = telefone
+        cliente["consultas"].append(linha)
+        cliente["total_consultas"] += 1
+        cliente["valor_total"] += total
+        cliente["valor_pago"] += pago
+        cliente["valor_aberto"] += saldo
 
     profissionais = sorted(grupos.values(), key=lambda g: (g["nome"] or "").lower())
     for p in profissionais:
@@ -125,8 +167,15 @@ def calcular_venda_prazo(
         p["valor_pago"] = _dinheiro(p["valor_pago"])
         p["valor_aberto"] = _dinheiro(p["valor_aberto"])
 
+    lista_clientes = sorted(clientes.values(), key=lambda g: (g["nome"] or "").lower())
+    for c in lista_clientes:
+        c["valor_total"] = _dinheiro(c["valor_total"])
+        c["valor_pago"] = _dinheiro(c["valor_pago"])
+        c["valor_aberto"] = _dinheiro(c["valor_aberto"])
+
     return {
         "profissionais": profissionais,
+        "clientes": lista_clientes,
         "totais": {
             "total_vendas": sum(p["total_vendas"] for p in profissionais),
             "valor_total": round(sum(p["valor_total"] for p in profissionais), 2),

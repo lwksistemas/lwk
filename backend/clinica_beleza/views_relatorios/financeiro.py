@@ -199,6 +199,9 @@ class RelatorioVendaPrazoPdfView(APIView):
         from clinica_beleza.venda_prazo_relatorio_service import calcular_venda_prazo
 
         data_inicio, data_fim, professional_id = parse_filtros_comissoes(request)
+        agrupar = (request.query_params.get("agrupar") or "profissional").strip().lower()
+        if agrupar not in ("profissional", "cliente"):
+            agrupar = "profissional"
         loja = loja_atual()
         if not loja:
             return Response({"error": "Loja não encontrada."}, status=404)
@@ -215,6 +218,7 @@ class RelatorioVendaPrazoPdfView(APIView):
             data_inicio=data_inicio,
             data_fim=data_fim,
             profissional_nome=nome,
+            agrupar=agrupar,
         )
         return pdf_response(
             pdf_buffer,

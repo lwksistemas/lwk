@@ -13,8 +13,11 @@ import { formatCurrency } from '@/lib/financeiro-helpers';
 interface VendaPrazoItem {
   payment_id: number;
   data: string | null;
+  patient_id?: number;
   paciente: string;
   telefone: string;
+  profissional?: string;
+  consulta_numero?: number | null;
   procedimentos: string;
   vencimento: string | null;
   situacao: string;
@@ -35,8 +38,20 @@ interface ProfissionalVendaPrazo {
   vendas: VendaPrazoItem[];
 }
 
+interface ClienteVendaPrazo {
+  patient_id: number;
+  nome: string;
+  telefone: string;
+  total_consultas: number;
+  valor_total: number;
+  valor_pago: number;
+  valor_aberto: number;
+  consultas: VendaPrazoItem[];
+}
+
 interface VendaPrazoData {
   profissionais: ProfissionalVendaPrazo[];
+  clientes?: ClienteVendaPrazo[];
   totais: {
     total_vendas: number;
     valor_total: number;
@@ -73,6 +88,7 @@ export default function VendaPrazoRelatorioPage() {
   });
   const [dataFim, setDataFim] = useState(() => new Date().toISOString().split('T')[0]);
   const [professionalId, setProfessionalId] = useState('');
+  const [agrupar, setAgrupar] = useState<'profissional' | 'cliente'>('profissional');
   const [professionals, setProfessionals] = useState<ProfessionalOption[]>([]);
   const [data, setData] = useState<VendaPrazoData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -117,16 +133,32 @@ export default function VendaPrazoRelatorioPage() {
   const exportarCSV = () => {
     if (!data) return;
     const BOM = '\ufeff';
-    let csv = 'Profissional;Data;Paciente;Telefone;Procedimentos;Vencimento;Situação;Valor (R$);Recebido (R$);Em aberto (R$)\n';
-    for (const p of data.profissionais) {
-      for (const v of p.vendas) {
+    const porCliente = agrupar === 'cliente';
+    let csv = porCliente
+      ? 'Cliente;Telefone;Data;Consulta;Profissional;Procedimentos;Vencimento;Situação;Valor (R$);Recebido (R$);Em aberto (R$)\n'
+      : 'Profissional;Data;Paciente;Telefone;Procedimentos;Vencimento;Situação;Valor (R$);Recebido (R$);Em aberto (R$)\n';
+    if (porCliente) {
+      for (const c of data.clientes || []) {
+        for (const v of c.consultas) {
+          csv +=
+            `${c.nome};${c.telefone};${formatDate(v.data)};${v.consulta_numero ? `nº ${v.consulta_numero}` : ''};` +
+            `${v.profissional || ''};${v.procedimentos};${formatDate(v.vencimento)};${v.situacao_label};` +
+            `${v.valor.toFixed(2)};${v.valor_pago.toFixed(2)};${v.valor_aberto.toFixed(2)}\n`;
+        }
         csv +=
-          `${p.nome};${formatDate(v.data)};${v.paciente};${v.telefone};${v.procedimentos};` +
-          `${formatDate(v.vencimento)};${v.situacao_label};${v.valor.toFixed(2)};` +
-          `${v.valor_pago.toFixed(2)};${v.valor_aberto.toFixed(2)}\n`;
+          `${c.nome};TOTAL;;;;;;;;${c.valor_total.toFixed(2)};${c.valor_pago.toFixed(2)};${c.valor_aberto.toFixed(2)}\n`;
       }
-      csv +=
-        `${p.nome};TOTAL;;;;;${p.valor_total.toFixed(2)};${p.valor_pago.toFixed(2)};${p.valor_aberto.toFixed(2)}\n`;
+    } else {
+      for (const p of data.profissionais) {
+        for (const v of p.vendas) {
+          csv +=
+            `${p.nome};${formatDate(v.data)};${v.paciente};${v.telefone};${v.procedimentos};` +
+            `${formatDate(v.vencimento)};${v.situacao_label};${v.valor.toFixed(2)};` +
+            `${v.valor_pago.toFixed(2)};${v.valor_aberto.toFixed(2)}\n`;
+        }
+        csv +=
+          `${p.nome};TOTAL;;;;;${p.valor_total.toFixed(2)};${p.valor_pago.toFixed(2)};${p.valor_aberto.toFixed(2)}\n`;
+      }
     }
     csv +=
       `TOTAL GERAL;${data.totais.total_vendas} vendas;;;;;` +
@@ -140,7 +172,7 @@ export default function VendaPrazoRelatorioPage() {
   };
 
   const abrirPdf = (modo: 'visualizar' | 'imprimir', janela: Window | null) => {
-    const qp = new URLSearchParams({ data_inicio: dataInicio, data_fim: dataFim });
+    const qp = new URLSearchParams({ data_inicio: dataInicio, data_fim: dataFim, agrupar });
     if (professionalId) qp.set('professional_id', professionalId);
     return abrirRelatorioPdf(`/relatorios/venda-prazo/pdf/?${qp.toString()}`, modo, janela);
   };
@@ -156,14 +188,14 @@ export default function VendaPrazoRelatorioPage() {
             <button
               type="button"
               onClick={exportarCSV}
-              disabled={!data?.profissionais.length}
+              disabled={!data || (agrupar === 'cliente' ? !(data.clientes || []).length : !data.profissionais.length)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 disabled:opacity-50"
             >
               <Download size={16} />
               <span className="hidden sm:inline">CSV</span>
             </button>
             <RelatorioPdfActions
-              disabled={!data?.profissionais.length}
+              disabled={!data || (agrupar === 'cliente' ? !(data.clientes || []).length : !data.profissionais.length)}
               onPdf={abrirPdf}
             />
           </>
@@ -171,7 +203,7 @@ export default function VendaPrazoRelatorioPage() {
       />
       <ClinicaBelezaPageContent>
         <ClinicaBelezaPanel className="p-4 mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data início</label>
               <input
@@ -189,6 +221,17 @@ export default function VendaPrazoRelatorioPage() {
                 onChange={(e) => setDataFim(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
               />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Agrupar por</label>
+              <select
+                value={agrupar}
+                onChange={(e) => setAgrupar(e.target.value as 'profissional' | 'cliente')}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+              >
+                <option value="profissional">Profissional</option>
+                <option value="cliente">Cliente — consultas</option>
+              </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Profissional</label>
@@ -242,10 +285,61 @@ export default function VendaPrazoRelatorioPage() {
               <span>Em aberto {formatCurrency(data.totais.valor_aberto)}</span>
             </div>
 
-            {data.profissionais.length === 0 ? (
+            {(agrupar === 'cliente' ? (data.clientes || []).length : data.profissionais.length) === 0 ? (
               <p className="text-center py-12 text-gray-500 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                 Nenhuma venda a prazo no período.
               </p>
+            ) : agrupar === 'cliente' ? (
+              (data.clientes || []).map((c) => (
+                <section key={c.patient_id || c.nome} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                  <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 className="font-semibold text-gray-900 dark:text-white">
+                      {c.nome}
+                      {c.telefone ? (
+                        <span className="ml-2 text-sm font-normal text-gray-500">{c.telefone}</span>
+                      ) : null}
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      {c.total_consultas} consulta{c.total_consultas === 1 ? '' : 's'} · em aberto {formatCurrency(c.valor_aberto)}
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-xs uppercase text-gray-500 bg-gray-50 dark:bg-gray-800/80">
+                          <th className="text-left px-4 py-2">Data</th>
+                          <th className="text-left px-4 py-2">Consulta</th>
+                          <th className="text-left px-4 py-2">Profissional</th>
+                          <th className="text-left px-4 py-2">Procedimentos</th>
+                          <th className="text-left px-4 py-2">Vencimento</th>
+                          <th className="text-left px-4 py-2">Situação</th>
+                          <th className="text-right px-4 py-2">Valor</th>
+                          <th className="text-right px-4 py-2">Recebido</th>
+                          <th className="text-right px-4 py-2">Em aberto</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                        {c.consultas.map((v) => (
+                          <tr key={v.payment_id}>
+                            <td className="px-4 py-2 whitespace-nowrap text-gray-600">{formatDate(v.data)}</td>
+                            <td className="px-4 py-2 whitespace-nowrap">{v.consulta_numero ? `nº ${v.consulta_numero}` : '—'}</td>
+                            <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{v.profissional || '—'}</td>
+                            <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{v.procedimentos}</td>
+                            <td className="px-4 py-2 whitespace-nowrap">{formatDate(v.vencimento)}</td>
+                            <td className={`px-4 py-2 whitespace-nowrap ${situacaoClass(v.situacao)}`}>
+                              {v.situacao_label}
+                              {v.dias_atraso > 0 ? ` · ${v.dias_atraso} dia${v.dias_atraso === 1 ? '' : 's'}` : ''}
+                            </td>
+                            <td className="px-4 py-2 text-right tabular-nums">{formatCurrency(v.valor)}</td>
+                            <td className="px-4 py-2 text-right tabular-nums">{formatCurrency(v.valor_pago)}</td>
+                            <td className="px-4 py-2 text-right tabular-nums">{formatCurrency(v.valor_aberto)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              ))
             ) : (
               data.profissionais.map((p) => (
                 <section key={p.professional_id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">

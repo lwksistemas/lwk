@@ -43,12 +43,12 @@ def criar_token_assinatura(documento, tipo, loja_id):
     if tipo == "cliente":
         lead = documento.oportunidade.lead
         nome = lead.nome
-        email = lead.email
+        email = (lead.email or "").strip()
     else:  # vendedor
         vendedor = documento.oportunidade.vendedor
         if vendedor:
             nome = vendedor.nome
-            email = vendedor.email
+            email = (vendedor.email or "").strip()
         else:
             # Fallback: usar dados da loja (admin)
             from superadmin.models import Loja
@@ -59,6 +59,7 @@ def criar_token_assinatura(documento, tipo, loja_id):
             else:
                 nome = "Vendedor"
                 email = ""
+        email = (email or "").strip()
 
     # Gerar token único
     payload = {

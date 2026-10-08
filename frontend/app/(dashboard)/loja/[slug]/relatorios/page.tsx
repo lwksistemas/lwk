@@ -76,7 +76,7 @@ const CATEGORIAS: CategoriaRelatorio[] = [
       },
       {
         titulo: 'Venda a prazo',
-        descricao: 'Por período e por profissional, com vencimento e saldo em aberto',
+        descricao: 'Por profissional ou por cliente, com cada consulta e o saldo em aberto',
         href: 'venda-prazo',
         icon: Clock,
       },

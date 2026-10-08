@@ -499,15 +499,17 @@ def gerar_pdf_venda_prazo(
     data_inicio: date | None,
     data_fim: date | None,
     profissional_nome: str | None = None,
+    agrupar: str = "profissional",
 ) -> BytesIO:
     buffer, doc, styles, titulo_style, subtitulo_style, secao_style, tipo_cab, dados_cab, largura = (
         _iniciar_pdf(loja, usar_paisagem=True)
     )
     extra = f"Profissional: {profissional_nome}" if profissional_nome else None
+    titulo = "Venda a prazo por cliente" if agrupar == "cliente" else "Venda a prazo"
     elements = []
     elements.extend(_cabecalho_elements(tipo_cab, dados_cab, titulo_style))
     elements.extend(_periodo_elements(
-        "Venda a prazo", titulo_style, subtitulo_style, data_inicio, data_fim, extra,
+        titulo, titulo_style, subtitulo_style, data_inicio, data_fim, extra,
     ))
 
     totais = resultado.get("totais") or {}
@@ -522,7 +524,55 @@ def gerar_pdf_venda_prazo(
     elements.append(Spacer(1, 2 * mm))
 
     profissionais = resultado.get("profissionais") or []
-    if not profissionais:
+    clientes = resultado.get("clientes") or []
+    if agrupar == "cliente":
+        if not clientes:
+            elements.append(Paragraph("Nenhuma venda a prazo no período.", styles["Normal"]))
+        else:
+            col_w = [
+                largura * 0.09,
+                largura * 0.07,
+                largura * 0.16,
+                largura * 0.20,
+                largura * 0.11,
+                largura * 0.11,
+                largura * 0.09,
+                largura * 0.08,
+                largura * 0.09,
+            ]
+            headers = [
+                "Data", "Consulta", "Profissional", "Procedimentos",
+                "Vencimento", "Situação", "Valor", "Recebido", "Em aberto",
+            ]
+            for c in clientes:
+                qtd = c.get("total_consultas") or 0
+                elements.append(Paragraph(
+                    f'{c.get("nome") or "—"} — {qtd} consulta{"s" if qtd != 1 else ""} · '
+                    f'em aberto {_fmt_brl(c.get("valor_aberto"))}',
+                    secao_style,
+                ))
+                rows = [
+                    [
+                        _fmt_iso_br(v.get("data")),
+                        f'nº {v.get("consulta_numero")}' if v.get("consulta_numero") else "—",
+                        v.get("profissional") or "—",
+                        v.get("procedimentos") or "—",
+                        _fmt_iso_br(v.get("vencimento")),
+                        v.get("situacao_label") or "—",
+                        _fmt_brl(v.get("valor")),
+                        _fmt_brl(v.get("valor_pago")),
+                        _fmt_brl(v.get("valor_aberto")),
+                    ]
+                    for v in (c.get("consultas") or [])
+                ]
+                footer = [
+                    "Total", "", "", "", "", "",
+                    _fmt_brl(c.get("valor_total")),
+                    _fmt_brl(c.get("valor_pago")),
+                    _fmt_brl(c.get("valor_aberto")),
+                ]
+                elements.append(_tabela_mista(headers, rows, footer, col_w, n_texto=6))
+    elif not profissionais:
         elements.append(Paragraph("Nenhuma venda a prazo no período.", styles["Normal"]))
     else:
         col_w = [

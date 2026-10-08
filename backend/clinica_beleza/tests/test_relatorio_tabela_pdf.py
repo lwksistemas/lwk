@@ -256,3 +256,39 @@ class GerarPdfTabelaTest(SimpleTestCase):
             profissional_nome="Marina",
         )
         self.assertTrue(buf.getvalue().startswith(b"%PDF"))
+
+    def test_venda_prazo_por_cliente_gera_pdf(self):
+        resultado = {
+            "clientes": [{
+                "nome": "RENATA COELHO",
+                "total_consultas": 1,
+                "valor_total": 120,
+                "valor_pago": 0,
+                "valor_aberto": 120,
+                "consultas": [{
+                    "data": "2026-10-03",
+                    "consulta_numero": 200,
+                    "profissional": "Bruna",
+                    "procedimentos": "Drenagem",
+                    "vencimento": "2026-11-06",
+                    "situacao_label": "Em dia",
+                    "valor": 120,
+                    "valor_pago": 0,
+                    "valor_aberto": 120,
+                }],
+            }],
+            "totais": {
+                "total_vendas": 1,
+                "valor_total": 120,
+                "valor_pago": 0,
+                "valor_aberto": 120,
+            },
+        }
+        buf = gerar_pdf_venda_prazo(
+            resultado=resultado,
+            loja=self.loja,
+            data_inicio=date(2026, 10, 1),
+            data_fim=date(2026, 10, 8),
+            agrupar="cliente",
+        )
+        self.assertTrue(buf.getvalue().startswith(b"%PDF"))

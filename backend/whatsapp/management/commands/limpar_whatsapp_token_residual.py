@@ -66,9 +66,12 @@ class Command(BaseCommand):
                     )
 
                     if commit:
-                        cfg.whatsapp_token = ""
-                        cfg.whatsapp_phone_id = ""
-                        cfg.save(update_fields=["whatsapp_token", "whatsapp_phone_id", "updated_at"])
+                        # update() no queryset com .using(db_name) garante escrita no
+                        # schema da loja (save() sem using=db grava no default/public).
+                        WhatsAppConfig.objects.using(db_name).filter(pk=cfg.pk).update(
+                            whatsapp_token="",
+                            whatsapp_phone_id="",
+                        )
                         total_limpos += 1
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(f"{loja.slug}: erro — {exc}"))

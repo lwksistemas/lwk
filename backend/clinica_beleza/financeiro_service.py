@@ -609,6 +609,18 @@ def _aplicar_correcao_para_prazo(payment, pagas, parcelas_cancelar):
     ])
 
 
+def _comissao_atendimentos_finalizados(inicio: date, fim: date) -> float:
+    """Comissão do mês pelo serviço finalizado, mesmo a prazo.
+
+    O valor gravado em Payment.comissao_valor fica 0 quando ninguém pagou.
+    A profissional recebe assim mesmo. O prejuízo entra no lucro da clínica.
+    """
+    from clinica_beleza.comissao_relatorio.relatorio import calcular_comissoes
+
+    totais = calcular_comissoes(data_inicio=inicio, data_fim=fim)["totais"]
+    return float(totais.get("comissao_total") or 0)
+
+
 def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -> dict:
     import calendar
 
@@ -636,7 +648,7 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
     a_receber_mes = somar_a_receber_periodo(first_day, last_day, excluir_metodo="PRAZO")
     a_prazo_mes = somar_a_receber_periodo(first_day, last_day, payment_method="PRAZO")
     desconto_mes = somar_desconto_periodo(first_day, last_day)
-    comissao_mes = float(pagos_caixa.aggregate(total=Sum("comissao_valor"))["total"] or 0)
+    comissao_mes = _comissao_atendimentos_finalizados(first_day, period_end)
     despesas_atendimento = _sum(pagos_mes.filter(payment_method=METODO_DESPESA))
 
     def _sum_despesa(qs):

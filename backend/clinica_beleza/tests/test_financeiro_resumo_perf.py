@@ -108,6 +108,10 @@ class TestResumoSeparaPrazo(SimpleTestCase):
             patch("clinica_beleza.financeiro_service.payments_visiveis_financeiro", return_value=qs),
             patch("clinica_beleza.financeiro_service.Payment") as payment,
             patch("clinica_beleza.financeiro_service.Despesa") as despesa,
+            patch(
+                "clinica_beleza.financeiro_service._comissao_atendimentos_finalizados",
+                return_value=48.0,
+            ),
         ):
             payment.objects.filter.return_value = qs
             despesa.objects.filter.return_value = qs
@@ -115,3 +119,7 @@ class TestResumoSeparaPrazo(SimpleTestCase):
 
         self.assertEqual(resumo["a_receber"], 300.0)
         self.assertEqual(resumo["a_prazo"], 300.0)
+        self.assertEqual(resumo["comissao_mes"], 48.0)
+        self.assertEqual(resumo["despesas"], 48.0)
+        self.assertEqual(resumo["lucro"], -48.0)
+        self.assertEqual(resumo["faturamento"], 0.0)

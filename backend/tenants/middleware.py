@@ -1,9 +1,6 @@
-"""Middleware para detectar o tenant (loja) e configurar o banco correto.
-Aplica limite de tamanho (512 MB) no banco isolado por loja quando o arquivo existe.
-"""
+"""Middleware para detectar o tenant (loja) e configurar o banco correto."""
 import logging
 import os
-from pathlib import Path
 from threading import local
 
 from django.conf import settings
@@ -12,10 +9,6 @@ from django.http import JsonResponse
 logger = logging.getLogger(__name__)
 
 _thread_locals = local()
-
-# Limite do banco isolado por loja (512 MB - recomendado para CRM, clínica, e-commerce leve)
-LIMITE_BANCO_LOJA_MB = 512
-LIMITE_BANCO_LOJA_BYTES = LIMITE_BANCO_LOJA_MB * 1024 * 1024
 
 def get_current_tenant_db():
     """Retorna o banco do tenant atual"""
@@ -49,16 +42,6 @@ def _configure_tenant_db_for_loja(loja, request=None):
         db_name = "default"
 
     if db_name in settings.DATABASES:
-        if request and request.method in ("POST", "PUT", "PATCH", "DELETE"):
-            _base = getattr(settings, "BASE_DIR", None)
-            if _base is not None and "sqlite" in str(settings.DATABASES.get(db_name, {}).get("ENGINE", "")):
-                path = Path(_base) / f"db_{db_name}.sqlite3"
-                if path.exists():
-                    try:
-                        if path.stat().st_size >= LIMITE_BANCO_LOJA_BYTES:
-                            return False
-                    except OSError:
-                        pass
         set_current_tenant_db(db_name)
     else:
         set_current_tenant_db("default")
@@ -239,35 +222,6 @@ class TenantMiddleware:
         logger.debug(f"✅ [TenantMiddleware] Loja {tenant_slug} adicionada ao cache")
         return loja_id, db_name
 
-    def _check_storage_limit(self, request, db_name, tenant_slug):
-        """Bloqueia escritas se o arquivo SQLite da loja atingiu 512 MB. Retorna JsonResponse ou None."""
-        if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
-            return None
-        db_path = getattr(settings, "BASE_DIR", None)
-        if db_path is None or "sqlite" not in str(settings.DATABASES.get(db_name, {}).get("ENGINE", "")):
-            return None
-        path = Path(db_path) / f"db_{db_name}.sqlite3"
-        if not path.exists():
-            return None
-        try:
-            size = path.stat().st_size
-        except OSError:
-            return None
-        if size < LIMITE_BANCO_LOJA_BYTES:
-            return None
-        logger.warning(
-            f"⚠️ [TenantMiddleware] Loja {tenant_slug} atingiu limite "
-            f"de banco ({size / (1024*1024):.1f} MB >= {LIMITE_BANCO_LOJA_MB} MB)",
-        )
-        return JsonResponse(
-            {
-                "error": f"Limite de armazenamento da loja atingido ({LIMITE_BANCO_LOJA_MB} MB). Entre em contato com o suporte para ampliar o plano.",
-                "code": "STORAGE_LIMIT_REACHED",
-                "limite_mb": LIMITE_BANCO_LOJA_MB,
-            },
-            status=507,
-        )
-
     def _apply_tenant_context(self, request, tenant_slug):
         """Resolve loja, configura banco e seta thread-locals. Retorna JsonResponse de erro ou None."""
         from superadmin.models import Loja
@@ -283,9 +237,6 @@ class TenantMiddleware:
                 db_name = "default"
 
             if db_name in settings.DATABASES:
-                storage_err = self._check_storage_limit(request, db_name, tenant_slug)
-                if storage_err:
-                    return storage_err
                 set_current_tenant_db(db_name)
             else:
                 set_current_tenant_db("default")

@@ -35,7 +35,6 @@ from nfse_integration.issnet_nacional_xml_builder import (
     construir_xml_cancelar_nfse_nacional,
     construir_xml_consultar_nfse_por_dps,
     construir_xml_consultar_url_nfse_nacional,
-    construir_xml_consultar_url_nfse_nacional_simples,
     construir_xml_enviar_lote_dps_sincrono,
     extrair_chave_acesso_nfse_nacional,
     extrair_numero_nfse_nacional,
@@ -783,8 +782,14 @@ class ISSNetNacionalClient:
         codigo_cancelamento: str = "1",
         chave_acesso: str = "",
     ) -> dict[str, Any]:
-        """Cancela NFS-e via ISSNet Nacional."""
+        """Cancela NFS-e via evento e101103 do ISSNet Nacional."""
         result: dict[str, Any] = {"success": False, "erro": None, "xml_resposta": None}
+        chave = re.sub(r"\D", "", chave_acesso or "")
+        if len(chave) != 50:
+            result["erro"] = (
+                "Cancelamento Nacional exige a chave de acesso da NFS-e com 50 dígitos."
+            )
+            return result
 
         try:
             ambiente_int = 1 if self.ambiente == "producao" else 2
@@ -893,15 +898,12 @@ class ISSNetNacionalClient:
     ) -> dict[str, Any]:
         """Consulta URL da DANFE via ConsultarUrlNfse do Nacional.
 
-        Retorna dict com success e url (link para o portal notaeletronica.com.br
-        no formato Nota_Digital_Nacional.aspx?token).
-
-        Tenta envelope aninhado (mesmo de GerarNfse) e xsd:string (ACBr),
-        com Pedido/NumeroNfse e, se houver, ChaveAcesso.
+        O envio segue o exemplo da Nota Control: Prestador (CNPJ/CPF + IM),
+        NumeroNfse e Pagina. A resposta traz UrlVisualizacaoNfseNacional.
         """
         result: dict[str, Any] = {"success": False, "url": "", "erro": None}
         numero = str(numero_nf or "").strip()
-        if not numero and not (chave_acesso or "").strip():
+        if not numero:
             result["erro"] = "Número da NFS-e não informado"
             return result
 
@@ -909,40 +911,14 @@ class ISSNetNacionalClient:
             from nfse_integration.issnet_constants import SOAP_ACTION_NACIONAL_CONSULTAR_URL_NFSE
             from nfse_integration.issnet_soap import montar_soap_envelope_nacional_xsd_string
 
-            ns = NS_NFSE_NACIONAL
-            chave = re.sub(r"\D", "", chave_acesso or "")
-            xmls: list[tuple[str, str]] = []
-
-            if numero:
-                xmls.append((
-                    "pedido",
-                    construir_xml_consultar_url_nfse_nacional(
-                        numero_nf=numero,
-                        prestador_cnpj=self.prestador_cnpj,
-                        prestador_inscricao_municipal=self.prestador_im,
-                    ),
-                ))
-                xmls.append((
-                    "simples",
-                    construir_xml_consultar_url_nfse_nacional_simples(
-                        numero_nf=numero,
-                        prestador_cnpj=self.prestador_cnpj,
-                        prestador_inscricao_municipal=self.prestador_im,
-                    ),
-                ))
-            if chave:
-                xmls.append((
-                    "chave",
-                    f'<ConsultarUrlNfseEnvio xmlns="{ns}"><ChaveAcesso>{chave}</ChaveAcesso></ConsultarUrlNfseEnvio>',
-                ))
-                xmls.append((
-                    "pedido_chave",
-                    (
-                        f'<ConsultarUrlNfseEnvio xmlns="{ns}"><Pedido>'
-                        f"<ChaveAcesso>{chave}</ChaveAcesso>"
-                        f"</Pedido></ConsultarUrlNfseEnvio>"
-                    ),
-                ))
+            xmls: list[tuple[str, str]] = [(
+                "oficial",
+                construir_xml_consultar_url_nfse_nacional(
+                    numero_nf=numero,
+                    prestador_cnpj=self.prestador_cnpj,
+                    prestador_inscricao_municipal=self.prestador_im,
+                ),
+            )]
 
             variantes: list[tuple[str, str, str]] = []  # rotulo, xml, modo
             for rotulo, xml_base in xmls:
@@ -984,7 +960,7 @@ class ISSNetNacionalClient:
                     logger.info(
                         "ISSNet Nacional ConsultarUrlNfse OK (%s): %s → %s",
                         rotulo,
-                        numero or chave[:20],
+                        numero,
                         url,
                     )
                     return result
@@ -995,7 +971,7 @@ class ISSNetNacionalClient:
                 logger.warning(
                     "ISSNet Nacional ConsultarUrlNfse falhou (%s) NFS-e %s: %s | raw=%s",
                     rotulo,
-                    numero or chave[:20],
+                    numero,
                     ultimo_erro,
                     " ".join((resposta or "").split())[:500],
                 )
@@ -1058,6 +1034,7 @@ class ISSNetNacionalClient:
         import re
 
         for pattern in (
+            r"<(?:\w+:)?UrlVisualizacaoNfseNacional>([^<]+)</(?:\w+:)?UrlVisualizacaoNfseNacional>",
             r"<(?:\w+:)?UrlVisualizacaoNfse>([^<]+)</(?:\w+:)?UrlVisualizacaoNfse>",
             r"<(?:\w+:)?UrlVisualizacao>([^<]+)</(?:\w+:)?UrlVisualizacao>",
             r"<(?:\w+:)?UrlNfse>([^<]+)</(?:\w+:)?UrlNfse>",

@@ -1,10 +1,15 @@
 """Regras de NFS-e da loja, sem chamar prefeitura nem Asaas."""
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
-from nfse_integration.issnet_nacional_xml_builder import construir_xml_cancelar_nfse_nacional
+from nfse_integration.issnet_nacional_client import ISSNetNacionalClient
+from nfse_integration.issnet_nacional_xml_builder import (
+    construir_xml_cancelar_nfse_nacional,
+    construir_xml_consultar_url_nfse_nacional,
+)
 from nfse_integration.loja_nfse_api import (
     ConfigLojaInconsistenteError,
     ExclusaoNFSeLojaError,
@@ -112,13 +117,39 @@ class LojaNfseRegrasTests(SimpleTestCase):
         self.assertIsNone(parsed)
         self.assertIn("cancelada", err)
 
-    def test_xml_de_cancelamento_traz_numero_e_cnpj(self):
+    def test_xml_de_cancelamento_e_o_evento_nacional(self):
+        chave = "1" * 50
         xml = construir_xml_cancelar_nfse_nacional(
             numero_nfse="123",
             prestador_cnpj="12.345.678/0001-90",
             prestador_inscricao_municipal="999",
             codigo_cancelamento="1",
+            chave_acesso=chave,
+            motivo_cancelamento="Erro na emissão",
+            dh_evento=datetime(2026, 10, 12, 15, 0, tzinfo=timezone(timedelta(hours=-3))),
         )
-        self.assertIn(">123<", xml)
+        self.assertIn("pedRegEvento", xml)
+        self.assertIn(f"PRE{chave}101103", xml)
         self.assertIn("12345678000190", xml)
-        self.assertIn("CancelarNfseEnvio", xml)
+        self.assertIn("e101103", xml)
+        self.assertIn("2026-10-12T15:00:00-03:00", xml)
+        self.assertNotIn("InfPedidoCancelamento", xml)
+
+    def test_xml_da_url_usa_cnpj_im_e_pagina(self):
+        xml = construir_xml_consultar_url_nfse_nacional(
+            numero_nf="181",
+            prestador_cnpj="12.345.678/0001-90",
+            prestador_inscricao_municipal="88.776",
+        )
+        self.assertIn("<CNPJ>12345678000190</CNPJ>", xml)
+        self.assertIn("<IM>88776</IM>", xml)
+        self.assertIn("<NumeroNfse>181</NumeroNfse>", xml)
+        self.assertIn("<Pagina>1</Pagina>", xml)
+        self.assertNotIn("Pedido", xml)
+        self.assertNotIn("CpfCnpj", xml)
+
+    def test_le_a_url_nacional_da_resposta(self):
+        url = ISSNetNacionalClient._extrair_url_danfe_resposta(
+            "<UrlVisualizacaoNfseNacional>https://exemplo/danfe</UrlVisualizacaoNfseNacional>"
+        )
+        self.assertEqual(url, "https://exemplo/danfe")

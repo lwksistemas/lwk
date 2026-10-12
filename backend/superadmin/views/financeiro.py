@@ -421,6 +421,26 @@ Equipe LWK Sistemas
         return Response(resultado)
 
     @action(detail=True, methods=["post"])
+    def emitir_boleto(self, request, pk=None):
+        """Emite o boleto do vencimento quando não há outro em aberto."""
+        from superadmin.sync_service.asaas import AsaasSyncService
+
+        financeiro = self.get_object()
+        resultado = AsaasSyncService().emitir_boleto(financeiro.loja)
+        codigo = status.HTTP_200_OK if resultado.get("success") else status.HTTP_400_BAD_REQUEST
+        return Response(resultado, status=codigo)
+
+    @action(detail=True, methods=["post"])
+    def reenviar_boleto(self, request, pk=None):
+        """Reenvia o boleto em aberto para o e-mail do responsável."""
+        from superadmin.sync_service.asaas import AsaasSyncService
+
+        financeiro = self.get_object()
+        resultado = AsaasSyncService().reenviar_boleto(financeiro.loja)
+        codigo = status.HTTP_200_OK if resultado.get("success") else status.HTTP_400_BAD_REQUEST
+        return Response(resultado, status=codigo)
+
+    @action(detail=True, methods=["post"])
     def cancelar_nota_fiscal(self, request, pk=None):
         """Cancela a nota fiscal mais recente da loja no Asaas."""
         from asaas_integration.client import AsaasClient

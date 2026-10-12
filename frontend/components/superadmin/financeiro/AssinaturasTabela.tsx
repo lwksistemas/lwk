@@ -44,6 +44,7 @@ const COLUNAS = [
   'Alterar plano',
   'Dia de vencimento',
   'Conta da empresa',
+  'Boleto',
   'Nota fiscal',
 ];
 
@@ -150,6 +151,31 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
       onAtualizar();
     } catch (error) {
       window.alert(mensagemErro(error, 'Não foi possível confirmar o pagamento.'));
+    } finally {
+      setOcupado(null);
+    }
+  };
+
+  const acaoBoleto = async (assinatura: Assinatura, acao: 'emitir' | 'reenviar') => {
+    if (!assinatura.financeiro_id) return;
+    const verbo = acao === 'emitir' ? 'Emitir' : 'Reenviar';
+    const confirma = window.confirm(
+      acao === 'emitir'
+        ? `Emitir o boleto de ${assinatura.loja_nome} e enviar para o e-mail do responsável?`
+        : `Reenviar o boleto em aberto de ${assinatura.loja_nome} para o e-mail do responsável?`,
+    );
+    if (!confirma) return;
+    const chave = `boleto-${acao}-${assinatura.id}`;
+    setOcupado(chave);
+    try {
+      const res = await apiClient.post(
+        `/superadmin/financeiro/${assinatura.financeiro_id}/${acao}_boleto/`,
+      );
+      window.alert(res.data?.message || `${verbo} concluído.`);
+      if (res.data?.boleto_url) window.open(res.data.boleto_url, '_blank', 'noopener,noreferrer');
+      onAtualizar();
+    } catch (error) {
+      window.alert(mensagemErro(error, `Não foi possível ${verbo.toLowerCase()} o boleto.`));
     } finally {
       setOcupado(null);
     }
@@ -342,6 +368,26 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                     ) : (
                       <span className="text-xs text-gray-400">—</span>
                     )}
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        type="button"
+                        disabled={semFinanceiro || ocupado === `boleto-emitir-${assinatura.id}`}
+                        onClick={() => acaoBoleto(assinatura, 'emitir')}
+                        className="px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+                      >
+                        Emitir
+                      </button>
+                      <button
+                        type="button"
+                        disabled={semFinanceiro || ocupado === `boleto-reenviar-${assinatura.id}`}
+                        onClick={() => acaoBoleto(assinatura, 'reenviar')}
+                        className="px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+                      >
+                        Reenviar
+                      </button>
+                    </div>
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex flex-wrap gap-1">

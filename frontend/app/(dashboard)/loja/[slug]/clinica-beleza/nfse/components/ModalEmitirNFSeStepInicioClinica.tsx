@@ -2,7 +2,7 @@
 
 import { Search } from 'lucide-react';
 import { formatCpfCnpj } from '@/lib/format-br';
-import { NFSE_EMISSAO_INPUT_CLASS } from '@/lib/nfse-emissao-form';
+import { NFSE_EMISSAO_INPUT_CLASS } from '@/lib/nfse-emissao-clinica';
 
 export function ModalEmitirNFSeStepInicioClinica({
   documentoTomador,

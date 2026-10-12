@@ -242,29 +242,44 @@ def _buscar_paciente_clinica(loja_id: int, digits: str):
     return None
 
 
+def _loja_emite_nota_da_clinica(loja_id: int) -> bool:
+    """Clínica da beleza e salão usam o cadastro de paciente, não o cliente do CRM."""
+    try:
+        from superadmin.models import Loja
+
+        from nfse_integration.config_loja import TIPOS_CONFIG_CLINICA, tipo_codigo_loja
+
+        loja = (
+            Loja.objects.using("default")
+            .filter(id=loja_id)
+            .select_related("tipo_loja")
+            .first()
+        )
+    except Exception:
+        return False
+    if loja is None:
+        return False
+    return tipo_codigo_loja(loja) in TIPOS_CONFIG_CLINICA
+
+
 def buscar_tomador_nfse_loja(loja_id: int, documento: str) -> dict[str, Any] | None:
-    """Localiza tomador por CPF/CNPJ na ordem:
-    1. Paciente Clínica da Beleza (se o schema tiver a tabela)
-    2. Conta CRM (Clientes)
-    3. Lead CRM (Leads), incluindo conta vinculada
-    4. NFS-e já emitida
-    """
+    """Localiza o tomador no cadastro do app da loja e, se faltar, numa nota já emitida."""
     digits = somente_digitos_documento(documento)
     if len(digits) not in (11, 14):
         return None
 
-    # CRM primeiro para lojas vendas (evita 500/latência em schema sem Patient)
-    conta = _buscar_conta_crm(loja_id, digits)
-    if conta:
-        return _payload_from_conta(conta, digits)
+    if _loja_emite_nota_da_clinica(loja_id):
+        paciente = _buscar_paciente_clinica(loja_id, digits)
+        if paciente:
+            return _payload_from_paciente(paciente, digits)
+    else:
+        conta = _buscar_conta_crm(loja_id, digits)
+        if conta:
+            return _payload_from_conta(conta, digits)
 
-    lead = _buscar_lead_crm(loja_id, digits)
-    if lead:
-        return _payload_from_lead(lead, digits)
-
-    paciente = _buscar_paciente_clinica(loja_id, digits)
-    if paciente:
-        return _payload_from_paciente(paciente, digits)
+        lead = _buscar_lead_crm(loja_id, digits)
+        if lead:
+            return _payload_from_lead(lead, digits)
 
     nf = _buscar_nfse_por_documento(loja_id, digits)
     if nf:

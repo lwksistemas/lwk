@@ -8,16 +8,16 @@ import { formatCpfCnpj } from '@/lib/format-br';
 import { ensureArray } from '@/lib/array-helpers';
 import {
   NFSE_EMISSAO_INITIAL_FORM,
-  buscarTomadorCadastroPorDocumento,
-  defaultsServicoFromCrmConfig,
+  buscarTomadorClinicaPorDocumento,
+  defaultsServicoClinica,
   preencherFormTomador,
   somenteDigitosDocumento,
-} from '@/lib/nfse-emissao-form';
+} from '@/lib/nfse-emissao-clinica';
 import { parseNfseEmissaoResult, type NfseEmissaoResult, type NfseEmitirResponse } from '@/lib/nfse-helpers';
 import { useClinicaNFSeConfig } from '@/contexts/ClinicaBelezaNFSeConfigContext';
-import { ModalFormButtons } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/ModalFormButtons';
-import { ModalEmitirNFSeTomadorFields } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/ModalEmitirNFSeTomadorFields';
-import { ModalEmitirNFSeEnderecoFields } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/ModalEmitirNFSeEnderecoFields';
+import { ModalFormButtons } from './ModalFormButtons';
+import { ModalEmitirNFSeTomadorFields } from './ModalEmitirNFSeTomadorFields';
+import { ModalEmitirNFSeEnderecoFields } from './ModalEmitirNFSeEnderecoFields';
 import { ModalEmitirNFSeStepInicioClinica } from './ModalEmitirNFSeStepInicioClinica';
 import { ServicoFieldsClinica } from './ServicoFieldsClinica';
 
@@ -31,7 +31,7 @@ type PacienteOpcao = { id: number; nome: string; cpf: string };
 
 export function ModalEmitirNFSeClinica({ onClose, onSuccess, onRefreshList }: ModalEmitirNFSeClinicaProps) {
   const { config } = useClinicaNFSeConfig();
-  const defaultsServico = defaultsServicoFromCrmConfig(config);
+  const defaultsServico = defaultsServicoClinica(config);
   const [step, setStep] = useState<'inicio' | 'formulario'>('inicio');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -94,7 +94,7 @@ export function ModalEmitirNFSeClinica({ onClose, onSuccess, onRefreshList }: Mo
 
     setBuscandoTomador(true);
     try {
-      const encontrado = await buscarTomadorCadastroPorDocumento(documentoTomador);
+      const encontrado = await buscarTomadorClinicaPorDocumento(documentoTomador);
 
       if (encontrado) {
         const fonte: 'paciente' | 'nfse' | 'brasilapi' =

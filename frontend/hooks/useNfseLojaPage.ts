@@ -17,7 +17,7 @@ import {
   type NfseCancelamentoEscolha,
   type NfseEmissaoResult,
 } from '@/lib/nfse-helpers';
-import type { NFSe } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/types';
+import type { NFSe } from '@/lib/nfse-loja-types';
 
 export type NfseSyncMessage = { type: 'ok' | 'err' | 'info'; text: string } | null;
 

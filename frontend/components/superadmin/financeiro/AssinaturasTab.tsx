@@ -94,6 +94,7 @@ export function AssinaturasTab({
           Nenhuma assinatura encontrada.
         </p>
       ) : (
+        <>
         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
           Clique no nome da loja para ver boleto, PIX e o histórico. Baixar e reenviar tratam a nota da mensalidade.
         </p>
@@ -117,6 +118,7 @@ export function AssinaturasTab({
           gerandoCobrancaMP={gerandoCobrancaMP}
           excluindoPagamentoMP={excluindoPagamentoMP}
         />
+        </>
       )}
     </div>
   );

@@ -407,6 +407,20 @@ Equipe LWK Sistemas
         })
 
     @action(detail=True, methods=["post"])
+    def confirmar_pagamento_conta(self, request, pk=None):
+        """Cliente pagou PIX ou transferência na conta da empresa."""
+        from superadmin.sync_service.asaas import AsaasSyncService
+
+        financeiro = self.get_object()
+        resultado = AsaasSyncService().confirmar_recebimento_conta_empresa(
+            financeiro.loja,
+            request.data.get("forma"),
+        )
+        if not resultado.get("success"):
+            return Response(resultado, status=status.HTTP_400_BAD_REQUEST)
+        return Response(resultado)
+
+    @action(detail=True, methods=["post"])
     def cancelar_nota_fiscal(self, request, pk=None):
         """Cancela a nota fiscal mais recente da loja no Asaas."""
         from asaas_integration.client import AsaasClient

@@ -19,6 +19,7 @@ class MediaServerAppTest(unittest.TestCase):
         media_app.STORAGE_ROOT = Path(self.tmp.name)
         media_app.API_TOKEN = "master-test"
         media_app.REQUIRE_SIGNED = False
+        media_app._TAMANHO_CACHE.clear()
         self.client = media_app.app.test_client()
         self.felix = "41449198000172"
         self.harmonis = "37302743000126"
@@ -51,6 +52,13 @@ class MediaServerAppTest(unittest.TestCase):
         self.assertEqual(recusado.status_code, 401)
         ok = self.client.get("/list/", headers={"Authorization": "Bearer master-test"})
         self.assertEqual(ok.status_code, 200)
+
+    def test_lista_inclui_bytes_da_loja(self):
+        self._upload(self.harmonis, "master-test", body=b"abcd")
+        media_app._TAMANHO_CACHE.clear()
+        ok = self.client.get("/list/", headers={"Authorization": "Bearer master-test"})
+        tenants = {t["tenant"]: t for t in ok.get_json()["tenants"]}
+        self.assertGreaterEqual(tenants[self.harmonis]["bytes"], 4)
 
     def test_recusa_pdf_em_pasta_de_fotos(self):
         resp = self._upload(

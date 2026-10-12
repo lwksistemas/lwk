@@ -100,6 +100,7 @@ def listar_midia_tenants(request):
             "tipo": tipo,
             "folders": entry.get("folders") or [],
             "folder_count": entry.get("folder_count") or 0,
+            "bytes": int(entry.get("bytes") or 0),
         })
 
     items.sort(key=lambda x: (0 if x["tipo"] == "loja" else 1, (x["nome"] or "").lower()))

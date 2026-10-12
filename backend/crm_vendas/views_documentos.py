@@ -98,7 +98,7 @@ class PropostaViewSet(
             incluir_assinaturas = proposta.status_assinatura == "concluido"
             pdf_buffer = gerar_pdf_proposta(proposta, incluir_assinaturas=incluir_assinaturas)
             pdf_bytes = pdf_buffer.getvalue()
-            from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+            from core.media_pdf import arquivar_pdf_gerado
             lead = getattr(getattr(proposta, "oportunidade", None), "lead", None)
             arquivar_pdf_gerado(
                 getattr(proposta, "loja_id", None),
@@ -208,7 +208,7 @@ class ContratoViewSet(
             incluir_assinaturas = contrato.status_assinatura == "concluido"
             pdf_buffer = gerar_pdf_contrato(contrato, incluir_assinaturas=incluir_assinaturas)
             pdf_bytes = pdf_buffer.getvalue()
-            from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+            from core.media_pdf import arquivar_pdf_gerado
             lead = getattr(getattr(contrato, "oportunidade", None), "lead", None)
             arquivar_pdf_gerado(
                 getattr(contrato, "loja_id", None),

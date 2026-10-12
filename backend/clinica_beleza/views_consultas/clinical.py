@@ -101,8 +101,8 @@ class ConsultaReciboPdfView(APIView):
     permission_classes = CLINICA_CONSULTA_OPERACIONAL
 
     def get(self, request, pk):
-        from .helpers import get_consulta_or_404
         from ..recibo.pdf import gerar_pdf_recibo_da_consulta
+        from .helpers import get_consulta_or_404
 
         consulta, error = get_consulta_or_404(pk, select_related=(
             "patient",

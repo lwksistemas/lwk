@@ -14,10 +14,10 @@ from .crud import (
     ConsultaFinalizarView,
     ConsultaIniciarView,
     ConsultaListView,
-    ConsultaTrocarProfissionalView,
-    ConsultaResumoFinanceiroView,
     ConsultaReabrirView,
     ConsultaReceberView,
+    ConsultaResumoFinanceiroView,
+    ConsultaTrocarProfissionalView,
 )
 from .prescricoes import (
     ConsultaPrescricaoDeleteView,

@@ -14,6 +14,7 @@ Tabelas alvo:
   crm_vendas_*, nfse_integration_*) em cada schema loja_<cnpj>.
   VACUUM ANALYZE não bloqueia leituras nem escritas.
 """
+import contextlib
 import logging
 
 from django.core.management.base import BaseCommand
@@ -144,10 +145,8 @@ class Command(BaseCommand):
                 logger.exception("vacuum_tenants loja %s: %s", loja.slug, exc)
                 lojas_skip += 1
             finally:
-                try:
+                with contextlib.suppress(Exception):
                     connections[db_name].close()
-                except Exception:
-                    pass
 
         prefixo = "[dry-run] " if dry_run else ""
         self.stdout.write(

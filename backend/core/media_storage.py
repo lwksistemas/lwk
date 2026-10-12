@@ -536,7 +536,7 @@ def _media_auth_headers(tenant: str | None = None) -> dict[str, str]:
 
 def _assinatura_path_midia(path: str, exp: int) -> str:
     """HMAC-SHA256(token, '{path}\\n{exp}') — mesmo algoritmo do media-server."""
-    msg = f"{path}\n{exp}".encode("utf-8")
+    msg = f"{path}\n{exp}".encode()
     return hmac.new((MEDIA_API_TOKEN or "").encode("utf-8"), msg, hashlib.sha256).hexdigest()[:32]
 
 

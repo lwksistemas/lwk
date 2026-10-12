@@ -59,12 +59,11 @@ def enviar_email_pos_emissao_loja(
     """
     from nfse_integration.danfe import buscar_url_danfe_issnet, obter_url_visualizacao_nfse_loja
     from nfse_integration.email_nfse import enviar_email_nfse_tomador
-    from nfse_integration.models import NFSe
-
     from nfse_integration.issnet_nacional_xml_builder import (
         extrair_chave_acesso_nfse_nacional,
         xml_nfse_para_anexo_email,
     )
+    from nfse_integration.models import NFSe
 
     nfse_obj = (
         NFSe.objects.filter(loja_id=loja.id, numero_nf=numero_nf)

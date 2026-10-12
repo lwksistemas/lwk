@@ -46,7 +46,7 @@ def _encryption_secret_bytes() -> bytes:
     # 1. Arquivo externo (recomendado em produção)
     key_file = os.environ.get("FIELD_ENCRYPTION_KEY_FILE", "")
     if key_file and os.path.isfile(key_file):
-        with open(key_file, "r") as f:
+        with open(key_file) as f:
             key = f.read().strip()
         if key:
             return key.encode("utf-8")

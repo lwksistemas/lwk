@@ -5,7 +5,7 @@ from contextlib import suppress
 from django.core.management.base import BaseCommand
 from django.db import connections
 
-from clinica_beleza.schema_ensure import queryset_lojas_clinica_beleza, column_exists, table_exists
+from clinica_beleza.schema_ensure import column_exists, queryset_lojas_clinica_beleza, table_exists
 from core.db_config import ensure_loja_database_config
 
 MIGRATION = "0046_professional_tempo_consulta"

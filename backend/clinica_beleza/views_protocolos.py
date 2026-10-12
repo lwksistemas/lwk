@@ -3,11 +3,10 @@
 from contextlib import suppress
 from decimal import Decimal
 
+from django.utils.dateparse import parse_datetime
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from django.utils.dateparse import parse_datetime
 
 from .agenda_service import AgendaValidationError
 from .models import (
@@ -25,9 +24,9 @@ from .permissions import (
     CLINICA_AGENDA,
     CLINICA_CLINICAL,
     CLINICA_RECEPCAO,
+    _loja_and_profissional,
     professional_id_do_usuario,
     resolve_agenda_professional_scope,
-    _loja_and_profissional,
 )
 from .protocolo_comercial import FORMAS_COBRANCA, ProtocoloAgendaConflito, agendar_protocolo
 from .protocolo_personalizado import (

@@ -245,9 +245,8 @@ def _buscar_paciente_clinica(loja_id: int, digits: str):
 def _loja_emite_nota_da_clinica(loja_id: int) -> bool:
     """Clínica da beleza e salão usam o cadastro de paciente, não o cliente do CRM."""
     try:
-        from superadmin.models import Loja
-
         from nfse_integration.config_loja import TIPOS_CONFIG_CLINICA, tipo_codigo_loja
+        from superadmin.models import Loja
 
         loja = (
             Loja.objects.using("default")

@@ -37,8 +37,8 @@ class MemedTokenView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request):
-        from tenants.middleware import get_current_loja_id
         from superadmin.plano_features import loja_plano_permite_memed
+        from tenants.middleware import get_current_loja_id
 
         ok, err = loja_plano_permite_memed(get_current_loja_id())
         if not ok:

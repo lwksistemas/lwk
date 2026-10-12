@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
-from clinica_beleza.views_consultas.consulta_fluxo import ConsultaIniciarView
+from clinica_beleza.views_consultas.consulta_fluxo import ConsultaTrocarProfissionalView
 from clinica_beleza.views_profissionais import ProfessionalListView
 
 
@@ -12,6 +12,7 @@ class ConsultaIniciarProfissionalNaoHabilitadoTest(SimpleTestCase):
     @patch("clinica_beleza.views_consultas.consulta_fluxo.get_consulta_or_404")
     def test_rejeita_profissional_com_is_profissional_false(self, mock_get_consulta, mock_prof_model):
         consulta = MagicMock()
+        consulta.status = "SCHEDULED"
         consulta.appointment = MagicMock(professional_id=None)
         mock_get_consulta.return_value = (consulta, None)
 
@@ -22,7 +23,7 @@ class ConsultaIniciarProfissionalNaoHabilitadoTest(SimpleTestCase):
         request = MagicMock()
         request.data = {"professional": 99}
 
-        view = ConsultaIniciarView()
+        view = ConsultaTrocarProfissionalView()
         response = view.post(request, pk=1)
 
         self.assertEqual(response.status_code, 400)

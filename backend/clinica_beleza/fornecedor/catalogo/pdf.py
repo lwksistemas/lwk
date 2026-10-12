@@ -10,7 +10,7 @@ from clinica_beleza.fornecedor.catalogo.comum import (
     _norm_nome,
     _parse_preco,
 )
-from clinica_beleza.fornecedor.catalogo.planilha import preview_catalogo_arquivo, _texto_parece_planilha
+from clinica_beleza.fornecedor.catalogo.planilha import _texto_parece_planilha, preview_catalogo_arquivo
 from clinica_beleza.fornecedor.errors import FornecedorError
 
 _PRECO_RE = re.compile(r"R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})")
@@ -43,7 +43,7 @@ _TITULO_SKIP = {
     "beleza em outro nivel", "uso facial", "uso corporal", "face",
     "pescoco", "busto", "maos", "labios", "indicado tambem", "para os",
     "caixa com", "2 sessoes", "preco por sessao", "embalagem economica",
-    "sobre nos", "indicado", "ativo",
+    "sobre nos", "indicado",
 }
 _SECOES_CATALOGO = {
     "estética",
@@ -180,9 +180,7 @@ def _eh_ingrediente(line: str) -> bool:
     s = re.sub(r"\s+", " ", (line or "")).strip()
     if re.search(r"\d+\s*(mg|ml|mcg|ui|%|amp)\b", s, re.I) and not _CODIGO_LINHA_RE.match(s):
         return True
-    if s.startswith("+") or s.startswith("*ATIVOS"):
-        return True
-    return False
+    return s.startswith("+") or s.startswith("*ATIVOS")
 
 
 def _juntar_titulo(partes: list[str]) -> str:

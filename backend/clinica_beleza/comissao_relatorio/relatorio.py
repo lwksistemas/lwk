@@ -5,8 +5,8 @@ from django.utils import timezone
 
 from ..convenio_service import resolver_convenio_atendimento_comissao
 from .alocacao import _alocar_valores_pagamento
-from .finalizados import _valor_servico_atendimento, grupos_atendimentos_finalizados
 from .constants import CHAVE_CONSULTA, LABEL_CONSULTA
+from .finalizados import _valor_servico_atendimento, grupos_atendimentos_finalizados
 from .formatting import _combinar_formas_pagamento, _formatar_regra
 from .local_consulta import _resolver_local_atendimento_efetivo, _resolver_valor_consulta_cadastro
 from .pagamentos import _obter_ou_criar_detalhe

@@ -5,7 +5,7 @@ Uso:
     python manage.py ensure_crm_emitente_documento_colunas --slug felix
 """
 from django.core.management.base import BaseCommand
-from django.db import connections
+from django.db import connection, connections
 
 from core.db_config import ensure_loja_database_config
 from crm_vendas.emitente_documento_schema_ensure import (

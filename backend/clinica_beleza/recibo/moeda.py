@@ -1,5 +1,5 @@
 """Formatação de valores do recibo no padrão brasileiro."""
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 
 def formatar_moeda_recibo(valor) -> str:

@@ -593,6 +593,7 @@ def _sync_consulta(appointment, new_status, old_status):
 def enviar_confirmacao_reagendamento(appointment_id: int, loja_id: int) -> None:
     """Avisa mudança de horário só quando o cliente já tinha o link e a consulta é hoje."""
     from django.db import connections
+
     from superadmin.models import Loja
     from tenants.middleware import _configure_tenant_db_for_loja
     from whatsapp.models import WhatsAppConfig
@@ -660,12 +661,12 @@ def _redisparar_confirmacao_por_mudanca_data(appointment):
     Só avisa agora se o cliente já tinha recebido o link e a consulta já é hoje.
     """
     try:
+        from tenants.middleware import get_current_loja_id
         from whatsapp.confirmacao_agenda_service import (
             antecedencias_da_config,
             dias_ate_consulta,
         )
-        from whatsapp.models import WhatsAppConfirmacaoEnvio, WhatsAppConfig
-        from tenants.middleware import get_current_loja_id
+        from whatsapp.models import WhatsAppConfig, WhatsAppConfirmacaoEnvio
 
         ja_enviou = WhatsAppConfirmacaoEnvio.objects.filter(
             appointment_id=appointment.id,

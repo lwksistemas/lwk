@@ -6,6 +6,8 @@ from core.media_pdf import (
     PASTA_PDF_LOJA,
     arquivar_pdf_gerado,
     salvar_pdf_loja,
+)
+from core.media_pdf import (
     salvar_pdf_pessoa as salvar_pdf_paciente,
 )
 

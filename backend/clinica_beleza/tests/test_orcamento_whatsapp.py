@@ -1,6 +1,7 @@
 """Mensagem de orçamento no WhatsApp: resumo profissional, sem dump de cadastro."""
 from decimal import Decimal
 from types import SimpleNamespace
+
 from django.test import SimpleTestCase
 
 from clinica_beleza.orcamento_service import (

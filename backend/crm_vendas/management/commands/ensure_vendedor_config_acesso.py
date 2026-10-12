@@ -13,8 +13,8 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.db import connections
 
-from core.schema_checks import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
+from core.schema_checks import column_exists, table_exists
 from crm_vendas.schema_service import patch_clinica_beleza_migration_orphans
 from superadmin.tenant_deploy import queryset_lojas_do_app
 

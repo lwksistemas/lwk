@@ -18,8 +18,8 @@ from pathlib import Path
 
 from lxml import etree
 
-from nfse_integration.nacional.constants import NS_NFSE, VERSAO_DPS
-from nfse_integration.nacional.xml_builder import construir_xml_dps, _formatar_decimal
+from nfse_integration.nacional.constants import NS_NFSE
+from nfse_integration.nacional.xml_builder import construir_xml_dps
 
 logger = logging.getLogger(__name__)
 

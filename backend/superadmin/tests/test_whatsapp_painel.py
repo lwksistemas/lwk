@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 
 from superadmin.models import Loja, PlanoAssinatura, TipoLoja, WhatsappApiKey, WhatsappCustomer
 from superadmin.services.whatsapp_painel_service import (
@@ -86,21 +86,34 @@ class PainelWhatsappServiceTests(TestCase):
 class PainelWhatsappApiTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser("sa-wa@t.com", "sa-wa@t.com", "senha12345")
-        self.client = APIClient()
-        self.client.force_authenticate(self.admin)
+        self.factory = APIRequestFactory()
+
+    def _post(self, view, path, data=None, **kwargs):
+        request = self.factory.post(path, data or {}, format="json")
+        force_authenticate(request, user=self.admin)
+        return view.as_view()(request, **kwargs)
+
+    def _get(self, view, path, **kwargs):
+        request = self.factory.get(path)
+        force_authenticate(request, user=self.admin)
+        return view.as_view()(request, **kwargs)
 
     @patch("superadmin.services.whatsapp_painel_service.evolution_configured", return_value=False)
     def test_get_painel_superadmin(self, _cfg):
-        res = self.client.get("/api/superadmin/whatsapp/painel/")
+        from superadmin.views.whatsapp_painel import WhatsappPainelView
+
+        res = self._get(WhatsappPainelView, "/api/superadmin/whatsapp/painel/")
         self.assertEqual(res.status_code, 200)
         self.assertIn("resumo", res.data)
         self.assertIn("clientes", res.data)
 
     def test_cria_parceiro_e_emite_chave(self):
-        res = self.client.post(
+        from superadmin.views.whatsapp_painel import WhatsappParceiroCreateView
+
+        res = self._post(
+            WhatsappParceiroCreateView,
             "/api/superadmin/whatsapp/parceiros/",
             {"nome": "Clínica XP", "documento": CPF_OK, "quota_numeros": 80},
-            format="json",
         )
         self.assertEqual(res.status_code, 201)
         self.assertEqual(res.data["documento"], CPF_OK)
@@ -114,13 +127,23 @@ class PainelWhatsappApiTests(TestCase):
         self.assertEqual(me.data["quota_numeros"], 80)
 
     def test_cria_parceiro_sem_documento_falha(self):
-        res = self.client.post("/api/superadmin/whatsapp/parceiros/", {"nome": "Sem CNPJ"}, format="json")
+        from superadmin.views.whatsapp_painel import WhatsappParceiroCreateView
+
+        res = self._post(WhatsappParceiroCreateView, "/api/superadmin/whatsapp/parceiros/", {"nome": "Sem CNPJ"})
         self.assertEqual(res.status_code, 400)
 
     def test_me_rejeita_chave_revogada(self):
+        from superadmin.views.whatsapp_painel import WhatsappParceiroChaveRevogarView
+
         p = criar_parceiro(nome="Revogar", documento=CNPJ_OK)
         key, raw = emitir_chave(p)
-        self.client.post(f"/api/superadmin/whatsapp/parceiros/{p.id}/chaves/{key.id}/revogar/")
+        rev = self._post(
+            WhatsappParceiroChaveRevogarView,
+            f"/api/superadmin/whatsapp/parceiros/{p.id}/chaves/{key.id}/revogar/",
+            customer_id=p.id,
+            key_id=key.id,
+        )
+        self.assertEqual(rev.status_code, 200)
         me = APIClient().get("/api/whatsapp/v1/me/", HTTP_AUTHORIZATION=f"Bearer {raw}")
         self.assertEqual(me.status_code, 401)
         self.assertTrue(WhatsappApiKey.objects.get(id=key.id).revoked_at)

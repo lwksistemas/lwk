@@ -22,6 +22,12 @@ from .loja import (
     TipoLojaPublicoViewSet,
     TipoLojaViewSet,
 )
+from .midia import (
+    excluir_midia_arquivo,  # noqa: F401 — reexportado para superadmin.urls
+    listar_midia_arquivos,
+    listar_midia_pastas,
+    listar_midia_tenants,
+)
 from .permissions import IsOwnerOrSuperAdmin, IsSuperAdmin
 from .sistema import (
     LoginConfigSistemaViewSet,
@@ -31,12 +37,6 @@ from .sistema import (
     login_config_sistema_publico,
     verificar_storage_loja,
     verificar_storage_todas,
-)
-from .midia import (
-    excluir_midia_arquivo,  # noqa: F401 — reexportado para superadmin.urls
-    listar_midia_arquivos,
-    listar_midia_pastas,
-    listar_midia_tenants,
 )
 from .usuarios import (
     EmailRetryViewSet,

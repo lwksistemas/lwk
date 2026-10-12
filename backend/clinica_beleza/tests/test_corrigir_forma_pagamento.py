@@ -1,7 +1,7 @@
 """Correção da forma de um recebimento já pago, sem mexer no valor."""
+import unittest
 from datetime import date
 from decimal import Decimal
-import unittest
 
 from clinica_beleza.forma_pagamento_correcao import plano_correcao_forma_pagamento
 

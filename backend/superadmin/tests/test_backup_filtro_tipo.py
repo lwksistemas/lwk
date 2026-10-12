@@ -1,5 +1,6 @@
 """Backup da clínica não inclui tabelas de CRM nem log de WhatsApp."""
 from types import SimpleNamespace
+
 from django.test import SimpleTestCase
 
 from superadmin.backup_service.service import _filtrar_tabelas_por_tipo_loja

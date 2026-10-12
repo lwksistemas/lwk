@@ -10,12 +10,12 @@ from .views_config import (
 from .views_evolution_webhook import EvolutionWebhookView
 from .views_parceiro_api import (
     WhatsappParceiroEvolutionWebhookView,
-    WhatsappParceiroMeView,
     WhatsappParceiroMensagensView,
+    WhatsappParceiroMeView,
     WhatsappParceiroNumeroDesconectarView,
     WhatsappParceiroNumeroQrView,
-    WhatsappParceiroNumeroView,
     WhatsappParceiroNumerosView,
+    WhatsappParceiroNumeroView,
 )
 
 app_name = "whatsapp"

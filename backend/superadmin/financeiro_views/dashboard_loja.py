@@ -6,12 +6,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from core.tenant_access import user_is_loja_admin
 from superadmin.services.assinatura_bloqueio_service import (
     situacao_aviso_assinatura,
     situacao_geracao_boleto_assinatura,
 )
-
-from core.tenant_access import user_is_loja_admin
 
 from ..loja_utils import resolve_loja_by_slug_or_atalho
 from ..models import PagamentoLoja

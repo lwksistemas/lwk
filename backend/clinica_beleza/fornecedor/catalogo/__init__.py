@@ -5,13 +5,13 @@ from clinica_beleza.fornecedor.catalogo.comum import (
     _parse_preco,
 )
 from clinica_beleza.fornecedor.catalogo.pdf import (
-    preview_catalogo_pdf,
     _parse_catalogo_texto_livre,
     _texto_pagina_pypdf,
+    preview_catalogo_pdf,
 )
 from clinica_beleza.fornecedor.catalogo.planilha import (
-    preview_catalogo_arquivo,
     _texto_parece_planilha,
+    preview_catalogo_arquivo,
 )
 from clinica_beleza.fornecedor.errors import FornecedorError
 

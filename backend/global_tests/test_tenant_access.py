@@ -65,7 +65,7 @@ class TenantAccessTestCase(TestCase):
             email="vendedor@test.com",
             password="senha123",
         )
-        VendedorUsuario.objects.create(user=vendedor_user, loja=self.loja_a)
+        VendedorUsuario.objects.create(user=vendedor_user, loja=self.loja_a, vendedor_id=1)
         self.assertTrue(user_can_access_loja(vendedor_user, self.loja_a))
         self.assertFalse(user_can_access_loja(vendedor_user, self.loja_b))
 

@@ -7,8 +7,8 @@ from django.test import SimpleTestCase, override_settings
 from clinica_beleza.agenda_confirmacao_service import (
     MSG_LINK_SUBSTITUIDO,
     decodificar_token_confirmacao,
-    gerar_token_confirmacao,
     geracao_do_payload,
+    gerar_token_confirmacao,
     obter_dados_confirmacao,
     processar_resposta_confirmacao,
     token_confirmacao_desatualizado,

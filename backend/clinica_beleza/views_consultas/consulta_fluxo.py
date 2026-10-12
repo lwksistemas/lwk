@@ -79,7 +79,10 @@ class ConsultaTrocarProfissionalView(APIView):
         try:
             trocar_profissional_consulta(consulta, prof)
         except ValueError as exc:
-            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            payload = {"error": str(exc)}
+            if getattr(prof, "is_profissional", True) is False:
+                payload["code"] = "PROFESSIONAL_NOT_SCHEDULABLE"
+            return Response(payload, status=status.HTTP_400_BAD_REQUEST)
         consulta = Consulta.objects.select_related(
             "patient", "professional", "procedure", "protocol", "appointment",
         ).get(pk=pk)

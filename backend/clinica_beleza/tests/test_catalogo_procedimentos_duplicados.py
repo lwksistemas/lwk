@@ -1,4 +1,5 @@
 """Evita procedimentos duplicados por diferença de caixa no catálogo."""
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, TestCase
@@ -10,7 +11,6 @@ from clinica_beleza.catalogo_service import (
     _upsert_procedimento_catalogo,
 )
 from clinica_beleza.procedimentos_catalogo import ProcedimentoCatalogoItem
-from decimal import Decimal
 
 
 class NormalizarNomeProcedimentoTests(TestCase):

@@ -7,8 +7,8 @@ from django.utils import timezone
 
 from clinica_beleza.consulta_auto_finalizar_service import (
     MARGEM_APOS_FIM_AGENDAMENTO_HORAS,
-    _finalizar_cliente_presente_sem_iniciar,
     _fim_agendamento,
+    _finalizar_cliente_presente_sem_iniciar,
     _horario_limite_finalizacao,
 )
 

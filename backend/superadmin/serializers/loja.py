@@ -198,7 +198,8 @@ class LojaCreateSerializer(
         cpf_cnpj = (attrs.get("cpf_cnpj") or "").strip()
         digits = "".join(c for c in cpf_cnpj if c.isdigit())
         from django.core.exceptions import ValidationError as DjangoValidationError
-        from core.validators import validate_cpf, validate_cnpj
+
+        from core.validators import validate_cnpj, validate_cpf
 
         try:
             if len(digits) == 11:

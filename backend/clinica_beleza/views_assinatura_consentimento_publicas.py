@@ -129,6 +129,7 @@ class ConsultaAssinaturaPublicaView(View):
         })
 
     def post(self, request, token):
+        from clinica_beleza.media_docs_service import _salvar_termo_no_servidor_midia
         from core.assinatura_service import (
             criar_assinatura,
             enviar_email_parte2,
@@ -136,7 +137,6 @@ class ConsultaAssinaturaPublicaView(View):
             normalizar_token_url,
             registrar_assinatura,
         )
-        from clinica_beleza.media_docs_service import _salvar_termo_no_servidor_midia
 
         token = normalizar_token_url(token)
         ctx, err = _carregar_assinatura_publica(token)
@@ -147,6 +147,7 @@ class ConsultaAssinaturaPublicaView(View):
         loja_id = payload["loja_id"]
 
         import json
+
         from .termos_consentimento_service import (
             normalizar_secoes,
             template_do_procedimento,

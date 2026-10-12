@@ -5,8 +5,8 @@ from typing import Any
 from django.utils import timezone
 
 from clinica_beleza.models import OrcamentoConsulta
-from clinica_beleza.recibo.imagem import jpeg_de_pdf
 from clinica_beleza.orcamento.pdf import _format_brl, gerar_pdf_orcamento
+from clinica_beleza.recibo.imagem import jpeg_de_pdf
 from superadmin.models import Loja
 
 logger = logging.getLogger(__name__)
@@ -114,6 +114,7 @@ def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
 
     try:
         from django.conf import settings
+
         from whatsapp.models import WhatsAppConfig
         from whatsapp.services import (
             _send_whatsapp_document_evolution,

@@ -3,7 +3,11 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
-from whatsapp.connection_service import disconnect_evolution, sync_evolution_connection, _apply_evolution_state_to_config
+from whatsapp.connection_service import (
+    _apply_evolution_state_to_config,
+    disconnect_evolution,
+    sync_evolution_connection,
+)
 from whatsapp.evolution_client import EvolutionAPIError
 from whatsapp.models import WhatsAppConfig
 

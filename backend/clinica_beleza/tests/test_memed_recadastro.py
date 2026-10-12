@@ -99,8 +99,9 @@ class CpfEhPrescritorNaMemedTest(SimpleTestCase):
 
     @patch("clinica_beleza.memed_service.requests.get", side_effect=Exception("rede"))
     def test_falha_de_rede_retorna_false(self, _mock_get):
-        from clinica_beleza.memed_service import cpf_e_prescritor_na_memed
         import requests as _rq
+
+        from clinica_beleza.memed_service import cpf_e_prescritor_na_memed
 
         # A funcao captura requests.RequestException; simular esse tipo.
         with patch("clinica_beleza.memed_service.requests.get",

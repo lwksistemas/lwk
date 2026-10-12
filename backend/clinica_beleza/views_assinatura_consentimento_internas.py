@@ -17,8 +17,8 @@ from .consentimento_assinatura_envio_service import (
     validar_destino_envio_termo,
 )
 from .consentimento_assinatura_publica_service import (
-    preencher_termo_se_vazio,
     path_assinar_consentimento,
+    preencher_termo_se_vazio,
     resolver_termo_procedimento,
 )
 from .consentimento_service import (

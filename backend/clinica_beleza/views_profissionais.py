@@ -43,9 +43,8 @@ def _criar_acesso_se_pedido(professional, *, criar_acesso, username, perfil):
             {"detail": "E-mail é obrigatório para enviar a senha."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    from tenants.middleware import get_current_loja_id
-
     from superadmin.models import ProfissionalUsuario
+    from tenants.middleware import get_current_loja_id
 
     loja_id = get_current_loja_id()
     if loja_id and ProfissionalUsuario.objects.using("default").filter(

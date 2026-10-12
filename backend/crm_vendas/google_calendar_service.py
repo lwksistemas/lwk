@@ -2,15 +2,14 @@
 OAuth2 + criar/atualizar/listar eventos.
 """
 import logging
-from datetime import timedelta
-from datetime import timezone as dt_timezone
+from datetime import UTC, timedelta
 
 from django.conf import settings
 from django.utils import timezone
 
 # django.utils.timezone.utc foi removido em versões recentes do Django;
 # usamos o UTC do datetime padrão.
-UTC = dt_timezone.utc
+UTC = UTC
 
 logger = logging.getLogger(__name__)
 

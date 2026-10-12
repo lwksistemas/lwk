@@ -519,7 +519,7 @@ class BackupImageExporter:
                             url,
                             origem=table,
                             referencia=f"{pk_col}={pk}",
-                            zip_prefix=_prefixo_zip_url(url, f"admin/fotos"),
+                            zip_prefix=_prefixo_zip_url(url, "admin/fotos"),
                         )
 
     def _export_generic_url_columns(

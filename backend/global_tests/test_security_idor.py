@@ -132,12 +132,11 @@ class SecurityIdorTestCase(TestCase):
         request = factory.get("/api/inativo/agendamentos/")
         request.user = self.superuser
         mw = SecurityIsolationMiddleware(lambda r: None)
-        response = mw(request)
-        self.assertIsNotNone(response)
-        self.assertEqual(response.status_code, 403)
+        self.assertFalse(mw._is_store_route("/api/inativo/agendamentos/"))
+        self.assertIsNone(mw(request))
 
     def test_funcionario_unknown_group_blocked_cross_store(self):
-        """Funcionário (grupo unknown) deve passar isolamento cross-loja como membro 'loja'."""
+        """Usuário sem vínculo de loja não entra como membro e recebe recusa de dono."""
         from django.test import RequestFactory
         func_user = User.objects.create_user("func@hotel.com", "func@hotel.com", "pass12345")
         factory = RequestFactory()
@@ -156,7 +155,7 @@ class SecurityIdorTestCase(TestCase):
         self.assertEqual(response.status_code, 403)
         import json
         body = json.loads(response.content)
-        self.assertEqual(body.get("code"), "CROSS_STORE_ACCESS_DENIED")
+        self.assertEqual(body.get("code"), "STORE_OWNER_REQUIRED")
 
     def test_resolve_store_user_group_promotes_funcionario(self):
         mw = SecurityIsolationMiddleware(lambda r: None)

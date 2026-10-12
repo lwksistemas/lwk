@@ -256,15 +256,15 @@ def gerar_pdf_lancamentos(
             ))
             rows = [
                 [
-                    _fmt_iso_br(l.get("data")),
-                    l.get("paciente") or "—",
-                    l.get("procedimentos") or "—",
-                    l.get("convenio") or "—",
-                    l.get("forma_pagamento_label") or l.get("forma_pagamento") or "—",
-                    _fmt_brl(l.get("valor")),
-                    _fmt_brl(l.get("comissao")),
+                    _fmt_iso_br(lancamento.get("data")),
+                    lancamento.get("paciente") or "—",
+                    lancamento.get("procedimentos") or "—",
+                    lancamento.get("convenio") or "—",
+                    lancamento.get("forma_pagamento_label") or lancamento.get("forma_pagamento") or "—",
+                    _fmt_brl(lancamento.get("valor")),
+                    _fmt_brl(lancamento.get("comissao")),
                 ]
-                for l in (p.get("lancamentos") or [])
+                for lancamento in (p.get("lancamentos") or [])
             ]
             footer = [
                 "Total",
@@ -331,15 +331,15 @@ def gerar_pdf_descontos(
             ))
             rows = [
                 [
-                    _fmt_iso_br(l.get("data")),
-                    l.get("paciente") or "—",
-                    l.get("procedimentos") or "—",
-                    l.get("convenio") or "—",
-                    _fmt_brl(l.get("valor_bruto")),
-                    _fmt_brl(l.get("desconto")),
-                    _fmt_brl(l.get("valor_liquido")),
+                    _fmt_iso_br(lancamento.get("data")),
+                    lancamento.get("paciente") or "—",
+                    lancamento.get("procedimentos") or "—",
+                    lancamento.get("convenio") or "—",
+                    _fmt_brl(lancamento.get("valor_bruto")),
+                    _fmt_brl(lancamento.get("desconto")),
+                    _fmt_brl(lancamento.get("valor_liquido")),
                 ]
-                for l in (p.get("lancamentos") or [])
+                for lancamento in (p.get("lancamentos") or [])
             ]
             footer = [
                 "Total",
@@ -657,13 +657,13 @@ def gerar_pdf_inadimplentes(*, resultado: dict, loja) -> BytesIO:
         headers = ["Paciente", "Telefone", "Vencimento", "Atraso", "Valor em aberto"]
         rows = [
             [
-                l.get("paciente_nome") or "—",
-                l.get("telefone") or "—",
-                _fmt_iso_br(l.get("vencimento")),
-                f'{l.get("dias_atraso", 0)} dia(s)',
-                _fmt_brl(l.get("valor_aberto")),
+                linha.get("paciente_nome") or "—",
+                linha.get("telefone") or "—",
+                _fmt_iso_br(linha.get("vencimento")),
+                f'{linha.get("dias_atraso", 0)} dia(s)',
+                _fmt_brl(linha.get("valor_aberto")),
             ]
-            for l in linhas
+            for linha in linhas
         ]
         footer = ["Total", "", "", "", _fmt_brl(totais.get("valor_total"))]
         elements.append(_tabela_mista(headers, rows, footer, col_w, n_texto=2))

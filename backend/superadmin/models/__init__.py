@@ -13,8 +13,8 @@ from .financeiro import FinanceiroLoja, PagamentoLoja
 from .integrations import GoogleCalendarConnection
 from .loja import Loja
 from .mercadopago import MercadoPagoConfig
-from .radiologia_maquinas import ContratoPacsLoja, MaquinaRadiologia
 from .nfse import NFSeEmitida
+from .radiologia_maquinas import ContratoPacsLoja, MaquinaRadiologia
 from .security import HistoricoAcessoGlobal, ViolacaoSeguranca
 from .session import UserSession
 from .users import LoginLockout, ProfissionalUsuario, UsuarioSistema, VendedorUsuario

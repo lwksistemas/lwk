@@ -1,6 +1,7 @@
 """GET /clinica-beleza/memed/status/ e verificar-cpf-paciente."""
 import re
 
+from django.conf import settings
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,7 +10,6 @@ from clinica_beleza.memed_config import memed_config as _memed_config
 from clinica_beleza.memed_config import memed_credentials as _memed_credentials
 from clinica_beleza.memed_service import status_prescritor_para_diagnostico
 from clinica_beleza.permissions import CLINICA_CLINICAL
-from django.conf import settings
 
 
 class MemedVerificarCpfPacienteView(APIView):
@@ -24,9 +24,9 @@ class MemedVerificarCpfPacienteView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request):
-        from tenants.middleware import get_current_loja_id
-        from superadmin.plano_features import loja_plano_permite_memed
         from clinica_beleza.memed_service import cpf_e_prescritor_na_memed
+        from superadmin.plano_features import loja_plano_permite_memed
+        from tenants.middleware import get_current_loja_id
 
         ok, err = loja_plano_permite_memed(get_current_loja_id())
         if not ok:
@@ -47,8 +47,8 @@ class MemedStatusView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request):
-        from tenants.middleware import get_current_loja_id
         from superadmin.plano_features import loja_plano_permite_memed
+        from tenants.middleware import get_current_loja_id
 
         ok, err = loja_plano_permite_memed(get_current_loja_id())
         if not ok:

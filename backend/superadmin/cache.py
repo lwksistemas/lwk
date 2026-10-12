@@ -106,9 +106,16 @@ class CacheService:
 
         """
         full_pattern = f"{cls.PREFIX}{pattern}"
+        keys_fn = getattr(cache, "keys", None)
+        if not callable(keys_fn):
+            if pattern in ("*", ""):
+                cache.clear()
+                logger.info("Cache CLEAR via cache.clear() (backend sem keys)")
+                return 1
+            return 0
         try:
             # Obter todas as chaves que correspondem ao padrão
-            keys = cache.keys(full_pattern)
+            keys = keys_fn(full_pattern)
             if keys:
                 cache.delete_many(keys)
                 logger.info(f"Cache DELETE_PATTERN: {full_pattern} ({len(keys)} chaves)")

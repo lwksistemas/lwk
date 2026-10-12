@@ -15,7 +15,7 @@ def issnet_client_from_pfx(
     senha: str,
     ambiente: str,
     prefix: str = "issnet_",
-) -> Generator[Any, None, None]:
+) -> Generator[Any]:
     """Abre ISSNetClient com certificado PFX em arquivo temporário."""
     from nfse_integration.issnet_client import ISSNetClient
 
@@ -68,7 +68,7 @@ def _senha_cert(config: Any) -> str:
 
 
 @contextmanager
-def issnet_client_loja(config: Any, *, prefix: str = "issnet_") -> Generator[Any, None, None]:
+def issnet_client_loja(config: Any, *, prefix: str = "issnet_") -> Generator[Any]:
     """ISSNetClient a partir da CRMConfig da loja."""
     ambiente = (
         "homologacao"
@@ -87,7 +87,7 @@ def issnet_client_loja(config: Any, *, prefix: str = "issnet_") -> Generator[Any
 
 
 @contextmanager
-def issnet_client_superadmin(config: Any, *, prefix: str = "issnet_") -> Generator[Any, None, None]:
+def issnet_client_superadmin(config: Any, *, prefix: str = "issnet_") -> Generator[Any]:
     """ISSNetClient a partir da SuperadminNFSeConfig."""
     from core.encryption import decrypt_value
 

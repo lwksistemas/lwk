@@ -217,9 +217,8 @@ class ChamadoViewSet(viewsets.ModelViewSet):
         fim    = abertura + timezone.timedelta(minutes=JANELA_MIN)
 
         try:
-            from superadmin.models import HistoricoAcessoGlobal, Loja
-            from superadmin.serializers import HistoricoAcessoGlobalListSerializer
             from superadmin.historico_mensagens import mensagem_resultado, tipo_resultado
+            from superadmin.models import HistoricoAcessoGlobal, Loja
 
             loja_obj = Loja.objects.using("default").filter(slug=chamado.loja_slug).first()
             hist_loja_slug = (

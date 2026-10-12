@@ -1,11 +1,10 @@
 """get_credentials: só apaga a conexão em erro DEFINITIVO (invalid_grant).
 Erro transitório (rede/5xx) mantém a conexão e pede para tentar de novo.
 """
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, override_settings
-
 from google.auth.exceptions import RefreshError
 
 from crm_vendas.google_calendar_service import get_credentials
@@ -16,7 +15,7 @@ def _conn():
     c.access_token = "velho"
     c.refresh_token = "refresh-abc"
     # expirado (ontem)
-    c.token_expiry = datetime.now(dt_timezone.utc) - timedelta(days=1)
+    c.token_expiry = datetime.now(UTC) - timedelta(days=1)
     return c
 
 

@@ -183,7 +183,10 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
             const abertaLinha = aberta === assinatura.id;
             const editando = planoEditando === assinatura.id;
             const semFinanceiro = !assinatura.financeiro_id;
-            const vencimento = assinatura.current_payment_data?.due_date || assinatura.data_vencimento;
+            const vencimento = assinatura.data_vencimento || assinatura.current_payment_data?.due_date;
+            const cobrancaAberta = Boolean(
+              assinatura.current_payment_data && !assinatura.current_payment_data.is_paid,
+            );
             return (
               <Fragment key={chave}>
                 <tr className="align-top hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -210,9 +213,9 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                   </td>
                   <td className="px-3 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
                     {formatDate(vencimento)}
-                    {assinatura.current_payment_data?.status_display && (
+                    {cobrancaAberta && (
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {assinatura.current_payment_data.status_display}
+                        {assinatura.current_payment_data?.status_display}
                       </div>
                     )}
                   </td>

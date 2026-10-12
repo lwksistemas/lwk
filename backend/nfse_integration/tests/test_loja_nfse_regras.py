@@ -1,0 +1,124 @@
+"""Regras de NFS-e da loja, sem chamar prefeitura nem Asaas."""
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+from django.test import SimpleTestCase
+
+from nfse_integration.issnet_nacional_xml_builder import construir_xml_cancelar_nfse_nacional
+from nfse_integration.loja_nfse_api import (
+    ConfigLojaInconsistenteError,
+    ExclusaoNFSeLojaError,
+    _consultar_nfse_issnet_por_rps,
+    _copiar_campos_numericos_portal,
+    _copiar_campos_portal,
+    _sanitizar_resultado_recuperacao,
+    _series_rps_candidatas,
+    processar_emissao_nfse_loja,
+    provedor_nf_loja,
+    sincronizar_nfse_asaas_loja,
+    validar_config_crm_loja,
+    validar_exclusao_nfse_loja,
+    xml_nfse_conteudo,
+)
+
+
+class LojaNfseRegrasTests(SimpleTestCase):
+    def test_config_de_outra_loja_e_recusada(self):
+        with self.assertRaises(ConfigLojaInconsistenteError):
+            validar_config_crm_loja(SimpleNamespace(id=1), SimpleNamespace(loja_id=2))
+        validar_config_crm_loja(SimpleNamespace(id=4), SimpleNamespace(loja_id=4))
+
+    def test_provedor_padrao_e_asaas(self):
+        self.assertEqual(provedor_nf_loja(SimpleNamespace()), "issnet")
+        self.assertEqual(provedor_nf_loja(SimpleNamespace(provedor_nf=" Asaas ")), "asaas")
+
+    def test_nota_emitida_ou_cancelada_nao_exclui(self):
+        with self.assertRaises(ExclusaoNFSeLojaError) as emitida:
+            validar_exclusao_nfse_loja(SimpleNamespace(status="emitida"))
+        self.assertIn("Cancelar", emitida.exception.message)
+        with self.assertRaises(ExclusaoNFSeLojaError):
+            validar_exclusao_nfse_loja(SimpleNamespace(status="cancelada"))
+        validar_exclusao_nfse_loja(SimpleNamespace(status="rascunho"))
+
+    def test_xml_prefere_a_nota_e_cai_no_rps(self):
+        self.assertEqual(xml_nfse_conteudo(SimpleNamespace(xml_nfse="<nf/>", xml_rps="<rps/>")), "<nf/>")
+        self.assertEqual(xml_nfse_conteudo(SimpleNamespace(xml_nfse="", xml_rps="<rps/>")), "<rps/>")
+
+    def test_series_rps_inclui_alternativas(self):
+        self.assertEqual(_series_rps_candidatas(SimpleNamespace(issnet_serie_rps="E")), ["E", "1", "NF"])
+        self.assertEqual(_series_rps_candidatas(SimpleNamespace(issnet_serie_rps="")), ["1", "E", "NF"])
+
+    def test_tomador_igual_ao_prestador_sai_do_resultado(self):
+        out = _sanitizar_resultado_recuperacao(
+            {"tomador_cpf_cnpj": "12.345.678/0001-90", "numero_nf": "9"},
+            "12345678000190",
+        )
+        self.assertEqual(out["tomador_cpf_cnpj"], "")
+        self.assertEqual(out["numero_nf"], "9")
+
+    def test_portal_nao_copia_cnpj_do_proprio_prestador(self):
+        out = {}
+        _copiar_campos_portal(
+            out,
+            {"tomador_nome": "Ana", "tomador_cpf_cnpj": "12345678000190"},
+            "12345678000190",
+            False,
+        )
+        self.assertEqual(out, {"tomador_nome": "Ana"})
+        _copiar_campos_numericos_portal(out, {"valor": "10.50"}, False)
+        self.assertEqual(out["valor"], 10.5)
+
+    def test_emissao_enfileira_sem_chamar_o_provedor(self):
+        with (
+            patch("nfse_integration.queue_dispatch.should_enqueue_nfse", return_value=True),
+            patch("nfse_integration.queue_dispatch.enqueue_emissao_nfse_loja") as enfileirar,
+        ):
+            body, code = processar_emissao_nfse_loja(SimpleNamespace(id=1), 4, {"servico_descricao": "Consulta"})
+        self.assertEqual(code, 202)
+        self.assertTrue(body["queued"])
+        enfileirar.assert_called_once_with(4, {"servico_descricao": "Consulta"})
+
+    def test_sync_asaas_recusa_nota_de_outro_provedor_e_loja_sem_chave(self):
+        body, code = sincronizar_nfse_asaas_loja(SimpleNamespace(provedor="issnet"), 4)
+        self.assertEqual(code, 400)
+        self.assertIn("Asaas", body["error"])
+
+        with patch(
+            "nfse_integration.loja_nfse_api._resolver_config_nfse_loja",
+            return_value=SimpleNamespace(asaas_api_key=""),
+        ):
+            body, code = sincronizar_nfse_asaas_loja(SimpleNamespace(provedor="asaas"), 4)
+        self.assertEqual(code, 400)
+        self.assertIn("API Key", body["error"])
+
+    def test_consulta_por_rps_para_em_nota_cancelada(self):
+        client = MagicMock()
+        client.consultar_nfse_por_rps.return_value = {"cancelada": True}
+
+        class _Cliente:
+            def __enter__(self):
+                return client
+
+            def __exit__(self, *args):
+                return False
+
+        with patch("nfse_integration.issnet_loja.issnet_client_loja", return_value=_Cliente()):
+            parsed, err = _consultar_nfse_issnet_por_rps(
+                SimpleNamespace(issnet_serie_rps="1", inscricao_municipal="1"),
+                SimpleNamespace(cpf_cnpj="123", inscricao_municipal=""),
+                10,
+                serie_rps="1",
+            )
+        self.assertIsNone(parsed)
+        self.assertIn("cancelada", err)
+
+    def test_xml_de_cancelamento_traz_numero_e_cnpj(self):
+        xml = construir_xml_cancelar_nfse_nacional(
+            numero_nfse="123",
+            prestador_cnpj="12.345.678/0001-90",
+            prestador_inscricao_municipal="999",
+            codigo_cancelamento="1",
+        )
+        self.assertIn(">123<", xml)
+        self.assertIn("12345678000190", xml)
+        self.assertIn("CancelarNfseEnvio", xml)

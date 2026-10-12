@@ -20,4 +20,9 @@ describe('parseNfseEmissaoResult', () => {
     expect(result.queued).toBe(false);
     expect(result.message).toContain('sucesso');
   });
+
+  it('usa o texto padrão quando a API não manda mensagem', () => {
+    expect(parseNfseEmissaoResult(202, { success: true, queued: true }).message).toContain('enfileirada');
+    expect(parseNfseEmissaoResult(201, { success: true }).message).toContain('emitida');
+  });
 });

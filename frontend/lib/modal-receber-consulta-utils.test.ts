@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildReceberPayload,
   calcularTotalLiquido,
+  formatEntradasResumo,
+  parseMoneyInput,
   somaEntradas,
+  somaEntradasPagas,
   taxaConsultaCobrada,
   validateReceberForm,
   type EntradaPagamentoLinha,
@@ -196,5 +199,30 @@ describe("buildReceberPayload", () => {
       valorProcedimentos: 80,
     });
     expect(body.valor_procedimentos).toBe("80");
+  });
+});
+
+describe("valores e resumo do receber", () => {
+  it("aceita vírgula e ignora texto", () => {
+    expect(parseMoneyInput("10,5")).toBe(10.5);
+    expect(parseMoneyInput("")).toBe(0);
+    expect(parseMoneyInput("abc")).toBe(0);
+  });
+
+  it("a prazo não entra no que já foi pago", () => {
+    expect(
+      somaEntradasPagas([
+        linha("PIX", "100"),
+        { id: "2", payment_method: "PRAZO", valor: "50" },
+      ]),
+    ).toBe(100);
+  });
+
+  it("resume só as entradas com valor", () => {
+    const texto = formatEntradasResumo(
+      [linha("PIX", "100"), { id: "2", payment_method: "CASH", valor: "0" }],
+      { PIX: "Pix" },
+    );
+    expect(texto).toBe("Pix: R$ 100,00");
   });
 });

@@ -33,42 +33,7 @@ def _get_nfse_config(loja_id: int):
             return config
     except Exception:
         logger.debug("NFS-e config clinica_beleza indisponível loja_id=%s", loja_id, exc_info=True)
-
-    # Fallback: tabela antiga (CRM) no mesmo tenant
-    try:
-        from django.db import connections
-
-        from tenants.middleware import get_current_tenant_db
-
-        db = get_current_tenant_db() or "default"
-        conn = connections[db]
-        with conn.cursor() as c:
-            c.execute(
-                """
-                SELECT emitir_nf_automaticamente, provedor_nf,
-                       descricao_servico_padrao, codigo_servico_municipal,
-                       item_lista_servico
-                FROM crm_vendas_crmconfig
-                WHERE loja_id = %s
-                LIMIT 1
-                """,
-                [loja_id],
-            )
-            row = c.fetchone()
-        if not row:
-            return None
-
-        class _NfseConfig:
-            emitir_nf_automaticamente = row[0]
-            provedor_nf = row[1] or "asaas"
-            descricao_servico_padrao = row[2] or ""
-            codigo_servico_municipal = row[3] or ""
-            item_lista_servico = row[4] or ""
-
-        return _NfseConfig()
-    except Exception:
-        logger.debug("NFS-e config CRM fallback indisponível loja_id=%s", loja_id, exc_info=True)
-        return None
+    return None
 
 
 def montar_payload_nfse_consulta(consulta, payment, config) -> dict[str, Any] | None:

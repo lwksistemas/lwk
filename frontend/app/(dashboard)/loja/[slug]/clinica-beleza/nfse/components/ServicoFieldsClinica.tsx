@@ -1,6 +1,6 @@
 'use client';
 
-import { NFSE_EMISSAO_INPUT_CLASS } from '@/lib/nfse-emissao-form';
+import { NFSE_EMISSAO_INPUT_CLASS } from '@/lib/nfse-emissao-clinica';
 
 interface ServicoFieldsClinicaProps {
   servico_descricao: string;

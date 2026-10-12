@@ -1,25 +1,22 @@
 'use client';
 
-import { useParams } from 'next/navigation';
 import { X } from 'lucide-react';
-import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
+import PaginationBar from '@/components/PaginationBar';
 import { ClinicaBelezaNFSeConfigProvider } from '@/contexts/ClinicaBelezaNFSeConfigContext';
 import { useClinicaNfsePage } from '@/hooks/clinica-beleza/useClinicaNfsePage';
 import { NfseCancelamentoModal } from '@/components/nfse/NfseCancelamentoModal';
 import { nfseIdentificador } from '@/lib/nfse-helpers';
-import { ModalRecuperarNFSe } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/ModalRecuperarNFSe';
-import ModalNfseEnviarWhatsapp from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/ModalNfseEnviarWhatsapp';
-import { NfseLojaEmptyState } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/NfseLojaEmptyState';
-import { NfseLojaFilters } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/NfseLojaFilters';
-import { NfseLojaHeader } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/NfseLojaHeader';
-import { NfseLojaLoading } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/NfseLojaLoading';
-import { NfseLojaSyncMessage } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/NfseLojaSyncMessage';
-import { NfseLojaTable } from '@/app/(dashboard)/loja/[slug]/crm-vendas/nfse/components/NfseLojaTable';
+import { ModalRecuperarNFSe } from './components/ModalRecuperarNFSe';
+import ModalNfseEnviarWhatsapp from './components/ModalNfseEnviarWhatsapp';
+import { NfseLojaEmptyState } from './components/NfseLojaEmptyState';
+import { NfseLojaFilters } from './components/NfseLojaFilters';
+import { NfseLojaHeader } from './components/NfseLojaHeader';
+import { NfseLojaLoading } from './components/NfseLojaLoading';
+import { NfseLojaSyncMessage } from './components/NfseLojaSyncMessage';
+import { NfseLojaTable } from './components/NfseLojaTable';
 import { ModalEmitirNFSeClinica } from './components/ModalEmitirNFSeClinica';
 
 function ClinicaNFSePageContent() {
-  const params = useParams();
-  const slug = params.slug as string;
   const {
     lojaProvedor,
     whatsappAtivo,
@@ -67,7 +64,6 @@ function ClinicaNFSePageContent() {
   return (
     <div className="space-y-6">
       <NfseLojaHeader
-        slug={slug}
         onEmitir={() => setShowModal(true)}
         onRecuperar={lojaProvedor === 'issnet' ? () => setShowRecuperarModal(true) : undefined}
       />
@@ -100,7 +96,7 @@ function ClinicaNFSePageContent() {
             onCancelar={requestCancelarNFSe}
             whatsappHabilitado={whatsappAtivo}
           />
-          <CrmPaginationBar
+          <PaginationBar
             page={page}
             totalPages={totalPages}
             totalCount={totalCount}

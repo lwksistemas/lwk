@@ -39,6 +39,27 @@ def _extrair_prestador_do_xml(xml_nfse: str) -> tuple[str, str]:
     return cnpj, inscricao_municipal
 
 
+def _config_nfse_da_loja_id(loja_id: int) -> Any:
+    """Config do app da loja. Clínica não abre a tabela do CRM."""
+    from nfse_integration.config_loja import config_nfse_por_loja_id
+
+    return config_nfse_por_loja_id(loja_id)
+
+
+def _outra_config_com_inscricao(config: Any, loja_id: int | None) -> Any | None:
+    model = type(config)
+    manager = getattr(model, "objects", None)
+    if manager is None or not loja_id:
+        return None
+    return (
+        manager.filter(loja_id=loja_id)
+        .exclude(inscricao_municipal__isnull=True)
+        .exclude(inscricao_municipal="")
+        .order_by("id")
+        .first()
+    )
+
+
 def _salvar_pdf_url(nfse: Any, url: str) -> None:
     if not nfse or not url:
         return
@@ -101,27 +122,17 @@ def _resolver_cnpj_im_danfe(config, loja, nfse) -> tuple[str, str]:
         or getattr(loja, "inscricao_municipal", "")
         or ""
     )
-    # Se a config carregada veio sem IM (ex.: registro duplicado vazio),
-    # tenta a outra CRMConfig da mesma loja com IM preenchida.
+    # Registro duplicado vazio: usa outra config do mesmo app, da mesma loja.
     if not str(im_prestador or "").strip() and config is not None:
         try:
-            from crm_vendas.models_config import CRMConfig
-
             loja_id = getattr(config, "loja_id", None) or getattr(loja, "id", None)
-            if loja_id:
-                alt = (
-                    CRMConfig.objects.filter(loja_id=loja_id)
-                    .exclude(inscricao_municipal__isnull=True)
-                    .exclude(inscricao_municipal="")
-                    .order_by("id")
-                    .first()
-                )
-                if alt and (alt.inscricao_municipal or "").strip():
-                    im_prestador = alt.inscricao_municipal
-                    if not cnpj_prestador:
-                        cnpj_prestador = getattr(alt, "cnpj_prestador", "") or cnpj_prestador
+            alt = _outra_config_com_inscricao(config, loja_id)
+            if alt and (alt.inscricao_municipal or "").strip():
+                im_prestador = alt.inscricao_municipal
+                if not cnpj_prestador:
+                    cnpj_prestador = getattr(alt, "cnpj_prestador", "") or cnpj_prestador
         except Exception as exc:
-            logger.debug("Fallback IM CRMConfig: %s", exc)
+            logger.debug("Fallback inscrição municipal: %s", exc)
 
     xml_nfse = getattr(nfse, "xml_nfse", "") if nfse else ""
     xml_cnpj, xml_im = _extrair_prestador_do_xml(xml_nfse)
@@ -155,12 +166,10 @@ def buscar_url_danfe_issnet(
 
     try:
         if config is None:
-            from crm_vendas.models_config import CRMConfig
-
             effective_loja_id = loja_id or getattr(nfse, "loja_id", None)
             if not effective_loja_id:
                 return ""
-            config = CRMConfig.get_or_create_for_loja(effective_loja_id)
+            config = _config_nfse_da_loja_id(effective_loja_id)
 
         from nfse_integration.issnet_loja import (
             certificado_configurado_loja,
@@ -289,7 +298,6 @@ def _gerar_url_portal_issnet_nacional(
         import contextlib
 
         from core.encryption import decrypt_value
-        from crm_vendas.models_config import CRMConfig
         from nfse_integration.issnet_loja import certificado_configurado_loja
         from nfse_integration.issnet_nacional_client import ISSNetNacionalClient
 
@@ -300,7 +308,7 @@ def _gerar_url_portal_issnet_nacional(
             return ""
 
         if config is None:
-            config = CRMConfig.get_or_create_for_loja(loja_id)
+            config = _config_nfse_da_loja_id(loja_id)
         if not certificado_configurado_loja(config):
             return ""
 

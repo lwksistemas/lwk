@@ -32,7 +32,7 @@ class ClinicaBelezaNFSeConfig(LojaIsolationMixin, models.Model):
         verbose_name="Usuário ISSNet",
     )
     issnet_senha = models.CharField(
-        max_length=100, blank=True,
+        max_length=500, blank=True,
         verbose_name="Senha ISSNet",
     )
     issnet_certificado = models.BinaryField(
@@ -44,7 +44,7 @@ class ClinicaBelezaNFSeConfig(LojaIsolationMixin, models.Model):
         verbose_name="Nome do arquivo .pfx",
     )
     issnet_senha_certificado = models.CharField(
-        max_length=100, blank=True,
+        max_length=500, blank=True,
         verbose_name="Senha do Certificado",
     )
     issnet_ambiente_homologacao = models.BooleanField(

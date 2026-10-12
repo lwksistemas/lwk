@@ -184,9 +184,11 @@ def crm_config_issnet_test(request):
         if cert_data:
             cert_data = bytes(cert_data)
 
+    from core.encryption import decrypt_value
+
     senha = (request.data.get("issnet_senha_certificado") or "").strip()
     if not senha:
-        senha = getattr(cfg, "issnet_senha_certificado", "") or ""
+        senha = decrypt_value(getattr(cfg, "issnet_senha_certificado", "") or "")
 
     if not cert_data:
         return Response({"success": False, "detail": "Certificado .pfx não configurado."}, status=400)
@@ -200,7 +202,9 @@ def crm_config_issnet_test(request):
         from nfse_integration.issnet_client import testar_conexao_issnet
 
         usuario = (request.data.get("issnet_usuario") or "").strip() or getattr(cfg, "issnet_usuario", "") or ""
-        senha_ws = (request.data.get("issnet_senha") or "").strip() or getattr(cfg, "issnet_senha", "") or ""
+        senha_ws = (request.data.get("issnet_senha") or "").strip() or decrypt_value(
+            getattr(cfg, "issnet_senha", "") or ""
+        )
         ambiente = "homologacao" if getattr(cfg, "issnet_ambiente_homologacao", False) else "producao"
 
         # Salvar cert em arquivo temporário para a função

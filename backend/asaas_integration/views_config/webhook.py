@@ -65,7 +65,10 @@ def asaas_webhook(request):
 
     except Exception as e:
         logger.error("Erro no webhook Asaas: %s", e)
-        return Response({"status": "error", "message": str(e)}, status=status.HTTP_200_OK)
+        return Response(
+            {"status": "error", "message": "Erro ao processar webhook."},
+            status=status.HTTP_200_OK,
+        )
 
 
 @csrf_exempt

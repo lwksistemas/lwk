@@ -32,9 +32,11 @@ def test_issnet_connection(request, config: ClinicaBelezaNFSeConfig) -> dict:
         if cert_data:
             cert_data = bytes(cert_data)
 
+    from core.encryption import decrypt_value
+
     senha = (request.data.get("issnet_senha_certificado") or "").strip()
     if not senha:
-        senha = getattr(config, "issnet_senha_certificado", "") or ""
+        senha = decrypt_value(getattr(config, "issnet_senha_certificado", "") or "")
 
     if not cert_data:
         return {"success": False, "detail": "Certificado .pfx não configurado."}
@@ -48,9 +50,8 @@ def test_issnet_connection(request, config: ClinicaBelezaNFSeConfig) -> dict:
             (request.data.get("issnet_usuario") or "").strip()
             or getattr(config, "issnet_usuario", "") or ""
         )
-        senha_ws = (
-            (request.data.get("issnet_senha") or "").strip()
-            or getattr(config, "issnet_senha", "") or ""
+        senha_ws = (request.data.get("issnet_senha") or "").strip() or decrypt_value(
+            getattr(config, "issnet_senha", "") or ""
         )
         ambiente = "homologacao" if getattr(config, "issnet_ambiente_homologacao", False) else "producao"
 

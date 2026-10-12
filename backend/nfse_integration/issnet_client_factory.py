@@ -69,7 +69,9 @@ def _senha_cert(config: Any) -> str:
 
 @contextmanager
 def issnet_client_loja(config: Any, *, prefix: str = "issnet_") -> Generator[Any]:
-    """ISSNetClient a partir da CRMConfig da loja."""
+    """ISSNetClient a partir da config da loja. As senhas saem cifradas do banco."""
+    from core.encryption import decrypt_value
+
     ambiente = (
         "homologacao"
         if getattr(config, "issnet_ambiente_homologacao", False)
@@ -77,9 +79,9 @@ def issnet_client_loja(config: Any, *, prefix: str = "issnet_") -> Generator[Any
     )
     with issnet_client_from_pfx(
         cert_data=_cert_bytes(config),
-        senha_certificado=_senha_cert(config),
+        senha_certificado=decrypt_value(_senha_cert(config)),
         usuario=getattr(config, "issnet_usuario", "") or "",
-        senha=getattr(config, "issnet_senha", "") or "",
+        senha=decrypt_value(getattr(config, "issnet_senha", "") or ""),
         ambiente=ambiente,
         prefix=prefix,
     ) as client:

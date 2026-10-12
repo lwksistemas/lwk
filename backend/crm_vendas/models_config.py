@@ -97,7 +97,7 @@ class CRMConfig(LojaIsolationMixin, models.Model):
     )
 
     issnet_senha = models.CharField(
-        max_length=100,
+        max_length=500,
         blank=True,
         verbose_name="Senha ISSNet",
         help_text="Senha de acesso ao webservice ISSNet",
@@ -117,7 +117,7 @@ class CRMConfig(LojaIsolationMixin, models.Model):
     )
 
     issnet_senha_certificado = models.CharField(
-        max_length=100,
+        max_length=500,
         blank=True,
         verbose_name="Senha do Certificado",
         help_text="Senha do arquivo .pfx do certificado digital",

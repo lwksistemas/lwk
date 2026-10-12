@@ -122,3 +122,29 @@ def decrypt_value(ciphertext: str) -> str:
 def is_encrypted(value: str) -> bool:
     """Verifica se um valor já está criptografado."""
     return bool(value) and value.startswith(ENCRYPTED_PREFIX)
+
+
+SENHAS_ISSNET = ("issnet_senha", "issnet_senha_certificado")
+
+
+def cifrar_senhas_issnet_no_mapa(dados: dict) -> None:
+    """Cifra senhas ISSNet novas antes de gravar. Vazio ou máscara não alteram o valor salvo."""
+    for campo in SENHAS_ISSNET:
+        if campo not in dados:
+            continue
+        bruto = (dados.get(campo) or "").strip()
+        if not bruto or "..." in bruto:
+            dados.pop(campo, None)
+            continue
+        dados[campo] = encrypt_value(bruto)
+
+
+def cifrar_senhas_issnet_no_objeto(obj) -> bool:
+    """Cifra senhas ISSNet que ainda estão em texto. Devolve True se alterou o objeto."""
+    alterou = False
+    for campo in SENHAS_ISSNET:
+        valor = getattr(obj, campo, "") or ""
+        if valor and not is_encrypted(valor):
+            setattr(obj, campo, encrypt_value(valor))
+            alterou = True
+    return alterou

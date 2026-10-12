@@ -30,6 +30,7 @@ interface AssinaturaCardProps {
   atualizandoMP: string | null;
   gerandoCobrancaMP: string | number | null;
   excluindoPagamentoMP: boolean;
+  somenteDetalhe?: boolean;
 }
 
 function getStatusColor(status: string) {
@@ -60,7 +61,8 @@ export function AssinaturaCard({
   gerandoPix,
   atualizandoMP,
   gerandoCobrancaMP,
-  excluindoPagamentoMP
+  excluindoPagamentoMP,
+  somenteDetalhe = false,
 }: AssinaturaCardProps) {
   const isAsaas = typeof assinatura.id === 'number';
   const isMercadoPago = assinatura.current_payment_data?.provedor === 'mercadopago';
@@ -70,7 +72,7 @@ export function AssinaturaCard({
   return (
     <div className="border dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
       {/* Cabeçalho */}
-      <div className="flex justify-between items-start mb-4">
+      {!somenteDetalhe && <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -97,7 +99,7 @@ export function AssinaturaCard({
         }`}>
           {assinatura.subscription_status_display || (assinatura.ativa ? 'Ativa' : 'Inativa')}
         </span>
-      </div>
+      </div>}
 
       {/* Pagamento Atual - só mostra se NÃO está pago (pendente/vencido) */}
       {assinatura.current_payment_data && !assinatura.current_payment_data.is_paid && (

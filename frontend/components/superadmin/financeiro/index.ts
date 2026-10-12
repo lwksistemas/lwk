@@ -6,6 +6,7 @@ export { ModalNovaCobranca } from './ModalNovaCobranca';
 export { ModalConfirmarExclusao } from './ModalConfirmarExclusao';
 export { FinanceiroStats } from './FinanceiroStats';
 export { AssinaturasTab } from './AssinaturasTab';
+export { AssinaturasTabela } from './AssinaturasTabela';
 export { PagamentosTab } from './PagamentosTab';
 export { AssinaturaCard } from './AssinaturaCard';
 export { AssinaturaAsaas } from './AssinaturaAsaas';

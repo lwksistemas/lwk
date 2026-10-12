@@ -87,6 +87,22 @@ def _historico_assinatura_asaas(a, AsaasPayment) -> list:
     return history[:20]
 
 
+def _dados_loja_financeiro(loja) -> dict:
+    """Identificadores usados na tabela do financeiro para trocar plano e dia."""
+    try:
+        financeiro = loja.financeiro
+    except FinanceiroLoja.DoesNotExist:
+        financeiro = None
+    return {
+        "loja_id": loja.id,
+        "plano_id": loja.plano_id,
+        "tipo_loja_id": loja.tipo_loja_id,
+        "dia_vencimento": financeiro.dia_vencimento if financeiro else None,
+        "tipo_assinatura": loja.tipo_assinatura,
+        "financeiro_id": financeiro.id if financeiro else None,
+    }
+
+
 def _item_assinatura_mp(f, PagamentoLoja) -> dict:
     """Monta dict de assinatura Mercado Pago para o frontend."""
     loja = f.loja
@@ -110,7 +126,8 @@ def _item_assinatura_mp(f, PagamentoLoja) -> dict:
         "ativa": f.status_pagamento == "ativo",
         "subscription_status": subscription_status,
         "subscription_status_display": "Ativo" if f.status_pagamento == "ativo" else "Inativo",
-        "data_vencimento": data_venc, "total_payments": 1, "financeiro_id": f.id,
+        "data_vencimento": data_venc, "total_payments": 1,
+        **_dados_loja_financeiro(loja),
         "current_payment_data": {
             "id": payment_pk, "asaas_id": f.mercadopago_payment_id, "provedor": "mercadopago",
             "customer_name": loja.nome, "value": str(f.valor_mensalidade),
@@ -138,10 +155,24 @@ def _assinaturas_unificado():
     from asaas_integration.models import AsaasPayment, LojaAssinatura
     from asaas_integration.serializers import LojaAssinaturaSerializer
 
+    from superadmin.models import Loja as LojaModel
+
     out = []
-    for a in LojaAssinatura.objects.all().select_related("asaas_customer", "current_payment").order_by("-created_at"):
+    assinaturas_asaas = list(
+        LojaAssinatura.objects.all().select_related("asaas_customer", "current_payment").order_by("-created_at"),
+    )
+    lojas_por_slug = {
+        loja.slug: loja
+        for loja in LojaModel.objects.filter(
+            slug__in=[a.loja_slug for a in assinaturas_asaas],
+        ).select_related("financeiro", "plano")
+    }
+    for a in assinaturas_asaas:
         data = LojaAssinaturaSerializer(a).data
         data["payment_history"] = _historico_assinatura_asaas(a, AsaasPayment)
+        loja = lojas_por_slug.get(a.loja_slug)
+        if loja:
+            data.update(_dados_loja_financeiro(loja))
         out.append(data)
     for f in FinanceiroLoja.objects.filter(provedor_boleto="mercadopago").exclude(mercadopago_payment_id="").select_related("loja", "loja__plano"):
         out.append(_item_assinatura_mp(f, PagamentoLoja))

@@ -6,7 +6,7 @@ Uso:
 """
 from django.core.management.base import BaseCommand
 
-from core.encryption import encrypt_value, is_encrypted
+from core.encryption import cifrar_senhas_issnet_no_objeto, encrypt_value, is_encrypted
 
 
 class Command(BaseCommand):
@@ -31,6 +31,9 @@ class Command(BaseCommand):
         self.stdout.write("\n📦 CRMConfig (lojas):")
         total_encrypted += self._encrypt_crm_configs(dry_run)
 
+        self.stdout.write("\n📦 ClinicaBelezaNFSeConfig (lojas):")
+        total_encrypted += self._encrypt_clinica_configs(dry_run)
+
         # Resumo
         self.stdout.write(f'\n{"=" * 50}')
         if dry_run:
@@ -53,7 +56,7 @@ class Command(BaseCommand):
             value = getattr(config, field, "") or ""
             if value and not is_encrypted(value):
                 if dry_run:
-                    self.stdout.write(f'  🔍 {field}: "{value[:3]}***" → seria criptografado')
+                    self.stdout.write(f"  🔍 {field}: seria criptografado")
                 else:
                     setattr(config, field, encrypt_value(value))
                     self.stdout.write(f"  🔒 {field}: criptografado")
@@ -86,22 +89,54 @@ class Command(BaseCommand):
                 configs = CRMConfig.objects.using(db_name).all()
 
                 for config in configs:
-                    fields = ["issnet_usuario", "issnet_senha", "issnet_senha_certificado", "asaas_api_key"]
-                    changed = False
-                    for field in fields:
-                        value = getattr(config, field, "") or ""
-                        if value and not is_encrypted(value):
-                            if dry_run:
-                                self.stdout.write(f"  🔍 [{db_name}] {field}: seria criptografado")
-                            else:
-                                setattr(config, field, encrypt_value(value))
-                                changed = True
-                            count += 1
-
-                    if not dry_run and changed:
-                        config.save(using=db_name)
+                    count += self._cifrar_config_loja(config, db_name, dry_run, cifrar_asaas=True)
 
             except Exception as e:
                 self.stdout.write(f"  ⚠️  [{db_name}] Erro: {e}")
 
+        return count
+
+    def _encrypt_clinica_configs(self, dry_run):
+        from django.conf import settings
+        count = 0
+        loja_dbs = [db for db in settings.DATABASES if db.startswith("loja_")]
+        if not loja_dbs:
+            self.stdout.write("  ⚠️  Nenhum banco de loja encontrado")
+            return 0
+
+        for db_name in loja_dbs:
+            try:
+                from clinica_beleza.models.nfse_config import ClinicaBelezaNFSeConfig
+                configs = ClinicaBelezaNFSeConfig.objects.using(db_name).all()
+                for config in configs:
+                    count += self._cifrar_config_loja(config, db_name, dry_run, cifrar_asaas=False)
+            except Exception as e:
+                self.stdout.write(f"  ⚠️  [{db_name}] Erro: {e}")
+        return count
+
+    def _cifrar_config_loja(self, config, db_name, dry_run, *, cifrar_asaas):
+        count = 0
+        if dry_run:
+            from core.encryption import SENHAS_ISSNET
+            campos = list(SENHAS_ISSNET)
+            if cifrar_asaas:
+                campos.append("asaas_api_key")
+            for field in campos:
+                value = getattr(config, field, "") or ""
+                if value and not is_encrypted(value):
+                    self.stdout.write(f"  🔍 [{db_name}] {field}: seria criptografado")
+                    count += 1
+            return count
+
+        changed = cifrar_senhas_issnet_no_objeto(config)
+        if changed:
+            count += 1
+        if cifrar_asaas:
+            api_key = getattr(config, "asaas_api_key", "") or ""
+            if api_key and not is_encrypted(api_key):
+                config.asaas_api_key = encrypt_value(api_key)
+                changed = True
+                count += 1
+        if changed:
+            config.save(using=db_name)
         return count

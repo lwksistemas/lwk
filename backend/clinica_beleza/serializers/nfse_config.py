@@ -116,6 +116,9 @@ class ClinicaBelezaNFSeConfigSerializer(serializers.ModelSerializer):
                     })
                 validated_data["asaas_webhook_token"] = encrypt_value(raw)
 
+        from core.encryption import cifrar_senhas_issnet_no_mapa
+        cifrar_senhas_issnet_no_mapa(validated_data)
+
         request = self.context.get("request")
         if request and hasattr(request, "FILES"):
             cert_file = request.FILES.get("issnet_certificado")

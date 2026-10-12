@@ -1,5 +1,6 @@
 """PIX ou transferência na conta da empresa dá baixa no boleto Asaas."""
 from datetime import date
+from io import BytesIO
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
@@ -87,3 +88,23 @@ class ConfirmarPagamentoContaTest(TestCase):
 
         self.assertFalse(resultado["success"])
         receive.assert_not_called()
+
+    @patch("core.media_storage.media_upload", return_value="https://media.example/comprovante.pdf")
+    @patch("superadmin.sync_service.asaas.AsaasSyncService._enviar_email_confirmacao_pagamento")
+    @patch("superadmin.sync_service.asaas.tentar_emitir_nfse_assinatura")
+    @patch("asaas_integration.client.AsaasClient.receive_payment_in_cash")
+    @patch("asaas_integration.client.AsaasClient.get_payment")
+    @patch("asaas_integration.models.AsaasConfig.effective_sandbox", return_value=False)
+    @patch("asaas_integration.models.AsaasConfig.resolve_api_key", return_value="$aact_prod_teste")
+    def test_pix_grava_comprovante_pdf(self, _key, _sandbox, get_payment, receive, _nfse, _email, upload):
+        get_payment.return_value = {"id": "pay_aberto", "status": "PENDING", "value": 99.9, "dueDate": "2026-11-17"}
+        receive.return_value = {"id": "pay_aberto", "status": "RECEIVED_IN_CASH", "value": 99.9}
+        arquivo = BytesIO(b"%PDF-1.4 comprovante")
+
+        resultado = AsaasSyncService().confirmar_recebimento_conta_empresa(self.loja, "pix", comprovante=arquivo)
+
+        self.assertTrue(resultado["success"], resultado)
+        self.assertIn("Comprovante anexado", resultado["message"])
+        upload.assert_called_once()
+        self.pagamento.refresh_from_db()
+        self.assertEqual(self.pagamento.comprovante, "https://media.example/comprovante.pdf")

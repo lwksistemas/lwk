@@ -49,6 +49,7 @@ interface ItemHistorico {
   numero_nf: string;
   nf_pdf_url: string;
   nf_status: string;
+  comprovante_url?: string;
 }
 
 const COR_SITUACAO: Record<string, string> = {
@@ -85,6 +86,8 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
   const [historicoAberto, setHistoricoAberto] = useState<number | string | null>(null);
   const [historicos, setHistoricos] = useState<Record<string, ItemHistorico[]>>({});
   const [historicoErro, setHistoricoErro] = useState<Record<string, string>>({});
+  const [conta, setConta] = useState<{ assinatura: Assinatura; forma: 'pix' | 'transferencia' } | null>(null);
+  const [comprovante, setComprovante] = useState<File | null>(null);
 
   useEffect(() => {
     apiClient.get('/superadmin/planos/')
@@ -161,21 +164,22 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
     }
   };
 
-  const confirmarConta = async (assinatura: Assinatura, forma: 'pix' | 'transferencia') => {
-    if (!assinatura.financeiro_id) return;
-    const meio = forma === 'pix' ? 'PIX' : 'transferência';
-    const confirma = window.confirm(
-      `Confirmar que ${assinatura.loja_nome} pagou por ${meio} na conta da empresa? O boleto Asaas em aberto recebe baixa e a assinatura é atualizada.`,
-    );
-    if (!confirma) return;
+  const confirmarConta = async () => {
+    if (!conta?.assinatura.financeiro_id) return;
+    const { assinatura, forma } = conta;
     const chave = `conta-${forma}-${assinatura.id}`;
     setOcupado(chave);
     try {
+      const dados = new FormData();
+      dados.append('forma', forma);
+      if (comprovante) dados.append('comprovante', comprovante);
       const res = await apiClient.post(
         `/superadmin/financeiro/${assinatura.financeiro_id}/confirmar_pagamento_conta/`,
-        { forma },
+        dados,
       );
       window.alert(res.data?.message || 'Pagamento confirmado.');
+      setConta(null);
+      setComprovante(null);
       onAtualizar();
     } catch (error) {
       window.alert(mensagemErro(error, 'Não foi possível confirmar o pagamento.'));
@@ -283,6 +287,7 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
   }
 
   return (
+    <>
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead className="bg-gray-50 dark:bg-gray-800">
@@ -421,7 +426,10 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                         <button
                           type="button"
                           disabled={semFinanceiro || ocupado === `conta-pix-${assinatura.id}`}
-                          onClick={() => confirmarConta(assinatura, 'pix')}
+                          onClick={() => {
+                            setComprovante(null);
+                            setConta({ assinatura, forma: 'pix' });
+                          }}
                           className="px-2 py-1 text-xs bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50"
                         >
                           PIX
@@ -429,7 +437,10 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                         <button
                           type="button"
                           disabled={semFinanceiro || ocupado === `conta-transferencia-${assinatura.id}`}
-                          onClick={() => confirmarConta(assinatura, 'transferencia')}
+                          onClick={() => {
+                            setComprovante(null);
+                            setConta({ assinatura, forma: 'transferencia' });
+                          }}
                           className="px-2 py-1 text-xs bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50"
                         >
                           Transferência
@@ -522,6 +533,48 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
         </tbody>
       </table>
     </div>
+      {conta && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white dark:bg-gray-900 p-5 shadow-lg">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Confirmar {conta.forma === 'pix' ? 'PIX' : 'transferência'}
+            </h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              Confirmar que {conta.assinatura.loja_nome} pagou por {conta.forma === 'pix' ? 'PIX' : 'transferência'} na conta da empresa? O boleto Asaas em aberto recebe baixa e a assinatura é atualizada.
+            </p>
+            <label className="mt-4 block text-sm text-gray-700 dark:text-gray-200">
+              Comprovante em PDF
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                className="mt-1 block w-full text-sm"
+                onChange={(evento) => setComprovante(evento.target.files?.[0] || null)}
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setConta(null);
+                  setComprovante(null);
+                }}
+                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-200"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={ocupado === `conta-${conta.forma}-${conta.assinatura.id}`}
+                onClick={confirmarConta}
+                className="px-3 py-1.5 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -562,6 +615,7 @@ function HistoricoLoja({
                 <th className="px-2 py-1">Status</th>
                 <th className="px-2 py-1">Pago em</th>
                 <th className="px-2 py-1">Nota fiscal</th>
+                <th className="px-2 py-1">Comprovante</th>
               </tr>
             </thead>
             <tbody>
@@ -592,6 +646,20 @@ function HistoricoLoja({
                       )
                     ) : (
                       <span className="text-gray-400">Sem nota</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-2">
+                    {item.comprovante_url ? (
+                      <a
+                        href={item.comprovante_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        PDF
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">—</span>
                     )}
                   </td>
                 </tr>

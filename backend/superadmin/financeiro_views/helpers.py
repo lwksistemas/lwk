@@ -481,6 +481,24 @@ def _build_historico_pagamentos_loja(
 _MESES = ("", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
 
 
+def _erro_comprovante_pdf(arquivo) -> str:
+    """Recusa o que não for um PDF de até 8 MB. Arquivo vazio é permitido."""
+    if arquivo is None:
+        return ""
+    nome = (getattr(arquivo, "name", "") or "").lower()
+    if not nome.endswith(".pdf"):
+        return "O comprovante precisa ser um PDF."
+    tamanho = getattr(arquivo, "size", 0) or 0
+    if tamanho > 8 * 1024 * 1024:
+        return "O comprovante passa de 8 MB."
+    inicio = arquivo.read(5)
+    if hasattr(arquivo, "seek"):
+        arquivo.seek(0)
+    if inicio != b"%PDF-":
+        return "O arquivo não é um PDF."
+    return ""
+
+
 def _mes_referencia(data) -> str:
     if not data:
         return ""
@@ -543,6 +561,7 @@ def _item_historico(pagamento, nota, hoje) -> dict:
         "numero_nf": (nota.numero_nf or "") if nota else "",
         "nf_pdf_url": (nota.pdf_url or "").strip() if nota else "",
         "nf_status": nota.status if nota else "",
+        "comprovante_url": (pagamento.comprovante or "").strip(),
     }
 
 

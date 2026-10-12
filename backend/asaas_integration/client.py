@@ -147,40 +147,57 @@ class AsaasClient:
     def _only_digits(value: str) -> str:
         return re.sub(r"\D", "", value or "")
 
+    @staticmethod
+    def _documento_do_cliente(customer: dict[str, Any] | None) -> str:
+        if not isinstance(customer, dict):
+            return ""
+        return AsaasClient._only_digits(str(customer.get("cpfCnpj") or ""))
+
+    def _primeiro_cliente(self, params: dict[str, str]) -> dict[str, Any] | None:
+        try:
+            response = self._make_request("GET", "customers", params)
+            items = response.get("data") or []
+            if items:
+                return items[0]
+        except Exception as exc:
+            logger.warning("Busca cliente Asaas falhou (%s): %s", params, exc)
+        return None
+
     def search_customer(
         self,
         cpf_cnpj: str | None = None,
         email: str | None = None,
         external_reference: str | None = None,
     ) -> dict[str, Any] | None:
-        """Busca cliente existente no Asaas (evita duplicatas).
-        Prioridade: CPF/CNPJ → externalReference → e-mail.
+        """Busca cliente no Asaas.
+
+        CPF (11 dígitos) e CNPJ (14) não se misturam. Com documento informado,
+        o e-mail não reaproveita o cliente do outro tipo.
         """
-        searches = []
-        cpf_digits = self._only_digits(cpf_cnpj or "")
-        if cpf_digits:
-            searches.append({"cpfCnpj": cpf_digits})
+        digits = self._only_digits(cpf_cnpj or "")
+        documento_informado = len(digits) in (11, 14)
+        if documento_informado:
+            found = self._primeiro_cliente({"cpfCnpj": digits})
+            if found and self._documento_do_cliente(found) == digits:
+                logger.info("Cliente Asaas encontrado por documento id=%s", found.get("id"))
+                return found
+            ext = (external_reference or "").strip()
+            if ext:
+                found = self._primeiro_cliente({"externalReference": ext})
+                stored = self._documento_do_cliente(found)
+                if found and (stored == digits or not stored):
+                    logger.info("Cliente Asaas encontrado por referência id=%s", found.get("id"))
+                    return found
+            return None
+
         ext = (external_reference or "").strip()
         if ext:
-            searches.append({"externalReference": ext})
+            found = self._primeiro_cliente({"externalReference": ext})
+            if found:
+                return found
         email_clean = (email or "").strip().lower()
         if email_clean:
-            searches.append({"email": email_clean})
-
-        for params in searches:
-            try:
-                response = self._make_request("GET", "customers", params)
-                items = response.get("data") or []
-                if items:
-                    found = items[0]
-                    logger.info(
-                        "Cliente Asaas encontrado: id=%s filtro=%s",
-                        found.get("id"),
-                        list(params.keys())[0],
-                    )
-                    return found
-            except Exception as exc:
-                logger.warning("Busca cliente Asaas falhou (%s): %s", params, exc)
+            return self._primeiro_cliente({"email": email_clean})
         return None
 
     def get_or_create_customer(self, customer_data: dict[str, Any]) -> dict[str, Any]:

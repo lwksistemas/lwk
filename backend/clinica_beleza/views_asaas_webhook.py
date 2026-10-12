@@ -77,23 +77,20 @@ def clinica_beleza_asaas_webhook(request, loja_slug: str):
         loja.slug, loja.id, event, payment.get("id"),
     )
 
-    # Reutilizar processamento do CRM (mesma lógica de NFS-e por loja)
     from asaas_integration.queue_dispatch import (
         enqueue_asaas_loja_webhook,
         should_enqueue_asaas_webhook,
     )
-    from crm_vendas.asaas_loja_webhook_process import (
-        process_asaas_loja_webhook_sync,
-    )
+    from clinica_beleza.asaas_webhook_process import process_asaas_clinica_webhook_sync
 
     if should_enqueue_asaas_webhook():
-        enqueue_asaas_loja_webhook(loja.id, payload)
+        enqueue_asaas_loja_webhook(loja.id, payload, app="clinica_beleza")
         return Response({
             "status": "received", "queued": True,
             "loja_slug": loja.slug, "event": event,
         })
 
-    process_asaas_loja_webhook_sync(loja.id, payload)
+    process_asaas_clinica_webhook_sync(loja.id, payload)
     return Response({
         "status": "received",
         "loja_slug": loja.slug, "event": event,

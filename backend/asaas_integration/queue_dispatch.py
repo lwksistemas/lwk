@@ -35,7 +35,11 @@ def enqueue_asaas_global_webhook(payload: dict[str, Any]) -> bool:
     return True
 
 
-def enqueue_asaas_loja_webhook(loja_id: int, payload: dict[str, Any]) -> bool:
+def enqueue_asaas_loja_webhook(
+    loja_id: int,
+    payload: dict[str, Any],
+    app: str = "crm_vendas",
+) -> bool:
     from core.task_queue import enqueue_task
 
     event = payload.get("event") or payload.get("type") or "unknown"
@@ -44,9 +48,10 @@ def enqueue_asaas_loja_webhook(loja_id: int, payload: dict[str, Any]) -> bool:
     ref = payment.get("id") or invoice.get("id") or abs(hash(str(payload))) % 10_000_000
 
     enqueue_task(
-        _task_key("asaas-loja", loja_id, ref, event),
+        _task_key("asaas-loja", app, loja_id, ref, event),
         "asaas_integration.queue_tasks.run_asaas_loja_webhook",
         loja_id,
         dict(payload),
+        app,
     )
     return True

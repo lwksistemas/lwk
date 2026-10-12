@@ -30,6 +30,8 @@ echo "=== Deploy BETA isolado $(date) target=$TARGET apps=${APPS[*]:-todos} ==="
 git fetch origin
 git checkout staging
 git pull --ff-only origin staging
+# O arquivo foi carregado antes do pull. Recarrega para usar o deploy que acabou de chegar.
+source "$SCRIPT_DIR/deploy-scoped-lib.sh"
 
 lwk_deploy_target docker-compose.beta.yml "$TARGET" "${APPS[@]}"
 

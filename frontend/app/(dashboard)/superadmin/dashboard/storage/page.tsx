@@ -94,6 +94,7 @@ export default function MonitoramentoStoragePage() {
         const midia = await apiClient.get('/superadmin/midia/');
         const mapa: Record<string, number> = {};
         for (const item of midia.data?.tenants || []) {
+          if (item.bytes == null) continue;
           const chave = String(item.slug || item.tenant || '');
           if (chave) mapa[chave] = Number(item.bytes) || 0;
         }

@@ -21,15 +21,21 @@ def run_asaas_global_webhook(payload: dict[str, Any]) -> None:
         asaas_webhook_sync_only.reset(token)
 
 
-def run_asaas_loja_webhook(loja_id: int, payload: dict[str, Any]) -> None:
+def run_asaas_loja_webhook(loja_id: int, payload: dict[str, Any], app: str = "crm_vendas") -> None:
     from asaas_integration.sync_context import asaas_webhook_sync_only
-    from crm_vendas.asaas_loja_webhook_process import process_asaas_loja_webhook_sync
 
     token = asaas_webhook_sync_only.set(True)
     try:
-        process_asaas_loja_webhook_sync(loja_id, payload)
+        if app == "clinica_beleza":
+            from clinica_beleza.asaas_webhook_process import process_asaas_clinica_webhook_sync
+
+            process_asaas_clinica_webhook_sync(loja_id, payload)
+        else:
+            from crm_vendas.asaas_loja_webhook_process import process_asaas_loja_webhook_sync
+
+            process_asaas_loja_webhook_sync(loja_id, payload)
     except Exception:
-        logger.exception("Webhook Asaas loja_id=%s: falha no worker", loja_id)
+        logger.exception("Webhook Asaas loja_id=%s app=%s: falha no worker", loja_id, app)
         raise
     finally:
         asaas_webhook_sync_only.reset(token)

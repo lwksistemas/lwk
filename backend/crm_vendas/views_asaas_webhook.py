@@ -73,7 +73,7 @@ def asaas_loja_webhook(request, loja_slug: str):
     )
 
     if should_enqueue_asaas_webhook():
-        enqueue_asaas_loja_webhook(loja.id, payload)
+        enqueue_asaas_loja_webhook(loja.id, payload, app="crm_vendas")
         return Response(
             {
                 "status": "received",

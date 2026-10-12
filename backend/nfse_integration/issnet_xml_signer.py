@@ -88,6 +88,20 @@ def assinar_xml_issnet(xml_str: str, certificado_path: str, senha_certificado: s
         return inf_id
 
     if root_local == "CancelarNfseEnvio":
+        ped_evento = root.find(f"{{{ns}}}pedRegEvento")
+        if ped_evento is not None:
+            inf_reg = ped_evento.find(f"{{{ns}}}infPedReg")
+            inf_id = (inf_reg.get("Id") or "").strip() if inf_reg is not None else ""
+            if inf_reg is not None and inf_id:
+                sig_evento = _template_sig_enveloped_only(ped_evento, f"#{inf_id}")
+                ctx_evento = xmlsec.SignatureContext()
+                ctx_evento.key = key
+                ctx_evento.register_id(inf_reg, "Id", None)
+                ctx_evento.sign(sig_evento)
+                result = etree.tostring(root, encoding="unicode")
+                logger.info("XML assinado com xmlsec (pedRegEvento infPedReg)")
+                return result
+
         pedido = root.find(f"{{{ns}}}Pedido")
         inf = pedido.find(f"{{{ns}}}InfPedidoCancelamento") if pedido is not None else None
         inf_id = (inf.get("Id") or "").strip() if inf is not None else ""

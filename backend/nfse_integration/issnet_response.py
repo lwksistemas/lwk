@@ -149,7 +149,8 @@ def parse_consultar_url_nfse_resposta(xml_str: str) -> dict[str, Any]:
             continue
         rps_txt = links.findtext(f".//{{{ns}}}IdentificacaoRps/{{{ns}}}Numero", "") or ""
         url = (
-            links.findtext(f".//{{{ns}}}UrlVisualizacaoNfse", "")
+            links.findtext(f".//{{{ns}}}UrlVisualizacaoNfseNacional", "")
+            or links.findtext(f".//{{{ns}}}UrlVisualizacaoNfse", "")
             or links.findtext(f".//{{{ns}}}UrlNfse", "")
             or ""
         ).strip()

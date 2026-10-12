@@ -464,6 +464,20 @@ def construir_xml_enviar_lote_dps_sincrono(
 # Cancelamento
 # ---------------------------------------------------------------------------
 
+def _motivo_cancelamento_nacional(codigo_cancelamento: str, motivo_cancelamento: str) -> tuple[str, str]:
+    """Evento e101103 aceita 1, 2 ou 9. Os códigos 3 e 4 do portal viram 9, com o texto no xMotivo."""
+    codigo = str(codigo_cancelamento or "1").strip()
+    c_motivo = codigo if codigo in ("1", "2") else "9"
+    texto = (motivo_cancelamento or "").strip()
+    if not texto:
+        texto = {
+            "1": "Erro na emissão",
+            "2": "Serviço não prestado",
+            "9": "Outros",
+        }.get(c_motivo, "Outros")
+    return c_motivo, texto[:255]
+
+
 def construir_xml_cancelar_nfse_nacional(
     *,
     numero_nfse: str,
@@ -474,31 +488,36 @@ def construir_xml_cancelar_nfse_nacional(
     codigo_municipio: str = COD_MUNICIPIO_RP,
     chave_acesso: str = "",
     ambiente: int = 1,
+    dh_evento: datetime | None = None,
 ) -> str:
-    """Monta XML de cancelamento de NFS-e no padrão Nacional ISSNet."""
-    cnpj_prest = _somente_digitos(prestador_cnpj)
-    im_prest = (prestador_inscricao_municipal or "").strip()
+    """Monta CancelarNfseEnvio como pedido de evento e101103 (Nota Control)."""
+    del prestador_inscricao_municipal, codigo_municipio
+    doc = _somente_digitos(prestador_cnpj)
+    chave = _somente_digitos(chave_acesso)
+    c_motivo, x_motivo = _motivo_cancelamento_nacional(codigo_cancelamento, motivo_cancelamento)
+    quando = dh_evento or datetime.now().astimezone()
+    dh = quando.isoformat(timespec="seconds")
+    id_ped = f"PRE{chave}101103"
 
     nsmap = {None: NS_NFSE}
     root = etree.Element(f"{{{NS_NFSE}}}CancelarNfseEnvio", nsmap=nsmap)
-
-    pedido = etree.SubElement(root, f"{{{NS_NFSE}}}Pedido")
-    inf_pedido = etree.SubElement(
-        pedido, f"{{{NS_NFSE}}}InfPedidoCancelamento",
-        Id=f"cancel{numero_nfse}",
+    ped = etree.SubElement(root, f"{{{NS_NFSE}}}pedRegEvento", versao="1.01")
+    inf = etree.SubElement(ped, f"{{{NS_NFSE}}}infPedReg", Id=id_ped)
+    etree.SubElement(inf, f"{{{NS_NFSE}}}tpAmb").text = "1" if int(ambiente or 1) == 1 else "2"
+    etree.SubElement(inf, f"{{{NS_NFSE}}}verAplic").text = "LWKSistemas"
+    etree.SubElement(inf, f"{{{NS_NFSE}}}dhEvento").text = dh
+    tag_autor = "CNPJAutor" if len(doc) != 11 else "CPFAutor"
+    etree.SubElement(inf, f"{{{NS_NFSE}}}{tag_autor}").text = doc
+    etree.SubElement(inf, f"{{{NS_NFSE}}}chNFSe").text = chave
+    evento = etree.SubElement(inf, f"{{{NS_NFSE}}}e101103")
+    etree.SubElement(evento, f"{{{NS_NFSE}}}xDesc").text = (
+        "Solicitação de Análise Fiscal para Cancelamento de NFS-e"
     )
-
-    id_nfse = etree.SubElement(inf_pedido, f"{{{NS_NFSE}}}IdentificacaoNfse")
-    etree.SubElement(id_nfse, f"{{{NS_NFSE}}}Numero").text = str(numero_nfse)
-    cpf_cnpj_el = etree.SubElement(id_nfse, f"{{{NS_NFSE}}}CpfCnpj")
-    etree.SubElement(cpf_cnpj_el, f"{{{NS_NFSE}}}Cnpj").text = cnpj_prest
-    etree.SubElement(id_nfse, f"{{{NS_NFSE}}}InscricaoMunicipal").text = im_prest
-    etree.SubElement(id_nfse, f"{{{NS_NFSE}}}CodigoMunicipio").text = codigo_municipio
-
-    etree.SubElement(inf_pedido, f"{{{NS_NFSE}}}CodigoCancelamento").text = str(codigo_cancelamento)
+    etree.SubElement(evento, f"{{{NS_NFSE}}}cMotivo").text = c_motivo
+    etree.SubElement(evento, f"{{{NS_NFSE}}}xMotivo").text = x_motivo
 
     xml_str = etree.tostring(root, encoding="unicode")
-    logger.info("XML CancelarNfseEnvio (ISSNet Nacional): NFS-e=%s", numero_nfse)
+    logger.info("XML CancelarNfseEnvio (evento e101103): NFS-e=%s", numero_nfse)
     return xml_str
 
 
@@ -544,25 +563,22 @@ def construir_xml_consultar_url_nfse_nacional(
     prestador_inscricao_municipal: str,
     pagina: int = 1,
 ) -> str:
-    """Monta ConsultarUrlNfseEnvio no padrão aceito pelo ISSNet Nacional.
+    """Monta ConsultarUrlNfseEnvio como no exemplo da Nota Control.
 
-    A variante IdentificacaoNfse foi rejeitada (E183 schema). O layout Pedido
-    (Prestador + NumeroNfse + Pagina) é o mesmo do ABRASF/NotaControl, com
-    namespace SPED do webservice Nacional.
+    Prestador com CNPJ ou CPF e IM, número da nota e página. Sem a tag Pedido
+    e sem CpfCnpj, que o schema Nacional rejeita (E160/E183).
     """
-    cnpj_prest = _somente_digitos(prestador_cnpj)
-    im_prest = (prestador_inscricao_municipal or "").strip()
+    doc = _somente_digitos(prestador_cnpj)
+    im_prest = _somente_digitos(prestador_inscricao_municipal)
     numero = str(numero_nf or "").strip()
 
     nsmap = {None: NS_NFSE}
     root = etree.Element(f"{{{NS_NFSE}}}ConsultarUrlNfseEnvio", nsmap=nsmap)
-    pedido = etree.SubElement(root, f"{{{NS_NFSE}}}Pedido")
-    prest = etree.SubElement(pedido, f"{{{NS_NFSE}}}Prestador")
-    cpf_cnpj_el = etree.SubElement(prest, f"{{{NS_NFSE}}}CpfCnpj")
-    etree.SubElement(cpf_cnpj_el, f"{{{NS_NFSE}}}Cnpj").text = cnpj_prest
-    etree.SubElement(prest, f"{{{NS_NFSE}}}InscricaoMunicipal").text = im_prest
-    etree.SubElement(pedido, f"{{{NS_NFSE}}}NumeroNfse").text = numero
-    etree.SubElement(pedido, f"{{{NS_NFSE}}}Pagina").text = str(int(pagina) or 1)
+    prest = etree.SubElement(root, f"{{{NS_NFSE}}}Prestador")
+    etree.SubElement(prest, f"{{{NS_NFSE}}}{'CPF' if len(doc) == 11 else 'CNPJ'}").text = doc
+    etree.SubElement(prest, f"{{{NS_NFSE}}}IM").text = im_prest
+    etree.SubElement(root, f"{{{NS_NFSE}}}NumeroNfse").text = numero
+    etree.SubElement(root, f"{{{NS_NFSE}}}Pagina").text = str(int(pagina) or 1)
 
     xml_str = etree.tostring(root, encoding="unicode")
     logger.info("XML ConsultarUrlNfseEnvio (ISSNet Nacional): NFS-e=%s", numero)
@@ -575,19 +591,12 @@ def construir_xml_consultar_url_nfse_nacional_simples(
     prestador_cnpj: str,
     prestador_inscricao_municipal: str,
 ) -> str:
-    """Variante sem Pedido (Prestador + NumeroNfse), usada em alguns clientes."""
-    cnpj_prest = _somente_digitos(prestador_cnpj)
-    im_prest = (prestador_inscricao_municipal or "").strip()
-    numero = str(numero_nf or "").strip()
-
-    nsmap = {None: NS_NFSE}
-    root = etree.Element(f"{{{NS_NFSE}}}ConsultarUrlNfseEnvio", nsmap=nsmap)
-    prest = etree.SubElement(root, f"{{{NS_NFSE}}}Prestador")
-    cpf_cnpj_el = etree.SubElement(prest, f"{{{NS_NFSE}}}CpfCnpj")
-    etree.SubElement(cpf_cnpj_el, f"{{{NS_NFSE}}}Cnpj").text = cnpj_prest
-    etree.SubElement(prest, f"{{{NS_NFSE}}}InscricaoMunicipal").text = im_prest
-    etree.SubElement(root, f"{{{NS_NFSE}}}NumeroNfse").text = numero
-    return etree.tostring(root, encoding="unicode")
+    """Mesmo layout oficial. A página 1 é obrigatória no exemplo da Nota Control."""
+    return construir_xml_consultar_url_nfse_nacional(
+        numero_nf=numero_nf,
+        prestador_cnpj=prestador_cnpj,
+        prestador_inscricao_municipal=prestador_inscricao_municipal,
+    )
 
 
 # ---------------------------------------------------------------------------

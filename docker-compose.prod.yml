@@ -135,6 +135,28 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
 
+  frontend-crm:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        LWK_FRONTEND_APP: crm-vendas
+    restart: always
+    env_file: .env.frontend
+    ports:
+      - "127.0.0.1:3002:3000"
+
+  frontend-clinica:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        LWK_FRONTEND_APP: clinica-beleza
+    restart: always
+    env_file: .env.frontend
+    ports:
+      - "127.0.0.1:3003:3000"
+
   # Evolution API migrada para VM dedicada (169.150.0.111 / evolution.lwksistemas.com.br).
   # Setup: deploy/evolution/. Mantido comentado para não recriar a instância antiga
   # (que compartilhava o Postgres/Redis do ERP) em deploys futuros.

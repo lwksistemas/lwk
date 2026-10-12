@@ -59,8 +59,17 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const path = require('path');
 
+const frontendApp = process.env.LWK_FRONTEND_APP || "";
+const assetPrefix =
+  frontendApp === "crm-vendas"
+    ? "/fe-crm"
+    : frontendApp === "clinica-beleza"
+      ? "/fe-clinica"
+      : undefined;
+
 const nextConfig = {
   output: "standalone",
+  ...(assetPrefix ? { assetPrefix } : {}),
   // Garante alias @/ no webpack (Next 16)
   webpack: (config) => {
     config.resolve.alias = {

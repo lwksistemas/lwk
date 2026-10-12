@@ -501,6 +501,143 @@ class AsaasSyncService:
             "message": f"Pagamento por {rotulo} confirmado. Boleto Asaas baixado e assinatura atualizada.",
         }
 
+    def _boleto_em_aberto(self, loja) -> dict | None:
+        """Boleto ainda não pago. Devolve url e identificador, ou None."""
+        from asaas_integration.models import AsaasPayment
+
+        try:
+            financeiro = loja.financeiro
+        except FinanceiroLoja.DoesNotExist:
+            return None
+
+        if (getattr(loja, "provedor_boleto_preferido", None) or "asaas") == "mercadopago":
+            pagamento = (
+                PagamentoLoja.objects.filter(loja=loja, status__in=["pendente", "atrasado"])
+                .order_by("-data_vencimento")
+                .first()
+            )
+            url = ""
+            if pagamento:
+                url = (pagamento.boleto_url or "").strip()
+            if not url:
+                url = (financeiro.boleto_url or "").strip()
+            if not pagamento and not (financeiro.mercadopago_payment_id or "").strip():
+                return None
+            if pagamento and pagamento.status == "pago":
+                return None
+            if not pagamento and not url:
+                return None
+            return {
+                "url": url,
+                "vencimento": pagamento.data_vencimento if pagamento else financeiro.data_proxima_cobranca,
+                "payment_id": (pagamento.mercadopago_payment_id if pagamento else "") or financeiro.mercadopago_payment_id,
+            }
+
+        payment_id, _valor = self._cobranca_asaas_em_aberto(loja)
+        if not payment_id:
+            return None
+        url = (financeiro.boleto_url or "").strip()
+        ap = AsaasPayment.objects.filter(asaas_id=payment_id).only("bank_slip_url", "invoice_url", "due_date").first()
+        if ap:
+            url = (ap.bank_slip_url or ap.invoice_url or url).strip()
+        pagamento = PagamentoLoja.objects.filter(asaas_payment_id=payment_id).only("data_vencimento", "boleto_url").first()
+        if pagamento and (pagamento.boleto_url or "").strip():
+            url = pagamento.boleto_url.strip()
+        vencimento = None
+        if pagamento:
+            vencimento = pagamento.data_vencimento
+        elif ap:
+            vencimento = ap.due_date
+        else:
+            vencimento = financeiro.data_proxima_cobranca
+        return {"url": url, "vencimento": vencimento, "payment_id": payment_id}
+
+    def _enviar_email_boleto(self, loja, url: str, vencimento) -> tuple[bool, str]:
+        from core.email_delivery import create_email_message, send_prepared
+
+        owner = loja.owner
+        email = (getattr(owner, "email", None) or "").strip()
+        if not email:
+            return False, "A loja não tem e-mail do responsável."
+        when = vencimento.strftime("%d/%m/%Y") if hasattr(vencimento, "strftime") else "—"
+        try:
+            valor = loja.financeiro.valor_mensalidade
+        except FinanceiroLoja.DoesNotExist:
+            valor = ""
+        corpo = (
+            f"Olá,\n\n"
+            f"Segue o boleto da assinatura da loja {loja.nome}.\n\n"
+            f"Valor: R$ {valor}\n"
+            f"Vencimento: {when}\n"
+            f"Boleto: {url}\n\n"
+            f"Atenciosamente,\nEquipe LWK Sistemas\n"
+        )
+        msg = create_email_message(
+            subject=f"Boleto da assinatura LWK — {loja.nome}",
+            body=corpo,
+            to=[email],
+        )
+        send_prepared(msg, fail_silently=False)
+        return True, email
+
+    def emitir_boleto(self, loja) -> dict:
+        """Emite o boleto do próximo vencimento quando não há outro em aberto."""
+        from superadmin.cobranca_service import CobrancaService
+
+        try:
+            financeiro = loja.financeiro
+        except FinanceiroLoja.DoesNotExist:
+            return {"success": False, "error": "Esta loja não tem financeiro."}
+
+        aberto = self._boleto_em_aberto(loja)
+        if aberto:
+            return {
+                "success": False,
+                "error": "Já existe boleto em aberto. Use Reenviar para mandar de novo.",
+                "boleto_url": aberto.get("url") or "",
+            }
+
+        resultado = CobrancaService().criar_cobranca(loja, financeiro)
+        if not resultado.get("success"):
+            return {"success": False, "error": resultado.get("error") or "Não foi possível emitir o boleto."}
+
+        url = (resultado.get("boleto_url") or "").strip()
+        if not url:
+            return {"success": True, "message": "Boleto emitido. O link ainda não voltou do banco.", "boleto_url": ""}
+
+        try:
+            ok, destino = self._enviar_email_boleto(loja, url, resultado.get("due_date") or financeiro.data_proxima_cobranca)
+        except Exception as exc:
+            logger.exception("Boleto emitido, e-mail falhou: loja=%s", loja.slug)
+            return {
+                "success": True,
+                "boleto_url": url,
+                "message": f"Boleto emitido, mas o e-mail não saiu: {exc}",
+            }
+        if not ok:
+            return {"success": True, "boleto_url": url, "message": f"Boleto emitido. {destino}"}
+        return {
+            "success": True,
+            "boleto_url": url,
+            "message": f"Boleto emitido e enviado para {destino}.",
+        }
+
+    def reenviar_boleto(self, loja) -> dict:
+        """Envia de novo o boleto em aberto para o e-mail do responsável."""
+        aberto = self._boleto_em_aberto(loja)
+        url = (aberto or {}).get("url") or ""
+        if not aberto or not url:
+            return {"success": False, "error": "Não há boleto em aberto para reenviar. Use Emitir."}
+        try:
+            ok, destino = self._enviar_email_boleto(loja, url, aberto.get("vencimento"))
+        except Exception as exc:
+            logger.exception("Falha ao reenviar boleto: loja=%s", loja.slug)
+            return {"success": False, "error": f"Não foi possível reenviar o boleto: {exc}"}
+        if not ok:
+            return {"success": False, "error": destino}
+        logger.info("Boleto reenviado: loja=%s destino=%s", loja.slug, mask_email(destino))
+        return {"success": True, "boleto_url": url, "message": f"Boleto reenviado para {destino}."}
+
     def _process_payment_confirmed(self, loja, financeiro, payment_id, payment_data):
         """Processa pagamento confirmado"""
         try:

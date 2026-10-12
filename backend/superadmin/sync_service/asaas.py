@@ -393,6 +393,114 @@ class AsaasSyncService:
                 "error": str(e),
             }
 
+    def _cobranca_asaas_em_aberto(self, loja):
+        """Boleto Asaas ainda não pago desta loja. Devolve (id, valor) ou (None, None)."""
+        from django.db.models import Q
+
+        from asaas_integration.models import AsaasPayment, LojaAssinatura
+
+        assinatura = LojaAssinatura.objects.filter(loja_slug=loja.slug).select_related("current_payment").first()
+        atual = assinatura.current_payment if assinatura else None
+        if atual and not atual.is_paid and atual.status in ("PENDING", "OVERDUE") and atual.asaas_id:
+            return atual.asaas_id, atual.value
+
+        pagamento = (
+            PagamentoLoja.objects.filter(loja=loja, status__in=["pendente", "atrasado"])
+            .exclude(asaas_payment_id="")
+            .order_by("-data_vencimento")
+            .first()
+        )
+        if pagamento:
+            return pagamento.asaas_payment_id, pagamento.valor
+
+        financeiro = getattr(loja, "financeiro", None)
+        if financeiro and (financeiro.asaas_payment_id or "").strip():
+            ja_pago = PagamentoLoja.objects.filter(
+                asaas_payment_id=financeiro.asaas_payment_id,
+                status="pago",
+            ).exists()
+            if not ja_pago:
+                return financeiro.asaas_payment_id, financeiro.valor_mensalidade
+
+        if assinatura:
+            aberto = (
+                AsaasPayment.objects.filter(status__in=["PENDING", "OVERDUE"])
+                .filter(
+                    Q(external_reference__contains=f"loja_{loja.slug}")
+                    | Q(customer_id=assinatura.asaas_customer_id),
+                )
+                .order_by("-due_date")
+                .first()
+            )
+            if aberto:
+                return aberto.asaas_id, aberto.value
+        return None, None
+
+    def confirmar_recebimento_conta_empresa(self, loja, forma: str) -> dict:
+        """PIX ou transferência na conta da empresa: baixa o boleto Asaas e renova a assinatura."""
+        from asaas_integration.client import AsaasClient
+        from asaas_integration.models import AsaasConfig
+
+        forma = (forma or "").strip().lower()
+        if forma not in ("pix", "transferencia"):
+            return {"success": False, "error": "Informe pix ou transferencia."}
+        if (getattr(loja, "provedor_boleto_preferido", None) or "asaas") == "mercadopago":
+            return {"success": False, "error": "Esta loja emite boleto pelo Mercado Pago."}
+
+        try:
+            financeiro = loja.financeiro
+        except FinanceiroLoja.DoesNotExist:
+            return {"success": False, "error": "Esta loja não tem financeiro."}
+
+        payment_id, valor = self._cobranca_asaas_em_aberto(loja)
+        if not payment_id:
+            return {"success": False, "error": "Não há boleto Asaas em aberto para esta loja."}
+
+        api_key = AsaasConfig.resolve_api_key()
+        if not api_key:
+            return {"success": False, "error": "Asaas não configurado."}
+
+        client = AsaasClient(api_key=api_key, sandbox=AsaasConfig.effective_sandbox(api_key))
+        try:
+            remoto = client.get_payment(payment_id)
+        except Exception as exc:
+            logger.exception("Falha ao consultar boleto Asaas %s", payment_id)
+            return {"success": False, "error": f"Não foi possível consultar o boleto no Asaas: {exc}"}
+
+        status_asaas = (remoto.get("status") or "").upper()
+        if status_asaas in ("RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"):
+            baixa = remoto
+        elif status_asaas in ("PENDING", "OVERDUE"):
+            valor_baixa = float(remoto.get("value") or valor or 0)
+            try:
+                baixa = client.receive_payment_in_cash(payment_id, valor_baixa)
+            except Exception as exc:
+                logger.exception("Falha ao dar baixa no boleto Asaas %s", payment_id)
+                return {"success": False, "error": f"Não foi possível dar baixa no boleto Asaas: {exc}"}
+            if isinstance(baixa, dict) and not baixa.get("status"):
+                baixa["status"] = "RECEIVED_IN_CASH"
+        else:
+            return {
+                "success": False,
+                "error": f"O boleto Asaas está {status_asaas or 'sem status'} e não aceita baixa.",
+            }
+
+        resultado = self._process_payment_confirmed(loja, financeiro, payment_id, baixa if isinstance(baixa, dict) else {})
+        if not resultado.get("success"):
+            return resultado
+
+        PagamentoLoja.objects.filter(asaas_payment_id=payment_id).update(forma_pagamento=forma)
+        financeiro.refresh_from_db()
+        rotulo = "PIX" if forma == "pix" else "transferência"
+        logger.info("Baixa manual (%s) loja=%s payment=%s", forma, loja.slug, payment_id)
+        return {
+            "success": True,
+            "forma": forma,
+            "payment_id": payment_id,
+            "data_proxima_cobranca": financeiro.data_proxima_cobranca.isoformat(),
+            "message": f"Pagamento por {rotulo} confirmado. Boleto Asaas baixado e assinatura atualizada.",
+        }
+
     def _process_payment_confirmed(self, loja, financeiro, payment_id, payment_data):
         """Processa pagamento confirmado"""
         try:

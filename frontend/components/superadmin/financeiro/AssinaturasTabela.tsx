@@ -43,6 +43,7 @@ const COLUNAS = [
   'Vencimento',
   'Alterar plano',
   'Dia de vencimento',
+  'Conta da empresa',
   'Nota fiscal',
 ];
 
@@ -126,6 +127,29 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
       onAtualizar();
     } catch (error) {
       window.alert(mensagemErro(error, 'Não foi possível alterar o dia de vencimento.'));
+    } finally {
+      setOcupado(null);
+    }
+  };
+
+  const confirmarConta = async (assinatura: Assinatura, forma: 'pix' | 'transferencia') => {
+    if (!assinatura.financeiro_id) return;
+    const meio = forma === 'pix' ? 'PIX' : 'transferência';
+    const confirma = window.confirm(
+      `Confirmar que ${assinatura.loja_nome} pagou por ${meio} na conta da empresa? O boleto Asaas em aberto recebe baixa e a assinatura é atualizada.`,
+    );
+    if (!confirma) return;
+    const chave = `conta-${forma}-${assinatura.id}`;
+    setOcupado(chave);
+    try {
+      const res = await apiClient.post(
+        `/superadmin/financeiro/${assinatura.financeiro_id}/confirmar_pagamento_conta/`,
+        { forma },
+      );
+      window.alert(res.data?.message || 'Pagamento confirmado.');
+      onAtualizar();
+    } catch (error) {
+      window.alert(mensagemErro(error, 'Não foi possível confirmar o pagamento.'));
     } finally {
       setOcupado(null);
     }
@@ -293,6 +317,30 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         Próxima: {formatDate(proxima[chave])}
                       </div>
+                    )}
+                  </td>
+                  <td className="px-3 py-3">
+                    {typeof assinatura.id === 'number' ? (
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          type="button"
+                          disabled={semFinanceiro || ocupado === `conta-pix-${assinatura.id}`}
+                          onClick={() => confirmarConta(assinatura, 'pix')}
+                          className="px-2 py-1 text-xs bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50"
+                        >
+                          PIX
+                        </button>
+                        <button
+                          type="button"
+                          disabled={semFinanceiro || ocupado === `conta-transferencia-${assinatura.id}`}
+                          onClick={() => confirmarConta(assinatura, 'transferencia')}
+                          className="px-2 py-1 text-xs bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50"
+                        >
+                          Transferência
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
                     )}
                   </td>
                   <td className="px-3 py-3">

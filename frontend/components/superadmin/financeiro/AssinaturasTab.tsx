@@ -96,7 +96,7 @@ export function AssinaturasTab({
       ) : (
         <>
         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-          Clique no nome da loja para ver boleto, PIX e o histórico. Baixar e reenviar tratam a nota da mensalidade.
+          Clique no nome da loja para ver boleto, PIX e o histórico. PIX e Transferência confirmam pagamento na conta da empresa: baixa o boleto Asaas e atualiza a assinatura. Baixar e reenviar tratam a nota da mensalidade.
         </p>
         <AssinaturasTabela
           assinaturas={assinaturas}

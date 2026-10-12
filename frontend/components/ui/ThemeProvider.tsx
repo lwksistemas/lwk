@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { logger } from '@/lib/logger';
-import { CLINICA_GERAL_DARK_KEY, shouldApplyClinicaGeralTheme } from '@/lib/clinica-geral-theme';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -66,14 +65,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (/\/loja\/[^/]+\/agenda(?:\/|$)/.test(path) || path.includes('clinica-beleza')) {
-        return;
-      }
-      if (shouldApplyClinicaGeralTheme(path)) {
-        const cgDark = window.localStorage?.getItem(CLINICA_GERAL_DARK_KEY) === 'true';
-        const initial = cgDark ? 'dark' : 'light';
-        setThemeState(initial);
-        setResolvedTheme(initial);
-        applyTheme(initial);
         return;
       }
       // Carregar tema salvo (se existir). Caso contrário, usar "light" como padrão.

@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { isTipoCabeleireiro, isTipoClinicaBeleza, isTipoClinicaGeral, isTipoCRMVendas, isTipoHotel } from '@/lib/loja-tipo';
+import { isTipoClinicaBeleza, isTipoCRMVendas } from '@/lib/loja-tipo';
 import {
   readLojaInfoPublicaCache,
   writeLojaInfoPublicaCache,
@@ -22,8 +22,6 @@ const DashboardChunkSkeleton = () => (
 );
 
 const DashboardClinicaBeleza = dynamic(() => import('./templates/clinica-beleza'), { loading: DashboardChunkSkeleton });
-const DashboardHotel = dynamic(() => import('./templates/hotel'), { loading: DashboardChunkSkeleton });
-const DashboardCabeleireiro = dynamic(() => import('./templates/cabeleireiro'), { loading: DashboardChunkSkeleton });
 
 interface LojaInfo {
   id: number;
@@ -165,17 +163,6 @@ export default function LojaDashboardDinamicoPage() {
     );
   }
 
-  if (isTipoClinicaGeral(lojaInfo.tipo_loja_nome)) {
-    if (typeof window !== 'undefined') {
-      window.location.replace(`/loja/${slug}/clinica/agenda`);
-    }
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-400">Redirecionando à agenda...</p>
-      </div>
-    );
-  }
-
   if (isTipoCRMVendas(lojaInfo.tipo_loja_nome)) {
     if (typeof window !== 'undefined') {
       document.cookie = 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax';
@@ -189,12 +176,11 @@ export default function LojaDashboardDinamicoPage() {
   }
 
   const isClinicaBeleza = isTipoClinicaBeleza(lojaInfo.tipo_loja_nome);
-  const isSalao = isTipoCabeleireiro(lojaInfo.tipo_loja_nome);
   const isFullWidth = isClinicaBeleza;
 
   return (
     <>
-      {isClinicaBeleza || isSalao ? (
+      {isClinicaBeleza ? (
         renderDashboardPorTipo(lojaInfo, handleLogout)
       ) : (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
@@ -209,18 +195,6 @@ export default function LojaDashboardDinamicoPage() {
                   <p className="text-xs sm:text-sm opacity-90">{lojaInfo.tipo_loja_nome}</p>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                  {isTipoHotel(lojaInfo.tipo_loja_nome) && (
-                    <button
-                      onClick={() => router.push(`/loja/${slug}/hotel`)}
-                      className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
-                      title="Ir para o módulo Hotel"
-                    >
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                      <span>Hotel</span>
-                    </button>
-                  )}
                   <button
                     onClick={() => router.push(`/loja/${slug}/suporte`)}
                     className="flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-[40px] bg-white bg-opacity-20 hover:bg-opacity-30 rounded-md transition-colors flex items-center justify-center gap-2 text-sm active:scale-95"
@@ -299,8 +273,6 @@ export default function LojaDashboardDinamicoPage() {
 
 function renderDashboardPorTipo(loja: LojaInfo, onLogout: () => void) {
   if (isTipoClinicaBeleza(loja.tipo_loja_nome)) return <DashboardClinicaBeleza loja={loja} onLogout={onLogout} />;
-  if (isTipoCabeleireiro(loja.tipo_loja_nome)) return <DashboardCabeleireiro loja={loja} onLogout={onLogout} />;
-  if (isTipoHotel(loja.tipo_loja_nome)) return <DashboardHotel loja={loja} />;
   return <DashboardGenerico loja={loja} />;
 }
 

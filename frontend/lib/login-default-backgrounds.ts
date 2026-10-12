@@ -3,11 +3,8 @@
  * Usadas quando a loja não definiu login_background nas configurações.
  */
 import {
-  isTipoCabeleireiro,
   isTipoClinicaBeleza,
   isTipoCRMVendas,
-  isTipoHotel,
-  isTipoClinicaGeral,
 } from '@/lib/loja-tipo';
 
 /** Arquivos em /public/login-backgrounds/ — um por tipo de app ativo */
@@ -43,10 +40,7 @@ export const LOGIN_THEME_COLORS: Record<LoginBackgroundKey, string> = {
 export function getLoginThemeColor(tipoLojaNome: string): string {
   const tipo = (tipoLojaNome || '').trim();
   if (isTipoClinicaBeleza(tipo)) return LOGIN_THEME_COLORS.clinicaBeleza;
-  if (isTipoCabeleireiro(tipo)) return LOGIN_THEME_COLORS.salao;
-  if (isTipoHotel(tipo)) return LOGIN_THEME_COLORS.hotel;
   if (isTipoCRMVendas(tipo)) return LOGIN_THEME_COLORS.crm;
-  if (isTipoClinicaGeral(tipo)) return '#2F2E5B';
   return LOGIN_THEME_COLORS.default;
 }
 
@@ -58,8 +52,6 @@ const LOCAL = LOGIN_BACKGROUND_PATHS;
 export function getDefaultLoginBackground(tipoLojaNome: string): string {
   const tipo = (tipoLojaNome || '').trim();
   if (isTipoClinicaBeleza(tipo)) return LOCAL.clinicaBeleza;
-  if (isTipoCabeleireiro(tipo)) return LOCAL.salao;
-  if (isTipoHotel(tipo)) return LOCAL.hotel;
   if (isTipoCRMVendas(tipo)) return LOCAL.crm;
   return LOCAL.default;
 }

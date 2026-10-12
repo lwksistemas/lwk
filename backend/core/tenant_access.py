@@ -110,16 +110,8 @@ def loja_ids_where_user_is_admin(user) -> set[int]:
 def is_store_api_path(path: str) -> bool:
     """Rotas de apps tenant (CRM, clínica, etc.), exceto webhooks públicos."""
     store_routes = (
-        "/api/clinica/",
-        "/api/clinica-geral/",
         "/api/clinica-beleza/",
-        "/api/cabeleireiro/",
-        "/api/hotel/",
         "/api/crm-vendas/",
-        "/api/crm/",
-        "/api/ecommerce/",
-        "/api/restaurante/",
-        "/api/servicos/",
         "/api/stores/",
         "/api/products/",
     )
@@ -142,9 +134,6 @@ def is_store_api_path(path: str) -> bool:
         if any(path.startswith(p) for p in public):
             return False
         if "/pdf-public/" in path:
-            return False
-    if path.startswith("/api/clinica-geral/"):
-        if path.startswith("/api/clinica-geral/teleconsulta/"):
             return False
     return True
 

@@ -31,9 +31,6 @@ _PREFIXOS_TENANT = (
     "crm_vendas_",
     "crm_financeiro_",
     "nfse_integration_",
-    "cabeleireiro_",
-    "hotel_",
-    "restaurante_",
     "agenda_base_",
 )
 

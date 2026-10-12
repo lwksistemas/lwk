@@ -16,7 +16,6 @@ class Command(BaseCommand):
         apps_ativos = {
             "CRM Vendas": ("crm_vendas", "Contato"),
             "Clínica da Beleza": ("clinica_beleza", "Patient"),
-            "Hotel": ("hotel", "Hospede"),
         }
 
         for app_nome, (app_label, model_nome) in apps_ativos.items():

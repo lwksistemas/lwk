@@ -54,12 +54,4 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(f"   Clínica da Beleza: Erro - {e}")
 
-        try:
-            from hotel.models import Hospede, Quarto
-            self.stdout.write(f"\n   Hotel:")
-            self.stdout.write(f"   - Hóspedes: {Hospede.objects.count()}")
-            self.stdout.write(f"   - Quartos: {Quarto.objects.count()}")
-        except Exception as e:
-            self.stdout.write(f"   Hotel: Erro - {e}")
-
         self.stdout.write("\n" + "=" * 70 + "\n")

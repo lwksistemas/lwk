@@ -1,6 +1,6 @@
 # LWK Sistemas - Sistema Multi-Tenant SaaS
 
-Sistema multi-tenant completo para gestão de diferentes tipos de negócios (clínicas, CRM, hotel, etc).
+Sistema multi-tenant para clínica da beleza e CRM. Um tipo novo nasce do zero, com frontend separado.
 
 > **Contexto completo para desenvolvimento:** [`docs/RESUMO_SISTEMA_PARA_AGENTES.md`](docs/RESUMO_SISTEMA_PARA_AGENTES.md)
 
@@ -18,10 +18,8 @@ Sistema multi-tenant completo para gestão de diferentes tipos de negócios (cl�
 
 ## Tipos de App Disponíveis
 
-1. **Clínica da Beleza** — consultas, pacientes, profissionais, WhatsApp
+1. **Clínica da Beleza** — consultas, pacientes, profissionais, WhatsApp. Clínica de Estética usa o mesmo app.
 2. **CRM Vendas** — pipeline, propostas, Asaas, NFS-e
-3. **Clínica de Estética** — agendamentos e prontuários
-4. **Hotel / Cabeleireiro** — módulos específicos por tipo de loja
 
 ## Configuração Local
 

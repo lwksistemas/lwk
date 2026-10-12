@@ -58,7 +58,8 @@ Deploy só com esses scripts. Não use `up -d --build` sem o nome do serviço.
 - A chave Asaas da clínica fica na config da clínica. A do CRM fica na config do CRM. Os avisos (webhooks) são endereços diferentes. CPF (11 dígitos) e CNPJ (14 dígitos) não reaproveitam o mesmo cliente pelo e-mail.
 - A mensalidade da LWK continua na conta Asaas do superadmin.
 - PDF genérico e checagem de tabela ficam no core. A clínica não empresta isso ao CRM.
-- Em produção seguem a clínica da beleza e o CRM. Hotel, salão e clínica geral continuam no site geral.
+- Em produção ficam a clínica da beleza e o CRM. Hotel, salão e clínica geral saíram do código. Cadastros, fotos e schemas das lojas vendidas não foram apagados.
+- Um tipo de app novo nasce do zero e ganha frontend separado: container, nginx, assetPrefix e recorte de rotas. Criar o tipo no superadmin não faz isso sozinho.
 
 Nenhum cadastro, foto ou schema foi apagado nessas mudanças.
 
@@ -67,7 +68,7 @@ Nenhum cadastro, foto ou schema foi apagado nessas mudanças.
 - Cada loja tem schema PostgreSQL próprio (`loja_<cpf_cnpj>`)
 - Models com `LojaIsolationMixin` + `LojaIsolationManager`
 - TenantMiddleware resolve loja pelo token JWT
-- Apps em produção: clinica_beleza e crm_vendas. Hotel, salão e clínica geral continuam no código do site geral
+- Apps em produção: clinica_beleza e crm_vendas. O próximo tipo de app nasce do zero, com frontend separado
 
 ## Estrutura principal
 

@@ -143,7 +143,7 @@ class SecurityIdorTestCase(TestCase):
         factory = RequestFactory()
         mw = SecurityIsolationMiddleware(lambda r: None)
 
-        request = factory.get("/api/hotel/reservas/")
+        request = factory.get("/api/crm-vendas/contatos/")
         request.user = func_user
         request.META["HTTP_X_TENANT_SLUG"] = self.loja_b.slug
 

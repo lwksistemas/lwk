@@ -36,6 +36,8 @@ A tela da clínica e a tela do CRM publicam em containers separados. Login e sup
 
 Correção só de código não abre o banco das lojas. Tabela nova abre só as lojas daquele app. A nota e a chave Asaas da clínica ficam na clínica; as do CRM ficam no CRM. CPF e CNPJ não reaproveitam o mesmo cliente Asaas pelo e-mail.
 
+Apps no código: clínica da beleza e CRM. Hotel, salão e clínica geral foram removidos. Um tipo novo nasce do zero e ganha frontend separado (container, nginx, assetPrefix e recorte). Criar o tipo no superadmin não publica a tela sozinho.
+
 ```bash
 # Produção (branch main) — exemplo tela
 ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh frontend'

@@ -94,114 +94,6 @@ def _lojas_clinica_beleza_whatsapp():
     )
 
 
-def _lojas_cabeleireiro_whatsapp():
-    from superadmin.models import Loja
-
-    return Loja.objects.filter(
-        database_created=True,
-        is_active=True,
-        tipo_loja__slug="cabeleireiro",
-    )
-
-
-def _lojas_com_confirmacao_agenda_whatsapp():
-    from superadmin.models import Loja
-    from whatsapp.confirmacao_agenda_service import loja_usa_confirmacao_agenda
-
-    return [
-        loja
-        for loja in Loja.objects.filter(
-            database_created=True, is_active=True,
-        ).select_related("tipo_loja")
-        if loja_usa_confirmacao_agenda(loja)
-    ]
-
-
-def _send_lembretes_salao_24h():
-    from cabeleireiro.models import Agendamento
-    from cabeleireiro.whatsapp_agenda import SalaoAgendamentoWhatsAppAdapter
-    from tenants.middleware import set_current_loja_id, set_current_tenant_db
-
-    amanha = timezone.localdate() + timedelta(days=1)
-    enviados = 0
-    for loja in _lojas_cabeleireiro_whatsapp():
-        try:
-            db_name = _ensure_loja_db(loja)
-            set_current_loja_id(loja.id)
-            set_current_tenant_db(db_name)
-            config = _get_whatsapp_config(loja)
-            if not config or not config.whatsapp_ativo or not config.enviar_lembrete_24h:
-                continue
-            qs = Agendamento.objects.filter(
-                data=amanha,
-                is_active=True,
-                status__in=["SCHEDULED", "CLIENT_CONFIRMED"],
-            ).select_related("cliente", "servico", "profissional")
-            for ag in qs:
-                if not getattr(ag.cliente, "allow_whatsapp", True):
-                    continue
-                if not (getattr(ag.cliente, "telefone", None) or "").strip():
-                    continue
-                if _enviar_lembrete_unico(
-                    "24h", loja.id, ag.id, SalaoAgendamentoWhatsAppAdapter(ag),
-                    config, _CACHE_LEMBRETE_24H,
-                ):
-                    enviados += 1
-        except Exception as e:
-            logger.exception("WhatsApp lembrete 24h salão loja %s: %s", getattr(loja, "slug", loja.id), e)
-        finally:
-            set_current_loja_id(None)
-            set_current_tenant_db("default")
-    return enviados
-
-
-def _send_lembretes_salao_2h():
-    from cabeleireiro.models import Agendamento
-    from cabeleireiro.whatsapp_agenda import SalaoAgendamentoWhatsAppAdapter
-    from tenants.middleware import set_current_loja_id, set_current_tenant_db
-
-    now = timezone.localtime()
-    inicio = now + _JANELA_2H_ANTES
-    fim = now + _JANELA_2H_DEPOIS
-    enviados = 0
-    for loja in _lojas_cabeleireiro_whatsapp():
-        try:
-            db_name = _ensure_loja_db(loja)
-            set_current_loja_id(loja.id)
-            set_current_tenant_db(db_name)
-            config = _get_whatsapp_config(loja)
-            if not config or not config.whatsapp_ativo or not config.enviar_lembrete_2h:
-                continue
-            # Filtra por data nos dias da janela e checa hora no Python
-            datas = {inicio.date(), fim.date()}
-            qs = Agendamento.objects.filter(
-                data__in=datas,
-                is_active=True,
-                status__in=["SCHEDULED", "CLIENT_CONFIRMED"],
-            ).select_related("cliente", "servico", "profissional")
-            from datetime import datetime as dt_cls
-
-            for ag in qs:
-                if not getattr(ag.cliente, "allow_whatsapp", True):
-                    continue
-                if not (getattr(ag.cliente, "telefone", None) or "").strip():
-                    continue
-                naive = dt_cls.combine(ag.data, ag.hora_inicio)
-                aware = timezone.make_aware(naive, timezone.get_current_timezone())
-                if not (inicio <= aware <= fim):
-                    continue
-                if _enviar_lembrete_unico(
-                    "2h", loja.id, ag.id, SalaoAgendamentoWhatsAppAdapter(ag),
-                    config, _CACHE_LEMBRETE_2H,
-                ):
-                    enviados += 1
-        except Exception as e:
-            logger.exception("WhatsApp lembrete 2h salão loja %s: %s", getattr(loja, "slug", loja.id), e)
-        finally:
-            set_current_loja_id(None)
-            set_current_tenant_db("default")
-    return enviados
-
 
 def send_lembretes_24h_whatsapp():
     """Envia lembrete por WhatsApp 24h antes do agendamento.
@@ -235,7 +127,6 @@ def send_lembretes_24h_whatsapp():
         finally:
             set_current_loja_id(None)
             set_current_tenant_db("default")
-    enviados += _send_lembretes_salao_24h()
     logger.info("WhatsApp lembretes 24h: %d enviados", enviados)
     return enviados
 
@@ -275,7 +166,6 @@ def send_lembretes_2h_whatsapp():
         finally:
             set_current_loja_id(None)
             set_current_tenant_db("default")
-    enviados += _send_lembretes_salao_2h()
     logger.info("WhatsApp lembretes 2h: %d enviados", enviados)
     return enviados
 
@@ -301,48 +191,6 @@ def _send_confirmacoes_clinica(config, hoje, inicio, fim):
         enviados += processar_agendamento_hoje(ag, config=config, hoje=hoje)
     return enviados
 
-
-def _send_confirmacoes_salao(config, hoje, inicio, fim):
-    from cabeleireiro.models import Agendamento
-    from cabeleireiro.whatsapp_agenda import (
-        STATUS_ACIONAVEIS,
-        SalaoAgendamentoWhatsAppAdapter,
-    )
-    from whatsapp.confirmacao_agenda_service import processar_agendamento_hoje
-
-    enviados = 0
-    qs = Agendamento.objects.filter(
-        data__gte=inicio,
-        data__lte=fim,
-        is_active=True,
-        status__in=list(STATUS_ACIONAVEIS),
-    ).select_related("cliente", "servico", "profissional")
-    for ag in qs:
-        adapter = SalaoAgendamentoWhatsAppAdapter(ag)
-        if not _paciente_pode_receber_confirmacao(adapter):
-            continue
-        enviados += processar_agendamento_hoje(adapter, config=config, hoje=hoje)
-    return enviados
-
-
-def _send_confirmacoes_clinica_geral(config, hoje, inicio, fim):
-    from clinica_geral.models import Consulta
-    from clinica_geral.whatsapp_agenda import STATUS_ACIONAVEIS, ConsultaWhatsAppAdapter
-    from whatsapp.confirmacao_agenda_service import processar_agendamento_hoje
-
-    enviados = 0
-    qs = Consulta.objects.filter(
-        data__gte=inicio,
-        data__lte=fim,
-        is_active=True,
-        status__in=list(STATUS_ACIONAVEIS),
-    ).select_related("paciente")
-    for ag in qs:
-        adapter = ConsultaWhatsAppAdapter(ag)
-        if not _paciente_pode_receber_confirmacao(adapter):
-            continue
-        enviados += processar_agendamento_hoje(adapter, config=config, hoje=hoje)
-    return enviados
 
 
 def send_confirmacoes_agendadas_whatsapp():
@@ -373,13 +221,7 @@ def send_confirmacoes_agendadas_whatsapp():
             if not janela:
                 continue
             inicio, fim = janela
-            tipo = getattr(getattr(loja, "tipo_loja", None), "slug", "") or ""
-            if tipo == "cabeleireiro":
-                enviados += _send_confirmacoes_salao(config, hoje, inicio, fim)
-            elif tipo == "clinica-geral":
-                enviados += _send_confirmacoes_clinica_geral(config, hoje, inicio, fim)
-            else:
-                enviados += _send_confirmacoes_clinica(config, hoje, inicio, fim)
+            enviados += _send_confirmacoes_clinica(config, hoje, inicio, fim)
         except Exception as e:
             logger.exception(
                 "WhatsApp confirmação agendada loja %s: %s",

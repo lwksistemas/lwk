@@ -2,7 +2,6 @@ import axios from 'axios';
 import apiClient from '@/lib/api-client';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
 import {
-  isTipoCabeleireiro,
   isTipoClinicaBeleza,
   isTipoCRMVendas,
 } from '@/lib/loja-tipo';
@@ -83,15 +82,6 @@ export function whatsappFeaturesForTipoLoja(tipoLojaNome?: string | null): Whats
       showCrmTasks: false,
       showCrmDocumentos: false,
       showTermoConsentimento: true,
-      variant: 'clinica',
-    };
-  }
-  if (isTipoCabeleireiro(tipo)) {
-    return {
-      showAgendaMessages: true,
-      showCrmTasks: false,
-      showCrmDocumentos: false,
-      showTermoConsentimento: false,
       variant: 'clinica',
     };
   }

@@ -393,10 +393,6 @@ def atalho_redirect(request, atalho):
         tipo_codigo = loja.tipo_loja.codigo or ""
         if tipo_codigo in ("CLIEST", "CLIBEL"):
             app_url = "clinica-beleza/consultas"
-        elif tipo_codigo == "CABEL":
-            app_url = "cabeleireiro"
-        elif tipo_codigo == "ECOMM":
-            app_url = "e-commerce"
 
     dashboard_url = f"/loja/{loja.slug}/{app_url}"
     logger.info(f"[atalho_redirect] Usuário autenticado → Redirecionando para {dashboard_url}")

@@ -119,15 +119,7 @@ TIPO_LOJA_EXTRA_APPS = {
     "clinica-estetica": ["clinica_beleza", "whatsapp", "crm_vendas", "nfse_integration"],
     "clinica-da-beleza": ["clinica_beleza", "whatsapp", "crm_vendas", "nfse_integration"],
     "clinica-beleza": ["clinica_beleza", "whatsapp", "crm_vendas", "nfse_integration"],
-    "e-commerce": ["ecommerce"],
-    "ecommerce": ["ecommerce"],
-    "restaurante": ["restaurante"],
-    "servicos": ["servicos"],
-    "cabeleireiro": ["cabeleireiro", "whatsapp", "nfse_integration"],
     "crm-vendas": ["crm_vendas", "nfse_integration", "whatsapp"],
-    "hotel-pousada": ["hotel"],
-    "hotel": ["hotel"],
-    "clinica-geral": ["clinica_geral", "whatsapp"],
 }
 
 # Falha de migration nestes apps aborta criação/recuperação de loja tipo CRM Vendas (NFS-e no tenant).

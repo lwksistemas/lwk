@@ -52,9 +52,6 @@ def api_root(request):
             "products": "/api/products/",
             "asaas": "/api/asaas/",
             "clinica_beleza": "/api/clinica-beleza/",
-            "clinica_geral": "/api/clinica-geral/",
-            "hotel": "/api/hotel/",
-            "cabeleireiro": "/api/cabeleireiro/",
             "notificacoes": "/api/notificacoes/",
             "push": "/api/push/",
             "crm_vendas": "/api/crm-vendas/",
@@ -90,10 +87,7 @@ urlpatterns = [
     path("api/asaas/", include("asaas_integration.urls")),  # API Asaas
 
     # APIs dos tipos de app
-    path("api/hotel/", include("hotel.urls")),
     path("api/clinica-beleza/", include("clinica_beleza.urls")),
-    path("api/clinica-geral/", include("clinica_geral.urls")),
-    path("api/cabeleireiro/", include("cabeleireiro.urls")),
     path("api/whatsapp/", include("whatsapp.urls")),
     path("api/notificacoes/", include("notificacoes.urls")),
     path("api/push/", include("push.urls")),

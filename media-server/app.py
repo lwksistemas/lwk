@@ -303,6 +303,30 @@ def _rmdir_vazio(path: Path) -> list[str]:
     return removed
 
 
+_TAMANHO_CACHE: dict[str, tuple[float, int]] = {}
+_TAMANHO_TTL_S = 120
+
+
+def tamanho_pasta(path: Path) -> int:
+    """Soma os arquivos da loja. Cache de 2 min para a tela não varrer o disco a cada 30 s."""
+    chave = str(path.resolve())
+    agora = time.time()
+    cached = _TAMANHO_CACHE.get(chave)
+    if cached and agora - cached[0] < _TAMANHO_TTL_S:
+        return cached[1]
+    total = 0
+    if path.is_dir():
+        for root, dirs, files in os.walk(path):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for name in files:
+                try:
+                    total += (Path(root) / name).stat().st_size
+                except OSError:
+                    continue
+    _TAMANHO_CACHE[chave] = (agora, total)
+    return total
+
+
 @app.route("/list/", methods=["GET"])
 def list_tenants():
     if not verify_token():
@@ -323,6 +347,7 @@ def list_tenants():
                 "tenant": d.name,
                 "folders": folders,
                 "folder_count": len(folders),
+                "bytes": tamanho_pasta(d),
             })
     return jsonify({"tenants": tenants, "total": len(tenants)})
 

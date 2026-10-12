@@ -23,6 +23,23 @@ interface LojaStorage {
   is_active: boolean;
 }
 
+function formatMb(mb: number): string {
+  if (!Number.isFinite(mb) || mb <= 0) return '0 MB';
+  if (mb < 1024) {
+    return `${mb.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`;
+  }
+  return `${(mb / 1024).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} GB`;
+}
+
+function formatBytes(bytes: number): string {
+  return formatMb(bytes / (1024 * 1024));
+}
+
+function formatPercent(percentual: number): string {
+  if (percentual > 0 && percentual < 0.1) return `${percentual.toFixed(2)}%`;
+  return `${percentual.toFixed(1)}%`;
+}
+
 export default function MonitoramentoStoragePage() {
   const router = useRouter();
   const [lojas, setLojas] = useState<LojaStorage[]>([]);
@@ -32,6 +49,7 @@ export default function MonitoramentoStoragePage() {
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'ok' | 'warning' | 'critical'>('todos');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [verificando, setVerificando] = useState(false);
+  const [midiaPorSlug, setMidiaPorSlug] = useState<Record<string, number>>({});
 
   useEffect(() => {
     // Verificar autenticação
@@ -71,6 +89,17 @@ export default function MonitoramentoStoragePage() {
         const lojasData = response.data.lojas || [];
         setLojas(lojasData);
         setError('');
+      }
+      try {
+        const midia = await apiClient.get('/superadmin/midia/');
+        const mapa: Record<string, number> = {};
+        for (const item of midia.data?.tenants || []) {
+          const chave = String(item.slug || item.tenant || '');
+          if (chave) mapa[chave] = Number(item.bytes) || 0;
+        }
+        setMidiaPorSlug(mapa);
+      } catch (midiaErr) {
+        logger.warn('Mídia indisponível no storage:', midiaErr);
       }
     } catch (err) {
       logger.warn('❌ Erro ao carregar storage:', err);
@@ -134,8 +163,9 @@ export default function MonitoramentoStoragePage() {
     ok: lojas.filter(l => l.storage_status === 'ok').length,
     warning: lojas.filter(l => l.storage_status === 'warning').length,
     critical: lojas.filter(l => l.storage_status === 'critical').length,
-    uso_total_gb: lojas.reduce((acc, l) => acc + (l.storage_usado_mb / 1024), 0),
+    uso_total_mb: lojas.reduce((acc, l) => acc + l.storage_usado_mb, 0),
     limite_total_gb: lojas.reduce((acc, l) => acc + (l.storage_limite_mb / 1024), 0),
+    midia_bytes: lojas.reduce((acc, l) => acc + (midiaPorSlug[l.slug] || 0), 0),
   };
 
   if (loading) {
@@ -160,13 +190,13 @@ export default function MonitoramentoStoragePage() {
             </a>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Monitoramento de Storage</h1>
-              <p className="text-gray-600 mt-1">Acompanhe o crescimento do banco de todas as lojas em tempo real</p>
+              <p className="text-gray-600 mt-1">Banco de cada loja e fotos/PDFs no servidor de mídia</p>
             </div>
           </div>
         </div>
 
         {/* Estatísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6 shrink-0">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6 shrink-0">
           <div className="bg-white rounded-lg shadow p-4">
             <div className="text-sm text-gray-500">Total de Lojas</div>
             <div className="text-2xl font-bold text-gray-900">{estatisticas.total}</div>
@@ -184,13 +214,20 @@ export default function MonitoramentoStoragePage() {
             <div className="text-2xl font-bold text-red-900">{estatisticas.critical}</div>
           </div>
           <div className="bg-purple-50 rounded-lg shadow p-4 border border-purple-200">
-            <div className="text-sm text-purple-700">Uso Total</div>
+            <div className="text-sm text-purple-700">Banco</div>
             <div className="text-2xl font-bold text-purple-900">
-              {estatisticas.uso_total_gb.toFixed(1)} GB
+              {formatMb(estatisticas.uso_total_mb)}
             </div>
             <div className="text-xs text-purple-600">
-              de {estatisticas.limite_total_gb.toFixed(0)} GB
+              limite dos planos: {estatisticas.limite_total_gb.toFixed(0)} GB
             </div>
+          </div>
+          <div className="bg-pink-50 rounded-lg shadow p-4 border border-pink-200">
+            <div className="text-sm text-pink-700">Mídia</div>
+            <div className="text-2xl font-bold text-pink-900">
+              {formatBytes(estatisticas.midia_bytes)}
+            </div>
+            <div className="text-xs text-pink-600">fotos e PDFs</div>
           </div>
         </div>
 
@@ -290,7 +327,8 @@ export default function MonitoramentoStoragePage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plano</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Uso</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Banco</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mídia</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Limite</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-[28%]">Percentual</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -310,7 +348,12 @@ export default function MonitoramentoStoragePage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-gray-900">
-                        {loja.storage_usado_mb.toFixed(2)} MB
+                        {formatMb(loja.storage_usado_mb)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-medium text-gray-900">
+                        {loja.slug in midiaPorSlug ? formatBytes(midiaPorSlug[loja.slug]) : '—'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -333,7 +376,7 @@ export default function MonitoramentoStoragePage() {
                           ></div>
                         </div>
                         <span className="text-sm font-medium text-gray-900">
-                          {loja.storage_percentual.toFixed(1)}%
+                          {formatPercent(loja.storage_percentual)}
                         </span>
                       </div>
                     </td>
@@ -389,8 +432,8 @@ export default function MonitoramentoStoragePage() {
             <li>• Os dados são recalculados automaticamente a cada 6 horas (ou ao subir o servidor)</li>
             <li>• &quot;Atualizar Agora&quot; recalcula o uso de todas as lojas no PostgreSQL</li>
             <li>• Você pode verificar uma loja específica clicando no botão 🔄 na linha</li>
-            <li>• Alertas são enviados quando o uso atinge 80% do limite</li>
-            <li>• Lojas são bloqueadas automaticamente quando atingem 100% do limite</li>
+            <li>• Banco é o schema PostgreSQL da loja. Mídia são fotos e PDFs no servidor de imagens, fora desse número.</li>
+            <li>• O alerta de 80% e o bloqueio em 100% continuam valendo só para o banco, não para as fotos.</li>
             <li>• Esta página atualiza automaticamente a cada 30 segundos (pode desativar)</li>
           </ul>
         </div>

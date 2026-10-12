@@ -86,7 +86,7 @@ class AsaasLojaWebhookViewTest(SimpleTestCase):
         response = asaas_loja_webhook(request, loja_slug="felix")
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data.get("queued"))
-        mock_enqueue.assert_called_once_with(4, payload)
+        mock_enqueue.assert_called_once_with(4, payload, app="crm_vendas")
 
     @patch("core.webhook_security.webhook_auth_failed_response")
     @patch("core.webhook_security.verify_asaas_access_token", return_value=False)

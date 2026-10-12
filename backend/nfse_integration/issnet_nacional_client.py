@@ -25,14 +25,11 @@ from lxml import etree
 
 from nfse_integration.issnet_cert import certificado_mtls_temporario
 from nfse_integration.issnet_constants import (
-    CABEC_MSG,
-    CABEC_MSG_NACIONAL,
     ISSNET_NACIONAL_URLS,
     NS_NFSE_NACIONAL,
     SOAP_ACTION_NACIONAL_CANCELAR_NFSE,
     SOAP_ACTION_NACIONAL_CONSULTAR_NFSE_DPS,
     SOAP_ACTION_NACIONAL_GERAR_NFSE,
-    SOAP_ACTION_NACIONAL_RECEPCIONAR_LOTE_DPS_SINCRONO,
 )
 from nfse_integration.issnet_nacional_xml_builder import (
     construir_xml_cancelar_nfse_nacional,
@@ -40,17 +37,12 @@ from nfse_integration.issnet_nacional_xml_builder import (
     construir_xml_consultar_url_nfse_nacional,
     construir_xml_consultar_url_nfse_nacional_simples,
     construir_xml_enviar_lote_dps_sincrono,
-    construir_xml_gerar_nfse_envio,
     extrair_chave_acesso_nfse_nacional,
     extrair_numero_nfse_nacional,
 )
 from nfse_integration.issnet_response import extrair_body_soap, extrair_erros
 from nfse_integration.issnet_soap import (
-    _montar_soap_envelope,
-    issnet_corpo_parece_xml,
     issnet_erro_assinatura,
-    issnet_erro_schema_ou_cabecalho,
-    issnet_fault_soap_generico,
     montar_soap_envelope_sem_ns_raiz,
 )
 from nfse_integration.issnet_xml_builder import somente_digitos
@@ -121,11 +113,15 @@ class ISSNetNacionalClient:
         a assinatura no servidor ISSNet.
         """
         from contextlib import suppress
+
+        from cryptography.hazmat.primitives.serialization import (
+            Encoding,
+            NoEncryption,
+            PrivateFormat,
+            pkcs12,
+        )
         from lxml import etree
         from signxml import XMLSigner, methods
-        from cryptography.hazmat.primitives.serialization import (
-            Encoding, NoEncryption, PrivateFormat, pkcs12,
-        )
 
         created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
         cert_path = self._pfx_temp()
@@ -203,11 +199,13 @@ class ISSNetNacionalClient:
         Após a assinatura do lote, serializa uma única vez sem formatação.
         """
         from contextlib import suppress
+
         from lxml import etree
+
         from nfse_integration.nacional.xml_signer import (
+            _assinar_elemento_por_id,
             _carregar_chave_xmlsec,
             _completar_cadeia_certificados,
-            _assinar_elemento_por_id,
             assinar_xml_enviar_lote_dps,
         )
 
@@ -429,7 +427,7 @@ class ISSNetNacionalClient:
                 envelope_bytes = envelope.encode("utf-8")
                 logger.info(
                     "ISSNet Nacional: envelope SHA-1 = %s (%d bytes)",
-                    hashlib.sha1(envelope_bytes).hexdigest(), len(envelope_bytes),
+                    hashlib.sha1(envelope_bytes, usedforsecurity=False).hexdigest(), len(envelope_bytes),
                 )
 
                 headers = {

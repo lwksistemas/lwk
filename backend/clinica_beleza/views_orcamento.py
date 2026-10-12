@@ -18,10 +18,9 @@ from clinica_beleza.orcamento_service import (
     listar_orcamentos_paciente,
 )
 from clinica_beleza.permissions import CLINICA_CLINICAL, _loja_and_profissional
-from clinica_beleza.permissions import CLINICA_CLINICAL
 from clinica_beleza.serializers import OrcamentoCreateSerializer, OrcamentoStatusSerializer
 from clinica_beleza.throttles import PublicPdfThrottle
-from clinica_beleza.views_base import GetObjectMixin, MSG_ERRO_PDF, resposta_erro_interno
+from clinica_beleza.views_base import MSG_ERRO_PDF, GetObjectMixin, resposta_erro_interno
 
 logger = logging.getLogger(__name__)
 

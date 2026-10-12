@@ -1,4 +1,6 @@
 """SQL idempotente para histórico de negociação CRM (migration 0069) em tenants."""
+from django.db import connection
+
 from core.schema_checks import column_exists, table_exists
 
 TABLE_OPORTUNIDADE = "crm_vendas_oportunidade"

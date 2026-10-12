@@ -95,11 +95,12 @@ def garantir_grupos_padrao(loja_id: int) -> None:
     tem_qualquer = GrupoFinanceiroCRM.objects.filter(loja_id=loja_id).exists()
     for tipo, nome, ordem in GRUPOS_PADRAO:
         obrigatorio = (tipo, nome) in GRUPOS_SISTEMA_OBRIGATORIOS
-        if tem_qualquer and not obrigatorio:
-            if not GrupoFinanceiroCRM.objects.filter(
-                loja_id=loja_id, tipo=tipo, nome=nome,
-            ).exists():
-                continue
+        if (
+            tem_qualquer
+            and not obrigatorio
+            and not GrupoFinanceiroCRM.objects.filter(loja_id=loja_id, tipo=tipo, nome=nome).exists()
+        ):
+            continue
         _deduplicar_grupo_financeiro(loja_id, tipo, nome, ordem)
 
 

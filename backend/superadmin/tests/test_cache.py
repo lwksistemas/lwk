@@ -153,7 +153,7 @@ class TestCachedStatDecorator:
         call_count = 0
 
         @cached_stat(ttl=60, key_prefix="test_stat")
-        def expensive_function(request):
+        def expensive_function(self, request):
             nonlocal call_count
             call_count += 1
             return Response({"result": "computed"})
@@ -179,7 +179,7 @@ class TestCachedStatDecorator:
         call_count = 0
 
         @cached_stat(ttl=60, key_prefix="test_stat")
-        def function_with_params(request):
+        def function_with_params(self, request):
             nonlocal call_count
             call_count += 1
             dias = request.query_params.get("dias", "30")
@@ -213,7 +213,7 @@ class TestCachedStatDecorator:
         import time
 
         @cached_stat(ttl=1, key_prefix="test_stat")
-        def function_with_ttl(request):
+        def function_with_ttl(self, request):
             return Response({"timestamp": time.time()})
 
         class MockRequest:
@@ -248,7 +248,7 @@ class TestCacheIntegration:
         import time
 
         @cached_stat(ttl=60, key_prefix="perf_test")
-        def slow_function(request):
+        def slow_function(self, request):
             time.sleep(0.1)  # Simular query pesada
             return Response({"result": "data"})
 

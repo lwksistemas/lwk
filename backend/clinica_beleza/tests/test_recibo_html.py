@@ -147,7 +147,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
             ),
         )
         self.assertIn("Taxa de avaliação", html)
-        self.assertIn("Tirzepatida — 2,5 mg", html)
+        self.assertIn("Tirzepatida — 2,5&nbsp;mg", html)
         self.assertIn("R$ 150,00", html)
         self.assertIn("R$ 300,00", html)
         self.assertNotIn("Desconto retorno", html)

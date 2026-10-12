@@ -12,8 +12,8 @@ from .exceptions import FotoUploadInvalida, FotoUrlInvalida
 from .persistence import (
     contar_fotos_consulta,
     excluir_foto_paciente,
-    limpar_fotos_media_da_consulta,
     limites_fotos_consulta,
+    limpar_fotos_media_da_consulta,
     listar_fotos_paciente,
     registrar_foto,
     serializar_foto,

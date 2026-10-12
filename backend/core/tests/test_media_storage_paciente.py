@@ -2,13 +2,13 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
+from clinica_beleza.management.commands.reorganizar_pdf_loja import basename_url_midia
 from core.media_storage import (
     destino_midia_paciente_legado,
     folder_media_paciente,
     pasta_media_paciente,
     tipo_pasta_paciente,
 )
-from clinica_beleza.management.commands.reorganizar_pdf_loja import basename_url_midia
 
 
 class PastaMediaPacienteTest(TestCase):

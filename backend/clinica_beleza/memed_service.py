@@ -410,9 +410,7 @@ def prescritor_liberado_na_memed(st: dict | None) -> bool:
     O status \"Em análise\" e ``terms_accepted: false`` são de outros produtos da Memed
     e não impedem prescrever (confirmação do suporte Memed, ago/2026).
     """
-    if not st or st.get("state") != "ok":
-        return False
-    return True
+    return bool(st) and st.get("state") == "ok"
 
 
 def status_prescritor_para_diagnostico(professional) -> dict:

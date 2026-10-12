@@ -2,13 +2,13 @@
 from rest_framework import serializers
 
 from ..models import Procedure, TermoConsentimentoConfig, TermoConsentimentoTemplate
+from ..models.termos_consentimento import TIPO_INTERATIVO, TIPO_SIMPLES
 from ..termos_consentimento_service import (
     ProcedimentoJaTemTermo,
     nome_sem_anadem,
     normalizar_secoes,
     vincular_procedimento_ao_termo,
 )
-from ..models.termos_consentimento import TIPO_INTERATIVO, TIPO_SIMPLES
 
 
 class TermoConsentimentoTemplateSerializer(serializers.ModelSerializer):

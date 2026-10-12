@@ -1,5 +1,5 @@
 """Conflito de agenda não ocupa horário de cancelado/faltou."""
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -10,7 +10,7 @@ from rules.agenda import STATUS_NAO_OCUPAM_HORARIO, bloquear_conflitos
 
 
 def _inicio():
-    return datetime(2026, 9, 17, 10, 11, 30, tzinfo=timezone.utc)
+    return datetime(2026, 9, 17, 10, 11, 30, tzinfo=UTC)
 
 
 def _contexto(**extra):

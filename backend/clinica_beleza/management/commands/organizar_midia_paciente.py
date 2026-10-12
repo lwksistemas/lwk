@@ -67,7 +67,7 @@ class Command(BaseCommand):
                 nova_url = media_copiar_para_pasta(old_url, nova_pasta)
                 if not nova_url:
                     falhas += 1
-                    self.stdout.write(self.style.ERROR(f"    falhou ao copiar"))
+                    self.stdout.write(self.style.ERROR("    falhou ao copiar"))
                     continue
                 self._atualizar_urls(loja, old_url, nova_url)
                 if media_delete_by_url(old_url):

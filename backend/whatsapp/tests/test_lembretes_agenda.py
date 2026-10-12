@@ -5,13 +5,13 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
+from whatsapp.services import enviar_lembrete_agendamento
 from whatsapp.tasks import (
     _JANELA_2H_ANTES,
     _JANELA_2H_DEPOIS,
     _paciente_aceita_whatsapp,
     _telefone_paciente,
 )
-from whatsapp.services import enviar_lembrete_agendamento
 
 
 class TelefonePacienteLembreteTest(SimpleTestCase):

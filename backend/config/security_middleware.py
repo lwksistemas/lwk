@@ -417,11 +417,14 @@ class SecurityIsolationMiddleware:
         )
         if not any(path.startswith(route) for route in store_routes):
             return False
-        if path.startswith("/api/crm-vendas/") and SecurityIsolationMiddleware._is_crm_vendas_public_path(path):
-            return False
-        if path.startswith("/api/clinica-beleza/") and SecurityIsolationMiddleware._is_clinica_beleza_public_path(path):
-            return False
-        return True
+        rota_publica = (
+            path.startswith("/api/crm-vendas/")
+            and SecurityIsolationMiddleware._is_crm_vendas_public_path(path)
+        ) or (
+            path.startswith("/api/clinica-beleza/")
+            and SecurityIsolationMiddleware._is_clinica_beleza_public_path(path)
+        )
+        return not rota_publica
 
     def _extract_store_slug(self, request):
         """Extrai o slug da loja da requisição.

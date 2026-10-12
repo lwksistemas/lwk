@@ -35,8 +35,8 @@ def _map_patient_data(raw_data):
 
 
 def _loja_atual():
-    from tenants.middleware import get_current_loja_id
     from superadmin.models import Loja
+    from tenants.middleware import get_current_loja_id
 
     loja_id = get_current_loja_id()
     if not loja_id:

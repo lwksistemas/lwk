@@ -142,8 +142,8 @@ class GerarPdfReciboTests(SimpleTestCase):
     def test_logo_so_do_servidor_de_midia(self):
         from urllib.parse import urlparse
 
-        from core.media_storage import MEDIA_SERVER_URL
         from clinica_beleza.recibo.pdf import logo_url_permitida_para_download
+        from core.media_storage import MEDIA_SERVER_URL
 
         host = urlparse(MEDIA_SERVER_URL).hostname or "media.lwksistemas.com.br"
         scheme = "https" if str(MEDIA_SERVER_URL).startswith("https") else "http"
@@ -272,8 +272,8 @@ class FormatarEnderecoLojaTests(SimpleTestCase):
 
 class ReciboSemPagamentoTests(SimpleTestCase):
     def test_retorno_sem_pagamento_usa_o_mesmo_pdf(self):
-        from types import SimpleNamespace
         import io
+        from types import SimpleNamespace
 
         from clinica_beleza.models import Appointment
 

@@ -1,15 +1,14 @@
 """CRUD de fornecedor e gravação do catálogo. Não altera estoque clínico."""
 from __future__ import annotations
 
+from clinica_beleza.fornecedor.catalogo import _parse_preco
+from clinica_beleza.fornecedor.errors import FornecedorError
+from clinica_beleza.models.fornecedores import Fornecedor, FornecedorProduto
 from core.cpf_utils import (
     existe_documento_duplicado,
     mensagem_documento_duplicado,
     somente_digitos_documento,
 )
-
-from clinica_beleza.fornecedor.catalogo import _parse_preco
-from clinica_beleza.fornecedor.errors import FornecedorError
-from clinica_beleza.models.fornecedores import Fornecedor, FornecedorProduto
 
 
 def _formatar_cnpj(digits: str) -> str:

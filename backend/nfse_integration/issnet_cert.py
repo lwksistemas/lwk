@@ -56,7 +56,7 @@ def materializar_pem_mtls(
 @contextmanager
 def certificado_mtls_temporario(
     pfx_path: str, senha: str,
-) -> Generator[tuple[str, str], None, None]:
+) -> Generator[tuple[str, str]]:
     """Context manager: paths PEM para mTLS; remove arquivos ao sair."""
     key_path, cert_path, _key, _cert = materializar_pem_mtls(pfx_path, senha)
     try:

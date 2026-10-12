@@ -6,8 +6,8 @@ from django.test import SimpleTestCase
 from django.utils import timezone
 
 from clinica_beleza.agenda_service import (
-    AgendaValidationError,
     MSG_FINALIZADA_SO_DATA,
+    AgendaValidationError,
     atualizar_agendamento,
     horario_agendamento_passou,
 )

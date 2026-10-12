@@ -358,7 +358,7 @@ def definir_pagamento_protocolo(contrato, forma: str, appointment_id=None) -> No
                 item.procedure_id: item
                 for item in AppointmentProcedure.objects.filter(appointment=appointment)
             }
-            for linha, valor_linha in zip(linhas, valores):
+            for linha, valor_linha in zip(linhas, valores, strict=False):
                 procedimento = procs.get(linha.procedure_id)
                 if procedimento is None:
                     continue

@@ -4,7 +4,7 @@ from contextlib import suppress
 from django.core.management.base import BaseCommand
 from django.db import connections
 
-from clinica_beleza.schema_ensure import queryset_lojas_clinica_beleza, ensure_retorno_gratuito_tables, table_exists
+from clinica_beleza.schema_ensure import ensure_retorno_gratuito_tables, queryset_lojas_clinica_beleza, table_exists
 from core.db_config import ensure_loja_database_config
 
 

@@ -6,9 +6,9 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase
 from rest_framework.serializers import ModelSerializer
 
+from clinica_beleza.consulta_service.lifecycle import trocar_profissional_consulta
 from clinica_beleza.consulta_service.payment._common import _calcular_valor_total_com_desconto
 from clinica_beleza.consulta_service.payment.receber import _ensure_payment_for_appointment
-from clinica_beleza.consulta_service.lifecycle import trocar_profissional_consulta
 from clinica_beleza.permissions import oculta_notas_clinicas
 from clinica_beleza.serializers.consultas import ConsultaSerializer
 from clinica_beleza.views_consultas.consulta_list import (

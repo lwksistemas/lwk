@@ -8,9 +8,9 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
 from core.media_storage import (
+    _ALLOWED_ROOT_FOLDERS,
     MEDIA_TENANT_SUPERADMIN,
     MEDIA_TENANT_SUPORTE,
-    _ALLOWED_ROOT_FOLDERS,
     _cpf_cnpj_digits,
     folder_media_paciente,
     is_media_url,

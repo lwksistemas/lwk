@@ -5,10 +5,10 @@ Uso:
     python manage.py ensure_crm_financeiro_tabelas --slug felix
 """
 from django.core.management.base import BaseCommand
-from django.db import connections
+from django.db import connection, connections
 
-from core.schema_checks import table_exists
 from core.db_config import ensure_loja_database_config
+from core.schema_checks import table_exists
 from crm_vendas.financeiro_schema_ensure import (
     TABLE_GRUPO,
     TABLE_LANCAMENTO,

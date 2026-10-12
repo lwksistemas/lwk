@@ -3,11 +3,11 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .is_padrao_service import exclusivizar_padrao, garantir_primeiro_padrao
 from .models import NomeAgenda
 from .permissions import CLINICA_RECEPCAO
 from .procedimentos_catalogo import is_tipo_agenda_sistema
 from .serializers import NomeAgendaSerializer
-from .is_padrao_service import exclusivizar_padrao, garantir_primeiro_padrao
 from .views_base import GetObjectMixin
 
 

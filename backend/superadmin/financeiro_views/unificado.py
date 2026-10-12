@@ -154,7 +154,6 @@ def _assinaturas_unificado():
     """Lista unificada de assinaturas (Asaas + Mercado Pago) no formato esperado pelo frontend."""
     from asaas_integration.models import AsaasPayment, LojaAssinatura
     from asaas_integration.serializers import LojaAssinaturaSerializer
-
     from superadmin.models import Loja as LojaModel
 
     out = []

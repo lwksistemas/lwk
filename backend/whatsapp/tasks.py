@@ -53,6 +53,7 @@ def _reservar_lembrete(tipo: str, loja_id, appointment_id, timeout: int) -> str 
 
 def _enviar_lembrete_unico(tipo, loja_id, appointment_id, agendamento, config, timeout: int) -> bool:
     from django.core.cache import cache
+
     from whatsapp.services import enviar_lembrete_agendamento
 
     key = _reservar_lembrete(tipo, loja_id, appointment_id, timeout)
@@ -203,7 +204,7 @@ def send_confirmacoes_agendadas_whatsapp():
 
     hoje = timezone.localtime(timezone.now()).date()
     enviados = 0
-    lojas = _lojas_com_confirmacao_agenda_whatsapp()
+    lojas = _lojas_clinica_beleza_whatsapp()
     vistos = set()
     for loja in lojas:
         if loja.id in vistos:

@@ -11,7 +11,7 @@ from contextlib import suppress
 from django.core.management.base import BaseCommand
 from django.db import connection
 
-from clinica_beleza.schema_ensure import queryset_lojas_clinica_beleza, column_exists, table_exists
+from clinica_beleza.schema_ensure import column_exists, queryset_lojas_clinica_beleza, table_exists
 
 CATEGORIAS_PADRAO = [
     ("injetavel", "Injetável", 1),

@@ -51,16 +51,6 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
         tipo_loja_nome = instance.tipo_loja.nome
         owner = instance.owner
 
-        # Dados básicos do funcionário
-        funcionario_data = {
-            "nome": owner.get_full_name() or owner.username,
-            "email": owner.email,
-            "telefone": "",  # Será preenchido posteriormente pelo admin
-            "cargo": "Administrador",
-            "is_admin": True,  # Marca como administrador da loja
-            "loja_id": instance.id,  # ID da loja (obrigatório para LojaIsolationMixin)
-        }
-
         funcionario_criado = None
 
         # Criar funcionário baseado no tipo de app

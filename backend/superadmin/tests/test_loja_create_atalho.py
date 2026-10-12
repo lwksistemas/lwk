@@ -1,5 +1,5 @@
 """Atalho duplicado no cadastro público deve falhar com mensagem clara."""
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.test import SimpleTestCase
 from rest_framework.exceptions import ValidationError

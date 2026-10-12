@@ -1,4 +1,6 @@
 """SQL idempotente para colunas emitente_* em proposta/contrato (migration 0068)."""
+from django.db import connection
+
 from core.schema_checks import column_exists, table_exists
 
 TABLE_PROPOSTA = "crm_vendas_proposta"

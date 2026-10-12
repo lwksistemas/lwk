@@ -17,7 +17,7 @@ from .prontuario_pdf import (
     nome_arquivo_pdf_prontuario,
 )
 from .serializers import ProntuarioSectionSerializer
-from .views_base import GetObjectMixin, MSG_ERRO_PDF, resposta_erro_interno
+from .views_base import MSG_ERRO_PDF, GetObjectMixin, resposta_erro_interno
 
 logger = logging.getLogger(__name__)
 

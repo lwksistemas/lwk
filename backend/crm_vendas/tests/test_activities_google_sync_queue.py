@@ -45,10 +45,11 @@ class ActivitiesGoogleSyncQueueTest(SimpleTestCase):
         dispatch_sync_atividade_create(MagicMock(), atividade)
         mock_enqueue.assert_called_once_with(4, 11, 3)
 
+    @patch("crm_vendas.activities_google_sync_queue.close_old_connections")
     @patch("crm_vendas.activities_google_sync.sync_atividade_create_for_context")
     @patch("crm_vendas.models.Atividade")
     @patch("crm_vendas.activities_google_sync_queue._setup_tenant", return_value=True)
-    def test_run_create_worker(self, _tenant, mock_model, mock_sync):
+    def test_run_create_worker(self, _tenant, mock_model, mock_sync, _close):
         from crm_vendas.activities_google_sync_queue import run_sync_atividade_create
 
         atividade = MagicMock()
@@ -58,9 +59,10 @@ class ActivitiesGoogleSyncQueueTest(SimpleTestCase):
 
         mock_sync.assert_called_once_with(atividade, vendedor_id=7)
 
+    @patch("crm_vendas.activities_google_sync_queue.close_old_connections")
     @patch("crm_vendas.activities_google_sync.sync_atividade_create_for_context")
     @patch("crm_vendas.activities_google_sync_queue._setup_tenant", return_value=False)
-    def test_run_create_sem_tenant(self, _tenant, mock_sync):
+    def test_run_create_sem_tenant(self, _tenant, mock_sync, _close):
         from crm_vendas.activities_google_sync_queue import run_sync_atividade_create
 
         run_sync_atividade_create(2, 99, None)

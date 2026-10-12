@@ -1,5 +1,5 @@
 """Testes unitários do service de dashboard."""
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from django.test import SimpleTestCase
@@ -29,13 +29,12 @@ from .tenant_test_case import ClinicaBelezaIntegrationTestCase
 
 class ParseDashboardPeriodTests(SimpleTestCase):
     def test_dia_2_vai_ate_23h59_de_brasilia(self):
-        from datetime import timezone as py_tz
         from unittest.mock import patch
 
         from clinica_beleza.dashboard_service import data_hoje_clinica
 
-        vinte_tres_e_cinquenta_e_nove = datetime(2026, 10, 3, 2, 59, tzinfo=py_tz.utc)
-        meia_noite = datetime(2026, 10, 3, 3, 0, tzinfo=py_tz.utc)
+        vinte_tres_e_cinquenta_e_nove = datetime(2026, 10, 3, 2, 59, tzinfo=UTC)
+        meia_noite = datetime(2026, 10, 3, 3, 0, tzinfo=UTC)
         with patch("clinica_beleza.dashboard_service.now", return_value=vinte_tres_e_cinquenta_e_nove):
             self.assertEqual(data_hoje_clinica(), date(2026, 10, 2))
         with patch("clinica_beleza.dashboard_service.now", return_value=meia_noite):

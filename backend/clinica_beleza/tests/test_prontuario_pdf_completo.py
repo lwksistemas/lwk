@@ -25,6 +25,13 @@ class GerarPdfProntuarioCompletoTests(SimpleTestCase):
         patient = MagicMock()
         patient.nome = "MARCIA BATAGLIA"
         patient.loja_id = 6
+        patient.cpf = ""
+        patient.data_nascimento = None
+        patient.sexo = ""
+        patient.telefone = ""
+        patient.endereco = ""
+        patient.cidade = ""
+        patient.estado = ""
         mock_patient.objects.filter.return_value.first.return_value = patient
         mock_listar.return_value = {}
 

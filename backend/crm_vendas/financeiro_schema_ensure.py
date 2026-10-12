@@ -1,4 +1,6 @@
 """SQL idempotente para tabelas financeiro CRM (0064/0065) em tenants."""
+from django.db import connection
+
 from core.schema_checks import table_exists
 
 TABLE_GRUPO = "crm_financeiro_grupo"

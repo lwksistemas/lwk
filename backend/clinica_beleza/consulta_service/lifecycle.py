@@ -346,8 +346,8 @@ def reabrir_consulta(consulta):
     """
     from clinica_beleza import consulta_service
 
-    from ..models import Consulta
     from ..estoque_service import tenant_atomic
+    from ..models import Consulta
     from ._deps import logger
 
     with tenant_atomic():

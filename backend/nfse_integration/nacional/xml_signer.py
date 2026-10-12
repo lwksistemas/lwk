@@ -94,7 +94,6 @@ def _load_certs_from_response(content: bytes, url: str) -> list:
 
 def _completar_cadeia_certificados(cert_obj, extra_certs):
     """Tenta montar a cadeia ICP-Brasil usando certificados do PFX, AIA e fallback ITI."""
-    from cryptography import x509
 
     chain = []
     seen = set()

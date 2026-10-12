@@ -7,15 +7,15 @@ from django.test import SimpleTestCase
 
 from clinica_beleza.fornecedor_service import (
     FornecedorError,
+    _norm_nome,
+    _parse_catalogo_texto_livre,
+    _texto_pagina_pypdf,
+    _texto_parece_planilha,
     excluir_catalogo,
     excluir_fornecedor,
     importar_catalogo,
     preview_catalogo_arquivo,
     preview_catalogo_pdf,
-    _norm_nome,
-    _parse_catalogo_texto_livre,
-    _texto_pagina_pypdf,
-    _texto_parece_planilha,
     salvar_fornecedor,
 )
 from clinica_beleza.pedido_compra_service import (
@@ -26,10 +26,10 @@ from clinica_beleza.pedido_compra_service import (
     _montar_pacientes,
     _normalizar_cpf,
     assinar_clinica,
+    content_disposition_anexo,
     criar_pedido,
     enviar_pedido_assinado,
     excluir_pedido,
-    content_disposition_anexo,
     nome_arquivo_pdf_pedido,
 )
 
@@ -397,6 +397,7 @@ class PedidoCompraServiceTests(SimpleTestCase):
 class PedidoCompraPdfTests(SimpleTestCase):
     def _pedido(self, assinado=True):
         from decimal import Decimal
+
         from django.utils import timezone
 
         item = MagicMock()

@@ -3,8 +3,8 @@
 API pública igual ao antigo payment.py — urls e SQL não mudam.
 """
 from ._common import (
-    _calcular_vencimento_prazo,
     _calcular_valor_total_com_desconto,
+    _calcular_vencimento_prazo,
     _normalize_entradas,
     _tentar_nfse_pos_pagamento,
 )

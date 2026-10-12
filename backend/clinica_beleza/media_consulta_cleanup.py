@@ -75,10 +75,7 @@ def _arquivo_pdf_da_consulta(filename: str, consulta_id: int, conhecidos: set[st
         return True
     if filename.startswith("termo_") and filename.endswith(f"_{consulta_id}.pdf"):
         return True
-    for marca in conhecidos:
-        if marca.endswith("_") and filename.startswith(marca):
-            return True
-    return False
+    return any(marca.endswith("_") and filename.startswith(marca) for marca in conhecidos)
 
 
 def limpar_pdfs_media_da_consulta(consulta) -> int:

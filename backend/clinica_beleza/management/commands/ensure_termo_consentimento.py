@@ -7,7 +7,7 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.db import connections
 
-from clinica_beleza.schema_ensure import queryset_lojas_clinica_beleza, column_exists, table_exists
+from clinica_beleza.schema_ensure import column_exists, queryset_lojas_clinica_beleza, table_exists
 from core.db_config import ensure_loja_database_config
 
 MIGRATION_NAMES = (
@@ -59,12 +59,14 @@ class Command(BaseCommand):
                             "ADD COLUMN procedure_id BIGINT NULL "
                             "REFERENCES clinica_beleza_procedure(id) ON DELETE SET NULL",
                         )
-                    if table_exists(cursor, "clinica_beleza_consultas"):
-                        if not column_exists(cursor, "clinica_beleza_consultas", "status_assinatura_termo"):
-                            cursor.execute(
-                                "ALTER TABLE clinica_beleza_consultas "
-                                "ADD COLUMN status_assinatura_termo VARCHAR(30) NOT NULL DEFAULT 'rascunho'",
-                            )
+                    if (
+                        table_exists(cursor, "clinica_beleza_consultas")
+                        and not column_exists(cursor, "clinica_beleza_consultas", "status_assinatura_termo")
+                    ):
+                        cursor.execute(
+                            "ALTER TABLE clinica_beleza_consultas "
+                            "ADD COLUMN status_assinatura_termo VARCHAR(30) NOT NULL DEFAULT 'rascunho'",
+                        )
                     if not table_exists(cursor, "clinica_beleza_consulta_assinaturas_termo"):
                         cursor.execute("""
                             CREATE TABLE clinica_beleza_consulta_assinaturas_termo (

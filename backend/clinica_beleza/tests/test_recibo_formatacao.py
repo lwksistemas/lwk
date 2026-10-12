@@ -3,12 +3,12 @@ from types import SimpleNamespace
 
 from django.test import SimpleTestCase
 
+from clinica_beleza.recibo.context import desconto_concedido
 from clinica_beleza.recibo_service import (
     _extrair_desconto_notes,
     _label_documento_loja,
     _linha_documento_loja,
 )
-from clinica_beleza.recibo.context import desconto_concedido
 
 
 class ReciboDocumentoLabelTest(SimpleTestCase):
@@ -77,7 +77,7 @@ class ReciboMoedaEContaTests(SimpleTestCase):
         self.assertEqual(ctx["abatimento_label"], "Abatimento — Bioestimulador de colágeno")
         linhas = _linhas_descontos_recibo(ctx)
         self.assertNotIn(("Desconto retorno", 150), linhas)
-        self.assertIn(("Abatimento — BIOESTIMULADOR DE COLÁGENO", 1800), linhas)
+        self.assertIn((ctx["abatimento_label"], ctx["abatimento"]), linhas)
         soma_descontos = sum(valor for _label, valor in linhas)
         self.assertEqual(round(ctx["subtotal"] - soma_descontos, 2), 610)
 

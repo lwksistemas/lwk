@@ -56,6 +56,7 @@ class RemoverPdfMediaPrescricaoTest(TestCase):
     @patch("core.media_storage.media_delete_by_url")
     def test_apaga_pdf_url_da_prescricao(self, mock_del):
         from types import SimpleNamespace
+
         from clinica_beleza.views_consultas.prescricoes import remover_pdf_media_prescricao
 
         presc = SimpleNamespace(
@@ -68,6 +69,7 @@ class RemoverPdfMediaPrescricaoTest(TestCase):
     @patch("core.media_storage.media_delete_by_url")
     def test_sem_pdf_url_nao_chama(self, mock_del):
         from types import SimpleNamespace
+
         from clinica_beleza.views_consultas.prescricoes import remover_pdf_media_prescricao
 
         remover_pdf_media_prescricao(SimpleNamespace(id=1, pdf_url=""))

@@ -7,8 +7,8 @@ from .consulta_fluxo import (
     ConsultaFinalizarView,
     ConsultaIniciarView,
     ConsultaReabrirView,
-    ConsultaTrocarProfissionalView,
     ConsultaReceberView,
+    ConsultaTrocarProfissionalView,
 )
 from .consulta_list import ConsultaListView, ConsultaResumoFinanceiroView
 

@@ -25,7 +25,6 @@ from .views_agenda import (  # noqa: F401
     BloqueioHorarioListView,
 )
 from .views_dashboard import DashboardView, LojaInfoView, ProcedimentosRealizadosView  # noqa: F401
-from .views_me import MeView  # noqa: F401
 
 # Financeiro
 from .views_financeiro import (  # noqa: F401
@@ -38,13 +37,14 @@ from .views_financeiro import (  # noqa: F401
     PaymentDetailView,
     PaymentEnviarReciboView,
     PaymentFormaView,
-    PaymentReciboHtmlView,
     PaymentListView,
     PaymentParcelaDetailView,
     PaymentParcelaView,
-    ReciboPdfPublicView,
+    PaymentReciboHtmlView,
     ReciboImagemPublicView,
+    ReciboPdfPublicView,
 )
+from .views_me import MeView  # noqa: F401
 
 # Pacientes
 from .views_pacientes import (  # noqa: F401

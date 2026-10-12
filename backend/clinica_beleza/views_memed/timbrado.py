@@ -18,9 +18,9 @@ class MemedTimbradoView(APIView):
     MAX_PDF_BYTES = 5 * 1024 * 1024
 
     def get(self, request):
-        from tenants.middleware import get_current_loja_id
-        from superadmin.plano_features import loja_plano_permite_memed
         from clinica_beleza.models import MemedTimbrado
+        from superadmin.plano_features import loja_plano_permite_memed
+        from tenants.middleware import get_current_loja_id
 
         ok, err = loja_plano_permite_memed(get_current_loja_id())
         if not ok:
@@ -38,8 +38,6 @@ class MemedTimbradoView(APIView):
         })
 
     def post(self, request):
-        from tenants.middleware import get_current_loja_id
-        from superadmin.plano_features import loja_plano_permite_memed
         from django.conf import settings
 
         from clinica_beleza.memed_config import memed_config
@@ -49,6 +47,8 @@ class MemedTimbradoView(APIView):
             profissionais_para_aplicar_timbrado,
         )
         from clinica_beleza.models import MemedTimbrado, Professional
+        from superadmin.plano_features import loja_plano_permite_memed
+        from tenants.middleware import get_current_loja_id
 
         ok, err = loja_plano_permite_memed(get_current_loja_id())
         if not ok:

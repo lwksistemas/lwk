@@ -31,20 +31,20 @@ from .views import (
     PaymentDetailView,
     PaymentEnviarReciboView,
     PaymentFormaView,
-    PaymentReciboHtmlView,
     PaymentListView,
     PaymentParcelaDetailView,
     PaymentParcelaView,
+    PaymentReciboHtmlView,
     ProcedimentoConvenioPrecosMatrixView,
+    ProcedimentosRealizadosView,
     ProcedureDetailView,
     ProcedureListView,
     ProcedurePrecosConvenioView,
-    ProcedimentosRealizadosView,
     ProfessionalCommissionView,
     ProfessionalDetailView,
     ProfessionalListView,
-    ReciboPdfPublicView,
     ReciboImagemPublicView,
+    ReciboPdfPublicView,
 )
 from .views_admin_professional import AdminProfessionalStatusView, AdminProfessionalToggleView
 from .views_agenda_confirmacao import ConfirmarAgendamentoPublicaView
@@ -75,9 +75,7 @@ from .views_consultas import (
     ConsultaEvolucaoListView,
     ConsultaFinalizarView,
     ConsultaIniciarView,
-    ConsultaTrocarProfissionalView,
     ConsultaListView,
-    ConsultaResumoFinanceiroView,
     ConsultaPrescricaoDeleteView,
     ConsultaPrescricaoView,
     ConsultaProcedimentoDetailView,
@@ -87,7 +85,9 @@ from .views_consultas import (
     ConsultaReabrirView,
     ConsultaReceberView,
     ConsultaReciboPdfView,
+    ConsultaResumoFinanceiroView,
     ConsultaSecaoPDFView,
+    ConsultaTrocarProfissionalView,
     PatientAnamneseView,
     PatientHistoricoConsultasView,
     PatientPrescricaoView,
@@ -122,18 +122,6 @@ from .views_fornecedores import (
     FornecedorListView,
     FornecedorProdutoListView,
 )
-from .views_pedido_compra import (
-    PedidoCompraAssinantesView,
-    PedidoCompraAssinarClinicaView,
-    PedidoCompraBuscarPacientesView,
-    PedidoCompraCancelarView,
-    PedidoCompraDetailView,
-    PedidoCompraEnviarView,
-    PedidoCompraListView,
-    PedidoCompraPdfPublicView,
-    PedidoCompraImagemPublicView,
-    PedidoCompraPdfView,
-)
 from .views_foto_paciente import (
     ConsultaFotoDeleteView,
     ConsultaFotoQrView,
@@ -155,6 +143,26 @@ from .views_nomes_agenda import (
     NomeAgendaDetailView,
     NomeAgendaListView,
 )
+from .views_orcamento import (
+    OrcamentoConsultaView,
+    OrcamentoDetalheView,
+    OrcamentoEnviarView,
+    OrcamentoImagemPublicView,
+    OrcamentoPDFPublicView,
+    OrcamentoPDFView,
+)
+from .views_pedido_compra import (
+    PedidoCompraAssinantesView,
+    PedidoCompraAssinarClinicaView,
+    PedidoCompraBuscarPacientesView,
+    PedidoCompraCancelarView,
+    PedidoCompraDetailView,
+    PedidoCompraEnviarView,
+    PedidoCompraImagemPublicView,
+    PedidoCompraListView,
+    PedidoCompraPdfPublicView,
+    PedidoCompraPdfView,
+)
 from .views_prontuario import (
     DocumentoPDFView,
     ProntuarioPDFView,
@@ -164,28 +172,23 @@ from .views_protocolos import (
     ProtocolAgendarView,
     ProtocolDetailView,
     ProtocolListView,
-    ProtocolProdutosOpcoesView,
     ProtocoloPersonalizadoAgendarView,
     ProtocoloPersonalizadoCreateView,
     ProtocoloPersonalizadoOpcoesView,
     ProtocoloPersonalizadoPendentesView,
-)
-from .views_termos_consentimento import (
-    TermoConsentimentoConfigView,
-    TermoConsentimentoTemplateDetailView,
-    TermoConsentimentoTemplateListView,
+    ProtocolProdutosOpcoesView,
 )
 from .views_relatorios import (
     RelatorioComissoesPdfView,
     RelatorioComissoesView,
-    RelatorioFaturamentoPdfView,
-    RelatorioFaturamentoView,
-    RelatorioLancamentosPdfView,
-    RelatorioLancamentosView,
     RelatorioDescontosPdfView,
     RelatorioDescontosView,
+    RelatorioFaturamentoPdfView,
+    RelatorioFaturamentoView,
     RelatorioInadimplentesPdfView,
     RelatorioInadimplentesView,
+    RelatorioLancamentosPdfView,
+    RelatorioLancamentosView,
     RelatorioRepasseConsultaPdfView,
     RelatorioRepasseConsultaView,
     RelatorioVendaPrazoPdfView,
@@ -197,13 +200,10 @@ from .views_retorno import (
     RetornoProcedimentoRegraListView,
     RetornoVerificarView,
 )
-from .views_orcamento import (
-    OrcamentoConsultaView,
-    OrcamentoDetalheView,
-    OrcamentoEnviarView,
-    OrcamentoPDFPublicView,
-    OrcamentoImagemPublicView,
-    OrcamentoPDFView,
+from .views_termos_consentimento import (
+    TermoConsentimentoConfigView,
+    TermoConsentimentoTemplateDetailView,
+    TermoConsentimentoTemplateListView,
 )
 
 app_name = "clinica_beleza"

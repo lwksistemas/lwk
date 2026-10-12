@@ -200,9 +200,8 @@ class PrescricaoMemedPdfView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def post(self, request, pk):
-        from superadmin.models import Loja
-
         from core.media_storage import arquivo_midia_disponivel
+        from superadmin.models import Loja
 
         from ..memed_prescricao_service import (
             nome_arquivo_pdf_prescricao,

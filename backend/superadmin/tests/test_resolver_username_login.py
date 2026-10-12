@@ -1,6 +1,6 @@
 """Login da loja aceita usuário ou e-mail."""
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from django.test import SimpleTestCase
 

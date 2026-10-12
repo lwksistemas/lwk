@@ -96,7 +96,7 @@ export function AssinaturasTab({
       ) : (
         <>
         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-          PIX e Transferência confirmam pagamento na conta da empresa. Emitir gera o boleto quando não há outro em aberto. Reenviar manda o boleto de novo por e-mail. Baixar e reenviar na última coluna tratam a nota da mensalidade.
+          Histórico mostra todos os pagamentos e as notas da loja, com o mês pago ou vencido. PIX e Transferência confirmam pagamento na conta da empresa. Emitir gera o boleto quando não há outro em aberto.
         </p>
         <AssinaturasTabela
           assinaturas={assinaturas}

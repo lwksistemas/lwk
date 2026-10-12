@@ -478,6 +478,116 @@ def _build_historico_pagamentos_loja(
     return historico
 
 
+_MESES = ("", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
+
+
+def _mes_referencia(data) -> str:
+    if not data:
+        return ""
+    return f"{_MESES[data.month]}/{data.year}"
+
+
+def _situacao_pagamento(pagamento, hoje) -> tuple[str, str]:
+    if pagamento.status == "pago":
+        return "pago", "Pago do mês"
+    vencimento = pagamento.data_vencimento
+    if pagamento.status == "atrasado" or (vencimento and vencimento < hoje):
+        return "vencido", "Vencido"
+    return "a_vencer", "A vencer"
+
+
+def _nota_do_pagamento(pagamento, notas: list, usadas: set):
+    asaas_id = (pagamento.asaas_payment_id or "").strip()
+    ref = pagamento.referencia_mes.strftime("%m/%Y") if pagamento.referencia_mes else ""
+    for nota in notas:
+        if nota.id in usadas:
+            continue
+        if nota.pagamento_id == pagamento.id:
+            usadas.add(nota.id)
+            return nota
+    if asaas_id:
+        for nota in notas:
+            if nota.id not in usadas and (nota.asaas_payment_id or "").strip() == asaas_id:
+                usadas.add(nota.id)
+                return nota
+    if ref:
+        marca = f"Ref. {ref}"
+        for nota in notas:
+            if nota.id not in usadas and marca in (nota.descricao_servico or ""):
+                usadas.add(nota.id)
+                return nota
+    return None
+
+
+def _dia_local(quando):
+    from django.utils import timezone
+
+    if not quando:
+        return None
+    if timezone.is_aware(quando):
+        return timezone.localtime(quando).date()
+    return quando.date() if hasattr(quando, "date") else quando
+
+
+def _item_historico(pagamento, nota, hoje) -> dict:
+    situacao, rotulo = _situacao_pagamento(pagamento, hoje)
+    referencia = pagamento.referencia_mes or pagamento.data_vencimento
+    return {
+        "id": pagamento.id,
+        "mes": _mes_referencia(referencia),
+        "valor": str(pagamento.valor or 0),
+        "vencimento": pagamento.data_vencimento.isoformat() if pagamento.data_vencimento else None,
+        "pago_em": _dia_local(pagamento.data_pagamento).isoformat() if pagamento.data_pagamento else None,
+        "situacao": situacao,
+        "situacao_display": rotulo,
+        "numero_nf": (nota.numero_nf or "") if nota else "",
+        "nf_pdf_url": (nota.pdf_url or "").strip() if nota else "",
+        "nf_status": nota.status if nota else "",
+    }
+
+
+def historico_pagamentos_e_notas(loja) -> list:
+    """Pagamentos da loja com a nota de cada mês. Não altera cobrança nem nota."""
+    from django.utils import timezone
+
+    from superadmin.models import NFSeEmitida, PagamentoLoja
+
+    hoje = timezone.localdate()
+    notas = list(
+        NFSeEmitida.objects.filter(loja=loja)
+        .exclude(status="cancelada")
+        .order_by("-data_emissao", "-id")
+    )
+    usadas: set = set()
+    itens = []
+    pagamentos = (
+        PagamentoLoja.objects.filter(loja=loja)
+        .exclude(status="cancelado")
+        .order_by("-data_vencimento", "-id")
+    )
+    for pagamento in pagamentos:
+        nota = _nota_do_pagamento(pagamento, notas, usadas)
+        itens.append(_item_historico(pagamento, nota, hoje))
+
+    for nota in notas:
+        if nota.id in usadas:
+            continue
+        quando = _dia_local(nota.data_emissao)
+        itens.append({
+            "id": f"nf-{nota.id}",
+            "mes": _mes_referencia(quando),
+            "valor": str(nota.valor or 0),
+            "vencimento": None,
+            "pago_em": quando.isoformat() if quando else None,
+            "situacao": "pago",
+            "situacao_display": "Pago do mês",
+            "numero_nf": nota.numero_nf or "",
+            "nf_pdf_url": (nota.pdf_url or "").strip(),
+            "nf_status": nota.status,
+        })
+    return itens
+
+
 def _get_or_create_financeiro_loja(loja):
     """Retorna FinanceiroLoja existente ou cria registro mínimo para lojas antigas sem financeiro."""
     try:

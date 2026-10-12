@@ -420,6 +420,14 @@ Equipe LWK Sistemas
             return Response(resultado, status=status.HTTP_400_BAD_REQUEST)
         return Response(resultado)
 
+    @action(detail=True, methods=["get"])
+    def historico_loja(self, request, pk=None):
+        """Pagamentos e notas fiscais da loja, com o mês pago ou vencido."""
+        from superadmin.financeiro_views.helpers import historico_pagamentos_e_notas
+
+        financeiro = self.get_object()
+        return Response({"itens": historico_pagamentos_e_notas(financeiro.loja)})
+
     @action(detail=True, methods=["post"])
     def emitir_boleto(self, request, pk=None):
         """Emite o boleto do vencimento quando não há outro em aberto."""

@@ -3,7 +3,7 @@
  * ✅ REFATORADO v780: Extraído da página de financeiro
  */
 import type { Assinatura, Pagamento } from '@/hooks/useAssinaturas';
-import { AssinaturaCard } from './AssinaturaCard';
+import { AssinaturasTabela } from './AssinaturasTabela';
 
 interface AssinaturasTabProps {
   assinaturas: Assinatura[];
@@ -28,6 +28,7 @@ interface AssinaturasTabProps {
   atualizandoMP: string | null;
   gerandoCobrancaMP: string | number | null;
   excluindoPagamentoMP: boolean;
+  onAtualizar: () => void;
 }
 
 const FILTRO_OPTIONS = [
@@ -56,7 +57,8 @@ export function AssinaturasTab({
   gerandoPix,
   atualizandoMP,
   gerandoCobrancaMP,
-  excluindoPagamentoMP
+  excluindoPagamentoMP,
+  onAtualizar,
 }: AssinaturasTabProps) {
   if (loading) {
     return <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>;
@@ -92,30 +94,29 @@ export function AssinaturasTab({
           Nenhuma assinatura encontrada.
         </p>
       ) : (
-        <div className="space-y-4">
-          {assinaturas.map((assinatura) => (
-            <AssinaturaCard
-              key={assinatura.id}
-              assinatura={assinatura}
-              onDownloadBoletoAsaas={onDownloadBoletoAsaas}
-              onCopyPixAsaas={onCopyPixAsaas}
-              onUpdateStatusAsaas={onUpdateStatusAsaas}
-              onNovaCobranca={onNovaCobranca}
-              onExcluirAsaas={onExcluirAsaas}
-              gerandoCobranca={gerandoCobranca}
-              onDownloadBoletoMP={onDownloadBoletoMP}
-              onCopyPixMP={onCopyPixMP}
-              onGerarPixMP={onGerarPixMP}
-              onUpdateStatusMP={onUpdateStatusMP}
-              onNovaCobrancaMP={onNovaCobrancaMP}
-              onExcluirMP={onExcluirMP}
-              gerandoPix={gerandoPix}
-              atualizandoMP={atualizandoMP}
-              gerandoCobrancaMP={gerandoCobrancaMP}
-              excluindoPagamentoMP={excluindoPagamentoMP}
-            />
-          ))}
-        </div>
+        <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
+          Clique no nome da loja para ver boleto, PIX e o histórico. Baixar e reenviar tratam a nota da mensalidade.
+        </p>
+        <AssinaturasTabela
+          assinaturas={assinaturas}
+          onAtualizar={onAtualizar}
+          onDownloadBoletoAsaas={onDownloadBoletoAsaas}
+          onCopyPixAsaas={onCopyPixAsaas}
+          onUpdateStatusAsaas={onUpdateStatusAsaas}
+          onNovaCobranca={onNovaCobranca}
+          onExcluirAsaas={onExcluirAsaas}
+          gerandoCobranca={gerandoCobranca}
+          onDownloadBoletoMP={onDownloadBoletoMP}
+          onCopyPixMP={onCopyPixMP}
+          onGerarPixMP={onGerarPixMP}
+          onUpdateStatusMP={onUpdateStatusMP}
+          onNovaCobrancaMP={onNovaCobrancaMP}
+          onExcluirMP={onExcluirMP}
+          gerandoPix={gerandoPix}
+          atualizandoMP={atualizandoMP}
+          gerandoCobrancaMP={gerandoCobrancaMP}
+          excluindoPagamentoMP={excluindoPagamentoMP}
+        />
       )}
     </div>
   );

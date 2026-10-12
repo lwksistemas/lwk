@@ -322,6 +322,91 @@ Equipe LWK Sistemas
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=["post"])
+    def alterar_plano(self, request, pk=None):
+        """Troca o plano da loja. A próxima cobrança usa o novo valor."""
+        from superadmin.models import PlanoAssinatura
+
+        financeiro = self.get_object()
+        loja = financeiro.loja
+        plano_id = request.data.get("plano_id")
+        try:
+            plano_id = int(plano_id)
+        except (TypeError, ValueError):
+            return Response(
+                {"success": False, "error": "Informe o plano."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        plano = PlanoAssinatura.objects.filter(pk=plano_id, is_active=True).first()
+        if not plano:
+            return Response(
+                {"success": False, "error": "Plano não encontrado."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if not plano.tipos_loja.filter(pk=loja.tipo_loja_id).exists():
+            return Response(
+                {"success": False, "error": "Este plano não vale para o tipo desta loja."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        loja.plano = plano
+        loja.save()
+        valor = plano.preco_anual if loja.tipo_assinatura == "anual" and plano.preco_anual else plano.preco_mensal
+        # update() não dispara o signal de senha provisória
+        FinanceiroLoja.objects.filter(pk=financeiro.pk).update(
+            valor_mensalidade=valor,
+            updated_at=timezone.now(),
+        )
+        financeiro.valor_mensalidade = valor
+
+        from asaas_integration.models import LojaAssinatura
+        LojaAssinatura.objects.filter(loja_slug=loja.slug).update(
+            plano_nome=f"{plano.nome} ({loja.get_tipo_assinatura_display()})",
+            plano_valor=valor,
+        )
+        logger.info("Plano da loja %s alterado para %s", loja.slug, plano.nome)
+        return Response({
+            "success": True,
+            "plano_id": plano.id,
+            "plano_nome": plano.nome,
+            "plano_valor": str(valor),
+        })
+
+    @action(detail=True, methods=["post"])
+    def alterar_dia_vencimento(self, request, pk=None):
+        """Grava o dia do mês da próxima cobrança, sem emitir boleto novo."""
+        from superadmin.services.financeiro_service import FinanceiroService
+
+        financeiro = self.get_object()
+        try:
+            dia = int(request.data.get("dia_vencimento"))
+        except (TypeError, ValueError):
+            return Response(
+                {"success": False, "error": "dia_vencimento deve ser um número inteiro"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if dia < 1 or dia > 28:
+            return Response(
+                {"success": False, "error": "dia_vencimento deve estar entre 1 e 28"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        proxima = FinanceiroService.calcular_proxima_cobranca(dia, financeiro.loja.tipo_assinatura)
+        FinanceiroLoja.objects.filter(pk=financeiro.pk).update(
+            dia_vencimento=dia,
+            data_proxima_cobranca=proxima,
+            updated_at=timezone.now(),
+        )
+        financeiro.dia_vencimento = dia
+        financeiro.data_proxima_cobranca = proxima
+        logger.info("Dia de vencimento da loja %s alterado para %s", financeiro.loja.slug, dia)
+        return Response({
+            "success": True,
+            "dia_vencimento": dia,
+            "data_proxima_cobranca": financeiro.data_proxima_cobranca.isoformat(),
+        })
+
+    @action(detail=True, methods=["post"])
     def cancelar_nota_fiscal(self, request, pk=None):
         """Cancela a nota fiscal mais recente da loja no Asaas."""
         from asaas_integration.client import AsaasClient

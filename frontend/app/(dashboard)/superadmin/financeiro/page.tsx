@@ -209,6 +209,7 @@ export default function FinanceiroPage() {
                 atualizandoMP={mercadoPagoActions.atualizandoMP}
                 gerandoCobrancaMP={mercadoPagoActions.gerandoCobranca}
                 excluindoPagamentoMP={mercadoPagoActions.excluindoPagamento}
+                onAtualizar={reloadAssinaturas}
               />
             ) : (
               <PagamentosTab

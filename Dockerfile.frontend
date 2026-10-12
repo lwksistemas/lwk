@@ -3,9 +3,11 @@ WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --legacy-peer-deps
 COPY frontend/ .
+ARG LWK_FRONTEND_APP=all
 ARG NEXT_PUBLIC_API_URL=https://api.lwksistemas.com.br
+ENV LWK_FRONTEND_APP=${LWK_FRONTEND_APP}
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-RUN npm run build
+RUN node scripts/recortar-rotas-app.mjs && npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app

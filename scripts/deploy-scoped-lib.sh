@@ -6,9 +6,10 @@ lwk_deploy_usage() {
   cat <<'EOF'
 Uso: TARGET [app ...]
 
-  frontend              só Next.js (tela / JS / CSS)
+  frontend              login, superadmin e o site geral
+  frontend crm_vendas   só a tela do CRM
+  frontend clinica_beleza  só a tela da clínica da beleza
   backend [app ...]     API + worker; migrate/ensure só desse app e só nas lojas desse tipo
-  frontend [app ...]    só a tela (o site é um Next.js só; não rebuilda a API)
   all [app ...]         frontend + backend + worker (sem Evolution/mídia)
   infra                 Evolution e mídia
 
@@ -126,8 +127,14 @@ lwk_deploy_target() {
 
   case "$target" in
     frontend)
-      echo "=== Rebuild só frontend ==="
-      lwk_compose_up_build "$compose_file" frontend
+      local fe_svc="frontend"
+      local fe_app="${apps[0]:-}"
+      case "$fe_app" in
+        crm_vendas|crm-vendas) fe_svc="frontend-crm" ;;
+        clinica_beleza|clinica-beleza) fe_svc="frontend-clinica" ;;
+      esac
+      echo "=== Rebuild só ${fe_svc} ==="
+      lwk_compose_up_build "$compose_file" "$fe_svc"
       ;;
     backend)
       echo "=== Rebuild só backend + worker ==="

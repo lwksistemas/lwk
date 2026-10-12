@@ -222,14 +222,14 @@ export function HeaderCrmRightSection({
                     {userRole === 'vendedor' ? 'Vendedor' : 'Administrador'}
                   </p>
                 </div>
-                <Link
+                <a
                   href={slug ? `/loja/${slug}/trocar-senha` : '/loja/trocar-senha'}
                   onClick={() => setShowUserMenu(false)}
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#0d1f3c] flex items-center gap-2"
                 >
                   <User size={16} />
                   Meu Perfil
-                </Link>
+                </a>
                 <button
                   type="button"
                   onClick={() => {

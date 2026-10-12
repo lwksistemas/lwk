@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from superadmin.financeiro_views.helpers import historico_pagamentos_e_notas
+from superadmin.financeiro_views.helpers import _erro_comprovante_pdf, historico_pagamentos_e_notas
 from superadmin.models import FinanceiroLoja, Loja, NFSeEmitida, PagamentoLoja, PlanoAssinatura, TipoLoja
 
 
@@ -74,3 +74,12 @@ class HistoricoLojaTest(TestCase):
         self.assertEqual(por_mes["out/2026"]["pago_em"], "2026-10-08")
         self.assertEqual(por_mes["set/2026"]["situacao_display"], "Vencido")
         self.assertEqual(por_mes["set/2026"]["numero_nf"], "")
+
+    def test_recusa_comprovante_que_nao_e_pdf(self):
+        from io import BytesIO
+
+        arquivo = BytesIO(b"nao e pdf")
+        arquivo.name = "comprovante.txt"
+        arquivo.size = 10
+        self.assertIn("PDF", _erro_comprovante_pdf(arquivo))
+        self.assertEqual(_erro_comprovante_pdf(None), "")

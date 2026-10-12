@@ -409,12 +409,18 @@ Equipe LWK Sistemas
     @action(detail=True, methods=["post"])
     def confirmar_pagamento_conta(self, request, pk=None):
         """Cliente pagou PIX ou transferência na conta da empresa."""
+        from superadmin.financeiro_views.helpers import _erro_comprovante_pdf
         from superadmin.sync_service.asaas import AsaasSyncService
 
         financeiro = self.get_object()
+        comprovante = request.FILES.get("comprovante")
+        erro_arquivo = _erro_comprovante_pdf(comprovante)
+        if erro_arquivo:
+            return Response({"success": False, "error": erro_arquivo}, status=status.HTTP_400_BAD_REQUEST)
         resultado = AsaasSyncService().confirmar_recebimento_conta_empresa(
             financeiro.loja,
             request.data.get("forma"),
+            comprovante=comprovante,
         )
         if not resultado.get("success"):
             return Response(resultado, status=status.HTTP_400_BAD_REQUEST)

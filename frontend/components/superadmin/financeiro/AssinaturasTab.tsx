@@ -101,7 +101,7 @@ export function AssinaturasTab({
         <>
         {!soLoja && (
         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-          Histórico, no fim da linha, abre só essa loja com os pagamentos e as notas, mês pago ou vencido. PIX e Transferência confirmam pagamento na conta da empresa. Emitir gera o boleto quando não há outro em aberto.
+          Histórico, no fim da linha, abre só essa loja com os pagamentos e as notas, mês pago ou vencido. PIX e Transferência confirmam o pagamento e aceitam o comprovante em PDF. Emitir gera o boleto quando não há outro em aberto.
         </p>
         )}
         <AssinaturasTabela

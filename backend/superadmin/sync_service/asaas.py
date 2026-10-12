@@ -436,7 +436,7 @@ class AsaasSyncService:
                 return aberto.asaas_id, aberto.value
         return None, None
 
-    def confirmar_recebimento_conta_empresa(self, loja, forma: str) -> dict:
+    def confirmar_recebimento_conta_empresa(self, loja, forma: str, comprovante=None) -> dict:
         """PIX ou transferência na conta da empresa: baixa o boleto Asaas e renova a assinatura."""
         from asaas_integration.client import AsaasClient
         from asaas_integration.models import AsaasConfig
@@ -490,6 +490,13 @@ class AsaasSyncService:
             return resultado
 
         PagamentoLoja.objects.filter(asaas_payment_id=payment_id).update(forma_pagamento=forma)
+        aviso_comprovante = ""
+        if comprovante is not None:
+            url = self._guardar_comprovante_pdf(loja, payment_id, comprovante)
+            if url:
+                PagamentoLoja.objects.filter(asaas_payment_id=payment_id).update(comprovante=url)
+            else:
+                aviso_comprovante = " A baixa foi feita, mas o comprovante não foi gravado."
         financeiro.refresh_from_db()
         rotulo = "PIX" if forma == "pix" else "transferência"
         logger.info("Baixa manual (%s) loja=%s payment=%s", forma, loja.slug, payment_id)
@@ -498,8 +505,27 @@ class AsaasSyncService:
             "forma": forma,
             "payment_id": payment_id,
             "data_proxima_cobranca": financeiro.data_proxima_cobranca.isoformat(),
-            "message": f"Pagamento por {rotulo} confirmado. Boleto Asaas baixado e assinatura atualizada.",
+            "message": (
+                f"Pagamento por {rotulo} confirmado. Boleto Asaas baixado e assinatura atualizada."
+                + (" Comprovante anexado." if comprovante is not None and not aviso_comprovante else "")
+                + aviso_comprovante
+            ),
         }
+
+    def _guardar_comprovante_pdf(self, loja, payment_id: str, arquivo) -> str:
+        from core.media_storage import media_upload
+
+        dados = arquivo.read()
+        url = media_upload(
+            loja,
+            dados,
+            filename=f"comprovante-{payment_id}.pdf",
+            folder="comprovantes",
+        )
+        if not url or len(url) > 200:
+            logger.error("Comprovante sem URL utilizável: loja=%s", loja.slug)
+            return ""
+        return url
 
     def _boleto_em_aberto(self, loja) -> dict | None:
         """Boleto ainda não pago. Devolve url e identificador, ou None."""

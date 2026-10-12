@@ -116,7 +116,7 @@ def patch_crm_migration_0066_if_orphan(db_name: str) -> bool:
     """Corrige django_migrations quando 0067/0068 está aplicada sem 0066 (bloqueia migrate).
     Garante coluna config_acesso e marca 0066 como aplicada.
     """
-    from clinica_beleza.schema_ensure import column_exists, table_exists
+    from core.schema_checks import column_exists, table_exists
     from core.db_config import ensure_loja_database_config
 
     if not ensure_loja_database_config(db_name, conn_max_age=0):
@@ -273,7 +273,7 @@ def patch_crm_emitente_documento_columns_if_missing(db_name: str) -> bool:
 def patch_crm_financeiro_tables_if_missing(db_name: str) -> bool:
     """Cria tabelas financeiro CRM quando migrations 0064/0065 estão marcadas mas tabelas não existem.
     """
-    from clinica_beleza.schema_ensure import table_exists
+    from core.schema_checks import table_exists
     from core.db_config import ensure_loja_database_config
     from crm_vendas.financeiro_schema_ensure import (
         TABLE_LANCAMENTO,
@@ -307,7 +307,7 @@ def patch_clinica_beleza_migration_orphans(db_name: str, *, tipo_slug: str | Non
     Lojas CRM não devem ter histórico clinica_beleza (quebra migrate de qualquer app).
     Retorna quantidade de registros removidos ou 0 se apenas corrigiu ordem.
     """
-    from clinica_beleza.schema_ensure import column_exists, table_exists
+    from core.schema_checks import column_exists, table_exists
     from core.db_config import ensure_loja_database_config
 
     if not ensure_loja_database_config(db_name, conn_max_age=0):

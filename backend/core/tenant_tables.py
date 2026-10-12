@@ -5,7 +5,7 @@ import logging
 
 from django.db import connections
 
-from clinica_beleza.schema_ensure import table_exists
+from core.schema_checks import table_exists
 
 logger = logging.getLogger(__name__)
 

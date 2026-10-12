@@ -7,6 +7,7 @@ from contextlib import suppress
 from django.db import connections
 
 from core.db_config import ensure_loja_database_config
+from core.schema_checks import column_exists, is_sqlite, table_exists
 from superadmin.models import Loja
 
 logger = logging.getLogger(__name__)
@@ -32,27 +33,6 @@ ORCAMENTO_CONSULTA_TABLE = "clinica_beleza_orcamento_consulta"
 ORCAMENTO_ITEM_TABLE = "clinica_beleza_orcamento_item"
 
 
-def _is_sqlite(cursor) -> bool:
-    return getattr(cursor.db, "vendor", None) == "sqlite" or "sqlite" in str(cursor.connection).lower()
-
-
-def table_exists(cursor, table: str) -> bool:
-    if _is_sqlite(cursor):
-        cursor.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=%s LIMIT 1",
-            [table],
-        )
-    else:
-        cursor.execute(
-            """
-            SELECT 1 FROM information_schema.tables
-            WHERE table_schema = current_schema() AND table_name = %s LIMIT 1
-            """,
-            [table],
-        )
-    return cursor.fetchone() is not None
-
-
 def _record_clinica_migration(cursor, name: str) -> None:
     cursor.execute(
         """
@@ -69,7 +49,7 @@ def _record_clinica_migration(cursor, name: str) -> None:
 
 def _fk_id_type(cursor, table: str) -> str:
     """INTEGER/BIGINT da PK da tabela pai — lojas antigas usam INTEGER."""
-    if _is_sqlite(cursor):
+    if is_sqlite(cursor):
         return "INTEGER"
     cursor.execute(
         """
@@ -86,21 +66,6 @@ def _fk_id_type(cursor, table: str) -> str:
     if row and str(row[0]).lower() == "bigint":
         return "BIGINT"
     return "INTEGER"
-
-
-def column_exists(cursor, table: str, column: str) -> bool:
-    if _is_sqlite(cursor):
-        cursor.execute(f"PRAGMA table_info({table})")
-        return any(row[1] == column for row in cursor.fetchall())
-    cursor.execute(
-        """
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = current_schema() AND table_name = %s AND column_name = %s
-        LIMIT 1
-        """,
-        [table, column],
-    )
-    return cursor.fetchone() is not None
 
 
 def ensure_consulta_produto_utilizado_table(cursor) -> bool:

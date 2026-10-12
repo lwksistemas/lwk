@@ -61,10 +61,10 @@ class DestinoMidiaLegadoTest(TestCase):
 
 
 class SalvarPdfPacienteTest(TestCase):
-    @patch("clinica_beleza.media_docs_service.media_upload_tenant", return_value="https://media.example/x.pdf")
-    @patch("clinica_beleza.media_docs_service._resolver_tenant_loja", return_value="37302743000126")
+    @patch("core.media_pdf.media_upload_tenant", return_value="https://media.example/x.pdf")
+    @patch("core.media_pdf._resolver_tenant_loja", return_value="37302743000126")
     def test_grava_em_paciente_pdf(self, _tenant, mock_upload):
-        from clinica_beleza.media_docs_service import salvar_pdf_paciente
+        from core.media_pdf import salvar_pdf_pessoa as salvar_pdf_paciente
 
         patient = SimpleNamespace(nome="Renata Ribeiro", cpf="", id=2231)
         url = salvar_pdf_paciente(1, patient, b"%PDF-1.4", "receita.pdf")
@@ -74,10 +74,10 @@ class SalvarPdfPacienteTest(TestCase):
         self.assertEqual(kwargs["folder"], "renata-ribeiro_id2231/pdf")
         self.assertEqual(kwargs["filename"], "receita.pdf")
 
-    @patch("clinica_beleza.media_docs_service.media_upload_tenant", return_value="https://media.example/p.pdf")
-    @patch("clinica_beleza.media_docs_service._resolver_tenant_loja", return_value="37302743000126")
+    @patch("core.media_pdf.media_upload_tenant", return_value="https://media.example/p.pdf")
+    @patch("core.media_pdf._resolver_tenant_loja", return_value="37302743000126")
     def test_pdf_da_loja_vai_para_admin_pdf(self, _tenant, mock_upload):
-        from clinica_beleza.media_docs_service import salvar_pdf_loja
+        from core.media_pdf import salvar_pdf_loja
 
         url = salvar_pdf_loja(1, b"%PDF-1.4", "Pedido_01_PHD_DO_BRASIL.pdf")
         self.assertEqual(url, "https://media.example/p.pdf")

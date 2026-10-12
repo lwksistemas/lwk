@@ -1,5 +1,5 @@
 """SQL idempotente para colunas emitente_* em proposta/contrato (migration 0068)."""
-from clinica_beleza.schema_ensure import column_exists, table_exists
+from core.schema_checks import column_exists, table_exists
 
 TABLE_PROPOSTA = "crm_vendas_proposta"
 TABLE_CONTRATO = "crm_vendas_contrato"

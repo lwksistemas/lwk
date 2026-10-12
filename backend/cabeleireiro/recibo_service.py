@@ -399,7 +399,7 @@ def _enviar_recibo_email(payment, cliente, agendamento) -> tuple[bool, str]:
 
         ctx = _obter_dados_contexto(payment, cliente, agendamento)
         pdf_bytes = _gerar_pdf_recibo(ctx)
-        from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+        from core.media_pdf import arquivar_pdf_gerado
         arquivar_pdf_gerado(
             getattr(payment, "loja_id", None),
             cliente,
@@ -449,7 +449,7 @@ def _enviar_recibo_whatsapp(payment, cliente, agendamento) -> tuple[bool, str]:
 
             token = make_recibo_pdf_token(payment.id, payment.loja_id)
             pdf_bytes = _gerar_pdf_recibo(ctx)
-            from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+            from core.media_pdf import arquivar_pdf_gerado
             arquivar_pdf_gerado(
                 getattr(payment, "loja_id", None),
                 cliente,

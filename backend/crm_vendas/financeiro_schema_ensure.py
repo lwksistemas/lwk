@@ -1,5 +1,5 @@
 """SQL idempotente para tabelas financeiro CRM (0064/0065) em tenants."""
-from clinica_beleza.schema_ensure import table_exists
+from core.schema_checks import table_exists
 
 TABLE_GRUPO = "crm_financeiro_grupo"
 TABLE_LANCAMENTO = "crm_financeiro_lancamento"

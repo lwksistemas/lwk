@@ -7,7 +7,7 @@ Uso:
 from django.core.management.base import BaseCommand
 from django.db import connections
 
-from clinica_beleza.schema_ensure import table_exists
+from core.schema_checks import table_exists
 from core.db_config import ensure_loja_database_config
 from crm_vendas.financeiro_schema_ensure import (
     TABLE_GRUPO,

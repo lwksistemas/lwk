@@ -36,10 +36,7 @@ INSTALLED_APPS = [
     "superadmin",  # App de super admin
     "asaas_integration.apps.AsaasIntegrationConfig",  # App Asaas (signals no ready)
     "nfse_integration.apps.NfseIntegrationConfig",  # App de integração NFS-e (ISSNet, API Nacional, etc)
-    "hotel.apps.HotelConfig",  # App de hotelaria (Hotel / Pousada)
     "clinica_beleza.apps.ClinicaBelezaConfig",  # App de clínica da beleza
-    "clinica_geral.apps.ClinicaGeralConfig",  # Consultório médico (separado da estética)
-    "cabeleireiro.apps.CabeleireiroConfig",  # Salão de cabeleireiro (Lumina)
     "notificacoes.apps.NotificacoesConfig",  # Base de notificações (in-app, push, email, etc.)
     "push.apps.PushConfig",  # Push notifications (VAPID)
     "whatsapp.apps.WhatsappConfig",  # WhatsApp oficial (Meta Cloud API) - ETAPA 4
@@ -351,7 +348,7 @@ MIGRATION_GUARD_STRICT = config("MIGRATION_GUARD_STRICT", default=not DEBUG, cas
 # drf-spectacular (OpenAPI / Swagger)
 SPECTACULAR_SETTINGS = {
     "TITLE": "LWK Sistemas API",
-    "DESCRIPTION": "API Multi-Tenant para gestão de lojas (superadmin, suporte, clinica-beleza, crm-vendas, hotel).",
+    "DESCRIPTION": "API Multi-Tenant para gestão de lojas (superadmin, suporte, clinica-beleza, crm-vendas).",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }

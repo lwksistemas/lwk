@@ -43,12 +43,7 @@ BACKUP_TIPO_APP_TABLE_PREFIXES = {
     "clinica-estetica": ("clinica_beleza_", "whatsapp_", "nfse_integration_"),
     "clinica-da-beleza": ("clinica_beleza_", "whatsapp_", "nfse_integration_"),
     "clinica-beleza": ("clinica_beleza_", "whatsapp_", "nfse_integration_"),
-    "e-commerce": ("stores_", "products_", "ecommerce_"),
-    "restaurante": ("stores_", "products_", "restaurante_"),
-    "servicos": ("stores_", "products_", "servicos_"),
-    "cabeleireiro": ("stores_", "products_", "cabeleireiro_"),
     "crm-vendas": ("stores_", "products_", "crm_vendas_", "nfse_integration_"),
-    "clinica-geral": ("clinica_geral_", "whatsapp_"),
 }
 # Prefixos a excluir por tipo de app (legado clinica_* removido — unificado em clinica_beleza)
 BACKUP_TIPO_APP_EXCLUDED_PREFIXES: dict[str, tuple[str, ...]] = {}

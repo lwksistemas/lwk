@@ -14,8 +14,8 @@ class TenantAllowMigrateTest(SimpleTestCase):
         for app in ("crm_vendas", "whatsapp", "nfse_integration", "stores", "auth"):
             self.assertTrue(self.r.allow_migrate("loja_felix", app), app)
 
-    def test_clinica_geral_pode_migrar_no_tenant(self):
-        self.assertTrue(self.r.allow_migrate("loja_clinica", "clinica_geral"))
+    def test_clinica_beleza_pode_migrar_no_tenant(self):
+        self.assertTrue(self.r.allow_migrate("loja_clinica", "clinica_beleza"))
 
     def test_asaas_admin_e_blacklist_nao_migram_no_tenant(self):
         for app in ("asaas_integration", "admin", "sessions", "token_blacklist"):
@@ -27,7 +27,7 @@ class TenantAllowMigrateTest(SimpleTestCase):
     def test_allowlist_inclui_todos_os_tipos(self):
         permitidos = _apps_permitidos_schema_loja()
         self.assertIn("clinica_beleza", permitidos)
-        self.assertIn("clinica_geral", permitidos)
+        self.assertIn("crm_vendas", permitidos)
         self.assertNotIn("asaas_integration", permitidos)
 
     @patch("config.db_router._tipo_slug_para_db", return_value="crm-vendas")

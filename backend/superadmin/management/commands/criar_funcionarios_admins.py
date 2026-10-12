@@ -69,17 +69,6 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.SUCCESS("   ✅ Profissional criado com sucesso!"))
                     continue
 
-                if tipo_loja_nome == "Hotel":
-                    from hotel.models import Funcionario
-                    if Funcionario.objects.filter(email=owner.email, loja_id=loja.id).exists():
-                        ja_existentes += 1
-                        self.stdout.write(self.style.WARNING("   ⚠️ Funcionário já existe"))
-                        continue
-                    Funcionario.objects.create(**funcionario_data)
-                    criados += 1
-                    self.stdout.write(self.style.SUCCESS("   ✅ Funcionário criado com sucesso!"))
-                    continue
-
                 self.stdout.write(self.style.WARNING(f"   ⚠️ Tipo de app não reconhecido: {tipo_loja_nome}"))
                 ignorados += 1
 

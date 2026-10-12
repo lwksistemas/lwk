@@ -1,73 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { RECURSOS_MENU, RELATORIOS_MENU } from '@/lib/clinica-geral-types';
 import { themeLabelForTipo } from '@/lib/loja-theme';
 import {
   configuracoesPathForTipo,
   homePathForTipo,
   isTipoClinicaBeleza,
-  isTipoClinicaGeral,
+  isTipoCRMVendas,
 } from '@/lib/loja-tipo';
 
-describe('isTipoClinicaGeral', () => {
-  it('reconhece Clínica, Clínica Geral e consultório médico', () => {
-    expect(isTipoClinicaGeral('Clínica')).toBe(true);
-    expect(isTipoClinicaGeral('Clínica Geral')).toBe(true);
-    expect(isTipoClinicaGeral('Consultorio Medico')).toBe(true);
-    expect(isTipoClinicaGeral('Clinica Médica')).toBe(true);
-  });
-
-  it('não confunde com Clínica da Beleza nem Radiologia', () => {
-    expect(isTipoClinicaGeral('Clínica da Beleza')).toBe(false);
-    expect(isTipoClinicaGeral('Clínica de Estética')).toBe(false);
-    expect(isTipoClinicaGeral('Radiologia')).toBe(false);
-    expect(isTipoClinicaBeleza('Clínica Geral')).toBe(false);
-    expect(isTipoClinicaBeleza('Clínica')).toBe(false);
+describe('tipos em produção', () => {
+  it('reconhece Clínica da Beleza e a estética unificada', () => {
     expect(isTipoClinicaBeleza('Clínica da Beleza')).toBe(true);
+    expect(isTipoClinicaBeleza('Clínica de Estética')).toBe(true);
+    expect(themeLabelForTipo('Clínica da Beleza')).toBe('Clínica da Beleza');
   });
 
-  it('expõe as opções de relatórios da agenda', () => {
-    expect(RELATORIOS_MENU.map((r) => r.tipo)).toEqual([
-      'atendimentos',
-      'indicacao',
-      'financeiro',
-      'status',
-      'outros',
-    ]);
-  });
-
-  it('não mistura recursos com relatórios', () => {
-    const recursos = RECURSOS_MENU.map((r) => r.label);
-    const relatorios = RELATORIOS_MENU.map((r) => r.label);
-    expect(recursos).toEqual(['faturamento', 'lotes TISS']);
-    expect(recursos.some((label) => relatorios.includes(label))).toBe(false);
-  });
-
-  it('exibe o tipo como Clínica', () => {
-    expect(themeLabelForTipo('Clínica')).toBe('Clínica');
-    expect(themeLabelForTipo('Clínica Geral')).toBe('Clínica');
-  });
-
-  it('manda o app para a agenda', () => {
-    expect(homePathForTipo('clinicageral', 'Clínica')).toBe(
-      '/loja/clinicageral/clinica/agenda',
-    );
-    expect(homePathForTipo('clinicageral', 'Clínica Geral')).toBe(
-      '/loja/clinicageral/clinica/agenda',
-    );
-  });
-
-  it('manda configurações para o hub do consultório', () => {
-    expect(configuracoesPathForTipo('clinicageral', 'Clínica Geral')).toBe(
-      '/loja/clinicageral/clinica/configuracoes',
-    );
-  });
-});
-
-describe('Clínica da Beleza — home', () => {
-  it('abre no dashboard da loja', () => {
-    expect(isTipoClinicaBeleza('Clínica da Beleza')).toBe(true);
+  it('abre a clínica no dashboard e o CRM na home de vendas', () => {
     expect(homePathForTipo('clinicaharmonis', 'Clínica da Beleza')).toBe(
       '/loja/clinicaharmonis/dashboard',
+    );
+    expect(isTipoCRMVendas('CRM Vendas')).toBe(true);
+    expect(homePathForTipo('felix', 'CRM Vendas')).toBe('/loja/felix/crm-vendas');
+  });
+
+  it('manda as configurações para o app dono', () => {
+    expect(configuracoesPathForTipo('clinicaharmonis', 'Clínica da Beleza')).toBe(
+      '/loja/clinicaharmonis/clinica-beleza/configuracoes',
+    );
+    expect(configuracoesPathForTipo('felix', 'CRM Vendas')).toBe(
+      '/loja/felix/crm-vendas/configuracoes',
     );
   });
 });

@@ -122,7 +122,7 @@ def _configurar_tenant(loja_id: int) -> str | None:
 
 
 def _loja_elegivel_confirmacao_agenda(loja_id: int) -> bool:
-    """Clínica da Beleza ou Salão (cabeleireiro) com banco criado."""
+    """Clínica da Beleza com banco criado."""
     from superadmin.models import Loja
 
     loja = (
@@ -135,31 +135,11 @@ def _loja_elegivel_confirmacao_agenda(loja_id: int) -> bool:
         return False
     slug = (loja.tipo_loja.slug or "").strip().lower()
     nome = (loja.tipo_loja.nome or "").strip().lower()
-    if slug in ("clinica-beleza", "cabeleireiro", "clinica-geral"):
+    if slug in ("clinica-beleza", "clinica-da-beleza", "clinica-estetica", "clinica-de-estetica"):
         return True
-    if "clínica da beleza" in nome or "clinica da beleza" in nome:
-        return True
-    if "cabeleireiro" in nome or "salão" in nome or "salao" in nome:
-        return True
-    if "clinica geral" in nome or "clínica geral" in nome or "consultorio" in nome:
-        return True
-    if nome in ("clinica", "clínica"):
-        return True
+    if "beleza" in nome or "estetica" in nome or "estética" in nome:
+        return "clinica" in nome
     return False
-
-
-def _tipo_slug_loja(loja_id: int) -> str:
-    from superadmin.models import Loja
-
-    loja = (
-        Loja.objects.using("default")
-        .select_related("tipo_loja")
-        .filter(id=loja_id)
-        .first()
-    )
-    if not loja or not loja.tipo_loja:
-        return ""
-    return (loja.tipo_loja.slug or "").strip().lower()
 
 
 def _procedure_label(appointment) -> str:
@@ -215,31 +195,6 @@ def obter_dados_confirmacao(token: str) -> tuple[dict | None, str | None, int | 
     from superadmin.models import Loja
     loja = Loja.objects.using("default").filter(id=loja_id).first()
     loja_nome = loja.nome if loja else ""
-    modulo = (payload.get("modulo") or "clinica_beleza").strip()
-
-    if modulo == "cabeleireiro":
-        from cabeleireiro.models import Agendamento
-        from cabeleireiro.whatsapp_agenda import serializar_agendamento_publico_salao
-
-        ag = (
-            Agendamento.objects
-            .select_related("cliente", "profissional", "servico")
-            .filter(pk=appointment_id)
-            .first()
-        )
-        if not ag:
-            return None, "Agendamento não encontrado.", loja_id
-        return serializar_agendamento_publico_salao(ag, loja_nome), None, loja_id
-
-    if modulo in ("clinica_geral", "clinica-geral"):
-        from clinica_geral.models import Consulta
-        from clinica_geral.whatsapp_agenda import serializar_consulta_publico
-
-        consulta = Consulta.objects.select_related("paciente").filter(pk=appointment_id).first()
-        if not consulta:
-            return None, "Agendamento não encontrado.", loja_id
-        return serializar_consulta_publico(consulta, loja_nome), None, loja_id
-
     from .models import Appointment
 
     appointment = (
@@ -275,44 +230,6 @@ def processar_resposta_confirmacao(token: str, acao: str) -> RespostaConfirmacao
     err = _configurar_tenant(loja_id)
     if err:
         return RespostaConfirmacao(False, err)
-
-    modulo = (payload.get("modulo") or "clinica_beleza").strip()
-    if modulo == "cabeleireiro":
-        from cabeleireiro.models import Agendamento
-        from cabeleireiro.whatsapp_agenda import aplicar_resposta_confirmacao_salao
-
-        ag = (
-            Agendamento.objects
-            .select_related("cliente", "profissional", "servico")
-            .filter(pk=appointment_id)
-            .first()
-        )
-        if not ag:
-            return RespostaConfirmacao(False, "Agendamento não encontrado.")
-        ok, msg, already = aplicar_resposta_confirmacao_salao(ag, acao)
-        return RespostaConfirmacao(
-            ok,
-            msg,
-            status=ag.status,
-            appointment_id=ag.id,
-            already_done=already,
-        )
-
-    if modulo in ("clinica_geral", "clinica-geral"):
-        from clinica_geral.models import Consulta
-        from clinica_geral.whatsapp_agenda import aplicar_resposta_confirmacao_consultorio
-
-        consulta = Consulta.objects.select_related("paciente").filter(pk=appointment_id).first()
-        if not consulta:
-            return RespostaConfirmacao(False, "Agendamento não encontrado.")
-        ok, msg, already = aplicar_resposta_confirmacao_consultorio(consulta, acao)
-        return RespostaConfirmacao(
-            ok,
-            msg,
-            status=consulta.status,
-            appointment_id=consulta.id,
-            already_done=already,
-        )
 
     from .models import Appointment
 
@@ -453,16 +370,6 @@ def processar_resposta_whatsapp(
 
     from django.db.utils import ProgrammingError
 
-    tipo_slug = _tipo_slug_loja(loja_id)
-    if tipo_slug == "cabeleireiro":
-        return _processar_resposta_whatsapp_salao(
-            loja_id, telefone, acao=acao, appointment_id=appointment_id,
-        )
-    if tipo_slug == "clinica-geral":
-        return _processar_resposta_whatsapp_consultorio(
-            loja_id, telefone, acao=acao, appointment_id=appointment_id,
-        )
-
     from .models import Appointment
 
     appointment = None
@@ -513,109 +420,4 @@ def processar_resposta_whatsapp(
         appointment.id,
         generation=geracao_do_agendamento(appointment),
     )
-    return processar_resposta_confirmacao(token, acao)
-
-
-def _processar_resposta_whatsapp_salao(
-    loja_id: int,
-    telefone: str,
-    *,
-    acao: str,
-    appointment_id: int | None,
-) -> RespostaConfirmacao | None:
-    from django.db.utils import ProgrammingError
-
-    from cabeleireiro.models import Agendamento
-    from cabeleireiro.whatsapp_agenda import STATUS_ACIONAVEIS as SALAO_STATUS
-
-    agendamento = None
-    try:
-        if appointment_id:
-            agendamento = (
-                Agendamento.objects.select_related("cliente").filter(pk=appointment_id).first()
-            )
-            if agendamento:
-                client_phone = getattr(agendamento.cliente, "telefone", "") or ""
-                if not _phones_match(telefone, client_phone):
-                    logger.warning(
-                        "processar_resposta_whatsapp salão: telefone não bate ag=%s",
-                        appointment_id,
-                    )
-                    agendamento = None
-
-        if not agendamento:
-            phone_digits = _normalize_phone_digits(telefone)
-            if not phone_digits:
-                return None
-            hoje = timezone.localdate()
-            qs = (
-                Agendamento.objects
-                .select_related("cliente")
-                .filter(status__in=SALAO_STATUS, data__gte=hoje, is_active=True)
-                .order_by("data", "hora_inicio")
-            )
-            for ag in qs[:50]:
-                pt = getattr(ag.cliente, "telefone", "") or ""
-                if _phones_match(phone_digits, pt):
-                    agendamento = ag
-                    break
-    except ProgrammingError as exc:
-        logger.warning("processar_resposta_whatsapp salão loja %s: %s", loja_id, exc)
-        return None
-
-    if not agendamento:
-        return RespostaConfirmacao(
-            False,
-            "Não encontramos agendamento pendente para confirmar ou cancelar.",
-        )
-
-    token = gerar_token_confirmacao(loja_id, agendamento.id, modulo="cabeleireiro")
-    return processar_resposta_confirmacao(token, acao)
-
-
-def _processar_resposta_whatsapp_consultorio(
-    loja_id: int,
-    telefone: str,
-    *,
-    acao: str,
-    appointment_id: int | None,
-) -> RespostaConfirmacao | None:
-    from django.db.utils import ProgrammingError
-
-    from clinica_geral.models import Consulta
-    from clinica_geral.whatsapp_agenda import STATUS_ACIONAVEIS as CG_STATUS
-
-    consulta = None
-    try:
-        if appointment_id:
-            consulta = Consulta.objects.select_related("paciente").filter(pk=appointment_id).first()
-            if consulta:
-                phone = getattr(consulta.paciente, "telefone", "") or ""
-                if not _phones_match(telefone, phone):
-                    consulta = None
-        if not consulta:
-            phone_digits = _normalize_phone_digits(telefone)
-            if not phone_digits:
-                return None
-            hoje = timezone.localdate()
-            qs = (
-                Consulta.objects.select_related("paciente")
-                .filter(status__in=CG_STATUS, data__gte=hoje, is_active=True)
-                .order_by("data", "hora")
-            )
-            for ag in qs[:50]:
-                pt = getattr(ag.paciente, "telefone", "") or ""
-                if _phones_match(phone_digits, pt):
-                    consulta = ag
-                    break
-    except ProgrammingError as exc:
-        logger.warning("processar_resposta_whatsapp consultorio loja %s: %s", loja_id, exc)
-        return None
-
-    if not consulta:
-        return RespostaConfirmacao(
-            False,
-            "Não encontramos agendamento pendente para confirmar ou cancelar.",
-        )
-    token = gerar_token_confirmacao(loja_id, consulta.id, modulo="clinica_geral")
     return processar_resposta_confirmacao(token, acao)

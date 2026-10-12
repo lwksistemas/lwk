@@ -68,10 +68,8 @@ class MultiTenantRouter:
     # e INSTALLED_APPS. Novo módulo tenant: incluir aqui + migrations só em loja_* (allow_migrate).
     loja_apps = frozenset(
         (
-            "cabeleireiro",
             "clinica_beleza",
             "crm_vendas",
-            "hotel",
             "nfse_integration",
             "products",
             "stores",

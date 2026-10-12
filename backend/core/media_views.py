@@ -88,16 +88,7 @@ def _buscar_paciente_midia(patient_id):
     try:
         from clinica_beleza.models import Patient
 
-        paciente = Patient.objects.filter(pk=pk).first()
-        if paciente:
-            return paciente
-    except Exception:
-        pass
-
-    try:
-        from clinica_geral.models import Paciente
-
-        return Paciente.objects.filter(pk=pk).first()
+        return Patient.objects.filter(pk=pk).first()
     except Exception:
         return None
 
@@ -122,16 +113,7 @@ def _buscar_paciente_por_cpf(cpf: str):
     try:
         from clinica_beleza.models import Patient
 
-        paciente = Patient.objects.filter(cpf__in=candidatos).first()
-        if paciente:
-            return paciente
-    except Exception:
-        pass
-
-    try:
-        from clinica_geral.models import Paciente
-
-        return Paciente.objects.filter(cpf__in=candidatos).first()
+        return Patient.objects.filter(cpf__in=candidatos).first()
     except Exception:
         return None
 

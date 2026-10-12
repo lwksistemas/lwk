@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 # Tipos cuja nota fica na tabela da clínica da beleza (também o salão).
-TIPOS_CONFIG_CLINICA = frozenset({"CLIEST", "CLIBEL", "CABEL"})
+TIPOS_CONFIG_CLINICA = frozenset({"CLIEST", "CLIBEL"})
 
 Getter = Callable[[Any], Any]
 

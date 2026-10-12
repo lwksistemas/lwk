@@ -62,11 +62,6 @@ _CLINICA_BELEZA_PUBLIC_PREFIXES = (
     "/api/clinica-beleza/termo-consentimento-pdf/",
 )
 
-_CLINICA_GERAL_PUBLIC_PREFIXES = (
-    "/api/clinica-geral/teleconsulta/",
-)
-
-
 _NFSE_PUBLIC_PREFIXES = (
     "/api/nfse/documento-pdf/",
 )
@@ -220,10 +215,6 @@ class SecurityIsolationMiddleware:
             return None
         if self._is_clinica_beleza_public_path(path):
             return None
-        if self._is_clinica_geral_public_path(path):
-            return None
-        if self._is_cabeleireiro_public_path(path):
-            return None
         if self._is_nfse_public_path(path):
             return None
         if self._is_whatsapp_public_path(path):
@@ -371,14 +362,6 @@ class SecurityIsolationMiddleware:
         return bool(path.startswith("/api/clinica-beleza/estoque/pedidos/") and "/pdf-public/" in path)
 
     @staticmethod
-    def _is_clinica_geral_public_path(path):
-        return any(path.startswith(prefix) for prefix in _CLINICA_GERAL_PUBLIC_PREFIXES)
-
-    @staticmethod
-    def _is_cabeleireiro_public_path(path):
-        return bool(path.startswith("/api/cabeleireiro/payments/") and "/recibo-pdf/" in path)
-
-    @staticmethod
     def _is_nfse_public_path(path):
         return any(path.startswith(prefix) for prefix in _NFSE_PUBLIC_PREFIXES)
 
@@ -428,8 +411,6 @@ class SecurityIsolationMiddleware:
         """Verifica se a rota é de uma loja"""
         store_routes = (
             "/api/clinica-beleza/",
-            "/api/cabeleireiro/",
-            "/api/hotel/",
             "/api/crm-vendas/",
             "/api/stores/",
             "/api/products/",
@@ -439,8 +420,6 @@ class SecurityIsolationMiddleware:
         if path.startswith("/api/crm-vendas/") and SecurityIsolationMiddleware._is_crm_vendas_public_path(path):
             return False
         if path.startswith("/api/clinica-beleza/") and SecurityIsolationMiddleware._is_clinica_beleza_public_path(path):
-            return False
-        if path.startswith("/api/cabeleireiro/") and SecurityIsolationMiddleware._is_cabeleireiro_public_path(path):
             return False
         return True
 

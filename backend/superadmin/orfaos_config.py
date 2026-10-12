@@ -66,17 +66,6 @@ TABELAS_TENANT_LOJA_ID = {
         "whatsapp_whatsappconfig",
         "whatsapp_whatsapplog",
     ],
-    "cabeleireiro": [
-        "cabeleireiro_cliente",
-        "cabeleireiro_profissional",
-        "cabeleireiro_servico",
-        "cabeleireiro_agendamento",
-        "cabeleireiro_produto",
-        "cabeleireiro_venda",
-        "cabeleireiro_funcionario",
-        "cabeleireiro_horariofuncionamento",
-        "cabeleireiro_bloqueioagenda",
-    ],
 }
 
 # Alias para compatibilidade com comandos verificar_dados_orfaos e validar_config_orfaos

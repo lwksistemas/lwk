@@ -20,12 +20,8 @@ class ResolverFolderUploadTest(SimpleTestCase):
     def test_buscar_paciente_sobrevive_tabela_ausente(self):
         with patch("clinica_beleza.models.Patient") as mock_patient:
             mock_patient.objects.filter.side_effect = ProgrammingError("clinica_beleza_patient")
-            with patch("clinica_geral.models.Paciente") as mock_geral:
-                mock_geral.objects.filter.return_value.first.return_value = SimpleNamespace(
-                    nome="Mariela", cpf="11540472299", id=1
-                )
-                achado = _buscar_paciente_midia("1")
-        self.assertEqual(achado.nome, "Mariela")
+            achado = _buscar_paciente_midia("1")
+        self.assertIsNone(achado)
 
     def test_sem_paciente_fica_na_pasta_do_tipo(self):
         pasta = _resolver_folder_upload(SimpleNamespace(data={"folder": "docs"}))

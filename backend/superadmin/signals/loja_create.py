@@ -113,12 +113,6 @@ def create_funcionario_for_loja_owner(sender, instance, created, **kwargs):
             except Exception as e:
                 logger.error(f"❌ Erro ao criar categorias padrão para loja {instance.nome}: {e}")
 
-        elif tipo_loja_nome == "Hotel":
-            from hotel.models import Funcionario
-
-            if not Funcionario.objects.filter(email=owner.email, loja_id=instance.id).exists():
-                funcionario_criado = Funcionario.objects.create(**funcionario_data)
-
         elif tipo_loja_nome == "Clínica da Beleza":
             # Owner é vinculado como Professional + ProfissionalUsuario (recepção) no serializer,
             # após a criação do schema e das tabelas clinica_beleza.

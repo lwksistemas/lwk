@@ -42,7 +42,6 @@ TABLE_URL_COLUMNS: dict[str, tuple[str, ...]] = {
 # Foto de perfil: a própria linha é o paciente/cliente (nome + CPF).
 PESSOA_PERFIL_TABLES: dict[str, dict[str, str]] = {
     "clinica_beleza_patient": {"kind": "pacientes", "foto_col": "foto_url"},
-    "cabeleireiro_cliente": {"kind": "clientes", "foto_col": "foto_url"},
 }
 
 # Fotos ligadas a um paciente/cliente por FK.

@@ -63,19 +63,11 @@ class ConfirmarAgendamentoPublicaView(View):
             from .agenda_confirmacao_service import decodificar_token_confirmacao
 
             payload = decodificar_token_confirmacao(token)
-            modulo = (payload or {}).get("modulo") or "clinica_beleza"
-            if modulo == "cabeleireiro":
-                from cabeleireiro.models import Agendamento
+            from .models import Appointment
 
-                ag = Agendamento.objects.filter(pk=result.appointment_id).first()
-                if ag:
-                    status_display = ag.get_status_display()
-            else:
-                from .models import Appointment
-
-                appt = Appointment.objects.filter(pk=result.appointment_id).first()
-                if appt:
-                    status_display = appt.get_status_display()
+            appt = Appointment.objects.filter(pk=result.appointment_id).first()
+            if appt:
+                status_display = appt.get_status_display()
 
         return JsonResponse({
             "ok": True,

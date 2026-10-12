@@ -49,12 +49,10 @@ export default function RootLayout({
                 try {
                   var path = location.pathname || '';
                   var root = document.documentElement;
-                  var cgDarkKey = 'lwk-clinica-geral-dark';
                   function aplicar(isDark) {
                     root.classList.toggle('dark', isDark);
                     root.style.colorScheme = isDark ? 'dark' : 'only light';
                   }
-                  function applyCg(isDark) { aplicar(isDark); }
                   if (path.indexOf('/confirmar-agendamento') === 0 || path.indexOf('/assinar') === 0) {
                     aplicar(false);
                     return;
@@ -62,22 +60,6 @@ export default function RootLayout({
                   if (/\\/loja\\/[^/]+\\/agenda(?:\\/|$)/.test(path) || path.indexOf('clinica-beleza') !== -1) {
                     aplicar(localStorage.getItem('lwk-clinica-dark') === 'true');
                     return;
-                  }
-                  if (/\\/clinica(?:-geral)?(?:\\/|$)/.test(path) && path.indexOf('clinica-beleza') === -1) {
-                    applyCg(localStorage.getItem(cgDarkKey) === 'true');
-                    return;
-                  }
-                  var loginMatch = path.match(/^\\/loja\\/([^/]+)\\/login\\/?$/);
-                  if (loginMatch) {
-                    try {
-                      var tipo = (sessionStorage.getItem('loja_tipo_' + decodeURIComponent(loginMatch[1])) || '').toLowerCase();
-                      if (tipo.normalize) tipo = tipo.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
-                      var isCg = tipo === 'clinica' || tipo.indexOf('consultorio') !== -1 || (tipo.indexOf('clinica') !== -1 && (tipo.indexOf('geral') !== -1 || tipo.indexOf('medica') !== -1));
-                      if (isCg && tipo.indexOf('beleza') === -1 && tipo.indexOf('estetica') === -1) {
-                        applyCg(localStorage.getItem(cgDarkKey) === 'true');
-                        return;
-                      }
-                    } catch (e2) {}
                   }
                   var theme = localStorage.getItem('theme');
                   // Padrão: sempre modo CLARO, inclusive no celular.

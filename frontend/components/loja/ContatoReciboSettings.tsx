@@ -16,8 +16,8 @@ type ContatoReciboInfo = {
 };
 
 type ContatoReciboSettingsProps = {
-  /** Prefixo da API da loja (ex.: /clinica-beleza ou /cabeleireiro) */
-  apiPrefix: "/clinica-beleza" | "/cabeleireiro";
+  /** Prefixo da API da clínica. */
+  apiPrefix: "/clinica-beleza";
   accentColor?: string;
   entidadeLabel?: string;
 };

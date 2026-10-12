@@ -38,21 +38,11 @@ function useIsMobileViewport() {
   return isMobile;
 }
 
-function isSalaoModulo(modulo?: string): boolean {
-  const m = (modulo || '').toLowerCase();
-  return m === 'cabeleireiro' || m === 'salao';
-}
-
-function mensagemPacientePosResposta(status: string, modulo?: string): string {
-  const salao = isSalaoModulo(modulo);
+function mensagemPacientePosResposta(status: string): string {
   if (status === 'CANCELLED') {
-    return salao
-      ? 'Horário cancelado. Se precisar remarcar, fale conosco.'
-      : 'Consulta cancelada. Se precisar remarcar, entre em contato conosco.';
+    return 'Consulta cancelada. Se precisar remarcar, entre em contato conosco.';
   }
-  return salao
-    ? 'Horário confirmado! Te esperamos no salão.'
-    : 'Consulta confirmada! Aguardamos você no horário marcado.';
+  return 'Consulta confirmada! Aguardamos você no horário marcado.';
 }
 
 function fecharPagina() {
@@ -245,7 +235,6 @@ export default function ConfirmarAgendamentoPage() {
   const bloqueadoSemResposta =
     !agendamento.pode_responder && !jaRespondido && !resultado?.ok;
 
-  const salao = isSalaoModulo(agendamento.modulo);
   const mensagemBloqueio = (() => {
     if (agendamento.motivo_bloqueio === 'confirmado') {
       return 'Este agendamento já foi confirmado.';
@@ -253,15 +242,11 @@ export default function ConfirmarAgendamentoPage() {
     if (agendamento.motivo_bloqueio === 'cancelado') {
       return 'Este agendamento já foi cancelado.';
     }
-    return salao
-      ? `Não é possível confirmar ou cancelar online. Status atual: ${agendamento.status_display}. Entre em contato com o salão.`
-      : `Não é possível confirmar ou cancelar online. Status atual: ${agendamento.status_display}. Entre em contato com a clínica.`;
+    return `Não é possível confirmar ou cancelar online. Status atual: ${agendamento.status_display}. Entre em contato com a clínica.`;
   })();
-  const titulo = salao ? 'Confirmação de horário' : 'Confirmação de consulta';
-  const labelServico = agendamento.servico_label || (salao ? 'Serviço' : 'Procedimento');
-  const promptAcao = salao
-    ? 'Confirme ou cancele seu horário:'
-    : 'Confirme ou cancele sua consulta:';
+  const titulo = 'Confirmação de consulta';
+  const labelServico = agendamento.servico_label || 'Procedimento';
+  const promptAcao = 'Confirme ou cancele sua consulta:';
 
   return (
     <ConfirmacaoShell isMobile={isMobile}>
@@ -381,7 +366,7 @@ export default function ConfirmarAgendamentoPage() {
               cancelado ? "bg-gray-50 text-gray-700" : "bg-green-50 text-green-800"
             }`}
           >
-            <p className="mb-2">{mensagemPacientePosResposta(agendamento.status, agendamento.modulo)}</p>
+            <p className="mb-2">{mensagemPacientePosResposta(agendamento.status)}</p>
             <button
               type="button"
               onClick={tentarFechar}

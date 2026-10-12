@@ -13,7 +13,7 @@ Uso: TARGET [app ...]
   all [app ...]         frontend + backend + worker (sem Evolution/mídia)
   infra                 Evolution e mídia
 
-Apps: clinica_beleza  clinica_geral  crm_vendas  whatsapp  nfse_integration  cabeleireiro  hotel
+Apps: clinica_beleza  crm_vendas  whatsapp  nfse_integration
 
 Exemplos:
   bash scripts/deploy-beta-isolated.sh frontend

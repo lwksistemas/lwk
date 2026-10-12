@@ -114,6 +114,8 @@ ssh ubuntu@201.54.18.213 'sudo -u deploy git -C /home/deploy/lwk-beta pull --ff-
 
 Não usar `docker compose up -d --build` sem o nome do serviço.
 
+No código ficam a clínica da beleza e o CRM. Hotel, salão e clínica geral foram retirados. Um tipo novo nasce do zero e ganha frontend separado (container, nginx, assetPrefix e recorte). Criar o tipo no superadmin não publica essa tela sozinho. Cadastros, fotos e schemas das lojas em produção não foram apagados.
+
 ## Backup
 
 - Automático: cron diário às 3h (`/opt/lwk-erp/backup.sh`)

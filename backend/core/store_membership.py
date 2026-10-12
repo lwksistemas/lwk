@@ -3,7 +3,6 @@ Usado pelo middleware de isolamento e pelo login de loja.
 """
 from __future__ import annotations
 
-import importlib
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,20 +41,6 @@ def funcionario_email_ativo_na_loja(user, loja) -> bool:
         set_current_tenant_db(db_name)
         set_current_loja_id(loja.id)
 
-        for import_path, model_name in (
-            ("hotel.models", "Funcionario"),
-        ):
-            try:
-                mod = importlib.import_module(import_path)
-                model_cls = getattr(mod, model_name)
-                if model_cls.objects.all_without_filter().filter(
-                    loja_id=loja.id,
-                    email__iexact=email,
-                    is_active=True,
-                ).exists():
-                    return True
-            except Exception:
-                continue
         return False
     except Exception as e:
         logger.debug("funcionario email check: %s", e)

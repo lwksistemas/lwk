@@ -188,6 +188,7 @@ def build_styles():
         "sub": ParagraphStyle("S", parent=base["Normal"], fontSize=12, textColor=MUTED, alignment=TA_CENTER, spaceAfter=4),
         "h1": ParagraphStyle("H1", parent=base["Heading1"], fontSize=14, textColor=PRIMARY, spaceBefore=14, spaceAfter=8),
         "body": ParagraphStyle("B", parent=base["Normal"], fontSize=9.5, textColor=DARK, leading=13, spaceAfter=5),
+        "cell": ParagraphStyle("C", parent=base["Normal"], fontSize=8, textColor=DARK, leading=11),
         "muted": ParagraphStyle("M", parent=base["Normal"], fontSize=8, textColor=MUTED, leading=11),
     }
 
@@ -219,6 +220,83 @@ def version_table(rows, destaque=None, headers=None):
     return t
 
 
+# O que a publicação de 05/10/2026 mudou na produção. Não altera tabelas nem arquivos das lojas.
+NOVIDADES = [
+    ("psycopg", "3.2.9 para 3.3.6", "Driver atual do PostgreSQL 18. A conversa com o banco fica na série nova, sem migração de tabelas."),
+    ("Zustand", "4.5 para 5.0", "O estado da tela passa a usar a série feita para o React 19."),
+    ("Framer Motion", "12 para 14", "Animações na mesma geração do React 19."),
+    ("Lucide", "0.577 para 1.52", "Ícones atuais, carregados só onde a tela usa."),
+    ("Tailwind Merge", "2.6 para 3.7", "Junta classes do Tailwind 4 sem uma sobrescrever a outra."),
+    ("Radix Dialog", "1.1.15 para 1.1.23", "Correções de foco e de acessibilidade nos modais."),
+    ("Axios e TanStack Query", "1.19 e 5.101 para 1.20 e 5.104", "Correções pontuais do cliente HTTP e do cache das telas."),
+    ("Vitest", "3.2 para 5.0", "Testes de desenvolvimento mais rápidos. Não muda a loja publicada."),
+]
+
+
+MELHORIAS_2026_10 = [
+    ("Tela do CRM", "porta 3002", "Publica só o CRM. Uma correção dessa tela não recompila a clínica."),
+    ("Tela da clínica", "porta 3003", "Publica só a clínica da beleza. Login e superadmin continuam no site geral, porta 3000."),
+    ("Banco no deploy", "por app", "Código puro não abre loja. Tabela nova abre só as lojas daquele app."),
+    ("Nota da clínica", "config própria", "Tela, paciente e configuração da NFS-e ficam na clínica. A emissão usa a config do app."),
+    ("Nota do CRM", "config própria", "A tela de nota do CRM não entra na publicação da clínica."),
+    ("Asaas da loja", "chave por app", "A clínica e o CRM têm chave e endereço de aviso separados."),
+    ("CPF e CNPJ", "documento exato", "11 dígitos e 14 dígitos não reaproveitam o mesmo cliente pelo e-mail."),
+    ("Mensalidade LWK", "conta do superadmin", "A cobrança da assinatura da loja continua na conta Asaas da LWK."),
+]
+
+
+def melhorias_table(st):
+    data = [["Melhoria", "Onde", "O que mudou"]]
+    for peca, onde, entrega in MELHORIAS_2026_10:
+        data.append([
+            Paragraph(peca, st["cell"]),
+            Paragraph(onde, st["cell"]),
+            Paragraph(entrega, st["cell"]),
+        ])
+    t = Table(data, colWidths=[3.6 * cm, 3.4 * cm, 9.5 * cm], repeatRows=1)
+    style = [
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 8.5),
+        ("BACKGROUND", (0, 0), (-1, 0), PRIMARY),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#E5E7EB")),
+    ]
+    for i in range(2, len(data), 2):
+        style.append(("BACKGROUND", (0, i), (-1, i), ROW_ALT))
+    t.setStyle(TableStyle(style))
+    return t
+
+
+def novidades_table(st):
+    data = [["Peça", "Versão", "O que entrega"]]
+    for peca, versao, entrega in NOVIDADES:
+        data.append([
+            Paragraph(peca, st["cell"]),
+            Paragraph(versao, st["cell"]),
+            Paragraph(entrega, st["cell"]),
+        ])
+    t = Table(data, colWidths=[3.6 * cm, 4.2 * cm, 8.7 * cm], repeatRows=1)
+    style = [
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 8.5),
+        ("BACKGROUND", (0, 0), (-1, 0), PRIMARY),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#E5E7EB")),
+    ]
+    for i in range(2, len(data), 2):
+        style.append(("BACKGROUND", (0, i), (-1, i), ROW_ALT))
+    t.setStyle(TableStyle(style))
+    return t
+
+
 def build_pdf():
     st = build_styles()
     doc = SimpleDocTemplate(
@@ -234,8 +312,8 @@ def build_pdf():
     story.append(Paragraph(f"Gerado em {date.today().strftime('%d/%m/%Y')}", st["sub"]))
     story.append(Spacer(1, 4 * mm))
     story.append(Paragraph(
-        "Inventário da produção, conferido nos contêineres em 05/10/2026. "
-        "A API foi lida do processo em execução. A tela lista o pacote que gerou a imagem publicada.",
+        "Inventário da produção. As versões de biblioteca foram conferidas em 05/10/2026. "
+        "A separação da tela, da nota e do Asaas entrou em 12/10/2026.",
         st["body"],
     ))
     story.append(Spacer(1, 3 * mm))
@@ -261,13 +339,35 @@ def build_pdf():
     dev_rows = [(nome, fv.get(nome, "?"), desc) for nome, desc in FRONTEND_DEV]
     story.append(version_table(dev_rows))
 
+    story.append(PageBreak())
+    story.append(Paragraph("5. O que entrou em 05/10/2026", st["h1"]))
+    story.append(Paragraph(
+        "Produção e beta receberam as mesmas bibliotecas. Nenhum schema, foto ou PDF de loja foi apagado.",
+        st["body"],
+    ))
+    story.append(novidades_table(st))
+
+    story.append(Paragraph("6. O que entrou em 12/10/2026", st["h1"]))
+    story.append(Paragraph(
+        "A tela e a conta de cada app passaram a publicar sozinhas. Nenhum cadastro, foto ou schema de loja foi apagado.",
+        st["body"],
+    ))
+    story.append(melhorias_table(st))
+
+    story.append(Paragraph("7. O que a base atual entrega", st["h1"]))
+    for texto in (
+        "Cada loja fica num schema próprio do PostgreSQL 18. O pacote django-tenants saiu. O isolamento continua no banco, com menos peça no meio.",
+        "A API é Django 6.1 com o psycopg 3. O Next 16.3.8 e o React 19.3 fecham a correção de segurança das imagens remotas. A criptografia dos campos está na série 50.",
+        "Redis 7.4 guarda cache e a fila. A mídia é um servidor próprio: abrir um PDF substitui o mesmo arquivo; a foto só entra quando alguém envia.",
+        "A agenda permanece no FullCalendar 6. A versão 7 troca as classes visuais e exigiria refazer o CSS da clínica, do CRM e do salão.",
+    ):
+        story.append(Paragraph(texto, st["body"]))
+
     story.append(Spacer(1, 6 * mm))
     story.append(HRFlowable(width="100%", color=PRIMARY, thickness=0.5))
     story.append(Spacer(1, 3 * mm))
     story.append(Paragraph(
-        "Cada loja usa um schema PostgreSQL próprio, sem o pacote django-tenants. "
-        "O driver é o psycopg 3.3.6. FullCalendar permanece na série 6: a 7 troca o CSS da agenda. "
-        "A tela do beta usa as mesmas versões da produção.",
+        "Produção e beta usam o mesmo código. A tela do CRM e a da clínica publicam separadas. A mídia continua em Python 3.12.3.",
         st["muted"],
     ))
     story.append(Paragraph(

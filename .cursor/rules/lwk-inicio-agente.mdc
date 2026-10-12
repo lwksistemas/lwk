@@ -21,16 +21,20 @@ Beta isolado: API, mídia de teste e Evolution no `201.54.18.213`. Não usar pro
 ## Deploy (só o que mudou)
 
 Não rebuildar o ERP inteiro nem Evolution em bug de um app.
-O Next.js é um único container: “só frontend” = só o serviço `frontend` (não dá para publicar só a clínica sem o CRM no mesmo build).
+A tela da clínica e a tela do CRM publicam em containers separados. Login e superadmin ficam no site geral.
 
 | Mudança | Produção | Beta |
 |---|---|---|
-| Tela / CSS / JS | `deploy-prod-magalu.sh frontend` | `deploy-beta-isolated.sh frontend` |
-| API da clínica | `deploy-prod-magalu.sh backend clinica_beleza` | `deploy-beta-isolated.sh backend clinica_beleza` |
+| Tela geral (login, superadmin) | `deploy-prod-magalu.sh frontend` | `deploy-beta-isolated.sh frontend` |
+| Tela do CRM | `… frontend crm_vendas` | `… frontend crm_vendas` |
+| Tela da clínica | `… frontend clinica_beleza` | `… frontend clinica_beleza` |
+| API da clínica | `… backend clinica_beleza` | `… backend clinica_beleza` |
 | API CRM | `… backend crm_vendas` | idem |
 | WhatsApp schema | `… backend whatsapp` | idem |
 | Front + API | `… all clinica_beleza` | idem |
 | Evolution (lojas) | `… infra` | `… infra` |
+
+Correção só de código não abre o banco das lojas. Tabela nova abre só as lojas daquele app. A nota e a chave Asaas da clínica ficam na clínica; as do CRM ficam no CRM. CPF e CNPJ não reaproveitam o mesmo cliente Asaas pelo e-mail.
 
 ```bash
 # Produção (branch main) — exemplo tela
@@ -54,8 +58,8 @@ ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/depl
 ## Stack
 
 - Backend: Django 6.1 + DRF 3.18.0 (Python 3.13)
-- Frontend: Next.js 16.3.0 + TypeScript 7.0.2 + React 19.2.8 + Tailwind 4 (Node 22)
-- Banco: PostgreSQL 18.4 (Docker local, multi-tenant por schema; shared_buffers 2GB)
+- Frontend: Next.js 16.3.8 + TypeScript 7.0.2 + React 19.3.0 + Tailwind 4 (Node 22). CRM na porta 3002, clínica na 3003, site geral na 3000
+- Banco: PostgreSQL 18.6 (Docker local, multi-tenant por schema; shared_buffers 2GB)
 - Cache: Redis 7.4 (512mb LRU) + django-q2
 - API: Gunicorn 6 workers × 2 threads (gthread)
 - Imagens: Servidor de mídia próprio (media.lwksistemas.com.br)

@@ -7,15 +7,14 @@ Sistema multi-tenant completo para gestão de diferentes tipos de negócios (cl�
 ## Stack Tecnológica
 
 ### Backend
-- **Django 5** + Django REST Framework
-- **PostgreSQL** (schemas por loja)
-- **Redis** (cache, opcional)
-- **Magalu Cloud** — API, frontend, banco e Evolution (`deploy-prod-magalu.sh`)
+- **Django 6.1** + Django REST Framework 3.18
+- **PostgreSQL 18.6** (schema por loja)
+- **Redis 7.4**
+- **Magalu Cloud** — API, telas, banco e Evolution (`scripts/deploy-prod-magalu.sh`)
 
 ### Frontend
-- **Next.js 15** (App Router)
-- **TypeScript** + **Tailwind CSS**
-- **Magalu Cloud** — frontend Next.js (`Dockerfile.frontend`)
+- **Next.js 16.3** (App Router), React 19, TypeScript, Tailwind 4
+- Três publicações: site geral (login e superadmin), CRM e clínica da beleza
 
 ## Tipos de App Disponíveis
 
@@ -63,14 +62,16 @@ npm run dev
 ## Deploy
 
 ```bash
-# Produção (branch main)
-ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh frontend'
-ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull && bash scripts/deploy-prod-magalu.sh backend clinica_beleza'
+# Produção (branch main) — tela do app corrigido
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull --ff-only origin main && bash scripts/deploy-prod-magalu.sh frontend crm_vendas'
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull --ff-only origin main && bash scripts/deploy-prod-magalu.sh frontend clinica_beleza'
+ssh deploy@201.23.81.50 'cd /opt/lwk-erp && git pull --ff-only origin main && bash scripts/deploy-prod-magalu.sh backend clinica_beleza'
 
 # Beta isolado (branch staging)
-ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh frontend'
-ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh backend clinica_beleza'
+ssh ubuntu@201.54.18.213 'sudo -u deploy git -C /home/deploy/lwk-beta pull --ff-only origin staging && sudo -u deploy bash /home/deploy/lwk-beta/scripts/deploy-beta-isolated.sh frontend crm_vendas'
 ```
+
+`frontend` sem nome de app publica o site geral. Detalhe em [`docs/RESUMO_SISTEMA_PARA_AGENTES.md`](docs/RESUMO_SISTEMA_PARA_AGENTES.md).
 
 Guia: [`docs/DEPLOY_E_ROLLBACK.md`](docs/DEPLOY_E_ROLLBACK.md).
 

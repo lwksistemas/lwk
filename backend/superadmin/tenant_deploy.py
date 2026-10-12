@@ -90,6 +90,35 @@ def parse_apps_option(values: list[str] | None) -> list[str]:
     return out
 
 
+def slugs_tipo_que_usam_app(app_label: str) -> list[str]:
+    """Slugs de TipoLoja que têm este app. Hotel não entra no CRM."""
+    from superadmin.services.database_schema_service import TIPO_LOJA_EXTRA_APPS
+
+    return [slug for slug, apps in TIPO_LOJA_EXTRA_APPS.items() if app_label in apps]
+
+
+def slugs_tipo_que_usam_algum(app_labels: list[str]) -> list[str]:
+    from superadmin.services.database_schema_service import TIPO_LOJA_EXTRA_APPS
+
+    wanted = set(app_labels)
+    return [slug for slug, apps in TIPO_LOJA_EXTRA_APPS.items() if wanted.intersection(apps)]
+
+
+def queryset_lojas_do_app(app_label: str):
+    """Lojas ativas com banco, só dos tipos que usam o app. Não abre as outras."""
+    from superadmin.models import Loja
+
+    return (
+        Loja.objects.using("default")
+        .filter(
+            is_active=True,
+            database_created=True,
+            tipo_loja__slug__in=slugs_tipo_que_usam_app(app_label),
+        )
+        .select_related("tipo_loja")
+    )
+
+
 def filtrar_apps_loja(loja, filtro_apps: list[str] | None) -> list[str]:
     """Apps a migrar nesta loja. Vazio = esta loja não usa o app pedido (não cria tabela)."""
     esperados = get_apps_esperados_para_loja(loja)

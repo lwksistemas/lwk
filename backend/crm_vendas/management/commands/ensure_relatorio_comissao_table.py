@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand
 from django.db import connections
 
 from core.db_config import ensure_loja_database_config
-from superadmin.models import Loja
+from superadmin.tenant_deploy import queryset_lojas_do_app
 
 SQL_CREATE = """
 CREATE TABLE IF NOT EXISTS crm_relatorio_comissao (
@@ -60,7 +60,7 @@ class Command(BaseCommand):
         created_or_ok = 0
         skipped = 0
 
-        for loja in Loja.objects.all().only("id", "database_name"):
+        for loja in queryset_lojas_do_app("crm_vendas"):
             db_name = loja.database_name
             if not ensure_loja_database_config(db_name, conn_max_age=0):
                 skipped += 1

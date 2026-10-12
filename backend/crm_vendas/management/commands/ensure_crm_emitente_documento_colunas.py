@@ -25,7 +25,11 @@ class Command(BaseCommand):
         slug_filter = (options.get("slug") or "").strip().lower()
         ok = fixed = skip = 0
 
-        lojas = Loja.objects.filter(is_active=True, database_created=True).select_related("tipo_loja")
+        lojas = Loja.objects.filter(
+            is_active=True,
+            database_created=True,
+            tipo_loja__slug="crm-vendas",
+        ).select_related("tipo_loja")
         for loja in lojas:
             tipo_slug = (loja.tipo_loja.slug if loja.tipo_loja else "").strip()
             if tipo_slug != "crm-vendas":

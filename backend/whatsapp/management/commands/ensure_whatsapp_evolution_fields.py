@@ -12,7 +12,7 @@ from django.db import connections
 
 from core.schema_checks import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
-from superadmin.models import Loja
+from superadmin.tenant_deploy import queryset_lojas_do_app
 from whatsapp.confirmacao_agenda_service import loja_usa_confirmacao_agenda
 
 COLUMNS = (
@@ -41,7 +41,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         slug_filter = (options.get("slug") or "").strip().lower()
-        lojas = Loja.objects.filter(is_active=True, database_created=True).select_related("tipo_loja")
+        lojas = queryset_lojas_do_app("whatsapp")
         ok = skip = 0
 
         for loja in lojas:

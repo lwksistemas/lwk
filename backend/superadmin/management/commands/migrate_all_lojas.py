@@ -42,6 +42,7 @@ class Command(BaseCommand):
             deve_rodar_fix_colunas_crm,
             filtrar_apps_loja,
             parse_apps_option,
+            slugs_tipo_que_usam_algum,
         )
 
         filtro_apps = parse_apps_option(options.get("apps"))
@@ -61,6 +62,8 @@ class Command(BaseCommand):
         for attempt in range(max_retries):
             try:
                 qs = Loja.objects.select_related("tipo_loja").all()
+                if filtro_apps:
+                    qs = qs.filter(tipo_loja__slug__in=slugs_tipo_que_usam_algum(filtro_apps))
                 if filtro_tipos:
                     qs = qs.filter(tipo_loja__slug__in=filtro_tipos)
                 lojas = list(qs)

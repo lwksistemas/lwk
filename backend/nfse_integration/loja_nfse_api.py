@@ -245,22 +245,10 @@ def xml_nfse_conteudo(nfse: Any) -> str:
 
 
 def _resolver_config_nfse_loja(loja_id: int):
-    """Resolve a config NFS-e correta por loja: ClinicaBelezaNFSeConfig ou CRMConfig.
-    Verifica o tipo da loja (CLIEST/CLIBEL/CABEL → tabela da clínica; demais → CRM).
-    """
-    from superadmin.models import Loja
+    """Config NFS-e da loja, pelo app que registrou o tipo (clínica ou CRM)."""
+    from nfse_integration.config_loja import config_nfse_por_loja_id
 
-    loja = Loja.objects.using("default").filter(id=loja_id).select_related("tipo_loja").first()
-    tipo_codigo = ""
-    if loja and hasattr(loja, "tipo_loja") and loja.tipo_loja:
-        tipo_codigo = getattr(loja.tipo_loja, "codigo", "") or ""
-
-    if tipo_codigo in ("CLIEST", "CLIBEL", "CABEL"):
-        from clinica_beleza.nfse_config_service import get_or_create_nfse_config
-        return get_or_create_nfse_config(loja_id)
-
-    from crm_vendas.models import CRMConfig
-    return CRMConfig.get_or_create_for_loja(loja_id)
+    return config_nfse_por_loja_id(loja_id)
 
 
 def sincronizar_nfse_asaas_loja(nfse: Any, loja_id: int) -> tuple[dict[str, Any], int]:

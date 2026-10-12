@@ -8,6 +8,7 @@ from superadmin.tenant_deploy import (
     ensures_para_apps,
     filtrar_apps_loja,
     parse_apps_option,
+    slugs_tipo_que_usam_app,
 )
 
 
@@ -29,6 +30,17 @@ class TenantDeployFiltroTest(SimpleTestCase):
     def test_clinica_migra_so_clinica_beleza(self):
         loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="clinica-beleza"))
         self.assertEqual(filtrar_apps_loja(loja, ["clinica_beleza"]), ["clinica_beleza"])
+
+    def test_crm_nao_inclui_hotel_nem_salao(self):
+        slugs = slugs_tipo_que_usam_app("crm_vendas")
+        self.assertIn("crm-vendas", slugs)
+        self.assertNotIn("hotel", slugs)
+        self.assertNotIn("cabeleireiro", slugs)
+
+    def test_clinica_nao_inclui_loja_so_crm(self):
+        slugs = slugs_tipo_que_usam_app("clinica_beleza")
+        self.assertIn("clinica-beleza", slugs)
+        self.assertNotIn("crm-vendas", slugs)
 
     def test_ensure_clinica_nao_inclui_crm(self):
         all_ensures = [

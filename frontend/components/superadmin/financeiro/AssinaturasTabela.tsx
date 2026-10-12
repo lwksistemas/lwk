@@ -35,6 +35,7 @@ interface AssinaturasTabelaProps {
   atualizandoMP: string | null;
   gerandoCobrancaMP: string | number | null;
   excluindoPagamentoMP: boolean;
+  onHistoricoAberto?: (aberto: boolean) => void;
 }
 
 interface ItemHistorico {
@@ -65,6 +66,7 @@ const COLUNAS = [
   'Conta da empresa',
   'Boleto',
   'Nota fiscal',
+  'Histórico',
 ];
 
 function mensagemErro(error: unknown, fallback: string) {
@@ -92,6 +94,10 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
       })
       .catch(() => setPlanos([]));
   }, []);
+
+  useEffect(() => {
+    props.onHistoricoAberto?.(historicoAberto != null);
+  }, [historicoAberto, props.onHistoricoAberto]);
 
   useEffect(() => {
     const iniciais: Record<string, string> = {};
@@ -179,10 +185,6 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
   };
 
   const abrirHistorico = async (assinatura: Assinatura) => {
-    if (historicoAberto === assinatura.id) {
-      setHistoricoAberto(null);
-      return;
-    }
     setHistoricoAberto(assinatura.id);
     if (!assinatura.financeiro_id || historicos[String(assinatura.id)]) return;
     const chave = `historico-${assinatura.id}`;
@@ -256,6 +258,30 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
     }
   };
 
+  const lojaHistorico = assinaturas.find((item) => item.id === historicoAberto);
+  if (lojaHistorico) {
+    const chaveHistorico = String(lojaHistorico.id);
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setHistoricoAberto(null)}
+          className="mb-4 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-200"
+        >
+          Voltar às assinaturas
+        </button>
+        <HistoricoLoja
+          nome={lojaHistorico.loja_nome}
+          plano={lojaHistorico.plano_nome}
+          valor={lojaHistorico.plano_valor}
+          carregando={ocupado === `historico-${lojaHistorico.id}`}
+          erro={historicoErro[chaveHistorico]}
+          itens={historicos[chaveHistorico]}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -292,14 +318,6 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                     >
                       <div className="font-medium text-gray-900 dark:text-gray-100">{assinatura.loja_nome}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">{assinatura.loja_slug}</div>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={semFinanceiro || ocupado === `historico-${assinatura.id}`}
-                      onClick={() => abrirHistorico(assinatura)}
-                      className="mt-1 block text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
-                    >
-                      {historicoAberto === assinatura.id ? 'Fechar histórico' : 'Histórico'}
                     </button>
                     <span className={`mt-1 inline-block px-2 py-0.5 text-xs rounded-full ${
                       assinatura.ativa
@@ -461,19 +479,17 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                       </button>
                     </div>
                   </td>
+                  <td className="px-3 py-3">
+                    <button
+                      type="button"
+                      disabled={semFinanceiro || ocupado === `historico-${assinatura.id}`}
+                      onClick={() => abrirHistorico(assinatura)}
+                      className="px-2 py-1 text-xs bg-slate-700 text-white rounded hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      Histórico
+                    </button>
+                  </td>
                 </tr>
-                {historicoAberto === assinatura.id && (
-                  <tr key={`${chave}-historico`} className="bg-gray-50 dark:bg-gray-800/60">
-                    <td colSpan={COLUNAS.length} className="px-3 py-3">
-                      <HistoricoLoja
-                        nome={assinatura.loja_nome}
-                        carregando={ocupado === `historico-${assinatura.id}`}
-                        erro={historicoErro[chave]}
-                        itens={historicos[chave]}
-                      />
-                    </td>
-                  </tr>
-                )}
                 {abertaLinha && (
                   <tr key={`${chave}-detalhe`} className="bg-gray-50 dark:bg-gray-800/60">
                     <td colSpan={COLUNAS.length} className="px-3 py-3">
@@ -511,19 +527,24 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
 
 function HistoricoLoja({
   nome,
+  plano,
+  valor,
   carregando,
   erro,
   itens,
 }: {
   nome: string;
+  plano: string;
+  valor: string;
   carregando: boolean;
   erro?: string;
   itens?: ItemHistorico[];
 }) {
   return (
     <div>
-      <p className="mb-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-        Histórico de {nome}
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{nome}</h2>
+      <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+        {plano} · {formatCurrency(valor)}
       </p>
       {carregando && <p className="text-sm text-gray-500">Carregando pagamentos e notas...</p>}
       {erro && <p className="text-sm text-red-600">{erro}</p>}

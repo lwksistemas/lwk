@@ -2,6 +2,7 @@
  * Componente da tab de assinaturas
  * ✅ REFATORADO v780: Extraído da página de financeiro
  */
+import { useState } from 'react';
 import type { Assinatura, Pagamento } from '@/hooks/useAssinaturas';
 import { AssinaturasTabela } from './AssinaturasTabela';
 
@@ -60,13 +61,15 @@ export function AssinaturasTab({
   excluindoPagamentoMP,
   onAtualizar,
 }: AssinaturasTabProps) {
+  const [soLoja, setSoLoja] = useState(false);
+
   if (loading) {
     return <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>;
   }
 
   return (
     <div>
-      {/* Filtro por Provedor */}
+      {!soLoja && (
       <div className="mb-4 flex items-center space-x-4">
         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
           Filtrar por provedor:
@@ -87,6 +90,7 @@ export function AssinaturasTab({
           ))}
         </div>
       </div>
+      )}
 
       {/* Lista de Assinaturas */}
       {assinaturas.length === 0 ? (
@@ -95,9 +99,11 @@ export function AssinaturasTab({
         </p>
       ) : (
         <>
+        {!soLoja && (
         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-          Histórico mostra todos os pagamentos e as notas da loja, com o mês pago ou vencido. PIX e Transferência confirmam pagamento na conta da empresa. Emitir gera o boleto quando não há outro em aberto.
+          Histórico, no fim da linha, abre só essa loja com os pagamentos e as notas, mês pago ou vencido. PIX e Transferência confirmam pagamento na conta da empresa. Emitir gera o boleto quando não há outro em aberto.
         </p>
+        )}
         <AssinaturasTabela
           assinaturas={assinaturas}
           onAtualizar={onAtualizar}
@@ -117,6 +123,7 @@ export function AssinaturasTab({
           atualizandoMP={atualizandoMP}
           gerandoCobrancaMP={gerandoCobrancaMP}
           excluindoPagamentoMP={excluindoPagamentoMP}
+          onHistoricoAberto={setSoLoja}
         />
         </>
       )}

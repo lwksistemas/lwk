@@ -7,7 +7,8 @@ lwk_deploy_usage() {
 Uso: TARGET [app ...]
 
   frontend              só Next.js (tela / JS / CSS)
-  backend [app ...]     API + worker; se informar app, migrate/ensure só dele
+  backend [app ...]     API + worker; migrate/ensure só desse app e só nas lojas desse tipo
+  frontend [app ...]    só a tela (o site é um Next.js só; não rebuilda a API)
   all [app ...]         frontend + backend + worker (sem Evolution/mídia)
   infra                 Evolution e mídia
 

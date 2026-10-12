@@ -16,7 +16,7 @@ from django.db import connections
 from core.schema_checks import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 from crm_vendas.schema_service import patch_clinica_beleza_migration_orphans
-from superadmin.models import Loja
+from superadmin.tenant_deploy import queryset_lojas_do_app
 
 TABLE = "crm_vendas_vendedor"
 COLUMN = "config_acesso"
@@ -34,7 +34,7 @@ class Command(BaseCommand):
         slug_filter = (options.get("slug") or "").strip().lower()
         ok = skip = 0
 
-        qs = Loja.objects.filter(is_active=True, database_created=True).select_related("tipo_loja")
+        qs = queryset_lojas_do_app("crm_vendas")
         for loja in qs:
             if slug_filter and slug_filter not in (
                 (loja.slug or "").lower(),

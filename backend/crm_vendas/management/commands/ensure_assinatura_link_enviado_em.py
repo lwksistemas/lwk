@@ -12,7 +12,7 @@ from django.db import connections
 
 from core.schema_checks import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
-from superadmin.models import Loja
+from superadmin.tenant_deploy import queryset_lojas_do_app
 
 TABLE = "crm_vendas_assinatura_digital"
 COLUMN = "link_enviado_em"
@@ -30,7 +30,7 @@ class Command(BaseCommand):
         slug_filter = (options.get("slug") or "").strip().lower()
         ok = skip = changed = 0
 
-        for loja in Loja.objects.filter(is_active=True, database_created=True):
+        for loja in queryset_lojas_do_app("crm_vendas"):
             if slug_filter and slug_filter not in (
                 (loja.slug or "").lower(),
                 (getattr(loja, "atalho", None) or "").lower(),

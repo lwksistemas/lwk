@@ -74,6 +74,16 @@ class LojaCreationService:
         owner = User.objects.filter(username=username).first()
 
         if owner:
+            from superadmin.models import UsuarioSistema
+
+            if owner.is_superuser or UsuarioSistema.objects.filter(user=owner, is_active=True).exists():
+                raise serializers.ValidationError({
+                    "owner_username": (
+                        f'O usuário "{username}" já é usado no acesso interno da LWK. '
+                        "Escolha outro nome de usuário."
+                    ),
+                })
+
             # Verificar se já é dono de outra loja
             if owner.lojas_owned.exists():
                 raise serializers.ValidationError({

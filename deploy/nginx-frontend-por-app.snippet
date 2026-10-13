@@ -56,6 +56,25 @@
         proxy_cache_bypass $http_upgrade;
     }
 
+    # Assinatura e suporte ficam fora da pasta do app. O clique vem do app da
+    # clínica ou do CRM: o HTML tem de sair do mesmo processo, senão o
+    # navegador busca o script em /fe-clinica ou /fe-crm e a página quebra.
+    location ~ ^/loja/[^/]+/(assinatura|suporte|financeiro)(/|$) {
+        set $loja_app_upstream 127.0.0.1:3003;
+        if ($cookie_loja_usa_crm = "1") {
+            set $loja_app_upstream 127.0.0.1:3002;
+        }
+        proxy_pass http://$loja_app_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
     location ~ ^/(confirmar-agendamento|enviar-foto|assinar-consentimento|assinar-recibo|teleconsulta)(/|$) {
         proxy_pass http://127.0.0.1:3003;
         proxy_http_version 1.1;

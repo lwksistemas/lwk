@@ -105,6 +105,7 @@ def _dados_loja_financeiro(loja) -> dict:
         "dia_vencimento": financeiro.dia_vencimento if financeiro else None,
         "tipo_assinatura": loja.tipo_assinatura,
         "financeiro_id": financeiro.id if financeiro else None,
+        "bloqueada": bool(getattr(loja, "is_blocked", False)),
     }
 
 

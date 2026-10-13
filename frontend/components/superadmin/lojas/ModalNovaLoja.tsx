@@ -30,7 +30,7 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
     plano: '',
     tipo_assinatura: 'mensal',
     dia_vencimento: 10,
-    provedor_boleto_preferido: 'asaas' as 'asaas' | 'mercadopago',
+    provedor_boleto_preferido: 'asaas' as 'asaas' | 'mercadopago' | 'cora',
     owner_full_name: '',
     owner_username: '',
     owner_password: '',
@@ -51,8 +51,13 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
 
   const loadMercadoPagoDefault = async () => {
     try {
-      const { data } = await apiClient.get('/superadmin/mercadopago-config/');
-      if (data?.use_for_boletos && data?.enabled) {
+      const [mp, cora] = await Promise.all([
+        apiClient.get('/superadmin/mercadopago-config/').then((r) => r.data).catch(() => null),
+        apiClient.get('/superadmin/cora-config/').then((r) => r.data).catch(() => null),
+      ]);
+      if (cora?.use_for_boletos && cora?.enabled) {
+        setFormData((prev) => ({ ...prev, provedor_boleto_preferido: 'cora' }));
+      } else if (mp?.use_for_boletos && mp?.enabled) {
         setFormData((prev) => ({ ...prev, provedor_boleto_preferido: 'mercadopago' }));
       }
     } catch {
@@ -760,11 +765,12 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                 <select
                   name="provedor_boleto_preferido"
                   value={formData.provedor_boleto_preferido}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, provedor_boleto_preferido: e.target.value as 'asaas' | 'mercadopago' }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, provedor_boleto_preferido: e.target.value as 'asaas' | 'mercadopago' | 'cora' }))}
                   className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
                 >
                   <option value="asaas">Asaas</option>
                   <option value="mercadopago">Mercado Pago</option>
+                  <option value="cora">Cora</option>
                 </select>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Define qual provedor gerará os boletos desta loja</p>
               </div>

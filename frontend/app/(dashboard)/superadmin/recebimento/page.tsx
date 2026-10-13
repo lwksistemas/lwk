@@ -8,7 +8,7 @@ import apiClient from '@/lib/api-client'
 import { authService } from '@/lib/auth'
 import { logger } from '@/lib/logger'
 
-type ProvedorId = 'asaas' | 'mercadopago'
+type ProvedorId = 'asaas' | 'mercadopago' | 'cora'
 
 interface ProvedorCard {
   id: ProvedorId
@@ -34,7 +34,7 @@ export default function RecebimentoAssinaturasPage() {
   }, [router])
 
   const carregar = async () => {
-    const [asaas, statusAsaas, mercadoPago] = await Promise.all([
+    const [asaas, statusAsaas, mercadoPago, cora] = await Promise.all([
       apiClient.get('/asaas/config/').then((r) => r.data).catch((err) => {
         logger.warn('Erro ao carregar Asaas:', err)
         return null
@@ -44,9 +44,14 @@ export default function RecebimentoAssinaturasPage() {
         logger.warn('Erro ao carregar Mercado Pago:', err)
         return null
       }),
+      apiClient.get('/superadmin/cora-config/').then((r) => r.data).catch((err) => {
+        logger.warn('Erro ao carregar Cora:', err)
+        return null
+      }),
     ])
 
     const mpPadrao = Boolean(mercadoPago && mercadoPago.use_for_boletos)
+    const coraPadrao = Boolean(cora && cora.use_for_boletos)
     const asaasLigado = Boolean(asaas && (asaas.enabled || asaas.api_key_configured))
     const mpLigado = Boolean(mercadoPago && (mercadoPago.enabled || mercadoPago.access_token_set))
 
@@ -56,7 +61,7 @@ export default function RecebimentoAssinaturasPage() {
         nome: 'Asaas',
         recebe: 'Boleto, Pix e cartão recorrente',
         href: '/superadmin/asaas',
-        padrao: !mpPadrao,
+        padrao: !mpPadrao && !coraPadrao,
         configurado: asaasLigado || Boolean(statusAsaas && statusAsaas.api_connected),
         detalhe: statusAsaas?.api_connected
           ? 'Conexão com a API ativa'
@@ -74,6 +79,17 @@ export default function RecebimentoAssinaturasPage() {
         detalhe: mercadoPago?.access_token_set
           ? 'Access token salvo'
           : 'Ainda sem access token',
+      },
+      {
+        id: 'cora',
+        nome: 'Cora',
+        recebe: 'Boleto e Pix na conta da LWK',
+        href: '/superadmin/cora',
+        padrao: coraPadrao,
+        configurado: Boolean(cora && cora.credential_ready && cora.enabled),
+        detalhe: cora?.credential_ready
+          ? 'Certificado salvo'
+          : 'Certificado ainda não importado',
       },
     ])
     setLoading(false)
@@ -100,7 +116,7 @@ export default function RecebimentoAssinaturasPage() {
         {loading ? (
           <p className="text-gray-500">Carregando...</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {provedores.map((provedor) => (
               <article
                 key={provedor.id}

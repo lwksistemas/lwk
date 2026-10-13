@@ -29,6 +29,7 @@ class FinanceiroLoja(models.Model):
     PROVEDOR_BOLETO_CHOICES = [
         ("asaas", "Asaas"),
         ("mercadopago", "Mercado Pago"),
+        ("cora", "Cora"),
     ]
     provedor_boleto = models.CharField(
         max_length=20, choices=PROVEDOR_BOLETO_CHOICES, default="asaas",
@@ -36,6 +37,7 @@ class FinanceiroLoja(models.Model):
     )
     mercadopago_payment_id = models.CharField(max_length=100, blank=True, help_text="ID do pagamento boleto no Mercado Pago")
     mercadopago_pix_payment_id = models.CharField(max_length=100, blank=True, help_text="ID do pagamento PIX no Mercado Pago")
+    cora_invoice_id = models.CharField(max_length=80, blank=True, help_text="ID da fatura na Cora")
 
     # Integração Asaas
     asaas_customer_id = models.CharField(max_length=100, blank=True, help_text="ID do cliente no Asaas")
@@ -137,6 +139,7 @@ class PagamentoLoja(models.Model):
     )
     mercadopago_payment_id = models.CharField(max_length=100, blank=True, help_text="ID do pagamento boleto no Mercado Pago")
     mercadopago_pix_payment_id = models.CharField(max_length=100, blank=True, help_text="ID do pagamento PIX no Mercado Pago")
+    cora_invoice_id = models.CharField(max_length=80, blank=True, help_text="ID da fatura na Cora")
 
     # Integração Asaas
     asaas_payment_id = models.CharField(max_length=100, blank=True, help_text="ID do pagamento no Asaas")

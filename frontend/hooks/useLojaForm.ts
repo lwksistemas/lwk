@@ -50,7 +50,7 @@ export interface LojaFormData {
   plano: string;
   tipo_assinatura: 'mensal' | 'anual';
   dia_vencimento: number;
-  provedor_boleto_preferido: 'asaas' | 'mercadopago';
+  provedor_boleto_preferido: 'asaas' | 'mercadopago' | 'cora';
   forma_pagamento_preferida: 'boleto' | 'pix' | 'cartao_credito'; // ✅ NOVO: Forma de pagamento
   owner_full_name: string;
   owner_username: string;
@@ -111,8 +111,13 @@ export function useLojaForm(incluirSenha: boolean = true, prefill: LojaFormPrefi
 
   const loadMercadoPagoDefault = async () => {
     try {
-      const { data } = await apiClient.get('/superadmin/mercadopago-config/');
-      if (data?.use_for_boletos && data?.enabled) {
+      const [mp, cora] = await Promise.all([
+        apiClient.get('/superadmin/mercadopago-config/').then((r) => r.data).catch(() => null),
+        apiClient.get('/superadmin/cora-config/').then((r) => r.data).catch(() => null),
+      ]);
+      if (cora?.use_for_boletos && cora?.enabled) {
+        setFormData((prev) => ({ ...prev, provedor_boleto_preferido: 'cora' }));
+      } else if (mp?.use_for_boletos && mp?.enabled) {
         setFormData((prev) => ({ ...prev, provedor_boleto_preferido: 'mercadopago' }));
       }
     } catch {

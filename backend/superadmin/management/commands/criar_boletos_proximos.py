@@ -127,7 +127,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("="*60))
 
     def _criar_boleto(self, loja, financeiro, data_vencimento):
-        """Cria boleto no Asaas"""
+        """Cria boleto no provedor da loja. Cora usa a conta da LWK; o restante segue no Asaas."""
+        if (getattr(loja, "provedor_boleto_preferido", None) or "asaas") == "cora":
+            from superadmin.cobranca_service import CobrancaService
+            return CobrancaService().criar_cobranca(loja, financeiro, due_date_override=data_vencimento)
         try:
             # Buscar assinatura
             loja_assinatura = LojaAssinatura.objects.get(loja_slug=loja.slug)

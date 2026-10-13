@@ -39,6 +39,12 @@ class MercadoPagoAdminService:
             config.enabled = bool(data["enabled"])
         if "use_for_boletos" in data:
             config.use_for_boletos = bool(data["use_for_boletos"])
+            if config.use_for_boletos:
+                from ..models import CoraConfig
+                cora = CoraConfig.get_config()
+                if cora.use_for_boletos:
+                    cora.use_for_boletos = False
+                    cora.save(update_fields=["use_for_boletos"])
         if "access_token" in data and data["access_token"] is not None:
             config.access_token = str(data["access_token"]).strip()
         if "public_key" in data and data["public_key"] is not None:

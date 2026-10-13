@@ -184,4 +184,9 @@ class CoraClient:
         return interpretar_fatura(data)
 
     def registrar_webhook(self, url: str) -> None:
-        self._pedir("POST", "/endpoints/", json={"url": url, "resource": "invoice", "trigger": "paid"})
+        self._pedir(
+            "POST",
+            "/endpoints/",
+            json={"url": url, "resource": "invoice", "trigger": "paid"},
+            headers={"Idempotency-Key": str(uuid.uuid4())},
+        )

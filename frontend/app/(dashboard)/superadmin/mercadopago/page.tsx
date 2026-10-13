@@ -153,7 +153,7 @@ export default function MercadoPagoConfigPage() {
       />
       <div className="flex items-center gap-4 mb-2">
         <Link
-          href="/superadmin/dashboard"
+          href="/superadmin/recebimento"
           className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -162,9 +162,9 @@ export default function MercadoPagoConfigPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Configuração Mercado Pago</h1>
+          <h1 className="text-3xl font-bold">Mercado Pago</h1>
           <p className="text-muted-foreground">
-            Configure a integração para gerar boletos das lojas via Mercado Pago
+            Recebimento das assinaturas — boleto e Pix
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">

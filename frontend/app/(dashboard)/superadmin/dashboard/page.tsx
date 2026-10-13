@@ -62,18 +62,11 @@ const MENU_CARDS: MenuCardProps[] = [
     color: 'green',
   },
   {
-    title: 'Configuração Asaas',
-    description: 'Configurar e monitorar integração com API Asaas',
-    icon: '🔧',
-    href: '/superadmin/asaas',
+    title: 'Recebimento das assinaturas',
+    description: 'Escolher o provedor e configurar boleto, Pix e cartão das mensalidades',
+    icon: '🏦',
+    href: '/superadmin/recebimento',
     color: 'orange',
-  },
-  {
-    title: 'Configuração Mercado Pago',
-    description: 'Configurar boletos via Mercado Pago para as lojas',
-    icon: '💳',
-    href: '/superadmin/mercadopago',
-    color: 'blue',
   },
   {
     title: 'Configuração NFS-e',

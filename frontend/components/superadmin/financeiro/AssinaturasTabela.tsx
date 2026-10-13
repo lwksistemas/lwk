@@ -428,7 +428,7 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                     )}
                   </td>
                   <td className="px-3 py-3">
-                    {typeof assinatura.id === 'number' ? (
+                    {assinatura.financeiro_id && assinatura.current_payment_data?.provedor !== 'mercadopago' ? (
                       <div className="flex flex-wrap gap-1">
                         <button
                           type="button"
@@ -547,7 +547,7 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
               Confirmar {conta.forma === 'pix' ? 'PIX' : 'transferência'}
             </h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              Confirmar que {conta.assinatura.loja_nome} pagou por {conta.forma === 'pix' ? 'PIX' : 'transferência'} na conta da empresa? O boleto Asaas em aberto recebe baixa e a assinatura é atualizada.
+              Confirmar que {conta.assinatura.loja_nome} pagou por {conta.forma === 'pix' ? 'PIX' : 'transferência'} na conta da empresa? O boleto {conta.assinatura.current_payment_data?.provedor === 'cora' ? 'Cora' : 'Asaas'} em aberto recebe baixa e a assinatura é atualizada.
             </p>
             <label className="mt-4 block text-sm text-gray-700 dark:text-gray-200">
               Comprovante em PDF

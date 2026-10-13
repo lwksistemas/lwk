@@ -183,6 +183,9 @@ class CoraClient:
         data = self._pedir("GET", f"/v2/invoices/{invoice_id}")
         return interpretar_fatura(data)
 
+    def cancelar_fatura(self, invoice_id: str) -> None:
+        self._pedir("DELETE", f"/v2/invoices/{invoice_id}")
+
     def registrar_webhook(self, url: str) -> None:
         self._pedir(
             "POST",

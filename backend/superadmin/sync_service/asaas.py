@@ -436,6 +436,46 @@ class AsaasSyncService:
                 return aberto.asaas_id, aberto.value
         return None, None
 
+    def _confirmar_conta_cora(self, loja, financeiro, forma: str, comprovante=None) -> dict:
+        from superadmin.cora_service import receber_na_conta_empresa
+
+        pagamento = (
+            PagamentoLoja.objects.filter(
+                loja=loja,
+                provedor_boleto="cora",
+                status__in=["pendente", "atrasado"],
+            )
+            .exclude(cora_invoice_id="")
+            .order_by("-data_vencimento", "-id")
+            .first()
+        )
+        invoice_id = (pagamento.cora_invoice_id if pagamento else "") or (financeiro.cora_invoice_id or "")
+        resultado = receber_na_conta_empresa(invoice_id.strip(), forma)
+        if not resultado.get("success"):
+            return resultado
+
+        payment_id = resultado.get("payment_id") or invoice_id.strip()
+        aviso_comprovante = ""
+        if comprovante is not None:
+            url = self._guardar_comprovante_pdf(loja, payment_id, comprovante)
+            if url:
+                PagamentoLoja.objects.filter(cora_invoice_id=payment_id).update(comprovante=url)
+            else:
+                aviso_comprovante = " A baixa foi feita, mas o comprovante não foi gravado."
+        financeiro.refresh_from_db()
+        rotulo = "PIX" if forma == "pix" else "transferência"
+        return {
+            "success": True,
+            "forma": forma,
+            "payment_id": payment_id,
+            "data_proxima_cobranca": financeiro.data_proxima_cobranca.isoformat(),
+            "message": (
+                f"Pagamento por {rotulo} confirmado. Boleto Cora baixado e assinatura atualizada."
+                + (" Comprovante anexado." if comprovante is not None and not aviso_comprovante else "")
+                + aviso_comprovante
+            ),
+        }
+
     def confirmar_recebimento_conta_empresa(self, loja, forma: str, comprovante=None) -> dict:
         """PIX ou transferência na conta da empresa: baixa o boleto Asaas e renova a assinatura."""
         from asaas_integration.client import AsaasClient
@@ -451,6 +491,10 @@ class AsaasSyncService:
             financeiro = loja.financeiro
         except FinanceiroLoja.DoesNotExist:
             return {"success": False, "error": "Esta loja não tem financeiro."}
+
+        provedor = (getattr(financeiro, "provedor_boleto", None) or getattr(loja, "provedor_boleto_preferido", None) or "asaas")
+        if provedor == "cora":
+            return self._confirmar_conta_cora(loja, financeiro, forma, comprovante)
 
         payment_id, valor = self._cobranca_asaas_em_aberto(loja)
         if not payment_id:

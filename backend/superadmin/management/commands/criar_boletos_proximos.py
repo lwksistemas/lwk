@@ -251,49 +251,22 @@ class Command(BaseCommand):
             }
 
     def _enviar_email_boleto(self, loja, financeiro, email_destino, boleto_url, pix_copy_paste):
-        """Envia email com o boleto"""
+        """Envia o boleto em HTML com o PDF anexo."""
         try:
+            from superadmin.boleto_email import enviar_email_boleto_assinatura
+
             valor = loja.plano.preco_mensal if loja.tipo_assinatura == "mensal" else loja.plano.preco_anual
-            tipo_assinatura = loja.get_tipo_assinatura_display()
-
-            assunto = f"Boleto de Assinatura - {loja.nome}"
-
-            corpo = f"""
-Olá,
-
-Seu boleto de assinatura está disponível para pagamento.
-
-Dados da assinatura:
-- Loja: {loja.nome}
-- Plano: {loja.plano.nome} ({tipo_assinatura})
-- Valor: R$ {valor:.2f}
-- Vencimento: {financeiro.data_proxima_cobranca.strftime('%d/%m/%Y')}
-
-Acesse o boleto: {boleto_url}
-
-"""
-
-            if pix_copy_paste:
-                corpo += f"""
-Você também pode pagar via PIX:
-{pix_copy_paste}
-
-"""
-
-            corpo += """
-Em caso de dúvidas, entre em contato com o suporte.
-
-Atenciosamente,
-Equipe LWK Sistemas
-"""
-
-            from core.email_delivery import create_email_message, send_prepared
-            msg = create_email_message(subject=assunto, body=corpo, to=[email_destino])
-            send_prepared(msg, fail_silently=False)
-
-            logger.info(f"Email de boleto enviado para {loja.nome} ({email_destino})")
-            return True
-
+            ok, _destino = enviar_email_boleto_assinatura(
+                loja,
+                email_destino,
+                boleto_url,
+                financeiro.data_proxima_cobranca,
+                valor=valor,
+                pix=pix_copy_paste or "",
+            )
+            if ok:
+                logger.info("Email de boleto enviado para %s", loja.nome)
+            return ok
         except Exception as e:
-            logger.error(f"Erro ao enviar email: {e}")
+            logger.error("Erro ao enviar email: %s", e)
             return False

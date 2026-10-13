@@ -362,15 +362,15 @@ export default function AsaasConfigPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link
-            href="/superadmin/dashboard"
+            href="/superadmin/recebimento"
             className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Configuração Asaas</h1>
+            <h1 className="text-3xl font-bold">Asaas</h1>
             <p className="text-muted-foreground">
-              Configure e monitore a integração com a API do Asaas
+              Recebimento das assinaturas — boleto, Pix e cartão recorrente
             </p>
           </div>
         </div>

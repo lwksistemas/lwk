@@ -219,6 +219,7 @@ class LojaCreateSerializer(
         """Cria loja usando services para separar responsabilidades
         ✅ REFATORADO v769: Reduzido de 300+ para ~80 linhas usando services
         """
+        from ..provedor_boleto import provedor_no_cadastro
         from ..services import (
             DatabaseSchemaService,
             FinanceiroService,
@@ -271,7 +272,12 @@ class LojaCreateSerializer(
             validated_data["owner_telefone"] = owner_telefone
             validated_data["senha_provisoria"] = owner_password
             validated_data["senha_foi_alterada"] = False
-            validated_data.setdefault("provedor_boleto_preferido", "asaas")
+            request = self.context.get("request")
+            usuario = getattr(request, "user", None)
+            validated_data["provedor_boleto_preferido"] = provedor_no_cadastro(
+                usuario,
+                validated_data.get("provedor_boleto_preferido"),
+            )
 
             # 5. CRIAR LOJA
             loja = Loja.objects.create(**validated_data)

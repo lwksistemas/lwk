@@ -55,6 +55,7 @@ export interface Assinatura {
   tipo_assinatura?: string;
   subscription_status?: string;
   subscription_status_display?: string;
+  bloqueada?: boolean;
   payment_history?: HistoricoPagamento[];
 }
 

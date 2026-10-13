@@ -74,6 +74,33 @@ function mensagemErro(error: unknown, fallback: string) {
   return formatApiErrorBody(error) || fallback;
 }
 
+function corVencimento(bloqueada: boolean | undefined, vencimento?: string) {
+  if (bloqueada) {
+    return 'text-gray-400 dark:text-gray-500';
+  }
+  if (!vencimento) {
+    return 'text-gray-900 dark:text-gray-100';
+  }
+  const parte = vencimento.slice(0, 10).split('-');
+  const ano = Number(parte[0]);
+  const mes = Number(parte[1]);
+  const dia = Number(parte[2]);
+  if (!ano || !mes || !dia) {
+    return 'text-gray-900 dark:text-gray-100';
+  }
+  const prazo = new Date(ano, mes - 1, dia);
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const dias = Math.round((prazo.getTime() - hoje.getTime()) / 86400000);
+  if (dias < 0) {
+    return 'font-semibold text-red-600 dark:text-red-400';
+  }
+  if (dias <= 5) {
+    return 'font-semibold text-amber-600 dark:text-amber-400';
+  }
+  return 'text-gray-900 dark:text-gray-100';
+}
+
 export function AssinaturasTabela(props: AssinaturasTabelaProps) {
   const { assinaturas, onAtualizar } = props;
   const [planos, setPlanos] = useState<PlanoOption[]>([]);
@@ -343,7 +370,7 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                     <div>{assinatura.plano_nome}</div>
                     <div className="text-gray-500 dark:text-gray-400">{formatCurrency(assinatura.plano_valor)}</div>
                   </td>
-                  <td className="px-3 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                  <td className={`px-3 py-3 text-sm whitespace-nowrap ${corVencimento(assinatura.bloqueada, vencimento)}`}>
                     {formatDate(vencimento)}
                     {cobrancaAberta && (
                       <div className="text-xs text-gray-500 dark:text-gray-400">

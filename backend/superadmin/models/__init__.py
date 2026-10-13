@@ -12,6 +12,7 @@ from .email import EmailRetry
 from .financeiro import FinanceiroLoja, PagamentoLoja
 from .integrations import GoogleCalendarConnection
 from .loja import Loja
+from .cora import CoraConfig
 from .mercadopago import MercadoPagoConfig
 from .nfse import NFSeEmitida
 from .radiologia_maquinas import ContratoPacsLoja, MaquinaRadiologia
@@ -22,6 +23,7 @@ from .whatsapp_gateway import WhatsappApiKey, WhatsappCustomer, WhatsappInstance
 
 __all__ = [
     "AuditLog",
+    "CoraConfig",
     "ConfiguracaoBackup",
     "ensure_configuracao_backup",
     "ContratoPacsLoja",

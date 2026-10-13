@@ -44,6 +44,7 @@ class Loja(models.Model):
     PROVEDOR_BOLETO_CHOICES = [
         ("asaas", "Asaas"),
         ("mercadopago", "Mercado Pago"),
+        ("cora", "Cora"),
     ]
     provedor_boleto_preferido = models.CharField(
         max_length=20,

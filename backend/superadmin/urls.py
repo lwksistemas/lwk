@@ -50,6 +50,7 @@ from .views import (
 )
 from .views import lockouts as lockout_views
 from .views.backup_midia_publica import backup_midia_publica
+from .views.cora import cora_config, cora_test, cora_webhook
 from .views.whatsapp_painel import (
     WhatsappFalhasLojaView,
     WhatsappPainelView,
@@ -125,6 +126,9 @@ urlpatterns = [
     path("mercadopago-config/", mercadopago_config, name="mercadopago-config"),
     path("mercadopago-config/test/", mercadopago_test, name="mercadopago-config-test"),
     path("mercadopago-webhook/", mercadopago_webhook, name="mercadopago-webhook"),
+    path("cora-config/", cora_config, name="cora-config"),
+    path("cora-config/test/", cora_test, name="cora-config-test"),
+    path("cora-webhook/", cora_webhook, name="cora-webhook"),
     path("sync-mercadopago/", sync_mercadopago_loja, name="sync-mercadopago"),
 
     # ✅ Lockouts (bloqueios de login)

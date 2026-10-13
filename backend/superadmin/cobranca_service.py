@@ -57,6 +57,14 @@ def _registrar_pagamento_loja_pendente(loja, financeiro, result: dict[str, Any],
             mercadopago_payment_id=payment_id[:100],
             defaults=defaults,
         )
+    elif provedor == "cora":
+        defaults["cora_invoice_id"] = payment_id[:80]
+        pl, _ = PagamentoLoja.objects.update_or_create(
+            loja=loja,
+            financeiro=financeiro,
+            cora_invoice_id=payment_id[:80],
+            defaults=defaults,
+        )
     else:
         defaults["asaas_payment_id"] = payment_id[:100]
         pl, _ = PagamentoLoja.objects.update_or_create(
@@ -311,6 +319,45 @@ class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
             return {"success": False, "error": str(e)}
 
 
+class CoraPaymentStrategy(PaymentProviderStrategy):
+    """Boleto com Pix na conta Cora da LWK."""
+
+    def get_provider_name(self) -> str:
+        return "cora"
+
+    def criar_cobranca(self, loja, financeiro, due_date_override=None) -> dict[str, Any]:
+        from .cora_service import cliente_da_config
+
+        try:
+            due = due_date_override or financeiro.data_proxima_cobranca or date.today()
+            due_date = due.strftime("%Y-%m-%d") if hasattr(due, "strftime") else str(due)[:10]
+            if due_date < date.today().isoformat():
+                due_date = date.today().isoformat()
+            valor = loja.plano.preco_anual if loja.tipo_assinatura == "anual" else loja.plano.preco_mensal
+            from .cora_client import VALOR_MINIMO_CENTAVOS, centavos
+            if centavos(valor) < VALOR_MINIMO_CENTAVOS:
+                return {"success": False, "error": "A Cora só emite boleto a partir de R$ 5,00."}
+            codigo = f"loja_{loja.slug}_{due_date}"
+            client, _config = cliente_da_config()
+            result = client.criar_boleto(loja, valor, due_date, codigo)
+            if not result.get("payment_id"):
+                return {"success": False, "error": "A Cora não devolveu a fatura."}
+            financeiro.provedor_boleto = "cora"
+            financeiro.cora_invoice_id = result["payment_id"][:80]
+            financeiro.boleto_url = result.get("boleto_url") or ""
+            financeiro.boleto_pdf_url = result.get("boleto_url") or ""
+            financeiro.pix_copy_paste = result.get("pix_copy_paste") or ""
+            financeiro.save(update_fields=[
+                "provedor_boleto", "cora_invoice_id", "boleto_url", "boleto_pdf_url", "pix_copy_paste",
+            ])
+            result["value"] = valor
+            _registrar_pagamento_loja_pendente(loja, financeiro, result, "cora", due_date)
+            return result
+        except Exception as e:
+            logger.exception("Erro ao criar boleto Cora para %s", loja.slug)
+            return {"success": False, "error": str(e)}
+
+
 class CobrancaService:
     """Serviço unificado para criação de cobranças
 
@@ -321,6 +368,7 @@ class CobrancaService:
         self.strategies = {
             "asaas": AsaasPaymentStrategy(),
             "mercadopago": MercadoPagoPaymentStrategy(),
+            "cora": CoraPaymentStrategy(),
         }
 
     def criar_cobranca(self, loja, financeiro, due_date_override=None) -> dict[str, Any]:

@@ -33,6 +33,7 @@ def sincronizar_vendedor_admin_owner(loja, owner=None) -> bool:
     """Alinha nome/e-mail/telefone do vendedor CRM ao administrador (User owner).
     Evita nome errado na auditoria e na listagem de funcionários.
     """
+    from core.db_config import ensure_loja_database_config
     from superadmin.models import VendedorUsuario
 
     from .models import Vendedor
@@ -40,6 +41,8 @@ def sincronizar_vendedor_admin_owner(loja, owner=None) -> bool:
     if owner is None:
         owner = loja.owner
     if not owner or not getattr(loja, "database_name", None) or not loja.database_created:
+        return False
+    if not ensure_loja_database_config(loja.database_name):
         return False
 
     vu = VendedorUsuario.objects.using("default").filter(user=owner, loja_id=loja.id).first()
@@ -50,7 +53,9 @@ def sincronizar_vendedor_admin_owner(loja, owner=None) -> bool:
     if not nome:
         return False
 
-    updated = Vendedor.objects.using(loja.database_name).filter(
+    # A edição no superadmin não abre o schema da loja. O manager padrão
+    # devolveria lista vazia e o e-mail do funcionário ficaria o antigo.
+    updated = Vendedor.objects.all_without_filter().using(loja.database_name).filter(
         pk=vu.vendedor_id,
         loja_id=loja.id,
     ).update(

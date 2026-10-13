@@ -40,10 +40,15 @@ def _financeiro_unificado_stats():
     total_mp = mp_fin.count()
     pendente_mp = sum(f.valor_mensalidade for f in mp_fin)
 
+    cora_fin = FinanceiroLoja.objects.filter(provedor_boleto="cora")
+    total_cora = cora_fin.count()
+    ativas_cora = cora_fin.filter(status_pagamento="ativo").count()
+    pendentes_cora = cora_fin.exclude(status_pagamento="ativo").count()
+
     return {
-        "total_assinaturas": total_asaas + total_mp,
-        "assinaturas_ativas": ativas_asaas + total_mp,
-        "pagamentos_pendentes": pendentes_asaas_count + total_mp,
+        "total_assinaturas": total_asaas + total_mp + total_cora,
+        "assinaturas_ativas": ativas_asaas + total_mp + ativas_cora,
+        "pagamentos_pendentes": pendentes_asaas_count + total_mp + pendentes_cora,
         "pagamentos_pagos": pagos_asaas_count + pagos_pl_count,
         "pagamentos_vencidos": vencidos_asaas,
         "receita_total": float(receita_asaas + receita_pl),
@@ -103,8 +108,16 @@ def _dados_loja_financeiro(loja) -> dict:
     }
 
 
-def _item_assinatura_mp(f, PagamentoLoja) -> dict:
-    """Monta dict de assinatura Mercado Pago para o frontend."""
+def _id_cobranca(obj, provedor: str) -> str:
+    if provedor == "cora":
+        return (getattr(obj, "cora_invoice_id", None) or "").strip()
+    if provedor == "mercadopago":
+        return (getattr(obj, "mercadopago_payment_id", None) or "").strip()
+    return (getattr(obj, "asaas_payment_id", None) or "").strip()
+
+
+def _item_assinatura_provedor(f, provedor: str) -> dict:
+    """Monta a assinatura de Mercado Pago ou Cora para a tabela do financeiro."""
     loja = f.loja
     data_venc = f.data_proxima_cobranca.strftime("%Y-%m-%d") if f.data_proxima_cobranca else ""
     pagamento_atual = (
@@ -118,8 +131,9 @@ def _item_assinatura_mp(f, PagamentoLoja) -> dict:
         pix_cp, pix_qr = f.pix_copy_paste or "", f.pix_qr_code or ""
     is_pago = pagamento_atual and getattr(pagamento_atual, "status", "") == "pago"
     subscription_status = "active" if f.status_pagamento == "ativo" else "inactive"
+    prefixo = "cora" if provedor == "cora" else "mp"
     return {
-        "id": f"mp-{f.id}",
+        "id": f"{prefixo}-{f.id}",
         "loja_slug": loja.slug, "loja_nome": loja.nome,
         "plano_nome": loja.plano.nome if loja.plano else "Plano",
         "plano_valor": str(f.valor_mensalidade),
@@ -129,7 +143,7 @@ def _item_assinatura_mp(f, PagamentoLoja) -> dict:
         "data_vencimento": data_venc, "total_payments": 1,
         **_dados_loja_financeiro(loja),
         "current_payment_data": {
-            "id": payment_pk, "asaas_id": f.mercadopago_payment_id, "provedor": "mercadopago",
+            "id": payment_pk, "asaas_id": _id_cobranca(f, provedor), "provedor": provedor,
             "customer_name": loja.nome, "value": str(f.valor_mensalidade),
             "status": "RECEIVED" if is_pago else "PENDING",
             "status_display": "Pago" if is_pago else "Pendente",
@@ -138,7 +152,8 @@ def _item_assinatura_mp(f, PagamentoLoja) -> dict:
             "is_paid": is_pago, "is_pending": not is_pago, "is_overdue": False,
         },
         "payment_history": [
-            {"id": p.id, "asaas_id": p.mercadopago_payment_id or p.asaas_payment_id or "",
+            {"id": p.id, "asaas_id": _id_cobranca(p, provedor) or p.asaas_payment_id or "",
+             "provedor": provedor,
              "value": str(p.valor),
              "status": "RECEIVED" if p.status == "pago" else "PENDING" if p.status == "pendente" else "OVERDUE",
              "status_display": p.get_status_display(),
@@ -174,7 +189,9 @@ def _assinaturas_unificado():
             data.update(_dados_loja_financeiro(loja))
         out.append(data)
     for f in FinanceiroLoja.objects.filter(provedor_boleto="mercadopago").exclude(mercadopago_payment_id="").select_related("loja", "loja__plano"):
-        out.append(_item_assinatura_mp(f, PagamentoLoja))
+        out.append(_item_assinatura_provedor(f, "mercadopago"))
+    for f in FinanceiroLoja.objects.filter(provedor_boleto="cora").select_related("loja", "loja__plano"):
+        out.append(_item_assinatura_provedor(f, "cora"))
     return out
 
 
@@ -252,6 +269,28 @@ def _pagamentos_unificado():
             "is_pending": not is_pago,
             "is_overdue": False,
             "provedor": "mercadopago",
+        })
+
+    for pl in PagamentoLoja.objects.filter(provedor_boleto="cora").select_related(
+        "loja", "loja__owner", "financeiro",
+    ).order_by("-data_vencimento"):
+        is_pago = pl.status == "pago"
+        out.append({
+            "id": pl.id,
+            "asaas_id": (pl.cora_invoice_id or "").strip(),
+            "customer_name": pl.loja.nome,
+            "customer_email": getattr(pl.loja.owner, "email", "") if pl.loja.owner else "",
+            "value": str(pl.valor),
+            "status": _STATUS_MAP_PL.get(pl.status, "PENDING"),
+            "status_display": pl.get_status_display(),
+            "due_date": pl.data_vencimento.strftime("%Y-%m-%d") if pl.data_vencimento else None,
+            "payment_date": pl.data_pagamento.strftime("%Y-%m-%d") if pl.data_pagamento else None,
+            "bank_slip_url": pl.boleto_url or "",
+            "pix_copy_paste": pl.pix_copy_paste or "",
+            "is_paid": is_pago,
+            "is_pending": pl.status == "pendente",
+            "is_overdue": pl.status == "atrasado",
+            "provedor": "cora",
         })
     return out
 

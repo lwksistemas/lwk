@@ -323,6 +323,13 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                     >
                       <div className="font-medium text-gray-900 dark:text-gray-100">{assinatura.loja_nome}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">{assinatura.loja_slug}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {assinatura.current_payment_data?.provedor === 'cora'
+                          ? 'Cora'
+                          : assinatura.current_payment_data?.provedor === 'mercadopago'
+                            ? 'Mercado Pago'
+                            : 'Asaas'}
+                      </div>
                     </button>
                     <span className={`mt-1 inline-block px-2 py-0.5 text-xs rounded-full ${
                       assinatura.ativa

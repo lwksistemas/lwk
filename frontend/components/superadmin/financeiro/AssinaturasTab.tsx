@@ -9,8 +9,8 @@ import { AssinaturasTabela } from './AssinaturasTabela';
 interface AssinaturasTabProps {
   assinaturas: Assinatura[];
   loading: boolean;
-  filtroProvedor: 'todos' | 'asaas' | 'mercadopago';
-  setFiltroProvedor: (filtro: 'todos' | 'asaas' | 'mercadopago') => void;
+  filtroProvedor: 'todos' | 'asaas' | 'mercadopago' | 'cora';
+  setFiltroProvedor: (filtro: 'todos' | 'asaas' | 'mercadopago' | 'cora') => void;
   // Asaas actions
   onDownloadBoletoAsaas: (payment: Pagamento) => void;
   onCopyPixAsaas: (pixCode: string) => void;
@@ -35,7 +35,8 @@ interface AssinaturasTabProps {
 const FILTRO_OPTIONS = [
   { value: 'todos' as const, label: 'Todos', icon: '🏪' },
   { value: 'asaas' as const, label: 'Asaas', icon: '🔵' },
-  { value: 'mercadopago' as const, label: 'Mercado Pago', icon: '🟢' }
+  { value: 'mercadopago' as const, label: 'Mercado Pago', icon: '🟢' },
+  { value: 'cora' as const, label: 'Cora', icon: '🟣' },
 ];
 
 export function AssinaturasTab({

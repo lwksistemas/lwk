@@ -22,7 +22,7 @@ export interface Pagamento {
   is_paid: boolean;
   is_overdue: boolean;
   is_pending: boolean;
-  provedor?: 'asaas' | 'mercadopago';
+  provedor?: 'asaas' | 'mercadopago' | 'cora';
 }
 
 export interface HistoricoPagamento {
@@ -61,7 +61,7 @@ export interface Assinatura {
 export function useAssinaturas() {
   const [assinaturas, setAssinaturas] = useState<Assinatura[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroProvedor, setFiltroProvedor] = useState<'todos' | 'asaas' | 'mercadopago'>('todos');
+  const [filtroProvedor, setFiltroProvedor] = useState<'todos' | 'asaas' | 'mercadopago' | 'cora'>('todos');
 
   const loadAssinaturas = useCallback(async () => {
     try {
@@ -81,11 +81,14 @@ export function useAssinaturas() {
     if (filtroProvedor === 'todos') return assinaturas;
     
     return assinaturas.filter(assinatura => {
-      const isAsaas = typeof assinatura.id === 'number';
-      const isMercadoPago = assinatura.current_payment_data?.provedor === 'mercadopago';
-      
+      const provedor = assinatura.current_payment_data?.provedor;
+      const isAsaas = typeof assinatura.id === 'number' || provedor === 'asaas';
+      const isMercadoPago = provedor === 'mercadopago';
+      const isCora = provedor === 'cora';
+
       if (filtroProvedor === 'asaas') return isAsaas;
       if (filtroProvedor === 'mercadopago') return isMercadoPago;
+      if (filtroProvedor === 'cora') return isCora;
       return true;
     });
   }, [assinaturas, filtroProvedor]);

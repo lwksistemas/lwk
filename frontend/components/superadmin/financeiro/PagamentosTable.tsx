@@ -56,7 +56,14 @@ export function PagamentosTable({
         </thead>
         <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
           {pagamentos.map((pagamento) => {
-            const isAsaas = pagamento.provedor === 'asaas' || !pagamento.provedor;
+            const provedor = pagamento.provedor;
+            const isAsaas = provedor === 'asaas' || !provedor;
+            const provedorLabel = provedor === 'cora' ? 'Cora' : isAsaas ? 'Asaas' : 'Mercado Pago';
+            const provedorClasse = provedor === 'cora'
+              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+              : isAsaas
+                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
             
             return (
               <tr
@@ -83,12 +90,8 @@ export function PagamentosTable({
                   {formatDate(pagamento.due_date)}
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    isAsaas 
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                      : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                  }`}>
-                    {isAsaas ? '🔵 Asaas' : '🟢 Mercado Pago'}
+                  <span className={`px-2 py-1 text-xs rounded-full ${provedorClasse}`}>
+                    {provedorLabel}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm space-x-2">

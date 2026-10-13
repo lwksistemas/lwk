@@ -108,3 +108,22 @@ class ConfirmarPagamentoContaTest(TestCase):
         upload.assert_called_once()
         self.pagamento.refresh_from_db()
         self.assertEqual(self.pagamento.comprovante, "https://media.example/comprovante.pdf")
+
+    @patch(
+        "superadmin.cora_service.receber_na_conta_empresa",
+        return_value={"success": True, "processed": True, "payment_id": "inv_cora"},
+    )
+    def test_conta_da_empresa_na_cora_nao_usa_asaas(self, receber):
+        self.financeiro.provedor_boleto = "cora"
+        self.financeiro.cora_invoice_id = "inv_cora"
+        self.financeiro.save(update_fields=["provedor_boleto", "cora_invoice_id"])
+        self.pagamento.provedor_boleto = "cora"
+        self.pagamento.cora_invoice_id = "inv_cora"
+        self.pagamento.asaas_payment_id = ""
+        self.pagamento.save(update_fields=["provedor_boleto", "cora_invoice_id", "asaas_payment_id"])
+
+        resultado = AsaasSyncService().confirmar_recebimento_conta_empresa(self.loja, "transferencia")
+
+        self.assertTrue(resultado["success"], resultado)
+        self.assertIn("Cora", resultado["message"])
+        receber.assert_called_once_with("inv_cora", "transferencia")

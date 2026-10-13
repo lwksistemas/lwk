@@ -357,6 +357,8 @@ class LoginService:
     def _get_user_type(self, user, loja_slug=None) -> str:
         if user.is_superuser:
             return "superadmin"
+        if loja_slug and self._vinculo_com_loja(user, loja_slug):
+            return "loja"
         us = UsuarioSistema.objects.filter(user=user, is_active=True).first()
         if us:
             return us.tipo
@@ -372,6 +374,20 @@ class LoginService:
             if user_belongs_to_store(user, loja_slug):
                 return "loja"
         return "unknown"
+
+    def _vinculo_com_loja(self, user, loja_slug: str) -> bool:
+        """Dono, profissional ou vendedor desta loja entra pelo login da loja."""
+        from django.db.models import Q
+
+        slug_loja = Q(slug=loja_slug) | Q(atalho=loja_slug)
+        if Loja.objects.filter(slug_loja, owner=user, is_active=True).exists():
+            return True
+        slug_user = Q(loja__slug=loja_slug) | Q(loja__atalho=loja_slug)
+        if ProfissionalUsuario.objects.filter(slug_user, user=user, loja__is_active=True).exists():
+            return True
+        if VendedorUsuario.objects.filter(slug_user, user=user, loja__is_active=True).exists():
+            return True
+        return user_belongs_to_store(user, loja_slug)
 
     @staticmethod
     def _get_correct_endpoint(user_type: str) -> str:

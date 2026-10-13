@@ -536,10 +536,11 @@ class AsaasSyncService:
         except FinanceiroLoja.DoesNotExist:
             return None
 
-        if (getattr(loja, "provedor_boleto_preferido", None) or "asaas") == "mercadopago":
+        provedor = (getattr(loja, "provedor_boleto_preferido", None) or "asaas")
+        if provedor in ("mercadopago", "cora"):
             pagamento = (
                 PagamentoLoja.objects.filter(loja=loja, status__in=["pendente", "atrasado"])
-                .order_by("-data_vencimento")
+                .order_by("-data_vencimento", "-id")
                 .first()
             )
             url = ""
@@ -547,7 +548,20 @@ class AsaasSyncService:
                 url = (pagamento.boleto_url or "").strip()
             if not url:
                 url = (financeiro.boleto_url or "").strip()
-            if not pagamento and not (financeiro.mercadopago_payment_id or "").strip():
+            identificador = ""
+            if provedor == "cora":
+                identificador = (
+                    (pagamento.cora_invoice_id if pagamento else "")
+                    or financeiro.cora_invoice_id
+                    or ""
+                )
+            else:
+                identificador = (
+                    (pagamento.mercadopago_payment_id if pagamento else "")
+                    or financeiro.mercadopago_payment_id
+                    or ""
+                )
+            if not pagamento and not identificador.strip():
                 return None
             if pagamento and pagamento.status == "pago":
                 return None
@@ -556,7 +570,7 @@ class AsaasSyncService:
             return {
                 "url": url,
                 "vencimento": pagamento.data_vencimento if pagamento else financeiro.data_proxima_cobranca,
-                "payment_id": (pagamento.mercadopago_payment_id if pagamento else "") or financeiro.mercadopago_payment_id,
+                "payment_id": identificador,
             }
 
         payment_id, _valor = self._cobranca_asaas_em_aberto(loja)
@@ -579,32 +593,26 @@ class AsaasSyncService:
         return {"url": url, "vencimento": vencimento, "payment_id": payment_id}
 
     def _enviar_email_boleto(self, loja, url: str, vencimento) -> tuple[bool, str]:
-        from core.email_delivery import create_email_message, send_prepared
+        from superadmin.boleto_email import enviar_email_boleto_assinatura
 
         owner = loja.owner
         email = (getattr(owner, "email", None) or "").strip()
-        if not email:
-            return False, "A loja não tem e-mail do responsável."
-        when = vencimento.strftime("%d/%m/%Y") if hasattr(vencimento, "strftime") else "—"
+        pix = ""
+        valor = None
         try:
-            valor = loja.financeiro.valor_mensalidade
+            financeiro = loja.financeiro
+            pix = (financeiro.pix_copy_paste or "").strip()
+            valor = financeiro.valor_mensalidade
         except FinanceiroLoja.DoesNotExist:
-            valor = ""
-        corpo = (
-            f"Olá,\n\n"
-            f"Segue o boleto da assinatura da loja {loja.nome}.\n\n"
-            f"Valor: R$ {valor}\n"
-            f"Vencimento: {when}\n"
-            f"Boleto: {url}\n\n"
-            f"Atenciosamente,\nEquipe LWK Sistemas\n"
+            pix = ""
+        return enviar_email_boleto_assinatura(
+            loja,
+            email,
+            url,
+            vencimento,
+            valor=valor,
+            pix=pix,
         )
-        msg = create_email_message(
-            subject=f"Boleto da assinatura LWK — {loja.nome}",
-            body=corpo,
-            to=[email],
-        )
-        send_prepared(msg, fail_silently=False)
-        return True, email
 
     def emitir_boleto(self, loja) -> dict:
         """Emite o boleto do próximo vencimento quando não há outro em aberto."""

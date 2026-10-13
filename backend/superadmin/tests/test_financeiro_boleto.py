@@ -47,15 +47,19 @@ class BoletoAssinaturaTest(TestCase):
             data_vencimento=date(2026, 12, 1),
         )
 
+    @patch("superadmin.boleto_email.baixar_pdf_boleto", return_value=b"%PDF-1.4 boleto")
     @patch("core.email_delivery.send_prepared")
-    def test_reenviar_manda_o_boleto_aberto(self, send_prepared):
+    def test_reenviar_manda_o_boleto_aberto(self, send_prepared, _pdf):
         resultado = AsaasSyncService().reenviar_boleto(self.loja)
         self.assertTrue(resultado["success"], resultado)
         self.assertEqual(resultado["boleto_url"], "https://asaas.example/boleto-aberto")
         send_prepared.assert_called_once()
         mensagem = send_prepared.call_args.args[0]
         self.assertIn("boleto-aberto", mensagem.body)
+        self.assertIn("anexo", mensagem.body)
         self.assertEqual(mensagem.to, ["loja-bol@lwk.test"])
+        self.assertEqual(mensagem.attachments[0][0], "boleto-lwk.pdf")
+        self.assertEqual(mensagem.attachments[0][2], "application/pdf")
 
     @patch("superadmin.cobranca_service.CobrancaService.criar_cobranca")
     def test_emitir_nao_duplica_boleto_aberto(self, criar):

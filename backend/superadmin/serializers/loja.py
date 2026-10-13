@@ -67,6 +67,11 @@ class LojaSerializer(
                 sincronizar_vendedor_admin_owner(instance, instance.owner)
             except Exception:
                 logger.exception("Falha ao sincronizar vendedor admin após editar loja %s", instance.slug)
+            try:
+                from clinica_beleza.admin_professional_service import sincronizar_profissional_admin_owner
+                sincronizar_profissional_admin_owner(instance, instance.owner)
+            except Exception:
+                logger.exception("Falha ao sincronizar profissional admin após editar loja %s", instance.slug)
         return instance
 
     def get_owner_full_name(self, obj):

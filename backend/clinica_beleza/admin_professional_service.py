@@ -12,6 +12,45 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
+def sincronizar_profissional_admin_owner(loja, owner=None) -> bool:
+    """Alinha nome, e-mail e telefone do profissional ao administrador da loja.
+
+    A edição no superadmin não abre o schema da clínica. Sem isso o
+    profissional da agenda fica com o e-mail antigo.
+    """
+    from core.db_config import ensure_loja_database_config
+    from superadmin.models import ProfissionalUsuario
+
+    if owner is None:
+        owner = getattr(loja, "owner", None)
+    if not owner or not getattr(loja, "database_name", None) or not loja.database_created:
+        return False
+    if not ensure_loja_database_config(loja.database_name):
+        return False
+
+    vinculo = ProfissionalUsuario.objects.using("default").filter(user=owner, loja_id=loja.id).first()
+    if not vinculo:
+        return False
+
+    nome = (owner.get_full_name() or owner.username or (owner.email or "").split("@")[0]).strip()
+    if not nome:
+        return False
+
+    campos = {
+        "nome": nome,
+        "email": (owner.email or "").strip(),
+    }
+    telefone = (getattr(loja, "owner_telefone", "") or "").strip()
+    if telefone:
+        campos["telefone"] = telefone
+
+    atualizados = Professional.objects.all_without_filter().using(loja.database_name).filter(
+        pk=vinculo.professional_id,
+        loja_id=loja.id,
+    ).update(**campos)
+    return atualizados > 0
+
+
 def _email_owner(user) -> str:
     return (getattr(user, "email", None) or "").strip()
 

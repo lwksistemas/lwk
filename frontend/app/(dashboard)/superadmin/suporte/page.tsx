@@ -44,7 +44,8 @@ export default function SuperadminSuportePage() {
   const loadChamados = useCallback(async () => {
     try {
       setLoading(true);
-      const params = filtroStatus ? { status: filtroStatus } : {};
+      const params: Record<string, string> = { todas: '1' };
+      if (filtroStatus) params.status = filtroStatus;
       const response = await apiClient.get('/suporte/meus-chamados/', { params });
       setChamados(response.data);
     } catch (error) {

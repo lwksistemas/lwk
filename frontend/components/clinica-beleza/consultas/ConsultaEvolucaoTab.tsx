@@ -1,6 +1,7 @@
 import { Pencil, X } from "lucide-react";
 import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
 import type { Evolucao } from "./consultas-types";
+import { CampoTextoComMicrofone } from "./CampoTextoComMicrofone";
 import { ConsultaPrintButton } from "./ConsultaPrintButton";
 import { PreviewBlock } from "./PreviewBlock";
 
@@ -87,10 +88,31 @@ export function ConsultaEvolucaoTab({
           <p className="text-sm text-gray-500">Clique em Registrar para adicionar uma evolução nesta consulta.</p>
         ) : (
           <div className="space-y-3">
-            <textarea placeholder="Evolução / observações clínicas" rows={3} value={evolucaoForm.descricao} onChange={(e) => onChangeForm((f) => ({ ...f, descricao: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600" />
-            <textarea placeholder="Procedimento realizado" rows={2} value={evolucaoForm.procedimento_realizado} onChange={(e) => onChangeForm((f) => ({ ...f, procedimento_realizado: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600" />
-            <textarea placeholder="Produtos utilizados" rows={2} value={evolucaoForm.produtos_utilizados} onChange={(e) => onChangeForm((f) => ({ ...f, produtos_utilizados: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600" />
-            <textarea placeholder="Orientações ao cliente" rows={2} value={evolucaoForm.orientacoes} onChange={(e) => onChangeForm((f) => ({ ...f, orientacoes: e.target.value }))} className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600" />
+            <CampoTextoComMicrofone
+              id="evolucao-descricao"
+              label="Evolução / observações clínicas"
+              rows={3}
+              value={evolucaoForm.descricao}
+              onChange={(texto) => onChangeForm((f) => ({ ...f, descricao: texto }))}
+            />
+            <CampoTextoComMicrofone
+              id="evolucao-procedimento"
+              label="Procedimento realizado"
+              value={evolucaoForm.procedimento_realizado}
+              onChange={(texto) => onChangeForm((f) => ({ ...f, procedimento_realizado: texto }))}
+            />
+            <CampoTextoComMicrofone
+              id="evolucao-produtos"
+              label="Produtos utilizados"
+              value={evolucaoForm.produtos_utilizados}
+              onChange={(texto) => onChangeForm((f) => ({ ...f, produtos_utilizados: texto }))}
+            />
+            <CampoTextoComMicrofone
+              id="evolucao-orientacoes"
+              label="Orientações ao cliente"
+              value={evolucaoForm.orientacoes}
+              onChange={(texto) => onChangeForm((f) => ({ ...f, orientacoes: texto }))}
+            />
             <div>
               <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
                 Satisfação do cliente <span className="text-red-600">*</span>

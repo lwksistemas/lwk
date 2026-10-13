@@ -2,6 +2,7 @@ import { Pencil, Save, X } from "lucide-react";
 import { imprimirConsultaPdf, type ConsultaPrintMeta } from "@/lib/consulta-print";
 import type { Anamnese } from "./consultas-types";
 import { ANAMNESE_FIELDS } from "./consultas-types";
+import { CampoTextoComMicrofone } from "./CampoTextoComMicrofone";
 import { ConsultaPrintButton } from "./ConsultaPrintButton";
 import { PreviewBlock } from "./PreviewBlock";
 
@@ -73,15 +74,14 @@ export function ConsultaAnamneseTab({
       ) : (
         <>
           {ANAMNESE_FIELDS.map(([field, label]) => (
-            <div key={field}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
-              <textarea
-                rows={field === "queixa_principal" ? 3 : 2}
-                value={String(anamneseDraft[field] ?? "")}
-                onChange={(e) => onChangeDraft((prev) => ({ ...prev, [field]: e.target.value }))}
-                className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600 text-sm"
-              />
-            </div>
+            <CampoTextoComMicrofone
+              key={field}
+              id={`anamnese-${field}`}
+              label={label}
+              rows={field === "queixa_principal" ? 3 : 2}
+              value={String(anamneseDraft[field] ?? "")}
+              onChange={(texto) => onChangeDraft((prev) => ({ ...prev, [field]: texto }))}
+            />
           ))}
           <div className="grid grid-cols-2 gap-3">
             <div>

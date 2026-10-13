@@ -89,6 +89,14 @@ class IsolamentoChamadosTests(TestCase):
         titulos = set(get_chamados_queryset_for_user(self.dono).values_list("titulo", flat=True))
         self.assertEqual(titulos, {"Chamado de outra loja"})
 
+    def test_cabecalho_da_loja_esconde_chamado_de_outra(self):
+        factory = APIRequestFactory()
+        request = factory.get("/api/suporte/meus-chamados/", HTTP_X_TENANT_SLUG=self.felipe.atalho)
+        force_authenticate(request, user=self.suporte)
+        response = meus_chamados(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["titulo"] for item in response.data], ["Chamado da loja nova"])
+
     def test_api_da_loja_nao_devolve_chamado_alheio(self):
         factory = APIRequestFactory()
         request = factory.get("/api/suporte/meus-chamados/", {"loja_slug": self.felipe.atalho})

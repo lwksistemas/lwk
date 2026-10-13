@@ -346,6 +346,8 @@ def meus_chamados(request):
     """Listar chamados do usuário logado (filtrado por permissões e loja).
     """
     loja_slug = (request.query_params.get("loja_slug") or "").strip()
+    if not loja_slug and request.query_params.get("todas") != "1":
+        loja_slug = (request.headers.get("X-Tenant-Slug") or "").strip()
     chamados = get_chamados_queryset_for_user(request.user, loja_slug or None)
 
     # Filtros opcionais

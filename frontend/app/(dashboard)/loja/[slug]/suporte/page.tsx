@@ -68,7 +68,9 @@ export default function SuporteHistoricoPage() {
   const loadChamados = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/suporte/meus-chamados/');
+      const response = await apiClient.get('/suporte/meus-chamados/', {
+        params: { loja_slug: slug },
+      });
       setChamados(response.data);
     } catch (error) {
       logger.warn('Erro ao carregar chamados:', error);
@@ -119,11 +121,12 @@ export default function SuporteHistoricoPage() {
     try {
       setEnviandoResposta(true);
       await apiClient.post(`/suporte/chamados/${chamadoSelecionado.id}/responder/`, {
-        mensagem: resposta
+        mensagem: resposta,
+      }, { params: { loja_slug: slug } });
+
+      const response = await apiClient.get(`/suporte/chamados/${chamadoSelecionado.id}/`, {
+        params: { loja_slug: slug },
       });
-      
-      // Recarregar o chamado específico para atualizar o histórico
-      const response = await apiClient.get(`/suporte/chamados/${chamadoSelecionado.id}/`);
       setChamadoSelecionado(response.data);
       
       // Atualizar também a lista de chamados

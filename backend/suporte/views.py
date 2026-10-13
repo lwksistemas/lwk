@@ -7,7 +7,7 @@ from rest_framework.response import Response
 
 from .models import Chamado, ErroFrontend, RespostaChamado
 from .serializers import ChamadoSerializer, RespostaChamadoSerializer
-from .services import get_chamados_queryset_for_user
+from .services import get_chamados_queryset_for_user, loja_para_novo_chamado
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,8 @@ class ChamadoViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return get_chamados_queryset_for_user(self.request.user)
+        loja_slug = (self.request.query_params.get("loja_slug") or "").strip()
+        return get_chamados_queryset_for_user(self.request.user, loja_slug or None)
 
     def perform_create(self, serializer):
         serializer.save()
@@ -298,16 +299,19 @@ def criar_chamado_rapido(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Identificar origem do chamado
         user = request.user
-        loja_slug = request.data.get("loja_slug", "sistema")
-        loja_nome = request.data.get("loja_nome", "Sistema")
-
-        # Se for usuário de loja, pegar dados da loja
-        if hasattr(user, "lojas_owned") and user.lojas_owned.exists():
-            loja = user.lojas_owned.first()
+        ident = (request.data.get("loja_slug") or "").strip()
+        loja = loja_para_novo_chamado(user, ident)
+        if ident and loja is None:
+            return Response({"error": "Acesso negado"}, status=status.HTTP_403_FORBIDDEN)
+        if loja is not None:
             loja_slug = loja.slug
             loja_nome = loja.nome
+        elif user.is_superuser:
+            loja_slug = ident or "sistema"
+            loja_nome = request.data.get("loja_nome") or "Sistema"
+        else:
+            return Response({"error": "Loja obrigatória"}, status=status.HTTP_400_BAD_REQUEST)
 
         chamado = Chamado.objects.create(
             titulo=titulo,
@@ -341,7 +345,8 @@ def criar_chamado_rapido(request):
 def meus_chamados(request):
     """Listar chamados do usuário logado (filtrado por permissões e loja).
     """
-    chamados = get_chamados_queryset_for_user(request.user)
+    loja_slug = (request.query_params.get("loja_slug") or "").strip()
+    chamados = get_chamados_queryset_for_user(request.user, loja_slug or None)
 
     # Filtros opcionais
     status_filter = request.query_params.get("status")

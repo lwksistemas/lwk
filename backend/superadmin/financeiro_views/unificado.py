@@ -166,8 +166,45 @@ def _item_assinatura_provedor(f, provedor: str) -> dict:
     }
 
 
+def _preferido_da_loja(loja) -> str:
+    if not loja:
+        return "asaas"
+    return (getattr(loja, "provedor_boleto_preferido", None) or "asaas").strip().lower()
+
+
+def _marcar_banco(item: dict, loja, provedor: str) -> dict:
+    """Uma loja entra na lista uma vez, no banco da assinatura."""
+    pagamento = item.get("current_payment_data")
+    if isinstance(pagamento, dict) and not pagamento.get("provedor"):
+        pagamento["provedor"] = provedor
+    item["_preferido"] = _preferido_da_loja(loja)
+    return item
+
+
+def _uma_assinatura_por_loja(itens: list) -> list:
+    grupos: dict[str, list] = {}
+    for item in itens:
+        slug = item.get("loja_slug") or str(item.get("id"))
+        grupos.setdefault(slug, []).append(item)
+    escolhidos = []
+    for grupo in grupos.values():
+        preferidos = [item.get("_preferido") for item in grupo if item.get("_preferido")]
+        preferido = preferidos[-1] if preferidos else "asaas"
+        escolhido = next(
+            (
+                item for item in grupo
+                if ((item.get("current_payment_data") or {}).get("provedor") or "asaas") == preferido
+            ),
+            grupo[0],
+        )
+        for item in grupo:
+            item.pop("_preferido", None)
+        escolhidos.append(escolhido)
+    return escolhidos
+
+
 def _assinaturas_unificado():
-    """Lista unificada de assinaturas (Asaas + Mercado Pago) no formato esperado pelo frontend."""
+    """Uma linha por loja, no banco atual da assinatura."""
     from asaas_integration.models import AsaasPayment, LojaAssinatura
     from asaas_integration.serializers import LojaAssinaturaSerializer
     from superadmin.models import Loja as LojaModel
@@ -188,12 +225,12 @@ def _assinaturas_unificado():
         loja = lojas_por_slug.get(a.loja_slug)
         if loja:
             data.update(_dados_loja_financeiro(loja))
-        out.append(data)
+        out.append(_marcar_banco(data, loja, "asaas"))
     for f in FinanceiroLoja.objects.filter(provedor_boleto="mercadopago").exclude(mercadopago_payment_id="").select_related("loja", "loja__plano"):
-        out.append(_item_assinatura_provedor(f, "mercadopago"))
+        out.append(_marcar_banco(_item_assinatura_provedor(f, "mercadopago"), f.loja, "mercadopago"))
     for f in FinanceiroLoja.objects.filter(provedor_boleto="cora").select_related("loja", "loja__plano"):
-        out.append(_item_assinatura_provedor(f, "cora"))
-    return out
+        out.append(_marcar_banco(_item_assinatura_provedor(f, "cora"), f.loja, "cora"))
+    return _uma_assinatura_por_loja(out)
 
 
 def _pagamentos_unificado():
@@ -308,6 +345,8 @@ def financeiro_unificado(request):
     try:
         stats = _financeiro_unificado_stats()
         assinaturas = _assinaturas_unificado()
+        stats["total_assinaturas"] = len(assinaturas)
+        stats["assinaturas_ativas"] = sum(1 for item in assinaturas if item.get("ativa"))
         pagamentos = _pagamentos_unificado()
         # Mesmo formato dos 3 endpoints Asaas: stats no top level + results para listas
         data = {**stats, "assinaturas": assinaturas, "pagamentos": pagamentos}

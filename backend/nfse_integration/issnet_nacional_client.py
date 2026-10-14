@@ -808,14 +808,15 @@ class ISSNetNacionalClient:
             resposta = self._enviar_soap(xml_assinado, SOAP_ACTION_NACIONAL_CANCELAR_NFSE)
             result["xml_resposta"] = resposta
 
-            body = extrair_body_soap(resposta)
-            erros = extrair_erros(body)
+            from nfse_integration.issnet_response import resultado_cancelamento_nacional
 
-            if erros:
-                result["erro"] = erros
-            else:
+            body = extrair_body_soap(resposta)
+            confirmacao = resultado_cancelamento_nacional(body)
+            if confirmacao.get("success"):
                 result["success"] = True
                 logger.info("ISSNet Nacional: NFS-e %s cancelada com sucesso.", numero_nfse)
+            else:
+                result["erro"] = confirmacao.get("error") or "A prefeitura não confirmou o cancelamento."
 
         except Exception as e:
             logger.exception("ISSNet Nacional: erro ao cancelar NFS-e %s: %s", numero_nfse, e)

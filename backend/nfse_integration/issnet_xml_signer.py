@@ -35,7 +35,7 @@ def assinar_xml_issnet(xml_str: str, certificado_path: str, senha_certificado: s
         x509_data = xmlsec.template.add_x509_data(key_info)
         xmlsec.template.x509_data_add_certificate(x509_data)
 
-    def _template_sig_enveloped_only(parent_el, ref_uri):
+    def _template_sig_enveloped_only(parent_el, ref_uri, *, c14n_na_referencia=False):
         sig_node = xmlsec.template.create(
             parent_el,
             xmlsec.constants.TransformInclC14N,
@@ -48,6 +48,8 @@ def assinar_xml_issnet(xml_str: str, certificado_path: str, senha_certificado: s
             uri=ref_uri,
         )
         xmlsec.template.add_transform(ref, xmlsec.constants.TransformEnveloped)
+        if c14n_na_referencia:
+            xmlsec.template.add_transform(ref, xmlsec.constants.TransformInclC14N)
         _append_x509_template(sig_node)
         return sig_node
 
@@ -93,7 +95,9 @@ def assinar_xml_issnet(xml_str: str, certificado_path: str, senha_certificado: s
             inf_reg = ped_evento.find(f"{{{ns}}}infPedReg")
             inf_id = (inf_reg.get("Id") or "").strip() if inf_reg is not None else ""
             if inf_reg is not None and inf_id:
-                sig_evento = _template_sig_enveloped_only(ped_evento, f"#{inf_id}")
+                sig_evento = _template_sig_enveloped_only(
+                    ped_evento, f"#{inf_id}", c14n_na_referencia=True,
+                )
                 ctx_evento = xmlsec.SignatureContext()
                 ctx_evento.key = key
                 ctx_evento.register_id(inf_reg, "Id", None)

@@ -2,6 +2,7 @@
 
 import { Mic } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { juntarTextoFalado } from "@/lib/ditado-texto";
 
 type Reconhecimento = {
@@ -45,6 +46,8 @@ export function CampoTextoComMicrofone({
 }) {
   const [ouvindo, setOuvindo] = useState(false);
   const [suporta, setSuporta] = useState(true);
+  const [revisando, setRevisando] = useState(false);
+  const [aviso, setAviso] = useState("");
   const reconhecimento = useRef<Reconhecimento | null>(null);
   const base = useRef(value);
   const valorAtual = useRef(value);
@@ -70,6 +73,33 @@ export function CampoTextoComMicrofone({
       reconhecimento.current?.stop();
     } catch {
       /* já estava parado */
+    }
+  }
+
+  async function revisar() {
+    const atual = valorAtual.current.trim();
+    if (!atual || revisando) return;
+    parar();
+    setRevisando(true);
+    setAviso("");
+    try {
+      const resposta = await ClinicaBelezaAPI.consultas.revisarTexto(atual, label);
+      const texto = (resposta.texto || "").trim();
+      if (!texto) {
+        window.alert("A revisão voltou vazia. Tente de novo.");
+        return;
+      }
+      valorAtual.current = texto;
+      aoMudar.current(texto);
+      setAviso("Texto revisado. Confira se o sentido continua o mesmo antes de salvar.");
+    } catch (erro) {
+      const mensagem =
+        erro && typeof erro === "object" && "error" in erro && typeof erro.error === "string"
+          ? erro.error
+          : "Não foi possível revisar o texto agora.";
+      window.alert(mensagem);
+    } finally {
+      setRevisando(false);
     }
   }
 
@@ -149,6 +179,17 @@ export function CampoTextoComMicrofone({
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor={id}>
           {label}
         </label>
+        <div className="flex items-center gap-2 shrink-0">
+        {value.trim() && !ouvindo ? (
+          <button
+            type="button"
+            onClick={() => void revisar()}
+            disabled={revisando}
+            className="text-xs font-medium px-2.5 py-1 rounded-md border border-gray-300 dark:border-neutral-600 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50"
+          >
+            {revisando ? "Revisando…" : "Revisar/corrigir"}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => (ouvindo ? parar() : iniciar())}
@@ -170,17 +211,22 @@ export function CampoTextoComMicrofone({
         >
           <Mic size={16} />
         </button>
+        </div>
       </div>
       <textarea
         id={id}
         rows={rows}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          setAviso("");
+          onChange(e.target.value);
+        }}
         className="w-full px-3 py-2 border rounded-lg dark:bg-neutral-700 dark:border-neutral-600 text-sm"
       />
       {ouvindo ? (
         <p className="text-xs text-red-600 mt-1">Ouvindo. Fale que o texto entra neste campo.</p>
       ) : null}
+      {aviso ? <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{aviso}</p> : null}
     </div>
   );
 }

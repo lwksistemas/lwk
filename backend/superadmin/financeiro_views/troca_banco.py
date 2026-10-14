@@ -21,7 +21,7 @@ def boleto_em_aberto(loja):
     )
 
 
-def trocar_banco_assinatura(loja, provedor: str, emitir=None) -> dict:
+def trocar_banco_assinatura(loja, provedor: str, emitir=None, permitir_emissao=True) -> dict:
     """Grava o banco da assinatura.
 
     Sem boleto em aberto, emite no banco novo. Com boleto já gerado, a troca
@@ -49,6 +49,18 @@ def trocar_banco_assinatura(loja, provedor: str, emitir=None) -> dict:
             "message": (
                 f"O boleto deste mês já foi gerado no {banco_deste_mes}. "
                 f"A partir do próximo mês a cobrança sai pelo {NOMES_BANCO[escolhido]}."
+            ),
+        }
+
+    if not permitir_emissao:
+        return {
+            "success": True,
+            "boleto_emitido": False,
+            "provedor": escolhido,
+            "provedor_display": NOMES_BANCO[escolhido],
+            "message": (
+                f"O banco da assinatura passou a ser {NOMES_BANCO[escolhido]}. "
+                "A assinatura está cancelada, então o boleto só sai na reativação."
             ),
         }
 

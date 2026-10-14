@@ -177,6 +177,20 @@ def aplicar_bloqueio_inadimplencia_loja(loja, *, persistir: bool = True) -> dict
     except FinanceiroLoja.DoesNotExist:
         return {"loja_id": loja.id, "skipped": True, "reason": "sem_financeiro"}
 
+    from superadmin.financeiro_views.assinatura_cancelamento import MOTIVO_ASSINATURA_CANCELADA
+
+    if loja.is_blocked and (getattr(loja, "blocked_reason", "") or "") == MOTIVO_ASSINATURA_CANCELADA:
+        return {
+            "loja_id": loja.id,
+            "slug": getattr(loja, "slug", ""),
+            "dias_atraso": None,
+            "blocked": True,
+            "status": financeiro.status_pagamento,
+            "changed": False,
+            "skipped": True,
+            "reason": "assinatura_cancelada",
+        }
+
     dias = dias_atraso_assinatura(loja)
     blocked_before = bool(getattr(loja, "is_blocked", False))
     status_before = financeiro.status_pagamento
@@ -314,15 +328,21 @@ def check_inadimplencia_block(request):
     if not loja or not getattr(loja, "is_blocked", False):
         return None
 
+    from superadmin.financeiro_views.assinatura_cancelamento import MOTIVO_ASSINATURA_CANCELADA
+
     logger.warning(
         "Bloqueio inadimplência: user=%s loja=%s path=%s",
         getattr(user, "username", "?"),
         loja.slug,
         path,
     )
+    if (getattr(loja, "blocked_reason", "") or "") == MOTIVO_ASSINATURA_CANCELADA:
+        erro = "Assinatura cancelada. O acesso volta depois que o pagamento da reativação for confirmado."
+    else:
+        erro = "Assinatura em atraso. Regularize o pagamento para continuar usando o sistema."
     return JsonResponse(
         {
-            "error": "Assinatura em atraso. Regularize o pagamento para continuar usando o sistema.",
+            "error": erro,
             "code": "STORE_BLOCKED_INADIMPLENCIA",
             "redirect": f"/loja/{loja.slug}/assinatura",
             "loja_slug": loja.slug,

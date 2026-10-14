@@ -1,12 +1,14 @@
 """Histórico de pagamentos e notas da loja no financeiro."""
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
+from superadmin.financeiro_views.assinatura_cancelamento import cancelar_assinatura, reativar_assinatura
 from superadmin.financeiro_views.helpers import _erro_comprovante_pdf, historico_pagamentos_e_notas
 from superadmin.financeiro_views.troca_banco import trocar_banco_assinatura
+from superadmin.services.assinatura_bloqueio_service import aplicar_bloqueio_inadimplencia_loja
 from superadmin.models import FinanceiroLoja, Loja, NFSeEmitida, PagamentoLoja, PlanoAssinatura, TipoLoja
 
 
@@ -155,6 +157,75 @@ class HistoricoLojaTest(TestCase):
         self.assertEqual(self.loja.provedor_boleto_preferido, "asaas")
         igual = trocar_banco_assinatura(self.loja, "asaas", emitir=lambda loja: {"success": True})
         self.assertFalse(igual["success"])
+
+    def test_cancelar_bloqueia_sem_apagar_pagamento(self):
+        pagamento = PagamentoLoja.objects.create(
+            loja=self.loja,
+            financeiro=self.financeiro,
+            valor="99.90",
+            referencia_mes=date(2026, 10, 1),
+            status="pago",
+            asaas_payment_id="pay_mantem",
+            forma_pagamento="BOLETO",
+            data_vencimento=date(2026, 10, 10),
+        )
+        resultado = cancelar_assinatura(self.loja, self.financeiro)
+        self.loja.refresh_from_db()
+        self.financeiro.refresh_from_db()
+        pagamento.refresh_from_db()
+        self.assertTrue(resultado["success"])
+        self.assertTrue(self.loja.is_blocked)
+        self.assertEqual(self.loja.blocked_reason, "Assinatura cancelada")
+        self.assertEqual(self.financeiro.status_pagamento, "cancelado")
+        self.assertEqual(pagamento.status, "pago")
+        self.assertTrue(PagamentoLoja.objects.filter(pk=pagamento.pk).exists())
+        self.assertTrue(Loja.objects.filter(pk=self.loja.pk).exists())
+
+    def test_rotina_de_atraso_nao_desfaz_o_cancelamento(self):
+        cancelar_assinatura(self.loja, self.financeiro)
+        self.financeiro.data_proxima_cobranca = date.today() - timedelta(days=2)
+        self.financeiro.save(update_fields=["data_proxima_cobranca"])
+        aplicar_bloqueio_inadimplencia_loja(self.loja)
+        self.loja.refresh_from_db()
+        self.financeiro.refresh_from_db()
+        self.assertTrue(self.loja.is_blocked)
+        self.assertEqual(self.financeiro.status_pagamento, "cancelado")
+
+    def test_reativar_sem_boleto_emite_e_mantem_bloqueio(self):
+        cancelar_assinatura(self.loja, self.financeiro)
+        resultado = reativar_assinatura(
+            self.loja,
+            self.financeiro,
+            emitir=lambda loja: {"success": True, "message": "Boleto emitido.", "boleto_url": "https://boleto"},
+        )
+        self.loja.refresh_from_db()
+        self.financeiro.refresh_from_db()
+        self.assertTrue(resultado["boleto_emitido"])
+        self.assertTrue(self.loja.is_blocked)
+        self.assertEqual(self.financeiro.status_pagamento, "cancelado")
+        self.assertIn("depois que o cliente pagar", resultado["message"])
+
+    def test_reativar_com_boleto_aberto_nao_emite_outro(self):
+        PagamentoLoja.objects.create(
+            loja=self.loja,
+            financeiro=self.financeiro,
+            valor="99.90",
+            referencia_mes=date(2026, 11, 1),
+            status="pendente",
+            asaas_payment_id="pay_aberto",
+            forma_pagamento="BOLETO",
+            data_vencimento=date(2026, 11, 10),
+        )
+        cancelar_assinatura(self.loja, self.financeiro)
+        chamadas = []
+        resultado = reativar_assinatura(
+            self.loja,
+            self.financeiro,
+            emitir=lambda loja: chamadas.append(loja.pk) or {"success": True},
+        )
+        self.assertFalse(resultado["boleto_emitido"])
+        self.assertEqual(chamadas, [])
+        self.assertIn("boleto em aberto", resultado["message"])
 
     def test_recusa_comprovante_que_nao_e_pdf(self):
         from io import BytesIO

@@ -122,6 +122,7 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
   const [historicos, setHistoricos] = useState<Record<string, ItemHistorico[]>>({});
   const [historicoErro, setHistoricoErro] = useState<Record<string, string>>({});
   const [bancosAssinatura, setBancosAssinatura] = useState<Record<string, string>>({});
+  const [assinaturasCanceladas, setAssinaturasCanceladas] = useState<Record<string, boolean>>({});
   const [conta, setConta] = useState<{ assinatura: Assinatura; forma: 'pix' | 'transferencia' } | null>(null);
   const [comprovante, setComprovante] = useState<File | null>(null);
 
@@ -235,6 +236,10 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
         ...atual,
         [String(assinatura.id)]: res.data?.provedor_boleto || 'asaas',
       }));
+      setAssinaturasCanceladas((atual) => ({
+        ...atual,
+        [String(assinatura.id)]: Boolean(res.data?.assinatura_cancelada),
+      }));
       setHistoricoErro((atual) => ({ ...atual, [String(assinatura.id)]: '' }));
     } catch (error) {
       setHistoricoErro((atual) => ({
@@ -271,6 +276,36 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
       onAtualizar();
     } catch (error) {
       window.alert(mensagemErro(error, 'Não foi possível trocar o banco.'));
+      setOcupado(null);
+    }
+  };
+
+  const alterarAssinatura = async (assinatura: Assinatura, acao: 'cancelar' | 'reativar') => {
+    if (!assinatura.financeiro_id) return;
+    const confirma = window.confirm(
+      acao === 'cancelar'
+        ? `Cancelar a assinatura de ${assinatura.loja_nome}?\n\nO sistema para de emitir boletos e bloqueia o acesso. Cadastros, fotos, notas e pagamentos não são apagados. Para voltar, use Reativar: o boleto é gerado e o acesso volta depois do pagamento.`
+        : `Reativar a assinatura de ${assinatura.loja_nome}?\n\nSe não houver boleto em aberto, um boleto será emitido agora. O acesso volta depois que o cliente pagar.`,
+    );
+    if (!confirma) return;
+    setOcupado(`assinatura-${assinatura.id}`);
+    try {
+      const caminho = acao === 'cancelar' ? 'cancelar_assinatura' : 'reativar_assinatura';
+      const res = await apiClient.post(
+        `/superadmin/financeiro/${assinatura.financeiro_id}/${caminho}/`,
+      );
+      window.alert(res.data?.message || (acao === 'cancelar' ? 'Assinatura cancelada.' : 'Assinatura reativada.'));
+      setAssinaturasCanceladas((atual) => ({
+        ...atual,
+        [String(assinatura.id)]: Boolean(res.data?.assinatura_cancelada),
+      }));
+      if (res.data?.boleto_url) window.open(res.data.boleto_url, '_blank', 'noopener,noreferrer');
+      await carregarHistorico(assinatura);
+      onAtualizar();
+    } catch (error) {
+      window.alert(mensagemErro(error, acao === 'cancelar'
+        ? 'Não foi possível cancelar a assinatura.'
+        : 'Não foi possível reativar a assinatura.'));
       setOcupado(null);
     }
   };
@@ -353,6 +388,10 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
           itens={historicos[chaveHistorico]}
           provedor={bancosAssinatura[chaveHistorico] || 'asaas'}
           onTrocar={(provedor) => trocarBanco(lojaHistorico, provedor)}
+          cancelada={Boolean(assinaturasCanceladas[chaveHistorico])}
+          alterando={ocupado === `assinatura-${lojaHistorico.id}`}
+          onCancelar={() => alterarAssinatura(lojaHistorico, 'cancelar')}
+          onReativar={() => alterarAssinatura(lojaHistorico, 'reativar')}
         />
       </div>
     );
@@ -667,6 +706,10 @@ function HistoricoLoja({
   itens,
   provedor,
   onTrocar,
+  cancelada,
+  alterando,
+  onCancelar,
+  onReativar,
 }: {
   nome: string;
   plano: string;
@@ -677,6 +720,10 @@ function HistoricoLoja({
   itens?: ItemHistorico[];
   provedor: string;
   onTrocar: (provedor: string) => void;
+  cancelada: boolean;
+  alterando: boolean;
+  onCancelar: () => void;
+  onReativar: () => void;
 }) {
   const [escolhido, setEscolhido] = useState(provedor || 'asaas');
 
@@ -715,6 +762,32 @@ function HistoricoLoja({
       <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
         Se o boleto deste mês ainda não foi gerado, ele sai no banco novo. Se já foi gerado, a troca vale no próximo mês.
       </p>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        {cancelada ? (
+          <>
+            <span className="text-sm text-red-700 dark:text-red-300">
+              Assinatura cancelada. O acesso está bloqueado e nenhum boleto novo é emitido. Os dados do cliente permanecem.
+            </span>
+            <button
+              type="button"
+              disabled={alterando}
+              onClick={onReativar}
+              className="px-3 py-1.5 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50"
+            >
+              Reativar
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            disabled={alterando}
+            onClick={onCancelar}
+            className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+          >
+            Cancelar assinatura
+          </button>
+        )}
+      </div>
       {carregando && <p className="text-sm text-gray-500">Carregando pagamentos e notas...</p>}
       {erro && <p className="text-sm text-red-600">{erro}</p>}
       {itens && itens.length === 0 && (

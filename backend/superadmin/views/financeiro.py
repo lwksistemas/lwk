@@ -511,6 +511,21 @@ Equipe LWK Sistemas
         codigo = status.HTTP_200_OK if resultado.get("success") else status.HTTP_400_BAD_REQUEST
         return Response(resultado, status=codigo)
 
+    @action(detail=True, methods=["get"])
+    def baixar_boleto(self, request, pk=None):
+        """Entrega o PDF do boleto em aberto com CPF ou CNPJ e o mês do vencimento."""
+        from django.http import HttpResponse
+
+        from superadmin.financeiro_views.boleto_pdf import pdf_boleto_em_aberto
+
+        financeiro = self.get_object()
+        pdf, nome, erro = pdf_boleto_em_aberto(financeiro)
+        if erro:
+            return Response({"error": erro}, status=status.HTTP_400_BAD_REQUEST)
+        resposta = HttpResponse(pdf, content_type="application/pdf")
+        resposta["Content-Disposition"] = f'attachment; filename="{nome}"'
+        return resposta
+
     @action(detail=True, methods=["post"])
     def cancelar_nota_fiscal(self, request, pk=None):
         """Cancela a nota fiscal mais recente da loja no Asaas."""

@@ -205,6 +205,7 @@ from .views_termos_consentimento import (
     TermoConsentimentoTemplateDetailView,
     TermoConsentimentoTemplateListView,
 )
+from .views_texto import RevisarTextoClinicoView
 
 app_name = "clinica_beleza"
 
@@ -225,6 +226,7 @@ urlpatterns = [
     path("patients/<int:pk>/", PatientDetailView.as_view(), name="patients-detail"),
     path("patients/<int:pk>/prazo-pagamento/", PatientPrazoPagamentoView.as_view(), name="patient-prazo-pagamento"),
     path("patients/<int:patient_id>/anamnese/", PatientAnamneseView.as_view(), name="patient-anamnese"),
+    path("texto/revisar/", RevisarTextoClinicoView.as_view(), name="texto-revisar"),
     path("patients/<int:patient_id>/consultas/", PatientHistoricoConsultasView.as_view(), name="patient-consultas-historico"),
     path("patients/<int:patient_id>/prescricoes/", PatientPrescricaoView.as_view(), name="patient-prescricoes"),
 

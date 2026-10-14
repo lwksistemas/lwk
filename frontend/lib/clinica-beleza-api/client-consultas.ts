@@ -59,6 +59,8 @@ export const consultasApi = {
   ) => cbPost<Partial<Consulta>>(`/consultas/${id}/finalizar/`, data ?? {}),
   reabrir: (id: number) =>
     cbPost<Partial<Consulta>>(`/consultas/${id}/reabrir/`, {}),
+  revisarTexto: (texto: string, campo: string) =>
+    cbPost<{ texto: string }>("/texto/revisar/", { texto, campo }),
   evolucoes: {
     list: (consultaId: number) => cbGet(`/consultas/${consultaId}/evolucoes/`),
     create: (consultaId: number, data: Record<string, unknown>) =>

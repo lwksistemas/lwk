@@ -487,6 +487,11 @@ MEMED_DEFAULT_UF = os.environ.get("MEMED_DEFAULT_UF", "")
 # estiverem preenchidas, têm prioridade sobre as genéricas acima (que ficam para
 # homologação/sandbox). Se vazias, faz fallback para MEMED_API_KEY/SECRET_KEY.
 MEMED_API_KEY_PROD = os.environ.get("MEMED_API_KEY_PROD", "")
+
+# Revisão de texto ditado na anamnese e na evolução. Chave no servidor, nunca no navegador.
+# Chave sk-... usa OpenAI; as demais usam Gemini.
+LWK_TEXTO_IA_API_KEY = os.environ.get("LWK_TEXTO_IA_API_KEY", "")
+LWK_TEXTO_IA_MODELO = os.environ.get("LWK_TEXTO_IA_MODELO", "")
 MEMED_SECRET_KEY_PROD = os.environ.get("MEMED_SECRET_KEY_PROD", "")
 MEMED_PRESCRITOR_ID_PROD = os.environ.get("MEMED_PRESCRITOR_ID_PROD", "")
 # Auto-cadastro do prescritor na Memed ao salvar um profissional (POST de usuário).

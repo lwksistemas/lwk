@@ -801,11 +801,11 @@ function HistoricoLoja({
                 <th className="px-2 py-1">Mês</th>
                 <th className="px-2 py-1">Vencimento</th>
                 <th className="px-2 py-1">Valor</th>
-                <th className="px-2 py-1">Banco</th>
                 <th className="px-2 py-1">Status</th>
                 <th className="px-2 py-1">Pago em</th>
                 <th className="px-2 py-1">Nota fiscal</th>
                 <th className="px-2 py-1">Comprovante</th>
+                <th className="px-2 py-1">Banco</th>
               </tr>
             </thead>
             <tbody>
@@ -814,7 +814,6 @@ function HistoricoLoja({
                   <td className="px-2 py-2 text-gray-900 dark:text-gray-100">{item.mes || '—'}</td>
                   <td className="px-2 py-2 text-gray-900 dark:text-gray-100">{formatDate(item.vencimento)}</td>
                   <td className="px-2 py-2 text-gray-900 dark:text-gray-100">{formatCurrency(item.valor)}</td>
-                  <td className="px-2 py-2 text-gray-900 dark:text-gray-100">{item.provedor_display || '—'}</td>
                   <td className="px-2 py-2">
                     <span className={`px-2 py-0.5 text-xs rounded-full ${COR_SITUACAO[item.situacao] || ''}`}>
                       {item.situacao_display}
@@ -853,6 +852,7 @@ function HistoricoLoja({
                       <span className="text-gray-400">—</span>
                     )}
                   </td>
+                  <td className="px-2 py-2 text-gray-900 dark:text-gray-100">{item.provedor_display || '—'}</td>
                 </tr>
               ))}
             </tbody>

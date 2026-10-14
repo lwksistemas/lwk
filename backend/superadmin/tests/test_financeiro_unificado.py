@@ -69,6 +69,7 @@ class AssinaturasUnificadasTest(TestCase):
         self.assertEqual(len(por_slug["harmonis-uni"]), 1)
         self.assertTrue(str(por_slug["harmonis-uni"][0]["id"]).startswith("cora-"))
         self.assertEqual(por_slug["harmonis-uni"][0]["current_payment_data"]["provedor"], "cora")
+        self.assertEqual(por_slug["harmonis-uni"][0]["cpf_cnpj"], "37302743000126")
         self.assertEqual(len(por_slug["felix-uni"]), 1)
         self.assertFalse(str(por_slug["felix-uni"][0]["id"]).startswith(("cora-", "mp-")))
         self.assertEqual(len(por_slug["felipe-uni"]), 1)

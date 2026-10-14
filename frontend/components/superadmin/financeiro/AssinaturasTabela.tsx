@@ -311,6 +311,14 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
     }
   };
 
+  const nomeArquivoBoleto = (assinatura: Assinatura) => {
+    const documento = (assinatura.cpf_cnpj || assinatura.loja_slug || '').replace(/\D/g, '') || 'sem-documento';
+    const vencimento = assinatura.current_payment_data?.due_date || assinatura.data_vencimento || '';
+    const partes = /^(\d{4})-(\d{2})/.exec(vencimento);
+    const mes = partes ? `${partes[2]}-${partes[1]}` : 'sem-vencimento';
+    return `${documento}-assinatura-${mes}.pdf`;
+  };
+
   const baixarBoleto = async (assinatura: Assinatura) => {
     if (!assinatura.financeiro_id) return;
     setOcupado(`boleto-pdf-${assinatura.id}`);
@@ -327,8 +335,8 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
         return;
       }
       const cabecalho = String(res.headers?.['content-disposition'] || '');
-      const marcado = cabecalho.match(/filename="([^"]+)"/);
-      downloadBlobFile(blob, marcado?.[1] || 'assinatura.pdf');
+      const marcado = cabecalho.match(/filename="([^"]+\.pdf)"/i);
+      downloadBlobFile(blob, marcado?.[1] || nomeArquivoBoleto(assinatura));
     } catch (error) {
       const dados = (error as { response?: { data?: Blob } })?.response?.data;
       if (dados instanceof Blob) {

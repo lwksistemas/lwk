@@ -262,6 +262,54 @@ def extrair_erros(texto: str) -> str:
     return "; ".join(erros) if erros else ""
 
 
+def _tag(bloco: str, nome: str) -> str:
+    achado = re.search(rf"<{nome}>(.*?)</{nome}>", bloco, flags=re.DOTALL)
+    return (achado.group(1) if achado else "").strip()
+
+
+def _mensagens_retorno_com_codigo(texto: str) -> str:
+    """Junta Código, Mensagem e Correção de cada MensagemRetorno."""
+    if not (texto or "").strip():
+        return ""
+    blocos = re.findall(r"<MensagemRetorno>(.*?)</MensagemRetorno>", texto, flags=re.DOTALL)
+    partes = []
+    for bloco in blocos:
+        codigo = _tag(bloco, "Codigo")
+        mensagem = _tag(bloco, "Mensagem")
+        correcao = _tag(bloco, "Correcao")
+        texto_erro = f"[{codigo}] {mensagem}".strip() if codigo else mensagem
+        if correcao:
+            texto_erro += f" - {correcao}"
+        if texto_erro:
+            partes.append(texto_erro)
+    return "; ".join(partes)
+
+
+def resultado_cancelamento_nacional(xml_body: str) -> dict[str, Any]:
+    """Lê a resposta do CancelarNfse nacional (evento e101103).
+
+    Só confirma quando a prefeitura devolve o evento sem lista de erro.
+    Resposta vazia ou ambígua não cancela a nota no sistema.
+    """
+    texto = xml_body or ""
+    erros = _mensagens_retorno_com_codigo(texto)
+    if erros:
+        return {"success": False, "error": erros}
+    if re.search(r"<cStat>\s*(135|136)\s*</cStat>", texto):
+        return {"success": True, "message": "NFS-e cancelada com sucesso no ISSNet Nacional."}
+    if re.search(r"<\s*(RetEvento|evtCancNFSe|Confirmacao)\b", texto):
+        return {"success": True, "message": "NFS-e cancelada com sucesso no ISSNet Nacional."}
+    if "e101103" in texto and "ListaMensagemRetorno" not in texto and "Fault" not in texto:
+        return {"success": True, "message": "NFS-e cancelada com sucesso no ISSNet Nacional."}
+    amostra = re.sub(r"<(?:\w+:)?X509Certificate>.*?</(?:\w+:)?X509Certificate>", "", texto, flags=re.DOTALL)
+    amostra = " ".join(amostra.split())[:350]
+    return {
+        "success": False,
+        "error": "A prefeitura não confirmou o cancelamento."
+        + (f" {amostra}" if amostra else ""),
+    }
+
+
 def parse_resposta_cancelamento(xml_str: str) -> dict[str, Any]:
     texto = (xml_str or "").strip()
     if not texto:

@@ -131,8 +131,12 @@ class LojaNfseRegrasTests(SimpleTestCase):
         self.assertIn("pedRegEvento", xml)
         self.assertIn(f"PRE{chave}101103", xml)
         self.assertIn("12345678000190", xml)
+        self.assertIn("<nPedRegEvento>001</nPedRegEvento>", xml)
         self.assertIn("e101103", xml)
+        self.assertLess(xml.index("<chNFSe>"), xml.index("<nPedRegEvento>"))
+        self.assertLess(xml.index("<nPedRegEvento>"), xml.index("<e101103>"))
         self.assertIn("2026-10-12T15:00:00-03:00", xml)
+        self.assertNotIn("CPFAutor", xml)
         self.assertNotIn("InfPedidoCancelamento", xml)
 
     def test_xml_da_url_usa_cnpj_im_e_pagina(self):

@@ -8,6 +8,7 @@ from nfse_integration.issnet_response import (
     parse_consultar_url_nfse_resposta,
     parse_resposta_cancelamento,
     parse_resposta_xml,
+    resultado_cancelamento_nacional,
 )
 
 NS = "http://www.abrasf.org.br/nfse.xsd"
@@ -125,3 +126,20 @@ class CancelamentoEErrosTests(SimpleTestCase):
         self.assertEqual(extrair_erros("<ListaNfse><Mensagem>ok</Mensagem></ListaNfse>"), "")
         self.assertEqual(extrair_erros("<Mensagem>falhou</Mensagem><Mensagem>de novo</Mensagem>"), "falhou; de novo")
         self.assertEqual(extrair_erros(""), "")
+
+    def test_cancelamento_nacional_so_confirma_com_evento(self):
+        recusa = resultado_cancelamento_nacional(
+            "<ListaMensagemRetorno><MensagemRetorno>"
+            "<Codigo>E160</Codigo><Mensagem>Arquivo em desacordo com o XML Schema.</Mensagem>"
+            "<Correcao>Consulte o manual.</Correcao>"
+            "</MensagemRetorno></ListaMensagemRetorno>"
+        )
+        self.assertFalse(recusa["success"])
+        self.assertIn("[E160]", recusa["error"])
+        self.assertIn("Consulte o manual.", recusa["error"])
+
+        vazio = resultado_cancelamento_nacional("<CancelarNfseResposta></CancelarNfseResposta>")
+        self.assertFalse(vazio["success"])
+
+        ok = resultado_cancelamento_nacional("<RetEvento><cStat>135</cStat><e101103/></RetEvento>")
+        self.assertTrue(ok["success"])

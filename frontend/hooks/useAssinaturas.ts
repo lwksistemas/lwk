@@ -48,6 +48,7 @@ export interface Assinatura {
   current_payment_data: Pagamento | null;
   total_payments: number;
   financeiro_id?: number;  // ✅ NOVO v1489: ID do FinanceiroLoja para endpoints de NF
+  cpf_cnpj?: string;
   loja_id?: number;
   plano_id?: number | null;
   tipo_loja_id?: number | null;

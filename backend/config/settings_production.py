@@ -317,6 +317,12 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     "x-tenant-slug",  # ✅ Header customizado com slug da loja (fallback quando não tem ID)
     "x-session-id",  # ✅ Header para validação de sessão única (bloqueio simultâneo)
 ]
+CORS_EXPOSE_HEADERS = [
+    "content-type",
+    "content-disposition",
+    "x-loja-id",
+    "x-tenant-slug",
+]
 
 # REST FRAMEWORK
 # Com DISABLE_STATICFILES_MANIFEST=true: desabilitar BrowsableAPIRenderer para evitar 500

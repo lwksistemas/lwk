@@ -44,3 +44,14 @@ class CoraFaturaTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["status"], "ignored")
         confirmar.assert_not_called()
+
+
+class CoraWebhookSemBarraTests(SimpleTestCase):
+    def test_aviso_sem_barra_final_nao_pede_login(self):
+        response = self.client.post(
+            "/api/superadmin/cora-webhook",
+            data="{}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ignored")

@@ -128,6 +128,7 @@ urlpatterns = [
     path("mercadopago-webhook/", mercadopago_webhook, name="mercadopago-webhook"),
     path("cora-config/", cora_config, name="cora-config"),
     path("cora-config/test/", cora_test, name="cora-config-test"),
+    path("cora-webhook", cora_webhook),
     path("cora-webhook/", cora_webhook, name="cora-webhook"),
     path("sync-mercadopago/", sync_mercadopago_loja, name="sync-mercadopago"),
 

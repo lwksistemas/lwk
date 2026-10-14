@@ -3,6 +3,7 @@
  */
 import { Fragment, useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { downloadBlobFile } from '@/lib/download-blob';
 import { formatApiErrorBody } from '@/lib/api-errors';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 import type { Assinatura, Pagamento } from '@/hooks/useAssinaturas';
@@ -310,13 +311,39 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
     }
   };
 
-  const baixarBoleto = (assinatura: Assinatura) => {
-    const url = (assinatura.current_payment_data?.bank_slip_url || '').trim();
-    if (!url) {
-      window.alert('Não há boleto em aberto para baixar.');
-      return;
+  const baixarBoleto = async (assinatura: Assinatura) => {
+    if (!assinatura.financeiro_id) return;
+    setOcupado(`boleto-pdf-${assinatura.id}`);
+    try {
+      const res = await apiClient.get(
+        `/superadmin/financeiro/${assinatura.financeiro_id}/baixar_boleto/`,
+        { responseType: 'blob' },
+      );
+      const blob = res.data as Blob;
+      const tipo = String(res.headers?.['content-type'] || blob.type || '');
+      if (tipo.includes('json') || blob.type?.includes('json')) {
+        const dados = JSON.parse(await blob.text()) as { error?: string };
+        window.alert(dados.error || 'Não foi possível baixar o boleto.');
+        return;
+      }
+      const cabecalho = String(res.headers?.['content-disposition'] || '');
+      const marcado = cabecalho.match(/filename="([^"]+)"/);
+      downloadBlobFile(blob, marcado?.[1] || 'assinatura.pdf');
+    } catch (error) {
+      const dados = (error as { response?: { data?: Blob } })?.response?.data;
+      if (dados instanceof Blob) {
+        try {
+          const json = JSON.parse(await dados.text()) as { error?: string };
+          window.alert(json.error || 'Não foi possível baixar o boleto.');
+          return;
+        } catch {
+          // o corpo não era JSON
+        }
+      }
+      window.alert(mensagemErro(error, 'Não foi possível baixar o boleto.'));
+    } finally {
+      setOcupado(null);
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const acaoBoleto = async (assinatura: Assinatura) => {
@@ -577,7 +604,7 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                     <div className="flex flex-wrap gap-1">
                       <button
                         type="button"
-                        disabled={semFinanceiro}
+                        disabled={semFinanceiro || ocupado === `boleto-pdf-${assinatura.id}`}
                         onClick={() => baixarBoleto(assinatura)}
                         className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                       >

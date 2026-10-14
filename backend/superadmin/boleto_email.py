@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from decimal import Decimal, ROUND_HALF_UP
 
 import requests
@@ -21,6 +22,16 @@ def formatar_valor_boleto(valor) -> str:
         return str(valor)
     texto = f"{quantizado:.2f}".replace(".", ",")
     return f"R$ {texto}"
+
+
+def nome_arquivo_boleto_assinatura(documento: str, vencimento) -> str:
+    """CPF ou CNPJ, a palavra assinatura e o mês do vencimento."""
+    digitos = re.sub(r"\D", "", documento or "") or "sem-documento"
+    if hasattr(vencimento, "strftime"):
+        mes = vencimento.strftime("%m-%Y")
+    else:
+        mes = "sem-vencimento"
+    return f"{digitos}-assinatura-{mes}.pdf"
 
 
 def baixar_pdf_boleto(url: str) -> bytes:

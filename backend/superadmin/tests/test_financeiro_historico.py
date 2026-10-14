@@ -235,3 +235,32 @@ class HistoricoLojaTest(TestCase):
         arquivo.size = 10
         self.assertIn("PDF", _erro_comprovante_pdf(arquivo))
         self.assertEqual(_erro_comprovante_pdf(None), "")
+
+    def test_pdf_do_boleto_usa_documento_e_mes_do_vencimento(self):
+        from unittest.mock import patch
+
+        from superadmin.financeiro_views.boleto_pdf import pdf_boleto_em_aberto
+
+        self.loja.cpf_cnpj = "37.302.743/0001-26"
+        self.loja.save(update_fields=["cpf_cnpj", "updated_at"])
+        PagamentoLoja.objects.create(
+            loja=self.loja,
+            financeiro=self.financeiro,
+            valor="199.90",
+            referencia_mes=date(2026, 11, 1),
+            status="pendente",
+            asaas_payment_id="pay_pdf",
+            forma_pagamento="BOLETO",
+            data_vencimento=date(2026, 11, 10),
+            boleto_url="https://banco.example/boleto.pdf",
+            provedor_boleto="cora",
+        )
+        with patch(
+            "superadmin.financeiro_views.boleto_pdf.baixar_pdf_boleto",
+            return_value=b"%PDF-1.4 teste",
+        ) as baixar:
+            pdf, nome, erro = pdf_boleto_em_aberto(self.financeiro)
+        self.assertEqual(erro, "")
+        self.assertEqual(pdf, b"%PDF-1.4 teste")
+        self.assertEqual(nome, "37302743000126-assinatura-11-2026.pdf")
+        baixar.assert_called_once_with("https://banco.example/boleto.pdf")

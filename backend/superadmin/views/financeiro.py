@@ -35,6 +35,13 @@ class FinanceiroLojaViewSet(viewsets.ModelViewSet):
         try:
             financeiro = self.get_object()
             loja = financeiro.loja
+            from superadmin.financeiro_views.assinatura_cancelamento import assinatura_esta_cancelada
+
+            if assinatura_esta_cancelada(loja, financeiro):
+                return Response({
+                    "success": False,
+                    "error": "Assinatura cancelada. Use Reativar no histórico para gerar o boleto.",
+                }, status=status.HTTP_400_BAD_REQUEST)
 
             dia_vencimento = request.data.get("dia_vencimento")
             antecipado = bool(request.data.get("antecipado", False))
@@ -431,6 +438,7 @@ Equipe LWK Sistemas
         """Pagamentos e notas fiscais da loja, com o mês pago ou vencido."""
         from superadmin.financeiro_views.helpers import historico_pagamentos_e_notas
 
+        from superadmin.financeiro_views.assinatura_cancelamento import assinatura_esta_cancelada
         from superadmin.financeiro_views.troca_banco import nome_banco
 
         financeiro = self.get_object()
@@ -439,24 +447,56 @@ Equipe LWK Sistemas
             "itens": historico_pagamentos_e_notas(financeiro.loja),
             "provedor_boleto": provedor,
             "provedor_display": nome_banco(provedor) or "Asaas",
+            "assinatura_cancelada": assinatura_esta_cancelada(financeiro.loja, financeiro),
         })
 
     @action(detail=True, methods=["post"])
     def trocar_banco(self, request, pk=None):
         """Troca o banco da assinatura. Emite agora só se o boleto do mês ainda não existe."""
+        from superadmin.financeiro_views.assinatura_cancelamento import assinatura_esta_cancelada
         from superadmin.financeiro_views.troca_banco import trocar_banco_assinatura
 
         financeiro = self.get_object()
-        resultado = trocar_banco_assinatura(financeiro.loja, request.data.get("provedor"))
+        resultado = trocar_banco_assinatura(
+            financeiro.loja,
+            request.data.get("provedor"),
+            permitir_emissao=not assinatura_esta_cancelada(financeiro.loja, financeiro),
+        )
+        codigo = status.HTTP_200_OK if resultado.get("success") else status.HTTP_400_BAD_REQUEST
+        return Response(resultado, status=codigo)
+
+    @action(detail=True, methods=["post"])
+    def cancelar_assinatura(self, request, pk=None):
+        """Para boletos novos e bloqueia o acesso, sem apagar dados da loja."""
+        from superadmin.financeiro_views.assinatura_cancelamento import cancelar_assinatura
+
+        financeiro = self.get_object()
+        resultado = cancelar_assinatura(financeiro.loja, financeiro)
+        codigo = status.HTTP_200_OK if resultado.get("success") else status.HTTP_400_BAD_REQUEST
+        return Response(resultado, status=codigo)
+
+    @action(detail=True, methods=["post"])
+    def reativar_assinatura(self, request, pk=None):
+        """Gera o boleto da volta. O acesso retorna quando o pagamento for confirmado."""
+        from superadmin.financeiro_views.assinatura_cancelamento import reativar_assinatura
+
+        financeiro = self.get_object()
+        resultado = reativar_assinatura(financeiro.loja, financeiro)
         codigo = status.HTTP_200_OK if resultado.get("success") else status.HTTP_400_BAD_REQUEST
         return Response(resultado, status=codigo)
 
     @action(detail=True, methods=["post"])
     def emitir_boleto(self, request, pk=None):
         """Emite o boleto do vencimento quando não há outro em aberto."""
+        from superadmin.financeiro_views.assinatura_cancelamento import assinatura_esta_cancelada
         from superadmin.sync_service.asaas import AsaasSyncService
 
         financeiro = self.get_object()
+        if assinatura_esta_cancelada(financeiro.loja, financeiro):
+            return Response({
+                "success": False,
+                "error": "Assinatura cancelada. Use Reativar no histórico para gerar o boleto.",
+            }, status=status.HTTP_400_BAD_REQUEST)
         resultado = AsaasSyncService().emitir_boleto(financeiro.loja)
         codigo = status.HTTP_200_OK if resultado.get("success") else status.HTTP_400_BAD_REQUEST
         return Response(resultado, status=codigo)

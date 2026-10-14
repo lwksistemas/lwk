@@ -548,6 +548,8 @@ def _dia_local(quando):
 
 
 def _item_historico(pagamento, nota, hoje) -> dict:
+    from superadmin.financeiro_views.troca_banco import nome_banco
+
     situacao, rotulo = _situacao_pagamento(pagamento, hoje)
     referencia = pagamento.referencia_mes or pagamento.data_vencimento
     return {
@@ -562,6 +564,8 @@ def _item_historico(pagamento, nota, hoje) -> dict:
         "nf_pdf_url": (nota.pdf_url or "").strip() if nota else "",
         "nf_status": nota.status if nota else "",
         "comprovante_url": (pagamento.comprovante or "").strip(),
+        "provedor_boleto": getattr(pagamento, "provedor_boleto", "") or "",
+        "provedor_display": nome_banco(getattr(pagamento, "provedor_boleto", "")),
     }
 
 
@@ -603,6 +607,8 @@ def historico_pagamentos_e_notas(loja) -> list:
             "numero_nf": nota.numero_nf or "",
             "nf_pdf_url": (nota.pdf_url or "").strip(),
             "nf_status": nota.status,
+            "provedor_boleto": "",
+            "provedor_display": "",
         })
     return itens
 

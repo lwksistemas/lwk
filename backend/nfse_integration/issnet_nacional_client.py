@@ -181,6 +181,59 @@ class ISSNetNacionalClient:
                 with suppress(OSError):
                     os.unlink(cert_path)
 
+    def _assinar_pedido_evento_signxml(self, xml_str: str) -> str:
+        """Assina pedRegEvento com SHA-256, o mesmo algoritmo da DPS aceita.
+
+        O exemplo da Nota Control pede RSA-SHA1. No ISSNet de Ribeirão Preto
+        essa assinatura volta E0714; SHA-256 cancela.
+        """
+        from cryptography.hazmat.primitives.serialization import (
+            Encoding,
+            NoEncryption,
+            PrivateFormat,
+            pkcs12,
+        )
+        from signxml import XMLSigner, methods
+
+        created_tmp = not (self.cert_path and os.path.isfile(self.cert_path))
+        cert_path = self._pfx_temp()
+        try:
+            with open(cert_path, "rb") as arquivo:
+                private_key, certificate, _ = pkcs12.load_key_and_certificates(
+                    arquivo.read(), self.cert_password.encode(),
+                )
+            key_pem = private_key.private_bytes(
+                Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption(),
+            )
+            cert_pem = certificate.public_bytes(Encoding.PEM)
+            root = etree.fromstring(xml_str.encode("utf-8"))
+            ns = NS_NFSE_NACIONAL
+            ped = root.find(f"{{{ns}}}pedRegEvento")
+            inf = ped.find(f"{{{ns}}}infPedReg") if ped is not None else None
+            inf_id = (inf.get("Id") or "").strip() if inf is not None else ""
+            if ped is None or not inf_id:
+                raise ValueError("pedRegEvento sem infPedReg para assinar.")
+            signer = XMLSigner(
+                method=methods.enveloped,
+                signature_algorithm="rsa-sha256",
+                digest_algorithm="sha256",
+                c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+            )
+            assinado = signer.sign(
+                ped,
+                key=key_pem,
+                cert=cert_pem,
+                reference_uri=f"#{inf_id}",
+                id_attribute="Id",
+            )
+            novo = etree.Element(f"{{{ns}}}CancelarNfseEnvio", nsmap={None: ns})
+            novo.append(assinado)
+            return etree.tostring(novo, encoding="unicode", xml_declaration=False)
+        finally:
+            if created_tmp and os.path.isfile(cert_path):
+                with suppress(OSError):
+                    os.unlink(cert_path)
+
     def _assinar_dupla(self, lote_xml: str) -> str:
         """Dupla assinatura conforme suporte NotaControl (07/08/2026).
 
@@ -367,7 +420,10 @@ class ISSNetNacionalClient:
                     usar_cadeia=False,
                     usar_sha256=False,
                 )
-            # CancelarNfseEnvio e afins: assinatura Pedido (mesmo padrão ISSNet)
+            if root_local == "CancelarNfseEnvio" and root.find(f"{{{NS_NFSE_NACIONAL}}}pedRegEvento") is not None:
+                # RSA-SHA1 do exemplo devolve E0714. SHA-256, o mesmo da DPS, cancela.
+                return self._assinar_pedido_evento_signxml(xml_str)
+            # CancelarNfseEnvio ABRASF e afins: assinatura Pedido
             return assinar_xml_issnet(xml_str, cert_path, self.cert_password)
         finally:
             if created_tmp and os.path.isfile(cert_path):

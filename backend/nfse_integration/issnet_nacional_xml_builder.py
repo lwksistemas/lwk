@@ -509,9 +509,9 @@ def construir_xml_cancelar_nfse_nacional(
     tag_autor = "CNPJAutor" if len(doc) != 11 else "CPFAutor"
     etree.SubElement(inf, f"{{{NS_NFSE}}}{tag_autor}").text = doc
     etree.SubElement(inf, f"{{{NS_NFSE}}}chNFSe").text = chave
-    # Nota Control (14/10/2026): o pedido exige nPedRegEvento entre a chave e o evento.
-    # 001 é o primeiro pedido deste tipo para a nota. Não enviar CNPJAutor e CPFAutor juntos.
-    etree.SubElement(inf, f"{{{NS_NFSE}}}nPedRegEvento").text = "001"
+    # O exemplo da Nota Control inclui nPedRegEvento. No ISSNet de Ribeirão Preto
+    # essa tag devolve E160 (14/10/2026). O schema publicado lá ainda não a aceita.
+    # Enviar só CNPJAutor ou CPFAutor, nunca os dois.
     evento = etree.SubElement(inf, f"{{{NS_NFSE}}}e101103")
     etree.SubElement(evento, f"{{{NS_NFSE}}}xDesc").text = (
         "Solicitação de Análise Fiscal para Cancelamento de NFS-e"

@@ -455,6 +455,11 @@ MEMED_PRESCRITOR_ID_PROD = os.environ.get("MEMED_PRESCRITOR_ID_PROD", "")
 # com o suporte de parceiros que sua conta tem permissão para criar prescritores via API.
 MEMED_AUTO_CADASTRO = os.environ.get("MEMED_AUTO_CADASTRO", "false").strip().lower() in ("1", "true", "yes", "on")
 
+# Revisão de texto ditado. Produção lê este arquivo, não config.settings.
+# Chave sk-... usa OpenAI; as demais usam Gemini.
+LWK_TEXTO_IA_API_KEY = os.environ.get("LWK_TEXTO_IA_API_KEY", "")
+LWK_TEXTO_IA_MODELO = os.environ.get("LWK_TEXTO_IA_MODELO", "")
+
 # LOGGING
 LOGGING = {
     "version": 1,

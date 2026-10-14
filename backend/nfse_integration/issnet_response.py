@@ -292,6 +292,11 @@ def resultado_cancelamento_nacional(xml_body: str) -> dict[str, Any]:
     Resposta vazia ou ambígua não cancela a nota no sistema.
     """
     texto = xml_body or ""
+    if "EM097" in texto or "já está cancelada" in texto.lower():
+        return {
+            "success": True,
+            "message": "NFS-e já estava cancelada na prefeitura.",
+        }
     erros = _mensagens_retorno_com_codigo(texto)
     if erros:
         return {"success": False, "error": erros}

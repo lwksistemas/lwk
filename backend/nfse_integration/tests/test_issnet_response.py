@@ -143,3 +143,7 @@ class CancelamentoEErrosTests(SimpleTestCase):
 
         ok = resultado_cancelamento_nacional("<RetEvento><cStat>135</cStat><e101103/></RetEvento>")
         self.assertTrue(ok["success"])
+        ja = resultado_cancelamento_nacional(
+            "<MensagemRetorno><Codigo>EM097</Codigo><Mensagem>NFS-e já está cancelada.</Mensagem></MensagemRetorno>"
+        )
+        self.assertTrue(ja["success"])

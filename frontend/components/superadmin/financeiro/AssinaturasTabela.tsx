@@ -310,26 +310,31 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
     }
   };
 
-  const acaoBoleto = async (assinatura: Assinatura, acao: 'emitir' | 'reenviar') => {
+  const baixarBoleto = (assinatura: Assinatura) => {
+    const url = (assinatura.current_payment_data?.bank_slip_url || '').trim();
+    if (!url) {
+      window.alert('Não há boleto em aberto para baixar.');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const acaoBoleto = async (assinatura: Assinatura) => {
     if (!assinatura.financeiro_id) return;
-    const verbo = acao === 'emitir' ? 'Emitir' : 'Reenviar';
     const confirma = window.confirm(
-      acao === 'emitir'
-        ? `Emitir o boleto de ${assinatura.loja_nome} e enviar para o e-mail do responsável?`
-        : `Reenviar o boleto em aberto de ${assinatura.loja_nome} para o e-mail do responsável?`,
+      `Reenviar o boleto em aberto de ${assinatura.loja_nome} para o e-mail do responsável?`,
     );
     if (!confirma) return;
-    const chave = `boleto-${acao}-${assinatura.id}`;
+    const chave = `boleto-reenviar-${assinatura.id}`;
     setOcupado(chave);
     try {
       const res = await apiClient.post(
-        `/superadmin/financeiro/${assinatura.financeiro_id}/${acao}_boleto/`,
+        `/superadmin/financeiro/${assinatura.financeiro_id}/reenviar_boleto/`,
       );
-      window.alert(res.data?.message || `${verbo} concluído.`);
-      if (res.data?.boleto_url) window.open(res.data.boleto_url, '_blank', 'noopener,noreferrer');
+      window.alert(res.data?.message || 'Boleto reenviado.');
       onAtualizar();
     } catch (error) {
-      window.alert(mensagemErro(error, `Não foi possível ${verbo.toLowerCase()} o boleto.`));
+      window.alert(mensagemErro(error, 'Não foi possível reenviar o boleto.'));
     } finally {
       setOcupado(null);
     }
@@ -572,16 +577,16 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                     <div className="flex flex-wrap gap-1">
                       <button
                         type="button"
-                        disabled={semFinanceiro || ocupado === `boleto-emitir-${assinatura.id}`}
-                        onClick={() => acaoBoleto(assinatura, 'emitir')}
-                        className="px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+                        disabled={semFinanceiro}
+                        onClick={() => baixarBoleto(assinatura)}
+                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                       >
-                        Emitir
+                        PDF
                       </button>
                       <button
                         type="button"
                         disabled={semFinanceiro || ocupado === `boleto-reenviar-${assinatura.id}`}
-                        onClick={() => acaoBoleto(assinatura, 'reenviar')}
+                        onClick={() => acaoBoleto(assinatura)}
                         className="px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
                       >
                         Reenviar

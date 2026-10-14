@@ -431,8 +431,25 @@ Equipe LWK Sistemas
         """Pagamentos e notas fiscais da loja, com o mês pago ou vencido."""
         from superadmin.financeiro_views.helpers import historico_pagamentos_e_notas
 
+        from superadmin.financeiro_views.troca_banco import nome_banco
+
         financeiro = self.get_object()
-        return Response({"itens": historico_pagamentos_e_notas(financeiro.loja)})
+        provedor = (financeiro.loja.provedor_boleto_preferido or "asaas").strip().lower()
+        return Response({
+            "itens": historico_pagamentos_e_notas(financeiro.loja),
+            "provedor_boleto": provedor,
+            "provedor_display": nome_banco(provedor) or "Asaas",
+        })
+
+    @action(detail=True, methods=["post"])
+    def trocar_banco(self, request, pk=None):
+        """Troca o banco da assinatura. Emite agora só se o boleto do mês ainda não existe."""
+        from superadmin.financeiro_views.troca_banco import trocar_banco_assinatura
+
+        financeiro = self.get_object()
+        resultado = trocar_banco_assinatura(financeiro.loja, request.data.get("provedor"))
+        codigo = status.HTTP_200_OK if resultado.get("success") else status.HTTP_400_BAD_REQUEST
+        return Response(resultado, status=codigo)
 
     @action(detail=True, methods=["post"])
     def emitir_boleto(self, request, pk=None):

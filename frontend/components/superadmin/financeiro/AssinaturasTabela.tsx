@@ -50,7 +50,15 @@ interface ItemHistorico {
   nf_pdf_url: string;
   nf_status: string;
   comprovante_url?: string;
+  provedor_boleto?: string;
+  provedor_display?: string;
 }
+
+const BANCOS_ASSINATURA = [
+  { id: 'asaas', nome: 'Asaas' },
+  { id: 'mercadopago', nome: 'Mercado Pago' },
+  { id: 'cora', nome: 'Cora' },
+];
 
 const COR_SITUACAO: Record<string, string> = {
   pago: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
@@ -113,6 +121,7 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
   const [historicoAberto, setHistoricoAberto] = useState<number | string | null>(null);
   const [historicos, setHistoricos] = useState<Record<string, ItemHistorico[]>>({});
   const [historicoErro, setHistoricoErro] = useState<Record<string, string>>({});
+  const [bancosAssinatura, setBancosAssinatura] = useState<Record<string, string>>({});
   const [conta, setConta] = useState<{ assinatura: Assinatura; forma: 'pix' | 'transferencia' } | null>(null);
   const [comprovante, setComprovante] = useState<File | null>(null);
 
@@ -215,20 +224,53 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
     }
   };
 
-  const abrirHistorico = async (assinatura: Assinatura) => {
-    setHistoricoAberto(assinatura.id);
-    if (!assinatura.financeiro_id || historicos[String(assinatura.id)]) return;
+  const carregarHistorico = async (assinatura: Assinatura) => {
+    if (!assinatura.financeiro_id) return;
     const chave = `historico-${assinatura.id}`;
     setOcupado(chave);
     try {
       const res = await apiClient.get(`/superadmin/financeiro/${assinatura.financeiro_id}/historico_loja/`);
       setHistoricos((atual) => ({ ...atual, [String(assinatura.id)]: res.data?.itens || [] }));
+      setBancosAssinatura((atual) => ({
+        ...atual,
+        [String(assinatura.id)]: res.data?.provedor_boleto || 'asaas',
+      }));
+      setHistoricoErro((atual) => ({ ...atual, [String(assinatura.id)]: '' }));
     } catch (error) {
       setHistoricoErro((atual) => ({
         ...atual,
         [String(assinatura.id)]: mensagemErro(error, 'Não foi possível carregar o histórico.'),
       }));
     } finally {
+      setOcupado(null);
+    }
+  };
+
+  const abrirHistorico = async (assinatura: Assinatura) => {
+    setHistoricoAberto(assinatura.id);
+    if (!assinatura.financeiro_id || historicos[String(assinatura.id)]) return;
+    await carregarHistorico(assinatura);
+  };
+
+  const trocarBanco = async (assinatura: Assinatura, provedor: string) => {
+    if (!assinatura.financeiro_id) return;
+    const nomeBanco = BANCOS_ASSINATURA.find((banco) => banco.id === provedor)?.nome || provedor;
+    const confirma = window.confirm(
+      `Trocar o banco de ${assinatura.loja_nome} para ${nomeBanco}?\n\nSe o boleto deste mês ainda não foi gerado, ele será emitido agora. Se já existir, a troca vale no próximo mês.`,
+    );
+    if (!confirma) return;
+    setOcupado(`banco-${assinatura.id}`);
+    try {
+      const res = await apiClient.post(
+        `/superadmin/financeiro/${assinatura.financeiro_id}/trocar_banco/`,
+        { provedor },
+      );
+      window.alert(res.data?.message || 'Banco da assinatura atualizado.');
+      setBancosAssinatura((atual) => ({ ...atual, [String(assinatura.id)]: provedor }));
+      await carregarHistorico(assinatura);
+      onAtualizar();
+    } catch (error) {
+      window.alert(mensagemErro(error, 'Não foi possível trocar o banco.'));
       setOcupado(null);
     }
   };
@@ -306,8 +348,11 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
           plano={lojaHistorico.plano_nome}
           valor={lojaHistorico.plano_valor}
           carregando={ocupado === `historico-${lojaHistorico.id}`}
+          trocando={ocupado === `banco-${lojaHistorico.id}` || ocupado === `historico-${lojaHistorico.id}`}
           erro={historicoErro[chaveHistorico]}
           itens={historicos[chaveHistorico]}
+          provedor={bancosAssinatura[chaveHistorico] || 'asaas'}
+          onTrocar={(provedor) => trocarBanco(lojaHistorico, provedor)}
         />
       </div>
     );
@@ -617,21 +662,58 @@ function HistoricoLoja({
   plano,
   valor,
   carregando,
+  trocando,
   erro,
   itens,
+  provedor,
+  onTrocar,
 }: {
   nome: string;
   plano: string;
   valor: string;
   carregando: boolean;
+  trocando: boolean;
   erro?: string;
   itens?: ItemHistorico[];
+  provedor: string;
+  onTrocar: (provedor: string) => void;
 }) {
+  const [escolhido, setEscolhido] = useState(provedor || 'asaas');
+
+  useEffect(() => {
+    setEscolhido(provedor || 'asaas');
+  }, [provedor]);
+
   return (
     <div>
       <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{nome}</h2>
       <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
         {plano} · {formatCurrency(valor)}
+      </p>
+      <div className="mb-4 flex flex-wrap items-end gap-2">
+        <label className="text-sm text-gray-700 dark:text-gray-200">
+          Banco da assinatura
+          <select
+            value={escolhido}
+            onChange={(evento) => setEscolhido(evento.target.value)}
+            className="mt-1 block rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm text-gray-900 dark:text-gray-100"
+          >
+            {BANCOS_ASSINATURA.map((banco) => (
+              <option key={banco.id} value={banco.id}>{banco.nome}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          disabled={trocando || escolhido === (provedor || 'asaas')}
+          onClick={() => onTrocar(escolhido)}
+          className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+        >
+          Trocar banco
+        </button>
+      </div>
+      <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
+        Se o boleto deste mês ainda não foi gerado, ele sai no banco novo. Se já foi gerado, a troca vale no próximo mês.
       </p>
       {carregando && <p className="text-sm text-gray-500">Carregando pagamentos e notas...</p>}
       {erro && <p className="text-sm text-red-600">{erro}</p>}
@@ -646,6 +728,7 @@ function HistoricoLoja({
                 <th className="px-2 py-1">Mês</th>
                 <th className="px-2 py-1">Vencimento</th>
                 <th className="px-2 py-1">Valor</th>
+                <th className="px-2 py-1">Banco</th>
                 <th className="px-2 py-1">Status</th>
                 <th className="px-2 py-1">Pago em</th>
                 <th className="px-2 py-1">Nota fiscal</th>
@@ -658,6 +741,7 @@ function HistoricoLoja({
                   <td className="px-2 py-2 text-gray-900 dark:text-gray-100">{item.mes || '—'}</td>
                   <td className="px-2 py-2 text-gray-900 dark:text-gray-100">{formatDate(item.vencimento)}</td>
                   <td className="px-2 py-2 text-gray-900 dark:text-gray-100">{formatCurrency(item.valor)}</td>
+                  <td className="px-2 py-2 text-gray-900 dark:text-gray-100">{item.provedor_display || '—'}</td>
                   <td className="px-2 py-2">
                     <span className={`px-2 py-0.5 text-xs rounded-full ${COR_SITUACAO[item.situacao] || ''}`}>
                       {item.situacao_display}

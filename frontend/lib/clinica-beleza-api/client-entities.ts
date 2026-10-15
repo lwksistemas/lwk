@@ -23,10 +23,42 @@ export const anamneseApi = {
 
 export interface PrazoPagamentoPolitica {
   id?: number;
-  prazo_pagamento_modo: "" | "DIAS_APOS" | "DIA_FIXO";
+  prazo_pagamento_modo: "" | "DIAS_APOS" | "DIA_FIXO" | "SEMANAL";
   prazo_pagamento_dias: number | null;
   prazo_pagamento_dia_mes: number | null;
+  prazo_opcao_id?: number | null;
+  prazo_opcao_nome?: string;
   tem_prazo_pagamento?: boolean;
+}
+
+export interface PrazoPagamentoOpcao {
+  id: number;
+  nome: string;
+  modo: "DIAS_APOS" | "DIA_FIXO" | "SEMANAL";
+  dias: number | null;
+  dia_mes: number | null;
+  regra: string;
+}
+
+export interface ProcedimentoAnteriorRecebimento {
+  id: number;
+  valor: string | number;
+  data: string;
+  payment_method: string;
+  payment_method_label: string;
+}
+
+export interface ProcedimentoAnteriorItem {
+  id: number;
+  data_procedimento: string;
+  nome: string;
+  valor: string | number;
+  valor_pago: string | number;
+  data_pagamento: string | null;
+  data_vencimento: string | null;
+  saldo: string | number;
+  quitado: boolean;
+  recebimentos: ProcedimentoAnteriorRecebimento[];
 }
 
 export const patientsApi = {
@@ -36,8 +68,33 @@ export const patientsApi = {
   delete: (id: number) => cbDelete(`/patients/${id}/`),
   prazoPagamento: {
     get: (id: number) => cbGet<PrazoPagamentoPolitica>(`/patients/${id}/prazo-pagamento/`),
-    save: (id: number, data: Partial<PrazoPagamentoPolitica>) =>
+    save: (id: number, data: Partial<PrazoPagamentoPolitica> & { prazo_opcao_id?: number | null }) =>
       cbPut<PrazoPagamentoPolitica>(`/patients/${id}/prazo-pagamento/`, data),
+    opcoes: () => cbGet<PrazoPagamentoOpcao[]>("/prazos-pagamento/"),
+    criarOpcao: (data: { nome: string; modo: "DIAS_APOS" | "DIA_FIXO" | "SEMANAL"; dias?: number | null; dia_mes?: number | null }) =>
+      cbPost<PrazoPagamentoOpcao>("/prazos-pagamento/", data),
+    excluirOpcao: (id: number) => cbDelete(`/prazos-pagamento/${id}/`),
+  },
+  procedimentosAnteriores: {
+    list: (patientId: number) =>
+      cbGet<ProcedimentoAnteriorItem[]>(`/patients/${patientId}/procedimentos-anteriores/`),
+    criar: (
+      patientId: number,
+      data: {
+        data_procedimento: string;
+        nome: string;
+        valor: string;
+        valor_pago: string;
+        data_pagamento?: string;
+      },
+    ) => cbPost<ProcedimentoAnteriorItem>(`/patients/${patientId}/procedimentos-anteriores/`, data),
+    excluir: (patientId: number, id: number) =>
+      cbDelete(`/patients/${patientId}/procedimentos-anteriores/${id}/`),
+    receber: (
+      patientId: number,
+      id: number,
+      data: { valor: string; data: string; payment_method: string },
+    ) => cbPost<ProcedimentoAnteriorItem>(`/patients/${patientId}/procedimentos-anteriores/${id}/receber/`, data),
   },
 };
 

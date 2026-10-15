@@ -20,10 +20,12 @@ class Patient(ClienteBase):
     PRAZO_MODO_SEM = ""
     PRAZO_MODO_DIAS_APOS = "DIAS_APOS"
     PRAZO_MODO_DIA_FIXO = "DIA_FIXO"
+    PRAZO_MODO_SEMANAL = "SEMANAL"
     PRAZO_MODO_CHOICES = [
         (PRAZO_MODO_SEM, "Sem prazo configurado"),
         (PRAZO_MODO_DIAS_APOS, "Dias após finalizar a consulta"),
         (PRAZO_MODO_DIA_FIXO, "Dia fixo do mês"),
+        (PRAZO_MODO_SEMANAL, "Semanal"),
     ]
     prazo_pagamento_modo = models.CharField(
         max_length=20,
@@ -49,6 +51,15 @@ class Patient(ClienteBase):
         validators=[MinValueValidator(1), MaxValueValidator(28)],
         verbose_name="Dia fixo do mês",
         help_text="Usado quando o modo é 'Dia fixo do mês' (1 a 28). Vence sempre no mês seguinte.",
+    )
+    prazo_opcao = models.ForeignKey(
+        "PrazoPagamentoClinica",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pacientes",
+        verbose_name="Prazo escolhido",
+        help_text="Prazo criado pelo administrador e aplicado a esta cliente.",
     )
     sexo = models.CharField(
         max_length=1,
@@ -96,9 +107,62 @@ class Patient(ClienteBase):
             return bool(self.prazo_pagamento_dias)
         if self.prazo_pagamento_modo == self.PRAZO_MODO_DIA_FIXO:
             return bool(self.prazo_pagamento_dia_mes)
+        if self.prazo_pagamento_modo == self.PRAZO_MODO_SEMANAL:
+            return True
         return False
 
 
+
+
+class PrazoPagamentoClinica(LojaIsolationMixin, models.Model):
+    """Prazo de pagamento criado pelo administrador da clínica.
+
+    A regra (dias após o lançamento ou dia fixo) é reutilizada nas clientes.
+    Ao aplicar numa cliente, a regra é copiada para os campos do paciente,
+    que continuam definindo o vencimento do recebimento a prazo.
+    """
+
+    nome = models.CharField(max_length=80, verbose_name="Nome")
+    modo = models.CharField(
+        max_length=20,
+        choices=[
+            (Patient.PRAZO_MODO_DIAS_APOS, "Dias após o lançamento"),
+            (Patient.PRAZO_MODO_DIA_FIXO, "Dia fixo do mês"),
+            (Patient.PRAZO_MODO_SEMANAL, "Semanal"),
+        ],
+        verbose_name="Modo",
+    )
+    dias = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(365)],
+        verbose_name="Dias",
+    )
+    dia_mes = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(28)],
+        verbose_name="Dia do mês",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_prazo_pagamento"
+        verbose_name = "Prazo de pagamento"
+        verbose_name_plural = "Prazos de pagamento"
+        ordering = ["nome"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["loja_id", "nome"],
+                name="uniq_cb_prazo_pagamento_loja_nome",
+            ),
+        ]
+
+    def __str__(self):
+        return self.nome
 
 
 class PatientAnamnese(LojaIsolationMixin, models.Model):

@@ -8,7 +8,7 @@ import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/Moda
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { isProntuarioLocalTab } from "./prontuario-utils";
-import { PrazoPagamentoCard } from "./PrazoPagamentoCard";
+import { FinanceiroPacienteCard } from "./FinanceiroPacienteCard";
 import { ProntuarioTabBar } from "./ProntuarioTabBar";
 import { ProntuarioTabContent } from "./ProntuarioTabContent";
 import { useProntuarioPage } from "./useProntuarioPage";
@@ -110,7 +110,7 @@ export function ProntuarioPageContent() {
             />
           )}
           {mostrarPrazoButton && (
-            <PrazoPagamentoCard
+            <FinanceiroPacienteCard
               patientId={patientId}
               open={prazoAberto}
               onClose={() => setPrazoAberto(false)}

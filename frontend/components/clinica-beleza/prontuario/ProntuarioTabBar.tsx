@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, ClipboardList, Printer } from "lucide-react";
+import { ClipboardList, Printer, Wallet } from "lucide-react";
 import { isProntuarioLocalTab } from "./prontuario-utils";
 import { PRONTUARIO_TABS, type ProntuarioTabId } from "./prontuario-types";
 
@@ -75,10 +75,10 @@ export function ProntuarioTabBar({
                 : "bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700"
             }`}
             style={prazoAberto ? { backgroundColor: "var(--cb-primary, #8B3D52)" } : undefined}
-            title="Configurar prazo de pagamento do paciente"
+            title="Financeiro da cliente: prazo e procedimentos anteriores"
           >
-            <CalendarClock size={16} />
-            <span className="hidden md:inline">Prazo de pagamento</span>
+            <Wallet size={16} />
+            <span className="hidden md:inline">Financeiro</span>
           </button>
         )}
         <button

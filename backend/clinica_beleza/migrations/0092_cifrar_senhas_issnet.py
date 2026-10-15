@@ -2,13 +2,13 @@ from django.db import migrations, models
 
 
 def cifrar_senhas_issnet(apps, schema_editor):
-    del schema_editor
     from core.encryption import cifrar_senhas_issnet_no_objeto
 
+    db = schema_editor.connection.alias
     config_model = apps.get_model("clinica_beleza", "ClinicaBelezaNFSeConfig")
-    for config in config_model.objects.all():
+    for config in config_model.objects.using(db).all():
         if cifrar_senhas_issnet_no_objeto(config):
-            config.save(update_fields=["issnet_senha", "issnet_senha_certificado"])
+            config.save(using=db, update_fields=["issnet_senha", "issnet_senha_certificado"])
 
 
 class Migration(migrations.Migration):

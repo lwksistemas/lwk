@@ -106,7 +106,7 @@ export function AssinaturasTab({
         <>
         {!soLoja && (
         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-          Histórico abre só essa loja. Em cada nota, Baixar e Reenviar. Com o histórico aberto, a aba Pagamentos mostra só os pagamentos dessa loja. PIX e Transferência confirmam o pagamento e aceitam o comprovante em PDF. PDF baixa o boleto em aberto. Reenviar manda esse boleto de novo por e-mail.
+          Histórico abre só essa loja. Em cada nota, Baixar e Reenviar. Com o histórico aberto, a aba Pagamentos mostra só os pagamentos dessa loja. PIX e Transferência confirmam o pagamento e aceitam o comprovante em PDF. PDF e Reenviar só aparecem enquanto o boleto está em aberto.
         </p>
         )}
         <AssinaturasTabela

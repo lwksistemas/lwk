@@ -266,3 +266,26 @@ class HistoricoLojaTest(TestCase):
         self.assertEqual(pdf, b"%PDF-1.4 teste")
         self.assertEqual(nome, "37302743000126-assinatura-11-2026.pdf")
         baixar.assert_called_once_with("https://banco.example/boleto.pdf")
+
+    def test_pdf_nao_baixa_boleto_ja_pago(self):
+        from superadmin.financeiro_views.boleto_pdf import pdf_boleto_em_aberto
+
+        self.financeiro.boleto_url = "https://banco.example/pago.pdf"
+        self.financeiro.cora_invoice_id = "inv_pago"
+        self.financeiro.save(update_fields=["boleto_url", "cora_invoice_id", "updated_at"])
+        PagamentoLoja.objects.create(
+            loja=self.loja,
+            financeiro=self.financeiro,
+            valor="7.00",
+            referencia_mes=date(2026, 11, 1),
+            status="pago",
+            forma_pagamento="PIX",
+            data_vencimento=date(2026, 11, 7),
+            boleto_url="https://banco.example/pago.pdf",
+            provedor_boleto="cora",
+            cora_invoice_id="inv_pago",
+        )
+        pdf, nome, erro = pdf_boleto_em_aberto(self.financeiro)
+        self.assertEqual(pdf, b"")
+        self.assertEqual(nome, "")
+        self.assertIn("aberto", erro)

@@ -98,6 +98,8 @@ def _dados_loja_financeiro(loja) -> dict:
         financeiro = loja.financeiro
     except FinanceiroLoja.DoesNotExist:
         financeiro = None
+    from superadmin.financeiro_views.assinatura_cancelamento import assinatura_esta_cancelada
+
     return {
         "loja_id": loja.id,
         "plano_id": loja.plano_id,
@@ -107,6 +109,7 @@ def _dados_loja_financeiro(loja) -> dict:
         "financeiro_id": financeiro.id if financeiro else None,
         "cpf_cnpj": loja.cpf_cnpj or "",
         "bloqueada": bool(getattr(loja, "is_blocked", False)),
+        "assinatura_cancelada": assinatura_esta_cancelada(loja, financeiro) if financeiro else False,
     }
 
 

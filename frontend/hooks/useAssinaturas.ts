@@ -58,6 +58,7 @@ export interface Assinatura {
   subscription_status?: string;
   subscription_status_display?: string;
   bloqueada?: boolean;
+  assinatura_cancelada?: boolean;
   payment_history?: HistoricoPagamento[];
 }
 

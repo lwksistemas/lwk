@@ -587,30 +587,15 @@ class AsaasSyncService:
                 .order_by("-data_vencimento", "-id")
                 .first()
             )
-            url = ""
-            if pagamento:
-                url = (pagamento.boleto_url or "").strip()
-            if not url:
-                url = (financeiro.boleto_url or "").strip()
-            identificador = ""
+            if not pagamento:
+                return None
+            url = (pagamento.boleto_url or "").strip() or (financeiro.boleto_url or "").strip()
             if provedor == "cora":
-                identificador = (
-                    (pagamento.cora_invoice_id if pagamento else "")
-                    or financeiro.cora_invoice_id
-                    or ""
-                )
+                identificador = (pagamento.cora_invoice_id or financeiro.cora_invoice_id or "")
             else:
                 identificador = (
-                    (pagamento.mercadopago_payment_id if pagamento else "")
-                    or financeiro.mercadopago_payment_id
-                    or ""
+                    pagamento.mercadopago_payment_id or financeiro.mercadopago_payment_id or ""
                 )
-            if not pagamento and not identificador.strip():
-                return None
-            if pagamento and pagamento.status == "pago":
-                return None
-            if not pagamento and not url:
-                return None
             return {
                 "url": url,
                 "vencimento": pagamento.data_vencimento if pagamento else financeiro.data_proxima_cobranca,

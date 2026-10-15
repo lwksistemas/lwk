@@ -7,11 +7,9 @@ def pdf_boleto_em_aberto(financeiro) -> tuple[bytes, str, str]:
     """Devolve o PDF, o nome do arquivo e uma mensagem de erro."""
     loja = financeiro.loja
     aberto = boleto_em_aberto(loja)
-    url = (getattr(aberto, "boleto_url", None) or "").strip()
-    if not url:
-        url = (financeiro.boleto_url or "").strip()
-    if not aberto and not url:
+    if not aberto:
         return b"", "", "Não há boleto em aberto para baixar."
+    url = (aberto.boleto_url or "").strip() or (financeiro.boleto_url or "").strip()
 
     vencimento = getattr(aberto, "data_vencimento", None) or financeiro.data_proxima_cobranca
     provedor = (

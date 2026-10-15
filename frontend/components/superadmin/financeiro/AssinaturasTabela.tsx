@@ -78,7 +78,6 @@ const COLUNAS = [
   'Dia de vencimento',
   'Conta da empresa',
   'Boleto',
-  'Nota fiscal',
   'Histórico',
 ];
 
@@ -412,37 +411,6 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
     }
   };
 
-  const baixarNota = async (assinatura: Assinatura) => {
-    if (!assinatura.financeiro_id) return;
-    const chave = `nf-${assinatura.id}`;
-    setOcupado(chave);
-    try {
-      const res = await apiClient.get(`/superadmin/financeiro/${assinatura.financeiro_id}/baixar_nota_fiscal/`);
-      const url = res.data?.pdf_url;
-      if (url) window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (error) {
-      window.alert(mensagemErro(error, 'Nota fiscal ainda não disponível.'));
-    } finally {
-      setOcupado(null);
-    }
-  };
-
-  const reenviarNota = async (assinatura: Assinatura) => {
-    if (!assinatura.financeiro_id) return;
-    const confirma = window.confirm(`Reenviar a nota fiscal de ${assinatura.loja_nome} para o e-mail do responsável?`);
-    if (!confirma) return;
-    const chave = `mail-${assinatura.id}`;
-    setOcupado(chave);
-    try {
-      const res = await apiClient.post(`/superadmin/financeiro/${assinatura.financeiro_id}/reenviar_nota_fiscal/`);
-      window.alert(res.data?.message || 'Nota fiscal reenviada.');
-    } catch (error) {
-      window.alert(mensagemErro(error, 'Não foi possível reenviar a nota fiscal.'));
-    } finally {
-      setOcupado(null);
-    }
-  };
-
   const lojaHistorico = assinaturas.find((item) => item.id === historicoAberto);
   if (lojaHistorico) {
     const chaveHistorico = String(lojaHistorico.id);
@@ -652,44 +620,28 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                     )}
                   </td>
                   <td className="px-3 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      <button
-                        type="button"
-                        disabled={semFinanceiro || ocupado === `boleto-pdf-${assinatura.id}`}
-                        onClick={() => baixarBoleto(assinatura)}
-                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        PDF
-                      </button>
-                      <button
-                        type="button"
-                        disabled={semFinanceiro || ocupado === `boleto-reenviar-${assinatura.id}`}
-                        onClick={() => acaoBoleto(assinatura)}
-                        className="px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
-                      >
-                        Reenviar
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      <button
-                        type="button"
-                        disabled={semFinanceiro || ocupado === `nf-${assinatura.id}`}
-                        onClick={() => baixarNota(assinatura)}
-                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        Baixar
-                      </button>
-                      <button
-                        type="button"
-                        disabled={semFinanceiro || ocupado === `mail-${assinatura.id}`}
-                        onClick={() => reenviarNota(assinatura)}
-                        className="px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50"
-                      >
-                        Reenviar
-                      </button>
-                    </div>
+                    {assinatura.current_payment_data?.is_paid ? (
+                      <span className="text-xs text-gray-400">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          type="button"
+                          disabled={semFinanceiro || ocupado === `boleto-pdf-${assinatura.id}`}
+                          onClick={() => baixarBoleto(assinatura)}
+                          className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          PDF
+                        </button>
+                        <button
+                          type="button"
+                          disabled={semFinanceiro || ocupado === `boleto-reenviar-${assinatura.id}`}
+                          onClick={() => acaoBoleto(assinatura)}
+                          className="px-2 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+                        >
+                          Reenviar
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-3">
                     <button

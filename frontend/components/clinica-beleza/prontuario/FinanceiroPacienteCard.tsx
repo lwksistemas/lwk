@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Wallet } from "lucide-react";
 import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import {
+  ProcedimentoCategoriaChips,
+  useProcedimentoCategoriaFiltro,
+} from "@/components/clinica-beleza/consultas/procedimentos-consulta/procedimento-categoria-filtro";
+import { procedureSelectLabel } from "@/lib/clinica-beleza-categories";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import type {
   PrazoPagamentoOpcao,
@@ -41,6 +46,21 @@ function dataBr(iso: string): string {
   return `${dia}/${mes}/${ano}`;
 }
 
+type CatalogoProcedimento = {
+  id: number;
+  nome: string;
+  categoria: string;
+  preco: string;
+};
+
+function textoBusca(valor: string): string {
+  return valor
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 function hojeIso(): string {
   const agora = new Date();
   const mes = String(agora.getMonth() + 1).padStart(2, "0");
@@ -68,6 +88,9 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
   const [politica, setPolitica] = useState<PrazoPagamentoPolitica | null>(null);
   const [opcoes, setOpcoes] = useState<PrazoPagamentoOpcao[]>([]);
   const [procedimentos, setProcedimentos] = useState<ProcedimentoAnteriorItem[]>([]);
+  const [catalogo, setCatalogo] = useState<CatalogoProcedimento[]>([]);
+  const [buscaProc, setBuscaProc] = useState("");
+  const [procedimentoId, setProcedimentoId] = useState<number | "">("");
   const [criandoPrazo, setCriandoPrazo] = useState(false);
   const [nomePrazo, setNomePrazo] = useState("");
   const [modoPrazo, setModoPrazo] = useState<"DIAS_APOS" | "DIA_FIXO" | "SEMANAL">("DIAS_APOS");
@@ -89,11 +112,26 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
       ClinicaBelezaAPI.patients.prazoPagamento.get(patientId),
       ClinicaBelezaAPI.patients.prazoPagamento.opcoes(),
       ClinicaBelezaAPI.patients.procedimentosAnteriores.list(patientId),
+      ClinicaBelezaAPI.procedures.list({ active: true, all: 1 }),
     ])
-      .then(([prazo, lista, lancamentos]) => {
+      .then(([prazo, lista, lancamentos, procs]) => {
         setPolitica(prazo);
         setOpcoes(Array.isArray(lista) ? lista : []);
         setProcedimentos(Array.isArray(lancamentos) ? lancamentos : []);
+        setCatalogo(
+          (Array.isArray(procs) ? procs : [])
+            .map((item) => {
+              const proc = item as { id?: number; nome?: string; categoria?: string; preco?: string | number };
+              return {
+                id: Number(proc.id),
+                nome: String(proc.nome || "").trim(),
+                categoria: String(proc.categoria || ""),
+                preco: String(proc.preco ?? ""),
+              };
+            })
+            .filter((item) => item.id && item.nome)
+            .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+        );
       })
       .catch((e) => {
         toast.error(formatApiErrorBody(e) || "Não foi possível carregar o financeiro da cliente.");
@@ -107,6 +145,25 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
     // carregar identidade estável o bastante para abrir o painel
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, patientId]);
+
+  const { categoriaAtiva, setCategoriaAtiva, categoriasDisponiveis, filtrados } =
+    useProcedimentoCategoriaFiltro(catalogo);
+  const procedimentosBusca = useMemo(() => {
+    const termo = textoBusca(buscaProc);
+    if (!termo) return filtrados;
+    return filtrados.filter((item) => textoBusca(item.nome).includes(termo));
+  }, [filtrados, buscaProc]);
+
+  const escolherProcedimento = (id: number | "") => {
+    setProcedimentoId(id);
+    const escolhido = catalogo.find((item) => item.id === id);
+    if (!escolhido) {
+      setNomeProc("");
+      return;
+    }
+    setNomeProc(escolhido.nome);
+    if (escolhido.preco) setValorProc(escolhido.preco.replace(".", ","));
+  };
 
   if (!open) return null;
 
@@ -187,6 +244,8 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
       setValorProc("");
       setPagoProc("");
       setDataPagamento("");
+      setBuscaProc("");
+      setProcedimentoId("");
       toast.success("Procedimento lançado.");
     } catch (e) {
       erro(e, "Não foi possível lançar o procedimento.");
@@ -355,18 +414,49 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
               2. Procedimento feito antes do sistema
             </h4>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Informe o valor do procedimento, o valor pago e a data desse pagamento.
-              Se sobrar diferença, ela vence na data do prazo configurado acima.
+              Escolha a categoria e o procedimento já cadastrado. O valor entra com o preço do cadastro e pode ser ajustado.
+              Informe o que já foi pago e a data desse pagamento. Se sobrar diferença, ela vence na data do prazo configurado acima.
               Este lançamento não entra na agenda nem na comissão.
             </p>
+            <ProcedimentoCategoriaChips
+              categoriasDisponiveis={categoriasDisponiveis}
+              categoriaAtiva={categoriaAtiva}
+              onChange={(slug) => {
+                setCategoriaAtiva(slug);
+                escolherProcedimento("");
+              }}
+            />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-medium mb-1">Data do procedimento</label>
                 <input type="date" value={dataProc} onChange={(e) => setDataProc(e.target.value)} className={fieldClass} />
               </div>
-              <div className="sm:col-span-2">
+              <div>
+                <label className="block text-xs font-medium mb-1">Buscar</label>
+                <input
+                  value={buscaProc}
+                  onChange={(e) => setBuscaProc(e.target.value)}
+                  placeholder="Nome do procedimento"
+                  className={fieldClass}
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-medium mb-1">Procedimento</label>
-                <input value={nomeProc} onChange={(e) => setNomeProc(e.target.value)} className={fieldClass} />
+                <select
+                  value={procedimentoId}
+                  onChange={(e) => escolherProcedimento(e.target.value ? Number(e.target.value) : "")}
+                  className={fieldClass}
+                >
+                  <option value="">
+                    {procedimentosBusca.length === 0 ? "Nenhum procedimento nesta busca" : "Selecione"}
+                  </option>
+                  {procedimentosBusca.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {procedureSelectLabel(item.nome, item.categoria, { includeCategorySuffix: !categoriaAtiva })}
+                      {item.preco ? ` · ${moeda(item.preco)}` : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1">Valor do procedimento</label>

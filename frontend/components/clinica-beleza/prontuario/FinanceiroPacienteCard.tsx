@@ -63,13 +63,13 @@ function hojeIso(): string {
 function regraAtual(politica: PrazoPagamentoPolitica | null): string {
   if (!politica?.tem_prazo_pagamento) return "Sem prazo. A recepção não recebe esta cliente a prazo.";
   if (politica.prazo_pagamento_modo === "DIAS_APOS" && politica.prazo_pagamento_dias) {
-    return `${politica.prazo_pagamento_dias} dias após o lançamento`;
+    return `${politica.prazo_pagamento_dias} dias após finalizar a consulta`;
   }
   if (politica.prazo_pagamento_modo === "DIA_FIXO" && politica.prazo_pagamento_dia_mes) {
     return `Dia ${politica.prazo_pagamento_dia_mes} do mês`;
   }
   if (politica.prazo_pagamento_modo === "SEMANAL") {
-    return "Semanal, 7 dias após o lançamento";
+    return "Semanal, 7 dias após finalizar a consulta";
   }
   return "Sem prazo.";
 }
@@ -359,14 +359,14 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
                     onChange={(e) => setModoPrazo(e.target.value as "DIAS_APOS" | "DIA_FIXO" | "SEMANAL")}
                     className={fieldClass}
                   >
-                    <option value="DIAS_APOS">Dias após o lançamento</option>
+                    <option value="DIAS_APOS">Dias após finalizar a consulta</option>
                     <option value="DIA_FIXO">Dia fixo do mês</option>
                     <option value="SEMANAL">Semanal</option>
                   </select>
                 </div>
                 {modoPrazo === "SEMANAL" ? (
                   <p className="text-sm text-gray-600 dark:text-gray-300 self-end pb-2">
-                    Vence 7 dias depois do lançamento.
+                    Vence 7 dias depois de finalizar a consulta.
                   </p>
                 ) : (
                 <div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Wallet } from "lucide-react";
 import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import {
@@ -53,14 +53,6 @@ type CatalogoProcedimento = {
   preco: string;
 };
 
-function textoBusca(valor: string): string {
-  return valor
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
 function hojeIso(): string {
   const agora = new Date();
   const mes = String(agora.getMonth() + 1).padStart(2, "0");
@@ -89,7 +81,6 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
   const [opcoes, setOpcoes] = useState<PrazoPagamentoOpcao[]>([]);
   const [procedimentos, setProcedimentos] = useState<ProcedimentoAnteriorItem[]>([]);
   const [catalogo, setCatalogo] = useState<CatalogoProcedimento[]>([]);
-  const [buscaProc, setBuscaProc] = useState("");
   const [procedimentoId, setProcedimentoId] = useState<number | "">("");
   const [criandoPrazo, setCriandoPrazo] = useState(false);
   const [nomePrazo, setNomePrazo] = useState("");
@@ -148,11 +139,6 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
 
   const { categoriaAtiva, setCategoriaAtiva, categoriasDisponiveis, filtrados } =
     useProcedimentoCategoriaFiltro(catalogo);
-  const procedimentosBusca = useMemo(() => {
-    const termo = textoBusca(buscaProc);
-    if (!termo) return filtrados;
-    return filtrados.filter((item) => textoBusca(item.nome).includes(termo));
-  }, [filtrados, buscaProc]);
 
   const escolherProcedimento = (id: number | "") => {
     setProcedimentoId(id);
@@ -244,7 +230,6 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
       setValorProc("");
       setPagoProc("");
       setDataPagamento("");
-      setBuscaProc("");
       setProcedimentoId("");
       toast.success("Procedimento lançado.");
     } catch (e) {
@@ -314,7 +299,20 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
       ) : (
         <>
           <section className="space-y-3">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">1. Venda a prazo</h4>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:items-end">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">1. Venda a prazo</h4>
+              {criandoPrazo ? (
+                <div>
+                  <label className="block text-xs font-medium mb-1">Nome do prazo</label>
+                  <input
+                    value={nomePrazo}
+                    onChange={(e) => setNomePrazo(e.target.value)}
+                    placeholder="ex.: Dia 10"
+                    className={fieldClass}
+                  />
+                </div>
+              ) : null}
+            </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">{regraAtual(politica)}</p>
             <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
               <select
@@ -353,16 +351,7 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
             </div>
 
             {criandoPrazo && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl rounded-lg border border-gray-200 dark:border-neutral-700 p-3">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium mb-1">Nome do prazo</label>
-                  <input
-                    value={nomePrazo}
-                    onChange={(e) => setNomePrazo(e.target.value)}
-                    placeholder="ex.: Dia 10"
-                    className={fieldClass}
-                  />
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-medium mb-1">Regra</label>
                   <select
@@ -394,7 +383,7 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
                   />
                 </div>
                 )}
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 lg:col-span-1 flex items-end">
                   <button
                     type="button"
                     disabled={ocupado}
@@ -431,16 +420,7 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
                 <label className="block text-xs font-medium mb-1">Data do procedimento</label>
                 <input type="date" value={dataProc} onChange={(e) => setDataProc(e.target.value)} className={fieldClass} />
               </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Buscar</label>
-                <input
-                  value={buscaProc}
-                  onChange={(e) => setBuscaProc(e.target.value)}
-                  placeholder="Nome do procedimento"
-                  className={fieldClass}
-                />
-              </div>
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-medium mb-1">Procedimento</label>
                 <select
                   value={procedimentoId}
@@ -448,9 +428,9 @@ export function FinanceiroPacienteCard({ patientId, open, onClose }: FinanceiroP
                   className={fieldClass}
                 >
                   <option value="">
-                    {procedimentosBusca.length === 0 ? "Nenhum procedimento nesta busca" : "Selecione"}
+                    {filtrados.length === 0 ? "Nenhum procedimento nesta categoria" : "Selecione"}
                   </option>
-                  {procedimentosBusca.map((item) => (
+                  {filtrados.map((item) => (
                     <option key={item.id} value={item.id}>
                       {procedureSelectLabel(item.nome, item.categoria, { includeCategorySuffix: !categoriaAtiva })}
                       {item.preco ? ` · ${moeda(item.preco)}` : ""}

@@ -76,10 +76,13 @@ class PatientPrazoPagamentoSerializer(serializers.ModelSerializer):
     Valida a coerência entre o modo escolhido e o campo correspondente:
     - DIAS_APOS exige prazo_pagamento_dias.
     - DIA_FIXO exige prazo_pagamento_dia_mes.
+    - SEMANAL não pede número: vence 7 dias depois.
     - '' (sem prazo) limpa os dois campos.
     """
 
     tem_prazo_pagamento = serializers.BooleanField(read_only=True)
+    prazo_opcao_id = serializers.IntegerField(allow_null=True, read_only=True)
+    prazo_opcao_nome = serializers.SerializerMethodField()
 
     class Meta:
         model = Patient
@@ -88,9 +91,17 @@ class PatientPrazoPagamentoSerializer(serializers.ModelSerializer):
             "prazo_pagamento_modo",
             "prazo_pagamento_dias",
             "prazo_pagamento_dia_mes",
+            "prazo_opcao_id",
+            "prazo_opcao_nome",
             "tem_prazo_pagamento",
         ]
-        read_only_fields = ["id", "tem_prazo_pagamento"]
+        read_only_fields = ["id", "tem_prazo_pagamento", "prazo_opcao_id", "prazo_opcao_nome"]
+
+    def get_prazo_opcao_nome(self, obj) -> str:
+        opcao = getattr(obj, "prazo_opcao", None)
+        if opcao is None:
+            return ""
+        return opcao.nome or ""
 
     def validate(self, attrs):
         modo = attrs.get("prazo_pagamento_modo", getattr(self.instance, "prazo_pagamento_modo", ""))
@@ -109,6 +120,9 @@ class PatientPrazoPagamentoSerializer(serializers.ModelSerializer):
                     {"prazo_pagamento_dia_mes": "Informe o dia fixo do mês (1 a 28)."},
                 )
             attrs["prazo_pagamento_dias"] = None
+        elif modo == Patient.PRAZO_MODO_SEMANAL:
+            attrs["prazo_pagamento_dias"] = None
+            attrs["prazo_pagamento_dia_mes"] = None
         elif modo in ("", Patient.PRAZO_MODO_SEM):
             attrs["prazo_pagamento_modo"] = Patient.PRAZO_MODO_SEM
             attrs["prazo_pagamento_dias"] = None

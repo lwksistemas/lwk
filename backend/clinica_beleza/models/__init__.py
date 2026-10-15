@@ -14,7 +14,15 @@ from .consultas import (
 from .convenios import Convenio, ConvenioProcedimentoPreco, LocalAtendimento, NomeAgenda
 from .documentos import DocumentoClinico, DocumentTemplate
 from .estoque import CategoriaEstoque, ConsultaProdutoUtilizado, MovimentacaoEstoque, ProdutoEstoque
-from .financeiro import CampanhaPromocao, CategoriaDespesa, Despesa, Payment, ReciboAssinatura
+from .financeiro import (
+    CampanhaPromocao,
+    CategoriaDespesa,
+    Despesa,
+    Payment,
+    ProcedimentoAnterior,
+    ProcedimentoAnteriorRecebimento,
+    ReciboAssinatura,
+)
 from .fornecedores import (
     Fornecedor,
     FornecedorProduto,
@@ -26,7 +34,7 @@ from .fornecedores import (
 from .fotos import PacienteFotoAcompanhamento
 from .nfse_config import ClinicaBelezaNFSeConfig
 from .orcamento import OrcamentoConsulta, OrcamentoItem
-from .patients import Patient, PatientAnamnese
+from .patients import Patient, PatientAnamnese, PrazoPagamentoClinica
 from .procedures import CategoriaProcedimento, Procedure, ProcedureProtocol
 from .professionals import HorarioTrabalhoProfissional, Professional, ProfessionalCommission
 from .protocolo import (
@@ -75,6 +83,9 @@ __all__ = [
     "Patient",
     "PatientAnamnese",
     "Payment",
+    "PrazoPagamentoClinica",
+    "ProcedimentoAnterior",
+    "ProcedimentoAnteriorRecebimento",
     "ReciboAssinatura",
     "PrescricaoMemed",
     "Procedure",

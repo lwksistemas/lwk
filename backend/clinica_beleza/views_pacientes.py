@@ -206,14 +206,37 @@ class PatientPrazoPagamentoView(GetObjectMixin, APIView):
         obj, err = self.object_or_404(pk)
         if err:
             return err
+        obj = Patient.objects.select_related("prazo_opcao").get(pk=obj.pk)
         return Response(PatientPrazoPagamentoSerializer(obj).data)
 
     def put(self, request, pk):
         obj, err = self.object_or_404(pk)
         if err:
             return err
+        if "prazo_opcao_id" in request.data:
+            from .models import PrazoPagamentoClinica
+            from .prazo_service import aplicar_prazo_escolhido
+
+            raw = request.data.get("prazo_opcao_id")
+            if raw in (None, "", 0, "0"):
+                aplicar_prazo_escolhido(obj, None)
+            else:
+                opcao = PrazoPagamentoClinica.objects.filter(pk=raw).first()
+                if opcao is None:
+                    return Response(
+                        {"prazo_opcao_id": "Prazo não encontrado."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                try:
+                    aplicar_prazo_escolhido(obj, opcao)
+                except ValueError as exc:
+                    return Response({"prazo_opcao_id": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            obj.save()
+            obj = Patient.objects.select_related("prazo_opcao").get(pk=obj.pk)
+            return Response(PatientPrazoPagamentoSerializer(obj).data)
         serializer = PatientPrazoPagamentoSerializer(obj, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            obj = Patient.objects.select_related("prazo_opcao").get(pk=obj.pk)
+            return Response(PatientPrazoPagamentoSerializer(obj).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

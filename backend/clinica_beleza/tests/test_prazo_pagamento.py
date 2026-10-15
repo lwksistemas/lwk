@@ -45,6 +45,10 @@ class CalcularVencimentoTest(SimpleTestCase):
         p = Patient(prazo_pagamento_modo="DIA_FIXO", prazo_pagamento_dia_mes=10)
         self.assertEqual(calcular_vencimento(p, date(2026, 12, 20)), date(2027, 1, 10))
 
+    def test_semanal_soma_sete_dias(self):
+        p = Patient(prazo_pagamento_modo="SEMANAL")
+        self.assertEqual(calcular_vencimento(p, date(2026, 10, 15)), date(2026, 10, 22))
+
     def test_sem_politica_bloqueia(self):
         p = Patient(prazo_pagamento_modo="")
         with self.assertRaises(PrazoNaoConfiguradoError):
@@ -62,6 +66,9 @@ class TemPrazoPagamentoTest(SimpleTestCase):
 
     def test_dia_fixo_valido(self):
         self.assertTrue(Patient(prazo_pagamento_modo="DIA_FIXO", prazo_pagamento_dia_mes=10).tem_prazo_pagamento)
+
+    def test_semanal_valido(self):
+        self.assertTrue(Patient(prazo_pagamento_modo="SEMANAL").tem_prazo_pagamento)
 
     def test_sem_modo_falso(self):
         self.assertFalse(Patient(prazo_pagamento_modo="").tem_prazo_pagamento)

@@ -193,6 +193,96 @@ def status_pagamento_exibido(payment) -> str:
     return st
 
 
+class ProcedimentoAnterior(LojaIsolationMixin, models.Model):
+    """Procedimento feito antes do sistema, com saldo ainda a receber.
+
+    Não gera agenda, consulta, estoque nem comissão. O valor já pago é a
+    entrada recebida fora do sistema; os recebimentos seguintes baixam o saldo.
+    """
+
+    patient = models.ForeignKey(
+        "Patient",
+        on_delete=models.CASCADE,
+        related_name="procedimentos_anteriores",
+        verbose_name="Paciente",
+    )
+    data_procedimento = models.DateField(verbose_name="Data do procedimento")
+    nome = models.CharField(max_length=200, verbose_name="Procedimento")
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor")
+    valor_pago = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Já pago",
+        help_text="Entrada recebida antes deste lançamento.",
+    )
+    data_pagamento = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Data do pagamento",
+        help_text="Data em que o valor já pago foi recebido.",
+    )
+    data_vencimento = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Vencimento da diferença",
+        help_text="Diferença que falta, no vencimento do prazo desta cliente.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_procedimento_anterior"
+        verbose_name = "Procedimento anterior"
+        verbose_name_plural = "Procedimentos anteriores"
+        ordering = ["-data_procedimento", "-id"]
+        indexes = [
+            models.Index(fields=["loja_id", "patient"], name="cb_proc_ant_patient_idx"),
+        ]
+
+    def __str__(self):
+        return self.nome
+
+
+class ProcedimentoAnteriorRecebimento(LojaIsolationMixin, models.Model):
+    """Baixa de saldo de um procedimento anterior ao sistema."""
+
+    FORMAS = (
+        ("CASH", "Dinheiro"),
+        ("PIX", "PIX"),
+        ("CREDIT_CARD", "Cartão de crédito"),
+        ("DEBIT_CARD", "Cartão de débito"),
+        ("TRANSFER", "Transferência"),
+    )
+
+    procedimento = models.ForeignKey(
+        ProcedimentoAnterior,
+        on_delete=models.CASCADE,
+        related_name="recebimentos",
+        verbose_name="Procedimento",
+    )
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor recebido")
+    data = models.DateField(verbose_name="Data do recebimento")
+    payment_method = models.CharField(
+        max_length=20, choices=FORMAS, verbose_name="Forma de pagamento",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_procedimento_anterior_recebimento"
+        verbose_name = "Recebimento de procedimento anterior"
+        verbose_name_plural = "Recebimentos de procedimentos anteriores"
+        ordering = ["-data", "-id"]
+
+    def __str__(self):
+        return f"R$ {self.valor}"
+
+
 class PaymentParcela(LojaIsolationMixin, models.Model):
     """Registro de cada entrada de pagamento parcial de um Payment."""
 

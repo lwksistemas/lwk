@@ -47,6 +47,13 @@ from .views_financeiro import (  # noqa: F401
 from .views_me import MeView  # noqa: F401
 
 # Pacientes
+from .views_financeiro_paciente import (  # noqa: F401
+    PrazoPagamentoClinicaDetailView,
+    PrazoPagamentoClinicaListView,
+    ProcedimentoAnteriorDetailView,
+    ProcedimentoAnteriorListView,
+    ProcedimentoAnteriorReceberView,
+)
 from .views_pacientes import (  # noqa: F401
     PatientDetailView,
     PatientListView,

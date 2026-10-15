@@ -32,11 +32,11 @@ def _valores_recebidos(procedimento) -> list:
 
 def _prazo_payload(opcao: PrazoPagamentoClinica) -> dict:
     if opcao.modo == "DIAS_APOS" and opcao.dias:
-        regra = f"{opcao.dias} dias após o lançamento"
+        regra = f"{opcao.dias} dias após finalizar a consulta"
     elif opcao.modo == "DIA_FIXO" and opcao.dia_mes:
         regra = f"Dia {opcao.dia_mes} do mês"
     elif opcao.modo == "SEMANAL":
-        regra = "Semanal, 7 dias após o lançamento"
+        regra = "Semanal, 7 dias após finalizar a consulta"
     else:
         regra = ""
     return {

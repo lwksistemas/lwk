@@ -117,7 +117,7 @@ class Patient(ClienteBase):
 class PrazoPagamentoClinica(LojaIsolationMixin, models.Model):
     """Prazo de pagamento criado pelo administrador da clínica.
 
-    A regra (dias após o lançamento ou dia fixo) é reutilizada nas clientes.
+    A regra (dias após finalizar a consulta, dia fixo ou semanal) é reutilizada nas clientes.
     Ao aplicar numa cliente, a regra é copiada para os campos do paciente,
     que continuam definindo o vencimento do recebimento a prazo.
     """
@@ -126,7 +126,7 @@ class PrazoPagamentoClinica(LojaIsolationMixin, models.Model):
     modo = models.CharField(
         max_length=20,
         choices=[
-            (Patient.PRAZO_MODO_DIAS_APOS, "Dias após o lançamento"),
+            (Patient.PRAZO_MODO_DIAS_APOS, "Dias após finalizar a consulta"),
             (Patient.PRAZO_MODO_DIA_FIXO, "Dia fixo do mês"),
             (Patient.PRAZO_MODO_SEMANAL, "Semanal"),
         ],

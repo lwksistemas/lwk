@@ -3,7 +3,7 @@
 A política é configurada pelo administrador no prontuário do paciente:
 - DIAS_APOS: vence em (data de finalização + N dias).
 - DIA_FIXO: vence no dia X do mês (neste mês, se o dia ainda não passou).
-- SEMANAL: vence 7 dias depois do lançamento.
+- SEMANAL: vence 7 dias depois de finalizar a consulta.
 
 Se o paciente não tem política válida, receber "a prazo" é bloqueado
 (ver PrazoNaoConfiguradoError), evitando conta a receber sem vencimento.
@@ -74,7 +74,7 @@ def validar_regra_prazo(modo: str, dias, dia_mes) -> tuple[str, int | None, int 
         return modo, None, dia
     if modo == Patient.PRAZO_MODO_SEMANAL:
         return modo, None, None
-    raise ValueError("Escolha dias após o lançamento, um dia fixo do mês ou semanal.")
+    raise ValueError("Escolha dias após finalizar a consulta, um dia fixo do mês ou semanal.")
 
 
 def aplicar_prazo_escolhido(patient: Patient, opcao) -> Patient:

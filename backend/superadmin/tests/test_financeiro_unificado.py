@@ -76,3 +76,14 @@ class AssinaturasUnificadasTest(TestCase):
         self.assertEqual(por_slug["felipe-uni"][0]["current_payment_data"]["provedor"], "cora")
         self.assertEqual(len(itens), 3)
         self.assertNotIn("_preferido", itens[0])
+        self.assertFalse(por_slug["felix-uni"][0]["assinatura_cancelada"])
+
+    def test_lista_marca_assinatura_cancelada(self):
+        from superadmin.financeiro_views.assinatura_cancelamento import cancelar_assinatura
+
+        loja = self._loja("Life", "life-uni", "43229198000192", "asaas", "asaas")
+        self._assinatura_asaas(loja)
+        cancelar_assinatura(loja, loja.financeiro)
+
+        item = next(row for row in _assinaturas_unificado() if row["loja_slug"] == "life-uni")
+        self.assertTrue(item["assinatura_cancelada"])

@@ -494,20 +494,28 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                       </div>
                     </button>
                     <span className={`mt-1 inline-block px-2 py-0.5 text-xs rounded-full ${
-                      assinatura.ativa
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      assinatura.assinatura_cancelada
+                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                        : assinatura.ativa
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                     }`}>
-                      {assinatura.subscription_status_display || (assinatura.ativa ? 'Ativa' : 'Inativa')}
+                      {assinatura.assinatura_cancelada
+                        ? 'Cancelado'
+                        : (assinatura.subscription_status_display || (assinatura.ativa ? 'Ativa' : 'Inativa'))}
                     </span>
                   </td>
                   <td className="px-3 py-3 text-sm text-gray-900 dark:text-gray-100">
                     <div>{assinatura.plano_nome}</div>
                     <div className="text-gray-500 dark:text-gray-400">{formatCurrency(assinatura.plano_valor)}</div>
                   </td>
-                  <td className={`px-3 py-3 text-sm whitespace-nowrap ${corVencimento(assinatura.bloqueada, vencimento)}`}>
-                    {formatDate(vencimento)}
-                    {cobrancaAberta && (
+                  <td className={`px-3 py-3 text-sm whitespace-nowrap ${
+                    assinatura.assinatura_cancelada
+                      ? 'font-semibold text-purple-600 dark:text-purple-400'
+                      : corVencimento(assinatura.bloqueada, vencimento)
+                  }`}>
+                    {assinatura.assinatura_cancelada ? 'cancelado' : formatDate(vencimento)}
+                    {cobrancaAberta && !assinatura.assinatura_cancelada && (
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         {assinatura.current_payment_data?.status_display}
                       </div>

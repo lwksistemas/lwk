@@ -60,7 +60,7 @@ class HistoricoLojaTest(TestCase):
             forma_pagamento="BOLETO",
             data_vencimento=date(2026, 9, 10),
         )
-        NFSeEmitida.objects.create(
+        nota = NFSeEmitida.objects.create(
             loja=self.loja,
             pagamento=pago,
             numero_nf="61",
@@ -74,6 +74,8 @@ class HistoricoLojaTest(TestCase):
 
         self.assertEqual(por_mes["out/2026"]["situacao_display"], "Pago do mês")
         self.assertEqual(por_mes["out/2026"]["numero_nf"], "61")
+        self.assertEqual(por_mes["out/2026"]["nfse_id"], nota.id)
+        self.assertIsNone(por_mes["set/2026"]["nfse_id"])
         self.assertEqual(por_mes["out/2026"]["pago_em"], "2026-10-08")
         self.assertEqual(por_mes["out/2026"]["provedor_display"], "Asaas")
         self.assertEqual(por_mes["set/2026"]["situacao_display"], "Vencido")

@@ -23,6 +23,7 @@ export interface Pagamento {
   is_overdue: boolean;
   is_pending: boolean;
   provedor?: 'asaas' | 'mercadopago' | 'cora';
+  loja_slug?: string;
 }
 
 export interface HistoricoPagamento {

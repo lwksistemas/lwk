@@ -234,6 +234,15 @@ def _assinaturas_unificado():
     return _uma_assinatura_por_loja(out)
 
 
+def _slugs_por_cliente_asaas():
+    from asaas_integration.models import LojaAssinatura
+
+    return {
+        assinatura.asaas_customer_id: assinatura.loja_slug
+        for assinatura in LojaAssinatura.objects.all().only("asaas_customer_id", "loja_slug")
+    }
+
+
 def _pagamentos_unificado():
     """Lista unificada de pagamentos (Asaas + Mercado Pago) no formato esperado pelo frontend."""
     from asaas_integration.models import AsaasPayment
@@ -241,11 +250,13 @@ def _pagamentos_unificado():
 
     out = []
     seen_asaas_ids = set()
+    slug_por_cliente = _slugs_por_cliente_asaas()
 
     # 1) AsaasPayment (pagamentos registrados localmente do Asaas)
     for p in AsaasPayment.objects.all().select_related("customer").order_by("-due_date"):
         d = AsaasPaymentSerializer(p).data
         d["provedor"] = "asaas"
+        d["loja_slug"] = slug_por_cliente.get(p.customer_id, "")
         out.append(d)
         if p.asaas_id:
             seen_asaas_ids.add(p.asaas_id)
@@ -276,6 +287,7 @@ def _pagamentos_unificado():
             "is_pending": pl.status == "pendente",
             "is_overdue": pl.status == "atrasado",
             "provedor": "asaas",
+            "loja_slug": pl.loja.slug,
         })
 
     # 3) Mercado Pago
@@ -308,6 +320,7 @@ def _pagamentos_unificado():
             "is_pending": not is_pago,
             "is_overdue": False,
             "provedor": "mercadopago",
+            "loja_slug": f.loja.slug,
         })
 
     for pl in PagamentoLoja.objects.filter(provedor_boleto="cora").select_related(
@@ -330,6 +343,7 @@ def _pagamentos_unificado():
             "is_pending": pl.status == "pendente",
             "is_overdue": pl.status == "atrasado",
             "provedor": "cora",
+            "loja_slug": pl.loja.slug,
         })
     return out
 

@@ -4,6 +4,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { downloadBlobFile } from '@/lib/download-blob';
+import { openPdfFromApiBlobResponse } from '@/lib/nfse-helpers';
 import { formatApiErrorBody } from '@/lib/api-errors';
 import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 import type { Assinatura, Pagamento } from '@/hooks/useAssinaturas';
@@ -36,7 +37,8 @@ interface AssinaturasTabelaProps {
   atualizandoMP: string | null;
   gerandoCobrancaMP: string | number | null;
   excluindoPagamentoMP: boolean;
-  onHistoricoAberto?: (aberto: boolean) => void;
+  onHistoricoAberto?: (loja: { slug: string; nome: string } | null) => void;
+  fecharHistorico?: number;
 }
 
 interface ItemHistorico {
@@ -48,6 +50,7 @@ interface ItemHistorico {
   situacao: string;
   situacao_display: string;
   numero_nf: string;
+  nfse_id?: number | null;
   nf_pdf_url: string;
   nf_status: string;
   comprovante_url?: string;
@@ -137,8 +140,10 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
   }, []);
 
   useEffect(() => {
-    props.onHistoricoAberto?.(historicoAberto != null);
-  }, [historicoAberto, props.onHistoricoAberto]);
+    if (!props.fecharHistorico) return;
+    setHistoricoAberto(null);
+    props.onHistoricoAberto?.(null);
+  }, [props.fecharHistorico]);
 
   useEffect(() => {
     const iniciais: Record<string, string> = {};
@@ -254,8 +259,40 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
 
   const abrirHistorico = async (assinatura: Assinatura) => {
     setHistoricoAberto(assinatura.id);
+    props.onHistoricoAberto?.({ slug: assinatura.loja_slug, nome: assinatura.loja_nome });
     if (!assinatura.financeiro_id || historicos[String(assinatura.id)]) return;
     await carregarHistorico(assinatura);
+  };
+
+  const baixarNotaDoMes = async (item: ItemHistorico) => {
+    if (!item.nfse_id) return;
+    setOcupado(`nf-hist-${item.nfse_id}`);
+    try {
+      const res = await apiClient.get(`/superadmin/nfse-emitidas/${item.nfse_id}/pdf/`, {
+        responseType: 'blob',
+      });
+      await openPdfFromApiBlobResponse(res);
+    } catch (error) {
+      window.alert(mensagemErro(error, 'Nota fiscal ainda não disponível.'));
+    } finally {
+      setOcupado(null);
+    }
+  };
+
+  const reenviarNotaDoMes = async (item: ItemHistorico, nome: string) => {
+    if (!item.nfse_id) return;
+    const rotulo = item.numero_nf ? `a NF ${item.numero_nf}` : 'a nota fiscal';
+    const confirma = window.confirm(`Reenviar ${rotulo} de ${nome} para o e-mail do responsável?`);
+    if (!confirma) return;
+    setOcupado(`mail-hist-${item.nfse_id}`);
+    try {
+      const res = await apiClient.post(`/superadmin/nfse-emitidas/${item.nfse_id}/reenviar/`);
+      window.alert(res.data?.message || 'Nota fiscal reenviada.');
+    } catch (error) {
+      window.alert(mensagemErro(error, 'Não foi possível reenviar a nota fiscal.'));
+    } finally {
+      setOcupado(null);
+    }
   };
 
   const trocarBanco = async (assinatura: Assinatura, provedor: string) => {
@@ -413,7 +450,10 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
       <div>
         <button
           type="button"
-          onClick={() => setHistoricoAberto(null)}
+          onClick={() => {
+            setHistoricoAberto(null);
+            props.onHistoricoAberto?.(null);
+          }}
           className="mb-4 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-200"
         >
           Voltar às assinaturas
@@ -432,6 +472,9 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
           alterando={ocupado === `assinatura-${lojaHistorico.id}`}
           onCancelar={() => alterarAssinatura(lojaHistorico, 'cancelar')}
           onReativar={() => alterarAssinatura(lojaHistorico, 'reativar')}
+          ocupadoNota={ocupado}
+          onBaixarNota={baixarNotaDoMes}
+          onReenviarNota={(item) => reenviarNotaDoMes(item, lojaHistorico.loja_nome)}
         />
       </div>
     );
@@ -750,6 +793,9 @@ function HistoricoLoja({
   alterando,
   onCancelar,
   onReativar,
+  ocupadoNota,
+  onBaixarNota,
+  onReenviarNota,
 }: {
   nome: string;
   plano: string;
@@ -764,6 +810,9 @@ function HistoricoLoja({
   alterando: boolean;
   onCancelar: () => void;
   onReativar: () => void;
+  ocupadoNota: string | null;
+  onBaixarNota: (item: ItemHistorico) => void;
+  onReenviarNota: (item: ItemHistorico) => void;
 }) {
   const [escolhido, setEscolhido] = useState(provedor || 'asaas');
   const temComprovante = Boolean(itens?.some((item) => item.comprovante_url));
@@ -863,18 +912,29 @@ function HistoricoLoja({
                   <td className="px-2 py-2 text-gray-900 dark:text-gray-100">{formatDate(item.pago_em)}</td>
                   <td className="px-2 py-2">
                     {item.numero_nf ? (
-                      item.nf_pdf_url ? (
-                        <a
-                          href={item.nf_pdf_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          NF {item.numero_nf}
-                        </a>
-                      ) : (
+                      <div className="flex flex-wrap items-center gap-1">
                         <span className="text-gray-900 dark:text-gray-100">NF {item.numero_nf}</span>
-                      )
+                        {item.nfse_id ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={ocupadoNota === `nf-hist-${item.nfse_id}`}
+                              onClick={() => onBaixarNota(item)}
+                              className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              Baixar
+                            </button>
+                            <button
+                              type="button"
+                              disabled={ocupadoNota === `mail-hist-${item.nfse_id}`}
+                              onClick={() => onReenviarNota(item)}
+                              className="px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                              Reenviar
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
                     ) : (
                       <span className="text-gray-400">Sem nota</span>
                     )}

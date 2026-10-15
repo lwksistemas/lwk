@@ -4,7 +4,7 @@
  */
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { useFinanceiroStats } from '@/hooks/useFinanceiroStats';
@@ -51,6 +51,18 @@ export default function FinanceiroPage() {
   const [assinaturaParaCobranca, setAssinaturaParaCobranca] = useState<Assinatura | null>(null);
   const [showModalExclusao, setShowModalExclusao] = useState(false);
   const [pagamentoParaExcluir, setPagamentoParaExcluir] = useState<Pagamento | null>(null);
+  const [lojaHistorico, setLojaHistorico] = useState<{ slug: string; nome: string } | null>(null);
+  const [fecharHistorico, setFecharHistorico] = useState(0);
+
+  const pagamentosDaTela = useMemo(() => {
+    if (!lojaHistorico) return pagamentosFiltrados;
+    return pagamentosFiltrados.filter((pagamento) => pagamento.loja_slug === lojaHistorico.slug);
+  }, [pagamentosFiltrados, lojaHistorico]);
+
+  const verTodosPagamentos = () => {
+    setLojaHistorico(null);
+    setFecharHistorico((atual) => atual + 1);
+  };
 
   const loadAll = useCallback(() => {
     reloadStats();
@@ -179,7 +191,7 @@ export default function FinanceiroPage() {
                   }`}
                 >
                   {tab === 'assinaturas' ? 'Assinaturas' : 'Pagamentos'} (
-                  {tab === 'assinaturas' ? assinaturasFiltradas.length : pagamentosFiltrados.length})
+                  {tab === 'assinaturas' ? assinaturasFiltradas.length : pagamentosDaTela.length})
                 </button>
               ))}
             </nav>
@@ -187,7 +199,7 @@ export default function FinanceiroPage() {
 
           {/* Tab Content */}
           <div className="p-6">
-            {activeTab === 'assinaturas' ? (
+            <div className={activeTab === 'assinaturas' ? '' : 'hidden'}>
               <AssinaturasTab
                 assinaturas={assinaturasFiltradas}
                 loading={loadingAssinaturas}
@@ -210,10 +222,13 @@ export default function FinanceiroPage() {
                 gerandoCobrancaMP={mercadoPagoActions.gerandoCobranca}
                 excluindoPagamentoMP={mercadoPagoActions.excluindoPagamento}
                 onAtualizar={reloadAssinaturas}
+                onLojaHistorico={setLojaHistorico}
+                fecharHistorico={fecharHistorico}
               />
-            ) : (
+            </div>
+            <div className={activeTab === 'pagamentos' ? '' : 'hidden'}>
               <PagamentosTab
-                pagamentos={pagamentosFiltrados}
+                pagamentos={pagamentosDaTela}
                 loading={loadingPagamentos}
                 filtroStatus={filtroStatus}
                 setFiltroStatus={setFiltroStatus}
@@ -224,8 +239,10 @@ export default function FinanceiroPage() {
                 }}
                 onUpdateStatusAsaas={handleUpdateStatusAsaas}
                 onExcluirAsaas={handleExcluirPagamento}
+                lojaNome={lojaHistorico?.nome}
+                onVerTodas={lojaHistorico ? verTodosPagamentos : undefined}
               />
-            )}
+            </div>
           </div>
         </div>
       </main>

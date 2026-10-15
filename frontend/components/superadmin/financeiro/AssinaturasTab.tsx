@@ -30,6 +30,8 @@ interface AssinaturasTabProps {
   gerandoCobrancaMP: string | number | null;
   excluindoPagamentoMP: boolean;
   onAtualizar: () => void;
+  onLojaHistorico?: (loja: { slug: string; nome: string } | null) => void;
+  fecharHistorico?: number;
 }
 
 const FILTRO_OPTIONS = [
@@ -61,6 +63,8 @@ export function AssinaturasTab({
   gerandoCobrancaMP,
   excluindoPagamentoMP,
   onAtualizar,
+  onLojaHistorico,
+  fecharHistorico,
 }: AssinaturasTabProps) {
   const [soLoja, setSoLoja] = useState(false);
 
@@ -102,7 +106,7 @@ export function AssinaturasTab({
         <>
         {!soLoja && (
         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-          Histórico, no fim da linha, abre só essa loja com os pagamentos e as notas, mês pago ou vencido. PIX e Transferência confirmam o pagamento e aceitam o comprovante em PDF. PDF baixa o boleto em aberto. Reenviar manda esse boleto de novo por e-mail.
+          Histórico abre só essa loja. Em cada nota, Baixar e Reenviar. Com o histórico aberto, a aba Pagamentos mostra só os pagamentos dessa loja. PIX e Transferência confirmam o pagamento e aceitam o comprovante em PDF. PDF baixa o boleto em aberto. Reenviar manda esse boleto de novo por e-mail.
         </p>
         )}
         <AssinaturasTabela
@@ -124,7 +128,11 @@ export function AssinaturasTab({
           atualizandoMP={atualizandoMP}
           gerandoCobrancaMP={gerandoCobrancaMP}
           excluindoPagamentoMP={excluindoPagamentoMP}
-          onHistoricoAberto={setSoLoja}
+          fecharHistorico={fecharHistorico}
+          onHistoricoAberto={(loja) => {
+            setSoLoja(loja != null);
+            onLojaHistorico?.(loja);
+          }}
         />
         </>
       )}

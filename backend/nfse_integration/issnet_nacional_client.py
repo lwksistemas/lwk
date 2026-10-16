@@ -58,6 +58,11 @@ def _nome_operacao_de_soap_action(soap_action: str) -> str:
     return action.rsplit("/", 1)[-1] if "/" in action else action
 
 
+def _portal_recusou_acesso(resposta: str) -> bool:
+    texto = resposta or ""
+    return "403" in texto and ("Proibido" in texto or "acesso negado" in texto.lower())
+
+
 class ISSNetNacionalClient:
     """Cliente para emissão NFS-e via ISSNet padrão Nacional (DPS).
 
@@ -93,6 +98,34 @@ class ISSNetNacionalClient:
         self.codigo_municipio = codigo_municipio
         self.optante_simples = optante_simples_nacional
         self.url = ISSNET_NACIONAL_URLS.get(self.ambiente, ISSNET_NACIONAL_URLS["producao"])
+
+    def _mensagem_certificado_vencido(self) -> str | None:
+        """Avisa com a data de vencimento quando o A1 já não vale."""
+        from django.utils import timezone
+
+        from nfse_integration.nacional.xml_signer import (
+            carregar_certificado_bytes,
+            carregar_certificado_pfx,
+        )
+
+        try:
+            if self.cert_bytes:
+                _, cert, _ = carregar_certificado_bytes(bytes(self.cert_bytes), self.cert_password)
+            elif self.cert_path and os.path.isfile(self.cert_path):
+                _, cert, _ = carregar_certificado_pfx(self.cert_path, self.cert_password)
+            else:
+                return None
+        except Exception:
+            logger.debug("Não foi possível ler a validade do certificado A1", exc_info=True)
+            return None
+        limite = cert.not_valid_after_utc
+        if limite > timezone.now():
+            return None
+        local = timezone.localtime(limite)
+        return (
+            f"O certificado digital A1 venceu em {local.strftime('%d/%m/%Y às %H:%M')}. "
+            "Renove o certificado na configuração de NFS-e antes de emitir."
+        )
 
     def _pfx_temp(self) -> str:
         """Garante path .pfx (grava bytes em temp se necessário). Caller remove se criou temp."""
@@ -723,6 +756,12 @@ class ISSNetNacionalClient:
         }
 
         try:
+            aviso_certificado = self._mensagem_certificado_vencido()
+            if aviso_certificado:
+                result["erro"] = aviso_certificado
+                logger.warning("ISSNet Nacional: %s", aviso_certificado)
+                return result
+
             ambiente_int = 1 if self.ambiente == "producao" else 2
 
             # O padrão nacional DPS não possui operação "GerarNfse" (isso é
@@ -818,7 +857,15 @@ class ISSNetNacionalClient:
                     numero_nfse, chave_acesso,
                 )
             else:
-                if "Fault" in (resposta_soap or ""):
+                aviso_certificado = self._mensagem_certificado_vencido()
+                if aviso_certificado:
+                    result["erro"] = aviso_certificado
+                elif _portal_recusou_acesso(resposta_soap or ""):
+                    result["erro"] = (
+                        "O ISSNet recusou o acesso. Verifique o certificado digital A1 "
+                        "na configuração de NFS-e."
+                    )
+                elif "Fault" in (resposta_soap or ""):
                     preview = " ".join((resposta_soap or "").split())
                     result["erro"] = f"SOAP Fault do ISSNet Nacional: {preview[:500]}"
                 else:

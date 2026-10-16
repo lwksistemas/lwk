@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { FileText, Plus, X, AlertCircle, Store } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Plus, X, AlertCircle, Store } from 'lucide-react'
 import apiClient from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { consultaCnpj, formatCpfCnpj, resolverCepDadosCnpj } from '@/lib/consulta-cnpj'
 
 interface ModalEmitirNFSeManualProps {
   onClose: () => void
@@ -67,6 +68,9 @@ export function ModalEmitirNFSeManual({ onClose, onSuccess }: ModalEmitirNFSeMan
   const [loadingLojas, setLoadingLojas] = useState(false)
   const [formData, setFormData] = useState<NFSeManualForm>(INITIAL_FORM)
   const [selectedLojaId, setSelectedLojaId] = useState('')
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
+  const [avisoCnpj, setAvisoCnpj] = useState('')
+  const consultaSeq = useRef(0)
 
   useEffect(() => {
     if (step === 'loja') {
@@ -102,6 +106,54 @@ export function ModalEmitirNFSeManual({ onClose, onSuccess }: ModalEmitirNFSeMan
 
   const handleFieldChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const consultarCnpjTomador = async (digits: string) => {
+    const seq = ++consultaSeq.current
+    setBuscandoCnpj(true)
+    setAvisoCnpj('')
+    try {
+      const dados = await consultaCnpj(digits)
+      if (seq !== consultaSeq.current) return
+      if (!dados?.razao_social) {
+        setAvisoCnpj('CNPJ não encontrado. Preencha os dados manualmente.')
+        return
+      }
+      const cep = await resolverCepDadosCnpj(dados)
+      if (seq !== consultaSeq.current) return
+      setFormData((prev) => ({
+        ...prev,
+        tomador_nome: dados.razao_social,
+        tomador_email: dados.email || prev.tomador_email,
+        tomador_logradouro: dados.logradouro || prev.tomador_logradouro,
+        tomador_numero: dados.numero || prev.tomador_numero,
+        tomador_complemento: dados.complemento || prev.tomador_complemento,
+        tomador_bairro: dados.bairro || prev.tomador_bairro,
+        tomador_cidade: dados.municipio || prev.tomador_cidade,
+        tomador_uf: (dados.uf || prev.tomador_uf).toUpperCase(),
+        tomador_cep: cep || dados.cep || prev.tomador_cep,
+      }))
+    } catch (err) {
+      logger.warn('Erro ao consultar CNPJ da NFS-e manual:', err)
+      if (seq === consultaSeq.current) {
+        setAvisoCnpj('Não foi possível consultar o CNPJ. Preencha os dados manualmente.')
+      }
+    } finally {
+      if (seq === consultaSeq.current) setBuscandoCnpj(false)
+    }
+  }
+
+  const handleDocumentoChange = (valor: string) => {
+    const formatado = formatCpfCnpj(valor)
+    const digits = formatado.replace(/\D/g, '')
+    handleFieldChange('tomador_cpf_cnpj', formatado)
+    if (digits.length !== 14) {
+      consultaSeq.current += 1
+      setBuscandoCnpj(false)
+      setAvisoCnpj('')
+      return
+    }
+    void consultarCnpjTomador(digits)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -281,11 +333,17 @@ export function ModalEmitirNFSeManual({ onClose, onSuccess }: ModalEmitirNFSeMan
                     <input
                       type="text"
                       value={formData.tomador_cpf_cnpj}
-                      onChange={(e) => handleFieldChange('tomador_cpf_cnpj', e.target.value)}
+                      onChange={(e) => handleDocumentoChange(e.target.value)}
                       required
                       className={inputClass}
-                      placeholder="000.000.000-00"
+                      placeholder="000.000.000-00 ou 00.000.000/0001-00"
+                      maxLength={18}
                     />
+                    {buscandoCnpj ? (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Consultando CNPJ…</p>
+                    ) : avisoCnpj ? (
+                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{avisoCnpj}</p>
+                    ) : null}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome/Razão Social *</label>

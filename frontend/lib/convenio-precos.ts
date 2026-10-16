@@ -21,6 +21,11 @@ export function isConvenioParticularNome(nome: string | undefined | null): boole
   return (nome || '').trim().toLowerCase() === 'particular';
 }
 
+/** A agenda e o cadastro só oferecem convênio aceito. Excluído some da lista. */
+export function conveniosAtivos<T extends { is_active?: boolean }>(convenios: T[]): T[] {
+  return convenios.filter((c) => c.is_active !== false);
+}
+
 export function findConvenioParticular<T extends { id: number; nome: string }>(
   convenios: T[],
 ): T | undefined {

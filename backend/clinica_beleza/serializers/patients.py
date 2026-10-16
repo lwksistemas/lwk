@@ -32,7 +32,21 @@ class PatientSerializer(
     convenio_name = serializers.SerializerMethodField()
 
     def apply_tenant_querysets(self):
-        self.bind_tenant_queryset("convenio", Convenio.objects.filter(is_active=True))
+        # Inclui inativos só para reconhecer o vínculo antigo. A validação descarta.
+        self.bind_tenant_queryset("convenio", Convenio.objects.all())
+
+    def validate_convenio(self, value):
+        if value is not None and not value.is_active:
+            return None
+        return value
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        convenio = getattr(instance, "convenio", None)
+        if convenio is not None and not convenio.is_active:
+            data["convenio"] = None
+            data["convenio_name"] = "Particular"
+        return data
 
     phone_fields = ["phone", "telefone"]
     uppercase_fields = ["name", "nome", "cidade", "estado", "address", "endereco"]
@@ -65,8 +79,9 @@ class PatientSerializer(
         }
 
     def get_convenio_name(self, obj):
-        if obj.convenio_id and obj.convenio:
-            return obj.convenio.nome
+        convenio = obj.convenio if obj.convenio_id else None
+        if convenio is not None and convenio.is_active:
+            return convenio.nome
         return "Particular"
 
 

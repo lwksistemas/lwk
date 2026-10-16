@@ -138,3 +138,41 @@ class AplicarConvenioObrigatorioTest(SimpleTestCase):
         self.assertFalse(aplicar_convenio_obrigatorio(atendimento))
         self.assertEqual(atendimento.convenio_id, 4)
         mock_particular.assert_not_called()
+
+
+class ConvenioInativoPacienteTests(ClinicaBelezaIntegrationTestCase):
+    def test_editar_paciente_descarta_convenio_excluido(self):
+        from clinica_beleza.serializers import PatientSerializer
+
+        excluido = Convenio.objects.create(nome="FAMÍLIA", is_active=False, loja_id=self.loja.id)
+        patient = Patient.objects.create(
+            nome="Daniele",
+            convenio=excluido,
+            loja_id=self.loja.id,
+        )
+        leitura = PatientSerializer(patient).data
+        self.assertIsNone(leitura["convenio"])
+        self.assertEqual(leitura["convenio_name"], "Particular")
+
+        serializer = PatientSerializer(
+            patient,
+            data={"nome": "DANIELE", "convenio": excluido.id},
+            partial=True,
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        salvo = serializer.save()
+        self.assertIsNone(salvo.convenio_id)
+
+    def test_excluir_convenio_solta_o_paciente(self):
+        ativo = Convenio.objects.create(nome="DONATIVO", loja_id=self.loja.id)
+        patient = Patient.objects.create(nome="Eliana", convenio=ativo, loja_id=self.loja.id)
+        client = self.api_client_as_owner()
+        response = client.delete(
+            f"/api/clinica-beleza/convenios/{ativo.id}/",
+            **self.tenant_headers(),
+        )
+        self.assertEqual(response.status_code, 204)
+        patient.refresh_from_db()
+        ativo.refresh_from_db()
+        self.assertFalse(ativo.is_active)
+        self.assertIsNone(patient.convenio_id)

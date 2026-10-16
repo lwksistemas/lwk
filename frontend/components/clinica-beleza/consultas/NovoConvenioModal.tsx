@@ -6,6 +6,7 @@ import { ClinicaBelezaPortraitModal } from "@/components/clinica-beleza/ClinicaB
 import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
 import {
   CONVENIO_PARTICULAR_LABEL,
+  conveniosAtivos,
   findConvenioParticular,
   isConvenioParticularNome,
   ordenarConveniosComParticularPrimeiro,
@@ -36,7 +37,7 @@ export function NovoConvenioModal({ open, onClose, onSuccess }: NovoConvenioModa
     setLoading(true);
     try {
       const data = await ClinicaBelezaAPI.convenios.list({ all: 1 });
-      setConvenios(Array.isArray(data) ? data : []);
+      setConvenios(conveniosAtivos(Array.isArray(data) ? data : []));
     } catch {
       setErro("Erro ao carregar convênios.");
     } finally {

@@ -7,7 +7,7 @@ import { applyTelefoneInternacionalPayload, formatCep, toUpperCase } from "@/lib
 import { consultaCep } from "@/lib/consulta-cep";
 import { salvarPacientesOffline } from "@/lib/offline-db";
 import { ClinicaBelezaAPI, type ConvenioItem } from "@/lib/clinica-beleza-api";
-import { findConvenioParticular } from "@/lib/convenio-precos";
+import { conveniosAtivos, findConvenioParticular } from "@/lib/convenio-precos";
 import { useOfflineSave } from "@/hooks/clinica-beleza/useOfflineSave";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -101,20 +101,21 @@ export function usePacienteForm({
     if (!isFormView) return;
     ClinicaBelezaAPI.convenios
       .list({ all: 1 })
-      .then((rows) => setConvenios(Array.isArray(rows) ? rows : []))
+      .then((rows) => setConvenios(conveniosAtivos(Array.isArray(rows) ? rows : [])))
       .catch(() => setConvenios([]));
   }, [isFormView]);
 
   useEffect(() => {
     if (!isFormView) return;
+    if (convenios.length === 0) return;
     const particular = findConvenioParticular(convenios);
-    if (!particular) return;
     setForm((f) => {
-      if (isNovo) return { ...f, convenio: particular.id };
-      if (f.convenio === "") return { ...f, convenio: particular.id };
-      return f;
+      const atual = f.convenio === "" || f.convenio == null ? null : Number(f.convenio);
+      if (atual && convenios.some((c) => c.id === atual)) return f;
+      if (particular) return { ...f, convenio: particular.id };
+      return { ...f, convenio: "" };
     });
-  }, [isFormView, isNovo, convenios]);
+  }, [isFormView, convenios]);
 
   const handleCepChange = (value: string) =>
     setForm((f) => ({ ...f, cep: formatCep(value) }));

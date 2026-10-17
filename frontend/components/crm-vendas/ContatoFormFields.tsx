@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import BuscarContaInput from '@/components/crm-vendas/BuscarContaInput';
+import apiClient from '@/lib/api-client';
 import { formatTelefone, toUpperCase } from '@/lib/format-br';
-import type { CrmContatoFormData } from '@/lib/crm-contato-form-types';
+import { aplicarDadosEmpresaNoContato, type CrmContatoFormData } from '@/lib/crm-contato-form-types';
 
 const inputClassModal =
   'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#0176d3] focus:border-transparent';
@@ -38,6 +40,34 @@ export function ContatoFormFields({
     onChange({ ...formData, [field]: toUpperCase(value) });
   const setPhone = (field: keyof CrmContatoFormData, value: string) =>
     onChange({ ...formData, [field]: formatTelefone(value) });
+  const [copiandoEmpresa, setCopiandoEmpresa] = useState(false);
+  const [avisoEmpresa, setAvisoEmpresa] = useState<string | null>(null);
+
+  const usarDadosDaEmpresa = async () => {
+    if (!formData.conta || disabled) return;
+    setCopiandoEmpresa(true);
+    setAvisoEmpresa(null);
+    try {
+      const res = await apiClient.get<{ telefone?: string | null; email?: string | null }>(
+        `/crm-vendas/contas/${formData.conta}/`,
+      );
+      const telefone = formatTelefone(res.data.telefone || '');
+      const proximo = aplicarDadosEmpresaNoContato(formData, {
+        telefone,
+        email: res.data.email,
+      });
+      if (!proximo) {
+        setAvisoEmpresa('Esta empresa não tem telefone nem e-mail.');
+        return;
+      }
+      onChange(proximo);
+      setAvisoEmpresa('Telefone e e-mail copiados da empresa.');
+    } catch {
+      setAvisoEmpresa('Não foi possível ler o cadastro da empresa.');
+    } finally {
+      setCopiandoEmpresa(false);
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -61,11 +91,29 @@ export function ContatoFormFields({
         <BuscarContaInput
           contaId={formData.conta}
           initialNome={contaNomeInicial}
-          onContaChange={(id) => set('conta', id)}
+          onContaChange={(id) => {
+            setAvisoEmpresa(null);
+            set('conta', id);
+          }}
           required
           disabled={disabled}
           inputClassName={inputCls}
         />
+        {formData.conta ? (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => void usarDadosDaEmpresa()}
+              disabled={disabled || copiandoEmpresa}
+              className="text-sm font-medium text-[#0176d3] hover:underline disabled:opacity-50"
+            >
+              {copiandoEmpresa ? 'Copiando...' : 'Usar telefone e e-mail da empresa'}
+            </button>
+            {avisoEmpresa ? (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{avisoEmpresa}</p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       <div>
         <label className={labelCls}>Cargo</label>

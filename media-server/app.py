@@ -31,8 +31,8 @@ from flask import Flask, jsonify, request
 app = Flask(__name__)
 STORAGE_ROOT = Path(os.environ.get("MEDIA_STORAGE_ROOT", "/storage"))
 API_TOKEN = os.environ.get("MEDIA_API_TOKEN", "")
-# 0 = links antigos sem ?e=&s= continuam válidos (WhatsApp/backup). 1 = exige assinatura.
-REQUIRE_SIGNED = os.environ.get("MEDIA_REQUIRE_SIGNED", "0").lower() in ("1", "true", "yes")
+# 1 = GET /files/ só abre com ?e=&s= válido. 0 libera endereço sem assinatura.
+REQUIRE_SIGNED = os.environ.get("MEDIA_REQUIRE_SIGNED", "1").lower() in ("1", "true", "yes")
 SYSTEM_TENANTS = frozenset({"superadmin", "suporte"})
 TENANT_RE = re.compile(
     r"^(?:\d{11}|\d{14}|superadmin|suporte|\d{11,14}_[a-z0-9][a-z0-9_-]{0,80})$"
@@ -459,7 +459,7 @@ def list_files(tenant, folder):
 def auth_file():
     """Usado pelo nginx auth_request em GET /files/.
 
-    Sem assinatura: 200 se MEDIA_REQUIRE_SIGNED=0 (links antigos), 401 se =1.
+    Sem assinatura: 401. MEDIA_REQUIRE_SIGNED=0 ainda libera o endereço antigo.
     Com ?e=&s=: 200 só se HMAC e prazo forem válidos.
     """
     uri = request.headers.get("X-Original-URI") or ""

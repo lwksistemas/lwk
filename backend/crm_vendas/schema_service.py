@@ -504,6 +504,14 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
             "ALTER TABLE crm_vendas_config "
             "ADD COLUMN IF NOT EXISTS codigo_tributacao_municipal varchar(10) NOT NULL DEFAULT '';",
         )
+        cursor.execute(
+            "ALTER TABLE crm_vendas_config "
+            "ADD COLUMN IF NOT EXISTS colunas_propostas jsonb NOT NULL DEFAULT '[]'::jsonb;",
+        )
+        cursor.execute(
+            "ALTER TABLE crm_vendas_config "
+            "ADD COLUMN IF NOT EXISTS colunas_contratos jsonb NOT NULL DEFAULT '[]'::jsonb;",
+        )
         # Registrar migrations como aplicadas
         for mig_name in [
             "0045_add_asaas_loja_nf_fields",
@@ -515,6 +523,7 @@ def patch_crm_vendas_asaas_columns_if_missing(db_name: str) -> None:
             "0072_crmconfig_nacional_codigo_municipio",
             "0074_crmconfig_ibscbs_fields",
             "0075_crmconfig_codigo_tributacao_municipal",
+            "0079_crmconfig_colunas_propostas_contratos",
         ]:
             cursor.execute(
                 "INSERT INTO django_migrations (app, name, applied) "

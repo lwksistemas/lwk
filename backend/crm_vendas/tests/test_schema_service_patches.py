@@ -71,6 +71,8 @@ class PatchCrmVendasAsaasColumnsTest(SimpleTestCase):
 
         sql_calls = [call.args[0] for call in cursor.execute.call_args_list]
         self.assertFalse(any("DROP COLUMN" in sql and "issnet_certificado" in sql for sql in sql_calls))
+        self.assertTrue(any("colunas_propostas" in sql for sql in sql_calls))
+        self.assertTrue(any("colunas_contratos" in sql for sql in sql_calls))
 
 
 class PatchClinicaBelezaMigrationOrphansTest(SimpleTestCase):

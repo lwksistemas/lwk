@@ -19,6 +19,11 @@ COLUMNS = (
     ("colunas_contas", "JSONB NOT NULL DEFAULT '[]'::jsonb"),
     ("colunas_contatos", "JSONB NOT NULL DEFAULT '[]'::jsonb"),
 )
+# Estas não disparam o migrate até 0062: só completam a tabela que já existe.
+COLUNAS_LISTAGEM = (
+    ("colunas_propostas", "JSONB NOT NULL DEFAULT '[]'::jsonb"),
+    ("colunas_contratos", "JSONB NOT NULL DEFAULT '[]'::jsonb"),
+)
 MIGRATION = "0062_crmconfig_colunas_contas_contatos"
 
 
@@ -56,6 +61,10 @@ class Command(BaseCommand):
                             cursor.execute(f"ALTER TABLE {TABLE} ADD COLUMN {col} {ddl}")
                             self.stdout.write(f"{loja.slug}: coluna {col} adicionada")
                             changed = True
+                    for col, ddl in COLUNAS_LISTAGEM:
+                        if not column_exists(cursor, TABLE, col):
+                            cursor.execute(f"ALTER TABLE {TABLE} ADD COLUMN {col} {ddl}")
+                            self.stdout.write(f"{loja.slug}: coluna {col} adicionada")
                 if changed:
                     with contextlib.suppress(Exception):
                         call_command(

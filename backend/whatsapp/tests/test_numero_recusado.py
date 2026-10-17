@@ -3,7 +3,11 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
-from whatsapp.numero_recusado import pular_numero_recusado, texto_diz_sem_whatsapp
+from whatsapp.numero_recusado import (
+    ids_de_recusa_a_preservar,
+    pular_numero_recusado,
+    texto_diz_sem_whatsapp,
+)
 
 
 class TextoSemWhatsappTest(SimpleTestCase):
@@ -14,6 +18,18 @@ class TextoSemWhatsappTest(SimpleTestCase):
 
     def test_outro_erro_nao_bloqueia(self):
         self.assertFalse(texto_diz_sem_whatsapp({"error": "evolution_not_connected"}))
+
+
+class PreservarRecusaTest(SimpleTestCase):
+    def test_guarda_so_a_ultima_recusa_de_cada_telefone(self):
+        recusa = {"error": "Número não encontrado no WhatsApp (5516999999999)."}
+        linhas = [
+            (3, "16999999999", "falhou", recusa),
+            (2, "(16) 99999-9999", "enviado", {}),
+            (1, "16988887777", "enviado", {}),
+            (4, "16988887777", "falhou", recusa),
+        ]
+        self.assertEqual(ids_de_recusa_a_preservar(linhas), {3})
 
 
 class PularNumeroRecusadoTest(SimpleTestCase):

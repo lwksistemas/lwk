@@ -9,6 +9,7 @@ interface CrmDocumentoDetalhesModalProps {
   titulo: string;
   oportunidadeTitulo: string;
   leadNome: string;
+  prestadorNome?: string | null;
   statusExibicao: string;
   valorTotal?: string | null;
   descontoTipo?: 'percentual' | 'valor' | string;
@@ -28,6 +29,7 @@ export default function CrmDocumentoDetalhesModal({
   titulo,
   oportunidadeTitulo,
   leadNome,
+  prestadorNome,
   statusExibicao,
   valorTotal,
   descontoTipo,
@@ -62,9 +64,16 @@ export default function CrmDocumentoDetalhesModal({
               <p>
                 <span className="font-medium">Oportunidade:</span> {oportunidadeTitulo}
               </p>
-              <p>
-                <span className="font-medium">Lead:</span> {leadNome}
-              </p>
+              {prestadorNome ? (
+                <p>
+                  <span className="font-medium">Prestador:</span> {prestadorNome}
+                </p>
+              ) : null}
+              {leadNome && leadNome !== titulo ? (
+                <p>
+                  <span className="font-medium">Lead:</span> {leadNome}
+                </p>
+              ) : null}
               <p>
                 <span className="font-medium">Status:</span> {statusExibicao}
               </p>

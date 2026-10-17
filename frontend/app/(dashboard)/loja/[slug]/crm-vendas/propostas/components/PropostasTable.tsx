@@ -13,6 +13,9 @@ import CrmDocumentoMaisAcoesMenu from '@/components/crm-vendas/documentos/CrmDoc
 import CrmDocumentoArquivoAcoes from '@/components/crm-vendas/documentos/CrmDocumentoArquivoAcoes';
 import {
   propostaOcultaColunaAssinatura,
+  rotuloOportunidadePropostaLista,
+  rotuloPrestadorPropostaLista,
+  rotuloTituloPropostaLista,
 } from '@/lib/crm-propostas-helpers';
 import type { CrmProposta, CrmPropostaModalType } from '@/hooks/crm-vendas/useCrmPropostasPage';
 
@@ -70,6 +73,9 @@ export function PropostasTable({
               Oportunidade
             </th>
             <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
+              Prestador
+            </th>
+            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
               Status
             </th>
             {exibirColunaAssinatura && (
@@ -107,8 +113,15 @@ export function PropostasTable({
                 <td className="py-3 px-4 font-mono text-sm text-gray-600 dark:text-gray-400">
                   #{p.numero || '---'}
                 </td>
-                <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{p.titulo}</td>
-                <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{p.oportunidade_titulo}</td>
+                <td className="py-3 px-4 font-medium text-gray-900 dark:text-white max-w-[220px] truncate" title={rotuloTituloPropostaLista(p)}>
+                  {rotuloTituloPropostaLista(p)}
+                </td>
+                <td className="py-3 px-4 text-gray-700 dark:text-gray-300 max-w-[220px] truncate" title={rotuloOportunidadePropostaLista(p)}>
+                  {rotuloOportunidadePropostaLista(p)}
+                </td>
+                <td className="py-3 px-4 text-gray-700 dark:text-gray-300 max-w-[220px] truncate" title={rotuloPrestadorPropostaLista(p)}>
+                  {rotuloPrestadorPropostaLista(p)}
+                </td>
                 <td className="py-3 px-4">
                   <CrmDocumentoStatusBadge
                     statusAssinatura={p.status_assinatura}

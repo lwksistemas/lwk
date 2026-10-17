@@ -66,6 +66,7 @@ class PropostaSerializer(serializers.ModelSerializer):
     lead_email = serializers.CharField(source="oportunidade.lead.email", read_only=True)
     lead_telefone = serializers.CharField(source="oportunidade.lead.telefone", read_only=True)
     conta_nome = serializers.SerializerMethodField()
+    prestador_nome = serializers.SerializerMethodField()
     vendedor_nome = serializers.CharField(source="oportunidade.vendedor.nome", read_only=True)
     vendedor_email = serializers.CharField(source="oportunidade.vendedor.email", read_only=True)
     vendedor_telefone = serializers.CharField(source="oportunidade.vendedor.telefone", read_only=True)
@@ -75,7 +76,7 @@ class PropostaSerializer(serializers.ModelSerializer):
         model = Proposta
         fields = [
             "id", "oportunidade", "oportunidade_titulo", "lead_nome", "lead_email", "lead_telefone",
-            "conta_nome",
+            "conta_nome", "prestador_nome",
             "vendedor_nome", "vendedor_email", "vendedor_telefone", "canal_assinatura_vendedor",
             "numero", "titulo", "conteudo", "valor_total",
             "desconto_tipo", "desconto_valor", "valor_com_desconto",
@@ -89,6 +90,14 @@ class PropostaSerializer(serializers.ModelSerializer):
 
     def get_conta_nome(self, obj):
         return _conta_nome_do_documento(obj)
+
+    def get_prestador_nome(self, obj):
+        oportunidade = getattr(obj, "oportunidade", None)
+        if not oportunidade or not getattr(oportunidade, "empresa_prestadora_id", None):
+            return None
+        with contextlib.suppress(Exception):
+            return oportunidade.empresa_prestadora.nome
+        return None
 
     def validate(self, attrs):
         return limpar_emitente_se_vazio(attrs)

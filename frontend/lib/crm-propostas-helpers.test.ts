@@ -1,5 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { propostaConfirmCopy, propostaOcultaColunaAssinatura } from './crm-propostas-helpers';
+import {
+  propostaConfirmCopy,
+  propostaOcultaColunaAssinatura,
+  rotuloOportunidadePropostaLista,
+  rotuloPrestadorPropostaLista,
+  rotuloTituloPropostaLista,
+} from './crm-propostas-helpers';
+
+describe('rótulos da lista de propostas', () => {
+  it('título é o contato e oportunidade é a empresa no CNPJ', () => {
+    const linha = {
+      lead_nome: 'ANA CLAUDIA',
+      titulo: 'MARCHESINI SERVICOS MEDICOS LTDA',
+      conta_nome: 'MARCHESINI SERVICOS MEDICOS LTDA',
+      prestador_nome: 'ULTRASIS INFORMATICA LTDA',
+    };
+    expect(rotuloTituloPropostaLista(linha)).toBe('ANA CLAUDIA');
+    expect(rotuloOportunidadePropostaLista(linha)).toBe('MARCHESINI SERVICOS MEDICOS LTDA');
+    expect(rotuloPrestadorPropostaLista(linha)).toBe('ULTRASIS INFORMATICA LTDA');
+  });
+
+  it('CPF mostra pessoa física na oportunidade', () => {
+    expect(rotuloOportunidadePropostaLista({ conta_nome: 'PESSOA FISICA' })).toBe('PESSOA FISICA');
+    expect(rotuloTituloPropostaLista({ lead_nome: 'ALLAN FERNANDES COSTA', titulo: 'ALLAN FERNANDES COSTA' })).toBe(
+      'ALLAN FERNANDES COSTA',
+    );
+  });
+});
 
 describe('crm-propostas-helpers', () => {
   it('propostaOcultaColunaAssinatura em cancelada, pedido ou assinatura concluída', () => {

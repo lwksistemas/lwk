@@ -10,6 +10,28 @@ import re
 from django.utils import timezone
 
 
+def ids_de_recusa_a_preservar(linhas) -> set:
+    """Ids da última tentativa de cada telefone, quando ela foi 'sem WhatsApp'.
+
+    A limpeza apaga o texto antigo, mas esta linha fica: sem ela o lembrete
+    tentaria o mesmo número de novo no mês seguinte.
+    ``linhas`` vem da mais nova para a mais antiga: (id, telefone, status, response).
+    """
+    vistos = set()
+    manter = set()
+    for log_id, telefone, status, response in linhas:
+        digits = re.sub(r"\D", "", telefone or "")
+        if len(digits) < 8:
+            continue
+        chave = digits[-8:]
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+        if status == "falhou" and texto_diz_sem_whatsapp(response):
+            manter.add(log_id)
+    return manter
+
+
 def texto_diz_sem_whatsapp(response) -> bool:
     if isinstance(response, dict):
         bruto = response.get("error") or response.get("message") or ""

@@ -39,8 +39,8 @@ MEDIA_API_TOKEN = os.environ.get(
     "MEDIA_API_TOKEN",
     os.environ.get("SECRET_KEY", ""),
 )
-# TTL padrão das URLs assinadas (7 dias). Links antigos sem ?e=&s= continuam
-# válidos enquanto MEDIA_REQUIRE_SIGNED=0 no servidor de mídia.
+# TTL quando o chamador não pede um prazo (backup e listagem interna).
+# A tela da clínica recebe 2 horas, no middleware de exibição.
 MEDIA_SIGNED_URL_TTL = int(os.environ.get("MEDIA_SIGNED_URL_TTL", str(7 * 24 * 3600)))
 
 MEDIA_TENANT_SUPERADMIN = "superadmin"
@@ -552,6 +552,16 @@ def assinar_url_midia(url: str, ttl_seconds: int | None = None) -> str:
     sig = _assinatura_path_midia(path, exp)
     query = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k not in {"e", "s"}]
     query.extend([("e", str(exp)), ("s", sig)])
+    return urlunparse(parsed._replace(query=urlencode(query)))
+
+
+def url_midia_sem_assinatura(url: str) -> str:
+    """Tira ?e=&s= para o banco guardar só o caminho do arquivo."""
+    raw = (url or "").strip()
+    if not is_media_url(raw):
+        return raw
+    parsed = urlparse(raw)
+    query = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k not in {"e", "s"}]
     return urlunparse(parsed._replace(query=urlencode(query)))
 
 

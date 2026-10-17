@@ -84,6 +84,7 @@ MIDDLEWARE = [
     "tenants.middleware.TenantMiddleware",  # Requer usuário autenticado para validar loja
     "superadmin.middleware.SuperAdminSecurityMiddleware",  # APÓS AUTENTICAÇÃO
     "superadmin.middleware.inadimplencia.LojaInadimplenciaMiddleware",
+    "core.middleware.midia_assinada.MidiaAssinadaMiddleware",  # assina mídia por 2h; cache guarda o caminho limpo
     "core.middleware.response_cache.ResponseCacheMiddleware",  # ✅ Cache de respostas GET (Redis)
     "superadmin.historico_middleware.HistoricoAcessoMiddleware",  # ✅ Histórico de acessos
     "django.contrib.messages.middleware.MessageMiddleware",

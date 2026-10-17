@@ -25,9 +25,10 @@ Estrutura em disco:
 Autenticação de API: `Authorization: Bearer <MEDIA_API_TOKEN>` (master, lista
 todas as lojas) **ou** Bearer HMAC-SHA256(token, tenant) — só aquela loja.
 
-URLs públicas (`/files/...`): o Django acrescenta `?e=&s=` (HMAC do path +
-expiração). Nginx chama `/auth-file`. Com `MEDIA_REQUIRE_SIGNED=0` (padrão)
-links antigos sem assinatura continuam válidos (WhatsApp/backup).
+URLs de arquivo (`/files/...`): o Django acrescenta `?e=&s=` (HMAC do path +
+expiração de 2 horas na tela). Nginx chama `/auth-file`. O padrão é
+`MEDIA_REQUIRE_SIGNED=1`: endereço sem assinatura recebe 401. `=0` só para
+emergência, se a API ainda não estiver assinando.
 
 Snippet nginx: `nginx-media.conf`. No beta: `deploy/nginx-beta.conf`.
 

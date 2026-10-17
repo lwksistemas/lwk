@@ -7,12 +7,14 @@ import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { CrmDocumentoListPageShell } from '@/components/crm-vendas/documentos/CrmDocumentoListPageShell';
 import { useCrmPropostasPage } from '@/hooks/crm-vendas/useCrmPropostasPage';
+import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { PropostasTable } from './components/PropostasTable';
 import { PropostasPageModals } from './components/PropostasPageModals';
 
 export default function CrmVendasPropostasPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
+  const { colunasPropostasVisiveis } = useCRMConfig();
 
   const {
     propostas,
@@ -92,6 +94,7 @@ export default function CrmVendasPropostasPage() {
         <PropostasTable
           slug={slug}
           propostas={propostas}
+          colunas={colunasPropostasVisiveis()}
           exibirColunaAssinatura={exibirColunaAssinatura}
           propostaWhatsappHabilitada={propostaWhatsappHabilitada}
           enviandoId={enviandoId}

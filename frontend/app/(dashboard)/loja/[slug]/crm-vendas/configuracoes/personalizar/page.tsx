@@ -13,10 +13,27 @@ import {
   COLUNAS_LEADS_DISPONIVEIS,
   COLUNAS_CONTAS_DISPONIVEIS,
   COLUNAS_CONTATOS_DISPONIVEIS,
+  COLUNAS_PROPOSTAS_DISPONIVEIS,
+  COLUNAS_CONTRATOS_DISPONIVEIS,
   DEFAULT_COLUNAS_LEADS,
   DEFAULT_COLUNAS_CONTAS,
   DEFAULT_COLUNAS_CONTATOS,
+  DEFAULT_COLUNAS_PROPOSTAS,
+  DEFAULT_COLUNAS_CONTRATOS,
 } from '@/lib/crm-colunas-config';
+
+const SECOES = [
+  { id: 'origens', label: 'Origens de Leads' },
+  { id: 'modulos', label: 'Módulos' },
+  { id: 'etapas', label: 'Etapas do Pipeline' },
+  { id: 'colunas-leads', label: 'Colunas — Leads' },
+  { id: 'colunas-contas', label: 'Colunas — Contas' },
+  { id: 'colunas-contatos', label: 'Colunas — Contatos' },
+  { id: 'colunas-propostas', label: 'Colunas — Propostas' },
+  { id: 'colunas-contratos', label: 'Colunas — Contratos' },
+] as const;
+
+type SecaoId = (typeof SECOES)[number]['id'];
 
 interface CRMConfig {
   id: number;
@@ -25,6 +42,8 @@ interface CRMConfig {
   colunas_leads: string[];
   colunas_contas: string[];
   colunas_contatos: string[];
+  colunas_propostas: string[];
+  colunas_contratos: string[];
   modulos_ativos: Record<string, boolean>;
 }
 
@@ -35,6 +54,17 @@ export default function ConfiguracoesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [secao, setSecao] = useState<SecaoId | null>(null);
+
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '') as SecaoId;
+    if (SECOES.some((item) => item.id === hash)) setSecao(hash);
+  }, []);
+
+  const escolherSecao = (id: SecaoId) => {
+    setSecao(id);
+    window.history.replaceState(null, '', `#${id}`);
+  };
 
   useEffect(() => {
     apiClient.get<CRMConfig>('/crm-vendas/config/')
@@ -79,51 +109,87 @@ export default function ConfiguracoesPage() {
       <nav className="bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] shadow-sm p-4" aria-label="Atalhos da personalização">
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Ir para</p>
         <div className="flex flex-wrap gap-2">
-          {[
-            { href: '#colunas-leads', label: 'Colunas — Leads' },
-            { href: '#colunas-contas', label: 'Colunas — Contas' },
-            { href: '#colunas-contatos', label: 'Colunas — Contatos' },
-          ].map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="text-sm px-3 py-1.5 rounded-full border border-[#0176d3]/30 text-[#0176d3] hover:bg-[#e3f3ff] dark:hover:bg-[#0176d3]/20 transition-colors"
+          {SECOES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => escolherSecao(item.id)}
+              aria-pressed={secao === item.id}
+              className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
+                secao === item.id
+                  ? 'bg-[#0176d3] border-[#0176d3] text-white'
+                  : 'border-[#0176d3]/30 text-[#0176d3] hover:bg-[#e3f3ff] dark:hover:bg-[#0176d3]/20'
+              }`}
             >
               {item.label}
-            </a>
+            </button>
           ))}
         </div>
       </nav>
 
-      <OrigensSection origens={config?.origens_leads || []} saving={saving} onSave={(o) => salvarConfig({ origens_leads: o })} onError={handleError} />
-      <ModulosSection modulos={config?.modulos_ativos || {}} onSave={(m) => salvarConfig({ modulos_ativos: m })} />
-      <EtapasSection etapas={config?.etapas_pipeline || []} onSave={(e) => salvarConfig({ etapas_pipeline: e })} onError={handleError} />
-      <ColunasSection
-        sectionId="colunas-leads"
-        title="Colunas Visíveis nos Leads"
-        colunasDisponiveis={COLUNAS_LEADS_DISPONIVEIS}
-        colunas={config?.colunas_leads?.length ? config.colunas_leads : DEFAULT_COLUNAS_LEADS}
-        onSave={(c) => salvarConfig({ colunas_leads: c })}
-        onError={handleError}
-      />
-      <ColunasSection
-        sectionId="colunas-contas"
-        title="Colunas Visíveis nas Contas"
-        description="Escolha quais informações aparecem na listagem de contas."
-        colunasDisponiveis={COLUNAS_CONTAS_DISPONIVEIS}
-        colunas={config?.colunas_contas?.length ? config.colunas_contas : DEFAULT_COLUNAS_CONTAS}
-        onSave={(c) => salvarConfig({ colunas_contas: c })}
-        onError={handleError}
-      />
-      <ColunasSection
-        sectionId="colunas-contatos"
-        title="Colunas Visíveis nos Contatos"
-        description="Escolha quais informações aparecem na listagem de contatos (pessoas vinculadas às contas)."
-        colunasDisponiveis={COLUNAS_CONTATOS_DISPONIVEIS}
-        colunas={config?.colunas_contatos?.length ? config.colunas_contatos : DEFAULT_COLUNAS_CONTATOS}
-        onSave={(c) => salvarConfig({ colunas_contatos: c })}
-        onError={handleError}
-      />
+      {secao === 'origens' && (
+        <OrigensSection origens={config?.origens_leads || []} saving={saving} onSave={(o) => salvarConfig({ origens_leads: o })} onError={handleError} />
+      )}
+      {secao === 'modulos' && (
+        <ModulosSection modulos={config?.modulos_ativos || {}} onSave={(m) => salvarConfig({ modulos_ativos: m })} />
+      )}
+      {secao === 'etapas' && (
+        <EtapasSection etapas={config?.etapas_pipeline || []} onSave={(e) => salvarConfig({ etapas_pipeline: e })} onError={handleError} />
+      )}
+      {secao === 'colunas-leads' && (
+        <ColunasSection
+          sectionId="colunas-leads"
+          title="Colunas Visíveis nos Leads"
+          colunasDisponiveis={COLUNAS_LEADS_DISPONIVEIS}
+          colunas={config?.colunas_leads?.length ? config.colunas_leads : DEFAULT_COLUNAS_LEADS}
+          onSave={(c) => salvarConfig({ colunas_leads: c })}
+          onError={handleError}
+        />
+      )}
+      {secao === 'colunas-contas' && (
+        <ColunasSection
+          sectionId="colunas-contas"
+          title="Colunas Visíveis nas Contas"
+          description="Escolha quais informações aparecem na listagem de contas."
+          colunasDisponiveis={COLUNAS_CONTAS_DISPONIVEIS}
+          colunas={config?.colunas_contas?.length ? config.colunas_contas : DEFAULT_COLUNAS_CONTAS}
+          onSave={(c) => salvarConfig({ colunas_contas: c })}
+          onError={handleError}
+        />
+      )}
+      {secao === 'colunas-contatos' && (
+        <ColunasSection
+          sectionId="colunas-contatos"
+          title="Colunas Visíveis nos Contatos"
+          description="Escolha quais informações aparecem na listagem de contatos (pessoas vinculadas às contas)."
+          colunasDisponiveis={COLUNAS_CONTATOS_DISPONIVEIS}
+          colunas={config?.colunas_contatos?.length ? config.colunas_contatos : DEFAULT_COLUNAS_CONTATOS}
+          onSave={(c) => salvarConfig({ colunas_contatos: c })}
+          onError={handleError}
+        />
+      )}
+      {secao === 'colunas-propostas' && (
+        <ColunasSection
+          sectionId="colunas-propostas"
+          title="Colunas Visíveis nas Propostas"
+          description="Escolha quais informações aparecem na listagem de propostas."
+          colunasDisponiveis={COLUNAS_PROPOSTAS_DISPONIVEIS}
+          colunas={config?.colunas_propostas?.length ? config.colunas_propostas : DEFAULT_COLUNAS_PROPOSTAS}
+          onSave={(c) => salvarConfig({ colunas_propostas: c })}
+          onError={handleError}
+        />
+      )}
+      {secao === 'colunas-contratos' && (
+        <ColunasSection
+          sectionId="colunas-contratos"
+          title="Colunas Visíveis nos Contratos"
+          description="Escolha quais informações aparecem na listagem de contratos."
+          colunasDisponiveis={COLUNAS_CONTRATOS_DISPONIVEIS}
+          colunas={config?.colunas_contratos?.length ? config.colunas_contratos : DEFAULT_COLUNAS_CONTRATOS}
+          onSave={(c) => salvarConfig({ colunas_contratos: c })}
+          onError={handleError}
+        />
+      )}
     </div>
   );
 }

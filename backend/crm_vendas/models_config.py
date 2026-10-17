@@ -54,6 +54,18 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         help_text="Colunas visíveis na listagem de contatos",
     )
 
+    colunas_propostas = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Colunas visíveis na listagem de propostas",
+    )
+
+    colunas_contratos = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Colunas visíveis na listagem de contratos",
+    )
+
     # Módulos ativos
     # Formato: {"contas": true, "contatos": true, "pipeline": true}
     modulos_ativos = models.JSONField(
@@ -387,6 +399,8 @@ class CRMConfig(LojaIsolationMixin, models.Model):
             colunas_leads=cls.get_default_colunas_leads(),
             colunas_contas=cls.get_default_colunas_contas(),
             colunas_contatos=cls.get_default_colunas_contatos(),
+            colunas_propostas=cls.get_default_colunas_propostas(),
+            colunas_contratos=cls.get_default_colunas_contratos(),
             modulos_ativos=cls.get_default_modulos(),
         )
 
@@ -428,6 +442,16 @@ class CRMConfig(LojaIsolationMixin, models.Model):
     def get_default_colunas_contatos():
         """Colunas padrão visíveis na listagem de contatos."""
         return ["nome", "conta", "cargo", "email"]
+
+    @staticmethod
+    def get_default_colunas_propostas():
+        """Colunas padrão visíveis na listagem de propostas."""
+        return ["numero", "titulo", "oportunidade", "prestador", "status", "assinatura", "emissao"]
+
+    @staticmethod
+    def get_default_colunas_contratos():
+        """Colunas padrão visíveis na listagem de contratos."""
+        return ["numero", "titulo", "oportunidade", "status", "assinatura"]
 
     @staticmethod
     def get_default_modulos():

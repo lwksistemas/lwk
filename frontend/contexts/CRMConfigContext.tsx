@@ -7,9 +7,13 @@ import {
   COLUNAS_LEADS_DISPONIVEIS,
   COLUNAS_CONTAS_DISPONIVEIS,
   COLUNAS_CONTATOS_DISPONIVEIS,
+  COLUNAS_PROPOSTAS_DISPONIVEIS,
+  COLUNAS_CONTRATOS_DISPONIVEIS,
   DEFAULT_COLUNAS_LEADS,
   DEFAULT_COLUNAS_CONTAS,
   DEFAULT_COLUNAS_CONTATOS,
+  DEFAULT_COLUNAS_PROPOSTAS,
+  DEFAULT_COLUNAS_CONTRATOS,
   colunasVisiveisFromConfig,
 } from '@/lib/crm-colunas-config';
 import { ETAPAS_PIPELINE_PADRAO } from '@/constants/crm';
@@ -29,6 +33,8 @@ interface CRMConfig {
   colunas_leads: string[];
   colunas_contas: string[];
   colunas_contatos: string[];
+  colunas_propostas: string[];
+  colunas_contratos: string[];
   modulos_ativos: Record<string, boolean>;
   // Configurações de NFS-e
   provedor_nf: 'asaas' | 'issnet' | 'nacional' | 'manual';
@@ -89,6 +95,8 @@ interface CRMConfigContextType {
   colunasLeadsVisiveis: () => Array<{ key: string; label: string }>;
   colunasContasVisiveis: () => Array<{ key: string; label: string }>;
   colunasContatosVisiveis: () => Array<{ key: string; label: string }>;
+  colunasPropostasVisiveis: () => Array<{ key: string; label: string }>;
+  colunasContratosVisiveis: () => Array<{ key: string; label: string }>;
 }
 
 const CRMConfigContext = createContext<CRMConfigContextType | undefined>(undefined);
@@ -111,6 +119,8 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
         colunas_leads: [],
         colunas_contas: [],
         colunas_contatos: [],
+        colunas_propostas: [],
+        colunas_contratos: [],
         modulos_ativos: {
           leads: true,
           contas: true,
@@ -210,6 +220,12 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
   const colunasContatosVisiveis = () =>
     colunasVisiveisFromConfig(config?.colunas_contatos, COLUNAS_CONTATOS_DISPONIVEIS, DEFAULT_COLUNAS_CONTATOS);
 
+  const colunasPropostasVisiveis = () =>
+    colunasVisiveisFromConfig(config?.colunas_propostas, COLUNAS_PROPOSTAS_DISPONIVEIS, DEFAULT_COLUNAS_PROPOSTAS);
+
+  const colunasContratosVisiveis = () =>
+    colunasVisiveisFromConfig(config?.colunas_contratos, COLUNAS_CONTRATOS_DISPONIVEIS, DEFAULT_COLUNAS_CONTRATOS);
+
   return (
     <CRMConfigContext.Provider value={{
       config,
@@ -221,6 +237,8 @@ export function CRMConfigProvider({ children }: { children: ReactNode }) {
       colunasLeadsVisiveis,
       colunasContasVisiveis,
       colunasContatosVisiveis,
+      colunasPropostasVisiveis,
+      colunasContratosVisiveis,
     }}>
       {children}
     </CRMConfigContext.Provider>

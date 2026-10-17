@@ -43,7 +43,7 @@ export type CrmPropostaModalType = 'view' | 'delete' | 'cancelar' | null;
 export function useCrmPropostasPage(slug: string) {
   const toast = useToast();
   const router = useRouter();
-  const [filtroStatus, setFiltroStatus] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('enviada');
   const statusParam = filtroStatus || undefined;
 
   const {

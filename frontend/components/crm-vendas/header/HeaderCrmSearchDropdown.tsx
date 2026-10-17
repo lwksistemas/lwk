@@ -87,7 +87,7 @@ export function HeaderCrmSearchDropdown({
           {searchResults!.contas.length > 0 && (
             <div className="px-3 py-1">
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                Contas
+                Empresas
               </p>
               {searchResults!.contas.map((c) => (
                 <Link

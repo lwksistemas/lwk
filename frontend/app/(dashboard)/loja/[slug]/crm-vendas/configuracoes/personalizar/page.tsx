@@ -27,7 +27,7 @@ const SECOES = [
   { id: 'modulos', label: 'Módulos' },
   { id: 'etapas', label: 'Etapas do Pipeline' },
   { id: 'colunas-leads', label: 'Colunas — Leads' },
-  { id: 'colunas-contas', label: 'Colunas — Contas' },
+  { id: 'colunas-contas', label: 'Colunas — Empresas' },
   { id: 'colunas-contatos', label: 'Colunas — Contatos' },
   { id: 'colunas-propostas', label: 'Colunas — Propostas' },
   { id: 'colunas-contratos', label: 'Colunas — Contratos' },
@@ -149,8 +149,8 @@ export default function ConfiguracoesPage() {
       {secao === 'colunas-contas' && (
         <ColunasSection
           sectionId="colunas-contas"
-          title="Colunas Visíveis nas Contas"
-          description="Escolha quais informações aparecem na listagem de contas."
+          title="Colunas Visíveis nas Empresas"
+          description="Escolha quais informações aparecem na listagem de empresas."
           colunasDisponiveis={COLUNAS_CONTAS_DISPONIVEIS}
           colunas={config?.colunas_contas?.length ? config.colunas_contas : DEFAULT_COLUNAS_CONTAS}
           onSave={(c) => salvarConfig({ colunas_contas: c })}

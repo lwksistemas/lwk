@@ -96,8 +96,8 @@ export default function OportunidadeFormFields({ slug, etapas, layout, formState
       ) : (
         <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
           Nenhuma empresa prestadora cadastrada. Cadastre em{' '}
-          <Link href={`/loja/${slug}/crm-vendas/contas`} className="underline font-medium">
-            Contas
+          <Link href={`/loja/${slug}/crm-vendas/customers`} className="underline font-medium">
+            Empresas
           </Link>{' '}
           com tipo &quot;Prestadora&quot;.
         </p>

@@ -43,6 +43,6 @@ describe('crm-sidebar-nav', () => {
       temPermissao: () => true,
     });
     expect(filtered.some((i) => i.label === 'Contatos')).toBe(false);
-    expect(filtered.some((i) => i.label === 'Contas')).toBe(true);
+    expect(filtered.some((i) => i.label === 'Empresas')).toBe(true);
   });
 });

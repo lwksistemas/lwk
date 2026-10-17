@@ -7,7 +7,7 @@ interface Props {
 
 const MODULOS = [
   { key: 'leads', label: 'Leads', desc: 'Módulo principal (sempre ativo)', fixed: true },
-  { key: 'contas', label: 'Contas (Empresas)', desc: 'Gerenciar empresas/organizações clientes', fixed: false },
+  { key: 'contas', label: 'Empresas', desc: 'Gerenciar empresas clientes', fixed: false },
   { key: 'contatos', label: 'Contatos', desc: 'Gerenciar pessoas de contato das empresas', fixed: false },
   { key: 'pipeline', label: 'Pipeline de Vendas', desc: 'Módulo principal (sempre ativo)', fixed: true },
   { key: 'atividades', label: 'Calendário / Atividades', desc: 'Módulo principal (sempre ativo)', fixed: true },

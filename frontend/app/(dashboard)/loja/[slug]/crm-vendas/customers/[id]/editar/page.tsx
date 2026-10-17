@@ -165,7 +165,7 @@ export default function EditarContaPage() {
       router.push(listPath);
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setFormErro(detail || 'Erro ao salvar conta.');
+      setFormErro(detail || 'Erro ao salvar empresa.');
     } finally {
       setSaving(false);
     }

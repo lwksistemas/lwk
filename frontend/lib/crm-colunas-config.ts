@@ -14,7 +14,7 @@ export const COLUNAS_LEADS_DISPONIVEIS: CrmColunaDef[] = [
 ];
 
 export const COLUNAS_CONTAS_DISPONIVEIS: CrmColunaDef[] = [
-  { key: 'nome', label: 'Nome da Conta' },
+  { key: 'nome', label: 'Nome da empresa' },
   { key: 'tipo', label: 'Tipo' },
   { key: 'segmento', label: 'Segmento' },
   { key: 'email', label: 'E-mail' },

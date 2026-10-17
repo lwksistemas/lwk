@@ -67,7 +67,7 @@ export function ContaCadastroForm({
     <CrmFormPageShell
       error={error}
       saving={saving}
-      saveLabel={editing ? 'Salvar alterações' : 'Cadastrar conta'}
+      saveLabel={editing ? 'Salvar alterações' : 'Cadastrar empresa'}
       savingLabel="Salvando..."
       onSave={onSave}
       onCancel={onCancel}
@@ -291,7 +291,7 @@ export function ContaCadastroForm({
               onChange={(e) => set('observacoes', e.target.value)}
               rows={3}
               className={`${inputClass} resize-y min-h-[72px]`}
-              placeholder="Anotações sobre a conta..."
+              placeholder="Anotações sobre a empresa..."
             />
           </section>
         </div>

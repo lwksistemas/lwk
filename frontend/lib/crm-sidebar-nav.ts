@@ -31,7 +31,7 @@ export function buildCrmSidebarNavItems(base: string): CrmSidebarNavItem[] {
     { href: base, label: 'Home', icon: LayoutDashboard, exact: true },
     { href: `${base}/leads`, label: 'Leads', icon: Users, permission: 'view_lead' },
     { href: `${base}/pipeline`, label: 'Oportunidades', icon: DollarSign, permission: 'view_oportunidade' },
-    { href: `${base}/customers`, label: 'Contas', icon: User, modulo: 'contas', permission: 'view_conta' },
+    { href: `${base}/customers`, label: 'Empresas', icon: User, modulo: 'contas', permission: 'view_conta' },
     { href: `${base}/contatos`, label: 'Contatos', icon: User, modulo: 'contatos', permission: 'view_contato' },
     { href: `${base}/calendario`, label: 'Calendário', icon: Calendar, permission: 'view_atividade' },
     { href: `${base}/financeiro`, label: 'Financeiro', icon: Wallet, requiresAcessoTotal: true },

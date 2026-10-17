@@ -46,7 +46,7 @@ export default function BackupPage() {
       exportBullets={[
         'Leads e oportunidades',
         'Atividades e calendário',
-        'Contas e contatos',
+        'Empresas e contatos',
         'Configurações personalizadas',
       ]}
       importBullets={['Arquivo .zip de backup', 'Máximo 50MB', 'Processo pode levar alguns minutos']}

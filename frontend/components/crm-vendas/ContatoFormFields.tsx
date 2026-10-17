@@ -86,7 +86,7 @@ export function ContatoFormFields({
       </div>
       <div className="md:col-span-2">
         <label className={labelCls}>
-          Conta <span className="text-red-500">*</span>
+          Empresa <span className="text-red-500">*</span>
         </label>
         <BuscarContaInput
           contaId={formData.conta}

@@ -94,7 +94,7 @@ export default function CrmVendasCustomersPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Contas</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Empresas</h1>
         <div className="flex items-center gap-2">
           {(totalCount > 0 || contas.length > 0) && (
             <button
@@ -111,7 +111,7 @@ export default function CrmVendasCustomersPage() {
             onClick={irParaNovaConta}
             className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium shadow-sm"
           >
-            <Plus size={18} /> <span>Nova Conta</span>
+            <Plus size={18} /> <span>Nova empresa</span>
           </button>
         </div>
       </div>
@@ -151,8 +151,8 @@ export default function CrmVendasCustomersPage() {
                 <tr>
                   <td colSpan={colunasVisiveis.length + 1} className="py-12 text-center text-gray-500 dark:text-gray-400">
                     <Building2 size={48} className="mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">Nenhuma conta cadastrada</p>
-                    <p className="text-sm mt-1">Clique em &quot;Nova Conta&quot; para começar</p>
+                    <p className="font-medium">Nenhuma empresa cadastrada</p>
+                    <p className="text-sm mt-1">Clique em &quot;Nova empresa&quot; para começar</p>
                   </td>
                 </tr>
               ) : (
@@ -206,7 +206,7 @@ export default function CrmVendasCustomersPage() {
           totalCount={totalCount}
           pageSize={pageSize}
           loading={loading}
-          itemLabel="contas"
+          itemLabel="empresas"
           onPageChange={setPage}
         />
       </div>

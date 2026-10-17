@@ -52,7 +52,7 @@ export function SidebarCrmHelpModal({ open, onClose }: Props) {
                 { color: 'border-[#0176d3]', title: 'Home', text: 'Dashboard com métricas, gráficos e visão geral das vendas.' },
                 { color: 'border-[#06a59a]', title: 'Leads', text: 'Gerencie seus leads, qualifique e converta em oportunidades.' },
                 { color: 'border-[#ffb75d]', title: 'Oportunidades', text: 'Pipeline visual com etapas de vendas e acompanhamento de negociações.' },
-                { color: 'border-[#e287b2]', title: 'Contas', text: 'Cadastro completo de clientes com informações de contato e segmentação.' },
+                { color: 'border-[#e287b2]', title: 'Empresas', text: 'Cadastro das empresas clientes, com contato e segmentação.' },
                 { color: 'border-[#0176d3]', title: 'Calendário', text: 'Visualize e gerencie reuniões, ligações e tarefas sincronizadas com o CRM.' },
               ].map((section) => (
                 <div key={section.title} className={`border-l-4 ${section.color} pl-4`}>

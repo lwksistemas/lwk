@@ -123,10 +123,10 @@ export default function NovaContaPage() {
               return `${k}: ${msg}`;
             })
             .join(' | ');
-          setFormErro(msgs || 'Erro ao salvar conta.');
+          setFormErro(msgs || 'Erro ao salvar empresa.');
         }
       } else {
-        setFormErro('Erro ao salvar conta.');
+        setFormErro('Erro ao salvar empresa.');
       }
     } finally {
       setSaving(false);

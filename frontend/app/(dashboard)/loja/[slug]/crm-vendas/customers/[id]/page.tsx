@@ -43,7 +43,7 @@ export default function ContaDetailPage() {
               className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white w-fit"
             >
               <ArrowLeft size={16} />
-              Voltar para contas
+              Voltar para empresas
             </button>
             <div className="flex items-center gap-2">
               <button
@@ -74,7 +74,7 @@ export default function ContaDetailPage() {
               href={`/loja/${slug}/crm-vendas/contatos?conta_id=${conta.id}`}
               className="text-[#0176d3] hover:underline"
             >
-              Ver contatos desta conta
+              Ver contatos desta empresa
             </Link>
           </div>
         </div>

@@ -181,6 +181,16 @@ def enviar_confirmacao_da_regra(agendamento, regra_dias: int, *, config, user=No
     ap_id = getattr(agendamento, "id", None)
     if not ap_id:
         return False
+    from tenants.middleware import get_current_loja_id, get_current_tenant_db
+
+    from whatsapp.numero_recusado import pular_numero_recusado
+
+    patient = getattr(agendamento, "patient", None)
+    loja_id = getattr(agendamento, "loja_id", None) or get_current_loja_id()
+    if patient is not None and pular_numero_recusado(
+        patient, loja_id, db=get_current_tenant_db(),
+    ):
+        return False
     modulo = _modulo_agendamento(agendamento)
     if not registrar_envio(ap_id, regra_dias, modulo=modulo):
         return False

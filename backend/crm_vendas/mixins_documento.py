@@ -25,6 +25,7 @@ class DocumentoQuerysetMixin:
         "oportunidade",
         "oportunidade__lead",
         "oportunidade__lead__conta",
+        "oportunidade__empresa_prestadora",
         "oportunidade__vendedor",
     )
     documento_prefetch_related = ("oportunidade__itens__produto_servico",)

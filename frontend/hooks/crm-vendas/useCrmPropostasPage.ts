@@ -16,6 +16,8 @@ export interface CrmProposta {
   oportunidade: number;
   oportunidade_titulo: string;
   lead_nome: string;
+  conta_nome?: string | null;
+  prestador_nome?: string | null;
   lead_email?: string;
   lead_telefone?: string;
   vendedor_nome?: string;

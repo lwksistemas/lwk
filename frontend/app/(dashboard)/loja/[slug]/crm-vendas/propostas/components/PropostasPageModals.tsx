@@ -7,6 +7,8 @@ import CrmCancelarModal from '@/components/crm-vendas/CrmCancelarModal';
 import CrmDocumentoDetalhesModal from '@/components/crm-vendas/CrmDocumentoDetalhesModal';
 import {
   propostaConfirmCopy,
+  rotuloOportunidadePropostaLista,
+  rotuloTituloPropostaLista,
   type PropostasConfirmAction,
 } from '@/lib/crm-propostas-helpers';
 import type { CrmProposta, CrmPropostaModalType } from '@/hooks/crm-vendas/useCrmPropostasPage';
@@ -44,8 +46,9 @@ export function PropostasPageModals({
         <CrmDocumentoDetalhesModal
           aberto
           onClose={onClose}
-          titulo={selected.titulo}
-          oportunidadeTitulo={selected.oportunidade_titulo}
+          titulo={rotuloTituloPropostaLista(selected)}
+          oportunidadeTitulo={rotuloOportunidadePropostaLista(selected)}
+          prestadorNome={selected.prestador_nome}
           leadNome={selected.lead_nome}
           statusExibicao={STATUS_LABEL[selected.status] || selected.status}
           valorTotal={selected.valor_total}

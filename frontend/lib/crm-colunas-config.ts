@@ -35,9 +35,38 @@ export const COLUNAS_CONTATOS_DISPONIVEIS: CrmColunaDef[] = [
   { key: 'created_at', label: 'Data de Cadastro' },
 ];
 
+export const COLUNAS_PROPOSTAS_DISPONIVEIS: CrmColunaDef[] = [
+  { key: 'numero', label: 'Número' },
+  { key: 'titulo', label: 'Título' },
+  { key: 'oportunidade', label: 'Oportunidade' },
+  { key: 'prestador', label: 'Prestador' },
+  { key: 'status', label: 'Status' },
+  { key: 'assinatura', label: 'Assinatura' },
+  { key: 'emissao', label: 'Emissão' },
+];
+
+export const COLUNAS_CONTRATOS_DISPONIVEIS: CrmColunaDef[] = [
+  { key: 'numero', label: 'Número' },
+  { key: 'titulo', label: 'Título' },
+  { key: 'oportunidade', label: 'Oportunidade' },
+  { key: 'status', label: 'Status' },
+  { key: 'assinatura', label: 'Assinatura' },
+];
+
 export const DEFAULT_COLUNAS_LEADS = ['nome', 'empresa', 'telefone', 'email', 'origem', 'status', 'valor_estimado'];
 export const DEFAULT_COLUNAS_CONTAS = ['nome', 'tipo', 'segmento', 'email', 'cidade'];
 export const DEFAULT_COLUNAS_CONTATOS = ['nome', 'conta', 'cargo', 'email'];
+export const DEFAULT_COLUNAS_PROPOSTAS = ['numero', 'titulo', 'oportunidade', 'prestador', 'status', 'assinatura', 'emissao'];
+export const DEFAULT_COLUNAS_CONTRATOS = ['numero', 'titulo', 'oportunidade', 'status', 'assinatura'];
+
+/** A coluna de assinatura some quando a listagem não tem documento para assinar. */
+export function colunasDocumentoNaLista(
+  colunas: CrmColunaDef[],
+  exibirAssinatura: boolean,
+): CrmColunaDef[] {
+  if (exibirAssinatura) return colunas;
+  return colunas.filter((col) => col.key !== 'assinatura');
+}
 
 export function colunasVisiveisFromConfig(
   keys: string[] | undefined | null,

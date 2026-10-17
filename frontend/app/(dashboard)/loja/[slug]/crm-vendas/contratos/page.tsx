@@ -21,11 +21,15 @@ import {
 import CrmDocumentoMaisAcoesMenu from '@/components/crm-vendas/documentos/CrmDocumentoMaisAcoesMenu';
 import CrmDocumentoArquivoAcoes from '@/components/crm-vendas/documentos/CrmDocumentoArquivoAcoes';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
-import { useCrmContratosPage } from '@/hooks/crm-vendas/useCrmContratosPage';
+import { useCrmContratosPage, type CrmContrato } from '@/hooks/crm-vendas/useCrmContratosPage';
+import { useCRMConfig } from '@/contexts/CRMConfigContext';
+import { colunasDocumentoNaLista } from '@/lib/crm-colunas-config';
 
 export default function CrmVendasContratosPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
+  const { colunasContratosVisiveis } = useCRMConfig();
+  const colunasTabela = colunasDocumentoNaLista(colunasContratosVisiveis(), true);
 
   const {
     contratos,
@@ -63,6 +67,39 @@ export default function CrmVendasContratosPage() {
     irParaNovoContrato,
     irParaEditarContrato,
   } = useCrmContratosPage(slug);
+
+  const renderCelula = (c: CrmContrato, key: string) => {
+    if (key === 'numero') {
+      return <span className="font-mono text-sm text-gray-600 dark:text-gray-400">#{c.numero || '---'}</span>;
+    }
+    if (key === 'titulo') return c.titulo || `Contrato #${c.id}`;
+    if (key === 'oportunidade') return c.oportunidade_titulo;
+    if (key === 'status') {
+      return (
+        <CrmDocumentoStatusBadge
+          statusAssinatura={c.status_assinatura}
+          status={c.status}
+          labelsComercial={STATUS_LABEL}
+          labelsAssinatura={STATUS_ASSINATURA_LABEL}
+          variante="contrato"
+        />
+      );
+    }
+    if (key === 'assinatura') {
+      if (c.status === 'cancelado') {
+        return <span className="text-gray-300 dark:text-gray-600 text-center block">—</span>;
+      }
+      return (
+        <CrmEnviarAssinaturaColuna
+          statusAssinatura={c.status_assinatura}
+          whatsappHabilitado={contratoWhatsappHabilitado}
+          enviando={enviandoId === c.id}
+          onEnviar={(canal) => handleEnviarCliente(c, canal)}
+        />
+      );
+    }
+    return null;
+  };
 
   if (loading && contratos.length === 0) {
     return (
@@ -107,14 +144,23 @@ export default function CrmVendasContratosPage() {
           <table className="w-full min-w-[500px]">
             <thead>
               <tr className="border-b border-gray-200 dark:border-[#0d1f3c] bg-gray-50 dark:bg-[#0d1f3c]/50">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Número</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Título</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Oportunidade</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Status</th>
-                <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase w-28">
-                  <span className="block">Assinatura</span>
-                  <span className="block text-[9px] font-normal normal-case text-gray-500 dark:text-gray-400">Cliente / vendedor</span>
-                </th>
+                {colunasTabela.map((col) => (
+                  <th
+                    key={col.key}
+                    className={`py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase ${
+                      col.key === 'assinatura' ? 'text-center w-28' : 'text-left'
+                    }`}
+                  >
+                    {col.key === 'assinatura' ? (
+                      <>
+                        <span className="block">Assinatura</span>
+                        <span className="block text-[9px] font-normal normal-case text-gray-500 dark:text-gray-400">Cliente / vendedor</span>
+                      </>
+                    ) : (
+                      col.label
+                    )}
+                  </th>
+                ))}
                 <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">Ações</th>
               </tr>
             </thead>
@@ -131,30 +177,16 @@ export default function CrmVendasContratosPage() {
               ) : (
                 contratosFiltrados.map((c) => (
                   <tr key={c.id} className="border-b border-gray-100 dark:border-[#0d1f3c] hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/30">
-                    <td className="py-3 px-4 font-mono text-sm text-gray-600 dark:text-gray-400">#{c.numero || '---'}</td>
-                    <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{c.titulo || `Contrato #${c.id}`}</td>
-                    <td className="py-3 px-4 text-gray-700 dark:text-gray-300">{c.oportunidade_titulo}</td>
-                    <td className="py-3 px-4">
-                      <CrmDocumentoStatusBadge
-                        statusAssinatura={c.status_assinatura}
-                        status={c.status}
-                        labelsComercial={STATUS_LABEL}
-                        labelsAssinatura={STATUS_ASSINATURA_LABEL}
-                        variante="contrato"
-                      />
-                    </td>
-                    <td className="py-3 px-4">
-                      {c.status === 'cancelado' ? (
-                        <span className="text-gray-300 dark:text-gray-600 text-center block">—</span>
-                      ) : (
-                        <CrmEnviarAssinaturaColuna
-                          statusAssinatura={c.status_assinatura}
-                          whatsappHabilitado={contratoWhatsappHabilitado}
-                          enviando={enviandoId === c.id}
-                          onEnviar={(canal) => handleEnviarCliente(c, canal)}
-                        />
-                      )}
-                    </td>
+                    {colunasTabela.map((col) => (
+                      <td
+                        key={col.key}
+                        className={`py-3 px-4 ${
+                          col.key === 'titulo' ? 'font-medium text-gray-900 dark:text-white' : ''
+                        } ${col.key === 'oportunidade' ? 'text-gray-700 dark:text-gray-300' : ''}`}
+                      >
+                        {renderCelula(c, col.key)}
+                      </td>
+                    ))}
                     <td className="py-3 px-4">
                       <div className="flex justify-end gap-1 flex-wrap items-center">
                         {c.status === 'cancelado' ? (

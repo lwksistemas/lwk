@@ -17,11 +17,19 @@ import {
   rotuloPrestadorPropostaLista,
   rotuloTituloPropostaLista,
 } from '@/lib/crm-propostas-helpers';
-import type { CrmProposta, CrmPropostaModalType } from '@/hooks/crm-vendas/useCrmPropostasPage';
+import type { CrmProposta } from '@/hooks/crm-vendas/useCrmPropostasPage';
+import {
+  COLUNAS_PROPOSTAS_DISPONIVEIS,
+  DEFAULT_COLUNAS_PROPOSTAS,
+  colunasDocumentoNaLista,
+  colunasVisiveisFromConfig,
+  type CrmColunaDef,
+} from '@/lib/crm-colunas-config';
 
 export type PropostasTableProps = {
   slug: string;
   propostas: CrmProposta[];
+  colunas?: CrmColunaDef[];
   exibirColunaAssinatura: boolean;
   propostaWhatsappHabilitada: boolean;
   enviandoId: number | null;
@@ -42,6 +50,7 @@ export type PropostasTableProps = {
 export function PropostasTable({
   slug,
   propostas,
+  colunas,
   exibirColunaAssinatura,
   propostaWhatsappHabilitada,
   enviandoId,
@@ -58,37 +67,72 @@ export function PropostasTable({
   onCancelar,
   onExcluir,
 }: PropostasTableProps) {
+  const colunasTabela = colunasDocumentoNaLista(
+    colunas?.length
+      ? colunas
+      : colunasVisiveisFromConfig(null, COLUNAS_PROPOSTAS_DISPONIVEIS, DEFAULT_COLUNAS_PROPOSTAS),
+    exibirColunaAssinatura,
+  );
+
+  const renderCelula = (p: CrmProposta, key: string) => {
+    if (key === 'numero') {
+      return <span className="font-mono text-sm text-gray-600 dark:text-gray-400">#{p.numero || '---'}</span>;
+    }
+    if (key === 'titulo') return rotuloTituloPropostaLista(p);
+    if (key === 'oportunidade') return rotuloOportunidadePropostaLista(p);
+    if (key === 'prestador') return rotuloPrestadorPropostaLista(p);
+    if (key === 'status') {
+      return (
+        <CrmDocumentoStatusBadge
+          statusAssinatura={p.status_assinatura}
+          status={p.status}
+          labelsComercial={STATUS_LABEL}
+          labelsAssinatura={STATUS_ASSINATURA_LABEL}
+          variante="proposta"
+        />
+      );
+    }
+    if (key === 'assinatura') {
+      if (propostaOcultaColunaAssinatura(p)) {
+        return <span className="text-gray-300 dark:text-gray-600 text-center block">—</span>;
+      }
+      return (
+        <CrmEnviarAssinaturaColuna
+          statusAssinatura={p.status_assinatura}
+          whatsappHabilitado={propostaWhatsappHabilitada}
+          enviando={enviandoId === p.id}
+          onEnviar={(canal) => onEnviarCliente(p, canal)}
+        />
+      );
+    }
+    if (key === 'emissao') return formatDate(p.created_at);
+    return null;
+  };
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[500px]">
         <thead>
           <tr className="border-b border-gray-200 dark:border-[#0d1f3c] bg-gray-50 dark:bg-[#0d1f3c]/50">
-            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
-              Número
-            </th>
-            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
-              Título
-            </th>
-            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
-              Oportunidade
-            </th>
-            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
-              Prestador
-            </th>
-            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
-              Status
-            </th>
-            {exibirColunaAssinatura && (
-              <th className="text-center py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase w-28">
-                <span className="block">Assinatura</span>
-                <span className="block text-[9px] font-normal normal-case text-gray-500 dark:text-gray-400">
-                  Cliente / vendedor
-                </span>
+            {colunasTabela.map((col) => (
+              <th
+                key={col.key}
+                className={`py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase ${
+                  col.key === 'assinatura' ? 'text-center w-28' : 'text-left'
+                } ${col.key === 'emissao' ? 'whitespace-nowrap' : ''}`}
+              >
+                {col.key === 'assinatura' ? (
+                  <>
+                    <span className="block">Assinatura</span>
+                    <span className="block text-[9px] font-normal normal-case text-gray-500 dark:text-gray-400">
+                      Cliente / vendedor
+                    </span>
+                  </>
+                ) : (
+                  col.label
+                )}
               </th>
-            )}
-            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase whitespace-nowrap">
-              Emissão
-            </th>
+            ))}
             <th className="text-right py-3 px-4 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
               Ações
             </th>
@@ -110,44 +154,30 @@ export function PropostasTable({
                 key={p.id}
                 className="border-b border-gray-100 dark:border-[#0d1f3c] hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/30"
               >
-                <td className="py-3 px-4 font-mono text-sm text-gray-600 dark:text-gray-400">
-                  #{p.numero || '---'}
-                </td>
-                <td className="py-3 px-4 font-medium text-gray-900 dark:text-white max-w-[220px] truncate" title={rotuloTituloPropostaLista(p)}>
-                  {rotuloTituloPropostaLista(p)}
-                </td>
-                <td className="py-3 px-4 text-gray-700 dark:text-gray-300 max-w-[220px] truncate" title={rotuloOportunidadePropostaLista(p)}>
-                  {rotuloOportunidadePropostaLista(p)}
-                </td>
-                <td className="py-3 px-4 text-gray-700 dark:text-gray-300 max-w-[220px] truncate" title={rotuloPrestadorPropostaLista(p)}>
-                  {rotuloPrestadorPropostaLista(p)}
-                </td>
-                <td className="py-3 px-4">
-                  <CrmDocumentoStatusBadge
-                    statusAssinatura={p.status_assinatura}
-                    status={p.status}
-                    labelsComercial={STATUS_LABEL}
-                    labelsAssinatura={STATUS_ASSINATURA_LABEL}
-                    variante="proposta"
-                  />
-                </td>
-                {exibirColunaAssinatura && (
-                  <td className="py-3 px-4">
-                    {propostaOcultaColunaAssinatura(p) ? (
-                      <span className="text-gray-300 dark:text-gray-600 text-center block">—</span>
-                    ) : (
-                      <CrmEnviarAssinaturaColuna
-                        statusAssinatura={p.status_assinatura}
-                        whatsappHabilitado={propostaWhatsappHabilitada}
-                        enviando={enviandoId === p.id}
-                        onEnviar={(canal) => onEnviarCliente(p, canal)}
-                      />
-                    )}
-                  </td>
-                )}
-                <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                  {formatDate(p.created_at)}
-                </td>
+                {colunasTabela.map((col) => {
+                  const texto = col.key === 'titulo'
+                    ? rotuloTituloPropostaLista(p)
+                    : col.key === 'oportunidade'
+                      ? rotuloOportunidadePropostaLista(p)
+                      : col.key === 'prestador'
+                        ? rotuloPrestadorPropostaLista(p)
+                        : undefined;
+                  return (
+                    <td
+                      key={col.key}
+                      title={texto}
+                      className={`py-3 px-4 ${
+                        col.key === 'titulo' ? 'font-medium text-gray-900 dark:text-white max-w-[220px] truncate' : ''
+                      } ${
+                        col.key === 'oportunidade' || col.key === 'prestador'
+                          ? 'text-gray-700 dark:text-gray-300 max-w-[220px] truncate'
+                          : ''
+                      } ${col.key === 'emissao' ? 'text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap' : ''}`}
+                    >
+                      {renderCelula(p, col.key)}
+                    </td>
+                  );
+                })}
                 <td className="py-3 px-4">
                   <div className="flex justify-end items-center gap-1">
                     <button

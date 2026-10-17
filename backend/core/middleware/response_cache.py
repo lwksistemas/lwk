@@ -25,8 +25,8 @@ CACHED_ENDPOINTS = [
     ("/api/superadmin/lojas/info_publica/", 300, False),
     ("/api/superadmin/lojas/por-atalho/", 300, False),
     ("/api/homepage/", 600, False),
-    # Endpoints autenticados — cache por loja_id + user_id
-    ("/api/crm-vendas/config/", 120, True),
+    # Endpoints autenticados — cache por loja_id + user_id.
+    # /api/crm-vendas/config/ não entra: o PATCH das colunas tem de aparecer na hora na lista.
     ("/api/clinica-beleza/dashboard/", 60, True),
     ("/api/clinica-beleza/financeiro/resumo/", 60, True),
     ("/api/restaurante/categorias/", 120, True),

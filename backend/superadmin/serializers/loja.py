@@ -11,6 +11,22 @@ from .financeiro import FinanceiroLojaSerializer
 
 logger = logging.getLogger(__name__)
 
+
+def _enviar_boleto_do_cadastro(loja, financeiro) -> None:
+    """Manda o boleto da primeira cobrança. A senha continua só depois do pagamento."""
+    url = (getattr(financeiro, "boleto_url", None) or "").strip()
+    if not url:
+        return
+    from superadmin.sync_service.asaas import AsaasSyncService
+
+    vencimento = getattr(financeiro, "data_proxima_cobranca", None)
+    ok, destino = AsaasSyncService()._enviar_email_boleto(loja, url, vencimento)
+    if ok:
+        logger.info("Boleto do cadastro enviado: loja=%s", loja.slug)
+    else:
+        logger.error("Boleto do cadastro sem e-mail: loja=%s motivo=%s", loja.slug, destino)
+
+
 class LojaSerializer(
     UniqueDocumentoPerLojaMixin,
     CpfCnpjNormalizationMixin,
@@ -310,10 +326,10 @@ class LojaCreateSerializer(
 
             # Rede de segurança: se o signal não gerou boleto, tenta criar aqui.
             try:
-                financeiro.refresh_from_db()
-                if not (financeiro.asaas_payment_id or financeiro.mercadopago_payment_id):
-                    from superadmin.cobranca_service import CobrancaService
+                from superadmin.cobranca_service import CobrancaService, cobranca_ja_registrada
 
+                financeiro.refresh_from_db()
+                if not cobranca_ja_registrada(financeiro):
                     result = CobrancaService().criar_cobranca(loja, financeiro)
                     if not result.get("success"):
                         logger.error(
@@ -321,6 +337,8 @@ class LojaCreateSerializer(
                             loja.slug,
                             result.get("error"),
                         )
+                financeiro.refresh_from_db()
+                _enviar_boleto_do_cadastro(loja, financeiro)
             except Exception as e:
                 logger.exception("Falha ao garantir cobrança no cadastro da loja %s: %s", loja.slug, e)
 

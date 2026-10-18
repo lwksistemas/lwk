@@ -51,6 +51,7 @@ function ClinicaNFSePageContent() {
     requestCancelarNFSe,
     nfCancelamento,
     setNfCancelamento,
+    erroCancelamento,
     confirmarCancelamentoNFSe,
     cancelandoNFSe,
     abrirModalWhatsapp,
@@ -136,6 +137,7 @@ function ClinicaNFSePageContent() {
           identificador={nfseIdentificador(nfCancelamento)}
           provedor={nfCancelamento.provedor}
           loading={cancelandoNFSe}
+          erroPrefeitura={erroCancelamento}
           onClose={() => !cancelandoNFSe && setNfCancelamento(null)}
           onConfirm={confirmarCancelamentoNFSe}
         />

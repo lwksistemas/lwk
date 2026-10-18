@@ -8,6 +8,7 @@ from nfse_integration.issnet_response import (
     parse_consultar_url_nfse_resposta,
     parse_resposta_cancelamento,
     parse_resposta_xml,
+    explicar_recusa_cancelamento,
     resultado_cancelamento_nacional,
 )
 
@@ -135,6 +136,13 @@ class CancelamentoEErrosTests(SimpleTestCase):
             "</MensagemRetorno></ListaMensagemRetorno>"
         )
         self.assertFalse(recusa["success"])
+        self.assertIn("prazo de cancelamento", explicar_recusa_cancelamento(
+            "[EM107] Nota aceita. [E0822] Prazo expirou."
+        ))
+        self.assertIn("já aceitou", explicar_recusa_cancelamento(
+            "[EM107] Nota aceita. [E0822] Prazo expirou."
+        ))
+        self.assertIn("[E160]", explicar_recusa_cancelamento("[E160] Schema."))
         self.assertIn("[E160]", recusa["error"])
         self.assertIn("Consulte o manual.", recusa["error"])
 

@@ -285,6 +285,42 @@ def _mensagens_retorno_com_codigo(texto: str) -> str:
     return "; ".join(partes)
 
 
+_EXPLICACAO_RECUSA_CANCELAMENTO = {
+    "E0822": (
+        "O prazo de cancelamento da prefeitura já passou. "
+        "Esta nota não pode mais ser cancelada."
+    ),
+    "EM107": (
+        "O cliente já aceitou esta nota. "
+        "A prefeitura só cancela depois que ele desfizer o aceite no portal."
+    ),
+    "E206": (
+        "A prefeitura não aceita cancelar com o motivo “Erro na emissão”. "
+        "Use “Serviço não prestado” ou cancele no portal."
+    ),
+}
+
+
+def explicar_recusa_cancelamento(erro: str) -> str:
+    """Traduz os códigos da prefeitura para o administrador da loja."""
+    texto = " ".join(str(erro or "").split())
+    if not texto:
+        return "A prefeitura não confirmou o cancelamento."
+    codigos: list[str] = []
+    for codigo in re.findall(r"\[([A-Za-z]{1,4}\d+)\]", texto):
+        chave = codigo.upper()
+        if chave not in codigos:
+            codigos.append(chave)
+    frases = [_EXPLICACAO_RECUSA_CANCELAMENTO[c] for c in codigos if c in _EXPLICACAO_RECUSA_CANCELAMENTO]
+    if not frases:
+        return texto
+    desconhecidos = [c for c in codigos if c not in _EXPLICACAO_RECUSA_CANCELAMENTO]
+    aviso = "A prefeitura não cancelou a nota.\n\n" + "\n\n".join(frases)
+    if desconhecidos:
+        aviso += "\n\n" + texto
+    return aviso
+
+
 def resultado_cancelamento_nacional(xml_body: str) -> dict[str, Any]:
     """Lê a resposta do CancelarNfse nacional (evento e101103).
 

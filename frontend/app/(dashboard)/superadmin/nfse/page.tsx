@@ -25,6 +25,7 @@ export default function NFSeEmitidasPage() {
   const [filtroStatus, setFiltroStatus] = useState('');
   const [showModalEmitir, setShowModalEmitir] = useState(false);
   const [nfCancelamento, setNfCancelamento] = useState<NFSeEmitida | null>(null);
+  const [erroCancelamento, setErroCancelamento] = useState<string | null>(null);
   const [cancelandoNFSe, setCancelandoNFSe] = useState(false);
 
   const loadNotas = useCallback(async () => {
@@ -84,6 +85,7 @@ export default function NFSeEmitidasPage() {
   };
 
   const handleCancelar = (nf: NFSeEmitida) => {
+    setErroCancelamento(null);
     setNfCancelamento(nf);
   };
 
@@ -96,14 +98,19 @@ export default function NFSeEmitidasPage() {
         motivo: escolha.motivo,
       });
       if (data.success) {
+        setErroCancelamento(null);
         setMessage({ type: 'success', text: data.message });
         setNfCancelamento(null);
         loadNotas();
       } else {
+        setErroCancelamento(data.error || 'Erro ao cancelar');
         setMessage({ type: 'error', text: data.error });
       }
-    } catch {
-      setMessage({ type: 'error', text: 'Erro ao cancelar' });
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { error?: string } } };
+      const texto = ax.response?.data?.error || 'Erro ao cancelar';
+      setErroCancelamento(texto);
+      setMessage({ type: 'error', text: texto });
     } finally {
       setCancelandoNFSe(false);
     }
@@ -164,6 +171,7 @@ export default function NFSeEmitidasPage() {
           identificador={nfseIdentificador(nfCancelamento)}
           provedor={nfCancelamento.provedor}
           loading={cancelandoNFSe}
+          erroPrefeitura={erroCancelamento}
           onClose={() => !cancelandoNFSe && setNfCancelamento(null)}
           onConfirm={confirmarCancelamento}
         />

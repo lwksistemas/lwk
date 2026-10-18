@@ -70,6 +70,7 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
   const [confirmAction, setConfirmAction] = useState<NfseConfirmAction | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [nfCancelamento, setNfCancelamento] = useState<NFSe | null>(null);
+  const [erroCancelamento, setErroCancelamento] = useState<string | null>(null);
   const [cancelandoNFSe, setCancelandoNFSe] = useState(false);
 
   useEffect(() => {
@@ -243,6 +244,7 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
   };
 
   const requestCancelarNFSe = (nf: NFSe) => {
+    setErroCancelamento(null);
     setNfCancelamento(nf);
   };
 
@@ -255,6 +257,7 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
         codigo_cancelamento: escolha.codigo,
       });
       toast.success('NFS-e cancelada com sucesso.');
+      setErroCancelamento(null);
       setNfCancelamento(null);
       await carregarNFSes(true);
     } catch (err: unknown) {
@@ -275,7 +278,8 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
           '_blank'
         );
       } else {
-        toast.error(errorMsg);
+        setErroCancelamento(errorMsg);
+        toast.error('A prefeitura não cancelou a nota. O motivo está nesta janela.');
       }
     } finally {
       setCancelandoNFSe(false);
@@ -360,6 +364,7 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
     requestCancelarNFSe,
     nfCancelamento,
     setNfCancelamento,
+    erroCancelamento,
     confirmarCancelamentoNFSe,
     cancelandoNFSe,
     abrirModalWhatsapp,

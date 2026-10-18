@@ -9,6 +9,7 @@ from django.utils import timezone
 from nfse_integration.email_nfse import notificar_cancelamento_nfse
 from nfse_integration.issnet_loja import certificado_configurado_loja, issnet_client_loja
 from nfse_integration.issnet_nacional_client import ISSNetNacionalClient
+from nfse_integration.issnet_response import explicar_recusa_cancelamento
 from nfse_integration.issnet_shared import CODIGOS_CANCELAMENTO, normalizar_codigo_cancelamento
 from nfse_integration.issnet_status_sync import consultar_nfse_cancelada_issnet
 
@@ -149,7 +150,7 @@ def _cancelar_nfse_loja_nacional(
             }
         return {
             "success": False,
-            "error": erro_str,
+            "error": explicar_recusa_cancelamento(erro_str),
         }
     except Exception as exc:
         logger.exception("Erro ao cancelar NFS-e via ISSNet Nacional: %s", exc)
@@ -288,7 +289,9 @@ def cancelar_nfse_loja(
 
         return {
             "success": False,
-            "error": resultado.get("error", "Erro ao cancelar no ISSNet"),
+            "error": explicar_recusa_cancelamento(
+                str(resultado.get("error") or "Erro ao cancelar no ISSNet"),
+            ),
         }
     except Exception as exc:
         logger.exception("Erro ao cancelar NFS-e via ISSNet: %s", exc)

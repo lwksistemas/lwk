@@ -53,6 +53,7 @@ export default function NFSePage() {
     requestCancelarNFSe,
     nfCancelamento,
     setNfCancelamento,
+    erroCancelamento,
     confirmarCancelamentoNFSe,
     cancelandoNFSe,
     abrirModalWhatsapp,
@@ -140,6 +141,7 @@ export default function NFSePage() {
           identificador={nfseIdentificador(nfCancelamento)}
           provedor={nfCancelamento.provedor}
           loading={cancelandoNFSe}
+          erroPrefeitura={erroCancelamento}
           onClose={() => !cancelandoNFSe && setNfCancelamento(null)}
           onConfirm={confirmarCancelamentoNFSe}
         />

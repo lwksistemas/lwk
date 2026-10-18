@@ -9,6 +9,7 @@ from nfse_integration.issnet_response import (
     parse_resposta_cancelamento,
     parse_resposta_xml,
     explicar_recusa_cancelamento,
+    mensagem_falha_sincronizacao_nacional,
     resultado_cancelamento_nacional,
 )
 
@@ -143,6 +144,13 @@ class CancelamentoEErrosTests(SimpleTestCase):
             "[EM107] Nota aceita. [E0822] Prazo expirou."
         ))
         self.assertIn("[E160]", explicar_recusa_cancelamento("[E160] Schema."))
+        aviso = mensagem_falha_sincronizacao_nacional(
+            "Arquivo em desacordo com o XML Schema.",
+            "cancelada",
+        )
+        self.assertIn("não aceitou a consulta", aviso)
+        self.assertIn("continua cancelada", aviso)
+        self.assertNotIn("Schema", aviso)
         self.assertIn("[E160]", recusa["error"])
         self.assertIn("Consulte o manual.", recusa["error"])
 

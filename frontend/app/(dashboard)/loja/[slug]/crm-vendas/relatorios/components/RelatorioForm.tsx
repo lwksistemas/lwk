@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, Mail, Calendar, DollarSign, Users, TrendingUp, Building2 } from 'lucide-react';
+import { Download, Mail, Calendar, DollarSign, Users, TrendingUp, Building2, Phone } from 'lucide-react';
 import { CRM_PERIODO_RELATORIO } from '@/lib/crm-periodos';
 
 interface Vendedor { id: number; nome: string; }
@@ -31,6 +31,7 @@ const TIPOS = [
   { key: 'vendas_total', label: 'Total de Vendas', desc: 'Todos os vendedores', icon: DollarSign, adminOnly: true },
   { key: 'vendas_vendedor', label: 'Vendas por Vendedor', desc: 'Com comissões', icon: Users, adminOnly: false },
   { key: 'comissoes', label: 'Exportar comissões (PDF)', desc: 'Relatório pontual para download/e-mail', icon: TrendingUp, adminOnly: false },
+  { key: 'negociacao_ganhos', label: 'Clientes ganhos', desc: 'Nome, telefone e histórico da negociação', icon: Phone, adminOnly: false },
 ];
 
 export function RelatorioForm({ tipoRelatorio, periodo, dataInicio, dataFim, vendedorSelecionado, vendedores, empresasPrestadoras, empresaPrestadoraSelecionada, isVendedor, gerando, loading, onTipoChange, onPeriodoChange, onDataInicioChange, onDataFimChange, onVendedorChange, onEmpresaPrestadoraChange, onGerar }: Props) {
@@ -41,7 +42,7 @@ export function RelatorioForm({ tipoRelatorio, periodo, dataInicio, dataFim, ven
         {/* Tipo */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tipo de Relatório</label>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
             {TIPOS.filter((t) => !t.adminOnly || !isVendedor).map((t) => {
               const Icon = t.icon;
               return (
@@ -91,7 +92,7 @@ export function RelatorioForm({ tipoRelatorio, periodo, dataInicio, dataFim, ven
         </div>
 
         {/* Vendedor */}
-        {tipoRelatorio === 'vendas_vendedor' && !isVendedor && (
+        {(tipoRelatorio === 'vendas_vendedor' || tipoRelatorio === 'negociacao_ganhos') && !isVendedor && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Vendedor</label>
             <select value={vendedorSelecionado} onChange={(e) => onVendedorChange(e.target.value)} disabled={loading} className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
@@ -100,7 +101,7 @@ export function RelatorioForm({ tipoRelatorio, periodo, dataInicio, dataFim, ven
             </select>
           </div>
         )}
-        {tipoRelatorio === 'vendas_vendedor' && isVendedor && (
+        {(tipoRelatorio === 'vendas_vendedor' || tipoRelatorio === 'negociacao_ganhos') && isVendedor && (
           <p className="text-sm text-gray-600 dark:text-gray-400">Relatório das suas vendas</p>
         )}
 

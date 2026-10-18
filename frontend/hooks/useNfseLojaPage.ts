@@ -150,11 +150,16 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
     setSyncingId(nf.id);
     try {
       const res = await apiClient.post(`/nfse/${nf.id}/${endpoint}/`);
+      const data = res.data as { message?: string; aviso?: boolean };
       const msg =
-        (res.data as { message?: string })?.message ||
+        data?.message ||
         (endpoint === 'sincronizar-issnet'
           ? 'Status atualizado conforme o ISSNet.'
           : 'Status atualizado conforme o Asaas.');
+      if (data?.aviso) {
+        setSyncMsg({ type: 'info', text: msg });
+        return;
+      }
       setSyncMsg({ type: 'ok', text: msg });
       await carregarNFSes(true);
     } catch (err: unknown) {

@@ -10,7 +10,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from core.cpf_utils import label_empresa_lead
+from core.cpf_utils import label_empresa_lead, normalizar_cpf_cnpj, somente_digitos_documento
 from core.phone_utils import telefone_exibicao_brasileiro
 
 from .models import Oportunidade
@@ -65,6 +65,23 @@ def empresa_da_oportunidade(oportunidade) -> str:
         conta_nome=conta_nome,
     )
     return (rotulo or "").strip() or "—"
+
+
+def documento_da_oportunidade(oportunidade) -> str:
+    """CPF ou CNPJ do cliente, formatado, para a coluna Oportunidade."""
+    lead = getattr(oportunidade, "lead", None)
+    if lead is None:
+        return ""
+    bruto = (getattr(lead, "cpf_cnpj", "") or "").strip()
+    if len(somente_digitos_documento(bruto)) not in (11, 14) and getattr(lead, "conta_id", None):
+        bruto = (getattr(getattr(lead, "conta", None), "cnpj", "") or "").strip()
+    digitos = somente_digitos_documento(bruto)
+    formatado = normalizar_cpf_cnpj(bruto)
+    if len(digitos) == 11:
+        return f"CPF {formatado}"
+    if len(digitos) == 14:
+        return f"CNPJ {formatado}"
+    return ""
 
 
 def nome_do_cliente(oportunidade) -> str:
@@ -126,6 +143,14 @@ def _estilos_cartao():
             fontSize=9,
             leading=12,
             textColor=colors.HexColor("#111827"),
+        ),
+        "documento": ParagraphStyle(
+            "NegDocumento",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=8,
+            leading=10,
+            textColor=colors.HexColor("#374151"),
         ),
         "nota": ParagraphStyle(
             "NegNota",
@@ -204,6 +229,10 @@ def _cartao_cliente(oportunidade, estilos, largura):
     ganho_txt = ganho.strftime("%d/%m/%Y") if ganho else "—"
     vendedor = getattr(getattr(oportunidade, "vendedor", None), "nome", "") or "—"
     empresa = empresa_da_oportunidade(oportunidade)
+    documento = documento_da_oportunidade(oportunidade)
+    oportunidade_celula = [Paragraph("OPORTUNIDADE", estilos["rotulo"]), _paragrafo(empresa, estilos["valor"])]
+    if documento:
+        oportunidade_celula.append(_paragrafo(documento, estilos["documento"]))
 
     faixa = Table(
         [[_paragrafo(nome, estilos["nome"]), _paragrafo(telefone, estilos["telefone"])]],
@@ -222,7 +251,7 @@ def _cartao_cliente(oportunidade, estilos, largura):
 
     dados = Table(
         [[
-            [Paragraph("OPORTUNIDADE", estilos["rotulo"]), _paragrafo(empresa, estilos["valor"])],
+            oportunidade_celula,
             [Paragraph("VALOR", estilos["rotulo"]), _paragrafo(_brl(oportunidade.valor), estilos["valor"])],
             [Paragraph("GANHO EM", estilos["rotulo"]), _paragrafo(ganho_txt, estilos["valor"])],
             [Paragraph("VENDEDOR", estilos["rotulo"]), _paragrafo(vendedor, estilos["valor"])],

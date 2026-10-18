@@ -11,6 +11,7 @@ from crm_vendas.relatorios_negociacao_pdf import (
     gerar_relatorio_negociacao_ganhos,
     nome_do_cliente,
     telefone_do_cliente,
+    telefone_para_exibicao,
 )
 from crm_vendas.relatorios_vendas_pdf import gerar_relatorio_vendas_total
 from crm_vendas.relatorios_vendas_pdf_helpers import merge_detalhamento_vendedores_pdf
@@ -82,6 +83,13 @@ class RelatorioNegociacaoGanhosTest(SimpleTestCase):
         )
         self.assertEqual(nome_do_cliente(opp), "Ana")
         self.assertEqual(telefone_do_cliente(opp), "11911112222")
+        self.assertEqual(telefone_para_exibicao(opp), "(11) 91111-2222")
+
+    def test_telefone_com_codigo_55_sai_com_ddd(self):
+        opp = SimpleNamespace(
+            lead=SimpleNamespace(nome="Ana", telefone="5568984093985", contato=None, conta=None),
+        )
+        self.assertEqual(telefone_para_exibicao(opp), "(68) 98409-3985")
 
     @patch("crm_vendas.relatorios_negociacao_pdf._obter_logo_loja", return_value=None)
     @patch("crm_vendas.relatorios_negociacao_pdf.calcular_periodo", return_value=(date(2026, 10, 1), date(2026, 10, 31)))

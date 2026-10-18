@@ -8,6 +8,7 @@ from django.test import SimpleTestCase
 from django.utils import timezone
 
 from crm_vendas.relatorios_negociacao_pdf import (
+    documento_da_oportunidade,
     empresa_da_oportunidade,
     gerar_relatorio_negociacao_ganhos,
     nome_do_cliente,
@@ -115,8 +116,10 @@ class RelatorioNegociacaoGanhosTest(SimpleTestCase):
         )
         self.assertEqual(nome_do_cliente(cnpj), "ANA CLAUDIA")
         self.assertEqual(empresa_da_oportunidade(cnpj), "MARCHESINI SERVICOS MEDICOS LTDA")
+        self.assertEqual(documento_da_oportunidade(cnpj), "CNPJ 12.345.678/0001-99")
         self.assertEqual(nome_do_cliente(cpf), "ALLAN FERNANDES COSTA")
         self.assertEqual(empresa_da_oportunidade(cpf), "PESSOA FISICA")
+        self.assertEqual(documento_da_oportunidade(cpf), "CPF 123.456.789-00")
 
     @patch("crm_vendas.relatorios_negociacao_pdf._obter_logo_loja", return_value=None)
     @patch("crm_vendas.relatorios_negociacao_pdf.calcular_periodo", return_value=(date(2026, 10, 1), date(2026, 10, 31)))

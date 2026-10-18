@@ -14,6 +14,7 @@ from nfse_integration.loja_nfse_api import (
     ConfigLojaInconsistenteError,
     ExclusaoNFSeLojaError,
     _consultar_nfse_issnet_por_rps,
+    _sincronizar_nfse_issnet_nacional,
     _copiar_campos_numericos_portal,
     _copiar_campos_portal,
     _sanitizar_resultado_recuperacao,
@@ -156,3 +157,27 @@ class LojaNfseRegrasTests(SimpleTestCase):
             "<UrlVisualizacaoNfseNacional>https://exemplo/danfe</UrlVisualizacaoNfseNacional>"
         )
         self.assertEqual(url, "https://exemplo/danfe")
+
+    def test_sincronizar_nacional_nao_consulta_a_prefeitura(self):
+        nfse = SimpleNamespace(status="cancelada", save=MagicMock(), refresh_from_db=MagicMock())
+        with patch(
+            "nfse_integration.issnet_nacional_client.ISSNetNacionalClient.consultar_nfse_por_dps",
+            side_effect=AssertionError("não deve consultar a prefeitura"),
+        ):
+            body, code = _sincronizar_nfse_issnet_nacional(
+                nfse=nfse,
+                loja=SimpleNamespace(),
+                loja_id=4,
+                config=SimpleNamespace(),
+                numero_rps=187,
+                serie_rps="1",
+                cnpj_prestador="1",
+                im_prestador="2",
+            )
+        self.assertEqual(code, 200)
+        self.assertTrue(body["aviso"])
+        self.assertIn("Nota Control", body["message"])
+        self.assertIn("continua cancelada", body["message"])
+        self.assertEqual(nfse.status, "cancelada")
+        nfse.save.assert_not_called()
+        nfse.refresh_from_db.assert_not_called()

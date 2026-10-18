@@ -7,6 +7,7 @@ from .relatorios_pdf_common import (
     _nome_cliente_venda,
     _obter_logo_loja,
 )
+from .relatorios_negociacao_pdf import gerar_relatorio_negociacao_ganhos
 from .relatorios_vendas_pdf import (
     gerar_relatorio_vendas_total,
     gerar_relatorio_vendas_vendedor,
@@ -18,6 +19,7 @@ __all__ = [
     "_nome_cliente_venda",
     "_obter_logo_loja",
     "calcular_periodo",
+    "gerar_relatorio_negociacao_ganhos",
     "gerar_relatorio_vendas_total",
     "gerar_relatorio_vendas_vendedor",
 ]

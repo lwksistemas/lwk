@@ -1,10 +1,17 @@
 """Smoke tests: geração de PDF de relatórios de vendas."""
-from datetime import date
+from datetime import date, datetime
 from io import BytesIO
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
+from django.utils import timezone
 
+from crm_vendas.relatorios_negociacao_pdf import (
+    gerar_relatorio_negociacao_ganhos,
+    nome_do_cliente,
+    telefone_do_cliente,
+)
 from crm_vendas.relatorios_vendas_pdf import gerar_relatorio_vendas_total
 from crm_vendas.relatorios_vendas_pdf_helpers import merge_detalhamento_vendedores_pdf
 
@@ -60,3 +67,51 @@ class RelatoriosPdfSmokeTest(SimpleTestCase):
         self.assertEqual(merged[0]["vendedor_id"], 5)
         self.assertEqual(merged[0]["total"], 150.0)
         self.assertEqual(merged[0]["qtd"], 2)
+
+
+class RelatorioNegociacaoGanhosTest(SimpleTestCase):
+    def test_telefone_prefere_o_do_lead(self):
+        opp = SimpleNamespace(
+            titulo="Venda",
+            lead=SimpleNamespace(
+                nome="Ana",
+                telefone="11911112222",
+                contato=SimpleNamespace(telefone="11000000000"),
+                conta=SimpleNamespace(telefone="1133334444"),
+            ),
+        )
+        self.assertEqual(nome_do_cliente(opp), "Ana")
+        self.assertEqual(telefone_do_cliente(opp), "11911112222")
+
+    @patch("crm_vendas.relatorios_negociacao_pdf._obter_logo_loja", return_value=None)
+    @patch("crm_vendas.relatorios_negociacao_pdf.calcular_periodo", return_value=(date(2026, 10, 1), date(2026, 10, 31)))
+    @patch("crm_vendas.relatorios_negociacao_pdf.Oportunidade")
+    def test_pdf_traz_cliente_telefone_e_historico(self, mock_opp, _periodo, _logo):
+        quando = timezone.make_aware(datetime(2026, 10, 2, 9, 0))
+        nota = SimpleNamespace(
+            created_at=quando,
+            tipo="resposta_cliente",
+            autor_nome="Ana",
+            texto="Pode fechar.",
+        )
+        opp = SimpleNamespace(
+            titulo="Implantação",
+            valor=500,
+            data_fechamento_ganho=date(2026, 10, 3),
+            data_fechamento=None,
+            feedback_pos_venda="",
+            vendedor=SimpleNamespace(nome="Carlos"),
+            lead=SimpleNamespace(nome="Ana Lima", telefone="16999990000", contato=None, conta=None),
+            notas_negociacao=SimpleNamespace(all=lambda: [nota]),
+        )
+        chain = MagicMock()
+        chain.filter.return_value = chain
+        chain.select_related.return_value = chain
+        chain.prefetch_related.return_value = chain
+        chain.order_by.return_value = [opp]
+        mock_opp.objects.filter.return_value = chain
+
+        buffer = gerar_relatorio_negociacao_ganhos(loja_id=4, periodo="mes_atual")
+        data = buffer.getvalue()
+        self.assertTrue(data.startswith(b"%PDF"))
+        self.assertGreater(len(data), 100)

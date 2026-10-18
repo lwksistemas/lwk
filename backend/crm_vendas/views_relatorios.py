@@ -33,7 +33,11 @@ def gerar_relatorio(request):
     Admin (proprietário) vê todos os relatórios.
     """
     try:
-        from .relatorios import gerar_relatorio_vendas_total, gerar_relatorio_vendas_vendedor
+        from .relatorios import (
+            gerar_relatorio_negociacao_ganhos,
+            gerar_relatorio_vendas_total,
+            gerar_relatorio_vendas_vendedor,
+        )
     except ImportError as e:
         logger.error(f"Erro ao importar módulo de relatórios: {e}")
         return Response({
@@ -87,6 +91,16 @@ def gerar_relatorio(request):
         elif tipo in ["vendas_vendedor", "comissoes"]:
             pdf_buffer = gerar_relatorio_vendas_vendedor(loja_id, periodo, vendedor_id, empresa_prestadora_id=empresa_prestadora_id, data_inicio_custom=data_inicio_custom, data_fim_custom=data_fim_custom)
             filename = f"relatorio_vendas{nome_vendedor_label}_{periodo_label}.pdf"
+        elif tipo == "negociacao_ganhos":
+            pdf_buffer = gerar_relatorio_negociacao_ganhos(
+                loja_id,
+                periodo,
+                vendedor_id=vendedor_id,
+                empresa_prestadora_id=empresa_prestadora_id,
+                data_inicio_custom=data_inicio_custom,
+                data_fim_custom=data_fim_custom,
+            )
+            filename = f"relatorio_negociacao_ganhos_{periodo_label}.pdf"
         else:
             return Response({"detail": "Tipo de relatório inválido."}, status=400)
 

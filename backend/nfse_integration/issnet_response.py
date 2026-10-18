@@ -301,6 +301,24 @@ _EXPLICACAO_RECUSA_CANCELAMENTO = {
 }
 
 
+def mensagem_falha_sincronizacao_nacional(erro: str, status_local: str) -> str:
+    """Traduz a recusa da consulta para o administrador, sem mudar o status local."""
+    texto = " ".join(str(erro or "").split())
+    baixo = texto.lower()
+    status = (status_local or "").strip().lower()
+    if status == "cancelada":
+        permanece = "A nota continua cancelada no sistema."
+    elif status == "emitida":
+        permanece = "A nota continua emitida no sistema."
+    else:
+        permanece = "O status da nota no sistema não mudou."
+    if "schema" in baixo or "desacordo" in baixo or "E160" in texto.upper():
+        return f"A prefeitura não aceitou a consulta desta nota. {permanece}"
+    if not texto:
+        return f"Não foi possível confirmar a nota na prefeitura. {permanece}"
+    return f"A prefeitura não confirmou a consulta. {permanece} {texto}"
+
+
 def explicar_recusa_cancelamento(erro: str) -> str:
     """Traduz os códigos da prefeitura para o administrador da loja."""
     texto = " ".join(str(erro or "").split())

@@ -377,8 +377,10 @@ def _sincronizar_nfse_issnet_nacional(
             http_status.HTTP_200_OK,
         )
 
+    from nfse_integration.issnet_response import mensagem_falha_sincronizacao_nacional
+
     return (
-        {"error": f"ISSNet Nacional: {erro}"},
+        {"error": mensagem_falha_sincronizacao_nacional(str(erro), getattr(nfse, "status", ""))},
         http_status.HTTP_400_BAD_REQUEST,
     )
 

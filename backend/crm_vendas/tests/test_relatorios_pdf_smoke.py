@@ -4,6 +4,9 @@ from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from PIL import Image as PILImage
+from reportlab.platypus import Table
+
 from django.test import SimpleTestCase
 from django.utils import timezone
 
@@ -15,6 +18,7 @@ from crm_vendas.relatorios_negociacao_pdf import (
     telefone_do_cliente,
     telefone_para_exibicao,
 )
+from crm_vendas.relatorios_pdf_common import _criar_cabecalho_relatorio
 from crm_vendas.relatorios_vendas_pdf import gerar_relatorio_vendas_total
 from crm_vendas.relatorios_vendas_pdf_helpers import merge_detalhamento_vendedores_pdf
 
@@ -120,6 +124,21 @@ class RelatorioNegociacaoGanhosTest(SimpleTestCase):
         self.assertEqual(nome_do_cliente(cpf), "ALLAN FERNANDES COSTA")
         self.assertEqual(empresa_da_oportunidade(cpf), "PESSOA FISICA")
         self.assertEqual(documento_da_oportunidade(cpf), "CPF 123.456.789-00")
+
+    def test_logo_do_relatorio_fica_centralizado(self):
+        imagem = BytesIO()
+        PILImage.new("RGB", (80, 40), "white").save(imagem, format="PNG")
+        resposta = MagicMock(status_code=200, content=imagem.getvalue())
+        with patch("crm_vendas.relatorios_pdf_common.requests.get", return_value=resposta):
+            cabecalho = _criar_cabecalho_relatorio(
+                "https://exemplo/logo.png",
+                "Clientes fichados e ganhos",
+                centralizado=True,
+                largura=400,
+            )
+        self.assertIsInstance(cabecalho, Table)
+        self.assertEqual(len(cabecalho._cellvalues), 2)
+        self.assertEqual(len(cabecalho._cellvalues[0]), 1)
 
     @patch("crm_vendas.relatorios_negociacao_pdf._obter_logo_loja", return_value=None)
     @patch("crm_vendas.relatorios_negociacao_pdf.calcular_periodo", return_value=(date(2026, 10, 1), date(2026, 10, 31)))

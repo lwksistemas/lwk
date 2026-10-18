@@ -151,8 +151,6 @@ def enviar_pdf_final(documento, loja_id):
         return False, "Nenhum destinatário com email cadastrado."
 
     filename = f"{tipo_doc.lower()}_{documento.titulo or documento.id}_assinado.pdf"
-    from core.media_pdf import arquivar_pdf_gerado
-    arquivar_pdf_gerado(loja_id, lead, pdf_bytes, filename)
 
     html_content, texto_plano = montar_email_pdf_final(
         documento=documento,

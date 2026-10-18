@@ -40,8 +40,8 @@ def _obter_logo_loja(loja_id):
     return None
 
 
-def _criar_cabecalho_relatorio(logo_url, titulo, max_width=6*cm, max_height=3*cm):
-    """Cria cabeçalho com logo à esquerda e título à direita na mesma linha.
+def _criar_cabecalho_relatorio(logo_url, titulo, max_width=6*cm, max_height=3*cm, centralizado=False, largura=None):
+    """Cria cabeçalho com logo à esquerda e título à direita, ou os dois centralizados.
     """
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
@@ -97,10 +97,28 @@ def _criar_cabecalho_relatorio(logo_url, titulo, max_width=6*cm, max_height=3*cm
         # Criar elemento Image do reportlab
         img = Image(img_buffer, width=width, height=height)
 
-        # Criar tabela com logo à esquerda e título à direita
-        titulo_paragraph = Paragraph(titulo, title_style)
+        if centralizado:
+            from reportlab.lib.pagesizes import A4
+
+            title_style.alignment = TA_CENTER
+            titulo_paragraph = Paragraph(titulo, title_style)
+            img.hAlign = "CENTER"
+            coluna = largura or (A4[0] - 2.8 * cm)
+            table = Table([[img], [titulo_paragraph]], colWidths=[coluna])
+            table.setStyle(TableStyle([
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, 0), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 0),
+                ("TOPPADDING", (0, 1), (-1, 1), 8),
+                ("BOTTOMPADDING", (0, 1), (-1, 1), 0),
+            ]))
+            return table
 
         # Tabela: [Logo | Título]
+        titulo_paragraph = Paragraph(titulo, title_style)
         table_data = [[img, titulo_paragraph]]
         table = Table(table_data, colWidths=[width + 0.5*cm, None])
         table.setStyle(TableStyle([

@@ -324,7 +324,12 @@ def gerar_relatorio_negociacao_ganhos(
             pass
 
     elements = [
-        _criar_cabecalho_relatorio(_obter_logo_loja(loja_id), "Clientes fichados e ganhos"),
+        _criar_cabecalho_relatorio(
+            _obter_logo_loja(loja_id),
+            "Clientes fichados e ganhos",
+            centralizado=True,
+            largura=largura,
+        ),
         Spacer(1, 0.2 * cm),
         Paragraph(
             f'Período: {data_inicio.strftime("%d/%m/%Y")} a {data_fim.strftime("%d/%m/%Y")}',

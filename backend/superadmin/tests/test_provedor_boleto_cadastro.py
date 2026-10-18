@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
+from superadmin.cobranca_service import cobranca_ja_registrada
 from superadmin.provedor_boleto import provedor_boleto_padrao, provedor_no_cadastro
 
 
@@ -46,6 +47,22 @@ class ProvedorBoletoCadastroTests(SimpleTestCase):
         anonimo = SimpleNamespace(is_superuser=False)
         with patch("superadmin.provedor_boleto.provedor_boleto_padrao", return_value="cora"):
             self.assertEqual(provedor_no_cadastro(anonimo, "asaas"), "cora")
+
+    def test_cora_conta_como_cobranca_existente(self):
+        financeiro = SimpleNamespace(
+            asaas_payment_id="",
+            mercadopago_payment_id="",
+            cora_invoice_id="inv_teste",
+        )
+        self.assertTrue(cobranca_ja_registrada(financeiro))
+
+    def test_sem_identificador_ainda_nao_cobrou(self):
+        financeiro = SimpleNamespace(
+            asaas_payment_id="",
+            mercadopago_payment_id="",
+            cora_invoice_id="",
+        )
+        self.assertFalse(cobranca_ja_registrada(financeiro))
 
     def test_superadmin_mantem_a_escolha(self):
         admin = SimpleNamespace(is_superuser=True)

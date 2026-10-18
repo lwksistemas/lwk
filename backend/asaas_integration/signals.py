@@ -34,17 +34,13 @@ def create_asaas_subscription_on_financeiro_creation(sender, instance, created, 
     logger.info(f"{'='*80}")
 
     # Ler loja direto do banco pelo FK para garantir valor persistido (evita cache)
-    from superadmin.cobranca_service import CobrancaService
+    from superadmin.cobranca_service import CobrancaService, cobranca_ja_registrada
     from superadmin.models import Loja
 
-    # 🔒 PROTEÇÃO CONTRA DUPLICAÇÃO: Verificar se já tem payment_id
-    # Se já tem payment_id (Asaas ou Mercado Pago), significa que a cobrança já foi criada
-    if instance.asaas_payment_id or instance.mercadopago_payment_id:
+    if cobranca_ja_registrada(instance):
         logger.warning(
-            f"⚠️ Cobrança já existe para loja ID {instance.loja_id} "
-            f"(asaas_payment_id={instance.asaas_payment_id}, "
-            f"mercadopago_payment_id={instance.mercadopago_payment_id}). "
-            f"Pulando criação para evitar duplicação.",
+            "Cobrança já existe para loja ID %s. Pulando para não duplicar.",
+            instance.loja_id,
         )
         return
 

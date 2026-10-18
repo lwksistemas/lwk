@@ -14,6 +14,15 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def cobranca_ja_registrada(financeiro) -> bool:
+    """True quando a primeira cobrança já existe em algum provedor."""
+    return bool(
+        (getattr(financeiro, "asaas_payment_id", None) or "").strip()
+        or (getattr(financeiro, "mercadopago_payment_id", None) or "").strip()
+        or (getattr(financeiro, "cora_invoice_id", None) or "").strip()
+    )
+
+
 def _parse_due_date(value) -> date:
     if isinstance(value, date):
         return value

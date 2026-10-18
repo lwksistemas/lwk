@@ -8,6 +8,7 @@ from django.test import SimpleTestCase
 from django.utils import timezone
 
 from crm_vendas.relatorios_negociacao_pdf import (
+    empresa_da_oportunidade,
     gerar_relatorio_negociacao_ganhos,
     nome_do_cliente,
     telefone_do_cliente,
@@ -90,6 +91,32 @@ class RelatorioNegociacaoGanhosTest(SimpleTestCase):
             lead=SimpleNamespace(nome="Ana", telefone="5568984093985", contato=None, conta=None),
         )
         self.assertEqual(telefone_para_exibicao(opp), "(68) 98409-3985")
+
+    def test_oportunidade_e_a_empresa_e_cpf_vira_pessoa_fisica(self):
+        cnpj = SimpleNamespace(
+            titulo="ULTRASIS INFORMATICA LTDA",
+            lead=SimpleNamespace(
+                nome="ANA CLAUDIA",
+                cpf_cnpj="12345678000199",
+                empresa="MARCHESINI SERVICOS MEDICOS LTDA",
+                conta_id=1,
+                conta=SimpleNamespace(nome="ULTRASIS INFORMATICA LTDA"),
+            ),
+        )
+        cpf = SimpleNamespace(
+            titulo="ALLAN FERNANDES COSTA",
+            lead=SimpleNamespace(
+                nome="ALLAN FERNANDES COSTA",
+                cpf_cnpj="12345678900",
+                empresa="",
+                conta_id=None,
+                conta=None,
+            ),
+        )
+        self.assertEqual(nome_do_cliente(cnpj), "ANA CLAUDIA")
+        self.assertEqual(empresa_da_oportunidade(cnpj), "MARCHESINI SERVICOS MEDICOS LTDA")
+        self.assertEqual(nome_do_cliente(cpf), "ALLAN FERNANDES COSTA")
+        self.assertEqual(empresa_da_oportunidade(cpf), "PESSOA FISICA")
 
     @patch("crm_vendas.relatorios_negociacao_pdf._obter_logo_loja", return_value=None)
     @patch("crm_vendas.relatorios_negociacao_pdf.calcular_periodo", return_value=(date(2026, 10, 1), date(2026, 10, 31)))

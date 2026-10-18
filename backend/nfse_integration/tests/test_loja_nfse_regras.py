@@ -7,6 +7,7 @@ from django.test import SimpleTestCase
 
 from nfse_integration.issnet_nacional_client import ISSNetNacionalClient
 from nfse_integration.issnet_nacional_xml_builder import (
+    _motivo_cancelamento_nacional,
     construir_xml_cancelar_nfse_nacional,
     construir_xml_consultar_url_nfse_nacional,
 )
@@ -138,6 +139,10 @@ class LojaNfseRegrasTests(SimpleTestCase):
         self.assertIn("2026-10-12T15:00:00-03:00", xml)
         self.assertNotIn("CPFAutor", xml)
         self.assertNotIn("InfPedidoCancelamento", xml)
+        codigo, texto = _motivo_cancelamento_nacional("1", "Teste sistema")
+        self.assertEqual(codigo, "1")
+        self.assertGreaterEqual(len(texto), 15)
+        self.assertIn("Teste sistema", texto)
 
     def test_xml_da_url_usa_cnpj_im_e_pagina(self):
         xml = construir_xml_consultar_url_nfse_nacional(

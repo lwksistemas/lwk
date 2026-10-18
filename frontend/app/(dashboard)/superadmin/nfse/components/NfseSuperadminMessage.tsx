@@ -13,7 +13,7 @@ export function NfseSuperadminMessage({
   return (
     <Alert variant={type === 'error' ? 'destructive' : 'default'}>
       <AlertCircle className="h-4 w-4" />
-      <AlertDescription>{text}</AlertDescription>
+      <AlertDescription className="whitespace-pre-line">{text}</AlertDescription>
     </Alert>
   );
 }

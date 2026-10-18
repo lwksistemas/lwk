@@ -14,6 +14,7 @@ export interface NfseCancelamentoModalProps {
   identificador: string;
   provedor?: string | null;
   loading?: boolean;
+  erroPrefeitura?: string | null;
   onClose: () => void;
   onConfirm: (escolha: NfseCancelamentoEscolha) => void;
 }
@@ -24,6 +25,7 @@ export function NfseCancelamentoModal({
   identificador,
   provedor,
   loading = false,
+  erroPrefeitura = null,
   onClose,
   onConfirm,
 }: NfseCancelamentoModalProps) {
@@ -115,7 +117,11 @@ export function NfseCancelamentoModal({
                   placeholder="Detalhe o motivo, se necessário"
                 />
               </div>
-              {erro && <p className="text-sm text-red-600 dark:text-red-400">{erro}</p>}
+              {(erroPrefeitura || erro) && (
+                <p className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 whitespace-pre-line">
+                  {erroPrefeitura || erro}
+                </p>
+              )}
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -140,6 +146,11 @@ export function NfseCancelamentoModal({
               <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 whitespace-pre-line">
                 {NFSE_ISSNET_ERRO_EMISSAO_AVISO}
               </p>
+              {erroPrefeitura && (
+                <p className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 whitespace-pre-line">
+                  {erroPrefeitura}
+                </p>
+              )}
               <div className="flex gap-2">
                 <button
                   type="button"

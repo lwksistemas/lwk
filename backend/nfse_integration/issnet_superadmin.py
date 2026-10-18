@@ -10,6 +10,7 @@ from nfse_integration.issnet_client_factory import (
 from nfse_integration.issnet_client_factory import (
     issnet_client_superadmin,
 )
+from nfse_integration.issnet_response import explicar_recusa_cancelamento
 from nfse_integration.issnet_shared import CODIGOS_CANCELAMENTO, normalizar_codigo_cancelamento
 from nfse_integration.issnet_status_sync import consultar_nfse_cancelada_issnet
 
@@ -98,9 +99,8 @@ def cancelar_nfse_emitida_superadmin(
 
                 return {
                     "success": False,
-                    "error": (
-                        f'Erro ao cancelar no ISSNet: '
-                        f'{resultado.get("error", "Erro desconhecido")}'
+                    "error": explicar_recusa_cancelamento(
+                        str(resultado.get("error") or "Erro desconhecido"),
                     ),
                 }
         except Exception as exc:

@@ -465,16 +465,22 @@ def construir_xml_enviar_lote_dps_sincrono(
 # ---------------------------------------------------------------------------
 
 def _motivo_cancelamento_nacional(codigo_cancelamento: str, motivo_cancelamento: str) -> tuple[str, str]:
-    """Evento e101103 aceita 1, 2 ou 9. Os códigos 3 e 4 do portal viram 9, com o texto no xMotivo."""
+    """Evento e101103 aceita 1, 2 ou 9. Os códigos 3 e 4 do portal viram 9, com o texto no xMotivo.
+
+    O schema nacional rejeita xMotivo com menos de 15 caracteres (E160).
+    """
     codigo = str(codigo_cancelamento or "1").strip()
     c_motivo = codigo if codigo in ("1", "2") else "9"
+    padrao = {
+        "1": "Erro na emissão",
+        "2": "Serviço não prestado",
+        "9": "Outros motivos informados",
+    }.get(c_motivo, "Outros motivos informados")
     texto = (motivo_cancelamento or "").strip()
-    if not texto:
-        texto = {
-            "1": "Erro na emissão",
-            "2": "Serviço não prestado",
-            "9": "Outros",
-        }.get(c_motivo, "Outros")
+    if len(texto) < 15:
+        texto = f"{padrao}. {texto}".strip(" .") if texto else padrao
+    if len(texto) < 15:
+        texto = f"{texto}. Cancelamento solicitado"
     return c_motivo, texto[:255]
 
 

@@ -4,10 +4,13 @@ from xml.sax.saxutils import escape
 
 from django.utils import timezone
 from reportlab.lib import colors
+from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from core.phone_utils import telefone_exibicao_brasileiro
 
 from .models import Oportunidade
 from .periodo import calcular_intervalo_datas as calcular_periodo
@@ -39,6 +42,14 @@ def telefone_do_cliente(oportunidade) -> str:
     return ""
 
 
+def telefone_para_exibicao(oportunidade) -> str:
+    """Telefone no padrão (DDD) 99999-9999, mesmo quando veio com o 55."""
+    bruto = telefone_do_cliente(oportunidade)
+    if not bruto:
+        return ""
+    return telefone_exibicao_brasileiro(bruto)
+
+
 def nome_do_cliente(oportunidade) -> str:
     lead = getattr(oportunidade, "lead", None)
     nome = (getattr(lead, "nome", "") or "").strip() if lead is not None else ""
@@ -63,6 +74,178 @@ def _paragrafo(texto: str, style) -> Paragraph:
     return Paragraph(escape(texto or "").replace("\n", "<br/>"), style)
 
 
+def _estilos_cartao():
+    base = getSampleStyleSheet()
+    return {
+        "nome": ParagraphStyle(
+            "NegNome",
+            parent=base["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=11,
+            leading=14,
+            textColor=colors.white,
+        ),
+        "telefone": ParagraphStyle(
+            "NegTel",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=10,
+            leading=14,
+            alignment=TA_RIGHT,
+            textColor=colors.white,
+        ),
+        "rotulo": ParagraphStyle(
+            "NegRotulo",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=7,
+            leading=9,
+            textColor=colors.HexColor("#6b7280"),
+        ),
+        "valor": ParagraphStyle(
+            "NegValor",
+            parent=base["Normal"],
+            fontName="Helvetica-Bold",
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor("#111827"),
+        ),
+        "nota": ParagraphStyle(
+            "NegNota",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor("#111827"),
+        ),
+        "meta": ParagraphStyle(
+            "NegMeta",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=8,
+            leading=10,
+            textColor=colors.HexColor("#4b5563"),
+        ),
+        "vazio": ParagraphStyle(
+            "NegVazio",
+            parent=base["Normal"],
+            fontName="Helvetica-Oblique",
+            fontSize=8,
+            leading=11,
+            textColor=colors.HexColor("#6b7280"),
+        ),
+        "resumo": ParagraphStyle(
+            "NegResumo",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor("#374151"),
+        ),
+    }
+
+
+def _historico_flow(oportunidade, estilos, largura):
+    linhas = []
+    notas = list(oportunidade.notas_negociacao.all())
+    feedback = (getattr(oportunidade, "feedback_pos_venda", "") or "").strip()
+    if not notas and not feedback:
+        linhas.append([Paragraph("Sem histórico de negociação.", estilos["vazio"])])
+    else:
+        linhas.append([Paragraph("HISTÓRICO DE NEGOCIAÇÃO", estilos["rotulo"])])
+        for nota in notas:
+            quando = getattr(nota, "created_at", None)
+            if quando is not None and timezone.is_aware(quando):
+                quando = timezone.localtime(quando)
+            quando_txt = quando.strftime("%d/%m/%Y %H:%M") if quando else ""
+            tipo = _TIPOS_NOTA.get(getattr(nota, "tipo", ""), "Registro")
+            autor = (getattr(nota, "autor_nome", "") or "").strip()
+            cabeca = " · ".join(parte for parte in (quando_txt, tipo, autor) if parte)
+            linhas.append([Paragraph(escape(cabeca), estilos["meta"])])
+            linhas.append([_paragrafo(getattr(nota, "texto", "") or "", estilos["nota"])])
+        if feedback:
+            linhas.append([Paragraph("DEPOIS DA VENDA", estilos["rotulo"])])
+            linhas.append([_paragrafo(feedback, estilos["nota"])])
+
+    tabela = Table(linhas, colWidths=[largura])
+    tabela.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 2),
+        ("BOTTOMPADDING", (0, -1), (-1, -1), 8),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    return tabela
+
+
+def _cartao_cliente(oportunidade, estilos, largura):
+    nome = nome_do_cliente(oportunidade)
+    telefone = telefone_para_exibicao(oportunidade) or "Não informado"
+    ganho = _data_ganho(oportunidade)
+    ganho_txt = ganho.strftime("%d/%m/%Y") if ganho else "—"
+    vendedor = getattr(getattr(oportunidade, "vendedor", None), "nome", "") or "—"
+    titulo = (getattr(oportunidade, "titulo", "") or "").strip() or "—"
+
+    faixa = Table(
+        [[_paragrafo(nome, estilos["nome"]), _paragrafo(telefone, estilos["telefone"])]],
+        colWidths=[largura * 0.62, largura * 0.38],
+    )
+    faixa.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#0176d3")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (0, 0), 8),
+        ("RIGHTPADDING", (1, 0), (1, 0), 8),
+        ("LEFTPADDING", (1, 0), (1, 0), 4),
+        ("RIGHTPADDING", (0, 0), (0, 0), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]))
+
+    dados = Table(
+        [[
+            [Paragraph("OPORTUNIDADE", estilos["rotulo"]), _paragrafo(titulo, estilos["valor"])],
+            [Paragraph("VALOR", estilos["rotulo"]), _paragrafo(_brl(oportunidade.valor), estilos["valor"])],
+            [Paragraph("GANHO EM", estilos["rotulo"]), _paragrafo(ganho_txt, estilos["valor"])],
+            [Paragraph("VENDEDOR", estilos["rotulo"]), _paragrafo(vendedor, estilos["valor"])],
+        ]],
+        colWidths=[largura * 0.40, largura * 0.18, largura * 0.16, largura * 0.26],
+    )
+    dados.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (0, 0), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (1, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    moldura = Table(
+        [[faixa], [dados], [_historico_flow(oportunidade, estilos, largura)]],
+        colWidths=[largura],
+    )
+    moldura.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#d1d5db")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    return KeepTogether([moldura, Spacer(1, 0.28 * cm)])
+
+
+def _rodape(canvas, doc):
+    canvas.saveState()
+    canvas.setFont("Helvetica", 8)
+    canvas.setFillColor(colors.HexColor("#6b7280"))
+    canvas.drawString(1.4 * cm, 0.9 * cm, "Clientes fichados e ganhos")
+    canvas.drawRightString(A4[0] - 1.4 * cm, 0.9 * cm, f"Página {doc.page}")
+    canvas.restoreState()
+
+
 def gerar_relatorio_negociacao_ganhos(
     loja_id: int,
     periodo: str,
@@ -73,32 +256,16 @@ def gerar_relatorio_negociacao_ganhos(
 ) -> BytesIO:
     """Clientes fichados com oportunidade ganha e o histórico da negociação."""
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=1.6 * cm, bottomMargin=1.6 * cm)
-    styles = getSampleStyleSheet()
-    titulo = ParagraphStyle(
-        "NegTitulo",
-        parent=styles["Heading2"],
-        fontSize=12,
-        textColor=colors.HexColor("#0176d3"),
-        spaceBefore=8,
-        spaceAfter=4,
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=1.4 * cm,
+        rightMargin=1.4 * cm,
+        topMargin=1.4 * cm,
+        bottomMargin=1.6 * cm,
     )
-    corpo = ParagraphStyle("NegCorpo", parent=styles["Normal"], fontSize=9, leading=12)
-    nota_style = ParagraphStyle(
-        "NegNota",
-        parent=styles["Normal"],
-        fontSize=9,
-        leading=12,
-        leftIndent=8,
-        spaceBefore=2,
-    )
-    meta = ParagraphStyle(
-        "NegMeta",
-        parent=styles["Normal"],
-        fontSize=8,
-        textColor=colors.HexColor("#4b5563"),
-        leftIndent=8,
-    )
+    estilos = _estilos_cartao()
+    largura = A4[0] - 2.8 * cm
 
     data_inicio, data_fim = calcular_periodo(periodo)
     if data_inicio_custom and data_fim_custom:
@@ -113,12 +280,11 @@ def gerar_relatorio_negociacao_ganhos(
     elements = [
         _criar_cabecalho_relatorio(_obter_logo_loja(loja_id), "Clientes fichados e ganhos"),
         Spacer(1, 0.2 * cm),
-        Paragraph("Histórico de negociação", styles["Normal"]),
         Paragraph(
             f'Período: {data_inicio.strftime("%d/%m/%Y")} a {data_fim.strftime("%d/%m/%Y")}',
-            styles["Normal"],
+            estilos["resumo"],
         ),
-        Spacer(1, 0.3 * cm),
+        Spacer(1, 0.25 * cm),
     ]
 
     oportunidades = (
@@ -134,45 +300,20 @@ def gerar_relatorio_negociacao_ganhos(
     oportunidades = oportunidades.order_by("lead__nome", "data_fechamento_ganho", "id")
 
     linhas = list(oportunidades)
-    elements.append(Paragraph(f"Oportunidades ganhas: {len(linhas)}", corpo))
+    quantidade = len(linhas)
+    resumo_qtd = "1 oportunidade ganha" if quantidade == 1 else f"{quantidade} oportunidades ganhas"
+    elements.append(Paragraph(resumo_qtd, estilos["resumo"]))
+    elements.append(Spacer(1, 0.35 * cm))
 
     if not linhas:
-        elements.append(Spacer(1, 0.4 * cm))
-        elements.append(Paragraph("Nenhuma oportunidade ganha neste período.", corpo))
-        doc.build(elements)
+        elements.append(Paragraph("Nenhuma oportunidade ganha neste período.", estilos["resumo"]))
+        doc.build(elements, onFirstPage=_rodape, onLaterPages=_rodape)
         buffer.seek(0)
         return buffer
 
     for opp in linhas:
-        elements.append(_paragrafo(nome_do_cliente(opp), titulo))
-        telefone = telefone_do_cliente(opp) or "Não informado"
-        elements.append(_paragrafo(f"Telefone: {telefone}", corpo))
-        ganho = _data_ganho(opp)
-        ganho_txt = ganho.strftime("%d/%m/%Y") if ganho else "—"
-        vendedor = getattr(getattr(opp, "vendedor", None), "nome", "") or "—"
-        elements.append(_paragrafo(
-            f"{opp.titulo} · {_brl(opp.valor)} · Ganho em {ganho_txt} · {vendedor}",
-            corpo,
-        ))
-        elements.append(Paragraph("Histórico de negociação", meta))
-        notas = list(opp.notas_negociacao.all())
-        if not notas:
-            elements.append(Paragraph("Nenhum registro no histórico.", nota_style))
-        for nota in notas:
-            quando = getattr(nota, "created_at", None)
-            if quando is not None and timezone.is_aware(quando):
-                quando = timezone.localtime(quando)
-            quando_txt = quando.strftime("%d/%m/%Y %H:%M") if quando else ""
-            tipo = _TIPOS_NOTA.get(getattr(nota, "tipo", ""), "Registro")
-            autor = (getattr(nota, "autor_nome", "") or "").strip()
-            cabeca = " · ".join(parte for parte in (quando_txt, tipo, autor) if parte)
-            elements.append(Paragraph(escape(cabeca), meta))
-            elements.append(_paragrafo(getattr(nota, "texto", "") or "", nota_style))
-        feedback = (getattr(opp, "feedback_pos_venda", "") or "").strip()
-        if feedback:
-            elements.append(Paragraph("Depois da venda", meta))
-            elements.append(_paragrafo(feedback, nota_style))
+        elements.append(_cartao_cliente(opp, estilos, largura))
 
-    doc.build(elements)
+    doc.build(elements, onFirstPage=_rodape, onLaterPages=_rodape)
     buffer.seek(0)
     return buffer

@@ -3,6 +3,7 @@ import logging
 import re
 
 import pytz
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,23 @@ def _montar_admin_loja(owner) -> tuple[str | None, str | None]:
     return admin_nome, admin_email
 
 
+def baixar_logo_pdf(logo_url: str) -> bytes | None:
+    """Baixa a logomarca. A mídia só entrega o arquivo com a assinatura do endereço."""
+    bruto = (logo_url or "").strip()
+    if not bruto:
+        return None
+    try:
+        from core.media_storage import assinar_url_midia
+
+        resposta = requests.get(assinar_url_midia(bruto), timeout=8, allow_redirects=False)
+    except Exception:
+        logger.warning("Erro ao baixar a logomarca da proposta")
+        return None
+    if resposta.status_code != 200 or not resposta.content:
+        return None
+    return resposta.content
+
+
 def _obter_dados_loja(loja_id):
     """Obtém dados da loja do superadmin (nome, endereço, CPF/CNPJ, admin, logo, telefone)."""
     try:
@@ -138,7 +156,7 @@ def _obter_dados_loja(loja_id):
             "email": email_publico or None,
             "admin_nome": admin_nome,
             "admin_email": admin_email,
-            "logo": getattr(loja, "logo", "") or None,
+            "logo": (getattr(loja, "logo", "") or getattr(loja, "login_logo", "") or "").strip() or None,
         }
     except Exception:
         return {}

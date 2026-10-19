@@ -1,8 +1,9 @@
 """Marca d\'água (logo transparente) nos PDFs assinados."""
 from io import BytesIO
 
-import requests
 from PIL import Image as PILImage
+
+from .formatters import baixar_logo_pdf
 from reportlab.lib.units import cm
 from reportlab.platypus import Flowable, Table
 
@@ -12,10 +13,10 @@ def _build_watermark_callback(logo_url, assinatura_vendedor, assinatura_cliente)
     if not (assinatura_vendedor or assinatura_cliente) or not logo_url:
         return None
     try:
-        resp = requests.get(logo_url, timeout=5)
-        if resp.status_code != 200:
+        conteudo = baixar_logo_pdf(logo_url)
+        if not conteudo:
             return None
-        pil_img = PILImage.open(BytesIO(resp.content)).convert("RGBA")
+        pil_img = PILImage.open(BytesIO(conteudo)).convert("RGBA")
         alpha = pil_img.split()[3]
         alpha = alpha.point(lambda p: int(p * 0.25))
         pil_img.putalpha(alpha)

@@ -482,21 +482,23 @@ _MESES = ("", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "ou
 
 
 def _erro_comprovante_pdf(arquivo) -> str:
-    """Recusa o que não for um PDF de até 8 MB. Arquivo vazio é permitido."""
+    """Recusa o que não for PDF ou foto de até 8 MB. Arquivo vazio é permitido."""
+    from superadmin.comprovante_pagamento import _eh_imagem
+
     if arquivo is None:
         return ""
     nome = (getattr(arquivo, "name", "") or "").lower()
-    if not nome.endswith(".pdf"):
-        return "O comprovante precisa ser um PDF."
+    if not nome.endswith((".pdf", ".jpg", ".jpeg", ".png", ".webp")):
+        return "Envie o comprovante em PDF ou uma foto JPG ou PNG."
     tamanho = getattr(arquivo, "size", 0) or 0
     if tamanho > 8 * 1024 * 1024:
         return "O comprovante passa de 8 MB."
-    inicio = arquivo.read(5)
+    inicio = arquivo.read(12)
     if hasattr(arquivo, "seek"):
         arquivo.seek(0)
-    if inicio != b"%PDF-":
-        return "O arquivo não é um PDF."
-    return ""
+    if inicio.startswith(b"%PDF-") or _eh_imagem(inicio):
+        return ""
+    return "O arquivo não é um PDF nem uma foto."
 
 
 def _mes_referencia(data) -> str:

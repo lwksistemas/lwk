@@ -436,6 +436,24 @@ class AsaasSyncService:
                 return aberto.asaas_id, aberto.value
         return None, None
 
+    def _exigir_comprovante_localizado(self, loja, valor, forma: str, comprovante, provedor: str) -> dict:
+        """Lê o PDF e só segue se o banco tiver o crédito no nome e no documento da loja."""
+        from superadmin.comprovante_pagamento import conferir_cadastro, ler_comprovante, localizar_credito
+
+        if comprovante is None:
+            return {"success": False, "error": "Envie o comprovante em PDF ou uma foto."}
+        conteudo = comprovante.read()
+        if hasattr(comprovante, "seek"):
+            comprovante.seek(0)
+        leitura = ler_comprovante(conteudo)
+        conferencia = conferir_cadastro(leitura, loja.nome, loja.cpf_cnpj, valor)
+        if not conferencia.get("ok"):
+            return {"success": False, "error": conferencia.get("error") or "Comprovante recusado."}
+        credito = localizar_credito(provedor, forma, conferencia, valor, loja.cpf_cnpj)
+        if not credito.get("ok"):
+            return {"success": False, "error": credito.get("error") or "Pagamento não localizado."}
+        return {"success": True, "credito_id": credito.get("id") or ""}
+
     def _confirmar_conta_cora(self, loja, financeiro, forma: str, comprovante=None) -> dict:
         from superadmin.cora_service import receber_na_conta_empresa
 
@@ -450,6 +468,12 @@ class AsaasSyncService:
             .first()
         )
         invoice_id = (pagamento.cora_invoice_id if pagamento else "") or (financeiro.cora_invoice_id or "")
+        if not invoice_id.strip():
+            return {"success": False, "error": "Não há boleto Cora em aberto para esta loja."}
+        valor = pagamento.valor if pagamento else financeiro.valor_mensalidade
+        localizado = self._exigir_comprovante_localizado(loja, valor, forma, comprovante, "cora")
+        if not localizado.get("success"):
+            return localizado
         resultado = receber_na_conta_empresa(invoice_id.strip(), forma)
         if not resultado.get("success"):
             return resultado
@@ -462,6 +486,12 @@ class AsaasSyncService:
                 PagamentoLoja.objects.filter(cora_invoice_id=payment_id).update(comprovante=url)
             else:
                 aviso_comprovante = " A baixa foi feita, mas o comprovante não foi gravado."
+        from superadmin.comprovante_pagamento import anotar_credito
+
+        anotar_credito(
+            PagamentoLoja.objects.filter(cora_invoice_id=payment_id).first(),
+            localizado.get("credito_id") or "",
+        )
         financeiro.refresh_from_db()
         rotulo = "PIX" if forma == "pix" else "transferência"
         return {
@@ -470,7 +500,7 @@ class AsaasSyncService:
             "payment_id": payment_id,
             "data_proxima_cobranca": financeiro.data_proxima_cobranca.isoformat(),
             "message": (
-                f"Pagamento por {rotulo} confirmado. Boleto Cora baixado e assinatura atualizada."
+                f"Pagamento por {rotulo} localizado no comprovante e na conta Cora. Assinatura atualizada."
                 + (" Comprovante anexado." if comprovante is not None and not aviso_comprovante else "")
                 + aviso_comprovante
             ),
@@ -499,6 +529,10 @@ class AsaasSyncService:
         payment_id, valor = self._cobranca_asaas_em_aberto(loja)
         if not payment_id:
             return {"success": False, "error": "Não há boleto Asaas em aberto para esta loja."}
+
+        localizado = self._exigir_comprovante_localizado(loja, valor, forma, comprovante, "asaas")
+        if not localizado.get("success"):
+            return localizado
 
         api_key = AsaasConfig.resolve_api_key()
         if not api_key:
@@ -534,6 +568,12 @@ class AsaasSyncService:
             return resultado
 
         PagamentoLoja.objects.filter(asaas_payment_id=payment_id).update(forma_pagamento=forma)
+        from superadmin.comprovante_pagamento import anotar_credito
+
+        anotar_credito(
+            PagamentoLoja.objects.filter(asaas_payment_id=payment_id).first(),
+            localizado.get("credito_id") or "",
+        )
         aviso_comprovante = ""
         if comprovante is not None:
             url = self._guardar_comprovante_pdf(loja, payment_id, comprovante)
@@ -550,7 +590,7 @@ class AsaasSyncService:
             "payment_id": payment_id,
             "data_proxima_cobranca": financeiro.data_proxima_cobranca.isoformat(),
             "message": (
-                f"Pagamento por {rotulo} confirmado. Boleto Asaas baixado e assinatura atualizada."
+                f"Pagamento por {rotulo} localizado no comprovante e na conta Asaas. Assinatura atualizada."
                 + (" Comprovante anexado." if comprovante is not None and not aviso_comprovante else "")
                 + aviso_comprovante
             ),
@@ -560,10 +600,19 @@ class AsaasSyncService:
         from core.media_storage import media_upload
 
         dados = arquivo.read()
+        nome = (getattr(arquivo, "name", "") or "").lower()
+        if nome.endswith(".png"):
+            extensao = "png"
+        elif nome.endswith(".webp"):
+            extensao = "webp"
+        elif nome.endswith((".jpg", ".jpeg")):
+            extensao = "jpg"
+        else:
+            extensao = "pdf"
         url = media_upload(
             loja,
             dados,
-            filename=f"comprovante-{payment_id}.pdf",
+            filename=f"comprovante-{payment_id}.{extensao}",
             folder="comprovantes",
         )
         if not url or len(url) > 200:

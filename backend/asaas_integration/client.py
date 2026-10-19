@@ -363,6 +363,14 @@ class AsaasClient:
         params = {"limit": limit, "offset": offset}
         return self._make_request("GET", endpoint, params)
 
+    def listar_transacoes_pix(self, **params) -> dict[str, Any]:
+        """Lista Pix recebidos na conta. O filtro endToEndIdentifier acha o comprovante."""
+        return self._make_request("GET", "pix/transactions", params)
+
+    def listar_extrato(self, **params) -> dict[str, Any]:
+        """Lista o extrato da conta Asaas."""
+        return self._make_request("GET", "financialTransactions", params)
+
     def list_customers(self, limit: int = 100, offset: int = 0) -> dict[str, Any]:
         """Lista todos os clientes"""
         endpoint = "customers"

@@ -126,7 +126,7 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
   const [historicoErro, setHistoricoErro] = useState<Record<string, string>>({});
   const [bancosAssinatura, setBancosAssinatura] = useState<Record<string, string>>({});
   const [assinaturasCanceladas, setAssinaturasCanceladas] = useState<Record<string, boolean>>({});
-  const [conta, setConta] = useState<{ assinatura: Assinatura; forma: 'pix' | 'transferencia' } | null>(null);
+  const [conta, setConta] = useState<Assinatura | null>(null);
   const [comprovante, setComprovante] = useState<File | null>(null);
 
   useEffect(() => {
@@ -207,18 +207,17 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
   };
 
   const confirmarConta = async () => {
-    if (!conta?.assinatura.financeiro_id) return;
+    if (!conta?.financeiro_id) return;
     if (!comprovante) {
       window.alert('Envie o comprovante em PDF ou uma foto.');
       return;
     }
-    const { assinatura, forma } = conta;
-    const chave = `conta-${forma}-${assinatura.id}`;
+    const assinatura = conta;
+    const chave = `conta-${assinatura.id}`;
     setOcupado(chave);
     try {
       const dados = new FormData();
-      dados.append('forma', forma);
-      if (comprovante) dados.append('comprovante', comprovante);
+      dados.append('comprovante', comprovante);
       const res = await apiClient.post(
         `/superadmin/financeiro/${assinatura.financeiro_id}/confirmar_pagamento_conta/`,
         dados,
@@ -603,30 +602,17 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
                   </td>
                   <td className="px-3 py-3">
                     {assinatura.financeiro_id && assinatura.current_payment_data?.provedor !== 'mercadopago' ? (
-                      <div className="flex flex-wrap gap-1">
-                        <button
-                          type="button"
-                          disabled={semFinanceiro || ocupado === `conta-pix-${assinatura.id}`}
-                          onClick={() => {
-                            setComprovante(null);
-                            setConta({ assinatura, forma: 'pix' });
-                          }}
-                          className="px-2 py-1 text-xs bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50"
-                        >
-                          PIX
-                        </button>
-                        <button
-                          type="button"
-                          disabled={semFinanceiro || ocupado === `conta-transferencia-${assinatura.id}`}
-                          onClick={() => {
-                            setComprovante(null);
-                            setConta({ assinatura, forma: 'transferencia' });
-                          }}
-                          className="px-2 py-1 text-xs bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50"
-                        >
-                          Transferência
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        disabled={semFinanceiro || ocupado === `conta-${assinatura.id}`}
+                        onClick={() => {
+                          setComprovante(null);
+                          setConta(assinatura);
+                        }}
+                        className="px-2 py-1 text-xs bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50"
+                      >
+                        Enviar comprovante
+                      </button>
                     ) : (
                       <span className="text-xs text-gray-400">—</span>
                     )}
@@ -702,10 +688,10 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-lg bg-white dark:bg-gray-900 p-5 shadow-lg">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Localizar {conta.forma === 'pix' ? 'PIX' : 'transferência'}
+              Enviar comprovante
             </h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              Envie o PDF do banco ou uma foto nítida do comprovante. O sistema só baixa o boleto de {conta.assinatura.loja_nome} se o pagamento estiver no nome e no CPF ou CNPJ do cadastro e o crédito aparecer na conta {conta.assinatura.current_payment_data?.provedor === 'cora' ? 'Cora' : 'Asaas'}.
+              Envie o PDF do banco ou uma foto nítida do comprovante. O sistema só baixa o boleto de {conta.loja_nome} se o pagamento estiver no nome e no CPF ou CNPJ do cadastro e o crédito aparecer na conta {conta.current_payment_data?.provedor === 'cora' ? 'Cora' : 'Asaas'}.
             </p>
             <label className="mt-4 block text-sm text-gray-700 dark:text-gray-200">
               Comprovante em PDF ou foto
@@ -729,7 +715,7 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
               </button>
               <button
                 type="button"
-                disabled={!comprovante || ocupado === `conta-${conta.forma}-${conta.assinatura.id}`}
+                disabled={!comprovante || ocupado === `conta-${conta.id}`}
                 onClick={confirmarConta}
                 className="px-3 py-1.5 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50"
               >

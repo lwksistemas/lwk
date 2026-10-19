@@ -106,7 +106,7 @@ export function AssinaturasTab({
         <>
         {!soLoja && (
         <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-          Histórico abre só essa loja. Em cada nota, Baixar e Reenviar. Com o histórico aberto, a aba Pagamentos mostra só os pagamentos dessa loja. Localizar pagamento lê o PDF ou a foto do comprovante e só baixa se o nome e o CPF ou CNPJ forem os do cadastro. PDF e Reenviar só aparecem enquanto o boleto está em aberto.
+          Histórico abre só essa loja. Em cada nota, Baixar e Reenviar. Com o histórico aberto, a aba Pagamentos mostra só os pagamentos dessa loja. Enviar comprovante lê o PDF ou a foto e só baixa se o nome e o CPF ou CNPJ forem os do cadastro. PDF e Reenviar só aparecem enquanto o boleto está em aberto.
         </p>
         )}
         <AssinaturasTabela

@@ -40,6 +40,39 @@ def _obter_logo_loja(loja_id):
     return None
 
 
+def carregar_logo_relatorio(logo_url, max_width=5.5 * cm, max_height=2.4 * cm):
+    """Baixa a logomarca já no tamanho do PDF. A mídia exige a assinatura do arquivo."""
+    if not logo_url:
+        return None
+    try:
+        from core.media_storage import assinar_url_midia
+
+        response = requests.get(assinar_url_midia(logo_url), timeout=8, allow_redirects=False)
+        if response.status_code != 200 or not response.content:
+            return None
+        pil_img = PILImage.open(BytesIO(response.content))
+        img_width, img_height = pil_img.size
+        if not img_width or not img_height:
+            return None
+        aspect = img_height / float(img_width)
+        if img_width > img_height:
+            width = min(max_width, img_width)
+            height = width * aspect
+            if height > max_height:
+                height = max_height
+                width = height / aspect
+        else:
+            height = min(max_height, img_height)
+            width = height / aspect
+            if width > max_width:
+                width = max_width
+                height = width * aspect
+        return response.content, width, height
+    except Exception:
+        logger.warning("Erro ao carregar logo do relatório")
+        return None
+
+
 def _criar_cabecalho_relatorio(logo_url, titulo, max_width=6*cm, max_height=3*cm, centralizado=False, largura=None):
     """Cria cabeçalho com logo à esquerda e título à direita, ou os dois centralizados.
     """

@@ -87,6 +87,15 @@ def documento_da_oportunidade(oportunidade) -> str:
     return ""
 
 
+def linha_contato_empresa(oportunidade) -> str:
+    """No CNPJ a faixa traz o contato e o telefone. No CPF fica só o nome."""
+    if not documento_da_oportunidade(oportunidade).startswith("CNPJ"):
+        return ""
+    nome = nome_do_cliente(oportunidade)
+    telefone = telefone_para_exibicao(oportunidade) or "Não informado"
+    return f"Contato da empresa - {nome} - {telefone}"
+
+
 def nome_do_cliente(oportunidade) -> str:
     lead = getattr(oportunidade, "lead", None)
     nome = (getattr(lead, "nome", "") or "").strip() if lead is not None else ""
@@ -228,6 +237,7 @@ def _historico_flow(oportunidade, estilos, largura):
 def _cartao_cliente(oportunidade, estilos, largura):
     nome = nome_do_cliente(oportunidade)
     telefone = telefone_para_exibicao(oportunidade) or "Não informado"
+    contato = linha_contato_empresa(oportunidade)
     ganho = _data_ganho(oportunidade)
     ganho_txt = ganho.strftime("%d/%m/%Y") if ganho else "—"
     vendedor = getattr(getattr(oportunidade, "vendedor", None), "nome", "") or "—"
@@ -237,17 +247,21 @@ def _cartao_cliente(oportunidade, estilos, largura):
     if documento:
         oportunidade_celula.append(_paragrafo(documento, estilos["documento"]))
 
-    faixa = Table(
-        [[_paragrafo(nome, estilos["nome"]), _paragrafo(telefone, estilos["telefone"])]],
-        colWidths=[largura * 0.62, largura * 0.38],
-    )
+    if contato:
+        faixa = Table(
+            [[_paragrafo(contato, estilos["nome"])]],
+            colWidths=[largura],
+        )
+    else:
+        faixa = Table(
+            [[_paragrafo(nome, estilos["nome"]), _paragrafo(telefone, estilos["telefone"])]],
+            colWidths=[largura * 0.62, largura * 0.38],
+        )
     faixa.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#0176d3")),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (0, 0), 8),
-        ("RIGHTPADDING", (1, 0), (1, 0), 8),
-        ("LEFTPADDING", (1, 0), (1, 0), 4),
-        ("RIGHTPADDING", (0, 0), (0, 0), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
         ("TOPPADDING", (0, 0), (-1, -1), 7),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
     ]))

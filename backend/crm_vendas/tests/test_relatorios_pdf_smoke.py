@@ -16,6 +16,7 @@ from crm_vendas.relatorios_negociacao_pdf import (
     _montar_pagina,
     documento_da_oportunidade,
     empresa_da_oportunidade,
+    linha_contato_empresa,
     gerar_relatorio_negociacao_ganhos,
     nome_do_cliente,
     telefone_do_cliente,
@@ -127,6 +128,8 @@ class RelatorioNegociacaoGanhosTest(SimpleTestCase):
         self.assertEqual(nome_do_cliente(cpf), "ALLAN FERNANDES COSTA")
         self.assertEqual(empresa_da_oportunidade(cpf), "PESSOA FISICA")
         self.assertEqual(documento_da_oportunidade(cpf), "CPF 123.456.789-00")
+        self.assertEqual(linha_contato_empresa(cnpj), "Contato da empresa - ANA CLAUDIA - Não informado")
+        self.assertEqual(linha_contato_empresa(cpf), "")
 
     def test_logo_do_relatorio_fica_centralizado(self):
         imagem = BytesIO()

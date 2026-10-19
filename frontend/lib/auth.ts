@@ -20,7 +20,7 @@ interface LoginCredentials {
   backup_code?: string;
 }
 
-interface LoginResponse {
+export interface LoginResponse {
   access: string;
   refresh: string;
   user_type: UserType;
@@ -90,80 +90,98 @@ class AuthService {
       }
 
       const response = await apiClient.post(endpoint, payload);
-      const data: LoginResponse = response.data;
-
-      // user_type/loja_slug podem vir no topo ou dentro de user/loja (compatível com backend antigo)
-      const responseUserType = data.user_type ?? data.user?.user_type;
-      const lojaSlug = data.loja_slug ?? data.loja?.slug;
-      const lojaId = data.loja?.id;
-
-      // Limpar flags de vendedor ANTES de processar novo login
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('is_vendedor');
-        sessionStorage.removeItem('current_vendedor_id');
-      }
-
-      if (!USE_JWT_HTTPONLY_COOKIES) {
-        this.setToken(data.access);
-        this.setRefreshToken(data.refresh);
-      }
-      if (responseUserType) this.setUserType(responseUserType);
-      if (lojaSlug) this.setLojaSlug(lojaSlug);
-      if (typeof window !== 'undefined' && lojaId) {
-        sessionStorage.setItem('current_loja_id', String(lojaId));
-      }
-      
-      // Só setar is_vendedor se vier EXPLICITAMENTE como true do backend
-      if (data.is_vendedor === true) {
-        sessionStorage.setItem('is_vendedor', '1');
-        if (typeof data.vendedor_id === 'number') {
-          sessionStorage.setItem('current_vendedor_id', String(data.vendedor_id));
-        }
-      }
-
-      // Setar is_gerente se vier do backend
-      if (data.is_gerente === true) {
-        sessionStorage.setItem('is_gerente', '1');
-      }
-
-      // Salvar session_id se vier do backend
-      if (typeof window !== 'undefined' && data.session_id) {
-        sessionStorage.setItem('session_id', data.session_id);
-      }
-
-      // Também salvar nos cookies para o middleware (só se tiver responseUserType)
-      if (typeof document !== 'undefined' && responseUserType) {
-        const cookieOptions = 'path=/; max-age=86400; SameSite=Lax'; // 24 horas
-        document.cookie = `user_type=${responseUserType}; ${cookieOptions}`;
-        if (lojaSlug) {
-          document.cookie = `loja_slug=${lojaSlug}; ${cookieOptions}`;
-        }
-      }
-
-      return data;
+      return this.aplicarSessao(response.data);
     } catch (error) {
-      const errorObj = error && typeof error === 'object' ? (error as Record<string, unknown>) : null;
-      const response = errorObj?.response as Record<string, unknown> | undefined;
-      const data = response?.data;
-      const dataObj = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : null;
-      if (dataObj?.mfa_required === true || dataObj?.code === 'MFA_REQUIRED') {
-        const err = new Error(typeof dataObj.error === 'string' ? dataObj.error : 'Informe o código do autenticador.');
-        (err as Error & { mfaRequired?: boolean }).mfaRequired = true;
-        throw err;
-      }
-      if (dataObj?.code === 'ACCOUNT_LOCKED') {
-        throw new Error(typeof dataObj.error === 'string' ? dataObj.error : 'Conta temporariamente bloqueada. Tente mais tarde.');
-      }
-      if (typeof dataObj?.error === 'string') {
-        throw new Error(dataObj.error);
-      } else if (typeof dataObj?.detail === 'string') {
-        throw new Error(dataObj.detail);
-      } else if (error instanceof Error) {
-        throw new Error(error.message);
-      } else {
-        throw new Error('Erro ao fazer login. Tente novamente.');
+      throw this.erroDeLogin(error);
+    }
+  }
+
+  async loginRosto(
+    alvo: { userType: UserType; slug?: string; username: string },
+    credential: unknown,
+  ): Promise<LoginResponse> {
+    try {
+      const response = await apiClient.post('/auth/rosto/entrar/', {
+        username: alvo.username.trim(),
+        user_type: alvo.userType,
+        ...(alvo.userType === 'loja' ? { loja_slug: alvo.slug || '' } : {}),
+        credential,
+      });
+      return this.aplicarSessao(response.data);
+    } catch (error) {
+      throw this.erroDeLogin(error);
+    }
+  }
+
+  private aplicarSessao(data: LoginResponse): LoginResponse {
+    const responseUserType = data.user_type ?? data.user?.user_type;
+    const lojaSlug = data.loja_slug ?? data.loja?.slug;
+    const lojaId = data.loja?.id;
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('is_vendedor');
+      sessionStorage.removeItem('current_vendedor_id');
+    }
+
+    if (!USE_JWT_HTTPONLY_COOKIES) {
+      this.setToken(data.access);
+      this.setRefreshToken(data.refresh);
+    }
+    if (responseUserType) this.setUserType(responseUserType);
+    if (lojaSlug) this.setLojaSlug(lojaSlug);
+    if (typeof window !== 'undefined' && lojaId) {
+      sessionStorage.setItem('current_loja_id', String(lojaId));
+    }
+
+    if (data.is_vendedor === true) {
+      sessionStorage.setItem('is_vendedor', '1');
+      if (typeof data.vendedor_id === 'number') {
+        sessionStorage.setItem('current_vendedor_id', String(data.vendedor_id));
       }
     }
+
+    if (data.is_gerente === true) {
+      sessionStorage.setItem('is_gerente', '1');
+    }
+
+    if (typeof window !== 'undefined' && data.session_id) {
+      sessionStorage.setItem('session_id', data.session_id);
+    }
+
+    if (typeof document !== 'undefined' && responseUserType) {
+      const cookieOptions = 'path=/; max-age=86400; SameSite=Lax';
+      document.cookie = `user_type=${responseUserType}; ${cookieOptions}`;
+      if (lojaSlug) {
+        document.cookie = `loja_slug=${lojaSlug}; ${cookieOptions}`;
+      }
+    }
+
+    return data;
+  }
+
+  private erroDeLogin(error: unknown): Error {
+    const errorObj = error && typeof error === 'object' ? (error as Record<string, unknown>) : null;
+    const response = errorObj?.response as Record<string, unknown> | undefined;
+    const data = response?.data;
+    const dataObj = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : null;
+    if (dataObj?.mfa_required === true || dataObj?.code === 'MFA_REQUIRED') {
+      const err = new Error(typeof dataObj.error === 'string' ? dataObj.error : 'Informe o código do autenticador.');
+      (err as Error & { mfaRequired?: boolean }).mfaRequired = true;
+      return err;
+    }
+    if (dataObj?.code === 'ACCOUNT_LOCKED') {
+      return new Error(typeof dataObj.error === 'string' ? dataObj.error : 'Conta temporariamente bloqueada. Tente mais tarde.');
+    }
+    if (typeof dataObj?.error === 'string') {
+      return new Error(dataObj.error);
+    }
+    if (typeof dataObj?.detail === 'string') {
+      return new Error(dataObj.detail);
+    }
+    if (error instanceof Error) {
+      return new Error(error.message);
+    }
+    return new Error('Erro ao fazer login. Tente novamente.');
   }
 
   /**

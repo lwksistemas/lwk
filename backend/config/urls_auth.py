@@ -3,6 +3,12 @@
 from django.urls import path
 
 from superadmin.auth_views_secure import BeaconLogoutView, SecureLoginView, SecureLogoutView
+from superadmin.rosto_views import (
+    RostoEntrarOpcoesView,
+    RostoEntrarView,
+    RostoRegistrarOpcoesView,
+    RostoRegistrarView,
+)
 from superadmin.mfa_views import (
     MfaConfirmView,
     MfaDisableView,
@@ -16,6 +22,10 @@ urlpatterns = [
     path("superadmin/login/", SecureLoginView.as_view(), {"user_type": "superadmin"}, name="superadmin-login"),
     path("suporte/login/", SecureLoginView.as_view(), {"user_type": "suporte"}, name="suporte-login"),
     path("loja/login/", SecureLoginView.as_view(), {"user_type": "loja"}, name="loja-login"),
+    path("rosto/registrar/opcoes/", RostoRegistrarOpcoesView.as_view(), name="rosto-registrar-opcoes"),
+    path("rosto/registrar/", RostoRegistrarView.as_view(), name="rosto-registrar"),
+    path("rosto/entrar/opcoes/", RostoEntrarOpcoesView.as_view(), name="rosto-entrar-opcoes"),
+    path("rosto/entrar/", RostoEntrarView.as_view(), name="rosto-entrar"),
 
     # Logout (comum para todos)
     path("logout/", SecureLogoutView.as_view(), name="logout"),

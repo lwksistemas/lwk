@@ -102,3 +102,25 @@ class PdfPropostaContratoSmokeTest(SimpleTestCase):
         contrato.oportunidade.itens.exists.return_value = False
         buffer = gerar_pdf_contrato(contrato, incluir_assinaturas=False)
         self.assertTrue(buffer.getvalue().startswith(b"%PDF"))
+
+
+class LogoPropostaTest(SimpleTestCase):
+    def test_cabecalho_baixa_a_logomarca_com_assinatura(self):
+        from PIL import Image as PILImage
+
+        from crm_vendas.pdf_proposta_contrato.sections import _build_cabecalho
+
+        imagem = BytesIO()
+        PILImage.new("RGB", (80, 40), "white").save(imagem, format="PNG")
+        resposta = MagicMock(status_code=200, content=imagem.getvalue())
+        url = "https://media.lwksistemas.com.br/files/41449198000172/loja/logo.jpeg"
+        assinada = url + "?e=1&s=abc"
+        elements = []
+        with (
+            patch("crm_vendas.pdf_proposta_contrato.formatters.requests.get", return_value=resposta) as get,
+            patch("core.media_storage.assinar_url_midia", return_value=assinada) as assinar,
+        ):
+            _build_cabecalho(elements, url, "PROPOSTA COMERCIAL")
+        assinar.assert_called_once_with(url)
+        self.assertEqual(get.call_args.args[0], assinada)
+        self.assertEqual(len(elements), 1)

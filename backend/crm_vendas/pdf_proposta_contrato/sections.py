@@ -2,7 +2,6 @@
 import logging
 from io import BytesIO
 
-import requests
 from PIL import Image as PILImage
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
@@ -19,6 +18,7 @@ from .formatters import (
     _formatar_valor,
     _html_to_paragraphs,
     _title_case_endereco,
+    baixar_logo_pdf,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,10 +36,10 @@ def _build_cabecalho(elements, logo_url, titulo):
         elements.append(Paragraph(titulo, title_style))
         return
     try:
-        response = requests.get(logo_url, timeout=5)
-        if response.status_code != 200:
+        conteudo = baixar_logo_pdf(logo_url)
+        if not conteudo:
             raise ValueError("Logo não disponível")
-        img_buffer = BytesIO(response.content)
+        img_buffer = BytesIO(conteudo)
         pil_img = PILImage.open(img_buffer)
         iw, ih = pil_img.size
         aspect = ih / float(iw)
@@ -376,10 +376,10 @@ def _build_watermark_callback(logo_url, assinatura_vendedor, assinatura_cliente)
     if not (assinatura_vendedor or assinatura_cliente) or not logo_url:
         return None
     try:
-        resp = requests.get(logo_url, timeout=5)
-        if resp.status_code != 200:
+        conteudo = baixar_logo_pdf(logo_url)
+        if not conteudo:
             return None
-        pil_img = PILImage.open(BytesIO(resp.content)).convert("RGBA")
+        pil_img = PILImage.open(BytesIO(conteudo)).convert("RGBA")
         alpha = pil_img.split()[3]
         alpha = alpha.point(lambda p: int(p * 0.25))
         pil_img.putalpha(alpha)

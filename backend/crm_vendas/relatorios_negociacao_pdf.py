@@ -4,10 +4,11 @@ from xml.sax.saxutils import escape
 
 from django.utils import timezone
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_RIGHT
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from core.cpf_utils import label_empresa_lead, normalizar_cpf_cnpj, somente_digitos_documento
@@ -16,7 +17,7 @@ from core.phone_utils import telefone_exibicao_brasileiro
 from .models import Oportunidade
 from .periodo import calcular_intervalo_datas as calcular_periodo
 from .periodo import filtro_fechamento_no_periodo as _filtro_datas_fechamento_ganho
-from .relatorios_pdf_common import _criar_cabecalho_relatorio, _obter_logo_loja
+from .relatorios_pdf_common import carregar_logo_relatorio, _obter_logo_loja
 
 TITULO_RELATORIO = "Controle de qualidade"
 
@@ -285,13 +286,31 @@ def _cartao_cliente(oportunidade, estilos, largura):
     return KeepTogether([moldura, Spacer(1, 0.28 * cm)])
 
 
-def _rodape(canvas, doc):
-    canvas.saveState()
-    canvas.setFont("Helvetica", 8)
-    canvas.setFillColor(colors.HexColor("#6b7280"))
-    canvas.drawString(1.4 * cm, 0.9 * cm, TITULO_RELATORIO)
-    canvas.drawRightString(A4[0] - 1.4 * cm, 0.9 * cm, f"Página {doc.page}")
-    canvas.restoreState()
+def _montar_pagina(logo):
+    """Logo centralizada no topo de cada página e o número no rodapé."""
+
+    def _pagina(canvas, doc):
+        canvas.saveState()
+        if logo:
+            dados, largura_img, altura_img = logo
+            x = (A4[0] - largura_img) / 2
+            y = A4[1] - 0.55 * cm - altura_img
+            canvas.drawImage(
+                ImageReader(BytesIO(dados)),
+                x,
+                y,
+                width=largura_img,
+                height=altura_img,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(colors.HexColor("#6b7280"))
+        canvas.drawString(1.4 * cm, 0.9 * cm, TITULO_RELATORIO)
+        canvas.drawRightString(A4[0] - 1.4 * cm, 0.9 * cm, f"Página {doc.page}")
+        canvas.restoreState()
+
+    return _pagina
 
 
 def gerar_relatorio_negociacao_ganhos(
@@ -304,15 +323,29 @@ def gerar_relatorio_negociacao_ganhos(
 ) -> BytesIO:
     """Clientes fichados com oportunidade ganha e o histórico da negociação."""
     buffer = BytesIO()
+    logo = carregar_logo_relatorio(_obter_logo_loja(loja_id))
+    margem_topo = 1.4 * cm
+    if logo:
+        margem_topo = 0.55 * cm + logo[2] + 0.35 * cm
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
         leftMargin=1.4 * cm,
         rightMargin=1.4 * cm,
-        topMargin=1.4 * cm,
+        topMargin=margem_topo,
         bottomMargin=1.6 * cm,
     )
+    pagina = _montar_pagina(logo)
     estilos = _estilos_cartao()
+    titulo = ParagraphStyle(
+        "TituloControle",
+        fontName="Helvetica-Bold",
+        fontSize=16,
+        leading=20,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#0176d3"),
+        spaceAfter=4,
+    )
     largura = A4[0] - 2.8 * cm
 
     data_inicio, data_fim = calcular_periodo(periodo)
@@ -326,13 +359,8 @@ def gerar_relatorio_negociacao_ganhos(
             pass
 
     elements = [
-        _criar_cabecalho_relatorio(
-            _obter_logo_loja(loja_id),
-            TITULO_RELATORIO,
-            centralizado=True,
-            largura=largura,
-        ),
-        Spacer(1, 0.2 * cm),
+        Paragraph(TITULO_RELATORIO, titulo),
+        Spacer(1, 0.15 * cm),
         Paragraph(
             f'Período: {data_inicio.strftime("%d/%m/%Y")} a {data_fim.strftime("%d/%m/%Y")}',
             estilos["resumo"],
@@ -360,13 +388,13 @@ def gerar_relatorio_negociacao_ganhos(
 
     if not linhas:
         elements.append(Paragraph("Nenhuma oportunidade ganha neste período.", estilos["resumo"]))
-        doc.build(elements, onFirstPage=_rodape, onLaterPages=_rodape)
+        doc.build(elements, onFirstPage=pagina, onLaterPages=pagina)
         buffer.seek(0)
         return buffer
 
     for opp in linhas:
         elements.append(_cartao_cliente(opp, estilos, largura))
 
-    doc.build(elements, onFirstPage=_rodape, onLaterPages=_rodape)
+    doc.build(elements, onFirstPage=pagina, onLaterPages=pagina)
     buffer.seek(0)
     return buffer

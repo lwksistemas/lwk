@@ -10,7 +10,10 @@ from reportlab.platypus import Table
 from django.test import SimpleTestCase
 from django.utils import timezone
 
+from reportlab.lib.pagesizes import A4
+
 from crm_vendas.relatorios_negociacao_pdf import (
+    _montar_pagina,
     documento_da_oportunidade,
     empresa_da_oportunidade,
     gerar_relatorio_negociacao_ganhos,
@@ -153,6 +156,14 @@ class RelatorioNegociacaoGanhosTest(SimpleTestCase):
             _criar_cabecalho_relatorio(url, "Controle de qualidade", centralizado=True, largura=400)
         assinar.assert_called_once_with(url)
         self.assertEqual(get.call_args.args[0], assinada)
+
+    def test_logo_e_desenhada_no_topo_da_pagina(self):
+        imagem = BytesIO()
+        PILImage.new("RGB", (60, 30), "blue").save(imagem, format="PNG")
+        canvas = MagicMock()
+        _montar_pagina((imagem.getvalue(), 60, 30))(canvas, SimpleNamespace(page=2))
+        canvas.drawImage.assert_called_once()
+        self.assertAlmostEqual(canvas.drawImage.call_args.args[1], (A4[0] - 60) / 2)
 
     @patch("crm_vendas.relatorios_negociacao_pdf._obter_logo_loja", return_value=None)
     @patch("crm_vendas.relatorios_negociacao_pdf.calcular_periodo", return_value=(date(2026, 10, 1), date(2026, 10, 31)))

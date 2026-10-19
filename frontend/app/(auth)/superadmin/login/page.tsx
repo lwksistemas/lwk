@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { authService } from '@/lib/auth';
+import { perguntarAtivarRosto } from '@/lib/rosto-login';
 import PasswordInput from '@/components/auth/PasswordInput';
+import BotaoRosto from '@/components/auth/BotaoRosto';
 import ErrorAlert from '@/components/auth/ErrorAlert';
 import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
 import { getPublicApiJson } from '@/lib/public-api';
@@ -118,6 +120,7 @@ export default function SuperAdminLoginPage() {
 
     try {
       const loginResponse = await authService.login(credentials, 'superadmin');
+      await perguntarAtivarRosto({ userType: 'superadmin', username: credentials.username });
       
       if (loginResponse.precisa_trocar_senha === true) {
         window.location.replace('/superadmin/trocar-senha');
@@ -407,6 +410,23 @@ export default function SuperAdminLoginPage() {
             )}
           </button>
         </form>
+
+        <p className="text-center text-xs text-gray-500">Face ID ou desbloqueio facial</p>
+        <BotaoRosto
+          userType="superadmin"
+          username={credentials.username}
+          cor={config.cor_primaria}
+          disabled={loading}
+          onErro={setError}
+          onSucesso={async (loginResponse) => {
+            if (loginResponse.precisa_trocar_senha === true) {
+              window.location.replace('/superadmin/trocar-senha');
+              return;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            window.location.replace('/superadmin/dashboard');
+          }}
+        />
         
         <div className="text-center">
           <button

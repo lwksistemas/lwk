@@ -144,22 +144,23 @@ class LoginService:
         if cpf_result:
             return cpf_result
 
-        # 5. Identificar tipo real do usuário
+        return self.emitir_sessao(request, user, user_type, loja_slug, username)
+
+    def emitir_sessao(self, request, user, user_type, loja_slug, username=None) -> LoginResult:
+        """Abre a sessão depois que a identidade já foi confirmada (senha ou rosto)."""
+        username = username or getattr(user, "username", "")
         real_user_type = self._get_user_type(user, loja_slug)
 
-        # 6. Validar endpoint correto
         endpoint_err = self._validar_endpoint_usuario(user, real_user_type, user_type, loja_slug, username)
         if endpoint_err:
             return endpoint_err
         if user_type == "loja" and real_user_type == "unknown" and loja_slug and user_belongs_to_store(user, loja_slug):
             real_user_type = "loja"
 
-        # 7. Resolver loja
         loja_login, loja_err = self._resolver_loja_login(user, real_user_type, loja_slug, username)
         if loja_err:
             return loja_err
 
-        # 8. MFA
         from superadmin.mfa_views import validate_mfa_at_login
         mfa_block = validate_mfa_at_login(request, user, real_user_type)
         if mfa_block is not None:
@@ -167,13 +168,9 @@ class LoginService:
                 record_login_failure(username)
             return LoginResult(success=False, data=mfa_block.data, status_code=mfa_block.status_code)
 
-        # 9. Sucesso — limpar lockout
         clear_login_failures(username)
 
-        # 10. Gerar tokens + sessão
         access, refresh_str, session_id = self._generate_tokens(user, real_user_type, loja_login)
-
-        # 11. Montar resposta
         response_data = self._build_response(
             user, real_user_type, loja_login, loja_slug,
             access, refresh_str, session_id,

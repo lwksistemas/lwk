@@ -16,6 +16,7 @@ from .cora import CoraConfig
 from .mercadopago import MercadoPagoConfig
 from .nfse import NFSeEmitida
 from .radiologia_maquinas import ContratoPacsLoja, MaquinaRadiologia
+from .rosto import CredencialRosto
 from .security import HistoricoAcessoGlobal, ViolacaoSeguranca
 from .session import UserSession
 from .users import LoginLockout, ProfissionalUsuario, UsuarioSistema, VendedorUsuario
@@ -24,6 +25,7 @@ from .whatsapp_gateway import WhatsappApiKey, WhatsappCustomer, WhatsappInstance
 __all__ = [
     "AuditLog",
     "CoraConfig",
+    "CredencialRosto",
     "ConfiguracaoBackup",
     "ensure_configuracao_backup",
     "ContratoPacsLoja",

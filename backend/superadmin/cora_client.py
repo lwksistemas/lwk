@@ -183,6 +183,29 @@ class CoraClient:
         data = self._pedir("GET", f"/v2/invoices/{invoice_id}")
         return interpretar_fatura(data)
 
+    def consultar_extrato(self, inicio: str, fim: str, transaction_type: str = "") -> list:
+        """Créditos da conta no período. A Cora precisa do escopo account."""
+        entradas: list = []
+        pagina = 1
+        while pagina <= 5:
+            params: dict[str, Any] = {
+                "start": inicio,
+                "end": fim,
+                "type": "CREDIT",
+                "page": pagina,
+                "perPage": 100,
+                "aggr": "false",
+            }
+            if transaction_type:
+                params["transaction_type"] = transaction_type
+            data = self._pedir("GET", "/bank-statement/statement", params=params)
+            lote = data.get("entries") or []
+            entradas.extend(lote)
+            if len(lote) < 100:
+                break
+            pagina += 1
+        return entradas
+
     def cancelar_fatura(self, invoice_id: str) -> None:
         self._pedir("DELETE", f"/v2/invoices/{invoice_id}")
 

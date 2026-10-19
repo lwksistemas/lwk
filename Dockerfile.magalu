@@ -14,6 +14,9 @@ RUN pip install --upgrade pip "setuptools>=78.1.1,<81" wheel \
 
 COPY backend/ .
 COPY backend/scripts/ scripts/
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr tesseract-ocr-por \
+    && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p staticfiles media && chmod +x scripts/*.sh 2>/dev/null || true
 
 ENV DJANGO_SETTINGS_MODULE=config.settings_production

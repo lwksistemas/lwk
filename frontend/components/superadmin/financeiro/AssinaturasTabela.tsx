@@ -76,7 +76,7 @@ const COLUNAS = [
   'Vencimento',
   'Alterar plano',
   'Dia de vencimento',
-  'Conta da empresa',
+  'Localizar pagamento',
   'Boleto',
   'Histórico',
 ];
@@ -208,6 +208,10 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
 
   const confirmarConta = async () => {
     if (!conta?.assinatura.financeiro_id) return;
+    if (!comprovante) {
+      window.alert('Envie o comprovante em PDF ou uma foto.');
+      return;
+    }
     const { assinatura, forma } = conta;
     const chave = `conta-${forma}-${assinatura.id}`;
     setOcupado(chave);
@@ -698,16 +702,16 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-lg bg-white dark:bg-gray-900 p-5 shadow-lg">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Confirmar {conta.forma === 'pix' ? 'PIX' : 'transferência'}
+              Localizar {conta.forma === 'pix' ? 'PIX' : 'transferência'}
             </h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              Confirmar que {conta.assinatura.loja_nome} pagou por {conta.forma === 'pix' ? 'PIX' : 'transferência'} na conta da empresa? O boleto {conta.assinatura.current_payment_data?.provedor === 'cora' ? 'Cora' : 'Asaas'} em aberto recebe baixa e a assinatura é atualizada.
+              Envie o PDF do banco ou uma foto nítida do comprovante. O sistema só baixa o boleto de {conta.assinatura.loja_nome} se o pagamento estiver no nome e no CPF ou CNPJ do cadastro e o crédito aparecer na conta {conta.assinatura.current_payment_data?.provedor === 'cora' ? 'Cora' : 'Asaas'}.
             </p>
             <label className="mt-4 block text-sm text-gray-700 dark:text-gray-200">
-              Comprovante em PDF
+              Comprovante em PDF ou foto
               <input
                 type="file"
-                accept="application/pdf,.pdf"
+                accept="application/pdf,.pdf,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                 className="mt-1 block w-full text-sm"
                 onChange={(evento) => setComprovante(evento.target.files?.[0] || null)}
               />
@@ -725,11 +729,11 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
               </button>
               <button
                 type="button"
-                disabled={ocupado === `conta-${conta.forma}-${conta.assinatura.id}`}
+                disabled={!comprovante || ocupado === `conta-${conta.forma}-${conta.assinatura.id}`}
                 onClick={confirmarConta}
                 className="px-3 py-1.5 text-sm bg-teal-700 text-white rounded hover:bg-teal-800 disabled:opacity-50"
               >
-                Confirmar
+                Localizar pagamento
               </button>
             </div>
           </div>

@@ -18,6 +18,8 @@ from .periodo import calcular_intervalo_datas as calcular_periodo
 from .periodo import filtro_fechamento_no_periodo as _filtro_datas_fechamento_ganho
 from .relatorios_pdf_common import _criar_cabecalho_relatorio, _obter_logo_loja
 
+TITULO_RELATORIO = "Controle de qualidade"
+
 _TIPOS_NOTA = {
     "resposta_cliente": "Resposta do cliente",
     "nota_interna": "Nota interna",
@@ -287,7 +289,7 @@ def _rodape(canvas, doc):
     canvas.saveState()
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#6b7280"))
-    canvas.drawString(1.4 * cm, 0.9 * cm, "Clientes fichados e ganhos")
+    canvas.drawString(1.4 * cm, 0.9 * cm, TITULO_RELATORIO)
     canvas.drawRightString(A4[0] - 1.4 * cm, 0.9 * cm, f"Página {doc.page}")
     canvas.restoreState()
 
@@ -326,7 +328,7 @@ def gerar_relatorio_negociacao_ganhos(
     elements = [
         _criar_cabecalho_relatorio(
             _obter_logo_loja(loja_id),
-            "Clientes fichados e ganhos",
+            TITULO_RELATORIO,
             centralizado=True,
             largura=largura,
         ),

@@ -34,7 +34,7 @@ def _obter_logo_loja(loja_id):
         from superadmin.models import Loja
         loja = Loja.objects.using("default").filter(id=loja_id).first()
         if loja:
-            return getattr(loja, "logo", "") or None
+            return (getattr(loja, "logo", "") or getattr(loja, "login_logo", "") or "").strip() or None
     except Exception:
         return None
     return None
@@ -61,8 +61,10 @@ def _criar_cabecalho_relatorio(logo_url, titulo, max_width=6*cm, max_height=3*cm
         return Paragraph(titulo, title_style)
 
     try:
-        # Baixar imagem (servidor de mídia ou URL pública)
-        response = requests.get(logo_url, timeout=5)
+        from core.media_storage import assinar_url_midia
+
+        # A mídia recusa o arquivo sem ?e=&s=. A assinatura vale só para este download.
+        response = requests.get(assinar_url_midia(logo_url), timeout=8, allow_redirects=False)
         if response.status_code != 200:
             title_style.alignment = TA_CENTER
             return Paragraph(titulo, title_style)
@@ -133,8 +135,8 @@ def _criar_cabecalho_relatorio(logo_url, titulo, max_width=6*cm, max_height=3*cm
 
         return table
 
-    except Exception as e:
-        logger.warning(f"⚠️ Erro ao adicionar logo no relatório: {e}")
+    except Exception:
+        logger.warning("Erro ao adicionar logo no relatório")
         title_style.alignment = TA_CENTER
         return Paragraph(titulo, title_style)
 

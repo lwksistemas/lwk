@@ -132,13 +132,27 @@ class RelatorioNegociacaoGanhosTest(SimpleTestCase):
         with patch("crm_vendas.relatorios_pdf_common.requests.get", return_value=resposta):
             cabecalho = _criar_cabecalho_relatorio(
                 "https://exemplo/logo.png",
-                "Clientes fichados e ganhos",
+                "Controle de qualidade",
                 centralizado=True,
                 largura=400,
             )
         self.assertIsInstance(cabecalho, Table)
         self.assertEqual(len(cabecalho._cellvalues), 2)
         self.assertEqual(len(cabecalho._cellvalues[0]), 1)
+
+    def test_logo_da_midia_baixa_com_assinatura(self):
+        imagem = BytesIO()
+        PILImage.new("RGB", (20, 20), "red").save(imagem, format="PNG")
+        resposta = MagicMock(status_code=200, content=imagem.getvalue())
+        url = "https://media.lwksistemas.com.br/files/41449198000172/loja/logo.jpeg"
+        assinada = url + "?e=1&s=abc"
+        with (
+            patch("crm_vendas.relatorios_pdf_common.requests.get", return_value=resposta) as get,
+            patch("core.media_storage.assinar_url_midia", return_value=assinada) as assinar,
+        ):
+            _criar_cabecalho_relatorio(url, "Controle de qualidade", centralizado=True, largura=400)
+        assinar.assert_called_once_with(url)
+        self.assertEqual(get.call_args.args[0], assinada)
 
     @patch("crm_vendas.relatorios_negociacao_pdf._obter_logo_loja", return_value=None)
     @patch("crm_vendas.relatorios_negociacao_pdf.calcular_periodo", return_value=(date(2026, 10, 1), date(2026, 10, 31)))

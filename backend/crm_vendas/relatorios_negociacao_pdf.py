@@ -14,6 +14,7 @@ from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Space
 from core.cpf_utils import label_empresa_lead, normalizar_cpf_cnpj, somente_digitos_documento
 from core.phone_utils import telefone_exibicao_brasileiro
 
+from .feedback_data import texto_tem_data
 from .models import Oportunidade
 from .periodo import calcular_intervalo_datas as calcular_periodo
 from .periodo import filtro_fechamento_no_periodo as _filtro_datas_fechamento_ganho
@@ -214,11 +215,20 @@ def _historico_flow(oportunidade, estilos, largura):
             quando_txt = quando.strftime("%d/%m/%Y %H:%M") if quando else ""
             tipo = _TIPOS_NOTA.get(getattr(nota, "tipo", ""), "Registro")
             autor = (getattr(nota, "autor_nome", "") or "").strip()
-            cabeca = " · ".join(parte for parte in (quando_txt, tipo, autor) if parte)
+            cabeca = " — ".join(parte for parte in (tipo, quando_txt, autor) if parte)
             linhas.append([Paragraph(escape(cabeca), estilos["meta"])])
             linhas.append([_paragrafo(getattr(nota, "texto", "") or "", estilos["nota"])])
         if feedback:
-            linhas.append([Paragraph("DEPOIS DA VENDA", estilos["rotulo"])])
+            linhas.append([Paragraph("OPINIÃO DO CLIENTE (PÓS-VENDA)", estilos["rotulo"])])
+            if not texto_tem_data(feedback):
+                atualizado = getattr(oportunidade, "updated_at", None)
+                if atualizado is not None and timezone.is_aware(atualizado):
+                    atualizado = timezone.localtime(atualizado)
+                if atualizado:
+                    linhas.append([Paragraph(
+                        escape(f"Registrado em {atualizado.strftime('%d/%m/%Y %H:%M')}"),
+                        estilos["meta"],
+                    )])
             linhas.append([_paragrafo(feedback, estilos["nota"])])
 
     tabela = Table(linhas, colWidths=[largura])

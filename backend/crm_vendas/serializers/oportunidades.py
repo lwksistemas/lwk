@@ -86,3 +86,16 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
 
         return attrs
 
+    def update(self, instance, validated_data):
+        if "feedback_pos_venda" in validated_data:
+            from django.utils import timezone
+
+            from ..feedback_data import datar_atualizacao
+
+            validated_data["feedback_pos_venda"] = datar_atualizacao(
+                instance.feedback_pos_venda,
+                validated_data.get("feedback_pos_venda") or "",
+                timezone.localtime(),
+            )
+        return super().update(instance, validated_data)
+

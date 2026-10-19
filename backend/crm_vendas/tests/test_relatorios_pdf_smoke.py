@@ -1,5 +1,7 @@
 """Smoke tests: geração de PDF de relatórios de vendas."""
 from datetime import date, datetime
+
+from crm_vendas.feedback_data import datar_atualizacao, texto_tem_data
 from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -78,6 +80,30 @@ class RelatoriosPdfSmokeTest(SimpleTestCase):
         self.assertEqual(merged[0]["vendedor_id"], 5)
         self.assertEqual(merged[0]["total"], 150.0)
         self.assertEqual(merged[0]["qtd"], 2)
+
+
+class DatarAtualizacaoTest(SimpleTestCase):
+    def test_texto_novo_ganha_a_data_da_gravacao(self):
+        agora = datetime(2026, 10, 19, 11, 9)
+        self.assertEqual(
+            datar_atualizacao("", "Ainda estamos em teste.", agora),
+            "[19/10/2026 11:09] Ainda estamos em teste.",
+        )
+
+    def test_acrescimo_guarda_a_data_so_do_trecho_novo(self):
+        agora = datetime(2026, 10, 19, 11, 20)
+        anterior = "[19/10/2026 11:09] Ainda estamos em teste."
+        novo = anterior + " Pedimos mais três médicos."
+        self.assertEqual(
+            datar_atualizacao(anterior, novo, agora),
+            anterior + "\n[19/10/2026 11:20] Pedimos mais três médicos.",
+        )
+
+    def test_texto_igual_nao_repete_a_data(self):
+        agora = datetime(2026, 10, 19, 11, 20)
+        texto = "[19/10/2026 11:09] Ainda estamos em teste."
+        self.assertEqual(datar_atualizacao(texto, texto, agora), texto)
+        self.assertTrue(texto_tem_data("[10:25, 10/19/2026] mensagem"))
 
 
 class RelatorioNegociacaoGanhosTest(SimpleTestCase):

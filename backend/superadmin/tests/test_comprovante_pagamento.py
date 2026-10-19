@@ -10,6 +10,7 @@ from superadmin.comprovante_pagamento import (
     _escolher_pix_asaas,
     _escolher_transferencia_asaas,
     conferir_cadastro,
+    forma_do_comprovante,
     ler_comprovante,
 )
 
@@ -25,6 +26,11 @@ class ComprovanteCadastroTest(SimpleTestCase):
     def test_pdf_vazio_nao_passa(self):
         leitura = ler_comprovante(b"%PDF-1.4")
         self.assertFalse(leitura["ok"])
+
+    def test_comprovante_com_codigo_e_pix_e_sem_codigo_e_transferencia(self):
+        self.assertEqual(forma_do_comprovante({"e2e": E2E}), "pix")
+        self.assertEqual(forma_do_comprovante({"e2e": ""}), "transferencia")
+        self.assertEqual(forma_do_comprovante({"e2e": E2E}, "transferencia"), "transferencia")
 
     def test_foto_usa_o_texto_lido(self):
         from io import BytesIO

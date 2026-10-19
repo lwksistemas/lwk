@@ -452,7 +452,11 @@ class AsaasSyncService:
         credito = localizar_credito(provedor, forma, conferencia, valor, loja.cpf_cnpj)
         if not credito.get("ok"):
             return {"success": False, "error": credito.get("error") or "Pagamento não localizado."}
-        return {"success": True, "credito_id": credito.get("id") or ""}
+        return {
+            "success": True,
+            "credito_id": credito.get("id") or "",
+            "forma": credito.get("forma") or forma,
+        }
 
     def _confirmar_conta_cora(self, loja, financeiro, forma: str, comprovante=None) -> dict:
         from superadmin.cora_service import receber_na_conta_empresa
@@ -474,6 +478,7 @@ class AsaasSyncService:
         localizado = self._exigir_comprovante_localizado(loja, valor, forma, comprovante, "cora")
         if not localizado.get("success"):
             return localizado
+        forma = localizado.get("forma") or forma
         resultado = receber_na_conta_empresa(invoice_id.strip(), forma)
         if not resultado.get("success"):
             return resultado
@@ -512,7 +517,7 @@ class AsaasSyncService:
         from asaas_integration.models import AsaasConfig
 
         forma = (forma or "").strip().lower()
-        if forma not in ("pix", "transferencia"):
+        if forma not in ("pix", "transferencia", ""):
             return {"success": False, "error": "Informe pix ou transferencia."}
         if (getattr(loja, "provedor_boleto_preferido", None) or "asaas") == "mercadopago":
             return {"success": False, "error": "Esta loja emite boleto pelo Mercado Pago."}
@@ -533,6 +538,7 @@ class AsaasSyncService:
         localizado = self._exigir_comprovante_localizado(loja, valor, forma, comprovante, "asaas")
         if not localizado.get("success"):
             return localizado
+        forma = localizado.get("forma") or forma
 
         api_key = AsaasConfig.resolve_api_key()
         if not api_key:

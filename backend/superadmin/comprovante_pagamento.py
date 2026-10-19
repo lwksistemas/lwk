@@ -147,11 +147,19 @@ def conferir_cadastro(leitura: dict, nome_loja: str, documento_loja: str, valor)
     return {"ok": True, "texto": texto, "e2e": leitura.get("e2e") or ""}
 
 
+def forma_do_comprovante(leitura: dict, forma: str = "") -> str:
+    """O código do PIX no comprovante define a busca. Sem ele, procura transferência."""
+    forma = (forma or "").strip().lower()
+    if forma in ("pix", "transferencia"):
+        return forma
+    return "pix" if (leitura or {}).get("e2e") else "transferencia"
+
+
 def localizar_credito(provedor: str, forma: str, leitura: dict, valor, documento_loja: str) -> dict:
     """Consulta o banco e devolve o identificador do crédito, sem dar baixa."""
     from .models import PagamentoLoja
 
-    forma = (forma or "").strip().lower()
+    forma = forma_do_comprovante(leitura, forma)
     if provedor == "cora":
         credito = _credito_cora(forma, leitura, valor, documento_loja)
     else:
@@ -161,6 +169,7 @@ def localizar_credito(provedor: str, forma: str, leitura: dict, valor, documento
     identificador = credito["id"]
     if identificador and PagamentoLoja.objects.filter(observacoes__contains=f"credito:{identificador}").exists():
         return {"ok": False, "error": "Este comprovante já baixou outro pagamento."}
+    credito["forma"] = forma
     return credito
 
 

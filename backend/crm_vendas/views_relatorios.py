@@ -100,7 +100,7 @@ def gerar_relatorio(request):
                 data_inicio_custom=data_inicio_custom,
                 data_fim_custom=data_fim_custom,
             )
-            filename = f"relatorio_negociacao_ganhos_{periodo_label}.pdf"
+            filename = f"relatorio_controle_qualidade_{periodo_label}.pdf"
         else:
             return Response({"detail": "Tipo de relatório inválido."}, status=400)
 

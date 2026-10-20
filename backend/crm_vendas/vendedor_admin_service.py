@@ -247,6 +247,7 @@ def reenviar_senha_vendedor(loja_id: int, vendedor) -> tuple[dict | None, str | 
         loja.senha_provisoria = senha
         loja.senha_foi_alterada = False
         loja.save(update_fields=["senha_provisoria", "senha_foi_alterada"])
+        login_usuario = loja.owner.username
     else:
         try:
             vu = VendedorUsuario.objects.using("default").get(
@@ -259,16 +260,19 @@ def reenviar_senha_vendedor(loja_id: int, vendedor) -> tuple[dict | None, str | 
                 'Vendedor ainda não possui acesso ao sistema. Use "Criar acesso" ao editar.',
                 status.HTTP_400_BAD_REQUEST,
             )
+        email = (vendedor.email or "").strip().lower()
         vu.user.set_password(senha)
-        vu.user.save(update_fields=["password"])
+        vu.user.email = email
+        vu.user.save(update_fields=["password", "email"])
         vu.precisa_trocar_senha = True
         vu.save(update_fields=["precisa_trocar_senha"])
+        login_usuario = vu.user.username
 
     _enviar_email_senha_provisoria(
         loja,
         vendedor.email,
         vendedor.nome or "Vendedor",
-        vendedor.email,
+        login_usuario,
         senha,
     )
     return {

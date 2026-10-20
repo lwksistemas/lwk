@@ -116,7 +116,20 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         user = self._get_vendedor_user(vendedor)
         if not user:
             return
+        self._sincronizar_email_acesso(vendedor, user)
         aplicar_permissoes_usuario_crm(user, cfg.get("grupo_id"), cfg.get("permissoes_ids") or [])
+
+    def _sincronizar_email_acesso(self, vendedor, user=None):
+        """O login por e-mail usa o e-mail do usuário, não só o do cadastro do vendedor."""
+        email = (getattr(vendedor, "email", None) or "").strip().lower()
+        if not email:
+            return
+        if user is None:
+            user = self._get_vendedor_user(vendedor)
+        if not user or (user.email or "").strip().lower() == email:
+            return
+        user.email = email
+        user.save(update_fields=["email"])
 
     def get_grupo_nome(self, obj):
         cfg = normalizar_config_acesso(getattr(obj, "config_acesso", None))
@@ -217,13 +230,19 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
             user = vu_existente.user
             user.set_password(senha_provisoria)
             user.first_name = vendedor.nome or user.first_name or ""
-            user.save(update_fields=["password", "first_name"])
+            user.email = email
+            user.save(update_fields=["password", "first_name", "email"])
             vu_existente.precisa_trocar_senha = True
             vu_existente.save(update_fields=["precisa_trocar_senha"])
 
             aplicar_permissoes_usuario_crm(user, grupo_id, permissoes_ids or [])
 
-            _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto="Nova senha provisória - CRM Vendas", reenviar=True)
+            _enviar_email_senha(
+                loja, vendedor, email, senha_provisoria,
+                assunto="Nova senha provisória - CRM Vendas",
+                reenviar=True,
+                usuario=user.username,
+            )
             return
 
         existing_user = User.objects.using("default").filter(username=login_username).first()
@@ -269,7 +288,11 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
 
             aplicar_permissoes_usuario_crm(user, grupo_id, permissoes_ids or [])
 
-        _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto="Acesso ao sistema - CRM Vendas")
+        _enviar_email_senha(
+            loja, vendedor, email, senha_provisoria,
+            assunto="Acesso ao sistema - CRM Vendas",
+            usuario=user.username,
+        )
 
     def _atualizar_grupo(self, vendedor, grupo_id):
         """Compatibilidade: delega para config de acesso."""
@@ -283,7 +306,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         aplicar_permissoes_usuario_crm(user, grupo_id, permissoes_ids_grupo(grupo_id))
 
 
-def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto="Acesso ao Sistema - CRM Vendas", reenviar=False):
+def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto="Acesso ao Sistema - CRM Vendas", reenviar=False, usuario=None):
     site_url = getattr(settings, "SITE_URL", "https://lwksistemas.com.br").rstrip("/")
     login_url = f"{site_url}/loja/{loja.slug}/login"
     if reenviar:
@@ -306,7 +329,7 @@ def _enviar_email_senha(loja, vendedor, email, senha_provisoria, assunto="Acesso
 
         html_content, texto_plano = email_senha_provisoria_html(
             nome_destinatario=vendedor.nome or "Vendedor",
-            usuario=email,
+            usuario=usuario or email,
             senha=senha_provisoria,
             url_login=login_url,
             titulo_principal=titulo,

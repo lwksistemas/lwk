@@ -5,6 +5,7 @@ from io import BytesIO
 from PIL import Image as PILImage
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
@@ -23,45 +24,82 @@ from .formatters import (
 
 logger = logging.getLogger(__name__)
 
-def _build_cabecalho(elements, logo_url, titulo):
-    """Cria cabeçalho com logo à esquerda e título à direita."""
+def _imagem_cabecalho(conteudo, max_w, max_h):
+    """Monta a logo no tamanho do cabeçalho, sem esticar."""
+    pil_img = PILImage.open(BytesIO(conteudo))
+    largura_px, altura_px = pil_img.size
+    if not largura_px or not altura_px:
+        return None
+    proporcao = altura_px / float(largura_px)
+    largura = max_w
+    altura = largura * proporcao
+    if altura > max_h:
+        altura = max_h
+        largura = altura / proporcao
+    imagem = Image(BytesIO(conteudo), width=largura, height=altura)
+    imagem.hAlign = "CENTER"
+    return imagem
+
+
+def _build_cabecalho(elements, logo_url, titulo, logo_direita_url=None):
+    """Logo principal à esquerda, título no centro e a logo do login à direita."""
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
-        "HeaderTitle", parent=styles["Heading1"], fontSize=16,
-        textColor=colors.HexColor("#0176d3"), alignment=TA_LEFT,
-        spaceBefore=0, spaceAfter=0, leading=18,
+        "HeaderTitle", parent=styles["Heading1"], fontSize=14,
+        textColor=colors.HexColor("#0176d3"), alignment=TA_CENTER,
+        spaceBefore=0, spaceAfter=0, leading=16,
     )
-    if not logo_url:
-        title_style.alignment = TA_CENTER
+    esquerda = baixar_logo_pdf(logo_url) if logo_url else None
+    direita_url = (logo_direita_url or "").strip()
+    if direita_url and direita_url == (logo_url or "").strip():
+        direita_url = ""
+    direita = baixar_logo_pdf(direita_url) if direita_url else None
+    if not esquerda and not direita:
         elements.append(Paragraph(titulo, title_style))
         return
+    if esquerda and direita:
+        try:
+            img_esquerda = _imagem_cabecalho(esquerda, 4.6 * cm, 2.2 * cm)
+            img_direita = _imagem_cabecalho(direita, 4.6 * cm, 2.2 * cm)
+            if not img_esquerda or not img_direita:
+                raise ValueError("Logo não disponível")
+            lado = 5.2 * cm
+            meio = A4[0] - 4 * cm - (2 * lado)
+            tabela = Table(
+                [[img_esquerda, Paragraph(titulo, title_style), img_direita]],
+                colWidths=[lado, meio, lado],
+            )
+            tabela.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 0), (0, 0), "CENTER"),
+                ("ALIGN", (1, 0), (1, 0), "CENTER"),
+                ("ALIGN", (2, 0), (2, 0), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]))
+            elements.append(tabela)
+            return
+        except Exception as exc:
+            logger.warning("Erro ao montar as duas logos da proposta: %s", exc)
+    unico = esquerda or direita
+    title_style.alignment = TA_LEFT
     try:
-        conteudo = baixar_logo_pdf(logo_url)
-        if not conteudo:
+        img = _imagem_cabecalho(unico, 6 * cm, 3 * cm)
+        if not img:
             raise ValueError("Logo não disponível")
-        img_buffer = BytesIO(conteudo)
-        pil_img = PILImage.open(img_buffer)
-        iw, ih = pil_img.size
-        aspect = ih / float(iw)
-        max_w, max_h = 6 * cm, 3 * cm
-        width = min(max_w, iw)
-        height = width * aspect
-        if height > max_h:
-            height = max_h
-            width = height / aspect
-        img_buffer.seek(0)
-        img = Image(img_buffer, width=width, height=height)
-        table = Table([[img, Paragraph(titulo, title_style)]], colWidths=[width + 0.5 * cm, None])
-        table.setStyle(TableStyle([
+        tabela = Table([[img, Paragraph(titulo, title_style)]], colWidths=[6.5 * cm, None])
+        tabela.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ("TOPPADDING", (0, 0), (-1, -1), 0),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
         ]))
-        elements.append(table)
-    except Exception as e:
-        logger.warning(f"Erro ao adicionar logo no PDF: {e}")
+        elements.append(tabela)
+    except Exception as exc:
+        logger.warning("Erro ao adicionar logo no PDF: %s", exc)
         title_style.alignment = TA_CENTER
         elements.append(Paragraph(titulo, title_style))
 

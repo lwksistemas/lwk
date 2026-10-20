@@ -20,6 +20,19 @@ from .sections import (
 from .watermark import _build_watermark_callback, _inserir_watermark_flowable
 
 
+def _completar_logos(loja_data, loja_id):
+    """A logo principal e a da tela de login ficam na loja, mesmo com emitente próprio."""
+    dados = dict(loja_data or {})
+    if not loja_id:
+        return dados
+    da_loja = _obter_dados_loja(loja_id) or {}
+    if not dados.get("logo"):
+        dados["logo"] = da_loja.get("logo")
+    if not dados.get("login_logo"):
+        dados["login_logo"] = da_loja.get("login_logo")
+    return dados
+
+
 def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     """Gera PDF da proposta comercial."""
     buffer = BytesIO()
@@ -29,11 +42,9 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     compact = ParagraphStyle("Compact", parent=styles["Normal"], fontSize=9, spaceBefore=0, spaceAfter=1, leading=11)
 
     loja_id = getattr(proposta, "loja_id", None)
-    loja_data = obter_dados_emitente_documento(proposta)
-    if loja_id and not loja_data.get("logo"):
-        loja_data = {**loja_data, "logo": (_obter_dados_loja(loja_id) or {}).get("logo")}
+    loja_data = _completar_logos(obter_dados_emitente_documento(proposta), loja_id)
     logo_url = loja_data.get("logo")
-    _build_cabecalho(elements, logo_url, "PROPOSTA COMERCIAL")
+    _build_cabecalho(elements, logo_url, "PROPOSTA COMERCIAL", loja_data.get("login_logo"))
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', compact))
 
     if loja_data:
@@ -67,11 +78,9 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     normal = styles["Normal"]
 
     loja_id = getattr(contrato, "loja_id", None)
-    loja_data = obter_dados_emitente_documento(contrato)
-    if loja_id and not loja_data.get("logo"):
-        loja_data = {**loja_data, "logo": (_obter_dados_loja(loja_id) or {}).get("logo")}
+    loja_data = _completar_logos(obter_dados_emitente_documento(contrato), loja_id)
     logo_url = loja_data.get("logo")
-    _build_cabecalho(elements, logo_url, "CONTRATO")
+    _build_cabecalho(elements, logo_url, "CONTRATO", loja_data.get("login_logo"))
     elements.append(Spacer(1, 0.4 * cm))
     elements.append(Paragraph(f'<b>Número:</b> {contrato.numero or "—"}', normal))
     elements.append(Paragraph(f'<b>Título:</b> {contrato.titulo or "—"}', normal))

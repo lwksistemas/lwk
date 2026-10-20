@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from core.email_delivery import create_email_message, send_prepared
 from tenants.middleware import get_current_loja_id
 
-from .utils import get_current_vendedor_id
+from .utils import get_current_vendedor_id, vendedor_tem_controle_qualidade
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +63,13 @@ def gerar_relatorio(request):
     loja = Loja.objects.using("default").get(id=loja_id)
     is_owner = (request.user.id == loja.owner_id)
 
-    # Vendedores (NÃO owners): restringir a apenas suas próprias vendas
-    if current_vendedor_id is not None and not is_owner:
+    # Vendedores (NÃO owners): restringir a apenas suas próprias vendas.
+    # Controle de qualidade consulta a carteira inteira, sem virar administrador.
+    if (
+        current_vendedor_id is not None
+        and not is_owner
+        and not vendedor_tem_controle_qualidade(request)
+    ):
         if tipo == "vendas_total":
             return Response(
                 {"detail": 'Vendedores só podem gerar relatórios das próprias vendas. Use "Vendas por Vendedor" ou "Comissões".'},

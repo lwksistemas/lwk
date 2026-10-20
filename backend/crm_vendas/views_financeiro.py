@@ -29,7 +29,7 @@ from .services_financeiro import (
     resumo_financeiro_crm,
     sincronizar_comissoes_retroativas,
 )
-from .utils import get_current_vendedor_id, is_owner
+from .utils import get_current_vendedor_id, is_owner, vendedor_tem_controle_qualidade
 from .views_common import CRMPagination, filtrar_queryset_por_query_params
 
 logger = logging.getLogger(__name__)
@@ -333,7 +333,7 @@ def financeiro_crm_relatorio_pdf(request):
     vendedor_id = request.data.get("vendedor_id")
 
     current_vendedor_id = get_current_vendedor_id(request)
-    if current_vendedor_id and not is_owner(request):
+    if current_vendedor_id and not is_owner(request) and not vendedor_tem_controle_qualidade(request):
         vendedor_id = current_vendedor_id
     elif vendedor_id:
         try:

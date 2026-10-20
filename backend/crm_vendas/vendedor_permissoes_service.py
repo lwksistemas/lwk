@@ -189,14 +189,29 @@ def _map_drf_action_para_permissao(action: str) -> str:
     return "change"
 
 
+_MODELOS_VENDA_QUALIDADE = {
+    "lead",
+    "conta",
+    "contato",
+    "oportunidade",
+    "oportunidadeitem",
+    "proposta",
+    "contrato",
+    "atividade",
+}
+
+
 def verificar_permissao_crm_action(request, model: str, action: str):
     """Retorna Response 403 ou None se permitido."""
     from rest_framework import status as http_status
     from rest_framework.response import Response
 
-    from .utils import is_owner
+    from .utils import is_owner, vendedor_tem_controle_qualidade
 
     if is_owner(request):
+        return None
+
+    if model in _MODELOS_VENDA_QUALIDADE and vendedor_tem_controle_qualidade(request):
         return None
 
     user = request.user

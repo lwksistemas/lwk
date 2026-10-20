@@ -35,3 +35,25 @@ class TestResolverUsernameParaLogin(SimpleTestCase):
                 resolver_username_para_login("marina@clinicaharmonis.com.br", "clinicaharmonis"),
                 "marina",
             )
+
+    @patch("django.contrib.auth.models.User")
+    def test_email_do_cadastro_do_vendedor(self, mock_user):
+        mock_user.objects.filter.return_value.first.return_value = None
+        loja = SimpleNamespace(id=4, owner=SimpleNamespace(email="dono@exemplo.com", username="dono"))
+        with patch(
+            "superadmin.loja_utils.resolve_loja_by_slug_or_atalho",
+            return_value=loja,
+        ), patch(
+            "superadmin.services.login_service.ProfissionalUsuario"
+        ) as mock_pu, patch(
+            "superadmin.services.login_service.VendedorUsuario"
+        ) as mock_vu, patch(
+            "superadmin.services.login_service._username_por_email_do_cadastro",
+            return_value="fcf",
+        ):
+            mock_pu.objects.filter.return_value.select_related.return_value.first.return_value = None
+            mock_vu.objects.filter.return_value.select_related.return_value.first.return_value = None
+            self.assertEqual(
+                resolver_username_para_login("vendedor@exemplo.com", "felix"),
+                "fcf",
+            )

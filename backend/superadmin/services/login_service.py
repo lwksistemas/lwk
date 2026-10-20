@@ -31,6 +31,46 @@ from superadmin.session_manager import SessionManager
 logger = logging.getLogger(__name__)
 
 
+def _username_por_email_do_cadastro(loja, email: str) -> str | None:
+    """Acha o usuário pelo e-mail gravado no cadastro do vendedor desta loja."""
+    from tenants.middleware import (
+        get_current_loja_id,
+        get_current_tenant_db,
+        set_current_loja_id,
+        set_current_tenant_db,
+    )
+
+    prev_db = get_current_tenant_db()
+    prev_loja = get_current_loja_id()
+    try:
+        from core.db_config import ensure_loja_database_config
+
+        db_name = getattr(loja, "database_name", None) or ""
+        if not db_name or not ensure_loja_database_config(db_name):
+            return None
+        set_current_loja_id(loja.id)
+        set_current_tenant_db(db_name)
+        from crm_vendas.models import Vendedor
+
+        vendedor = Vendedor.objects.filter(email__iexact=email).only("id").first()
+        if not vendedor:
+            return None
+        vu = (
+            VendedorUsuario.objects.filter(loja_id=loja.id, vendedor_id=vendedor.id)
+            .select_related("user")
+            .first()
+        )
+        if vu and vu.user_id:
+            return vu.user.username
+        return None
+    except Exception:
+        logger.exception("Falha ao resolver login pelo e-mail do vendedor")
+        return None
+    finally:
+        set_current_tenant_db(prev_db)
+        set_current_loja_id(prev_loja)
+
+
 def resolver_username_para_login(identificador: str | None, loja_slug: str | None = None) -> str:
     """Aceita usuário ou e-mail. No login da loja, prioriza o acesso daquela loja."""
     from django.contrib.auth.models import User
@@ -68,6 +108,9 @@ def resolver_username_para_login(identificador: str | None, loja_slug: str | Non
             )
             if vu and vu.user_id:
                 return vu.user.username
+            por_cadastro = _username_por_email_do_cadastro(loja, raw)
+            if por_cadastro:
+                return por_cadastro
 
     by_email = User.objects.filter(email__iexact=raw).first()
     return by_email.username if by_email else raw

@@ -26,6 +26,7 @@ export default function RelatoriosPage() {
     dashboardData,
     loading,
     isVendedor,
+    controleQualidade,
     handleGerar,
   } = useCrmRelatoriosPage();
 
@@ -56,7 +57,7 @@ export default function RelatoriosPage() {
         vendedores={vendedores}
         empresasPrestadoras={empresasPrestadoras}
         empresaPrestadoraSelecionada={empresaPrestadoraSelecionada}
-        isVendedor={isVendedor}
+        isVendedor={isVendedor && !controleQualidade}
         gerando={gerando}
         loading={loading}
         onTipoChange={setTipoRelatorio}

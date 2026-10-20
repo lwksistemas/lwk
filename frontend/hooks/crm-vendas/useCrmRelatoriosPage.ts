@@ -27,15 +27,21 @@ export function useCrmRelatoriosPage() {
   const [dashboardData, setDashboardData] = useState<CrmRelatorioDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVendedor, setIsVendedor] = useState(false);
+  const [controleQualidade, setControleQualidade] = useState(false);
   const [meuVendedorId, setMeuVendedorId] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
-        const resMe = await apiClient.get<{ vendedor_id: number | null; is_vendedor: boolean }>('/crm-vendas/me/');
+        const resMe = await apiClient.get<{
+          vendedor_id: number | null;
+          is_vendedor: boolean;
+          controle_qualidade?: boolean;
+        }>('/crm-vendas/me/');
         const isVend = !!resMe.data?.is_vendedor;
         setIsVendedor(isVend);
+        setControleQualidade(!!resMe.data?.controle_qualidade);
         setMeuVendedorId(resMe.data?.vendedor_id ?? null);
         try {
           const resV = await apiClient.get<CrmRelatorioVendedor[] | { results: CrmRelatorioVendedor[] }>(
@@ -64,16 +70,16 @@ export function useCrmRelatoriosPage() {
   }, []);
 
   useEffect(() => {
-    if (isVendedor && tipoRelatorio === 'vendas_total') {
+    if (isVendedor && !controleQualidade && tipoRelatorio === 'vendas_total') {
       setTipoRelatorio('vendas_vendedor');
     }
-  }, [isVendedor, tipoRelatorio]);
+  }, [isVendedor, controleQualidade, tipoRelatorio]);
 
   const handleGerar = useCallback(
     async (acao: 'pdf' | 'email') => {
       setGerando(true);
       try {
-        const vendedorIdPayload = isVendedor
+        const vendedorIdPayload = isVendedor && !controleQualidade
           ? meuVendedorId
           : vendedorSelecionado !== 'todos'
             ? vendedorSelecionado
@@ -120,6 +126,7 @@ export function useCrmRelatoriosPage() {
     },
     [
       isVendedor,
+      controleQualidade,
       meuVendedorId,
       vendedorSelecionado,
       empresaPrestadoraSelecionada,
@@ -150,6 +157,7 @@ export function useCrmRelatoriosPage() {
     dashboardData,
     loading,
     isVendedor,
+    controleQualidade,
     handleGerar,
   };
 }

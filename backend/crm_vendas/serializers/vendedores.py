@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     criar_acesso = serializers.BooleanField(write_only=True, default=False, required=False)
     username = serializers.CharField(write_only=True, max_length=150, required=False, allow_blank=True)
+    usuario_login = serializers.SerializerMethodField(read_only=True)
     tem_acesso = serializers.SerializerMethodField(read_only=True)
     grupo_id = serializers.IntegerField(required=False, allow_null=True)
     grupo_nome = serializers.SerializerMethodField(read_only=True)
@@ -41,11 +42,15 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         model = Vendedor
         fields = [
             "id", "nome", "email", "telefone", "cargo", "comissao_padrao", "is_admin", "is_active",
-            "criar_acesso", "username", "tem_acesso", "grupo_id", "grupo_nome", "permissoes_ids",
+            "criar_acesso", "username", "usuario_login", "tem_acesso", "grupo_id", "grupo_nome", "permissoes_ids",
             "controle_qualidade",
             "created_at", "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
+
+    def get_usuario_login(self, obj):
+        user = self._get_vendedor_user(obj)
+        return user.username if user else ""
 
     def get_tem_acesso(self, obj):
         """✅ OTIMIZAÇÃO: Usa anotação do queryset para evitar N+1"""

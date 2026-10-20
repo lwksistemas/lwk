@@ -176,6 +176,12 @@ export function VendedorCadastroForm({
               </select>
             </div>
 
+            {editing && form.usuario_login ? (
+              <p className="text-sm text-gray-800 dark:text-gray-100 rounded-lg bg-[#e3f3ff] dark:bg-[#0176d3]/20 px-3 py-2">
+                Entre com o usuário: <strong>{form.usuario_login}</strong>
+              </p>
+            ) : null}
+
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -192,21 +198,27 @@ export function VendedorCadastroForm({
 
             {form.criar_acesso && (
               <div className="space-y-3 pl-4 border-l-2 border-blue-200 dark:border-blue-800">
-                <div>
-                  <label className={labelClass}>Usuário para login *</label>
-                  <input
-                    type="text"
-                    value={form.username}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        username: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''),
-                      }))
-                    }
-                    className={inputClass}
-                    placeholder="Ex: daniel"
-                  />
-                </div>
+                {editing && form.usuario_login ? (
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    O e-mail da senha vai com: Entre com o usuário: <strong>{form.usuario_login}</strong>
+                  </p>
+                ) : (
+                  <div>
+                    <label className={labelClass}>Usuário para login *</label>
+                    <input
+                      type="text"
+                      value={form.username}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          username: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''),
+                        }))
+                      }
+                      className={inputClass}
+                      placeholder="Ex: daniel"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className={labelClass}>E-mail para envio da senha *</label>
                   <input

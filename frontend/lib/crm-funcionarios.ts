@@ -10,6 +10,7 @@ export interface CrmFuncionario {
   is_admin: boolean;
   is_active: boolean;
   tem_acesso?: boolean;
+  usuario_login?: string;
   grupo_nome?: string;
   grupo_id?: number | null;
   permissoes_ids?: number[];
@@ -42,6 +43,7 @@ export interface CrmFuncionarioFormData {
   grupo_id: string;
   criar_acesso: boolean;
   username: string;
+  usuario_login: string;
   permissoes_ids: number[];
   controle_qualidade: boolean;
 }
@@ -55,6 +57,7 @@ export const EMPTY_FUNCIONARIO_FORM: CrmFuncionarioFormData = {
   grupo_id: '',
   criar_acesso: false,
   username: '',
+  usuario_login: '',
   permissoes_ids: [],
   controle_qualidade: false,
 };

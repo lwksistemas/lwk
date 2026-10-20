@@ -187,7 +187,7 @@ def _enviar_email_senha_provisoria(loja, destino_email: str, nome: str, login: s
             (
                 f"Olá, {nome}!\n\n"
                 f"Sua senha foi redefinida.\n\n"
-                f"Login: {login}\n"
+                f"Entre com o usuário: {login}\n"
                 f"Nova senha provisória: {senha}\n\n"
                 f"Acesse: {login_url}\n\n"
                 f"Por segurança, altere sua senha no primeiro acesso."

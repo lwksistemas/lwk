@@ -91,7 +91,7 @@ def email_senha_provisoria_html(
                                             <table width="100%" cellpadding="0" cellspacing="0">
                                                 <tr>
                                                     <td style="color: #666666; font-size: 13px; padding-bottom: 5px;">
-                                                        <strong>👤 Usuário:</strong>
+                                                        <strong>Entre com o usuário:</strong>
                                                     </td>
                                                 </tr>
                                                 <tr>
@@ -219,7 +219,7 @@ Olá {nome_destinatario},
                     🔐 DADOS DE ACESSO
 ═══════════════════════════════════════════════════════════════
 
-👤 Usuário: {usuario}
+Entre com o usuário: {usuario}
 🔑 Senha Provisória: {senha}
 
 🚀 ACESSAR SISTEMA:

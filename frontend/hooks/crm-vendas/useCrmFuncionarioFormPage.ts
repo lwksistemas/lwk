@@ -73,7 +73,8 @@ export function useCrmFuncionarioFormPage(slug: string, vendedorId?: number) {
           comissao_padrao: data.comissao_padrao?.toString() || '0',
           grupo_id: data.grupo_id ? String(data.grupo_id) : '',
           criar_acesso: false,
-          username: '',
+          username: data.usuario_login || '',
+          usuario_login: data.usuario_login || '',
           permissoes_ids: data.permissoes_ids || [],
           controle_qualidade: Boolean(data.controle_qualidade),
         });

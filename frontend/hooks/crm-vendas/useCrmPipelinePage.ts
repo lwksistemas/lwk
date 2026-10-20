@@ -45,9 +45,14 @@ export function useCrmPipelinePage() {
 
   useEffect(() => {
     apiClient
-      .get<{ vendedor_id: number | null; is_vendedor: boolean }>('/crm-vendas/me/')
+      .get<{ vendedor_id: number | null; is_vendedor: boolean; controle_qualidade?: boolean }>('/crm-vendas/me/')
       .then((res) => {
-        const { vendedor_id, is_vendedor } = res.data;
+        const { vendedor_id, is_vendedor, controle_qualidade } = res.data;
+        if (controle_qualidade) {
+          setPeriodoPipeline('todos');
+          setDataInicio('');
+          setDataFim('');
+        }
         if (vendedor_id && is_vendedor === true) {
           authService.setVendedorId(vendedor_id);
         } else if (vendedor_id) {

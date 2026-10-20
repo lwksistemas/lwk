@@ -46,6 +46,7 @@ class ContaViewSet(
     serializer_class = ContaSerializer
     pagination_class = CRMPagination
     vendedor_filter_field = "vendedor_id"
+    vendedor_escopo_qualidade = True
     cache_keys = ["contas"]
     crm_permission_model = "conta"
 
@@ -90,6 +91,7 @@ class LeadViewSet(
 
     vendedor_filter_field = "vendedor_id"
     vendedor_filter_related = ["oportunidades__vendedor_id"]
+    vendedor_escopo_qualidade = True
     cache_keys = ["leads"]
     crm_permission_model = "lead"
 

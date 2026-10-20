@@ -24,12 +24,11 @@ def _busca_leads(term, term_digits, vendedor_id, request, limit, q_icontains_sem
     f = q_icontains_sem_acento(term, "nome", "empresa", "email") | Q(telefone__icontains=term) | Q(cpf_cnpj__icontains=term)
     if term_digits and len(term_digits) >= 3:
         f |= Q(cpf_cnpj__icontains=term_digits) | Q(telefone__icontains=term_digits)
-    if vendedor_id is not None and not is_owner(request):
-        qs = Lead.objects.filter(f).filter(
+    qs = Lead.objects.filter(f)
+    if vendedor_id is not None and not is_owner(request) and not vendedor_tem_controle_qualidade(request):
+        qs = qs.filter(
             Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id),
         ).distinct()
-    else:
-        qs = Lead.objects.filter(f)
     return list(qs.values("id", "nome", "empresa", "status", "cpf_cnpj")[:limit])
 
 
@@ -57,7 +56,7 @@ def _busca_contas(term, term_digits, vendedor_id, request, limit, q_icontains_se
         from .views_common import q_contem_digitos_ignorando_mascara
         f |= q_contem_digitos_ignorando_mascara("cnpj", term_digits)
         f |= q_contem_digitos_ignorando_mascara("telefone", term_digits)
-    qs = _aplicar_filtro_vendedor(Conta.objects.filter(f), vendedor_id, request)
+    qs = _aplicar_filtro_vendedor(Conta.objects.filter(f), vendedor_id, request, liberar_qualidade=True)
     return list(qs.values("id", "nome", "segmento", "cnpj")[:limit])
 
 

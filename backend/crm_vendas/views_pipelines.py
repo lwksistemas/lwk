@@ -229,10 +229,17 @@ class AtividadeViewSet(
 
     vendedor_filter_field = "oportunidade__vendedor_id"
     vendedor_filter_related = ["lead__oportunidades__vendedor_id"]
+    vendedor_escopo_qualidade = True
     cache_keys = ["atividades", "dashboard"]
     crm_permission_model = "atividade"
 
     def filter_by_vendedor(self, queryset):
+        from .utils import is_owner
+
+        if self._consulta_controle_qualidade():
+            return queryset
+        if getattr(self.request, "user", None) is not None and is_owner(self.request):
+            return queryset
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is None:
             return queryset

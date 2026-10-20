@@ -33,3 +33,11 @@ class AtividadeVendedorFilterTest(SimpleTestCase):
         self.assertIsInstance(q_arg, Q)
         qs.filter.return_value.distinct.assert_called_once()
         self.assertIs(result, filtered)
+
+    @patch("crm_vendas.mixins.vendedor_tem_controle_qualidade", return_value=True)
+    @patch("crm_vendas.views_pipelines.get_current_vendedor_id", return_value=7)
+    def test_controle_qualidade_ve_o_calendario_da_equipe(self, _mock_vid, _mock_qualidade):
+        qs = MagicMock()
+        result = self.view.filter_by_vendedor(qs)
+        self.assertIs(result, qs)
+        qs.filter.assert_not_called()

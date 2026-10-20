@@ -242,7 +242,7 @@ export function VendedorCadastroForm({
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 <span className="font-medium">Controle de qualidade</span>
                 <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Vê oportunidades, propostas e contratos de todos os vendedores e continua vendendo no próprio nome. Não torna o funcionário administrador.
+                  Vê leads, pipeline, empresas, contatos, calendário, propostas e contratos de todos os vendedores e continua vendendo no próprio nome. Não torna o funcionário administrador.
                 </span>
               </span>
             </label>

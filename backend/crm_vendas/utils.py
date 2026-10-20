@@ -262,6 +262,36 @@ def get_vendedor_destino_merge_loja(loja_id: int):
         return None
 
 
+def vendedor_tem_controle_qualidade(request) -> bool:
+    """Vendedor comum autorizado a ver oportunidades, propostas e contratos da equipe.
+
+    Não equivale a administrador: configurações e o cadastro de funcionários continuam bloqueados.
+    """
+    if request is None:
+        return False
+    cached = getattr(request, "_crm_controle_qualidade", None)
+    if cached is not None:
+        return bool(cached)
+    resultado = False
+    user = getattr(request, "user", None)
+    if user and getattr(user, "is_authenticated", False) and not is_owner(request):
+        vid = get_current_vendedor_id(request)
+        if vid:
+            try:
+                from .models import Vendedor
+
+                cfg = Vendedor.objects.filter(id=vid).values_list("config_acesso", flat=True).first() or {}
+                resultado = bool(cfg.get("controle_qualidade"))
+            except Exception as exc:
+                logger.warning("vendedor_tem_controle_qualidade: %s", exc)
+                resultado = False
+    try:
+        request._crm_controle_qualidade = resultado
+    except Exception:
+        pass
+    return resultado
+
+
 def is_vendedor_usuario(request):
     """Verifica se o usuário logado é um vendedor (VendedorUsuario), não o owner.
     Retorna True apenas se for um vendedor real, False para owner ou outros.

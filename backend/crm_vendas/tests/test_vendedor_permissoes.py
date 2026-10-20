@@ -24,6 +24,9 @@ class VendedorPermissoesServiceTests(TestCase):
         cfg = normalizar_config_acesso({"grupo_id": "2", "permissoes_ids": ["1", 3, "x"]})
         self.assertEqual(cfg["grupo_id"], 2)
         self.assertEqual(cfg["permissoes_ids"], [1, 3])
+        self.assertFalse(cfg["controle_qualidade"])
+        ligado = normalizar_config_acesso({"controle_qualidade": True})
+        self.assertTrue(ligado["controle_qualidade"])
 
     def test_grupo_inclui_permissoes_ids(self):
         ct = ContentType.objects.get(app_label="crm_vendas", model="lead")

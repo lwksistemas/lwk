@@ -7,12 +7,14 @@ from rest_framework.response import Response
 
 from tenants.middleware import get_current_loja_id
 
-from .utils import get_current_vendedor_id, is_owner
+from .utils import get_current_vendedor_id, is_owner, vendedor_tem_controle_qualidade
 
 
-def _aplicar_filtro_vendedor(qs, vendedor_id, request, vendedor_field="vendedor_id"):
+def _aplicar_filtro_vendedor(qs, vendedor_id, request, vendedor_field="vendedor_id", liberar_qualidade=False):
     """Filtra queryset pelo vendedor se não for owner."""
     if vendedor_id is not None and not is_owner(request):
+        if liberar_qualidade and vendedor_tem_controle_qualidade(request):
+            return qs
         return qs.filter(**{vendedor_field: vendedor_id})
     return qs
 
@@ -42,7 +44,9 @@ def _busca_oportunidades(term, term_digits, vendedor_id, request, limit, q_icont
     )
     if term_digits and len(term_digits) >= 3:
         f |= Q(lead__cpf_cnpj__icontains=term_digits) | Q(lead__conta__cnpj__icontains=term_digits) | Q(lead__telefone__icontains=term_digits)
-    qs = _aplicar_filtro_vendedor(Oportunidade.objects.filter(f), vendedor_id, request)
+    qs = _aplicar_filtro_vendedor(
+        Oportunidade.objects.filter(f), vendedor_id, request, liberar_qualidade=True,
+    )
     return list(qs.values("id", "titulo", "valor", "etapa", "lead__nome", "lead__empresa")[:limit])
 
 
@@ -65,7 +69,13 @@ def _busca_propostas(term, term_digits, vendedor_id, request, limit, q_icontains
     )
     if term_digits and len(term_digits) >= 3:
         f |= Q(oportunidade__lead__cpf_cnpj__icontains=term_digits)
-    qs = _aplicar_filtro_vendedor(Proposta.objects.filter(f), vendedor_id, request, vendedor_field="oportunidade__vendedor_id")
+    qs = _aplicar_filtro_vendedor(
+        Proposta.objects.filter(f),
+        vendedor_id,
+        request,
+        vendedor_field="oportunidade__vendedor_id",
+        liberar_qualidade=True,
+    )
     return list(qs.values("id", "titulo", "numero", "status", "oportunidade__titulo", "oportunidade__lead__nome")[:limit])
 
 

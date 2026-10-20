@@ -8,7 +8,7 @@ from django.db.utils import OperationalError, ProgrammingError
 from rest_framework import status
 from rest_framework.response import Response
 
-from .utils import get_current_vendedor_id, is_vendedor_usuario
+from .utils import get_current_vendedor_id, is_vendedor_usuario, vendedor_tem_controle_qualidade
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +160,16 @@ class VendedorFilterMixin:
     vendedor_filter_related = []  # Campos relacionados
     # True: vendedor vê registros sem vendedor (pool compartilhado). False (padrão): só admin.
     vendedor_include_unassigned_pool = False
+    # True: controle de qualidade pode consultar os registros de toda a equipe.
+    vendedor_escopo_qualidade = False
+
+    def _consulta_controle_qualidade(self) -> bool:
+        if not getattr(self, "vendedor_escopo_qualidade", False):
+            return False
+        method = getattr(self.request, "method", None)
+        if method not in ("GET", "HEAD", "OPTIONS"):
+            return False
+        return vendedor_tem_controle_qualidade(self.request)
 
     def filter_by_vendedor(self, queryset):
         """Filtra queryset pelo vendedor atual (se aplicável).
@@ -177,6 +187,9 @@ class VendedorFilterMixin:
 
         # Owner SEMPRE vê todos os dados
         if is_owner(self.request):
+            return queryset
+
+        if self._consulta_controle_qualidade():
             return queryset
 
         vendedor_id = get_current_vendedor_id(self.request)

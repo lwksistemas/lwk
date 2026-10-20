@@ -13,6 +13,7 @@ export interface CrmFuncionario {
   grupo_nome?: string;
   grupo_id?: number | null;
   permissoes_ids?: number[];
+  controle_qualidade?: boolean;
 }
 
 export interface CrmFuncionarioGrupo {
@@ -42,6 +43,7 @@ export interface CrmFuncionarioFormData {
   criar_acesso: boolean;
   username: string;
   permissoes_ids: number[];
+  controle_qualidade: boolean;
 }
 
 export const EMPTY_FUNCIONARIO_FORM: CrmFuncionarioFormData = {
@@ -54,6 +56,7 @@ export const EMPTY_FUNCIONARIO_FORM: CrmFuncionarioFormData = {
   criar_acesso: false,
   username: '',
   permissoes_ids: [],
+  controle_qualidade: false,
 };
 
 export function suggestLoginFromNome(nome: string): string {
@@ -75,6 +78,7 @@ export function buildFuncionarioPayload(form: CrmFuncionarioFormData): Record<st
     criar_acesso: form.criar_acesso,
     username: form.username?.trim() || '',
     permissoes_ids: form.permissoes_ids,
+    controle_qualidade: form.controle_qualidade,
   };
   if (form.grupo_id) {
     payload.grupo_id = parseInt(form.grupo_id, 10);

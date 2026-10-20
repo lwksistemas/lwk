@@ -33,7 +33,7 @@ from .serializers import (
     OportunidadeSerializer,
 )
 from .services import OportunidadeService
-from .utils import get_current_vendedor_id
+from .utils import get_current_vendedor_id, vendedor_tem_controle_qualidade
 from .views_common import CRMPagination, aplicar_cache_control_sem_store, filtrar_queryset_por_query_params
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,7 @@ class OportunidadeViewSet(
 
     vendedor_filter_field = "vendedor_id"
     vendedor_filter_related = []
+    vendedor_escopo_qualidade = True
     cache_keys = ["oportunidades", "dashboard"]
     crm_permission_model = "oportunidade"
 
@@ -144,7 +145,7 @@ class OportunidadeViewSet(
                 "itens",
                 "itens__produto_servico",
             )
-        if get_current_vendedor_id(self.request) is None:
+        if get_current_vendedor_id(self.request) is None or vendedor_tem_controle_qualidade(self.request):
             qs = filtrar_queryset_por_query_params(qs, self.request, {"vendedor_id": "vendedor_id"})
         qs = filtrar_queryset_por_query_params(qs, self.request, {"etapa": "etapa"})
         return _filtrar_oportunidades_por_periodo(
@@ -189,6 +190,7 @@ class OportunidadeNotaViewSet(
 
     vendedor_filter_field = "oportunidade__vendedor_id"
     vendedor_filter_related = []
+    vendedor_escopo_qualidade = True
     cache_keys = ["oportunidades"]
     crm_permission_model = "oportunidade"
 

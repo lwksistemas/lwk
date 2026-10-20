@@ -32,6 +32,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         required=False,
         allow_empty=True,
     )
+    controle_qualidade = serializers.BooleanField(required=False)
 
     phone_fields = ["telefone"]
     uppercase_fields = ["nome", "cargo"]
@@ -41,6 +42,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         fields = [
             "id", "nome", "email", "telefone", "cargo", "comissao_padrao", "is_admin", "is_active",
             "criar_acesso", "username", "tem_acesso", "grupo_id", "grupo_nome", "permissoes_ids",
+            "controle_qualidade",
             "created_at", "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
@@ -69,6 +71,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         cfg = normalizar_config_acesso(getattr(instance, "config_acesso", None))
         data["grupo_id"] = cfg.get("grupo_id")
         data["permissoes_ids"] = cfg.get("permissoes_ids") or []
+        data["controle_qualidade"] = bool(cfg.get("controle_qualidade"))
         if not data["permissoes_ids"]:
             user = self._get_vendedor_user(instance)
             if user:
@@ -96,8 +99,15 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         except VendedorUsuario.DoesNotExist:
             return None
 
-    def _persistir_config_acesso(self, vendedor, grupo_id, permissoes_ids):
-        cfg = normalizar_config_acesso({"grupo_id": grupo_id, "permissoes_ids": permissoes_ids})
+    def _persistir_config_acesso(self, vendedor, grupo_id, permissoes_ids, controle_qualidade=None):
+        atual = normalizar_config_acesso(getattr(vendedor, "config_acesso", None))
+        if controle_qualidade is None:
+            controle_qualidade = atual.get("controle_qualidade", False)
+        cfg = normalizar_config_acesso({
+            "grupo_id": grupo_id,
+            "permissoes_ids": permissoes_ids,
+            "controle_qualidade": controle_qualidade,
+        })
         vendedor.config_acesso = cfg
         vendedor.save(update_fields=["config_acesso", "updated_at"])
         return cfg
@@ -128,12 +138,15 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         username = validated_data.pop("username", "") or ""
         grupo_id = validated_data.pop("grupo_id", None)
         permissoes_ids = validated_data.pop("permissoes_ids", None)
+        controle_qualidade = validated_data.pop("controle_qualidade", False)
         if permissoes_ids is None and grupo_id:
             permissoes_ids = permissoes_ids_grupo(grupo_id)
         permissoes_ids = permissoes_ids or []
 
         vendedor = super().create(validated_data)
-        cfg = self._persistir_config_acesso(vendedor, grupo_id, permissoes_ids)
+        cfg = self._persistir_config_acesso(
+            vendedor, grupo_id, permissoes_ids, controle_qualidade=controle_qualidade,
+        )
         if criar_acesso and vendedor.email:
             try:
                 self._criar_acesso_e_enviar_email(vendedor, cfg.get("grupo_id"), username, cfg.get("permissoes_ids"))
@@ -147,6 +160,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         username = validated_data.pop("username", "") or ""
         grupo_id = validated_data.pop("grupo_id", None)
         permissoes_ids = validated_data.pop("permissoes_ids", None)
+        controle_qualidade = validated_data.pop("controle_qualidade", None)
 
         vendedor = super().update(instance, validated_data)
 
@@ -157,8 +171,15 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
             cfg_atual["permissoes_ids"] = permissoes_ids
         elif grupo_id is not None and permissoes_ids is None:
             cfg_atual["permissoes_ids"] = permissoes_ids_grupo(grupo_id)
+        if controle_qualidade is not None:
+            cfg_atual["controle_qualidade"] = controle_qualidade
 
-        cfg = self._persistir_config_acesso(vendedor, cfg_atual.get("grupo_id"), cfg_atual.get("permissoes_ids") or [])
+        cfg = self._persistir_config_acesso(
+            vendedor,
+            cfg_atual.get("grupo_id"),
+            cfg_atual.get("permissoes_ids") or [],
+            controle_qualidade=cfg_atual.get("controle_qualidade", False),
+        )
 
         if criar_acesso and vendedor.email:
             try:

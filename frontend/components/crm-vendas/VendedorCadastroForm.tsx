@@ -220,6 +220,21 @@ export function VendedorCadastroForm({
               </div>
             )}
 
+            <label className="flex items-start gap-3 cursor-pointer rounded-lg border border-gray-200 dark:border-neutral-600 p-3">
+              <input
+                type="checkbox"
+                checked={form.controle_qualidade}
+                onChange={(e) => setForm((f) => ({ ...f, controle_qualidade: e.target.checked }))}
+                className="mt-1 rounded border-gray-300 dark:border-gray-600 text-[#0176d3]"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                <span className="font-medium">Controle de qualidade</span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Vê oportunidades, propostas e contratos de todos os vendedores. Não torna o funcionário administrador.
+                </span>
+              </span>
+            </label>
+
             <div className="space-y-4 pt-2">
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Permissões granulares</p>
               {permissoesCategorias.map((cat) => (

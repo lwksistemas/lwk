@@ -69,6 +69,7 @@ class OportunidadeItemViewSet(CRMSchemaRecoveryMixin, CacheInvalidationMixin, Ve
 
     vendedor_filter_field = "oportunidade__vendedor_id"
     vendedor_filter_related = []
+    vendedor_escopo_qualidade = True
 
     cache_keys = ["oportunidades", "dashboard"]
 

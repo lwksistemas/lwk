@@ -24,8 +24,27 @@ from .formatters import (
 
 logger = logging.getLogger(__name__)
 
+def _recorte_logo(conteudo: bytes) -> bytes:
+    """Tira a margem branca ou transparente para as duas marcas ficarem do mesmo tamanho."""
+    imagem = PILImage.open(BytesIO(conteudo))
+    imagem.load()
+    if "A" in imagem.getbands():
+        caixa = imagem.getchannel("A").point(lambda alpha: 255 if alpha > 12 else 0).getbbox()
+    else:
+        caixa = imagem.convert("RGB").convert("L").point(lambda valor: 0 if valor > 242 else 255).getbbox()
+    if not caixa:
+        return conteudo
+    recorte = imagem.crop(caixa)
+    if recorte.size[0] < 8 or recorte.size[1] < 8:
+        return conteudo
+    saida = BytesIO()
+    recorte.save(saida, format="PNG")
+    return saida.getvalue()
+
+
 def _imagem_cabecalho(conteudo, max_w, max_h):
     """Monta a logo no tamanho do cabeçalho, sem esticar."""
+    conteudo = _recorte_logo(conteudo)
     pil_img = PILImage.open(BytesIO(conteudo))
     largura_px, altura_px = pil_img.size
     if not largura_px or not altura_px:
@@ -39,6 +58,26 @@ def _imagem_cabecalho(conteudo, max_w, max_h):
     imagem = Image(BytesIO(conteudo), width=largura, height=altura)
     imagem.hAlign = "CENTER"
     return imagem
+
+
+def _par_mesma_altura(esquerda: bytes, direita: bytes):
+    """As duas logos saem com a mesma altura, depois de tirar a margem do arquivo."""
+    esquerda = _recorte_logo(esquerda)
+    direita = _recorte_logo(direita)
+    proporcoes = []
+    for conteudo in (esquerda, direita):
+        largura_px, altura_px = PILImage.open(BytesIO(conteudo)).size
+        proporcoes.append(largura_px / float(altura_px))
+    util = A4[0] - 4 * cm
+    altura = 2.45 * cm
+    if altura * sum(proporcoes) > util - 5.6 * cm:
+        altura = (util - 5.6 * cm) / sum(proporcoes)
+    imagens = []
+    for conteudo, proporcao in zip((esquerda, direita), proporcoes, strict=True):
+        imagem = Image(BytesIO(conteudo), width=altura * proporcao, height=altura)
+        imagem.hAlign = "CENTER"
+        imagens.append(imagem)
+    return imagens[0], imagens[1]
 
 
 def _build_cabecalho(elements, logo_url, titulo, logo_direita_url=None):
@@ -59,15 +98,14 @@ def _build_cabecalho(elements, logo_url, titulo, logo_direita_url=None):
         return
     if esquerda and direita:
         try:
-            img_esquerda = _imagem_cabecalho(esquerda, 4.6 * cm, 2.2 * cm)
-            img_direita = _imagem_cabecalho(direita, 4.6 * cm, 2.2 * cm)
-            if not img_esquerda or not img_direita:
-                raise ValueError("Logo não disponível")
-            lado = 5.2 * cm
-            meio = A4[0] - 4 * cm - (2 * lado)
+            img_esquerda, img_direita = _par_mesma_altura(esquerda, direita)
+            util = A4[0] - 4 * cm
+            coluna_esquerda = img_esquerda.drawWidth + 0.25 * cm
+            coluna_direita = img_direita.drawWidth + 0.25 * cm
+            meio = util - coluna_esquerda - coluna_direita
             tabela = Table(
                 [[img_esquerda, Paragraph(titulo, title_style), img_direita]],
-                colWidths=[lado, meio, lado],
+                colWidths=[coluna_esquerda, meio, coluna_direita],
             )
             tabela.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),

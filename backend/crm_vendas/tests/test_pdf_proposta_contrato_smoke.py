@@ -143,3 +143,33 @@ class LogoPropostaTest(SimpleTestCase):
             _build_cabecalho(elements, principal, "PROPOSTA COMERCIAL", login)
         self.assertEqual(assinar.call_count, 2)
         self.assertEqual(len(elements[0]._cellvalues[0]), 3)
+
+    def test_logo_com_margem_branca_fica_da_mesma_altura(self):
+        from PIL import Image as PILImage
+
+        from crm_vendas.pdf_proposta_contrato.sections import _build_cabecalho
+
+        justa = BytesIO()
+        PILImage.new("RGB", (200, 110), (0, 90, 170)).save(justa, format="PNG")
+        com_margem = PILImage.new("RGB", (400, 320), "white")
+        com_margem.paste(PILImage.new("RGB", (180, 70), (10, 120, 60)), (110, 120))
+        larga = BytesIO()
+        com_margem.save(larga, format="JPEG")
+        resposta_justa = MagicMock(status_code=200, content=justa.getvalue())
+        resposta_larga = MagicMock(status_code=200, content=larga.getvalue())
+        elements = []
+        with (
+            patch(
+                "crm_vendas.pdf_proposta_contrato.formatters.requests.get",
+                side_effect=[resposta_justa, resposta_larga],
+            ),
+            patch("core.media_storage.assinar_url_midia", side_effect=lambda url: url),
+        ):
+            _build_cabecalho(
+                elements,
+                "https://media.example/a.png",
+                "PROPOSTA COMERCIAL",
+                "https://media.example/b.jpg",
+            )
+        esquerda, _titulo, direita = elements[0]._cellvalues[0]
+        self.assertAlmostEqual(esquerda.drawHeight, direita.drawHeight, places=2)

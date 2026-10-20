@@ -263,7 +263,7 @@ def get_vendedor_destino_merge_loja(loja_id: int):
 
 
 def vendedor_tem_controle_qualidade(request) -> bool:
-    """Vendedor comum autorizado a ver oportunidades, propostas e contratos da equipe.
+    """Vendedor que vê a equipe e continua vendendo no próprio nome.
 
     Não equivale a administrador: configurações e o cadastro de funcionários continuam bloqueados.
     """

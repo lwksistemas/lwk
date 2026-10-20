@@ -42,6 +42,29 @@ class VerificarPermissaoCrmActionTests(SimpleTestCase):
         self.request.user.has_perm.return_value = True
         self.assertIsNone(verificar_permissao_crm_action(self.request, "lead", "list"))
 
+    @patch("crm_vendas.utils.vendedor_tem_controle_qualidade", return_value=True)
+    @patch("crm_vendas.utils.is_owner", return_value=False)
+    @patch(
+        "crm_vendas.vendedor_permissoes_service.permissoes_codenames_usuario_crm",
+        return_value=["view_proposta"],
+    )
+    def test_controle_qualidade_pode_criar_a_propria_venda(self, *_mocks):
+        self.request.user.has_perm.return_value = False
+        self.assertIsNone(verificar_permissao_crm_action(self.request, "proposta", "create"))
+        self.assertIsNone(verificar_permissao_crm_action(self.request, "oportunidade", "create"))
+
+    @patch("crm_vendas.utils.vendedor_tem_controle_qualidade", return_value=True)
+    @patch("crm_vendas.utils.is_owner", return_value=False)
+    @patch(
+        "crm_vendas.vendedor_permissoes_service.permissoes_codenames_usuario_crm",
+        return_value=["view_proposta"],
+    )
+    def test_controle_qualidade_nao_abre_configuracao(self, *_mocks):
+        self.request.user.has_perm.return_value = False
+        denied = verificar_permissao_crm_action(self.request, "vendedor", "list")
+        self.assertIsNotNone(denied)
+        self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
+
     @patch("crm_vendas.utils.is_owner", return_value=False)
     @patch(
         "crm_vendas.vendedor_permissoes_service.permissoes_codenames_usuario_crm",

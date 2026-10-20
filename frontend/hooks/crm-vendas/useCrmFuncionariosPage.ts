@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { getCrmApiErrorDetail } from '@/lib/crm-utils';
@@ -11,8 +11,9 @@ import type { CrmFuncionario } from '@/lib/crm-funcionarios';
 export function useCrmFuncionariosPage(slug: string) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const toast = useToast();
+  const { success: toastSuccess } = useToast();
   const base = `/loja/${slug}/crm-vendas/configuracoes/funcionarios`;
+  const avisouSalvo = useRef(false);
 
   const {
     items: vendedores,
@@ -34,11 +35,15 @@ export function useCrmFuncionariosPage(slug: string) {
   const [formErro, setFormErro] = useState<string | null>(null);
 
   useEffect(() => {
-    if (searchParams.get('saved') === '1') {
-      toast.success('Funcionário salvo com sucesso.');
-      router.replace(base);
+    if (searchParams.get('saved') !== '1') {
+      avisouSalvo.current = false;
+      return;
     }
-  }, [searchParams, toast, router, base]);
+    if (avisouSalvo.current) return;
+    avisouSalvo.current = true;
+    toastSuccess('Funcionário salvo com sucesso.');
+    router.replace(base);
+  }, [searchParams, toastSuccess, router, base]);
 
   const abrirNovo = () => router.push(`${base}/novo`);
 
@@ -55,7 +60,7 @@ export function useCrmFuncionariosPage(slug: string) {
     try {
       await apiClient.delete(`/crm-vendas/vendedores/${v.id}/`);
       setConfirmarExcluir(null);
-      toast.success('Funcionário excluído.');
+      toastSuccess('Funcionário excluído.');
       carregar(true);
     } catch (err: unknown) {
       setFormErro(getCrmApiErrorDetail(err, 'Erro ao excluir. Tente novamente.'));
@@ -74,7 +79,7 @@ export function useCrmFuncionariosPage(slug: string) {
         ? '/crm-vendas/vendedores/reenviar_senha_administrador/'
         : `/crm-vendas/vendedores/${v.id}/reenviar_senha/`;
       await apiClient.post(url);
-      toast.success('Senha provisória reenviada por email.');
+      toastSuccess('Senha provisória reenviada por email.');
       carregar(true);
     } catch (err: unknown) {
       setFormErro(getCrmApiErrorDetail(err, 'Erro ao reenviar senha.'));

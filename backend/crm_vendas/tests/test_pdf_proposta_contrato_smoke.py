@@ -124,3 +124,22 @@ class LogoPropostaTest(SimpleTestCase):
         assinar.assert_called_once_with(url)
         self.assertEqual(get.call_args.args[0], assinada)
         self.assertEqual(len(elements), 1)
+
+    def test_cabecalho_coloca_as_duas_logos_nas_laterais(self):
+        from PIL import Image as PILImage
+
+        from crm_vendas.pdf_proposta_contrato.sections import _build_cabecalho
+
+        imagem = BytesIO()
+        PILImage.new("RGB", (80, 40), "white").save(imagem, format="PNG")
+        resposta = MagicMock(status_code=200, content=imagem.getvalue())
+        principal = "https://media.lwksistemas.com.br/files/41449198000172/loja/logo.jpeg"
+        login = "https://media.lwksistemas.com.br/files/41449198000172/loja/login.png"
+        elements = []
+        with (
+            patch("crm_vendas.pdf_proposta_contrato.formatters.requests.get", return_value=resposta),
+            patch("core.media_storage.assinar_url_midia", side_effect=lambda url: url + "?e=1&s=abc") as assinar,
+        ):
+            _build_cabecalho(elements, principal, "PROPOSTA COMERCIAL", login)
+        self.assertEqual(assinar.call_count, 2)
+        self.assertEqual(len(elements[0]._cellvalues[0]), 3)

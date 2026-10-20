@@ -156,7 +156,8 @@ def _obter_dados_loja(loja_id):
             "email": email_publico or None,
             "admin_nome": admin_nome,
             "admin_email": admin_email,
-            "logo": (getattr(loja, "logo", "") or getattr(loja, "login_logo", "") or "").strip() or None,
+            "logo": (getattr(loja, "logo", "") or "").strip() or None,
+            "login_logo": (getattr(loja, "login_logo", "") or "").strip() or None,
         }
     except Exception:
         return {}

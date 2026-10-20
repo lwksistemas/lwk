@@ -35,6 +35,7 @@ class PropostaViewSet(
 
     vendedor_filter_field = "oportunidade__vendedor_id"
     vendedor_filter_related = []
+    vendedor_escopo_qualidade = True
 
     assinatura_doc_label = "Proposta"
     assinatura_cache_key = "propostas"
@@ -168,6 +169,7 @@ class ContratoViewSet(
 
     vendedor_filter_field = "oportunidade__vendedor_id"
     vendedor_filter_related = []
+    vendedor_escopo_qualidade = True
     assinatura_doc_label = "Contrato"
     assinatura_cache_key = "contratos"
     crm_permission_model = "contrato"

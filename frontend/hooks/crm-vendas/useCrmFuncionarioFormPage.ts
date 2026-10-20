@@ -75,6 +75,7 @@ export function useCrmFuncionarioFormPage(slug: string, vendedorId?: number) {
           criar_acesso: false,
           username: '',
           permissoes_ids: data.permissoes_ids || [],
+          controle_qualidade: Boolean(data.controle_qualidade),
         });
       } catch (err: unknown) {
         if (!cancelled) {

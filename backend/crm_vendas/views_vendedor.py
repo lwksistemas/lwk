@@ -37,8 +37,20 @@ class VendedorViewSet(CRMSchemaRecoveryMixin, CRMPermissionMixin, BaseModelViewS
             return qs.filter(is_active=True)
         return qs
 
-    @require_admin_access("Vendedores não têm permissão para acessar configurações de funcionários.")
     def list(self, request, *args, **kwargs):
+        from .utils import is_owner, is_vendedor_usuario, vendedor_tem_controle_qualidade
+
+        if not is_owner(request) and is_vendedor_usuario(request):
+            if not vendedor_tem_controle_qualidade(request):
+                return Response(
+                    {"detail": "Vendedores não têm permissão para acessar configurações de funcionários."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            nomes = [
+                {"id": vendedor.id, "nome": vendedor.nome}
+                for vendedor in self.get_queryset().only("id", "nome").order_by("nome")
+            ]
+            return Response(nomes)
         response = super().list(request, *args, **kwargs)
         loja_id = get_current_loja_id()
         if loja_id:

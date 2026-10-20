@@ -136,7 +136,11 @@ def normalizar_config_acesso(config: dict | None) -> dict:
             ids_norm.append(int(pid))
         except (TypeError, ValueError):
             continue
-    return {"grupo_id": grupo_id, "permissoes_ids": ids_norm}
+    return {
+        "grupo_id": grupo_id,
+        "permissoes_ids": ids_norm,
+        "controle_qualidade": bool(cfg.get("controle_qualidade")),
+    }
 
 
 def aplicar_permissoes_usuario_crm(user, grupo_id: int | None, permissoes_ids: list[int]) -> None:

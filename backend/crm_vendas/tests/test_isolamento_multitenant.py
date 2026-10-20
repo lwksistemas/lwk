@@ -115,3 +115,43 @@ class VendedorFilterMixinTests(SimpleTestCase):
 
         vs = FakeViewSet()
         self.assertTrue(vs.vendedor_include_unassigned_pool)
+
+    @patch("crm_vendas.mixins.vendedor_tem_controle_qualidade", return_value=True)
+    @patch("crm_vendas.utils.is_owner", return_value=False)
+    def test_controle_qualidade_ve_a_equipe_na_consulta(self, *_):
+        from crm_vendas.mixins import VendedorFilterMixin
+
+        req = self._make_request()
+        req.method = "GET"
+
+        class FakeViewSet(VendedorFilterMixin):
+            vendedor_filter_field = "oportunidade__vendedor_id"
+            vendedor_filter_related = []
+            vendedor_escopo_qualidade = True
+            request = req
+
+        qs = MagicMock()
+        result = FakeViewSet().filter_by_vendedor(qs)
+        self.assertEqual(result, qs)
+        qs.filter.assert_not_called()
+
+    @patch("crm_vendas.mixins.vendedor_tem_controle_qualidade", return_value=True)
+    @patch("crm_vendas.utils.is_owner", return_value=False)
+    def test_controle_qualidade_nao_altera_registro_de_outro(self, *_):
+        from crm_vendas.mixins import VendedorFilterMixin
+
+        req = self._make_request()
+        req.method = "PATCH"
+
+        class FakeViewSet(VendedorFilterMixin):
+            vendedor_filter_field = "oportunidade__vendedor_id"
+            vendedor_filter_related = []
+            vendedor_escopo_qualidade = True
+            request = req
+
+        qs = MagicMock()
+        qs.filter.return_value = qs
+        qs.distinct.return_value = qs
+        with patch("crm_vendas.mixins.get_current_vendedor_id", return_value=42):
+            FakeViewSet().filter_by_vendedor(qs)
+        qs.filter.assert_called_once()

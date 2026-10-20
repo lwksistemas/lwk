@@ -45,6 +45,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     loja_data = _completar_logos(obter_dados_emitente_documento(proposta), loja_id)
     logo_url = loja_data.get("logo")
     _build_cabecalho(elements, logo_url, "PROPOSTA COMERCIAL", loja_data.get("login_logo"))
+    elements.append(Spacer(1, 0.45 * cm))
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', compact))
 
     if loja_data:

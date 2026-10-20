@@ -8,6 +8,7 @@ from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
 
 from core.phone_utils import telefone_exibicao_brasileiro
@@ -60,8 +61,8 @@ def _imagem_cabecalho(conteudo, max_w, max_h):
     return imagem
 
 
-def _par_mesma_altura(esquerda: bytes, direita: bytes):
-    """As duas logos saem com a mesma altura, depois de tirar a margem do arquivo."""
+def _par_mesma_altura(esquerda: bytes, direita: bytes, titulo: str):
+    """As duas logos saem com a mesma altura e deixam o título em uma linha."""
     esquerda = _recorte_logo(esquerda)
     direita = _recorte_logo(direita)
     proporcoes = []
@@ -69,9 +70,10 @@ def _par_mesma_altura(esquerda: bytes, direita: bytes):
         largura_px, altura_px = PILImage.open(BytesIO(conteudo)).size
         proporcoes.append(largura_px / float(altura_px))
     util = A4[0] - 4 * cm
-    altura = 2.45 * cm
-    if altura * sum(proporcoes) > util - 5.6 * cm:
-        altura = (util - 5.6 * cm) / sum(proporcoes)
+    reserva_titulo = stringWidth(titulo, "Helvetica-Bold", 14) + 2.2 * cm
+    altura = 1.6 * cm
+    if altura * sum(proporcoes) > util - reserva_titulo:
+        altura = (util - reserva_titulo) / sum(proporcoes)
     imagens = []
     for conteudo, proporcao in zip((esquerda, direita), proporcoes, strict=True):
         imagem = Image(BytesIO(conteudo), width=altura * proporcao, height=altura)
@@ -98,10 +100,11 @@ def _build_cabecalho(elements, logo_url, titulo, logo_direita_url=None):
         return
     if esquerda and direita:
         try:
-            img_esquerda, img_direita = _par_mesma_altura(esquerda, direita)
+            img_esquerda, img_direita = _par_mesma_altura(esquerda, direita, titulo)
             util = A4[0] - 4 * cm
-            coluna_esquerda = img_esquerda.drawWidth + 0.25 * cm
-            coluna_direita = img_direita.drawWidth + 0.25 * cm
+            folga = 0.7 * cm
+            coluna_esquerda = img_esquerda.drawWidth + folga
+            coluna_direita = img_direita.drawWidth + folga
             meio = util - coluna_esquerda - coluna_direita
             tabela = Table(
                 [[img_esquerda, Paragraph(titulo, title_style), img_direita]],
@@ -109,11 +112,15 @@ def _build_cabecalho(elements, logo_url, titulo, logo_direita_url=None):
             )
             tabela.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("ALIGN", (0, 0), (0, 0), "CENTER"),
+                ("ALIGN", (0, 0), (0, 0), "LEFT"),
                 ("ALIGN", (1, 0), (1, 0), "CENTER"),
-                ("ALIGN", (2, 0), (2, 0), "CENTER"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 2),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+                ("LEFTPADDING", (0, 0), (0, 0), 0),
+                ("RIGHTPADDING", (0, 0), (0, 0), folga),
+                ("LEFTPADDING", (1, 0), (1, 0), 4),
+                ("RIGHTPADDING", (1, 0), (1, 0), 4),
+                ("LEFTPADDING", (2, 0), (2, 0), folga),
+                ("RIGHTPADDING", (2, 0), (2, 0), 0),
                 ("TOPPADDING", (0, 0), (-1, -1), 0),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
             ]))

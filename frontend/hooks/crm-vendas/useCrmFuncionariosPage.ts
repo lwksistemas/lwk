@@ -48,7 +48,7 @@ export function useCrmFuncionariosPage(slug: string) {
   const abrirNovo = () => router.push(`${base}/novo`);
 
   const abrirEditar = (v: CrmFuncionario) => {
-    if (v.id === 'admin' || v.is_admin) return;
+    if (v.id === 'admin') return;
     router.push(`${base}/${v.id}/editar`);
   };
 

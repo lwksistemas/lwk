@@ -84,7 +84,24 @@ class VendedorViewSet(CRMSchemaRecoveryMixin, CRMPermissionMixin, BaseModelViewS
 
     @require_admin_access("Vendedores não têm permissão para acessar configurações de funcionários.")
     def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
+        response = super().retrieve(request, *args, **kwargs)
+        self._marcar_owner_como_admin(response, self.get_object())
+        return response
+
+    def _marcar_owner_como_admin(self, response, instance):
+        loja_id = get_current_loja_id()
+        if not loja_id or not isinstance(getattr(response, "data", None), dict):
+            return
+        from superadmin.models import Loja
+
+        loja = Loja.objects.select_related("owner").filter(id=loja_id).first()
+        if not loja or not getattr(loja, "owner", None):
+            return
+        email_owner = (loja.owner.email or "").strip().lower()
+        email_vendedor = (getattr(instance, "email", None) or "").strip().lower()
+        if email_owner and email_vendedor == email_owner:
+            response.data["is_admin"] = True
+            response.data["cargo"] = "Administrador"
 
     @require_admin_access("Vendedores não têm permissão para acessar configurações de funcionários.")
     def update(self, request, *args, **kwargs):

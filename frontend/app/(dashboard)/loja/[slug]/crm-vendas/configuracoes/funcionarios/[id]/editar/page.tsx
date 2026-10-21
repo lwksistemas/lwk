@@ -12,6 +12,7 @@ export default function EditarFuncionarioPage() {
 
   const {
     editing,
+    isAdmin,
     form,
     setForm,
     grupos,
@@ -38,6 +39,7 @@ export default function EditarFuncionarioPage() {
       loading={loadingMeta || loadingVendedor}
       error={formErro}
       saving={salvando}
+      administrador={isAdmin}
       onGrupoChange={handleGrupoChange}
       onTogglePermissao={togglePermissao}
       onToggleCriarAcesso={toggleCriarAcesso}

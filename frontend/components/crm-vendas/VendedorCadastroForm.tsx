@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Shield, User } from 'lucide-react';
+import { ArrowLeft, Percent, Shield, User } from 'lucide-react';
 import Link from 'next/link';
 import { ComissaoVendedorCategorias } from '@/components/crm-vendas/ComissaoVendedorCategorias';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
@@ -33,6 +33,7 @@ interface Props {
   onToggleCriarAcesso: (checked: boolean) => void;
   onSave: () => void;
   onCancel: () => void;
+  administrador?: boolean;
 }
 
 export function VendedorCadastroForm({
@@ -50,6 +51,7 @@ export function VendedorCadastroForm({
   onToggleCriarAcesso,
   onSave,
   onCancel,
+  administrador = false,
 }: Props) {
   if (loading) {
     return (
@@ -60,8 +62,8 @@ export function VendedorCadastroForm({
   }
 
   return (
-    <div className="-m-4 sm:-m-6 lg:-m-8 flex flex-col min-h-[calc(100dvh-3.5rem)]">
-      <div className="shrink-0 px-4 md:px-6 lg:px-8 py-4 bg-[#f3f2f2] dark:bg-[#0d1f3c] border-b border-gray-200 dark:border-[#0d1f3c]">
+    <div className="-m-4 sm:-m-6 lg:-m-8 flex flex-col h-[calc(100dvh-3.5rem)]">
+      <div className="shrink-0 px-4 md:px-6 lg:px-8 py-3 bg-[#f3f2f2] dark:bg-[#0d1f3c] border-b border-gray-200 dark:border-[#0d1f3c]">
         <Link
           href={listHref}
           className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-[#0176d3]"
@@ -69,79 +71,111 @@ export function VendedorCadastroForm({
           <ArrowLeft size={16} />
           Voltar à listagem
         </Link>
-        <h1 className="mt-3 text-xl font-semibold text-gray-900 dark:text-white">
-          {editing ? 'Editar funcionário' : 'Novo funcionário'}
+        <h1 className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">
+          {administrador ? 'Comissão do administrador' : editing ? 'Editar funcionário' : 'Novo funcionário'}
         </h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Dados pessoais e permissões de acesso ao CRM
-        </p>
       </div>
 
       <CrmFormPageShell
+        embedded
         error={error}
         saving={saving}
         saveLabel={editing ? 'Salvar alterações' : 'Cadastrar funcionário'}
         onSave={onSave}
         onCancel={onCancel}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full">
-          <section className="space-y-4">
-            <h2 className={sectionTitleClass}>
-              <User size={16} className="text-[#0176d3]" />
-              Dados pessoais
-            </h2>
-            <div>
-              <label className={labelClass}>Nome *</label>
-              <input
-                type="text"
-                value={form.nome}
-                onChange={(e) => {
-                  const nome = toUpperCase(e.target.value);
-                  setForm((f) => ({
-                    ...f,
-                    nome,
-                    username:
-                      f.criar_acesso && (!f.username || f.username === suggestLoginFromNome(f.nome))
-                        ? suggestLoginFromNome(nome)
-                        : f.username,
-                  }));
-                }}
-                className={inputClass}
-                placeholder="Nome do vendedor"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className={inputClass}
-                placeholder="email@exemplo.com"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Telefone</label>
-              <input
-                type="text"
-                value={form.telefone}
-                onChange={(e) => setForm((f) => ({ ...f, telefone: formatTelefone(e.target.value) }))}
-                className={inputClass}
-                placeholder="(11) 99999-9999"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Cargo</label>
-              <input
-                type="text"
-                value={form.cargo}
-                onChange={(e) => setForm((f) => ({ ...f, cargo: toUpperCase(e.target.value) }))}
-                className={inputClass}
-                placeholder="Vendedor"
-              />
-            </div>
-          </section>
+        <div className={`grid grid-cols-1 gap-8 w-full ${administrador ? '' : 'lg:grid-cols-2 lg:gap-10'}`}>
+          <div className="space-y-6">
+            <section className="space-y-3">
+              <h2 className={sectionTitleClass}>
+                <User size={16} className="text-[#0176d3]" />
+                Dados pessoais
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>Nome *</label>
+                  <input
+                    type="text"
+                    value={form.nome}
+                    readOnly={administrador}
+                    onChange={(e) => {
+                      const nome = toUpperCase(e.target.value);
+                      setForm((f) => ({
+                        ...f,
+                        nome,
+                        username:
+                          f.criar_acesso && (!f.username || f.username === suggestLoginFromNome(f.nome))
+                            ? suggestLoginFromNome(nome)
+                            : f.username,
+                      }));
+                    }}
+                    className={inputClass}
+                    placeholder="Nome do vendedor"
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Email</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    readOnly={administrador}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                    className={inputClass}
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Telefone</label>
+                  <input
+                    type="text"
+                    value={form.telefone}
+                    readOnly={administrador}
+                    onChange={(e) => setForm((f) => ({ ...f, telefone: formatTelefone(e.target.value) }))}
+                    className={inputClass}
+                    placeholder="(11) 99999-9999"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>Cargo</label>
+                  <input
+                    type="text"
+                    value={form.cargo}
+                    readOnly={administrador}
+                    onChange={(e) => setForm((f) => ({ ...f, cargo: toUpperCase(e.target.value) }))}
+                    className={inputClass}
+                    placeholder="Vendedor"
+                  />
+                </div>
+              </div>
+            </section>
 
+            <section className="space-y-3">
+              <h2 className={sectionTitleClass}>
+                <Percent size={16} className="text-[#0176d3]" />
+                Comissão por categoria
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Valor fixo é por unidade do serviço. Porcentagem incide sobre o que a prestadora paga. Categoria em branco usa o percentual padrão.
+              </p>
+              <div className="max-w-[160px]">
+                <label className={labelClass}>Percentual padrão (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.comissao_padrao}
+                  onChange={(e) => setForm((f) => ({ ...f, comissao_padrao: e.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+              <ComissaoVendedorCategorias
+                valores={form.comissoes_categoria || []}
+                onChange={(comissoes_categoria) => setForm((f) => ({ ...f, comissoes_categoria }))}
+              />
+            </section>
+          </div>
+
+          {!administrador && (
           <section className="space-y-4">
             <h2 className={sectionTitleClass}>
               <Shield size={16} className="text-[#0176d3]" />
@@ -262,31 +296,8 @@ export function VendedorCadastroForm({
               ))}
             </div>
           </section>
+          )}
         </div>
-        <section className="space-y-4 mt-8">
-          <h2 className={sectionTitleClass}>
-            <User size={16} className="text-[#0176d3]" />
-            Comissão por categoria
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Em cada categoria, escolha valor fixo ou porcentagem. O valor fixo é o que o vendedor recebe por unidade do serviço. A porcentagem incide sobre o valor que a prestadora paga. Categoria em branco usa o percentual padrão.
-          </p>
-          <div className="max-w-xs">
-            <label className={labelClass}>Percentual padrão (%)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.comissao_padrao}
-              onChange={(e) => setForm((f) => ({ ...f, comissao_padrao: e.target.value }))}
-              className={inputClass}
-            />
-          </div>
-          <ComissaoVendedorCategorias
-            valores={form.comissoes_categoria || []}
-            onChange={(comissoes_categoria) => setForm((f) => ({ ...f, comissoes_categoria }))}
-          />
-        </section>
       </CrmFormPageShell>
     </div>
   );

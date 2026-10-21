@@ -14,6 +14,8 @@ interface CrmFormPageShellProps {
   onCancel: () => void;
   saveDisabled?: boolean;
   accentColor?: string;
+  /** Dentro de uma página que já ocupa a tela. Evita um segundo bloco com altura vazia. */
+  embedded?: boolean;
 }
 
 /** Layout full-page CRM: fundo #f3f2f2, painel branco, rodapé fixo (sem cabeçalho). */
@@ -27,9 +29,10 @@ export function CrmFormPageShell({
   onCancel,
   saveDisabled = false,
   accentColor = CRM_ACCENT,
+  embedded = false,
 }: CrmFormPageShellProps) {
   return (
-    <div className="-m-4 sm:-m-6 lg:-m-8 flex flex-col min-h-[calc(100dvh-3.5rem)]">
+    <div className={embedded ? 'flex flex-col flex-1 min-h-0' : '-m-4 sm:-m-6 lg:-m-8 flex flex-col min-h-[calc(100dvh-3.5rem)]'}>
       <div className="flex flex-col flex-1 min-h-0 w-full">
         <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#f3f2f2] dark:bg-[#0d1f3c]">
           {error && (

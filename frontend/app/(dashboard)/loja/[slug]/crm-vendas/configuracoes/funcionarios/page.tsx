@@ -125,6 +125,15 @@ export default function ConfiguracoesFuncionariosPage() {
                       {reenviando === v.id ? 'Enviando...' : 'Reenviar senha'}
                     </button>
                   )}
+                  {v.is_admin && v.id !== 'admin' && (
+                    <button
+                      type="button"
+                      onClick={() => abrirEditar(v)}
+                      className="px-3 py-1.5 text-sm font-medium text-[#0176d3] hover:bg-[#0159a8]/10 dark:hover:bg-[#0176d3]/20 rounded transition-colors"
+                    >
+                      Comissão
+                    </button>
+                  )}
                   {!v.is_admin && (
                     <>
                       <button

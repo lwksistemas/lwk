@@ -250,10 +250,12 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
                 | Q(vendedor_id__isnull=True)
                 | Q(vendedor__is_active=False),
             )
-            _adicionar_secao_vendedor_pdf(elements, styles, v_sel.nome, qs)
+            _adicionar_secao_vendedor_pdf(
+                elements, styles, v_sel.nome, qs, mostrar_nome=False,
+            )
         else:
             _adicionar_secao_vendedor_pdf(
-                elements, styles, v_sel.nome, base.filter(vendedor_id=v_sel.id),
+                elements, styles, v_sel.nome, base.filter(vendedor_id=v_sel.id), mostrar_nome=False,
             )
     else:
         titulo += " - Todos os vendedores"

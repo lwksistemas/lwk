@@ -79,7 +79,7 @@ def filtro_detalhe_linha_merged_pdf(row: dict, merge_destino):
     return Q(vendedor_id=vid)
 
 
-def adicionar_secao_vendedor_pdf(elements, styles, vendedor_nome: str, oportunidades_qs):
+def adicionar_secao_vendedor_pdf(elements, styles, vendedor_nome: str, oportunidades_qs, mostrar_nome=True):
     """Resumo + tabela ordenada por data (mais recente primeiro)."""
     oportunidades_qs = oportunidades_qs.annotate(
         data_ordem=Coalesce("data_fechamento_ganho", "data_fechamento"),
@@ -94,8 +94,9 @@ def adicionar_secao_vendedor_pdf(elements, styles, vendedor_nome: str, oportunid
     comissao = float(totais["comissao"] or 0)
     qtd = totais["qtd"] or 0
 
-    elements.append(Paragraph(f"<b>{vendedor_nome}</b>", styles["Heading2"]))
-    elements.append(Spacer(1, 0.2 * cm))
+    if mostrar_nome and vendedor_nome:
+        elements.append(Paragraph(f"<b>{vendedor_nome}</b>", styles["Heading2"]))
+        elements.append(Spacer(1, 0.2 * cm))
 
     data_resumo = [
         ["Métrica", "Valor"],

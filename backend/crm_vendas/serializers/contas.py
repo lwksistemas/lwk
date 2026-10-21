@@ -38,7 +38,7 @@ class ContaSerializer(
             "id", "nome", "razao_social", "cnpj", "inscricao_estadual", "tipo", "segmento",
             "telefone", "email", "site",
             "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf",
-            "endereco", "observacoes", "created_at", "updated_at",
+            "endereco", "observacoes", "comissoes", "created_at", "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
 

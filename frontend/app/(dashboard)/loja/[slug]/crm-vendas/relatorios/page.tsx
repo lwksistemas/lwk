@@ -1,6 +1,7 @@
 'use client';
 
-import { FileText } from 'lucide-react';
+import { useState } from 'react';
+import { FileCheck, FileText } from 'lucide-react';
 import { useCrmRelatoriosPage } from '@/hooks/crm-vendas/useCrmRelatoriosPage';
 import { StatsCards } from './components/StatsCards';
 import { RelatorioForm } from './components/RelatorioForm';
@@ -30,6 +31,9 @@ export default function RelatoriosPage() {
     handleGerar,
   } = useCrmRelatoriosPage();
 
+  const [painel, setPainel] = useState<'gerar' | 'aprovacao'>('gerar');
+  const mostrarAprovacao = !isVendedor && painel === 'aprovacao';
+
   return (
     <div className="space-y-6">
       <div>
@@ -41,6 +45,44 @@ export default function RelatoriosPage() {
         </p>
       </div>
 
+      {!isVendedor && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setPainel('gerar')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+              painel === 'gerar'
+                ? 'bg-[#0176d3] text-white border-[#0176d3]'
+                : 'bg-white dark:bg-[#16325c] text-gray-700 dark:text-gray-200 border-gray-200 dark:border-[#0d1f3c]'
+            }`}
+          >
+            Gerar Relatório
+          </button>
+          <button
+            type="button"
+            onClick={() => setPainel('aprovacao')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border ${
+              painel === 'aprovacao'
+                ? 'bg-[#0176d3] text-white border-[#0176d3]'
+                : 'bg-white dark:bg-[#16325c] text-gray-700 dark:text-gray-200 border-gray-200 dark:border-[#0d1f3c]'
+            }`}
+          >
+            <FileCheck size={16} />
+            Aprovação/Prestador
+          </button>
+        </div>
+      )}
+
+      {mostrarAprovacao && (
+        <RelatoriosComissao
+          empresasPrestadoras={empresasPrestadoras}
+          vendedores={vendedores}
+          isVendedor={isVendedor}
+          painel
+          onVoltar={() => setPainel('gerar')}
+        />
+      )}
+
       <StatsCards
         totalVendas={dashboardData?.receita || 0}
         vendedoresAtivos={dashboardData?.performance_vendedores?.length || 0}
@@ -48,28 +90,36 @@ export default function RelatoriosPage() {
         loading={loading}
       />
 
-      <RelatorioForm
-        tipoRelatorio={tipoRelatorio}
-        periodo={periodo}
-        dataInicio={dataInicio}
-        dataFim={dataFim}
-        vendedorSelecionado={vendedorSelecionado}
-        vendedores={vendedores}
-        empresasPrestadoras={empresasPrestadoras}
-        empresaPrestadoraSelecionada={empresaPrestadoraSelecionada}
-        isVendedor={isVendedor && !controleQualidade}
-        gerando={gerando}
-        loading={loading}
-        onTipoChange={setTipoRelatorio}
-        onPeriodoChange={setPeriodo}
-        onDataInicioChange={setDataInicio}
-        onDataFimChange={setDataFim}
-        onVendedorChange={setVendedorSelecionado}
-        onEmpresaPrestadoraChange={setEmpresaPrestadoraSelecionada}
-        onGerar={handleGerar}
-      />
+      {!mostrarAprovacao && (
+        <RelatorioForm
+          tipoRelatorio={tipoRelatorio}
+          periodo={periodo}
+          dataInicio={dataInicio}
+          dataFim={dataFim}
+          vendedorSelecionado={vendedorSelecionado}
+          vendedores={vendedores}
+          empresasPrestadoras={empresasPrestadoras}
+          empresaPrestadoraSelecionada={empresaPrestadoraSelecionada}
+          isVendedor={isVendedor && !controleQualidade}
+          gerando={gerando}
+          loading={loading}
+          onTipoChange={setTipoRelatorio}
+          onPeriodoChange={setPeriodo}
+          onDataInicioChange={setDataInicio}
+          onDataFimChange={setDataFim}
+          onVendedorChange={setVendedorSelecionado}
+          onEmpresaPrestadoraChange={setEmpresaPrestadoraSelecionada}
+          onGerar={handleGerar}
+        />
+      )}
 
-      <RelatoriosComissao empresasPrestadoras={empresasPrestadoras} vendedores={vendedores} isVendedor={isVendedor} />
+      {isVendedor && (
+        <RelatoriosComissao
+          empresasPrestadoras={empresasPrestadoras}
+          vendedores={vendedores}
+          isVendedor={isVendedor}
+        />
+      )}
 
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">Sobre os Relatórios</h3>
@@ -77,7 +127,7 @@ export default function RelatoriosPage() {
           <li>• <strong>Total de Vendas:</strong> Resumo geral de todas as vendas fechadas no período</li>
           <li>• <strong>Vendas por Vendedor:</strong> Detalhamento individual com valores de comissão</li>
           <li>• <strong>Exportar comissões (PDF):</strong> Relatório pontual para download ou e-mail</li>
-          <li>• <strong>Relatório formal:</strong> Da loja para a prestadora, com os clientes fechados e ganhos. Pessoa jurídica sai pela razão social.</li>
+          <li>• <strong>Aprovação/Prestador:</strong> Relatório da loja para a prestadora, com os clientes fechados e ganhos. Pessoa jurídica sai pela razão social.</li>
           <li>• <strong>Controle de qualidade:</strong> Nome, telefone e histórico de negociação de cada venda fechada</li>
           <li>• Os relatórios incluem apenas oportunidades com status &quot;Fechado ganho&quot;</li>
         </ul>

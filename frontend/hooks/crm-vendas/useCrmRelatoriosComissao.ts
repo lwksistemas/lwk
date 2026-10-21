@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { getCrmApiErrorDetail } from '@/lib/crm-utils';
 import { useToast } from '@/components/ui/Toast';
@@ -63,6 +63,14 @@ export function useCrmRelatoriosComissao(isVendedor: boolean) {
   const [formDataInicio, setFormDataInicio] = useState('');
   const [formDataFim, setFormDataFim] = useState('');
   const [formObs, setFormObs] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) window.URL.revokeObjectURL(previewUrlRef.current);
+    };
+  }, []);
 
   const loadRelatorios = useCallback(async () => {
     try {
@@ -119,8 +127,18 @@ export function useCrmRelatoriosComissao(isVendedor: boolean) {
         responseType: 'blob',
       });
       const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' });
-      abrirPdf(blob, 'relatorio-comissao.pdf');
-      toast.success('PDF aberto e salvo na pasta de downloads.');
+      const arquivo = new File([blob], 'relatorio-comissao.pdf', { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(arquivo);
+      if (previewUrlRef.current) window.URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = url;
+      setPreviewUrl(url);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'relatorio-comissao.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Pré-visualização pronta. O PDF também foi salvo na pasta de downloads.');
     } catch (err: unknown) {
       const e = err as { response?: { data?: unknown } };
       const msg = await parseBlobErrorDetail(
@@ -240,6 +258,7 @@ export function useCrmRelatoriosComissao(isVendedor: boolean) {
     handleCriarEEnviar,
     handleDownloadPdf,
     resetForm,
+    previewUrl,
     canCreate: !isVendedor,
   };
 }

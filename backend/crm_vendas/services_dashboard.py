@@ -229,6 +229,21 @@ def build_dashboard_payload(loja_id, vendedor_id, periodo, data_inicio_param,
     performance_vendedores, comissao_total_mes = _calcular_performance_vendedores(
         vendedores_qs, opp_qs, data_inicio, data_fim, loja_id,
     )
+    if vendedor_id is not None:
+        from .comissao_prestadora_service import comissao_exibida_vendedor
+
+        vendedor = (
+            Vendedor.objects.filter(pk=vendedor_id)
+            .prefetch_related("comissoes_categoria")
+            .first()
+        )
+        comissao_total_mes = comissao_exibida_vendedor(
+            opp_qs.filter(etapa="closed_won").filter(filtro_opp_mes),
+            vendedor,
+        )
+        for row in performance_vendedores:
+            if row["id"] == vendedor_id:
+                row["comissao_mes"] = float(comissao_total_mes)
 
     return {
         "leads": leads_qs.filter(created_at__date__gte=data_inicio, created_at__date__lte=data_fim).count(),

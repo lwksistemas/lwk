@@ -41,3 +41,51 @@ class Vendedor(LojaIsolationMixin, models.Model):
     def __str__(self):
         return self.nome
 
+
+class VendedorCategoriaComissao(LojaIsolationMixin, models.Model):
+    """Comissão do vendedor em uma categoria: valor fixo ou porcentagem."""
+
+    TIPO_FIXO = "fixo"
+    TIPO_PERCENTUAL = "percentual"
+    TIPO_CHOICES = [
+        (TIPO_FIXO, "Valor fixo"),
+        (TIPO_PERCENTUAL, "Porcentagem"),
+    ]
+
+    vendedor = models.ForeignKey(
+        Vendedor,
+        on_delete=models.CASCADE,
+        related_name="comissoes_categoria",
+    )
+    categoria = models.ForeignKey(
+        "crm_vendas.CategoriaProdutoServico",
+        on_delete=models.CASCADE,
+        related_name="comissoes_vendedores",
+    )
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default=TIPO_PERCENTUAL)
+    valor = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Reais por unidade, quando o tipo é valor fixo. Percentual, quando o tipo é porcentagem.",
+    )
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        db_table = "crm_vendas_vendedor_categoria_comissao"
+        verbose_name = "Comissão do vendedor por categoria"
+        verbose_name_plural = "Comissões do vendedor por categoria"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vendedor", "categoria"],
+                name="crm_vend_cat_comissao_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["loja_id", "vendedor"], name="crm_vcc_loja_vend_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.vendedor_id} · {self.categoria_id} · {self.tipo} {self.valor}"
+

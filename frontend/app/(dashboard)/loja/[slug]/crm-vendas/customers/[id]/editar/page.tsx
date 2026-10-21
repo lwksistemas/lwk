@@ -7,6 +7,7 @@ import { consultaCep } from '@/lib/consulta-cep';
 import { consultaCnpj } from '@/lib/consulta-cnpj';
 import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
 import { ContaCadastroForm, type ContaFormData } from '@/components/crm-vendas/ContaCadastroForm';
+import type { ComissaoPrestadoraItem } from '@/components/crm-vendas/ComissaoPrestadoraSection';
 
 interface Conta {
   id: number;
@@ -27,6 +28,7 @@ interface Conta {
   cidade?: string;
   uf?: string;
   observacoes?: string;
+  comissoes?: ComissaoPrestadoraItem[];
 }
 
 function contaToForm(conta: Conta): ContaFormData {
@@ -48,6 +50,10 @@ function contaToForm(conta: Conta): ContaFormData {
     cidade: conta.cidade || '',
     uf: conta.uf || '',
     observacoes: conta.observacoes || '',
+    comissoes: (conta.comissoes || []).map((item) => ({
+      produto_servico_id: item.produto_servico_id,
+      valor: item.valor ?? '',
+    })),
   };
 }
 
@@ -161,11 +167,19 @@ export default function EditarContaPage() {
     }
     setSaving(true);
     try {
-      await apiClient.put(`/crm-vendas/contas/${id}/`, applyTelefoneInternacionalPayload(formData));
+      await apiClient.put(
+        `/crm-vendas/contas/${id}/`,
+        applyTelefoneInternacionalPayload({
+          ...formData,
+          comissoes: formData.tipo === 'cliente' ? [] : formData.comissoes,
+        }),
+      );
       router.push(listPath);
     } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setFormErro(detail || 'Erro ao salvar empresa.');
+      const data = (err as { response?: { data?: { detail?: string; comissoes?: string | string[] } } })?.response?.data;
+      const comissoes = data?.comissoes;
+      const comissaoMsg = Array.isArray(comissoes) ? comissoes.join(' ') : comissoes;
+      setFormErro(comissaoMsg || data?.detail || 'Erro ao salvar empresa.');
     } finally {
       setSaving(false);
     }

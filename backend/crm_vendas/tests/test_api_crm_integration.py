@@ -91,6 +91,39 @@ class CrmDashboardApiSmokeTest(_CrmApiTestBase):
         self.assertEqual(response.json().get("leads"), 0)
         mock_build.assert_called_once()
 
+    @patch("crm_vendas.views_crm_me_dashboard._store_dashboard_cache")
+    @patch("crm_vendas.views_crm_me_dashboard._dashboard_cached_response", return_value=None)
+    @patch("crm_vendas.services_dashboard.build_dashboard_payload")
+    @patch("crm_vendas.views_crm_me_dashboard.vendedor_tem_controle_qualidade", return_value=True)
+    @patch("crm_vendas.views_crm_me_dashboard.get_current_vendedor_id", return_value=2)
+    @patch("crm_vendas.views_crm_me_dashboard._is_owner_loja", return_value=False)
+    @patch("crm_vendas.views_crm_me_dashboard.ensure_loja_context")
+    @patch("crm_vendas.views_crm_me_dashboard.get_current_loja_id")
+    def test_dashboard_vendedor_com_qualidade_ve_so_as_proprias_vendas(
+        self, mock_loja_id, _ctx, _owner, _vend, _qualidade, mock_build, _cache, _store,
+    ):
+        mock_loja_id.return_value = self.loja.id
+        mock_build.return_value = {"leads": 1, "receita": 10}
+        response = self.client.get("/api/crm-vendas/dashboard/")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(mock_build.call_args.args[1], 2)
+
+    @patch("crm_vendas.views_crm_me_dashboard._store_dashboard_cache")
+    @patch("crm_vendas.views_crm_me_dashboard._dashboard_cached_response", return_value=None)
+    @patch("crm_vendas.services_dashboard.build_dashboard_payload")
+    @patch("crm_vendas.views_crm_me_dashboard.get_current_vendedor_id", return_value=1)
+    @patch("crm_vendas.views_crm_me_dashboard._is_owner_loja", return_value=True)
+    @patch("crm_vendas.views_crm_me_dashboard.ensure_loja_context")
+    @patch("crm_vendas.views_crm_me_dashboard.get_current_loja_id")
+    def test_dashboard_administrador_ve_a_loja_inteira(
+        self, mock_loja_id, _ctx, _owner, _vend, mock_build, _cache, _store,
+    ):
+        mock_loja_id.return_value = self.loja.id
+        mock_build.return_value = {"leads": 4, "receita": 100}
+        response = self.client.get("/api/crm-vendas/dashboard/")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertIsNone(mock_build.call_args.args[1])
+
 
 class CrmLeadsApiSmokeTest(_CrmApiTestBase):
     @patch("crm_vendas.views_cadastros.LeadViewSet.get_queryset")

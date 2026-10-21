@@ -93,20 +93,32 @@ class OportunidadeItemViewSet(CRMSchemaRecoveryMixin, CacheInvalidationMixin, Ve
         Proposta.objects.filter(oportunidade_id=oportunidade_id).exclude(status__in=["cancelada", "rejeitada"]).update(valor_total=total)
         Contrato.objects.filter(oportunidade_id=oportunidade_id).exclude(status="cancelado").update(valor_total=total)
 
+    def _atualizar_valor_prestadora(self, oportunidade_id):
+        from .comissao_prestadora_service import atualizar_valor_pago_pela_prestadora
+
+        oportunidade = (
+            Oportunidade.objects.filter(id=oportunidade_id).first()
+        )
+        if oportunidade:
+            atualizar_valor_pago_pela_prestadora(oportunidade)
+
     def perform_create(self, serializer):
         serializer.save()
         self._recalcular_valor_oportunidade(serializer.instance.oportunidade_id)
+        self._atualizar_valor_prestadora(serializer.instance.oportunidade_id)
         self._invalidate_caches()
 
     def perform_update(self, serializer):
         serializer.save()
         self._recalcular_valor_oportunidade(serializer.instance.oportunidade_id)
+        self._atualizar_valor_prestadora(serializer.instance.oportunidade_id)
         self._invalidate_caches()
 
     def perform_destroy(self, instance):
         oportunidade_id = instance.oportunidade_id
         instance.delete()
         self._recalcular_valor_oportunidade(oportunidade_id)
+        self._atualizar_valor_prestadora(oportunidade_id)
         self._invalidate_caches()
 
 

@@ -97,5 +97,10 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
                 validated_data.get("feedback_pos_venda") or "",
                 timezone.localtime(),
             )
-        return super().update(instance, validated_data)
+        instance = super().update(instance, validated_data)
+        if "empresa_prestadora" in validated_data:
+            from ..comissao_prestadora_service import atualizar_valor_pago_pela_prestadora
+
+            atualizar_valor_pago_pela_prestadora(instance)
+        return instance
 

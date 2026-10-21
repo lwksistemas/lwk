@@ -26,6 +26,7 @@ const EMPTY_FORM: ContaFormData = {
   cidade: '',
   uf: '',
   observacoes: '',
+  comissoes: [],
 };
 
 export default function NovaContaPage() {
@@ -103,7 +104,13 @@ export default function NovaContaPage() {
     }
     setSaving(true);
     try {
-      await apiClient.post('/crm-vendas/contas/', applyTelefoneInternacionalPayload(formData));
+      await apiClient.post(
+        '/crm-vendas/contas/',
+        applyTelefoneInternacionalPayload({
+          ...formData,
+          comissoes: formData.tipo === 'cliente' ? [] : formData.comissoes,
+        }),
+      );
       router.push(listPath);
     } catch (err: unknown) {
       const resData = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;

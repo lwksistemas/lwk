@@ -220,6 +220,123 @@ def apply_crm_tenant_schema_patches(db_name: str) -> None:
     patch_crm_vendas_asaas_columns_if_missing(db_name)
     patch_crm_vendas_atividade_columns_if_missing(db_name)
     patch_crm_negociacao_historico_if_missing(db_name)
+    patch_crm_comissao_prestadora_if_missing(db_name)
+    patch_crm_comissao_vendedor_categoria_if_missing(db_name)
+
+
+def patch_crm_comissao_prestadora_if_missing(db_name: str) -> bool:
+    """Cria a tabela do valor que a prestadora paga por produto (migration 0080)."""
+    from core.db_config import ensure_loja_database_config
+    from core.schema_checks import table_exists
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        return False
+
+    schema_name = db_name.replace("-", "_")
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
+        if table_exists(cursor, "crm_vendas_conta_produto_comissao"):
+            return False
+        logger.warning(
+            "patch_crm_comissao_prestadora_if_missing: %s sem tabela 0080 — aplicando SQL",
+            db_name,
+        )
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS "{schema_name}".crm_vendas_conta_produto_comissao (
+                id BIGSERIAL PRIMARY KEY,
+                loja_id INTEGER NOT NULL,
+                valor NUMERIC(12, 2) NOT NULL DEFAULT 0,
+                conta_id BIGINT NOT NULL
+                    REFERENCES "{schema_name}".crm_vendas_conta(id) ON DELETE CASCADE,
+                produto_servico_id BIGINT NOT NULL
+                    REFERENCES "{schema_name}".crm_vendas_produto_servico(id) ON DELETE CASCADE,
+                CONSTRAINT crm_conta_prod_comissao_uniq UNIQUE (conta_id, produto_servico_id)
+            )
+            """,
+        )
+        cursor.execute(
+            f"""
+            CREATE INDEX IF NOT EXISTS crm_cpc_loja_conta_idx
+            ON "{schema_name}".crm_vendas_conta_produto_comissao (loja_id, conta_id)
+            """,
+        )
+        cursor.execute(
+            f"""
+            CREATE INDEX IF NOT EXISTS crm_vendas_conta_produto_comissao_loja_id_idx
+            ON "{schema_name}".crm_vendas_conta_produto_comissao (loja_id)
+            """,
+        )
+        cursor.execute(
+            """
+            INSERT INTO django_migrations (app, name, applied)
+            SELECT 'crm_vendas', '0080_conta_produto_comissao', NOW()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM django_migrations
+                WHERE app = 'crm_vendas' AND name = '0080_conta_produto_comissao'
+            )
+            """,
+        )
+        return True
+
+
+def patch_crm_comissao_vendedor_categoria_if_missing(db_name: str) -> bool:
+    """Cria a comissão do vendedor por categoria (migration 0081)."""
+    from core.db_config import ensure_loja_database_config
+    from core.schema_checks import table_exists
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        return False
+
+    schema_name = db_name.replace("-", "_")
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
+        if table_exists(cursor, "crm_vendas_vendedor_categoria_comissao"):
+            return False
+        logger.warning(
+            "patch_crm_comissao_vendedor_categoria_if_missing: %s sem tabela 0081 — aplicando SQL",
+            db_name,
+        )
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS "{schema_name}".crm_vendas_vendedor_categoria_comissao (
+                id BIGSERIAL PRIMARY KEY,
+                loja_id INTEGER NOT NULL,
+                tipo VARCHAR(20) NOT NULL DEFAULT 'percentual',
+                valor NUMERIC(12, 2) NOT NULL DEFAULT 0,
+                categoria_id BIGINT NOT NULL
+                    REFERENCES "{schema_name}".crm_vendas_categoria_produto_servico(id) ON DELETE CASCADE,
+                vendedor_id BIGINT NOT NULL
+                    REFERENCES "{schema_name}".crm_vendas_vendedor(id) ON DELETE CASCADE,
+                CONSTRAINT crm_vend_cat_comissao_uniq UNIQUE (vendedor_id, categoria_id)
+            )
+            """,
+        )
+        cursor.execute(
+            f"""
+            CREATE INDEX IF NOT EXISTS crm_vcc_loja_vend_idx
+            ON "{schema_name}".crm_vendas_vendedor_categoria_comissao (loja_id, vendedor_id)
+            """,
+        )
+        cursor.execute(
+            f"""
+            CREATE INDEX IF NOT EXISTS crm_vendas_vendedor_categoria_comissao_loja_id_idx
+            ON "{schema_name}".crm_vendas_vendedor_categoria_comissao (loja_id)
+            """,
+        )
+        cursor.execute(
+            """
+            INSERT INTO django_migrations (app, name, applied)
+            SELECT 'crm_vendas', '0081_vendedor_categoria_comissao', NOW()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM django_migrations
+                WHERE app = 'crm_vendas' AND name = '0081_vendedor_categoria_comissao'
+            )
+            """,
+        )
+        return True
 
 
 def patch_crm_negociacao_historico_if_missing(db_name: str) -> bool:

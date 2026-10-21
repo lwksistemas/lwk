@@ -3,6 +3,7 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.utils.crypto import get_random_string
 from rest_framework import serializers
 
@@ -10,6 +11,10 @@ from core.serializer_mixins import (
     TextNormalizationMixin,
 )
 
+from ..comissao_prestadora_service import (
+    aplicar_comissoes_vendedor,
+    serializar_comissoes_vendedor,
+)
 from ..models import Vendedor
 from ..vendedor_permissoes_service import (
     aplicar_permissoes_usuario_crm,
@@ -34,6 +39,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         allow_empty=True,
     )
     controle_qualidade = serializers.BooleanField(required=False)
+    comissoes_categoria = serializers.JSONField(required=False, write_only=True)
 
     phone_fields = ["telefone"]
     uppercase_fields = ["nome", "cargo"]
@@ -43,7 +49,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         fields = [
             "id", "nome", "email", "telefone", "cargo", "comissao_padrao", "is_admin", "is_active",
             "criar_acesso", "username", "usuario_login", "tem_acesso", "grupo_id", "grupo_nome", "permissoes_ids",
-            "controle_qualidade",
+            "controle_qualidade", "comissoes_categoria",
             "created_at", "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
@@ -77,6 +83,9 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
         data["grupo_id"] = cfg.get("grupo_id")
         data["permissoes_ids"] = cfg.get("permissoes_ids") or []
         data["controle_qualidade"] = bool(cfg.get("controle_qualidade"))
+        view = self.context.get("view")
+        if getattr(view, "action", None) in ("retrieve", "create", "update", "partial_update"):
+            data["comissoes_categoria"] = serializar_comissoes_vendedor(instance)
         if not data["permissoes_ids"]:
             user = self._get_vendedor_user(instance)
             if user:
@@ -151,17 +160,21 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
             return grupo.name if grupo else None
         return None
 
+    @transaction.atomic
     def create(self, validated_data):
         criar_acesso = validated_data.pop("criar_acesso", False)
         username = validated_data.pop("username", "") or ""
         grupo_id = validated_data.pop("grupo_id", None)
         permissoes_ids = validated_data.pop("permissoes_ids", None)
         controle_qualidade = validated_data.pop("controle_qualidade", False)
+        comissoes_categoria = validated_data.pop("comissoes_categoria", None)
         if permissoes_ids is None and grupo_id:
             permissoes_ids = permissoes_ids_grupo(grupo_id)
         permissoes_ids = permissoes_ids or []
 
         vendedor = super().create(validated_data)
+        if comissoes_categoria is not None:
+            aplicar_comissoes_vendedor(vendedor, comissoes_categoria)
         cfg = self._persistir_config_acesso(
             vendedor, grupo_id, permissoes_ids, controle_qualidade=controle_qualidade,
         )
@@ -173,14 +186,18 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
                 raise
         return vendedor
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         criar_acesso = validated_data.pop("criar_acesso", False)
         username = validated_data.pop("username", "") or ""
         grupo_id = validated_data.pop("grupo_id", None)
         permissoes_ids = validated_data.pop("permissoes_ids", None)
         controle_qualidade = validated_data.pop("controle_qualidade", None)
+        comissoes_categoria = validated_data.pop("comissoes_categoria", None)
 
         vendedor = super().update(instance, validated_data)
+        if comissoes_categoria is not None:
+            aplicar_comissoes_vendedor(vendedor, comissoes_categoria)
 
         cfg_atual = normalizar_config_acesso(vendedor.config_acesso)
         if grupo_id is not None:

@@ -2,6 +2,7 @@
 
 import { ArrowLeft, Shield, User } from 'lucide-react';
 import Link from 'next/link';
+import { ComissaoVendedorCategorias } from '@/components/crm-vendas/ComissaoVendedorCategorias';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import { formatTelefone, toUpperCase } from '@/lib/format-br';
 import {
@@ -139,19 +140,6 @@ export function VendedorCadastroForm({
                 placeholder="Vendedor"
               />
             </div>
-            <div>
-              <label className={labelClass}>Comissão padrão (%)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                value={form.comissao_padrao}
-                onChange={(e) => setForm((f) => ({ ...f, comissao_padrao: e.target.value }))}
-                className={inputClass}
-                placeholder="Ex: 5.00"
-              />
-            </div>
           </section>
 
           <section className="space-y-4">
@@ -275,6 +263,30 @@ export function VendedorCadastroForm({
             </div>
           </section>
         </div>
+        <section className="space-y-4 mt-8">
+          <h2 className={sectionTitleClass}>
+            <User size={16} className="text-[#0176d3]" />
+            Comissão por categoria
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Em cada categoria, escolha valor fixo ou porcentagem. O valor fixo é o que o vendedor recebe por unidade do serviço. A porcentagem incide sobre o valor que a prestadora paga. Categoria em branco usa o percentual padrão.
+          </p>
+          <div className="max-w-xs">
+            <label className={labelClass}>Percentual padrão (%)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.comissao_padrao}
+              onChange={(e) => setForm((f) => ({ ...f, comissao_padrao: e.target.value }))}
+              className={inputClass}
+            />
+          </div>
+          <ComissaoVendedorCategorias
+            valores={form.comissoes_categoria || []}
+            onChange={(comissoes_categoria) => setForm((f) => ({ ...f, comissoes_categoria }))}
+          />
+        </section>
       </CrmFormPageShell>
     </div>
   );

@@ -11,6 +11,7 @@ interface RelatorioData {
   status: string;
   empresa: string;
   vendedor?: string;
+  assinante?: string;
   periodo: string;
   valor_total_vendas?: string;
   valor_total_comissao: string;
@@ -49,7 +50,7 @@ export default function RelatorioComissaoPublicPage() {
         const data = await res.json();
         if (!res.ok) { setErro(data.detail || 'Link inválido.'); return; }
         setDados(data);
-        setNome(data.empresa || data.vendedor || '');
+        setNome(acao === 'assinar' ? (data.assinante || data.vendedor || '') : (data.empresa || ''));
       } catch { setErro('Erro ao carregar dados.'); }
       finally { setLoading(false); }
     })();
@@ -103,7 +104,7 @@ export default function RelatorioComissaoPublicPage() {
           {acao === 'aprovar' ? 'Relatório Aprovado!' : acao === 'reprovar' ? 'Relatório Reprovado' : 'Assinatura Registrada!'}
         </h2>
         <p className="text-gray-600">
-          {acao === 'aprovar' && 'O vendedor será notificado para assinar.'}
+          {acao === 'aprovar' && 'O administrador da loja será notificado para assinar.'}
           {acao === 'reprovar' && 'O prestador será notificado sobre a divergência.'}
           {acao === 'assinar' && 'O boleto será gerado e enviado para pagamento.'}
         </p>

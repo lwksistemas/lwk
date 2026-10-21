@@ -209,6 +209,15 @@ def _build_pdf_assinaturas(relatorio, loja, st, incluir_assinaturas):
             assin_rows.append(["Empresa Contratante", relatorio.empresa_aprovado_nome or nome_contratante, _fmt_data(relatorio.empresa_aprovado_em), relatorio.empresa_aprovado_ip or "—", "Aprovado ✓"])
         elif relatorio.empresa_reprovado_em:
             assin_rows.append(["Empresa Contratante", nome_contratante, _fmt_data(relatorio.empresa_reprovado_em), "—", "Reprovado ✗"])
+        if relatorio.vendedor_assinado_em:
+            nome_prestador = relatorio.vendedor_assinado_nome or getattr(loja, "nome", "") or "—"
+            assin_rows.append([
+                "Prestador de Serviços",
+                nome_prestador,
+                _fmt_data(relatorio.vendedor_assinado_em),
+                relatorio.vendedor_assinado_ip or "—",
+                "Assinado ✓",
+            ])
         if assin_rows:
             ta = Table([["Parte", "Nome", "Data/Hora", "IP", "Status"]] + assin_rows, colWidths=[3 * cm, 5 * cm, 3 * cm, 3.5 * cm, 2.5 * cm])
             ta.setStyle(TableStyle([

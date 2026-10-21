@@ -165,15 +165,70 @@ def aprovar_relatorio(relatorio, nome_aprovador: str, ip: str):
 
     if getattr(relatorio, "vendedor_id", None):
         enviar_email_vendedor_assinar(relatorio)
-        return True, None
-
-    relatorio.status = "aguardando_pagamento"
-    relatorio.save(update_fields=["status", "updated_at"])
-    enviar_pdf_assinado(relatorio)
-    ok, err = gerar_boleto_comissao(relatorio)
-    if not ok:
-        logger.warning("Falha ao gerar boleto para %s: %s", relatorio.numero, err)
+    else:
+        enviar_email_administrador_assinar(relatorio)
     return True, None
+
+
+def administrador_da_loja(loja_id):
+    """E-mail e nome do administrador (dono) da loja."""
+    from superadmin.models import Loja
+
+    loja = Loja.objects.using("default").select_related("owner").filter(id=loja_id).first()
+    if not loja or not getattr(loja, "owner_id", None):
+        return None, ""
+    owner = loja.owner
+    email = (getattr(owner, "email", None) or "").strip()
+    nome = ""
+    if hasattr(owner, "get_full_name"):
+        nome = (owner.get_full_name() or "").strip()
+    if not nome:
+        nome = (getattr(owner, "first_name", None) or "").strip()
+    if not nome:
+        nome = (getattr(loja, "nome", None) or "").strip()
+    return (email or None), nome
+
+
+def enviar_email_administrador_assinar(relatorio):
+    """Depois da assinatura da prestadora, pede a assinatura do administrador da loja."""
+    try:
+        from .relatorio_comissao_data import nome_exibicao_juridica
+
+        email_destino, nome = administrador_da_loja(relatorio.loja_id)
+        if not email_destino:
+            logger.warning("Administrador sem e-mail para relatório %s", relatorio.numero)
+            return
+        ep = relatorio.empresa_prestadora
+        nome_ep = nome_exibicao_juridica(
+            getattr(ep, "nome", ""),
+            getattr(ep, "razao_social", ""),
+            getattr(ep, "cnpj", ""),
+        ) or getattr(ep, "nome", "")
+        frontend_url = getattr(settings, "FRONTEND_URL", "https://lwksistemas.com.br")
+        link_assinar = (
+            f"{frontend_url}/relatorio-comissao/{relatorio.loja_id}/"
+            f"{relatorio.token_vendedor}/assinar"
+        )
+        corpo = (
+            f"Olá {nome},\n\n"
+            f"A empresa {nome_ep} aprovou o relatório de comissão {relatorio.numero}.\n\n"
+            f"📋 RESUMO:\n"
+            f"• Período: {relatorio.periodo_descricao}\n"
+            f"• Total Comissão: R$ {relatorio.valor_total_comissao:.2f}\n"
+            f"• Aprovado por: {relatorio.empresa_aprovado_nome}\n\n"
+            f"Para ASSINAR como administrador da loja, acesse:\n{link_assinar}\n\n"
+            f"Após a assinatura, o boleto será gerado automaticamente.\n\n"
+            f"Atenciosamente,\nSistema LWK"
+        )
+        email = create_email_message(
+            subject=f"Relatório {relatorio.numero} aprovado — assine como administrador",
+            body=corpo,
+            to=[email_destino],
+        )
+        send_prepared(email, fail_silently=False)
+        logger.info("Email de assinatura enviado para administrador=%s", mask_email(email_destino))
+    except Exception as e:
+        logger.warning("Erro ao enviar email ao administrador: %s", e)
 
 
 def enviar_email_vendedor_assinar(relatorio):

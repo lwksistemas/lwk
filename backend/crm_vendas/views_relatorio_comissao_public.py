@@ -1,5 +1,14 @@
 """Endpoints públicos (empresa/vendedor via token) — relatório de comissão."""
 from django.views.decorators.csrf import csrf_exempt
+
+
+def _nome_assinante(relatorio, loja) -> str:
+    if getattr(relatorio, "vendedor_id", None) and getattr(relatorio.vendedor, "nome", ""):
+        return relatorio.vendedor.nome
+    from .relatorio_comissao_workflow import administrador_da_loja
+
+    _email, nome = administrador_da_loja(relatorio.loja_id)
+    return nome or getattr(loja, "nome", "") or ""
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -117,6 +126,7 @@ def vendedor_assinar_view(request, loja_id, token):
             "status": relatorio.status,
             "empresa": relatorio.empresa_prestadora.nome,
             "vendedor": relatorio.vendedor.nome if relatorio.vendedor else "",
+            "assinante": _nome_assinante(relatorio, loja),
             "periodo": relatorio.periodo_descricao,
             "valor_total_comissao": str(relatorio.valor_total_comissao),
             "pode_assinar": relatorio.pode_vendedor_assinar,
@@ -125,25 +135,7 @@ def vendedor_assinar_view(request, loja_id, token):
             ),
         })
 
-    nome = request.data.get("nome", "")
-    if not nome:
-        if relatorio.vendedor:
-            nome = relatorio.vendedor.nome
-        else:
-            try:
-                from superadmin.models import VendedorUsuario
-
-                from .models import Vendedor
-
-                vu = VendedorUsuario.objects.using("default").filter(loja=loja).first()
-                if vu:
-                    vend = Vendedor.objects.filter(id=vu.vendedor_id, loja_id=loja.id).first()
-                    if vend:
-                        nome = vend.nome
-            except Exception:
-                pass
-        if not nome:
-            nome = loja.nome
+    nome = request.data.get("nome", "") or _nome_assinante(relatorio, loja)
 
     ok, err_msg = vendedor_assinar_relatorio(relatorio, nome, extrair_ip_cliente(request))
     if not ok:

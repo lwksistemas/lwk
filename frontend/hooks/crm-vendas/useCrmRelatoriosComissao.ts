@@ -11,6 +11,19 @@ export type ComissaoConfirmAction =
   | { type: 'pagamento'; id: number; numero: string }
   | { type: 'reemitir'; id: number; numero: string };
 
+function abrirPdf(blob: Blob, filename: string, abrirAba = true) {
+  const arquivo = new File([blob], filename, { type: 'application/pdf' });
+  const url = window.URL.createObjectURL(arquivo);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  if (abrirAba) window.open(url, '_blank');
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 10 * 60 * 1000);
+}
+
 const CONFIRM_COPY: Record<
   ComissaoConfirmAction['type'],
   { title: string; message: (numero: string) => string; confirmLabel: string; variant: 'danger' | 'primary' }
@@ -106,10 +119,8 @@ export function useCrmRelatoriosComissao(isVendedor: boolean) {
         responseType: 'blob',
       });
       const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
-      toast.success('PDF aberto em nova aba. Revise e confirme o envio abaixo.');
+      abrirPdf(blob, 'relatorio-comissao.pdf');
+      toast.success('PDF aberto e salvo na pasta de downloads.');
     } catch (err: unknown) {
       const e = err as { response?: { data?: unknown } };
       const msg = await parseBlobErrorDetail(
@@ -151,14 +162,7 @@ export function useCrmRelatoriosComissao(isVendedor: boolean) {
       const contentDisposition = res.headers?.['content-disposition'] || '';
       const filenameMatch = contentDisposition.match(/filename="?([^";\n]+)"?/);
       const filename = filenameMatch?.[1] || `relatorio_comissao_${id}.pdf`;
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+      abrirPdf(blob, filename, false);
     } catch {
       toast.error('Erro ao baixar PDF.');
     }

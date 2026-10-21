@@ -65,6 +65,17 @@ class AprovarReprovarRelatorioTest(SimpleTestCase):
         rel.save.assert_called()
         mock_email.assert_called_once_with(rel)
 
+    @patch("crm_vendas.relatorio_comissao_workflow.enviar_email_administrador_assinar")
+    def test_aprovar_sem_vendedor_notifica_administrador(self, mock_email):
+        rel = _relatorio_mock()
+        rel.vendedor_id = None
+        rel.vendedor = None
+        ok, err = aprovar_relatorio(rel, "Maria Aprovadora", "1.2.3.4")
+        self.assertTrue(ok)
+        self.assertIsNone(err)
+        self.assertEqual(rel.status, "aprovado")
+        mock_email.assert_called_once_with(rel)
+
     def test_aprovar_bloqueado_status_errado(self):
         rel = _relatorio_mock(status="aprovado")
         rel.pode_aprovar = False

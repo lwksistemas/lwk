@@ -10,9 +10,11 @@ interface Props {
   empresasPrestadoras: CrmRelatorioEmpresaPrestadora[];
   vendedores: CrmRelatorioVendedor[];
   isVendedor: boolean;
+  painel?: boolean;
+  onVoltar?: () => void;
 }
 
-export function RelatoriosComissao({ empresasPrestadoras, isVendedor }: Props) {
+export function RelatoriosComissao({ empresasPrestadoras, isVendedor, painel = false, onVoltar }: Props) {
   const {
     relatorios,
     loading,
@@ -39,6 +41,7 @@ export function RelatoriosComissao({ empresasPrestadoras, isVendedor }: Props) {
     handleCriarEEnviar,
     handleDownloadPdf,
     resetForm,
+    previewUrl,
     canCreate,
   } = useCrmRelatoriosComissao(isVendedor);
 
@@ -58,7 +61,7 @@ export function RelatoriosComissao({ empresasPrestadoras, isVendedor }: Props) {
           >
             <RefreshCw size={16} />
           </button>
-          {canCreate && (
+          {canCreate && !painel && (
             <button
               type="button"
               onClick={() => setShowForm(!showForm)}
@@ -70,7 +73,7 @@ export function RelatoriosComissao({ empresasPrestadoras, isVendedor }: Props) {
         </div>
       </div>
 
-      {showForm && (
+      {(painel || showForm) && (
         <div className="mb-6 p-4 bg-gray-50 dark:bg-[#0d1f3c] rounded-lg border border-gray-200 dark:border-gray-700 space-y-3">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Gerar Relatório de Comissão</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -152,10 +155,24 @@ export function RelatoriosComissao({ empresasPrestadoras, isVendedor }: Props) {
             >
               {criando ? 'Enviando...' : 'Criar e Enviar para Aprovação'}
             </button>
-            <button type="button" onClick={resetForm} className="px-4 py-2 text-gray-600 dark:text-gray-400 text-sm">
-              Cancelar
+            <button
+              type="button"
+              onClick={() => (painel && onVoltar ? onVoltar() : resetForm())}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 text-sm"
+            >
+              {painel ? 'Voltar' : 'Cancelar'}
             </button>
           </div>
+          {previewUrl && (
+            <div>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Pré-visualização</p>
+              <iframe
+                src={previewUrl}
+                title="Pré-visualização do relatório"
+                className="w-full h-[720px] rounded border border-gray-200 dark:border-gray-700 bg-white"
+              />
+            </div>
+          )}
         </div>
       )}
 

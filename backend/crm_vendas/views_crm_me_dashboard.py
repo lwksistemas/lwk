@@ -199,7 +199,9 @@ def dashboard_data(request):
         periodo != "mes_atual" or data_inicio_param or data_fim_param
         or vendedor_id_filtro or status_filtro != "todas"
     )
-    vendedor_id = None if is_owner_flag or vendedor_tem_controle_qualidade(request) else get_current_vendedor_id(request)
+    # Home do vendedor mostra só as vendas dele. O total da loja fica com o administrador.
+    # Controle de qualidade não abre esse total.
+    vendedor_id = None if is_owner_flag else get_current_vendedor_id(request)
     cache_key = _dashboard_cache_key(loja_id, vendedor_id, tem_filtros)
     cached_resp = _dashboard_cached_response(cache_key)
     if cached_resp is not None:

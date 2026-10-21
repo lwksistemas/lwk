@@ -1,4 +1,5 @@
 """Serializers de contas CRM."""
+from django.db import transaction
 from rest_framework import serializers
 
 from core.serializer_mixins import (
@@ -7,6 +8,11 @@ from core.serializer_mixins import (
     UniqueDocumentoPerLojaMixin,
 )
 
+from ..comissao_prestadora_service import (
+    TIPOS_COM_COMISSAO,
+    aplicar_comissoes_conta,
+    serializar_comissoes_conta,
+)
 from ..models import Conta
 
 
@@ -24,6 +30,7 @@ class ContaSerializer(
 
     email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
     site = serializers.URLField(required=False, allow_blank=True, allow_null=True)
+    comissoes = serializers.JSONField(required=False, write_only=True)
 
     class Meta:
         model = Conta
@@ -44,4 +51,30 @@ class ContaSerializer(
         if not value or value.strip() == "":
             return None
         return value
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        view = self.context.get("view")
+        if getattr(view, "action", None) in ("retrieve", "create", "update", "partial_update"):
+            data["comissoes"] = serializar_comissoes_conta(instance)
+        return data
+
+    def _gravar_comissoes(self, instance, comissoes):
+        if comissoes is None and instance.tipo in TIPOS_COM_COMISSAO:
+            return
+        aplicar_comissoes_conta(instance, [] if comissoes is None else comissoes)
+
+    @transaction.atomic
+    def create(self, validated_data):
+        comissoes = validated_data.pop("comissoes", None)
+        instance = super().create(validated_data)
+        self._gravar_comissoes(instance, comissoes)
+        return instance
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        comissoes = validated_data.pop("comissoes", None)
+        instance = super().update(instance, validated_data)
+        self._gravar_comissoes(instance, comissoes)
+        return instance
 

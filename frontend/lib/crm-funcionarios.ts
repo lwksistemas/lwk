@@ -7,6 +7,7 @@ export interface CrmFuncionario {
   telefone: string;
   cargo: string;
   comissao_padrao?: number;
+  comissoes_categoria?: ComissaoCategoriaItem[];
   is_admin: boolean;
   is_active: boolean;
   tem_acesso?: boolean;
@@ -34,12 +35,19 @@ export interface CrmPermissaoCategoria {
   permissoes: CrmPermissaoItem[];
 }
 
+export interface ComissaoCategoriaItem {
+  categoria_id: number;
+  tipo: 'fixo' | 'percentual';
+  valor: string;
+}
+
 export interface CrmFuncionarioFormData {
   nome: string;
   email: string;
   telefone: string;
   cargo: string;
   comissao_padrao: string;
+  comissoes_categoria: ComissaoCategoriaItem[];
   grupo_id: string;
   criar_acesso: boolean;
   username: string;
@@ -54,6 +62,7 @@ export const EMPTY_FUNCIONARIO_FORM: CrmFuncionarioFormData = {
   telefone: '',
   cargo: 'Vendedor',
   comissao_padrao: '0',
+  comissoes_categoria: [],
   grupo_id: '',
   criar_acesso: false,
   username: '',
@@ -78,6 +87,13 @@ export function buildFuncionarioPayload(form: CrmFuncionarioFormData): Record<st
     telefone: form.telefone.trim() ? telefoneInternacionalBr(form.telefone) : '',
     cargo: form.cargo,
     comissao_padrao: parseFloat(form.comissao_padrao) || 0,
+    comissoes_categoria: (form.comissoes_categoria || [])
+      .filter((item) => item.valor.trim() !== '')
+      .map((item) => ({
+        categoria_id: item.categoria_id,
+        tipo: item.tipo,
+        valor: item.valor.replace(',', '.'),
+      })),
     criar_acesso: form.criar_acesso,
     username: form.username?.trim() || '',
     permissoes_ids: form.permissoes_ids,

@@ -4,6 +4,7 @@ from ..models_relatorio_comissao import RelatorioComissao
 from .assinaturas import AssinaturaDigital
 from .atividades import Atividade
 from .catalogo import CategoriaProdutoServico, ProdutoServico
+from .comissao_prestadora import ContaProdutoComissao
 from .contas import Conta
 from .contatos import Contato
 from .documentos import Contrato, Proposta
@@ -13,7 +14,7 @@ from .oportunidade_items import OportunidadeItem
 from .oportunidade_notas import OportunidadeNota
 from .oportunidades import Oportunidade
 from .templates import ContratoTemplate, NfseDescricaoTemplate, PropostaTemplate
-from .vendedores import Vendedor
+from .vendedores import Vendedor, VendedorCategoriaComissao
 
 __all__ = [
     "AssinaturaDigital",
@@ -21,6 +22,7 @@ __all__ = [
     "CRMConfig",
     "CategoriaProdutoServico",
     "Conta",
+    "ContaProdutoComissao",
     "Contato",
     "Contrato",
     "ContratoTemplate",
@@ -37,4 +39,5 @@ __all__ = [
     "RecorrenciaFinanceiroCRM",
     "RelatorioComissao",
     "Vendedor",
+    "VendedorCategoriaComissao",
 ]

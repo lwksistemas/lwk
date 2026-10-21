@@ -1,6 +1,10 @@
 'use client';
 
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
+import {
+  ComissaoPrestadoraSection,
+  type ComissaoPrestadoraItem,
+} from '@/components/crm-vendas/ComissaoPrestadoraSection';
 import { formatCep, formatCpfCnpj, formatTelefone, toUpperCase } from '@/lib/format-br';
 
 export interface ContaFormData {
@@ -21,6 +25,7 @@ export interface ContaFormData {
   cidade: string;
   uf: string;
   observacoes: string;
+  comissoes: ComissaoPrestadoraItem[];
 }
 
 const inputClass =
@@ -56,8 +61,9 @@ export function ContaCadastroForm({
   onSave,
   onCancel,
 }: ContaCadastroFormProps) {
-  const set = (field: keyof ContaFormData, value: string) => onChange({ ...formData, [field]: value });
-  const setUpper = (field: keyof ContaFormData, value: string) =>
+  const set = (field: Exclude<keyof ContaFormData, 'comissoes'>, value: string) =>
+    onChange({ ...formData, [field]: value });
+  const setUpper = (field: Exclude<keyof ContaFormData, 'comissoes'>, value: string) =>
     onChange({ ...formData, [field]: toUpperCase(value) });
   const setCnpj = (value: string) => onChange({ ...formData, cnpj: formatCpfCnpj(value) });
   const setCep = (value: string) => onChange({ ...formData, cep: formatCep(value) });
@@ -295,6 +301,12 @@ export function ContaCadastroForm({
             />
           </section>
         </div>
+        {(formData.tipo === 'prestadora' || formData.tipo === 'ambos') && (
+          <ComissaoPrestadoraSection
+            valores={formData.comissoes}
+            onChange={(comissoes) => onChange({ ...formData, comissoes })}
+          />
+        )}
       </div>
     </CrmFormPageShell>
   );

@@ -71,6 +71,11 @@ export function useCrmFuncionarioFormPage(slug: string, vendedorId?: number) {
           telefone: formatTelefone(data.telefone || ''),
           cargo: data.cargo || 'Vendedor',
           comissao_padrao: data.comissao_padrao?.toString() || '0',
+          comissoes_categoria: (data.comissoes_categoria || []).map((item) => ({
+            categoria_id: item.categoria_id,
+            tipo: item.tipo === 'fixo' ? 'fixo' : 'percentual',
+            valor: item.valor ?? '',
+          })),
           grupo_id: data.grupo_id ? String(data.grupo_id) : '',
           criar_acesso: false,
           username: data.usuario_login || '',

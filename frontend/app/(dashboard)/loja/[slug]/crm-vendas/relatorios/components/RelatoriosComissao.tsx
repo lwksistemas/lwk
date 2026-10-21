@@ -12,7 +12,7 @@ interface Props {
   isVendedor: boolean;
 }
 
-export function RelatoriosComissao({ empresasPrestadoras, vendedores, isVendedor }: Props) {
+export function RelatoriosComissao({ empresasPrestadoras, isVendedor }: Props) {
   const {
     relatorios,
     loading,
@@ -26,8 +26,6 @@ export function RelatoriosComissao({ empresasPrestadoras, vendedores, isVendedor
     executeConfirm,
     formEmpresa,
     setFormEmpresa,
-    formVendedor,
-    setFormVendedor,
     formPeriodo,
     setFormPeriodo,
     formDataInicio,
@@ -87,21 +85,6 @@ export function RelatoriosComissao({ empresasPrestadoras, vendedores, isVendedor
                 {empresasPrestadoras.map((ep) => (
                   <option key={ep.id} value={ep.id}>
                     {ep.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Vendedor (opcional)</label>
-              <select
-                value={formVendedor}
-                onChange={(e) => setFormVendedor(e.target.value)}
-                className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
-              >
-                <option value="">Todos</option>
-                {vendedores.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.nome}
                   </option>
                 ))}
               </select>

@@ -5,6 +5,48 @@ from decimal import Decimal
 from django.db.models import Count, Q, Sum
 
 
+def _como_texto(valor) -> str:
+    return valor.strip() if isinstance(valor, str) else ""
+
+
+def _digitos_documento(valor) -> str:
+    return "".join(c for c in _como_texto(valor) if c.isdigit())
+
+
+def nome_exibicao_juridica(nome, razao_social="", documento="") -> str:
+    """Pessoa jurídica entra pela razão social. Nome fantasia fica de fora."""
+    razao = _como_texto(razao_social)
+    fantasia = _como_texto(nome)
+    digitos = _digitos_documento(documento)
+    if len(digitos) == 11:
+        return fantasia or razao
+    if razao:
+        return razao
+    return fantasia
+
+
+def nome_cliente_ganho(op) -> tuple[str, str]:
+    """Nome e documento do cliente da oportunidade fechada e ganha."""
+    lead = getattr(op, "lead", None)
+    if not lead:
+        return _como_texto(getattr(op, "titulo", "")) or "—", ""
+    conta = lead.conta if getattr(lead, "conta_id", None) else None
+    if conta:
+        documento = _como_texto(getattr(conta, "cnpj", ""))
+        nome = nome_exibicao_juridica(
+            getattr(conta, "nome", ""),
+            getattr(conta, "razao_social", ""),
+            documento,
+        )
+        return nome or _como_texto(getattr(lead, "nome", "")) or _como_texto(getattr(op, "titulo", "")) or "—", documento
+    documento = _como_texto(getattr(lead, "cpf_cnpj", ""))
+    if len(_digitos_documento(documento)) == 14:
+        nome = _como_texto(getattr(lead, "empresa", "")) or _como_texto(getattr(lead, "nome", ""))
+    else:
+        nome = _como_texto(getattr(lead, "nome", ""))
+    return nome or _como_texto(getattr(op, "titulo", "")) or "—", documento
+
+
 def fmt_cpf_cnpj(valor: str) -> str:
     """Formata CPF (000.000.000-00) ou CNPJ (00.000.000/0001-00) a partir de string com ou sem máscara."""
     digits = "".join(c for c in (valor or "") if c.isdigit())
@@ -116,9 +158,7 @@ def resumo_relatorio_comissao(
     vendas = []
     for op in qs.order_by("-data_fechamento_ganho", "-data_fechamento")[:50]:
         data = op.data_fechamento_ganho or op.data_fechamento
-        cliente = op.lead.conta.nome if op.lead and op.lead.conta_id else (
-            op.lead.nome if op.lead else op.titulo
-        )
+        cliente, _documento = nome_cliente_ganho(op)
         vendas.append({
             "id": op.id,
             "titulo": op.titulo,
@@ -147,15 +187,7 @@ def montar_dados_oportunidades_snapshot(qs, *, incluir_id: bool = True) -> list[
     dados_ops = []
     for op in qs.order_by("-data_fechamento_ganho", "-data_fechamento"):
         data = op.data_fechamento_ganho or op.data_fechamento
-        cliente = ""
-        cpf_cnpj = ""
-        if op.lead:
-            if op.lead.conta_id:
-                cliente = op.lead.conta.nome
-                cpf_cnpj = op.lead.conta.cnpj or ""
-            else:
-                cliente = op.lead.nome
-                cpf_cnpj = op.lead.cpf_cnpj or ""
+        cliente, cpf_cnpj = nome_cliente_ganho(op)
         item = {
             "data": data.strftime("%d/%m/%Y") if data else "—",
             "cliente": (
@@ -173,11 +205,10 @@ def montar_dados_oportunidades_snapshot(qs, *, incluir_id: bool = True) -> list[
     return dados_ops
 
 
-def nome_arquivo_pdf_comissao(empresa_nome: str, vendedor_nome: str, numero: str = "") -> str:
-    nome_empresa = (empresa_nome or "empresa").replace(" ", "_")[:30]
-    nome_vend = (vendedor_nome or "vendedor").replace(" ", "_")[:30]
+def nome_arquivo_pdf_comissao(empresa_nome: str, vendedor_nome: str = "", numero: str = "") -> str:
+    nome_empresa = (empresa_nome or "empresa").replace(" ", "_")[:40]
     sufixo = f"_{numero}" if numero else ""
-    return f"comissao_{nome_empresa}_{nome_vend}{sufixo}.pdf"
+    return f"comissao_{nome_empresa}{sufixo}.pdf"
 
 
 def serializar_relatorio_lista(relatorio) -> dict:

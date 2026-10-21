@@ -36,7 +36,8 @@ class MontarDadosOportunidadesSnapshotTest(SimpleTestCase):
         op.lead = MagicMock()
         if com_conta:
             op.lead.conta_id = 5
-            op.lead.conta.nome = "Conta Cliente"
+            op.lead.conta.nome = "Nome Fantasia"
+            op.lead.conta.razao_social = "Razao Social LTDA"
             op.lead.conta.cnpj = "12345678000190"
             op.lead.nome = "Lead"
             op.lead.cpf_cnpj = ""
@@ -58,7 +59,8 @@ class MontarDadosOportunidadesSnapshotTest(SimpleTestCase):
         qs = MagicMock()
         qs.order_by.return_value = [self._opp(com_conta=True)]
         dados = montar_dados_oportunidades_snapshot(qs)
-        self.assertIn("Conta Cliente", dados[0]["cliente"])
+        self.assertIn("Razao Social LTDA", dados[0]["cliente"])
+        self.assertNotIn("Nome Fantasia", dados[0]["cliente"])
 
 
 class ResumoRelatorioComissaoTest(SimpleTestCase):

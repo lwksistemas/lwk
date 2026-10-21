@@ -60,54 +60,39 @@ export function ComissaoVendedorCategorias({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-[#0d1f3c]">
-      <table className="w-full min-w-[560px] text-sm">
-        <thead>
-          <tr className="bg-gray-50 dark:bg-[#0d1f3c]/50 text-left text-xs uppercase text-gray-600 dark:text-gray-300">
-            <th className="py-2 px-3 font-semibold">Categoria</th>
-            <th className="py-2 px-3 font-semibold">Tipo</th>
-            <th className="py-2 px-3 font-semibold">Comissão</th>
-          </tr>
-        </thead>
-        <tbody>
-          {categorias.map((categoria) => {
-            const item = atual(categoria.id);
-            const tipo = item?.tipo || tipos[categoria.id] || 'percentual';
-            return (
-              <tr key={categoria.id} className="border-t border-gray-100 dark:border-[#0d1f3c]">
-                <td className="py-2 px-3 text-gray-900 dark:text-white">{categoria.nome}</td>
-                <td className="py-2 px-3">
-                  <select
-                    value={tipo}
-                    onChange={(e) => {
-                      const proximo = e.target.value as 'fixo' | 'percentual';
-                      setTipos((atualTipos) => ({ ...atualTipos, [categoria.id]: proximo }));
-                      if (item?.valor) definir(categoria.id, proximo, item.valor);
-                    }}
-                    className={inputClass}
-                    aria-label={`Tipo de comissão em ${categoria.nome}`}
-                  >
-                    <option value="fixo">Valor fixo (R$)</option>
-                    <option value="percentual">Porcentagem (%)</option>
-                  </select>
-                </td>
-                <td className="py-2 px-3">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item?.valor || ''}
-                    onChange={(e) => definir(categoria.id, tipo, e.target.value)}
-                    className={inputClass}
-                    placeholder={tipo === 'fixo' ? 'R$ por unidade' : '% sobre o valor da prestadora'}
-                    aria-label={`Comissão em ${categoria.nome}`}
-                  />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="divide-y divide-gray-100 dark:divide-[#0d1f3c] rounded-lg border border-gray-200 dark:border-[#0d1f3c]">
+      {categorias.map((categoria) => {
+        const item = atual(categoria.id);
+        const tipo = item?.tipo || tipos[categoria.id] || 'percentual';
+        return (
+          <div key={categoria.id} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9.5rem_7.5rem] gap-2 items-center px-3 py-2">
+            <p className="text-sm text-gray-900 dark:text-white truncate">{categoria.nome}</p>
+            <select
+              value={tipo}
+              onChange={(e) => {
+                const proximo = e.target.value as 'fixo' | 'percentual';
+                setTipos((atualTipos) => ({ ...atualTipos, [categoria.id]: proximo }));
+                if (item?.valor) definir(categoria.id, proximo, item.valor);
+              }}
+              className={inputClass}
+              aria-label={`Tipo de comissão em ${categoria.nome}`}
+            >
+              <option value="fixo">Valor fixo (R$)</option>
+              <option value="percentual">Porcentagem (%)</option>
+            </select>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={item?.valor || ''}
+              onChange={(e) => definir(categoria.id, tipo, e.target.value)}
+              className={inputClass}
+              placeholder={tipo === 'fixo' ? 'R$' : '%'}
+              aria-label={`Comissão em ${categoria.nome}`}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

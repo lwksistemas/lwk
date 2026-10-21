@@ -23,6 +23,7 @@ export function useCrmFuncionarioFormPage(slug: string, vendedorId?: number) {
   const editing = Boolean(vendedorId);
 
   const [form, setForm] = useState<CrmFuncionarioFormData>(EMPTY_FUNCIONARIO_FORM);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [grupos, setGrupos] = useState<CrmFuncionarioGrupo[]>([]);
   const [permissoesCategorias, setPermissoesCategorias] = useState<CrmPermissaoCategoria[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(true);
@@ -65,6 +66,7 @@ export function useCrmFuncionarioFormPage(slug: string, vendedorId?: number) {
         setLoadingVendedor(true);
         const { data } = await apiClient.get<CrmFuncionario>(`/crm-vendas/vendedores/${vendedorId}/`);
         if (cancelled) return;
+        setIsAdmin(Boolean(data.is_admin));
         setForm({
           nome: data.nome,
           email: data.email || '',
@@ -172,6 +174,7 @@ export function useCrmFuncionarioFormPage(slug: string, vendedorId?: number) {
 
   return {
     editing,
+    isAdmin,
     form,
     setForm,
     grupos,

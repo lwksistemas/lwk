@@ -45,6 +45,13 @@ export default function RelatoriosPage() {
         </p>
       </div>
 
+      <StatsCards
+        totalVendas={dashboardData?.receita || 0}
+        vendedoresAtivos={dashboardData?.performance_vendedores?.length || 0}
+        totalComissoes={dashboardData?.comissao_total_mes || 0}
+        loading={loading}
+      />
+
       {!isVendedor && (
         <div className="flex flex-wrap gap-2">
           <button
@@ -82,13 +89,6 @@ export default function RelatoriosPage() {
           onVoltar={() => setPainel('gerar')}
         />
       )}
-
-      <StatsCards
-        totalVendas={dashboardData?.receita || 0}
-        vendedoresAtivos={dashboardData?.performance_vendedores?.length || 0}
-        totalComissoes={dashboardData?.comissao_total_mes || 0}
-        loading={loading}
-      />
 
       {!mostrarAprovacao && (
         <RelatorioForm

@@ -52,7 +52,9 @@ class ResolverPeriodoRelatorioTest(SimpleTestCase):
 class NomeArquivoPdfComissaoTest(SimpleTestCase):
     def test_nome_contem_partes_sanitizadas(self):
         nome = nome_arquivo_pdf_comissao("Empresa X", "João Silva", "RC-2026-07")
-        self.assertIn("comissao_", nome)
+        self.assertIn("comissao_Empresa_X", nome)
+        self.assertNotIn("Joao", nome)
+        self.assertNotIn("João", nome)
         self.assertIn("RC-2026-07", nome)
         self.assertTrue(nome.endswith(".pdf"))
 

@@ -101,52 +101,54 @@ def _build_pdf_cabecalho(loja, titulo_style):
     return elements
 
 
-def _build_pdf_vendedor(relatorio, loja):
-    """Resolve o vendedor do relatório com fallback para VendedorUsuario."""
-    v = relatorio.vendedor or getattr(relatorio.empresa_prestadora, "vendedor", None)
-    if not v and getattr(loja, "owner", None):
-        try:
-            from superadmin.models import VendedorUsuario
+def _pdf_texto(valor) -> str:
+    texto = valor.strip() if isinstance(valor, str) else ""
+    return (
+        (texto or "—")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
 
-            from .models import Vendedor
-            vu = VendedorUsuario.objects.using("default").filter(user=loja.owner, loja=loja).first()
-            if vu:
-                v = Vendedor.objects.filter(id=vu.vendedor_id, loja_id=loja.id).first()
-        except Exception:
-            pass
-    return v
+
+def _nome_contratante(ep) -> str:
+    from .relatorio_comissao_data import nome_exibicao_juridica
+
+    return nome_exibicao_juridica(
+        getattr(ep, "nome", ""),
+        getattr(ep, "razao_social", ""),
+        getattr(ep, "cnpj", ""),
+    ) or "—"
 
 
 def _build_pdf_cards(relatorio, loja, st):
-    """Monta tabela com cards de Prestador, Contratante e Vendedor."""
-    v = _build_pdf_vendedor(relatorio, loja)
+    """Cards da loja (prestador) e da prestadora (contratante). Sem vendedor."""
     card_style, card_email_style, card_title_style = st["card"], st["card_email"], st["card_title"]
-    prestador_lines = [Paragraph("<b>Prestador de Serviços</b>", card_title_style), Paragraph(f'{loja.nome or "—"}'  , card_style)]
-    if getattr(loja, "cpf_cnpj", ""):
-        prestador_lines.append(Paragraph(f'<font color="#6b7280">CNPJ:</font> {loja.cpf_cnpj}', card_style))
+    prestador_lines = [Paragraph("<b>Prestador de Serviços</b>", card_title_style), Paragraph(_pdf_texto(getattr(loja, "nome", "")), card_style)]
+    if isinstance(getattr(loja, "cpf_cnpj", ""), str) and loja.cpf_cnpj:
+        prestador_lines.append(Paragraph(f'<font color="#6b7280">CNPJ:</font> {_pdf_texto(loja.cpf_cnpj)}', card_style))
     prestador_email = getattr(loja, "owner", None) and getattr(loja.owner, "email", "")
-    if prestador_email:
-        prestador_lines.append(Paragraph(f"{prestador_email}", card_email_style))
+    if isinstance(prestador_email, str) and prestador_email:
+        prestador_lines.append(Paragraph(_pdf_texto(prestador_email), card_email_style))
     ep = relatorio.empresa_prestadora
-    contratante_lines = [Paragraph("<b>Empresa Contratante</b>", card_title_style), Paragraph(f'{ep.nome or "—"}'  , card_style)]
-    if ep.cnpj:
-        contratante_lines.append(Paragraph(f'<font color="#6b7280">CNPJ:</font> {ep.cnpj}', card_style))
-    if ep.email:
-        contratante_lines.append(Paragraph(f"{ep.email}", card_email_style))
-    vendedor_lines = []
-    if v:
-        vendedor_lines = [Paragraph("<b>Vendedor Responsável</b>", card_title_style), Paragraph(f"{v.nome}", card_style)]
-        if v.email:
-            vendedor_lines.append(Paragraph(f"{v.email}", card_email_style))
-    ct = Table([[prestador_lines, contratante_lines, vendedor_lines]], colWidths=[5.5 * cm, 5.5 * cm, 5.5 * cm])
+    contratante_lines = [
+        Paragraph("<b>Empresa Contratante</b>", card_title_style),
+        Paragraph(_pdf_texto(_nome_contratante(ep)), card_style),
+    ]
+    if isinstance(getattr(ep, "cnpj", ""), str) and ep.cnpj:
+        contratante_lines.append(Paragraph(f'<font color="#6b7280">CNPJ:</font> {_pdf_texto(ep.cnpj)}', card_style))
+    if isinstance(getattr(ep, "email", ""), str) and ep.email:
+        contratante_lines.append(Paragraph(_pdf_texto(ep.email), card_email_style))
+    ct = Table([[prestador_lines, contratante_lines]], colWidths=[8.25 * cm, 8.25 * cm])
     ct.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("BOX", (0, 0), (0, 0), 0.5, colors.HexColor("#d1d5db")), ("BOX", (1, 0), (1, 0), 0.5, colors.HexColor("#d1d5db")), ("BOX", (2, 0), (2, 0), 0.5, colors.HexColor("#d1d5db")),
-        ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#f9fafb")), ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#f9fafb")), ("BACKGROUND", (2, 0), (2, 0), colors.HexColor("#f9fafb")),
+        ("BOX", (0, 0), (0, 0), 0.5, colors.HexColor("#d1d5db")),
+        ("BOX", (1, 0), (1, 0), 0.5, colors.HexColor("#d1d5db")),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f9fafb")),
         ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
         ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
     ]))
-    return ct, v
+    return ct
 
 
 def _build_pdf_resumo(relatorio):
@@ -175,10 +177,16 @@ def _build_pdf_detalhamento(relatorio, secao_style):
     oportunidades = relatorio.dados_oportunidades or []
     if not oportunidades:
         return []
+    cliente_style = ParagraphStyle("RCCliente", parent=secao_style, fontSize=8, textColor=colors.black, leading=10, spaceBefore=0, spaceAfter=0)
     det_data = [["Data", "Cliente", "Valor Venda", "Comissão"]]
     for op in oportunidades:
-        det_data.append([op.get("data", "—"), (op.get("cliente", "—") or "—")[:35], _fmt_brl(op.get("valor", 0)), _fmt_brl(op.get("comissao", 0))])
-    t = Table(det_data, colWidths=[2.5 * cm, 7 * cm, 3.5 * cm, 3 * cm])
+        det_data.append([
+            op.get("data", "—"),
+            Paragraph(_pdf_texto(op.get("cliente") or "—"), cliente_style),
+            _fmt_brl(op.get("valor", 0)),
+            _fmt_brl(op.get("comissao", 0)),
+        ])
+    t = Table(det_data, colWidths=[2.4 * cm, 8.4 * cm, 3.1 * cm, 2.6 * cm])
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#374151")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 8),
@@ -189,24 +197,18 @@ def _build_pdf_detalhamento(relatorio, secao_style):
     return [Paragraph("<b>Detalhamento das Vendas</b>", secao_style), t, Spacer(1, 0.4 * cm)]
 
 
-def _build_pdf_assinaturas(relatorio, loja, v, st, incluir_assinaturas):
-    """Monta bloco de assinaturas (realizadas ou em branco)."""
+def _build_pdf_assinaturas(relatorio, loja, st, incluir_assinaturas):
+    """Assinaturas da loja e da prestadora. O vendedor não aparece no documento."""
     elements = []
     ep = relatorio.empresa_prestadora
+    nome_contratante = _nome_contratante(ep)
     if incluir_assinaturas:
         elements += [HRFlowable(width="100%", thickness=0.5, color=_CINZA_ESCURO), Spacer(1, 0.3 * cm), Paragraph("<b>Registro de Assinaturas Digitais</b>", st["secao"])]
         assin_rows = []
         if relatorio.empresa_aprovado_em:
-            assin_rows.append(["Empresa Contratante", relatorio.empresa_aprovado_nome or ep.nome, _fmt_data(relatorio.empresa_aprovado_em), relatorio.empresa_aprovado_ip or "—", "Aprovado ✓"])
+            assin_rows.append(["Empresa Contratante", relatorio.empresa_aprovado_nome or nome_contratante, _fmt_data(relatorio.empresa_aprovado_em), relatorio.empresa_aprovado_ip or "—", "Aprovado ✓"])
         elif relatorio.empresa_reprovado_em:
-            assin_rows.append(["Empresa Contratante", ep.nome, _fmt_data(relatorio.empresa_reprovado_em), "—", "Reprovado ✗"])
-        if relatorio.vendedor_assinado_em:
-            vendedor_assin_nome = relatorio.vendedor_assinado_nome
-            if v and (not vendedor_assin_nome or vendedor_assin_nome == "—" or vendedor_assin_nome == loja.nome):
-                vendedor_assin_nome = v.nome
-            elif not vendedor_assin_nome:
-                vendedor_assin_nome = "—"
-            assin_rows.append(["Vendedor", vendedor_assin_nome, _fmt_data(relatorio.vendedor_assinado_em), relatorio.vendedor_assinado_ip or "—", "Assinado ✓"])
+            assin_rows.append(["Empresa Contratante", nome_contratante, _fmt_data(relatorio.empresa_reprovado_em), "—", "Reprovado ✗"])
         if assin_rows:
             ta = Table([["Parte", "Nome", "Data/Hora", "IP", "Status"]] + assin_rows, colWidths=[3 * cm, 5 * cm, 3 * cm, 3.5 * cm, 2.5 * cm])
             ta.setStyle(TableStyle([
@@ -219,9 +221,12 @@ def _build_pdf_assinaturas(relatorio, loja, v, st, incluir_assinaturas):
             elements.append(ta)
         elements.append(Spacer(1, 0.4 * cm))
     else:
-        nome_vendedor_assin = v.nome if v else "Vendedor"
+        nome_loja = _pdf_texto(getattr(loja, "nome", "") or "Prestador de Serviços")
         linha_assin = "_" * 45
-        assin_table_data = [[Paragraph(f'{linha_assin}<br/><br/><b>{ep.nome}</b><br/><font size="8" color="grey">Empresa Contratante</font>', st["assin_nome"]), Paragraph(f'{linha_assin}<br/><br/><b>{nome_vendedor_assin}</b><br/><font size="8" color="grey">Vendedor Responsável</font>', st["assin_nome"])]]
+        assin_table_data = [[
+            Paragraph(f'{linha_assin}<br/><br/><b>{nome_loja}</b><br/><font size="8" color="grey">Prestador de Serviços</font>', st["assin_nome"]),
+            Paragraph(f'{linha_assin}<br/><br/><b>{_pdf_texto(nome_contratante)}</b><br/><font size="8" color="grey">Empresa Contratante</font>', st["assin_nome"]),
+        ]]
         ta = Table(assin_table_data, colWidths=[8 * cm, 8 * cm])
         ta.setStyle(TableStyle([("ALIGN", (0, 0), (-1, -1), "CENTER"), ("VALIGN", (0, 0), (-1, -1), "BOTTOM"), ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
         elements += [
@@ -261,8 +266,7 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
 
     elements = _build_pdf_cabecalho(loja, st["titulo"])
 
-    card_table, v = _build_pdf_cards(relatorio, loja, st)
-    elements.append(card_table)
+    elements.append(_build_pdf_cards(relatorio, loja, st))
     elements.append(Spacer(1, 0.4 * cm))
 
     elements.append(Paragraph("<b>Resumo Financeiro</b>", st["secao"]))
@@ -271,7 +275,7 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
 
     elements.extend(_build_pdf_detalhamento(relatorio, st["secao"]))
 
-    elements.extend(_build_pdf_assinaturas(relatorio, loja, v, st, incluir_assinaturas))
+    elements.extend(_build_pdf_assinaturas(relatorio, loja, st, incluir_assinaturas))
 
     if relatorio.observacoes:
         elements.append(Spacer(1, 0.3 * cm))

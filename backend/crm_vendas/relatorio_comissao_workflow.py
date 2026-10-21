@@ -101,9 +101,12 @@ def enviar_relatorio_para_empresa(relatorio, loja):
     """Envia PDF do relatório por email para a empresa prestadora aprovar."""
     from .pdf_relatorio_comissao import gerar_pdf_relatorio_comissao
 
+    from .relatorio_comissao_data import nome_exibicao_juridica
+
     ep = relatorio.empresa_prestadora
     if not ep.email:
         return False, "Empresa prestadora não possui email cadastrado."
+    nome_ep = nome_exibicao_juridica(ep.nome, getattr(ep, "razao_social", ""), getattr(ep, "cnpj", "")) or ep.nome
 
     pdf_buffer = gerar_pdf_relatorio_comissao(relatorio, loja)
     pdf_bytes = pdf_buffer.read()
@@ -113,7 +116,7 @@ def enviar_relatorio_para_empresa(relatorio, loja):
     link_reprovar = f"{frontend_url}/relatorio-comissao/{relatorio.loja_id}/{relatorio.token_empresa}/reprovar"
 
     corpo = (
-        f"Olá {ep.nome},\n\n"
+        f"Olá {nome_ep},\n\n"
         f"Segue o relatório de comissão referente ao período "
         f"{relatorio.periodo_descricao}.\n\n"
         f"📋 RESUMO:\n"
@@ -160,8 +163,16 @@ def aprovar_relatorio(relatorio, nome_aprovador: str, ip: str):
     ])
     logger.info("Relatório %s aprovado por %s", relatorio.numero, nome_aprovador)
 
-    enviar_email_vendedor_assinar(relatorio)
+    if getattr(relatorio, "vendedor_id", None):
+        enviar_email_vendedor_assinar(relatorio)
+        return True, None
 
+    relatorio.status = "aguardando_pagamento"
+    relatorio.save(update_fields=["status", "updated_at"])
+    enviar_pdf_assinado(relatorio)
+    ok, err = gerar_boleto_comissao(relatorio)
+    if not ok:
+        logger.warning("Falha ao gerar boleto para %s: %s", relatorio.numero, err)
     return True, None
 
 

@@ -46,7 +46,6 @@ export function useCrmRelatoriosComissao(isVendedor: boolean) {
   const [confirmando, setConfirmando] = useState(false);
 
   const [formEmpresa, setFormEmpresa] = useState('');
-  const [formVendedor, setFormVendedor] = useState('');
   const [formPeriodo, setFormPeriodo] = useState('mes_atual');
   const [formDataInicio, setFormDataInicio] = useState('');
   const [formDataFim, setFormDataFim] = useState('');
@@ -76,13 +75,12 @@ export function useCrmRelatoriosComissao(isVendedor: boolean) {
       periodo: formPeriodo,
       observacoes: formObs,
     };
-    if (formVendedor) payload.vendedor_id = parseInt(formVendedor, 10);
     if (formPeriodo === 'personalizado') {
       payload.data_inicio = formDataInicio;
       payload.data_fim = formDataFim;
     }
     return payload;
-  }, [formEmpresa, formVendedor, formPeriodo, formDataInicio, formDataFim, formObs]);
+  }, [formEmpresa, formPeriodo, formDataInicio, formDataFim, formObs]);
 
   const validateForm = useCallback(() => {
     if (!formEmpresa) {
@@ -225,8 +223,6 @@ export function useCrmRelatoriosComissao(isVendedor: boolean) {
     executeConfirm,
     formEmpresa,
     setFormEmpresa,
-    formVendedor,
-    setFormVendedor,
     formPeriodo,
     setFormPeriodo,
     formDataInicio,

@@ -77,7 +77,7 @@ export default function RelatoriosPage() {
           <li>• <strong>Total de Vendas:</strong> Resumo geral de todas as vendas fechadas no período</li>
           <li>• <strong>Vendas por Vendedor:</strong> Detalhamento individual com valores de comissão</li>
           <li>• <strong>Exportar comissões (PDF):</strong> Relatório pontual para download ou e-mail</li>
-          <li>• <strong>Relatório formal:</strong> Fluxo com aprovação da empresa, assinatura e pagamento</li>
+          <li>• <strong>Relatório formal:</strong> Da loja para a prestadora, com os clientes fechados e ganhos. Pessoa jurídica sai pela razão social.</li>
           <li>• <strong>Controle de qualidade:</strong> Nome, telefone e histórico de negociação de cada venda fechada</li>
           <li>• Os relatórios incluem apenas oportunidades com status &quot;Fechado ganho&quot;</li>
         </ul>

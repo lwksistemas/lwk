@@ -90,7 +90,7 @@ def _juntar_fragmentos(buffer: list[tuple[float, str]]) -> str:
     return re.sub(r"\s+", " ", " ".join(partes)).strip()
 
 
-def extrair_linhas_pdf(data: bytes) -> list[str]:
+def _abrir_pdf(data: bytes):
     if not data:
         raise CatalogoPdfError("Arquivo vazio.")
     if len(data) > CATALOGO_PDF_MAX_BYTES:
@@ -100,9 +100,13 @@ def extrair_linhas_pdf(data: bytes) -> list[str]:
     except ImportError as exc:
         raise CatalogoPdfError("Leitura de PDF indisponível neste servidor.") from exc
     try:
-        reader = PdfReader(io.BytesIO(data))
+        return PdfReader(io.BytesIO(data))
     except Exception as exc:
         raise CatalogoPdfError("Não foi possível abrir o PDF. Envie um arquivo válido.") from exc
+
+
+def extrair_linhas_pdf(data: bytes) -> list[str]:
+    reader = _abrir_pdf(data)
     linhas: list[str] = []
     for page in reader.pages:
         linhas.extend(_linhas_da_pagina(page))
@@ -183,6 +187,14 @@ def _tabela_codigo(tabela: str, retro: bool, ano: str) -> str:
 
 def pastas_do_item(item: dict) -> list[str]:
     """Subpastas da tabela comercial: área e, dentro dela, a tabela Blue, Green ou Black."""
+    explicitas = item.get("pastas") or []
+    if explicitas:
+        nomes = []
+        for nome in explicitas:
+            limpo = _norm(str(nome))[:80]
+            if limpo and limpo not in nomes:
+                nomes.append(limpo)
+        return nomes[:3]
     tabela = str(item.get("tabela") or "").strip().upper()
     area = str(item.get("area") or "").strip().upper()
     if not tabela or not area:
@@ -442,6 +454,78 @@ def parse_linhas_tabela_comercial(linhas: list[str]) -> tuple[list[dict], list[s
     return itens, avisos
 
 
+_LINHA_PIPE = re.compile(
+    r"^([A-Za-z0-9][A-Za-z0-9-]{1,48})\s*\|\s*(.+?)\s*\|\s*R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})\s*$"
+)
+
+
+def _secao_de_catalogo(linha: str) -> str:
+    if "|" in linha or "R$" in linha or len(linha) > 80:
+        return ""
+    norm = _norm(linha)
+    if not norm or norm.startswith("FONTE") or norm.startswith("HTTP") or "CODIGOS CRIADOS" in norm:
+        return ""
+    if "PRODUTOS E PREC" in norm:
+        return ""
+    return norm
+
+
+def _pastas_da_secao(secao: str) -> list[str]:
+    partes = [parte.strip() for parte in secao.split(" - ") if parte.strip()]
+    if len(partes) == 2 and partes[1] in {"MENSAL", "ANUAL"}:
+        return partes
+    return [secao] if secao else []
+
+
+def _parse_catalogo_pipe(linhas: list[str]) -> list[dict]:
+    """Lê linhas no formato código | nome | R$ preço, com o título acima virando subpasta."""
+    itens = []
+    vistos: set[str] = set()
+    secao = ""
+    for bruta in linhas:
+        linha = re.sub(r"\s+", " ", bruta).strip()
+        if not linha:
+            continue
+        match = _LINHA_PIPE.match(linha)
+        if not match:
+            titulo = _secao_de_catalogo(linha)
+            if titulo:
+                secao = titulo
+            continue
+        codigo = match.group(1).upper()[:50]
+        if codigo in vistos:
+            continue
+        vistos.add(codigo)
+        nome = match.group(2).strip()
+        nome_norm = _norm(nome)
+        if " MENSAL" in f" {nome_norm}" or nome_norm.endswith("MENSAL"):
+            recorrencia = "mensal"
+        elif " ANUAL" in f" {nome_norm}" or nome_norm.endswith("ANUAL"):
+            recorrencia = "anual"
+        else:
+            recorrencia = "unico"
+        itens.append(
+            {
+                "codigo": codigo,
+                "nome": nome[:255],
+                "descricao": secao.title() if secao else "",
+                "preco": f"{_decimal(match.group(3)):.2f}",
+                "recorrencia": recorrencia,
+                "tipo": "servico",
+                "pastas": _pastas_da_secao(secao),
+            }
+        )
+    return itens
+
+
+def _linhas_de_texto(data: bytes) -> list[str]:
+    reader = _abrir_pdf(data)
+    linhas: list[str] = []
+    for page in reader.pages:
+        linhas.extend((page.extract_text() or "").splitlines())
+    return linhas
+
+
 def _parse_catalogo_simples(linhas: list[str]) -> list[dict]:
     itens = []
     vistos: set[str] = set()
@@ -480,7 +564,8 @@ def preview_catalogo_pdf(data: bytes) -> dict:
     linhas = extrair_linhas_pdf(data)
     itens, avisos = parse_linhas_tabela_comercial(linhas)
     if not itens:
-        itens = _parse_catalogo_simples(linhas)
+        texto = _linhas_de_texto(data)
+        itens = _parse_catalogo_pipe(texto) or _parse_catalogo_simples(texto) or _parse_catalogo_simples(linhas)
     if not itens:
         raise CatalogoPdfError(
             "Não encontramos produtos com código e preço neste PDF. "

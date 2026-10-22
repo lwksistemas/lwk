@@ -297,3 +297,35 @@ def comissao_exibida_vendedor(oportunidades, vendedor) -> Decimal:
     """Parte do vendedor na Home."""
     total = sum(partes_por_oportunidade(oportunidades, vendedor).values(), Decimal("0.00"))
     return total.quantize(Decimal("0.01"))
+
+
+def mapa_comissao_dos_vendedores(oportunidades, somente_vendedor_id=None) -> dict[int, Decimal]:
+    """Comissão de cada venda pela regra do vendedor.
+
+    somente_vendedor_id limita o mapa a um vendedor. Os demais ficam de fora.
+    """
+    from .models import Vendedor
+
+    if hasattr(oportunidades, "order_by"):
+        vendedor_ids = list(oportunidades.order_by().values_list("vendedor_id", flat=True).distinct())
+    else:
+        vendedor_ids = list({getattr(op, "vendedor_id", None) for op in oportunidades})
+    if somente_vendedor_id is not None:
+        vendedor_ids = [vid for vid in vendedor_ids if vid == somente_vendedor_id]
+    vendedores = {
+        vendedor.id: vendedor
+        for vendedor in Vendedor.objects.filter(
+            id__in=[vid for vid in vendedor_ids if vid],
+        ).prefetch_related("comissoes_categoria")
+    }
+    mapa: dict[int, Decimal] = {}
+    for vid in vendedor_ids:
+        vendedor = vendedores.get(vid)
+        if vendedor is None:
+            continue
+        if hasattr(oportunidades, "filter"):
+            dele = oportunidades.filter(vendedor_id=vid)
+        else:
+            dele = [op for op in oportunidades if getattr(op, "vendedor_id", None) == vid]
+        mapa.update(partes_por_oportunidade(dele, vendedor))
+    return mapa

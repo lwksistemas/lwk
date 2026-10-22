@@ -34,6 +34,20 @@ def resolve_loja_from_request(request):
         return None
 
 
+def config_whatsapp_existente(loja):
+    """Lê a configuração da loja sem criar uma linha nova."""
+    if not loja:
+        return None
+    try:
+        config = WhatsAppConfig.objects.filter(loja_id=loja.id).first()
+    except (OperationalError, ProgrammingError) as exc:
+        logger.warning("WhatsAppConfig schema loja %s: %s", loja.id, exc)
+        return None
+    if config:
+        config._loja_cache = loja
+    return config
+
+
 def get_or_create_whatsapp_config(loja):
     """WhatsAppConfig fica no schema da loja (db router)."""
     if not loja:

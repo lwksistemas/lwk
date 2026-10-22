@@ -8,8 +8,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .config_helpers import apply_whatsapp_config_patch, serialize_whatsapp_config
+from .config_helpers import apply_whatsapp_config_patch, flags_uso_whatsapp, serialize_whatsapp_config
 from .config_service import (
+    config_whatsapp_existente,
     default_whatsapp_config_payload,
     get_or_create_whatsapp_config,
     resolve_loja_from_request,
@@ -61,9 +62,17 @@ class WhatsAppConfigView(APIView):
         return get_or_create_whatsapp_config(loja), loja
 
     def get(self, request):
-        config, loja = self._get_config(request)
-        if loja == "forbidden":
-            return Response({"error": "Sem permissão para configurar WhatsApp desta loja."}, status=status.HTTP_403_FORBIDDEN)
+        loja = resolve_loja_from_request(request)
+        if not loja:
+            return Response(default_whatsapp_config_payload())
+        if not _user_may_configure_whatsapp(request, loja):
+            config = config_whatsapp_existente(loja)
+            if config is None:
+                payload = default_whatsapp_config_payload()
+                payload["whatsapp_ativo"] = False
+                return Response(payload)
+            return Response(flags_uso_whatsapp(config))
+        config = get_or_create_whatsapp_config(loja)
         if config is None:
             return Response(default_whatsapp_config_payload())
         try:

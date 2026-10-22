@@ -5,10 +5,12 @@ from django.test import SimpleTestCase
 
 from crm_vendas.catalogo_pdf import (
     _parse_catalogo_pipe,
+    encurtar_codigo_anadem,
     parse_linhas_tabela_comercial,
     pastas_do_item,
     preview_catalogo_pdf,
 )
+from crm_vendas.pdf_proposta_contrato.sections import nome_item_documento
 
 _PDF_ULTRASIS = Path(
     "/home/luiz/.cursor/projects/home-luiz-Documentos-lwksistemas/attachments/"
@@ -44,12 +46,13 @@ class CatalogoPdfTabelaTests(SimpleTestCase):
         por_codigo = {item["codigo"]: item for item in itens}
 
         self.assertEqual(avisos, [])
-        self.assertEqual(por_codigo["BLU26-MED-CC-300-1-PF-MEN"]["preco"], "349.00")
-        self.assertEqual(por_codigo["BLU26-MED-CC-300-1-XPJ-MEN"]["preco"], "174.50")
-        self.assertEqual(por_codigo["BLU26-MED-CC-300-1-PF-MEN"]["recorrencia"], "mensal")
-        self.assertEqual(pastas_do_item(por_codigo["BLU26-MED-CC-300-1-PF-MEN"]), ["MEDICINA", "TABELA BLUE"])
-        self.assertIn("ACUPUNTURA", por_codigo["BLU26-MED-CC-300-1-PF-MEN"]["descricao"])
-        self.assertNotIn("ANGIOLOGIA", por_codigo["BLU26-MED-CC-300-1-PF-MEN"]["descricao"])
+        self.assertEqual(por_codigo["B26MC3-1FM"]["preco"], "349.00")
+        self.assertEqual(por_codigo["B26MC3-1FM"]["codigo_anterior"], "BLU26-MED-CC-300-1-PF-MEN")
+        self.assertEqual(por_codigo["B26MC3-1XM"]["preco"], "174.50")
+        self.assertEqual(por_codigo["B26MC3-1FM"]["recorrencia"], "mensal")
+        self.assertEqual(pastas_do_item(por_codigo["B26MC3-1FM"]), ["MEDICINA", "TABELA BLUE"])
+        self.assertIn("ACUPUNTURA", por_codigo["B26MC3-1FM"]["descricao"])
+        self.assertNotIn("ANGIOLOGIA", por_codigo["B26MC3-1FM"]["descricao"])
         self.assertFalse(any("523.50" == item["preco"] for item in itens))
 
     def test_pdf_anadem_quando_o_arquivo_esta_disponivel(self):
@@ -59,13 +62,25 @@ class CatalogoPdfTabelaTests(SimpleTestCase):
         por_codigo = {item["codigo"]: item for item in resultado["itens"]}
 
         self.assertGreater(resultado["total"], 100)
-        self.assertEqual(por_codigo["BLU26-MED-CC-300-1-PF-MEN"]["preco"], "349.00")
-        self.assertEqual(por_codigo["GRN26-MED-CC-500-1-PF-MEN"]["preco"], "483.00")
-        self.assertEqual(por_codigo["GRN26-MED-BOL-500-1-PF-MEN"]["preco"], "531.30")
-        self.assertEqual(por_codigo["ESS26-MED-CC-300-PL-PF-MEN"]["preco"], "399.00")
-        self.assertNotIn("retroatividade", por_codigo["ESS26-MED-CC-300-PL-PF-MEN"]["nome"])
-        self.assertIn("retroatividade", por_codigo["BLKR26-MED-CC-500-1-PF-MEN"]["nome"])
-        self.assertEqual(por_codigo["GRN26-ODO-CC-500-D1-PF-MEN"]["preco"], "257.25")
+        self.assertEqual(por_codigo["B26MC3-1FM"]["preco"], "349.00")
+        self.assertEqual(por_codigo["G26MC5-1FM"]["preco"], "483.00")
+        self.assertEqual(por_codigo["G26MB5-1FM"]["preco"], "531.30")
+        self.assertEqual(por_codigo["E26MC3-PLFM"]["preco"], "399.00")
+        self.assertNotIn("retroatividade", por_codigo["E26MC3-PLFM"]["nome"])
+        self.assertIn("retroatividade", por_codigo["K26MC5-1FM"]["nome"])
+        self.assertEqual(por_codigo["G26OC5-D1FM"]["preco"], "257.25")
+
+    def test_codigo_longo_vira_codigo_curto_e_o_nome_da_proposta_nao_repete_a_prestadora(self):
+        self.assertEqual(encurtar_codigo_anadem("GRN26-DEM-BOL-100-COM-PF-4P"), "G26DB1-COMF4")
+        self.assertEqual(encurtar_codigo_anadem("BLU26-MED-CC-300-1-PF-MEN"), "B26MC3-1FM")
+        self.assertIsNone(encurtar_codigo_anadem("LAU-BAS-M"))
+        self.assertEqual(
+            nome_item_documento(
+                "ANADEM GREEN 2026 — Medicina — Grupo 2 — Mensalidade",
+                "ANADEM",
+            ),
+            "GREEN 2026 — Medicina — Grupo 2 — Mensalidade",
+        )
 
     def test_linha_codigo_nome_preco_vira_servico_na_secao(self):
         itens = _parse_catalogo_pipe(

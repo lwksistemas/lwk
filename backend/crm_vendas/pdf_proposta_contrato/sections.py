@@ -26,6 +26,26 @@ from .formatters import (
 
 logger = logging.getLogger(__name__)
 
+
+def nome_item_documento(nome, prestadora_nome="") -> str:
+    """Nome do item na proposta, sem repetir o tipo nem a marca da prestadora."""
+    texto = (nome or "").strip()
+    marcas = []
+    bruto = (prestadora_nome or "").strip()
+    if bruto:
+        principal = bruto.split("—")[0].split("–")[0].strip()
+        if principal:
+            marcas.append(principal)
+            primeira = principal.split()[0]
+            if primeira and primeira not in marcas:
+                marcas.append(primeira)
+    for marca in marcas:
+        if texto.upper().startswith(marca.upper()):
+            resto = texto[len(marca):].lstrip(" —-–")
+            if resto:
+                return resto
+    return texto or "Item"
+
 def _recorte_logo(conteudo: bytes) -> bytes:
     """Tira a margem branca ou transparente para as duas marcas ficarem do mesmo tamanho."""
     imagem = PILImage.open(BytesIO(conteudo))
@@ -221,8 +241,9 @@ def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=Tru
     valor_anual = 0
     for item in itens:
         ps = item.produto_servico
-        tipo_ps = ps.get_tipo_display() if hasattr(ps, "get_tipo_display") else getattr(ps, "tipo", "")
-        nome = Paragraph(escape(f"{tipo_ps}: {ps.nome}" if tipo_ps else ps.nome), nome_style)
+        prestadora = getattr(oportunidade, "empresa_prestadora", None)
+        marca = getattr(prestadora, "nome", "") if prestadora is not None else ""
+        nome = Paragraph(escape(nome_item_documento(getattr(ps, "nome", ""), marca)), nome_style)
         recorrencia = getattr(ps, "recorrencia", "unico") or "unico"
         recorrencia_label = {
             "unico": "Único",

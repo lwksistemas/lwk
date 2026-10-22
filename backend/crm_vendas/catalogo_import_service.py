@@ -48,8 +48,10 @@ def _item_normalizado(bruto: dict) -> dict:
     tipo = str(bruto.get("tipo") or "servico")
     if tipo not in _TIPOS:
         tipo = "servico"
+    anterior = str(bruto.get("codigo_anterior") or "").strip()[:50]
     return {
         "codigo": codigo,
+        "codigo_anterior": anterior if anterior and anterior != codigo else "",
         "nome": nome,
         "descricao": str(bruto.get("descricao") or "")[:4000],
         "preco": preco,
@@ -86,6 +88,50 @@ def _garantir_pasta(loja_id, pai, nome, cache):
         )
     cache[chave] = pasta
     return pasta
+
+
+def _produto_do_catalogo(loja_id, prestadora_id, item):
+    """Acha o item pelo código curto ou pelo código longo da importação anterior."""
+    curto = ProdutoServico.objects.filter(
+        loja_id=loja_id,
+        prestadora_id=prestadora_id,
+        codigo=item["codigo"],
+    ).first()
+    anterior = item.get("codigo_anterior") or ""
+    longo = None
+    if anterior and anterior != item["codigo"]:
+        longo = ProdutoServico.objects.filter(
+            loja_id=loja_id,
+            prestadora_id=prestadora_id,
+            codigo=anterior,
+        ).first()
+    if longo is not None and curto is not None and longo.pk != curto.pk:
+        longo.ativo = False
+        longo.save(update_fields=["ativo"])
+        return curto
+    return longo or curto
+
+
+def encurtar_codigos_anadem_gravados() -> int:
+    """Troca no cadastro o código longo da ANADEM pelo código curto, no mesmo produto."""
+    from .catalogo_pdf import encurtar_codigo_anadem
+
+    alterados = 0
+    for produto in ProdutoServico.objects.exclude(codigo="").iterator():
+        novo = encurtar_codigo_anadem(produto.codigo or "")
+        if not novo or novo == produto.codigo:
+            continue
+        ocupado = ProdutoServico.objects.filter(
+            loja_id=produto.loja_id,
+            prestadora_id=produto.prestadora_id,
+            codigo=novo,
+        ).exclude(pk=produto.pk).exists()
+        if ocupado:
+            continue
+        produto.codigo = novo
+        produto.save(update_fields=["codigo"])
+        alterados += 1
+    return alterados
 
 
 def _destino_categoria(loja_id, categoria, item, cache):
@@ -127,6 +173,7 @@ def importar_catalogo_na_categoria(
     with transaction.atomic():
         if substituir:
             codigos = {item["codigo"] for item in normalizados}
+            codigos.update(item["codigo_anterior"] for item in normalizados if item.get("codigo_anterior"))
             (
                 ProdutoServico.objects.filter(loja_id=loja_id, prestadora_id=prestadora.id)
                 .exclude(codigo__in=codigos)
@@ -142,11 +189,7 @@ def importar_catalogo_na_categoria(
                 "recorrencia": item["recorrencia"],
                 "tipo": item["tipo"],
             }
-            existente = ProdutoServico.objects.filter(
-                loja_id=loja_id,
-                prestadora_id=prestadora.id,
-                codigo=item["codigo"],
-            ).first()
+            existente = _produto_do_catalogo(loja_id, prestadora.id, item)
             if existente is None:
                 ProdutoServico.objects.create(
                     loja_id=loja_id,
@@ -157,6 +200,7 @@ def importar_catalogo_na_categoria(
                 )
                 criados += 1
                 continue
+            existente.codigo = dados["codigo"]
             existente.nome = dados["nome"]
             existente.descricao = dados["descricao"]
             existente.preco = dados["preco"]

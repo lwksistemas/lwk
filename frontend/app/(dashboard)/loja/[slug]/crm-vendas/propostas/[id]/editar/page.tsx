@@ -62,6 +62,7 @@ export default function EditarPropostaPage() {
   const [statusAssinaturaAntes, setStatusAssinaturaAntes] = useState<string | undefined>();
   const [oportunidadeTituloInicial, setOportunidadeTituloInicial] = useState('');
   const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
+  const [marcaPrestadora, setMarcaPrestadora] = useState('');
   const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
@@ -155,6 +156,7 @@ export default function EditarPropostaPage() {
                 empresa_prestadora_nome: opp.empresa_prestadora_nome,
               }),
             );
+            setMarcaPrestadora(opp.empresa_prestadora_nome || '');
             if (opp.lead) loadLeadInfo(opp.lead);
             else setLeadInfo(null);
           })
@@ -177,11 +179,13 @@ export default function EditarPropostaPage() {
         setItensOportunidade([]);
         setLeadInfo(null);
         setOportunidadeTituloInicial('');
+        setMarcaPrestadora('');
         return;
       }
       loadItensOportunidade(oppId);
       try {
         const opp = await fetchCrmOportunidade(oppId);
+        setMarcaPrestadora(opp.empresa_prestadora_nome || '');
         setOportunidadeTituloInicial(
           formatOportunidadeVinculoLabel({
             titulo: opp.titulo,
@@ -285,6 +289,7 @@ export default function EditarPropostaPage() {
         lojaInfo={lojaInfo}
         leadInfo={leadInfo}
         itensOportunidade={itensOportunidade}
+        marcaPrestadora={marcaPrestadora}
         statusOpcoes={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
         onFormChange={setFormData}
         onOportunidadeChange={handleOportunidadeChange}

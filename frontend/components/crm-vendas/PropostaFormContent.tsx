@@ -27,6 +27,7 @@ export interface PropostaFormContentProps {
   lojaInfo: LojaInfo | null;
   leadInfo: LeadInfo | null;
   itensOportunidade: OportunidadeItem[];
+  marcaPrestadora?: string;
   statusOpcoes: Array<{ value: string; label: string }>;
   onFormChange: (updater: (f: FormDataProposta) => FormDataProposta) => void;
   onOportunidadeChange: (id: string) => void;
@@ -65,6 +66,7 @@ export default function PropostaFormContent({
   lojaInfo,
   leadInfo,
   itensOportunidade,
+  marcaPrestadora,
   statusOpcoes,
   onFormChange,
   onOportunidadeChange,
@@ -127,7 +129,7 @@ export default function PropostaFormContent({
 
   const renderProdutosBlock = () => {
     if (!form.oportunidade_id) return null;
-    return <CrmOportunidadeItensTabela itens={itensOportunidade} />;
+    return <CrmOportunidadeItensTabela itens={itensOportunidade} marcaPrestadora={marcaPrestadora} />;
   };
 
   const renderValoresBlock = () => {
@@ -303,7 +305,7 @@ export default function PropostaFormContent({
       {form.oportunidade_id && (
         <div className={spanClass}>
           <label className={labelCls}>Produtos e Serviços da Oportunidade</label>
-          <CrmOportunidadeItensTabela itens={itensOportunidade} />
+          <CrmOportunidadeItensTabela itens={itensOportunidade} marcaPrestadora={marcaPrestadora} />
         </div>
       )}
 

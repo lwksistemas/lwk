@@ -12,6 +12,7 @@ import { ProdutoServicoModal } from './components/ProdutoServicoModal';
 import { CategoriasModal } from './components/CategoriasModal';
 import { CategoriasProdutosGrid } from './components/CategoriasProdutosGrid';
 import { ProdutosServicosCategoriasSkeleton } from './components/ProdutosServicosCategoriasSkeleton';
+import { CatalogoPdfImportModal } from '@/components/crm-vendas/CatalogoPdfImportModal';
 
 export default function CrmVendasProdutosServicosPage() {
   const p = useCrmProdutosServicosPage();
@@ -30,6 +31,7 @@ export default function CrmVendasProdutosServicosPage() {
         onCategoriaChange={p.setFiltroCategoria}
         onTipoChange={p.setFiltroTipo}
         onNovoClick={() => p.openModal('create')}
+        onImportarPdfClick={() => p.setModalImportarPdf(true)}
         onGerenciarCategoriasClick={() => p.setModalCategoriasAberto(true)}
         onVoltarCategorias={p.voltarCategorias}
         subtituloLista={p.subtituloLista}
@@ -82,6 +84,16 @@ export default function CrmVendasProdutosServicosPage() {
         onSubmit={p.handleSubmit}
         onDelete={p.handleDelete}
       />
+
+      {p.modalImportarPdf && (
+        <CatalogoPdfImportModal
+          categorias={p.categorias}
+          onClose={() => p.setModalImportarPdf(false)}
+          onImported={(categoriaId) => {
+            void p.aposImportarPdf(categoriaId);
+          }}
+        />
+      )}
 
       <CategoriasModal
         isOpen={p.modalCategoriasAberto}

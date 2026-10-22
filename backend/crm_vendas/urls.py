@@ -29,6 +29,7 @@ from .views import (
     gerar_relatorio,
 )
 from .views_asaas_webhook import asaas_loja_webhook
+from .views_catalogo_pdf import CatalogoPdfImportarView, CatalogoPdfPreviewView
 from .views_financeiro import (
     GrupoFinanceiroCRMViewSet,
     LancamentoFinanceiroCRMViewSet,
@@ -91,6 +92,8 @@ urlpatterns = [
     path("config/test-asaas/", crm_config_asaas_test),
     path("config/test-issnet/", crm_config_issnet_test),
     path("login-config/", LoginConfigView.as_view()),
+    path("produtos-servicos/importar-pdf/", CatalogoPdfPreviewView.as_view()),
+    path("produtos-servicos/importar-pdf/confirmar/", CatalogoPdfImportarView.as_view()),
     path("relatorios/gerar/", gerar_relatorio),
     path("financeiro/resumo/", financeiro_crm_resumo),
     path("financeiro/relatorio/", financeiro_crm_relatorio_pdf),

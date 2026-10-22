@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import {
   ComissaoPrestadoraSection,
@@ -63,6 +65,8 @@ export function ContaCadastroForm({
   onSave,
   onCancel,
 }: ContaCadastroFormProps) {
+  const params = useParams<{ slug?: string }>();
+  const slug = params?.slug || '';
   const set = (field: Exclude<keyof ContaFormData, 'comissoes'>, value: string) =>
     onChange({ ...formData, [field]: value });
   const setUpper = (field: Exclude<keyof ContaFormData, 'comissoes'>, value: string) =>
@@ -173,6 +177,14 @@ export function ContaCadastroForm({
                 folder="fotos"
                 description="Esta imagem sai na proposta e no contrato, ao lado da logo da loja."
               />
+              {slug && (
+                <Link
+                  href={`/loja/${slug}/crm-vendas/produtos-servicos`}
+                  className="inline-block text-sm text-[#0176d3] hover:underline"
+                >
+                  Importar a tabela de preços (PDF) em Produtos e serviços
+                </Link>
+              )}
             </section>
           )}
         </div>

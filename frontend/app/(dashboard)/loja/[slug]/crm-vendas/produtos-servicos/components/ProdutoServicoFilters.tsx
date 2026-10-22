@@ -3,7 +3,7 @@
  * 
  * Responsabilidade única: Renderizar filtros de busca.
  */
-import { Plus, FolderOpen, ArrowLeft } from 'lucide-react';
+import { Plus, FolderOpen, ArrowLeft, FileUp } from 'lucide-react';
 import { Categoria } from '@/hooks/useProdutosServicos';
 
 interface ProdutoServicoFiltersProps {
@@ -13,6 +13,7 @@ interface ProdutoServicoFiltersProps {
   onCategoriaChange: (value: string) => void;
   onTipoChange: (value: string) => void;
   onNovoClick: () => void;
+  onImportarPdfClick?: () => void;
   onGerenciarCategoriasClick?: () => void;
   /** Grade inicial: só título e ações; lista: filtros completos */
   variant?: 'grid' | 'lista';
@@ -28,6 +29,7 @@ export function ProdutoServicoFilters({
   onCategoriaChange,
   onTipoChange,
   onNovoClick,
+  onImportarPdfClick,
   onGerenciarCategoriasClick,
   variant = 'lista',
   onVoltarCategorias,
@@ -93,6 +95,16 @@ export function ProdutoServicoFilters({
           >
             <FolderOpen size={18} />
             <span className="hidden sm:inline">Categorias</span>
+          </button>
+        )}
+        {onImportarPdfClick && (
+          <button
+            type="button"
+            onClick={onImportarPdfClick}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white rounded text-sm font-medium transition-colors"
+          >
+            <FileUp size={18} />
+            <span>Importar PDF</span>
           </button>
         )}
         <button

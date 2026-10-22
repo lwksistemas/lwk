@@ -3,7 +3,17 @@ from pathlib import Path
 
 from django.test import SimpleTestCase
 
-from crm_vendas.catalogo_pdf import parse_linhas_tabela_comercial, pastas_do_item, preview_catalogo_pdf
+from crm_vendas.catalogo_pdf import (
+    _parse_catalogo_pipe,
+    parse_linhas_tabela_comercial,
+    pastas_do_item,
+    preview_catalogo_pdf,
+)
+
+_PDF_ULTRASIS = Path(
+    "/home/luiz/.cursor/projects/home-luiz-Documentos-lwksistemas/attachments/"
+    "6cdbc61c-6efe-49d0-a172-2285097cc32a/ULTRASIS_Produtos_Importacao.pdf"
+)
 
 _PDF_ANADEM = Path(
     "/home/luiz/.cursor/projects/home-luiz-Documentos-lwksistemas/attachments/"
@@ -56,3 +66,30 @@ class CatalogoPdfTabelaTests(SimpleTestCase):
         self.assertNotIn("retroatividade", por_codigo["ESS26-MED-CC-300-PL-PF-MEN"]["nome"])
         self.assertIn("retroatividade", por_codigo["BLKR26-MED-CC-500-1-PF-MEN"]["nome"])
         self.assertEqual(por_codigo["GRN26-ODO-CC-500-D1-PF-MEN"]["preco"], "257.25")
+
+    def test_linha_codigo_nome_preco_vira_servico_na_secao(self):
+        itens = _parse_catalogo_pipe(
+            [
+                "ULTRASIS LAUDOS - MENSAL",
+                "LAU-BAS-M | ULTRASIS LAUDOS Básico - mensal | R$ 63,00",
+                "SERVIÇOS E ADICIONAIS",
+                "ADESAO | Adesão única | R$ 375,00",
+            ]
+        )
+        por_codigo = {item["codigo"]: item for item in itens}
+        self.assertEqual(por_codigo["LAU-BAS-M"]["preco"], "63.00")
+        self.assertEqual(por_codigo["LAU-BAS-M"]["recorrencia"], "mensal")
+        self.assertEqual(pastas_do_item(por_codigo["LAU-BAS-M"]), ["ULTRASIS LAUDOS", "MENSAL"])
+        self.assertEqual(pastas_do_item(por_codigo["ADESAO"]), ["SERVICOS E ADICIONAIS"])
+        self.assertEqual(por_codigo["ADESAO"]["preco"], "375.00")
+        self.assertEqual(por_codigo["ADESAO"]["recorrencia"], "unico")
+
+    def test_pdf_ultrasis_quando_o_arquivo_esta_disponivel(self):
+        if not _PDF_ULTRASIS.is_file():
+            self.skipTest("PDF da Ultrasys não está nesta máquina.")
+        resultado = preview_catalogo_pdf(_PDF_ULTRASIS.read_bytes())
+        por_codigo = {item["codigo"]: item for item in resultado["itens"]}
+        self.assertGreaterEqual(resultado["total"], 20)
+        self.assertEqual(por_codigo["LAU-BAS-M"]["preco"], "63.00")
+        self.assertEqual(por_codigo["LAU-INT-A"]["preco"], "1095.00")
+        self.assertEqual(por_codigo["ADESAO"]["preco"], "375.00")

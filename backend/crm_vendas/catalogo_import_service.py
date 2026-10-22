@@ -57,6 +57,7 @@ def _item_normalizado(bruto: dict) -> dict:
         "tipo": tipo,
         "tabela": str(bruto.get("tabela") or "").strip().upper()[:30],
         "area": str(bruto.get("area") or "").strip().upper()[:40],
+        "pastas": [str(nome)[:80] for nome in (bruto.get("pastas") or []) if str(nome).strip()][:3],
     }
 
 

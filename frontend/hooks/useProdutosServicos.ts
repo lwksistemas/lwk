@@ -35,6 +35,8 @@ export interface Categoria {
   descricao?: string;
   cor: string;
   ordem: number;
+  pai?: number | null;
+  caminho?: string[];
   /** Quantidade de produtos/serviços ativos (API) */
   produtos_count?: number;
 }

@@ -52,7 +52,7 @@ interface ContaCadastroFormProps {
   onCancel: () => void;
   contaId?: number | null;
   catalogoPendente?: CatalogoPdfItem[];
-  onCatalogoPendente?: (itens: CatalogoPdfItem[]) => void;
+  onCatalogoPendente?: (itens: CatalogoPdfItem[], categoriaId: number | null) => void;
 }
 
 export function ContaCadastroForm({
@@ -349,7 +349,7 @@ export function ContaCadastroForm({
           categorias={[]}
           prestadoraId={contaId}
           rascunho={!contaId}
-          onRascunho={(itens) => onCatalogoPendente?.(itens)}
+          onRascunho={(itens, categoriaEscolhida) => onCatalogoPendente?.(itens, categoriaEscolhida)}
           onClose={() => setImportarAberto(false)}
           onImported={() => undefined}
         />

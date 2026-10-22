@@ -23,7 +23,12 @@ export function CategoriasProdutosGrid({
   onSelectSemCategoria,
   onVerTodos,
 }: CategoriasProdutosGridProps) {
-  const ordenadas = ordenarCategorias(categorias);
+  const ordenadas = ordenarCategorias(categorias).filter((cat) => {
+    const temFilhos = categorias.some((outra) => outra.pai === cat.id);
+    if (temFilhos) return (cat.produtos_count ?? 0) > 0;
+    if (cat.pai) return (cat.produtos_count ?? 0) > 0;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -55,7 +60,7 @@ export function CategoriasProdutosGrid({
               </span>
               <div className="min-w-0 flex-1">
                 <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-[#0176d3] dark:group-hover:text-blue-300 transition-colors truncate">
-                  {cat.nome}
+                  {cat.caminho && cat.caminho.length > 1 ? cat.caminho.join(' / ') : cat.nome}
                 </h3>
                 {cat.descricao ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">{cat.descricao}</p>

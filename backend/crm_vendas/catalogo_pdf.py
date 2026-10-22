@@ -181,6 +181,20 @@ def _tabela_codigo(tabela: str, retro: bool, ano: str) -> str:
     return base
 
 
+def pastas_do_item(item: dict) -> list[str]:
+    """Subpastas da tabela comercial: área e, dentro dela, a tabela Blue, Green ou Black."""
+    tabela = str(item.get("tabela") or "").strip().upper()
+    area = str(item.get("area") or "").strip().upper()
+    if not tabela or not area:
+        return []
+    area_nome = {
+        "MEDICINA": "MEDICINA",
+        "ODONTOLOGIA": "ODONTOLOGIA",
+        "DEMAIS": "DEMAIS CATEGORIAS",
+    }.get(area, area)
+    return [area_nome, f"TABELA {tabela}"]
+
+
 def _nome_grupo(grupo: str) -> str:
     if grupo == "PL":
         return ""
@@ -315,6 +329,8 @@ def parse_linhas_tabela_comercial(linhas: list[str]) -> tuple[list[dict], list[s
                 "preco": f"{_decimal(preco):.2f}",
                 "recorrencia": recorrencia,
                 "tipo": "servico",
+                "tabela": tabela,
+                "area": area,
             }
         )
 

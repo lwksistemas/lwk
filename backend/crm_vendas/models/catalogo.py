@@ -13,6 +13,14 @@ class CategoriaProdutoServico(LojaIsolationMixin, models.Model):
     cor = models.CharField(max_length=7, default="#3B82F6", help_text="Cor para identificação visual (hex)")
     ordem = models.IntegerField(default=0, help_text="Ordem de exibição")
     ativo = models.BooleanField(default=True)
+    pai = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="subpastas",
+        help_text="Categoria acima desta subpasta. A oportunidade abre uma pasta de cada vez.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -26,6 +34,7 @@ class CategoriaProdutoServico(LojaIsolationMixin, models.Model):
         indexes = [
             models.Index(fields=["loja_id", "ativo"], name="crm_cat_ps_loja_ativo_idx"),
             models.Index(fields=["loja_id", "ordem"], name="crm_cat_ps_loja_ordem_idx"),
+            models.Index(fields=["loja_id", "pai"], name="crm_cat_ps_loja_pai_idx"),
         ]
 
     def __str__(self):

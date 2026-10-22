@@ -237,6 +237,19 @@ def _regras_categoria_vendedor(vendedor) -> tuple[Decimal, dict]:
     return percentual, regras
 
 
+def _regra_da_categoria(categoria, regras):
+    """Usa a regra da subpasta ou, se ela estiver em branco, a da categoria de cima."""
+    atual = categoria
+    for _ in range(6):
+        if atual is None:
+            return None
+        regra = regras.get(getattr(atual, "id", None))
+        if regra is not None:
+            return regra
+        atual = getattr(atual, "pai", None)
+    return None
+
+
 def comissao_exibida_vendedor(oportunidades, vendedor) -> Decimal:
     """Parte do vendedor na Home.
 
@@ -245,7 +258,9 @@ def comissao_exibida_vendedor(oportunidades, vendedor) -> Decimal:
     Venda antiga, sem essa configuração, continua com o valor já gravado.
     """
     percentual, regras = _regras_categoria_vendedor(vendedor)
-    ops = list(oportunidades.prefetch_related("itens__produto_servico"))
+    ops = list(
+        oportunidades.prefetch_related("itens__produto_servico__categoria__pai__pai")
+    )
     if not ops:
         return Decimal("0.00")
     conta_ids = [op.empresa_prestadora_id for op in ops if op.empresa_prestadora_id]
@@ -266,8 +281,8 @@ def comissao_exibida_vendedor(oportunidades, vendedor) -> Decimal:
             usou = True
             quantidade = Decimal(item.quantidade or 0)
             base = quantidade * valor_item
-            categoria_id = getattr(item.produto_servico, "categoria_id", None)
-            parte += parte_comissao_item(base, quantidade, regras.get(categoria_id), percentual)
+            categoria = getattr(item.produto_servico, "categoria", None)
+            parte += parte_comissao_item(base, quantidade, _regra_da_categoria(categoria, regras), percentual)
         if usou:
             total += parte
         else:

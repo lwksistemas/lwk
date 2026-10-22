@@ -32,10 +32,11 @@ export function CatalogoPdfImportModal({
   categorias: Categoria[];
   prestadoraId?: number | null;
   rascunho?: boolean;
-  onRascunho?: (itens: CatalogoPdfItem[]) => void;
+  onRascunho?: (itens: CatalogoPdfItem[], categoriaId: number | null) => void;
   onClose: () => void;
   onImported: (categoriaId: number) => void;
 }) {
+  const [listaCategorias, setListaCategorias] = useState(categorias);
   const [itens, setItens] = useState<CatalogoPdfItem[]>([]);
   const [prestadoras, setPrestadoras] = useState<{ id: number; nome: string }[]>([]);
   const [prestadoraEscolhida, setPrestadoraEscolhida] = useState(prestadoraId ? String(prestadoraId) : '');
@@ -46,6 +47,30 @@ export function CatalogoPdfImportModal({
   const [avisos, setAvisos] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [resultado, setResultado] = useState('');
+
+  const chaveCategorias = categorias.map((item) => item.id).join(',');
+  useEffect(() => {
+    if (chaveCategorias) {
+      setListaCategorias(categorias);
+      return;
+    }
+    let cancelado = false;
+    apiClient
+      .get<Categoria[] | { results: Categoria[] }>('/crm-vendas/categorias-produtos-servicos/?ativo=true&page_size=200')
+      .then((res) => {
+        if (cancelado) return;
+        const data = res.data;
+        setListaCategorias(Array.isArray(data) ? data : data.results || []);
+      })
+      .catch(() => {
+        if (!cancelado) setListaCategorias([]);
+      });
+    return () => {
+      cancelado = true;
+    };
+    // A chave estável evita buscar de novo quando o cadastro passa uma lista vazia nova a cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chaveCategorias]);
 
   useEffect(() => {
     if (prestadoraId) return;
@@ -102,7 +127,7 @@ export function CatalogoPdfImportModal({
 
   const confirmar = async () => {
     if (rascunho) {
-      onRascunho?.(itens);
+      onRascunho?.(itens, categoriaId ? Number(categoriaId) : null);
       setResultado(`${itens.length} serviços ficam nesta empresa quando o cadastro for salvo.`);
       return;
     }
@@ -143,7 +168,7 @@ export function CatalogoPdfImportModal({
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Importar PDF da prestadora</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                O catálogo fica só nesta empresa. A oportunidade dela não mistura serviços de outra prestadora.
+                O catálogo fica só nesta empresa. Dentro da categoria escolhida, Medicina, Odontologia e as tabelas Blue, Green e Black viram subpastas.
               </p>
             </div>
             <button type="button" onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
@@ -190,7 +215,6 @@ export function CatalogoPdfImportModal({
                   </select>
                 </label>
               )}
-              {!rascunho && (
               <label className="text-sm text-gray-700 dark:text-gray-200">
                 Categoria
                 <select
@@ -200,14 +224,15 @@ export function CatalogoPdfImportModal({
                   className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="">Sem categoria</option>
-                  {categorias.map((categoria) => (
+                  {listaCategorias.map((categoria) => (
                     <option key={categoria.id} value={categoria.id}>
-                      {categoria.nome}
+                      {categoria.caminho && categoria.caminho.length > 1
+                        ? categoria.caminho.join(' / ')
+                        : categoria.nome}
                     </option>
                   ))}
                 </select>
               </label>
-              )}
               {!rascunho && (
               <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200 sm:mt-6">
                 <input

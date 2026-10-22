@@ -43,6 +43,7 @@ export default function NovaContaPage() {
   const [consultingCNPJ, setConsultingCNPJ] = useState(false);
   const [consultingCEP, setConsultingCEP] = useState(false);
   const [catalogoPendente, setCatalogoPendente] = useState<CatalogoPdfItem[]>([]);
+  const [catalogoCategoria, setCatalogoCategoria] = useState<number | null>(null);
 
   const consultarCNPJ = async () => {
     const cnpj = formData.cnpj.replace(/\D/g, '');
@@ -121,6 +122,7 @@ export default function NovaContaPage() {
         try {
           await apiClient.post('/crm-vendas/produtos-servicos/importar-pdf/confirmar/', {
             prestadora_id: resposta.data.id,
+            categoria_id: catalogoCategoria,
             itens: catalogoPendente,
             substituir: false,
           });
@@ -172,7 +174,10 @@ export default function NovaContaPage() {
       onSave={handleSave}
       onCancel={() => router.push(listPath)}
       catalogoPendente={catalogoPendente}
-      onCatalogoPendente={setCatalogoPendente}
+      onCatalogoPendente={(itens, categoria) => {
+        setCatalogoPendente(itens);
+        setCatalogoCategoria(categoria);
+      }}
     />
   );
 }

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from django.test import SimpleTestCase
 
-from crm_vendas.catalogo_pdf import parse_linhas_tabela_comercial, preview_catalogo_pdf
+from crm_vendas.catalogo_pdf import parse_linhas_tabela_comercial, pastas_do_item, preview_catalogo_pdf
 
 _PDF_ANADEM = Path(
     "/home/luiz/.cursor/projects/home-luiz-Documentos-lwksistemas/attachments/"
@@ -37,6 +37,7 @@ class CatalogoPdfTabelaTests(SimpleTestCase):
         self.assertEqual(por_codigo["BLU26-MED-CC-300-1-PF-MEN"]["preco"], "349.00")
         self.assertEqual(por_codigo["BLU26-MED-CC-300-1-XPJ-MEN"]["preco"], "174.50")
         self.assertEqual(por_codigo["BLU26-MED-CC-300-1-PF-MEN"]["recorrencia"], "mensal")
+        self.assertEqual(pastas_do_item(por_codigo["BLU26-MED-CC-300-1-PF-MEN"]), ["MEDICINA", "TABELA BLUE"])
         self.assertIn("ACUPUNTURA", por_codigo["BLU26-MED-CC-300-1-PF-MEN"]["descricao"])
         self.assertNotIn("ANGIOLOGIA", por_codigo["BLU26-MED-CC-300-1-PF-MEN"]["descricao"])
         self.assertFalse(any("523.50" == item["preco"] for item in itens))

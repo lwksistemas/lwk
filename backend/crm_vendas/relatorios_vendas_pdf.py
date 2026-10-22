@@ -83,30 +83,19 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_
     # Calcular totais
     totais = oportunidades.aggregate(
         total_vendas=Sum("valor"),
-        total_comissoes=Sum("valor_comissao"),
         quantidade=Count("id"),
     )
 
     total_vendas = float(totais["total_vendas"] or 0)
     quantidade = totais["quantidade"] or 0
-    mapa_comissao = None
-    if comissao_somente_vendedor_id:
-        from decimal import Decimal
+    from decimal import Decimal
 
-        from .comissao_prestadora_service import partes_por_oportunidade
+    from .comissao_prestadora_service import mapa_comissao_dos_vendedores
 
-        vend = (
-            Vendedor.objects.filter(pk=comissao_somente_vendedor_id, loja_id=loja_id)
-            .prefetch_related("comissoes_categoria")
-            .first()
-        )
-        mapa_comissao = (
-            partes_por_oportunidade(oportunidades.filter(vendedor_id=comissao_somente_vendedor_id), vend)
-            if vend else {}
-        )
-        total_comissoes = float(sum(mapa_comissao.values(), Decimal("0")))
-    else:
-        total_comissoes = float(totais["total_comissoes"] or 0)
+    mapa_comissao = mapa_comissao_dos_vendedores(
+        oportunidades, somente_vendedor_id=comissao_somente_vendedor_id,
+    )
+    total_comissoes = float(sum(mapa_comissao.values(), Decimal("0")))
 
     # Resumo
     data_resumo = [
@@ -150,13 +139,8 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_
             nome = v["vendedor__nome"] or "Sem vendedor"
             qtd = v["qtd"]
             total = float(v["total"] or 0)
-            if mapa_comissao is None:
-                comissao = float(v["comissao"] or 0)
-            elif v.get("vendedor_id") == comissao_somente_vendedor_id:
-                from decimal import Decimal
-                comissao = float(sum(mapa_comissao.values(), Decimal("0")))
-            else:
-                comissao = 0.0
+            ids = oportunidades.filter(vendedor_id=v.get("vendedor_id")).values_list("id", flat=True)
+            comissao = float(sum((mapa_comissao.get(op_id, Decimal("0")) for op_id in ids), Decimal("0")))
             data_vendedores.append([
                 nome,
                 str(qtd),
@@ -225,19 +209,11 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
             | Q(empresa_prestadora_id__isnull=True),
         )
 
-    comissoes_por_id = None
-    if comissao_somente_vendedor_id:
-        from .comissao_prestadora_service import partes_por_oportunidade
+    from .comissao_prestadora_service import mapa_comissao_dos_vendedores
 
-        vend_comissao = (
-            Vendedor.objects.filter(pk=comissao_somente_vendedor_id, loja_id=loja_id)
-            .prefetch_related("comissoes_categoria")
-            .first()
-        )
-        comissoes_por_id = (
-            partes_por_oportunidade(base.filter(vendedor_id=comissao_somente_vendedor_id), vend_comissao)
-            if vend_comissao else {}
-        )
+    comissoes_por_id = mapa_comissao_dos_vendedores(
+        base, somente_vendedor_id=comissao_somente_vendedor_id,
+    )
 
     titulo = "Relatório de Vendas por Vendedor"
     is_todos = vendedor_id is None or str(vendedor_id).lower() == "todos"

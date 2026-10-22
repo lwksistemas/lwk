@@ -1,10 +1,12 @@
 """Valor pago pela prestadora e percentual do vendedor."""
 from decimal import Decimal
+from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
 from crm_vendas.comissao_prestadora_service import (
     comissao_do_vendedor,
+    mapa_comissao_dos_vendedores,
     parte_comissao_item,
     validar_comissoes_categoria,
     validar_itens_comissao,
@@ -55,3 +57,23 @@ class ComissaoPrestadoraTest(SimpleTestCase):
             {"categoria_id": 2, "tipo": "percentual", "valor": ""},
         ])
         self.assertEqual(itens, [{"categoria_id": 1, "tipo": "fixo", "valor": Decimal("50.00")}])
+
+    def test_relatorio_usa_a_comissao_do_vendedor_pedido(self):
+        class Venda:
+            def __init__(self, venda_id, vendedor_id):
+                self.id = venda_id
+                self.vendedor_id = vendedor_id
+
+        felipe = MagicMock()
+        felipe.id = 2
+        consulta = MagicMock()
+        consulta.prefetch_related.return_value = [felipe]
+        vendas = [Venda(10, 2), Venda(11, 1)]
+        with patch("crm_vendas.models.Vendedor") as modelo, patch(
+            "crm_vendas.comissao_prestadora_service.partes_por_oportunidade",
+            return_value={10: Decimal("50.00")},
+        ) as partes:
+            modelo.objects.filter.return_value = consulta
+            mapa = mapa_comissao_dos_vendedores(vendas, somente_vendedor_id=2)
+        self.assertEqual(mapa, {10: Decimal("50.00")})
+        self.assertEqual([venda.id for venda in partes.call_args.args[0]], [10])

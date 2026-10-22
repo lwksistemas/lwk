@@ -18,6 +18,21 @@ from .models import WhatsAppConfig
 logger = logging.getLogger(__name__)
 
 
+def flags_uso_whatsapp(config) -> dict:
+    """O que a equipe precisa para enviar lembrete, sem dados da conexão."""
+    return {
+        "whatsapp_ativo": bool(getattr(config, "whatsapp_ativo", False)),
+        "enviar_lembrete_24h": bool(getattr(config, "enviar_lembrete_24h", True)),
+        "enviar_lembrete_2h": bool(getattr(config, "enviar_lembrete_2h", True)),
+        "enviar_lembrete_tarefas": bool(getattr(config, "enviar_lembrete_tarefas", True)),
+        "enviar_proposta_whatsapp": bool(getattr(config, "enviar_proposta_whatsapp", True)),
+        "enviar_contrato_whatsapp": bool(getattr(config, "enviar_contrato_whatsapp", True)),
+        "enviar_termo_consentimento_whatsapp": bool(
+            getattr(config, "enviar_termo_consentimento_whatsapp", True),
+        ),
+    }
+
+
 def serialize_whatsapp_config(config, loja=None, *, sync_evolution=False):
     loja = loja or getattr(config, "_loja_cache", None) or getattr(config, "loja", None)
     owner_telefone = (getattr(loja, "owner_telefone", None) or "").strip() if loja else ""

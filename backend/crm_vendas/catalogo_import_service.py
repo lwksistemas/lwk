@@ -1,10 +1,10 @@
-"""Grava o catálogo lido do PDF na categoria escolhida de produtos e serviços."""
+"""Grava o catálogo lido do PDF no cadastro da prestadora."""
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 
 from .catalogo_pdf import CatalogoPdfError
-from .models import CategoriaProdutoServico, ProdutoServico
+from .models import CategoriaProdutoServico, Conta, ProdutoServico
 
 _RECORRENCIAS = {codigo for codigo, _rotulo in ProdutoServico.RECORRENCIA_CHOICES}
 _TIPOS = {codigo for codigo, _rotulo in ProdutoServico.TIPO_CHOICES}
@@ -39,10 +39,21 @@ def _item_normalizado(bruto: dict) -> dict:
     }
 
 
-def importar_catalogo_na_categoria(loja_id: int, categoria_id: int, itens: list, substituir: bool = False) -> dict:
-    categoria = CategoriaProdutoServico.objects.filter(pk=categoria_id, loja_id=loja_id).first()
-    if categoria is None:
-        raise CatalogoPdfError("Escolha uma categoria de produtos e serviços desta loja.")
+def importar_catalogo_na_categoria(
+    loja_id: int,
+    itens: list,
+    prestadora_id: int,
+    categoria_id: int | None = None,
+    substituir: bool = False,
+) -> dict:
+    prestadora = Conta.objects.filter(pk=prestadora_id, loja_id=loja_id).first()
+    if prestadora is None or prestadora.tipo not in ("prestadora", "ambos"):
+        raise CatalogoPdfError("Escolha a prestadora dona deste catálogo.")
+    categoria = None
+    if categoria_id:
+        categoria = CategoriaProdutoServico.objects.filter(pk=categoria_id, loja_id=loja_id).first()
+        if categoria is None:
+            raise CatalogoPdfError("A categoria escolhida não é desta loja.")
     if not itens:
         raise CatalogoPdfError("Nenhum item para importar.")
     if len(itens) > 2000:
@@ -54,15 +65,20 @@ def importar_catalogo_na_categoria(loja_id: int, categoria_id: int, itens: list,
         if substituir:
             codigos = {item["codigo"] for item in normalizados}
             (
-                ProdutoServico.objects.filter(loja_id=loja_id, categoria_id=categoria.id)
+                ProdutoServico.objects.filter(loja_id=loja_id, prestadora_id=prestadora.id)
                 .exclude(codigo__in=codigos)
                 .update(ativo=False)
             )
         for item in normalizados:
-            existente = ProdutoServico.objects.filter(loja_id=loja_id, codigo=item["codigo"]).first()
+            existente = ProdutoServico.objects.filter(
+                loja_id=loja_id,
+                prestadora_id=prestadora.id,
+                codigo=item["codigo"],
+            ).first()
             if existente is None:
                 ProdutoServico.objects.create(
                     loja_id=loja_id,
+                    prestadora=prestadora,
                     categoria=categoria,
                     ativo=True,
                     **item,
@@ -74,7 +90,9 @@ def importar_catalogo_na_categoria(loja_id: int, categoria_id: int, itens: list,
             existente.preco = item["preco"]
             existente.recorrencia = item["recorrencia"]
             existente.tipo = item["tipo"]
-            existente.categoria = categoria
+            if categoria is not None:
+                existente.categoria = categoria
+            existente.prestadora = prestadora
             existente.ativo = True
             existente.save()
             atualizados += 1
@@ -82,6 +100,8 @@ def importar_catalogo_na_categoria(loja_id: int, categoria_id: int, itens: list,
         "criados": criados,
         "atualizados": atualizados,
         "total": criados + atualizados,
-        "categoria_id": categoria.id,
-        "categoria_nome": categoria.nome,
+        "prestadora_id": prestadora.id,
+        "prestadora_nome": prestadora.nome or prestadora.razao_social,
+        "categoria_id": categoria.id if categoria else None,
+        "categoria_nome": categoria.nome if categoria else "",
     }

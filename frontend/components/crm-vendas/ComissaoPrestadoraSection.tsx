@@ -33,9 +33,11 @@ function moeda(valor: string) {
 }
 
 export function ComissaoPrestadoraSection({
+  prestadoraId,
   valores,
   onChange,
 }: {
+  prestadoraId?: number | null;
   valores: ComissaoPrestadoraItem[];
   onChange: (itens: ComissaoPrestadoraItem[]) => void;
 }) {
@@ -47,12 +49,15 @@ export function ComissaoPrestadoraSection({
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!aberto) return;
+    if (!aberto || !prestadoraId) return;
     let cancelado = false;
     setCarregando(true);
     Promise.all([
       fetchAllPaginatedResults<CategoriaOpcao>('/crm-vendas/categorias-produtos-servicos/', { ativo: 'true' }),
-      fetchAllPaginatedResults<ServicoOpcao>('/crm-vendas/produtos-servicos/', { ativo: 'true' }),
+      fetchAllPaginatedResults<ServicoOpcao>('/crm-vendas/produtos-servicos/', {
+        ativo: 'true',
+        prestadora: prestadoraId,
+      }),
     ])
       .then(([cats, itens]) => {
         if (cancelado) return;
@@ -69,7 +74,7 @@ export function ComissaoPrestadoraSection({
     return () => {
       cancelado = true;
     };
-  }, [aberto]);
+  }, [aberto, prestadoraId]);
 
   const daCategoria = useMemo(() => {
     if (categoriaId === 'sem') return servicos.filter((item) => !item.categoria);
@@ -116,15 +121,18 @@ export function ComissaoPrestadoraSection({
         Escolha a categoria e informe o valor que esta prestadora paga em cada serviço.
         Deixe em branco o serviço que ela não paga. O vendedor recebe o percentual do cadastro de funcionário sobre esse valor.
       </p>
+      {!prestadoraId && (
+        <p className="text-sm text-gray-500">Salve a empresa e importe o catálogo para configurar os valores.</p>
+      )}
       {carregando && <p className="text-sm text-gray-500">Carregando categorias...</p>}
       {erro && <p className="text-sm text-red-600">{erro}</p>}
-      {!carregando && !erro && categorias.length === 0 && !temSemCategoria && (
-        <p className="text-sm text-gray-500">Cadastre categorias e serviços em Produtos e serviços para configurar o valor.</p>
+      {prestadoraId && !carregando && !erro && servicos.length === 0 && (
+        <p className="text-sm text-gray-500">Esta empresa ainda não tem serviços. Importe o PDF do catálogo neste cadastro.</p>
       )}
-      {!carregando && !erro && (categorias.length > 0 || temSemCategoria) && (
+      {!carregando && !erro && servicos.length > 0 && (
         <>
           <div className="flex flex-wrap gap-2">
-            {categorias.map((categoria) => {
+            {categorias.filter((categoria) => servicos.some((item) => item.categoria === categoria.id)).map((categoria) => {
               const ativa = categoriaId === categoria.id;
               const qtd = quantidadeNaCategoria(categoria.id);
               return (

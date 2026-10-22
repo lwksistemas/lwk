@@ -20,6 +20,7 @@ interface Props {
   ) => void;
   onRemoveItem: (idx: number) => void;
   onAddProduto: (produto: CrmOportunidadeProdutoOption) => void;
+  empresaSelecionada?: boolean;
   layout?: 'modal' | 'page';
   showHeader?: boolean;
 }
@@ -33,6 +34,7 @@ export default function OportunidadeItensEditor({
   onUpdateItem,
   onRemoveItem,
   onAddProduto,
+  empresaSelecionada = false,
   layout = 'modal',
   showHeader = true,
 }: Props) {
@@ -71,7 +73,7 @@ export default function OportunidadeItensEditor({
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
                 {ps?.codigo ? <span className="text-gray-400">[{ps.codigo}] </span> : null}
-                {ps?.nome || 'Produto'}
+                {ps?.nome || item.nome || 'Produto'}
               </p>
               {ps?.categoria_nome && (
                 <p className={`text-[10px] text-gray-500 ${isPage ? 'dark:text-gray-400' : ''}`}>{ps.categoria_nome}</p>
@@ -137,11 +139,9 @@ export default function OportunidadeItensEditor({
       )}
       {produtos.length === 0 && (
         <p className="text-xs text-amber-600 dark:text-amber-400">
-          Cadastre produtos/serviços em{' '}
-          <Link href={`/loja/${slug}/crm-vendas/produtos-servicos`} className="underline font-medium">
-            Produtos e Serviços
-          </Link>
-          .
+          {empresaSelecionada
+            ? 'Esta empresa ainda não tem produtos ou serviços. Importe o PDF no cadastro dela.'
+            : 'Selecione a empresa prestadora para ver só os serviços dela.'}
         </p>
       )}
     </div>

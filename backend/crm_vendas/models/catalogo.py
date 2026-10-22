@@ -56,6 +56,14 @@ class ProdutoServico(LojaIsolationMixin, models.Model):
         related_name="produtos_servicos",
         help_text="Categoria/Grupo do produto ou serviço",
     )
+    prestadora = models.ForeignKey(
+        "Conta",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="produtos_servicos",
+        help_text="Prestadora dona deste item. A oportunidade lista só o catálogo desta empresa.",
+    )
     preco = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     RECORRENCIA_CHOICES = [
         ("unico", "Único (adesão/implantação)"),
@@ -84,13 +92,26 @@ class ProdutoServico(LojaIsolationMixin, models.Model):
             models.Index(fields=["loja_id", "ativo"], name="crm_ps_loja_ativo_idx"),
             models.Index(fields=["loja_id", "categoria"], name="crm_ps_loja_cat_idx"),
             models.Index(fields=["loja_id", "codigo"], name="crm_ps_loja_codigo_idx"),
+            models.Index(fields=["loja_id", "prestadora"], name="crm_ps_loja_prest_idx"),
         ]
-        # Garantir que o código seja único dentro da loja
         constraints = [
             models.UniqueConstraint(
                 fields=["loja_id", "codigo"],
-                name="crm_ps_unique_codigo_loja",
-                condition=models.Q(codigo__isnull=False) & ~models.Q(codigo=""),
+                name="crm_ps_unique_codigo_sem_prestadora",
+                condition=(
+                    models.Q(prestadora__isnull=True)
+                    & models.Q(codigo__isnull=False)
+                    & ~models.Q(codigo="")
+                ),
+            ),
+            models.UniqueConstraint(
+                fields=["loja_id", "prestadora", "codigo"],
+                name="crm_ps_unique_codigo_prestadora",
+                condition=(
+                    models.Q(prestadora__isnull=False)
+                    & models.Q(codigo__isnull=False)
+                    & ~models.Q(codigo="")
+                ),
             ),
         ]
 

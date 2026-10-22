@@ -85,17 +85,6 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
     resetForm();
 
     const loads: Promise<void>[] = [
-      fetchAllPaginatedResults<CrmOportunidadeProdutoOption>(
-        '/crm-vendas/produtos-servicos/',
-        { ativo: 'true' },
-        200,
-      )
-        .then((lista) => {
-          if (!cancelled) setProdutosServicos(lista);
-        })
-        .catch(() => {
-          if (!cancelled) setProdutosServicos([]);
-        }),
       apiClient
         .get<CrmOportunidadeContaOption[] | { results: CrmOportunidadeContaOption[] }>(
           '/crm-vendas/contas/?tipo=prestadora',
@@ -140,6 +129,39 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
       cancelled = true;
     };
   }, [enabled, initialLeadId, resetForm]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const prestadoraId = form.empresa_prestadora_id;
+    if (!prestadoraId) {
+      setProdutosServicos([]);
+      return;
+    }
+    let cancelled = false;
+    fetchAllPaginatedResults<CrmOportunidadeProdutoOption>(
+      '/crm-vendas/produtos-servicos/',
+      { ativo: 'true', prestadora: prestadoraId },
+      200,
+    )
+      .then((lista) => {
+        if (cancelled) return;
+        setProdutosServicos(lista);
+        setForm((atual) => {
+          if (atual.empresa_prestadora_id !== prestadoraId) return atual;
+          const ids = new Set(lista.map((item) => item.id));
+          const itens = atual.itens.filter((item) => ids.has(item.produto_servico_id));
+          if (itens.length === atual.itens.length) return atual;
+          const total = calcularTotalOportunidadeItens(itens);
+          return { ...atual, itens, valor: itens.length > 0 ? String(total.toFixed(2)) : '0' };
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setProdutosServicos([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, form.empresa_prestadora_id]);
 
   const updateItem = useCallback(
     (idx: number, field: 'produto_servico_id' | 'quantidade' | 'preco_unitario', value: string | number) => {

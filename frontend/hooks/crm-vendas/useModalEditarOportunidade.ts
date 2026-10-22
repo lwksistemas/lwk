@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { fetchAllPaginatedResults, normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
 import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
@@ -31,6 +31,7 @@ interface ContaPrestadoraOption {
 interface OportunidadeItemApi {
   id: number;
   produto_servico: number;
+  produto_servico_nome?: string;
   quantidade: number;
   preco_unitario: number;
 }
@@ -71,6 +72,7 @@ export function useModalEditarOportunidade(
           itens.map((item) => ({
             id: item.id,
             produto_servico_id: item.produto_servico,
+            nome: item.produto_servico_nome || '',
             quantidade: String(item.quantidade),
             preco_unitario: String(item.preco_unitario),
           })),
@@ -78,15 +80,40 @@ export function useModalEditarOportunidade(
       })
       .catch(() => setItensEditar([]));
 
-    fetchAllPaginatedResults<ProdutoServicoOption>('/crm-vendas/produtos-servicos/', { ativo: 'true' }, 200)
-      .then((lista) => setProdutosServicos(lista))
-      .catch(() => setProdutosServicos([]));
-
     apiClient
       .get<ContaPrestadoraOption[] | { results: ContaPrestadoraOption[] }>('/crm-vendas/contas/?tipo=prestadora')
       .then((res) => setPrestadoras(normalizeListResponse(res.data)))
       .catch(() => setPrestadoras([]));
   }, [oportunidade.id]);
+
+  const prestadoraInicial = useRef(true);
+  useEffect(() => {
+    if (!empresaPrestadoraId) {
+      setProdutosServicos([]);
+      return;
+    }
+    let cancelado = false;
+    fetchAllPaginatedResults<ProdutoServicoOption>(
+      '/crm-vendas/produtos-servicos/',
+      { ativo: 'true', prestadora: empresaPrestadoraId },
+      200,
+    )
+      .then((lista) => {
+        if (cancelado) return;
+        setProdutosServicos(lista);
+        if (!prestadoraInicial.current) {
+          const ids = new Set(lista.map((item) => item.id));
+          setItensEditar((atual) => atual.filter((item) => ids.has(item.produto_servico_id)));
+        }
+        prestadoraInicial.current = false;
+      })
+      .catch(() => {
+        if (!cancelado) setProdutosServicos([]);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [empresaPrestadoraId]);
 
   useEffect(() => {
     const isClosedWon = oportunidade.etapa === 'closed_won' || etapaSelecionada === 'closed_won';

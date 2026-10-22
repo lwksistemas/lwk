@@ -121,8 +121,26 @@ def _calcular_performance_vendedores(vendedores_qs, opp_qs, data_inicio, data_fi
     filtro_mes = _filtro_fechamento_no_periodo(data_inicio, data_fim)
     comissao_total_mes = opp_qs.filter(etapa="closed_won").filter(filtro_mes).aggregate(total=Sum("valor_comissao"))["total"] or 0
     _merge_vendas_sem_vendedor(performance, opp_qs, filtro_mes, loja_id)
+    _aplicar_comissao_do_cadastro(performance, vendedores_qs, opp_qs, filtro_mes)
     performance.sort(key=lambda x: -x["receita_mes"])
     return performance, comissao_total_mes
+
+
+def _aplicar_comissao_do_cadastro(performance, vendedores_qs, opp_qs, filtro_mes):
+    """A comissão de cada vendedor segue a regra do cadastro, não o valor pago pela prestadora."""
+    if not performance:
+        return
+    from .comissao_prestadora_service import comissao_exibida_vendedor
+
+    ganhos = opp_qs.filter(etapa="closed_won").filter(filtro_mes)
+    por_id = {vendedor.id: vendedor for vendedor in vendedores_qs.prefetch_related("comissoes_categoria")}
+    for row in performance:
+        vendedor = por_id.get(row["id"])
+        if vendedor is None:
+            continue
+        row["comissao_mes"] = float(
+            comissao_exibida_vendedor(ganhos.filter(vendedor_id=vendedor.id), vendedor)
+        )
 
 
 def _calcular_agregacoes_opp(opp_qs, filtro_opp_mes, filtro_abertas_periodo, data_inicio, data_fim):

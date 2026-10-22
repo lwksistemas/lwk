@@ -1,5 +1,6 @@
 """Testes do filtro de período no dashboard CRM."""
 from datetime import date
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
@@ -149,3 +150,27 @@ class TestDashboardPipelinePeriodo(TestCase):
 
         self.assertEqual(out["pipeline_aberto"], 31300)
         self.assertGreater(out["pipeline_por_etapa"][0]["quantidade"], 0)
+
+
+class TestComissaoDoVendedorNoRanking(TestCase):
+    def test_ranking_usa_a_regra_do_cadastro(self):
+        from crm_vendas.services_dashboard import _aplicar_comissao_do_cadastro
+
+        felipe = MagicMock()
+        felipe.id = 2
+        vendedores = MagicMock()
+        vendedores.prefetch_related.return_value = [felipe]
+        ganhos = MagicMock()
+        opp_qs = MagicMock()
+        opp_qs.filter.return_value.filter.return_value = ganhos
+        ganhos.filter.return_value = ganhos
+        performance = [{"id": 2, "nome": "FELIPE COSTA FELIX", "receita_mes": 477, "comissao_mes": 375}]
+
+        with patch(
+            "crm_vendas.comissao_prestadora_service.comissao_exibida_vendedor",
+            return_value=Decimal("50.00"),
+        ) as calcular:
+            _aplicar_comissao_do_cadastro(performance, vendedores, opp_qs, MagicMock())
+
+        calcular.assert_called_once()
+        self.assertEqual(performance[0]["comissao_mes"], 50.0)

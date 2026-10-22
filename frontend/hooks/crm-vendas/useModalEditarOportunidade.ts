@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
+import { fetchAllPaginatedResults, normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
 import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import { useToast } from '@/components/ui/Toast';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
@@ -78,9 +78,8 @@ export function useModalEditarOportunidade(
       })
       .catch(() => setItensEditar([]));
 
-    apiClient
-      .get<ProdutoServicoOption[] | { results: ProdutoServicoOption[] }>('/crm-vendas/produtos-servicos/?ativo=true')
-      .then((res) => setProdutosServicos(normalizeListResponse(res.data)))
+    fetchAllPaginatedResults<ProdutoServicoOption>('/crm-vendas/produtos-servicos/', { ativo: 'true' }, 200)
+      .then((lista) => setProdutosServicos(lista))
       .catch(() => setProdutosServicos([]));
 
     apiClient

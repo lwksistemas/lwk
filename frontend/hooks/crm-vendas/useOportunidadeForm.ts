@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
-import { gerarTituloOportunidade, getCrmApiErrorDetail, normalizeListResponse } from '@/lib/crm-utils';
+import { fetchAllPaginatedResults, gerarTituloOportunidade, getCrmApiErrorDetail, normalizeListResponse } from '@/lib/crm-utils';
 import type { CrmLeadBuscaItem } from '@/components/crm-vendas/BuscarLeadInput';
 import {
   CRM_OPORTUNIDADE_FORM_INICIAL,
@@ -85,12 +85,13 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
     resetForm();
 
     const loads: Promise<void>[] = [
-      apiClient
-        .get<CrmOportunidadeProdutoOption[] | { results: CrmOportunidadeProdutoOption[] }>(
-          '/crm-vendas/produtos-servicos/?ativo=true',
-        )
-        .then((res) => {
-          if (!cancelled) setProdutosServicos(normalizeListResponse(res.data));
+      fetchAllPaginatedResults<CrmOportunidadeProdutoOption>(
+        '/crm-vendas/produtos-servicos/',
+        { ativo: 'true' },
+        200,
+      )
+        .then((lista) => {
+          if (!cancelled) setProdutosServicos(lista);
         })
         .catch(() => {
           if (!cancelled) setProdutosServicos([]);

@@ -56,6 +56,7 @@ export function useCrmProdutosServicosPage() {
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [modalCategoriasAberto, setModalCategoriasAberto] = useState(false);
+  const [modalImportarPdf, setModalImportarPdf] = useState(false);
   const [countSemCategoria, setCountSemCategoria] = useState<number | null>(null);
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
@@ -206,6 +207,14 @@ export function useCrmProdutosServicosPage() {
     setViewMode('lista');
   };
 
+  const aposImportarPdf = async (categoriaId: number) => {
+    setFiltroCategoria(String(categoriaId));
+    setFiltroTipo('');
+    setViewMode('lista');
+    await loadCategorias();
+    await loadItens({ categoria: String(categoriaId) });
+  };
+
   const voltarCategorias = () => {
     setViewMode('categorias');
     setFiltroCategoria('');
@@ -236,6 +245,9 @@ export function useCrmProdutosServicosPage() {
     submitting,
     modalCategoriasAberto,
     setModalCategoriasAberto,
+    modalImportarPdf,
+    setModalImportarPdf,
+    aposImportarPdf,
     openModal,
     closeModal,
     handleFormChange,

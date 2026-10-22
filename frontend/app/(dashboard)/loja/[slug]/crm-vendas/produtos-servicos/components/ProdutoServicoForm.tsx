@@ -3,6 +3,10 @@
  *
  * Layout em paisagem (grade 2 colunas) no modal create/edit.
  */
+'use client';
+
+import { useEffect, useState } from 'react';
+import apiClient from '@/lib/api-client';
 import { FormData, Categoria } from '@/hooks/useProdutosServicos';
 import { toUpperCase } from '@/lib/format-br';
 
@@ -28,6 +32,27 @@ export function ProdutoServicoForm({
   onSubmit,
   onCancel,
 }: ProdutoServicoFormProps) {
+  const [prestadoras, setPrestadoras] = useState<{ id: number; nome: string }[]>([]);
+
+  useEffect(() => {
+    let cancelado = false;
+    apiClient
+      .get<{ id: number; nome: string }[] | { results: { id: number; nome: string }[] }>(
+        '/crm-vendas/contas/?tipo=prestadora&page_size=200',
+      )
+      .then((res) => {
+        if (cancelado) return;
+        const data = res.data;
+        setPrestadoras(Array.isArray(data) ? data : data.results || []);
+      })
+      .catch(() => {
+        if (!cancelado) setPrestadoras([]);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -43,6 +68,27 @@ export function ProdutoServicoForm({
             <option value="produto">Produto</option>
             <option value="servico">Serviço</option>
           </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Prestadora
+          </label>
+          <select
+            value={formData.prestadora || ''}
+            onChange={(e) => onChange({ prestadora: e.target.value ? parseInt(e.target.value, 10) : null })}
+            className={inputClass}
+          >
+            <option value="">Sem empresa</option>
+            {prestadoras.map((empresa) => (
+              <option key={empresa.id} value={empresa.id}>
+                {empresa.nome}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            A oportunidade mostra só os itens da empresa escolhida.
+          </p>
         </div>
 
         <div>

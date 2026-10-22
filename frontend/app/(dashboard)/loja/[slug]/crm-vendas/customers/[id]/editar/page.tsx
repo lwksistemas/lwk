@@ -208,6 +208,7 @@ export default function EditarContaPage() {
       onConsultarCEP={consultarCEP}
       onSave={handleSave}
       onCancel={() => router.push(listPath)}
+      contaId={id}
     />
   );
 }

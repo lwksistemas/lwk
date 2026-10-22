@@ -146,6 +146,7 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
             onSeletorAbertoChange={setSeletorEditarAberto}
             onUpdateItem={updateItemEditar}
             onRemoveItem={removeItemEditar}
+            empresaSelecionada={Boolean(empresaPrestadoraId)}
             onAddProduto={(ps) => {
               setItensEditar((itens) => [
                 ...itens,

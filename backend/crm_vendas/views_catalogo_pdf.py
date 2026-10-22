@@ -43,7 +43,7 @@ class CatalogoPdfPreviewView(APIView):
 
 
 class CatalogoPdfImportarView(APIView):
-    """POST /crm-vendas/produtos-servicos/importar-pdf/confirmar/ — grava na categoria."""
+    """POST /crm-vendas/produtos-servicos/importar-pdf/confirmar/ — grava no catálogo da prestadora."""
 
     permission_classes = [IsAuthenticated]
 
@@ -56,14 +56,23 @@ class CatalogoPdfImportarView(APIView):
             return Response({"detail": "Loja não identificada."}, status=400)
         substituir = request.data.get("substituir") in (True, "true", "True", "1", 1)
         try:
-            categoria_id = int(request.data.get("categoria_id"))
+            prestadora_id = int(request.data.get("prestadora_id"))
         except (TypeError, ValueError):
-            return Response({"detail": "Escolha a categoria em que a lista será salva."}, status=400)
+            return Response({"detail": "Escolha a prestadora dona deste catálogo."}, status=400)
+        categoria_id = request.data.get("categoria_id") or None
+        if categoria_id not in (None, ""):
+            try:
+                categoria_id = int(categoria_id)
+            except (TypeError, ValueError):
+                return Response({"detail": "Categoria inválida."}, status=400)
+        else:
+            categoria_id = None
         try:
             resultado = importar_catalogo_na_categoria(
                 loja_id,
-                categoria_id,
                 request.data.get("itens") or [],
+                prestadora_id,
+                categoria_id=categoria_id,
                 substituir=substituir,
             )
         except CatalogoPdfError as exc:

@@ -223,6 +223,7 @@ def apply_crm_tenant_schema_patches(db_name: str) -> None:
     patch_crm_comissao_prestadora_if_missing(db_name)
     patch_crm_comissao_vendedor_categoria_if_missing(db_name)
     patch_crm_conta_logo_if_missing(db_name)
+    patch_crm_produto_prestadora_if_missing(db_name)
 
 
 def patch_crm_comissao_prestadora_if_missing(db_name: str) -> bool:
@@ -306,6 +307,81 @@ def patch_crm_conta_logo_if_missing(db_name: str) -> bool:
             WHERE NOT EXISTS (
                 SELECT 1 FROM django_migrations
                 WHERE app = 'crm_vendas' AND name = '0082_conta_logo'
+            )
+            """,
+        )
+    return True
+
+
+def patch_crm_produto_prestadora_if_missing(db_name: str) -> bool:
+    """Liga o produto à prestadora (migration 0083). O código pode repetir entre empresas."""
+    from core.db_config import ensure_loja_database_config
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        return False
+
+    schema_name = db_name.replace("-", "_")
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
+        cursor.execute(
+            """
+            ALTER TABLE crm_vendas_produto_servico
+            ADD COLUMN IF NOT EXISTS prestadora_id bigint NULL
+            """,
+        )
+        cursor.execute(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'crm_vendas_produto_servico_prestadora_id_fkey'
+                ) AND NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'crm_ps_prestadora_fk'
+                ) THEN
+                    ALTER TABLE crm_vendas_produto_servico
+                    ADD CONSTRAINT crm_ps_prestadora_fk
+                    FOREIGN KEY (prestadora_id)
+                    REFERENCES crm_vendas_conta(id) ON DELETE CASCADE;
+                END IF;
+            END $$;
+            """,
+        )
+        cursor.execute(
+            """
+            ALTER TABLE crm_vendas_produto_servico
+            DROP CONSTRAINT IF EXISTS crm_ps_unique_codigo_loja
+            """,
+        )
+        cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS crm_ps_unique_codigo_sem_prestadora
+            ON crm_vendas_produto_servico (loja_id, codigo)
+            WHERE prestadora_id IS NULL AND codigo IS NOT NULL AND codigo <> ''
+            """,
+        )
+        cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS crm_ps_unique_codigo_prestadora
+            ON crm_vendas_produto_servico (loja_id, prestadora_id, codigo)
+            WHERE prestadora_id IS NOT NULL AND codigo IS NOT NULL AND codigo <> ''
+            """,
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS crm_ps_loja_prest_idx
+            ON crm_vendas_produto_servico (loja_id, prestadora_id)
+            """,
+        )
+        cursor.execute(
+            """
+            INSERT INTO django_migrations (app, name, applied)
+            SELECT 'crm_vendas', '0083_produto_prestadora', NOW()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM django_migrations
+                WHERE app = 'crm_vendas' AND name = '0083_produto_prestadora'
             )
             """,
         )

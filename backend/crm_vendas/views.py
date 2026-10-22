@@ -43,7 +43,7 @@ class CategoriaProdutoServicoViewSet(CRMSchemaRecoveryMixin, LojaScopedCatalogMi
 class ProdutoServicoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, LojaScopedCatalogMixin, BaseModelViewSet):
     """CRUD de produtos e serviços para uso em oportunidades."""
 
-    queryset = ProdutoServico.objects.select_related("loja", "categoria").all()
+    queryset = ProdutoServico.objects.select_related("loja", "categoria", "prestadora").all()
     serializer_class = ProdutoServicoSerializer
     pagination_class = CRMPagination
     loja_catalog_model = ProdutoServico
@@ -53,7 +53,7 @@ class ProdutoServicoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, 
     def get_queryset(self):
         qs = self.get_loja_catalog_base_qs()
         qs = filtrar_ativo_query_param(qs, self.request)
-        qs = filtrar_queryset_por_query_params(qs, self.request, {"tipo": "tipo"})
+        qs = filtrar_queryset_por_query_params(qs, self.request, {"tipo": "tipo", "prestadora": "prestadora_id"})
         sem_cat = self.request.query_params.get("sem_categoria")
         if sem_cat and str(sem_cat).lower() in ("1", "true", "yes"):
             return qs.filter(categoria__isnull=True)

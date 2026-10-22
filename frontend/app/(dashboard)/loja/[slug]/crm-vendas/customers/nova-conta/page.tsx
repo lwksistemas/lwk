@@ -7,6 +7,7 @@ import { consultaCep } from '@/lib/consulta-cep';
 import { consultaCnpj } from '@/lib/consulta-cnpj';
 import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
 import { ContaCadastroForm, type ContaFormData } from '@/components/crm-vendas/ContaCadastroForm';
+import type { CatalogoPdfItem } from '@/components/crm-vendas/CatalogoPdfImportModal';
 
 const EMPTY_FORM: ContaFormData = {
   nome: '',
@@ -41,6 +42,7 @@ export default function NovaContaPage() {
   const [formErro, setFormErro] = useState<string | null>(null);
   const [consultingCNPJ, setConsultingCNPJ] = useState(false);
   const [consultingCEP, setConsultingCEP] = useState(false);
+  const [catalogoPendente, setCatalogoPendente] = useState<CatalogoPdfItem[]>([]);
 
   const consultarCNPJ = async () => {
     const cnpj = formData.cnpj.replace(/\D/g, '');
@@ -105,13 +107,29 @@ export default function NovaContaPage() {
     }
     setSaving(true);
     try {
-      await apiClient.post(
+      const resposta = await apiClient.post<{ id: number }>(
         '/crm-vendas/contas/',
         applyTelefoneInternacionalPayload({
           ...formData,
           comissoes: formData.tipo === 'cliente' ? [] : formData.comissoes,
         }),
       );
+      if (
+        catalogoPendente.length > 0
+        && (formData.tipo === 'prestadora' || formData.tipo === 'ambos')
+      ) {
+        try {
+          await apiClient.post('/crm-vendas/produtos-servicos/importar-pdf/confirmar/', {
+            prestadora_id: resposta.data.id,
+            itens: catalogoPendente,
+            substituir: false,
+          });
+        } catch {
+          setFormErro('A empresa foi salva, mas o catálogo não entrou. Abra a edição e importe de novo.');
+          router.push(`/loja/${slug}/crm-vendas/customers/${resposta.data.id}/editar`);
+          return;
+        }
+      }
       router.push(listPath);
     } catch (err: unknown) {
       const resData = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
@@ -153,6 +171,8 @@ export default function NovaContaPage() {
       onConsultarCEP={consultarCEP}
       onSave={handleSave}
       onCancel={() => router.push(listPath)}
+      catalogoPendente={catalogoPendente}
+      onCatalogoPendente={setCatalogoPendente}
     />
   );
 }

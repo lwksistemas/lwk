@@ -1,12 +1,12 @@
 'use client';
 
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useState } from 'react';
 import { CrmFormPageShell } from '@/components/crm-vendas/CrmFormPageShell';
 import {
   ComissaoPrestadoraSection,
   type ComissaoPrestadoraItem,
 } from '@/components/crm-vendas/ComissaoPrestadoraSection';
+import { CatalogoPdfImportModal, type CatalogoPdfItem } from '@/components/crm-vendas/CatalogoPdfImportModal';
 import { ImageUploadMedia } from '@/components/ImageUploadMedia';
 import { formatCep, formatCpfCnpj, formatTelefone, toUpperCase } from '@/lib/format-br';
 
@@ -50,6 +50,9 @@ interface ContaCadastroFormProps {
   onConsultarCEP: () => void;
   onSave: () => void;
   onCancel: () => void;
+  contaId?: number | null;
+  catalogoPendente?: CatalogoPdfItem[];
+  onCatalogoPendente?: (itens: CatalogoPdfItem[]) => void;
 }
 
 export function ContaCadastroForm({
@@ -64,9 +67,11 @@ export function ContaCadastroForm({
   onConsultarCEP,
   onSave,
   onCancel,
+  contaId = null,
+  catalogoPendente = [],
+  onCatalogoPendente,
 }: ContaCadastroFormProps) {
-  const params = useParams<{ slug?: string }>();
-  const slug = params?.slug || '';
+  const [importarAberto, setImportarAberto] = useState(false);
   const set = (field: Exclude<keyof ContaFormData, 'comissoes'>, value: string) =>
     onChange({ ...formData, [field]: value });
   const setUpper = (field: Exclude<keyof ContaFormData, 'comissoes'>, value: string) =>
@@ -177,13 +182,17 @@ export function ContaCadastroForm({
                 folder="fotos"
                 description="Esta imagem sai na proposta e no contrato, ao lado da logo da loja."
               />
-              {slug && (
-                <Link
-                  href={`/loja/${slug}/crm-vendas/produtos-servicos`}
-                  className="inline-block text-sm text-[#0176d3] hover:underline"
-                >
-                  Importar a tabela de preços (PDF) em Produtos e serviços
-                </Link>
+              <button
+                type="button"
+                onClick={() => setImportarAberto(true)}
+                className="text-sm text-[#0176d3] hover:underline"
+              >
+                Importar PDF do catálogo desta prestadora
+              </button>
+              {catalogoPendente.length > 0 && !contaId && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {catalogoPendente.length} serviços entram nesta empresa ao salvar.
+                </p>
               )}
             </section>
           )}
@@ -329,11 +338,22 @@ export function ContaCadastroForm({
         </div>
         {(formData.tipo === 'prestadora' || formData.tipo === 'ambos') && (
           <ComissaoPrestadoraSection
+            prestadoraId={contaId}
             valores={formData.comissoes}
             onChange={(comissoes) => onChange({ ...formData, comissoes })}
           />
         )}
       </div>
+      {importarAberto && (formData.tipo === 'prestadora' || formData.tipo === 'ambos') && (
+        <CatalogoPdfImportModal
+          categorias={[]}
+          prestadoraId={contaId}
+          rascunho={!contaId}
+          onRascunho={(itens) => onCatalogoPendente?.(itens)}
+          onClose={() => setImportarAberto(false)}
+          onImported={() => undefined}
+        />
+      )}
     </CrmFormPageShell>
   );
 }

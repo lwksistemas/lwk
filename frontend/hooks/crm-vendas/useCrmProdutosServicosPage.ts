@@ -19,6 +19,7 @@ const EMPTY_FORM: FormData = {
   nome: '',
   descricao: '',
   categoria: null,
+  prestadora: null,
   preco: '0',
   recorrencia: 'unico',
   ativo: true,
@@ -122,6 +123,7 @@ export function useCrmProdutosServicosPage() {
         nome: item.nome || '',
         descricao: item.descricao || '',
         categoria: item.categoria || null,
+        prestadora: item.prestadora || null,
         preco: item.preco || '0',
         recorrencia: item.recorrencia || 'unico',
         ativo: item.ativo ?? true,
@@ -208,11 +210,15 @@ export function useCrmProdutosServicosPage() {
   };
 
   const aposImportarPdf = async (categoriaId: number) => {
-    setFiltroCategoria(String(categoriaId));
-    setFiltroTipo('');
-    setViewMode('lista');
     await loadCategorias();
-    await loadItens({ categoria: String(categoriaId) });
+    if (categoriaId) {
+      setFiltroCategoria(String(categoriaId));
+      setFiltroTipo('');
+      setViewMode('lista');
+      await loadItens({ categoria: String(categoriaId) });
+      return;
+    }
+    if (viewMode === 'lista') await loadItens(buildFiltrosLista());
   };
 
   const voltarCategorias = () => {

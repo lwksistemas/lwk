@@ -3,6 +3,7 @@ import type { CrmOportunidadeProdutoOption } from '@/lib/crm-oportunidade-form-t
 export interface OportunidadeItemRow {
   id?: number;
   produto_servico_id: number;
+  nome?: string;
   quantidade: string;
   preco_unitario: string;
 }

@@ -5,6 +5,7 @@ import {
   ComissaoPrestadoraSection,
   type ComissaoPrestadoraItem,
 } from '@/components/crm-vendas/ComissaoPrestadoraSection';
+import { ImageUploadMedia } from '@/components/ImageUploadMedia';
 import { formatCep, formatCpfCnpj, formatTelefone, toUpperCase } from '@/lib/format-br';
 
 export interface ContaFormData {
@@ -25,6 +26,7 @@ export interface ContaFormData {
   cidade: string;
   uf: string;
   observacoes: string;
+  logo: string;
   comissoes: ComissaoPrestadoraItem[];
 }
 
@@ -161,6 +163,18 @@ export function ContaCadastroForm({
               </div>
             </div>
           </section>
+          {(formData.tipo === 'prestadora' || formData.tipo === 'ambos') && (
+            <section className="space-y-3">
+              <h3 className={sectionTitleClass}>Logomarca da prestadora</h3>
+              <ImageUploadMedia
+                value={formData.logo}
+                onChange={(url) => onChange({ ...formData, logo: url })}
+                label=""
+                folder="fotos"
+                description="Esta imagem sai na proposta e no contrato, ao lado da logo da loja."
+              />
+            </section>
+          )}
         </div>
 
         <div className="space-y-6">

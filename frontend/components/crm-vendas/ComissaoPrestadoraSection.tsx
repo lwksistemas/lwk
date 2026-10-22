@@ -39,13 +39,15 @@ export function ComissaoPrestadoraSection({
   valores: ComissaoPrestadoraItem[];
   onChange: (itens: ComissaoPrestadoraItem[]) => void;
 }) {
+  const [aberto, setAberto] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaOpcao[]>([]);
   const [servicos, setServicos] = useState<ServicoOpcao[]>([]);
   const [categoriaId, setCategoriaId] = useState<number | 'sem' | null>(null);
-  const [carregando, setCarregando] = useState(true);
+  const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!aberto) return;
     let cancelado = false;
     setCarregando(true);
     Promise.all([
@@ -67,7 +69,7 @@ export function ComissaoPrestadoraSection({
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [aberto]);
 
   const daCategoria = useMemo(() => {
     if (categoriaId === 'sem') return servicos.filter((item) => !item.categoria);
@@ -100,9 +102,16 @@ export function ComissaoPrestadoraSection({
 
   return (
     <section className="space-y-4 lg:col-span-2">
-      <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-[#0d1f3c] pb-2">
-        Valor pago pela prestadora
-      </h3>
+      <button
+        type="button"
+        onClick={() => setAberto((atual) => !atual)}
+        className="w-full flex items-center justify-between text-left text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-[#0d1f3c] pb-2"
+      >
+        <span>Valor pago pela prestadora</span>
+        <span className="text-xs font-medium text-[#0176d3]">{aberto ? 'Ocultar' : 'Configurar'}</span>
+      </button>
+      {aberto && (
+        <>
       <p className="text-xs text-gray-500 dark:text-gray-400">
         Escolha a categoria e informe o valor que esta prestadora paga em cada serviço.
         Deixe em branco o serviço que ela não paga. O vendedor recebe o percentual do cadastro de funcionário sobre esse valor.
@@ -189,6 +198,8 @@ export function ComissaoPrestadoraSection({
               </table>
             </div>
           )}
+        </>
+      )}
         </>
       )}
     </section>

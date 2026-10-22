@@ -20,6 +20,19 @@ from .sections import (
 from .watermark import _build_watermark_callback, _inserir_watermark_flowable
 
 
+def _logo_prestadora(documento):
+    """Logo da empresa prestadora vinculada à oportunidade. A logo do login fica só na tela de login."""
+    oportunidade = getattr(documento, "oportunidade", None)
+    prestadora = getattr(oportunidade, "empresa_prestadora", None) if oportunidade is not None else None
+    if prestadora is None:
+        return None
+    logo = getattr(prestadora, "logo", None)
+    if not isinstance(logo, str):
+        return None
+    logo = logo.strip()
+    return logo or None
+
+
 def _completar_logos(loja_data, loja_id):
     """A logo principal e a da tela de login ficam na loja, mesmo com emitente próprio."""
     dados = dict(loja_data or {})
@@ -44,7 +57,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     loja_id = getattr(proposta, "loja_id", None)
     loja_data = _completar_logos(obter_dados_emitente_documento(proposta), loja_id)
     logo_url = loja_data.get("logo")
-    _build_cabecalho(elements, logo_url, "PROPOSTA COMERCIAL", loja_data.get("login_logo"))
+    _build_cabecalho(elements, logo_url, "PROPOSTA COMERCIAL", _logo_prestadora(proposta))
     elements.append(Spacer(1, 0.45 * cm))
     elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', compact))
 
@@ -81,7 +94,7 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     loja_id = getattr(contrato, "loja_id", None)
     loja_data = _completar_logos(obter_dados_emitente_documento(contrato), loja_id)
     logo_url = loja_data.get("logo")
-    _build_cabecalho(elements, logo_url, "CONTRATO", loja_data.get("login_logo"))
+    _build_cabecalho(elements, logo_url, "CONTRATO", _logo_prestadora(contrato))
     elements.append(Spacer(1, 0.4 * cm))
     elements.append(Paragraph(f'<b>Número:</b> {contrato.numero or "—"}', normal))
     elements.append(Paragraph(f'<b>Título:</b> {contrato.titulo or "—"}', normal))

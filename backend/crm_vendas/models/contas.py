@@ -45,6 +45,12 @@ class Conta(LojaIsolationMixin, models.Model):
     # Campos antigos mantidos para compatibilidade
     endereco = models.CharField(max_length=255, blank=True, help_text="Endereço completo (campo legado)")
     observacoes = models.TextField(blank=True)
+    logo = models.URLField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Logomarca da prestadora, usada na proposta e no contrato",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

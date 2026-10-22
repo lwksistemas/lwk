@@ -5,7 +5,11 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
-from crm_vendas.pdf_proposta_contrato.generators import gerar_pdf_contrato, gerar_pdf_proposta
+from crm_vendas.pdf_proposta_contrato.generators import (
+    _logo_prestadora,
+    gerar_pdf_contrato,
+    gerar_pdf_proposta,
+)
 
 
 def _mock_lead():
@@ -65,6 +69,14 @@ def _mock_contrato():
 )
 @patch("crm_vendas.models.AssinaturaDigital")
 class PdfPropostaContratoSmokeTest(SimpleTestCase):
+    def test_logo_prestadora_ignora_valor_que_nao_e_endereco(self, _assin, _loja):
+        self.assertIsNone(_logo_prestadora(_mock_proposta()))
+
+    def test_logo_prestadora_usa_a_imagem_salva_na_conta(self, _assin, _loja):
+        proposta = _mock_proposta()
+        proposta.oportunidade.empresa_prestadora.logo = "https://media.example/ultrasys.png"
+        self.assertEqual(_logo_prestadora(proposta), "https://media.example/ultrasys.png")
+
     def test_gerar_pdf_proposta_retorna_bytes_pdf(self, _assin, _loja):
         buffer = gerar_pdf_proposta(_mock_proposta(), incluir_assinaturas=False)
         self.assertIsInstance(buffer, BytesIO)

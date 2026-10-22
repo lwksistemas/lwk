@@ -7,9 +7,15 @@ import { Categoria } from '@/hooks/useProdutosServicos';
 interface CategoriasProdutosGridProps {
   categorias: Categoria[];
   countSemCategoria: number | null;
+  pastaId?: number | null;
   onSelectCategoria: (id: number) => void;
   onSelectSemCategoria: () => void;
   onVerTodos: () => void;
+}
+
+function totalNaPasta(cat: Categoria, todas: Categoria[]): number {
+  const filhos = todas.filter((outra) => outra.pai === cat.id);
+  return (cat.produtos_count ?? 0) + filhos.reduce((soma, filho) => soma + totalNaPasta(filho, todas), 0);
 }
 
 function ordenarCategorias(cats: Categoria[]): Categoria[] {
@@ -19,19 +25,21 @@ function ordenarCategorias(cats: Categoria[]): Categoria[] {
 export function CategoriasProdutosGrid({
   categorias,
   countSemCategoria,
+  pastaId = null,
   onSelectCategoria,
   onSelectSemCategoria,
   onVerTodos,
 }: CategoriasProdutosGridProps) {
   const ordenadas = ordenarCategorias(categorias).filter((cat) => {
-    const temFilhos = categorias.some((outra) => outra.pai === cat.id);
-    if (temFilhos) return (cat.produtos_count ?? 0) > 0;
-    if (cat.pai) return (cat.produtos_count ?? 0) > 0;
+    const nestaPasta = pastaId ? cat.pai === pastaId : !cat.pai;
+    if (!nestaPasta) return false;
+    if (pastaId) return totalNaPasta(cat, categorias) > 0;
     return true;
   });
 
   return (
     <div className="space-y-6">
+      {!pastaId && (
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
@@ -42,9 +50,12 @@ export function CategoriasProdutosGrid({
           Ver todos os produtos e serviços
         </button>
       </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {ordenadas.map((cat) => (
+        {ordenadas.map((cat) => {
+          const total = totalNaPasta(cat, categorias);
+          return (
           <button
             key={cat.id}
             type="button"
@@ -60,7 +71,7 @@ export function CategoriasProdutosGrid({
               </span>
               <div className="min-w-0 flex-1">
                 <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-[#0176d3] dark:group-hover:text-blue-300 transition-colors truncate">
-                  {cat.caminho && cat.caminho.length > 1 ? cat.caminho.join(' / ') : cat.nome}
+                  {cat.nome}
                 </h3>
                 {cat.descricao ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">{cat.descricao}</p>
@@ -69,7 +80,7 @@ export function CategoriasProdutosGrid({
                   {typeof cat.produtos_count === 'number' ? (
                     <>
                       <Package className="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden />
-                      {cat.produtos_count} {cat.produtos_count === 1 ? 'item' : 'itens'}
+                      {total} {total === 1 ? 'item' : 'itens'}
                     </>
                   ) : (
                     'Toque para ver itens'
@@ -78,9 +89,10 @@ export function CategoriasProdutosGrid({
               </div>
             </div>
           </button>
-        ))}
+          );
+        })}
 
-        {countSemCategoria !== null && countSemCategoria > 0 && (
+        {!pastaId && countSemCategoria !== null && countSemCategoria > 0 && (
           <button
             type="button"
             onClick={onSelectSemCategoria}

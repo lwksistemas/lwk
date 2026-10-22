@@ -20,6 +20,7 @@ interface ProdutoServicoFiltersProps {
   onVoltarCategorias?: () => void;
   /** Ex.: nome da categoria selecionada na lista */
   subtituloLista?: string;
+  caminhoPasta?: string;
 }
 
 export function ProdutoServicoFilters({
@@ -34,20 +35,21 @@ export function ProdutoServicoFilters({
   variant = 'lista',
   onVoltarCategorias,
   subtituloLista,
+  caminhoPasta,
 }: ProdutoServicoFiltersProps) {
   const isGrid = variant === 'grid';
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        {isGrid ? null : (
+        {isGrid && !caminhoPasta ? null : (
           <button
             type="button"
             onClick={() => onVoltarCategorias?.()}
             className="inline-flex items-center gap-1.5 text-sm text-[#0176d3] hover:underline mb-2"
           >
             <ArrowLeft className="w-4 h-4" aria-hidden />
-            Voltar às categorias
+            Voltar
           </button>
         )}
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -55,7 +57,7 @@ export function ProdutoServicoFilters({
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           {isGrid
-            ? 'Escolha uma categoria para ver os itens ou veja todos de uma vez'
+            ? caminhoPasta || 'Escolha uma categoria para ver os itens ou veja todos de uma vez'
             : subtituloLista || 'Produtos e serviços disponíveis para incluir em novas oportunidades'}
         </p>
       </div>
@@ -71,7 +73,7 @@ export function ProdutoServicoFilters({
           <option value="__sem__">Sem categoria</option>
           {categorias.map((cat) => (
             <option key={cat.id} value={cat.id}>
-              {cat.nome}
+              {cat.caminho && cat.caminho.length > 1 ? cat.caminho.join(' / ') : cat.nome}
             </option>
           ))}
         </select>

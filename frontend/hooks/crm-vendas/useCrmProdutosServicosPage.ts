@@ -52,6 +52,7 @@ export function useCrmProdutosServicosPage() {
   } = useCategorias();
 
   const [viewMode, setViewMode] = useState<'categorias' | 'lista'>('categorias');
+  const [pastaAberta, setPastaAberta] = useState<number | null>(null);
   const [modalType, setModalType] = useState<ProdutoServicoModalType>(null);
   const [selected, setSelected] = useState<ProdutoServico | null>(null);
   const [filtroTipo, setFiltroTipo] = useState('');
@@ -107,7 +108,7 @@ export function useCrmProdutosServicosPage() {
     if (filtroCategoria === '__sem__') return 'Itens sem categoria';
     if (filtroCategoria) {
       const c = categorias.find((x) => String(x.id) === filtroCategoria);
-      return c ? `Categoria: ${c.nome}` : undefined;
+      return c ? `Categoria: ${c.caminho?.length ? c.caminho.join(' / ') : c.nome}` : undefined;
     }
     return 'Todos os produtos e serviços';
   }, [filtroCategoria, categorias]);
@@ -192,6 +193,14 @@ export function useCrmProdutosServicosPage() {
   };
 
   const irParaCategoria = (id: number) => {
+    const temFilhos = categorias.some((categoria) => categoria.pai === id);
+    if (temFilhos) {
+      setPastaAberta(id);
+      setFiltroCategoria('');
+      setFiltroTipo('');
+      setViewMode('categorias');
+      return;
+    }
     setFiltroCategoria(String(id));
     setFiltroTipo('');
     setViewMode('lista');
@@ -204,13 +213,21 @@ export function useCrmProdutosServicosPage() {
   };
 
   const irVerTodos = () => {
+    setPastaAberta(null);
     setFiltroCategoria('');
     setFiltroTipo('');
     setViewMode('lista');
   };
 
   const aposImportarPdf = async (categoriaId: number) => {
-    await loadCategorias();
+    const lista = await loadCategorias();
+    if (categoriaId && (lista || []).some((categoria) => categoria.pai === categoriaId)) {
+      setPastaAberta(categoriaId);
+      setFiltroCategoria('');
+      setFiltroTipo('');
+      setViewMode('categorias');
+      return;
+    }
     if (categoriaId) {
       setFiltroCategoria(String(categoriaId));
       setFiltroTipo('');
@@ -221,14 +238,50 @@ export function useCrmProdutosServicosPage() {
     if (viewMode === 'lista') await loadItens(buildFiltrosLista());
   };
 
-  const voltarCategorias = () => {
-    setViewMode('categorias');
-    setFiltroCategoria('');
-    setFiltroTipo('');
+  const aoFiltrarCategoria = (value: string) => {
+    if (!value || value === '__sem__') {
+      setFiltroCategoria(value);
+      setViewMode('lista');
+      return;
+    }
+    const id = Number(value);
+    if (categorias.some((categoria) => categoria.pai === id)) {
+      setPastaAberta(id);
+      setFiltroCategoria('');
+      setViewMode('categorias');
+      return;
+    }
+    setFiltroCategoria(value);
+    setViewMode('lista');
   };
+
+  const voltarCategorias = () => {
+    if (viewMode === 'lista') {
+      const atual = filtroCategoria && filtroCategoria !== '__sem__'
+        ? categorias.find((categoria) => String(categoria.id) === filtroCategoria)
+        : null;
+      setViewMode('categorias');
+      setFiltroTipo('');
+      setFiltroCategoria('');
+      setPastaAberta(atual?.pai ?? null);
+      return;
+    }
+    if (!pastaAberta) return;
+    const atual = categorias.find((categoria) => categoria.id === pastaAberta);
+    setPastaAberta(atual?.pai ?? null);
+  };
+
+  const caminhoPasta = useMemo(() => {
+    if (!pastaAberta) return '';
+    const atual = categorias.find((categoria) => categoria.id === pastaAberta);
+    if (atual?.caminho?.length) return atual.caminho.join(' / ');
+    return atual?.nome || '';
+  }, [pastaAberta, categorias]);
 
   return {
     viewMode,
+    pastaAberta,
+    caminhoPasta,
     loadingCategorias,
     loadingItens,
     error,
@@ -243,6 +296,7 @@ export function useCrmProdutosServicosPage() {
     setFiltroTipo,
     filtroCategoria,
     setFiltroCategoria,
+    aoFiltrarCategoria,
     countSemCategoria,
     subtituloLista,
     modalType,

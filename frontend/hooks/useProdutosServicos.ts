@@ -190,10 +190,12 @@ export function useCategorias() {
       );
       const cats = normalizeListResponse(res.data);
       setCategorias(cats);
+      return cats;
     } catch (err) {
       logger.warn('Erro ao carregar categorias:', err);
       setError('Erro ao carregar categorias');
       setCategorias([]);
+      return [];
     } finally {
       setLoading(false);
     }

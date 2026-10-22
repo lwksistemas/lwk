@@ -21,6 +21,7 @@ export interface OportunidadeItem {
   id: number;
   produto_servico: number;
   produto_servico_nome: string;
+  produto_servico_descricao?: string;
   produto_servico_tipo: string;
   produto_servico_recorrencia?: string;
   quantidade: string;

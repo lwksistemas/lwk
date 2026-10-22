@@ -224,11 +224,9 @@ export function CatalogoPdfImportModal({
                   className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="">Sem categoria</option>
-                  {listaCategorias.map((categoria) => (
+                  {listaCategorias.filter((categoria) => !categoria.pai).map((categoria) => (
                     <option key={categoria.id} value={categoria.id}>
-                      {categoria.caminho && categoria.caminho.length > 1
-                        ? categoria.caminho.join(' / ')
-                        : categoria.nome}
+                      {categoria.nome}
                     </option>
                   ))}
                 </select>

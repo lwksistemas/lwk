@@ -1,6 +1,7 @@
 """Seções reutilizáveis do PDF de proposta/contrato."""
 import logging
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from PIL import Image as PILImage
 from reportlab.lib import colors
@@ -208,6 +209,7 @@ def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=Tru
     if not itens:
         elements.append(Paragraph("Nenhum item cadastrado.", style))
         return 0, 0
+    nome_style = ParagraphStyle("ItemNomePdf", fontName="Helvetica", fontSize=8, leading=10)
     if incluir_recorrencia:
         table_data = [["Item", "Recorrência", "Qtd", "Preço Unit.", "Subtotal"]]
     else:
@@ -220,7 +222,7 @@ def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=Tru
     for item in itens:
         ps = item.produto_servico
         tipo_ps = ps.get_tipo_display() if hasattr(ps, "get_tipo_display") else getattr(ps, "tipo", "")
-        nome = f"{tipo_ps}: {ps.nome}" if tipo_ps else ps.nome
+        nome = Paragraph(escape(f"{tipo_ps}: {ps.nome}" if tipo_ps else ps.nome), nome_style)
         recorrencia = getattr(ps, "recorrencia", "unico") or "unico"
         recorrencia_label = {
             "unico": "Único",
@@ -247,10 +249,11 @@ def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=Tru
             valor_semestral += float(sub)
         elif recorrencia == "anual":
             valor_anual += float(sub)
+    largura = A4[0] - 4 * cm
     if incluir_recorrencia:
-        col_widths = [None, 60, 35, 65, 65]
+        col_widths = [largura - 230, 70, 30, 65, 65]
     else:
-        col_widths = [None, 40, 70, 70]
+        col_widths = [largura - 175, 40, 70, 65]
     t = Table(table_data, colWidths=col_widths)
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e3f3ff")),

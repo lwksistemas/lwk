@@ -224,6 +224,7 @@ def apply_crm_tenant_schema_patches(db_name: str) -> None:
     patch_crm_comissao_vendedor_categoria_if_missing(db_name)
     patch_crm_conta_logo_if_missing(db_name)
     patch_crm_produto_prestadora_if_missing(db_name)
+    patch_crm_categoria_pai_if_missing(db_name)
 
 
 def patch_crm_comissao_prestadora_if_missing(db_name: str) -> bool:
@@ -382,6 +383,61 @@ def patch_crm_produto_prestadora_if_missing(db_name: str) -> bool:
             WHERE NOT EXISTS (
                 SELECT 1 FROM django_migrations
                 WHERE app = 'crm_vendas' AND name = '0083_produto_prestadora'
+            )
+            """,
+        )
+    return True
+
+
+def patch_crm_categoria_pai_if_missing(db_name: str) -> bool:
+    """Cria a subpasta da categoria (migration 0084)."""
+    from core.db_config import ensure_loja_database_config
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        return False
+
+    schema_name = db_name.replace("-", "_")
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
+        cursor.execute(
+            """
+            ALTER TABLE crm_vendas_categoria_produto_servico
+            ADD COLUMN IF NOT EXISTS pai_id bigint NULL
+            """,
+        )
+        cursor.execute(
+            """
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'crm_vendas_categoria_produto_servico_pai_id_fkey'
+                ) AND NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'crm_cat_pai_fk'
+                ) THEN
+                    ALTER TABLE crm_vendas_categoria_produto_servico
+                    ADD CONSTRAINT crm_cat_pai_fk
+                    FOREIGN KEY (pai_id)
+                    REFERENCES crm_vendas_categoria_produto_servico(id) ON DELETE CASCADE;
+                END IF;
+            END $$;
+            """,
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS crm_cat_ps_loja_pai_idx
+            ON crm_vendas_categoria_produto_servico (loja_id, pai_id)
+            """,
+        )
+        cursor.execute(
+            """
+            INSERT INTO django_migrations (app, name, applied)
+            SELECT 'crm_vendas', '0084_categoria_subpasta', NOW()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM django_migrations
+                WHERE app = 'crm_vendas' AND name = '0084_categoria_subpasta'
             )
             """,
         )

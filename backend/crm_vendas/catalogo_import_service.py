@@ -3,8 +3,27 @@ from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 
-from .catalogo_pdf import CatalogoPdfError
+from .catalogo_pdf import CatalogoPdfError, pastas_do_item
 from .models import CategoriaProdutoServico, Conta, ProdutoServico
+
+_COR_PASTA = {
+    "MEDICINA": "#0F766E",
+    "ODONTOLOGIA": "#0369A1",
+    "DEMAIS CATEGORIAS": "#6B7280",
+    "TABELA BLUE": "#2563EB",
+    "TABELA GREEN": "#15803D",
+    "TABELA BLACK": "#111827",
+    "TABELA ESSENCIAL": "#7C3AED",
+}
+_ORDEM_PASTA = {
+    "MEDICINA": 10,
+    "ODONTOLOGIA": 20,
+    "DEMAIS CATEGORIAS": 30,
+    "TABELA BLUE": 10,
+    "TABELA GREEN": 20,
+    "TABELA BLACK": 30,
+    "TABELA ESSENCIAL": 40,
+}
 
 _RECORRENCIAS = {codigo for codigo, _rotulo in ProdutoServico.RECORRENCIA_CHOICES}
 _TIPOS = {codigo for codigo, _rotulo in ProdutoServico.TIPO_CHOICES}
@@ -36,7 +55,45 @@ def _item_normalizado(bruto: dict) -> dict:
         "preco": preco,
         "recorrencia": recorrencia,
         "tipo": tipo,
+        "tabela": str(bruto.get("tabela") or "").strip().upper()[:30],
+        "area": str(bruto.get("area") or "").strip().upper()[:40],
     }
+
+
+def _raiz_categoria(categoria):
+    atual = categoria
+    for _ in range(6):
+        if atual is None or not atual.pai_id:
+            return atual
+        atual = atual.pai
+    return atual
+
+
+def _garantir_pasta(loja_id, pai, nome, cache):
+    chave = (pai.id, nome)
+    if chave in cache:
+        return cache[chave]
+    pasta = CategoriaProdutoServico.objects.filter(loja_id=loja_id, pai_id=pai.id, nome=nome).first()
+    if pasta is None:
+        pasta = CategoriaProdutoServico.objects.create(
+            loja_id=loja_id,
+            pai=pai,
+            nome=nome,
+            cor=_COR_PASTA.get(nome, pai.cor or "#3B82F6"),
+            ordem=_ORDEM_PASTA.get(nome, 0),
+            ativo=True,
+        )
+    cache[chave] = pasta
+    return pasta
+
+
+def _destino_categoria(loja_id, categoria, item, cache):
+    if categoria is None:
+        return None
+    atual = _raiz_categoria(categoria)
+    for nome in pastas_do_item(item):
+        atual = _garantir_pasta(loja_id, atual, nome, cache)
+    return atual
 
 
 def importar_catalogo_na_categoria(
@@ -51,7 +108,11 @@ def importar_catalogo_na_categoria(
         raise CatalogoPdfError("Escolha a prestadora dona deste catálogo.")
     categoria = None
     if categoria_id:
-        categoria = CategoriaProdutoServico.objects.filter(pk=categoria_id, loja_id=loja_id).first()
+        categoria = (
+            CategoriaProdutoServico.objects.select_related("pai", "pai__pai")
+            .filter(pk=categoria_id, loja_id=loja_id)
+            .first()
+        )
         if categoria is None:
             raise CatalogoPdfError("A categoria escolhida não é desta loja.")
     if not itens:
@@ -61,6 +122,7 @@ def importar_catalogo_na_categoria(
     normalizados = [_item_normalizado(item) for item in itens]
     criados = 0
     atualizados = 0
+    pastas = {}
     with transaction.atomic():
         if substituir:
             codigos = {item["codigo"] for item in normalizados}
@@ -70,6 +132,15 @@ def importar_catalogo_na_categoria(
                 .update(ativo=False)
             )
         for item in normalizados:
+            destino = _destino_categoria(loja_id, categoria, item, pastas)
+            dados = {
+                "codigo": item["codigo"],
+                "nome": item["nome"],
+                "descricao": item["descricao"],
+                "preco": item["preco"],
+                "recorrencia": item["recorrencia"],
+                "tipo": item["tipo"],
+            }
             existente = ProdutoServico.objects.filter(
                 loja_id=loja_id,
                 prestadora_id=prestadora.id,
@@ -79,19 +150,19 @@ def importar_catalogo_na_categoria(
                 ProdutoServico.objects.create(
                     loja_id=loja_id,
                     prestadora=prestadora,
-                    categoria=categoria,
+                    categoria=destino,
                     ativo=True,
-                    **item,
+                    **dados,
                 )
                 criados += 1
                 continue
-            existente.nome = item["nome"]
-            existente.descricao = item["descricao"]
-            existente.preco = item["preco"]
-            existente.recorrencia = item["recorrencia"]
-            existente.tipo = item["tipo"]
-            if categoria is not None:
-                existente.categoria = categoria
+            existente.nome = dados["nome"]
+            existente.descricao = dados["descricao"]
+            existente.preco = dados["preco"]
+            existente.recorrencia = dados["recorrencia"]
+            existente.tipo = dados["tipo"]
+            if destino is not None:
+                existente.categoria = destino
             existente.prestadora = prestadora
             existente.ativo = True
             existente.save()

@@ -19,6 +19,7 @@ export interface CrmOportunidadeProdutoOption {
   preco: string;
   codigo?: string;
   categoria_nome?: string;
+  categoria_caminho?: string[];
 }
 
 export interface CrmOportunidadeItemForm {

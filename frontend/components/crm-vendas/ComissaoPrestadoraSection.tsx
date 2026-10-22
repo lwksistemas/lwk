@@ -12,6 +12,7 @@ interface CategoriaOpcao {
   id: number;
   nome: string;
   cor: string;
+  caminho?: string[];
 }
 
 interface ServicoOpcao {
@@ -146,7 +147,9 @@ export function ComissaoPrestadoraSection({
                       : 'bg-white dark:bg-[#1e3a5f] text-gray-700 dark:text-gray-200 border-gray-200 dark:border-neutral-600'
                   }`}
                 >
-                  {categoria.nome}
+                  {categoria.caminho && categoria.caminho.length > 1
+                    ? categoria.caminho.slice(1).join(' · ')
+                    : categoria.nome}
                   {qtd > 0 ? ` (${qtd})` : ''}
                 </button>
               );

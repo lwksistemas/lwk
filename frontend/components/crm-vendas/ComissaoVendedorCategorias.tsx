@@ -7,6 +7,7 @@ import type { ComissaoCategoriaItem } from '@/lib/crm-funcionarios';
 interface CategoriaOpcao {
   id: number;
   nome: string;
+  pai?: number | null;
 }
 
 const inputClass =
@@ -29,7 +30,7 @@ export function ComissaoVendedorCategorias({
     let cancelado = false;
     fetchAllPaginatedResults<CategoriaOpcao>('/crm-vendas/categorias-produtos-servicos/', { ativo: 'true' })
       .then((lista) => {
-        if (!cancelado) setCategorias(lista);
+        if (!cancelado) setCategorias(lista.filter((categoria) => !categoria.pai));
       })
       .catch(() => {
         if (!cancelado) setErro('Não foi possível carregar as categorias.');

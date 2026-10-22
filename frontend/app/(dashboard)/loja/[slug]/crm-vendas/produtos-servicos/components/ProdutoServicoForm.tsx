@@ -120,7 +120,7 @@ export function ProdutoServicoForm({
             <option value="">Sem categoria</option>
             {categorias.map((cat) => (
               <option key={cat.id} value={cat.id}>
-                {cat.nome}
+                {cat.caminho && cat.caminho.length > 1 ? cat.caminho.join(' / ') : cat.nome}
               </option>
             ))}
           </select>

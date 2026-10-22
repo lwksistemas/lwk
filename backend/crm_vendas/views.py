@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class CategoriaProdutoServicoViewSet(CRMSchemaRecoveryMixin, LojaScopedCatalogMixin, BaseModelViewSet):
     """CRUD de categorias para organizar produtos e serviços."""
 
-    queryset = CategoriaProdutoServico.objects.select_related("loja").all()
+    queryset = CategoriaProdutoServico.objects.select_related("loja", "pai", "pai__pai").all()
     serializer_class = CategoriaProdutoServicoSerializer
     pagination_class = CRMPagination
     loja_catalog_model = CategoriaProdutoServico
@@ -43,7 +43,9 @@ class CategoriaProdutoServicoViewSet(CRMSchemaRecoveryMixin, LojaScopedCatalogMi
 class ProdutoServicoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, LojaScopedCatalogMixin, BaseModelViewSet):
     """CRUD de produtos e serviços para uso em oportunidades."""
 
-    queryset = ProdutoServico.objects.select_related("loja", "categoria", "prestadora").all()
+    queryset = ProdutoServico.objects.select_related(
+        "loja", "categoria", "categoria__pai", "categoria__pai__pai", "prestadora",
+    ).all()
     serializer_class = ProdutoServicoSerializer
     pagination_class = CRMPagination
     loja_catalog_model = ProdutoServico
@@ -57,7 +59,23 @@ class ProdutoServicoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, 
         sem_cat = self.request.query_params.get("sem_categoria")
         if sem_cat and str(sem_cat).lower() in ("1", "true", "yes"):
             return qs.filter(categoria__isnull=True)
-        return filtrar_queryset_por_query_params(qs, self.request, {"categoria": "categoria_id"})
+        categoria = self.request.query_params.get("categoria")
+        if categoria and str(categoria).isdigit():
+            return qs.filter(categoria_id__in=_categoria_ids_com_subpastas(int(categoria)))
+        return qs
+
+
+def _categoria_ids_com_subpastas(categoria_id: int) -> list[int]:
+    ids = [categoria_id]
+    pais = [categoria_id]
+    for _ in range(6):
+        filhos = list(CategoriaProdutoServico.objects.filter(pai_id__in=pais).values_list("id", flat=True))
+        novos = [item for item in filhos if item not in ids]
+        if not novos:
+            break
+        ids.extend(novos)
+        pais = novos
+    return ids
 
 
 class OportunidadeItemViewSet(CRMSchemaRecoveryMixin, CacheInvalidationMixin, VendedorFilterMixin, BaseModelViewSet):

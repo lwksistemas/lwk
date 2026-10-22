@@ -23,6 +23,25 @@ interface ProdutoServicoFormProps {
 const inputClass =
   'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100';
 
+function filhosDaCategoria(categorias: Categoria[], pai: number | null) {
+  return categorias
+    .filter((categoria) => (categoria.pai ?? null) === pai)
+    .sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+function cadeiaDaCategoria(categorias: Categoria[], categoriaId: number | null) {
+  const porId = new Map(categorias.map((categoria) => [categoria.id, categoria]));
+  const cadeia: Categoria[] = [];
+  let atual = categoriaId ? porId.get(categoriaId) : undefined;
+  const vistos = new Set<number>();
+  while (atual && !vistos.has(atual.id)) {
+    vistos.add(atual.id);
+    cadeia.unshift(atual);
+    atual = atual.pai ? porId.get(atual.pai) : undefined;
+  }
+  return cadeia;
+}
+
 export function ProdutoServicoForm({
   formData,
   categorias,
@@ -33,6 +52,14 @@ export function ProdutoServicoForm({
   onCancel,
 }: ProdutoServicoFormProps) {
   const [prestadoras, setPrestadoras] = useState<{ id: number; nome: string }[]>([]);
+  const cadeia = cadeiaDaCategoria(categorias, formData.categoria);
+  const niveis: { pai: number | null; escolhido: number | null }[] = [
+    { pai: null, escolhido: cadeia[0]?.id ?? null },
+  ];
+  for (let indice = 0; indice < cadeia.length; indice += 1) {
+    if (filhosDaCategoria(categorias, cadeia[indice].id).length === 0) break;
+    niveis.push({ pai: cadeia[indice].id, escolhido: cadeia[indice + 1]?.id ?? null });
+  }
 
   useEffect(() => {
     let cancelado = false;
@@ -112,18 +139,27 @@ export function ProdutoServicoForm({
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Categoria
           </label>
-          <select
-            value={formData.categoria || ''}
-            onChange={(e) => onChange({ categoria: e.target.value ? parseInt(e.target.value) : null })}
-            className={inputClass}
-          >
-            <option value="">Sem categoria</option>
-            {categorias.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.caminho && cat.caminho.length > 1 ? cat.caminho.join(' / ') : cat.nome}
-              </option>
+          <div className="space-y-2">
+            {niveis.map((nivel, indice) => (
+              <select
+                key={nivel.pai ?? 'raiz'}
+                value={nivel.escolhido ?? ''}
+                onChange={(e) => {
+                  const id = e.target.value ? parseInt(e.target.value, 10) : null;
+                  onChange({ categoria: indice === 0 ? id : id ?? nivel.pai });
+                }}
+                className={inputClass}
+                aria-label={indice === 0 ? 'Categoria' : 'Subpasta'}
+              >
+                <option value="">{indice === 0 ? 'Sem categoria' : 'Fica nesta pasta'}</option>
+                {filhosDaCategoria(categorias, nivel.pai).map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nome}
+                  </option>
+                ))}
+              </select>
             ))}
-          </select>
+          </div>
         </div>
 
         <div>

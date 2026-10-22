@@ -7,6 +7,7 @@ import {
   useProdutosServicos,
   useCategorias,
   type ProdutoServico,
+  type Categoria,
   type FormData,
   type Filtros,
 } from '@/hooks/useProdutosServicos';
@@ -53,6 +54,8 @@ export function useCrmProdutosServicosPage() {
 
   const [viewMode, setViewMode] = useState<'categorias' | 'lista'>('categorias');
   const [pastaAberta, setPastaAberta] = useState<number | null>(null);
+  const [categoriaExcluir, setCategoriaExcluir] = useState<Categoria | null>(null);
+  const [excluindoCategoria, setExcluindoCategoria] = useState(false);
   const [modalType, setModalType] = useState<ProdutoServicoModalType>(null);
   const [selected, setSelected] = useState<ProdutoServico | null>(null);
   const [filtroTipo, setFiltroTipo] = useState('');
@@ -271,6 +274,42 @@ export function useCrmProdutosServicosPage() {
     setPastaAberta(atual?.pai ?? null);
   };
 
+  const pedirExclusaoCategoria = (categoria: Categoria) => {
+    setCategoriaExcluir(categoria);
+  };
+
+  const totalDaCategoria = (categoria: Categoria): number => {
+    const filhos = categorias.filter((outra) => outra.pai === categoria.id);
+    return (categoria.produtos_count ?? 0) + filhos.reduce((soma, filho) => soma + totalDaCategoria(filho), 0);
+  };
+
+  const mensagemExcluirCategoria = categoriaExcluir
+    ? [
+        `Excluir a categoria ${categoriaExcluir.nome}?`,
+        categorias.some((outra) => outra.pai === categoriaExcluir.id)
+          ? 'As subpastas dela também saem.'
+          : '',
+        totalDaCategoria(categoriaExcluir) > 0
+          ? `${totalDaCategoria(categoriaExcluir)} serviços continuam cadastrados, sem essa categoria.`
+          : '',
+      ].filter(Boolean).join(' ')
+    : '';
+
+  const confirmarExclusaoCategoria = async () => {
+    if (!categoriaExcluir) return;
+    try {
+      setExcluindoCategoria(true);
+      await deletarCategoria(categoriaExcluir.id);
+      if (pastaAberta === categoriaExcluir.id) setPastaAberta(categoriaExcluir.pai ?? null);
+      toast.success('Categoria excluída.');
+      setCategoriaExcluir(null);
+    } catch {
+      toast.error('Não foi possível excluir a categoria.');
+    } finally {
+      setExcluindoCategoria(false);
+    }
+  };
+
   const caminhoPasta = useMemo(() => {
     if (!pastaAberta) return '';
     const atual = categorias.find((categoria) => categoria.id === pastaAberta);
@@ -317,6 +356,12 @@ export function useCrmProdutosServicosPage() {
     irSemCategoria,
     irVerTodos,
     voltarCategorias,
+    categoriaExcluir,
+    mensagemExcluirCategoria,
+    excluindoCategoria,
+    pedirExclusaoCategoria,
+    confirmarExclusaoCategoria,
+    cancelarExclusaoCategoria: () => setCategoriaExcluir(null),
     criarCategoria,
     atualizarCategoria,
     deletarCategoria,

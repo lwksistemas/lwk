@@ -73,6 +73,38 @@ def _formatar_nome_usuario(user):
     return full or getattr(user, "nome", "") or getattr(user, "username", "") or "—"
 
 
+def descricoes_da_oportunidade(oportunidade) -> list[str]:
+    """Descrições dos serviços escolhidos na oportunidade, sem repetir."""
+    if oportunidade is None:
+        return []
+    relacao = getattr(oportunidade, "itens", None)
+    if relacao is None:
+        return []
+    if hasattr(relacao, "select_related"):
+        itens = relacao.select_related("produto_servico").all()
+    else:
+        itens = relacao
+    textos = []
+    for item in itens:
+        produto = getattr(item, "produto_servico", None)
+        texto = " ".join((getattr(produto, "descricao", None) or "").split())
+        if texto and texto not in textos:
+            textos.append(texto)
+    return textos
+
+
+def conteudo_com_descricoes(conteudo, oportunidade) -> str:
+    """Inclui no conteúdo a descrição de cada serviço da oportunidade."""
+    base = (conteudo or "").strip()
+    faltam = [texto for texto in descricoes_da_oportunidade(oportunidade) if texto not in base]
+    if not faltam:
+        return conteudo or ""
+    bloco = "\n\n".join(faltam)
+    if not base:
+        return bloco
+    return f"{base}\n\n{bloco}"
+
+
 def _html_to_paragraphs(html):
     """Converte HTML/texto do conteúdo em lista de parágrafos para o PDF."""
     if not html:

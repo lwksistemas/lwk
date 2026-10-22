@@ -390,7 +390,7 @@ def _build_secao_conteudo(elements, conteudo, style):
         if p == "":
             elements.append(Spacer(1, 0.2 * cm))
         else:
-            elements.append(Paragraph(p[:500], conteudo_style))
+            elements.append(Paragraph(escape(p), conteudo_style))
 
 
 def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir_assinaturas=True, tipo_doc="proposta"):

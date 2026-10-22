@@ -16,6 +16,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from core.phone_utils import telefone_exibicao_brasileiro
 
 from .emitente_documento import obter_dados_emitente_documento
+from .pdf_proposta_contrato.formatters import conteudo_com_descricoes
 from .pdf_proposta_contrato.sections import nome_item_documento
 
 
@@ -293,7 +294,10 @@ def gerar_docx_proposta(proposta) -> BytesIO:
     itens = list(getattr(proposta.oportunidade, "itens", []).all()) if getattr(proposta, "oportunidade", None) else []
     _docx_add_tabela_itens(doc, itens, _marca_prestadora(proposta))
     doc.add_heading("Conteúdo", level=2)
-    _add_html_as_docx(doc, getattr(proposta, "conteudo", "") or "")
+    _add_html_as_docx(
+        doc,
+        conteudo_com_descricoes(getattr(proposta, "conteudo", "") or "", getattr(proposta, "oportunidade", None)),
+    )
     doc.add_heading("Assinaturas", level=2)
     vendedor = (
         proposta.oportunidade.vendedor
@@ -331,7 +335,10 @@ def gerar_docx_contrato(contrato) -> BytesIO:
     itens = list(getattr(contrato.oportunidade, "itens", []).all()) if getattr(contrato, "oportunidade", None) else []
     _docx_add_tabela_itens(doc, itens, _marca_prestadora(contrato))
     doc.add_heading("Conteúdo", level=2)
-    _add_html_as_docx(doc, getattr(contrato, "conteudo", "") or "")
+    _add_html_as_docx(
+        doc,
+        conteudo_com_descricoes(getattr(contrato, "conteudo", "") or "", getattr(contrato, "oportunidade", None)),
+    )
     doc.add_heading("Assinaturas", level=2)
     vendedor = (
         contrato.oportunidade.vendedor

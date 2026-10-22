@@ -10,6 +10,7 @@ from ..models import OportunidadeItem
 
 class OportunidadeItemSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     produto_servico_nome = serializers.CharField(source="produto_servico.nome", read_only=True)
+    produto_servico_descricao = serializers.CharField(source="produto_servico.descricao", read_only=True)
     produto_servico_tipo = serializers.CharField(source="produto_servico.tipo", read_only=True)
     produto_servico_recorrencia = serializers.CharField(source="produto_servico.recorrencia", read_only=True)
     subtotal = serializers.SerializerMethodField()
@@ -17,7 +18,8 @@ class OportunidadeItemSerializer(TextNormalizationMixin, serializers.ModelSerial
     class Meta:
         model = OportunidadeItem
         fields = [
-            "id", "oportunidade", "produto_servico", "produto_servico_nome", "produto_servico_tipo",
+            "id", "oportunidade", "produto_servico", "produto_servico_nome",
+            "produto_servico_descricao", "produto_servico_tipo",
             "produto_servico_recorrencia",
             "quantidade", "preco_unitario", "subtotal", "observacao", "created_at",
         ]

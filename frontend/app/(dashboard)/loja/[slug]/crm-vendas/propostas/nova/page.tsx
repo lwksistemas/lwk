@@ -17,6 +17,7 @@ import type {
 } from '@/lib/crm-proposta-form-types';
 import { EMPTY_FORM_PROPOSTA } from '@/lib/crm-proposta-form-types';
 import { emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
+import { conteudoComDescricoes } from '@/lib/crm-proposta-conteudo';
 
 export default function NovaPropostaPage() {
   const toast = useToast();
@@ -49,7 +50,9 @@ export default function NovaPropostaPage() {
       const res = await apiClient.get<CrmOportunidadeItem[] | { results: CrmOportunidadeItem[] }>(
         `/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidadeId}`
       );
-      setItensOportunidade(normalizeListResponse(res.data));
+      const itens = normalizeListResponse(res.data);
+      setItensOportunidade(itens);
+      setFormData((f) => ({ ...f, conteudo: conteudoComDescricoes(f.conteudo, itens) }));
     } catch {
       setItensOportunidade([]);
     }

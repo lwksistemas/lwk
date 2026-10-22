@@ -7,7 +7,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from ..emitente_documento import obter_dados_emitente_documento
-from .formatters import _obter_dados_loja
+from .formatters import _obter_dados_loja, conteudo_com_descricoes
 from .sections import (
     _build_cabecalho,
     _build_secao_assinaturas,
@@ -70,7 +70,11 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
 
     _build_secao_produtos(elements, proposta.oportunidade, compact, incluir_recorrencia=True)
     _build_secao_desconto(elements, proposta, compact)
-    _build_secao_conteudo(elements, proposta.conteudo, compact)
+    _build_secao_conteudo(
+        elements,
+        conteudo_com_descricoes(proposta.conteudo, proposta.oportunidade),
+        compact,
+    )
 
     vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, "vendedor", None) else None
     ass_v, ass_c = _build_secao_assinaturas(elements, proposta, lead, vendedor, compact, incluir_assinaturas, "proposta")
@@ -113,7 +117,11 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
         _build_secao_produtos(elements, contrato.oportunidade, normal, incluir_recorrencia=False)
         elements.append(Spacer(1, 0.05 * cm))
 
-    _build_secao_conteudo(elements, contrato.conteudo, normal)
+    _build_secao_conteudo(
+        elements,
+        conteudo_com_descricoes(contrato.conteudo, contrato.oportunidade),
+        normal,
+    )
 
     vendedor = contrato.oportunidade.vendedor if contrato.oportunidade and getattr(contrato.oportunidade, "vendedor", None) else None
     ass_v, ass_c = _build_secao_assinaturas(elements, contrato, lead, vendedor, normal, incluir_assinaturas, "contrato")

@@ -307,3 +307,27 @@ def is_vendedor_usuario(request):
 
     # Verificar se tem vendedor_id (já faz a verificação de VendedorUsuario)
     return get_current_vendedor_id(request) is not None
+
+
+def vendedor_nao_ve_valor_da_prestadora(request) -> bool:
+    """Vendedor comum não vê o que a prestadora paga à loja. Dono e administrador veem."""
+    if not is_vendedor_usuario(request):
+        return False
+    cached = getattr(request, "_crm_oculta_valor_prestadora", None)
+    if cached is not None:
+        return cached
+    ocultar = True
+    vid = get_current_vendedor_id(request)
+    if vid:
+        try:
+            from .models import Vendedor
+
+            vendedor = Vendedor.objects.filter(pk=vid).only("is_admin").first()
+            ocultar = not bool(vendedor and vendedor.is_admin)
+        except Exception:
+            ocultar = True
+    try:
+        request._crm_oculta_valor_prestadora = ocultar
+    except Exception:
+        pass
+    return ocultar

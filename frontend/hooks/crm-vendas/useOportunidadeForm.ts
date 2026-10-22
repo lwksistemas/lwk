@@ -12,7 +12,6 @@ import {
   type CrmOportunidadeLeadOption,
   type CrmOportunidadeProdutoOption,
 } from '@/lib/crm-oportunidade-form-types';
-import { valorComissaoParaApi } from '@/lib/crm-oportunidade-comissao';
 import { atualizarOportunidadeItem, calcularTotalOportunidadeItens } from '@/lib/crm-oportunidade-itens-utils';
 
 async function syncVendedorAposCriarOportunidade() {
@@ -218,7 +217,6 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
       titulo,
       valor,
       etapa: form.etapa,
-      valor_comissao: valorComissaoParaApi(form.valor_comissao),
       empresa_prestadora: parseInt(form.empresa_prestadora_id, 10),
     };
     const vendedorId = authService.getVendedorId();
@@ -240,21 +238,18 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
       const oportunidadeId = res.data?.id;
 
       if (oportunidadeId && form.itens.length > 0) {
-        await Promise.all(
-          form.itens.map((item) => {
-            const qty = parseFloat(item.quantidade) || 1;
-            const preco = parseFloat(item.preco_unitario) || 0;
-            if (qty > 0 && preco >= 0) {
-              return apiClient.post('/crm-vendas/oportunidade-itens/', {
-                oportunidade: oportunidadeId,
-                produto_servico: item.produto_servico_id,
-                quantidade: qty,
-                preco_unitario: preco,
-              });
-            }
-            return Promise.resolve();
-          }),
-        );
+        for (const item of form.itens) {
+          const qty = parseFloat(item.quantidade) || 1;
+          const preco = parseFloat(item.preco_unitario) || 0;
+          if (qty > 0 && preco >= 0) {
+            await apiClient.post('/crm-vendas/oportunidade-itens/', {
+              oportunidade: oportunidadeId,
+              produto_servico: item.produto_servico_id,
+              quantidade: qty,
+              preco_unitario: preco,
+            });
+          }
+        }
       }
 
       await syncVendedorAposCriarOportunidade();

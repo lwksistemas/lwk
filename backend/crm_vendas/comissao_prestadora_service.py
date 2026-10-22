@@ -250,19 +250,22 @@ def _regra_da_categoria(categoria, regras):
     return None
 
 
-def comissao_exibida_vendedor(oportunidades, vendedor) -> Decimal:
-    """Parte do vendedor na Home.
+def partes_por_oportunidade(oportunidades, vendedor) -> dict[int, Decimal]:
+    """Comissão do vendedor em cada venda.
 
     Com valor configurado na prestadora, usa a regra da categoria: valor fixo por unidade
     ou porcentagem. Categoria sem regra usa o percentual padrão do funcionário.
     Venda antiga, sem essa configuração, continua com o valor já gravado.
     """
+    if vendedor is None:
+        return {}
     percentual, regras = _regras_categoria_vendedor(vendedor)
-    ops = list(
-        oportunidades.prefetch_related("itens__produto_servico__categoria__pai__pai")
-    )
+    if hasattr(oportunidades, "prefetch_related"):
+        ops = list(oportunidades.prefetch_related("itens__produto_servico__categoria__pai__pai"))
+    else:
+        ops = list(oportunidades)
     if not ops:
-        return Decimal("0.00")
+        return {}
     conta_ids = [op.empresa_prestadora_id for op in ops if op.empresa_prestadora_id]
     produto_ids = [
         item.produto_servico_id
@@ -270,7 +273,7 @@ def comissao_exibida_vendedor(oportunidades, vendedor) -> Decimal:
         for item in op.itens.all()
     ]
     mapa = _mapa_valores(conta_ids, produto_ids)
-    total = Decimal(0)
+    partes: dict[int, Decimal] = {}
     for op in ops:
         usou = False
         parte = Decimal(0)
@@ -284,7 +287,13 @@ def comissao_exibida_vendedor(oportunidades, vendedor) -> Decimal:
             categoria = getattr(item.produto_servico, "categoria", None)
             parte += parte_comissao_item(base, quantidade, _regra_da_categoria(categoria, regras), percentual)
         if usou:
-            total += parte
+            partes[op.id] = parte.quantize(Decimal("0.01"))
         else:
-            total += Decimal(op.valor_comissao or 0)
+            partes[op.id] = Decimal(op.valor_comissao or 0).quantize(Decimal("0.01"))
+    return partes
+
+
+def comissao_exibida_vendedor(oportunidades, vendedor) -> Decimal:
+    """Parte do vendedor na Home."""
+    total = sum(partes_por_oportunidade(oportunidades, vendedor).values(), Decimal("0.00"))
     return total.quantize(Decimal("0.01"))

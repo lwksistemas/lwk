@@ -8,6 +8,7 @@ import {
 } from '@/components/crm-vendas/ComissaoPrestadoraSection';
 import { CatalogoPdfImportModal, type CatalogoPdfItem } from '@/components/crm-vendas/CatalogoPdfImportModal';
 import { ImageUploadMedia } from '@/components/ImageUploadMedia';
+import { authService } from '@/lib/auth';
 import { formatCep, formatCpfCnpj, formatTelefone, toUpperCase } from '@/lib/format-br';
 
 export interface ContaFormData {
@@ -336,7 +337,7 @@ export function ContaCadastroForm({
             />
           </section>
         </div>
-        {(formData.tipo === 'prestadora' || formData.tipo === 'ambos') && (
+        {(formData.tipo === 'prestadora' || formData.tipo === 'ambos') && !authService.isVendedor() && (
           <ComissaoPrestadoraSection
             prestadoraId={contaId}
             valores={formData.comissoes}

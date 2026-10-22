@@ -232,6 +232,7 @@ def resumo_financeiro_crm(
     periodo: str = "mes_atual",
     data_inicio=None,
     data_fim=None,
+    parte_do_vendedor: bool = False,
 ) -> dict:
     from django.db.models import Sum
 
@@ -288,7 +289,14 @@ def resumo_financeiro_crm(
     )
     if vendedor_id:
         opp_qs = opp_qs.filter(vendedor_id=vendedor_id)
-    comissao_vendas = float(opp_qs.aggregate(t=Sum("valor_comissao"))["t"] or 0)
+    if parte_do_vendedor and vendedor_id:
+        from .comissao_prestadora_service import comissao_exibida_vendedor
+        from .models import Vendedor
+
+        vendedor = Vendedor.objects.filter(pk=vendedor_id).prefetch_related("comissoes_categoria").first()
+        comissao_vendas = float(comissao_exibida_vendedor(opp_qs, vendedor))
+    else:
+        comissao_vendas = float(opp_qs.aggregate(t=Sum("valor_comissao"))["t"] or 0)
 
     return {
         "receitas_pagas": receitas_pagas,

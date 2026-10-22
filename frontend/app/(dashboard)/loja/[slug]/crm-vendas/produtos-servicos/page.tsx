@@ -13,6 +13,7 @@ import { CategoriasModal } from './components/CategoriasModal';
 import { CategoriasProdutosGrid } from './components/CategoriasProdutosGrid';
 import { ProdutosServicosCategoriasSkeleton } from './components/ProdutosServicosCategoriasSkeleton';
 import { CatalogoPdfImportModal } from '@/components/crm-vendas/CatalogoPdfImportModal';
+import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal';
 
 export default function CrmVendasProdutosServicosPage() {
   const p = useCrmProdutosServicosPage();
@@ -52,6 +53,7 @@ export default function CrmVendasProdutosServicosPage() {
           onSelectCategoria={p.irParaCategoria}
           onSelectSemCategoria={p.irSemCategoria}
           onVerTodos={p.irVerTodos}
+          onExcluirCategoria={p.pedirExclusaoCategoria}
         />
       ) : p.loadingItens ? (
         <SkeletonTable rows={5} columns={5} />
@@ -96,6 +98,19 @@ export default function CrmVendasProdutosServicosPage() {
           }}
         />
       )}
+
+      <CrmConfirmActionModal
+        open={p.categoriaExcluir != null}
+        title="Excluir categoria"
+        message={p.mensagemExcluirCategoria}
+        confirmLabel="Excluir"
+        variant="danger"
+        loading={p.excluindoCategoria}
+        onClose={p.cancelarExclusaoCategoria}
+        onConfirm={() => {
+          void p.confirmarExclusaoCategoria();
+        }}
+      />
 
       <CategoriasModal
         isOpen={p.modalCategoriasAberto}

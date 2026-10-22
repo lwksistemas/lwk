@@ -1,7 +1,7 @@
 /**
  * Grade inicial: categorias cadastradas; clique abre a lista filtrada.
  */
-import { FolderOpen, Package, Layers } from 'lucide-react';
+import { FolderOpen, Package, Layers, Trash2 } from 'lucide-react';
 import { Categoria } from '@/hooks/useProdutosServicos';
 
 interface CategoriasProdutosGridProps {
@@ -11,6 +11,7 @@ interface CategoriasProdutosGridProps {
   onSelectCategoria: (id: number) => void;
   onSelectSemCategoria: () => void;
   onVerTodos: () => void;
+  onExcluirCategoria: (categoria: Categoria) => void;
 }
 
 function totalNaPasta(cat: Categoria, todas: Categoria[]): number {
@@ -29,6 +30,7 @@ export function CategoriasProdutosGrid({
   onSelectCategoria,
   onSelectSemCategoria,
   onVerTodos,
+  onExcluirCategoria,
 }: CategoriasProdutosGridProps) {
   const ordenadas = ordenarCategorias(categorias).filter((cat) => {
     const nestaPasta = pastaId ? cat.pai === pastaId : !cat.pai;
@@ -56,12 +58,15 @@ export function CategoriasProdutosGrid({
         {ordenadas.map((cat) => {
           const total = totalNaPasta(cat, categorias);
           return (
-          <button
+          <div
             key={cat.id}
-            type="button"
-            onClick={() => onSelectCategoria(cat.id)}
-            className="text-left rounded-xl border border-gray-200 dark:border-[#0d1f3c] bg-white dark:bg-[#16325c] p-5 shadow-sm hover:shadow-md hover:border-[#0176d3]/50 transition-all group"
+            className="relative text-left rounded-xl border border-gray-200 dark:border-[#0d1f3c] bg-white dark:bg-[#16325c] shadow-sm hover:shadow-md hover:border-[#0176d3]/50 transition-all group"
           >
+            <button
+              type="button"
+              onClick={() => onSelectCategoria(cat.id)}
+              className="w-full text-left p-5 pr-12"
+            >
             <div className="flex items-start gap-3">
               <span
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-white shadow-inner"
@@ -88,7 +93,17 @@ export function CategoriasProdutosGrid({
                 </p>
               </div>
             </div>
-          </button>
+            </button>
+            <button
+              type="button"
+              onClick={() => onExcluirCategoria(cat)}
+              className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+              aria-label={`Excluir ${cat.nome}`}
+              title="Excluir categoria"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
           );
         })}
 

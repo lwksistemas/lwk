@@ -156,21 +156,6 @@ export default function OportunidadeFormFields({ slug, etapas, layout, formState
     </div>
   );
 
-  const comissaoField = (
-    <div>
-      <label className={labelCls}>{isPage ? 'Valor da comissão (R$)' : 'Valor da Comissão (R$)'}</label>
-      <input
-        type="number"
-        min="0"
-        step="0.01"
-        value={form.valor_comissao}
-        onChange={(e) => setForm((f) => ({ ...f, valor_comissao: e.target.value }))}
-        className={inputCls}
-        placeholder="0"
-      />
-    </div>
-  );
-
   if (isPage) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 xl:gap-14 w-full">
@@ -191,11 +176,8 @@ export default function OportunidadeFormFields({ slug, etapas, layout, formState
         <div className="space-y-6">
           <section className="space-y-4">{itensField}</section>
           <section className="space-y-4">
-            <h3 className={sectionTitlePage}>Valor e comissão</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {valorField}
-              {comissaoField}
-            </div>
+            <h3 className={sectionTitlePage}>Valor</h3>
+            {valorField}
           </section>
         </div>
       </div>
@@ -208,7 +190,6 @@ export default function OportunidadeFormFields({ slug, etapas, layout, formState
       {prestadoraField}
       {valorField}
       {itensField}
-      {comissaoField}
       {etapaField}
     </div>
   );

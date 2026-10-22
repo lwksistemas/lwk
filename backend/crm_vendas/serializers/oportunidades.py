@@ -7,7 +7,15 @@ from core.serializer_mixins import (
     TextNormalizationMixin,
 )
 
-from ..models import Oportunidade
+from ..models import Oportunidade, Vendedor
+from ..utils import get_current_vendedor_id, vendedor_nao_ve_valor_da_prestadora
+
+
+class _OportunidadeListaSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        itens = list(data.all() if hasattr(data, "all") else data)
+        self.child.preparar_comissoes(itens)
+        return [self.child.to_representation(item) for item in itens]
 
 
 class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
@@ -29,7 +37,45 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
             "observacoes", "motivo_perda", "feedback_pos_venda",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at", "valor_comissao"]
+        list_serializer_class = _OportunidadeListaSerializer
+
+    def preparar_comissoes(self, oportunidades):
+        """Calcula a comissão do vendedor logado só nas vendas dele."""
+        self._partes_vendedor = None
+        request = self.context.get("request")
+        if not request or not vendedor_nao_ve_valor_da_prestadora(request):
+            return
+        vid = get_current_vendedor_id(request)
+        vendedor = (
+            Vendedor.objects.filter(pk=vid).prefetch_related("comissoes_categoria").first()
+            if vid else None
+        )
+        if not vendedor:
+            self._partes_vendedor = {}
+            return
+        proprias = [op for op in oportunidades if getattr(op, "vendedor_id", None) == vendedor.id]
+        if not proprias:
+            self._partes_vendedor = {}
+            return
+        from ..comissao_prestadora_service import partes_por_oportunidade
+
+        self._partes_vendedor = partes_por_oportunidade(
+            Oportunidade.objects.filter(id__in=[op.id for op in proprias]),
+            vendedor,
+        )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if not request or not vendedor_nao_ve_valor_da_prestadora(request):
+            return data
+        data["valor_comissao"] = None
+        if getattr(self, "_partes_vendedor", None) is None:
+            self.preparar_comissoes([instance])
+        valor = (self._partes_vendedor or {}).get(instance.id)
+        data["minha_comissao"] = f"{valor:.2f}" if valor is not None else None
+        return data
 
     def get_lead_nome(self, obj):
         """Nome da pessoa (lead), não da empresa vinculada."""

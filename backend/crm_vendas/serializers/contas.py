@@ -60,12 +60,23 @@ class ContaSerializer(
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        request = self.context.get("request")
+        from ..utils import vendedor_nao_ve_valor_da_prestadora
+
+        if request and vendedor_nao_ve_valor_da_prestadora(request):
+            data.pop("comissoes", None)
+            return data
         view = self.context.get("view")
         if getattr(view, "action", None) in ("retrieve", "create", "update", "partial_update"):
             data["comissoes"] = serializar_comissoes_conta(instance)
         return data
 
     def _gravar_comissoes(self, instance, comissoes):
+        request = self.context.get("request")
+        from ..utils import vendedor_nao_ve_valor_da_prestadora
+
+        if request and vendedor_nao_ve_valor_da_prestadora(request):
+            return
         if comissoes is None and instance.tipo in TIPOS_COM_COMISSAO:
             return
         aplicar_comissoes_conta(instance, [] if comissoes is None else comissoes)

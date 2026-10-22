@@ -90,11 +90,12 @@ def gerar_relatorio(request):
         if periodo == "personalizado" and data_inicio_custom and data_fim_custom:
             periodo_label = f"{data_inicio_custom}_a_{data_fim_custom}"
 
+        comissao_somente = current_vendedor_id if not is_owner else None
         if tipo == "vendas_total":
-            pdf_buffer = gerar_relatorio_vendas_total(loja_id, periodo, empresa_prestadora_id=empresa_prestadora_id, data_inicio_custom=data_inicio_custom, data_fim_custom=data_fim_custom)
+            pdf_buffer = gerar_relatorio_vendas_total(loja_id, periodo, empresa_prestadora_id=empresa_prestadora_id, data_inicio_custom=data_inicio_custom, data_fim_custom=data_fim_custom, comissao_somente_vendedor_id=comissao_somente)
             filename = f"relatorio_vendas_total_{periodo_label}.pdf"
         elif tipo in ["vendas_vendedor", "comissoes"]:
-            pdf_buffer = gerar_relatorio_vendas_vendedor(loja_id, periodo, vendedor_id, empresa_prestadora_id=empresa_prestadora_id, data_inicio_custom=data_inicio_custom, data_fim_custom=data_fim_custom)
+            pdf_buffer = gerar_relatorio_vendas_vendedor(loja_id, periodo, vendedor_id, empresa_prestadora_id=empresa_prestadora_id, data_inicio_custom=data_inicio_custom, data_fim_custom=data_fim_custom, comissao_somente_vendedor_id=comissao_somente)
             filename = f"relatorio_vendas{nome_vendedor_label}_{periodo_label}.pdf"
         elif tipo == "negociacao_ganhos":
             pdf_buffer = gerar_relatorio_negociacao_ganhos(

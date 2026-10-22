@@ -21,8 +21,6 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
   const {
     etapaSelecionada,
     setEtapaSelecionada,
-    valorComissaoEdit,
-    setValorComissaoEdit,
     dataFechamentoGanho,
     setDataFechamentoGanho,
     dataFechamentoPerdido,
@@ -91,9 +89,14 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
           <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
             {formatCrmBrl(oportunidade.valor)}
           </p>
-          {oportunidade.valor_comissao && (
+          {oportunidade.minha_comissao != null && (
             <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
-              Comissão: {formatCrmBrl(oportunidade.valor_comissao)}
+              Sua comissão: {formatCrmBrl(oportunidade.minha_comissao)}
+            </p>
+          )}
+          {oportunidade.minha_comissao == null && oportunidade.valor_comissao && (
+            <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
+              Pago pela prestadora: {formatCrmBrl(oportunidade.valor_comissao)}
             </p>
           )}
         </div>
@@ -156,20 +159,6 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
             layout="modal"
           />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Valor da Comissão (R$)
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={valorComissaoEdit}
-              onChange={(e) => setValorComissaoEdit(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="0"
-            />
-          </div>
           {(etapaSelecionada === 'closed_lost' || oportunidade.etapa === 'closed_lost') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

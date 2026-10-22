@@ -7,7 +7,6 @@ import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import { useToast } from '@/components/ui/Toast';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
-import { valorComissaoParaApi } from '@/lib/crm-oportunidade-comissao';
 import {
   atualizarOportunidadeItem,
   calcularTotalOportunidadeItens,
@@ -43,7 +42,6 @@ export function useModalEditarOportunidade(
 ) {
   const toast = useToast();
   const [etapaSelecionada, setEtapaSelecionada] = useState(oportunidade.etapa);
-  const [valorComissaoEdit, setValorComissaoEdit] = useState(oportunidade.valor_comissao || '');
   const [dataFechamentoGanho, setDataFechamentoGanho] = useState(oportunidade.data_fechamento_ganho || '');
   const [dataFechamentoPerdido, setDataFechamentoPerdido] = useState(oportunidade.data_fechamento_perdido || '');
   const [motivoPerda, setMotivoPerda] = useState(oportunidade.motivo_perda || '');
@@ -194,8 +192,6 @@ export function useModalEditarOportunidade(
         empresa_prestadora: parseInt(empresaPrestadoraId, 10),
       };
 
-      payload.valor_comissao = valorComissaoParaApi(valorComissaoEdit);
-
       if (etapaSelecionada === 'closed_won' && !dataFechamentoGanho) {
         payload.data_fechamento_ganho = new Date().toISOString().split('T')[0];
       } else if (dataFechamentoGanho) {
@@ -260,8 +256,6 @@ export function useModalEditarOportunidade(
   return {
     etapaSelecionada,
     setEtapaSelecionada,
-    valorComissaoEdit,
-    setValorComissaoEdit,
     dataFechamentoGanho,
     setDataFechamentoGanho,
     dataFechamentoPerdido,

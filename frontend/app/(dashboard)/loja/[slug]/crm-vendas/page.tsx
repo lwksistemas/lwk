@@ -181,14 +181,14 @@ export default function CrmVendasDashboardPage() {
               <DollarSign size={20} className="text-[#e287b2]" />
             </div>
             <h2 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-              {periodoLabels.comissao}
+              {isVendedor ? 'Sua comissão' : periodoLabels.comissao}
             </h2>
           </div>
           <p className="text-3xl font-bold text-[#e287b2] dark:text-[#e287b2]">
             {formatCrmBrl(data.comissao_total_mes || 0)}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            {periodoLabels.comissaoSub}
+            {isVendedor ? 'Pela regra do seu cadastro' : periodoLabels.comissaoSub}
           </p>
         </div>
 

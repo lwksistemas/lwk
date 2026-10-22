@@ -29,7 +29,7 @@ from .services_financeiro import (
     resumo_financeiro_crm,
     sincronizar_comissoes_retroativas,
 )
-from .utils import get_current_vendedor_id, is_owner, vendedor_tem_controle_qualidade
+from .utils import get_current_vendedor_id, is_owner, vendedor_nao_ve_valor_da_prestadora, vendedor_tem_controle_qualidade
 from .views_common import CRMPagination, filtrar_queryset_por_query_params
 
 logger = logging.getLogger(__name__)
@@ -148,6 +148,8 @@ class LancamentoFinanceiroCRMViewSet(
             },
         )
         # Período só na listagem — marcar_pago/patch precisam achar o id fora do mês exibido.
+        if vendedor_nao_ve_valor_da_prestadora(self.request):
+            qs = qs.exclude(origem=LancamentoFinanceiroCRM.ORIGEM_COMISSAO)
         if getattr(self, "action", None) == "list":
             qs = aplicar_filtro_periodo_lancamentos(
                 qs,
@@ -304,6 +306,7 @@ def financeiro_crm_resumo(request):
                     periodo=periodo,
                     data_inicio=request.query_params.get("data_inicio"),
                     data_fim=request.query_params.get("data_fim"),
+                    parte_do_vendedor=not is_owner(request),
                 ),
             )
 

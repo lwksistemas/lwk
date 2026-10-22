@@ -79,8 +79,12 @@ def filtro_detalhe_linha_merged_pdf(row: dict, merge_destino):
     return Q(vendedor_id=vid)
 
 
-def adicionar_secao_vendedor_pdf(elements, styles, vendedor_nome: str, oportunidades_qs, mostrar_nome=True):
+def adicionar_secao_vendedor_pdf(
+    elements, styles, vendedor_nome: str, oportunidades_qs, mostrar_nome=True, comissoes_por_id=None,
+):
     """Resumo + tabela ordenada por data (mais recente primeiro)."""
+    from decimal import Decimal
+
     oportunidades_qs = oportunidades_qs.annotate(
         data_ordem=Coalesce("data_fechamento_ganho", "data_fechamento"),
     ).order_by("-data_ordem", "-id")
@@ -91,7 +95,11 @@ def adicionar_secao_vendedor_pdf(elements, styles, vendedor_nome: str, oportunid
         qtd=Count("id"),
     )
     total = float(totais["total"] or 0)
-    comissao = float(totais["comissao"] or 0)
+    if comissoes_por_id is None:
+        comissao = float(totais["comissao"] or 0)
+    else:
+        ids = list(oportunidades_qs.values_list("id", flat=True))
+        comissao = float(sum((comissoes_por_id.get(item_id, Decimal("0")) for item_id in ids), Decimal("0")))
     qtd = totais["qtd"] or 0
 
     if mostrar_nome and vendedor_nome:
@@ -134,7 +142,10 @@ def adicionar_secao_vendedor_pdf(elements, styles, vendedor_nome: str, oportunid
         data_str = data_venda.strftime("%d/%m/%Y") if data_venda else "-"
         cliente = _nome_cliente_venda(venda)
         valor = float(venda.valor or 0)
-        comissao_venda = float(venda.valor_comissao or 0)
+        if comissoes_por_id is None:
+            comissao_venda = float(venda.valor_comissao or 0)
+        else:
+            comissao_venda = float(comissoes_por_id.get(venda.id, 0) or 0)
 
         data_vendas.append(
             [

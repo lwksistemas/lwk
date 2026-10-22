@@ -29,7 +29,7 @@ from .relatorios_vendas_pdf_helpers import (
 from .utils import get_vendedor_destino_merge_loja
 
 
-def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_id: int = None, data_inicio_custom=None, data_fim_custom=None) -> BytesIO:
+def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_id: int = None, data_inicio_custom=None, data_fim_custom=None, comissao_somente_vendedor_id=None) -> BytesIO:
     """Gera relatório PDF com total de vendas de todos os vendedores.
     """
     buffer = BytesIO()
@@ -88,8 +88,25 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_
     )
 
     total_vendas = float(totais["total_vendas"] or 0)
-    total_comissoes = float(totais["total_comissoes"] or 0)
     quantidade = totais["quantidade"] or 0
+    mapa_comissao = None
+    if comissao_somente_vendedor_id:
+        from decimal import Decimal
+
+        from .comissao_prestadora_service import partes_por_oportunidade
+
+        vend = (
+            Vendedor.objects.filter(pk=comissao_somente_vendedor_id, loja_id=loja_id)
+            .prefetch_related("comissoes_categoria")
+            .first()
+        )
+        mapa_comissao = (
+            partes_por_oportunidade(oportunidades.filter(vendedor_id=comissao_somente_vendedor_id), vend)
+            if vend else {}
+        )
+        total_comissoes = float(sum(mapa_comissao.values(), Decimal("0")))
+    else:
+        total_comissoes = float(totais["total_comissoes"] or 0)
 
     # Resumo
     data_resumo = [
@@ -133,7 +150,13 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_
             nome = v["vendedor__nome"] or "Sem vendedor"
             qtd = v["qtd"]
             total = float(v["total"] or 0)
-            comissao = float(v["comissao"] or 0)
+            if mapa_comissao is None:
+                comissao = float(v["comissao"] or 0)
+            elif v.get("vendedor_id") == comissao_somente_vendedor_id:
+                from decimal import Decimal
+                comissao = float(sum(mapa_comissao.values(), Decimal("0")))
+            else:
+                comissao = 0.0
             data_vendedores.append([
                 nome,
                 str(qtd),
@@ -168,7 +191,7 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_
     return buffer
 
 
-def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int = None, empresa_prestadora_id: int = None, data_inicio_custom=None, data_fim_custom=None) -> BytesIO:
+def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int = None, empresa_prestadora_id: int = None, data_inicio_custom=None, data_fim_custom=None, comissao_somente_vendedor_id=None) -> BytesIO:
     """Gera relatório PDF com vendas por vendedor específico ou todos.
     Para o vendedor destino da mesclagem (admin / e-mail do dono / primeiro ativo), inclui também
     vendas sem vendedor ou com vendedor inativo — igual ao dashboard CRM.
@@ -200,6 +223,20 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
         base = base.filter(
             Q(empresa_prestadora_id=empresa_prestadora_id)
             | Q(empresa_prestadora_id__isnull=True),
+        )
+
+    comissoes_por_id = None
+    if comissao_somente_vendedor_id:
+        from .comissao_prestadora_service import partes_por_oportunidade
+
+        vend_comissao = (
+            Vendedor.objects.filter(pk=comissao_somente_vendedor_id, loja_id=loja_id)
+            .prefetch_related("comissoes_categoria")
+            .first()
+        )
+        comissoes_por_id = (
+            partes_por_oportunidade(base.filter(vendedor_id=comissao_somente_vendedor_id), vend_comissao)
+            if vend_comissao else {}
         )
 
     titulo = "Relatório de Vendas por Vendedor"
@@ -251,11 +288,12 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
                 | Q(vendedor__is_active=False),
             )
             _adicionar_secao_vendedor_pdf(
-                elements, styles, v_sel.nome, qs, mostrar_nome=False,
+                elements, styles, v_sel.nome, qs, mostrar_nome=False, comissoes_por_id=comissoes_por_id,
             )
         else:
             _adicionar_secao_vendedor_pdf(
                 elements, styles, v_sel.nome, base.filter(vendedor_id=v_sel.id), mostrar_nome=False,
+                comissoes_por_id=comissoes_por_id,
             )
     else:
         titulo += " - Todos os vendedores"
@@ -285,7 +323,9 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
             for row in vendedores_stats:
                 nome = row.get("vendedor__nome") or "Sem vendedor"
                 secao_qs = base.filter(_filtro_detalhe_linha_merged_pdf(row, merge_destino))
-                _adicionar_secao_vendedor_pdf(elements, styles, nome, secao_qs)
+                _adicionar_secao_vendedor_pdf(
+                    elements, styles, nome, secao_qs, comissoes_por_id=comissoes_por_id,
+                )
 
     elements.append(Spacer(1, 0.5 * cm))
     elements.append(

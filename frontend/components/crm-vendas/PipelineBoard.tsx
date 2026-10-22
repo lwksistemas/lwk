@@ -20,6 +20,7 @@ export interface Oportunidade {
   data_fechamento_ganho?: string | null;
   data_fechamento_perdido?: string | null;
   valor_comissao?: string | null;
+  minha_comissao?: string | null;
   motivo_perda?: string | null;
   feedback_pos_venda?: string | null;
   /** Usado no filtro por período (criação da oportunidade) */
@@ -278,9 +279,14 @@ export default function PipelineBoard({
                       {o.vendedor_nome}
                     </p>
                   )}
-                  {o.valor_comissao && (
+                  {o.minha_comissao != null && (
                     <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                      Comissão: {formatCrmBrl(o.valor_comissao)}
+                      Sua comissão: {formatCrmBrl(o.minha_comissao)}
+                    </p>
+                  )}
+                  {o.minha_comissao == null && o.valor_comissao && (
+                    <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                      Pago pela prestadora: {formatCrmBrl(o.valor_comissao)}
                     </p>
                   )}
                   {o.data_fechamento_ganho && (

@@ -28,6 +28,7 @@ interface Conta {
   cidade?: string;
   uf?: string;
   observacoes?: string;
+  logo?: string;
   comissoes?: ComissaoPrestadoraItem[];
 }
 
@@ -50,6 +51,7 @@ function contaToForm(conta: Conta): ContaFormData {
     cidade: conta.cidade || '',
     uf: conta.uf || '',
     observacoes: conta.observacoes || '',
+    logo: conta.logo || '',
     comissoes: (conta.comissoes || []).map((item) => ({
       produto_servico_id: item.produto_servico_id,
       valor: item.valor ?? '',

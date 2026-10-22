@@ -31,6 +31,7 @@ class ContaSerializer(
     email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
     site = serializers.URLField(required=False, allow_blank=True, allow_null=True)
     comissoes = serializers.JSONField(required=False, write_only=True)
+    logo = serializers.URLField(required=False, allow_blank=True, max_length=500)
 
     class Meta:
         model = Conta
@@ -38,7 +39,7 @@ class ContaSerializer(
             "id", "nome", "razao_social", "cnpj", "inscricao_estadual", "tipo", "segmento",
             "telefone", "email", "site",
             "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf",
-            "endereco", "observacoes", "comissoes", "created_at", "updated_at",
+            "endereco", "observacoes", "logo", "comissoes", "created_at", "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
 
@@ -51,6 +52,11 @@ class ContaSerializer(
         if not value or value.strip() == "":
             return None
         return value
+
+    def validate_logo(self, value):
+        if not value or not str(value).strip():
+            return ""
+        return str(value).strip()
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

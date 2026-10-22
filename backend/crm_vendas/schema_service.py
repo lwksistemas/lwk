@@ -222,6 +222,7 @@ def apply_crm_tenant_schema_patches(db_name: str) -> None:
     patch_crm_negociacao_historico_if_missing(db_name)
     patch_crm_comissao_prestadora_if_missing(db_name)
     patch_crm_comissao_vendedor_categoria_if_missing(db_name)
+    patch_crm_conta_logo_if_missing(db_name)
 
 
 def patch_crm_comissao_prestadora_if_missing(db_name: str) -> bool:
@@ -279,6 +280,36 @@ def patch_crm_comissao_prestadora_if_missing(db_name: str) -> bool:
             """,
         )
         return True
+
+
+def patch_crm_conta_logo_if_missing(db_name: str) -> bool:
+    """Garante a logomarca da prestadora na conta (migration 0082)."""
+    from core.db_config import ensure_loja_database_config
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        return False
+
+    schema_name = db_name.replace("-", "_")
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
+        cursor.execute(
+            """
+            ALTER TABLE crm_vendas_conta
+            ADD COLUMN IF NOT EXISTS logo varchar(500) NOT NULL DEFAULT ''
+            """,
+        )
+        cursor.execute(
+            """
+            INSERT INTO django_migrations (app, name, applied)
+            SELECT 'crm_vendas', '0082_conta_logo', NOW()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM django_migrations
+                WHERE app = 'crm_vendas' AND name = '0082_conta_logo'
+            )
+            """,
+        )
+    return True
 
 
 def patch_crm_comissao_vendedor_categoria_if_missing(db_name: str) -> bool:

@@ -26,6 +26,7 @@ const EMPTY_FORM: ContaFormData = {
   cidade: '',
   uf: '',
   observacoes: '',
+  logo: '',
   comissoes: [],
 };
 

@@ -70,6 +70,29 @@ function caminhoDoProduto(produto: Produto): string[] {
   return [...base, area, tabela];
 }
 
+function textoBusca(valor: string) {
+  return valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function precoCombina(preco: string, termo: string) {
+  const bruto = termo.replace(/r\$/gi, '').trim();
+  if (!/\d/.test(bruto)) return false;
+  const numero = parseFloat(preco);
+  if (!Number.isFinite(numero)) return false;
+  const exibicao = numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const digitosTermo = bruto.replace(/\D/g, '');
+  const digitosPreco = exibicao.replace(/\D/g, '');
+  return Boolean(digitosTermo) && digitosPreco.includes(digitosTermo);
+}
+
+function listarProdutos(pasta: Pasta, prefixo: string[] = []): { produto: Produto; caminho: string[] }[] {
+  const atuais = pasta.itens.map((produto) => ({ produto, caminho: prefixo }));
+  return pasta.filhos.reduce(
+    (lista, filho) => lista.concat(listarProdutos(filho, [...prefixo, filho.nome])),
+    atuais,
+  );
+}
+
 function montarArvore(produtos: Produto[]): Pasta {
   const raiz: Pasta = { nome: '', cor: '#3B82F6', itens: [], filhos: [] };
   for (const produto of produtos) {
@@ -106,10 +129,22 @@ export default function ProdutoSeletorCategoria({
   const pastaAtual = caminho.reduce<Pasta>((atual, nome) => {
     return atual.filhos.find((filho) => filho.nome === nome) || atual;
   }, arvore);
-  const termo = busca.trim().toLowerCase();
-  const itensVisiveis = termo
-    ? pastaAtual.itens.filter((item) => `${item.codigo || ''} ${item.nome}`.toLowerCase().includes(termo))
-    : pastaAtual.itens;
+  const termo = textoBusca(busca.trim());
+  const encontrados = useMemo(() => {
+    if (!termo) return [];
+    return listarProdutos(arvore).filter(({ produto }) => {
+      const nome = textoBusca(`${produto.codigo || ''} ${produto.nome}`);
+      return nome.includes(termo) || precoCombina(produto.preco, termo);
+    });
+  }, [arvore, termo]);
+  const itensVisiveis = termo ? encontrados.map((item) => item.produto) : pastaAtual.itens;
+  const caminhoPorId = useMemo(() => {
+    const mapa = new Map<number, string>();
+    encontrados.forEach(({ produto, caminho: trilha }) => {
+      mapa.set(produto.id, trilha.join(' / '));
+    });
+    return mapa;
+  }, [encontrados]);
   const mostrandoPastas = pastaAtual.filhos.length > 0 && !termo;
 
   const abrir = (nome: string) => {
@@ -142,16 +177,14 @@ export default function ProdutoSeletorCategoria({
         </button>
       </div>
 
-      {pastaAtual.itens.length > 8 && (
-        <div className="px-2 pt-2">
-          <input
-            value={busca}
-            onChange={(event) => setBusca(event.target.value)}
-            placeholder="Buscar nesta pasta"
-            className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          />
-        </div>
-      )}
+      <div className="px-2 pt-2">
+        <input
+          value={busca}
+          onChange={(event) => setBusca(event.target.value)}
+          placeholder="Buscar por nome ou valor"
+          className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+        />
+      </div>
 
       <div className="max-h-80 overflow-y-auto">
         {mostrandoPastas ? (
@@ -190,7 +223,9 @@ export default function ProdutoSeletorCategoria({
                       {p.codigo ? <span className="text-gray-400 mr-1">[{p.codigo}]</span> : null}
                       {p.nome}
                     </p>
-                    <p className="text-[10px] text-gray-500 capitalize">{p.tipo}</p>
+                    <p className="text-[10px] text-gray-500 capitalize">
+                      {caminhoPorId.get(p.id) || p.tipo}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-2">
                     {qtdAdicionada > 0 && (
@@ -207,7 +242,9 @@ export default function ProdutoSeletorCategoria({
               );
             })}
             {itensVisiveis.length === 0 && (
-              <p className="px-3 py-4 text-xs text-gray-500">Nenhum serviço nesta pasta.</p>
+              <p className="px-3 py-4 text-xs text-gray-500">
+                {termo ? 'Nenhum serviço com esse nome ou valor.' : 'Nenhum serviço nesta pasta.'}
+              </p>
             )}
           </div>
         )}

@@ -72,7 +72,6 @@ export default function OportunidadeItensEditor({
           >
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
-                {ps?.codigo ? <span className="text-gray-400">[{ps.codigo}] </span> : null}
                 {ps?.nome || item.nome || 'Produto'}
               </p>
               {ps?.categoria_nome && (

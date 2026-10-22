@@ -27,6 +27,7 @@ export default function NovaPropostaPage() {
 
   const [formData, setFormData] = useState<FormDataProposta>({ ...EMPTY_FORM_PROPOSTA });
   const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
+  const [marcaPrestadora, setMarcaPrestadora] = useState('');
   const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
   const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -98,11 +99,13 @@ export default function NovaPropostaPage() {
       if (!id) {
         setItensOportunidade([]);
         setLeadInfo(null);
+        setMarcaPrestadora('');
         return;
       }
       loadItensOportunidade(id);
       try {
         const opp = await fetchCrmOportunidade(id);
+        setMarcaPrestadora(opp.empresa_prestadora_nome || '');
         setFormData((f) => ({
           ...f,
           oportunidade_id: id,
@@ -193,6 +196,7 @@ export default function NovaPropostaPage() {
         lojaInfo={lojaInfo}
         leadInfo={leadInfo}
         itensOportunidade={itensOportunidade}
+        marcaPrestadora={marcaPrestadora}
         statusOpcoes={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
         onFormChange={setFormData}
         onOportunidadeChange={handleOportunidadeChange}

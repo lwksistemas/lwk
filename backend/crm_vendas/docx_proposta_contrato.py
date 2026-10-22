@@ -16,6 +16,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from core.phone_utils import telefone_exibicao_brasileiro
 
 from .emitente_documento import obter_dados_emitente_documento
+from .pdf_proposta_contrato.sections import nome_item_documento
 
 
 class _HtmlToDocxBlocksParser(HTMLParser):
@@ -242,7 +243,13 @@ def _docx_add_dados_cliente(doc, lead) -> None:
     doc.add_paragraph(f"Endereço: {_formatar_endereco_lead(lead)}")
 
 
-def _docx_add_tabela_itens(doc, itens: list) -> None:
+def _marca_prestadora(documento) -> str:
+    oportunidade = getattr(documento, "oportunidade", None)
+    prestadora = getattr(oportunidade, "empresa_prestadora", None) if oportunidade is not None else None
+    return getattr(prestadora, "nome", "") if prestadora is not None else ""
+
+
+def _docx_add_tabela_itens(doc, itens: list, marca: str = "") -> None:
     """Adiciona tabela de itens ao documento."""
     doc.add_heading("Produtos e Serviços da Oportunidade", level=2)
     if not itens:
@@ -256,8 +263,7 @@ def _docx_add_tabela_itens(doc, itens: list) -> None:
     hdr[3].text = "Subtotal"
     for item in itens:
         ps = getattr(item, "produto_servico", None)
-        tipo_ps = ps.get_tipo_display() if ps and hasattr(ps, "get_tipo_display") else (getattr(ps, "tipo", "") if ps else "")
-        nome = f"{tipo_ps}: {ps.nome}" if (ps and tipo_ps) else (getattr(ps, "nome", "—") if ps else "—")
+        nome = nome_item_documento(getattr(ps, "nome", ""), marca) if ps else "—"
         row = table.add_row().cells
         row[0].text = nome
         row[1].text = str(getattr(item, "quantidade", None) or 1)
@@ -285,7 +291,7 @@ def gerar_docx_proposta(proposta) -> BytesIO:
     )
     _docx_add_dados_cliente(doc, lead)
     itens = list(getattr(proposta.oportunidade, "itens", []).all()) if getattr(proposta, "oportunidade", None) else []
-    _docx_add_tabela_itens(doc, itens)
+    _docx_add_tabela_itens(doc, itens, _marca_prestadora(proposta))
     doc.add_heading("Conteúdo", level=2)
     _add_html_as_docx(doc, getattr(proposta, "conteudo", "") or "")
     doc.add_heading("Assinaturas", level=2)
@@ -323,7 +329,7 @@ def gerar_docx_contrato(contrato) -> BytesIO:
     )
     _docx_add_dados_cliente(doc, lead)
     itens = list(getattr(contrato.oportunidade, "itens", []).all()) if getattr(contrato, "oportunidade", None) else []
-    _docx_add_tabela_itens(doc, itens)
+    _docx_add_tabela_itens(doc, itens, _marca_prestadora(contrato))
     doc.add_heading("Conteúdo", level=2)
     _add_html_as_docx(doc, getattr(contrato, "conteudo", "") or "")
     doc.add_heading("Assinaturas", level=2)

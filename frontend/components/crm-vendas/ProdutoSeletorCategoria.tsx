@@ -220,7 +220,6 @@ export default function ProdutoSeletorCategoria({
                 >
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
-                      {p.codigo ? <span className="text-gray-400 mr-1">[{p.codigo}]</span> : null}
                       {p.nome}
                     </p>
                     <p className="text-[10px] text-gray-500 capitalize">

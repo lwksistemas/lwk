@@ -28,9 +28,23 @@ function badgeClass(recorrencia: string | undefined): string {
 
 interface Props {
   itens: OportunidadeItem[];
+  marcaPrestadora?: string;
 }
 
-export default function CrmOportunidadeItensTabela({ itens }: Props) {
+function nomeDoItem(nome: string | undefined, marcaPrestadora?: string): string {
+  const texto = (nome || '').trim();
+  const bruto = (marcaPrestadora || '').split('—')[0].split('–')[0].trim();
+  const marcas = bruto ? [bruto, bruto.split(' ')[0]].filter(Boolean) : [];
+  for (const marca of marcas) {
+    if (texto.toUpperCase().startsWith(marca.toUpperCase())) {
+      const resto = texto.slice(marca.length).replace(/^[\s—–-]+/, '');
+      if (resto) return resto;
+    }
+  }
+  return texto;
+}
+
+export default function CrmOportunidadeItensTabela({ itens, marcaPrestadora }: Props) {
   if (itens.length === 0) {
     return <p className="text-xs text-gray-500">Esta oportunidade não possui produtos ou serviços cadastrados.</p>;
   }
@@ -71,10 +85,7 @@ export default function CrmOportunidadeItensTabela({ itens }: Props) {
             {itens.map((item) => (
               <tr key={item.id} className="border-t border-gray-100 dark:border-[#0d1f3c]">
                 <td className="py-2 px-3">
-                  <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">
-                    {item.produto_servico_tipo === 'produto' ? 'Produto' : 'Serviço'}:
-                  </span>
-                  {item.produto_servico_nome}
+                  {nomeDoItem(item.produto_servico_nome, marcaPrestadora)}
                 </td>
                 <td className="py-2 px-3 text-center">
                   <span className={`text-xs px-1.5 py-0.5 rounded ${badgeClass(item.produto_servico_recorrencia)}`}>

@@ -185,6 +185,28 @@ def _tabela_codigo(tabela: str, retro: bool, ano: str) -> str:
     return base
 
 
+_CODIGO_ANTERIOR = re.compile(
+    r"^(BLU|GRN|BLKR|BLK|ESS)(\d{2})-(MED|ODO|DEM)-(CC|BOL)-(\d+)-([A-Z0-9]+)-(PF|XPJ|PJP)-(MEN|4P|ANU)$"
+)
+
+
+def encurtar_codigo_anadem(codigo: str) -> str | None:
+    """Troca o código longo da tabela (BLU26-MED-CC-300-1-PF-MEN) por um curto (B26MC3-1FM)."""
+    achado = _CODIGO_ANTERIOR.fullmatch((codigo or "").strip().upper())
+    if not achado:
+        return None
+    tabela, ano, area, pagamento, capital, grupo, publico, cobranca = achado.groups()
+    tab = {"BLU": "B", "GRN": "G", "BLKR": "K", "BLK": "L", "ESS": "E"}[tabela]
+    area_c = {"MED": "M", "ODO": "O", "DEM": "D"}[area]
+    pag = {"CC": "C", "BOL": "B"}[pagamento]
+    cap = int(capital)
+    if cap >= 100 and cap % 100 == 0:
+        cap //= 100
+    pub = {"PF": "F", "XPJ": "X", "PJP": "J"}[publico]
+    cob = {"MEN": "M", "4P": "4", "ANU": "A"}[cobranca]
+    return f"{tab}{ano}{area_c}{pag}{cap}-{grupo}{pub}{cob}"
+
+
 def pastas_do_item(item: dict) -> list[str]:
     """Subpastas da tabela comercial: área e, dentro dela, a tabela Blue, Green ou Black."""
     explicitas = item.get("pastas") or []
@@ -291,7 +313,7 @@ def parse_linhas_tabela_comercial(linhas: list[str]) -> tuple[list[dict], list[s
             publico_cod = "PJP"
         cobranca_cod = {"mensalidade": "MEN", "parcelas": "4P", "anual": "ANU"}[cobranca]
         recorrencia = {"mensalidade": "mensal", "parcelas": "unico", "anual": "anual"}[cobranca]
-        codigo = "-".join(
+        codigo_anterior = "-".join(
             [
                 _tabela_codigo(tabela, retro, ano),
                 _area_codigo(area),
@@ -302,6 +324,7 @@ def parse_linhas_tabela_comercial(linhas: list[str]) -> tuple[list[dict], list[s
                 cobranca_cod,
             ]
         )[:50]
+        codigo = encurtar_codigo_anadem(codigo_anterior) or codigo_anterior
         if codigo in vistos:
             return
         vistos.add(codigo)
@@ -336,6 +359,7 @@ def parse_linhas_tabela_comercial(linhas: list[str]) -> tuple[list[dict], list[s
         itens.append(
             {
                 "codigo": codigo,
+                "codigo_anterior": codigo_anterior if codigo_anterior != codigo else "",
                 "nome": nome[:255],
                 "descricao": " ".join(partes)[:4000],
                 "preco": f"{_decimal(preco):.2f}",

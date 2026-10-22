@@ -28,13 +28,14 @@ export default function CrmVendasProdutosServicosPage() {
         filtroCategoria={p.filtroCategoria}
         filtroTipo={p.filtroTipo}
         categorias={p.categorias}
-        onCategoriaChange={p.setFiltroCategoria}
+        onCategoriaChange={p.aoFiltrarCategoria}
         onTipoChange={p.setFiltroTipo}
         onNovoClick={() => p.openModal('create')}
         onImportarPdfClick={() => p.setModalImportarPdf(true)}
         onGerenciarCategoriasClick={() => p.setModalCategoriasAberto(true)}
         onVoltarCategorias={p.voltarCategorias}
         subtituloLista={p.subtituloLista}
+        caminhoPasta={p.caminhoPasta}
       />
 
       {p.error && (
@@ -47,6 +48,7 @@ export default function CrmVendasProdutosServicosPage() {
         <CategoriasProdutosGrid
           categorias={p.categorias}
           countSemCategoria={p.countSemCategoria}
+          pastaId={p.pastaAberta}
           onSelectCategoria={p.irParaCategoria}
           onSelectSemCategoria={p.irSemCategoria}
           onVerTodos={p.irVerTodos}

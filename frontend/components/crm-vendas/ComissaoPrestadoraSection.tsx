@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { categoriasParaComissao, idsNaCategoria } from '@/lib/crm-comissao-prestadora-categorias';
 import { fetchAllPaginatedResults } from '@/lib/crm-utils';
 
 export interface ComissaoPrestadoraItem {
@@ -12,6 +13,8 @@ interface CategoriaOpcao {
   id: number;
   nome: string;
   cor: string;
+  pai?: number | null;
+  ordem?: number;
   caminho?: string[];
 }
 
@@ -62,9 +65,16 @@ export function ComissaoPrestadoraSection({
     ])
       .then(([cats, itens]) => {
         if (cancelado) return;
+        const ativos = itens.filter((item) => item.ativo !== false);
+        const raizes = categoriasParaComissao(cats, ativos);
         setCategorias(cats);
-        setServicos(itens.filter((item) => item.ativo !== false));
-        setCategoriaId((atual) => atual ?? (cats[0]?.id ?? (itens.some((item) => !item.categoria) ? 'sem' : null)));
+        setServicos(ativos);
+        setCategoriaId((atual) => {
+          if (atual === 'sem' || (typeof atual === 'number' && raizes.some((raiz) => raiz.id === atual))) {
+            return atual;
+          }
+          return raizes[0]?.id ?? (ativos.some((item) => !item.categoria) ? 'sem' : null);
+        });
       })
       .catch(() => {
         if (!cancelado) setErro('Não foi possível carregar as categorias e os serviços.');
@@ -77,11 +87,23 @@ export function ComissaoPrestadoraSection({
     };
   }, [aberto, prestadoraId]);
 
+  const raizes = useMemo(
+    () => categoriasParaComissao(categorias, servicos),
+    [categorias, servicos],
+  );
+
+  const idsSelecionados = useMemo(() => {
+    if (typeof categoriaId !== 'number') return new Set<number>();
+    return idsNaCategoria(categorias, categoriaId);
+  }, [categoriaId, categorias]);
+
   const daCategoria = useMemo(() => {
     if (categoriaId === 'sem') return servicos.filter((item) => !item.categoria);
     if (categoriaId == null) return [];
-    return servicos.filter((item) => item.categoria === categoriaId);
-  }, [categoriaId, servicos]);
+    return servicos
+      .filter((item) => item.categoria != null && idsSelecionados.has(item.categoria))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [categoriaId, idsSelecionados, servicos]);
 
   const temSemCategoria = servicos.some((item) => !item.categoria);
 
@@ -98,12 +120,20 @@ export function ComissaoPrestadoraSection({
     valores.find((item) => item.produto_servico_id === produtoId)?.valor ?? '';
 
   const quantidadeNaCategoria = (id: number | 'sem') => {
+    const idsCategoria = id === 'sem' ? null : idsNaCategoria(categorias, id);
     const ids = new Set(
       servicos
-        .filter((item) => (id === 'sem' ? !item.categoria : item.categoria === id))
+        .filter((item) => (id === 'sem' ? !item.categoria : item.categoria != null && idsCategoria?.has(item.categoria)))
         .map((item) => item.id),
     );
     return valores.filter((item) => ids.has(item.produto_servico_id) && item.valor.trim() !== '').length;
+  };
+
+  const trilhaDaSubpasta = (categoriaServico: number | null) => {
+    if (categoriaServico == null || typeof categoriaId !== 'number') return '';
+    const categoria = categorias.find((item) => item.id === categoriaServico);
+    if (!categoria?.caminho || categoria.caminho.length <= 1) return '';
+    return categoria.caminho.slice(1).join(' · ');
   };
 
   return (
@@ -133,7 +163,7 @@ export function ComissaoPrestadoraSection({
       {!carregando && !erro && servicos.length > 0 && (
         <>
           <div className="flex flex-wrap gap-2">
-            {categorias.filter((categoria) => servicos.some((item) => item.categoria === categoria.id)).map((categoria) => {
+            {raizes.map((categoria) => {
               const ativa = categoriaId === categoria.id;
               const qtd = quantidadeNaCategoria(categoria.id);
               return (
@@ -147,9 +177,7 @@ export function ComissaoPrestadoraSection({
                       : 'bg-white dark:bg-[#1e3a5f] text-gray-700 dark:text-gray-200 border-gray-200 dark:border-neutral-600'
                   }`}
                 >
-                  {categoria.caminho && categoria.caminho.length > 1
-                    ? categoria.caminho.slice(1).join(' · ')
-                    : categoria.nome}
+                  {categoria.nome}
                   {qtd > 0 ? ` (${qtd})` : ''}
                 </button>
               );
@@ -186,6 +214,9 @@ export function ComissaoPrestadoraSection({
                     <tr key={servico.id} className="border-t border-gray-100 dark:border-[#0d1f3c]">
                       <td className="py-2 px-3 text-gray-900 dark:text-white">
                         {servico.nome}
+                        {trilhaDaSubpasta(servico.categoria) ? (
+                          <span className="block text-xs text-gray-500">{trilhaDaSubpasta(servico.categoria)}</span>
+                        ) : null}
                         {servico.codigo ? (
                           <span className="block text-xs text-gray-500">{servico.codigo}</span>
                         ) : null}

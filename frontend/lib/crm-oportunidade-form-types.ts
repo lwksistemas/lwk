@@ -26,6 +26,7 @@ export interface CrmOportunidadeItemForm {
   produto_servico_id: number;
   quantidade: string;
   preco_unitario: string;
+  nome?: string;
 }
 
 export interface CrmOportunidadeFormState {

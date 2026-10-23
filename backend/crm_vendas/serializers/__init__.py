@@ -1,6 +1,10 @@
 """Serializers do CRM Vendas."""
 from .atividades import AtividadeListSerializer, AtividadeSerializer
-from .catalogo import CategoriaProdutoServicoSerializer, ProdutoServicoSerializer
+from .catalogo import (
+    CategoriaProdutoServicoSerializer,
+    ProdutoServicoResumoSerializer,
+    ProdutoServicoSerializer,
+)
 from .config import CRMConfigSerializer
 from .contas import ContaSerializer
 from .contatos import ContatoSerializer
@@ -38,6 +42,7 @@ __all__ = [
     "OportunidadeItemSerializer",
     "OportunidadeNotaSerializer",
     "OportunidadeSerializer",
+    "ProdutoServicoResumoSerializer",
     "ProdutoServicoSerializer",
     "PropostaSerializer",
     "PropostaTemplateSerializer",

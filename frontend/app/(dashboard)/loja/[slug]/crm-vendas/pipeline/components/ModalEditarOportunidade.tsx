@@ -164,10 +164,11 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
             onUpdateItem={updateItemEditar}
             onRemoveItem={removeItemEditar}
             empresaSelecionada={Boolean(empresaPrestadoraId)}
+            prestadoraId={empresaPrestadoraId}
             onAddProduto={(ps) => {
               setItensEditar((itens) => [
                 ...itens,
-                { produto_servico_id: ps.id, quantidade: '1', preco_unitario: ps.preco },
+                { produto_servico_id: ps.id, nome: ps.nome, quantidade: '1', preco_unitario: ps.preco },
               ]);
             }}
             layout="modal"

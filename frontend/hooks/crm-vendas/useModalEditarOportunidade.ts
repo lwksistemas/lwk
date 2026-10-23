@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import apiClient from '@/lib/api-client';
-import { fetchAllPaginatedResults, normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
+import { normalizeListResponse, getCrmApiErrorDetail, crmMensagemEnvioCanalSucesso } from '@/lib/crm-utils';
 import { crmEnviarCliente } from '@/lib/crm-enviar-cliente';
 import { useToast } from '@/components/ui/Toast';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
@@ -91,16 +91,14 @@ export function useModalEditarOportunidade(
       return;
     }
     let cancelado = false;
-    fetchAllPaginatedResults<ProdutoServicoOption>(
-      '/crm-vendas/produtos-servicos/',
-      { ativo: 'true', prestadora: empresaPrestadoraId },
-      200,
-    )
-      .then((lista) => {
+    apiClient
+      .get<number[]>('/crm-vendas/produtos-servicos/ids/', {
+        params: { ativo: 'true', prestadora: empresaPrestadoraId },
+      })
+      .then((res) => {
         if (cancelado) return;
-        setProdutosServicos(lista);
         if (!prestadoraInicial.current) {
-          const ids = new Set(lista.map((item) => item.id));
+          const ids = new Set(res.data);
           setItensEditar((atual) => atual.filter((item) => ids.has(item.produto_servico_id)));
         }
         prestadoraInicial.current = false;

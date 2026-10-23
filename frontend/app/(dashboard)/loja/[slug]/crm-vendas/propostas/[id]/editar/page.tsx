@@ -44,6 +44,8 @@ interface Proposta {
   desconto_valor: string;
   status: string;
   status_assinatura?: string;
+  nome_vendedor_assinatura?: string;
+  nome_cliente_assinatura?: string;
   emitente_nome?: string;
   emitente_endereco?: string;
   emitente_cpf_cnpj?: string;
@@ -139,8 +141,8 @@ export default function EditarPropostaPage() {
           desconto_tipo: p.desconto_tipo || 'percentual',
           desconto_valor: String(p.desconto_valor ?? ''),
           status: p.status || 'rascunho',
-          nome_vendedor_assinatura: '',
-          nome_cliente_assinatura: '',
+          nome_vendedor_assinatura: p.nome_vendedor_assinatura || '',
+          nome_cliente_assinatura: p.nome_cliente_assinatura || '',
           ...emitenteFieldsFromApi(p),
         });
         setLoading(false);
@@ -160,6 +162,12 @@ export default function EditarPropostaPage() {
               }),
             );
             setMarcaPrestadora(opp.empresa_prestadora_nome || '');
+            const nomeVendedor = (opp.vendedor_nome || '').trim();
+            if (nomeVendedor) {
+              setFormData((f) => (
+                f.nome_vendedor_assinatura ? f : { ...f, nome_vendedor_assinatura: nomeVendedor }
+              ));
+            }
             if (opp.lead) loadLeadInfo(opp.lead);
             else setLeadInfo(null);
           })
@@ -198,10 +206,12 @@ export default function EditarPropostaPage() {
             empresa_prestadora_nome: opp.empresa_prestadora_nome,
           }),
         );
+        const nomeVendedor = (opp.vendedor_nome || '').trim();
         setFormData((f) => ({
           ...f,
           oportunidade_id: oppId,
           valor_total: opp.valor ? String(opp.valor) : f.valor_total,
+          nome_vendedor_assinatura: nomeVendedor || f.nome_vendedor_assinatura,
         }));
         if (opp.lead) loadLeadInfo(opp.lead);
         else setLeadInfo(null);

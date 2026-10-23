@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { X } from 'lucide-react';
 import ProdutoSeletorCategoria from '@/components/crm-vendas/ProdutoSeletorCategoria';
@@ -21,6 +21,7 @@ interface Props {
   onRemoveItem: (idx: number) => void;
   onAddProduto: (produto: CrmOportunidadeProdutoOption) => void;
   empresaSelecionada?: boolean;
+  prestadoraId?: string;
   layout?: 'modal' | 'page';
   showHeader?: boolean;
 }
@@ -35,11 +36,24 @@ export default function OportunidadeItensEditor({
   onRemoveItem,
   onAddProduto,
   empresaSelecionada = false,
+  prestadoraId = '',
   layout = 'modal',
   showHeader = true,
 }: Props) {
   const isPage = layout === 'page';
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string | null>(null);
+  const prestadoraAnterior = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (prestadoraAnterior.current === null) {
+      prestadoraAnterior.current = prestadoraId;
+      return;
+    }
+    if (prestadoraId && prestadoraId !== prestadoraAnterior.current) {
+      onSeletorAbertoChange(true);
+    }
+    prestadoraAnterior.current = prestadoraId;
+  }, [prestadoraId, onSeletorAbertoChange]);
 
   return (
     <div>
@@ -110,10 +124,10 @@ export default function OportunidadeItensEditor({
           </div>
         );
       })}
-      {seletorAberto && produtos.length > 0 && (
+      {seletorAberto && prestadoraId && (
         <div className={isPage ? '' : 'mb-2'}>
           <ProdutoSeletorCategoria
-            produtos={produtos}
+            prestadoraId={prestadoraId}
             itensSelecionados={itens.map((i) => i.produto_servico_id)}
             categoriaSelecionada={categoriaSelecionada}
             onCategoriaChange={setCategoriaSelecionada}
@@ -127,7 +141,7 @@ export default function OportunidadeItensEditor({
           />
         </div>
       )}
-      {produtos.length > 0 && !seletorAberto && (
+      {prestadoraId && !seletorAberto && (
         <button
           type="button"
           onClick={() => onSeletorAbertoChange(true)}
@@ -136,11 +150,9 @@ export default function OportunidadeItensEditor({
           + Adicionar item
         </button>
       )}
-      {produtos.length === 0 && (
+      {!prestadoraId && !empresaSelecionada && (
         <p className="text-xs text-amber-600 dark:text-amber-400">
-          {empresaSelecionada
-            ? 'Esta empresa ainda não tem produtos ou serviços. Importe o PDF no cadastro dela.'
-            : 'Selecione a empresa prestadora para ver só os serviços dela.'}
+          Selecione a empresa prestadora para ver só os serviços dela.
         </p>
       )}
     </div>

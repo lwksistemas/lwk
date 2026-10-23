@@ -53,6 +53,25 @@ class CategoriaProdutoServicoSerializer(TextNormalizationMixin, serializers.Mode
         return pai
 
 
+class ProdutoServicoResumoSerializer(serializers.ModelSerializer):
+    """Campos do seletor da oportunidade, sem percorrer a árvore de pastas."""
+
+    categoria_nome = serializers.SerializerMethodField()
+    categoria_cor = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProdutoServico
+        fields = ["id", "tipo", "codigo", "nome", "preco", "categoria", "categoria_nome", "categoria_cor"]
+
+    def get_categoria_nome(self, obj):
+        categoria = getattr(obj, "categoria", None)
+        return categoria.nome if categoria is not None else ""
+
+    def get_categoria_cor(self, obj):
+        categoria = getattr(obj, "categoria", None)
+        return categoria.cor if categoria is not None else ""
+
+
 class ProdutoServicoSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     categoria_nome = serializers.CharField(source="categoria.nome", read_only=True)
     categoria_cor = serializers.CharField(source="categoria.cor", read_only=True)

@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, X, Plus, FolderOpen } from 'lucide-react';
+import apiClient from '@/lib/api-client';
+import { pastaTemFilhos, pastasDoNivel, type PastaCatalogo } from '@/lib/crm-catalogo-pastas';
 
 interface Produto {
   id: number;
@@ -15,12 +17,15 @@ interface Produto {
 }
 
 interface Props {
-  produtos: Produto[];
+  produtos?: Produto[];
+  prestadoraId?: string;
   onSelecionar: (produto: Produto) => void;
   onFechar: () => void;
   itensSelecionados?: number[];
   categoriaSelecionada?: string | null;
   onCategoriaChange?: (cat: string | null) => void;
+  tituloVoltar?: string;
+  onVoltarRaiz?: () => void;
 }
 
 interface Pasta {
@@ -116,11 +121,13 @@ function montarArvore(produtos: Produto[]): Pasta {
   return raiz;
 }
 
-export default function ProdutoSeletorCategoria({
-  produtos,
+function ProdutoSeletorLocal({
+  produtos = [],
   onSelecionar,
   onFechar,
   itensSelecionados = [],
+  tituloVoltar,
+  onVoltarRaiz,
 }: Props) {
   const arvore = useMemo(() => montarArvore(produtos), [produtos]);
   const [caminho, setCaminho] = useState<string[]>([]);
@@ -167,7 +174,16 @@ export default function ProdutoSeletorCategoria({
             className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 min-w-0"
           >
             <ChevronLeft size={14} />
-            <span className="truncate">{caminho.length === 1 ? 'Categorias' : caminho[caminho.length - 2]}</span>
+            <span className="truncate">{caminho.length === 1 ? (tituloVoltar || 'Categorias') : caminho[caminho.length - 2]}</span>
+          </button>
+        ) : onVoltarRaiz ? (
+          <button
+            type="button"
+            onClick={onVoltarRaiz}
+            className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 min-w-0"
+          >
+            <ChevronLeft size={14} />
+            <span className="truncate">{tituloVoltar || 'Categorias'}</span>
           </button>
         ) : (
           <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Selecionar produto</span>
@@ -260,4 +276,256 @@ export default function ProdutoSeletorCategoria({
       </div>
     </div>
   );
+}
+
+const SEM_CATEGORIA = -1;
+
+async function listarResumo(params: Record<string, string>, aoReceber?: (pagina: Produto[]) => void): Promise<Produto[]> {
+  const itens: Produto[] = [];
+  for (let page = 1; page <= 4; page += 1) {
+    const res = await apiClient.get<Produto[] | { results: Produto[]; next: string | null }>(
+      '/crm-vendas/produtos-servicos/',
+      { params: { ...params, ativo: 'true', resumo: '1', page: String(page), page_size: '500' } },
+    );
+    const data = res.data;
+    const pagina = Array.isArray(data) ? data : (data.results ?? []);
+    itens.push(...pagina);
+    aoReceber?.(pagina);
+    if (Array.isArray(data) || !data.next) break;
+  }
+  return itens;
+}
+
+function SeletorCatalogoPrestadora({
+  prestadoraId = '',
+  onSelecionar,
+  onFechar,
+  itensSelecionados = [],
+}: Props) {
+  const [pastas, setPastas] = useState<PastaCatalogo[]>([]);
+  const [semCategoria, setSemCategoria] = useState(0);
+  const [caminho, setCaminho] = useState<number[]>([]);
+  const [produtosPasta, setProdutosPasta] = useState<Produto[] | null>(null);
+  const [busca, setBusca] = useState('');
+  const [resultados, setResultados] = useState<Produto[] | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [carregandoItens, setCarregandoItens] = useState(false);
+  const [erro, setErro] = useState('');
+  const pedidoItens = useRef(0);
+
+  useEffect(() => {
+    let cancelado = false;
+    setCarregando(true);
+    setErro('');
+    setCaminho([]);
+    setProdutosPasta(null);
+    setBusca('');
+    setResultados(null);
+    apiClient
+      .get<{ pastas: PastaCatalogo[]; sem_categoria: number }>('/crm-vendas/produtos-servicos/pastas/', {
+        params: { prestadora: prestadoraId, ativo: 'true' },
+      })
+      .then((res) => {
+        if (cancelado) return;
+        setPastas(res.data.pastas || []);
+        setSemCategoria(res.data.sem_categoria || 0);
+      })
+      .catch(() => {
+        if (!cancelado) setErro('Não foi possível abrir o catálogo.');
+      })
+      .finally(() => {
+        if (!cancelado) setCarregando(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [prestadoraId]);
+
+  useEffect(() => {
+    const termo = busca.trim();
+    if (termo.length < 2) {
+      setResultados(null);
+      return;
+    }
+    let cancelado = false;
+    const timer = window.setTimeout(() => {
+      apiClient
+        .get<Produto[] | { results: Produto[] }>('/crm-vendas/produtos-servicos/', {
+          params: { prestadora: prestadoraId, ativo: 'true', resumo: '1', busca: termo, page_size: '50' },
+        })
+        .then((res) => {
+          if (cancelado) return;
+          const data = res.data;
+          setResultados(Array.isArray(data) ? data : (data.results ?? []));
+        })
+        .catch(() => {
+          if (!cancelado) setResultados([]);
+        });
+    }, 250);
+    return () => {
+      cancelado = true;
+      window.clearTimeout(timer);
+    };
+  }, [busca, prestadoraId]);
+
+  const paiAtual = caminho.length ? caminho[caminho.length - 1] : null;
+  const nivel = pastasDoNivel(pastas, paiAtual);
+  const pastaAtual = pastas.find((pasta) => pasta.id === paiAtual);
+
+  const carregarItens = (params: Record<string, string>) => {
+    const pedido = pedidoItens.current + 1;
+    pedidoItens.current = pedido;
+    setCarregandoItens(true);
+    setProdutosPasta([]);
+    listarResumo(params, (pagina) => {
+      if (pedidoItens.current !== pedido) return;
+      setProdutosPasta((atual) => [...(atual || []), ...pagina]);
+    })
+      .catch(() => {
+        if (pedidoItens.current === pedido) setProdutosPasta([]);
+      })
+      .finally(() => {
+        if (pedidoItens.current === pedido) setCarregandoItens(false);
+      });
+  };
+
+  const abrirPasta = (pasta: PastaCatalogo) => {
+    setBusca('');
+    setResultados(null);
+    setCaminho((atual) => [...atual, pasta.id]);
+    if (pastaTemFilhos(pastas, pasta.id)) {
+      setProdutosPasta(null);
+      return;
+    }
+    carregarItens({ prestadora: prestadoraId, categoria: String(pasta.id) });
+  };
+
+  const abrirSemCategoria = () => {
+    setBusca('');
+    setCaminho([SEM_CATEGORIA]);
+    carregarItens({ prestadora: prestadoraId, sem_categoria: 'true' });
+  };
+
+  const voltar = () => {
+    pedidoItens.current += 1;
+    setBusca('');
+    setResultados(null);
+    setProdutosPasta(null);
+    setCarregandoItens(false);
+    setCaminho((atual) => atual.slice(0, -1));
+  };
+
+  if (produtosPasta && produtosPasta.length > 0 && !busca.trim()) {
+    return (
+      <ProdutoSeletorLocal
+        produtos={produtosPasta}
+        onSelecionar={onSelecionar}
+        onFechar={onFechar}
+        itensSelecionados={itensSelecionados}
+        tituloVoltar={pastaAtual?.nome || 'Categorias'}
+        onVoltarRaiz={voltar}
+      />
+    );
+  }
+
+  const titulo = caminho.length === 0
+    ? 'Selecionar produto'
+    : (pastaAtual?.nome || 'Sem categoria');
+
+  return (
+    <div className="border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+        {caminho.length > 0 ? (
+          <button type="button" onClick={voltar} className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 min-w-0">
+            <ChevronLeft size={14} />
+            <span className="truncate">{caminho.length === 1 ? 'Categorias' : pastas.find((pasta) => pasta.id === caminho[caminho.length - 2])?.nome || 'Categorias'}</span>
+          </button>
+        ) : (
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{titulo}</span>
+        )}
+        <button type="button" onClick={onFechar} className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600">
+          <X size={14} className="text-gray-500" />
+        </button>
+      </div>
+      <div className="px-2 pt-2">
+        <input
+          value={busca}
+          onChange={(event) => setBusca(event.target.value)}
+          placeholder="Buscar por nome ou valor"
+          className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+        />
+      </div>
+      <div className="max-h-80 overflow-y-auto">
+        {carregando || carregandoItens ? (
+          <p className="px-3 py-4 text-xs text-gray-500">Abrindo catálogo...</p>
+        ) : erro ? (
+          <p className="px-3 py-4 text-xs text-amber-600">{erro}</p>
+        ) : resultados ? (
+          <div className="divide-y divide-gray-100 dark:divide-gray-700">
+            {resultados.map((produto) => (
+              <button
+                key={produto.id}
+                type="button"
+                onClick={() => onSelecionar(produto)}
+                className="w-full flex items-center justify-between px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left"
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{produto.nome}</p>
+                  <p className="text-[10px] text-gray-500 truncate">{produto.categoria_nome || produto.tipo}</p>
+                </div>
+                <span className="text-xs font-semibold text-green-600 dark:text-green-400 shrink-0 ml-2">
+                  {parseFloat(produto.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </span>
+              </button>
+            ))}
+            {resultados.length === 0 && (
+              <p className="px-3 py-4 text-xs text-gray-500">Nenhum serviço com esse nome ou valor.</p>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-1.5 p-2">
+            {caminho.length === 0 && semCategoria > 0 && (
+              <button type="button" onClick={abrirSemCategoria} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-left">
+                <FolderOpen size={14} className="shrink-0 text-gray-400" />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">Sem categoria</p>
+                  <p className="text-[10px] text-gray-500">{semCategoria} {semCategoria === 1 ? 'item' : 'itens'}</p>
+                </div>
+              </button>
+            )}
+            {nivel.map((pasta) => (
+              <button
+                key={pasta.id}
+                type="button"
+                onClick={() => abrirPasta(pasta)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-left"
+              >
+                <FolderOpen size={14} className="shrink-0" style={{ color: pasta.cor || '#3B82F6' }} />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{pasta.nome}</p>
+                  <p className="text-[10px] text-gray-500">{pasta.total} {pasta.total === 1 ? 'item' : 'itens'}</p>
+                </div>
+              </button>
+            ))}
+            {nivel.length === 0 && caminho.length === 0 && semCategoria === 0 && (
+              <p className="col-span-2 px-3 py-4 text-xs text-gray-500">Esta empresa ainda não tem produtos ou serviços.</p>
+            )}
+            {nivel.length === 0 && caminho.length > 0 && (
+              <p className="col-span-2 px-3 py-4 text-xs text-gray-500">Nenhum serviço nesta pasta.</p>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+        <button type="button" onClick={onFechar} className="w-full py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition">
+          Concluir seleção {itensSelecionados.length > 0 ? `(${itensSelecionados.length} item${itensSelecionados.length !== 1 ? 's' : ''})` : ''}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function ProdutoSeletorCategoria(props: Props) {
+  if (props.prestadoraId) return <SeletorCatalogoPrestadora {...props} />;
+  return <ProdutoSeletorLocal {...props} />;
 }

@@ -133,6 +133,7 @@ export default function OportunidadeFormFields({ slug, etapas, layout, formState
       onRemoveItem={removeItem}
       onAddProduto={adicionarProduto}
       empresaSelecionada={Boolean(form.empresa_prestadora_id)}
+      prestadoraId={form.empresa_prestadora_id}
       layout={layout}
     />
   );

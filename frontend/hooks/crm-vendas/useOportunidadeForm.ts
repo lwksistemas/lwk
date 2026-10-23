@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
-import { fetchAllPaginatedResults, gerarTituloOportunidade, getCrmApiErrorDetail, normalizeListResponse } from '@/lib/crm-utils';
+import { gerarTituloOportunidade, getCrmApiErrorDetail, normalizeListResponse } from '@/lib/crm-utils';
 import type { CrmLeadBuscaItem } from '@/components/crm-vendas/BuscarLeadInput';
 import {
   CRM_OPORTUNIDADE_FORM_INICIAL,
@@ -137,17 +137,15 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
       return;
     }
     let cancelled = false;
-    fetchAllPaginatedResults<CrmOportunidadeProdutoOption>(
-      '/crm-vendas/produtos-servicos/',
-      { ativo: 'true', prestadora: prestadoraId },
-      200,
-    )
-      .then((lista) => {
+    apiClient
+      .get<number[]>('/crm-vendas/produtos-servicos/ids/', {
+        params: { ativo: 'true', prestadora: prestadoraId },
+      })
+      .then((res) => {
         if (cancelled) return;
-        setProdutosServicos(lista);
+        const ids = new Set(res.data);
         setForm((atual) => {
           if (atual.empresa_prestadora_id !== prestadoraId) return atual;
-          const ids = new Set(lista.map((item) => item.id));
           const itens = atual.itens.filter((item) => ids.has(item.produto_servico_id));
           if (itens.length === atual.itens.length) return atual;
           const total = calcularTotalOportunidadeItens(itens);
@@ -183,7 +181,7 @@ export function useOportunidadeForm({ initialLeadId = '', enabled = true }: UseO
 
   const adicionarProduto = useCallback((ps: CrmOportunidadeProdutoOption) => {
     setForm((f) => {
-      const newItens = [...f.itens, { produto_servico_id: ps.id, quantidade: '1', preco_unitario: ps.preco }];
+      const newItens = [...f.itens, { produto_servico_id: ps.id, nome: ps.nome, quantidade: '1', preco_unitario: ps.preco }];
       const total = calcularTotalOportunidadeItens(newItens);
       return { ...f, itens: newItens, valor: String(total.toFixed(2)) };
     });

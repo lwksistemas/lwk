@@ -1,5 +1,10 @@
 import logging
 
+from django.db.models import CharField, Count, Q
+from django.db.models.functions import Cast
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
 from core.views import BaseModelViewSet
 
 from .mixins import CacheInvalidationMixin, CrmGranularPermissionMixin, CRMSchemaRecoveryMixin, VendedorFilterMixin
@@ -14,6 +19,7 @@ from .models import (
 from .serializers import (
     CategoriaProdutoServicoSerializer,
     OportunidadeItemSerializer,
+    ProdutoServicoResumoSerializer,
     ProdutoServicoSerializer,
 )
 from .views_common import (
@@ -52,10 +58,17 @@ class ProdutoServicoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, 
     loja_catalog_label = "ProdutoServicoViewSet"
     crm_permission_model = "produtoservico"
 
+    def get_serializer_class(self):
+        resumo = str(self.request.query_params.get("resumo", "")).lower()
+        if self.action == "list" and resumo in ("1", "true", "yes"):
+            return ProdutoServicoResumoSerializer
+        return ProdutoServicoSerializer
+
     def get_queryset(self):
         qs = self.get_loja_catalog_base_qs()
         qs = filtrar_ativo_query_param(qs, self.request)
         qs = filtrar_queryset_por_query_params(qs, self.request, {"tipo": "tipo", "prestadora": "prestadora_id"})
+        qs = _filtrar_busca_catalogo(qs, self.request.query_params.get("busca"))
         sem_cat = self.request.query_params.get("sem_categoria")
         if sem_cat and str(sem_cat).lower() in ("1", "true", "yes"):
             return qs.filter(categoria__isnull=True)
@@ -63,6 +76,69 @@ class ProdutoServicoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, 
         if categoria and str(categoria).isdigit():
             return qs.filter(categoria_id__in=_categoria_ids_com_subpastas(int(categoria)))
         return qs
+
+    @action(detail=False, methods=["get"], url_path="pastas")
+    def pastas(self, request):
+        """Pastas do catálogo da prestadora, com a quantidade, sem listar cada serviço."""
+        return Response(_pastas_da_prestadora(self.get_queryset()))
+
+    @action(detail=False, methods=["get"], url_path="ids")
+    def ids(self, request):
+        return Response(list(self.get_queryset().values_list("id", flat=True)))
+
+
+def somar_totais_pastas(diretos: dict[int, int], pai_por_id: dict[int, int | None]) -> dict[int, int]:
+    """Soma os itens de cada pasta nas pastas acima."""
+    totais = dict(diretos)
+    for categoria_id, quantidade in diretos.items():
+        atual = pai_por_id.get(categoria_id)
+        vistos = {categoria_id}
+        while atual and atual not in vistos:
+            vistos.add(atual)
+            totais[atual] = totais.get(atual, 0) + quantidade
+            atual = pai_por_id.get(atual)
+    return totais
+
+
+def _filtrar_busca_catalogo(qs, termo):
+    texto = (termo or "").strip()
+    if not texto:
+        return qs
+    digitos = "".join(caractere for caractere in texto if caractere.isdigit())
+    filtro = Q(nome__icontains=texto) | Q(codigo__icontains=texto)
+    if digitos:
+        qs = qs.annotate(preco_txt=Cast("preco", CharField(max_length=20)))
+        filtro |= Q(preco_txt__icontains=digitos)
+    return qs.filter(filtro)
+
+
+def _pastas_da_prestadora(qs) -> dict:
+    diretos: dict[int, int] = {}
+    sem_categoria = 0
+    for linha in qs.order_by().values("categoria_id").annotate(total=Count("id")):
+        if linha["categoria_id"] is None:
+            sem_categoria = linha["total"]
+        else:
+            diretos[linha["categoria_id"]] = linha["total"]
+    categorias = list(CategoriaProdutoServico.objects.all().only("id", "nome", "cor", "pai_id", "ordem"))
+    pai_por_id = {item.id: item.pai_id for item in categorias}
+    totais = somar_totais_pastas(diretos, pai_por_id)
+    pastas = []
+    for item in categorias:
+        total = totais.get(item.id, 0)
+        if total <= 0:
+            continue
+        pastas.append({
+            "id": item.id,
+            "nome": item.nome,
+            "cor": item.cor or "#3B82F6",
+            "pai": item.pai_id,
+            "ordem": item.ordem or 0,
+            "total": total,
+            "direto": diretos.get(item.id, 0),
+        })
+    pastas.sort(key=lambda pasta: (pasta["ordem"], pasta["nome"]))
+    return {"pastas": pastas, "sem_categoria": sem_categoria}
 
 
 def _categoria_ids_com_subpastas(categoria_id: int) -> list[int]:

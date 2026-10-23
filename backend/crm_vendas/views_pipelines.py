@@ -134,6 +134,20 @@ class OportunidadeViewSet(
         serializer.instance = oportunidade
         self._invalidate_caches()
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.etapa == "closed_won":
+            return Response(
+                {
+                    "detail": (
+                        "Venda ganha não pode ser excluída. "
+                        "Mude a etapa e salve para poder excluir."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
+
     def get_queryset(self):
         qs = Oportunidade.objects.select_related(
             "lead", "vendedor", "lead__conta", "empresa_prestadora",
@@ -193,6 +207,12 @@ class OportunidadeNotaViewSet(
     vendedor_escopo_qualidade = True
     cache_keys = ["oportunidades"]
     crm_permission_model = "oportunidade"
+
+    def filter_by_vendedor(self, queryset):
+        """Quem abre a oportunidade vê todas as respostas, com o nome de quem registrou."""
+        if self.request.query_params.get("oportunidade_id"):
+            return queryset
+        return super().filter_by_vendedor(queryset)
 
     def get_queryset(self):
         qs = super().get_queryset()

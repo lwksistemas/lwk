@@ -85,3 +85,61 @@ class OportunidadeNotaPerformCreateTests(SimpleTestCase):
             req.user.username = "felix_user"
             autor = _autor_nome_negociacao(req)
             self.assertEqual(autor, "felix_user")
+
+
+class OportunidadeNotaVisibilidadeTests(SimpleTestCase):
+    """O histórico da oportunidade é da venda, não do vendedor dono do card."""
+
+    def _view(self, params):
+        from crm_vendas.views_pipelines import OportunidadeNotaViewSet
+
+        view = OportunidadeNotaViewSet()
+        view.request = MagicMock()
+        view.request.query_params = params
+        return view
+
+    def test_vendedor_ve_todas_as_notas_da_oportunidade(self):
+        qs = MagicMock()
+        result = self._view({"oportunidade_id": "10"}).filter_by_vendedor(qs)
+        self.assertIs(result, qs)
+        qs.filter.assert_not_called()
+
+    @patch("crm_vendas.mixins.VendedorFilterMixin.filter_by_vendedor")
+    def test_lista_sem_oportunidade_continua_no_vendedor(self, mock_filtro):
+        qs = MagicMock()
+        mock_filtro.return_value = qs
+        result = self._view({}).filter_by_vendedor(qs)
+        self.assertIs(result, qs)
+        mock_filtro.assert_called_once()
+
+
+class VendaGanhaNaoExcluiTests(SimpleTestCase):
+    def test_closed_won_recusa_exclusao(self):
+        from crm_vendas.views_pipelines import OportunidadeViewSet
+
+        view = OportunidadeViewSet()
+        view.request = MagicMock()
+        oportunidade = MagicMock()
+        oportunidade.etapa = "closed_won"
+        view.get_object = MagicMock(return_value=oportunidade)
+
+        response = view.destroy(view.request)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Venda ganha", response.data["detail"])
+
+    @patch("crm_vendas.mixins.CRMSchemaRecoveryMixin.destroy")
+    def test_outra_etapa_segue_a_exclusao(self, mock_destroy):
+        from crm_vendas.views_pipelines import OportunidadeViewSet
+
+        view = OportunidadeViewSet()
+        view.request = MagicMock()
+        oportunidade = MagicMock()
+        oportunidade.etapa = "proposal"
+        view.get_object = MagicMock(return_value=oportunidade)
+        mock_destroy.return_value = MagicMock(status_code=204)
+
+        response = view.destroy(view.request)
+
+        self.assertEqual(response.status_code, 204)
+        mock_destroy.assert_called_once()

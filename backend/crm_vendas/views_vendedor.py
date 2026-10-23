@@ -111,12 +111,32 @@ class VendedorViewSet(CRMSchemaRecoveryMixin, CRMPermissionMixin, BaseModelViewS
     def partial_update(self, request, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
+    def _e_administrador_do_sistema(self, instance) -> bool:
+        """O dono da loja não pode ser excluído, mesmo por quem tem perfil Administrador."""
+        loja_id = get_current_loja_id()
+        if not loja_id:
+            return False
+        from superadmin.models import Loja, VendedorUsuario
+
+        loja = Loja.objects.using("default").select_related("owner").filter(id=loja_id).first()
+        if not loja or not getattr(loja, "owner", None):
+            return False
+        if VendedorUsuario.objects.using("default").filter(
+            user_id=loja.owner_id,
+            loja_id=loja_id,
+            vendedor_id=instance.id,
+        ).exists():
+            return True
+        email_owner = (loja.owner.email or "").strip().lower()
+        email_vendedor = (getattr(instance, "email", None) or "").strip().lower()
+        return bool(email_owner and email_vendedor == email_owner)
+
     @require_admin_access("Vendedores não têm permissão para acessar configurações de funcionários.")
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if instance.is_admin:
+        if instance.is_admin or self._e_administrador_do_sistema(instance):
             return Response(
-                {"detail": "O vendedor administrador não pode ser excluído."},
+                {"detail": "O administrador do sistema não pode ser excluído."},
                 status=status.HTTP_403_FORBIDDEN,
             )
         return super().destroy(request, *args, **kwargs)

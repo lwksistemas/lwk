@@ -196,6 +196,9 @@ export function VendedorCadastroForm({
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                O perfil Administrador recebe o e-mail do backup automático. Esse perfil não exclui o administrador do sistema.
+              </p>
             </div>
 
             {editing && form.usuario_login ? (

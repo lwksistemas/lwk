@@ -217,7 +217,7 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
                 <div className="space-y-2 rounded-lg border border-gray-200 dark:border-gray-600 p-3 bg-gray-50 dark:bg-gray-700/50">
                   <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">Envio manual</h4>
                   <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Gera o backup agora e envia por email para o proprietário da loja. Pode usar a qualquer momento.
+                    Gera o backup agora e envia por e-mail para o administrador do sistema e para quem tem o perfil Administrador.
                   </p>
                   <button
                     type="button"

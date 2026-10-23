@@ -6,7 +6,8 @@ import contextlib
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 
-CRM_GROUP_NAMES = ["Gerente de Vendas", "Vendedor"]
+GRUPO_ADMINISTRADOR_CRM = "Administrador"
+CRM_GROUP_NAMES = [GRUPO_ADMINISTRADOR_CRM, "Gerente de Vendas", "Vendedor"]
 
 # model (crm_vendas ou superadmin) -> categoria exibida no frontend
 CRM_MODEL_CATEGORIAS: dict[tuple[str, str], str] = {
@@ -243,7 +244,18 @@ def permissoes_ids_usuario_crm(user) -> list[int]:
     return sorted(via_grupo)
 
 
+def garantir_grupo_administrador():
+    """Perfil Administrador: recebe o backup e não exclui o administrador do sistema."""
+    grupo, criado = Group.objects.using("default").get_or_create(name=GRUPO_ADMINISTRADOR_CRM)
+    if criado or not grupo.permissions.exists():
+        grupo.permissions.set(
+            obter_queryset_permissoes_crm().exclude(codename="delete_funcionario"),
+        )
+    return grupo
+
+
 def listar_grupos_crm_com_permissoes() -> list[dict]:
+    garantir_grupo_administrador()
     grupos = []
     for row in Group.objects.using("default").filter(name__in=CRM_GROUP_NAMES).values("id", "name").order_by("name"):
         grupos.append({

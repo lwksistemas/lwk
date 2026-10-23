@@ -1,6 +1,8 @@
 'use client';
 
-import { nomesParaAssinatura } from '@/lib/crm-assinatura-vendedor';
+import { useEffect } from 'react';
+
+import { nomeCanonicoAssinatura, nomesParaAssinatura } from '@/lib/crm-assinatura-vendedor';
 
 interface Props {
   nomeVendedor: string;
@@ -26,13 +28,20 @@ export default function CrmDocumentoAssinaturasFields({
   vendedores,
 }: Props) {
   const nomes = vendedores ? nomesParaAssinatura(vendedores, nomeVendedor) : [];
+  const nomeSelecionado = vendedores ? nomeCanonicoAssinatura(vendedores, nomeVendedor) : nomeVendedor;
+
+  useEffect(() => {
+    if (!vendedores || !nomeSelecionado || nomeSelecionado === nomeVendedor) return;
+    onNomeVendedorChange(nomeSelecionado);
+  }, [vendedores, nomeSelecionado, nomeVendedor, onNomeVendedorChange]);
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label className={labelCls}>Nome do Vendedor</label>
         {vendedores ? (
           <select
-            value={nomeVendedor}
+            value={nomeSelecionado}
             onChange={(e) => onNomeVendedorChange(e.target.value)}
             className={inputCls}
             aria-label="Nome do Vendedor"

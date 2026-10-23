@@ -1,16 +1,14 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { MessageSquare, Printer } from 'lucide-react';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import {
-  formatarDataHoraNegociacao,
-  type OportunidadeNota,
   type TipoNotaNegociacao,
   useOportunidadeNotas,
 } from '@/hooks/crm-vendas/useOportunidadeNotas';
-import { formatCrmBrl, rotuloExibicaoOportunidade, subtituloModalOportunidade } from '@/lib/crm-utils';
-import { ETAPAS_PIPELINE_PADRAO } from '@/constants/crm';
+import apiClient from '@/lib/api-client';
+import { getCrmApiErrorDetail, rotuloExibicaoOportunidade } from '@/lib/crm-utils';
 import { useToast } from '@/components/ui/Toast';
 
 interface Props {
@@ -22,93 +20,8 @@ interface Props {
   variant?: 'embedded' | 'modal';
 }
 
-function labelEtapa(key: string, etapas: { key: string; label: string }[]): string {
-  const found = etapas.find((e) => e.key === key);
-  if (found) return found.label;
-  const padrao = ETAPAS_PIPELINE_PADRAO.find((e) => e.key === key);
-  return padrao?.label || key;
-}
-
-function HistoricoNegociacaoPrintContent({
-  oportunidade,
-  etapas,
-  notas,
-  motivoPerda,
-  feedbackPosVenda,
-}: {
-  oportunidade: Oportunidade;
-  etapas: { key: string; label: string }[];
-  notas: OportunidadeNota[];
-  motivoPerda?: string;
-  feedbackPosVenda?: string;
-}) {
-  return (
-    <div className="print-historico-negociacao p-6 text-black bg-white text-sm leading-relaxed">
-      <h1 className="text-xl font-bold mb-1">Histórico de negociação</h1>
-      <p className="text-gray-600 mb-4 text-xs">
-        Gerado em {new Date().toLocaleString('pt-BR')}
-      </p>
-
-      <section className="mb-4 border-b border-gray-300 pb-3">
-        <h2 className="font-semibold mb-2">Oportunidade</h2>
-        <p><strong>Cliente:</strong> {rotuloExibicaoOportunidade(oportunidade)}</p>
-        {subtituloModalOportunidade(oportunidade) && (
-          <p><strong>Empresa:</strong> {subtituloModalOportunidade(oportunidade)}</p>
-        )}
-        <p><strong>Valor:</strong> {formatCrmBrl(oportunidade.valor)}</p>
-        <p><strong>Etapa:</strong> {labelEtapa(oportunidade.etapa, etapas)}</p>
-        {oportunidade.vendedor_nome && (
-          <p><strong>Vendedor:</strong> {oportunidade.vendedor_nome}</p>
-        )}
-      </section>
-
-      <section className="mb-4">
-        <h2 className="font-semibold mb-2">Registros da negociação</h2>
-        {notas.length === 0 ? (
-          <p className="text-gray-600 italic">Nenhum registro durante a negociação.</p>
-        ) : (
-          <ul className="space-y-3">
-            {notas.map((n) => (
-              <li key={n.id} className="border-l-2 border-gray-400 pl-3">
-                <p className="text-xs text-gray-600">
-                  {formatarDataHoraNegociacao(n.created_at)}
-                  {' · '}
-                  {n.tipo_label}
-                  {n.autor_nome ? ` · por ${n.autor_nome}` : ''}
-                </p>
-                <p className="whitespace-pre-wrap mt-0.5">{n.texto}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {(motivoPerda || feedbackPosVenda) && (
-        <section className="border-t border-gray-300 pt-3">
-          <h2 className="font-semibold mb-2">Encerramento</h2>
-          {feedbackPosVenda && (
-            <div className="mb-2">
-              <p className="font-medium text-xs text-gray-600">Opinião do cliente (pós-venda)</p>
-              <p className="whitespace-pre-wrap">{feedbackPosVenda}</p>
-            </div>
-          )}
-          {motivoPerda && (
-            <div>
-              <p className="font-medium text-xs text-gray-600">Motivo da perda / cancelamento</p>
-              <p className="whitespace-pre-wrap">{motivoPerda}</p>
-            </div>
-          )}
-        </section>
-      )}
-    </div>
-  );
-}
-
 export default function HistoricoNegociacaoSection({
   oportunidade,
-  etapas,
-  motivoPerda,
-  feedbackPosVenda,
   variant = 'embedded',
 }: Props) {
   const toast = useToast();
@@ -116,7 +29,7 @@ export default function HistoricoNegociacaoSection({
   const [tipoNova, setTipoNova] = useState<TipoNotaNegociacao>('resposta_cliente');
   const [textoNova, setTextoNova] = useState('');
   const [formErro, setFormErro] = useState<string | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
+  const [imprimindo, setImprimindo] = useState(false);
 
   const handleAdicionar = async () => {
     if (!textoNova.trim()) {
@@ -132,34 +45,30 @@ export default function HistoricoNegociacaoSection({
     }
   };
 
-  const handleImprimir = () => {
-    const el = printRef.current;
-    if (!el) return;
-    const janela = window.open('', '_blank', 'width=800,height=900');
-    if (!janela) {
-      toast.error('Permita pop-ups para imprimir o histórico.');
-      return;
+  const handleImprimir = async () => {
+    setImprimindo(true);
+    try {
+      const res = await apiClient.get(
+        `/crm-vendas/oportunidades/${oportunidade.id}/historico-pdf/`,
+        { responseType: 'blob' },
+      );
+      const blob = res.data instanceof Blob
+        ? res.data
+        : new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const janela = window.open(url, '_blank', 'noopener');
+      if (!janela) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `historico-negociacao-${rotuloExibicaoOportunidade(oportunidade)}.pdf`;
+        link.click();
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err: unknown) {
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao gerar o histórico.'));
+    } finally {
+      setImprimindo(false);
     }
-    janela.document.write(`
-      <!DOCTYPE html>
-      <html lang="pt-BR">
-        <head>
-          <meta charset="utf-8" />
-          <title>Histórico de negociação — ${rotuloExibicaoOportunidade(oportunidade)}</title>
-          <style>
-            body { font-family: system-ui, sans-serif; margin: 0; padding: 24px; color: #111; }
-            @media print { body { padding: 12px; } }
-          </style>
-        </head>
-        <body>${el.innerHTML}</body>
-      </html>
-    `);
-    janela.document.close();
-    janela.focus();
-    setTimeout(() => {
-      janela.print();
-      janela.close();
-    }, 300);
   };
 
   return (
@@ -177,21 +86,21 @@ export default function HistoricoNegociacaoSection({
           <button
             type="button"
             onClick={handleImprimir}
-            disabled={loading}
+            disabled={loading || imprimindo}
             className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 ml-auto"
           >
             <Printer size={13} />
-            Imprimir histórico
+            {imprimindo ? 'Gerando...' : 'Imprimir histórico'}
           </button>
         ) : (
           <button
             type="button"
             onClick={handleImprimir}
-            disabled={loading}
+            disabled={loading || imprimindo}
             className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 w-full sm:w-auto"
           >
             <Printer size={14} />
-            Imprimir histórico
+            {imprimindo ? 'Gerando...' : 'Imprimir histórico'}
           </button>
         )}
       </div>
@@ -264,18 +173,6 @@ export default function HistoricoNegociacaoSection({
         >
           {salvando ? 'Salvando...' : 'Adicionar ao histórico'}
         </button>
-      </div>
-
-      <div className="hidden" aria-hidden>
-        <div ref={printRef}>
-          <HistoricoNegociacaoPrintContent
-            oportunidade={oportunidade}
-            etapas={etapas}
-            notas={notas}
-            motivoPerda={motivoPerda}
-            feedbackPosVenda={feedbackPosVenda}
-          />
-        </div>
       </div>
     </div>
   );

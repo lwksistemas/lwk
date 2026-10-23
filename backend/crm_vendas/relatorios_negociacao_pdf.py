@@ -204,14 +204,14 @@ def _estilos_cartao():
     }
 
 
-def _historico_flow(oportunidade, estilos, largura):
+def _historico_flow(oportunidade, estilos, largura, titulo="HISTÓRICO DE NEGOCIAÇÃO"):
     linhas = []
     notas = list(oportunidade.notas_negociacao.all())
     feedback = (getattr(oportunidade, "feedback_pos_venda", "") or "").strip()
     if not notas and not feedback:
         linhas.append([Paragraph("Sem histórico de negociação.", estilos["vazio"])])
     else:
-        linhas.append([Paragraph("HISTÓRICO DE NEGOCIAÇÃO", estilos["rotulo"])])
+        linhas.append([Paragraph(titulo, estilos["rotulo"])])
         for nota in notas:
             quando = getattr(nota, "created_at", None)
             if quando is not None and timezone.is_aware(quando):
@@ -426,3 +426,157 @@ def gerar_relatorio_negociacao_ganhos(
     doc.build(elements, onFirstPage=pagina, onLaterPages=pagina)
     buffer.seek(0)
     return buffer
+
+
+def _logo_da_loja(loja) -> str | None:
+    logo = (getattr(loja, "logo", "") or getattr(loja, "login_logo", "") or "").strip()
+    return logo or None
+
+
+def _logo_da_prestadora(oportunidade) -> str | None:
+    prestadora = getattr(oportunidade, "empresa_prestadora", None)
+    logo = getattr(prestadora, "logo", None)
+    if not isinstance(logo, str):
+        return None
+    logo = logo.strip()
+    return logo or None
+
+
+def _rotulo_etapa(oportunidade) -> str:
+    etapa = getattr(oportunidade, "etapa", "") or ""
+    rotulos = {
+        "closed_won": "Fechado (ganho)",
+        "closed_lost": "Fechado (perdido)",
+        "prospecting": "Prospecção",
+        "qualification": "Qualificação",
+        "proposal": "Proposta",
+        "negotiation": "Negociação",
+    }
+    return rotulos.get(etapa) or (oportunidade.get_etapa_display() if hasattr(oportunidade, "get_etapa_display") else etapa) or "—"
+
+
+def _cartao_historico(oportunidade, estilos, largura):
+    """Cartão de uma oportunidade para o PDF avulso do histórico."""
+    from .relatorio_comissao_data import nome_da_conta
+
+    nome = nome_do_cliente(oportunidade)
+    telefone = telefone_para_exibicao(oportunidade) or "Não informado"
+    contato = linha_contato_empresa(oportunidade)
+    vendedor = getattr(getattr(oportunidade, "vendedor", None), "nome", "") or "—"
+    empresa = empresa_da_oportunidade(oportunidade)
+    documento = documento_da_oportunidade(oportunidade)
+    prestadora = getattr(oportunidade, "empresa_prestadora", None)
+    prestadora_nome = nome_da_conta(prestadora) if prestadora is not None else ""
+    ganho = _data_ganho(oportunidade)
+    etapa_txt = _rotulo_etapa(oportunidade)
+    if ganho and getattr(oportunidade, "etapa", "") == "closed_won":
+        etapa_txt = f"{etapa_txt} · {ganho.strftime('%d/%m/%Y')}"
+
+    oportunidade_celula = [Paragraph("CLIENTE", estilos["rotulo"]), _paragrafo(empresa, estilos["valor"])]
+    if documento:
+        oportunidade_celula.append(_paragrafo(documento, estilos["documento"]))
+    if prestadora_nome:
+        oportunidade_celula.append(Paragraph("PRESTADORA", estilos["rotulo"]))
+        oportunidade_celula.append(_paragrafo(prestadora_nome, estilos["valor"]))
+
+    if contato:
+        faixa = Table([[_paragrafo(contato, estilos["nome"])]], colWidths=[largura])
+    else:
+        faixa = Table(
+            [[_paragrafo(nome, estilos["nome"]), _paragrafo(telefone, estilos["telefone"])]],
+            colWidths=[largura * 0.62, largura * 0.38],
+        )
+    faixa.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#0176d3")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+    ]))
+
+    dados = Table(
+        [[
+            oportunidade_celula,
+            [Paragraph("VALOR", estilos["rotulo"]), _paragrafo(_brl(oportunidade.valor), estilos["valor"])],
+            [Paragraph("ETAPA", estilos["rotulo"]), _paragrafo(etapa_txt, estilos["valor"])],
+            [Paragraph("VENDEDOR", estilos["rotulo"]), _paragrafo(vendedor, estilos["valor"])],
+        ]],
+        colWidths=[largura * 0.40, largura * 0.18, largura * 0.20, largura * 0.22],
+    )
+    dados.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (0, 0), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (1, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    historico = _historico_flow(oportunidade, estilos, largura, titulo="REGISTROS")
+    linhas = [[faixa], [dados], [historico]]
+    motivo = (getattr(oportunidade, "motivo_perda", "") or "").strip()
+    if motivo:
+        bloco = Table(
+            [[Paragraph("MOTIVO DA PERDA", estilos["rotulo"])], [_paragrafo(motivo, estilos["nota"])]],
+            colWidths=[largura],
+        )
+        bloco.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, 0), 4),
+            ("BOTTOMPADDING", (0, -1), (-1, -1), 8),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        linhas.append([bloco])
+
+    moldura = Table(linhas, colWidths=[largura])
+    moldura.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#d1d5db")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    return moldura
+
+
+def gerar_pdf_historico_oportunidade(oportunidade, loja) -> bytes:
+    """PDF de uma oportunidade, com a logo da loja e a logo da prestadora."""
+    from .pdf_proposta_contrato.sections import _build_cabecalho
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=1.4 * cm,
+        rightMargin=1.4 * cm,
+        topMargin=1.3 * cm,
+        bottomMargin=1.6 * cm,
+        title="Histórico de negociação",
+    )
+    estilos = _estilos_cartao()
+    elements = []
+    _build_cabecalho(
+        elements,
+        _logo_da_loja(loja),
+        "HISTÓRICO DE NEGOCIAÇÃO",
+        _logo_da_prestadora(oportunidade),
+    )
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(_cartao_historico(oportunidade, estilos, A4[0] - 2.8 * cm))
+
+    def _rodape(canvas, documento):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(colors.HexColor("#6b7280"))
+        gerado = timezone.localtime(timezone.now()).strftime("%d/%m/%Y %H:%M")
+        canvas.drawString(1.4 * cm, 0.9 * cm, f"Histórico de negociação · gerado em {gerado}")
+        canvas.drawRightString(A4[0] - 1.4 * cm, 0.9 * cm, f"Página {documento.page}")
+        canvas.restoreState()
+
+    doc.build(elements, onFirstPage=_rodape, onLaterPages=_rodape)
+    return buffer.getvalue()

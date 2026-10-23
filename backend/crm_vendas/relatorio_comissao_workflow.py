@@ -72,6 +72,9 @@ def criar_relatorio_comissao(
     qs = queryset_oportunidades_comissao(
         loja_id, empresa_prestadora_id, vendedor_id, periodo_inicio, periodo_fim,
     )
+    from .comissao_prestadora_service import gravar_comissoes_das_vendas
+
+    gravar_comissoes_das_vendas(qs)
     totais = agregar_totais_oportunidades(qs)
     if not totais["qtd"]:
         return None, "Nenhuma venda encontrada no período para esta empresa."

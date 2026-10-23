@@ -7,6 +7,7 @@ from django.test import SimpleTestCase
 
 from crm_vendas.comissao_prestadora_service import (
     comissao_do_vendedor,
+    gravar_comissoes_das_vendas,
     linhas_da_venda,
     mapa_comissao_dos_vendedores,
     parte_comissao_item,
@@ -130,3 +131,13 @@ class ComissaoPrestadoraTest(SimpleTestCase):
             mapa = mapa_comissao_dos_vendedores(vendas, somente_vendedor_id=2)
         self.assertEqual(mapa, {10: Decimal("50.00")})
         self.assertEqual([venda.id for venda in partes.call_args.args[0]], [10])
+
+    def test_relatorio_regrava_a_comissao_antes_de_somar(self):
+        venda = MagicMock()
+        consulta = MagicMock()
+        consulta.select_related.return_value.prefetch_related.return_value = [venda]
+        with patch(
+            "crm_vendas.comissao_prestadora_service.atualizar_valor_pago_pela_prestadora",
+        ) as gravar:
+            gravar_comissoes_das_vendas(consulta)
+        gravar.assert_called_once_with(venda)

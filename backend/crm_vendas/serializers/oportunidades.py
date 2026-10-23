@@ -144,9 +144,8 @@ class OportunidadeSerializer(TextNormalizationMixin, serializers.ModelSerializer
                 timezone.localtime(),
             )
         instance = super().update(instance, validated_data)
-        if "empresa_prestadora" in validated_data:
-            from ..comissao_prestadora_service import atualizar_valor_pago_pela_prestadora
+        from ..comissao_prestadora_service import atualizar_valor_pago_pela_prestadora
 
-            atualizar_valor_pago_pela_prestadora(instance)
+        atualizar_valor_pago_pela_prestadora(instance)
         return instance
 

@@ -8,7 +8,7 @@
  */
 import { useState, useCallback, useRef } from 'react';
 import apiClient from '@/lib/api-client';
-import { fetchCrmPaginatedPage, normalizeListResponse } from '@/lib/crm-utils';
+import { fetchAllPaginatedResults, fetchCrmPaginatedPage, normalizeListResponse } from '@/lib/crm-utils';
 import { DEFAULT_PAGE_SIZE } from '@/hooks/usePaginatedList';
 import { logger } from '@/lib/logger';
 
@@ -185,10 +185,11 @@ export function useCategorias() {
       setLoading(true);
       setError(null);
       
-      const res = await apiClient.get<Categoria[] | { results: Categoria[] }>(
-        '/crm-vendas/categorias-produtos-servicos/?ativo=true'
+      const cats = await fetchAllPaginatedResults<Categoria>(
+        '/crm-vendas/categorias-produtos-servicos/',
+        { ativo: 'true' },
+        500,
       );
-      const cats = normalizeListResponse(res.data);
       setCategorias(cats);
       return cats;
     } catch (err) {

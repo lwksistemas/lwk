@@ -7,6 +7,8 @@ from crm_vendas.catalogo_pdf import (
     _parse_catalogo_pipe,
     encurtar_codigo_anadem,
     parse_linhas_tabela_comercial,
+    pasta_do_pagamento,
+    pasta_do_produto,
     pastas_do_item,
     preview_catalogo_pdf,
 )
@@ -50,7 +52,16 @@ class CatalogoPdfTabelaTests(SimpleTestCase):
         self.assertEqual(por_codigo["B26MC3-1FM"]["codigo_anterior"], "BLU26-MED-CC-300-1-PF-MEN")
         self.assertEqual(por_codigo["B26MC3-1XM"]["preco"], "174.50")
         self.assertEqual(por_codigo["B26MC3-1FM"]["recorrencia"], "mensal")
-        self.assertEqual(pastas_do_item(por_codigo["B26MC3-1FM"]), ["MEDICINA", "TABELA BLUE"])
+        self.assertEqual(por_codigo["B26MC3-1FM"]["grupo"], "1")
+        self.assertEqual(por_codigo["B26MC3-1FM"]["pagamento"], "CC")
+        self.assertEqual(
+            pastas_do_item(por_codigo["B26MC3-1FM"]),
+            ["MEDICINA", "TABELA BLUE", "GRUPO 1", "CARTÃO DE CRÉDITO"],
+        )
+        self.assertEqual(
+            pastas_do_item(por_codigo["B26MC3-2FM"]),
+            ["MEDICINA", "TABELA BLUE", "GRUPO 2", "CARTÃO DE CRÉDITO"],
+        )
         self.assertIn("ACUPUNTURA", por_codigo["B26MC3-1FM"]["descricao"])
         self.assertNotIn("ANGIOLOGIA", por_codigo["B26MC3-1FM"]["descricao"])
         self.assertFalse(any("523.50" == item["preco"] for item in itens))
@@ -96,6 +107,33 @@ class CatalogoPdfTabelaTests(SimpleTestCase):
         self.assertEqual(por_codigo["LAU-BAS-M"]["recorrencia"], "mensal")
         self.assertEqual(pastas_do_item(por_codigo["LAU-BAS-M"]), ["ULTRASIS LAUDOS", "MENSAL"])
         self.assertEqual(pastas_do_item(por_codigo["ADESAO"]), ["SERVICOS E ADICIONAIS"])
+        self.assertEqual(
+            pasta_do_produto(
+                "ANADEM GREEN 2026 — Medicina — Grupo 4 — Mensalidade — Boleto bancário",
+                "G26MB10-4FM",
+            ),
+            "GRUPO 4",
+        )
+        self.assertEqual(pasta_do_produto("Plano essencial", "E26MC3-PLFM"), "")
+        self.assertEqual(
+            pasta_do_produto("ANADEM — Odontologia — Grupo D2 — Mensalidade", ""),
+            "GRUPO D2",
+        )
+        self.assertEqual(
+            pastas_do_item({"tabela": "GREEN", "area": "ODONTOLOGIA", "grupo": "D1", "pagamento": "BOL"}),
+            ["ODONTOLOGIA", "TABELA GREEN", "GRUPO D1", "BOLETO BANCÁRIO"],
+        )
+        self.assertEqual(
+            pasta_do_pagamento(
+                "ANADEM GREEN 2026 — Medicina — Grupo 2 — 4 parcelas — Boleto bancário — capital 1.000.000,00",
+                "G26MB10-2F4",
+            ),
+            "BOLETO BANCÁRIO",
+        )
+        self.assertEqual(
+            pastas_do_item({"tabela": "ESSENCIAL", "area": "MEDICINA", "grupo": "PL"}),
+            ["MEDICINA", "TABELA ESSENCIAL"],
+        )
         self.assertEqual(por_codigo["ADESAO"]["preco"], "375.00")
         self.assertEqual(por_codigo["ADESAO"]["recorrencia"], "unico")
 

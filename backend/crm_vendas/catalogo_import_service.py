@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 
-from .catalogo_pdf import CatalogoPdfError, pastas_do_item
+from .catalogo_pdf import CatalogoPdfError, pasta_do_pagamento, pasta_do_produto, pastas_do_item
 from .models import CategoriaProdutoServico, Conta, ProdutoServico
 
 _COR_PASTA = {
@@ -24,6 +24,26 @@ _ORDEM_PASTA = {
     "TABELA BLACK": 30,
     "TABELA ESSENCIAL": 40,
 }
+
+
+def _ordem_pasta(nome: str) -> int:
+    if nome in _ORDEM_PASTA:
+        return _ORDEM_PASTA[nome]
+    if nome.startswith("GRUPO "):
+        resto = nome[6:]
+        if resto.isdigit():
+            return int(resto)
+        if resto.startswith("D") and resto[1:].isdigit():
+            return 10 + int(resto[1:])
+    if nome.startswith("SEM "):
+        return 20
+    if nome.startswith("COM "):
+        return 21
+    if nome == "BOLETO BANCÁRIO":
+        return 1
+    if nome == "CARTÃO DE CRÉDITO":
+        return 2
+    return 0
 
 _RECORRENCIAS = {codigo for codigo, _rotulo in ProdutoServico.RECORRENCIA_CHOICES}
 _TIPOS = {codigo for codigo, _rotulo in ProdutoServico.TIPO_CHOICES}
@@ -59,7 +79,9 @@ def _item_normalizado(bruto: dict) -> dict:
         "tipo": tipo,
         "tabela": str(bruto.get("tabela") or "").strip().upper()[:30],
         "area": str(bruto.get("area") or "").strip().upper()[:40],
-        "pastas": [str(nome)[:80] for nome in (bruto.get("pastas") or []) if str(nome).strip()][:3],
+        "grupo": str(bruto.get("grupo") or "").strip().upper()[:8],
+        "pagamento": str(bruto.get("pagamento") or "").strip().upper()[:20],
+        "pastas": [str(nome)[:80] for nome in (bruto.get("pastas") or []) if str(nome).strip()][:4],
     }
 
 
@@ -83,7 +105,7 @@ def _garantir_pasta(loja_id, pai, nome, cache):
             pai=pai,
             nome=nome,
             cor=_COR_PASTA.get(nome, pai.cor or "#3B82F6"),
-            ordem=_ORDEM_PASTA.get(nome, 0),
+            ordem=_ordem_pasta(nome),
             ativo=True,
         )
     cache[chave] = pasta
@@ -132,6 +154,68 @@ def encurtar_codigos_anadem_gravados() -> int:
         produto.save(update_fields=["codigo"])
         alterados += 1
     return alterados
+
+
+def separar_grupos_nas_tabelas(loja_id: int) -> dict:
+    """Cria GRUPO 1, GRUPO 2 e os demais dentro de cada tabela e move os serviços."""
+    movidos = 0
+    criadas = 0
+    cache = {}
+    tabelas = CategoriaProdutoServico.objects.filter(
+        loja_id=loja_id,
+        nome__istartswith="TABELA ",
+    )
+    for tabela in tabelas:
+        produtos = ProdutoServico.objects.filter(loja_id=loja_id, categoria_id=tabela.id)
+        for produto in produtos:
+            nome_pasta = pasta_do_produto(produto.nome, produto.codigo)
+            if not nome_pasta:
+                continue
+            ja_existia = (tabela.id, nome_pasta) in cache or CategoriaProdutoServico.objects.filter(
+                loja_id=loja_id, pai_id=tabela.id, nome=nome_pasta,
+            ).exists()
+            destino = _garantir_pasta(loja_id, tabela, nome_pasta, cache)
+            if not ja_existia:
+                criadas += 1
+            if produto.categoria_id != destino.id:
+                produto.categoria = destino
+                produto.save(update_fields=["categoria"])
+                movidos += 1
+    return {"pastas": criadas, "movidos": movidos}
+
+
+def separar_pagamento_nos_grupos(loja_id: int) -> dict:
+    """Dentro de cada grupo, separa boleto bancário e cartão de crédito."""
+    movidos = 0
+    criadas = 0
+    cache = {}
+    grupos = CategoriaProdutoServico.objects.filter(
+        loja_id=loja_id,
+        pai__nome__istartswith="TABELA ",
+    )
+    for grupo in grupos:
+        if not (
+            grupo.nome.startswith("GRUPO ")
+            or grupo.nome.startswith("SEM PROCEDIMENTOS")
+            or grupo.nome.startswith("COM PROCEDIMENTOS")
+        ):
+            continue
+        produtos = ProdutoServico.objects.filter(loja_id=loja_id, categoria_id=grupo.id)
+        for produto in produtos:
+            nome_pasta = pasta_do_pagamento(produto.nome, produto.codigo)
+            if not nome_pasta:
+                continue
+            ja_existia = (grupo.id, nome_pasta) in cache or CategoriaProdutoServico.objects.filter(
+                loja_id=loja_id, pai_id=grupo.id, nome=nome_pasta,
+            ).exists()
+            destino = _garantir_pasta(loja_id, grupo, nome_pasta, cache)
+            if not ja_existia:
+                criadas += 1
+            if produto.categoria_id != destino.id:
+                produto.categoria = destino
+                produto.save(update_fields=["categoria"])
+                movidos += 1
+    return {"pastas": criadas, "movidos": movidos}
 
 
 def _destino_categoria(loja_id, categoria, item, cache):

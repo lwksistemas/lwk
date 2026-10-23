@@ -14,18 +14,24 @@ from reportlab.platypus import Image, Paragraph, Table, TableStyle
 logger = logging.getLogger(__name__)
 
 def _nome_cliente_venda(venda):
-    """Retorna o nome do cliente para exibição em relatórios.
-    Prioridade: nome da empresa (Conta) > nome do lead > título da oportunidade.
-    """
-    if venda.lead:
-        # Se tem Conta (empresa) vinculada, usar nome da empresa
-        if venda.lead.conta_id:
-            try:
-                return venda.lead.conta.nome
-            except Exception:
-                pass
-        return venda.lead.nome
-    return venda.titulo
+    """Cliente da venda. CNPJ sai pela razão social; CPF pelo nome da pessoa."""
+    from .relatorio_comissao_data import nome_da_conta, nome_exibicao_juridica
+
+    lead = getattr(venda, "lead", None)
+    if not lead:
+        return getattr(venda, "titulo", "") or ""
+    conta = None
+    if getattr(lead, "conta_id", None):
+        try:
+            conta = lead.conta
+        except Exception:
+            conta = None
+    if conta is not None:
+        return nome_da_conta(conta) or getattr(lead, "nome", "") or getattr(venda, "titulo", "") or ""
+    documento = getattr(lead, "cpf_cnpj", "") or ""
+    if len("".join(c for c in str(documento) if c.isdigit())) == 14:
+        return nome_exibicao_juridica(getattr(lead, "empresa", ""), "", documento) or getattr(lead, "nome", "") or getattr(venda, "titulo", "") or ""
+    return getattr(lead, "nome", "") or getattr(venda, "titulo", "") or ""
 
 
 def _obter_logo_loja(loja_id):

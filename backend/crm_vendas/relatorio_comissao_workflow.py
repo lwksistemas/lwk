@@ -11,6 +11,7 @@ from core.logging_utils import mask_email
 from .relatorio_comissao_data import (
     agregar_totais_oportunidades,
     montar_dados_oportunidades_snapshot,
+    nome_da_conta,
     queryset_oportunidades_comissao,
 )
 from .relatorio_comissao_pagamento import gerar_boleto_comissao
@@ -83,7 +84,7 @@ def criar_relatorio_comissao(
 
     relatorio = RelatorioComissao.objects.create(
         loja_id=loja_id,
-        titulo=f"Comissões {periodo_descricao} — {ep.nome}",
+        titulo=f"Comissões {periodo_descricao} — {nome_da_conta(ep)}",
         empresa_prestadora=ep,
         vendedor=vendedor,
         periodo_inicio=periodo_inicio,
@@ -251,7 +252,7 @@ def enviar_email_vendedor_assinar(relatorio):
         corpo = (
             f"Olá {vendedor.nome},\n\n"
             f"O relatório de comissão {relatorio.numero} foi APROVADO pela empresa "
-            f"{relatorio.empresa_prestadora.nome}.\n\n"
+            f"{nome_da_conta(relatorio.empresa_prestadora)}.\n\n"
             f"📋 RESUMO:\n"
             f"• Período: {relatorio.periodo_descricao}\n"
             f"• Total Comissão: R$ {relatorio.valor_total_comissao:.2f}\n"

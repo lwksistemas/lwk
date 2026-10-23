@@ -25,6 +25,17 @@ def nome_exibicao_juridica(nome, razao_social="", documento="") -> str:
     return fantasia
 
 
+def nome_da_conta(conta) -> str:
+    """Nome da empresa no relatório: CNPJ pela razão social."""
+    if conta is None:
+        return ""
+    return nome_exibicao_juridica(
+        getattr(conta, "nome", ""),
+        getattr(conta, "razao_social", ""),
+        getattr(conta, "cnpj", ""),
+    )
+
+
 def nome_cliente_ganho(op) -> tuple[str, str]:
     """Nome e documento do cliente da oportunidade fechada e ganha."""
     lead = getattr(op, "lead", None)
@@ -171,13 +182,13 @@ def resumo_relatorio_comissao(
             "comissao": float(op.valor_comissao or 0),
             "empresa_prestadora_id": op.empresa_prestadora_id,
             "empresa_prestadora_nome": (
-                op.empresa_prestadora.nome if op.empresa_prestadora_id else None
+                nome_da_conta(op.empresa_prestadora) if op.empresa_prestadora_id else None
             ),
         })
 
     return {
         "empresa_prestadora_id": ep.id,
-        "empresa_prestadora_nome": ep.nome,
+        "empresa_prestadora_nome": nome_da_conta(ep),
         "periodo_descricao": periodo_descricao,
         "quantidade_vendas": totais["qtd"] or 0,
         "valor_total_vendas": float(totais["total_vendas"] or 0),
@@ -221,9 +232,7 @@ def serializar_relatorio_lista(relatorio) -> dict:
         "titulo": relatorio.titulo,
         "status": relatorio.status,
         "status_display": relatorio.get_status_display(),
-        "empresa_prestadora_nome": (
-            relatorio.empresa_prestadora.nome if relatorio.empresa_prestadora else ""
-        ),
+        "empresa_prestadora_nome": nome_da_conta(relatorio.empresa_prestadora),
         "vendedor_nome": relatorio.vendedor.nome if relatorio.vendedor else "",
         "periodo_descricao": relatorio.periodo_descricao,
         "valor_total_vendas": str(relatorio.valor_total_vendas),
@@ -282,7 +291,7 @@ def gerar_preview_pdf_comissao(
     fake_relatorio = RelatorioComissao(
         loja_id=loja_id,
         numero="PREVIEW",
-        titulo=f"Comissões {periodo_descricao} — {ep.nome}",
+        titulo=f"Comissões {periodo_descricao} — {nome_da_conta(ep)}",
         empresa_prestadora=ep,
         vendedor=vendedor,
         periodo_inicio=periodo_inicio,
@@ -297,7 +306,7 @@ def gerar_preview_pdf_comissao(
     loja = Loja.objects.using("default").filter(id=loja_id).first()
     pdf_buffer = gerar_pdf_relatorio_comissao(fake_relatorio, loja)
     filename = nome_arquivo_pdf_comissao(
-        ep.nome,
+        nome_da_conta(ep),
         vendedor.nome if vendedor else "vendedor",
     )
     return pdf_buffer.read(), filename, None

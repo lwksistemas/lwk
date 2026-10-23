@@ -13,6 +13,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from .relatorio_comissao_data import nome_da_conta
+
 
 @csrf_exempt
 @api_view(["GET", "POST"])
@@ -40,7 +42,7 @@ def empresa_aprovar_view(request, loja_id, token):
             "numero": relatorio.numero,
             "titulo": relatorio.titulo,
             "status": relatorio.status,
-            "empresa": relatorio.empresa_prestadora.nome,
+            "empresa": nome_da_conta(relatorio.empresa_prestadora),
             "periodo": relatorio.periodo_descricao,
             "valor_total_vendas": str(relatorio.valor_total_vendas),
             "valor_total_comissao": str(relatorio.valor_total_comissao),
@@ -48,7 +50,7 @@ def empresa_aprovar_view(request, loja_id, token):
             "pode_aprovar": relatorio.pode_aprovar,
         })
 
-    nome = request.data.get("nome", relatorio.empresa_prestadora.nome)
+    nome = request.data.get("nome", nome_da_conta(relatorio.empresa_prestadora))
     ok, err_msg = aprovar_relatorio(relatorio, nome, extrair_ip_cliente(request))
     if not ok:
         return Response({"detail": err_msg}, status=400)
@@ -81,7 +83,7 @@ def empresa_reprovar_view(request, loja_id, token):
             "numero": relatorio.numero,
             "titulo": relatorio.titulo,
             "status": relatorio.status,
-            "empresa": relatorio.empresa_prestadora.nome,
+            "empresa": nome_da_conta(relatorio.empresa_prestadora),
             "periodo": relatorio.periodo_descricao,
             "valor_total_comissao": str(relatorio.valor_total_comissao),
             "pode_reprovar": relatorio.pode_reprovar,
@@ -124,7 +126,7 @@ def vendedor_assinar_view(request, loja_id, token):
             "numero": relatorio.numero,
             "titulo": relatorio.titulo,
             "status": relatorio.status,
-            "empresa": relatorio.empresa_prestadora.nome,
+            "empresa": nome_da_conta(relatorio.empresa_prestadora),
             "vendedor": relatorio.vendedor.nome if relatorio.vendedor else "",
             "assinante": _nome_assinante(relatorio, loja),
             "periodo": relatorio.periodo_descricao,

@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .views_relatorio_comissao_common import loja_id_ou_erro
+from .relatorio_comissao_data import nome_da_conta
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +148,7 @@ def download_pdf_relatorio_comissao_view(request, relatorio_id):
     pdf_buffer = gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas=incluir_assin)
 
     filename = nome_arquivo_pdf_comissao(
-        relatorio.empresa_prestadora.nome if relatorio.empresa_prestadora else "empresa",
+        nome_da_conta(relatorio.empresa_prestadora) or "empresa",
         relatorio.vendedor.nome if relatorio.vendedor else "vendedor",
         relatorio.numero,
     )

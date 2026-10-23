@@ -7,6 +7,13 @@ import { fetchAllPaginatedResults } from '@/lib/crm-utils';
 export interface ComissaoPrestadoraItem {
   produto_servico_id: number;
   valor: string;
+  tipo?: 'fixo' | 'percentual';
+}
+
+export interface RegraComissaoPrestadora {
+  comissao_escopo: 'todos' | 'especificos';
+  comissao_tipo: 'fixo' | 'percentual';
+  comissao_valor: string;
 }
 
 interface CategoriaOpcao {
@@ -40,12 +47,17 @@ export function ComissaoPrestadoraSection({
   prestadoraId,
   valores,
   onChange,
+  regra,
+  onRegraChange,
 }: {
   prestadoraId?: number | null;
   valores: ComissaoPrestadoraItem[];
   onChange: (itens: ComissaoPrestadoraItem[]) => void;
+  regra: RegraComissaoPrestadora;
+  onRegraChange: (regra: RegraComissaoPrestadora) => void;
 }) {
   const [aberto, setAberto] = useState(false);
+  const [tipos, setTipos] = useState<Record<number, 'fixo' | 'percentual'>>({});
   const [categorias, setCategorias] = useState<CategoriaOpcao[]>([]);
   const [servicos, setServicos] = useState<ServicoOpcao[]>([]);
   const [categoriaId, setCategoriaId] = useState<number | 'sem' | null>(null);
@@ -107,13 +119,13 @@ export function ComissaoPrestadoraSection({
 
   const temSemCategoria = servicos.some((item) => !item.categoria);
 
-  const definirValor = (produtoId: number, valor: string) => {
+  const definirValor = (produtoId: number, tipo: 'fixo' | 'percentual', valor: string) => {
     const resto = valores.filter((item) => item.produto_servico_id !== produtoId);
     if (valor.trim() === '') {
       onChange(resto);
       return;
     }
-    onChange([...resto, { produto_servico_id: produtoId, valor }]);
+    onChange([...resto, { produto_servico_id: produtoId, tipo, valor }]);
   };
 
   const valorDe = (produtoId: number) =>
@@ -149,9 +161,63 @@ export function ComissaoPrestadoraSection({
       {aberto && (
         <>
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        Escolha a categoria e informe o valor que esta prestadora paga em cada serviço.
-        Deixe em branco o serviço que ela não paga. O vendedor recebe o percentual do cadastro de funcionário sobre esse valor.
+        A prestadora pode pagar uma porcentagem do preço ou um valor fixo, em todos os serviços ou só nos escolhidos.
+        Exemplo: 15% em todos os serviços. O vendedor recebe o percentual do cadastro de funcionário sobre esse valor.
       </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Aplicar em</label>
+          <select
+            value={regra.comissao_escopo}
+            onChange={(e) => onRegraChange({
+              ...regra,
+              comissao_escopo: e.target.value as RegraComissaoPrestadora['comissao_escopo'],
+            })}
+            className={inputClass}
+            aria-label="Aplicar comissão da prestadora em"
+          >
+            <option value="todos">Todos os produtos e serviços</option>
+            <option value="especificos">Produtos e serviços escolhidos</option>
+          </select>
+        </div>
+        {regra.comissao_escopo === 'todos' && (
+          <>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Forma</label>
+              <select
+                value={regra.comissao_tipo}
+                onChange={(e) => onRegraChange({
+                  ...regra,
+                  comissao_tipo: e.target.value as RegraComissaoPrestadora['comissao_tipo'],
+                })}
+                className={inputClass}
+                aria-label="Forma da comissão da prestadora"
+              >
+                <option value="percentual">Porcentagem (%)</option>
+                <option value="fixo">Valor fixo (R$)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                {regra.comissao_tipo === 'percentual' ? 'Porcentagem' : 'Valor fixo'}
+              </label>
+              <input
+                type="number"
+                min="0"
+                max={regra.comissao_tipo === 'percentual' ? '100' : undefined}
+                step="0.01"
+                value={regra.comissao_valor}
+                onChange={(e) => onRegraChange({ ...regra, comissao_valor: e.target.value })}
+                className={inputClass}
+                placeholder={regra.comissao_tipo === 'percentual' ? '15' : '0,00'}
+                aria-label="Valor da comissão da prestadora"
+              />
+            </div>
+          </>
+        )}
+      </div>
+      {regra.comissao_escopo === 'especificos' && (
+      <>
       {!prestadoraId && (
         <p className="text-sm text-gray-500">Salve a empresa e importe o catálogo para configurar os valores.</p>
       )}
@@ -206,11 +272,14 @@ export function ComissaoPrestadoraSection({
                   <tr className="bg-gray-50 dark:bg-[#0d1f3c]/50 text-left text-xs uppercase text-gray-600 dark:text-gray-300">
                     <th className="py-2 px-3 font-semibold">Serviço</th>
                     <th className="py-2 px-3 font-semibold">Preço</th>
-                    <th className="py-2 px-3 font-semibold">Valor pago pela prestadora (R$)</th>
+                    <th className="py-2 px-3 font-semibold">Comissão da prestadora</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {daCategoria.map((servico) => (
+                  {daCategoria.map((servico) => {
+                    const item = valores.find((linha) => linha.produto_servico_id === servico.id);
+                    const tipo = item?.tipo || tipos[servico.id] || 'fixo';
+                    return (
                     <tr key={servico.id} className="border-t border-gray-100 dark:border-[#0d1f3c]">
                       <td className="py-2 px-3 text-gray-900 dark:text-white">
                         {servico.nome}
@@ -223,24 +292,43 @@ export function ComissaoPrestadoraSection({
                       </td>
                       <td className="py-2 px-3 text-gray-600 dark:text-gray-300">{moeda(servico.preco)}</td>
                       <td className="py-2 px-3">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={valorDe(servico.id)}
-                          onChange={(e) => definirValor(servico.id, e.target.value)}
-                          className={inputClass}
-                          placeholder="Não paga"
-                          aria-label={`Valor pago pela prestadora em ${servico.nome}`}
-                        />
+                        <div className="flex gap-2">
+                          <select
+                            value={tipo}
+                            onChange={(e) => {
+                              const proximo = e.target.value as 'fixo' | 'percentual';
+                              setTipos((atualTipos) => ({ ...atualTipos, [servico.id]: proximo }));
+                              if (item?.valor) definirValor(servico.id, proximo, item.valor);
+                            }}
+                            className={`${inputClass} w-28`}
+                            aria-label={`Forma da comissão em ${servico.nome}`}
+                          >
+                            <option value="percentual">%</option>
+                            <option value="fixo">R$</option>
+                          </select>
+                          <input
+                            type="number"
+                            min="0"
+                            max={tipo === 'percentual' ? '100' : undefined}
+                            step="0.01"
+                            value={valorDe(servico.id)}
+                            onChange={(e) => definirValor(servico.id, tipo, e.target.value)}
+                            className={inputClass}
+                            placeholder="Não paga"
+                            aria-label={`Valor pago pela prestadora em ${servico.nome}`}
+                          />
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </>
+      )}
+      </>
       )}
         </>
       )}

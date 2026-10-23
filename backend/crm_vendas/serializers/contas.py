@@ -32,6 +32,9 @@ class ContaSerializer(
     site = serializers.URLField(required=False, allow_blank=True, allow_null=True)
     comissoes = serializers.JSONField(required=False, write_only=True)
     logo = serializers.URLField(required=False, allow_blank=True, max_length=500)
+    comissao_valor = serializers.DecimalField(
+        max_digits=12, decimal_places=2, required=False, allow_null=True,
+    )
 
     class Meta:
         model = Conta
@@ -39,7 +42,9 @@ class ContaSerializer(
             "id", "nome", "razao_social", "cnpj", "inscricao_estadual", "tipo", "segmento",
             "telefone", "email", "site",
             "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf",
-            "endereco", "observacoes", "logo", "comissoes", "created_at", "updated_at",
+            "endereco", "observacoes", "logo",
+            "comissao_escopo", "comissao_tipo", "comissao_valor",
+            "comissoes", "created_at", "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
 
@@ -58,6 +63,20 @@ class ContaSerializer(
             return ""
         return str(value).strip()
 
+    def validate(self, attrs):
+        escopo = attrs.get("comissao_escopo", getattr(self.instance, "comissao_escopo", "especificos"))
+        tipo = attrs.get("comissao_tipo", getattr(self.instance, "comissao_tipo", "percentual"))
+        valor = attrs.get("comissao_valor", getattr(self.instance, "comissao_valor", None))
+        if escopo not in ("todos", "especificos"):
+            raise serializers.ValidationError({"comissao_escopo": "Escolha todos os serviços ou só alguns."})
+        if tipo not in ("percentual", "fixo"):
+            raise serializers.ValidationError({"comissao_tipo": "Escolha porcentagem ou valor fixo."})
+        if valor is not None and valor < 0:
+            raise serializers.ValidationError({"comissao_valor": "A comissão não pode ser negativa."})
+        if tipo == "percentual" and valor is not None and valor > 100:
+            raise serializers.ValidationError({"comissao_valor": "A porcentagem não pode passar de 100."})
+        return attrs
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get("request")
@@ -65,6 +84,9 @@ class ContaSerializer(
 
         if request and vendedor_nao_ve_valor_da_prestadora(request):
             data.pop("comissoes", None)
+            data.pop("comissao_escopo", None)
+            data.pop("comissao_tipo", None)
+            data.pop("comissao_valor", None)
             return data
         view = self.context.get("view")
         if getattr(view, "action", None) in ("retrieve", "create", "update", "partial_update"):

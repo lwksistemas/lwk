@@ -51,6 +51,33 @@ class Conta(LojaIsolationMixin, models.Model):
         default="",
         help_text="Logomarca da prestadora, usada na proposta e no contrato",
     )
+    COMISSAO_ESCOPO_CHOICES = [
+        ("todos", "Todos os produtos e serviços"),
+        ("especificos", "Produtos e serviços escolhidos"),
+    ]
+    COMISSAO_TIPO_CHOICES = [
+        ("percentual", "Porcentagem"),
+        ("fixo", "Valor fixo"),
+    ]
+    comissao_escopo = models.CharField(
+        max_length=20,
+        choices=COMISSAO_ESCOPO_CHOICES,
+        default="especificos",
+        help_text="Se a prestadora paga em todos os serviços ou só nos escolhidos",
+    )
+    comissao_tipo = models.CharField(
+        max_length=20,
+        choices=COMISSAO_TIPO_CHOICES,
+        default="percentual",
+        help_text="Porcentagem do preço ou valor fixo, quando vale para todos",
+    )
+    comissao_valor = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Porcentagem ou valor fixo que a prestadora paga em todos os serviços",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

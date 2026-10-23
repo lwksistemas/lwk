@@ -29,6 +29,9 @@ interface Conta {
   uf?: string;
   observacoes?: string;
   logo?: string;
+  comissao_escopo?: 'todos' | 'especificos';
+  comissao_tipo?: 'fixo' | 'percentual';
+  comissao_valor?: string | null;
   comissoes?: ComissaoPrestadoraItem[];
 }
 
@@ -52,8 +55,12 @@ function contaToForm(conta: Conta): ContaFormData {
     uf: conta.uf || '',
     observacoes: conta.observacoes || '',
     logo: conta.logo || '',
+    comissao_escopo: conta.comissao_escopo === 'todos' ? 'todos' : 'especificos',
+    comissao_tipo: conta.comissao_tipo === 'fixo' ? 'fixo' : 'percentual',
+    comissao_valor: conta.comissao_valor ?? '',
     comissoes: (conta.comissoes || []).map((item) => ({
       produto_servico_id: item.produto_servico_id,
+      tipo: item.tipo === 'percentual' ? 'percentual' : 'fixo',
       valor: item.valor ?? '',
     })),
   };
@@ -167,12 +174,21 @@ export default function EditarContaPage() {
       setFormErro('Nome fantasia é obrigatório.');
       return;
     }
+    if (
+      formData.tipo !== 'cliente'
+      && formData.comissao_escopo === 'todos'
+      && formData.comissao_valor.trim() === ''
+    ) {
+      setFormErro('Informe a porcentagem ou o valor fixo que a prestadora paga em todos os serviços.');
+      return;
+    }
     setSaving(true);
     try {
       await apiClient.put(
         `/crm-vendas/contas/${id}/`,
         applyTelefoneInternacionalPayload({
           ...formData,
+          comissao_valor: formData.comissao_valor.trim() === '' ? null : formData.comissao_valor,
           comissoes: formData.tipo === 'cliente' ? [] : formData.comissoes,
         }),
       );

@@ -28,6 +28,9 @@ const EMPTY_FORM: ContaFormData = {
   uf: '',
   observacoes: '',
   logo: '',
+  comissao_escopo: 'especificos',
+  comissao_tipo: 'percentual',
+  comissao_valor: '',
   comissoes: [],
 };
 
@@ -106,12 +109,21 @@ export default function NovaContaPage() {
       setFormErro('Nome fantasia é obrigatório.');
       return;
     }
+    if (
+      formData.tipo !== 'cliente'
+      && formData.comissao_escopo === 'todos'
+      && formData.comissao_valor.trim() === ''
+    ) {
+      setFormErro('Informe a porcentagem ou o valor fixo que a prestadora paga em todos os serviços.');
+      return;
+    }
     setSaving(true);
     try {
       const resposta = await apiClient.post<{ id: number }>(
         '/crm-vendas/contas/',
         applyTelefoneInternacionalPayload({
           ...formData,
+          comissao_valor: formData.comissao_valor.trim() === '' ? null : formData.comissao_valor,
           comissoes: formData.tipo === 'cliente' ? [] : formData.comissoes,
         }),
       );

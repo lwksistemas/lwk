@@ -225,6 +225,7 @@ def apply_crm_tenant_schema_patches(db_name: str) -> None:
     patch_crm_conta_logo_if_missing(db_name)
     patch_crm_produto_prestadora_if_missing(db_name)
     patch_crm_categoria_pai_if_missing(db_name)
+    patch_crm_comissao_prestadora_regra_if_missing(db_name)
 
 
 def patch_crm_comissao_prestadora_if_missing(db_name: str) -> bool:
@@ -438,6 +439,46 @@ def patch_crm_categoria_pai_if_missing(db_name: str) -> bool:
             WHERE NOT EXISTS (
                 SELECT 1 FROM django_migrations
                 WHERE app = 'crm_vendas' AND name = '0084_categoria_subpasta'
+            )
+            """,
+        )
+    return True
+
+
+def patch_crm_comissao_prestadora_regra_if_missing(db_name: str) -> bool:
+    """Porcentagem ou valor fixo da prestadora, em todos os serviços ou nos escolhidos (0085)."""
+    from core.db_config import ensure_loja_database_config
+    from core.schema_checks import table_exists
+
+    if not ensure_loja_database_config(db_name, conn_max_age=0):
+        return False
+
+    schema_name = db_name.replace("-", "_")
+    conn = connections[db_name]
+    with conn.cursor() as cursor:
+        cursor.execute(f"SET search_path TO {connection.ops.quote_name(schema_name)}, public")
+        cursor.execute(
+            """
+            ALTER TABLE crm_vendas_conta
+            ADD COLUMN IF NOT EXISTS comissao_escopo varchar(20) NOT NULL DEFAULT 'especificos',
+            ADD COLUMN IF NOT EXISTS comissao_tipo varchar(20) NOT NULL DEFAULT 'percentual',
+            ADD COLUMN IF NOT EXISTS comissao_valor numeric(12, 2) NULL
+            """,
+        )
+        if table_exists(cursor, "crm_vendas_conta_produto_comissao"):
+            cursor.execute(
+                """
+                ALTER TABLE crm_vendas_conta_produto_comissao
+                ADD COLUMN IF NOT EXISTS tipo varchar(20) NOT NULL DEFAULT 'fixo'
+                """,
+            )
+        cursor.execute(
+            """
+            INSERT INTO django_migrations (app, name, applied)
+            SELECT 'crm_vendas', '0085_comissao_prestadora_regra', NOW()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM django_migrations
+                WHERE app = 'crm_vendas' AND name = '0085_comissao_prestadora_regra'
             )
             """,
         )

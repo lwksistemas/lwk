@@ -19,11 +19,21 @@ class ContaProdutoComissao(LojaIsolationMixin, models.Model):
         on_delete=models.CASCADE,
         related_name="comissoes_prestadoras",
     )
+    TIPO_CHOICES = [
+        ("fixo", "Valor fixo"),
+        ("percentual", "Porcentagem"),
+    ]
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default="fixo",
+        help_text="Porcentagem do preço ou valor fixo em reais",
+    )
     valor = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=0,
-        help_text="Valor em reais que a prestadora paga à loja por este item",
+        help_text="Porcentagem ou valor em reais que a prestadora paga à loja por este item",
     )
 
     objects = LojaIsolationManager()

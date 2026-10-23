@@ -30,6 +30,9 @@ export interface ContaFormData {
   uf: string;
   observacoes: string;
   logo: string;
+  comissao_escopo: 'todos' | 'especificos';
+  comissao_tipo: 'fixo' | 'percentual';
+  comissao_valor: string;
   comissoes: ComissaoPrestadoraItem[];
 }
 
@@ -73,9 +76,9 @@ export function ContaCadastroForm({
   onCatalogoPendente,
 }: ContaCadastroFormProps) {
   const [importarAberto, setImportarAberto] = useState(false);
-  const set = (field: Exclude<keyof ContaFormData, 'comissoes'>, value: string) =>
+  const set = (field: Exclude<keyof ContaFormData, 'comissoes' | 'comissao_escopo' | 'comissao_tipo'>, value: string) =>
     onChange({ ...formData, [field]: value });
-  const setUpper = (field: Exclude<keyof ContaFormData, 'comissoes'>, value: string) =>
+  const setUpper = (field: Exclude<keyof ContaFormData, 'comissoes' | 'comissao_escopo' | 'comissao_tipo'>, value: string) =>
     onChange({ ...formData, [field]: toUpperCase(value) });
   const setCnpj = (value: string) => onChange({ ...formData, cnpj: formatCpfCnpj(value) });
   const setCep = (value: string) => onChange({ ...formData, cep: formatCep(value) });
@@ -342,6 +345,12 @@ export function ContaCadastroForm({
             prestadoraId={contaId}
             valores={formData.comissoes}
             onChange={(comissoes) => onChange({ ...formData, comissoes })}
+            regra={{
+              comissao_escopo: formData.comissao_escopo,
+              comissao_tipo: formData.comissao_tipo,
+              comissao_valor: formData.comissao_valor,
+            }}
+            onRegraChange={(regra) => onChange({ ...formData, ...regra })}
           />
         )}
       </div>

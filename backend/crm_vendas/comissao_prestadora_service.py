@@ -28,13 +28,52 @@ def validar_itens_comissao(itens) -> list[dict]:
             valor = Decimal(str(bruto).replace(",", ".")).quantize(Decimal("0.01"))
         except (InvalidOperation, TypeError):
             raise ValueError("Informe o valor pago pela prestadora.") from None
+        tipo = item.get("tipo") or "fixo"
+        if tipo not in ("fixo", "percentual"):
+            raise ValueError("Escolha porcentagem ou valor fixo.")
         if valor < 0:
             raise ValueError("O valor pago pela prestadora não pode ser negativo.")
+        if tipo == "percentual" and valor > 100:
+            raise ValueError("A porcentagem não pode passar de 100.")
         if produto_id in vistos:
             raise ValueError("O mesmo produto ou serviço não pode entrar duas vezes.")
         vistos.add(produto_id)
-        saida.append({"produto_servico_id": produto_id, "valor": valor})
+        saida.append({"produto_servico_id": produto_id, "tipo": tipo, "valor": valor})
     return saida
+
+
+def base_da_regra(preco, quantidade, tipo, valor) -> Decimal:
+    """Quanto a prestadora paga neste item: porcentagem do preço ou valor fixo por unidade."""
+    qtd = Decimal(str(quantidade or 0))
+    numero = Decimal(str(valor or 0))
+    if tipo == "percentual":
+        return qtd * Decimal(str(preco or 0)) * numero / Decimal(100)
+    return qtd * numero
+
+
+def linhas_da_venda(conta, itens, mapa) -> list[tuple] | None:
+    """Itens com a base que a prestadora paga. None quando a venda não tem essa regra."""
+    if conta is None or not itens:
+        return None
+    escopo = getattr(conta, "comissao_escopo", None) or "especificos"
+    if escopo == "todos":
+        if getattr(conta, "comissao_valor", None) is None:
+            return None
+        tipo = getattr(conta, "comissao_tipo", None) or "percentual"
+        return [
+            (item, base_da_regra(item.preco_unitario, item.quantidade, tipo, conta.comissao_valor))
+            for item in itens
+        ]
+    linhas = []
+    for item in itens:
+        regra = mapa.get((getattr(conta, "id", None), item.produto_servico_id))
+        if regra is None:
+            continue
+        tipo, valor = regra
+        linhas.append((item, base_da_regra(item.preco_unitario, item.quantidade, tipo, valor)))
+    if not linhas:
+        return None
+    return linhas
 
 
 def comissao_do_vendedor(valor_prestadora: Decimal, percentual) -> Decimal:
@@ -139,6 +178,7 @@ def serializar_comissoes_conta(conta) -> list[dict]:
         categoria = produto.categoria
         linhas.append({
             "produto_servico_id": produto.id,
+            "tipo": item.tipo or "fixo",
             "valor": f"{item.valor:.2f}",
             "nome": produto.nome,
             "codigo": produto.codigo or "",
@@ -172,17 +212,17 @@ def aplicar_comissoes_conta(conta, itens) -> None:
         ContaProdutoComissao.objects.update_or_create(
             conta_id=conta.id,
             produto_servico_id=item["produto_servico_id"],
-            defaults={"valor": item["valor"], "loja_id": conta.loja_id},
+            defaults={"valor": item["valor"], "tipo": item["tipo"], "loja_id": conta.loja_id},
         )
 
 
-def _mapa_valores(conta_ids, produto_ids) -> dict[tuple[int, int], Decimal]:
+def _mapa_valores(conta_ids, produto_ids) -> dict[tuple[int, int], tuple[str, Decimal]]:
     from .models import ContaProdutoComissao
 
     if not conta_ids or not produto_ids:
         return {}
     return {
-        (row.conta_id, row.produto_servico_id): row.valor
+        (row.conta_id, row.produto_servico_id): (row.tipo or "fixo", row.valor)
         for row in ContaProdutoComissao.objects.filter(
             conta_id__in=conta_ids,
             produto_servico_id__in=produto_ids,
@@ -191,30 +231,21 @@ def _mapa_valores(conta_ids, produto_ids) -> dict[tuple[int, int], Decimal]:
 
 
 def valor_pago_pela_prestadora(oportunidade) -> Decimal | None:
-    """Soma o valor configurado na prestadora para os itens da venda.
+    """Soma o que a prestadora paga nos itens da venda.
 
-    None quando nenhum item tem valor configurado — a venda mantém o que já estava gravado.
+    None quando não há regra — a venda mantém o que já estava gravado.
     """
     if not oportunidade.empresa_prestadora_id:
         return None
     itens = list(oportunidade.itens.all())
-    if not itens:
-        return None
     mapa = _mapa_valores(
         [oportunidade.empresa_prestadora_id],
         [item.produto_servico_id for item in itens],
     )
-    base = Decimal(0)
-    usou = False
-    for item in itens:
-        valor_item = mapa.get((oportunidade.empresa_prestadora_id, item.produto_servico_id))
-        if valor_item is None:
-            continue
-        usou = True
-        base += Decimal(item.quantidade or 0) * valor_item
-    if not usou:
+    linhas = linhas_da_venda(getattr(oportunidade, "empresa_prestadora", None), itens, mapa)
+    if linhas is None:
         return None
-    return base.quantize(Decimal("0.01"))
+    return sum((base for _, base in linhas), Decimal(0)).quantize(Decimal("0.01"))
 
 
 def atualizar_valor_pago_pela_prestadora(oportunidade) -> None:
@@ -261,7 +292,11 @@ def partes_por_oportunidade(oportunidades, vendedor) -> dict[int, Decimal]:
         return {}
     percentual, regras = _regras_categoria_vendedor(vendedor)
     if hasattr(oportunidades, "prefetch_related"):
-        ops = list(oportunidades.prefetch_related("itens__produto_servico__categoria__pai__pai"))
+        ops = list(
+            oportunidades.select_related("empresa_prestadora").prefetch_related(
+                "itens__produto_servico__categoria__pai__pai",
+            )
+        )
     else:
         ops = list(oportunidades)
     if not ops:
@@ -275,21 +310,20 @@ def partes_por_oportunidade(oportunidades, vendedor) -> dict[int, Decimal]:
     mapa = _mapa_valores(conta_ids, produto_ids)
     partes: dict[int, Decimal] = {}
     for op in ops:
-        usou = False
-        parte = Decimal(0)
-        for item in op.itens.all():
-            valor_item = mapa.get((op.empresa_prestadora_id, item.produto_servico_id))
-            if valor_item is None:
-                continue
-            usou = True
-            quantidade = Decimal(item.quantidade or 0)
-            base = quantidade * valor_item
-            categoria = getattr(item.produto_servico, "categoria", None)
-            parte += parte_comissao_item(base, quantidade, _regra_da_categoria(categoria, regras), percentual)
-        if usou:
-            partes[op.id] = parte.quantize(Decimal("0.01"))
-        else:
+        linhas = linhas_da_venda(getattr(op, "empresa_prestadora", None), list(op.itens.all()), mapa)
+        if linhas is None:
             partes[op.id] = Decimal(op.valor_comissao or 0).quantize(Decimal("0.01"))
+            continue
+        parte = Decimal(0)
+        for item, base in linhas:
+            categoria = getattr(getattr(item, "produto_servico", None), "categoria", None)
+            parte += parte_comissao_item(
+                base,
+                Decimal(item.quantidade or 0),
+                _regra_da_categoria(categoria, regras),
+                percentual,
+            )
+        partes[op.id] = parte.quantize(Decimal("0.01"))
     return partes
 
 

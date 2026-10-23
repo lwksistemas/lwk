@@ -43,6 +43,15 @@ ETAPAS = [
 
 
 class PipelinePdfTests(SimpleTestCase):
+    def test_coluna_mostra_o_telefone_do_cliente(self):
+        from crm_vendas.relatorios_pipeline_pdf import _telefone_linha
+
+        oportunidade = _oportunidade()
+        oportunidade.lead.telefone = "86988887777"
+        oportunidade.lead.contato = None
+        oportunidade.lead.conta = None
+        self.assertEqual(_telefone_linha(oportunidade), "(86) 98888-7777")
+
     def test_prestadora_com_cnpj_usa_razao_social(self):
         from crm_vendas.relatorios_pipeline_pdf import _nome_prestadora
 

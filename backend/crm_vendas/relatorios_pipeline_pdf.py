@@ -87,10 +87,10 @@ def _data_linha(oportunidade) -> str:
     return dia.strftime("%d/%m/%Y")
 
 
-def _comissao_linha(oportunidade, *, oculta_valor_prestadora, comissoes_vendedor):
-    if oculta_valor_prestadora:
-        return comissoes_vendedor.get(oportunidade.id)
-    return getattr(oportunidade, "valor_comissao", None)
+def _telefone_linha(oportunidade) -> str:
+    from .relatorios_negociacao_pdf import telefone_para_exibicao
+
+    return telefone_para_exibicao(oportunidade) or "—"
 
 
 def _periodo_texto(data_inicio, data_fim) -> str:
@@ -137,14 +137,11 @@ def gerar_pdf_pipeline(
     data_inicio="",
     data_fim="",
     vendedor_nome="",
-    oculta_valor_prestadora=False,
-    comissoes_vendedor=None,
     etapas=None,
 ) -> bytes:
     """Quadro filtrado do pipeline, com a logo da loja e a da prestadora quando houver uma só."""
     from .pdf_proposta_contrato.sections import _build_cabecalho
 
-    comissoes_vendedor = comissoes_vendedor or {}
     etapas = list(etapas) if etapas is not None else _etapas_da_loja()
     linhas = list(oportunidades)
     por_etapa = {}
@@ -182,15 +179,13 @@ def gerar_pdf_pipeline(
     elements.append(Spacer(1, 0.35 * cm))
 
     colunas = [
-        largura * 0.26,
+        largura * 0.24,
         largura * 0.22,
-        largura * 0.18,
+        largura * 0.16,
         largura * 0.11,
-        largura * 0.13,
-        largura * 0.10,
+        largura * 0.15,
+        largura * 0.12,
     ]
-    rotulo_comissao = "Sua comissão" if oculta_valor_prestadora else "Pago pela prestadora"
-
     if not linhas:
         elements.append(Paragraph("Nenhuma oportunidade neste período.", estilos["vazio"]))
     else:
@@ -206,22 +201,17 @@ def gerar_pdf_pipeline(
                 _paragrafo("Prestadora", estilos["th"]),
                 _paragrafo("Vendedor", estilos["th"]),
                 _paragrafo("Valor", estilos["th_dir"]),
-                _paragrafo(rotulo_comissao, estilos["th_dir"]),
+                _paragrafo("Telefone", estilos["th"]),
                 _paragrafo("Data", estilos["th_dir"]),
             ]
             dados = [[_paragrafo(f"{rotulo} · {qtd} · {_brl(soma)}", estilos["etapa"]), "", "", "", "", ""], cabeca]
             for oportunidade in grupo:
-                comissao = _comissao_linha(
-                    oportunidade,
-                    oculta_valor_prestadora=oculta_valor_prestadora,
-                    comissoes_vendedor=comissoes_vendedor,
-                )
                 dados.append([
                     _paragrafo(_nome_cliente(oportunidade), estilos["td"]),
                     _paragrafo(_nome_prestadora(oportunidade), estilos["td"]),
                     _paragrafo(_nome_vendedor(oportunidade), estilos["td"]),
                     _paragrafo(_brl(oportunidade.valor), estilos["td_dir"]),
-                    _paragrafo(_brl(comissao), estilos["td_dir"]),
+                    _paragrafo(_telefone_linha(oportunidade), estilos["td"]),
                     _paragrafo(_data_linha(oportunidade), estilos["td_dir"]),
                 ])
             tabela = Table(dados, colWidths=colunas, repeatRows=2)

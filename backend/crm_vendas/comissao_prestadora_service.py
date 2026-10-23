@@ -257,6 +257,22 @@ def atualizar_valor_pago_pela_prestadora(oportunidade) -> None:
     oportunidade.save(update_fields=["valor_comissao", "updated_at"])
 
 
+def gravar_comissoes_das_vendas(oportunidades) -> None:
+    """Atualiza o valor gravado em cada venda com a regra atual da prestadora."""
+    vendas = oportunidades.select_related("empresa_prestadora").prefetch_related("itens")
+    for venda in vendas:
+        atualizar_valor_pago_pela_prestadora(venda)
+
+
+def atualizar_comissoes_da_prestadora(conta_id: int) -> None:
+    """Recalcula as vendas dessa prestadora depois que a regra de comissão muda."""
+    from .models import Oportunidade
+
+    gravar_comissoes_das_vendas(
+        Oportunidade.objects.filter(empresa_prestadora_id=conta_id),
+    )
+
+
 def _regras_categoria_vendedor(vendedor) -> tuple[Decimal, dict]:
     percentual = Decimal(str(getattr(vendedor, "comissao_padrao", 0) or 0))
     regras = {}

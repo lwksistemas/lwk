@@ -143,6 +143,7 @@ class ConfigurarTenantRelatorioPublicoTest(SimpleTestCase):
 
 
 class CriarRelatorioComissaoSmokeTest(SimpleTestCase):
+    @patch("crm_vendas.comissao_prestadora_service.gravar_comissoes_das_vendas")
     @patch("crm_vendas.relatorio_comissao_workflow.montar_dados_oportunidades_snapshot", return_value=[])
     @patch("crm_vendas.relatorio_comissao_workflow.agregar_totais_oportunidades", return_value={"qtd": 0})
     @patch("crm_vendas.relatorio_comissao_workflow.queryset_oportunidades_comissao")
@@ -154,6 +155,7 @@ class CriarRelatorioComissaoSmokeTest(SimpleTestCase):
         self.assertIsNone(rel)
         self.assertIn("nenhuma venda", (err or "").lower())
 
+    @patch("crm_vendas.comissao_prestadora_service.gravar_comissoes_das_vendas")
     @patch("crm_vendas.relatorio_comissao_workflow.montar_dados_oportunidades_snapshot", return_value=[{"valor": 100}])
     @patch(
         "crm_vendas.relatorio_comissao_workflow.agregar_totais_oportunidades",

@@ -154,6 +154,9 @@ def resumo_relatorio_comissao(
     qs = queryset_oportunidades_comissao(
         loja_id, empresa_prestadora_id, vendedor_id, periodo_inicio, periodo_fim,
     )
+    from .comissao_prestadora_service import gravar_comissoes_das_vendas
+
+    gravar_comissoes_das_vendas(qs)
     totais = agregar_totais_oportunidades(qs)
     vendas = []
     for op in qs.order_by("-data_fechamento_ganho", "-data_fechamento")[:50]:
@@ -262,6 +265,9 @@ def gerar_preview_pdf_comissao(
     qs = queryset_oportunidades_comissao(
         loja_id, empresa_prestadora_id, vendedor_id, periodo_inicio, periodo_fim,
     )
+    from .comissao_prestadora_service import gravar_comissoes_das_vendas
+
+    gravar_comissoes_das_vendas(qs)
     totais = agregar_totais_oportunidades(qs)
     if not totais["qtd"]:
         return None, None, "Nenhuma venda encontrada no período para esta empresa."

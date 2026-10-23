@@ -113,7 +113,15 @@ class ContaSerializer(
     @transaction.atomic
     def update(self, instance, validated_data):
         comissoes = validated_data.pop("comissoes", None)
+        mudou_regra = comissoes is not None or any(
+            campo in validated_data
+            for campo in ("comissao_escopo", "comissao_tipo", "comissao_valor")
+        )
         instance = super().update(instance, validated_data)
         self._gravar_comissoes(instance, comissoes)
+        if mudou_regra and instance.tipo in TIPOS_COM_COMISSAO:
+            from ..comissao_prestadora_service import atualizar_comissoes_da_prestadora
+
+            atualizar_comissoes_da_prestadora(instance.id)
         return instance
 

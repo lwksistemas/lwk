@@ -64,10 +64,11 @@ class MontarDadosOportunidadesSnapshotTest(SimpleTestCase):
 
 
 class ResumoRelatorioComissaoTest(SimpleTestCase):
+    @patch("crm_vendas.comissao_prestadora_service.gravar_comissoes_das_vendas")
     @patch("crm_vendas.relatorio_comissao_data.queryset_oportunidades_comissao")
     @patch("crm_vendas.relatorio_comissao_data.resolver_periodo_relatorio")
     @patch("crm_vendas.models.Conta")
-    def test_resumo_com_vendas(self, mock_conta, mock_periodo, mock_qs_fn):
+    def test_resumo_com_vendas(self, mock_conta, mock_periodo, mock_qs_fn, _gravar):
         ep = MagicMock(id=10, nome="EP Teste")
         mock_conta.objects.filter.return_value.first.return_value = ep
         mock_periodo.return_value = (date(2026, 6, 1), date(2026, 6, 30), "Junho 2026", None)

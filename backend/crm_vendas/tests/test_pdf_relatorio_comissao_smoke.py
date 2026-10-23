@@ -1,11 +1,17 @@
 """Smoke tests: PDF do relatório de comissão."""
 from decimal import Decimal
 from io import BytesIO
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
+from PIL import Image as PILImage
 
-from crm_vendas.pdf_relatorio_comissao import _fmt_brl, _fmt_data, gerar_pdf_relatorio_comissao
+from crm_vendas.pdf_relatorio_comissao import (
+    _build_pdf_cabecalho,
+    _fmt_brl,
+    _fmt_data,
+    gerar_pdf_relatorio_comissao,
+)
 
 
 class FmtRelatorioComissaoTest(SimpleTestCase):
@@ -80,3 +86,22 @@ class PdfRelatorioComissaoSmokeTest(SimpleTestCase):
         rel.assinatura_empresa_nome = "Admin Loja"
         buffer = gerar_pdf_relatorio_comissao(rel, _mock_loja(), incluir_assinaturas=True)
         self.assertTrue(buffer.getvalue().startswith(b"%PDF"))
+
+    def test_cabecalho_usa_a_logo_da_prestadora_escolhida(self):
+        imagem = BytesIO()
+        PILImage.new("RGB", (80, 40), "white").save(imagem, format="PNG")
+        resposta = MagicMock(status_code=200, content=imagem.getvalue())
+        loja = _mock_loja()
+        loja.logo = "https://media.lwksistemas.com.br/files/loja/logo.jpeg"
+        relatorio = _mock_relatorio()
+        relatorio.empresa_prestadora.logo = "https://media.lwksistemas.com.br/files/prestadora/logo.png"
+        with (
+            patch("crm_vendas.pdf_proposta_contrato.formatters.requests.get", return_value=resposta),
+            patch("core.media_storage.assinar_url_midia", side_effect=lambda url: url) as assinar,
+        ):
+            elements = _build_pdf_cabecalho(loja, relatorio)
+        self.assertEqual(
+            [chamada.args[0] for chamada in assinar.call_args_list],
+            [loja.logo, relatorio.empresa_prestadora.logo],
+        )
+        self.assertEqual(len(elements[0]._cellvalues[0]), 3)

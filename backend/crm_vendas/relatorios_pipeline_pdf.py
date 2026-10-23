@@ -6,7 +6,7 @@ from xml.sax.saxutils import escape
 from django.utils import timezone
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_RIGHT
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -155,10 +155,11 @@ def gerar_pdf_pipeline(
         if chave not in chaves:
             etapas.append((chave, chave))
 
+    pagina = landscape(A4)
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=A4,
+        pagesize=pagina,
         leftMargin=1.4 * cm,
         rightMargin=1.4 * cm,
         topMargin=1.3 * cm,
@@ -167,7 +168,8 @@ def gerar_pdf_pipeline(
     )
     estilos = _estilos()
     elements = []
-    _build_cabecalho(elements, _logo_da_loja(loja), TITULO, _logo_direita(linhas, loja))
+    largura = pagina[0] - 2.8 * cm
+    _build_cabecalho(elements, _logo_da_loja(loja), TITULO, _logo_direita(linhas, loja), largura)
     elements.append(Spacer(1, 0.35 * cm))
     elements.append(Paragraph(escape(_periodo_texto(data_inicio, data_fim)), estilos["meta"]))
     if (vendedor_nome or "").strip():
@@ -179,14 +181,13 @@ def gerar_pdf_pipeline(
     elements.append(Paragraph(escape(f"{resumo} · {_brl(total)}"), estilos["meta"]))
     elements.append(Spacer(1, 0.35 * cm))
 
-    largura = A4[0] - 2.8 * cm
     colunas = [
-        largura * 0.24,
-        largura * 0.24,
+        largura * 0.26,
+        largura * 0.22,
         largura * 0.18,
-        largura * 0.12,
+        largura * 0.11,
         largura * 0.13,
-        largura * 0.09,
+        largura * 0.10,
     ]
     rotulo_comissao = "Sua comissão" if oculta_valor_prestadora else "Pago pela prestadora"
 
@@ -200,22 +201,6 @@ def gerar_pdf_pipeline(
             grupo.sort(key=lambda item: _nome_cliente(item).upper())
             soma = sum((Decimal(item.valor or 0) for item in grupo), Decimal("0"))
             qtd = "1 oportunidade" if len(grupo) == 1 else f"{len(grupo)} oportunidades"
-            faixa = Table(
-                [[
-                    _paragrafo(rotulo, estilos["etapa"]),
-                    _paragrafo(qtd, estilos["etapa"]),
-                    _paragrafo(_brl(soma), estilos["etapa_dir"]),
-                ]],
-                colWidths=[largura * 0.46, largura * 0.28, largura * 0.26],
-            )
-            faixa.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#0176d3")),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                ("TOPPADDING", (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ]))
             cabeca = [
                 _paragrafo("Cliente", estilos["th"]),
                 _paragrafo("Prestadora", estilos["th"]),
@@ -224,7 +209,7 @@ def gerar_pdf_pipeline(
                 _paragrafo(rotulo_comissao, estilos["th_dir"]),
                 _paragrafo("Data", estilos["th_dir"]),
             ]
-            dados = [cabeca]
+            dados = [[_paragrafo(f"{rotulo} · {qtd} · {_brl(soma)}", estilos["etapa"]), "", "", "", "", ""], cabeca]
             for oportunidade in grupo:
                 comissao = _comissao_linha(
                     oportunidade,
@@ -239,18 +224,21 @@ def gerar_pdf_pipeline(
                     _paragrafo(_brl(comissao), estilos["td_dir"]),
                     _paragrafo(_data_linha(oportunidade), estilos["td_dir"]),
                 ])
-            tabela = Table(dados, colWidths=colunas, repeatRows=1)
+            tabela = Table(dados, colWidths=colunas, repeatRows=2)
             tabela.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
-                ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#f8fafc")),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#d1d5db")),
+                ("SPAN", (0, 0), (-1, 0)),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0176d3")),
+                ("BACKGROUND", (0, 1), (-1, 1), colors.HexColor("#1e3a5f")),
+                ("BACKGROUND", (0, 2), (-1, -1), colors.HexColor("#f8fafc")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("GRID", (0, 1), (-1, -1), 0.3, colors.HexColor("#d1d5db")),
                 ("LEFTPADDING", (0, 0), (-1, -1), 4),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-                ("TOPPADDING", (0, 0), (-1, -1), 3),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("TOPPADDING", (0, 0), (-1, 0), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+                ("TOPPADDING", (0, 1), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 1), (-1, -1), 3),
             ]))
-            elements.append(faixa)
             elements.append(tabela)
             elements.append(Spacer(1, 0.35 * cm))
 
@@ -260,7 +248,7 @@ def gerar_pdf_pipeline(
         canvas.setFillColor(colors.HexColor("#6b7280"))
         gerado = timezone.localtime(timezone.now()).strftime("%d/%m/%Y %H:%M")
         canvas.drawString(1.4 * cm, 0.9 * cm, f"Pipeline de vendas · gerado em {gerado}")
-        canvas.drawRightString(A4[0] - 1.4 * cm, 0.9 * cm, f"Página {documento.page}")
+        canvas.drawRightString(pagina[0] - 1.4 * cm, 0.9 * cm, f"Página {documento.page}")
         canvas.restoreState()
 
     doc.build(elements, onFirstPage=_rodape, onLaterPages=_rodape)

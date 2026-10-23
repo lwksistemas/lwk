@@ -82,7 +82,7 @@ def _imagem_cabecalho(conteudo, max_w, max_h):
     return imagem
 
 
-def _par_mesma_altura(esquerda: bytes, direita: bytes, titulo: str):
+def _par_mesma_altura(esquerda: bytes, direita: bytes, titulo: str, largura_util=None):
     """As duas logos saem com a mesma altura e deixam o título em uma linha."""
     esquerda = _recorte_logo(esquerda)
     direita = _recorte_logo(direita)
@@ -90,7 +90,7 @@ def _par_mesma_altura(esquerda: bytes, direita: bytes, titulo: str):
     for conteudo in (esquerda, direita):
         largura_px, altura_px = PILImage.open(BytesIO(conteudo)).size
         proporcoes.append(largura_px / float(altura_px))
-    util = A4[0] - 4 * cm
+    util = largura_util if largura_util is not None else A4[0] - 4 * cm
     reserva_titulo = stringWidth(titulo, "Helvetica-Bold", 14) + 2.2 * cm
     altura = 1.6 * cm
     if altura * sum(proporcoes) > util - reserva_titulo:
@@ -103,7 +103,7 @@ def _par_mesma_altura(esquerda: bytes, direita: bytes, titulo: str):
     return imagens[0], imagens[1]
 
 
-def _build_cabecalho(elements, logo_url, titulo, logo_direita_url=None):
+def _build_cabecalho(elements, logo_url, titulo, logo_direita_url=None, largura=None):
     """Logo principal à esquerda, título no centro e a logo do login à direita."""
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
@@ -121,8 +121,8 @@ def _build_cabecalho(elements, logo_url, titulo, logo_direita_url=None):
         return
     if esquerda and direita:
         try:
-            img_esquerda, img_direita = _par_mesma_altura(esquerda, direita, titulo)
-            util = A4[0] - 4 * cm
+            util = largura if largura is not None else A4[0] - 4 * cm
+            img_esquerda, img_direita = _par_mesma_altura(esquerda, direita, titulo, util)
             folga = 0.7 * cm
             coluna_esquerda = img_esquerda.drawWidth + folga
             coluna_direita = img_direita.drawWidth + folga

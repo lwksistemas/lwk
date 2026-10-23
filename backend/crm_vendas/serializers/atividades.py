@@ -5,17 +5,23 @@ from core.serializer_mixins import (
     TextNormalizationMixin,
 )
 
-from ..models import Atividade
+from ..models import Atividade, Vendedor
 
 
 class AtividadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
     uppercase_fields = ["titulo"]
     conta_nome = serializers.CharField(source="conta.nome", read_only=True)
+    vendedor = serializers.IntegerField(
+        source="criado_por_vendedor_id",
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = Atividade
         fields = [
             "id", "titulo", "tipo", "oportunidade", "lead", "conta", "conta_nome",
+            "vendedor",
             "data", "duracao_minutos",
             "concluido", "observacoes", "google_event_id", "created_at", "updated_at",
             "lembrete_whatsapp", "lembrete_whatsapp_telefone",
@@ -25,6 +31,13 @@ class AtividadeSerializer(TextNormalizationMixin, serializers.ModelSerializer):
             "created_at", "updated_at",
             "lembrete_24h_enviado_em", "lembrete_2h_enviado_em",
         ]
+
+    def validate_vendedor(self, value):
+        if value is None:
+            return value
+        if not Vendedor.objects.filter(id=value, is_active=True).exists():
+            raise serializers.ValidationError("Vendedor não encontrado.")
+        return value
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -57,11 +70,14 @@ class AtividadeListSerializer(TextNormalizationMixin, serializers.ModelSerialize
     uppercase_fields = ["titulo"]
     conta_nome = serializers.SerializerMethodField()
     lead_nome = serializers.SerializerMethodField()
+    vendedor = serializers.IntegerField(source="criado_por_vendedor_id", read_only=True)
+    vendedor_nome = serializers.SerializerMethodField()
 
     class Meta:
         model = Atividade
         fields = [
             "id", "titulo", "tipo", "oportunidade", "lead", "lead_nome", "conta", "conta_nome",
+            "vendedor", "vendedor_nome",
             "data", "duracao_minutos",
             "concluido", "observacoes", "created_at", "updated_at",
             "lembrete_whatsapp", "lembrete_whatsapp_telefone",
@@ -71,6 +87,16 @@ class AtividadeListSerializer(TextNormalizationMixin, serializers.ModelSerialize
         if obj.lead_id and getattr(obj, "lead", None):
             return (obj.lead.nome or "").strip()
         return ""
+
+    def get_vendedor_nome(self, obj):
+        vid = getattr(obj, "criado_por_vendedor_id", None)
+        if not vid:
+            return ""
+        nomes = getattr(self, "_nomes_vendedor", None)
+        if nomes is None:
+            nomes = dict(Vendedor.objects.filter(is_active=True).values_list("id", "nome"))
+            self._nomes_vendedor = nomes
+        return nomes.get(vid, "")
 
     def get_conta_nome(self, obj):
         try:

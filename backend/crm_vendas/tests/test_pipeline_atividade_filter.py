@@ -31,6 +31,8 @@ class AtividadeVendedorFilterTest(SimpleTestCase):
         qs.filter.assert_called_once()
         q_arg = qs.filter.call_args.args[0]
         self.assertIsInstance(q_arg, Q)
+        lookups = [child[0] for child in q_arg.children if not isinstance(child, Q)]
+        self.assertIn("criado_por_vendedor_id", lookups)
         qs.filter.return_value.distinct.assert_called_once()
         self.assertIs(result, filtered)
 

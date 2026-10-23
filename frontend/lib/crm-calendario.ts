@@ -15,6 +15,8 @@ export interface Atividade {
   lead_nome?: string;
   conta: number | null;
   conta_nome?: string;
+  vendedor?: number | null;
+  vendedor_nome?: string;
   data: string;
   duracao_minutos?: number;
   concluido: boolean;
@@ -78,6 +80,7 @@ export type AtividadeFormState = {
   observacoes: string;
   conta: number | null;
   lead: number | null;
+  vendedor: number | null;
   lembrete_whatsapp: boolean;
   lembrete_whatsapp_telefone: string;
 };
@@ -90,6 +93,7 @@ export const EMPTY_ATIVIDADE_FORM: AtividadeFormState = {
   observacoes: '',
   conta: null,
   lead: null,
+  vendedor: null,
   lembrete_whatsapp: false,
   lembrete_whatsapp_telefone: '',
 };

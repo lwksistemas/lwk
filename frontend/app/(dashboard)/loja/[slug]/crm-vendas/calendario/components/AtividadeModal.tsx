@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import { formatTelefone, telefoneInternacionalBr } from '@/lib/format-br';
 import apiClient from '@/lib/api-client';
-import BuscarContaInput from '@/components/crm-vendas/BuscarContaInput';
+import { normalizeListResponse } from '@/lib/crm-utils';
 import BuscarLeadInput from '@/components/crm-vendas/BuscarLeadInput';
 import type { Atividade } from '@/lib/crm-calendario';
 
@@ -18,8 +18,8 @@ interface FormData {
   data: string;
   duracao_minutos: number;
   observacoes: string;
-  conta: number | null;
   lead: number | null;
+  vendedor: number | null;
   lembrete_whatsapp: boolean;
   lembrete_whatsapp_telefone: string;
 }
@@ -57,6 +57,47 @@ export function AtividadeModal({
 }: Props) {
   const patch = (partial: Partial<FormData>) => onChange(partial);
   const set = (field: keyof FormData, value: string | number | boolean | null) => patch({ [field]: value });
+  const [vendedores, setVendedores] = useState<{ id: number; nome: string }[]>([]);
+
+  useEffect(() => {
+    let cancelado = false;
+    apiClient
+      .get<{ id: number; nome: string }[] | { results: { id: number; nome: string }[] }>('/crm-vendas/vendedores/')
+      .then((res) => {
+        if (cancelado) return;
+        const lista = normalizeListResponse(res.data)
+          .filter((v) => v.id && v.nome)
+          .map((v) => ({ id: v.id, nome: v.nome }));
+        setVendedores((atual) => {
+          const ids = new Set(lista.map((v) => v.id));
+          return [...lista, ...atual.filter((v) => !ids.has(v.id))];
+        });
+      })
+      .catch(() => {});
+    if (!atividade) {
+      apiClient
+        .get<{ vendedor_id?: number | null; user_display_name?: string | null }>('/crm-vendas/me/')
+        .then((res) => {
+          if (cancelado) return;
+          const id = res.data.vendedor_id;
+          if (typeof id === 'number') {
+            patch({ vendedor: id });
+            const nome = (res.data.user_display_name || '').trim();
+            if (nome) {
+              setVendedores((lista) => (
+                lista.some((v) => v.id === id) ? lista : [...lista, { id, nome }]
+              ));
+            }
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      cancelado = true;
+    };
+    // O modal monta de novo a cada abertura.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [atividade?.id]);
 
   const handleLeadChange = async (id: string) => {
     if (!id) {
@@ -73,10 +114,6 @@ export function AtividadeModal({
     } catch {
       // ignora — lead já selecionado
     }
-  };
-
-  const handleContaChange = (id: string) => {
-    patch({ conta: id ? parseInt(id, 10) : null });
   };
 
   useEffect(() => {
@@ -186,14 +223,22 @@ export function AtividadeModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conta</label>
-                  <BuscarContaInput
-                    contaId={form.conta ? String(form.conta) : ''}
-                    initialNome={atividade?.conta_nome}
-                    onContaChange={handleContaChange}
-                    placeholder="Buscar conta pelo nome ou CNPJ..."
-                    inputClassName={inputClass}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vendedor</label>
+                  <select
+                    value={form.vendedor ?? ''}
+                    onChange={(e) => set('vendedor', e.target.value ? parseInt(e.target.value, 10) : null)}
+                    className={inputClass}
+                  >
+                    <option value="">Quem vai fazer a tarefa</option>
+                    {vendedores.map((v) => (
+                      <option key={v.id} value={v.id}>{v.nome}</option>
+                    ))}
+                    {form.vendedor && !vendedores.some((v) => v.id === form.vendedor) && (
+                      <option value={form.vendedor}>
+                        {atividade?.vendedor_nome || `Vendedor #${form.vendedor}`}
+                      </option>
+                    )}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lead</label>

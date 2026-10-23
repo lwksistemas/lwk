@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { fetchAllPaginatedResults } from '@/lib/crm-utils';
 import type { LojaInfo, LeadInfo } from '@/lib/crm-loja-types';
 import type { OportunidadeItem, FormDataProposta } from '@/lib/crm-proposta-form-types';
 import BuscarOportunidadeInput from '@/components/crm-vendas/BuscarOportunidadeInput';
@@ -85,6 +87,22 @@ export default function PropostaFormContent({
   onSelecionarTemplate,
   vendedorNome,
 }: PropostaFormContentProps) {
+  const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }> | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelado = false;
+    fetchAllPaginatedResults<{ id: number; nome: string }>('/crm-vendas/vendedores/', {}, 200)
+      .then((lista) => {
+        if (!cancelado) setVendedores(lista);
+      })
+      .catch(() => {
+        if (!cancelado) setVendedores(undefined);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
   const usePageStyles = pageLayout || fullWidth;
   const inputCls = usePageStyles ? crmFormPageInputClass : inputClass;
   const labelCls = usePageStyles ? crmFormPageLabelClass : labelClass;
@@ -176,6 +194,7 @@ export default function PropostaFormContent({
       labelCls={labelCls}
       vendedorPlaceholder={vendedorNome}
       clientePlaceholder={leadInfo?.nome}
+      vendedores={vendedores}
     />
   );
 

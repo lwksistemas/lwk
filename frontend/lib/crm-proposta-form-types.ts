@@ -15,6 +15,7 @@ export interface CrmPropostaOportunidadeOption {
   conta_nome?: string | null;
   empresa_prestadora?: number | null;
   empresa_prestadora_nome?: string | null;
+  vendedor_nome?: string | null;
 }
 
 export interface OportunidadeItem {

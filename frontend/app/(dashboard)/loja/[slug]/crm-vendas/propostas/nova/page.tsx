@@ -109,10 +109,12 @@ export default function NovaPropostaPage() {
       try {
         const opp = await fetchCrmOportunidade(id);
         setMarcaPrestadora(opp.empresa_prestadora_nome || '');
+        const nomeVendedor = (opp.vendedor_nome || '').trim();
         setFormData((f) => ({
           ...f,
           oportunidade_id: id,
           valor_total: opp.valor ? String(opp.valor) : f.valor_total,
+          nome_vendedor_assinatura: nomeVendedor || f.nome_vendedor_assinatura,
         }));
         if (opp.lead) {
           loadLeadInfo(opp.lead);

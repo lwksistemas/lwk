@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { MessageSquare, Printer } from 'lucide-react';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import {
+  formatarDataHoraNegociacao,
   type TipoNotaNegociacao,
   useOportunidadeNotas,
 } from '@/hooks/crm-vendas/useOportunidadeNotas';

@@ -3,14 +3,12 @@
 import logging
 from io import BytesIO
 
-import requests
-from PIL import Image as PILImage
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import HRFlowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 logger = logging.getLogger(__name__)
 
@@ -66,35 +64,25 @@ def _build_pdf_styles(styles):
     return {"titulo": titulo, "secao": secao, "info": info, "rodape": rodape, "assin_nome": assin_nome, "card": card, "card_email": card_email, "card_title": card_title}
 
 
-def _build_pdf_cabecalho(loja, titulo_style):
-    """Retorna lista de elements para cabeçalho com logo + título."""
+def _logo_cadastrada(origem) -> str | None:
+    logo = getattr(origem, "logo", None)
+    if not isinstance(logo, str):
+        return None
+    logo = logo.strip()
+    return logo or None
+
+
+def _build_pdf_cabecalho(loja, relatorio):
+    """Logo da loja à esquerda, título no centro e a logo da prestadora escolhida à direita."""
+    from .pdf_proposta_contrato.sections import _build_cabecalho
+
     elements = []
-    logo_url = getattr(loja, "logo", "") or None
-    if logo_url:
-        try:
-            resp = requests.get(logo_url, timeout=5)
-            if resp.status_code == 200:
-                img_buffer = BytesIO(resp.content)
-                pil_img = PILImage.open(img_buffer)
-                iw, ih = pil_img.size
-                aspect = ih / float(iw)
-                max_w, max_h = 6 * cm, 3 * cm
-                width = min(max_w, iw)
-                height = width * aspect
-                if height > max_h:
-                    height = max_h
-                    width = height / aspect
-                img_buffer.seek(0)
-                img = Image(img_buffer, width=width, height=height)
-                ht = Table([[img, Paragraph("RELATÓRIO DE COMISSÃO", titulo_style)]], colWidths=[width + 0.5 * cm, None])
-                ht.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
-                elements.append(ht)
-            else:
-                elements.append(Paragraph("RELATÓRIO DE COMISSÃO", titulo_style))
-        except Exception:
-            elements.append(Paragraph("RELATÓRIO DE COMISSÃO", titulo_style))
-    else:
-        elements.append(Paragraph("RELATÓRIO DE COMISSÃO", titulo_style))
+    _build_cabecalho(
+        elements,
+        _logo_cadastrada(loja),
+        "RELATÓRIO DE COMISSÃO",
+        _logo_cadastrada(getattr(relatorio, "empresa_prestadora", None)),
+    )
     elements.append(Spacer(1, 0.3 * cm))
     elements.append(HRFlowable(width="100%", thickness=1, color=_AZUL))
     elements.append(Spacer(1, 0.3 * cm))
@@ -273,7 +261,7 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
     styles = getSampleStyleSheet()
     st = _build_pdf_styles(styles)
 
-    elements = _build_pdf_cabecalho(loja, st["titulo"])
+    elements = _build_pdf_cabecalho(loja, relatorio)
 
     elements.append(_build_pdf_cards(relatorio, loja, st))
     elements.append(Spacer(1, 0.4 * cm))

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Upload, X } from 'lucide-react';
 import apiClient from '@/lib/api-client';
-import { getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { fetchAllPaginatedResults, getCrmApiErrorDetail } from '@/lib/crm-utils';
 import type { Categoria } from '@/hooks/useProdutosServicos';
 
 export interface CatalogoPdfItem {
@@ -55,12 +55,13 @@ export function CatalogoPdfImportModal({
       return;
     }
     let cancelado = false;
-    apiClient
-      .get<Categoria[] | { results: Categoria[] }>('/crm-vendas/categorias-produtos-servicos/?ativo=true&page_size=200')
-      .then((res) => {
-        if (cancelado) return;
-        const data = res.data;
-        setListaCategorias(Array.isArray(data) ? data : data.results || []);
+    fetchAllPaginatedResults<Categoria>(
+      '/crm-vendas/categorias-produtos-servicos/',
+      { ativo: 'true' },
+      500,
+    )
+      .then((lista) => {
+        if (!cancelado) setListaCategorias(lista);
       })
       .catch(() => {
         if (!cancelado) setListaCategorias([]);
@@ -168,7 +169,7 @@ export function CatalogoPdfImportModal({
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Importar PDF da prestadora</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                O catálogo fica só nesta empresa. Dentro da categoria escolhida, Medicina, Odontologia e as tabelas Blue, Green e Black viram subpastas.
+                O catálogo fica só nesta empresa. Dentro da categoria escolhida, Medicina, Odontologia e as tabelas Blue, Green e Black viram subpastas. Cada tabela ganha uma pasta por grupo, e cada grupo separa boleto e cartão.
               </p>
             </div>
             <button type="button" onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">

@@ -207,8 +207,73 @@ def encurtar_codigo_anadem(codigo: str) -> str | None:
     return f"{tab}{ano}{area_c}{pag}{cap}-{grupo}{pub}{cob}"
 
 
+def pasta_do_grupo(grupo: str) -> str:
+    """Pasta do grupo dentro da tabela: GRUPO 1, GRUPO D1, ou o nome do estético."""
+    codigo = (grupo or "").strip().upper()
+    if not codigo or codigo == "PL":
+        return ""
+    if codigo == "SEM":
+        return "SEM PROCEDIMENTOS ESTÉTICOS"
+    if codigo == "COM":
+        return "COM PROCEDIMENTOS ESTÉTICOS"
+    if codigo.isdigit() or (codigo.startswith("D") and codigo[1:].isdigit()):
+        return f"GRUPO {codigo}"
+    return ""
+
+
+_GRUPO_NO_NOME = re.compile(
+    r" — (grupo (?:[1-6]|d[1-4])|sem procedimentos est[eé]ticos|com procedimentos est[eé]ticos) — ",
+    re.IGNORECASE,
+)
+_GRUPO_NO_CODIGO = re.compile(
+    r"^[BGKLE]\d{2}[MOD][CB]\d+-(PL|SEM|COM|D[1-4]|[1-6])[FXJ][M4A]$",
+    re.IGNORECASE,
+)
+_PAGAMENTO_NO_NOME = re.compile(
+    r" — (boleto banc[aá]rio|cart[aã]o de cr[eé]dito)(?: — |$)",
+    re.IGNORECASE,
+)
+_PAGAMENTO_NO_CODIGO = re.compile(
+    r"^[BGKLE]\d{2}[MOD]([CB])\d+-(?:PL|SEM|COM|D[1-4]|[1-6])[FXJ][M4A]$",
+    re.IGNORECASE,
+)
+
+
+def pasta_do_produto(nome: str, codigo: str = "") -> str:
+    """Descobre a pasta do grupo pelo nome já gravado ou pelo código curto."""
+    achado = _GRUPO_NO_NOME.search(nome or "")
+    if achado:
+        texto = achado.group(1).upper()
+        if texto.startswith("GRUPO "):
+            return pasta_do_grupo(texto.split(" ", 1)[1])
+        if texto.startswith("SEM"):
+            return pasta_do_grupo("SEM")
+        if texto.startswith("COM"):
+            return pasta_do_grupo("COM")
+    codigo_achado = _GRUPO_NO_CODIGO.fullmatch((codigo or "").strip().upper())
+    if codigo_achado:
+        return pasta_do_grupo(codigo_achado.group(1))
+    return ""
+
+
+def pasta_do_pagamento(nome: str = "", codigo: str = "", pagamento: str = "") -> str:
+    """Pasta do meio de pagamento dentro do grupo."""
+    bruto = (pagamento or "").strip().upper()
+    if bruto in {"CC", "C", "CARTAO DE CREDITO", "CARTÃO DE CRÉDITO"}:
+        return "CARTÃO DE CRÉDITO"
+    if bruto in {"BOL", "B", "BOLETO", "BOLETO BANCARIO", "BOLETO BANCÁRIO"}:
+        return "BOLETO BANCÁRIO"
+    achado = _PAGAMENTO_NO_NOME.search(nome or "")
+    if achado:
+        return "BOLETO BANCÁRIO" if achado.group(1).upper().startswith("BOLETO") else "CARTÃO DE CRÉDITO"
+    codigo_achado = _PAGAMENTO_NO_CODIGO.fullmatch((codigo or "").strip().upper())
+    if codigo_achado:
+        return "BOLETO BANCÁRIO" if codigo_achado.group(1) == "B" else "CARTÃO DE CRÉDITO"
+    return ""
+
+
 def pastas_do_item(item: dict) -> list[str]:
-    """Subpastas da tabela comercial: área e, dentro dela, a tabela Blue, Green ou Black."""
+    """Subpastas da tabela comercial: área, tabela, grupo e meio de pagamento."""
     explicitas = item.get("pastas") or []
     if explicitas:
         nomes = []
@@ -216,7 +281,7 @@ def pastas_do_item(item: dict) -> list[str]:
             limpo = _norm(str(nome))[:80]
             if limpo and limpo not in nomes:
                 nomes.append(limpo)
-        return nomes[:3]
+        return nomes[:4]
     tabela = str(item.get("tabela") or "").strip().upper()
     area = str(item.get("area") or "").strip().upper()
     if not tabela or not area:
@@ -226,7 +291,14 @@ def pastas_do_item(item: dict) -> list[str]:
         "ODONTOLOGIA": "ODONTOLOGIA",
         "DEMAIS": "DEMAIS CATEGORIAS",
     }.get(area, area)
-    return [area_nome, f"TABELA {tabela}"]
+    pastas = [area_nome, f"TABELA {tabela}"]
+    grupo = pasta_do_grupo(str(item.get("grupo") or ""))
+    if grupo:
+        pastas.append(grupo)
+        pagamento = pasta_do_pagamento(pagamento=str(item.get("pagamento") or ""))
+        if pagamento:
+            pastas.append(pagamento)
+    return pastas
 
 
 def _nome_grupo(grupo: str) -> str:
@@ -367,6 +439,8 @@ def parse_linhas_tabela_comercial(linhas: list[str]) -> tuple[list[dict], list[s
                 "tipo": "servico",
                 "tabela": tabela,
                 "area": area,
+                "grupo": grupo,
+                "pagamento": pagamento_cod,
             }
         )
 

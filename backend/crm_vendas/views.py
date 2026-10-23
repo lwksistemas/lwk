@@ -31,7 +31,7 @@ class CategoriaProdutoServicoViewSet(CRMSchemaRecoveryMixin, LojaScopedCatalogMi
 
     queryset = CategoriaProdutoServico.objects.select_related("loja", "pai", "pai__pai").all()
     serializer_class = CategoriaProdutoServicoSerializer
-    pagination_class = CRMPagination
+    pagination_class = None
     loja_catalog_model = CategoriaProdutoServico
     loja_catalog_label = "CategoriaProdutoServicoViewSet"
 

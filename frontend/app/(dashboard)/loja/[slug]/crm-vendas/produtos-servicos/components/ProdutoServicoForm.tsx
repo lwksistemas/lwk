@@ -82,7 +82,7 @@ export function ProdutoServicoForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Tipo *
@@ -99,27 +99,6 @@ export function ProdutoServicoForm({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Prestadora
-          </label>
-          <select
-            value={formData.prestadora || ''}
-            onChange={(e) => onChange({ prestadora: e.target.value ? parseInt(e.target.value, 10) : null })}
-            className={inputClass}
-          >
-            <option value="">Sem empresa</option>
-            {prestadoras.map((empresa) => (
-              <option key={empresa.id} value={empresa.id}>
-                {empresa.nome}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            A oportunidade mostra só os itens da empresa escolhida.
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Código
           </label>
           <input
@@ -127,52 +106,8 @@ export function ProdutoServicoForm({
             value={formData.codigo}
             onChange={(e) => onChange({ codigo: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-            placeholder="Gerado automaticamente (ex: P001, S001)"
+            placeholder="Gerado automaticamente"
             readOnly
-          />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Gerado automaticamente pelo sistema
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Categoria
-          </label>
-          <div className="space-y-2">
-            {niveis.map((nivel, indice) => (
-              <select
-                key={nivel.pai ?? 'raiz'}
-                value={nivel.escolhido ?? ''}
-                onChange={(e) => {
-                  const id = e.target.value ? parseInt(e.target.value, 10) : null;
-                  onChange({ categoria: indice === 0 ? id : id ?? nivel.pai });
-                }}
-                className={inputClass}
-                aria-label={indice === 0 ? 'Categoria' : 'Subpasta'}
-              >
-                <option value="">{indice === 0 ? 'Sem categoria' : 'Fica nesta pasta'}</option>
-                {filhosDaCategoria(categorias, nivel.pai).map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.nome}
-                  </option>
-                ))}
-              </select>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Nome *
-          </label>
-          <input
-            type="text"
-            value={formData.nome}
-            onChange={(e) => onChange({ nome: toUpperCase(e.target.value) })}
-            className={inputClass}
-            placeholder="Ex: Consultoria"
-            required
           />
         </div>
 
@@ -215,22 +150,28 @@ export function ProdutoServicoForm({
             <option value="anual">Anual</option>
           </select>
         </div>
+      </div>
 
-        <div className="sm:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
+        <div className={isEdit ? 'lg:col-span-3' : 'lg:col-span-4'}>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Descrição
+            Prestadora
           </label>
-          <textarea
-            value={formData.descricao}
-            onChange={(e) => onChange({ descricao: e.target.value })}
+          <select
+            value={formData.prestadora || ''}
+            onChange={(e) => onChange({ prestadora: e.target.value ? parseInt(e.target.value, 10) : null })}
             className={inputClass}
-            rows={2}
-            placeholder="Descrição opcional"
-          />
+          >
+            <option value="">Sem empresa</option>
+            {prestadoras.map((empresa) => (
+              <option key={empresa.id} value={empresa.id}>
+                {empresa.nome}
+              </option>
+            ))}
+          </select>
         </div>
-
         {isEdit && (
-          <div className="sm:col-span-2 flex items-center gap-2">
+          <label htmlFor="ativo" className="flex items-center gap-2 h-10 text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
               id="ativo"
@@ -238,11 +179,63 @@ export function ProdutoServicoForm({
               onChange={(e) => onChange({ ativo: e.target.checked })}
               className="rounded"
             />
-            <label htmlFor="ativo" className="text-sm text-gray-700 dark:text-gray-300">
-              Ativo
-            </label>
-          </div>
+            Ativo
+          </label>
         )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Categoria
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+          {niveis.map((nivel, indice) => (
+            <select
+              key={nivel.pai ?? 'raiz'}
+              value={nivel.escolhido ?? ''}
+              onChange={(e) => {
+                const id = e.target.value ? parseInt(e.target.value, 10) : null;
+                onChange({ categoria: indice === 0 ? id : id ?? nivel.pai });
+              }}
+              className={inputClass}
+              aria-label={indice === 0 ? 'Categoria' : 'Subpasta'}
+            >
+              <option value="">{indice === 0 ? 'Sem categoria' : 'Fica nesta pasta'}</option>
+              {filhosDaCategoria(categorias, nivel.pai).map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.nome}
+                </option>
+              ))}
+            </select>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Nome *
+        </label>
+        <input
+          type="text"
+          value={formData.nome}
+          onChange={(e) => onChange({ nome: toUpperCase(e.target.value) })}
+          className={inputClass}
+          placeholder="Ex: Consultoria"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Descrição
+        </label>
+        <textarea
+          value={formData.descricao}
+          onChange={(e) => onChange({ descricao: e.target.value })}
+          className={inputClass}
+          rows={3}
+          placeholder="Descrição opcional"
+        />
       </div>
 
       <div className="flex gap-2 pt-2 justify-end">

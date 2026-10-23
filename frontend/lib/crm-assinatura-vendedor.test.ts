@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { nomesParaAssinatura } from './crm-assinatura-vendedor';
+import { nomeCanonicoAssinatura, nomesParaAssinatura } from './crm-assinatura-vendedor';
 
 describe('nomesParaAssinatura', () => {
   it('lista os vendedores cadastrados e mantém o nome que já veio da oportunidade', () => {
@@ -10,5 +10,17 @@ describe('nomesParaAssinatura', () => {
         'CARLA',
       ),
     ).toEqual(['ANA', 'BRUNO', 'CARLA']);
+  });
+
+  it('não repete o vendedor quando a oportunidade traz outra grafia', () => {
+    expect(
+      nomesParaAssinatura(
+        [{ nome: 'FELIPE COSTA FELIX' }, { nome: 'LUIZ HENRIQUE FELIX' }],
+        'Luiz Henrique Felix',
+      ),
+    ).toEqual(['FELIPE COSTA FELIX', 'LUIZ HENRIQUE FELIX']);
+    expect(
+      nomeCanonicoAssinatura([{ nome: 'LUIZ HENRIQUE FELIX' }], 'Luiz Henrique Felix'),
+    ).toBe('LUIZ HENRIQUE FELIX');
   });
 });

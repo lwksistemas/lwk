@@ -284,21 +284,18 @@ class AtividadeViewSet(
             Q(oportunidade__vendedor_id=vendedor_id)
             | Q(lead__oportunidades__vendedor_id=vendedor_id)
             | Q(lead__vendedor_id=vendedor_id)
-            | Q(
-                oportunidade__isnull=True,
-                lead__isnull=True,
-                criado_por_vendedor_id=vendedor_id,
-            )
+            | Q(criado_por_vendedor_id=vendedor_id)
         )
         return queryset.filter(filters).distinct()
 
     def perform_create(self, serializer):
-        vendedor_id = get_current_vendedor_id(self.request)
+        escolhido = serializer.validated_data.get("criado_por_vendedor_id")
+        vendedor_id = escolhido or get_current_vendedor_id(self.request)
         if vendedor_id is not None:
-            serializer.save(criado_por_vendedor_id=vendedor_id)
+            atividade = serializer.save(criado_por_vendedor_id=vendedor_id)
         else:
-            serializer.save()
-        atividade = serializer.instance
+            atividade = serializer.save()
+        self._copiar_conta_do_lead(atividade)
         if atividade and getattr(atividade, "loja_id", None):
             try:
                 from notificacoes.services import notify
@@ -341,6 +338,16 @@ class AtividadeViewSet(
                 )
         self._disparar_lembretes_atividade(atividade)
         self._invalidate_caches()
+
+    def _copiar_conta_do_lead(self, atividade):
+        """A empresa da atividade acompanha o lead. O formulário não pede a conta de novo."""
+        if atividade is None or not atividade.lead_id:
+            return
+        lead = getattr(atividade, "lead", None)
+        conta_id = getattr(lead, "conta_id", None) if lead is not None else None
+        if conta_id and atividade.conta_id != conta_id:
+            atividade.conta_id = conta_id
+            atividade.save(update_fields=["conta_id"])
 
     def _disparar_lembretes_atividade(self, atividade):
         loja_id = get_current_loja_id()
@@ -396,6 +403,7 @@ class AtividadeViewSet(
     def perform_update(self, serializer):
         super().perform_update(serializer)
         atividade = serializer.instance
+        self._copiar_conta_do_lead(atividade)
         if atividade and getattr(atividade, "loja_id", None):
             dispatch_sync_atividade_update(self.request, atividade)
             self._disparar_lembretes_atividade(atividade)

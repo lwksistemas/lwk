@@ -4,7 +4,10 @@ interface CalendarioEventContentProps {
   eventInfo: {
     event: {
       title: string;
-      extendedProps?: { atividade?: { tipo: string; concluido?: boolean }; tipo?: string };
+      extendedProps?: {
+        atividade?: { tipo: string; concluido?: boolean; vendedor_nome?: string };
+        tipo?: string;
+      };
     };
     timeText?: string;
   };
@@ -43,6 +46,9 @@ export function CalendarioEventContent({ eventInfo }: CalendarioEventContentProp
           <span className="mr-1">{emoji}</span>
           {atividade.concluido && <span className="mr-1">✓</span>}
           {eventInfo.event.title.replace(/^(✓\s*)?(📞|🤝|📧|✅)\s*/, '')}
+          {atividade.vendedor_nome ? (
+            <span className="block text-[10px] font-normal opacity-90 truncate">{atividade.vendedor_nome}</span>
+          ) : null}
         </div>
       </div>
     </div>

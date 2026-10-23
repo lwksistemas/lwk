@@ -130,6 +130,7 @@ export function useCrmCalendarioAtividades(googleRef: CrmCalendarioGoogleHelpers
         observacoes: a.observacoes || '',
         conta: a.conta ?? null,
         lead: a.lead ?? null,
+        vendedor: a.vendedor ?? null,
         lembrete_whatsapp: a.lembrete_whatsapp ?? false,
         lembrete_whatsapp_telefone: a.lembrete_whatsapp_telefone
           ? formatTelefone(a.lembrete_whatsapp_telefone)
@@ -154,8 +155,8 @@ export function useCrmCalendarioAtividades(googleRef: CrmCalendarioGoogleHelpers
       data: new Date(form.data).toISOString(),
       duracao_minutos: form.duracao_minutos,
       observacoes: form.observacoes.trim(),
-      conta: form.conta || null,
       lead: form.lead || null,
+      vendedor: form.vendedor || null,
       lembrete_whatsapp: form.lembrete_whatsapp,
       lembrete_whatsapp_telefone: form.lembrete_whatsapp
         ? telefoneInternacionalBr(form.lembrete_whatsapp_telefone)

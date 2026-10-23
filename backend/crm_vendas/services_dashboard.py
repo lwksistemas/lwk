@@ -35,13 +35,13 @@ _ATIVIDADE_VALUES = (
 
 
 def _filtro_atividades_vendedor(vendedor_id):
-    """Mesma visibilidade do calendário: oportunidade, lead ou atividade avulsa do vendedor."""
-    return (
-        Q(oportunidade__vendedor_id=vendedor_id)
-        | Q(lead__oportunidades__vendedor_id=vendedor_id)
-        | Q(lead__vendedor_id=vendedor_id)
-        | Q(oportunidade__isnull=True, lead__isnull=True, criado_por_vendedor_id=vendedor_id)
-    )
+    """Mesma visibilidade do calendário: oportunidade, lead ou tarefa atribuída ao vendedor."""
+        return (
+            Q(oportunidade__vendedor_id=vendedor_id)
+            | Q(lead__oportunidades__vendedor_id=vendedor_id)
+            | Q(lead__vendedor_id=vendedor_id)
+            | Q(criado_por_vendedor_id=vendedor_id)
+        )
 
 
 def _serializar_atividades_dashboard(rows):

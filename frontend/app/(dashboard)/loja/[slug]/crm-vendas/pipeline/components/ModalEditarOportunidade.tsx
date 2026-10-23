@@ -54,6 +54,13 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
   } = useModalEditarOportunidade(oportunidade, onClose, onSuccess);
 
   const resumoSubtitulo = subtituloModalOportunidade(oportunidade);
+  const mostraFechamento =
+    etapaSelecionada === 'closed_won' ||
+    etapaSelecionada === 'closed_lost' ||
+    oportunidade.etapa === 'closed_won' ||
+    oportunidade.etapa === 'closed_lost' ||
+    Boolean(oportunidade.data_fechamento_ganho) ||
+    Boolean(oportunidade.data_fechamento_perdido);
 
   return (
     <div
@@ -61,7 +68,7 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
       onClick={() => !enviando && onClose()}
     >
       <div
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-4xl max-h-[95vh] flex flex-col"
+        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-6xl max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
@@ -77,68 +84,74 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
             <X size={20} />
           </button>
         </div>
-        <div className="p-4 flex-shrink-0">
-          <p className="font-medium text-gray-900 dark:text-white">
-            {rotuloExibicaoOportunidade(oportunidade)}
-          </p>
-          {resumoSubtitulo && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {resumoSubtitulo}
+        <div className="px-5 pt-4 pb-3 flex flex-wrap items-start justify-between gap-x-6 gap-y-1 flex-shrink-0">
+          <div className="min-w-0">
+            <p className="font-medium text-gray-900 dark:text-white">
+              {rotuloExibicaoOportunidade(oportunidade)}
             </p>
-          )}
-          <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">
-            {formatCrmBrl(oportunidade.valor)}
-          </p>
-          {oportunidade.minha_comissao != null && (
-            <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
-              Sua comissão: {formatCrmBrl(oportunidade.minha_comissao)}
+            {resumoSubtitulo && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {resumoSubtitulo}
+              </p>
+            )}
+          </div>
+          <div className="text-left sm:text-right">
+            <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+              {formatCrmBrl(oportunidade.valor)}
             </p>
-          )}
-          {oportunidade.minha_comissao == null && oportunidade.valor_comissao && (
-            <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
-              Pago pela prestadora: {formatCrmBrl(oportunidade.valor_comissao)}
-            </p>
-          )}
+            {oportunidade.minha_comissao != null && (
+              <p className="text-sm text-purple-600 dark:text-purple-400">
+                Sua comissão: {formatCrmBrl(oportunidade.minha_comissao)}
+              </p>
+            )}
+            {oportunidade.minha_comissao == null && oportunidade.valor_comissao && (
+              <p className="text-sm text-purple-600 dark:text-purple-400">
+                Pago pela prestadora: {formatCrmBrl(oportunidade.valor_comissao)}
+              </p>
+            )}
+          </div>
         </div>
         <form id="form-editar-oportunidade" onSubmit={handleSalvarEtapa} className="overflow-y-auto flex-1">
-          <div className="p-4 pt-0 space-y-4">
+          <div className="px-5 pb-4 space-y-4">
           {formErro && (
             <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
               {formErro}
             </p>
           )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Empresa prestadora *
-            </label>
-            <select
-              value={empresaPrestadoraId}
-              onChange={(e) => setEmpresaPrestadoraId(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="">Selecione...</option>
-              {prestadoras.map((c) => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Define em qual relatório de comissão esta venda aparece.
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Etapa (mudar para &quot;Fechado ganho&quot; = registrar venda)
-            </label>
-            <select
-              value={etapaSelecionada}
-              onChange={(e) => setEtapaSelecionada(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              {etapas.map((o) => (
-                <option key={o.key} value={o.key}>{o.label}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Empresa prestadora *
+              </label>
+              <select
+                value={empresaPrestadoraId}
+                onChange={(e) => setEmpresaPrestadoraId(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">Selecione...</option>
+                {prestadoras.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Define em qual relatório de comissão esta venda aparece.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Etapa (mudar para &quot;Fechado ganho&quot; = registrar venda)
+              </label>
+              <select
+                value={etapaSelecionada}
+                onChange={(e) => setEtapaSelecionada(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                {etapas.map((o) => (
+                  <option key={o.key} value={o.key}>{o.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <OportunidadeItensEditor
@@ -159,6 +172,8 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
             layout="modal"
           />
 
+          {mostraFechamento && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           {(etapaSelecionada === 'closed_lost' || oportunidade.etapa === 'closed_lost') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -221,7 +236,7 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
             </div>
           )}
           {(etapaSelecionada === 'closed_won' || oportunidade.etapa === 'closed_won') && (
-            <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+            <div className="border-t border-gray-200 dark:border-gray-600 pt-4 lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Enviar ao cliente
               </label>
@@ -262,14 +277,16 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
             </div>
           )}
           </div>
+          )}
+          </div>
         </form>
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
           {!modalExcluir ? (
-            <div className="flex gap-2">
+            <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => !enviando && onClose()}
-                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               >
                 Cancelar
               </button>
@@ -285,7 +302,7 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
                 type="submit"
                 form="form-editar-oportunidade"
                 disabled={enviando}
-                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
+                className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium"
               >
                 {enviando ? 'Salvando...' : 'Salvar'}
               </button>

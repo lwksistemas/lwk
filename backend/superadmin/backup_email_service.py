@@ -20,6 +20,66 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
+def _pessoas_backup_da_loja(loja) -> list[dict]:
+    """Administrador do sistema e funcionários com perfil Administrador recebem o backup."""
+    from crm_vendas.models import Vendedor
+    from crm_vendas.vendedor_permissoes_service import GRUPO_ADMINISTRADOR_CRM, garantir_grupo_administrador
+
+    pessoas: list[dict] = []
+    grupo_id = None
+    try:
+        grupo_id = garantir_grupo_administrador().id
+    except Exception:
+        logger.exception("Não foi possível garantir o perfil Administrador")
+
+    if not getattr(loja, "database_name", None) or not getattr(loja, "database_created", False):
+        return pessoas
+
+    from core.db_config import ensure_loja_database_config
+
+    if not ensure_loja_database_config(loja.database_name):
+        return pessoas
+
+    try:
+        vendedores = Vendedor.objects.all_without_filter().using(loja.database_name).filter(
+            loja_id=loja.id,
+            is_active=True,
+        )
+        for vendedor in vendedores.only("email", "is_admin", "config_acesso"):
+            cfg = vendedor.config_acesso or {}
+            try:
+                grupo_vendedor = int(cfg.get("grupo_id")) if cfg.get("grupo_id") is not None else None
+            except (TypeError, ValueError):
+                grupo_vendedor = None
+            pessoas.append({
+                "email": vendedor.email or "",
+                "recebe_backup": bool(vendedor.is_admin) or (
+                    grupo_id is not None and grupo_vendedor == grupo_id
+                ),
+            })
+    except Exception:
+        logger.exception("Não foi possível ler os funcionários da loja %s para o backup", loja.id)
+
+    if grupo_id is None:
+        return pessoas
+
+    try:
+        from superadmin.models import VendedorUsuario
+
+        usuarios = VendedorUsuario.objects.using("default").filter(
+            loja_id=loja.id,
+            user__groups__name=GRUPO_ADMINISTRADOR_CRM,
+        ).select_related("user")
+        for vinculo in usuarios:
+            pessoas.append({
+                "email": vinculo.user.email or "",
+                "recebe_backup": True,
+            })
+    except Exception:
+        logger.exception("Não foi possível ler o perfil Administrador da loja %s", loja.id)
+    return pessoas
+
+
 class BackupEmailService:
     """Serviço para envio de emails com backups.
 
@@ -56,10 +116,20 @@ class BackupEmailService:
                 logger.error(f"❌ Backup {historico_backup_id} não está concluído")
                 return False
 
-            # Email do destinatário
-            destinatario = (loja.owner.email or "").strip()
-            if not destinatario:
-                logger.error("❌ Loja %s (id=%s) não possui email do owner — backup gerado mas não enviado", loja.nome, loja.id)
+            # Administrador do sistema e funcionários com perfil Administrador.
+            # Vendedor comum não entra.
+            from .backup_destinatarios import filtrar_emails_backup
+
+            destinatarios = filtrar_emails_backup(
+                loja.owner.email or "",
+                _pessoas_backup_da_loja(loja),
+            )
+            if not destinatarios:
+                logger.error(
+                    "❌ Loja %s (id=%s) não tem administrador para receber o backup",
+                    loja.nome,
+                    loja.id,
+                )
                 return False
 
             # Preparar email
@@ -76,7 +146,7 @@ class BackupEmailService:
             email = create_email_multipart(
                 subject=assunto,
                 body=corpo_texto,
-                to=[destinatario],
+                to=destinatarios,
                 html=corpo_html.strip(),
             )
 
@@ -93,7 +163,7 @@ class BackupEmailService:
                 email_sync_only.reset(token)
 
             # Marcar como enviado
-            historico.marcar_email_enviado(destinatario)
+            historico.marcar_email_enviado(", ".join(destinatarios)[:254])
 
             from django.utils import timezone
 
@@ -102,7 +172,7 @@ class BackupEmailService:
                 ultimo_envio_email=timezone.now(),
             )
 
-            logger.info(f"✅ Backup enviado por email para {destinatario} (loja {loja.nome})")
+            logger.info("✅ Backup enviado por email para %s (loja %s)", ", ".join(destinatarios), loja.nome)
             return True
 
         except Exception as e:

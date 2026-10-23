@@ -17,6 +17,7 @@ from ..comissao_prestadora_service import (
 )
 from ..models import Vendedor
 from ..vendedor_permissoes_service import (
+    CRM_GROUP_NAMES,
     aplicar_permissoes_usuario_crm,
     normalizar_config_acesso,
     permissoes_ids_grupo,
@@ -91,7 +92,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
             if user:
                 data["permissoes_ids"] = permissoes_ids_usuario_crm(user)
                 if not data["grupo_id"]:
-                    grupo = user.groups.filter(name__in=["Gerente de Vendas", "Vendedor"]).first()
+                    grupo = user.groups.filter(name__in=CRM_GROUP_NAMES).first()
                     data["grupo_id"] = grupo.id if grupo else None
         return data
 
@@ -156,7 +157,7 @@ class VendedorSerializer(TextNormalizationMixin, serializers.ModelSerializer):
                 pass
         user = self._get_vendedor_user(obj)
         if user:
-            grupo = user.groups.filter(name__in=["Gerente de Vendas", "Vendedor"]).first()
+            grupo = user.groups.filter(name__in=CRM_GROUP_NAMES).first()
             return grupo.name if grupo else None
         return None
 

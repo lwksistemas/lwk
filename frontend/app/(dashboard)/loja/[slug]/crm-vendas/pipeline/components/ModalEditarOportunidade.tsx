@@ -282,7 +282,13 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
         </form>
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
           {!modalExcluir ? (
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-col items-end gap-2">
+              {oportunidade.etapa === 'closed_won' && (
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Venda ganha não pode ser excluída. Mude a etapa e salve para poder excluir.
+                </p>
+              )}
+              <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => !enviando && onClose()}
@@ -293,7 +299,8 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
               <button
                 type="button"
                 onClick={() => setModalExcluir(true)}
-                disabled={enviando}
+                disabled={enviando || oportunidade.etapa === 'closed_won'}
+                title={oportunidade.etapa === 'closed_won' ? 'Mude a etapa e salve para poder excluir.' : undefined}
                 className="px-4 py-2 rounded-lg border border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
               >
                 Excluir
@@ -306,6 +313,7 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
               >
                 {enviando ? 'Salvando...' : 'Salvar'}
               </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">

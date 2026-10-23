@@ -143,3 +143,57 @@ class VendaGanhaNaoExcluiTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 204)
         mock_destroy.assert_called_once()
+
+
+class HistoricoPdfCabecalhoTests(SimpleTestCase):
+    def _oportunidade(self):
+        from datetime import date, datetime, timezone
+        from types import SimpleNamespace
+
+        nota = SimpleNamespace(
+            created_at=datetime(2026, 10, 22, 20, 23, tzinfo=timezone.utc),
+            tipo="resposta_cliente",
+            autor_nome="FELIPE COSTA FELIX",
+            texto="Cliente não respondeu à mensagem do controle de qualidade.",
+        )
+        lead = SimpleNamespace(
+            nome="JAYME DANIEL SILVA MORHEB",
+            empresa="MORHEB SERVICOS MEDICOS LTDA",
+            telefone="86999999999",
+            contato=None,
+            conta_id=None,
+            conta=None,
+            cpf_cnpj="12345678000199",
+        )
+        prestadora = SimpleNamespace(
+            nome="ULTRASIS",
+            razao_social="ULTRASIS INFORMATICA LTDA",
+            cnpj="00000000000191",
+            logo="https://media.example/ultrasys.png",
+        )
+        return SimpleNamespace(
+            lead=lead,
+            valor=440,
+            etapa="closed_won",
+            vendedor=SimpleNamespace(nome="LUIZ HENRIQUE FELIX"),
+            empresa_prestadora=prestadora,
+            data_fechamento_ganho=date(2026, 9, 14),
+            data_fechamento=None,
+            feedback_pos_venda="",
+            motivo_perda="",
+            notas_negociacao=SimpleNamespace(all=lambda: [nota]),
+        )
+
+    @patch("crm_vendas.pdf_proposta_contrato.sections._build_cabecalho")
+    def test_pdf_usa_logo_da_loja_e_da_prestadora(self, mock_cabecalho):
+        from crm_vendas.relatorios_negociacao_pdf import gerar_pdf_historico_oportunidade
+        from types import SimpleNamespace
+
+        loja = SimpleNamespace(logo="https://media.example/felix.png", login_logo="")
+        pdf = gerar_pdf_historico_oportunidade(self._oportunidade(), loja)
+
+        self.assertTrue(pdf.startswith(b"%PDF"))
+        args = mock_cabecalho.call_args.args
+        self.assertEqual(args[1], "https://media.example/felix.png")
+        self.assertEqual(args[2], "HISTÓRICO DE NEGOCIAÇÃO")
+        self.assertEqual(args[3], "https://media.example/ultrasys.png")

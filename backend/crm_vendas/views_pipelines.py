@@ -148,6 +148,21 @@ class OportunidadeViewSet(
             )
         return super().destroy(request, *args, **kwargs)
 
+    @action(detail=True, methods=["get"], url_path="historico-pdf")
+    def historico_pdf(self, request, pk=None):
+        from django.http import HttpResponse
+
+        from superadmin.models import Loja
+
+        from .relatorios_negociacao_pdf import gerar_pdf_historico_oportunidade
+
+        oportunidade = self.get_object()
+        loja = Loja.objects.using("default").filter(id=get_current_loja_id()).first()
+        pdf = gerar_pdf_historico_oportunidade(oportunidade, loja)
+        response = HttpResponse(pdf, content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="historico-negociacao-{oportunidade.id}.pdf"'
+        return response
+
     def get_queryset(self):
         qs = Oportunidade.objects.select_related(
             "lead", "vendedor", "lead__conta", "empresa_prestadora",
@@ -158,6 +173,7 @@ class OportunidadeViewSet(
                 "atividades",
                 "itens",
                 "itens__produto_servico",
+                "notas_negociacao",
             )
         if get_current_vendedor_id(self.request) is None or vendedor_tem_controle_qualidade(self.request):
             qs = filtrar_queryset_por_query_params(qs, self.request, {"vendedor_id": "vendedor_id"})

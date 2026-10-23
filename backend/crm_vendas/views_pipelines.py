@@ -163,6 +163,42 @@ class OportunidadeViewSet(
         response["Content-Disposition"] = f'inline; filename="historico-negociacao-{oportunidade.id}.pdf"'
         return response
 
+    @action(detail=False, methods=["get"], url_path="pipeline-pdf")
+    def pipeline_pdf(self, request):
+        from django.http import HttpResponse
+
+        from superadmin.models import Loja
+
+        from .relatorios_pipeline_pdf import gerar_pdf_pipeline
+        from .utils import vendedor_nao_ve_valor_da_prestadora
+
+        qs = self.get_queryset()
+        vendedor_id = request.query_params.get("vendedor_id")
+        if vendedor_id:
+            qs = qs.filter(vendedor_id=vendedor_id)
+        oportunidades = list(qs)
+        loja = Loja.objects.using("default").filter(id=get_current_loja_id()).first()
+        vendedor_nome = ""
+        if vendedor_id:
+            vendedor_nome = (
+                Vendedor.objects.filter(id=vendedor_id).values_list("nome", flat=True).first() or ""
+            )
+        comissoes = {}
+        if vendedor_nao_ve_valor_da_prestadora(request):
+            comissoes = _comissoes_do_vendedor_logado(request, oportunidades)
+        pdf = gerar_pdf_pipeline(
+            oportunidades,
+            loja,
+            data_inicio=request.query_params.get("data_inicio") or "",
+            data_fim=request.query_params.get("data_fim") or "",
+            vendedor_nome=vendedor_nome,
+            oculta_valor_prestadora=vendedor_nao_ve_valor_da_prestadora(request),
+            comissoes_vendedor=comissoes,
+        )
+        response = HttpResponse(pdf, content_type="application/pdf")
+        response["Content-Disposition"] = 'inline; filename="pipeline-de-vendas.pdf"'
+        return response
+
     def get_queryset(self):
         qs = Oportunidade.objects.select_related(
             "lead", "vendedor", "lead__conta", "empresa_prestadora",
@@ -183,6 +219,20 @@ class OportunidadeViewSet(
             self.request.query_params.get("data_inicio"),
             self.request.query_params.get("data_fim"),
         )
+
+
+def _comissoes_do_vendedor_logado(request, oportunidades) -> dict:
+    """Comissão do vendedor nas vendas dele, no lugar do valor pago pela prestadora."""
+    from .comissao_prestadora_service import partes_por_oportunidade
+
+    vid = get_current_vendedor_id(request)
+    if not vid:
+        return {}
+    vendedor = Vendedor.objects.filter(pk=vid).prefetch_related("comissoes_categoria").first()
+    proprias = [item for item in oportunidades if getattr(item, "vendedor_id", None) == vid]
+    if not vendedor or not proprias:
+        return {}
+    return partes_por_oportunidade(proprias, vendedor)
 
 
 def _autor_nome_negociacao(request) -> str:

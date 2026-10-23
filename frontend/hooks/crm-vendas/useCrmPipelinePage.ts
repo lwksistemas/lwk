@@ -161,14 +161,6 @@ export function useCrmPipelinePage() {
     setOportunidadeEditar(op);
   };
 
-  const handleExportarPDF = () => {
-    setImprimindo(true);
-    setTimeout(() => {
-      window.print();
-      setImprimindo(false);
-    }, 100);
-  };
-
   const pipelineFilters = (): Record<string, string | number> => {
     const params: Record<string, string | number> = {};
     if (filtroEtapaPipeline) params.etapa = filtroEtapaPipeline;
@@ -176,6 +168,32 @@ export function useCrmPipelinePage() {
     if (dataInicio) params.data_inicio = dataInicio;
     if (dataFim) params.data_fim = dataFim;
     return params;
+  };
+
+  const handleExportarPDF = async () => {
+    setImprimindo(true);
+    try {
+      const res = await apiClient.get('/crm-vendas/oportunidades/pipeline-pdf/', {
+        params: pipelineFilters(),
+        responseType: 'blob',
+      });
+      const blob = res.data instanceof Blob
+        ? res.data
+        : new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const janela = window.open(url, '_blank', 'noopener');
+      if (!janela) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'pipeline-de-vendas.pdf';
+        link.click();
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err: unknown) {
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao gerar o PDF do pipeline.'));
+    } finally {
+      setImprimindo(false);
+    }
   };
 
   const handleModalSuccess = () => {

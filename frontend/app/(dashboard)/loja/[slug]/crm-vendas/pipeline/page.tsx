@@ -220,7 +220,7 @@ export default function CrmVendasPipelinePage() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition text-sm font-medium ml-auto"
             >
               <Printer className="w-4 h-4" aria-hidden />
-              {imprimindo ? 'Preparando...' : 'Imprimir / PDF'}
+              {imprimindo ? 'Gerando...' : 'Imprimir / PDF'}
             </button>
           </div>
         </div>

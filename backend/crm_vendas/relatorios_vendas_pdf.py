@@ -17,6 +17,7 @@ from .relatorios_pdf_common import (
     _criar_cabecalho_relatorio,
     _obter_logo_loja,
 )
+from .relatorio_comissao_data import nome_da_conta
 from .relatorios_vendas_pdf_helpers import (
     adicionar_secao_vendedor_pdf as _adicionar_secao_vendedor_pdf,
 )
@@ -75,7 +76,7 @@ def gerar_relatorio_vendas_total(loja_id: int, periodo: str, empresa_prestadora_
             from .models import Conta
             ep = Conta.objects.filter(id=empresa_prestadora_id, loja_id=loja_id).first()
             if ep:
-                elements.append(Paragraph(f"Empresa Prestadora: {ep.nome}", styles["Normal"]))
+                elements.append(Paragraph(f"Empresa Prestadora: {nome_da_conta(ep)}", styles["Normal"]))
                 elements.append(Spacer(1, 0.3*cm))
         except Exception:
             pass
@@ -225,7 +226,7 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
             from .models import Conta
             ep = Conta.objects.filter(id=empresa_prestadora_id, loja_id=loja_id).first()
             if ep:
-                _ep_nome = ep.nome
+                _ep_nome = nome_da_conta(ep) or ep.nome
         except Exception:
             pass
 
@@ -254,6 +255,9 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
             ),
         )
         elements.append(Spacer(1, 0.5 * cm))
+        if _ep_nome:
+            elements.append(Paragraph(f"Empresa Prestadora: {_ep_nome}", styles["Normal"]))
+            elements.append(Spacer(1, 0.3 * cm))
 
         if not v_sel:
             elements.append(Paragraph("Vendedor não encontrado.", styles["Normal"]))
@@ -283,6 +287,9 @@ def gerar_relatorio_vendas_vendedor(loja_id: int, periodo: str, vendedor_id: int
             ),
         )
         elements.append(Spacer(1, 0.5 * cm))
+        if _ep_nome:
+            elements.append(Paragraph(f"Empresa Prestadora: {_ep_nome}", styles["Normal"]))
+            elements.append(Spacer(1, 0.3 * cm))
 
         vendedores_stats_raw = list(
             base.values("vendedor_id", "vendedor__nome", "vendedor__is_active").annotate(

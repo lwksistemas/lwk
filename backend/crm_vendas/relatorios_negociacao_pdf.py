@@ -11,7 +11,7 @@ from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from core.cpf_utils import label_empresa_lead, normalizar_cpf_cnpj, somente_digitos_documento
+from core.cpf_utils import eh_cpf, label_empresa_lead, normalizar_cpf_cnpj, somente_digitos_documento
 from core.phone_utils import telefone_exibicao_brasileiro
 
 from .feedback_data import texto_tem_data
@@ -56,15 +56,19 @@ def telefone_para_exibicao(oportunidade) -> str:
 
 
 def empresa_da_oportunidade(oportunidade) -> str:
-    """Empresa do cliente, como na lista de propostas. CPF vira PESSOA FISICA."""
+    """Empresa do cliente. CNPJ com razão social não usa o nome fantasia. CPF vira PESSOA FISICA."""
+    from .relatorio_comissao_data import nome_da_conta
+
     lead = getattr(oportunidade, "lead", None)
     if lead is None:
         return "—"
-    conta_nome = None
-    if getattr(lead, "conta_id", None):
-        conta_nome = getattr(getattr(lead, "conta", None), "nome", None)
+    conta = getattr(lead, "conta", None) if getattr(lead, "conta_id", None) else None
+    documento = getattr(lead, "cpf_cnpj", None)
+    if conta is not None and not eh_cpf(documento) and (getattr(conta, "razao_social", "") or "").strip():
+        return nome_da_conta(conta) or "—"
+    conta_nome = getattr(conta, "nome", None) if conta is not None else None
     rotulo = label_empresa_lead(
-        getattr(lead, "cpf_cnpj", None),
+        documento,
         empresa=getattr(lead, "empresa", None),
         conta_nome=conta_nome,
     )

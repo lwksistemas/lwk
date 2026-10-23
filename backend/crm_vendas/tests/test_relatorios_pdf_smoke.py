@@ -157,6 +157,37 @@ class RelatorioNegociacaoGanhosTest(SimpleTestCase):
         self.assertEqual(linha_contato_empresa(cnpj), "Contato da empresa - ANA CLAUDIA - Não informado")
         self.assertEqual(linha_contato_empresa(cpf), "")
 
+    def test_cnpj_no_relatorio_sai_pela_razao_social(self):
+        from crm_vendas.relatorios_pdf_common import _nome_cliente_venda
+
+        venda = SimpleNamespace(
+            titulo="URO CENTER",
+            lead=SimpleNamespace(
+                nome="PABLO",
+                cpf_cnpj="28929436000189",
+                empresa="URO CENTER",
+                conta_id=1,
+                conta=SimpleNamespace(
+                    nome="URO CENTER",
+                    razao_social="P G SERVICOS MEDICOS LTDA",
+                    cnpj="28.929.436/0001-89",
+                ),
+            ),
+        )
+        self.assertEqual(empresa_da_oportunidade(venda), "P G SERVICOS MEDICOS LTDA")
+        self.assertEqual(_nome_cliente_venda(venda), "P G SERVICOS MEDICOS LTDA")
+        pessoa = SimpleNamespace(
+            titulo="ALLAN",
+            lead=SimpleNamespace(
+                nome="ALLAN FERNANDES COSTA",
+                cpf_cnpj="12345678900",
+                empresa="",
+                conta_id=None,
+                conta=None,
+            ),
+        )
+        self.assertEqual(_nome_cliente_venda(pessoa), "ALLAN FERNANDES COSTA")
+
     def test_logo_do_relatorio_fica_centralizado(self):
         imagem = BytesIO()
         PILImage.new("RGB", (80, 40), "white").save(imagem, format="PNG")

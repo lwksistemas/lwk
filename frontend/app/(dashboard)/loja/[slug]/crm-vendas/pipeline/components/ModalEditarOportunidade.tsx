@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { formatCrmBrl, rotuloExibicaoOportunidade, subtituloModalOportunidade } from '@/lib/crm-utils';
 import type { Oportunidade } from '@/components/crm-vendas/PipelineBoard';
 import OportunidadeItensEditor from '@/components/crm-vendas/OportunidadeItensEditor';
+import HistoricoNegociacaoSection from '@/components/crm-vendas/HistoricoNegociacaoSection';
 import CrmEnviarClienteIcones from '@/components/crm-vendas/CrmEnviarClienteIcones';
 import { useModalEditarOportunidade } from '@/hooks/crm-vendas/useModalEditarOportunidade';
 
@@ -170,6 +171,14 @@ export default function ModalEditarOportunidade({ oportunidade, onClose, onSucce
               ]);
             }}
             layout="modal"
+          />
+
+          <HistoricoNegociacaoSection
+            oportunidade={oportunidade}
+            etapas={etapas}
+            motivoPerda={motivoPerda}
+            feedbackPosVenda={feedbackPosVenda}
+            variant="embedded"
           />
 
           {mostraFechamento && (

@@ -74,7 +74,7 @@ function HistoricoNegociacaoPrintContent({
                   {formatarDataHoraNegociacao(n.created_at)}
                   {' · '}
                   {n.tipo_label}
-                  {n.autor_nome ? ` · ${n.autor_nome}` : ''}
+                  {n.autor_nome ? ` · por ${n.autor_nome}` : ''}
                 </p>
                 <p className="whitespace-pre-wrap mt-0.5">{n.texto}</p>
               </li>
@@ -227,7 +227,7 @@ export default function HistoricoNegociacaoSection({
                 {formatarDataHoraNegociacao(n.created_at)}
                 {' · '}
                 <span className="font-medium">{n.tipo_label}</span>
-                {n.autor_nome ? ` · ${n.autor_nome}` : ''}
+                {n.autor_nome ? ` · por ${n.autor_nome}` : ''}
               </p>
               <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{n.texto}</p>
             </div>

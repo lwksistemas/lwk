@@ -140,7 +140,7 @@ export default function EditarPropostaPage() {
         const oppId = String(p.oportunidade);
         void loadItensOportunidade(oppId);
         void fetchCrmOportunidade(oppId)
-          .then((opp) => {
+          .then(async (opp) => {
             if (cancelled) return;
             setOportunidadeTituloInicial(
               formatOportunidadeVinculoLabel({

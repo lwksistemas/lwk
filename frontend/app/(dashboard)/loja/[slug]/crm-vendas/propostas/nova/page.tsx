@@ -206,7 +206,10 @@ export default function NovaPropostaPage() {
         })}
         onSelecionarTemplate={(conteudo) => {
           templateAplicado.current = conteudo;
-          setFormData((f) => ({ ...f, conteudo }));
+          setFormData((f) => ({
+            ...f,
+            conteudo: conteudoComDescricoes(conteudo, itensOportunidade),
+          }));
         }}
         vendedorNome={vendedorNome}
       />

@@ -46,3 +46,12 @@ class ConteudoPropostaTests(SimpleTestCase):
             conteudo_com_descricoes(descricao, _Oportunidade([descricao])),
             descricao,
         )
+
+    def test_rotulo_curto_do_plano_sai_do_conteudo(self):
+        base = "Prazo de Liberação: acesso em até 24 horas."
+        texto = conteudo_com_descricoes(
+            f"{base}\n\nUltrasis Laudos - Mensal",
+            _Oportunidade(["Ultrasis Laudos - Mensal"]),
+        )
+        self.assertEqual(texto, base)
+        self.assertNotIn("Ultrasis Laudos - Mensal", texto)

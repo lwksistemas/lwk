@@ -73,8 +73,17 @@ def _formatar_nome_usuario(user):
     return full or getattr(user, "nome", "") or getattr(user, "username", "") or "—"
 
 
-def descricoes_da_oportunidade(oportunidade) -> list[str]:
-    """Descrições dos serviços escolhidos na oportunidade, sem repetir."""
+def descricao_util_na_proposta(texto: str) -> bool:
+    """Rótulo curto do plano, como "Ultrasis Laudos - Mensal", não entra na proposta."""
+    limpo = " ".join((texto or "").split())
+    if not limpo:
+        return False
+    if len(limpo) >= 60:
+        return True
+    return any(marca in limpo for marca in ".:;")
+
+
+def _textos_dos_itens(oportunidade) -> list[str]:
     if oportunidade is None:
         return []
     relacao = getattr(oportunidade, "itens", None)
@@ -93,12 +102,27 @@ def descricoes_da_oportunidade(oportunidade) -> list[str]:
     return textos
 
 
+def descricoes_da_oportunidade(oportunidade) -> list[str]:
+    """Descrições dos serviços escolhidos na oportunidade, sem repetir."""
+    return [texto for texto in _textos_dos_itens(oportunidade) if descricao_util_na_proposta(texto)]
+
+
+def _rotulos_da_oportunidade(oportunidade) -> set[str]:
+    return {texto for texto in _textos_dos_itens(oportunidade) if not descricao_util_na_proposta(texto)}
+
+
 def conteudo_com_descricoes(conteudo, oportunidade) -> str:
     """Inclui no conteúdo a descrição de cada serviço da oportunidade."""
     base = (conteudo or "").strip()
+    rotulos = _rotulos_da_oportunidade(oportunidade)
+    if rotulos and base:
+        paragrafos = re.split(r"\n{2,}", base)
+        base = "\n\n".join(
+            paragrafo for paragrafo in paragrafos if " ".join(paragrafo.split()) not in rotulos
+        ).strip()
     faltam = [texto for texto in descricoes_da_oportunidade(oportunidade) if texto not in base]
     if not faltam:
-        return conteudo or ""
+        return base
     bloco = "\n\n".join(faltam)
     if not base:
         return bloco

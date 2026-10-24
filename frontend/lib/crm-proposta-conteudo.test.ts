@@ -20,4 +20,12 @@ describe('conteudoComDescricoes', () => {
       `${template}\n\n${descricao}`,
     );
   });
+
+  it('tira o rótulo curto do plano do conteúdo', () => {
+    const template = 'Prazo de Liberação: acesso em até 24 horas.';
+    const comRotulo = `${template}\n\nUltrasis Laudos - Mensal`;
+    expect(
+      conteudoComDescricoes(comRotulo, [{ produto_servico_descricao: 'Ultrasis Laudos - Mensal' }]),
+    ).toBe(template);
+  });
 });

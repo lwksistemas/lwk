@@ -77,7 +77,7 @@ class _QuadroComMarca(Flowable):
                 desenho_w = largura_imagem * escala
                 desenho_h = altura_imagem * escala
                 x = origem + (coluna - desenho_w) / 2
-                y = (self.height - desenho_h) / 2 - 24
+                y = (self.height - desenho_h) / 2 - 12
                 self.canv.drawImage(
                     imagem, x, y, width=desenho_w, height=desenho_h, mask="auto", preserveAspectRatio=True,
                 )

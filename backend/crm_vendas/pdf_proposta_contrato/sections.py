@@ -753,12 +753,18 @@ def _build_tabela_investimento_visual(elements, oportunidade):
     nome_style = ParagraphStyle("NomeInvestimento", fontName=FONTE, fontSize=8, leading=10, textColor=COR_TEXTO)
     celula = ParagraphStyle("CelulaInvestimento", fontName=FONTE, fontSize=8, leading=10, textColor=COR_TEXTO, alignment=TA_CENTER)
     valor_style = ParagraphStyle("ValorInvestimento", fontName=FONTE, fontSize=8, leading=10, textColor=COR_TEXTO, alignment=TA_RIGHT)
-    table_data = [[
+    mostra_unitario = _mostra_valor_unitario(itens)
+    cabecalhos = [
         Paragraph("Serviço", header_style),
         Paragraph("Qtd", header_centro),
         Paragraph("Cobrança", header_centro),
-        Paragraph("Valor", header_direita),
-    ]]
+    ]
+    if mostra_unitario:
+        cabecalhos.append(Paragraph("Valor un.", header_direita))
+        cabecalhos.append(Paragraph("Total", header_direita))
+    else:
+        cabecalhos.append(Paragraph("Valor", header_direita))
+    table_data = [cabecalhos]
     totais = {"unico": 0, "mensal": 0, "trimestral": 0, "semestral": 0, "anual": 0}
     rotulos = {
         "unico": "Única",
@@ -774,21 +780,30 @@ def _build_tabela_investimento_visual(elements, oportunidade):
         recorrencia = getattr(produto, "recorrencia", "unico") or "unico"
         subtotal = _subtotal_item(item)
         totais[recorrencia] = totais.get(recorrencia, 0) + subtotal
-        table_data.append([
+        linha = [
             Paragraph(escape(nome), nome_style),
             Paragraph(_quantidade_texto(quantidade), celula),
             Paragraph(rotulos.get(recorrencia, recorrencia), celula),
-            Paragraph(_formatar_valor(subtotal), valor_style),
-        ])
+        ]
+        if mostra_unitario:
+            linha.append(Paragraph(_formatar_valor(_preco_unitario_item(item)), valor_style))
+        linha.append(Paragraph(_formatar_valor(subtotal), valor_style))
+        table_data.append(linha)
     largura = A4[0] - 3.1 * cm
-    tabela = Table(table_data, colWidths=[largura - 8.2 * cm, 1.8 * cm, 3.2 * cm, 3.2 * cm])
+    if mostra_unitario:
+        colunas = [largura - 10.6 * cm, 1.6 * cm, 2.8 * cm, 3.1 * cm, 3.1 * cm]
+        alinhamento_valor = ("ALIGN", (3, 0), (4, -1), "RIGHT")
+    else:
+        colunas = [largura - 8.2 * cm, 1.8 * cm, 3.2 * cm, 3.2 * cm]
+        alinhamento_valor = ("ALIGN", (3, 0), (3, -1), "RIGHT")
+    tabela = Table(table_data, colWidths=colunas)
     tabela.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), COR_PROPOSTA),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, COR_FAIXA]),
         ("ALIGN", (1, 0), (2, -1), "CENTER"),
-        ("ALIGN", (3, 0), (3, -1), "RIGHT"),
+        alinhamento_valor,
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING", (0, 0), (-1, -1), 10),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
@@ -800,16 +815,33 @@ def _build_tabela_investimento_visual(elements, oportunidade):
     return totais["unico"], totais["mensal"], totais["trimestral"], totais["semestral"], totais["anual"]
 
 
-def _quantidade_texto(quantidade) -> str:
+def _quantidade_numero(quantidade) -> float:
     if quantidade is None or quantidade == "":
-        quantidade = 1
+        return 1.0
     try:
-        numero = float(quantidade)
+        return float(quantidade)
     except (TypeError, ValueError):
-        return str(quantidade)
+        return 1.0
+
+
+def _mostra_valor_unitario(itens) -> bool:
+    """A coluna do valor por unidade só entra quando alguma quantidade passa de 1."""
+    return any(_quantidade_numero(getattr(item, "quantidade", 1)) > 1 for item in itens or [])
+
+
+def _quantidade_texto(quantidade) -> str:
+    numero = _quantidade_numero(quantidade)
     if numero.is_integer():
         return str(int(numero))
-    return str(quantidade).replace(".", ",")
+    return f"{numero:.2f}".replace(".", ",")
+
+
+def _preco_unitario_item(item) -> float:
+    preco = getattr(item, "preco_unitario", 0) or 0
+    try:
+        return float(preco)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _subtotal_item(item) -> float:

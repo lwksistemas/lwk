@@ -125,15 +125,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         ass_v, ass_c = _build_secao_assinaturas(elements, proposta, lead, vendedor, compact, True, "proposta")
 
     wm_data = _build_watermark_callback(logo_url, ass_v, ass_c)
-    coluna_assinatura = ((A4[0] - 3.1 * cm) / 2) / cm
-    _inserir_watermark_flowable(
-        elements,
-        wm_data,
-        cell_width_cm=coluna_assinatura,
-        max_wm_w_cm=6.2,
-        max_wm_h_cm=3.2,
-        y_factor=0.85,
-    )
+    _inserir_watermark_flowable(elements, wm_data, preencher_quadro=True)
 
     doc.build(elements)
     buffer.seek(0)

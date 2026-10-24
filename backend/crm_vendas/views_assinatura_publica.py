@@ -186,3 +186,20 @@ class AssinaturaPdfView(View):
         except Exception as exc:
             logger.exception("Erro ao gerar PDF: %s", exc)
             return JsonResponse({"error": "Erro ao gerar PDF"}, status=500)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class DocumentoAssinadoPdfPublicoView(View):
+    """GET /api/crm-vendas/documento-assinado/{token}/ — PDF para o WhatsApp baixar."""
+
+    def get(self, request, token):
+        from .pdf_publico_whatsapp import ler_pdf_assinado
+
+        payload = ler_pdf_assinado(token)
+        pdf = payload.get("pdf") if payload else None
+        if not pdf:
+            return JsonResponse({"error": "Documento não encontrado."}, status=404)
+        filename = payload.get("filename") or "documento_assinado.pdf"
+        response = HttpResponse(pdf, content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        return response

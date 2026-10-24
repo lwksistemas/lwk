@@ -147,9 +147,6 @@ def enviar_pdf_final(documento, loja_id):
     elif loja and loja.owner and loja.owner.email:
         destinatarios.append(loja.owner.email)
 
-    if not destinatarios:
-        return False, "Nenhum destinatário com email cadastrado."
-
     filename = f"{tipo_doc.lower()}_{documento.titulo or documento.id}_assinado.pdf"
 
     html_content, texto_plano = montar_email_pdf_final(
@@ -159,21 +156,38 @@ def enviar_pdf_final(documento, loja_id):
         tipo_doc=tipo_doc,
     )
 
+    email_ok = False
+    email_err = None
+    if destinatarios:
+        try:
+            enviar_email_multipart(
+                subject=f"🎉 {tipo_doc} Assinado: {documento.titulo}",
+                texto_plano=texto_plano,
+                html_content=html_content,
+                to=destinatarios,
+                attachment=(filename, pdf_bytes, "application/pdf"),
+            )
+            email_ok = True
+            logger.info(
+                "PDF final enviado: documento=%s#%s, destinatarios=%s",
+                documento.__class__.__name__,
+                documento.id,
+                destinatarios,
+            )
+        except Exception as e:
+            logger.exception("Erro ao enviar PDF final: %s", e)
+            email_err = str(e)
+    else:
+        email_err = "Nenhum destinatário com email cadastrado."
+
+    from .assinatura_pdf_whatsapp import enviar_whatsapp_pdf_assinado
+
     try:
-        enviar_email_multipart(
-            subject=f"🎉 {tipo_doc} Assinado: {documento.titulo}",
-            texto_plano=texto_plano,
-            html_content=html_content,
-            to=destinatarios,
-            attachment=(filename, pdf_bytes, "application/pdf"),
-        )
-
-        logger.info(
-            f"PDF final enviado: documento={documento.__class__.__name__}#{documento.id}, "
-            f"destinatarios={destinatarios}",
-        )
-
-        return True, None
+        whats_ok, whats_err = enviar_whatsapp_pdf_assinado(documento, loja_id, pdf_bytes, tipo_doc)
     except Exception as e:
-        logger.exception(f"Erro ao enviar PDF final: {e}")
-        return False, str(e)
+        logger.exception("Erro ao enviar PDF assinado por WhatsApp: %s", e)
+        whats_ok, whats_err = False, str(e)
+
+    if email_ok or whats_ok:
+        return True, None
+    return False, whats_err or email_err

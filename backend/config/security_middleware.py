@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 _CRM_VENDAS_PUBLIC_PREFIXES = (
     "/api/crm-vendas/webhooks/",
     "/api/crm-vendas/assinar/",
+    "/api/crm-vendas/documento-assinado/",
     "/api/crm-vendas/relatorio-comissao/",
 )
 

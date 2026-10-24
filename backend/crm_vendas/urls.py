@@ -28,6 +28,7 @@ from .views import (
     dashboard_data,
     gerar_relatorio,
 )
+from .views_assinatura_publica import DocumentoAssinadoPdfPublicoView
 from .views_asaas_webhook import asaas_loja_webhook
 from .views_catalogo_pdf import CatalogoPdfImportarView, CatalogoPdfPreviewView
 from .views_financeiro import (
@@ -83,6 +84,11 @@ urlpatterns = [
     # Rotas públicas (sem autenticação)
     path("assinar/<str:token>/", AssinaturaPublicaView.as_view(), name="assinatura-publica"),
     path("assinar/<str:token>/pdf/", AssinaturaPdfView.as_view(), name="assinatura-pdf"),
+    path(
+        "documento-assinado/<str:token>/",
+        DocumentoAssinadoPdfPublicoView.as_view(),
+        name="documento-assinado-publico",
+    ),
 
     # Rotas autenticadas
     path("me/", crm_me),

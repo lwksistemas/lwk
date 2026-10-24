@@ -121,6 +121,7 @@ def is_store_api_path(path: str) -> bool:
         public = (
             "/api/crm-vendas/webhooks/",
             "/api/crm-vendas/assinar/",
+            "/api/crm-vendas/documento-assinado/",
             "/api/crm-vendas/relatorio-comissao/",
         )
         if any(path.startswith(p) for p in public):

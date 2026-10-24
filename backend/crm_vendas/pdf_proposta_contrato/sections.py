@@ -733,7 +733,7 @@ def _itens_oportunidade(oportunidade):
 
 
 def _build_tabela_investimento_visual(elements, oportunidade):
-    """Tabela Serviço, Cobrança e Valor. A quantidade 1 fica no cabeçalho."""
+    """Tabela Serviço, Quantidade, Cobrança e Valor. O valor já multiplica a quantidade."""
     _titulo_numerado(elements, 2, "Investimento")
     itens = _itens_oportunidade(oportunidade)
     if not itens:
@@ -741,8 +741,6 @@ def _build_tabela_investimento_visual(elements, oportunidade):
         return 0, 0, 0, 0, 0
     prestadora = getattr(oportunidade, "empresa_prestadora", None)
     marca = getattr(prestadora, "nome", "") if prestadora is not None else ""
-    todos_um = all(_quantidade_e_um(getattr(item, "quantidade", 1)) for item in itens)
-    cabecalho = "Serviço  •  quantidade: 1 por item" if todos_um else "Serviço"
     header_style = ParagraphStyle(
         "HeadInvestimento",
         fontName=FONTE_NEGRITO,
@@ -750,13 +748,16 @@ def _build_tabela_investimento_visual(elements, oportunidade):
         textColor=colors.white,
         leading=10,
     )
+    header_centro = ParagraphStyle("HeadInvestimentoCentro", parent=header_style, alignment=TA_CENTER)
+    header_direita = ParagraphStyle("HeadInvestimentoDireita", parent=header_style, alignment=TA_RIGHT)
     nome_style = ParagraphStyle("NomeInvestimento", fontName=FONTE, fontSize=8, leading=10, textColor=COR_TEXTO)
     celula = ParagraphStyle("CelulaInvestimento", fontName=FONTE, fontSize=8, leading=10, textColor=COR_TEXTO, alignment=TA_CENTER)
     valor_style = ParagraphStyle("ValorInvestimento", fontName=FONTE, fontSize=8, leading=10, textColor=COR_TEXTO, alignment=TA_RIGHT)
     table_data = [[
-        Paragraph(escape(cabecalho), header_style),
-        Paragraph("Cobrança", header_style),
-        Paragraph("Valor", header_style),
+        Paragraph("Serviço", header_style),
+        Paragraph("Qtd", header_centro),
+        Paragraph("Cobrança", header_centro),
+        Paragraph("Valor", header_direita),
     ]]
     totais = {"unico": 0, "mensal": 0, "trimestral": 0, "semestral": 0, "anual": 0}
     rotulos = {
@@ -770,25 +771,24 @@ def _build_tabela_investimento_visual(elements, oportunidade):
         produto = getattr(item, "produto_servico", None)
         nome = nome_item_documento(getattr(produto, "nome", ""), marca)
         quantidade = getattr(item, "quantidade", 1)
-        if not _quantidade_e_um(quantidade):
-            nome = f"{nome}  •  {_quantidade_texto(quantidade)}"
         recorrencia = getattr(produto, "recorrencia", "unico") or "unico"
         subtotal = _subtotal_item(item)
         totais[recorrencia] = totais.get(recorrencia, 0) + subtotal
         table_data.append([
             Paragraph(escape(nome), nome_style),
+            Paragraph(_quantidade_texto(quantidade), celula),
             Paragraph(rotulos.get(recorrencia, recorrencia), celula),
             Paragraph(_formatar_valor(subtotal), valor_style),
         ])
     largura = A4[0] - 3.1 * cm
-    tabela = Table(table_data, colWidths=[largura - 6.4 * cm, 3.2 * cm, 3.2 * cm])
+    tabela = Table(table_data, colWidths=[largura - 8.2 * cm, 1.8 * cm, 3.2 * cm, 3.2 * cm])
     tabela.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), COR_PROPOSTA),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, COR_FAIXA]),
-        ("ALIGN", (1, 1), (1, -1), "CENTER"),
-        ("ALIGN", (2, 1), (2, -1), "RIGHT"),
+        ("ALIGN", (1, 0), (2, -1), "CENTER"),
+        ("ALIGN", (3, 0), (3, -1), "RIGHT"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING", (0, 0), (-1, -1), 10),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
@@ -800,23 +800,16 @@ def _build_tabela_investimento_visual(elements, oportunidade):
     return totais["unico"], totais["mensal"], totais["trimestral"], totais["semestral"], totais["anual"]
 
 
-def _quantidade_e_um(quantidade) -> bool:
-    if quantidade is None:
-        return True
-    try:
-        return float(quantidade) == 1
-    except (TypeError, ValueError):
-        return False
-
-
 def _quantidade_texto(quantidade) -> str:
+    if quantidade is None or quantidade == "":
+        quantidade = 1
     try:
         numero = float(quantidade)
     except (TypeError, ValueError):
         return str(quantidade)
     if numero.is_integer():
         return str(int(numero))
-    return str(quantidade)
+    return str(quantidade).replace(".", ",")
 
 
 def _subtotal_item(item) -> float:

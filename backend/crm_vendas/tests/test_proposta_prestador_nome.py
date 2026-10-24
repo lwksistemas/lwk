@@ -1,9 +1,10 @@
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from django.test import SimpleTestCase
 from rest_framework.exceptions import ValidationError
 
-from crm_vendas.serializers.documentos import PropostaSerializer, PropostaTemplateSerializer
+from crm_vendas.serializers.documentos import PrestadoraPkField, PropostaSerializer, PropostaTemplateSerializer
 
 
 class PrestadorNomePropostaTest(SimpleTestCase):
@@ -18,6 +19,14 @@ class PrestadorNomePropostaTest(SimpleTestCase):
             PropostaSerializer().get_prestador_nome(proposta),
             "ULTRASIS INFORMATICA LTDA",
         )
+
+    def test_a_prestadora_e_buscada_no_pedido_e_nao_na_importacao(self):
+        field = PrestadoraPkField()
+        sentinela = object()
+        with patch("crm_vendas.serializers.documentos.Conta.objects") as objects:
+            objects.filter.return_value = sentinela
+            self.assertIs(field.get_queryset(), sentinela)
+        objects.filter.assert_called_once_with(tipo__in=["prestadora", "ambos"])
 
     def test_template_novo_exige_prestadora(self):
         serializer = PropostaTemplateSerializer()

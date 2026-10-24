@@ -114,12 +114,21 @@ class PropostaSerializer(serializers.ModelSerializer):
         return instance
 
 
+class PrestadoraPkField(serializers.PrimaryKeyRelatedField):
+    """Consulta a prestadora na hora do pedido.
+
+    Um queryset montado na importação da classe fica vazio: ainda não há loja no contexto.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(queryset=Conta.objects, **kwargs)
+
+    def get_queryset(self):
+        return Conta.objects.filter(tipo__in=["prestadora", "ambos"])
+
+
 class PropostaTemplateSerializer(serializers.ModelSerializer):
-    prestadora = serializers.PrimaryKeyRelatedField(
-        queryset=Conta.objects.filter(tipo__in=["prestadora", "ambos"]),
-        required=False,
-        allow_null=True,
-    )
+    prestadora = PrestadoraPkField(required=False, allow_null=True)
     prestadora_nome = serializers.SerializerMethodField()
 
     class Meta:

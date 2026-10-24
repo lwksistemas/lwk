@@ -1,24 +1,40 @@
 """Geração de PDF para proposta e contrato do CRM."""
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
 from ..emitente_documento import obter_dados_emitente_documento
-from .formatters import _obter_dados_loja, conteudo_com_descricoes, paragrafos_condicoes
+from .formatters import (
+    _obter_dados_loja,
+    conteudo_com_descricoes,
+    extrair_pagamento_inicial,
+    paragrafos_condicoes,
+    partir_condicoes,
+    separar_subtitulo,
+)
 from .sections import (
     _build_cabecalho,
+    _build_faixa_logos,
+    _build_identificacao_visual,
+    _build_pagamento_inicial_visual,
+    _build_recursos_visuais,
+    _build_resumo_visual,
     _build_secao_assinaturas,
     _build_secao_cliente,
-    _build_secao_condicoes,
     _build_secao_conteudo,
     _build_secao_desconto,
     _build_secao_empresa,
-    _build_secao_incluidos,
     _build_secao_produtos,
-    _build_resumo_investimento,
+    _build_tabela_investimento_visual,
+    _descricoes_incluidas,
+    _estilo_subtitulo_proposta,
+    _estilo_titulo_proposta,
+    _linhas_implantacao,
+    _par_logos,
 )
 from .watermark import _build_watermark_callback, _inserir_watermark_flowable
 
@@ -60,27 +76,34 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     loja_id = getattr(proposta, "loja_id", None)
     loja_data = _completar_logos(obter_dados_emitente_documento(proposta), loja_id)
     logo_url = loja_data.get("logo")
-    _build_cabecalho(elements, logo_url, "PROPOSTA COMERCIAL", _logo_prestadora(proposta))
-    elements.append(Spacer(1, 0.35 * cm))
-    elements.append(Paragraph("<b>Identificação</b>", compact))
-
-    if loja_data:
-        _build_secao_empresa(elements, loja_data, compact, titulo="Proponente")
+    logos = _par_logos(logo_url, _logo_prestadora(proposta))
+    _build_faixa_logos(elements, *logos)
+    elements.append(Paragraph("PROPOSTA COMERCIAL", _estilo_titulo_proposta()))
 
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
-    if lead:
-        _build_secao_cliente(elements, lead, compact, titulo="Cliente")
+    paragrafos = paragrafos_condicoes(getattr(proposta, "conteudo", ""), proposta.oportunidade)
+    subtitulo, paragrafos = separar_subtitulo(paragrafos)
+    intro, secoes = partir_condicoes(paragrafos)
+    titulo_banco, linhas_banco, intro, secoes = extrair_pagamento_inicial(intro, secoes)
+    if subtitulo:
+        elements.append(Paragraph(escape(subtitulo), _estilo_subtitulo_proposta()))
 
-    totais = _build_secao_produtos(
-        elements, proposta.oportunidade, compact, incluir_recorrencia=True, titulo="Investimento",
+    _build_identificacao_visual(elements, loja_data, lead)
+    totais = _build_tabela_investimento_visual(elements, proposta.oportunidade)
+    _build_resumo_visual(elements, proposta, totais)
+    _build_pagamento_inicial_visual(elements, titulo_banco, linhas_banco)
+
+    tem_recursos = (
+        any(paragrafo for paragrafo in intro)
+        or bool(secoes)
+        or bool(_descricoes_incluidas(proposta.oportunidade))
+        or bool(_linhas_implantacao(proposta.oportunidade))
     )
-    _build_resumo_investimento(elements, proposta, totais, compact)
-    _build_secao_incluidos(elements, proposta.oportunidade, compact)
-    _build_secao_condicoes(
-        elements,
-        paragrafos_condicoes(proposta.conteudo, proposta.oportunidade),
-        compact,
-    )
+    if tem_recursos:
+        elements.append(PageBreak())
+        _build_faixa_logos(elements, *logos)
+        elements.append(Paragraph("RECURSOS E CONDIÇÕES", _estilo_titulo_proposta()))
+        _build_recursos_visuais(elements, proposta.oportunidade, intro, secoes)
 
     vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, "vendedor", None) else None
     ass_v, ass_c = _build_secao_assinaturas(elements, proposta, lead, vendedor, compact, incluir_assinaturas, "proposta")

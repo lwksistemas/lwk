@@ -66,6 +66,54 @@ class ConteudoPropostaTests(SimpleTestCase):
         self.assertIn("R$ 392,00 da primeira mensalidade", frase)
         self.assertIn("cobradas uma única vez", frase)
 
+    def test_resumo_visual_coloca_a_frase_entre_os_valores(self):
+        from crm_vendas.pdf_proposta_contrato.formatters import texto_resumo_visual
+
+        linhas = [
+            ("Pagamento inicial:", "R$ 1.142,00"),
+            ("Mensalidades seguintes:", "R$ 392,00/mês"),
+        ]
+        frase = (
+            "Inclui R$ 750,00 de implantação + R$ 392,00 da primeira mensalidade. "
+            "As taxas de implantação são cobradas uma única vez."
+        )
+        blocos = texto_resumo_visual(linhas, frase)
+        self.assertEqual(
+            [texto for texto, _negrito in blocos],
+            [
+                "Pagamento inicial: R$ 1.142,00",
+                "Inclui R$ 750,00 de implantação + R$ 392,00 da primeira mensalidade.",
+                "Mensalidades seguintes: R$ 392,00/mês.",
+                "As taxas de implantação são cobradas uma única vez.",
+            ],
+        )
+        self.assertEqual([negrito for _texto, negrito in blocos], [True, False, True, False])
+
+    def test_banco_sai_do_template_para_a_primeira_folha(self):
+        from crm_vendas.pdf_proposta_contrato.formatters import (
+            extrair_pagamento_inicial,
+            partir_condicoes,
+            separar_subtitulo,
+        )
+
+        texto = [
+            "Sistema de Laudos • Captura DICOM • Worklist",
+            "Acesso às imagens: consulta por QR Code.",
+            "Requisitos do aparelho",
+            "O aparelho precisa da licença DICOM.",
+            "Dados para o pagamento inicial",
+            "Banco Itaú • Agência: 4864 • Conta: 17.777-1",
+            "Beneficiário: Ultrasis Informática Ltda",
+        ]
+        subtitulo, resto = separar_subtitulo(texto)
+        intro, secoes = partir_condicoes(resto)
+        titulo, linhas, intro, secoes = extrair_pagamento_inicial(intro, secoes)
+        self.assertEqual(subtitulo, "Sistema de Laudos • Captura DICOM • Worklist")
+        self.assertEqual(titulo, "Dados para o pagamento inicial")
+        self.assertEqual(linhas[0], "Banco Itaú • Agência: 4864 • Conta: 17.777-1")
+        self.assertEqual(intro, ["Acesso às imagens: consulta por QR Code."])
+        self.assertEqual([secao["titulo"] for secao in secoes], ["Requisitos do aparelho"])
+
     def test_condicoes_ficam_sem_a_descricao_do_servico(self):
         from crm_vendas.pdf_proposta_contrato.formatters import paragrafos_condicoes
 

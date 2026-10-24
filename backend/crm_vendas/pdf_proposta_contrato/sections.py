@@ -519,7 +519,7 @@ def _build_faixa_logos(elements, esquerda, direita):
     """Logos nas laterais, sem título no meio."""
     if not esquerda and not direita:
         return
-    altura_max = 1.55 * cm
+    altura_max = 1.9 * cm
     util = A4[0] - 4 * cm
 
     def montar(conteudo):

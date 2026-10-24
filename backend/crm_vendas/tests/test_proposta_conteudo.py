@@ -124,3 +124,29 @@ class ConteudoPropostaTests(SimpleTestCase):
         template = "Prazo de liberação: acesso em até 24 horas.\n\n" + descricao
         paragrafos = paragrafos_condicoes(template, _Oportunidade([descricao]))
         self.assertEqual(paragrafos, ["Prazo de liberação: acesso em até 24 horas."])
+
+    def test_subtitulo_acompanha_a_versao_contratada(self):
+        from types import SimpleNamespace
+
+        from crm_vendas.pdf_proposta_contrato.formatters import subtitulo_da_versao
+
+        def item(nome, recorrencia="mensal"):
+            return SimpleNamespace(produto_servico=SimpleNamespace(nome=nome, recorrencia=recorrencia))
+
+        self.assertEqual(
+            subtitulo_da_versao([
+                item("ULTRASIS LAUDOS BÁSICO"),
+                item("Captura de imagens DICOM"),
+                item("DICOM Worklist • 1 aparelho"),
+                item("Implantação DICOM e Worklist", "unico"),
+            ]),
+            "Sistema de Laudos • Captura DICOM • Worklist",
+        )
+        self.assertEqual(
+            subtitulo_da_versao([item("Sistema de laudos avançado")]),
+            "Sistema de Laudos",
+        )
+        self.assertEqual(
+            subtitulo_da_versao([item("ULTRASIS CLÍNICA 1 A 4 PROFISSIONAIS - POR PROFISSIONAL")]),
+            "Sistema de Clínica",
+        )

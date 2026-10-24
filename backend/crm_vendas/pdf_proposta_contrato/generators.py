@@ -15,6 +15,7 @@ from .formatters import (
     paragrafos_condicoes,
     partir_condicoes,
     separar_subtitulo,
+    subtitulo_da_versao,
 )
 from .sections import (
     _build_cabecalho,
@@ -32,6 +33,7 @@ from .sections import (
     _build_tabela_investimento_visual,
     _descricoes_incluidas,
     _estilo_subtitulo_proposta,
+    _itens_oportunidade,
     _estilo_titulo_proposta,
     _estilo_titulo_recursos,
     _linhas_implantacao,
@@ -93,7 +95,8 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
 
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
     paragrafos = paragrafos_condicoes(getattr(proposta, "conteudo", ""), proposta.oportunidade)
-    subtitulo, paragrafos = separar_subtitulo(paragrafos)
+    subtitulo_template, paragrafos = separar_subtitulo(paragrafos)
+    subtitulo = subtitulo_da_versao(_itens_oportunidade(proposta.oportunidade)) or subtitulo_template
     intro, secoes = partir_condicoes(paragrafos)
     titulo_banco, linhas_banco, intro, secoes = extrair_pagamento_inicial(intro, secoes)
     if subtitulo:

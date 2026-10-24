@@ -53,6 +53,8 @@ export interface PropostaFormContentProps {
   templates?: Array<{ id: number; nome: string; conteudo: string; is_padrao: boolean }>;
   /** Callback quando seleciona um template */
   onSelecionarTemplate?: (conteudo: string, nomeTemplate?: string) => void;
+  /** Aviso quando a prestadora da proposta ainda não tem template. */
+  templateAusente?: string;
   /** Nome do vendedor logado para preencher automaticamente */
   vendedorNome?: string;
 }
@@ -85,6 +87,7 @@ export default function PropostaFormContent({
   hideActions = false,
   templates = [],
   onSelecionarTemplate,
+  templateAusente = '',
   vendedorNome,
 }: PropostaFormContentProps) {
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }> | undefined>(undefined);
@@ -176,6 +179,7 @@ export default function PropostaFormContent({
       placeholder="Descrição detalhada da proposta..."
       templates={templates}
       onSelecionarTemplate={onSelecionarTemplate}
+      templateAusente={templateAusente}
       onSalvarComoPadrao={onSalvarComoPadrao}
       salvandoPadrao={salvandoPadrao}
       minHeightClass={opts?.minHeightClass}
@@ -367,6 +371,7 @@ export default function PropostaFormContent({
         placeholder="Descrição detalhada da proposta..."
         templates={templates}
         onSelecionarTemplate={onSelecionarTemplate}
+        templateAusente={templateAusente}
         onSalvarComoPadrao={onSalvarComoPadrao}
         salvandoPadrao={salvandoPadrao}
         minHeightClass={usePageStyles ? 'min-h-[200px] lg:min-h-[280px]' : 'min-h-[120px] md:min-h-[180px]'}

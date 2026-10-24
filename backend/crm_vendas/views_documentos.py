@@ -140,6 +140,15 @@ class PropostaTemplateViewSet(CRMSchemaRecoveryMixin, TemplateViewSetMixin, Base
     pagination_class = CRMPagination
     template_model = PropostaTemplate
 
+    def get_queryset(self):
+        qs = super().get_queryset().select_related("prestadora")
+        prestadora = (self.request.query_params.get("prestadora") or "").strip()
+        if not prestadora:
+            return qs
+        if not prestadora.isdigit():
+            return qs.none()
+        return qs.filter(prestadora_id=int(prestadora))
+
 
 class ContratoTemplateViewSet(CRMSchemaRecoveryMixin, TemplateViewSetMixin, BaseModelViewSet):
     queryset = ContratoTemplate.objects.all()

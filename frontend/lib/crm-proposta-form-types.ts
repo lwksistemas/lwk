@@ -63,6 +63,8 @@ export interface CrmPropostaTemplate {
   id: number;
   nome: string;
   conteudo: string;
+  prestadora?: number | null;
+  prestadora_nome?: string | null;
   is_padrao: boolean;
   ativo: boolean;
 }

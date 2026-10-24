@@ -15,6 +15,8 @@ interface Props {
   placeholder?: string;
   templates?: CrmDocumentoTemplateOption[];
   onSelecionarTemplate?: (conteudo: string, nomeTemplate?: string) => void;
+  /** Quando a proposta ainda não pode listar templates da prestadora. */
+  templateAusente?: string;
   onSalvarComoPadrao?: (conteudo: string) => void;
   salvandoPadrao?: boolean;
   salvarPadraoLabel?: string;
@@ -33,6 +35,7 @@ export default function CrmDocumentoConteudoFields({
   placeholder = 'Descrição detalhada do documento...',
   templates = [],
   onSelecionarTemplate,
+  templateAusente = '',
   onSalvarComoPadrao,
   salvandoPadrao = false,
   salvarPadraoLabel = 'Salvar como Proposta PADRAO',
@@ -43,7 +46,12 @@ export default function CrmDocumentoConteudoFields({
   wrapTemplateAndContent = false,
 }: Props) {
   const templateSelect =
-    templates.length > 0 && onSelecionarTemplate ? (
+    onSelecionarTemplate && templates.length === 0 && templateAusente ? (
+      <div className={sectionClassName}>
+        <label className={labelCls}>Usar template</label>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{templateAusente}</p>
+      </div>
+    ) : templates.length > 0 && onSelecionarTemplate ? (
       <div className={sectionClassName}>
         <label className={labelCls}>Usar template</label>
         <select

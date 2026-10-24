@@ -3,14 +3,18 @@ import logging
 from io import BytesIO
 from xml.sax.saxutils import escape
 
+from pathlib import Path
+
 from PIL import Image as PILImage
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.pdfbase.pdfmetrics import stringWidth
-from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase.pdfmetrics import registerFontFamily, stringWidth
+from reportlab.platypus import HRFlowable, Image, Paragraph, Spacer, Table, TableStyle
 
 from core.phone_utils import telefone_exibicao_brasileiro
 
@@ -25,6 +29,14 @@ from .formatters import (
 )
 
 logger = logging.getLogger(__name__)
+
+FONTE = "DejaVu"
+FONTE_NEGRITO = "DejaVu-Bold"
+_pasta_fontes = Path(__file__).resolve().parent / "fonts"
+if FONTE not in pdfmetrics.getRegisteredFontNames():
+    pdfmetrics.registerFont(TTFont(FONTE, str(_pasta_fontes / "DejaVuSans.ttf")))
+    pdfmetrics.registerFont(TTFont(FONTE_NEGRITO, str(_pasta_fontes / "DejaVuSans-Bold.ttf")))
+    registerFontFamily(FONTE, normal=FONTE, bold=FONTE_NEGRITO, italic=FONTE, boldItalic=FONTE_NEGRITO)
 
 
 def nome_item_documento(nome, prestadora_nome="") -> str:
@@ -520,7 +532,7 @@ def _build_faixa_logos(elements, esquerda, direita):
     if not esquerda and not direita:
         return
     altura_max = 1.9 * cm
-    util = A4[0] - 4 * cm
+    util = A4[0] - 3.1 * cm
 
     def montar(conteudo):
         recorte = _recorte_logo(conteudo)
@@ -553,55 +565,69 @@ def _build_faixa_logos(elements, esquerda, direita):
         imagem = img_esquerda or img_direita
         imagem.hAlign = "LEFT" if img_esquerda else "RIGHT"
         elements.append(imagem)
-    elements.append(Spacer(1, 0.28 * cm))
+    elements.append(Spacer(1, 0.15 * cm))
+    elements.append(HRFlowable(width="100%", thickness=0.8, color=COR_PROPOSTA, spaceBefore=1, spaceAfter=8))
 
 
 def _estilo_titulo_proposta():
     return ParagraphStyle(
         "TituloPropostaVisual",
-        fontName="Helvetica-Bold",
-        fontSize=16,
+        fontName=FONTE_NEGRITO,
+        fontSize=20,
         textColor=COR_PROPOSTA,
         alignment=TA_LEFT,
-        leading=19,
+        leading=24,
         spaceBefore=2,
-        spaceAfter=1,
+        spaceAfter=2,
+    )
+
+
+def _estilo_titulo_recursos():
+    return ParagraphStyle(
+        "TituloRecursosVisual",
+        fontName=FONTE_NEGRITO,
+        fontSize=18,
+        textColor=COR_PROPOSTA,
+        alignment=TA_LEFT,
+        leading=22,
+        spaceBefore=2,
+        spaceAfter=8,
     )
 
 
 def _estilo_subtitulo_proposta():
     return ParagraphStyle(
         "SubtituloPropostaVisual",
-        fontName="Helvetica",
-        fontSize=9,
+        fontName=FONTE,
+        fontSize=10,
         textColor=colors.HexColor("#4B5563"),
-        leading=12,
-        spaceBefore=0,
-        spaceAfter=6,
+        leading=13,
+        spaceBefore=4,
+        spaceAfter=8,
     )
 
 
 def _estilo_secao_proposta():
     return ParagraphStyle(
         "SecaoPropostaVisual",
-        fontName="Helvetica-Bold",
-        fontSize=12,
+        fontName=FONTE_NEGRITO,
+        fontSize=11,
         textColor=COR_PROPOSTA,
-        leading=15,
-        spaceBefore=8,
-        spaceAfter=4,
+        leading=14,
+        spaceBefore=14,
+        spaceAfter=6,
     )
 
 
 def _estilo_corpo_proposta():
     return ParagraphStyle(
         "CorpoPropostaVisual",
-        fontName="Helvetica",
+        fontName=FONTE,
         fontSize=9,
         textColor=COR_TEXTO,
-        leading=12,
+        leading=13,
         spaceBefore=0,
-        spaceAfter=1,
+        spaceAfter=0,
     )
 
 
@@ -674,7 +700,7 @@ def _build_identificacao_visual(elements, loja_data, lead):
             elements.append(linha)
     if lead is None:
         return
-    elements.append(Spacer(1, 0.18 * cm))
+    elements.append(Spacer(1, 0.22 * cm))
     cliente = []
     cliente.append(_linha_cadastro("Cliente", _texto_cadastro(getattr(lead, "nome", "")), style))
     doc_cliente = _texto_cadastro(getattr(lead, "cpf_cnpj", ""))
@@ -719,14 +745,14 @@ def _build_tabela_investimento_visual(elements, oportunidade):
     cabecalho = "Serviço  •  quantidade: 1 por item" if todos_um else "Serviço"
     header_style = ParagraphStyle(
         "HeadInvestimento",
-        fontName="Helvetica-Bold",
+        fontName=FONTE_NEGRITO,
         fontSize=8,
         textColor=colors.white,
         leading=10,
     )
-    nome_style = ParagraphStyle("NomeInvestimento", fontName="Helvetica", fontSize=8, leading=10, textColor=COR_TEXTO)
-    celula = ParagraphStyle("CelulaInvestimento", fontName="Helvetica", fontSize=8, leading=10, textColor=COR_TEXTO, alignment=TA_CENTER)
-    valor_style = ParagraphStyle("ValorInvestimento", fontName="Helvetica", fontSize=8, leading=10, textColor=COR_TEXTO, alignment=TA_RIGHT)
+    nome_style = ParagraphStyle("NomeInvestimento", fontName=FONTE, fontSize=8, leading=10, textColor=COR_TEXTO)
+    celula = ParagraphStyle("CelulaInvestimento", fontName=FONTE, fontSize=8, leading=10, textColor=COR_TEXTO, alignment=TA_CENTER)
+    valor_style = ParagraphStyle("ValorInvestimento", fontName=FONTE, fontSize=8, leading=10, textColor=COR_TEXTO, alignment=TA_RIGHT)
     table_data = [[
         Paragraph(escape(cabecalho), header_style),
         Paragraph("Cobrança", header_style),
@@ -754,7 +780,7 @@ def _build_tabela_investimento_visual(elements, oportunidade):
             Paragraph(rotulos.get(recorrencia, recorrencia), celula),
             Paragraph(_formatar_valor(subtotal), valor_style),
         ])
-    largura = A4[0] - 4 * cm
+    largura = A4[0] - 3.1 * cm
     tabela = Table(table_data, colWidths=[largura - 6.4 * cm, 3.2 * cm, 3.2 * cm])
     tabela.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), COR_PROPOSTA),
@@ -764,8 +790,8 @@ def _build_tabela_investimento_visual(elements, oportunidade):
         ("ALIGN", (1, 1), (1, -1), "CENTER"),
         ("ALIGN", (2, 1), (2, -1), "RIGHT"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
         ("RIGHTPADDING", (0, 0), (-1, -1), 8),
     ]))
@@ -821,27 +847,41 @@ def _build_resumo_visual(elements, documento, totais):
     blocos = texto_resumo_visual(linhas, frase)
     if not blocos:
         return
-    elements.append(Spacer(1, 0.28 * cm))
+    elements.append(Spacer(1, 0.35 * cm))
     forte = ParagraphStyle(
         "ResumoForte",
-        fontName="Helvetica-Bold",
-        fontSize=11,
+        fontName=FONTE_NEGRITO,
+        fontSize=15,
         textColor=COR_PROPOSTA,
-        leading=14,
-        spaceBefore=3,
+        leading=18,
+        spaceBefore=2,
+        spaceAfter=1,
+    )
+    seguinte = ParagraphStyle(
+        "ResumoSeguinte",
+        fontName=FONTE_NEGRITO,
+        fontSize=12,
+        textColor=COR_PROPOSTA,
+        leading=15,
+        spaceBefore=4,
         spaceAfter=1,
     )
     nota = ParagraphStyle(
         "ResumoNota",
-        fontName="Helvetica",
+        fontName=FONTE,
         fontSize=9,
         textColor=COR_TEXTO,
-        leading=12,
+        leading=13,
         spaceBefore=1,
         spaceAfter=1,
     )
+    primeiro_negrito = True
     for texto, negrito in blocos:
-        elements.append(Paragraph(escape(texto), forte if negrito else nota))
+        if not negrito:
+            elements.append(Paragraph(escape(texto), nota))
+            continue
+        elements.append(Paragraph(escape(texto), forte if primeiro_negrito else seguinte))
+        primeiro_negrito = False
 
 
 def _build_pagamento_inicial_visual(elements, titulo, linhas):
@@ -851,12 +891,12 @@ def _build_pagamento_inicial_visual(elements, titulo, linhas):
     elements.append(Spacer(1, 0.22 * cm))
     elements.append(Paragraph(f"<b>{escape(titulo or 'Dados para o pagamento inicial')}</b>", ParagraphStyle(
         "TituloPagamentoInicial",
-        fontName="Helvetica-Bold",
+        fontName=FONTE,
         fontSize=11,
         textColor=COR_PROPOSTA,
         leading=14,
-        spaceBefore=4,
-        spaceAfter=3,
+        spaceBefore=10,
+        spaceAfter=4,
     )))
     corpo = _estilo_corpo_proposta()
     for linha in linhas:
@@ -913,9 +953,21 @@ def _sem_acento(texto: str) -> str:
     return "".join(letra for letra in base if unicodedata.category(letra) != "Mn")
 
 
+def _estilo_paragrafo_proposta():
+    return ParagraphStyle(
+        "ParagrafoPropostaVisual",
+        fontName=FONTE,
+        fontSize=9,
+        textColor=COR_TEXTO,
+        leading=13,
+        spaceBefore=1,
+        spaceAfter=6,
+    )
+
+
 def _build_recursos_visuais(elements, oportunidade, intro, secoes):
     """Segunda folha: o que está incluído e as seções escritas no template."""
-    corpo = _estilo_corpo_proposta()
+    corpo = _estilo_paragrafo_proposta()
     numero = 3
     incluidos = _descricoes_incluidas(oportunidade)
     extras = [p for p in intro if p]
@@ -949,9 +1001,29 @@ def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir
     """Adiciona seção Assinaturas com dados digitais."""
     from reportlab.lib.units import cm
     from reportlab.platypus import Spacer
-    elements.append(Spacer(1, 0.2 * cm))
-    section = ParagraphStyle("SecAssin", parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
-    elements.append(Paragraph("<b>Assinaturas</b>", section))
+    elements.append(Spacer(1, 0.35 * cm))
+    if tipo_doc == "proposta":
+        style = ParagraphStyle(
+            "AssinaturaProposta",
+            fontName=FONTE,
+            fontSize=9,
+            leading=12,
+            textColor=COR_TEXTO,
+        )
+        section = ParagraphStyle(
+            "SecAssinProposta",
+            fontName=FONTE_NEGRITO,
+            fontSize=12,
+            textColor=COR_PROPOSTA,
+            leading=15,
+            spaceBefore=4,
+            spaceAfter=6,
+        )
+        coluna = (A4[0] - 3.1 * cm) / 2
+    else:
+        section = ParagraphStyle("SecAssin", parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
+        coluna = 8 * cm
+    elements.append(Paragraph("Assinaturas", section))
 
     nome_vendedor = getattr(documento, "nome_vendedor_assinatura", None) or ""
     nome_cliente = getattr(documento, "nome_cliente_assinatura", None) or ""
@@ -1001,7 +1073,7 @@ def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir
         c_text = Paragraph(cliente_info[i], style) if i < len(cliente_info) else ""
         assinatura_data.append([v_text, c_text])
 
-    t = Table(assinatura_data, colWidths=[8 * cm, 8 * cm])
+    t = Table(assinatura_data, colWidths=[coluna, coluna])
     t.setStyle(TableStyle([
         ("ALIGN", (0, 0), (-1, -1), "LEFT"),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),

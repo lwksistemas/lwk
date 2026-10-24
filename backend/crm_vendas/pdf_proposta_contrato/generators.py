@@ -33,6 +33,7 @@ from .sections import (
     _descricoes_incluidas,
     _estilo_subtitulo_proposta,
     _estilo_titulo_proposta,
+    _estilo_titulo_recursos,
     _linhas_implantacao,
     _par_logos,
 )
@@ -78,7 +79,7 @@ def _completar_logos(loja_data, loja_id):
 def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     """Gera PDF da proposta comercial."""
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.2 * cm, bottomMargin=0.5 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=1.15 * cm, bottomMargin=1.2 * cm, leftMargin=1.55 * cm, rightMargin=1.55 * cm)
     elements = []
     styles = getSampleStyleSheet()
     compact = ParagraphStyle("Compact", parent=styles["Normal"], fontSize=9, spaceBefore=0, spaceAfter=1, leading=11)
@@ -112,7 +113,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     if tem_recursos:
         elements.append(PageBreak())
         _build_faixa_logos(elements, *logos)
-        elements.append(Paragraph("RECURSOS E CONDIÇÕES", _estilo_titulo_proposta()))
+        elements.append(Paragraph("RECURSOS E CONDIÇÕES", _estilo_titulo_recursos()))
         _build_recursos_visuais(elements, proposta.oportunidade, intro, secoes)
 
     vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, "vendedor", None) else None
@@ -121,7 +122,15 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         ass_v, ass_c = _build_secao_assinaturas(elements, proposta, lead, vendedor, compact, True, "proposta")
 
     wm_data = _build_watermark_callback(logo_url, ass_v, ass_c)
-    _inserir_watermark_flowable(elements, wm_data, max_wm_w_cm=7.5, max_wm_h_cm=5, y_factor=0.8)
+    coluna_assinatura = ((A4[0] - 3.1 * cm) / 2) / cm
+    _inserir_watermark_flowable(
+        elements,
+        wm_data,
+        cell_width_cm=coluna_assinatura,
+        max_wm_w_cm=6.2,
+        max_wm_h_cm=3.2,
+        y_factor=0.85,
+    )
 
     doc.build(elements)
     buffer.seek(0)

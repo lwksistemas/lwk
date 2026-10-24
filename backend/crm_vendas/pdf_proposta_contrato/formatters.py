@@ -168,6 +168,132 @@ def linhas_resumo_investimento(
     return linhas, " ".join(frases)
 
 
+def texto_resumo_visual(linhas, frase) -> list[tuple[str, bool]]:
+    """Ordem da proposta: pagamento inicial, o que ele inclui, cobranças seguintes e a taxa única."""
+    inclui = ""
+    taxas = ""
+    for parte in re.split(r"(?<=\.)\s+", frase or ""):
+        texto = parte.strip()
+        if not texto:
+            continue
+        if texto.lower().startswith("inclui"):
+            inclui = texto
+        else:
+            taxas = texto
+    blocos = []
+    seguintes = []
+    extras = []
+    for indice, (rotulo, valor) in enumerate(linhas):
+        texto = f"{rotulo} {valor}".strip()
+        if indice == 0:
+            blocos.append((texto, True))
+        elif rotulo.startswith("Desconto") or rotulo.startswith("Valor com"):
+            extras.append((texto, True))
+        else:
+            if not texto.endswith("."):
+                texto += "."
+            seguintes.append((texto, True))
+    if inclui:
+        blocos.append((inclui, False))
+    blocos.extend(seguintes)
+    if taxas:
+        blocos.append((taxas, False))
+    blocos.extend(extras)
+    return blocos
+
+
+def titulo_de_bloco(bloco) -> str:
+    """Linha curta do template vira título de seção. O resto continua parágrafo."""
+    if not isinstance(bloco, str):
+        return ""
+    bruto = bloco.strip()
+    if bruto.startswith("# "):
+        return bruto[2:].strip()
+    if not bruto or len(bruto) > 60 or len(bruto.split()) > 8:
+        return ""
+    if any(marca in bruto for marca in ".:;•"):
+        return ""
+    return bruto
+
+
+def partir_condicoes(paragrafos) -> tuple[list[str], list[dict]]:
+    """Separa o texto livre das seções. Um título é linha curta ou começa com '# '."""
+    intro = []
+    secoes = []
+    atual = None
+    for bloco in paragrafos or []:
+        if bloco == "":
+            destino = intro if atual is None else atual["paragrafos"]
+            destino.append(bloco)
+            continue
+        titulo = titulo_de_bloco(bloco)
+        if titulo:
+            atual = {"titulo": titulo, "paragrafos": []}
+            secoes.append(atual)
+            continue
+        if atual is None:
+            intro.append(bloco)
+        else:
+            atual["paragrafos"].append(bloco)
+    return intro, secoes
+
+
+def separar_subtitulo(paragrafos) -> tuple[str, list]:
+    """A primeira linha curta, sem pontuação de frase, é o subtítulo da proposta."""
+    blocos = list(paragrafos or [])
+    if not blocos:
+        return "", blocos
+    primeiro = (blocos[0] or "").strip()
+    if (
+        primeiro
+        and len(primeiro) <= 90
+        and not any(marca in primeiro for marca in ".:;")
+        and not titulo_de_bloco(primeiro)
+    ):
+        return primeiro, blocos[1:]
+    return "", blocos
+
+
+def eh_dados_pagamento(titulo: str) -> bool:
+    texto = " ".join((titulo or "").replace("#", "").split()).lower()
+    return "dados" in texto and "pagamento" in texto
+
+
+def extrair_pagamento_inicial(intro, secoes) -> tuple[str, list[str], list, list]:
+    """Os dados bancários saem do template e vão para a primeira folha."""
+    pagamento = []
+    titulo = ""
+    novas = []
+    for secao in secoes:
+        if eh_dados_pagamento(secao["titulo"]) and not titulo:
+            titulo = secao["titulo"].strip()
+            pagamento = [p for p in secao["paragrafos"] if p]
+        else:
+            novas.append(secao)
+    if titulo:
+        return titulo, pagamento, list(intro), novas
+    novo_intro = []
+    capturando = False
+    for bloco in intro:
+        if not capturando and eh_dados_pagamento(bloco):
+            capturando = True
+            titulo = bloco.strip()
+            continue
+        if capturando:
+            if bloco == "":
+                if pagamento:
+                    capturando = False
+                continue
+            if titulo_de_bloco(bloco):
+                capturando = False
+                novo_intro.append(bloco)
+                continue
+            pagamento.append(bloco)
+            continue
+        novo_intro.append(bloco)
+    return titulo, pagamento, novo_intro, novas
+
+
 def paragrafos_condicoes(conteudo, oportunidade) -> list[str]:
     """Texto do template, sem a descrição dos serviços. Essa descrição tem seção própria."""
     bruto = (conteudo or "").strip()

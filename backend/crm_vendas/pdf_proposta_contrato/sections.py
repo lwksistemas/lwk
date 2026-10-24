@@ -5,7 +5,7 @@ from xml.sax.saxutils import escape
 
 from PIL import Image as PILImage
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
@@ -498,6 +498,451 @@ def _build_secao_conteudo(elements, conteudo, style):
             elements.append(Spacer(1, 0.2 * cm))
         else:
             elements.append(Paragraph(escape(p), conteudo_style))
+
+
+COR_PROPOSTA = colors.HexColor("#1B365D")
+COR_TEXTO = colors.HexColor("#1F2937")
+COR_FAIXA = colors.HexColor("#F4F7FB")
+
+
+def _par_logos(url_esquerda, url_direita):
+    """Baixa cada logo uma vez. A segunda folha reutiliza os mesmos arquivos."""
+    esquerda = baixar_logo_pdf(url_esquerda) if url_esquerda else None
+    direita_url = (url_direita or "").strip()
+    if direita_url and direita_url == (url_esquerda or "").strip():
+        direita_url = ""
+    direita = baixar_logo_pdf(direita_url) if direita_url else None
+    return esquerda, direita
+
+
+def _build_faixa_logos(elements, esquerda, direita):
+    """Logos nas laterais, sem título no meio."""
+    if not esquerda and not direita:
+        return
+    altura_max = 1.55 * cm
+    util = A4[0] - 4 * cm
+
+    def montar(conteudo):
+        recorte = _recorte_logo(conteudo)
+        largura_px, altura_px = PILImage.open(BytesIO(recorte)).size
+        if not largura_px or not altura_px:
+            return None
+        proporcao = largura_px / float(altura_px)
+        largura = min(altura_max * proporcao, util * 0.46)
+        return Image(BytesIO(recorte), width=largura, height=largura / proporcao)
+
+    img_esquerda = montar(esquerda) if esquerda else None
+    img_direita = montar(direita) if direita else None
+    if img_esquerda and img_direita:
+        meio = max(util - img_esquerda.drawWidth - img_direita.drawWidth, 0.3 * cm)
+        tabela = Table(
+            [[img_esquerda, "", img_direita]],
+            colWidths=[img_esquerda.drawWidth, meio, img_direita.drawWidth],
+        )
+        tabela.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (0, 0), (0, 0), "LEFT"),
+            ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(tabela)
+    else:
+        imagem = img_esquerda or img_direita
+        imagem.hAlign = "LEFT" if img_esquerda else "RIGHT"
+        elements.append(imagem)
+    elements.append(Spacer(1, 0.28 * cm))
+
+
+def _estilo_titulo_proposta():
+    return ParagraphStyle(
+        "TituloPropostaVisual",
+        fontName="Helvetica-Bold",
+        fontSize=16,
+        textColor=COR_PROPOSTA,
+        alignment=TA_LEFT,
+        leading=19,
+        spaceBefore=2,
+        spaceAfter=1,
+    )
+
+
+def _estilo_subtitulo_proposta():
+    return ParagraphStyle(
+        "SubtituloPropostaVisual",
+        fontName="Helvetica",
+        fontSize=9,
+        textColor=colors.HexColor("#4B5563"),
+        leading=12,
+        spaceBefore=0,
+        spaceAfter=6,
+    )
+
+
+def _estilo_secao_proposta():
+    return ParagraphStyle(
+        "SecaoPropostaVisual",
+        fontName="Helvetica-Bold",
+        fontSize=12,
+        textColor=COR_PROPOSTA,
+        leading=15,
+        spaceBefore=8,
+        spaceAfter=4,
+    )
+
+
+def _estilo_corpo_proposta():
+    return ParagraphStyle(
+        "CorpoPropostaVisual",
+        fontName="Helvetica",
+        fontSize=9,
+        textColor=COR_TEXTO,
+        leading=12,
+        spaceBefore=0,
+        spaceAfter=1,
+    )
+
+
+def _titulo_numerado(elements, numero, titulo):
+    elements.append(Paragraph(f"{numero:02d}  {escape(titulo)}", _estilo_secao_proposta()))
+
+
+def _markup_linha(texto: str) -> str:
+    bruto = " ".join((texto or "").split())
+    if not bruto:
+        return ""
+    if bruto.lower().startswith("banco ") or "agência" in bruto.lower() or "agencia" in bruto.lower():
+        return f"<b>{escape(bruto)}</b>"
+    if ":" in bruto and "•" not in bruto.split(":", 1)[0]:
+        lead, resto = bruto.split(":", 1)
+        if 0 < len(lead) <= 80:
+            return f"<b>{escape(lead)}:</b> {escape(resto.strip())}"
+    return escape(bruto)
+
+
+def _linha_cadastro(rotulo, valor, style):
+    texto = " ".join(str(valor or "").split())
+    if not texto or texto == "—":
+        return None
+    return Paragraph(f"<b>{escape(rotulo)}:</b> {escape(texto)}", style)
+
+
+def _endereco_proposta(lead) -> str:
+    texto = _formatar_endereco_lead(lead).replace("nº ", "")
+    return "" if texto == "—" else texto
+
+
+def _texto_cadastro(valor) -> str:
+    return valor.strip() if isinstance(valor, str) else ""
+
+
+def _rotulo_documento(valor) -> str:
+    import re
+    digits = re.sub(r"\D", "", _texto_cadastro(valor))
+    if len(digits) == 11:
+        return "CPF"
+    if len(digits) == 14:
+        return "CNPJ"
+    return "CPF/CNPJ"
+
+
+def _build_identificacao_visual(elements, loja_data, lead):
+    """Proponente e cliente em linhas curtas, com os dados do cadastro."""
+    style = _estilo_corpo_proposta()
+    _titulo_numerado(elements, 1, "Identificação")
+    loja_data = loja_data or {}
+    linhas = []
+    if loja_data.get("nome"):
+        linhas.append(_linha_cadastro("Proponente", loja_data.get("nome"), style))
+    documento = loja_data.get("cpf_cnpj") or ""
+    linhas.append(_linha_cadastro(_rotulo_documento(documento), documento, style))
+    linhas.append(_linha_cadastro("Endereço", loja_data.get("endereco"), style))
+    responsavel = _texto_cadastro(loja_data.get("admin_nome"))
+    telefone = _texto_cadastro(loja_data.get("telefone"))
+    if telefone:
+        telefone = telefone_exibicao_brasileiro(telefone) or telefone
+    if responsavel and telefone:
+        linhas.append(_linha_cadastro("Responsável", f"{responsavel} • {telefone}", style))
+    else:
+        linhas.append(_linha_cadastro("Responsável", responsavel, style))
+        linhas.append(_linha_cadastro("Telefone", telefone, style))
+    linhas.append(_linha_cadastro("E-mail", loja_data.get("admin_email"), style))
+    for linha in linhas:
+        if linha is not None:
+            elements.append(linha)
+    if lead is None:
+        return
+    elements.append(Spacer(1, 0.18 * cm))
+    cliente = []
+    cliente.append(_linha_cadastro("Cliente", _texto_cadastro(getattr(lead, "nome", "")), style))
+    doc_cliente = _texto_cadastro(getattr(lead, "cpf_cnpj", ""))
+    cliente.append(_linha_cadastro(_rotulo_documento(doc_cliente), doc_cliente, style))
+    cliente.append(_linha_cadastro("Endereço", _endereco_proposta(lead), style))
+    tel_cliente = _texto_cadastro(getattr(lead, "telefone", ""))
+    if tel_cliente:
+        tel_cliente = telefone_exibicao_brasileiro(tel_cliente) or tel_cliente
+    email_cliente = _texto_cadastro(getattr(lead, "email", ""))
+    if tel_cliente and email_cliente:
+        cliente.append(_linha_cadastro("Contato", f"{tel_cliente} • {email_cliente}", style))
+    elif tel_cliente:
+        cliente.append(_linha_cadastro("Contato", tel_cliente, style))
+    else:
+        cliente.append(_linha_cadastro("E-mail", email_cliente, style))
+    for linha in cliente:
+        if linha is not None:
+            elements.append(linha)
+
+
+def _itens_oportunidade(oportunidade):
+    if oportunidade is None:
+        return []
+    relacao = getattr(oportunidade, "itens", None)
+    if relacao is None:
+        return []
+    if hasattr(relacao, "select_related"):
+        return list(relacao.select_related("produto_servico").all())
+    return list(relacao)
+
+
+def _build_tabela_investimento_visual(elements, oportunidade):
+    """Tabela Serviço, Cobrança e Valor. A quantidade 1 fica no cabeçalho."""
+    _titulo_numerado(elements, 2, "Investimento")
+    itens = _itens_oportunidade(oportunidade)
+    if not itens:
+        elements.append(Paragraph("Nenhum item cadastrado.", _estilo_corpo_proposta()))
+        return 0, 0, 0, 0, 0
+    prestadora = getattr(oportunidade, "empresa_prestadora", None)
+    marca = getattr(prestadora, "nome", "") if prestadora is not None else ""
+    todos_um = all(_quantidade_e_um(getattr(item, "quantidade", 1)) for item in itens)
+    cabecalho = "Serviço  •  quantidade: 1 por item" if todos_um else "Serviço"
+    header_style = ParagraphStyle(
+        "HeadInvestimento",
+        fontName="Helvetica-Bold",
+        fontSize=8,
+        textColor=colors.white,
+        leading=10,
+    )
+    nome_style = ParagraphStyle("NomeInvestimento", fontName="Helvetica", fontSize=8, leading=10, textColor=COR_TEXTO)
+    celula = ParagraphStyle("CelulaInvestimento", fontName="Helvetica", fontSize=8, leading=10, textColor=COR_TEXTO, alignment=TA_CENTER)
+    valor_style = ParagraphStyle("ValorInvestimento", fontName="Helvetica", fontSize=8, leading=10, textColor=COR_TEXTO, alignment=TA_RIGHT)
+    table_data = [[
+        Paragraph(escape(cabecalho), header_style),
+        Paragraph("Cobrança", header_style),
+        Paragraph("Valor", header_style),
+    ]]
+    totais = {"unico": 0, "mensal": 0, "trimestral": 0, "semestral": 0, "anual": 0}
+    rotulos = {
+        "unico": "Única",
+        "mensal": "Mensal",
+        "trimestral": "Trimestral",
+        "semestral": "Semestral",
+        "anual": "Anual",
+    }
+    for item in itens:
+        produto = getattr(item, "produto_servico", None)
+        nome = nome_item_documento(getattr(produto, "nome", ""), marca)
+        quantidade = getattr(item, "quantidade", 1)
+        if not _quantidade_e_um(quantidade):
+            nome = f"{nome}  •  {_quantidade_texto(quantidade)}"
+        recorrencia = getattr(produto, "recorrencia", "unico") or "unico"
+        subtotal = _subtotal_item(item)
+        totais[recorrencia] = totais.get(recorrencia, 0) + subtotal
+        table_data.append([
+            Paragraph(escape(nome), nome_style),
+            Paragraph(rotulos.get(recorrencia, recorrencia), celula),
+            Paragraph(_formatar_valor(subtotal), valor_style),
+        ])
+    largura = A4[0] - 4 * cm
+    tabela = Table(table_data, colWidths=[largura - 6.4 * cm, 3.2 * cm, 3.2 * cm])
+    tabela.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), COR_PROPOSTA),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, COR_FAIXA]),
+        ("ALIGN", (1, 1), (1, -1), "CENTER"),
+        ("ALIGN", (2, 1), (2, -1), "RIGHT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    tabela.hAlign = "LEFT"
+    elements.append(tabela)
+    return totais["unico"], totais["mensal"], totais["trimestral"], totais["semestral"], totais["anual"]
+
+
+def _quantidade_e_um(quantidade) -> bool:
+    if quantidade is None:
+        return True
+    try:
+        return float(quantidade) == 1
+    except (TypeError, ValueError):
+        return False
+
+
+def _quantidade_texto(quantidade) -> str:
+    try:
+        numero = float(quantidade)
+    except (TypeError, ValueError):
+        return str(quantidade)
+    if numero.is_integer():
+        return str(int(numero))
+    return str(quantidade)
+
+
+def _subtotal_item(item) -> float:
+    quantidade = getattr(item, "quantidade", 0) or 0
+    preco = getattr(item, "preco_unitario", 0) or 0
+    try:
+        return float(quantidade) * float(preco)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _build_resumo_visual(elements, documento, totais):
+    """Pagamento inicial, o que ele inclui e as cobranças seguintes, em linhas."""
+    from .formatters import linhas_resumo_investimento, texto_resumo_visual
+
+    unico, mensal, trimestral, semestral, anual = totais
+    linhas, frase = linhas_resumo_investimento(
+        unico=unico,
+        mensal=mensal,
+        trimestral=trimestral,
+        semestral=semestral,
+        anual=anual,
+        valor_total=getattr(documento, "valor_total", None),
+        desconto_valor=getattr(documento, "desconto_valor", None) or 0,
+        desconto_tipo=getattr(documento, "desconto_tipo", "percentual") or "percentual",
+        valor_com_desconto=getattr(documento, "valor_com_desconto", None),
+    )
+    blocos = texto_resumo_visual(linhas, frase)
+    if not blocos:
+        return
+    elements.append(Spacer(1, 0.28 * cm))
+    forte = ParagraphStyle(
+        "ResumoForte",
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        textColor=COR_PROPOSTA,
+        leading=14,
+        spaceBefore=3,
+        spaceAfter=1,
+    )
+    nota = ParagraphStyle(
+        "ResumoNota",
+        fontName="Helvetica",
+        fontSize=9,
+        textColor=COR_TEXTO,
+        leading=12,
+        spaceBefore=1,
+        spaceAfter=1,
+    )
+    for texto, negrito in blocos:
+        elements.append(Paragraph(escape(texto), forte if negrito else nota))
+
+
+def _build_pagamento_inicial_visual(elements, titulo, linhas):
+    """Bloco bancário escrito no template, na primeira folha."""
+    if not titulo and not linhas:
+        return
+    elements.append(Spacer(1, 0.22 * cm))
+    elements.append(Paragraph(f"<b>{escape(titulo or 'Dados para o pagamento inicial')}</b>", ParagraphStyle(
+        "TituloPagamentoInicial",
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        textColor=COR_PROPOSTA,
+        leading=14,
+        spaceBefore=4,
+        spaceAfter=3,
+    )))
+    corpo = _estilo_corpo_proposta()
+    for linha in linhas:
+        markup = _markup_linha(linha)
+        if markup:
+            elements.append(Paragraph(markup, corpo))
+
+
+def _descricoes_incluidas(oportunidade):
+    from .formatters import descricao_util_na_proposta
+
+    vistos = set()
+    blocos = []
+    prestadora = getattr(oportunidade, "empresa_prestadora", None) if oportunidade is not None else None
+    marca = getattr(prestadora, "nome", "") if prestadora is not None else ""
+    for item in _itens_oportunidade(oportunidade):
+        produto = getattr(item, "produto_servico", None)
+        recorrencia = getattr(produto, "recorrencia", "unico") or "unico"
+        if recorrencia == "unico":
+            continue
+        texto = " ".join((getattr(produto, "descricao", None) or "").split())
+        if not descricao_util_na_proposta(texto) or texto in vistos:
+            continue
+        vistos.add(texto)
+        nome = nome_item_documento(getattr(produto, "nome", ""), marca)
+        blocos.append((nome, texto))
+    return blocos
+
+
+def _linhas_implantacao(oportunidade):
+    from .formatters import descricao_util_na_proposta
+
+    prestadora = getattr(oportunidade, "empresa_prestadora", None) if oportunidade is not None else None
+    marca = getattr(prestadora, "nome", "") if prestadora is not None else ""
+    linhas = []
+    for item in _itens_oportunidade(oportunidade):
+        produto = getattr(item, "produto_servico", None)
+        recorrencia = getattr(produto, "recorrencia", "unico") or "unico"
+        if recorrencia != "unico":
+            continue
+        nome = nome_item_documento(getattr(produto, "nome", ""), marca)
+        valor = _formatar_valor(_subtotal_item(item))
+        texto = " ".join((getattr(produto, "descricao", None) or "").split())
+        if descricao_util_na_proposta(texto):
+            linhas.append(f"{nome} — {valor}: {texto}")
+        else:
+            linhas.append(f"{nome} — {valor}")
+    return linhas
+
+
+def _sem_acento(texto: str) -> str:
+    import unicodedata
+    base = unicodedata.normalize("NFD", (texto or "").lower())
+    return "".join(letra for letra in base if unicodedata.category(letra) != "Mn")
+
+
+def _build_recursos_visuais(elements, oportunidade, intro, secoes):
+    """Segunda folha: o que está incluído e as seções escritas no template."""
+    corpo = _estilo_corpo_proposta()
+    numero = 3
+    incluidos = _descricoes_incluidas(oportunidade)
+    extras = [p for p in intro if p]
+    if incluidos or extras:
+        _titulo_numerado(elements, numero, "O que está incluído")
+        numero += 1
+        for nome, texto in incluidos:
+            if ":" in texto:
+                elements.append(Paragraph(_markup_linha(texto), corpo))
+            else:
+                elements.append(Paragraph(f"<b>{escape(nome)}:</b> {escape(texto)}", corpo))
+        for texto in extras:
+            elements.append(Paragraph(_markup_linha(texto), corpo))
+    implantacao = _linhas_implantacao(oportunidade)
+    if implantacao and not any("implant" in _sem_acento(secao["titulo"]) for secao in secoes):
+        secoes = list(secoes) + [{"titulo": "Implantação e liberação", "paragrafos": []}]
+    for secao in secoes:
+        _titulo_numerado(elements, numero, secao["titulo"])
+        numero += 1
+        paragrafos = list(secao["paragrafos"])
+        if "implant" in _sem_acento(secao["titulo"]):
+            paragrafos = implantacao + paragrafos
+        for paragrafo in paragrafos:
+            if paragrafo == "":
+                elements.append(Spacer(1, 0.12 * cm))
+                continue
+            elements.append(Paragraph(_markup_linha(paragrafo), corpo))
 
 
 def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir_assinaturas=True, tipo_doc="proposta"):

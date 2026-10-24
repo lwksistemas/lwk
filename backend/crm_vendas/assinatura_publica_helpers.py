@@ -104,6 +104,30 @@ def calcular_valor_por_recorrencia(oportunidade, recorrencia_tipo: str) -> float
         return 0
 
 
+def confirmacao_crm_ja_assinado(assinatura) -> dict:
+    """Dados da tela quando o cliente abre de novo o link já usado."""
+    from core.assinatura_confirmacao import confirmacao_assinatura
+
+    proposta_id = getattr(assinatura, "proposta_id", None)
+    if proposta_id or (not getattr(assinatura, "contrato_id", None) and getattr(assinatura, "proposta", None)):
+        rotulo, tipo = "Proposta", "proposta"
+    else:
+        rotulo, tipo = "Contrato", "contrato"
+    nome = getattr(assinatura, "nome_assinante", "") or ""
+    quando = getattr(assinatura, "assinado_em", None)
+    if getattr(assinatura, "tipo", "") != "cliente":
+        documento = getattr(assinatura, "proposta", None) or getattr(assinatura, "contrato", None)
+        relacao = getattr(documento, "assinaturas", None) if documento is not None else None
+        if relacao is not None and hasattr(relacao, "filter"):
+            cliente = (
+                relacao.filter(tipo="cliente", assinado=True).order_by("-assinado_em").first()
+            )
+            if cliente is not None:
+                nome = getattr(cliente, "nome_assinante", "") or nome
+                quando = getattr(cliente, "assinado_em", None) or quando
+    return confirmacao_assinatura(rotulo, nome, quando, tipo_documento=tipo)
+
+
 def montar_json_documento_assinatura(assinatura, documento, meta: dict | None = None) -> dict:
     """Payload GET /assinar/{token}/."""
     meta = meta or {}

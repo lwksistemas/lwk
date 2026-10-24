@@ -20,6 +20,19 @@ from .consentimento_assinatura_publica_service import (
 from .consentimento_service import limpar_conteudo_termo_exibicao
 
 
+def _resposta_ja_assinado(assinatura, rotulo, tipo_documento):
+    from core.assinatura_confirmacao import confirmacao_assinatura
+
+    return JsonResponse(
+        confirmacao_assinatura(
+            rotulo,
+            getattr(assinatura, "nome_assinante", "") or "",
+            getattr(assinatura, "assinado_em", None),
+            tipo_documento=tipo_documento,
+        )
+    )
+
+
 def _rate_limit_assinatura_publica(request):
     from .throttles import check_rate_limit
 
@@ -48,7 +61,7 @@ def _carregar_assinatura_publica(token):
     if ass_err or not assinatura:
         return None, JsonResponse({"error": ass_err or "Link inválido."}, status=400)
     if assinatura.assinado:
-        return None, JsonResponse({"error": "Este documento já foi assinado."}, status=400)
+        return None, _resposta_ja_assinado(assinatura, "Termo", "termo_consentimento")
     if assinatura.is_expirado:
         return None, JsonResponse(
             {"error": "Este link não vale mais: a consulta já foi finalizada."},

@@ -24,7 +24,7 @@ _configurar_tenant_para_assinatura_publica = configurar_tenant_para_assinatura_p
 _rate_limit = assinatura_publica_rate_limit
 
 
-def _preparar_contexto_token(request, token, log_prefix: str):
+def _preparar_contexto_token(request, token, log_prefix: str, *, confirmar_ja_assinado: bool = False):
     from .assinatura_digital_service import normalizar_token_assinatura_url, verificar_token_assinatura
 
     token = normalizar_token_assinatura_url(token)
@@ -50,6 +50,10 @@ def _preparar_contexto_token(request, token, log_prefix: str):
             payload.get("doc_id"),
             erro,
         )
+        if confirmar_ja_assinado and meta.get("error_code") == "ja_assinado" and meta.get("assinatura") is not None:
+            from .assinatura_publica_helpers import confirmacao_crm_ja_assinado
+
+            return None, JsonResponse(confirmacao_crm_ja_assinado(meta["assinatura"]))
         return None, JsonResponse({"error": erro, "error_code": meta.get("error_code", "invalido")}, status=400)
 
     return (assinatura, payload, meta), None
@@ -64,7 +68,7 @@ class AssinaturaPublicaView(View):
     @assinatura_publica_rate_limit("assinatura_get", max_requests=30, window=60)
     def get(self, request, token):
         logger.info("Recebendo requisição de assinatura: token_tamanho=%s", len(token))
-        ctx, err = _preparar_contexto_token(request, token, "AssinaturaPublica GET")
+        ctx, err = _preparar_contexto_token(request, token, "AssinaturaPublica GET", confirmar_ja_assinado=True)
         if err:
             return err
 

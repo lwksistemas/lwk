@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPrimaryApiBaseUrl } from "@/lib/api-base";
+import type { ConfirmacaoAssinatura } from "@/components/assinatura/DocumentoJaAssinado";
 
 export interface ReciboProcedimentoAssinatura {
   nome: string;
@@ -34,6 +35,7 @@ export function useAssinarRecibo(tokenRaw: string) {
   const [loading, setLoading] = useState(true);
   const [recibo, setRecibo] = useState<ReciboAssinaturaData | null>(null);
   const [erro, setErro] = useState("");
+  const [jaAssinado, setJaAssinado] = useState<ConfirmacaoAssinatura | null>(null);
   const [assinando, setAssinando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [baixandoPdf, setBaixandoPdf] = useState(false);
@@ -67,6 +69,10 @@ export function useAssinarRecibo(tokenRaw: string) {
         const url = getPrimaryApiBaseUrl();
         const res = await fetch(`${url}${urls.recibo}`);
         const data = await res.json();
+        if (data.ja_assinado) {
+          setJaAssinado(data);
+          return;
+        }
         if (!res.ok) {
           setErro(data.error || "Erro ao carregar recibo");
           return;
@@ -211,6 +217,7 @@ export function useAssinarRecibo(tokenRaw: string) {
     loading,
     recibo,
     erro,
+    jaAssinado,
     assinando,
     sucesso,
     baixandoPdf,

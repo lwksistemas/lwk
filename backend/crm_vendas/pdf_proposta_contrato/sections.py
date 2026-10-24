@@ -170,13 +170,13 @@ def _build_cabecalho(elements, logo_url, titulo, logo_direita_url=None, largura=
         elements.append(Paragraph(titulo, title_style))
 
 
-def _build_secao_empresa(elements, loja_data, style):
+def _build_secao_empresa(elements, loja_data, style, titulo="Dados da Empresa"):
     """Adiciona seção Dados da Empresa."""
     from reportlab.lib.units import cm
     from reportlab.platypus import Spacer
     elements.append(Spacer(1, 0.2 * cm))
     section = ParagraphStyle("SecEmpresa", parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
-    elements.append(Paragraph("<b>Dados da Empresa</b>", section))
+    elements.append(Paragraph(f"<b>{escape(titulo)}</b>", section))
     linhas = [f"<b>Nome:</b> {loja_data.get('nome') or '—'}"]
     if loja_data.get("endereco"):
         linhas.append(f"<b>Endereço:</b> {_title_case_endereco(loja_data['endereco'])}")
@@ -193,13 +193,13 @@ def _build_secao_empresa(elements, loja_data, style):
         elements.append(Paragraph(ln, style))
 
 
-def _build_secao_cliente(elements, lead, style):
+def _build_secao_cliente(elements, lead, style, titulo="Dados do Cliente"):
     """Adiciona seção Dados do Cliente."""
     from reportlab.lib.units import cm
     from reportlab.platypus import Spacer
     elements.append(Spacer(1, 0.2 * cm))
     section = ParagraphStyle("SecCliente", parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
-    elements.append(Paragraph("<b>Dados do Cliente</b>", section))
+    elements.append(Paragraph(f"<b>{escape(titulo)}</b>", section))
     conta = getattr(lead, "conta", None)
     if conta:
         elements.append(Paragraph(f"<b>Nome:</b> {lead.nome}", style))
@@ -218,17 +218,17 @@ def _build_secao_cliente(elements, lead, style):
     elements.append(Paragraph(f"<b>Endereço:</b> {_formatar_endereco_lead(lead)}", style))
 
 
-def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=True):
+def _build_secao_produtos(elements, oportunidade, style, incluir_recorrencia=True, titulo="Produtos e Serviços da Oportunidade"):
     """Adiciona seção Produtos e Serviços."""
     from reportlab.lib.units import cm
     from reportlab.platypus import Spacer
     elements.append(Spacer(1, 0.2 * cm))
     section = ParagraphStyle("SecProd", parent=style, fontSize=10, spaceBefore=2, spaceAfter=1)
-    elements.append(Paragraph("<b>Produtos e Serviços da Oportunidade</b>", section))
+    elements.append(Paragraph(f"<b>{escape(titulo)}</b>", section))
     itens = list(oportunidade.itens.select_related("produto_servico").all()) if oportunidade else []
     if not itens:
         elements.append(Paragraph("Nenhum item cadastrado.", style))
-        return 0, 0
+        return 0, 0, 0, 0, 0
     nome_style = ParagraphStyle("ItemNomePdf", fontName="Helvetica", fontSize=8, leading=10)
     if incluir_recorrencia:
         table_data = [["Item", "Recorrência", "Qtd", "Preço Unit.", "Subtotal"]]
@@ -370,6 +370,113 @@ def _build_secao_desconto(elements, documento, style):
     elements.append(Spacer(1, 0.2 * cm))
     elements.append(t)
     elements.append(Spacer(1, 0.2 * cm))
+
+
+def _build_resumo_investimento(elements, documento, totais, style):
+    """Pagamento inicial e cobranças seguintes da proposta."""
+    from .formatters import linhas_resumo_investimento
+
+    unico, mensal, trimestral, semestral, anual = totais
+    linhas, frase = linhas_resumo_investimento(
+        unico=unico,
+        mensal=mensal,
+        trimestral=trimestral,
+        semestral=semestral,
+        anual=anual,
+        valor_total=getattr(documento, "valor_total", None),
+        desconto_valor=getattr(documento, "desconto_valor", None) or 0,
+        desconto_tipo=getattr(documento, "desconto_tipo", "percentual") or "percentual",
+        valor_com_desconto=getattr(documento, "valor_com_desconto", None),
+    )
+    if not linhas:
+        return
+    resumo_data = [[rotulo, valor] for rotulo, valor in linhas]
+    t = Table(resumo_data, colWidths=[5.4 * cm, 5 * cm])
+    style_cmds = [
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f0f9ff")),
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#0176d3")),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.3, colors.HexColor("#e5e7eb")),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e0f2fe")),
+    ]
+    t.setStyle(TableStyle(style_cmds))
+    t.hAlign = "LEFT"
+    elements.append(Spacer(1, 0.15 * cm))
+    elements.append(t)
+    if frase:
+        nota = ParagraphStyle("NotaInvestimento", parent=style, fontSize=8, leading=11, spaceBefore=3, spaceAfter=2)
+        elements.append(Paragraph(escape(frase), nota))
+    elements.append(Spacer(1, 0.15 * cm))
+
+
+def _build_secao_incluidos(elements, oportunidade, style):
+    """Descrição cadastrada de cada serviço, fora do texto do template."""
+    from .formatters import descricao_util_na_proposta
+
+    if oportunidade is None:
+        return
+    relacao = getattr(oportunidade, "itens", None)
+    if relacao is None:
+        return
+    itens = relacao.select_related("produto_servico").all() if hasattr(relacao, "select_related") else relacao
+    prestadora = getattr(oportunidade, "empresa_prestadora", None)
+    marca = getattr(prestadora, "nome", "") if prestadora is not None else ""
+    vistos = set()
+    blocos = []
+    for item in itens:
+        produto = getattr(item, "produto_servico", None)
+        texto = " ".join((getattr(produto, "descricao", None) or "").split())
+        if not descricao_util_na_proposta(texto) or texto in vistos:
+            continue
+        vistos.add(texto)
+        nome = nome_item_documento(getattr(produto, "nome", ""), marca)
+        blocos.append((nome, texto))
+    if not blocos:
+        return
+    section = ParagraphStyle("SecIncluidos", parent=style, fontSize=10, spaceBefore=4, spaceAfter=2)
+    elements.append(Paragraph("<b>O que está incluído</b>", section))
+    nome_style = ParagraphStyle("IncluidoNome", parent=style, fontName="Helvetica-Bold", fontSize=9, spaceBefore=3, spaceAfter=1)
+    texto_style = ParagraphStyle(
+        "IncluidoTexto",
+        parent=style,
+        fontSize=9,
+        leading=12,
+        alignment=TA_JUSTIFY,
+        spaceBefore=0,
+        spaceAfter=3,
+    )
+    for nome, texto in blocos:
+        elements.append(Paragraph(escape(nome), nome_style))
+        elements.append(Paragraph(escape(texto), texto_style))
+
+
+def _build_secao_condicoes(elements, paragrafos, style):
+    """Texto do template da prestadora: condições, prazo e pagamento."""
+    if not paragrafos:
+        return
+    section = ParagraphStyle("SecCondicoes", parent=style, fontSize=10, spaceBefore=4, spaceAfter=2)
+    elements.append(Paragraph("<b>Condições e pagamento</b>", section))
+    conteudo_style = ParagraphStyle(
+        "CondicoesTexto",
+        parent=style,
+        fontSize=9,
+        leading=12,
+        alignment=TA_JUSTIFY,
+        spaceBefore=2,
+        spaceAfter=4,
+    )
+    for paragrafo in paragrafos:
+        if paragrafo == "":
+            elements.append(Spacer(1, 0.15 * cm))
+        else:
+            elements.append(Paragraph(escape(paragrafo), conteudo_style))
 
 
 def _build_secao_conteudo(elements, conteudo, style):

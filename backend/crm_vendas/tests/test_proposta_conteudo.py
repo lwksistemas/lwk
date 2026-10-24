@@ -55,3 +55,24 @@ class ConteudoPropostaTests(SimpleTestCase):
         )
         self.assertEqual(texto, base)
         self.assertNotIn("Ultrasis Laudos - Mensal", texto)
+
+    def test_resumo_separa_pagamento_inicial_e_mensalidade(self):
+        from crm_vendas.pdf_proposta_contrato.formatters import linhas_resumo_investimento
+
+        linhas, frase = linhas_resumo_investimento(unico=750, mensal=392, valor_total=1142)
+        self.assertEqual(linhas[0], ("Pagamento inicial:", "R$ 1.142,00"))
+        self.assertIn(("Mensalidades seguintes:", "R$ 392,00/mês"), linhas)
+        self.assertIn("R$ 750,00 de implantação", frase)
+        self.assertIn("R$ 392,00 da primeira mensalidade", frase)
+        self.assertIn("cobradas uma única vez", frase)
+
+    def test_condicoes_ficam_sem_a_descricao_do_servico(self):
+        from crm_vendas.pdf_proposta_contrato.formatters import paragrafos_condicoes
+
+        descricao = (
+            "O sistema permite receber imagens enviadas pelo aparelho de ultrassom "
+            "e vinculá-las ao exame do paciente."
+        )
+        template = "Prazo de liberação: acesso em até 24 horas.\n\n" + descricao
+        paragrafos = paragrafos_condicoes(template, _Oportunidade([descricao]))
+        self.assertEqual(paragrafos, ["Prazo de liberação: acesso em até 24 horas."])

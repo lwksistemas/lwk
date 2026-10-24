@@ -7,15 +7,18 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from ..emitente_documento import obter_dados_emitente_documento
-from .formatters import _obter_dados_loja, conteudo_com_descricoes
+from .formatters import _obter_dados_loja, conteudo_com_descricoes, paragrafos_condicoes
 from .sections import (
     _build_cabecalho,
     _build_secao_assinaturas,
     _build_secao_cliente,
+    _build_secao_condicoes,
     _build_secao_conteudo,
     _build_secao_desconto,
     _build_secao_empresa,
+    _build_secao_incluidos,
     _build_secao_produtos,
+    _build_resumo_investimento,
 )
 from .watermark import _build_watermark_callback, _inserir_watermark_flowable
 
@@ -58,21 +61,24 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     loja_data = _completar_logos(obter_dados_emitente_documento(proposta), loja_id)
     logo_url = loja_data.get("logo")
     _build_cabecalho(elements, logo_url, "PROPOSTA COMERCIAL", _logo_prestadora(proposta))
-    elements.append(Spacer(1, 0.45 * cm))
-    elements.append(Paragraph(f'<b>Título:</b> {proposta.titulo or "—"}', compact))
+    elements.append(Spacer(1, 0.35 * cm))
+    elements.append(Paragraph("<b>Identificação</b>", compact))
 
     if loja_data:
-        _build_secao_empresa(elements, loja_data, compact)
+        _build_secao_empresa(elements, loja_data, compact, titulo="Proponente")
 
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
     if lead:
-        _build_secao_cliente(elements, lead, compact)
+        _build_secao_cliente(elements, lead, compact, titulo="Cliente")
 
-    _build_secao_produtos(elements, proposta.oportunidade, compact, incluir_recorrencia=True)
-    _build_secao_desconto(elements, proposta, compact)
-    _build_secao_conteudo(
+    totais = _build_secao_produtos(
+        elements, proposta.oportunidade, compact, incluir_recorrencia=True, titulo="Investimento",
+    )
+    _build_resumo_investimento(elements, proposta, totais, compact)
+    _build_secao_incluidos(elements, proposta.oportunidade, compact)
+    _build_secao_condicoes(
         elements,
-        conteudo_com_descricoes(proposta.conteudo, proposta.oportunidade),
+        paragrafos_condicoes(proposta.conteudo, proposta.oportunidade),
         compact,
     )
 

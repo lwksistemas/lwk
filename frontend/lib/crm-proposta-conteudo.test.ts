@@ -12,4 +12,12 @@ describe('conteudoComDescricoes', () => {
     const texto = 'ANADEM GREEN 2026. Medicina.';
     expect(conteudoComDescricoes(texto, [{ produto_servico_descricao: texto }])).toBe(texto);
   });
+
+  it('mantém a descrição do serviço depois do texto do template', () => {
+    const template = 'Condições comerciais. Pagamento via Pix.';
+    const descricao = 'Sistema de Laudos com Captura de Imagens DICOM.';
+    expect(conteudoComDescricoes(template, [{ produto_servico_descricao: descricao }])).toBe(
+      `${template}\n\n${descricao}`,
+    );
+  });
 });

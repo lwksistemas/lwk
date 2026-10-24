@@ -322,7 +322,12 @@ export default function EditarPropostaPage() {
           prestadoraNome: marcaPrestadora,
           quantidade: templates.length,
         })}
-        onSelecionarTemplate={(conteudo) => setFormData((f) => ({ ...f, conteudo }))}
+        onSelecionarTemplate={(conteudo) =>
+          setFormData((f) => ({
+            ...f,
+            conteudo: conteudoComDescricoes(conteudo, itensOportunidade),
+          }))
+        }
         vendedorNome={vendedorNome}
       />
 

@@ -80,6 +80,17 @@ export default function LojaDashboardDinamicoPage() {
         document.cookie = `loja_slug=${encodeURIComponent(slug)}; path=/; max-age=86400; SameSite=Lax`;
       }
       setLojaInfo(data);
+      if (isTipoClinicaBeleza(data.tipo_loja_nome)) {
+        const now = new Date();
+        const mes = now.getMonth() + 1;
+        const ano = now.getFullYear();
+        void import("@/lib/clinica-beleza-api").then(({ clinicaBelezaFetch }) =>
+          Promise.all([
+            clinicaBelezaFetch(`/dashboard/?period=proximos&mes=${mes}&ano=${ano}`, {}, { slug }),
+            clinicaBelezaFetch(`/financeiro/resumo/?mes=${mes}&ano=${ano}`, {}, { slug }),
+          ]).catch(() => undefined),
+        );
+      }
     } catch (error: unknown) {
       logger.warn('Erro ao carregar loja:', error);
       const ax = error && typeof error === 'object' && 'response' in error ? (error as { response?: { status?: number } }).response : undefined;
@@ -92,16 +103,6 @@ export default function LojaDashboardDinamicoPage() {
 
   useEffect(() => {
     if (!ready || !isLoja) return;
-    // Aquece cache Redis do dashboard em paralelo com info_publica (sem waterfall).
-    const now = new Date();
-    const mes = now.getMonth() + 1;
-    const ano = now.getFullYear();
-    void import("@/lib/clinica-beleza-api").then(({ clinicaBelezaFetch }) =>
-      Promise.all([
-        clinicaBelezaFetch(`/dashboard/?period=proximos&mes=${mes}&ano=${ano}`, {}, { slug }),
-        clinicaBelezaFetch(`/financeiro/resumo/?mes=${mes}&ano=${ano}`, {}, { slug }),
-      ]).catch(() => undefined),
-    );
     const cached = readLojaInfoPublicaCache(slug);
     if (cached?.id) {
       setLojaInfo({

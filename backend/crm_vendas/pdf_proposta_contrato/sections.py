@@ -675,13 +675,13 @@ def _rotulo_documento(valor) -> str:
 
 
 def _build_identificacao_visual(elements, loja_data, lead):
-    """Proponente e cliente em linhas curtas, com os dados do cadastro."""
+    """Representante e cliente em linhas curtas, com os dados do cadastro."""
     style = _estilo_corpo_proposta()
     _titulo_numerado(elements, 1, "Identificação")
     loja_data = loja_data or {}
     linhas = []
     if loja_data.get("nome"):
-        linhas.append(_linha_cadastro("Proponente", loja_data.get("nome"), style))
+        linhas.append(_linha_cadastro("Representante Autorizado", loja_data.get("nome"), style))
     documento = loja_data.get("cpf_cnpj") or ""
     linhas.append(_linha_cadastro(_rotulo_documento(documento), documento, style))
     linhas.append(_linha_cadastro("Endereço", loja_data.get("endereco"), style))

@@ -9,6 +9,8 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+
+from core.assinatura_confirmacao import confirmacao_assinatura
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -163,7 +165,14 @@ def _carregar_assinatura_recibo_publica(token):
     if ass_err or not assinatura:
         return None, JsonResponse({"error": ass_err or "Link inválido."}, status=400)
     if assinatura.assinado:
-        return None, JsonResponse({"error": "Este recibo já foi assinado."}, status=400)
+        return None, JsonResponse(
+            confirmacao_assinatura(
+                "Recibo",
+                getattr(assinatura, "nome_assinante", "") or "",
+                getattr(assinatura, "assinado_em", None),
+                tipo_documento="recibo",
+            )
+        )
     if assinatura.token_expira_em and timezone.now() >= assinatura.token_expira_em:
         return None, JsonResponse(
             {"error": "Link expirado. Solicite um novo envio à clínica."},
@@ -247,6 +256,15 @@ class ReciboAssinaturaPublicaView(View):
                 .first()
             )
             if not locked or locked.assinado:
+                if locked and locked.assinado:
+                    return JsonResponse(
+                        confirmacao_assinatura(
+                            "Recibo",
+                            locked.nome_assinante or "",
+                            locked.assinado_em,
+                            tipo_documento="recibo",
+                        )
+                    )
                 return JsonResponse({"error": "Este recibo já foi assinado."}, status=400)
             if locked.token_expira_em and timezone.now() >= locked.token_expira_em:
                 return JsonResponse(

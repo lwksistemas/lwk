@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { CheckCircle, AlertCircle, FileText, User, DollarSign, Download, Eye } from 'lucide-react';
 import { getPrimaryApiBaseUrl } from '@/lib/api-base';
+import DocumentoJaAssinado, { type ConfirmacaoAssinatura } from '@/components/assinatura/DocumentoJaAssinado';
 
 interface DocumentoData {
   tipo_documento: string;
@@ -143,6 +144,7 @@ export default function AssinaturaPage() {
   const [documento, setDocumento] = useState<DocumentoData | null>(null);
   const [erro, setErro] = useState('');
   const [errorCode, setErrorCode] = useState('');
+  const [jaAssinado, setJaAssinado] = useState<ConfirmacaoAssinatura | null>(null);
   const [assinando, setAssinando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [proximoStatus, setProximoStatus] = useState('');
@@ -197,7 +199,12 @@ export default function AssinaturaPage() {
       const backendUrl = getPrimaryApiBaseUrl();
       const res = await fetch(`${backendUrl}/crm-vendas/assinar/${tokenApiSegment}/`);
       const data = await res.json();
-      
+
+      if (data.ja_assinado) {
+        setJaAssinado(data);
+        return;
+      }
+
       if (!res.ok) {
         setErro(data.error || 'Erro ao carregar documento');
         setErrorCode(data.error_code || 'invalido');
@@ -351,7 +358,6 @@ export default function AssinaturaPage() {
 
   
   
-  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -363,6 +369,10 @@ export default function AssinaturaPage() {
     );
   }
   
+  if (jaAssinado) {
+    return <DocumentoJaAssinado dados={jaAssinado} />;
+  }
+
   // Error state
   if (erro && !documento) {
     const linkSubstituido = errorCode === 'link_substituido';

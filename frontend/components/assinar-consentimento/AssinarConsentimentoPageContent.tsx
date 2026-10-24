@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle, Download, Eye, FileText, Stethoscope, User } 
 import type { RespostaTcleInterativo, TermoConsentimentoData } from "./assinar-consentimento-types";
 import { AssinarTcleInterativoForm } from "./AssinarTcleInterativoForm";
 import { useAssinarConsentimento } from "./useAssinarConsentimento";
+import DocumentoJaAssinado from "@/components/assinatura/DocumentoJaAssinado";
 
 function AssinarConsentimentoLoading() {
   return (
@@ -361,6 +362,7 @@ export function AssinarConsentimentoPageContent({ tokenRaw }: { tokenRaw: string
   const state = useAssinarConsentimento(tokenRaw);
 
   if (state.loading) return <AssinarConsentimentoLoading />;
+  if (state.jaAssinado) return <DocumentoJaAssinado dados={state.jaAssinado} />;
   if (state.sucesso) return <AssinarConsentimentoSucesso proximoStatus={state.proximoStatus} />;
   if (state.erro && !state.termo) return <AssinarConsentimentoErro erro={state.erro} />;
   if (!state.termo) return null;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPrimaryApiBaseUrl } from "@/lib/api-base";
 import type { RespostaTcleInterativo, TermoConsentimentoData } from "./assinar-consentimento-types";
+import type { ConfirmacaoAssinatura } from "@/components/assinatura/DocumentoJaAssinado";
 import {
   buildAssinaturaConsentimentoUrls,
   decodeAssinaturaToken,
@@ -17,6 +18,7 @@ export function useAssinarConsentimento(tokenRaw: string) {
   const [loading, setLoading] = useState(true);
   const [termo, setTermo] = useState<TermoConsentimentoData | null>(null);
   const [erro, setErro] = useState("");
+  const [jaAssinado, setJaAssinado] = useState<ConfirmacaoAssinatura | null>(null);
   const [assinando, setAssinando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [proximoStatus, setProximoStatus] = useState("");
@@ -55,6 +57,10 @@ export function useAssinarConsentimento(tokenRaw: string) {
         const url = getPrimaryApiBaseUrl();
         const res = await fetch(`${url}${urls.termo}`);
         const data = await res.json();
+        if (data.ja_assinado) {
+          setJaAssinado(data);
+          return;
+        }
         if (!res.ok) {
           setErro(data.error || "Erro ao carregar termo");
           return;
@@ -219,6 +225,7 @@ export function useAssinarConsentimento(tokenRaw: string) {
     loading,
     termo,
     erro,
+    jaAssinado,
     assinando,
     sucesso,
     proximoStatus,

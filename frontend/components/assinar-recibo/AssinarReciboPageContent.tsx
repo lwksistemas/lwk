@@ -3,6 +3,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { AlertCircle, CheckCircle, Download, Eye, FileText, Receipt, User } from "lucide-react";
 import { type ReciboAssinaturaData, useAssinarRecibo } from "./useAssinarRecibo";
+import DocumentoJaAssinado from "@/components/assinatura/DocumentoJaAssinado";
 
 function ReciboLoading() {
   return (
@@ -307,6 +308,7 @@ export function AssinarReciboPageContent({ tokenRaw }: { tokenRaw: string }) {
   const state = useAssinarRecibo(tokenRaw);
 
   if (state.loading) return <ReciboLoading />;
+  if (state.jaAssinado) return <DocumentoJaAssinado dados={state.jaAssinado} />;
   if (state.sucesso) return <ReciboSucesso />;
   if (state.erro && !state.recibo) return <ReciboErro erro={state.erro} />;
   if (!state.recibo) return null;

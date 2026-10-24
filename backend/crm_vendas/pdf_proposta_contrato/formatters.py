@@ -1,6 +1,7 @@
 """Formatação e utilitários para PDF de proposta/contrato."""
 import logging
 import re
+import unicodedata
 
 import pytz
 import requests
@@ -236,6 +237,53 @@ def partir_condicoes(paragrafos) -> tuple[list[str], list[dict]]:
         else:
             atual["paragrafos"].append(bloco)
     return intro, secoes
+
+
+_ORDEM_VERSAO = (
+    "Sistema de Laudos",
+    "Sistema de Clínica",
+    "Captura DICOM",
+    "Worklist",
+    "Ultracap",
+)
+
+
+def _sem_acento(texto: str) -> str:
+    base = unicodedata.normalize("NFD", (texto or "").casefold())
+    return "".join(letra for letra in base if unicodedata.category(letra) != "Mn")
+
+
+def rotulo_versao_contratada(nome: str) -> str:
+    """Nome curto da versão. O plano e a quantidade ficam na tabela."""
+    chave = _sem_acento(nome)
+    if "worklist" in chave:
+        return "Worklist"
+    if "dicom" in chave:
+        return "Captura DICOM"
+    if "laudo" in chave:
+        return "Sistema de Laudos"
+    if "clinica" in chave:
+        return "Sistema de Clínica"
+    if "ultracap" in chave:
+        return "Ultracap"
+    texto = " ".join((nome or "").split())
+    return re.sub(r"\s*[•·]\s*\d+\s+aparelhos?$", "", texto, flags=re.IGNORECASE).strip()
+
+
+def subtitulo_da_versao(itens) -> str:
+    """O subtítulo lista só as versões recorrentes que estão na proposta."""
+    rotulos = []
+    for item in itens or []:
+        produto = getattr(item, "produto_servico", None) or item
+        recorrencia = getattr(produto, "recorrencia", None) or "unico"
+        if recorrencia == "unico":
+            continue
+        rotulo = rotulo_versao_contratada(getattr(produto, "nome", "") or "")
+        if rotulo and rotulo not in rotulos:
+            rotulos.append(rotulo)
+    conhecidos = [nome for nome in _ORDEM_VERSAO if nome in rotulos]
+    demais = [nome for nome in rotulos if nome not in _ORDEM_VERSAO]
+    return " • ".join(conhecidos + demais)
 
 
 def separar_subtitulo(paragrafos) -> tuple[str, list]:

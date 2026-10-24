@@ -111,6 +111,94 @@ def _rotulos_da_oportunidade(oportunidade) -> set[str]:
     return {texto for texto in _textos_dos_itens(oportunidade) if not descricao_util_na_proposta(texto)}
 
 
+def linhas_resumo_investimento(
+    *,
+    unico=0,
+    mensal=0,
+    trimestral=0,
+    semestral=0,
+    anual=0,
+    valor_total=None,
+    desconto_valor=0,
+    desconto_tipo="percentual",
+    valor_com_desconto=None,
+) -> tuple[list[tuple[str, str]], str]:
+    """Pagamento inicial e as cobranças seguintes, lidos dos itens da oportunidade."""
+    unico = float(unico or 0)
+    mensal = float(mensal or 0)
+    trimestral = float(trimestral or 0)
+    semestral = float(semestral or 0)
+    anual = float(anual or 0)
+    inicial = unico + mensal + trimestral + semestral + anual
+    if valor_total is None:
+        valor_total = inicial
+    linhas = [("Pagamento inicial:", _formatar_valor(valor_total))]
+    partes = []
+    if unico > 0:
+        partes.append(f"{_formatar_valor(unico)} de implantação")
+    if mensal > 0:
+        partes.append(f"{_formatar_valor(mensal)} da primeira mensalidade")
+    if trimestral > 0:
+        partes.append(f"{_formatar_valor(trimestral)} do primeiro trimestre")
+    if semestral > 0:
+        partes.append(f"{_formatar_valor(semestral)} do primeiro semestre")
+    if anual > 0:
+        partes.append(f"{_formatar_valor(anual)} do primeiro ano")
+    frases = []
+    if len(partes) >= 2:
+        frases.append("Inclui " + " + ".join(partes) + ".")
+    if unico > 0:
+        frases.append("As taxas de implantação são cobradas uma única vez.")
+    if mensal > 0:
+        linhas.append(("Mensalidades seguintes:", f"{_formatar_valor(mensal)}/mês"))
+    if trimestral > 0:
+        linhas.append(("Trimestres seguintes:", f"{_formatar_valor(trimestral)}/trimestre"))
+    if semestral > 0:
+        linhas.append(("Semestres seguintes:", f"{_formatar_valor(semestral)}/semestre"))
+    if anual > 0:
+        linhas.append(("Anos seguintes:", f"{_formatar_valor(anual)}/ano"))
+    desconto = float(desconto_valor or 0)
+    if desconto > 0:
+        if desconto_tipo == "percentual":
+            linhas.append(("Desconto:", f"{desconto_valor}%"))
+        else:
+            linhas.append(("Desconto:", _formatar_valor(desconto_valor)))
+        final = valor_com_desconto if valor_com_desconto is not None else valor_total
+        linhas.append(("Valor com desconto:", _formatar_valor(final)))
+    return linhas, " ".join(frases)
+
+
+def paragrafos_condicoes(conteudo, oportunidade) -> list[str]:
+    """Texto do template, sem a descrição dos serviços. Essa descrição tem seção própria."""
+    bruto = (conteudo or "").strip()
+    if not bruto:
+        return []
+    descricoes = descricoes_da_oportunidade(oportunidade)
+    rotulos = _rotulos_da_oportunidade(oportunidade)
+    blocos = _html_to_paragraphs(bruto)
+    if blocos == ["Conteúdo não informado."]:
+        return []
+    saida = []
+    for bloco in blocos:
+        if bloco == "":
+            if saida and saida[-1] != "":
+                saida.append("")
+            continue
+        normal = " ".join(bloco.split())
+        if normal in rotulos or normal in descricoes:
+            continue
+        resto = normal
+        for descricao in descricoes:
+            resto = resto.replace(descricao, " ")
+        resto = " ".join(resto.split())
+        if not resto:
+            continue
+        saida.append(resto if resto != normal else bloco)
+    while saida and saida[-1] == "":
+        saida.pop()
+    return saida
+
+
 def conteudo_com_descricoes(conteudo, oportunidade) -> str:
     """Inclui no conteúdo a descrição de cada serviço da oportunidade."""
     base = (conteudo or "").strip()

@@ -1,20 +1,28 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Plus, Edit2, Trash2, X, Star } from 'lucide-react';
 import apiClient from '@/lib/api-client';
-import { normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { fetchAllPaginatedResults, normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
 import { useToast } from '@/components/ui/Toast';
 
 export interface CrmTemplateRecord {
   id: number;
   nome: string;
   conteudo: string;
+  prestadora?: number | null;
+  prestadora_nome?: string | null;
   is_padrao: boolean;
   ativo: boolean;
   created_at?: string;
   updated_at?: string;
+}
+
+interface PrestadoraOption {
+  id: number;
+  nome: string;
+  cnpj?: string;
 }
 
 export type CrmTemplateApiSegment = 'proposta-templates' | 'contrato-templates' | 'nfse-templates';
@@ -25,6 +33,8 @@ interface CrmTemplatesManagerPageProps {
   subtitle: string;
   namePlaceholder: string;
   EmptyStateIcon: LucideIcon;
+  /** Proposta: cada template pertence a uma prestadora. */
+  vincularPrestadora?: boolean;
 }
 
 type ModalType = 'create' | 'edit' | 'delete' | null;
@@ -38,10 +48,13 @@ export default function CrmTemplatesManagerPage({
   subtitle,
   namePlaceholder,
   EmptyStateIcon,
+  vincularPrestadora = false,
 }: CrmTemplatesManagerPageProps) {
   const toast = useToast();
   const base = `/crm-vendas/${apiSegment}`;
   const [templates, setTemplates] = useState<CrmTemplateRecord[]>([]);
+  const [prestadoras, setPrestadoras] = useState<PrestadoraOption[]>([]);
+  const [filtroPrestadora, setFiltroPrestadora] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
@@ -49,6 +62,7 @@ export default function CrmTemplatesManagerPage({
   const [formData, setFormData] = useState({
     nome: '',
     conteudo: '',
+    prestadora: '',
     is_padrao: false,
     ativo: true,
   });
@@ -71,6 +85,21 @@ export default function CrmTemplatesManagerPage({
     loadTemplates();
   }, [loadTemplates]);
 
+  useEffect(() => {
+    if (!vincularPrestadora) return;
+    fetchAllPaginatedResults<PrestadoraOption>('/crm-vendas/contas/', { tipo: 'prestadora' })
+      .then(setPrestadoras)
+      .catch(() => setPrestadoras([]));
+  }, [vincularPrestadora]);
+
+  const templatesVisiveis = useMemo(() => {
+    if (!vincularPrestadora || !filtroPrestadora) return templates;
+    return templates.filter((t) => String(t.prestadora || '') === filtroPrestadora);
+  }, [filtroPrestadora, templates, vincularPrestadora]);
+
+  const nomePrestadora = (conta: PrestadoraOption) =>
+    conta.cnpj ? `${conta.nome} — ${conta.cnpj}` : conta.nome;
+
   const openModal = (type: ModalType, item?: CrmTemplateRecord) => {
     setModalType(type);
     setSelected(item || null);
@@ -78,6 +107,7 @@ export default function CrmTemplatesManagerPage({
       setFormData({
         nome: item.nome || '',
         conteudo: item.conteudo || '',
+        prestadora: item.prestadora ? String(item.prestadora) : '',
         is_padrao: item.is_padrao ?? false,
         ativo: item.ativo ?? true,
       });
@@ -85,6 +115,7 @@ export default function CrmTemplatesManagerPage({
       setFormData({
         nome: '',
         conteudo: '',
+        prestadora: filtroPrestadora,
         is_padrao: false,
         ativo: true,
       });
@@ -102,14 +133,21 @@ export default function CrmTemplatesManagerPage({
       toast.warning('Nome é obrigatório');
       return;
     }
+    if (vincularPrestadora && !formData.prestadora) {
+      toast.warning('Selecione a empresa prestadora');
+      return;
+    }
     try {
       setSubmitting(true);
-      const payload = {
+      const payload: Record<string, unknown> = {
         nome: formData.nome.trim(),
         conteudo: formData.conteudo,
         is_padrao: formData.is_padrao,
         ativo: formData.ativo,
       };
+      if (vincularPrestadora) {
+        payload.prestadora = parseInt(formData.prestadora, 10);
+      }
       if (modalType === 'create') {
         await apiClient.post(`${base}/`, payload);
       } else if (modalType === 'edit' && selected) {
@@ -163,14 +201,36 @@ export default function CrmTemplatesManagerPage({
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{subtitle}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => openModal('create')}
-          className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
-        >
-          <Plus size={18} />
-          <span>Novo Template</span>
-        </button>
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+          {vincularPrestadora && (
+            <div className="flex flex-col gap-0.5 min-w-[16rem]">
+              <label htmlFor="filtro-prestadora-template" className="text-xs text-gray-500 dark:text-gray-400">
+                Prestadora
+              </label>
+              <select
+                id="filtro-prestadora-template"
+                value={filtroPrestadora}
+                onChange={(e) => setFiltroPrestadora(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              >
+                <option value="">Todas</option>
+                {prestadoras.map((conta) => (
+                  <option key={conta.id} value={conta.id}>
+                    {nomePrestadora(conta)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => openModal('create')}
+            className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
+          >
+            <Plus size={18} />
+            <span>Novo Template</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -180,14 +240,14 @@ export default function CrmTemplatesManagerPage({
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {templates.length === 0 ? (
+        {templatesVisiveis.length === 0 ? (
           <div className="col-span-full py-12 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c]">
             <EmptyStateIcon size={48} className="mx-auto mb-3 opacity-30" />
             <p className="font-medium">Nenhum template cadastrado</p>
             <p className="text-sm mt-1">Clique em &quot;Novo Template&quot; para criar</p>
           </div>
         ) : (
-          templates.map((t) => (
+          templatesVisiveis.map((t) => (
             <div
               key={t.id}
               className="bg-white dark:bg-[#16325c] rounded-lg shadow border border-gray-200 dark:border-[#0d1f3c] p-4 hover:shadow-md transition-shadow"
@@ -230,6 +290,11 @@ export default function CrmTemplatesManagerPage({
                   </button>
                 </div>
               </div>
+              {vincularPrestadora && (
+                <p className="text-xs font-medium text-[#0176d3] dark:text-blue-300 mb-1">
+                  {t.prestadora_nome || 'Sem prestadora'}
+                </p>
+              )}
               <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
                 {t.conteudo || 'Sem conteúdo'}
               </p>
@@ -263,6 +328,26 @@ export default function CrmTemplatesManagerPage({
                 </button>
               </div>
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                {vincularPrestadora && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Empresa prestadora *
+                    </label>
+                    <select
+                      value={formData.prestadora}
+                      onChange={(e) => setFormData((f) => ({ ...f, prestadora: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      required
+                    >
+                      <option value="">Selecione a empresa prestadora</option>
+                      {prestadoras.map((conta) => (
+                        <option key={conta.id} value={conta.id}>
+                          {nomePrestadora(conta)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
                   <input

@@ -8,9 +8,10 @@ export default function PropostaTemplatesPage() {
     <CrmTemplatesManagerPage
       apiSegment="proposta-templates"
       title="Templates de Propostas"
-      subtitle="Crie templates reutilizáveis para suas propostas comerciais"
+      subtitle="Cada template fica na prestadora. Na proposta, só aparecem os templates dela."
       namePlaceholder="Ex: Proposta Padrão, Proposta Premium"
       EmptyStateIcon={FileText}
+      vincularPrestadora
     />
   );
 }

@@ -4,7 +4,8 @@ import contextlib
 from rest_framework import serializers
 
 from ..emitente_documento import limpar_emitente_se_vazio
-from ..models import Contrato, ContratoTemplate, NfseDescricaoTemplate, Proposta, PropostaTemplate
+from ..models import Conta, Contrato, ContratoTemplate, NfseDescricaoTemplate, Proposta, PropostaTemplate
+from ..relatorio_comissao_data import nome_da_conta
 
 _EMITENTE_FIELDS = [
     "emitente_nome", "emitente_endereco", "emitente_cpf_cnpj",
@@ -114,13 +115,34 @@ class PropostaSerializer(serializers.ModelSerializer):
 
 
 class PropostaTemplateSerializer(serializers.ModelSerializer):
+    prestadora = serializers.PrimaryKeyRelatedField(
+        queryset=Conta.objects.filter(tipo__in=["prestadora", "ambos"]),
+        required=False,
+        allow_null=True,
+    )
+    prestadora_nome = serializers.SerializerMethodField()
+
     class Meta:
         model = PropostaTemplate
         fields = [
-            "id", "nome", "conteudo", "is_padrao", "ativo",
-            "created_at", "updated_at",
+            "id", "nome", "conteudo", "prestadora", "prestadora_nome",
+            "is_padrao", "ativo", "created_at", "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at", "prestadora_nome"]
+
+    def get_prestadora_nome(self, obj):
+        prestadora = getattr(obj, "prestadora", None)
+        if prestadora is None:
+            return None
+        return nome_da_conta(prestadora) or None
+
+    def validate(self, attrs):
+        prestadora = attrs.get("prestadora", serializers.empty)
+        if self.instance is None and not attrs.get("prestadora"):
+            raise serializers.ValidationError({"prestadora": "Selecione a empresa prestadora."})
+        if prestadora is None:
+            raise serializers.ValidationError({"prestadora": "Selecione a empresa prestadora."})
+        return attrs
 
 
 class ContratoTemplateSerializer(serializers.ModelSerializer):

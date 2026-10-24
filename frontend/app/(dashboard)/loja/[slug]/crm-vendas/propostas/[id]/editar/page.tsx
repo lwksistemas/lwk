@@ -30,6 +30,7 @@ import type {
 import { EMPTY_FORM_PROPOSTA } from '@/lib/crm-proposta-form-types';
 import { emitenteFieldsFromApi, emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
 import { conteudoComDescricoes } from '@/lib/crm-proposta-conteudo';
+import { avisoTemplatesDaPrestadora, carregarTemplatesDaPrestadora } from '@/lib/crm-proposta-templates';
 
 interface Proposta {
   id: number;
@@ -66,6 +67,7 @@ export default function EditarPropostaPage() {
   const [oportunidadeTituloInicial, setOportunidadeTituloInicial] = useState('');
   const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
   const [marcaPrestadora, setMarcaPrestadora] = useState('');
+  const [prestadoraId, setPrestadoraId] = useState<number | null>(null);
   const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
@@ -97,17 +99,6 @@ export default function EditarPropostaPage() {
     }
   }, []);
 
-  const loadTemplates = useCallback(async () => {
-    try {
-      const res = await apiClient.get<CrmPropostaTemplate[] | { results: CrmPropostaTemplate[] }>(
-        '/crm-vendas/proposta-templates/',
-      );
-      setTemplates(normalizeListResponse(res.data));
-    } catch {
-      setTemplates([]);
-    }
-  }, []);
-
   useEffect(() => {
     if (isNaN(id)) {
       router.replace(listPath);
@@ -118,7 +109,6 @@ export default function EditarPropostaPage() {
       try {
         const [propostaRes] = await Promise.all([
           apiClient.get<Proposta>(`/crm-vendas/propostas/${id}/`),
-          loadTemplates(),
           loadLojaInfo(),
           loadVendedorInfo(),
         ]);
@@ -161,7 +151,10 @@ export default function EditarPropostaPage() {
                 empresa_prestadora_nome: opp.empresa_prestadora_nome,
               }),
             );
+            const idPrestadora = opp.empresa_prestadora ?? null;
             setMarcaPrestadora(opp.empresa_prestadora_nome || '');
+            setPrestadoraId(idPrestadora);
+            setTemplates(await carregarTemplatesDaPrestadora(idPrestadora));
             const nomeVendedor = (opp.vendedor_nome || '').trim();
             if (nomeVendedor) {
               setFormData((f) => (
@@ -181,7 +174,7 @@ export default function EditarPropostaPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, listPath, loadItensOportunidade, loadLeadInfo, loadLojaInfo, loadTemplates, loadVendedorInfo, router, setLeadInfo]);
+  }, [id, listPath, loadItensOportunidade, loadLeadInfo, loadLojaInfo, loadVendedorInfo, router, setLeadInfo]);
 
   const handleOportunidadeChange = useCallback(
     async (oppId: string) => {
@@ -191,12 +184,17 @@ export default function EditarPropostaPage() {
         setLeadInfo(null);
         setOportunidadeTituloInicial('');
         setMarcaPrestadora('');
+        setPrestadoraId(null);
+        setTemplates([]);
         return;
       }
       loadItensOportunidade(oppId);
       try {
         const opp = await fetchCrmOportunidade(oppId);
+        const idPrestadora = opp.empresa_prestadora ?? null;
         setMarcaPrestadora(opp.empresa_prestadora_nome || '');
+        setPrestadoraId(idPrestadora);
+        setTemplates(await carregarTemplatesDaPrestadora(idPrestadora));
         setOportunidadeTituloInicial(
           formatOportunidadeVinculoLabel({
             titulo: opp.titulo,
@@ -318,6 +316,12 @@ export default function EditarPropostaPage() {
         hideError
         hideActions
         templates={templates}
+        templateAusente={avisoTemplatesDaPrestadora({
+          temOportunidade: Boolean(formData.oportunidade_id),
+          prestadoraId,
+          prestadoraNome: marcaPrestadora,
+          quantidade: templates.length,
+        })}
         onSelecionarTemplate={(conteudo) => setFormData((f) => ({ ...f, conteudo }))}
         vendedorNome={vendedorNome}
       />

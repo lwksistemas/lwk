@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { normalizeListResponse, getCrmApiErrorDetail, gerarTituloProposta, fetchCrmOportunidade } from '@/lib/crm-utils';
@@ -18,6 +18,7 @@ import type {
 import { EMPTY_FORM_PROPOSTA } from '@/lib/crm-proposta-form-types';
 import { emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
 import { conteudoComDescricoes } from '@/lib/crm-proposta-conteudo';
+import { avisoTemplatesDaPrestadora, carregarTemplatesDaPrestadora } from '@/lib/crm-proposta-templates';
 
 export default function NovaPropostaPage() {
   const toast = useToast();
@@ -29,8 +30,9 @@ export default function NovaPropostaPage() {
   const [formData, setFormData] = useState<FormDataProposta>({ ...EMPTY_FORM_PROPOSTA });
   const [itensOportunidade, setItensOportunidade] = useState<CrmOportunidadeItem[]>([]);
   const [marcaPrestadora, setMarcaPrestadora] = useState('');
-  const [propostaConteudoPadrao, setPropostaConteudoPadrao] = useState('');
+  const [prestadoraId, setPrestadoraId] = useState<number | null>(null);
   const [templates, setTemplates] = useState<CrmPropostaTemplate[]>([]);
+  const templateAplicado = useRef('');
   const [submitting, setSubmitting] = useState(false);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
@@ -58,43 +60,10 @@ export default function NovaPropostaPage() {
     }
   }, []);
 
-  const loadCrmConfig = useCallback(async () => {
-    try {
-      const res = await apiClient.get<{ proposta_conteudo_padrao?: string }>('/crm-vendas/config/');
-      setPropostaConteudoPadrao(res.data?.proposta_conteudo_padrao ?? '');
-    } catch {
-      setPropostaConteudoPadrao('');
-    }
-  }, []);
-
-  const loadTemplates = useCallback(async () => {
-    try {
-      const res = await apiClient.get<CrmPropostaTemplate[] | { results: CrmPropostaTemplate[] }>(
-        '/crm-vendas/proposta-templates/'
-      );
-      setTemplates(normalizeListResponse(res.data));
-    } catch {
-      setTemplates([]);
-    }
-  }, []);
-
   useEffect(() => {
     loadLojaInfo();
-    loadCrmConfig();
-    loadTemplates();
     loadVendedorInfo();
-  }, [loadLojaInfo, loadCrmConfig, loadTemplates, loadVendedorInfo]);
-
-  useEffect(() => {
-    if (!formData.conteudo) {
-      const templatePadrao = templates.find((t) => t.is_padrao);
-      const conteudoInicial = templatePadrao?.conteudo || propostaConteudoPadrao;
-      if (conteudoInicial) {
-        setFormData((f) => ({ ...f, conteudo: conteudoInicial }));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- formData.conteudo omitido de propósito
-  }, [templates, propostaConteudoPadrao]);
+  }, [loadLojaInfo, loadVendedorInfo]);
 
   const handleOportunidadeChange = useCallback(
     async (id: string) => {
@@ -103,19 +72,32 @@ export default function NovaPropostaPage() {
         setItensOportunidade([]);
         setLeadInfo(null);
         setMarcaPrestadora('');
+        setPrestadoraId(null);
+        setTemplates([]);
         return;
       }
-      loadItensOportunidade(id);
       try {
         const opp = await fetchCrmOportunidade(id);
+        const idPrestadora = opp.empresa_prestadora ?? null;
         setMarcaPrestadora(opp.empresa_prestadora_nome || '');
-        const nomeVendedor = (opp.vendedor_nome || '').trim();
-        setFormData((f) => ({
-          ...f,
-          oportunidade_id: id,
-          valor_total: opp.valor ? String(opp.valor) : f.valor_total,
-          nome_vendedor_assinatura: nomeVendedor || f.nome_vendedor_assinatura,
-        }));
+        setPrestadoraId(idPrestadora);
+        const lista = await carregarTemplatesDaPrestadora(idPrestadora);
+        setTemplates(lista);
+        const padrao = lista.find((t) => t.is_padrao);
+        setFormData((f) => {
+          const nomeVendedor = (opp.vendedor_nome || '').trim();
+          const podeTrocar = !f.conteudo.trim() || f.conteudo === templateAplicado.current;
+          const conteudo = podeTrocar ? (padrao?.conteudo || '') : f.conteudo;
+          if (podeTrocar) templateAplicado.current = conteudo;
+          return {
+            ...f,
+            oportunidade_id: id,
+            conteudo,
+            valor_total: opp.valor ? String(opp.valor) : f.valor_total,
+            nome_vendedor_assinatura: nomeVendedor || f.nome_vendedor_assinatura,
+          };
+        });
+        await loadItensOportunidade(id);
         if (opp.lead) {
           loadLeadInfo(opp.lead);
         } else {
@@ -123,6 +105,7 @@ export default function NovaPropostaPage() {
         }
       } catch {
         setLeadInfo(null);
+        setTemplates([]);
       }
     },
     [loadItensOportunidade, loadLeadInfo, setLeadInfo],
@@ -140,8 +123,7 @@ export default function NovaPropostaPage() {
     try {
       setSalvandoPadrao(true);
       await apiClient.patch('/crm-vendas/config/', { proposta_conteudo_padrao: conteudo });
-      setPropostaConteudoPadrao(conteudo);
-      toast.success('Proposta padrão salva. O conteúdo será usado em novas propostas.');
+      toast.success('Proposta padrão salva.');
     } catch (err: unknown) {
       toast.error(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
     } finally {
@@ -216,7 +198,16 @@ export default function NovaPropostaPage() {
         hideError
         hideActions
         templates={templates}
-        onSelecionarTemplate={(conteudo) => setFormData((f) => ({ ...f, conteudo }))}
+        templateAusente={avisoTemplatesDaPrestadora({
+          temOportunidade: Boolean(formData.oportunidade_id),
+          prestadoraId,
+          prestadoraNome: marcaPrestadora,
+          quantidade: templates.length,
+        })}
+        onSelecionarTemplate={(conteudo) => {
+          templateAplicado.current = conteudo;
+          setFormData((f) => ({ ...f, conteudo }));
+        }}
         vendedorNome={vendedorNome}
       />
 

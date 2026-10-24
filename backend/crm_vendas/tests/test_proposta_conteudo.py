@@ -150,3 +150,13 @@ class ConteudoPropostaTests(SimpleTestCase):
             subtitulo_da_versao([item("ULTRASIS CLÍNICA 1 A 4 PROFISSIONAIS - POR PROFISSIONAL")]),
             "Sistema de Clínica",
         )
+
+    def test_coluna_de_valor_unitario_so_quando_a_quantidade_passa_de_um(self):
+        from types import SimpleNamespace
+
+        from crm_vendas.pdf_proposta_contrato.sections import _mostra_valor_unitario
+
+        um = SimpleNamespace(quantidade=1)
+        tres = SimpleNamespace(quantidade=3)
+        self.assertFalse(_mostra_valor_unitario([um, um]))
+        self.assertTrue(_mostra_valor_unitario([um, tres]))

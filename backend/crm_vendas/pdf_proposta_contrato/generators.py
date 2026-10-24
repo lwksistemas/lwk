@@ -39,6 +39,16 @@ from .sections import (
 from .watermark import _build_watermark_callback, _inserir_watermark_flowable
 
 
+def _proposta_tem_as_duas_assinaturas(proposta) -> bool:
+    """O quadro só entra na proposta depois que vendedor e cliente assinaram."""
+    from ..models import AssinaturaDigital
+
+    tipos = set(
+        AssinaturaDigital.objects.filter(proposta=proposta, assinado=True).values_list("tipo", flat=True)
+    )
+    return "vendedor" in tipos and "cliente" in tipos
+
+
 def _logo_prestadora(documento):
     """Logo da empresa prestadora vinculada à oportunidade. A logo do login fica só na tela de login."""
     oportunidade = getattr(documento, "oportunidade", None)
@@ -106,7 +116,9 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         _build_recursos_visuais(elements, proposta.oportunidade, intro, secoes)
 
     vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, "vendedor", None) else None
-    ass_v, ass_c = _build_secao_assinaturas(elements, proposta, lead, vendedor, compact, incluir_assinaturas, "proposta")
+    ass_v, ass_c = None, None
+    if incluir_assinaturas and _proposta_tem_as_duas_assinaturas(proposta):
+        ass_v, ass_c = _build_secao_assinaturas(elements, proposta, lead, vendedor, compact, True, "proposta")
 
     wm_data = _build_watermark_callback(logo_url, ass_v, ass_c)
     _inserir_watermark_flowable(elements, wm_data, max_wm_w_cm=7.5, max_wm_h_cm=5, y_factor=0.8)

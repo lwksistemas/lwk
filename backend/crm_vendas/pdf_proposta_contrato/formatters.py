@@ -2,6 +2,7 @@
 import logging
 import re
 import unicodedata
+from html.parser import HTMLParser
 
 import pytz
 import requests
@@ -226,6 +227,93 @@ LETRAS_PDF = {
     "courier": ("Courier", "Courier-Bold"),
 }
 TAMANHOS_LETRA = {8, 9, 10, 11, 12, 14}
+
+
+def conteudo_tem_formatacao(conteudo: str) -> bool:
+    bruto = (conteudo or "").lower()
+    return "<span" in bruto or "data-align" in bruto or "text-align" in bruto
+
+
+def dividir_texto_folhas(conteudo: str):
+    """Divide o texto bruto na marca da segunda folha, sem interpretar HTML."""
+    if MARCA_SEGUNDA_FOLHA not in (conteudo or ""):
+        return None
+    esquerda, direita = conteudo.split(MARCA_SEGUNDA_FOLHA, 1)
+    return esquerda.strip(), direita.strip()
+
+
+class _LeitorBlocos(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.blocos = []
+        self.atual = None
+        self.pilha = []
+
+    def _abrir(self, align):
+        self._fechar()
+        self.atual = {"align": align or "left", "trechos": []}
+
+    def _fechar(self):
+        if self.atual is None:
+            return
+        texto = "".join(trecho["texto"] for trecho in self.atual["trechos"]).replace("\xa0", " ")
+        if not texto.strip():
+            texto = ""
+            self.atual["trechos"] = [{"texto": "", "fonte": None, "tamanho": None}]
+        self.atual["texto"] = texto
+        self.blocos.append(self.atual)
+        self.atual = None
+
+    def _adicionar(self, data):
+        fonte, tamanho = self.pilha[-1] if self.pilha else (None, None)
+        self.atual["trechos"].append({"texto": data, "fonte": fonte, "tamanho": tamanho})
+
+    def handle_starttag(self, tag, attrs):
+        atributos = {chave: valor for chave, valor in attrs}
+        if tag in ("p", "div"):
+            estilo = atributos.get("style") or ""
+            align = atributos.get("data-align") or ""
+            if not align:
+                marca = re.search(r"text-align\s*:\s*(left|center|right|justify)", estilo, re.I)
+                align = marca.group(1).lower() if marca else "left"
+            if align not in ("left", "center", "right", "justify"):
+                align = "left"
+            self._abrir(align)
+        elif tag == "span":
+            tamanho = atributos.get("data-size")
+            self.pilha.append((atributos.get("data-font"), int(tamanho) if str(tamanho or "").isdigit() else None))
+        elif tag == "br" and self.atual is not None:
+            self._adicionar("\n")
+
+    def handle_endtag(self, tag):
+        if tag in ("p", "div"):
+            self._fechar()
+        elif tag == "span" and self.pilha:
+            self.pilha.pop()
+
+    def handle_data(self, data):
+        if self.atual is None:
+            if not data.strip():
+                return
+            self._abrir("left")
+        self._adicionar(data)
+
+
+def blocos_formatados(texto: str) -> list[dict]:
+    """Parágrafos com alinhamento e trechos de letra. Texto puro vira uma linha por bloco."""
+    bruto = (texto or "").strip()
+    if not bruto:
+        return []
+    if re.search(r"<(p|div|span)\b", bruto, re.I):
+        leitor = _LeitorBlocos()
+        leitor.feed(bruto)
+        leitor.close()
+        leitor._fechar()
+        return leitor.blocos
+    return [
+        {"align": "left", "trechos": [{"texto": linha, "fonte": None, "tamanho": None}], "texto": linha}
+        for linha in bruto.replace("\r\n", "\n").split("\n")
+    ]
 
 
 def extrair_letra_do_template(conteudo: str) -> tuple[str, str, str, int]:

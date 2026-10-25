@@ -12,7 +12,10 @@ from .formatters import (
     _obter_dados_loja,
     conteudo_com_descricoes,
     conteudo_narrativo_da_proposta,
+    blocos_formatados,
+    conteudo_tem_formatacao,
     dividir_folhas_marcadas,
+    dividir_texto_folhas,
     extrair_letra_do_template,
     extrair_pagamento_inicial,
     paragrafos_condicoes,
@@ -27,6 +30,8 @@ from .sections import (
     _build_identificacao_visual,
     _build_pagamento_inicial_visual,
     _build_recursos_visuais,
+    desenhar_primeira_folha_formatada,
+    desenhar_recursos_formatados,
     _build_resumo_visual,
     _build_secao_assinaturas,
     _build_secao_cliente,
@@ -101,41 +106,70 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     conteudo, fonte_texto, fonte_negrito, tamanho_texto = extrair_letra_do_template(
         conteudo_narrativo_da_proposta(proposta),
     )
-    paragrafos = paragrafos_condicoes(conteudo, proposta.oportunidade)
-    marcado = dividir_folhas_marcadas(paragrafos)
-    if marcado is not None:
-        primeira, paragrafos = marcado
-        titulo_banco, linhas_banco = titulo_e_corpo_da_primeira_folha(primeira)
-        subtitulo_template, paragrafos = separar_subtitulo(paragrafos)
-        intro, secoes = partir_condicoes(paragrafos)
+    formatado = conteudo_tem_formatacao(conteudo)
+    blocos_primeira = []
+    blocos_seguintes = []
+    if formatado:
+        partes = dividir_texto_folhas(conteudo)
+        if partes is None:
+            blocos_seguintes = blocos_formatados(conteudo)
+        else:
+            blocos_primeira = blocos_formatados(partes[0])
+            blocos_seguintes = blocos_formatados(partes[1])
+        subtitulo = subtitulo_da_versao(_itens_oportunidade(proposta.oportunidade))
     else:
-        subtitulo_template, paragrafos = separar_subtitulo(paragrafos)
-        intro, secoes = partir_condicoes(paragrafos)
-        titulo_banco, linhas_banco, intro, secoes = extrair_pagamento_inicial(intro, secoes)
-    subtitulo = subtitulo_da_versao(_itens_oportunidade(proposta.oportunidade)) or subtitulo_template
+        paragrafos = paragrafos_condicoes(conteudo, proposta.oportunidade)
+        marcado = dividir_folhas_marcadas(paragrafos)
+        if marcado is not None:
+            primeira, paragrafos = marcado
+            titulo_banco, linhas_banco = titulo_e_corpo_da_primeira_folha(primeira)
+            subtitulo_template, paragrafos = separar_subtitulo(paragrafos)
+            intro, secoes = partir_condicoes(paragrafos)
+        else:
+            subtitulo_template, paragrafos = separar_subtitulo(paragrafos)
+            intro, secoes = partir_condicoes(paragrafos)
+            titulo_banco, linhas_banco, intro, secoes = extrair_pagamento_inicial(intro, secoes)
+        subtitulo = subtitulo_da_versao(_itens_oportunidade(proposta.oportunidade)) or subtitulo_template
     if subtitulo:
         elements.append(Paragraph(escape(subtitulo), _estilo_subtitulo_proposta()))
 
     _build_identificacao_visual(elements, loja_data, lead)
     totais = _build_tabela_investimento_visual(elements, proposta.oportunidade)
     _build_resumo_visual(elements, proposta, totais)
-    _build_pagamento_inicial_visual(
-        elements, titulo_banco, linhas_banco, fonte_texto, fonte_negrito, tamanho_texto,
-    )
+    if formatado:
+        desenhar_primeira_folha_formatada(
+            elements, blocos_primeira, fonte_texto, fonte_negrito, tamanho_texto,
+        )
+    else:
+        _build_pagamento_inicial_visual(
+            elements, titulo_banco, linhas_banco, fonte_texto, fonte_negrito, tamanho_texto,
+        )
 
-    tem_recursos = (
-        any(paragrafo for paragrafo in intro)
-        or bool(secoes)
-        or bool(_descricoes_incluidas(proposta.oportunidade))
-        or bool(_linhas_implantacao(proposta.oportunidade))
-    )
+    if formatado:
+        tem_recursos = (
+            any((bloco.get("texto") or "").strip() for bloco in blocos_seguintes)
+            or bool(_descricoes_incluidas(proposta.oportunidade))
+            or bool(_linhas_implantacao(proposta.oportunidade))
+        )
+    else:
+        tem_recursos = (
+            any(paragrafo for paragrafo in intro)
+            or bool(secoes)
+            or bool(_descricoes_incluidas(proposta.oportunidade))
+            or bool(_linhas_implantacao(proposta.oportunidade))
+        )
     if tem_recursos:
         elements.append(PageBreak())
         _build_faixa_logos(elements, *logos)
         elements.append(Paragraph("RECURSOS E CONDIÇÕES", _estilo_titulo_recursos()))
-        _build_recursos_visuais(
-            elements, proposta.oportunidade, intro, secoes, fonte_texto, fonte_negrito, tamanho_texto,
-        )
+        if formatado:
+            desenhar_recursos_formatados(
+                elements, proposta.oportunidade, blocos_seguintes, fonte_texto, fonte_negrito, tamanho_texto,
+            )
+        else:
+            _build_recursos_visuais(
+                elements, proposta.oportunidade, intro, secoes, fonte_texto, fonte_negrito, tamanho_texto,
+            )
 
     vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, "vendedor", None) else None
     ass_v, ass_c = None, None

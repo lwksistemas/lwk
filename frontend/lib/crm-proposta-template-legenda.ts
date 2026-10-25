@@ -18,6 +18,10 @@ export interface LetraDoTemplate {
 
 export const LETRA_PADRAO: LetraDoTemplate = { tipo: 'padrao', tamanho: 9 };
 
+export function familiaCss(tipo: string): string {
+  return TIPOS_LETRA.find((item) => item.id === tipo)?.familia || TIPOS_LETRA[0].familia;
+}
+
 export interface FolhasDoTemplate {
   primeiraPagina: string;
   proximasPaginas: string;
@@ -92,6 +96,9 @@ export function juntarFolhasDoTemplate(
 export function textoVisivelDoTemplate(conteudo: string): string {
   return semMarcaDeLetra(conteudo)
     .replaceAll(MARCA_SEGUNDA_FOLHA, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }

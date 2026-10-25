@@ -177,6 +177,31 @@ class ConteudoPropostaTests(SimpleTestCase):
         self.assertIn("Banco da Anadem", texto)
         self.assertIn("[[folha:2]]", texto)
 
+    def test_trecho_selecionado_guarda_letra_e_alinhamento(self):
+        from io import BytesIO
+
+        from reportlab.platypus import SimpleDocTemplate
+
+        from crm_vendas.pdf_proposta_contrato.formatters import blocos_formatados, conteudo_tem_formatacao
+        from crm_vendas.pdf_proposta_contrato.sections import desenhar_primeira_folha_formatada
+
+        html = (
+            '<p data-align="center"><span data-font="times" data-size="14">Felix Presentações</span></p>'
+            "<p>CNPJ: 41.449.198/0001-72</p>"
+        )
+        self.assertTrue(conteudo_tem_formatacao(html))
+        self.assertFalse(conteudo_tem_formatacao("Banco da Anadem"))
+        blocos = blocos_formatados(html)
+        self.assertEqual(blocos[0]["align"], "center")
+        self.assertEqual(blocos[0]["trechos"][0]["fonte"], "times")
+        self.assertEqual(blocos[0]["trechos"][0]["tamanho"], 14)
+        self.assertEqual(blocos[1]["trechos"][0]["fonte"], None)
+        buffer = BytesIO()
+        elementos = []
+        desenhar_primeira_folha_formatada(elementos, blocos, "DejaVu", "DejaVu-Bold", 9)
+        SimpleDocTemplate(buffer).build(elementos)
+        self.assertTrue(buffer.getvalue().startswith(b"%PDF"))
+
     def test_condicoes_ficam_sem_a_descricao_do_servico(self):
         from crm_vendas.pdf_proposta_contrato.formatters import paragrafos_condicoes
 

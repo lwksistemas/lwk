@@ -1,18 +1,28 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef, memo, type RefObject } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Plus, Edit2, Trash2, X, Star } from 'lucide-react';
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Plus, Edit2, Trash2, X, Star } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { fetchAllPaginatedResults, normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
 import {
+  familiaCss,
   juntarFolhasDoTemplate,
   lerLetraDoTemplate,
+  LETRA_PADRAO,
   separarFolhasDoTemplate,
   TAMANHOS_LETRA,
   textoVisivelDoTemplate,
   TIPOS_LETRA,
+  type LetraDoTemplate,
 } from '@/lib/crm-proposta-template-legenda';
+import {
+  aplicarAlinhamento,
+  aplicarFonte,
+  editorParaTexto,
+  textoParaEditor,
+  type Alinhamento,
+} from '@/lib/crm-proposta-template-formatacao';
 import { useToast } from '@/components/ui/Toast';
 
 export interface CrmTemplateRecord {
@@ -47,21 +57,21 @@ interface CrmTemplatesManagerPageProps {
 
 type ModalType = 'create' | 'edit' | 'delete' | null;
 
-function CampoFolha({
+const EditorFolha = memo(function EditorFolha({
   titulo,
   subtitulo,
-  valor,
-  onChange,
-  placeholder,
+  html,
+  editorRef,
+  onFocus,
   classe,
   familia,
   tamanho,
 }: {
   titulo: string;
   subtitulo: string;
-  valor: string;
-  onChange: (valor: string) => void;
-  placeholder: string;
+  html: string;
+  editorRef: RefObject<HTMLDivElement | null>;
+  onFocus: (editor: HTMLDivElement) => void;
   classe: string;
   familia: string;
   tamanho: number;
@@ -72,16 +82,26 @@ function CampoFolha({
         <p className="text-sm font-semibold text-gray-900 dark:text-white">{titulo}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400">{subtitulo}</p>
       </div>
-      <textarea
-        value={valor}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        dangerouslySetInnerHTML={{ __html: html }}
+        onFocus={(evento) => {
+          document.execCommand('defaultParagraphSeparator', false, 'p');
+          onFocus(evento.currentTarget);
+        }}
+        onPaste={(evento) => {
+          evento.preventDefault();
+          const texto = evento.clipboardData.getData('text/plain');
+          document.execCommand('insertText', false, texto);
+        }}
         style={{ fontFamily: familia, fontSize: `${tamanho}pt`, lineHeight: 1.45 }}
-        className="mt-2 min-h-0 w-full flex-1 resize-none border-0 bg-transparent p-0 text-gray-900 outline-none placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500"
+        className="mt-2 min-h-0 flex-1 overflow-y-auto text-gray-900 outline-none dark:text-white [&_p]:m-0 [&_p]:min-h-[1.35em]"
       />
     </section>
   );
-}
+});
 
 /**
  * CRUD unificado para templates de proposta, contrato e descrição NFS-e (rotas DRF espelhadas).
@@ -111,10 +131,15 @@ export default function CrmTemplatesManagerPage({
     ativo: true,
   });
   const [submitting, setSubmitting] = useState(false);
-  const [primeiraPagina, setPrimeiraPagina] = useState('');
-  const [proximasPaginas, setProximasPaginas] = useState('');
+  const [htmlPrimeira, setHtmlPrimeira] = useState('<p><br></p>');
+  const [htmlSegunda, setHtmlSegunda] = useState('<p><br></p>');
   const [tipoLetra, setTipoLetra] = useState('padrao');
   const [tamanhoLetra, setTamanhoLetra] = useState(9);
+  const [letraBase, setLetraBase] = useState<LetraDoTemplate>(LETRA_PADRAO);
+  const editorPrimeira = useRef<HTMLDivElement>(null);
+  const editorSegunda = useRef<HTMLDivElement>(null);
+  const editorAtivo = useRef<HTMLDivElement | null>(null);
+  const faixaSelecao = useRef<Range | null>(null);
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -140,6 +165,55 @@ export default function CrmTemplatesManagerPage({
       .catch(() => setPrestadoras([]));
   }, [vincularPrestadora]);
 
+  useEffect(() => {
+    if (modalType !== 'create' && modalType !== 'edit') return undefined;
+    const guardar = () => {
+      const selecao = window.getSelection();
+      const editor = editorAtivo.current;
+      if (!selecao || !editor || selecao.rangeCount === 0) return;
+      const faixa = selecao.getRangeAt(0);
+      if (document.activeElement !== editor) return;
+      if (!editor.contains(faixa.commonAncestorContainer)) return;
+      faixaSelecao.current = faixa.cloneRange();
+    };
+    document.addEventListener('selectionchange', guardar);
+    return () => document.removeEventListener('selectionchange', guardar);
+  }, [modalType]);
+
+  const focarEditor = useCallback((editor: HTMLDivElement) => {
+    editorAtivo.current = editor;
+  }, []);
+
+  const exigirSelecao = () => {
+    const editor = editorAtivo.current;
+    const faixa = faixaSelecao.current;
+    if (!editor || !faixa || faixa.collapsed) {
+      toast.warning('Selecione o texto.');
+      return null;
+    }
+    return { editor, faixa };
+  };
+
+  const mudarTipo = (tipo: string) => {
+    setTipoLetra(tipo);
+    const alvo = exigirSelecao();
+    if (!alvo) return;
+    aplicarFonte(alvo.editor, alvo.faixa, { tipo });
+  };
+
+  const mudarTamanho = (tamanho: number) => {
+    setTamanhoLetra(tamanho);
+    const alvo = exigirSelecao();
+    if (!alvo) return;
+    aplicarFonte(alvo.editor, alvo.faixa, { tamanho });
+  };
+
+  const mudarAlinhamento = (alinhamento: Alinhamento) => {
+    const alvo = exigirSelecao();
+    if (!alvo) return;
+    aplicarAlinhamento(alvo.editor, alvo.faixa, alinhamento);
+  };
+
   const templatesVisiveis = useMemo(() => {
     if (!vincularPrestadora || !filtroPrestadora) return templates;
     return templates.filter((t) => String(t.prestadora || '') === filtroPrestadora);
@@ -151,12 +225,15 @@ export default function CrmTemplatesManagerPage({
   const openModal = (type: ModalType, item?: CrmTemplateRecord) => {
     setModalType(type);
     setSelected(item || null);
-    const folhas = separarFolhasDoTemplate(item?.conteudo || '');
-    const letra = lerLetraDoTemplate(item?.conteudo || '');
-    setPrimeiraPagina(type === 'edit' ? folhas.primeiraPagina : '');
-    setProximasPaginas(type === 'edit' ? folhas.proximasPaginas : '');
-    setTipoLetra(type === 'edit' ? letra.tipo : 'padrao');
-    setTamanhoLetra(type === 'edit' ? letra.tamanho : 9);
+    const folhas = separarFolhasDoTemplate(type === 'edit' ? item?.conteudo || '' : '');
+    const letra = lerLetraDoTemplate(type === 'edit' ? item?.conteudo || '' : '');
+    setHtmlPrimeira(textoParaEditor(folhas.primeiraPagina));
+    setHtmlSegunda(textoParaEditor(folhas.proximasPaginas));
+    setLetraBase(letra);
+    setTipoLetra('padrao');
+    setTamanhoLetra(9);
+    editorAtivo.current = null;
+    faixaSelecao.current = null;
     if (type === 'edit' && item) {
       setFormData({
         nome: item.nome || '',
@@ -196,7 +273,11 @@ export default function CrmTemplatesManagerPage({
       const payload: Record<string, unknown> = {
         nome: formData.nome.trim(),
         conteudo: apiSegment === 'proposta-templates'
-          ? juntarFolhasDoTemplate(primeiraPagina, proximasPaginas, { tipo: tipoLetra, tamanho: tamanhoLetra })
+          ? juntarFolhasDoTemplate(
+              editorPrimeira.current ? editorParaTexto(editorPrimeira.current) : '',
+              editorSegunda.current ? editorParaTexto(editorSegunda.current) : '',
+              letraBase,
+            )
           : formData.conteudo,
         is_padrao: formData.is_padrao,
         ativo: formData.ativo,
@@ -439,12 +520,12 @@ export default function CrmTemplatesManagerPage({
                 </div>
                 {apiSegment === 'proposta-templates' ? (
                   <div className="flex min-h-0 flex-1 flex-col gap-3">
-                    <div className="grid shrink-0 gap-3 sm:grid-cols-2 lg:max-w-xl">
-                      <label className="block text-sm">
+                    <div className="flex shrink-0 flex-wrap items-end gap-3">
+                      <label className="block min-w-40 text-sm">
                         <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Tipo de letra</span>
                         <select
                           value={tipoLetra}
-                          onChange={(e) => setTipoLetra(e.target.value)}
+                          onChange={(evento) => mudarTipo(evento.target.value)}
                           className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                         >
                           {TIPOS_LETRA.map((tipo) => (
@@ -452,11 +533,11 @@ export default function CrmTemplatesManagerPage({
                           ))}
                         </select>
                       </label>
-                      <label className="block text-sm">
+                      <label className="block w-28 text-sm">
                         <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Tamanho da letra</span>
                         <select
                           value={tamanhoLetra}
-                          onChange={(e) => setTamanhoLetra(Number(e.target.value))}
+                          onChange={(evento) => mudarTamanho(Number(evento.target.value))}
                           className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                         >
                           {TAMANHOS_LETRA.map((tamanho) => (
@@ -464,27 +545,50 @@ export default function CrmTemplatesManagerPage({
                           ))}
                         </select>
                       </label>
+                      <div className="flex gap-1 pb-0.5">
+                        {([
+                          ['left', 'Alinhar à esquerda', AlignLeft],
+                          ['center', 'Centralizar', AlignCenter],
+                          ['right', 'Alinhar à direita', AlignRight],
+                          ['justify', 'Justificar', AlignJustify],
+                        ] as const).map(([alinhamento, rotulo, Icone]) => (
+                          <button
+                            key={alinhamento}
+                            type="button"
+                            title={rotulo}
+                            aria-label={rotulo}
+                            onMouseDown={(evento) => evento.preventDefault()}
+                            onClick={() => mudarAlinhamento(alinhamento)}
+                            className="rounded-lg border border-gray-300 p-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                          >
+                            <Icone size={16} />
+                          </button>
+                        ))}
+                      </div>
                     </div>
+                    <p className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                      Selecione o texto. A letra e o alinhamento mudam só nesse trecho.
+                    </p>
                     <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-                      <CampoFolha
+                      <EditorFolha
                         titulo="Primeira página"
                         subtitulo="Abaixo de Mensalidades seguintes"
-                        valor={primeiraPagina}
-                        onChange={setPrimeiraPagina}
-                        placeholder={'Dados para pagamento\nBanco, agência, conta, CNPJ e PIX'}
+                        html={htmlPrimeira}
+                        editorRef={editorPrimeira}
+                        onFocus={focarEditor}
                         classe="border-[#1B365D]/30 bg-[#1B365D]/10 dark:border-blue-400/30 dark:bg-blue-950/40"
-                        familia={TIPOS_LETRA.find((tipo) => tipo.id === tipoLetra)?.familia || TIPOS_LETRA[0].familia}
-                        tamanho={tamanhoLetra}
+                        familia={familiaCss(letraBase.tipo)}
+                        tamanho={letraBase.tamanho}
                       />
-                      <CampoFolha
+                      <EditorFolha
                         titulo="Segunda página e as próximas"
                         subtitulo="Recursos e condições"
-                        valor={proximasPaginas}
-                        onChange={setProximasPaginas}
-                        placeholder={'Vantagens\nTexto que segue nesta folha e nas próximas.'}
+                        html={htmlSegunda}
+                        editorRef={editorSegunda}
+                        onFocus={focarEditor}
                         classe="border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/50"
-                        familia={TIPOS_LETRA.find((tipo) => tipo.id === tipoLetra)?.familia || TIPOS_LETRA[0].familia}
-                        tamanho={tamanhoLetra}
+                        familia={familiaCss(letraBase.tipo)}
+                        tamanho={letraBase.tamanho}
                       />
                     </div>
                   </div>

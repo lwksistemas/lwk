@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { textoParaEditor } from './crm-proposta-template-formatacao';
 import {
   juntarFolhasDoTemplate,
   lerLetraDoTemplate,
@@ -55,7 +56,19 @@ describe('legenda das folhas do template da proposta', () => {
     expect(lerLetraDoTemplate(comLetra)).toEqual({ tipo: 'times', tamanho: 12 });
     expect(separarFolhasDoTemplate(comLetra).primeiraPagina).toBe(primeira);
     expect(textoVisivelDoTemplate(comLetra)).not.toContain('[[letra:');
-    expect(textoVisivelDoTemplate(gravado)).toContain('Cobertura nacional.');
+  });
+
+  it('guarda a letra de um trecho sem aplicar no texto inteiro', () => {
+    const titulo = '<p><span data-font="times" data-size="14">Vantagens</span></p>';
+    const corpo = textoParaEditor('Texto normal da cobertura.');
+    const gravado = juntarFolhasDoTemplate(titulo, corpo);
+    const folhas = separarFolhasDoTemplate(gravado);
+
+    expect(folhas.primeiraPagina).toContain('data-size="14"');
+    expect(folhas.primeiraPagina).not.toContain('Texto normal');
+    expect(textoVisivelDoTemplate(gravado)).toContain('Vantagens');
+    expect(textoVisivelDoTemplate(gravado)).toContain('Texto normal da cobertura.');
+    expect(textoVisivelDoTemplate(gravado)).not.toContain('data-size');
   });
 
   it('deixa a primeira folha vazia quando não há o título de pagamento', () => {

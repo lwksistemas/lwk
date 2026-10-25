@@ -18,6 +18,8 @@ MSG_LINK_SUBSTITUIDO = (
     "por e-mail ou WhatsApp — abra a última mensagem recebida para assinar."
 )
 
+MSG_DOCUMENTO_INDISPONIVEL = "Este documento não está mais disponível."
+
 AVISO_LINK_ANTERIOR = (
     "Você abriu um link anterior. Também enviamos um link mais recente "
     "por e-mail ou WhatsApp; se preferir, pode concluir a assinatura nesta página."
@@ -116,10 +118,8 @@ def _payload_assinatura_de_token(token):
         return None
 
 
-def _buscar_assinatura_pendente_por_payload(payload, loja_id):
-    """Fallback quando o token exato foi rotacionado (ex.: reenvio por outro canal).
-    Aceita qualquer link assinado válido para o mesmo documento/tipo pendente.
-    """
+def _buscar_assinatura_por_payload(payload, loja_id, *, assinado: bool):
+    """Assinatura do mesmo documento e tipo, pendente ou já concluída."""
     from .models import AssinaturaDigital
 
     doc_type = (payload.get("doc_type") or "").lower()
@@ -128,7 +128,7 @@ def _buscar_assinatura_pendente_por_payload(payload, loja_id):
     if not doc_id or tipo not in ("cliente", "vendedor"):
         return None
 
-    filt = {"tipo": tipo, "assinado": False, "loja_id": loja_id}
+    filt = {"tipo": tipo, "assinado": assinado, "loja_id": loja_id}
     if doc_type == "proposta":
         filt["proposta_id"] = doc_id
     elif doc_type == "contrato":
@@ -136,33 +136,52 @@ def _buscar_assinatura_pendente_por_payload(payload, loja_id):
     else:
         return None
 
-    assinatura = (
+    ordem = "-assinado_em" if assinado else "-created_at"
+    return (
         AssinaturaDigital.objects.select_related("proposta", "contrato")
         .filter(**filt)
-        .order_by("-created_at")
+        .order_by(ordem)
         .first()
     )
-    if not assinatura:
-        return None
-    if assinatura.is_expirado():
+
+
+def _buscar_assinatura_pendente_por_payload(payload, loja_id):
+    """Fallback quando o token exato foi rotacionado (ex.: reenvio por outro canal).
+    Aceita qualquer link assinado válido para o mesmo documento/tipo pendente.
+    """
+    assinatura = _buscar_assinatura_por_payload(payload, loja_id, assinado=False)
+    if not assinatura or assinatura.is_expirado():
         return None
     return assinatura
 
 
-def _documento_aguarda_assinatura(payload, loja_id):
-    """True se proposta/contrato ainda está aguardando assinatura."""
+def _buscar_assinatura_concluida_por_payload(payload, loja_id):
+    """Assinatura já registrada do mesmo documento, quando o token da URL não é o atual."""
+    return _buscar_assinatura_por_payload(payload, loja_id, assinado=True)
+
+
+def _documento_do_payload(payload, loja_id):
+    """Proposta ou contrato citado no token, ou None se não existe mais."""
     doc_type = (payload.get("doc_type") or "").lower()
     doc_id = payload.get("doc_id")
     if not doc_id:
-        return False
+        return None
     if doc_type == "proposta":
         from .models import Proposta
-        doc = Proposta.objects.filter(pk=doc_id, loja_id=loja_id).first()
-    elif doc_type == "contrato":
+        return Proposta.objects.filter(pk=doc_id, loja_id=loja_id).first()
+    if doc_type == "contrato":
         from .models import Contrato
-        doc = Contrato.objects.filter(pk=doc_id, loja_id=loja_id).first()
-    else:
-        return False
+        return Contrato.objects.filter(pk=doc_id, loja_id=loja_id).first()
+    return None
+
+
+def _documento_existe(payload, loja_id):
+    return _documento_do_payload(payload, loja_id) is not None
+
+
+def _documento_aguarda_assinatura(payload, loja_id):
+    """True se proposta/contrato ainda está aguardando assinatura."""
+    doc = _documento_do_payload(payload, loja_id)
     if not doc:
         return False
     return getattr(doc, "status_assinatura", "") in ("aguardando_cliente", "aguardando_vendedor")
@@ -241,6 +260,26 @@ def verificar_token_assinatura(token, loja_id=None):
             )
             return None, MSG_LINK_SUBSTITUIDO, loja_id, {"error_code": "link_substituido"}
         else:
+            concluida = _buscar_assinatura_concluida_por_payload(payload, loja_id)
+            if concluida is not None:
+                logger.info(
+                    "Token antigo de documento já assinado: assinatura_id=%s doc=%s#%s",
+                    concluida.id,
+                    payload.get("doc_type"),
+                    payload.get("doc_id"),
+                )
+                return None, "Este documento já foi assinado.", loja_id, {
+                    "error_code": "ja_assinado",
+                    "assinatura": concluida,
+                }
+            if not _documento_existe(payload, loja_id):
+                logger.warning(
+                    "Documento da assinatura não existe mais (loja_id=%s, doc=%s#%s)",
+                    loja_id,
+                    payload.get("doc_type"),
+                    payload.get("doc_id"),
+                )
+                return None, MSG_DOCUMENTO_INDISPONIVEL, loja_id, {"error_code": "indisponivel"}
             logger.error("❌ Token não encontrado no banco de dados (loja_id=%s)", loja_id)
             return None, "Link de assinatura inválido.", loja_id, {"error_code": "invalido"}
 

@@ -376,14 +376,16 @@ export default function AssinaturaPage() {
   // Error state
   if (erro && !documento) {
     const linkSubstituido = errorCode === 'link_substituido';
+    const documentoIndisponivel = errorCode === 'indisponivel';
+    const aviso = linkSubstituido || documentoIndisponivel;
     return (
-      <div className={`min-h-screen flex items-center justify-center p-4 ${linkSubstituido ? 'bg-gradient-to-br from-amber-50 to-orange-100' : 'bg-gradient-to-br from-red-50 to-pink-100'}`}>
+      <div className={`min-h-screen flex items-center justify-center p-4 ${aviso ? 'bg-gradient-to-br from-amber-50 to-orange-100' : 'bg-gradient-to-br from-red-50 to-pink-100'}`}>
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
-          <div className={`flex items-center justify-center w-16 h-16 rounded-full mx-auto mb-4 ${linkSubstituido ? 'bg-amber-100' : 'bg-red-100'}`}>
-            <AlertCircle className={`w-8 h-8 ${linkSubstituido ? 'text-amber-600' : 'text-red-600'}`} />
+          <div className={`flex items-center justify-center w-16 h-16 rounded-full mx-auto mb-4 ${aviso ? 'bg-amber-100' : 'bg-red-100'}`}>
+            <AlertCircle className={`w-8 h-8 ${aviso ? 'text-amber-600' : 'text-red-600'}`} />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
-            {linkSubstituido ? 'Link desatualizado' : 'Erro ao Carregar'}
+            {documentoIndisponivel ? 'Documento indisponível' : linkSubstituido ? 'Link desatualizado' : 'Erro ao Carregar'}
           </h2>
           <p className="text-gray-600 text-center">{erro}</p>
           {linkSubstituido && (

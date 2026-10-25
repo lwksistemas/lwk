@@ -11,6 +11,7 @@ from ..emitente_documento import obter_dados_emitente_documento
 from .formatters import (
     _obter_dados_loja,
     conteudo_com_descricoes,
+    conteudo_narrativo_da_proposta,
     dividir_folhas_marcadas,
     extrair_pagamento_inicial,
     paragrafos_condicoes,
@@ -96,7 +97,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     elements.append(Paragraph("PROPOSTA COMERCIAL", _estilo_titulo_proposta()))
 
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
-    paragrafos = paragrafos_condicoes(getattr(proposta, "conteudo", ""), proposta.oportunidade)
+    paragrafos = paragrafos_condicoes(conteudo_narrativo_da_proposta(proposta), proposta.oportunidade)
     marcado = dividir_folhas_marcadas(paragrafos)
     if marcado is not None:
         primeira, paragrafos = marcado

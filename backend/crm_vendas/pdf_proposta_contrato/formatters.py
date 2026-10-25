@@ -220,6 +220,34 @@ def titulo_de_bloco(bloco) -> str:
 MARCA_SEGUNDA_FOLHA = "[[folha:2]]"
 
 
+def escolher_conteudo_narrativo(conteudo_proposta: str, conteudo_template: str) -> str:
+    """O template padrão da prestadora, quando já separa as folhas, é o texto do PDF.
+
+    A proposta guarda uma cópia antiga. Sem isso, a primeira folha escrita no
+    template não aparece no PDF já gerado.
+    """
+    template = (conteudo_template or "").strip()
+    if MARCA_SEGUNDA_FOLHA in template:
+        return template
+    return (conteudo_proposta or "").strip()
+
+
+def conteudo_narrativo_da_proposta(proposta) -> str:
+    from crm_vendas.models import PropostaTemplate
+
+    oportunidade = getattr(proposta, "oportunidade", None)
+    prestadora_id = getattr(oportunidade, "empresa_prestadora_id", None) if oportunidade is not None else None
+    template = ""
+    if isinstance(prestadora_id, int):
+        registro = (
+            PropostaTemplate.objects.filter(prestadora_id=prestadora_id, ativo=True, is_padrao=True)
+            .order_by("-updated_at")
+            .first()
+        )
+        template = getattr(registro, "conteudo", "") or ""
+    return escolher_conteudo_narrativo(getattr(proposta, "conteudo", "") or "", template)
+
+
 def dividir_folhas_marcadas(paragrafos):
     """O editor grava a primeira folha e as seguintes separadas por esta marca."""
     blocos = list(paragrafos or [])

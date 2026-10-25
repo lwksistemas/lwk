@@ -51,8 +51,6 @@ function CampoFolha({
   onChange,
   placeholder,
   classe,
-  preview,
-  cabecalho,
 }: {
   titulo: string;
   subtitulo: string;
@@ -60,8 +58,6 @@ function CampoFolha({
   onChange: (valor: string) => void;
   placeholder: string;
   classe: string;
-  preview: boolean;
-  cabecalho: string;
 }) {
   return (
     <section className={`flex min-h-0 flex-col overflow-hidden rounded-lg border p-3 ${classe}`}>
@@ -69,23 +65,12 @@ function CampoFolha({
         <p className="text-sm font-semibold text-gray-900 dark:text-white">{titulo}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400">{subtitulo}</p>
       </div>
-      {preview ? (
-        <div className="mt-2 min-h-0 flex-1 overflow-y-auto rounded-md bg-white p-4 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-          <p className="whitespace-pre-wrap text-xs font-semibold uppercase tracking-wide text-[#1B365D] dark:text-blue-200">
-            {cabecalho}
-          </p>
-          <div className="mt-3 whitespace-pre-wrap text-sm leading-6">
-            {valor || 'Nada nesta folha.'}
-          </div>
-        </div>
-      ) : (
-        <textarea
-          value={valor}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="mt-2 min-h-0 w-full flex-1 resize-none border-0 bg-transparent p-0 text-sm leading-6 text-gray-900 outline-none placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500"
-        />
-      )}
+      <textarea
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="mt-2 min-h-0 w-full flex-1 resize-none border-0 bg-transparent p-0 text-sm leading-6 text-gray-900 outline-none placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500"
+      />
     </section>
   );
 }
@@ -120,7 +105,6 @@ export default function CrmTemplatesManagerPage({
   const [submitting, setSubmitting] = useState(false);
   const [primeiraPagina, setPrimeiraPagina] = useState('');
   const [proximasPaginas, setProximasPaginas] = useState('');
-  const [previewFolhas, setPreviewFolhas] = useState(false);
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -157,7 +141,6 @@ export default function CrmTemplatesManagerPage({
   const openModal = (type: ModalType, item?: CrmTemplateRecord) => {
     setModalType(type);
     setSelected(item || null);
-    setPreviewFolhas(false);
     const folhas = separarFolhasDoTemplate(item?.conteudo || '');
     setPrimeiraPagina(type === 'edit' ? folhas.primeiraPagina : '');
     setProximasPaginas(type === 'edit' ? folhas.proximasPaginas : '');
@@ -183,7 +166,6 @@ export default function CrmTemplatesManagerPage({
   const closeModal = () => {
     setModalType(null);
     setSelected(null);
-    setPreviewFolhas(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -443,38 +425,23 @@ export default function CrmTemplatesManagerPage({
                   </div>
                 </div>
                 {apiSegment === 'proposta-templates' ? (
-                  <div className="flex min-h-0 flex-1 flex-col gap-2">
-                    <div className="flex shrink-0 justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewFolhas((atual) => !atual)}
-                        className="rounded-lg border border-gray-300 px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                      >
-                        {previewFolhas ? 'Editar' : 'Preview'}
-                      </button>
-                    </div>
-                    <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-                      <CampoFolha
-                        titulo="Primeira página"
-                        subtitulo="Abaixo de Mensalidades seguintes"
-                        valor={primeiraPagina}
-                        onChange={setPrimeiraPagina}
-                        placeholder={'Dados para pagamento\nBanco, agência, conta, CNPJ e PIX'}
-                        classe="border-[#1B365D]/30 bg-[#1B365D]/10 dark:border-blue-400/30 dark:bg-blue-950/40"
-                        preview={previewFolhas}
-                        cabecalho={'Pagamento inicial\nMensalidades seguintes'}
-                      />
-                      <CampoFolha
-                        titulo="Segunda página e as próximas"
-                        subtitulo="Recursos e condições"
-                        valor={proximasPaginas}
-                        onChange={setProximasPaginas}
-                        placeholder={'Vantagens\nTexto que segue nesta folha e nas próximas.'}
-                        classe="border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/50"
-                        preview={previewFolhas}
-                        cabecalho="Recursos e condições"
-                      />
-                    </div>
+                  <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
+                    <CampoFolha
+                      titulo="Primeira página"
+                      subtitulo="Abaixo de Mensalidades seguintes"
+                      valor={primeiraPagina}
+                      onChange={setPrimeiraPagina}
+                      placeholder={'Dados para pagamento\nBanco, agência, conta, CNPJ e PIX'}
+                      classe="border-[#1B365D]/30 bg-[#1B365D]/10 dark:border-blue-400/30 dark:bg-blue-950/40"
+                    />
+                    <CampoFolha
+                      titulo="Segunda página e as próximas"
+                      subtitulo="Recursos e condições"
+                      valor={proximasPaginas}
+                      onChange={setProximasPaginas}
+                      placeholder={'Vantagens\nTexto que segue nesta folha e nas próximas.'}
+                      classe="border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/50"
+                    />
                   </div>
                 ) : (
                   <div>

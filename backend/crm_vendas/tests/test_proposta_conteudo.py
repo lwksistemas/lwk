@@ -140,6 +140,32 @@ class ConteudoPropostaTests(SimpleTestCase):
         self.assertEqual(secoes[0]["titulo"], "Vantagens de ser um cliente Anadem")
         self.assertEqual(secoes[0]["paragrafos"], ["Cobertura nacional."])
 
+    def test_template_padrao_manda_a_primeira_folha_para_o_pdf(self):
+        from crm_vendas.pdf_proposta_contrato.formatters import (
+            MARCA_SEGUNDA_FOLHA,
+            dividir_folhas_marcadas,
+            escolher_conteudo_narrativo,
+            titulo_e_corpo_da_primeira_folha,
+        )
+
+        antigo = "Vantagens de ser um cliente Anadem\nTexto que já estava na proposta."
+        template = "\n".join([
+            "Banco, agência, conta, CNPJ e PIX da Anadem",
+            "",
+            "Tenha segurança e tranquilidade",
+            MARCA_SEGUNDA_FOLHA,
+            "Vantagens de ser um cliente Anadem",
+        ])
+        escolhido = escolher_conteudo_narrativo(antigo, template)
+        primeira, _seguintes = dividir_folhas_marcadas(escolhido.split("\n"))
+        titulo, linhas = titulo_e_corpo_da_primeira_folha(primeira)
+        self.assertEqual(titulo, "Banco, agência, conta, CNPJ e PIX da Anadem")
+        self.assertIn("Tenha segurança e tranquilidade", linhas)
+        self.assertEqual(
+            escolher_conteudo_narrativo(antigo, "Texto antigo do template, sem divisão."),
+            antigo,
+        )
+
     def test_condicoes_ficam_sem_a_descricao_do_servico(self):
         from crm_vendas.pdf_proposta_contrato.formatters import paragrafos_condicoes
 

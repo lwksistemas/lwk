@@ -686,7 +686,7 @@ def _build_identificacao_visual(elements, loja_data, lead):
     loja_data = loja_data or {}
     linhas = []
     if loja_data.get("nome"):
-        linhas.append(_linha_cadastro("Representante Autorizado", loja_data.get("nome"), style))
+        linhas.append(_linha_cadastro("Representante", loja_data.get("nome"), style))
     documento = loja_data.get("cpf_cnpj") or ""
     linhas.append(_linha_cadastro(_rotulo_documento(documento), documento, style))
     linhas.append(_linha_cadastro("Endereço", loja_data.get("endereco"), style))

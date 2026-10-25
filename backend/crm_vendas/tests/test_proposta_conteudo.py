@@ -251,6 +251,20 @@ class ConteudoPropostaTests(SimpleTestCase):
             "Sistema de Clínica",
         )
 
+    def test_identificacao_mostra_representante_sem_autorizado(self):
+        from crm_vendas.pdf_proposta_contrato.sections import _build_identificacao_visual
+
+        elementos = []
+        _build_identificacao_visual(
+            elementos,
+            {"nome": "FELIX REPRESENTACOES E COMERCIO LTDA"},
+            None,
+        )
+        textos = " ".join(getattr(item, "text", "") or "" for item in elementos)
+        self.assertIn("Representante:", textos)
+        self.assertIn("FELIX REPRESENTACOES E COMERCIO LTDA", textos)
+        self.assertNotIn("Autorizado", textos)
+
     def test_coluna_de_valor_unitario_so_quando_a_quantidade_passa_de_um(self):
         from types import SimpleNamespace
 

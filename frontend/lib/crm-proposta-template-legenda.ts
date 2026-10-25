@@ -40,16 +40,27 @@ export function separarFolhasDoTemplate(conteudo: string): FolhasDoTemplate {
   const intro: string[] = [];
   const secoes: { titulo: string; paragrafos: string[] }[] = [];
   let atual: { titulo: string; paragrafos: string[] } | null = null;
+  let segurandoPagamento = false;
 
   for (const bloco of blocosDoTexto(conteudo)) {
     if (bloco === '') {
+      if (segurandoPagamento) {
+        segurandoPagamento = false;
+        atual = null;
+        continue;
+      }
       (atual ? atual.paragrafos : intro).push(bloco);
+      continue;
+    }
+    if (segurandoPagamento && atual) {
+      atual.paragrafos.push(bloco);
       continue;
     }
     const titulo = tituloDeBloco(bloco);
     if (titulo) {
       atual = { titulo, paragrafos: [] };
       secoes.push(atual);
+      segurandoPagamento = ehDadosPagamento(titulo);
       continue;
     }
     if (atual) atual.paragrafos.push(bloco);

@@ -27,17 +27,17 @@ function alinhamentoDoBloco(bloco: HTMLElement): Alinhamento {
 
 function blocoFormatado(bloco: HTMLElement): boolean {
   if (alinhamentoDoBloco(bloco) !== 'left') return true;
-  return Boolean(bloco.querySelector('span[data-font], span[data-size]'));
+  return Boolean(bloco.querySelector('span[data-font], span[data-size], span[data-bold]'));
 }
 
 function serializarInline(raiz: HTMLElement): string {
   let html = '';
-  const visitar = (no: Node, fonte?: string, tamanho?: string) => {
+  const visitar = (no: Node, fonte?: string, tamanho?: string, negrito?: boolean) => {
     if (no.nodeType === Node.TEXT_NODE) {
       const texto = (no.textContent || '').replace(/\u00a0/g, ' ');
       if (!texto) return;
-      if (fonte || tamanho) {
-        const attrs = `${fonte ? ` data-font="${fonte}"` : ''}${tamanho ? ` data-size="${tamanho}"` : ''}`;
+      if (fonte || tamanho || negrito) {
+        const attrs = `${fonte ? ` data-font="${fonte}"` : ''}${tamanho ? ` data-size="${tamanho}"` : ''}${negrito ? ' data-bold="1"' : ''}`;
         html += `<span${attrs}>${escaparHtml(texto)}</span>`;
       } else {
         html += escaparHtml(texto);
@@ -51,7 +51,8 @@ function serializarInline(raiz: HTMLElement): string {
     }
     const proximaFonte = no.dataset.font || fonte;
     const proximoTamanho = no.dataset.size || tamanho;
-    for (const filho of no.childNodes) visitar(filho, proximaFonte, proximoTamanho);
+    const proximoNegrito = no.dataset.bold === '1' ? true : no.dataset.bold === '0' ? false : negrito;
+    for (const filho of no.childNodes) visitar(filho, proximaFonte, proximoTamanho, proximoNegrito);
   };
   for (const filho of raiz.childNodes) visitar(filho);
   return html;
@@ -109,7 +110,28 @@ function textosNoIntervalo(editor: HTMLElement, range: Range): Text[] {
   return nos;
 }
 
-function envolverTrecho(no: Text, inicio: number, fim: number, patch: { tipo?: string; tamanho?: number }) {
+function marcarNegrito(span: HTMLElement, negrito: boolean) {
+  if (negrito) {
+    span.dataset.bold = '1';
+    span.style.fontWeight = '700';
+    return;
+  }
+  span.dataset.bold = '0';
+  span.style.fontWeight = '400';
+}
+
+function spanSemFormato(span: HTMLElement) {
+  return !span.dataset.font && !span.dataset.size && span.dataset.bold !== '1';
+}
+
+function desembrulhar(span: HTMLElement) {
+  const pai = span.parentNode;
+  if (!pai) return;
+  while (span.firstChild) pai.insertBefore(span.firstChild, span);
+  pai.removeChild(span);
+}
+
+function envolverTrecho(no: Text, inicio: number, fim: number, patch: { tipo?: string; tamanho?: number; negrito?: boolean }) {
   let alvo = no;
   if (fim < no.length) no.splitText(fim);
   if (inicio > 0) alvo = no.splitText(inicio);
@@ -123,12 +145,15 @@ function envolverTrecho(no: Text, inicio: number, fim: number, patch: { tipo?: s
       pai.dataset.size = String(patch.tamanho);
       pai.style.fontSize = `${patch.tamanho}pt`;
     }
+    if (patch.negrito !== undefined) marcarNegrito(pai, patch.negrito);
+    if (spanSemFormato(pai) && !pai.parentElement?.closest('span[data-bold="1"]')) desembrulhar(pai);
     return;
   }
-  const ancestral = pai?.closest('span[data-font], span[data-size]');
+  const ancestral = pai?.closest('span[data-font], span[data-size], span[data-bold]');
   const span = document.createElement('span');
   const tipo = patch.tipo || ancestral?.dataset.font;
   const tamanho = patch.tamanho ? String(patch.tamanho) : ancestral?.dataset.size;
+  const negrito = patch.negrito ?? ancestral?.dataset.bold === '1';
   if (tipo) {
     span.dataset.font = tipo;
     span.style.fontFamily = familiaCss(tipo);
@@ -137,6 +162,8 @@ function envolverTrecho(no: Text, inicio: number, fim: number, patch: { tipo?: s
     span.dataset.size = tamanho;
     span.style.fontSize = `${tamanho}pt`;
   }
+  if (negrito || patch.negrito === false) marcarNegrito(span, Boolean(negrito));
+  if (spanSemFormato(span)) return;
   alvo.parentNode?.insertBefore(span, alvo);
   span.appendChild(alvo);
 }
@@ -155,6 +182,21 @@ export function aplicarFonte(
     const fim = no === range.endContainer ? range.endOffset : no.length;
     if (fim <= inicio) continue;
     envolverTrecho(no, inicio, fim, patch);
+  }
+  return true;
+}
+
+export function aplicarNegrito(editor: HTMLElement, range: Range): boolean {
+  if (range.collapsed || !editor.contains(range.commonAncestorContainer)) return false;
+  const nos = textosNoIntervalo(editor, range);
+  if (nos.length === 0) return false;
+  const ligar = nos.some((no) => no.parentElement?.closest('span[data-bold="1"]') == null);
+  for (let indice = nos.length - 1; indice >= 0; indice -= 1) {
+    const no = nos[indice];
+    const inicio = no === range.startContainer ? range.startOffset : 0;
+    const fim = no === range.endContainer ? range.endOffset : no.length;
+    if (fim <= inicio) continue;
+    envolverTrecho(no, inicio, fim, { negrito: ligar });
   }
   return true;
 }

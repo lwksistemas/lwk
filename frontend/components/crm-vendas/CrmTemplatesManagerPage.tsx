@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef, memo, type RefObject } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Plus, Edit2, Trash2, X, Star } from 'lucide-react';
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Plus, Edit2, Trash2, X, Star } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { fetchAllPaginatedResults, normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
 import {
@@ -19,6 +19,7 @@ import {
 import {
   aplicarAlinhamento,
   aplicarFonte,
+  aplicarNegrito,
   editorParaTexto,
   textoParaEditor,
   type Alinhamento,
@@ -206,6 +207,12 @@ export default function CrmTemplatesManagerPage({
     const alvo = exigirSelecao();
     if (!alvo) return;
     aplicarFonte(alvo.editor, alvo.faixa, { tamanho });
+  };
+
+  const mudarNegrito = () => {
+    const alvo = exigirSelecao();
+    if (!alvo) return;
+    aplicarNegrito(alvo.editor, alvo.faixa);
   };
 
   const mudarAlinhamento = (alinhamento: Alinhamento) => {
@@ -546,6 +553,16 @@ export default function CrmTemplatesManagerPage({
                         </select>
                       </label>
                       <div className="flex gap-1 pb-0.5">
+                        <button
+                          type="button"
+                          title="Negrito"
+                          aria-label="Negrito"
+                          onMouseDown={(evento) => evento.preventDefault()}
+                          onClick={mudarNegrito}
+                          className="rounded-lg border border-gray-300 p-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                          <Bold size={16} />
+                        </button>
                         {([
                           ['left', 'Alinhar à esquerda', AlignLeft],
                           ['center', 'Centralizar', AlignCenter],
@@ -567,7 +584,7 @@ export default function CrmTemplatesManagerPage({
                       </div>
                     </div>
                     <p className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
-                      Selecione o texto. A letra e o alinhamento mudam só nesse trecho.
+                      Selecione o texto. A letra, o negrito e o alinhamento mudam só nesse trecho.
                     </p>
                     <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
                       <EditorFolha

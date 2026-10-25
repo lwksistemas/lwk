@@ -1073,7 +1073,7 @@ def _markup_trechos(bloco, fonte_padrao, fonte_negrito, tamanho_padrao, negrito=
         texto = trecho.get("texto") or ""
         if texto == "":
             continue
-        face = _face_selecionada(trecho.get("fonte"), negrito, fonte_padrao, fonte_negrito)
+        face = _face_selecionada(trecho.get("fonte"), negrito or bool(trecho.get("negrito")), fonte_padrao, fonte_negrito)
         size = trecho.get("tamanho") or tamanho_padrao
         miolo = escape(texto).replace("\n", "<br/>")
         partes.append(f'<font face="{face}" size="{size}">{miolo}</font>')
@@ -1084,7 +1084,10 @@ def _flowable_bloco(bloco, fonte, fonte_negrito, tamanho, negrito=False, espaco_
     texto = (bloco.get("texto") or "").strip()
     if not texto:
         return Spacer(1, 0.12 * cm)
-    tem_fonte = any(trecho.get("fonte") or trecho.get("tamanho") for trecho in bloco["trechos"] if trecho.get("texto"))
+    tem_fonte = any(
+        trecho.get("fonte") or trecho.get("tamanho") or trecho.get("negrito")
+        for trecho in bloco["trechos"] if trecho.get("texto")
+    )
     tamanho_bloco = next((trecho.get("tamanho") for trecho in bloco["trechos"] if trecho.get("tamanho")), None)
     if negrito:
         tamanho_efetivo = tamanho_bloco or min(tamanho + 2, 16)

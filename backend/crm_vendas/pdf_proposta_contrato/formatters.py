@@ -231,7 +231,7 @@ TAMANHOS_LETRA = {8, 9, 10, 11, 12, 14}
 
 def conteudo_tem_formatacao(conteudo: str) -> bool:
     bruto = (conteudo or "").lower()
-    return "<span" in bruto or "data-align" in bruto or "text-align" in bruto
+    return "<span" in bruto or "data-align" in bruto or "data-bold" in bruto or "text-align" in bruto
 
 
 def dividir_texto_folhas(conteudo: str):
@@ -259,14 +259,14 @@ class _LeitorBlocos(HTMLParser):
         texto = "".join(trecho["texto"] for trecho in self.atual["trechos"]).replace("\xa0", " ")
         if not texto.strip():
             texto = ""
-            self.atual["trechos"] = [{"texto": "", "fonte": None, "tamanho": None}]
+            self.atual["trechos"] = [{"texto": "", "fonte": None, "tamanho": None, "negrito": False}]
         self.atual["texto"] = texto
         self.blocos.append(self.atual)
         self.atual = None
 
     def _adicionar(self, data):
-        fonte, tamanho = self.pilha[-1] if self.pilha else (None, None)
-        self.atual["trechos"].append({"texto": data, "fonte": fonte, "tamanho": tamanho})
+        fonte, tamanho, negrito = self.pilha[-1] if self.pilha else (None, None, False)
+        self.atual["trechos"].append({"texto": data, "fonte": fonte, "tamanho": tamanho, "negrito": negrito})
 
     def handle_starttag(self, tag, attrs):
         atributos = {chave: valor for chave, valor in attrs}
@@ -280,8 +280,17 @@ class _LeitorBlocos(HTMLParser):
                 align = "left"
             self._abrir(align)
         elif tag == "span":
+            anterior = self.pilha[-1] if self.pilha else (None, None, False)
             tamanho = atributos.get("data-size")
-            self.pilha.append((atributos.get("data-font"), int(tamanho) if str(tamanho or "").isdigit() else None))
+            if str(tamanho or "").isdigit():
+                tamanho = int(tamanho)
+            else:
+                tamanho = anterior[1]
+            if "data-bold" in atributos:
+                negrito = atributos.get("data-bold") not in ("0", "false")
+            else:
+                negrito = anterior[2]
+            self.pilha.append((atributos.get("data-font") or anterior[0], tamanho, negrito))
         elif tag == "br" and self.atual is not None:
             self._adicionar("\n")
 

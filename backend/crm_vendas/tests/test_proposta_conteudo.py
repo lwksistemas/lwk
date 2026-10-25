@@ -202,6 +202,18 @@ class ConteudoPropostaTests(SimpleTestCase):
         SimpleDocTemplate(buffer).build(elementos)
         self.assertTrue(buffer.getvalue().startswith(b"%PDF"))
 
+    def test_negrito_do_trecho_fica_em_negrito(self):
+        from crm_vendas.pdf_proposta_contrato.formatters import blocos_formatados
+        from crm_vendas.pdf_proposta_contrato.sections import _markup_trechos
+
+        blocos = blocos_formatados('<p>Pagamento <span data-bold="1">inicial</span></p>')
+        self.assertFalse(blocos[0]["trechos"][0]["negrito"])
+        self.assertTrue(blocos[0]["trechos"][1]["negrito"])
+        markup = _markup_trechos(blocos[0], "DejaVu", "DejaVu-Bold", 9)
+        self.assertIn('face="DejaVu"', markup)
+        self.assertIn('face="DejaVu-Bold"', markup)
+        self.assertIn("inicial", markup)
+
     def test_condicoes_ficam_sem_a_descricao_do_servico(self):
         from crm_vendas.pdf_proposta_contrato.formatters import paragrafos_condicoes
 

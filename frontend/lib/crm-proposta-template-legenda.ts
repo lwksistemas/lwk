@@ -2,9 +2,43 @@
 
 export const MARCA_SEGUNDA_FOLHA = '[[folha:2]]';
 
+export const TIPOS_LETRA = [
+  { id: 'padrao', nome: 'Padrão', familia: 'ui-sans-serif, system-ui, sans-serif' },
+  { id: 'times', nome: 'Times', familia: 'Times, "Times New Roman", serif' },
+  { id: 'helvetica', nome: 'Helvetica', familia: 'Helvetica, Arial, sans-serif' },
+  { id: 'courier', nome: 'Courier', familia: '"Courier New", Courier, monospace' },
+] as const;
+
+export const TAMANHOS_LETRA = [8, 9, 10, 11, 12, 14] as const;
+
+export interface LetraDoTemplate {
+  tipo: string;
+  tamanho: number;
+}
+
+export const LETRA_PADRAO: LetraDoTemplate = { tipo: 'padrao', tamanho: 9 };
+
 export interface FolhasDoTemplate {
   primeiraPagina: string;
   proximasPaginas: string;
+}
+
+function letraValida(letra: LetraDoTemplate): LetraDoTemplate {
+  const tipo = TIPOS_LETRA.some((item) => item.id === letra.tipo) ? letra.tipo : LETRA_PADRAO.tipo;
+  const tamanho = TAMANHOS_LETRA.some((item) => item === letra.tamanho) ? letra.tamanho : LETRA_PADRAO.tamanho;
+  return { tipo, tamanho };
+}
+
+export function lerLetraDoTemplate(conteudo: string): LetraDoTemplate {
+  const marca = (conteudo || '').match(/\[\[letra:([a-z]+)\|(\d+)\]\]/);
+  if (!marca) return { ...LETRA_PADRAO };
+  return letraValida({ tipo: marca[1], tamanho: Number(marca[2]) });
+}
+
+export function semMarcaDeLetra(conteudo: string): string {
+  return (conteudo || '')
+    .replace(/\[\[letra:[a-z]+\|\d+\]\]\n*/g, '')
+    .replace(/^\n+/, '');
 }
 
 function tituloDeBloco(bloco: string): string {
@@ -38,24 +72,32 @@ function blocosDoTexto(conteudo: string): string[] {
   return blocos;
 }
 
-export function juntarFolhasDoTemplate(primeiraPagina: string, proximasPaginas: string): string {
+export function juntarFolhasDoTemplate(
+  primeiraPagina: string,
+  proximasPaginas: string,
+  letra: LetraDoTemplate = LETRA_PADRAO,
+): string {
   const primeira = primeiraPagina.replace(/\r\n/g, '\n').trim();
   const proximas = proximasPaginas.replace(/\r\n/g, '\n').trim();
-  if (primeira && proximas) return `${primeira}\n\n${MARCA_SEGUNDA_FOLHA}\n\n${proximas}`;
-  if (primeira) return `${primeira}\n\n${MARCA_SEGUNDA_FOLHA}`;
-  if (proximas) return `${MARCA_SEGUNDA_FOLHA}\n\n${proximas}`;
-  return '';
+  let corpo = '';
+  if (primeira && proximas) corpo = `${primeira}\n\n${MARCA_SEGUNDA_FOLHA}\n\n${proximas}`;
+  else if (primeira) corpo = `${primeira}\n\n${MARCA_SEGUNDA_FOLHA}`;
+  else if (proximas) corpo = `${MARCA_SEGUNDA_FOLHA}\n\n${proximas}`;
+  if (!corpo) return '';
+  const escolhida = letraValida(letra);
+  if (escolhida.tipo === LETRA_PADRAO.tipo && escolhida.tamanho === LETRA_PADRAO.tamanho) return corpo;
+  return `[[letra:${escolhida.tipo}|${escolhida.tamanho}]]\n\n${corpo}`;
 }
 
 export function textoVisivelDoTemplate(conteudo: string): string {
-  return (conteudo || '')
+  return semMarcaDeLetra(conteudo)
     .replaceAll(MARCA_SEGUNDA_FOLHA, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
 export function separarFolhasDoTemplate(conteudo: string): FolhasDoTemplate {
-  const texto = (conteudo || '').replace(/\r\n/g, '\n');
+  const texto = semMarcaDeLetra(conteudo).replace(/\r\n/g, '\n');
   const indice = texto.indexOf(MARCA_SEGUNDA_FOLHA);
   if (indice >= 0) {
     return {
@@ -69,7 +111,7 @@ export function separarFolhasDoTemplate(conteudo: string): FolhasDoTemplate {
   let atual: { titulo: string; paragrafos: string[] } | null = null;
   let segurandoPagamento = false;
 
-  for (const bloco of blocosDoTexto(conteudo)) {
+  for (const bloco of blocosDoTexto(texto)) {
     if (bloco === '') {
       if (segurandoPagamento) {
         segurandoPagamento = false;

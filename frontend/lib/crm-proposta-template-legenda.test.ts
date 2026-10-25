@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   juntarFolhasDoTemplate,
+  lerLetraDoTemplate,
   separarFolhasDoTemplate,
   textoVisivelDoTemplate,
 } from './crm-proposta-template-legenda';
@@ -49,6 +50,11 @@ describe('legenda das folhas do template da proposta', () => {
     expect(folhas.primeiraPagina).toBe(primeira);
     expect(folhas.proximasPaginas).toBe(proximas);
     expect(textoVisivelDoTemplate(gravado)).not.toContain('[[folha:2]]');
+
+    const comLetra = juntarFolhasDoTemplate(primeira, proximas, { tipo: 'times', tamanho: 12 });
+    expect(lerLetraDoTemplate(comLetra)).toEqual({ tipo: 'times', tamanho: 12 });
+    expect(separarFolhasDoTemplate(comLetra).primeiraPagina).toBe(primeira);
+    expect(textoVisivelDoTemplate(comLetra)).not.toContain('[[letra:');
     expect(textoVisivelDoTemplate(gravado)).toContain('Cobertura nacional.');
   });
 

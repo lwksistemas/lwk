@@ -7,6 +7,7 @@ from django.test import SimpleTestCase
 from django.utils import timezone
 
 from crm_vendas.assinatura_digital_token import (
+    MSG_DOCUMENTO_INDISPONIVEL,
     MSG_LINK_SUBSTITUIDO,
     _payload_assinatura_de_token,
     verificar_token_assinatura,
@@ -70,6 +71,42 @@ class VerificarTokenAssinaturaTest(SimpleTestCase):
         self.assertIsNone(ass)
         self.assertEqual(err, MSG_LINK_SUBSTITUIDO)
         self.assertEqual(meta.get("error_code"), "link_substituido")
+
+    @patch("crm_vendas.assinatura_digital_token._documento_aguarda_assinatura", return_value=False)
+    @patch("crm_vendas.assinatura_digital_token._buscar_assinatura_pendente_por_payload", return_value=None)
+    @patch("crm_vendas.models.AssinaturaDigital")
+    def test_token_antigo_confirma_assinatura_existente(self, mock_cls, _buscar, _aguarda):
+        class DoesNotExist(Exception):
+            pass
+
+        concluida = MagicMock()
+        concluida.id = 9
+        mock_cls.DoesNotExist = DoesNotExist
+        mock_cls.objects.select_related.return_value.get.side_effect = DoesNotExist()
+        mock_cls.objects.select_related.return_value.filter.return_value.order_by.return_value.first.return_value = concluida
+        token = _token_payload()
+        ass, err, lid, meta = verificar_token_assinatura(token, loja_id=4)
+        self.assertIsNone(ass)
+        self.assertEqual(meta.get("error_code"), "ja_assinado")
+        self.assertIs(meta.get("assinatura"), concluida)
+        self.assertIn("assinado", (err or "").lower())
+
+    @patch("crm_vendas.assinatura_digital_token._documento_existe", return_value=False)
+    @patch("crm_vendas.assinatura_digital_token._documento_aguarda_assinatura", return_value=False)
+    @patch("crm_vendas.assinatura_digital_token._buscar_assinatura_concluida_por_payload", return_value=None)
+    @patch("crm_vendas.assinatura_digital_token._buscar_assinatura_pendente_por_payload", return_value=None)
+    @patch("crm_vendas.models.AssinaturaDigital")
+    def test_documento_excluido_nao_diz_link_invalido(self, mock_cls, _pendente, _concluida, _aguarda, _existe):
+        class DoesNotExist(Exception):
+            pass
+
+        mock_cls.DoesNotExist = DoesNotExist
+        mock_cls.objects.select_related.return_value.get.side_effect = DoesNotExist()
+        token = _token_payload()
+        ass, err, lid, meta = verificar_token_assinatura(token, loja_id=4)
+        self.assertIsNone(ass)
+        self.assertEqual(err, MSG_DOCUMENTO_INDISPONIVEL)
+        self.assertEqual(meta.get("error_code"), "indisponivel")
 
     @patch("crm_vendas.models.AssinaturaDigital")
     def test_token_encontrado_no_banco(self, mock_cls):

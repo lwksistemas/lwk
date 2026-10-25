@@ -40,42 +40,50 @@ interface CrmTemplatesManagerPageProps {
 
 type ModalType = 'create' | 'edit' | 'delete' | null;
 
+function PainelFolha({
+  titulo,
+  subtitulo,
+  texto,
+  vazio,
+  classe,
+}: {
+  titulo: string;
+  subtitulo: string;
+  texto: string;
+  vazio: string;
+  classe: string;
+}) {
+  return (
+    <section className={`flex min-h-0 flex-col overflow-hidden rounded-lg border p-3 ${classe}`}>
+      <div className="shrink-0">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white">{titulo}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{subtitulo}</p>
+      </div>
+      <div className="mt-2 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-gray-800 dark:text-gray-100">
+        {texto || vazio}
+      </div>
+    </section>
+  );
+}
+
 function LegendaFolhasProposta({ conteudo }: { conteudo: string }) {
   const folhas = separarFolhasDoTemplate(conteudo);
-  const campo =
-    'mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md bg-white/70 px-3 py-2 text-sm text-gray-800 dark:bg-black/20 dark:text-gray-100';
   return (
-    <div className="flex h-full min-h-[280px] flex-col gap-3">
-      <p className="text-sm text-gray-600 dark:text-gray-300">
-        O título <strong>Dados para pagamento</strong>, sem dois-pontos, vai para a parte branca da primeira folha.
-        Nas linhas desse bloco use dois-pontos, como Banco: 001. Uma linha curta sem pontuação abre seção na folha seguinte.
-      </p>
-      <div className="rounded-lg border border-[#1B365D]/30 bg-[#1B365D]/10 p-3 dark:border-blue-400/30 dark:bg-blue-950/40">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#1B365D] dark:text-blue-200">
-          Primeira página
-        </p>
-        <p className="text-xs text-gray-600 dark:text-gray-300">Abaixo de Mensalidades seguintes</p>
-        {folhas.primeiraPagina ? (
-          <pre className={campo}>{folhas.primeiraPagina}</pre>
-        ) : (
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-            Essa parte fica em branco até existir o título Dados para pagamento.
-          </p>
-        )}
-      </div>
-      <div className="flex-1 rounded-lg border border-gray-300 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-900/40">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
-          Segunda página e as próximas
-        </p>
-        <p className="text-xs text-gray-600 dark:text-gray-300">Recursos e condições</p>
-        {folhas.proximasPaginas ? (
-          <pre className={campo}>{folhas.proximasPaginas}</pre>
-        ) : (
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-            Vantagens, cobertura e os outros títulos curtos aparecem aqui.
-          </p>
-        )}
-      </div>
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <PainelFolha
+        titulo="Primeira página"
+        subtitulo="Abaixo de Mensalidades seguintes"
+        texto={folhas.primeiraPagina}
+        vazio="Escreva o título Dados para pagamento e, nas linhas seguintes, banco, agência, conta e PIX. Uma linha em branco encerra o bloco."
+        classe="h-[38%] border-[#1B365D]/30 bg-[#1B365D]/10 dark:border-blue-400/30 dark:bg-blue-950/40"
+      />
+      <PainelFolha
+        titulo="Segunda página e as próximas"
+        subtitulo="Recursos e condições"
+        texto={folhas.proximasPaginas}
+        vazio="Vantagens, cobertura e os outros títulos ficam aqui."
+        classe="min-h-0 flex-1 border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/50"
+      />
     </div>
   );
 }
@@ -359,7 +367,7 @@ export default function CrmTemplatesManagerPage({
         <>
           <div className="fixed inset-0 bg-black/50 z-[80]" onClick={() => !submitting && closeModal()} />
           <div className="fixed inset-0 z-[81] flex items-center justify-center p-4">
-            <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-h-[92vh] overflow-y-auto ${apiSegment === 'proposta-templates' ? 'max-w-6xl' : 'max-w-2xl'}`}>
+            <div className={`flex w-full flex-col bg-white dark:bg-gray-800 rounded-lg shadow-xl ${apiSegment === 'proposta-templates' ? 'h-[min(860px,92vh)] w-[min(1240px,96vw)] overflow-hidden' : 'max-h-[92vh] max-w-2xl overflow-y-auto'}`}>
               <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                   {modalType === 'create' ? 'Novo Template' : 'Editar Template'}
@@ -368,8 +376,8 @@ export default function CrmTemplatesManagerPage({
                   <X size={20} />
                 </button>
               </div>
-              <form onSubmit={handleSubmit} className="p-5 space-y-4">
-                <div className={apiSegment === 'proposta-templates' ? 'grid gap-4 lg:grid-cols-[minmax(16rem,1.2fr)_minmax(14rem,1fr)_auto] lg:items-end' : 'space-y-4'}>
+              <form onSubmit={handleSubmit} className={`p-5 ${apiSegment === 'proposta-templates' ? 'flex min-h-0 flex-1 flex-col gap-3' : 'space-y-4'}`}>
+                <div className={apiSegment === 'proposta-templates' ? 'grid shrink-0 gap-4 lg:grid-cols-[minmax(16rem,1.2fr)_minmax(14rem,1fr)_auto] lg:items-end' : 'space-y-4'}>
                   {vincularPrestadora && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -423,14 +431,14 @@ export default function CrmTemplatesManagerPage({
                   </div>
                 </div>
                 {apiSegment === 'proposta-templates' ? (
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="flex flex-col">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conteúdo</label>
+                  <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                    <div className="flex min-h-0 flex-col">
+                      <label className="mb-1 block shrink-0 text-sm font-medium text-gray-700 dark:text-gray-300">Conteúdo</label>
                       <textarea
                         value={formData.conteudo}
                         onChange={(e) => setFormData((f) => ({ ...f, conteudo: e.target.value }))}
-                        className="min-h-[360px] w-full flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        placeholder={'Dados para pagamento\nBanco: 001\nAgência: 1234\n\nVantagens\nTexto que segue para as próximas folhas.'}
+                        className="min-h-0 w-full flex-1 resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm leading-6 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        placeholder={'Dados para pagamento\nBanco, agência, conta e PIX\n\nVantagens\nTexto que segue para as próximas folhas.'}
                       />
                     </div>
                     <LegendaFolhasProposta conteudo={formData.conteudo} />
@@ -447,7 +455,7 @@ export default function CrmTemplatesManagerPage({
                     />
                   </div>
                 )}
-                <div className="flex gap-2 pt-1 lg:justify-end">
+                <div className={`flex gap-2 pt-1 lg:justify-end ${apiSegment === 'proposta-templates' ? 'shrink-0' : ''}`}>
                   <button type="button" onClick={() => !submitting && closeModal()} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg lg:min-w-36">
                     Cancelar
                   </button>

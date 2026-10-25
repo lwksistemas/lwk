@@ -218,19 +218,32 @@ def titulo_de_bloco(bloco) -> str:
 
 
 def partir_condicoes(paragrafos) -> tuple[list[str], list[dict]]:
-    """Separa o texto livre das seções. Um título é linha curta ou começa com '# '."""
+    """Separa o texto livre das seções. Um título é linha curta ou começa com '# '.
+
+    O bloco de pagamento fica inteiro na primeira folha até a linha em branco,
+    mesmo quando uma linha curta pareceria outro título.
+    """
     intro = []
     secoes = []
     atual = None
+    segurando_pagamento = False
     for bloco in paragrafos or []:
         if bloco == "":
+            if segurando_pagamento:
+                segurando_pagamento = False
+                atual = None
+                continue
             destino = intro if atual is None else atual["paragrafos"]
             destino.append(bloco)
+            continue
+        if segurando_pagamento and atual is not None:
+            atual["paragrafos"].append(bloco)
             continue
         titulo = titulo_de_bloco(bloco)
         if titulo:
             atual = {"titulo": titulo, "paragrafos": []}
             secoes.append(atual)
+            segurando_pagamento = eh_dados_pagamento(titulo)
             continue
         if atual is None:
             intro.append(bloco)

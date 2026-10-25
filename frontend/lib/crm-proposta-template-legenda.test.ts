@@ -21,6 +21,21 @@ describe('legenda das folhas do template da proposta', () => {
     expect(folhas.proximasPaginas).not.toContain('Banco: 001');
   });
 
+  it('mantém a linha do banco na primeira folha até a linha em branco', () => {
+    const folhas = separarFolhasDoTemplate([
+      'Dados para pagamento',
+      'Banco, agência, conta, CNPJ e PIX da Anadem',
+      '',
+      'Vantagens',
+      'Texto da cobertura.',
+    ].join('\n'));
+
+    expect(folhas.primeiraPagina).toBe(
+      'Dados para pagamento\nBanco, agência, conta, CNPJ e PIX da Anadem',
+    );
+    expect(folhas.proximasPaginas).toBe('Vantagens\nTexto da cobertura.');
+  });
+
   it('deixa a primeira folha vazia quando não há o título de pagamento', () => {
     const folhas = separarFolhasDoTemplate('Vantagens\nTexto da cobertura.');
     expect(folhas.primeiraPagina).toBe('');

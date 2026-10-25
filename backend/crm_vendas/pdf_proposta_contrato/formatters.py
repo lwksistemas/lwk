@@ -217,6 +217,37 @@ def titulo_de_bloco(bloco) -> str:
     return bruto
 
 
+MARCA_SEGUNDA_FOLHA = "[[folha:2]]"
+
+
+def dividir_folhas_marcadas(paragrafos):
+    """O editor grava a primeira folha e as seguintes separadas por esta marca."""
+    blocos = list(paragrafos or [])
+    if MARCA_SEGUNDA_FOLHA not in blocos:
+        return None
+    indice = blocos.index(MARCA_SEGUNDA_FOLHA)
+    primeira = blocos[:indice]
+    seguintes = blocos[indice + 1 :]
+    while primeira and primeira[-1] == "":
+        primeira.pop()
+    while seguintes and seguintes[0] == "":
+        seguintes.pop(0)
+    return primeira, seguintes
+
+
+def titulo_e_corpo_da_primeira_folha(paragrafos) -> tuple[str, list[str]]:
+    """A primeira linha curta vira o título. O restante sai logo abaixo, com as linhas em branco."""
+    blocos = list(paragrafos or [])
+    while blocos and blocos[0] == "":
+        blocos.pop(0)
+    if not blocos:
+        return "", []
+    titulo = titulo_de_bloco(blocos[0])
+    if titulo:
+        return titulo, blocos[1:]
+    return "", blocos
+
+
 def partir_condicoes(paragrafos) -> tuple[list[str], list[dict]]:
     """Separa o texto livre das seções. Um título é linha curta ou começa com '# '.
 

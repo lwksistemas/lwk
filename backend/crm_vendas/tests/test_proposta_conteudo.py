@@ -114,6 +114,32 @@ class ConteudoPropostaTests(SimpleTestCase):
         self.assertEqual(intro, ["Acesso às imagens: consulta por QR Code."])
         self.assertEqual([secao["titulo"] for secao in secoes], ["Requisitos do aparelho"])
 
+    def test_editor_separa_a_primeira_folha_da_segunda(self):
+        from crm_vendas.pdf_proposta_contrato.formatters import (
+            dividir_folhas_marcadas,
+            partir_condicoes,
+            titulo_e_corpo_da_primeira_folha,
+        )
+
+        blocos = [
+            "Dados para pagamento",
+            "Banco, agência, conta, CNPJ e PIX da Anadem",
+            "",
+            "Linha curta",
+            "[[folha:2]]",
+            "Vantagens de ser um cliente Anadem",
+            "Cobertura nacional.",
+        ]
+        primeira, seguintes = dividir_folhas_marcadas(blocos)
+        titulo, linhas = titulo_e_corpo_da_primeira_folha(primeira)
+        intro, secoes = partir_condicoes(seguintes)
+        self.assertEqual(titulo, "Dados para pagamento")
+        self.assertEqual(linhas[0], "Banco, agência, conta, CNPJ e PIX da Anadem")
+        self.assertIn("Linha curta", linhas)
+        self.assertEqual(intro, [])
+        self.assertEqual(secoes[0]["titulo"], "Vantagens de ser um cliente Anadem")
+        self.assertEqual(secoes[0]["paragrafos"], ["Cobertura nacional."])
+
     def test_condicoes_ficam_sem_a_descricao_do_servico(self):
         from crm_vendas.pdf_proposta_contrato.formatters import paragrafos_condicoes
 

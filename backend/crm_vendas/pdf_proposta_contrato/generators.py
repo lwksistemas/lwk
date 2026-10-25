@@ -11,9 +11,11 @@ from ..emitente_documento import obter_dados_emitente_documento
 from .formatters import (
     _obter_dados_loja,
     conteudo_com_descricoes,
+    dividir_folhas_marcadas,
     extrair_pagamento_inicial,
     paragrafos_condicoes,
     partir_condicoes,
+    titulo_e_corpo_da_primeira_folha,
     separar_subtitulo,
     subtitulo_da_versao,
 )
@@ -95,10 +97,17 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
 
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
     paragrafos = paragrafos_condicoes(getattr(proposta, "conteudo", ""), proposta.oportunidade)
-    subtitulo_template, paragrafos = separar_subtitulo(paragrafos)
+    marcado = dividir_folhas_marcadas(paragrafos)
+    if marcado is not None:
+        primeira, paragrafos = marcado
+        titulo_banco, linhas_banco = titulo_e_corpo_da_primeira_folha(primeira)
+        subtitulo_template, paragrafos = separar_subtitulo(paragrafos)
+        intro, secoes = partir_condicoes(paragrafos)
+    else:
+        subtitulo_template, paragrafos = separar_subtitulo(paragrafos)
+        intro, secoes = partir_condicoes(paragrafos)
+        titulo_banco, linhas_banco, intro, secoes = extrair_pagamento_inicial(intro, secoes)
     subtitulo = subtitulo_da_versao(_itens_oportunidade(proposta.oportunidade)) or subtitulo_template
-    intro, secoes = partir_condicoes(paragrafos)
-    titulo_banco, linhas_banco, intro, secoes = extrair_pagamento_inicial(intro, secoes)
     if subtitulo:
         elements.append(Paragraph(escape(subtitulo), _estilo_subtitulo_proposta()))
 

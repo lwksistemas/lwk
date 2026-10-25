@@ -13,6 +13,7 @@ from .formatters import (
     conteudo_com_descricoes,
     conteudo_narrativo_da_proposta,
     dividir_folhas_marcadas,
+    extrair_letra_do_template,
     extrair_pagamento_inicial,
     paragrafos_condicoes,
     partir_condicoes,
@@ -97,7 +98,10 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     elements.append(Paragraph("PROPOSTA COMERCIAL", _estilo_titulo_proposta()))
 
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
-    paragrafos = paragrafos_condicoes(conteudo_narrativo_da_proposta(proposta), proposta.oportunidade)
+    conteudo, fonte_texto, fonte_negrito, tamanho_texto = extrair_letra_do_template(
+        conteudo_narrativo_da_proposta(proposta),
+    )
+    paragrafos = paragrafos_condicoes(conteudo, proposta.oportunidade)
     marcado = dividir_folhas_marcadas(paragrafos)
     if marcado is not None:
         primeira, paragrafos = marcado
@@ -115,7 +119,9 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     _build_identificacao_visual(elements, loja_data, lead)
     totais = _build_tabela_investimento_visual(elements, proposta.oportunidade)
     _build_resumo_visual(elements, proposta, totais)
-    _build_pagamento_inicial_visual(elements, titulo_banco, linhas_banco)
+    _build_pagamento_inicial_visual(
+        elements, titulo_banco, linhas_banco, fonte_texto, fonte_negrito, tamanho_texto,
+    )
 
     tem_recursos = (
         any(paragrafo for paragrafo in intro)
@@ -127,7 +133,9 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         elements.append(PageBreak())
         _build_faixa_logos(elements, *logos)
         elements.append(Paragraph("RECURSOS E CONDIÇÕES", _estilo_titulo_recursos()))
-        _build_recursos_visuais(elements, proposta.oportunidade, intro, secoes)
+        _build_recursos_visuais(
+            elements, proposta.oportunidade, intro, secoes, fonte_texto, fonte_negrito, tamanho_texto,
+        )
 
     vendedor = proposta.oportunidade.vendedor if proposta.oportunidade and getattr(proposta.oportunidade, "vendedor", None) else None
     ass_v, ass_c = None, None

@@ -7,8 +7,11 @@ import apiClient from '@/lib/api-client';
 import { fetchAllPaginatedResults, normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
 import {
   juntarFolhasDoTemplate,
+  lerLetraDoTemplate,
   separarFolhasDoTemplate,
+  TAMANHOS_LETRA,
   textoVisivelDoTemplate,
+  TIPOS_LETRA,
 } from '@/lib/crm-proposta-template-legenda';
 import { useToast } from '@/components/ui/Toast';
 
@@ -51,6 +54,8 @@ function CampoFolha({
   onChange,
   placeholder,
   classe,
+  familia,
+  tamanho,
 }: {
   titulo: string;
   subtitulo: string;
@@ -58,6 +63,8 @@ function CampoFolha({
   onChange: (valor: string) => void;
   placeholder: string;
   classe: string;
+  familia: string;
+  tamanho: number;
 }) {
   return (
     <section className={`flex min-h-0 flex-col overflow-hidden rounded-lg border p-3 ${classe}`}>
@@ -69,7 +76,8 @@ function CampoFolha({
         value={valor}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-2 min-h-0 w-full flex-1 resize-none border-0 bg-transparent p-0 text-sm leading-6 text-gray-900 outline-none placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500"
+        style={{ fontFamily: familia, fontSize: `${tamanho}pt`, lineHeight: 1.45 }}
+        className="mt-2 min-h-0 w-full flex-1 resize-none border-0 bg-transparent p-0 text-gray-900 outline-none placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500"
       />
     </section>
   );
@@ -105,6 +113,8 @@ export default function CrmTemplatesManagerPage({
   const [submitting, setSubmitting] = useState(false);
   const [primeiraPagina, setPrimeiraPagina] = useState('');
   const [proximasPaginas, setProximasPaginas] = useState('');
+  const [tipoLetra, setTipoLetra] = useState('padrao');
+  const [tamanhoLetra, setTamanhoLetra] = useState(9);
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -142,8 +152,11 @@ export default function CrmTemplatesManagerPage({
     setModalType(type);
     setSelected(item || null);
     const folhas = separarFolhasDoTemplate(item?.conteudo || '');
+    const letra = lerLetraDoTemplate(item?.conteudo || '');
     setPrimeiraPagina(type === 'edit' ? folhas.primeiraPagina : '');
     setProximasPaginas(type === 'edit' ? folhas.proximasPaginas : '');
+    setTipoLetra(type === 'edit' ? letra.tipo : 'padrao');
+    setTamanhoLetra(type === 'edit' ? letra.tamanho : 9);
     if (type === 'edit' && item) {
       setFormData({
         nome: item.nome || '',
@@ -183,7 +196,7 @@ export default function CrmTemplatesManagerPage({
       const payload: Record<string, unknown> = {
         nome: formData.nome.trim(),
         conteudo: apiSegment === 'proposta-templates'
-          ? juntarFolhasDoTemplate(primeiraPagina, proximasPaginas)
+          ? juntarFolhasDoTemplate(primeiraPagina, proximasPaginas, { tipo: tipoLetra, tamanho: tamanhoLetra })
           : formData.conteudo,
         is_padrao: formData.is_padrao,
         ativo: formData.ativo,
@@ -425,23 +438,55 @@ export default function CrmTemplatesManagerPage({
                   </div>
                 </div>
                 {apiSegment === 'proposta-templates' ? (
-                  <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-                    <CampoFolha
-                      titulo="Primeira página"
-                      subtitulo="Abaixo de Mensalidades seguintes"
-                      valor={primeiraPagina}
-                      onChange={setPrimeiraPagina}
-                      placeholder={'Dados para pagamento\nBanco, agência, conta, CNPJ e PIX'}
-                      classe="border-[#1B365D]/30 bg-[#1B365D]/10 dark:border-blue-400/30 dark:bg-blue-950/40"
-                    />
-                    <CampoFolha
-                      titulo="Segunda página e as próximas"
-                      subtitulo="Recursos e condições"
-                      valor={proximasPaginas}
-                      onChange={setProximasPaginas}
-                      placeholder={'Vantagens\nTexto que segue nesta folha e nas próximas.'}
-                      classe="border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/50"
-                    />
+                  <div className="flex min-h-0 flex-1 flex-col gap-3">
+                    <div className="grid shrink-0 gap-3 sm:grid-cols-2 lg:max-w-xl">
+                      <label className="block text-sm">
+                        <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Tipo de letra</span>
+                        <select
+                          value={tipoLetra}
+                          onChange={(e) => setTipoLetra(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        >
+                          {TIPOS_LETRA.map((tipo) => (
+                            <option key={tipo.id} value={tipo.id}>{tipo.nome}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-sm">
+                        <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Tamanho da letra</span>
+                        <select
+                          value={tamanhoLetra}
+                          onChange={(e) => setTamanhoLetra(Number(e.target.value))}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        >
+                          {TAMANHOS_LETRA.map((tamanho) => (
+                            <option key={tamanho} value={tamanho}>{tamanho}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
+                      <CampoFolha
+                        titulo="Primeira página"
+                        subtitulo="Abaixo de Mensalidades seguintes"
+                        valor={primeiraPagina}
+                        onChange={setPrimeiraPagina}
+                        placeholder={'Dados para pagamento\nBanco, agência, conta, CNPJ e PIX'}
+                        classe="border-[#1B365D]/30 bg-[#1B365D]/10 dark:border-blue-400/30 dark:bg-blue-950/40"
+                        familia={TIPOS_LETRA.find((tipo) => tipo.id === tipoLetra)?.familia || TIPOS_LETRA[0].familia}
+                        tamanho={tamanhoLetra}
+                      />
+                      <CampoFolha
+                        titulo="Segunda página e as próximas"
+                        subtitulo="Recursos e condições"
+                        valor={proximasPaginas}
+                        onChange={setProximasPaginas}
+                        placeholder={'Vantagens\nTexto que segue nesta folha e nas próximas.'}
+                        classe="border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/50"
+                        familia={TIPOS_LETRA.find((tipo) => tipo.id === tipoLetra)?.familia || TIPOS_LETRA[0].familia}
+                        tamanho={tamanhoLetra}
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div>

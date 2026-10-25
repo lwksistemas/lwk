@@ -219,6 +219,33 @@ def titulo_de_bloco(bloco) -> str:
 
 MARCA_SEGUNDA_FOLHA = "[[folha:2]]"
 
+LETRAS_PDF = {
+    "padrao": ("DejaVu", "DejaVu-Bold"),
+    "times": ("Times-Roman", "Times-Bold"),
+    "helvetica": ("Helvetica", "Helvetica-Bold"),
+    "courier": ("Courier", "Courier-Bold"),
+}
+TAMANHOS_LETRA = {8, 9, 10, 11, 12, 14}
+
+
+def extrair_letra_do_template(conteudo: str) -> tuple[str, str, str, int]:
+    """Tira a marca de tipo e tamanho. Sem marca, o PDF segue na letra padrão, corpo 9."""
+    texto = (conteudo or "").replace("\r\n", "\n")
+    tipo = "padrao"
+    tamanho = 9
+    saida = []
+    for linha in texto.split("\n"):
+        marca = re.fullmatch(r"\[\[letra:([a-z]+)\|(\d+)\]\]", linha.strip())
+        if marca:
+            tipo = marca.group(1)
+            tamanho = int(marca.group(2))
+            continue
+        saida.append(linha)
+    fonte, negrito = LETRAS_PDF.get(tipo, LETRAS_PDF["padrao"])
+    if tamanho not in TAMANHOS_LETRA:
+        tamanho = 9
+    return "\n".join(saida).strip(), fonte, negrito, tamanho
+
 
 def escolher_conteudo_narrativo(conteudo_proposta: str, conteudo_template: str) -> str:
     """O template padrão da prestadora, quando já separa as folhas, é o texto do PDF.

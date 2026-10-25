@@ -166,6 +166,17 @@ class ConteudoPropostaTests(SimpleTestCase):
             antigo,
         )
 
+    def test_marca_de_letra_sai_do_texto_e_escolhe_a_fonte(self):
+        from crm_vendas.pdf_proposta_contrato.formatters import extrair_letra_do_template
+
+        texto, fonte, negrito, tamanho = extrair_letra_do_template(
+            "[[letra:times|12]]\n\nBanco da Anadem\n\n[[folha:2]]\n\nVantagens"
+        )
+        self.assertEqual((fonte, negrito, tamanho), ("Times-Roman", "Times-Bold", 12))
+        self.assertNotIn("[[letra:", texto)
+        self.assertIn("Banco da Anadem", texto)
+        self.assertIn("[[folha:2]]", texto)
+
     def test_condicoes_ficam_sem_a_descricao_do_servico(self):
         from crm_vendas.pdf_proposta_contrato.formatters import paragrafos_condicoes
 

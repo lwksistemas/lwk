@@ -607,32 +607,34 @@ def _estilo_subtitulo_proposta():
     )
 
 
-def _estilo_secao_proposta():
+def _estilo_secao_proposta(fonte=None, tamanho=11):
+    nome = fonte or FONTE_NEGRITO
     return ParagraphStyle(
-        "SecaoPropostaVisual",
-        fontName=FONTE_NEGRITO,
-        fontSize=11,
+        f"SecaoProposta{nome}{tamanho}",
+        fontName=nome,
+        fontSize=tamanho,
         textColor=COR_PROPOSTA,
-        leading=14,
+        leading=tamanho + 3,
         spaceBefore=14,
         spaceAfter=6,
     )
 
 
-def _estilo_corpo_proposta():
+def _estilo_corpo_proposta(fonte=None, tamanho=9):
+    nome = fonte or FONTE
     return ParagraphStyle(
-        "CorpoPropostaVisual",
-        fontName=FONTE,
-        fontSize=9,
+        f"CorpoProposta{nome}{tamanho}",
+        fontName=nome,
+        fontSize=tamanho,
         textColor=COR_TEXTO,
-        leading=13,
+        leading=tamanho + 4,
         spaceBefore=0,
         spaceAfter=0,
     )
 
 
-def _titulo_numerado(elements, numero, titulo):
-    elements.append(Paragraph(f"{numero:02d}  {escape(titulo)}", _estilo_secao_proposta()))
+def _titulo_numerado(elements, numero, titulo, estilo=None):
+    elements.append(Paragraph(f"{numero:02d}  {escape(titulo)}", estilo or _estilo_secao_proposta()))
 
 
 def _markup_linha(texto: str) -> str:
@@ -909,23 +911,24 @@ def _build_resumo_visual(elements, documento, totais):
         primeiro_negrito = False
 
 
-def _build_pagamento_inicial_visual(elements, titulo, linhas):
+def _build_pagamento_inicial_visual(elements, titulo, linhas, fonte=None, fonte_negrito=None, tamanho=9):
     """Texto da primeira folha, abaixo de Mensalidades seguintes."""
     linhas = list(linhas or [])
     if not titulo and not any(_markup_linha(linha) for linha in linhas):
         return
     elements.append(Spacer(1, 0.22 * cm))
+    titulo_tamanho = min(tamanho + 2, 16)
     if titulo:
         elements.append(Paragraph(f"<b>{escape(titulo)}</b>", ParagraphStyle(
-            "TituloPagamentoInicial",
-            fontName=FONTE,
-            fontSize=11,
+            f"TituloPagamentoInicial{fonte_negrito or FONTE_NEGRITO}{titulo_tamanho}",
+            fontName=fonte_negrito or FONTE_NEGRITO,
+            fontSize=titulo_tamanho,
             textColor=COR_PROPOSTA,
-            leading=14,
+            leading=titulo_tamanho + 3,
             spaceBefore=10,
             spaceAfter=4,
         )))
-    corpo = _estilo_corpo_proposta()
+    corpo = _estilo_corpo_proposta(fonte, tamanho)
     for linha in linhas:
         if not " ".join((linha or "").split()):
             elements.append(Spacer(1, 0.12 * cm))
@@ -983,26 +986,28 @@ def _sem_acento(texto: str) -> str:
     return "".join(letra for letra in base if unicodedata.category(letra) != "Mn")
 
 
-def _estilo_paragrafo_proposta():
+def _estilo_paragrafo_proposta(fonte=None, tamanho=9):
+    nome = fonte or FONTE
     return ParagraphStyle(
-        "ParagrafoPropostaVisual",
-        fontName=FONTE,
-        fontSize=9,
+        f"ParagrafoProposta{nome}{tamanho}",
+        fontName=nome,
+        fontSize=tamanho,
         textColor=COR_TEXTO,
-        leading=13,
+        leading=tamanho + 4,
         spaceBefore=1,
         spaceAfter=6,
     )
 
 
-def _build_recursos_visuais(elements, oportunidade, intro, secoes):
+def _build_recursos_visuais(elements, oportunidade, intro, secoes, fonte=None, fonte_negrito=None, tamanho=9):
     """Segunda folha: o que está incluído e as seções escritas no template."""
-    corpo = _estilo_paragrafo_proposta()
+    corpo = _estilo_paragrafo_proposta(fonte, tamanho)
+    estilo_titulo = _estilo_secao_proposta(fonte_negrito, min(tamanho + 2, 16))
     numero = 3
     incluidos = _descricoes_incluidas(oportunidade)
     extras = [p for p in intro if p]
     if incluidos or extras:
-        _titulo_numerado(elements, numero, "O que está incluído")
+        _titulo_numerado(elements, numero, "O que está incluído", estilo_titulo)
         numero += 1
         for nome, texto in incluidos:
             if ":" in texto:
@@ -1015,7 +1020,7 @@ def _build_recursos_visuais(elements, oportunidade, intro, secoes):
     if implantacao and not any("implant" in _sem_acento(secao["titulo"]) for secao in secoes):
         secoes = list(secoes) + [{"titulo": "Implantação e liberação", "paragrafos": []}]
     for secao in secoes:
-        _titulo_numerado(elements, numero, secao["titulo"])
+        _titulo_numerado(elements, numero, secao["titulo"], estilo_titulo)
         numero += 1
         paragrafos = list(secao["paragrafos"])
         if "implant" in _sem_acento(secao["titulo"]):

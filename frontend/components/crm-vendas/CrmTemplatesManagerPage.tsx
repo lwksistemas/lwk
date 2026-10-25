@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Plus, Edit2, Trash2, X, Star } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { fetchAllPaginatedResults, normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { separarFolhasDoTemplate } from '@/lib/crm-proposta-template-legenda';
 import { useToast } from '@/components/ui/Toast';
 
 export interface CrmTemplateRecord {
@@ -38,6 +39,46 @@ interface CrmTemplatesManagerPageProps {
 }
 
 type ModalType = 'create' | 'edit' | 'delete' | null;
+
+function LegendaFolhasProposta({ conteudo }: { conteudo: string }) {
+  const folhas = separarFolhasDoTemplate(conteudo);
+  const campo =
+    'mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md bg-white/70 px-3 py-2 text-sm text-gray-800 dark:bg-black/20 dark:text-gray-100';
+  return (
+    <div className="flex h-full min-h-[280px] flex-col gap-3">
+      <p className="text-sm text-gray-600 dark:text-gray-300">
+        O título <strong>Dados para pagamento</strong>, sem dois-pontos, vai para a parte branca da primeira folha.
+        Nas linhas desse bloco use dois-pontos, como Banco: 001. Uma linha curta sem pontuação abre seção na folha seguinte.
+      </p>
+      <div className="rounded-lg border border-[#1B365D]/30 bg-[#1B365D]/10 p-3 dark:border-blue-400/30 dark:bg-blue-950/40">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#1B365D] dark:text-blue-200">
+          Primeira página
+        </p>
+        <p className="text-xs text-gray-600 dark:text-gray-300">Abaixo de Mensalidades seguintes</p>
+        {folhas.primeiraPagina ? (
+          <pre className={campo}>{folhas.primeiraPagina}</pre>
+        ) : (
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+            Essa parte fica em branco até existir o título Dados para pagamento.
+          </p>
+        )}
+      </div>
+      <div className="flex-1 rounded-lg border border-gray-300 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-900/40">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+          Segunda página e as próximas
+        </p>
+        <p className="text-xs text-gray-600 dark:text-gray-300">Recursos e condições</p>
+        {folhas.proximasPaginas ? (
+          <pre className={campo}>{folhas.proximasPaginas}</pre>
+        ) : (
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+            Vantagens, cobertura e os outros títulos curtos aparecem aqui.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /**
  * CRUD unificado para templates de proposta, contrato e descrição NFS-e (rotas DRF espelhadas).
@@ -318,8 +359,8 @@ export default function CrmTemplatesManagerPage({
         <>
           <div className="fixed inset-0 bg-black/50 z-[80]" onClick={() => !submitting && closeModal()} />
           <div className="fixed inset-0 z-[81] flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-h-[92vh] overflow-y-auto ${apiSegment === 'proposta-templates' ? 'max-w-6xl' : 'max-w-2xl'}`}>
+              <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                   {modalType === 'create' ? 'Novo Template' : 'Editar Template'}
                 </h2>
@@ -327,73 +368,90 @@ export default function CrmTemplatesManagerPage({
                   <X size={20} />
                 </button>
               </div>
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                {vincularPrestadora && (
+              <form onSubmit={handleSubmit} className="p-5 space-y-4">
+                <div className={apiSegment === 'proposta-templates' ? 'grid gap-4 lg:grid-cols-[minmax(16rem,1.2fr)_minmax(14rem,1fr)_auto] lg:items-end' : 'space-y-4'}>
+                  {vincularPrestadora && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Empresa prestadora *
+                      </label>
+                      <select
+                        value={formData.prestadora}
+                        onChange={(e) => setFormData((f) => ({ ...f, prestadora: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        required
+                      >
+                        <option value="">Selecione a empresa prestadora</option>
+                        {prestadoras.map((conta) => (
+                          <option key={conta.id} value={conta.id}>
+                            {nomePrestadora(conta)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Empresa prestadora *
-                    </label>
-                    <select
-                      value={formData.prestadora}
-                      onChange={(e) => setFormData((f) => ({ ...f, prestadora: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
+                    <input
+                      type="text"
+                      value={formData.nome}
+                      onChange={(e) => setFormData((f) => ({ ...f, nome: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      placeholder={namePlaceholder}
                       required
-                    >
-                      <option value="">Selecione a empresa prestadora</option>
-                      {prestadoras.map((conta) => (
-                        <option key={conta.id} value={conta.id}>
-                          {nomePrestadora(conta)}
-                        </option>
-                      ))}
-                    </select>
+                    />
+                  </div>
+                  <div className="flex items-center gap-4 pb-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_padrao}
+                        onChange={(e) => setFormData((f) => ({ ...f, is_padrao: e.target.checked }))}
+                        className="rounded"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Marcar como padrão</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.ativo}
+                        onChange={(e) => setFormData((f) => ({ ...f, ativo: e.target.checked }))}
+                        className="rounded"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Ativo</span>
+                    </label>
+                  </div>
+                </div>
+                {apiSegment === 'proposta-templates' ? (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="flex flex-col">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conteúdo</label>
+                      <textarea
+                        value={formData.conteudo}
+                        onChange={(e) => setFormData((f) => ({ ...f, conteudo: e.target.value }))}
+                        className="min-h-[360px] w-full flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder={'Dados para pagamento\nBanco: 001\nAgência: 1234\n\nVantagens\nTexto que segue para as próximas folhas.'}
+                      />
+                    </div>
+                    <LegendaFolhasProposta conteudo={formData.conteudo} />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conteúdo</label>
+                    <textarea
+                      value={formData.conteudo}
+                      onChange={(e) => setFormData((f) => ({ ...f, conteudo: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      rows={10}
+                      placeholder="Conteúdo do template..."
+                    />
                   </div>
                 )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome *</label>
-                  <input
-                    type="text"
-                    value={formData.nome}
-                    onChange={(e) => setFormData((f) => ({ ...f, nome: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                    placeholder={namePlaceholder}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Conteúdo</label>
-                  <textarea
-                    value={formData.conteudo}
-                    onChange={(e) => setFormData((f) => ({ ...f, conteudo: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                    rows={10}
-                    placeholder="Conteúdo do template..."
-                  />
-                </div>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_padrao}
-                      onChange={(e) => setFormData((f) => ({ ...f, is_padrao: e.target.checked }))}
-                      className="rounded"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Marcar como padrão</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.ativo}
-                      onChange={(e) => setFormData((f) => ({ ...f, ativo: e.target.checked }))}
-                      className="rounded"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Ativo</span>
-                  </label>
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button type="button" onClick={() => !submitting && closeModal()} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg">
+                <div className="flex gap-2 pt-1 lg:justify-end">
+                  <button type="button" onClick={() => !submitting && closeModal()} className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg lg:min-w-36">
                     Cancelar
                   </button>
-                  <button type="submit" disabled={submitting} className="flex-1 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded-lg disabled:opacity-50">
+                  <button type="submit" disabled={submitting} className="px-6 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded-lg disabled:opacity-50 lg:min-w-36">
                     {submitting ? 'Salvando...' : 'Salvar'}
                   </button>
                 </div>

@@ -910,21 +910,26 @@ def _build_resumo_visual(elements, documento, totais):
 
 
 def _build_pagamento_inicial_visual(elements, titulo, linhas):
-    """Bloco bancário escrito no template, na primeira folha."""
-    if not titulo and not linhas:
+    """Texto da primeira folha, abaixo de Mensalidades seguintes."""
+    linhas = list(linhas or [])
+    if not titulo and not any(_markup_linha(linha) for linha in linhas):
         return
     elements.append(Spacer(1, 0.22 * cm))
-    elements.append(Paragraph(f"<b>{escape(titulo or 'Dados para o pagamento inicial')}</b>", ParagraphStyle(
-        "TituloPagamentoInicial",
-        fontName=FONTE,
-        fontSize=11,
-        textColor=COR_PROPOSTA,
-        leading=14,
-        spaceBefore=10,
-        spaceAfter=4,
-    )))
+    if titulo:
+        elements.append(Paragraph(f"<b>{escape(titulo)}</b>", ParagraphStyle(
+            "TituloPagamentoInicial",
+            fontName=FONTE,
+            fontSize=11,
+            textColor=COR_PROPOSTA,
+            leading=14,
+            spaceBefore=10,
+            spaceAfter=4,
+        )))
     corpo = _estilo_corpo_proposta()
     for linha in linhas:
+        if not " ".join((linha or "").split()):
+            elements.append(Spacer(1, 0.12 * cm))
+            continue
         markup = _markup_linha(linha)
         if markup:
             elements.append(Paragraph(markup, corpo))

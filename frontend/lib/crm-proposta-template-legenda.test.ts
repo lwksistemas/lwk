@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { separarFolhasDoTemplate } from './crm-proposta-template-legenda';
+import {
+  juntarFolhasDoTemplate,
+  separarFolhasDoTemplate,
+  textoVisivelDoTemplate,
+} from './crm-proposta-template-legenda';
 
 describe('legenda das folhas do template da proposta', () => {
   it('manda o bloco de pagamento para a primeira folha e o resto para as seguintes', () => {
@@ -34,6 +38,18 @@ describe('legenda das folhas do template da proposta', () => {
       'Dados para pagamento\nBanco, agência, conta, CNPJ e PIX da Anadem',
     );
     expect(folhas.proximasPaginas).toBe('Vantagens\nTexto da cobertura.');
+  });
+
+  it('grava e reabre as duas folhas do jeito que foram escritas', () => {
+    const primeira = 'Dados para pagamento\nBanco, agência, conta, CNPJ e PIX da Anadem\n\nUma linha a mais.';
+    const proximas = 'Vantagens de ser um cliente Anadem\n\nCobertura nacional.';
+    const gravado = juntarFolhasDoTemplate(primeira, proximas);
+    const folhas = separarFolhasDoTemplate(gravado);
+
+    expect(folhas.primeiraPagina).toBe(primeira);
+    expect(folhas.proximasPaginas).toBe(proximas);
+    expect(textoVisivelDoTemplate(gravado)).not.toContain('[[folha:2]]');
+    expect(textoVisivelDoTemplate(gravado)).toContain('Cobertura nacional.');
   });
 
   it('deixa a primeira folha vazia quando não há o título de pagamento', () => {

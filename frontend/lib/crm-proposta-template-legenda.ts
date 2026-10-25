@@ -1,5 +1,7 @@
 /** Separa o texto do template da proposta entre a primeira folha e as seguintes. */
 
+export const MARCA_SEGUNDA_FOLHA = '[[folha:2]]';
+
 export interface FolhasDoTemplate {
   primeiraPagina: string;
   proximasPaginas: string;
@@ -36,7 +38,32 @@ function blocosDoTexto(conteudo: string): string[] {
   return blocos;
 }
 
+export function juntarFolhasDoTemplate(primeiraPagina: string, proximasPaginas: string): string {
+  const primeira = primeiraPagina.replace(/\r\n/g, '\n').trim();
+  const proximas = proximasPaginas.replace(/\r\n/g, '\n').trim();
+  if (primeira && proximas) return `${primeira}\n\n${MARCA_SEGUNDA_FOLHA}\n\n${proximas}`;
+  if (primeira) return `${primeira}\n\n${MARCA_SEGUNDA_FOLHA}`;
+  if (proximas) return `${MARCA_SEGUNDA_FOLHA}\n\n${proximas}`;
+  return '';
+}
+
+export function textoVisivelDoTemplate(conteudo: string): string {
+  return (conteudo || '')
+    .replaceAll(MARCA_SEGUNDA_FOLHA, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function separarFolhasDoTemplate(conteudo: string): FolhasDoTemplate {
+  const texto = (conteudo || '').replace(/\r\n/g, '\n');
+  const indice = texto.indexOf(MARCA_SEGUNDA_FOLHA);
+  if (indice >= 0) {
+    return {
+      primeiraPagina: texto.slice(0, indice).trim(),
+      proximasPaginas: texto.slice(indice + MARCA_SEGUNDA_FOLHA.length).trim(),
+    };
+  }
+
   const intro: string[] = [];
   const secoes: { titulo: string; paragrafos: string[] }[] = [];
   let atual: { titulo: string; paragrafos: string[] } | null = null;

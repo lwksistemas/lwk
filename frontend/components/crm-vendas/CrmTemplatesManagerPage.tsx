@@ -5,7 +5,11 @@ import type { LucideIcon } from 'lucide-react';
 import { Plus, Edit2, Trash2, X, Star } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { fetchAllPaginatedResults, normalizeListResponse, getCrmApiErrorDetail } from '@/lib/crm-utils';
-import { separarFolhasDoTemplate } from '@/lib/crm-proposta-template-legenda';
+import {
+  juntarFolhasDoTemplate,
+  separarFolhasDoTemplate,
+  textoVisivelDoTemplate,
+} from '@/lib/crm-proposta-template-legenda';
 import { useToast } from '@/components/ui/Toast';
 
 export interface CrmTemplateRecord {
@@ -40,18 +44,24 @@ interface CrmTemplatesManagerPageProps {
 
 type ModalType = 'create' | 'edit' | 'delete' | null;
 
-function PainelFolha({
+function CampoFolha({
   titulo,
   subtitulo,
-  texto,
-  vazio,
+  valor,
+  onChange,
+  placeholder,
   classe,
+  preview,
+  cabecalho,
 }: {
   titulo: string;
   subtitulo: string;
-  texto: string;
-  vazio: string;
+  valor: string;
+  onChange: (valor: string) => void;
+  placeholder: string;
   classe: string;
+  preview: boolean;
+  cabecalho: string;
 }) {
   return (
     <section className={`flex min-h-0 flex-col overflow-hidden rounded-lg border p-3 ${classe}`}>
@@ -59,32 +69,24 @@ function PainelFolha({
         <p className="text-sm font-semibold text-gray-900 dark:text-white">{titulo}</p>
         <p className="text-xs text-gray-500 dark:text-gray-400">{subtitulo}</p>
       </div>
-      <div className="mt-2 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap text-sm leading-6 text-gray-800 dark:text-gray-100">
-        {texto || vazio}
-      </div>
+      {preview ? (
+        <div className="mt-2 min-h-0 flex-1 overflow-y-auto rounded-md bg-white p-4 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+          <p className="whitespace-pre-wrap text-xs font-semibold uppercase tracking-wide text-[#1B365D] dark:text-blue-200">
+            {cabecalho}
+          </p>
+          <div className="mt-3 whitespace-pre-wrap text-sm leading-6">
+            {valor || 'Nada nesta folha.'}
+          </div>
+        </div>
+      ) : (
+        <textarea
+          value={valor}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="mt-2 min-h-0 w-full flex-1 resize-none border-0 bg-transparent p-0 text-sm leading-6 text-gray-900 outline-none placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500"
+        />
+      )}
     </section>
-  );
-}
-
-function LegendaFolhasProposta({ conteudo }: { conteudo: string }) {
-  const folhas = separarFolhasDoTemplate(conteudo);
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <PainelFolha
-        titulo="Primeira página"
-        subtitulo="Abaixo de Mensalidades seguintes"
-        texto={folhas.primeiraPagina}
-        vazio="Escreva o título Dados para pagamento e, nas linhas seguintes, banco, agência, conta e PIX. Uma linha em branco encerra o bloco."
-        classe="h-[38%] border-[#1B365D]/30 bg-[#1B365D]/10 dark:border-blue-400/30 dark:bg-blue-950/40"
-      />
-      <PainelFolha
-        titulo="Segunda página e as próximas"
-        subtitulo="Recursos e condições"
-        texto={folhas.proximasPaginas}
-        vazio="Vantagens, cobertura e os outros títulos ficam aqui."
-        classe="min-h-0 flex-1 border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/50"
-      />
-    </div>
   );
 }
 
@@ -116,6 +118,9 @@ export default function CrmTemplatesManagerPage({
     ativo: true,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [primeiraPagina, setPrimeiraPagina] = useState('');
+  const [proximasPaginas, setProximasPaginas] = useState('');
+  const [previewFolhas, setPreviewFolhas] = useState(false);
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -152,6 +157,10 @@ export default function CrmTemplatesManagerPage({
   const openModal = (type: ModalType, item?: CrmTemplateRecord) => {
     setModalType(type);
     setSelected(item || null);
+    setPreviewFolhas(false);
+    const folhas = separarFolhasDoTemplate(item?.conteudo || '');
+    setPrimeiraPagina(type === 'edit' ? folhas.primeiraPagina : '');
+    setProximasPaginas(type === 'edit' ? folhas.proximasPaginas : '');
     if (type === 'edit' && item) {
       setFormData({
         nome: item.nome || '',
@@ -174,6 +183,7 @@ export default function CrmTemplatesManagerPage({
   const closeModal = () => {
     setModalType(null);
     setSelected(null);
+    setPreviewFolhas(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -190,7 +200,9 @@ export default function CrmTemplatesManagerPage({
       setSubmitting(true);
       const payload: Record<string, unknown> = {
         nome: formData.nome.trim(),
-        conteudo: formData.conteudo,
+        conteudo: apiSegment === 'proposta-templates'
+          ? juntarFolhasDoTemplate(primeiraPagina, proximasPaginas)
+          : formData.conteudo,
         is_padrao: formData.is_padrao,
         ativo: formData.ativo,
       };
@@ -345,7 +357,7 @@ export default function CrmTemplatesManagerPage({
                 </p>
               )}
               <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
-                {t.conteudo || 'Sem conteúdo'}
+                {textoVisivelDoTemplate(t.conteudo) || 'Sem conteúdo'}
               </p>
               <div className="mt-3 flex items-center gap-2">
                 <span
@@ -431,17 +443,38 @@ export default function CrmTemplatesManagerPage({
                   </div>
                 </div>
                 {apiSegment === 'proposta-templates' ? (
-                  <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-                    <div className="flex min-h-0 flex-col">
-                      <label className="mb-1 block shrink-0 text-sm font-medium text-gray-700 dark:text-gray-300">Conteúdo</label>
-                      <textarea
-                        value={formData.conteudo}
-                        onChange={(e) => setFormData((f) => ({ ...f, conteudo: e.target.value }))}
-                        className="min-h-0 w-full flex-1 resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm leading-6 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                        placeholder={'Dados para pagamento\nBanco, agência, conta e PIX\n\nVantagens\nTexto que segue para as próximas folhas.'}
+                  <div className="flex min-h-0 flex-1 flex-col gap-2">
+                    <div className="flex shrink-0 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewFolhas((atual) => !atual)}
+                        className="rounded-lg border border-gray-300 px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                      >
+                        {previewFolhas ? 'Editar' : 'Preview'}
+                      </button>
+                    </div>
+                    <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
+                      <CampoFolha
+                        titulo="Primeira página"
+                        subtitulo="Abaixo de Mensalidades seguintes"
+                        valor={primeiraPagina}
+                        onChange={setPrimeiraPagina}
+                        placeholder={'Dados para pagamento\nBanco, agência, conta, CNPJ e PIX'}
+                        classe="border-[#1B365D]/30 bg-[#1B365D]/10 dark:border-blue-400/30 dark:bg-blue-950/40"
+                        preview={previewFolhas}
+                        cabecalho={'Pagamento inicial\nMensalidades seguintes'}
+                      />
+                      <CampoFolha
+                        titulo="Segunda página e as próximas"
+                        subtitulo="Recursos e condições"
+                        valor={proximasPaginas}
+                        onChange={setProximasPaginas}
+                        placeholder={'Vantagens\nTexto que segue nesta folha e nas próximas.'}
+                        classe="border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/50"
+                        preview={previewFolhas}
+                        cabecalho="Recursos e condições"
                       />
                     </div>
-                    <LegendaFolhasProposta conteudo={formData.conteudo} />
                   </div>
                 ) : (
                   <div>

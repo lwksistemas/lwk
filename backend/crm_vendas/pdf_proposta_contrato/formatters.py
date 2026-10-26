@@ -344,6 +344,35 @@ def extrair_letra_do_template(conteudo: str) -> tuple[str, str, str, int]:
     return "\n".join(saida).strip(), fonte, negrito, tamanho
 
 
+def texto_legivel(conteudo: str) -> str:
+    """O mesmo texto do template, sem as marcas HTML do editor."""
+    texto = (conteudo or "").replace("\r\n", "\n")
+    if not re.search(r"</?[a-z][^>]*>", texto, re.I):
+        return re.sub(r"\n{3,}", "\n\n", texto).strip()
+    texto = re.sub(r"<p>\s*<br\s*/?>\s*</p>", "\n", texto, flags=re.I)
+    texto = re.sub(r"<br\s*/?>", "\n", texto, flags=re.I)
+    texto = re.sub(r"</p>", "\n", texto, flags=re.I)
+    texto = re.sub(r"</div>", "\n", texto, flags=re.I)
+    texto = re.sub(r"<[^>]+>", "", texto)
+    for origem, destino in (("&nbsp;", " "), ("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">")):
+        texto = texto.replace(origem, destino)
+    texto = re.sub(r"[ \t]+\n", "\n", texto)
+    return re.sub(r"\n{3,}", "\n\n", texto).strip()
+
+
+def conteudo_formatado_do_template(conteudo_proposta: str, conteudos_template) -> str:
+    """Se o texto da proposta é o de um template, o PDF usa o negrito e os espaços dele."""
+    proposta = (conteudo_proposta or "").strip()
+    assinatura = " ".join(texto_legivel(proposta).split())
+    if not assinatura:
+        return proposta
+    for original in conteudos_template or []:
+        bruto = (original or "").strip()
+        if bruto and " ".join(texto_legivel(bruto).split()) == assinatura:
+            return bruto
+    return proposta
+
+
 def escolher_conteudo_narrativo(conteudo_proposta: str, conteudo_template: str) -> str:
     """A proposta que já gravou um template com as duas folhas usa esse texto.
 
@@ -364,15 +393,20 @@ def conteudo_narrativo_da_proposta(proposta) -> str:
 
     oportunidade = getattr(proposta, "oportunidade", None)
     prestadora_id = getattr(oportunidade, "empresa_prestadora_id", None) if oportunidade is not None else None
+    proposta_txt = getattr(proposta, "conteudo", "") or ""
+    conteudos = []
     template = ""
     if isinstance(prestadora_id, int):
-        registro = (
-            PropostaTemplate.objects.filter(prestadora_id=prestadora_id, ativo=True, is_padrao=True)
-            .order_by("-updated_at")
-            .first()
+        registros = list(
+            PropostaTemplate.objects.filter(prestadora_id=prestadora_id, ativo=True).order_by("-updated_at")
         )
-        template = getattr(registro, "conteudo", "") or ""
-    return escolher_conteudo_narrativo(getattr(proposta, "conteudo", "") or "", template)
+        conteudos = [getattr(registro, "conteudo", "") or "" for registro in registros]
+        padrao = next((registro for registro in registros if registro.is_padrao), None)
+        template = getattr(padrao, "conteudo", "") or ""
+    formatado = conteudo_formatado_do_template(proposta_txt, conteudos)
+    if formatado != proposta_txt.strip():
+        return formatado
+    return escolher_conteudo_narrativo(proposta_txt, template)
 
 
 def dividir_folhas_marcadas(paragrafos):

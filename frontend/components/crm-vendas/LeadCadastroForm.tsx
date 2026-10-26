@@ -1,8 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import {
   ArrowLeft,
-  Building2,
   CreditCard,
   Loader2,
   Mail,
@@ -58,15 +58,15 @@ interface LeadCadastroFormProps {
   origensAtivas: () => Array<{ key: string; label: string }>;
   statusOpcoes: Array<{ value: string; label: string }>;
   buscarCepLoading: boolean;
-  buscarCnpjLoading: boolean;
   onCepChange: (value: string) => void;
   onBuscarCep: () => void;
-  onBuscarCnpj: () => void;
-  onCpfCnpjChange: (value: string) => void;
+  onCpfChange: (value: string) => void;
   onSave: () => void;
   onCancel: () => void;
   showHeader?: boolean;
   accentColor?: string;
+  empresaHref?: string;
+  vinculoEmpresa?: { nome: string; cnpj: string } | null;
 }
 
 export function LeadCadastroForm({
@@ -78,15 +78,15 @@ export function LeadCadastroForm({
   origensAtivas,
   statusOpcoes,
   buscarCepLoading,
-  buscarCnpjLoading,
   onCepChange,
   onBuscarCep,
-  onBuscarCnpj,
-  onCpfCnpjChange,
+  onCpfChange,
   onSave,
   onCancel,
   showHeader = true,
   accentColor = CRM_ACCENT,
+  empresaHref,
+  vinculoEmpresa = null,
 }: LeadCadastroFormProps) {
   const selectClass =
     'w-full px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-[#1e3a5f] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#0176d3] focus:ring-offset-0';
@@ -138,39 +138,40 @@ export function LeadCadastroForm({
                 </div>
 
                 <div className="sm:col-span-2">
-                  <FieldLabel>CPF ou CNPJ</FieldLabel>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <IconInput
-                      icon={CreditCard}
-                      value={form.cpf_cnpj}
-                      onChange={(e) => onCpfCnpjChange(e.target.value)}
-                      placeholder="000.000.000-00 ou 00.000.000/0001-00"
-                      inputMode="numeric"
-                      className="sm:flex-1"
-                    />
-                    <button
-                      type="button"
-                      onClick={onBuscarCnpj}
-                      disabled={buscarCnpjLoading || form.cpf_cnpj.replace(/\D/g, '').length !== 14}
-                      className="shrink-0 px-3 py-2 rounded-lg border text-sm font-medium disabled:opacity-50 whitespace-nowrap"
-                      style={{ borderColor: accentColor, color: accentColor }}
-                    >
-                      {buscarCnpjLoading ? '...' : 'Buscar CNPJ'}
-                    </button>
-                  </div>
+                  {vinculoEmpresa ? (
+                    <>
+                      <FieldLabel>Empresa vinculada</FieldLabel>
+                      <p className="text-sm text-gray-800 dark:text-gray-200">
+                        {vinculoEmpresa.nome || 'Conta'}
+                        {vinculoEmpresa.cnpj ? ` · ${vinculoEmpresa.cnpj}` : ''}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        O CNPJ fica no cadastro da conta. Este lead é a pessoa ligada a essa empresa.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <FieldLabel>CPF</FieldLabel>
+                      <IconInput
+                        icon={CreditCard}
+                        value={form.cpf_cnpj}
+                        onChange={(e) => onCpfChange(e.target.value)}
+                        placeholder="000.000.000-00"
+                        inputMode="numeric"
+                        maxLength={14}
+                      />
+                      {empresaHref && (
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Pessoa física. Empresa com CNPJ entra em{' '}
+                          <Link href={empresaHref} className="font-medium" style={{ color: accentColor }}>
+                            Contas
+                          </Link>
+                          {' '}e depois no contato. O lead da empresa é criado ao salvar o contato.
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
-
-                {form.cpf_cnpj.replace(/\D/g, '').length !== 11 && (
-                  <div className="sm:col-span-2">
-                    <FieldLabel>Empresa</FieldLabel>
-                    <IconInput
-                      icon={Building2}
-                      value={form.empresa}
-                      onChange={(e) => onFormChange((f) => ({ ...f, empresa: toUpperCase(e.target.value) }))}
-                      placeholder="Nome da empresa"
-                    />
-                  </div>
-                )}
 
                 <div>
                   <FieldLabel>E-mail</FieldLabel>

@@ -7,7 +7,7 @@ import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { formatCpfCnpj } from '@/lib/consulta-cnpj';
 import { buildCrmLeadPayload, getCrmApiErrorDetail } from '@/lib/crm-utils';
-import { formatCep, formatTelefone } from '@/lib/format-br';
+import { formatCep, formatCpf, formatTelefone } from '@/lib/format-br';
 import { LeadCadastroForm } from '@/components/crm-vendas/LeadCadastroForm';
 import { EMPTY_FORM_LEAD } from '@/lib/crm-lead-form-types';
 import type { Lead } from '@/components/crm-vendas/LeadsTable';
@@ -22,11 +22,12 @@ export default function EditarLeadPage() {
   const { origensAtivas } = useCRMConfig();
 
   const [form, setForm] = useState(EMPTY_FORM_LEAD);
+  const [vinculoEmpresa, setVinculoEmpresa] = useState<{ nome: string; cnpj: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const { handleBuscarCnpj, handleBuscarCep, buscarCepLoading, buscarCnpjLoading } =
+  const { handleBuscarCep, buscarCepLoading } =
     useCrmCepCnpjLookup<typeof form>((updater) => setForm(updater), { upperCaseEndereco: true });
 
   useEffect(() => {
@@ -40,10 +41,21 @@ export default function EditarLeadPage() {
       .then((res) => {
         if (cancelled) return;
         const lead = res.data;
+        const digits = (lead.cpf_cnpj || '').replace(/\D/g, '');
+        const cnpjConta = (lead.conta_info?.cnpj || '').replace(/\D/g, '');
+        const cnpj = cnpjConta.length === 14 ? cnpjConta : digits.length === 14 ? digits : '';
+        setVinculoEmpresa(
+          lead.conta || cnpj
+            ? {
+                nome: lead.conta_info?.nome || lead.empresa || '',
+                cnpj: cnpj ? formatCpfCnpj(cnpj) : '',
+              }
+            : null,
+        );
         setForm({
           nome: lead.nome,
           empresa: lead.empresa || '',
-          cpf_cnpj: lead.cpf_cnpj || '',
+          cpf_cnpj: digits.length === 11 ? formatCpf(digits) : '',
           email: lead.email || '',
           telefone: formatTelefone(lead.telefone || ''),
           origem: lead.origem,
@@ -73,13 +85,8 @@ export default function EditarLeadPage() {
     router.push(basePath);
   };
 
-  const handleCpfCnpjChange = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 14);
-    const updates: Partial<typeof form> = { cpf_cnpj: formatCpfCnpj(digits) };
-    if (digits.length === 11) {
-      updates.empresa = '';
-    }
-    setForm((f) => ({ ...f, ...updates }));
+  const handleCpfChange = (value: string) => {
+    setForm((f) => ({ ...f, cpf_cnpj: formatCpf(value) }));
   };
 
   const handleCepChange = (value: string) => {
@@ -90,6 +97,11 @@ export default function EditarLeadPage() {
     setFormErro(null);
     if (!form.nome.trim()) {
       setFormErro('Informe o nome.');
+      return;
+    }
+    const cpf = form.cpf_cnpj.replace(/\D/g, '');
+    if (!vinculoEmpresa && cpf && cpf.length !== 11) {
+      setFormErro('Informe o CPF com 11 dígitos.');
       return;
     }
     setEnviando(true);
@@ -122,11 +134,10 @@ export default function EditarLeadPage() {
         origensAtivas={origensAtivas}
         statusOpcoes={[...STATUS_LEAD_OPCOES]}
         buscarCepLoading={buscarCepLoading}
-        buscarCnpjLoading={buscarCnpjLoading}
         onCepChange={handleCepChange}
         onBuscarCep={() => handleBuscarCep(form.cep)}
-        onBuscarCnpj={() => handleBuscarCnpj(form.cpf_cnpj)}
-        onCpfCnpjChange={handleCpfCnpjChange}
+        onCpfChange={handleCpfChange}
+        vinculoEmpresa={vinculoEmpresa}
         onSave={handleSave}
         onCancel={voltarLista}
         editing

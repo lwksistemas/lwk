@@ -4,6 +4,7 @@ import {
   juntarFolhasDoTemplate,
   lerLetraDoTemplate,
   separarFolhasDoTemplate,
+  textoLegivelDoTemplate,
   textoVisivelDoTemplate,
 } from './crm-proposta-template-legenda';
 
@@ -69,6 +70,26 @@ describe('legenda das folhas do template da proposta', () => {
     expect(textoVisivelDoTemplate(gravado)).toContain('Vantagens');
     expect(textoVisivelDoTemplate(gravado)).toContain('Texto normal da cobertura.');
     expect(textoVisivelDoTemplate(gravado)).not.toContain('data-size');
+  });
+
+  it('mostra o template na proposta sem as marcas HTML', () => {
+    const html = [
+      '<p>Dados para o pagamento inicial</p><p>Banco Itaú • Agência: 4864</p>',
+      '<p><br></p><p><span data-size="10" data-bold="1">Sem fidelidade e sem multa por cancelamento</span></p>',
+      '',
+      '[[folha:2]]',
+      '',
+      'Conformidade e segurança: armazenamento em nuvem.',
+    ].join('\n');
+
+    const legivel = textoLegivelDoTemplate(html);
+    expect(legivel).toContain('Dados para o pagamento inicial\nBanco Itaú • Agência: 4864');
+    expect(legivel).toContain('Sem fidelidade e sem multa por cancelamento');
+    expect(legivel).toContain('[[folha:2]]');
+    expect(legivel).toContain('Conformidade e segurança: armazenamento em nuvem.');
+    expect(legivel).not.toContain('<p>');
+    expect(legivel).not.toContain('data-bold');
+    expect(textoLegivelDoTemplate('Texto já legível.')).toBe('Texto já legível.');
   });
 
   it('deixa a primeira folha vazia quando não há o título de pagamento', () => {

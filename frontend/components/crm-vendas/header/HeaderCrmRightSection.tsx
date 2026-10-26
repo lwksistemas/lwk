@@ -143,9 +143,9 @@ export function HeaderCrmRightSection({
           {showNotifs && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowNotifs(false)} />
-              <div className="fixed sm:absolute right-2 sm:right-0 left-2 sm:left-auto top-14 sm:top-auto sm:mt-2 w-auto sm:w-80 bg-white dark:bg-[#16325c] rounded-lg shadow-xl border border-gray-200 dark:border-[#0d1f3c] z-20 max-h-[70vh] sm:max-h-80 overflow-y-auto">
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c] flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">Notificações</p>
+              <div className="fixed sm:absolute right-2 sm:right-0 left-2 sm:left-auto top-14 sm:top-auto sm:mt-2 w-auto sm:w-[32rem] sm:max-w-[calc(100vw-2rem)] bg-white dark:bg-[#16325c] rounded-lg shadow-xl border border-gray-200 dark:border-[#0d1f3c] z-20 max-h-[70vh] overflow-y-auto overflow-x-hidden">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c] flex items-center justify-between sticky top-0 bg-white dark:bg-[#16325c]">
+                  <p className="text-base font-semibold text-gray-900 dark:text-white">Notificações</p>
                   <div className="flex items-center gap-2">
                     {notifs.length > 0 && (
                       <button
@@ -181,8 +181,8 @@ export function HeaderCrmRightSection({
                       }}
                     >
                       <p className="text-sm font-medium text-gray-900 dark:text-white">{n.titulo}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{n.mensagem}</p>
-                      <p className="text-[10px] text-gray-400 mt-1">
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 leading-5 break-words">{n.mensagem}</p>
+                      <p className="text-xs text-gray-400 mt-1.5">
                         {new Date(n.created_at).toLocaleString('pt-BR')}
                       </p>
                     </div>

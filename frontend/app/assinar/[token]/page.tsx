@@ -610,30 +610,19 @@ export default function AssinaturaPage() {
               </button>
             </div>
 
-            {pdfBlobUrl && !pdfInlineError && (
-              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-blue-200 bg-blue-50/80 p-4 text-sm text-gray-800">
-                <input
-                  type="checkbox"
-                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  checked={declarouLeituraCompleta}
-                  onChange={(e) => setDeclarouLeituraCompleta(e.target.checked)}
-                />
-                <span>
-                  Declaro que li integralmente o conteúdo do PDF (aberto em nova aba ou baixado) e estou ciente das cláusulas antes de assinar digitalmente.
-                </span>
-              </label>
-            )}
-
-            <div className="mt-4 flex items-start border-l-4 border-yellow-400 bg-yellow-50 p-4">
-              <AlertCircle className="mr-3 mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-600" />
-              <div>
-                <h3 className="mb-1 text-sm font-semibold text-yellow-800">Atenção - Assinatura Digital</h3>
-                <p className="text-sm text-yellow-700">
-                  Ao clicar em &quot;Assinar documento&quot;, você concorda com os termos deste documento.
-                  A assinatura só pode ser feita após abrir ou baixar o PDF e após a confirmação de leitura. O registro inclui data, hora e endereço IP.
-                </p>
-              </div>
-            </div>
+            <label className="mt-4 flex cursor-pointer items-start gap-3 border-l-4 border-yellow-400 bg-yellow-50 p-4">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 disabled:cursor-not-allowed"
+                checked={declarouLeituraCompleta}
+                disabled={!pdfBlobUrl || Boolean(pdfInlineError)}
+                onChange={(e) => setDeclarouLeituraCompleta(e.target.checked)}
+              />
+              <span className="text-sm text-yellow-800">
+                Ao clicar em &quot;Assinar documento&quot;, você concorda com os termos deste documento.
+                A assinatura só pode ser feita após abrir ou baixar o PDF e após a confirmação de leitura. O registro inclui data, hora e endereço IP.
+              </span>
+            </label>
 
             {erro && (
               <div className={`mt-4 border-l-4 p-4 ${errorCode === 'link_substituido' ? 'border-amber-400 bg-amber-50' : 'border-red-400 bg-red-50'}`}>
@@ -644,15 +633,6 @@ export default function AssinaturaPage() {
               </div>
             )}
 
-            {!podeAssinar && !assinando && (
-              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
-                {!pdfPronto
-                  ? 'Aguarde o carregamento do documento.'
-                  : !pdfInteracaoFeita
-                    ? 'Toque em "Abrir PDF em nova aba" ou em "Baixar PDF" antes de assinar.'
-                    : 'Marque a caixa confirmando que leu o PDF para habilitar a assinatura.'}
-              </p>
-            )}
             <button
               type="button"
               onClick={() => void assinarDocumento()}

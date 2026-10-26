@@ -35,14 +35,14 @@ interface DocumentoData {
   aviso?: string;
 }
 
-function LogoMarca({ src, alt }: { src?: string; alt: string }) {
+function LogoMarca({ src, alt, className }: { src?: string; alt: string; className?: string }) {
   const [visivel, setVisivel] = useState(Boolean(src));
   if (!src || !visivel) return null;
   return (
     <img
       src={src}
       alt={alt}
-      className="mx-auto h-12 w-auto max-w-[200px] object-contain sm:h-16 sm:max-w-[240px]"
+      className={className || 'mx-auto h-12 w-auto max-w-[200px] object-contain sm:h-16 sm:max-w-[240px]'}
       onError={() => setVisivel(false)}
     />
   );
@@ -498,17 +498,32 @@ export default function AssinaturaPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-3 sm:py-8 sm:px-6">
       <div className="mx-auto w-full max-w-lg lg:max-w-6xl">
         <div className="rounded-t-2xl border-b-4 border-blue-600 bg-white px-5 py-5 shadow-xl sm:px-8">
-          <div className="flex flex-col items-center gap-3 lg:flex-row lg:items-center lg:gap-6">
-            {documento?.logo_loja ? (
-              <LogoMarca src={documento.logo_loja} alt={documento.nome_loja || 'Logo da empresa'} />
-            ) : (
-              <div className="rounded-full bg-blue-100 p-3">
-                <FileText className="h-8 w-8 text-blue-600" />
-              </div>
-            )}
-            <div className="text-center lg:text-left">
+          <div className="flex flex-col items-center gap-3 lg:grid lg:grid-cols-[minmax(140px,1fr)_auto_minmax(140px,1fr)] lg:items-center">
+            <div className="lg:justify-self-start">
+              {documento?.logo_loja ? (
+                <LogoMarca
+                  src={documento.logo_loja}
+                  alt={documento.nome_loja || 'Logo da empresa'}
+                  className="mx-auto h-12 w-auto max-w-[180px] object-contain lg:mx-0 lg:h-auto lg:max-h-14"
+                />
+              ) : (
+                <div className="mx-auto w-fit rounded-full bg-blue-100 p-3 lg:mx-0">
+                  <FileText className="h-8 w-8 text-blue-600" />
+                </div>
+              )}
+            </div>
+            <div className="text-center">
               <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Assinatura Digital</h1>
               <p className="text-gray-600">{tipoDocumento} para assinatura eletrônica</p>
+            </div>
+            <div className="hidden lg:flex lg:justify-end">
+              {documento?.logo_prestadora && (
+                <LogoMarca
+                  src={documento.logo_prestadora}
+                  alt={documento.nome_prestadora || 'Logo da prestadora'}
+                  className="h-auto max-h-14 w-auto max-w-[200px] object-contain"
+                />
+              )}
             </div>
           </div>
         </div>
@@ -697,7 +712,7 @@ export default function AssinaturaPage() {
             Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
           </p>
           {documento?.logo_prestadora && (
-            <div className="mt-4 border-t border-gray-100 pt-4">
+            <div className="mt-4 border-t border-gray-100 pt-4 lg:hidden">
               <LogoMarca src={documento.logo_prestadora} alt={documento.nome_prestadora || 'Logo da prestadora'} />
             </div>
           )}

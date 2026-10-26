@@ -1179,23 +1179,24 @@ def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir
     """Adiciona seção Assinaturas com dados digitais."""
     from reportlab.lib.units import cm
     from reportlab.platypus import Spacer
-    elements.append(Spacer(1, 0.35 * cm))
-    if tipo_doc == "proposta":
+    proposta = tipo_doc == "proposta"
+    elements.append(Spacer(1, 0.15 * cm if proposta else 0.35 * cm))
+    if proposta:
         style = ParagraphStyle(
             "AssinaturaProposta",
             fontName=FONTE,
-            fontSize=9,
-            leading=12,
+            fontSize=8,
+            leading=10,
             textColor=COR_TEXTO,
         )
         section = ParagraphStyle(
             "SecAssinProposta",
             fontName=FONTE_NEGRITO,
-            fontSize=12,
+            fontSize=11,
             textColor=COR_PROPOSTA,
-            leading=15,
-            spaceBefore=4,
-            spaceAfter=6,
+            leading=13,
+            spaceBefore=0,
+            spaceAfter=2,
         )
         coluna = (A4[0] - 3.1 * cm) / 2
     else:
@@ -1258,19 +1259,26 @@ def _build_secao_assinaturas(elements, documento, lead, vendedor, style, incluir
         ("FONTNAME", (0, 0), (0, 0), "Helvetica-Bold"),
         ("FONTNAME", (1, 0), (1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4 if proposta else 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4 if proposta else 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 1 if proposta else 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0 if proposta else 1),
         ("BOX", (0, 0), (0, -1), 0.5, colors.HexColor("#e5e7eb")),
         ("BOX", (1, 0), (1, -1), 0.5, colors.HexColor("#e5e7eb")),
     ]))
     elements.append(t)
-    elements.append(Spacer(1, 0.1 * cm))
+    elements.append(Spacer(1, 0.05 * cm if proposta else 0.1 * cm))
 
     # Mensagem de validade jurídica
-    validade = ParagraphStyle("Validade", parent=style, fontSize=7,
-                              textColor=colors.HexColor("#666666"), alignment=TA_CENTER, spaceBefore=2)
+    validade = ParagraphStyle(
+        "Validade",
+        parent=style,
+        fontSize=7,
+        leading=9,
+        textColor=colors.HexColor("#666666"),
+        alignment=TA_CENTER,
+        spaceBefore=0 if proposta else 2,
+    )
     elements.append(Paragraph(
         "Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, "
         "com registro de data, hora e endereço IP.", validade))

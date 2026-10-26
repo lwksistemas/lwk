@@ -11,6 +11,67 @@ from __future__ import annotations
 
 SEPARADOR = "━━━━━━━━━━━━━━━━━━━━"
 DIAS_EXPIRACAO_PADRAO = 7
+_PARTICULAS = frozenset({"de", "da", "do", "das", "dos", "e"})
+_SUFIXOS_EMPRESA = {
+    "ltda": "Ltda",
+    "me": "ME",
+    "epp": "EPP",
+    "eireli": "Eireli",
+    "sa": "S/A",
+    "s.a.": "S/A",
+    "s/a": "S/A",
+}
+_MARCAS_PESSOA_JURIDICA = (
+    "ltda",
+    "eireli",
+    "municipio",
+    "município",
+    "prefeitura",
+    "clinica",
+    "clínica",
+    "hospital",
+    "secretaria",
+    "laboratório",
+    "laboratorio",
+)
+
+
+def _maioria_maiuscula(texto: str) -> bool:
+    letras = [c for c in texto if c.isalpha()]
+    if not letras:
+        return False
+    return sum(c.isupper() for c in letras) / len(letras) > 0.6
+
+
+def nome_legivel(valor: str | None) -> str:
+    """Tira a caixa alta do cadastro. Partículas do nome ficam minúsculas."""
+    texto = " ".join((valor or "").split())
+    if not texto or not _maioria_maiuscula(texto):
+        return texto
+    partes = []
+    for indice, palavra in enumerate(texto.split()):
+        chave = palavra.lower().strip(".,")
+        if indice and chave in _PARTICULAS:
+            partes.append(chave)
+        elif chave in _SUFIXOS_EMPRESA:
+            partes.append(_SUFIXOS_EMPRESA[chave])
+        else:
+            partes.append(chave.capitalize())
+    return " ".join(partes)
+
+
+def _primeiro_nome(valor: str | None) -> str:
+    legivel = nome_legivel(valor)
+    if not legivel:
+        return ""
+    baixo = legivel.casefold()
+    if any(marca in baixo for marca in _MARCAS_PESSOA_JURIDICA):
+        return ""
+    partes = legivel.split()
+    if len(partes) < 2:
+        return ""
+    return partes[0]
+
 
 # ---------------------------------------------------------------------------
 # Templates de assinatura digital (CRM: proposta/contrato; Clínica: termo)
@@ -24,28 +85,48 @@ def msg_assinatura_cliente(
     loja_nome: str,
     link: str,
     dias: int = DIAS_EXPIRACAO_PADRAO,
+    vendedor_nome: str | None = None,
 ) -> str:
-    """Mensagem para o CLIENTE assinar proposta, contrato ou termo de consentimento.
-    Aparência profissional — evita parecer spam/phishing.
+    """Mensagem para o cliente assinar proposta ou contrato.
+
+    O valor fica só na página do link. titulo permanece na assinatura para
+    quem já chama a função; o texto não repete o nome do cliente.
     """
-    subtitulo = f"_{titulo}_" if titulo and titulo.strip() else ""
+    del titulo
+    cliente = nome_legivel(nome) or (nome or "").strip() or "cliente"
+    saudacao = _primeiro_nome(nome)
+    empresa = nome_legivel(loja_nome) or (loja_nome or "").strip() or "a empresa"
+    vendedor = nome_legivel(vendedor_nome)
+    rotulo = (tipo_doc or "Documento").strip()
+    if rotulo.casefold() == "proposta":
+        cabecalho = "Proposta comercial"
+        frase = "A proposta está pronta para a sua leitura e assinatura."
+    elif rotulo.casefold() == "contrato":
+        cabecalho = "Contrato"
+        frase = "O contrato está pronto para a sua leitura e assinatura."
+    else:
+        cabecalho = rotulo
+        frase = "O documento está pronto para a sua leitura e assinatura."
+    prazo = "1 dia" if int(dias) == 1 else f"{int(dias)} dias"
     linhas = [
-        "🔐 *Documento para Assinatura Digital*",
-        SEPARADOR,
-        f"Olá *{nome}*!",
+        f"*{empresa}*",
+        cabecalho,
         "",
-        f"*{loja_nome}* enviou um documento que precisa da sua assinatura:",
+        f"Olá, {saudacao}." if saudacao else "Olá.",
         "",
-        f"📋 *{tipo_doc}*" + (f"\n   {subtitulo}" if subtitulo else ""),
+        frase,
         "",
-        "👇 *Toque no link abaixo para ler e assinar:*",
-        link,
-        "",
-        f"⏳ Válido por {dias} dias",
-        "🔒 Documento verificado por LWK Sistemas",
-        SEPARADOR,
-        "_Este link é exclusivo para você. Não compartilhe._",
+        "*Cliente*",
+        cliente,
     ]
+    if vendedor:
+        linhas.extend(["", "*Vendedor*", vendedor])
+    linhas.extend([
+        "",
+        f"Leia e assine pelo link. Ele vale por {prazo} e é exclusivo para você.",
+        "",
+        link,
+    ])
     return "\n".join(linhas)
 
 

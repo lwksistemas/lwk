@@ -57,6 +57,25 @@ class RespostaConfirmacaoTests(SimpleTestCase):
         self.assertIn("Ana", assinatura)
         self.assertIn("Felix", assinatura)
         self.assertIn("https://exemplo/assinar", assinatura)
+        self.assertNotIn("R$", assinatura)
         lembrete = msg_lembrete_agendamento(nome="Ana", hora="10:00", procedimento="Consulta")
         self.assertIn("10:00", lembrete)
         self.assertIn("Consulta", lembrete)
+
+    def test_mensagem_de_proposta_sai_sem_valor_e_sem_caixa_alta(self):
+        texto = msg_assinatura_cliente(
+            nome="RENATA SILVEIRA OLIMPIO DE PAULA FURTADO",
+            tipo_doc="Proposta",
+            titulo="RENATA SILVEIRA OLIMPIO DE PAULA FURTADO",
+            loja_nome="FELIX REPRESENTACOES E COMERCIO LTDA",
+            link="https://api.lwksistemas.com.br/r/rUjhnFZn",
+            vendedor_nome="LUIZ HENRIQUE FELIX",
+        )
+        self.assertIn("*Felix Representacoes e Comercio Ltda*", texto)
+        self.assertIn("Proposta comercial", texto)
+        self.assertIn("Olá, Renata.", texto)
+        self.assertIn("Renata Silveira Olimpio de Paula Furtado", texto)
+        self.assertIn("*Vendedor*\nLuiz Henrique Felix", texto)
+        self.assertNotIn("R$", texto)
+        self.assertNotIn("🔐", texto)
+        self.assertNotIn("RENATA", texto)

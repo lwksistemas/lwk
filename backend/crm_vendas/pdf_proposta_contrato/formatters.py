@@ -19,18 +19,6 @@ def linguagem_investimento(texto: str) -> str:
     """Na proposta, cobrança e pagamento aparecem como investimento."""
     if not isinstance(texto, str) or not texto:
         return texto or ""
-    texto = texto.replace(
-        "As mensalidades seguintes serão cobradas por boleto bancário",
-        "O investimento das mensalidades seguintes será por boleto bancário",
-    )
-    texto = texto.replace(
-        "serão cobradas por boleto bancário",
-        "o investimento será por boleto bancário",
-    )
-    texto = texto.replace(
-        "são cobradas uma única vez",
-        "entram no investimento uma única vez",
-    )
 
     def trocar(match):
         palavra = match.group(0)
@@ -179,7 +167,7 @@ def linhas_resumo_investimento(
     if len(partes) >= 2:
         frases.append("Inclui " + " + ".join(partes) + ".")
     if unico > 0:
-        frases.append("As taxas de implantação entram no investimento uma única vez.")
+        frases.append("As taxas de implantação são cobradas uma única vez.")
     if mensal > 0:
         linhas.append(("Mensalidades seguintes:", f"{_formatar_valor(mensal)}/mês"))
     if trimestral > 0:

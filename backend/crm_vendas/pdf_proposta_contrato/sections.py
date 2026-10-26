@@ -618,8 +618,8 @@ def _estilo_secao_proposta(fonte=None, tamanho=11):
         fontSize=tamanho,
         textColor=COR_PROPOSTA,
         leading=tamanho + 3,
-        spaceBefore=14,
-        spaceAfter=6,
+        spaceBefore=0,
+        spaceAfter=4,
     )
 
 

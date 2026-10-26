@@ -45,13 +45,15 @@ class MontarJsonDocumentoAssinaturaSmokeTest(SimpleTestCase):
         documento.valor_com_desconto = None
         documento.oportunidade = MagicMock()
         documento.oportunidade.lead = MagicMock(nome="Lead", email="a@b.com", empresa="")
-        documento.oportunidade.vendedor = MagicMock(email="v@v.com")
+        documento.oportunidade.vendedor = MagicMock(email="v@v.com", nome="Luiz Henrique Felix")
         documento.oportunidade.itens.select_related.return_value.all.return_value = []
 
         data = montar_json_documento_assinatura(assinatura, documento)
         self.assertEqual(data["tipo_documento"], "proposta")
         self.assertEqual(data["titulo"], "Proposta #1")
         self.assertEqual(data["lead_nome"], "Lead")
+        self.assertEqual(data["vendedor_nome"], "Luiz Henrique Felix")
+        self.assertEqual(data["vendedor_email"], "v@v.com")
 
 
 class Relacao(list):

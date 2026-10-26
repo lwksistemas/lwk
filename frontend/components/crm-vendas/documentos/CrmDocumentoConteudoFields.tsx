@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
 export interface CrmDocumentoTemplateOption {
   id: number;
   nome: string;
@@ -45,6 +47,13 @@ export default function CrmDocumentoConteudoFields({
   sectionClassName,
   wrapTemplateAndContent = false,
 }: Props) {
+  const [templateId, setTemplateId] = useState('');
+  useEffect(() => {
+    const atual = conteudo.replace(/\s+/g, ' ').trim();
+    const escolhido = templates.find((t) => t.conteudo.replace(/\s+/g, ' ').trim() === atual);
+    if (escolhido) setTemplateId(String(escolhido.id));
+  }, [conteudo, templates]);
+
   const templateSelect =
     onSelecionarTemplate && templates.length === 0 && templateAusente ? (
       <div className={sectionClassName}>
@@ -55,13 +64,14 @@ export default function CrmDocumentoConteudoFields({
       <div className={sectionClassName}>
         <label className={labelCls}>Usar template</label>
         <select
+          value={templateId}
           onChange={(e) => {
-            const template = templates.find((t) => String(t.id) === e.target.value);
+            const id = e.target.value;
+            setTemplateId(id);
+            const template = templates.find((t) => String(t.id) === id);
             if (template) onSelecionarTemplate(template.conteudo, template.nome);
-            e.target.value = '';
           }}
           className={inputCls}
-          defaultValue=""
         >
           <option value="">Selecione um template (opcional)</option>
           {templates.map((t) => (

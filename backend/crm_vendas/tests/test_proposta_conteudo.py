@@ -165,6 +165,15 @@ class ConteudoPropostaTests(SimpleTestCase):
             escolher_conteudo_narrativo(antigo, "Texto antigo do template, sem divisão."),
             antigo,
         )
+        escolhido_na_proposta = "\n".join([
+            "Dados do outro template",
+            MARCA_SEGUNDA_FOLHA,
+            "Texto da segunda folha escolhida",
+        ])
+        self.assertEqual(
+            escolher_conteudo_narrativo(escolhido_na_proposta, template),
+            escolhido_na_proposta,
+        )
 
     def test_marca_de_letra_sai_do_texto_e_escolhe_a_fonte(self):
         from crm_vendas.pdf_proposta_contrato.formatters import extrair_letra_do_template

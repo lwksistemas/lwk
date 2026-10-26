@@ -38,14 +38,14 @@ export function mensagemConfirmacao(dados: ConfirmacaoAssinatura): string {
   return `${texto}.`;
 }
 
-function LogoMarca({ src, alt }: { src?: string; alt: string }) {
+function LogoMarca({ src, alt, className }: { src?: string; alt: string; className?: string }) {
   const [visivel, setVisivel] = useState(Boolean(src));
   if (!src || !visivel) return null;
   return (
     <img
       src={src}
       alt={alt}
-      className="mx-auto h-12 w-auto max-w-[200px] object-contain sm:h-16 sm:max-w-[240px]"
+      className={className || 'mx-auto h-12 w-auto max-w-[200px] object-contain sm:h-16 sm:max-w-[240px]'}
       onError={() => setVisivel(false)}
     />
   );
@@ -86,7 +86,11 @@ export default function DocumentoJaAssinado({
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-950 dark:to-slate-900 flex flex-col p-4 sm:p-8">
       <div className="m-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl px-5 py-6 sm:px-8 sm:py-8 max-w-md sm:max-w-lg w-full text-center">
-        <LogoMarca src={dados.logo_loja} alt={dados.nome_loja || 'Logo da empresa'} />
+        <LogoMarca
+          src={dados.logo_loja}
+          alt={dados.nome_loja || 'Logo da empresa'}
+          className="mx-auto h-24 w-auto max-w-[280px] object-contain sm:h-28 sm:max-w-[340px]"
+        />
         <div className={`flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-green-100 dark:bg-green-900/40 rounded-full mx-auto ${dados.logo_loja ? 'mt-4' : ''} mb-4`}>
           <CheckCircle className="w-7 h-7 sm:w-8 sm:h-8 text-green-600 dark:text-green-400" />
         </div>

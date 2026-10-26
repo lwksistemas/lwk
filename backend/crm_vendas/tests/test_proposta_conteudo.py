@@ -299,3 +299,10 @@ class ConteudoPropostaTests(SimpleTestCase):
         tres = SimpleNamespace(quantidade=3)
         self.assertFalse(_mostra_valor_unitario([um, um]))
         self.assertTrue(_mostra_valor_unitario([um, tres]))
+
+    def test_titulo_da_segunda_folha_deixa_uma_linha_antes(self):
+        from crm_vendas.pdf_proposta_contrato.sections import _estilo_secao_proposta
+
+        estilo = _estilo_secao_proposta("Helvetica-Bold", 11)
+        self.assertEqual(estilo.spaceBefore, 0)
+        self.assertEqual(estilo.spaceAfter, 4)

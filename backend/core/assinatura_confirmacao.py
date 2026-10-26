@@ -2,14 +2,16 @@
 from django.utils import timezone
 
 
+def data_hora_assinatura(quando) -> tuple[str, str]:
+    if quando is None or not hasattr(quando, "strftime"):
+        return "", ""
+    local = timezone.localtime(quando) if timezone.is_aware(quando) else quando
+    return local.strftime("%d/%m/%Y"), local.strftime("%H:%M")
+
+
 def confirmacao_assinatura(rotulo: str, nome: str, quando, *, tipo_documento: str) -> dict:
     """Proposta assinada digitalmente por NOME em DATA às HORA."""
-    data = ""
-    hora = ""
-    if quando is not None and hasattr(quando, "strftime"):
-        local = timezone.localtime(quando) if timezone.is_aware(quando) else quando
-        data = local.strftime("%d/%m/%Y")
-        hora = local.strftime("%H:%M")
+    data, hora = data_hora_assinatura(quando)
     nome = " ".join((nome or "").split())
     particípio = "assinada" if rotulo.strip().lower() == "proposta" else "assinado"
     mensagem = f"{rotulo} {particípio} digitalmente"

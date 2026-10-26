@@ -166,6 +166,12 @@ class AssinaturaPdfView(View):
 
         assinatura, erro, _, meta = verificar_token_assinatura(token, loja_id=loja_id)
         if erro:
+            if meta.get("error_code") == "ja_assinado" and meta.get("assinatura") is not None:
+                from .assinatura_publica_helpers import resposta_pdf_assinado_pelas_duas_partes
+
+                pdf = resposta_pdf_assinado_pelas_duas_partes(meta["assinatura"])
+                if pdf is not None:
+                    return pdf
             logger.warning("❌ Erro ao verificar token para PDF: %s", erro)
             return JsonResponse({"error": erro, "error_code": meta.get("error_code", "invalido")}, status=400)
 

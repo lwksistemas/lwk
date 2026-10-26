@@ -104,28 +104,155 @@ def calcular_valor_por_recorrencia(oportunidade, recorrencia_tipo: str) -> float
         return 0
 
 
+def _texto_publico(valor) -> str:
+    return valor.strip() if isinstance(valor, str) else ""
+
+
+def documento_da_assinatura(assinatura):
+    return getattr(assinatura, "proposta", None) or getattr(assinatura, "contrato", None)
+
+
+def logos_da_tela_assinatura(documento) -> dict:
+    """Logo da loja em cima e a da prestadora embaixo. A mídia sai com assinatura para o navegador abrir."""
+    from core.media_storage import assinar_url_midia
+
+    loja_id = getattr(documento, "loja_id", None)
+    logo_loja = ""
+    nome_loja = ""
+    if isinstance(loja_id, int):
+        try:
+            from superadmin.models import Loja
+
+            loja = Loja.objects.using("default").filter(id=loja_id).first()
+        except Exception:
+            loja = None
+        if loja is not None:
+            nome_loja = _texto_publico(getattr(loja, "nome", ""))
+            logo_loja = _texto_publico(getattr(loja, "logo", ""))
+    prestadora = None
+    oportunidade = getattr(documento, "oportunidade", None)
+    if oportunidade is not None:
+        prestadora = getattr(oportunidade, "empresa_prestadora", None)
+    logo_prestadora = _texto_publico(getattr(prestadora, "logo", "")) if prestadora is not None else ""
+    nome_prestadora = _texto_publico(getattr(prestadora, "nome", "")) if prestadora is not None else ""
+    return {
+        "logo_loja": assinar_url_midia(logo_loja) if logo_loja else "",
+        "logo_prestadora": assinar_url_midia(logo_prestadora) if logo_prestadora else "",
+        "nome_loja": nome_loja,
+        "nome_prestadora": nome_prestadora,
+    }
+
+
+def partes_assinadas(assinatura) -> list[dict]:
+    """Vendedor e cliente que já assinaram, com nome e horário."""
+    from core.assinatura_confirmacao import data_hora_assinatura
+
+    documento = documento_da_assinatura(assinatura)
+    relacao = getattr(documento, "assinaturas", None) if documento is not None else None
+    por_tipo = {}
+    if relacao is not None and hasattr(relacao, "filter"):
+        consulta = relacao.filter(assinado=True)
+        if hasattr(consulta, "order_by"):
+            consulta = consulta.order_by("assinado_em")
+        for item in consulta:
+            tipo = getattr(item, "tipo", "") or ""
+            if tipo in ("vendedor", "cliente"):
+                por_tipo[tipo] = item
+    if not por_tipo and getattr(assinatura, "assinado", False):
+        tipo = getattr(assinatura, "tipo", "") or ""
+        if tipo in ("vendedor", "cliente"):
+            por_tipo[tipo] = assinatura
+    partes = []
+    for tipo, papel in (("vendedor", "Vendedor"), ("cliente", "Cliente")):
+        item = por_tipo.get(tipo)
+        if item is None:
+            continue
+        data, hora = data_hora_assinatura(getattr(item, "assinado_em", None))
+        partes.append({
+            "tipo": tipo,
+            "papel": papel,
+            "nome": " ".join((getattr(item, "nome_assinante", "") or "").split()),
+            "data": data,
+            "hora": hora,
+        })
+    return partes
+
+
+def documento_assinado_pelas_duas_partes(assinatura) -> bool:
+    tipos = {parte["tipo"] for parte in partes_assinadas(assinatura)}
+    return "vendedor" in tipos and "cliente" in tipos
+
+
 def confirmacao_crm_ja_assinado(assinatura) -> dict:
-    """Dados da tela quando o cliente abre de novo o link já usado."""
+    """Dados da tela quando o link já usado é aberto de novo."""
     from core.assinatura_confirmacao import confirmacao_assinatura
 
-    proposta_id = getattr(assinatura, "proposta_id", None)
-    if proposta_id or (not getattr(assinatura, "contrato_id", None) and getattr(assinatura, "proposta", None)):
+    documento = documento_da_assinatura(assinatura)
+    if getattr(assinatura, "proposta_id", None) or (
+        not getattr(assinatura, "contrato_id", None) and getattr(assinatura, "proposta", None)
+    ):
         rotulo, tipo = "Proposta", "proposta"
     else:
         rotulo, tipo = "Contrato", "contrato"
-    nome = getattr(assinatura, "nome_assinante", "") or ""
-    quando = getattr(assinatura, "assinado_em", None)
-    if getattr(assinatura, "tipo", "") != "cliente":
-        documento = getattr(assinatura, "proposta", None) or getattr(assinatura, "contrato", None)
-        relacao = getattr(documento, "assinaturas", None) if documento is not None else None
-        if relacao is not None and hasattr(relacao, "filter"):
-            cliente = (
-                relacao.filter(tipo="cliente", assinado=True).order_by("-assinado_em").first()
-            )
-            if cliente is not None:
-                nome = getattr(cliente, "nome_assinante", "") or nome
-                quando = getattr(cliente, "assinado_em", None) or quando
-    return confirmacao_assinatura(rotulo, nome, quando, tipo_documento=tipo)
+    partes = partes_assinadas(assinatura)
+    logos = logos_da_tela_assinatura(documento) if documento is not None else {}
+    if documento_assinado_pelas_duas_partes(assinatura):
+        dados = confirmacao_assinatura(rotulo, "", None, tipo_documento=tipo)
+        particípio = "assinada" if rotulo.strip().lower() == "proposta" else "assinado"
+        dados["mensagem"] = f"{rotulo} {particípio} digitalmente pelas duas partes."
+        dados["nome_cliente"] = ""
+        dados["assinado_pelas_duas_partes"] = True
+        dados["assinaturas"] = partes
+        dados["pode_baixar_pdf"] = True
+        dados.update(logos)
+        return dados
+    escolhida = next((parte for parte in partes if parte["tipo"] == "cliente"), None)
+    if escolhida is None and partes:
+        escolhida = partes[0]
+    if escolhida is not None:
+        dados = confirmacao_assinatura(rotulo, escolhida["nome"], None, tipo_documento=tipo)
+        if escolhida["data"] and escolhida["hora"]:
+            dados["data"] = escolhida["data"]
+            dados["hora"] = escolhida["hora"]
+            dados["mensagem"] = dados["mensagem"].rstrip(".") + f" em {escolhida['data']} às {escolhida['hora']}."
+    else:
+        dados = confirmacao_assinatura(
+            rotulo,
+            getattr(assinatura, "nome_assinante", "") or "",
+            getattr(assinatura, "assinado_em", None),
+            tipo_documento=tipo,
+        )
+    dados.update(logos)
+    return dados
+
+
+def resposta_pdf_assinado_pelas_duas_partes(assinatura):
+    """PDF com as duas assinaturas, para quem reabre o link depois de concluído."""
+    from django.http import HttpResponse, JsonResponse
+
+    if not documento_assinado_pelas_duas_partes(assinatura):
+        return None
+    documento = documento_da_assinatura(assinatura)
+    if documento is None:
+        return None
+    try:
+        if getattr(assinatura, "proposta", None) is not None:
+            from .pdf_proposta_contrato import gerar_pdf_proposta
+
+            pdf_buffer = gerar_pdf_proposta(documento, incluir_assinaturas=True)
+            filename = f"proposta_{getattr(documento, 'id', 'assinada')}_assinada.pdf"
+        else:
+            from .pdf_proposta_contrato import gerar_pdf_contrato
+
+            pdf_buffer = gerar_pdf_contrato(documento, incluir_assinaturas=True)
+            filename = f"contrato_{getattr(documento, 'id', 'assinado')}_assinado.pdf"
+        pdf_buffer.seek(0)
+        response = HttpResponse(pdf_buffer.read(), content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+    except Exception:
+        logger.exception("Erro ao gerar PDF assinado")
+        return JsonResponse({"error": "Erro ao gerar PDF"}, status=500)
 
 
 def montar_json_documento_assinatura(assinatura, documento, meta: dict | None = None) -> dict:
@@ -172,5 +299,6 @@ def montar_json_documento_assinatura(assinatura, documento, meta: dict | None = 
         "lead_email": getattr(lead, "email", "") or "",
         "lead_empresa": getattr(lead, "empresa", "") or "",
         "vendedor_email": getattr(vendedor, "email", "") or "",
+        **logos_da_tela_assinatura(documento),
         **({"link_anterior": True, "aviso": meta["aviso"]} if meta.get("link_anterior") else {}),
     }

@@ -472,11 +472,6 @@ export default function AssinaturaPage() {
           <p className="text-xs text-gray-400 text-center">
             Você pode fechar esta página agora.
           </p>
-          <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-            <p className="text-xs text-green-700 text-center">
-              Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
-            </p>
-          </div>
           {documento?.logo_prestadora && (
             <div className="mt-6 border-t border-gray-100 pt-5">
               <LogoMarca src={documento.logo_prestadora} alt={documento.nome_prestadora || 'Logo da prestadora'} />
@@ -504,7 +499,7 @@ export default function AssinaturaPage() {
                 <LogoMarca
                   src={documento.logo_loja}
                   alt={documento.nome_loja || 'Logo da empresa'}
-                  className="mx-auto h-20 w-auto max-w-[260px] object-contain lg:mx-0 lg:h-auto lg:max-h-24 lg:max-w-[280px]"
+                  className="mx-auto h-20 w-auto max-w-[260px] object-contain lg:mx-0 lg:h-24 lg:max-h-none lg:max-w-[320px]"
                 />
               ) : (
                 <div className="mx-auto w-fit rounded-full bg-blue-100 p-3 lg:mx-0">
@@ -528,7 +523,7 @@ export default function AssinaturaPage() {
           </div>
         </div>
 
-        <div className="bg-white shadow-xl lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
+        <div className={`bg-white shadow-xl lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)] lg:rounded-b-2xl ${documento?.logo_prestadora ? '' : 'rounded-b-2xl'}`}>
           <div className="space-y-4 p-5 sm:p-8 lg:border-r lg:border-gray-100">
             <div className="flex items-start space-x-3">
               <FileText className="mt-1 h-5 w-5 shrink-0 text-gray-400" />
@@ -689,16 +684,13 @@ export default function AssinaturaPage() {
           </div>
         </div>
 
-        <div className="rounded-b-2xl bg-white px-5 py-5 shadow-xl sm:px-8">
-          <p className="text-center text-xs text-gray-500">
-            Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
-          </p>
-          {documento?.logo_prestadora && (
-            <div className="mt-4 border-t border-gray-100 pt-4 lg:hidden">
+        {documento?.logo_prestadora && (
+          <div className="rounded-b-2xl bg-white px-5 pb-5 shadow-xl lg:hidden">
+            <div className="border-t border-gray-100 pt-4">
               <LogoMarca src={documento.logo_prestadora} alt={documento.nome_prestadora || 'Logo da prestadora'} />
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

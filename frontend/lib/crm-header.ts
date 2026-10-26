@@ -27,6 +27,12 @@ export interface CrmHeaderNotificacao {
   created_at: string;
 }
 
+/** O link cru de assinatura não entra no painel. O aviso curto permanece. */
+export function notificacaoMostraNoPainel(mensagem: string): boolean {
+  const texto = mensagem || '';
+  return !/finalize com sua assinatura/i.test(texto) && !/\/assinar\//i.test(texto);
+}
+
 export const CRM_HEADER_SEARCH_DEBOUNCE_MS = 300;
 export const CRM_HEADER_SEARCH_MIN_LEN = 2;
 export const CRM_HEADER_NOTIFICATIONS_POLL_MS = 120000;

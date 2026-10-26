@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Bell, DollarSign, HelpCircle, MessageCircle, Plus, User, Users } from 'lucide-react';
 import ModalChamado from '@/components/suporte/ModalChamado';
-import type { CrmHeaderNotificacao } from '@/lib/crm-header';
+import { notificacaoMostraNoPainel, type CrmHeaderNotificacao } from '@/lib/crm-header';
 
 interface Props {
   slug: string;
@@ -143,8 +143,8 @@ export function HeaderCrmRightSection({
           {showNotifs && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowNotifs(false)} />
-              <div className="fixed sm:absolute right-2 sm:right-0 left-2 sm:left-auto top-14 sm:top-auto sm:mt-2 w-auto sm:w-[32rem] sm:max-w-[calc(100vw-2rem)] bg-white dark:bg-[#16325c] rounded-lg shadow-xl border border-gray-200 dark:border-[#0d1f3c] z-20 max-h-[70vh] overflow-y-auto overflow-x-hidden">
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c] flex items-center justify-between sticky top-0 bg-white dark:bg-[#16325c]">
+              <div className="fixed sm:absolute right-2 sm:right-0 left-2 sm:left-auto top-14 sm:top-auto sm:mt-2 w-auto sm:w-[min(64rem,calc(100vw-1.5rem))] bg-white dark:bg-[#16325c] rounded-lg shadow-xl border border-gray-200 dark:border-[#0d1f3c] z-20 max-h-[70vh] sm:max-h-[15rem] overflow-hidden flex flex-col">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c] flex items-center justify-between shrink-0 bg-white dark:bg-[#16325c]">
                   <p className="text-base font-semibold text-gray-900 dark:text-white">Notificações</p>
                   <div className="flex items-center gap-2">
                     {notifs.length > 0 && (
@@ -165,28 +165,30 @@ export function HeaderCrmRightSection({
                     </button>
                   </div>
                 </div>
-                {notifs.length === 0 ? (
+                {notifs.filter((n) => notificacaoMostraNoPainel(n.mensagem)).length === 0 ? (
                   <p className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400 text-center">
                     Nenhuma notificação
                   </p>
                 ) : (
-                  notifs.slice(0, 10).map((n) => (
-                    <div
-                      key={n.id}
-                      className={`px-4 py-3 border-b border-gray-100 dark:border-[#0d1f3c] ${
-                        n.status !== 'lido' ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
-                      }`}
-                      onClick={() => {
-                        if (n.status !== 'lido') marcarComoLida(n.id);
-                      }}
-                    >
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{n.titulo}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 leading-5 break-words">{n.mensagem}</p>
-                      <p className="text-xs text-gray-400 mt-1.5">
-                        {new Date(n.created_at).toLocaleString('pt-BR')}
-                      </p>
-                    </div>
-                  ))
+                  <div className="flex flex-col sm:flex-row sm:overflow-x-auto overflow-y-auto">
+                    {notifs.filter((n) => notificacaoMostraNoPainel(n.mensagem)).slice(0, 10).map((n) => (
+                      <div
+                        key={n.id}
+                        className={`px-4 py-3 border-b sm:border-b-0 sm:border-r border-gray-100 dark:border-[#0d1f3c] sm:w-72 sm:shrink-0 ${
+                          n.status !== 'lido' ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
+                        }`}
+                        onClick={() => {
+                          if (n.status !== 'lido') marcarComoLida(n.id);
+                        }}
+                      >
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{n.titulo}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 leading-5 break-words line-clamp-3">{n.mensagem}</p>
+                        <p className="text-xs text-gray-400 mt-1.5">
+                          {new Date(n.created_at).toLocaleString('pt-BR')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </>

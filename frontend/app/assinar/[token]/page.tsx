@@ -89,7 +89,7 @@ function BlocoValores({ documento }: { documento: DocumentoData }) {
 
   if (temParcelas) {
     return (
-      <div className="space-y-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         {adesao > 0 && (
           <div>
             <p className="text-sm text-gray-500">Adesão/Implantação</p>
@@ -120,7 +120,7 @@ function BlocoValores({ documento }: { documento: DocumentoData }) {
             <p className="text-lg font-bold text-purple-600">{formatarMoeda(anual)}/ano</p>
           </div>
         )}
-        <div className="pt-1 border-t">
+        <div className="pt-1 border-t lg:col-span-3 lg:border-t-0 lg:pt-0">
           <p className="text-sm text-gray-500">Valor Total</p>
           <p className={`text-2xl font-bold ${temDesconto ? 'text-gray-700 line-through decoration-red-400' : 'text-green-600'}`}>
             {valorTotal}
@@ -495,103 +495,95 @@ export default function AssinaturaPage() {
   );
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-6 px-4 sm:py-12">
-      <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-t-2xl shadow-xl p-5 sm:p-8 border-b-4 border-blue-600">
-          <LogoMarca src={documento?.logo_loja} alt={documento?.nome_loja || 'Logo da empresa'} />
-          {!documento?.logo_loja && (
-            <div className="flex items-center justify-center mb-4">
-              <div className="bg-blue-100 p-3 rounded-full">
-                <FileText className="w-8 h-8 text-blue-600" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-3 sm:py-8 sm:px-6">
+      <div className="mx-auto w-full max-w-lg lg:max-w-6xl">
+        <div className="rounded-t-2xl border-b-4 border-blue-600 bg-white px-5 py-5 shadow-xl sm:px-8">
+          <div className="flex flex-col items-center gap-3 lg:flex-row lg:items-center lg:gap-6">
+            {documento?.logo_loja ? (
+              <LogoMarca src={documento.logo_loja} alt={documento.nome_loja || 'Logo da empresa'} />
+            ) : (
+              <div className="rounded-full bg-blue-100 p-3">
+                <FileText className="h-8 w-8 text-blue-600" />
               </div>
+            )}
+            <div className="text-center lg:text-left">
+              <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Assinatura Digital</h1>
+              <p className="text-gray-600">{tipoDocumento} para assinatura eletrônica</p>
             </div>
-          )}
-          <h1 className={`text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-2 ${documento?.logo_loja ? 'mt-4' : ''}`}>
-            Assinatura Digital
-          </h1>
-          <p className="text-gray-600 text-center">
-            {tipoDocumento} para assinatura eletrônica
-          </p>
+          </div>
         </div>
 
         {documento?.link_anterior && documento.aviso && (
-          <div className="bg-amber-50 border-l-4 border-amber-400 p-4 shadow-xl">
+          <div className="border-l-4 border-amber-400 bg-amber-50 p-4 shadow-xl">
             <div className="flex items-start">
-              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
+              <AlertCircle className="mr-3 mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
               <p className="text-sm text-amber-900">{documento.aviso}</p>
             </div>
           </div>
         )}
-        
-        {/* Document Info */}
-        <div className="bg-white shadow-xl p-8">
-          <div className="space-y-4">
-            {/* Tipo e Título */}
+
+        <div className="bg-white shadow-xl lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
+          <div className="space-y-4 p-5 sm:p-8 lg:border-r lg:border-gray-100">
             <div className="flex items-start space-x-3">
-              <FileText className="w-5 h-5 text-gray-400 mt-1" />
-              <div className="flex-1">
+              <FileText className="mt-1 h-5 w-5 text-gray-400" />
+              <div className="min-w-0 flex-1">
                 <p className="text-sm text-gray-500">Tipo de Documento</p>
                 <p className="text-lg font-semibold text-gray-900">{tipoDocumento}</p>
               </div>
             </div>
-            
+
             <div className="border-t pt-4">
-              <p className="text-sm text-gray-500 mb-1">Título</p>
-              <p className="text-lg font-semibold text-gray-900">{documento?.titulo}</p>
+              <p className="mb-1 text-sm text-gray-500">Título</p>
+              <p className="break-words text-lg font-semibold text-gray-900">{documento?.titulo}</p>
             </div>
-            
-            {/* Valor */}
+
             <div className="flex items-start space-x-3 border-t pt-4">
-              <DollarSign className="w-5 h-5 text-gray-400 mt-1" />
-              <div className="flex-1">
+              <DollarSign className="mt-1 h-5 w-5 text-gray-400" />
+              <div className="min-w-0 flex-1">
                 {documento && <BlocoValores documento={documento} />}
               </div>
             </div>
-            
-            {/* Cliente (somente quando quem assina é o vendedor) */}
+
             {mostrarBlocoClienteSeparado && (
               <div className="flex items-start space-x-3 border-t pt-4">
-                <User className="w-5 h-5 text-gray-400 mt-1" />
-                <div className="flex-1">
+                <User className="mt-1 h-5 w-5 text-gray-400" />
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-gray-500">Cliente</p>
-                  <p className="text-lg font-semibold text-gray-900">{documento?.lead_nome}</p>
+                  <p className="break-words text-lg font-semibold text-gray-900">{documento?.lead_nome}</p>
                   {documento?.lead_email && (
-                    <p className="text-sm text-gray-600">{documento.lead_email}</p>
+                    <p className="break-words text-sm text-gray-600">{documento.lead_email}</p>
                   )}
                   {documento?.lead_empresa && (
-                    <p className="text-sm text-gray-600">{documento.lead_empresa}</p>
+                    <p className="break-words text-sm text-gray-600">{documento.lead_empresa}</p>
                   )}
                 </div>
               </div>
             )}
-            
-            {/* Assinante */}
+
             <div className="flex items-start space-x-3 border-t pt-4">
-              <User className="w-5 h-5 text-gray-400 mt-1" />
-              <div className="flex-1">
+              <User className="mt-1 h-5 w-5 text-gray-400" />
+              <div className="min-w-0 flex-1">
                 <p className="text-sm text-gray-500">Você está assinando como</p>
-                <p className="text-lg font-semibold text-gray-900">{documento?.nome_assinante}</p>
-                <span className="inline-block mt-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                <p className="break-words text-lg font-semibold text-gray-900">{documento?.nome_assinante}</p>
+                <span className="mt-1 inline-block rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
                   {documento?.tipo_assinante_display}
                 </span>
                 {assinanteEhCliente && documento?.lead_email && (
-                  <p className="mt-2 text-sm text-gray-600">{documento.lead_email}</p>
+                  <p className="mt-2 break-words text-sm text-gray-600">{documento.lead_email}</p>
                 )}
                 {assinanteEhCliente && documento?.lead_empresa && (
-                  <p className="text-sm text-gray-600">{documento.lead_empresa}</p>
+                  <p className="break-words text-sm text-gray-600">{documento.lead_empresa}</p>
                 )}
                 {documento?.vendedor_email && (
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-2 break-words text-xs text-gray-500">
                     E-mail do vendedor: <span className="font-medium text-gray-700">{documento.vendedor_email}</span>
                   </p>
                 )}
               </div>
             </div>
           </div>
-          
-          {/* PDF obrigatório antes de assinar — só botões e declaração */}
-          <div className="mt-6 pt-6 border-t">
+
+          <div className="border-t border-gray-100 p-5 sm:p-8 lg:border-t-0">
             {pdfInlineLoading && !pdfBlobUrl && (
               <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-gray-50 py-10 text-gray-600 mb-4">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3" />
@@ -612,7 +604,7 @@ export default function AssinaturaPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
               <button
                 type="button"
                 onClick={() => void visualizarPdf()}
@@ -646,75 +638,66 @@ export default function AssinaturaPage() {
                 </span>
               </label>
             )}
-          </div>
-        </div>
-        
-        {/* Warning */}
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 shadow-xl">
-          <div className="flex items-start">
-            <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold text-yellow-800 mb-1">
-                Atenção - Assinatura Digital
-              </h3>
-              <p className="text-sm text-yellow-700">
-                Ao clicar em &quot;Assinar documento&quot;, você concorda com os termos deste documento.
-                A assinatura só pode ser feita após abrir ou baixar o PDF e após a confirmação de leitura. O registro inclui data, hora e endereço IP.
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        {/* Error message */}
-        {erro && (
-          <div className={`border-l-4 p-4 shadow-xl ${errorCode === 'link_substituido' ? 'bg-amber-50 border-amber-400' : 'bg-red-50 border-red-400'}`}>
-            <div className="flex items-center">
-              <AlertCircle className={`w-5 h-5 mr-3 ${errorCode === 'link_substituido' ? 'text-amber-600' : 'text-red-600'}`} />
-              <p className={`text-sm ${errorCode === 'link_substituido' ? 'text-amber-900' : 'text-red-700'}`}>{erro}</p>
-            </div>
-          </div>
-        )}
-        
-        {/* Action Button */}
-        <div className="bg-white rounded-b-2xl shadow-xl p-8">
-          {!podeAssinar && !assinando && (
-            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
-              {!pdfPronto
-                ? 'Aguarde o carregamento do documento.'
-                : !pdfInteracaoFeita
-                  ? 'Toque em &quot;Abrir PDF em nova aba&quot; ou em &quot;Baixar PDF&quot; antes de assinar.'
-                  : 'Marque a caixa confirmando que leu o PDF para habilitar a assinatura.'}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={() => void assinarDocumento()}
-            disabled={!podeAssinar || assinando}
-            className="flex w-full items-center justify-center space-x-2 rounded-lg bg-blue-600 py-4 px-6 text-lg font-semibold text-white transition-colors duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {assinando ? (
-              <>
-                <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-white" />
-                <span>Assinando...</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-5 w-5" />
-                <span>Assinar documento</span>
-              </>
-            )}
-          </button>
 
-          <p className="mt-4 text-center text-xs text-gray-500">
-            Ao assinar, você concorda que esta assinatura tem validade legal equivalente à assinatura manuscrita.
-          </p>
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
-              Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
+            <div className="mt-4 flex items-start border-l-4 border-yellow-400 bg-yellow-50 p-4">
+              <AlertCircle className="mr-3 mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-600" />
+              <div>
+                <h3 className="mb-1 text-sm font-semibold text-yellow-800">Atenção - Assinatura Digital</h3>
+                <p className="text-sm text-yellow-700">
+                  Ao clicar em &quot;Assinar documento&quot;, você concorda com os termos deste documento.
+                  A assinatura só pode ser feita após abrir ou baixar o PDF e após a confirmação de leitura. O registro inclui data, hora e endereço IP.
+                </p>
+              </div>
+            </div>
+
+            {erro && (
+              <div className={`mt-4 border-l-4 p-4 ${errorCode === 'link_substituido' ? 'border-amber-400 bg-amber-50' : 'border-red-400 bg-red-50'}`}>
+                <div className="flex items-center">
+                  <AlertCircle className={`mr-3 h-5 w-5 ${errorCode === 'link_substituido' ? 'text-amber-600' : 'text-red-600'}`} />
+                  <p className={`text-sm ${errorCode === 'link_substituido' ? 'text-amber-900' : 'text-red-700'}`}>{erro}</p>
+                </div>
+              </div>
+            )}
+
+            {!podeAssinar && !assinando && (
+              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
+                {!pdfPronto
+                  ? 'Aguarde o carregamento do documento.'
+                  : !pdfInteracaoFeita
+                    ? 'Toque em "Abrir PDF em nova aba" ou em "Baixar PDF" antes de assinar.'
+                    : 'Marque a caixa confirmando que leu o PDF para habilitar a assinatura.'}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => void assinarDocumento()}
+              disabled={!podeAssinar || assinando}
+              className="mt-4 flex min-h-12 w-full items-center justify-center space-x-2 rounded-lg bg-blue-600 px-6 py-4 text-lg font-semibold text-white transition-colors duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {assinando ? (
+                <>
+                  <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-white" />
+                  <span>Assinando...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-5 w-5" />
+                  <span>Assinar documento</span>
+                </>
+              )}
+            </button>
+            <p className="mt-4 text-center text-xs text-gray-500">
+              Ao assinar, você concorda que esta assinatura tem validade legal equivalente à assinatura manuscrita.
             </p>
           </div>
+        </div>
+
+        <div className="rounded-b-2xl bg-white px-5 py-5 shadow-xl sm:px-8">
+          <p className="text-center text-xs text-gray-500">
+            Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
+          </p>
           {documento?.logo_prestadora && (
-            <div className="mt-6 border-t border-gray-100 pt-5">
+            <div className="mt-4 border-t border-gray-100 pt-4">
               <LogoMarca src={documento.logo_prestadora} alt={documento.nome_prestadora || 'Logo da prestadora'} />
             </div>
           )}

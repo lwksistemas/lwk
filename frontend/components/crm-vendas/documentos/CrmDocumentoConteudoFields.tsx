@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { textoLegivelDoTemplate } from '@/lib/crm-proposta-template-legenda';
 
 export interface CrmDocumentoTemplateOption {
   id: number;
@@ -69,7 +70,7 @@ export default function CrmDocumentoConteudoFields({
             const id = e.target.value;
             setTemplateId(id);
             const template = templates.find((t) => String(t.id) === id);
-            if (template) onSelecionarTemplate(template.conteudo, template.nome);
+            if (template) onSelecionarTemplate(textoLegivelDoTemplate(template.conteudo), template.nome);
           }}
           className={inputCls}
         >

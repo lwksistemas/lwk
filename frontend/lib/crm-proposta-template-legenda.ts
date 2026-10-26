@@ -93,6 +93,25 @@ export function juntarFolhasDoTemplate(
   return `[[letra:${escolhida.tipo}|${escolhida.tamanho}]]\n\n${corpo}`;
 }
 
+/** O texto do template, legível na proposta, sem as marcas HTML do editor. */
+export function textoLegivelDoTemplate(conteudo: string): string {
+  const texto = (conteudo || '').replace(/\r\n/g, '\n');
+  if (!/<\/?[a-z][^>]*>/i.test(texto)) return texto.trim();
+  return texto
+    .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function textoVisivelDoTemplate(conteudo: string): string {
   return semMarcaDeLetra(conteudo)
     .replaceAll(MARCA_SEGUNDA_FOLHA, '')

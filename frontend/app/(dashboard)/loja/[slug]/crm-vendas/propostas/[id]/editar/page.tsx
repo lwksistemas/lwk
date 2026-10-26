@@ -31,6 +31,7 @@ import { EMPTY_FORM_PROPOSTA } from '@/lib/crm-proposta-form-types';
 import { emitenteFieldsFromApi, emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
 import { conteudoComDescricoes } from '@/lib/crm-proposta-conteudo';
 import { avisoTemplatesDaPrestadora, carregarTemplatesDaPrestadora } from '@/lib/crm-proposta-templates';
+import { textoLegivelDoTemplate } from '@/lib/crm-proposta-template-legenda';
 
 interface Proposta {
   id: number;
@@ -126,7 +127,7 @@ export default function EditarPropostaPage() {
         setFormData({
           oportunidade_id: String(p.oportunidade),
           titulo: p.titulo || '',
-          conteudo: p.conteudo || '',
+          conteudo: textoLegivelDoTemplate(p.conteudo || ''),
           valor_total: p.valor_total || '',
           desconto_tipo: p.desconto_tipo || 'percentual',
           desconto_valor: String(p.desconto_valor ?? ''),

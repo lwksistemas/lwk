@@ -19,6 +19,7 @@ import { EMPTY_FORM_PROPOSTA } from '@/lib/crm-proposta-form-types';
 import { emitentePayloadFromForm } from '@/lib/crm-emitente-loja';
 import { conteudoComDescricoes } from '@/lib/crm-proposta-conteudo';
 import { avisoTemplatesDaPrestadora, carregarTemplatesDaPrestadora } from '@/lib/crm-proposta-templates';
+import { textoLegivelDoTemplate } from '@/lib/crm-proposta-template-legenda';
 
 export default function NovaPropostaPage() {
   const toast = useToast();
@@ -87,7 +88,7 @@ export default function NovaPropostaPage() {
         setFormData((f) => {
           const nomeVendedor = (opp.vendedor_nome || '').trim();
           const podeTrocar = !f.conteudo.trim() || f.conteudo === templateAplicado.current;
-          const conteudo = podeTrocar ? (padrao?.conteudo || '') : f.conteudo;
+          const conteudo = podeTrocar ? textoLegivelDoTemplate(padrao?.conteudo || '') : f.conteudo;
           if (podeTrocar) templateAplicado.current = conteudo;
           return {
             ...f,

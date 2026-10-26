@@ -1,6 +1,7 @@
 'use client';
 
 import type { LeadInfo } from '@/lib/crm-loja-types';
+import { formatTelefone } from '@/lib/format-br';
 
 function formatEnderecoCliente(leadInfo: LeadInfo): string {
   const endereco = leadInfo.conta_info || leadInfo;
@@ -73,7 +74,7 @@ export function CrmClienteBlock({
           </div>
           <div>
             <span className={labelClass}>Telefone</span>
-            <p className={valueCls}>{leadInfo.conta_info?.telefone || leadInfo.telefone || '—'}</p>
+            <p className={valueCls}>{formatTelefone(leadInfo.conta_info?.telefone || leadInfo.telefone) || '—'}</p>
           </div>
           {leadInfo.conta_info?.site && (
             <div className="sm:col-span-2">

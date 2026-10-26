@@ -679,6 +679,76 @@ def _rotulo_documento(valor) -> str:
     return "CPF/CNPJ"
 
 
+def _valor_da_conta(lead, campo) -> str:
+    conta = getattr(lead, "conta", None)
+    if conta is None:
+        return ""
+    return _texto_cadastro(getattr(conta, campo, None))
+
+
+def _nomes_da_empresa(lead):
+    """Razão social e nome fantasia. O nome da conta é o nome fantasia."""
+    razao = _valor_da_conta(lead, "razao_social") or _texto_cadastro(getattr(lead, "empresa", None))
+    fantasia = _valor_da_conta(lead, "nome")
+    return razao, fantasia
+
+
+def _documento_do_cliente(lead) -> str:
+    documento = _texto_cadastro(getattr(lead, "cpf_cnpj", None))
+    return documento or _valor_da_conta(lead, "cnpj")
+
+
+def _pessoa_do_contato(lead, *nomes_empresa) -> str:
+    contato = getattr(lead, "contato", None)
+    pessoa = _texto_cadastro(getattr(contato, "nome", None)) if contato is not None else ""
+    if not pessoa:
+        pessoa = _texto_cadastro(getattr(lead, "nome", None))
+    empresas = {nome.casefold() for nome in nomes_empresa if nome}
+    if pessoa.casefold() in empresas:
+        return ""
+    return pessoa
+
+
+def _linhas_do_cliente(lead, style):
+    """Empresa: razão social e nome fantasia, com a pessoa no contato. Pessoa física continua Cliente."""
+    razao, fantasia = _nomes_da_empresa(lead)
+    documento = _documento_do_cliente(lead)
+    pessoa = _texto_cadastro(getattr(lead, "nome", None))
+    empresa = _rotulo_documento(documento) == "CNPJ" or bool(razao or fantasia)
+    if empresa and not razao and not fantasia:
+        razao = pessoa
+    linhas = []
+    if empresa:
+        if razao:
+            linhas.append(_linha_cadastro("Razão social", razao, style))
+        if fantasia:
+            linhas.append(_linha_cadastro("Nome fantasia", fantasia, style))
+        contato = _pessoa_do_contato(lead, razao, fantasia)
+    else:
+        linhas.append(_linha_cadastro("Cliente", pessoa, style))
+        contato = ""
+    linhas.append(_linha_cadastro(_rotulo_documento(documento), documento, style))
+    linhas.append(_linha_cadastro("Endereço", _endereco_proposta(lead), style))
+    telefone = _texto_cadastro(getattr(lead, "telefone", None))
+    if telefone:
+        telefone = telefone_exibicao_brasileiro(telefone) or telefone
+    email = _texto_cadastro(getattr(lead, "email", None))
+    if contato:
+        partes = [contato]
+        if telefone:
+            partes.append(telefone)
+        if email:
+            partes.append(email)
+        linhas.append(_linha_cadastro("Contato", " • ".join(partes), style))
+    elif telefone and email:
+        linhas.append(_linha_cadastro("Contato", f"{telefone} • {email}", style))
+    elif telefone:
+        linhas.append(_linha_cadastro("Contato", telefone, style))
+    else:
+        linhas.append(_linha_cadastro("E-mail", email, style))
+    return linhas
+
+
 def _build_identificacao_visual(elements, loja_data, lead):
     """Representante e cliente em linhas curtas, com os dados do cadastro."""
     style = _estilo_corpo_proposta()
@@ -706,22 +776,7 @@ def _build_identificacao_visual(elements, loja_data, lead):
     if lead is None:
         return
     elements.append(Spacer(1, 0.22 * cm))
-    cliente = []
-    cliente.append(_linha_cadastro("Cliente", _texto_cadastro(getattr(lead, "nome", "")), style))
-    doc_cliente = _texto_cadastro(getattr(lead, "cpf_cnpj", ""))
-    cliente.append(_linha_cadastro(_rotulo_documento(doc_cliente), doc_cliente, style))
-    cliente.append(_linha_cadastro("Endereço", _endereco_proposta(lead), style))
-    tel_cliente = _texto_cadastro(getattr(lead, "telefone", ""))
-    if tel_cliente:
-        tel_cliente = telefone_exibicao_brasileiro(tel_cliente) or tel_cliente
-    email_cliente = _texto_cadastro(getattr(lead, "email", ""))
-    if tel_cliente and email_cliente:
-        cliente.append(_linha_cadastro("Contato", f"{tel_cliente} • {email_cliente}", style))
-    elif tel_cliente:
-        cliente.append(_linha_cadastro("Contato", tel_cliente, style))
-    else:
-        cliente.append(_linha_cadastro("E-mail", email_cliente, style))
-    for linha in cliente:
+    for linha in _linhas_do_cliente(lead, style):
         if linha is not None:
             elements.append(linha)
 

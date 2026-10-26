@@ -290,6 +290,76 @@ class ConteudoPropostaTests(SimpleTestCase):
         self.assertIn("FELIX REPRESENTACOES E COMERCIO LTDA", textos)
         self.assertNotIn("Autorizado", textos)
 
+    def test_empresa_mostra_razao_social_nome_fantasia_e_contato_embaixo(self):
+        from types import SimpleNamespace
+
+        from crm_vendas.pdf_proposta_contrato.sections import _build_identificacao_visual
+
+        lead = SimpleNamespace(
+            nome="AMANDA SOUZA",
+            empresa="",
+            cpf_cnpj="08.961.407/0008-63",
+            telefone="19971243195",
+            email="operacoes11@gmail.com",
+            contato=None,
+            conta=SimpleNamespace(
+                nome="CLINICA DA CIDADE",
+                razao_social="CLINICA MEDICA DA CIDADE LTDA",
+                cnpj="08.961.407/0008-63",
+            ),
+            cep="",
+            logradouro="John Boyd Dunlop",
+            numero="350",
+            complemento="",
+            bairro="",
+            cidade="Campinas",
+            uf="SP",
+        )
+        elementos = []
+        _build_identificacao_visual(elementos, {"nome": "FELIX"}, lead)
+        textos = [getattr(item, "text", "") or "" for item in elementos]
+        bloco = " ".join(textos)
+        self.assertIn("Razão social:", bloco)
+        self.assertIn("CLINICA MEDICA DA CIDADE LTDA", bloco)
+        self.assertIn("Nome fantasia:", bloco)
+        self.assertIn("CLINICA DA CIDADE", bloco)
+        self.assertIn("Contato:", bloco)
+        self.assertIn("AMANDA SOUZA", bloco)
+        self.assertNotIn("Cliente:", bloco)
+        razao = next(t for t in textos if "Razão social:" in t)
+        fantasia = next(t for t in textos if "Nome fantasia:" in t)
+        contato = next(t for t in textos if "Contato:" in t)
+        self.assertLess(textos.index(razao), textos.index(fantasia))
+        self.assertLess(textos.index(fantasia), textos.index(contato))
+
+    def test_pessoa_fisica_continua_como_cliente(self):
+        from types import SimpleNamespace
+
+        from crm_vendas.pdf_proposta_contrato.sections import _build_identificacao_visual
+
+        lead = SimpleNamespace(
+            nome="RENATA SILVEIRA",
+            empresa="",
+            cpf_cnpj="123.456.789-09",
+            telefone="",
+            email="renata@example.com",
+            contato=None,
+            conta=None,
+            cep="",
+            logradouro="",
+            numero="",
+            complemento="",
+            bairro="",
+            cidade="",
+            uf="",
+        )
+        elementos = []
+        _build_identificacao_visual(elementos, {}, lead)
+        bloco = " ".join(getattr(item, "text", "") or "" for item in elementos)
+        self.assertIn("Cliente:", bloco)
+        self.assertIn("RENATA SILVEIRA", bloco)
+        self.assertNotIn("Razão social:", bloco)
+
     def test_coluna_de_valor_unitario_so_quando_a_quantidade_passa_de_um(self):
         from types import SimpleNamespace
 

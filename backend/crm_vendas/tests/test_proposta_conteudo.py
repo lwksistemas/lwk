@@ -64,7 +64,7 @@ class ConteudoPropostaTests(SimpleTestCase):
         self.assertIn(("Mensalidades seguintes:", "R$ 392,00/mês"), linhas)
         self.assertIn("R$ 750,00 de implantação", frase)
         self.assertIn("R$ 392,00 da primeira mensalidade", frase)
-        self.assertIn("entram no investimento uma única vez", frase)
+        self.assertIn("As taxas de implantação são cobradas uma única vez.", frase)
 
     def test_resumo_visual_coloca_a_frase_entre_os_valores(self):
         from crm_vendas.pdf_proposta_contrato.formatters import texto_resumo_visual
@@ -75,7 +75,7 @@ class ConteudoPropostaTests(SimpleTestCase):
         ]
         frase = (
             "Inclui R$ 750,00 de implantação + R$ 392,00 da primeira mensalidade. "
-            "As taxas de implantação entram no investimento uma única vez."
+            "As taxas de implantação são cobradas uma única vez."
         )
         blocos = texto_resumo_visual(linhas, frase)
         self.assertEqual(
@@ -84,7 +84,7 @@ class ConteudoPropostaTests(SimpleTestCase):
                 "Investimento inicial: R$ 1.142,00",
                 "Inclui R$ 750,00 de implantação + R$ 392,00 da primeira mensalidade.",
                 "Mensalidades seguintes: R$ 392,00/mês.",
-                "As taxas de implantação entram no investimento uma única vez.",
+                "As taxas de implantação são cobradas uma única vez.",
             ],
         )
         self.assertEqual([negrito for _texto, negrito in blocos], [True, False, True, False])
@@ -97,16 +97,18 @@ class ConteudoPropostaTests(SimpleTestCase):
             "06 Pagamento e atendimento. "
             "Pagamento inicial: por transferência. "
             "As mensalidades seguintes serão cobradas por boleto bancário. "
+            "As taxas de implantação são cobradas uma única vez. "
             "Dados para o pagamento inicial. "
             "A Ultrasis não cobra multa por cancelamento."
         )
         self.assertIn("Investimento e atendimento", texto)
         self.assertIn("Investimento inicial", texto)
-        self.assertIn("O investimento das mensalidades seguintes será por boleto bancário", texto)
+        self.assertIn("serão cobradas por boleto bancário", texto)
+        self.assertIn("As taxas de implantação são cobradas uma única vez.", texto)
         self.assertIn("Dados para o investimento inicial", texto)
         self.assertIn("não cobra multa", texto)
         self.assertNotIn("Pagamento", texto)
-        self.assertNotIn("cobradas", texto)
+        self.assertNotIn("Cobrança", texto)
         markup = _markup_linha("Cobrança: mensal")
         self.assertIn("Investimento:", markup)
         self.assertNotIn("Cobrança", markup)

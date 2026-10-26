@@ -345,15 +345,18 @@ def extrair_letra_do_template(conteudo: str) -> tuple[str, str, str, int]:
 
 
 def escolher_conteudo_narrativo(conteudo_proposta: str, conteudo_template: str) -> str:
-    """O template padrão da prestadora, quando já separa as folhas, é o texto do PDF.
+    """A proposta que já gravou um template com as duas folhas usa esse texto.
 
-    A proposta guarda uma cópia antiga. Sem isso, a primeira folha escrita no
-    template não aparece no PDF já gerado.
+    Uma cópia antiga, de antes da separação, ainda acompanha o template padrão
+    da prestadora. Assim a primeira folha escrita no padrão continua no PDF.
     """
+    proposta = (conteudo_proposta or "").strip()
     template = (conteudo_template or "").strip()
+    if MARCA_SEGUNDA_FOLHA in proposta:
+        return proposta
     if MARCA_SEGUNDA_FOLHA in template:
         return template
-    return (conteudo_proposta or "").strip()
+    return proposta
 
 
 def conteudo_narrativo_da_proposta(proposta) -> str:

@@ -934,7 +934,7 @@ def _build_pagamento_inicial_visual(elements, titulo, linhas, fonte=None, fonte_
     corpo = _estilo_corpo_proposta(fonte, tamanho)
     for linha in linhas:
         if not " ".join((linha or "").split()):
-            elements.append(Spacer(1, 0.12 * cm))
+            elements.append(Spacer(1, 0.35 * cm))
             continue
         markup = _markup_linha(linha)
         if markup:
@@ -1083,7 +1083,7 @@ def _markup_trechos(bloco, fonte_padrao, fonte_negrito, tamanho_padrao, negrito=
 def _flowable_bloco(bloco, fonte, fonte_negrito, tamanho, negrito=False, espaco_depois=2):
     texto = (bloco.get("texto") or "").strip()
     if not texto:
-        return Spacer(1, 0.12 * cm)
+        return Spacer(1, 0.35 * cm)
     tem_fonte = any(
         trecho.get("fonte") or trecho.get("tamanho") or trecho.get("negrito")
         for trecho in bloco["trechos"] if trecho.get("texto")

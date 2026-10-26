@@ -175,6 +175,22 @@ class ConteudoPropostaTests(SimpleTestCase):
             escolhido_na_proposta,
         )
 
+    def test_pdf_recupera_o_negrito_e_o_espaco_gravados_no_template(self):
+        from crm_vendas.pdf_proposta_contrato.formatters import conteudo_formatado_do_template
+
+        html = (
+            "<p>CNPJ e chave Pix: 38.900.437/0001-54</p><p><br></p>"
+            '<p><span data-bold="1">Sem fidelidade e sem multa por cancelamento</span></p><p><br></p>'
+            "<p>A Ultrasis não cobra multa por cancelamento.</p>"
+        )
+        proposta = (
+            "CNPJ e chave Pix: 38.900.437/0001-54\n\n"
+            "Sem fidelidade e sem multa por cancelamento\n\n"
+            "A Ultrasis não cobra multa por cancelamento."
+        )
+        self.assertEqual(conteudo_formatado_do_template(proposta, [html]), html)
+        self.assertIn('data-bold="1"', conteudo_formatado_do_template(proposta, [html]))
+
     def test_marca_de_letra_sai_do_texto_e_escolhe_a_fonte(self):
         from crm_vendas.pdf_proposta_contrato.formatters import extrair_letra_do_template
 

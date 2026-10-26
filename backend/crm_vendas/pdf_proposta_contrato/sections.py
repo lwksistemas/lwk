@@ -28,6 +28,7 @@ from .formatters import (
     baixar_logo_pdf,
     blocos_formatados,
     descricoes_da_oportunidade,
+    linguagem_investimento,
     titulo_de_bloco,
 )
 
@@ -641,7 +642,7 @@ def _titulo_numerado(elements, numero, titulo, estilo=None):
 
 
 def _markup_linha(texto: str) -> str:
-    bruto = " ".join((texto or "").split())
+    bruto = linguagem_investimento(" ".join((texto or "").split()))
     if not bruto:
         return ""
     if bruto.lower().startswith("banco ") or "agência" in bruto.lower() or "agencia" in bruto.lower():
@@ -817,7 +818,7 @@ def _build_tabela_investimento_visual(elements, oportunidade):
     cabecalhos = [
         Paragraph("Serviço", header_style),
         Paragraph("Qtd", header_centro),
-        Paragraph("Cobrança", header_centro),
+        Paragraph("Investimento", header_centro),
     ]
     if mostra_unitario:
         cabecalhos.append(Paragraph("Valor un.", header_direita))
@@ -851,7 +852,7 @@ def _build_tabela_investimento_visual(elements, oportunidade):
         table_data.append(linha)
     largura = A4[0] - 3.1 * cm
     if mostra_unitario:
-        colunas = [largura - 10.6 * cm, 1.6 * cm, 2.8 * cm, 3.1 * cm, 3.1 * cm]
+        colunas = [largura - 11.2 * cm, 1.6 * cm, 3.4 * cm, 3.1 * cm, 3.1 * cm]
         alinhamento_valor = ("ALIGN", (3, 0), (4, -1), "RIGHT")
     else:
         colunas = [largura - 8.2 * cm, 1.8 * cm, 3.2 * cm, 3.2 * cm]
@@ -976,6 +977,7 @@ def _build_pagamento_inicial_visual(elements, titulo, linhas, fonte=None, fonte_
         return
     elements.append(Spacer(1, 0.22 * cm))
     titulo_tamanho = min(tamanho + 2, 16)
+    titulo = linguagem_investimento(titulo or "")
     if titulo:
         elements.append(Paragraph(f"<b>{escape(titulo)}</b>", ParagraphStyle(
             f"TituloPagamentoInicial{fonte_negrito or FONTE_NEGRITO}{titulo_tamanho}",
@@ -1125,7 +1127,7 @@ def _estilo_formatado(fonte, tamanho, alinhamento, cor, espaco_depois):
 def _markup_trechos(bloco, fonte_padrao, fonte_negrito, tamanho_padrao, negrito=False):
     partes = []
     for trecho in bloco["trechos"]:
-        texto = trecho.get("texto") or ""
+        texto = linguagem_investimento(trecho.get("texto") or "")
         if texto == "":
             continue
         face = _face_selecionada(trecho.get("fonte"), negrito or bool(trecho.get("negrito")), fonte_padrao, fonte_negrito)

@@ -27,8 +27,25 @@ interface DocumentoData {
   lead_email?: string;
   lead_empresa: string;
   vendedor_email?: string;
+  logo_loja?: string;
+  logo_prestadora?: string;
+  nome_loja?: string;
+  nome_prestadora?: string;
   link_anterior?: boolean;
   aviso?: string;
+}
+
+function LogoMarca({ src, alt }: { src?: string; alt: string }) {
+  const [visivel, setVisivel] = useState(Boolean(src));
+  if (!src || !visivel) return null;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="mx-auto h-12 w-auto max-w-[200px] object-contain sm:h-16 sm:max-w-[240px]"
+      onError={() => setVisivel(false)}
+    />
+  );
 }
 
 function formatarMoeda(valor: string | number | undefined): string {
@@ -319,6 +336,23 @@ export default function AssinaturaPage() {
     }
   };
 
+  const baixarPdfAssinado = async () => {
+    const backendUrl = getPrimaryApiBaseUrl();
+    const res = await fetch(`${backendUrl}/crm-vendas/assinar/${tokenApiSegment}/pdf/`);
+    if (!res.ok) {
+      throw new Error('pdf');
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${documento?.tipo_documento || 'proposta'}_assinada.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   const baixarPdf = async () => {
     setBaixandoPdf(true);
     setErro('');
@@ -370,7 +404,12 @@ export default function AssinaturaPage() {
   }
   
   if (jaAssinado) {
-    return <DocumentoJaAssinado dados={jaAssinado} />;
+    return (
+      <DocumentoJaAssinado
+        dados={jaAssinado}
+        onBaixarPdf={jaAssinado.pode_baixar_pdf ? baixarPdfAssinado : undefined}
+      />
+    );
   }
 
   // Error state
@@ -402,8 +441,9 @@ export default function AssinaturaPage() {
   if (sucesso) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
-          <div className="flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mx-auto mb-4">
+        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 max-w-md w-full">
+          <LogoMarca src={documento?.logo_loja} alt={documento?.nome_loja || 'Logo da empresa'} />
+          <div className={`flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mx-auto mb-4 ${documento?.logo_loja ? 'mt-4' : ''}`}>
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
@@ -437,6 +477,11 @@ export default function AssinaturaPage() {
               Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
             </p>
           </div>
+          {documento?.logo_prestadora && (
+            <div className="mt-6 border-t border-gray-100 pt-5">
+              <LogoMarca src={documento.logo_prestadora} alt={documento.nome_prestadora || 'Logo da prestadora'} />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -450,16 +495,19 @@ export default function AssinaturaPage() {
   );
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-6 px-4 sm:py-12">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-t-2xl shadow-xl p-8 border-b-4 border-blue-600">
-          <div className="flex items-center justify-center mb-4">
-            <div className="bg-blue-100 p-3 rounded-full">
-              <FileText className="w-8 h-8 text-blue-600" />
+        <div className="bg-white rounded-t-2xl shadow-xl p-5 sm:p-8 border-b-4 border-blue-600">
+          <LogoMarca src={documento?.logo_loja} alt={documento?.nome_loja || 'Logo da empresa'} />
+          {!documento?.logo_loja && (
+            <div className="flex items-center justify-center mb-4">
+              <div className="bg-blue-100 p-3 rounded-full">
+                <FileText className="w-8 h-8 text-blue-600" />
+              </div>
             </div>
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">
+          )}
+          <h1 className={`text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-2 ${documento?.logo_loja ? 'mt-4' : ''}`}>
             Assinatura Digital
           </h1>
           <p className="text-gray-600 text-center">
@@ -665,6 +713,11 @@ export default function AssinaturaPage() {
               Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de data, hora e endereço IP.
             </p>
           </div>
+          {documento?.logo_prestadora && (
+            <div className="mt-6 border-t border-gray-100 pt-5">
+              <LogoMarca src={documento.logo_prestadora} alt={documento.nome_prestadora || 'Logo da prestadora'} />
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -375,6 +375,9 @@ def enviar_whatsapp_assinatura_cliente(documento, assinatura, request, user=None
     except Exception:
         link = full_link
 
+    vendedor = getattr(getattr(documento, "oportunidade", None), "vendedor", None)
+    vendedor_nome = (getattr(vendedor, "nome", None) or "").strip()
+
     from whatsapp.message_templates import msg_assinatura_cliente
     mensagem = msg_assinatura_cliente(
         nome=lead.nome,
@@ -382,6 +385,7 @@ def enviar_whatsapp_assinatura_cliente(documento, assinatura, request, user=None
         titulo=titulo,
         loja_nome=loja_nome,
         link=link,
+        vendedor_nome=vendedor_nome,
     )
 
     ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, user=user, config=config)

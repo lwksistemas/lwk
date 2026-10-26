@@ -77,6 +77,15 @@ def enviar_whatsapp_link_assinatura(
             link=link,
         )
     else:
+        vendedor_nome = ""
+        parte2 = getattr(adapter, "get_destinatario_parte2", None)
+        if callable(parte2):
+            try:
+                nome_parte2, _email_parte2 = parte2(documento, loja_id)
+            except NotImplementedError:
+                nome_parte2 = ""
+            if isinstance(nome_parte2, str):
+                vendedor_nome = nome_parte2.strip()
         mensagem = msg_assinatura_cliente(
             nome=nome or "cliente",
             tipo_doc=label_tipo,
@@ -84,6 +93,7 @@ def enviar_whatsapp_link_assinatura(
             loja_nome=loja_nome,
             link=link,
             dias=TOKEN_EXPIRACAO_DIAS,
+            vendedor_nome=vendedor_nome,
         )
 
     # Texto com link (mesmo caminho do recibo). Botões URL da Evolution/Baileys

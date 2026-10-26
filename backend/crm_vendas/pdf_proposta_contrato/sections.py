@@ -1008,8 +1008,7 @@ def _build_recursos_visuais(elements, oportunidade, intro, secoes, fonte=None, f
     estilo_titulo = _estilo_secao_proposta(fonte_negrito, min(tamanho + 2, 16))
     numero = 3
     incluidos = _descricoes_incluidas(oportunidade)
-    extras = [p for p in intro if p]
-    if incluidos or extras:
+    if incluidos:
         _titulo_numerado(elements, numero, "O que está incluído", estilo_titulo)
         numero += 1
         for nome, texto in incluidos:
@@ -1017,17 +1016,18 @@ def _build_recursos_visuais(elements, oportunidade, intro, secoes, fonte=None, f
                 elements.append(Paragraph(_markup_linha(texto), corpo))
             else:
                 elements.append(Paragraph(f"<b>{escape(nome)}:</b> {escape(texto)}", corpo))
-        for texto in extras:
-            elements.append(Paragraph(_markup_linha(texto), corpo))
+    for texto in intro:
+        if texto == "":
+            elements.append(Spacer(1, 0.12 * cm))
+            continue
+        elements.append(Paragraph(_markup_linha(texto), corpo))
     implantacao = _linhas_implantacao(oportunidade)
     if implantacao and not any("implant" in _sem_acento(secao["titulo"]) for secao in secoes):
-        secoes = list(secoes) + [{"titulo": "Implantação e liberação", "paragrafos": []}]
+        secoes = list(secoes) + [{"titulo": "Implantação e liberação", "paragrafos": implantacao}]
     for secao in secoes:
         _titulo_numerado(elements, numero, secao["titulo"], estilo_titulo)
         numero += 1
         paragrafos = list(secao["paragrafos"])
-        if "implant" in _sem_acento(secao["titulo"]):
-            paragrafos = implantacao + paragrafos
         for paragrafo in paragrafos:
             if paragrafo == "":
                 elements.append(Spacer(1, 0.12 * cm))

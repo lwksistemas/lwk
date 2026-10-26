@@ -298,7 +298,8 @@ def montar_json_documento_assinatura(assinatura, documento, meta: dict | None = 
         "lead_nome": getattr(lead, "nome", "") or "",
         "lead_email": getattr(lead, "email", "") or "",
         "lead_empresa": getattr(lead, "empresa", "") or "",
-        "vendedor_email": getattr(vendedor, "email", "") or "",
+        "vendedor_nome": _texto_publico(getattr(vendedor, "nome", "")),
+        "vendedor_email": _texto_publico(getattr(vendedor, "email", "")),
         **logos_da_tela_assinatura(documento),
         **({"link_anterior": True, "aviso": meta["aviso"]} if meta.get("link_anterior") else {}),
     }

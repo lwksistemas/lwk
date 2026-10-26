@@ -26,6 +26,7 @@ interface DocumentoData {
   lead_nome: string;
   lead_email?: string;
   lead_empresa: string;
+  vendedor_nome?: string;
   vendedor_email?: string;
   logo_loja?: string;
   logo_prestadora?: string;
@@ -485,9 +486,6 @@ export default function AssinaturaPage() {
   // Main form
   const tipoDocumento = documento?.tipo_documento === 'proposta' ? 'Proposta' : 'Contrato';
   const assinanteEhCliente = documento?.tipo_assinante === 'cliente';
-  const mostrarBlocoClienteSeparado = Boolean(
-    documento?.lead_nome && !assinanteEhCliente,
-  );
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-3 sm:py-8 sm:px-6">
@@ -539,39 +537,31 @@ export default function AssinaturaPage() {
               </div>
             </div>
 
-            {mostrarBlocoClienteSeparado && (
-              <div className="flex items-start space-x-3 border-t pt-4">
-                <User className="mt-1 h-5 w-5 text-gray-400" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-500">Cliente</p>
-                  <p className="break-words text-lg font-semibold text-gray-900">{documento?.lead_nome}</p>
-                  {documento?.lead_email && (
-                    <p className="break-words text-sm text-gray-600">{documento.lead_email}</p>
-                  )}
-                  {documento?.lead_empresa && (
-                    <p className="break-words text-sm text-gray-600">{documento.lead_empresa}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
             <div className="flex items-start space-x-3 border-t pt-4">
-              <User className="mt-1 h-5 w-5 text-gray-400" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-gray-500">Você está assinando como</p>
-                <p className="break-words text-lg font-semibold text-gray-900">{documento?.nome_assinante}</p>
-                <span className="mt-1 inline-block rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                  {documento?.tipo_assinante_display}
-                </span>
-                {assinanteEhCliente && documento?.lead_email && (
-                  <p className="mt-2 break-words text-sm text-gray-600">{documento.lead_email}</p>
+              <User className="mt-1 h-5 w-5 shrink-0 text-gray-400" />
+              <div className="min-w-0 flex-1 space-y-1 text-sm text-gray-700 sm:text-base">
+                <p className="break-words">
+                  <span className="text-gray-500">Cliente: </span>
+                  <span className="font-semibold text-gray-900">
+                    {assinanteEhCliente ? documento?.nome_assinante : documento?.lead_nome}
+                  </span>
+                </p>
+                {(documento?.lead_email) && (
+                  <p className="break-words">
+                    <span className="text-gray-500">E-mail: </span>
+                    {documento.lead_email}
+                  </p>
                 )}
-                {assinanteEhCliente && documento?.lead_empresa && (
-                  <p className="break-words text-sm text-gray-600">{documento.lead_empresa}</p>
+                {(documento?.vendedor_nome || documento?.vendedor_email) && (
+                  <p className="break-words pt-2">
+                    <span className="text-gray-500">Vendedor: </span>
+                    <span className="font-semibold text-gray-900">{documento?.vendedor_nome}</span>
+                  </p>
                 )}
                 {documento?.vendedor_email && (
-                  <p className="mt-2 break-words text-xs text-gray-500">
-                    E-mail do vendedor: <span className="font-medium text-gray-700">{documento.vendedor_email}</span>
+                  <p className="break-words">
+                    <span className="text-gray-500">E-mail: </span>
+                    {documento.vendedor_email}
                   </p>
                 )}
               </div>

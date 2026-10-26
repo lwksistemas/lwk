@@ -11,6 +11,8 @@ describe('telefone e documento', () => {
   it('mascara o celular e grava com 55', () => {
     expect(formatTelefone('16999621823')).toBe('(16) 99962-1823');
     expect(telefoneInternacionalBr('(16) 99962-1823')).toBe('5516999621823');
+    expect(formatTelefone('550422761222')).toBe('(42) 2761-222');
+    expect(formatTelefone('554792561525')).toBe('(47) 9256-1525');
     expect(telefoneInternacionalBr('')).toBe('');
   });
 

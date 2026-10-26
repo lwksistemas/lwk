@@ -10,11 +10,14 @@ export function apenasDigitos(valor?: string | null): string {
   return (valor || "").replace(/\D/g, "");
 }
 
-/** Remove código do país 55 para máscara local (ex.: 5516999621823 → 16999621823). */
+/** Remove código do país 55 e o zero antes do DDD (ex.: 550422761222 → 422761222). */
 export function telefoneLocalBr(valor?: string | null): string {
   let d = apenasDigitos(valor);
   if (d.startsWith("55") && d.length >= 12) {
     d = d.slice(2);
+  }
+  if (d.startsWith("0")) {
+    d = d.slice(1);
   }
   return d;
 }

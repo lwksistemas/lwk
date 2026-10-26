@@ -5,9 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
-import { formatCpfCnpj } from '@/lib/consulta-cnpj';
 import { buildCrmLeadPayload, getCrmApiErrorDetail } from '@/lib/crm-utils';
-import { formatCep } from '@/lib/format-br';
+import { formatCep, formatCpf } from '@/lib/format-br';
 import { LeadCadastroForm } from '@/components/crm-vendas/LeadCadastroForm';
 import { EMPTY_FORM_LEAD } from '@/lib/crm-lead-form-types';
 import { useCrmCepCnpjLookup } from '@/hooks/crm-vendas/useCrmCepCnpjLookup';
@@ -22,20 +21,15 @@ export default function NovoLeadPage() {
   const [enviando, setEnviando] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
 
-  const { handleBuscarCnpj, handleBuscarCep, buscarCepLoading, buscarCnpjLoading } =
+  const { handleBuscarCep, buscarCepLoading } =
     useCrmCepCnpjLookup<typeof form>((updater) => setForm(updater), { upperCaseEndereco: true });
 
   const voltarLista = () => {
     router.push(basePath);
   };
 
-  const handleCpfCnpjChange = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 14);
-    const updates: Partial<typeof form> = { cpf_cnpj: formatCpfCnpj(digits) };
-    if (digits.length === 11) {
-      updates.empresa = '';
-    }
-    setForm((f) => ({ ...f, ...updates }));
+  const handleCpfChange = (value: string) => {
+    setForm((f) => ({ ...f, cpf_cnpj: formatCpf(value) }));
   };
 
   const handleCepChange = (value: string) => {
@@ -46,6 +40,11 @@ export default function NovoLeadPage() {
     setFormErro(null);
     if (!form.nome.trim()) {
       setFormErro('Informe o nome.');
+      return;
+    }
+    const cpf = form.cpf_cnpj.replace(/\D/g, '');
+    if (cpf && cpf.length !== 11) {
+      setFormErro('Informe o CPF com 11 dígitos.');
       return;
     }
     setEnviando(true);
@@ -70,11 +69,10 @@ export default function NovoLeadPage() {
         origensAtivas={origensAtivas}
         statusOpcoes={[...STATUS_LEAD_OPCOES]}
         buscarCepLoading={buscarCepLoading}
-        buscarCnpjLoading={buscarCnpjLoading}
         onCepChange={handleCepChange}
         onBuscarCep={() => handleBuscarCep(form.cep)}
-        onBuscarCnpj={() => handleBuscarCnpj(form.cpf_cnpj)}
-        onCpfCnpjChange={handleCpfCnpjChange}
+        onCpfChange={handleCpfChange}
+        empresaHref={`/loja/${slug}/crm-vendas/customers/nova-conta`}
         onSave={handleSave}
         onCancel={voltarLista}
       />

@@ -27,6 +27,7 @@ export interface Lead {
   conta_info?: {
     id: number;
     nome: string;
+    cnpj?: string;
     email?: string;
     telefone?: string;
   };

@@ -161,7 +161,7 @@ def tentar_enviar_link_vendedor(documento, assinatura, request=None, user=None):
 
 
 def _notificar_vendedor_usuario_in_app(documento, assinatura, loja_id):
-    """Notifica o usuário do vendedor no CRM com o link direto de assinatura."""
+    """Avisa o vendedor no CRM, sem o link. O link segue no e-mail ou no WhatsApp."""
     try:
         from notificacoes.models import Notification
         from superadmin.models import VendedorUsuario
@@ -181,17 +181,11 @@ def _notificar_vendedor_usuario_in_app(documento, assinatura, loja_id):
             return
 
         tipo_doc = documento.__class__.__name__
-        titulo_doc = getattr(documento, "titulo", "") or f'{tipo_doc} #{getattr(documento, "numero", None) or documento.id}'
-        frontend_url = getattr(settings, "FRONTEND_URL", "https://lwksistemas.com.br")
-        link = f'{frontend_url}/assinar/{quote(assinatura.token, safe="")}'
 
         Notification.objects.using("default").create(
             user_id=vu.user_id,
             titulo=f"📝 Assinar {tipo_doc}",
-            mensagem=(
-                f"{titulo_doc}: o cliente já assinou. "
-                f"Finalize com sua assinatura: {link}"
-            ),
+            mensagem="O cliente já assinou.",
             tipo="sistema",
             canal="in_app",
             status="pendente",

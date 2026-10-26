@@ -15,6 +15,35 @@ def _formatar_timestamp_local(assinado_em):
     return assinado_em.astimezone(tz_brasil).strftime("%d/%m/%Y %H:%M:%S")
 
 
+def linguagem_investimento(texto: str) -> str:
+    """Na proposta, cobrança e pagamento aparecem como investimento."""
+    if not isinstance(texto, str) or not texto:
+        return texto or ""
+    texto = texto.replace(
+        "As mensalidades seguintes serão cobradas por boleto bancário",
+        "O investimento das mensalidades seguintes será por boleto bancário",
+    )
+    texto = texto.replace(
+        "serão cobradas por boleto bancário",
+        "o investimento será por boleto bancário",
+    )
+    texto = texto.replace(
+        "são cobradas uma única vez",
+        "entram no investimento uma única vez",
+    )
+
+    def trocar(match):
+        palavra = match.group(0)
+        plural = palavra[-1:].lower() == "s"
+        if palavra.isupper():
+            return "INVESTIMENTOS" if plural else "INVESTIMENTO"
+        if palavra[:1].isupper():
+            return "Investimentos" if plural else "Investimento"
+        return "investimentos" if plural else "investimento"
+
+    return re.sub(r"\b[Pp]agamentos?\b|\b[Cc]obran[cç]as?\b", trocar, texto)
+
+
 def _formatar_valor(valor):
     """Formata valor monetário para exibição."""
     if valor is None:
@@ -134,7 +163,7 @@ def linhas_resumo_investimento(
     inicial = unico + mensal + trimestral + semestral + anual
     if valor_total is None:
         valor_total = inicial
-    linhas = [("Pagamento inicial:", _formatar_valor(valor_total))]
+    linhas = [("Investimento inicial:", _formatar_valor(valor_total))]
     partes = []
     if unico > 0:
         partes.append(f"{_formatar_valor(unico)} de implantação")
@@ -150,7 +179,7 @@ def linhas_resumo_investimento(
     if len(partes) >= 2:
         frases.append("Inclui " + " + ".join(partes) + ".")
     if unico > 0:
-        frases.append("As taxas de implantação são cobradas uma única vez.")
+        frases.append("As taxas de implantação entram no investimento uma única vez.")
     if mensal > 0:
         linhas.append(("Mensalidades seguintes:", f"{_formatar_valor(mensal)}/mês"))
     if trimestral > 0:

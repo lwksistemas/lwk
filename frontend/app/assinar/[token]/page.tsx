@@ -498,13 +498,13 @@ export default function AssinaturaPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-3 sm:py-8 sm:px-6">
       <div className="mx-auto w-full max-w-lg lg:max-w-6xl">
         <div className="rounded-t-2xl border-b-4 border-blue-600 bg-white px-5 py-5 shadow-xl sm:px-8">
-          <div className="flex flex-col items-center gap-3 lg:grid lg:grid-cols-[minmax(140px,1fr)_auto_minmax(140px,1fr)] lg:items-center">
+          <div className="flex flex-col items-center gap-3 lg:grid lg:grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)] lg:items-center">
             <div className="lg:justify-self-start">
               {documento?.logo_loja ? (
                 <LogoMarca
                   src={documento.logo_loja}
                   alt={documento.nome_loja || 'Logo da empresa'}
-                  className="mx-auto h-12 w-auto max-w-[180px] object-contain lg:mx-0 lg:h-auto lg:max-h-14"
+                  className="mx-auto h-20 w-auto max-w-[260px] object-contain lg:mx-0 lg:h-auto lg:max-h-24 lg:max-w-[280px]"
                 />
               ) : (
                 <div className="mx-auto w-fit rounded-full bg-blue-100 p-3 lg:mx-0">
@@ -521,35 +521,20 @@ export default function AssinaturaPage() {
                 <LogoMarca
                   src={documento.logo_prestadora}
                   alt={documento.nome_prestadora || 'Logo da prestadora'}
-                  className="h-auto max-h-14 w-auto max-w-[200px] object-contain"
+                  className="h-auto max-h-20 w-auto max-w-[240px] object-contain"
                 />
               )}
             </div>
           </div>
         </div>
 
-        {documento?.link_anterior && documento.aviso && (
-          <div className="border-l-4 border-amber-400 bg-amber-50 p-4 shadow-xl">
-            <div className="flex items-start">
-              <AlertCircle className="mr-3 mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
-              <p className="text-sm text-amber-900">{documento.aviso}</p>
-            </div>
-          </div>
-        )}
-
         <div className="bg-white shadow-xl lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
           <div className="space-y-4 p-5 sm:p-8 lg:border-r lg:border-gray-100">
             <div className="flex items-start space-x-3">
-              <FileText className="mt-1 h-5 w-5 text-gray-400" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-gray-500">Tipo de Documento</p>
-                <p className="text-lg font-semibold text-gray-900">{tipoDocumento}</p>
-              </div>
-            </div>
-
-            <div className="border-t pt-4">
-              <p className="mb-1 text-sm text-gray-500">Título</p>
-              <p className="break-words text-lg font-semibold text-gray-900">{documento?.titulo}</p>
+              <FileText className="mt-1 h-5 w-5 shrink-0 text-gray-400" />
+              <p className="min-w-0 break-words text-lg font-semibold text-gray-900">
+                {tipoDocumento}: {documento?.titulo}
+              </p>
             </div>
 
             <div className="flex items-start space-x-3 border-t pt-4">
@@ -701,9 +686,6 @@ export default function AssinaturaPage() {
                 </>
               )}
             </button>
-            <p className="mt-4 text-center text-xs text-gray-500">
-              Ao assinar, você concorda que esta assinatura tem validade legal equivalente à assinatura manuscrita.
-            </p>
           </div>
         </div>
 

@@ -133,13 +133,24 @@ export function ModalCriarAgendamento({
               </div>
             )}
 
-            <ClinicaBelezaPanel className="p-4 sm:p-5 md:p-6">
-              <div className={`grid w-full gap-5 items-start ${form.agendaEhProtocolo ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 lg:grid-cols-3"}`}>
-                <CriarAgendamentoClienteSection
-                  {...form}
-                  onSearchPatients={onSearchPatients}
-                  ocultarProcedimentos={!form.agendaEhProtocolo}
-                />
+            <ClinicaBelezaPanel className="p-4 sm:p-5">
+              {form.patientId && !form.agendaEhProtocolo ? (
+                <div className="mb-4">
+                  <CriarAgendamentoClienteSection
+                    {...form}
+                    onSearchPatients={onSearchPatients}
+                    ocultarProcedimentos
+                  />
+                </div>
+              ) : null}
+              <div className={`grid w-full gap-5 items-start ${form.agendaEhProtocolo || form.patientId ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 lg:grid-cols-3"}`}>
+                {form.patientId && !form.agendaEhProtocolo ? null : (
+                  <CriarAgendamentoClienteSection
+                    {...form}
+                    onSearchPatients={onSearchPatients}
+                    ocultarProcedimentos={!form.agendaEhProtocolo}
+                  />
+                )}
                 {form.agendaEhProtocolo ? null : <CriarAgendamentoProcedimentosSection {...form} />}
                 <CriarAgendamentoAgendaSection {...form} />
               </div>

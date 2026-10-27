@@ -38,7 +38,7 @@ export default function BackupPage() {
       autoButtonClass="w-full !bg-purple-600 hover:!bg-purple-700"
       importWarning="Atenção: A importação irá substituir todos os dados atuais. Só é possível importar backups exportados desta loja."
       warningItems={[
-        'O backup inclui todos os dados do CRM (leads, oportunidades, atividades, etc.)',
+        'O backup inclui os cadastros do CRM e também as fotos, logos e PDFs',
         'Ao importar um backup, os dados atuais serão substituídos',
         'Recomendamos fazer backups regulares dos seus dados',
         'O arquivo de backup é um arquivo .zip compactado',
@@ -48,11 +48,12 @@ export default function BackupPage() {
         'Atividades e calendário',
         'Empresas e contatos',
         'Configurações personalizadas',
+        'Fotos, logos e PDFs',
       ]}
       importBullets={['Arquivo .zip de backup', 'Máximo 50MB', 'Processo pode levar alguns minutos']}
       autoBackupBullets={[
         'Backup diário, semanal ou mensal',
-        'Receba por email automaticamente',
+        'O e-mail traz o ZIP completo, com fotos e PDFs',
         'Configure horário de envio',
         'Backup manual sob demanda',
       ]}

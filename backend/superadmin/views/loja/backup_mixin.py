@@ -35,7 +35,9 @@ class LojaBackupMixin:
         from ...models import ConfiguracaoBackup, HistoricoBackup
 
         loja = self.get_object()
-        incluir_imagens = False
+        from ...backup_helpers import backup_inclui_midia
+
+        incluir_imagens = backup_inclui_midia(loja)
 
         ok, err_response = self._ensure_loja_database_available(loja)
         if not ok:
@@ -119,9 +121,11 @@ class LojaBackupMixin:
 
         try:
             service = BackupService()
+            from ...backup_helpers import backup_inclui_midia
+
             result = service.exportar_loja(
                 loja_id=loja.id,
-                incluir_imagens=False,
+                incluir_imagens=backup_inclui_midia(loja),
             )
 
             if not result.get("success"):

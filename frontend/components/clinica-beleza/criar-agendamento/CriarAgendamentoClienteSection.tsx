@@ -5,7 +5,8 @@ import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMulti
 import { procedimentosSemCategoriaProtocolo } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-builders";
 import type { UseCriarAgendamentoReturn } from "@/hooks/clinica-beleza/useCriarAgendamento";
 import { formatCurrency } from "@/lib/financeiro-helpers";
-import { ProtocoloCobrancaBox } from "./CriarAgendamentoAgendaSection";
+import { CRIAR_AGENDAMENTO_INPUT_CLASS } from "@/components/clinica-beleza/criar-agendamento/criar-agendamento-utils";
+import { CriarAgendamentoProtocoloEscolha, ProtocoloCobrancaBox } from "./CriarAgendamentoAgendaSection";
 import { SectionTitle } from "./CriarAgendamentoFormFields";
 
 type Props = Pick<
@@ -31,6 +32,14 @@ type Props = Pick<
   | "setFormaCobranca"
   | "isConsulta"
   | "totalEstimado"
+  | "protocolosClienteCarregando"
+  | "protocolosDaCliente"
+  | "protocolos"
+  | "protocoloClienteId"
+  | "setProtocoloClienteId"
+  | "protocoloModeloId"
+  | "setProtocoloModeloId"
+  | "setSelectedProcedures"
 > & {
   onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
 };
@@ -58,6 +67,14 @@ export function CriarAgendamentoClienteSection({
   setFormaCobranca,
   isConsulta,
   totalEstimado,
+  protocolosClienteCarregando,
+  protocolosDaCliente,
+  protocolos,
+  protocoloClienteId,
+  setProtocoloClienteId,
+  protocoloModeloId,
+  setProtocoloModeloId,
+  setSelectedProcedures,
 }: Props) {
   const proceduresDoHorario = procedimentosSemCategoriaProtocolo(procedures);
   return (
@@ -147,11 +164,22 @@ export function CriarAgendamentoClienteSection({
             />
           </div>
         </div>
+      ) : agendaEhProtocolo && patientId ? (
+        <CriarAgendamentoProtocoloEscolha
+          inputClass={CRIAR_AGENDAMENTO_INPUT_CLASS}
+          protocolosClienteCarregando={protocolosClienteCarregando}
+          protocolosDaCliente={protocolosDaCliente}
+          protocolos={protocolos}
+          protocoloClienteId={protocoloClienteId}
+          setProtocoloClienteId={setProtocoloClienteId}
+          protocoloModeloId={protocoloModeloId}
+          setProtocoloModeloId={setProtocoloModeloId}
+          setSelectedProcedures={setSelectedProcedures}
+          protocoloSelecionado={protocoloSelecionado}
+        />
       ) : agendaEhProtocolo ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {patientId
-            ? "Escolha o protocolo na coluna Agendamento."
-            : "Selecione a cliente. O protocolo é escolhido na coluna Agendamento."}
+          Selecione a cliente para escolher o protocolo.
         </p>
       ) : (
         <ProcedureMultiSelect

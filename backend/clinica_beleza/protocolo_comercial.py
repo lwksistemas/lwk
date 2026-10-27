@@ -329,7 +329,9 @@ def agendar_protocolo(
     sessoes = int(protocol.sessoes or 0)
     if sessoes < 1:
         raise AgendaValidationError("O protocolo precisa de ao menos uma sessão.")
-    duracao = int(protocol.tempo_estimado or 0)
+    duracao = int(getattr(getattr(protocol, "procedure", None), "duracao_minutos", 0) or 0)
+    if duracao < 1:
+        duracao = int(protocol.tempo_estimado or 0)
     if duracao < 1:
         raise AgendaValidationError("Informe a duração de cada sessão, em minutos.")
 

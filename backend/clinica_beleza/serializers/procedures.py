@@ -168,6 +168,9 @@ class ProcedureProtocolSerializer(serializers.ModelSerializer):
             }
             for linha in instance.produtos.all()
         ]
+        minutos = int(getattr(instance.procedure, "duracao_minutos", 0) or 0)
+        if minutos > 0:
+            data["tempo_estimado"] = minutos
         data["procedimentos"] = [
             {
                 "id": linha.id,
@@ -182,9 +185,17 @@ class ProcedureProtocolSerializer(serializers.ModelSerializer):
         ]
         return data
 
+    def _usar_duracao_do_procedimento(self, validated_data, instance=None):
+        procedure = validated_data.get("procedure", getattr(instance, "procedure", None))
+        if procedure is None:
+            return
+        minutos = int(getattr(procedure, "duracao_minutos", 0) or 0)
+        validated_data["tempo_estimado"] = minutos if minutos > 0 else 30
+
     def create(self, validated_data):
         produtos = validated_data.pop("produtos", [])
         procedimentos = validated_data.pop("procedimentos", [])
+        self._usar_duracao_do_procedimento(validated_data)
         protocolo = super().create(validated_data)
         _gravar_produtos_protocolo(protocolo, produtos)
         _gravar_procedimentos_protocolo(protocolo, procedimentos)
@@ -193,6 +204,7 @@ class ProcedureProtocolSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         produtos = validated_data.pop("produtos", serializers.empty)
         procedimentos = validated_data.pop("procedimentos", serializers.empty)
+        self._usar_duracao_do_procedimento(validated_data, instance)
         protocolo = super().update(instance, validated_data)
         if produtos is not serializers.empty:
             protocolo.produtos.all().delete()

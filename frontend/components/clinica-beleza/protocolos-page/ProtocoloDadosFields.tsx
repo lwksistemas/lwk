@@ -25,6 +25,8 @@ export function ProtocoloDadosFields({ form, procedures, onChange }: ProtocoloDa
   const temCategoria = procedures.some(
     (pr) => resolveProcedureCategoriaSlug(pr.categoria) === "protocolo",
   );
+  const escolhido = opcoes.find((pr) => String(pr.id) === form.procedure);
+  const duracao = Number(escolhido?.duracao_minutos ?? escolhido?.duration) || 0;
 
   return (
     <div className="space-y-4">
@@ -42,37 +44,26 @@ export function ProtocoloDadosFields({ form, procedures, onChange }: ProtocoloDa
           Este é o nome do pacote na agenda. Ele é diferente do nome do procedimento.
         </p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className={FORM_LABEL_CLASS}>Procedimento com o preço *</label>
-          <select
-            value={form.procedure}
-            onChange={(e) => onChange({ procedure: e.target.value })}
-            className={FORM_INPUT_CLASS}
-          >
-            <option value="">Selecione...</option>
-            {opcoes.map((pr) => (
-              <option key={pr.id} value={pr.id}>
-                {entityName(pr)}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-gray-500">
-            {temCategoria
-              ? "Escolha o procedimento cadastrado em Procedimentos. O preço por convênio fica lá, não neste nome do protocolo."
-              : "Cadastre antes o procedimento na categoria Protocolo, em Procedimentos, e defina o valor por convênio lá."}
-          </p>
-        </div>
-        <div>
-          <label className={FORM_LABEL_CLASS}>Tempo estimado (min) *</label>
-          <input
-            type="number"
-            min={1}
-            value={form.tempo_estimado}
-            onChange={(e) => onChange({ tempo_estimado: e.target.value })}
-            className={FORM_INPUT_CLASS}
-          />
-        </div>
+      <div>
+        <label className={FORM_LABEL_CLASS}>Procedimento com o preço *</label>
+        <select
+          value={form.procedure}
+          onChange={(e) => onChange({ procedure: e.target.value })}
+          className={FORM_INPUT_CLASS}
+        >
+          <option value="">Selecione...</option>
+          {opcoes.map((pr) => (
+            <option key={pr.id} value={pr.id}>
+              {entityName(pr)}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          {temCategoria
+            ? "O preço por convênio e a duração ficam neste procedimento, em Procedimentos."
+            : "Cadastre antes o procedimento na categoria Protocolo, em Procedimentos, com o preço e a duração."}
+          {duracao > 0 ? ` Cada sessão dura ${duracao} min.` : ""}
+        </p>
       </div>
       {PROTOCOLO_FORM_FIELDS_LEFT.map(([key, label]) => (
         <div key={key}>

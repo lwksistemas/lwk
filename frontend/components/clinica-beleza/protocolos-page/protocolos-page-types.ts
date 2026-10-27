@@ -72,6 +72,8 @@ export interface ProtocoloProcedureOption {
   categoria?: string;
   preco?: string | number;
   price?: string | number;
+  duracao_minutos?: number;
+  duration?: number;
 }
 
 export interface ProtocoloFormState {

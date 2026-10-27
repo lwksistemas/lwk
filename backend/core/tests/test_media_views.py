@@ -46,6 +46,18 @@ class ResolverFolderUploadTest(SimpleTestCase):
         )
         self.assertEqual(pasta, "admin/fotos")
 
+    def test_logo_da_prestadora_vai_para_a_pasta_do_cnpj(self):
+        pasta = _resolver_folder_upload(
+            SimpleNamespace(data={"folder": "fotos", "prestadora_cnpj": "38.900.437/0001-54"})
+        )
+        self.assertEqual(pasta, "prestadoras/38900437000154")
+
+    def test_cnpj_incompleto_nao_abre_pasta_de_prestadora(self):
+        pasta = _resolver_folder_upload(
+            SimpleNamespace(data={"folder": "admin/prestadoras/38900437000154", "prestadora_cnpj": "38900"})
+        )
+        self.assertEqual(pasta, "admin/fotos")
+
     def test_cpf_existente_usa_paciente_da_loja_nao_o_nome_enviado(self):
         request = SimpleNamespace(
             data={"folder": "fotos", "patient_nome": "Nome Falso", "patient_cpf": "11540472299"}

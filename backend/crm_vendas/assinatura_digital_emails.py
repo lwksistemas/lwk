@@ -147,7 +147,13 @@ def enviar_pdf_final(documento, loja_id):
     elif loja and loja.owner and loja.owner.email:
         destinatarios.append(loja.owner.email)
 
-    filename = f"{tipo_doc.lower()}_{documento.titulo or documento.id}_assinado.pdf"
+    filename = f"{tipo_doc.lower()}_{documento.id}_assinado.pdf"
+    try:
+        from .midia_documentos import arquivar_pdf_assinado
+
+        arquivar_pdf_assinado(documento, pdf_bytes, filename)
+    except Exception:
+        logger.exception("Falha ao arquivar PDF assinado no servidor de mídia")
 
     html_content, texto_plano = montar_email_pdf_final(
         documento=documento,

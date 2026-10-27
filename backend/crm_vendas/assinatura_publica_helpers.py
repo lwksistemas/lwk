@@ -247,7 +247,14 @@ def resposta_pdf_assinado_pelas_duas_partes(assinatura):
             pdf_buffer = gerar_pdf_contrato(documento, incluir_assinaturas=True)
             filename = f"contrato_{getattr(documento, 'id', 'assinado')}_assinado.pdf"
         pdf_buffer.seek(0)
-        response = HttpResponse(pdf_buffer.read(), content_type="application/pdf")
+        pdf_bytes = pdf_buffer.read()
+        try:
+            from .midia_documentos import arquivar_pdf_assinado
+
+            arquivar_pdf_assinado(documento, pdf_bytes, filename)
+        except Exception:
+            logger.exception("Falha ao arquivar PDF assinado no servidor de mídia")
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
     except Exception:

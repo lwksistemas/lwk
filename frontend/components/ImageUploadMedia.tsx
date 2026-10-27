@@ -24,6 +24,8 @@ interface ImageUploadMediaProps {
   patientId?: number | null;
   patientNome?: string;
   patientCpf?: string;
+  /** CNPJ da prestadora: a logo vai para prestadoras/{cnpj}/, fora da pasta do admin. */
+  prestadoraCnpj?: string;
 }
 
 const MEDIA_SERVER_URL = process.env.NEXT_PUBLIC_MEDIA_URL || 'https://media.lwksistemas.com.br';
@@ -43,6 +45,7 @@ export function ImageUploadMedia({
   patientId,
   patientNome,
   patientCpf,
+  prestadoraCnpj,
 }: ImageUploadMediaProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +58,13 @@ export function ImageUploadMedia({
     // Validar tamanho
     if (file.size > maxSize * 1024 * 1024) {
       setError(`Arquivo muito grande. Máximo: ${maxSize}MB`);
+      return;
+    }
+
+    const cnpjPrestadora = (prestadoraCnpj || '').replace(/\D/g, '');
+    if (prestadoraCnpj != null && cnpjPrestadora.length !== 14) {
+      setError('Informe o CNPJ da empresa antes de enviar a logo.');
+      if (inputRef.current) inputRef.current.value = '';
       return;
     }
 
@@ -87,6 +97,9 @@ export function ImageUploadMedia({
       }
       if (patientCpf?.trim()) {
         formData.append('patient_cpf', patientCpf.trim());
+      }
+      if (cnpjPrestadora.length === 14) {
+        formData.append('prestadora_cnpj', cnpjPrestadora);
       }
 
       const response = await apiClient.post<{

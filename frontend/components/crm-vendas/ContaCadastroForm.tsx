@@ -184,7 +184,8 @@ export function ContaCadastroForm({
                 onChange={(url) => onChange({ ...formData, logo: url })}
                 label=""
                 folder="fotos"
-                description="Esta imagem sai na proposta e no contrato, ao lado da logo da loja."
+                prestadoraCnpj={formData.cnpj}
+                description="A logo fica na pasta da prestadora, separada da logo da loja. Informe o CNPJ antes de enviar."
               />
               <button
                 type="button"

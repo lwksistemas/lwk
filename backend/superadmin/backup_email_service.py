@@ -109,7 +109,7 @@ class BackupEmailService:
 
         try:
             # Buscar loja e histórico
-            loja = Loja.objects.select_related("owner").get(id=loja_id)
+            loja = Loja.objects.select_related("owner", "tipo_loja").get(id=loja_id)
             historico = HistoricoBackup.objects.get(id=historico_backup_id)
 
             if historico.status != "concluido":
@@ -135,10 +135,13 @@ class BackupEmailService:
             # Preparar email
             from .backup_midia_link import url_pagina_backup_midia
 
-            link_midia = url_pagina_backup_midia(loja)
+            from .backup_helpers import backup_inclui_midia
+
+            inclui_midia = backup_inclui_midia(loja)
+            link_midia = "" if inclui_midia else url_pagina_backup_midia(loja)
             assunto = self._criar_assunto(loja, historico)
-            corpo_html = self._criar_corpo_html(loja, historico, link_midia)
-            corpo_texto = self._criar_corpo_texto(loja, historico, link_midia)
+            corpo_html = self._criar_corpo_html(loja, historico, link_midia, inclui_midia)
+            corpo_texto = self._criar_corpo_texto(loja, historico, link_midia, inclui_midia)
 
             # Multipart texto + HTML (Resend API exige alternatives, não content_subtype)
             from core.email_delivery import create_email_multipart, send_prepared
@@ -186,7 +189,7 @@ class BackupEmailService:
         data = data_local.strftime("%d/%m/%Y")
         return f"Backup Automático - {loja.nome} - {data}"
 
-    def _criar_corpo_html(self, loja, historico, link_midia: str = "") -> str:
+    def _criar_corpo_html(self, loja, historico, link_midia: str = "", inclui_midia: bool = False) -> str:
         """Cria corpo HTML do email (data/hora em horário local)."""
         data_local = timezone.localtime(historico.created_at)
         context = {
@@ -227,9 +230,7 @@ class BackupEmailService:
                 <div class="content">
                     <p>Olá <strong>{context['owner_nome']}</strong>,</p>
 
-                    <p>Segue em anexo o backup dos <strong>cadastros</strong> da loja <strong>"{loja.nome}"</strong> (ZIP com planilhas).</p>
-                    <p>As fotos e PDFs não vão no anexo — baixe no seu computador pelo link abaixo (pasta de cada cliente, como no servidor de mídia).</p>
-                    {f'<div class="info-box"><p><a href="{context["link_midia"]}" style="color:#059669;font-weight:bold;">Baixar fotos e PDFs da loja</a></p><p style="font-size:12px;color:#666;word-break:break-all;">{context["link_midia"]}</p><p style="font-size:12px;">O link vale por 21 dias.</p></div>' if context.get("link_midia") else ""}
+                    {self._paragrafo_conteudo(loja, context, inclui_midia)}
 
                     <div class="info-box">
                         <h3>📊 Informações do Backup</h3>
@@ -263,7 +264,29 @@ class BackupEmailService:
 
         return html
 
-    def _criar_corpo_texto(self, loja, historico, link_midia: str = "") -> str:
+    def _paragrafo_conteudo(self, loja, context, inclui_midia: bool) -> str:
+        if inclui_midia:
+            return (
+                f'<p>Segue em anexo o backup completo da loja <strong>"{loja.nome}"</strong> '
+                "(cadastros, fotos, logos e PDFs).</p>"
+            )
+        link = context.get("link_midia") or ""
+        bloco_link = (
+            f'<div class="info-box"><p><a href="{link}" style="color:#059669;font-weight:bold;">'
+            "Baixar fotos e PDFs da loja</a></p>"
+            f'<p style="font-size:12px;color:#666;word-break:break-all;">{link}</p>'
+            '<p style="font-size:12px;">O link vale por 21 dias.</p></div>'
+            if link else ""
+        )
+        return (
+            f'<p>Segue em anexo o backup dos <strong>cadastros</strong> da loja '
+            f'<strong>"{loja.nome}"</strong> (ZIP com planilhas).</p>'
+            "<p>As fotos e PDFs não vão no anexo — baixe no seu computador pelo link abaixo "
+            "(pasta de cada cliente, como no servidor de mídia).</p>"
+            f"{bloco_link}"
+        )
+
+    def _criar_corpo_texto(self, loja, historico, link_midia: str = "", inclui_midia: bool = False) -> str:
         """Cria corpo em texto puro do email (data/hora em horário local)."""
         owner_nome = loja.owner.first_name or loja.owner.username
         data_local = timezone.localtime(historico.created_at)
@@ -274,9 +297,7 @@ Backup Automático - {loja.nome}
 
 Olá {owner_nome},
 
-Segue em anexo o backup dos cadastros da loja "{loja.nome}" (ZIP com planilhas).
-As fotos e PDFs baixe no seu computador (link válido por 21 dias):
-{link_midia or "(sem link de mídia)"}
+{self._texto_conteudo(loja, link_midia, inclui_midia)}
 
 📊 INFORMAÇÕES DO BACKUP:
 - Data/Hora: {data_backup}
@@ -298,6 +319,15 @@ Este é um email automático, não responda.
         """
 
         return texto.strip()
+
+    def _texto_conteudo(self, loja, link_midia: str, inclui_midia: bool) -> str:
+        if inclui_midia:
+            return f'Segue em anexo o backup completo da loja "{loja.nome}" (cadastros, fotos, logos e PDFs).'
+        return (
+            f'Segue em anexo o backup dos cadastros da loja "{loja.nome}" (ZIP com planilhas).\n'
+            "As fotos e PDFs baixe no seu computador (link válido por 21 dias):\n"
+            f"{link_midia or '(sem link de mídia)'}"
+        )
 
     def _anexar_arquivo(self, email: EmailMessage, historico):
         """Anexa arquivo de backup ao email.

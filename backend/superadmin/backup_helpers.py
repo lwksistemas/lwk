@@ -53,6 +53,13 @@ BACKUP_SAFE_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 # Permite nome que começa com dígito (ex.: CNPJ como schema), sempre entre aspas em SQL literal.
 BACKUP_SAFE_PG_SCHEMA_RE = re.compile(r"^[a-zA-Z0-9_]{1,63}$")
 
+def backup_inclui_midia(loja) -> bool:
+    """CRM Vendas cabe no anexo: fotos, logos e PDFs entram no ZIP."""
+    tipo = getattr(loja, "tipo_loja", None)
+    codigo = (getattr(tipo, "codigo", None) or "").strip().upper()
+    return codigo == "CRMVND"
+
+
 # Backups antigos podem omitir estas colunas no CSV; no PG podem ser NOT NULL sem DEFAULT no servidor.
 BACKUP_CRM_CONFIG_EXTRA_INT_COLUMNS = frozenset(
     {"issnet_numero_lote", "issnet_ultimo_rps_conhecido"},

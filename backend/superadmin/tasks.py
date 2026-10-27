@@ -137,10 +137,12 @@ def executar_backups_automaticos():
             )
 
             # Criar task assíncrona
+            from .backup_helpers import backup_inclui_midia
+
             processar_backup_loja(
                 loja_id=config.loja.id,
                 tipo="automatico",
-                incluir_imagens=False,
+                incluir_imagens=backup_inclui_midia(config.loja),
             )
 
             total_agendados += 1
@@ -198,7 +200,11 @@ def processar_backup_loja(
 
     try:
         # Buscar loja
-        loja = Loja.objects.get(id=loja_id)
+        loja = Loja.objects.select_related("tipo_loja").get(id=loja_id)
+        from .backup_helpers import backup_inclui_midia
+
+        if backup_inclui_midia(loja):
+            incluir_imagens = True
 
         # Garantir que o banco da loja está em settings.DATABASES
         from django.conf import settings

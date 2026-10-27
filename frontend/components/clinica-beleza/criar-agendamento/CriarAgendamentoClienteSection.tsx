@@ -33,6 +33,7 @@ type Props = Pick<
   | "totalEstimado"
 > & {
   onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
+  ocultarProcedimentos?: boolean;
 };
 
 export function CriarAgendamentoClienteSection({
@@ -58,6 +59,7 @@ export function CriarAgendamentoClienteSection({
   setFormaCobranca,
   isConsulta,
   totalEstimado,
+  ocultarProcedimentos = false,
 }: Props) {
   const proceduresDoHorario = procedimentosSemCategoriaProtocolo(procedures);
   return (
@@ -77,6 +79,7 @@ export function CriarAgendamentoClienteSection({
         onCreatePatient={handleCreatePatient}
         onSearchPatients={onSearchPatients}
         disabled={createLoading}
+        camposEmLinha
       />
       {protocoloCliente ? (
         <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-neutral-700 dark:bg-neutral-900/50">
@@ -153,7 +156,7 @@ export function CriarAgendamentoClienteSection({
             ? "Escolha o protocolo na coluna Agendamento."
             : "Selecione a cliente. O protocolo é escolhido na coluna Agendamento."}
         </p>
-      ) : (
+      ) : ocultarProcedimentos ? null : (
         <ProcedureMultiSelect
           procedures={proceduresDoHorario}
           selectedIds={selectedProcedures}
@@ -166,5 +169,35 @@ export function CriarAgendamentoClienteSection({
         />
       )}
     </div>
+  );
+}
+
+export function CriarAgendamentoProcedimentosSection({
+  procedures,
+  selectedProcedures,
+  adicionarProcedimento,
+  removerProcedimento,
+  convenioId,
+  precosMap,
+}: Pick<
+  UseCriarAgendamentoReturn,
+  | "procedures"
+  | "selectedProcedures"
+  | "adicionarProcedimento"
+  | "removerProcedimento"
+  | "convenioId"
+  | "precosMap"
+>) {
+  return (
+    <ProcedureMultiSelect
+      procedures={procedimentosSemCategoriaProtocolo(procedures)}
+      selectedIds={selectedProcedures}
+      onAdd={adicionarProcedimento}
+      onRemove={removerProcedimento}
+      convenioId={convenioId}
+      precosMap={precosMap}
+      showSummary={selectedProcedures.length > 1}
+      optional
+    />
   );
 }

@@ -21,4 +21,5 @@ export interface PatientQuickRegisterFieldProps {
   onCreatePatient: (data: { nome: string; telefone: string; cpf: string }) => Promise<PatientQuickOption>;
   onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
   disabled?: boolean;
+  camposEmLinha?: boolean;
 }

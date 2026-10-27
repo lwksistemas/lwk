@@ -261,6 +261,7 @@ class ProtocoloPersonalizadoCreateView(APIView):
                 intervalo_unidade=str(data.get("intervalo_unidade") or "").strip(),
                 tempo_minutos=int(data.get("tempo_minutos") or 0),
                 nome=str(data.get("nome") or ""),
+                etapas=data,
                 request=request,
             )
         except (TypeError, ValueError):
@@ -301,6 +302,7 @@ class ProtocoloPersonalizadoDetailView(GetObjectMixin, APIView):
                 intervalo_unidade=str(data.get("intervalo_unidade") or "").strip(),
                 tempo_minutos=int(data.get("tempo_minutos") or 0),
                 nome=str(data.get("nome") or ""),
+                etapas=data,
                 request=request,
             )
         except (TypeError, ValueError):
@@ -438,6 +440,12 @@ def _serializar_protocolo_personalizado(contrato):
         "intervalo_quantidade": contrato.intervalo_quantidade,
         "intervalo_unidade": contrato.intervalo_unidade,
         "tempo_minutos": contrato.tempo_minutos,
+        "materiais_necessarios": contrato.materiais_necessarios or "",
+        "preparacao": contrato.preparacao or "",
+        "execucao": contrato.execucao or "",
+        "pos_procedimento": contrato.pos_procedimento or "",
+        "contraindicacoes": contrato.contraindicacoes or "",
+        "cuidados_especiais": contrato.cuidados_especiais or "",
         "desconto_escopo": contrato.desconto_escopo or "total",
         "desconto_tipo": contrato.desconto_tipo or "percentual",
         "desconto_valor": str(contrato.desconto_valor),

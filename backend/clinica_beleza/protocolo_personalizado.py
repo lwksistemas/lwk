@@ -19,6 +19,21 @@ from .protocolo_comercial import (
 )
 
 
+CAMPOS_ETAPAS = (
+    "materiais_necessarios",
+    "preparacao",
+    "execucao",
+    "pos_procedimento",
+    "contraindicacoes",
+    "cuidados_especiais",
+)
+
+
+def etapas_do_pedido(data) -> dict:
+    origem = data or {}
+    return {chave: str(origem.get(chave) or "").strip() for chave in CAMPOS_ETAPAS}
+
+
 def aplicar_desconto_protocolo(bruto, tipo: str, valor) -> tuple[Decimal, Decimal]:
     """Devolve o desconto e o líquido. Porcentagem de 0 a 100. Valor fixo não passa da soma."""
     total = Decimal(str(bruto or 0)).quantize(Decimal("0.01"))
@@ -164,6 +179,7 @@ def criar_protocolo_personalizado(
     intervalo_unidade: str,
     tempo_minutos: int,
     nome: str = "",
+    etapas: dict | None = None,
     request=None,
 ) -> dict:
     """Grava o pacote da cliente. Profissional, agenda e pagamento ficam para depois."""
@@ -210,6 +226,7 @@ def criar_protocolo_personalizado(
             data_inicio=None,
             sessoes=int(sessoes),
             loja_id=loja_id,
+            **etapas_do_pedido(etapas),
         )
         for linha in conta["linhas"]:
             ProtocoloContratoProcedimento.objects.create(
@@ -273,6 +290,7 @@ def atualizar_protocolo_personalizado(
     intervalo_unidade: str,
     tempo_minutos: int,
     nome: str = "",
+    etapas: dict | None = None,
     request=None,
 ) -> dict:
     """Atualiza o pacote que ainda não foi para a agenda."""
@@ -313,6 +331,8 @@ def atualizar_protocolo_personalizado(
         contrato.intervalo_quantidade = int(intervalo_quantidade)
         contrato.intervalo_unidade = intervalo_unidade
         contrato.sessoes = int(sessoes)
+        for chave, texto in etapas_do_pedido(etapas).items():
+            setattr(contrato, chave, texto)
         contrato.save()
         _gravar_itens(contrato, conta["linhas"], produtos, contrato.loja_id, modo)
 

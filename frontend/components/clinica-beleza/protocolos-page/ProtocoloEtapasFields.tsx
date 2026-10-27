@@ -14,9 +14,11 @@ interface ProtocoloEtapasFieldsProps {
 
 export function ProtocoloEtapasFields({ form, onChange }: ProtocoloEtapasFieldsProps) {
   return (
-    <div className="space-y-4">
-      <p className={FORM_SECTION_TITLE_CLASS}>Etapas e cuidados</p>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <details className="group">
+      <summary className={`${FORM_SECTION_TITLE_CLASS} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
+        Etapas e cuidados
+      </summary>
+      <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
       {PROTOCOLO_FORM_FIELDS_RIGHT.map(([key, label]) => (
         <div key={key} className={key === "execucao" ? "lg:col-span-2" : undefined}>
           <label className={FORM_LABEL_CLASS}>{label}</label>
@@ -30,6 +32,6 @@ export function ProtocoloEtapasFields({ form, onChange }: ProtocoloEtapasFieldsP
         </div>
       ))}
       </div>
-    </div>
+    </details>
   );
 }

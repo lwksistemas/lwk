@@ -255,6 +255,7 @@ class ProtocoloPersonalizadoCreateView(APIView):
                 produtos=produtos,
                 desconto_tipo=str(data.get("desconto_tipo") or "").strip(),
                 desconto_valor=data.get("desconto_valor") or 0,
+                desconto_escopo=str(data.get("desconto_escopo") or "total").strip(),
                 sessoes=int(data.get("sessoes") or 0),
                 intervalo_quantidade=int(data.get("intervalo_quantidade") or 0),
                 intervalo_unidade=str(data.get("intervalo_unidade") or "").strip(),
@@ -294,6 +295,7 @@ class ProtocoloPersonalizadoDetailView(GetObjectMixin, APIView):
                 produtos=_produtos_do_pedido(data.get("produtos")),
                 desconto_tipo=str(data.get("desconto_tipo") or "").strip(),
                 desconto_valor=data.get("desconto_valor") or 0,
+                desconto_escopo=str(data.get("desconto_escopo") or "total").strip(),
                 sessoes=int(data.get("sessoes") or 0),
                 intervalo_quantidade=int(data.get("intervalo_quantidade") or 0),
                 intervalo_unidade=str(data.get("intervalo_unidade") or "").strip(),
@@ -415,6 +417,8 @@ def _serializar_protocolo_personalizado(contrato):
             "preco": str(linha.valor),
             "categoria": slug,
             "categoria_nome": rotulo,
+            "desconto_tipo": linha.desconto_tipo or "percentual",
+            "desconto_valor": str(linha.desconto_valor or 0),
         })
     produtos = []
     for linha in contrato.produtos_sessao.all():
@@ -434,6 +438,7 @@ def _serializar_protocolo_personalizado(contrato):
         "intervalo_quantidade": contrato.intervalo_quantidade,
         "intervalo_unidade": contrato.intervalo_unidade,
         "tempo_minutos": contrato.tempo_minutos,
+        "desconto_escopo": contrato.desconto_escopo or "total",
         "desconto_tipo": contrato.desconto_tipo or "percentual",
         "desconto_valor": str(contrato.desconto_valor),
         "valor_bruto": str(contrato.valor_bruto),
@@ -489,16 +494,28 @@ def _profissional_fixo(request):
 def _procedimentos_do_pedido(raw):
     if not isinstance(raw, list) or not raw:
         raise AgendaValidationError("Inclua ao menos um procedimento.")
-    ids = []
+    pedidos = []
     for item in raw:
-        ids.append(int(item))
-    encontrados = {item.id: item for item in Procedure.objects.filter(pk__in=ids)}
+        if isinstance(item, dict):
+            pk = int(item.get("procedure") or item.get("id"))
+            tipo = str(item.get("desconto_tipo") or "").strip().lower()
+            valor = item.get("desconto_valor") or 0
+        else:
+            pk = int(item)
+            tipo = ""
+            valor = 0
+        pedidos.append((pk, tipo, valor))
+    encontrados = {item.id: item for item in Procedure.objects.filter(pk__in=[pk for pk, _tipo, _valor in pedidos])}
     procedimentos = []
-    for pk in ids:
+    for pk, tipo, valor in pedidos:
         procedure = encontrados.get(pk)
         if procedure is None:
             raise AgendaValidationError("Procedimento não encontrado.")
-        procedimentos.append(procedure)
+        procedimentos.append({
+            "procedure": procedure,
+            "desconto_tipo": tipo,
+            "desconto_valor": valor,
+        })
     return procedimentos
 
 

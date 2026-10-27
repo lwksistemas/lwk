@@ -61,12 +61,27 @@ def repartir_valor(total, pesos) -> list[Decimal]:
     return partes
 
 
+def _normalizar_procedimento(item) -> dict:
+    if isinstance(item, dict):
+        procedure = item.get("procedure", item)
+        tipo = (item.get("desconto_tipo") or "").strip().lower()
+        valor = item.get("desconto_valor") or 0
+    else:
+        procedure = item
+        tipo = ""
+        valor = 0
+    if tipo not in ("", "percentual", "fixo"):
+        raise AgendaValidationError("Escolha desconto em reais ou em porcentagem.")
+    return {"procedure": procedure, "desconto_tipo": tipo, "desconto_valor": valor}
+
+
 def _validar_itens(procedimentos, produtos):
-    procedimentos = list(procedimentos or [])
+    procedimentos = [_normalizar_procedimento(item) for item in (procedimentos or [])]
     if not procedimentos:
         raise AgendaValidationError("Inclua ao menos um procedimento.")
     vistos = set()
-    for procedure in procedimentos:
+    for item in procedimentos:
+        procedure = item["procedure"]
         if procedure.id in vistos:
             raise AgendaValidationError("Cada procedimento entra uma vez no protocolo.")
         if not getattr(procedure, "is_active", True):
@@ -100,10 +115,23 @@ def _linhas_de_preco(patient, procedimentos):
     if convenio_paciente is not None and getattr(convenio_paciente, "is_active", False):
         convenio = convenio_paciente
     linhas = []
-    for procedure in procedimentos:
+    for item in procedimentos:
+        procedure = item["procedure"]
         preco = Decimal(str(resolver_preco_procedimento(convenio, procedure) or 0)).quantize(Decimal("0.01"))
-        linhas.append((procedure, preco))
+        linhas.append({
+            "procedure": procedure,
+            "preco": preco,
+            "desconto_tipo": item.get("desconto_tipo") or "",
+            "desconto_valor": item.get("desconto_valor") or 0,
+        })
     return convenio, linhas
+
+
+def _conta_do_pacote(linhas, escopo: str, desconto_tipo: str, desconto_valor) -> dict:
+    from .protocolo_comercial import preco_da_promocao
+
+    modo = "individual" if (escopo or "").strip().lower() == "individual" else "total"
+    return preco_da_promocao(linhas, modo, desconto_tipo, desconto_valor), modo
 
 
 _STATUS_IGNORADO = ("CANCELLED", "NO_SHOW")
@@ -130,6 +158,7 @@ def criar_protocolo_personalizado(
     produtos,
     desconto_tipo: str,
     desconto_valor,
+    desconto_escopo: str = "total",
     sessoes: int,
     intervalo_quantidade: int,
     intervalo_unidade: str,
@@ -154,12 +183,13 @@ def criar_protocolo_personalizado(
 
     procedimentos, produtos = _validar_itens(procedimentos, produtos)
     _convenio, linhas = _linhas_de_preco(patient, procedimentos)
-    bruto = sum((preco for _, preco in linhas), Decimal("0.00")).quantize(Decimal("0.01"))
-    desconto, liquido = aplicar_desconto_protocolo(bruto, desconto_tipo, desconto_valor)
+    conta, modo = _conta_do_pacote(linhas, desconto_escopo, desconto_tipo, desconto_valor)
     _bloquear_se_paciente_inadimplente(patient, request=request)
 
     titulo = (nome or "").strip() or "Protocolo personalizado"
     loja_id = patient.loja_id
+    tipo_gravado = "" if modo == "individual" else (desconto_tipo or "").strip().lower()
+    valor_gravado = conta["desconto"] if modo == "individual" else Decimal(str(desconto_valor or 0)).quantize(Decimal("0.01"))
 
     with transaction.atomic():
         contrato = ProtocoloContrato.objects.create(
@@ -169,10 +199,11 @@ def criar_protocolo_personalizado(
             local_atendimento=None,
             forma_cobranca="",
             nome=titulo,
-            valor_bruto=bruto,
-            desconto_tipo=(desconto_tipo or "").strip().lower(),
-            desconto_valor=Decimal(str(desconto_valor or 0)).quantize(Decimal("0.01")),
-            valor_total=liquido,
+            valor_bruto=conta["bruto"],
+            desconto_escopo=modo,
+            desconto_tipo=tipo_gravado,
+            desconto_valor=valor_gravado,
+            valor_total=conta["liquido"],
             tempo_minutos=int(tempo_minutos),
             intervalo_quantidade=int(intervalo_quantidade),
             intervalo_unidade=intervalo_unidade,
@@ -180,11 +211,13 @@ def criar_protocolo_personalizado(
             sessoes=int(sessoes),
             loja_id=loja_id,
         )
-        for procedure, preco in linhas:
+        for linha in conta["linhas"]:
             ProtocoloContratoProcedimento.objects.create(
                 contrato=contrato,
-                procedure=procedure,
-                valor=preco,
+                procedure=linha["procedure"],
+                valor=linha["preco"],
+                desconto_tipo=linha["desconto_tipo"] if modo == "individual" else "",
+                desconto_valor=linha["desconto_valor"] if modo == "individual" else Decimal("0.00"),
                 loja_id=loja_id,
             )
         for item in produtos:
@@ -198,22 +231,24 @@ def criar_protocolo_personalizado(
     return {
         "contrato_id": contrato.id,
         "nome": titulo,
-        "valor_bruto": str(bruto),
-        "desconto": str(desconto),
-        "valor_total": str(liquido),
+        "valor_bruto": str(conta["bruto"]),
+        "desconto": str(conta["desconto"]),
+        "valor_total": str(conta["liquido"]),
     }
 
 
-def _gravar_itens(contrato, linhas, produtos, loja_id):
+def _gravar_itens(contrato, linhas, produtos, loja_id, modo: str):
     from .models import ProtocoloContratoProcedimento, ProtocoloContratoProduto
 
     contrato.procedimentos.all().delete()
     contrato.produtos_sessao.all().delete()
-    for procedure, preco in linhas:
+    for linha in linhas:
         ProtocoloContratoProcedimento.objects.create(
             contrato=contrato,
-            procedure=procedure,
-            valor=preco,
+            procedure=linha["procedure"],
+            valor=linha["preco"],
+            desconto_tipo=(linha.get("desconto_tipo") or "") if modo == "individual" else "",
+            desconto_valor=(linha.get("desconto_valor") or Decimal("0.00")) if modo == "individual" else Decimal("0.00"),
             loja_id=loja_id,
         )
     for item in produtos:
@@ -232,6 +267,7 @@ def atualizar_protocolo_personalizado(
     produtos,
     desconto_tipo: str,
     desconto_valor,
+    desconto_escopo: str = "total",
     sessoes: int,
     intervalo_quantidade: int,
     intervalo_unidade: str,
@@ -260,30 +296,32 @@ def atualizar_protocolo_personalizado(
 
     procedimentos, produtos = _validar_itens(procedimentos, produtos)
     _convenio, linhas = _linhas_de_preco(contrato.patient, procedimentos)
-    bruto = sum((preco for _, preco in linhas), Decimal("0.00")).quantize(Decimal("0.01"))
-    desconto, liquido = aplicar_desconto_protocolo(bruto, desconto_tipo, desconto_valor)
+    conta, modo = _conta_do_pacote(linhas, desconto_escopo, desconto_tipo, desconto_valor)
     _bloquear_se_paciente_inadimplente(contrato.patient, request=request)
     titulo = (nome or "").strip() or "Protocolo personalizado"
+    tipo_gravado = "" if modo == "individual" else (desconto_tipo or "").strip().lower()
+    valor_gravado = conta["desconto"] if modo == "individual" else Decimal(str(desconto_valor or 0)).quantize(Decimal("0.01"))
 
     with transaction.atomic():
         contrato.nome = titulo
-        contrato.valor_bruto = bruto
-        contrato.desconto_tipo = (desconto_tipo or "").strip().lower()
-        contrato.desconto_valor = Decimal(str(desconto_valor or 0)).quantize(Decimal("0.01"))
-        contrato.valor_total = liquido
+        contrato.valor_bruto = conta["bruto"]
+        contrato.desconto_escopo = modo
+        contrato.desconto_tipo = tipo_gravado
+        contrato.desconto_valor = valor_gravado
+        contrato.valor_total = conta["liquido"]
         contrato.tempo_minutos = int(tempo_minutos)
         contrato.intervalo_quantidade = int(intervalo_quantidade)
         contrato.intervalo_unidade = intervalo_unidade
         contrato.sessoes = int(sessoes)
         contrato.save()
-        _gravar_itens(contrato, linhas, produtos, contrato.loja_id)
+        _gravar_itens(contrato, conta["linhas"], produtos, contrato.loja_id, modo)
 
     return {
         "contrato_id": contrato.id,
         "nome": titulo,
-        "valor_bruto": str(bruto),
-        "desconto": str(desconto),
-        "valor_total": str(liquido),
+        "valor_bruto": str(conta["bruto"]),
+        "desconto": str(conta["desconto"]),
+        "valor_total": str(conta["liquido"]),
     }
 
 
@@ -451,7 +489,24 @@ def definir_pagamento_protocolo(contrato, forma: str, appointment_id=None) -> No
     if not agendamentos:
         raise AgendaValidationError("Agende o protocolo antes de definir o pagamento.")
 
-    pesos = [linha.valor for linha in linhas]
+    if (getattr(contrato, "desconto_escopo", "") or "") == "individual":
+        conta, _modo = _conta_do_pacote(
+            [
+                {
+                    "procedure": linha.procedure,
+                    "preco": linha.valor,
+                    "desconto_tipo": linha.desconto_tipo,
+                    "desconto_valor": linha.desconto_valor,
+                }
+                for linha in linhas
+            ],
+            "individual",
+            "",
+            0,
+        )
+        pesos = [item["liquido"] for item in conta["linhas"]]
+    else:
+        pesos = [linha.valor for linha in linhas]
     try:
         alvo = int(appointment_id) if appointment_id else None
     except (TypeError, ValueError):

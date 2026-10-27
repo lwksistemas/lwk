@@ -11,20 +11,95 @@ from tenants.middleware import get_current_loja_id
 
 from .cache import CRMCacheManager
 from .crm_config_helpers import get_crm_config_for_loja as _get_crm_config_for_loja
+from .utils import is_owner
 
 logger = logging.getLogger(__name__)
 
+# Chave, certificado, senha e nota fiscal. Personalização do pipeline fica de fora.
+CAMPOS_SO_DONO = frozenset({
+    "asaas_api_key",
+    "asaas_sandbox",
+    "asaas_webhook_token",
+    "issnet_usuario",
+    "issnet_senha",
+    "issnet_senha_certificado",
+    "issnet_certificado",
+    "issnet_certificado_nome",
+    "provedor_nf",
+    "inscricao_municipal",
+    "codigo_cnae",
+    "optante_simples_nacional",
+    "regime_especial_tributacao",
+    "incentivador_cultural",
+    "item_lista_servico",
+    "codigo_nbs",
+    "issnet_serie_rps",
+    "issnet_ultimo_rps_conhecido",
+    "issnet_numero_lote",
+    "issnet_ambiente_homologacao",
+    "issnet_usar_padrao_nacional",
+    "codigo_tributacao_nacional",
+    "codigo_tributacao_municipal",
+    "nacional_codigo_municipio",
+    "indicador_operacao",
+    "cst_ibscbs",
+    "cclass_trib_ibscbs",
+    "p_tot_trib_sn",
+    "codigo_servico_municipal",
+    "descricao_servico_padrao",
+    "aliquota_iss",
+    "emitir_nf_automaticamente",
+})
+
+
+def _pode_gravar_segredo(request) -> bool:
+    user = getattr(request, "user", None)
+    if user is not None and getattr(user, "is_superuser", False):
+        return True
+    return is_owner(request)
+
+
+def _pedido_mexe_em_segredo(request) -> bool:
+    chaves = set()
+    data = getattr(request, "data", None)
+    if hasattr(data, "keys"):
+        chaves.update(str(chave) for chave in data.keys())
+    arquivos = getattr(request, "FILES", None)
+    if arquivos is not None:
+        chaves.update(str(chave) for chave in arquivos.keys())
+    return bool(chaves & CAMPOS_SO_DONO)
+
+
+def _recusar_segredo_de_vendedor(request):
+    if _pode_gravar_segredo(request):
+        return None
+    if request.method == "PATCH" and _pedido_mexe_em_segredo(request):
+        return Response(
+            {"detail": "Só o dono da loja altera a chave Asaas e a nota fiscal."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    if request.method == "POST":
+        return Response(
+            {"detail": "Só o dono da loja testa a chave Asaas e a nota fiscal."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return None
+
+
 @api_view(["GET", "PATCH"])
 def crm_config(request):
-    """GET: Retorna configurações do CRM da loja
-    PATCH: Atualiza configurações do CRM (personalizar: origens, etapas, colunas, módulos)
-    Admin e vendedores podem acessar e personalizar.
+    """GET: configurações da loja.
+    PATCH: vendedor personaliza pipeline. Chave, certificado e NFS-e ficam com o dono.
     """
     from .serializers import CRMConfigSerializer
 
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({"detail": "Loja não identificada."}, status=400)
+
+    recusa = _recusar_segredo_de_vendedor(request)
+    if recusa:
+        return recusa
 
     # Buscar ou criar configuração (com auto-recovery se schema não configurado)
     try:
@@ -91,6 +166,14 @@ def crm_config_asaas_test(request):
       - api_key: se omitido ou vazio, usa a chave já salva em CRMConfig
       - asaas_sandbox: se omitido, usa o valor salvo na config
     """
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return Response({"success": False, "detail": "Loja não identificada."}, status=status.HTTP_400_BAD_REQUEST)
+
+    recusa = _recusar_segredo_de_vendedor(request)
+    if recusa:
+        return recusa
+
     try:
         from asaas_integration.client import AsaasClient
     except ImportError:
@@ -98,10 +181,6 @@ def crm_config_asaas_test(request):
             {"success": False, "detail": "Cliente Asaas indisponível no servidor."},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
-
-    loja_id = get_current_loja_id()
-    if not loja_id:
-        return Response({"success": False, "detail": "Loja não identificada."}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         cfg = _get_crm_config_for_loja(loja_id)
@@ -169,6 +248,10 @@ def crm_config_issnet_test(request):
     loja_id = get_current_loja_id()
     if not loja_id:
         return Response({"success": False, "detail": "Loja não identificada."}, status=status.HTTP_400_BAD_REQUEST)
+
+    recusa = _recusar_segredo_de_vendedor(request)
+    if recusa:
+        return recusa
 
     try:
         cfg = _get_crm_config_for_loja(loja_id)

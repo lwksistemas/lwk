@@ -1,5 +1,23 @@
 """Endpoints públicos (empresa/vendedor via token) — relatório de comissão."""
+from datetime import timedelta
+
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
+
+PRAZO_LINK_COMISSAO = timedelta(days=90)
+
+
+def motivo_link_comissao_encerrado(relatorio, papel: str) -> str | None:
+    """None enquanto o link ainda serve. Mensagem quando o prazo ou o passo acabou."""
+    criado = getattr(relatorio, "created_at", None)
+    if criado is not None and timezone.now() - criado > PRAZO_LINK_COMISSAO:
+        return "Este link venceu. Peça um novo relatório."
+    status = getattr(relatorio, "status", "")
+    if papel == "empresa" and status != "pendente_aprovacao":
+        return "Este relatório já foi respondido."
+    if papel == "vendedor" and status != "aprovado":
+        return "Este relatório não está mais aguardando assinatura."
+    return None
 
 
 def _nome_assinante(relatorio, loja) -> str:
@@ -9,6 +27,8 @@ def _nome_assinante(relatorio, loja) -> str:
 
     _email, nome = administrador_da_loja(relatorio.loja_id)
     return nome or getattr(loja, "nome", "") or ""
+
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -36,6 +56,10 @@ def empresa_aprovar_view(request, loja_id, token):
     ).filter(token_empresa=token).first()
     if not relatorio:
         return Response({"detail": "Link inválido ou expirado."}, status=404)
+
+    encerrado = motivo_link_comissao_encerrado(relatorio, "empresa")
+    if encerrado:
+        return Response({"detail": encerrado}, status=410)
 
     if request.method == "GET":
         return Response({
@@ -77,6 +101,10 @@ def empresa_reprovar_view(request, loja_id, token):
     ).first()
     if not relatorio:
         return Response({"detail": "Link inválido ou expirado."}, status=404)
+
+    encerrado = motivo_link_comissao_encerrado(relatorio, "empresa")
+    if encerrado:
+        return Response({"detail": encerrado}, status=410)
 
     if request.method == "GET":
         return Response({
@@ -120,6 +148,10 @@ def vendedor_assinar_view(request, loja_id, token):
     ).filter(token_vendedor=token).first()
     if not relatorio:
         return Response({"detail": "Link inválido ou expirado."}, status=404)
+
+    encerrado = motivo_link_comissao_encerrado(relatorio, "vendedor")
+    if encerrado:
+        return Response({"detail": encerrado}, status=410)
 
     if request.method == "GET":
         return Response({

@@ -177,12 +177,18 @@ class AssinaturaPdfView(View):
 
         documento = assinatura.documento
         try:
+            from .nome_arquivo import nome_arquivo_download
+
             if assinatura.proposta:
                 pdf_buffer = gerar_pdf_proposta(documento, incluir_assinaturas=False)
-                filename = f"proposta_{documento.titulo or documento.id}.pdf"
+                filename = nome_arquivo_download(
+                    "proposta", getattr(documento, "titulo", None) or documento.id, extensao="pdf",
+                )
             else:
                 pdf_buffer = gerar_pdf_contrato(documento, incluir_assinaturas=False)
-                filename = f"contrato_{documento.titulo or documento.id}.pdf"
+                filename = nome_arquivo_download(
+                    "contrato", getattr(documento, "titulo", None) or documento.id, extensao="pdf",
+                )
 
             pdf_buffer.seek(0)
             logger.info("✅ PDF gerado com sucesso: %s", filename)
@@ -205,7 +211,11 @@ class DocumentoAssinadoPdfPublicoView(View):
         pdf = payload.get("pdf") if payload else None
         if not pdf:
             return JsonResponse({"error": "Documento não encontrado."}, status=404)
-        filename = payload.get("filename") or "documento_assinado.pdf"
+        from .nome_arquivo import nome_arquivo_download
+
+        bruto = payload.get("filename") or "documento_assinado.pdf"
+        stem, _, ext = str(bruto).rpartition(".")
+        filename = nome_arquivo_download(stem or "documento_assinado", extensao=ext or "pdf")
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="{filename}"'
         return response

@@ -15,26 +15,20 @@ def encode_oauth_state(loja_id: int, vendedor_id: int | None = None) -> str:
 
 
 def parse_oauth_state(state: str | None) -> tuple[int | None, int | None]:
-    """Retorna (loja_id, vendedor_id).
-    Aceita state assinado (atual) ou legado 'loja_id' / 'loja_id:vendedor_id'.
-    """
+    """Retorna (loja_id, vendedor_id). Só aceita state assinado e dentro do prazo."""
     if not state:
         return None, None
 
     raw = str(state).strip()
     try:
         data = signing.loads(raw, salt=OAUTH_STATE_SALT, max_age=OAUTH_STATE_MAX_AGE)
-        if isinstance(data, dict) and data.get("loja_id"):
-            loja_id = int(data["loja_id"])
-            vendedor_id = data.get("vendedor_id")
-            return loja_id, int(vendedor_id) if vendedor_id is not None else None
-    except signing.BadSignature:
-        pass
-
-    parts = raw.split(":")
+    except (signing.BadSignature, signing.SignatureExpired, ValueError, TypeError):
+        return None, None
+    if not isinstance(data, dict) or not data.get("loja_id"):
+        return None, None
     try:
-        loja_id = int(parts[0])
-        vendedor_id = int(parts[1]) if len(parts) > 1 and parts[1] else None
-        return loja_id, vendedor_id
-    except (ValueError, TypeError):
+        loja_id = int(data["loja_id"])
+        vendedor_id = data.get("vendedor_id")
+        return loja_id, int(vendedor_id) if vendedor_id is not None else None
+    except (TypeError, ValueError):
         return None, None

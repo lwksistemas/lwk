@@ -93,7 +93,7 @@ class RelatorioComissao(LojaIsolationMixin, models.Model):
         db_index=True,
     )
 
-    # Tokens de assinatura (UUID simples, sem expiração complexa)
+    # Tokens de assinatura (UUID). O link público vale 90 dias e morre quando o passo acaba.
     token_empresa = models.UUIDField(
         default=uuid.uuid4,
         unique=True,

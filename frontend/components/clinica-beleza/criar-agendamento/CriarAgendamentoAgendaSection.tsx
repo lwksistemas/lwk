@@ -41,13 +41,17 @@ type Props = Pick<
   | "resumo"
   | "isConsulta"
   | "protocoloSelecionado"
-  | "protocoloErro"
+  | "valorProtocolo"
   | "formaCobranca"
   | "setFormaCobranca"
   | "protocoloCliente"
+  | "protocolos"
+  | "protocolosClienteCarregando"
   | "protocolosDaCliente"
   | "protocoloClienteId"
   | "setProtocoloClienteId"
+  | "protocoloModeloId"
+  | "setProtocoloModeloId"
   | "setSelectedProcedures"
 >;
 
@@ -77,13 +81,17 @@ export function CriarAgendamentoAgendaSection({
   resumo,
   isConsulta,
   protocoloSelecionado,
-  protocoloErro,
+  valorProtocolo,
   formaCobranca,
   setFormaCobranca,
   protocoloCliente,
+  protocolos,
+  protocolosClienteCarregando,
   protocolosDaCliente,
   protocoloClienteId,
   setProtocoloClienteId,
+  protocoloModeloId,
+  setProtocoloModeloId,
   setSelectedProcedures,
 }: Props) {
   const inputClass = CRIAR_AGENDAMENTO_INPUT_CLASS;
@@ -214,42 +222,58 @@ export function CriarAgendamentoAgendaSection({
             className={inputClass}
           />
         </div>
-        <div className={agendaEhProtocolo && patientId && protocolosDaCliente.length > 0 ? undefined : "sm:col-span-2"}>
+        <div className={agendaEhProtocolo && patientId ? undefined : "sm:col-span-2"}>
           {campoLocalAtendimento}
         </div>
-        {agendaEhProtocolo && patientId && protocolosDaCliente.length > 0 ? (
+        {agendaEhProtocolo && patientId ? (
           <div>
             <FieldLabel>Protocolo *</FieldLabel>
             <select
-              value={protocoloClienteId}
+              value={protocoloClienteId || protocoloModeloId}
               onChange={(e) => {
                 const id = e.target.value ? Number(e.target.value) : "";
-                setProtocoloClienteId(id);
+                if (protocolosDaCliente.length > 0) {
+                  setProtocoloClienteId(id);
+                  setProtocoloModeloId("");
+                } else {
+                  setProtocoloModeloId(id);
+                  setProtocoloClienteId("");
+                }
                 if (id) setSelectedProcedures([]);
               }}
               className={inputClass}
               required
+              disabled={protocolosClienteCarregando}
             >
-              <option value="">Selecione o protocolo</option>
-              {protocolosDaCliente.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.nome}
-                </option>
-              ))}
+              <option value="">
+                {protocolosClienteCarregando ? "Carregando protocolos..." : "Selecione o protocolo"}
+              </option>
+              {protocolosClienteCarregando
+                ? null
+                : protocolosDaCliente.length > 0
+                  ? protocolosDaCliente.map((item) => (
+                      <option key={`cliente-${item.id}`} value={item.id}>
+                        {item.nome}
+                      </option>
+                    ))
+                  : protocolos.map((item) => (
+                      <option key={`modelo-${item.id}`} value={item.id}>
+                        {item.nome}
+                      </option>
+                    ))}
             </select>
           </div>
         ) : null}
       </div>
 
-      {protocoloErro && (
-        <div className="p-2.5 rounded-lg text-sm bg-amber-50 dark:bg-amber-900/20 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800">
-          {protocoloErro}
-        </div>
-      )}
-
-      {agendaEhProtocolo && patientId && protocolosDaCliente.length === 0 ? (
+      {agendaEhProtocolo && patientId && !protocolosClienteCarregando && protocolosDaCliente.length === 0 && protocolos.length === 0 ? (
         <p className="text-sm text-amber-800 dark:text-amber-200">
-          Esta cliente não tem protocolo personalizado para agendar.
+          Não há protocolo para agendar. Cadastre no prontuário ou em Protocolos.
+        </p>
+      ) : null}
+      {agendaEhProtocolo && patientId && !protocolosClienteCarregando && protocolosDaCliente.length === 0 && protocolos.length > 0 ? (
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Esta cliente ainda não tem protocolo no prontuário. O modelo escolhido vira o protocolo dela ao salvar.
         </p>
       ) : null}
 
@@ -259,7 +283,7 @@ export function CriarAgendamentoAgendaSection({
           sessoes={protocoloSelecionado.sessoes || 1}
           intervaloQuantidade={protocoloSelecionado.intervalo_quantidade || 1}
           intervaloUnidade={protocoloSelecionado.intervalo_unidade || "dias"}
-          valorPacote={resumo.valor}
+          valorPacote={valorProtocolo}
           forma={formaCobranca}
           onForma={setFormaCobranca}
           isConsulta={isConsulta}

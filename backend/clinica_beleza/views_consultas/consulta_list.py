@@ -108,7 +108,11 @@ class ConsultaListView(APIView):
             from ..convenio_service import resolver_convenio
             from ..models import LocalAtendimento, NomeAgenda
             from ..permissions import is_clinica_admin
-            from ..protocolo_comercial import ProtocoloAgendaConflito, agendar_protocolo_da_selecao
+            from ..protocolo_comercial import (
+                ProtocoloAgendaConflito,
+                agenda_pede_protocolo,
+                agendar_protocolo_da_selecao,
+            )
 
             if proc_list:
                 local = None
@@ -117,19 +121,21 @@ class ConsultaListView(APIView):
                 nome_agenda = None
                 if nome_agenda_id:
                     nome_agenda = NomeAgenda.objects.filter(pk=nome_agenda_id, is_active=True).first()
-                resultado = agendar_protocolo_da_selecao(
-                    procedures=proc_list,
-                    patient=patient,
-                    professional=professional,
-                    local_atendimento=local,
-                    data_inicio=appointment_date or timezone.now(),
-                    forma_cobranca=str(request.data.get("forma_cobranca") or "").strip(),
-                    request=request,
-                    convenio=resolver_convenio(convenio_id, loja_id=patient.loja_id),
-                    nome_agenda=nome_agenda,
-                    abrir_primeira=True,
-                    observacao=notes or "",
-                )
+                resultado = None
+                if agenda_pede_protocolo(nome_agenda):
+                    resultado = agendar_protocolo_da_selecao(
+                        procedures=proc_list,
+                        patient=patient,
+                        professional=professional,
+                        local_atendimento=local,
+                        data_inicio=appointment_date or timezone.now(),
+                        forma_cobranca=str(request.data.get("forma_cobranca") or "").strip(),
+                        request=request,
+                        convenio=resolver_convenio(convenio_id, loja_id=patient.loja_id),
+                        nome_agenda=nome_agenda,
+                        abrir_primeira=True,
+                        observacao=notes or "",
+                    )
                 if resultado is not None:
                     consulta = Consulta.objects.select_related(
                         "patient", "professional", "procedure", "protocol", "appointment",

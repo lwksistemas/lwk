@@ -60,36 +60,19 @@ const protocolo = (overrides: Partial<ProtocoloAgendaResumo> = {}): ProtocoloAge
 });
 
 describe("classificarSelecaoProtocolo", () => {
-  it("agenda o protocolo quando só ele está selecionado", () => {
-    const item = protocolo();
-    const selecao = classificarSelecaoProtocolo(
-      [{ id: 4, categoria: "protocolo" }],
-      [4],
-      [item],
-    );
-    expect(selecao).toEqual({ tipo: "agendar", protocolo: item });
-  });
-
-  it("pede o cadastro quando a categoria Protocolo ainda não tem protocolo", () => {
+  it("não marca o pacote pelo chip de procedimento", () => {
     expect(
-      classificarSelecaoProtocolo([{ id: 4, categoria: "protocolo" }], [4], []),
+      classificarSelecaoProtocolo([{ id: 4, categoria: "protocolo" }], [4], [protocolo()]),
     ).toEqual({
       tipo: "erro",
-      mensagem: "Cadastre o protocolo deste procedimento em Protocolos antes de agendar.",
+      mensagem: "Escolha o tipo de agenda Protocolo para agendar o protocolo.",
     });
   });
 
-  it("recusa misturar o protocolo com outro procedimento", () => {
+  it("deixa o horário comum seguir", () => {
     expect(
-      classificarSelecaoProtocolo(
-        [
-          { id: 4, categoria: "protocolo" },
-          { id: 5, categoria: "facial" },
-        ],
-        [4, 5],
-        [protocolo()],
-      ),
-    ).toEqual({ tipo: "erro", mensagem: "O protocolo é agendado sozinho." });
+      classificarSelecaoProtocolo([{ id: 5, categoria: "facial" }], [5], [protocolo()]),
+    ).toEqual({ tipo: "normal" });
   });
 });
 

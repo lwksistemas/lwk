@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from clinica_beleza.agenda_service import AgendaValidationError
 from clinica_beleza.protocolo_comercial import (
+    agenda_pede_protocolo,
     classificar_selecao_protocolo,
     datas_das_sessoes,
     dividir_valor_protocolo,
@@ -32,6 +33,13 @@ class DividirValorProtocoloTests(SimpleTestCase):
             partes,
             [Decimal("1200.00"), Decimal("0.00"), Decimal("0.00"), Decimal("0.00")],
         )
+
+
+class AgendaPedeProtocoloTests(SimpleTestCase):
+    def test_so_o_tipo_protocolo_marca_o_pacote(self):
+        self.assertTrue(agenda_pede_protocolo(SimpleNamespace(nome="Protocolo")))
+        self.assertFalse(agenda_pede_protocolo(SimpleNamespace(nome="Consulta")))
+        self.assertFalse(agenda_pede_protocolo(None))
 
 
 class ClassificarSelecaoProtocoloTests(SimpleTestCase):

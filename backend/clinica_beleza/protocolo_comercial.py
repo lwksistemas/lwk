@@ -68,6 +68,14 @@ def _rotulo_quando(dt: datetime) -> str:
     return timezone.localtime(dt).strftime("%d/%m/%Y %H:%M")
 
 
+def agenda_pede_protocolo(nome_agenda) -> bool:
+    """O pacote só é marcado quando o tipo de agenda é Protocolo."""
+    from .procedimentos_catalogo import normalizar_tipo_agenda
+
+    nome = getattr(nome_agenda, "nome", "") if nome_agenda is not None else ""
+    return normalizar_tipo_agenda(nome) == "protocolo"
+
+
 def classificar_selecao_protocolo(procedures, protocolos_ativos):
     """Um procedimento com um protocolo ativo segue para o pacote.
     Procedimento da categoria Protocolo sem cadastro, mistura ou mais de um protocolo ativo são erro.

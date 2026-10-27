@@ -17,6 +17,7 @@ export interface ProtocoloAgendaResumo {
   desconto_valor?: string | number;
   procedimentos?: Array<{
     procedure: number;
+    nome?: string;
     preco?: string | number;
     desconto_tipo?: string;
     desconto_valor?: string | number;

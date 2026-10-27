@@ -249,17 +249,25 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
       if (protocoloModeloId) setProtocoloModeloId("");
       return;
     }
+    if (protocolosClienteCarregando || protocolosCarregando) return;
     if (protocolosDaCliente.length > 0) {
       if (protocoloModeloId) setProtocoloModeloId("");
       if (protocolosDaCliente.length === 1 && protocoloClienteId !== protocolosDaCliente[0].id) {
         setProtocoloClienteId(protocolosDaCliente[0].id);
       }
+      return;
+    }
+    if (protocolos.length === 1 && protocoloModeloId !== protocolos[0].id) {
+      setProtocoloModeloId(protocolos[0].id);
     }
   }, [
     agendaEhProtocolo,
     protocoloClienteId,
     protocoloModeloId,
     protocolosDaCliente,
+    protocolos,
+    protocolosClienteCarregando,
+    protocolosCarregando,
   ]);
 
   const labels = getCriarAgendamentoModalLabels(isConsulta, createLoading);

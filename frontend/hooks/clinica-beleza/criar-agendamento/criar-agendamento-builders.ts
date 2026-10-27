@@ -12,6 +12,15 @@ export interface ProtocoloAgendaResumo {
   tempo_estimado: number;
   intervalo_quantidade: number;
   intervalo_unidade: "dias" | "semanas" | "meses";
+  desconto_escopo?: "total" | "individual" | string;
+  desconto_tipo?: string;
+  desconto_valor?: string | number;
+  procedimentos?: Array<{
+    procedure: number;
+    preco?: string | number;
+    desconto_tipo?: string;
+    desconto_valor?: string | number;
+  }>;
 }
 
 export type SelecaoProtocolo =

@@ -13,6 +13,54 @@ from .procedures import ProcedureProtocol
 from .professionals import Professional
 
 
+class ProtocoloProcedimento(LojaIsolationMixin, models.Model):
+    """Procedimento da clínica incluído na promoção do protocolo global."""
+
+    protocol = models.ForeignKey(
+        ProcedureProtocol,
+        on_delete=models.CASCADE,
+        related_name="itens",
+        verbose_name="Protocolo",
+    )
+    procedure = models.ForeignKey(
+        "Procedure",
+        on_delete=models.PROTECT,
+        related_name="promocoes",
+        verbose_name="Procedimento",
+    )
+    desconto_tipo = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        verbose_name="Desconto deste procedimento",
+    )
+    desconto_valor = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="Desconto informado",
+    )
+    ordem = models.PositiveIntegerField(default=0, verbose_name="Ordem")
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_protocolo_item"
+        verbose_name = "Procedimento da promoção"
+        verbose_name_plural = "Procedimentos da promoção"
+        ordering = ["ordem", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["protocol", "procedure"],
+                name="cb_protocolo_item_uniq",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.protocol_id} · {self.procedure_id}"
+
+
 class ProtocoloProduto(LojaIsolationMixin, models.Model):
     """Quantidade de um produto do estoque consumida em cada sessão."""
 

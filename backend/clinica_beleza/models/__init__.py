@@ -41,6 +41,7 @@ from .protocolo import (
     ProtocoloContrato,
     ProtocoloContratoProcedimento,
     ProtocoloContratoProduto,
+    ProtocoloProcedimento,
     ProtocoloProduto,
 )
 from .retorno import AgendaRetornoConfig, RetornoProcedimentoRegra
@@ -93,6 +94,7 @@ __all__ = [
     "ProtocoloContrato",
     "ProtocoloContratoProcedimento",
     "ProtocoloContratoProduto",
+    "ProtocoloProcedimento",
     "ProtocoloProduto",
     "TermoConsentimentoConfig",
     "TermoConsentimentoTemplate",

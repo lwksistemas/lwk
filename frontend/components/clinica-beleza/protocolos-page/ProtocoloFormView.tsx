@@ -5,6 +5,7 @@ import { ClinicaBelezaPageContent, ClinicaBelezaPanel } from "@/components/clini
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ProtocoloComercialFields, ProtocoloProdutosFields } from "./ProtocoloComercialFields";
 import { ProtocoloDadosFields } from "./ProtocoloDadosFields";
+import { ProtocoloProcedimentosFields } from "./ProtocoloProcedimentosFields";
 import { ProtocoloEtapasFields } from "./ProtocoloEtapasFields";
 import type {
   Protocol,
@@ -58,6 +59,9 @@ export function ProtocoloFormView({
             <ClinicaBelezaPanel className="p-5 md:p-6 lg:p-8">
               <div className="space-y-8 w-full max-w-none">
                 <ProtocoloDadosFields form={form} procedures={procedures} onChange={onFormChange} />
+                <div className="border-t border-gray-200 dark:border-neutral-700 pt-8">
+                  <ProtocoloProcedimentosFields form={form} procedures={procedures} onChange={onFormChange} />
+                </div>
                 <div className="border-t border-gray-200 dark:border-neutral-700 pt-8">
                   <ProtocoloComercialFields form={form} onChange={onFormChange} />
                 </div>

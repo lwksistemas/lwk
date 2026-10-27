@@ -16,8 +16,32 @@ export interface Protocol {
   intervalo_quantidade?: number;
   intervalo_unidade?: ProtocoloIntervaloUnidade;
   valor?: string | number;
+  desconto_escopo?: ProtocoloDescontoEscopo;
+  desconto_tipo?: string;
+  desconto_valor?: string | number;
   produtos?: ProtocoloProdutoLinha[];
+  procedimentos?: ProtocoloProcedimentoLinha[];
   created_at?: string;
+}
+
+export type ProtocoloDescontoEscopo = "total" | "individual";
+
+export interface ProtocoloProcedimentoLinha {
+  id?: number;
+  procedure: number;
+  nome?: string;
+  preco?: string | number;
+  categoria?: string;
+  desconto_tipo?: string;
+  desconto_valor?: string | number;
+}
+
+export interface ProtocoloProcedimentoFormLinha {
+  procedure: string;
+  nome: string;
+  preco: string;
+  desconto_tipo: "percentual" | "fixo";
+  desconto_valor: string;
 }
 
 export type ProtocoloIntervaloUnidade = "dias" | "semanas" | "meses";
@@ -46,6 +70,8 @@ export interface ProtocoloProcedureOption {
   nome?: string;
   name?: string;
   categoria?: string;
+  preco?: string | number;
+  price?: string | number;
 }
 
 export interface ProtocoloFormState {
@@ -63,7 +89,11 @@ export interface ProtocoloFormState {
   intervalo_quantidade: string;
   intervalo_unidade: ProtocoloIntervaloUnidade;
   valor: string;
+  desconto_escopo: ProtocoloDescontoEscopo;
+  desconto_tipo: "percentual" | "fixo";
+  desconto_valor: string;
   produtos: ProtocoloProdutoFormLinha[];
+  procedimentos: ProtocoloProcedimentoFormLinha[];
 }
 
 export const EMPTY_PROTOCOLO_FORM: ProtocoloFormState = {
@@ -81,7 +111,11 @@ export const EMPTY_PROTOCOLO_FORM: ProtocoloFormState = {
   intervalo_quantidade: "1",
   intervalo_unidade: "semanas",
   valor: "",
+  desconto_escopo: "total",
+  desconto_tipo: "percentual",
+  desconto_valor: "0",
   produtos: [],
+  procedimentos: [],
 };
 
 export const FORM_INPUT_CLASS =

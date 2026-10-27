@@ -13,6 +13,7 @@ from clinica_beleza.protocolo_comercial import (
     dividir_valor_protocolo,
     encaixar_horarios,
     intervalos_fora_do_expediente,
+    preco_da_promocao,
     proximo_horario_livre,
 )
 from clinica_beleza.protocolo_personalizado import (
@@ -146,6 +147,34 @@ class DescontoProtocoloPersonalizadoTests(SimpleTestCase):
         self.assertEqual(sum(partes), Decimal("657.00"))
         self.assertEqual(partes[0], Decimal("27.00"))
         self.assertEqual(partes[1], Decimal("630.00"))
+
+
+class PromocaoProtocoloGlobalTests(SimpleTestCase):
+    def test_desconto_no_total_dos_procedimentos(self):
+        conta = preco_da_promocao(
+            [{"preco": "1000.00"}, {"preco": "500.00"}],
+            "total",
+            "percentual",
+            "10",
+        )
+        self.assertEqual(conta["bruto"], Decimal("1500.00"))
+        self.assertEqual(conta["desconto"], Decimal("150.00"))
+        self.assertEqual(conta["liquido"], Decimal("1350.00"))
+
+    def test_desconto_em_cada_procedimento(self):
+        conta = preco_da_promocao(
+            [
+                {"preco": "1000.00", "desconto_tipo": "percentual", "desconto_valor": "10"},
+                {"preco": "500.00", "desconto_tipo": "fixo", "desconto_valor": "50"},
+            ],
+            "individual",
+            "percentual",
+            "0",
+        )
+        self.assertEqual(conta["desconto"], Decimal("150.00"))
+        self.assertEqual(conta["liquido"], Decimal("1350.00"))
+        self.assertEqual(conta["linhas"][0]["liquido"], Decimal("900.00"))
+        self.assertEqual(conta["linhas"][1]["liquido"], Decimal("450.00"))
 
 
 class ProtocoloPersonalizadoEdicaoTests(SimpleTestCase):

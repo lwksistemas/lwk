@@ -7,9 +7,11 @@ Uso:
 import re
 
 from django.core.management.base import BaseCommand
+from django.db import connections
 
 from core.db_config import ensure_loja_database_config
 from core.media_storage import media_copiar_para_pasta, parse_media_url
+from core.schema_checks import column_exists, table_exists
 from superadmin.tenant_deploy import queryset_lojas_do_app
 from tenants.middleware import set_current_loja_id, set_current_tenant_db
 
@@ -45,6 +47,12 @@ class Command(BaseCommand):
                 continue
             set_current_loja_id(loja.id)
             set_current_tenant_db(db_name)
+            with connections[db_name].cursor() as cursor:
+                if not table_exists(cursor, "crm_vendas_conta") or not column_exists(
+                    cursor, "crm_vendas_conta", "logo"
+                ):
+                    self.stdout.write(f"{loja.slug}: sem coluna de logo — permanece")
+                    continue
             contas = Conta.objects.filter(
                 loja_id=loja.id,
                 tipo__in=["prestadora", "ambos"],

@@ -13,20 +13,24 @@ Endpoints:
   GET    /list/
   GET    /list/<tenant>/
   GET    /list/<tenant>/<path:folder>/
+  GET    /archive/<tenant>/   — ZIP de todas as fotos e PDFs da loja
   GET    /health
 """
 import hashlib
 import hmac
 import os
+import queue
 import re
 import shutil
+import threading
 import time
 import unicodedata
 import uuid
+import zipfile
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 
 app = Flask(__name__)
 STORAGE_ROOT = Path(os.environ.get("MEDIA_STORAGE_ROOT", "/storage"))
@@ -453,6 +457,95 @@ def list_files(tenant, folder):
         "subfolders": subfolders,
         "truncated": truncated,
     })
+
+
+class _ZipSink:
+    """Arquivo só de escrita. Sem seek, o ZIP sai em fluxo e não fica na memória."""
+
+    def __init__(self, saida: queue.Queue):
+        self._saida = saida
+        self._pos = 0
+
+    def write(self, data) -> int:
+        if not data:
+            return 0
+        blob = bytes(data)
+        self._saida.put(blob)
+        self._pos += len(blob)
+        return len(blob)
+
+    def tell(self) -> int:
+        return self._pos
+
+    def flush(self) -> None:
+        return None
+
+
+def _arquivos_da_loja(base: Path):
+    raiz = base.resolve()
+    for dirpath, dirnames, filenames in os.walk(base, followlinks=False):
+        dirnames[:] = sorted(
+            nome for nome in dirnames
+            if nome != "backups" and not nome.startswith(".")
+        )
+        for nome in sorted(filenames):
+            if nome.startswith("."):
+                continue
+            path = Path(dirpath) / nome
+            if path.is_symlink() or not path.is_file():
+                continue
+            try:
+                path.resolve().relative_to(raiz)
+            except (ValueError, OSError):
+                continue
+            yield path
+
+
+def _gerar_zip(base: Path):
+    saida: queue.Queue = queue.Queue(maxsize=8)
+    fim = object()
+
+    def produzir():
+        try:
+            with zipfile.ZipFile(
+                _ZipSink(saida), "w", compression=zipfile.ZIP_STORED, allowZip64=True,
+            ) as pacote:
+                for path in _arquivos_da_loja(base):
+                    pacote.write(path, arcname=path.relative_to(base).as_posix())
+        finally:
+            saida.put(fim)
+
+    threading.Thread(target=produzir, daemon=True).start()
+    while True:
+        pedaco = saida.get()
+        if pedaco is fim:
+            break
+        yield pedaco
+
+
+def _archive_autorizado(tenant_key: str) -> bool:
+    if verify_token(tenant_key):
+        return True
+    path = f"/archive/{tenant_key}/"
+    return _verify_file_sig(path, request.args.get("e") or "", request.args.get("s") or "")
+
+
+@app.route("/archive/<tenant>/", methods=["GET"])
+def archive_loja(tenant):
+    """Um ZIP com todas as fotos e PDFs da loja. Não grava o arquivo no disco."""
+    tenant_key = normalize_tenant(tenant)
+    if not tenant_key or not _archive_autorizado(tenant_key):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    base = STORAGE_ROOT / tenant_key
+    if not _safe_under_storage(base) or not base.is_dir():
+        return jsonify({"error": "Loja sem arquivos de mídia"}), 404
+
+    resposta = Response(_gerar_zip(base), mimetype="application/zip")
+    resposta.headers["Content-Disposition"] = 'attachment; filename="fotos-e-pdfs.zip"'
+    resposta.headers["X-Accel-Buffering"] = "no"
+    resposta.headers["Cache-Control"] = "no-store"
+    return resposta
 
 
 @app.route("/auth-file", methods=["GET"])

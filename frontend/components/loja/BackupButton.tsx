@@ -14,9 +14,10 @@ interface BackupButtonProps {
   exportOnly?: boolean;
   importOnly?: boolean;
   configOnly?: boolean;
+  modalPaisagem?: boolean;
 }
 
-export default function BackupButton({ lojaId, lojaNome, className = '', exportOnly = false, importOnly = false, configOnly = false }: BackupButtonProps) {
+export default function BackupButton({ lojaId, lojaNome, className = '', exportOnly = false, importOnly = false, configOnly = false, modalPaisagem = false }: BackupButtonProps) {
   const [loading, setLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showModalConfig, setShowModalConfig] = useState(false);
@@ -273,6 +274,7 @@ export default function BackupButton({ lojaId, lojaNome, className = '', exportO
           onClose={() => setShowModalConfig(false)}
           lojaId={lojaId}
           addToast={addToast}
+          paisagem={modalPaisagem}
         />
       </div>
     </>

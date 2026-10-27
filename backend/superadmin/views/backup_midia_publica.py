@@ -14,7 +14,7 @@ from core.media_storage import (
     url_publica_midia,
 )
 
-from ..backup_midia_link import decodificar_token_backup_midia
+from ..backup_midia_link import decodificar_token_backup_midia, url_zip_midia_loja
 from ..models import Loja
 
 
@@ -49,6 +49,7 @@ def backup_midia_publica(request, token: str):
             "files": [],
             "subfolders": [],
             "folder": "",
+            "zip_url": url_zip_midia_loja(loja),
         })
 
     folder = (request.query_params.get("folder") or "").strip().strip("/")
@@ -60,6 +61,7 @@ def backup_midia_publica(request, token: str):
             "folders": raw.get("folders") or [],
             "files": [],
             "subfolders": [],
+            "zip_url": url_zip_midia_loja(loja),
         })
 
     raw = media_list_files(tenant, folder) or {}
@@ -77,4 +79,5 @@ def backup_midia_publica(request, token: str):
         "files": files,
         "subfolders": raw.get("subfolders") or [],
         "truncated": bool(raw.get("truncated")),
+        "zip_url": url_zip_midia_loja(loja),
     })

@@ -33,9 +33,10 @@ interface BackupConfigModalProps {
   onClose: () => void;
   lojaId: number;
   addToast: (t: Omit<ToastNotificacao, 'id'>) => void;
+  paisagem?: boolean;
 }
 
-export default function BackupConfigModal({ open, onClose, lojaId, addToast }: BackupConfigModalProps) {
+export default function BackupConfigModal({ open, onClose, lojaId, addToast, paisagem = false }: BackupConfigModalProps) {
   const [config, setConfig] = useState<ConfigBackup | null>(null);
   const [linkMidia, setLinkMidia] = useState('');
   const [loading, setLoading] = useState(false);
@@ -129,7 +130,9 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
       <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+          className={`bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full overflow-y-auto ${
+            paisagem ? 'max-w-5xl max-h-[min(34rem,calc(100vh-2rem))]' : 'max-w-md max-h-[90vh]'
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
@@ -144,9 +147,13 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
             ) : config ? (
               <>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  O e-mail automático já vem ligado: ZIP dos cadastros no anexo e um link para baixar fotos e PDFs no computador (sem compactar imagens no servidor).
+                  {paisagem
+                    ? 'O e-mail traz o ZIP dos cadastros. As fotos e os PDFs baixam todos juntos, em um único arquivo.'
+                    : 'O e-mail automático já vem ligado: ZIP dos cadastros no anexo e um link para baixar fotos e PDFs no computador.'}
                 </p>
 
+                <div className={paisagem ? 'grid gap-4 lg:grid-cols-2' : 'space-y-4'}>
+                <div className="space-y-4">
                 {/* Envio automático */}
                 <div className="space-y-3 rounded-lg border border-gray-200 dark:border-gray-600 p-3 bg-gray-50 dark:bg-gray-700/50">
                   <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">Envio automático (agendado)</h4>
@@ -212,7 +219,9 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
                     </>
                   )}
                 </div>
+                </div>
 
+                <div className="space-y-4">
                 {/* Envio manual */}
                 <div className="space-y-2 rounded-lg border border-gray-200 dark:border-gray-600 p-3 bg-gray-50 dark:bg-gray-700/50">
                   <h4 className="text-sm font-medium text-gray-800 dark:text-gray-200">Envio manual</h4>
@@ -238,7 +247,7 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
                       rel="noreferrer"
                       className="mt-1 inline-block text-sm font-medium text-emerald-700 underline dark:text-emerald-300"
                     >
-                      Abrir pastas para baixar no computador
+                      Baixar todas as fotos e PDFs (um ZIP)
                     </a>
                   </div>
                 ) : null}
@@ -262,6 +271,8 @@ export default function BackupConfigModal({ open, onClose, lojaId, addToast }: B
                   Total de backups realizados: {config.total_backups_realizados}
                   {config.ultimo_backup && ` • Último: ${new Date(config.ultimo_backup).toLocaleString('pt-BR')}`}
                 </p>
+                </div>
+                </div>
               </>
             ) : (
               <p className="text-sm text-gray-500">Não foi possível carregar a configuração.</p>

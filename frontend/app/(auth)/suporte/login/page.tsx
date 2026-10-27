@@ -409,7 +409,7 @@ export default function SuporteLoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-500">Face ID ou desbloqueio facial</p>
+        <p className="text-center text-xs text-gray-500">Desbloqueio facial</p>
         <BotaoRosto
           userType="suporte"
           username={credentials.username}

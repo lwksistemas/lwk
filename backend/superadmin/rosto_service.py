@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 _DESAFIO_TTL = 120
 _MAX_POR_ESCOPO = 5
-_MSG_SEM_ROSTO = "Não há rosto ativado para este usuário neste aparelho. Entre com a senha uma vez."
+_MSG_SEM_ROSTO = "Não há desbloqueio facial ativado para este usuário neste aparelho. Entre com a senha uma vez."
 
 
 class RostoErro(Exception):
@@ -71,7 +71,7 @@ def _escopo(user_type: str, loja_slug: str | None) -> str:
 def _usuario(username: str, user_type: str, loja_slug: str | None) -> User:
     bruto = (username or "").strip()
     if not bruto:
-        raise RostoErro("Digite o usuário para usar o rosto.", 400)
+        raise RostoErro("Digite o usuário para usar o desbloqueio facial.", 400)
     if user_type == "loja":
         bruto = resolver_username_para_login(bruto, loja_slug)
     user = User.objects.filter(username__iexact=bruto).first()
@@ -88,10 +88,10 @@ def _exigir_escopo_do_usuario(user, user_type: str, loja_slug: str | None) -> st
     real = servico._get_user_type(user, loja_slug)
     if user_type == "loja":
         if real not in ("loja", "unknown") or not user_belongs_to_store(user, loja_slug):
-            raise RostoErro("Este usuário não pode ativar o rosto nesta loja.", 403)
+            raise RostoErro("Este usuário não pode ativar o desbloqueio facial nesta loja.", 403)
         return escopo
     if real != user_type:
-        raise RostoErro("Este usuário não pode ativar o rosto neste acesso.", 403)
+        raise RostoErro("Este usuário não pode ativar o desbloqueio facial neste acesso.", 403)
     return escopo
 
 
@@ -108,7 +108,7 @@ def _consumir_desafio(challenge: bytes, acao: str, user_id: int, escopo: str) ->
     dados = cache.get(chave)
     cache.delete(chave)
     if not dados or dados.get("acao") != acao or dados.get("user_id") != user_id or dados.get("escopo") != escopo:
-        raise RostoErro("A confirmação do rosto expirou. Tente de novo.", 400)
+        raise RostoErro("A confirmação do desbloqueio facial expirou. Tente de novo.", 400)
 
 
 def _desafio_da_credencial(credential: dict) -> bytes:
@@ -117,7 +117,7 @@ def _desafio_da_credencial(credential: dict) -> bytes:
         dados = json.loads(base64url_to_bytes(bruto))
         return base64url_to_bytes(dados["challenge"])
     except Exception as exc:
-        raise RostoErro("Confirmação do rosto inválida.", 400) from exc
+        raise RostoErro("Confirmação do desbloqueio facial inválida.", 400) from exc
 
 
 def _travado(user: User) -> None:
@@ -166,13 +166,13 @@ def confirmar_registro(request, user, user_type: str, loja_slug: str | None, cre
         )
     except Exception as exc:
         logger.info("rosto.registro_recusado user_id=%s", user.pk)
-        raise RostoErro("Não foi possível ativar o rosto neste aparelho.", 400) from exc
+        raise RostoErro("Não foi possível ativar o desbloqueio facial neste aparelho.", 400) from exc
 
     cred_id = bytes_to_base64url(verificado.credential_id)
     chave = bytes_to_base64url(verificado.credential_public_key)
     outro = CredencialRosto.objects.filter(credential_id=cred_id).exclude(user=user).first()
     if outro:
-        raise RostoErro("Não foi possível ativar o rosto neste aparelho.", 400)
+        raise RostoErro("Não foi possível ativar o desbloqueio facial neste aparelho.", 400)
     CredencialRosto.objects.update_or_create(
         credential_id=cred_id,
         defaults={"user": user, "escopo": escopo, "public_key": chave, "sign_count": verificado.sign_count or 0},
@@ -231,7 +231,7 @@ def confirmar_entrada(request, username: str, user_type: str, loja_slug: str | N
     except Exception as exc:
         record_login_failure(user.username)
         logger.info("rosto.entrada_recusada user_id=%s", user.pk)
-        raise RostoErro("O rosto não foi confirmado. Tente de novo ou entre com a senha.", 401) from exc
+        raise RostoErro("O desbloqueio facial não foi confirmado. Tente de novo ou entre com a senha.", 401) from exc
 
     registro.sign_count = verificado.new_sign_count or 0
     registro.last_used_at = timezone.now()

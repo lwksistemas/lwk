@@ -29,7 +29,7 @@ export default function BotaoRosto({
       const sessao = await entrarComRosto({ userType, slug, username });
       await onSucesso(sessao);
     } catch (erro) {
-      onErro(erro instanceof Error ? erro.message : 'Não foi possível usar o rosto.');
+      onErro(erro instanceof Error ? erro.message : 'Não foi possível usar o desbloqueio facial.');
     } finally {
       setOcupado(false);
     }
@@ -43,7 +43,7 @@ export default function BotaoRosto({
       className="w-full py-3 px-4 min-h-[48px] font-semibold rounded-md border bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       style={{ color: cor, borderColor: cor }}
     >
-      {ocupado ? 'Confirmando o rosto...' : 'Rosto'}
+      {ocupado ? 'Confirmando...' : 'Facial'}
     </button>
   );
 }

@@ -52,7 +52,7 @@ type OpcoesJson = {
 
 function opcoesDeCriacao(json: OpcoesJson): PublicKeyCredentialCreationOptions {
   const user = json.user;
-  if (!user) throw new Error('Não foi possível ativar o rosto neste aparelho.');
+  if (!user) throw new Error('Não foi possível ativar o desbloqueio facial neste aparelho.');
   return {
     ...(json as unknown as PublicKeyCredentialCreationOptions),
     challenge: deBase64Url(json.challenge) as BufferSource,
@@ -124,10 +124,10 @@ function mensagemDoNavegador(erro: unknown): string {
   if (typeof resposta?.error === 'string') return resposta.error;
   const nome = erro && typeof erro === 'object' && 'name' in erro ? String((erro as { name: string }).name) : '';
   if (nome === 'NotAllowedError') {
-    return 'O rosto não foi confirmado. Entre com a senha uma vez para ativar neste aparelho.';
+    return 'O desbloqueio facial não foi confirmado. Entre com a senha uma vez para ativar neste aparelho.';
   }
   if (erro instanceof Error && erro.message) return erro.message;
-  return 'Não foi possível usar o rosto neste aparelho.';
+  return 'Não foi possível usar o desbloqueio facial neste aparelho.';
 }
 
 export async function registrarRosto(alvo: AlvoRosto): Promise<void> {
@@ -138,7 +138,7 @@ export async function registrarRosto(alvo: AlvoRosto): Promise<void> {
   const criada = await navigator.credentials.create({
     publicKey: opcoesDeCriacao(opcoes.data.publicKey),
   });
-  if (!criada) throw new Error('O rosto não foi confirmado.');
+  if (!criada) throw new Error('O desbloqueio facial não foi confirmado.');
   await apiClient.post('/auth/rosto/registrar/', {
     user_type: alvo.userType,
     ...(alvo.userType === 'loja' ? { loja_slug: alvo.slug || '' } : {}),
@@ -154,7 +154,7 @@ export async function perguntarAtivarRosto(alvo: AlvoRosto): Promise<void> {
   if (localStorage.getItem(chave) === '1') return;
   if (sessionStorage.getItem(`${chave}_adiado`) === '1') return;
   const aceita = window.confirm(
-    'Ativar o rosto neste aparelho?\n\nO Face ID ou o desbloqueio facial passa a liberar o login.',
+    'Ativar o desbloqueio facial neste aparelho?\n\nO aparelho passa a liberar o login com o que ele já usa para desbloquear a tela.',
   );
   if (!aceita) {
     sessionStorage.setItem(`${chave}_adiado`, '1');
@@ -169,7 +169,7 @@ export async function perguntarAtivarRosto(alvo: AlvoRosto): Promise<void> {
 
 export async function entrarComRosto(alvo: AlvoRosto): Promise<LoginResponse> {
   if (!alvo.username.trim()) {
-    throw new Error('Digite o usuário para usar o rosto.');
+    throw new Error('Digite o usuário para usar o desbloqueio facial.');
   }
   if (!(await aparelhoTemRosto())) {
     throw new Error('Este aparelho não oferece Face ID ou desbloqueio facial.');

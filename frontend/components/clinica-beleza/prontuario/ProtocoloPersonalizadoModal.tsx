@@ -6,6 +6,7 @@ import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { useToast } from "@/components/ui/Toast";
+import { PROTOCOLO_FORM_FIELDS_RIGHT } from "@/components/clinica-beleza/protocolos-page/protocolos-page-types";
 import { precoDaPromocao } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
 import type { DescontoTipo } from "./protocolo-personalizado-utils";
 
@@ -49,6 +50,12 @@ interface ProtocoloSalvo {
   intervalo_quantidade: number;
   intervalo_unidade: string;
   tempo_minutos: number;
+  materiais_necessarios?: string;
+  preparacao?: string;
+  execucao?: string;
+  pos_procedimento?: string;
+  contraindicacoes?: string;
+  cuidados_especiais?: string;
   desconto_escopo?: "total" | "individual";
   desconto_tipo: DescontoTipo;
   desconto_valor: string;
@@ -71,6 +78,15 @@ interface ProtocoloPersonalizadoModalProps {
   patientId: number;
   onClose: () => void;
 }
+
+const ETAPAS_VAZIAS = {
+  materiais_necessarios: "",
+  preparacao: "",
+  execucao: "",
+  pos_procedimento: "",
+  contraindicacoes: "",
+  cuidados_especiais: "",
+};
 
 const CAMPO = "w-full min-w-0 border border-gray-300 dark:border-neutral-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-neutral-900";
 const SECAO = "text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-neutral-700 pb-2";
@@ -110,6 +126,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
   const [unidade, setUnidade] = useState("dias");
   const [tempo, setTempo] = useState("40");
   const [nome, setNome] = useState("");
+  const [etapas, setEtapas] = useState(ETAPAS_VAZIAS);
 
   const carregarSalvos = async () => {
     const lista = await ClinicaBelezaAPI.get<ProtocoloSalvo[]>(
@@ -156,6 +173,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
     setUnidade("dias");
     setTempo("40");
     setNome("");
+    setEtapas(ETAPAS_VAZIAS);
     setCategoriaProcedimento("");
     setProcedimentoId("");
     setCategoriaProduto("");
@@ -185,6 +203,14 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
     setUnidade(item.intervalo_unidade || "dias");
     setTempo(String(item.tempo_minutos));
     setNome(item.nome === "Protocolo personalizado" ? "" : item.nome);
+    setEtapas({
+      materiais_necessarios: item.materiais_necessarios || "",
+      preparacao: item.preparacao || "",
+      execucao: item.execucao || "",
+      pos_procedimento: item.pos_procedimento || "",
+      contraindicacoes: item.contraindicacoes || "",
+      cuidados_especiais: item.cuidados_especiais || "",
+    });
   };
 
   const excluir = async (item: ProtocoloSalvo) => {
@@ -315,6 +341,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
       intervalo_unidade: unidade,
       tempo_minutos: Number(tempo),
       nome,
+      ...etapas,
     };
     try {
       if (editandoId) {
@@ -667,6 +694,24 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
               </p>
               </div>
               </div>
+              <details className="md:col-span-2">
+                <summary className={`${SECAO} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
+                  Etapas e cuidados
+                </summary>
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {PROTOCOLO_FORM_FIELDS_RIGHT.map(([chave, rotulo]) => (
+                    <label key={chave} className={`text-sm block min-w-0 ${chave === "execucao" ? "sm:col-span-2" : ""}`}>
+                      {rotulo}
+                      <textarea
+                        value={etapas[chave]}
+                        onChange={(e) => setEtapas((atual) => ({ ...atual, [chave]: e.target.value }))}
+                        rows={chave === "execucao" ? 4 : 3}
+                        className={`${CAMPO} mt-1 resize-y min-h-[72px]`}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </details>
               </div>
               ) : null}
             </>

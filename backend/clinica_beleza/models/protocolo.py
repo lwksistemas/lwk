@@ -166,6 +166,12 @@ class ProtocoloContrato(LojaIsolationMixin, models.Model):
     tempo_minutos = models.PositiveIntegerField(
         null=True, blank=True, verbose_name="Duração de cada atendimento (min)",
     )
+    materiais_necessarios = models.TextField(blank=True, default="", verbose_name="Materiais necessários")
+    preparacao = models.TextField(blank=True, default="", verbose_name="Preparação")
+    execucao = models.TextField(blank=True, default="", verbose_name="Execução (passos)")
+    pos_procedimento = models.TextField(blank=True, default="", verbose_name="Pós-procedimento")
+    contraindicacoes = models.TextField(blank=True, default="", verbose_name="Contraindicações")
+    cuidados_especiais = models.TextField(blank=True, default="", verbose_name="Cuidados especiais")
     intervalo_quantidade = models.PositiveIntegerField(null=True, blank=True, verbose_name="Intervalo")
     intervalo_unidade = models.CharField(max_length=10, blank=True, default="", verbose_name="Unidade do intervalo")
     data_inicio = models.DateTimeField(null=True, blank=True, verbose_name="Primeira sessão")

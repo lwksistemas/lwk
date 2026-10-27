@@ -75,8 +75,10 @@ export function ProtocolosListView({
                     <div>
                       <p className="font-medium text-gray-900 dark:text-white">{p.nome}</p>
                       <p className="text-sm text-gray-500 mt-0.5">
-                        {p.procedure_name}
-                        {p.procedure_categoria ? ` · ${p.procedure_categoria}` : ""}
+                        {p.procedimentos?.length
+                          ? p.procedimentos.map((item) => item.nome).filter(Boolean).join(" + ")
+                          : p.procedure_name}
+                        {!p.procedimentos?.length && p.procedure_categoria ? ` · ${p.procedure_categoria}` : ""}
                       </p>
                     </div>
                   ),

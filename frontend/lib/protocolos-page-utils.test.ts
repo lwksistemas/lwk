@@ -3,6 +3,7 @@ import {
   buildProtocoloSaveBody,
   buildProtocolosListPath,
   dividirValorProtocolo,
+  precoDaPromocao,
   extractProtocoloSaveError,
   protocolToForm,
   validateProtocoloForm,
@@ -48,6 +49,26 @@ describe("validateProtocoloForm", () => {
         procedure: "1",
       }),
     ).toBeNull();
+  });
+});
+
+describe("precoDaPromocao", () => {
+  it("aplica porcentagem no total ou desconto em cada procedimento", () => {
+    expect(precoDaPromocao(
+      [{ preco: 1000 }, { preco: 500 }],
+      "total",
+      "percentual",
+      10,
+    )).toEqual({ bruto: 1500, desconto: 150, liquido: 1350 });
+    expect(precoDaPromocao(
+      [
+        { preco: 1000, desconto_tipo: "percentual", desconto_valor: 10 },
+        { preco: 500, desconto_tipo: "fixo", desconto_valor: 50 },
+      ],
+      "individual",
+      "percentual",
+      0,
+    )).toEqual({ bruto: 1500, desconto: 150, liquido: 1350 });
   });
 });
 

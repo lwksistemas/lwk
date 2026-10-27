@@ -124,6 +124,24 @@ class ProcedureProtocol(LojaIsolationMixin, models.Model):
         default=0,
         verbose_name="Valor do protocolo (R$)",
     )
+    desconto_escopo = models.CharField(
+        max_length=20,
+        choices=[("total", "No total"), ("individual", "Em cada procedimento")],
+        default="total",
+        verbose_name="Onde aplica o desconto",
+    )
+    desconto_tipo = models.CharField(
+        max_length=20,
+        blank=True,
+        default="percentual",
+        verbose_name="Desconto do total",
+    )
+    desconto_valor = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Desconto do total",
+    )
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

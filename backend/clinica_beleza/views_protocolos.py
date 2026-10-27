@@ -52,6 +52,7 @@ class ProtocolListView(APIView):
         active_only = request.query_params.get("active", "true").lower() == "true"
         queryset = ProcedureProtocol.objects.select_related("procedure").prefetch_related(
             "produtos__produto",
+            "itens__procedure",
         )
         if active_only:
             queryset = queryset.filter(is_active=True)

@@ -54,7 +54,9 @@ export function ProtocoloComercialFields({ form, onChange }: ProtocoloComercialF
       </div>
       <p className="text-xs text-gray-500">
         O intervalo é entre uma sessão e a outra. Quatro sessões a cada 7 dias ocupam 21 dias.
-        O preço do pacote é o valor do procedimento, por convênio, na página Procedimentos.
+        {form.procedimentos.length > 0
+          ? " O preço do pacote é a soma dos procedimentos da promoção, já com o desconto."
+          : " Sem procedimentos na promoção, o preço do pacote é o valor do procedimento da categoria Protocolo, por convênio."}
       </p>
     </div>
   );

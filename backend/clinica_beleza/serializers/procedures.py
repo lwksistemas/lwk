@@ -5,7 +5,14 @@ from rest_framework import serializers
 
 from core.serializer_mixins import TextNormalizationMixin
 
-from ..models import CategoriaProcedimento, Procedure, ProcedureProtocol, ProdutoEstoque, ProtocoloProduto
+from ..models import (
+    CategoriaProcedimento,
+    Procedure,
+    ProcedureProtocol,
+    ProdutoEstoque,
+    ProtocoloProcedimento,
+    ProtocoloProduto,
+)
 
 
 class CategoriaProcedimentoSerializer(serializers.ModelSerializer):
@@ -40,10 +47,17 @@ class _ProtocoloProdutoInputSerializer(serializers.Serializer):
     quantidade = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
+class _ProtocoloProcedimentoInputSerializer(serializers.Serializer):
+    procedure = serializers.IntegerField()
+    desconto_tipo = serializers.CharField(required=False, allow_blank=True, default="")
+    desconto_valor = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=Decimal("0.00"))
+
+
 class ProcedureProtocolSerializer(serializers.ModelSerializer):
     procedure_name = serializers.CharField(source="procedure.nome", read_only=True)
     procedure_categoria = serializers.CharField(source="procedure.categoria", read_only=True)
     produtos = _ProtocoloProdutoInputSerializer(many=True, required=False, write_only=True)
+    procedimentos = _ProtocoloProcedimentoInputSerializer(many=True, required=False, write_only=True)
 
     class Meta:
         model = ProcedureProtocol
@@ -60,6 +74,9 @@ class ProcedureProtocolSerializer(serializers.ModelSerializer):
             "intervalo_quantidade": {"required": False, "min_value": 1},
             "intervalo_unidade": {"required": False},
             "valor": {"required": False},
+            "desconto_escopo": {"required": False},
+            "desconto_tipo": {"required": False, "allow_blank": True},
+            "desconto_valor": {"required": False},
         }
 
     def validate_valor(self, value):
@@ -72,6 +89,58 @@ class ProcedureProtocolSerializer(serializers.ModelSerializer):
     def validate_intervalo_unidade(self, value):
         if value not in ("dias", "semanas", "meses"):
             raise serializers.ValidationError("Escolha dias, semanas ou meses.")
+        return value
+
+    def validate(self, attrs):
+        escopo = (attrs.get("desconto_escopo") or getattr(self.instance, "desconto_escopo", "total") or "total").strip().lower()
+        if escopo not in ("total", "individual"):
+            raise serializers.ValidationError({"desconto_escopo": "Escolha desconto no total ou em cada procedimento."})
+        attrs["desconto_escopo"] = escopo
+        tipo = (attrs.get("desconto_tipo") if "desconto_tipo" in attrs else getattr(self.instance, "desconto_tipo", "percentual") or "").strip().lower()
+        valor = attrs.get("desconto_valor", getattr(self.instance, "desconto_valor", Decimal("0.00")))
+        valor = Decimal(str(valor or 0)).quantize(Decimal("0.01"))
+        if escopo == "total":
+            if tipo not in ("percentual", "fixo"):
+                tipo = "percentual"
+            if valor < 0:
+                raise serializers.ValidationError({"desconto_valor": "O desconto não pode ser negativo."})
+            if tipo == "percentual" and valor > 100:
+                raise serializers.ValidationError({"desconto_valor": "A porcentagem do desconto fica entre 0 e 100."})
+            attrs["desconto_tipo"] = tipo
+            attrs["desconto_valor"] = valor
+        else:
+            attrs["desconto_tipo"] = "percentual"
+            attrs["desconto_valor"] = Decimal("0.00")
+        if "procedimentos" in attrs:
+            attrs["procedimentos"] = self._validar_procedimentos(attrs["procedimentos"], escopo)
+        return attrs
+
+    def _validar_procedimentos(self, value, escopo):
+        vistos = set()
+        for linha in value:
+            procedure_id = linha["procedure"]
+            if procedure_id in vistos:
+                raise serializers.ValidationError({"procedimentos": "Procedimento repetido na promoção."})
+            vistos.add(procedure_id)
+            if not Procedure.objects.filter(pk=procedure_id, is_active=True).exists():
+                raise serializers.ValidationError({"procedimentos": "Procedimento não encontrado."})
+            tipo = (linha.get("desconto_tipo") or "").strip().lower()
+            desconto = Decimal(str(linha.get("desconto_valor") or 0)).quantize(Decimal("0.01"))
+            if escopo == "individual":
+                if tipo not in ("", "percentual", "fixo"):
+                    raise serializers.ValidationError({"procedimentos": "Escolha desconto em reais ou em porcentagem."})
+                if desconto < 0:
+                    raise serializers.ValidationError({"procedimentos": "O desconto não pode ser negativo."})
+                if tipo == "percentual" and desconto > 100:
+                    raise serializers.ValidationError({"procedimentos": "A porcentagem do desconto fica entre 0 e 100."})
+                if tipo not in ("percentual", "fixo"):
+                    tipo = ""
+                    desconto = Decimal("0.00")
+                linha["desconto_tipo"] = tipo
+                linha["desconto_valor"] = desconto
+            else:
+                linha["desconto_tipo"] = ""
+                linha["desconto_valor"] = Decimal("0.00")
         return value
 
     def validate_produtos(self, value):
@@ -99,21 +168,51 @@ class ProcedureProtocolSerializer(serializers.ModelSerializer):
             }
             for linha in instance.produtos.all()
         ]
+        data["procedimentos"] = [
+            {
+                "id": linha.id,
+                "procedure": linha.procedure_id,
+                "nome": linha.procedure.nome,
+                "preco": str(linha.procedure.preco),
+                "categoria": linha.procedure.categoria,
+                "desconto_tipo": linha.desconto_tipo or "percentual",
+                "desconto_valor": str(linha.desconto_valor),
+            }
+            for linha in instance.itens.all()
+        ]
         return data
 
     def create(self, validated_data):
         produtos = validated_data.pop("produtos", [])
+        procedimentos = validated_data.pop("procedimentos", [])
         protocolo = super().create(validated_data)
         _gravar_produtos_protocolo(protocolo, produtos)
+        _gravar_procedimentos_protocolo(protocolo, procedimentos)
         return protocolo
 
     def update(self, instance, validated_data):
         produtos = validated_data.pop("produtos", serializers.empty)
+        procedimentos = validated_data.pop("procedimentos", serializers.empty)
         protocolo = super().update(instance, validated_data)
         if produtos is not serializers.empty:
             protocolo.produtos.all().delete()
             _gravar_produtos_protocolo(protocolo, produtos)
+        if procedimentos is not serializers.empty:
+            protocolo.itens.all().delete()
+            _gravar_procedimentos_protocolo(protocolo, procedimentos)
         return protocolo
+
+
+def _gravar_procedimentos_protocolo(protocolo, procedimentos) -> None:
+    for ordem, linha in enumerate(procedimentos):
+        ProtocoloProcedimento.objects.create(
+            protocol=protocolo,
+            procedure_id=linha["procedure"],
+            desconto_tipo=linha.get("desconto_tipo") or "",
+            desconto_valor=linha.get("desconto_valor") or Decimal("0.00"),
+            ordem=ordem,
+            loja_id=protocolo.loja_id,
+        )
 
 
 def _gravar_produtos_protocolo(protocolo, produtos) -> None:

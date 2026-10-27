@@ -8,7 +8,7 @@ import {
   parseClinicaBelezaResponseBody,
   type RetornoVerificacaoResult,
 } from "@/lib/clinica-beleza-api";
-import { dividirValorProtocolo } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
+import { dividirValorProtocolo, precoDaPromocao } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
 import { procedurePrice } from "@/lib/clinica-beleza-entities";
 import { normalizarTipoAgendaNome } from "@/lib/clinica-beleza-tipo-agenda";
 import { precoProcedimento } from "@/lib/convenio-precos";
@@ -188,6 +188,26 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
 
   const valorProtocolo = useMemo(() => {
     if (!protocoloSelecionado) return 0;
+    const itens = protocoloSelecionado.procedimentos || [];
+    if (itens.length > 0) {
+      const conta = precoDaPromocao(
+        itens.map((item) => {
+          const procedimento = procedures.find((atual) => atual.id === item.procedure);
+          const particular = procedimento
+            ? Number(procedurePrice(procedimento)) || Number(item.preco) || 0
+            : Number(item.preco) || 0;
+          return {
+            preco: precoProcedimento(item.procedure, particular, novaConsulta.convenioId, novaConsulta.precosMap),
+            desconto_tipo: item.desconto_tipo,
+            desconto_valor: Number(item.desconto_valor) || 0,
+          };
+        }),
+        protocoloSelecionado.desconto_escopo || "total",
+        protocoloSelecionado.desconto_tipo || "percentual",
+        Number(protocoloSelecionado.desconto_valor) || 0,
+      );
+      return conta.liquido;
+    }
     const procedimento = procedures.find((item) => item.id === protocoloSelecionado.procedure);
     const particular = procedimento ? Number(procedurePrice(procedimento)) || 0 : 0;
     return precoProcedimento(

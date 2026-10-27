@@ -24,6 +24,52 @@ class ProtocoloAgendaConflito(Exception):
         super().__init__("Horário ocupado ou bloqueado. Ajuste a data da primeira sessão.")
 
 
+def preco_da_promocao(linhas, escopo: str, desconto_tipo: str, desconto_valor) -> dict:
+    """Soma os procedimentos e aplica o desconto no total ou em cada um."""
+    from .protocolo_personalizado import aplicar_desconto_protocolo
+
+    preparados = []
+    for linha in linhas:
+        preco = Decimal(str(linha["preco"] or 0)).quantize(Decimal("0.01"))
+        preparados.append({
+            "procedure": linha.get("procedure"),
+            "preco": preco,
+            "desconto_tipo": (linha.get("desconto_tipo") or "").strip().lower(),
+            "desconto_valor": linha.get("desconto_valor") or 0,
+        })
+    if (escopo or "").strip().lower() == "individual":
+        saida = []
+        for linha in preparados:
+            tipo = linha["desconto_tipo"]
+            if tipo not in ("percentual", "fixo"):
+                desconto, liquido = Decimal("0.00"), linha["preco"]
+            else:
+                desconto, liquido = aplicar_desconto_protocolo(linha["preco"], tipo, linha["desconto_valor"])
+            saida.append({**linha, "desconto": desconto, "liquido": liquido})
+        bruto = sum((item["preco"] for item in saida), Decimal("0.00")).quantize(Decimal("0.01"))
+        desconto = sum((item["desconto"] for item in saida), Decimal("0.00")).quantize(Decimal("0.01"))
+        liquido = sum((item["liquido"] for item in saida), Decimal("0.00")).quantize(Decimal("0.01"))
+        return {"bruto": bruto, "desconto": desconto, "liquido": liquido, "linhas": saida}
+
+    bruto = sum((item["preco"] for item in preparados), Decimal("0.00")).quantize(Decimal("0.01"))
+    tipo = (desconto_tipo or "").strip().lower()
+    if tipo not in ("percentual", "fixo") or Decimal(str(desconto_valor or 0)) == 0:
+        desconto, liquido = Decimal("0.00"), bruto
+    else:
+        desconto, liquido = aplicar_desconto_protocolo(bruto, tipo, desconto_valor)
+    from .protocolo_personalizado import repartir_valor
+
+    partes = repartir_valor(liquido, [item["preco"] for item in preparados]) if preparados else []
+    saida = []
+    for linha, parte in zip(preparados, partes, strict=False):
+        saida.append({
+            **linha,
+            "desconto": (linha["preco"] - parte).quantize(Decimal("0.01")),
+            "liquido": parte,
+        })
+    return {"bruto": bruto, "desconto": desconto, "liquido": liquido, "linhas": saida}
+
+
 def dividir_valor_protocolo(valor, sessoes: int, forma: str) -> list[Decimal]:
     """Por consulta: partes iguais e o resto de centavos na última sessão.
     Valor total: o pacote inteiro na primeira sessão e zero nas seguintes.
@@ -265,7 +311,7 @@ def agendar_protocolo(
         registrar_criacao_agendamento,
         validar_regras_agendamento,
     )
-    from .models import Appointment, AppointmentProcedure, ProtocoloContrato
+    from .models import Appointment, AppointmentProcedure, ProtocoloContrato, ProtocoloContratoProcedimento
 
     if not protocol.is_active:
         raise AgendaValidationError("Protocolo inativo.")
@@ -294,7 +340,28 @@ def agendar_protocolo(
 
     from .convenio_service import resolver_preco_procedimento
 
-    valor_pacote = resolver_preco_procedimento(convenio, protocol.procedure)
+    itens = list(protocol.itens.select_related("procedure").order_by("ordem", "id"))
+    if itens:
+        conta = preco_da_promocao(
+            [
+                {
+                    "procedure": item.procedure,
+                    "preco": resolver_preco_procedimento(convenio, item.procedure),
+                    "desconto_tipo": item.desconto_tipo,
+                    "desconto_valor": item.desconto_valor,
+                }
+                for item in itens
+            ],
+            protocol.desconto_escopo,
+            protocol.desconto_tipo,
+            protocol.desconto_valor,
+        )
+        valor_pacote = conta["liquido"]
+        procedimento_principal = conta["linhas"][0]["procedure"]
+    else:
+        conta = None
+        valor_pacote = resolver_preco_procedimento(convenio, protocol.procedure)
+        procedimento_principal = protocol.procedure
     _bloquear_se_paciente_inadimplente(patient, request=request)
     inicio = _ciente(data_inicio)
     datas = [
@@ -337,11 +404,23 @@ def agendar_protocolo(
             professional=professional,
             local_atendimento=local_atendimento,
             forma_cobranca=forma_cobranca,
+            nome=protocol.nome or "",
+            valor_bruto=conta["bruto"] if conta else Decimal(str(valor_pacote or 0)).quantize(Decimal("0.01")),
+            desconto_tipo=protocol.desconto_tipo if conta and protocol.desconto_escopo == "total" else "",
+            desconto_valor=protocol.desconto_valor if conta and protocol.desconto_escopo == "total" else (conta["desconto"] if conta else Decimal("0.00")),
             valor_total=Decimal(str(valor_pacote or 0)).quantize(Decimal("0.01")),
             data_inicio=slots[0]["inicio"],
             sessoes=sessoes,
             loja_id=protocol.loja_id,
         )
+        if conta:
+            for linha in conta["linhas"]:
+                ProtocoloContratoProcedimento.objects.create(
+                    contrato=contrato,
+                    procedure=linha["procedure"],
+                    valor=linha["preco"],
+                    loja_id=protocol.loja_id,
+                )
         observacao = (observacao or "").strip()
         criados = []
         primeira = None
@@ -356,7 +435,7 @@ def agendar_protocolo(
                 status="SCHEDULED",
                 patient=patient,
                 professional=professional,
-                procedure=protocol.procedure,
+                procedure=procedimento_principal,
                 local_atendimento=local_atendimento,
                 convenio=convenio,
                 nome_agenda=nome_agenda,
@@ -373,14 +452,29 @@ def agendar_protocolo(
             )
             if primeira is None:
                 primeira = appointment
-            AppointmentProcedure.objects.create(
-                appointment=appointment,
-                procedure=protocol.procedure,
-                duracao_minutos=duracao,
-                valor=slot["valor"],
-                ordem=0,
-                loja_id=protocol.loja_id,
-            )
+            if conta:
+                from .protocolo_personalizado import repartir_valor
+
+                pesos = [linha["liquido"] for linha in conta["linhas"]]
+                valores = repartir_valor(slot["valor"], pesos)
+                for ordem, (linha, valor_linha) in enumerate(zip(conta["linhas"], valores, strict=False)):
+                    AppointmentProcedure.objects.create(
+                        appointment=appointment,
+                        procedure=linha["procedure"],
+                        duracao_minutos=duracao,
+                        valor=valor_linha,
+                        ordem=ordem,
+                        loja_id=protocol.loja_id,
+                    )
+            else:
+                AppointmentProcedure.objects.create(
+                    appointment=appointment,
+                    procedure=protocol.procedure,
+                    duracao_minutos=duracao,
+                    valor=slot["valor"],
+                    ordem=0,
+                    loja_id=protocol.loja_id,
+                )
             criados.append(
                 {
                     "id": appointment.id,

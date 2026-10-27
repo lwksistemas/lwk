@@ -334,7 +334,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4" onClick={onClose}>
       <div
-        className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-[min(96vw,1280px)] h-[min(78vh,720px)] min-h-0 flex flex-col overflow-hidden"
+        className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-[min(96vw,1280px)] max-h-[min(88vh,820px)] min-h-0 flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -425,7 +425,27 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                   Este é o protocolo desta cliente. Ele é diferente do protocolo global da clínica.
                 </p>
               </div>
-
+              <div className="space-y-4 border-t border-gray-200 dark:border-neutral-700 pt-4">
+                <p className={SECAO}>Pacote comercial</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label className="text-sm min-w-0">Sessões *
+                    <input value={sessoes} onChange={(e) => setSessoes(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
+                  </label>
+                  <label className="text-sm min-w-0">Intervalo entre sessões *
+                    <input value={intervalo} onChange={(e) => setIntervalo(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
+                  </label>
+                  <label className="text-sm min-w-0">Unidade *
+                    <select value={unidade} onChange={(e) => setUnidade(e.target.value)} className={`${CAMPO} mt-1`}>
+                      <option value="dias">Dias</option>
+                      <option value="semanas">Semanas</option>
+                      <option value="meses">Meses</option>
+                    </select>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">
+                  O intervalo é entre uma sessão e a outra. Na agenda, a secretaria escolhe o tipo Protocolo, a profissional, o local e a primeira sessão. Depois de Cliente presente, o recebimento escolhe o valor total com desconto ou o parcelamento por sessão.
+                </p>
+              </div>
               </div>
               <div className="space-y-4 min-w-0 border-t border-gray-200 dark:border-neutral-700 pt-4">
                 <p className={SECAO}>Procedimentos da promoção</p>
@@ -471,7 +491,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
               </div>
               {escolhidos.length > 0 ? (
                 <div className="space-y-2">
-                  <label className="text-sm block max-w-sm">
+                  <label className="text-sm block">
                     Desconto
                     <select
                       value={descontoEscopo}
@@ -483,7 +503,14 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                     </select>
                   </label>
                   {escolhidos.map((item) => (
-                    <div key={item.id} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9rem_7rem_auto] gap-2 items-center">
+                    <div
+                      key={item.id}
+                      className={
+                        descontoEscopo === "individual"
+                          ? "grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9rem_7rem_auto] gap-2 items-center"
+                          : "flex items-center justify-between gap-3"
+                      }
+                    >
                       <span className="text-sm min-w-0 break-words">
                         {item.nome}
                         <span className="text-gray-500"> · {formatCurrency(item.preco)}</span>
@@ -531,54 +558,34 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                       </button>
                     </div>
                   ))}
-                  {descontoEscopo === "total" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md">
-                      <label className="text-sm">
-                        Tipo
-                        <select value={descontoTipo} onChange={(e) => setDescontoTipo(e.target.value as DescontoTipo)} className={`${CAMPO} mt-1`}>
-                          <option value="percentual">Porcentagem</option>
-                          <option value="fixo">Valor fixo (R$)</option>
-                        </select>
-                      </label>
-                      <label className="text-sm">
-                        {descontoTipo === "percentual" ? "Porcentagem" : "Valor (R$)"}
-                        <input value={descontoValor} onChange={(e) => setDescontoValor(e.target.value)} className={`${CAMPO} mt-1`} inputMode="decimal" />
-                      </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2 items-end">
+                    {descontoEscopo === "total" ? (
+                      <>
+                        <label className="text-sm">
+                          Tipo
+                          <select value={descontoTipo} onChange={(e) => setDescontoTipo(e.target.value as DescontoTipo)} className={`${CAMPO} mt-1`}>
+                            <option value="percentual">Porcentagem</option>
+                            <option value="fixo">Valor fixo (R$)</option>
+                          </select>
+                        </label>
+                        <label className="text-sm">
+                          {descontoTipo === "percentual" ? "Porcentagem" : "Valor (R$)"}
+                          <input value={descontoValor} onChange={(e) => setDescontoValor(e.target.value)} className={`${CAMPO} mt-1`} inputMode="decimal" />
+                        </label>
+                      </>
+                    ) : (
+                      <span className="hidden sm:block sm:col-span-2" />
+                    )}
+                    <div className="text-sm rounded-lg border border-gray-200 dark:border-neutral-700 px-3 py-2">
+                      <p>Soma {formatCurrency(conta.bruto)}</p>
+                      <p>Desconto {formatCurrency(conta.desconto)}</p>
+                      <p className="font-semibold">Total {formatCurrency(conta.liquido)}</p>
                     </div>
-                  ) : null}
-                  <div className="text-sm rounded-lg border border-gray-200 dark:border-neutral-700 px-3 py-2 max-w-sm">
-                    <p>Soma {formatCurrency(conta.bruto)}</p>
-                    <p>Desconto {formatCurrency(conta.desconto)}</p>
-                    <p className="font-semibold">Total {formatCurrency(conta.liquido)}</p>
                   </div>
                 </div>
               ) : (
                 <p className="text-sm text-gray-500">Nenhum procedimento incluído.</p>
               )}
-              </div>
-
-              <div className="space-y-4 border-t border-gray-200 dark:border-neutral-700 pt-4">
-                <p className={SECAO}>Pacote comercial</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <label className="text-sm min-w-0">Sessões *
-                    <input value={sessoes} onChange={(e) => setSessoes(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
-                  </label>
-                  <label className="text-sm min-w-0">Intervalo entre sessões *
-                    <input value={intervalo} onChange={(e) => setIntervalo(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
-                  </label>
-                  <label className="text-sm min-w-0">Unidade *
-                    <select value={unidade} onChange={(e) => setUnidade(e.target.value)} className={`${CAMPO} mt-1`}>
-                      <option value="dias">Dias</option>
-                      <option value="semanas">Semanas</option>
-                      <option value="meses">Meses</option>
-                    </select>
-                  </label>
-                </div>
-                <p className="text-xs text-gray-500">
-                  O intervalo é entre uma sessão e a outra. Na agenda, a secretaria escolhe o tipo Protocolo, a profissional, o local e a primeira sessão.
-                </p>
-              </div>
-
               <div className="min-w-0 space-y-2 border-t border-gray-200 dark:border-neutral-700 pt-4">
                 <p className={SECAO}>Produtos por sessão</p>
                 <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_5rem_auto] gap-2 min-w-0">
@@ -656,10 +663,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                 Escolha a categoria e depois o produto. A quantidade é por sessão. O estoque baixa quando a sessão é finalizada.
               </p>
               </div>
-
-              <p className="text-xs text-gray-500 md:col-span-2">
-                Depois de Cliente presente, o recebimento escolhe o valor total com desconto ou o parcelamento por sessão.
-              </p>
+              </div>
               </div>
             </>
           )}

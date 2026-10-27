@@ -394,6 +394,7 @@ class ProtocoloPersonalizadoAgendarView(APIView):
                 professional=professional,
                 local_atendimento=local,
                 data_inicio=inicio,
+                forma_cobranca=str(data.get("forma_cobranca") or "").strip(),
                 request=request,
             )
         except AgendaValidationError as exc:

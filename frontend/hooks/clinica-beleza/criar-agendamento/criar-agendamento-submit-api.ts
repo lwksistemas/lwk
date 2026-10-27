@@ -31,6 +31,7 @@ export async function submitProtocoloPersonalizado(input: {
   professionalId: number;
   localId: number | "";
   date: Date;
+  formaCobranca?: "POR_CONSULTA" | "TOTAL";
 }): Promise<{ agendamentos: Array<{ ajustado?: boolean }> }> {
   const res = await clinicaBelezaFetch(`/protocolos/personalizados/${input.contratoId}/agendar/`, {
     method: "POST",
@@ -38,6 +39,7 @@ export async function submitProtocoloPersonalizado(input: {
       professional: input.professionalId,
       local_atendimento: input.localId || undefined,
       data_inicio: input.date.toISOString(),
+      forma_cobranca: input.formaCobranca || undefined,
     }),
   });
   const data = await res.json().catch(() => ({}));

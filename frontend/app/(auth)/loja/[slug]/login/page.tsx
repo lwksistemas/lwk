@@ -417,7 +417,7 @@ export default function LojaLoginDinamicoPage() {
         </form>
 
         <div className="text-center text-xs text-gray-500 dark:text-gray-400 -mt-2">
-          Face ID ou desbloqueio facial
+          Desbloqueio facial
         </div>
         <BotaoRosto
           userType="loja"

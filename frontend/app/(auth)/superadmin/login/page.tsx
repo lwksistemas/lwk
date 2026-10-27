@@ -411,7 +411,7 @@ export default function SuperAdminLoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-500">Face ID ou desbloqueio facial</p>
+        <p className="text-center text-xs text-gray-500">Desbloqueio facial</p>
         <BotaoRosto
           userType="superadmin"
           username={credentials.username}

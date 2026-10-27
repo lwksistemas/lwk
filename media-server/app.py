@@ -129,6 +129,10 @@ def folder_structure_ok(folder_path: str) -> bool:
             return True
         if a in ALLOWED_FOLDERS:
             return True
+        if a == "prestadoras" and re.fullmatch(r"\d{14}", b):
+            return True
+        if a == "documentos" and (b == "sem-documento" or re.fullmatch(r"\d{11}|\d{14}", b)):
+            return True
     return False
 
 

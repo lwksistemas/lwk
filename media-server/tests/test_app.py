@@ -128,6 +128,19 @@ class MediaServerAppTest(unittest.TestCase):
         self.assertEqual(nome, "passwd.pdf")
 
 
+    def test_pasta_da_prestadora_e_do_documento_aceitam_arquivo(self):
+        token = media_app.token_for_tenant(self.felix)
+        logo = self._upload(
+            self.felix, token, folder="prestadoras/38900437000154", filename="logo.png", body=b"png",
+        )
+        self.assertEqual(logo.status_code, 201)
+        self.assertIn("/prestadoras/38900437000154/", logo.get_json()["url"])
+        pdf = self._upload(
+            self.felix, token, folder="documentos/12345678901", filename="termo.pdf", body=b"%PDF",
+        )
+        self.assertEqual(pdf.status_code, 201)
+        self.assertIn("/documentos/12345678901/termo.pdf", pdf.get_json()["url"])
+
     def test_zip_junta_fotos_e_pdfs_e_pula_backups(self):
         import io
         import zipfile

@@ -9,10 +9,18 @@ function escaparHtml(texto: string): string {
     .replace(/>/g, '&gt;');
 }
 
+function htmlSemScript(html: string): string {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/javascript\s*:/gi, '');
+}
+
 export function textoParaEditor(texto: string): string {
   const bruto = (texto || '').replace(/\r\n/g, '\n');
   if (!bruto.trim()) return '<p><br></p>';
-  if (/<(p|div|span)\b/i.test(bruto)) return bruto;
+  if (/<(p|div|span)\b/i.test(bruto)) return htmlSemScript(bruto);
   return bruto
     .split('\n')
     .map((linha) => `<p>${linha ? escaparHtml(linha) : '<br>'}</p>`)

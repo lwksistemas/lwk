@@ -150,6 +150,12 @@ class ProtocoloContrato(LojaIsolationMixin, models.Model):
     valor_bruto = models.DecimalField(
         max_digits=10, decimal_places=2, default=Decimal("0.00"), verbose_name="Soma dos procedimentos (R$)",
     )
+    desconto_escopo = models.CharField(
+        max_length=20,
+        choices=[("total", "No total"), ("individual", "Em cada procedimento")],
+        default="total",
+        verbose_name="Onde aplica o desconto",
+    )
     desconto_tipo = models.CharField(
         max_length=20, choices=DESCONTO_CHOICES, blank=True, default="", verbose_name="Tipo de desconto",
     )
@@ -195,6 +201,18 @@ class ProtocoloContratoProcedimento(LojaIsolationMixin, models.Model):
         verbose_name="Procedimento",
     )
     valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor no pacote (R$)")
+    desconto_tipo = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        verbose_name="Desconto deste procedimento",
+    )
+    desconto_valor = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="Desconto informado",
+    )
 
     objects = LojaIsolationManager()
 

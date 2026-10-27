@@ -6,7 +6,8 @@ import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatApiErrorBody } from "@/lib/api-errors";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { useToast } from "@/components/ui/Toast";
-import { aplicarDescontoProtocolo, type DescontoTipo } from "./protocolo-personalizado-utils";
+import { precoDaPromocao } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
+import type { DescontoTipo } from "./protocolo-personalizado-utils";
 
 interface Opcao {
   id: number;
@@ -36,6 +37,11 @@ interface OpcoesProtocolo {
   produtos: ProdutoOpcao[];
 }
 
+interface ProcedimentoEscolhido extends ProcedimentoOpcao {
+  desconto_tipo: DescontoTipo;
+  desconto_valor: string;
+}
+
 interface ProtocoloSalvo {
   id: number;
   nome: string;
@@ -43,13 +49,14 @@ interface ProtocoloSalvo {
   intervalo_quantidade: number;
   intervalo_unidade: string;
   tempo_minutos: number;
+  desconto_escopo?: "total" | "individual";
   desconto_tipo: DescontoTipo;
   desconto_valor: string;
   valor_total: string;
   na_agenda: number;
   pode_editar: boolean;
   pode_excluir: boolean;
-  procedimentos: ProcedimentoOpcao[];
+  procedimentos: ProcedimentoEscolhido[];
   produtos: ProdutoEscolhido[];
 }
 
@@ -66,6 +73,7 @@ interface ProtocoloPersonalizadoModalProps {
 }
 
 const CAMPO = "w-full min-w-0 border border-gray-300 dark:border-neutral-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-neutral-900";
+const SECAO = "text-sm font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-neutral-700 pb-2";
 
 function categoriasDe(itens: Array<{ categoria: string; categoria_nome: string }>): CategoriaOpcao[] {
   const mapa = new Map<string, string>();
@@ -88,7 +96,8 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
   const [erro, setErro] = useState("");
   const [categoriaProcedimento, setCategoriaProcedimento] = useState("");
   const [procedimentoId, setProcedimentoId] = useState("");
-  const [escolhidos, setEscolhidos] = useState<ProcedimentoOpcao[]>([]);
+  const [escolhidos, setEscolhidos] = useState<ProcedimentoEscolhido[]>([]);
+  const [descontoEscopo, setDescontoEscopo] = useState<"total" | "individual">("total");
   const [categoriaProduto, setCategoriaProduto] = useState("");
   const [produtoId, setProdutoId] = useState("");
   const [quantidade, setQuantidade] = useState("1");
@@ -139,6 +148,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
     setEditandoId(null);
     setEscolhidos([]);
     setProdutos([]);
+    setDescontoEscopo("total");
     setDescontoTipo("percentual");
     setDescontoValor("0");
     setSessoes("4");
@@ -161,8 +171,13 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
     }
     setErro("");
     setEditandoId(item.id);
-    setEscolhidos(item.procedimentos);
+    setEscolhidos(item.procedimentos.map((procedimento) => ({
+      ...procedimento,
+      desconto_tipo: procedimento.desconto_tipo === "fixo" ? "fixo" : "percentual",
+      desconto_valor: procedimento.desconto_valor || "0",
+    })));
     setProdutos(item.produtos);
+    setDescontoEscopo(item.desconto_escopo === "individual" ? "individual" : "total");
     setDescontoTipo(item.desconto_tipo === "fixo" ? "fixo" : "percentual");
     setDescontoValor(item.desconto_valor);
     setSessoes(String(item.sessoes));
@@ -195,19 +210,31 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
     }
   };
 
-  const bruto = escolhidos.reduce((soma, item) => soma + Number(item.preco), 0);
-  const conta = aplicarDescontoProtocolo(bruto, descontoTipo, Number(descontoValor || 0));
+  const conta = precoDaPromocao(
+    escolhidos.map((item) => ({
+      preco: Number(item.preco) || 0,
+      desconto_tipo: item.desconto_tipo,
+      desconto_valor: Number(String(item.desconto_valor).replace(",", ".")) || 0,
+    })),
+    descontoEscopo,
+    descontoTipo,
+    Number(String(descontoValor).replace(",", ".")) || 0,
+  );
 
-  const categoriasProcedimento = useMemo(
-    () => categoriasDe(opcoes?.procedimentos ?? []),
+  const procedimentosClinica = useMemo(
+    () => (opcoes?.procedimentos ?? []).filter((item) => item.categoria !== "protocolo"),
     [opcoes],
+  );
+  const categoriasProcedimento = useMemo(
+    () => categoriasDe(procedimentosClinica),
+    [procedimentosClinica],
   );
   const procedimentosDaCategoria = useMemo(
     () =>
-      (opcoes?.procedimentos ?? []).filter(
+      procedimentosClinica.filter(
         (item) => item.categoria === categoriaProcedimento && !escolhidos.some((escolhido) => escolhido.id === item.id),
       ),
-    [opcoes, categoriaProcedimento, escolhidos],
+    [procedimentosClinica, categoriaProcedimento, escolhidos],
   );
   const categoriasProduto = useMemo(
     () => categoriasDe(opcoes?.produtos ?? []),
@@ -236,7 +263,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
       return;
     }
     setErro("");
-    setEscolhidos((lista) => [...lista, item]);
+    setEscolhidos((lista) => [...lista, { ...item, desconto_tipo: "percentual", desconto_valor: "0" }]);
     setProcedimentoId("");
   };
 
@@ -269,11 +296,16 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
     setErro("");
     setSalvando(true);
     const corpo = {
-      procedimentos: escolhidos.map((item) => item.id),
+      procedimentos: escolhidos.map((item) => ({
+        procedure: item.id,
+        desconto_tipo: descontoEscopo === "individual" ? item.desconto_tipo : "",
+        desconto_valor: descontoEscopo === "individual" ? item.desconto_valor || "0" : "0",
+      })),
       produtos: produtos.map((item) => ({
         produto_id: item.produto_id,
         quantidade: item.quantidade,
       })),
+      desconto_escopo: descontoEscopo,
       desconto_tipo: descontoTipo,
       desconto_valor: descontoValor || "0",
       sessoes: Number(sessoes),
@@ -302,7 +334,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4" onClick={onClose}>
       <div
-        className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full min-w-0 max-w-3xl max-h-[min(90vh,100%)] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full min-w-0 max-w-4xl max-h-[min(90vh,100%)] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -375,9 +407,26 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                   ))
                 )}
               </div>
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
-                {editandoId ? "Editar protocolo" : "Novo protocolo"}
-              </p>
+              <div className="space-y-4 border-t border-gray-200 dark:border-neutral-700 pt-4">
+                <p className={SECAO}>{editandoId ? "Editar protocolo" : "Dados do protocolo"}</p>
+                <label className="text-sm block min-w-0">
+                  Nome do protocolo *
+                  <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Protocolo personalizado" className={`${CAMPO} mt-1`} />
+                </label>
+                <p className="text-xs text-gray-500">
+                  Este é o protocolo desta cliente. Ele é diferente do protocolo global da clínica.
+                </p>
+                <label className="text-sm block min-w-0 max-w-xs">
+                  Tempo estimado (min) *
+                  <input value={tempo} onChange={(e) => setTempo(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
+                </label>
+              </div>
+
+              <div className="space-y-4 border-t border-gray-200 dark:border-neutral-700 pt-4">
+                <p className={SECAO}>Procedimentos da promoção</p>
+                <p className="text-xs text-gray-500">
+                  Inclua os procedimentos já cadastrados. O valor cobrado é a soma deles, com o desconto abaixo. O preço segue o convênio desta cliente.
+                </p>
               <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto] gap-2 min-w-0">
                 <select
                   value={categoriaProcedimento}
@@ -415,62 +464,118 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                   Incluir
                 </button>
               </div>
-              {escolhidos.map((item) => (
-                <div key={item.id} className="flex items-start justify-between gap-3 text-sm min-w-0">
-                  <span className="min-w-0 break-words">
-                    <span className="text-gray-500">{item.categoria_nome}</span>
-                    {" · "}
-                    {item.nome}
-                  </span>
-                  <span className="flex items-center gap-3 shrink-0">
-                    {formatCurrency(item.preco)}
-                    <button type="button" className="text-red-600" onClick={() => setEscolhidos((lista) => lista.filter((p) => p.id !== item.id))}>
-                      Remover
-                    </button>
-                  </span>
+              {escolhidos.length > 0 ? (
+                <div className="space-y-2">
+                  <label className="text-sm block max-w-sm">
+                    Desconto
+                    <select
+                      value={descontoEscopo}
+                      onChange={(e) => setDescontoEscopo(e.target.value as "total" | "individual")}
+                      className={`${CAMPO} mt-1`}
+                    >
+                      <option value="total">No total dos procedimentos</option>
+                      <option value="individual">Em cada procedimento</option>
+                    </select>
+                  </label>
+                  {escolhidos.map((item) => (
+                    <div key={item.id} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9rem_7rem_auto] gap-2 items-center">
+                      <span className="text-sm min-w-0 break-words">
+                        {item.nome}
+                        <span className="text-gray-500"> · {formatCurrency(item.preco)}</span>
+                      </span>
+                      {descontoEscopo === "individual" ? (
+                        <>
+                          <select
+                            value={item.desconto_tipo}
+                            aria-label={`Tipo de desconto de ${item.nome}`}
+                            onChange={(e) =>
+                              setEscolhidos((lista) =>
+                                lista.map((atual) =>
+                                  atual.id === item.id
+                                    ? { ...atual, desconto_tipo: e.target.value as DescontoTipo }
+                                    : atual,
+                                ),
+                              )
+                            }
+                            className={CAMPO}
+                          >
+                            <option value="percentual">Porcentagem</option>
+                            <option value="fixo">Valor fixo (R$)</option>
+                          </select>
+                          <input
+                            value={item.desconto_valor}
+                            aria-label={`Desconto de ${item.nome}`}
+                            onChange={(e) =>
+                              setEscolhidos((lista) =>
+                                lista.map((atual) =>
+                                  atual.id === item.id ? { ...atual, desconto_valor: e.target.value } : atual,
+                                ),
+                              )
+                            }
+                            className={CAMPO}
+                            inputMode="decimal"
+                          />
+                        </>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="text-sm text-red-600"
+                        onClick={() => setEscolhidos((lista) => lista.filter((p) => p.id !== item.id))}
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ))}
+                  {descontoEscopo === "total" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md">
+                      <label className="text-sm">
+                        Tipo
+                        <select value={descontoTipo} onChange={(e) => setDescontoTipo(e.target.value as DescontoTipo)} className={`${CAMPO} mt-1`}>
+                          <option value="percentual">Porcentagem</option>
+                          <option value="fixo">Valor fixo (R$)</option>
+                        </select>
+                      </label>
+                      <label className="text-sm">
+                        {descontoTipo === "percentual" ? "Porcentagem" : "Valor (R$)"}
+                        <input value={descontoValor} onChange={(e) => setDescontoValor(e.target.value)} className={`${CAMPO} mt-1`} inputMode="decimal" />
+                      </label>
+                    </div>
+                  ) : null}
+                  <div className="text-sm rounded-lg border border-gray-200 dark:border-neutral-700 px-3 py-2 max-w-sm">
+                    <p>Soma {formatCurrency(conta.bruto)}</p>
+                    <p>Desconto {formatCurrency(conta.desconto)}</p>
+                    <p className="font-semibold">Total {formatCurrency(conta.liquido)}</p>
+                  </div>
                 </div>
-              ))}
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label className="text-sm min-w-0">
-                  Desconto
-                  <select value={descontoTipo} onChange={(e) => setDescontoTipo(e.target.value as DescontoTipo)} className={`${CAMPO} mt-1`}>
-                    <option value="percentual">Porcentagem</option>
-                    <option value="fixo">Valor fixo (R$)</option>
-                  </select>
-                </label>
-                <label className="text-sm min-w-0">
-                  {descontoTipo === "percentual" ? "Porcentagem" : "Valor (R$)"}
-                  <input value={descontoValor} onChange={(e) => setDescontoValor(e.target.value)} className={`${CAMPO} mt-1`} inputMode="decimal" />
-                </label>
-                <div className="text-sm rounded-lg border border-gray-200 dark:border-neutral-700 px-3 py-2">
-                  <p>Soma {formatCurrency(bruto)}</p>
-                  <p>Desconto {formatCurrency(conta.desconto)}</p>
-                  <p className="font-semibold">Total {formatCurrency(conta.liquido)}</p>
-                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Nenhum procedimento incluído.</p>
+              )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <label className="text-sm min-w-0">Sessões
-                  <input value={sessoes} onChange={(e) => setSessoes(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
-                </label>
-                <label className="text-sm min-w-0">Intervalo
-                  <input value={intervalo} onChange={(e) => setIntervalo(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
-                </label>
-                <label className="text-sm min-w-0">Unidade
-                  <select value={unidade} onChange={(e) => setUnidade(e.target.value)} className={`${CAMPO} mt-1`}>
-                    <option value="dias">Dias</option>
-                    <option value="semanas">Semanas</option>
-                    <option value="meses">Meses</option>
-                  </select>
-                </label>
-                <label className="text-sm min-w-0">Minutos de cada atendimento
-                  <input value={tempo} onChange={(e) => setTempo(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
-                </label>
+              <div className="space-y-4 border-t border-gray-200 dark:border-neutral-700 pt-4">
+                <p className={SECAO}>Pacote comercial</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label className="text-sm min-w-0">Sessões *
+                    <input value={sessoes} onChange={(e) => setSessoes(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
+                  </label>
+                  <label className="text-sm min-w-0">Intervalo entre sessões *
+                    <input value={intervalo} onChange={(e) => setIntervalo(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
+                  </label>
+                  <label className="text-sm min-w-0">Unidade *
+                    <select value={unidade} onChange={(e) => setUnidade(e.target.value)} className={`${CAMPO} mt-1`}>
+                      <option value="dias">Dias</option>
+                      <option value="semanas">Semanas</option>
+                      <option value="meses">Meses</option>
+                    </select>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">
+                  O intervalo é entre uma sessão e a outra. Na agenda, a secretaria escolhe o tipo Protocolo, a profissional, o local e a primeira sessão.
+                </p>
               </div>
 
-              <div className="min-w-0 space-y-2">
-                <p className="text-sm text-gray-700 dark:text-gray-200">Produto por sessão</p>
+              <div className="min-w-0 space-y-2 border-t border-gray-200 dark:border-neutral-700 pt-4">
+                <p className={SECAO}>Produtos por sessão</p>
                 <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_5rem_auto] gap-2 min-w-0">
                   <select
                     value={categoriaProduto}
@@ -514,7 +619,6 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                   </button>
                 </div>
                 {erroProduto ? <p className="text-sm text-red-600">{erroProduto}</p> : null}
-              </div>
               {produtos.map((item) => (
                 <div key={item.produto_id} className="flex items-start gap-2 text-sm min-w-0">
                   <span className="min-w-0 flex-1 break-words">{item.nome}</span>
@@ -546,12 +650,10 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
               <p className="text-xs text-gray-500">
                 Escolha a categoria e depois o produto. A quantidade é por sessão. O estoque baixa quando a sessão é finalizada.
               </p>
+              </div>
 
-              <label className="text-sm block min-w-0">Nome do tratamento
-                <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Protocolo personalizado" className={`${CAMPO} mt-1`} />
-              </label>
               <p className="text-xs text-gray-500">
-                Na agenda, a secretaria escolhe o tipo Protocolo, a profissional, o local e a primeira sessão. Depois de Cliente presente, o recebimento escolhe o valor total com desconto ou o parcelamento por sessão.
+                Depois de Cliente presente, o recebimento escolhe o valor total com desconto ou o parcelamento por sessão.
               </p>
             </>
           )}
@@ -572,7 +674,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
             className="px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50"
             style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
           >
-            {salvando ? "Salvando..." : editandoId ? "Salvar alterações" : "Salvar protocolo"}
+            {salvando ? "Salvando..." : editandoId ? "Salvar alterações" : "Cadastrar protocolo"}
           </button>
         </div>
       </div>

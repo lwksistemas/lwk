@@ -39,11 +39,7 @@ type Props = Pick<
   | "taxaConsultaBase"
   | "totalEstimado"
   | "resumo"
-  | "isConsulta"
   | "protocoloSelecionado"
-  | "valorProtocolo"
-  | "formaCobranca"
-  | "setFormaCobranca"
   | "protocoloCliente"
   | "protocolos"
   | "protocolosClienteCarregando"
@@ -79,11 +75,7 @@ export function CriarAgendamentoAgendaSection({
   taxaConsultaBase,
   totalEstimado,
   resumo,
-  isConsulta,
   protocoloSelecionado,
-  valorProtocolo,
-  formaCobranca,
-  setFormaCobranca,
   protocoloCliente,
   protocolos,
   protocolosClienteCarregando,
@@ -223,7 +215,7 @@ export function CriarAgendamentoAgendaSection({
           />
         </div>
         <div className="sm:col-span-2">{campoLocalAtendimento}</div>
-        {agendaEhProtocolo && patientId ? (
+        {agendaEhProtocolo && patientId && (protocolosClienteCarregando || protocolosDaCliente.length > 0 || protocolos.length > 1) ? (
           <div className="sm:col-span-2 space-y-2">
             <FieldLabel>Protocolo *</FieldLabel>
             {protocolosClienteCarregando ? (
@@ -247,7 +239,7 @@ export function CriarAgendamentoAgendaSection({
                   </option>
                 ))}
               </select>
-            ) : protocolos.length > 0 ? (
+            ) : protocolos.length > 1 ? (
               <div className="space-y-2">
                 {protocolos.map((item) => {
                   const escolhido = protocoloModeloId === item.id;
@@ -288,25 +280,11 @@ export function CriarAgendamentoAgendaSection({
           Não há protocolo para agendar. Cadastre no prontuário ou em Protocolos.
         </p>
       ) : null}
-      {agendaEhProtocolo && patientId && !protocolosClienteCarregando && protocolosDaCliente.length === 0 && protocolos.length > 0 ? (
+      {agendaEhProtocolo && patientId && !protocolosClienteCarregando && protocolosDaCliente.length === 0 && protocolos.length > 1 && !protocoloSelecionado ? (
         <p className="text-xs text-gray-500 dark:text-gray-400">
           Esta cliente ainda não tem protocolo no prontuário. O modelo escolhido vira o protocolo dela ao salvar.
         </p>
       ) : null}
-
-      {protocoloSelecionado && !protocoloCliente && (
-        <ProtocoloCobrancaBox
-          nome={protocoloSelecionado.nome}
-          sessoes={protocoloSelecionado.sessoes || 1}
-          intervaloQuantidade={protocoloSelecionado.intervalo_quantidade || 1}
-          intervaloUnidade={protocoloSelecionado.intervalo_unidade || "dias"}
-          valorPacote={valorProtocolo}
-          forma={formaCobranca}
-          onForma={setFormaCobranca}
-          isConsulta={isConsulta}
-          totalDestaVisita={totalEstimado}
-        />
-      )}
 
       {retornoInfo?.elegivel && patientId && !protocoloSelecionado && !protocoloCliente && (
         <div className="p-2.5 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
@@ -348,7 +326,7 @@ export function CriarAgendamentoAgendaSection({
   );
 }
 
-function ProtocoloCobrancaBox({
+export function ProtocoloCobrancaBox({
   nome,
   sessoes,
   intervaloQuantidade,
@@ -358,6 +336,7 @@ function ProtocoloCobrancaBox({
   onForma,
   isConsulta,
   totalDestaVisita,
+  ocultarResumo = false,
 }: {
   nome: string;
   sessoes: number;
@@ -368,19 +347,22 @@ function ProtocoloCobrancaBox({
   onForma: (forma: "POR_CONSULTA" | "TOTAL") => void;
   isConsulta: boolean;
   totalDestaVisita: number;
+  ocultarResumo?: boolean;
 }) {
   const partes = dividirValorProtocolo(valorPacote, sessoes, "POR_CONSULTA");
   const parcela = formatarValorProtocolo(partes[0] || 0);
   const pacote = formatarValorProtocolo(valorPacote);
 
   return (
-    <div className="p-3 rounded-lg bg-gray-50 dark:bg-neutral-900/50 text-sm space-y-3 border border-gray-100 dark:border-neutral-700">
+    <div className={ocultarResumo ? "text-sm space-y-3" : "p-3 rounded-lg bg-gray-50 dark:bg-neutral-900/50 text-sm space-y-3 border border-gray-100 dark:border-neutral-700"}>
+      {ocultarResumo ? null : (
       <div>
         <p className="font-medium text-gray-900 dark:text-gray-100">{nome}</p>
         <p className="text-xs text-gray-500 mt-0.5">
           {sessoes} sessões · {rotuloIntervaloProtocolo(intervaloQuantidade, intervaloUnidade)}
         </p>
       </div>
+      )}
       <fieldset className="space-y-2">
         <legend className="text-xs font-medium text-gray-600 dark:text-gray-400">Como cobrar</legend>
         <label className="flex items-start gap-2 text-gray-700 dark:text-gray-300">

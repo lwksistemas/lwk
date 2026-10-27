@@ -132,6 +132,10 @@ def _resolver_folder_upload(request) -> str:
     ``folder=`` nunca é usado como path: só o primeiro segmento (tipo). Evita
     ``folder=outro-paciente/fotos`` gravar fora da pasta autorizada.
     """
+    prestadora = re.sub(r"\D", "", str(request.data.get("prestadora_cnpj") or ""))
+    if len(prestadora) == 14:
+        return f"prestadoras/{prestadora}"
+
     folder_raw = (request.data.get("folder") or "fotos").strip().strip("/")
     tipo = _tipo_pasta_upload(folder_raw)
 

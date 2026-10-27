@@ -8,6 +8,8 @@ from core.media_storage import media_upload_tenant, normalize_media_tenant, past
 logger = logging.getLogger(__name__)
 
 PASTA_PDF_LOJA = "admin/pdf"
+PASTA_DOCUMENTOS = "documentos"
+PASTA_PRESTADORAS = "prestadoras"
 
 
 def _resolver_tenant_loja(loja_id: int) -> str | None:
@@ -32,6 +34,30 @@ def salvar_pdf_loja(loja_id: int, pdf_bytes: bytes, filename: str) -> str | None
         return url
     except Exception as exc:
         logger.warning("Erro ao salvar PDF da loja %s: %s", filename, exc)
+        return None
+
+
+def pasta_por_documento(raiz: str, documento: str) -> str:
+    """Subpasta só com os dígitos do CPF (11) ou CNPJ (14)."""
+    digits = re.sub(r"\D", "", documento or "")
+    if len(digits) not in (11, 14):
+        return ""
+    return f"{raiz}/{digits}"
+
+
+def salvar_pdf_pasta(loja_id: int, folder: str, pdf_bytes: bytes, filename: str) -> str | None:
+    """Grava um PDF numa pasta já resolvida da loja."""
+    tenant = _resolver_tenant_loja(loja_id)
+    if not tenant or not folder or not pdf_bytes:
+        return None
+    nome = re.sub(r"[^A-Za-z0-9_.-]", "_", filename or "documento.pdf")[:120] or "documento.pdf"
+    try:
+        url = media_upload_tenant(tenant, pdf_bytes, filename=nome, folder=folder)
+        if url:
+            logger.info("PDF salvo: %s/%s/%s", tenant, folder, nome)
+        return url
+    except Exception as exc:
+        logger.warning("Erro ao salvar PDF %s em %s: %s", nome, folder, exc)
         return None
 
 

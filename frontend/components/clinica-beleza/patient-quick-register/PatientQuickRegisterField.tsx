@@ -12,7 +12,6 @@ const inputClass =
   "w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[44px]";
 
 export function PatientQuickRegisterField(props: PatientQuickRegisterFieldProps) {
-  const camposEmLinha = props.camposEmLinha;
   const theme = useClinicaBelezaTheme();
   const {
     selecionado,
@@ -71,16 +70,16 @@ export function PatientQuickRegisterField(props: PatientQuickRegisterFieldProps)
             Cadastro rápido — ao digitar, busca no cadastro: nome desde a 1ª letra (Lu, Lui…), telefone/CPF com 3+
             dígitos.
           </p>
-          <div className={camposEmLinha ? "grid grid-cols-1 sm:grid-cols-3 gap-2" : "space-y-2"}>
-            <input
-              type="text"
-              value={nomeNovo}
-              onChange={(e) => setNomeNovo(e.target.value)}
-              placeholder="Nome *"
-              disabled={disabled}
-              className={inputClass}
-              autoFocus
-            />
+          <input
+            type="text"
+            value={nomeNovo}
+            onChange={(e) => setNomeNovo(e.target.value)}
+            placeholder="Nome *"
+            disabled={disabled}
+            className={inputClass}
+            autoFocus
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <input
               type="tel"
               value={telefoneNovo}

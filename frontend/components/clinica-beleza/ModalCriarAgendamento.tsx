@@ -6,7 +6,7 @@ import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPag
 import { useClinicaBelezaTheme } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
 import { CriarAgendamentoAdvancedSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoAdvancedSection";
 import { CriarAgendamentoAgendaSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoAgendaSection";
-import { CriarAgendamentoClienteSection, CriarAgendamentoProcedimentosSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoClienteSection";
+import { CriarAgendamentoClienteSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoClienteSection";
 import {
   type CriarAgendamentoProfessional,
   type ModalCriarAgendamentoMode,
@@ -88,7 +88,11 @@ export function ModalCriarAgendamento({
       }}
     >
       <div
-        className="flex flex-col w-[min(96vw,1280px)] max-h-[min(88vh,820px)] bg-white dark:bg-neutral-900 sm:rounded-xl shadow-2xl overflow-hidden"
+        className={`flex flex-col bg-white dark:bg-neutral-900 sm:rounded-xl shadow-2xl overflow-hidden ${
+          form.agendaEhProtocolo
+            ? "w-[min(96vw,1280px)] max-h-[min(88vh,820px)]"
+            : "w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[100dvh] sm:max-h-[92vh]"
+        }`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-criar-agendamento-title"
@@ -133,25 +137,12 @@ export function ModalCriarAgendamento({
               </div>
             )}
 
-            <ClinicaBelezaPanel className="p-4 sm:p-5">
-              {form.patientId && !form.agendaEhProtocolo ? (
-                <div className="mb-4">
-                  <CriarAgendamentoClienteSection
-                    {...form}
-                    onSearchPatients={onSearchPatients}
-                    ocultarProcedimentos
-                  />
-                </div>
-              ) : null}
-              <div className={`grid w-full gap-5 items-start ${form.agendaEhProtocolo || form.patientId ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 lg:grid-cols-3"}`}>
-                {form.patientId && !form.agendaEhProtocolo ? null : (
-                  <CriarAgendamentoClienteSection
-                    {...form}
-                    onSearchPatients={onSearchPatients}
-                    ocultarProcedimentos={!form.agendaEhProtocolo}
-                  />
-                )}
-                {form.agendaEhProtocolo ? null : <CriarAgendamentoProcedimentosSection {...form} />}
+            <ClinicaBelezaPanel className="p-4 sm:p-5 md:p-6">
+              <div className={`grid grid-cols-1 md:grid-cols-2 w-full ${form.agendaEhProtocolo ? "gap-5 items-start" : "gap-5 md:gap-6 lg:gap-8"}`}>
+                <CriarAgendamentoClienteSection
+                  {...form}
+                  onSearchPatients={onSearchPatients}
+                />
                 <CriarAgendamentoAgendaSection {...form} />
               </div>
               <CriarAgendamentoAdvancedSection {...form} />

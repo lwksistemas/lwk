@@ -273,7 +273,7 @@ class BackupEmailService:
         link = context.get("link_midia") or ""
         bloco_link = (
             f'<div class="info-box"><p><a href="{link}" style="color:#059669;font-weight:bold;">'
-            "Baixar fotos e PDFs da loja</a></p>"
+            "Baixar todas as fotos e PDFs (um ZIP)</a></p>"
             f'<p style="font-size:12px;color:#666;word-break:break-all;">{link}</p>'
             '<p style="font-size:12px;">O link vale por 21 dias.</p></div>'
             if link else ""
@@ -281,8 +281,8 @@ class BackupEmailService:
         return (
             f'<p>Segue em anexo o backup dos <strong>cadastros</strong> da loja '
             f'<strong>"{loja.nome}"</strong> (ZIP com planilhas).</p>'
-            "<p>As fotos e PDFs não vão no anexo — baixe no seu computador pelo link abaixo "
-            "(pasta de cada cliente, como no servidor de mídia).</p>"
+            "<p>As fotos e PDFs não vão no anexo. O link abaixo baixa tudo de uma vez, "
+            "em um único arquivo ZIP.</p>"
             f"{bloco_link}"
         )
 
@@ -325,7 +325,8 @@ Este é um email automático, não responda.
             return f'Segue em anexo o backup completo da loja "{loja.nome}" (cadastros, fotos, logos e PDFs).'
         return (
             f'Segue em anexo o backup dos cadastros da loja "{loja.nome}" (ZIP com planilhas).\n'
-            "As fotos e PDFs baixe no seu computador (link válido por 21 dias):\n"
+            "As fotos e PDFs não vão no anexo. O link baixa tudo de uma vez, em um único ZIP "
+            "(válido por 21 dias):\n"
             f"{link_midia or '(sem link de mídia)'}"
         )
 

@@ -24,6 +24,7 @@ export default function BackupMidiaPage() {
   const [arquivos, setArquivos] = useState<Arquivo[]>([]);
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(true);
+  const [zipUrl, setZipUrl] = useState('');
 
   const apiUrl = useMemo(() => {
     const base = getPrimaryApiBaseUrl();
@@ -43,8 +44,10 @@ export default function BackupMidiaPage() {
         setPastas([]);
         setSubpastas([]);
         setArquivos([]);
+        setZipUrl('');
         return;
       }
+      setZipUrl(data.zip_url || '');
       setLojaNome(data.loja_nome || '');
       setPastas(data.folders || []);
       setSubpastas(data.subfolders || []);
@@ -76,8 +79,16 @@ export default function BackupMidiaPage() {
       <div className="mx-auto max-w-2xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-slate-900">Fotos e PDFs da loja</h1>
         <p className="mt-1 text-sm text-slate-600">
-          {lojaNome || 'Backup de mídia'} — baixe os arquivos no seu computador. O e-mail já levou o ZIP dos cadastros.
+          {lojaNome || 'Backup de mídia'} — as fotos e os PDFs saem todos juntos, em um único arquivo.
         </p>
+        {zipUrl ? (
+          <a
+            href={zipUrl}
+            className="mt-4 inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            Baixar todas as fotos e PDFs
+          </a>
+        ) : null}
         {folder ? (
           <button type="button" onClick={voltar} className="mt-3 text-sm text-emerald-700 hover:underline">
             ← Voltar
@@ -87,7 +98,9 @@ export default function BackupMidiaPage() {
         {loading ? <p className="mt-6 text-sm text-slate-500">Carregando…</p> : null}
         {erro ? <p className="mt-6 text-sm text-red-600">{erro}</p> : null}
         {!loading && !erro ? (
-          <ul className="mt-4 divide-y divide-slate-100">
+          <>
+          <p className="mt-6 text-xs font-medium uppercase tracking-wide text-slate-500">Ou abra uma pasta</p>
+          <ul className="mt-2 divide-y divide-slate-100">
             {pastas.map((p) => {
               const nome = p.folder || p.name || '';
               return (
@@ -141,6 +154,7 @@ export default function BackupMidiaPage() {
               <li className="py-6 text-sm text-slate-500">Nenhuma foto ou PDF nesta pasta.</li>
             ) : null}
           </ul>
+          </>
         ) : null}
       </div>
     </div>

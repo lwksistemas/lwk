@@ -41,6 +41,7 @@ export default function ClinicaBelezaBackupPage() {
           'Recomendamos backups regulares',
         ]}
         exportBullets={['Pacientes e profissionais', 'Agenda e procedimentos', 'Financeiro e estoque']}
+        modalPaisagem
       />
     </ClinicaBelezaPageContent>
   );

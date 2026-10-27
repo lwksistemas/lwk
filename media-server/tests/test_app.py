@@ -128,5 +128,33 @@ class MediaServerAppTest(unittest.TestCase):
         self.assertEqual(nome, "passwd.pdf")
 
 
+    def test_zip_junta_fotos_e_pdfs_e_pula_backups(self):
+        import io
+        import zipfile
+
+        self._upload(self.harmonis, "master-test", folder="admin/fotos", filename="logo.jpg", body=b"jpg")
+        self._upload(
+            self.harmonis, "master-test", folder="maria_123/pdf", filename="termo.pdf", body=b"%PDF",
+        )
+        backup = Path(self.tmp.name) / self.harmonis / "backups"
+        backup.mkdir(parents=True)
+        (backup / "antigo.zip").write_bytes(b"nao-entra")
+
+        path = f"/archive/{self.harmonis}/"
+        exp = 2_000_000_000
+        sig = media_app._assinatura_path(path, exp)
+        negado = self.client.get(path)
+        self.assertEqual(negado.status_code, 401)
+
+        resp = self.client.get(f"{path}?e={exp}&s={sig}")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("fotos-e-pdfs.zip", resp.headers.get("Content-Disposition", ""))
+        with zipfile.ZipFile(io.BytesIO(resp.data)) as pacote:
+            nomes = set(pacote.namelist())
+        self.assertTrue(any(nome.endswith(".jpg") and nome.startswith("admin/fotos/") for nome in nomes))
+        self.assertTrue(any(nome.endswith("termo.pdf") for nome in nomes))
+        self.assertFalse(any("backups" in nome or nome.endswith("antigo.zip") for nome in nomes))
+
+
 if __name__ == "__main__":
     unittest.main()

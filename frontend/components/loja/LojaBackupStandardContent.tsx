@@ -18,6 +18,7 @@ export interface LojaBackupStandardContentProps {
   exportButtonClass?: string;
   importButtonClass?: string;
   autoButtonClass?: string;
+  modalPaisagem?: boolean;
   cardClass?: string;
   importWarning?: string;
 }
@@ -35,6 +36,7 @@ export function LojaBackupStandardContent({
   exportButtonClass = 'w-full',
   importButtonClass = 'w-full',
   autoButtonClass = 'w-full',
+  modalPaisagem = false,
   cardClass = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6',
   importWarning = 'Atenção: a importação pode substituir dados atuais. Use apenas backups desta loja.',
 }: LojaBackupStandardContentProps) {
@@ -133,7 +135,7 @@ export function LojaBackupStandardContent({
               ))}
             </ul>
           )}
-          <BackupButton lojaId={loja.id} lojaNome={loja.nome} className={autoButtonClass} configOnly />
+          <BackupButton lojaId={loja.id} lojaNome={loja.nome} className={autoButtonClass} configOnly modalPaisagem={modalPaisagem} />
         </div>
       </div>
 

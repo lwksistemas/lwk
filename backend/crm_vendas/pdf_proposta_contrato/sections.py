@@ -695,8 +695,11 @@ def _nomes_da_empresa(lead):
 
 
 def _documento_do_cliente(lead) -> str:
-    documento = _texto_cadastro(getattr(lead, "cpf_cnpj", None))
-    return documento or _valor_da_conta(lead, "cnpj")
+    """Empresa vinculada mostra o CNPJ da conta. Pessoa física mostra o CPF do lead."""
+    cnpj = _valor_da_conta(lead, "cnpj")
+    if cnpj:
+        return cnpj
+    return _texto_cadastro(getattr(lead, "cpf_cnpj", None))
 
 
 def _pessoa_do_contato(lead, *nomes_empresa) -> str:

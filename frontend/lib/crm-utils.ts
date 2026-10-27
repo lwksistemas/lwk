@@ -12,6 +12,7 @@ import type { CrmPropostaOportunidadeOption } from '@/lib/crm-proposta-form-type
 export type CrmLeadFormPayloadInput = {
   nome: string;
   empresa: string;
+  conta?: string;
   cpf_cnpj: string;
   email: string;
   telefone: string;
@@ -33,7 +34,8 @@ export function buildCrmLeadPayload(form: CrmLeadFormPayloadInput): Record<strin
     nome: form.nome.trim(),
     origem: form.origem,
     status: form.status,
-    empresa: form.empresa.trim() || undefined,
+    empresa: form.empresa.trim(),
+    conta: form.conta ? Number(form.conta) : null,
     cpf_cnpj: form.cpf_cnpj.trim() || undefined,
     email: form.email.trim() || undefined,
     cep: form.cep.trim() || undefined,

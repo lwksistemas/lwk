@@ -384,6 +384,41 @@ class ConteudoPropostaTests(SimpleTestCase):
         self.assertIn("RENATA SILVEIRA", bloco)
         self.assertNotIn("Razão social:", bloco)
 
+    def test_empresa_vinculada_mostra_cnpj_da_conta_e_nao_o_cpf_da_pessoa(self):
+        from types import SimpleNamespace
+
+        from crm_vendas.pdf_proposta_contrato.sections import _build_identificacao_visual
+
+        lead = SimpleNamespace(
+            nome="AMANDA SOUZA",
+            empresa="CLINICA DA CIDADE",
+            cpf_cnpj="123.456.789-09",
+            telefone="19971243195",
+            email="operacoes11@gmail.com",
+            contato=None,
+            conta=SimpleNamespace(
+                nome="CLINICA DA CIDADE",
+                razao_social="CLINICA MEDICA DA CIDADE LTDA",
+                cnpj="08.961.407/0008-63",
+            ),
+            cep="",
+            logradouro="",
+            numero="",
+            complemento="",
+            bairro="",
+            cidade="",
+            uf="",
+        )
+        elementos = []
+        _build_identificacao_visual(elementos, {"nome": "FELIX"}, lead)
+        bloco = " ".join(getattr(item, "text", "") or "" for item in elementos)
+        self.assertIn("CNPJ:", bloco)
+        self.assertIn("08.961.407/0008-63", bloco)
+        self.assertIn("Contato:", bloco)
+        self.assertIn("AMANDA SOUZA", bloco)
+        self.assertNotIn("CPF:", bloco)
+        self.assertNotIn("123.456.789-09", bloco)
+
     def test_coluna_de_valor_unitario_so_quando_a_quantidade_passa_de_um(self):
         from types import SimpleNamespace
 

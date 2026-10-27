@@ -9,7 +9,7 @@ import { formatCpfCnpj } from '@/lib/consulta-cnpj';
 import { buildCrmLeadPayload, getCrmApiErrorDetail } from '@/lib/crm-utils';
 import { formatCep, formatCpf, formatTelefone } from '@/lib/format-br';
 import { LeadCadastroForm } from '@/components/crm-vendas/LeadCadastroForm';
-import { EMPTY_FORM_LEAD } from '@/lib/crm-lead-form-types';
+import { EMPTY_FORM_LEAD, leadComEmpresa, type ContaDoLead } from '@/lib/crm-lead-form-types';
 import type { Lead } from '@/components/crm-vendas/LeadsTable';
 import { useCrmCepCnpjLookup } from '@/hooks/crm-vendas/useCrmCepCnpjLookup';
 
@@ -22,7 +22,9 @@ export default function EditarLeadPage() {
   const { origensAtivas } = useCRMConfig();
 
   const [form, setForm] = useState(EMPTY_FORM_LEAD);
-  const [vinculoEmpresa, setVinculoEmpresa] = useState<{ nome: string; cnpj: string } | null>(null);
+  const [contaNome, setContaNome] = useState('');
+  const [contaCnpj, setContaCnpj] = useState('');
+  const [cnpjAntigo, setCnpjAntigo] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,18 +45,13 @@ export default function EditarLeadPage() {
         const lead = res.data;
         const digits = (lead.cpf_cnpj || '').replace(/\D/g, '');
         const cnpjConta = (lead.conta_info?.cnpj || '').replace(/\D/g, '');
-        const cnpj = cnpjConta.length === 14 ? cnpjConta : digits.length === 14 ? digits : '';
-        setVinculoEmpresa(
-          lead.conta || cnpj
-            ? {
-                nome: lead.conta_info?.nome || lead.empresa || '',
-                cnpj: cnpj ? formatCpfCnpj(cnpj) : '',
-              }
-            : null,
-        );
+        setContaNome(lead.conta_info?.nome || '');
+        setContaCnpj(cnpjConta.length === 14 ? formatCpfCnpj(cnpjConta) : '');
+        setCnpjAntigo(!lead.conta && digits.length === 14 ? formatCpfCnpj(digits) : '');
         setForm({
           nome: lead.nome,
-          empresa: lead.empresa || '',
+          empresa: lead.empresa || lead.conta_info?.nome || '',
+          conta: lead.conta ? String(lead.conta) : '',
           cpf_cnpj: digits.length === 11 ? formatCpf(digits) : '',
           email: lead.email || '',
           telefone: formatTelefone(lead.telefone || ''),
@@ -85,6 +82,25 @@ export default function EditarLeadPage() {
     router.push(basePath);
   };
 
+  const escolherEmpresa = (contaId: string) => {
+    if (!contaId) {
+      setContaNome('');
+      setContaCnpj('');
+      setForm((f) => leadComEmpresa(f, null));
+      return;
+    }
+    apiClient
+      .get<ContaDoLead>(`/crm-vendas/contas/${contaId}/`)
+      .then((res) => {
+        setContaNome(res.data.nome || res.data.razao_social || '');
+        setContaCnpj(res.data.cnpj ? formatCpfCnpj(res.data.cnpj) : '');
+        setForm((f) => leadComEmpresa(f, res.data));
+      })
+      .catch(() => {
+        setFormErro('Não foi possível ler o cadastro da empresa.');
+      });
+  };
+
   const handleCpfChange = (value: string) => {
     setForm((f) => ({ ...f, cpf_cnpj: formatCpf(value) }));
   };
@@ -100,7 +116,7 @@ export default function EditarLeadPage() {
       return;
     }
     const cpf = form.cpf_cnpj.replace(/\D/g, '');
-    if (!vinculoEmpresa && cpf && cpf.length !== 11) {
+    if (cpf && cpf.length !== 11) {
       setFormErro('Informe o CPF com 11 dígitos.');
       return;
     }
@@ -137,7 +153,11 @@ export default function EditarLeadPage() {
         onCepChange={handleCepChange}
         onBuscarCep={() => handleBuscarCep(form.cep)}
         onCpfChange={handleCpfChange}
-        vinculoEmpresa={vinculoEmpresa}
+        empresaHref={`/loja/${slug}/crm-vendas/customers/nova-conta`}
+        contaNome={contaNome}
+        contaCnpj={contaCnpj}
+        cnpjAntigo={cnpjAntigo}
+        onContaChange={escolherEmpresa}
         onSave={handleSave}
         onCancel={voltarLista}
         editing

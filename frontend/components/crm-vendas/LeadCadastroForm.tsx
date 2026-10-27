@@ -158,21 +158,31 @@ export function LeadCadastroForm({
                   />
                   {contaCnpj ? (
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">CNPJ {contaCnpj}</p>
-                  ) : (
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      Opcional. O CNPJ fica no cadastro da empresa.
-                      {empresaHref ? (
-                        <>
-                          {' '}
-                          Se ela ainda não existe,{' '}
-                          <Link href={empresaHref} className="font-medium" style={{ color: accentColor }}>
-                            cadastre a conta
-                          </Link>
-                          .
-                        </>
-                      ) : null}
-                    </p>
-                  )}
+                  ) : null}
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Opcional. Ao salvar, o nome, o e-mail e o telefone deste lead entram como contato dessa empresa.
+                    {empresaHref && !form.conta ? (
+                      <>
+                        {' '}
+                        Se ela ainda não existe,{' '}
+                        <Link href={empresaHref} className="font-medium" style={{ color: accentColor }}>
+                          cadastre a conta
+                        </Link>
+                        .
+                      </>
+                    ) : null}
+                  </p>
+                  {form.conta ? (
+                    <div className="mt-3">
+                      <FieldLabel>Cargo na empresa</FieldLabel>
+                      <IconInput
+                        icon={User}
+                        value={form.cargo}
+                        onChange={(e) => onFormChange((f) => ({ ...f, cargo: toUpperCase(e.target.value) }))}
+                        placeholder="Ex.: compras, financeiro"
+                      />
+                    </div>
+                  ) : null}
                   {cnpjAntigo && !form.conta ? (
                     <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
                       Este lead ainda guarda o CNPJ {cnpjAntigo}. Vincule a empresa cadastrada.

@@ -7,7 +7,7 @@ from core.serializer_mixins import (
     UniqueDocumentoPerLojaMixin,
 )
 
-from ..models import Lead
+from ..models import Contato, Lead
 
 
 class LeadSerializer(
@@ -20,6 +20,7 @@ class LeadSerializer(
     unique_documento_entidade = "lead"
     conta_info = serializers.SerializerMethodField()
     contato_info = serializers.SerializerMethodField()
+    cargo = serializers.CharField(write_only=True, required=False, allow_blank=True)
     phone_fields = ["telefone"]
     uppercase_fields = ["nome", "empresa", "cidade", "bairro", "uf"]
 
@@ -27,7 +28,7 @@ class LeadSerializer(
         model = Lead
         fields = [
             "id", "nome", "empresa", "cpf_cnpj", "email", "telefone", "origem", "status",
-            "valor_estimado", "conta", "conta_info", "contato", "contato_info", "observacoes",
+            "valor_estimado", "conta", "conta_info", "contato", "contato_info", "cargo", "observacoes",
             "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf",
             "created_at", "updated_at",
         ]
@@ -66,6 +67,60 @@ class LeadSerializer(
                 "cargo": obj.contato.cargo,
             }
         return None
+
+    def create(self, validated_data):
+        cargo = validated_data.pop("cargo", "")
+        conta = validated_data.get("conta")
+        if conta and not validated_data.get("contato"):
+            validated_data["contato"] = self._contato_da_empresa(conta, validated_data, cargo)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        cargo = validated_data.pop("cargo", None)
+        if "conta" in validated_data or cargo is not None:
+            conta = validated_data.get("conta", instance.conta)
+            if conta is None:
+                validated_data["contato"] = None
+            elif "contato" not in validated_data:
+                atual = instance.contato if instance.contato_id and instance.contato.conta_id == conta.id else None
+                dados = {
+                    "nome": validated_data.get("nome", instance.nome),
+                    "email": validated_data.get("email", instance.email),
+                    "telefone": validated_data.get("telefone", instance.telefone),
+                }
+                validated_data["contato"] = self._contato_da_empresa(conta, dados, cargo, atual=atual)
+        return super().update(instance, validated_data)
+
+    def _contato_da_empresa(self, conta, dados, cargo, atual=None):
+        """Grava a pessoa do lead como contato da empresa. Não apaga contato antigo de outra empresa."""
+        nome = (dados.get("nome") or "").strip() or "Contato"
+        email = dados.get("email") or None
+        telefone = dados.get("telefone") or ""
+        if atual is not None:
+            atual.nome = nome
+            atual.email = email
+            atual.telefone = telefone
+            if cargo is not None:
+                atual.cargo = cargo
+            atual.save()
+            return atual
+        existente = Contato.objects.filter(conta=conta, nome__iexact=nome).first()
+        if existente:
+            if email:
+                existente.email = email
+            if telefone:
+                existente.telefone = telefone
+            if cargo:
+                existente.cargo = cargo
+            existente.save()
+            return existente
+        return Contato.objects.create(
+            conta=conta,
+            nome=nome,
+            email=email,
+            telefone=telefone,
+            cargo=cargo or "",
+        )
 
 
 class LeadListSerializer(CpfCnpjNormalizationMixin, TextNormalizationMixin, serializers.ModelSerializer):

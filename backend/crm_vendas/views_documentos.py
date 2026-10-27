@@ -100,9 +100,10 @@ class PropostaViewSet(
             pdf_buffer = gerar_pdf_proposta(proposta, incluir_assinaturas=incluir_assinaturas)
             pdf_bytes = pdf_buffer.getvalue()
             response = HttpResponse(pdf_bytes, content_type="application/pdf")
-            filename = (
-                f'proposta_{proposta.numero or proposta.id}_'
-                f'{proposta.titulo.replace(" ", "_")}.pdf'
+            from .nome_arquivo import nome_arquivo_download
+
+            filename = nome_arquivo_download(
+                "proposta", proposta.numero or proposta.id, proposta.titulo, extensao="pdf",
             )
             response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
@@ -123,8 +124,11 @@ class PropostaViewSet(
                 docx_buffer.getvalue(),
                 content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             )
-            safe_titulo = (proposta.titulo or "").replace(" ", "_")
-            filename = f"proposta_{proposta.numero or proposta.id}_{safe_titulo}.docx"
+            from .nome_arquivo import nome_arquivo_download
+
+            filename = nome_arquivo_download(
+                "proposta", proposta.numero or proposta.id, proposta.titulo, extensao="docx",
+            )
             response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
         except Exception as e:
@@ -212,9 +216,10 @@ class ContratoViewSet(
             pdf_buffer = gerar_pdf_contrato(contrato, incluir_assinaturas=incluir_assinaturas)
             pdf_bytes = pdf_buffer.getvalue()
             response = HttpResponse(pdf_bytes, content_type="application/pdf")
-            filename = (
-                f'contrato_{contrato.numero or contrato.id}_'
-                f'{contrato.titulo.replace(" ", "_")}.pdf'
+            from .nome_arquivo import nome_arquivo_download
+
+            filename = nome_arquivo_download(
+                "contrato", contrato.numero or contrato.id, contrato.titulo, extensao="pdf",
             )
             response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
@@ -235,8 +240,11 @@ class ContratoViewSet(
                 docx_buffer.getvalue(),
                 content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             )
-            safe_titulo = (contrato.titulo or "").replace(" ", "_")
-            filename = f"contrato_{contrato.numero or contrato.id}_{safe_titulo}.docx"
+            from .nome_arquivo import nome_arquivo_download
+
+            filename = nome_arquivo_download(
+                "contrato", contrato.numero or contrato.id, contrato.titulo, extensao="docx",
+            )
             response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
         except Exception as e:

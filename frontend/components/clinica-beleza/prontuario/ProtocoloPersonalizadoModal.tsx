@@ -334,7 +334,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4" onClick={onClose}>
       <div
-        className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-full min-w-0 max-w-4xl max-h-[min(90vh,100%)] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-[min(96vw,1280px)] h-[min(78vh,720px)] min-h-0 flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -407,22 +407,27 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                   ))
                 )}
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 items-start">
+              <div className="space-y-4 min-w-0">
               <div className="space-y-4 border-t border-gray-200 dark:border-neutral-700 pt-4">
                 <p className={SECAO}>{editandoId ? "Editar protocolo" : "Dados do protocolo"}</p>
-                <label className="text-sm block min-w-0">
-                  Nome do protocolo *
-                  <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Protocolo personalizado" className={`${CAMPO} mt-1`} />
-                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_8rem] gap-3">
+                  <label className="text-sm block min-w-0">
+                    Nome do protocolo *
+                    <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Protocolo personalizado" className={`${CAMPO} mt-1`} />
+                  </label>
+                  <label className="text-sm block min-w-0">
+                    Tempo estimado (min) *
+                    <input value={tempo} onChange={(e) => setTempo(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
+                  </label>
+                </div>
                 <p className="text-xs text-gray-500">
                   Este é o protocolo desta cliente. Ele é diferente do protocolo global da clínica.
                 </p>
-                <label className="text-sm block min-w-0 max-w-xs">
-                  Tempo estimado (min) *
-                  <input value={tempo} onChange={(e) => setTempo(e.target.value)} className={`${CAMPO} mt-1`} inputMode="numeric" />
-                </label>
               </div>
 
-              <div className="space-y-4 border-t border-gray-200 dark:border-neutral-700 pt-4">
+              </div>
+              <div className="space-y-4 min-w-0 border-t border-gray-200 dark:border-neutral-700 pt-4">
                 <p className={SECAO}>Procedimentos da promoção</p>
                 <p className="text-xs text-gray-500">
                   Inclua os procedimentos já cadastrados. O valor cobrado é a soma deles, com o desconto abaixo. O preço segue o convênio desta cliente.
@@ -652,9 +657,10 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
               </p>
               </div>
 
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 md:col-span-2">
                 Depois de Cliente presente, o recebimento escolhe o valor total com desconto ou o parcelamento por sessão.
               </p>
+              </div>
             </>
           )}
           {erro ? <p className="text-sm text-red-600">{erro}</p> : null}

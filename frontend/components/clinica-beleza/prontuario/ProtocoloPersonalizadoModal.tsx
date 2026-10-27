@@ -526,7 +526,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                     <select
                       value={descontoEscopo}
                       onChange={(e) => setDescontoEscopo(e.target.value as "total" | "individual")}
-                      className={`${CAMPO} mt-1`}
+                      className={`${CAMPO} mt-1 max-w-sm`}
                     >
                       <option value="total">No total dos procedimentos</option>
                       <option value="individual">Em cada procedimento</option>
@@ -535,11 +535,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                   {escolhidos.map((item) => (
                     <div
                       key={item.id}
-                      className={
-                        descontoEscopo === "individual"
-                          ? "grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9rem_7rem_auto] gap-2 items-center"
-                          : "flex items-center justify-between gap-3"
-                      }
+                      className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9rem_7rem_auto] gap-2 items-center"
                     >
                       <span className="text-sm min-w-0 break-words">
                         {item.nome}
@@ -578,7 +574,9 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                             inputMode="decimal"
                           />
                         </>
-                      ) : null}
+                      ) : (
+                        <span className="hidden sm:block" />
+                      )}
                       <button
                         type="button"
                         className="text-sm text-red-600"
@@ -588,29 +586,25 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                       </button>
                     </div>
                   ))}
-                  <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_8rem_auto] gap-2 items-end">
-                    {descontoEscopo === "total" ? (
-                      <>
-                        <label className="text-sm">
-                          Tipo
-                          <select value={descontoTipo} onChange={(e) => setDescontoTipo(e.target.value as DescontoTipo)} className={`${CAMPO} mt-1`}>
-                            <option value="percentual">Porcentagem</option>
-                            <option value="fixo">Valor fixo (R$)</option>
-                          </select>
-                        </label>
-                        <label className="text-sm">
-                          {descontoTipo === "percentual" ? "Porcentagem" : "Valor (R$)"}
-                          <input value={descontoValor} onChange={(e) => setDescontoValor(e.target.value)} className={`${CAMPO} mt-1`} inputMode="decimal" />
-                        </label>
-                      </>
-                    ) : (
-                      <span className="hidden sm:block sm:col-span-2" />
-                    )}
-                    <div className="text-sm rounded-lg border border-gray-200 dark:border-neutral-700 px-3 py-2">
-                      <p>Soma {formatCurrency(conta.bruto)}</p>
-                      <p>Desconto {formatCurrency(conta.desconto)}</p>
-                      <p className="font-semibold">Total {formatCurrency(conta.liquido)}</p>
+                  {descontoEscopo === "total" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md">
+                      <label className="text-sm">
+                        Tipo
+                        <select value={descontoTipo} onChange={(e) => setDescontoTipo(e.target.value as DescontoTipo)} className={`${CAMPO} mt-1`}>
+                          <option value="percentual">Porcentagem</option>
+                          <option value="fixo">Valor fixo (R$)</option>
+                        </select>
+                      </label>
+                      <label className="text-sm">
+                        {descontoTipo === "percentual" ? "Porcentagem" : "Valor (R$)"}
+                        <input value={descontoValor} onChange={(e) => setDescontoValor(e.target.value)} className={`${CAMPO} mt-1`} inputMode="decimal" />
+                      </label>
                     </div>
+                  ) : null}
+                  <div className="text-sm rounded-lg border border-gray-200 dark:border-neutral-700 px-3 py-2 max-w-sm">
+                    <p>Soma {formatCurrency(conta.bruto)}</p>
+                    <p>Desconto {formatCurrency(conta.desconto)}</p>
+                    <p className="font-semibold">Total {formatCurrency(conta.liquido)}</p>
                   </div>
                 </div>
               ) : (

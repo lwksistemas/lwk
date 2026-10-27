@@ -5,6 +5,7 @@ import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMulti
 import { procedimentosSemCategoriaProtocolo } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-builders";
 import type { UseCriarAgendamentoReturn } from "@/hooks/clinica-beleza/useCriarAgendamento";
 import { formatCurrency } from "@/lib/financeiro-helpers";
+import { ProtocoloCobrancaBox } from "./CriarAgendamentoAgendaSection";
 import { SectionTitle } from "./CriarAgendamentoFormFields";
 
 type Props = Pick<
@@ -25,6 +26,11 @@ type Props = Pick<
   | "protocoloCliente"
   | "protocoloSelecionado"
   | "agendaEhProtocolo"
+  | "valorProtocolo"
+  | "formaCobranca"
+  | "setFormaCobranca"
+  | "isConsulta"
+  | "totalEstimado"
 > & {
   onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
 };
@@ -47,10 +53,15 @@ export function CriarAgendamentoClienteSection({
   protocoloCliente,
   protocoloSelecionado,
   agendaEhProtocolo,
+  valorProtocolo,
+  formaCobranca,
+  setFormaCobranca,
+  isConsulta,
+  totalEstimado,
 }: Props) {
   const proceduresDoHorario = procedimentosSemCategoriaProtocolo(procedures);
   return (
-    <div className={agendaEhProtocolo ? "flex h-full flex-col gap-4" : "space-y-4"}>
+    <div className="space-y-4">
       <SectionTitle>Cliente</SectionTitle>
       <PatientQuickRegisterField
         patients={patients}
@@ -68,7 +79,7 @@ export function CriarAgendamentoClienteSection({
         disabled={createLoading}
       />
       {protocoloCliente ? (
-        <div className="flex flex-1 flex-col rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-neutral-700 dark:bg-neutral-900/50">
+        <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-neutral-700 dark:bg-neutral-900/50">
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Protocolo desta cliente</p>
           <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{protocoloCliente.nome}</p>
           <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
@@ -91,12 +102,12 @@ export function CriarAgendamentoClienteSection({
               <dd className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(protocoloCliente.valor_total)}</dd>
             </div>
           </dl>
-          <p className="mt-auto pt-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+          <p className="mt-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
             Depois de Cliente presente, o recebimento escolhe o valor total ou o parcelamento por sessão.
           </p>
         </div>
       ) : agendaEhProtocolo && protocoloSelecionado ? (
-        <div className="flex flex-1 flex-col rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-neutral-700 dark:bg-neutral-900/50">
+        <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-neutral-700 dark:bg-neutral-900/50">
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Modelo da clínica</p>
           <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{protocoloSelecionado.nome}</p>
           <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
@@ -118,9 +129,23 @@ export function CriarAgendamentoClienteSection({
               </dd>
             </div>
           </dl>
-          <p className="mt-auto pt-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+          <p className="mt-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
             Ao salvar, este modelo vira o protocolo desta cliente e as sessões entram na agenda.
           </p>
+          <div className="mt-3 border-t border-gray-200 pt-3 dark:border-neutral-700">
+            <ProtocoloCobrancaBox
+              nome={protocoloSelecionado.nome}
+              sessoes={protocoloSelecionado.sessoes || 1}
+              intervaloQuantidade={protocoloSelecionado.intervalo_quantidade || 1}
+              intervaloUnidade={protocoloSelecionado.intervalo_unidade || "dias"}
+              valorPacote={valorProtocolo}
+              forma={formaCobranca}
+              onForma={setFormaCobranca}
+              isConsulta={isConsulta}
+              totalDestaVisita={totalEstimado}
+              ocultarResumo
+            />
+          </div>
         </div>
       ) : agendaEhProtocolo ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">

@@ -177,6 +177,7 @@ export function useCriarAgendamentoSubmit(
           professionalId: Number(professionalId),
           localId,
           date,
+          formaCobranca,
         });
         resetAndClose();
         onSuccess();

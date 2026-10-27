@@ -219,14 +219,23 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
   }, [protocoloSelecionado, procedures, novaConsulta.convenioId, novaConsulta.precosMap]);
 
   const pricing = useMemo(() => {
+    const pacoteCliente = protocoloCliente
+      ? {
+          sessoes: Number(protocoloCliente.sessoes) || 1,
+          valor: Number(protocoloCliente.valor_total) || 0,
+        }
+      : null;
+    const pacote = protocoloSelecionado
+      ? { sessoes: protocoloSelecionado.sessoes || 1, valor: valorProtocolo }
+      : pacoteCliente;
     const base = computeCriarAgendamentoPricing(
       localAtendimentoId,
       locaisAtendimento,
-      protocoloSelecionado ? null : retornoInfo,
+      pacote ? null : retornoInfo,
       novaConsulta.resumo.valor,
     );
-    if (!protocoloSelecionado) return base;
-    const partes = dividirValorProtocolo(valorProtocolo, protocoloSelecionado.sessoes || 1, formaCobranca);
+    if (!pacote) return base;
+    const partes = dividirValorProtocolo(pacote.valor, pacote.sessoes, formaCobranca);
     const primeira = partes[0] ?? 0;
     return {
       ...base,
@@ -239,6 +248,7 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     retornoInfo,
     novaConsulta.resumo.valor,
     protocoloSelecionado,
+    protocoloCliente,
     formaCobranca,
     valorProtocolo,
   ]);

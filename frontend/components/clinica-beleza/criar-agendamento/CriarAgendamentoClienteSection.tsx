@@ -119,9 +119,20 @@ export function CriarAgendamentoClienteSection({
               <dd className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(protocoloCliente.valor_total)}</dd>
             </div>
           </dl>
-          <p className="mt-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-            Depois de Cliente presente, o recebimento escolhe o valor total ou o parcelamento por sessão.
-          </p>
+          <div className="mt-3 border-t border-gray-200 pt-3 dark:border-neutral-700">
+            <ProtocoloCobrancaBox
+              nome={protocoloCliente.nome}
+              sessoes={protocoloCliente.sessoes || 1}
+              intervaloQuantidade={protocoloCliente.intervalo_quantidade || 1}
+              intervaloUnidade={protocoloCliente.intervalo_unidade || "dias"}
+              valorPacote={Number(protocoloCliente.valor_total) || 0}
+              forma={formaCobranca}
+              onForma={setFormaCobranca}
+              isConsulta={isConsulta}
+              totalDestaVisita={totalEstimado}
+              ocultarResumo
+            />
+          </div>
         </div>
       ) : agendaEhProtocolo && protocoloSelecionado ? (
         <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-neutral-700 dark:bg-neutral-900/50">

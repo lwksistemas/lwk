@@ -372,6 +372,7 @@ def agendar_protocolo_personalizado(
     professional,
     local_atendimento,
     data_inicio,
+    forma_cobranca: str = "",
     request=None,
 ) -> dict:
     """A secretaria escolhe a profissional e cria as sessões no horário livre dela."""
@@ -389,6 +390,9 @@ def agendar_protocolo_personalizado(
         raise AgendaValidationError("Selecione o local de atendimento.")
     if not contrato.tempo_minutos or not contrato.intervalo_quantidade or not contrato.intervalo_unidade:
         raise AgendaValidationError("O protocolo está sem duração ou intervalo.")
+    forma = (forma_cobranca or "").strip()
+    if forma and forma not in FORMAS_COBRANCA:
+        raise AgendaValidationError("Escolha pagar por consulta ou o valor total.")
 
     linhas = list(contrato.procedimentos.select_related("procedure").order_by("id"))
     if not linhas:
@@ -428,6 +432,28 @@ def agendar_protocolo_personalizado(
     titulo = contrato.nome or "Protocolo personalizado"
     primeiro = linhas[0].procedure
     loja_id = contrato.loja_id
+    partes = None
+    pesos = []
+    if forma in FORMAS_COBRANCA:
+        if (getattr(contrato, "desconto_escopo", "") or "") == "individual":
+            conta, _modo = _conta_do_pacote(
+                [
+                    {
+                        "procedure": linha.procedure,
+                        "preco": linha.valor,
+                        "desconto_tipo": linha.desconto_tipo,
+                        "desconto_valor": linha.desconto_valor,
+                    }
+                    for linha in linhas
+                ],
+                "individual",
+                "",
+                0,
+            )
+            pesos = [item["liquido"] for item in conta["linhas"]]
+        else:
+            pesos = [linha.valor for linha in linhas]
+        partes = dividir_valor_protocolo(contrato.valor_total, int(contrato.sessoes), forma)
     convenio = None
     convenio_paciente = getattr(contrato.patient, "convenio", None)
     if convenio_paciente is not None and getattr(convenio_paciente, "is_active", False):
@@ -437,7 +463,11 @@ def agendar_protocolo_personalizado(
         contrato.professional = professional
         contrato.local_atendimento = local_atendimento
         contrato.data_inicio = slots[0]["inicio"]
-        contrato.save(update_fields=["professional", "local_atendimento", "data_inicio"])
+        campos = ["professional", "local_atendimento", "data_inicio"]
+        if forma in FORMAS_COBRANCA:
+            contrato.forma_cobranca = forma
+            campos.append("forma_cobranca")
+        contrato.save(update_fields=campos)
         criados = []
         for slot in slots:
             notes = f"{titulo} — sessão {slot['sessao']} de {contrato.sessoes}"
@@ -462,12 +492,18 @@ def agendar_protocolo_personalizado(
                 getattr(request, "user", None) if request is not None else None,
                 request=request,
             )
-            for ordem, linha in enumerate(linhas):
+            if partes is None:
+                valores = [Decimal("0.00")] * len(linhas)
+            else:
+                indice = slot["sessao"] - 1
+                valor_sessao = partes[indice] if 0 <= indice < len(partes) else Decimal("0.00")
+                valores = repartir_valor(valor_sessao, pesos)
+            for ordem, (linha, valor_linha) in enumerate(zip(linhas, valores, strict=False)):
                 AppointmentProcedure.objects.create(
                     appointment=appointment,
                     procedure=linha.procedure,
                     duracao_minutos=int(contrato.tempo_minutos),
-                    valor=Decimal("0.00"),
+                    valor=valor_linha,
                     ordem=ordem,
                     loja_id=loja_id,
                 )

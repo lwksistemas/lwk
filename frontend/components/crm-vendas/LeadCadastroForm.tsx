@@ -11,9 +11,12 @@ import {
   Save,
   User,
 } from 'lucide-react';
+import BuscarContaInput from '@/components/crm-vendas/BuscarContaInput';
 import { CrmPagePanel, CRM_ACCENT } from '@/components/crm-vendas/CrmPagePanel';
 import type { FormDataLead } from '@/lib/crm-lead-form-types';
 import { formatTelefone, toUpperCase } from '@/lib/format-br';
+
+const TIPOS_EMPRESA_DO_LEAD = ['cliente', 'ambos'];
 
 const UF_LIST = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
@@ -66,7 +69,10 @@ interface LeadCadastroFormProps {
   showHeader?: boolean;
   accentColor?: string;
   empresaHref?: string;
-  vinculoEmpresa?: { nome: string; cnpj: string } | null;
+  contaNome?: string;
+  contaCnpj?: string;
+  onContaChange: (id: string) => void;
+  cnpjAntigo?: string;
 }
 
 export function LeadCadastroForm({
@@ -86,7 +92,10 @@ export function LeadCadastroForm({
   showHeader = true,
   accentColor = CRM_ACCENT,
   empresaHref,
-  vinculoEmpresa = null,
+  contaNome = '',
+  contaCnpj = '',
+  onContaChange,
+  cnpjAntigo = '',
 }: LeadCadastroFormProps) {
   const selectClass =
     'w-full px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-[#1e3a5f] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#0176d3] focus:ring-offset-0';
@@ -138,39 +147,49 @@ export function LeadCadastroForm({
                 </div>
 
                 <div className="sm:col-span-2">
-                  {vinculoEmpresa ? (
-                    <>
-                      <FieldLabel>Empresa vinculada</FieldLabel>
-                      <p className="text-sm text-gray-800 dark:text-gray-200">
-                        {vinculoEmpresa.nome || 'Conta'}
-                        {vinculoEmpresa.cnpj ? ` · ${vinculoEmpresa.cnpj}` : ''}
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        O CNPJ fica no cadastro da conta. Este lead é a pessoa ligada a essa empresa.
-                      </p>
-                    </>
+                  <FieldLabel>Empresa</FieldLabel>
+                  <BuscarContaInput
+                    contaId={form.conta}
+                    initialNome={contaNome}
+                    onContaChange={onContaChange}
+                    placeholder="Buscar empresa pelo nome ou CNPJ..."
+                    tipos={TIPOS_EMPRESA_DO_LEAD}
+                    inputClassName="w-full px-3 py-2 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-[#1e3a5f] text-gray-900 dark:text-gray-100"
+                  />
+                  {contaCnpj ? (
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">CNPJ {contaCnpj}</p>
                   ) : (
-                    <>
-                      <FieldLabel>CPF</FieldLabel>
-                      <IconInput
-                        icon={CreditCard}
-                        value={form.cpf_cnpj}
-                        onChange={(e) => onCpfChange(e.target.value)}
-                        placeholder="000.000.000-00"
-                        inputMode="numeric"
-                        maxLength={14}
-                      />
-                      {empresaHref && (
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          Pessoa física. Empresa com CNPJ entra em{' '}
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Opcional. O CNPJ fica no cadastro da empresa.
+                      {empresaHref ? (
+                        <>
+                          {' '}
+                          Se ela ainda não existe,{' '}
                           <Link href={empresaHref} className="font-medium" style={{ color: accentColor }}>
-                            Contas
+                            cadastre a conta
                           </Link>
-                          {' '}e depois no contato. O lead da empresa é criado ao salvar o contato.
-                        </p>
-                      )}
-                    </>
+                          .
+                        </>
+                      ) : null}
+                    </p>
                   )}
+                  {cnpjAntigo && !form.conta ? (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                      Este lead ainda guarda o CNPJ {cnpjAntigo}. Vincule a empresa cadastrada.
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="sm:col-span-2">
+                  <FieldLabel>CPF</FieldLabel>
+                  <IconInput
+                    icon={CreditCard}
+                    value={form.cpf_cnpj}
+                    onChange={(e) => onCpfChange(e.target.value)}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                    maxLength={14}
+                  />
                 </div>
 
                 <div>

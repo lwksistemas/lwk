@@ -9,6 +9,7 @@ export interface CrmContaBuscaItem {
   nome: string;
   segmento?: string;
   cnpj?: string;
+  tipo?: string;
 }
 
 function rotuloConta(conta: CrmContaBuscaItem): string {
@@ -28,6 +29,7 @@ interface BuscarContaInputProps {
   className?: string;
   inputClassName?: string;
   limit?: number;
+  tipos?: string[];
 }
 
 export default function BuscarContaInput({
@@ -40,6 +42,7 @@ export default function BuscarContaInput({
   className = '',
   inputClassName = '',
   limit = 10,
+  tipos,
 }: BuscarContaInputProps) {
   const fetchById = useCallback(async (id: string) => {
     const res = await apiClient.get<CrmContaBuscaItem>(`/crm-vendas/contas/${id}/`);
@@ -50,8 +53,10 @@ export default function BuscarContaInput({
     const res = await apiClient.get<{ contas: CrmContaBuscaItem[] }>('/crm-vendas/busca/', {
       params: { q, limit: lim },
     });
-    return res.data.contas ?? [];
-  }, []);
+    const contas = res.data.contas ?? [];
+    if (!tipos?.length) return contas;
+    return contas.filter((conta) => !conta.tipo || tipos.includes(conta.tipo));
+  }, [tipos]);
 
   const searchProps: CrmSearchInputProps<CrmContaBuscaItem> = {
     selectedId: contaId,

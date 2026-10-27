@@ -147,7 +147,7 @@ export default function NovaContaPage() {
       if (formData.tipo === 'cliente') {
         const nome = encodeURIComponent(formData.nome.trim());
         router.push(
-          `/loja/${slug}/crm-vendas/contatos/novo?conta_id=${resposta.data.id}&conta_nome=${nome}`,
+          `/loja/${slug}/crm-vendas/leads/novo?conta_id=${resposta.data.id}&conta_nome=${nome}`,
         );
         return;
       }

@@ -57,7 +57,7 @@ def _busca_contas(term, term_digits, vendedor_id, request, limit, q_icontains_se
         f |= q_contem_digitos_ignorando_mascara("cnpj", term_digits)
         f |= q_contem_digitos_ignorando_mascara("telefone", term_digits)
     qs = _aplicar_filtro_vendedor(Conta.objects.filter(f), vendedor_id, request, liberar_qualidade=True)
-    return list(qs.values("id", "nome", "segmento", "cnpj")[:limit])
+    return list(qs.values("id", "nome", "segmento", "cnpj", "tipo")[:limit])
 
 
 def _busca_propostas(term, term_digits, vendedor_id, request, limit, q_icontains_sem_acento, Proposta, Q):
@@ -87,7 +87,13 @@ def _serializar_oportunidade(r):
 
 
 def _serializar_conta(r):
-    return {"id": r["id"], "nome": r["nome"], "segmento": r["segmento"] or "", "cnpj": r.get("cnpj") or ""}
+    return {
+        "id": r["id"],
+        "nome": r["nome"],
+        "segmento": r["segmento"] or "",
+        "cnpj": r.get("cnpj") or "",
+        "tipo": r.get("tipo") or "",
+    }
 
 
 def _serializar_proposta(r):

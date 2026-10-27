@@ -24,6 +24,7 @@ export interface Lead {
   created_at: string;
   conta?: number | null;
   conta_nome?: string;
+  conta_cnpj?: string;
   conta_info?: {
     id: number;
     nome: string;
@@ -126,12 +127,13 @@ export default function LeadsTable({
       case 'empresa':
         // Mostrar nome da empresa (conta vinculada ou campo empresa) + CNPJ/CPF
         const nomeEmpresa = lead.conta_nome || lead.empresa;
+        const documentoEmpresa = lead.conta_cnpj || lead.cpf_cnpj;
         if (nomeEmpresa) {
           return (
             <div>
               <span className="text-gray-800 dark:text-white text-sm">{nomeEmpresa}</span>
-              {lead.cpf_cnpj && (
-                <span className="block text-xs text-gray-500 dark:text-gray-400">{lead.cpf_cnpj}</span>
+              {documentoEmpresa && (
+                <span className="block text-xs text-gray-500 dark:text-gray-400">{documentoEmpresa}</span>
               )}
             </div>
           );

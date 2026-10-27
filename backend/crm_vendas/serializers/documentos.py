@@ -127,7 +127,27 @@ class PrestadoraPkField(serializers.PrimaryKeyRelatedField):
         return Conta.objects.filter(tipo__in=["prestadora", "ambos"])
 
 
-class PropostaTemplateSerializer(serializers.ModelSerializer):
+class _ConteudoTemplateLimpo:
+    """Grava e devolve o HTML sem script. O texto do template permanece."""
+
+    def validate(self, attrs):
+        from ..html_template import limpar_html_template
+
+        attrs = super().validate(attrs)
+        if attrs.get("conteudo"):
+            attrs["conteudo"] = limpar_html_template(attrs["conteudo"])
+        return attrs
+
+    def to_representation(self, instance):
+        from ..html_template import limpar_html_template
+
+        data = super().to_representation(instance)
+        if data.get("conteudo"):
+            data["conteudo"] = limpar_html_template(data["conteudo"])
+        return data
+
+
+class PropostaTemplateSerializer(_ConteudoTemplateLimpo, serializers.ModelSerializer):
     prestadora = PrestadoraPkField(required=False, allow_null=True)
     prestadora_nome = serializers.SerializerMethodField()
 
@@ -146,6 +166,7 @@ class PropostaTemplateSerializer(serializers.ModelSerializer):
         return nome_da_conta(prestadora) or None
 
     def validate(self, attrs):
+        attrs = super().validate(attrs)
         prestadora = attrs.get("prestadora", serializers.empty)
         if self.instance is None and not attrs.get("prestadora"):
             raise serializers.ValidationError({"prestadora": "Selecione a empresa prestadora."})
@@ -154,7 +175,7 @@ class PropostaTemplateSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class ContratoTemplateSerializer(serializers.ModelSerializer):
+class ContratoTemplateSerializer(_ConteudoTemplateLimpo, serializers.ModelSerializer):
     class Meta:
         model = ContratoTemplate
         fields = [
@@ -164,7 +185,7 @@ class ContratoTemplateSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
 
-class NfseDescricaoTemplateSerializer(serializers.ModelSerializer):
+class NfseDescricaoTemplateSerializer(_ConteudoTemplateLimpo, serializers.ModelSerializer):
     class Meta:
         model = NfseDescricaoTemplate
         fields = [

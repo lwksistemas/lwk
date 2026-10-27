@@ -64,6 +64,7 @@ export function useCriarAgendamentoSubmit(
     protocolosCarregando,
     formaCobranca,
     protocoloClienteId,
+    protocoloModeloId,
     protocolosDaCliente,
     setProtocoloClienteId,
     setCreateLoading,
@@ -129,19 +130,20 @@ export function useCriarAgendamentoSubmit(
 
     const protocoloDaCliente = protocolosDaCliente.find((item) => item.id === protocoloClienteId) ?? null;
     const tipoAgenda = nomesAgenda.find((item) => item.id === Number(agendaId))?.nome || "";
-    if (
-      normalizarTipoAgendaNome(tipoAgenda) === "PROTOCOLO" &&
-      !protocoloDaCliente &&
-      selectedProcedures.length === 0
-    ) {
+    const agendaEhProtocolo = normalizarTipoAgendaNome(tipoAgenda) === "PROTOCOLO";
+    const protocoloModelo = agendaEhProtocolo
+      ? protocolos.find((item) => item.id === protocoloModeloId) ?? null
+      : null;
+    const proceduresDoHorario = agendaEhProtocolo ? [] : selectedProcedures;
+    if (agendaEhProtocolo && !protocoloDaCliente && !protocoloModelo) {
       setCreateError(
-        protocolosDaCliente.length > 0
+        protocolosDaCliente.length > 0 || protocolos.length > 0
           ? "Escolha o protocolo."
-          : "Esta cliente não tem protocolo personalizado para agendar.",
+          : "Não há protocolo para agendar. Cadastre no prontuário ou em Protocolos.",
       );
       return;
     }
-    if (protocoloDaCliente && selectedProcedures.length > 0) {
+    if (protocoloDaCliente && proceduresDoHorario.length > 0) {
       setCreateError("O protocolo personalizado é agendado sozinho. Tire os outros procedimentos.");
       return;
     }
@@ -186,16 +188,16 @@ export function useCriarAgendamentoSubmit(
       return;
     }
 
-    if (protocolosCarregando && selectedProcedures.length > 0) {
+    if (protocolosCarregando && (proceduresDoHorario.length > 0 || protocoloModelo)) {
       setCreateError("Carregando protocolos. Tente novamente.");
       return;
     }
-    const selecao = classificarSelecaoProtocolo(procedures, selectedProcedures, protocolos);
+    const selecao = classificarSelecaoProtocolo(procedures, proceduresDoHorario, protocolos);
     if (selecao.tipo === "erro") {
       setCreateError(selecao.mensagem);
       return;
     }
-    const protocolo = selecao.tipo === "agendar" ? selecao.protocolo : null;
+    const protocolo = protocoloModelo;
 
     const localSel = localId ? locaisAtendimento.find((l) => l.id === localId) : undefined;
     const profSel = professionalId ? professionals.find((p) => p.id === professionalId) : undefined;
@@ -205,6 +207,14 @@ export function useCriarAgendamentoSubmit(
     const horarioMsg = workHoursRejectionMessage(date, duracaoChecagem, horariosProfissional);
     if (horarioMsg) {
       setCreateError(horarioMsg);
+      return;
+    }
+    if (protocolo && !localId) {
+      setCreateError("Selecione o local de atendimento.");
+      return;
+    }
+    if (protocolo && isBrowserOffline()) {
+      setCreateError("O protocolo precisa de conexão para criar as sessões.");
       return;
     }
 
@@ -219,7 +229,7 @@ export function useCriarAgendamentoSubmit(
       professionalId,
       localId,
       convenioId,
-      selectedProcedures,
+      selectedProcedures: protocolo ? [protocolo.procedure] : proceduresDoHorario,
       retornoProcedureId: protocolo ? "" : retornoProcedureId,
       formaCobranca: protocolo ? formaCobranca : undefined,
     });
@@ -278,7 +288,7 @@ export function useCriarAgendamentoSubmit(
     } catch (err: unknown) {
       const msg = extractCriarAgendamentoSubmitError(err, isConsulta);
 
-      if (isFetchNetworkError(msg)) {
+      if (isFetchNetworkError(msg) && !protocolo) {
         try {
           if (isConsulta) {
             await finishConsultaOffline();

@@ -32,6 +32,7 @@ export interface CriarAgendamentoSubmitContext {
   protocolosCarregando: boolean;
   formaCobranca: ProtocoloFormaCobranca;
   protocoloClienteId: number | "";
+  protocoloModeloId: number | "";
   protocolosDaCliente: ProtocoloClientePendente[];
   setProtocoloClienteId: (id: number | "") => void;
   setCreateLoading: (v: boolean) => void;

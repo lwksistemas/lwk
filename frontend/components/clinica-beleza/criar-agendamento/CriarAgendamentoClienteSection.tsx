@@ -2,6 +2,7 @@ import { PatientQuickRegisterField } from "@/components/clinica-beleza/patient-q
 import type { PatientQuickOption } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-types";
 import { rotuloIntervaloProtocolo } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
 import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
+import { procedimentosSemCategoriaProtocolo } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-builders";
 import type { UseCriarAgendamentoReturn } from "@/hooks/clinica-beleza/useCriarAgendamento";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { SectionTitle } from "./CriarAgendamentoFormFields";
@@ -22,6 +23,8 @@ type Props = Pick<
   | "handleCreatePatient"
   | "onPatientsChange"
   | "protocoloCliente"
+  | "protocoloSelecionado"
+  | "agendaEhProtocolo"
 > & {
   onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
 };
@@ -42,9 +45,12 @@ export function CriarAgendamentoClienteSection({
   onPatientsChange,
   onSearchPatients,
   protocoloCliente,
+  protocoloSelecionado,
+  agendaEhProtocolo,
 }: Props) {
+  const proceduresDoHorario = procedimentosSemCategoriaProtocolo(procedures);
   return (
-    <div className={protocoloCliente ? "flex h-full flex-col gap-4" : "space-y-4"}>
+    <div className={agendaEhProtocolo ? "flex h-full flex-col gap-4" : "space-y-4"}>
       <SectionTitle>Cliente</SectionTitle>
       <PatientQuickRegisterField
         patients={patients}
@@ -89,9 +95,42 @@ export function CriarAgendamentoClienteSection({
             Depois de Cliente presente, o recebimento escolhe o valor total ou o parcelamento por sessão.
           </p>
         </div>
+      ) : agendaEhProtocolo && protocoloSelecionado ? (
+        <div className="flex flex-1 flex-col rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-neutral-700 dark:bg-neutral-900/50">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Modelo da clínica</p>
+          <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-gray-100">{protocoloSelecionado.nome}</p>
+          <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <dt className="text-xs text-gray-500 dark:text-gray-400">Sessões</dt>
+              <dd className="font-medium text-gray-900 dark:text-gray-100">{protocoloSelecionado.sessoes || 1}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-gray-500 dark:text-gray-400">Duração</dt>
+              <dd className="font-medium text-gray-900 dark:text-gray-100">{protocoloSelecionado.tempo_estimado} min</dd>
+            </div>
+            <div className="col-span-2">
+              <dt className="text-xs text-gray-500 dark:text-gray-400">Intervalo</dt>
+              <dd className="font-medium text-gray-900 dark:text-gray-100">
+                {rotuloIntervaloProtocolo(
+                  protocoloSelecionado.intervalo_quantidade || 1,
+                  protocoloSelecionado.intervalo_unidade || "dias",
+                )}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-auto pt-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+            Ao salvar, este modelo vira o protocolo desta cliente e as sessões entram na agenda.
+          </p>
+        </div>
+      ) : agendaEhProtocolo ? (
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {patientId
+            ? "Escolha o protocolo na coluna Agendamento."
+            : "Selecione a cliente. O protocolo é escolhido na coluna Agendamento."}
+        </p>
       ) : (
         <ProcedureMultiSelect
-          procedures={procedures}
+          procedures={proceduresDoHorario}
           selectedIds={selectedProcedures}
           onAdd={adicionarProcedimento}
           onRemove={removerProcedimento}

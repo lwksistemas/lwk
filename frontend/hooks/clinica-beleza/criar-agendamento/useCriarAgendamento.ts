@@ -9,10 +9,11 @@ import {
   type RetornoVerificacaoResult,
 } from "@/lib/clinica-beleza-api";
 import { dividirValorProtocolo } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
-import { findNomeAgendaByTipo, normalizarTipoAgendaNome } from "@/lib/clinica-beleza-tipo-agenda";
+import { procedurePrice } from "@/lib/clinica-beleza-entities";
+import { normalizarTipoAgendaNome } from "@/lib/clinica-beleza-tipo-agenda";
+import { precoProcedimento } from "@/lib/convenio-precos";
 import { type HorarioTrabalho } from "@/lib/clinica-beleza-work-hours";
 import {
-  classificarSelecaoProtocolo,
   computeCriarAgendamentoPricing,
   getCriarAgendamentoModalLabels,
   type ProtocoloAgendaResumo,
@@ -53,7 +54,9 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
   const [protocolosCarregando, setProtocolosCarregando] = useState(false);
   const [formaCobranca, setFormaCobranca] = useState<ProtocoloFormaCobranca>("POR_CONSULTA");
   const [protocolosDaCliente, setProtocolosDaCliente] = useState<ProtocoloClientePendente[]>([]);
+  const [protocolosClienteCarregando, setProtocolosClienteCarregando] = useState(false);
   const [protocoloClienteId, setProtocoloClienteId] = useState<number | "">("");
+  const [protocoloModeloId, setProtocoloModeloId] = useState<number | "">("");
 
   useEffect(() => {
     if (!open) {
@@ -94,9 +97,15 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     if (!open || !novaConsulta.patientId) {
       setProtocolosDaCliente([]);
       setProtocoloClienteId("");
+      setProtocoloModeloId("");
+      setProtocolosClienteCarregando(false);
       return;
     }
     let ativo = true;
+    setProtocolosDaCliente([]);
+    setProtocoloClienteId("");
+    setProtocolosClienteCarregando(true);
+    setProtocoloModeloId("");
     void (async () => {
       try {
         const res = await clinicaBelezaFetch(
@@ -109,6 +118,8 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
         setProtocoloClienteId((atual) => (lista.some((item) => item.id === atual) ? atual : ""));
       } catch {
         if (ativo) setProtocolosDaCliente([]);
+      } finally {
+        if (ativo) setProtocolosClienteCarregando(false);
       }
     })();
     return () => {
@@ -154,6 +165,7 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     protocolosCarregando,
     formaCobranca,
     protocoloClienteId,
+    protocoloModeloId,
     protocolosDaCliente,
     setProtocoloClienteId,
     setCreateLoading,
@@ -165,14 +177,26 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     setLocalAtendimentoId,
   });
 
-  const selecaoProtocolo = useMemo(
-    () => classificarSelecaoProtocolo(procedures, novaConsulta.selectedProcedures, protocolos),
-    [procedures, novaConsulta.selectedProcedures, protocolos],
-  );
+  const agendaEhProtocolo =
+    normalizarTipoAgendaNome(nomesAgenda.find((item) => item.id === nomeAgendaId)?.nome || "") === "PROTOCOLO";
+  const protocoloCliente =
+    protocolosDaCliente.find((item) => item.id === protocoloClienteId) ?? null;
   const protocoloSelecionado =
-    !protocolosCarregando && selecaoProtocolo.tipo === "agendar" ? selecaoProtocolo.protocolo : null;
-  const protocoloErro =
-    !protocolosCarregando && selecaoProtocolo.tipo === "erro" ? selecaoProtocolo.mensagem : "";
+    agendaEhProtocolo && protocolosDaCliente.length === 0 && !protocolosClienteCarregando
+      ? protocolos.find((item) => item.id === protocoloModeloId) ?? null
+      : null;
+
+  const valorProtocolo = useMemo(() => {
+    if (!protocoloSelecionado) return 0;
+    const procedimento = procedures.find((item) => item.id === protocoloSelecionado.procedure);
+    const particular = procedimento ? Number(procedurePrice(procedimento)) || 0 : 0;
+    return precoProcedimento(
+      protocoloSelecionado.procedure,
+      particular,
+      novaConsulta.convenioId,
+      novaConsulta.precosMap,
+    );
+  }, [protocoloSelecionado, procedures, novaConsulta.convenioId, novaConsulta.precosMap]);
 
   const pricing = useMemo(() => {
     const base = computeCriarAgendamentoPricing(
@@ -182,11 +206,7 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
       novaConsulta.resumo.valor,
     );
     if (!protocoloSelecionado) return base;
-    const partes = dividirValorProtocolo(
-      novaConsulta.resumo.valor,
-      protocoloSelecionado.sessoes || 1,
-      formaCobranca,
-    );
+    const partes = dividirValorProtocolo(valorProtocolo, protocoloSelecionado.sessoes || 1, formaCobranca);
     const primeira = partes[0] ?? 0;
     return {
       ...base,
@@ -200,32 +220,27 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     novaConsulta.resumo.valor,
     protocoloSelecionado,
     formaCobranca,
+    valorProtocolo,
   ]);
-
-  const protocoloCliente =
-    protocolosDaCliente.find((item) => item.id === protocoloClienteId) ?? null;
-  const agendaEhProtocolo =
-    normalizarTipoAgendaNome(nomesAgenda.find((item) => item.id === nomeAgendaId)?.nome || "") === "PROTOCOLO";
 
   useEffect(() => {
     if (!agendaEhProtocolo) {
       if (protocoloClienteId) setProtocoloClienteId("");
+      if (protocoloModeloId) setProtocoloModeloId("");
       return;
     }
-    if (
-      protocolosDaCliente.length === 1 &&
-      protocoloClienteId !== protocolosDaCliente[0].id &&
-      novaConsulta.selectedProcedures.length === 0
-    ) {
-      setProtocoloClienteId(protocolosDaCliente[0].id);
+    if (protocolosDaCliente.length > 0) {
+      if (protocoloModeloId) setProtocoloModeloId("");
+      if (protocolosDaCliente.length === 1 && protocoloClienteId !== protocolosDaCliente[0].id) {
+        setProtocoloClienteId(protocolosDaCliente[0].id);
+      }
     }
-  }, [agendaEhProtocolo, protocoloClienteId, protocolosDaCliente, novaConsulta.selectedProcedures.length]);
-
-  useEffect(() => {
-    if (!open || (!protocoloSelecionado && !protocoloCliente) || nomesAgenda.length === 0) return;
-    const tipoProtocolo = findNomeAgendaByTipo(nomesAgenda, "PROTOCOLO");
-    if (tipoProtocolo) setNomeAgendaId(tipoProtocolo.id);
-  }, [open, protocoloSelecionado, protocoloCliente, nomesAgenda]);
+  }, [
+    agendaEhProtocolo,
+    protocoloClienteId,
+    protocoloModeloId,
+    protocolosDaCliente,
+  ]);
 
   const labels = getCriarAgendamentoModalLabels(isConsulta, createLoading);
 
@@ -263,12 +278,18 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     setShowAdvanced,
     ...pricing,
     protocoloSelecionado,
-    protocoloErro,
+    valorProtocolo,
+    agendaEhProtocolo,
     formaCobranca,
     setFormaCobranca,
+    protocolos,
+    protocolosCarregando,
+    protocolosClienteCarregando,
     protocolosDaCliente,
     protocoloClienteId,
     setProtocoloClienteId,
+    protocoloModeloId,
+    setProtocoloModeloId,
     protocoloCliente,
     handleCreatePatient,
     onPatientsChange,

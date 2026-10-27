@@ -31,25 +31,21 @@ export function classificarSelecaoProtocolo(
   const daCategoria = selecionados.some(
     (item) => resolveProcedureCategoriaSlug(item.categoria || item.category) === "protocolo",
   );
-  if (selectedIds.length > 1 && (ligados.length > 0 || daCategoria)) {
-    return { tipo: "erro", mensagem: "O protocolo é agendado sozinho." };
-  }
-  if (ligados.length > 1) {
+  if (ligados.length > 0 || daCategoria) {
     return {
       tipo: "erro",
-      mensagem: "Há mais de um protocolo ativo neste procedimento. Deixe só um ativo.",
-    };
-  }
-  if (ligados.length === 1 && selectedIds.length === 1) {
-    return { tipo: "agendar", protocolo: ligados[0] };
-  }
-  if (daCategoria) {
-    return {
-      tipo: "erro",
-      mensagem: "Cadastre o protocolo deste procedimento em Protocolos antes de agendar.",
+      mensagem: "Escolha o tipo de agenda Protocolo para agendar o protocolo.",
     };
   }
   return { tipo: "normal" };
+}
+
+export function procedimentosSemCategoriaProtocolo<T extends { categoria?: string | null; category?: string | null }>(
+  procedures: T[],
+): T[] {
+  return procedures.filter(
+    (item) => resolveProcedureCategoriaSlug(item.categoria || item.category) !== "protocolo",
+  );
 }
 
 export function buildAppointmentDate(

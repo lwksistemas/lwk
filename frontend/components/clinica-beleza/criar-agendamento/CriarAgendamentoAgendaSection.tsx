@@ -222,46 +222,63 @@ export function CriarAgendamentoAgendaSection({
             className={inputClass}
           />
         </div>
-        <div className={agendaEhProtocolo && patientId ? undefined : "sm:col-span-2"}>
-          {campoLocalAtendimento}
-        </div>
+        <div className="sm:col-span-2">{campoLocalAtendimento}</div>
         {agendaEhProtocolo && patientId ? (
-          <div>
+          <div className="sm:col-span-2 space-y-2">
             <FieldLabel>Protocolo *</FieldLabel>
-            <select
-              value={protocoloClienteId || protocoloModeloId}
-              onChange={(e) => {
-                const id = e.target.value ? Number(e.target.value) : "";
-                if (protocolosDaCliente.length > 0) {
+            {protocolosClienteCarregando ? (
+              <p className="text-sm text-gray-500">Carregando protocolos...</p>
+            ) : protocolosDaCliente.length > 0 ? (
+              <select
+                value={protocoloClienteId}
+                onChange={(e) => {
+                  const id = e.target.value ? Number(e.target.value) : "";
                   setProtocoloClienteId(id);
                   setProtocoloModeloId("");
-                } else {
-                  setProtocoloModeloId(id);
-                  setProtocoloClienteId("");
-                }
-                if (id) setSelectedProcedures([]);
-              }}
-              className={inputClass}
-              required
-              disabled={protocolosClienteCarregando}
-            >
-              <option value="">
-                {protocolosClienteCarregando ? "Carregando protocolos..." : "Selecione o protocolo"}
-              </option>
-              {protocolosClienteCarregando
-                ? null
-                : protocolosDaCliente.length > 0
-                  ? protocolosDaCliente.map((item) => (
-                      <option key={`cliente-${item.id}`} value={item.id}>
-                        {item.nome}
-                      </option>
-                    ))
-                  : protocolos.map((item) => (
-                      <option key={`modelo-${item.id}`} value={item.id}>
-                        {item.nome}
-                      </option>
-                    ))}
-            </select>
+                  if (id) setSelectedProcedures([]);
+                }}
+                className={inputClass}
+                required
+              >
+                <option value="">Selecione o protocolo</option>
+                {protocolosDaCliente.map((item) => (
+                  <option key={`cliente-${item.id}`} value={item.id}>
+                    {item.nome}
+                  </option>
+                ))}
+              </select>
+            ) : protocolos.length > 0 ? (
+              <div className="space-y-2">
+                {protocolos.map((item) => {
+                  const escolhido = protocoloModeloId === item.id;
+                  const procedimentos = (item.procedimentos || [])
+                    .map((linha) => linha.nome)
+                    .filter(Boolean)
+                    .join(" + ");
+                  return (
+                    <button
+                      key={`modelo-${item.id}`}
+                      type="button"
+                      onClick={() => {
+                        setProtocoloModeloId(item.id);
+                        setProtocoloClienteId("");
+                        setSelectedProcedures([]);
+                      }}
+                      className={`w-full text-left rounded-lg border px-3 py-2 ${
+                        escolhido
+                          ? "border-[var(--cb-primary,#8B3D52)] bg-[var(--cb-primary,#8B3D52)]/10"
+                          : "border-gray-200 dark:border-neutral-700"
+                      }`}
+                    >
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.nome}</p>
+                      {procedimentos ? (
+                        <p className="text-xs text-gray-500 mt-0.5">{procedimentos}</p>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

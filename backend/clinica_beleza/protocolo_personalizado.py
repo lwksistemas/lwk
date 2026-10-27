@@ -106,6 +106,23 @@ def _linhas_de_preco(patient, procedimentos):
     return convenio, linhas
 
 
+_STATUS_IGNORADO = ("CANCELLED", "NO_SHOW")
+_STATUS_IMPEDE_EXCLUSAO = ("CONFIRMED", "IN_PROGRESS", "COMPLETED")
+
+
+def protocolo_pode_editar(status_agendamentos) -> bool:
+    """O pacote só muda de composição enquanto não há sessão viva na agenda."""
+    return not any(status not in _STATUS_IGNORADO for status in status_agendamentos)
+
+
+def motivo_impede_exclusao(status_agendamentos, tem_pagamento: bool) -> str:
+    if any(status in _STATUS_IMPEDE_EXCLUSAO for status in status_agendamentos):
+        return "Este protocolo já teve sessão com a cliente presente. Ele permanece no prontuário."
+    if tem_pagamento:
+        return "Este protocolo já tem pagamento. Ele permanece no prontuário."
+    return ""
+
+
 def criar_protocolo_personalizado(
     *,
     patient,
@@ -185,6 +202,110 @@ def criar_protocolo_personalizado(
         "desconto": str(desconto),
         "valor_total": str(liquido),
     }
+
+
+def _gravar_itens(contrato, linhas, produtos, loja_id):
+    from .models import ProtocoloContratoProcedimento, ProtocoloContratoProduto
+
+    contrato.procedimentos.all().delete()
+    contrato.produtos_sessao.all().delete()
+    for procedure, preco in linhas:
+        ProtocoloContratoProcedimento.objects.create(
+            contrato=contrato,
+            procedure=procedure,
+            valor=preco,
+            loja_id=loja_id,
+        )
+    for item in produtos:
+        ProtocoloContratoProduto.objects.create(
+            contrato=contrato,
+            produto=item["produto"],
+            quantidade=Decimal(str(item["quantidade"])).quantize(Decimal("0.01")),
+            loja_id=loja_id,
+        )
+
+
+def atualizar_protocolo_personalizado(
+    contrato,
+    *,
+    procedimentos,
+    produtos,
+    desconto_tipo: str,
+    desconto_valor,
+    sessoes: int,
+    intervalo_quantidade: int,
+    intervalo_unidade: str,
+    tempo_minutos: int,
+    nome: str = "",
+    request=None,
+) -> dict:
+    """Atualiza o pacote que ainda não foi para a agenda."""
+    from .agenda_service import _bloquear_se_paciente_inadimplente
+
+    if getattr(contrato, "protocol_id", None):
+        raise AgendaValidationError("Este protocolo é do catálogo da clínica.")
+    status = list(contrato.agendamentos.values_list("status", flat=True))
+    if not protocolo_pode_editar(status):
+        raise AgendaValidationError(
+            "Este protocolo já está na agenda. Exclua o pacote para tirar as sessões que ainda não foram atendidas."
+        )
+    if intervalo_unidade not in UNIDADES_INTERVALO:
+        raise AgendaValidationError("Escolha o intervalo em dias, semanas ou meses.")
+    if int(sessoes) < 1:
+        raise AgendaValidationError("O protocolo precisa de ao menos uma sessão.")
+    if int(intervalo_quantidade) < 1:
+        raise AgendaValidationError("Informe o intervalo entre as sessões.")
+    if int(tempo_minutos) < 1:
+        raise AgendaValidationError("Informe a duração de cada atendimento, em minutos.")
+
+    procedimentos, produtos = _validar_itens(procedimentos, produtos)
+    _convenio, linhas = _linhas_de_preco(contrato.patient, procedimentos)
+    bruto = sum((preco for _, preco in linhas), Decimal("0.00")).quantize(Decimal("0.01"))
+    desconto, liquido = aplicar_desconto_protocolo(bruto, desconto_tipo, desconto_valor)
+    _bloquear_se_paciente_inadimplente(contrato.patient, request=request)
+    titulo = (nome or "").strip() or "Protocolo personalizado"
+
+    with transaction.atomic():
+        contrato.nome = titulo
+        contrato.valor_bruto = bruto
+        contrato.desconto_tipo = (desconto_tipo or "").strip().lower()
+        contrato.desconto_valor = Decimal(str(desconto_valor or 0)).quantize(Decimal("0.01"))
+        contrato.valor_total = liquido
+        contrato.tempo_minutos = int(tempo_minutos)
+        contrato.intervalo_quantidade = int(intervalo_quantidade)
+        contrato.intervalo_unidade = intervalo_unidade
+        contrato.sessoes = int(sessoes)
+        contrato.save()
+        _gravar_itens(contrato, linhas, produtos, contrato.loja_id)
+
+    return {
+        "contrato_id": contrato.id,
+        "nome": titulo,
+        "valor_bruto": str(bruto),
+        "desconto": str(desconto),
+        "valor_total": str(liquido),
+    }
+
+
+def excluir_protocolo_personalizado(contrato) -> None:
+    """Apaga o pacote e as sessões que ainda não foram atendidas nem pagas."""
+    from .models import Payment
+
+    if getattr(contrato, "protocol_id", None):
+        raise AgendaValidationError("Este protocolo é do catálogo da clínica.")
+    agendamentos = list(contrato.agendamentos.all())
+    status = [item.status for item in agendamentos]
+    vivos = [item for item in agendamentos if item.status not in _STATUS_IGNORADO]
+    tem_pagamento = Payment.objects.filter(
+        appointment_id__in=[item.id for item in vivos],
+    ).exclude(status="CANCELLED").exists() if vivos else False
+    motivo = motivo_impede_exclusao(status, tem_pagamento)
+    if motivo:
+        raise AgendaValidationError(motivo)
+    with transaction.atomic():
+        for item in vivos:
+            item.delete()
+        contrato.delete()
 
 
 def agendar_protocolo_personalizado(

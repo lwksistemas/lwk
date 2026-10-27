@@ -36,6 +36,23 @@ interface OpcoesProtocolo {
   produtos: ProdutoOpcao[];
 }
 
+interface ProtocoloSalvo {
+  id: number;
+  nome: string;
+  sessoes: number;
+  intervalo_quantidade: number;
+  intervalo_unidade: string;
+  tempo_minutos: number;
+  desconto_tipo: DescontoTipo;
+  desconto_valor: string;
+  valor_total: string;
+  na_agenda: number;
+  pode_editar: boolean;
+  pode_excluir: boolean;
+  procedimentos: ProcedimentoOpcao[];
+  produtos: ProdutoEscolhido[];
+}
+
 interface ProdutoEscolhido {
   produto_id: number;
   nome: string;
@@ -63,8 +80,11 @@ function categoriasDe(itens: Array<{ categoria: string; categoria_nome: string }
 export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPersonalizadoModalProps) {
   const toast = useToast();
   const [opcoes, setOpcoes] = useState<OpcoesProtocolo | null>(null);
+  const [salvos, setSalvos] = useState<ProtocoloSalvo[]>([]);
+  const [editandoId, setEditandoId] = useState<number | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
   const [erro, setErro] = useState("");
   const [categoriaProcedimento, setCategoriaProcedimento] = useState("");
   const [procedimentoId, setProcedimentoId] = useState("");
@@ -82,13 +102,27 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
   const [tempo, setTempo] = useState("40");
   const [nome, setNome] = useState("");
 
+  const carregarSalvos = async () => {
+    const lista = await ClinicaBelezaAPI.get<ProtocoloSalvo[]>(
+      `/protocolos/personalizados/?patient=${patientId}`,
+    );
+    setSalvos(Array.isArray(lista) ? lista : []);
+  };
+
   useEffect(() => {
     let ativo = true;
-    ClinicaBelezaAPI.get<OpcoesProtocolo>(
-      `/protocolos/personalizados/opcoes/?patient=${patientId}`,
-    )
-      .then((data) => {
-        if (ativo) setOpcoes(data);
+    Promise.all([
+      ClinicaBelezaAPI.get<OpcoesProtocolo>(
+        `/protocolos/personalizados/opcoes/?patient=${patientId}`,
+      ),
+      ClinicaBelezaAPI.get<ProtocoloSalvo[]>(
+        `/protocolos/personalizados/?patient=${patientId}`,
+      ),
+    ])
+      .then(([opcoesData, lista]) => {
+        if (!ativo) return;
+        setOpcoes(opcoesData);
+        setSalvos(Array.isArray(lista) ? lista : []);
       })
       .catch((err) => {
         if (ativo) setErro(formatApiErrorBody(err) || "Não foi possível carregar os procedimentos.");
@@ -100,6 +134,66 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
       ativo = false;
     };
   }, [patientId]);
+
+  const limparFormulario = () => {
+    setEditandoId(null);
+    setEscolhidos([]);
+    setProdutos([]);
+    setDescontoTipo("percentual");
+    setDescontoValor("0");
+    setSessoes("4");
+    setIntervalo("15");
+    setUnidade("dias");
+    setTempo("40");
+    setNome("");
+    setCategoriaProcedimento("");
+    setProcedimentoId("");
+    setCategoriaProduto("");
+    setProdutoId("");
+    setQuantidade("1");
+    setErro("");
+  };
+
+  const editar = (item: ProtocoloSalvo) => {
+    if (!item.pode_editar) {
+      setErro("Este protocolo já está na agenda. Exclua o pacote para tirar as sessões que ainda não foram atendidas.");
+      return;
+    }
+    setErro("");
+    setEditandoId(item.id);
+    setEscolhidos(item.procedimentos);
+    setProdutos(item.produtos);
+    setDescontoTipo(item.desconto_tipo === "fixo" ? "fixo" : "percentual");
+    setDescontoValor(item.desconto_valor);
+    setSessoes(String(item.sessoes));
+    setIntervalo(String(item.intervalo_quantidade));
+    setUnidade(item.intervalo_unidade || "dias");
+    setTempo(String(item.tempo_minutos));
+    setNome(item.nome === "Protocolo personalizado" ? "" : item.nome);
+  };
+
+  const excluir = async (item: ProtocoloSalvo) => {
+    if (!item.pode_excluir) {
+      setErro("Este protocolo já teve sessão com a cliente presente ou pagamento. Ele permanece no prontuário.");
+      return;
+    }
+    const aviso = item.na_agenda > 0
+      ? `Excluir "${item.nome}"? As ${item.na_agenda} sessões que ainda não foram atendidas saem da agenda.`
+      : `Excluir "${item.nome}"?`;
+    if (!window.confirm(aviso)) return;
+    setErro("");
+    setExcluindoId(item.id);
+    try {
+      await ClinicaBelezaAPI.delete(`/protocolos/personalizados/${item.id}/`);
+      if (editandoId === item.id) limparFormulario();
+      await carregarSalvos();
+      toast.success("Protocolo excluído.");
+    } catch (err) {
+      setErro(formatApiErrorBody(err) || "Não foi possível excluir o protocolo.");
+    } finally {
+      setExcluindoId(null);
+    }
+  };
 
   const bruto = escolhidos.reduce((soma, item) => soma + Number(item.preco), 0);
   const conta = aplicarDescontoProtocolo(bruto, descontoTipo, Number(descontoValor || 0));
@@ -174,26 +268,32 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
   const salvar = async () => {
     setErro("");
     setSalvando(true);
+    const corpo = {
+      procedimentos: escolhidos.map((item) => item.id),
+      produtos: produtos.map((item) => ({
+        produto_id: item.produto_id,
+        quantidade: item.quantidade,
+      })),
+      desconto_tipo: descontoTipo,
+      desconto_valor: descontoValor || "0",
+      sessoes: Number(sessoes),
+      intervalo_quantidade: Number(intervalo),
+      intervalo_unidade: unidade,
+      tempo_minutos: Number(tempo),
+      nome,
+    };
     try {
-      await ClinicaBelezaAPI.post("/protocolos/personalizados/", {
-        patient: patientId,
-        procedimentos: escolhidos.map((item) => item.id),
-        produtos: produtos.map((item) => ({
-          produto_id: item.produto_id,
-          quantidade: item.quantidade,
-        })),
-        desconto_tipo: descontoTipo,
-        desconto_valor: descontoValor || "0",
-        sessoes: Number(sessoes),
-        intervalo_quantidade: Number(intervalo),
-        intervalo_unidade: unidade,
-        tempo_minutos: Number(tempo),
-        nome,
-      });
-      toast.success("Protocolo salvo. A secretaria agenda e escolhe a profissional.");
-      onClose();
+      if (editandoId) {
+        await ClinicaBelezaAPI.patch(`/protocolos/personalizados/${editandoId}/`, corpo);
+        toast.success("Protocolo atualizado.");
+      } else {
+        await ClinicaBelezaAPI.post("/protocolos/personalizados/", { patient: patientId, ...corpo });
+        toast.success("Protocolo salvo. A secretaria agenda e escolhe a profissional.");
+      }
+      limparFormulario();
+      await carregarSalvos();
     } catch (err) {
-      setErro(formatApiErrorBody(err) || "Não foi possível criar o protocolo.");
+      setErro(formatApiErrorBody(err) || "Não foi possível salvar o protocolo.");
     } finally {
       setSalvando(false);
     }
@@ -227,6 +327,57 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
             <p className="text-sm text-gray-500">Carregando procedimentos...</p>
           ) : (
             <>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Protocolos desta cliente</p>
+                {salvos.length === 0 ? (
+                  <p className="text-sm text-gray-500">Nenhum protocolo personalizado ainda.</p>
+                ) : (
+                  salvos.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-gray-200 dark:border-neutral-700 px-3 py-2"
+                    >
+                      <div className="min-w-0 text-sm">
+                        <p className="font-medium break-words">{item.nome}</p>
+                        <p className="text-gray-500">
+                          {item.sessoes} sessões · {formatCurrency(item.valor_total)}
+                          {" · "}
+                          {item.na_agenda > 0 ? `${item.na_agenda} na agenda` : "Ainda não agendado"}
+                        </p>
+                        {!item.pode_editar ? (
+                          <p className="text-xs text-gray-500">A edição fica bloqueada porque as sessões já estão na agenda.</p>
+                        ) : null}
+                        {!item.pode_excluir ? (
+                          <p className="text-xs text-gray-500">Não pode ser excluído: já teve atendimento ou pagamento.</p>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editar(item)}
+                          disabled={!item.pode_editar}
+                          title={item.pode_editar ? "Editar" : "Já está na agenda"}
+                          className="px-3 py-1.5 text-sm rounded-lg border disabled:opacity-40"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void excluir(item)}
+                          disabled={!item.pode_excluir || excluindoId === item.id}
+                          title={item.pode_excluir ? "Excluir" : "Já teve atendimento ou pagamento"}
+                          className="px-3 py-1.5 text-sm rounded-lg border text-red-600 disabled:opacity-40"
+                        >
+                          {excluindoId === item.id ? "Excluindo..." : "Excluir"}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                {editandoId ? "Editar protocolo" : "Novo protocolo"}
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto] gap-2 min-w-0">
                 <select
                   value={categoriaProcedimento}
@@ -408,6 +559,11 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
         </div>
 
         <div className="shrink-0 flex justify-end gap-2 px-5 py-3 border-t border-gray-200 dark:border-neutral-700">
+          {editandoId ? (
+            <button type="button" onClick={limparFormulario} className="px-4 py-2 text-sm border rounded-lg">
+              Novo protocolo
+            </button>
+          ) : null}
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg">Cancelar</button>
           <button
             type="button"
@@ -416,7 +572,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
             className="px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50"
             style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
           >
-            {salvando ? "Salvando..." : "Salvar protocolo"}
+            {salvando ? "Salvando..." : editandoId ? "Salvar alterações" : "Salvar protocolo"}
           </button>
         </div>
       </div>

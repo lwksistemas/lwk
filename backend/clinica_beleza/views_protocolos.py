@@ -31,7 +31,11 @@ from .permissions import (
 from .protocolo_comercial import FORMAS_COBRANCA, ProtocoloAgendaConflito, agendar_protocolo
 from .protocolo_personalizado import (
     agendar_protocolo_personalizado,
+    atualizar_protocolo_personalizado,
     criar_protocolo_personalizado,
+    excluir_protocolo_personalizado,
+    motivo_impede_exclusao,
+    protocolo_pode_editar,
 )
 from .serializers import ProcedureProtocolSerializer
 from .views_base import GetObjectMixin
@@ -221,9 +225,20 @@ class ProtocoloPersonalizadoOpcoesView(APIView):
 
 
 class ProtocoloPersonalizadoCreateView(APIView):
-    """POST /clinica-beleza/protocolos/personalizados/"""
+    """GET/POST /clinica-beleza/protocolos/personalizados/?patient="""
 
     permission_classes = CLINICA_CLINICAL
+
+    def get(self, request):
+        patient = _buscar(Patient, request.query_params.get("patient"), "Cliente não encontrada.")
+        if isinstance(patient, Response):
+            return patient
+        contratos = (
+            ProtocoloContrato.objects.filter(patient=patient, protocol__isnull=True)
+            .prefetch_related("procedimentos__procedure", "produtos_sessao__produto", "agendamentos")
+            .order_by("-created_at")
+        )
+        return Response([_serializar_protocolo_personalizado(item) for item in contratos])
 
     def post(self, request):
         data = request.data or {}
@@ -251,6 +266,55 @@ class ProtocoloPersonalizadoCreateView(APIView):
         except AgendaValidationError as exc:
             return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         return Response(resultado, status=status.HTTP_201_CREATED)
+
+
+class ProtocoloPersonalizadoDetailView(GetObjectMixin, APIView):
+    """PATCH/DELETE /clinica-beleza/protocolos/personalizados/<id>/"""
+
+    permission_classes = CLINICA_CLINICAL
+    model_class = ProtocoloContrato
+    not_found_message = "Protocolo não encontrado."
+
+    def _contrato_pessoal(self, pk):
+        contrato = self.get_object(pk)
+        if contrato is None or getattr(contrato, "protocol_id", None):
+            return None
+        return contrato
+
+    def patch(self, request, pk):
+        contrato = self._contrato_pessoal(pk)
+        if contrato is None:
+            return Response({"detail": "Protocolo não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        data = request.data or {}
+        try:
+            resultado = atualizar_protocolo_personalizado(
+                contrato,
+                procedimentos=_procedimentos_do_pedido(data.get("procedimentos")),
+                produtos=_produtos_do_pedido(data.get("produtos")),
+                desconto_tipo=str(data.get("desconto_tipo") or "").strip(),
+                desconto_valor=data.get("desconto_valor") or 0,
+                sessoes=int(data.get("sessoes") or 0),
+                intervalo_quantidade=int(data.get("intervalo_quantidade") or 0),
+                intervalo_unidade=str(data.get("intervalo_unidade") or "").strip(),
+                tempo_minutos=int(data.get("tempo_minutos") or 0),
+                nome=str(data.get("nome") or ""),
+                request=request,
+            )
+        except (TypeError, ValueError):
+            return Response({"detail": "Revise sessões, intervalo, duração e desconto."}, status=status.HTTP_400_BAD_REQUEST)
+        except AgendaValidationError as exc:
+            return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(resultado)
+
+    def delete(self, request, pk):
+        contrato = self._contrato_pessoal(pk)
+        if contrato is None:
+            return Response({"detail": "Protocolo não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            excluir_protocolo_personalizado(contrato)
+        except AgendaValidationError as exc:
+            return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ProtocoloPersonalizadoPendentesView(APIView):
@@ -330,6 +394,55 @@ class ProtocoloPersonalizadoAgendarView(APIView):
         except AgendaValidationError as exc:
             return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         return Response(resultado, status=status.HTTP_201_CREATED)
+
+
+def _serializar_protocolo_personalizado(contrato):
+    from .models import Payment
+
+    status_lista = [item.status for item in contrato.agendamentos.all()]
+    vivos = [item for item in contrato.agendamentos.all() if item.status not in ("CANCELLED", "NO_SHOW")]
+    tem_pagamento = Payment.objects.filter(
+        appointment_id__in=[item.id for item in vivos],
+    ).exclude(status="CANCELLED").exists() if vivos else False
+    rotulos = _rotulos_categoria_procedimento()
+    procedimentos = []
+    for linha in contrato.procedimentos.all():
+        slug, rotulo = _categoria_de_procedimento(linha.procedure.categoria, rotulos)
+        procedimentos.append({
+            "id": linha.procedure_id,
+            "nome": linha.procedure.nome,
+            "preco": str(linha.valor),
+            "categoria": slug,
+            "categoria_nome": rotulo,
+        })
+    produtos = []
+    for linha in contrato.produtos_sessao.all():
+        slug, rotulo = _categoria_de_produto(linha.produto)
+        produtos.append({
+            "produto_id": linha.produto_id,
+            "nome": linha.produto.nome,
+            "quantidade": str(linha.quantidade),
+            "unidade": linha.produto.unidade_medida or "",
+            "categoria": slug,
+            "categoria_nome": rotulo,
+        })
+    return {
+        "id": contrato.id,
+        "nome": contrato.nome or "Protocolo personalizado",
+        "sessoes": contrato.sessoes,
+        "intervalo_quantidade": contrato.intervalo_quantidade,
+        "intervalo_unidade": contrato.intervalo_unidade,
+        "tempo_minutos": contrato.tempo_minutos,
+        "desconto_tipo": contrato.desconto_tipo or "percentual",
+        "desconto_valor": str(contrato.desconto_valor),
+        "valor_bruto": str(contrato.valor_bruto),
+        "valor_total": str(contrato.valor_total),
+        "na_agenda": len(vivos),
+        "pode_editar": protocolo_pode_editar(status_lista),
+        "pode_excluir": motivo_impede_exclusao(status_lista, tem_pagamento) == "",
+        "procedimentos": procedimentos,
+        "produtos": produtos,
+    }
 
 
 def _rotulos_categoria_procedimento():

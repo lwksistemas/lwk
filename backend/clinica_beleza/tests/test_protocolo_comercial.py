@@ -15,7 +15,12 @@ from clinica_beleza.protocolo_comercial import (
     intervalos_fora_do_expediente,
     proximo_horario_livre,
 )
-from clinica_beleza.protocolo_personalizado import aplicar_desconto_protocolo, repartir_valor
+from clinica_beleza.protocolo_personalizado import (
+    aplicar_desconto_protocolo,
+    motivo_impede_exclusao,
+    protocolo_pode_editar,
+    repartir_valor,
+)
 
 
 class DividirValorProtocoloTests(SimpleTestCase):
@@ -141,3 +146,18 @@ class DescontoProtocoloPersonalizadoTests(SimpleTestCase):
         self.assertEqual(sum(partes), Decimal("657.00"))
         self.assertEqual(partes[0], Decimal("27.00"))
         self.assertEqual(partes[1], Decimal("630.00"))
+
+
+class ProtocoloPersonalizadoEdicaoTests(SimpleTestCase):
+    def test_sessao_marcada_bloqueia_edicao_e_permite_excluir(self):
+        self.assertFalse(protocolo_pode_editar(["SCHEDULED"]))
+        self.assertEqual(motivo_impede_exclusao(["SCHEDULED"], False), "")
+
+    def test_cliente_presente_ou_pagamento_impede_excluir(self):
+        self.assertIn("presente", motivo_impede_exclusao(["CONFIRMED"], False))
+        self.assertIn("pagamento", motivo_impede_exclusao(["SCHEDULED"], True))
+
+    def test_sem_sessao_pode_editar_e_excluir(self):
+        self.assertTrue(protocolo_pode_editar([]))
+        self.assertTrue(protocolo_pode_editar(["CANCELLED"]))
+        self.assertEqual(motivo_impede_exclusao(["CANCELLED"], False), "")

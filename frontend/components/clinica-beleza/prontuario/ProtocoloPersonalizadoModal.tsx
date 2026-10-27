@@ -292,6 +292,8 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
     setErroProduto("");
   };
 
+  const mostrarFormulario = salvos.length === 0 || editandoId !== null;
+
   const salvar = async () => {
     setErro("");
     setSalvando(true);
@@ -334,7 +336,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4" onClick={onClose}>
       <div
-        className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl w-[min(96vw,1280px)] max-h-[min(88vh,820px)] min-h-0 flex flex-col overflow-hidden"
+        className={`bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl max-h-[min(88vh,820px)] min-h-0 flex flex-col overflow-hidden ${mostrarFormulario ? "w-[min(96vw,1280px)]" : "w-[min(96vw,720px)]"}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -407,6 +409,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
                   ))
                 )}
               </div>
+              {mostrarFormulario ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 items-start">
               <div className="space-y-4 min-w-0">
               <div className="space-y-4 border-t border-gray-200 dark:border-neutral-700 pt-4">
@@ -665,6 +668,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
               </div>
               </div>
               </div>
+              ) : null}
             </>
           )}
           {erro ? <p className="text-sm text-red-600">{erro}</p> : null}
@@ -673,10 +677,13 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
         <div className="shrink-0 flex justify-end gap-2 px-5 py-3 border-t border-gray-200 dark:border-neutral-700">
           {editandoId ? (
             <button type="button" onClick={limparFormulario} className="px-4 py-2 text-sm border rounded-lg">
-              Novo protocolo
+              Cancelar edição
             </button>
           ) : null}
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg">Cancelar</button>
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm border rounded-lg">
+            {mostrarFormulario ? "Cancelar" : "Fechar"}
+          </button>
+          {mostrarFormulario ? (
           <button
             type="button"
             onClick={() => void salvar()}
@@ -686,6 +693,7 @@ export function ProtocoloPersonalizadoModal({ patientId, onClose }: ProtocoloPer
           >
             {salvando ? "Salvando..." : editandoId ? "Salvar alterações" : "Cadastrar protocolo"}
           </button>
+          ) : null}
         </div>
       </div>
     </div>

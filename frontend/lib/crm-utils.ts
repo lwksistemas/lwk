@@ -13,6 +13,7 @@ export type CrmLeadFormPayloadInput = {
   nome: string;
   empresa: string;
   conta?: string;
+  cargo?: string;
   cpf_cnpj: string;
   email: string;
   telefone: string;
@@ -36,6 +37,7 @@ export function buildCrmLeadPayload(form: CrmLeadFormPayloadInput): Record<strin
     status: form.status,
     empresa: form.empresa.trim(),
     conta: form.conta ? Number(form.conta) : null,
+    cargo: (form.cargo || '').trim(),
     cpf_cnpj: form.cpf_cnpj.trim() || undefined,
     email: form.email.trim() || undefined,
     cep: form.cep.trim() || undefined,

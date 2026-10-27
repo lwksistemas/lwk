@@ -52,6 +52,7 @@ export default function EditarLeadPage() {
           nome: lead.nome,
           empresa: lead.empresa || lead.conta_info?.nome || '',
           conta: lead.conta ? String(lead.conta) : '',
+          cargo: lead.contato_info?.cargo || '',
           cpf_cnpj: digits.length === 11 ? formatCpf(digits) : '',
           email: lead.email || '',
           telefone: formatTelefone(lead.telefone || ''),

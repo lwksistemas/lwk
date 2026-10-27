@@ -8,6 +8,7 @@ export interface FormDataLead {
   nome: string;
   empresa: string;
   conta: string;
+  cargo: string;
   cpf_cnpj: string;
   email: string;
   telefone: string;
@@ -27,6 +28,7 @@ export const EMPTY_FORM_LEAD: FormDataLead = {
   nome: '',
   empresa: '',
   conta: '',
+  cargo: '',
   cpf_cnpj: '',
   email: '',
   telefone: '',

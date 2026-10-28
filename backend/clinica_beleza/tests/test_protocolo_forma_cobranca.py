@@ -24,7 +24,7 @@ class DefinirPagamentoProtocoloTest(SimpleTestCase):
 
     @patch("clinica_beleza.models.Payment.objects")
     def test_com_recebimento_nao_troca_a_forma(self, objects):
-        objects.filter.return_value.exclude.return_value.exists.return_value = True
+        objects.filter.return_value.exclude.return_value.filter.return_value.exists.return_value = True
         contrato = self._contrato("POR_CONSULTA")
 
         with self.assertRaisesMessage(
@@ -37,7 +37,7 @@ class DefinirPagamentoProtocoloTest(SimpleTestCase):
 
     @patch("clinica_beleza.models.Payment.objects")
     def test_sem_recebimento_aceita_trocar_a_forma(self, objects):
-        objects.filter.return_value.exclude.return_value.exists.return_value = False
+        objects.filter.return_value.exclude.return_value.filter.return_value.exists.return_value = False
         contrato = self._contrato("POR_CONSULTA")
 
         with self.assertRaisesMessage(AgendaValidationError, "não tem procedimentos"):

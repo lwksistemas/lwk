@@ -525,13 +525,20 @@ def agendar_protocolo_personalizado(
 
 
 def contrato_tem_recebimento(contrato) -> bool:
-    """Há lançamento de pagamento, ainda não cancelado, em alguma sessão do pacote."""
+    """Há dinheiro recebido em alguma sessão. Conta só aberta, ainda sem valor, não trava a escolha."""
+    from django.db.models import Q
+
     from .models import Payment
 
     ids = list(contrato.agendamentos.values_list("id", flat=True))
     if not ids:
         return False
-    return Payment.objects.filter(appointment_id__in=ids).exclude(status="CANCELLED").exists()
+    return (
+        Payment.objects.filter(appointment_id__in=ids)
+        .exclude(status="CANCELLED")
+        .filter(Q(amount__gt=0) | ~Q(status="PENDING"))
+        .exists()
+    )
 
 
 def definir_pagamento_protocolo(contrato, forma: str, appointment_id=None) -> None:

@@ -524,17 +524,31 @@ def agendar_protocolo_personalizado(
     }
 
 
+def contrato_tem_recebimento(contrato) -> bool:
+    """Há lançamento de pagamento, ainda não cancelado, em alguma sessão do pacote."""
+    from .models import Payment
+
+    ids = list(contrato.agendamentos.values_list("id", flat=True))
+    if not ids:
+        return False
+    return Payment.objects.filter(appointment_id__in=ids).exclude(status="CANCELLED").exists()
+
+
 def definir_pagamento_protocolo(contrato, forma: str, appointment_id=None) -> None:
     """Grava o valor total nesta sessão ou divide pelas sessões, no recebimento."""
     from .models import AppointmentProcedure
 
-    atual = (getattr(contrato, "forma_cobranca", None) or "").strip()
-    if atual in FORMAS_COBRANCA:
-        return
     forma = (forma or "").strip()
     if forma not in FORMAS_COBRANCA:
         raise AgendaValidationError(
             "Escolha pagar tudo na primeira sessão ou dividir pelas sessões.",
+        )
+    atual = (getattr(contrato, "forma_cobranca", None) or "").strip()
+    if atual == forma:
+        return
+    if atual in FORMAS_COBRANCA and contrato_tem_recebimento(contrato):
+        raise AgendaValidationError(
+            "Este protocolo já teve recebimento. A forma de cobrança não muda.",
         )
     if getattr(contrato, "protocol_id", None):
         raise AgendaValidationError("O pagamento deste protocolo já foi definido no agendamento.")

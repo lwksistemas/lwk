@@ -348,6 +348,7 @@ export function ProtocoloCobrancaBox({
           ? "A primeira sessão abre agora para recebimento. As demais ficam na agenda."
           : "Todas as sessões entram na agenda."}{" "}
         A taxa do consultório não entra no protocolo. O valor acima é o do protocolo.
+        No Receber pagamento, depois da consulta, esta escolha ainda pode mudar.
       </p>
     </div>
   );

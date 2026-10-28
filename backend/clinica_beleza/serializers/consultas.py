@@ -253,7 +253,10 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
         parcela = partes[indice] if 0 <= indice < len(partes) else Decimal(0)
         bruto = Decimal(str(contrato.valor_bruto or 0))
         liquido = Decimal(str(contrato.valor_total or 0))
+        from ..protocolo_personalizado import contrato_tem_recebimento
+
         forma = (contrato.forma_cobranca or "").strip()
+        pendente = forma not in ("POR_CONSULTA", "TOTAL") or not contrato_tem_recebimento(contrato)
         return {
             "nome": contrato.nome or "Protocolo personalizado",
             "forma_cobranca": forma,
@@ -262,7 +265,7 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
             "sessoes": sessoes,
             "sessao": getattr(appointment, "sessao_numero", None) or 1,
             "valor_parcela": float(parcela),
-            "pendente": forma not in ("POR_CONSULTA", "TOTAL"),
+            "pendente": pendente,
         }
 
     def get_valor_procedimentos(self, obj):

@@ -124,7 +124,7 @@ function mensagemDoNavegador(erro: unknown): string {
   if (typeof resposta?.error === 'string') return resposta.error;
   const nome = erro && typeof erro === 'object' && 'name' in erro ? String((erro as { name: string }).name) : '';
   if (nome === 'NotAllowedError') {
-    return 'O desbloqueio facial não foi confirmado. Entre com a senha uma vez para ativar neste aparelho.';
+    return 'O reconhecimento facial não foi confirmado. Tente de novo ou entre com a senha.';
   }
   if (erro instanceof Error && erro.message) return erro.message;
   return 'Não foi possível usar o desbloqueio facial neste aparelho.';
@@ -167,6 +167,36 @@ export async function perguntarAtivarRosto(alvo: AlvoRosto): Promise<void> {
   }
 }
 
+export class RostoAindaNaoAtivado extends Error {
+  constructor() {
+    super('Na primeira vez neste aparelho, digite a senha e toque em Facial.');
+    this.name = 'RostoAindaNaoAtivado';
+  }
+}
+
+/** Já ativado entra pelo rosto. A primeira vez neste aparelho usa a senha só para gravar o rosto. */
+export async function entrarOuAtivarRosto(
+  alvo: AlvoRosto,
+  senha: string,
+  entrarComSenha: () => Promise<LoginResponse>,
+): Promise<LoginResponse> {
+  try {
+    return await entrarComRosto(alvo);
+  } catch (erro) {
+    if (!(erro instanceof RostoAindaNaoAtivado)) throw erro;
+    if (!senha.trim()) {
+      throw new Error('Na primeira vez neste aparelho, digite a senha e toque em Facial.');
+    }
+    const sessao = await entrarComSenha();
+    try {
+      await registrarRosto(alvo);
+    } catch {
+      /* A senha já entrou. O rosto pode ser gravado na próxima vez. */
+    }
+    return sessao;
+  }
+}
+
 export async function entrarComRosto(alvo: AlvoRosto): Promise<LoginResponse> {
   if (!alvo.username.trim()) {
     throw new Error('Digite o usuário para usar o desbloqueio facial.');
@@ -184,6 +214,8 @@ export async function entrarComRosto(alvo: AlvoRosto): Promise<LoginResponse> {
     localStorage.setItem(chaveAtivado(alvo), '1');
     return sessao;
   } catch (erro) {
-    throw new Error(mensagemDoNavegador(erro));
+    const texto = mensagemDoNavegador(erro);
+    if (texto.includes('Não há desbloqueio facial')) throw new RostoAindaNaoAtivado();
+    throw new Error(texto);
   }
 }

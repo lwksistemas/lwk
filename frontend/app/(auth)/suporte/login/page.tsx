@@ -407,13 +407,22 @@ export default function SuporteLoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-500">Desbloqueio facial</p>
         <BotaoRosto
           userType="suporte"
           username={credentials.username}
+          senha={credentials.password}
           cor={config.cor_primaria}
           disabled={loading}
           onErro={setError}
+          onAtivarComSenha={async () => {
+            try {
+              return await authService.login(credentials, 'suporte');
+            } catch (err: unknown) {
+              const falha = err as Error & { mfaRequired?: boolean };
+              if (falha.mfaRequired) setShowMfa(true);
+              throw err;
+            }
+          }}
           onSucesso={async (loginResponse) => {
             if (loginResponse.precisa_trocar_senha === true) {
               window.location.replace('/suporte/trocar-senha');

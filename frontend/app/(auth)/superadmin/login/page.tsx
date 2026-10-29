@@ -409,13 +409,22 @@ export default function SuperAdminLoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-500">Desbloqueio facial</p>
         <BotaoRosto
           userType="superadmin"
           username={credentials.username}
+          senha={credentials.password}
           cor={config.cor_primaria}
           disabled={loading}
           onErro={setError}
+          onAtivarComSenha={async () => {
+            try {
+              return await authService.login(credentials, 'superadmin');
+            } catch (err: unknown) {
+              const falha = err as Error & { mfaRequired?: boolean };
+              if (falha.mfaRequired) setShowMfa(true);
+              throw err;
+            }
+          }}
           onSucesso={async (loginResponse) => {
             if (loginResponse.precisa_trocar_senha === true) {
               window.location.replace('/superadmin/trocar-senha');

@@ -30,6 +30,8 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
     plano: '',
     tipo_assinatura: 'mensal',
     dia_vencimento: 10,
+    degustacao: false,
+    dias_degustacao: 15,
     provedor_boleto_preferido: 'asaas' as 'asaas' | 'mercadopago' | 'cora',
     owner_full_name: '',
     owner_username: '',
@@ -283,8 +285,10 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
     setLoading(true);
 
     try {
+      const { degustacao, dias_degustacao, ...resto } = formData;
       const payload = applyTelefoneInternacionalPayload({
-        ...formData,
+        ...resto,
+        dias_degustacao: degustacao ? Number(dias_degustacao) : 0,
         provedor_boleto_preferido: formData.provedor_boleto_preferido || 'asaas',
       }, ['owner_telefone']);
       const response = await apiClient.post('/superadmin/lojas/', payload);
@@ -341,12 +345,26 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                 
                 {/* Mensagem sobre boleto e senha */}
                 <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4 w-full">
-                  <p className="text-sm text-blue-900 dark:text-blue-300 font-medium mb-2">
-                    📧 Boleto enviado para o email
-                  </p>
-                  <p className="text-sm text-blue-800 dark:text-blue-400">
-                    A senha de acesso será enviada automaticamente para <strong>{formData.owner_email}</strong> após a confirmação do pagamento.
-                  </p>
+                  {createdLoja.em_degustacao ? (
+                    <>
+                      <p className="text-sm text-blue-900 dark:text-blue-300 font-medium mb-2">
+                        Demonstração até {createdLoja.degustacao_ate ? createdLoja.degustacao_ate.split('-').reverse().join('/') : 'o prazo escolhido'}
+                      </p>
+                      <p className="text-sm text-blue-800 dark:text-blue-400">
+                        Nenhum boleto foi gerado. A senha de acesso foi enviada para <strong>{formData.owner_email}</strong>.
+                        No fim do prazo o cliente escolhe pagar ou cancelar. Sem essa escolha, a loja fica bloqueada.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-blue-900 dark:text-blue-300 font-medium mb-2">
+                        📧 Boleto enviado para o email
+                      </p>
+                      <p className="text-sm text-blue-800 dark:text-blue-400">
+                        A senha de acesso será enviada automaticamente para <strong>{formData.owner_email}</strong> após a confirmação do pagamento.
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {/* Exibir boleto_url e pix_qr_code se disponíveis */}
@@ -756,6 +774,44 @@ export function ModalNovaLoja({ onClose, onSuccess }: { onClose: () => void; onS
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 dark:border-gray-600 p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.degustacao}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, degustacao: e.target.checked }))}
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">
+                      Período de demonstração
+                    </span>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      A loja entra na hora, sem boleto. No fim do prazo o cliente escolhe pagar ou cancelar.
+                      Se não escolher, o sistema fica bloqueado e nenhum boleto é gerado.
+                    </span>
+                  </span>
+                </label>
+                {formData.degustacao && (
+                  <div className="mt-3 max-w-xs">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Dias de demonstração
+                    </label>
+                    <select
+                      name="dias_degustacao"
+                      value={formData.dias_degustacao}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      <option value={7}>7 dias</option>
+                      <option value={15}>15 dias</option>
+                      <option value={30}>30 dias</option>
+                      <option value={60}>60 dias</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div>

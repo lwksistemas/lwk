@@ -443,11 +443,17 @@ Equipe LWK Sistemas
 
         financeiro = self.get_object()
         provedor = (financeiro.loja.provedor_boleto_preferido or "asaas").strip().lower()
+        from superadmin.degustacao_service import em_degustacao, tem_boleto_em_aberto
+
         return Response({
             "itens": historico_pagamentos_e_notas(financeiro.loja),
             "provedor_boleto": provedor,
             "provedor_display": nome_banco(provedor) or "Asaas",
             "assinatura_cancelada": assinatura_esta_cancelada(financeiro.loja, financeiro),
+            "em_degustacao": em_degustacao(financeiro),
+            "degustacao_ate": financeiro.degustacao_ate.isoformat() if financeiro.degustacao_ate else None,
+            "dias_apos_pagamento": financeiro.degustacao_dias_apos_pagamento,
+            "boleto_em_aberto": tem_boleto_em_aberto(financeiro.loja, financeiro),
         })
 
     @action(detail=True, methods=["post"])
@@ -472,6 +478,20 @@ Equipe LWK Sistemas
 
         financeiro = self.get_object()
         resultado = cancelar_assinatura(financeiro.loja, financeiro)
+        codigo = status.HTTP_200_OK if resultado.get("success") else status.HTTP_400_BAD_REQUEST
+        return Response(resultado, status=codigo)
+
+    @action(detail=True, methods=["post"])
+    def iniciar_degustacao(self, request, pk=None):
+        """Abre demonstração numa loja já criada, sem boleto novo."""
+        from superadmin.degustacao_service import definir_degustacao_loja_existente
+
+        financeiro = self.get_object()
+        resultado = definir_degustacao_loja_existente(
+            financeiro.loja,
+            financeiro,
+            request.data.get("dias"),
+        )
         codigo = status.HTTP_200_OK if resultado.get("success") else status.HTTP_400_BAD_REQUEST
         return Response(resultado, status=codigo)
 

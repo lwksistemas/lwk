@@ -25,6 +25,9 @@ def dias_atraso_assinatura(loja) -> int:
     except Exception:
         financeiro = None
 
+    if financeiro and str(getattr(financeiro, "status_pagamento", "") or "") == "degustacao":
+        return 0
+
     if financeiro and financeiro.data_proxima_cobranca and hoje > financeiro.data_proxima_cobranca:
         dias = max(dias, (hoje - financeiro.data_proxima_cobranca).days)
 
@@ -58,6 +61,30 @@ def situacao_aviso_assinatura(loja) -> dict | None:
         financeiro = loja.financeiro
     except Exception:
         return None
+
+    from superadmin.degustacao_service import em_degustacao, fim_degustacao
+
+    if em_degustacao(financeiro):
+        ate = fim_degustacao(financeiro)
+        if not ate:
+            return None
+        dias_para = (ate - date.today()).days
+        if dias_para > DAYS_TO_WARN_UI or dias_para < 0:
+            return None
+        dia_label = "dia" if dias_para == 1 else "dias"
+        if dias_para == 0:
+            mensagem = "A demonstração acaba hoje. Amanhã o sistema pede para pagar o boleto ou cancelar."
+        else:
+            mensagem = (
+                f"Faltam {dias_para} {dia_label} de demonstração. "
+                "Depois disso o sistema pede para pagar o boleto ou cancelar."
+            )
+        return {
+            "nivel": "aviso",
+            "dias_restantes": dias_para,
+            "data_vencimento": ate.isoformat(),
+            "mensagem": mensagem,
+        }
 
     if not financeiro or not financeiro.data_proxima_cobranca:
         return None
@@ -115,7 +142,16 @@ def situacao_geracao_boleto_assinatura(loja, financeiro) -> dict:
     """Regras para o proprietário gerar boleto manualmente na página Assinatura.
     Alinhado ao cron criar_boletos_proximos: só dentro de DAYS_TO_WARN_BOLETO dias do vencimento.
     """
+    from superadmin.degustacao_service import em_degustacao
     from superadmin.models import PagamentoLoja
+
+    if em_degustacao(financeiro):
+        return {
+            "pode_gerar": False,
+            "motivo": "Na demonstração o boleto só é gerado se o cliente escolher pagar.",
+            "data_liberacao": None,
+            "dias_ate_liberacao": None,
+        }
 
     hoje = date.today()
     venc = financeiro.data_proxima_cobranca
@@ -177,7 +213,12 @@ def aplicar_bloqueio_inadimplencia_loja(loja, *, persistir: bool = True) -> dict
     except FinanceiroLoja.DoesNotExist:
         return {"loja_id": loja.id, "skipped": True, "reason": "sem_financeiro"}
 
+    from superadmin.degustacao_service import encerrar_degustacao_se_venceu
     from superadmin.financeiro_views.assinatura_cancelamento import MOTIVO_ASSINATURA_CANCELADA
+
+    resultado_degustacao = encerrar_degustacao_se_venceu(loja, financeiro, persistir=persistir)
+    if resultado_degustacao is not None:
+        return resultado_degustacao
 
     if loja.is_blocked and (getattr(loja, "blocked_reason", "") or "") == MOTIVO_ASSINATURA_CANCELADA:
         return {
@@ -328,6 +369,7 @@ def check_inadimplencia_block(request):
     if not loja or not getattr(loja, "is_blocked", False):
         return None
 
+    from superadmin.degustacao_service import MOTIVO_DEGUSTACAO_ENCERRADA
     from superadmin.financeiro_views.assinatura_cancelamento import MOTIVO_ASSINATURA_CANCELADA
 
     logger.warning(
@@ -338,6 +380,8 @@ def check_inadimplencia_block(request):
     )
     if (getattr(loja, "blocked_reason", "") or "") == MOTIVO_ASSINATURA_CANCELADA:
         erro = "Assinatura cancelada. O acesso volta depois que o pagamento da reativação for confirmado."
+    elif (getattr(loja, "blocked_reason", "") or "") == MOTIVO_DEGUSTACAO_ENCERRADA:
+        erro = "A demonstração acabou. Escolha pagar o boleto ou cancelar. Sem essa escolha, o sistema continua bloqueado."
     else:
         erro = "Assinatura em atraso. Regularize o pagamento para continuar usando o sistema."
     return JsonResponse(

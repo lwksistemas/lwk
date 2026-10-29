@@ -11,6 +11,7 @@ from .financeiro_views import (
 )
 from .financeiro_views import (
     dashboard_financeiro_loja,
+    decidir_degustacao_loja,
     financeiro_unificado,
     nf_baixar_por_payment,
     nf_cancelar_por_payment,
@@ -102,6 +103,7 @@ urlpatterns = [
     # Outras rotas públicas
     path("lojas/recuperar_senha/", recuperar_senha_loja, name="loja-recuperar-senha"),
     path("loja/<str:loja_slug>/financeiro/renovar/", renovar_assinatura_loja, name="renovar-financeiro-loja"),
+    path("loja/<str:loja_slug>/financeiro/degustacao/", decidir_degustacao_loja, name="decidir-degustacao-loja"),
     path("loja/<str:loja_slug>/financeiro/", dashboard_financeiro_loja, name="dashboard-financeiro-loja"),
     path("loja-financeiro/<int:financeiro_id>/renovar/", renovar_financeiro_por_id, name="loja-financeiro-renovar"),
     path("financeiro-unificado/", financeiro_unificado, name="financeiro-unificado"),

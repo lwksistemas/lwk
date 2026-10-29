@@ -126,6 +126,12 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
   const [historicoErro, setHistoricoErro] = useState<Record<string, string>>({});
   const [bancosAssinatura, setBancosAssinatura] = useState<Record<string, string>>({});
   const [assinaturasCanceladas, setAssinaturasCanceladas] = useState<Record<string, boolean>>({});
+  const [degustacoes, setDegustacoes] = useState<Record<string, {
+    em_degustacao: boolean;
+    degustacao_ate: string | null;
+    dias_apos_pagamento: number | null;
+    boleto_em_aberto: boolean;
+  }>>({});
   const [conta, setConta] = useState<Assinatura | null>(null);
   const [comprovante, setComprovante] = useState<File | null>(null);
 
@@ -248,6 +254,15 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
         ...atual,
         [String(assinatura.id)]: Boolean(res.data?.assinatura_cancelada),
       }));
+      setDegustacoes((atual) => ({
+        ...atual,
+        [String(assinatura.id)]: {
+          em_degustacao: Boolean(res.data?.em_degustacao),
+          degustacao_ate: res.data?.degustacao_ate || null,
+          dias_apos_pagamento: res.data?.dias_apos_pagamento ?? null,
+          boleto_em_aberto: Boolean(res.data?.boleto_em_aberto),
+        },
+      }));
       setHistoricoErro((atual) => ({ ...atual, [String(assinatura.id)]: '' }));
     } catch (error) {
       setHistoricoErro((atual) => ({
@@ -316,6 +331,36 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
       onAtualizar();
     } catch (error) {
       window.alert(mensagemErro(error, 'Não foi possível trocar o banco.'));
+      setOcupado(null);
+    }
+  };
+
+  const iniciarDegustacao = async (assinatura: Assinatura, dias: number) => {
+    if (!assinatura.financeiro_id) return;
+    const confirma = window.confirm(
+      `Abrir ${dias} dias de demonstração para ${assinatura.loja_nome}?\n\nSe não houver boleto, o prazo começa agora e nenhum boleto é gerado. Se já houver boleto, ele continua valendo e a demonstração só começa depois do pagamento.`,
+    );
+    if (!confirma) return;
+    setOcupado(`degustacao-${assinatura.id}`);
+    try {
+      const res = await apiClient.post(
+        `/superadmin/financeiro/${assinatura.financeiro_id}/iniciar_degustacao/`,
+        { dias },
+      );
+      window.alert(res.data?.message || 'Demonstração configurada.');
+      setDegustacoes((atual) => ({
+        ...atual,
+        [String(assinatura.id)]: {
+          em_degustacao: Boolean(res.data?.em_degustacao),
+          degustacao_ate: res.data?.degustacao_ate || null,
+          dias_apos_pagamento: res.data?.dias_apos_pagamento ?? null,
+          boleto_em_aberto: Boolean(res.data?.aguardando_pagamento),
+        },
+      }));
+      await carregarHistorico(assinatura);
+      onAtualizar();
+    } catch (error) {
+      window.alert(mensagemErro(error, 'Não foi possível abrir a demonstração.'));
       setOcupado(null);
     }
   };
@@ -441,6 +486,9 @@ export function AssinaturasTabela(props: AssinaturasTabelaProps) {
           onTrocar={(provedor) => trocarBanco(lojaHistorico, provedor)}
           cancelada={Boolean(assinaturasCanceladas[chaveHistorico])}
           alterando={ocupado === `assinatura-${lojaHistorico.id}`}
+          degustacao={degustacoes[chaveHistorico]}
+          iniciandoDegustacao={ocupado === `degustacao-${lojaHistorico.id}`}
+          onIniciarDegustacao={(dias) => iniciarDegustacao(lojaHistorico, dias)}
           onCancelar={() => alterarAssinatura(lojaHistorico, 'cancelar')}
           onReativar={() => alterarAssinatura(lojaHistorico, 'reativar')}
           ocupadoNota={ocupado}
@@ -741,6 +789,9 @@ function HistoricoLoja({
   onTrocar,
   cancelada,
   alterando,
+  degustacao,
+  iniciandoDegustacao,
+  onIniciarDegustacao,
   onCancelar,
   onReativar,
   ocupadoNota,
@@ -758,6 +809,14 @@ function HistoricoLoja({
   onTrocar: (provedor: string) => void;
   cancelada: boolean;
   alterando: boolean;
+  degustacao?: {
+    em_degustacao: boolean;
+    degustacao_ate: string | null;
+    dias_apos_pagamento: number | null;
+    boleto_em_aberto: boolean;
+  };
+  iniciandoDegustacao: boolean;
+  onIniciarDegustacao: (dias: number) => void;
   onCancelar: () => void;
   onReativar: () => void;
   ocupadoNota: string | null;
@@ -765,6 +824,7 @@ function HistoricoLoja({
   onReenviarNota: (item: ItemHistorico) => void;
 }) {
   const [escolhido, setEscolhido] = useState(provedor || 'asaas');
+  const [diasDegustacao, setDiasDegustacao] = useState(15);
   const temComprovante = Boolean(itens?.some((item) => item.comprovante_url));
 
   useEffect(() => {
@@ -802,6 +862,47 @@ function HistoricoLoja({
       <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
         Se o boleto deste mês ainda não foi gerado, ele sai no banco novo. Se já foi gerado, a troca vale no próximo mês.
       </p>
+      {!cancelada && (
+        <div className="mb-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3">
+          <p className="text-sm font-medium text-amber-950 dark:text-amber-100">Demonstração</p>
+          <p className="mt-1 text-xs text-amber-900 dark:text-amber-200">
+            Sem boleto, os dias começam agora e nenhum boleto é gerado. Com boleto em aberto, a demonstração só começa depois do pagamento.
+          </p>
+          {degustacao?.em_degustacao && degustacao.degustacao_ate && (
+            <p className="mt-2 text-sm text-amber-950 dark:text-amber-100">
+              Em demonstração até {degustacao.degustacao_ate.split('-').reverse().join('/')}.
+            </p>
+          )}
+          {degustacao?.dias_apos_pagamento ? (
+            <p className="mt-2 text-sm text-amber-950 dark:text-amber-100">
+              {degustacao.dias_apos_pagamento} dias começam quando o boleto em aberto for pago.
+            </p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="text-sm text-gray-700 dark:text-gray-200">
+              Dias
+              <select
+                value={diasDegustacao}
+                onChange={(evento) => setDiasDegustacao(Number(evento.target.value))}
+                className="mt-1 block rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm text-gray-900 dark:text-gray-100"
+              >
+                <option value={7}>7 dias</option>
+                <option value={15}>15 dias</option>
+                <option value={30}>30 dias</option>
+                <option value={60}>60 dias</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              disabled={iniciandoDegustacao}
+              onClick={() => onIniciarDegustacao(diasDegustacao)}
+              className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
+            >
+              Iniciar demonstração
+            </button>
+          </div>
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {cancelada ? (
           <>

@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
-import { perguntarAtivarRosto } from '@/lib/rosto-login';
 import { homePathForTipo, isTipoCRMVendas } from '@/lib/loja-tipo';
 import { resolveLoginBackground, getLoginBackgroundHintFromSlug, getLoginBackgroundFallbackColor, preloadLoginBackground, getLoginThemeColor, cacheLojaLoginContext, getInitialLoginBackgroundForSlug, preloadImageUrl } from '@/lib/login-default-backgrounds';
 import { themeLabelForTipo } from '@/lib/loja-theme';
@@ -13,7 +12,6 @@ import { LoginBackgroundLayer } from '@/components/auth/LoginBackgroundLayer';
 import { getPublicApiJson } from '@/lib/public-api';
 import { logger } from '@/lib/logger';
 import PasswordInput from '@/components/auth/PasswordInput';
-import BotaoRosto from '@/components/auth/BotaoRosto';
 import ErrorAlert from '@/components/auth/ErrorAlert';
 import RecuperarSenhaModal from '@/components/auth/RecuperarSenhaModal';
 
@@ -167,8 +165,7 @@ export default function LojaLoginDinamicoPage() {
 
     try {
       const loginResponse = await authService.login(credentials, 'loja', slug);
-      await perguntarAtivarRosto({ userType: 'loja', slug, username: credentials.username });
-      
+
       // Verificar se precisa trocar senha
       const precisaTrocar = loginResponse.precisa_trocar_senha === true;
       
@@ -416,36 +413,6 @@ export default function LojaLoginDinamicoPage() {
           </button>
         </form>
 
-        <div className="text-center text-xs text-gray-500 dark:text-gray-400 -mt-2">
-          Desbloqueio facial
-        </div>
-        <BotaoRosto
-          userType="loja"
-          slug={slug}
-          username={credentials.username}
-          cor={corTema}
-          disabled={loading}
-          onErro={setError}
-          onSucesso={async (loginResponse) => {
-            if (loginResponse.precisa_trocar_senha === true) {
-              markInternalNavigation();
-              window.location.replace(`/loja/${slug}/trocar-senha`);
-              return;
-            }
-            const usaCrm = lojaInfo && isTipoCRMVendas(lojaInfo.tipo_loja_nome);
-            const destino = lojaInfo
-              ? homePathForTipo(slug, lojaInfo.tipo_loja_nome)
-              : `/loja/${slug}/dashboard`;
-            if (typeof document !== 'undefined') {
-              document.cookie = usaCrm
-                ? 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax'
-                : 'loja_usa_crm=; path=/; max-age=0';
-            }
-            markInternalNavigation();
-            window.location.replace(`${destino}?_t=${Date.now()}`);
-          }}
-        />
-        
         {/* Forgot Password Link */}
         <div className="text-center">
           <button

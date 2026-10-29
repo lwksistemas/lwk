@@ -16,6 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase.pdfmetrics import registerFontFamily, stringWidth
 from reportlab.platypus import HRFlowable, Image, Paragraph, Spacer, Table, TableStyle
 
+from core.cpf_utils import normalizar_cpf_cnpj
 from core.phone_utils import telefone_exibicao_brasileiro
 
 from .formatters import (
@@ -197,7 +198,7 @@ def _build_secao_empresa(elements, loja_data, style, titulo="Dados da Empresa"):
     if loja_data.get("endereco"):
         linhas.append(f"<b>Endereço:</b> {_title_case_endereco(loja_data['endereco'])}")
     if loja_data.get("cpf_cnpj"):
-        linhas.append(f"<b>CPF/CNPJ:</b> {loja_data['cpf_cnpj']}")
+        linhas.append(f"<b>CPF/CNPJ:</b> {_documento_exibicao(loja_data['cpf_cnpj'])}")
     if loja_data.get("telefone"):
         tel_fmt = telefone_exibicao_brasileiro(loja_data["telefone"]) or loja_data["telefone"].strip()
         linhas.append(f"<b>Telefone:</b> {tel_fmt}")
@@ -225,7 +226,7 @@ def _build_secao_cliente(elements, lead, style, titulo="Dados do Cliente"):
     else:
         elements.append(Paragraph(f"<b>Nome:</b> {lead.nome}", style))
     if getattr(lead, "cpf_cnpj", ""):
-        elements.append(Paragraph(f"<b>CPF/CNPJ:</b> {lead.cpf_cnpj}", style))
+        elements.append(Paragraph(f"<b>CPF/CNPJ:</b> {_documento_exibicao(lead.cpf_cnpj)}", style))
     if getattr(lead, "telefone", ""):
         tel_fmt = telefone_exibicao_brasileiro(lead.telefone) or (lead.telefone or "").strip()
         elements.append(Paragraph(f"<b>Telefone:</b> {tel_fmt}", style))
@@ -670,6 +671,14 @@ def _texto_cadastro(valor) -> str:
     return valor.strip() if isinstance(valor, str) else ""
 
 
+def _documento_exibicao(valor) -> str:
+    """CPF e CNPJ saem com pontuação, mesmo quando o cadastro guarda só os dígitos."""
+    texto = _texto_cadastro(valor)
+    if not texto:
+        return ""
+    return normalizar_cpf_cnpj(texto) or texto
+
+
 def _rotulo_documento(valor) -> str:
     import re
     digits = re.sub(r"\D", "", _texto_cadastro(valor))
@@ -698,8 +707,8 @@ def _documento_do_cliente(lead) -> str:
     """Empresa vinculada mostra o CNPJ da conta. Pessoa física mostra o CPF do lead."""
     cnpj = _valor_da_conta(lead, "cnpj")
     if cnpj:
-        return cnpj
-    return _texto_cadastro(getattr(lead, "cpf_cnpj", None))
+        return _documento_exibicao(cnpj)
+    return _documento_exibicao(getattr(lead, "cpf_cnpj", None))
 
 
 def _pessoa_do_contato(lead, *nomes_empresa) -> str:
@@ -761,7 +770,7 @@ def _build_identificacao_visual(elements, loja_data, lead):
     linhas = []
     if loja_data.get("nome"):
         linhas.append(_linha_cadastro("Representante", loja_data.get("nome"), style))
-    documento = loja_data.get("cpf_cnpj") or ""
+    documento = _documento_exibicao(loja_data.get("cpf_cnpj"))
     linhas.append(_linha_cadastro(_rotulo_documento(documento), documento, style))
     linhas.append(_linha_cadastro("Endereço", loja_data.get("endereco"), style))
     responsavel = _texto_cadastro(loja_data.get("admin_nome"))

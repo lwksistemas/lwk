@@ -12,7 +12,8 @@ if [ -f /etc/lwk-backup-offsite ]; then
   . /etc/lwk-backup-offsite
 fi
 if [ -n "${BACKUP_OFFSITE_TARGET:-}" ]; then
-  if ! rsync -a --chmod=F600 -e "ssh -o BatchMode=yes -o IdentitiesOnly=yes" \
+  SSH_CMD="${BACKUP_OFFSITE_SSH:-ssh -o BatchMode=yes -o IdentitiesOnly=yes}"
+  if ! rsync -a --chmod=F600 -e "$SSH_CMD" \
     "$BACKUP_DIR/$FILENAME" "${BACKUP_OFFSITE_TARGET}/"; then
     echo "Backup local ok; copia externa falhou: $FILENAME" >&2
   fi

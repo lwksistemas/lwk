@@ -68,9 +68,12 @@ class Command(BaseCommand):
             return 0
         try:
             from crm_vendas.models_config import CRMConfig
+            from tenants.middleware import set_current_loja_id, set_current_tenant_db
 
+            set_current_loja_id(loja.id)
+            set_current_tenant_db(db_name)
             n = 0
-            for config in CRMConfig.objects.using(db_name).all():
+            for config in CRMConfig.objects.all_without_filter().using(db_name):
                 n += cifrar_campos(config, ("issnet_certificado",), db_name)
         except ProgrammingError:
             self.stdout.write(self.style.WARNING(f"{loja.nome}: tabela de nota ainda não existe"))

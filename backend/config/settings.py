@@ -535,6 +535,8 @@ EVOLUTION_API_KEY = config("EVOLUTION_API_KEY", default="")
 EVOLUTION_PARCEIRO_API_URL = config("EVOLUTION_PARCEIRO_API_URL", default="")
 EVOLUTION_PARCEIRO_API_KEY = config("EVOLUTION_PARCEIRO_API_KEY", default="")
 EVOLUTION_PARCEIRO_WEBHOOK_URL = config("EVOLUTION_PARCEIRO_WEBHOOK_URL", default="")
+# Opcional. Quando preenchido, o webhook da Cora exige ?token= na URL registrada.
+CORA_WEBHOOK_SECRET = config("CORA_WEBHOOK_SECRET", default="")
 
 # Google Calendar (OAuth2 + API) - CRM Vendas
 GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")

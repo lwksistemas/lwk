@@ -12,21 +12,24 @@ export function ModalRecuperarSenha({ isOpen, onClose }: ModalRecuperarSenhaProp
   const [emailRecuperacao, setEmailRecuperacao] = useState('');
   const [loadingRecuperacao, setLoadingRecuperacao] = useState(false);
   const [mensagemRecuperacao, setMensagemRecuperacao] = useState('');
+  const [recuperacaoOk, setRecuperacaoOk] = useState(false);
 
   if (!isOpen) return null;
 
   const handleRecuperarSenha = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensagemRecuperacao('');
+    setRecuperacaoOk(false);
     setLoadingRecuperacao(true);
 
     try {
       const apiClient = (await import('@/lib/api-client')).default;
-      await apiClient.post('/superadmin/usuarios/recuperar_senha/', {
+      const res = await apiClient.post('/superadmin/usuarios/recuperar_senha/', {
         email: emailRecuperacao,
         tipo: 'suporte'
       });
-      setMensagemRecuperacao('✅ Senha provisória enviada para o email cadastrado!');
+      setRecuperacaoOk(true);
+      setMensagemRecuperacao(res.data?.message || 'Se o email estiver cadastrado, você receberá um link. A senha atual continua válida até você abrir o link.');
       setTimeout(() => {
         handleClose();
       }, 3000);
@@ -40,6 +43,7 @@ export function ModalRecuperarSenha({ isOpen, onClose }: ModalRecuperarSenhaProp
   const handleClose = () => {
     setEmailRecuperacao('');
     setMensagemRecuperacao('');
+    setRecuperacaoOk(false);
     onClose();
   };
 
@@ -50,12 +54,12 @@ export function ModalRecuperarSenha({ isOpen, onClose }: ModalRecuperarSenhaProp
           Recuperar Senha
         </h3>
         <p className="text-gray-600 mb-6">
-          Digite o email cadastrado para receber uma nova senha provisória.
+          Digite o email cadastrado. Se ele existir, enviaremos um link. A senha atual continua válida até você abrir o link.
         </p>
         
         <form onSubmit={handleRecuperarSenha} className="space-y-4">
           {mensagemRecuperacao && (
-            <div className={`p-3 rounded ${mensagemRecuperacao.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+            <div className={`p-3 rounded ${recuperacaoOk ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
               {mensagemRecuperacao}
             </div>
           )}

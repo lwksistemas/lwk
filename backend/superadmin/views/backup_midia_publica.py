@@ -14,7 +14,11 @@ from core.media_storage import (
     url_publica_midia,
 )
 
-from ..backup_midia_link import decodificar_token_backup_midia, url_zip_midia_loja
+from ..backup_midia_link import (
+    TOKEN_MAX_AGE,
+    decodificar_token_backup_midia,
+    url_zip_midia_loja,
+)
 from ..models import Loja
 
 
@@ -70,7 +74,7 @@ def backup_midia_publica(request, token: str):
         rel = item.get("url") or ""
         files.append({
             **item,
-            "public_url": url_publica_midia(rel, ttl_seconds=21 * 24 * 3600),
+            "public_url": url_publica_midia(rel, ttl_seconds=TOKEN_MAX_AGE),
         })
     return Response({
         "loja_nome": loja.nome,

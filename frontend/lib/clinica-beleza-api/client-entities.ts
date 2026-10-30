@@ -145,6 +145,10 @@ export const templatesApi = {
 
 export const documentosApi = {
   list: (consultaId: number) => cbGet<DocumentoClinicoItem[]>(`/consultas/${consultaId}/documentos/`),
+  listPorPaciente: (patientId: number) =>
+    cbGet<{ por_consulta: Record<string, DocumentoClinicoItem[]>; truncated?: boolean }>(
+      `/patients/${patientId}/documentos/`,
+    ),
   create: (
     consultaId: number,
     data: { tipo: string; conteudo?: string; template_id?: number; titulo?: string },

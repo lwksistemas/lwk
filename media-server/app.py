@@ -35,6 +35,8 @@ from flask import Flask, Response, jsonify, request
 app = Flask(__name__)
 STORAGE_ROOT = Path(os.environ.get("MEDIA_STORAGE_ROOT", "/storage"))
 API_TOKEN = os.environ.get("MEDIA_API_TOKEN", "")
+MAX_UPLOAD_BYTES = int(os.environ.get("MEDIA_MAX_UPLOAD_BYTES", str(80 * 1024 * 1024)))
+app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES + (1024 * 1024)
 # 1 = GET /files/ só abre com ?e=&s= válido. 0 libera endereço sem assinatura.
 REQUIRE_SIGNED = os.environ.get("MEDIA_REQUIRE_SIGNED", "1").lower() in ("1", "true", "yes")
 SYSTEM_TENANTS = frozenset({"superadmin", "suporte"})
@@ -192,14 +194,22 @@ def upload(tenant):
     if not folder_path or not folder_structure_ok(folder_path):
         return jsonify({"error": "Pasta inválida"}), 400
 
+    ext = Path(file.filename or "").suffix.lower() or ".jpg"
+    if not _ext_permitida(folder_path, ext):
+        return jsonify({"error": "Tipo de arquivo não permitido nesta pasta"}), 400
+    try:
+        file.seek(0, os.SEEK_END)
+        tamanho = file.tell()
+        file.seek(0)
+    except OSError:
+        return jsonify({"error": "Arquivo inválido"}), 400
+    if tamanho > MAX_UPLOAD_BYTES:
+        return jsonify({"error": "Arquivo acima do limite"}), 413
+
     dest_dir = STORAGE_ROOT / tenant_key / Path(folder_path)
     if not _safe_under_storage(dest_dir):
         return jsonify({"error": "Pasta inválida"}), 400
     dest_dir.mkdir(parents=True, exist_ok=True)
-
-    ext = Path(file.filename or "").suffix.lower() or ".jpg"
-    if not _ext_permitida(folder_path, ext):
-        return jsonify({"error": "Tipo de arquivo não permitido nesta pasta"}), 400
     filename = nome_arquivo_destino(file.filename or "", ext, dest_dir)
     filepath = dest_dir / filename
     file.save(str(filepath))
@@ -578,9 +588,20 @@ def auth_file():
 
 @app.route("/health", methods=["GET"])
 def health():
-    free_gb = os.statvfs("/storage").f_bavail * os.statvfs("/storage").f_frsize / (1024**3)
-    tenants = len([d for d in STORAGE_ROOT.iterdir() if d.is_dir()]) if STORAGE_ROOT.exists() else 0
-    return jsonify({"status": "ok", "free_gb": round(free_gb, 1), "tenants": tenants})
+    corpo = {"status": "ok"}
+    header = request.headers.get("Authorization", "")
+    token = header[7:].strip() if header.lower().startswith("bearer ") else ""
+    if API_TOKEN and token and hmac.compare_digest(token, API_TOKEN):
+        try:
+            alvo = "/storage" if os.path.isdir("/storage") else str(STORAGE_ROOT)
+            stat = os.statvfs(alvo)
+            corpo["free_gb"] = round(stat.f_bavail * stat.f_frsize / (1024**3), 1)
+            corpo["tenants"] = (
+                len([d for d in STORAGE_ROOT.iterdir() if d.is_dir()]) if STORAGE_ROOT.exists() else 0
+            )
+        except OSError:
+            app.logger.exception("health: disco indisponível")
+    return jsonify(corpo)
 
 
 if __name__ == "__main__":

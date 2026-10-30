@@ -22,6 +22,43 @@ from .views_base import MSG_ERRO_PDF, GetObjectMixin, resposta_erro_interno
 logger = logging.getLogger(__name__)
 
 
+def _arquivar_prontuario_em_segundo_plano(loja_id, patient_id, pdf_bytes: bytes, filename: str) -> None:
+    """Copia o PDF para a mídia fora do request. O download continua síncrono."""
+    if not loja_id or not pdf_bytes:
+        return
+    import threading
+
+    from django.db import connections
+
+    payload = bytes(pdf_bytes)
+
+    def _run() -> None:
+        try:
+            from superadmin.models import Loja
+            from tenants.middleware import _configure_tenant_db_for_loja, set_current_loja_id
+
+            from .media_docs_service import arquivar_pdf_gerado
+            from .models import Patient
+
+            loja = Loja.objects.using("default").filter(pk=loja_id).first()
+            if loja is None:
+                return
+            _configure_tenant_db_for_loja(loja)
+            set_current_loja_id(loja.id)
+            patient = Patient.objects.filter(pk=patient_id).first()
+            arquivar_pdf_gerado(loja.id, patient, payload, filename)
+        except Exception:
+            logger.exception("Arquivo do prontuário em segundo plano falhou paciente=%s", patient_id)
+        finally:
+            connections.close_all()
+
+    threading.Thread(
+        target=_run,
+        daemon=True,
+        name=f"pdf-prontuario-{patient_id}",
+    ).start()
+
+
 class ProntuarioView(APIView):
     """GET /clinica-beleza/patients/<patient_id>/prontuario/
     Retorna prontuário do paciente agrupado por seção.
@@ -72,10 +109,9 @@ class ProntuarioPDFView(APIView):
             else:
                 buffer = gerar_pdf_prontuario_completo(patient_id)
             filename = nome_arquivo_pdf_prontuario(getattr(patient, "nome", ""), secao)
-            from clinica_beleza.media_docs_service import arquivar_pdf_gerado
-            arquivar_pdf_gerado(
+            _arquivar_prontuario_em_segundo_plano(
                 getattr(patient, "loja_id", None),
-                patient,
+                patient_id,
                 buffer.getvalue(),
                 filename,
             )

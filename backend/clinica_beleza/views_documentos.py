@@ -308,3 +308,42 @@ class ConsultaDocumentoDeleteView(GetObjectMixin, APIView):
 
         obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PatientDocumentosView(APIView):
+    """GET /clinica-beleza/patients/<patient_id>/documentos/
+
+    Uma consulta traz os documentos de todas as consultas visíveis do paciente.
+    """
+
+    permission_classes = CLINICA_CLINICAL
+    _LIMITE = 400
+
+    def get(self, request, patient_id):
+        from .models import Patient
+        from .permissions import recusar_andamento_alheio
+
+        if not Patient.objects.filter(pk=patient_id).exists():
+            return Response({"error": "Paciente não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        documentos = list(
+            DocumentoClinico.objects.filter(patient_id=patient_id)
+            .select_related("professional", "template", "consulta")
+            .order_by("-created_at")[: self._LIMITE + 1],
+        )
+        truncado = len(documentos) > self._LIMITE
+        if truncado:
+            documentos = documentos[: self._LIMITE]
+
+        por_consulta: dict[str, list] = {}
+        for documento in documentos:
+            if recusar_andamento_alheio(request, documento.consulta):
+                continue
+            chave = str(documento.consulta_id)
+            por_consulta.setdefault(chave, []).append(documento)
+
+        serializado = {
+            chave: DocumentoClinicoSerializer(itens, many=True).data
+            for chave, itens in por_consulta.items()
+        }
+        return Response({"por_consulta": serializado, "truncated": truncado})

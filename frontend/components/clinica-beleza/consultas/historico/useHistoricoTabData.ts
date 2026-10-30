@@ -53,25 +53,32 @@ export function useHistoricoTabData({
 
   useEffect(() => {
     if (section !== "documentos") return;
-    if (historicoEnriquecido.length === 0) {
+    if (!patientId && !selectedId) {
       setDocumentosPorConsulta({});
       return;
     }
     let cancelled = false;
     setLoadingDocumentos(true);
-    Promise.all(
-      historicoEnriquecido.map((h) =>
-        ClinicaBelezaAPI.documentos
-          .list(h.id)
-          .then((data) => ({ id: h.id, docs: parseListaDocumentos(data) }))
-          .catch(() => ({ id: h.id, docs: [] as DocumentoClinicoItem[] })),
-      ),
-    )
-      .then((results) => {
-        if (cancelled) return;
-        const map: Record<number, DocumentoClinicoItem[]> = {};
-        for (const r of results) map[r.id] = r.docs;
-        setDocumentosPorConsulta(map);
+    const pedido = patientId
+      ? ClinicaBelezaAPI.documentos.listPorPaciente(patientId).then((data) => {
+          const map: Record<number, DocumentoClinicoItem[]> = {};
+          const bruto = data?.por_consulta || {};
+          for (const [id, docs] of Object.entries(bruto)) {
+            const consultaIdNum = Number(id);
+            if (!Number.isFinite(consultaIdNum)) continue;
+            map[consultaIdNum] = parseListaDocumentos(docs);
+          }
+          return map;
+        })
+      : ClinicaBelezaAPI.documentos.list(selectedId).then((data) => ({
+          [selectedId]: parseListaDocumentos(data),
+        }));
+    pedido
+      .then((map) => {
+        if (!cancelled) setDocumentosPorConsulta(map);
+      })
+      .catch(() => {
+        if (!cancelled) setDocumentosPorConsulta({});
       })
       .finally(() => {
         if (!cancelled) setLoadingDocumentos(false);
@@ -79,7 +86,7 @@ export function useHistoricoTabData({
     return () => {
       cancelled = true;
     };
-  }, [section, historicoEnriquecido]);
+  }, [section, patientId, patientId ? null : selectedId]);
 
   useEffect(() => {
     if (!consultaId) return;

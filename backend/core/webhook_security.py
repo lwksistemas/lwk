@@ -14,6 +14,18 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+def secrets_match(received: str, expected: str) -> bool:
+    """Comparação de segredo em tempo constante. Vazio nunca confere."""
+    left = received or ""
+    right = expected or ""
+    if not left or not right:
+        return False
+    try:
+        return hmac.compare_digest(left, right)
+    except (TypeError, ValueError):
+        return False
+
+
 def webhook_strict_verify() -> bool:
     return bool(getattr(settings, "WEBHOOK_STRICT_VERIFY", not settings.DEBUG))
 

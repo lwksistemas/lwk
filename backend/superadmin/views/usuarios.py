@@ -95,7 +95,7 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
             import traceback
             logger.error(traceback.format_exc())
             return Response(
-                {"error": f"Erro ao excluir usuário: {e!s}"},
+                {"error": "Erro ao excluir usuário."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -195,86 +195,28 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         throttle_classes=[PasswordResetThrottle],
     )
     def recuperar_senha(self, request):
-        """Recuperar senha de usuário do sistema (público)"""
-        email = request.data.get("email")
-        tipo = request.data.get("tipo")
+        """Pede um link por e-mail. Não altera a senha neste passo."""
+        from ..services.sistema_password_recovery_service import SistemaPasswordRecoveryService
 
-        if not email or not tipo:
-            return Response(
-                {"detail": "Email e tipo são obrigatórios"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        payload, code = SistemaPasswordRecoveryService().solicitar(
+            request.data.get("email"),
+            request.data.get("tipo"),
+        )
+        return Response(payload, status=code)
 
-        try:
-            user = User.objects.get(email=email)
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[],
+        throttle_classes=[PasswordResetThrottle],
+        url_path="confirmar_recuperacao_senha",
+    )
+    def confirmar_recuperacao_senha(self, request):
+        """Abre o link do e-mail e só então grava a senha provisória."""
+        from ..services.sistema_password_recovery_service import SistemaPasswordRecoveryService
 
-            try:
-                usuario_sistema = UsuarioSistema.objects.get(user=user, tipo=tipo)
-            except UsuarioSistema.DoesNotExist:
-                return Response(
-                    {"detail": "Usuário não encontrado ou tipo incorreto"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            from core.password_validation import generate_provisional_password
-            nova_senha = generate_provisional_password()
-
-            user.set_password(nova_senha)
-            user.save()
-
-            usuario_sistema.senha_provisoria = nova_senha
-            usuario_sistema.senha_foi_alterada = False
-            usuario_sistema.save()
-
-
-            from core.email_templates import email_senha_provisoria_html
-
-            from ..services.provisional_password_helpers import sistema_usuario_login_url
-
-            tipo_display = "Super Admin" if tipo == "superadmin" else "Suporte"
-            url_login = sistema_usuario_login_url(tipo)
-
-            info_adicional = {
-                "Perfil de Acesso": tipo_display,
-            }
-
-            html_content, texto_plano = email_senha_provisoria_html(
-                nome_destinatario=user.first_name or user.username,
-                usuario=user.username,
-                senha=nova_senha,
-                url_login=url_login,
-                titulo_principal="Recuperação de Senha",
-                subtitulo="Sua senha foi redefinida com sucesso",
-                info_adicional=info_adicional,
-                nome_sistema="LWK Sistemas",
-            )
-
-            assunto = f"Recuperação de Senha - LWK Sistemas ({tipo_display})"
-
-            from core.email_delivery import create_email_multipart
-            email_msg = create_email_multipart(
-                assunto,
-                texto_plano,
-                [email],
-                html=html_content,
-            )
-            email_msg.send(fail_silently=False)
-
-            return Response({
-                "message": "Senha provisória enviada para o email cadastrado",
-                "email": email,
-            })
-
-        except User.DoesNotExist:
-            return Response(
-                {"detail": "Email não encontrado no sistema"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        except Exception as e:
-            return Response(
-                {"detail": f"Erro ao enviar email: {e!s}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        payload, code = SistemaPasswordRecoveryService().confirmar(request.data.get("token"))
+        return Response(payload, status=code)
 
 
 class EmailRetryViewSet(viewsets.ModelViewSet):

@@ -521,6 +521,11 @@ EVOLUTION_WEBHOOK_URL = os.environ.get("EVOLUTION_WEBHOOK_URL", "").rstrip("/")
 EVOLUTION_PARCEIRO_API_URL = os.environ.get("EVOLUTION_PARCEIRO_API_URL", "").rstrip("/")
 EVOLUTION_PARCEIRO_API_KEY = os.environ.get("EVOLUTION_PARCEIRO_API_KEY", "")
 EVOLUTION_PARCEIRO_WEBHOOK_URL = os.environ.get("EVOLUTION_PARCEIRO_WEBHOOK_URL", "").rstrip("/")
+CORA_WEBHOOK_SECRET = os.environ.get("CORA_WEBHOOK_SECRET", "").strip()
+if not (os.environ.get("MEDIA_API_TOKEN") or "").strip():
+    logger.error(
+        "MEDIA_API_TOKEN ausente. Mídia fica desligada. SECRET_KEY não substitui esse token.",
+    )
 LWK_ENVIRONMENT = os.environ.get("LWK_ENVIRONMENT", "production").strip().lower()
 EVOLUTION_DEDICATED = os.environ.get("EVOLUTION_DEDICATED", "").lower() in ("true", "1", "yes")
 

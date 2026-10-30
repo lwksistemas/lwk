@@ -7,7 +7,8 @@ from django.core.signing import BadSignature, SignatureExpired, dumps, loads
 from core.assinatura_service import normalizar_token_url
 
 TOKEN_SALT = "backup-midia-loja"
-TOKEN_MAX_AGE = 21 * 24 * 3600
+# Links já enviados continuam válidos até este prazo, contado da assinatura.
+TOKEN_MAX_AGE = 7 * 24 * 3600
 
 
 def gerar_token_backup_midia(*, loja_id: int, slug: str = "") -> str:

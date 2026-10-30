@@ -69,6 +69,9 @@ def cora_test(request):
     if not resultado.get("success"):
         return Response(resultado, status=status.HTTP_400_BAD_REQUEST)
     webhook = request.build_absolute_uri("/api/superadmin/cora-webhook/")
+    segredo = _segredo_webhook_cora()
+    if segredo:
+        webhook = f"{webhook}?token={segredo}"
     try:
         client.registrar_webhook(webhook)
         resultado["webhook"] = "registrado"
@@ -78,11 +81,54 @@ def cora_test(request):
     return Response(resultado)
 
 
+def _segredo_webhook_cora() -> str:
+    from django.conf import settings
+
+    return (getattr(settings, "CORA_WEBHOOK_SECRET", None) or "").strip()
+
+
+def _cora_webhook_autorizado(request) -> bool:
+    """A Cora não assina o POST. Com CORA_WEBHOOK_SECRET, a URL registrada leva ?token=."""
+    from core.webhook_security import secrets_match
+
+    segredo = _segredo_webhook_cora()
+    if not segredo:
+        return True
+    recebido = (
+        request.headers.get("X-Cora-Webhook-Token")
+        or request.query_params.get("token")
+        or ""
+    ).strip()
+    return secrets_match(recebido, segredo)
+
+
+def _cora_dentro_do_limite(request) -> bool:
+    from django.core.cache import cache
+
+    from core.rate_limit import _get_client_ip
+
+    ip = _get_client_ip(request)
+    chave = f"rl:cora-webhook:{ip}"
+    total = cache.get(chave, 0)
+    if total >= 60:
+        return False
+    if total == 0:
+        cache.set(chave, 1, 60)
+    else:
+        ttl = cache.ttl(chave) if hasattr(cache, "ttl") else 60
+        cache.set(chave, int(total) + 1, ttl or 60)
+    return True
+
+
 @csrf_exempt
 @api_view(["POST"])
 @permission_classes([])
 def cora_webhook(request):
     """Aviso da Cora. O pagamento só renova a loja depois de a API confirmar status PAID."""
+    if not _cora_webhook_autorizado(request):
+        return Response({"status": "unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+    if not _cora_dentro_do_limite(request):
+        return Response({"status": "limited"}, status=status.HTTP_429_TOO_MANY_REQUESTS)
     tipo = (request.headers.get("webhook-event-type") or "").strip()
     invoice_id = (request.headers.get("webhook-resource-id") or "").strip()
     if tipo != "invoice.paid" or not invoice_id:

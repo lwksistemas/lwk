@@ -26,6 +26,58 @@ logger = logging.getLogger(__name__)
 from .backup_mixin import LojaBackupMixin
 
 
+def _mascarar_documento(digitos: str) -> str:
+    bruto = re.sub(r"\D", "", digitos or "")
+    if len(bruto) < 4:
+        return ""
+    return ("*" * (len(bruto) - 2)) + bruto[-2:]
+
+
+def _usuario_do_jwt_opcional(request):
+    """Lê JWT do header ou do cookie sem transformar token inválido em 401."""
+    from core.auth_cookies import inject_bearer_from_cookie
+
+    from superadmin.authentication import SessionAwareJWTAuthentication
+
+    inject_bearer_from_cookie(request)
+    if not request.META.get("HTTP_AUTHORIZATION"):
+        return None
+    try:
+        resultado = SessionAwareJWTAuthentication().authenticate(request)
+    except Exception:
+        return None
+    if not resultado:
+        return None
+    return resultado[0]
+
+
+def _pode_ver_documento_loja(request, loja_id) -> bool:
+    user = _usuario_do_jwt_opcional(request)
+    if user is None or not getattr(user, "is_authenticated", False) or not loja_id:
+        return False
+    from ...models import UsuarioSistema, VendedorUsuario
+
+    if UsuarioSistema.objects.filter(
+        user=user,
+        tipo__in=["superadmin", "suporte"],
+        is_active=True,
+    ).exists():
+        return True
+    if Loja.objects.filter(pk=loja_id, owner_id=user.id).exists():
+        return True
+    if ProfissionalUsuario.objects.filter(user=user, loja_id=loja_id).exists():
+        return True
+    return VendedorUsuario.objects.filter(user=user, loja_id=loja_id).exists()
+
+
+def _documento_para_publico(request, data: dict) -> dict:
+    if _pode_ver_documento_loja(request, data.get("id")):
+        return data
+    resposta = dict(data)
+    resposta["cpf_cnpj"] = _mascarar_documento(str(resposta.get("cpf_cnpj") or ""))
+    return resposta
+
+
 class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
     permission_classes = [IsSuperAdmin]
 
@@ -163,7 +215,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
         cached_data = get_loja_info_publica_cached(slug)
         if cached_data:
             logger.debug("✅ Cache HIT para loja %s", slug)
-            return Response(cached_data)
+            return Response(_documento_para_publico(request, cached_data))
 
         loja, err = self._fetch_loja_with_retry(slug)
         if err:
@@ -175,7 +227,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             data = self._build_info_publica_data(loja, slug)
             set_loja_info_publica_cache(loja, data, ttl=300)
             logger.debug("💾 Cache SET para loja %s", slug)
-            return Response(data)
+            return Response(_documento_para_publico(request, data))
         except Loja.DoesNotExist:
             return Response({"error": "Loja não encontrada"}, status=404)
         except Exception as e:

@@ -123,6 +123,7 @@ class SuperAdminSecurityMiddleware:
                 "/api/superadmin/lojas/por-atalho/",          # ✅ NOVO v1441: Buscar loja por atalho
                 "/api/superadmin/lojas/verificar_senha_provisoria/",
                 "/api/superadmin/usuarios/recuperar_senha/",  # Recuperação de senha superadmin/suporte
+                "/api/superadmin/usuarios/confirmar_recuperacao_senha/",
                 "/api/superadmin/lojas/recuperar_senha/",     # Recuperação de senha lojas
                 "/api/superadmin/mercadopago-webhook/",       # Webhook Mercado Pago (notificações de pagamento)
                 "/api/superadmin/cora-webhook",               # Webhook Cora, com ou sem barra final

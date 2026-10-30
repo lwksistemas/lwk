@@ -35,10 +35,8 @@ logger = logging.getLogger(__name__)
 MEDIA_SERVER_URL = os.environ.get(
     "MEDIA_SERVER_URL", "https://media.lwksistemas.com.br"
 )
-MEDIA_API_TOKEN = os.environ.get(
-    "MEDIA_API_TOKEN",
-    os.environ.get("SECRET_KEY", ""),
-)
+# Sem fallback para SECRET_KEY: a chave do Django não é credencial de mídia.
+MEDIA_API_TOKEN = (os.environ.get("MEDIA_API_TOKEN") or "").strip()
 # TTL quando o chamador não pede um prazo (backup e listagem interna).
 # A tela da clínica recebe 2 horas, no middleware de exibição.
 MEDIA_SIGNED_URL_TTL = int(os.environ.get("MEDIA_SIGNED_URL_TTL", str(7 * 24 * 3600)))

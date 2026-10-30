@@ -168,6 +168,23 @@ class MediaServerAppTest(unittest.TestCase):
         self.assertTrue(any(nome.endswith("termo.pdf") for nome in nomes))
         self.assertFalse(any("backups" in nome or nome.endswith("antigo.zip") for nome in nomes))
 
+    def test_upload_acima_do_limite_nao_grava(self):
+        media_app.MAX_UPLOAD_BYTES = 4
+        resp = self._upload(self.felix, "master-test", body=b"12345")
+        self.assertEqual(resp.status_code, 413)
+        self.assertFalse((Path(self.tmp.name) / self.felix).exists())
+
+    def test_health_publico_nao_lista_tenants(self):
+        resp = self.client.get("/health")
+        self.assertEqual(resp.status_code, 200)
+        corpo = resp.get_json()
+        self.assertEqual(corpo, {"status": "ok"})
+
+    def test_health_com_token_informa_disco(self):
+        resp = self.client.get("/health", headers={"Authorization": "Bearer master-test"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("tenants", resp.get_json())
+
 
 if __name__ == "__main__":
     unittest.main()

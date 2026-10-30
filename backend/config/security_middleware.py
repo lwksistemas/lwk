@@ -43,6 +43,8 @@ _SUPERADMIN_PUBLIC_ENDPOINTS = (
     "/api/superadmin/lojas/recuperar_senha",
     "/api/superadmin/usuarios/recuperar_senha/",
     "/api/superadmin/usuarios/recuperar_senha",
+    "/api/superadmin/usuarios/confirmar_recuperacao_senha/",
+    "/api/superadmin/usuarios/confirmar_recuperacao_senha",
     "/api/superadmin/mercadopago-webhook/",
     "/api/superadmin/cora-webhook/",
     "/api/superadmin/cora-webhook",

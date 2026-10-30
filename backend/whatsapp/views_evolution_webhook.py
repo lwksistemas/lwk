@@ -165,12 +165,11 @@ class EvolutionWebhookView(View):
         """
         from django.conf import settings
 
-        expected_key = (getattr(settings, "EVOLUTION_API_KEY", None) or "").strip()
-        if not expected_key:
-            return bool(getattr(settings, "DEBUG", False))
+        from core.webhook_security import secrets_match
 
+        expected_key = (getattr(settings, "EVOLUTION_API_KEY", None) or "").strip()
         received_key = self._extract_webhook_apikey(request)
-        return received_key == expected_key
+        return secrets_match(received_key, expected_key)
 
     @staticmethod
     def _extract_webhook_apikey(request) -> str:

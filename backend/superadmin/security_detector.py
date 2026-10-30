@@ -294,6 +294,7 @@ class SecurityDetector:
             "/superadmin/usuarios/verificar_senha_provisoria/",
             "/superadmin/usuarios/alterar_senha_primeiro_acesso/",
             "/superadmin/usuarios/recuperar_senha/",
+            "/superadmin/usuarios/confirmar_recuperacao_senha/",
             "alterar_senha_primeiro_acesso",
             "reenviar_senha",
         ]

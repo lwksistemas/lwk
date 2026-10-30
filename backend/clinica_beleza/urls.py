@@ -108,6 +108,7 @@ from .views_documentos import (
     ConsultaDocumentoListView,
     DocumentTemplateDetailView,
     DocumentTemplateListView,
+    PatientDocumentosView,
 )
 from .views_estoque import (
     CategoriaEstoqueDetailView,
@@ -252,6 +253,7 @@ urlpatterns = [
     path("texto/revisar/", RevisarTextoClinicoView.as_view(), name="texto-revisar"),
     path("patients/<int:patient_id>/consultas/", PatientHistoricoConsultasView.as_view(), name="patient-consultas-historico"),
     path("patients/<int:patient_id>/prescricoes/", PatientPrescricaoView.as_view(), name="patient-prescricoes"),
+    path("patients/<int:patient_id>/documentos/", PatientDocumentosView.as_view(), name="patient-documentos"),
 
     # Consultas (criadas via agenda)
     path("consultas/", ConsultaListView.as_view(), name="consultas-list"),

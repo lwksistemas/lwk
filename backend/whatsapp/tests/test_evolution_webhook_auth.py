@@ -45,15 +45,14 @@ class EvolutionWebhookAuthTest(SimpleTestCase):
         self.assertEqual(response.status_code, 401)
 
     @override_settings(EVOLUTION_API_KEY="", DEBUG=True)
-    def test_sem_key_em_debug_aceita(self):
+    def test_sem_key_em_debug_rejeita(self):
         request = self.factory.post(
             "/api/whatsapp/evolution/webhook/",
             data=self.body,
             content_type="application/json",
         )
-        with patch("whatsapp.connection_service.update_evolution_connection_from_webhook"):
-            response = EvolutionWebhookView.as_view()(request)
-        self.assertEqual(response.status_code, 200)
+        response = EvolutionWebhookView.as_view()(request)
+        self.assertEqual(response.status_code, 401)
 
     @override_settings(EVOLUTION_API_KEY="secret-key", DEBUG=False)
     def test_ip_interno_nao_bypassa_sem_apikey(self):

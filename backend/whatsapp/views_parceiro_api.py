@@ -202,9 +202,9 @@ class WhatsappParceiroEvolutionWebhookView(View):
     def _authenticate(self, request) -> bool:
         from django.conf import settings
 
+        from core.webhook_security import secrets_match
+
         expected = (getattr(settings, "EVOLUTION_PARCEIRO_API_KEY", None) or "").strip()
-        if not expected:
-            return bool(getattr(settings, "DEBUG", False))
         received = (
             request.headers.get("Apikey")
             or request.headers.get("X-Api-Key")
@@ -217,7 +217,7 @@ class WhatsappParceiroEvolutionWebhookView(View):
                     received = (body.get("apikey") or "").strip()
             except (json.JSONDecodeError, UnicodeDecodeError):
                 received = ""
-        return received == expected
+        return secrets_match(received, expected)
 
     def _handle(self, event: dict):
         instance = (event.get("instance") or "").strip()

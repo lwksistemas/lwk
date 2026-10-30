@@ -452,6 +452,7 @@ export default function SuperAdminLoginPage() {
         endpoint="/superadmin/usuarios/recuperar_senha/"
         extraData={{ tipo: 'superadmin' }}
         title={`Recuperar Senha - ${config.titulo}`}
+        description="Digite o email cadastrado. Se ele existir, enviaremos um link. A senha atual continua válida até você abrir o link."
         primaryColor={config.cor_primaria}
       />
     </div>

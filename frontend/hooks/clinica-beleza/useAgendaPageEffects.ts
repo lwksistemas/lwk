@@ -112,13 +112,13 @@ export function useAgendaPageEffects({
 
   useEffect(() => {
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    // Polling de eventos (8s; 4s com modal em aguardando). Pausa em arrasto, mutação e scroll.
+    // Polling de eventos (15s; 8s com modal em aguardando). Pausa em arrasto, mutação e scroll.
 
     const aguardando =
       showModal &&
       (selectedEvent?.extendedProps.status === "SCHEDULED" ||
         selectedEvent?.extendedProps.status === "PENDING");
-    const intervalMs = aguardando ? 4000 : 8000;
+    const intervalMs = aguardando ? 8000 : 15000;
 
     const poll = () => {
       if (document.visibilityState !== "visible") return;

@@ -124,7 +124,7 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
 
         if not doc_id or not tipo:
             return None
-        return (
+        assinatura = (
             ConsultaAssinaturaTermo.objects.select_related(
                 "consulta", "consulta__patient", "consulta__professional",
                 "termo_procedimento", "termo_procedimento__procedure",
@@ -133,6 +133,13 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
             .order_by("-id")
             .first()
         )
+        if assinatura is None:
+            return None
+        from core.assinatura_service import decodificar_token
+
+        if not decodificar_token(assinatura.token):
+            return None
+        return assinatura
 
     def get_documento_da_assinatura(self, assinatura):
         if assinatura.termo_procedimento_id:

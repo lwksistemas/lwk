@@ -100,8 +100,6 @@ def reenviar_termo_whatsapp(
     from whatsapp.assinatura_whatsapp import enviar_whatsapp_link_assinatura, whatsapp_envio_permitido
     from whatsapp.models import WhatsAppConfig
 
-    from .models import ConsultaAssinaturaTermo
-
     config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
     ok_cfg, err_cfg = whatsapp_envio_permitido(config, termo=True)
     if not ok_cfg:
@@ -111,9 +109,7 @@ def reenviar_termo_whatsapp(
     if not telefone:
         return False, None, "Paciente não possui telefone cadastrado."
 
-    assinatura = ConsultaAssinaturaTermo.objects.filter(
-        termo_procedimento=termo_proc, tipo="paciente", assinado=False,
-    ).order_by("-created_at").first()
+    assinatura = adapter.buscar_assinatura_pendente(termo_proc.id, "paciente")
     if not assinatura:
         adapter.deletar_assinaturas_pendentes(termo_proc, "paciente")
         assinatura = criar_assinatura(adapter, termo_proc, "paciente", loja_id)

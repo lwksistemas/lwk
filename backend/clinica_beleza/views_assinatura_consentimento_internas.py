@@ -253,6 +253,7 @@ class ConsultaLinkAssinaturaProfissionalView(GetObjectMixin, APIView):
         adapter = ConsultaTermoAssinaturaAdapter()
         assinatura = adapter.buscar_assinatura_pendente(termo_proc.id, "profissional")
         if not assinatura:
+            adapter.deletar_assinaturas_pendentes(termo_proc, "profissional")
             assinatura = criar_assinatura(adapter, termo_proc, "profissional", loja_id)
         return Response({
             "path": path_assinar_consentimento(assinatura.token),

@@ -5,8 +5,10 @@ RUN npm ci --legacy-peer-deps
 COPY frontend/ .
 ARG LWK_FRONTEND_APP=all
 ARG NEXT_PUBLIC_API_URL=https://api.lwksistemas.com.br
+ARG NEXT_PUBLIC_JWT_HTTPONLY_COOKIES=true
 ENV LWK_FRONTEND_APP=${LWK_FRONTEND_APP}
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_JWT_HTTPONLY_COOKIES=${NEXT_PUBLIC_JWT_HTTPONLY_COOKIES}
 RUN node scripts/recortar-rotas-app.mjs && npm run build
 
 FROM node:22-alpine AS runner

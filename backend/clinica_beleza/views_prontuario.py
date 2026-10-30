@@ -1,7 +1,9 @@
 """Views do Prontuário — Visualização e geração de PDF
 """
 import logging
+from uuid import uuid4
 
+from django.core.cache import cache
 from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.response import Response
@@ -22,13 +24,31 @@ from .views_base import MSG_ERRO_PDF, GetObjectMixin, resposta_erro_interno
 logger = logging.getLogger(__name__)
 
 
-def arquivar_prontuario_pdf(loja_id, patient_id, pdf_bytes: bytes, filename: str) -> None:
+_PDF_FILA_TTL = 1800
+
+
+def _bytes_do_prontuario(pdf_ou_chave):
+    """A fila recebe uma chave. A thread de reserva ainda recebe os bytes."""
+    if isinstance(pdf_ou_chave, (bytes, bytearray)):
+        return bytes(pdf_ou_chave), None
+    chave = str(pdf_ou_chave or "")
+    bruto = cache.get(chave) if chave else None
+    if not isinstance(bruto, (bytes, bytearray)) or not bruto:
+        return b"", chave
+    return bytes(bruto), chave
+
+
+def arquivar_prontuario_pdf(loja_id, patient_id, pdf_ou_chave, filename: str) -> None:
     """Arquiva o PDF do prontuário. O worker django-q chama esta função."""
-    if not loja_id or not pdf_bytes:
-        return
     from django.db import connections
 
+    chave = None
     try:
+        pdf_bytes, chave = _bytes_do_prontuario(pdf_ou_chave)
+        if not loja_id or not pdf_bytes:
+            if chave:
+                logger.warning("PDF do prontuário ausente na fila paciente=%s", patient_id)
+            return
         from superadmin.models import Loja
         from tenants.middleware import _configure_tenant_db_for_loja, set_current_loja_id
 
@@ -41,7 +61,9 @@ def arquivar_prontuario_pdf(loja_id, patient_id, pdf_bytes: bytes, filename: str
         _configure_tenant_db_for_loja(loja)
         set_current_loja_id(loja.id)
         patient = Patient.objects.filter(pk=patient_id).first()
-        arquivar_pdf_gerado(loja.id, patient, bytes(pdf_bytes), filename)
+        arquivar_pdf_gerado(loja.id, patient, pdf_bytes, filename)
+        if chave:
+            cache.delete(chave)
     except Exception:
         logger.exception("Arquivo do prontuário em segundo plano falhou paciente=%s", patient_id)
     finally:
@@ -49,7 +71,7 @@ def arquivar_prontuario_pdf(loja_id, patient_id, pdf_bytes: bytes, filename: str
 
 
 def _arquivar_prontuario_em_segundo_plano(loja_id, patient_id, pdf_bytes: bytes, filename: str) -> None:
-    """Enfileira a cópia do PDF. O download da resposta continua síncrono."""
+    """Enfileira a chave do PDF. O download da resposta continua síncrono."""
     if not loja_id or not pdf_bytes:
         return
     payload = bytes(pdf_bytes)
@@ -58,20 +80,23 @@ def _arquivar_prontuario_em_segundo_plano(loja_id, patient_id, pdf_bytes: bytes,
     from core.task_queue import task_queue_enabled
 
     if task_queue_enabled():
+        chave = f"prontuario-pdf:{patient_id}:{uuid4().hex}"
         try:
             from django_q.tasks import async_task
 
+            cache.set(chave, payload, timeout=_PDF_FILA_TTL)
             async_task(
                 func_path,
                 loja_id,
                 patient_id,
-                payload,
+                chave,
                 filename,
                 task_name=task_name,
                 save=False,
             )
             return
         except Exception as exc:
+            cache.delete(chave)
             logger.warning("Fila indisponível para arquivar prontuário: %s", exc)
     import threading
 

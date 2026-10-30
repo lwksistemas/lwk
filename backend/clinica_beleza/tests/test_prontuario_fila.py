@@ -26,8 +26,10 @@ class ArquivarProntuarioFilaTest(TestCase):
         loja_model.objects.using.return_value.filter.return_value.first.return_value = loja
         patient_model.objects.filter.return_value.first.return_value = paciente
         real_async = qtasks.async_task
+        capturado = []
 
         def roda_na_hora(*args, **kwargs):
+            capturado.append(args)
             kwargs["sync"] = True
             return real_async(*args, **kwargs)
 
@@ -36,6 +38,9 @@ class ArquivarProntuarioFilaTest(TestCase):
 
         arquivar.assert_called_once_with(1, paciente, PDF, "prontuario.pdf")
         self.assertEqual(Task.objects.count(), 0)
+        self.assertEqual(len(capturado), 1)
+        self.assertNotIn(PDF, capturado[0])
+        self.assertTrue(str(capturado[0][3]).startswith("prontuario-pdf:"))
 
 
 class ArquivarProntuarioSemFilaTest(SimpleTestCase):

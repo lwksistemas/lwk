@@ -17,11 +17,6 @@ export function isTipoClinicaBeleza(tipoLojaNome: string): boolean {
   return s.includes('beleza') || s.includes('estetica');
 }
 
-/** @deprecated Alias de isTipoClinicaBeleza — stack clinica-estetica removido. */
-export function isTipoClinicaEstetica(tipoLojaNome: string): boolean {
-  return isTipoClinicaBeleza(tipoLojaNome);
-}
-
 /** Várias fontes (tipo da loja, plano, etc.) — qualquer uma basta. */
 export function resolveIsClinicaBeleza(...hints: (string | undefined | null)[]): boolean {
   return hints.some((h) => h && isTipoClinicaBeleza(h));

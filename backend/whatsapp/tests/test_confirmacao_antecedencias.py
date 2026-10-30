@@ -20,7 +20,7 @@ from whatsapp.confirmacao_agenda_service import (
 
 
 class LojaUsaConfirmacaoAgendaTest(SimpleTestCase):
-    def test_so_clinica_e_salao(self):
+    def test_so_clinica(self):
         clinica = MagicMock()
         clinica.tipo_loja.slug = "clinica-beleza"
         crm = MagicMock()

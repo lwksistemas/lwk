@@ -625,7 +625,6 @@ def msg_confirmacao(agendamento, *, link_confirmacao=None, config=None, reagenda
 
     from .message_templates import (
         msg_confirmacao_agendamento,
-        msg_confirmacao_agendamento_salao,
         msg_reagendamento,
     )
 
@@ -638,7 +637,6 @@ def msg_confirmacao(agendamento, *, link_confirmacao=None, config=None, reagenda
 
     nome = getattr(agendamento.patient, "name", "") or getattr(agendamento.patient, "nome", "") or "Cliente"
     prof = getattr(agendamento.professional, "nome", "") if agendamento.professional else ""
-    modulo = (getattr(agendamento, "whatsapp_modulo", None) or "clinica_beleza").strip().lower()
 
     if reagendado:
         return msg_reagendamento(
@@ -650,12 +648,7 @@ def msg_confirmacao(agendamento, *, link_confirmacao=None, config=None, reagenda
             link=link_confirmacao,
         )
 
-    builder = (
-        msg_confirmacao_agendamento_salao
-        if modulo in ("cabeleireiro", "salao")
-        else msg_confirmacao_agendamento
-    )
-    return builder(
+    return msg_confirmacao_agendamento(
         nome=nome,
         data=format_agenda_data(agendamento),
         hora=format_agenda_hora(agendamento),
@@ -669,16 +662,10 @@ def msg_lembrete(agendamento):
     """Lembrete de atendimento (ex.: dia do atendimento)."""
     from clinica_beleza.agenda_display import format_agenda_hora
 
-    from .message_templates import msg_lembrete_agendamento, msg_lembrete_agendamento_salao
+    from .message_templates import msg_lembrete_agendamento
 
     nome = getattr(agendamento.patient, "name", "") or getattr(agendamento.patient, "nome", "") or "Cliente"
-    modulo = (getattr(agendamento, "whatsapp_modulo", None) or "clinica_beleza").strip().lower()
-    builder = (
-        msg_lembrete_agendamento_salao
-        if modulo in ("cabeleireiro", "salao")
-        else msg_lembrete_agendamento
-    )
-    return builder(
+    return msg_lembrete_agendamento(
         nome=nome,
         hora=format_agenda_hora(agendamento),
         procedimento=_procedure_label(agendamento),

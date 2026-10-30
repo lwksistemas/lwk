@@ -47,7 +47,7 @@ export interface PacienteCadastroFormProps {
   lojaSlug: string;
   /** Quando false, o cabeçalho fica só no ClinicaBelezaStandardPageHeader (topbar). */
   showHeader?: boolean;
-  /** Oculta convênio (ex.: salão / cabeleireiro). */
+  /** Oculta o campo de convênio. */
   hideConvenio?: boolean;
   /** ID do paciente em edição (pasta no servidor de mídia). */
   patientId?: number | null;

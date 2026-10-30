@@ -87,11 +87,10 @@ def _lojas_clinica_beleza_whatsapp():
     from superadmin.models import Loja
     from whatsapp.confirmacao_agenda_service import SLUGS_CONFIRMACAO_AGENDA
 
-    slugs = SLUGS_CONFIRMACAO_AGENDA - {"cabeleireiro"}
     return Loja.objects.filter(
         database_created=True,
         is_active=True,
-        tipo_loja__slug__in=slugs,
+        tipo_loja__slug__in=SLUGS_CONFIRMACAO_AGENDA,
     )
 
 

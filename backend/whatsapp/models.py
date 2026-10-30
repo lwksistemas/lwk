@@ -130,7 +130,6 @@ class WhatsAppConfirmacaoEnvio(models.Model):
     """Controle de envio do link de confirmação por regra (dia de antecedência)."""
 
     MODULO_CLINICA = "clinica_beleza"
-    MODULO_SALAO = "cabeleireiro"
 
     appointment_id = models.PositiveIntegerField()
     modulo = models.CharField(max_length=32, default=MODULO_CLINICA)

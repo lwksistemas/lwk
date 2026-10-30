@@ -12,8 +12,6 @@ const getIconForType = (nome: string) => {
     case 'crm vendas': return '�';
     case 'clínica da beleza':
     case 'clínica de estética': return '�';
-    case 'hotel':
-    case 'pousada': return '🏨';
     default: return '🏪';
   }
 };

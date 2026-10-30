@@ -54,12 +54,6 @@ export const DEFAULT_MODULOS: Omit<Modulo, "id">[] = [
     slug: "clinica-beleza",
     icone: "💆",
   },
-  {
-    nome: "Hotel / Pousada",
-    descricao: "Gestão de reservas e hospedagem",
-    slug: "hotel",
-    icone: "🏨",
-  },
 ];
 
 // Estilos de botões CTA

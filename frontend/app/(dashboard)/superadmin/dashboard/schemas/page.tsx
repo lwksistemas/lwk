@@ -267,7 +267,7 @@ export default function SchemasPage() {
                   <Database size={28} className="text-indigo-500" /> Auditoria de Schemas
                 </h1>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Verifica se cada loja ativa tem as tabelas esperadas para o tipo (CRM, clínica, hotel, etc.)
+                  Verifica se cada loja ativa tem as tabelas esperadas para o tipo (CRM ou clínica da beleza)
                 </p>
               </div>
             </div>

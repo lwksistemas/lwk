@@ -29,9 +29,6 @@ CACHED_ENDPOINTS = [
     # /api/crm-vendas/config/ não entra: o PATCH das colunas tem de aparecer na hora na lista.
     ("/api/clinica-beleza/dashboard/", 60, True),
     ("/api/clinica-beleza/financeiro/resumo/", 60, True),
-    ("/api/restaurante/categorias/", 120, True),
-    ("/api/cabeleireiro/servicos/", 120, True),
-    ("/api/hotel/tipos-quarto/", 120, True),
 ]
 
 

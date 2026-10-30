@@ -5,7 +5,7 @@ from django.utils.text import slugify
 
 
 class TipoLoja(models.Model):
-    """Tipos de app com dashboard específico (ex.: Clínica de Estética, Cabeleireiro)."""
+    """Tipos de app: CRM Vendas e Clínica da Beleza."""
 
     nome = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(unique=True)
@@ -57,13 +57,8 @@ class TipoLoja(models.Model):
             slug_to_codigo = {
                 "clinica-de-estetica": "CLIBEL", "clinica-da-beleza": "CLIBEL",
                 "clinica-beleza": "CLIBEL",
-                "crm-vendas": "CRMVND", "e-commerce": "ECOMM", "ecommerce": "ECOMM",
-                "restaurante": "REST", "servicos": "SERV", "cabeleireiro": "CABEL",
+                "crm-vendas": "CRMVND",
                 "clinica-estetica": "CLIBEL",
-                # Hotelaria
-                "hotel": "HOTEL", "pousada": "HOTEL", "hotel-pousada": "HOTEL", "pousada-hotel": "HOTEL",
-                "radiologia": "RADIOL", "clinica-radiologia": "RADIOL",
-                "clinica-geral": "CLIGER",
             }
             self.codigo = slug_to_codigo.get((self.slug or "").strip(), "")
         super().save(*args, **kwargs)

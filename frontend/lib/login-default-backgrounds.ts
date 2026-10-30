@@ -10,10 +10,7 @@ import {
 /** Arquivos em /public/login-backgrounds/ — um por tipo de app ativo */
 export const LOGIN_BACKGROUND_PATHS = {
   clinicaBeleza: '/login-backgrounds/clinica-beleza.jpg',
-  hotel: '/login-backgrounds/hotel.jpg',
   crm: '/login-backgrounds/crm-vendas.jpg',
-  /** Salão / cabeleireiro — interior do segmento (Lumina) */
-  salao: '/login-backgrounds/cabeleireiro.jpg',
   default: '/login-backgrounds/default.jpg',
 } as const;
 
@@ -22,18 +19,14 @@ type LoginBackgroundKey = keyof typeof LOGIN_BACKGROUND_PATHS;
 /** Cor sólida exibida instantaneamente enquanto o JPEG progressivo carrega */
 const FALLBACK_COLORS: Record<LoginBackgroundKey, string> = {
   clinicaBeleza: '#3d1a24',
-  hotel: '#1a2744',
   crm: '#1e3a5f',
-  salao: '#4A3042',
   default: '#1f2937',
 };
 
 /** Cor primária para UI da tela de login — baseada na imagem de fundo padrão */
 export const LOGIN_THEME_COLORS: Record<LoginBackgroundKey, string> = {
   clinicaBeleza: '#c4737b',
-  hotel: '#4a7ab5',
   crm: '#3b7d5c',
-  salao: '#4A3042',
   default: '#4a6a8a',
 };
 
@@ -90,8 +83,6 @@ export function getLoginBackgroundHintFromSlug(slug: string): string {
   if (exact[s]) return exact[s];
 
   if (s.includes('beleza') || s.includes('estetica')) return LOCAL.clinicaBeleza;
-  if (s.includes('salao') || s.includes('cabeleireiro') || s.includes('lumina')) return LOCAL.salao;
-  if (s.includes('hotel') || s.includes('pousada')) return LOCAL.hotel;
   if (s.includes('crm') || s.includes('vendas')) return LOCAL.crm;
 
   return LOCAL.default;

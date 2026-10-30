@@ -95,8 +95,18 @@ class BuscarPendenteTest(SimpleTestCase):
         self.assertIsNone(achado)
 
 
+def _registrar_novo(arquivo, chave, acumula):
+    """Simula criar_assinatura. Com acumula=True o antigo só some se o código o apagar."""
+    novo = _linha(_token(chave))
+    if acumula:
+        arquivo.linhas.append(novo)
+    else:
+        arquivo.linhas[:] = [novo]
+    return novo
+
+
 class ReenviarWhatsappTest(SimpleTestCase):
-    def _reenviar(self, arquivo, chave):
+    def _reenviar(self, arquivo, chave, acumula=False):
         enviado = {}
 
         def enviar(*args, **kwargs):
@@ -104,9 +114,7 @@ class ReenviarWhatsappTest(SimpleTestCase):
             return True, None
 
         def criar(adapter, documento, tipo, loja_id):
-            novo = _linha(_token(chave))
-            arquivo.linhas[:] = [novo]
-            return novo
+            return _registrar_novo(arquivo, chave, acumula)
 
         termo = _termo()
         request = MagicMock()
@@ -135,6 +143,13 @@ class ReenviarWhatsappTest(SimpleTestCase):
         self.assertNotEqual(enviado.token, antigo.token)
         self.assertEqual(arquivo.linhas, [enviado])
         self.assertNotIn(antigo, arquivo.linhas)
+
+    def test_outra_chave_apaga_o_pendente_antes_de_criar_o_novo(self):
+        antigo = _linha(_token(CHAVE_ANTIGA))
+        arquivo = _Arquivo([antigo])
+        enviado = self._reenviar(arquivo, CHAVE_NOVA, acumula=True)
+        self.assertNotIn(antigo, arquivo.linhas)
+        self.assertEqual(arquivo.linhas, [enviado])
 
     def test_mesma_chave_reaproveita_o_pendente(self):
         antigo = _linha(_token(CHAVE_NOVA))
@@ -170,11 +185,9 @@ class ReenviarWhatsappTest(SimpleTestCase):
 
 
 class LinkProfissionalTest(SimpleTestCase):
-    def _post(self, arquivo, chave):
+    def _post(self, arquivo, chave, acumula=False):
         def criar(adapter, documento, tipo, loja_id):
-            novo = _linha(_token(chave))
-            arquivo.linhas[:] = [novo]
-            return novo
+            return _registrar_novo(arquivo, chave, acumula)
 
         termo = _termo()
         view = ConsultaLinkAssinaturaProfissionalView()
@@ -201,6 +214,13 @@ class LinkProfissionalTest(SimpleTestCase):
         self.assertNotIn(quote(antigo.token, safe=""), path)
         self.assertEqual(len(arquivo.linhas), 1)
         self.assertNotEqual(arquivo.linhas[0].token, antigo.token)
+        self.assertIn(quote(arquivo.linhas[0].token, safe=""), path)
+
+    def test_outra_chave_apaga_o_pendente_antes_de_criar_o_novo(self):
+        antigo = _linha(_token(CHAVE_ANTIGA))
+        path, arquivo = self._post(_Arquivo([antigo]), CHAVE_NOVA, acumula=True)
+        self.assertNotIn(antigo, arquivo.linhas)
+        self.assertEqual(len(arquivo.linhas), 1)
         self.assertIn(quote(arquivo.linhas[0].token, safe=""), path)
 
     def test_mesma_chave_reaproveita_o_caminho(self):

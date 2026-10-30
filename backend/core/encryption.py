@@ -124,6 +124,46 @@ def is_encrypted(value: str) -> bool:
     return bool(value) and value.startswith(ENCRYPTED_PREFIX)
 
 
+# Prefixo binário do .pfx cifrado. Não colide com o ASN.1 do PKCS#12 (começa em 0x30).
+PFX_PREFIX = b"enc1:"
+
+
+def encrypt_bytes(data: bytes) -> bytes:
+    """Cifra bytes com a mesma chave dos campos de texto. Vazio ou já cifrado volta igual."""
+    if not data:
+        return b""
+    bruto = bytes(data)
+    if bruto.startswith(PFX_PREFIX):
+        return bruto
+    try:
+        token = _get_fernet().encrypt(bruto)
+        return PFX_PREFIX + token
+    except Exception as e:
+        logger.error("Erro ao criptografar bytes: %s", e)
+        raise EncryptionError("Falha ao criptografar dado sensível") from e
+
+
+def decrypt_bytes(data: bytes) -> bytes:
+    """Abre bytes cifrados. Sem o prefixo, devolve o conteúdo como está (pfx antigo)."""
+    if not data:
+        return b""
+    bruto = bytes(data)
+    if not bruto.startswith(PFX_PREFIX):
+        return bruto
+    try:
+        return _get_fernet().decrypt(bruto[len(PFX_PREFIX):])
+    except InvalidToken:
+        logger.error("Bytes cifrados inválidos — possível corrupção ou troca da chave de campo")
+        return b""
+    except Exception as e:
+        logger.error("Erro ao descriptografar bytes: %s", e)
+        return b""
+
+
+def bytes_cifrados(data: bytes | None) -> bool:
+    return bool(data) and bytes(data).startswith(PFX_PREFIX)
+
+
 SENHAS_ISSNET = ("issnet_senha", "issnet_senha_certificado")
 
 

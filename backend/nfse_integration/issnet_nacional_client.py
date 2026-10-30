@@ -133,8 +133,10 @@ class ISSNetNacionalClient:
             return self.cert_path
         if not self.cert_bytes:
             raise ValueError("Certificado digital não disponível.")
+        from nfse_integration.certificado_armazenado import ler_pfx
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_nac_") as tmp:
-            tmp.write(bytes(self.cert_bytes))
+            tmp.write(ler_pfx(self.cert_bytes))
             return tmp.name
 
     def _assinar_dps_signxml(self, dps_xml_str: str) -> str:

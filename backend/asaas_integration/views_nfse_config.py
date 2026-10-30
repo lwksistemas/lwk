@@ -99,7 +99,10 @@ def _apply_nfse_cert_file(request, config, update_fields: list):
             return Response({"error": "Formato inválido. Envie .pfx ou .p12"}, status=status.HTTP_400_BAD_REQUEST)
         if cert_file.size > 5 * 1024 * 1024:
             return Response({"error": "Certificado muito grande (máx 5MB)"}, status=status.HTTP_400_BAD_REQUEST)
-        config.nacional_certificado = cert_file.read()
+        gravado = _pfx_validado(request, config, cert_file.read())
+        if isinstance(gravado, Response):
+            return gravado
+        config.nacional_certificado = gravado
         config.nacional_certificado_nome = cert_file.name[:255]
         update_fields.extend(["nacional_certificado", "nacional_certificado_nome"])
     issnet_cert_file = request.FILES.get("issnet_certificado")
@@ -109,7 +112,10 @@ def _apply_nfse_cert_file(request, config, update_fields: list):
             return Response({"error": "Formato inválido. Envie .pfx ou .p12"}, status=status.HTTP_400_BAD_REQUEST)
         if issnet_cert_file.size > 5 * 1024 * 1024:
             return Response({"error": "Certificado muito grande (máx 5MB)"}, status=status.HTTP_400_BAD_REQUEST)
-        config.issnet_certificado = issnet_cert_file.read()
+        gravado = _pfx_validado(request, config, issnet_cert_file.read())
+        if isinstance(gravado, Response):
+            return gravado
+        config.issnet_certificado = gravado
         config.issnet_certificado_nome = issnet_cert_file.name[:255]
         update_fields.extend(["issnet_certificado", "issnet_certificado_nome"])
     return None
@@ -147,6 +153,25 @@ def _apply_nfse_simple_fields(data, config, update_fields: list) -> None:
             continue
         setattr(config, field, val)
         update_fields.append(field)
+
+
+def _pfx_validado(request, config, conteudo: bytes):
+    """Devolve o blob cifrado ou uma Response 400."""
+    from nfse_integration.certificado_armazenado import (
+        CertificadoInvalido,
+        preparar_pfx_para_gravar,
+        senha_do_upload,
+    )
+
+    senha = senha_do_upload(
+        request.data,
+        getattr(config, "nacional_senha_certificado", "") or "",
+        getattr(config, "issnet_senha_certificado", "") or "",
+    )
+    try:
+        return preparar_pfx_para_gravar(conteudo, senha)
+    except CertificadoInvalido as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 def _apply_nfse_config_update(request, config):
@@ -247,8 +272,13 @@ def nfse_config_view(request):
 def _resolver_cert_senha_nfse(request, config) -> tuple[bytes | None, str]:
     """Resolve (cert_data, senha_cert) para teste de NFS-e."""
     from core.encryption import decrypt_value
+    from nfse_integration.certificado_armazenado import ler_pfx
+
     cert_file = request.FILES.get("issnet_certificado") or request.FILES.get("nacional_certificado")
-    cert_data = cert_file.read() if cert_file else (config.issnet_certificado or config.nacional_certificado)
+    if cert_file:
+        cert_data = cert_file.read()
+    else:
+        cert_data = ler_pfx(config.issnet_certificado or config.nacional_certificado)
     data = request.data
     senha_cert_raw = str(_data_get(data, "issnet_senha_certificado", "")).strip()
     if not senha_cert_raw:

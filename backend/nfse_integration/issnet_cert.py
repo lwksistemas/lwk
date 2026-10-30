@@ -12,8 +12,10 @@ def carregar_certificado(pfx_path: str, senha: str):
     """Carrega chave privada e certificado de um arquivo .pfx."""
     from cryptography.hazmat.primitives.serialization import pkcs12
 
+    from nfse_integration.certificado_armazenado import ler_pfx
+
     with open(pfx_path, "rb") as f:
-        pfx_data = f.read()
+        pfx_data = ler_pfx(f.read())
     private_key, certificate, extra = pkcs12.load_key_and_certificates(
         pfx_data, senha.encode(),
     )

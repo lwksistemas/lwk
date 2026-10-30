@@ -266,7 +266,9 @@ def _preparar_cert_mtls(
 
     # Carregar PFX
     if pfx_bytes:
-        pfx_data = pfx_bytes
+        from nfse_integration.certificado_armazenado import ler_pfx
+
+        pfx_data = ler_pfx(pfx_bytes)
     elif pfx_path and os.path.isfile(pfx_path):
         with open(pfx_path, "rb") as f:
             pfx_data = f.read()

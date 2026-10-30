@@ -196,8 +196,10 @@ def carregar_certificado_pfx(pfx_path: str, senha: str) -> tuple:
     """
     from cryptography.hazmat.primitives.serialization import pkcs12
 
+    from nfse_integration.certificado_armazenado import ler_pfx
+
     with open(pfx_path, "rb") as f:
-        pfx_data = f.read()
+        pfx_data = ler_pfx(f.read())
 
     private_key, certificate, extra = pkcs12.load_key_and_certificates(
         pfx_data, senha.encode(),
@@ -215,8 +217,10 @@ def carregar_certificado_bytes(pfx_bytes: bytes, senha: str) -> tuple:
     """
     from cryptography.hazmat.primitives.serialization import pkcs12
 
+    from nfse_integration.certificado_armazenado import ler_pfx
+
     private_key, certificate, extra = pkcs12.load_key_and_certificates(
-        pfx_bytes, senha.encode(),
+        ler_pfx(pfx_bytes), senha.encode(),
     )
     if certificate is None:
         raise ValueError("Os bytes do certificado não contêm certificado válido.")
@@ -344,8 +348,10 @@ def assinar_xml_dps_bytes(
     """
     cert_path = None
     try:
+        from nfse_integration.certificado_armazenado import ler_pfx
+
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx")  # noqa: SIM115
-        tmp.write(pfx_bytes)
+        tmp.write(ler_pfx(pfx_bytes))
         tmp.close()
         cert_path = tmp.name
 

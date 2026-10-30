@@ -140,7 +140,20 @@ class CRMConfigSerializer(serializers.ModelSerializer):
         if request and hasattr(request, "FILES"):
             cert_file = request.FILES.get("issnet_certificado")
             if cert_file:
-                instance.issnet_certificado = cert_file.read()
+                from nfse_integration.certificado_armazenado import (
+                    CertificadoInvalido,
+                    preparar_pfx_para_gravar,
+                    senha_do_upload,
+                )
+
+                senha = senha_do_upload(
+                    request.data,
+                    getattr(instance, "issnet_senha_certificado", "") or "",
+                )
+                try:
+                    instance.issnet_certificado = preparar_pfx_para_gravar(cert_file.read(), senha)
+                except CertificadoInvalido as exc:
+                    raise serializers.ValidationError({"issnet_certificado": str(exc)}) from exc
                 instance.issnet_certificado_nome = cert_file.name or "certificado.pfx"
         return super().update(instance, validated_data)
 

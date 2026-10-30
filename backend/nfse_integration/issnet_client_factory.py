@@ -19,12 +19,15 @@ def issnet_client_from_pfx(
     """Abre ISSNetClient com certificado PFX em arquivo temporário."""
     from nfse_integration.issnet_client import ISSNetClient
 
-    if not cert_data:
+    from nfse_integration.certificado_armazenado import ler_pfx
+
+    claro = ler_pfx(cert_data)
+    if not claro:
         raise ValueError("Certificado digital não configurado")
 
     cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix=prefix)  # noqa: SIM115
     try:
-        cert_tmp.write(bytes(cert_data))
+        cert_tmp.write(claro)
         cert_tmp.close()
         client = ISSNetClient(
             usuario=usuario or "",

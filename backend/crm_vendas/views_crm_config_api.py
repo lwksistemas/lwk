@@ -259,13 +259,13 @@ def crm_config_issnet_test(request):
         return Response({"success": False, "detail": str(e)}, status=500)
 
     # Certificado: do upload ou do banco
+    from nfse_integration.certificado_armazenado import ler_pfx
+
     cert_file = request.FILES.get("issnet_certificado")
     if cert_file:
         cert_data = cert_file.read()
     else:
-        cert_data = getattr(cfg, "issnet_certificado", None)
-        if cert_data:
-            cert_data = bytes(cert_data)
+        cert_data = ler_pfx(getattr(cfg, "issnet_certificado", None))
 
     from core.encryption import decrypt_value
 

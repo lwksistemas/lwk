@@ -3,8 +3,10 @@
 # usuário que não lê a pasta: ele só pode gravar. A chave privada do age
 # não fica na máquina que recebe o arquivo.
 set -eu
+umask 077
 BACKUP_DIR="/opt/lwk-erp/backups"
 ALERTA_EMAIL="consultorluizfelix@hotmail.com"
+MIN_BYTES=$((1024 * 1024))
 
 alert_backup() {
   local msg="$1"
@@ -35,19 +37,35 @@ PY
     echo "Backup: e-mail de alerta não enviado" >&2
   fi
 }
+
 mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
 FILENAME="lwk_$(date +%Y%m%d_%H%M%S).dump"
-docker compose -f /opt/lwk-erp/docker-compose.prod.yml exec -T postgres pg_dump -U lwk -Fc lwk > "$BACKUP_DIR/$FILENAME"
-chmod 600 "$BACKUP_DIR/$FILENAME"
+DUMP_OK=0
+if ! docker compose -f /opt/lwk-erp/docker-compose.prod.yml exec -T postgres pg_dump -U lwk -Fc lwk > "$BACKUP_DIR/$FILENAME"; then
+  rm -f "$BACKUP_DIR/$FILENAME"
+  alert_backup "pg_dump falhou: $FILENAME"
+else
+  chmod 600 "$BACKUP_DIR/$FILENAME"
+  SIZE=$(stat -c %s "$BACKUP_DIR/$FILENAME")
+  if [ "$SIZE" -lt "$MIN_BYTES" ]; then
+    rm -f "$BACKUP_DIR/$FILENAME"
+    alert_backup "dump pequeno demais ($SIZE bytes): $FILENAME"
+  else
+    DUMP_OK=1
+  fi
+fi
 if [ -f /etc/lwk-backup-offsite ]; then
   # shellcheck disable=SC1091
   . /etc/lwk-backup-offsite
 fi
-if [ -n "${BACKUP_OFFSITE_TARGET:-}" ]; then
+if [ "$DUMP_OK" = 1 ] && [ -n "${BACKUP_OFFSITE_TARGET:-}" ]; then
   if [ -z "${BACKUP_OFFSITE_AGE_RECIPIENT:-}" ]; then
     alert_backup "Backup local ok; copia externa sem destinatario age, nao enviada: $FILENAME"
+  elif ! age -r "$BACKUP_OFFSITE_AGE_RECIPIENT" -o "$BACKUP_DIR/$FILENAME.age" "$BACKUP_DIR/$FILENAME"; then
+    rm -f "$BACKUP_DIR/$FILENAME.age"
+    alert_backup "age falhou: $FILENAME"
   else
-    age -r "$BACKUP_OFFSITE_AGE_RECIPIENT" -o "$BACKUP_DIR/$FILENAME.age" "$BACKUP_DIR/$FILENAME"
     chmod 600 "$BACKUP_DIR/$FILENAME.age"
     SSH_CMD="${BACKUP_OFFSITE_SSH:-ssh -o BatchMode=yes -o IdentitiesOnly=yes}"
     if ! rsync -a --chmod=F600 -e "$SSH_CMD" \
@@ -59,4 +77,6 @@ if [ -n "${BACKUP_OFFSITE_TARGET:-}" ]; then
 fi
 find "$BACKUP_DIR" -name "*.dump" -mtime +7 -delete
 find "$BACKUP_DIR" -name "*.age" -mtime +7 -delete
-echo "Backup: $FILENAME ($(du -h "$BACKUP_DIR/$FILENAME" | cut -f1))"
+if [ "$DUMP_OK" = 1 ]; then
+  echo "Backup: $FILENAME ($(du -h "$BACKUP_DIR/$FILENAME" | cut -f1))"
+fi

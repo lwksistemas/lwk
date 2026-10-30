@@ -167,18 +167,14 @@ export default function AssinaturaPage() {
   const [sucesso, setSucesso] = useState(false);
   const [proximoStatus, setProximoStatus] = useState('');
   const [baixandoPdf, setBaixandoPdf] = useState(false);
-  /** PDF exibido na própria página (obrigatório antes de assinar). */
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfInlineLoading, setPdfInlineLoading] = useState(false);
   const [pdfInlineError, setPdfInlineError] = useState(false);
-  /** Usuário abriu o PDF em nova aba ou acionou baixar (sem iframe — evita botão nativo "Abrir" no iOS). */
-  const [pdfInteracaoFeita, setPdfInteracaoFeita] = useState(false);
   const [declarouLeituraCompleta, setDeclarouLeituraCompleta] = useState(false);
   const [pdfReloadKey, setPdfReloadKey] = useState(0);
   const pdfBlobUrlRef = useRef<string | null>(null);
 
-  const pdfPronto = Boolean(pdfBlobUrl) && !pdfInlineLoading && !pdfInlineError;
-  const podeAssinar = pdfPronto && pdfInteracaoFeita && declarouLeituraCompleta;
+  const podeAssinar = declarouLeituraCompleta;
 
   useEffect(() => {
     pdfBlobUrlRef.current = pdfBlobUrl;
@@ -248,7 +244,6 @@ export default function AssinaturaPage() {
       });
       setPdfInlineLoading(true);
       setPdfInlineError(false);
-      setPdfInteracaoFeita(false);
       setDeclarouLeituraCompleta(false);
       try {
         const backendUrl = getPrimaryApiBaseUrl();
@@ -313,7 +308,6 @@ export default function AssinaturaPage() {
   const visualizarPdf = async () => {
     if (pdfBlobUrl) {
       window.open(pdfBlobUrl, '_blank', 'noopener,noreferrer');
-      setPdfInteracaoFeita(true);
       return;
     }
     setBaixandoPdf(true);
@@ -328,7 +322,6 @@ export default function AssinaturaPage() {
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');
-      setPdfInteracaoFeita(true);
       setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
     } catch {
       setErro('Erro ao carregar PDF. Verifique sua conexão.');
@@ -365,7 +358,6 @@ export default function AssinaturaPage() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setPdfInteracaoFeita(true);
         return;
       }
       const backendUrl = getPrimaryApiBaseUrl();
@@ -383,7 +375,6 @@ export default function AssinaturaPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      setPdfInteracaoFeita(true);
     } catch {
       setErro('Erro ao baixar PDF. Verifique sua conexão.');
     } finally {
@@ -613,14 +604,13 @@ export default function AssinaturaPage() {
             <label className="mt-4 flex cursor-pointer items-start gap-3 border-l-4 border-yellow-400 bg-yellow-50 p-4">
               <input
                 type="checkbox"
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 disabled:cursor-not-allowed"
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
                 checked={declarouLeituraCompleta}
-                disabled={!pdfBlobUrl || Boolean(pdfInlineError)}
                 onChange={(e) => setDeclarouLeituraCompleta(e.target.checked)}
               />
               <span className="text-sm text-yellow-800">
                 Ao clicar em &quot;Assinar documento&quot;, você concorda com os termos deste documento.
-                A assinatura só pode ser feita após abrir ou baixar o PDF e após a confirmação de leitura. O registro inclui data, hora e endereço IP.
+                O registro inclui data, hora e endereço IP.
               </span>
             </label>
 

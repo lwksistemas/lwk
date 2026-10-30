@@ -139,7 +139,7 @@ def opcoes_registro(request, user, user_type: str, loja_slug: str | None) -> dic
         user_display_name=user.get_full_name() or user.username,
         authenticator_selection=AuthenticatorSelectionCriteria(
             authenticator_attachment=AuthenticatorAttachment.PLATFORM,
-            resident_key=ResidentKeyRequirement.PREFERRED,
+            resident_key=ResidentKeyRequirement.DISCOURAGED,
             user_verification=UserVerificationRequirement.REQUIRED,
         ),
         exclude_credentials=[

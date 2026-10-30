@@ -129,7 +129,7 @@ export default function PipelineBoard({
       return rotuloExibicaoOportunidade(a).localeCompare(rotuloExibicaoOportunidade(b), 'pt-BR');
     });
     return (
-      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-600">
+      <div className="overflow-x-auto max-w-full rounded-xl border border-gray-200 dark:border-gray-600">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-600 text-left">

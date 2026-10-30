@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
-import { perguntarAtivarRosto } from '@/lib/rosto-login';
 import { homePathForTipo, isTipoCRMVendas } from '@/lib/loja-tipo';
 import { resolveLoginBackground, getLoginBackgroundHintFromSlug, getLoginBackgroundFallbackColor, preloadLoginBackground, getLoginThemeColor, cacheLojaLoginContext, getInitialLoginBackgroundForSlug, preloadImageUrl } from '@/lib/login-default-backgrounds';
 import { themeLabelForTipo } from '@/lib/loja-theme';
@@ -160,6 +159,38 @@ export default function LojaLoginDinamicoPage() {
     setCredentials({ ...credentials, cpf_cnpj: valorFormatado });
   };
 
+  const concluirLogin = (loginResponse: { precisa_trocar_senha?: boolean }) => {
+    if (loginResponse.precisa_trocar_senha === true) {
+      markInternalNavigation();
+      window.location.replace(`/loja/${slug}/trocar-senha`);
+      return;
+    }
+
+    if (typeof window !== 'undefined' && slug) {
+      if (lembrarCpfCnpj) {
+        localStorage.setItem(`login_lembrar_cpf_${slug}`, credentials.cpf_cnpj);
+        localStorage.setItem(`login_lembrar_user_${slug}`, credentials.username);
+        localStorage.removeItem(`login_lembrar_pass_${slug}`);
+      } else {
+        localStorage.removeItem(`login_lembrar_cpf_${slug}`);
+        localStorage.removeItem(`login_lembrar_user_${slug}`);
+        localStorage.removeItem(`login_lembrar_pass_${slug}`);
+      }
+    }
+
+    const usaCrm = lojaInfo && isTipoCRMVendas(lojaInfo.tipo_loja_nome);
+    const destino = lojaInfo
+      ? homePathForTipo(slug, lojaInfo.tipo_loja_nome)
+      : `/loja/${slug}/dashboard`;
+    if (typeof document !== 'undefined') {
+      document.cookie = usaCrm
+        ? 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax'
+        : 'loja_usa_crm=; path=/; max-age=0';
+    }
+    markInternalNavigation();
+    window.location.replace(`${destino}?_t=${Date.now()}`);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -167,45 +198,9 @@ export default function LojaLoginDinamicoPage() {
 
     try {
       const loginResponse = await authService.login(credentials, 'loja', slug);
-      await perguntarAtivarRosto({ userType: 'loja', slug, username: credentials.username });
-      
-      // Verificar se precisa trocar senha
-      const precisaTrocar = loginResponse.precisa_trocar_senha === true;
-      
-      if (precisaTrocar) {
-        markInternalNavigation();
-        window.location.replace(`/loja/${slug}/trocar-senha`);
-        return;
-      }
-
-      // Salvar ou remover identificadores conforme checkbox "Lembrar". Nunca salvar senha.
-      if (typeof window !== 'undefined' && slug) {
-        if (lembrarCpfCnpj) {
-          localStorage.setItem(`login_lembrar_cpf_${slug}`, credentials.cpf_cnpj);
-          localStorage.setItem(`login_lembrar_user_${slug}`, credentials.username);
-          localStorage.removeItem(`login_lembrar_pass_${slug}`);
-        } else {
-          localStorage.removeItem(`login_lembrar_cpf_${slug}`);
-          localStorage.removeItem(`login_lembrar_user_${slug}`);
-          localStorage.removeItem(`login_lembrar_pass_${slug}`);
-        }
-      }
-
-      const usaCrm = lojaInfo && isTipoCRMVendas(lojaInfo.tipo_loja_nome);
-      const destino = lojaInfo
-        ? homePathForTipo(slug, lojaInfo.tipo_loja_nome)
-        : `/loja/${slug}/dashboard`;
-      if (typeof document !== 'undefined') {
-        document.cookie = usaCrm
-          ? 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax'
-          : 'loja_usa_crm=; path=/; max-age=0';
-      }
-      markInternalNavigation();
-      const timestamp = new Date().getTime();
-      window.location.replace(`${destino}?_t=${timestamp}`);
+      concluirLogin(loginResponse);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao fazer login. Tente novamente.');
-    } finally {
       setLoading(false);
     }
   };
@@ -416,36 +411,18 @@ export default function LojaLoginDinamicoPage() {
           </button>
         </form>
 
-        <div className="text-center text-xs text-gray-500 dark:text-gray-400 -mt-2">
-          Desbloqueio facial
-        </div>
         <BotaoRosto
           userType="loja"
           slug={slug}
           username={credentials.username}
+          senha={credentials.password}
           cor={corTema}
           disabled={loading}
           onErro={setError}
-          onSucesso={async (loginResponse) => {
-            if (loginResponse.precisa_trocar_senha === true) {
-              markInternalNavigation();
-              window.location.replace(`/loja/${slug}/trocar-senha`);
-              return;
-            }
-            const usaCrm = lojaInfo && isTipoCRMVendas(lojaInfo.tipo_loja_nome);
-            const destino = lojaInfo
-              ? homePathForTipo(slug, lojaInfo.tipo_loja_nome)
-              : `/loja/${slug}/dashboard`;
-            if (typeof document !== 'undefined') {
-              document.cookie = usaCrm
-                ? 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax'
-                : 'loja_usa_crm=; path=/; max-age=0';
-            }
-            markInternalNavigation();
-            window.location.replace(`${destino}?_t=${Date.now()}`);
-          }}
+          onAtivarComSenha={() => authService.login(credentials, 'loja', slug)}
+          onSucesso={concluirLogin}
         />
-        
+
         {/* Forgot Password Link */}
         <div className="text-center">
           <button

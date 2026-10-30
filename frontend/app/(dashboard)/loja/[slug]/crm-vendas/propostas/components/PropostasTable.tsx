@@ -110,7 +110,7 @@ export function PropostasTable({
   };
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto max-w-full">
       <table className="w-full min-w-[500px]">
         <thead>
           <tr className="border-b border-gray-200 dark:border-[#0d1f3c] bg-gray-50 dark:bg-[#0d1f3c]/50">

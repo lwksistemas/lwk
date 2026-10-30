@@ -392,6 +392,14 @@ class CobrancaService:
             dict com success, provedor, payment_id, boleto_url, pix_qr_code, error
 
         """
+        from superadmin.degustacao_service import em_degustacao
+
+        if em_degustacao(financeiro):
+            return {
+                "success": False,
+                "error": "Loja em demonstração. O boleto só é gerado se o cliente escolher pagar.",
+            }
+
         validation_error = self._validar_dados_loja(loja)
         if validation_error:
             return {"success": False, "error": validation_error}

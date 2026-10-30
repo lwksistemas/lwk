@@ -33,6 +33,25 @@ def on_payment_confirmed(sender, instance, created, **kwargs):
     if created:
         return
 
+    campos = kwargs.get("update_fields")
+    if campos is not None and "status_pagamento" not in campos:
+        return
+
+    dias_apos_pagamento = int(getattr(instance, "degustacao_dias_apos_pagamento", 0) or 0)
+    if instance.status_pagamento == "ativo" and dias_apos_pagamento > 0:
+        from superadmin.degustacao_service import iniciar_contagem_degustacao
+
+        try:
+            iniciar_contagem_degustacao(instance.loja, instance, dias_apos_pagamento)
+            logger.info(
+                "Demonstração de %s dias iniciada após o pagamento da loja %s",
+                dias_apos_pagamento,
+                instance.loja.slug,
+            )
+        except Exception:
+            logger.exception("Falha ao iniciar demonstração após pagamento da loja %s", instance.loja_id)
+        return
+
     # Verificar se status mudou para 'ativo' e senha ainda não foi enviada
     if instance.status_pagamento == "ativo" and not instance.senha_enviada:
         from superadmin.email_service import EmailService

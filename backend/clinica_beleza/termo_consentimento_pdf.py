@@ -10,7 +10,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Flowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 logger = logging.getLogger(__name__)
 
@@ -133,40 +133,11 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
 
 
 def _insert_watermark(elements, wm_bytes: bytes):
-    """Marca d'água atrás das duas colunas — mesmo mecanismo do CRM Vendas."""
+    """Marca d'água atrás das duas colunas de assinatura (flowable compartilhado)."""
     if not wm_bytes:
         return
 
-    class WatermarkFlowable(Flowable):
-        def __init__(self, wm_data: bytes):
-            Flowable.__init__(self)
-            self.wm_bytes = wm_data
-            self.width = 16 * cm
-            self.height = 0
-
-        def draw(self):
-            try:
-                from reportlab.lib.utils import ImageReader
-                img = ImageReader(BytesIO(self.wm_bytes))
-                iw, ih = img.getSize()
-                wm_w = WM_MAX_W_CM * cm
-                wm_h = wm_w * (ih / float(iw))
-                if wm_h > WM_MAX_H_CM * cm:
-                    wm_h = WM_MAX_H_CM * cm
-                    wm_w = wm_h / (ih / float(iw))
-                y_offset = -(wm_h * WM_Y_FACTOR) - (WM_DESCER_CM * cm)
-                x_left = (8 * cm - wm_w) / 2
-                x_right = 8 * cm + (8 * cm - wm_w) / 2
-                self.canv.drawImage(
-                    img, x_left, y_offset, width=wm_w, height=wm_h,
-                    mask="auto", preserveAspectRatio=True,
-                )
-                self.canv.drawImage(
-                    img, x_right, y_offset, width=wm_w, height=wm_h,
-                    mask="auto", preserveAspectRatio=True,
-                )
-            except Exception:
-                pass
+    from clinica_beleza.pdf_common.watermark import MarcaDaguaColunas
 
     insert_idx = None
     for i in range(len(elements) - 1, -1, -1):
@@ -174,7 +145,13 @@ def _insert_watermark(elements, wm_bytes: bytes):
             insert_idx = i
             break
     if insert_idx is not None:
-        elements.insert(insert_idx, WatermarkFlowable(wm_bytes))
+        elements.insert(insert_idx, MarcaDaguaColunas(
+            wm_bytes,
+            max_w=WM_MAX_W_CM * cm,
+            max_h=WM_MAX_H_CM * cm,
+            y_factor=WM_Y_FACTOR,
+            descer=WM_DESCER_CM * cm,
+        ))
 
 
 def _criar_styles_termo(styles) -> tuple:

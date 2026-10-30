@@ -176,3 +176,113 @@ class TestCheckInadimplenciaBlock(TestCase):
         request.user = self.user
 
         self.assertIsNone(check_inadimplencia_block(request))
+
+
+class TestDegustacao(TestCase):
+    def _loja(self, ate):
+        loja = Mock()
+        loja.id = 1
+        loja.slug = "demo"
+        loja.is_blocked = False
+        loja.blocked_reason = ""
+        financeiro = Mock()
+        financeiro.status_pagamento = "degustacao"
+        financeiro.degustacao_ate = ate
+        financeiro.degustacao_avisada = False
+        loja.financeiro = financeiro
+        return loja, financeiro
+
+    def test_aberta_nao_bloqueia_nem_muda_status(self):
+        loja, financeiro = self._loja(date.today() + timedelta(days=10))
+        out = aplicar_bloqueio_inadimplencia_loja(loja, persistir=False)
+        self.assertFalse(out["blocked"])
+        self.assertEqual(financeiro.status_pagamento, "degustacao")
+        self.assertFalse(loja.is_blocked)
+
+    def test_encerrada_bloqueia_sem_virar_cobranca(self):
+        loja, financeiro = self._loja(date.today() - timedelta(days=1))
+        out = aplicar_bloqueio_inadimplencia_loja(loja, persistir=False)
+        self.assertTrue(loja.is_blocked)
+        self.assertEqual(loja.blocked_reason, "Demonstração encerrada")
+        self.assertEqual(financeiro.status_pagamento, "degustacao")
+        self.assertEqual(out["reason"], "degustacao_encerrada")
+
+    def test_nao_gera_boleto_enquanto_aberta(self):
+        loja, financeiro = self._loja(date.today() + timedelta(days=3))
+        out = situacao_geracao_boleto_assinatura(loja, financeiro)
+        self.assertFalse(out["pode_gerar"])
+
+    def test_pagar_antes_do_fim_nao_cria_boleto(self):
+        from superadmin.degustacao_service import aceitar_boleto_degustacao
+
+        loja, financeiro = self._loja(date.today() + timedelta(days=2))
+        with patch("superadmin.cobranca_service.CobrancaService") as cobranca:
+            out = aceitar_boleto_degustacao(loja, financeiro)
+        self.assertFalse(out["success"])
+        cobranca.assert_not_called()
+
+    def test_pagar_depois_do_fim_cria_boleto(self):
+        from superadmin.degustacao_service import aceitar_boleto_degustacao
+
+        loja, financeiro = self._loja(date.today() - timedelta(days=1))
+        financeiro.boleto_url = "https://boleto.exemplo"
+        with (
+            patch("superadmin.cobranca_service.CobrancaService") as cobranca,
+            patch("superadmin.cobranca_service.cobranca_ja_registrada", return_value=False),
+            patch("superadmin.serializers.loja._enviar_boleto_do_cadastro"),
+            patch(
+                "superadmin.services.financeiro_service.FinanceiroService.calcular_primeiro_vencimento",
+                return_value=date.today(),
+            ),
+        ):
+            cobranca.return_value.criar_cobranca.return_value = {"success": True}
+            out = aceitar_boleto_degustacao(loja, financeiro)
+        self.assertTrue(out["success"])
+        cobranca.return_value.criar_cobranca.assert_called_once()
+        self.assertEqual(financeiro.status_pagamento, "pendente")
+
+
+class TestDegustacaoLojaExistente(TestCase):
+    def test_sem_boleto_comeca_agora(self):
+        from superadmin.degustacao_service import definir_degustacao_loja_existente
+
+        loja = Mock(is_blocked=False, blocked_reason="", slug="demo")
+        financeiro = Mock(
+            status_pagamento="ativo",
+            senha_enviada=True,
+            boleto_url="",
+            asaas_payment_id="",
+            mercadopago_payment_id="",
+            cora_invoice_id="",
+            degustacao_ate=None,
+        )
+        with (
+            patch("superadmin.financeiro_views.troca_banco.boleto_em_aberto", return_value=None),
+            patch("superadmin.degustacao_service.iniciar_contagem_degustacao") as iniciar,
+        ):
+            out = definir_degustacao_loja_existente(loja, financeiro, 15)
+        iniciar.assert_called_once_with(loja, financeiro, 15)
+        self.assertTrue(out["success"])
+        self.assertFalse(out["aguardando_pagamento"])
+
+    def test_com_boleto_espera_o_pagamento(self):
+        from superadmin.degustacao_service import definir_degustacao_loja_existente
+
+        loja = Mock(is_blocked=False, blocked_reason="", slug="demo")
+        financeiro = Mock(status_pagamento="pendente", degustacao_ate=None)
+        with patch("superadmin.financeiro_views.troca_banco.boleto_em_aberto", return_value=Mock()):
+            out = definir_degustacao_loja_existente(loja, financeiro, 30)
+        self.assertTrue(out["aguardando_pagamento"])
+        self.assertEqual(financeiro.degustacao_dias_apos_pagamento, 30)
+        financeiro.save.assert_called_once()
+
+    def test_pagamento_confirmado_inicia_a_contagem(self):
+        from superadmin.signals.financeiro import on_payment_confirmed
+
+        financeiro = Mock(status_pagamento="ativo", degustacao_dias_apos_pagamento=15, senha_enviada=True)
+        financeiro.loja.slug = "demo"
+        with patch("superadmin.degustacao_service.iniciar_contagem_degustacao") as iniciar:
+            on_payment_confirmed(sender=None, instance=financeiro, created=False)
+        iniciar.assert_called_once_with(financeiro.loja, financeiro, 15)
+
+

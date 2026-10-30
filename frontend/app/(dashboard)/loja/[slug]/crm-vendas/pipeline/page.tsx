@@ -123,7 +123,7 @@ export default function CrmVendasPipelinePage() {
                 id="filtro-etapa-pipeline"
                 value={filtroEtapaPipeline}
                 onChange={(e) => setFiltroEtapaPipeline(e.target.value)}
-                className="min-w-[12rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                className="w-full sm:w-auto sm:min-w-[12rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               >
                 <option value="">Todos ({oportunidadesBase.length})</option>
                 {etapasAtivas().map((et) => {
@@ -144,7 +144,7 @@ export default function CrmVendasPipelinePage() {
                     id="filtro-vendedor-pipeline"
                     value={filtroVendedor}
                     onChange={(e) => setFiltroVendedor(e.target.value)}
-                    className="min-w-[12rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    className="w-full sm:w-auto sm:min-w-[12rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
                   >
                     <option value="">Todos</option>
                     {vendedores.map((v) => (
@@ -170,7 +170,7 @@ export default function CrmVendasPipelinePage() {
                 id="periodo-pipeline"
                 value={periodoPipeline}
                 onChange={(e) => selecionarPeriodoPipeline(e.target.value)}
-                className="min-w-[11rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                className="w-full sm:w-auto sm:min-w-[11rem] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               >
                 {CRM_PERIODO_PIPELINE.map((p) => (
                   <option key={p.value} value={p.value}>

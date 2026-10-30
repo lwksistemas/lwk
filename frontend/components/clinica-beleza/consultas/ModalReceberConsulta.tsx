@@ -117,7 +117,8 @@ export function ModalReceberConsulta({
     setReciboSnapshot(null);
     setConfirmado(false);
     setValorProcInput(String(Number(c.valor_procedimentos ?? 0)));
-    setFormaProtocolo("");
+    const formaSalva = c.cobranca_protocolo?.forma_cobranca;
+    setFormaProtocolo(formaSalva === "TOTAL" || formaSalva === "POR_CONSULTA" ? formaSalva : "");
   };
 
   useEffect(() => {
@@ -366,6 +367,9 @@ export function ModalReceberConsulta({
               <legend className="px-1 text-sm font-medium text-gray-800 dark:text-gray-100">
                 {cobrancaProtocolo?.nome} · sessão {cobrancaProtocolo?.sessao} de {cobrancaProtocolo?.sessoes}
               </legend>
+              <p className="text-xs text-gray-500">
+                A escolha do agendamento vale como sugestão. Dá para mudar aqui, até o primeiro recebimento.
+              </p>
               <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
                 <input
                   type="radio"

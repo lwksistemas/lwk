@@ -7,6 +7,7 @@ from .nf_asaas import (
     nf_xml_por_payment,
 )
 from .renovacao import renovar_assinatura_loja, renovar_financeiro_por_id
+from .degustacao import decidir_degustacao_loja
 from .unificado import financeiro_unificado
 from .viewsets import FinanceiroLojaViewSet, PagamentoLojaViewSet
 
@@ -21,4 +22,5 @@ __all__ = [
     "nf_xml_por_payment",
     "renovar_assinatura_loja",
     "renovar_financeiro_por_id",
+    "decidir_degustacao_loja",
 ]

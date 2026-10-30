@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { authService } from '@/lib/auth';
-import { perguntarAtivarRosto } from '@/lib/rosto-login';
 import PasswordInput from '@/components/auth/PasswordInput';
 import BotaoRosto from '@/components/auth/BotaoRosto';
 import ErrorAlert from '@/components/auth/ErrorAlert';
@@ -121,8 +120,7 @@ export default function SuporteLoginPage() {
 
     try {
       const loginResponse = await authService.login(credentials, 'suporte');
-      await perguntarAtivarRosto({ userType: 'suporte', username: credentials.username });
-      
+
       // Verificar se precisa trocar senha
       if (loginResponse.precisa_trocar_senha === true) {
         window.location.replace('/suporte/trocar-senha');
@@ -409,13 +407,22 @@ export default function SuporteLoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-500">Desbloqueio facial</p>
         <BotaoRosto
           userType="suporte"
           username={credentials.username}
+          senha={credentials.password}
           cor={config.cor_primaria}
           disabled={loading}
           onErro={setError}
+          onAtivarComSenha={async () => {
+            try {
+              return await authService.login(credentials, 'suporte');
+            } catch (err: unknown) {
+              const falha = err as Error & { mfaRequired?: boolean };
+              if (falha.mfaRequired) setShowMfa(true);
+              throw err;
+            }
+          }}
           onSucesso={async (loginResponse) => {
             if (loginResponse.precisa_trocar_senha === true) {
               window.location.replace('/suporte/trocar-senha');

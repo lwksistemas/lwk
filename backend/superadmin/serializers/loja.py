@@ -113,6 +113,7 @@ class LojaCreateSerializer(
     owner_email = serializers.EmailField(write_only=True)
     owner_telefone = serializers.CharField(write_only=True, required=False, allow_blank=True, help_text="Telefone do administrador")
     dia_vencimento = serializers.IntegerField(write_only=True, default=10, min_value=1, max_value=28)
+    dias_degustacao = serializers.IntegerField(write_only=True, required=False, default=0, min_value=0, max_value=90)
     uppercase_fields = ["nome", "cidade", "bairro"]
     phone_fields = ["owner_telefone"]
     cpf_cnpj_fields = ["cpf_cnpj"]
@@ -124,7 +125,8 @@ class LojaCreateSerializer(
             "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf",
             "tipo_loja", "plano", "tipo_assinatura", "provedor_boleto_preferido",
             "forma_pagamento_preferida",  # ✅ NOVO: Forma de pagamento
-            "owner_full_name", "owner_username", "owner_password", "owner_email", "owner_telefone", "dia_vencimento",
+            "owner_full_name", "owner_username", "owner_password", "owner_email", "owner_telefone",
+            "dia_vencimento", "dias_degustacao",
             "logo", "cor_primaria", "cor_secundaria", "dominio_customizado",
             "atalho", "subdomain",  # ✅ NOVO v1421: Sistema híbrido de acesso
         ]
@@ -256,6 +258,7 @@ class LojaCreateSerializer(
             owner_email = validated_data.pop("owner_email")
             owner_telefone = (validated_data.pop("owner_telefone", "") or "").strip()
             dia_vencimento = validated_data.pop("dia_vencimento", 10)
+            dias_degustacao = int(validated_data.pop("dias_degustacao", 0) or 0)
 
             # Processar nome completo
             first_name, last_name = LojaCreationService.processar_nome_completo(owner_full_name)
@@ -324,23 +327,33 @@ class LojaCreateSerializer(
                 logger.error(f"Erro ao criar financeiro: {e}")
                 raise
 
-            # Rede de segurança: se o signal não gerou boleto, tenta criar aqui.
-            try:
-                from superadmin.cobranca_service import CobrancaService, cobranca_ja_registrada
+            if dias_degustacao > 0:
+                from superadmin.degustacao_service import preparar_financeiro_degustacao
+                from superadmin.email_service import EmailService
 
-                financeiro.refresh_from_db()
-                if not cobranca_ja_registrada(financeiro):
-                    result = CobrancaService().criar_cobranca(loja, financeiro)
-                    if not result.get("success"):
-                        logger.error(
-                            "Cobrança não criada no cadastro da loja %s: %s",
-                            loja.slug,
-                            result.get("error"),
-                        )
-                financeiro.refresh_from_db()
-                _enviar_boleto_do_cadastro(loja, financeiro)
-            except Exception as e:
-                logger.exception("Falha ao garantir cobrança no cadastro da loja %s: %s", loja.slug, e)
+                preparar_financeiro_degustacao(financeiro, dias_degustacao)
+                try:
+                    EmailService().enviar_senha_provisoria(loja, owner)
+                except Exception as e:
+                    logger.exception("Falha ao enviar senha da demonstração da loja %s: %s", loja.slug, e)
+            else:
+                # Rede de segurança: se o signal não gerou boleto, tenta criar aqui.
+                try:
+                    from superadmin.cobranca_service import CobrancaService, cobranca_ja_registrada
+
+                    financeiro.refresh_from_db()
+                    if not cobranca_ja_registrada(financeiro):
+                        result = CobrancaService().criar_cobranca(loja, financeiro)
+                        if not result.get("success"):
+                            logger.error(
+                                "Cobrança não criada no cadastro da loja %s: %s",
+                                loja.slug,
+                                result.get("error"),
+                            )
+                    financeiro.refresh_from_db()
+                    _enviar_boleto_do_cadastro(loja, financeiro)
+                except Exception as e:
+                    logger.exception("Falha ao garantir cobrança no cadastro da loja %s: %s", loja.slug, e)
 
             # 8. CRIAR PROFISSIONAL/FUNCIONÁRIO ADMIN
             # Re-fetch loja para garantir database_created atualizado após configurar_schema
@@ -361,11 +374,19 @@ class LojaCreateSerializer(
                 )
                 # Não falhar a criação da loja
 
-            logger.info(
-                "Loja criada com sucesso: %s (owner: %s). Senha será enviada após confirmação do pagamento.",
-                loja.slug,
-                owner_email,
-            )
+            if dias_degustacao > 0:
+                logger.info(
+                    "Loja criada em demonstração por %s dias: %s (owner: %s). Nenhum boleto foi gerado.",
+                    dias_degustacao,
+                    loja.slug,
+                    owner_email,
+                )
+            else:
+                logger.info(
+                    "Loja criada com sucesso: %s (owner: %s). Senha será enviada após confirmação do pagamento.",
+                    loja.slug,
+                    owner_email,
+                )
 
             return loja
 
@@ -386,9 +407,12 @@ class LojaCreateSerializer(
 
                 fin = FinanceiroLoja.objects.filter(loja_id=instance.pk).first()
             if fin:
-                data["boleto_url"] = fin.boleto_url or ""
-                data["pix_qr_code"] = fin.pix_qr_code or ""
-                data["pix_copy_paste"] = fin.pix_copy_paste or ""
+                em_degustacao = fin.status_pagamento == "degustacao"
+                data["em_degustacao"] = em_degustacao
+                data["degustacao_ate"] = fin.degustacao_ate.isoformat() if fin.degustacao_ate else None
+                data["boleto_url"] = "" if em_degustacao else (fin.boleto_url or "")
+                data["pix_qr_code"] = "" if em_degustacao else (fin.pix_qr_code or "")
+                data["pix_copy_paste"] = "" if em_degustacao else (fin.pix_copy_paste or "")
         except Exception:
             logger.exception(
                 "to_representation: falha ao anexar boleto da loja %s",

@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { entrarComRosto, type AlvoRosto } from '@/lib/rosto-login';
+import { aparelhoTemRosto, entrarOuAtivarRosto, type AlvoRosto } from '@/lib/rosto-login';
 import type { LoginResponse } from '@/lib/auth';
 
 type Props = AlvoRosto & {
   cor: string;
+  senha: string;
   disabled?: boolean;
+  onAtivarComSenha: () => Promise<LoginResponse>;
   onSucesso: (sessao: LoginResponse) => void | Promise<void>;
   onErro: (mensagem: string) => void;
 };
@@ -16,7 +18,9 @@ export default function BotaoRosto({
   slug,
   username,
   cor,
+  senha,
   disabled,
+  onAtivarComSenha,
   onSucesso,
   onErro,
 }: Props) {
@@ -26,10 +30,18 @@ export default function BotaoRosto({
     setOcupado(true);
     onErro('');
     try {
-      const sessao = await entrarComRosto({ userType, slug, username });
+      if (!(await aparelhoTemRosto())) {
+        onErro('Este aparelho não tem reconhecimento facial. Entre com a senha.');
+        return;
+      }
+      const sessao = await entrarOuAtivarRosto(
+        { userType, slug, username },
+        senha,
+        onAtivarComSenha,
+      );
       await onSucesso(sessao);
     } catch (erro) {
-      onErro(erro instanceof Error ? erro.message : 'Não foi possível usar o desbloqueio facial.');
+      onErro(erro instanceof Error ? erro.message : 'Não foi possível usar o reconhecimento facial.');
     } finally {
       setOcupado(false);
     }
@@ -43,7 +55,7 @@ export default function BotaoRosto({
       className="w-full py-3 px-4 min-h-[48px] font-semibold rounded-md border bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       style={{ color: cor, borderColor: cor }}
     >
-      {ocupado ? 'Confirmando...' : 'Facial'}
+      {ocupado ? 'Confirmando o rosto...' : 'Facial'}
     </button>
   );
 }

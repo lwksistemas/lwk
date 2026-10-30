@@ -34,12 +34,12 @@ describe("applyIntendedColumnWidths", () => {
     expect(w0).toBeLessThan(500);
   });
 
-  it("mantém a proporção quando a soma já enche o container", () => {
-    const { table, cols } = tableWithParent(300);
-    applyIntendedColumnWidths(table, cols, [100, 100, 100]);
-    expect(table.style.width).toBe("100%");
-    expect(Number.parseFloat(cols[0].style.width)).toBeCloseTo(100, 0);
-    expect(Number.parseFloat(cols[2].style.width)).toBeCloseTo(100, 0);
+  it("no celular não espreme as colunas para caber na tela", () => {
+    const { table, cols } = tableWithParent(360);
+    applyIntendedColumnWidths(table, cols, [220, 180, 140]);
+    expect(table.style.width).toBe("max-content");
+    expect(table.style.tableLayout).toBe("auto");
+    expect(cols[0].style.width).toBe("");
   });
 });
 

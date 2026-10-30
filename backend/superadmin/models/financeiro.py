@@ -22,8 +22,23 @@ class FinanceiroLoja(models.Model):
         ("atrasado", "Atrasado"),
         ("suspenso", "Suspenso"),
         ("cancelado", "Cancelado"),
+        ("degustacao", "Demonstração"),
     ]
     status_pagamento = models.CharField(max_length=20, choices=STATUS_CHOICES, default="ativo")
+    degustacao_ate = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Último dia de uso sem boleto. Vazio quando a loja não está em demonstração.",
+    )
+    degustacao_avisada = models.BooleanField(
+        default=False,
+        help_text="O aviso de fim da demonstração já foi enviado.",
+    )
+    degustacao_dias_apos_pagamento = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Dias de demonstração que começam quando o boleto em aberto for pago.",
+    )
 
     # Provedor de boleto: asaas ou mercadopago
     PROVEDOR_BOLETO_CHOICES = [

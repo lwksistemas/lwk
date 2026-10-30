@@ -42,6 +42,8 @@ interface AssinaturaData {
     boleto_url: string;
     pix_qr_code: string;
     pix_copy_paste: string;
+    em_degustacao?: boolean;
+    degustacao_ate?: string | null;
   };
   proximo_pagamento: {
     id: number;
@@ -117,6 +119,7 @@ export default function AssinaturaLojaPage() {
   const [lojaBloqueada, setLojaBloqueada] = useState(false);
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
   const [gerandoCobranca, setGerandoCobranca] = useState(false);
+  const [decidindoDegustacao, setDecidindoDegustacao] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [novaCobranca, setNovaCobranca] = useState<any>(null);
 
@@ -187,6 +190,35 @@ export default function AssinaturaLojaPage() {
       alert('Erro ao atualizar. Tente novamente.');
     } finally {
       setAtualizandoStatus(false);
+    }
+  };
+
+  const decidirDegustacao = async (acao: 'pagar' | 'cancelar') => {
+    if (acao === 'cancelar' && !window.confirm('Cancelar a loja? Nenhum boleto será gerado e o acesso continua bloqueado.')) {
+      return;
+    }
+    const apiSlug = await resolveLojaApiSlug(slug);
+    try {
+      setDecidindoDegustacao(true);
+      const res = await apiClient.post(`/superadmin/loja/${apiSlug}/financeiro/degustacao/`, { acao });
+      if (acao === 'pagar') {
+        setNovaCobranca(res.data);
+        setShowModal(true);
+      } else {
+        alert(res.data?.message || 'Loja cancelada. Nenhum boleto foi gerado.');
+      }
+      await carregarDados();
+    } catch (err) {
+      const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;
+      const response = errorObj?.response as Record<string, unknown> | undefined;
+      const errData = response?.data;
+      const raw =
+        typeof errData === 'object' && errData !== null
+          ? (errData as { error?: unknown }).error
+          : null;
+      alert(typeof raw === 'string' ? raw : 'Não foi possível concluir a escolha.');
+    } finally {
+      setDecidindoDegustacao(false);
     }
   };
 
@@ -294,9 +326,12 @@ export default function AssinaturaLojaPage() {
     const fin = data.financeiro;
     const pp = data.proximo_pagamento;
     const historico = data.historico_pagamentos ?? [];
-    const avisoAssinatura =
-      data.assinatura_aviso ??
-      calcularAvisoAssinaturaLocal(fin.data_proxima_cobranca, lojaBloqueada);
+    const emDegustacao = Boolean(fin.em_degustacao);
+    const bloqueada = lojaBloqueada || Boolean(data.is_blocked);
+    const avisoAssinatura = emDegustacao
+      ? data.assinatura_aviso ?? null
+      : data.assinatura_aviso ??
+        calcularAvisoAssinaturaLocal(fin.data_proxima_cobranca, bloqueada);
     const temPagamentoAberto =
       (fin.tem_asaas || fin.tem_mercadopago) && (fin.boleto_url || fin.pix_copy_paste);
     const temCobrancaEmAbertoNoHistorico = historico.some(
@@ -317,7 +352,37 @@ export default function AssinaturaLojaPage() {
 
     return (
       <>
-        {lojaBloqueada && (
+        {bloqueada && emDegustacao && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-sm leading-relaxed space-y-3">
+              <p>
+                A demonstração acabou. Escolha pagar o boleto ou cancelar a loja.
+                Sem essa escolha, o sistema continua bloqueado e nenhum boleto é gerado.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={decidindoDegustacao}
+                  onClick={() => decidirDegustacao('pagar')}
+                >
+                  Pagar boleto
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={decidindoDegustacao}
+                  onClick={() => decidirDegustacao('cancelar')}
+                >
+                  Cancelar loja
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+        {bloqueada && !emDegustacao && (
           <Alert variant="destructive" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="text-sm leading-relaxed">
@@ -325,7 +390,20 @@ export default function AssinaturaLojaPage() {
             </AlertDescription>
           </Alert>
         )}
-        {!lojaBloqueada && (
+        {!bloqueada && emDegustacao && (
+          <Alert className="mb-4 border-amber-400 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:border-amber-700 dark:text-amber-100">
+            <Clock className="h-4 w-4" />
+            <AlertDescription className="text-sm leading-relaxed">
+              Demonstração até{' '}
+              {fin.degustacao_ate ? fin.degustacao_ate.split('-').reverse().join('/') : 'o prazo combinado'}.
+              Nenhum boleto foi gerado.{' '}
+              <Link href={backHref} className="font-semibold underline underline-offset-2">
+                Acessar o sistema
+              </Link>
+            </AlertDescription>
+          </Alert>
+        )}
+        {!bloqueada && !emDegustacao && (
           <Alert className="mb-4 border-green-400 bg-green-50 text-green-950 dark:bg-green-950/30 dark:border-green-700 dark:text-green-100">
             <CheckCircle className="h-4 w-4" />
             <AlertDescription className="text-sm leading-relaxed">

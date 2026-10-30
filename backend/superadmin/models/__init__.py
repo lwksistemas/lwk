@@ -15,7 +15,6 @@ from .loja import Loja
 from .cora import CoraConfig
 from .mercadopago import MercadoPagoConfig
 from .nfse import NFSeEmitida
-from .radiologia_maquinas import ContratoPacsLoja, MaquinaRadiologia
 from .rosto import CredencialRosto
 from .security import HistoricoAcessoGlobal, ViolacaoSeguranca
 from .session import UserSession
@@ -28,7 +27,6 @@ __all__ = [
     "CredencialRosto",
     "ConfiguracaoBackup",
     "ensure_configuracao_backup",
-    "ContratoPacsLoja",
     "EmailRetry",
     "FinanceiroLoja",
     "GoogleCalendarConnection",
@@ -37,7 +35,6 @@ __all__ = [
     "LoginConfigSistema",
     "LoginLockout",
     "Loja",
-    "MaquinaRadiologia",
     "MercadoPagoConfig",
     "NFSeEmitida",
     "PagamentoLoja",

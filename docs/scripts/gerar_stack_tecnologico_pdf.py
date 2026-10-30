@@ -70,7 +70,6 @@ BACKEND_PKGS = [
     ("signxml", "Assinatura XML (NFS-e)"),
     ("lxml", "XML"),
     ("python-docx", "Documentos Word"),
-    ("pydicom", "DICOM (radiologia)"),
     ("requests", "HTTP client"),
 ]
 

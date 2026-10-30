@@ -43,7 +43,7 @@ services:
     image: redis:7.4-alpine
     restart: always
     # A senha fica no .env (REDIS_PASSWORD). Não gravar o valor neste arquivo.
-    command: ["sh", "-c", "redis-server --requirepass \"$REDIS_PASSWORD\" --maxmemory 512mb --maxmemory-policy allkeys-lru"]
+    command: ["sh", "-c", "redis-server --requirepass \"$$REDIS_PASSWORD\" --maxmemory 512mb --maxmemory-policy allkeys-lru"]
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:

@@ -7,7 +7,8 @@ from __future__ import annotations
 import logging
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from xml.etree import ElementTree as ET
+import defusedxml.ElementTree as ET
+from defusedxml.common import DefusedXmlException
 
 logger = logging.getLogger(__name__)
 
@@ -166,8 +167,8 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
     """
     try:
         root = ET.fromstring(xml_content)
-    except ET.ParseError as e:
-        raise ValueError(f"XML inválido: {e}")
+    except (ET.ParseError, DefusedXmlException) as e:
+        raise ValueError(f"XML inválido: {e}") from e
 
     inf_nfe = _extrair_inf_nfe(root)
 

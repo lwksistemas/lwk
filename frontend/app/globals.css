@@ -704,6 +704,22 @@ html.dark {
   max-width: none;
 }
 
+/* No celular o nome e os demais campos aparecem por inteiro; a lista rola para o lado. */
+.table-cols-resizable.table-cols-mobile {
+  table-layout: auto !important;
+  width: max-content !important;
+  min-width: 100% !important;
+  max-width: none !important;
+}
+
+.table-cols-resizable.table-cols-mobile th,
+.table-cols-resizable.table-cols-mobile td {
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+  overflow: visible !important;
+  max-width: none !important;
+}
+
 .col-resize-th {
   position: relative;
 }

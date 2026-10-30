@@ -7,6 +7,8 @@
 const MIN_COL_WIDTH = 72;
 const HEADER_PAD = 32;
 const STORAGE_PREFIX = 'lwk-table-cols-v4:';
+/** Abaixo disso a tabela não é espremida: o texto fica inteiro e a lista rola para o lado. */
+const NARROW_LIST_WIDTH = 768;
 
 export function splitPairWidths(widths: number[], index: number, delta: number): number[] {
   if (index < 0 || index >= widths.length - 1) return widths.slice();
@@ -32,6 +34,20 @@ export function applyIntendedColumnWidths(
   let applied = clamped;
   table.style.tableLayout = 'fixed';
   table.style.maxWidth = 'none';
+
+  if (available > 0 && available < NARROW_LIST_WIDTH) {
+    table.classList?.add('table-cols-mobile');
+    table.style.tableLayout = 'auto';
+    table.style.width = 'max-content';
+    table.style.minWidth = '100%';
+    cols.forEach((col) => {
+      col.style.width = '';
+    });
+    table.dataset.colIntendedWidths = JSON.stringify(clamped.map((w) => Math.round(w)));
+    return;
+  }
+
+  table.classList?.remove('table-cols-mobile');
 
   if (available > 0 && total > 0) {
     applied = clamped.map((w) => Math.max(MIN_COL_WIDTH, (w / total) * available));

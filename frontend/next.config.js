@@ -84,9 +84,11 @@ const nextConfig = {
   },
   poweredByHeader: false,
 
-  // Next 16: lint não roda no build; use `npm run lint`. TS: ignorar erros no CI/Vercel.
+  // Next 16: lint não roda no build; use `npm run lint`.
+  // Erro de tipo falha o build (importação quebrada não chega à produção).
+  // Se o build do servidor falhar, o container que está no ar continua o mesmo.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   
 

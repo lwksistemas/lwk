@@ -157,7 +157,7 @@ function envolverTrecho(no: Text, inicio: number, fim: number, patch: { tipo?: s
     if (spanSemFormato(pai) && !pai.parentElement?.closest('span[data-bold="1"]')) desembrulhar(pai);
     return;
   }
-  const ancestral = pai?.closest('span[data-font], span[data-size], span[data-bold]');
+  const ancestral = pai?.closest<HTMLSpanElement>('span[data-font], span[data-size], span[data-bold]');
   const span = document.createElement('span');
   const tipo = patch.tipo || ancestral?.dataset.font;
   const tamanho = patch.tamanho ? String(patch.tamanho) : ancestral?.dataset.size;

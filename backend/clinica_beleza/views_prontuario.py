@@ -61,7 +61,15 @@ def _arquivar_prontuario_em_segundo_plano(loja_id, patient_id, pdf_bytes: bytes,
         try:
             from django_q.tasks import async_task
 
-            async_task(func_path, loja_id, patient_id, payload, filename, task_name=task_name)
+            async_task(
+                func_path,
+                loja_id,
+                patient_id,
+                payload,
+                filename,
+                task_name=task_name,
+                save=False,
+            )
             return
         except Exception as exc:
             logger.warning("Fila indisponível para arquivar prontuário: %s", exc)

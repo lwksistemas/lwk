@@ -4,6 +4,7 @@
 import apiClient from '@/lib/api-client';
 import { consultaCnpj } from '@/lib/consulta-cnpj';
 import { ensureArray } from '@/lib/array-helpers';
+import { textoVisivelDoTemplate } from '@/lib/crm-proposta-template-legenda';
 import { fetchAllPaginatedResults } from '@/lib/crm-utils';
 
 export const NFSE_EMISSAO_INPUT_CLASS =
@@ -64,21 +65,24 @@ export type NfseDescricaoTemplateOption = {
   nome: string;
   conteudo: string;
   is_padrao: boolean;
+  prestadora?: number | null;
 };
+
+function textoDescricaoTemplate(conteudo: string): string {
+  const visivel = textoVisivelDoTemplate(conteudo || '');
+  return visivel || (conteudo || '').trim();
+}
 
 /** Lista templates ativos de descrição NFS-e (CRM). */
 export async function carregarNfseDescricaoTemplates(): Promise<NfseDescricaoTemplateOption[]> {
   try {
-    const res = await apiClient.get<
-      NfseDescricaoTemplateOption[] | { results: NfseDescricaoTemplateOption[] }
-    >('/crm-vendas/nfse-templates/', { params: { ativo: 'true' } });
-    const data = res.data;
-    if (Array.isArray(data)) return data;
-    if (data && Array.isArray(data.results)) return data.results;
+    return await fetchAllPaginatedResults<NfseDescricaoTemplateOption>(
+      '/crm-vendas/nfse-templates/',
+      { ativo: 'true' },
+    );
   } catch {
-    // sem templates — modal usa só a config CRM
+    return [];
   }
-  return [];
 }
 
 /** Prefere template marcado como padrão; senão descrição da config CRM. */
@@ -86,9 +90,32 @@ export function descricaoServicoDeTemplates(
   templates: NfseDescricaoTemplateOption[],
   fallbackConfig?: string,
 ): string {
-  const padrao = templates.find((t) => t.is_padrao)?.conteudo?.trim();
-  if (padrao) return padrao;
+  const padrao = templates.find((t) => t.is_padrao);
+  if (padrao) {
+    const texto = textoDescricaoTemplate(padrao.conteudo);
+    if (texto) return texto;
+  }
   return (fallbackConfig || '').trim();
+}
+
+/** Texto da empresa escolhida. Sem template dela, usa o texto de reserva da loja. */
+export function descricaoDaEmpresaPrestadora(
+  templates: NfseDescricaoTemplateOption[],
+  empresaId: number | null | undefined,
+  fallbackConfig?: string,
+): string {
+  if (empresaId) {
+    const daEmpresa = templates.filter((t) => t.prestadora === empresaId);
+    const escolhido = daEmpresa.find((t) => t.is_padrao) || daEmpresa[0];
+    if (escolhido) {
+      const texto = textoDescricaoTemplate(escolhido.conteudo);
+      if (texto) return texto;
+    }
+  }
+  return descricaoServicoDeTemplates(
+    templates.filter((t) => !t.prestadora),
+    fallbackConfig,
+  );
 }
 
 export type NfseEmissaoContaOption = {

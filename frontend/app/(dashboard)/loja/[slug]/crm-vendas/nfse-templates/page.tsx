@@ -8,7 +8,8 @@ export default function NfseTemplatesPage() {
     <CrmTemplatesManagerPage
       apiSegment="nfse-templates"
       title="Templates de Descrição NFS-e"
-      subtitle="Crie textos reutilizáveis para a descrição do serviço na emissão da nota"
+      subtitle="Cada empresa prestadora tem o próprio texto. A nota usa o template da empresa escolhida."
+      vincularPrestadora
       namePlaceholder="Ex: Consultoria mensal, Treinamento in-company"
       EmptyStateIcon={FileText}
     />

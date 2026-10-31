@@ -98,9 +98,17 @@ class NfseDescricaoTemplate(LojaIsolationMixin, models.Model):
         help_text="Nome do template (ex: Consultoria mensal, Treinamento)",
     )
     conteudo = models.TextField(help_text="Texto da discriminação/descrição do serviço")
+    prestadora = models.ForeignKey(
+        "Conta",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="nfse_descricao_templates",
+        help_text="Empresa prestadora. A nota dessa empresa usa este texto.",
+    )
     is_padrao = models.BooleanField(
         default=False,
-        help_text="Template padrão usado ao emitir novas NFS-e",
+        help_text="Template padrão dessa prestadora ao emitir NFS-e",
     )
     ativo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -116,6 +124,7 @@ class NfseDescricaoTemplate(LojaIsolationMixin, models.Model):
         indexes = [
             models.Index(fields=["loja_id", "ativo"], name="crm_ndt_loja_ativo_idx"),
             models.Index(fields=["loja_id", "is_padrao"], name="crm_ndt_loja_padrao_idx"),
+            models.Index(fields=["loja_id", "prestadora"], name="crm_ndt_loja_prest_idx"),
         ]
 
     def __str__(self):
@@ -123,10 +132,19 @@ class NfseDescricaoTemplate(LojaIsolationMixin, models.Model):
         return f"{self.nome}{padrao}"
 
     def save(self, *args, **kwargs):
-        """Se marcar como padrão, desmarcar outros templates da mesma loja."""
-        if self.is_padrao:
-            NfseDescricaoTemplate.objects.filter(
-                loja_id=self.loja_id, is_padrao=True,
-            ).exclude(id=self.id).update(is_padrao=False)
+        """O padrão vale só entre os templates da mesma prestadora."""
+        from tenants.middleware import get_current_loja_id
+
+        if not self.loja_id:
+            self.loja_id = get_current_loja_id()
+        if self.is_padrao and self.loja_id:
+            outros = NfseDescricaoTemplate.objects.filter(
+                loja_id=self.loja_id,
+                prestadora_id=self.prestadora_id,
+                is_padrao=True,
+            )
+            if self.pk:
+                outros = outros.exclude(pk=self.pk)
+            outros.update(is_padrao=False)
         super().save(*args, **kwargs)
 

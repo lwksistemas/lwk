@@ -10,7 +10,7 @@ import {
   buscarTomadorCadastroPorDocumento,
   carregarNfseDescricaoTemplates,
   defaultsServicoFromCrmConfig,
-  descricaoServicoDeTemplates,
+  descricaoDaEmpresaPrestadora,
   preencherFormTomador,
   somenteDigitosDocumento,
 } from '@/lib/nfse-emissao-form';
@@ -41,9 +41,9 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
   const [contaBuscaId, setContaBuscaId] = useState('');
   const [formData, setFormData] = useState(NFSE_EMISSAO_INITIAL_FORM);
 
-  const resolverDefaultsServico = async () => {
+  const resolverDefaultsServico = async (empresaId: number | null) => {
     const templates = await carregarNfseDescricaoTemplates();
-    const desc = descricaoServicoDeTemplates(templates, config?.descricao_servico_padrao);
+    const desc = descricaoDaEmpresaPrestadora(templates, empresaId, config?.descricao_servico_padrao);
     return defaultsServicoFromCrmConfig(config, desc);
   };
 
@@ -82,8 +82,12 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
 
     setBuscandoTomador(true);
     try {
-      const defaultsServico = await resolverDefaultsServico();
       const encontrado = await buscarTomadorCadastroPorDocumento(documentoTomador);
+      const empresaId =
+        encontrado && encontrado._tipo === 'conta' && typeof encontrado.id === 'number'
+          ? encontrado.id
+          : null;
+      const defaultsServico = await resolverDefaultsServico(empresaId);
 
       if (encontrado) {
         const temConta = encontrado._tipo === 'conta' && typeof encontrado.id === 'number';
@@ -93,6 +97,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
           ...NFSE_EMISSAO_INITIAL_FORM,
           ...defaultsServico,
           ...preencherFormTomador(encontrado),
+          empresa_prestadora_id: empresaId,
           tomador_cpf_cnpj: documentoTomador,
         });
       } else {
@@ -216,6 +221,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
                     codigo_servico={formData.codigo_servico}
                     item_lista_servico={formData.item_lista_servico}
                     codigo_tributacao_nacional={formData.codigo_tributacao_nacional}
+                    empresaId={formData.empresa_prestadora_id}
                     onChange={handleFieldChange}
                   />
                 </>
@@ -247,6 +253,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
                       codigo_servico={formData.codigo_servico}
                       item_lista_servico={formData.item_lista_servico}
                       codigo_tributacao_nacional={formData.codigo_tributacao_nacional}
+                      empresaId={formData.empresa_prestadora_id}
                       onChange={handleFieldChange}
                     />
                   </div>

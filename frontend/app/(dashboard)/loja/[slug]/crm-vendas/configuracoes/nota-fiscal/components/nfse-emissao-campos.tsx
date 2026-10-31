@@ -2,6 +2,7 @@
 
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import { Upload } from 'lucide-react';
+import { DescricoesPorPrestadora } from './DescricoesPorPrestadora';
 
 export function CamposServicoBasicos({
   formData,
@@ -45,10 +46,14 @@ export function CamposServicoBasicos({
           className={inputClass}
         />
       </div>
+      <DescricoesPorPrestadora inputClass={inputClass} />
       <div className="md:col-span-2">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Descrição padrão do serviço
+          Texto de reserva
         </label>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+          Usado só quando a empresa prestadora ainda não tem descrição.
+        </p>
         <textarea
           value={formData.descricao_servico_padrao}
           onChange={(e) => setFormData((p: any) => ({ ...p, descricao_servico_padrao: e.target.value }))}

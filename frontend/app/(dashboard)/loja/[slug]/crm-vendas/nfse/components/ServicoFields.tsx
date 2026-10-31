@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { textoVisivelDoTemplate } from '@/lib/crm-proposta-template-legenda';
 import {
   NFSE_EMISSAO_INPUT_CLASS,
   carregarNfseDescricaoTemplates,
@@ -24,6 +25,7 @@ interface ServicoFieldsProps {
   codigo_servico?: string;
   item_lista_servico?: string;
   codigo_tributacao_nacional?: string;
+  empresaId?: number | null;
   onChange: (field: string, value: string | boolean) => void;
 }
 
@@ -35,6 +37,7 @@ export function ServicoFields({
   codigo_servico,
   item_lista_servico,
   codigo_tributacao_nacional,
+  empresaId,
   onChange,
 }: ServicoFieldsProps) {
   const [templates, setTemplates] = useState<NfseDescricaoTemplateOption[]>([]);
@@ -59,6 +62,10 @@ export function ServicoFields({
     onChange('item_lista_servico', atividade.item_lista);
     onChange('codigo_tributacao_nacional', atividade.trib_nac);
   };
+
+  const templatesDaEmpresa = empresaId
+    ? templates.filter((t) => t.prestadora === empresaId)
+    : templates.filter((t) => !t.prestadora);
 
   const selectedIdx = encontrarAtividadeMunicipal({
     cnae: codigo_cnae,
@@ -109,7 +116,7 @@ export function ServicoFields({
           </div>
         </div>
 
-        {templates.length > 0 && (
+        {templatesDaEmpresa.length > 1 && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Usar template
@@ -117,14 +124,19 @@ export function ServicoFields({
             <select
               defaultValue=""
               onChange={(e) => {
-                const template = templates.find((t) => String(t.id) === e.target.value);
-                if (template) onChange('servico_descricao', template.conteudo);
+                const template = templatesDaEmpresa.find((t) => String(t.id) === e.target.value);
+                if (template) {
+                  onChange(
+                    'servico_descricao',
+                    textoVisivelDoTemplate(template.conteudo) || template.conteudo,
+                  );
+                }
                 e.target.value = '';
               }}
               className={NFSE_EMISSAO_INPUT_CLASS}
             >
               <option value="">Selecione um template (opcional)</option>
-              {templates.map((t) => (
+              {templatesDaEmpresa.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.nome}
                   {t.is_padrao ? ' (PADRÃO)' : ''}

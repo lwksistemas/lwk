@@ -186,13 +186,31 @@ class ContratoTemplateSerializer(_ConteudoTemplateLimpo, serializers.ModelSerial
 
 
 class NfseDescricaoTemplateSerializer(_ConteudoTemplateLimpo, serializers.ModelSerializer):
+    prestadora = PrestadoraPkField(required=False, allow_null=True)
+    prestadora_nome = serializers.SerializerMethodField()
+
     class Meta:
         model = NfseDescricaoTemplate
         fields = [
-            "id", "nome", "conteudo", "is_padrao", "ativo",
-            "created_at", "updated_at",
+            "id", "nome", "conteudo", "prestadora", "prestadora_nome",
+            "is_padrao", "ativo", "created_at", "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at", "prestadora_nome"]
+
+    def get_prestadora_nome(self, obj):
+        prestadora = getattr(obj, "prestadora", None)
+        if prestadora is None:
+            return None
+        return nome_da_conta(prestadora) or None
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        prestadora = attrs.get("prestadora", serializers.empty)
+        if self.instance is None and not attrs.get("prestadora"):
+            raise serializers.ValidationError({"prestadora": "Selecione a empresa prestadora."})
+        if prestadora is None:
+            raise serializers.ValidationError({"prestadora": "Selecione a empresa prestadora."})
+        return attrs
 
 
 class ContratoSerializer(serializers.ModelSerializer):

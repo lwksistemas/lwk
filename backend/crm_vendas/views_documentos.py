@@ -167,6 +167,15 @@ class NfseDescricaoTemplateViewSet(CRMSchemaRecoveryMixin, TemplateViewSetMixin,
     pagination_class = CRMPagination
     template_model = NfseDescricaoTemplate
 
+    def get_queryset(self):
+        qs = super().get_queryset().select_related("prestadora")
+        prestadora = (self.request.query_params.get("prestadora") or "").strip()
+        if not prestadora:
+            return qs
+        if not prestadora.isdigit():
+            return qs.none()
+        return qs.filter(prestadora_id=int(prestadora))
+
 
 class ContratoViewSet(
     CRMSchemaRecoveryMixin,

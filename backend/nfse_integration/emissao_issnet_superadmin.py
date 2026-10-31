@@ -1,12 +1,17 @@
-"""Emissao manual de NFS-e via ISSNet (superadmin)."""
+"""Emissao manual de NFS-e via ISSNet padrão Nacional (superadmin)."""
 from decimal import Decimal
 from typing import Any
 
+from nfse_integration.emissao_issnet_nacional_loja import (
+    _resolver_codigo_nbs,
+    _resolver_codigo_tributacao_municipal,
+    _resolver_codigo_tributacao_nacional,
+    _resolver_p_tot_trib_sn,
+)
 from nfse_integration.emissao_manual_types import EmissaoManualResult
-from nfse_integration.issnet_fiscal_superadmin import fiscal_codes_issnet_superadmin
 from nfse_integration.issnet_superadmin import (
     certificado_configurado,
-    issnet_client_superadmin,
+    issnet_nacional_client_superadmin,
     senha_certificado_configurada,
 )
 from nfse_integration.persistencia_nfse_superadmin import (
@@ -28,41 +33,49 @@ def emitir_manual_issnet_superadmin(config: Any, payload: Any) -> EmissaoManualR
     if not senha_certificado_configurada(config):
         return EmissaoManualResult(False, 400, error="Senha do certificado não configurada")
 
-    item_lista, cod_tributacao, cod_cnae, servico_codigo = fiscal_codes_issnet_superadmin(
-        config, payload,
+    codigo_trib_nacional = _resolver_codigo_tributacao_nacional(
+        config,
+        item_lista_override=getattr(payload, "codigo_servico", None) or config.item_lista_servico,
+    )
+    codigo_trib_municipal = _resolver_codigo_tributacao_municipal(
+        config,
+        codigo_servico_override=config.codigo_tributacao_municipio,
+        codigo_trib_nacional=codigo_trib_nacional,
     )
     numero_rps = gerar_proximo_numero_rps_superadmin(config)
-    serie_rps = config.serie_rps or "E"
-
-    with issnet_client_superadmin(config) as client:
-        client._optante_simples = config.optante_simples_nacional
-        client._incentivador_cultural = config.incentivador_cultural
-        client._regime_especial = str(config.regime_especial_tributacao or "0").strip()
-
-        resultado = client.emitir_nfse(
-            prestador_cnpj=config.prestador_cnpj,
-            prestador_inscricao_municipal=config.prestador_inscricao_municipal or "",
-            prestador_razao_social=config.prestador_razao_social or "",
-            tomador_cpf_cnpj=payload.tomador_cpf_cnpj,
-            tomador_nome=payload.tomador_nome,
-            tomador_endereco=payload.tomador_endereco,
-            servico_codigo=servico_codigo,
-            servico_descricao=payload.descricao,
-            valor_servicos=payload.valor,
-            aliquota_iss=Decimal(str(config.aliquota_iss)),
-            numero_rps=numero_rps,
-            serie_rps=serie_rps,
-            codigo_cnae=cod_cnae,
-            item_lista_servico=item_lista,
-            codigo_tributacao_municipio=cod_tributacao,
-        )
+    serie_rps = "1"
+    endereco = payload.tomador_endereco or {}
+    client = issnet_nacional_client_superadmin(config)
+    resultado = client.emitir_nfse(
+        numero_lote=numero_rps,
+        numero_dps=numero_rps,
+        serie_dps=serie_rps,
+        prestador_email=config.prestador_email or "",
+        tomador_cpf_cnpj=payload.tomador_cpf_cnpj,
+        tomador_nome=payload.tomador_nome,
+        tomador_endereco=endereco,
+        tomador_email=payload.tomador_email,
+        codigo_tributacao_nacional=codigo_trib_nacional,
+        codigo_tributacao_municipal=codigo_trib_municipal or None,
+        descricao_servico=payload.descricao,
+        codigo_nbs=_resolver_codigo_nbs(config),
+        valor_servicos=Decimal(str(payload.valor)),
+        aliquota_iss=Decimal(str(config.aliquota_iss or 0)),
+        p_tot_trib_sn=_resolver_p_tot_trib_sn(config),
+        codigo_municipio_prestacao=endereco.get("codigo_municipio") or "3543402",
+    )
+    gravado = {
+        "numero_nf": resultado.get("numero_nfse") or "",
+        "codigo_verificacao": str(resultado.get("chave_acesso") or "")[:50],
+        "xml_nfse": resultado.get("xml_resposta") or "",
+    }
 
     if resultado.get("success"):
         sincronizar_contadores_rps_superadmin(config, numero_rps)
         nfse_obj = salvar_nfse_emitida_issnet_superadmin(
-            payload, config, resultado, numero_rps=numero_rps, serie_rps=serie_rps,
+            payload, config, gravado, numero_rps=numero_rps, serie_rps=serie_rps,
         )
-        numero_nf = resultado.get("numero_nf", "")
+        numero_nf = gravado["numero_nf"]
         return EmissaoManualResult(
             True,
             200,
@@ -71,7 +84,7 @@ def emitir_manual_issnet_superadmin(config: Any, payload: Any) -> EmissaoManualR
             nfse_id=nfse_obj.id,
         )
 
-    error_msg = resultado.get("error", "Erro desconhecido ISSNet")
+    error_msg = resultado.get("erro") or resultado.get("error") or "Erro desconhecido ISSNet"
     sincronizar_contadores_rps_superadmin(config, numero_rps)
     salvar_nfse_erro_issnet_superadmin(
         payload, config, error_msg, numero_rps=numero_rps, serie_rps=serie_rps,
@@ -93,5 +106,5 @@ def emitir_manual_issnet_superadmin(config: Any, payload: Any) -> EmissaoManualR
         False,
         400,
         error=f"{error_msg}{extra}",
-        debug_info="Erro na emissão ISSNet ABRASF",
+        debug_info="Erro na emissão ISSNet padrão Nacional",
     )

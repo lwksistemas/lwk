@@ -407,7 +407,7 @@ export default function NFSeConfigPage() {
           <div>
             <h1 className="text-2xl font-bold">Configuração NFS-e</h1>
             <p className="text-sm text-muted-foreground">
-              Emissão de notas fiscais via padrão Nacional (ADN)
+              Emissão das notas da LWK pelo ISSNet padrão Nacional (DPS)
             </p>
           </div>
         </div>
@@ -415,7 +415,7 @@ export default function NFSeConfigPage() {
           {config.provedor_nfse === 'desabilitado' ? (
             <><XCircle className="w-4 h-4 mr-1" />Desabilitado</>
           ) : config.provedor_nfse === 'issnet' ? (
-            <><CheckCircle className="w-4 h-4 mr-1" />ISSNet (Municipal)</>
+            <><CheckCircle className="w-4 h-4 mr-1" />ISSNet — Padrão Nacional</>
           ) : (
             <><CheckCircle className="w-4 h-4 mr-1" />Nacional (ADN)</>
           )}
@@ -447,7 +447,7 @@ export default function NFSeConfigPage() {
                 variant={config.provedor_nfse === 'issnet' ? 'default' : 'outline'}
                 onClick={() => setConfig(prev => ({ ...prev, provedor_nfse: 'issnet' }))}
               >
-                ISSNet (Municipal)
+                ISSNet — Padrão Nacional (DPS / RTC)
               </Button>
               <Button
                 type="button"
@@ -465,7 +465,7 @@ export default function NFSeConfigPage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              {config.provedor_nfse === 'issnet' && 'Emite via WebService ISSNet da prefeitura — para municípios que não aderiram ao Emissor Nacional.'}
+              {config.provedor_nfse === 'issnet' && 'Layout NFS-e via webservice Nacional da ISSNet (Ribeirão Preto). Padrão vigente desde a Reforma Tributária. Mesmo caminho da Felix Representações.'}
               {config.provedor_nfse === 'nacional' && 'Emite via ADN (Ambiente de Dados Nacional) — apenas para municípios que aderiram ao Emissor Nacional.'}
               {config.provedor_nfse === 'desabilitado' && 'Nenhuma NFS-e será emitida automaticamente.'}
             </p>
@@ -559,7 +559,7 @@ export default function NFSeConfigPage() {
               Credenciais ISSNet
             </CardTitle>
             <CardDescription>
-              Usuário, senha e certificado A1 do portal ISSNet da prefeitura
+              Certificado A1 da LWK no webservice Nacional da ISSNet (DPS). O usuário e a senha do portal não entram na nota.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

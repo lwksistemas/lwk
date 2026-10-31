@@ -16,7 +16,7 @@ class SuperadminNFSeConfig(models.Model):
 
     # Provedor de emissão
     PROVEDOR_CHOICES = [
-        ("issnet", "ISSNet (WebService Municipal)"),
+        ("issnet", "ISSNet — Padrão Nacional (DPS / RTC)"),
         ("nacional", "Nacional (ADN - Padrão Nacional NFS-e)"),
         ("desabilitado", "Desabilitado (não emite NFS-e)"),
     ]

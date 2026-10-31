@@ -1,8 +1,7 @@
 """Serviço de emissão de NFS-e para assinaturas das lojas.
 Emite nota fiscal quando o pagamento da assinatura é confirmado.
-Provedor: Nacional (ADN - Padrão Nacional NFS-e).
+ISSNet da LWK usa o padrão Nacional (DPS), o mesmo da loja.
 """
-import contextlib
 import logging
 from datetime import datetime
 from decimal import Decimal
@@ -217,104 +216,88 @@ def _emitir_via_issnet(
     descricao: str,
     valor: Decimal,
 ) -> dict[str, Any]:
-    """Emite NFS-e via WebService ISSNet (municipal)."""
+    """Emite NFS-e de assinatura pelo ISSNet padrão Nacional (DPS), igual à loja."""
     try:
-        import os
-        import re
-        import tempfile
-
-        from nfse_integration.issnet_client import ISSNetClient
-
-        cert_data = config.issnet_certificado or config.nacional_certificado
-        senha_cert = config.issnet_senha_certificado or config.nacional_senha_certificado
-        if not cert_data:
-            return {"success": False, "error": "Certificado digital não configurado"}
-        if not senha_cert:
-            return {"success": False, "error": "Senha do certificado não configurada"}
-        if not config.prestador_cnpj:
-            return {"success": False, "error": "CNPJ do prestador não configurado"}
-
-        from core.encryption import decrypt_value
-        senha_cert_plain = decrypt_value(senha_cert)
-        senha_ws_plain = decrypt_value(config.issnet_senha or "")
-
-        cnpj_digits = re.sub(r"\D", "", config.prestador_cnpj)
-        im = config.prestador_inscricao_municipal or ""
-
-        from nfse_integration.issnet_fiscal_superadmin import fiscal_codes_issnet_superadmin
+        from nfse_integration.emissao_issnet_nacional_loja import (
+            _resolver_codigo_nbs,
+            _resolver_codigo_tributacao_municipal,
+            _resolver_codigo_tributacao_nacional,
+            _resolver_p_tot_trib_sn,
+        )
+        from nfse_integration.issnet_superadmin import issnet_nacional_client_superadmin
         from nfse_integration.persistencia_nfse_superadmin import (
             gerar_proximo_numero_rps_superadmin,
             sincronizar_contadores_rps_superadmin,
         )
 
-        numero_rps = gerar_proximo_numero_rps_superadmin(config)
-        item_lista, cod_tributacao, cod_cnae, servico_codigo = fiscal_codes_issnet_superadmin(config)
+        if not (config.issnet_certificado or config.nacional_certificado):
+            return {"success": False, "error": "Certificado digital não configurado"}
+        if not (config.issnet_senha_certificado or config.nacional_senha_certificado):
+            return {"success": False, "error": "Senha do certificado não configurada"}
+        if not config.prestador_cnpj:
+            return {"success": False, "error": "CNPJ do prestador não configurado"}
 
-        # Salvar certificado em arquivo temporário (ISSNetClient precisa de path)
-        cert_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx", prefix="issnet_auto_")  # noqa: SIM115
-        cert_tmp.write(bytes(cert_data))
-        cert_tmp.close()
-
-        try:
-            client = ISSNetClient(
-                usuario=decrypt_value(config.issnet_usuario or ""),
-                senha=senha_ws_plain,
-                certificado_path=cert_tmp.name,
-                senha_certificado=senha_cert_plain,
-                ambiente=config.nacional_ambiente or "producao",
-            )
-
-            # Configurar flags
-            client._optante_simples = config.optante_simples_nacional
-            client._incentivador_cultural = getattr(config, "incentivador_cultural", False)
-            regime = str(getattr(config, "regime_especial_tributacao", "0") or "0").strip()
-            client._regime_especial = regime
-
-            resultado = client.emitir_nfse(
-                prestador_cnpj=cnpj_digits,
-                prestador_inscricao_municipal=im,
-                prestador_razao_social=config.prestador_razao_social or "",
-                tomador_cpf_cnpj=tomador_cpf_cnpj,
-                tomador_nome=tomador_nome,
-                tomador_endereco=tomador_endereco,
-                servico_codigo=servico_codigo,
-                servico_descricao=descricao,
-                valor_servicos=float(valor),
-                aliquota_iss=float(config.aliquota_iss),
-                numero_rps=numero_rps,
-                serie_rps=config.serie_rps or "E",
-                codigo_cnae=cod_cnae,
-                item_lista_servico=item_lista,
-                codigo_tributacao_municipio=cod_tributacao,
-            )
-        finally:
-            with contextlib.suppress(OSError):
-                os.unlink(cert_tmp.name)
+        codigo_trib_nacional = _resolver_codigo_tributacao_nacional(
+            config,
+            item_lista_override=config.item_lista_servico,
+        )
+        codigo_trib_municipal = _resolver_codigo_tributacao_municipal(
+            config,
+            codigo_servico_override=config.codigo_tributacao_municipio,
+            codigo_trib_nacional=codigo_trib_nacional,
+        )
+        numero_dps = gerar_proximo_numero_rps_superadmin(config)
+        serie_dps = "1"
+        aliquota = Decimal(str(config.aliquota_iss or 0))
+        client = issnet_nacional_client_superadmin(config)
+        resultado = client.emitir_nfse(
+            numero_lote=numero_dps,
+            numero_dps=numero_dps,
+            serie_dps=serie_dps,
+            prestador_email=config.prestador_email or "",
+            tomador_cpf_cnpj=tomador_cpf_cnpj,
+            tomador_nome=tomador_nome,
+            tomador_endereco=tomador_endereco,
+            tomador_email=tomador_email,
+            codigo_tributacao_nacional=codigo_trib_nacional,
+            codigo_tributacao_municipal=codigo_trib_municipal or None,
+            descricao_servico=descricao,
+            codigo_nbs=_resolver_codigo_nbs(config),
+            valor_servicos=valor,
+            aliquota_iss=aliquota,
+            p_tot_trib_sn=_resolver_p_tot_trib_sn(config),
+            codigo_municipio_prestacao=tomador_endereco.get("codigo_municipio") or "3543402",
+        )
+        sincronizar_contadores_rps_superadmin(config, numero_dps)
 
         if resultado.get("success"):
+            chave = resultado.get("chave_acesso") or resultado.get("codigo_verificacao") or ""
             logger.info(
-                "NFS-e ISSNet emitida: NF=%s, tomador=%s, valor=R$%s",
-                resultado.get("numero_nf"), tomador_nome, valor,
+                "NFS-e ISSNet Nacional emitida: NF=%s, tomador=%s, valor=R$%s",
+                resultado.get("numero_nfse"), tomador_nome, valor,
             )
             resultado_padrao = {
                 "success": True,
-                "numero_nf": resultado.get("numero_nf", ""),
-                "codigo_verificacao": resultado.get("codigo_verificacao", ""),
-                "numero_rps": numero_rps,
-                "xml_nfse": resultado.get("xml_nfse", ""),
+                "numero_nf": resultado.get("numero_nfse") or "",
+                "codigo_verificacao": str(chave)[:50],
+                "numero_rps": numero_dps,
+                "serie_rps": serie_dps,
+                "xml_nfse": resultado.get("xml_resposta") or "",
                 "data_emissao": _data_emissao_resultado(resultado),
             }
-            sincronizar_contadores_rps_superadmin(config, numero_rps)
-            nf = _salvar_nfse_emitida_issnet(pagamento, config, resultado_padrao, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor)
+            nf = _salvar_nfse_emitida_issnet(
+                pagamento, config, resultado_padrao, tomador_nome,
+                tomador_cpf_cnpj, tomador_email, descricao, valor,
+            )
             _enviar_email_nfse_assinatura(nf, config)
             return resultado_padrao
-        error_msg = resultado.get("error", "Erro desconhecido ISSNet")
-        sincronizar_contadores_rps_superadmin(config, numero_rps)
-        logger.warning("NFS-e ISSNet falhou: %s", error_msg)
+
+        error_msg = resultado.get("erro") or resultado.get("error") or "Erro desconhecido ISSNet"
+        logger.warning("NFS-e ISSNet Nacional falhou: %s", error_msg)
         return {"success": False, "error": error_msg}
 
     except Exception as e:
-        logger.exception("Erro ao emitir NFS-e assinatura via ISSNet: %s", e)
+        logger.exception("Erro ao emitir NFS-e assinatura via ISSNet Nacional: %s", e)
         return {"success": False, "error": str(e)}
 
 
@@ -333,7 +316,7 @@ def _salvar_nfse_emitida_issnet(pagamento, config, resultado, tomador_nome, toma
             numero_nf=resultado.get("numero_nf", ""),
             codigo_verificacao=resultado.get("codigo_verificacao", ""),
             numero_rps=resultado.get("numero_rps", 0),
-            serie_rps=config.serie_rps or "E",
+            serie_rps=resultado.get("serie_rps") or "1",
             provedor="issnet",
             status="emitida",
             valor=valor_dec,

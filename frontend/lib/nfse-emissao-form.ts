@@ -98,6 +98,49 @@ export function descricaoServicoDeTemplates(
   return (fallbackConfig || '').trim();
 }
 
+/** Texto padrão já gravado para uma prestadora. */
+export async function carregarDescricaoPadraoPrestadora(
+  prestadoraId: number,
+): Promise<{ id: number | null; texto: string }> {
+  const templates = await fetchAllPaginatedResults<NfseDescricaoTemplateOption>(
+    '/crm-vendas/nfse-templates/',
+    { ativo: 'true', prestadora: String(prestadoraId) },
+  );
+  const daEmpresa = templates.filter((t) => t.prestadora === prestadoraId);
+  const escolhido = daEmpresa.find((t) => t.is_padrao) || daEmpresa[0];
+  const texto = escolhido ? textoDescricaoTemplate(escolhido.conteudo) : '';
+  return { id: escolhido?.id ?? null, texto };
+}
+
+/** Grava o texto padrão da prestadora. Texto igual ao que já estava não é reescrito. */
+export async function salvarDescricaoPadraoPrestadora(opts: {
+  prestadoraId: number;
+  nome: string;
+  texto: string;
+  textoInicial: string;
+  templateId: number | null;
+}): Promise<void> {
+  const texto = opts.texto.trim();
+  if (texto === opts.textoInicial.trim()) return;
+  if (!texto && opts.templateId) {
+    await apiClient.delete(`/crm-vendas/nfse-templates/${opts.templateId}/`);
+    return;
+  }
+  if (!texto) return;
+  const corpo = {
+    nome: (opts.nome || 'Descrição padrão').slice(0, 255),
+    conteudo: texto,
+    prestadora: opts.prestadoraId,
+    is_padrao: true,
+    ativo: true,
+  };
+  if (opts.templateId) {
+    await apiClient.patch(`/crm-vendas/nfse-templates/${opts.templateId}/`, corpo);
+    return;
+  }
+  await apiClient.post('/crm-vendas/nfse-templates/', corpo);
+}
+
 /** Texto da empresa escolhida. Sem template dela, usa o texto de reserva da loja. */
 export function descricaoDaEmpresaPrestadora(
   templates: NfseDescricaoTemplateOption[],

@@ -8,8 +8,6 @@ import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { formatApiErrorBody } from '@/lib/api-errors';
 import { FileText, AlertCircle, CheckCircle2, Info, ArrowLeft } from 'lucide-react';
-import { salvarAtividadesPrestadoraNfse } from './components/AtividadesPorPrestadora';
-import { salvarDescricoesPrestadoraNfse } from './components/DescricoesPorPrestadora';
 import { NfseEmissaoSecoes } from './components/NfseEmissaoSecoes';
 import {
   aplicarEmissaoOpcao,
@@ -150,8 +148,6 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
       });
       if (certificadoFile) data.append('issnet_certificado', certificadoFile);
 
-      await salvarAtividadesPrestadoraNfse();
-      await salvarDescricoesPrestadoraNfse();
       await apiClient.patch('/crm-vendas/config/', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });

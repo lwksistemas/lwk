@@ -2,9 +2,6 @@
 
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import { Upload } from 'lucide-react';
-import { AtividadesPorPrestadora } from './AtividadesPorPrestadora';
-import { DescricoesPorPrestadora } from './DescricoesPorPrestadora';
-
 export function CamposServicoBasicos({
   formData,
   setFormData,
@@ -47,14 +44,12 @@ export function CamposServicoBasicos({
           className={inputClass}
         />
       </div>
-      <AtividadesPorPrestadora inputClass={inputClass} />
-      <DescricoesPorPrestadora inputClass={inputClass} />
       <div className="md:col-span-2">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Texto de reserva
         </label>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-          Usado só quando a empresa prestadora ainda não tem descrição.
+          Usado só quando a empresa prestadora ainda não tem descrição no cadastro.
         </p>
         <textarea
           value={formData.descricao_servico_padrao}

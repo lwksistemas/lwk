@@ -6,7 +6,8 @@ import apiClient from '@/lib/api-client';
 import { consultaCep } from '@/lib/consulta-cep';
 import { consultaCnpj } from '@/lib/consulta-cnpj';
 import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
-import { ContaCadastroForm, type ContaFormData } from '@/components/crm-vendas/ContaCadastroForm';
+import { ContaCadastroForm, dadosContaParaSalvar, type ContaFormData } from '@/components/crm-vendas/ContaCadastroForm';
+import { salvarDescricaoPadraoPrestadora } from '@/lib/nfse-emissao-form';
 import type { CatalogoPdfItem } from '@/components/crm-vendas/CatalogoPdfImportModal';
 
 const EMPTY_FORM: ContaFormData = {
@@ -32,6 +33,10 @@ const EMPTY_FORM: ContaFormData = {
   comissao_tipo: 'percentual',
   comissao_valor: '',
   comissoes: [],
+  nfse_atividade_padrao: '',
+  nfse_descricao_padrao: '',
+  nfse_descricao_inicial: '',
+  nfse_descricao_template_id: null,
 };
 
 export default function NovaContaPage() {
@@ -121,12 +126,23 @@ export default function NovaContaPage() {
     try {
       const resposta = await apiClient.post<{ id: number }>(
         '/crm-vendas/contas/',
-        applyTelefoneInternacionalPayload({
-          ...formData,
-          comissao_valor: formData.comissao_valor.trim() === '' ? null : formData.comissao_valor,
-          comissoes: formData.tipo === 'cliente' ? [] : formData.comissoes,
-        }),
+        applyTelefoneInternacionalPayload(dadosContaParaSalvar(formData)),
       );
+      if (formData.tipo === 'prestadora' || formData.tipo === 'ambos') {
+        try {
+          await salvarDescricaoPadraoPrestadora({
+            prestadoraId: resposta.data.id,
+            nome: formData.nome,
+            texto: formData.nfse_descricao_padrao,
+            textoInicial: formData.nfse_descricao_inicial,
+            templateId: formData.nfse_descricao_template_id,
+          });
+        } catch {
+          setFormErro('A empresa foi salva, mas a descrição da nota não entrou. Abra a edição e grave de novo.');
+          router.push(`/loja/${slug}/crm-vendas/customers/${resposta.data.id}/editar`);
+          return;
+        }
+      }
       if (
         catalogoPendente.length > 0
         && (formData.tipo === 'prestadora' || formData.tipo === 'ambos')

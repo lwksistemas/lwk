@@ -10,6 +10,7 @@ import { CatalogoPdfImportModal, type CatalogoPdfItem } from '@/components/crm-v
 import { ImageUploadMedia } from '@/components/ImageUploadMedia';
 import { authService } from '@/lib/auth';
 import { formatCep, formatCpfCnpj, formatTelefone, toUpperCase } from '@/lib/format-br';
+import { NFSE_ATIVIDADES_MUNICIPAIS } from '@/lib/nfse-atividades-municipais';
 
 export interface ContaFormData {
   nome: string;
@@ -34,6 +35,27 @@ export interface ContaFormData {
   comissao_tipo: 'fixo' | 'percentual';
   comissao_valor: string;
   comissoes: ComissaoPrestadoraItem[];
+  nfse_atividade_padrao: string;
+  nfse_descricao_padrao: string;
+  nfse_descricao_inicial: string;
+  nfse_descricao_template_id: number | null;
+}
+
+const ATIVIDADES_MUNICIPAIS = NFSE_ATIVIDADES_MUNICIPAIS.filter((a) => a.id !== 'loja');
+
+export function dadosContaParaSalvar(formData: ContaFormData) {
+  const {
+    nfse_descricao_padrao: _descricao,
+    nfse_descricao_inicial: _descricaoInicial,
+    nfse_descricao_template_id: _templateId,
+    ...resto
+  } = formData;
+  return {
+    ...resto,
+    nfse_atividade_padrao: resto.tipo === 'cliente' ? '' : resto.nfse_atividade_padrao,
+    comissao_valor: resto.comissao_valor.trim() === '' ? null : resto.comissao_valor,
+    comissoes: resto.tipo === 'cliente' ? [] : resto.comissoes,
+  };
 }
 
 const inputClass =
@@ -76,10 +98,14 @@ export function ContaCadastroForm({
   onCatalogoPendente,
 }: ContaCadastroFormProps) {
   const [importarAberto, setImportarAberto] = useState(false);
-  const set = (field: Exclude<keyof ContaFormData, 'comissoes' | 'comissao_escopo' | 'comissao_tipo'>, value: string) =>
-    onChange({ ...formData, [field]: value });
-  const setUpper = (field: Exclude<keyof ContaFormData, 'comissoes' | 'comissao_escopo' | 'comissao_tipo'>, value: string) =>
-    onChange({ ...formData, [field]: toUpperCase(value) });
+  const set = (
+    field: Exclude<keyof ContaFormData, 'comissoes' | 'comissao_escopo' | 'comissao_tipo' | 'nfse_descricao_template_id'>,
+    value: string,
+  ) => onChange({ ...formData, [field]: value });
+  const setUpper = (
+    field: Exclude<keyof ContaFormData, 'comissoes' | 'comissao_escopo' | 'comissao_tipo' | 'nfse_descricao_template_id'>,
+    value: string,
+  ) => onChange({ ...formData, [field]: toUpperCase(value) });
   const setCnpj = (value: string) => onChange({ ...formData, cnpj: formatCpfCnpj(value) });
   const setCep = (value: string) => onChange({ ...formData, cep: formatCep(value) });
   const setPhone = (value: string) => onChange({ ...formData, telefone: formatTelefone(value) });
@@ -134,6 +160,41 @@ export function ContaCadastroForm({
                 <option value="ambos">Cliente e Prestadora</option>
               </select>
             </div>
+            {(formData.tipo === 'prestadora' || formData.tipo === 'ambos') && (
+              <>
+                <div>
+                  <label className={labelClass}>Atividade municipal padrão</label>
+                  <select
+                    value={formData.nfse_atividade_padrao}
+                    onChange={(e) => set('nfse_atividade_padrao', e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">Usar configuração padrão da loja</option>
+                    {ATIVIDADES_MUNICIPAIS.map((atividade) => (
+                      <option key={atividade.id} value={atividade.id}>
+                        {atividade.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Cada empresa prestadora tem a própria atividade.
+                  </p>
+                </div>
+                <div>
+                  <label className={labelClass}>Descrição padrão do serviço</label>
+                  <textarea
+                    value={formData.nfse_descricao_padrao}
+                    onChange={(e) => set('nfse_descricao_padrao', e.target.value)}
+                    rows={4}
+                    className={`${inputClass} resize-y min-h-[96px]`}
+                    placeholder="Texto da nota desta empresa"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Cada empresa prestadora tem o próprio texto.
+                  </p>
+                </div>
+              </>
+            )}
             <div>
               <label className={labelClass}>Razão social</label>
               <input

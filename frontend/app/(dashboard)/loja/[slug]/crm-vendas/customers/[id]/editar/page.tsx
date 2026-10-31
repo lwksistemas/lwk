@@ -6,7 +6,8 @@ import apiClient from '@/lib/api-client';
 import { consultaCep } from '@/lib/consulta-cep';
 import { consultaCnpj } from '@/lib/consulta-cnpj';
 import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
-import { ContaCadastroForm, type ContaFormData } from '@/components/crm-vendas/ContaCadastroForm';
+import { ContaCadastroForm, dadosContaParaSalvar, type ContaFormData } from '@/components/crm-vendas/ContaCadastroForm';
+import { carregarDescricaoPadraoPrestadora, salvarDescricaoPadraoPrestadora } from '@/lib/nfse-emissao-form';
 import type { ComissaoPrestadoraItem } from '@/components/crm-vendas/ComissaoPrestadoraSection';
 
 interface Conta {
@@ -29,6 +30,7 @@ interface Conta {
   uf?: string;
   observacoes?: string;
   logo?: string;
+  nfse_atividade_padrao?: string;
   comissao_escopo?: 'todos' | 'especificos';
   comissao_tipo?: 'fixo' | 'percentual';
   comissao_valor?: string | null;
@@ -58,6 +60,10 @@ function contaToForm(conta: Conta): ContaFormData {
     comissao_escopo: conta.comissao_escopo === 'todos' ? 'todos' : 'especificos',
     comissao_tipo: conta.comissao_tipo === 'fixo' ? 'fixo' : 'percentual',
     comissao_valor: conta.comissao_valor ?? '',
+    nfse_atividade_padrao: conta.nfse_atividade_padrao || '',
+    nfse_descricao_padrao: '',
+    nfse_descricao_inicial: '',
+    nfse_descricao_template_id: null,
     comissoes: (conta.comissoes || []).map((item) => ({
       produto_servico_id: item.produto_servico_id,
       tipo: item.tipo === 'percentual' ? 'percentual' : 'fixo',
@@ -86,10 +92,19 @@ export default function EditarContaPage() {
       return;
     }
     let cancelled = false;
-    apiClient
-      .get<Conta>(`/crm-vendas/contas/${id}/`)
-      .then((res) => {
-        if (!cancelled) setFormData(contaToForm(res.data));
+    Promise.all([
+      apiClient.get<Conta>(`/crm-vendas/contas/${id}/`),
+      carregarDescricaoPadraoPrestadora(id).catch(() => ({ id: null, texto: '' })),
+    ])
+      .then(([res, descricao]) => {
+        if (cancelled) return;
+        const base = contaToForm(res.data);
+        setFormData({
+          ...base,
+          nfse_descricao_padrao: descricao.texto,
+          nfse_descricao_inicial: descricao.texto,
+          nfse_descricao_template_id: descricao.id,
+        });
       })
       .catch(() => {
         if (!cancelled) router.replace(listPath);
@@ -186,12 +201,22 @@ export default function EditarContaPage() {
     try {
       await apiClient.put(
         `/crm-vendas/contas/${id}/`,
-        applyTelefoneInternacionalPayload({
-          ...formData,
-          comissao_valor: formData.comissao_valor.trim() === '' ? null : formData.comissao_valor,
-          comissoes: formData.tipo === 'cliente' ? [] : formData.comissoes,
-        }),
+        applyTelefoneInternacionalPayload(dadosContaParaSalvar(formData)),
       );
+      if (formData.tipo === 'prestadora' || formData.tipo === 'ambos') {
+        try {
+          await salvarDescricaoPadraoPrestadora({
+            prestadoraId: id,
+            nome: formData.nome,
+            texto: formData.nfse_descricao_padrao,
+            textoInicial: formData.nfse_descricao_inicial,
+            templateId: formData.nfse_descricao_template_id,
+          });
+        } catch {
+          setFormErro('A empresa foi salva, mas a descrição da nota não entrou. Grave de novo.');
+          return;
+        }
+      }
       router.push(listPath);
     } catch (err: unknown) {
       const data = (err as { response?: { data?: { detail?: string; comissoes?: string | string[] } } })?.response?.data;

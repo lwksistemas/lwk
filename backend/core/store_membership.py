@@ -28,23 +28,12 @@ def user_belongs_to_store(user, store_slug: str) -> bool:
 
 
 def funcionario_email_ativo_na_loja(user, loja) -> bool:
-    email = (getattr(user, "email", None) or "").strip()
-    if not email:
-        return False
-    try:
-        from core.db_config import ensure_loja_database_config
-        from tenants.middleware import set_current_loja_id, set_current_tenant_db
+    """Vínculo por e-mail de funcionário ainda não suportado: sempre False.
 
-        db_name = getattr(loja, "database_name", None) or f"loja_{loja.slug}"
-        if not ensure_loja_database_config(db_name):
-            return False
-        set_current_tenant_db(db_name)
-        set_current_loja_id(loja.id)
-
-        return False
-    except Exception as e:
-        logger.debug("funcionario email check: %s", e)
-        return False
+    Não alterar o contexto do tenant aqui: uma checagem de pertencimento não pode
+    deixar a loja consultada ativa na thread (vazamento entre lojas).
+    """
+    return False
 
 
 def resolve_loja_for_user(user, loja_slug: str | None = None):

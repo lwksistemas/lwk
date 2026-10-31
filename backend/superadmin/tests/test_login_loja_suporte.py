@@ -34,6 +34,25 @@ class LoginLojaSuporteTests(TestCase):
     def test_sem_loja_continua_suporte(self):
         self.assertEqual(self.service._get_user_type(self.user, None), "suporte")
 
+    def test_cadastro_nao_assume_conta_de_profissional_ou_vendedor(self):
+        """Regressão A1: cadastro público não pode redefinir senha/e-mail de usuário vinculado."""
+        from superadmin.models import ProfissionalUsuario, VendedorUsuario
+
+        for nome, modelo, campo in (
+            ("prof-vitima", ProfissionalUsuario, "professional_id"),
+            ("vend-vitima", VendedorUsuario, "vendedor_id"),
+        ):
+            vitima = User.objects.create_user(nome, f"{nome}@lwk.test", "senha-original")
+            loja = Loja.objects.first()
+            modelo.objects.create(user=vitima, loja=loja, **{campo: 1})
+            with self.assertRaises(ValidationError):
+                LojaCreationService.criar_ou_atualizar_owner(
+                    nome, "atacante@lwk.test", "senha-atacante", "A", "B",
+                )
+            vitima.refresh_from_db()
+            self.assertTrue(vitima.check_password("senha-original"))
+            self.assertEqual(vitima.email, f"{nome}@lwk.test")
+
     def test_cadastro_nao_reusa_usuario_de_suporte(self):
         livre = User.objects.create_user("suporte-livre", "livre@lwk.test", "senha-teste")
         UsuarioSistema.objects.create(user=livre, tipo="suporte", is_active=True)

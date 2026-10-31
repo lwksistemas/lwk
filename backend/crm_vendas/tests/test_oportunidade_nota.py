@@ -98,11 +98,15 @@ class OportunidadeNotaVisibilidadeTests(SimpleTestCase):
         view.request.query_params = params
         return view
 
-    def test_vendedor_ve_todas_as_notas_da_oportunidade(self):
+    @patch("crm_vendas.mixins.VendedorFilterMixin.filter_by_vendedor")
+    def test_oportunidade_id_na_query_nao_pula_filtro_de_vendedor(self, mock_filtro):
+        """Regressão IDOR: ?oportunidade_id não pode liberar notas de oportunidade alheia."""
         qs = MagicMock()
+        filtrado = MagicMock()
+        mock_filtro.return_value = filtrado
         result = self._view({"oportunidade_id": "10"}).filter_by_vendedor(qs)
-        self.assertIs(result, qs)
-        qs.filter.assert_not_called()
+        self.assertIs(result, filtrado)
+        mock_filtro.assert_called_once()
 
     @patch("crm_vendas.mixins.VendedorFilterMixin.filter_by_vendedor")
     def test_lista_sem_oportunidade_continua_no_vendedor(self, mock_filtro):
@@ -110,6 +114,27 @@ class OportunidadeNotaVisibilidadeTests(SimpleTestCase):
         mock_filtro.return_value = qs
         result = self._view({}).filter_by_vendedor(qs)
         self.assertIs(result, qs)
+        mock_filtro.assert_called_once()
+
+
+class OportunidadeQuerysetVendedorTests(SimpleTestCase):
+    """Regressão IDOR: o queryset de oportunidades precisa passar pelo filtro por vendedor."""
+
+    databases = {"default"}  # a base do ViewSet consulta o banco ao montar o queryset
+
+    @patch("crm_vendas.views_pipelines._filtrar_oportunidades_por_periodo", side_effect=lambda qs, *a: qs)
+    @patch("crm_vendas.views_pipelines.filtrar_queryset_por_query_params", side_effect=lambda qs, *a: qs)
+    @patch("crm_vendas.views_pipelines.vendedor_tem_controle_qualidade", return_value=False)
+    @patch("crm_vendas.views_pipelines.get_current_vendedor_id", return_value=7)
+    @patch("crm_vendas.mixins.VendedorFilterMixin.filter_by_vendedor")
+    def test_get_queryset_aplica_filtro_por_vendedor(self, mock_filtro, *_):
+        from crm_vendas.views_pipelines import OportunidadeViewSet
+
+        view = OportunidadeViewSet()
+        view.request = MagicMock()
+        view.action = "list"
+        mock_filtro.side_effect = lambda qs: qs
+        view.get_queryset()
         mock_filtro.assert_called_once()
 
 

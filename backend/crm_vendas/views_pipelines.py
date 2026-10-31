@@ -194,7 +194,8 @@ class OportunidadeViewSet(
         return response
 
     def get_queryset(self):
-        qs = Oportunidade.objects.select_related(
+        # super() aplica o filtro por vendedor (VendedorFilterMixin); não recriar o queryset
+        qs = super().get_queryset().select_related(
             "lead", "vendedor", "lead__conta", "empresa_prestadora",
         )
         # Listagem do pipeline não precisa de atividades/itens (serializer de lista não usa)
@@ -254,13 +255,9 @@ class OportunidadeNotaViewSet(
     cache_keys = ["oportunidades"]
     crm_permission_model = "oportunidade"
 
-    def filter_by_vendedor(self, queryset):
-        """Quem abre a oportunidade vê todas as respostas, com o nome de quem registrou."""
-        if self.request.query_params.get("oportunidade_id"):
-            return queryset
-        return super().filter_by_vendedor(queryset)
-
     def get_queryset(self):
+        # Filtro por vendedor (oportunidade__vendedor_id) vale sempre: em oportunidade própria
+        # o vendedor já vê todas as notas; em oportunidade alheia não vê nenhuma.
         qs = super().get_queryset()
         return filtrar_queryset_por_query_params(
             qs,

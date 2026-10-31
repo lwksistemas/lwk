@@ -90,6 +90,17 @@ class LojaCreationService:
                     "owner_username": f'O usuário "{username}" já é dono de outra loja. Use outro nome de usuário.',
                 })
 
+            # Nunca assumir conta de profissional/vendedor de uma loja (evita tomada de conta)
+            from superadmin.models import ProfissionalUsuario, VendedorUsuario
+
+            if (
+                ProfissionalUsuario.objects.filter(user=owner).exists()
+                or VendedorUsuario.objects.filter(user=owner).exists()
+            ):
+                raise serializers.ValidationError({
+                    "owner_username": f'O usuário "{username}" já está em uso. Escolha outro nome de usuário.',
+                })
+
             # Usuário órfão: reutilizar e atualizar dados
             owner.email = email
             owner.first_name = first_name

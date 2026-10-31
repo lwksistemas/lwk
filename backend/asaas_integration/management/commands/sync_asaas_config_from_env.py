@@ -21,8 +21,13 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR("ASAAS_API_KEY no ambiente está ausente ou inválida."))
             return
 
-        if AsaasConfig.is_valid_api_key(db_key) and db_key == env_key:
-            self.stdout.write(self.style.SUCCESS("Chave no banco já está correta."))
+        if AsaasConfig.is_valid_api_key(db_key):
+            if db_key == env_key:
+                self.stdout.write(self.style.SUCCESS("Chave no banco já está correta."))
+            else:
+                self.stderr.write(self.style.ERROR(
+                    "O banco já tem uma chave válida diferente do ambiente. Nada foi alterado.",
+                ))
             return
 
         config.api_key = env_key

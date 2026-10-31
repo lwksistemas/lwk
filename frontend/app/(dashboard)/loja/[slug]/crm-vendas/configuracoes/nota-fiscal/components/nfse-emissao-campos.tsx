@@ -2,6 +2,7 @@
 
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import { Upload } from 'lucide-react';
+import { AtividadesPorPrestadora } from './AtividadesPorPrestadora';
 import { DescricoesPorPrestadora } from './DescricoesPorPrestadora';
 
 export function CamposServicoBasicos({
@@ -46,6 +47,7 @@ export function CamposServicoBasicos({
           className={inputClass}
         />
       </div>
+      <AtividadesPorPrestadora inputClass={inputClass} />
       <DescricoesPorPrestadora inputClass={inputClass} />
       <div className="md:col-span-2">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

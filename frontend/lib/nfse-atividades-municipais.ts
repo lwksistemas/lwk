@@ -60,6 +60,29 @@ export const NFSE_ATIVIDADES_MUNICIPAIS: NfseAtividadeMunicipal[] = [
   },
 ];
 
+export function atividadeMunicipalPorId(atividadeId?: string | null): NfseAtividadeMunicipal | null {
+  const id = (atividadeId || '').trim();
+  if (!id || id === 'loja') return null;
+  return NFSE_ATIVIDADES_MUNICIPAIS.find((a) => a.id === id) ?? null;
+}
+
+export function mesclarAtividadeMunicipalPadrao<T extends {
+  codigo_cnae: string;
+  codigo_servico: string;
+  item_lista_servico: string;
+  codigo_tributacao_nacional: string;
+}>(defaults: T, atividadeId?: string | null): T {
+  const atividade = atividadeMunicipalPorId(atividadeId);
+  if (!atividade) return defaults;
+  return {
+    ...defaults,
+    codigo_cnae: atividade.cnae,
+    codigo_servico: atividade.trib_mun,
+    item_lista_servico: atividade.item_lista,
+    codigo_tributacao_nacional: atividade.trib_nac,
+  };
+}
+
 export function encontrarAtividadeMunicipal(params: {
   cnae?: string;
   codigo_servico?: string;

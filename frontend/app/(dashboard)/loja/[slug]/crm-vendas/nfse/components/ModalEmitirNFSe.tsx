@@ -14,6 +14,7 @@ import {
   preencherFormTomador,
   somenteDigitosDocumento,
 } from '@/lib/nfse-emissao-form';
+import { mesclarAtividadeMunicipalPadrao } from '@/lib/nfse-atividades-municipais';
 import { parseNfseEmissaoResult, type NfseEmissaoResult, type NfseEmitirResponse } from '@/lib/nfse-helpers';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { ServicoFields } from './ServicoFields';
@@ -87,7 +88,12 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
         encontrado && encontrado._tipo === 'conta' && typeof encontrado.id === 'number'
           ? encontrado.id
           : null;
-      const defaultsServico = await resolverDefaultsServico(empresaId);
+      const atividadePadrao =
+        encontrado && encontrado._tipo === 'conta' ? encontrado.nfse_atividade_padrao : '';
+      const defaultsServico = mesclarAtividadeMunicipalPadrao(
+        await resolverDefaultsServico(empresaId),
+        atividadePadrao,
+      );
 
       if (encontrado) {
         const temConta = encontrado._tipo === 'conta' && typeof encontrado.id === 'number';

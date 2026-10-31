@@ -135,6 +135,7 @@ export type NfseEmissaoContaOption = {
   cidade?: string;
   uf?: string;
   cep?: string;
+  nfse_atividade_padrao?: string;
 };
 
 export type NfsePrestadoraOption = {
@@ -176,6 +177,7 @@ function mapContaTomadorFromApi(c: Record<string, unknown>, documento: string): 
     cidade: String(c.cidade || ''),
     uf: String(c.uf || ''),
     cep: String(c.cep || ''),
+    nfse_atividade_padrao: String(c.nfse_atividade_padrao || ''),
     _display: String(c.razao_social || c.nome || ''),
     _fonte: 'conta',
   };

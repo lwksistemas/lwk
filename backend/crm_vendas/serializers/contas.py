@@ -15,6 +15,8 @@ from ..comissao_prestadora_service import (
 )
 from ..models import Conta
 
+ATIVIDADES_MUNICIPAIS_NFSE = {"170601", "140118", "101002", "4751"}
+
 
 class ContaSerializer(
     CpfCnpjNormalizationMixin,
@@ -42,7 +44,7 @@ class ContaSerializer(
             "id", "nome", "razao_social", "cnpj", "inscricao_estadual", "tipo", "segmento",
             "telefone", "email", "site",
             "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf",
-            "endereco", "observacoes", "logo",
+            "endereco", "observacoes", "logo", "nfse_atividade_padrao",
             "comissao_escopo", "comissao_tipo", "comissao_valor",
             "comissoes", "created_at", "updated_at",
         ]
@@ -57,6 +59,12 @@ class ContaSerializer(
         if not value or value.strip() == "":
             return None
         return value
+
+    def validate_nfse_atividade_padrao(self, value):
+        codigo = (value or "").strip()
+        if codigo and codigo not in ATIVIDADES_MUNICIPAIS_NFSE:
+            raise serializers.ValidationError("Escolha uma atividade municipal da lista.")
+        return codigo
 
     def validate_logo(self, value):
         if not value or not str(value).strip():

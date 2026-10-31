@@ -45,6 +45,12 @@ class Conta(LojaIsolationMixin, models.Model):
     # Campos antigos mantidos para compatibilidade
     endereco = models.CharField(max_length=255, blank=True, help_text="Endereço completo (campo legado)")
     observacoes = models.TextField(blank=True)
+    nfse_atividade_padrao = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="Atividade municipal usada ao emitir a NFS-e desta prestadora.",
+    )
     logo = models.URLField(
         max_length=500,
         blank=True,

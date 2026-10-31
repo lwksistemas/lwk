@@ -67,12 +67,18 @@ def clear_auth_cookies(response: HttpResponse) -> HttpResponse:
 
 
 def inject_bearer_from_cookie(request) -> None:
-    """Preenche Authorization a partir do cookie httpOnly, se ausente."""
+    """Preenche Authorization a partir do cookie httpOnly, se ausente.
+
+    Marca a requisição para a checagem de origem continuar valendo: o header
+    foi copiado daqui, não veio de um Bearer explícito.
+    """
     if request.META.get("HTTP_AUTHORIZATION"):
         return
     token = request.COOKIES.get(ACCESS_COOKIE)
-    if token:
-        request.META["HTTP_AUTHORIZATION"] = f"Bearer {token}"
+    if not token:
+        return
+    request.META["HTTP_AUTHORIZATION"] = f"Bearer {token}"
+    request.lwk_token_veio_do_cookie = True
 
 
 def get_session_id_from_request(request) -> str:

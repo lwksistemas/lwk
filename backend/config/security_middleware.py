@@ -137,8 +137,10 @@ class SecurityIsolationMiddleware:
         if not hasattr(request, "user") or request.user.is_anonymous:
             from django.db import OperationalError
 
+            from core.auth_cookies import inject_bearer_from_cookie
             from core.retry import execute_with_db_retry
 
+            inject_bearer_from_cookie(request)
             try:
                 auth_result = execute_with_db_retry(
                     lambda: self.jwt_authenticator.authenticate(request),

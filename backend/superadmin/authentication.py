@@ -64,11 +64,12 @@ def recusar_cookie_sem_origem(request) -> None:
     """
     if request.method in _METODOS_SEM_CHECAGEM_DE_ORIGEM:
         return
-    if request.META.get("HTTP_AUTHORIZATION"):
+    veio_do_cookie = bool(getattr(request, "lwk_token_veio_do_cookie", False))
+    if request.META.get("HTTP_AUTHORIZATION") and not veio_do_cookie:
         return
     from core.auth_cookies import ACCESS_COOKIE
 
-    if not request.COOKIES.get(ACCESS_COOKIE):
+    if not veio_do_cookie and not request.COOKIES.get(ACCESS_COOKIE):
         return
     permitidas = {
         canonica_origem(item)

@@ -83,6 +83,35 @@ class OrigemDoCookieTest(SimpleTestCase):
             ))
         self.assertEqual(resultado[0], usuario)
 
+    def test_bearer_copiado_do_cookie_ainda_exige_origem(self):
+        pedido = self.pedido(
+            "post",
+            origem="https://evil.example",
+            bearer="token-falso",
+            cookie="token-falso",
+        )
+        pedido.lwk_token_veio_do_cookie = True
+        with (
+            patch.object(JWTAuthentication, "authenticate") as jwt,
+            self.assertRaises(PermissionDenied) as erro,
+        ):
+            self.auth.authenticate(pedido)
+        self.assertEqual(erro.exception.status_code, 403)
+        jwt.assert_not_called()
+
+    def test_bearer_copiado_do_cookie_no_site_autentica(self):
+        usuario = MagicMock()
+        pedido = self.pedido(
+            "post",
+            origem="https://lwksistemas.com.br",
+            bearer="token-falso",
+            cookie="token-falso",
+        )
+        pedido.lwk_token_veio_do_cookie = True
+        with patch.object(JWTAuthentication, "authenticate", return_value=(usuario, "tok")):
+            resultado = self.auth.authenticate(pedido)
+        self.assertEqual(resultado[0], usuario)
+
     def test_bearer_explicito_ignora_a_origem(self):
         usuario = MagicMock()
         with patch.object(JWTAuthentication, "authenticate", return_value=(usuario, "tok")):

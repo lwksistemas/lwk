@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { ChevronDown } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { textoVisivelDoTemplate } from '@/lib/crm-proposta-template-legenda';
 import { fetchAllPaginatedResults } from '@/lib/crm-utils';
@@ -47,6 +48,7 @@ export function DescricoesPorPrestadora({ inputClass }: { inputClass: string }) 
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
+  const [aberto, setAberto] = useState(false);
 
   const salvar = useCallback(async () => {
     const proximas = linhas.map((linha) => ({ ...linha }));
@@ -123,50 +125,67 @@ export function DescricoesPorPrestadora({ inputClass }: { inputClass: string }) 
 
   return (
     <div className="md:col-span-2">
-      <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-        Descrição padrão do serviço
-      </p>
-      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-        Cada empresa prestadora tem o próprio texto. Ao emitir a nota para essa empresa, a descrição
-        usada é a dela.
-      </p>
-      {carregando && <p className="text-sm text-gray-500">Carregando empresas...</p>}
-      {erro && <p className="text-sm text-red-600 dark:text-red-400">{erro}</p>}
-      {!carregando && linhas.length === 0 && !erro && (
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-          Nenhuma empresa prestadora cadastrada.{' '}
-          {slug ? (
-            <Link href={`/loja/${slug}/crm-vendas/customers`} className="text-[#0176d3] underline">
-              Cadastre em Contas
-            </Link>
-          ) : (
-            'Cadastre em Contas'
-          )}{' '}
-          com o tipo Prestadora.
-        </p>
+      <button
+        type="button"
+        onClick={() => setAberto((atual) => !atual)}
+        aria-expanded={aberto}
+        className="flex w-full items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-600 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-[#0d1f3c]"
+      >
+        <span>
+          <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Descrição padrão do serviço
+          </span>
+          <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
+            Cada empresa prestadora tem o próprio texto. Abra para configurar.
+          </span>
+        </span>
+        <ChevronDown
+          size={18}
+          className={`shrink-0 text-gray-500 transition-transform ${aberto ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {aberto && (
+        <div className="mt-3 space-y-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Ao emitir a nota para essa empresa, a descrição usada é a dela.
+          </p>
+          {carregando && <p className="text-sm text-gray-500">Carregando empresas...</p>}
+          {erro && <p className="text-sm text-red-600 dark:text-red-400">{erro}</p>}
+          {!carregando && linhas.length === 0 && !erro && (
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Nenhuma empresa prestadora cadastrada.{' '}
+              {slug ? (
+                <Link href={`/loja/${slug}/crm-vendas/customers`} className="text-[#0176d3] underline">
+                  Cadastre em Contas
+                </Link>
+              ) : (
+                'Cadastre em Contas'
+              )}{' '}
+              com o tipo Prestadora.
+            </p>
+          )}
+          {linhas.map((linha) => (
+            <div key={linha.prestadoraId}>
+              <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+                {linha.nome}
+              </label>
+              <textarea
+                value={linha.texto}
+                onChange={(e) =>
+                  setLinhas((atual) =>
+                    atual.map((item) =>
+                      item.prestadoraId === linha.prestadoraId ? { ...item, texto: e.target.value } : item,
+                    ),
+                  )
+                }
+                rows={4}
+                className={inputClass}
+                placeholder="Texto da nota desta empresa"
+              />
+            </div>
+          ))}
+        </div>
       )}
-      <div className="space-y-4">
-        {linhas.map((linha) => (
-          <div key={linha.prestadoraId}>
-            <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
-              {linha.nome}
-            </label>
-            <textarea
-              value={linha.texto}
-              onChange={(e) =>
-                setLinhas((atual) =>
-                  atual.map((item) =>
-                    item.prestadoraId === linha.prestadoraId ? { ...item, texto: e.target.value } : item,
-                  ),
-                )
-              }
-              rows={4}
-              className={inputClass}
-              placeholder="Texto da nota desta empresa"
-            />
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

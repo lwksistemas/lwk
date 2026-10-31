@@ -32,14 +32,15 @@ export function ModalEmitirNFSeStepInicio({
           Buscar cliente pelo nome
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-          Digite o nome da empresa (ex.: ULTRASIS, ANADEM). O CNPJ será preenchido automaticamente.
+          Digite o nome da empresa prestadora (ex.: ULTRASIS, ANADEM). O CNPJ será preenchido automaticamente.
         </p>
         <BuscarContaInput
           contaId={contaBuscaId}
           onContaChange={onContaBuscaChange}
-          placeholder="Buscar conta pelo nome ou CNPJ..."
+          placeholder="Buscar empresa prestadora pelo nome ou CNPJ..."
           disabled={buscandoTomador}
           inputClassName={NFSE_EMISSAO_INPUT_CLASS}
+          tipos={['prestadora', 'ambos']}
         />
       </div>
 

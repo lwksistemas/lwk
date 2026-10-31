@@ -169,6 +169,31 @@ class CrmBuscaApiSmokeTest(_CrmApiTestBase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("leads", response.json())
 
+    @patch("crm_vendas.views_crm_busca.is_owner", return_value=True)
+    @patch("crm_vendas.views_crm_busca.get_current_vendedor_id", return_value=None)
+    @patch("crm_vendas.models.Proposta")
+    @patch("crm_vendas.models.Conta")
+    @patch("crm_vendas.models.Oportunidade")
+    @patch("crm_vendas.models.Lead")
+    @patch("crm_vendas.views_crm_busca.get_current_loja_id")
+    def test_busca_tipo_prestadora_restringe_contas(
+        self, mock_loja_id, mock_lead, mock_opp, mock_conta, mock_prop, _vend, _owner,
+    ):
+        mock_loja_id.return_value = self.loja.id
+        for mock_model in (mock_lead, mock_opp, mock_conta, mock_prop):
+            chain = MagicMock()
+            chain.filter.return_value = chain
+            chain.distinct.return_value = chain
+            chain.values.return_value = chain
+            chain.__getitem__ = lambda self, key: []
+            mock_model.objects = MagicMock()
+            mock_model.objects.filter.return_value = chain
+        response = self.client.get("/api/crm-vendas/busca/?q=ultra&tipo=prestadora")
+        self.assertEqual(response.status_code, 200)
+        mock_conta.objects.filter.return_value.filter.assert_any_call(
+            tipo__in=["prestadora", "ambos"],
+        )
+
     @patch("crm_vendas.views_crm_busca.is_owner", return_value=False)
     @patch("crm_vendas.views_crm_busca.get_current_vendedor_id", return_value=7)
     @patch("crm_vendas.models.Proposta")

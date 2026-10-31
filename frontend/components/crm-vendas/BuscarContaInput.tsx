@@ -50,12 +50,15 @@ export default function BuscarContaInput({
   }, []);
 
   const fetchResults = useCallback(async (q: string, lim: number) => {
+    const params: Record<string, string | number> = { q, limit: lim };
+    if (tipos?.includes('prestadora')) params.tipo = 'prestadora';
+    else if (tipos?.length === 1) params.tipo = tipos[0];
     const res = await apiClient.get<{ contas: CrmContaBuscaItem[] }>('/crm-vendas/busca/', {
-      params: { q, limit: lim },
+      params,
     });
     const contas = res.data.contas ?? [];
     if (!tipos?.length) return contas;
-    return contas.filter((conta) => !conta.tipo || tipos.includes(conta.tipo));
+    return contas.filter((conta) => Boolean(conta.tipo) && tipos.includes(conta.tipo));
   }, [tipos]);
 
   const searchProps: CrmSearchInputProps<CrmContaBuscaItem> = {

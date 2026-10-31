@@ -49,7 +49,7 @@ def _busca_oportunidades(term, term_digits, vendedor_id, request, limit, q_icont
     return list(qs.values("id", "titulo", "valor", "etapa", "lead__nome", "lead__empresa")[:limit])
 
 
-def _busca_contas(term, term_digits, vendedor_id, request, limit, q_icontains_sem_acento, Conta, Q):
+def _busca_contas(term, term_digits, vendedor_id, request, limit, q_icontains_sem_acento, Conta, Q, tipo=""):
     """Busca contas por nome/razão social/cnpj/email/telefone."""
     f = q_icontains_sem_acento(term, "nome", "razao_social", "email") | Q(telefone__icontains=term) | Q(cnpj__icontains=term)
     if term_digits and len(term_digits) >= 3:
@@ -57,6 +57,13 @@ def _busca_contas(term, term_digits, vendedor_id, request, limit, q_icontains_se
         f |= q_contem_digitos_ignorando_mascara("cnpj", term_digits)
         f |= q_contem_digitos_ignorando_mascara("telefone", term_digits)
     qs = _aplicar_filtro_vendedor(Conta.objects.filter(f), vendedor_id, request, liberar_qualidade=True)
+    tipo = (tipo or "").strip()
+    if tipo == "prestadora":
+        qs = qs.filter(tipo__in=["prestadora", "ambos"])
+    elif tipo == "cliente":
+        qs = qs.filter(tipo__in=["cliente", "ambos"])
+    elif tipo:
+        qs = qs.filter(tipo=tipo)
     return list(qs.values("id", "nome", "segmento", "cnpj", "tipo")[:limit])
 
 
@@ -128,7 +135,7 @@ def crm_busca(request):
     bargs = (term, term_digits, vendedor_id, request, limit, q_icontains_sem_acento)
     leads_qs = _busca_leads(*bargs, Lead, Q)
     opp_qs = _busca_oportunidades(*bargs, Oportunidade, Q)
-    contas_qs = _busca_contas(*bargs, Conta, Q)
+    contas_qs = _busca_contas(*bargs, Conta, Q, request.GET.get("tipo") or "")
     prop_qs = _busca_propostas(*bargs, Proposta, Q)
 
     return Response({

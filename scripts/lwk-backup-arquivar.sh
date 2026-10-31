@@ -2,10 +2,13 @@
 # Tira o dump da pasta que a chave de produção enxerga e trava a cópia.
 # A hora do alerta e da retenção é a de chegada. Link não é seguido.
 # A pasta de arquivo fica num volume próprio: no máximo 5 arquivos por
-# dia e 50 MB cada. Um erro não impede os outros nem o alerta.
+# dia e 50 MB cada. O que passar da cota vai para quarentena nesse
+# mesmo volume (no máximo 10). Sem o volume montado, nada é gravado
+# no disco do sistema. Um erro não impede os outros nem o alerta.
 set -u
 IN=/var/backups/lwk
 OUT=/var/backups/lwk-arquivo
+QUAR=/var/backups/lwk-arquivo/quarentena
 PREP=/var/lib/lwk-backup-estado/preparo
 LOG=/var/log/lwk-backup-arquivo.log
 STAMP=/var/lib/lwk-backup-estado/alerta-stamp
@@ -14,6 +17,7 @@ STAMP_COTA=/var/lib/lwk-backup-estado/alerta-cota-stamp
 LOCK=/var/lib/lwk-backup-estado/job.lock
 MAX_BYTES=$((50 * 1024 * 1024))
 MAX_DIA=5
+MAX_QUAR=10
 ALERTA_TOTAL=$((1024 * 1024 * 1024))
 IDADE_MAX=$((26 * 3600))
 ESPERA=45
@@ -40,7 +44,13 @@ pode_avisar() {
 
 alert_atraso() {
   local newest now msg used
-  newest=$(find "$OUT" -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1 || true)
+  if ! mountpoint -q "$OUT"; then
+    if pode_avisar "$STAMP_VOLUME"; then
+      syslog_alerta "lwk-arquivo nao esta num volume proprio"
+    fi
+    return 0
+  fi
+  newest=$(find "$OUT" -xdev -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1 || true)
   now=$(date +%s)
   if [ -z "$newest" ] || [ $((now - ${newest%.*})) -gt "$IDADE_MAX" ]; then
     if pode_avisar "$STAMP"; then
@@ -81,16 +91,10 @@ PY
       fi
     fi
   fi
-  if mountpoint -q "$OUT"; then
-    used=$(df -B1 --output=used "$OUT" | tail -1 | tr -d ' ')
-    if [ -n "$used" ] && [ "$used" -gt "$ALERTA_TOTAL" ]; then
-      if pode_avisar "$STAMP_VOLUME"; then
-        syslog_alerta "volume de arquivo acima de 1 GB ($used bytes)"
-      fi
-    fi
-  else
+  used=$(df -B1 --output=used "$OUT" | tail -1 | tr -d ' ')
+  if [ -n "$used" ] && [ "$used" -gt "$ALERTA_TOTAL" ]; then
     if pode_avisar "$STAMP_VOLUME"; then
-      syslog_alerta "lwk-arquivo nao esta num volume proprio"
+      syslog_alerta "volume de arquivo acima de 1 GB ($used bytes)"
     fi
   fi
 }
@@ -102,18 +106,54 @@ if ! flock -n 9; then
 fi
 trap alert_atraso EXIT
 
-if ! mountpoint -q "$IN"; then
-  mount "$IN" >> "$LOG" 2>&1 || log "inbox nao montada"
-fi
-if ! mountpoint -q "$OUT"; then
-  mount "$OUT" >> "$LOG" 2>&1 || log "arquivo nao montado"
-fi
+exigir_volume() {
+  local ponto="$1" msg="$2"
+  if ! mountpoint -q "$ponto"; then
+    mount "$ponto" >> "$LOG" 2>&1 || true
+  fi
+  if mountpoint -q "$ponto"; then
+    return 0
+  fi
+  if pode_avisar "$STAMP_VOLUME"; then
+    syslog_alerta "$msg"
+  fi
+  exit 0
+}
+
+exigir_volume "$IN" "entrada de backup nao montada; nada foi arquivado"
+exigir_volume "$OUT" "lwk-arquivo nao esta num volume proprio; nada foi arquivado"
 install -d -m 700 -o lwkbackup -g lwkbackup "$IN"
 install -d -m 700 -o root -g root "$OUT"
 install -d -m 700 -o root -g root "$PREP"
+if [ -L "$QUAR" ]; then
+  rm -f -- "$QUAR"
+fi
+install -d -m 700 -o root -g root "$QUAR"
 
 arquivos_hoje() {
-  find "$OUT" -type f -newermt "$(date +%Y-%m-%d) 00:00:00" -printf . 2>/dev/null | wc -c
+  find "$OUT" -maxdepth 1 -xdev -type f -newermt "$(date +%Y-%m-%d) 00:00:00" -printf . 2>/dev/null | wc -c
+}
+
+na_quarentena() {
+  find "$QUAR" -maxdepth 1 -xdev -type f -printf . 2>/dev/null | wc -c
+}
+
+publicar() {
+  local staged="$1" dest="$2" base="$3"
+  chown -h root:root -- "$staged" || log "falha chown $base"
+  chmod 600 -- "$staged" || log "falha chmod $base"
+  touch -- "$staged" || log "falha touch $base"
+  if ! mv -- "$staged" "$dest"; then
+    rm -f -- "$staged" 2>>"$LOG" || true
+    log "falha ao arquivar $base"
+    if pode_avisar "$STAMP_VOLUME"; then
+      syslog_alerta "nao coube no volume de arquivo: $base"
+    fi
+    return 1
+  fi
+  if ! chattr +i -- "$dest"; then
+    syslog_alerta "arquivo arquivado sem trava imutavel: $(basename "$dest")"
+  fi
 }
 
 shopt -u dotglob
@@ -126,13 +166,19 @@ for f in "$IN"/*; do
     lost+found) continue ;;
   esac
   if [ -L "$f" ]; then
-    rm -f -- "$f" || log "falha ao remover link $base"
-    log "descartado link $base"
+    if rm -f -- "$f" 2>>"$LOG"; then
+      log "descartado link $base"
+    else
+      log "falha ao remover link $base"
+    fi
     continue
   fi
   if [ ! -f "$f" ]; then
-    rm -f -- "$f" || log "falha ao remover nao-arquivo $base"
-    log "removido nao-arquivo $base"
+    if rm -rf --one-file-system -- "$f" 2>>"$LOG"; then
+      log "removido nao-arquivo $base"
+    else
+      log "falha ao remover nao-arquivo $base"
+    fi
     continue
   fi
   agora=$(date +%s)
@@ -146,46 +192,61 @@ for f in "$IN"/*; do
     continue
   fi
   if [ -L "$staged" ]; then
-    rm -f -- "$staged" || log "falha ao remover link recolhido $base"
-    log "descartado link $base"
+    if rm -f -- "$staged" 2>>"$LOG"; then
+      log "descartado link $base"
+    else
+      log "falha ao remover link recolhido $base"
+    fi
     continue
   fi
   size=$(stat -c %s -- "$staged" 2>/dev/null || echo 0)
   if [ "$size" -gt "$MAX_BYTES" ]; then
-    rm -f -- "$staged" || log "falha ao apagar grande $base"
-    log "descartado grande $base ($size bytes)"
+    if rm -f -- "$staged" 2>>"$LOG"; then
+      log "descartado grande $base ($size bytes)"
+    else
+      log "falha ao apagar grande $base"
+    fi
     continue
   fi
   header=$(head -n 1 -- "$staged" 2>/dev/null || true)
   if [ "$header" != "age-encryption.org/v1" ]; then
-    rm -f -- "$staged" || log "falha ao apagar nao-age $base"
-    log "descartado nao-age $base"
-    continue
-  fi
-  if [ "$(arquivos_hoje)" -ge "$MAX_DIA" ]; then
-    rm -f -- "$staged" || log "falha ao apagar cota $base"
-    log "descartado cota-dia $base"
-    if pode_avisar "$STAMP_COTA"; then
-      syslog_alerta "cota de ${MAX_DIA} arquivos no dia; descartado $base"
+    if rm -f -- "$staged" 2>>"$LOG"; then
+      log "descartado nao-age $base"
+    else
+      log "falha ao apagar nao-age $base"
     fi
     continue
   fi
-  dest="$OUT/$base"
-  if [ -e "$dest" ]; then
-    dest="$OUT/${base}.dup-$(date +%Y%m%d%H%M%S%N)"
-    log "repetido guardado $(basename "$dest")"
-  else
-    log "arquivado $base"
+  lugar="$OUT"
+  if [ "$(arquivos_hoje)" -ge "$MAX_DIA" ]; then
+    if [ "$(na_quarentena)" -ge "$MAX_QUAR" ]; then
+      if rm -f -- "$staged" 2>>"$LOG"; then
+        log "descartado cota-dia $base"
+      else
+        log "falha ao apagar cota $base"
+      fi
+      if pode_avisar "$STAMP_COTA"; then
+        syslog_alerta "cota de ${MAX_DIA} no dia e quarentena com ${MAX_QUAR}; descartado $base"
+      fi
+      continue
+    fi
+    lugar="$QUAR"
   fi
-  chown -h root:root -- "$staged" || log "falha chown $base"
-  chmod 600 -- "$staged" || log "falha chmod $base"
-  touch -- "$staged" || log "falha touch $base"
-  if ! mv -- "$staged" "$dest"; then
-    log "falha ao arquivar $base"
+  dest="$lugar/$base"
+  if [ -e "$dest" ] || [ -L "$dest" ]; then
+    dest="$lugar/${base}.dup-$(date +%Y%m%d%H%M%S%N)"
+    nota="repetido guardado $(basename "$dest")"
+  elif [ "$lugar" = "$QUAR" ]; then
+    nota="quarentena $base"
+  else
+    nota="arquivado $base"
+  fi
+  if ! publicar "$staged" "$dest" "$base"; then
     continue
   fi
-  if ! chattr +i -- "$dest"; then
-    syslog_alerta "arquivo arquivado sem trava imutavel: $base"
+  log "$nota"
+  if [ "$lugar" = "$QUAR" ]; then
+    syslog_alerta "cota de ${MAX_DIA} arquivos no dia; $(basename "$dest") ficou em quarentena"
   fi
 done
 
@@ -199,4 +260,4 @@ while IFS= read -r -d '' old; do
     continue
   fi
   log "expirado $(basename "$old")"
-done < <(find "$OUT" -type f -mtime +90 -print0)
+done < <(find "$OUT" -xdev -type f -mtime +90 -print0)

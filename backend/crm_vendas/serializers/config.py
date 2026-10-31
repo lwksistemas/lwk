@@ -195,4 +195,5 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             "issnet_senha_certificado": {"write_only": True},
             "asaas_api_key": {"write_only": True, "required": False, "allow_blank": True},
             "asaas_webhook_token": {"write_only": True, "required": False, "allow_blank": True},
+            "descricao_servico_padrao": {"required": False, "allow_blank": True},
         }

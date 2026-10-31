@@ -22,7 +22,6 @@ type ConfiguracaoNotaFiscalPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const DEFAULT_DESCRICAO_SERVICO = 'Desenvolvimento e licenciamento de software sob demanda';
 const DEFAULT_CODIGO_SERVICO = '1401';
 
 const INPUT =
@@ -31,7 +30,6 @@ const CARD =
   'bg-white dark:bg-[#16325c] rounded-lg border border-gray-200 dark:border-[#0d1f3c] p-6';
 
 export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFiscalPageProps) {
-  const descricaoServicoPadrao = DEFAULT_DESCRICAO_SERVICO;
   const codigoServicoPadrao = DEFAULT_CODIGO_SERVICO;
   const router = useRouter();
   const params = useParams();
@@ -48,7 +46,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
     issnet_senha: '',
     issnet_senha_certificado: '',
     codigo_servico_municipal: codigoServicoPadrao,
-    descricao_servico_padrao: descricaoServicoPadrao,
+    descricao_servico_padrao: '',
     aliquota_iss: '2.00',
     inscricao_municipal: '',
     codigo_cnae: '',
@@ -86,7 +84,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
       issnet_senha: '',
       issnet_senha_certificado: '',
       codigo_servico_municipal: config.codigo_servico_municipal || codigoServicoPadrao,
-      descricao_servico_padrao: config.descricao_servico_padrao || descricaoServicoPadrao,
+      descricao_servico_padrao: config.descricao_servico_padrao ?? '',
       aliquota_iss: config.aliquota_iss || '2.00',
       inscricao_municipal: config.inscricao_municipal || '',
       codigo_cnae: config.codigo_cnae || '',
@@ -110,7 +108,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
       p_tot_trib_sn: config.p_tot_trib_sn != null ? String(config.p_tot_trib_sn) : '',
       emitir_nf_automaticamente: config.emitir_nf_automaticamente ?? true,
     });
-  }, [config, codigoServicoPadrao, descricaoServicoPadrao]);
+  }, [config, codigoServicoPadrao]);
 
   const emissaoOpcao = useMemo(
     () => resolverEmissaoOpcao(formData.provedor_nf, formData.issnet_usar_padrao_nacional),
@@ -138,6 +136,7 @@ export default function ConfiguracaoNotaFiscalPage(_props: ConfiguracaoNotaFisca
         'codigo_tributacao_nacional',
         'codigo_tributacao_municipal',
         'nacional_codigo_municipio',
+        'descricao_servico_padrao',
       ];
       Object.entries(formData).forEach(([key, value]) => {
         if (value === null || value === undefined) return;

@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from django.test import SimpleTestCase
 from rest_framework.exceptions import ValidationError
 
+from crm_vendas.serializers.config import CRMConfigSerializer
 from crm_vendas.serializers.documentos import NfseDescricaoTemplateSerializer
 
 
@@ -30,6 +31,10 @@ class NfseDescricaoTemplateSerializerTest(SimpleTestCase):
             NfseDescricaoTemplateSerializer().get_prestadora_nome(template),
             "ULTRASIS INFORMATICA LTDA",
         )
+
+    def test_texto_de_reserva_pode_ficar_vazio(self):
+        field = CRMConfigSerializer().fields["descricao_servico_padrao"]
+        self.assertEqual(field.run_validation(""), "")
 
     def test_sem_prestadora_fica_vazio(self):
         self.assertIsNone(

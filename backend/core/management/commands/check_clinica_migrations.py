@@ -137,9 +137,8 @@ class Command(BaseCommand):
         if not self._table_exists(schema, "clinica_beleza_paciente_fotos"):
             return True
         expected = {"url", "public_id"}
-        forbidden = {"cloudinary_url", "cloudinary_public_id"}
         return self._check_columns(
-            schema, "clinica_beleza_paciente_fotos", expected, forbidden
+            schema, "clinica_beleza_paciente_fotos", expected, set()
         )
 
     def _check_0067(self, schema):
@@ -196,33 +195,6 @@ class Command(BaseCommand):
         """Aplica SQL idempotente para resolver pendências em um schema."""
         qn = connection.ops.quote_name
         with connection.cursor() as cursor:
-            # 0066: renomeia colunas se existirem com nomes antigos
-            if self._table_exists(schema, "clinica_beleza_paciente_fotos"):
-                for old_name, new_name in [
-                    ("cloudinary_url", "url"),
-                    ("cloudinary_public_id", "public_id"),
-                ]:
-                    cursor.execute(
-                        f"""
-                        DO $$
-                        BEGIN
-                            IF EXISTS (
-                                SELECT 1 FROM information_schema.columns
-                                WHERE table_schema = %s AND table_name = 'clinica_beleza_paciente_fotos'
-                                AND column_name = %s
-                            ) AND NOT EXISTS (
-                                SELECT 1 FROM information_schema.columns
-                                WHERE table_schema = %s AND table_name = 'clinica_beleza_paciente_fotos'
-                                AND column_name = %s
-                            ) THEN
-                                ALTER TABLE {qn(schema)}.clinica_beleza_paciente_fotos
-                                RENAME COLUMN {qn(old_name)} TO {qn(new_name)};
-                            END IF;
-                        END $$;
-                        """,
-                        [schema, old_name, schema, new_name],
-                    )
-
             # 0067: só altera se a tabela de config NFS-e já existir neste schema
             if self._table_exists(schema, "clinica_beleza_nfse_config"):
                 for col_name, col_def in [

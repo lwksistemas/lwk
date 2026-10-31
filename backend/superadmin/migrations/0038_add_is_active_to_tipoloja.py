@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("superadmin", "0037_cloudinary_config"),
+        ("superadmin", "0036_fix_financeiro_fk_cascade"),
     ]
 
     operations = [

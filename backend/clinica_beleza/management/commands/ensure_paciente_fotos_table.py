@@ -63,41 +63,6 @@ class Command(BaseCommand):
                             "CREATE INDEX IF NOT EXISTS clin_cb_foto_cons_idx "
                             "ON clinica_beleza_paciente_fotos (consulta_id)",
                         )
-                    else:
-                        # Idempotente: renomeia colunas legadas se ainda existirem
-                        cursor.execute("""
-                            DO $$
-                            BEGIN
-                              IF EXISTS (
-                                SELECT 1 FROM information_schema.columns
-                                WHERE table_schema = current_schema()
-                                  AND table_name = 'clinica_beleza_paciente_fotos'
-                                  AND column_name = 'cloudinary_url'
-                              ) AND NOT EXISTS (
-                                SELECT 1 FROM information_schema.columns
-                                WHERE table_schema = current_schema()
-                                  AND table_name = 'clinica_beleza_paciente_fotos'
-                                  AND column_name = 'url'
-                              ) THEN
-                                ALTER TABLE clinica_beleza_paciente_fotos
-                                  RENAME COLUMN cloudinary_url TO url;
-                              END IF;
-                              IF EXISTS (
-                                SELECT 1 FROM information_schema.columns
-                                WHERE table_schema = current_schema()
-                                  AND table_name = 'clinica_beleza_paciente_fotos'
-                                  AND column_name = 'cloudinary_public_id'
-                              ) AND NOT EXISTS (
-                                SELECT 1 FROM information_schema.columns
-                                WHERE table_schema = current_schema()
-                                  AND table_name = 'clinica_beleza_paciente_fotos'
-                                  AND column_name = 'public_id'
-                              ) THEN
-                                ALTER TABLE clinica_beleza_paciente_fotos
-                                  RENAME COLUMN cloudinary_public_id TO public_id;
-                              END IF;
-                            END $$;
-                        """)
                     cursor.execute(
                         """
                         INSERT INTO django_migrations (app, name, applied)

@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("superadmin", "0047_cloudinaryconfig_remove_loja_loja_forma_pag_idx"),
+        ("superadmin", "0047_remove_loja_forma_pag_idx"),
     ]
 
     operations = [

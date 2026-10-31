@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("superadmin", "0064_delete_cloudinaryconfig"),
+        ("superadmin", "0063_loja_telefone_email_contato"),
     ]
 
     operations = [

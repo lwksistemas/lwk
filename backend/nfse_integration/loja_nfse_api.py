@@ -315,9 +315,9 @@ def _sincronizar_nfse_issnet_nacional(
 ) -> tuple[dict[str, Any], int]:
     """Não consulta a prefeitura no padrão nacional.
 
-    A Nota Control ainda não liberou baixar nem reenviar o PDF. A emissão e o
-    cancelamento seguem pelos fluxos próprios. Esta consulta mandava um XML que
-    a prefeitura recusa e, se passasse, poderia reabrir uma nota cancelada.
+    A emissão, o cancelamento, o PDF e o reenvio seguem pelos fluxos próprios.
+    Esta consulta mandava um XML que a prefeitura recusa e, se passasse,
+    poderia reabrir uma nota cancelada.
     """
     del loja, loja_id, config, numero_rps, serie_rps, cnpj_prestador, im_prestador
     from rest_framework import status as http_status
@@ -334,10 +334,9 @@ def _sincronizar_nfse_issnet_nacional(
             "success": True,
             "aviso": True,
             "message": (
-                "No padrão nacional a Nota Control ainda não liberou baixar nem "
-                "reenviar o PDF da nota. "
+                "A consulta de status no padrão nacional não altera a nota. "
                 + permanece
-                + " A emissão e o cancelamento continuam pelo caminho que já funciona."
+                + " O PDF e o reenvio usam o link oficial da nota."
             ),
         },
         http_status.HTTP_200_OK,

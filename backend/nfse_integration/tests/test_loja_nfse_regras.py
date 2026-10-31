@@ -163,6 +163,21 @@ class LojaNfseRegrasTests(SimpleTestCase):
         )
         self.assertEqual(url, "https://exemplo/danfe")
 
+    def test_prefere_a_url_nacional_mesmo_escapada_no_soap(self):
+        soap = (
+            "<soap:Body><outputXML>"
+            "&lt;ConsultarUrlNfseResposta xmlns=&quot;http://www.sped.fazenda.gov.br/nfse&quot;&gt;"
+            "&lt;ListaLinks&gt;&lt;Links&gt;"
+            "&lt;IdentificacaoNfse&gt;&lt;nDFSe&gt;181&lt;/nDFSe&gt;&lt;/IdentificacaoNfse&gt;"
+            "&lt;UrlVisualizacaoNfse&gt;https://www.notaeletronica.com.br/municipal&lt;/UrlVisualizacaoNfse&gt;"
+            "&lt;UrlVisualizacaoNfseNacional&gt;https://www.nfse.gov.br/consulta?chave=ABC&lt;/UrlVisualizacaoNfseNacional&gt;"
+            "&lt;/Links&gt;&lt;/ListaLinks&gt;"
+            "&lt;/ConsultarUrlNfseResposta&gt;"
+            "</outputXML></soap:Body>"
+        )
+        url = ISSNetNacionalClient._extrair_url_danfe_resposta(soap)
+        self.assertEqual(url, "https://www.nfse.gov.br/consulta?chave=ABC")
+
     def test_sincronizar_nacional_nao_consulta_a_prefeitura(self):
         nfse = SimpleNamespace(status="cancelada", save=MagicMock(), refresh_from_db=MagicMock())
         with patch(
@@ -181,7 +196,7 @@ class LojaNfseRegrasTests(SimpleTestCase):
             )
         self.assertEqual(code, 200)
         self.assertTrue(body["aviso"])
-        self.assertIn("Nota Control", body["message"])
+        self.assertIn("link oficial", body["message"])
         self.assertIn("continua cancelada", body["message"])
         self.assertEqual(nfse.status, "cancelada")
         nfse.save.assert_not_called()

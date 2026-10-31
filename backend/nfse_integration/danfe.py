@@ -106,6 +106,15 @@ def obter_url_visualizacao_nfse_loja(
     if url_danfe_valida(pdf_url):
         return pdf_url
 
+    from nfse_integration.issnet_response import extrair_url_visualizacao_nfse
+
+    url_no_xml = extrair_url_visualizacao_nfse(
+        f"{getattr(nfse, 'xml_nfse', '') or ''}\n{getattr(nfse, 'xml_rps', '') or ''}"
+    )
+    if url_danfe_valida(url_no_xml):
+        _salvar_pdf_url(nfse, url_no_xml)
+        return url_no_xml
+
     provedor = (getattr(nfse, "provedor", "") or "issnet").strip().lower()
     if provedor == "issnet":
         return buscar_url_danfe_issnet(nfse, loja_id=loja_id, loja=loja)

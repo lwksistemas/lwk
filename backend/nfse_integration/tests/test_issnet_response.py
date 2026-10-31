@@ -89,6 +89,23 @@ class ConsultaUrlEDetalhesTests(SimpleTestCase):
         self.assertEqual(out["url"], "https://exemplo/nf")
         self.assertIn("vazia", parse_consultar_url_nfse_resposta("  ")["error"])
 
+    def test_url_nacional_por_ndfse(self):
+        xml = """
+        <ConsultarUrlNfseResposta xmlns="http://www.sped.fazenda.gov.br/nfse">
+          <ListaLinks>
+            <Links>
+              <IdentificacaoNfse><nDFSe>181</nDFSe></IdentificacaoNfse>
+              <UrlVisualizacaoNfse>https://municipal/nota</UrlVisualizacaoNfse>
+              <UrlVisualizacaoNfseNacional>https://nacional/nota</UrlVisualizacaoNfseNacional>
+            </Links>
+          </ListaLinks>
+        </ConsultarUrlNfseResposta>
+        """
+        out = parse_consultar_url_nfse_resposta(xml)
+        self.assertTrue(out["success"])
+        self.assertEqual(out["numero_nf"], "181")
+        self.assertEqual(out["url"], "https://nacional/nota")
+
     def test_detalhes_do_tomador_e_do_servico(self):
         out = extrair_detalhes_nfse_xml(_nfse())
         self.assertEqual(out["valor"], "150.00")

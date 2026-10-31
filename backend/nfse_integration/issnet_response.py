@@ -1,5 +1,6 @@
 """Parsers de resposta XML/SOAP do ISSNet."""
 import contextlib
+import html
 import re
 from datetime import datetime
 from typing import Any
@@ -129,41 +130,122 @@ def parse_resposta_xml(xml_str: str) -> dict[str, Any]:
     }
 
 
+def _nome_tag(el: etree._Element) -> str:
+    if not isinstance(el.tag, str):
+        return ""
+    return etree.QName(el).localname
+
+
+def desescapar_xml_embutido(texto: str) -> str:
+    """O ISSNet devolve o XML da nota escapado dentro do SOAP."""
+    atual = texto or ""
+    for _ in range(3):
+        novo = html.unescape(atual)
+        if novo == atual:
+            return atual
+        atual = novo
+    return atual
+
+
+def _url_de_links(links: etree._Element) -> tuple[str, str, str]:
+    """Lê nDFSe/Numero e prefere a URL do ambiente nacional."""
+    numero = ""
+    rps_txt = ""
+    url_nacional = ""
+    url_municipal = ""
+    for el in links.iter():
+        nome = _nome_tag(el)
+        valor = (el.text or "").strip()
+        pai = _nome_tag(el.getparent()) if el.getparent() is not None else ""
+        if nome == "nDFSe" and valor:
+            numero = valor
+        elif nome == "Numero" and valor and pai == "IdentificacaoNfse" and not numero:
+            numero = valor
+        elif nome == "Numero" and valor and pai == "IdentificacaoRps":
+            rps_txt = valor
+        elif nome == "UrlVisualizacaoNfseNacional" and valor.startswith("http"):
+            url_nacional = valor
+        elif nome == "UrlVisualizacaoNfse" and valor.startswith("http") and not url_municipal:
+            url_municipal = valor
+    return numero, rps_txt, url_nacional or url_municipal
+
+
+def extrair_url_visualizacao_nfse(texto: str) -> str:
+    """URL oficial da DANFE, inclusive quando vem escapada no SOAP."""
+    bruto = desescapar_xml_embutido(texto)
+    if not bruto.strip():
+        return ""
+    pedacos = [bruto]
+    try:
+        raiz = etree.fromstring(bruto.encode("utf-8"))
+    except etree.XMLSyntaxError:
+        raiz = None
+    if raiz is not None:
+        for el in raiz.iter():
+            if _nome_tag(el) in ("outputXML", "nfseDadosMsg"):
+                interno = desescapar_xml_embutido(el.text or "")
+                if interno:
+                    pedacos.append(interno)
+    for pedaco in pedacos:
+        url = _url_visualizacao_em_xml(pedaco)
+        if url:
+            return url
+    for pattern in (
+        r"<(?:\w+:)?UrlVisualizacaoNfseNacional>([^<]+)</(?:\w+:)?UrlVisualizacaoNfseNacional>",
+        r"<(?:\w+:)?UrlVisualizacaoNfse>([^<]+)</(?:\w+:)?UrlVisualizacaoNfse>",
+        r"(https://www\.notaeletronica\.com\.br/[^\s\"'<>]+)",
+        r"(https://www\.nfse\.gov\.br/[^\s\"'<>]+)",
+    ):
+        achado = re.search(pattern, bruto, re.IGNORECASE)
+        if achado:
+            url = html.unescape(achado.group(1).strip())
+            if url.startswith("http"):
+                return url
+    return ""
+
+
+def _url_visualizacao_em_xml(pedaco: str) -> str:
+    try:
+        raiz = etree.fromstring(pedaco.encode("utf-8"))
+    except etree.XMLSyntaxError:
+        return ""
+    url_municipal = ""
+    for el in raiz.iter():
+        nome = _nome_tag(el)
+        valor = html.unescape((el.text or "").strip())
+        if nome == "UrlVisualizacaoNfseNacional" and valor.startswith("http"):
+            return valor
+        if nome == "UrlVisualizacaoNfse" and valor.startswith("http") and not url_municipal:
+            url_municipal = valor
+    return url_municipal
+
+
 def parse_consultar_url_nfse_resposta(xml_str: str) -> dict[str, Any]:
     """Extrai número, RPS e URL de ConsultarUrlNfseResposta (ListaLinks)."""
-    if not (xml_str or "").strip():
+    texto = desescapar_xml_embutido(xml_str)
+    if not texto.strip():
         return {"success": False, "error": "Resposta vazia do ConsultarUrlNfse."}
     try:
-        root = etree.fromstring(xml_str.encode("utf-8") if isinstance(xml_str, str) else xml_str)
+        root = etree.fromstring(texto.encode("utf-8"))
     except etree.XMLSyntaxError as exc:
         return {"success": False, "error": f"XML inválido na resposta do ConsultarUrlNfse: {exc}"}
 
-    ns = NS_NFSE
-    for links in root.iter(f"{{{ns}}}Links"):
-        numero = (
-            links.findtext(f".//{{{ns}}}IdentificacaoNfse/{{{ns}}}Numero", "")
-            or links.findtext(f".//{{{ns}}}Numero", "")
-            or ""
-        ).strip()
-        if not numero:
+    for links in root.iter():
+        if _nome_tag(links) != "Links":
             continue
-        rps_txt = links.findtext(f".//{{{ns}}}IdentificacaoRps/{{{ns}}}Numero", "") or ""
-        url = (
-            links.findtext(f".//{{{ns}}}UrlVisualizacaoNfseNacional", "")
-            or links.findtext(f".//{{{ns}}}UrlVisualizacaoNfse", "")
-            or links.findtext(f".//{{{ns}}}UrlNfse", "")
-            or ""
-        ).strip()
+        numero, rps_txt, url = _url_de_links(links)
+        if not url:
+            continue
         out: dict[str, Any] = {
             "success": True,
             "numero_nf": numero,
             "url": url,
         }
-        if (rps_txt or "").strip().isdigit():
-            out["numero_rps"] = int((rps_txt or "").strip())
+        if rps_txt.isdigit():
+            out["numero_rps"] = int(rps_txt)
         return out
 
-    return parse_resposta_xml(xml_str)
+    return parse_resposta_xml(texto)
 
 
 def parse_resposta_xml_nfse_por_numero(xml_str: str, numero_nf: str) -> dict[str, Any]:

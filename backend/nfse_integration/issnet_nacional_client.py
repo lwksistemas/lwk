@@ -1136,22 +1136,7 @@ class ISSNetNacionalClient:
 
     @staticmethod
     def _extrair_url_danfe_resposta(resposta: str) -> str:
-        """Extrai URL oficial da DANFE/XML da resposta SOAP."""
-        import re
+        """Extrai a URL oficial da DANFE, no SOAP ou no XML escapado."""
+        from nfse_integration.issnet_response import extrair_url_visualizacao_nfse
 
-        for pattern in (
-            r"<(?:\w+:)?UrlVisualizacaoNfseNacional>([^<]+)</(?:\w+:)?UrlVisualizacaoNfseNacional>",
-            r"<(?:\w+:)?UrlVisualizacaoNfse>([^<]+)</(?:\w+:)?UrlVisualizacaoNfse>",
-            r"<(?:\w+:)?UrlVisualizacao>([^<]+)</(?:\w+:)?UrlVisualizacao>",
-            r"<(?:\w+:)?UrlNfse>([^<]+)</(?:\w+:)?UrlNfse>",
-            r"<(?:\w+:)?Url>([^<]+)</(?:\w+:)?Url>",
-            r"<(?:\w+:)?url>([^<]+)</(?:\w+:)?url>",
-            r"(https://www\.notaeletronica\.com\.br/[^\s\"'<>]+)",
-            r"(https://nfse\.issnetonline\.com\.br/[^\s\"'<>]+)",
-        ):
-            url_match = re.search(pattern, resposta or "", re.IGNORECASE)
-            if url_match:
-                url = url_match.group(1).strip()
-                if url.startswith("http"):
-                    return url
-        return ""
+        return extrair_url_visualizacao_nfse(resposta)

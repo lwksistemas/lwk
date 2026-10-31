@@ -62,6 +62,7 @@ ensure_env EVOLUTION_WEBHOOK_URL "https://beta.lwksistemas.com.br/api/whatsapp/e
 ensure_env SITE_URL "https://beta.lwksistemas.com.br"
 ensure_env API_BASE_URL "https://beta.lwksistemas.com.br"
 ensure_env FRONTEND_URL "https://beta.lwksistemas.com.br"
+ensure_env CORS_ORIGINS "https://beta.lwksistemas.com.br"
 ensure_env FIELD_ENCRYPTION_KEY_FILE "/etc/lwk-encryption.key"
 ensure_env ASAAS_SANDBOX true
 ensure_env MEMED_ENVIRONMENT integration

@@ -7,6 +7,8 @@ from pathlib import Path
 
 import dj_database_url
 
+from config.cors_origens import montar_origens_cors
+
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -282,15 +284,14 @@ MEDIA_ROOT = BASE_DIR / "media"
 # DEFAULT PRIMARY KEY
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# CORS: domínio principal + lista em CORS_ORIGINS (separada por vírgula)
-_DEFAULT_CORS_ORIGINS = [
-    "https://lwksistemas.com.br",
-    "https://www.lwksistemas.com.br",
-    "https://beta.lwksistemas.com.br",
-]
+# CORS: produção só o site. Beta e localhost não entram nem pela variável
+# CORS_ORIGINS. O beta isolado (LWK_ENVIRONMENT=staging) usa a própria origem.
 _raw = os.environ.get("CORS_ORIGINS", "").strip()
 _extra_cors = [o.strip() for o in _raw.split(",") if o.strip()] if _raw else []
-CORS_ALLOWED_ORIGINS = list(dict.fromkeys(_DEFAULT_CORS_ORIGINS + _extra_cors))
+CORS_ALLOWED_ORIGINS = montar_origens_cors(
+    os.environ.get("LWK_ENVIRONMENT", "production"),
+    _extra_cors,
+)
 CORS_ALLOWED_ORIGIN_REGEXES = []
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False  # Manter segurança

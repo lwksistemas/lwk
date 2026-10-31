@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import { X, AlertCircle } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
@@ -17,7 +16,6 @@ import {
 } from '@/lib/nfse-emissao-form';
 import { parseNfseEmissaoResult, type NfseEmissaoResult, type NfseEmitirResponse } from '@/lib/nfse-helpers';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
-import { useLojaInfoPublica } from '@/hooks/useLojaInfoPublica';
 import { ServicoFields } from './ServicoFields';
 import { ModalFormButtons } from './ModalFormButtons';
 import { ModalEmitirNFSeStepInicio } from './ModalEmitirNFSeStepInicio';
@@ -31,10 +29,6 @@ interface ModalEmitirNFSeProps {
 }
 
 export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmitirNFSeProps) {
-  const params = useParams();
-  const slug = (params?.slug as string) || '';
-  const { loja } = useLojaInfoPublica(slug);
-  const emitenteNome = (loja?.nome || '').trim();
   const { config } = useCRMConfig();
   const [step, setStep] = useState<'inicio' | 'formulario'>('inicio');
   const [modoTomador, setModoTomador] = useState<'cadastrado' | 'manual'>('manual');
@@ -201,7 +195,6 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
               buscandoTomador={buscandoTomador}
               onContinuar={handleContinuarInicio}
               onClose={onClose}
-              emitenteNome={emitenteNome}
             />
           )}
 

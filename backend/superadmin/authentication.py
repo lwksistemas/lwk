@@ -4,8 +4,10 @@ o token antigo é invalidado imediatamente (não espera heartbeat de 60s).
 """
 import contextlib
 import logging
+from urllib.parse import urlparse
 
-from rest_framework.exceptions import AuthenticationFailed
+from django.conf import settings
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from superadmin.session_manager import SESSION_TIMEOUT_MINUTES
@@ -27,11 +29,66 @@ def invalidate_session_cache(user_id: int | None = None) -> None:
         _session_cache.pop(user_id, None)
 
 
+_METODOS_SEM_CHECAGEM_DE_ORIGEM = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def canonica_origem(valor: str) -> str:
+    """scheme://host[:porta], sem caminho. Porta padrão some. null vira vazio."""
+    texto = (valor or "").strip()
+    if not texto or texto.lower() == "null":
+        return ""
+    partes = urlparse(texto)
+    if partes.scheme not in {"http", "https"} or not partes.hostname:
+        return ""
+    host = partes.hostname.lower()
+    porta = partes.port
+    if porta and not (
+        (partes.scheme == "https" and porta == 443) or (partes.scheme == "http" and porta == 80)
+    ):
+        return f"{partes.scheme}://{host}:{porta}"
+    return f"{partes.scheme}://{host}"
+
+
+def origem_declarada(request) -> str:
+    origem = canonica_origem(request.META.get("HTTP_ORIGIN") or "")
+    if origem:
+        return origem
+    return canonica_origem(request.META.get("HTTP_REFERER") or "")
+
+
+def recusar_cookie_sem_origem(request) -> None:
+    """POST (e o resto que altera) autenticado só pelo cookie precisa de origem da lista.
+
+    Bearer explícito não entra aqui: script e mídia não mandam o cookie como prova.
+    GET, HEAD e OPTIONS seguem, porque o CORS já impede o navegador de ler a resposta.
+    """
+    if request.method in _METODOS_SEM_CHECAGEM_DE_ORIGEM:
+        return
+    if request.META.get("HTTP_AUTHORIZATION"):
+        return
+    from core.auth_cookies import ACCESS_COOKIE
+
+    if not request.COOKIES.get(ACCESS_COOKIE):
+        return
+    permitidas = {
+        canonica_origem(item)
+        for item in getattr(settings, "CORS_ALLOWED_ORIGINS", ())
+    }
+    permitidas.discard("")
+    if origem_declarada(request) in permitidas:
+        return
+    raise PermissionDenied({
+        "detail": "Origem não autorizada para esta sessão.",
+        "code": "ORIGIN_NOT_ALLOWED",
+    })
+
+
 class SessionAwareJWTAuthentication(JWTAuthentication):
     """Authenticator JWT que verifica sessão única usando PostgreSQL.
     Garante que cada usuário tenha apenas uma sessão ativa por vez.
 
     Fluxo:
+    0. Se o token veio só do cookie e o método altera dados, a origem tem de estar na lista
     1. Valida JWT normalmente
     2. Extrai X-Session-ID do header (enviado pelo frontend)
     3. Compara com session_id no banco (com cache de 10s)
@@ -47,6 +104,7 @@ class SessionAwareJWTAuthentication(JWTAuthentication):
         from core.auth_cookies import get_session_id_from_request, inject_bearer_from_cookie
         from core.retry import execute_with_db_retry
 
+        recusar_cookie_sem_origem(request)
         inject_bearer_from_cookie(request)
 
         try:

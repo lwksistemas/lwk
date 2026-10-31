@@ -2,9 +2,9 @@
 # Tira o dump da pasta que a chave de produção enxerga e trava a cópia.
 # A hora do alerta e da retenção é a de chegada. Link não é seguido.
 # A pasta de arquivo fica num volume próprio: no máximo 5 arquivos por
-# dia e 50 MB cada. O que passar da cota vai para quarentena nesse
-# mesmo volume (no máximo 10). Sem o volume montado, nada é gravado
-# no disco do sistema. Um erro não impede os outros nem o alerta.
+# dia e 25 MB cada. O excedente vai para quarentena nesse volume
+# (10 por dia, 100 no total). Acima de 1,5 GB o volume não recebe
+# mais nada. Sem o volume montado, nada é gravado no disco do sistema.
 set -u
 IN=/var/backups/lwk
 OUT=/var/backups/lwk-arquivo
@@ -15,10 +15,12 @@ STAMP=/var/lib/lwk-backup-estado/alerta-stamp
 STAMP_VOLUME=/var/lib/lwk-backup-estado/alerta-volume-stamp
 STAMP_COTA=/var/lib/lwk-backup-estado/alerta-cota-stamp
 LOCK=/var/lib/lwk-backup-estado/job.lock
-MAX_BYTES=$((50 * 1024 * 1024))
+MAX_BYTES=$((25 * 1024 * 1024))
 MAX_DIA=5
 MAX_QUAR=10
+MAX_QUAR_TOTAL=100
 ALERTA_TOTAL=$((1024 * 1024 * 1024))
+LIMITE_VOLUME=$((1536 * 1024 * 1024))
 IDADE_MAX=$((26 * 3600))
 ESPERA=45
 ALERTA_EMAIL="consultorluizfelix@hotmail.com"
@@ -42,6 +44,33 @@ pode_avisar() {
   return 0
 }
 
+pode_avisar_dia() {
+  local stamp="$1" hoje prev
+  hoje=$(date +%Y-%m-%d)
+  prev=""
+  [ -f "$stamp" ] && prev=$(cat "$stamp" 2>/dev/null || true)
+  if [ "$prev" = "$hoje" ]; then
+    return 1
+  fi
+  echo "$hoje" > "$stamp" || true
+  return 0
+}
+
+avisar_descarte() {
+  local base="$1" motivo="$2"
+  log "descartado $motivo $base"
+  case "$base" in
+    lwk_*.dump.age | lwk_*.dump.age.dup-*)
+      syslog_alerta "descartado backup $base ($motivo)"
+      ;;
+    *)
+      if pode_avisar_dia "$STAMP_COTA"; then
+        syslog_alerta "descartado $base ($motivo)"
+      fi
+      ;;
+  esac
+}
+
 alert_atraso() {
   local newest now msg used
   if ! mountpoint -q "$OUT"; then
@@ -50,7 +79,9 @@ alert_atraso() {
     fi
     return 0
   fi
-  newest=$(find "$OUT" -xdev -type f -printf '%T@\n' 2>/dev/null | sort -n | tail -1 || true)
+  newest=$(find "$OUT" -maxdepth 1 -xdev -type f \
+    \( -name 'lwk_*.dump.age' -o -name 'lwk_*.dump.age.dup-*' \) \
+    -size +1M -printf '%T@\n' 2>/dev/null | sort -n | tail -1 || true)
   now=$(date +%s)
   if [ -z "$newest" ] || [ $((now - ${newest%.*})) -gt "$IDADE_MAX" ]; then
     if pode_avisar "$STAMP"; then
@@ -134,8 +165,18 @@ arquivos_hoje() {
   find "$OUT" -maxdepth 1 -xdev -type f -newermt "$(date +%Y-%m-%d) 00:00:00" -printf . 2>/dev/null | wc -c
 }
 
-na_quarentena() {
+na_quarentena_hoje() {
+  find "$QUAR" -maxdepth 1 -xdev -type f -newermt "$(date +%Y-%m-%d) 00:00:00" -printf . 2>/dev/null | wc -c
+}
+
+na_quarentena_total() {
   find "$QUAR" -maxdepth 1 -xdev -type f -printf . 2>/dev/null | wc -c
+}
+
+volume_passou() {
+  local size="$1" used
+  used=$(df -B1 --output=used "$OUT" | tail -1 | tr -d ' ')
+  [ -n "$used" ] && [ $((used + size)) -gt "$LIMITE_VOLUME" ]
 }
 
 publicar() {
@@ -217,16 +258,29 @@ for f in "$IN"/*; do
     fi
     continue
   fi
+  if volume_passou "$size"; then
+    if rm -f -- "$staged" 2>>"$LOG"; then
+      avisar_descarte "$base" "volume-cheio"
+    else
+      log "falha ao apagar volume-cheio $base"
+    fi
+    continue
+  fi
   lugar="$OUT"
   if [ "$(arquivos_hoje)" -ge "$MAX_DIA" ]; then
-    if [ "$(na_quarentena)" -ge "$MAX_QUAR" ]; then
+    if [ "$(na_quarentena_hoje)" -ge "$MAX_QUAR" ]; then
       if rm -f -- "$staged" 2>>"$LOG"; then
-        log "descartado cota-dia $base"
+        avisar_descarte "$base" "cota-dia"
       else
         log "falha ao apagar cota $base"
       fi
-      if pode_avisar "$STAMP_COTA"; then
-        syslog_alerta "cota de ${MAX_DIA} no dia e quarentena com ${MAX_QUAR}; descartado $base"
+      continue
+    fi
+    if [ "$(na_quarentena_total)" -ge "$MAX_QUAR_TOTAL" ]; then
+      if rm -f -- "$staged" 2>>"$LOG"; then
+        avisar_descarte "$base" "quarentena-total"
+      else
+        log "falha ao apagar quarentena-total $base"
       fi
       continue
     fi

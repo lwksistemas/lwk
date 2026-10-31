@@ -224,6 +224,11 @@ class AuthService {
    * Verifica se o usuário está autenticado
    */
   isAuthenticated(): boolean {
+    if (typeof window === 'undefined') return false;
+    // O JWT fica no cookie httpOnly da API. O navegador guarda só o tipo e a sessão.
+    if (USE_JWT_HTTPONLY_COOKIES) {
+      return Boolean(sessionStorage.getItem('session_id') || this.getUserType());
+    }
     return !!this.getToken();
   }
 

@@ -143,7 +143,7 @@ export function HeaderCrmRightSection({
           {showNotifs && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowNotifs(false)} />
-              <div className="fixed sm:absolute right-2 sm:right-0 left-2 sm:left-auto top-14 sm:top-auto sm:mt-2 w-auto sm:w-[min(64rem,calc(100vw-1.5rem))] bg-white dark:bg-[#16325c] rounded-lg shadow-xl border border-gray-200 dark:border-[#0d1f3c] z-20 max-h-[70vh] sm:max-h-[15rem] overflow-hidden flex flex-col">
+              <div className="absolute right-0 mt-2 w-[min(22rem,calc(100vw-1rem))] bg-white dark:bg-[#16325c] rounded-lg shadow-xl border border-gray-200 dark:border-[#0d1f3c] z-20 max-h-[min(24rem,70vh)] overflow-hidden flex flex-col">
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-[#0d1f3c] flex items-center justify-between shrink-0 bg-white dark:bg-[#16325c]">
                   <p className="text-base font-semibold text-gray-900 dark:text-white">Notificações</p>
                   <div className="flex items-center gap-2">
@@ -170,11 +170,11 @@ export function HeaderCrmRightSection({
                     Nenhuma notificação
                   </p>
                 ) : (
-                  <div className="flex flex-col sm:flex-row sm:overflow-x-auto overflow-y-auto">
+                  <div className="overflow-y-auto">
                     {notifs.filter((n) => notificacaoMostraNoPainel(n.mensagem)).slice(0, 10).map((n) => (
                       <div
                         key={n.id}
-                        className={`px-4 py-3 border-b sm:border-b-0 sm:border-r border-gray-100 dark:border-[#0d1f3c] sm:w-72 sm:shrink-0 ${
+                        className={`px-4 py-3 border-b border-gray-100 dark:border-[#0d1f3c] last:border-b-0 ${
                           n.status !== 'lido' ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
                         }`}
                         onClick={() => {

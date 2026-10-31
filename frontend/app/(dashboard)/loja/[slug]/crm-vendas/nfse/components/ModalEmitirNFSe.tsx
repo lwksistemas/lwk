@@ -8,6 +8,7 @@ import { formatCpfCnpj } from '@/lib/format-br';
 import {
   NFSE_EMISSAO_INITIAL_FORM,
   buscarTomadorCadastroPorDocumento,
+  atividadeMunicipalDaConta,
   carregarNfseDescricaoTemplates,
   defaultsServicoFromCrmConfig,
   descricaoDaEmpresaPrestadora,
@@ -88,8 +89,11 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
         encontrado && encontrado._tipo === 'conta' && typeof encontrado.id === 'number'
           ? encontrado.id
           : null;
-      const atividadePadrao =
-        encontrado && encontrado._tipo === 'conta' ? encontrado.nfse_atividade_padrao : '';
+      const atividadePadrao = empresaId
+        ? await atividadeMunicipalDaConta(empresaId)
+        : encontrado && encontrado._tipo === 'conta'
+          ? encontrado.nfse_atividade_padrao
+          : '';
       const defaultsServico = mesclarAtividadeMunicipalPadrao(
         await resolverDefaultsServico(empresaId),
         atividadePadrao,

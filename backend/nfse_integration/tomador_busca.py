@@ -66,11 +66,13 @@ def _tomador_payload(
     cidade: str = "",
     uf: str = "",
     cep: str = "",
+    nfse_atividade_padrao: str = "",
 ) -> dict[str, Any]:
     return {
         "encontrado": True,
         "fonte": fonte,
         "conta_id": conta_id,
+        "nfse_atividade_padrao": nfse_atividade_padrao,
         "cpf_cnpj": cpf_cnpj,
         "nome": nome,
         "email": email,
@@ -101,6 +103,7 @@ def _payload_from_conta(conta, digits: str = "") -> dict[str, Any]:
         cidade=conta.cidade or "",
         uf=conta.uf or "",
         cep=conta.cep or "",
+        nfse_atividade_padrao=getattr(conta, "nfse_atividade_padrao", "") or "",
     )
 
 

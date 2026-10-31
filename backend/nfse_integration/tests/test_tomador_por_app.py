@@ -35,3 +35,23 @@ class TomadorPorAppTest(SimpleTestCase):
             )
         payload.assert_called_once()
         paciente.assert_not_called()
+
+    def test_conta_leva_atividade_municipal_padrao(self):
+        conta = SimpleNamespace(
+            id=273,
+            cnpj="03432472000101",
+            razao_social="ANADEM S.A.",
+            nome="ANADEM",
+            email="",
+            logradouro="",
+            numero="",
+            complemento="",
+            bairro="",
+            cidade="",
+            uf="",
+            cep="",
+            nfse_atividade_padrao="170601",
+        )
+        payload = tomador_busca._payload_from_conta(conta, "03432472000101")
+        self.assertEqual(payload["nfse_atividade_padrao"], "170601")
+        self.assertEqual(payload["conta_id"], 273)

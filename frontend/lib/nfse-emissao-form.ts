@@ -363,6 +363,7 @@ export async function buscarTomadorCadastroPorDocumento(
         cidade: String(d.cidade || ''),
         uf: String(d.uf || ''),
         cep: String(d.cep || ''),
+        nfse_atividade_padrao: String(d.nfse_atividade_padrao || ''),
         _display: String(d.nome || ''),
         _fonte: fonte as NfseEmissaoContaOption['_fonte'],
       };
@@ -401,6 +402,18 @@ export async function buscarTomadorCadastroPorDocumento(
   }
 
   return null;
+}
+
+/** Atividade municipal gravada no cadastro da empresa. */
+export async function atividadeMunicipalDaConta(contaId: number): Promise<string> {
+  try {
+    const res = await apiClient.get<{ nfse_atividade_padrao?: string }>(
+      `/crm-vendas/contas/${contaId}/`,
+    );
+    return String(res.data.nfse_atividade_padrao || '');
+  } catch {
+    return '';
+  }
 }
 
 export function preencherFormTomador(

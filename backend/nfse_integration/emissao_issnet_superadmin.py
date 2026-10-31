@@ -37,9 +37,12 @@ def emitir_manual_issnet_superadmin(config: Any, payload: Any) -> EmissaoManualR
         config,
         item_lista_override=getattr(payload, "codigo_servico", None) or config.item_lista_servico,
     )
+    codigo_mun = (getattr(config, "codigo_tributacao_municipio", "") or "").strip() or (
+        getattr(config, "codigo_servico_municipal", "") or ""
+    ).strip()
     codigo_trib_municipal = _resolver_codigo_tributacao_municipal(
         config,
-        codigo_servico_override=config.codigo_tributacao_municipio,
+        codigo_servico_override=codigo_mun,
         codigo_trib_nacional=codigo_trib_nacional,
     )
     numero_rps = gerar_proximo_numero_rps_superadmin(config)

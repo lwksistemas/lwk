@@ -241,9 +241,12 @@ def _emitir_via_issnet(
             config,
             item_lista_override=config.item_lista_servico,
         )
+        codigo_mun = (config.codigo_tributacao_municipio or "").strip() or (
+            config.codigo_servico_municipal or ""
+        ).strip()
         codigo_trib_municipal = _resolver_codigo_tributacao_municipal(
             config,
-            codigo_servico_override=config.codigo_tributacao_municipio,
+            codigo_servico_override=codigo_mun,
             codigo_trib_nacional=codigo_trib_nacional,
         )
         numero_dps = gerar_proximo_numero_rps_superadmin(config)

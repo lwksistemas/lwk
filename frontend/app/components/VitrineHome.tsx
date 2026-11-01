@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { SolicitacaoForm } from "@/components/site/SolicitacaoForm";
-import { urlWhatsapp } from "@/lib/whatsapp-site";
 
 const FAIXA = "w-full px-4 py-12 sm:px-6 lg:px-8";
 const CARTAO = "rounded-2xl border border-cyan-300/50 bg-[#071833]/80 p-5 text-white shadow-[0_0_0_1px_rgba(34,211,238,0.08)]";
@@ -21,8 +20,6 @@ export default function VitrineHome({
   telefone?: string;
   email?: string;
 }) {
-  const whatsapp = urlWhatsapp(telefone);
-
   return (
     <div className="bg-[#031433] text-white">
       <section id="solucoes" className={`scroll-mt-24 ${FAIXA}`}>
@@ -123,26 +120,20 @@ export default function VitrineHome({
         </div>
       </section>
 
-      <section id="pedir-demonstracao" className={`scroll-mt-24 border-t border-white/10 ${FAIXA}`}>
-        <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">Contato e demonstração</h2>
-            <p className="mt-3 text-lg text-slate-200">
-              Escolha o CRM, a clínica ou um sistema personalizado. A mensagem do WhatsApp já leva o produto, o nome e a empresa.
-            </p>
-            <div className="mt-6 space-y-2 text-slate-200">
-              {telefone && <p>WhatsApp: {telefone}</p>}
-              {email && <p>E-mail: {email}</p>}
-              {whatsapp && (
-                <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-semibold text-white">
-                  Falar no WhatsApp
-                </a>
-              )}
-            </div>
-          </div>
-          <div className="rounded-2xl bg-white p-5 text-slate-900 sm:p-6">
-            <SolicitacaoForm origem="demonstracao" telefone={telefone} />
-          </div>
+      <section id="pedir-demonstracao" className={`scroll-mt-24 border-t border-white/10 bg-[#04183f] ${FAIXA}`}>
+        <h2 className="text-3xl font-bold tracking-tight">Contato e demonstração</h2>
+        <p className="mt-3 max-w-3xl text-lg text-slate-200">
+          Escolha o CRM, a clínica ou um sistema personalizado. A mensagem do WhatsApp já leva o produto, o nome e a empresa.
+        </p>
+        {(telefone || email) && (
+          <p className="mt-4 text-slate-300">
+            {email}
+            {email && telefone ? " · " : ""}
+            {telefone ? `WhatsApp ${telefone}` : ""}
+          </p>
+        )}
+        <div className="mt-8 rounded-2xl border border-cyan-300/30 bg-white p-5 text-slate-900 sm:p-6">
+          <SolicitacaoForm origem="demonstracao" telefone={telefone} />
         </div>
       </section>
     </div>

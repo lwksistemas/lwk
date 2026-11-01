@@ -406,7 +406,7 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
             ) : (
               <div
                 className="relative flex w-full flex-col items-center"
-                style={{ width: "min(100%, calc((100dvh - 15rem) * 1.42))" }}
+                style={{ width: "min(100%, calc((100dvh - 15rem) * 1.16))" }}
                 onTouchStart={(evento) => {
                   const ponto = evento.changedTouches[0];
                   if (ponto) toque.current = { x: ponto.clientX, y: ponto.clientY };
@@ -414,7 +414,7 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
                 onTouchEnd={aoToque}
               >
                 <div className="relative w-full rounded-t-[1.15rem] bg-[#1b2230] p-[0.55rem] pb-0 shadow-[0_30px_50px_rgba(0,0,0,0.45)]">
-                  <div className="relative aspect-[1024/560] overflow-hidden rounded-t-[0.45rem] bg-[#0b1220]">
+                  <div className="relative aspect-[3/2] overflow-hidden rounded-t-[0.45rem] bg-[#0b1220]">
                     {atual?.imagem ? (
                       atual.link ? (
                         <a href={atual.link} className="absolute inset-0" aria-label={`Abrir ${atual.titulo}`}>

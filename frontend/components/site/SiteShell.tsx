@@ -1,7 +1,6 @@
 import type { HomepageData } from "@/types/homepage";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
-import WhatsAppButton from "@/components/WhatsAppButton";
 import { urlWhatsapp } from "@/lib/whatsapp-site";
 
 export function SiteShell({
@@ -23,16 +22,6 @@ export function SiteShell({
       />
       {children}
       <Footer empresa={empresa} />
-      <WhatsAppButton
-        empresa={
-          empresa?.telefone_whatsapp
-            ? {
-                telefone_whatsapp: empresa.telefone_whatsapp,
-                mensagem_whatsapp: empresa.mensagem_whatsapp || "",
-              }
-            : null
-        }
-      />
     </div>
   );
 }

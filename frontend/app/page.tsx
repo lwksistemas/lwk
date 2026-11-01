@@ -3,7 +3,6 @@ import Hero from "./components/Hero";
 import VitrineHome from "./components/VitrineHome";
 import Footer from "./components/Footer";
 import PwaRedirect from "./components/PwaRedirect";
-import WhatsAppButton from "@/components/WhatsAppButton";
 import { getHomepage } from "@/lib/api";
 import { urlWhatsapp } from "@/lib/whatsapp-site";
 import type { HomepageData } from "@/types/homepage";
@@ -67,16 +66,6 @@ export default async function HomePage() {
         </div>
         <VitrineHome telefone={empresa?.telefone_whatsapp} email={empresa?.email_contato} />
         <Footer empresa={empresa} />
-        <WhatsAppButton
-          empresa={
-            empresa?.telefone_whatsapp
-              ? {
-                  telefone_whatsapp: empresa.telefone_whatsapp,
-                  mensagem_whatsapp: empresa.mensagem_whatsapp || "",
-                }
-              : null
-          }
-        />
       </main>
     </PwaRedirect>
   );

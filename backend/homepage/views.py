@@ -9,13 +9,14 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import EmpresaConfig, Funcionalidade, HeroSection, ItemMenu, ModuloSistema, WhyUsBenefit
+from .models import EmpresaConfig, Funcionalidade, HeroSection, ItemMenu, ModuloSistema, PaginaSite, WhyUsBenefit
 from .serializers import (
     EmpresaConfigSerializer,
     FuncionalidadeSerializer,
     HeroSerializer,
     ItemMenuSerializer,
     ModuloSerializer,
+    PaginaSiteSerializer,
     WhyUsBenefitSerializer,
 )
 
@@ -66,6 +67,10 @@ class HomePageAPIView(APIView):
                     many=True,
                 ).data,
             },
+            "paginas": PaginaSiteSerializer(
+                PaginaSite.objects.filter(ativo=True, slug__startswith="home-"),
+                many=True,
+            ).data,
         })
 
 

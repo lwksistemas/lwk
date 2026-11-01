@@ -87,7 +87,7 @@ export function ConteudoSiteTab() {
       <Card>
         <CardHeader>
           <CardTitle>Menu Soluções e Segmentos</CardTitle>
-          <CardDescription>Estes itens abrem nos menus do topo. Planos vai para /planos, Contato para /contato e Fale Conosco abre o WhatsApp da empresa.</CardDescription>
+          <CardDescription>O menu Soluções usa o grupo Soluções. Segmentos no topo é um link único para /segmentos; os itens do grupo Segmentos não aparecem na home.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {menu.map((item) => (
@@ -103,11 +103,32 @@ export function ConteudoSiteTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Páginas</CardTitle>
-          <CardDescription>Texto, destaques (um por linha) e a mensagem de WhatsApp de cada produto.</CardDescription>
+          <CardTitle>Textos da página inicial</CardTitle>
+          <CardDescription>
+            Blocos home-*. Em home-personalizados, cada destaque é Título|texto e o campo Texto é o botão no formato Rótulo|/caminho.
+            Em home-planos, cada linha é Título|texto|/caminho|botão. O título da seção de benefícios é home-beneficios; os cartões ficam na aba Benefícios.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {paginas.map((pagina) => (
+          {paginas.filter((pagina) => pagina.slug.startsWith('home-')).length === 0 && (
+            <p className="text-sm text-slate-500">Os blocos da home aparecem aqui depois da atualização do sistema.</p>
+          )}
+          {paginas.filter((pagina) => pagina.slug.startsWith('home-')).map((pagina) => (
+            <button key={pagina.id} type="button" className="block w-full rounded-lg border px-4 py-3 text-left hover:bg-slate-50" onClick={() => setEditando(pagina)}>
+              <span className="font-medium">{pagina.titulo}</span>
+              <span className="ml-2 text-sm text-slate-500">/{pagina.slug}</span>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Páginas dos produtos</CardTitle>
+          <CardDescription>Texto das páginas de CRM, clínica, personalizados, planos, contato e demonstração. Não é o texto da home.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {paginas.filter((pagina) => !pagina.slug.startsWith('home-')).map((pagina) => (
             <button key={pagina.id} type="button" className="block w-full rounded-lg border px-4 py-3 text-left hover:bg-slate-50" onClick={() => setEditando(pagina)}>
               <span className="font-medium">{pagina.titulo}</span>
               <span className="ml-2 text-sm text-slate-500">/{pagina.slug}</span>

@@ -53,7 +53,7 @@ export default function HomepageConfigPage() {
                 Configurar Homepage v2.0
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
-                Banner, telas do notebook, cartões, planos, benefícios, empresa e login da página inicial.
+                O que aparece em lwksistemas.com.br: banner, telas, cartões, textos da home, benefícios e empresa.
               </p>
             </div>
           </div>
@@ -81,7 +81,7 @@ export default function HomepageConfigPage() {
             <TabsTrigger value="conteudo" className="text-xs sm:text-sm">Menu e páginas</TabsTrigger>
             <TabsTrigger value="funcionalidades" className="text-xs sm:text-sm">Funcionalidades</TabsTrigger>
             <TabsTrigger value="modulos" className="text-xs sm:text-sm">Módulos</TabsTrigger>
-            <TabsTrigger value="whyus" className="text-xs sm:text-sm">WhyUs</TabsTrigger>
+            <TabsTrigger value="whyus" className="text-xs sm:text-sm">Benefícios</TabsTrigger>
             <TabsTrigger value="empresa" className="text-xs sm:text-sm">🏢 Empresa</TabsTrigger>
             <TabsTrigger value="login" className="text-xs sm:text-sm">Login</TabsTrigger>
             <TabsTrigger value="media" className="text-xs sm:text-sm">Mídia</TabsTrigger>
@@ -161,7 +161,7 @@ export default function HomepageConfigPage() {
           <TabsContent value="modulos">
             <ListSectionCard
               title="Módulos do Sistema"
-              description="Sistemas disponíveis com links para login (slug = /loja/slug/login)"
+              description="Não entra na página inicial. Os planos da home ficam em Menu e páginas, no bloco home-planos."
               addLabel="Novo"
               onAdd={() => config.setShowAddMod(true)}
               items={config.modulos}
@@ -197,8 +197,8 @@ export default function HomepageConfigPage() {
           {/* WhyUs */}
           <TabsContent value="whyus">
             <ListSectionCard
-              title="Benefícios WhyUs"
-              description='Benefícios exibidos na seção "Por que usar o LWKS?"'
+              title="Benefícios e diferenciais"
+              description="Cartões da seção Benefícios na página inicial. O título da seção fica em Menu e páginas, no bloco home-beneficios."
               addLabel="Novo"
               onAdd={() => config.setShowAddWhyUs(true)}
               items={config.whyus}
@@ -247,7 +247,7 @@ export default function HomepageConfigPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Configurar Telas de Login</CardTitle>
-                  <CardDescription>Configure as telas de login do Superadmin e Suporte (logos, cores, textos)</CardDescription>
+                  <CardDescription>Telas de login do Superadmin e do Suporte. Não altera a página inicial pública.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -282,8 +282,7 @@ export default function HomepageConfigPage() {
                 Servidor de Mídia
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Imagens e arquivos são armazenados no servidor próprio (media.lwksistemas.com.br).
-                Não é necessário configuração adicional — o upload funciona automaticamente.
+                Não altera o texto da página inicial. As fotos do notebook são enviadas na aba Imagens. Os arquivos ficam em media.lwksistemas.com.br.
               </p>
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">

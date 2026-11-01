@@ -74,4 +74,14 @@ export interface HomepageData {
   whyus: WhyUsBenefit[];
   empresa: EmpresaConfig | null;
   menu?: MenuSite;
+  paginas?: PaginaHome[];
+}
+
+export interface PaginaHome {
+  slug: string;
+  titulo: string;
+  resumo: string;
+  corpo: string;
+  itens: string;
+  ativo?: boolean;
 }

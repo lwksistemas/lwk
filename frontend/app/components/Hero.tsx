@@ -333,7 +333,7 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
     <section className="relative flex min-h-0 flex-1 flex-col text-white" aria-label="Banner principal">
       {slides[0]?.imagem?.startsWith("/") && <link rel="preload" as="image" href={slides[0].imagem} fetchPriority="high" />}
       <div className="relative flex min-h-0 w-full flex-1 flex-col px-4 pb-3 pt-1 sm:px-6 lg:px-8">
-        <div className="grid min-h-0 flex-1 items-center gap-6 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-4">
+        <div className="grid min-h-0 flex-1 items-center gap-6 lg:grid-cols-[minmax(36rem,1fr)_minmax(0,1.05fr)] lg:gap-6">
           <div className="relative z-10 max-w-2xl lg:pl-4">
             <span className="inline-flex items-center gap-2 rounded-full border border-sky-200/40 bg-sky-400/10 px-3 py-1 text-sm text-sky-100">
               <Code2 className="h-4 w-4" aria-hidden />
@@ -346,11 +346,11 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
             <p className="mt-4 max-w-lg text-[clamp(0.95rem,1.2vw,1.125rem)] leading-relaxed text-slate-200">
               {subtitulo}
             </p>
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-row flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
               {mostraBotao && (
                 <a
                   href={botaoUrl}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#2f6bff] px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-[#3b78ff]"
+                  className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-[#2f6bff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-[#3b78ff] sm:text-base"
                 >
                   <IconeDoBotao texto={botao} />
                   {botao}
@@ -359,7 +359,7 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
               {mostraBotao2 && (
                 <a
                   href={botao2Url}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-[#0c2758]/80 px-6 py-3.5 text-base font-semibold text-white transition hover:bg-[#14336e]"
+                  className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-white/40 bg-[#0c2758]/80 px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#14336e] sm:text-base"
                 >
                   <IconeDoBotao texto={botao2} />
                   {botao2}

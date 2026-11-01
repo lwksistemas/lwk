@@ -235,6 +235,12 @@ class PaginaSite(models.Model):
     corpo = models.TextField(blank=True, default="")
     itens = models.TextField(blank=True, default="", help_text="Um destaque por linha")
     mensagem_whatsapp = models.CharField(max_length=400, blank=True, default="")
+    imagem = models.URLField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Foto do cartão na home. Vazio mantém a imagem atual.",
+    )
     ativo = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -86,5 +86,6 @@ export interface PaginaHome {
   resumo: string;
   corpo: string;
   itens: string;
+  imagem?: string;
   ativo?: boolean;
 }

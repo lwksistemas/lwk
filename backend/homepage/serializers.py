@@ -115,7 +115,10 @@ class ItemMenuSerializer(serializers.ModelSerializer):
 class PaginaSiteSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaginaSite
-        fields = ["id", "slug", "titulo", "resumo", "corpo", "itens", "mensagem_whatsapp", "ativo"]
+        fields = ["id", "slug", "titulo", "resumo", "corpo", "itens", "mensagem_whatsapp", "imagem", "ativo"]
+        extra_kwargs = {
+            "imagem": {"required": False, "allow_blank": True},
+        }
 
 
 PRODUTOS_CONTATO = {"crm-vendas", "clinicas-estetica", "personalizados", "outros", "geral"}

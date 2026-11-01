@@ -7,10 +7,15 @@ const CARTAO = "rounded-2xl border border-cyan-300/50 bg-[#071833]/80 p-5 text-w
 const BOTAO = "mt-5 inline-flex rounded-full bg-[#2f6bff] px-5 py-2.5 text-sm font-semibold text-white";
 
 function Painel({ src, alt }: { src: string; alt: string }) {
+  const classe = "mt-5 h-auto w-full max-w-full rounded-xl border border-cyan-300/30";
+  const local = src.startsWith("/homepage/") && src.endsWith(".webp");
+  if (!local) {
+    return <img src={src} alt={alt} width={1024} height={560} className={classe} />;
+  }
   return (
     <picture>
       <source srcSet={src} type="image/webp" />
-      <img src={src.replace(".webp", ".png")} alt={alt} width={1024} height={560} className="mt-5 h-auto w-full max-w-full rounded-xl border border-cyan-300/30" />
+      <img src={src.replace(".webp", ".png")} alt={alt} width={1024} height={560} className={classe} />
     </picture>
   );
 }
@@ -81,7 +86,7 @@ export default function VitrineHome({
                 <li key={item}>{item}</li>
               ))}
             </ul>
-            <Painel src="/homepage/crm-tela.webp" alt="Painel do CRM Vendas" />
+            <Painel src={crm?.imagem?.trim() || "/homepage/crm-tela.webp"} alt="Painel do CRM Vendas" />
             <Link href="/solucoes/crm-vendas" className={BOTAO}>Conhecer o CRM</Link>
           </article>
           <article className={`${CARTAO} min-w-0`}>
@@ -92,7 +97,7 @@ export default function VitrineHome({
                 <li key={item}>{item}</li>
               ))}
             </ul>
-            <Painel src="/homepage/clinica-tela.webp" alt="Painel da gestão para clínicas de estética" />
+            <Painel src={clinica?.imagem?.trim() || "/homepage/clinica-tela.webp"} alt="Painel da gestão para clínicas de estética" />
             <Link href="/solucoes/clinicas-estetica" className={BOTAO}>Conhecer o sistema</Link>
           </article>
         </div>

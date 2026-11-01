@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ImageUploadMedia as ImageUpload } from '@/components/ImageUploadMedia';
 
 interface ItemMenu {
   id?: number;
@@ -24,6 +25,7 @@ interface Pagina {
   corpo: string;
   itens: string;
   mensagem_whatsapp: string;
+  imagem?: string;
   ativo?: boolean;
 }
 
@@ -42,6 +44,55 @@ function lista<T>(data: unknown): T[] {
   if (Array.isArray(data)) return data as T[];
   const pagina = data as { results?: T[] };
   return pagina?.results ?? [];
+}
+
+function EditorPagina({
+  editando,
+  setEditando,
+  onSave,
+}: {
+  editando: Pagina;
+  setEditando: (pagina: Pagina | null) => void;
+  onSave: () => void;
+}) {
+  const trocaFoto = editando.slug === 'home-crm' || editando.slug === 'home-clinica';
+  return (
+    <div className="space-y-3 rounded-xl border p-4">
+      <div>
+        <Label>Título</Label>
+        <Input value={editando.titulo} onChange={(e) => setEditando({ ...editando, titulo: e.target.value })} />
+      </div>
+      <div>
+        <Label>Resumo</Label>
+        <textarea className="min-h-16 w-full rounded-md border px-3 py-2 text-sm" value={editando.resumo} onChange={(e) => setEditando({ ...editando, resumo: e.target.value })} />
+      </div>
+      <div>
+        <Label>Texto</Label>
+        <textarea className="min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={editando.corpo} onChange={(e) => setEditando({ ...editando, corpo: e.target.value })} />
+      </div>
+      <div>
+        <Label>Destaques (um por linha)</Label>
+        <textarea className="min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={editando.itens} onChange={(e) => setEditando({ ...editando, itens: e.target.value })} />
+      </div>
+      {trocaFoto && (
+        <ImageUpload
+          label="Foto do cartão"
+          description="Esta foto aparece em Nossas soluções. Use uma captura sem nome de cliente. Se apagar, volta a foto atual do site."
+          value={editando.imagem || ''}
+          onChange={(url) => setEditando({ ...editando, imagem: url })}
+          folder="fotos"
+        />
+      )}
+      <div>
+        <Label>Mensagem do WhatsApp</Label>
+        <Input value={editando.mensagem_whatsapp} onChange={(e) => setEditando({ ...editando, mensagem_whatsapp: e.target.value })} />
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" onClick={onSave}>Salvar página</Button>
+        <Button type="button" variant="outline" onClick={() => setEditando(null)}>Fechar</Button>
+      </div>
+    </div>
+  );
 }
 
 export function ConteudoSiteTab() {
@@ -105,7 +156,8 @@ export function ConteudoSiteTab() {
         <CardHeader>
           <CardTitle>Textos da página inicial</CardTitle>
           <CardDescription>
-            Blocos home-*. Em home-personalizados, cada destaque é Título|texto e o campo Texto é o botão no formato Rótulo|/caminho.
+            Blocos home-*. Em home-crm e home-clinica dá para trocar a foto de Nossas soluções. Sem foto nova, permanece a atual.
+            Em home-personalizados, cada destaque é Título|texto e o campo Texto é o botão no formato Rótulo|/caminho.
             Em home-planos, cada linha é Título|texto|/caminho|botão. O título da seção de benefícios é home-beneficios; os cartões ficam na aba Benefícios.
           </CardDescription>
         </CardHeader>
@@ -119,6 +171,9 @@ export function ConteudoSiteTab() {
               <span className="ml-2 text-sm text-slate-500">/{pagina.slug}</span>
             </button>
           ))}
+          {editando?.slug.startsWith('home-') && (
+            <EditorPagina editando={editando} setEditando={setEditando} onSave={salvarPagina} />
+          )}
         </CardContent>
       </Card>
 
@@ -134,33 +189,8 @@ export function ConteudoSiteTab() {
               <span className="ml-2 text-sm text-slate-500">/{pagina.slug}</span>
             </button>
           ))}
-          {editando && (
-            <div className="space-y-3 rounded-xl border p-4">
-              <div>
-                <Label>Título</Label>
-                <Input value={editando.titulo} onChange={(e) => setEditando({ ...editando, titulo: e.target.value })} />
-              </div>
-              <div>
-                <Label>Resumo</Label>
-                <textarea className="min-h-16 w-full rounded-md border px-3 py-2 text-sm" value={editando.resumo} onChange={(e) => setEditando({ ...editando, resumo: e.target.value })} />
-              </div>
-              <div>
-                <Label>Texto</Label>
-                <textarea className="min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={editando.corpo} onChange={(e) => setEditando({ ...editando, corpo: e.target.value })} />
-              </div>
-              <div>
-                <Label>Destaques (um por linha)</Label>
-                <textarea className="min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={editando.itens} onChange={(e) => setEditando({ ...editando, itens: e.target.value })} />
-              </div>
-              <div>
-                <Label>Mensagem do WhatsApp</Label>
-                <Input value={editando.mensagem_whatsapp} onChange={(e) => setEditando({ ...editando, mensagem_whatsapp: e.target.value })} />
-              </div>
-              <div className="flex gap-2">
-                <Button type="button" onClick={salvarPagina}>Salvar página</Button>
-                <Button type="button" variant="outline" onClick={() => setEditando(null)}>Fechar</Button>
-              </div>
-            </div>
+          {editando && !editando.slug.startsWith('home-') && (
+            <EditorPagina editando={editando} setEditando={setEditando} onSave={salvarPagina} />
           )}
         </CardContent>
       </Card>

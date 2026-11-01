@@ -41,3 +41,15 @@ export async function getHomepage() {
     throw err;
   }
 }
+
+export async function getPaginaSite(slug: string) {
+  const API_BASE = await resolveHomepageApiBase();
+  const res = await fetch(`${API_BASE}/site/paginas/${slug}/`, {
+    next: { revalidate: 60 },
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`Página ${slug}: ${res.status}`);
+  }
+  return res.json();
+}

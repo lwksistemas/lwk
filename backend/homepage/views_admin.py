@@ -8,12 +8,14 @@ from rest_framework.response import Response
 from core.middleware.response_cache import invalidate_homepage_response_cache
 from core.permissions import IsSuperAdmin
 
-from .models import EmpresaConfig, Funcionalidade, HeroSection, ModuloSistema, WhyUsBenefit
+from .models import EmpresaConfig, Funcionalidade, HeroSection, ItemMenu, ModuloSistema, PaginaSite, SolicitacaoContato, WhyUsBenefit
 from .serializers import (
     EmpresaConfigSerializer,
     FuncionalidadeSerializer,
     HeroSerializer,
+    ItemMenuSerializer,
     ModuloSerializer,
+    PaginaSiteSerializer,
     WhyUsBenefitSerializer,
 )
 
@@ -77,7 +79,7 @@ class HeroImagemViewSet(HomepageCacheInvalidationMixin, viewsets.ModelViewSet):
         class HeroImagemSerializer(serializers.ModelSerializer):
             class Meta:
                 model = HeroImagem
-                fields = ["id", "imagem", "titulo", "ordem", "ativo", "created_at", "updated_at"]
+                fields = ["id", "imagem", "titulo", "link", "ordem", "ativo", "created_at", "updated_at"]
                 read_only_fields = ["id", "created_at", "updated_at"]
 
         return HeroImagemSerializer
@@ -108,3 +110,30 @@ class EmpresaConfigViewSet(HomepageCacheInvalidationMixin, viewsets.ModelViewSet
         serializer.save()
         invalidate_homepage_response_cache()
         return Response(serializer.data)
+
+
+class ItemMenuViewSet(HomepageCacheInvalidationMixin, viewsets.ModelViewSet):
+    queryset = ItemMenu.objects.all()
+    serializer_class = ItemMenuSerializer
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+
+class PaginaSiteViewSet(HomepageCacheInvalidationMixin, viewsets.ModelViewSet):
+    queryset = PaginaSite.objects.all()
+    serializer_class = PaginaSiteSerializer
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+
+class SolicitacaoContatoViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = SolicitacaoContato.objects.all()
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+    def get_serializer_class(self):
+        from rest_framework import serializers
+
+        class SolicitacaoLeituraSerializer(serializers.ModelSerializer):
+            class Meta:
+                model = SolicitacaoContato
+                fields = ["id", "nome", "empresa", "whatsapp", "produto", "mensagem", "origem", "created_at"]
+
+        return SolicitacaoLeituraSerializer

@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning className="w-full min-w-full m-0 p-0 overflow-x-hidden">
+    <html lang="pt-BR" suppressHydrationWarning className="scroll-smooth w-full min-w-full m-0 p-0 overflow-x-hidden">
       <head>
         <link rel="apple-touch-icon" href="/icons/icon.svg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

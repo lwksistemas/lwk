@@ -1,126 +1,221 @@
 'use client';
 
 import Link from "next/link";
-import { useState } from "react";
-import { Menu, X, LogIn } from "lucide-react";
-import AcessoRapidoModal from "./AcessoRapidoModal";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, Menu, X } from "lucide-react";
 
-export default function Header() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+export interface HeaderLink {
+  label: string;
+  href: string;
+}
+
+interface HeaderProps {
+  solucoes?: HeaderLink[];
+  segmentos?: HeaderLink[];
+  whatsappUrl?: string | null;
+}
+
+const SOLUCOES_PADRAO: HeaderLink[] = [
+  { label: "CRM de Vendas — LWK Sales Cloud", href: "/solucoes/crm-vendas" },
+  { label: "Gestão para Clínicas de Estética", href: "/solucoes/clinicas-estetica" },
+  { label: "Sistemas Personalizados", href: "/solucoes/personalizados" },
+];
+
+const SEGMENTOS_PADRAO: HeaderLink[] = [
+  { label: "Clínicas de Estética", href: "/solucoes/clinicas-estetica" },
+  { label: "Gestão Comercial e Equipes de Vendas", href: "/solucoes/crm-vendas" },
+  { label: "Outros Segmentos", href: "/segmentos" },
+];
+
+function rotuloPublico(grupo: "solucoes" | "segmentos", label: string) {
+  if (grupo === "solucoes" && label === "CRM de Vendas") return "CRM de Vendas — LWK Sales Cloud";
+  if (grupo === "segmentos" && label === "Equipes Comerciais") return "Gestão Comercial e Equipes de Vendas";
+  return label;
+}
+
+function classeAtual(ativo: boolean) {
+  return ativo
+    ? "text-[1.05rem] font-semibold text-white underline decoration-[3px] underline-offset-8"
+    : "text-[1.05rem] font-medium text-white/95 hover:text-white";
+}
+
+function MenuSuspenso({
+  label,
+  itens,
+  ativo,
+}: {
+  label: string;
+  itens: HeaderLink[];
+  ativo: boolean;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!aberto) return;
+    function fechar(evento: PointerEvent) {
+      if (!ref.current?.contains(evento.target as Node)) setAberto(false);
+    }
+    function tecla(evento: KeyboardEvent) {
+      if (evento.key === "Escape") setAberto(false);
+    }
+    document.addEventListener("pointerdown", fechar);
+    document.addEventListener("keydown", tecla);
+    return () => {
+      document.removeEventListener("pointerdown", fechar);
+      document.removeEventListener("keydown", tecla);
+    };
+  }, [aberto]);
 
   return (
-    <>
-      <header className="bg-white dark:bg-gray-900 shadow dark:shadow-gray-800 w-full sticky top-0 z-50">
-        <div className="w-full max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8 py-4">
-          <Link href="/" className="text-xl sm:text-2xl font-bold text-blue-600">
-            LWK SISTEMAS
-          </Link>
-          
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
-            <a
-              href="#funcionalidades"
-              className="text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              Funcionalidades
-            </a>
-            <a
-              href="#beneficios"
-              className="text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              Benefícios
-            </a>
-            <a
-              href="#modulos"
-              className="text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              Módulos Valores
-            </a>
-
-            <Link
-              href="/cadastro"
-              className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md hover:shadow-lg"
-            >
-              Fazer Cadastro
-            </Link>
-            
-            {/* Botão Acesso Rápido */}
-            <button
-              onClick={() => setModalOpen(true)}
-              className="bg-green-600 text-white px-5 py-2.5 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
-            >
-              <LogIn className="w-4 h-4" />
-              Acesso Rápido
-            </button>
-          </nav>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 text-gray-600 hover:text-blue-600"
-            aria-label="Menu"
-          >
-            {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-
-        {/* Mobile Navigation */}
-        {menuOpen && (
-          <nav className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex flex-col px-4 py-2">
-              <a
-                href="#funcionalidades"
-                onClick={() => setMenuOpen(false)}
-                className="py-3 text-gray-600 hover:text-blue-600 transition-colors border-b border-gray-100"
-              >
-                Funcionalidades
-              </a>
-              <a
-                href="#beneficios"
-                onClick={() => setMenuOpen(false)}
-                className="py-3 text-gray-600 hover:text-blue-600 transition-colors border-b border-gray-100"
-              >
-                Benefícios
-              </a>
-              <a
-                href="#modulos"
-                onClick={() => setMenuOpen(false)}
-                className="py-3 text-gray-600 hover:text-blue-600 transition-colors border-b border-gray-100"
-              >
-                Módulos Valores
-              </a>
-              
-              {/* Botão Fazer Cadastro Mobile */}
+    <div
+      ref={ref}
+      className="relative"
+      onMouseEnter={() => setAberto(true)}
+      onMouseLeave={() => setAberto(false)}
+    >
+      <button
+        type="button"
+        className={`inline-flex items-center gap-1 ${classeAtual(ativo)}`}
+        aria-expanded={aberto}
+        aria-haspopup="true"
+        aria-current={ativo ? "page" : undefined}
+        onClick={() => {
+          const comMouse = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+          if (comMouse) {
+            setAberto(true);
+            return;
+          }
+          setAberto((valor) => !valor);
+        }}
+      >
+        {label}
+        <ChevronDown className="h-4 w-4 opacity-80" aria-hidden />
+      </button>
+      {itens.length > 0 && (
+        <div className={`${aberto ? "visible opacity-100" : "invisible opacity-0"} absolute left-0 top-full z-20 min-w-72 pt-2 transition`}>
+          <div className="rounded-xl border border-white/10 bg-[#0c2348] p-2 shadow-xl">
+            {itens.map((item) => (
               <Link
-                href="/cadastro"
-                onClick={() => setMenuOpen(false)}
-                className="mt-3 text-center bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                key={item.href + item.label}
+                href={item.href}
+                className="block rounded-lg px-3 py-2 text-sm text-slate-100 hover:bg-white/10"
+                onClick={() => setAberto(false)}
               >
-                Fazer Cadastro
+                {item.label}
               </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
-              {/* Botão Acesso Rápido Mobile */}
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  setModalOpen(true);
-                }}
-                className="mt-2 mb-2 text-center bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
-              >
-                <LogIn className="w-5 h-5" />
-                Acesso Rápido (CPF/CNPJ)
-              </button>
-            </div>
-          </nav>
-        )}
-      </header>
+export default function Header({ solucoes = [], segmentos = [], whatsappUrl }: HeaderProps) {
+  const pathname = usePathname();
+  const [aberto, setAberto] = useState(false);
+  const contato = whatsappUrl || "/contato";
+  const itensSolucoes = (solucoes.length > 0 ? solucoes : SOLUCOES_PADRAO).map((item) => ({
+    ...item,
+    label: rotuloPublico("solucoes", item.label),
+  }));
+  const itensSegmentos = (segmentos.length > 0 ? segmentos : SEGMENTOS_PADRAO).map((item) => ({
+    ...item,
+    label: rotuloPublico("segmentos", item.label),
+  }));
+  const naHome = pathname === "/";
+  const emSolucoes = pathname.startsWith("/solucoes");
+  const emSegmentos = pathname.startsWith("/segmentos");
+  const emPlanos = pathname.startsWith("/planos");
+  const emContato = pathname.startsWith("/contato");
 
-      {/* Modal de Acesso Rápido */}
-      <AcessoRapidoModal 
-        isOpen={modalOpen} 
-        onClose={() => setModalOpen(false)} 
-      />
-    </>
+  useEffect(() => {
+    setAberto(false);
+  }, [pathname]);
+
+  return (
+    <header className="sticky top-0 z-50 w-full bg-[#04183f]">
+      <div className="flex w-full items-center gap-4 px-4 py-2 sm:px-6 lg:px-8">
+        <Link href="/" className="flex shrink-0 items-center gap-1 text-white" aria-label="LWK Sistemas — página inicial">
+          <svg viewBox="0 0 56 80" className="h-[4.4rem] w-[2.6rem]" aria-hidden>
+            <mask id="lwk-crescent">
+              <rect width="56" height="80" fill="black" />
+              <circle cx="34" cy="40" r="36" fill="white" />
+              <circle cx="58" cy="40" r="28" fill="black" />
+            </mask>
+            <rect width="56" height="80" fill="#1c9bff" mask="url(#lwk-crescent)" />
+          </svg>
+          <span className="leading-none">
+            <span className="block text-[2.7rem] font-black tracking-[-0.03em]">LWK</span>
+            <span className="mt-0.5 block text-center text-[1.15rem] font-medium tracking-normal">Sistemas</span>
+          </span>
+        </Link>
+
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-x-8 md:flex lg:gap-x-11" aria-label="Principal">
+          <Link href="/#inicio" className={classeAtual(naHome)} aria-current={naHome ? "page" : undefined}>
+            Início
+          </Link>
+          <MenuSuspenso label="Soluções" itens={itensSolucoes} ativo={emSolucoes} />
+          <MenuSuspenso label="Segmentos" itens={itensSegmentos} ativo={emSegmentos} />
+          <Link href="/planos" className={classeAtual(emPlanos)} aria-current={emPlanos ? "page" : undefined}>
+            Planos
+          </Link>
+          <Link href="/contato" className={classeAtual(emContato)} aria-current={emContato ? "page" : undefined}>
+            Contato
+          </Link>
+        </nav>
+        <a
+          href={contato}
+          target={whatsappUrl ? "_blank" : undefined}
+          rel={whatsappUrl ? "noopener noreferrer" : undefined}
+          className="hidden shrink-0 items-center gap-2 rounded-full bg-[#25D366] px-4 py-2 text-[1.02rem] font-semibold text-white shadow-md hover:bg-[#1ebe5a] md:inline-flex"
+        >
+            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
+              <path d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10.1 10.1 0 0 0 4.65 1.14h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2Zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.07-1.12.1-1.81-.11-.42-.13-.95-.3-1.64-.59-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.15-1.53-1.15-2.92 0-1.39.73-2.07.99-2.35.26-.28.57-.35.76-.35.19 0 .38 0 .55.01.18.01.41-.07.64.49.24.58.81 2 .88 2.15.07.14.12.32.02.51-.09.19-.14.31-.28.48-.14.16-.29.37-.42.49-.14.14-.28.29-.12.56.16.28.71 1.17 1.52 1.9 1.05.94 1.93 1.23 2.2 1.37.28.14.44.12.6-.07.16-.19.68-.79.86-1.06.18-.28.36-.23.6-.14.24.09 1.54.73 1.8.86.26.14.44.2.5.31.07.12.07.67-.17 1.35Z" />
+            </svg>
+            Fale Conosco
+          </a>
+
+        <button
+          type="button"
+          className="rounded-lg p-2 text-white md:hidden"
+          aria-label={aberto ? "Fechar menu" : "Abrir menu"}
+          aria-expanded={aberto}
+          onClick={() => setAberto((v) => !v)}
+        >
+          {aberto ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+      </div>
+
+      {aberto && (
+        <nav className="border-t border-white/10 px-4 py-3 md:hidden" aria-label="Menu móvel">
+          <Link href="/#inicio" className="block py-2 text-white">Início</Link>
+          <p className="py-2 text-slate-200">Soluções</p>
+          {itensSolucoes.map((item) => (
+            <Link key={item.href + item.label} href={item.href} className="block py-1 pl-3 text-sm text-slate-300">
+              {item.label}
+            </Link>
+          ))}
+          <p className="py-2 text-slate-200">Segmentos</p>
+          {itensSegmentos.map((item) => (
+            <Link key={item.href + item.label} href={item.href} className="block py-1 pl-3 text-sm text-slate-300">
+              {item.label}
+            </Link>
+          ))}
+          <Link href="/planos" className="block py-2 text-slate-200">Planos</Link>
+          <Link href="/contato" className="block py-2 text-slate-200">Contato</Link>
+          <a
+            href={contato}
+            target={whatsappUrl ? "_blank" : undefined}
+            rel={whatsappUrl ? "noopener noreferrer" : undefined}
+            className="mt-2 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2 text-sm font-semibold text-white"
+          >
+            Fale Conosco
+          </a>
+        </nav>
+      )}
+    </header>
   );
 }

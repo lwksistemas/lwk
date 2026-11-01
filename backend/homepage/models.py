@@ -9,8 +9,36 @@ class HeroSection(models.Model):
 
     titulo = models.CharField(max_length=200)
     subtitulo = models.TextField()
-    botao_texto = models.CharField(max_length=100, default="Testar grátis")
+    selo = models.CharField(
+        max_length=80,
+        blank=True,
+        default="Software House",
+        help_text="Etiqueta acima do título, ex.: Software House",
+    )
+    botao_texto = models.CharField(max_length=100, default="Conheça nossas soluções")
+    botao_url = models.CharField(
+        max_length=300,
+        blank=True,
+        default="#destaques",
+        help_text="Link do botão principal",
+    )
     botao_principal_ativo = models.BooleanField(default=True, help_text="Exibir botão principal (ex: Testar grátis)")
+    botao_secundario_texto = models.CharField(
+        max_length=100,
+        blank=True,
+        default="Solicite uma demonstração",
+    )
+    botao_secundario_url = models.CharField(
+        max_length=300,
+        blank=True,
+        default="#contato",
+        help_text="Link do segundo botão",
+    )
+    botao_secundario_ativo = models.BooleanField(default=True)
+    intervalo_carrossel = models.PositiveSmallIntegerField(
+        default=5,
+        help_text="Segundos entre as telas do notebook",
+    )
     ativo = models.BooleanField(default=True)
     ordem = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -32,6 +60,7 @@ class Funcionalidade(models.Model):
     titulo = models.CharField(max_length=100)
     descricao = models.TextField()
     icone = models.CharField(max_length=50, blank=True, default="", help_text="Nome do ícone (ex: Users, BarChart) ou emoji")
+    link = models.CharField(max_length=300, blank=True, default="", help_text="Página aberta ao clicar no cartão")
     imagem = models.URLField(max_length=500, blank=True, null=True, help_text="URL da imagem da funcionalidade (opcional, substitui ícone)")
     ordem = models.PositiveIntegerField(default=0)
     ativo = models.BooleanField(default=True)
@@ -100,7 +129,12 @@ class EmpresaConfig(models.Model):
     cnpj = models.CharField(max_length=20, blank=True, default="", help_text="CNPJ formatado (ex: 00.000.000/0001-00)")
     endereco = models.CharField(max_length=300, blank=True, default="", help_text="Endereço completo")
     telefone_whatsapp = models.CharField(max_length=20, blank=True, default="", help_text="Número WhatsApp com DDD (ex: 5511999999999)")
-    mensagem_whatsapp = models.CharField(max_length=300, blank=True, default="Olá! Gostaria de saber mais sobre o LWK Sistemas.", help_text="Mensagem padrão ao clicar no WhatsApp")
+    mensagem_whatsapp = models.CharField(
+        max_length=300,
+        blank=True,
+        default="Olá! Acessei o site da LWK Sistemas e gostaria de conhecer melhor as soluções oferecidas.",
+        help_text="Mensagem padrão ao clicar no WhatsApp",
+    )
     email_contato = models.EmailField(blank=True, default="", help_text="Email de contato da empresa")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -117,8 +151,12 @@ class EmpresaConfig(models.Model):
 class HeroImagem(models.Model):
     """Imagens do carrossel do Hero (múltiplas imagens que alternam automaticamente)."""
 
-    imagem = models.URLField(max_length=500, help_text="URL da imagem de fundo do hero")
-    titulo = models.CharField(max_length=200, blank=True, help_text="Título opcional para esta imagem")
+    imagem = models.URLField(
+        max_length=500,
+        help_text="Captura anonimizada da tela, sem nomes de clientes ou pacientes",
+    )
+    titulo = models.CharField(max_length=200, blank=True, help_text="Etiqueta sobre a tela, ex.: LWK Sales Cloud — CRM de Vendas")
+    link = models.CharField(max_length=300, blank=True, default="", help_text="Página aberta ao clicar na tela")
     ordem = models.PositiveIntegerField(default=0)
     ativo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -132,3 +170,72 @@ class HeroImagem(models.Model):
 
     def __str__(self):
         return self.titulo or f"Imagem {self.id}"
+
+
+class ItemMenu(models.Model):
+    """Item dos menus Soluções e Segmentos."""
+
+    GRUPO_SOLUCOES = "solucoes"
+    GRUPO_SEGMENTOS = "segmentos"
+    GRUPOS = [
+        (GRUPO_SOLUCOES, "Soluções"),
+        (GRUPO_SEGMENTOS, "Segmentos"),
+    ]
+
+    grupo = models.CharField(max_length=20, choices=GRUPOS)
+    rotulo = models.CharField(max_length=120)
+    url = models.CharField(max_length=300)
+    ordem = models.PositiveIntegerField(default=0)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "homepage_item_menu"
+        ordering = ["grupo", "ordem", "id"]
+        verbose_name = "Item de menu"
+        verbose_name_plural = "Itens de menu"
+
+    def __str__(self):
+        return f"{self.grupo}: {self.rotulo}"
+
+
+class PaginaSite(models.Model):
+    """Texto das páginas institucionais (produtos, segmentos, contato, demonstração)."""
+
+    slug = models.SlugField(max_length=60, unique=True)
+    titulo = models.CharField(max_length=200)
+    resumo = models.TextField(blank=True, default="")
+    corpo = models.TextField(blank=True, default="")
+    itens = models.TextField(blank=True, default="", help_text="Um destaque por linha")
+    mensagem_whatsapp = models.CharField(max_length=400, blank=True, default="")
+    ativo = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "homepage_pagina_site"
+        ordering = ["slug"]
+        verbose_name = "Página do site"
+        verbose_name_plural = "Páginas do site"
+
+    def __str__(self):
+        return self.titulo
+
+
+class SolicitacaoContato(models.Model):
+    """Pedido enviado pelo formulário de contato ou demonstração."""
+
+    nome = models.CharField(max_length=120)
+    empresa = models.CharField(max_length=160, blank=True, default="")
+    whatsapp = models.CharField(max_length=20)
+    produto = models.CharField(max_length=40)
+    mensagem = models.TextField()
+    origem = models.CharField(max_length=40, default="contato")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "homepage_solicitacao_contato"
+        ordering = ["-created_at"]
+        verbose_name = "Solicitação do site"
+        verbose_name_plural = "Solicitações do site"
+
+    def __str__(self):
+        return f"{self.nome} — {self.produto}"

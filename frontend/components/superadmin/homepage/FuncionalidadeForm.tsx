@@ -13,6 +13,7 @@ interface FuncionalidadeData {
   descricao: string;
   icone: string;
   imagem?: string;
+  link?: string;
 }
 
 interface FuncionalidadeFormProps {
@@ -48,6 +49,14 @@ export function FuncionalidadeForm({
             value={form.descricao}
             onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
             placeholder="Ex: Gestão completa de clientes"
+          />
+        </div>
+        <div>
+          <Label>Página ao clicar</Label>
+          <Input
+            value={form.link || ''}
+            onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))}
+            placeholder="/solucoes/crm-vendas"
           />
         </div>
         <div>

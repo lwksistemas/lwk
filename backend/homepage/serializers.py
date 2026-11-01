@@ -2,13 +2,36 @@ from rest_framework import serializers
 
 from core.serializer_mixins import PhoneNormalizationMixin
 
-from .models import EmpresaConfig, Funcionalidade, HeroSection, ModuloSistema, WhyUsBenefit
+from .models import (
+    EmpresaConfig,
+    Funcionalidade,
+    HeroSection,
+    ItemMenu,
+    ModuloSistema,
+    PaginaSite,
+    SolicitacaoContato,
+    WhyUsBenefit,
+)
 
 
 class HeroSerializer(serializers.ModelSerializer):
     class Meta:
         model = HeroSection
-        fields = ["id", "titulo", "subtitulo", "botao_texto", "botao_principal_ativo", "ordem", "ativo"]
+        fields = [
+            "id",
+            "titulo",
+            "subtitulo",
+            "selo",
+            "botao_texto",
+            "botao_url",
+            "botao_principal_ativo",
+            "botao_secundario_texto",
+            "botao_secundario_url",
+            "botao_secundario_ativo",
+            "intervalo_carrossel",
+            "ordem",
+            "ativo",
+        ]
         extra_kwargs = {
             "botao_principal_ativo": {"required": False, "default": True},
         }
@@ -17,9 +40,10 @@ class HeroSerializer(serializers.ModelSerializer):
 class FuncionalidadeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Funcionalidade
-        fields = ["id", "titulo", "descricao", "icone", "imagem", "ordem", "ativo"]
+        fields = ["id", "titulo", "descricao", "icone", "link", "imagem", "ordem", "ativo"]
         extra_kwargs = {
             "icone": {"allow_blank": True, "required": False},
+            "link": {"allow_blank": True, "required": False},
             "imagem": {"required": False, "allow_blank": True, "allow_null": True},
         }
 
@@ -74,3 +98,50 @@ class EmpresaConfigSerializer(PhoneNormalizationMixin, serializers.ModelSerializ
             "mensagem_whatsapp": {"required": False, "allow_blank": True},
             "email_contato": {"required": False, "allow_blank": True},
         }
+
+
+class ItemMenuSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ItemMenu
+        fields = ["id", "grupo", "rotulo", "url", "ordem", "ativo"]
+
+
+class PaginaSiteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaginaSite
+        fields = ["id", "slug", "titulo", "resumo", "corpo", "itens", "mensagem_whatsapp", "ativo"]
+
+
+PRODUTOS_CONTATO = {"crm-vendas", "clinicas-estetica", "personalizados", "outros", "geral"}
+
+
+class SolicitacaoContatoSerializer(serializers.ModelSerializer):
+    aceite_lgpd = serializers.BooleanField(write_only=True)
+
+    class Meta:
+        model = SolicitacaoContato
+        fields = ["nome", "empresa", "whatsapp", "produto", "mensagem", "origem", "aceite_lgpd"]
+        extra_kwargs = {
+            "empresa": {"required": False, "allow_blank": True},
+            "origem": {"required": False},
+        }
+
+    def validate_aceite_lgpd(self, value):
+        if value is not True:
+            raise serializers.ValidationError("É preciso aceitar o aviso de privacidade.")
+        return value
+
+    def validate_produto(self, value):
+        if value not in PRODUTOS_CONTATO:
+            raise serializers.ValidationError("Escolha o produto de interesse.")
+        return value
+
+    def validate_whatsapp(self, value):
+        digitos = "".join(ch for ch in (value or "") if ch.isdigit())
+        if len(digitos) < 10 or len(digitos) > 13:
+            raise serializers.ValidationError("Informe um WhatsApp com DDD.")
+        return digitos
+
+    def create(self, validated_data):
+        validated_data.pop("aceite_lgpd", None)
+        return super().create(validated_data)

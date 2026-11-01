@@ -93,6 +93,7 @@ urlpatterns = [
     path("api/push/", include("push.urls")),
     path("api/crm-vendas/", include("crm_vendas.urls")),
     path("api/homepage/", include("homepage.urls")),
+    path("api/site/", include("homepage.urls_site")),
     path("api/", include("nfse_integration.urls")),  # API NFS-e
 
     # API de mídia

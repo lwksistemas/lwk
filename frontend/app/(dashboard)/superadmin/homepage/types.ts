@@ -2,8 +2,14 @@ export interface HeroData {
   id?: number;
   titulo: string;
   subtitulo: string;
+  selo?: string;
   botao_texto: string;
+  botao_url?: string;
   botao_principal_ativo?: boolean;
+  botao_secundario_texto?: string;
+  botao_secundario_url?: string;
+  botao_secundario_ativo?: boolean;
+  intervalo_carrossel?: number;
   ativo?: boolean;
 }
 
@@ -13,6 +19,7 @@ export interface FuncionalidadeData {
   descricao: string;
   icone: string;
   imagem?: string;
+  link?: string;
   ordem?: number;
   ativo?: boolean;
 }
@@ -41,6 +48,7 @@ export interface HeroImagemData {
   id?: number;
   imagem: string;
   titulo: string;
+  link?: string;
   ordem?: number;
   ativo?: boolean;
 }

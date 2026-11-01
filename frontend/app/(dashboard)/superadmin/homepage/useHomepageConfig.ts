@@ -28,7 +28,7 @@ export function useHomepageConfig() {
     cnpj: '',
     endereco: '',
     telefone_whatsapp: '',
-    mensagem_whatsapp: 'Olá! Gostaria de saber mais sobre o LWK Sistemas.',
+    mensagem_whatsapp: 'Olá! Acessei o site da LWK Sistemas e gostaria de conhecer melhor as soluções oferecidas.',
     email_contato: '',
   });
   const [loading, setLoading] = useState(true);
@@ -39,8 +39,13 @@ export function useHomepageConfig() {
   const [heroForm, setHeroForm] = useState<HeroData>({
     titulo: '',
     subtitulo: '',
-    botao_texto: 'Testar grátis',
+    selo: 'Software House',
+    botao_texto: 'Conheça nossas soluções',
+    botao_url: '#destaques',
     botao_principal_ativo: true,
+    botao_secundario_texto: 'Solicite uma demonstração',
+    botao_secundario_url: '#contato',
+    botao_secundario_ativo: true,
   });
   const [editingFunc, setEditingFunc] = useState<FuncionalidadeData | null>(null);
   const [editingMod, setEditingMod] = useState<ModuloData | null>(null);
@@ -92,12 +97,28 @@ export function useHomepageConfig() {
         setHeroForm({
           titulo: firstHero.titulo,
           subtitulo: firstHero.subtitulo,
-          botao_texto: firstHero.botao_texto || 'Testar grátis',
+          selo: firstHero.selo || 'Software House',
+          botao_texto: firstHero.botao_texto || 'Conheça nossas soluções',
+          botao_url: firstHero.botao_url || '#destaques',
           botao_principal_ativo: firstHero.botao_principal_ativo !== false,
+          botao_secundario_texto: firstHero.botao_secundario_texto || 'Solicite uma demonstração',
+          botao_secundario_url: firstHero.botao_secundario_url || '/demonstracao',
+          botao_secundario_ativo: firstHero.botao_secundario_ativo !== false,
+          intervalo_carrossel: firstHero.intervalo_carrossel || 5,
         });
       } else {
         setHero(null);
-        setHeroForm({ titulo: '', subtitulo: '', botao_texto: 'Testar grátis', botao_principal_ativo: true });
+        setHeroForm({
+          titulo: '',
+          subtitulo: '',
+          selo: 'Software House',
+          botao_texto: 'Conheça nossas soluções',
+          botao_url: '#destaques',
+          botao_principal_ativo: true,
+          botao_secundario_texto: 'Solicite uma demonstração',
+          botao_secundario_url: '#contato',
+          botao_secundario_ativo: true,
+        });
       }
 
       const funcList = Array.isArray(funcRes.data) ? funcRes.data : funcRes.data?.results ?? [];
@@ -117,7 +138,7 @@ export function useHomepageConfig() {
           cnpj: emp.cnpj || '',
           endereco: emp.endereco || '',
           telefone_whatsapp: formatTelefone(emp.telefone_whatsapp || ''),
-          mensagem_whatsapp: emp.mensagem_whatsapp || 'Olá! Gostaria de saber mais sobre o LWK Sistemas.',
+          mensagem_whatsapp: emp.mensagem_whatsapp || 'Olá! Acessei o site da LWK Sistemas e gostaria de conhecer melhor as soluções oferecidas.',
           email_contato: emp.email_contato || '',
         });
       }
@@ -139,8 +160,14 @@ export function useHomepageConfig() {
       const payload = {
         titulo: heroForm.titulo.trim(),
         subtitulo: heroForm.subtitulo?.trim() || '',
-        botao_texto: heroForm.botao_texto?.trim() || 'Testar grátis',
+        selo: heroForm.selo?.trim() || '',
+        botao_texto: heroForm.botao_texto?.trim() || 'Conheça nossas soluções',
+        botao_url: heroForm.botao_url?.trim() || '#destaques',
         botao_principal_ativo: heroForm.botao_principal_ativo !== false,
+        botao_secundario_texto: heroForm.botao_secundario_texto?.trim() || '',
+        botao_secundario_url: heroForm.botao_secundario_url?.trim() || '/demonstracao',
+        botao_secundario_ativo: heroForm.botao_secundario_ativo !== false,
+        intervalo_carrossel: Math.min(30, Math.max(3, Number(heroForm.intervalo_carrossel) || 5)),
       };
       if (hero?.id) {
         await apiClient.patch(`${API.hero}${hero.id}/`, payload);

@@ -2,8 +2,14 @@ export interface Hero {
   id?: number;
   titulo: string;
   subtitulo: string;
+  selo?: string;
   botao_texto: string;
+  botao_url?: string;
   botao_principal_ativo?: boolean;
+  botao_secundario_texto?: string;
+  botao_secundario_url?: string;
+  botao_secundario_ativo?: boolean;
+  intervalo_carrossel?: number;
 }
 
 export interface Funcionalidade {
@@ -12,6 +18,7 @@ export interface Funcionalidade {
   descricao: string;
   icone?: string;
   imagem?: string;
+  link?: string;
 }
 
 export interface Modulo {
@@ -34,6 +41,19 @@ export interface HeroImagem {
   id: number;
   imagem: string;
   titulo: string;
+  link?: string;
+}
+
+export interface ItemMenu {
+  id?: number;
+  rotulo: string;
+  url: string;
+  grupo?: string;
+}
+
+export interface MenuSite {
+  solucoes: ItemMenu[];
+  segmentos: ItemMenu[];
 }
 
 export interface EmpresaConfig {
@@ -53,4 +73,5 @@ export interface HomepageData {
   modulos: Modulo[];
   whyus: WhyUsBenefit[];
   empresa: EmpresaConfig | null;
+  menu?: MenuSite;
 }

@@ -306,6 +306,9 @@ export default function Modules({ modulos }: ModulesProps) {
                 >
                   Começar
                 </Link>
+                <Link href="/contato" className="mt-2 text-center text-sm font-medium text-blue-700 hover:underline">
+                  Solicitar proposta
+                </Link>
               </div>
             ))}
           </div>
@@ -318,14 +321,22 @@ export default function Modules({ modulos }: ModulesProps) {
             {selected.nome}
           </h3>
           <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
-            Valores e planos disponíveis no cadastro. Fale conosco ou inicie seu teste.
+            Consulte nossas condições comerciais.
           </p>
-          <Link
-            href="/cadastro"
-            className="inline-block bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 font-medium"
-          >
-            Ver no cadastro
-          </Link>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link
+              href="/contato"
+              className="inline-block bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 font-medium"
+            >
+              Solicitar proposta
+            </Link>
+            <Link
+              href="/contato"
+              className="inline-block border border-green-600 text-green-700 px-6 py-2.5 rounded-lg hover:bg-green-50 font-medium"
+            >
+              Falar com consultor
+            </Link>
+          </div>
         </div>
       )}
     </SectionContainer>

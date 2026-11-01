@@ -20,6 +20,8 @@ import { ModuloForm } from '@/components/superadmin/homepage/ModuloForm';
 import { WhyUsForm } from '@/components/superadmin/homepage/WhyUsForm';
 
 import { useHomepageConfig } from './useHomepageConfig';
+import { BannerTab } from './BannerTab';
+import { ConteudoSiteTab } from './ConteudoSiteTab';
 import { HeroImagensTab } from './HeroImagensTab';
 import { EmpresaTab } from './EmpresaTab';
 import { ListSectionCard } from './ListSectionCard';
@@ -51,7 +53,7 @@ export default function HomepageConfigPage() {
                 Configurar Homepage v2.0
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
-                Textos do banner, imagens de fundo (carrossel), funcionalidades e módulos da página inicial.
+                Banner, telas do notebook, cartões, planos, benefícios, empresa e login da página inicial.
               </p>
             </div>
           </div>
@@ -72,9 +74,11 @@ export default function HomepageConfigPage() {
           </div>
         )}
 
-        <Tabs defaultValue="hero-imagens" className="space-y-4">
+        <Tabs defaultValue="banner" className="space-y-4">
           <TabsList className="flex flex-wrap gap-1 h-auto p-1">
+            <TabsTrigger value="banner" className="text-xs sm:text-sm">Banner</TabsTrigger>
             <TabsTrigger value="hero-imagens" className="text-xs sm:text-sm">🖼️ Imagens</TabsTrigger>
+            <TabsTrigger value="conteudo" className="text-xs sm:text-sm">Menu e páginas</TabsTrigger>
             <TabsTrigger value="funcionalidades" className="text-xs sm:text-sm">Funcionalidades</TabsTrigger>
             <TabsTrigger value="modulos" className="text-xs sm:text-sm">Módulos</TabsTrigger>
             <TabsTrigger value="whyus" className="text-xs sm:text-sm">WhyUs</TabsTrigger>
@@ -82,6 +86,19 @@ export default function HomepageConfigPage() {
             <TabsTrigger value="login" className="text-xs sm:text-sm">Login</TabsTrigger>
             <TabsTrigger value="media" className="text-xs sm:text-sm">Mídia</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="banner">
+            <BannerTab
+              heroForm={config.heroForm}
+              setHeroForm={config.setHeroForm}
+              onSave={config.saveHero}
+              saving={config.saving}
+            />
+          </TabsContent>
+
+          <TabsContent value="conteudo">
+            <ConteudoSiteTab />
+          </TabsContent>
 
           {/* Hero Imagens */}
           <TabsContent value="hero-imagens">
@@ -107,7 +124,7 @@ export default function HomepageConfigPage() {
           <TabsContent value="funcionalidades">
             <ListSectionCard
               title="Funcionalidades"
-              description="Destaques exibidos na homepage (título, descrição, ícone)"
+              description="Os quatro cartões do banner. O link abre a página do produto."
               addLabel="Nova"
               onAdd={() => config.setShowAddFunc(true)}
               items={config.funcionalidades}
@@ -328,18 +345,26 @@ export default function HomepageConfigPage() {
             <h3 className="text-lg font-semibold mb-4">{config.editingHeroImg ? 'Editar imagem do carrossel' : 'Nova imagem do carrossel'}</h3>
             <div className="space-y-4">
               <div>
-                <Label>Título (opcional)</Label>
+                <Label>Etiqueta sobre a tela</Label>
                 <Input
                   value={config.editingHeroImg?.titulo ?? ''}
-                  onChange={(e) => config.setEditingHeroImg(prev => prev ? { ...prev, titulo: e.target.value } : { imagem: '', titulo: e.target.value })}
-                  placeholder="Ex: Banner Principal"
+                  onChange={(e) => config.setEditingHeroImg(prev => prev ? { ...prev, titulo: e.target.value } : { imagem: '', titulo: e.target.value, link: '' })}
+                  placeholder="LWK Sales Cloud — CRM de Vendas"
+                />
+              </div>
+              <div>
+                <Label>Página ao clicar na tela</Label>
+                <Input
+                  value={config.editingHeroImg?.link ?? ''}
+                  onChange={(e) => config.setEditingHeroImg(prev => prev ? { ...prev, link: e.target.value } : { imagem: '', titulo: '', link: e.target.value })}
+                  placeholder="/solucoes/crm-vendas"
                 />
               </div>
               <ImageUpload
-                label="Imagem"
-                description="Imagem de fundo do Hero (recomendado: 1920x1080px)"
+                label="Captura da tela"
+                description="Use imagem anonimizada, sem nome de cliente, paciente ou valor real. Proporção larga, sem distorcer."
                 value={config.editingHeroImg?.imagem ?? ''}
-                onChange={(url) => config.setEditingHeroImg(prev => prev ? { ...prev, imagem: url } : { imagem: url, titulo: '' })}
+                onChange={(url) => config.setEditingHeroImg(prev => prev ? { ...prev, imagem: url } : { imagem: url, titulo: '', link: '' })}
                 maxSize={10}
                 folder="fotos"
               />

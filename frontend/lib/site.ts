@@ -56,8 +56,8 @@ const RESERVA: Record<string, PaginaConteudo> = {
   planos: {
     slug: "planos",
     titulo: "Planos",
-    resumo: "Valores e o que entra em cada módulo.",
-    corpo: "Escolha o módulo para ver os planos. Se o valor ainda não estiver publicado, peça uma demonstração.",
+    resumo: "Os valores publicados são os da gestão para clínicas. CRM e sistemas personalizados seguem sob consulta.",
+    corpo: "Cada tipo tem a sua condição. A clínica tem três planos. O CRM e o sistema personalizado são orçados à parte.",
     itens: "",
     mensagem_whatsapp: "Olá! Conheci a LWK Sistemas pelo site e gostaria de conhecer os planos.",
   },

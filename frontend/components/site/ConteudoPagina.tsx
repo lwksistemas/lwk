@@ -56,11 +56,6 @@ export function ConteudoPagina({
         </picture>
       )}
       {pagina.corpo && <p className="mt-4 max-w-3xl leading-relaxed text-slate-200">{pagina.corpo}</p>}
-      {pagina.slug === "planos" && (
-        <p className="mt-4 max-w-3xl leading-relaxed text-slate-200">
-          Os valores publicados são os da gestão para clínicas. Para o CRM de Vendas e os sistemas personalizados, consulte nossas condições comerciais.
-        </p>
-      )}
       {itens.length > 0 && (
         <ul className="mt-6 grid gap-3 sm:grid-cols-2">
           {itens.map((item) => (

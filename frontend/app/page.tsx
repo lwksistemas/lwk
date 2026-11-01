@@ -61,7 +61,7 @@ export default async function HomePage() {
           segmentos={(data.menu?.segmentos ?? []).map((item) => ({ label: item.rotulo, href: item.url }))}
           whatsappUrl={whatsapp}
         />
-        <div className="flex flex-col bg-[#031433] lg:h-[calc(100dvh-5.4rem)] lg:overflow-hidden" style={{ backgroundImage: "radial-gradient(820px 460px at 72% 38%, rgba(70,160,255,0.45), transparent 60%), radial-gradient(380px 280px at 18% 78%, rgba(20,90,180,0.35), transparent 70%), linear-gradient(180deg, #04183f 0%, #0a3478 46%, #0c3f8c 68%, #071833 100%)" }}>
+        <div className="flex flex-col bg-[#031433] lg:h-[calc(100dvh-5.5rem)] lg:overflow-hidden" style={{ backgroundImage: "radial-gradient(820px 460px at 72% 38%, rgba(70,160,255,0.45), transparent 60%), radial-gradient(380px 280px at 18% 78%, rgba(20,90,180,0.35), transparent 70%), linear-gradient(180deg, #04183f 0%, #0a3478 46%, #0c3f8c 68%, #071833 100%)" }}>
           <Hero hero={hero} heroImagens={heroImagens} destaques={funcionalidades} />
         </div>
         <VitrineHome telefone={empresa?.telefone_whatsapp} email={empresa?.email_contato} />

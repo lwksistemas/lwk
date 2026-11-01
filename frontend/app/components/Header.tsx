@@ -138,18 +138,23 @@ export default function Header({ solucoes = [], segmentos = [], whatsappUrl }: H
   return (
     <header className="sticky top-0 z-50 w-full bg-[#04183f]">
       <div className="flex w-full items-center gap-4 px-4 py-2 sm:px-6 lg:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-1 text-white" aria-label="LWK Sistemas — página inicial">
-          <svg viewBox="0 0 56 80" className="h-[4.4rem] w-[2.6rem]" aria-hidden>
-            <mask id="lwk-crescent">
-              <rect width="56" height="80" fill="black" />
-              <circle cx="34" cy="40" r="36" fill="white" />
-              <circle cx="58" cy="40" r="28" fill="black" />
-            </mask>
-            <rect width="56" height="80" fill="#1c9bff" mask="url(#lwk-crescent)" />
-          </svg>
+        <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="LWK Sistemas — página inicial">
+          <img src="/homepage/logo-mark.png" alt="" className="h-[4.35rem] w-auto" />
           <span className="leading-none">
-            <span className="block text-[2.7rem] font-black tracking-[-0.03em]">LWK</span>
-            <span className="mt-0.5 block text-center text-[1.15rem] font-medium tracking-normal">Sistemas</span>
+            <span
+              className="block text-[2.55rem] font-black tracking-[-0.04em]"
+              style={{
+                backgroundImage: "linear-gradient(180deg, #e9fcff 0%, #3ec4ff 46%, #1476e2 100%)",
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                color: "transparent",
+              }}
+            >
+              LWK
+            </span>
+            <span className="-mt-1 block text-center text-[0.78rem] font-semibold tracking-[0.2em] text-[#d7e7f8]">
+              SISTEMAS
+            </span>
           </span>
         </Link>
 

@@ -46,6 +46,9 @@ export function useHomepageConfig() {
     botao_secundario_texto: 'Solicite uma demonstração',
     botao_secundario_url: '#contato',
     botao_secundario_ativo: true,
+    titulo_destaque: '',
+    fonte_familia: 'inter',
+    fonte_tamanho: 'normal',
   });
   const [editingFunc, setEditingFunc] = useState<FuncionalidadeData | null>(null);
   const [editingMod, setEditingMod] = useState<ModuloData | null>(null);
@@ -105,6 +108,9 @@ export function useHomepageConfig() {
           botao_secundario_url: firstHero.botao_secundario_url || '/demonstracao',
           botao_secundario_ativo: firstHero.botao_secundario_ativo !== false,
           intervalo_carrossel: firstHero.intervalo_carrossel || 5,
+          titulo_destaque: firstHero.titulo_destaque || '',
+          fonte_familia: firstHero.fonte_familia || 'inter',
+          fonte_tamanho: firstHero.fonte_tamanho || 'normal',
         });
       } else {
         setHero(null);
@@ -168,6 +174,9 @@ export function useHomepageConfig() {
         botao_secundario_url: heroForm.botao_secundario_url?.trim() || '/demonstracao',
         botao_secundario_ativo: heroForm.botao_secundario_ativo !== false,
         intervalo_carrossel: Math.min(30, Math.max(3, Number(heroForm.intervalo_carrossel) || 5)),
+        titulo_destaque: heroForm.titulo_destaque?.trim() || '',
+        fonte_familia: heroForm.fonte_familia || 'inter',
+        fonte_tamanho: heroForm.fonte_tamanho || 'normal',
       };
       if (hero?.id) {
         await apiClient.patch(`${API.hero}${hero.id}/`, payload);

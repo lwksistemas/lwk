@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Save } from 'lucide-react';
+import { FONTES_HOME, TAMANHOS_HOME } from '@/lib/fontes-opcoes';
 import type { HeroData } from './types';
 
 interface BannerTabProps {
@@ -24,7 +25,7 @@ export function BannerTab({ heroForm, setHeroForm, onSave, saving }: BannerTabPr
       <CardHeader>
         <CardTitle>Banner da página inicial</CardTitle>
         <CardDescription>
-          Etiqueta, título, texto e os dois botões do topo. As telas do notebook ficam em Imagens
+          Etiqueta, título, texto, tipo e tamanho da letra, e os dois botões do topo. Inter e Normal são a letra da foto atual. As telas do notebook ficam em Imagens
           (o título de cada imagem vira a etiqueta, como “CRM Vendas”). Os quatro cartões de baixo
           são as Funcionalidades.
         </CardDescription>
@@ -40,8 +41,40 @@ export function BannerTab({ heroForm, setHeroForm, onSave, saving }: BannerTabPr
             <Input
               value={heroForm.titulo}
               onChange={(e) => set('titulo', e.target.value)}
-              placeholder="Soluções de software para o seu negócio."
+              placeholder="Soluções de software"
             />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Segunda linha do título (azul)</Label>
+            <Input
+              value={heroForm.titulo_destaque || ''}
+              onChange={(e) => set('titulo_destaque', e.target.value)}
+              placeholder="para sua empresa."
+            />
+          </div>
+          <div>
+            <Label>Tipo da letra</Label>
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
+              value={heroForm.fonte_familia || 'inter'}
+              onChange={(e) => set('fonte_familia', e.target.value)}
+            >
+              {FONTES_HOME.map((fonte) => (
+                <option key={fonte.id} value={fonte.id}>{fonte.rotulo}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label>Tamanho da letra</Label>
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
+              value={heroForm.fonte_tamanho || 'normal'}
+              onChange={(e) => set('fonte_tamanho', e.target.value)}
+            >
+              {TAMANHOS_HOME.map((tamanho) => (
+                <option key={tamanho.id} value={tamanho.id}>{tamanho.rotulo}</option>
+              ))}
+            </select>
           </div>
           <div className="md:col-span-2">
             <Label>Texto</Label>

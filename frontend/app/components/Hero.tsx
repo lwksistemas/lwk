@@ -23,14 +23,22 @@ type Slide = {
 
 const TEXTO = {
   selo: "Software House",
-  titulo: "Soluções de software para o seu negócio.",
+  titulo: "Soluções de software",
+  destaque: "para sua empresa.",
   subtitulo:
     "Desenvolvemos sistemas e soluções personalizadas para clínicas de estética, CRM de vendas e diversos outros segmentos, com tecnologia, segurança e suporte especializado.",
-  botao: "Conheça nossas soluções",
-  botaoUrl: "#solucoes",
-  botao2: "Solicite uma demonstração",
-  botao2Url: "/demonstracao",
+  botao: "Solicite uma demonstração",
+  botaoUrl: "/demonstracao",
+  botao2: "Conheça nossas soluções",
+  botao2Url: "#solucoes",
 };
+
+function IconeDoBotao({ texto }: { texto: string }) {
+  if (texto.toLowerCase().includes("demonstr")) {
+    return <Calendar className="h-4 w-4" aria-hidden />;
+  }
+  return <Play className="h-4 w-4 fill-current" aria-hidden />;
+}
 
 const LINK_CARTAO: Record<string, string> = {
   "Clínicas de Estética": "/solucoes/clinicas-estetica",
@@ -224,6 +232,7 @@ function TelaClinica() {
 export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroProps) {
   const selo = hero?.selo?.trim() || TEXTO.selo;
   const titulo = hero?.titulo?.trim() || TEXTO.titulo;
+  const destaque = hero?.titulo_destaque?.trim() || "";
   const subtitulo = hero?.subtitulo?.trim() || TEXTO.subtitulo;
   const botao = hero?.botao_texto?.trim() || TEXTO.botao;
   const botaoUrl = hero?.botao_url?.trim() || TEXTO.botaoUrl;
@@ -325,13 +334,14 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
       {slides[0]?.imagem?.startsWith("/") && <link rel="preload" as="image" href={slides[0].imagem} fetchPriority="high" />}
       <div className="relative flex min-h-0 w-full flex-1 flex-col px-4 pb-3 pt-1 sm:px-6 lg:px-8">
         <div className="grid min-h-0 flex-1 items-center gap-6 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-4">
-          <div className="relative z-10 max-w-xl lg:pl-4">
+          <div className="relative z-10 max-w-2xl lg:pl-4">
             <span className="inline-flex items-center gap-2 rounded-full border border-sky-200/40 bg-sky-400/10 px-3 py-1 text-sm text-sky-100">
               <Code2 className="h-4 w-4" aria-hidden />
               {selo}
             </span>
-            <h1 className="mt-4 max-w-[12ch] text-[clamp(2.15rem,3.5vw,3.45rem)] font-extrabold leading-[1.05] tracking-tight">
-              {titulo}
+            <h1 className="mt-4 max-w-xl text-[clamp(2.15rem,3.5vw,3.45rem)] font-extrabold leading-[1.05] tracking-tight">
+              <span className="block">{titulo}</span>
+              {destaque ? <span className="mt-1 block text-[#3ecbff]">{destaque}</span> : null}
             </h1>
             <p className="mt-4 max-w-lg text-[clamp(0.95rem,1.2vw,1.125rem)] leading-relaxed text-slate-200">
               {subtitulo}
@@ -342,7 +352,7 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
                   href={botaoUrl}
                   className="inline-flex items-center gap-2 rounded-full bg-[#2f6bff] px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-[#3b78ff]"
                 >
-                  <Play className="h-4 w-4 fill-current" aria-hidden />
+                  <IconeDoBotao texto={botao} />
                   {botao}
                 </a>
               )}
@@ -351,7 +361,7 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
                   href={botao2Url}
                   className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-[#0c2758]/80 px-6 py-3.5 text-base font-semibold text-white transition hover:bg-[#14336e]"
                 >
-                  <Calendar className="h-4 w-4" aria-hidden />
+                  <IconeDoBotao texto={botao2} />
                   {botao2}
                 </a>
               )}

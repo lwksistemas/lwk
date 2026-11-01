@@ -39,6 +39,34 @@ class HeroSection(models.Model):
         default=5,
         help_text="Segundos entre as telas do notebook",
     )
+    titulo_destaque = models.CharField(
+        max_length=120,
+        blank=True,
+        default="",
+        help_text="Segunda linha do título, em azul. Ex.: para sua empresa.",
+    )
+    fonte_familia = models.CharField(
+        max_length=20,
+        default="inter",
+        choices=[
+            ("inter", "Inter"),
+            ("poppins", "Poppins"),
+            ("montserrat", "Montserrat"),
+            ("nunito", "Nunito"),
+            ("dm", "DM Sans"),
+            ("outfit", "Outfit"),
+        ],
+    )
+    fonte_tamanho = models.CharField(
+        max_length=20,
+        default="normal",
+        choices=[
+            ("pequeno", "Pequena"),
+            ("normal", "Normal"),
+            ("grande", "Grande"),
+            ("maior", "Muito grande"),
+        ],
+    )
     ativo = models.BooleanField(default=True)
     ordem = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

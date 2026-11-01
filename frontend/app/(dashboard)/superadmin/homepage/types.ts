@@ -10,6 +10,9 @@ export interface HeroData {
   botao_secundario_url?: string;
   botao_secundario_ativo?: boolean;
   intervalo_carrossel?: number;
+  titulo_destaque?: string;
+  fonte_familia?: string;
+  fonte_tamanho?: string;
   ativo?: boolean;
 }
 

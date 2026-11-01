@@ -4,6 +4,8 @@ import VitrineHome from "./components/VitrineHome";
 import Footer from "./components/Footer";
 import PwaRedirect from "./components/PwaRedirect";
 import { getHomepage } from "@/lib/api";
+import { classeFonteHome } from "@/lib/fontes-home";
+import { tamanhoHomePx } from "@/lib/fontes-opcoes";
 import { urlWhatsapp } from "@/lib/whatsapp-site";
 import type { HomepageData } from "@/types/homepage";
 import type { Metadata } from "next";
@@ -19,15 +21,18 @@ export const metadata: Metadata = {
 
 const DEFAULTS: HomepageData = {
   hero: {
-    titulo: "Soluções de software para o seu negócio.",
+    titulo: "Soluções de software",
+    titulo_destaque: "para sua empresa.",
+    fonte_familia: "inter",
+    fonte_tamanho: "normal",
     subtitulo:
       "Desenvolvemos sistemas e soluções personalizadas para clínicas de estética, CRM de vendas e diversos outros segmentos, com tecnologia, segurança e suporte especializado.",
     selo: "Software House",
-    botao_texto: "Conheça nossas soluções",
-    botao_url: "#solucoes",
+    botao_texto: "Solicite uma demonstração",
+    botao_url: "/demonstracao",
     botao_principal_ativo: true,
-    botao_secundario_texto: "Solicite uma demonstração",
-    botao_secundario_url: "/demonstracao",
+    botao_secundario_texto: "Conheça nossas soluções",
+    botao_secundario_url: "#solucoes",
     botao_secundario_ativo: true,
   },
   hero_imagens: [],
@@ -53,9 +58,13 @@ export default async function HomePage() {
   const empresa = data.empresa ?? null;
   const whatsapp = urlWhatsapp(empresa?.telefone_whatsapp, empresa?.mensagem_whatsapp);
 
+  const fonte = classeFonteHome(hero.fonte_familia);
+  const tamanho = tamanhoHomePx(hero.fonte_tamanho);
+
   return (
     <PwaRedirect>
-      <main id="inicio" className="w-full max-w-none scroll-smooth overflow-x-hidden bg-white dark:bg-gray-950">
+      <style>{`html{font-size:${tamanho}}`}</style>
+      <main id="inicio" className={`${fonte} w-full max-w-none scroll-smooth overflow-x-hidden bg-white dark:bg-gray-950`}>
         <Header
           solucoes={(data.menu?.solucoes ?? []).map((item) => ({ label: item.rotulo, href: item.url }))}
           whatsappUrl={whatsapp}

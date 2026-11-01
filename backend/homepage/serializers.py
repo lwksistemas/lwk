@@ -29,11 +29,17 @@ class HeroSerializer(serializers.ModelSerializer):
             "botao_secundario_url",
             "botao_secundario_ativo",
             "intervalo_carrossel",
+            "titulo_destaque",
+            "fonte_familia",
+            "fonte_tamanho",
             "ordem",
             "ativo",
         ]
         extra_kwargs = {
             "botao_principal_ativo": {"required": False, "default": True},
+            "titulo_destaque": {"required": False, "allow_blank": True},
+            "fonte_familia": {"required": False},
+            "fonte_tamanho": {"required": False},
         }
 
 

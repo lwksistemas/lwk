@@ -39,10 +39,10 @@ export function ConteudoPagina({
   const rotuloWhatsapp = pagina.slug === "planos" ? "Falar com consultor" : "WhatsApp deste produto";
 
   return (
-    <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-      <p className="text-sm font-medium text-blue-700">LWK Sistemas</p>
-      <h1 className="mt-2 text-3xl font-bold text-slate-900 sm:text-4xl">{pagina.titulo}</h1>
-      {pagina.resumo && <p className="mt-4 text-lg text-slate-600">{pagina.resumo}</p>}
+    <article className="w-full px-4 py-12 text-white sm:px-6 lg:px-8">
+      <p className="text-sm font-medium text-sky-300">LWK Sistemas</p>
+      <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{pagina.titulo}</h1>
+      {pagina.resumo && <p className="mt-4 max-w-3xl text-lg text-slate-200">{pagina.resumo}</p>}
       {imagem && (
         <picture>
           <source srcSet={imagem.src} type="image/webp" />
@@ -51,20 +51,20 @@ export function ConteudoPagina({
             alt={imagem.alt}
             width={1024}
             height={560}
-            className="mt-6 w-full rounded-xl border border-slate-200 bg-slate-50"
+            className="mt-6 h-auto w-full max-w-full rounded-xl border border-cyan-300/30"
           />
         </picture>
       )}
-      {pagina.corpo && <p className="mt-4 leading-relaxed text-slate-700">{pagina.corpo}</p>}
+      {pagina.corpo && <p className="mt-4 max-w-3xl leading-relaxed text-slate-200">{pagina.corpo}</p>}
       {pagina.slug === "planos" && (
-        <p className="mt-4 leading-relaxed text-slate-700">
+        <p className="mt-4 max-w-3xl leading-relaxed text-slate-200">
           Os valores publicados são os da gestão para clínicas. Para o CRM de Vendas e os sistemas personalizados, consulte nossas condições comerciais.
         </p>
       )}
       {itens.length > 0 && (
-        <ul className="mt-6 grid gap-2 sm:grid-cols-2">
+        <ul className="mt-6 grid gap-3 sm:grid-cols-2">
           {itens.map((item) => (
-            <li key={item} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800">
+            <li key={item} className="rounded-2xl border border-cyan-300/40 bg-[#071833]/80 px-4 py-3 text-sm font-medium text-white">
               {item}
             </li>
           ))}
@@ -73,22 +73,26 @@ export function ConteudoPagina({
       <div className="mt-8 flex flex-wrap gap-3">
         {acao && (
           acao.externo ? (
-            <a href={acao.href} target="_blank" rel="noopener noreferrer" className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white">
+            <a href={acao.href} target="_blank" rel="noopener noreferrer" className="rounded-full bg-[#2f6bff] px-5 py-2.5 text-sm font-semibold text-white">
               {acao.rotulo}
             </a>
           ) : (
-            <Link href={acao.href} className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white">
+            <Link href={acao.href} className="rounded-full bg-[#2f6bff] px-5 py-2.5 text-sm font-semibold text-white">
               {acao.rotulo}
             </Link>
           )
         )}
         {whatsapp && pagina.slug !== "segmentos" && (
-          <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="rounded-full border border-green-600 px-5 py-2.5 text-sm font-semibold text-green-700">
+          <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/40 px-5 py-2.5 text-sm font-semibold text-white">
             {rotuloWhatsapp}
           </a>
         )}
       </div>
-      {children && <div className="mt-10">{children}</div>}
+      {children && (
+        <div className="mt-10 rounded-2xl border border-cyan-300/30 bg-white p-5 text-slate-900 sm:p-6">
+          {children}
+        </div>
+      )}
     </article>
   );
 }

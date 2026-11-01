@@ -15,7 +15,7 @@ export function SiteShell({
   const whatsapp = urlWhatsapp(empresa?.telefone_whatsapp, empresa?.mensagem_whatsapp);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="min-h-screen bg-[#031433] text-white">
       <Header
         solucoes={(data.menu?.solucoes ?? []).map((item) => ({ label: item.rotulo, href: item.url }))}
         segmentos={(data.menu?.segmentos ?? []).map((item) => ({ label: item.rotulo, href: item.url }))}

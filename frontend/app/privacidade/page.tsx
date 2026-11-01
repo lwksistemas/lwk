@@ -13,10 +13,10 @@ export default async function PrivacidadePage() {
 
   return (
     <SiteShell data={home}>
-      <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-        <p className="text-sm font-medium text-blue-700">LWK Sistemas</p>
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">Política de Privacidade</h1>
-        <div className="mt-6 space-y-4 leading-relaxed text-slate-700">
+      <article className="w-full px-4 py-12 text-white sm:px-6 lg:px-8">
+        <p className="text-sm font-medium text-sky-300">LWK Sistemas</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight">Política de Privacidade</h1>
+        <div className="mt-6 max-w-3xl space-y-4 leading-relaxed text-slate-200">
           <p>
             Os formulários do site pedem nome, empresa ou clínica, WhatsApp, produto de interesse e a mensagem do contato. No orçamento de sistema personalizado, também pedimos o segmento e a descrição do que precisa ser desenvolvido.
           </p>

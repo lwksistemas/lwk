@@ -17,7 +17,6 @@ export function SiteShell({
     <div className="min-h-screen bg-[#031433] text-white">
       <Header
         solucoes={(data.menu?.solucoes ?? []).map((item) => ({ label: item.rotulo, href: item.url }))}
-        segmentos={(data.menu?.segmentos ?? []).map((item) => ({ label: item.rotulo, href: item.url }))}
         whatsappUrl={whatsapp}
       />
       {children}

@@ -13,7 +13,6 @@ export interface HeaderLink {
 
 interface HeaderProps {
   solucoes?: HeaderLink[];
-  segmentos?: HeaderLink[];
   whatsappUrl?: string | null;
 }
 
@@ -23,15 +22,8 @@ const SOLUCOES_PADRAO: HeaderLink[] = [
   { label: "Sistemas Personalizados", href: "/solucoes/personalizados" },
 ];
 
-const SEGMENTOS_PADRAO: HeaderLink[] = [
-  { label: "Clínicas de Estética", href: "/solucoes/clinicas-estetica" },
-  { label: "Gestão Comercial e Equipes de Vendas", href: "/solucoes/crm-vendas" },
-  { label: "Outros Segmentos", href: "/segmentos" },
-];
-
-function rotuloPublico(grupo: "solucoes" | "segmentos", label: string) {
-  if (grupo === "solucoes" && label === "CRM de Vendas") return "CRM de Vendas — LWK Sales Cloud";
-  if (grupo === "segmentos" && label === "Equipes Comerciais") return "Gestão Comercial e Equipes de Vendas";
+function rotuloPublico(label: string) {
+  if (label === "CRM de Vendas") return "CRM de Vendas — LWK Sales Cloud";
   return label;
 }
 
@@ -114,18 +106,14 @@ function MenuSuspenso({
   );
 }
 
-export default function Header({ solucoes = [], segmentos = [], whatsappUrl }: HeaderProps) {
+export default function Header({ solucoes = [], whatsappUrl }: HeaderProps) {
   const pathname = usePathname();
   const [aberto, setAberto] = useState(false);
   const [acessoAberto, setAcessoAberto] = useState(false);
   const contato = whatsappUrl || "/contato";
   const itensSolucoes = (solucoes.length > 0 ? solucoes : SOLUCOES_PADRAO).map((item) => ({
     ...item,
-    label: rotuloPublico("solucoes", item.label),
-  }));
-  const itensSegmentos = (segmentos.length > 0 ? segmentos : SEGMENTOS_PADRAO).map((item) => ({
-    ...item,
-    label: rotuloPublico("segmentos", item.label),
+    label: rotuloPublico(item.label),
   }));
   const naHome = pathname === "/";
   const emSolucoes = pathname.startsWith("/solucoes");
@@ -165,7 +153,9 @@ export default function Header({ solucoes = [], segmentos = [], whatsappUrl }: H
             Início
           </Link>
           <MenuSuspenso label="Soluções" itens={itensSolucoes} ativo={emSolucoes} />
-          <MenuSuspenso label="Segmentos" itens={itensSegmentos} ativo={emSegmentos} />
+          <Link href="/segmentos" className={classeAtual(emSegmentos)} aria-current={emSegmentos ? "page" : undefined}>
+            Segmentos
+          </Link>
           <Link href="/planos" className={classeAtual(emPlanos)} aria-current={emPlanos ? "page" : undefined}>
             Planos
           </Link>
@@ -212,12 +202,7 @@ export default function Header({ solucoes = [], segmentos = [], whatsappUrl }: H
               {item.label}
             </Link>
           ))}
-          <p className="py-2 text-slate-200">Segmentos</p>
-          {itensSegmentos.map((item) => (
-            <Link key={item.href + item.label} href={item.href} className="block py-1 pl-3 text-sm text-slate-300">
-              {item.label}
-            </Link>
-          ))}
+          <Link href="/segmentos" className="block py-2 text-slate-200">Segmentos</Link>
           <Link href="/planos" className="block py-2 text-slate-200">Planos</Link>
           <Link href="/contato" className="block py-2 text-slate-200">Contato</Link>
           <button

@@ -20,7 +20,7 @@ export function urlWhatsapp(telefone?: string | null, mensagem?: string | null) 
 }
 
 const ALVO_DEMONSTRACAO: Record<string, string> = {
-  "crm-vendas": "do LWK Sales Cloud — CRM de Vendas",
+  "crm-vendas": "do CRM Vendas",
   "clinicas-estetica": "da Gestão para Clínicas de Estética",
   personalizados: "de um sistema personalizado",
   outros: "das soluções da LWK Sistemas",

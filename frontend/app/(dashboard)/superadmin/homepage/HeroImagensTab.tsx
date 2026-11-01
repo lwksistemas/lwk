@@ -35,7 +35,7 @@ export function HeroImagensTab({
         <div>
           <CardTitle>Imagens do Hero (Carrossel)</CardTitle>
           <CardDescription>
-            Telas do notebook. A etiqueta fica sobre a imagem, por exemplo “LWK Sales Cloud — CRM de Vendas”. Envie só capturas sem dados reais de clientes.
+            Telas do notebook. A etiqueta fica sobre a imagem, por exemplo “CRM Vendas”. Envie só capturas sem dados reais de clientes.
           </CardDescription>
         </div>
         <Button size="sm" onClick={onAdd}>

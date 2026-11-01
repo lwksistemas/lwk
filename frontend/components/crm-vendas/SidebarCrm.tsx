@@ -56,7 +56,7 @@ function SidebarCrm({ lojaNome, onLogout }: SidebarCrmProps) {
                 <span className="font-semibold text-sm text-gray-900 dark:text-white truncate" title={lojaNome}>
                   {lojaNome || 'LWK'}
                 </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">Sales Cloud</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">CRM Vendas</span>
               </div>
             </div>
           )}

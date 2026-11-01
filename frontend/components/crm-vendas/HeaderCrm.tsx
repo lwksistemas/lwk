@@ -18,7 +18,7 @@ interface HeaderCrmProps {
 }
 
 function HeaderCrm({
-  title = 'Sales Cloud',
+  title = 'CRM Vendas',
   userName = 'Admin',
   userRole = 'administrador',
   slug = '',

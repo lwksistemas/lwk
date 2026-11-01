@@ -23,11 +23,11 @@ const VAZIO: HomepageData = {
 const RESERVA: Record<string, PaginaConteudo> = {
   "crm-vendas": {
     slug: "crm-vendas",
-    titulo: "LWK Sales Cloud — CRM de Vendas",
+    titulo: "CRM Vendas",
     resumo: "Organize leads, funil, propostas, contratos, comissões e relatórios comerciais em um só lugar.",
-    corpo: "O CRM de Vendas acompanha o comercial do primeiro contato até o fechamento.",
+    corpo: "O CRM Vendas acompanha o comercial do primeiro contato até o fechamento.",
     itens: "Leads\nFunil de vendas\nOportunidades\nPropostas\nContratos\nComissões\nRelatórios comerciais",
-    mensagem_whatsapp: "Olá! Gostaria de agendar uma demonstração do LWK Sales Cloud — CRM de Vendas.",
+    mensagem_whatsapp: "Olá! Gostaria de agendar uma demonstração do CRM Vendas.",
   },
   "clinicas-estetica": {
     slug: "clinicas-estetica",

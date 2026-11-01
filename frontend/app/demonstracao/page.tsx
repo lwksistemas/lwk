@@ -6,7 +6,7 @@ import { carregarHome, carregarPagina } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Solicitar demonstração | LWK Sistemas",
-  description: "Escolha o CRM de Vendas, a gestão para clínicas ou um sistema personalizado e peça uma apresentação.",
+  description: "Escolha o CRM Vendas, a gestão para clínicas ou um sistema personalizado e peça uma apresentação.",
 };
 
 export default async function DemonstracaoPage({

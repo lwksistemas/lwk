@@ -33,7 +33,7 @@ export function SidebarCrmHelpModal({ open, onClose }: Props) {
 
           <div className="p-6 space-y-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Bem-vindo ao CRM de Vendas</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Bem-vindo ao CRM Vendas</h3>
               <p className="text-gray-600 dark:text-gray-400 text-sm">
                 Sistema completo de gestão de vendas estilo Salesforce Lightning.
               </p>

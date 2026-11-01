@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { mensagemContato, mensagemDemonstracao, mensagemOrcamento, urlWhatsapp } from "@/lib/whatsapp-site";
 
 const PRODUTOS = [
-  { id: "crm-vendas", label: "CRM de Vendas" },
+  { id: "crm-vendas", label: "CRM Vendas" },
   { id: "clinicas-estetica", label: "Gestão para Clínicas de Estética" },
   { id: "personalizados", label: "Sistemas personalizados" },
   { id: "outros", label: "Outro segmento" },

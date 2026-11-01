@@ -155,7 +155,7 @@ class HeroImagem(models.Model):
         max_length=500,
         help_text="Captura anonimizada da tela, sem nomes de clientes ou pacientes",
     )
-    titulo = models.CharField(max_length=200, blank=True, help_text="Etiqueta sobre a tela, ex.: LWK Sales Cloud — CRM de Vendas")
+    titulo = models.CharField(max_length=200, blank=True, help_text="Etiqueta sobre a tela, ex.: CRM Vendas")
     link = models.CharField(max_length=300, blank=True, default="", help_text="Página aberta ao clicar na tela")
     ordem = models.PositiveIntegerField(default=0)
     ativo = models.BooleanField(default=True)

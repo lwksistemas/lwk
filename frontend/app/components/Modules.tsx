@@ -150,12 +150,12 @@ export default function Modules() {
         ))}
       </div>
 
-      <h2 className="mt-14 text-3xl font-bold tracking-tight">CRM de Vendas</h2>
+      <h2 className="mt-14 text-3xl font-bold tracking-tight">CRM Vendas</h2>
       <p className="mt-3 max-w-3xl text-lg text-slate-200">
-        O LWK Sales Cloud não usa a tabela da clínica. O valor segue sob consulta.
+        O CRM Vendas não usa a tabela da clínica. O valor segue sob consulta.
       </p>
       <article className={`${CARTAO} mt-6 max-w-xl`}>
-        <h3 className="text-xl font-bold">LWK Sales Cloud</h3>
+        <h3 className="text-xl font-bold">CRM Vendas</h3>
         <p className="mt-2 text-slate-300">Leads, funil, propostas, contratos e relatórios do comercial.</p>
         <p className="mt-4 text-2xl font-bold">Sob consulta</p>
         <Link href="/contato" className="mt-5 inline-flex rounded-full bg-[#2f6bff] px-5 py-2.5 text-sm font-semibold text-white">

@@ -348,7 +348,7 @@ export default function HomepageConfigPage() {
                 <Input
                   value={config.editingHeroImg?.titulo ?? ''}
                   onChange={(e) => config.setEditingHeroImg(prev => prev ? { ...prev, titulo: e.target.value } : { imagem: '', titulo: e.target.value, link: '' })}
-                  placeholder="LWK Sales Cloud — CRM de Vendas"
+                  placeholder="CRM Vendas"
                 />
               </div>
               <div>

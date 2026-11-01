@@ -17,13 +17,20 @@ interface HeaderProps {
 }
 
 const SOLUCOES_PADRAO: HeaderLink[] = [
-  { label: "CRM de Vendas — LWK Sales Cloud", href: "/solucoes/crm-vendas" },
+  { label: "CRM Vendas", href: "/solucoes/crm-vendas" },
   { label: "Gestão para Clínicas de Estética", href: "/solucoes/clinicas-estetica" },
   { label: "Sistemas Personalizados", href: "/solucoes/personalizados" },
 ];
 
 function rotuloPublico(label: string) {
-  if (label === "CRM de Vendas") return "CRM de Vendas — LWK Sales Cloud";
+  if (
+    label === "CRM de Vendas" ||
+    label === "CRM de Vendas — LWK Sales Cloud" ||
+    label === "LWK Sales Cloud — CRM de Vendas" ||
+    label === "LWK Sales Cloud"
+  ) {
+    return "CRM Vendas";
+  }
   return label;
 }
 

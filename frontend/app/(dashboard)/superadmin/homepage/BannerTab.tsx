@@ -25,7 +25,7 @@ export function BannerTab({ heroForm, setHeroForm, onSave, saving }: BannerTabPr
         <CardTitle>Banner da página inicial</CardTitle>
         <CardDescription>
           Etiqueta, título, texto e os dois botões do topo. As telas do notebook ficam em Imagens
-          (o título de cada imagem vira a etiqueta, como “CRM de Vendas”). Os quatro cartões de baixo
+          (o título de cada imagem vira a etiqueta, como “CRM Vendas”). Os quatro cartões de baixo
           são as Funcionalidades.
         </CardDescription>
       </CardHeader>

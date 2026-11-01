@@ -5,7 +5,7 @@ import { linkWhatsapp } from "@/lib/site";
 const IMAGENS: Record<string, { src: string; alt: string }> = {
   "crm-vendas": {
     src: "/homepage/crm-tela.webp",
-    alt: "Painel do LWK Sales Cloud com receita, leads, pipeline e funil.",
+    alt: "Painel do CRM Vendas com receita, leads, pipeline e funil.",
   },
   "clinicas-estetica": {
     src: "/homepage/clinica-tela.webp",

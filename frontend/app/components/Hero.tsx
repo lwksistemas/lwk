@@ -35,6 +35,7 @@ const TEXTO = {
 const LINK_CARTAO: Record<string, string> = {
   "Clínicas de Estética": "/solucoes/clinicas-estetica",
   "CRM de Vendas": "/solucoes/crm-vendas",
+  "CRM Vendas": "/solucoes/crm-vendas",
   "Sistemas Personalizados": "/solucoes/personalizados",
   "Todos os Segmentos": "/segmentos",
 };
@@ -84,20 +85,22 @@ function IconeLoja() {
 const ICONE_CARTAO = {
   "Clínicas de Estética": IconeRosto,
   "CRM de Vendas": IconePessoas,
+  "CRM Vendas": IconePessoas,
   "Sistemas Personalizados": IconeCodigo,
   "Todos os Segmentos": IconeLoja,
 } as const;
 
 const QUEBRA_TITULO: Record<string, [string, string]> = {
   "Clínicas de Estética": ["Clínicas de", "Estética"],
-  "CRM de Vendas": ["CRM de", "Vendas"],
+  "CRM de Vendas": ["CRM", "Vendas"],
+  "CRM Vendas": ["CRM", "Vendas"],
   "Sistemas Personalizados": ["Sistemas", "Personalizados"],
   "Todos os Segmentos": ["Todos os", "Segmentos"],
 };
 
 const DESTAQUES_FOTO: Funcionalidade[] = [
   { id: -1, titulo: "Clínicas de Estética", descricao: "Gestão completa da sua clínica", icone: "face", link: "/solucoes/clinicas-estetica" },
-  { id: -2, titulo: "CRM de Vendas", descricao: "Organize seus leads, vendas e relacionamento", icone: "users", link: "/solucoes/crm-vendas" },
+  { id: -2, titulo: "CRM Vendas", descricao: "Organize seus leads, vendas e relacionamento", icone: "users", link: "/solucoes/crm-vendas" },
   { id: -3, titulo: "Sistemas Personalizados", descricao: "Soluções sob medida para a sua operação", icone: "code", link: "/solucoes/personalizados" },
   { id: -4, titulo: "Todos os Segmentos", descricao: "Atendemos empresas de diferentes áreas e portes", icone: "store", link: "/segmentos" },
 ];
@@ -105,8 +108,8 @@ const DESTAQUES_FOTO: Funcionalidade[] = [
 const SLIDES_PADRAO: Slide[] = [
   {
     id: -1,
-    titulo: "LWK Sales Cloud — CRM de Vendas",
-    descricao: "Notebook com o painel do CRM de Vendas: receita, leads, pipeline e funil.",
+    titulo: "CRM Vendas",
+    descricao: "Notebook com o painel do CRM Vendas: receita, leads, pipeline e funil.",
     link: "/solucoes/crm-vendas",
     imagem: "/homepage/crm-tela.webp",
     tipo: "crm",
@@ -144,7 +147,7 @@ function TelaCrm() {
   return (
     <div className="flex h-full bg-[#f3f6fb] text-[9px] text-slate-600">
       <aside className="flex w-[23%] flex-col bg-[#0b63ce] px-2 py-2 text-white">
-        <p className="mb-2 text-[8px] font-semibold leading-tight">LWK Sales Cloud</p>
+        <p className="mb-2 text-[8px] font-semibold leading-tight">CRM Vendas</p>
         {["Home", "Leads", "Oportunidades", "Empresas", "Contatos"].map((item, i) => (
           <span key={item} className={`mb-1 rounded px-1.5 py-1 ${i === 0 ? "bg-white/20" : ""}`}>{item}</span>
         ))}
@@ -396,7 +399,7 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
               <a href={atual.link || "#solucoes"} className="relative block h-full min-h-[240px]" aria-label={atual.titulo || "Abrir o sistema"}>
                 <Image
                   src={atual.imagem}
-                  alt={atual.titulo || "Notebook com o CRM de Vendas"}
+                  alt={atual.titulo || "Notebook com o CRM Vendas"}
                   fill
                   priority
                   sizes="(min-width: 1024px) 54vw, 100vw"

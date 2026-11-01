@@ -74,14 +74,14 @@ export default function VitrineHome({
         </p>
         <div className="mt-8 grid gap-4 lg:grid-cols-2">
           <article className={`${CARTAO} min-w-0`}>
-            <h3 className="text-2xl font-bold">{campo(crm, "titulo", "LWK Sales Cloud — CRM de Vendas")}</h3>
+            <h3 className="text-2xl font-bold">{campo(crm, "titulo", "CRM Vendas")}</h3>
             <p className="mt-2 text-slate-300">{campo(crm, "resumo", "Para equipes comerciais acompanharem o cliente do primeiro contato ao fechamento.")}</p>
             <ul className="mt-4 space-y-2 text-slate-100">
               {(bulletsCrm.length ? bulletsCrm : ["Leads e funil no mesmo lugar", "Propostas e contratos em andamento", "Relatórios do comercial"]).map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
-            <Painel src="/homepage/crm-tela.webp" alt="Painel do CRM de Vendas" />
+            <Painel src="/homepage/crm-tela.webp" alt="Painel do CRM Vendas" />
             <Link href="/solucoes/crm-vendas" className={BOTAO}>Conhecer o CRM</Link>
           </article>
           <article className={`${CARTAO} min-w-0`}>
@@ -145,7 +145,7 @@ export default function VitrineHome({
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
           {(cardsPlanos.length ? cardsPlanos : [
             { titulo: "Gestão para clínicas", texto: "Planos com valores publicados, a partir de R$ 99,90 por mês.", href: "/planos", botao: "Ver planos" },
-            { titulo: "CRM de Vendas", texto: "Consulte nossas condições comerciais.", href: "/contato", botao: "Solicitar proposta" },
+            { titulo: "CRM Vendas", texto: "Consulte nossas condições comerciais.", href: "/contato", botao: "Solicitar proposta" },
             { titulo: "Sistema personalizado", texto: "O valor depende do que a operação precisa.", href: "/solucoes/personalizados", botao: "Pedir orçamento" },
           ]).map((item) => (
             <article key={item.titulo} className={CARTAO}>

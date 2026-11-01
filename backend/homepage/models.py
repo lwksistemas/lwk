@@ -67,6 +67,11 @@ class HeroSection(models.Model):
             ("maior", "Muito grande"),
         ],
     )
+    rotulos_botoes = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Nomes dos botões da home. Vazio usa o texto padrão.",
+    )
     ativo = models.BooleanField(default=True)
     ordem = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

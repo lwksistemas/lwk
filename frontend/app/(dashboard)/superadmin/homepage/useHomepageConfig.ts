@@ -111,6 +111,7 @@ export function useHomepageConfig() {
           titulo_destaque: firstHero.titulo_destaque || '',
           fonte_familia: firstHero.fonte_familia || 'inter',
           fonte_tamanho: firstHero.fonte_tamanho || 'normal',
+          rotulos_botoes: firstHero.rotulos_botoes || {},
         });
       } else {
         setHero(null);
@@ -177,6 +178,7 @@ export function useHomepageConfig() {
         titulo_destaque: heroForm.titulo_destaque?.trim() || '',
         fonte_familia: heroForm.fonte_familia || 'inter',
         fonte_tamanho: heroForm.fonte_tamanho || 'normal',
+        rotulos_botoes: heroForm.rotulos_botoes || {},
       };
       if (hero?.id) {
         await apiClient.patch(`${API.hero}${hero.id}/`, payload);

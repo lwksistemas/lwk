@@ -16,9 +16,11 @@ interface SolicitacaoFormProps {
   produtoInicial?: string;
   telefone?: string;
   mensagens?: Record<string, string>;
+  rotuloEnviar?: string;
+  rotuloWhatsapp?: string;
 }
 
-export function SolicitacaoForm({ origem, produtoInicial, telefone }: SolicitacaoFormProps) {
+export function SolicitacaoForm({ origem, produtoInicial, telefone, rotuloEnviar, rotuloWhatsapp }: SolicitacaoFormProps) {
   const orcamento = origem === "orcamento";
   const demonstracao = origem === "demonstracao";
   const inicial = PRODUTOS.some((p) => p.id === produtoInicial) ? produtoInicial! : orcamento ? "personalizados" : "crm-vendas";
@@ -164,11 +166,11 @@ export function SolicitacaoForm({ origem, produtoInicial, telefone }: Solicitaca
       {erro && <p className="text-sm text-red-600" role="alert">{erro}</p>}
       <div className="flex flex-wrap gap-3">
         <button type="submit" disabled={enviando} className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-          {enviando ? "Enviando..." : orcamento ? "Solicitar orçamento" : demonstracao ? "Solicitar demonstração" : "Enviar"}
+          {enviando ? "Enviando..." : rotuloEnviar || (orcamento ? "Solicitar orçamento" : demonstracao ? "Solicitar demonstração" : "Enviar")}
         </button>
         {url && (
           <a href={url} target="_blank" rel="noopener noreferrer" className="rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-semibold text-white">
-            Enviar pelo WhatsApp
+            {rotuloWhatsapp || "Enviar pelo WhatsApp"}
           </a>
         )}
       </div>

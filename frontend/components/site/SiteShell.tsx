@@ -18,6 +18,7 @@ export function SiteShell({
       <Header
         solucoes={(data.menu?.solucoes ?? []).map((item) => ({ label: item.rotulo, href: item.url }))}
         whatsappUrl={whatsapp}
+        rotulos={data.hero?.rotulos_botoes}
       />
       {children}
       <Footer empresa={empresa} />

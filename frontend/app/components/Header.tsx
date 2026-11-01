@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import AcessoRapidoModal from "./AcessoRapidoModal";
+import { rotuloBotao } from "@/lib/botoes-home";
 
 export interface HeaderLink {
   label: string;
@@ -14,6 +15,7 @@ export interface HeaderLink {
 interface HeaderProps {
   solucoes?: HeaderLink[];
   whatsappUrl?: string | null;
+  rotulos?: Record<string, string>;
 }
 
 const SOLUCOES_PADRAO: HeaderLink[] = [
@@ -113,7 +115,7 @@ function MenuSuspenso({
   );
 }
 
-export default function Header({ solucoes = [], whatsappUrl }: HeaderProps) {
+export default function Header({ solucoes = [], whatsappUrl, rotulos }: HeaderProps) {
   const pathname = usePathname();
   const [aberto, setAberto] = useState(false);
   const [acessoAberto, setAcessoAberto] = useState(false);
@@ -122,6 +124,7 @@ export default function Header({ solucoes = [], whatsappUrl }: HeaderProps) {
     ...item,
     label: rotuloPublico(item.label),
   }));
+  const nome = (chave: "inicio" | "solucoes" | "segmentos" | "planos" | "contato" | "acessar" | "fale") => rotuloBotao(rotulos, chave);
   const naHome = pathname === "/";
   const emSolucoes = pathname.startsWith("/solucoes");
   const emSegmentos = pathname.startsWith("/segmentos");
@@ -157,24 +160,24 @@ export default function Header({ solucoes = [], whatsappUrl }: HeaderProps) {
 
         <nav className="hidden min-w-0 flex-1 items-center justify-center gap-x-8 md:flex lg:gap-x-11" aria-label="Principal">
           <Link href="/#inicio" className={classeAtual(naHome)} aria-current={naHome ? "page" : undefined}>
-            Início
+            {nome("inicio")}
           </Link>
-          <MenuSuspenso label="Soluções" itens={itensSolucoes} ativo={emSolucoes} />
+          <MenuSuspenso label={nome("solucoes")} itens={itensSolucoes} ativo={emSolucoes} />
           <Link href="/segmentos" className={classeAtual(emSegmentos)} aria-current={emSegmentos ? "page" : undefined}>
-            Segmentos
+            {nome("segmentos")}
           </Link>
           <Link href="/planos" className={classeAtual(emPlanos)} aria-current={emPlanos ? "page" : undefined}>
-            Planos
+            {nome("planos")}
           </Link>
           <Link href="/contato" className={classeAtual(emContato)} aria-current={emContato ? "page" : undefined}>
-            Contato
+            {nome("contato")}
           </Link>
           <button
             type="button"
             onClick={() => setAcessoAberto(true)}
             className="shrink-0 rounded-full border border-white/50 px-4 py-1.5 text-[1.02rem] font-semibold text-white hover:bg-white/10"
           >
-            Acessar sistemas
+            {nome("acessar")}
           </button>
         </nav>
         <a
@@ -186,7 +189,7 @@ export default function Header({ solucoes = [], whatsappUrl }: HeaderProps) {
             <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
               <path d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10.1 10.1 0 0 0 4.65 1.14h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2Zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.07-1.12.1-1.81-.11-.42-.13-.95-.3-1.64-.59-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.15-1.53-1.15-2.92 0-1.39.73-2.07.99-2.35.26-.28.57-.35.76-.35.19 0 .38 0 .55.01.18.01.41-.07.64.49.24.58.81 2 .88 2.15.07.14.12.32.02.51-.09.19-.14.31-.28.48-.14.16-.29.37-.42.49-.14.14-.28.29-.12.56.16.28.71 1.17 1.52 1.9 1.05.94 1.93 1.23 2.2 1.37.28.14.44.12.6-.07.16-.19.68-.79.86-1.06.18-.28.36-.23.6-.14.24.09 1.54.73 1.8.86.26.14.44.2.5.31.07.12.07.67-.17 1.35Z" />
             </svg>
-            Fale Conosco
+            {nome("fale")}
           </a>
 
         <button
@@ -202,16 +205,16 @@ export default function Header({ solucoes = [], whatsappUrl }: HeaderProps) {
 
       {aberto && (
         <nav className="border-t border-white/10 px-4 py-3 md:hidden" aria-label="Menu móvel">
-          <Link href="/#inicio" className="block py-2 text-white">Início</Link>
-          <p className="py-2 text-slate-200">Soluções</p>
+          <Link href="/#inicio" className="block py-2 text-white">{nome("inicio")}</Link>
+          <p className="py-2 text-slate-200">{nome("solucoes")}</p>
           {itensSolucoes.map((item) => (
             <Link key={item.href + item.label} href={item.href} className="block py-1 pl-3 text-sm text-slate-300">
               {item.label}
             </Link>
           ))}
-          <Link href="/segmentos" className="block py-2 text-slate-200">Segmentos</Link>
-          <Link href="/planos" className="block py-2 text-slate-200">Planos</Link>
-          <Link href="/contato" className="block py-2 text-slate-200">Contato</Link>
+          <Link href="/segmentos" className="block py-2 text-slate-200">{nome("segmentos")}</Link>
+          <Link href="/planos" className="block py-2 text-slate-200">{nome("planos")}</Link>
+          <Link href="/contato" className="block py-2 text-slate-200">{nome("contato")}</Link>
           <button
             type="button"
             onClick={() => {
@@ -220,7 +223,7 @@ export default function Header({ solucoes = [], whatsappUrl }: HeaderProps) {
             }}
             className="mt-2 inline-flex rounded-full border border-white/50 px-4 py-2 text-sm font-semibold text-white"
           >
-            Acessar sistemas
+            {nome("acessar")}
           </button>
           <a
             href={contato}
@@ -228,7 +231,7 @@ export default function Header({ solucoes = [], whatsappUrl }: HeaderProps) {
             rel={whatsappUrl ? "noopener noreferrer" : undefined}
             className="mt-2 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2 text-sm font-semibold text-white"
           >
-            Fale Conosco
+            {nome("fale")}
           </a>
         </nav>
       )}

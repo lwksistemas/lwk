@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Save } from 'lucide-react';
 import { FONTES_HOME, TAMANHOS_HOME } from '@/lib/fontes-opcoes';
+import { BOTOES_HOME, LEGENDA_BOTOES } from '@/lib/botoes-home';
 import type { HeroData } from './types';
 
 interface BannerTabProps {
@@ -16,11 +17,12 @@ interface BannerTabProps {
 }
 
 export function BannerTab({ heroForm, setHeroForm, onSave, saving }: BannerTabProps) {
-  const set = (campo: keyof HeroData, valor: string | boolean | number) => {
+  const set = (campo: keyof HeroData, valor: HeroData[keyof HeroData]) => {
     setHeroForm((atual) => ({ ...atual, [campo]: valor }));
   };
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle>Banner da página inicial</CardTitle>
@@ -152,5 +154,36 @@ export function BannerTab({ heroForm, setHeroForm, onSave, saving }: BannerTabPr
         </Button>
       </CardContent>
     </Card>
+    <Card>
+      <CardHeader>
+        <CardTitle>Nomes dos botões</CardTitle>
+        <CardDescription>
+          Menu, cartões, planos e o formulário. Os dois botões do banner ficam nos campos acima.
+          O texto vazio volta ao nome padrão.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {LEGENDA_BOTOES.map((item) => (
+            <div key={item.id}>
+              <Label>{item.onde}</Label>
+              <Input
+                value={heroForm.rotulos_botoes?.[item.id] ?? BOTOES_HOME[item.id]}
+                onChange={(e) => set('rotulos_botoes', {
+                  ...BOTOES_HOME,
+                  ...(heroForm.rotulos_botoes || {}),
+                  [item.id]: e.target.value,
+                })}
+              />
+            </div>
+          ))}
+        </div>
+        <Button onClick={onSave} disabled={saving || !heroForm.titulo.trim()}>
+          <Save className="mr-2 h-4 w-4" />
+          Salvar botões
+        </Button>
+      </CardContent>
+    </Card>
+    </>
   );
 }

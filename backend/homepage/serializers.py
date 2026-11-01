@@ -32,6 +32,7 @@ class HeroSerializer(serializers.ModelSerializer):
             "titulo_destaque",
             "fonte_familia",
             "fonte_tamanho",
+            "rotulos_botoes",
             "ordem",
             "ativo",
         ]
@@ -40,7 +41,19 @@ class HeroSerializer(serializers.ModelSerializer):
             "titulo_destaque": {"required": False, "allow_blank": True},
             "fonte_familia": {"required": False},
             "fonte_tamanho": {"required": False},
+            "rotulos_botoes": {"required": False},
         }
+
+    def validate_rotulos_botoes(self, value):
+        if not value:
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Informe os nomes dos botões.")
+        limpo = {}
+        for chave, texto in value.items():
+            if isinstance(chave, str) and isinstance(texto, str) and texto.strip():
+                limpo[chave[:40]] = texto.strip()[:80]
+        return limpo
 
 
 class FuncionalidadeSerializer(serializers.ModelSerializer):

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SolicitacaoForm } from "@/components/site/SolicitacaoForm";
 import type { PaginaHome, WhyUsBenefit } from "@/types/homepage";
+import { rotuloBotao } from "@/lib/botoes-home";
 
 const FAIXA = "w-full px-4 py-12 sm:px-6 lg:px-8";
 const CARTAO = "rounded-2xl border border-cyan-300/50 bg-[#071833]/80 p-5 text-white shadow-[0_0_0_1px_rgba(34,211,238,0.08)]";
@@ -38,11 +39,13 @@ export default function VitrineHome({
   email,
   paginas,
   beneficios,
+  rotulos,
 }: {
   telefone?: string;
   email?: string;
   paginas?: PaginaHome[];
   beneficios?: WhyUsBenefit[];
+  rotulos?: Record<string, string>;
 }) {
   const solucoes = pagina(paginas, "home-solucoes");
   const crm = pagina(paginas, "home-crm");
@@ -58,7 +61,7 @@ export default function VitrineHome({
     const [titulo, texto] = linha.split("|");
     return { titulo: titulo.trim(), texto: (texto || "").trim() };
   }).filter((item) => item.titulo);
-  const [botaoPersonalizado, linkPersonalizado] = (personalizados?.corpo || "Solicitar orçamento|/solucoes/personalizados").split("|");
+  const linkPersonalizado = (personalizados?.corpo || "Solicitar orçamento|/solucoes/personalizados").split("|")[1];
   const cardsBeneficios = (beneficios || []).filter((item) => item.ativo !== false && item.titulo?.trim());
   const cardsPlanos = linhas(planos?.itens).map((linha) => {
     const [titulo, texto, href, botao] = linha.split("|");
@@ -87,7 +90,7 @@ export default function VitrineHome({
               ))}
             </ul>
             <Painel src={crm?.imagem?.trim() || "/homepage/crm-tela.webp"} alt="Painel do CRM Vendas" />
-            <Link href="/solucoes/crm-vendas" className={BOTAO}>Conhecer o CRM</Link>
+            <Link href="/solucoes/crm-vendas" className={BOTAO}>{rotuloBotao(rotulos, "conhecer_crm")}</Link>
           </article>
           <article className={`${CARTAO} min-w-0`}>
             <h3 className="text-2xl font-bold">{campo(clinica, "titulo", "Gestão para Clínicas de Estética")}</h3>
@@ -98,7 +101,7 @@ export default function VitrineHome({
               ))}
             </ul>
             <Painel src={clinica?.imagem?.trim() || "/homepage/clinica-tela.webp"} alt="Painel da gestão para clínicas de estética" />
-            <Link href="/solucoes/clinicas-estetica" className={BOTAO}>Conhecer o sistema</Link>
+            <Link href="/solucoes/clinicas-estetica" className={BOTAO}>{rotuloBotao(rotulos, "conhecer_clinica")}</Link>
           </article>
         </div>
       </section>
@@ -121,7 +124,7 @@ export default function VitrineHome({
           ))}
         </ul>
         <Link href={(linkPersonalizado || "/solucoes/personalizados").trim()} className="mt-8 inline-flex rounded-full bg-[#2f6bff] px-5 py-2.5 text-sm font-semibold text-white">
-          {(botaoPersonalizado || "Solicitar orçamento").trim()}
+          {rotuloBotao(rotulos, "orcamento")}
         </Link>
       </section>
 
@@ -152,13 +155,17 @@ export default function VitrineHome({
             { titulo: "Gestão para clínicas", texto: "Planos com valores publicados, a partir de R$ 99,90 por mês.", href: "/planos", botao: "Ver planos" },
             { titulo: "CRM Vendas", texto: "Consulte nossas condições comerciais.", href: "/contato", botao: "Solicitar proposta" },
             { titulo: "Sistema personalizado", texto: "O valor depende do que a operação precisa.", href: "/solucoes/personalizados", botao: "Pedir orçamento" },
-          ]).map((item) => (
+          ]).map((item, indice) => {
+            const chaves = ["ver_planos", "proposta", "orcamento_plano"] as const;
+            const botao = indice < chaves.length ? rotuloBotao(rotulos, chaves[indice]) : item.botao;
+            return (
             <article key={item.titulo} className={CARTAO}>
               <h3 className="text-xl font-bold">{item.titulo}</h3>
               <p className="mt-2 text-slate-300">{item.texto}</p>
-              <Link href={item.href} className={BOTAO}>{item.botao}</Link>
+              <Link href={item.href} className={BOTAO}>{botao}</Link>
             </article>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -175,7 +182,12 @@ export default function VitrineHome({
           </p>
         )}
         <div className="mt-8 rounded-2xl border border-cyan-300/30 bg-white p-5 text-slate-900 sm:p-6">
-          <SolicitacaoForm origem="demonstracao" telefone={telefone} />
+          <SolicitacaoForm
+            origem="demonstracao"
+            telefone={telefone}
+            rotuloEnviar={rotuloBotao(rotulos, "enviar_form")}
+            rotuloWhatsapp={rotuloBotao(rotulos, "whatsapp_form")}
+          />
         </div>
       </section>
     </div>

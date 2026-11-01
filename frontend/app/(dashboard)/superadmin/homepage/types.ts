@@ -13,6 +13,7 @@ export interface HeroData {
   titulo_destaque?: string;
   fonte_familia?: string;
   fonte_tamanho?: string;
+  rotulos_botoes?: Record<string, string>;
   ativo?: boolean;
 }
 

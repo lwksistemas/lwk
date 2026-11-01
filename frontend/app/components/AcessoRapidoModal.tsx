@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, LogIn } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getPrimaryApiRoot } from '@/lib/api-base';
@@ -17,6 +17,15 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function tecla(evento: KeyboardEvent) {
+      if (evento.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", tecla);
+    return () => document.removeEventListener("keydown", tecla);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -126,72 +135,56 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
     }
   };
 
+  const campo = "mt-2 w-full rounded-xl border border-cyan-300/30 bg-[#04183f] px-4 py-3 text-base text-white outline-none placeholder:text-slate-500 focus:border-sky-300";
+  const aba = (ativa: boolean) =>
+    `rounded-full px-4 py-2 text-sm font-semibold transition ${ativa ? "bg-[#2f6bff] text-white" : "text-slate-300 hover:text-white"}`;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative animate-in fade-in zoom-in duration-200">
-        {/* Botão Fechar */}
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-[#020817]/75 p-4 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="acesso-rapido-titulo"
+        className="relative w-full max-w-md rounded-2xl border border-cyan-300/40 bg-[#071833] p-6 text-white shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
+        onClick={(evento) => evento.stopPropagation()}
+      >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100"
+          className="absolute right-3 top-3 rounded-full p-2 text-slate-300 hover:bg-white/10 hover:text-white"
           aria-label="Fechar"
         >
-          <X className="w-5 h-5" />
+          <X className="h-5 w-5" />
         </button>
 
-        {/* Ícone */}
-        <div className="flex justify-center mb-4">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-            <LogIn className="w-8 h-8 text-blue-600" />
-          </div>
+        <div className="mb-4 flex justify-center">
+          <img src="/homepage/logo-mark.png" alt="" className="h-14 w-auto" />
         </div>
 
-        {/* Título */}
-        <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
-          Acesso Rápido
+        <h2 id="acesso-rapido-titulo" className="text-center text-2xl font-bold tracking-tight">
+          Acesso rápido
         </h2>
-        <p className="text-gray-600 text-center mb-6">
-          {tipoAcesso === 'documento' 
-            ? 'Digite seu CPF ou CNPJ para acessar sua loja'
-            : 'Digite o atalho da sua loja'}
+        <p className="mb-6 mt-2 text-center text-sm text-slate-300">
+          {tipoAcesso === "documento"
+            ? "Informe o CPF ou o CNPJ da empresa para entrar no sistema."
+            : "Informe o atalho da empresa para entrar no sistema."}
         </p>
 
-        {/* Abas de seleção */}
-        <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-lg">
-          <button
-            type="button"
-            onClick={() => {
-              setTipoAcesso('documento');
-              setError('');
-            }}
-            className={`flex-1 py-2 px-4 rounded-md font-medium transition-all ${
-              tipoAcesso === 'documento'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
+        <div className="mb-6 grid grid-cols-2 gap-1 rounded-full border border-white/10 bg-[#04183f] p-1">
+          <button type="button" onClick={() => { setTipoAcesso("documento"); setError(""); }} className={aba(tipoAcesso === "documento")}>
             CPF/CNPJ
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTipoAcesso('atalho');
-              setError('');
-            }}
-            className={`flex-1 py-2 px-4 rounded-md font-medium transition-all ${
-              tipoAcesso === 'atalho'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
+          <button type="button" onClick={() => { setTipoAcesso("atalho"); setError(""); }} className={aba(tipoAcesso === "atalho")}>
             Atalho
           </button>
         </div>
 
-        {/* Formulário */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {tipoAcesso === 'documento' ? (
+          {tipoAcesso === "documento" ? (
             <div>
-              <label htmlFor="documento" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="documento" className="text-sm font-medium text-slate-200">
                 CPF ou CNPJ
               </label>
               <input
@@ -200,72 +193,53 @@ export default function AcessoRapidoModal({ isOpen, onClose }: AcessoRapidoModal
                 value={documento}
                 onChange={handleChange}
                 placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-lg"
+                className={campo}
                 disabled={loading}
                 autoFocus
               />
-              {error && (
-                <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-                  <span>⚠️</span>
-                  {error}
-                </p>
-              )}
             </div>
           ) : (
             <div>
-              <label htmlFor="atalho" className="block text-sm font-medium text-gray-700 mb-2">
-                Atalho da Loja
+              <label htmlFor="atalho" className="text-sm font-medium text-slate-200">
+                Atalho da empresa
               </label>
               <input
                 id="atalho"
                 type="text"
                 value={atalho}
                 onChange={(e) => {
-                  setAtalho(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
-                  setError('');
+                  setAtalho(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
+                  setError("");
                 }}
-                placeholder="minha-loja"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-lg"
+                placeholder="minha-empresa"
+                className={campo}
                 disabled={loading}
                 autoFocus
               />
-              {error && (
-                <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-                  <span>⚠️</span>
-                  {error}
-                </p>
-              )}
             </div>
           )}
+          {error && <p className="text-sm text-rose-300" role="alert">{error}</p>}
 
           <button
             type="submit"
-            disabled={loading || (tipoAcesso === 'documento' ? !documento : !atalho)}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            disabled={loading || (tipoAcesso === "documento" ? !documento : !atalho)}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#2f6bff] py-3 font-semibold text-white hover:bg-[#2457d6] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? (
+            {loading ? "Buscando..." : (
               <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Buscando...
-              </>
-            ) : (
-              <>
-                <LogIn className="w-5 h-5" />
-                Acessar Minha Loja
+                <LogIn className="h-5 w-5" />
+                Acessar o sistema
               </>
             )}
           </button>
         </form>
 
-        {/* Informação adicional */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-500 text-center">
-            Não tem cadastro?{' '}
-            <a href="/cadastro" className="text-blue-600 hover:text-blue-700 font-medium">
-              Cadastre sua loja
-            </a>
-          </p>
-        </div>
+        <p className="mt-6 border-t border-white/10 pt-5 text-center text-sm text-slate-300">
+          Ainda não tem acesso?{" "}
+          <a href="/cadastro" className="font-semibold text-sky-300 hover:text-white">
+            Cadastre a empresa
+          </a>
+        </p>
       </div>
     </div>
   );

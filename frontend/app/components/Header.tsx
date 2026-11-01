@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
+import AcessoRapidoModal from "./AcessoRapidoModal";
 
 export interface HeaderLink {
   label: string;
@@ -116,6 +117,7 @@ function MenuSuspenso({
 export default function Header({ solucoes = [], segmentos = [], whatsappUrl }: HeaderProps) {
   const pathname = usePathname();
   const [aberto, setAberto] = useState(false);
+  const [acessoAberto, setAcessoAberto] = useState(false);
   const contato = whatsappUrl || "/contato";
   const itensSolucoes = (solucoes.length > 0 ? solucoes : SOLUCOES_PADRAO).map((item) => ({
     ...item,
@@ -170,6 +172,13 @@ export default function Header({ solucoes = [], segmentos = [], whatsappUrl }: H
           <Link href="/contato" className={classeAtual(emContato)} aria-current={emContato ? "page" : undefined}>
             Contato
           </Link>
+          <button
+            type="button"
+            onClick={() => setAcessoAberto(true)}
+            className="shrink-0 rounded-full border border-white/50 px-4 py-1.5 text-[1.02rem] font-semibold text-white hover:bg-white/10"
+          >
+            Acessar sistemas
+          </button>
         </nav>
         <a
           href={contato}
@@ -211,6 +220,16 @@ export default function Header({ solucoes = [], segmentos = [], whatsappUrl }: H
           ))}
           <Link href="/planos" className="block py-2 text-slate-200">Planos</Link>
           <Link href="/contato" className="block py-2 text-slate-200">Contato</Link>
+          <button
+            type="button"
+            onClick={() => {
+              setAberto(false);
+              setAcessoAberto(true);
+            }}
+            className="mt-2 inline-flex rounded-full border border-white/50 px-4 py-2 text-sm font-semibold text-white"
+          >
+            Acessar sistemas
+          </button>
           <a
             href={contato}
             target={whatsappUrl ? "_blank" : undefined}
@@ -221,6 +240,7 @@ export default function Header({ solucoes = [], segmentos = [], whatsappUrl }: H
           </a>
         </nav>
       )}
+      <AcessoRapidoModal isOpen={acessoAberto} onClose={() => setAcessoAberto(false)} />
     </header>
   );
 }

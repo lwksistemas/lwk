@@ -22,18 +22,25 @@ export function EstoqueImportarXmlModal({
     error,
     preview,
     resultado,
+    pendentes,
+    notaId,
+    sincronizando,
     handleClose,
     handleFileChange,
     voltarPreview,
     enviarXml,
     updateProdutoCategoria,
-  } = useEstoqueImportarXml(onClose, onSuccess, { categorias, defaultCategoriaSlug });
+    abrirPendente,
+    confirmarPendente,
+    ignorarPendente,
+    sincronizar,
+  } = useEstoqueImportarXml(open, onClose, onSuccess, { categorias, defaultCategoriaSlug });
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-700 shrink-0">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Importar XML (NF-e)</h2>
@@ -68,6 +75,48 @@ export function EstoqueImportarXmlModal({
             />
           )}
           {!resultado && !preview && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-gray-200 dark:border-neutral-700 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Notas pendentes</p>
+                  <button
+                    type="button"
+                    onClick={() => void sincronizar()}
+                    disabled={loading || sincronizando}
+                    className="text-xs font-medium px-2 py-1 rounded-md border border-gray-300 dark:border-neutral-600 disabled:opacity-50"
+                  >
+                    {sincronizando ? "Consultando..." : "Buscar na SEFAZ"}
+                  </button>
+                </div>
+                {pendentes.length === 0 ? (
+                  <p className="text-xs text-gray-500">Nenhuma nota aguardando. A busca usa o certificado A1 da clínica.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {pendentes.map((nota) => (
+                      <li key={nota.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <span>
+                          NF {nota.numero || "—"} — {nota.fornecedor || "Fornecedor"}
+                          <span className="block text-xs text-gray-500">
+                            {nota.status_display}
+                            {nota.data_emissao ? ` · ${nota.data_emissao}` : ""}
+                            {nota.ultimo_erro ? ` · ${nota.ultimo_erro}` : ""}
+                          </span>
+                        </span>
+                        <span className="flex gap-2">
+                          {nota.tem_xml && (
+                            <button type="button" className="text-xs font-medium underline" onClick={() => void abrirPendente(nota.id)}>
+                              Abrir
+                            </button>
+                          )}
+                          <button type="button" className="text-xs text-gray-500 underline" onClick={() => void ignorarPendente(nota.id)}>
+                            Ignorar
+                          </button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             <EstoqueImportarXmlForm
               arquivo={arquivo}
               categoria={categoria}
@@ -75,6 +124,7 @@ export function EstoqueImportarXmlModal({
               onFileChange={handleFileChange}
               categorias={categorias}
             />
+            </div>
           )}
         </div>
 
@@ -99,7 +149,7 @@ export function EstoqueImportarXmlModal({
               </button>
               <button
                 type="button"
-                onClick={() => void enviarXml(true)}
+                onClick={() => void (notaId ? confirmarPendente() : enviarXml(true))}
                 disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
                 style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}

@@ -109,10 +109,11 @@ class EstoqueImportarXmlView(APIView):
         )
         categoria_slug = cat.slug if cat else normalizar_slug_categoria(str(categoria_raw))
         confirmar = str(request.data.get("confirmar", "false")).lower() in ("true", "1")
+        xml_bytes = arquivo.read()
 
         try:
             resultado = importar_produtos_xml(
-                arquivo.read(),
+                xml_bytes,
                 categoria=categoria_slug,
                 categoria_id=cat.id if cat else None,
                 loja_id=loja_id,
@@ -124,6 +125,20 @@ class EstoqueImportarXmlView(APIView):
             logger.exception("Erro ao processar XML de estoque: %s", e)
             return Response({"error": "Erro ao processar o XML. Verifique o formato."}, status=status.HTTP_400_BAD_REQUEST)
 
+        from .estoque_nfe_pendente_service import MSG_JA_IMPORTADA, confirmar_arquivo, guardar_xml, nota_importada
+
+        chave = (resultado.get("nota") or {}).get("chave") or ""
+        if chave and nota_importada(chave):
+            return Response({"error": MSG_JA_IMPORTADA}, status=status.HTTP_400_BAD_REQUEST)
+        if not confirmar and chave:
+            try:
+                guardar_xml(xml_bytes, loja_id=loja_id, origem="arquivo")
+            except ValueError as exc:
+                if str(exc) == MSG_JA_IMPORTADA:
+                    return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception:
+                logger.exception("Não foi possível guardar a NF-e pendente")
+
         if not confirmar:
             resp = {"preview": True, **resultado}
             aviso = _verificar_destinatario_nf(resultado, loja_id)
@@ -131,13 +146,14 @@ class EstoqueImportarXmlView(APIView):
                 resp["aviso_destinatario"] = aviso
             return Response(resp)
 
-        from .estoque_xml_import_service import confirmar_importacao_xml
-
         produtos_override = _parsear_override_produtos(request.data.get("produtos"))
         if produtos_override:
             _mesclar_overrides_categoria(resultado["produtos"], produtos_override, loja_id)
 
-        result = confirmar_importacao_xml(resultado["produtos"], loja_id=loja_id)
+        try:
+            result = confirmar_arquivo(xml_bytes, resultado["produtos"], loja_id=loja_id)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         response_data = {**result, "nota": resultado["nota"]}
         aviso = _verificar_destinatario_nf(resultado, loja_id)
         if aviso:
@@ -147,3 +163,93 @@ class EstoqueImportarXmlView(APIView):
             response_data,
             status=status.HTTP_201_CREATED if (result["criados"] + result["atualizados"]) > 0 else status.HTTP_400_BAD_REQUEST,
         )
+
+
+class EstoqueNfePendentesView(APIView):
+    """GET /clinica-beleza/estoque/nfe-pendentes/"""
+
+    permission_classes = CLINICA_ESTOQUE
+
+    def get(self, request):
+        from .estoque_nfe_pendente_service import listar_abertas
+
+        return Response({"pendentes": listar_abertas()})
+
+
+class EstoqueNfeSincronizarView(APIView):
+    """POST /clinica-beleza/estoque/nfe-pendentes/sincronizar/"""
+
+    permission_classes = CLINICA_ESTOQUE
+
+    def post(self, request):
+        from superadmin.models import Loja
+
+        from .estoque_nfe_pendente_service import listar_abertas, sincronizar_loja
+        from .views_base import resolve_loja_id_from_request
+
+        loja_id = resolve_loja_id_from_request(request)
+        loja = Loja.objects.using("default").filter(id=loja_id).first()
+        if loja is None:
+            return Response({"error": "Loja não encontrada."}, status=status.HTTP_400_BAD_REQUEST)
+        resultado = sincronizar_loja(loja)
+        status_http = status.HTTP_200_OK if resultado.get("ok") else status.HTTP_400_BAD_REQUEST
+        return Response({**resultado, "pendentes": listar_abertas()}, status=status_http)
+
+
+class EstoqueNfePendentePreviewView(APIView):
+    """GET /clinica-beleza/estoque/nfe-pendentes/<pk>/"""
+
+    permission_classes = CLINICA_ESTOQUE
+    not_found_message = "Nota não encontrada."
+
+    def get(self, request, pk):
+        from .estoque_nfe_pendente_service import preview_da_nota
+        from .views_base import resolve_loja_id_from_request
+
+        try:
+            dados = preview_da_nota(pk, loja_id=resolve_loja_id_from_request(request))
+        except LookupError:
+            return Response({"error": self.not_found_message}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(dados)
+
+
+class EstoqueNfePendenteConfirmarView(APIView):
+    """POST /clinica-beleza/estoque/nfe-pendentes/<pk>/confirmar/"""
+
+    permission_classes = CLINICA_ESTOQUE
+
+    def post(self, request, pk):
+        from .estoque_nfe_pendente_service import confirmar_nota
+        from .views_base import resolve_loja_id_from_request
+
+        loja_id = resolve_loja_id_from_request(request)
+        garantir_categorias_estoque_padrao(loja_id)
+        try:
+            result = confirmar_nota(pk, _parsear_override_produtos(request.data.get("produtos")), loja_id=loja_id)
+        except LookupError:
+            return Response({"error": "Nota não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            result,
+            status=status.HTTP_201_CREATED if (result["criados"] + result["atualizados"]) > 0 else status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class EstoqueNfePendenteIgnorarView(APIView):
+    """POST /clinica-beleza/estoque/nfe-pendentes/<pk>/ignorar/"""
+
+    permission_classes = CLINICA_ESTOQUE
+
+    def post(self, request, pk):
+        from .estoque_nfe_pendente_service import ignorar_nota
+
+        try:
+            ignorar_nota(pk)
+        except LookupError:
+            return Response({"error": "Nota não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"ok": True})

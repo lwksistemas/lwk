@@ -30,6 +30,19 @@ export interface ImportResult {
   aviso_destinatario?: string;
 }
 
+export interface NotaPendente {
+  id: number;
+  chave: string;
+  numero: string;
+  fornecedor: string;
+  data_emissao: string;
+  status: "resumo" | "pendente" | "importada" | "ignorada";
+  status_display: string;
+  origem: string;
+  tem_xml: boolean;
+  ultimo_erro: string;
+}
+
 export interface EstoqueImportarXmlModalProps {
   open: boolean;
   onClose: () => void;

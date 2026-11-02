@@ -13,7 +13,14 @@ from .consultas import (
 )
 from .convenios import Convenio, ConvenioProcedimentoPreco, LocalAtendimento, NomeAgenda
 from .documentos import DocumentoClinico, DocumentTemplate
-from .estoque import CategoriaEstoque, ConsultaProdutoUtilizado, MovimentacaoEstoque, ProdutoEstoque
+from .estoque import (
+    CategoriaEstoque,
+    ConsultaProdutoUtilizado,
+    MovimentacaoEstoque,
+    NfeDistribuicaoEstado,
+    NotaEntradaNfe,
+    ProdutoEstoque,
+)
 from .financeiro import (
     CampanhaPromocao,
     CategoriaDespesa,
@@ -77,6 +84,8 @@ __all__ = [
     "LocalAtendimento",
     "MemedTimbrado",
     "MovimentacaoEstoque",
+    "NfeDistribuicaoEstado",
+    "NotaEntradaNfe",
     "NomeAgenda",
     "OrcamentoConsulta",
     "OrcamentoItem",

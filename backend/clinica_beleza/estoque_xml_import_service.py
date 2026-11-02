@@ -173,6 +173,10 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
     inf_nfe = _extrair_inf_nfe(root)
 
     # Dados da nota
+    inf_id = inf_nfe.attrib.get("Id") or ""
+    chave = "".join(c for c in inf_id if c.isdigit())
+    if len(chave) != 44:
+        chave = ""
     numero_nota = _find_text(inf_nfe, "ide/nNF")
     data_emissao = _find_text(inf_nfe, "ide/dhEmi")
     if data_emissao:
@@ -180,6 +184,7 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
 
     # Emitente (fornecedor)
     fornecedor = _find_text(inf_nfe, "emit/xNome")
+    emit_cnpj = _find_text(inf_nfe, "emit/CNPJ") or _find_text(inf_nfe, "emit/CPF")
 
     # Destinatário (comprador) — CPF ou CNPJ
     dest_cpf = _find_text(inf_nfe, "dest/CPF")
@@ -219,8 +224,10 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
         produtos.append(produto)
 
     return {
+        "chave": chave,
         "numero_nota": numero_nota,
         "fornecedor": fornecedor,
+        "emitente_documento": emit_cnpj,
         "data_emissao": data_emissao,
         "destinatario_documento": dest_documento,
         "destinatario_nome": dest_nome,
@@ -293,6 +300,7 @@ def importar_produtos_xml(
 
     return {
         "nota": {
+            "chave": parsed.get("chave") or "",
             "numero": parsed["numero_nota"],
             "fornecedor": parsed["fornecedor"],
             "data_emissao": parsed["data_emissao"],

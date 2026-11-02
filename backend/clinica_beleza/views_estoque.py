@@ -28,6 +28,11 @@ from .views_estoque_helpers import (  # noqa: F401
 )
 from .views_estoque_xml import (  # noqa: F401
     EstoqueImportarXmlView,
+    EstoqueNfePendenteConfirmarView,
+    EstoqueNfePendenteIgnorarView,
+    EstoqueNfePendentePreviewView,
+    EstoqueNfePendentesView,
+    EstoqueNfeSincronizarView,
     _mesclar_overrides_categoria,
     _parsear_override_produtos,
     _verificar_destinatario_nf,

@@ -226,3 +226,68 @@ class ConsultaProdutoUtilizado(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f"{self.produto.nome} x{self.quantidade} (consulta {self.consulta_id})"
+
+
+class NotaEntradaNfe(LojaIsolationMixin, models.Model):
+    """NF-e de fornecedor aguardando confirmação para entrar no estoque."""
+
+    STATUS_RESUMO = "resumo"
+    STATUS_PENDENTE = "pendente"
+    STATUS_IMPORTADA = "importada"
+    STATUS_IGNORADA = "ignorada"
+    STATUS_CHOICES = [
+        (STATUS_RESUMO, "Aguardando XML"),
+        (STATUS_PENDENTE, "Pendente"),
+        (STATUS_IMPORTADA, "Importada"),
+        (STATUS_IGNORADA, "Ignorada"),
+    ]
+    ORIGEM_SEFAZ = "sefaz"
+    ORIGEM_ARQUIVO = "arquivo"
+
+    chave = models.CharField(max_length=44, verbose_name="Chave da NF-e")
+    numero = models.CharField(max_length=20, blank=True, default="")
+    fornecedor_nome = models.CharField(max_length=200, blank=True, default="")
+    fornecedor_documento = models.CharField(max_length=20, blank=True, default="")
+    destinatario_documento = models.CharField(max_length=20, blank=True, default="")
+    data_emissao = models.DateField(null=True, blank=True)
+    valor = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    xml = models.TextField(blank=True, default="")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDENTE)
+    origem = models.CharField(max_length=20, default=ORIGEM_ARQUIVO)
+    nsu = models.CharField(max_length=20, blank=True, default="")
+    ultimo_erro = models.TextField(blank=True, default="")
+    importada_em = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_notaentradanfe"
+        verbose_name = "NF-e de entrada"
+        ordering = ["-data_emissao", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["loja_id", "chave"], name="cb_nfe_entrada_loja_chave"),
+        ]
+
+    def __str__(self):
+        return f"NF {self.numero or self.chave[-8:]}"
+
+
+class NfeDistribuicaoEstado(LojaIsolationMixin, models.Model):
+    """Ponto da consulta de NF-e na SEFAZ, uma linha por loja."""
+
+    ult_nsu = models.CharField(max_length=15, default="000000000000000")
+    max_nsu = models.CharField(max_length=15, default="000000000000000")
+    consultado_em = models.DateTimeField(null=True, blank=True)
+    ultimo_erro = models.TextField(blank=True, default="")
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_nfedistribuicaoestado"
+        constraints = [
+            models.UniqueConstraint(fields=["loja_id"], name="cb_nfe_dist_loja"),
+        ]

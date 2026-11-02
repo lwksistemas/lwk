@@ -78,6 +78,8 @@ CLINICA_BELEZA_DELETE_ORDER = [
     ("clinica_beleza_memed_timbrado", "timbrado Memed"),
     ("clinica_beleza_locais_atendimento", "locais atendimento"),
     ("clinica_beleza_produtoestoque", "produtos estoque"),
+    ("clinica_beleza_notaentradanfe", "NF-e de entrada"),
+    ("clinica_beleza_nfedistribuicaoestado", "consulta NF-e"),
 ]
 
 

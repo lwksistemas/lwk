@@ -136,6 +136,8 @@ export function intervalosEventsFromHorarios(
       start: `${y}-${m}-${d}T${ini}:00`,
       end: `${y}-${m}-${d}T${fim}:00`,
       allDay: false,
+      color: "#f59e0b",
+      contrastColor: "#fff",
       backgroundColor: "#f59e0b",
       borderColor: "#d97706",
       textColor: "#fff",

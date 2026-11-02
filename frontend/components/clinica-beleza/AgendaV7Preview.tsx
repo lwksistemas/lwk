@@ -35,6 +35,8 @@ type CalendarProps = {
     title: string;
     start: string;
     end?: string;
+    color?: string;
+    contrastColor?: string;
     backgroundColor?: string;
     borderColor?: string;
   }>;
@@ -74,6 +76,8 @@ function buildSampleEvents(statusColors: AgendaStatusColorMap) {
       title: `${item.titulo} (${CLINICA_AGENDA_STATUS_LABEL[item.key] || item.key})`,
       start: `${dia}T${startH}:${String(mm).padStart(2, '0')}:00`,
       end: `${dia}T${endH}:${String(mm).padStart(2, '0')}:00`,
+      color: colors.bg,
+      contrastColor: '#fff',
       backgroundColor: colors.bg,
       borderColor: colors.border,
     };

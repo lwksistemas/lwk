@@ -4,14 +4,23 @@ export interface AgendaEventData {
   title: string;
   start: string;
   end: string;
+  /** FC7: cor principal do evento (temas Pulse/Classic usam isto). */
+  color?: string;
+  /** FC7: cor do texto sobre o evento. */
+  contrastColor?: string;
+  /** Compat / grade própria; FC7 prefere `color`. */
   backgroundColor: string;
   borderColor: string;
   textColor: string;
+  /** FC7: classe CSS (ex.: bloqueio). Preferir isto a `classNames`. */
+  className?: string;
+  display?: "auto" | "block" | "list-item" | "background" | "inverse-background" | "none";
   constraint?: "businessHours";
   editable?: boolean;
   durationEditable?: boolean;
   startEditable?: boolean;
   allDay?: boolean;
+  /** @deprecated FC6; use `className`. Mantido para leituras antigas. */
   classNames?: string[];
   extendedProps: {
     dbId?: number | string;

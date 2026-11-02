@@ -571,15 +571,19 @@ html.dark {
   background: #80868b;
 }
 
-/* Bloqueios na visão Mês (FullCalendar 7) — classNames customizados */
+/* Bloqueios no FullCalendar 7 (Dia/Semana/Mês) — fundo listrado, não sólido azul do tema */
 .agenda-v7-root .fc-event-bloqueio,
-.agenda-v7-preview-root .fc-event-bloqueio {
+.agenda-v7-preview-root .fc-event-bloqueio,
+.agenda-v7-root .fc-bg-event.fc-event-bloqueio,
+.agenda-v7-preview-root .fc-bg-event.fc-event-bloqueio {
   cursor: grab;
+  opacity: 1 !important;
   background-image: repeating-linear-gradient(
     -45deg,
-    rgb(15 23 42 / 0.14) 0 5px,
-    transparent 5px 11px
+    color-mix(in srgb, var(--fc-event-color, #0f766e) 22%, transparent) 0 6px,
+    transparent 6px 12px
   ) !important;
+  background-color: color-mix(in srgb, var(--fc-event-color, #0f766e) 14%, white) !important;
   border-style: dashed !important;
 }
 

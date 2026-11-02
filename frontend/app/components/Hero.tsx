@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight, Code2, Pause, Play, UserRound, Users } from "lucide-react";
 import type { Funcionalidade, Hero as HeroType, HeroImagem } from "@/types/homepage";
+import { atrasoNaFila } from "@/lib/animacoes-home";
 import { ImagemAnimada, TextoAnimado, useAnimacaoPublica } from "./AnimacaoHome";
 
 interface HeroProps {
@@ -255,6 +256,11 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
   const [pausado, setPausado] = useState(false);
   const [reduzMovimento, setReduzMovimento] = useState(false);
   const { dispositivo, celular } = useAnimacaoPublica(hero?.animacoes);
+  const [esperaTitulo, esperaDestaque, esperaDescricao] = atrasoNaFila([
+    { item: dispositivo.titulo, texto: titulo },
+    { item: dispositivo.destaque, texto: destaque },
+    { item: dispositivo.descricao, texto: subtitulo },
+  ], celular);
   const toque = useRef<{ x: number; y: number } | null>(null);
 
   const slides = useMemo<Slide[]>(() => {
@@ -342,11 +348,11 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
               {selo}
             </TextoAnimado>
             <h1 className="mt-4 max-w-xl text-[clamp(2.15rem,3.5vw,3.45rem)] font-extrabold leading-[1.05] tracking-tight">
-              <TextoAnimado texto={titulo} item={dispositivo.titulo} telaCelular={celular} className="block" />
-              {destaque ? <TextoAnimado texto={destaque} item={dispositivo.destaque} telaCelular={celular} className="mt-1 block text-[#3ecbff]" /> : null}
+              <TextoAnimado texto={titulo} item={dispositivo.titulo} telaCelular={celular} esperaInicial={esperaTitulo} className="block" />
+              {destaque ? <TextoAnimado texto={destaque} item={dispositivo.destaque} telaCelular={celular} esperaInicial={esperaDestaque} className="mt-1 block text-[#3ecbff]" /> : null}
             </h1>
             <p className="mt-4 max-w-lg text-[clamp(0.95rem,1.2vw,1.125rem)] leading-relaxed text-slate-200">
-              <TextoAnimado texto={subtitulo} item={dispositivo.descricao} telaCelular={celular} className="block" />
+              <TextoAnimado texto={subtitulo} item={dispositivo.descricao} telaCelular={celular} esperaInicial={esperaDescricao} className="block" />
             </p>
             <div className="mt-5 flex flex-row flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
               {mostraBotao && (

@@ -183,6 +183,17 @@ export function normalizarAnimacoes(bruto: unknown): AnimacoesHome {
   };
 }
 
+export function atrasoNaFila(passos: { item: ItemAnimacao; texto?: string }[], celular = false) {
+  let cursor = 0;
+  return passos.map(({ item, texto }) => {
+    const digita = Boolean(texto) && item.ativo && item.efeito === "typing" && (!celular || item.celular);
+    if (!digita) return item.atraso;
+    const inicio = cursor + item.atraso;
+    cursor = inicio + Math.max(item.duracao, 200);
+    return inicio;
+  });
+}
+
 export function duracaoDaVelocidade(velocidade: VelocidadeAnimacao, imagem = false) {
   if (imagem) return velocidade === "lenta" ? 900 : velocidade === "rapida" ? 250 : 450;
   return velocidade === "lenta" ? 1200 : velocidade === "rapida" ? 400 : 700;

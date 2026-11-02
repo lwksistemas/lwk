@@ -21,6 +21,7 @@ import {
   type TransicaoImagem,
   type VelocidadeAnimacao,
   animacoesPadrao,
+  atrasoNaFila,
   duracaoDaVelocidade,
   normalizarAnimacoes,
 } from '@/lib/animacoes-home';
@@ -52,6 +53,14 @@ export function AnimacoesTab({
   const [reprise, setReprise] = useState(0);
   const ladoEfetivo = animacoes.igual_celular ? 'computador' : lado;
   const dispositivo = animacoes[ladoEfetivo];
+  const textoTitulo = heroForm.titulo || 'Soluções de software';
+  const textoDestaque = heroForm.titulo_destaque || 'para sua empresa.';
+  const textoDescricao = heroForm.subtitulo || 'Texto de apresentação da homepage.';
+  const [esperaTitulo, esperaDestaque, esperaDescricao] = atrasoNaFila([
+    { item: dispositivo.titulo, texto: textoTitulo },
+    { item: dispositivo.destaque, texto: textoDestaque },
+    { item: dispositivo.descricao, texto: textoDescricao },
+  ]);
 
   const gravar = (proxima: AnimacoesHome) => setHeroForm((atual) => ({ ...atual, animacoes: proxima }));
 
@@ -107,10 +116,10 @@ export function AnimacoesTab({
               {heroForm.selo || 'Software House'}
             </TextoAnimado>
             <div className="mt-3 text-3xl font-extrabold leading-tight">
-              <TextoAnimado texto={heroForm.titulo || 'Soluções de software'} item={dispositivo.titulo} className="block" />
-              <TextoAnimado texto={heroForm.titulo_destaque || 'para sua empresa.'} item={dispositivo.destaque} className="mt-1 block text-[#3ecbff]" />
+              <TextoAnimado texto={textoTitulo} item={dispositivo.titulo} esperaInicial={esperaTitulo} className="block" />
+              <TextoAnimado texto={textoDestaque} item={dispositivo.destaque} esperaInicial={esperaDestaque} className="mt-1 block text-[#3ecbff]" />
             </div>
-            <TextoAnimado texto={heroForm.subtitulo || 'Texto de apresentação da homepage.'} item={dispositivo.descricao} className="mt-3 block max-w-xl text-sm text-slate-200" />
+            <TextoAnimado texto={textoDescricao} item={dispositivo.descricao} esperaInicial={esperaDescricao} className="mt-3 block max-w-xl text-sm text-slate-200" />
             <div className="mt-4 flex flex-wrap gap-3">
               <TextoAnimado item={dispositivo.botao} className="inline-flex">
                 <span className="rounded-full bg-[#2f6bff] px-4 py-2 text-sm font-semibold">{heroForm.botao_texto || 'Botão principal'}</span>

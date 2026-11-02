@@ -59,14 +59,25 @@ export function useAnimacaoPublica(bruto: unknown) {
   return { dispositivo, celular, prever: rascunho != null };
 }
 
-function Digitando({ texto, item, className }: { texto: string; item: ItemAnimacao; className?: string }) {
-  const [qtd, setQtd] = useState(texto.length);
+function Digitando({
+  texto,
+  item,
+  className,
+  esperaInicial,
+}: {
+  texto: string;
+  item: ItemAnimacao;
+  className?: string;
+  esperaInicial?: number;
+}) {
+  const [qtd, setQtd] = useState(0);
 
   useLayoutEffect(() => {
     if (!texto) return;
     let cancelado = false;
     let quadro = 0;
     let espera = 0;
+    let primeira = true;
     const ciclo = () => {
       setQtd(0);
       const comecar = () => {
@@ -80,7 +91,9 @@ function Digitando({ texto, item, className }: { texto: string; item: ItemAnimac
         };
         quadro = requestAnimationFrame(passo);
       };
-      espera = window.setTimeout(comecar, item.atraso);
+      const pausa = primeira ? (esperaInicial ?? item.atraso) : item.atraso;
+      primeira = false;
+      espera = window.setTimeout(comecar, pausa);
     };
     ciclo();
     return () => {
@@ -88,7 +101,7 @@ function Digitando({ texto, item, className }: { texto: string; item: ItemAnimac
       cancelAnimationFrame(quadro);
       window.clearTimeout(espera);
     };
-  }, [texto, item.duracao, item.atraso, item.repetir]);
+  }, [texto, item.duracao, item.atraso, item.repetir, esperaInicial]);
 
   return (
     <span className={`relative block ${className || ""}`}>
@@ -103,12 +116,14 @@ export function TextoAnimado({
   item,
   className,
   telaCelular = false,
+  esperaInicial,
   children,
 }: {
   texto?: string;
   item: ItemAnimacao;
   className?: string;
   telaCelular?: boolean;
+  esperaInicial?: number;
   children?: React.ReactNode;
 }) {
   const reduzido = useReducedMotion();
@@ -118,7 +133,7 @@ export function TextoAnimado({
     return <span className={className}>{conteudo}</span>;
   }
   if (efeito === "typing" && texto) {
-    return <Digitando texto={texto} item={item} className={className} />;
+    return <Digitando texto={texto} item={item} className={className} esperaInicial={esperaInicial} />;
   }
   const alvo = { ...item, efeito };
   if (efeito === "scroll") {

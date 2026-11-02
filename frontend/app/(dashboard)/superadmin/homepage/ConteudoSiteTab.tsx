@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ImageUploadMedia as ImageUpload } from '@/components/ImageUploadMedia';
+import { Modal } from '@/components/ui/Modal';
+import { urlWhatsapp } from '@/lib/whatsapp-site';
 
 interface ItemMenu {
   id?: number;
@@ -38,6 +40,29 @@ interface Pedido {
   mensagem: string;
   origem: string;
   created_at: string;
+}
+
+const NOME_ORIGEM: Record<string, string> = {
+  contato: 'Contato',
+  demonstracao: 'Demonstração',
+  orcamento: 'Orçamento',
+};
+
+const NOME_PRODUTO: Record<string, string> = {
+  'crm-vendas': 'CRM Vendas',
+  'clinicas-estetica': 'Gestão para Clínicas de Estética',
+  personalizados: 'Sistemas personalizados',
+  outros: 'Outro segmento',
+};
+
+function nomeDe(mapa: Record<string, string>, valor: string) {
+  return mapa[valor] || valor || '—';
+}
+
+function dataPedido(valor: string) {
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return '';
+  return data.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function lista<T>(data: unknown): T[] {
@@ -174,6 +199,7 @@ export function ConteudoSiteTab() {
   const [paginas, setPaginas] = useState<Pagina[]>([]);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [editando, setEditando] = useState<Pagina | null>(null);
+  const [pedidoAberto, setPedidoAberto] = useState<Pedido | null>(null);
   const [aviso, setAviso] = useState('');
 
   const carregar = useCallback(async () => {
@@ -270,19 +296,70 @@ export function ConteudoSiteTab() {
       <Card>
         <CardHeader>
           <CardTitle>Pedidos do site</CardTitle>
-          <CardDescription>Formulários de contato e demonstração.</CardDescription>
+          <CardDescription>Cada pedido fica em uma linha. A mensagem abre no botão Ver mensagem.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {pedidos.length === 0 && <p className="text-sm text-slate-500">Nenhum pedido ainda.</p>}
           {pedidos.map((pedido) => (
-            <div key={pedido.id} className="rounded-lg border px-4 py-3 text-sm">
-              <p className="font-medium">{pedido.nome} · {pedido.produto}</p>
-              <p className="text-slate-600">{pedido.empresa} · {pedido.whatsapp} · {pedido.origem}</p>
-              <p className="mt-1">{pedido.mensagem}</p>
+            <div key={pedido.id} className="flex flex-col gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="font-medium text-slate-900">{pedido.nome}</p>
+                <p className="text-sm text-slate-600">
+                  {nomeDe(NOME_PRODUTO, pedido.produto)} · {nomeDe(NOME_ORIGEM, pedido.origem)}
+                  {pedido.empresa ? ` · ${pedido.empresa}` : ''}
+                </p>
+                <p className="text-sm text-slate-500">{pedido.whatsapp} · {dataPedido(pedido.created_at)}</p>
+              </div>
+              <Button type="button" variant="outline" className="shrink-0" onClick={() => setPedidoAberto(pedido)}>
+                Ver mensagem
+              </Button>
             </div>
           ))}
         </CardContent>
       </Card>
+
+      <Modal isOpen={!!pedidoAberto} onClose={() => setPedidoAberto(null)} maxWidth="2xl">
+        {pedidoAberto && (
+          <div className="space-y-4 p-6">
+            <h3 className="text-lg font-semibold text-slate-900">Mensagem de {pedidoAberto.nome}</h3>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-slate-500">Empresa</dt>
+                <dd>{pedidoAberto.empresa || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">WhatsApp</dt>
+                <dd>{pedidoAberto.whatsapp}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Produto</dt>
+                <dd>{nomeDe(NOME_PRODUTO, pedidoAberto.produto)}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Origem</dt>
+                <dd>{nomeDe(NOME_ORIGEM, pedidoAberto.origem)} · {dataPedido(pedidoAberto.created_at)}</dd>
+              </div>
+            </dl>
+            <div className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border bg-slate-50 p-4 text-sm leading-relaxed text-slate-800">
+              {pedidoAberto.mensagem}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {urlWhatsapp(pedidoAberto.whatsapp, 'Olá! Recebi seu pedido pelo site da LWK Sistemas.') && (
+                <Button asChild>
+                  <a
+                    href={urlWhatsapp(pedidoAberto.whatsapp, 'Olá! Recebi seu pedido pelo site da LWK Sistemas.')!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Responder no WhatsApp
+                  </a>
+                </Button>
+              )}
+              <Button type="button" variant="outline" onClick={() => setPedidoAberto(null)}>Fechar</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -196,7 +196,7 @@ export function bloqueiosToAgendaEvents(bloqueiosList: BloqueioHorario[]): Agend
       start: startStr,
       end: endStr,
       allDay: false,
-      // Fundo listrado atrás dos agendamentos (não cobre tudo de azul no tema Classic).
+      // Fundo suave atrás dos agendamentos (profissional filtrado).
       display: "background",
       color: cor,
       contrastColor: "#fff",
@@ -217,6 +217,33 @@ export function bloqueiosToAgendaEvents(bloqueiosList: BloqueioHorario[]): Agend
       },
     } as AgendaEventData;
   });
+}
+
+/**
+ * No FullCalendar compartilhado (Semana/Mês/Dia filtrado):
+ * - "Todos": bloqueio de UM profissional não pinta a grade (só aparece ao filtrar o profissional).
+ * - Bloqueio global (sem profissional) e bloqueio do profissional filtrado: fundo suave.
+ */
+export function eventosParaFullCalendar(
+  eventos: AgendaEventData[],
+  selectedProfessional: string,
+): AgendaEventData[] {
+  const verTodos = !selectedProfessional;
+  const out: AgendaEventData[] = [];
+  for (const evt of eventos) {
+    const p = evt.extendedProps || {};
+    if (!p.isBloqueio) {
+      out.push(evt);
+      continue;
+    }
+    const soUmProf = p.professional != null && Number.isFinite(Number(p.professional));
+    if (verTodos && soUmProf) {
+      // Férias da Marina não devem riscar a semana inteira com "todos" selecionado.
+      continue;
+    }
+    out.push(evt);
+  }
+  return out;
 }
 
 export function temExpedienteProfissional(

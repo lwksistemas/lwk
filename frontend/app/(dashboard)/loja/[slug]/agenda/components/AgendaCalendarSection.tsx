@@ -1,12 +1,15 @@
 "use client";
 
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CLINICA_AGENDA_SLOT_DURATION,
   CLINICA_AGENDA_SLOT_LABEL_INTERVAL,
   CLINICA_AGENDA_SNAP_DURATION,
 } from "@/lib/clinica-beleza-constants";
-import { aplicarHorarioAgendaEvento } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
+import {
+  aplicarHorarioAgendaEvento,
+  eventosParaFullCalendar,
+} from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
 import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
@@ -132,6 +135,10 @@ export function AgendaCalendarSection({
     frozenEventsRef.current = eventos;
   }
   const stableEventos = isDraggingRef.current ? frozenEventsRef.current : eventos;
+  const eventosFc = useMemo(
+    () => eventosParaFullCalendar(stableEventos, selectedProfessional),
+    [stableEventos, selectedProfessional],
+  );
 
   const marcarArrasto = useCallback((dragging: boolean) => {
     isDraggingRef.current = dragging;
@@ -285,7 +292,7 @@ export function AgendaCalendarSection({
           dayMaxEvents
           weekends
           nowIndicator
-          events={stableEventos}
+          events={eventosFc}
           eventDragStart={() => {
             frozenEventsRef.current = eventos;
             marcarArrasto(true);

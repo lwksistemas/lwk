@@ -13,7 +13,6 @@ import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction
 import { AgendaListaColunas } from "./AgendaListaColunas";
 import { AgendaMobileDayView } from "./AgendaMobileDayView";
 import { AgendaDiaColunas } from "./AgendaDiaColunas";
-import { AgendaSemanaColunas } from "./AgendaSemanaColunas";
 import { marcarIgnorarClickGradeAgenda, toAgendaDiaIso } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 import {
@@ -70,6 +69,12 @@ function useAgendaPageWheel(active: boolean) {
     document.addEventListener("wheel", onWheel, { capture: true, passive: false });
     return () => document.removeEventListener("wheel", onWheel, true);
   }, [active]);
+}
+
+function fcViewFromGrade(view: "day" | "week" | "month"): string {
+  if (view === "week") return "timeGridWeek";
+  if (view === "month") return "dayGridMonth";
+  return "timeGridDay";
 }
 
 export function AgendaCalendarSection({
@@ -185,6 +190,10 @@ export function AgendaCalendarSection({
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  /** Dia com vários profissionais e sem filtro: grade por coluna. Senão = FullCalendar do tema. */
+  const usarColunasDia =
+    gradeView === "day" && !selectedProfessional && professionals.length > 1;
+
   if (isMobileUi === null) {
     return (
       <div className="flex flex-1 items-center justify-center min-h-[200px] text-sm text-gray-500">
@@ -219,33 +228,7 @@ export function AgendaCalendarSection({
     );
   }
 
-  if (gradeView === "week") {
-    return (
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <AgendaSemanaColunas
-          dateIso={diaIso}
-          onDateChange={setDiaIso}
-          eventos={eventos}
-          selectedProfessional={selectedProfessional}
-          hiddenDays={hiddenDays}
-          slotMinTime={slotMinTime}
-          slotMaxTime={slotMaxTime}
-          onOpenEvent={onAbrirLista}
-          onSlotClick={(date, professionalId) => {
-            onNovoHorario?.(date, professionalId);
-            onDateClick({ date, allDay: false } as DateClickArg);
-          }}
-          onMudarVisao={(view) => setGradeView(view)}
-          onMover={onMoverGrade}
-          onRedimensionar={onRedimensionarGrade}
-          onArrastoAtivo={marcarArrasto}
-          visual={visual}
-        />
-      </div>
-    );
-  }
-
-  if (gradeView === "day") {
+  if (usarColunasDia) {
     return (
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <AgendaDiaColunas
@@ -271,6 +254,8 @@ export function AgendaCalendarSection({
     );
   }
 
+  const fcView = fcViewFromGrade(gradeView);
+
   return (
     <div
       className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain agenda-scroll-root fc-agenda-calendar-root agenda-v7-root"
@@ -279,9 +264,9 @@ export function AgendaCalendarSection({
       {calendarPlugins.length > 0 && ptBrLocale ? (
         <Suspense fallback={<div className="flex items-center justify-center h-40 text-sm text-gray-500">Carregando calendário...</div>}>
         <FullCalendar
-          key={`desktop-${selectedProfessional}-${gradeView}-${visual}`}
+          key={`desktop-${selectedProfessional}-${fcView}-${visual}`}
           plugins={calendarPlugins as never[]}
-          initialView="dayGridMonth"
+          initialView={fcView}
           initialDate={diaIso}
           locale={ptBrLocale as never}
           editable
@@ -299,6 +284,7 @@ export function AgendaCalendarSection({
           selectConstraint={temHorarioExpediente ? "businessHours" : undefined}
           dayMaxEvents
           weekends
+          nowIndicator
           events={stableEventos}
           eventDragStart={() => {
             frozenEventsRef.current = eventos;
@@ -323,24 +309,17 @@ export function AgendaCalendarSection({
           eventResize={handleEventResize as never}
           eventClick={onEventClick as never}
           dateClick={onDateClick as never}
-          datesSet={(arg: { view: { calendar: { getDate: () => Date } } }) => {
+          datesSet={(arg: { view: { type: string; calendar: { getDate: () => Date } } }) => {
             setDiaIso(toAgendaDiaIso(arg.view.calendar.getDate()));
+            if (arg.view.type === "timeGridDay") setGradeView("day");
+            else if (arg.view.type === "timeGridWeek") setGradeView("week");
+            else if (arg.view.type === "dayGridMonth") setGradeView("month");
           }}
           height="auto"
-          buttons={{
-            visaoDia: {
-              text: "Dia",
-              click: () => setGradeView("day"),
-            },
-            visaoSemana: {
-              text: "Semana",
-              click: () => setGradeView("week"),
-            },
-          }}
           headerToolbar={{
             left: "prev,next today",
             center: "title",
-            right: "visaoDia,visaoSemana,dayGridMonth",
+            right: "timeGridDay,timeGridWeek,dayGridMonth",
           }}
           slotMinTime={slotMinTime}
           slotMaxTime={slotMaxTime}

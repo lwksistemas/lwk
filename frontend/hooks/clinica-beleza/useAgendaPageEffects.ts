@@ -73,15 +73,16 @@ export function useAgendaPageEffects({
       return;
     }
     const loadPlugins = async () => {
-      // Tema FC7 (Mês) + CSS do tema. Dia/Semana usam a mesma escolha via tokens CSS.
-      const [dayGrid, interaction, ptBr] = await Promise.all([
+      // FullCalendar 7 + tema: Dia/Semana/Mês (timeGrid + dayGrid).
+      const [dayGrid, timeGrid, interaction, ptBr] = await Promise.all([
         import("@fullcalendar-v7/react/daygrid"),
+        import("@fullcalendar-v7/react/timegrid"),
         import("@fullcalendar-v7/react/interaction"),
         import("@fullcalendar-v7/react/locales/pt-br"),
       ]);
       await import("@fullcalendar-v7/react/skeleton.css");
       const theme = await loadAgendaVisualTheme(visualAtivo);
-      setCalendarPlugins([dayGrid.default, interaction.default, theme]);
+      setCalendarPlugins([dayGrid.default, timeGrid.default, interaction.default, theme]);
       setPtBrLocale(ptBr.default);
     };
     void loadPlugins();

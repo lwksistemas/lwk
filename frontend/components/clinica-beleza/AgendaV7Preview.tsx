@@ -167,8 +167,9 @@ export function AgendaV7Preview({
           Visual da agenda
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Vale para Dia, Semana e Mês. Dia e Semana mantêm as colunas por profissional, com o visual
-          escolhido. A prévia do calendário fica oculta até você abrir.
+          O tema vale para Dia, Semana e Mês (mesmo calendário da prévia). Com todos os
+          profissionais no Dia, a grade por coluna continua disponível. A prévia fica oculta até
+          você abrir.
         </p>
       </div>
 

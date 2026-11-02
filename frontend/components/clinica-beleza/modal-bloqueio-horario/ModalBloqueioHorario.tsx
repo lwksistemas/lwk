@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
+  DIAS_SEMANA_BLOQUEIO,
   MODOS_BLOQUEIO_INTERVALO,
   TIPOS_BLOQUEIO,
   deslocarMes,
@@ -239,7 +240,14 @@ export function ModalBloqueioHorario({
                   <input
                     type="date"
                     value={state.dataHorario}
-                    onChange={(e) => state.setDataHorario(e.target.value)}
+                    onChange={(e) => {
+                      state.setDataHorario(e.target.value);
+                      if (e.target.value) {
+                        const [y, m, d] = e.target.value.split("-").map(Number);
+                        const js = new Date(y, (m || 1) - 1, d || 1).getDay();
+                        state.setWeekdayRepeticao(js === 0 ? 6 : js - 1);
+                      }
+                    }}
                     className={fieldClass}
                   />
                 </div>
@@ -268,6 +276,69 @@ export function ModalBloqueioHorario({
               </>
             )}
 
+            <div className="md:col-span-2 rounded-xl border border-gray-200 dark:border-neutral-600 p-3 space-y-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-100">
+                <input
+                  type="checkbox"
+                  checked={state.repetir}
+                  onChange={(e) => state.setRepetir(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                Repetir neste dia da semana
+              </label>
+              {state.repetir && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Dia
+                    </label>
+                    <select
+                      value={state.weekdayRepeticao}
+                      onChange={(e) => state.setWeekdayRepeticao(Number(e.target.value))}
+                      className={fieldClass}
+                    >
+                      {DIAS_SEMANA_BLOQUEIO.map((dia) => (
+                        <option key={dia.value} value={dia.value}>
+                          {dia.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Até *
+                    </label>
+                    <input
+                      type="date"
+                      value={state.dataFimRepeticao}
+                      onChange={(e) => state.setDataFimRepeticao(e.target.value)}
+                      className={fieldClass}
+                    />
+                  </div>
+                  {state.modo === "dias" && (
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={state.aplicarRepeticaoNoCalendario}
+                        className="w-full px-3 py-2.5 min-h-[44px] text-sm font-medium rounded-lg border border-gray-300 dark:border-neutral-600 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-neutral-700"
+                      >
+                        Marcar no calendário
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {state.repetir && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  A partir de {state.dataInicioRepeticao.split("-").reverse().join("/")} bloqueia toda{" "}
+                  {state.rotuloRepeticao}.{" "}
+                  {state.modo === "horario"
+                    ? "O mesmo horário vale em todos esses dias."
+                    : "Cada ocorrência vira um dia inteiro bloqueado."}
+                </p>
+              )}
+            </div>
+
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Observações
@@ -284,8 +355,8 @@ export function ModalBloqueioHorario({
 
           <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
             {state.modo === "dias"
-              ? "Clique nos dias ou use Mês inteiro para marcar o mês de uma vez. Cada dia vira um bloqueio próprio."
-              : "Bloqueia apenas o horário no dia escolhido (ex.: 13:00–17:00). Na agenda, puxe a borda de baixo do bloqueio para aumentar ou diminuir o horário."}{" "}
+              ? "Clique nos dias, use Mês inteiro ou Repetir neste dia da semana. Cada dia vira um bloqueio próprio."
+              : "Bloqueia o horário no dia escolhido. Com Repetir, o mesmo período vale em todas as ocorrências até a data final."}{" "}
             O intervalo de almoço do profissional é configurado em Profissionais → Horários de trabalho.
           </p>
         </div>
@@ -297,7 +368,13 @@ export function ModalBloqueioHorario({
             disabled={state.loading}
             className="min-w-[140px] px-5 py-2.5 min-h-[44px] bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
           >
-            {state.loading ? "Salvando..." : state.modo === "dias" && state.rotuloSelecao ? `Bloquear ${state.rotuloSelecao}` : "Bloquear"}
+            {state.loading
+              ? "Salvando..."
+              : state.repetir && state.rotuloRepeticao
+                ? `Bloquear ${state.rotuloRepeticao}`
+                : state.modo === "dias" && state.rotuloSelecao
+                  ? `Bloquear ${state.rotuloSelecao}`
+                  : "Bloquear"}
           </button>
           <button
             type="button"

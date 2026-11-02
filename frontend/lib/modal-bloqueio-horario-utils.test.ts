@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBloqueioRequestBody,
+  buildBloqueiosHorarioPorDia,
   buildBloqueiosPorDia,
+  enumerarDiasDaSemana,
   enumerarDiasInclusivo,
   extractBloqueioApiError,
   modoSugeridoParaTipo,
@@ -11,6 +13,7 @@ import {
   removerDiasDoMes,
   toggleDiaIso,
   validateBloqueioForm,
+  weekdaySegundaZero,
 } from "@/components/clinica-beleza/modal-bloqueio-horario/modal-bloqueio-horario-utils";
 
 describe("resolveMotivoBloqueio", () => {
@@ -184,6 +187,54 @@ describe("dias soltos do mês", () => {
     expect(bodies).toHaveLength(2);
     expect(bodies.every((b) => b.dia_inteiro === true && b.motivo === "Férias")).toBe(true);
     expect(bodies[0].data_inicio).not.toBe(bodies[1].data_inicio);
+  });
+});
+
+describe("repetir dia da semana", () => {
+  it("enumera as terças do mês", () => {
+    expect(weekdaySegundaZero("2026-11-02")).toBe(0);
+    expect(weekdaySegundaZero("2026-11-03")).toBe(1);
+    expect(enumerarDiasDaSemana("2026-11-02", "2026-11-30", 1)).toEqual([
+      "2026-11-03",
+      "2026-11-10",
+      "2026-11-17",
+      "2026-11-24",
+    ]);
+  });
+
+  it("valida a repetição e gera horários iguais", () => {
+    expect(
+      validateBloqueioForm({
+        modo: "horario",
+        motivoFinal: "Reunião",
+        dataHorario: "2026-11-03",
+        horaInicio: "13:00",
+        horaFim: "18:00",
+        repetir: true,
+        dataFimRepeticao: "2026-11-24",
+        weekdayRepeticao: 1,
+      }),
+    ).toBeNull();
+    expect(
+      validateBloqueioForm({
+        modo: "dias",
+        motivoFinal: "Férias",
+        dataInicioDia: "2026-11-03",
+        repetir: true,
+        dataFimRepeticao: "2026-10-01",
+        weekdayRepeticao: 1,
+      }),
+    ).toContain("depois");
+    const bodies = buildBloqueiosHorarioPorDia({
+      dias: ["2026-11-03", "2026-11-10"],
+      motivo: "Reunião",
+      observacoes: "",
+      professionalId: "12",
+      horaInicio: "13:00",
+      horaFim: "18:00",
+    });
+    expect(bodies).toHaveLength(2);
+    expect(bodies.every((b) => b.professional === 12 && b.motivo === "Reunião")).toBe(true);
   });
 });
 

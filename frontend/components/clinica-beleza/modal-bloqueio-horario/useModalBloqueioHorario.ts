@@ -4,17 +4,21 @@ import type { BloqueioProfessional, ModoBloqueioIntervalo } from "./modal-bloque
 import {
   TIPOS_BLOQUEIO,
   buildBloqueioRequestBody,
+  buildBloqueiosHorarioPorDia,
   buildBloqueiosPorDia,
+  enumerarDiasDaSemana,
   extractBloqueioApiError,
   formatDateInput,
   formatTimeInput,
   modoSugeridoParaTipo,
   resolveMotivoBloqueio,
   removerDiasDoMes,
+  rotuloDiaSemana,
   rotuloDiasSelecionados,
   selecionarSomenteMes,
   toggleDiaIso,
   validateBloqueioForm,
+  weekdaySegundaZero,
 } from "./modal-bloqueio-horario-utils";
 
 interface UseModalBloqueioHorarioParams {
@@ -44,10 +48,15 @@ export function useModalBloqueioHorario({
   const [motivoOutro, setMotivoOutro] = useState("");
   const [professionalId, setProfessionalId] = useState<string>("");
   const [observacoes, setObservacoes] = useState("");
+  const [repetir, setRepetir] = useState(false);
+  const [weekdayRepeticao, setWeekdayRepeticao] = useState(1);
+  const [dataFimRepeticao, setDataFimRepeticao] = useState("");
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
   const motivoFinal = resolveMotivoBloqueio(tipoSelecionado, motivoOutro);
+  const dataInicioRepeticao =
+    modo === "dias" ? (diasSelecionados[0] || dataInicioDia) : dataHorario;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -60,6 +69,7 @@ export function useModalBloqueioHorario({
     setMotivoOutro("");
     setProfessionalId(defaultProfessionalId || "");
     setObservacoes("");
+    setRepetir(false);
 
     const dia = formatDateInput(base);
     setDataInicioDia(dia);
@@ -67,6 +77,10 @@ export function useModalBloqueioHorario({
     setDiasSelecionados([dia]);
     setMesCursor(dia);
     setDataHorario(dia);
+    setWeekdayRepeticao(weekdaySegundaZero(dia));
+    const fimRep = new Date(base);
+    fimRep.setMonth(fimRep.getMonth() + 2);
+    setDataFimRepeticao(formatDateInput(fimRep));
 
     const inicio = new Date(base);
     inicio.setMinutes(0, 0, 0);
@@ -98,16 +112,35 @@ export function useModalBloqueioHorario({
     setDiasSelecionados((atual) => removerDiasDoMes(atual, base));
   }, [dataInicioDia, mesCursor]);
 
+  const aplicarRepeticaoNoCalendario = useCallback(() => {
+    const inicio = dataInicioRepeticao;
+    if (!inicio || !dataFimRepeticao) {
+      setErro("Informe a data de início e até quando repetir.");
+      return;
+    }
+    const dias = enumerarDiasDaSemana(inicio, dataFimRepeticao, weekdayRepeticao);
+    if (!dias.length) {
+      setErro(`Nenhuma ${rotuloDiaSemana(weekdayRepeticao).toLowerCase()} nesse intervalo.`);
+      return;
+    }
+    setErro("");
+    setDiasSelecionados(dias);
+    setMesCursor(dias[0]);
+  }, [dataFimRepeticao, dataInicioRepeticao, weekdayRepeticao]);
+
   const salvar = useCallback(async () => {
     const validationError = validateBloqueioForm({
       modo,
       motivoFinal,
-      dataInicioDia,
+      dataInicioDia: dataInicioRepeticao || dataInicioDia,
       dataFimDia,
-      diasSelecionados: modo === "dias" ? diasSelecionados : undefined,
+      diasSelecionados: modo === "dias" && !repetir ? diasSelecionados : undefined,
       dataHorario,
       horaInicio,
       horaFim,
+      repetir,
+      dataFimRepeticao,
+      weekdayRepeticao,
     });
     if (validationError) {
       setErro(validationError);
@@ -116,7 +149,10 @@ export function useModalBloqueioHorario({
     setLoading(true);
     setErro("");
     try {
-      const diasOrdenados = [...diasSelecionados].sort();
+      const diasRepetidos = repetir
+        ? enumerarDiasDaSemana(dataInicioRepeticao, dataFimRepeticao, weekdayRepeticao)
+        : [];
+      const diasOrdenados = repetir ? diasRepetidos : [...diasSelecionados].sort();
       const bodies =
         modo === "dias"
           ? buildBloqueiosPorDia({
@@ -125,19 +161,28 @@ export function useModalBloqueioHorario({
               observacoes,
               professionalId,
             })
-          : [
-              buildBloqueioRequestBody({
-                modo,
+          : repetir
+            ? buildBloqueiosHorarioPorDia({
+                dias: diasOrdenados,
                 motivo: motivoFinal,
                 observacoes,
                 professionalId,
-                dataInicioDia,
-                dataFimDia,
-                dataHorario,
                 horaInicio,
                 horaFim,
-              }),
-            ];
+              })
+            : [
+                buildBloqueioRequestBody({
+                  modo,
+                  motivo: motivoFinal,
+                  observacoes,
+                  professionalId,
+                  dataInicioDia,
+                  dataFimDia,
+                  dataHorario,
+                  horaInicio,
+                  horaFim,
+                }),
+              ];
       const gravados: string[] = [];
       for (let i = 0; i < bodies.length; i++) {
         const body = bodies[i];
@@ -155,7 +200,7 @@ export function useModalBloqueioHorario({
               : extractBloqueioApiError(data, res.status),
           );
         }
-        if (modo === "dias" && diasOrdenados[i]) gravados.push(diasOrdenados[i]);
+        if ((modo === "dias" || repetir) && diasOrdenados[i]) gravados.push(diasOrdenados[i]);
       }
       onSuccess();
       onClose();
@@ -166,8 +211,10 @@ export function useModalBloqueioHorario({
     }
   }, [
     dataFimDia,
+    dataFimRepeticao,
     dataHorario,
     dataInicioDia,
+    dataInicioRepeticao,
     diasSelecionados,
     horaFim,
     horaInicio,
@@ -177,6 +224,8 @@ export function useModalBloqueioHorario({
     onClose,
     onSuccess,
     professionalId,
+    repetir,
+    weekdayRepeticao,
   ]);
 
   return {
@@ -203,10 +252,21 @@ export function useModalBloqueioHorario({
     setProfessionalId,
     observacoes,
     setObservacoes,
+    repetir,
+    setRepetir,
+    weekdayRepeticao,
+    setWeekdayRepeticao,
+    dataFimRepeticao,
+    setDataFimRepeticao,
+    dataInicioRepeticao,
+    aplicarRepeticaoNoCalendario,
     loading,
     erro,
     salvar,
     rotuloSelecao: rotuloDiasSelecionados(diasSelecionados),
+    rotuloRepeticao: repetir
+      ? `${rotuloDiaSemana(weekdayRepeticao)} até ${dataFimRepeticao.split("-").reverse().join("/")}`
+      : "",
   };
 }
 

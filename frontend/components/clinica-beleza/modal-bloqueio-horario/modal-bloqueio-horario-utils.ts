@@ -59,6 +59,74 @@ export function enumerarDiasInclusivo(inicio: string, fim: string, limite = 62):
   return out;
 }
 
+/** 0 = segunda … 6 = domingo (igual ao calendário do modal). */
+export function weekdaySegundaZero(iso: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return 0;
+  const [y, m, d] = iso.split("-").map(Number);
+  const js = new Date(y, (m || 1) - 1, d || 1).getDay();
+  return js === 0 ? 6 : js - 1;
+}
+
+export const DIAS_SEMANA_BLOQUEIO = [
+  { value: 0, label: "Segunda" },
+  { value: 1, label: "Terça" },
+  { value: 2, label: "Quarta" },
+  { value: 3, label: "Quinta" },
+  { value: 4, label: "Sexta" },
+  { value: 5, label: "Sábado" },
+  { value: 6, label: "Domingo" },
+] as const;
+
+/** Todas as ocorrências do dia da semana entre início e fim (inclusive). */
+export function enumerarDiasDaSemana(
+  inicio: string,
+  fim: string,
+  weekday: number,
+  limite = 53,
+): string[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(fim)) return [];
+  if (fim < inicio) return [];
+  if (weekday < 0 || weekday > 6) return [];
+  const [y, m, d] = inicio.split("-").map(Number);
+  const cur = new Date(y, (m || 1) - 1, d || 1);
+  while (weekdaySegundaZero(ymdLocal(cur)) !== weekday) {
+    cur.setDate(cur.getDate() + 1);
+    if (ymdLocal(cur) > fim) return [];
+  }
+  const out: string[] = [];
+  while (ymdLocal(cur) <= fim && out.length < limite) {
+    out.push(ymdLocal(cur));
+    cur.setDate(cur.getDate() + 7);
+  }
+  return out;
+}
+
+export function rotuloDiaSemana(weekday: number): string {
+  return DIAS_SEMANA_BLOQUEIO.find((dia) => dia.value === weekday)?.label || "dia";
+}
+
+/** Um bloqueio de horário por dia (mesma hora início/fim). */
+export function buildBloqueiosHorarioPorDia(params: {
+  dias: string[];
+  motivo: string;
+  observacoes: string;
+  professionalId: string;
+  horaInicio: string;
+  horaFim: string;
+}): Record<string, unknown>[] {
+  return [...params.dias].sort().map((dia) =>
+    buildBloqueioRequestBody({
+      modo: "horario",
+      motivo: params.motivo,
+      observacoes: params.observacoes,
+      professionalId: params.professionalId,
+      dataHorario: dia,
+      horaInicio: params.horaInicio,
+      horaFim: params.horaFim,
+    }),
+  );
+}
+
 export function toggleDiaIso(dias: string[], dia: string): string[] {
   if (dias.includes(dia)) return dias.filter((d) => d !== dia);
   return [...dias, dia].sort();
@@ -137,9 +205,30 @@ export function validateBloqueioForm(params: {
   dataHorario?: string;
   horaInicio?: string;
   horaFim?: string;
+  /** Repetir o mesmo dia da semana até a data final. */
+  repetir?: boolean;
+  dataFimRepeticao?: string;
+  weekdayRepeticao?: number;
 }): string | null {
   const { modo, motivoFinal } = params;
   if (!motivoFinal.trim()) return "Informe o motivo (tipo ou outro).";
+
+  if (params.repetir) {
+    const inicio = modo === "dias" ? (params.dataInicioDia || params.diasSelecionados?.[0] || "") : (params.dataHorario || "");
+    if (!inicio) return "Informe a data de início da repetição.";
+    if (!params.dataFimRepeticao) return "Informe até quando a repetição vale.";
+    if (params.dataFimRepeticao < inicio) return "A data final da repetição deve ser igual ou depois do início.";
+    if (params.weekdayRepeticao == null || params.weekdayRepeticao < 0 || params.weekdayRepeticao > 6) {
+      return "Escolha o dia da semana para repetir.";
+    }
+    const dias = enumerarDiasDaSemana(inicio, params.dataFimRepeticao, params.weekdayRepeticao);
+    if (dias.length === 0) return "Nenhuma data encontrada nesse intervalo para o dia escolhido.";
+    if (modo === "horario") {
+      if (!params.horaInicio || !params.horaFim) return "Preencha o horário de início e fim.";
+      if (params.horaFim <= params.horaInicio) return "O horário de fim deve ser depois do início.";
+    }
+    return null;
+  }
 
   if (modo === "dias") {
     if (params.diasSelecionados) {

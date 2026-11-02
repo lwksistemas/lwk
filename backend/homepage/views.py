@@ -88,6 +88,10 @@ class PaginaSiteAPIView(APIView):
         return Response(PaginaSiteSerializer(pagina).data)
 
 
+MAX_CONTATOS_POR_JANELA = 8
+JANELA_CONTATO_SEGUNDOS = 3600
+
+
 class ContatoSiteAPIView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
@@ -96,16 +100,22 @@ class ContatoSiteAPIView(APIView):
         from .models import EmpresaConfig, PaginaSite
         from .serializers import SolicitacaoContatoSerializer
 
-        ip = request.META.get("REMOTE_ADDR", "") or "sem-ip"
-        chave = f"site-contato:{ip}"
-        tentativas = cache.get(chave, 0)
-        if tentativas >= 8:
+        # REMOTE_ADDR é o gateway do Docker (igual para todos): usar o IP que o nginx acrescentou
+        from clinica_beleza.throttles import _get_client_ip
+
+        chave = f"site-contato:{_get_client_ip(request)}"
+        cache.add(chave, 0, JANELA_CONTATO_SEGUNDOS)  # cria a janela só se ainda não existe
+        try:
+            tentativas = cache.incr(chave)  # incremento atômico
+        except ValueError:  # janela expirou entre o add e o incr
+            cache.set(chave, 1, JANELA_CONTATO_SEGUNDOS)
+            tentativas = 1
+        if tentativas > MAX_CONTATOS_POR_JANELA:
             return Response({"detail": "Muitas mensagens deste acesso. Tente mais tarde."}, status=429)
 
         serializer = SolicitacaoContatoSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         solicitacao = serializer.save()
-        cache.set(chave, tentativas + 1, 3600)
 
         empresa = EmpresaConfig.objects.first()
         destino = (empresa.email_contato or "").strip() if empresa else ""

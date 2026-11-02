@@ -221,6 +221,7 @@ class SolicitacaoContatoSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "empresa": {"required": False, "allow_blank": True},
             "origem": {"required": False},
+            "mensagem": {"max_length": 2000},
         }
 
     def validate_aceite_lgpd(self, value):

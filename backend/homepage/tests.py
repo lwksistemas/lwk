@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase
 
 from homepage.models import SolicitacaoContato
@@ -5,6 +6,36 @@ from homepage.serializers import HeroSerializer
 
 
 class ContatoSiteTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    def _post(self, ip=None, **extra):
+        dados = {
+            "nome": "Ana",
+            "whatsapp": "16999998888",
+            "produto": "crm-vendas",
+            "mensagem": "Oi",
+            "aceite_lgpd": True,
+        }
+        cabecalhos = {"HTTP_X_FORWARDED_FOR": ip} if ip else {}
+        return self.client.post("/api/site/contato/", {**dados, **extra}, content_type="application/json", **cabecalhos)
+
+    def test_limite_e_por_ip_do_cliente_e_nao_do_proxy(self):
+        """Regressão: todos chegam com o mesmo REMOTE_ADDR (gateway Docker); o limite é por IP real."""
+        for _ in range(8):
+            self.assertEqual(self._post(ip="203.0.113.1").status_code, 201)
+        self.assertEqual(self._post(ip="203.0.113.1").status_code, 429)
+        # outro visitante, mesmo REMOTE_ADDR do proxy, não é bloqueado
+        self.assertEqual(self._post(ip="203.0.113.2").status_code, 201)
+
+    def test_ip_forjado_no_inicio_do_cabecalho_nao_burla_o_limite(self):
+        for i in range(8):
+            self._post(ip=f"10.0.0.{i}, 203.0.113.9")
+        self.assertEqual(self._post(ip="10.9.9.9, 203.0.113.9").status_code, 429)
+
+    def test_mensagem_gigante_e_recusada(self):
+        self.assertEqual(self._post(mensagem="x" * 2001).status_code, 400)
+
     def test_grava_pedido_com_aceite(self):
         resposta = self.client.post(
             "/api/site/contato/",

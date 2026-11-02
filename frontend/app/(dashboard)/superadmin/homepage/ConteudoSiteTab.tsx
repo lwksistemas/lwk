@@ -46,6 +46,30 @@ function lista<T>(data: unknown): T[] {
   return pagina?.results ?? [];
 }
 
+const BLOCOS_HOME = [
+  'home-solucoes',
+  'home-crm',
+  'home-clinica',
+  'home-personalizados',
+  'home-beneficios',
+  'home-planos',
+  'home-contato',
+] as const;
+
+const NOME_BLOCO: Record<string, string> = {
+  'home-solucoes': 'Nossas soluções',
+  'home-crm': 'Cartão do CRM',
+  'home-clinica': 'Cartão da clínica',
+  'home-personalizados': 'Desenvolvimento de sistemas personalizados',
+  'home-beneficios': 'Benefícios e diferenciais',
+  'home-planos': 'Planos e proposta',
+  'home-contato': 'Contato e demonstração',
+};
+
+function partes(linha: string) {
+  return linha.split('|').map((parte) => parte.trim());
+}
+
 function EditorPagina({
   editando,
   setEditando,
@@ -56,24 +80,72 @@ function EditorPagina({
   onSave: () => void;
 }) {
   const trocaFoto = editando.slug === 'home-crm' || editando.slug === 'home-clinica';
+  const daHome = editando.slug.startsWith('home-');
+  const cartoes = editando.itens.split('\n').map((linha) => linha.trim()).filter(Boolean).map(partes);
+  const atualizarCartao = (indice: number, campo: number, valor: string) => {
+    const proximos = cartoes.map((item) => [...item]);
+    while (proximos.length <= indice) proximos.push(['', '']);
+    proximos[indice][campo] = valor;
+    setEditando({ ...editando, itens: proximos.map((item) => item.join('|')).join('\n') });
+  };
   return (
     <div className="space-y-3 rounded-xl border p-4">
+      <p className="text-sm font-medium text-slate-700">{NOME_BLOCO[editando.slug] || editando.titulo}</p>
       <div>
-        <Label>Título</Label>
+        <Label>Título que aparece na home</Label>
         <Input value={editando.titulo} onChange={(e) => setEditando({ ...editando, titulo: e.target.value })} />
       </div>
-      <div>
-        <Label>Resumo</Label>
-        <textarea className="min-h-16 w-full rounded-md border px-3 py-2 text-sm" value={editando.resumo} onChange={(e) => setEditando({ ...editando, resumo: e.target.value })} />
-      </div>
-      <div>
-        <Label>Texto</Label>
-        <textarea className="min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={editando.corpo} onChange={(e) => setEditando({ ...editando, corpo: e.target.value })} />
-      </div>
-      <div>
-        <Label>Destaques (um por linha)</Label>
-        <textarea className="min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={editando.itens} onChange={(e) => setEditando({ ...editando, itens: e.target.value })} />
-      </div>
+      {editando.slug !== 'home-beneficios' && (
+        <div>
+          <Label>Mensagem abaixo do título</Label>
+          <textarea className="min-h-20 w-full rounded-md border px-3 py-2 text-sm" value={editando.resumo} onChange={(e) => setEditando({ ...editando, resumo: e.target.value })} />
+        </div>
+      )}
+      {editando.slug === 'home-beneficios' && (
+        <p className="text-sm text-slate-500">Os quatro cartões desta seção ficam na aba Benefícios.</p>
+      )}
+      {(editando.slug === 'home-crm' || editando.slug === 'home-clinica') && (
+        <div>
+          <Label>Tópicos, um por linha</Label>
+          <textarea className="min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={editando.itens} onChange={(e) => setEditando({ ...editando, itens: e.target.value })} />
+        </div>
+      )}
+      {editando.slug === 'home-personalizados' && cartoes.map((cartao, indice) => (
+        <div key={indice} className="grid gap-2 md:grid-cols-2">
+          <div>
+            <Label>Cartão {indice + 1} — título</Label>
+            <Input value={cartao[0] || ''} onChange={(e) => atualizarCartao(indice, 0, e.target.value)} />
+          </div>
+          <div>
+            <Label>Cartão {indice + 1} — mensagem</Label>
+            <Input value={cartao[1] || ''} onChange={(e) => atualizarCartao(indice, 1, e.target.value)} />
+          </div>
+        </div>
+      ))}
+      {editando.slug === 'home-planos' && cartoes.map((cartao, indice) => (
+        <div key={indice} className="grid gap-2 md:grid-cols-2">
+          <div>
+            <Label>Plano {indice + 1} — título</Label>
+            <Input value={cartao[0] || ''} onChange={(e) => atualizarCartao(indice, 0, e.target.value)} />
+          </div>
+          <div>
+            <Label>Plano {indice + 1} — mensagem</Label>
+            <Input value={cartao[1] || ''} onChange={(e) => atualizarCartao(indice, 1, e.target.value)} />
+          </div>
+        </div>
+      ))}
+      {!daHome && (
+        <>
+          <div>
+            <Label>Texto</Label>
+            <textarea className="min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={editando.corpo} onChange={(e) => setEditando({ ...editando, corpo: e.target.value })} />
+          </div>
+          <div>
+            <Label>Destaques (um por linha)</Label>
+            <textarea className="min-h-24 w-full rounded-md border px-3 py-2 text-sm" value={editando.itens} onChange={(e) => setEditando({ ...editando, itens: e.target.value })} />
+          </div>
+        </>
+      )}
       {trocaFoto && (
         <ImageUpload
           label="Foto do cartão"
@@ -83,10 +155,12 @@ function EditorPagina({
           folder="fotos"
         />
       )}
-      <div>
-        <Label>Mensagem do WhatsApp</Label>
-        <Input value={editando.mensagem_whatsapp} onChange={(e) => setEditando({ ...editando, mensagem_whatsapp: e.target.value })} />
-      </div>
+      {!daHome && (
+        <div>
+          <Label>Mensagem do WhatsApp</Label>
+          <Input value={editando.mensagem_whatsapp} onChange={(e) => setEditando({ ...editando, mensagem_whatsapp: e.target.value })} />
+        </div>
+      )}
       <div className="flex gap-2">
         <Button type="button" onClick={onSave}>Salvar página</Button>
         <Button type="button" variant="outline" onClick={() => setEditando(null)}>Fechar</Button>
@@ -156,19 +230,17 @@ export function ConteudoSiteTab() {
         <CardHeader>
           <CardTitle>Textos da página inicial</CardTitle>
           <CardDescription>
-            Blocos home-*. Em home-crm e home-clinica dá para trocar a foto de Nossas soluções. Sem foto nova, permanece a atual.
-            Em home-personalizados, cada destaque é Título|texto e o campo Texto é o botão no formato Rótulo|/caminho.
-            Em home-planos, cada linha é Título|texto|/caminho|botão. O título da seção de benefícios é home-beneficios; os cartões ficam na aba Benefícios.
+            Cada item é uma faixa da home. Em Desenvolvimento de sistemas personalizados, o título é a frase grande e Mensagem abaixo do título é o parágrafo. Os três cartões ficam logo em seguida.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {paginas.filter((pagina) => pagina.slug.startsWith('home-')).length === 0 && (
             <p className="text-sm text-slate-500">Os blocos da home aparecem aqui depois da atualização do sistema.</p>
           )}
-          {paginas.filter((pagina) => pagina.slug.startsWith('home-')).map((pagina) => (
+          {BLOCOS_HOME.map((slug) => paginas.find((pagina) => pagina.slug === slug)).filter((pagina): pagina is Pagina => Boolean(pagina)).map((pagina) => (
             <button key={pagina.id} type="button" className="block w-full rounded-lg border px-4 py-3 text-left hover:bg-slate-50" onClick={() => setEditando(pagina)}>
-              <span className="font-medium">{pagina.titulo}</span>
-              <span className="ml-2 text-sm text-slate-500">/{pagina.slug}</span>
+              <span className="font-medium">{NOME_BLOCO[pagina.slug]}</span>
+              <span className="mt-1 block text-sm text-slate-500">{pagina.titulo}</span>
             </button>
           ))}
           {editando?.slug.startsWith('home-') && (

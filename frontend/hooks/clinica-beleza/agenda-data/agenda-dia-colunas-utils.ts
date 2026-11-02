@@ -102,12 +102,11 @@ export function estiloCardStatusAgenda(evt: AgendaEventData): EstiloCardAgenda {
   const p = evt.extendedProps || {};
   const cor = corStatusEventoAgenda(evt);
   if (p.isBloqueio) {
+    // Sem listras densas (polui a coluna no Dia); só lavagem suave + borda tracejada.
     return {
       cor,
-      backgroundColor: fundoPastelAgenda(cor, 14),
-      borderLeft: `4px dashed ${cor}`,
-      backgroundImage:
-        `repeating-linear-gradient(-45deg, color-mix(in srgb, ${cor} 18%, transparent) 0 6px, transparent 6px 12px)`,
+      backgroundColor: fundoPastelAgenda(cor, 8),
+      borderLeft: `3px dashed ${cor}`,
     };
   }
   return {

@@ -463,7 +463,7 @@ describe("formatarAgendaEvento / professional", () => {
 });
 
 describe("visual do bloqueio", () => {
-  it("não usa o roxo do Aguardando e listra o fundo", () => {
+  it("não usa o roxo do Aguardando e mantém bloqueio suave sem listras", () => {
     expect(familiaBloqueioAgenda("REUNIÃO VÍDEOMAKER")).toBe("reuniao");
     expect(familiaBloqueioAgenda("Férias do profissional")).toBe("ferias");
     expect(rotuloTipoBloqueioAgenda("REUNIÃO VÍDEOMAKER")).toBe("Reunião");
@@ -477,7 +477,7 @@ describe("visual do bloqueio", () => {
       }),
     );
     expect(estilo.borderLeft).toContain("dashed");
-    expect(estilo.backgroundImage).toContain("repeating-linear-gradient");
+    expect(estilo.backgroundImage).toBeUndefined();
     const aguardando = estiloCardStatusAgenda(
       evt({
         id: "a1",

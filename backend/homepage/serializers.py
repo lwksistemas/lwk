@@ -2,6 +2,59 @@ from rest_framework import serializers
 
 from core.serializer_mixins import PhoneNormalizationMixin
 
+EFEITOS_HOME = {"typing", "fade", "reveal", "scroll", "slide", "zoom", "nenhuma"}
+TRANSICOES_HOME = {"fade", "slide", "zoom", "nenhuma"}
+CHAVES_ANIMACAO = ("selo", "titulo", "destaque", "descricao", "botao", "botao2", "secoes")
+
+
+def _numero(valor, minimo, maximo, padrao):
+    try:
+        numero = int(valor)
+    except (TypeError, ValueError):
+        return padrao
+    return max(minimo, min(maximo, numero))
+
+
+def _item_animacao(bruto):
+    bruto = bruto if isinstance(bruto, dict) else {}
+    efeito = bruto.get("efeito") if bruto.get("efeito") in EFEITOS_HOME else "nenhuma"
+    return {
+        "efeito": efeito,
+        "ativo": bool(bruto.get("ativo", False)) and efeito != "nenhuma",
+        "velocidade": bruto.get("velocidade") if bruto.get("velocidade") in {"lenta", "normal", "rapida"} else "normal",
+        "duracao": _numero(bruto.get("duracao"), 200, 3000, 700),
+        "atraso": _numero(bruto.get("atraso"), 0, 3000, 0),
+        "repetir": bool(bruto.get("repetir", False)),
+        "direcao": "vertical" if bruto.get("direcao") == "vertical" else "horizontal",
+    }
+
+
+def _item_imagem(bruto):
+    bruto = bruto if isinstance(bruto, dict) else {}
+    transicao = bruto.get("transicao") if bruto.get("transicao") in TRANSICOES_HOME else "fade"
+    return {
+        "transicao": transicao,
+        "ativo": bool(bruto.get("ativo", True)) and transicao != "nenhuma",
+        "velocidade": bruto.get("velocidade") if bruto.get("velocidade") in {"lenta", "normal", "rapida"} else "normal",
+        "duracao": _numero(bruto.get("duracao"), 200, 3000, 450),
+        "atraso": _numero(bruto.get("atraso"), 0, 3000, 0),
+    }
+
+
+def _dispositivo(bruto):
+    bruto = bruto if isinstance(bruto, dict) else {}
+    return {chave: _item_animacao(bruto.get(chave)) for chave in CHAVES_ANIMACAO} | {"imagens": _item_imagem(bruto.get("imagens"))}
+
+
+def _animacoes_limpas(bruto):
+    computador = _dispositivo(bruto.get("computador"))
+    igual = bruto.get("igual_celular") is not False
+    return {
+        "igual_celular": igual,
+        "computador": computador,
+        "celular": computador if igual else _dispositivo(bruto.get("celular")),
+    }
+
 from .models import (
     EmpresaConfig,
     Funcionalidade,
@@ -33,6 +86,7 @@ class HeroSerializer(serializers.ModelSerializer):
             "fonte_familia",
             "fonte_tamanho",
             "rotulos_botoes",
+            "animacoes",
             "ordem",
             "ativo",
         ]
@@ -42,6 +96,7 @@ class HeroSerializer(serializers.ModelSerializer):
             "fonte_familia": {"required": False},
             "fonte_tamanho": {"required": False},
             "rotulos_botoes": {"required": False},
+            "animacoes": {"required": False},
         }
 
     def validate_rotulos_botoes(self, value):
@@ -54,6 +109,13 @@ class HeroSerializer(serializers.ModelSerializer):
             if isinstance(chave, str) and isinstance(texto, str) and texto.strip():
                 limpo[chave[:40]] = texto.strip()[:80]
         return limpo
+
+    def validate_animacoes(self, value):
+        if not value:
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Informe as animações da homepage.")
+        return _animacoes_limpas(value)
 
 
 class FuncionalidadeSerializer(serializers.ModelSerializer):

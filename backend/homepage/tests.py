@@ -1,6 +1,7 @@
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from homepage.models import SolicitacaoContato
+from homepage.serializers import HeroSerializer
 
 
 class ContatoSiteTests(TestCase):
@@ -37,3 +38,16 @@ class ContatoSiteTests(TestCase):
         )
         self.assertEqual(resposta.status_code, 400)
         self.assertEqual(SolicitacaoContato.objects.count(), 0)
+
+
+class AnimacoesHomeTests(SimpleTestCase):
+    def test_limpa_efeito_e_limite_de_duracao(self):
+        limpo = HeroSerializer().validate_animacoes({
+            "igual_celular": True,
+            "computador": {"titulo": {"efeito": "typing", "ativo": True, "duracao": 9000, "repetir": True}},
+        })
+        self.assertTrue(limpo["igual_celular"])
+        self.assertEqual(limpo["computador"]["titulo"]["efeito"], "typing")
+        self.assertEqual(limpo["computador"]["titulo"]["duracao"], 3000)
+        self.assertEqual(limpo["computador"]["imagens"]["transicao"], "fade")
+        self.assertEqual(limpo["celular"]["titulo"]["efeito"], "typing")

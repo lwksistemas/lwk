@@ -14,6 +14,7 @@ export interface HeroData {
   fonte_familia?: string;
   fonte_tamanho?: string;
   rotulos_botoes?: Record<string, string>;
+  animacoes?: unknown;
   ativo?: boolean;
 }
 

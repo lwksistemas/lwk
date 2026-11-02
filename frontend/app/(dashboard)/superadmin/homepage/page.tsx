@@ -21,6 +21,8 @@ import { WhyUsForm } from '@/components/superadmin/homepage/WhyUsForm';
 
 import { useHomepageConfig } from './useHomepageConfig';
 import { BannerTab } from './BannerTab';
+import { AnimacoesTab } from './AnimacoesTab';
+import { CHAVE_PREVER_ANIMACOES, normalizarAnimacoes } from '@/lib/animacoes-home';
 import { ConteudoSiteTab } from './ConteudoSiteTab';
 import { HeroImagensTab } from './HeroImagensTab';
 import { EmpresaTab } from './EmpresaTab';
@@ -57,10 +59,22 @@ export default function HomepageConfigPage() {
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={config.loadData} disabled={config.loading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${config.loading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                localStorage.setItem(CHAVE_PREVER_ANIMACOES, JSON.stringify(normalizarAnimacoes(config.heroForm.animacoes)));
+                window.open('/?prever=1', '_blank', 'noopener,noreferrer');
+              }}
+            >
+              Pré-visualizar homepage
+            </Button>
+            <Button variant="outline" size="sm" onClick={config.loadData} disabled={config.loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${config.loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         {/* Message */}
@@ -77,6 +91,7 @@ export default function HomepageConfigPage() {
         <Tabs defaultValue="banner" className="space-y-4">
           <TabsList className="flex flex-wrap gap-1 h-auto p-1">
             <TabsTrigger value="banner" className="text-xs sm:text-sm">Banner</TabsTrigger>
+            <TabsTrigger value="animacoes" className="text-xs sm:text-sm">Animações</TabsTrigger>
             <TabsTrigger value="hero-imagens" className="text-xs sm:text-sm">🖼️ Imagens</TabsTrigger>
             <TabsTrigger value="conteudo" className="text-xs sm:text-sm">Menu e páginas</TabsTrigger>
             <TabsTrigger value="funcionalidades" className="text-xs sm:text-sm">Funcionalidades</TabsTrigger>
@@ -92,6 +107,15 @@ export default function HomepageConfigPage() {
               heroForm={config.heroForm}
               setHeroForm={config.setHeroForm}
               onSave={config.saveHero}
+              saving={config.saving}
+            />
+          </TabsContent>
+
+          <TabsContent value="animacoes">
+            <AnimacoesTab
+              heroForm={config.heroForm}
+              setHeroForm={config.setHeroForm}
+              onSave={config.saveAnimacoes}
               saving={config.saving}
             />
           </TabsContent>

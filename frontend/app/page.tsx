@@ -2,6 +2,7 @@ import Header from "./components/Header";
 import Hero from "./components/Hero";
 import VitrineHome from "./components/VitrineHome";
 import Footer from "./components/Footer";
+import { FaixaPrever } from "./components/AnimacaoHome";
 import PwaRedirect from "./components/PwaRedirect";
 import { getHomepage } from "@/lib/api";
 import { classeFonteHome } from "@/lib/fontes-home";
@@ -79,8 +80,10 @@ export default async function HomePage() {
           paginas={data.paginas}
           beneficios={data.whyus}
           rotulos={hero.rotulos_botoes}
+          animacoes={hero.animacoes}
         />
         <Footer empresa={empresa} />
+        <FaixaPrever />
       </main>
     </PwaRedirect>
   );

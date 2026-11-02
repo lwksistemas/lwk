@@ -14,6 +14,7 @@ export interface Hero {
   fonte_familia?: string;
   fonte_tamanho?: string;
   rotulos_botoes?: Record<string, string>;
+  animacoes?: unknown;
 }
 
 export interface Funcionalidade {

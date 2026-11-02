@@ -72,6 +72,11 @@ class HeroSection(models.Model):
         blank=True,
         help_text="Nomes dos botões da home. Vazio usa o texto padrão.",
     )
+    animacoes = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Efeitos visuais da homepage pública. Vazio mantém o visual atual.",
+    )
     ativo = models.BooleanField(default=True)
     ordem = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

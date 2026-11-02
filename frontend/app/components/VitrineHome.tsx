@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SolicitacaoForm } from "@/components/site/SolicitacaoForm";
 import type { PaginaHome, WhyUsBenefit } from "@/types/homepage";
 import { rotuloBotao } from "@/lib/botoes-home";
+import { BlocoHome } from "./AnimacaoHome";
 
 const FAIXA = "w-full px-4 py-12 sm:px-6 lg:px-8";
 const CARTAO = "rounded-2xl border border-cyan-300/50 bg-[#071833]/80 p-5 text-white shadow-[0_0_0_1px_rgba(34,211,238,0.08)]";
@@ -40,12 +41,14 @@ export default function VitrineHome({
   paginas,
   beneficios,
   rotulos,
+  animacoes,
 }: {
   telefone?: string;
   email?: string;
   paginas?: PaginaHome[];
   beneficios?: WhyUsBenefit[];
   rotulos?: Record<string, string>;
+  animacoes?: unknown;
 }) {
   const solucoes = pagina(paginas, "home-solucoes");
   const crm = pagina(paginas, "home-crm");
@@ -75,7 +78,7 @@ export default function VitrineHome({
 
   return (
     <div className="bg-[#031433] text-white">
-      <section id="solucoes" className={`scroll-mt-24 ${FAIXA}`}>
+      <BlocoHome id="solucoes" animacoes={animacoes} className={`scroll-mt-24 ${FAIXA}`}>
         <h2 className="text-3xl font-bold tracking-tight">{campo(solucoes, "titulo", "Nossas soluções")}</h2>
         <p className="mt-3 max-w-3xl text-lg text-slate-200">
           {campo(solucoes, "resumo", "Dois sistemas prontos. O detalhe de cada um fica na página do produto.")}
@@ -104,9 +107,9 @@ export default function VitrineHome({
             <Link href="/solucoes/clinicas-estetica" className={BOTAO}>{rotuloBotao(rotulos, "conhecer_clinica")}</Link>
           </article>
         </div>
-      </section>
+      </BlocoHome>
 
-      <section id="personalizados" className={`scroll-mt-24 border-t border-white/10 bg-[#04183f] ${FAIXA}`}>
+      <BlocoHome id="personalizados" animacoes={animacoes} className={`scroll-mt-24 border-t border-white/10 bg-[#04183f] ${FAIXA}`}>
         <h2 className="text-3xl font-bold tracking-tight">{campo(personalizados, "titulo", "Desenvolvimento de sistemas personalizados")}</h2>
         <p className="mt-3 max-w-3xl text-lg text-slate-200">
           {campo(personalizados, "resumo", "Quando a operação não cabe no CRM nem na clínica, a LWK desenvolve o software sob medida. Não há sistema pronto para outros segmentos.")}
@@ -126,9 +129,9 @@ export default function VitrineHome({
         <Link href={(linkPersonalizado || "/solucoes/personalizados").trim()} className="mt-8 inline-flex rounded-full bg-[#2f6bff] px-5 py-2.5 text-sm font-semibold text-white">
           {rotuloBotao(rotulos, "orcamento")}
         </Link>
-      </section>
+      </BlocoHome>
 
-      <section id="beneficios" className={`scroll-mt-24 border-t border-white/10 ${FAIXA}`}>
+      <BlocoHome id="beneficios" animacoes={animacoes} className={`scroll-mt-24 border-t border-white/10 ${FAIXA}`}>
         <h2 className="text-3xl font-bold tracking-tight">{campo(tituloBeneficios, "titulo", "Benefícios e diferenciais")}</h2>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {(cardsBeneficios.length ? cardsBeneficios.map((item) => ({ titulo: item.titulo, texto: item.descricao })) : [
@@ -143,9 +146,9 @@ export default function VitrineHome({
             </article>
           ))}
         </div>
-      </section>
+      </BlocoHome>
 
-      <section id="planos" className={`scroll-mt-24 border-t border-white/10 bg-[#04183f] ${FAIXA}`}>
+      <BlocoHome id="planos" animacoes={animacoes} className={`scroll-mt-24 border-t border-white/10 bg-[#04183f] ${FAIXA}`}>
         <h2 className="text-3xl font-bold tracking-tight">{campo(planos, "titulo", "Planos e proposta")}</h2>
         <p className="mt-3 max-w-3xl text-lg text-slate-200">
           {campo(planos, "resumo", "Os valores publicados são os da gestão para clínicas. CRM e sistemas personalizados seguem sob consulta.")}
@@ -167,9 +170,9 @@ export default function VitrineHome({
             );
           })}
         </div>
-      </section>
+      </BlocoHome>
 
-      <section id="pedir-demonstracao" className={`scroll-mt-24 border-t border-white/10 bg-[#04183f] ${FAIXA}`}>
+      <BlocoHome id="pedir-demonstracao" animacoes={animacoes} className={`scroll-mt-24 border-t border-white/10 bg-[#04183f] ${FAIXA}`}>
         <h2 className="text-3xl font-bold tracking-tight">{campo(contato, "titulo", "Contato e demonstração")}</h2>
         <p className="mt-3 max-w-3xl text-lg text-slate-200">
           {campo(contato, "resumo", "Escolha o CRM, a clínica ou um sistema personalizado. A mensagem do WhatsApp já leva o produto, o nome e a empresa.")}
@@ -189,7 +192,7 @@ export default function VitrineHome({
             rotuloWhatsapp={rotuloBotao(rotulos, "whatsapp_form")}
           />
         </div>
-      </section>
+      </BlocoHome>
     </div>
   );
 }

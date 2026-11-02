@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
 import { applyTelefoneInternacionalPayload, formatTelefone } from '@/lib/format-br';
+import { normalizarAnimacoes } from '@/lib/animacoes-home';
 import {
   API,
   HeroData,
@@ -112,6 +113,7 @@ export function useHomepageConfig() {
           fonte_familia: firstHero.fonte_familia || 'inter',
           fonte_tamanho: firstHero.fonte_tamanho || 'normal',
           rotulos_botoes: firstHero.rotulos_botoes || {},
+          animacoes: normalizarAnimacoes(firstHero.animacoes),
         });
       } else {
         setHero(null);
@@ -191,6 +193,25 @@ export function useHomepageConfig() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       showMsg('error', e.response?.data?.detail || 'Erro ao salvar hero');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveAnimacoes = async () => {
+    if (!hero?.id) {
+      showMsg('error', 'Salve o banner antes das animações');
+      return;
+    }
+    setSaving(true);
+    try {
+      const animacoes = normalizarAnimacoes(heroForm.animacoes);
+      await apiClient.patch(`${API.hero}${hero.id}/`, { animacoes });
+      setHeroForm((atual) => ({ ...atual, animacoes }));
+      showMsg('success', 'Animações salvas. A home atualiza em até um minuto.');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      showMsg('error', e.response?.data?.detail || 'Erro ao salvar animações');
     } finally {
       setSaving(false);
     }
@@ -497,7 +518,7 @@ export function useHomepageConfig() {
     selectedHeroImg, toggleSelectHeroImg, toggleSelectAllHeroImg,
 
     // Actions
-    loadData, saveHero, saveEmpresa, saveFuncionalidade, saveModulo,
+    loadData, saveHero, saveAnimacoes, saveEmpresa, saveFuncionalidade, saveModulo,
     saveWhyUs, saveHeroImagem, deleteItem, reorderItem, bulkAction,
   };
 }

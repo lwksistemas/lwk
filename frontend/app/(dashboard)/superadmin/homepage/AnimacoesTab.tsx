@@ -103,19 +103,19 @@ export function AnimacoesTab({
           )}
 
           <div key={reprise} className="rounded-xl bg-[#071833] p-5 text-white">
-            <TextoAnimado item={dispositivo.selo} reduzido={false} className="inline-flex rounded-full border border-sky-200/40 px-3 py-1 text-sm text-sky-100">
+            <TextoAnimado item={dispositivo.selo} className="inline-flex rounded-full border border-sky-200/40 px-3 py-1 text-sm text-sky-100">
               {heroForm.selo || 'Software House'}
             </TextoAnimado>
             <div className="mt-3 text-3xl font-extrabold leading-tight">
-              <TextoAnimado texto={heroForm.titulo || 'Soluções de software'} item={dispositivo.titulo} reduzido={false} className="block" />
-              <TextoAnimado texto={heroForm.titulo_destaque || 'para sua empresa.'} item={dispositivo.destaque} reduzido={false} className="mt-1 block text-[#3ecbff]" />
+              <TextoAnimado texto={heroForm.titulo || 'Soluções de software'} item={dispositivo.titulo} className="block" />
+              <TextoAnimado texto={heroForm.titulo_destaque || 'para sua empresa.'} item={dispositivo.destaque} className="mt-1 block text-[#3ecbff]" />
             </div>
-            <TextoAnimado texto={heroForm.subtitulo || 'Texto de apresentação da homepage.'} item={dispositivo.descricao} reduzido={false} className="mt-3 block max-w-xl text-sm text-slate-200" />
+            <TextoAnimado texto={heroForm.subtitulo || 'Texto de apresentação da homepage.'} item={dispositivo.descricao} className="mt-3 block max-w-xl text-sm text-slate-200" />
             <div className="mt-4 flex flex-wrap gap-3">
-              <TextoAnimado item={dispositivo.botao} reduzido={false} className="inline-flex">
+              <TextoAnimado item={dispositivo.botao} className="inline-flex">
                 <span className="rounded-full bg-[#2f6bff] px-4 py-2 text-sm font-semibold">{heroForm.botao_texto || 'Botão principal'}</span>
               </TextoAnimado>
-              <TextoAnimado item={dispositivo.botao2} reduzido={false} className="inline-flex">
+              <TextoAnimado item={dispositivo.botao2} className="inline-flex">
                 <span className="rounded-full border border-white/40 px-4 py-2 text-sm font-semibold">{heroForm.botao_secundario_texto || 'Segundo botão'}</span>
               </TextoAnimado>
             </div>
@@ -176,10 +176,26 @@ export function AnimacoesTab({
                 <Input type="number" min={0} max={3000} value={dispositivo.imagens.atraso} onChange={(e) => mudarImagem({ atraso: Number(e.target.value) })} />
               </div>
             </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={dispositivo.imagens.celular} onChange={(e) => mudarImagem({ celular: e.target.checked })} />
+              No celular
+            </label>
           </div>
+          {Array.isArray(heroForm.animacoes_historico) && heroForm.animacoes_historico.length > 0 && (
+            <div className="space-y-2 rounded-xl border p-4">
+              <p className="font-medium">Versões anteriores</p>
+              <p className="text-sm text-slate-500">Escolher uma versão só preenche o formulário. Salvar e publicar grava no site.</p>
+              {heroForm.animacoes_historico.map((versao) => (
+                <div key={versao.salvo_em} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span>{new Date(versao.salvo_em).toLocaleString('pt-BR')}</span>
+                  <Button type="button" variant="outline" onClick={() => gravar(normalizarAnimacoes(versao.animacoes))}>Usar esta versão</Button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={onSave} disabled={saving}>{saving ? 'Salvando...' : 'Salvar animações'}</Button>
+            <Button type="button" onClick={onSave} disabled={saving}>{saving ? 'Publicando...' : 'Salvar e publicar'}</Button>
             <Button type="button" variant="outline" onClick={() => gravar(animacoesPadrao())}>Restaurar padrão</Button>
           </div>
         </CardContent>
@@ -239,6 +255,10 @@ function Elemento({
           <input type="checkbox" checked={item.repetir} disabled={item.efeito === 'nenhuma'} onChange={(e) => onItem({ repetir: e.target.checked })} />
           Repetir
         </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={item.celular} onChange={(e) => onItem({ celular: e.target.checked })} />
+          No celular
+        </label>
         {item.efeito === 'slide' && (
           <label className="flex items-center gap-2">
             Direção
@@ -249,7 +269,7 @@ function Elemento({
           </label>
         )}
       </div>
-      {(nome === 'Botão principal' || nome === 'Segundo botão' || nome === 'Seções abaixo do banner') && item.efeito === 'typing' && (
+      {(nome === 'Botão principal' || nome === 'Segundo botão' || nome.startsWith('Cards')) && item.efeito === 'typing' && (
         <p className="text-sm text-slate-500">Nesse bloco, a digitação revela o elemento inteiro.</p>
       )}
     </div>

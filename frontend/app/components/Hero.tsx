@@ -4,8 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight, Code2, Pause, Play, UserRound, Users } from "lucide-react";
 import type { Funcionalidade, Hero as HeroType, HeroImagem } from "@/types/homepage";
-import { estiloTransicaoImagem } from "@/lib/animacoes-home";
-import { TextoAnimado, useAnimacaoPublica } from "./AnimacaoHome";
+import { ImagemAnimada, TextoAnimado, useAnimacaoPublica } from "./AnimacaoHome";
 
 interface HeroProps {
   hero: HeroType | null;
@@ -255,7 +254,7 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
   const [sobre, setSobre] = useState(false);
   const [pausado, setPausado] = useState(false);
   const [reduzMovimento, setReduzMovimento] = useState(false);
-  const { dispositivo } = useAnimacaoPublica(hero?.animacoes);
+  const { dispositivo, celular } = useAnimacaoPublica(hero?.animacoes);
   const toque = useRef<{ x: number; y: number } | null>(null);
 
   const slides = useMemo<Slide[]>(() => {
@@ -331,7 +330,6 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
   };
 
   const classeTela = "h-full w-full object-contain object-center";
-  const estiloTela = estiloTransicaoImagem(dispositivo.imagens, reduzMovimento);
 
   return (
     <section className="relative flex min-h-0 flex-1 flex-col text-white" aria-label="Banner principal">
@@ -339,20 +337,20 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
       <div className="relative flex min-h-0 w-full flex-1 flex-col px-4 pb-3 pt-1 sm:px-6 lg:px-8">
         <div className="grid min-h-0 flex-1 items-center gap-6 lg:grid-cols-[minmax(36rem,1fr)_minmax(0,1.05fr)] lg:gap-6">
           <div className="relative z-10 max-w-2xl lg:pl-4">
-            <TextoAnimado item={dispositivo.selo} reduzido={reduzMovimento} className="inline-flex items-center gap-2 rounded-full border border-sky-200/40 bg-sky-400/10 px-3 py-1 text-sm text-sky-100">
+            <TextoAnimado item={dispositivo.selo} telaCelular={celular} className="inline-flex items-center gap-2 rounded-full border border-sky-200/40 bg-sky-400/10 px-3 py-1 text-sm text-sky-100">
               <Code2 className="h-4 w-4" aria-hidden />
               {selo}
             </TextoAnimado>
             <h1 className="mt-4 max-w-xl text-[clamp(2.15rem,3.5vw,3.45rem)] font-extrabold leading-[1.05] tracking-tight">
-              <TextoAnimado texto={titulo} item={dispositivo.titulo} reduzido={reduzMovimento} className="block" />
-              {destaque ? <TextoAnimado texto={destaque} item={dispositivo.destaque} reduzido={reduzMovimento} className="mt-1 block text-[#3ecbff]" /> : null}
+              <TextoAnimado texto={titulo} item={dispositivo.titulo} telaCelular={celular} className="block" />
+              {destaque ? <TextoAnimado texto={destaque} item={dispositivo.destaque} telaCelular={celular} className="mt-1 block text-[#3ecbff]" /> : null}
             </h1>
             <p className="mt-4 max-w-lg text-[clamp(0.95rem,1.2vw,1.125rem)] leading-relaxed text-slate-200">
-              <TextoAnimado texto={subtitulo} item={dispositivo.descricao} reduzido={reduzMovimento} className="block" />
+              <TextoAnimado texto={subtitulo} item={dispositivo.descricao} telaCelular={celular} className="block" />
             </p>
             <div className="mt-5 flex flex-row flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
               {mostraBotao && (
-                <TextoAnimado item={dispositivo.botao} reduzido={reduzMovimento} className="inline-flex shrink-0">
+                <TextoAnimado item={dispositivo.botao} telaCelular={celular} className="inline-flex shrink-0">
                   <a
                     href={botaoUrl}
                     className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-[#2f6bff] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-[#3b78ff] sm:text-base"
@@ -363,7 +361,7 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
                 </TextoAnimado>
               )}
               {mostraBotao2 && (
-                <TextoAnimado item={dispositivo.botao2} reduzido={reduzMovimento} className="inline-flex shrink-0">
+                <TextoAnimado item={dispositivo.botao2} telaCelular={celular} className="inline-flex shrink-0">
                   <a
                     href={botao2Url}
                     className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-white/40 bg-[#0c2758]/80 px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#14336e] sm:text-base"
@@ -439,10 +437,10 @@ export default function Hero({ hero, heroImagens = [], destaques = [] }: HeroPro
                     {atual?.imagem ? (
                       atual.link ? (
                         <a href={atual.link} className="absolute inset-0" aria-label={`Abrir ${atual.titulo}`}>
-                          <img key={atual.id} src={atual.imagem} alt={atual.descricao || atual.titulo} draggable={false} fetchPriority={indice === 0 ? "high" : "auto"} loading={indice === 0 ? "eager" : "lazy"} className={classeTela} style={estiloTela} onError={(evento) => falhaImagem(evento, atual.id)} />
+                          <ImagemAnimada key={atual.id} item={dispositivo.imagens} reduzido={reduzMovimento} celular={celular} src={atual.imagem} alt={atual.descricao || atual.titulo} draggable={false} fetchPriority={indice === 0 ? "high" : "auto"} loading={indice === 0 ? "eager" : "lazy"} className={classeTela} onError={(evento) => falhaImagem(evento, atual.id)} />
                         </a>
                       ) : (
-                        <img key={atual.id} src={atual.imagem} alt={atual.descricao || atual.titulo} draggable={false} fetchPriority={indice === 0 ? "high" : "auto"} loading={indice === 0 ? "eager" : "lazy"} className={`absolute inset-0 ${classeTela}`} style={estiloTela} onError={(evento) => falhaImagem(evento, atual.id)} />
+                        <ImagemAnimada key={atual.id} item={dispositivo.imagens} reduzido={reduzMovimento} celular={celular} src={atual.imagem} alt={atual.descricao || atual.titulo} draggable={false} fetchPriority={indice === 0 ? "high" : "auto"} loading={indice === 0 ? "eager" : "lazy"} className={`absolute inset-0 ${classeTela}`} onError={(evento) => falhaImagem(evento, atual.id)} />
                       )
                     ) : (
                       <a href={atual?.link || "#solucoes"} className="absolute inset-0 block" aria-label={atual?.titulo || "Abrir o sistema"}>

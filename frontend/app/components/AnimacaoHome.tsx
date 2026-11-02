@@ -1,16 +1,37 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   CHAVE_PREVER_ANIMACOES,
   type ItemAnimacao,
+  type ItemImagem,
   normalizarAnimacoes,
-  estiloEfeito,
-  estiloEntrada,
 } from "@/lib/animacoes-home";
 
-function movimentoReduzido() {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const FINAL = { opacity: 1, x: 0, y: 0, scale: 1, clipPath: "inset(0 0% 0 0)" };
+
+function estadoInicial(item: ItemAnimacao) {
+  if (item.efeito === "zoom") return { opacity: 0, scale: 0.96 };
+  if (item.efeito === "slide" && item.direcao === "vertical") return { opacity: 0, y: 16 };
+  if (item.efeito === "slide") return { opacity: 0, x: 24 };
+  if (item.efeito === "scroll") return { opacity: 0, y: 18 };
+  if (item.efeito === "reveal") return { clipPath: "inset(0 100% 0 0)" };
+  return { opacity: 0 };
+}
+
+function transicao(item: ItemAnimacao) {
+  return {
+    duration: item.duracao / 1000,
+    delay: item.atraso / 1000,
+    ease: "easeOut" as const,
+    repeat: item.repetir ? Infinity : 0,
+    repeatType: "reverse" as const,
+  };
+}
+
+function pulaEfeito(item: { ativo: boolean; celular: boolean }, telaCelular: boolean, reduzido: boolean | null) {
+  return reduzido !== false || !item.ativo || (telaCelular && !item.celular);
 }
 
 export function useAnimacaoPublica(bruto: unknown) {
@@ -35,17 +56,14 @@ export function useAnimacaoPublica(bruto: unknown) {
 
   const config = normalizarAnimacoes(rascunho ?? bruto);
   const dispositivo = !config.igual_celular && celular ? config.celular : config.computador;
-  return { dispositivo, prever: rascunho != null };
+  return { dispositivo, celular, prever: rascunho != null };
 }
 
 function Digitando({ texto, item, className }: { texto: string; item: ItemAnimacao; className?: string }) {
   const [qtd, setQtd] = useState(texto.length);
 
   useLayoutEffect(() => {
-    if (!texto || movimentoReduzido()) {
-      setQtd(texto.length);
-      return;
-    }
+    if (!texto) return;
     let cancelado = false;
     let quadro = 0;
     let espera = 0;
@@ -73,46 +91,9 @@ function Digitando({ texto, item, className }: { texto: string; item: ItemAnimac
   }, [texto, item.duracao, item.atraso, item.repetir]);
 
   return (
-    <span className={`relative block ${className || ""}`} aria-label={texto}>
+    <span className={`relative block ${className || ""}`}>
       <span className="invisible">{texto}</span>
       <span className="absolute inset-0 overflow-hidden" aria-hidden="true">{texto.slice(0, qtd)}</span>
-    </span>
-  );
-}
-
-function Entrada({ item, reduzido, className, texto, children }: {
-  item: ItemAnimacao;
-  reduzido: boolean;
-  className?: string;
-  texto?: string;
-  children?: React.ReactNode;
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [visivel, setVisivel] = useState(true);
-
-  useLayoutEffect(() => {
-    if (movimentoReduzido() || reduzido || !item.ativo || item.efeito === "nenhuma") {
-      setVisivel(true);
-      return;
-    }
-    const el = ref.current;
-    if (!el) return;
-    setVisivel(false);
-    const obs = new IntersectionObserver(([entrada]) => {
-      if (entrada.isIntersecting) {
-        setVisivel(true);
-        if (!item.repetir) obs.disconnect();
-      } else if (item.repetir) {
-        setVisivel(false);
-      }
-    }, { threshold: 0.2 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [item.ativo, item.efeito, item.repetir, item.duracao, item.atraso, item.direcao, reduzido]);
-
-  return (
-    <span ref={ref} className={`lwk-animar block ${className || ""}`} style={estiloEntrada(item, visivel, reduzido || movimentoReduzido())}>
-      {children ?? texto}
     </span>
   );
 }
@@ -120,30 +101,43 @@ function Entrada({ item, reduzido, className, texto, children }: {
 export function TextoAnimado({
   texto,
   item,
-  reduzido,
   className,
+  telaCelular = false,
   children,
 }: {
   texto?: string;
   item: ItemAnimacao;
-  reduzido: boolean;
   className?: string;
+  telaCelular?: boolean;
   children?: React.ReactNode;
 }) {
+  const reduzido = useReducedMotion();
   const efeito = item.efeito === "typing" && children ? "reveal" : item.efeito;
-  if (reduzido || !item.ativo || efeito === "nenhuma") {
-    return <span className={className}>{children ?? texto}</span>;
+  const conteudo = children ?? texto;
+  if (pulaEfeito(item, telaCelular, reduzido) || efeito === "nenhuma") {
+    return <span className={className}>{conteudo}</span>;
   }
   if (efeito === "typing" && texto) {
     return <Digitando texto={texto} item={item} className={className} />;
   }
+  const alvo = { ...item, efeito };
   if (efeito === "scroll") {
-    return <Entrada item={{ ...item, efeito }} reduzido={reduzido} className={className} texto={texto}>{children}</Entrada>;
+    return (
+      <motion.span
+        className={`block ${className || ""}`}
+        initial={estadoInicial(alvo)}
+        whileInView={FINAL}
+        viewport={{ once: !item.repetir, amount: 0.25 }}
+        transition={transicao(alvo)}
+      >
+        {conteudo}
+      </motion.span>
+    );
   }
   return (
-    <span className={`lwk-animar ${className || ""}`} style={estiloEfeito({ ...item, efeito }, reduzido)}>
-      {children ?? texto}
-    </span>
+    <motion.span className={className} initial={estadoInicial(alvo)} animate={FINAL} transition={transicao(alvo)}>
+      {conteudo}
+    </motion.span>
   );
 }
 
@@ -158,35 +152,49 @@ export function BlocoHome({
   animacoes?: unknown;
   children: React.ReactNode;
 }) {
-  const { dispositivo } = useAnimacaoPublica(animacoes);
+  const { dispositivo, celular } = useAnimacaoPublica(animacoes);
   const item = dispositivo.secoes;
-  const ref = useRef<HTMLElement>(null);
-  const [visivel, setVisivel] = useState(true);
-
-  useLayoutEffect(() => {
-    if (movimentoReduzido() || !item.ativo || item.efeito === "nenhuma") {
-      setVisivel(true);
-      return;
-    }
-    const el = ref.current;
-    if (!el) return;
-    setVisivel(false);
-    const obs = new IntersectionObserver(([entrada]) => {
-      if (entrada.isIntersecting) {
-        setVisivel(true);
-        if (!item.repetir) obs.disconnect();
-      } else if (item.repetir) {
-        setVisivel(false);
-      }
-    }, { threshold: 0.15 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [item.ativo, item.efeito, item.repetir, item.duracao, item.atraso, item.direcao]);
-
+  const reduzido = useReducedMotion();
+  if (pulaEfeito(item, celular, reduzido) || item.efeito === "nenhuma") {
+    return <section id={id} className={className}>{children}</section>;
+  }
   return (
-    <section id={id} ref={ref} className={className} style={estiloEntrada(item, visivel, movimentoReduzido())}>
+    <motion.section
+      id={id}
+      className={className}
+      initial={estadoInicial(item.efeito === "typing" ? { ...item, efeito: "reveal" } : item)}
+      whileInView={FINAL}
+      viewport={{ once: !item.repetir, amount: 0.15 }}
+      transition={transicao(item)}
+    >
       {children}
-    </section>
+    </motion.section>
+  );
+}
+
+export function ImagemAnimada({
+  item,
+  reduzido,
+  celular,
+  className,
+  ...rest
+}: {
+  item: ItemImagem;
+  reduzido: boolean;
+  celular: boolean;
+  className?: string;
+} & React.ImgHTMLAttributes<HTMLImageElement>) {
+  const pular = reduzido || !item.ativo || item.transicao === "nenhuma" || (celular && !item.celular);
+  if (pular) return <img className={className} {...rest} />;
+  const initial = item.transicao === "slide" ? { opacity: 0, x: 24 } : item.transicao === "zoom" ? { opacity: 0, scale: 1.03 } : { opacity: 0.45 };
+  return (
+    <motion.img
+      className={className}
+      initial={initial}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      transition={{ duration: item.duracao / 1000, delay: item.atraso / 1000, ease: "easeOut" }}
+      {...rest}
+    />
   );
 }
 
@@ -198,7 +206,7 @@ export function FaixaPrever() {
   if (!ativa) return null;
   return (
     <div className="fixed bottom-4 left-1/2 z-50 max-w-[92vw] -translate-x-1/2 rounded-full bg-white px-4 py-2 text-center text-sm font-medium text-slate-900 shadow-lg">
-      Pré-visualização neste navegador. Salve na aba Animações para publicar.
+      Pré-visualização neste navegador. Use Salvar e publicar para aparecer no site.
     </div>
   );
 }

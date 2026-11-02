@@ -51,3 +51,4 @@ class AnimacoesHomeTests(SimpleTestCase):
         self.assertEqual(limpo["computador"]["titulo"]["duracao"], 3000)
         self.assertEqual(limpo["computador"]["imagens"]["transicao"], "fade")
         self.assertEqual(limpo["celular"]["titulo"]["efeito"], "typing")
+        self.assertTrue(limpo["computador"]["titulo"]["celular"])

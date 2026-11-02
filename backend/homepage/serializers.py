@@ -26,6 +26,7 @@ def _item_animacao(bruto):
         "atraso": _numero(bruto.get("atraso"), 0, 3000, 0),
         "repetir": bool(bruto.get("repetir", False)),
         "direcao": "vertical" if bruto.get("direcao") == "vertical" else "horizontal",
+        "celular": bruto.get("celular") is not False,
     }
 
 
@@ -38,6 +39,7 @@ def _item_imagem(bruto):
         "velocidade": bruto.get("velocidade") if bruto.get("velocidade") in {"lenta", "normal", "rapida"} else "normal",
         "duracao": _numero(bruto.get("duracao"), 200, 3000, 450),
         "atraso": _numero(bruto.get("atraso"), 0, 3000, 0),
+        "celular": bruto.get("celular") is not False,
     }
 
 
@@ -116,6 +118,21 @@ class HeroSerializer(serializers.ModelSerializer):
         if not isinstance(value, dict):
             raise serializers.ValidationError("Informe as animações da homepage.")
         return _animacoes_limpas(value)
+
+    def update(self, instance, validated_data):
+        if validated_data.get("animacoes") and instance.animacoes:
+            from django.utils import timezone
+
+            historico = list(instance.animacoes_historico or [])
+            historico.insert(0, {"salvo_em": timezone.now().isoformat(), "animacoes": instance.animacoes})
+            instance.animacoes_historico = historico[:8]
+        return super().update(instance, validated_data)
+
+
+class HeroAdminSerializer(HeroSerializer):
+    class Meta(HeroSerializer.Meta):
+        fields = [*HeroSerializer.Meta.fields, "animacoes_historico"]
+        read_only_fields = ["animacoes_historico"]
 
 
 class FuncionalidadeSerializer(serializers.ModelSerializer):

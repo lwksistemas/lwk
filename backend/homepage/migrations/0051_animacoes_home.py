@@ -12,4 +12,9 @@ class Migration(migrations.Migration):
             name="animacoes",
             field=models.JSONField(blank=True, default=dict, help_text="Efeitos visuais da homepage pública. Vazio mantém o visual atual."),
         ),
+        migrations.AddField(
+            model_name="herosection",
+            name="animacoes_historico",
+            field=models.JSONField(blank=True, default=list, help_text="Últimas versões das animações, só no superadmin."),
+        ),
     ]

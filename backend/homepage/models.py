@@ -77,6 +77,11 @@ class HeroSection(models.Model):
         blank=True,
         help_text="Efeitos visuais da homepage pública. Vazio mantém o visual atual.",
     )
+    animacoes_historico = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Últimas versões das animações, só no superadmin.",
+    )
     ativo = models.BooleanField(default=True)
     ordem = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

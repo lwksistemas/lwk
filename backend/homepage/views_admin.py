@@ -12,7 +12,7 @@ from .models import EmpresaConfig, Funcionalidade, HeroSection, ItemMenu, Modulo
 from .serializers import (
     EmpresaConfigSerializer,
     FuncionalidadeSerializer,
-    HeroSerializer,
+    HeroAdminSerializer,
     ItemMenuSerializer,
     ModuloSerializer,
     PaginaSiteSerializer,
@@ -38,7 +38,7 @@ class HomepageCacheInvalidationMixin:
 
 class HeroViewSet(HomepageCacheInvalidationMixin, viewsets.ModelViewSet):
     queryset = HeroSection.objects.all()
-    serializer_class = HeroSerializer
+    serializer_class = HeroAdminSerializer
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
 

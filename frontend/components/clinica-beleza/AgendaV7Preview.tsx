@@ -38,6 +38,10 @@ type CalendarProps = {
   height: number | string;
   weekends: boolean;
   dayMaxEvents: boolean;
+  allDaySlot?: boolean;
+  slotMinTime?: string;
+  slotMaxTime?: string;
+  nowIndicator?: boolean;
   events: Array<{
     id: string;
     title: string;
@@ -89,12 +93,17 @@ function buildSampleEvents(statusColors: AgendaStatusColorMap) {
 }
 
 async function loadVisual(visual: AgendaV7Visual): Promise<LoadedMods> {
-  const [{ default: FullCalendar }, { default: dayGridPlugin }, { default: ptBr }] =
-    await Promise.all([
-      import('@fullcalendar-v7/react'),
-      import('@fullcalendar-v7/react/daygrid'),
-      import('@fullcalendar-v7/react/locales/pt-br'),
-    ]);
+  const [
+    { default: FullCalendar },
+    { default: dayGridPlugin },
+    { default: timeGridPlugin },
+    { default: ptBr },
+  ] = await Promise.all([
+    import('@fullcalendar-v7/react'),
+    import('@fullcalendar-v7/react/daygrid'),
+    import('@fullcalendar-v7/react/timegrid'),
+    import('@fullcalendar-v7/react/locales/pt-br'),
+  ]);
   await import('@fullcalendar-v7/react/skeleton.css');
 
   if (visual === 'pulse') {
@@ -103,7 +112,7 @@ async function loadVisual(visual: AgendaV7Visual): Promise<LoadedMods> {
     await import('@fullcalendar-v7/react/themes/pulse/palettes/purple.css');
     return {
       FullCalendar: FullCalendar as ComponentType<CalendarProps>,
-      plugins: [dayGridPlugin, pulseTheme],
+      plugins: [dayGridPlugin, timeGridPlugin, pulseTheme],
       locale: ptBr,
     };
   }
@@ -113,7 +122,7 @@ async function loadVisual(visual: AgendaV7Visual): Promise<LoadedMods> {
   await import('@fullcalendar-v7/react/themes/breezy/palettes/indigo.css');
   return {
     FullCalendar: FullCalendar as ComponentType<CalendarProps>,
-    plugins: [dayGridPlugin, breezyTheme],
+    plugins: [dayGridPlugin, timeGridPlugin, breezyTheme],
     locale: ptBr,
   };
 }
@@ -166,8 +175,8 @@ export function AgendaV7Preview({
           Prévia da agenda (FullCalendar 7)
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Teste dois visuais novos sem mudar a agenda das lojas (ainda usa a versão 6). Escolha uma
-          opção e compare no calendário abaixo.
+          Teste dois visuais novos sem mudar a agenda das lojas (ainda usa a versão 6). Use Dia,
+          Semana e Mês no calendário para comparar.
         </p>
       </div>
 
@@ -222,15 +231,19 @@ export function AgendaV7Preview({
               key={visual}
               plugins={mods.plugins}
               locale={mods.locale}
-              initialView="dayGridMonth"
+              initialView="timeGridDay"
               headerToolbar={{
                 left: 'prev,next today',
                 center: 'title',
-                right: '',
+                right: 'timeGridDay,timeGridWeek,dayGridMonth',
               }}
-              height="auto"
+              height={520}
               weekends
               dayMaxEvents
+              allDaySlot={false}
+              slotMinTime="07:00:00"
+              slotMaxTime="21:00:00"
+              nowIndicator
               events={events}
             />
           </div>

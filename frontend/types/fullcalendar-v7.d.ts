@@ -9,6 +9,11 @@ declare module '@fullcalendar-v7/react/daygrid' {
   export default plugin;
 }
 
+declare module '@fullcalendar-v7/react/timegrid' {
+  const plugin: unknown;
+  export default plugin;
+}
+
 declare module '@fullcalendar-v7/react/themes/pulse' {
   const plugin: unknown;
   export default plugin;

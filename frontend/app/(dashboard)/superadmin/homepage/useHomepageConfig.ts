@@ -114,7 +114,6 @@ export function useHomepageConfig() {
           fonte_tamanho: firstHero.fonte_tamanho || 'normal',
           rotulos_botoes: firstHero.rotulos_botoes || {},
           animacoes: normalizarAnimacoes(firstHero.animacoes),
-          animacoes_historico: firstHero.animacoes_historico || [],
         });
       } else {
         setHero(null);
@@ -207,10 +206,9 @@ export function useHomepageConfig() {
     setSaving(true);
     try {
       const animacoes = normalizarAnimacoes(heroForm.animacoes);
-      const resposta = await apiClient.patch(`${API.hero}${hero.id}/`, { animacoes });
-      const historico = resposta.data?.animacoes_historico || [];
-      setHero((atual) => (atual ? { ...atual, animacoes, animacoes_historico: historico } : atual));
-      setHeroForm((form) => ({ ...form, animacoes, animacoes_historico: historico }));
+      await apiClient.patch(`${API.hero}${hero.id}/`, { animacoes });
+      setHero((atual) => (atual ? { ...atual, animacoes } : atual));
+      setHeroForm((form) => ({ ...form, animacoes }));
       showMsg('success', 'Animações publicadas. A home atualiza em até um minuto.');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };

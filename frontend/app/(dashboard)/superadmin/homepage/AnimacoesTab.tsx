@@ -181,18 +181,6 @@ export function AnimacoesTab({
               No celular
             </label>
           </div>
-          {Array.isArray(heroForm.animacoes_historico) && heroForm.animacoes_historico.length > 0 && (
-            <div className="space-y-2 rounded-xl border p-4">
-              <p className="font-medium">Versões anteriores</p>
-              <p className="text-sm text-slate-500">Escolher uma versão só preenche o formulário. Salvar e publicar grava no site.</p>
-              {heroForm.animacoes_historico.map((versao) => (
-                <div key={versao.salvo_em} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <span>{new Date(versao.salvo_em).toLocaleString('pt-BR')}</span>
-                  <Button type="button" variant="outline" onClick={() => gravar(normalizarAnimacoes(versao.animacoes))}>Usar esta versão</Button>
-                </div>
-              ))}
-            </div>
-          )}
 
           <div className="flex flex-wrap gap-2">
             <Button type="button" onClick={onSave} disabled={saving}>{saving ? 'Publicando...' : 'Salvar e publicar'}</Button>

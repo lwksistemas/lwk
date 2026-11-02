@@ -120,12 +120,8 @@ class HeroSerializer(serializers.ModelSerializer):
         return _animacoes_limpas(value)
 
     def update(self, instance, validated_data):
-        if validated_data.get("animacoes") and instance.animacoes:
-            from django.utils import timezone
-
-            historico = list(instance.animacoes_historico or [])
-            historico.insert(0, {"salvo_em": timezone.now().isoformat(), "animacoes": instance.animacoes})
-            instance.animacoes_historico = historico[:8]
+        if "animacoes" in validated_data:
+            instance.animacoes_historico = []
         return super().update(instance, validated_data)
 
 

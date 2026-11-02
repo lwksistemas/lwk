@@ -1,8 +1,7 @@
 'use client';
 
 /**
- * Prévia isolada do FullCalendar 7 (não altera a agenda de produção, ainda em v6).
- * Duas opções de visual: Pulse e Breezy.
+ * Prévia do visual Pulse (FullCalendar 7) — o mesmo tema usado na visão Mês da agenda.
  */
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import {
@@ -10,25 +9,6 @@ import {
   CLINICA_AGENDA_STATUS_LABEL,
   type AgendaStatusColorMap,
 } from '@/lib/clinica-beleza-constants';
-
-export type AgendaV7Visual = 'pulse' | 'breezy';
-
-const VISUAIS: Array<{
-  id: AgendaV7Visual;
-  nome: string;
-  descricao: string;
-}> = [
-  {
-    id: 'pulse',
-    nome: 'Pulse',
-    descricao: 'Visual limpo e minimalista (estilo Apple).',
-  },
-  {
-    id: 'breezy',
-    nome: 'Breezy',
-    descricao: 'Visual moderno com cantos e contraste (estilo Tailwind).',
-  },
-];
 
 type CalendarProps = {
   plugins: unknown[];
@@ -92,51 +72,39 @@ function buildSampleEvents(statusColors: AgendaStatusColorMap) {
   });
 }
 
-async function loadVisual(visual: AgendaV7Visual): Promise<LoadedMods> {
+async function loadPulse(): Promise<LoadedMods> {
   const [
     { default: FullCalendar },
     { default: dayGridPlugin },
     { default: timeGridPlugin },
+    { default: pulseTheme },
     { default: ptBr },
   ] = await Promise.all([
     import('@fullcalendar-v7/react'),
     import('@fullcalendar-v7/react/daygrid'),
     import('@fullcalendar-v7/react/timegrid'),
+    import('@fullcalendar-v7/react/themes/pulse'),
     import('@fullcalendar-v7/react/locales/pt-br'),
   ]);
-  await import('@fullcalendar-v7/react/skeleton.css');
-
-  if (visual === 'pulse') {
-    const { default: pulseTheme } = await import('@fullcalendar-v7/react/themes/pulse');
-    await import('@fullcalendar-v7/react/themes/pulse/theme.css');
-    await import('@fullcalendar-v7/react/themes/pulse/palettes/purple.css');
-    return {
-      FullCalendar: FullCalendar as ComponentType<CalendarProps>,
-      plugins: [dayGridPlugin, timeGridPlugin, pulseTheme],
-      locale: ptBr,
-    };
-  }
-
-  const { default: breezyTheme } = await import('@fullcalendar-v7/react/themes/breezy');
-  await import('@fullcalendar-v7/react/themes/breezy/theme.css');
-  await import('@fullcalendar-v7/react/themes/breezy/palettes/indigo.css');
+  await Promise.all([
+    import('@fullcalendar-v7/react/skeleton.css'),
+    import('@fullcalendar-v7/react/themes/pulse/theme.css'),
+    import('@fullcalendar-v7/react/themes/pulse/palettes/purple.css'),
+  ]);
   return {
     FullCalendar: FullCalendar as ComponentType<CalendarProps>,
-    plugins: [dayGridPlugin, timeGridPlugin, breezyTheme],
+    plugins: [dayGridPlugin, timeGridPlugin, pulseTheme],
     locale: ptBr,
   };
 }
 
 type Props = {
   statusColors?: AgendaStatusColorMap;
-  accentColor?: string;
 };
 
 export function AgendaV7Preview({
   statusColors = CLINICA_AGENDA_STATUS_COLORS,
-  accentColor = '#8B3D52',
 }: Props) {
-  const [visual, setVisual] = useState<AgendaV7Visual>('pulse');
   const [mods, setMods] = useState<LoadedMods | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -147,9 +115,8 @@ export function AgendaV7Preview({
     let cancelado = false;
     setCarregando(true);
     setErro(null);
-    setMods(null);
 
-    loadVisual(visual)
+    loadPulse()
       .then((loaded) => {
         if (!cancelado) {
           setMods(loaded);
@@ -158,7 +125,7 @@ export function AgendaV7Preview({
       })
       .catch((e: unknown) => {
         if (!cancelado) {
-          setErro(e instanceof Error ? e.message : 'Falha ao carregar o calendário v7.');
+          setErro(e instanceof Error ? e.message : 'Falha ao carregar o calendário Pulse.');
           setCarregando(false);
         }
       });
@@ -166,60 +133,24 @@ export function AgendaV7Preview({
     return () => {
       cancelado = true;
     };
-  }, [visual]);
+  }, []);
 
   return (
     <section className="space-y-4">
       <div>
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-          Prévia da agenda (FullCalendar 7)
+          Agenda — visual Pulse (FullCalendar 7)
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Teste dois visuais novos sem mudar a agenda das lojas (ainda usa a versão 6). Use Dia,
-          Semana e Mês no calendário para comparar.
+          Este visual já está na visão <strong>Mês</strong> da agenda. Dia e Semana continuam com as
+          colunas por profissional. Abaixo é só uma prévia rápida com Dia / Semana / Mês.
         </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {VISUAIS.map((opcao) => {
-          const selected = visual === opcao.id;
-          return (
-            <button
-              key={opcao.id}
-              type="button"
-              onClick={() => setVisual(opcao.id)}
-              className={`max-w-xs text-left px-3 py-2 rounded-lg border text-xs transition-colors ${
-                selected
-                  ? 'border-current'
-                  : 'border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300'
-              }`}
-              style={
-                selected
-                  ? {
-                      borderColor: accentColor,
-                      backgroundColor: `${accentColor}15`,
-                      color: accentColor,
-                    }
-                  : undefined
-              }
-            >
-              <span className="block font-semibold">{opcao.nome}</span>
-              <span className="block mt-0.5 opacity-80 font-normal text-[11px] leading-snug">
-                {opcao.descricao}
-              </span>
-            </button>
-          );
-        })}
       </div>
 
       <div className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 p-3 overflow-hidden">
-        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-          Visual ativo: <strong>{VISUAIS.find((v) => v.id === visual)?.nome}</strong> · eventos de
-          exemplo usam as cores de status acima
-        </p>
         {carregando ? (
           <div className="flex items-center justify-center h-56 text-sm text-gray-500">
-            Carregando prévia v7…
+            Carregando prévia Pulse…
           </div>
         ) : erro ? (
           <div className="flex items-center justify-center h-56 text-sm text-red-600 dark:text-red-400 px-4 text-center">
@@ -228,7 +159,6 @@ export function AgendaV7Preview({
         ) : mods ? (
           <div className="agenda-v7-preview-root min-h-[280px]">
             <mods.FullCalendar
-              key={visual}
               plugins={mods.plugins}
               locale={mods.locale}
               initialView="timeGridDay"

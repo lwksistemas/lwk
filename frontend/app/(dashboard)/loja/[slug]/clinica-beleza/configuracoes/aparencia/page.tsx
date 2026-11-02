@@ -296,7 +296,7 @@ export default function ClinicaBelezaAparenciaPage() {
               Identidade visual
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Cores do menu, fundo das páginas, status da agenda, prévia do calendário v7 e colunas de
+              Cores do menu, fundo das páginas, status da agenda, visual Pulse e colunas de
               Atendimentos e Estoque.
             </p>
           </div>
@@ -523,7 +523,7 @@ export default function ClinicaBelezaAparenciaPage() {
               </div>
             </section>
 
-            <AgendaV7Preview statusColors={statusColors} accentColor={previewPrimary} />
+            <AgendaV7Preview statusColors={statusColors} />
 
             <ColunasSection
               sectionId="colunas-consultas"

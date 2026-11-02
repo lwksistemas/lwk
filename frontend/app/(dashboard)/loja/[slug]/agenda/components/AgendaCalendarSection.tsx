@@ -17,7 +17,7 @@ import { AgendaSemanaColunas } from "./AgendaSemanaColunas";
 import { marcarIgnorarClickGradeAgenda, toAgendaDiaIso } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 
-const FullCalendar = lazy(() => import("@fullcalendar/react"));
+const FullCalendar = lazy(() => import("@fullcalendar-v7/react"));
 
 function findVerticalScroller(start: HTMLElement): HTMLElement {
   let node: HTMLElement | null = start;
@@ -264,7 +264,7 @@ export function AgendaCalendarSection({
   }
 
   return (
-    <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain agenda-scroll-root fc-agenda-calendar-root">
+    <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain agenda-scroll-root fc-agenda-calendar-root agenda-v7-pulse-root">
       {calendarPlugins.length > 0 && ptBrLocale ? (
         <Suspense fallback={<div className="flex items-center justify-center h-40 text-sm text-gray-500">Carregando calendário...</div>}>
         <FullCalendar
@@ -276,7 +276,7 @@ export function AgendaCalendarSection({
           editable
           eventStartEditable
           eventDurationEditable
-          eventAllow={(_info, dragged) => {
+          eventAllow={(_info: unknown, dragged: { extendedProps?: Record<string, unknown>; start?: Date | null } | null) => {
             const props = dragged?.extendedProps || {};
             if (props.isBloqueio || props.isIntervalo) return true;
             const inicio = dragged?.start;
@@ -308,15 +308,15 @@ export function AgendaCalendarSection({
             frozenEventsRef.current = eventos;
             marcarArrasto(true);
           }}
-          eventDrop={handleEventDrop}
-          eventResize={handleEventResize}
-          eventClick={onEventClick}
-          dateClick={onDateClick}
-          datesSet={(arg) => {
+          eventDrop={handleEventDrop as never}
+          eventResize={handleEventResize as never}
+          eventClick={onEventClick as never}
+          dateClick={onDateClick as never}
+          datesSet={(arg: { view: { calendar: { getDate: () => Date } } }) => {
             setDiaIso(toAgendaDiaIso(arg.view.calendar.getDate()));
           }}
           height="auto"
-          customButtons={{
+          buttons={{
             visaoDia: {
               text: "Dia",
               click: () => setGradeView("day"),

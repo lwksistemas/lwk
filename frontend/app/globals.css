@@ -571,6 +571,18 @@ html.dark {
   background: #80868b;
 }
 
+/* Bloqueios na visão Mês (FullCalendar 7 / Pulse) — classNames customizados */
+.agenda-v7-pulse-root .fc-event-bloqueio,
+.agenda-v7-preview-root .fc-event-bloqueio {
+  cursor: grab;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgb(15 23 42 / 0.14) 0 5px,
+    transparent 5px 11px
+  ) !important;
+  border-style: dashed !important;
+}
+
 /* Agenda Clínica — um único scroll no container pai; o FullCalendar não cria outra barra */
 .fc-agenda-calendar-root {
   min-height: 0;

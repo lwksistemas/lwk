@@ -14,6 +14,11 @@ declare module '@fullcalendar-v7/react/timegrid' {
   export default plugin;
 }
 
+declare module '@fullcalendar-v7/react/interaction' {
+  const plugin: unknown;
+  export default plugin;
+}
+
 declare module '@fullcalendar-v7/react/themes/pulse' {
   const plugin: unknown;
   export default plugin;

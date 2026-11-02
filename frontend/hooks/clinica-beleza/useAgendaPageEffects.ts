@@ -55,13 +55,19 @@ export function useAgendaPageEffects({
       return;
     }
     const loadPlugins = async () => {
-      // Visão Mês usa dayGrid + interaction. Dia/Semana são views próprias (sem timeGrid).
-      const [dayGrid, interaction, ptBr] = await Promise.all([
-        import("@fullcalendar/daygrid"),
-        import("@fullcalendar/interaction"),
-        import("@fullcalendar/core/locales/pt-br"),
+      // Visão Mês: FullCalendar 7 + tema Pulse. Dia/Semana continuam nas grades próprias.
+      const [dayGrid, interaction, pulseTheme, ptBr] = await Promise.all([
+        import("@fullcalendar-v7/react/daygrid"),
+        import("@fullcalendar-v7/react/interaction"),
+        import("@fullcalendar-v7/react/themes/pulse"),
+        import("@fullcalendar-v7/react/locales/pt-br"),
       ]);
-      setCalendarPlugins([dayGrid.default, interaction.default]);
+      await Promise.all([
+        import("@fullcalendar-v7/react/skeleton.css"),
+        import("@fullcalendar-v7/react/themes/pulse/theme.css"),
+        import("@fullcalendar-v7/react/themes/pulse/palettes/purple.css"),
+      ]);
+      setCalendarPlugins([dayGrid.default, interaction.default, pulseTheme.default]);
       setPtBrLocale(ptBr.default);
     };
     void loadPlugins();

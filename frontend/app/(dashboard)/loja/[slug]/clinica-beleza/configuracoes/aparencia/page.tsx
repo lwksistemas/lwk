@@ -35,6 +35,7 @@ import {
   COLUNAS_PACIENTES_DISPONIVEIS,
   DEFAULT_COLUNAS_PACIENTES,
 } from '@/lib/clinica-pacientes-colunas-config';
+import { AgendaV7Preview } from '@/components/clinica-beleza/AgendaV7Preview';
 
 const CORES_PRE_DEFINIDAS: LoginColorPreset[] = [
   { nome: 'Burgundy', primaria: '#8B3D52', secundaria: '#6B2F40' },
@@ -295,7 +296,8 @@ export default function ClinicaBelezaAparenciaPage() {
               Identidade visual
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Cores do menu, fundo das páginas, status da agenda e colunas de Atendimentos e Estoque.
+              Cores do menu, fundo das páginas, status da agenda, prévia do calendário v7 e colunas de
+              Atendimentos e Estoque.
             </p>
           </div>
         </div>
@@ -520,6 +522,8 @@ export default function ClinicaBelezaAparenciaPage() {
                 })}
               </div>
             </section>
+
+            <AgendaV7Preview statusColors={statusColors} accentColor={previewPrimary} />
 
             <ColunasSection
               sectionId="colunas-consultas"

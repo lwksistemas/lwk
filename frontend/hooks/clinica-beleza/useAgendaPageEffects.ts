@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
+import {
+  AGENDA_VISUAL_DEFAULT,
+  loadAgendaVisualTheme,
+  normalizeAgendaVisual,
+  type AgendaVisualId,
+} from "@/lib/clinica-agenda-visual";
+import {
+  readClinicaAgendaVisualStorage,
+  resolveClinicaThemeSlug,
+} from "@/lib/clinica-beleza-theme-storage";
 
 export function useAgendaPageEffects({
   searchParams,
@@ -15,6 +25,7 @@ export function useAgendaPageEffects({
   setShowCreateModal,
   isMutatingRef,
   isDraggingRef,
+  agendaVisual,
 }: {
   searchParams: ReadonlyURLSearchParams;
   selectedProfessional: string;
@@ -28,10 +39,12 @@ export function useAgendaPageEffects({
   setShowCreateModal: (open: boolean) => void;
   isMutatingRef?: React.MutableRefObject<boolean>;
   isDraggingRef?: React.MutableRefObject<boolean>;
+  agendaVisual?: string | null;
 }) {
   const [calendarPlugins, setCalendarPlugins] = useState<unknown[]>([]);
   const [ptBrLocale, setPtBrLocale] = useState<unknown>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [visualAtivo, setVisualAtivo] = useState<AgendaVisualId>(AGENDA_VISUAL_DEFAULT);
   const carregarDadosRef = useRef(carregarDados);
   const recarregarEventosRef = useRef(recarregarEventos);
   const userScrollingRef = useRef(false);
@@ -49,29 +62,30 @@ export function useAgendaPageEffects({
   }, [searchParams, setSelectedDate, setShowCreateModal]);
 
   useEffect(() => {
+    const stored = readClinicaAgendaVisualStorage(resolveClinicaThemeSlug());
+    setVisualAtivo(normalizeAgendaVisual(stored || agendaVisual || AGENDA_VISUAL_DEFAULT));
+  }, [agendaVisual]);
+
+  useEffect(() => {
     // Celular usa AgendaMobileDayView — não carrega FullCalendar (economiza memória/Android).
     if (typeof window !== "undefined" && window.innerWidth < 640) {
       void carregarDadosRef.current();
       return;
     }
     const loadPlugins = async () => {
-      // Visão Mês: FullCalendar 7 + tema Pulse. Dia/Semana continuam nas grades próprias.
-      const [dayGrid, interaction, pulseTheme, ptBr] = await Promise.all([
+      // Visão Mês: FullCalendar 7 + tema escolhido pelo admin. Dia/Semana = grades próprias.
+      const [dayGrid, interaction, ptBr] = await Promise.all([
         import("@fullcalendar-v7/react/daygrid"),
         import("@fullcalendar-v7/react/interaction"),
-        import("@fullcalendar-v7/react/themes/pulse"),
         import("@fullcalendar-v7/react/locales/pt-br"),
       ]);
-      await Promise.all([
-        import("@fullcalendar-v7/react/skeleton.css"),
-        import("@fullcalendar-v7/react/themes/pulse/theme.css"),
-        import("@fullcalendar-v7/react/themes/pulse/palettes/purple.css"),
-      ]);
-      setCalendarPlugins([dayGrid.default, interaction.default, pulseTheme.default]);
+      await import("@fullcalendar-v7/react/skeleton.css");
+      const theme = await loadAgendaVisualTheme(visualAtivo);
+      setCalendarPlugins([dayGrid.default, interaction.default, theme]);
       setPtBrLocale(ptBr.default);
     };
     void loadPlugins();
-  }, []);
+  }, [visualAtivo]);
 
   useEffect(() => {
     if (!desktopPluginsReadyRef.current) {

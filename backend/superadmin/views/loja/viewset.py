@@ -189,6 +189,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
             "cor_secundaria": cor_secundaria,
             "cor_fundo_pagina": (getattr(loja, "cor_fundo_pagina", None) or "").strip(),
             "agenda_status_colors": getattr(loja, "agenda_status_colors", None) or {},
+            "agenda_visual": (getattr(loja, "agenda_visual", None) or "pulse").strip() or "pulse",
             "logo": getattr(loja, "logo", None) or "",
             "login_background": getattr(loja, "login_background", None) or "",
             "login_logo": getattr(loja, "login_logo", None) or "",

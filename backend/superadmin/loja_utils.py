@@ -9,9 +9,9 @@ from django.contrib.auth.models import AbstractBaseUser
 from .models import Loja
 
 # Bump ao mudar o payload de info_publica (invalida entradas antigas no Redis).
-INFO_PUBLICA_CACHE_PREFIX = "loja_info_publica_v5"
+INFO_PUBLICA_CACHE_PREFIX = "loja_info_publica_v6"
 # Prefixos legados ainda podem existir até expirar o TTL.
-_INFO_PUBLICA_CACHE_PREFIXES_LEGACY = ("loja_info_publica_v4",)
+_INFO_PUBLICA_CACHE_PREFIXES_LEGACY = ("loja_info_publica_v5", "loja_info_publica_v4",)
 _INFO_PUBLICA_GEN_PREFIX = "loja_info_publica_gen"
 INFO_PUBLICA_CACHE_TTL = 300
 

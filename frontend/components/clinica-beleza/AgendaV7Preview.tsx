@@ -1,14 +1,22 @@
 'use client';
 
 /**
- * Prévia do visual Pulse (FullCalendar 7) — o mesmo tema usado na visão Mês da agenda.
+ * Escolha do visual da agenda (FullCalendar 7). Prévia oculta até o admin abrir.
  */
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import {
   CLINICA_AGENDA_STATUS_COLORS,
   CLINICA_AGENDA_STATUS_LABEL,
   type AgendaStatusColorMap,
 } from '@/lib/clinica-beleza-constants';
+import {
+  AGENDA_VISUAIS,
+  AGENDA_VISUAL_DEFAULT,
+  loadAgendaVisualTheme,
+  normalizeAgendaVisual,
+  type AgendaVisualId,
+} from '@/lib/clinica-agenda-visual';
 
 type CalendarProps = {
   plugins: unknown[];
@@ -72,51 +80,61 @@ function buildSampleEvents(statusColors: AgendaStatusColorMap) {
   });
 }
 
-async function loadPulse(): Promise<LoadedMods> {
-  const [
-    { default: FullCalendar },
-    { default: dayGridPlugin },
-    { default: timeGridPlugin },
-    { default: pulseTheme },
-    { default: ptBr },
-  ] = await Promise.all([
-    import('@fullcalendar-v7/react'),
-    import('@fullcalendar-v7/react/daygrid'),
-    import('@fullcalendar-v7/react/timegrid'),
-    import('@fullcalendar-v7/react/themes/pulse'),
-    import('@fullcalendar-v7/react/locales/pt-br'),
-  ]);
-  await Promise.all([
-    import('@fullcalendar-v7/react/skeleton.css'),
-    import('@fullcalendar-v7/react/themes/pulse/theme.css'),
-    import('@fullcalendar-v7/react/themes/pulse/palettes/purple.css'),
-  ]);
+async function loadPreview(visual: AgendaVisualId): Promise<LoadedMods> {
+  const [{ default: FullCalendar }, { default: dayGridPlugin }, { default: timeGridPlugin }, { default: ptBr }] =
+    await Promise.all([
+      import('@fullcalendar-v7/react'),
+      import('@fullcalendar-v7/react/daygrid'),
+      import('@fullcalendar-v7/react/timegrid'),
+      import('@fullcalendar-v7/react/locales/pt-br'),
+    ]);
+  await import('@fullcalendar-v7/react/skeleton.css');
+  const theme = await loadAgendaVisualTheme(visual);
   return {
     FullCalendar: FullCalendar as ComponentType<CalendarProps>,
-    plugins: [dayGridPlugin, timeGridPlugin, pulseTheme],
+    plugins: [dayGridPlugin, timeGridPlugin, theme],
     locale: ptBr,
   };
 }
 
 type Props = {
   statusColors?: AgendaStatusColorMap;
+  accentColor?: string;
+  value?: string | null;
+  onChange?: (visual: AgendaVisualId) => void;
 };
 
 export function AgendaV7Preview({
   statusColors = CLINICA_AGENDA_STATUS_COLORS,
+  accentColor = '#8B3D52',
+  value,
+  onChange,
 }: Props) {
+  const [visual, setVisual] = useState<AgendaVisualId>(() =>
+    normalizeAgendaVisual(value ?? AGENDA_VISUAL_DEFAULT),
+  );
+  const [mostrarPrevia, setMostrarPrevia] = useState(false);
   const [mods, setMods] = useState<LoadedMods | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [carregando, setCarregando] = useState(true);
+  const [carregando, setCarregando] = useState(false);
 
   const events = useMemo(() => buildSampleEvents(statusColors), [statusColors]);
 
   useEffect(() => {
+    setVisual(normalizeAgendaVisual(value ?? AGENDA_VISUAL_DEFAULT));
+  }, [value]);
+
+  useEffect(() => {
+    if (!mostrarPrevia) {
+      setMods(null);
+      return;
+    }
     let cancelado = false;
     setCarregando(true);
     setErro(null);
+    setMods(null);
 
-    loadPulse()
+    loadPreview(visual)
       .then((loaded) => {
         if (!cancelado) {
           setMods(loaded);
@@ -125,7 +143,7 @@ export function AgendaV7Preview({
       })
       .catch((e: unknown) => {
         if (!cancelado) {
-          setErro(e instanceof Error ? e.message : 'Falha ao carregar o calendário Pulse.');
+          setErro(e instanceof Error ? e.message : 'Falha ao carregar a prévia.');
           setCarregando(false);
         }
       });
@@ -133,52 +151,109 @@ export function AgendaV7Preview({
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [mostrarPrevia, visual]);
+
+  const escolher = (id: AgendaVisualId) => {
+    setVisual(id);
+    onChange?.(id);
+  };
+
+  const ativo = AGENDA_VISUAIS.find((v) => v.id === visual);
 
   return (
     <section className="space-y-4">
       <div>
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-          Agenda — visual Pulse (FullCalendar 7)
+          Visual da agenda (visão Mês)
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Este visual já está na visão <strong>Mês</strong> da agenda. Dia e Semana continuam com as
-          colunas por profissional. Abaixo é só uma prévia rápida com Dia / Semana / Mês.
+          O administrador escolhe o tema do calendário. A prévia fica oculta até você abrir. Dia e
+          Semana continuam com as colunas por profissional.
         </p>
       </div>
 
-      <div className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 p-3 overflow-hidden">
-        {carregando ? (
-          <div className="flex items-center justify-center h-56 text-sm text-gray-500">
-            Carregando prévia Pulse…
-          </div>
-        ) : erro ? (
-          <div className="flex items-center justify-center h-56 text-sm text-red-600 dark:text-red-400 px-4 text-center">
-            {erro}
-          </div>
-        ) : mods ? (
-          <div className="agenda-v7-preview-root min-h-[280px]">
-            <mods.FullCalendar
-              plugins={mods.plugins}
-              locale={mods.locale}
-              initialView="timeGridDay"
-              headerToolbar={{
-                left: 'prev,next today',
-                center: 'title',
-                right: 'timeGridDay,timeGridWeek,dayGridMonth',
-              }}
-              height={520}
-              weekends
-              dayMaxEvents
-              allDaySlot={false}
-              slotMinTime="07:00:00"
-              slotMaxTime="21:00:00"
-              nowIndicator
-              events={events}
-            />
-          </div>
-        ) : null}
+      <div className="flex flex-wrap gap-2">
+        {AGENDA_VISUAIS.map((opcao) => {
+          const selected = visual === opcao.id;
+          return (
+            <button
+              key={opcao.id}
+              type="button"
+              onClick={() => escolher(opcao.id)}
+              className={`max-w-[11rem] text-left px-3 py-2 rounded-lg border text-xs transition-colors ${
+                selected
+                  ? 'border-current'
+                  : 'border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+              }`}
+              style={
+                selected
+                  ? {
+                      borderColor: accentColor,
+                      backgroundColor: `${accentColor}15`,
+                      color: accentColor,
+                    }
+                  : undefined
+              }
+            >
+              <span className="block font-semibold">{opcao.nome}</span>
+              <span className="block mt-0.5 opacity-80 font-normal text-[11px] leading-snug">
+                {opcao.descricao}
+              </span>
+            </button>
+          );
+        })}
       </div>
+
+      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+        Em uso: <strong>{ativo?.nome || 'Pulse'}</strong>
+        {mostrarPrevia ? null : ' · prévia oculta'}
+      </p>
+
+      <button
+        type="button"
+        onClick={() => setMostrarPrevia((v) => !v)}
+        className="inline-flex items-center gap-1.5 text-xs font-medium hover:underline"
+        style={{ color: accentColor }}
+      >
+        {mostrarPrevia ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        {mostrarPrevia ? 'Ocultar prévia' : 'Ver prévia do calendário'}
+      </button>
+
+      {mostrarPrevia ? (
+        <div className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 p-3 overflow-hidden">
+          {carregando ? (
+            <div className="flex items-center justify-center h-56 text-sm text-gray-500">
+              Carregando prévia…
+            </div>
+          ) : erro ? (
+            <div className="flex items-center justify-center h-56 text-sm text-red-600 dark:text-red-400 px-4 text-center">
+              {erro}
+            </div>
+          ) : mods ? (
+            <div className="agenda-v7-preview-root min-h-[280px]">
+              <mods.FullCalendar
+                key={visual}
+                plugins={mods.plugins}
+                locale={mods.locale}
+                initialView="timeGridDay"
+                headerToolbar={{
+                  left: 'prev,next today',
+                  center: 'title',
+                  right: 'timeGridDay,timeGridWeek,dayGridMonth',
+                }}
+                height={520}
+                weekends
+                dayMaxEvents
+                allDaySlot={false}
+                slotMinTime="07:00:00"
+                slotMaxTime="21:00:00"
+                nowIndicator
+                events={events}
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

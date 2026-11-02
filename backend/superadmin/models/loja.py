@@ -105,6 +105,12 @@ class Loja(models.Model):
         blank=True,
         help_text="Overrides de cores dos status da agenda (bg/border por status). Vazio = padrão LWK.",
     )
+    agenda_visual = models.CharField(
+        max_length=20,
+        blank=True,
+        default="pulse",
+        help_text="Tema FullCalendar 7 da visão Mês: pulse, breezy, monarch, forma ou classic.",
+    )
     colunas_consultas = models.JSONField(
         default=list,
         blank=True,

@@ -36,6 +36,15 @@ import {
   DEFAULT_COLUNAS_PACIENTES,
 } from '@/lib/clinica-pacientes-colunas-config';
 import { AgendaV7Preview } from '@/components/clinica-beleza/AgendaV7Preview';
+import {
+  AGENDA_VISUAL_DEFAULT,
+  normalizeAgendaVisual,
+  type AgendaVisualId,
+} from '@/lib/clinica-agenda-visual';
+import {
+  resolveClinicaThemeSlug,
+  writeClinicaAgendaVisualStorage,
+} from '@/lib/clinica-beleza-theme-storage';
 
 const CORES_PRE_DEFINIDAS: LoginColorPreset[] = [
   { nome: 'Burgundy', primaria: '#8B3D52', secundaria: '#6B2F40' },
@@ -61,6 +70,7 @@ type LoginConfigResponse = {
   cor_secundaria?: string;
   cor_fundo_pagina?: string;
   agenda_status_colors?: Record<string, { bg?: string; border?: string }> | null;
+  agenda_visual?: string | null;
   colunas_consultas?: string[] | null;
   colunas_estoque?: string[] | null;
   colunas_pacientes?: string[] | null;
@@ -87,6 +97,7 @@ export default function ClinicaBelezaAparenciaPage() {
   const [statusColors, setStatusColors] = useState<AgendaStatusColorMap>(
     () => mergeAgendaStatusColors(),
   );
+  const [agendaVisual, setAgendaVisual] = useState<AgendaVisualId>(AGENDA_VISUAL_DEFAULT);
   const [colunasConsultas, setColunasConsultas] = useState<string[]>(
     () => [...DEFAULT_COLUNAS_CONSULTAS],
   );
@@ -109,6 +120,7 @@ export default function ClinicaBelezaAparenciaPage() {
       setCorSecundaria(toHexInput(data.cor_secundaria || '', '#6B2F40'));
       setCorFundoPagina(normalizeHexColor(data.cor_fundo_pagina || '') || '');
       setStatusColors(mergeAgendaStatusColors(data.agenda_status_colors));
+      setAgendaVisual(normalizeAgendaVisual(data.agenda_visual));
       setColunasConsultas(
         data.colunas_consultas && data.colunas_consultas.length > 0
           ? data.colunas_consultas
@@ -250,10 +262,12 @@ export default function ClinicaBelezaAparenciaPage() {
         cor_secundaria: secundaria,
         cor_fundo_pagina: fundo,
         agenda_status_colors: agendaPayload,
+        agenda_visual: agendaVisual,
         colunas_consultas: colunasConsultas,
         colunas_estoque: colunasEstoque,
         colunas_pacientes: colunasPacientes,
       });
+      writeClinicaAgendaVisualStorage(resolveClinicaThemeSlug(slug), agendaVisual);
       applyColors(
         {
           corPrimaria: primaria,
@@ -296,7 +310,7 @@ export default function ClinicaBelezaAparenciaPage() {
               Identidade visual
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Cores do menu, fundo das páginas, status da agenda, visual Pulse e colunas de
+              Cores do menu, fundo das páginas, status da agenda, visual do calendário e colunas de
               Atendimentos e Estoque.
             </p>
           </div>
@@ -523,7 +537,18 @@ export default function ClinicaBelezaAparenciaPage() {
               </div>
             </section>
 
-            <AgendaV7Preview statusColors={statusColors} />
+            <AgendaV7Preview
+              statusColors={statusColors}
+              accentColor={previewPrimary}
+              value={agendaVisual}
+              onChange={(id) => {
+                setAgendaVisual(id);
+                writeClinicaAgendaVisualStorage(resolveClinicaThemeSlug(slug), id);
+                void apiClient
+                  .patch('/crm-vendas/login-config/', { agenda_visual: id })
+                  .catch((err) => logger.warn('Falha ao salvar visual da agenda:', err));
+              }}
+            />
 
             <ColunasSection
               sectionId="colunas-consultas"

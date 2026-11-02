@@ -29,6 +29,21 @@ declare module '@fullcalendar-v7/react/themes/breezy' {
   export default plugin;
 }
 
+declare module '@fullcalendar-v7/react/themes/monarch' {
+  const plugin: unknown;
+  export default plugin;
+}
+
+declare module '@fullcalendar-v7/react/themes/forma' {
+  const plugin: unknown;
+  export default plugin;
+}
+
+declare module '@fullcalendar-v7/react/themes/classic' {
+  const plugin: unknown;
+  export default plugin;
+}
+
 declare module '@fullcalendar-v7/react/locales/pt-br' {
   const locale: unknown;
   export default locale;
@@ -39,3 +54,9 @@ declare module '@fullcalendar-v7/react/themes/pulse/theme.css';
 declare module '@fullcalendar-v7/react/themes/pulse/palettes/purple.css';
 declare module '@fullcalendar-v7/react/themes/breezy/theme.css';
 declare module '@fullcalendar-v7/react/themes/breezy/palettes/indigo.css';
+declare module '@fullcalendar-v7/react/themes/monarch/theme.css';
+declare module '@fullcalendar-v7/react/themes/monarch/palettes/purple.css';
+declare module '@fullcalendar-v7/react/themes/forma/theme.css';
+declare module '@fullcalendar-v7/react/themes/forma/palettes/purple.css';
+declare module '@fullcalendar-v7/react/themes/classic/theme.css';
+declare module '@fullcalendar-v7/react/themes/classic/palette.css';

@@ -7,6 +7,31 @@ export type StoredClinicaTheme = {
   updatedAt: number;
 };
 
+export function clinicaAgendaVisualStorageKey(slug: string): string {
+  return `lwk:cb-agenda-visual:${slug.trim().toLowerCase()}`;
+}
+
+export function readClinicaAgendaVisualStorage(slug: string | null | undefined): string | null {
+  if (typeof window === 'undefined' || !slug?.trim()) return null;
+  try {
+    return sessionStorage.getItem(clinicaAgendaVisualStorageKey(slug));
+  } catch {
+    return null;
+  }
+}
+
+export function writeClinicaAgendaVisualStorage(
+  slug: string | null | undefined,
+  visual: string,
+): void {
+  if (typeof window === 'undefined' || !slug?.trim()) return;
+  try {
+    sessionStorage.setItem(clinicaAgendaVisualStorageKey(slug), visual);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function clinicaThemeStorageKey(slug: string): string {
   return `lwk:cb-theme:${slug.trim().toLowerCase()}`;
 }

@@ -10,6 +10,8 @@ import {
   readLojaInfoPublicaCache,
   writeLojaInfoPublicaCache,
 } from '@/lib/loja-info-publica-cache';
+import { normalizeAgendaVisual } from '@/lib/clinica-agenda-visual';
+import { writeClinicaAgendaVisualStorage } from '@/lib/clinica-beleza-theme-storage';
 import type { LojaInfo } from '@/types/dashboard';
 
 type ClinicaBelezaLojaLayoutProps = {
@@ -73,6 +75,7 @@ export function ClinicaBelezaLojaLayout({
       }
       setLoja(data);
       writeLojaInfoPublicaCache(slug, data);
+      writeClinicaAgendaVisualStorage(slug, normalizeAgendaVisual(data.agenda_visual));
       setLojaError(null);
     } catch {
       if (!silent) {

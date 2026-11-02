@@ -49,6 +49,7 @@ def _serialize_login_config(loja) -> dict:
         "cor_secundaria": cor_secundaria,
         "cor_fundo_pagina": (getattr(loja, "cor_fundo_pagina", None) or "").strip(),
         "agenda_status_colors": getattr(loja, "agenda_status_colors", None) or {},
+        "agenda_visual": (getattr(loja, "agenda_visual", None) or "pulse").strip() or "pulse",
         "colunas_consultas": getattr(loja, "colunas_consultas", None) or [],
         "colunas_estoque": getattr(loja, "colunas_estoque", None) or [],
         "colunas_pacientes": getattr(loja, "colunas_pacientes", None) or [],
@@ -85,6 +86,7 @@ class LoginConfigView(CRMPermissionMixin, APIView):
         from superadmin.theme_colors import (
             normalize_hex_color,
             sanitize_agenda_status_colors,
+            sanitize_agenda_visual,
             sanitize_colunas_consultas,
             sanitize_colunas_estoque,
             sanitize_colunas_pacientes,
@@ -112,6 +114,9 @@ class LoginConfigView(CRMPermissionMixin, APIView):
         if "agenda_status_colors" in data:
             loja.agenda_status_colors = sanitize_agenda_status_colors(data.get("agenda_status_colors"))
             update_fields.append("agenda_status_colors")
+        if "agenda_visual" in data:
+            loja.agenda_visual = sanitize_agenda_visual(data.get("agenda_visual"))
+            update_fields.append("agenda_visual")
         if "colunas_consultas" in data:
             loja.colunas_consultas = sanitize_colunas_consultas(data.get("colunas_consultas"))
             update_fields.append("colunas_consultas")

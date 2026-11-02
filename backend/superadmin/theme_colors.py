@@ -113,3 +113,19 @@ def sanitize_colunas_estoque(raw: Any) -> list[str]:
 def sanitize_colunas_pacientes(raw: Any) -> list[str]:
     """Lista ordenada de chaves de coluna de Clientes (sem duplicatas, sem Ações)."""
     return _sanitize_colunas_keys(raw, COLUNAS_PACIENTES_ALLOWED)
+
+
+AGENDA_VISUAL_ALLOWED = frozenset({
+    "pulse",
+    "breezy",
+    "monarch",
+    "forma",
+    "classic",
+})
+AGENDA_VISUAL_DEFAULT = "pulse"
+
+
+def sanitize_agenda_visual(raw: Any) -> str:
+    if isinstance(raw, str) and raw.strip().lower() in AGENDA_VISUAL_ALLOWED:
+        return raw.strip().lower()
+    return AGENDA_VISUAL_DEFAULT

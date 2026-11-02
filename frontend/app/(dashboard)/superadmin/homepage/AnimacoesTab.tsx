@@ -83,7 +83,7 @@ export function AnimacoesTab({
         <CardHeader>
           <CardTitle>Animações da homepage</CardTitle>
           <CardDescription>
-            O visual atual permanece até você escolher um efeito e salvar. O intervalo das telas e os nomes dos botões continuam na aba Banner.
+            O visual atual permanece até você escolher um efeito e clicar em Salvar e publicar. A velocidade só preenche a duração: lenta 1,2 s, normal 0,7 s e rápida 0,4 s. O efeito usa a duração, mesmo que você a altere depois. No notebook, esses atalhos são 0,9 s, 0,45 s e 0,25 s.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -119,8 +119,8 @@ export function AnimacoesTab({
                 <span className="rounded-full border border-white/40 px-4 py-2 text-sm font-semibold">{heroForm.botao_secundario_texto || 'Segundo botão'}</span>
               </TextoAnimado>
             </div>
-            <Button type="button" variant="outline" className="mt-4" onClick={() => setReprise((valor) => valor + 1)}>Ver de novo</Button>
           </div>
+          <Button type="button" variant="outline" onClick={() => setReprise((valor) => valor + 1)}>Ver de novo</Button>
 
           {CHAVES_ELEMENTO.map((chave) => (
             <Elemento
@@ -186,6 +186,7 @@ export function AnimacoesTab({
             <Button type="button" onClick={onSave} disabled={saving}>{saving ? 'Publicando...' : 'Salvar e publicar'}</Button>
             <Button type="button" variant="outline" onClick={() => gravar(animacoesPadrao())}>Restaurar padrão</Button>
           </div>
+          <p className="text-sm text-slate-500">Restaurar padrão só recoloca o visual atual nesta tela. O site muda quando você clica em Salvar e publicar.</p>
         </CardContent>
       </Card>
     </div>

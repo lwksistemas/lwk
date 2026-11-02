@@ -16,6 +16,10 @@ import { AgendaDiaColunas } from "./AgendaDiaColunas";
 import { AgendaSemanaColunas } from "./AgendaSemanaColunas";
 import { marcarIgnorarClickGradeAgenda, toAgendaDiaIso } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
+import {
+  AGENDA_VISUAL_DEFAULT,
+  type AgendaVisualId,
+} from "@/lib/clinica-agenda-visual";
 
 const FullCalendar = lazy(() => import("@fullcalendar-v7/react"));
 
@@ -89,6 +93,7 @@ export function AgendaCalendarSection({
   onNovoHorario,
   onMoverGrade,
   onRedimensionarGrade,
+  visual = AGENDA_VISUAL_DEFAULT,
 }: {
   modoAgenda: "grade" | "lista";
   eventos: AgendaEventData[];
@@ -110,6 +115,7 @@ export function AgendaCalendarSection({
   onNovoHorario?: (date: Date, professionalId: number) => void;
   onMoverGrade?: (evt: AgendaEventData, start: Date, professionalId: number | null) => void;
   onRedimensionarGrade?: (evt: AgendaEventData, duracaoMinutos: number) => void;
+  visual?: AgendaVisualId;
 }) {
   const [gradeView, setGradeView] = useState<"day" | "week" | "month">("day");
   const [diaIso, setDiaIso] = useState(() => toAgendaDiaIso(new Date()));
@@ -233,6 +239,7 @@ export function AgendaCalendarSection({
           onMover={onMoverGrade}
           onRedimensionar={onRedimensionarGrade}
           onArrastoAtivo={marcarArrasto}
+          visual={visual}
         />
       </div>
     );
@@ -258,17 +265,21 @@ export function AgendaCalendarSection({
           onMover={onMoverGrade}
           onRedimensionar={onRedimensionarGrade}
           onArrastoAtivo={marcarArrasto}
+          visual={visual}
         />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain agenda-scroll-root fc-agenda-calendar-root agenda-v7-pulse-root">
+    <div
+      className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain agenda-scroll-root fc-agenda-calendar-root agenda-v7-root"
+      data-agenda-visual={visual}
+    >
       {calendarPlugins.length > 0 && ptBrLocale ? (
         <Suspense fallback={<div className="flex items-center justify-center h-40 text-sm text-gray-500">Carregando calendário...</div>}>
         <FullCalendar
-          key={`desktop-${selectedProfessional}-${gradeView}`}
+          key={`desktop-${selectedProfessional}-${gradeView}-${visual}`}
           plugins={calendarPlugins as never[]}
           initialView="dayGridMonth"
           initialDate={diaIso}

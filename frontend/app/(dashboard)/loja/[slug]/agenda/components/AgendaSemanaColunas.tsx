@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { formatClinicaHora } from "@/lib/clinica-beleza-datetime";
@@ -24,6 +24,11 @@ import {
   templateColunasPreenchendo,
   toAgendaDiaIso,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
+import {
+  AGENDA_VISUAL_DEFAULT,
+  agendaVisualStyleVars,
+  type AgendaVisualId,
+} from "@/lib/clinica-agenda-visual";
 import { AlcaLarguraColuna, useAgendaColunaLargura } from "./useAgendaColunaLargura";
 import { useAgendaDiaArrasto } from "./useAgendaDiaArrasto";
 import { AgendaLateralDireita } from "./AgendaLateralDireita";
@@ -32,7 +37,6 @@ import { BotaoOcultarLateralAgenda, useOcultarLateralAgenda } from "./useOcultar
 const PX_PER_HOUR = 72;
 const COL_MIN_WIDTH = 168;
 const TIME_COL_W = 44;
-const DIA_ACCENT = "#7c3aed";
 
 function subtituloCard(evt: AgendaEventData): string {
   const p = evt.extendedProps || {};
@@ -69,6 +73,7 @@ export function AgendaSemanaColunas({
   onMover,
   onRedimensionar,
   onArrastoAtivo,
+  visual = AGENDA_VISUAL_DEFAULT,
 }: {
   dateIso: string;
   onDateChange: (iso: string) => void;
@@ -83,6 +88,7 @@ export function AgendaSemanaColunas({
   onMover?: (evt: AgendaEventData, start: Date, professionalId: number | null) => void;
   onRedimensionar?: (evt: AgendaEventData, duracaoMinutos: number) => void;
   onArrastoAtivo?: (ativo: boolean) => void;
+  visual?: AgendaVisualId;
 }) {
   const minMin = parseHmToMinutes(slotMinTime);
   const maxMin = Math.max(minMin + 60, parseHmToMinutes(slotMaxTime));
@@ -144,12 +150,16 @@ export function AgendaSemanaColunas({
   }, [arrasto, arrastandoLargura, onArrastoAtivo]);
 
   return (
-    <div className={`flex flex-col min-h-0 flex-1 bg-white dark:bg-gray-800 ${arrasto?.moved || arrastandoLargura ? "select-none" : ""}`}>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 sm:px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+    <div
+      className={`agenda-grade-root flex flex-col min-h-0 flex-1 bg-white dark:bg-gray-800 ${arrasto?.moved || arrastandoLargura ? "select-none" : ""}`}
+      data-agenda-visual={visual}
+      style={agendaVisualStyleVars(visual) as CSSProperties}
+    >
+      <div className="agenda-grade-toolbar grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 sm:px-4 py-3 border-b">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50"
+            className="agenda-grade-nav-btn w-8 h-8 border bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50"
             onClick={() => onDateChange(addDaysIso(dateIso, -7))}
             aria-label="Semana anterior"
           >
@@ -157,7 +167,7 @@ export function AgendaSemanaColunas({
           </button>
           <button
             type="button"
-            className="w-8 h-8 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50"
+            className="agenda-grade-nav-btn w-8 h-8 border bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50"
             onClick={() => onDateChange(addDaysIso(dateIso, 7))}
             aria-label="Próxima semana"
           >
@@ -165,7 +175,7 @@ export function AgendaSemanaColunas({
           </button>
           <button
             type="button"
-            className="ml-1 px-3 h-8 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50"
+            className="agenda-grade-hoje-btn ml-1 px-3 h-8 text-sm border bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50"
             onClick={() => onDateChange(hojeIso)}
           >
             Hoje
@@ -181,7 +191,7 @@ export function AgendaSemanaColunas({
             ocultar={ocultarLateral}
             onToggle={() => setOcultarLateral((atual) => !atual)}
           />
-          <div className="inline-flex items-center rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 text-sm">
+          <div className="agenda-grade-view-toggle inline-flex items-center border text-sm">
             <button
               type="button"
               className="px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50"
@@ -189,12 +199,13 @@ export function AgendaSemanaColunas({
             >
               Dia
             </button>
-            <span className="px-3 py-1.5 font-medium text-white" style={{ backgroundColor: DIA_ACCENT }}>
+            <span className="agenda-grade-view-active px-3 py-1.5 font-medium">
               Semana
             </span>
             <button
               type="button"
-              className="px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 border-l border-gray-200 dark:border-gray-600"
+              className="px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 border-l"
+              style={{ borderColor: "var(--agenda-border)" }}
               onClick={() => onMudarVisao("month")}
             >
               Mês
@@ -230,18 +241,19 @@ export function AgendaSemanaColunas({
                   key={colIso}
                   data-agenda-col-wrap
                   data-agenda-col-id={colKey}
-                  className="relative flex flex-col border-r border-gray-200 dark:border-gray-700 min-w-0"
+                  className="agenda-grade-col relative flex flex-col border-r min-w-0"
+                  style={{ borderColor: "var(--agenda-border)" }}
                 >
                   <AlcaLarguraColuna onPointerDown={(e) => iniciarLargura(colKey, e)} />
                   <div
-                    className={`sticky top-0 z-20 border-b border-gray-200 dark:border-gray-700 px-2 py-2 text-center ${
-                      ehHoje ? "bg-violet-50 dark:bg-violet-950/30" : "bg-white dark:bg-gray-800"
+                    className={`agenda-grade-col-header sticky top-0 z-20 border-b px-2 py-2 text-center ${
+                      ehHoje ? "agenda-grade-col-hoje" : "bg-white dark:bg-gray-800"
                     }`}
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{rotulo.semana}</p>
                     <p
                       className={`text-sm font-semibold ${
-                        ehFoco ? "text-violet-700 dark:text-violet-300" : "text-gray-900 dark:text-gray-100"
+                        ehFoco ? "agenda-grade-col-foco" : "text-gray-900 dark:text-gray-100"
                       }`}
                     >
                       {rotulo.data}
@@ -250,9 +262,9 @@ export function AgendaSemanaColunas({
                   <div
                     className={`relative cursor-pointer ${
                       arrasto?.modo === "mover" && arrasto.hoverDiaIso === colIso
-                        ? "bg-violet-50/60 dark:bg-violet-950/20"
+                        ? "agenda-grade-hover"
                         : ehHoje
-                          ? "bg-amber-50/40 dark:bg-amber-950/10"
+                          ? "agenda-grade-col-hoje"
                           : "bg-white dark:bg-gray-800"
                     }`}
                     data-agenda-semana-dia={colIso}
@@ -288,7 +300,7 @@ export function AgendaSemanaColunas({
                     ))}
                     {agoraVisivel && sameDayIso(agora, colIso) ? (
                       <div
-                        className="absolute z-10 h-px bg-red-500 pointer-events-none"
+                        className="agenda-grade-now absolute z-10 h-px pointer-events-none"
                         style={{ top: agoraTop, left: TIME_COL_W, right: 0 }}
                       />
                     ) : null}

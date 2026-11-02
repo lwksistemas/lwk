@@ -19,7 +19,6 @@ import {
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
 
 const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"] as const;
-const DIA_ACCENT = "#7c3aed";
 
 export function AgendaLateralDireita({
   dateIso,
@@ -87,14 +86,20 @@ export function AgendaLateralDireita({
                   selected
                     ? "text-white font-semibold"
                     : hoverDiaIso === cel.iso
-                      ? "ring-2 ring-violet-500 font-semibold text-gray-900"
+                      ? "ring-2 font-semibold text-gray-900"
                       : today
                         ? "font-semibold text-gray-900 dark:text-gray-100"
                         : cel.inMonth
                           ? "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
                           : "text-gray-300 dark:text-gray-600"
                 }`}
-                style={selected ? { backgroundColor: DIA_ACCENT } : undefined}
+                style={
+                  selected
+                    ? { backgroundColor: "var(--agenda-accent, #ad46ff)" }
+                    : hoverDiaIso === cel.iso
+                      ? { boxShadow: "0 0 0 2px var(--agenda-accent, #ad46ff)" }
+                      : undefined
+                }
               >
                 {Number(cel.iso.slice(-2))}
               </button>

@@ -164,11 +164,11 @@ export function AgendaV7Preview({
     <section className="space-y-4">
       <div>
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-          Visual da agenda (visão Mês)
+          Visual da agenda
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          O administrador escolhe o tema do calendário. A prévia fica oculta até você abrir. Dia e
-          Semana continuam com as colunas por profissional.
+          Vale para Dia, Semana e Mês. Dia e Semana mantêm as colunas por profissional, com o visual
+          escolhido. A prévia do calendário fica oculta até você abrir.
         </p>
       </div>
 

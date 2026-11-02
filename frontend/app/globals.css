@@ -571,8 +571,8 @@ html.dark {
   background: #80868b;
 }
 
-/* Bloqueios na visão Mês (FullCalendar 7 / Pulse) — classNames customizados */
-.agenda-v7-pulse-root .fc-event-bloqueio,
+/* Bloqueios na visão Mês (FullCalendar 7) — classNames customizados */
+.agenda-v7-root .fc-event-bloqueio,
 .agenda-v7-preview-root .fc-event-bloqueio {
   cursor: grab;
   background-image: repeating-linear-gradient(
@@ -581,6 +581,66 @@ html.dark {
     transparent 5px 11px
   ) !important;
   border-style: dashed !important;
+}
+
+/* Grade Dia/Semana — tokens do visual escolhido em Aparência */
+.agenda-grade-root {
+  --agenda-accent: #ad46ff;
+  --agenda-accent-fg: #ffffff;
+  --agenda-radius: 12px;
+  --agenda-card-radius: 12px;
+  --agenda-card-shadow: 0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.06);
+  --agenda-border: #e5e7eb;
+  --agenda-today-bg: rgb(236 72 153 / 0.08);
+  --agenda-hover-bg: rgb(173 70 255 / 0.08);
+  --agenda-focus-text: #7e22ce;
+  --agenda-now: #ef4444;
+}
+
+.agenda-grade-root .agenda-grade-toolbar {
+  border-color: var(--agenda-border);
+}
+
+.agenda-grade-root .agenda-grade-nav-btn,
+.agenda-grade-root .agenda-grade-hoje-btn {
+  border-radius: var(--agenda-radius);
+  border-color: var(--agenda-border);
+}
+
+.agenda-grade-root .agenda-grade-view-toggle {
+  border-radius: var(--agenda-radius);
+  border-color: var(--agenda-border);
+  overflow: hidden;
+}
+
+.agenda-grade-root .agenda-grade-view-active {
+  background-color: var(--agenda-accent);
+  color: var(--agenda-accent-fg);
+}
+
+.agenda-grade-root .agenda-grade-col-header {
+  border-color: var(--agenda-border);
+}
+
+.agenda-grade-root .agenda-grade-col-hoje {
+  background-color: var(--agenda-today-bg);
+}
+
+.agenda-grade-root .agenda-grade-col-foco {
+  color: var(--agenda-focus-text);
+}
+
+.agenda-grade-root .agenda-grade-hover {
+  background-color: var(--agenda-hover-bg);
+}
+
+.agenda-grade-root .agenda-grade-now {
+  background-color: var(--agenda-now);
+}
+
+.agenda-grade-root .agenda-card {
+  border-radius: var(--agenda-card-radius);
+  box-shadow: var(--agenda-card-shadow);
 }
 
 /* Agenda Clínica — um único scroll no container pai; o FullCalendar não cria outra barra */

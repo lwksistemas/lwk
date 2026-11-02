@@ -73,7 +73,7 @@ export function useAgendaPageEffects({
       return;
     }
     const loadPlugins = async () => {
-      // Visão Mês: FullCalendar 7 + tema escolhido pelo admin. Dia/Semana = grades próprias.
+      // Tema FC7 (Mês) + CSS do tema. Dia/Semana usam a mesma escolha via tokens CSS.
       const [dayGrid, interaction, ptBr] = await Promise.all([
         import("@fullcalendar-v7/react/daygrid"),
         import("@fullcalendar-v7/react/interaction"),
@@ -187,5 +187,5 @@ export function useAgendaPageEffects({
     setSelectedEvent,
   ]);
 
-  return { calendarPlugins, ptBrLocale, isMobile };
+  return { calendarPlugins, ptBrLocale, isMobile, visualAtivo };
 }

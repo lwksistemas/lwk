@@ -60,7 +60,7 @@ export default function AgendaPage() {
     recarregarEventos,
   } = useAgendaData(selectedProfessional);
 
-  const { calendarPlugins, ptBrLocale } = useAgendaPageEffects({
+  const { calendarPlugins, ptBrLocale, visualAtivo } = useAgendaPageEffects({
     searchParams,
     selectedProfessional,
     carregarDados,
@@ -203,6 +203,7 @@ export default function AgendaPage() {
             }}
             onMoverGrade={moverAgendamentoGrade}
             onRedimensionarGrade={redimensionarAgendamentoGrade}
+            visual={visualAtivo}
           />
         </div>
       </div>

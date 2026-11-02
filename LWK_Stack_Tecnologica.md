@@ -1,6 +1,6 @@
 # LWK Sistemas — Stack Tecnológica
 
-**Atualizado em 12/10/2026**
+**Atualizado em 02/11/2026**
 
 ## Infraestrutura
 
@@ -17,7 +17,7 @@
 
 | Tecnologia | Versão | Função |
 |-----------|--------|--------|
-| Django | 6.1.1 | Framework web Python |
+| Django | 6.1.2 | Framework web Python |
 | Django REST Framework | 3.18.1 | API RESTful |
 | PostgreSQL | 18.6 | Banco de dados multi-tenant |
 | Redis | 7.4 | Cache e filas |
@@ -30,7 +30,7 @@
 
 | Tecnologia | Versão | Função |
 |-----------|--------|--------|
-| Next.js | 16.3.8 | Framework React (App Router), uma imagem por app de tela |
+| Next.js | 16.4.4 | Framework React (App Router), uma imagem por app de tela |
 | React | 19.3.0 | Biblioteca de UI |
 | TypeScript | 7.0.2 | Tipagem estática (versão instalada no frontend) |
 | Tailwind CSS | 4.3.3 | Estilização |

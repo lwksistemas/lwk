@@ -1,0 +1,23 @@
+# Mídia de produção — media.lwksistemas.com.br (201.23.87.251)
+# Python 3.13 via imagem oficial (substitui systemd + venv 3.12).
+#
+# No host:
+#   cd /opt/media-api && sudo docker compose -f docker-compose.prod.yml up -d --build
+# Token: arquivo .env (não versionar) com MEDIA_API_TOKEN=...
+
+services:
+  media:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lwk-media
+    restart: always
+    environment:
+      - MEDIA_API_TOKEN=${MEDIA_API_TOKEN}
+      - MEDIA_REQUIRE_SIGNED=${MEDIA_REQUIRE_SIGNED:-1}
+      - MEDIA_STORAGE_ROOT=/storage
+    volumes:
+      - /storage:/storage
+    ports:
+      - "127.0.0.1:9000:9000"
+    mem_limit: 256m

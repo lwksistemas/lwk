@@ -43,19 +43,20 @@ serviço `media`). Deploy: `docker compose -f docker-compose.beta.yml up -d --bu
 
 ## Produção (media.lwksistemas.com.br — host 201.23.87.251)
 
-Roda como serviço systemd `media-api.service`, gunicorn a partir de
-`/opt/media-api/app.py` (venv própria, usuário `media`). NÃO é Docker.
-
-Sincronizar produção com este repo (após alterar `app.py`):
+Roda em **Docker** (`python:3.13-slim`), mesma imagem do beta. Nginx no host
+continua em `127.0.0.1:9000`.
 
 ```bash
-# no host de produção (ubuntu@201.23.87.251)
-sudo cp /opt/media-api/app.py /opt/media-api/app.py.bak.$(date +%Y%m%d%H%M%S)
-sudo cp <app.py-do-repo> /opt/media-api/app.py
-sudo chown media:www-data /opt/media-api/app.py
-sudo systemctl restart media-api
+# no host (ubuntu@201.23.87.251) — arquivos em /opt/media-api
+cd /opt/media-api
+# .env com MEDIA_API_TOKEN=... e MEDIA_REQUIRE_SIGNED=1 (não versionar)
+sudo docker build -t lwk-media:3.13 .
+sudo docker rm -f lwk-media
+sudo docker run -d --name lwk-media --restart always --memory 256m \
+  -p 127.0.0.1:9000:9000 -v /storage:/storage --env-file /opt/media-api/.env \
+  lwk-media:3.13
 curl -s http://127.0.0.1:9000/health
 ```
 
-Dependências (venv de produção): ver `requirements.txt`.
-Token: definido em `Environment=MEDIA_API_TOKEN=...` no unit systemd.
+(`docker-compose.prod.yml` existe para quando o plugin Compose estiver instalado.)
+O unit systemd `media-api.service` (venv 3.12) fica desabilitado. Storage: `/storage`.

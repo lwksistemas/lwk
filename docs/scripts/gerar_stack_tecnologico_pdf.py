@@ -33,7 +33,7 @@ GREEN = colors.HexColor("#16A34A")
 # Infra confirmada nos contêineres em 05/10/2026.
 INFRA = [
     ("Python (API)", "3.13.16", "Runtime do backend"),
-    ("Python (mídia)", "3.12.3", "Runtime do servidor de mídia"),
+    ("Python (mídia)", "3.13", "Runtime do servidor de mídia (Docker)"),
     ("Node.js", "22.23.3", "Runtime do frontend"),
     ("PostgreSQL", "18.6", "Banco, um schema por loja"),
     ("Redis", "7.4.10", "Cache e fila"),
@@ -117,7 +117,7 @@ _PROD_RESOLVED = {
 # Versões da tela em produção (lock da main, imagem no ar).
 # Next empacota essas libs; o contêiner só expõe next e react soltos.
 FRONTEND_PROD = {
-    "next": "16.3.8",
+    "next": "16.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "typescript": "7.0.2",
@@ -356,7 +356,7 @@ def build_pdf():
     story.append(Paragraph("7. O que a base atual entrega", st["h1"]))
     for texto in (
         "Cada loja fica num schema próprio do PostgreSQL 18. O pacote django-tenants saiu. O isolamento continua no banco, com menos peça no meio.",
-        "A API é Django 6.1 com o psycopg 3. O Next 16.3.8 e o React 19.3 fecham a correção de segurança das imagens remotas. A criptografia dos campos está na série 50.",
+        "A API é Django 6.1.2 com o psycopg 3. O Next 16.4.4 e o React 19.3 fecham a correção de segurança das imagens remotas. A criptografia dos campos está na série 50.",
         "Redis 7.4 guarda cache e a fila. A mídia é um servidor próprio: abrir um PDF substitui o mesmo arquivo; a foto só entra quando alguém envia.",
         "A agenda permanece no FullCalendar 6. A versão 7 troca as classes visuais e exigiria refazer o CSS da clínica, do CRM e do salão.",
     ):
@@ -366,7 +366,7 @@ def build_pdf():
     story.append(HRFlowable(width="100%", color=PRIMARY, thickness=0.5))
     story.append(Spacer(1, 3 * mm))
     story.append(Paragraph(
-        "Produção e beta usam o mesmo código. A tela do CRM e a da clínica publicam separadas. A mídia continua em Python 3.12.3.",
+        "Produção e beta usam o mesmo código. A tela do CRM e a da clínica publicam separadas. A mídia usa Python 3.13 no Docker.",
         st["muted"],
     ))
     story.append(Paragraph(

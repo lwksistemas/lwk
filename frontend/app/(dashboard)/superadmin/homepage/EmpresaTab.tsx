@@ -21,7 +21,7 @@ export function EmpresaTab({ empresaForm, setEmpresaForm, onSave, saving }: Empr
       <CardHeader>
         <CardTitle>Dados da Empresa</CardTitle>
         <CardDescription>
-          Informações exibidas no rodapé do site e no botão flutuante do WhatsApp
+          Nome, CNPJ e endereço aparecem no rodapé. O telefone e a mensagem abrem o WhatsApp em Fale Conosco.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -78,15 +78,15 @@ export function EmpresaTab({ empresaForm, setEmpresaForm, onSave, saving }: Empr
               placeholder="Olá! Gostaria de saber mais sobre o LWK Sistemas."
             />
             <p className="text-xs text-gray-500 mt-1">
-              Texto pré-preenchido quando o visitante clica no botão do WhatsApp
+              Texto que abre no WhatsApp quando o visitante clica em Fale Conosco
             </p>
           </div>
         </div>
 
         <div className="mt-4 p-4 bg-stone-100 dark:bg-zinc-900/50 rounded-lg border border-stone-200 dark:border-zinc-700">
           <p className="text-sm text-stone-700 dark:text-stone-300">
-            💡 O <strong>botão flutuante do WhatsApp</strong> só aparece no site quando o número estiver preenchido.
-            O <strong>CNPJ e endereço</strong> aparecem no rodapé da homepage.
+            O número entra no botão <strong>Fale Conosco</strong> do topo, no link de WhatsApp do rodapé e na seção de contato.
+            O <strong>CNPJ e o endereço</strong> aparecem no rodapé.
           </p>
         </div>
 

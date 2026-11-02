@@ -400,8 +400,8 @@ export function FormularioCadastroLoja({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-200">3. Tipo de Sistema</h3>
           {selecaoTravada && (
-            <a href="/#modulos" className="text-sm text-blue-600 hover:underline">
-              Trocar plano na home
+            <a href="/planos" className="text-sm text-blue-600 hover:underline">
+              Ver planos
             </a>
           )}
         </div>

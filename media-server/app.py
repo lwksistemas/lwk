@@ -595,7 +595,13 @@ def health():
         try:
             alvo = "/storage" if os.path.isdir("/storage") else str(STORAGE_ROOT)
             stat = os.statvfs(alvo)
-            corpo["free_gb"] = round(stat.f_bavail * stat.f_frsize / (1024**3), 1)
+            total = stat.f_blocks * stat.f_frsize
+            livre = stat.f_bavail * stat.f_frsize
+            usada = total - livre
+            corpo["free_gb"] = round(livre / (1024**3), 1)
+            corpo["total_gb"] = round(total / (1024**3), 1)
+            corpo["used_gb"] = round(usada / (1024**3), 1)
+            corpo["used_pct"] = round((usada / total) * 100, 1) if total else None
             corpo["tenants"] = (
                 len([d for d in STORAGE_ROOT.iterdir() if d.is_dir()]) if STORAGE_ROOT.exists() else 0
             )

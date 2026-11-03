@@ -183,7 +183,11 @@ class MediaServerAppTest(unittest.TestCase):
     def test_health_com_token_informa_disco(self):
         resp = self.client.get("/health", headers={"Authorization": "Bearer master-test"})
         self.assertEqual(resp.status_code, 200)
-        self.assertIn("tenants", resp.get_json())
+        corpo = resp.get_json()
+        self.assertIn("tenants", corpo)
+        self.assertIn("free_gb", corpo)
+        self.assertIn("total_gb", corpo)
+        self.assertIn("used_pct", corpo)
 
 
 if __name__ == "__main__":

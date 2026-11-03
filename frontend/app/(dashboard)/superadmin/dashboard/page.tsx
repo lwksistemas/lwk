@@ -125,6 +125,13 @@ const MENU_CARDS: MenuCardProps[] = [
     color: 'purple',
   },
   {
+    title: 'Capacidade dos servidores',
+    description: 'CPU, RAM e disco da API e da mídia — histórico e leitura quase em tempo real',
+    icon: '📊',
+    href: '/superadmin/dashboard/capacidade',
+    color: 'orange',
+  },
+  {
     title: 'WhatsApp',
     description: 'Quem está conectado: lojas LWK e parceiros de API, com os números separados',
     icon: '💬',

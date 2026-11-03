@@ -75,6 +75,7 @@ class Command(BaseCommand):
         self.stdout.write("")
         self.stdout.write(f"  Load 5m   — pico {pico('load_5m')} | média {media('load_5m')} | teto saudável ~{round(cpus * 0.75, 1)}")
         self.stdout.write(f"  RAM       — pico {pico('mem_usada_pct')}% | média {media('mem_usada_pct')}%")
+        self.stdout.write(f"  Disco     — pico {pico('disk_usada_pct')}% | média {media('disk_usada_pct')}% | livre {ultimo.get('disk_livre_gb')} GB")
         self.stdout.write(f"  PG conexões — pico {pico('pg_conexoes')} / {ultimo.get('pg_conexoes_max')}")
         self.stdout.write(f"  Fila django-q — pico pendente {pico('fila_pendente')} | falhas 24h (último) {ultimo.get('fila_falhas_24h')}")
 
@@ -82,6 +83,7 @@ class Command(BaseCommand):
         self.stdout.write("")
         load_pico = pico("load_5m") or 0
         ram_pico = pico("mem_usada_pct") or 0
+        disk_pico = pico("disk_usada_pct") or 0
         pg_pico = pico("pg_conexoes") or 0
         pg_max = ultimo.get("pg_conexoes_max") or 1
         alertas = []
@@ -89,6 +91,8 @@ class Command(BaseCommand):
             alertas.append(f"Load de pico {load_pico} passou de 75% dos {cpus} vCPU — avaliar +workers ou escalar.")
         if ram_pico > 85:
             alertas.append(f"RAM de pico {ram_pico}% alta.")
+        if disk_pico > 85:
+            alertas.append(f"Disco de pico {disk_pico}% alto — expandir volume ou limpar.")
         if pg_pico > pg_max * 0.8:
             alertas.append(f"Conexões Postgres no pico ({pg_pico}/{pg_max}) perto do limite — subir max_connections.")
         if alertas:

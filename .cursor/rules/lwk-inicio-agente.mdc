@@ -60,9 +60,9 @@ ssh ubuntu@201.54.18.213 'sudo -u deploy bash /home/deploy/lwk-beta/scripts/depl
 ## Stack
 
 - Backend: Django 6.1 + DRF 3.18.0 (Python 3.13)
-- Frontend: Next.js 16.4.4 + TypeScript 7.0.2 + React 19.3.0 + Tailwind 4 (Node 22). CRM na porta 3002, clínica na 3003, site geral na 3000
+- Frontend: Next.js 16.4.4 + TypeScript 7.0.2 + React 19.3.0 + Tailwind 4 (Node 26). CRM na porta 3002, clínica na 3003, site geral na 3000
 - Banco: PostgreSQL 18.6 (Docker local, multi-tenant por schema; shared_buffers 2GB)
-- Cache: Redis 7.4 (512mb LRU) + django-q2
+- Cache: Redis 8.10 (512mb LRU) + django-q2
 - API: Gunicorn 6 workers × 2 threads (gthread)
 - Imagens: Servidor de mídia próprio (media.lwksistemas.com.br)
 - WhatsApp: Evolution API v2.3.7

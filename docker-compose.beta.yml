@@ -31,7 +31,7 @@ services:
     mem_limit: 384m
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:8.10-alpine
     restart: always
     command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
     healthcheck:

@@ -4,11 +4,25 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from django.conf import settings
 from django.db import connection
 from django.utils import timezone
+
+
+def _json_safe(obj: Any) -> Any:
+    """Converte valores para JSON (Decimal, datetime, etc.)."""
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
 
 RAW_HORAS = 48
 RETENCAO_DIAS = 30
@@ -355,7 +369,7 @@ def agregar_e_retener(arquivo: str | None = None) -> int:
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w") as fh:
         for r in raw:
-            fh.write(json.dumps(r, ensure_ascii=False) + "\n")
+            fh.write(json.dumps(_json_safe(r), ensure_ascii=False) + "\n")
     return len(raw)
 
 
@@ -369,7 +383,7 @@ def gravar_snapshot(arquivo: str | None = None) -> dict[str, Any]:
     registro = coletar_snapshot()
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "a") as fh:
-        fh.write(json.dumps(registro, ensure_ascii=False) + "\n")
+        fh.write(json.dumps(_json_safe(registro), ensure_ascii=False) + "\n")
     agregar_e_retener(path)
     return registro
 
@@ -395,7 +409,7 @@ def registrar_metricas_periodicas(arquivo: str | None = None) -> list[dict[str, 
     with open(path, "a") as fh:
         for registro in registros:
             slim = {k: v for k, v in registro.items() if k not in ("dica", "pg_lentas")}
-            fh.write(json.dumps(slim, ensure_ascii=False) + "\n")
+            fh.write(json.dumps(_json_safe(slim), ensure_ascii=False) + "\n")
     agregar_e_retener(path)
 
     try:

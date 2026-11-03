@@ -42,8 +42,9 @@ class AgendaView(APIView):
         if end_raw:
             qs = qs.filter(date__lte=end_raw)
 
-        # Evita payload enorme: janela máx. ~3 meses; sem params → ~2 meses em torno de agora
-        max_span_days = 93
+        # Evita payload enorme: janela máx. ~6 meses; sem params → 90 dias para trás e para frente.
+        # (Antes só 7 dias para trás: o histórico sumia ao olhar outubro/setembro na grade.)
+        max_span_days = 186
 
         def _bound_date(raw: str):
             dt = parse_datetime(raw)
@@ -61,7 +62,10 @@ class AgendaView(APIView):
                 )
         elif not start_raw and not end_raw:
             agora = timezone.now()
-            qs = qs.filter(date__gte=agora - timedelta(days=7), date__lte=agora + timedelta(days=60))
+            qs = qs.filter(
+                date__gte=agora - timedelta(days=90),
+                date__lte=agora + timedelta(days=90),
+            )
         scope = resolve_agenda_professional_scope(request)
         if scope is None and (p := request.query_params.get("professional")):
             qs = qs.filter(professional_id=p)

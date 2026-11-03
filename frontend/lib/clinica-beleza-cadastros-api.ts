@@ -53,9 +53,27 @@ export async function fetchClinicaSchedulingProfessionals(): Promise<ClinicaProf
   });
 }
 
+/** Janela padrão da grade: 90 dias atrás ↔ 90 à frente (histórico + futuro próximo). */
+function agendaJanelaPadraoParams(): URLSearchParams {
+  const hoje = new Date();
+  const ymd = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+  const start = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 90);
+  const end = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 90);
+  const params = new URLSearchParams();
+  params.set("start", ymd(start));
+  params.set("end", ymd(end));
+  return params;
+}
+
 export async function fetchClinicaAgendaEvents(professionalId: string): Promise<AgendaEventData[]> {
-  const path = professionalId ? `/agenda/?professional=${professionalId}` : "/agenda/";
-  const res = await clinicaBelezaFetch(path);
+  const params = agendaJanelaPadraoParams();
+  if (professionalId) params.set("professional", professionalId);
+  const res = await clinicaBelezaFetch(`/agenda/?${params.toString()}`);
   if (!res.ok) return [];
   return res.json();
 }

@@ -263,7 +263,7 @@ def get_vendedor_destino_merge_loja(loja_id: int):
 
 
 def vendedor_tem_controle_qualidade(request) -> bool:
-    """Vendedor que vê a equipe e continua vendendo no próprio nome.
+    """Vendedor com escopo da equipe (consulta e mutação) e vendas no próprio nome.
 
     Não equivale a administrador: configurações e o cadastro de funcionários continuam bloqueados.
     """

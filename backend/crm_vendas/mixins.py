@@ -160,14 +160,13 @@ class VendedorFilterMixin:
     vendedor_filter_related = []  # Campos relacionados
     # True: vendedor vê registros sem vendedor (pool compartilhado). False (padrão): só admin.
     vendedor_include_unassigned_pool = False
-    # True: controle de qualidade pode consultar os registros de toda a equipe.
+    # True: controle de qualidade acessa (leitura e mutação) os registros de toda a equipe.
+    # Sem isso, a UI lista a proposta/lead de outro vendedor no GET e o POST/PATCH quebra
+    # com "No Proposta matches the given query" (get_object no queryset filtrado).
     vendedor_escopo_qualidade = False
 
     def _consulta_controle_qualidade(self) -> bool:
         if not getattr(self, "vendedor_escopo_qualidade", False):
-            return False
-        method = getattr(self.request, "method", None)
-        if method not in ("GET", "HEAD", "OPTIONS"):
             return False
         return vendedor_tem_controle_qualidade(self.request)
 

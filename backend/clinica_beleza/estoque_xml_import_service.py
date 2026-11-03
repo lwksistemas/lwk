@@ -196,6 +196,8 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
     valor_nf = _parse_decimal(_find_text(inf_nfe, "total/ICMSTot/vNF"))
 
     # Produtos
+    from .estoque_nfe_vinculo import fator_da_unidade, gtin_util
+
     produtos = []
     for det in inf_nfe.iter():
         tag_name = det.tag.split("}")[-1] if "}" in det.tag else det.tag
@@ -213,12 +215,22 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
             continue
 
         lote, validade_str = _extrair_lote_validade(det)
+        q_com = _parse_decimal(_get_prod_field(prod, "qCom"))
+        q_trib = _parse_decimal(_get_prod_field(prod, "qTrib"))
+        u_com = (_get_prod_field(prod, "uCom") or "unidade").lower()[:30]
+        u_trib = (_get_prod_field(prod, "uTrib") or u_com).lower()[:30]
+        gtin = gtin_util(_get_prod_field(prod, "cEAN")) or gtin_util(_get_prod_field(prod, "cEANTrib"))
+        fator = fator_da_unidade(q_com, q_trib, u_com, u_trib)
         produto = {
             "nome": nome.upper()[:200],
-            "codigo_produto": _get_prod_field(prod, "cProd"),
+            "codigo_produto": _get_prod_field(prod, "cProd")[:60],
+            "gtin": gtin,
             "ncm": _get_prod_field(prod, "NCM"),
-            "unidade_medida": (_get_prod_field(prod, "uCom") or "unidade").lower()[:30],
-            "quantidade": str(_parse_decimal(_get_prod_field(prod, "qCom"))),
+            "unidade_medida": u_com,
+            "unidade_estoque": u_trib if fator != 1 else u_com,
+            "quantidade": str(q_com),
+            "quantidade_tributavel": str(q_trib),
+            "fator": str(fator),
             "preco_unitario": str(_parse_decimal(_get_prod_field(prod, "vUnCom"))),
             "valor_total": str(_parse_decimal(_get_prod_field(prod, "vProd"))),
             "lote": lote[:50],
@@ -288,22 +300,41 @@ def importar_produtos_xml(
             slug=slug,
         )
 
+        obs = []
+        if item.get("ncm"):
+            obs.append(f"NCM: {item['ncm']}")
+        if item.get("gtin"):
+            obs.append(f"GTIN: {item['gtin']}")
         produtos_para_importar.append({
             "nome": item["nome"],
+            "codigo_produto": item.get("codigo_produto") or "",
+            "gtin": item.get("gtin") or "",
+            "documento_fornecedor": parsed.get("emitente_documento") or "",
+            "fornecedor": parsed.get("fornecedor") or "",
+            "chave": parsed.get("chave") or "",
             "categoria": cat.slug if cat else slug,
             "categoria_id": cat.id if cat else categoria_id,
             "categoria_inferida": slug,
             "categoria_motivo": motivo,
             "ncm": item.get("ncm") or "",
-            "marca": parsed["fornecedor"],
             "unidade_medida": item["unidade_medida"],
+            "unidade_estoque": item.get("unidade_estoque") or item["unidade_medida"],
             "quantidade": quantidade,
+            "fator": item.get("fator") or "1",
             "preco_custo": preco,
             "lote": item["lote"],
             "validade": item["validade"] or None,
             "numero_nota": parsed["numero_nota"],
-            "observacoes": f"NCM: {item['ncm']}" if item["ncm"] else "",
+            "observacoes": " · ".join(obs),
+            "acao": "novo",
+            "confianca": "nenhuma",
+            "produto_id": None,
+            "produto_nome": "",
+            "alerta": "",
+            "candidatos": [],
         })
+
+    _anexar_reconhecimento(produtos_para_importar)
 
     return {
         "nota": {
@@ -320,101 +351,204 @@ def importar_produtos_xml(
     }
 
 
+def _anexar_reconhecimento(produtos: list[dict]) -> None:
+    from .estoque_nfe_vinculo import classificar_item, marcar_repetidos, quantidade_estoque
+    from .models import ProdutoEstoque, VinculoProdutoFornecedor
+
+    catalogo = list(ProdutoEstoque.objects.filter(is_active=True).values("id", "nome", "unidade_medida"))
+    vinculos = list(VinculoProdutoFornecedor.objects.values("produto_id", "documento", "codigo", "gtin", "fator"))
+    for item in produtos:
+        sugestao = classificar_item(
+            {
+                "nome": item.get("nome") or "",
+                "codigo": item.get("codigo_produto") or "",
+                "gtin": item.get("gtin") or "",
+                "documento": item.get("documento_fornecedor") or "",
+                "fator": Decimal(str(item.get("fator") or "1")),
+            },
+            catalogo,
+            vinculos,
+        )
+        item.update(sugestao)
+        item["quantidade_estoque"] = str(
+            quantidade_estoque(Decimal(str(item.get("quantidade") or "0")), Decimal(str(item.get("fator") or "1"))),
+        )
+    marcar_repetidos(produtos)
+
+
+def _data_item(valor):
+    if not valor:
+        return None
+    if isinstance(valor, date):
+        return valor
+    texto = str(valor)[:10]
+    try:
+        return date.fromisoformat(texto)
+    except ValueError as exc:
+        raise ValueError(f"Validade inválida: {valor}") from exc
+
+
+def _fator_item(item: dict) -> Decimal:
+    try:
+        fator = Decimal(str(item.get("fator") or "1"))
+    except InvalidOperation as exc:
+        raise ValueError(f'Fator inválido em "{item.get("nome", "")}".') from exc
+    if fator <= 0:
+        raise ValueError(f'O fator de "{item.get("nome", "")}" precisa ser maior que zero.')
+    return fator
+
+
+def _motivo_entrada(item: dict, usuario: str) -> str:
+    partes = [f"NF {item.get('numero_nota') or '—'}"]
+    if item.get("chave"):
+        partes.append(str(item["chave"]))
+    if item.get("lote"):
+        partes.append(f"lote {str(item['lote'])[:20]}")
+    if item.get("validade"):
+        partes.append(f"val {str(item['validade'])[:10]}")
+    if item.get("fornecedor"):
+        partes.append(str(item["fornecedor"])[:40])
+    if usuario:
+        partes.append(usuario[:40])
+    return " · ".join(partes)[:200]
+
+
+def _lembrar_fornecedor(item: dict, produto, fator: Decimal, custo: Decimal) -> None:
+    import re
+
+    from .estoque_nfe_vinculo import gtin_util
+    from .models import VinculoProdutoFornecedor
+
+    documento = re.sub(r"\D", "", item.get("documento_fornecedor") or "")[:20]
+    codigo = (item.get("codigo_produto") or "").strip()[:60]
+    gtin = gtin_util(item.get("gtin") or "")
+    if not codigo and gtin:
+        codigo = f"ean:{gtin}"[:60]
+    if not documento or not codigo:
+        return
+    VinculoProdutoFornecedor.objects.update_or_create(
+        documento=documento,
+        codigo=codigo,
+        defaults={
+            "produto": produto,
+            "gtin": gtin[:14],
+            "fator": fator,
+            "preco": custo,
+            "nome_no_fornecedor": (item.get("nome") or "")[:200],
+        },
+    )
+
+
 def confirmar_importacao_xml(
     produtos_para_importar: list[dict],
     *,
     loja_id: int | None = None,
+    usuario: str = "",
 ) -> dict:
-    """Cria ou atualiza produtos no estoque a partir da lista parseada.
-    Se o produto já existe (mesmo nome), soma quantidade e registra movimentação.
+    """Lança a nota inteira ou não lança nada.
 
-    Returns:
-        dict com 'criados', 'atualizados', 'erros'.
-
+    Item com ação vazia (dúvida) interrompe. Itens iguais marcados como novo
+    entram no mesmo produto, cada um com a própria movimentação.
     """
-    from decimal import Decimal
+    from django.db import transaction
 
     from .estoque_categorias import resolver_categoria
+    from .estoque_nfe_vinculo import custo_unitario_estoque, gtin_util, normalizar_nome, quantidade_estoque
     from .models import MovimentacaoEstoque, ProdutoEstoque
     from .serializers import ProdutoEstoqueSerializer
 
     criados = 0
     atualizados = 0
-    erros = []
+    ignorados = 0
+    novos_da_nota: dict[str, ProdutoEstoque] = {}
 
-    for item in produtos_para_importar:
-        nome = item["nome"]
-        quantidade = Decimal(str(item["quantidade"]))
-        numero_nota = item.get("numero_nota", "")
+    with transaction.atomic():
+        for item in produtos_para_importar:
+            nome = item.get("nome") or "Item"
+            acao = (item.get("acao") or "").strip()
+            if acao == "ignorar":
+                ignorados += 1
+                continue
+            if acao not in ("vincular", "novo"):
+                raise ValueError(f'Confirme "{nome}" antes de lançar: vincular, cadastrar ou ignorar.')
 
-        cat = resolver_categoria(
-            loja_id=loja_id,
-            categoria_id=item.get("categoria_id"),
-            slug=item.get("categoria") or "outro",
-        )
-
-        existente = ProdutoEstoque.objects.filter(
-            nome__iexact=nome, is_active=True,
-        ).first()
-
-        if existente:
-            existente.quantidade_atual += quantidade
-            if item.get("preco_custo"):
-                existente.preco_custo = Decimal(str(item["preco_custo"]))
-            if item.get("validade") and (not existente.validade or item["validade"] < str(existente.validade)):
-                existente.validade = item["validade"]
-            if item.get("lote"):
-                existente.lote = item["lote"]
-            if numero_nota:
-                existente.numero_nota = numero_nota
-            if cat and not existente.categoria_id:
-                existente.categoria = cat
-            existente.save(update_fields=[
-                "quantidade_atual", "preco_custo", "validade", "lote", "numero_nota",
-                "categoria", "updated_at",
-            ])
-            MovimentacaoEstoque.objects.create(
-                produto=existente,
-                tipo="entrada",
-                quantidade=quantidade,
-                motivo=f'NF {numero_nota} - Lote: {item.get("lote", "")} - Val: {item.get("validade", "")}',
+            fator = _fator_item(item)
+            quantidade = quantidade_estoque(Decimal(str(item.get("quantidade") or "0")), fator)
+            if quantidade <= 0:
+                raise ValueError(f'A quantidade de "{nome}" ficou zerada.')
+            custo = custo_unitario_estoque(Decimal(str(item.get("preco_custo") or "0")), fator)
+            validade = _data_item(item.get("validade"))
+            cat = resolver_categoria(
+                loja_id=loja_id,
+                categoria_id=item.get("categoria_id"),
+                slug=item.get("categoria") or "outro",
             )
-            atualizados += 1
-        else:
-            # Passa slug (não PK) para evitar "Pk inválido" quando o ID
-            # do preview/override não existe no schema da loja.
-            serializer_data = {
-                "nome": nome,
-                "categoria": (cat.slug if cat else None) or item.get("categoria") or "outro",
-                "marca": item.get("marca", ""),
-                "unidade_medida": item.get("unidade_medida", "unidade"),
-                "quantidade_atual": str(quantidade),
-                "quantidade_minima": 0,
-                "preco_custo": item.get("preco_custo", "0"),
-                "preco_venda": 0,
-                "lote": item.get("lote", ""),
-                "validade": item.get("validade"),
-                "numero_nota": numero_nota,
-                "observacoes": item.get("observacoes", ""),
-            }
+            motivo = _motivo_entrada(item, usuario)
+
+            if acao == "vincular":
+                try:
+                    produto_id = int(item.get("produto_id"))
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(f'Escolha o produto do estoque para "{nome}".') from exc
+                existente = ProdutoEstoque.objects.filter(pk=produto_id, is_active=True).first()
+                if existente is None:
+                    raise ValueError(f'O produto vinculado a "{nome}" não está mais no estoque.')
+                _somar_entrada(existente, quantidade, custo, validade, item.get("lote") or "", item.get("numero_nota") or "", cat)
+                MovimentacaoEstoque.objects.create(produto=existente, tipo="entrada", quantidade=quantidade, motivo=motivo)
+                _lembrar_fornecedor(item, existente, fator, custo)
+                atualizados += 1
+                continue
+
+            chave_novo = gtin_util(item.get("gtin") or "") or normalizar_nome(nome)
+            ja_criado = novos_da_nota.get(chave_novo) if chave_novo else None
+            if ja_criado is not None:
+                _somar_entrada(ja_criado, quantidade, custo, validade, item.get("lote") or "", item.get("numero_nota") or "", cat)
+                MovimentacaoEstoque.objects.create(produto=ja_criado, tipo="entrada", quantidade=quantidade, motivo=motivo)
+                _lembrar_fornecedor(item, ja_criado, fator, custo)
+                atualizados += 1
+                continue
+
+            unidade = item.get("unidade_estoque") or item.get("unidade_medida") or "unidade"
             serializer = ProdutoEstoqueSerializer(
-                data=serializer_data,
+                data={
+                    "nome": nome,
+                    "categoria": (cat.slug if cat else None) or item.get("categoria") or "outro",
+                    "marca": "",
+                    "unidade_medida": unidade,
+                    "quantidade_atual": str(quantidade),
+                    "quantidade_minima": 0,
+                    "preco_custo": str(custo),
+                    "preco_venda": 0,
+                    "lote": item.get("lote") or "",
+                    "validade": validade.isoformat() if validade else None,
+                    "numero_nota": item.get("numero_nota") or "",
+                    "observacoes": item.get("observacoes") or "",
+                },
                 context={"loja_id": loja_id},
             )
-            if serializer.is_valid():
-                produto_novo = serializer.save(categoria=cat) if cat else serializer.save()
-                MovimentacaoEstoque.objects.create(
-                    produto=produto_novo,
-                    tipo="entrada",
-                    quantidade=quantidade,
-                    motivo=f'NF {numero_nota} - Lote: {item.get("lote", "")} - Val: {item.get("validade", "")}',
-                )
-                criados += 1
-            else:
-                erros.append({"nome": nome, "erros": serializer.errors})
+            if not serializer.is_valid():
+                raise ValueError(f'Não foi possível cadastrar "{nome}".')
+            produto_novo = serializer.save(categoria=cat) if cat else serializer.save()
+            MovimentacaoEstoque.objects.create(produto=produto_novo, tipo="entrada", quantidade=quantidade, motivo=motivo)
+            _lembrar_fornecedor(item, produto_novo, fator, custo)
+            if chave_novo:
+                novos_da_nota[chave_novo] = produto_novo
+            criados += 1
 
-    return {
-        "criados": criados,
-        "atualizados": atualizados,
-        "erros": erros,
-    }
+    return {"criados": criados, "atualizados": atualizados, "ignorados": ignorados, "erros": []}
+
+
+def _somar_entrada(produto, quantidade: Decimal, custo: Decimal, validade, lote: str, numero_nota: str, cat) -> None:
+    produto.quantidade_atual += quantidade
+    produto.preco_custo = custo
+    if validade and (not produto.validade or validade < produto.validade):
+        produto.validade = validade
+    if lote:
+        produto.lote = str(lote)[:50]
+    if numero_nota:
+        produto.numero_nota = str(numero_nota)[:50]
+    campos = ["quantidade_atual", "preco_custo", "validade", "lote", "numero_nota", "updated_at"]
+    if cat and not produto.categoria_id:
+        produto.categoria = cat
+        campos.append("categoria")
+    produto.save(update_fields=campos)

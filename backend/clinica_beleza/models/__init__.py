@@ -20,6 +20,7 @@ from .estoque import (
     NfeDistribuicaoEstado,
     NotaEntradaNfe,
     ProdutoEstoque,
+    VinculoProdutoFornecedor,
 )
 from .financeiro import (
     CampanhaPromocao,
@@ -108,6 +109,7 @@ __all__ = [
     "TermoConsentimentoConfig",
     "TermoConsentimentoTemplate",
     "ProdutoEstoque",
+    "VinculoProdutoFornecedor",
     "Professional",
     "ProfessionalCommission",
     "RetornoProcedimentoRegra",

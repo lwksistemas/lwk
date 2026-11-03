@@ -52,17 +52,30 @@ def _parsear_override_produtos(raw):
     return raw if isinstance(raw, list) and raw else None
 
 
+def _usuario_da_requisicao(request) -> str:
+    user = getattr(request, "user", None)
+    if not user or not getattr(user, "is_authenticated", False):
+        return ""
+    nome = user.get_full_name() if hasattr(user, "get_full_name") else ""
+    return (nome or getattr(user, "username", "") or "")[:80]
+
+
 def _mesclar_overrides_categoria(resultado_produtos, produtos_override, loja_id):
-    """Aplica overrides de categoria dos produtos_override sobre os produtos do resultado."""
-    by_nome = {str(p.get("nome", "")).strip().lower(): p for p in produtos_override if isinstance(p, dict)}
-    for p in resultado_produtos:
-        ov = by_nome.get(str(p.get("nome", "")).strip().lower())
+    """Aplica categoria e a decisão de vínculo escolhida na conferência."""
+    overrides = [p for p in produtos_override if isinstance(p, dict)]
+    por_indice = len(overrides) == len(resultado_produtos)
+    by_nome = {str(p.get("nome", "")).strip().lower(): p for p in overrides}
+    for indice, p in enumerate(resultado_produtos):
+        ov = overrides[indice] if por_indice else by_nome.get(str(p.get("nome", "")).strip().lower())
         if not ov:
             continue
         if ov.get("categoria"):
             p["categoria"] = ov["categoria"]
         if ov.get("categoria_id") not in (None, ""):
             p["categoria_id"] = ov["categoria_id"]
+        for campo in ("acao", "produto_id", "fator", "validade", "lote"):
+            if campo in ov and ov[campo] not in (None, ""):
+                p[campo] = ov[campo]
         cat = resolver_categoria(
             loja_id=loja_id,
             categoria_id=int(p["categoria_id"]) if str(p.get("categoria_id") or "").isdigit() else None,
@@ -151,7 +164,9 @@ class EstoqueImportarXmlView(APIView):
             _mesclar_overrides_categoria(resultado["produtos"], produtos_override, loja_id)
 
         try:
-            result = confirmar_arquivo(xml_bytes, resultado["produtos"], loja_id=loja_id)
+            result = confirmar_arquivo(
+                xml_bytes, resultado["produtos"], loja_id=loja_id, usuario=_usuario_da_requisicao(request),
+            )
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         response_data = {**result, "nota": resultado["nota"]}
@@ -161,7 +176,7 @@ class EstoqueImportarXmlView(APIView):
 
         return Response(
             response_data,
-            status=status.HTTP_201_CREATED if (result["criados"] + result["atualizados"]) > 0 else status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_201_CREATED if (result["criados"] + result["atualizados"] + result.get("ignorados", 0)) > 0 else status.HTTP_400_BAD_REQUEST,
         )
 
 
@@ -227,14 +242,19 @@ class EstoqueNfePendenteConfirmarView(APIView):
         loja_id = resolve_loja_id_from_request(request)
         garantir_categorias_estoque_padrao(loja_id)
         try:
-            result = confirmar_nota(pk, _parsear_override_produtos(request.data.get("produtos")), loja_id=loja_id)
+            result = confirmar_nota(
+                pk,
+                _parsear_override_produtos(request.data.get("produtos")),
+                loja_id=loja_id,
+                usuario=_usuario_da_requisicao(request),
+            )
         except LookupError:
             return Response({"error": "Nota não encontrada."}, status=status.HTTP_404_NOT_FOUND)
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(
             result,
-            status=status.HTTP_201_CREATED if (result["criados"] + result["atualizados"]) > 0 else status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_201_CREATED if (result["criados"] + result["atualizados"] + result.get("ignorados", 0)) > 0 else status.HTTP_400_BAD_REQUEST,
         )
 
 

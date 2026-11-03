@@ -1,7 +1,11 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/financeiro-helpers";
-import type { PreviewResult, ProdutoPreview } from "./estoque-importar-xml-types";
-import { formatProdutoPreviewLine } from "./estoque-importar-xml-utils";
+import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import type { CandidatoProdutoXml, PreviewResult, ProdutoPreview } from "./estoque-importar-xml-types";
+import { formatProdutoPreviewLine, quantidadeEntrada, resumoConferencia } from "./estoque-importar-xml-utils";
 import type { EstoqueCategoria } from "./estoque-types";
 import { ESTOQUE_CATEGORIAS } from "./estoque-types";
 
@@ -16,12 +20,16 @@ interface EstoqueImportarXmlPreviewProps {
   preview: PreviewResult;
   categorias?: EstoqueCategoria[];
   onProdutoCategoriaChange?: (index: number, slug: string, categoriaId?: number | null) => void;
+  onProdutoChange?: (index: number, patch: Partial<ProdutoPreview>) => void;
 }
+
+const COLUNAS = "sm:grid sm:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)_8.5rem_minmax(12rem,1.05fr)] sm:gap-3 sm:items-start";
 
 export function EstoqueImportarXmlPreview({
   preview,
   categorias,
   onProdutoCategoriaChange,
+  onProdutoChange,
 }: EstoqueImportarXmlPreviewProps) {
   const options =
     categorias && categorias.length > 0
@@ -32,6 +40,8 @@ export function EstoqueImportarXmlPreview({
     const opt = options.find((o) => o.value === slug);
     onProdutoCategoriaChange?.(index, slug, opt?.id ?? null);
   };
+
+  const resumo = resumoConferencia(preview.produtos);
 
   return (
     <div>
@@ -55,25 +65,32 @@ export function EstoqueImportarXmlPreview({
           ) : null}
         </p>
         <p className="text-xs text-blue-600 dark:text-blue-400">
-          {preview.total_produtos} produto{preview.total_produtos !== 1 ? "s" : ""} encontrado
-          {preview.total_produtos !== 1 ? "s" : ""} · categorias inferidas (editáveis)
+          {resumo.vinculados} vinculado{resumo.vinculados !== 1 ? "s" : ""}
+          {" · "}
+          {resumo.novos} novo{resumo.novos !== 1 ? "s" : ""}
+          {" · "}
+          {resumo.ignorados} ignorado{resumo.ignorados !== 1 ? "s" : ""}
+          {" · "}
+          entram {resumo.quantidade} no estoque
+          {resumo.pendentes > 0 ? ` · ${resumo.pendentes} aguardando confirmação` : ""}
         </p>
       </div>
 
       <div className="border border-gray-200 dark:border-neutral-700 rounded-lg overflow-hidden">
-        <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(12rem,0.7fr)] gap-3 px-3 py-2 text-[11px] uppercase tracking-wide text-gray-500 bg-gray-50 dark:bg-neutral-800/80 border-b border-gray-200 dark:border-neutral-700">
+        <div className={`hidden ${COLUNAS} px-3 py-2 text-[11px] uppercase tracking-wide text-gray-500 bg-gray-50 dark:bg-neutral-800/80 border-b border-gray-200 dark:border-neutral-700`}>
           <span>Produto</span>
           <span>Quantidade / valor</span>
           <span>Categoria</span>
+          <span>Entrada</span>
         </div>
-        <div className="max-h-[min(28rem,55vh)] overflow-y-auto divide-y divide-gray-100 dark:divide-neutral-700">
+        <div className="max-h-[min(32rem,60vh)] overflow-y-auto divide-y divide-gray-100 dark:divide-neutral-700">
           {preview.produtos.map((p: ProdutoPreview, i) => (
-            <div
-              key={i}
-              className="px-3 py-2.5 text-sm sm:grid sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(12rem,0.7fr)] sm:gap-3 sm:items-center space-y-1.5 sm:space-y-0"
-            >
+            <div key={i} className={`px-3 py-2.5 text-sm ${COLUNAS} space-y-1.5 sm:space-y-0`}>
               <div className="min-w-0">
                 <p className="font-medium text-gray-900 dark:text-gray-100 break-words">{p.nome}</p>
+                {p.alerta && (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">{p.alerta}</p>
+                )}
                 <p className="sm:hidden text-xs text-gray-500 dark:text-gray-400">
                   {formatProdutoPreviewLine(p)}
                 </p>
@@ -96,10 +113,155 @@ export function EstoqueImportarXmlPreview({
               ) : (
                 <span className="text-xs text-gray-500">{p.categoria || "—"}</span>
               )}
+              <EntradaItem produto={p} onChange={(patch) => onProdutoChange?.(i, patch)} />
             </div>
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function EntradaItem({
+  produto,
+  onChange,
+}: {
+  produto: ProdutoPreview;
+  onChange: (patch: Partial<ProdutoPreview>) => void;
+}) {
+  const opcoes = opcoesDoProduto(produto);
+  return (
+    <div className="space-y-1.5">
+      <select
+        value={produto.acao || ""}
+        onChange={(e) => {
+          const acao = e.target.value as ProdutoPreview["acao"];
+          const patch: Partial<ProdutoPreview> = { acao };
+          if (acao === "vincular" && !produto.produto_id && opcoes[0]) {
+            patch.produto_id = opcoes[0].id;
+            patch.produto_nome = opcoes[0].nome;
+          }
+          onChange(patch);
+        }}
+        className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+      >
+        <option value="">Confirme</option>
+        <option value="vincular">Vincular a um produto</option>
+        <option value="novo">Cadastrar novo</option>
+        <option value="ignorar">Ignorar</option>
+      </select>
+      {produto.acao === "vincular" && (
+        <>
+          <select
+            value={produto.produto_id ?? ""}
+            onChange={(e) => {
+              const id = Number(e.target.value);
+              const escolhido = opcoes.find((c) => c.id === id);
+              onChange({ produto_id: id || null, produto_nome: escolhido?.nome || produto.produto_nome });
+            }}
+            className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+          >
+            <option value="">Escolha o produto</option>
+            {opcoes.map((c) => (
+              <option key={c.id} value={c.id}>{c.nome}</option>
+            ))}
+          </select>
+          <BuscaProduto
+            onEscolher={(id, nome) => onChange({
+              produto_id: id,
+              produto_nome: nome,
+              candidatos: [{ id, nome }, ...(produto.candidatos || []).filter((c) => c.id !== id)].slice(0, 8),
+            })}
+          />
+        </>
+      )}
+      <label className="flex items-center gap-1 text-[11px] text-gray-500">
+        Fator
+        <input
+          type="number"
+          min="0.01"
+          step="1"
+          value={produto.fator || "1"}
+          onChange={(e) => onChange({ fator: e.target.value })}
+          className="w-16 px-1 py-0.5 border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+        />
+        <span>entra {quantidadeEntrada(produto)} {produto.unidade_estoque || produto.unidade_medida}</span>
+      </label>
+      <div className="flex gap-1">
+        <input
+          value={produto.lote || ""}
+          onChange={(e) => onChange({ lote: e.target.value })}
+          placeholder="Lote"
+          className="w-1/2 px-2 py-1 text-[11px] border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+        />
+        <input
+          type="date"
+          value={(produto.validade || "").slice(0, 10)}
+          onChange={(e) => onChange({ validade: e.target.value || null })}
+          className="w-1/2 px-1 py-1 text-[11px] border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+        />
+      </div>
+    </div>
+  );
+}
+
+function opcoesDoProduto(produto: ProdutoPreview): CandidatoProdutoXml[] {
+  const opcoes = [...(produto.candidatos || [])];
+  if (produto.produto_id && !opcoes.some((c) => c.id === produto.produto_id)) {
+    opcoes.unshift({ id: produto.produto_id, nome: produto.produto_nome || `Produto ${produto.produto_id}` });
+  }
+  return opcoes;
+}
+
+function BuscaProduto({ onEscolher }: { onEscolher: (id: number, nome: string) => void }) {
+  const [q, setQ] = useState("");
+  const [itens, setItens] = useState<CandidatoProdutoXml[]>([]);
+
+  useEffect(() => {
+    const termo = q.trim();
+    if (termo.length < 2) {
+      setItens([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      void clinicaBelezaFetch(`/estoque/?search=${encodeURIComponent(termo)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const rows = Array.isArray(data) ? data : data?.results || [];
+          setItens(rows.slice(0, 8).map((r: { id: number; nome: string }) => ({ id: r.id, nome: r.nome })));
+        })
+        .catch(() => setItens([]));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q]);
+
+  return (
+    <div>
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Buscar outro produto"
+        className="w-full px-2 py-1 text-[11px] border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+      />
+      {itens.length > 0 && (
+        <ul className="mt-1 max-h-24 overflow-y-auto border border-gray-200 dark:border-neutral-700 rounded">
+          {itens.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                className="w-full text-left px-2 py-1 text-[11px] hover:bg-gray-50 dark:hover:bg-neutral-800"
+                onClick={() => {
+                  onEscolher(item.id, item.nome);
+                  setQ("");
+                  setItens([]);
+                }}
+              >
+                {item.nome}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -275,6 +275,48 @@ class NotaEntradaNfe(LojaIsolationMixin, models.Model):
         return f"NF {self.numero or self.chave[-8:]}"
 
 
+class VinculoProdutoFornecedor(LojaIsolationMixin, models.Model):
+    """Código e preço de um fornecedor para um produto já existente no estoque."""
+
+    produto = models.ForeignKey(
+        ProdutoEstoque,
+        on_delete=models.CASCADE,
+        related_name="vinculos_fornecedor",
+    )
+    documento = models.CharField(max_length=20, verbose_name="CPF/CNPJ do fornecedor")
+    codigo = models.CharField(max_length=60, verbose_name="Código na NF do fornecedor")
+    gtin = models.CharField(max_length=14, blank=True, default="", verbose_name="GTIN/EAN")
+    fator = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        default=1,
+        verbose_name="Unidades de estoque por unidade da nota",
+    )
+    preco = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Último custo unitário")
+    nome_no_fornecedor = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_vinculo_produto_fornecedor"
+        verbose_name = "Vínculo produto-fornecedor"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["loja_id", "documento", "codigo"],
+                name="cb_vinc_forn_codigo_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["loja_id", "gtin"], name="cb_vinc_forn_gtin_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.documento} {self.codigo}"
+
+
 class NfeDistribuicaoEstado(LojaIsolationMixin, models.Model):
     """Ponto da consulta de NF-e na SEFAZ, uma linha por loja."""
 

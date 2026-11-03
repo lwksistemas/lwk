@@ -5,6 +5,7 @@ import type { EstoqueImportarXmlModalProps } from "./estoque-importar-xml-types"
 import { EstoqueImportarXmlForm } from "./EstoqueImportarXmlForm";
 import { EstoqueImportarXmlPreview } from "./EstoqueImportarXmlPreview";
 import { EstoqueImportarXmlResult } from "./EstoqueImportarXmlResult";
+import { itemPrecisaConfirmacao } from "./estoque-importar-xml-utils";
 import { useEstoqueImportarXml } from "./useEstoqueImportarXml";
 
 export function EstoqueImportarXmlModal({
@@ -29,6 +30,7 @@ export function EstoqueImportarXmlModal({
     handleFileChange,
     voltarPreview,
     enviarXml,
+    updateProduto,
     updateProdutoCategoria,
     abrirPendente,
     confirmarPendente,
@@ -79,6 +81,7 @@ export function EstoqueImportarXmlModal({
               preview={preview}
               categorias={categorias}
               onProdutoCategoriaChange={updateProdutoCategoria}
+              onProdutoChange={updateProduto}
             />
           )}
           {!resultado && !preview && (
@@ -157,12 +160,12 @@ export function EstoqueImportarXmlModal({
               <button
                 type="button"
                 onClick={() => void (notaId ? confirmarPendente() : enviarXml(true))}
-                disabled={loading}
+                disabled={loading || preview.produtos.some(itemPrecisaConfirmacao)}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
                 style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                Confirmar importação ({preview.total_produtos})
+                Confirmar importação ({preview.produtos.filter((p) => p.acao !== "ignorar" && !itemPrecisaConfirmacao(p)).length})
               </button>
             </>
           ) : (

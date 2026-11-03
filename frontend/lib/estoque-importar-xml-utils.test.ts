@@ -6,6 +6,9 @@ import {
   formatProdutoPreviewLine,
   formatXmlFileSizeKb,
   hasEstoqueImportChanges,
+  itemPrecisaConfirmacao,
+  quantidadeEntrada,
+  resumoConferencia,
 } from "@/components/clinica-beleza/estoque/estoque-importar-xml-utils";
 
 describe("formatXmlFileSizeKb", () => {
@@ -49,6 +52,33 @@ describe("hasEstoqueImportChanges", () => {
   it("detecta alterações", () => {
     expect(hasEstoqueImportChanges({ criados: 0, atualizados: 0, erros: [], nota: { numero: "", fornecedor: "", data_emissao: "" } })).toBe(false);
     expect(hasEstoqueImportChanges({ criados: 1, atualizados: 0, erros: [], nota: { numero: "", fornecedor: "", data_emissao: "" } })).toBe(true);
+  });
+});
+
+describe("conferência da NF-e", () => {
+  const base = {
+    nome: "ACIDO",
+    unidade_medida: "CX",
+    quantidade: "2",
+    preco_custo: "100",
+    lote: "",
+    validade: null,
+  };
+
+  it("converte caixa em unidades de estoque", () => {
+    expect(quantidadeEntrada({ ...base, fator: "5" })).toBe("10");
+    expect(formatProdutoPreviewLine({ ...base, fator: "5", unidade_estoque: "UN" })).toContain("entra 10 UN");
+  });
+
+  it("resume vinculados, novos e o que ainda precisa de confirmação", () => {
+    const resumo = resumoConferencia([
+      { ...base, acao: "vincular", produto_id: 1 },
+      { ...base, acao: "novo" },
+      { ...base, acao: "ignorar" },
+      { ...base, acao: "" },
+    ]);
+    expect(resumo).toMatchObject({ vinculados: 1, novos: 1, ignorados: 1, pendentes: 1 });
+    expect(itemPrecisaConfirmacao({ ...base, acao: "vincular" })).toBe(true);
   });
 });
 

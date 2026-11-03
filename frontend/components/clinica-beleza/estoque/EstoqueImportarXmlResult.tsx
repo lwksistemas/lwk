@@ -12,7 +12,7 @@ export function EstoqueImportarXmlResult({ resultado }: EstoqueImportarXmlResult
       <div className="flex items-center gap-2 mb-2">
         <CheckCircle2 size={20} className="text-green-600" />
         <span className="font-semibold text-green-800 dark:text-green-200">
-          {formatImportResultSummary(resultado.criados, resultado.atualizados)}
+          {formatImportResultSummary(resultado.criados, resultado.atualizados, resultado.ignorados || 0)}
         </span>
       </div>
       {resultado.nota.numero && (

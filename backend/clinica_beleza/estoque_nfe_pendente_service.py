@@ -146,7 +146,7 @@ def preview_da_nota(nota_id: int, *, loja_id: int | None) -> dict:
     return {"id": nota.id, "preview": True, "status": nota.status, **resultado}
 
 
-def confirmar_nota(nota_id: int, produtos: list | None, *, loja_id: int | None) -> dict:
+def confirmar_nota(nota_id: int, produtos: list | None, *, loja_id: int | None, usuario: str = "") -> dict:
     from .estoque_xml_import_service import confirmar_importacao_xml, importar_produtos_xml
     from .models import NotaEntradaNfe
 
@@ -162,10 +162,10 @@ def confirmar_nota(nota_id: int, produtos: list | None, *, loja_id: int | None) 
         from .views_estoque_xml import _mesclar_overrides_categoria
 
         _mesclar_overrides_categoria(preparados, produtos, loja_id)
-    return _aplicar_estoque(nota, preparados, loja_id)
+    return _aplicar_estoque(nota, preparados, loja_id, usuario=usuario)
 
 
-def confirmar_arquivo(xml_content: bytes, produtos: list, *, loja_id: int | None) -> dict:
+def confirmar_arquivo(xml_content: bytes, produtos: list, *, loja_id: int | None, usuario: str = "") -> dict:
     """Confirma um XML enviado na mão e trava a chave para não somar o estoque de novo."""
     from .estoque_xml_import_service import parse_nfe_xml
     from .models import NotaEntradaNfe
@@ -179,29 +179,39 @@ def confirmar_arquivo(xml_content: bytes, produtos: list, *, loja_id: int | None
         nota = _salvar_completo(parsed, xml_content, origem=NotaEntradaNfe.ORIGEM_ARQUIVO, loja_id=loja_id)
     elif chave:
         nota = NotaEntradaNfe.objects.filter(chave=chave).first()
-    return _aplicar_estoque(nota, produtos, loja_id, chave=chave)
+    return _aplicar_estoque(nota, produtos, loja_id, chave=chave, usuario=usuario)
 
 
-def _aplicar_estoque(nota, produtos: list, loja_id: int | None, *, chave: str = "") -> dict:
+def _aplicar_estoque(nota, produtos: list, loja_id: int | None, *, chave: str = "", usuario: str = "") -> dict:
+    from django.db import transaction
+
     from .estoque_xml_import_service import confirmar_importacao_xml
     from .models import NotaEntradaNfe
 
-    resultado = confirmar_importacao_xml(produtos, loja_id=loja_id)
-    entrou = (resultado["criados"] + resultado["atualizados"]) > 0
-    if entrou and nota is not None:
-        nota.status = NotaEntradaNfe.STATUS_IMPORTADA
-        nota.importada_em = timezone.now()
-        nota.ultimo_erro = ""
-        nota.save(update_fields=["status", "importada_em", "ultimo_erro", "updated_at"])
-    elif entrou and chave and nota is None:
-        NotaEntradaNfe.objects.create(
-            loja_id=loja_id,
-            chave=chave,
-            numero=numero_da_chave(chave),
-            status=NotaEntradaNfe.STATUS_IMPORTADA,
-            origem=NotaEntradaNfe.ORIGEM_ARQUIVO,
-            importada_em=timezone.now(),
-        )
+    if not produtos:
+        raise ValueError("A nota não tem itens para lançar.")
+    with transaction.atomic():
+        if nota is not None:
+            nota = NotaEntradaNfe.objects.select_for_update().get(pk=nota.pk)
+            if nota.status == NotaEntradaNfe.STATUS_IMPORTADA:
+                raise ValueError(MSG_JA_IMPORTADA)
+        elif chave and nota_importada(chave):
+            raise ValueError(MSG_JA_IMPORTADA)
+        resultado = confirmar_importacao_xml(produtos, loja_id=loja_id, usuario=usuario)
+        if nota is not None:
+            nota.status = NotaEntradaNfe.STATUS_IMPORTADA
+            nota.importada_em = timezone.now()
+            nota.ultimo_erro = ""
+            nota.save(update_fields=["status", "importada_em", "ultimo_erro", "updated_at"])
+        elif chave:
+            NotaEntradaNfe.objects.create(
+                loja_id=loja_id,
+                chave=chave,
+                numero=numero_da_chave(chave),
+                status=NotaEntradaNfe.STATUS_IMPORTADA,
+                origem=NotaEntradaNfe.ORIGEM_ARQUIVO,
+                importada_em=timezone.now(),
+            )
     return resultado
 
 

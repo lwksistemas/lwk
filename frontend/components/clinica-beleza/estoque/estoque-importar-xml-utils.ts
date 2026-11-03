@@ -1,4 +1,4 @@
-import type { ImportResult, ProdutoPreview } from "./estoque-importar-xml-types";
+import type { AcaoImportacaoXml, ImportResult, ProdutoPreview } from "./estoque-importar-xml-types";
 import { ESTOQUE_CATEGORIAS } from "./estoque-types";
 
 export const ESTOQUE_IMPORT_CATEGORIAS = ESTOQUE_CATEGORIAS;
@@ -9,13 +9,61 @@ export function formatXmlFileSizeKb(sizeBytes: number): string {
   return `${(sizeBytes / 1024).toFixed(0)} KB`;
 }
 
-export function formatImportResultSummary(criados: number, atualizados: number): string {
+export function formatImportResultSummary(criados: number, atualizados: number, ignorados = 0): string {
   const parts: string[] = [];
   if (criados > 0) parts.push(`${criados} novo${criados !== 1 ? "s" : ""}`);
   if (atualizados > 0) {
     parts.push(`${atualizados} atualizado${atualizados !== 1 ? "s" : ""} (estoque somado)`);
   }
-  return parts.join(" · ");
+  if (ignorados > 0) parts.push(`${ignorados} ignorado${ignorados !== 1 ? "s" : ""}`);
+  return parts.join(" · ") || "Nenhum item lançado";
+}
+
+export function quantidadeEntrada(p: ProdutoPreview): string {
+  const q = Number(p.quantidade);
+  const fator = Number(p.fator || "1");
+  if (!Number.isFinite(q) || !Number.isFinite(fator) || fator <= 0) return p.quantidade;
+  const entra = Math.round(q * fator * 100) / 100;
+  return String(entra);
+}
+
+export function itemPrecisaConfirmacao(p: ProdutoPreview): boolean {
+  if (p.acao !== "vincular" && p.acao !== "novo" && p.acao !== "ignorar") return true;
+  return p.acao === "vincular" && !p.produto_id;
+}
+
+export function resumoConferencia(produtos: ProdutoPreview[]) {
+  let vinculados = 0;
+  let novos = 0;
+  let ignorados = 0;
+  let pendentes = 0;
+  let quantidade = 0;
+  for (const p of produtos) {
+    if (itemPrecisaConfirmacao(p)) {
+      pendentes += 1;
+      continue;
+    }
+    if (p.acao === "vincular") vinculados += 1;
+    else if (p.acao === "novo") novos += 1;
+    else ignorados += 1;
+    if (p.acao === "ignorar") continue;
+    const entra = Number(quantidadeEntrada(p));
+    if (Number.isFinite(entra)) quantidade += entra;
+  }
+  return { vinculados, novos, ignorados, pendentes, quantidade };
+}
+
+export function produtoParaConfirmacao(p: ProdutoPreview) {
+  return {
+    nome: p.nome,
+    categoria: p.categoria,
+    categoria_id: p.categoria_id ?? undefined,
+    acao: (p.acao || "") as AcaoImportacaoXml,
+    produto_id: p.produto_id ?? undefined,
+    fator: p.fator || "1",
+    validade: p.validade || undefined,
+    lote: p.lote || undefined,
+  };
 }
 
 export function formatProdutoPreviewLine(p: ProdutoPreview): string {
@@ -23,7 +71,11 @@ export function formatProdutoPreviewLine(p: ProdutoPreview): string {
   const lote = p.lote ? ` · Lote: ${p.lote}` : "";
   const cat = p.categoria ? ` · ${p.categoria}` : "";
   const motivo = p.categoria_motivo ? ` (${p.categoria_motivo})` : "";
-  return `${p.quantidade} ${p.unidade_medida} × R$ ${preco}${lote}${cat}${motivo}`;
+  const fator = Number(p.fator || "1");
+  const convertido = Number.isFinite(fator) && fator !== 1
+    ? ` · entra ${quantidadeEntrada(p)} ${p.unidade_estoque || p.unidade_medida}`
+    : "";
+  return `${p.quantidade} ${p.unidade_medida} × R$ ${preco}${convertido}${lote}${cat}${motivo}`;
 }
 
 export function buildEstoqueImportFormData(
@@ -45,12 +97,7 @@ export function buildEstoqueImportFormData(
       formData.append(
         "produtos",
         JSON.stringify(
-          opts.produtos.map((p) => ({
-            nome: p.nome,
-            categoria: p.categoria,
-            // slug é a fonte da verdade; ID só como dica (backend re-resolve)
-            categoria_id: p.categoria_id ?? undefined,
-          })),
+          opts.produtos.map((p) => produtoParaConfirmacao(p)),
         ),
       );
     }

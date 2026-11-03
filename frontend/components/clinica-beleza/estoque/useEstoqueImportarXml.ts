@@ -7,6 +7,7 @@ import {
   buildEstoqueImportFormData,
   extractEstoqueImportError,
   hasEstoqueImportChanges,
+  produtoParaConfirmacao,
 } from "./estoque-importar-xml-utils";
 
 export function useEstoqueImportarXml(
@@ -73,6 +74,14 @@ export function useEstoqueImportarXml(
   const voltarPreview = useCallback(() => {
     setPreview(null);
     setArquivo(null);
+  }, []);
+
+  const updateProduto = useCallback((index: number, patch: Partial<ProdutoPreview>) => {
+    setPreview((prev) => {
+      if (!prev) return prev;
+      const produtos = prev.produtos.map((p, i) => (i === index ? { ...p, ...patch } : p));
+      return { ...prev, produtos };
+    });
   }, []);
 
   const updateProdutoCategoria = useCallback(
@@ -159,11 +168,7 @@ export function useEstoqueImportarXml(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          produtos: preview.produtos.map((p) => ({
-            nome: p.nome,
-            categoria: p.categoria,
-            categoria_id: p.categoria_id ?? undefined,
-          })),
+          produtos: preview.produtos.map((p) => produtoParaConfirmacao(p)),
         }),
       });
       const data = await res.json();
@@ -228,6 +233,7 @@ export function useEstoqueImportarXml(
     handleFileChange,
     voltarPreview,
     enviarXml,
+    updateProduto,
     updateProdutoCategoria,
     abrirPendente,
     confirmarPendente,

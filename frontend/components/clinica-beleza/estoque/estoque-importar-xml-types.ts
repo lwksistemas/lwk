@@ -1,9 +1,19 @@
 import type { EstoqueCategoria } from "@/components/clinica-beleza/estoque/estoque-types";
 
+export type AcaoImportacaoXml = "" | "vincular" | "novo" | "ignorar";
+
+export interface CandidatoProdutoXml {
+  id: number;
+  nome: string;
+}
+
 export interface ProdutoPreview {
   nome: string;
   unidade_medida: string;
+  unidade_estoque?: string;
   quantidade: string;
+  quantidade_estoque?: string;
+  fator?: string;
   preco_custo: string;
   lote: string;
   validade: string | null;
@@ -12,6 +22,14 @@ export interface ProdutoPreview {
   categoria_inferida?: string;
   categoria_motivo?: string;
   ncm?: string;
+  codigo_produto?: string;
+  gtin?: string;
+  acao?: AcaoImportacaoXml;
+  confianca?: string;
+  produto_id?: number | null;
+  produto_nome?: string;
+  alerta?: string;
+  candidatos?: CandidatoProdutoXml[];
 }
 
 export interface PreviewResult {
@@ -30,6 +48,7 @@ export interface PreviewResult {
 export interface ImportResult {
   criados: number;
   atualizados: number;
+  ignorados?: number;
   erros: { nome: string; erros: Record<string, string[]> }[];
   nota: { numero: string; fornecedor: string; data_emissao: string };
   aviso_destinatario?: string;

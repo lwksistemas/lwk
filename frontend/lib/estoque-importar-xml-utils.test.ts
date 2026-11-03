@@ -9,6 +9,7 @@ import {
   itemPrecisaConfirmacao,
   quantidadeEntrada,
   resumoConferencia,
+  textoResumoConferencia,
 } from "@/components/clinica-beleza/estoque/estoque-importar-xml-utils";
 
 describe("formatXmlFileSizeKb", () => {
@@ -78,6 +79,7 @@ describe("conferência da NF-e", () => {
       { ...base, acao: "" },
     ]);
     expect(resumo).toMatchObject({ vinculados: 1, novos: 1, ignorados: 1, pendentes: 1 });
+    expect(textoResumoConferencia(resumo)).toBe("1 vinculado · 1 novo · 1 ignorado · 1 para confirmar");
     expect(itemPrecisaConfirmacao({ ...base, acao: "vincular" })).toBe(true);
   });
 });

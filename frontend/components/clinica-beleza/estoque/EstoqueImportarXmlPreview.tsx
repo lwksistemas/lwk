@@ -5,7 +5,7 @@ import { AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import type { CandidatoProdutoXml, PreviewResult, ProdutoPreview } from "./estoque-importar-xml-types";
-import { formatProdutoPreviewLine, quantidadeEntrada, resumoConferencia } from "./estoque-importar-xml-utils";
+import { formatProdutoPreviewLine, quantidadeEntrada, resumoConferencia, textoResumoConferencia } from "./estoque-importar-xml-utils";
 import type { EstoqueCategoria } from "./estoque-types";
 import { ESTOQUE_CATEGORIAS } from "./estoque-types";
 
@@ -23,7 +23,7 @@ interface EstoqueImportarXmlPreviewProps {
   onProdutoChange?: (index: number, patch: Partial<ProdutoPreview>) => void;
 }
 
-const COLUNAS = "sm:grid sm:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)_8.5rem_minmax(12rem,1.05fr)] sm:gap-3 sm:items-start";
+const COLUNAS = "sm:grid sm:grid-cols-[minmax(0,1.5fr)_minmax(0,0.7fr)_8rem_11rem] sm:gap-3 sm:items-center";
 
 export function EstoqueImportarXmlPreview({
   preview,
@@ -65,14 +65,7 @@ export function EstoqueImportarXmlPreview({
           ) : null}
         </p>
         <p className="text-xs text-blue-600 dark:text-blue-400">
-          {resumo.vinculados} vinculado{resumo.vinculados !== 1 ? "s" : ""}
-          {" · "}
-          {resumo.novos} novo{resumo.novos !== 1 ? "s" : ""}
-          {" · "}
-          {resumo.ignorados} ignorado{resumo.ignorados !== 1 ? "s" : ""}
-          {" · "}
-          entram {resumo.quantidade} no estoque
-          {resumo.pendentes > 0 ? ` · ${resumo.pendentes} aguardando confirmação` : ""}
+          {textoResumoConferencia(resumo)}
         </p>
       </div>
 
@@ -85,35 +78,38 @@ export function EstoqueImportarXmlPreview({
         </div>
         <div className="max-h-[min(32rem,60vh)] overflow-y-auto divide-y divide-gray-100 dark:divide-neutral-700">
           {preview.produtos.map((p: ProdutoPreview, i) => (
-            <div key={i} className={`px-3 py-2.5 text-sm ${COLUNAS} space-y-1.5 sm:space-y-0`}>
-              <div className="min-w-0">
-                <p className="font-medium text-gray-900 dark:text-gray-100 break-words">{p.nome}</p>
-                {p.alerta && (
-                  <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">{p.alerta}</p>
-                )}
-                <p className="sm:hidden text-xs text-gray-500 dark:text-gray-400">
-                  {formatProdutoPreviewLine(p)}
+            <div key={i} className="px-3 py-2 text-sm space-y-1.5">
+              <div className={COLUNAS}>
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 dark:text-gray-100 break-words leading-snug">{p.nome}</p>
+                  {p.alerta && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">{p.alerta}</p>
+                  )}
+                  <p className="sm:hidden text-xs text-gray-500 dark:text-gray-400">
+                    {formatProdutoPreviewLine(p)}
+                  </p>
+                </div>
+                <p className="hidden sm:block text-xs text-gray-600 dark:text-gray-300">
+                  {p.quantidade} {p.unidade_medida} × R$ {Number(p.preco_custo || 0).toFixed(2)}
                 </p>
+                {onProdutoCategoriaChange ? (
+                  <select
+                    value={p.categoria || "outro"}
+                    onChange={(e) => handleChange(i, e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+                  >
+                    {options.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-xs text-gray-500">{p.categoria || "—"}</span>
+                )}
+                <AcaoItem produto={p} onChange={(patch) => onProdutoChange?.(i, patch)} />
               </div>
-              <p className="hidden sm:block text-xs text-gray-600 dark:text-gray-300">
-                {formatProdutoPreviewLine(p)}
-              </p>
-              {onProdutoCategoriaChange ? (
-                <select
-                  value={p.categoria || "outro"}
-                  onChange={(e) => handleChange(i, e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
-                >
-                  {options.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span className="text-xs text-gray-500">{p.categoria || "—"}</span>
-              )}
-              <EntradaItem produto={p} onChange={(patch) => onProdutoChange?.(i, patch)} />
+              <LinhaFatorLote produto={p} onChange={(patch) => onProdutoChange?.(i, patch)} />
             </div>
           ))}
         </div>
@@ -122,7 +118,7 @@ export function EstoqueImportarXmlPreview({
   );
 }
 
-function EntradaItem({
+function AcaoItem({
   produto,
   onChange,
 }: {
@@ -131,7 +127,7 @@ function EntradaItem({
 }) {
   const opcoes = opcoesDoProduto(produto);
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       <select
         value={produto.acao || ""}
         onChange={(e) => {
@@ -146,7 +142,7 @@ function EntradaItem({
         className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
       >
         <option value="">Confirme</option>
-        <option value="vincular">Vincular a um produto</option>
+        <option value="vincular">Vincular</option>
         <option value="novo">Cadastrar novo</option>
         <option value="ignorar">Ignorar</option>
       </select>
@@ -175,7 +171,20 @@ function EntradaItem({
           />
         </>
       )}
-      <label className="flex items-center gap-1 text-[11px] text-gray-500">
+    </div>
+  );
+}
+
+function LinhaFatorLote({
+  produto,
+  onChange,
+}: {
+  produto: ProdutoPreview;
+  onChange: (patch: Partial<ProdutoPreview>) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
+      <label className="flex items-center gap-1">
         Fator
         <input
           type="number"
@@ -183,24 +192,28 @@ function EntradaItem({
           step="1"
           value={produto.fator || "1"}
           onChange={(e) => onChange({ fator: e.target.value })}
-          className="w-16 px-1 py-0.5 border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+          className="w-14 px-1.5 py-1 border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800 text-gray-800 dark:text-gray-100"
         />
-        <span>entra {quantidadeEntrada(produto)} {produto.unidade_estoque || produto.unidade_medida}</span>
       </label>
-      <div className="flex gap-1">
+      <span className="text-gray-600 dark:text-gray-300">
+        entra {quantidadeEntrada(produto)} {produto.unidade_estoque || produto.unidade_medida}
+      </span>
+      <label className="flex items-center gap-1">
+        Lote
         <input
           value={produto.lote || ""}
           onChange={(e) => onChange({ lote: e.target.value })}
           placeholder="Lote"
-          className="w-1/2 px-2 py-1 text-[11px] border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+          className="w-28 px-1.5 py-1 border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800 text-gray-800 dark:text-gray-100"
         />
-        <input
-          type="date"
-          value={(produto.validade || "").slice(0, 10)}
-          onChange={(e) => onChange({ validade: e.target.value || null })}
-          className="w-1/2 px-1 py-1 text-[11px] border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
-        />
-      </div>
+      </label>
+      <input
+        type="date"
+        aria-label="Validade"
+        value={(produto.validade || "").slice(0, 10)}
+        onChange={(e) => onChange({ validade: e.target.value || null })}
+        className="px-1.5 py-1 border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800 text-gray-800 dark:text-gray-100"
+      />
     </div>
   );
 }

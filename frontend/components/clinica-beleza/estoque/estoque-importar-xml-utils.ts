@@ -37,7 +37,6 @@ export function resumoConferencia(produtos: ProdutoPreview[]) {
   let novos = 0;
   let ignorados = 0;
   let pendentes = 0;
-  let quantidade = 0;
   for (const p of produtos) {
     if (itemPrecisaConfirmacao(p)) {
       pendentes += 1;
@@ -46,11 +45,25 @@ export function resumoConferencia(produtos: ProdutoPreview[]) {
     if (p.acao === "vincular") vinculados += 1;
     else if (p.acao === "novo") novos += 1;
     else ignorados += 1;
-    if (p.acao === "ignorar") continue;
-    const entra = Number(quantidadeEntrada(p));
-    if (Number.isFinite(entra)) quantidade += entra;
   }
-  return { vinculados, novos, ignorados, pendentes, quantidade };
+  return { vinculados, novos, ignorados, pendentes };
+}
+
+export function textoResumoConferencia(resumo: {
+  vinculados: number;
+  novos: number;
+  ignorados: number;
+  pendentes: number;
+}): string {
+  const partes = [
+    `${resumo.vinculados} vinculado${resumo.vinculados !== 1 ? "s" : ""}`,
+    `${resumo.novos} novo${resumo.novos !== 1 ? "s" : ""}`,
+    `${resumo.ignorados} ignorado${resumo.ignorados !== 1 ? "s" : ""}`,
+  ];
+  if (resumo.pendentes > 0) {
+    partes.push(`${resumo.pendentes} para confirmar`);
+  }
+  return partes.join(" · ");
 }
 
 export function produtoParaConfirmacao(p: ProdutoPreview) {

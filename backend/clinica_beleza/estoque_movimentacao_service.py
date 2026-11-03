@@ -69,7 +69,10 @@ def registrar_movimentacao(
             appointment_id=appointment_id,
         )
         if tipo == "saida":
-            from .estoque_lotes import abater_lotes
+            from .estoque_lotes import BaixaLoteError, abater_lotes
 
-            abater_lotes(produto, quantidade)
+            try:
+                abater_lotes(produto, quantidade)
+            except BaixaLoteError as exc:
+                raise EstoqueMovimentacaoError(str(exc)) from exc
     return mov

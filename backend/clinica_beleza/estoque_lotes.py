@@ -6,17 +6,65 @@ from datetime import date
 from decimal import Decimal
 
 
-def consumir_lotes(lotes: list[dict], quantidade: Decimal) -> list[dict]:
-    """Tira da validade mais próxima. Se o rastreado não cobrir, o resto fica sem lote."""
+class BaixaLoteError(ValueError):
+    """A saída pedida usaria saldo vencido, inativo ou acima do que pode sair."""
+
+
+def _validade(lote) -> date | None:
+    valor = lote.get("validade") if isinstance(lote, dict) else getattr(lote, "validade", None)
+    if not valor:
+        return None
+    if isinstance(valor, date):
+        return valor
+    return date.fromisoformat(str(valor)[:10])
+
+
+def _quantidade(lote) -> Decimal:
+    bruto = lote.get("quantidade") if isinstance(lote, dict) else lote.quantidade
+    return Decimal(str(bruto or "0"))
+
+
+def classe_lote(lote, hoje: date) -> int:
+    """0 válido com data, 1 sem validade, 2 vencido."""
+    validade = _validade(lote)
+    if validade is None:
+        return 1
+    if validade < hoje:
+        return 2
+    return 0
+
+
+def quantidade_vencida(lotes, hoje: date | None = None) -> Decimal:
+    hoje = hoje or date.today()
+    return sum((_quantidade(lote) for lote in lotes if classe_lote(lote, hoje) == 2), Decimal("0"))
+
+
+def saldo_utilizavel(quantidade_atual, lotes, *, ativo: bool = True, hoje: date | None = None) -> Decimal:
+    """Saldo que pode sair: o total menos o que está só em lote vencido.
+
+    O saldo antigo sem lote continua nesse número. Lote vencido não entra.
+    Produto inativo não sai.
+    """
+    if not ativo:
+        return Decimal("0")
+    hoje = hoje or date.today()
+    livre = Decimal(str(quantidade_atual)) - quantidade_vencida(lotes, hoje)
+    return livre if livre > 0 else Decimal("0")
+
+
+def consumir_lotes(lotes: list[dict], quantidade: Decimal, hoje: date | None = None) -> list[dict]:
+    """Baixa o lote válido que vence antes. Sem validade só depois. Vencido não sai."""
+    hoje = hoje or date.today()
     restante = quantidade if quantidade > 0 else Decimal("0")
     ordenados = sorted(
         lotes,
-        key=lambda lote: (lote.get("validade") is None, lote.get("validade") or date.min, lote.get("id") or 0),
+        key=lambda lote: (classe_lote(lote, hoje), _validade(lote) or date.max, lote.get("id") or 0),
     )
     saida = []
     for lote in ordenados:
-        atual = Decimal(str(lote.get("quantidade") or "0"))
-        toma = min(atual, restante) if restante > 0 else Decimal("0")
+        atual = _quantidade(lote)
+        pode = classe_lote(lote, hoje) < 2 and restante > 0
+        toma = min(atual, restante) if pode else Decimal("0")
         novo = dict(lote)
         novo["quantidade"] = atual - toma
         restante -= toma
@@ -44,24 +92,35 @@ def registrar_entrada_lote(produto, item: dict, quantidade: Decimal, validade) -
     lote.save()
 
 
-def abater_lotes(produto, quantidade: Decimal) -> None:
-    from django.db.models import F
+def abater_lotes(produto, quantidade: Decimal, hoje: date | None = None) -> None:
+    """Chamar depois de reduzir quantidade_atual, dentro da mesma transação.
 
+    O saldo anterior à saída é quantidade_atual + quantidade.
+    """
     from .models import LoteProdutoEstoque
 
     if quantidade <= 0:
         return
+    hoje = hoje or date.today()
+    nome = getattr(produto, "nome", "Produto")
+    if not getattr(produto, "is_active", True):
+        raise BaixaLoteError(f"{nome} está inativo. A saída não foi registrada.")
     linhas = list(
         LoteProdutoEstoque.objects.select_for_update()
         .filter(produto=produto, quantidade__gt=0)
-        .order_by(F("validade").asc(nulls_last=True), "id"),
+        .order_by("id"),
     )
+    lotes = [{"id": linha.id, "quantidade": linha.quantidade, "validade": linha.validade} for linha in linhas]
+    antes = Decimal(str(produto.quantidade_atual)) + quantidade
+    util = saldo_utilizavel(antes, lotes, ativo=True, hoje=hoje)
+    if quantidade > util:
+        raise BaixaLoteError(
+            f"{nome} não tem saldo utilizável para esta saída. "
+            f"Disponível: {util}. Lote vencido não é baixado.",
+        )
     if not linhas:
         return
-    ajustados = consumir_lotes(
-        [{"id": linha.id, "quantidade": linha.quantidade, "validade": linha.validade} for linha in linhas],
-        quantidade,
-    )
+    ajustados = consumir_lotes(lotes, quantidade, hoje)
     por_id = {item["id"]: item["quantidade"] for item in ajustados}
     for linha in linhas:
         nova = por_id.get(linha.id)

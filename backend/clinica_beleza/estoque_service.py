@@ -67,6 +67,9 @@ def produtos_estoque_insuficiente(consulta) -> list[str]:
     """
     from collections import defaultdict
 
+    from .estoque_lotes import saldo_utilizavel
+    from .models import LoteProdutoEstoque
+
     itens = (
         ConsultaProdutoUtilizado.objects
         .filter(consulta=consulta, estoque_baixado=False)
@@ -80,7 +83,15 @@ def produtos_estoque_insuficiente(consulta) -> list[str]:
         bucket["nome"] = item.produto.nome
         bucket["unidade"] = item.produto.unidade_medida
         bucket["necessario"] += item.quantidade
-        bucket["disponivel"] = item.produto.quantidade_atual
+        lotes = [
+            {"quantidade": lote.quantidade, "validade": lote.validade}
+            for lote in LoteProdutoEstoque.objects.filter(produto=item.produto, quantidade__gt=0)
+        ]
+        bucket["disponivel"] = saldo_utilizavel(
+            item.produto.quantidade_atual,
+            lotes,
+            ativo=item.produto.is_active,
+        )
 
     erros: list[str] = []
     for data in totais.values():

@@ -438,6 +438,7 @@ class EstoqueProdutoComprasView(GetObjectMixin, APIView):
         soma = 0
         for lote in LoteProdutoEstoque.objects.filter(produto=produto, quantidade__gt=0).order_by("validade", "codigo"):
             soma += lote.quantidade
+            vencido = bool(lote.validade and lote.validade < hoje)
             lotes.append({
                 "codigo": lote.codigo,
                 "validade": lote.validade.isoformat() if lote.validade else "",
@@ -446,7 +447,9 @@ class EstoqueProdutoComprasView(GetObjectMixin, APIView):
                 "numero_nota": lote.numero_nota,
                 "serie": serie_da_chave(lote.chave),
                 "chave": lote.chave,
-                "alerta_validade": bool(lote.validade and lote.validade <= limite),
+                "alerta_validade": bool(lote.validade and not vencido and lote.validade <= limite),
+                "vencido": vencido,
+                "sem_validade": lote.validade is None,
             })
         sem_lote = produto.quantidade_atual - soma
         if sem_lote < 0:

@@ -34,6 +34,8 @@ interface LoteEstoque {
   serie?: string;
   chave?: string;
   alerta_validade: boolean;
+  vencido?: boolean;
+  sem_validade?: boolean;
 }
 
 interface RespostaCompras {
@@ -162,13 +164,17 @@ export function EstoqueProdutoCompras({ produtoId }: { produtoId: number }) {
       {dados && dados.lotes.length > 0 && (
         <div>
           <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-            Lotes com saldo: {dados.quantidade_em_lotes}
-            {Number(dados.quantidade_sem_lote) > 0 ? ` · ${dados.quantidade_sem_lote} sem lote rastreado` : ""}
+            Lotes rastreados: {dados.quantidade_em_lotes}
+            {Number(dados.quantidade_sem_lote) > 0
+              ? ` · ${dados.quantidade_sem_lote} saldo anterior sem lote`
+              : ""}
           </p>
           <ul className="space-y-1">
             {dados.lotes.map((lote) => (
               <li key={`${lote.codigo}-${lote.validade}`} className="text-xs text-gray-700 dark:text-gray-200">
-                {lote.codigo || "Sem número"} · {lote.quantidade} disponível
+                {lote.codigo || "Sem número"} · {lote.quantidade}
+                {lote.vencido ? " · vencido, não entra na saída" : " disponível"}
+                {lote.sem_validade ? " · sem validade" : ""}
                 {lote.validade ? ` · val ${dataCurta(lote.validade)}` : ""}
                 {lote.numero_nota ? ` · NF ${lote.numero_nota}` : ""}
                 {lote.serie ? ` série ${lote.serie}` : ""}

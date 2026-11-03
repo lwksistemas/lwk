@@ -2,7 +2,7 @@
 from decimal import Decimal
 from unittest import TestCase
 
-from clinica_beleza.estoque_lotes import consumir_lotes
+from clinica_beleza.estoque_lotes import consumir_lotes, saldo_utilizavel
 from clinica_beleza.estoque_nfe_vinculo import (
     chave_item_identico,
     classificar_item,
@@ -154,16 +154,62 @@ class CustoEIdentidadeTests(TestCase):
     def test_saida_consome_o_lote_que_vence_antes(self):
         from datetime import date
 
+        hoje = date(2026, 11, 3)
         lotes = consumir_lotes(
             [
                 {"id": 1, "quantidade": Decimal("4"), "validade": date(2027, 6, 1)},
                 {"id": 2, "quantidade": Decimal("6"), "validade": date(2027, 1, 1)},
             ],
             Decimal("5"),
+            hoje,
         )
         por_id = {lote["id"]: lote["quantidade"] for lote in lotes}
         self.assertEqual(por_id[2], Decimal("1"))
         self.assertEqual(por_id[1], Decimal("4"))
+
+    def test_saldo_antigo_fica_fora_dos_lotes_depois_da_saida(self):
+        from datetime import date
+
+        hoje = date(2026, 11, 3)
+        quantidade = Decimal("15")
+        lotes = []
+        quantidade += Decimal("5")
+        lotes.append({"id": 1, "codigo": "A", "quantidade": Decimal("5"), "validade": date(2027, 1, 1)})
+        quantidade += Decimal("8")
+        lotes.append({"id": 2, "codigo": "B", "quantidade": Decimal("8"), "validade": date(2027, 6, 1)})
+        self.assertEqual(quantidade - sum(lote["quantidade"] for lote in lotes), Decimal("15"))
+        quantidade -= Decimal("3")
+        lotes = consumir_lotes(lotes, Decimal("3"), hoje)
+        por_id = {lote["id"]: lote["quantidade"] for lote in lotes}
+        self.assertEqual(por_id[1], Decimal("2"))
+        self.assertEqual(por_id[2], Decimal("8"))
+        self.assertEqual(quantidade - sum(por_id.values()), Decimal("15"))
+
+    def test_vencido_e_sem_validade_nao_furam_a_fila(self):
+        from datetime import date
+
+        hoje = date(2026, 11, 3)
+        lotes = consumir_lotes(
+            [
+                {"id": 1, "quantidade": Decimal("5"), "validade": date(2026, 1, 1)},
+                {"id": 2, "quantidade": Decimal("8"), "validade": date(2027, 1, 1)},
+                {"id": 3, "quantidade": Decimal("4"), "validade": None},
+            ],
+            Decimal("9"),
+            hoje,
+        )
+        por_id = {lote["id"]: lote["quantidade"] for lote in lotes}
+        self.assertEqual(por_id[1], Decimal("5"))
+        self.assertEqual(por_id[2], Decimal("0"))
+        self.assertEqual(por_id[3], Decimal("3"))
+        self.assertEqual(
+            saldo_utilizavel(Decimal("8"), [{"quantidade": Decimal("8"), "validade": date(2020, 1, 1)}], hoje=hoje),
+            Decimal("0"),
+        )
+        self.assertEqual(
+            saldo_utilizavel(Decimal("10"), [], ativo=False, hoje=hoje),
+            Decimal("0"),
+        )
 
     def test_tres_fornecedores_um_produto_pelo_gtin(self):
         produto = {"id": 7, "nome": "ACIDO HIALURONICO"}

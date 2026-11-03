@@ -192,6 +192,9 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
     dest_documento = dest_cnpj or dest_cpf
     dest_nome = _find_text(inf_nfe, "dest/xNome")
 
+    # Valor total da NF (ICMSTot/vNF); fallback = soma dos vProd
+    valor_nf = _parse_decimal(_find_text(inf_nfe, "total/ICMSTot/vNF"))
+
     # Produtos
     produtos = []
     for det in inf_nfe.iter():
@@ -223,6 +226,9 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
         }
         produtos.append(produto)
 
+    if valor_nf <= 0 and produtos:
+        valor_nf = sum((_parse_decimal(p.get("valor_total") or "0") for p in produtos), start=_parse_decimal("0"))
+
     return {
         "chave": chave,
         "numero_nota": numero_nota,
@@ -231,6 +237,7 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
         "data_emissao": data_emissao,
         "destinatario_documento": dest_documento,
         "destinatario_nome": dest_nome,
+        "valor_total": str(round(valor_nf, 2)),
         "produtos": produtos,
         "total_produtos": len(produtos),
     }
@@ -306,6 +313,7 @@ def importar_produtos_xml(
             "data_emissao": parsed["data_emissao"],
             "destinatario_documento": parsed.get("destinatario_documento", ""),
             "destinatario_nome": parsed.get("destinatario_nome", ""),
+            "valor_total": parsed.get("valor_total") or "",
         },
         "produtos": produtos_para_importar,
         "total_produtos": len(produtos_para_importar),

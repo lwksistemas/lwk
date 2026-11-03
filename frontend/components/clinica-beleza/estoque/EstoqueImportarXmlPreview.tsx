@@ -1,8 +1,16 @@
 import { AlertCircle } from "lucide-react";
+import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { PreviewResult, ProdutoPreview } from "./estoque-importar-xml-types";
 import { formatProdutoPreviewLine } from "./estoque-importar-xml-utils";
 import type { EstoqueCategoria } from "./estoque-types";
 import { ESTOQUE_CATEGORIAS } from "./estoque-types";
+
+function formatValorNota(valor: string | number | null | undefined): string {
+  if (valor == null || valor === "") return "";
+  const n = typeof valor === "number" ? valor : Number(String(valor).replace(",", "."));
+  if (!Number.isFinite(n)) return "";
+  return formatCurrency(n);
+}
 
 interface EstoqueImportarXmlPreviewProps {
   preview: PreviewResult;
@@ -36,8 +44,15 @@ export function EstoqueImportarXmlPreview({
         </div>
       )}
       <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 mb-3">
-        <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-          NF nº {preview.nota.numero || "—"} — {preview.nota.fornecedor || "Fornecedor"}
+        <p className="text-sm font-medium text-blue-800 dark:text-blue-200 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span>
+            NF nº {preview.nota.numero || "—"} — {preview.nota.fornecedor || "Fornecedor"}
+          </span>
+          {formatValorNota(preview.nota.valor_total) ? (
+            <span className="font-semibold whitespace-nowrap">
+              · Total {formatValorNota(preview.nota.valor_total)}
+            </span>
+          ) : null}
         </p>
         <p className="text-xs text-blue-600 dark:text-blue-400">
           {preview.total_produtos} produto{preview.total_produtos !== 1 ? "s" : ""} encontrado

@@ -16,7 +16,12 @@ export interface ProdutoPreview {
 
 export interface PreviewResult {
   preview: boolean;
-  nota: { numero: string; fornecedor: string; data_emissao: string };
+  nota: {
+    numero: string;
+    fornecedor: string;
+    data_emissao: string;
+    valor_total?: string | number | null;
+  };
   produtos: ProdutoPreview[];
   total_produtos: number;
   aviso_destinatario?: string;

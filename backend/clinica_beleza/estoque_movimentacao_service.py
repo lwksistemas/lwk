@@ -68,4 +68,8 @@ def registrar_movimentacao(
             profissional_id=profissional_id,
             appointment_id=appointment_id,
         )
+        if tipo == "saida":
+            from .estoque_lotes import abater_lotes
+
+            abater_lotes(produto, quantidade)
     return mov

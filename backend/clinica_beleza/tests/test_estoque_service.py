@@ -31,8 +31,9 @@ class RegistrarMovimentacaoTests(SimpleTestCase):
         self.assertEqual(produto.quantidade_atual, Decimal(110))
 
     @PATCH_ATOMIC
+    @patch("clinica_beleza.estoque_lotes.abater_lotes")
     @patch("clinica_beleza.estoque_movimentacao_service.MovimentacaoEstoque")
-    def test_saida_decrementa(self, MockMov, _):
+    def test_saida_decrementa(self, MockMov, _abater, _):
         from clinica_beleza.estoque_movimentacao_service import registrar_movimentacao
         produto = self._produto(50)
         MockMov.objects.create.return_value = MagicMock(id=2)

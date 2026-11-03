@@ -15,7 +15,9 @@ from .convenios import Convenio, ConvenioProcedimentoPreco, LocalAtendimento, No
 from .documentos import DocumentoClinico, DocumentTemplate
 from .estoque import (
     CategoriaEstoque,
+    CompraFornecedorEstoque,
     ConsultaProdutoUtilizado,
+    LoteProdutoEstoque,
     MovimentacaoEstoque,
     NfeDistribuicaoEstado,
     NotaEntradaNfe,
@@ -63,6 +65,7 @@ __all__ = [
     "CampanhaPromocao",
     "CategoriaDespesa",
     "CategoriaEstoque",
+    "CompraFornecedorEstoque",
     "CategoriaProcedimento",
     "ClinicaBelezaNFSeConfig",
     "Consulta",
@@ -83,6 +86,7 @@ __all__ = [
     "PedidoCompraPaciente",
     "HorarioTrabalhoProfissional",
     "LocalAtendimento",
+    "LoteProdutoEstoque",
     "MemedTimbrado",
     "MovimentacaoEstoque",
     "NfeDistribuicaoEstado",

@@ -5,6 +5,7 @@ export type AcaoImportacaoXml = "" | "vincular" | "novo" | "ignorar";
 export interface CandidatoProdutoXml {
   id: number;
   nome: string;
+  exige_lote?: boolean;
 }
 
 export interface ProdutoPreview {
@@ -15,6 +16,9 @@ export interface ProdutoPreview {
   quantidade_estoque?: string;
   fator?: string;
   preco_custo: string;
+  custo_unitario?: string;
+  valor_desconto?: string;
+  valor_despesas?: string;
   lote: string;
   validade: string | null;
   categoria?: string;
@@ -30,6 +34,8 @@ export interface ProdutoPreview {
   produto_nome?: string;
   alerta?: string;
   candidatos?: CandidatoProdutoXml[];
+  exige_lote?: boolean;
+  grupo?: string;
 }
 
 export interface PreviewResult {

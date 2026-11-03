@@ -32,6 +32,7 @@ export function EstoqueImportarXmlModal({
     enviarXml,
     updateProduto,
     updateProdutoCategoria,
+    aplicarAosIguais,
     abrirPendente,
     confirmarPendente,
     ignorarPendente,
@@ -82,6 +83,7 @@ export function EstoqueImportarXmlModal({
               categorias={categorias}
               onProdutoCategoriaChange={updateProdutoCategoria}
               onProdutoChange={updateProduto}
+              onAplicarIguais={aplicarAosIguais}
             />
           )}
           {!resultado && !preview && (

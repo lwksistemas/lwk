@@ -5,7 +5,7 @@ import { AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import type { CandidatoProdutoXml, PreviewResult, ProdutoPreview } from "./estoque-importar-xml-types";
-import { formatProdutoPreviewLine, quantidadeEntrada, resumoConferencia, textoResumoConferencia } from "./estoque-importar-xml-utils";
+import { custoUnitarioConvertido, formatProdutoPreviewLine, quantidadeEntrada, resumoConferencia, textoResumoConferencia } from "./estoque-importar-xml-utils";
 import type { EstoqueCategoria } from "./estoque-types";
 import { ESTOQUE_CATEGORIAS } from "./estoque-types";
 
@@ -21,6 +21,7 @@ interface EstoqueImportarXmlPreviewProps {
   categorias?: EstoqueCategoria[];
   onProdutoCategoriaChange?: (index: number, slug: string, categoriaId?: number | null) => void;
   onProdutoChange?: (index: number, patch: Partial<ProdutoPreview>) => void;
+  onAplicarIguais?: (index: number) => void;
 }
 
 const COLUNAS = "sm:grid sm:grid-cols-[minmax(0,1.5fr)_minmax(0,0.7fr)_8rem_11rem] sm:gap-3 sm:items-center";
@@ -30,6 +31,7 @@ export function EstoqueImportarXmlPreview({
   categorias,
   onProdutoCategoriaChange,
   onProdutoChange,
+  onAplicarIguais,
 }: EstoqueImportarXmlPreviewProps) {
   const options =
     categorias && categorias.length > 0
@@ -110,6 +112,16 @@ export function EstoqueImportarXmlPreview({
                 <AcaoItem produto={p} onChange={(patch) => onProdutoChange?.(i, patch)} />
               </div>
               <LinhaFatorLote produto={p} onChange={(patch) => onProdutoChange?.(i, patch)} />
+              {p.grupo && preview.produtos.filter((outro) => outro.grupo === p.grupo).length > 1 && (
+                <button
+                  type="button"
+                  disabled={!p.acao || (p.acao === "vincular" && !p.produto_id)}
+                  onClick={() => onAplicarIguais?.(i)}
+                  className="text-[11px] text-blue-700 dark:text-blue-300 disabled:opacity-40 hover:underline"
+                >
+                  Aplicar a mesma decisão aos itens idênticos
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -130,12 +142,14 @@ function AcaoItem({
     <div className="space-y-1">
       <select
         value={produto.acao || ""}
-        onChange={(e) => {
+          onChange={(e) => {
           const acao = e.target.value as ProdutoPreview["acao"];
           const patch: Partial<ProdutoPreview> = { acao };
+          if (acao !== "vincular") patch.exige_lote = false;
           if (acao === "vincular" && !produto.produto_id && opcoes[0]) {
             patch.produto_id = opcoes[0].id;
             patch.produto_nome = opcoes[0].nome;
+            patch.exige_lote = !!opcoes[0].exige_lote;
           }
           onChange(patch);
         }}
@@ -153,7 +167,11 @@ function AcaoItem({
             onChange={(e) => {
               const id = Number(e.target.value);
               const escolhido = opcoes.find((c) => c.id === id);
-              onChange({ produto_id: id || null, produto_nome: escolhido?.nome || produto.produto_nome });
+              onChange({
+                produto_id: id || null,
+                produto_nome: escolhido?.nome || produto.produto_nome,
+                exige_lote: !!escolhido?.exige_lote,
+              });
             }}
             className="w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
           >
@@ -163,10 +181,11 @@ function AcaoItem({
             ))}
           </select>
           <BuscaProduto
-            onEscolher={(id, nome) => onChange({
+            onEscolher={(id, nome, exigeLote) => onChange({
               produto_id: id,
               produto_nome: nome,
-              candidatos: [{ id, nome }, ...(produto.candidatos || []).filter((c) => c.id !== id)].slice(0, 8),
+              exige_lote: exigeLote,
+              candidatos: [{ id, nome, exige_lote: exigeLote }, ...(produto.candidatos || []).filter((c) => c.id !== id)].slice(0, 8),
             })}
           />
         </>
@@ -198,6 +217,13 @@ function LinhaFatorLote({
       <span className="text-gray-600 dark:text-gray-300">
         entra {quantidadeEntrada(produto)} {produto.unidade_estoque || produto.unidade_medida}
       </span>
+      <span className="text-gray-800 dark:text-gray-100">
+        custo R$ {custoUnitarioConvertido(produto)}/{produto.unidade_estoque || produto.unidade_medida}
+        {(Number(produto.valor_desconto || "0") > 0 || Number(produto.valor_despesas || "0") > 0) ? " líquido" : ""}
+      </span>
+      {produto.exige_lote && (!(produto.lote || "").trim() || !(produto.validade || "").trim()) && (
+        <span className="text-amber-700 dark:text-amber-300">exige lote e validade</span>
+      )}
       <label className="flex items-center gap-1">
         Lote
         <input
@@ -226,7 +252,7 @@ function opcoesDoProduto(produto: ProdutoPreview): CandidatoProdutoXml[] {
   return opcoes;
 }
 
-function BuscaProduto({ onEscolher }: { onEscolher: (id: number, nome: string) => void }) {
+function BuscaProduto({ onEscolher }: { onEscolher: (id: number, nome: string, exigeLote: boolean) => void }) {
   const [q, setQ] = useState("");
   const [itens, setItens] = useState<CandidatoProdutoXml[]>([]);
 
@@ -241,7 +267,11 @@ function BuscaProduto({ onEscolher }: { onEscolher: (id: number, nome: string) =
         .then((res) => res.json())
         .then((data) => {
           const rows = Array.isArray(data) ? data : data?.results || [];
-          setItens(rows.slice(0, 8).map((r: { id: number; nome: string }) => ({ id: r.id, nome: r.nome })));
+          setItens(rows.slice(0, 8).map((r: { id: number; nome: string; exige_lote?: boolean }) => ({
+            id: r.id,
+            nome: r.nome,
+            exige_lote: !!r.exige_lote,
+          })));
         })
         .catch(() => setItens([]));
     }, 300);
@@ -264,7 +294,7 @@ function BuscaProduto({ onEscolher }: { onEscolher: (id: number, nome: string) =
                 type="button"
                 className="w-full text-left px-2 py-1 text-[11px] hover:bg-gray-50 dark:hover:bg-neutral-800"
                 onClick={() => {
-                  onEscolher(item.id, item.nome);
+                  onEscolher(item.id, item.nome, !!item.exige_lote);
                   setQ("");
                   setItens([]);
                 }}

@@ -19,6 +19,13 @@ export function formatImportResultSummary(criados: number, atualizados: number, 
   return parts.join(" · ") || "Nenhum item lançado";
 }
 
+export function custoUnitarioConvertido(p: ProdutoPreview): string {
+  const preco = Number(p.preco_custo);
+  const fator = Number(p.fator || "1");
+  if (!Number.isFinite(preco) || !Number.isFinite(fator) || fator <= 0) return "0.00";
+  return (Math.round((preco / fator) * 100) / 100).toFixed(2);
+}
+
 export function quantidadeEntrada(p: ProdutoPreview): string {
   const q = Number(p.quantidade);
   const fator = Number(p.fator || "1");
@@ -29,7 +36,28 @@ export function quantidadeEntrada(p: ProdutoPreview): string {
 
 export function itemPrecisaConfirmacao(p: ProdutoPreview): boolean {
   if (p.acao !== "vincular" && p.acao !== "novo" && p.acao !== "ignorar") return true;
-  return p.acao === "vincular" && !p.produto_id;
+  if (p.acao === "vincular" && !p.produto_id) return true;
+  if (p.exige_lote && p.acao !== "ignorar") {
+    if (!(p.lote || "").trim() || !(p.validade || "").trim()) return true;
+  }
+  return false;
+}
+
+export function aplicarDecisaoAosIguais(produtos: ProdutoPreview[], indice: number): ProdutoPreview[] {
+  const origem = produtos[indice];
+  const grupo = origem?.grupo;
+  if (!origem || !grupo) return produtos;
+  return produtos.map((item, i) => {
+    if (i === indice || item.grupo !== grupo) return item;
+    return {
+      ...item,
+      acao: origem.acao,
+      produto_id: origem.produto_id,
+      produto_nome: origem.produto_nome,
+      exige_lote: origem.exige_lote,
+      candidatos: origem.candidatos,
+    };
+  });
 }
 
 export function resumoConferencia(produtos: ProdutoPreview[]) {
@@ -85,10 +113,12 @@ export function formatProdutoPreviewLine(p: ProdutoPreview): string {
   const cat = p.categoria ? ` · ${p.categoria}` : "";
   const motivo = p.categoria_motivo ? ` (${p.categoria_motivo})` : "";
   const fator = Number(p.fator || "1");
+  const unidade = p.unidade_estoque || p.unidade_medida;
   const convertido = Number.isFinite(fator) && fator !== 1
-    ? ` · entra ${quantidadeEntrada(p)} ${p.unidade_estoque || p.unidade_medida}`
+    ? ` · entra ${quantidadeEntrada(p)} ${unidade}`
     : "";
-  return `${p.quantidade} ${p.unidade_medida} × R$ ${preco}${convertido}${lote}${cat}${motivo}`;
+  const liquido = Number(p.valor_desconto || "0") > 0 || Number(p.valor_despesas || "0") > 0 ? " líquido" : "";
+  return `${p.quantidade} ${p.unidade_medida} × R$ ${preco}${liquido} · custo R$ ${custoUnitarioConvertido(p)}/${unidade}${convertido}${lote}${cat}${motivo}`;
 }
 
 export function buildEstoqueImportFormData(

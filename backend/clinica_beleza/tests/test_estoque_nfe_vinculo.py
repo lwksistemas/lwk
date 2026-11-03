@@ -2,12 +2,17 @@
 from decimal import Decimal
 from unittest import TestCase
 
+from clinica_beleza.estoque_lotes import consumir_lotes
 from clinica_beleza.estoque_nfe_vinculo import (
+    chave_item_identico,
     classificar_item,
+    custo_comercial_efetivo,
+    custo_unitario_estoque,
     fator_da_unidade,
     gtin_util,
     marcar_repetidos,
     quantidade_estoque,
+    rastreio_obrigatorio_faltando,
 )
 from clinica_beleza.estoque_xml_import_service import parse_nfe_xml
 
@@ -86,6 +91,76 @@ class ClassificarItemTests(TestCase):
             [],
         )
         self.assertEqual(item["acao"], "novo")
+
+
+class CustoEIdentidadeTests(TestCase):
+    def test_caixa_de_262_vira_52_40_por_frasco(self):
+        comercial = custo_comercial_efetivo(Decimal("262"), Decimal("2"), Decimal("524"))
+        fator = fator_da_unidade(Decimal("2"), Decimal("10"), "CX", "UN")
+        self.assertEqual(custo_unitario_estoque(comercial, fator), Decimal("52.40"))
+        self.assertEqual(quantidade_estoque(Decimal("2"), fator), Decimal("10.00"))
+
+    def test_desconto_e_frete_entram_no_custo(self):
+        comercial = custo_comercial_efetivo(
+            Decimal("100"), Decimal("2"), Decimal("200"), Decimal("20"), Decimal("10"), Decimal("0"), Decimal("4"),
+        )
+        self.assertEqual(comercial, Decimal("97.0000"))
+        self.assertEqual(custo_unitario_estoque(comercial, Decimal("1")), Decimal("97.00"))
+
+    def test_quilo_nao_vira_unidade(self):
+        fator = fator_da_unidade(Decimal("0.2000"), Decimal("0.2000"), "KG", "KG")
+        self.assertEqual(fator, Decimal("1"))
+        self.assertEqual(custo_unitario_estoque(Decimal("10.00"), fator), Decimal("10.00"))
+
+    def test_codigo_e_gtin_conflitantes_pedem_escolha(self):
+        produtos = [{"id": 1, "nome": "A"}, {"id": 2, "nome": "B"}]
+        vinculos = [
+            {"produto_id": 1, "documento": "111", "codigo": "C1", "gtin": "", "fator": "1"},
+            {"produto_id": 2, "documento": "222", "codigo": "C2", "gtin": "7891234567895", "fator": "1"},
+        ]
+        item = classificar_item(
+            {"nome": "ITEM", "codigo": "C1", "gtin": "7891234567895", "documento": "111", "fator": Decimal("1")},
+            produtos,
+            vinculos,
+        )
+        self.assertEqual(item["acao"], "")
+        self.assertEqual({c["id"] for c in item["candidatos"]}, {1, 2})
+
+    def test_nome_parecido_nao_e_o_mesmo_item(self):
+        a = chave_item_identico({"nome": "ACIDO HIALURONICO", "gtin": ""})
+        b = chave_item_identico({"nome": "ACIDO HIALURONICO 1ML", "gtin": ""})
+        self.assertNotEqual(a, b)
+        mesmo = chave_item_identico({"nome": "OUTRO NOME", "gtin": "7891234567895"})
+        igual = chave_item_identico({"nome": "NOME DIFERENTE", "gtin": "7891234567895"})
+        self.assertEqual(mesmo, igual)
+
+    def test_gtins_diferentes_nao_repetem_juntos(self):
+        itens = [
+            {"nome": "AGULHA", "gtin": "7891234567895", "acao": "novo", "confianca": "nenhuma", "alerta": ""},
+            {"nome": "AGULHA", "gtin": "7891234567896", "acao": "novo", "confianca": "nenhuma", "alerta": ""},
+        ]
+        marcar_repetidos(itens)
+        self.assertEqual(itens[0]["acao"], "novo")
+        self.assertNotEqual(itens[0]["grupo"], itens[1]["grupo"])
+
+    def test_exige_lote_sem_validade_bloqueia(self):
+        self.assertTrue(rastreio_obrigatorio_faltando(True, "vincular", "L1", None))
+        self.assertFalse(rastreio_obrigatorio_faltando(True, "ignorar", "", None))
+        self.assertFalse(rastreio_obrigatorio_faltando(False, "vincular", "", None))
+
+    def test_saida_consome_o_lote_que_vence_antes(self):
+        from datetime import date
+
+        lotes = consumir_lotes(
+            [
+                {"id": 1, "quantidade": Decimal("4"), "validade": date(2027, 6, 1)},
+                {"id": 2, "quantidade": Decimal("6"), "validade": date(2027, 1, 1)},
+            ],
+            Decimal("5"),
+        )
+        por_id = {lote["id"]: lote["quantidade"] for lote in lotes}
+        self.assertEqual(por_id[2], Decimal("1"))
+        self.assertEqual(por_id[1], Decimal("4"))
 
 
 class RepetidosEXmlTests(TestCase):

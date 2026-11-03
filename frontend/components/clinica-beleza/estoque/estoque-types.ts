@@ -27,6 +27,7 @@ export interface EstoqueProduto {
   numero_nota?: string;
   status?: string;
   dias_alerta_validade?: number;
+  exige_lote?: boolean;
 }
 
 export interface EstoqueResumo {

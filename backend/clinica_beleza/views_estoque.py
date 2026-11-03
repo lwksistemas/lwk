@@ -376,3 +376,82 @@ class EstoqueResumoView(APIView):
             "validade_proxima": validade_proxima,
             "valor_total_estoque": float(valor_total),
         })
+
+
+def _decimal(valor) -> str:
+    return f"{valor:.2f}" if valor is not None else "0.00"
+
+
+class EstoqueProdutoComprasView(GetObjectMixin, APIView):
+    """GET /clinica-beleza/estoque/<id>/compras/ — fornecedores, preços e lotes."""
+
+    permission_classes = CLINICA_ESTOQUE
+    model_class = ProdutoEstoque
+    not_found_message = "Produto não encontrado"
+
+    def get(self, request, pk):
+        from datetime import date, timedelta
+
+        from .models import CompraFornecedorEstoque, LoteProdutoEstoque, VinculoProdutoFornecedor
+
+        produto, error = self.object_or_404(pk)
+        if error:
+            return error
+
+        vinculos = [
+            {
+                "documento": v.documento,
+                "codigo": v.codigo,
+                "gtin": v.gtin,
+                "fator": f"{v.fator:.4f}",
+                "preco": _decimal(v.preco),
+                "nome_no_fornecedor": v.nome_no_fornecedor,
+            }
+            for v in VinculoProdutoFornecedor.objects.filter(produto=produto).order_by("documento", "codigo")
+        ]
+        compras = []
+        for c in CompraFornecedorEstoque.objects.filter(produto=produto).order_by("-data_compra", "-id")[:40]:
+            compras.append({
+                "documento": c.documento,
+                "fornecedor_nome": c.fornecedor_nome,
+                "codigo": c.codigo,
+                "numero_nota": c.numero_nota,
+                "chave": c.chave,
+                "data_compra": c.data_compra.isoformat() if c.data_compra else "",
+                "quantidade": _decimal(c.quantidade),
+                "unidade": c.unidade,
+                "quantidade_estoque": _decimal(c.quantidade_estoque),
+                "unidade_estoque": c.unidade_estoque,
+                "fator": f"{c.fator:.4f}",
+                "custo_unitario": _decimal(c.custo_unitario),
+                "lote": c.lote,
+                "validade": c.validade.isoformat() if c.validade else "",
+                "usuario": c.usuario,
+                "registrado_em": c.created_at.isoformat() if c.created_at else "",
+            })
+        hoje = date.today()
+        limite = hoje + timedelta(days=produto.dias_alerta_validade or 90)
+        lotes = []
+        soma = 0
+        for lote in LoteProdutoEstoque.objects.filter(produto=produto, quantidade__gt=0).order_by("validade", "codigo"):
+            soma += lote.quantidade
+            lotes.append({
+                "codigo": lote.codigo,
+                "validade": lote.validade.isoformat() if lote.validade else "",
+                "quantidade": _decimal(lote.quantidade),
+                "fornecedor_nome": lote.fornecedor_nome,
+                "numero_nota": lote.numero_nota,
+                "alerta_validade": bool(lote.validade and lote.validade <= limite),
+            })
+        sem_lote = produto.quantidade_atual - soma
+        if sem_lote < 0:
+            sem_lote = 0
+        return Response({
+            "exige_lote": produto.exige_lote,
+            "quantidade_atual": _decimal(produto.quantidade_atual),
+            "quantidade_em_lotes": _decimal(soma),
+            "quantidade_sem_lote": _decimal(sem_lote),
+            "vinculos": vinculos,
+            "compras": compras,
+            "lotes": lotes,
+        })

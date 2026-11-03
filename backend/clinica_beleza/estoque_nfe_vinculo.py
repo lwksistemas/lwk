@@ -50,10 +50,45 @@ def quantidade_estoque(q_com: Decimal, fator: Decimal) -> Decimal:
     return (q_com * fator).quantize(Decimal("0.01"))
 
 
+def custo_comercial_efetivo(
+    v_un: Decimal,
+    q_com: Decimal,
+    v_prod: Decimal = Decimal("0"),
+    v_desc: Decimal = Decimal("0"),
+    v_frete: Decimal = Decimal("0"),
+    v_seg: Decimal = Decimal("0"),
+    v_outro: Decimal = Decimal("0"),
+) -> Decimal:
+    """Preço da unidade comercial depois do desconto e das despesas do item."""
+    bruto = v_prod if v_prod > 0 else v_un * (q_com if q_com > 0 else Decimal("1"))
+    liquido = bruto - v_desc + v_frete + v_seg + v_outro
+    if liquido < 0:
+        liquido = Decimal("0")
+    base = q_com if q_com > 0 else Decimal("1")
+    return (liquido / base).quantize(Decimal("0.0001"))
+
+
 def custo_unitario_estoque(preco_comercial: Decimal, fator: Decimal) -> Decimal:
     if fator <= 0:
         fator = Decimal("1")
     return (preco_comercial / fator).quantize(Decimal("0.01"))
+
+
+def chave_item_identico(item: dict) -> str:
+    """Linhas da mesma nota que são o mesmo item. Nome parecido não entra aqui."""
+    gtin = gtin_util(item.get("gtin") or "")
+    if gtin:
+        return f"gtin:{gtin}"
+    nome = normalizar_nome(item.get("nome") or "")
+    if nome:
+        return f"nome:{nome}"
+    return ""
+
+
+def rastreio_obrigatorio_faltando(exige: bool, acao: str, lote: str, validade) -> bool:
+    if not exige or (acao or "") == "ignorar":
+        return False
+    return not (lote or "").strip() or not validade
 
 
 def semelhanca(a: str, b: str) -> float:
@@ -83,6 +118,9 @@ def classificar_item(item: dict, produtos: list[dict], vinculos: list[dict]) -> 
     if fator <= 0:
         fator = Decimal("1")
 
+    def _cand(produto: dict) -> dict:
+        return {"id": produto["id"], "nome": produto["nome"], "exige_lote": bool(produto.get("exige_lote"))}
+
     def resposta(acao: str, confianca: str, produto: dict | None, *, fator_uso=None, alerta: str = "", candidatos=None):
         escolhido = produto
         return {
@@ -91,32 +129,51 @@ def classificar_item(item: dict, produtos: list[dict], vinculos: list[dict]) -> 
             "produto_id": escolhido["id"] if escolhido else None,
             "produto_nome": escolhido["nome"] if escolhido else "",
             "fator": str(fator_uso if fator_uso is not None else fator),
+            "exige_lote": bool(escolhido.get("exige_lote")) if escolhido else False,
             "alerta": alerta,
-            "candidatos": candidatos or (
-                [{"id": escolhido["id"], "nome": escolhido["nome"]}] if escolhido else []
-            ),
+            "candidatos": candidatos if candidatos is not None else ([_cand(escolhido)] if escolhido else []),
         }
 
+    por_codigo = None
+    fator_codigo = None
     if doc and codigo:
         for vinculo in vinculos:
             if vinculo.get("documento") == doc and vinculo.get("codigo") == codigo:
-                produto = _produto(produtos, vinculo.get("produto_id"))
-                if produto:
-                    fator_salvo = Decimal(str(vinculo.get("fator") or "1"))
-                    return resposta(
-                        "vincular",
-                        "alta",
-                        produto,
-                        fator_uso=fator_salvo if fator_salvo > 0 else fator,
-                        alerta="Código deste fornecedor já vinculado.",
-                    )
+                encontrado = _produto(produtos, vinculo.get("produto_id"))
+                if encontrado:
+                    por_codigo = encontrado
+                    fator_codigo = Decimal(str(vinculo.get("fator") or "1"))
+                    break
 
+    por_gtin = None
     if gtin:
         for vinculo in vinculos:
             if gtin_util(vinculo.get("gtin") or "") == gtin:
-                produto = _produto(produtos, vinculo.get("produto_id"))
-                if produto:
-                    return resposta("vincular", "alta", produto, alerta="GTIN já vinculado a este produto.")
+                encontrado = _produto(produtos, vinculo.get("produto_id"))
+                if encontrado:
+                    por_gtin = encontrado
+                    break
+
+    if por_codigo and por_gtin and por_codigo["id"] != por_gtin["id"]:
+        return resposta(
+            "",
+            "duvida",
+            None,
+            alerta="O código deste fornecedor e o GTIN apontam para produtos diferentes. Escolha qual vincular.",
+            candidatos=[_cand(por_codigo), _cand(por_gtin)],
+        )
+
+    if por_codigo:
+        return resposta(
+            "vincular",
+            "alta",
+            por_codigo,
+            fator_uso=fator_codigo if fator_codigo and fator_codigo > 0 else fator,
+            alerta="Código deste fornecedor já vinculado.",
+        )
+
+    if por_gtin:
+        return resposta("vincular", "alta", por_gtin, alerta="GTIN já vinculado a este produto.")
 
     exatos = [p for p in produtos if normalizar_nome(p.get("nome") or "") == normalizar_nome(nome) and normalizar_nome(nome)]
     if len(exatos) == 1:
@@ -127,7 +184,7 @@ def classificar_item(item: dict, produtos: list[dict], vinculos: list[dict]) -> 
             "duvida",
             None,
             alerta="Há mais de um produto com este nome. Escolha qual vincular.",
-            candidatos=[{"id": p["id"], "nome": p["nome"]} for p in exatos[:8]],
+            candidatos=[_cand(p) for p in exatos[:8]],
         )
 
     parecidos = []
@@ -143,7 +200,7 @@ def classificar_item(item: dict, produtos: list[dict], vinculos: list[dict]) -> 
             "duvida",
             melhor,
             alerta="Produto parecido no estoque. Confirme se é o mesmo antes de cadastrar outro.",
-            candidatos=[{"id": p["id"], "nome": p["nome"]} for _, p in parecidos[:5]],
+            candidatos=[_cand(p) for _, p in parecidos[:5]],
         )
 
     return resposta("novo", "nenhuma", None)
@@ -153,7 +210,8 @@ def marcar_repetidos(itens: list[dict]) -> None:
     """Itens iguais na mesma nota não viram dois cadastros sem o usuário ver."""
     grupos: dict[str, list[int]] = {}
     for indice, item in enumerate(itens):
-        chave = gtin_util(item.get("gtin") or "") or normalizar_nome(item.get("nome") or "")
+        chave = chave_item_identico(item)
+        item["grupo"] = chave
         if chave:
             grupos.setdefault(chave, []).append(indice)
     aviso = "Esta nota repete este produto. Se os dois ficarem como novo, entram no mesmo cadastro."

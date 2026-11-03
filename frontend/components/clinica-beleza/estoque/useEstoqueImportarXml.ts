@@ -4,6 +4,7 @@ import type { ImportResult, NotaPendente, PreviewResult, ProdutoPreview } from "
 import type { EstoqueCategoria } from "./estoque-types";
 import {
   DEFAULT_ESTOQUE_IMPORT_CATEGORIA,
+  aplicarDecisaoAosIguais,
   buildEstoqueImportFormData,
   extractEstoqueImportError,
   hasEstoqueImportChanges,
@@ -81,6 +82,13 @@ export function useEstoqueImportarXml(
       if (!prev) return prev;
       const produtos = prev.produtos.map((p, i) => (i === index ? { ...p, ...patch } : p));
       return { ...prev, produtos };
+    });
+  }, []);
+
+  const aplicarAosIguais = useCallback((index: number) => {
+    setPreview((prev) => {
+      if (!prev) return prev;
+      return { ...prev, produtos: aplicarDecisaoAosIguais(prev.produtos, index) };
     });
   }, []);
 
@@ -235,6 +243,7 @@ export function useEstoqueImportarXml(
     enviarXml,
     updateProduto,
     updateProdutoCategoria,
+    aplicarAosIguais,
     abrirPendente,
     confirmarPendente,
     ignorarPendente,

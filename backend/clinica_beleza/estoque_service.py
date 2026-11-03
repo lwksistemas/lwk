@@ -48,6 +48,9 @@ def movimentar_saida(
             )
         produto.quantidade_atual -= quantidade
         produto.save(update_fields=["quantidade_atual", "updated_at"])
+        from .estoque_lotes import abater_lotes
+
+        abater_lotes(produto, quantidade)
         return MovimentacaoEstoque.objects.create(
             produto=produto,
             tipo="saida",

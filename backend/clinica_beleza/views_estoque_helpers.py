@@ -7,7 +7,7 @@ _PRODUTO_VALUES_FIELDS = (
     "id", "nome", "categoria_id", "categoria__slug", "categoria__nome", "categoria__cor",
     "marca", "unidade_medida",
     "quantidade_atual", "quantidade_minima", "preco_custo", "preco_venda",
-    "validade", "lote", "numero_nota", "dias_alerta_validade",
+    "validade", "lote", "numero_nota", "dias_alerta_validade", "exige_lote",
     "observacoes", "is_active", "created_at", "updated_at",
 )
 

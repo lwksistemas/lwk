@@ -113,6 +113,11 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
         verbose_name="Dias para alerta de validade",
         help_text="Quantidade de dias antes do vencimento para emitir alerta (ex: 90).",
     )
+    exige_lote = models.BooleanField(
+        default=False,
+        verbose_name="Exigir lote e validade na entrada",
+        help_text="A NF-e só entra se o item tiver lote e validade. O saldo já lançado não muda.",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 
@@ -315,6 +320,83 @@ class VinculoProdutoFornecedor(LojaIsolationMixin, models.Model):
 
     def __str__(self):
         return f"{self.documento} {self.codigo}"
+
+
+class CompraFornecedorEstoque(LojaIsolationMixin, models.Model):
+    """Cada entrada de NF-e de um fornecedor para o mesmo produto interno."""
+
+    produto = models.ForeignKey(
+        ProdutoEstoque,
+        on_delete=models.CASCADE,
+        related_name="compras_fornecedor",
+    )
+    documento = models.CharField(max_length=20, blank=True, default="")
+    fornecedor_nome = models.CharField(max_length=200, blank=True, default="")
+    codigo = models.CharField(max_length=60, blank=True, default="")
+    chave = models.CharField(max_length=44, blank=True, default="")
+    numero_nota = models.CharField(max_length=20, blank=True, default="")
+    data_compra = models.DateField(null=True, blank=True)
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    unidade = models.CharField(max_length=30, blank=True, default="")
+    quantidade_estoque = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    unidade_estoque = models.CharField(max_length=30, blank=True, default="")
+    fator = models.DecimalField(max_digits=10, decimal_places=4, default=1)
+    custo_unitario = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    lote = models.CharField(max_length=50, blank=True, default="")
+    validade = models.DateField(null=True, blank=True)
+    usuario = models.CharField(max_length=80, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_compra_fornecedor_estoque"
+        verbose_name = "Compra de fornecedor"
+        ordering = ["-data_compra", "-id"]
+        indexes = [
+            models.Index(fields=["loja_id", "produto", "-created_at"], name="cb_compra_forn_prod_idx"),
+        ]
+
+    def __str__(self):
+        return f"NF {self.numero_nota} · {self.produto_id}"
+
+
+class LoteProdutoEstoque(LojaIsolationMixin, models.Model):
+    """Saldo de um lote. O saldo do produto continua em quantidade_atual."""
+
+    produto = models.ForeignKey(
+        ProdutoEstoque,
+        on_delete=models.CASCADE,
+        related_name="lotes_estoque",
+    )
+    codigo = models.CharField(max_length=50, blank=True, default="", verbose_name="Lote")
+    validade = models.DateField(null=True, blank=True)
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    documento = models.CharField(max_length=20, blank=True, default="")
+    fornecedor_nome = models.CharField(max_length=200, blank=True, default="")
+    numero_nota = models.CharField(max_length=20, blank=True, default="")
+    chave = models.CharField(max_length=44, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        db_table = "clinica_beleza_lote_produto_estoque"
+        verbose_name = "Lote do produto"
+        ordering = ["validade", "codigo"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["loja_id", "produto", "codigo", "validade"],
+                name="cb_lote_prod_uniq",
+                nulls_distinct=False,
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.codigo or 'sem lote'} ({self.quantidade})"
 
 
 class NfeDistribuicaoEstado(LojaIsolationMixin, models.Model):

@@ -9,6 +9,7 @@ import {
   type EstoqueProduto,
 } from "@/components/clinica-beleza/estoque/estoque-types";
 import { toUpperCase } from "@/lib/format-br";
+import { EstoqueProdutoCompras } from "./EstoqueProdutoCompras";
 
 interface Props {
   produto: EstoqueProduto | null;
@@ -61,6 +62,7 @@ export function EstoqueProdutoModal({
     lote: produto?.lote ?? "",
     numero_nota: produto?.numero_nota ?? "",
     dias_alerta_validade: produto?.dias_alerta_validade ?? 90,
+    exige_lote: produto?.exige_lote ?? false,
   });
 
   const options =
@@ -80,6 +82,7 @@ export function EstoqueProdutoModal({
       lote: form.lote,
       numero_nota: form.numero_nota,
       dias_alerta_validade: form.dias_alerta_validade,
+      exige_lote: form.exige_lote,
     };
     if (form.categoria_id !== "") {
       payload.categoria = form.categoria_id;
@@ -237,6 +240,18 @@ export function EstoqueProdutoModal({
                 />
                 <p className="text-xs text-gray-500 mt-1">Alerta quando faltar esse nº de dias para vencer</p>
               </div>
+              <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={form.exige_lote}
+                  onChange={(e) => setForm({ ...form, exige_lote: e.target.checked })}
+                />
+                <span>
+                  Exigir lote e validade na entrada
+                  <span className="block text-xs text-gray-500">A NF-e não confirma este produto sem lote e validade. O saldo já lançado permanece.</span>
+                </span>
+              </label>
               {saveError && (
                 <div className="px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
                   {saveError}
@@ -252,6 +267,7 @@ export function EstoqueProdutoModal({
               </button>
             </div>
           </div>
+          {produto?.id ? <EstoqueProdutoCompras produtoId={produto.id} /> : null}
         </form>
       </div>
     </div>

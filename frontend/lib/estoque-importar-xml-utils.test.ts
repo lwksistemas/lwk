@@ -6,6 +6,8 @@ import {
   formatProdutoPreviewLine,
   formatXmlFileSizeKb,
   hasEstoqueImportChanges,
+  aplicarDecisaoAosIguais,
+  custoUnitarioConvertido,
   itemPrecisaConfirmacao,
   quantidadeEntrada,
   resumoConferencia,
@@ -81,6 +83,22 @@ describe("conferência da NF-e", () => {
     expect(resumo).toMatchObject({ vinculados: 1, novos: 1, ignorados: 1, pendentes: 1 });
     expect(textoResumoConferencia(resumo)).toBe("1 vinculado · 1 novo · 1 ignorado · 1 para confirmar");
     expect(itemPrecisaConfirmacao({ ...base, acao: "vincular" })).toBe(true);
+  });
+
+  it("mostra o custo do frasco e aplica a decisão só nas linhas idênticas", () => {
+    expect(custoUnitarioConvertido({ ...base, preco_custo: "262", fator: "5" })).toBe("52.40");
+    const produtos = [
+      { ...base, nome: "AGULHA", grupo: "nome:AGULHA", acao: "vincular" as const, produto_id: 9, produto_nome: "Agulha", lote: "A", validade: "2027-01-01" },
+      { ...base, nome: "AGULHA", grupo: "nome:AGULHA", acao: "" as const, lote: "B", validade: "2028-01-01" },
+      { ...base, nome: "OUTRO", grupo: "nome:OUTRO", acao: "" as const, lote: "C" },
+    ];
+    const aplicados = aplicarDecisaoAosIguais(produtos, 0);
+    expect(aplicados[1].acao).toBe("vincular");
+    expect(aplicados[1].produto_id).toBe(9);
+    expect(aplicados[1].lote).toBe("B");
+    expect(aplicados[1].validade).toBe("2028-01-01");
+    expect(aplicados[2].acao).toBe("");
+    expect(itemPrecisaConfirmacao({ ...base, acao: "vincular", produto_id: 1, exige_lote: true })).toBe(true);
   });
 });
 

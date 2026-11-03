@@ -120,6 +120,7 @@ from .views_estoque import (
     EstoqueNfePendentesView,
     EstoqueNfeSincronizarView,
     EstoqueResumoView,
+    EstoqueProdutoComprasView,
     MovimentacaoEstoqueView,
     ProdutoEstoqueDetailView,
     ProdutoEstoqueListView,
@@ -466,6 +467,7 @@ urlpatterns = [
     path("estoque/pedidos/<int:pk>/img-public/<str:token>/", PedidoCompraImagemPublicView.as_view(), name="estoque-pedidos-img-public"),
     path("estoque/<int:pk>/", ProdutoEstoqueDetailView.as_view(), name="estoque-detail"),
     path("estoque/<int:pk>/movimentar/", MovimentacaoEstoqueView.as_view(), name="estoque-movimentar"),
+    path("estoque/<int:pk>/compras/", EstoqueProdutoComprasView.as_view(), name="estoque-compras"),
     # Templates de documentos clínicos
     path("templates/", DocumentTemplateListView.as_view(), name="templates-list"),
     path("templates/<int:pk>/", DocumentTemplateDetailView.as_view(), name="templates-detail"),

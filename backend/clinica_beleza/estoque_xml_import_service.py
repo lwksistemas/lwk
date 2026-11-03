@@ -196,7 +196,7 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
     valor_nf = _parse_decimal(_find_text(inf_nfe, "total/ICMSTot/vNF"))
 
     # Produtos
-    from .estoque_nfe_vinculo import fator_da_unidade, gtin_util
+    from .estoque_nfe_vinculo import custo_comercial_efetivo, fator_da_unidade, gtin_util
 
     produtos = []
     for det in inf_nfe.iter():
@@ -221,6 +221,13 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
         u_trib = (_get_prod_field(prod, "uTrib") or u_com).lower()[:30]
         gtin = gtin_util(_get_prod_field(prod, "cEAN")) or gtin_util(_get_prod_field(prod, "cEANTrib"))
         fator = fator_da_unidade(q_com, q_trib, u_com, u_trib)
+        v_un = _parse_decimal(_get_prod_field(prod, "vUnCom"))
+        v_prod = _parse_decimal(_get_prod_field(prod, "vProd"))
+        v_desc = _parse_decimal(_get_prod_field(prod, "vDesc"))
+        v_frete = _parse_decimal(_get_prod_field(prod, "vFrete"))
+        v_seg = _parse_decimal(_get_prod_field(prod, "vSeg"))
+        v_outro = _parse_decimal(_get_prod_field(prod, "vOutro"))
+        preco_liquido = custo_comercial_efetivo(v_un, q_com, v_prod, v_desc, v_frete, v_seg, v_outro)
         produto = {
             "nome": nome.upper()[:200],
             "codigo_produto": _get_prod_field(prod, "cProd")[:60],
@@ -231,8 +238,10 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
             "quantidade": str(q_com),
             "quantidade_tributavel": str(q_trib),
             "fator": str(fator),
-            "preco_unitario": str(_parse_decimal(_get_prod_field(prod, "vUnCom"))),
-            "valor_total": str(_parse_decimal(_get_prod_field(prod, "vProd"))),
+            "preco_unitario": str(preco_liquido.quantize(Decimal("0.01"))),
+            "valor_total": str(v_prod),
+            "valor_desconto": str(v_desc.quantize(Decimal("0.01"))),
+            "valor_despesas": str((v_frete + v_seg + v_outro).quantize(Decimal("0.01"))),
             "lote": lote[:50],
             "validade": validade_str[:10] if validade_str else None,
         }
@@ -322,6 +331,9 @@ def importar_produtos_xml(
             "quantidade": quantidade,
             "fator": item.get("fator") or "1",
             "preco_custo": preco,
+            "valor_desconto": item.get("valor_desconto") or "0.00",
+            "valor_despesas": item.get("valor_despesas") or "0.00",
+            "data_emissao": parsed.get("data_emissao") or "",
             "lote": item["lote"],
             "validade": item["validade"] or None,
             "numero_nota": parsed["numero_nota"],
@@ -332,6 +344,9 @@ def importar_produtos_xml(
             "produto_nome": "",
             "alerta": "",
             "candidatos": [],
+            "exige_lote": False,
+            "grupo": "",
+            "custo_unitario": "",
         })
 
     _anexar_reconhecimento(produtos_para_importar)
@@ -352,10 +367,10 @@ def importar_produtos_xml(
 
 
 def _anexar_reconhecimento(produtos: list[dict]) -> None:
-    from .estoque_nfe_vinculo import classificar_item, marcar_repetidos, quantidade_estoque
+    from .estoque_nfe_vinculo import classificar_item, custo_unitario_estoque, marcar_repetidos, quantidade_estoque
     from .models import ProdutoEstoque, VinculoProdutoFornecedor
 
-    catalogo = list(ProdutoEstoque.objects.filter(is_active=True).values("id", "nome", "unidade_medida"))
+    catalogo = list(ProdutoEstoque.objects.filter(is_active=True).values("id", "nome", "unidade_medida", "exige_lote"))
     vinculos = list(VinculoProdutoFornecedor.objects.values("produto_id", "documento", "codigo", "gtin", "fator"))
     for item in produtos:
         sugestao = classificar_item(
@@ -370,8 +385,12 @@ def _anexar_reconhecimento(produtos: list[dict]) -> None:
             vinculos,
         )
         item.update(sugestao)
+        fator_item = Decimal(str(item.get("fator") or "1"))
         item["quantidade_estoque"] = str(
-            quantidade_estoque(Decimal(str(item.get("quantidade") or "0")), Decimal(str(item.get("fator") or "1"))),
+            quantidade_estoque(Decimal(str(item.get("quantidade") or "0")), fator_item),
+        )
+        item["custo_unitario"] = str(
+            custo_unitario_estoque(Decimal(str(item.get("preco_custo") or "0")), fator_item),
         )
     marcar_repetidos(produtos)
 
@@ -411,6 +430,14 @@ def _motivo_entrada(item: dict, usuario: str) -> str:
     if usuario:
         partes.append(usuario[:40])
     return " · ".join(partes)[:200]
+
+
+def _depois_da_entrada(item: dict, produto, fator: Decimal, quantidade: Decimal, custo: Decimal, validade, usuario: str) -> None:
+    from .estoque_lotes import registrar_compra, registrar_entrada_lote
+
+    _lembrar_fornecedor(item, produto, fator, custo)
+    registrar_compra(item, produto, fator, quantidade, custo, validade, usuario)
+    registrar_entrada_lote(produto, item, quantidade, validade)
 
 
 def _lembrar_fornecedor(item: dict, produto, fator: Decimal, custo: Decimal) -> None:
@@ -453,7 +480,13 @@ def confirmar_importacao_xml(
     from django.db import transaction
 
     from .estoque_categorias import resolver_categoria
-    from .estoque_nfe_vinculo import custo_unitario_estoque, gtin_util, normalizar_nome, quantidade_estoque
+    from .estoque_nfe_vinculo import (
+        custo_unitario_estoque,
+        gtin_util,
+        normalizar_nome,
+        quantidade_estoque,
+        rastreio_obrigatorio_faltando,
+    )
     from .models import MovimentacaoEstoque, ProdutoEstoque
     from .serializers import ProdutoEstoqueSerializer
 
@@ -493,9 +526,11 @@ def confirmar_importacao_xml(
                 existente = ProdutoEstoque.objects.filter(pk=produto_id, is_active=True).first()
                 if existente is None:
                     raise ValueError(f'O produto vinculado a "{nome}" não está mais no estoque.')
+                if rastreio_obrigatorio_faltando(existente.exige_lote, acao, item.get("lote") or "", validade):
+                    raise ValueError(f'"{nome}" exige lote e validade antes de entrar no estoque.')
                 _somar_entrada(existente, quantidade, custo, validade, item.get("lote") or "", item.get("numero_nota") or "", cat)
                 MovimentacaoEstoque.objects.create(produto=existente, tipo="entrada", quantidade=quantidade, motivo=motivo)
-                _lembrar_fornecedor(item, existente, fator, custo)
+                _depois_da_entrada(item, existente, fator, quantidade, custo, validade, usuario)
                 atualizados += 1
                 continue
 
@@ -504,7 +539,7 @@ def confirmar_importacao_xml(
             if ja_criado is not None:
                 _somar_entrada(ja_criado, quantidade, custo, validade, item.get("lote") or "", item.get("numero_nota") or "", cat)
                 MovimentacaoEstoque.objects.create(produto=ja_criado, tipo="entrada", quantidade=quantidade, motivo=motivo)
-                _lembrar_fornecedor(item, ja_criado, fator, custo)
+                _depois_da_entrada(item, ja_criado, fator, quantidade, custo, validade, usuario)
                 atualizados += 1
                 continue
 
@@ -530,7 +565,7 @@ def confirmar_importacao_xml(
                 raise ValueError(f'Não foi possível cadastrar "{nome}".')
             produto_novo = serializer.save(categoria=cat) if cat else serializer.save()
             MovimentacaoEstoque.objects.create(produto=produto_novo, tipo="entrada", quantidade=quantidade, motivo=motivo)
-            _lembrar_fornecedor(item, produto_novo, fator, custo)
+            _depois_da_entrada(item, produto_novo, fator, quantidade, custo, validade, usuario)
             if chave_novo:
                 novos_da_nota[chave_novo] = produto_novo
             criados += 1

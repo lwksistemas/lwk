@@ -60,6 +60,7 @@ MIDDLEWARE = [
     "tenants.middleware.TenantMiddleware",
     "core.middleware.no_cache_api.NoCacheAPIMiddleware",  # ✅ v1375: Prevenir cache de APIs
     "superadmin.historico_middleware.HistoricoAcessoMiddleware",  # ✅ Histórico de acessos
+    "superadmin.middleware_capacidade_api.CapacidadeApiLatencyMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

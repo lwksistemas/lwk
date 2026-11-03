@@ -32,7 +32,9 @@ from .permissions import IsOwnerOrSuperAdmin, IsSuperAdmin
 from .sistema import (
     LoginConfigSistemaViewSet,
     atalho_redirect,
+    capacidade_alertas,
     capacidade_atual,
+    capacidade_crescimento,
     capacidade_historico,
     capacidade_midia,
     capacidade_servidores,
@@ -87,6 +89,8 @@ __all__ = [
     "health_check",
     "capacidade_atual",
     "capacidade_historico",
+    "capacidade_alertas",
+    "capacidade_crescimento",
     "capacidade_midia",
     "capacidade_servidores",
     "LoginConfigSistemaViewSet",

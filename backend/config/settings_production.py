@@ -89,6 +89,7 @@ MIDDLEWARE = [
     "core.middleware.midia_assinada.MidiaAssinadaMiddleware",  # assina mídia por 2h; cache guarda o caminho limpo
     "core.middleware.response_cache.ResponseCacheMiddleware",  # ✅ Cache de respostas GET (Redis)
     "superadmin.historico_middleware.HistoricoAcessoMiddleware",  # ✅ Histórico de acessos
+    "superadmin.middleware_capacidade_api.CapacidadeApiLatencyMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

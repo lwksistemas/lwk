@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -45,12 +44,42 @@ type Snapshot = {
   disk_usada_pct?: number | null;
   pg_conexoes?: number | null;
   pg_conexoes_max?: number | null;
+  pg_ativas?: number | null;
+  pg_ociosas?: number | null;
+  pg_idle_in_transaction?: number | null;
+  pg_tamanho_gb?: number | null;
+  pg_lentas_disponivel?: boolean;
   fila_pendente?: number | null;
   fila_workers?: number | null;
   fila_falhas_24h?: number | null;
+  fila_em_execucao?: number | null;
+  fila_sucesso_24h?: number | null;
+  fila_tempo_medio_s?: number | null;
+  fila_idade_pendente_s?: number | null;
   lojas_ativas?: number | null;
   tenants?: number | null;
+  wa_instancias?: number | null;
+  wa_conectadas?: number | null;
+  wa_desconectadas?: number | null;
+  api_latency_media_ms?: number | null;
+  api_latency_p95_ms?: number | null;
+  api_5xx?: number | null;
+  api_rpm_estimado?: number | null;
+  api_amostras?: number | null;
+  cpu_pct?: number | null;
 };
+
+type ResumoCampo = { atual?: number | null; media?: number | null; max?: number | null };
+type HistMeta = {
+  parcial?: boolean;
+  desatualizado?: boolean;
+  dias_disponiveis?: number;
+  periodo_inicio?: string | null;
+  periodo_fim?: string | null;
+  amostras?: number;
+  resumo?: Record<string, ResumoCampo>;
+};
+type Alerta = { servidor: string; tipo: string; nivel: string; mensagem: string; ts?: string };
 
 const SERVIDORES_FALLBACK: ServidorInfo[] = [
   {
@@ -97,8 +126,7 @@ function fmt(v: number | null | undefined, suffix = '', digits = 1): string {
 function labelHora(ts?: string): string {
   if (!ts) return '';
   try {
-    const d = new Date(ts);
-    return d.toLocaleString('pt-BR', {
+    return new Date(ts).toLocaleString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
@@ -109,6 +137,55 @@ function labelHora(ts?: string): string {
   }
 }
 
+function MiniChart({
+  data,
+  dataKey,
+  color,
+  nome,
+}: {
+  data: { t: string; v: number | null }[];
+  dataKey: string;
+  color: string;
+  nome: string;
+}) {
+  if (data.length === 0) {
+    return <p className="text-sm text-gray-500 py-8 text-center">Sem amostras.</p>;
+  }
+  return (
+    <div className="h-52 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+          <XAxis dataKey="t" tick={{ fontSize: 10 }} minTickGap={28} />
+          <YAxis tick={{ fontSize: 10 }} domain={[0, 'auto']} />
+          <Tooltip />
+          <Line
+            type="monotone"
+            dataKey={dataKey}
+            name={nome}
+            stroke={color}
+            dot={data.length < 8}
+            strokeWidth={2}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function ResumoTrio({ titulo, campo }: { titulo: string; campo?: ResumoCampo }) {
+  return (
+    <div className="rounded-lg border border-gray-100 dark:border-gray-800 px-3 py-2 text-xs">
+      <p className="uppercase tracking-wide text-gray-500 mb-1">{titulo}</p>
+      <p className="text-gray-800 dark:text-gray-100">
+        atual <strong>{fmt(campo?.atual, '', 1)}</strong>
+        {' · '}média <strong>{fmt(campo?.media, '', 1)}</strong>
+        {' · '}máx <strong>{fmt(campo?.max, '', 1)}</strong>
+      </p>
+    </div>
+  );
+}
+
 export default function CapacidadeServidoresPage() {
   const router = useRouter();
   const [servidores, setServidores] = useState<ServidorInfo[]>(SERVIDORES_FALLBACK);
@@ -116,6 +193,9 @@ export default function CapacidadeServidoresPage() {
   const [dias, setDias] = useState(7);
   const [atual, setAtual] = useState<Snapshot | null>(null);
   const [historico, setHistorico] = useState<Snapshot[]>([]);
+  const [histMeta, setHistMeta] = useState<HistMeta>({});
+  const [alertas, setAlertas] = useState<Alerta[]>([]);
+  const [crescimento, setCrescimento] = useState<{ ts?: string; lojas_ativas?: number; disk_usada_pct?: number; wa_conectadas?: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
@@ -145,14 +225,37 @@ export default function CapacidadeServidoresPage() {
   const carregar = useCallback(async () => {
     try {
       setErro(null);
-      const [rAtual, rHist] = await Promise.all([
+      const [rAtual, rHist, rAlert, rCresc] = await Promise.all([
         apiClient.get(`/superadmin/capacidade/atual/?servidor=${encodeURIComponent(servidorId)}`),
         apiClient.get(
           `/superadmin/capacidade/historico/?dias=${dias}&servidor=${encodeURIComponent(servidorId)}`,
         ),
+        apiClient.get('/superadmin/capacidade/alertas/').catch(() => ({ data: { ativos: [] } })),
+        apiClient
+          .get(`/superadmin/capacidade/crescimento/?dias=${Math.max(dias, 7)}`)
+          .catch(() => ({ data: { lwksistemas_nova: [] } })),
       ]);
       setAtual(rAtual.data);
       setHistorico(Array.isArray(rHist.data?.pontos) ? rHist.data.pontos : []);
+      setHistMeta({
+        parcial: rHist.data?.parcial,
+        desatualizado: rHist.data?.desatualizado,
+        dias_disponiveis: rHist.data?.dias_disponiveis,
+        periodo_inicio: rHist.data?.periodo_inicio,
+        periodo_fim: rHist.data?.periodo_fim,
+        amostras: rHist.data?.amostras,
+        resumo: rHist.data?.resumo,
+      });
+      setAlertas(Array.isArray(rAlert.data?.ativos) ? rAlert.data.ativos : []);
+      const cres = Array.isArray(rCresc.data?.lwksistemas_nova) ? rCresc.data.lwksistemas_nova : [];
+      const wa = Array.isArray(rCresc.data?.whatsappnova) ? rCresc.data.whatsappnova : [];
+      const waByTs = new Map(wa.map((p: { ts?: string; wa_conectadas?: number }) => [p.ts, p.wa_conectadas]));
+      setCrescimento(
+        cres.map((p: { ts?: string; lojas_ativas?: number; disk_usada_pct?: number }) => ({
+          ...p,
+          wa_conectadas: waByTs.get(p.ts) ?? null,
+        })),
+      );
       setAtualizadoEm(new Date().toLocaleTimeString('pt-BR'));
     } catch (e: unknown) {
       const msg =
@@ -174,15 +277,35 @@ export default function CapacidadeServidoresPage() {
     return () => window.clearInterval(id);
   }, [carregar]);
 
-  const chartData = useMemo(
+  const chartCpu = useMemo(
     () =>
       historico.map((p) => ({
         t: labelHora(p.ts),
-        load5: p.load_5m ?? null,
-        ram: p.mem_usada_pct ?? null,
-        disco: p.disk_usada_pct ?? null,
+        v:
+          p.cpu_pct ??
+          (p.cpus && p.load_5m != null
+            ? Math.min(100, Math.round((p.load_5m / p.cpus) * 1000) / 10)
+            : null),
       })),
     [historico],
+  );
+  const chartRam = useMemo(
+    () => historico.map((p) => ({ t: labelHora(p.ts), v: p.mem_usada_pct ?? null })),
+    [historico],
+  );
+  const chartDisk = useMemo(
+    () => historico.map((p) => ({ t: labelHora(p.ts), v: p.disk_usada_pct ?? null })),
+    [historico],
+  );
+  const chartCresc = useMemo(
+    () =>
+      crescimento.map((p) => ({
+        t: labelHora(p.ts),
+        lojas: p.lojas_ativas ?? null,
+        disco: p.disk_usada_pct ?? null,
+        wa: p.wa_conectadas ?? null,
+      })),
+    [crescimento],
   );
 
   const loadPct =
@@ -191,6 +314,19 @@ export default function CapacidadeServidoresPage() {
       : null;
 
   const isApi = servidorId === 'lwksistemas-nova';
+  const isWa = servidorId === 'whatsappnova';
+
+  const tituloHist = useMemo(() => {
+    const pedido = dias === 1 ? '24h' : `${dias}d`;
+    if (histMeta.parcial && histMeta.dias_disponiveis != null) {
+      const disp =
+        histMeta.dias_disponiveis < 1
+          ? `${Math.round(histMeta.dias_disponiveis * 24)}h disponíveis`
+          : `${histMeta.dias_disponiveis.toFixed(1)} dias disponíveis`;
+      return `Histórico — ${servidorAtivo?.nome} (${disp} · pedido ${pedido})`;
+    }
+    return `Histórico — ${servidorAtivo?.nome} (${pedido})`;
+  }, [dias, histMeta, servidorAtivo?.nome]);
 
   if (loading && !atual) {
     return (
@@ -244,6 +380,30 @@ export default function CapacidadeServidoresPage() {
             </button>
           </div>
         </header>
+
+        {alertas.length > 0 ? (
+          <div className="space-y-2">
+            {alertas.map((a, i) => (
+              <div
+                key={`${a.servidor}-${a.tipo}-${i}`}
+                className={`rounded-lg border px-4 py-3 text-sm ${
+                  a.nivel === 'critico'
+                    ? 'border-red-300 bg-red-50 text-red-900'
+                    : 'border-amber-300 bg-amber-50 text-amber-900'
+                }`}
+              >
+                <span className="font-semibold uppercase text-xs mr-2">{a.nivel}</span>
+                {a.mensagem}
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {histMeta.desatualizado ? (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
+            Coleta desatualizada (&gt;45 min). Verifique o worker django-q e o schedule de capacidade.
+          </div>
+        ) : null}
 
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {servidores.map((s) => {
@@ -321,12 +481,22 @@ export default function CapacidadeServidoresPage() {
           </div>
         </section>
 
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <ResumoTrio titulo="CPU % no período" campo={histMeta.resumo?.cpu_pct} />
+          <ResumoTrio titulo="RAM % no período" campo={histMeta.resumo?.mem_usada_pct} />
+          <ResumoTrio titulo="Disco % no período" campo={histMeta.resumo?.disk_usada_pct} />
+        </section>
+
         {isApi ? (
-          <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
               <p className="text-xs uppercase tracking-wide text-gray-500">Postgres</p>
               <p className="text-xl font-semibold mt-1">
                 {fmt(atual?.pg_conexoes, '', 0)} / {fmt(atual?.pg_conexoes_max, '', 0)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                ativas {fmt(atual?.pg_ativas, '', 0)} · ociosas {fmt(atual?.pg_ociosas, '', 0)}
+                {atual?.pg_tamanho_gb != null ? ` · ${fmt(atual.pg_tamanho_gb, ' GB')}` : ''}
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
@@ -335,13 +505,41 @@ export default function CapacidadeServidoresPage() {
                 {fmt(atual?.fila_pendente, '', 0)} pendente
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                {fmt(atual?.fila_workers, '', 0)} workers · falhas 24h{' '}
-                {fmt(atual?.fila_falhas_24h, '', 0)}
+                {fmt(atual?.fila_workers, '', 0)} workers · exec {fmt(atual?.fila_em_execucao, '', 0)}
+                {' · '}falhas 24h {fmt(atual?.fila_falhas_24h, '', 0)}
+                {atual?.fila_sucesso_24h != null ? ` · ok 24h ${fmt(atual.fila_sucesso_24h, '', 0)}` : ''}
+              </p>
+            </div>
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">API Django</p>
+              <p className="text-xl font-semibold mt-1">
+                p95 {fmt(atual?.api_latency_p95_ms, ' ms', 0)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                média {fmt(atual?.api_latency_media_ms, ' ms', 0)} · ~{fmt(atual?.api_rpm_estimado, ' rpm', 0)}
+                {' · '}5xx {fmt(atual?.api_5xx, '', 0)}
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
               <p className="text-xs uppercase tracking-wide text-gray-500">Lojas ativas</p>
               <p className="text-xl font-semibold mt-1">{fmt(atual?.lojas_ativas, '', 0)}</p>
+            </div>
+          </section>
+        ) : null}
+
+        {isWa ? (
+          <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Instâncias WhatsApp</p>
+              <p className="text-xl font-semibold mt-1">{fmt(atual?.wa_instancias, '', 0)}</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Conectadas</p>
+              <p className="text-xl font-semibold mt-1 text-emerald-700">{fmt(atual?.wa_conectadas, '', 0)}</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Desconectadas</p>
+              <p className="text-xl font-semibold mt-1">{fmt(atual?.wa_desconectadas, '', 0)}</p>
             </div>
           </section>
         ) : null}
@@ -352,64 +550,59 @@ export default function CapacidadeServidoresPage() {
           </div>
         ) : null}
 
-        <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-            Histórico — {servidorAtivo?.nome} ({dias === 1 ? '24h' : `${dias} dias`})
-          </h2>
-          {chartData.length === 0 ? (
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{tituloHist}</h2>
+          {historico.length === 0 ? (
             <p className="text-sm text-gray-500 py-10 text-center">
               Sem amostras deste servidor no período. O cron grava as três VMs a cada ~15 min.
             </p>
           ) : (
-            <div className="space-y-2">
-              {chartData.length < 3 ? (
-                <p className="text-xs text-amber-700 dark:text-amber-300">
-                  Poucas amostras ainda ({chartData.length}). A linha vai aparecer conforme o cron
-                  gravar a cada ~15 min.
-                </p>
-              ) : null}
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis dataKey="t" tick={{ fontSize: 11 }} minTickGap={28} />
-                    <YAxis tick={{ fontSize: 11 }} domain={[0, 'auto']} />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="load5"
-                      name="Load 5m"
-                      stroke="#8b5cf6"
-                      dot={chartData.length < 8}
-                      strokeWidth={2}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="ram"
-                      name="RAM %"
-                      stroke="#3b82f6"
-                      dot={chartData.length < 8}
-                      strokeWidth={2}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="disco"
-                      name="Disco %"
-                      stroke="#10b981"
-                      dot={chartData.length < 8}
-                      strokeWidth={2}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                <p className="text-xs font-medium text-violet-700 mb-2">CPU % (load/vCPU)</p>
+                <MiniChart data={chartCpu} dataKey="v" color="#8b5cf6" nome="CPU %" />
+              </div>
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                <p className="text-xs font-medium text-blue-700 mb-2">Memória RAM %</p>
+                <MiniChart data={chartRam} dataKey="v" color="#3b82f6" nome="RAM %" />
+              </div>
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                <p className="text-xs font-medium text-emerald-700 mb-2">Disco %</p>
+                <MiniChart data={chartDisk} dataKey="v" color="#10b981" nome="Disco %" />
               </div>
             </div>
           )}
         </section>
 
+        <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+            Capacidade e crescimento
+          </h2>
+          <p className="text-xs text-gray-500">
+            Compara lojas ativas, disco da API e instâncias WhatsApp conectadas no período.
+          </p>
+          {chartCresc.length === 0 ? (
+            <p className="text-sm text-gray-500 py-6 text-center">Aguardando histórico de crescimento.</p>
+          ) : (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartCresc}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="t" tick={{ fontSize: 10 }} minTickGap={28} />
+                  <YAxis tick={{ fontSize: 10 }} domain={[0, 'auto']} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="lojas" name="Lojas ativas" stroke="#7c3aed" dot={false} strokeWidth={2} />
+                  <Line type="monotone" dataKey="disco" name="Disco API %" stroke="#10b981" dot={false} strokeWidth={2} />
+                  <Line type="monotone" dataKey="wa" name="WA conectadas" stroke="#0ea5e9" dot={false} strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </section>
+
         <p className="text-xs text-gray-500 dark:text-gray-400 pb-6">
-          Amarelo ≥ 70% · Vermelho ≥ 85%. Instâncias: lwksistemas-nova, midia01, whatsappnova
-          (console Magalu).
+          Amarelo ≥ 70% · Vermelho ≥ 85%. Alertas de CPU/RAM exigem ~45 min sustentados. Coleta a
+          cada 15 min (django-q).
         </p>
       </div>
     </div>

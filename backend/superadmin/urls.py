@@ -34,7 +34,9 @@ from .views import (
     TipoLojaViewSet,
     UsuarioSistemaViewSet,
     ViolacaoSegurancaViewSet,
+    capacidade_alertas,
     capacidade_atual,
+    capacidade_crescimento,
     capacidade_historico,
     capacidade_midia,
     capacidade_servidores,
@@ -151,6 +153,8 @@ urlpatterns = [
     path("capacidade/servidores/", capacidade_servidores, name="capacidade-servidores"),
     path("capacidade/atual/", capacidade_atual, name="capacidade-atual"),
     path("capacidade/historico/", capacidade_historico, name="capacidade-historico"),
+    path("capacidade/alertas/", capacidade_alertas, name="capacidade-alertas"),
+    path("capacidade/crescimento/", capacidade_crescimento, name="capacidade-crescimento"),
     path("capacidade/midia/", capacidade_midia, name="capacidade-midia"),
 
     # Servidor de mídia (pastas por CPF/CNPJ)

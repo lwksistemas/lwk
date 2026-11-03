@@ -162,9 +162,18 @@ def coletar_whatsappnova() -> dict[str, Any]:
         (getattr(settings, "CAPACIDADE_WHATSAPP_TOKEN", None) or "").strip()
         or _token_capacidade()
     )
+    wa_extra: dict[str, Any] = {}
+    try:
+        from superadmin.capacidade_whatsapp import metricas_whatsapp_agregadas
+
+        wa_extra = metricas_whatsapp_agregadas()
+    except Exception:
+        pass
     try:
         data = _get_json(url, token)
-        return _normalizar_remoto(data, servidor)
+        out = _normalizar_remoto(data, servidor)
+        out.update(wa_extra)
+        return out
     except Exception as e:
         logger.warning("coleta whatsappnova: %s", e)
         return {
@@ -174,6 +183,7 @@ def coletar_whatsappnova() -> dict[str, Any]:
             "error": str(e),
             "fonte": "whatsapp",
             "dica": "Suba o serviço host-metrics na VM whatsappnova (deploy/evolution/host-metrics).",
+            **wa_extra,
         }
 
 

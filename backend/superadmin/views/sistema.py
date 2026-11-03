@@ -434,7 +434,7 @@ def capacidade_atual(request):
 @permission_classes([IsSuperAdmin])
 def capacidade_historico(request):
     """Histórico JSONL. Query: ?dias=1|7|30&servidor=lwksistemas-nova."""
-    from superadmin.capacidade_metrics import ler_historico
+    from superadmin.capacidade_metrics import historico_completo
 
     try:
         dias_raw = request.query_params.get("dias", "7")
@@ -443,15 +443,65 @@ def capacidade_historico(request):
         except (TypeError, ValueError):
             dias = 7
         sid = (request.query_params.get("servidor") or "lwksistemas-nova").strip()
-        pontos = ler_historico(dias=dias, servidor=sid)
-        return Response({
-            "dias": max(1, min(dias, 30)),
-            "servidor": sid,
-            "total": len(pontos),
-            "pontos": pontos,
-        })
+        return Response(historico_completo(dias=dias, servidor=sid))
     except Exception as e:
         logger.error("capacidade_historico falhou: %s", e, exc_info=True)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])
+@permission_classes([IsSuperAdmin])
+def capacidade_alertas(request):
+    """Alertas ativos de capacidade (CPU/RAM/disco/indisponibilidade/coleta)."""
+    from superadmin.capacidade_alertas import listar_alertas_ativos
+
+    return Response(listar_alertas_ativos())
+
+
+@api_view(["GET"])
+@permission_classes([IsSuperAdmin])
+def capacidade_crescimento(request):
+    """Série agregada para a seção Capacidade e crescimento."""
+    from superadmin.capacidade_metrics import historico_completo, ler_historico
+
+    try:
+        dias_raw = request.query_params.get("dias", "30")
+        try:
+            dias = int(dias_raw)
+        except (TypeError, ValueError):
+            dias = 30
+        dias = max(1, min(dias, 30))
+        nova = historico_completo(dias=dias, servidor="lwksistemas-nova")
+        pontos = []
+        for p in nova.get("pontos") or []:
+            pontos.append({
+                "ts": p.get("ts"),
+                "lojas_ativas": p.get("lojas_ativas"),
+                "disk_usada_pct": p.get("disk_usada_pct"),
+                "mem_usada_pct": p.get("mem_usada_pct"),
+                "cpu_pct": p.get("cpu_pct"),
+                "pg_conexoes": p.get("pg_conexoes"),
+                "fila_pendente": p.get("fila_pendente"),
+                "api_latency_p95_ms": p.get("api_latency_p95_ms"),
+            })
+        wa_pts = []
+        for p in ler_historico(dias=dias, servidor="whatsappnova"):
+            wa_pts.append({
+                "ts": p.get("ts"),
+                "wa_conectadas": p.get("wa_conectadas"),
+                "wa_instancias": p.get("wa_instancias"),
+                "mem_usada_pct": p.get("mem_usada_pct"),
+                "disk_usada_pct": p.get("disk_usada_pct"),
+            })
+        return Response({
+            "dias": dias,
+            "lwksistemas_nova": pontos,
+            "whatsappnova": wa_pts,
+            "resumo": nova.get("resumo"),
+            "parcial": nova.get("parcial"),
+        })
+    except Exception as e:
+        logger.error("capacidade_crescimento falhou: %s", e, exc_info=True)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

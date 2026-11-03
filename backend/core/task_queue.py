@@ -89,6 +89,11 @@ def queue_status() -> dict:
         "queued": 0,
         "workers_alive": 0,
         "clusters": 0,
+        "running": 0,
+        "success_24h": None,
+        "oldest_queued_age_s": None,
+        "avg_runtime_s": None,
+        "health_level": None,
     }
 
     try:
@@ -101,7 +106,13 @@ def queue_status() -> dict:
 
         stats = Stat.get_all(broker) or []
         status["clusters"] = len(stats)
-        status["workers_alive"] = sum(len(getattr(stat, "workers", []) or []) for stat in stats)
+        workers = []
+        running = 0
+        for stat in stats:
+            workers.extend(getattr(stat, "workers", []) or [])
+            running += len(getattr(stat, "task_list", None) or getattr(stat, "tasks", None) or [])
+        status["workers_alive"] = len(workers)
+        status["running"] = running
         if role == "web" and status["workers_alive"] == 0:
             status["worker_warning"] = True
 
@@ -109,22 +120,39 @@ def queue_status() -> dict:
             from datetime import timedelta
 
             from django.utils import timezone
-            from django_q.models import Failure
+            from django_q.models import Failure, Success
 
             since = timezone.now() - timedelta(hours=24)
             falhas = Failure.objects.filter(stopped__gte=since)
             status["failures_24h"] = falhas.count()
-            # name no django-q é um apelido aleatório; func é a tarefa de verdade.
             nomes = list(falhas.order_by("-stopped").values_list("func", flat=True)[:500])
             status["failures_by_task_24h"] = contagem_falhas_por_tarefa(nomes)
             if status["failures_24h"] > len(nomes):
                 status["failures_by_task_truncated"] = True
+
+            status["success_24h"] = Success.objects.filter(stopped__gte=since).count()
+            try:
+                amostras = list(
+                    Success.objects.filter(stopped__gte=since, started__isnull=False)
+                    .order_by("-stopped")
+                    .values_list("started", "stopped")[:200]
+                )
+                durs = [
+                    (stopped - started).total_seconds()
+                    for started, stopped in amostras
+                    if started and stopped
+                ]
+                if durs:
+                    status["avg_runtime_s"] = round(sum(durs) / len(durs), 1)
+            except Exception:
+                pass
         except Exception as exc:
             logger.debug("queue_status: failures_24h indisponível: %s", exc)
     except Exception as exc:
         logger.warning("queue_status: falha ao consultar fila: %s", exc)
         status["error"] = str(exc)[:120]
 
+    status["health_level"] = queue_health_level(status)
     return status
 
 

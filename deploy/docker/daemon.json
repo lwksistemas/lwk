@@ -1,0 +1,18 @@
+{
+  "builder": {
+    "gc": {
+      "enabled": true,
+      "defaultKeepStorage": "15GB",
+      "policy": [
+        {
+          "keepStorage": "10GB",
+          "filter": ["unused-for=48h"]
+        },
+        {
+          "keepStorage": "15GB",
+          "all": true
+        }
+      ]
+    }
+  }
+}

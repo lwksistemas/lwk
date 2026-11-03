@@ -38,6 +38,15 @@ lwk_compose_up_build() {
   export COMPOSE_DOCKER_CLI_BUILD="${COMPOSE_DOCKER_CLI_BUILD:-1}"
   docker compose -f "$compose_file" build "$@"
   docker compose -f "$compose_file" up -d --no-build "$@"
+  # Cache de build acumula em /var/lib/containerd e enche o disco da VM.
+  # Limpeza soft: remove cache antigo; mantém ~48h para o próximo deploy.
+  if [[ "${SKIP_DOCKER_CLEANUP:-0}" != "1" ]]; then
+    local cleanup_script
+    cleanup_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/docker-cleanup-disk.sh"
+    if [[ -x "$cleanup_script" ]] || [[ -f "$cleanup_script" ]]; then
+      bash "$cleanup_script" soft || echo "  (aviso) limpeza Docker falhou — disco pode continuar alto"
+    fi
+  fi
 }
 
 # Arquivo onde gravamos o SHA do último deploy de backend bem-sucedido.

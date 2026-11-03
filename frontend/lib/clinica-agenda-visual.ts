@@ -132,7 +132,7 @@ export function agendaVisualStyleVars(visual: AgendaVisualId): Record<string, st
   };
 }
 
-/** Carrega plugin + CSS do tema FC7 escolhido (visão Mês). */
+/** Carrega plugin + CSS do tema FC7 escolhido (Dia/Semana/Mês). */
 export async function loadAgendaVisualTheme(visual: AgendaVisualId): Promise<unknown> {
   switch (visual) {
     case 'breezy': {

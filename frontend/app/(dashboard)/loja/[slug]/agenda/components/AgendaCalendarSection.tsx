@@ -11,8 +11,12 @@ import {
   eventosParaFullCalendar,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
-import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
-import type { DateClickArg, EventResizeDoneArg } from "@fullcalendar/interaction";
+import type {
+  DateClickArg,
+  EventClickArg,
+  EventDropArg,
+  EventResizeDoneArg,
+} from "@/types/fullcalendar-handlers";
 import { AgendaListaColunas } from "./AgendaListaColunas";
 import { AgendaMobileDayView } from "./AgendaMobileDayView";
 import { AgendaDiaColunas } from "./AgendaDiaColunas";

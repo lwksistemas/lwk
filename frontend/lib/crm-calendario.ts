@@ -32,6 +32,9 @@ export interface CalendarEvent {
   title: string;
   start: string;
   end: string;
+  /** FC7 */
+  color?: string;
+  contrastColor?: string;
   backgroundColor: string;
   borderColor: string;
   extendedProps: { atividade: Atividade };
@@ -61,13 +64,17 @@ export function atividadeToEvent(a: Atividade): CalendarEvent {
   const duracao = a.duracao_minutos ?? 60;
   end.setMinutes(end.getMinutes() + duracao);
   const cor = TIPO_COR[a.tipo] ?? TIPO_COR.task;
+  const bg = a.concluido ? '#94a3b8' : cor.bg;
+  const border = a.concluido ? '#64748b' : cor.border;
   return {
     id: String(a.id),
     title: a.concluido ? `✓ ${a.titulo}` : a.titulo,
     start: a.data,
     end: toISO(end),
-    backgroundColor: a.concluido ? '#94a3b8' : cor.bg,
-    borderColor: a.concluido ? '#64748b' : cor.border,
+    color: bg,
+    contrastColor: '#fff',
+    backgroundColor: bg,
+    borderColor: border,
     extendedProps: { atividade: a },
   };
 }

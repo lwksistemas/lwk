@@ -10,7 +10,7 @@ import CrmConfirmActionModal from '@/components/crm-vendas/CrmConfirmActionModal
 
 export type { Atividade } from '@/lib/crm-calendario';
 
-const FullCalendar = dynamic(() => import('@fullcalendar/react'), {
+const FullCalendar = dynamic(() => import('@fullcalendar-v7/react'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center min-h-[400px] text-gray-500 dark:text-gray-400">
@@ -121,7 +121,6 @@ export default function CalendarioCrmPage() {
             key={isMobile ? 'mobile' : 'desktop'}
             plugins={plugins}
             locale={locale}
-            themeSystem="standard"
             initialView={isMobile ? 'timeGridDay' : 'dayGridMonth'}
             headerToolbar={
               isMobile

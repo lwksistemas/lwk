@@ -17,8 +17,7 @@ import type { ConflitoAgendaData } from "@/components/clinica-beleza/ModalConfli
 import { mergeRawAgendaEvent, versaoAgenda } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import { useToast } from "@/components/ui/Toast";
 import { logger } from "@/lib/logger";
-import type { EventDropArg } from "@fullcalendar/core";
-import type { EventResizeDoneArg } from "@fullcalendar/interaction";
+import type { EventDropArg, EventResizeDoneArg } from "@/types/fullcalendar-handlers";
 
 type ConflictState = (ConflitoAgendaData & {
   appointmentId: number;

@@ -39,13 +39,17 @@ export function useCrmCalendarioPage() {
   };
 
   const loadPlugins = useCallback(async () => {
-    const [dayGrid, timeGrid, interaction, ptBr] = await Promise.all([
-      import('@fullcalendar/daygrid').then((m) => m.default),
-      import('@fullcalendar/timegrid').then((m) => m.default),
-      import('@fullcalendar/interaction').then((m) => m.default),
-      import('@fullcalendar/core/locales/pt-br').then((m) => m.default),
+    const [dayGrid, timeGrid, interaction, ptBr, themeMod] = await Promise.all([
+      import('@fullcalendar-v7/react/daygrid').then((m) => m.default),
+      import('@fullcalendar-v7/react/timegrid').then((m) => m.default),
+      import('@fullcalendar-v7/react/interaction').then((m) => m.default),
+      import('@fullcalendar-v7/react/locales/pt-br').then((m) => m.default),
+      import('@fullcalendar-v7/react/themes/classic'),
     ]);
-    setPlugins([dayGrid, timeGrid, interaction]);
+    await import('@fullcalendar-v7/react/skeleton.css');
+    await import('@fullcalendar-v7/react/themes/classic/theme.css');
+    await import('@fullcalendar-v7/react/themes/classic/palette.css');
+    setPlugins([dayGrid, timeGrid, interaction, themeMod.default]);
     setLocale(ptBr);
   }, []);
 

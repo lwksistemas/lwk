@@ -576,23 +576,6 @@ html.dark {
   border: none !important;
 }
 
-/* Em "todos os profissionais": férias/bloqueio de um profissional = faixa no topo */
-.agenda-v7-root .fc-event-bloqueio-chip,
-.agenda-v7-preview-root .fc-event-bloqueio-chip {
-  background-image: none !important;
-  background-color: color-mix(in srgb, var(--fc-event-color, #0f766e) 18%, white) !important;
-  border: 1px dashed color-mix(in srgb, var(--fc-event-color, #0f766e) 55%, white) !important;
-  color: color-mix(in srgb, var(--fc-event-color, #0f766e) 75%, black) !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  box-shadow: none !important;
-  opacity: 1 !important;
-}
-.agenda-v7-root .fc-event-bloqueio-chip .fc-event-main,
-.agenda-v7-preview-root .fc-event-bloqueio-chip .fc-event-main {
-  color: inherit !important;
-}
-
 /* Grade Dia/Semana — tokens do visual escolhido em Aparência */
 .agenda-grade-root {
   --agenda-accent: #ad46ff;

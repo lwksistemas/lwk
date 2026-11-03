@@ -9,9 +9,12 @@ export interface FeriadoEvent {
   start: string;
   end: string;
   allDay: boolean;
+  color?: string;
+  contrastColor?: string;
   backgroundColor: string;
   borderColor: string;
   textColor: string;
+  className?: string;
   classNames?: string[];
   display?: 'background' | 'auto' | 'block' | 'list-item';
   editable: boolean;
@@ -71,9 +74,12 @@ export function obterFeriadosBrasil(start: Date, end: Date): FeriadoEvent[] {
           start: dataStr,
           end: dataStr,
           allDay: true,
+          color: corBg,
+          contrastColor: corTexto,
           backgroundColor: corBg,
           borderColor: corBorder,
           textColor: corTexto,
+          className: 'fc-event-feriado',
           classNames: ['fc-event-feriado'],
           display: 'block',
           editable: false,
@@ -112,9 +118,12 @@ export function obterFeriadosBrasil(start: Date, end: Date): FeriadoEvent[] {
           start: dataStr,
           end: dataStr,
           allDay: true,
+          color: corBg,
+          contrastColor: corTexto,
           backgroundColor: corBg,
           borderColor: corBorder,
           textColor: corTexto,
+          className: 'fc-event-feriado',
           classNames: ['fc-event-feriado'],
           display: 'block',
           editable: false,

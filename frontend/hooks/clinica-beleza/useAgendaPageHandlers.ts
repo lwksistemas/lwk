@@ -16,8 +16,7 @@ import {
   serieBloqueioDiaInteiro,
 } from "@/lib/bloqueio-serie";
 import { useToast } from "@/components/ui/Toast";
-import type { DateClickArg } from "@fullcalendar/interaction";
-import type { EventClickArg } from "@fullcalendar/core";
+import type { DateClickArg, EventClickArg } from "@/types/fullcalendar-handlers";
 
 export type AgendaEventClickInfo = {
   event: {

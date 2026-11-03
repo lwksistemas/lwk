@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import requests
@@ -67,10 +68,12 @@ def _meta(servidor: dict[str, Any]) -> dict[str, Any]:
 
 
 def _token_capacidade() -> str:
+    from core.media_storage import MEDIA_API_TOKEN
+
     return (
         (getattr(settings, "CAPACIDADE_HOST_TOKEN", None) or "").strip()
-        or (getattr(settings, "MEDIA_API_TOKEN", None) or "").strip()
-        or ""
+        or (os.environ.get("CAPACIDADE_HOST_TOKEN") or "").strip()
+        or (MEDIA_API_TOKEN or "").strip()
     )
 
 

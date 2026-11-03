@@ -74,8 +74,13 @@ class NfeEntradaLeituraTests(SimpleTestCase):
         self.assertIn(CHAVE.encode(), ret["documentos"][0]["xml"])
 
         with self.assertRaises(SefazNfeErro) as ctx:
-            interpretar_ret_dist(b"<retDistDFeInt><cStat>656</cStat><xMotivo>Consumo indevido</xMotivo></retDistDFeInt>")
+            interpretar_ret_dist(
+                b"<retDistDFeInt><cStat>656</cStat><xMotivo>Consumo indevido</xMotivo>"
+                b"<ultNSU>000000000000042</ultNSU><maxNSU>000000000000099</maxNSU></retDistDFeInt>"
+            )
         self.assertTrue(ctx.exception.consumo_indevido)
+        self.assertEqual(ctx.exception.ult_nsu, "000000000000042")
+        self.assertEqual(ctx.exception.max_nsu, "000000000000099")
 
     def test_evento_de_ciencia_aponta_a_chave(self):
         xml = xml_evento_ciencia(cnpj="22222222000191", chave=CHAVE, homologacao=True)

@@ -49,9 +49,18 @@ UF_IBGE = {
 
 
 class SefazNfeErro(Exception):
-    def __init__(self, mensagem: str, *, consumo_indevido: bool = False):
+    def __init__(
+        self,
+        mensagem: str,
+        *,
+        consumo_indevido: bool = False,
+        ult_nsu: str = "",
+        max_nsu: str = "",
+    ):
         super().__init__(mensagem)
         self.consumo_indevido = consumo_indevido
+        self.ult_nsu = (ult_nsu or "").zfill(15)[-15:] if ult_nsu else ""
+        self.max_nsu = (max_nsu or "").zfill(15)[-15:] if max_nsu else ""
 
 
 def codigo_uf(sigla: str) -> str:
@@ -89,8 +98,16 @@ def interpretar_ret_dist(xml_bytes: bytes) -> dict:
         raise SefazNfeErro("A SEFAZ não devolveu a distribuição de NF-e.")
     c_stat = _texto(ret, "cStat")
     motivo = _texto(ret, "xMotivo")
+    ult_nsu = (_texto(ret, "ultNSU") or "0").zfill(15)
+    max_nsu = (_texto(ret, "maxNSU") or "0").zfill(15)
+    # cStat 656: ainda assim grava ultNSU/maxNSU — a SEFAZ exige usá-los na próxima.
     if c_stat == CSTAT_CONSUMO:
-        raise SefazNfeErro(motivo or "A SEFAZ pediu para aguardar antes de uma nova consulta.", consumo_indevido=True)
+        raise SefazNfeErro(
+            motivo or "A SEFAZ pediu para aguardar 1 hora antes de uma nova consulta.",
+            consumo_indevido=True,
+            ult_nsu=ult_nsu,
+            max_nsu=max_nsu,
+        )
     documentos = []
     for doc in ret.iter():
         if _local(doc.tag) != "docZip":
@@ -108,8 +125,8 @@ def interpretar_ret_dist(xml_bytes: bytes) -> dict:
     return {
         "c_stat": c_stat,
         "motivo": motivo,
-        "ult_nsu": (_texto(ret, "ultNSU") or "0").zfill(15),
-        "max_nsu": (_texto(ret, "maxNSU") or "0").zfill(15),
+        "ult_nsu": ult_nsu,
+        "max_nsu": max_nsu,
         "documentos": documentos,
         "vazio": c_stat == CSTAT_VAZIO,
     }

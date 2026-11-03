@@ -242,12 +242,52 @@ def _credencial_loja(loja):
     }
 
 
+def _nsu_int(valor: str) -> int:
+    digitos = "".join(c for c in (valor or "") if c.isdigit())
+    return int(digitos or "0")
+
+
 def _pode_consultar(estado) -> bool:
+    """SEFAZ: com ultNSU=maxNSU (ou após 656) só consultar de novo após 1 hora."""
     if estado.consultado_em is None:
         return True
+    passou_uma_hora = timezone.now() - estado.consultado_em >= timedelta(hours=1)
+    if "consumo indevido" in (estado.ultimo_erro or "").lower():
+        return passou_uma_hora
     if estado.ult_nsu != estado.max_nsu:
         return True
-    return timezone.now() - estado.consultado_em >= timedelta(hours=1)
+    return passou_uma_hora
+
+
+def _msg_aguardando(estado) -> str:
+    liberacao = (estado.consultado_em or timezone.now()) + timedelta(hours=1)
+    hora = timezone.localtime(liberacao).strftime("%H:%M")
+    return (
+        f"A SEFAZ pediu para aguardar 1 hora (consumo indevido). "
+        f"Tente de novo após {hora}. O sistema usa o último NSU gravado."
+    )
+
+
+def _registrar_erro_sefaz(estado, exc) -> str:
+    """Grava o erro e, se a SEFAZ mandou ultNSU no 656, avança o cursor."""
+    from .estoque_nfe_sefaz import SefazNfeErro
+
+    campos = ["ultimo_erro", "consultado_em"]
+    estado.consultado_em = timezone.now()
+    if isinstance(exc, SefazNfeErro):
+        if _nsu_int(exc.ult_nsu) > 0 and _nsu_int(exc.ult_nsu) >= _nsu_int(estado.ult_nsu):
+            estado.ult_nsu = exc.ult_nsu
+            campos.append("ult_nsu")
+        if _nsu_int(exc.max_nsu) > 0 and _nsu_int(exc.max_nsu) >= _nsu_int(estado.max_nsu):
+            estado.max_nsu = exc.max_nsu
+            campos.append("max_nsu")
+        if exc.consumo_indevido:
+            estado.ultimo_erro = _msg_aguardando(estado)[:500]
+            estado.save(update_fields=campos)
+            return estado.ultimo_erro
+    estado.ultimo_erro = str(exc)[:500]
+    estado.save(update_fields=campos)
+    return estado.ultimo_erro
 
 
 def sincronizar_loja(loja) -> dict:
@@ -269,15 +309,22 @@ def sincronizar_loja(loja) -> dict:
         loja_id=loja.id,
         defaults={"ult_nsu": "000000000000000", "max_nsu": "000000000000000"},
     )
+    if not _pode_consultar(estado):
+        return {
+            "ok": False,
+            "detail": _msg_aguardando(estado) if "consumo indevido" in (estado.ultimo_erro or "").lower()
+            else (
+                f"Próxima consulta à SEFAZ liberada após "
+                f"{timezone.localtime((estado.consultado_em or timezone.now()) + timedelta(hours=1)).strftime('%H:%M')}."
+            ),
+            "novas": 0,
+        }
+
     novas = 0
-    if _pode_consultar(estado):
-        try:
-            novas += _puxar_lote(loja, cred, estado, consultar_distribuicao, classificar_documento)
-        except SefazNfeErro as exc:
-            estado.ultimo_erro = str(exc)[:500]
-            estado.consultado_em = timezone.now()
-            estado.save(update_fields=["ultimo_erro", "consultado_em"])
-            return {"ok": False, "detail": str(exc), "novas": novas}
+    try:
+        novas += _puxar_lote(loja, cred, estado, consultar_distribuicao, classificar_documento)
+    except SefazNfeErro as exc:
+        return {"ok": False, "detail": _registrar_erro_sefaz(estado, exc), "novas": novas}
 
     resumos = list(
         NotaEntradaNfe.objects.filter(status=NotaEntradaNfe.STATUS_RESUMO).order_by("id")[:20]
@@ -298,14 +345,13 @@ def sincronizar_loja(loja) -> dict:
         if not ok:
             nota.ultimo_erro = "A SEFAZ não registrou a ciência desta nota."
             nota.save(update_fields=["ultimo_erro", "updated_at"])
+    # Recarrega o estado: a ciência não avança NSU, mas o 1º lote pode ter deixado ult==max.
+    estado.refresh_from_db()
     if resumos and _pode_consultar(estado):
         try:
             novas += _puxar_lote(loja, cred, estado, consultar_distribuicao, classificar_documento)
         except SefazNfeErro as exc:
-            estado.ultimo_erro = str(exc)[:500]
-            estado.consultado_em = timezone.now()
-            estado.save(update_fields=["ultimo_erro", "consultado_em"])
-            return {"ok": False, "detail": str(exc), "novas": novas}
+            return {"ok": False, "detail": _registrar_erro_sefaz(estado, exc), "novas": novas}
     return {"ok": True, "detail": "Consulta concluída.", "novas": novas}
 
 

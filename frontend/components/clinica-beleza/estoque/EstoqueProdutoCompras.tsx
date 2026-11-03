@@ -164,10 +164,7 @@ export function EstoqueProdutoCompras({ produtoId }: { produtoId: number }) {
       )}
       {dados && (
         <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
-          Total {dados.quantidade_atual} · utilizável {dados.quantidade_utilizavel || dados.quantidade_atual}
-          {Number(dados.quantidade_sem_lote) > 0
-            ? ` · ${dados.quantidade_sem_lote} saldo anterior sem lote`
-            : ""}
+          Total {dados.quantidade_atual} · utilizável {dados.quantidade_utilizavel || dados.quantidade_atual} · saldo anterior sem lote {dados.quantidade_sem_lote}
         </p>
       )}
       {dados && dados.lotes.length > 0 && (

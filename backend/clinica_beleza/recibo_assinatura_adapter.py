@@ -27,7 +27,11 @@ class ReciboAssinaturaAdapter(AssinaturaAdapter):
 
     def _patient(self, payment):
         appointment = self._appointment(payment)
-        return getattr(appointment, "patient", None) if appointment else None
+        patient = getattr(appointment, "patient", None) if appointment else None
+        if patient is not None:
+            return patient
+        venda = getattr(payment, "venda_balcao", None)
+        return getattr(venda, "paciente", None) if venda is not None else None
 
     def get_procedimentos(self, payment) -> list[dict]:
         appointment = self._appointment(payment)
@@ -45,6 +49,8 @@ class ReciboAssinaturaAdapter(AssinaturaAdapter):
         ]
         if nomes:
             return " · ".join(nomes)
+        if getattr(payment, "valor_produtos", 0):
+            return "Venda de produtos"
         return f"Recibo #{payment.id}"
 
     def get_itens_titulo(self, payment) -> list[str]:
@@ -58,6 +64,13 @@ class ReciboAssinaturaAdapter(AssinaturaAdapter):
             except (TypeError, ValueError):
                 valor = 0.0
             linhas.append(f"{nome} — {formatar_moeda_recibo(valor)}")
+        from .venda_produto_service import produtos_do_pagamento
+
+        for item in produtos_do_pagamento(payment):
+            linhas.append(
+                f'{item["nome"]} — {item["quantidade"]} × {formatar_moeda_recibo(item["preco_unitario"])}'
+                f' — {formatar_moeda_recibo(item["subtotal"])}'
+            )
         return linhas
 
     def get_valor_display(self, payment) -> str:

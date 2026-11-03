@@ -89,6 +89,9 @@ def sync_consulta_from_appointment_status(appointment, new_status, old_status=No
             )
             return _com_produtos_protocolo(consulta)
         if consulta.status not in ("IN_PROGRESS", "COMPLETED"):
+            from clinica_beleza.venda_produto_service import estornar_vendas_da_consulta
+
+            estornar_vendas_da_consulta(consulta)
             consulta.status = "CANCELLED"
             consulta.save(update_fields=["status", "updated_at"])
         return _com_produtos_protocolo(consulta)

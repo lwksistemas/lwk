@@ -43,9 +43,12 @@ def _ensure_payment_for_appointment(
     valor = amount if amount is not None else consulta_service._valor_pagamento_padrao(appointment, consulta)
     if isinstance(valor, (int, float, str)):
         valor = Decimal(str(valor))
+    from clinica_beleza.venda_produto_service import total_vendas_consulta
+
+    valor_produtos = Decimal(0) if amount is not None else total_vendas_consulta(consulta)
     # amount explícito é o valor informado pelo caixa. Sem ele, o padrão é o bruto:
     # o desconto já gravado continua valendo no total (a prazo / pendente).
-    valor_total = valor if amount is not None else _liquido_com_desconto_gravado(valor, payment)
+    valor_total = valor if amount is not None else _liquido_com_desconto_gravado(valor, payment) + valor_produtos
 
     # Retorno zera só a taxa: com procedimento cobrado ainda há valor a receber.
     # Não marcar PAID automático em atendimento isento (R$ 0) sem recebimento real.
@@ -63,6 +66,7 @@ def _ensure_payment_for_appointment(
             appointment=appointment,
             amount=Decimal(0) if not mark_as_paid else valor,
             valor_total=valor_total,
+            valor_produtos=valor_produtos,
             payment_method=payment_method or "CASH",
             status="PAID" if mark_as_paid else "PENDING",
             payment_date=now() if mark_as_paid else None,
@@ -87,6 +91,7 @@ def _ensure_payment_for_appointment(
         or payment.status in ("DRAFT", "PENDING")
     ):
         payment.valor_total = valor_total
+        payment.valor_produtos = valor_produtos
     was_paid = payment.status == "PAID"
     if mark_as_paid:
         payment.status = "PAID"
@@ -122,14 +127,18 @@ def _garantir_conta_pendente_consulta_inner(consulta) -> None:
         return
 
     consulta_service._garantir_valor_consulta_consulta(consulta)
-    valor_total = consulta_service._valor_pagamento_padrao(appointment, consulta)
+    valor_servicos = consulta_service._valor_pagamento_padrao(appointment, consulta)
+    from clinica_beleza.venda_produto_service import total_vendas_consulta
+
+    valor_produtos = total_vendas_consulta(consulta)
+    valor_total = valor_servicos + valor_produtos
     if valor_total <= 0:
         return
 
     comissao_pct, comissao_val = consulta_service.calcular_comissao_payment_atendimento(
         appointment=appointment,
         consulta=consulta,
-        amount=valor_total,
+        amount=valor_servicos,
     )
 
     payment = consulta_service.Payment.objects.filter(appointment=appointment).first()
@@ -138,6 +147,7 @@ def _garantir_conta_pendente_consulta_inner(consulta) -> None:
             appointment=appointment,
             amount=Decimal(0),
             valor_total=valor_total,
+            valor_produtos=valor_produtos,
             payment_method="CASH",
             status="PENDING",
             comissao_percentual=comissao_pct,
@@ -147,11 +157,12 @@ def _garantir_conta_pendente_consulta_inner(consulta) -> None:
         return
 
     if payment.status in ("PENDING", "PARTIAL", "DRAFT"):
-        payment.valor_total = _liquido_com_desconto_gravado(valor_total, payment)
+        payment.valor_total = _liquido_com_desconto_gravado(valor_servicos, payment) + valor_produtos
+        payment.valor_produtos = valor_produtos
         payment.comissao_percentual = comissao_pct
         payment.comissao_valor = comissao_val
         payment.save(update_fields=[
-            "valor_total", "comissao_percentual", "comissao_valor", "updated_at",
+            "valor_total", "valor_produtos", "comissao_percentual", "comissao_valor", "updated_at",
         ])
 
 
@@ -272,14 +283,18 @@ def registrar_recebimento_consulta(
     valor_bruto = consulta_service._valor_pagamento_padrao(appointment, consulta)
     if isinstance(valor_bruto, (int, float, str)):
         valor_bruto = Decimal(str(valor_bruto))
+    from clinica_beleza.venda_produto_service import total_vendas_consulta
+
+    valor_produtos = total_vendas_consulta(consulta)
+    valor_servicos = valor_bruto
 
     payment = (
         consulta_service.Payment.objects.select_for_update(of=("self",))
         .filter(appointment=appointment)
         .first()
     )
-    valor_total = _calcular_valor_total_com_desconto(valor_bruto, desconto, payment)
-    valor_desconto = valor_bruto - valor_total
+    valor_total = _calcular_valor_total_com_desconto(valor_servicos, desconto, payment) + valor_produtos
+    valor_desconto = valor_servicos - (valor_total - valor_produtos)
 
     if valor_total <= 0:
         if valor_desconto <= 0:
@@ -309,8 +324,11 @@ def registrar_recebimento_consulta(
             ja_lido = _decimal_ou_none(getattr(payment, "valor_pago_parcelas", None))
             if ja_lido is not None:
                 ja_pago = ja_lido
+        teto_procedimentos = getattr(appointment, "valor_total", None)
+        if teto_procedimentos not in (None, "") and valor_produtos:
+            teto_procedimentos = Decimal(str(teto_procedimentos)) + valor_produtos
         acima = mensagem_pagamento_acima_do_teto(
-            getattr(appointment, "valor_total", None),
+            teto_procedimentos,
             getattr(consulta, "valor_consulta", None),
             ja_pago,
             soma_entradas,
@@ -325,13 +343,13 @@ def registrar_recebimento_consulta(
     comissao_pct, comissao_val = consulta_service.calcular_comissao_payment_atendimento(
         appointment=appointment,
         consulta=consulta,
-        amount=valor_total if valor_total > 0 else valor_bruto,
+        amount=(valor_total - valor_produtos) if valor_total > 0 else valor_servicos,
     )
 
     ts = now()
     payment = _garantir_ou_criar_payment(
         consulta_service, appointment, valor_total, metodo_principal,
-        comissao_pct, comissao_val, valor_desconto, payment,
+        comissao_pct, comissao_val, valor_desconto, payment, valor_produtos,
     )
 
     try:

@@ -36,6 +36,13 @@ def _get_nfse_config(loja_id: int):
     return None
 
 
+def valor_servico_para_nfse(payment) -> Decimal:
+    """NFS-e é de serviço. O valor dos produtos vendidos fica fora da nota."""
+    pago = Decimal(str(getattr(payment, "amount", 0) or 0))
+    produtos = Decimal(str(getattr(payment, "valor_produtos", 0) or 0))
+    return max(pago - produtos, Decimal(0))
+
+
 def montar_payload_nfse_consulta(consulta, payment, config) -> dict[str, Any] | None:
     """Monta payload para emissão NFS-e a partir da consulta paga."""
     patient = consulta.patient
@@ -70,7 +77,7 @@ def montar_payload_nfse_consulta(consulta, payment, config) -> dict[str, Any] | 
         "tomador_uf": (getattr(patient, "estado", "") or "").strip(),
         "tomador_cep": "",
         "servico_descricao": descricao,
-        "valor_servicos": payment.amount,
+        "valor_servicos": valor_servico_para_nfse(payment),
         "enviar_email": True,
         "codigo_servico": (getattr(config, "codigo_servico_municipal", "") or "").strip() or None,
         "item_lista_servico": (getattr(config, "item_lista_servico", "") or "").strip() or None,
@@ -124,9 +131,9 @@ def emitir_nfse_consulta_manual(consulta, payment, *, loja=None) -> dict[str, An
     """Emissão manual de NFS-e a partir de consulta paga (ignora flag automática)."""
     if payment is None or getattr(payment, "status", "") != "PAID":
         return {"success": False, "error": "Só é possível emitir nota de consulta com pagamento quitado."}
-    valor = getattr(payment, "amount", None)
-    if valor is None or Decimal(str(valor)) <= 0:
-        return {"success": False, "error": "Pagamento sem valor para emitir nota."}
+    valor = valor_servico_para_nfse(payment)
+    if valor <= 0:
+        return {"success": False, "error": "Pagamento sem valor de serviço para emitir nota. Produto não entra na NFS-e."}
 
     loja_id = getattr(consulta, "loja_id", None) or getattr(payment, "loja_id", None)
     if not loja_id:
@@ -155,8 +162,8 @@ def tentar_emitir_nfse_consulta(consulta, payment, *, loja=None) -> None:
         return
     if getattr(payment, "payment_method", "") == "DESPESA":
         return
-    valor = getattr(payment, "amount", None)
-    if valor is None or Decimal(str(valor)) <= 0:
+    valor = valor_servico_para_nfse(payment)
+    if valor <= 0:
         return
 
     loja_id = getattr(consulta, "loja_id", None) or getattr(payment, "loja_id", None)

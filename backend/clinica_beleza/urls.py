@@ -2,6 +2,7 @@
 """
 from django.urls import path
 
+from .views_venda_produto import VendaProdutoCancelarView, VendaProdutoListView
 from .views import (
     AgendaCreateView,
     AgendaDeleteView,
@@ -455,6 +456,8 @@ urlpatterns = [
     path("estoque/fornecedores/<int:pk>/catalogo/", FornecedorCatalogoView.as_view(), name="estoque-fornecedores-catalogo"),
     path("estoque/fornecedores/<int:pk>/catalogo/preview/", FornecedorCatalogoPreviewView.as_view(), name="estoque-fornecedores-catalogo-preview"),
     path("estoque/fornecedores/<int:pk>/catalogo/importar/", FornecedorCatalogoImportarView.as_view(), name="estoque-fornecedores-catalogo-importar"),
+    path("estoque/vendas/", VendaProdutoListView.as_view(), name="estoque-vendas"),
+    path("estoque/vendas/<int:pk>/cancelar/", VendaProdutoCancelarView.as_view(), name="estoque-vendas-cancelar"),
     path("estoque/pedidos/", PedidoCompraListView.as_view(), name="estoque-pedidos"),
     path("estoque/pedidos/assinantes/", PedidoCompraAssinantesView.as_view(), name="estoque-pedidos-assinantes"),
     path("estoque/pedidos/buscar-pacientes/", PedidoCompraBuscarPacientesView.as_view(), name="estoque-pedidos-buscar-pacientes"),

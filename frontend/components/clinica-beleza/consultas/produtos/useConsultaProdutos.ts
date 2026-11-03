@@ -19,6 +19,9 @@ export function useConsultaProdutos(consultaId: number, onItensChanged?: () => v
   const [showAddForm, setShowAddForm] = useState(false);
   const [produtoId, setProdutoId] = useState<number | "">("");
   const [quantidade, setQuantidade] = useState("1");
+  const [finalidade, setFinalidade] = useState<"uso" | "venda">("uso");
+  const [precoUnitario, setPrecoUnitario] = useState("");
+  const [desconto, setDesconto] = useState("");
   const [lote, setLote] = useState("");
   const [validade, setValidade] = useState("");
   const [erro, setErro] = useState("");
@@ -119,6 +122,8 @@ export function useConsultaProdutos(consultaId: number, onItensChanged?: () => v
     if (p) {
       setLote(p.lote || "");
       setValidade(p.validade ? String(p.validade).slice(0, 10) : "");
+      setPrecoUnitario(p.preco_venda != null ? String(p.preco_venda) : "");
+      if (!p.vende_ao_cliente) setFinalidade("uso");
     }
   };
 
@@ -127,6 +132,9 @@ export function useConsultaProdutos(consultaId: number, onItensChanged?: () => v
     setQuantidade("1");
     setLote("");
     setValidade("");
+    setFinalidade("uso");
+    setPrecoUnitario("");
+    setDesconto("");
   };
 
   const adicionar = async () => {
@@ -148,11 +156,20 @@ export function useConsultaProdutos(consultaId: number, onItensChanged?: () => v
     setSaving(true);
     setErro("");
     try {
+      const escolhido = produtos.find((x) => x.id === Number(produtoId));
+      if (finalidade === "venda" && !escolhido?.vende_ao_cliente) {
+        setErro("Este produto não está liberado para venda. Marque isso no cadastro.");
+        setSaving(false);
+        return;
+      }
       const res = (await ClinicaBelezaAPI.consultas.produtos.add(consultaId, {
         produto: Number(produtoId),
         quantidade: qtd,
         lote: lote.trim() || undefined,
         validade: validade || undefined,
+        finalidade,
+        preco_unitario: finalidade === "venda" ? Number(precoUnitario || 0) : undefined,
+        desconto: finalidade === "venda" ? Number(desconto || 0) : undefined,
       })) as { error?: string };
       if (res?.error) throw res;
       resetFormulario();
@@ -189,8 +206,14 @@ export function useConsultaProdutos(consultaId: number, onItensChanged?: () => v
     showAddForm,
     produtoId,
     quantidade,
+    finalidade,
+    precoUnitario,
+    desconto,
     lote,
     validade,
+    setFinalidade,
+    setPrecoUnitario,
+    setDesconto,
     erro,
     erroEstoque,
     totaisConsulta,

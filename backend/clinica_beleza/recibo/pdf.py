@@ -15,6 +15,7 @@ from .context import (
     linhas_local_convenio_recibo,
     linhas_protocolo_informativo,
     procedimentos_exibidos_recibo,
+    produtos_exibidos_recibo,
     recebido_a_maior_recibo,
     reconciliar_conta_recibo,
     rotulo_forma_recibo,
@@ -171,8 +172,9 @@ def _cabecalho_recibo_pdf(ctx, styles, col_w, mm_unit):
     if ctx.get("data_atendimento"):
         story.append(Paragraph(f"<b>Data/Hora do atendimento:</b> {_texto_pdf(ctx['data_atendimento'])}", s_left))
     story.append(hr)
-    story.append(Paragraph("<b>SERVIÇOS</b>", s_bold))
-    story.append(Spacer(1, 1 * mm_unit))
+    if not ctx.get("somente_produtos"):
+        story.append(Paragraph("<b>SERVIÇOS</b>", s_bold))
+        story.append(Spacer(1, 1 * mm_unit))
     return story
 
 
@@ -215,6 +217,41 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
         *spans,
     ]))
     return svc_table
+
+
+def _tabela_produtos_recibo_pdf(ctx, styles, col_w):
+    from reportlab.platypus import Paragraph, Table, TableStyle
+
+    itens = produtos_exibidos_recibo(ctx)
+    if not itens:
+        return None
+    s_left = styles["s_left"]
+    s_right = styles["s_right"]
+    s_bold = styles["s_bold"]
+    dados = [[Paragraph("<b>PRODUTOS</b>", s_bold), Paragraph("", s_right)]]
+    for item in itens:
+        detalhe = f'{item["quantidade"]} × {formatar_moeda_recibo(item["preco_unitario"])}'
+        if item["desconto"] > 0.009:
+            detalhe += f' − desc. {formatar_moeda_recibo(item["desconto"])}'
+        dados.append([
+            Paragraph(f'• {_texto_pdf(item["nome"])}<br/>{_texto_pdf(detalhe)}', s_left),
+            Paragraph(formatar_moeda_recibo(item["subtotal"]), s_right),
+        ])
+    dados.append([
+        Paragraph("Recibo comercial de produto. Não é nota fiscal.", s_left),
+        Paragraph("", s_right),
+    ])
+    tabela = Table(dados, colWidths=[col_w * 0.73, col_w * 0.27])
+    tabela.setStyle(TableStyle([
+        ("SPAN", (0, 0), (-1, 0)),
+        ("SPAN", (0, -1), (-1, -1)),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+    return tabela
 
 
 def _tabela_totais_recibo_pdf(ctx, styles, col_w):
@@ -479,6 +516,10 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
     svc_table = _tabela_servicos_recibo_pdf(ctx, styles, col_w)
     if svc_table:
         story.append(svc_table)
+    produtos_table = _tabela_produtos_recibo_pdf(ctx, styles, col_w)
+    if produtos_table:
+        story.append(Spacer(1, 2 * mm))
+        story.append(produtos_table)
 
     story.append(styles["hr"])
     story.append(_tabela_totais_recibo_pdf(ctx, styles, col_w))

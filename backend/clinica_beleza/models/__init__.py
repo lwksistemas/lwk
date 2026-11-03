@@ -22,6 +22,8 @@ from .estoque import (
     NfeDistribuicaoEstado,
     NotaEntradaNfe,
     ProdutoEstoque,
+    VendaBalcao,
+    VendaBalcaoItem,
     VinculoProdutoFornecedor,
 )
 from .financeiro import (
@@ -113,6 +115,8 @@ __all__ = [
     "TermoConsentimentoConfig",
     "TermoConsentimentoTemplate",
     "ProdutoEstoque",
+    "VendaBalcao",
+    "VendaBalcaoItem",
     "VinculoProdutoFornecedor",
     "Professional",
     "ProfessionalCommission",

@@ -120,7 +120,11 @@ def baixar_produtos_consulta(consulta) -> None:
 
     with tenant_atomic():
         for item in itens:
-            motivo = f"Uso na consulta #{consulta.id}"
+            motivo = (
+                f"Venda na consulta #{consulta.id}"
+                if getattr(item, "finalidade", "uso") == "venda"
+                else f"Uso na consulta #{consulta.id}"
+            )
             if item.lote:
                 motivo += f" — lote {item.lote}"
             movimentar_saida(

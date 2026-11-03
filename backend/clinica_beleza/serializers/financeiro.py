@@ -94,11 +94,11 @@ class PaymentParcelaSerializer(serializers.ModelSerializer):
 class PaymentSerializer(serializers.ModelSerializer):
     """Serializer para Pagamentos (financeiro da clínica)."""
 
-    appointment_details = AppointmentListSerializer(source="appointment", read_only=True)
-    paciente_nome = serializers.CharField(source="appointment.patient.nome", read_only=True)
-    profissional_nome = serializers.CharField(source="appointment.professional.nome", read_only=True)
+    appointment_details = AppointmentListSerializer(source="appointment", read_only=True, allow_null=True)
+    paciente_nome = serializers.SerializerMethodField()
+    profissional_nome = serializers.SerializerMethodField()
     procedimento_nome = serializers.SerializerMethodField()
-    data_atendimento = serializers.DateTimeField(source="appointment.date", read_only=True)
+    data_atendimento = serializers.SerializerMethodField()
     valor_total_efetivo = serializers.SerializerMethodField()
     saldo_devedor = serializers.SerializerMethodField()
     vencido = serializers.SerializerMethodField()
@@ -106,6 +106,23 @@ class PaymentSerializer(serializers.ModelSerializer):
     retorno_gratuito = serializers.SerializerMethodField()
     consulta_id = serializers.SerializerMethodField()
     paciente_tem_prazo = serializers.SerializerMethodField()
+
+    def get_paciente_nome(self, obj):
+        patient = getattr(getattr(obj, "appointment", None), "patient", None)
+        if patient is not None:
+            return patient.nome
+        venda = getattr(obj, "venda_balcao", None)
+        return getattr(getattr(venda, "paciente", None), "nome", "") or ""
+
+    def get_profissional_nome(self, obj):
+        professional = getattr(getattr(obj, "appointment", None), "professional", None)
+        return getattr(professional, "nome", "") or ""
+
+    def get_data_atendimento(self, obj):
+        appointment = getattr(obj, "appointment", None)
+        if appointment is not None and getattr(appointment, "date", None):
+            return appointment.date
+        return getattr(obj, "payment_date", None)
 
     def get_paciente_tem_prazo(self, obj):
         patient = getattr(getattr(obj, "appointment", None), "patient", None)
@@ -116,7 +133,14 @@ class PaymentSerializer(serializers.ModelSerializer):
         return getattr(consulta, "id", None)
 
     def get_procedimento_nome(self, obj):
-        return _procedimentos_nome_agendamento(obj.appointment)
+        nomes = _procedimentos_nome_agendamento(obj.appointment)
+        if nomes and getattr(obj, "valor_produtos", 0):
+            return f"{nomes} + produtos"
+        if nomes:
+            return nomes
+        if getattr(obj, "valor_produtos", 0):
+            return "Venda de produtos"
+        return ""
 
     def get_retorno_gratuito(self, obj):
         """True só quando é retorno gratuito E não há valor a cobrar (isento de fato).

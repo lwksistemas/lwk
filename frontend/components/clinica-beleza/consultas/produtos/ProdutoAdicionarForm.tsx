@@ -18,6 +18,9 @@ export function ProdutoAdicionarForm({
   produtosPorCategoria,
   produtoId,
   quantidade,
+  finalidade,
+  precoUnitario,
+  desconto,
   lote,
   validade,
   erro,
@@ -26,6 +29,9 @@ export function ProdutoAdicionarForm({
   saving,
   onProdutoChange,
   onQuantidadeChange,
+  onFinalidadeChange,
+  onPrecoChange,
+  onDescontoChange,
   onLoteChange,
   onValidadeChange,
   onClose,
@@ -38,6 +44,9 @@ export function ProdutoAdicionarForm({
   };
   produtoId: number | "";
   quantidade: string;
+  finalidade: "uso" | "venda";
+  precoUnitario: string;
+  desconto: string;
   lote: string;
   validade: string;
   erro: string;
@@ -46,6 +55,9 @@ export function ProdutoAdicionarForm({
   saving: boolean;
   onProdutoChange: (id: number | "") => void;
   onQuantidadeChange: (v: string) => void;
+  onFinalidadeChange: (v: "uso" | "venda") => void;
+  onPrecoChange: (v: string) => void;
+  onDescontoChange: (v: string) => void;
   onLoteChange: (v: string) => void;
   onValidadeChange: (v: string) => void;
   onClose: () => void;
@@ -174,10 +186,46 @@ export function ProdutoAdicionarForm({
       </div>
 
       {produtoId && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onFinalidadeChange("uso")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                finalidade === "uso" ? "text-white border-transparent" : "border-gray-300 text-gray-600"
+              }`}
+              style={finalidade === "uso" ? { backgroundColor: "var(--cb-primary, #8B3D52)" } : undefined}
+            >
+              Utilizado no procedimento
+            </button>
+            <button
+              type="button"
+              onClick={() => onFinalidadeChange("venda")}
+              disabled={!produtos.find((p) => String(p.id) === String(produtoId))?.vende_ao_cliente}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border disabled:opacity-40 ${
+                finalidade === "venda" ? "text-white border-transparent" : "border-gray-300 text-gray-600"
+              }`}
+              style={finalidade === "venda" ? { backgroundColor: "var(--cb-primary, #8B3D52)" } : undefined}
+            >
+              Vendido à cliente
+            </button>
+          </div>
+          {finalidade === "venda" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Preço unitário</label>
+                <input type="number" min="0" step="0.01" value={precoUnitario} onChange={(e) => onPrecoChange(e.target.value)} className={PRODUTOS_INPUT_CLASS} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Desconto</label>
+                <input type="number" min="0" step="0.01" value={desconto} onChange={(e) => onDescontoChange(e.target.value)} className={PRODUTOS_INPUT_CLASS} />
+              </div>
+            </div>
+          )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-              Quantidade usada *
+              Quantidade *
             </label>
             <input
               type="number"
@@ -213,6 +261,7 @@ export function ProdutoAdicionarForm({
               className={PRODUTOS_INPUT_CLASS}
             />
           </div>
+        </div>
         </div>
       )}
 

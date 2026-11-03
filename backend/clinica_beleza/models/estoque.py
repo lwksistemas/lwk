@@ -92,6 +92,11 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
     preco_venda = models.DecimalField(
         max_digits=10, decimal_places=2, default=0, verbose_name="Preço de venda (R$)",
     )
+    vende_ao_cliente = models.BooleanField(
+        default=False,
+        verbose_name="Pode vender ao cliente",
+        help_text="Insumo de procedimento continua só baixando o estoque. Só o marcado aqui entra no recibo.",
+    )
     validade = models.DateField(null=True, blank=True, verbose_name="Data de validade")
     lote = models.CharField(max_length=50, blank=True, default="", verbose_name="Lote")
     numero_nota = models.CharField(
@@ -216,6 +221,19 @@ class ConsultaProdutoUtilizado(LojaIsolationMixin, models.Model):
         verbose_name="Produto",
     )
     quantidade = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Quantidade utilizada")
+    finalidade = models.CharField(
+        max_length=10,
+        choices=[("uso", "Utilizado no procedimento"), ("venda", "Vendido ao cliente")],
+        default="uso",
+        verbose_name="Finalidade",
+    )
+    preco_unitario = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, verbose_name="Preço unitário de venda",
+    )
+    desconto = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, verbose_name="Desconto da linha (R$)",
+    )
+    estornado = models.BooleanField(default=False, verbose_name="Venda estornada")
     lote = models.CharField(max_length=50, blank=True, default="", verbose_name="Lote utilizado")
     validade = models.DateField(null=True, blank=True, verbose_name="Validade do lote")
     estoque_baixado = models.BooleanField(default=False, verbose_name="Estoque já baixado")
@@ -415,3 +433,43 @@ class NfeDistribuicaoEstado(LojaIsolationMixin, models.Model):
         constraints = [
             models.UniqueConstraint(fields=["loja_id"], name="cb_nfe_dist_loja"),
         ]
+
+
+class VendaBalcao(LojaIsolationMixin, models.Model):
+    """Venda de produto sem atendimento. O recibo sai pelo pagamento ligado."""
+
+    STATUS_CONCLUIDA = "concluida"
+    STATUS_CANCELADA = "cancelada"
+    paciente = models.ForeignKey(
+        "Patient", on_delete=models.PROTECT, related_name="vendas_balcao", verbose_name="Cliente",
+    )
+    payment = models.OneToOneField(
+        "Payment", null=True, blank=True, on_delete=models.SET_NULL, related_name="venda_balcao",
+    )
+    status = models.CharField(
+        max_length=12,
+        choices=[(STATUS_CONCLUIDA, "Concluída"), (STATUS_CANCELADA, "Cancelada")],
+        default=STATUS_CONCLUIDA,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        ordering = ["-created_at"]
+
+
+class VendaBalcaoItem(LojaIsolationMixin, models.Model):
+    venda = models.ForeignKey(VendaBalcao, on_delete=models.CASCADE, related_name="itens")
+    produto = models.ForeignKey(ProdutoEstoque, on_delete=models.PROTECT, related_name="vendas_balcao")
+    quantidade = models.DecimalField(max_digits=10, decimal_places=2)
+    preco_unitario = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    desconto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    estoque_baixado = models.BooleanField(default=False)
+    estornado = models.BooleanField(default=False)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"

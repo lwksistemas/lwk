@@ -16,6 +16,7 @@ from .context import (
     linhas_local_convenio_recibo,
     linhas_protocolo_informativo,
     procedimentos_exibidos_recibo,
+    produtos_exibidos_recibo,
     recebido_a_maior_recibo,
     reconciliar_conta_recibo,
     rotulo_forma_recibo,
@@ -74,6 +75,23 @@ def gerar_html_recibo(ctx: dict) -> str:
     for label, valor in linhas_local_convenio_recibo(ctx):
         servicos.append(
             f'<tr><td colspan="2">{_t(label)} {_t(valor)}</td></tr>'
+        )
+    produtos = produtos_exibidos_recibo(ctx)
+    if produtos:
+        servicos.append('<tr><td colspan="2"><strong>Produtos</strong></td></tr>')
+        for item in produtos:
+            detalhe = (
+                f'{_t(item["quantidade"])} × {formatar_moeda_recibo(item["preco_unitario"])}'
+            )
+            if item["desconto"] > 0.009:
+                detalhe += f' − desc. {formatar_moeda_recibo(item["desconto"])}'
+            servicos.append(
+                f'<tr><td style="padding-left:8px">• {_t(item["nome"])}'
+                f'<br><span style="color:#555">{detalhe}</span></td>'
+                f'<td style="text-align:right;white-space:nowrap">{formatar_moeda_recibo(item["subtotal"])}</td></tr>'
+            )
+        servicos.append(
+            '<tr><td colspan="2">Recibo comercial de produto. Não é nota fiscal.</td></tr>'
         )
 
     descontos = _linhas_descontos_recibo(ctx)
@@ -260,7 +278,11 @@ def gerar_html_recibo_do_payment(payment) -> str:
     """Carrega o mesmo contexto do PDF e devolve o cupom HTML."""
     appointment = payment.appointment
     if not appointment:
-        raise ValueError("Pagamento sem agendamento vinculado.")
+        venda = getattr(payment, "venda_balcao", None)
+        patient = getattr(venda, "paciente", None) if venda is not None else None
+        if patient is None:
+            raise ValueError("Pagamento sem agendamento vinculado.")
+        return gerar_html_recibo(_obter_dados_contexto(payment, patient, None))
     try:
         from clinica_beleza.models import Appointment
 

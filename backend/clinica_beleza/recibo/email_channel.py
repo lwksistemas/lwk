@@ -14,6 +14,7 @@ from .context import (
     linha_vencimento_recibo,
     linhas_protocolo_informativo,
     procedimentos_exibidos_recibo,
+    produtos_exibidos_recibo,
     reconciliar_conta_recibo,
     rotulo_subtotal_recibo,
     rotulo_total_recibo,
@@ -133,6 +134,15 @@ def _montar_email_html(ctx: dict) -> str:
         f"<li>{html.escape(nome)} — {formatar_moeda_recibo(valor)}</li>"
         for nome, valor in procedimentos_exibidos_recibo(ctx)
     )
+    produtos = produtos_exibidos_recibo(ctx)
+    if produtos:
+        procs_html += "<li><strong>Produtos</strong></li>"
+        procs_html += "".join(
+            f'<li>{html.escape(item["nome"])} — {html.escape(str(item["quantidade"]))} × '
+            f'{formatar_moeda_recibo(item["preco_unitario"])} — {formatar_moeda_recibo(item["subtotal"])}</li>'
+            for item in produtos
+        )
+        procs_html += "<li>Recibo comercial de produto. Não é nota fiscal.</li>"
     doc_line = _linha_documento_loja(ctx)
     descontos = _linhas_descontos_recibo(ctx)
     desconto_html = ""
@@ -211,6 +221,13 @@ def _montar_email_texto(ctx: dict) -> str:
         f"  • {nome} — {formatar_moeda_recibo(valor)}"
         for nome, valor in procedimentos_exibidos_recibo(ctx)
     )
+    for item in produtos_exibidos_recibo(ctx):
+        procs_lines.append(
+            f'  • {item["nome"]} — {item["quantidade"]} × {formatar_moeda_recibo(item["preco_unitario"])}'
+            f' — {formatar_moeda_recibo(item["subtotal"])}'
+        )
+    if produtos_exibidos_recibo(ctx):
+        procs_lines.append("  Recibo comercial de produto. Não é nota fiscal.")
     procs = "\n".join(procs_lines) or "  —"
     doc_line = _linha_documento_loja(ctx)
     descontos = _linhas_descontos_recibo(ctx)

@@ -45,6 +45,7 @@ export function ModalReceberConsulta({
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
   const valorProcCatalogo = Number(consulta.valor_procedimentos ?? 0);
 
+  const [totalProdutos, setTotalProdutos] = useState(0);
   const [desconto, setDesconto] = useState("");
   const [entradas, setEntradas] = useState<EntradaPagamentoLinha[]>([novaLinhaEntrada("CASH")]);
   const [markAsPaid, setMarkAsPaid] = useState(true);
@@ -139,6 +140,32 @@ export function ModalReceberConsulta({
   }, [open]);
 
   useEffect(() => {
+    if (!open || !consulta.id || Number(consulta.valor_pago ?? 0) > 0.009) {
+      setTotalProdutos(0);
+      return;
+    }
+    let ativo = true;
+    ClinicaBelezaAPI.consultas.produtos
+      .list(consulta.id)
+      .then((lista) => {
+        if (!ativo) return;
+        const itens = Array.isArray(lista) ? lista : [];
+        const soma = itens.reduce((acc, item) => {
+          if (item.finalidade !== "venda") return acc;
+          const bruto = Number(item.quantidade || 0) * Number(item.preco_unitario || 0);
+          return acc + Math.max(0, bruto - Number(item.desconto || 0));
+        }, 0);
+        setTotalProdutos(round2(soma));
+      })
+      .catch(() => {
+        if (ativo) setTotalProdutos(0);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [open, consulta.id, consulta.valor_pago]);
+
+  useEffect(() => {
     if (open && !prevOpen) {
       if (deveAbrirComprovanteRecibo(consulta)) {
         setConfirmado(true);
@@ -164,7 +191,7 @@ export function ModalReceberConsulta({
   const consultaParaComplemento =
     saldoProp >= saldoAtualizada ? consulta : consultaExibida;
   const valorDesconto = parseMoneyInput(desconto);
-  const totalLiquido = calcularTotalLiquido(baseReceber, valorDesconto);
+  const totalLiquido = round2(calcularTotalLiquido(baseReceber, valorDesconto) + totalProdutos);
   const descontoIntegral = totalLiquido <= 0 && valorDesconto > 0;
   const distribuido = useMemo(() => somaEntradas(entradas), [entradas]);
 
@@ -401,6 +428,11 @@ export function ModalReceberConsulta({
               </label>
             </fieldset>
           ) : null}
+          {totalProdutos > 0.009 && (
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Produtos vendidos neste atendimento: {formatCurrency(totalProdutos)}. O desconto acima vale só para os serviços.
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ReceberDadosAtendimento
               consulta={consulta}

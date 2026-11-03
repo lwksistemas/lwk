@@ -58,6 +58,11 @@ export function ProdutosListaTable({
                 <td className="p-3 font-medium text-gray-800 dark:text-gray-200">
                   <span className="inline-flex items-center gap-1.5">
                     {item.produto_nome}
+                    <span className="block text-[11px] font-normal text-gray-500">
+                      {item.finalidade === "venda"
+                        ? `Venda · ${Number(item.quantidade)} × ${Number(item.preco_unitario || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`
+                        : "Utilizado no procedimento"}
+                    </span>
                     {estoqueInsuficiente && (
                       <span title="Estoque insuficiente para finalizar">
                         <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />

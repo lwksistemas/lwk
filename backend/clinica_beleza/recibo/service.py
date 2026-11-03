@@ -16,7 +16,18 @@ def enviar_recibo_pagamento(payment, *, canal: str) -> tuple[bool, str]:
     """
     appointment = payment.appointment
     if not appointment:
-        return False, "Pagamento sem agendamento vinculado."
+        from clinica_beleza.venda_produto_service import produtos_do_pagamento
+
+        venda = getattr(payment, "venda_balcao", None)
+        patient = getattr(venda, "paciente", None) if venda is not None else None
+        if patient is None or not produtos_do_pagamento(payment):
+            return False, "Pagamento sem agendamento vinculado."
+        somente_foto = (getattr(payment, "status_assinatura_recibo", "") or "") == "concluido"
+        if canal == "email":
+            return _enviar_recibo_email(payment, patient, None, somente_foto=somente_foto)
+        if canal == "whatsapp":
+            return _enviar_recibo_whatsapp(payment, patient, None, somente_foto=somente_foto)
+        return False, f"Canal desconhecido: {canal}"
 
     # Garante consulta + local para exibir taxa/retorno gratuito no recibo.
     try:

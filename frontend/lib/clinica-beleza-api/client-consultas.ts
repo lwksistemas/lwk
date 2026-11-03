@@ -70,7 +70,15 @@ export const consultasApi = {
     list: (consultaId: number) => cbGet(`/consultas/${consultaId}/produtos/`),
     add: (
       consultaId: number,
-      data: { produto: number; quantidade: number; lote?: string; validade?: string },
+      data: {
+        produto: number;
+        quantidade: number;
+        lote?: string;
+        validade?: string;
+        finalidade?: "uso" | "venda";
+        preco_unitario?: number;
+        desconto?: number;
+      },
     ) => cbPost(`/consultas/${consultaId}/produtos/`, data),
     remove: (consultaId: number, itemId: number) =>
       cbDelete(`/consultas/${consultaId}/produtos/${itemId}/`),

@@ -17,6 +17,7 @@ import { EstoqueImportarXmlModal } from "@/components/clinica-beleza/estoque/Est
 import { EstoqueFornecedoresModal } from "@/components/clinica-beleza/estoque/EstoqueFornecedoresModal";
 import { EstoquePedidoModal } from "@/components/clinica-beleza/estoque/EstoquePedidoModal";
 import { EstoquePedidosListModal } from "@/components/clinica-beleza/estoque/EstoquePedidosListModal";
+import { EstoqueVendaModal } from "@/components/clinica-beleza/estoque/EstoqueVendaModal";
 import { useEstoquePage } from "@/hooks/clinica-beleza/useEstoquePage";
 import { useEstoqueColunas } from "@/hooks/clinica-beleza/useEstoqueColunas";
 
@@ -42,6 +43,7 @@ export function EstoquePageContent({
   const [showPedidos, setShowPedidos] = useState(false);
   const [showPedido, setShowPedido] = useState(false);
   const [pedidoAbertoId, setPedidoAbertoId] = useState<number | null>(null);
+  const [showVenda, setShowVenda] = useState(false);
 
   return (
     <>
@@ -75,6 +77,15 @@ export function EstoquePageContent({
             >
               <Settings2 size={16} />
               <span className="hidden sm:inline">Categorias</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowVenda(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-white"
+              style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+            >
+              <ShoppingCart size={16} />
+              <span className="hidden sm:inline">Venda de produtos</span>
             </button>
             <button
               type="button"
@@ -219,6 +230,7 @@ export function EstoquePageContent({
           setShowPedido(true);
         }}
       />
+      <EstoqueVendaModal open={showVenda} onClose={() => { setShowVenda(false); void page.loadAll(); }} />
       <EstoquePedidoModal
         open={showPedido}
         pedidoId={pedidoAbertoId}

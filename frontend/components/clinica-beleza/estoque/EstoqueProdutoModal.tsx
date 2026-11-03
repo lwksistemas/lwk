@@ -58,6 +58,8 @@ export function EstoqueProdutoModal({
     quantidade_atual: produto?.quantidade_atual ?? 0,
     quantidade_minima: produto?.quantidade_minima ?? 0,
     preco_custo: produto ? Number(produto.preco_custo) : 0,
+    preco_venda: produto ? Number(produto.preco_venda || 0) : 0,
+    vende_ao_cliente: produto?.vende_ao_cliente ?? false,
     validade: produto?.validade ? String(produto.validade).slice(0, 10) : "",
     lote: produto?.lote ?? "",
     numero_nota: produto?.numero_nota ?? "",
@@ -78,6 +80,8 @@ export function EstoqueProdutoModal({
       quantidade_atual: form.quantidade_atual,
       quantidade_minima: form.quantidade_minima,
       preco_custo: Number(form.preco_custo),
+      preco_venda: Number(form.preco_venda),
+      vende_ao_cliente: form.vende_ao_cliente,
       validade: form.validade || null,
       lote: form.lote,
       numero_nota: form.numero_nota,
@@ -215,6 +219,31 @@ export function EstoqueProdutoModal({
                     className={ESTOQUE_INPUT_CLASS}
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Preço de venda (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={form.preco_venda}
+                    onChange={(e) => setForm({ ...form, preco_venda: Number(e.target.value) })}
+                    className={ESTOQUE_INPUT_CLASS}
+                  />
+                </div>
+                <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={form.vende_ao_cliente}
+                    onChange={(e) => setForm({ ...form, vende_ao_cliente: e.target.checked })}
+                  />
+                  <span>
+                    Pode vender ao cliente
+                    <span className="block text-xs text-gray-500">A importação da nota atualiza o custo e não mexe neste preço.</span>
+                  </span>
+                </label>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Validade</label>
                   <input

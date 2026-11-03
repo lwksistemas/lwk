@@ -8,6 +8,9 @@ export interface ConsultaProdutoItem {
   unidade_medida?: string;
   quantidade_disponivel?: number | string;
   estoque_baixado?: boolean;
+  finalidade?: "uso" | "venda";
+  preco_unitario?: number | string;
+  desconto?: number | string;
 }
 
 export interface CategoriaEstoque {
@@ -21,6 +24,8 @@ export interface CategoriaEstoque {
 export interface ProdutoEstoque {
   id: number;
   nome: string;
+  preco_venda?: number | string;
+  vende_ao_cliente?: boolean;
   lote?: string;
   validade?: string | null;
   quantidade_atual: number | string;

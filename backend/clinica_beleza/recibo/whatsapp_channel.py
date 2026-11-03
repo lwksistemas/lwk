@@ -11,6 +11,7 @@ from .context import (
     linha_vencimento_recibo,
     linhas_protocolo_informativo,
     procedimentos_exibidos_recibo,
+    produtos_exibidos_recibo,
     recebido_a_maior_recibo,
     reconciliar_conta_recibo,
     rotulo_subtotal_recibo,
@@ -122,6 +123,18 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
     for nome, valor in procedimentos_exibidos_recibo(ctx):
         procs_lines.append(f"  • {nome} ... {formatar_moeda_recibo(valor)}")
     procs = "\n".join(procs_lines)
+    produtos = produtos_exibidos_recibo(ctx)
+    bloco_produtos = ""
+    if produtos:
+        linhas_prod = "\n".join(
+            f'  • {item["nome"]}  {item["quantidade"]} × {formatar_moeda_recibo(item["preco_unitario"])}'
+            f' = {formatar_moeda_recibo(item["subtotal"])}'
+            for item in produtos
+        )
+        bloco_produtos = (
+            f'\n🛍 *Produtos:*\n{linhas_prod}\n'
+            f'_Recibo comercial de produto. Não é nota fiscal._\n'
+        )
     prof_line = f'👩‍⚕️ *Profissional:* {ctx["profissional_nome"]}\n' if ctx["profissional_nome"] else ""
     descontos = _linhas_descontos_recibo(ctx)
     desconto_block = ""
@@ -166,7 +179,8 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
         f'{prof_line}'
         f'📅 *Data/Hora do atendimento:* {ctx.get("data_atendimento") or "—"}\n\n'
         f'📋 *Serviços realizados:*\n'
-        f'{procs}\n\n'
+        f'{procs}\n'
+        f'{bloco_produtos}\n'
         f'{desconto_block}'
         f'━━━━━━━━━━━━━━━━━━━━\n'
         f'💳 *Forma de pagamento:*\n'

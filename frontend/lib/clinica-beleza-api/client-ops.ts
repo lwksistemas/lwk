@@ -97,6 +97,14 @@ export const estoqueApi = {
   update: (id: number, data: Record<string, unknown>, loja?: { id?: number; slug?: string } | null) =>
     cbPut(`/estoque/${id}/`, data, loja),
   delete: (id: number) => cbDelete(`/estoque/${id}/`),
+  vender: (data: {
+    paciente: number;
+    payment_method: string;
+    itens: { produto: number; quantidade: number; preco_unitario: number; desconto?: number }[];
+  }) =>
+    cbPost<{ id: number; payment_id: number; total: string; status: string }>("/estoque/vendas/", data),
+  cancelarVenda: (id: number) =>
+    cbPost<{ id: number; status: string }>(`/estoque/vendas/${id}/cancelar/`, {}),
   resumo: (loja?: { id?: number; slug?: string } | null) => cbGet("/estoque/resumo/", undefined, loja),
   movimentar: (id: number, data: { tipo: string; quantidade: number; motivo?: string }) =>
     cbPost(`/estoque/${id}/movimentar/`, data),

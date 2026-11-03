@@ -22,6 +22,8 @@ export interface EstoqueProduto {
   quantidade_atual: number;
   quantidade_minima: number;
   preco_custo: number | string;
+  preco_venda?: number | string;
+  vende_ao_cliente?: boolean;
   validade: string | null;
   lote?: string;
   numero_nota?: string;

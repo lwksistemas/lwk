@@ -29,8 +29,14 @@ export function ConsultaProdutosTab({
     showAddForm,
     produtoId,
     quantidade,
+    finalidade,
+    precoUnitario,
+    desconto,
     lote,
     validade,
+    setFinalidade,
+    setPrecoUnitario,
+    setDesconto,
     erro,
     erroEstoque,
     totaisConsulta,
@@ -52,8 +58,7 @@ export function ConsultaProdutosTab({
   return (
     <div className="space-y-5">
       <p className="text-sm text-gray-600 dark:text-gray-400">
-        Registre os produtos utilizados no atendimento. Ao <strong>finalizar a consulta</strong>, a quantidade será
-        baixada automaticamente do estoque.
+        O produto <strong>utilizado</strong> só baixa o estoque. O produto <strong>vendido</strong> baixa o estoque e entra no recibo.
       </p>
 
       <ProdutosEstoqueAlert mensagens={produtosComEstoqueInsuficiente} />
@@ -76,6 +81,9 @@ export function ConsultaProdutosTab({
               produtosPorCategoria={produtosPorCategoria}
               produtoId={produtoId}
               quantidade={quantidade}
+              finalidade={finalidade}
+              precoUnitario={precoUnitario}
+              desconto={desconto}
               lote={lote}
               validade={validade}
               erro={erro}
@@ -84,6 +92,9 @@ export function ConsultaProdutosTab({
               saving={saving}
               onProdutoChange={onProdutoChange}
               onQuantidadeChange={setQuantidade}
+              onFinalidadeChange={setFinalidade}
+              onPrecoChange={setPrecoUnitario}
+              onDescontoChange={setDesconto}
               onLoteChange={setLote}
               onValidadeChange={setValidade}
               onClose={() => setShowAddForm(false)}

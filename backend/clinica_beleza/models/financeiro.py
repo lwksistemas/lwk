@@ -37,7 +37,9 @@ class Payment(LojaIsolationMixin, models.Model):
         ("concluido", "Concluído"),
     )
 
-    appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, verbose_name="Agendamento")
+    appointment = models.ForeignKey(
+        Appointment, on_delete=models.CASCADE, null=True, blank=True, verbose_name="Agendamento",
+    )
     amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor cobrado")
     valor_total = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True,
@@ -63,6 +65,11 @@ class Payment(LojaIsolationMixin, models.Model):
         max_digits=10, decimal_places=2, default=0,
         verbose_name="Desconto (R$)",
         help_text="Valor de desconto concedido no atendimento.",
+    )
+    valor_produtos = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        verbose_name="Receita de produtos (R$)",
+        help_text="Parte do total que é venda de produto. Serviço continua no restante.",
     )
     comissao_percentual = models.PositiveSmallIntegerField(default=0, verbose_name="Comissão %")
     comissao_valor = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Comissão R$")

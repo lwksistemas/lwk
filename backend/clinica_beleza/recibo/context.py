@@ -288,10 +288,25 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     from superadmin.models import Loja
 
     loja = Loja.objects.filter(id=payment.loja_id).first()
-    professional = getattr(appointment, "professional", None)
-    procs = _buscar_procedimentos_recibo(appointment)
+    professional = getattr(appointment, "professional", None) if appointment is not None else None
+    from clinica_beleza.venda_produto_service import produtos_do_pagamento
 
-    taxa_info = _calcular_taxa_retorno_recibo(appointment, payment.loja_id)
+    produtos = produtos_do_pagamento(payment)
+    somente_produtos = appointment is None
+    procs = [] if somente_produtos else _buscar_procedimentos_recibo(appointment)
+
+    taxa_info = (
+        {
+            "taxa_consulta": 0.0,
+            "taxa_consulta_referencia": 0.0,
+            "retorno_gratuito": False,
+            "retorno_dias": None,
+            "retorno_aviso": "",
+            "cobrar_taxa_com_procedimento": True,
+        }
+        if somente_produtos
+        else _calcular_taxa_retorno_recibo(appointment, payment.loja_id)
+    )
     desconto = desconto_concedido(payment)
     valor_total = float(payment.valor_total_efetivo)
     # Valor pago = só o que foi efetivamente recebido (parcelas). "A prazo" não é pago.
@@ -329,7 +344,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
 
     ctx = _dados_loja_recibo(loja)
     assinatura_recibo = _dados_assinatura_recibo(payment)
-    protocolo_recibo = _dados_protocolo_recibo(appointment)
+    protocolo_recibo = {} if somente_produtos else _dados_protocolo_recibo(appointment)
 
     return {
         **ctx,
@@ -340,7 +355,9 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         "paciente_telefone": telefone_exibicao_brasileiro(getattr(patient, "telefone", "") or ""),
         "profissional_nome": getattr(professional, "nome", "") if professional else "",
         "procedimentos": procs,
-        **_local_convenio_recibo(appointment),
+        "produtos": produtos,
+        "somente_produtos": somente_produtos,
+        **({} if somente_produtos else _local_convenio_recibo(appointment)),
         "subtotal": float(subtotal),
         "desconto": desconto,
         "desconto_retorno": desconto_retorno,
@@ -359,7 +376,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         ),
         "data": _formatar_data_recibo(payment.payment_date),
         "data_emissao": _formatar_data_recibo(_agora_recibo()),
-        "data_atendimento": _formatar_data_recibo(getattr(appointment, "date", None)),
+        "data_atendimento": _formatar_data_recibo(getattr(appointment, "date", None) if appointment is not None else None),
         "recibo_numero": getattr(payment, "id", None),
         **taxa_info,
         **protocolo_recibo,
@@ -763,6 +780,24 @@ def procedimentos_exibidos_recibo(ctx: dict) -> list[tuple[str, float]]:
         ):
             continue
         linhas.append((nome, valor))
+    return linhas
+
+
+def produtos_exibidos_recibo(ctx: dict) -> list[dict]:
+    """Linhas de produto vendido. Insumo de procedimento não entra."""
+    linhas = []
+    for item in ctx.get("produtos") or []:
+        try:
+            subtotal = float(item.get("subtotal") or 0)
+        except (TypeError, ValueError):
+            subtotal = 0.0
+        linhas.append({
+            "nome": item.get("nome") or "Produto",
+            "quantidade": item.get("quantidade") or "0",
+            "preco_unitario": float(item.get("preco_unitario") or 0),
+            "desconto": float(item.get("desconto") or 0),
+            "subtotal": subtotal,
+        })
     return linhas
 
 

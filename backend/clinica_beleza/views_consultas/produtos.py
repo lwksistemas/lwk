@@ -58,6 +58,30 @@ class ConsultaProdutoListView(GetObjectMixin, APIView):
 
         lote = (request.data.get("lote") or produto.lote or "").strip()
         validade = request.data.get("validade") or produto.validade
+        finalidade = (request.data.get("finalidade") or "uso").strip() or "uso"
+        if finalidade not in ("uso", "venda"):
+            return Response({"error": "Informe se o produto foi utilizado ou vendido."}, status=status.HTTP_400_BAD_REQUEST)
+        preco = Decimal("0")
+        desconto = Decimal("0")
+        if finalidade == "venda":
+            from ..venda_produto_service import VendaProdutoError, validar_item_venda
+            from ..models import LoteProdutoEstoque
+
+            try:
+                preco = Decimal(str(request.data.get("preco_unitario") if request.data.get("preco_unitario") not in (None, "") else produto.preco_venda or 0))
+                desconto = Decimal(str(request.data.get("desconto") or 0))
+            except Exception:
+                return Response({"error": "Preço ou desconto inválido."}, status=status.HTTP_400_BAD_REQUEST)
+            lotes = [
+                {"quantidade": lote_row.quantidade, "validade": lote_row.validade}
+                for lote_row in LoteProdutoEstoque.objects.filter(produto=produto, quantidade__gt=0)
+            ]
+            try:
+                validar_item_venda(produto, quantidade, lotes)
+            except VendaProdutoError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            if desconto > preco * quantidade:
+                return Response({"error": "Desconto maior que o valor do produto."}, status=status.HTTP_400_BAD_REQUEST)
 
         data = {
             "consulta": consulta.id,
@@ -65,6 +89,9 @@ class ConsultaProdutoListView(GetObjectMixin, APIView):
             "quantidade": quantidade,
             "lote": lote,
             "validade": validade or None,
+            "finalidade": finalidade,
+            "preco_unitario": preco,
+            "desconto": desconto,
         }
         serializer = ConsultaProdutoUtilizadoSerializer(data=data)
         if serializer.is_valid():

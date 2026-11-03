@@ -129,7 +129,10 @@ def _calcular_valor_total_com_desconto(valor_bruto: Decimal, desconto, payment) 
     return valor_total
 
 
-def _garantir_ou_criar_payment(consulta_service, appointment, valor_total, metodo_principal, comissao_pct, comissao_val, valor_desconto, payment):
+def _garantir_ou_criar_payment(
+    consulta_service, appointment, valor_total, metodo_principal, comissao_pct, comissao_val,
+    valor_desconto, payment, valor_produtos=None,
+):
     """Cria ou atualiza o objeto Payment. Retorna o payment (novo ou atualizado)."""
     if not payment:
         return consulta_service.Payment.objects.create(
@@ -142,9 +145,12 @@ def _garantir_ou_criar_payment(consulta_service, appointment, valor_total, metod
             comissao_valor=comissao_val,
             loja_id=appointment.loja_id,
             desconto=valor_desconto if valor_desconto > 0 else Decimal(0),
+            valor_produtos=valor_produtos or Decimal(0),
             notes=f"Desconto: R$ {valor_desconto}" if valor_desconto > 0 else None,
         )
     payment.valor_total = valor_total
+    if valor_produtos is not None:
+        payment.valor_produtos = valor_produtos
     payment.payment_method = metodo_principal
     payment.comissao_percentual = comissao_pct
     payment.comissao_valor = comissao_val
@@ -203,7 +209,7 @@ def _finalizar_payment_draft(payment, valor_total, lista, valor_desconto, mark_a
         payment.status = "DRAFT"
         payment.amount = min(total_pago, valor_total) if quitou else total_pago
     update_fields = [
-        "amount", "valor_total", "payment_method", "status", "payment_date",
+        "amount", "valor_total", "valor_produtos", "payment_method", "status", "payment_date",
         "comissao_percentual", "comissao_valor", "desconto", "updated_at",
     ]
     payment.desconto = valor_desconto if valor_desconto > 0 else Decimal(0)

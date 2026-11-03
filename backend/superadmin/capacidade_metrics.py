@@ -131,7 +131,9 @@ def coletar_snapshot() -> dict[str, Any]:
     )
     registro: dict[str, Any] = {
         "ts": timezone.localtime(timezone.now()).isoformat(),
-        "host": "api",
+        "host": "lwksistemas-nova",
+        "servidor": "lwksistemas-nova",
+        "nome": "lwksistemas-nova",
         "cpus": _cpus(),
         **_load_average(),
         **_memoria(),
@@ -168,12 +170,18 @@ def gravar_snapshot(arquivo: str | None = None) -> dict[str, Any]:
     return registro
 
 
-def ler_historico(*, dias: int = 7, arquivo: str | None = None) -> list[dict[str, Any]]:
+def ler_historico(
+    *,
+    dias: int = 7,
+    arquivo: str | None = None,
+    servidor: str | None = None,
+) -> list[dict[str, Any]]:
     path = arquivo or ARQUIVO_PADRAO
     if not os.path.exists(path):
         return []
     dias = max(1, min(int(dias or 7), 30))
     corte = timezone.now() - timedelta(days=dias)
+    sid = (servidor or "").strip() or None
     out: list[dict[str, Any]] = []
     with open(path) as fh:
         for linha in fh:
@@ -188,8 +196,16 @@ def ler_historico(*, dias: int = 7, arquivo: str | None = None) -> list[dict[str
                 ts = datetime.fromisoformat(ts_raw)
                 if timezone.is_naive(ts):
                     ts = timezone.make_aware(ts, timezone.get_current_timezone())
-                if ts >= corte:
-                    out.append(r)
+                if ts < corte:
+                    continue
+                if sid:
+                    # Linhas antigas (sem campo) = lwksistemas-nova
+                    rs = r.get("servidor") or r.get("host") or "lwksistemas-nova"
+                    if rs in ("api",):
+                        rs = "lwksistemas-nova"
+                    if rs != sid:
+                        continue
+                out.append(r)
             except Exception:
                 continue
     return out

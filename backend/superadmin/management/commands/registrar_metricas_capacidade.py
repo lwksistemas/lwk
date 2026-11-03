@@ -1,20 +1,20 @@
-"""Coleta e registra métricas de capacidade do servidor ERP.
+"""Coleta e registra métricas de capacidade das VMs Magalu.
 
-Grava uma linha JSON por coleta em um arquivo JSONL (append), para acompanhar o
-crescimento (load, RAM, disco, conexões Postgres, fila django-q, nº de lojas)
-sem tocar no banco. Pensado para rodar no cron a cada 15 min.
+Grava uma linha JSON por servidor em JSONL (append). Cron ~15 min.
 
 Uso:
     python manage.py registrar_metricas_capacidade
-    python manage.py registrar_metricas_capacidade --arquivo /app/media/metricas_capacidade.jsonl
 """
 from django.core.management.base import BaseCommand
 
-from superadmin.capacidade_metrics import ARQUIVO_PADRAO, gravar_snapshot
+from superadmin.capacidade_metrics import ARQUIVO_PADRAO, rotacionar_arquivo
+from superadmin.capacidade_servidores import coletar_todos
+import json
+import os
 
 
 class Command(BaseCommand):
-    help = "Registra métricas de capacidade do servidor (load, RAM, disco, Postgres, fila, lojas)."
+    help = "Registra métricas de capacidade (lwksistemas-nova, midia01, whatsappnova)."
 
     def add_arguments(self, parser):
         parser.add_argument("--arquivo", type=str, default=ARQUIVO_PADRAO)
@@ -22,20 +22,23 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         arquivo = options["arquivo"]
         try:
-            registro = gravar_snapshot(arquivo)
+            os.makedirs(os.path.dirname(arquivo) or ".", exist_ok=True)
+            registros = coletar_todos()
+            with open(arquivo, "a") as fh:
+                for registro in registros:
+                    # Não persistir erro/dica longos a cada ciclo se unavailable — mantém status.
+                    slim = {k: v for k, v in registro.items() if k not in ("dica",)}
+                    fh.write(json.dumps(slim, ensure_ascii=False) + "\n")
+            rotacionar_arquivo(arquivo)
         except Exception as exc:
             self.stderr.write(self.style.ERROR(f"Falha ao gravar métricas: {exc}"))
             return
 
-        cpus = registro.get("cpus") or 1
-        load5 = registro.get("load_5m")
-        if load5 is not None and load5 > cpus * 0.75:
-            self.stdout.write(self.style.WARNING(
-                f"Load 5m {load5} alto para {cpus} vCPU — avaliar aumentar workers/escala.",
-            ))
-        self.stdout.write(self.style.SUCCESS(
-            f"Métrica registrada: load5={load5} mem={registro.get('mem_usada_pct')}% "
-            f"disk={registro.get('disk_usada_pct')}% "
-            f"pg={registro.get('pg_conexoes')}/{registro.get('pg_conexoes_max')} "
-            f"fila={registro.get('fila_pendente')} lojas={registro.get('lojas_ativas')}",
-        ))
+        for registro in registros:
+            nome = registro.get("nome") or registro.get("servidor")
+            st = registro.get("status") or "ok"
+            self.stdout.write(
+                f"{nome}: status={st} load5={registro.get('load_5m')} "
+                f"mem={registro.get('mem_usada_pct')}% disk={registro.get('disk_usada_pct')}%"
+            )
+        self.stdout.write(self.style.SUCCESS(f"Métricas registradas ({len(registros)} servidores)."))

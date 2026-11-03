@@ -37,6 +37,7 @@ from .views import (
     capacidade_atual,
     capacidade_historico,
     capacidade_midia,
+    capacidade_servidores,
     excluir_midia_arquivo,
     health_check,  # ✅ NOVO v750
     listar_midia_arquivos,
@@ -146,7 +147,8 @@ urlpatterns = [
     path("storage/verificar-todas/", verificar_storage_todas, name="verificar-storage-todas"),
     path("storage/", listar_storage_lojas, name="listar-storage-lojas"),
 
-    # Capacidade dos servidores (CPU/RAM/disco) — só superadmin
+    # Capacidade dos servidores Magalu (CPU/RAM/disco) — só superadmin
+    path("capacidade/servidores/", capacidade_servidores, name="capacidade-servidores"),
     path("capacidade/atual/", capacidade_atual, name="capacidade-atual"),
     path("capacidade/historico/", capacidade_historico, name="capacidade-historico"),
     path("capacidade/midia/", capacidade_midia, name="capacidade-midia"),

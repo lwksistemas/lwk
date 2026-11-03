@@ -402,12 +402,29 @@ def atalho_redirect(request, atalho):
 
 @api_view(["GET"])
 @permission_classes([IsSuperAdmin])
+def capacidade_servidores(request):
+    """Lista as VMs Magalu monitoradas (nomes iguais ao console). Só superadmin."""
+    from superadmin.capacidade_servidores import listar_servidores
+
+    return Response({"servidores": listar_servidores()})
+
+
+@api_view(["GET"])
+@permission_classes([IsSuperAdmin])
 def capacidade_atual(request):
-    """Snapshot ao vivo de CPU/RAM/disco/fila no host da API. Só superadmin."""
-    from superadmin.capacidade_metrics import coletar_snapshot
+    """Snapshot ao vivo. Query: ?servidor=lwksistemas-nova|midia01|whatsappnova."""
+    from superadmin.capacidade_servidores import SERVIDOR_IDS, coletar_por_servidor, coletar_todos
 
     try:
-        return Response(coletar_snapshot())
+        sid = (request.query_params.get("servidor") or "").strip()
+        if sid:
+            if sid not in SERVIDOR_IDS:
+                return Response(
+                    {"error": f"Servidor inválido. Use: {', '.join(sorted(SERVIDOR_IDS))}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response(coletar_por_servidor(sid))
+        return Response({"servidores": coletar_todos()})
     except Exception as e:
         logger.error("capacidade_atual falhou: %s", e, exc_info=True)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -416,7 +433,7 @@ def capacidade_atual(request):
 @api_view(["GET"])
 @permission_classes([IsSuperAdmin])
 def capacidade_historico(request):
-    """Histórico JSONL (até 30 dias). Query: ?dias=1|7|30. Só superadmin."""
+    """Histórico JSONL. Query: ?dias=1|7|30&servidor=lwksistemas-nova."""
     from superadmin.capacidade_metrics import ler_historico
 
     try:
@@ -425,9 +442,11 @@ def capacidade_historico(request):
             dias = int(dias_raw)
         except (TypeError, ValueError):
             dias = 7
-        pontos = ler_historico(dias=dias)
+        sid = (request.query_params.get("servidor") or "lwksistemas-nova").strip()
+        pontos = ler_historico(dias=dias, servidor=sid)
         return Response({
             "dias": max(1, min(dias, 30)),
+            "servidor": sid,
             "total": len(pontos),
             "pontos": pontos,
         })
@@ -439,41 +458,11 @@ def capacidade_historico(request):
 @api_view(["GET"])
 @permission_classes([IsSuperAdmin])
 def capacidade_midia(request):
-    """Disco/saúde do servidor de mídia via /health autenticado. Só superadmin."""
-    import requests as http_requests
+    """Atalho = capacidade atual de midia01 (compat)."""
+    from superadmin.capacidade_servidores import coletar_midia01
 
-    from core.media_storage import MEDIA_API_TOKEN, MEDIA_SERVER_URL
-
-    if not MEDIA_SERVER_URL:
-        return Response(
-            {"status": "unavailable", "error": "MEDIA_SERVER_URL ausente"},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
-    url = f"{MEDIA_SERVER_URL.rstrip('/')}/health"
-    headers = {}
-    if MEDIA_API_TOKEN:
-        headers["Authorization"] = f"Bearer {MEDIA_API_TOKEN}"
-    try:
-        resp = http_requests.get(url, headers=headers, timeout=8)
-        data = resp.json() if resp.content else {}
-        if resp.status_code >= 400:
-            return Response(
-                {"status": "error", "http_status": resp.status_code, "detail": data},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-        return Response({
-            "status": data.get("status") or "ok",
-            "host": "midia",
-            "media_server": MEDIA_SERVER_URL,
-            "free_gb": data.get("free_gb"),
-            "total_gb": data.get("total_gb"),
-            "used_gb": data.get("used_gb"),
-            "used_pct": data.get("used_pct"),
-            "tenants": data.get("tenants"),
-        })
-    except Exception as e:
-        logger.warning("capacidade_midia: %s", e)
-        return Response(
-            {"status": "unavailable", "error": str(e), "media_server": MEDIA_SERVER_URL},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
+    data = coletar_midia01()
+    code = status.HTTP_200_OK
+    if data.get("status") == "unavailable":
+        code = status.HTTP_503_SERVICE_UNAVAILABLE
+    return Response(data, status=code)

@@ -586,9 +586,41 @@ def auth_file():
     return "", 401
 
 
+def _host_load_mem() -> dict:
+    """Load + RAM do host (best-effort via /proc)."""
+    out: dict = {}
+    try:
+        l1, l5, l15 = os.getloadavg()
+        out["load_1m"] = round(l1, 2)
+        out["load_5m"] = round(l5, 2)
+        out["load_15m"] = round(l15, 2)
+    except (OSError, AttributeError):
+        pass
+    try:
+        out["cpus"] = os.cpu_count()
+    except Exception:
+        pass
+    try:
+        info = {}
+        with open("/proc/meminfo") as fh:
+            for linha in fh:
+                partes = linha.split(":")
+                if len(partes) == 2:
+                    info[partes[0].strip()] = int(partes[1].strip().split()[0])
+        total = info.get("MemTotal", 0) // 1024
+        disp = info.get("MemAvailable", 0) // 1024
+        usada = total - disp
+        out["mem_total_mb"] = total
+        out["mem_usada_mb"] = usada
+        out["mem_usada_pct"] = round(usada / total * 100, 1) if total else None
+    except OSError:
+        pass
+    return out
+
+
 @app.route("/health", methods=["GET"])
 def health():
-    corpo = {"status": "ok"}
+    corpo = {"status": "ok", "servidor": "midia01", "nome": "midia01"}
     header = request.headers.get("Authorization", "")
     token = header[7:].strip() if header.lower().startswith("bearer ") else ""
     if API_TOKEN and token and hmac.compare_digest(token, API_TOKEN):
@@ -602,9 +634,14 @@ def health():
             corpo["total_gb"] = round(total / (1024**3), 1)
             corpo["used_gb"] = round(usada / (1024**3), 1)
             corpo["used_pct"] = round((usada / total) * 100, 1) if total else None
+            corpo["disk_livre_gb"] = corpo["free_gb"]
+            corpo["disk_total_gb"] = corpo["total_gb"]
+            corpo["disk_usada_gb"] = corpo["used_gb"]
+            corpo["disk_usada_pct"] = corpo["used_pct"]
             corpo["tenants"] = (
                 len([d for d in STORAGE_ROOT.iterdir() if d.is_dir()]) if STORAGE_ROOT.exists() else 0
             )
+            corpo.update(_host_load_mem())
         except OSError:
             app.logger.exception("health: disco indisponível")
     return jsonify(corpo)

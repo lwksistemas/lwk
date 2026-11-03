@@ -15,8 +15,24 @@ import {
 import apiClient from '@/lib/api-client';
 import { authService } from '@/lib/auth';
 
+type ServidorInfo = {
+  id: string;
+  nome: string;
+  papel: string;
+  tipo_magalu: string;
+  ipv4: string;
+};
+
 type Snapshot = {
   ts?: string;
+  servidor?: string;
+  nome?: string;
+  papel?: string;
+  tipo_magalu?: string;
+  ipv4?: string;
+  status?: string;
+  error?: string;
+  dica?: string;
   cpus?: number | null;
   load_1m?: number | null;
   load_5m?: number | null;
@@ -33,18 +49,32 @@ type Snapshot = {
   fila_workers?: number | null;
   fila_falhas_24h?: number | null;
   lojas_ativas?: number | null;
+  tenants?: number | null;
 };
 
-type MidiaCapacidade = {
-  status?: string;
-  free_gb?: number | null;
-  total_gb?: number | null;
-  used_gb?: number | null;
-  used_pct?: number | null;
-  tenants?: number | null;
-  error?: string;
-  media_server?: string;
-};
+const SERVIDORES_FALLBACK: ServidorInfo[] = [
+  {
+    id: 'lwksistemas-nova',
+    nome: 'lwksistemas-nova',
+    papel: 'API, ERP, Postgres e frontends',
+    tipo_magalu: 'BV8-16-150',
+    ipv4: '201.23.81.50',
+  },
+  {
+    id: 'midia01',
+    nome: 'midia01',
+    papel: 'Servidor de mídia (imagens/PDFs)',
+    tipo_magalu: 'BV1-4-100',
+    ipv4: '201.23.87.251',
+  },
+  {
+    id: 'whatsappnova',
+    nome: 'whatsappnova',
+    papel: 'Evolution API (WhatsApp)',
+    tipo_magalu: 'BV2-4-100',
+    ipv4: '169.150.0.111',
+  },
+];
 
 function nivelAlerta(pct: number | null | undefined): 'ok' | 'warn' | 'crit' {
   if (pct == null || Number.isNaN(pct)) return 'ok';
@@ -81,9 +111,10 @@ function labelHora(ts?: string): string {
 
 export default function CapacidadeServidoresPage() {
   const router = useRouter();
+  const [servidores, setServidores] = useState<ServidorInfo[]>(SERVIDORES_FALLBACK);
+  const [servidorId, setServidorId] = useState('lwksistemas-nova');
   const [dias, setDias] = useState(7);
   const [atual, setAtual] = useState<Snapshot | null>(null);
-  const [midia, setMidia] = useState<MidiaCapacidade | null>(null);
   const [historico, setHistorico] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -95,22 +126,33 @@ export default function CapacidadeServidoresPage() {
     }
   }, [router]);
 
+  useEffect(() => {
+    void apiClient
+      .get('/superadmin/capacidade/servidores/')
+      .then((r) => {
+        if (Array.isArray(r.data?.servidores) && r.data.servidores.length) {
+          setServidores(r.data.servidores);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const servidorAtivo = useMemo(
+    () => servidores.find((s) => s.id === servidorId) || servidores[0],
+    [servidores, servidorId],
+  );
+
   const carregar = useCallback(async () => {
     try {
       setErro(null);
-      const [rAtual, rHist, rMidia] = await Promise.all([
-        apiClient.get('/superadmin/capacidade/atual/'),
-        apiClient.get(`/superadmin/capacidade/historico/?dias=${dias}`),
-        apiClient.get('/superadmin/capacidade/midia/').catch((e) => ({
-          data: {
-            status: 'unavailable',
-            error: e?.response?.data?.error || e?.message || 'Mídia indisponível',
-          },
-        })),
+      const [rAtual, rHist] = await Promise.all([
+        apiClient.get(`/superadmin/capacidade/atual/?servidor=${encodeURIComponent(servidorId)}`),
+        apiClient.get(
+          `/superadmin/capacidade/historico/?dias=${dias}&servidor=${encodeURIComponent(servidorId)}`,
+        ),
       ]);
       setAtual(rAtual.data);
       setHistorico(Array.isArray(rHist.data?.pontos) ? rHist.data.pontos : []);
-      setMidia(rMidia.data);
       setAtualizadoEm(new Date().toLocaleTimeString('pt-BR'));
     } catch (e: unknown) {
       const msg =
@@ -121,9 +163,10 @@ export default function CapacidadeServidoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [dias]);
+  }, [dias, servidorId]);
 
   useEffect(() => {
+    setLoading(true);
     void carregar();
     const id = window.setInterval(() => {
       void carregar();
@@ -138,8 +181,6 @@ export default function CapacidadeServidoresPage() {
         load5: p.load_5m ?? null,
         ram: p.mem_usada_pct ?? null,
         disco: p.disk_usada_pct ?? null,
-        fila: p.fila_pendente ?? null,
-        pg: p.pg_conexoes ?? null,
       })),
     [historico],
   );
@@ -148,6 +189,8 @@ export default function CapacidadeServidoresPage() {
     atual?.cpus && atual.load_5m != null
       ? Math.min(100, Math.round((atual.load_5m / atual.cpus) * 1000) / 10)
       : null;
+
+  const isApi = servidorId === 'lwksistemas-nova';
 
   if (loading && !atual) {
     return (
@@ -173,11 +216,11 @@ export default function CapacidadeServidoresPage() {
               Capacidade dos servidores
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              API (produção) em tempo quase real + histórico do coletor. Mídia via health.
+              Nomes iguais às instâncias Magalu Cloud. Escolha a VM para ver CPU, RAM e disco.
               {atualizadoEm ? ` · Atualizado às ${atualizadoEm}` : null}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {[1, 7, 30].map((d) => (
               <button
                 key={d}
@@ -202,15 +245,58 @@ export default function CapacidadeServidoresPage() {
           </div>
         </header>
 
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {servidores.map((s) => {
+            const ativo = s.id === servidorId;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setServidorId(s.id)}
+                className={`text-left rounded-xl border p-4 transition-colors ${
+                  ativo
+                    ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/40 ring-1 ring-violet-400'
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-violet-300'
+                }`}
+              >
+                <p className="font-semibold text-gray-900 dark:text-white font-mono text-sm">
+                  {s.nome}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{s.papel}</p>
+                <p className="text-[11px] text-gray-400 mt-2">
+                  {s.tipo_magalu} · {s.ipv4}
+                </p>
+              </button>
+            );
+          })}
+        </section>
+
+        {servidorAtivo ? (
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+            Monitorando{' '}
+            <span className="font-mono font-semibold text-gray-900 dark:text-white">
+              {servidorAtivo.nome}
+            </span>{' '}
+            ({servidorAtivo.tipo_magalu} · {servidorAtivo.ipv4})
+          </div>
+        ) : null}
+
         {erro ? (
           <div className="rounded-lg border border-red-300 bg-red-50 text-red-800 px-4 py-3 text-sm">
             {erro}
           </div>
         ) : null}
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {atual?.status === 'unavailable' || atual?.error ? (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
+            {atual.error || 'Servidor sem resposta de métricas.'}
+            {atual.dica ? <span className="block mt-1 opacity-90">{atual.dica}</span> : null}
+          </div>
+        ) : null}
+
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div className={`rounded-xl border p-4 ${corNivel(nivelAlerta(loadPct))}`}>
-            <p className="text-xs uppercase tracking-wide opacity-70">CPU (API)</p>
+            <p className="text-xs uppercase tracking-wide opacity-70">Processador</p>
             <p className="text-2xl font-semibold mt-1">
               {fmt(atual?.load_5m, '', 2)}
               <span className="text-sm font-normal opacity-70"> / {atual?.cpus ?? '—'} vCPU</span>
@@ -220,61 +306,59 @@ export default function CapacidadeServidoresPage() {
             </p>
           </div>
           <div className={`rounded-xl border p-4 ${corNivel(nivelAlerta(atual?.mem_usada_pct))}`}>
-            <p className="text-xs uppercase tracking-wide opacity-70">RAM (API)</p>
+            <p className="text-xs uppercase tracking-wide opacity-70">Memória RAM</p>
             <p className="text-2xl font-semibold mt-1">{fmt(atual?.mem_usada_pct, '%')}</p>
             <p className="text-xs mt-1 opacity-80">
               {fmt(atual?.mem_usada_mb, '', 0)} / {fmt(atual?.mem_total_mb, ' MB', 0)}
             </p>
           </div>
           <div className={`rounded-xl border p-4 ${corNivel(nivelAlerta(atual?.disk_usada_pct))}`}>
-            <p className="text-xs uppercase tracking-wide opacity-70">Disco (API)</p>
+            <p className="text-xs uppercase tracking-wide opacity-70">Espaço em disco</p>
             <p className="text-2xl font-semibold mt-1">{fmt(atual?.disk_usada_pct, '%')}</p>
             <p className="text-xs mt-1 opacity-80">
               livre {fmt(atual?.disk_livre_gb, ' GB')} de {fmt(atual?.disk_total_gb, ' GB')}
             </p>
           </div>
-          <div className={`rounded-xl border p-4 ${corNivel(nivelAlerta(midia?.used_pct))}`}>
-            <p className="text-xs uppercase tracking-wide opacity-70">Disco (Mídia)</p>
-            <p className="text-2xl font-semibold mt-1">
-              {midia?.used_pct != null ? fmt(midia.used_pct, '%') : fmt(midia?.free_gb, ' GB livre')}
-            </p>
-            <p className="text-xs mt-1 opacity-80">
-              {midia?.status === 'unavailable' || midia?.error
-                ? midia.error || 'Indisponível'
-                : `livre ${fmt(midia?.free_gb, ' GB')} · ${fmt(midia?.tenants, '', 0)} tenants`}
-            </p>
-          </div>
         </section>
 
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">Postgres</p>
-            <p className="text-xl font-semibold mt-1">
-              {fmt(atual?.pg_conexoes, '', 0)} / {fmt(atual?.pg_conexoes_max, '', 0)}
-            </p>
+        {isApi ? (
+          <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Postgres</p>
+              <p className="text-xl font-semibold mt-1">
+                {fmt(atual?.pg_conexoes, '', 0)} / {fmt(atual?.pg_conexoes_max, '', 0)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Fila django-q</p>
+              <p className="text-xl font-semibold mt-1">
+                {fmt(atual?.fila_pendente, '', 0)} pendente
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {fmt(atual?.fila_workers, '', 0)} workers · falhas 24h{' '}
+                {fmt(atual?.fila_falhas_24h, '', 0)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Lojas ativas</p>
+              <p className="text-xl font-semibold mt-1">{fmt(atual?.lojas_ativas, '', 0)}</p>
+            </div>
+          </section>
+        ) : null}
+
+        {servidorId === 'midia01' && atual?.tenants != null ? (
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-sm">
+            Tenants de mídia: <strong>{fmt(atual.tenants, '', 0)}</strong>
           </div>
-          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">Fila django-q</p>
-            <p className="text-xl font-semibold mt-1">
-              {fmt(atual?.fila_pendente, '', 0)} pendente
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              {fmt(atual?.fila_workers, '', 0)} workers · falhas 24h {fmt(atual?.fila_falhas_24h, '', 0)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">Lojas ativas</p>
-            <p className="text-xl font-semibold mt-1">{fmt(atual?.lojas_ativas, '', 0)}</p>
-          </div>
-        </section>
+        ) : null}
 
         <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-            Histórico — load, RAM e disco ({dias === 1 ? '24h' : `${dias} dias`})
+            Histórico — {servidorAtivo?.nome} ({dias === 1 ? '24h' : `${dias} dias`})
           </h2>
           {chartData.length === 0 ? (
             <p className="text-sm text-gray-500 py-10 text-center">
-              Sem amostras no período. O cron grava a cada ~15 min após o deploy.
+              Sem amostras deste servidor no período. O cron grava as três VMs a cada ~15 min.
             </p>
           ) : (
             <div className="h-72 w-full">
@@ -295,8 +379,8 @@ export default function CapacidadeServidoresPage() {
         </section>
 
         <p className="text-xs text-gray-500 dark:text-gray-400 pb-6">
-          Amarelo ≥ 70% · Vermelho ≥ 85%. Use picos sustentados de RAM/disco/load para decidir
-          upgrade de vCPU, memória ou volume na Magalu.
+          Amarelo ≥ 70% · Vermelho ≥ 85%. Instâncias: lwksistemas-nova, midia01, whatsappnova
+          (console Magalu).
         </p>
       </div>
     </div>

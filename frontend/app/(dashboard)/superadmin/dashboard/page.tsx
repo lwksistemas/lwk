@@ -126,7 +126,7 @@ const MENU_CARDS: MenuCardProps[] = [
   },
   {
     title: 'Capacidade dos servidores',
-    description: 'CPU, RAM e disco da API e da mídia — histórico e leitura quase em tempo real',
+    description: 'lwksistemas-nova, midia01 e whatsappnova — CPU, RAM e disco por VM Magalu',
     icon: '📊',
     href: '/superadmin/dashboard/capacidade',
     color: 'orange',

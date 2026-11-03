@@ -75,6 +75,22 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
 
+  # Métricas de CPU/RAM/disco da VM (Magalu: whatsappnova) para o superadmin LWK.
+  host-metrics:
+    build:
+      context: ./host-metrics
+      dockerfile: Dockerfile
+    container_name: evolution-host-metrics
+    restart: always
+    environment:
+      - CAPACIDADE_HOST_TOKEN=${CAPACIDADE_HOST_TOKEN}
+      - CAPACIDADE_DISK_PATH=/
+    # pid:host → load/RAM da BV whatsappnova (não só do container).
+    pid: host
+    ports:
+      - "127.0.0.1:9100:9100"
+    mem_limit: 64m
+
   redis:
     image: redis:7.4-alpine
     container_name: evolution-redis

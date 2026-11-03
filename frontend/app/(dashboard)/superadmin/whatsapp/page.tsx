@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import apiClient from "@/lib/api-client";
 import { authService } from "@/lib/auth";
+import { formatTelefone } from "@/lib/format-br";
 import {
   classeStatusWhatsapp,
   dataHoraCurta,
@@ -11,6 +12,7 @@ import {
   formatarDocumentoWhatsapp,
   labelStatusWhatsapp,
   labelTipoWhatsapp,
+  slugVisivelWhatsapp,
   tempoConectado,
   type WhatsappCliente,
 } from "@/lib/whatsapp-painel-utils";
@@ -48,7 +50,6 @@ export default function SuperadminWhatsappPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
-  const [aberto, setAberto] = useState<string | null>(null);
   const [chaveNova, setChaveNova] = useState("");
   const [falhasLojaId, setFalhasLojaId] = useState<number | null>(null);
   const [falhas, setFalhas] = useState<RelatorioFalhas | null>(null);
@@ -131,7 +132,7 @@ export default function SuperadminWhatsappPage() {
               ← Dashboard
             </a>
             <h1 className="text-2xl font-bold mt-1">WhatsApp</h1>
-            <p className="text-green-100 text-sm">Clientes e números conectados (Evolution fica oculta)</p>
+            <p className="text-green-100 text-sm">Lojas e números conectados</p>
           </div>
           <button
             type="button"
@@ -165,17 +166,16 @@ export default function SuperadminWhatsappPage() {
                 {painel.evolution.error || "Evolution indisponível neste ambiente."}
               </p>
             )}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                ["Clientes", painel.resumo.clientes],
-                ["Conectados", painel.resumo.conectados],
-                ["Aguardando QR", painel.resumo.aguardando_qr],
-                ["Desconectados", painel.resumo.desconectados],
-                ["Parceiros", painel.resumo.parceiros],
-              ].map(([label, value]) => (
+                ["Lojas", painel.resumo.clientes, "text-gray-900 dark:text-gray-100"],
+                ["Conectados", painel.resumo.conectados, "text-green-700 dark:text-green-300"],
+                ["Aguardando QR", painel.resumo.aguardando_qr, painel.resumo.aguardando_qr > 0 ? "text-amber-700 dark:text-amber-300" : "text-gray-900 dark:text-gray-100"],
+                ["Desconectados", painel.resumo.desconectados, painel.resumo.desconectados > 0 ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-gray-100"],
+              ].map(([label, value, cls]) => (
                 <div key={String(label)} className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
                   <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{value}</p>
+                  <p className={`text-2xl font-semibold tabular-nums ${cls}`}>{value}</p>
                 </div>
               ))}
             </div>
@@ -185,7 +185,7 @@ export default function SuperadminWhatsappPage() {
                 ["Mensagens (total)", painel.resumo.mensagens_total, "text-gray-900 dark:text-gray-100"],
                 ["Últimas 24h", painel.resumo.mensagens_24h, "text-green-700 dark:text-green-300"],
                 ["Últimos 7 dias", painel.resumo.mensagens_7d, "text-gray-900 dark:text-gray-100"],
-                ["Falhas", painel.resumo.mensagens_falhas, "text-red-600 dark:text-red-400"],
+                ["Falhas", painel.resumo.mensagens_falhas, painel.resumo.mensagens_falhas > 0 ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-gray-100"],
               ].map(([label, value, cls]) => (
                 <div key={String(label)} className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
                   <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
@@ -194,55 +194,44 @@ export default function SuperadminWhatsappPage() {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
               {clientes.map((c) => {
                 const key = `${c.tipo}-${c.id ?? c.loja_id ?? c.nome}`;
-                const abertoAgora = aberto === key;
+                const doc = formatarDocumentoWhatsapp(c.documento);
+                const slug = slugVisivelWhatsapp(c.slug, c.documento);
                 return (
                   <article key={key} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-                    <button
-                      type="button"
-                      onClick={() => setAberto(abertoAgora ? null : key)}
-                      className="w-full text-left px-4 py-3 flex items-center justify-between gap-3"
-                    >
-                      <span>
-                        <span className="font-semibold text-gray-900 dark:text-gray-100">{c.nome}</span>
-                        <span className="ml-2 text-xs text-gray-500">{labelTipoWhatsapp(c.tipo)}</span>
-                        {c.slug && <span className="ml-2 text-xs text-gray-400">/{c.slug}</span>}
-                        {c.documento && (
-                          <span className="ml-2 text-xs text-gray-400">{formatarDocumentoWhatsapp(c.documento)}</span>
-                        )}
-                      </span>
-                      <span className="text-right">
-                        <span className="block text-sm text-gray-500">
-                          {c.numeros.filter((n) => n.status === "connected").length}/{c.numeros.length || 0} conectado(s)
+                    <header className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                      <div className="flex items-start justify-between gap-3">
+                        <h2 className="font-semibold text-gray-900 dark:text-gray-100 leading-snug">{c.nome}</h2>
+                        <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200">
+                          {labelTipoWhatsapp(c.tipo)}
                         </span>
-                        {c.mensagens && c.mensagens.total > 0 && (
-                          <span className="block text-xs text-gray-400">
-                            {c.mensagens.total} msg · {c.mensagens.ultimas_24h} em 24h
-                            {c.mensagens.falhas > 0 && (
-                              <span className="text-red-500"> · {c.mensagens.falhas} falhas</span>
-                            )}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                    {abertoAgora && (
-                      <div className="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-gray-700 pt-3">
+                      </div>
+                      {(doc || slug) && (
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          {doc}
+                          {doc && slug ? " · " : ""}
+                          {slug ? `/${slug}` : ""}
+                        </p>
+                      )}
+                    </header>
+                    <div className="px-4 py-3 space-y-3">
                         {c.numeros.length === 0 ? (
-                          <p className="text-sm text-gray-500">Nenhum número nesta Evolution.</p>
+                          <p className="text-sm text-gray-500">Nenhum número conectado.</p>
                         ) : (
                           <ul className="space-y-2">
-                            {c.numeros.map((n) => (
-                              <li key={n.instance_name} className="flex items-center justify-between text-sm">
-                                <span className="font-mono text-gray-800 dark:text-gray-200">
-                                  {n.telefone || n.instance_name}
+                            {c.numeros.map((n) => {
+                              const fone = formatTelefone(n.telefone) || n.telefone;
+                              return (
+                              <li key={n.instance_name} className="flex items-center justify-between gap-3 text-sm">
+                                <span className="min-w-0 text-gray-800 dark:text-gray-200">
+                                  <span className="font-medium">{fone || "Número não identificado"}</span>
                                   {n.profile_name && (
-                                    <span className="block text-xs text-gray-500 font-sans">{n.profile_name}</span>
+                                    <span className="block text-xs text-gray-500">{n.profile_name}</span>
                                   )}
-                                  <span className="block text-xs text-gray-400">{n.instance_name}</span>
                                 </span>
-                                <span className="text-right">
+                                <span className="text-right shrink-0">
                                   <span className={`px-2 py-0.5 rounded-full text-xs ${classeStatusWhatsapp(n.status)}`}>
                                     {labelStatusWhatsapp(n.status)}
                                   </span>
@@ -253,25 +242,30 @@ export default function SuperadminWhatsappPage() {
                                   )}
                                 </span>
                               </li>
-                            ))}
+                              );
+                            })}
                           </ul>
                         )}
                         {c.mensagens && c.loja_id != null && (
-                          <div className="grid grid-cols-3 gap-2 rounded-md bg-gray-50 dark:bg-gray-900/40 p-3">
+                          <div className="grid grid-cols-4 gap-2 rounded-md bg-gray-50 dark:bg-gray-900/40 p-3">
                             <div>
                               <p className="text-[11px] text-gray-500">Enviadas</p>
                               <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{c.mensagens.enviadas}</p>
                             </div>
                             <div>
-                              <p className="text-[11px] text-gray-500">Falhas</p>
-                              <p className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">{c.mensagens.falhas}</p>
+                              <p className="text-[11px] text-gray-500">24h</p>
+                              <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{c.mensagens.ultimas_24h}</p>
                             </div>
                             <div>
                               <p className="text-[11px] text-gray-500">7 dias</p>
                               <p className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{c.mensagens.ultimos_7d}</p>
                             </div>
+                            <div>
+                              <p className="text-[11px] text-gray-500">Falhas</p>
+                              <p className={`text-sm font-semibold tabular-nums ${c.mensagens.falhas > 0 ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-gray-100"}`}>{c.mensagens.falhas}</p>
+                            </div>
                             {c.mensagens.ultimo_envio && (
-                              <div className="col-span-3">
+                              <div className="col-span-4">
                                 <p className="text-[11px] text-gray-500">
                                   Último envio: {dataHoraCurta(c.mensagens.ultimo_envio)}
                                 </p>
@@ -368,13 +362,12 @@ export default function SuperadminWhatsappPage() {
                             ))}
                           </div>
                         )}
-                      </div>
-                    )}
+                    </div>
                   </article>
                 );
               })}
               {clientes.length === 0 && (
-                <p className="text-sm text-gray-500">Nenhuma loja ou parceiro com WhatsApp ativo.</p>
+                <p className="text-sm text-gray-500">Nenhuma loja com WhatsApp ativo.</p>
               )}
             </div>
           </>

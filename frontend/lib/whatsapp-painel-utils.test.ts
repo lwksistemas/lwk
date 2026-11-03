@@ -4,6 +4,7 @@ import {
   formatarDocumentoWhatsapp,
   labelStatusWhatsapp,
   labelTipoWhatsapp,
+  slugVisivelWhatsapp,
   type WhatsappCliente,
 } from "./whatsapp-painel-utils";
 
@@ -38,7 +39,19 @@ describe("labels WhatsApp", () => {
   it("traduz status e tipo", () => {
     expect(labelStatusWhatsapp("connected")).toBe("Conectado");
     expect(labelStatusWhatsapp("qr_pending")).toBe("Aguardando QR");
-    expect(labelTipoWhatsapp("parceiro")).toBe("Parceiro API");
+    expect(labelTipoWhatsapp("lwk_loja")).toBe("Loja");
+    expect(labelTipoWhatsapp("parceiro")).toBe("Parceiro");
+  });
+});
+
+describe("slugVisivelWhatsapp", () => {
+  it("omite slug que é o próprio CNPJ", () => {
+    expect(slugVisivelWhatsapp("41449198000172", "41449198000172")).toBe("");
+    expect(slugVisivelWhatsapp("/37302743000126", "37.302.743/0001-26")).toBe("");
+  });
+
+  it("mantém slug de loja", () => {
+    expect(slugVisivelWhatsapp("clinicaharmonis", "37302743000126")).toBe("clinicaharmonis");
   });
 });
 

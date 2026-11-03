@@ -473,7 +473,7 @@ def montar_painel() -> dict:
             "conectados": conectados,
             "aguardando_qr": qr,
             "desconectados": off,
-            "parceiros": WhatsappCustomer.objects.filter(tipo=WhatsappCustomer.TIPO_PARCEIRO).count(),
+            "parceiros": len([c for c in clientes if c["tipo"] == WhatsappCustomer.TIPO_PARCEIRO]),
             "mensagens_total": msgs_total,
             "mensagens_24h": msgs_24h,
             "mensagens_7d": msgs_7d,

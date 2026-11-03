@@ -67,9 +67,19 @@ export function classeStatusWhatsapp(status: string): string {
 }
 
 export function labelTipoWhatsapp(tipo: string): string {
-  if (tipo === "lwk_loja") return "Loja LWK";
-  if (tipo === "parceiro") return "Parceiro API";
+  if (tipo === "lwk_loja") return "Loja";
+  if (tipo === "parceiro") return "Parceiro";
   return "Sem cliente";
+}
+
+/** Slug que só repete o CPF/CNPJ não entra no card. */
+export function slugVisivelWhatsapp(slug: string | null | undefined, documento: string): string {
+  const s = (slug || "").trim().replace(/^\//, "");
+  if (!s) return "";
+  const digitosSlug = s.replace(/\D/g, "");
+  const digitosDoc = (documento || "").replace(/\D/g, "");
+  if (digitosDoc && digitosSlug === digitosDoc) return "";
+  return s;
 }
 
 export function formatarDocumentoWhatsapp(documento: string): string {

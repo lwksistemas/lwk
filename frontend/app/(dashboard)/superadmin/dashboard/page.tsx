@@ -133,7 +133,7 @@ const MENU_CARDS: MenuCardProps[] = [
   },
   {
     title: 'WhatsApp',
-    description: 'Quem está conectado: lojas LWK e parceiros de API, com os números separados',
+    description: 'Números conectados das lojas e falhas de envio',
     icon: '💬',
     href: '/superadmin/whatsapp',
     color: 'green',

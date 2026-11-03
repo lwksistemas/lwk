@@ -55,6 +55,42 @@ class PainelWhatsappServiceTests(TestCase):
         self.assertEqual(cliente["tipo"], "lwk_loja")
         self.assertEqual(cliente["numeros"][0]["status"], "connected")
 
+    def test_parceiro_sem_numero_nao_entra_no_resumo(self):
+        loja = _loja(slug="loja-sem-parceiro")
+        criar_parceiro(nome="Fantasma", documento=CPF_OK)
+        with (
+            patch("superadmin.services.whatsapp_painel_service.evolution_configured", return_value=True),
+            patch(
+                "superadmin.services.whatsapp_painel_service.fetch_instances",
+                return_value=[{"instance": {"instanceName": f"lwk_loja_{loja.id}", "status": "open"}}],
+            ),
+            patch("superadmin.services.whatsapp_painel_service.partner_evolution_configured", return_value=False),
+        ):
+            painel = montar_painel()
+        self.assertEqual(painel["resumo"]["parceiros"], 0)
+        self.assertEqual(painel["resumo"]["clientes"], 1)
+        self.assertTrue(all(c["tipo"] != "parceiro" for c in painel["clientes"]))
+
+    def test_parceiro_com_numero_entra_no_resumo(self):
+        p = criar_parceiro(nome="Sistema PHP", documento=CNPJ_OK)
+        with (
+            patch("superadmin.services.whatsapp_painel_service.evolution_configured", return_value=True),
+            patch(
+                "superadmin.services.whatsapp_painel_service.fetch_instances",
+                return_value=[{
+                    "instance": {
+                        "instanceName": f"ext_{p.id}_1",
+                        "status": "open",
+                        "ownerJid": "5516999999999@s.whatsapp.net",
+                    },
+                }],
+            ),
+            patch("superadmin.services.whatsapp_painel_service.partner_evolution_configured", return_value=False),
+        ):
+            painel = montar_painel()
+        self.assertEqual(painel["resumo"]["parceiros"], 1)
+        self.assertEqual(painel["resumo"]["conectados"], 1)
+
     def test_parceiro_recebe_chave_hash(self):
         p = criar_parceiro(nome="Sistema PHP", documento=CPF_OK)
         key, raw = emitir_chave(p, nome="teste")

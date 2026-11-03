@@ -74,6 +74,18 @@ def custo_unitario_estoque(preco_comercial: Decimal, fator: Decimal) -> Decimal:
     return (preco_comercial / fator).quantize(Decimal("0.01"))
 
 
+def custo_total_estoque(custo_unitario: Decimal, quantidade: Decimal) -> Decimal:
+    return (custo_unitario * quantidade).quantize(Decimal("0.01"))
+
+
+def serie_da_chave(chave: str) -> str:
+    """Série da NF-e, posições 23 a 25 da chave de 44 dígitos."""
+    digitos = re.sub(r"\D", "", chave or "")
+    if len(digitos) != 44:
+        return ""
+    return digitos[22:25].lstrip("0") or "0"
+
+
 def chave_item_identico(item: dict) -> str:
     """Linhas da mesma nota que são o mesmo item. Nome parecido não entra aqui."""
     gtin = gtin_util(item.get("gtin") or "")
@@ -83,6 +95,12 @@ def chave_item_identico(item: dict) -> str:
     if nome:
         return f"nome:{nome}"
     return ""
+
+
+def decisao_pendente(acao: str, produto_id) -> bool:
+    if acao not in ("vincular", "novo", "ignorar"):
+        return True
+    return acao == "vincular" and not produto_id
 
 
 def rastreio_obrigatorio_faltando(exige: bool, acao: str, lote: str, validade) -> bool:

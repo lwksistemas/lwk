@@ -482,6 +482,7 @@ def confirmar_importacao_xml(
     from .estoque_categorias import resolver_categoria
     from .estoque_nfe_vinculo import (
         custo_unitario_estoque,
+        decisao_pendente,
         gtin_util,
         normalizar_nome,
         quantidade_estoque,
@@ -502,7 +503,7 @@ def confirmar_importacao_xml(
             if acao == "ignorar":
                 ignorados += 1
                 continue
-            if acao not in ("vincular", "novo"):
+            if decisao_pendente(acao, item.get("produto_id")):
                 raise ValueError(f'Confirme "{nome}" antes de lançar: vincular, cadastrar ou ignorar.')
 
             fator = _fator_item(item)

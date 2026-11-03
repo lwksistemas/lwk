@@ -7,12 +7,15 @@ from clinica_beleza.estoque_nfe_vinculo import (
     chave_item_identico,
     classificar_item,
     custo_comercial_efetivo,
+    custo_total_estoque,
     custo_unitario_estoque,
+    decisao_pendente,
     fator_da_unidade,
     gtin_util,
     marcar_repetidos,
     quantidade_estoque,
     rastreio_obrigatorio_faltando,
+    serie_da_chave,
 )
 from clinica_beleza.estoque_xml_import_service import parse_nfe_xml
 
@@ -161,6 +164,57 @@ class CustoEIdentidadeTests(TestCase):
         por_id = {lote["id"]: lote["quantidade"] for lote in lotes}
         self.assertEqual(por_id[2], Decimal("1"))
         self.assertEqual(por_id[1], Decimal("4"))
+
+    def test_tres_fornecedores_um_produto_pelo_gtin(self):
+        produto = {"id": 7, "nome": "ACIDO HIALURONICO"}
+        vinculos = [{"produto_id": 7, "documento": "111", "codigo": "A", "gtin": "7891234567895", "fator": "5"}]
+        for doc, codigo, nome in (
+            ("111", "A", "ACIDO HIALURONICO"),
+            ("222", "B-99", "AH FRASCO 1ML"),
+            ("333", "C-7", "PREENCHEDOR FACIAL"),
+        ):
+            item = classificar_item(
+                {"nome": nome, "codigo": codigo, "gtin": "7891234567895", "documento": doc, "fator": Decimal("5")},
+                [produto],
+                vinculos,
+            )
+            self.assertEqual(item["produto_id"], 7)
+            self.assertEqual(item["acao"], "vincular")
+
+    def test_linhas_iguais_guardam_lotes_diferentes(self):
+        itens = [
+            {"nome": "AGULHA", "gtin": "7891234567895", "lote": "A", "validade": "2027-01-01", "quantidade": "5", "acao": "novo", "confianca": "nenhuma", "alerta": ""},
+            {"nome": "AGULHA 30G", "gtin": "7891234567895", "lote": "B", "validade": "2028-06-01", "quantidade": "8", "acao": "novo", "confianca": "nenhuma", "alerta": ""},
+        ]
+        marcar_repetidos(itens)
+        self.assertEqual(itens[0]["grupo"], itens[1]["grupo"])
+        self.assertEqual(itens[0]["lote"], "A")
+        self.assertEqual(itens[1]["lote"], "B")
+        self.assertEqual(itens[0]["quantidade"], "5")
+        self.assertEqual(itens[1]["quantidade"], "8")
+        self.assertEqual(itens[0]["acao"], "")
+
+    def test_serie_e_total_da_caixa(self):
+        comercial = custo_comercial_efetivo(Decimal("262"), Decimal("2"), Decimal("524"))
+        fator = fator_da_unidade(Decimal("2"), Decimal("10"), "CX", "UN")
+        unitario = custo_unitario_estoque(comercial, fator)
+        self.assertEqual(custo_total_estoque(unitario, Decimal("10")), Decimal("524.00"))
+        self.assertEqual(serie_da_chave("35260104252011000110550010000000011000000010"), "1")
+
+    def test_decisao_pendente_nao_libera_a_nota(self):
+        self.assertTrue(decisao_pendente("", None))
+        self.assertTrue(decisao_pendente("vincular", None))
+        self.assertFalse(decisao_pendente("novo", None))
+        self.assertFalse(decisao_pendente("ignorar", None))
+
+    def test_confirmacao_esta_dentro_de_uma_transacao(self):
+        import inspect
+
+        from clinica_beleza.estoque_xml_import_service import confirmar_importacao_xml
+
+        texto = inspect.getsource(confirmar_importacao_xml)
+        self.assertIn("transaction.atomic", texto)
+        self.assertIn("decisao_pendente", texto)
 
 
 class RepetidosEXmlTests(TestCase):

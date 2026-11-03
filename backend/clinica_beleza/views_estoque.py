@@ -392,6 +392,7 @@ class EstoqueProdutoComprasView(GetObjectMixin, APIView):
     def get(self, request, pk):
         from datetime import date, timedelta
 
+        from .estoque_nfe_vinculo import custo_total_estoque, serie_da_chave
         from .models import CompraFornecedorEstoque, LoteProdutoEstoque, VinculoProdutoFornecedor
 
         produto, error = self.object_or_404(pk)
@@ -424,6 +425,8 @@ class EstoqueProdutoComprasView(GetObjectMixin, APIView):
                 "unidade_estoque": c.unidade_estoque,
                 "fator": f"{c.fator:.4f}",
                 "custo_unitario": _decimal(c.custo_unitario),
+                "custo_total": _decimal(custo_total_estoque(c.custo_unitario, c.quantidade_estoque)),
+                "serie": serie_da_chave(c.chave),
                 "lote": c.lote,
                 "validade": c.validade.isoformat() if c.validade else "",
                 "usuario": c.usuario,
@@ -441,6 +444,8 @@ class EstoqueProdutoComprasView(GetObjectMixin, APIView):
                 "quantidade": _decimal(lote.quantidade),
                 "fornecedor_nome": lote.fornecedor_nome,
                 "numero_nota": lote.numero_nota,
+                "serie": serie_da_chave(lote.chave),
+                "chave": lote.chave,
                 "alerta_validade": bool(lote.validade and lote.validade <= limite),
             })
         sem_lote = produto.quantidade_atual - soma

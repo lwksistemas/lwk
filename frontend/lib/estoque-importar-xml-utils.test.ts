@@ -7,6 +7,7 @@ import {
   formatXmlFileSizeKb,
   hasEstoqueImportChanges,
   aplicarDecisaoAosIguais,
+  custoTotalConvertido,
   custoUnitarioConvertido,
   itemPrecisaConfirmacao,
   quantidadeEntrada,
@@ -87,6 +88,7 @@ describe("conferência da NF-e", () => {
 
   it("mostra o custo do frasco e aplica a decisão só nas linhas idênticas", () => {
     expect(custoUnitarioConvertido({ ...base, preco_custo: "262", fator: "5" })).toBe("52.40");
+    expect(custoTotalConvertido({ ...base, preco_custo: "262", fator: "5" })).toBe("524.00");
     const produtos = [
       { ...base, nome: "AGULHA", grupo: "nome:AGULHA", acao: "vincular" as const, produto_id: 9, produto_nome: "Agulha", lote: "A", validade: "2027-01-01" },
       { ...base, nome: "AGULHA", grupo: "nome:AGULHA", acao: "" as const, lote: "B", validade: "2028-01-01" },

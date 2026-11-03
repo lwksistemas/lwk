@@ -5,7 +5,7 @@ import { AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import type { CandidatoProdutoXml, PreviewResult, ProdutoPreview } from "./estoque-importar-xml-types";
-import { custoUnitarioConvertido, formatProdutoPreviewLine, quantidadeEntrada, resumoConferencia, textoResumoConferencia } from "./estoque-importar-xml-utils";
+import { custoTotalConvertido, custoUnitarioConvertido, formatProdutoPreviewLine, quantidadeEntrada, resumoConferencia, textoResumoConferencia } from "./estoque-importar-xml-utils";
 import type { EstoqueCategoria } from "./estoque-types";
 import { ESTOQUE_CATEGORIAS } from "./estoque-types";
 
@@ -219,6 +219,7 @@ function LinhaFatorLote({
       </span>
       <span className="text-gray-800 dark:text-gray-100">
         custo R$ {custoUnitarioConvertido(produto)}/{produto.unidade_estoque || produto.unidade_medida}
+        {" · total R$ "}{custoTotalConvertido(produto)}
         {(Number(produto.valor_desconto || "0") > 0 || Number(produto.valor_despesas || "0") > 0) ? " líquido" : ""}
       </span>
       {produto.exige_lote && (!(produto.lote || "").trim() || !(produto.validade || "").trim()) && (

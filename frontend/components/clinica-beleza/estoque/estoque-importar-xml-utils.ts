@@ -26,6 +26,13 @@ export function custoUnitarioConvertido(p: ProdutoPreview): string {
   return (Math.round((preco / fator) * 100) / 100).toFixed(2);
 }
 
+export function custoTotalConvertido(p: ProdutoPreview): string {
+  const unitario = Number(custoUnitarioConvertido(p));
+  const entra = Number(quantidadeEntrada(p));
+  if (!Number.isFinite(unitario) || !Number.isFinite(entra)) return "0.00";
+  return (Math.round(unitario * entra * 100) / 100).toFixed(2);
+}
+
 export function quantidadeEntrada(p: ProdutoPreview): string {
   const q = Number(p.quantidade);
   const fator = Number(p.fator || "1");

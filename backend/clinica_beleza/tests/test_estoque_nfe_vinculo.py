@@ -2,7 +2,7 @@
 from decimal import Decimal
 from unittest import TestCase
 
-from clinica_beleza.estoque_lotes import consumir_lotes, saldo_utilizavel
+from clinica_beleza.estoque_lotes import consumir_lotes, resumo_saldos, saldo_utilizavel
 from clinica_beleza.estoque_nfe_vinculo import (
     chave_item_identico,
     classificar_item,
@@ -184,6 +184,38 @@ class CustoEIdentidadeTests(TestCase):
         self.assertEqual(por_id[1], Decimal("2"))
         self.assertEqual(por_id[2], Decimal("8"))
         self.assertEqual(quantidade - sum(por_id.values()), Decimal("15"))
+
+    def test_quando_os_lotes_novos_acabam_o_saldo_antigo_continua_utilizavel(self):
+        from datetime import date
+
+        hoje = date(2026, 11, 3)
+        quantidade = Decimal("15")
+        lotes = [
+            {"id": 1, "quantidade": Decimal("5"), "validade": date(2027, 1, 1)},
+            {"id": 2, "quantidade": Decimal("8"), "validade": date(2027, 6, 1)},
+            {"id": 3, "quantidade": Decimal("4"), "validade": date(2026, 1, 1)},
+        ]
+        quantidade += Decimal("17")
+        antes = resumo_saldos(quantidade, lotes, hoje=hoje)
+        self.assertEqual(antes["total"], Decimal("32"))
+        self.assertEqual(antes["utilizavel"], Decimal("28"))
+        self.assertEqual(antes["sem_lote"], Decimal("15"))
+
+        quantidade -= Decimal("13")
+        lotes = [lote for lote in consumir_lotes(lotes, Decimal("13"), hoje) if lote["quantidade"] > 0]
+        no_fim_dos_novos = resumo_saldos(quantidade, lotes, hoje=hoje)
+        self.assertEqual(no_fim_dos_novos["em_lotes"], Decimal("4"))
+        self.assertEqual(no_fim_dos_novos["sem_lote"], Decimal("15"))
+        self.assertEqual(no_fim_dos_novos["total"], Decimal("19"))
+        self.assertEqual(no_fim_dos_novos["utilizavel"], Decimal("15"))
+
+        quantidade -= Decimal("6")
+        lotes = [lote for lote in consumir_lotes(lotes, Decimal("6"), hoje) if lote["quantidade"] > 0]
+        depois = resumo_saldos(quantidade, lotes, hoje=hoje)
+        self.assertEqual(depois["total"], Decimal("13"))
+        self.assertEqual(depois["sem_lote"], Decimal("9"))
+        self.assertEqual(depois["utilizavel"], Decimal("9"))
+        self.assertEqual(depois["em_lotes"], Decimal("4"))
 
     def test_vencido_e_sem_validade_nao_furam_a_fila(self):
         from datetime import date

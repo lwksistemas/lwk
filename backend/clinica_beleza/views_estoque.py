@@ -392,6 +392,7 @@ class EstoqueProdutoComprasView(GetObjectMixin, APIView):
     def get(self, request, pk):
         from datetime import date, timedelta
 
+        from .estoque_lotes import resumo_saldos
         from .estoque_nfe_vinculo import custo_total_estoque, serie_da_chave
         from .models import CompraFornecedorEstoque, LoteProdutoEstoque, VinculoProdutoFornecedor
 
@@ -435,9 +436,7 @@ class EstoqueProdutoComprasView(GetObjectMixin, APIView):
         hoje = date.today()
         limite = hoje + timedelta(days=produto.dias_alerta_validade or 90)
         lotes = []
-        soma = 0
         for lote in LoteProdutoEstoque.objects.filter(produto=produto, quantidade__gt=0).order_by("validade", "codigo"):
-            soma += lote.quantidade
             vencido = bool(lote.validade and lote.validade < hoje)
             lotes.append({
                 "codigo": lote.codigo,
@@ -451,14 +450,18 @@ class EstoqueProdutoComprasView(GetObjectMixin, APIView):
                 "vencido": vencido,
                 "sem_validade": lote.validade is None,
             })
-        sem_lote = produto.quantidade_atual - soma
-        if sem_lote < 0:
-            sem_lote = 0
+        resumo = resumo_saldos(
+            produto.quantidade_atual,
+            [{"quantidade": lote["quantidade"], "validade": lote["validade"] or None} for lote in lotes],
+            ativo=produto.is_active,
+            hoje=hoje,
+        )
         return Response({
             "exige_lote": produto.exige_lote,
-            "quantidade_atual": _decimal(produto.quantidade_atual),
-            "quantidade_em_lotes": _decimal(soma),
-            "quantidade_sem_lote": _decimal(sem_lote),
+            "quantidade_atual": _decimal(resumo["total"]),
+            "quantidade_utilizavel": _decimal(resumo["utilizavel"]),
+            "quantidade_em_lotes": _decimal(resumo["em_lotes"]),
+            "quantidade_sem_lote": _decimal(resumo["sem_lote"]),
             "vinculos": vinculos,
             "compras": compras,
             "lotes": lotes,

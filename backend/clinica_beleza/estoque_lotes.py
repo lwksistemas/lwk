@@ -39,6 +39,25 @@ def quantidade_vencida(lotes, hoje: date | None = None) -> Decimal:
     return sum((_quantidade(lote) for lote in lotes if classe_lote(lote, hoje) == 2), Decimal("0"))
 
 
+def resumo_saldos(quantidade_atual, lotes, *, ativo: bool = True, hoje: date | None = None) -> dict:
+    """Total, o que pode sair e o que nunca entrou em lote.
+
+    Lote com quantidade zero sai da conta. Vencido continua no total, fora do utilizável.
+    """
+    hoje = hoje or date.today()
+    rastreados = [lote for lote in lotes if _quantidade(lote) > 0]
+    em_lotes = sum((_quantidade(lote) for lote in rastreados), Decimal("0"))
+    sem_lote = Decimal(str(quantidade_atual)) - em_lotes
+    if sem_lote < 0:
+        sem_lote = Decimal("0")
+    return {
+        "total": Decimal(str(quantidade_atual)),
+        "utilizavel": saldo_utilizavel(quantidade_atual, rastreados, ativo=ativo, hoje=hoje),
+        "sem_lote": sem_lote,
+        "em_lotes": em_lotes,
+    }
+
+
 def saldo_utilizavel(quantidade_atual, lotes, *, ativo: bool = True, hoje: date | None = None) -> Decimal:
     """Saldo que pode sair: o total menos o que está só em lote vencido.
 

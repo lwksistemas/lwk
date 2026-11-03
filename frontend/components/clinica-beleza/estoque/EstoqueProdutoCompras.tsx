@@ -40,6 +40,7 @@ interface LoteEstoque {
 
 interface RespostaCompras {
   quantidade_atual: string;
+  quantidade_utilizavel?: string;
   quantidade_em_lotes: string;
   quantidade_sem_lote: string;
   compras: CompraFornecedor[];
@@ -161,13 +162,18 @@ export function EstoqueProdutoCompras({ produtoId }: { produtoId: number }) {
           </div>
         </div>
       )}
+      {dados && (
+        <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
+          Total {dados.quantidade_atual} · utilizável {dados.quantidade_utilizavel || dados.quantidade_atual}
+          {Number(dados.quantidade_sem_lote) > 0
+            ? ` · ${dados.quantidade_sem_lote} saldo anterior sem lote`
+            : ""}
+        </p>
+      )}
       {dados && dados.lotes.length > 0 && (
         <div>
           <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
             Lotes rastreados: {dados.quantidade_em_lotes}
-            {Number(dados.quantidade_sem_lote) > 0
-              ? ` · ${dados.quantidade_sem_lote} saldo anterior sem lote`
-              : ""}
           </p>
           <ul className="space-y-1">
             {dados.lotes.map((lote) => (

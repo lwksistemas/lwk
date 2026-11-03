@@ -7,10 +7,7 @@ Uso:
 """
 from django.core.management.base import BaseCommand
 
-from superadmin.capacidade_metrics import ARQUIVO_PADRAO, rotacionar_arquivo
-from superadmin.capacidade_servidores import coletar_todos
-import json
-import os
+from superadmin.capacidade_metrics import ARQUIVO_PADRAO, registrar_metricas_periodicas
 
 
 class Command(BaseCommand):
@@ -22,14 +19,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         arquivo = options["arquivo"]
         try:
-            os.makedirs(os.path.dirname(arquivo) or ".", exist_ok=True)
-            registros = coletar_todos()
-            with open(arquivo, "a") as fh:
-                for registro in registros:
-                    # Não persistir erro/dica longos a cada ciclo se unavailable — mantém status.
-                    slim = {k: v for k, v in registro.items() if k not in ("dica",)}
-                    fh.write(json.dumps(slim, ensure_ascii=False) + "\n")
-            rotacionar_arquivo(arquivo)
+            registros = registrar_metricas_periodicas(arquivo)
         except Exception as exc:
             self.stderr.write(self.style.ERROR(f"Falha ao gravar métricas: {exc}"))
             return

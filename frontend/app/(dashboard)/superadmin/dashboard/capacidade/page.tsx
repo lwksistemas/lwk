@@ -361,19 +361,48 @@ export default function CapacidadeServidoresPage() {
               Sem amostras deste servidor no período. O cron grava as três VMs a cada ~15 min.
             </p>
           ) : (
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="t" tick={{ fontSize: 11 }} minTickGap={28} />
-                  <YAxis tick={{ fontSize: 11 }} domain={[0, 'auto']} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="load5" name="Load 5m" stroke="#8b5cf6" dot={false} strokeWidth={2} />
-                  <Line type="monotone" dataKey="ram" name="RAM %" stroke="#3b82f6" dot={false} strokeWidth={2} />
-                  <Line type="monotone" dataKey="disco" name="Disco %" stroke="#10b981" dot={false} strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="space-y-2">
+              {chartData.length < 3 ? (
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Poucas amostras ainda ({chartData.length}). A linha vai aparecer conforme o cron
+                  gravar a cada ~15 min.
+                </p>
+              ) : null}
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="t" tick={{ fontSize: 11 }} minTickGap={28} />
+                    <YAxis tick={{ fontSize: 11 }} domain={[0, 'auto']} />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="load5"
+                      name="Load 5m"
+                      stroke="#8b5cf6"
+                      dot={chartData.length < 8}
+                      strokeWidth={2}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="ram"
+                      name="RAM %"
+                      stroke="#3b82f6"
+                      dot={chartData.length < 8}
+                      strokeWidth={2}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="disco"
+                      name="Disco %"
+                      stroke="#10b981"
+                      dot={chartData.length < 8}
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
         </section>

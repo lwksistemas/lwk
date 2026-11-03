@@ -170,6 +170,21 @@ def gravar_snapshot(arquivo: str | None = None) -> dict[str, Any]:
     return registro
 
 
+def registrar_metricas_periodicas(arquivo: str | None = None) -> list[dict[str, Any]]:
+    """Job django-q (~15 min): grava uma linha JSONL por VM Magalu."""
+    from superadmin.capacidade_servidores import coletar_todos
+
+    path = arquivo or ARQUIVO_PADRAO
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    registros = coletar_todos()
+    with open(path, "a") as fh:
+        for registro in registros:
+            slim = {k: v for k, v in registro.items() if k not in ("dica",)}
+            fh.write(json.dumps(slim, ensure_ascii=False) + "\n")
+    rotacionar_arquivo(path)
+    return registros
+
+
 def ler_historico(
     *,
     dias: int = 7,

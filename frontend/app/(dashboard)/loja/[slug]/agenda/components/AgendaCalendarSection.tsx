@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   CLINICA_AGENDA_SLOT_DURATION,
   CLINICA_AGENDA_SLOT_LABEL_INTERVAL,
@@ -11,8 +11,9 @@ import {
   eventosParaFullCalendar,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import {
+  idsEventosSimultaneosOutrosProf,
   idsEventosSobrepostosMesmoProf,
-  renderAgendaFcEventContent,
+  makeAgendaFcEventContent,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-fc-event-content";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import type {
@@ -29,8 +30,10 @@ import { marcarIgnorarClickGradeAgenda, toAgendaDiaIso } from "@/hooks/clinica-b
 import type { ClinicaProfessional } from "@/lib/clinica-beleza-entities";
 import {
   AGENDA_VISUAL_DEFAULT,
+  agendaVisualStyleVars,
   type AgendaVisualId,
 } from "@/lib/clinica-agenda-visual";
+import { syncAgendaFetchRangeToVisible } from "@/lib/clinica-beleza-cadastros-api";
 
 const FullCalendar = lazy(() => import("@fullcalendar-v7/react"));
 
@@ -111,6 +114,7 @@ export function AgendaCalendarSection({
   onMoverGrade,
   onRedimensionarGrade,
   visual = AGENDA_VISUAL_DEFAULT,
+  onVisibleRangeChange,
 }: {
   modoAgenda: "grade" | "lista";
   eventos: AgendaEventData[];
@@ -133,6 +137,8 @@ export function AgendaCalendarSection({
   onMoverGrade?: (evt: AgendaEventData, start: Date, professionalId: number | null) => void;
   onRedimensionarGrade?: (evt: AgendaEventData, duracaoMinutos: number) => void;
   visual?: AgendaVisualId;
+  /** Chamado quando a janela da API precisa expandir ao navegar no calendário. */
+  onVisibleRangeChange?: () => void;
 }) {
   const [gradeView, setGradeView] = useState<"day" | "week" | "month">("day");
   const [diaIso, setDiaIso] = useState(() => toAgendaDiaIso(new Date()));
@@ -148,9 +154,15 @@ export function AgendaCalendarSection({
     () => eventosParaFullCalendar(stableEventos, selectedProfessional),
     [stableEventos, selectedProfessional],
   );
-  const idsSobrepostos = useMemo(
-    () => idsEventosSobrepostosMesmoProf(eventosFc),
-    [eventosFc],
+  const idsConflito = useMemo(() => idsEventosSobrepostosMesmoProf(eventosFc), [eventosFc]);
+  const idsSimultaneos = useMemo(
+    () =>
+      selectedProfessional ? new Set<string>() : idsEventosSimultaneosOutrosProf(eventosFc),
+    [eventosFc, selectedProfessional],
+  );
+  const eventContent = useMemo(
+    () => makeAgendaFcEventContent({ showProfessional: !selectedProfessional }),
+    [selectedProfessional],
   );
   const eventClassNames = useCallback(
     (arg: { event: { id: string; extendedProps?: Record<string, unknown> } }) => {
@@ -158,10 +170,34 @@ export function AgendaCalendarSection({
       const p = arg.event.extendedProps || {};
       if (p.isBloqueio) classes.push("agenda-fc-event-bloqueio");
       if (p.isIntervalo) classes.push("agenda-fc-event-intervalo");
-      if (idsSobrepostos.has(String(arg.event.id))) classes.push("agenda-fc-event-conflito");
+      if (idsConflito.has(String(arg.event.id))) classes.push("agenda-fc-event-conflito");
+      else if (idsSimultaneos.has(String(arg.event.id))) classes.push("agenda-fc-event-simultaneo");
       return classes;
     },
-    [idsSobrepostos],
+    [idsConflito, idsSimultaneos],
+  );
+  const rangeSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleDatesSet = useCallback(
+    (arg: {
+      startStr?: string;
+      endStr?: string;
+      view: { type: string; calendar: { getDate: () => Date }; activeStart?: Date; activeEnd?: Date };
+    }) => {
+      setDiaIso(toAgendaDiaIso(arg.view.calendar.getDate()));
+      if (arg.view.type === "timeGridDay") setGradeView("day");
+      else if (arg.view.type === "timeGridWeek") setGradeView("week");
+      else if (arg.view.type === "dayGridMonth") setGradeView("month");
+
+      const start =
+        (arg.startStr || arg.view.activeStart?.toISOString() || "").slice(0, 10);
+      const end = (arg.endStr || arg.view.activeEnd?.toISOString() || "").slice(0, 10);
+      if (!start || !end || !onVisibleRangeChange) return;
+      if (rangeSyncTimer.current) clearTimeout(rangeSyncTimer.current);
+      rangeSyncTimer.current = setTimeout(() => {
+        if (syncAgendaFetchRangeToVisible(start, end)) onVisibleRangeChange();
+      }, 280);
+    },
+    [onVisibleRangeChange],
   );
 
   const marcarArrasto = useCallback((dragging: boolean) => {
@@ -238,7 +274,10 @@ export function AgendaCalendarSection({
       <div className="flex flex-col min-h-0 flex-1 overflow-y-auto p-2">
         <AgendaMobileDayView
           dateIso={diaIso}
-          onDateChange={setDiaIso}
+          onDateChange={(iso) => {
+            setDiaIso(iso);
+            if (syncAgendaFetchRangeToVisible(iso, iso)) onVisibleRangeChange?.();
+          }}
           eventos={eventos}
           slotMinTime={slotMinTime}
           slotMaxTime={slotMaxTime}
@@ -264,7 +303,10 @@ export function AgendaCalendarSection({
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <AgendaDiaColunas
           dateIso={diaIso}
-          onDateChange={setDiaIso}
+          onDateChange={(iso) => {
+            setDiaIso(iso);
+            if (syncAgendaFetchRangeToVisible(iso, iso)) onVisibleRangeChange?.();
+          }}
           eventos={eventos}
           professionals={professionals}
           selectedProfessional={selectedProfessional}
@@ -293,6 +335,7 @@ export function AgendaCalendarSection({
       <div
         className="flex-1 min-h-0 p-2 sm:p-3 overflow-y-auto overscroll-contain agenda-scroll-root fc-agenda-calendar-root agenda-v7-root"
         data-agenda-visual={visual}
+        style={agendaVisualStyleVars(visual) as CSSProperties}
       >
         {calendarPlugins.length > 0 && ptBrLocale ? (
           <Suspense fallback={<div className="flex items-center justify-center h-40 text-sm text-gray-500">Carregando calendário...</div>}>
@@ -319,7 +362,8 @@ export function AgendaCalendarSection({
             moreLinkClick="popover"
             eventMinHeight={28}
             eventShortHeight={28}
-            eventContent={renderAgendaFcEventContent as never}
+            eventMaxStack={3}
+            eventContent={eventContent as never}
             eventClassNames={eventClassNames as never}
             weekends
             nowIndicator
@@ -347,12 +391,7 @@ export function AgendaCalendarSection({
             eventResize={handleEventResize as never}
             eventClick={onEventClick as never}
             dateClick={onDateClick as never}
-            datesSet={(arg: { view: { type: string; calendar: { getDate: () => Date } } }) => {
-              setDiaIso(toAgendaDiaIso(arg.view.calendar.getDate()));
-              if (arg.view.type === "timeGridDay") setGradeView("day");
-              else if (arg.view.type === "timeGridWeek") setGradeView("week");
-              else if (arg.view.type === "dayGridMonth") setGradeView("month");
-            }}
+            datesSet={handleDatesSet as never}
             height="auto"
             headerToolbar={{
               left: "prev,next today",

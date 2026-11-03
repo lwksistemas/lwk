@@ -204,6 +204,7 @@ export default function AgendaPage() {
             onMoverGrade={moverAgendamentoGrade}
             onRedimensionarGrade={redimensionarAgendamentoGrade}
             visual={visualAtivo}
+            onVisibleRangeChange={recarregarEventos}
           />
         </div>
       </div>

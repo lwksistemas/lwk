@@ -48,6 +48,10 @@ export function AgendaStatusLegenda() {
         />
         Bloqueado
       </span>
+      <span role="listitem" className="inline-flex items-center gap-1.5 text-red-600/90 dark:text-red-400">
+        <span className="w-2.5 h-2 rounded-sm shrink-0 ring-1 ring-red-500/70" aria-hidden />
+        Conflito (mesmo profissional)
+      </span>
     </div>
   );
 }

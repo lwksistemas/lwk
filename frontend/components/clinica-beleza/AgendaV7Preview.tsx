@@ -2,45 +2,26 @@
 
 /**
  * Escolha do visual da agenda (FullCalendar 7). Prévia oculta até o admin abrir.
+ * Usa amostras fictícias — não altera agendamentos reais.
  */
-import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useEffect, useMemo, useState, type ComponentType, type CSSProperties } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import {
+  CLINICA_AGENDA_BLOQUEIO_COLORS,
   CLINICA_AGENDA_STATUS_COLORS,
-  CLINICA_AGENDA_STATUS_LABEL,
   type AgendaStatusColorMap,
 } from '@/lib/clinica-beleza-constants';
 import {
   AGENDA_VISUAIS,
   AGENDA_VISUAL_DEFAULT,
+  agendaVisualStyleVars,
   loadAgendaVisualTheme,
   normalizeAgendaVisual,
   type AgendaVisualId,
 } from '@/lib/clinica-agenda-visual';
+import { makeAgendaFcEventContent } from '@/hooks/clinica-beleza/agenda-data/agenda-fc-event-content';
 
-type CalendarProps = {
-  plugins: unknown[];
-  initialView: string;
-  locale?: unknown;
-  headerToolbar: Record<string, string>;
-  height: number | string;
-  weekends: boolean;
-  dayMaxEvents: boolean;
-  allDaySlot?: boolean;
-  slotMinTime?: string;
-  slotMaxTime?: string;
-  nowIndicator?: boolean;
-  events: Array<{
-    id: string;
-    title: string;
-    start: string;
-    end?: string;
-    color?: string;
-    contrastColor?: string;
-    backgroundColor?: string;
-    borderColor?: string;
-  }>;
-};
+type CalendarProps = Record<string, unknown>;
 
 type LoadedMods = {
   FullCalendar: ComponentType<CalendarProps>;
@@ -55,33 +36,92 @@ function buildSampleEvents(statusColors: AgendaStatusColorMap) {
   const d = String(today.getDate()).padStart(2, '0');
   const dia = `${y}-${m}-${d}`;
 
-  const amostras: Array<{ key: string; hora: string; titulo: string }> = [
-    { key: 'SCHEDULED', hora: '09:00', titulo: 'Ana — consulta' },
-    { key: 'CLIENT_CONFIRMED', hora: '10:30', titulo: 'Bruno — protocolo' },
-    { key: 'PHONE_CONFIRMED', hora: '14:00', titulo: 'Carla — retorno' },
-    { key: 'CONFIRMED', hora: '16:00', titulo: 'Diana — presente' },
-  ];
+  const cor = (key: string) =>
+    statusColors[key] || CLINICA_AGENDA_STATUS_COLORS[key] || { bg: '#a855f7', border: '#9333ea' };
 
-  return amostras.map((item, i) => {
-    const colors =
-      statusColors[item.key] || CLINICA_AGENDA_STATUS_COLORS[item.key] || {
-        bg: '#a855f7',
-        border: '#9333ea',
-      };
-    const [hh, mm] = item.hora.split(':').map(Number);
-    const startH = String(hh).padStart(2, '0');
-    const endH = String(hh + 1).padStart(2, '0');
+  const ev = (
+    id: string,
+    start: string,
+    end: string,
+    title: string,
+    extra: Record<string, unknown>,
+  ) => {
+    const status = String(extra.status || 'SCHEDULED');
+    const colors = extra.isBloqueio
+      ? CLINICA_AGENDA_BLOQUEIO_COLORS
+      : cor(status);
     return {
-      id: `preview-${i}`,
-      title: `${item.titulo} (${CLINICA_AGENDA_STATUS_LABEL[item.key] || item.key})`,
-      start: `${dia}T${startH}:${String(mm).padStart(2, '0')}:00`,
-      end: `${dia}T${endH}:${String(mm).padStart(2, '0')}:00`,
+      id,
+      title,
+      start: `${dia}T${start}`,
+      end: `${dia}T${end}`,
       color: colors.bg,
       contrastColor: '#fff',
       backgroundColor: colors.bg,
       borderColor: colors.border,
+      extendedProps: extra,
     };
-  });
+  };
+
+  return [
+    ev('p-15', '08:00:00', '08:15:00', 'ANA SILVA', {
+      status: 'SCHEDULED',
+      patient_name: 'Ana Silva',
+      professional: 1,
+      professional_name: 'Dra. Marina Garcia',
+      procedure_name: 'Avaliação',
+    }),
+    ev('p-30', '09:00:00', '09:30:00', 'BRUNO COSTA', {
+      status: 'CLIENT_CONFIRMED',
+      patient_name: 'Bruno Costa',
+      professional: 1,
+      professional_name: 'Dra. Marina Garcia',
+      procedure_name: 'Protocolo',
+    }),
+    // Simultâneos de profissionais diferentes (não conflito)
+    ev('p-sim-a', '10:00:00', '11:00:00', 'CARLA MENDES', {
+      status: 'CONFIRMED',
+      patient_name: 'Carla Mendes',
+      professional: 1,
+      professional_name: 'Dra. Marina Garcia',
+      procedure_name: 'Laser',
+    }),
+    ev('p-sim-b', '10:00:00', '10:45:00', 'DIEGO ALVES', {
+      status: 'PHONE_CONFIRMED',
+      patient_name: 'Diego Alves',
+      professional: 2,
+      professional_name: 'Bruna Tucci',
+      procedure_name: 'Limpeza',
+    }),
+    // Conflito real (mesmo profissional)
+    ev('p-cf-1', '14:00:00', '15:00:00', 'ELENA ROCHA', {
+      status: 'SCHEDULED',
+      patient_name: 'Elena Rocha',
+      professional: 2,
+      professional_name: 'Bruna Tucci',
+      procedure_name: 'Peeling',
+    }),
+    ev('p-cf-2', '14:30:00', '15:30:00', 'FÁBIO NUNES', {
+      status: 'IN_PROGRESS',
+      patient_name: 'Fábio Nunes',
+      professional: 2,
+      professional_name: 'Bruna Tucci',
+      procedure_name: 'Microagulhamento',
+    }),
+    ev('p-done', '16:00:00', '17:00:00', 'GISELE PRADO', {
+      status: 'COMPLETED',
+      patient_name: 'Gisele Prado',
+      professional: 1,
+      professional_name: 'Dra. Marina Garcia',
+      procedure_name: 'Retorno',
+    }),
+    ev('p-bloq', '12:00:00', '13:00:00', 'Almoço / bloqueio', {
+      isBloqueio: true,
+      motivo: 'Intervalo',
+      professional: 1,
+      professional_name: 'Dra. Marina Garcia',
+    }),
+  ];
 }
 
 async function loadPreview(visual: AgendaVisualId): Promise<LoadedMods> {
@@ -123,6 +163,10 @@ export function AgendaV7Preview({
   const [carregando, setCarregando] = useState(false);
 
   const events = useMemo(() => buildSampleEvents(statusColors), [statusColors]);
+  const eventContent = useMemo(
+    () => makeAgendaFcEventContent({ showProfessional: true }),
+    [],
+  );
 
   useEffect(() => {
     setVisual(normalizeAgendaVisual(value ?? AGENDA_VISUAL_DEFAULT));
@@ -171,9 +215,8 @@ export function AgendaV7Preview({
           Visual da agenda
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          O tema vale para Dia, Semana e Mês (mesmo calendário da prévia). Com todos os
-          profissionais no Dia, a grade por coluna continua disponível. A prévia fica oculta até
-          você abrir.
+          O tema vale para Dia, Semana e Mês. Com todos os profissionais no Dia, a grade por
+          coluna continua disponível. A prévia usa dados fictícios e não altera a agenda real.
         </p>
       </div>
 
@@ -235,25 +278,41 @@ export function AgendaV7Preview({
               {erro}
             </div>
           ) : mods ? (
-            <div className="agenda-v7-preview-root min-h-[280px]">
+            <div
+              className="agenda-v7-preview-root agenda-v7-root min-h-[280px]"
+              data-agenda-visual={visual}
+              style={agendaVisualStyleVars(visual) as CSSProperties}
+            >
               <mods.FullCalendar
                 key={visual}
                 plugins={mods.plugins}
                 locale={mods.locale}
-                initialView="timeGridDay"
+                initialView="timeGridWeek"
                 headerToolbar={{
                   left: 'prev,next today',
                   center: 'title',
                   right: 'timeGridDay,timeGridWeek,dayGridMonth',
                 }}
+                buttonText={{
+                  today: 'Hoje',
+                  month: 'Mês',
+                  week: 'Semana',
+                  day: 'Dia',
+                }}
                 height={520}
                 weekends
                 dayMaxEvents={3}
+                moreLinkClick="popover"
+                eventMinHeight={28}
+                eventMaxStack={3}
+                eventContent={eventContent}
                 allDaySlot={false}
                 slotMinTime="07:00:00"
                 slotMaxTime="21:00:00"
                 nowIndicator
                 events={events}
+                editable={false}
+                selectable={false}
               />
             </div>
           ) : null}

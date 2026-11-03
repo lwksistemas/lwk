@@ -598,6 +598,30 @@ html.dark {
   line-height: 1.2;
 }
 
+.agenda-v7-root .agenda-fc-event-inner.is-compact {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.agenda-v7-root .agenda-fc-event-inner.is-compact .agenda-fc-event-title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Cabeçalho dos dias/profissionais fixo ao rolar a grade */
+.fc-agenda-calendar-root.agenda-v7-root .fc-col-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--fc-page-bg-color, #fff);
+}
+
+.dark .fc-agenda-calendar-root.agenda-v7-root .fc-col-header {
+  background: var(--fc-page-bg-color, #1f2937);
+}
+
 .agenda-v7-root .agenda-fc-event-time {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
@@ -612,6 +636,27 @@ html.dark {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.agenda-v7-root .agenda-fc-event-prof {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Simultâneos de profissionais diferentes (não é conflito) */
+.agenda-v7-root .fc-timegrid-event.agenda-fc-event-simultaneo {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--agenda-accent, #ad46ff) 45%, transparent);
+}
+
+.agenda-v7-root .fc-timegrid-more-link {
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .agenda-v7-root .agenda-fc-event-month {

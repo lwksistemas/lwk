@@ -53,25 +53,71 @@ export async function fetchClinicaSchedulingProfessionals(): Promise<ClinicaProf
   });
 }
 
-/** Janela padrão da grade: 90 dias atrás ↔ 90 à frente (histórico + futuro próximo). */
-function agendaJanelaPadraoParams(): URLSearchParams {
-  const hoje = new Date();
-  const ymd = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+function ymdLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function parseYmdLocal(iso: string): Date {
+  const [y, mo, d] = iso.slice(0, 10).split("-").map(Number);
+  return new Date(y, (mo || 1) - 1, d || 1);
+}
+
+export type AgendaFetchRange = { start: string; end: string };
+
+/** Janela inicial enxuta: 21 dias atrás ↔ 45 à frente. */
+export function defaultAgendaFetchRange(now = new Date()): AgendaFetchRange {
+  return {
+    start: ymdLocal(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 21)),
+    end: ymdLocal(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 45)),
   };
-  const start = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 90);
-  const end = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 90);
-  const params = new URLSearchParams();
-  params.set("start", ymd(start));
-  params.set("end", ymd(end));
-  return params;
+}
+
+let agendaFetchRange: AgendaFetchRange = defaultAgendaFetchRange();
+
+export function getAgendaFetchRange(): AgendaFetchRange {
+  return agendaFetchRange;
+}
+
+/** Só testes — redefine a janela sem tocar na API. */
+export function resetAgendaFetchRange(range?: AgendaFetchRange, now = new Date()): void {
+  agendaFetchRange = range ?? defaultAgendaFetchRange(now);
+}
+
+/**
+ * Alinha a janela da API ao período visível. Retorna true se a próxima busca deve refetch.
+ */
+export function syncAgendaFetchRangeToVisible(visibleStart: string, visibleEnd: string): boolean {
+  const vs = parseYmdLocal(visibleStart);
+  const ve = parseYmdLocal(visibleEnd);
+  if (Number.isNaN(vs.getTime()) || Number.isNaN(ve.getTime())) return false;
+
+  const curS = parseYmdLocal(agendaFetchRange.start);
+  const curE = parseYmdLocal(agendaFetchRange.end);
+  const margemMs = 3 * 86400000;
+  if (vs.getTime() >= curS.getTime() + margemMs && ve.getTime() <= curE.getTime() - margemMs) {
+    return false;
+  }
+
+  const pad = 14;
+  const nextStart = new Date(vs.getFullYear(), vs.getMonth(), vs.getDate() - pad);
+  let nextEnd = new Date(ve.getFullYear(), ve.getMonth(), ve.getDate() + pad);
+  const maxSpan = 120;
+  if ((nextEnd.getTime() - nextStart.getTime()) / 86400000 > maxSpan) {
+    nextEnd = new Date(nextStart.getTime() + maxSpan * 86400000);
+  }
+  const next = { start: ymdLocal(nextStart), end: ymdLocal(nextEnd) };
+  if (next.start === agendaFetchRange.start && next.end === agendaFetchRange.end) return false;
+  agendaFetchRange = next;
+  return true;
 }
 
 export async function fetchClinicaAgendaEvents(professionalId: string): Promise<AgendaEventData[]> {
-  const params = agendaJanelaPadraoParams();
+  const params = new URLSearchParams();
+  params.set("start", agendaFetchRange.start);
+  params.set("end", agendaFetchRange.end);
   if (professionalId) params.set("professional", professionalId);
   const res = await clinicaBelezaFetch(`/agenda/?${params.toString()}`);
   if (!res.ok) return [];

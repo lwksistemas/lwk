@@ -248,7 +248,7 @@ export function AgendaV7Preview({
                 }}
                 height={520}
                 weekends
-                dayMaxEvents
+                dayMaxEvents={3}
                 allDaySlot={false}
                 slotMinTime="07:00:00"
                 slotMaxTime="21:00:00"

@@ -30,6 +30,7 @@ import {
   minutosArrastoNaGrade,
   movimentoGradeAlterou,
   primeiroNomeProfissional,
+  agendamentosDoDiaPainel,
   proximosAgendamentosAgenda,
   corBloqueioAgenda,
   estiloCardStatusAgenda,
@@ -439,6 +440,80 @@ describe("proximosAgendamentosAgenda", () => {
   it("primeiro nome ignora Dr/Dra", () => {
     expect(primeiroNomeProfissional("Dra. Nayara da Silva de Souza")).toBe("Nayara");
     expect(primeiroNomeProfissional("Bruna Tucci Martins")).toBe("Bruna");
+  });
+});
+
+describe("agendamentosDoDiaPainel", () => {
+  const agora = new Date("2026-08-27T10:45:00-03:00");
+
+  function item(partial: Partial<AgendaEventData> & { id: string; start: string; end?: string }) {
+    return evt({
+      end: partial.end || "2026-08-27T11:00:00-03:00",
+      extendedProps: { professional: 1, patient_name: "Ana", ...partial.extendedProps },
+      ...partial,
+    });
+  }
+
+  it("conta finalizados e cancelados do dia (alinhado à grade)", () => {
+    const lista = [
+      item({
+        id: "fim",
+        start: "2026-08-27T08:00:00-03:00",
+        end: "2026-08-27T09:00:00-03:00",
+        extendedProps: { professional: 1, status: "COMPLETED" },
+      }),
+      item({
+        id: "canc",
+        start: "2026-08-27T16:00:00-03:00",
+        end: "2026-08-27T16:40:00-03:00",
+        extendedProps: { professional: 1, status: "CANCELLED" },
+      }),
+      item({
+        id: "bloq",
+        start: "2026-08-27T12:00:00-03:00",
+        end: "2026-08-27T13:00:00-03:00",
+        extendedProps: { isBloqueio: true, professional: 1 },
+      }),
+    ];
+    const ids = agendamentosDoDiaPainel(lista, "2026-08-27", "").map((x) => x.evt.id);
+    expect(ids).toEqual(["fim", "canc"]);
+  });
+
+  it("hoje com horário já passado ainda aparece no painel", () => {
+    const lista = [
+      item({
+        id: "passou",
+        start: "2026-08-27T09:00:00-03:00",
+        end: "2026-08-27T10:00:00-03:00",
+        extendedProps: { professional: 1, status: "SCHEDULED" },
+      }),
+    ];
+    expect(agendamentosDoDiaPainel(lista, "2026-08-27", "").map((x) => x.evt.id)).toEqual(["passou"]);
+    expect(proximosAgendamentosAgenda(lista, "2026-08-27", agora, "")).toHaveLength(0);
+  });
+
+  it("respeita filtro de profissional e ignora intervalo", () => {
+    const lista = [
+      item({
+        id: "a",
+        start: "2026-08-27T14:00:00-03:00",
+        end: "2026-08-27T15:00:00-03:00",
+        extendedProps: { professional: 2, status: "SCHEDULED" },
+      }),
+      item({
+        id: "b",
+        start: "2026-08-27T14:00:00-03:00",
+        end: "2026-08-27T15:00:00-03:00",
+        extendedProps: { professional: 3, status: "SCHEDULED" },
+      }),
+      item({
+        id: "int",
+        start: "2026-08-27T12:00:00-03:00",
+        end: "2026-08-27T13:00:00-03:00",
+        extendedProps: { isIntervalo: true, professional: 2 },
+      }),
+    ];
+    expect(agendamentosDoDiaPainel(lista, "2026-08-27", "2").map((x) => x.evt.id)).toEqual(["a"]);
   });
 });
 

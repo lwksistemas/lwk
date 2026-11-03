@@ -10,6 +10,7 @@ import {
   eventProfessionalId,
   estiloCardStatusAgenda,
   primeiroNomeProfissional,
+  agendamentosDoDiaPainel,
   proximosAgendamentosAgenda,
   rotuloStatusCardAgenda,
   capitalizarAgenda,
@@ -48,11 +49,17 @@ export function AgendaLateralDireita({
   const celulasMes = useMemo(() => celulasCalendarioMes(dateIso), [dateIso]);
   const mesTitulo = useMemo(() => capitalizarAgenda(tituloMesCalendario(dateIso)), [dateIso]);
   const hojeIso = toAgendaDiaIso(agora);
-  const proximos = useMemo(
-    () => proximosAgendamentosAgenda(eventos, dateIso, agora, selectedProfessional),
-    [eventos, dateIso, agora, selectedProfessional],
+  const doDia = useMemo(
+    () => agendamentosDoDiaPainel(eventos, dateIso, selectedProfessional),
+    [eventos, dateIso, selectedProfessional],
   );
-  const tituloFila = dateIso === hojeIso ? "Próximos" : "Neste dia";
+  const restantesHoje = useMemo(
+    () =>
+      dateIso === hojeIso
+        ? proximosAgendamentosAgenda(eventos, dateIso, agora, selectedProfessional).length
+        : 0,
+    [eventos, dateIso, agora, selectedProfessional, hojeIso],
+  );
 
   return (
     <aside
@@ -110,18 +117,23 @@ export function AgendaLateralDireita({
 
       <div className="flex-1 min-h-0 flex flex-col border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-baseline justify-between gap-2 px-4 pt-3 pb-1.5 shrink-0">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{tituloFila}</h3>
-          <span className="text-[11px] tabular-nums text-gray-400">{proximos.length}</span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Neste dia</h3>
+            {dateIso === hojeIso && doDia.length > 0 ? (
+              <p className="text-[10px] text-gray-400 leading-tight mt-0.5">
+                {restantesHoje} restante{restantesHoje === 1 ? "" : "s"} agora
+              </p>
+            ) : null}
+          </div>
+          <span className="text-[11px] tabular-nums text-gray-400">{doDia.length}</span>
         </div>
-        {proximos.length === 0 ? (
+        {doDia.length === 0 ? (
           <p className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-            {dateIso === hojeIso
-              ? "Nenhum agendamento restante hoje."
-              : "Nenhum agendamento neste dia."}
+            Nenhum agendamento neste dia.
           </p>
         ) : (
           <ul className="flex-1 min-h-0 overflow-y-auto px-2 pb-3 space-y-1">
-            {proximos.map((row) => {
+            {doDia.map((row) => {
               const estilo = estiloCardStatusAgenda(row.evt);
               const pid = eventProfessionalId(row.evt);
               const corProf = pid != null ? corProfissionalAgenda(pid) : "#94a3b8";

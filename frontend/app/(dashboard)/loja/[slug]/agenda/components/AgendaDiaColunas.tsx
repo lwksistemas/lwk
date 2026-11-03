@@ -321,7 +321,9 @@ export function AgendaDiaColunas({
                         const top = (startMin - minMin) * pxPerMin;
                         const resizing = arrasto?.modo === "resize" && arrasto.evt.id === evt.id;
                         const durationMin = resizing ? arrasto.durationMin : Math.max(15, endMin - startMin);
-                        const height = Math.max(36, durationMin * pxPerMin - 4);
+                        // 15 min ≈ 18px brutos; mínimo garante hora + cliente legíveis.
+                        const height = Math.max(40, durationMin * pxPerMin - 4);
+                        const curto = height < 52;
                         const intervalo = Boolean(evt.extendedProps?.isIntervalo);
                         const bloqueio = Boolean(evt.extendedProps?.isBloqueio);
                         const arrastaHorario =
@@ -356,9 +358,9 @@ export function AgendaDiaColunas({
                                 if (!intervalo) onOpenEvent(evt);
                               }
                             }}
-                            className={`agenda-card absolute z-[1] rounded-lg text-left overflow-hidden px-2.5 py-1.5 touch-none ${
-                              arrastandoEste ? "opacity-40" : ""
-                            }`}
+                            className={`agenda-card absolute z-[1] rounded-lg text-left overflow-hidden touch-none ${
+                              curto ? "px-2 py-1" : "px-2.5 py-1.5"
+                            } ${arrastandoEste ? "opacity-40" : ""}`}
                             style={{
                               top,
                               height,
@@ -367,34 +369,53 @@ export function AgendaDiaColunas({
                               ...estiloInlineCardAgenda(evt),
                               cursor: arrastaHorario ? "grab" : "default",
                             }}
+                            title={`${formatClinicaHora(start)} – ${formatClinicaHora(fimPreview)} · ${tituloCardAgenda(evt)}`}
                           >
-                            <div className="flex items-start justify-between gap-1">
-                              <p className="agenda-card-hora text-[11px] tabular-nums text-gray-600">
-                                {formatClinicaHora(start)} - {formatClinicaHora(fimPreview)}
-                              </p>
-                              {height > 42 || bloqueio ? (
+                            {curto ? (
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <p className="agenda-card-hora text-[11px] tabular-nums text-gray-600 shrink-0">
+                                  {formatClinicaHora(start)}
+                                </p>
+                                <p className="agenda-card-titulo text-xs font-semibold text-gray-900 truncate leading-tight min-w-0 flex-1">
+                                  {tituloCardAgenda(evt)}
+                                </p>
                                 <span
-                                  className="text-[10px] font-semibold leading-none px-1.5 py-0.5 rounded-full text-white shrink-0 max-w-[6.5rem] truncate"
-                                  style={{ backgroundColor: estilo.cor }}
-                                >
-                                  {rotuloStatusCardAgenda(evt)}
-                                </span>
-                              ) : (
-                                <span
-                                  className="mt-0.5 w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-white"
+                                  className="w-2 h-2 rounded-full shrink-0 ring-1 ring-white"
                                   style={{ backgroundColor: estilo.cor }}
                                   title={rotuloStatusCardAgenda(evt)}
                                 />
-                              )}
-                            </div>
-                            <p className="agenda-card-titulo text-xs font-semibold text-gray-900 truncate leading-tight">
-                              {tituloCardAgenda(evt)}
-                            </p>
-                            {height > 56 ? (
-                              <p className="agenda-card-sub text-[11px] text-gray-500 truncate">
-                                {subtituloCard(evt)}
-                              </p>
-                            ) : null}
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex items-start justify-between gap-1">
+                                  <p className="agenda-card-hora text-[11px] tabular-nums text-gray-600">
+                                    {formatClinicaHora(start)} - {formatClinicaHora(fimPreview)}
+                                  </p>
+                                  {height > 48 || bloqueio ? (
+                                    <span
+                                      className="text-[10px] font-semibold leading-none px-1.5 py-0.5 rounded-full text-white shrink-0 max-w-[6.5rem] truncate"
+                                      style={{ backgroundColor: estilo.cor }}
+                                    >
+                                      {rotuloStatusCardAgenda(evt)}
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="mt-0.5 w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-white"
+                                      style={{ backgroundColor: estilo.cor }}
+                                      title={rotuloStatusCardAgenda(evt)}
+                                    />
+                                  )}
+                                </div>
+                                <p className="agenda-card-titulo text-xs font-semibold text-gray-900 truncate leading-tight">
+                                  {tituloCardAgenda(evt)}
+                                </p>
+                                {height > 64 ? (
+                                  <p className="agenda-card-sub text-[11px] text-gray-500 truncate">
+                                    {subtituloCard(evt)}
+                                  </p>
+                                ) : null}
+                              </>
+                            )}
                             {arrastaHorario ? (
                               <span
                                 data-agenda-resize

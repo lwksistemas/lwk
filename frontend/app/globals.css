@@ -576,6 +576,91 @@ html.dark {
   border: none !important;
 }
 
+/* Cartões FC7 — Semana/Mês: horário + nome legíveis, sem estourar a célula */
+.agenda-v7-root .fc-timegrid-event.agenda-fc-event,
+.agenda-v7-root .fc-daygrid-event.agenda-fc-event {
+  border-radius: 6px;
+  overflow: hidden;
+  border-width: 0;
+  border-left-width: 3px;
+  border-left-style: solid;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+}
+
+.agenda-v7-root .fc-timegrid-event.agenda-fc-event .fc-event-main {
+  padding: 2px 4px;
+  overflow: hidden;
+}
+
+.agenda-v7-root .agenda-fc-event-inner {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1.2;
+}
+
+.agenda-v7-root .agenda-fc-event-time {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+.agenda-v7-root .agenda-fc-event-title {
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agenda-v7-root .agenda-fc-event-month {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.agenda-v7-root .agenda-fc-event-month .agenda-fc-event-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.agenda-v7-root .fc-daygrid-day-events {
+  margin: 0 2px;
+}
+
+.agenda-v7-root .fc-daygrid-event {
+  margin: 1px 0;
+  max-width: 100%;
+}
+
+.agenda-v7-root .fc-daygrid-more-link {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.agenda-v7-root .fc-day-today {
+  background-color: color-mix(in srgb, var(--agenda-accent, #ad46ff) 8%, transparent) !important;
+}
+
+.agenda-v7-root .fc-timegrid-event.agenda-fc-event-conflito {
+  box-shadow: inset 0 0 0 1px rgb(220 38 38 / 0.55);
+}
+
+.agenda-v7-root .fc-timegrid-event.agenda-fc-event-bloqueio,
+.agenda-v7-root .fc-daygrid-event.agenda-fc-event-bloqueio {
+  opacity: 0.85;
+  font-style: italic;
+}
+
+.agenda-v7-root .fc-popover {
+  max-width: min(320px, 92vw);
+  max-height: min(360px, 70vh);
+  overflow: auto;
+}
+
 /* Grade Dia/Semana — tokens do visual escolhido em Aparência */
 .agenda-grade-root {
   --agenda-accent: #ad46ff;

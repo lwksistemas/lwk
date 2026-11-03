@@ -109,9 +109,14 @@ export function estiloCardStatusAgenda(evt: AgendaEventData): EstiloCardAgenda {
       borderLeft: `3px dashed ${cor}`,
     };
   }
+  const status = String(p.status || "SCHEDULED").toUpperCase();
+  const pastel =
+    status === "CANCELLED" || status === "NO_SHOW"
+      ? fundoPastelAgenda(cor, 14)
+      : fundoPastelAgenda(cor);
   return {
     cor,
-    backgroundColor: fundoPastelAgenda(cor),
+    backgroundColor: pastel,
     borderLeft: `4px solid ${cor}`,
   };
 }
@@ -535,8 +540,24 @@ export function agendamentoEmAndamento(item: AgendaDiaItem, now: Date): boolean 
 }
 
 /**
- * Fila da recepção no painel direito: do horário atual em diante no dia
- * selecionado, todos os profissionais (ou o filtro do topo).
+ * Lista do painel lateral: todos os agendamentos de cliente do dia
+ * (mesmo filtro de profissional da grade). Não corta por status nem horário —
+ * finalizados/cancelados aparecem com badge; a grade e o contador batem.
+ */
+export function agendamentosDoDiaPainel(
+  eventos: AgendaEventData[],
+  dateIso: string,
+  selectedProfessional = "",
+): AgendaDiaItem[] {
+  return eventosDoDiaFiltrados(eventos, dateIso, selectedProfessional).filter((row) =>
+    ehAgendamentoCliente(row.evt),
+  );
+}
+
+/**
+ * Fila da recepção (opcional): do horário atual em diante no dia selecionado,
+ * excluindo finalizados/cancelados/faltas. Preferir `agendamentosDoDiaPainel`
+ * no painel lateral para alinhar com a grade.
  */
 export function proximosAgendamentosAgenda(
   eventos: AgendaEventData[],
@@ -545,8 +566,7 @@ export function proximosAgendamentosAgenda(
   selectedProfessional = "",
 ): AgendaDiaItem[] {
   const hojeIso = toAgendaDiaIso(now);
-  return eventosDoDiaFiltrados(eventos, dateIso, selectedProfessional).filter((row) => {
-    if (!ehAgendamentoCliente(row.evt)) return false;
+  return agendamentosDoDiaPainel(eventos, dateIso, selectedProfessional).filter((row) => {
     const status = String(row.evt.extendedProps?.status || "SCHEDULED").toUpperCase();
     if (STATUS_AGENDA_FORA_DA_FILA.has(status)) return false;
     if (dateIso === hojeIso && row.end.getTime() <= now.getTime()) return false;

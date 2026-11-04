@@ -312,6 +312,8 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertIn("Recepção", html)
         self.assertIn("LUIZ HENRIQUE FELIX", html)
         self.assertIn("Documento não fiscal", html)
+        self.assertIn("print-color-adjust: exact", html)
+        self.assertIn("box-shadow: inset 0 0 0 999px", html)
         self.assertNotIn("Profissional", html)
 
     def test_recibo_ignora_a_logo_da_tela_de_login(self):

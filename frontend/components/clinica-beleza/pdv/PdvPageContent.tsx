@@ -503,8 +503,15 @@ export function PdvPageContent() {
     }
     janela.document.write(html);
     janela.document.close();
-    janela.focus();
-    window.setTimeout(() => janela.print(), 300);
+    const pronto = janela as Window & { imprimirReciboPronto?: () => void };
+    window.setTimeout(() => {
+      if (typeof pronto.imprimirReciboPronto === "function") {
+        pronto.imprimirReciboPronto();
+        return;
+      }
+      janela.focus();
+      janela.print();
+    }, 50);
   };
 
   const enviarReciboEscolhido = async (canal: "whatsapp" | "email") => {

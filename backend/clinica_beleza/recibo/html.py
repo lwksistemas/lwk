@@ -30,6 +30,13 @@ from .context import (
 from .moeda import formatar_moeda_recibo
 
 
+def _hora_com_as(valor: str) -> str:
+    texto = (valor or "").strip()
+    if re.fullmatch(r"\d{2}/\d{2}/\d{4} \d{2}:\d{2}", texto):
+        return texto.replace(" ", " às ", 1)
+    return texto
+
+
 def _t(valor) -> str:
     return html.escape(str(valor or ""), quote=True)
 
@@ -128,8 +135,8 @@ def gerar_html_recibo(ctx: dict) -> str:
     tel_cep = ctx.get("loja_tel_cep") or _linha_tel_cep(
         ctx.get("loja_telefone", ""), ctx.get("loja_cep", ""),
     )
-    data_emissao = ctx.get("data_emissao") or ctx.get("data") or "—"
-    data_atend = ctx.get("data_atendimento") or ""
+    data_emissao = _hora_com_as(ctx.get("data_emissao") or ctx.get("data") or "—")
+    data_atend = _hora_com_as(ctx.get("data_atendimento") or "")
     titulo_tabela, linhas_tabela = _linhas_tabela(ctx)
     somente_produtos = bool(ctx.get("somente_produtos"))
     custeio = situacao == "quitado" and custeado_pela_clinica(ctx)
@@ -220,7 +227,7 @@ def gerar_html_recibo(ctx: dict) -> str:
 
     logo = _logo_http(ctx.get("logo_url") or "")
     marca = (
-        f'<img class="logo" src="{_t(logo)}" alt="{_t(ctx.get("loja_nome") or "Clínica")}">'
+        f'<img class="logo" src="{_t(logo)}" alt="">'
         if logo else
         f'<p class="marca">{_t((ctx.get("loja_nome") or "CLÍNICA").upper())}</p>'
     )
@@ -229,15 +236,16 @@ def gerar_html_recibo(ctx: dict) -> str:
         nome_abaixo = f'<p class="razao">{_t(ctx.get("loja_nome"))}</p>'
 
     cpf = (ctx.get("paciente_cpf") or "").strip()
+    rotulo_pessoa = "Cliente" if somente_produtos else "Paciente"
     cliente = (
-        f'<p><span class="ico">Cliente</span> <strong>{_t(ctx.get("paciente_nome"))}</strong></p>'
-        + (f'<p><span class="ico">CPF</span> {_t(cpf)}</p>' if cpf else "")
+        f'<p><span class="ico">{rotulo_pessoa}:</span> <strong>{_t(ctx.get("paciente_nome"))}</strong></p>'
+        + (f'<p><span class="ico">CPF:</span> {_t(cpf)}</p>' if cpf else "")
     )
     if not somente_produtos:
         if data_atend:
-            cliente += f'<p><span class="ico">Atendimento</span> {_t(data_atend)}</p>'
+            cliente += f'<p><span class="ico">Data do atendimento:</span> {_t(data_atend)}</p>'
         if ctx.get("profissional_nome"):
-            cliente += f'<p><span class="ico">Profissional</span> {_t(ctx.get("profissional_nome"))}</p>'
+            cliente += f'<p><span class="ico">Profissional:</span> {_t(ctx.get("profissional_nome"))}</p>'
 
     operacional = []
     if somente_produtos and ctx.get("caixa_nome"):
@@ -259,14 +267,14 @@ def gerar_html_recibo(ctx: dict) -> str:
     nota = (
         "Recibo comercial de produto · Documento não fiscal"
         if somente_produtos else
-        "Documento não fiscal"
+        "Recibo de prestação de serviços · Documento não fiscal."
     )
-    contato = "  |  ".join(
-        parte for parte in (
-            _t(ctx.get("loja_endereco") or ""),
-            _t(ctx.get("loja_telefone") or ""),
-            _t(ctx.get("loja_email") or ""),
-        ) if parte
+    endereco = _t(ctx.get("loja_endereco") or "")
+    telefone = _t(ctx.get("loja_telefone") or "")
+    email = _t(ctx.get("loja_email") or "")
+    meio = "  |  ".join(parte for parte in (telefone, email) if parte)
+    contato = "".join(
+        f'<p class="contato">{parte}</p>' for parte in (endereco, meio) if parte
     )
 
     return f"""<!DOCTYPE html>
@@ -274,6 +282,7 @@ def gerar_html_recibo(ctx: dict) -> str:
 <title>{_t(titulo)}</title>
 <style>
   @page {{ size: A4; margin: 12mm; }}
+  html {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
   html, body {{ margin: 0; background: #fff; color: #2b2430; }}
   body {{ font-family: "Segoe UI", system-ui, sans-serif; }}
   .folha {{ max-width: 720px; margin: 0 auto; padding: 28px 32px 36px; }}
@@ -282,35 +291,39 @@ def gerar_html_recibo(ctx: dict) -> str:
   .marca {{ margin: 0; font-size: 28px; letter-spacing: 0.18em; color: {cor}; font-weight: 700; }}
   .razao {{ margin: 8px 0 0; font-size: 13px; letter-spacing: 0.04em; color: #5c5562; text-transform: uppercase; }}
   .doc, .contato {{ margin: 4px 0 0; font-size: 13px; color: #5c5562; }}
-  .faixa {{ margin: 18px 0 8px; background: {cor}; color: #fff; text-align: center; border-radius: 10px; padding: 10px 16px; font-weight: 700; letter-spacing: 0.04em; }}
+  .tinta {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+  .faixa {{ margin: 18px 0 8px; background-color: {cor}; box-shadow: inset 0 0 0 999px {cor}; color: #fff; text-align: center; border-radius: 10px; padding: 10px 16px; font-weight: 700; letter-spacing: 0.04em; }}
   .meta {{ text-align: center; color: #5c5562; font-size: 14px; margin: 0 0 16px; }}
-  .cliente {{ background: {fundo}; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; }}
+  .cliente {{ background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; }}
   .cliente p {{ margin: 4px 0; font-size: 14px; }}
-  .ico {{ color: {cor}; font-weight: 600; }}
+  .ico {{ color: {cor}; font-weight: 700; }}
   table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
-  thead th {{ background: {fundo_tabela}; text-align: left; padding: 8px; font-size: 12px; letter-spacing: 0.03em; }}
+  thead th {{ background-color: {fundo_tabela}; box-shadow: inset 0 0 0 999px {fundo_tabela}; text-align: left; padding: 8px; font-size: 12px; letter-spacing: 0.03em; }}
   thead th.num, td.num {{ text-align: right; white-space: nowrap; }}
   td {{ padding: 8px; vertical-align: top; border-bottom: 1px solid #eee; }}
-  .secao {{ margin: 8px 0 4px; color: {cor}; font-weight: 700; letter-spacing: 0.04em; font-size: 13px; }}
+  .secao {{ margin: 8px 0 4px; color: {cor}; font-weight: 700; letter-spacing: 0.06em; font-size: 13px; }}
   .resumo {{ margin-top: 12px; }}
-  .linha {{ display: flex; justify-content: flex-end; gap: 24px; padding: 3px 8px; font-size: 14px; }}
-  .linha span {{ color: #5c5562; }}
-  .destaque {{ display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin: 10px 0; }}
+  .linha {{ display: flex; justify-content: flex-end; gap: 48px; padding: 3px 8px; font-size: 14px; }}
+  .linha span {{ color: #5c5562; min-width: 120px; text-align: right; }}
+  .destaque {{ display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 12px 0; background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 8px 8px 8px 16px; }}
   .destaque .rotulo {{ color: {cor}; font-weight: 800; letter-spacing: 0.04em; }}
-  .pill {{ background: {cor}; color: #fff; border-radius: 10px; padding: 8px 16px; font-size: 20px; font-weight: 800; }}
+  .pill {{ background-color: {cor}; box-shadow: inset 0 0 0 999px {cor}; color: #fff; border-radius: 10px; padding: 8px 18px; font-size: 20px; font-weight: 800; }}
   .pagamento {{ display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0 4px; font-size: 14px; }}
   .selo {{ font-weight: 700; }}
   .selo.ok {{ color: #1b8a45; }}
   .selo.aviso {{ color: #a15c00; }}
   .selo.neutro {{ color: #5c5562; }}
-  .ops {{ display: flex; justify-content: space-between; gap: 12px; background: {fundo}; border-radius: 12px; padding: 12px 16px; margin-top: 14px; font-size: 14px; }}
-  .obrigado {{ text-align: center; color: {cor}; font-weight: 700; margin: 18px 0 0; }}
+  .ops {{ display: flex; justify-content: space-between; gap: 12px; background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 12px 16px; margin-top: 14px; font-size: 14px; }}
+  .rodape {{ margin-top: 16px; background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 14px 16px 12px; text-align: center; }}
+  .obrigado {{ display: flex; align-items: center; justify-content: center; gap: 12px; color: {cor}; font-weight: 700; font-style: italic; margin: 0; }}
+  .traco {{ width: 72px; border-top: 1px dashed #b9a8c0; }}
   .nota, .miudo {{ text-align: center; color: #6d6572; font-size: 12px; margin: 4px 0 0; }}
   .centro {{ text-align: center; }}
   .saldo strong {{ color: #8a2b2b; }}
   @media print {{
     .no-print, button {{ display: none !important; }}
-    .folha {{ padding: 0; }}
+    .folha {{ padding: 0; max-width: none; }}
+    * {{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
   }}
 </style>
 </head><body>
@@ -319,15 +332,15 @@ def gerar_html_recibo(ctx: dict) -> str:
     {marca}
     {nome_abaixo}
     {f'<p class="doc">{_t(doc_line)}</p>' if doc_line else ''}
-    {f'<p class="contato">{contato}</p>' if contato else ''}
+    {contato}
     {f'<p class="doc">{_t(tel_cep)}</p>' if tel_cep and not ctx.get("loja_telefone") else ''}
   </header>
-  <h1 class="faixa">{_t(titulo)}</h1>
+  <h1 class="faixa tinta">{_t(titulo)}</h1>
   <p class="meta">{meta}</p>
-  <section class="cliente">{cliente}</section>
+  <section class="cliente tinta">{cliente}</section>
   <p class="secao">{_t(titulo_tabela.upper())}</p>
   <table>
-    <thead><tr><th>Descrição</th><th class="num">Qtd.</th><th class="num">Unitário</th><th class="num">Subtotal</th></tr></thead>
+    <thead><tr><th class="tinta">Descrição</th><th class="num tinta">Qtd.</th><th class="num tinta">Unitário</th><th class="num tinta">Subtotal</th></tr></thead>
     <tbody>{linhas_tabela}</tbody>
   </table>
   <div class="resumo">
@@ -336,17 +349,39 @@ def gerar_html_recibo(ctx: dict) -> str:
     {extra_html}
     {saldo_html}
   </div>
-  <div class="destaque"><span class="rotulo">{_t(rotulo_destaque)}</span><span class="pill">{formatar_moeda_recibo(ctx.get("valor_total") or 0)}</span></div>
+  <div class="destaque tinta"><span class="rotulo">{_t(rotulo_destaque)}</span><span class="pill tinta">{formatar_moeda_recibo(ctx.get("valor_total") or 0)}</span></div>
   <div class="pagamento">
     <span>{f'<strong>{_t(rotulo_forma)}:</strong> {_t(formas_texto)}' if formas_texto else ''}</span>
     {situacao_html}
   </div>
   {operacional_html}
   {f'<p class="miudo">{_t(aviso)}</p>' if aviso else ''}
-  <p class="obrigado">Agradecemos pela preferência!</p>
-  <p class="nota">{nota}</p>
-  <p class="no-print" style="text-align:center"><button type="button" onclick="try{{window.focus()}}catch(e){{}};setTimeout(function(){{window.print()}},50)">Imprimir</button></p>
+  <div class="rodape tinta">
+    <p class="obrigado"><span class="traco"></span>Agradecemos pela preferência!<span class="traco"></span></p>
+    <p class="nota">{nota}</p>
+  </div>
+  <p class="no-print" style="text-align:center"><button type="button" onclick="imprimirReciboPronto()">Imprimir</button></p>
 </article>
+<script>
+function imprimirReciboPronto() {{
+  if (window.__reciboImpresso) return;
+  var imgs = [].slice.call(document.images).filter(function(img) {{ return !img.complete; }});
+  var disparar = function() {{
+    if (window.__reciboImpresso) return;
+    window.__reciboImpresso = true;
+    try {{ window.focus(); }} catch (e) {{}}
+    window.print();
+  }};
+  if (!imgs.length) {{ disparar(); return; }}
+  var faltam = imgs.length;
+  var fim = function() {{ if (--faltam <= 0) disparar(); }};
+  imgs.forEach(function(img) {{
+    img.addEventListener("load", fim);
+    img.addEventListener("error", fim);
+  }});
+  setTimeout(disparar, 2500);
+}}
+</script>
 </body></html>"""
 
 

@@ -37,6 +37,7 @@ import {
   hojeIso,
   horaCurta,
   quandoRecibo,
+  podeAlterarServico,
   podeMarcarPresente,
   reais,
   rotuloStatus,
@@ -446,6 +447,16 @@ export function PdvPageContent() {
     }
   };
 
+  const removerServico = async (consultaId: number, procedimentoId: number) => {
+    setErro("");
+    try {
+      await ClinicaBelezaAPI.consultas.procedimentos.remove(consultaId, procedimentoId);
+      await carregar();
+    } catch (erroRemover) {
+      setErro(mensagemErro(erroRemover, "Não foi possível remover o serviço."));
+    }
+  };
+
   const receber = async () => {
     if (!caixaAberto) {
       setErro("Abra o caixa para receber.");
@@ -574,10 +585,11 @@ export function PdvPageContent() {
     await abrirPdfBlobFromResponse(resp, "recibo.pdf");
   };
 
+  const alteraServico = podeAlterarServico(selecionado?.extendedProps?.status);
   const procedimentos = consulta?.procedures_list?.length
     ? consulta.procedures_list
     : selecionado?.extendedProps?.procedure_name
-      ? [{ id: 0, nome: selecionado.extendedProps.procedure_name, valor: Number(selecionado.extendedProps.procedure_price || 0) }]
+      ? [{ id: 0, appointment_procedure_id: 0, nome: selecionado.extendedProps.procedure_name, valor: Number(selecionado.extendedProps.procedure_price || 0) }]
       : [];
 
   return (
@@ -675,16 +687,19 @@ export function PdvPageContent() {
                 </div>
               </div>
               <Bloco titulo="Procedimentos / Serviços">
-                {procedimentos.map((item) => (
-                  <LinhaCarrinho key={`${item.id}-${item.nome}`} tipo="Serviço" nome={item.nome} detalhe="" valor={Number(item.valor || 0)} onRemove={consulta?.id && item.id ? () => void ClinicaBelezaAPI.consultas.procedimentos.remove(consulta.id, item.id).then(() => carregar()) : undefined} />
-                ))}
+                {procedimentos.map((item) => {
+                  const procedimentoId = item.appointment_procedure_id || 0;
+                  return (
+                    <LinhaCarrinho key={`${procedimentoId || item.id}-${item.nome}`} tipo="Serviço" nome={item.nome} detalhe="" valor={Number(item.valor || 0)} onRemove={alteraServico && consulta?.id && procedimentoId ? () => void removerServico(consulta.id, procedimentoId) : undefined} />
+                  );
+                })}
               </Bloco>
               <Bloco titulo="Produtos (cosméticos)">
                 {produtosConsulta.map((item) => (
                   <LinhaCarrinho key={item.id} tipo="Produto" nome={item.produto_nome} detalhe={`${Number(item.quantidade)} × ${formatCurrency(Number(item.preco_unitario || 0))}`} valor={Math.max(0, Number(item.quantidade) * Number(item.preco_unitario || 0) - Number(item.desconto || 0))} onRemove={consulta?.id ? () => void ClinicaBelezaAPI.consultas.produtos.remove(consulta.id, item.id).then(() => carregarProdutos(consulta.id)) : undefined} />
                 ))}
               </Bloco>
-              {incluindo && (
+              {incluindo && (incluindo !== "servico" || alteraServico) && (
                 <div className="flex gap-2">
                   <select value={escolha} onChange={(e) => setEscolha(e.target.value)} className="flex-1 rounded-xl border px-3 py-2 text-sm">
                     <option value="">{incluindo === "produto" ? "Produto" : "Serviço"}</option>
@@ -697,8 +712,11 @@ export function PdvPageContent() {
               )}
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => setIncluindo("produto")} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-sm" style={{ color: rosa, borderColor: rosa }}><ShoppingCart size={14} /> + Adicionar produto</button>
-                <button type="button" onClick={() => setIncluindo("servico")} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-sm" style={{ color: rosa, borderColor: rosa }}><Plus size={14} /> + Adicionar serviço</button>
+                {alteraServico && <button type="button" onClick={() => setIncluindo("servico")} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-sm" style={{ color: rosa, borderColor: rosa }}><Plus size={14} /> + Adicionar serviço</button>}
               </div>
+              {selecionado && !alteraServico && (
+                <p className="text-xs text-gray-500">Procedimentos só podem ser incluídos ou removidos com a cliente presente.</p>
+              )}
               <label className="block text-sm text-gray-600">
                 Observações (opcional)
                 <textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} onBlur={() => { if (consulta?.id) void ClinicaBelezaAPI.consultas.update(consulta.id, { observacoes_gerais: observacao }); }} placeholder="Adicionar uma observação à cobrança..." className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" rows={3} />

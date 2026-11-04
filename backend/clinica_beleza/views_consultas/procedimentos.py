@@ -8,7 +8,7 @@ from ..consulta_procedimentos_service import (
     remover_procedimento_consulta,
 )
 from ..models import Consulta
-from ..permissions import CLINICA_CLINICAL
+from ..permissions import CLINICA_PDV_SERVICO
 from ..serializers import AppointmentProcedureSerializer, ConsultaSerializer
 from ..views_base import GetObjectMixin
 
@@ -18,8 +18,7 @@ class ConsultaProcedimentoListView(GetObjectMixin, APIView):
     POST /clinica-beleza/consultas/<consulta_id>/procedimentos/
     """
 
-    permission_classes = CLINICA_CLINICAL
-    bloquear_andamento_alheio = True
+    permission_classes = CLINICA_PDV_SERVICO
     model_class = Consulta
     not_found_message = "Consulta não encontrada"
     select_related_fields = ("appointment",)
@@ -63,8 +62,7 @@ class ConsultaProcedimentoListView(GetObjectMixin, APIView):
 class ConsultaProcedimentoDetailView(GetObjectMixin, APIView):
     """DELETE /clinica-beleza/consultas/<consulta_id>/procedimentos/<pk>/"""
 
-    permission_classes = CLINICA_CLINICAL
-    bloquear_andamento_alheio = True
+    permission_classes = CLINICA_PDV_SERVICO
     model_class = Consulta
     not_found_message = "Consulta não encontrada"
     select_related_fields = ("appointment",)

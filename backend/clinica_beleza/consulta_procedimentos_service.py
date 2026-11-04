@@ -1,4 +1,4 @@
-"""Adicionar/remover procedimentos durante consulta em atendimento."""
+"""Adicionar/remover procedimentos com a cliente presente. Finalizada não muda."""
 from __future__ import annotations
 
 from django.db.models import Max
@@ -51,9 +51,24 @@ def _garantir_procedimentos_legacy(appointment) -> None:
     )
 
 
+def cliente_presente_para_procedimento(consulta) -> bool:
+    """Presente na agenda ou já em recebimento. Finalizada e cancelada ficam de fora."""
+    status = getattr(consulta, "status", "") or ""
+    if status in ("COMPLETED", "CANCELLED"):
+        return False
+    appointment = getattr(consulta, "appointment", None)
+    if getattr(appointment, "status", "") == "COMPLETED":
+        return False
+    if status in ("IN_PROGRESS", "RECEBER"):
+        return True
+    return getattr(appointment, "status", "") in ("CONFIRMED", "IN_PROGRESS")
+
+
 def adicionar_procedimento_consulta(consulta: Consulta, procedure_id: int) -> AppointmentProcedure:
-    if consulta.status not in ("IN_PROGRESS", "RECEBER"):
-        raise ValueError("Só é possível adicionar procedimentos com a consulta em atendimento.")
+    if not cliente_presente_para_procedimento(consulta):
+        if getattr(consulta, "status", "") == "COMPLETED":
+            raise ValueError("Não é possível incluir procedimentos com a consulta finalizada.")
+        raise ValueError("Só é possível incluir procedimentos com a cliente presente.")
 
     appointment = consulta.appointment
     _garantir_procedimentos_legacy(appointment)
@@ -89,8 +104,10 @@ def adicionar_procedimento_consulta(consulta: Consulta, procedure_id: int) -> Ap
 
 
 def remover_procedimento_consulta(consulta: Consulta, appointment_procedure_id: int) -> None:
-    if consulta.status not in ("IN_PROGRESS", "RECEBER"):
-        raise ValueError("Não é possível remover procedimentos após finalizar a consulta.")
+    if not cliente_presente_para_procedimento(consulta):
+        if getattr(consulta, "status", "") == "COMPLETED":
+            raise ValueError("Não é possível remover procedimentos após finalizar a consulta.")
+        raise ValueError("Só é possível remover procedimentos com a cliente presente.")
 
     appointment = consulta.appointment
     try:

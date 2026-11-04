@@ -36,6 +36,10 @@ export function podeMarcarPresente(status: string | undefined): boolean {
   return !clientePresente(status) && status !== "CANCELLED" && status !== "NO_SHOW";
 }
 
+export function podeAlterarServico(status: string | undefined): boolean {
+  return status === "CONFIRMED" || status === "IN_PROGRESS";
+}
+
 export function rotuloStatus(status: string | undefined): string {
   if (status === "CONFIRMED" || status === "IN_PROGRESS") return "Presente";
   if (status === "COMPLETED") return "Finalizada";

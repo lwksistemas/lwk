@@ -14,7 +14,7 @@ class ConsultaProcedimentosServiceTest(SimpleTestCase):
   def test_adicionar_bloqueia_fora_de_atendimento(self):
     consulta = MagicMock()
     consulta.status = "SCHEDULED"
-    with self.assertRaisesMessage(ValueError, "em atendimento"):
+    with self.assertRaisesMessage(ValueError, "cliente presente"):
       adicionar_procedimento_consulta(consulta, 1)
 
   def test_remover_bloqueia_apos_finalizar(self):
@@ -87,4 +87,32 @@ class ConsultaProcedimentosServiceTest(SimpleTestCase):
     result = adicionar_procedimento_consulta(consulta, 8)
 
     self.assertIs(result, created)
+    mock_ap_model.objects.create.assert_called_once()
+
+  @patch("clinica_beleza.consulta_procedimentos_service._sincronizar_recebimento_apos_procedimento")
+  @patch("clinica_beleza.consulta_procedimentos_service.Procedure")
+  @patch("clinica_beleza.consulta_procedimentos_service.AppointmentProcedure")
+  @patch("clinica_beleza.consulta_procedimentos_service.resolver_preco_procedimento")
+  def test_cliente_presente_pode_incluir_antes_de_iniciar(self, mock_preco, mock_ap_model, mock_proc_model, _mock_reabrir):
+    mock_preco.return_value = Decimal("100.00")
+    procedure = MagicMock()
+    procedure.id = 3
+    procedure.termo_consentimento_ativo = False
+    procedure.termo_consentimento = ""
+    mock_proc_model.objects.get.return_value = procedure
+
+    appointment = MagicMock()
+    appointment.status = "CONFIRMED"
+    appointment.appointment_procedures.filter.return_value.exists.return_value = False
+    appointment.appointment_procedures.aggregate.return_value = {"m": 0}
+    appointment.procedure_id = None
+
+    consulta = MagicMock()
+    consulta.status = "SCHEDULED"
+    consulta.appointment = appointment
+    consulta.loja_id = 1
+    consulta.procedure_id = None
+    mock_ap_model.objects.create.return_value = MagicMock()
+
+    adicionar_procedimento_consulta(consulta, 3)
     mock_ap_model.objects.create.assert_called_once()

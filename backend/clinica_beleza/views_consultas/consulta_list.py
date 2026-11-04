@@ -187,4 +187,31 @@ class ConsultaResumoFinanceiroView(APIView):
     def get(self, request):
         qs = Consulta.objects.exclude(status="CANCELLED")
         qs = filtrar_consultas_lista(qs, request.query_params)
-        return Response(resumo_financeiro_consultas(qs))
+        dados = resumo_financeiro_consultas(qs)
+        if request.query_params.get("pdv") == "1":
+            from datetime import datetime, time
+            from decimal import Decimal
+
+            from django.utils import timezone
+            from django.utils.dateparse import parse_date
+
+            from ..models import Payment
+
+            inicio = parse_date(str(request.query_params.get("data_inicio") or ""))
+            fim = parse_date(str(request.query_params.get("data_fim") or "")) or inicio
+            vendas_balcao = Decimal("0")
+            recebido_balcao = Decimal("0")
+            if inicio and fim:
+                balcao = Payment.objects.filter(
+                    appointment__isnull=True,
+                    created_at__gte=timezone.make_aware(datetime.combine(inicio, time.min)),
+                    created_at__lte=timezone.make_aware(datetime.combine(fim, time.max)),
+                ).exclude(status="CANCELLED")
+                for payment in balcao:
+                    valor = Decimal(str(payment.valor_produtos or 0))
+                    vendas_balcao += valor
+                    if payment.status == "PAID":
+                        recebido_balcao += Decimal(str(payment.amount or 0))
+            dados["vendas_balcao"] = float(vendas_balcao)
+            dados["recebido_balcao"] = float(recebido_balcao)
+        return Response(dados)

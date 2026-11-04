@@ -44,6 +44,8 @@ describe("prontuario paths", () => {
 describe("nav consultas", () => {
   it("mostra Atendimentos no menu no lugar do hub Prontuário", () => {
     expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).toContain("Atendimentos");
+    const labels = CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label);
+    expect(labels[labels.indexOf("Atendimentos") + 1]).toBe("PDV / Caixa");
     expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).not.toContain("Prontuário");
     expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).not.toContain("Consultas");
     expect(CLINICA_BELEZA_NAV_ITEMS.map((i) => i.label)).toContain("Financeiro");

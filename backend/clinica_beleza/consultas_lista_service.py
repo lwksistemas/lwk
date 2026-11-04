@@ -67,13 +67,19 @@ def resumo_financeiro_consultas(qs) -> dict:
     )
     total_pago = Decimal("0")
     a_receber = Decimal("0")
+    vendas_produtos = Decimal("0")
     for payment in payments.iterator(chunk_size=500):
         pago = Decimal(str(payment.pago_parcelas or 0))
         if pago <= 0 and payment.status in ("PAID", "PARTIAL", "DRAFT"):
             pago = Decimal(str(payment.amount or 0))
         total = payment.valor_total if payment.valor_total is not None else Decimal(str(payment.amount or 0))
         total_pago += pago
+        vendas_produtos += Decimal(str(getattr(payment, "valor_produtos", 0) or 0))
         saldo = total - pago
         if saldo > 0:
             a_receber += saldo
-    return {"total_pago": float(total_pago), "a_receber": float(a_receber)}
+    return {
+        "total_pago": float(total_pago),
+        "a_receber": float(a_receber),
+        "vendas_produtos": float(vendas_produtos),
+    }

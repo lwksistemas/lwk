@@ -37,6 +37,69 @@ def _hora_com_as(valor: str) -> str:
     return texto
 
 
+def _icone(nome: str, cor: str, tamanho: int = 16) -> str:
+    """Desenho de linha na cor da clínica, no mesmo lugar do exemplo."""
+    caminhos = {
+        "pessoa": (
+            '<circle cx="12" cy="8" r="3.1"/>'
+            '<path d="M5.6 19.4c.8-3.3 3-4.8 6.4-4.8s5.6 1.5 6.4 4.8"/>'
+        ),
+        "cpf": (
+            '<rect x="3.5" y="5" width="17" height="14" rx="2"/>'
+            '<circle cx="8.8" cy="11.2" r="1.7"/>'
+            '<path d="M6.6 15.7c.5-1.3 1.3-1.9 2.2-1.9s1.7.6 2.2 1.9"/>'
+            '<path d="M13.4 9.6h5.2M13.4 12.4h5.2M13.4 15.2h3.2"/>'
+        ),
+        "calendario": (
+            '<rect x="4" y="5" width="16" height="15" rx="2"/>'
+            '<path d="M8 3.5v4M16 3.5v4M4 10h16"/>'
+        ),
+        "pin": (
+            '<path d="M12 21s6.2-5.4 6.2-10.2a6.2 6.2 0 1 0-12.4 0C5.8 15.6 12 21 12 21z"/>'
+            '<circle cx="12" cy="10.7" r="2"/>'
+        ),
+        "telefone": (
+            '<rect x="8" y="3" width="8" height="18" rx="1.8"/>'
+            '<path d="M10.4 6.2h3.2"/>'
+        ),
+        "email": (
+            '<rect x="3" y="6" width="18" height="12" rx="2"/>'
+            '<path d="M4 7.6 12 13l8-5.4"/>'
+        ),
+        "cartao": (
+            '<rect x="2.5" y="5.5" width="19" height="13" rx="2"/>'
+            '<path d="M2.5 10h19"/>'
+        ),
+        "caixa": (
+            '<path d="M8 8V6.8A1.6 1.6 0 0 1 9.6 5.2h4.8A1.6 1.6 0 0 1 16 6.8V8"/>'
+            '<rect x="3.5" y="8" width="17" height="11" rx="2"/>'
+            '<path d="M7 12.3h4M7 15.3h8"/>'
+        ),
+    }
+    return (
+        f'<svg class="icone" width="{tamanho}" height="{tamanho}" viewBox="0 0 24 24" '
+        f'fill="none" stroke="{cor}" stroke-width="1.7" stroke-linecap="round" '
+        f'stroke-linejoin="round" aria-hidden="true">{caminhos[nome]}</svg>'
+    )
+
+
+def _icone_quitado() -> str:
+    return (
+        '<svg class="icone" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">'
+        '<circle cx="12" cy="12" r="10" fill="#1B8A45"/>'
+        '<path d="M7.2 12.4 10.3 15.5 16.8 8.6" fill="none" stroke="#fff" '
+        'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
+        "</svg>"
+    )
+
+
+def _campo(icone: str, rotulo: str, valor: str, cor: str) -> str:
+    return (
+        f'<p class="campo">{_icone(icone, cor)}'
+        f'<span><span class="ico">{_t(rotulo)}:</span> {_t(valor)}</span></p>'
+    )
+
+
 def _t(valor) -> str:
     return html.escape(str(valor or ""), quote=True)
 
@@ -146,7 +209,7 @@ def _linhas_tabela(ctx: dict) -> tuple[str, str]:
     elif produtos:
         titulo = "Produtos"
     else:
-        titulo = "Procedimentos e serviços"
+        titulo = "Serviços / procedimentos"
     return titulo, "".join(linhas)
 
 
@@ -231,7 +294,7 @@ def gerar_html_recibo(ctx: dict) -> str:
     elif situacao == "em_aberto":
         situacao_html = '<span class="selo aviso">Em aberto</span>'
     elif situacao == "quitado":
-        situacao_html = '<span class="selo ok">✓ Quitado</span>'
+        situacao_html = f'<span class="selo ok">{_icone_quitado()} Quitado</span>'
     else:
         situacao_html = ""
 
@@ -265,24 +328,35 @@ def gerar_html_recibo(ctx: dict) -> str:
 
     cpf = (ctx.get("paciente_cpf") or "").strip()
     rotulo_pessoa = "Cliente" if somente_produtos else "Paciente"
-    cliente = (
-        f'<p><span class="ico">{rotulo_pessoa}:</span> <strong>{_t(ctx.get("paciente_nome"))}</strong></p>'
-        + (f'<p><span class="ico">CPF:</span> {_t(cpf)}</p>' if cpf else "")
-    )
+    cliente = _campo("pessoa", rotulo_pessoa, ctx.get("paciente_nome") or "", cor)
+    if cpf:
+        cliente += _campo("cpf", "CPF", cpf, cor)
     if not somente_produtos:
         if data_atend:
-            cliente += f'<p><span class="ico">Data do atendimento:</span> {_t(data_atend)}</p>'
+            cliente += _campo("calendario", "Data do atendimento", data_atend, cor)
         if ctx.get("profissional_nome"):
-            cliente += f'<p><span class="ico">Profissional:</span> {_t(ctx.get("profissional_nome"))}</p>'
+            cliente += _campo("pessoa", "Profissional", ctx.get("profissional_nome") or "", cor)
 
     operacional = []
-    if somente_produtos and ctx.get("caixa_nome"):
-        operacional.append(f'<span><strong>Caixa:</strong> {_t(ctx.get("caixa_nome"))}</span>')
+    if ctx.get("caixa_nome"):
+        operacional.append(
+            f'<span class="item">{_icone("caixa", cor)}'
+            f'<span><strong>Caixa:</strong> {_t(ctx.get("caixa_nome"))}</span></span>'
+        )
     if ctx.get("operador_nome"):
-        operacional.append(f'<span><strong>Recebido por:</strong> {_t(ctx.get("operador_nome"))}</span>')
+        operacional.append(
+            f'<span class="item">{_icone("pessoa", cor)}'
+            f'<span><strong>Recebido por:</strong> {_t(ctx.get("operador_nome"))}</span></span>'
+        )
     elif not somente_produtos and ctx.get("profissional_nome"):
-        operacional.append(f'<span><strong>Profissional:</strong> {_t(ctx.get("profissional_nome"))}</span>')
-    operacional_html = f'<div class="ops">{"".join(operacional)}</div>' if operacional else ""
+        operacional.append(
+            f'<span class="item">{_icone("pessoa", cor)}'
+            f'<span><strong>Profissional:</strong> {_t(ctx.get("profissional_nome"))}</span></span>'
+        )
+    operacional_html = (
+        f'<div class="ops tinta">{"<span class=\"divisoria\"></span>".join(operacional)}</div>'
+        if operacional else ""
+    )
 
     numero = ctx.get("recibo_numero")
     meta = " · ".join(
@@ -300,9 +374,16 @@ def gerar_html_recibo(ctx: dict) -> str:
     endereco = _t(ctx.get("loja_endereco") or "")
     telefone = _t(ctx.get("loja_telefone") or "")
     email = _t(ctx.get("loja_email") or "")
-    meio = "  |  ".join(parte for parte in (telefone, email) if parte)
-    contato = "".join(
-        f'<p class="contato">{parte}</p>' for parte in (endereco, meio) if parte
+    partes_contato = []
+    if endereco:
+        partes_contato.append(f'<span class="item">{_icone("pin", cor)}<span>{endereco}</span></span>')
+    if telefone:
+        partes_contato.append(f'<span class="item">{_icone("telefone", cor)}<span>{telefone}</span></span>')
+    if email:
+        partes_contato.append(f'<span class="item">{_icone("email", cor)}<span>{email}</span></span>')
+    contato = (
+        f'<p class="contato icones">{"<span class=\"sep\">|</span>".join(partes_contato)}</p>'
+        if partes_contato else ""
     )
 
     return f"""<!DOCTYPE html>
@@ -319,29 +400,34 @@ def gerar_html_recibo(ctx: dict) -> str:
   .marca {{ margin: 0; font-size: 28px; letter-spacing: 0.18em; color: {cor}; font-weight: 700; }}
   .razao {{ margin: 8px 0 0; font-size: 13px; letter-spacing: 0.04em; color: #5c5562; text-transform: uppercase; }}
   .doc, .contato {{ margin: 4px 0 0; font-size: 13px; color: #5c5562; }}
+  .icone {{ flex: 0 0 auto; display: block; }}
+  .campo, .item {{ display: flex; align-items: center; gap: 8px; }}
+  .contato.icones {{ display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 6px 8px; }}
+  .sep {{ color: #c4b8cc; }}
   .tinta {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
   .faixa {{ margin: 18px 0 8px; background-color: {cor}; box-shadow: inset 0 0 0 999px {cor}; color: #fff; text-align: center; border-radius: 10px; padding: 10px 16px; font-weight: 700; letter-spacing: 0.04em; }}
   .meta {{ text-align: center; color: #5c5562; font-size: 14px; margin: 0 0 16px; }}
-  .cliente {{ background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; }}
-  .cliente p {{ margin: 4px 0; font-size: 14px; }}
+  .cliente {{ background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 8px 16px; margin-bottom: 16px; }}
+  .cliente p {{ margin: 3px 0; font-size: 14px; line-height: 1.2; }}
   .ico {{ color: {cor}; font-weight: 700; }}
   table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
-  thead th {{ background-color: {fundo_tabela}; box-shadow: inset 0 0 0 999px {fundo_tabela}; text-align: left; padding: 8px; font-size: 12px; letter-spacing: 0.03em; }}
+  thead th {{ background-color: {fundo_tabela}; box-shadow: inset 0 0 0 999px {fundo_tabela}; text-align: left; padding: 6px 8px; font-size: 12px; letter-spacing: 0.03em; }}
   thead th.num, td.num {{ text-align: right; white-space: nowrap; }}
-  td {{ padding: 8px; vertical-align: top; border-bottom: 1px solid #eee; }}
+  td {{ padding: 2px 8px; vertical-align: middle; border-bottom: 1px solid #eee; line-height: 1.2; }}
   .secao {{ margin: 8px 0 4px; color: {cor}; font-weight: 700; letter-spacing: 0.06em; font-size: 13px; }}
-  .resumo {{ margin-top: 12px; }}
-  .linha {{ display: flex; justify-content: flex-end; gap: 48px; padding: 3px 8px; font-size: 14px; }}
-  .linha span {{ color: #5c5562; min-width: 120px; text-align: right; }}
+  .resumo {{ margin-top: 8px; }}
+  .linha {{ display: flex; justify-content: space-between; align-items: baseline; padding: 2px 8px; font-size: 14px; font-weight: 700; }}
+  .linha span {{ color: #2b2430; font-weight: 700; text-align: left; }}
   .destaque {{ display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 12px 0; background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 8px 8px 8px 16px; }}
   .destaque .rotulo {{ color: {cor}; font-weight: 800; letter-spacing: 0.04em; }}
   .pill {{ background-color: {cor}; box-shadow: inset 0 0 0 999px {cor}; color: #fff; border-radius: 10px; padding: 8px 18px; font-size: 20px; font-weight: 800; }}
   .pagamento {{ display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0 4px; font-size: 14px; }}
   .selo {{ font-weight: 700; }}
-  .selo.ok {{ color: #1b8a45; }}
+  .selo.ok {{ display: inline-flex; align-items: center; gap: 6px; color: #1b8a45; }}
   .selo.aviso {{ color: #a15c00; }}
   .selo.neutro {{ color: #5c5562; }}
-  .ops {{ display: flex; justify-content: space-between; gap: 12px; background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 12px 16px; margin-top: 14px; font-size: 14px; }}
+  .ops {{ display: flex; justify-content: space-between; align-items: center; gap: 12px; background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 12px 16px; margin-top: 14px; font-size: 14px; }}
+  .ops .divisoria {{ width: 1px; align-self: stretch; background: #d8cedf; }}
   .rodape {{ margin-top: 16px; background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 14px 16px 12px; text-align: center; }}
   .obrigado {{ display: flex; align-items: center; justify-content: center; gap: 12px; color: {cor}; font-weight: 700; font-style: italic; margin: 0; }}
   .traco {{ width: 72px; border-top: 1px dashed #b9a8c0; }}
@@ -379,7 +465,7 @@ def gerar_html_recibo(ctx: dict) -> str:
   </div>
   <div class="destaque tinta"><span class="rotulo">{_t(rotulo_destaque)}</span><span class="pill tinta">{formatar_moeda_recibo(ctx.get("valor_total") or 0)}</span></div>
   <div class="pagamento">
-    <span>{f'<strong>{_t(rotulo_forma)}:</strong> {_t(formas_texto)}' if formas_texto else ''}</span>
+    <span class="item">{_icone("cartao", cor) if formas_texto and not custeio else ''}<span>{f'<strong>{_t(rotulo_forma)}:</strong> {_t(formas_texto)}' if formas_texto else ''}</span></span>
     {situacao_html}
   </div>
   {operacional_html}

@@ -135,6 +135,8 @@ export const estoqueApi = {
       nome?: string;
       responsavel?: string;
       operador?: string;
+      vendas_produtos?: number;
+      recebido?: number;
       funcionarios?: { id: number; nome: string }[];
     }>("/estoque/caixa/"),
   abrirCaixa: (data: { nome: string; responsavel_id: number }) =>

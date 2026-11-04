@@ -98,6 +98,8 @@ export function PdvPageContent() {
   const [caixaAberto, setCaixaAberto] = useState(false);
   const [caixaNome, setCaixaNome] = useState("");
   const [caixaResponsavel, setCaixaResponsavel] = useState("");
+  const [caixaRecebido, setCaixaRecebido] = useState(0);
+  const [caixaVendas, setCaixaVendas] = useState(0);
   const [funcionarios, setFuncionarios] = useState<{ id: number; nome: string }[]>([]);
   const [abrindoCaixa, setAbrindoCaixa] = useState(false);
   const [nomeCaixa, setNomeCaixa] = useState("");
@@ -148,15 +150,36 @@ export function PdvPageContent() {
     });
   }, [dia]);
 
+  const aplicarCaixa = useCallback((sessao: {
+    aberta: boolean;
+    nome?: string;
+    responsavel?: string;
+    operador?: string;
+    vendas_produtos?: number;
+    recebido?: number;
+    funcionarios?: { id: number; nome: string }[];
+  }) => {
+    const aberto = Boolean(sessao.aberta);
+    setCaixaAberto(aberto);
+    setCaixaNome(aberto ? sessao.nome || "" : "");
+    setCaixaResponsavel(aberto ? sessao.responsavel || sessao.operador || "" : "");
+    setCaixaRecebido(aberto ? Number(sessao.recebido || 0) : 0);
+    setCaixaVendas(aberto ? Number(sessao.vendas_produtos || 0) : 0);
+    if (Array.isArray(sessao.funcionarios)) setFuncionarios(sessao.funcionarios);
+  }, []);
+
+  const carregarCaixa = useCallback(() => {
+    return ClinicaBelezaAPI.estoque.caixa().then(aplicarCaixa).catch(() => {
+      setCaixaAberto(false);
+      setCaixaRecebido(0);
+      setCaixaVendas(0);
+    });
+  }, [aplicarCaixa]);
+
   useEffect(() => {
     void carregar();
-    ClinicaBelezaAPI.estoque.caixa().then((sessao) => {
-      setCaixaAberto(Boolean(sessao.aberta));
-      setCaixaNome(sessao.nome || "");
-      setCaixaResponsavel(sessao.responsavel || sessao.operador || "");
-      setFuncionarios(Array.isArray(sessao.funcionarios) ? sessao.funcionarios : []);
-    }).catch(() => setCaixaAberto(false));
-  }, [carregar]);
+    void carregarCaixa();
+  }, [carregar, carregarCaixa]);
 
   useEffect(() => {
     ClinicaBelezaAPI.estoque.list({ page_size: 200 }).then((res) => {
@@ -268,8 +291,8 @@ export function PdvPageContent() {
       : reais(Math.max(0, servicos - descontoNum) + produtosValor);
 
   const presentes = agendaHoje.filter((evento) => clientePresente(evento.extendedProps?.status)).length;
-  const recebidoHoje = reais(resumo.total_pago + resumo.recebido_balcao);
-  const vendasProdutos = reais(resumo.vendas_produtos + resumo.vendas_balcao);
+  const recebidoHoje = caixaAberto ? reais(caixaRecebido) : 0;
+  const vendasProdutos = caixaAberto ? reais(caixaVendas) : 0;
 
   const fecharCaixa = async () => {
     setMenuCaixa(false);
@@ -279,6 +302,8 @@ export function PdvPageContent() {
       setCaixaAberto(false);
       setCaixaNome("");
       setCaixaResponsavel("");
+      setCaixaRecebido(0);
+      setCaixaVendas(0);
     } catch (erroCaixa) {
       setErro(mensagemErro(erroCaixa, "Não foi possível fechar o caixa."));
     }
@@ -296,9 +321,12 @@ export function PdvPageContent() {
         nome: nomeCaixa.trim(),
         responsavel_id: Number(responsavelCaixa),
       });
-      setCaixaAberto(true);
-      setCaixaNome(sessao.nome || nomeCaixa.trim());
-      setCaixaResponsavel(sessao.responsavel || funcionarios.find((pessoa) => pessoa.id === Number(responsavelCaixa))?.nome || "");
+      aplicarCaixa({
+        ...sessao,
+        aberta: true,
+        nome: sessao.nome || nomeCaixa.trim(),
+        responsavel: sessao.responsavel || funcionarios.find((pessoa) => pessoa.id === Number(responsavelCaixa))?.nome || "",
+      });
       setAbrindoCaixa(false);
       setNomeCaixa("");
       setResponsavelCaixa("");
@@ -409,6 +437,7 @@ export function PdvPageContent() {
         setEmailRecibo("");
         setDesconto("");
         await carregar();
+        await carregarCaixa();
         return;
       }
       if (!consulta?.id) throw { error: "Marque a cliente como presente para receber este atendimento." };
@@ -730,7 +759,7 @@ export function PdvPageContent() {
                       {item.status !== "cancelada" && (
                         <button type="button" className="mt-1 block text-xs" style={{ color: rosa }} onClick={() => {
                           if (!window.confirm("Cancelar esta venda e devolver os produtos ao estoque?")) return;
-                          void ClinicaBelezaAPI.estoque.cancelarVenda(item.id).then(() => ClinicaBelezaAPI.estoque.vendas({ data: dia }).then((lista) => setVendasDia(listaDe(lista)))).then(() => carregar());
+                          void ClinicaBelezaAPI.estoque.cancelarVenda(item.id).then(() => ClinicaBelezaAPI.estoque.vendas({ data: dia }).then((lista) => setVendasDia(listaDe(lista)))).then(() => carregar()).then(() => carregarCaixa());
                         }}>Cancelar</button>
                       )}
                     </span>
@@ -748,7 +777,7 @@ export function PdvPageContent() {
                 <p className="flex justify-between"><span>Recebido hoje</span><strong>{formatCurrency(recebidoHoje)}</strong></p>
                 <p className="flex justify-between"><span>Ainda a receber</span><strong>{formatCurrency(resumo.a_receber)}</strong></p>
                 <p className="flex justify-between"><span>Vendas de produtos</span><strong>{formatCurrency(vendasProdutos)}</strong></p>
-                <p className="pt-2 text-xs text-gray-500">O que a profissional recebe em Atendimentos entra neste Financeiro. A venda de produtos entra na gaveta aberta aqui.</p>
+                <p className="pt-2 text-xs text-gray-500">{caixaAberto ? `Estes valores são do caixa ${caixaNome || "aberto"}${caixaResponsavel ? `, responsável ${caixaResponsavel}` : ""}. Ao fechar, o resumo zera para o próximo operador.` : "Caixa fechado. Recebido e vendas de produtos ficam zerados até a próxima abertura."} O lançamento continua no Financeiro.</p>
                 <button type="button" onClick={() => { void fecharCaixa(); setPainel(null); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>
               </div>
             )}

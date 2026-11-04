@@ -1,4 +1,4 @@
-"""Cupom HTML do recibo — mesmo contexto do PDF (Imprimir)."""
+"""Recibo HTML — o mesmo visual da venda de produtos e do atendimento."""
 from __future__ import annotations
 
 import html
@@ -10,6 +10,7 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    cor_primaria_recibo,
     custeado_pela_clinica,
     linha_valor_com_desconto_recibo,
     linha_vencimento_recibo,
@@ -23,6 +24,7 @@ from .context import (
     rotulo_subtotal_recibo,
     rotulo_total_recibo,
     situacao_recibo,
+    tinta_recibo,
     titulo_recibo,
 )
 from .moeda import formatar_moeda_recibo
@@ -33,7 +35,7 @@ def _t(valor) -> str:
 
 
 def _nome_servico_html(nome: str) -> str:
-    """A quantidade e a unidade permanecem na mesma linha do cupom."""
+    """A quantidade e a unidade permanecem na mesma linha do recibo."""
     return re.sub(
         r"(\d+(?:[.,]\d+)?) ([A-Za-zµμ]+)",
         lambda m: f"{m.group(1)}&nbsp;{m.group(2)}",
@@ -48,245 +50,308 @@ def _saldo(ctx: dict) -> float:
     return float(ctx.get("saldo_devedor", max(valor_total - valor_pago, 0)))
 
 
+def _logo_http(url: str) -> str:
+    texto = (url or "").strip()
+    if texto.startswith("https://") or texto.startswith("http://"):
+        return texto
+    return ""
+
+
+def _celula_item(descricao: str, quantidade: str, unitario: str, subtotal: str) -> str:
+    return (
+        "<tr>"
+        f'<td class="desc">{descricao}</td>'
+        f'<td class="num">{quantidade}</td>'
+        f'<td class="num">{unitario}</td>'
+        f'<td class="num">{subtotal}</td>'
+        "</tr>"
+    )
+
+
+def _linhas_tabela(ctx: dict) -> tuple[str, str]:
+    """Devolve (título da tabela, linhas). Produtos e atendimentos usam as mesmas colunas."""
+    linhas = []
+    for label, valor in _linhas_taxa_consulta_recibo(ctx):
+        linhas.append(_celula_item(
+            f"• {_t(label)}",
+            "1",
+            formatar_moeda_recibo(valor),
+            formatar_moeda_recibo(valor),
+        ))
+    for nome, valor in procedimentos_exibidos_recibo(ctx):
+        if valor > 0.009:
+            quantidade, unitario = "1", formatar_moeda_recibo(valor)
+        else:
+            quantidade, unitario = "—", "—"
+        linhas.append(_celula_item(
+            _nome_servico_html(nome),
+            quantidade,
+            unitario,
+            formatar_moeda_recibo(valor),
+        ))
+    for label, valor in linhas_local_convenio_recibo(ctx):
+        linhas.append(
+            f'<tr><td class="desc" colspan="4">{_t(label)} {_t(valor)}</td></tr>'
+        )
+    produtos = produtos_exibidos_recibo(ctx)
+    for item in produtos:
+        descricao = _t(item["nome"])
+        if item["desconto"] > 0.009:
+            descricao += f'<br><span class="miudo">desc. {formatar_moeda_recibo(item["desconto"])}</span>'
+        linhas.append(_celula_item(
+            descricao,
+            _t(item["quantidade"]),
+            formatar_moeda_recibo(item["preco_unitario"]),
+            formatar_moeda_recibo(item["subtotal"]),
+        ))
+    if ctx.get("somente_produtos"):
+        titulo = "Produtos"
+    elif produtos and len(linhas) > len(produtos):
+        titulo = "Procedimentos, serviços e produtos"
+    elif produtos:
+        titulo = "Produtos"
+    else:
+        titulo = "Procedimentos e serviços"
+    return titulo, "".join(linhas)
+
+
 def gerar_html_recibo(ctx: dict) -> str:
-    """Monta o cupom de impressão a partir do mesmo ctx do PDF."""
+    """Recibo visual único para venda de produtos e para atendimento."""
     ctx = reconciliar_conta_recibo(ctx)
     saldo = _saldo(ctx)
     titulo, subtitulo = titulo_recibo(ctx)
     situacao = situacao_recibo(ctx)
+    cor = cor_primaria_recibo(ctx.get("cor_primaria") or "")
+    fundo = tinta_recibo(cor, 0.9)
+    fundo_tabela = tinta_recibo(cor, 0.82)
     doc_line = _linha_documento_loja(ctx)
     tel_cep = ctx.get("loja_tel_cep") or _linha_tel_cep(
         ctx.get("loja_telefone", ""), ctx.get("loja_cep", ""),
     )
     data_emissao = ctx.get("data_emissao") or ctx.get("data") or "—"
-    data_atend = ctx.get("data_atendimento") or "—"
-
-    servicos = []
-    for label, valor in _linhas_taxa_consulta_recibo(ctx):
-        servicos.append(
-            f'<tr><td style="padding-left:8px">• {_t(label)}</td>'
-            f'<td style="text-align:right">{formatar_moeda_recibo(valor)}</td></tr>'
-        )
-    for nome, valor in procedimentos_exibidos_recibo(ctx):
-        servicos.append(
-            f'<tr><td style="padding-left:8px">• {_nome_servico_html(nome)}</td>'
-            f'<td style="text-align:right;white-space:nowrap">{formatar_moeda_recibo(valor)}</td></tr>'
-        )
-    for label, valor in linhas_local_convenio_recibo(ctx):
-        servicos.append(
-            f'<tr><td colspan="2">{_t(label)} {_t(valor)}</td></tr>'
-        )
-    produtos = produtos_exibidos_recibo(ctx)
-    if produtos:
-        servicos.append('<tr><td colspan="2"><strong>Produtos</strong></td></tr>')
-        for item in produtos:
-            detalhe = (
-                f'{_t(item["quantidade"])} × {formatar_moeda_recibo(item["preco_unitario"])}'
-            )
-            if item["desconto"] > 0.009:
-                detalhe += f' − desc. {formatar_moeda_recibo(item["desconto"])}'
-            servicos.append(
-                f'<tr><td style="padding-left:8px">• {_t(item["nome"])}'
-                f'<br><span style="color:#555">{detalhe}</span></td>'
-                f'<td style="text-align:right;white-space:nowrap">{formatar_moeda_recibo(item["subtotal"])}</td></tr>'
-            )
-        servicos.append(
-            '<tr><td colspan="2">Recibo comercial de produto. Não é nota fiscal.</td></tr>'
-        )
+    data_atend = ctx.get("data_atendimento") or ""
+    titulo_tabela, linhas_tabela = _linhas_tabela(ctx)
+    somente_produtos = bool(ctx.get("somente_produtos"))
+    custeio = situacao == "quitado" and custeado_pela_clinica(ctx)
+    rotulo = rotulo_total_recibo(ctx)
+    if situacao == "quitado" and not custeio and rotulo == "Total":
+        rotulo_destaque = "TOTAL PAGO"
+    elif rotulo == "Total":
+        rotulo_destaque = "TOTAL"
+    else:
+        rotulo_destaque = rotulo
 
     descontos = _linhas_descontos_recibo(ctx)
     subtotal = float(ctx.get("subtotal", ctx.get("valor_total") or 0))
-    descontos_html = "".join(
-        f"<tr><td>{_t(label)}</td>"
-        f'<td style="text-align:right">- {formatar_moeda_recibo(valor)}</td></tr>'
+    resumo = (
+        f'<div class="linha"><span>{_t(rotulo_subtotal_recibo(ctx))}</span>'
+        f'<strong>{formatar_moeda_recibo(subtotal)}</strong></div>'
+    )
+    resumo += "".join(
+        f'<div class="linha"><span>{_t(label)}</span>'
+        f'<strong>- {formatar_moeda_recibo(valor)}</strong></div>'
         for label, valor in descontos
     )
-    if descontos:
-        totais = (
-            f'<tr><td><strong>{_t(rotulo_subtotal_recibo(ctx))}</strong></td>'
-            f'<td style="text-align:right"><strong>{formatar_moeda_recibo(subtotal)}</strong></td></tr>'
-            f"{descontos_html}"
-        )
-    else:
-        totais = ""
     protocolo_info = linhas_protocolo_informativo(ctx)
     if protocolo_info:
-        totais += '<tr><td colspan="2"><strong>Protocolo</strong></td></tr>'
-        totais += "".join(
-            f"<tr><td>{_t(label)}</td>"
-            f'<td style="text-align:right">{formatar_moeda_recibo(valor)}</td></tr>'
-            for label, valor in protocolo_info
-        )
+        resumo += '<p class="secao">Protocolo</p>'
+        for label, valor in protocolo_info:
+            resumo += (
+                f'<div class="linha"><span>{_t(label)}</span>'
+                f'<strong>{formatar_moeda_recibo(valor)}</strong></div>'
+            )
     valor_com_desconto = linha_valor_com_desconto_recibo(ctx)
     if valor_com_desconto:
-        totais += (
-            f"<tr><td>{_t(valor_com_desconto[0])}</td>"
-            f'<td style="text-align:right">{formatar_moeda_recibo(valor_com_desconto[1])}</td></tr>'
+        resumo += (
+            f'<div class="linha"><span>{_t(valor_com_desconto[0])}</span>'
+            f'<strong>{formatar_moeda_recibo(valor_com_desconto[1])}</strong></div>'
         )
-    totais += (
-        f'<tr><td><strong>{_t(rotulo_total_recibo(ctx))}</strong></td>'
-        f'<td style="text-align:right"><strong>{formatar_moeda_recibo(ctx.get("valor_total") or 0)}</strong></td></tr>'
-    )
 
     valor_pago = float(ctx.get("valor_pago") or 0)
     formas = [
         f for f in (ctx.get("formas_pagamento") or [])
         if float(f.get("valor") or 0) > 0.009
     ]
-    if formas:
-        formas_html = "".join(
-            f"<tr><td>{_t(rotulo_forma_recibo(f.get('metodo') or ''))}</td>"
-            f'<td style="text-align:right">{formatar_moeda_recibo(f.get("valor") or 0)}</td></tr>'
+    if not formas and valor_pago > 0.009:
+        formas = [{"metodo": ctx.get("metodo") or "Pagamento", "valor": valor_pago}]
+    if custeio:
+        formas_texto = "Custeado pela clínica"
+    elif len(formas) > 1:
+        formas_texto = " · ".join(
+            f'{rotulo_forma_recibo(f.get("metodo") or "")} {formatar_moeda_recibo(f.get("valor") or 0)}'
             for f in formas
         )
-    elif valor_pago > 0:
-        formas_html = (
-            f"<tr><td>{_t(rotulo_forma_recibo(ctx.get('metodo') or 'Pagamento'))}</td>"
-            f'<td style="text-align:right">{formatar_moeda_recibo(valor_pago)}</td></tr>'
-        )
+    elif formas:
+        formas_texto = rotulo_forma_recibo(formas[0].get("metodo") or "")
     else:
-        formas_html = ""
+        formas_texto = (ctx.get("condicao_cobranca") or "").strip()
+    rotulo_forma = "Formas de pagamento" if len(formas) > 1 else "Forma de pagamento"
+
+    if custeio:
+        situacao_html = '<span class="selo neutro">Custeado pela clínica</span>'
+    elif situacao == "sem_saldo":
+        situacao_html = f'<span class="selo neutro">{_t(subtitulo or "Sem valor a pagar")}</span>'
+    elif situacao == "parcial":
+        situacao_html = '<span class="selo aviso">Pagamento parcial</span>'
+    elif situacao == "em_aberto":
+        situacao_html = '<span class="selo aviso">Em aberto</span>'
+    elif situacao == "quitado":
+        situacao_html = '<span class="selo ok">✓ Quitado</span>'
+    else:
+        situacao_html = ""
+
+    saldo_html = ""
+    if not custeio and saldo > 0.009:
+        saldo_html = (
+            f'<div class="linha saldo"><span>SALDO A PAGAR</span>'
+            f'<strong>{formatar_moeda_recibo(saldo)}</strong></div>'
+            f'<p class="miudo centro">{_t(linha_vencimento_recibo(ctx))}</p>'
+        )
     extra = recebido_a_maior_recibo(ctx)
-    extra_bloco = (
-        f'<div class="total" style="font-size:12px;">RECEBIDO A MAIOR: {formatar_moeda_recibo(extra)}</div>'
-        if extra > 0.009
-        else ""
+    extra_html = (
+        f'<div class="linha"><span>Recebido a maior</span><strong>{formatar_moeda_recibo(extra)}</strong></div>'
+        if extra > 0.009 else ""
     )
+    pago_html = ""
+    if situacao == "parcial" and valor_pago > 0.009:
+        pago_html = (
+            f'<div class="linha"><span>PAGO</span><strong>{formatar_moeda_recibo(valor_pago)}</strong></div>'
+        )
 
-    condicao = (ctx.get("condicao_cobranca") or "").strip()
-    custeio = situacao == "quitado" and custeado_pela_clinica(ctx)
-    if situacao == "sem_saldo" or custeio:
-        valor_pago_bloco = ""
-        saldo_bloco = (
-            '<div class="footer" style="border-top:none;margin-top:0;">'
-            f'<p style="font-weight:bold;color:#333;">{_t(subtitulo)}</p></div>'
-        )
-    else:
-        rotulo_pago = "PAGO" if situacao == "parcial" else "VALOR PAGO"
-        valor_pago_bloco = (
-            f'<div class="total">{rotulo_pago}: {formatar_moeda_recibo(valor_pago)}</div>'
-        )
-        if saldo > 0.009:
-            saldo_bloco = (
-                f'<div class="total">SALDO A PAGAR: {formatar_moeda_recibo(saldo)}</div>'
-                f'<div class="total" style="font-size:12px;font-weight:normal;">'
-                f'{_t(linha_vencimento_recibo(ctx))}</div>'
-            )
-        elif situacao == "quitado":
-            saldo_bloco = (
-                '<div class="footer" style="border-top:none;margin-top:0;">'
-                '<p style="font-weight:bold;color:#333;">Quitado</p></div>'
-            )
-        else:
-            saldo_bloco = ""
-    if formas_html:
-        formas_bloco = (
-            '<div class="section">'
-            '<div class="section-title">Formas de pagamento:</div>'
-            f"<table>{formas_html}</table></div>"
-        )
-    elif condicao:
-        formas_bloco = (
-            f'<p style="text-align:center">Condição de cobrança: {_t(condicao)}</p>'
-        )
-    else:
-        formas_bloco = ""
+    logo = _logo_http(ctx.get("logo_url") or "")
+    marca = (
+        f'<img class="logo" src="{_t(logo)}" alt="{_t(ctx.get("loja_nome") or "Clínica")}">'
+        if logo else
+        f'<p class="marca">{_t((ctx.get("loja_nome") or "CLÍNICA").upper())}</p>'
+    )
+    nome_abaixo = ""
+    if logo and ctx.get("loja_nome"):
+        nome_abaixo = f'<p class="razao">{_t(ctx.get("loja_nome"))}</p>'
 
+    cpf = (ctx.get("paciente_cpf") or "").strip()
+    cliente = (
+        f'<p><span class="ico">Cliente</span> <strong>{_t(ctx.get("paciente_nome"))}</strong></p>'
+        + (f'<p><span class="ico">CPF</span> {_t(cpf)}</p>' if cpf else "")
+    )
+    if not somente_produtos:
+        if data_atend:
+            cliente += f'<p><span class="ico">Atendimento</span> {_t(data_atend)}</p>'
+        if ctx.get("profissional_nome"):
+            cliente += f'<p><span class="ico">Profissional</span> {_t(ctx.get("profissional_nome"))}</p>'
+
+    operacional = []
+    if somente_produtos and ctx.get("caixa_nome"):
+        operacional.append(f'<span><strong>Caixa:</strong> {_t(ctx.get("caixa_nome"))}</span>')
+    if ctx.get("operador_nome"):
+        operacional.append(f'<span><strong>Recebido por:</strong> {_t(ctx.get("operador_nome"))}</span>')
+    elif not somente_produtos and ctx.get("profissional_nome"):
+        operacional.append(f'<span><strong>Profissional:</strong> {_t(ctx.get("profissional_nome"))}</span>')
+    operacional_html = f'<div class="ops">{"".join(operacional)}</div>' if operacional else ""
+
+    numero = ctx.get("recibo_numero")
+    meta = " · ".join(
+        parte for parte in (
+            f'Recibo nº {_t(numero)}' if numero else "",
+            f'Emitido em {_t(data_emissao)}',
+        ) if parte
+    )
     aviso = (ctx.get("retorno_aviso") or "").strip()
-    nome_loja = (ctx.get("loja_nome") or "CLÍNICA").upper()
-    if ctx.get("somente_produtos"):
-        pessoa_extra = ""
-        if ctx.get("caixa_nome"):
-            pessoa_extra += (
-                '<div class="section"><div class="section-title">Caixa</div>'
-                f'<table><tr><td>{_t(ctx.get("caixa_nome"))}</td></tr></table></div>'
-            )
-        if ctx.get("operador_nome"):
-            pessoa_extra += (
-                '<div class="section"><div class="section-title">Responsável pelo recebimento</div>'
-                f'<table><tr><td>{_t(ctx.get("operador_nome"))}</td></tr></table></div>'
-            )
-    else:
-        pessoa_extra = (
-            '<div class="section"><div class="section-title">Profissional</div>'
-            f'<table><tr><td>{_t(ctx.get("profissional_nome") or "—")}</td></tr></table></div>'
-            '<div class="section"><div class="section-title">Data/Hora do atendimento</div>'
-            f'<table><tr><td>{_t(data_atend)}</td></tr></table></div>'
-        )
+    nota = (
+        "Recibo comercial de produto · Documento não fiscal"
+        if somente_produtos else
+        "Documento não fiscal"
+    )
+    contato = "  |  ".join(
+        parte for parte in (
+            _t(ctx.get("loja_endereco") or ""),
+            _t(ctx.get("loja_telefone") or ""),
+            _t(ctx.get("loja_email") or ""),
+        ) if parte
+    )
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
-<title>Recibo de Pagamento</title>
+<title>{_t(titulo)}</title>
 <style>
-  /* Largura do cupom. size:auto deixa o Chrome com preview em branco. */
-  @page {{ size: 80mm 297mm; margin: 4mm; }}
-  html, body {{ background: #fff; color: #000; }}
-  body {{ font-family: 'Courier New', monospace; width: 72mm; margin: 0 auto; padding: 8px; font-size: 12px; line-height: 1.55; letter-spacing: 0.2px; }}
-  .header {{ text-align: center; border-bottom: 1px dashed #333; padding-bottom: 6px; margin-bottom: 8px; }}
-  .header h1 {{ font-size: 13px; margin: 0 0 2px; }}
-  .header p {{ margin: 1px 0; font-size: 10px; color: #444; }}
-  .section {{ margin: 6px 0; }}
-  .section-title {{ font-weight: bold; font-size: 10px; text-transform: uppercase; border-bottom: 1px dotted #aaa; margin-bottom: 4px; }}
-  table {{ width: 100%; border-collapse: collapse; font-size: 11px; }}
-  td {{ padding: 2px 0; vertical-align: top; }}
-  .divider {{ border-top: 1px dashed #333; margin: 8px 0; }}
-  .total {{ font-size: 14px; font-weight: bold; text-align: center; margin: 8px 0; }}
-  .footer {{ text-align: center; font-size: 9px; color: #666; margin-top: 10px; border-top: 1px dashed #333; padding-top: 6px; }}
-  .aviso {{ text-align: center; font-size: 12px; color: #333; margin: 8px 0; }}
+  @page {{ size: A4; margin: 12mm; }}
+  html, body {{ margin: 0; background: #fff; color: #2b2430; }}
+  body {{ font-family: "Segoe UI", system-ui, sans-serif; }}
+  .folha {{ max-width: 720px; margin: 0 auto; padding: 28px 32px 36px; }}
+  .topo {{ text-align: center; }}
+  .logo {{ max-height: 92px; max-width: 240px; object-fit: contain; }}
+  .marca {{ margin: 0; font-size: 28px; letter-spacing: 0.18em; color: {cor}; font-weight: 700; }}
+  .razao {{ margin: 8px 0 0; font-size: 13px; letter-spacing: 0.04em; color: #5c5562; text-transform: uppercase; }}
+  .doc, .contato {{ margin: 4px 0 0; font-size: 13px; color: #5c5562; }}
+  .faixa {{ margin: 18px 0 8px; background: {cor}; color: #fff; text-align: center; border-radius: 10px; padding: 10px 16px; font-weight: 700; letter-spacing: 0.04em; }}
+  .meta {{ text-align: center; color: #5c5562; font-size: 14px; margin: 0 0 16px; }}
+  .cliente {{ background: {fundo}; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; }}
+  .cliente p {{ margin: 4px 0; font-size: 14px; }}
+  .ico {{ color: {cor}; font-weight: 600; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+  thead th {{ background: {fundo_tabela}; text-align: left; padding: 8px; font-size: 12px; letter-spacing: 0.03em; }}
+  thead th.num, td.num {{ text-align: right; white-space: nowrap; }}
+  td {{ padding: 8px; vertical-align: top; border-bottom: 1px solid #eee; }}
+  .secao {{ margin: 8px 0 4px; color: {cor}; font-weight: 700; letter-spacing: 0.04em; font-size: 13px; }}
+  .resumo {{ margin-top: 12px; }}
+  .linha {{ display: flex; justify-content: flex-end; gap: 24px; padding: 3px 8px; font-size: 14px; }}
+  .linha span {{ color: #5c5562; }}
+  .destaque {{ display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin: 10px 0; }}
+  .destaque .rotulo {{ color: {cor}; font-weight: 800; letter-spacing: 0.04em; }}
+  .pill {{ background: {cor}; color: #fff; border-radius: 10px; padding: 8px 16px; font-size: 20px; font-weight: 800; }}
+  .pagamento {{ display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0 4px; font-size: 14px; }}
+  .selo {{ font-weight: 700; }}
+  .selo.ok {{ color: #1b8a45; }}
+  .selo.aviso {{ color: #a15c00; }}
+  .selo.neutro {{ color: #5c5562; }}
+  .ops {{ display: flex; justify-content: space-between; gap: 12px; background: {fundo}; border-radius: 12px; padding: 12px 16px; margin-top: 14px; font-size: 14px; }}
+  .obrigado {{ text-align: center; color: {cor}; font-weight: 700; margin: 18px 0 0; }}
+  .nota, .miudo {{ text-align: center; color: #6d6572; font-size: 12px; margin: 4px 0 0; }}
+  .centro {{ text-align: center; }}
+  .saldo strong {{ color: #8a2b2b; }}
   @media print {{
-    html, body {{ width: 72mm !important; max-width: 72mm !important; margin: 0 !important; padding: 4px !important; background: #fff !important; }}
     .no-print, button {{ display: none !important; }}
+    .folha {{ padding: 0; }}
   }}
 </style>
 </head><body>
-<div class="header">
-  <h1>{_t(nome_loja)}</h1>
-  {f'<p>{_t(doc_line)}</p>' if doc_line else ''}
-  {f'<p>{_t(ctx.get("loja_endereco"))}</p>' if ctx.get("loja_endereco") else ''}
-  {f'<p>{_t(tel_cep)}</p>' if tel_cep else ''}
-  {f'<p>{_t(ctx.get("loja_email"))}</p>' if ctx.get("loja_email") else ''}
-  <p style="margin-top:4px;font-weight:bold">{titulo}</p>
-  {f'<p>{_t(subtitulo)}</p>' if subtitulo else ''}
-  <p>Emitido em {_t(data_emissao)}</p>
-  {f'<p>Recibo nº {_t(ctx.get("recibo_numero"))}</p>' if ctx.get("recibo_numero") else ''}
-</div>
-
-<div class="section">
-  <div class="section-title">Cliente</div>
-  <table><tr><td>{_t(ctx.get("paciente_nome"))}</td></tr></table>
-</div>
-
-{pessoa_extra}
-
-<div class="section">
-  <div class="section-title">Serviços</div>
+<article class="folha">
+  <header class="topo">
+    {marca}
+    {nome_abaixo}
+    {f'<p class="doc">{_t(doc_line)}</p>' if doc_line else ''}
+    {f'<p class="contato">{contato}</p>' if contato else ''}
+    {f'<p class="doc">{_t(tel_cep)}</p>' if tel_cep and not ctx.get("loja_telefone") else ''}
+  </header>
+  <h1 class="faixa">{_t(titulo)}</h1>
+  <p class="meta">{meta}</p>
+  <section class="cliente">{cliente}</section>
+  <p class="secao">{_t(titulo_tabela.upper())}</p>
   <table>
-    {''.join(servicos)}
+    <thead><tr><th>Descrição</th><th class="num">Qtd.</th><th class="num">Unitário</th><th class="num">Subtotal</th></tr></thead>
+    <tbody>{linhas_tabela}</tbody>
   </table>
-</div>
-
-<div class="divider"></div>
-<table>
-  {totais}
-</table>
-
-{formas_bloco}
-
-{valor_pago_bloco}
-{extra_bloco}
-{saldo_bloco}
-
-<div class="footer">
-  {f'<p class="aviso">{_t(aviso)}</p>' if aviso else ''}
-  <p>Agradecemos pela confiança!</p>
-  <p>Documento não fiscal — gerado pelo sistema.</p>
-  <button type="button" class="no-print" onclick="try{{window.focus()}}catch(e){{}};setTimeout(function(){{window.print()}},50)" style="margin-top:8px;padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #333;border-radius:4px;background:#fff;">Imprimir</button>
-</div>
+  <div class="resumo">
+    {resumo}
+    {pago_html}
+    {extra_html}
+    {saldo_html}
+  </div>
+  <div class="destaque"><span class="rotulo">{_t(rotulo_destaque)}</span><span class="pill">{formatar_moeda_recibo(ctx.get("valor_total") or 0)}</span></div>
+  <div class="pagamento">
+    <span>{f'<strong>{_t(rotulo_forma)}:</strong> {_t(formas_texto)}' if formas_texto else ''}</span>
+    {situacao_html}
+  </div>
+  {operacional_html}
+  {f'<p class="miudo">{_t(aviso)}</p>' if aviso else ''}
+  <p class="obrigado">Agradecemos pela preferência!</p>
+  <p class="nota">{nota}</p>
+  <p class="no-print" style="text-align:center"><button type="button" onclick="try{{window.focus()}}catch(e){{}};setTimeout(function(){{window.print()}},50)">Imprimir</button></p>
+</article>
 </body></html>"""
 
 
 def gerar_html_recibo_do_payment(payment) -> str:
-    """Carrega o mesmo contexto do PDF e devolve o cupom HTML."""
+    """Carrega o mesmo contexto do PDF e devolve o recibo HTML."""
     appointment = payment.appointment
     if not appointment:
         from clinica_beleza.venda_produto_service import pessoa_recibo, produtos_do_pagamento

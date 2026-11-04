@@ -16,7 +16,7 @@ export default function ClinicaBelezaContatoReciboPage() {
     <>
       <ClinicaBelezaStandardPageHeader
         title="Contato no recibo"
-        subtitle="Telefone e e-mail da clínica no recibo de pagamento"
+        subtitle="Contato, cor e logomarca do recibo de pagamento"
         showOffline={false}
         icon={Phone}
         backHref={base}

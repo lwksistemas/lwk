@@ -9,6 +9,7 @@ from .context import (
     _linha_tel_cep,
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
+    cor_primaria_recibo,
     custeado_pela_clinica,
     linha_valor_com_desconto_recibo,
     linha_vencimento_recibo,
@@ -22,6 +23,7 @@ from .context import (
     rotulo_subtotal_recibo,
     rotulo_total_recibo,
     situacao_recibo,
+    tinta_recibo,
     titulo_recibo,
 )
 from .moeda import formatar_moeda_recibo
@@ -62,9 +64,9 @@ def _saldo_devedor_recibo(ctx: dict) -> float:
     return ctx.get("saldo_devedor", max(valor_total - valor_pago, 0))
 
 
-# Logo (imagem nítida) no rodapé do recibo — parte branca, aparece em todo recibo.
-_LOGO_RODAPE_MAX_W_MM = 48
-_LOGO_RODAPE_MAX_H_MM = 30
+# Logo no topo do recibo.
+_LOGO_RODAPE_MAX_W_MM = 58
+_LOGO_RODAPE_MAX_H_MM = 28
 
 
 def _logo_rodape_recibo(logo_url: str, mm_unit):
@@ -140,8 +142,14 @@ def _cabecalho_recibo_pdf(ctx, styles, col_w, mm_unit):
     hr = styles["hr"]
     story = []
 
-    if ctx["loja_nome"]:
+    logo = _logo_rodape_recibo((ctx.get("logo_url") or "").strip(), mm_unit)
+    if logo is not None:
+        story.append(logo)
+        story.append(Spacer(1, 2 * mm_unit))
+    elif ctx["loja_nome"]:
         story.append(Paragraph(_texto_pdf(ctx["loja_nome"].upper()), s_bold_center))
+    if logo is not None and ctx["loja_nome"]:
+        story.append(Paragraph(_texto_pdf(ctx["loja_nome"]), s_center))
     doc_line = _linha_documento_loja(ctx)
     if doc_line:
         story.append(Paragraph(_texto_pdf(doc_line), s_center))
@@ -153,16 +161,32 @@ def _cabecalho_recibo_pdf(ctx, styles, col_w, mm_unit):
     if ctx.get("loja_email"):
         story.append(Paragraph(_texto_pdf(ctx["loja_email"]), s_center))
     story.append(Spacer(1, 3 * mm_unit))
-    story.append(hr)
     titulo_doc, subtitulo_doc = titulo_recibo(ctx)
-    story.append(Paragraph(titulo_doc, s_title))
+    from reportlab.lib import colors
+    from reportlab.platypus import Table, TableStyle
+
+    cor = colors.HexColor(cor_primaria_recibo(ctx.get("cor_primaria") or ""))
+    faixa = Table(
+        [[Paragraph(f'<font color="white"><b>{_texto_pdf(titulo_doc)}</b></font>', s_title)]],
+        colWidths=[col_w],
+    )
+    faixa.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), cor),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    story.append(faixa)
     if subtitulo_doc:
         story.append(Paragraph(_texto_pdf(subtitulo_doc), s_center))
-    story.append(Paragraph(f"Emitido em {_texto_pdf(ctx.get('data_emissao') or ctx['data'])}", s_center))
     numero = ctx.get("recibo_numero")
+    meta = f"Emitido em {_texto_pdf(ctx.get('data_emissao') or ctx['data'])}"
     if numero:
-        story.append(Paragraph(f"Recibo nº {_texto_pdf(numero)}", s_center))
-    story.append(hr)
+        meta = f"Recibo nº {_texto_pdf(numero)}  |  {meta}"
+    story.append(Paragraph(meta, s_center))
+    story.append(Spacer(1, 2 * mm_unit))
 
     story.append(Paragraph(f"<b>Cliente:</b> {_texto_pdf(ctx['paciente_nome'])}", s_left))
     if ctx.get("paciente_cpf"):
@@ -224,6 +248,7 @@ def _tabela_servicos_recibo_pdf(ctx, styles, col_w):
 
 
 def _tabela_produtos_recibo_pdf(ctx, styles, col_w):
+    from reportlab.lib import colors
     from reportlab.platypus import Paragraph, Table, TableStyle
 
     itens = produtos_exibidos_recibo(ctx)
@@ -232,28 +257,30 @@ def _tabela_produtos_recibo_pdf(ctx, styles, col_w):
     s_left = styles["s_left"]
     s_right = styles["s_right"]
     s_bold = styles["s_bold"]
-    dados = [[Paragraph("<b>PRODUTOS</b>", s_bold), Paragraph("", s_right)]]
+    dados = [[
+        Paragraph("<b>Descrição</b>", s_bold),
+        Paragraph("<b>Qtd.</b>", s_right),
+        Paragraph("<b>Unitário</b>", s_right),
+        Paragraph("<b>Subtotal</b>", s_right),
+    ]]
     for item in itens:
-        detalhe = f'{item["quantidade"]} × {formatar_moeda_recibo(item["preco_unitario"])}'
+        nome = _texto_pdf(item["nome"])
         if item["desconto"] > 0.009:
-            detalhe += f' − desc. {formatar_moeda_recibo(item["desconto"])}'
+            nome += f'<br/>desc. {formatar_moeda_recibo(item["desconto"])}'
         dados.append([
-            Paragraph(f'• {_texto_pdf(item["nome"])}<br/>{_texto_pdf(detalhe)}', s_left),
+            Paragraph(nome, s_left),
+            Paragraph(_texto_pdf(item["quantidade"]), s_right),
+            Paragraph(formatar_moeda_recibo(item["preco_unitario"]), s_right),
             Paragraph(formatar_moeda_recibo(item["subtotal"]), s_right),
         ])
-    dados.append([
-        Paragraph("Recibo comercial de produto. Não é nota fiscal.", s_left),
-        Paragraph("", s_right),
-    ])
-    tabela = Table(dados, colWidths=[col_w * 0.73, col_w * 0.27])
+    tabela = Table(dados, colWidths=[col_w * 0.46, col_w * 0.14, col_w * 0.2, col_w * 0.2])
     tabela.setStyle(TableStyle([
-        ("SPAN", (0, 0), (-1, 0)),
-        ("SPAN", (0, -1), (-1, -1)),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(tinta_recibo(ctx.get("cor_primaria") or ""))),
     ]))
     return tabela
 
@@ -423,8 +450,9 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
         _, subtitulo = titulo_recibo(ctx)
         story.append(Paragraph(f"<b>{_texto_pdf(subtitulo)}</b>", s_center))
     else:
-        rotulo_pago = "PAGO" if situacao == "parcial" else "VALOR PAGO"
-        story.append(Paragraph(f"{rotulo_pago}: {formatar_moeda_recibo(valor_pago)}", s_total))
+        rotulo_pago = "PAGO" if situacao == "parcial" else "TOTAL PAGO"
+        valor_destaque = ctx.get("valor_total") if situacao == "quitado" else valor_pago
+        story.append(Paragraph(f"{rotulo_pago}: {formatar_moeda_recibo(valor_destaque)}", s_total))
         if saldo > 0.009:
             story.append(Spacer(1, 1 * mm_unit))
             story.append(Paragraph(f"SALDO A PAGAR: {formatar_moeda_recibo(saldo)}", s_total))
@@ -443,14 +471,13 @@ def _rodape_recibo_pdf(ctx, styles, mm_unit):
     story.extend(_secao_assinatura_recibo_pdf(ctx, styles, mm_unit))
 
     story.append(Spacer(1, 2 * mm_unit))
-    story.append(Paragraph("Agradecemos pela confiança!", s_footer))
-    story.append(Paragraph("Documento não fiscal — gerado pelo sistema.", s_footer))
-
-    # Logo da clínica no rodapé (parte branca) — aparece em todo recibo, com ou sem assinatura.
-    logo = _logo_rodape_recibo((ctx.get("logo_url") or "").strip(), mm_unit)
-    if logo is not None:
-        story.append(Spacer(1, 3 * mm_unit))
-        story.append(logo)
+    story.append(Paragraph("Agradecemos pela preferência!", s_footer))
+    nota = (
+        "Recibo comercial de produto · Documento não fiscal"
+        if ctx.get("somente_produtos")
+        else "Documento não fiscal"
+    )
+    story.append(Paragraph(nota, s_footer))
     return story
 
 
@@ -510,7 +537,7 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
             self.y_conteudo = self.frame._y
 
     buf = io.BytesIO()
-    page_w = 80 * mm
+    page_w = 150 * mm
     # Folha alta de uma página só; o corte final tira o branco depois da logo.
     page_h = 900 * mm
     styles = _estilos_pdf()

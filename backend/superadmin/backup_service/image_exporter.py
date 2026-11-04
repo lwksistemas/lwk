@@ -59,7 +59,7 @@ TABLE_BINARY_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     "clinica_beleza_memed_timbrado": (("pdf", "pdf"),),
 }
 
-LOJA_URL_FIELDS = ("logo", "login_logo")
+LOJA_URL_FIELDS = ("logo", "login_logo", "recibo_logo")
 
 _MEDIA_COL_HINTS = (
     "url", "logo", "foto", "imagem", "image", "avatar", "photo", "thumb", "banner", "capa",

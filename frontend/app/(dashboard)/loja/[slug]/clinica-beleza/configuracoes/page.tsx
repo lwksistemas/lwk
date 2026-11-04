@@ -54,10 +54,10 @@ export default function ClinicaBelezaConfiguracoesPage() {
     },
     {
       titulo: 'Contato no recibo',
-      descricao: 'Telefone e e-mail da clínica no recibo impresso ou enviado ao paciente',
+      descricao: 'Telefone, e-mail, cor e logomarca do recibo impresso ou enviado ao paciente',
       href: `${base}/contato`,
       icon: Phone,
-      itens: ['Telefone da clínica', 'E-mail da clínica'],
+      itens: ['Telefone da clínica', 'E-mail da clínica', 'Cor do recibo', 'Logomarca do recibo'],
     },
     {
       titulo: 'Cadastrar profissionais',

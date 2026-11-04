@@ -30,6 +30,9 @@ export const lojaApi = {
       cep?: string;
       telefone_contato?: string;
       email_contato?: string;
+      recibo_logo?: string;
+      recibo_cor?: string;
+      cor_primaria?: string;
       owner_username?: string;
       owner_email?: string;
       owner_telefone?: string;
@@ -37,12 +40,19 @@ export const lojaApi = {
       tem_memed?: boolean;
       tem_whatsapp_integration?: boolean;
     }>("/loja-info/"),
-  updateContato: (data: { telefone_contato?: string; email_contato?: string }) =>
+  updateContato: (data: {
+    telefone_contato?: string;
+    email_contato?: string;
+    recibo_logo?: string;
+    recibo_cor?: string;
+  }) =>
     cbPatch<{
       telefone?: string;
       email?: string;
       telefone_contato?: string;
       email_contato?: string;
+      recibo_logo?: string;
+      recibo_cor?: string;
     }>("/loja-info/", data),
 };
 

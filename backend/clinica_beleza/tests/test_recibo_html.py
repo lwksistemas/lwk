@@ -76,7 +76,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
                 metodo="",
             ),
         )
-        self.assertIn("COMPROVANTE DE ATENDIMENTO", html)
+        self.assertIn("RECIBO DE PAGAMENTO — ATENDIMENTO", html)
         self.assertIn("Sem valor a pagar", html)
         self.assertNotIn("Sem saldo", html)
         self.assertNotIn("integralmente descontada", html)
@@ -167,9 +167,9 @@ class GerarHtmlReciboTests(SimpleTestCase):
                 formas_pagamento=[{"metodo": "Despesa (clínica) (18/09/2026)", "valor": 350.0}],
             ),
         )
-        self.assertIn("COMPROVANTE DE ATENDIMENTO", html)
+        self.assertIn("RECIBO DE PAGAMENTO — ATENDIMENTO", html)
         self.assertIn("Custeado pela clínica", html)
-        self.assertNotIn("RECIBO DE PAGAMENTO", html)
+        self.assertNotIn("TOTAL PAGO", html)
         self.assertNotIn("VALOR PAGO", html)
         self.assertNotIn("Quitado", html)
         self.assertNotIn("Despesa (clínica)", html)
@@ -257,7 +257,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertIn("R$ 1.000,00", html)
         self.assertIn("Valor com desconto", html)
         self.assertIn("R$ 800,00", html)
-        self.assertIn(">Total<", html)
+        self.assertIn("TOTAL PAGO", html)
         self.assertIn("R$ 200,00", html)
         self.assertNotIn("Abatimento", html)
         self.assertNotIn("Desconto do protocolo", html)
@@ -277,3 +277,73 @@ class GerarHtmlReciboTests(SimpleTestCase):
         )
         self.assertNotIn("Valor sem desconto", html)
         self.assertNotIn("Valor com desconto", html)
+
+    def test_venda_de_produtos_usa_o_mesmo_visual(self):
+        html = gerar_html_recibo(
+            self._ctx(
+                somente_produtos=True,
+                procedimentos=[],
+                taxa_consulta=0,
+                taxa_consulta_referencia=0,
+                subtotal=80.0,
+                desconto=30.0,
+                valor_total=50.0,
+                valor_pago=50.0,
+                saldo_devedor=0.0,
+                metodo="PIX",
+                formas_pagamento=[{"metodo": "PIX", "valor": 50.0}],
+                produtos=[{
+                    "nome": "CAMPO CIRURGICO",
+                    "quantidade": "4",
+                    "preco_unitario": 20.0,
+                    "desconto": 0,
+                    "subtotal": 80.0,
+                }],
+                caixa_nome="Recepção",
+                operador_nome="LUIZ HENRIQUE FELIX",
+                recibo_numero="385",
+                paciente_cpf="222.392.558-89",
+            ),
+        )
+        self.assertIn("RECIBO DE VENDA DE PRODUTOS", html)
+        self.assertIn("CAMPO CIRURGICO", html)
+        self.assertIn("TOTAL PAGO", html)
+        self.assertIn("Quitado", html)
+        self.assertIn("Recepção", html)
+        self.assertIn("LUIZ HENRIQUE FELIX", html)
+        self.assertIn("Documento não fiscal", html)
+        self.assertNotIn("Profissional", html)
+
+    def test_recibo_ignora_a_logo_da_tela_de_login(self):
+        from types import SimpleNamespace
+
+        from clinica_beleza.recibo.context import _dados_loja_recibo
+
+        loja = SimpleNamespace(
+            nome="HARMONIS",
+            cpf_cnpj="",
+            cep="",
+            logradouro="",
+            numero="",
+            bairro="",
+            cidade="",
+            uf="",
+            telefone_contato="",
+            email_contato="",
+            owner_telefone="",
+            owner=None,
+            logo="https://media.example/geral.png",
+            login_logo="https://media.example/login.png",
+            recibo_logo="https://media.lwksistemas.com.br/recibo.png",
+            recibo_cor="#112233",
+            cor_primaria="#8B3D52",
+        )
+        dados = _dados_loja_recibo(loja)
+        self.assertEqual(dados["logo_url"], "https://media.lwksistemas.com.br/recibo.png")
+        self.assertEqual(dados["cor_primaria"], "#112233")
+
+        loja.recibo_logo = ""
+        loja.recibo_cor = ""
+        dados = _dados_loja_recibo(loja)
+        self.assertEqual(dados["logo_url"], "")
+        self.assertEqual(dados["cor_primaria"], "#8B3D52")

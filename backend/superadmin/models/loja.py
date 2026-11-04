@@ -147,6 +147,17 @@ class Loja(models.Model):
     login_page_url = models.CharField(max_length=255, blank=True)  # ex: /loja/tech-store/login
     login_background = models.URLField(blank=True)
     login_logo = models.URLField(blank=True)
+    recibo_logo = models.URLField(
+        blank=True,
+        default="",
+        help_text="Logomarca usada só no recibo de pagamento. Não altera a tela de login.",
+    )
+    recibo_cor = models.CharField(
+        max_length=7,
+        blank=True,
+        default="",
+        help_text="Cor da faixa do recibo (#RRGGBB). Vazio usa a cor principal da clínica.",
+    )
 
     # Status
     is_active = models.BooleanField(default=True)

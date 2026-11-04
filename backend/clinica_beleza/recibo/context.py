@@ -231,9 +231,8 @@ def _dados_loja_recibo(loja):
     tel_raw, email_raw = contato_publico_loja(loja)
     loja_telefone = telefone_exibicao_brasileiro(tel_raw)
     loja_cep = _formatar_cep(cep_raw)
-    logo_url = ""
-    if loja:
-        logo_url = (getattr(loja, "logo", "") or "").strip() or (getattr(loja, "login_logo", "") or "").strip()
+    logo_url = _texto_config_loja(loja, "recibo_logo")
+    cor = _texto_config_loja(loja, "recibo_cor") or _texto_config_loja(loja, "cor_primaria")
     return {
         "loja_nome": getattr(loja, "nome", "") if loja else "",
         "loja_documento": normalizar_cpf_cnpj(doc_raw),
@@ -245,7 +244,16 @@ def _dados_loja_recibo(loja):
         "loja_email": email_raw,
         "loja_tel_cep": _linha_tel_cep(loja_telefone, loja_cep),
         "logo_url": logo_url,
+        "cor_primaria": cor_primaria_recibo(cor),
     }
+
+
+def _texto_config_loja(loja, campo: str) -> str:
+    """Só texto real. Objeto simulado de teste não vira logomarca."""
+    valor = getattr(loja, campo, "") if loja is not None else ""
+    if not isinstance(valor, str):
+        return ""
+    return valor.strip()
 
 
 def _dados_assinatura_recibo(payment) -> dict | None:
@@ -992,18 +1000,39 @@ def situacao_recibo(ctx: dict) -> str:
     return "quitado"
 
 
+def cor_primaria_recibo(valor: str) -> str:
+    """Cor da faixa do recibo. Usa a personalização da clínica quando é um hex válido."""
+    texto = (valor or "").strip()
+    if re.fullmatch(r"#[0-9A-Fa-f]{6}", texto):
+        return texto.upper()
+    return "#8B3D52"
+
+
+def tinta_recibo(cor: str, fator: float = 0.9) -> str:
+    """Mistura a cor da clínica com branco para os fundos do recibo."""
+    base = cor_primaria_recibo(cor)
+    canais = [int(base[i:i + 2], 16) for i in (1, 3, 5)]
+    mistos = [int(round(canal + (255 - canal) * fator)) for canal in canais]
+    return "#{:02X}{:02X}{:02X}".format(*mistos)
+
+
 def titulo_recibo(ctx: dict) -> tuple[str, str]:
-    """Título e subtítulo conforme o que já foi pago."""
+    """Título do documento e a situação, no mesmo visual para venda e atendimento."""
+    titulo = (
+        "RECIBO DE VENDA DE PRODUTOS"
+        if ctx.get("somente_produtos")
+        else "RECIBO DE PAGAMENTO — ATENDIMENTO"
+    )
     situacao = situacao_recibo(ctx)
     if situacao == "quitado" and custeado_pela_clinica(ctx):
-        return "COMPROVANTE DE ATENDIMENTO", "Custeado pela clínica"
+        return titulo, "Custeado pela clínica"
     if situacao == "sem_saldo":
-        return "COMPROVANTE DE ATENDIMENTO", "Sem valor a pagar"
+        return titulo, "Sem valor a pagar"
     if situacao == "em_aberto":
-        return "COMPROVANTE DE ATENDIMENTO", "Valor em aberto"
+        return titulo, "Valor em aberto"
     if situacao == "parcial":
-        return "COMPROVANTE DE ATENDIMENTO", "Pagamento parcial — saldo em aberto"
-    return "RECIBO DE PAGAMENTO", ""
+        return titulo, "Pagamento parcial"
+    return titulo, ""
 
 
 def resumo_financeiro_recibo(ctx: dict) -> str:

@@ -76,7 +76,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
                 metodo="",
             ),
         )
-        self.assertIn("COMPROVANTE DE ATENDIMENTO", html)
+        self.assertIn("COMPROVANTE DE ATENDIMENTO — SEM VALOR A PAGAR", html)
         self.assertIn("Sem valor a pagar", html)
         self.assertNotIn("Sem saldo", html)
         self.assertNotIn("integralmente descontada", html)
@@ -168,6 +168,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
             ),
         )
         self.assertIn("COMPROVANTE DE ATENDIMENTO", html)
+        self.assertNotIn("SEM VALOR A PAGAR", html)
         self.assertIn("Valor do procedimento", html)
         self.assertIn("Valor pago pelo paciente", html)
         self.assertIn("R$ 0,00", html)
@@ -190,13 +191,18 @@ class GerarHtmlReciboTests(SimpleTestCase):
                 valor_pago=1050.0,
                 saldo_devedor=4950.0,
                 vencimento="12/10/2026",
+                retorno_gratuito=True,
+                retorno_aviso=(
+                    "Retorno da avaliação, sem nova taxa, em até 30 dias "
+                    "após o atendimento anterior."
+                ),
                 formas_pagamento=[
                     {"metodo": "Cartão de Débito (30/09/2026)", "valor": 650.0},
                     {"metodo": "Cartão de Débito (07/10/2026)", "valor": 400.0},
                 ],
             ),
         )
-        self.assertIn("RECIBO DE PAGAMENTO — ATENDIMENTO", html)
+        self.assertIn("DEMONSTRATIVO DE ATENDIMENTO — PAGAMENTO PARCIAL", html)
         self.assertIn("Valor total dos procedimentos", html)
         self.assertIn("Total já pago", html)
         self.assertIn("R$ 1.050,00", html)
@@ -206,7 +212,8 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertIn("Total recebido", html)
         self.assertIn("30/09/2026", html)
         self.assertIn("07/10/2026", html)
-        self.assertIn("Pagamento parcial", html)
+        self.assertIn("Parcialmente pago", html)
+        self.assertNotIn("Retorno da avaliação", html)
         self.assertNotIn("TOTAL PAGO", html)
         self.assertNotIn(">TOTAL<", html)
 
@@ -224,6 +231,65 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertIn("Cartão de Débito (02/09/2026) — R$ 500,00", html)
         self.assertIn("Sem vencimento", html)
         self.assertIn("Total já pago", html)
+        self.assertIn("DEMONSTRATIVO DE ATENDIMENTO — PAGAMENTO PARCIAL", html)
+
+    def test_pendente_nao_usa_titulo_de_recibo_nem_frase_de_retorno(self):
+        html = gerar_html_recibo(
+            self._ctx(
+                procedimentos=[{"nome": "SORO REPOSIÇÃO", "valor": 450.0}],
+                taxa_consulta=0.0,
+                subtotal=450.0,
+                valor_total=450.0,
+                valor_pago=0.0,
+                saldo_devedor=450.0,
+                vencimento="11/11/2026",
+                metodo="A prazo",
+                formas_pagamento=[],
+                condicao_cobranca="a prazo",
+                recibo_numero=378,
+                retorno_gratuito=True,
+                retorno_aviso=(
+                    "Retorno da avaliação, sem nova taxa, em até 30 dias "
+                    "após o atendimento anterior."
+                ),
+            ),
+        )
+        self.assertIn("DEMONSTRATIVO DE ATENDIMENTO — PAGAMENTO PENDENTE", html)
+        self.assertIn("Demonstrativo nº", html)
+        self.assertIn("Total já pago", html)
+        self.assertIn("R$ 0,00", html)
+        self.assertIn("Saldo a pagar", html)
+        self.assertIn("R$ 450,00", html)
+        self.assertIn("Em aberto", html)
+        self.assertIn("Vencimento: 11/11/2026", html)
+        self.assertNotIn("RECIBO DE PAGAMENTO", html)
+        self.assertNotIn("Retorno da avaliação", html)
+        self.assertNotIn("Quitado", html)
+
+    def test_gratuito_por_retorno_mostra_a_justificativa_cadastrada(self):
+        html = gerar_html_recibo(
+            self._ctx(
+                procedimentos=[{"nome": "Consulta", "valor": 0.0}],
+                taxa_consulta=0.0,
+                subtotal=0.0,
+                valor_total=0.0,
+                valor_pago=0.0,
+                saldo_devedor=0.0,
+                formas_pagamento=[],
+                metodo="",
+                retorno_gratuito=True,
+                retorno_aviso=(
+                    "Retorno da avaliação, sem nova taxa, em até 30 dias "
+                    "após o atendimento anterior."
+                ),
+            ),
+        )
+        self.assertIn("COMPROVANTE DE ATENDIMENTO — SEM VALOR A PAGAR", html)
+        self.assertIn("Valor pago pelo paciente", html)
+        self.assertIn("Sem valor a pagar", html)
+        self.assertIn("Retorno da avaliação, sem nova taxa, em até 30 dias", html)
+        self.assertNotIn("Quitado", html)
+        self.assertNotIn("RECIBO DE PAGAMENTO", html)
 
     def test_saldo_sem_data_informa_que_nao_ha_vencimento(self):
         html = gerar_html_recibo(

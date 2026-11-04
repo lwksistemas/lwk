@@ -10,6 +10,7 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    aviso_exibido_recibo,
     comprovante_sem_cobranca,
     conta_com_saldo_recibo,
     cor_primaria_recibo,
@@ -24,7 +25,9 @@ from .context import (
     recebido_a_maior_recibo,
     reconciliar_conta_recibo,
     rotulo_forma_recibo,
+    nota_documento_recibo,
     rotulo_numero_recibo,
+    rotulo_situacao_recibo,
     rotulo_subtotal_recibo,
     rotulo_total_recibo,
     rotulo_valor_conta_recibo,
@@ -329,9 +332,9 @@ def gerar_html_recibo(ctx: dict) -> str:
     elif situacao == "sem_saldo":
         situacao_html = f'<span class="selo neutro">{_t(subtitulo or "Sem valor a pagar")}</span>'
     elif situacao == "parcial":
-        situacao_html = '<span class="selo aviso">Pagamento parcial</span>'
+        situacao_html = f'<span class="selo aviso">{_t(rotulo_situacao_recibo(ctx))}</span>'
     elif situacao == "em_aberto":
-        situacao_html = '<span class="selo aviso">Em aberto</span>'
+        situacao_html = f'<span class="selo aviso">{_t(rotulo_situacao_recibo(ctx))}</span>'
     elif situacao == "quitado":
         situacao_html = f'<span class="selo ok">{_icone_quitado()} Quitado</span>'
     else:
@@ -414,13 +417,8 @@ def gerar_html_recibo(ctx: dict) -> str:
             f'Emitido em {_t(data_emissao)}',
         ) if parte
     )
-    aviso = (ctx.get("retorno_aviso") or "").strip()
-    if somente_produtos:
-        nota = "Recibo comercial de produto · Documento não fiscal"
-    elif comprovante:
-        nota = "Comprovante de atendimento · Documento não fiscal."
-    else:
-        nota = "Recibo de prestação de serviços · Documento não fiscal."
+    aviso = aviso_exibido_recibo(ctx)
+    nota = nota_documento_recibo(ctx)
     endereco = _t(texto_cadastro_recibo(ctx.get("loja_endereco") or ""))
     telefone = _t(ctx.get("loja_telefone") or "")
     email = _t(ctx.get("loja_email") or "")
@@ -451,7 +449,7 @@ def gerar_html_recibo(ctx: dict) -> str:
   .campo, .item {{ display: flex; align-items: center; gap: 8px; }}
   .contato.linha {{ display: flex; justify-content: center; align-items: flex-start; gap: 6px; margin: 3px auto 0; max-width: 560px; }}
   .tinta {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
-  .faixa {{ margin: 18px 0 8px; background-color: {cor}; box-shadow: inset 0 0 0 999px {cor}; color: #fff; text-align: center; border-radius: 10px; padding: 10px 16px; font-weight: 700; letter-spacing: 0.04em; }}
+  .faixa {{ margin: 18px 0 8px; background-color: {cor}; box-shadow: inset 0 0 0 999px {cor}; color: #fff; text-align: center; border-radius: 10px; padding: 10px 16px; font-size: 16px; line-height: 1.35; font-weight: 700; letter-spacing: 0.04em; }}
   .meta {{ text-align: center; color: #5c5562; font-size: 14px; margin: 0 0 16px; }}
   .cliente {{ background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 8px 16px; margin-bottom: 16px; }}
   .cliente p {{ margin: 3px 0; font-size: 14px; line-height: 1.2; }}

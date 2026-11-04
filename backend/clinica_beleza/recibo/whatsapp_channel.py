@@ -6,6 +6,7 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    aviso_exibido_recibo,
     custeado_pela_clinica,
     linha_valor_com_desconto_recibo,
     linha_vencimento_recibo,
@@ -169,6 +170,7 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
         valor_pago_linha = (
             f'💰 *Valor pago: {formatar_moeda_recibo(ctx.get("valor_pago", 0))}*\n'
         )
+    aviso = aviso_exibido_recibo(ctx)
     return (
         f'🏥 *{ctx["loja_nome"] or "Clínica"}*\n'
         f'━━━━━━━━━━━━━━━━━━━━\n'
@@ -189,7 +191,7 @@ def _montar_mensagem_whatsapp(ctx: dict) -> str:
         f'{_texto_saldo_whatsapp(ctx)}'
         f'{extra_linha}'
         f'━━━━━━━━━━━━━━━━━━━━\n\n'
-        f'{("ℹ️ " + ctx["retorno_aviso"] + "\n\n") if (ctx.get("retorno_aviso") or "").strip() else ""}'
+        f'{("ℹ️ " + aviso + "\n\n") if aviso else ""}'
         f'_O recibo segue como foto nesta conversa._\n'
         f'Agradecemos pela confiança! 🙏'
     )

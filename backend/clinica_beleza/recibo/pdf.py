@@ -9,6 +9,7 @@ from .context import (
     _linha_tel_cep,
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
+    aviso_exibido_recibo,
     comprovante_sem_cobranca,
     conta_com_saldo_recibo,
     cor_primaria_recibo,
@@ -23,7 +24,9 @@ from .context import (
     recebido_a_maior_recibo,
     reconciliar_conta_recibo,
     rotulo_forma_recibo,
+    nota_documento_recibo,
     rotulo_numero_recibo,
+    rotulo_situacao_recibo,
     rotulo_subtotal_recibo,
     rotulo_total_recibo,
     rotulo_valor_conta_recibo,
@@ -709,9 +712,9 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
         if situacao == "sem_saldo":
             situacao_txt, sit_style = subtitulo or "Sem valor a pagar", s_neutro
         elif situacao == "parcial":
-            situacao_txt, sit_style = "Pagamento parcial", s_aviso_sit
+            situacao_txt, sit_style = rotulo_situacao_recibo(ctx), s_aviso_sit
         elif situacao == "em_aberto":
-            situacao_txt, sit_style = "Em aberto", s_aviso_sit
+            situacao_txt, sit_style = rotulo_situacao_recibo(ctx), s_aviso_sit
         elif situacao == "quitado":
             situacao_txt, sit_style = "Quitado", s_ok
         else:
@@ -785,16 +788,11 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
             ]))
             story.append(ops)
 
-    aviso = (ctx.get("retorno_aviso") or "").strip()
+    aviso = aviso_exibido_recibo(ctx)
     if aviso:
         story.append(Spacer(1, 2 * mm_unit))
         story.append(Paragraph(_texto_pdf(aviso), s_nota))
-    if somente:
-        nota = "Recibo comercial de produto · Documento não fiscal"
-    elif comprovante:
-        nota = "Comprovante de atendimento · Documento não fiscal."
-    else:
-        nota = "Recibo de prestação de serviços · Documento não fiscal."
+    nota = nota_documento_recibo(ctx)
     story.append(Spacer(1, 3 * mm_unit))
     story.append(caixa([
         [Paragraph("Agradecemos pela preferência!", s_obrigado)],

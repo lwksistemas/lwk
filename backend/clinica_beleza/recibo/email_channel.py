@@ -9,6 +9,7 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    aviso_exibido_recibo,
     custeado_pela_clinica,
     linha_valor_com_desconto_recibo,
     linha_vencimento_recibo,
@@ -193,7 +194,7 @@ def _montar_email_html(ctx: dict) -> str:
         <ul style="margin:4px 0;padding-left:20px;">{_formas_pagamento_html(ctx)}</ul>
         {'' if situacao_recibo(ctx) == 'quitado' and custeado_pela_clinica(ctx) else f'<p style="margin:12px 0 0;font-size:16px;font-weight:bold;color:#2e7d32;">Valor pago: {formatar_moeda_recibo(ctx["valor_pago"])}</p>'}
         {_bloco_saldo_email(ctx)}
-        {f'<p style="margin:12px 0 0;font-size:12px;color:#555;">{ctx["retorno_aviso"]}</p>' if (ctx.get("retorno_aviso") or "").strip() else ''}
+        {f'<p style="margin:12px 0 0;font-size:12px;color:#555;">{html.escape(aviso_exibido_recibo(ctx))}</p>' if aviso_exibido_recibo(ctx) else ''}
       </div>
 
       <p style="margin:16px 0;text-align:center;">
@@ -263,6 +264,7 @@ def _montar_email_texto(ctx: dict) -> str:
         valor_pago_linha = ""
     else:
         valor_pago_linha = f'Valor pago: {formatar_moeda_recibo(ctx["valor_pago"])}\n'
+    aviso = aviso_exibido_recibo(ctx)
     return (
         f'{ctx["loja_nome"] or "Clínica"}\n'
         f'{header_extra}\n'
@@ -277,6 +279,6 @@ def _montar_email_texto(ctx: dict) -> str:
         f'Forma(s) de pagamento:\n{_formas_pagamento_texto(ctx)}'
         f'{valor_pago_linha}'
         f'{_texto_saldo_recibo(ctx)}'
-        f'{((ctx.get("retorno_aviso") or "").strip() + "\n") if (ctx.get("retorno_aviso") or "").strip() else ""}'
+        f'{(aviso + "\n") if aviso else ""}'
         f'\nAtenciosamente,\n{ctx["loja_nome"]}\n'
     )

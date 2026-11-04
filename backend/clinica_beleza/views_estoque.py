@@ -3,7 +3,7 @@ Controle de produtos (botox, ácido hialurônico, soros, etc.)
 """
 import logging
 
-from django.db.models import F, Sum
+from django.db.models import F, Q, Sum
 from django.utils.text import slugify
 from rest_framework import status
 from rest_framework.response import Response
@@ -155,7 +155,12 @@ class ProdutoEstoqueListView(APIView):
         qs = _filtrar_por_categoria(qs, request)
         search = (request.query_params.get("search") or "").strip()
         if search:
-            qs = qs.filter(nome__icontains=search)
+            filtro = Q(nome__icontains=search)
+            if search.isdigit():
+                filtro |= Q(vinculos_fornecedor__gtin=search)
+            qs = qs.filter(filtro).distinct()
+        if request.query_params.get("vende_ao_cliente") in ("1", "true"):
+            qs = qs.filter(vende_ao_cliente=True)
         apenas_ativos = request.query_params.get("active", "true").lower() == "true"
         if apenas_ativos:
             qs = qs.filter(is_active=True)

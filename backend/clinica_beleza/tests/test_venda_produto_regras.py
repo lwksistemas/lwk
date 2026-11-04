@@ -9,6 +9,8 @@ from types import SimpleNamespace
 from clinica_beleza.venda_produto_service import (
     VendaProdutoError,
     linha_recibo,
+    nome_exibicao_venda,
+    pessoa_recibo,
     subtotal_item,
     validar_item_venda,
 )
@@ -71,6 +73,17 @@ class VendaProdutoRegrasTest(unittest.TestCase):
         self.assertEqual(linhas[0]["nome"], "Protetor")
         self.assertEqual(linhas[0]["subtotal"], 40.0)
         self.assertEqual(produtos_exibidos_recibo({"produtos": [], "procedimentos": [{"nome": "Uso interno", "valor": 0}]}), [])
+
+    def test_recibo_sem_cadastro_nao_exige_cpf(self):
+        sem_nome = SimpleNamespace(paciente=None, nome_cliente="", email_cliente="", telefone_cliente="")
+        self.assertEqual(nome_exibicao_venda(sem_nome), "Consumidor não identificado")
+        self.assertEqual(pessoa_recibo(sem_nome).cpf, "")
+        so_nome = SimpleNamespace(paciente=None, nome_cliente="Maria", email_cliente="a@b.c", telefone_cliente="11999990000")
+        self.assertEqual(nome_exibicao_venda(so_nome), "Maria")
+        self.assertEqual(pessoa_recibo(so_nome).telefone, "11999990000")
+        cadastrado = SimpleNamespace(paciente=SimpleNamespace(nome="Ana"), nome_cliente="Outro")
+        self.assertEqual(nome_exibicao_venda(cadastrado), "Ana")
+        self.assertIs(pessoa_recibo(cadastrado), cadastrado.paciente)
 
 
 if __name__ == "__main__":

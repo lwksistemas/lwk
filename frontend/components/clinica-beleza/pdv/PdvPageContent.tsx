@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -95,7 +95,7 @@ export function PdvPageContent() {
   const [observacao, setObservacao] = useState("");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [caixaAberto, setCaixaAberto] = useState(true);
+  const [caixaAberto, setCaixaAberto] = useState(false);
   const [menuCaixa, setMenuCaixa] = useState(false);
   const [painel, setPainel] = useState<"historico" | "fechamento" | null>(null);
   const [incluindo, setIncluindo] = useState<"produto" | "servico" | null>(null);
@@ -103,12 +103,18 @@ export function PdvPageContent() {
   const [buscaCliente, setBuscaCliente] = useState("");
   const [clientes, setClientes] = useState<{ id: number; nome: string }[]>([]);
   const [pacienteVenda, setPacienteVenda] = useState<number | "">("");
+  const [telefoneRecibo, setTelefoneRecibo] = useState("");
+  const [emailRecibo, setEmailRecibo] = useState("");
   const [linhasVenda, setLinhasVenda] = useState<VendaLinha[]>([]);
+  const [buscaProduto, setBuscaProduto] = useState("");
+  const [sugestoes, setSugestoes] = useState<ProdutoOpcao[]>([]);
   const [novoCliente, setNovoCliente] = useState(false);
   const [nomeNovo, setNomeNovo] = useState("");
   const [telefoneNovo, setTelefoneNovo] = useState("");
   const [cpfNovo, setCpfNovo] = useState("");
-  const [recibo, setRecibo] = useState<{ paymentId: number; consultaId?: number } | null>(null);
+  const [recibo, setRecibo] = useState<{ paymentId: number; consultaId?: number; telefone?: string; email?: string; cadastrado?: boolean } | null>(null);
+  const [vendasDia, setVendasDia] = useState<{ id: number; cliente: string; total: string; status: string; operador: string }[]>([]);
+  const chaveVenda = useRef("");
 
   const carregar = useCallback(async () => {
     const [agendaRes, consultasRes, resumoRes] = await Promise.all([
@@ -137,9 +143,8 @@ export function PdvPageContent() {
 
   useEffect(() => {
     void carregar();
-    const gravado = window.localStorage.getItem(`pdv-caixa:${slug}:${dia}`);
-    setCaixaAberto(gravado !== "fechado");
-  }, [carregar, dia, slug]);
+    ClinicaBelezaAPI.estoque.caixa().then((sessao) => setCaixaAberto(Boolean(sessao.aberta))).catch(() => setCaixaAberto(false));
+  }, [carregar]);
 
   useEffect(() => {
     ClinicaBelezaAPI.estoque.list({ page_size: 200 }).then((res) => {
@@ -191,6 +196,39 @@ export function PdvPageContent() {
     return () => window.clearTimeout(timer);
   }, [aba, buscaCliente, pacienteVenda]);
 
+  useEffect(() => {
+    const termo = buscaProduto.trim();
+    if (aba !== "venda" || termo.length < 2) {
+      setSugestoes([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      ClinicaBelezaAPI.estoque.list({ search: termo, page_size: 20, vende_ao_cliente: 1 }).then((res) => {
+        setSugestoes(listaDe<ProdutoOpcao>(res).filter((item) => item.vende_ao_cliente !== false && item.is_active !== false));
+      }).catch(() => setSugestoes([]));
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [aba, buscaProduto]);
+
+  useEffect(() => {
+    if (painel !== "historico") return;
+    ClinicaBelezaAPI.estoque.vendas({ data: dia }).then((lista) => {
+      setVendasDia(listaDe(lista));
+    }).catch(() => setVendasDia([]));
+  }, [dia, painel]);
+
+  const adicionarProduto = (produto: ProdutoOpcao) => {
+    setLinhasVenda((atual) => {
+      const indice = atual.findIndex((linha) => linha.produto === produto.id);
+      if (indice >= 0) {
+        return atual.map((linha, i) => i === indice ? { ...linha, quantidade: String(Number(linha.quantidade || 0) + 1) } : linha);
+      }
+      return [...atual, { produto: produto.id, nome: produto.nome, quantidade: "1", preco: String(produto.preco_venda || 0), desconto: "0" }];
+    });
+    setBuscaProduto("");
+    setSugestoes([]);
+  };
+
   const servicos = Number(consulta?.valor_pagamento || selecionado?.extendedProps?.procedure_price || 0);
   const produtosValor = reais(produtosConsulta.reduce((acc, item) => {
     const bruto = Number(item.quantidade || 0) * Number(item.preco_unitario || 0);
@@ -213,10 +251,16 @@ export function PdvPageContent() {
   const recebidoHoje = reais(resumo.total_pago + resumo.recebido_balcao);
   const vendasProdutos = reais(resumo.vendas_produtos + resumo.vendas_balcao);
 
-  const definirCaixa = (aberto: boolean) => {
-    setCaixaAberto(aberto);
+  const definirCaixa = async (aberto: boolean) => {
     setMenuCaixa(false);
-    window.localStorage.setItem(`pdv-caixa:${slug}:${dia}`, aberto ? "aberto" : "fechado");
+    setErro("");
+    try {
+      if (aberto) await ClinicaBelezaAPI.estoque.abrirCaixa();
+      else await ClinicaBelezaAPI.estoque.fecharCaixa();
+      setCaixaAberto(aberto);
+    } catch (erroCaixa) {
+      setErro(mensagemErro(erroCaixa, "Não foi possível atualizar o caixa."));
+    }
   };
 
   const marcarPresente = async (id: number) => {
@@ -287,21 +331,36 @@ export function PdvPageContent() {
     setErro("");
     try {
       if (aba === "venda") {
-        if (!pacienteVenda) throw { error: "Selecione a cliente." };
         const itens = linhasVenda.filter((linha) => linha.produto).map((linha) => ({
           produto: linha.produto,
           quantidade: Number(linha.quantidade || 0),
           preco_unitario: Number(linha.preco || 0),
           desconto: Number(linha.desconto || 0),
         }));
+        if (!itens.length) throw { error: "Adicione um produto à venda." };
         if (descontoNum > 0 && itens[0]) itens[0].desconto = reais(itens[0].desconto + descontoNum);
+        if (!chaveVenda.current) chaveVenda.current = crypto.randomUUID();
         const criada = await ClinicaBelezaAPI.estoque.vender({
-          paciente: Number(pacienteVenda),
+          paciente: pacienteVenda ? Number(pacienteVenda) : null,
+          nome_cliente: buscaCliente.trim(),
+          telefone: telefoneRecibo.trim(),
+          email: emailRecibo.trim(),
+          chave: chaveVenda.current,
           payment_method: forma,
           itens,
         });
-        setRecibo({ paymentId: criada.payment_id });
+        setRecibo({
+          paymentId: criada.payment_id,
+          telefone: criada.telefone || telefoneRecibo.trim(),
+          email: criada.email || emailRecibo.trim(),
+          cadastrado: Boolean(pacienteVenda),
+        });
+        chaveVenda.current = "";
         setLinhasVenda([]);
+        setBuscaCliente("");
+        setPacienteVenda("");
+        setTelefoneRecibo("");
+        setEmailRecibo("");
         setDesconto("");
         await carregar();
         return;
@@ -321,6 +380,20 @@ export function PdvPageContent() {
     } finally {
       setSalvando(false);
     }
+  };
+
+  const imprimirRecibo = async () => {
+    if (!recibo) return;
+    const resp = await clinicaBelezaFetch(`/payments/${recibo.paymentId}/recibo-html/`);
+    if (!resp.ok) {
+      setErro("Não foi possível abrir o recibo para impressão.");
+      return;
+    }
+    const html = await resp.text();
+    const janela = window.open("", "_blank");
+    if (!janela) return;
+    janela.document.write(html);
+    janela.document.close();
   };
 
   const abrirRecibo = async () => {
@@ -458,10 +531,11 @@ export function PdvPageContent() {
             <div className="space-y-4">
               <div>
                 <div className="mb-1 flex items-center justify-between">
-                  <p className="text-xs font-medium text-gray-500">Cliente</p>
-                  <button type="button" className="text-xs font-medium" style={{ color: rosa }} onClick={() => setNovoCliente((atual) => !atual)}>Novo cliente</button>
+                  <p className="text-xs font-medium text-gray-500">Cliente (opcional)</p>
+                  <button type="button" className="text-xs font-medium" style={{ color: rosa }} onClick={() => setNovoCliente((atual) => !atual)}>Cadastrar cliente</button>
                 </div>
-                <input value={buscaCliente} onChange={(e) => { setBuscaCliente(e.target.value); setPacienteVenda(""); }} placeholder="Nome ou CPF" className="w-full rounded-xl border px-3 py-2 text-sm" />
+                <input value={buscaCliente} onChange={(e) => { setBuscaCliente(e.target.value); setPacienteVenda(""); }} placeholder="Nome, ou deixe em branco" className="w-full rounded-xl border px-3 py-2 text-sm" />
+                <p className="mt-1 text-xs text-gray-500">{pacienteVenda ? "Cliente cadastrado" : buscaCliente.trim() ? "Só o nome, sem cadastro" : "Consumidor não identificado"}</p>
                 {clientes.length > 0 && (
                   <div className="mt-1 max-h-32 overflow-y-auto rounded-xl border">
                     {clientes.map((cliente) => (
@@ -469,30 +543,52 @@ export function PdvPageContent() {
                     ))}
                   </div>
                 )}
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <input value={telefoneRecibo} onChange={(e) => setTelefoneRecibo(e.target.value)} placeholder="WhatsApp (opcional)" className="rounded-xl border px-3 py-2 text-sm" />
+                  <input value={emailRecibo} onChange={(e) => setEmailRecibo(e.target.value)} placeholder="E-mail (opcional)" className="rounded-xl border px-3 py-2 text-sm" />
+                </div>
                 {novoCliente && (
                   <div className="mt-2 grid gap-2 sm:grid-cols-3">
                     <input value={nomeNovo} onChange={(e) => setNomeNovo(e.target.value)} placeholder="Nome" className="rounded-xl border px-3 py-2 text-sm" />
                     <input value={telefoneNovo} onChange={(e) => setTelefoneNovo(e.target.value)} placeholder="Telefone" className="rounded-xl border px-3 py-2 text-sm" />
                     <input value={cpfNovo} onChange={(e) => setCpfNovo(e.target.value)} placeholder="CPF" className="rounded-xl border px-3 py-2 text-sm" />
-                    <button type="button" className="rounded-xl px-3 py-2 text-sm text-white sm:col-span-3" style={{ backgroundColor: rosa }} onClick={() => void createQuickPatient({ nome: nomeNovo, telefone: telefoneNovo, cpf: cpfNovo }).then((criado) => { setPacienteVenda(criado.id); setBuscaCliente(criado.nome || nomeNovo); setNovoCliente(false); })}>Cadastrar</button>
+                    <button type="button" className="rounded-xl px-3 py-2 text-sm text-white sm:col-span-3" style={{ backgroundColor: rosa }} onClick={() => void createQuickPatient({ nome: nomeNovo, telefone: telefoneNovo, cpf: cpfNovo }).then((criado) => { setPacienteVenda(criado.id); setBuscaCliente(criado.nome || nomeNovo); setTelefoneRecibo(telefoneNovo); setNovoCliente(false); })}>Salvar cadastro</button>
+                  </div>
+                )}
+              </div>
+              <div>
+                <input
+                  value={buscaProduto}
+                  onChange={(e) => setBuscaProduto(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && sugestoes.length === 1) {
+                      e.preventDefault();
+                      adicionarProduto(sugestoes[0]);
+                    }
+                  }}
+                  placeholder="Produto ou código de barras"
+                  className="w-full rounded-xl border px-3 py-2 text-sm"
+                />
+                {sugestoes.length > 0 && (
+                  <div className="mt-1 max-h-40 overflow-y-auto rounded-xl border">
+                    {sugestoes.map((produto) => (
+                      <button key={produto.id} type="button" className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => adicionarProduto(produto)}>
+                        <span>{produto.nome}</span>
+                        <span className="text-gray-500">{formatCurrency(Number(produto.preco_venda || 0))}</span>
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
               {linhasVenda.map((linha, indice) => (
-                <div key={indice} className="grid grid-cols-[1fr_72px_88px_32px] gap-2">
-                  <select value={linha.produto || ""} onChange={(e) => {
-                    const produto = catalogo.find((item) => item.id === Number(e.target.value));
-                    setLinhasVenda((atual) => atual.map((item, i) => i === indice ? { ...item, produto: Number(e.target.value), nome: produto?.nome || "", preco: String(produto?.preco_venda || 0) } : item));
-                  }} className="rounded-xl border px-2 py-2 text-sm">
-                    <option value="">Produto</option>
-                    {catalogo.map((produto) => <option key={produto.id} value={produto.id}>{produto.nome}</option>)}
-                  </select>
-                  <input value={linha.quantidade} onChange={(e) => setLinhasVenda((atual) => atual.map((item, i) => i === indice ? { ...item, quantidade: e.target.value } : item))} className="rounded-xl border px-2 py-2 text-sm" placeholder="Qtd" />
-                  <input value={linha.preco} onChange={(e) => setLinhasVenda((atual) => atual.map((item, i) => i === indice ? { ...item, preco: e.target.value } : item))} className="rounded-xl border px-2 py-2 text-sm" placeholder="Preço" />
+                <div key={`${linha.produto}-${indice}`} className="grid grid-cols-[1fr_64px_88px_72px_32px] items-center gap-2">
+                  <span className="truncate text-sm">{linha.nome}</span>
+                  <input value={linha.quantidade} onChange={(e) => setLinhasVenda((atual) => atual.map((item, i) => i === indice ? { ...item, quantidade: e.target.value } : item))} className="rounded-xl border px-2 py-2 text-sm" aria-label="Quantidade" />
+                  <span className="text-sm text-gray-600">{formatCurrency(Number(linha.preco || 0))}</span>
+                  <input value={linha.desconto} onChange={(e) => setLinhasVenda((atual) => atual.map((item, i) => i === indice ? { ...item, desconto: e.target.value } : item))} className="rounded-xl border px-2 py-2 text-sm" aria-label="Desconto" placeholder="Desc." />
                   <button type="button" onClick={() => setLinhasVenda((atual) => atual.filter((_, i) => i !== indice))} aria-label="Remover"><Trash2 size={14} /></button>
                 </div>
               ))}
-              <button type="button" onClick={() => setLinhasVenda((atual) => [...atual, { produto: 0, nome: "", quantidade: "1", preco: "", desconto: "0" }])} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-sm" style={{ color: rosa, borderColor: rosa }}><ShoppingCart size={14} /> + Adicionar produto</button>
             </div>
           )}
           {erro && <p className="mt-3 text-sm text-red-600">{erro}</p>}
@@ -523,11 +619,12 @@ export function PdvPageContent() {
           <button type="button" disabled={salvando || total <= 0} onClick={() => void receber()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
             <DollarSign size={16} /> {salvando ? "Recebendo..." : "Receber pagamento"}
           </button>
-          <div className="grid grid-cols-4 gap-2 text-center text-[11px] text-gray-500">
-            <button type="button" disabled={!recibo} onClick={() => void abrirRecibo()} className="rounded-xl border px-1 py-2 disabled:opacity-40"><FileText size={16} className="mx-auto" />Recibo (PDF)</button>
-            <button type="button" disabled={!recibo} onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarRecibo(recibo.paymentId, "whatsapp")} className="rounded-xl border px-1 py-2 disabled:opacity-40"><MessageCircle size={16} className="mx-auto" />WhatsApp</button>
-            <button type="button" disabled={!recibo} onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarRecibo(recibo.paymentId, "email")} className="rounded-xl border px-1 py-2 disabled:opacity-40"><Mail size={16} className="mx-auto" />E-mail</button>
-            <button type="button" disabled={!recibo} onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarReciboParaAssinatura(recibo.paymentId, "whatsapp")} className="rounded-xl border px-1 py-2 disabled:opacity-40"><PenLine size={16} className="mx-auto" />Assinatura</button>
+          <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-gray-500">
+            <button type="button" disabled={!recibo} onClick={() => void imprimirRecibo()} className="rounded-xl border px-1 py-2 disabled:opacity-40"><FileText size={16} className="mx-auto" />Imprimir</button>
+            <button type="button" disabled={!recibo} onClick={() => void abrirRecibo()} className="rounded-xl border px-1 py-2 disabled:opacity-40"><FileText size={16} className="mx-auto" />PDF</button>
+            <button type="button" disabled={!recibo || (!recibo.consultaId && !recibo.telefone)} onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarRecibo(recibo.paymentId, "whatsapp")} className="rounded-xl border px-1 py-2 disabled:opacity-40"><MessageCircle size={16} className="mx-auto" />WhatsApp</button>
+            <button type="button" disabled={!recibo || (!recibo.consultaId && !recibo.email)} onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarRecibo(recibo.paymentId, "email")} className="rounded-xl border px-1 py-2 disabled:opacity-40"><Mail size={16} className="mx-auto" />E-mail</button>
+            <button type="button" disabled={!recibo?.cadastrado && !recibo?.consultaId} onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarReciboParaAssinatura(recibo.paymentId, "whatsapp")} className="rounded-xl border px-1 py-2 disabled:opacity-40"><PenLine size={16} className="mx-auto" />Assinatura</button>
           </div>
         </section>
       </div>
@@ -541,7 +638,21 @@ export function PdvPageContent() {
             </div>
             {painel === "historico" ? (
               <div className="space-y-2 text-sm">
-                {consultas.length === 0 && <p className="text-gray-500">Nenhum atendimento hoje.</p>}
+                {vendasDia.length === 0 && consultas.length === 0 && <p className="text-gray-500">Nenhuma venda hoje.</p>}
+                {vendasDia.map((item) => (
+                  <div key={`venda-${item.id}`} className="flex items-start justify-between gap-3 border-b py-2">
+                    <span>{item.cliente}<span className="block text-xs text-gray-500">Produtos{item.operador ? ` • ${item.operador}` : ""}{item.status === "cancelada" ? " • cancelada" : ""}</span></span>
+                    <span className="text-right">
+                      {formatCurrency(Number(item.total || 0))}
+                      {item.status !== "cancelada" && (
+                        <button type="button" className="mt-1 block text-xs" style={{ color: rosa }} onClick={() => {
+                          if (!window.confirm("Cancelar esta venda e devolver os produtos ao estoque?")) return;
+                          void ClinicaBelezaAPI.estoque.cancelarVenda(item.id).then(() => ClinicaBelezaAPI.estoque.vendas({ data: dia }).then((lista) => setVendasDia(listaDe(lista)))).then(() => carregar());
+                        }}>Cancelar</button>
+                      )}
+                    </span>
+                  </div>
+                ))}
                 {consultas.map((item) => (
                   <div key={item.id} className="flex justify-between gap-3 border-b py-2">
                     <span>{item.patient_name}<span className="block text-xs text-gray-500">{item.procedure_name}</span></span>
@@ -554,8 +665,8 @@ export function PdvPageContent() {
                 <p className="flex justify-between"><span>Recebido hoje</span><strong>{formatCurrency(recebidoHoje)}</strong></p>
                 <p className="flex justify-between"><span>Ainda a receber</span><strong>{formatCurrency(resumo.a_receber)}</strong></p>
                 <p className="flex justify-between"><span>Vendas de produtos</span><strong>{formatCurrency(vendasProdutos)}</strong></p>
-                <p className="pt-2 text-xs text-gray-500">O que a profissional recebe em Atendimentos entra neste Financeiro. A gaveta marcada aqui é a da secretária neste navegador.</p>
-                <button type="button" onClick={() => { definirCaixa(false); setPainel(null); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>
+                <p className="pt-2 text-xs text-gray-500">O que a profissional recebe em Atendimentos entra neste Financeiro. A venda de produtos entra na gaveta aberta aqui.</p>
+                <button type="button" onClick={() => { void definirCaixa(false); setPainel(null); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>
               </div>
             )}
           </div>

@@ -112,7 +112,11 @@ class PaymentSerializer(serializers.ModelSerializer):
         if patient is not None:
             return patient.nome
         venda = getattr(obj, "venda_balcao", None)
-        return getattr(getattr(venda, "paciente", None), "nome", "") or ""
+        if venda is None:
+            return ""
+        from clinica_beleza.venda_produto_service import nome_exibicao_venda
+
+        return nome_exibicao_venda(venda)
 
     def get_profissional_nome(self, obj):
         professional = getattr(getattr(obj, "appointment", None), "professional", None)

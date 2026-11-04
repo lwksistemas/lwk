@@ -349,11 +349,14 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
     return {
         **ctx,
         "assinatura_recibo": assinatura_recibo,
-        "paciente_nome": getattr(patient, "nome", "Cliente"),
+        "paciente_nome": (getattr(patient, "nome", "") or "").strip() or (
+            "Consumidor não identificado" if somente_produtos else "Cliente"
+        ),
         "paciente_cpf": normalizar_cpf_cnpj(getattr(patient, "cpf", "") or ""),
         "paciente_email": (getattr(patient, "email", "") or "").strip(),
         "paciente_telefone": telefone_exibicao_brasileiro(getattr(patient, "telefone", "") or ""),
         "profissional_nome": getattr(professional, "nome", "") if professional else "",
+        "operador_nome": (getattr(getattr(payment, "venda_balcao", None), "operador_nome", "") or "").strip(),
         "procedimentos": procs,
         "produtos": produtos,
         "somente_produtos": somente_produtos,
@@ -376,7 +379,9 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         ),
         "data": _formatar_data_recibo(payment.payment_date),
         "data_emissao": _formatar_data_recibo(_agora_recibo()),
-        "data_atendimento": _formatar_data_recibo(getattr(appointment, "date", None) if appointment is not None else None),
+        "data_atendimento": _formatar_data_recibo(
+            getattr(appointment, "date", None) if appointment is not None else getattr(payment, "payment_date", None)
+        ),
         "recibo_numero": getattr(payment, "id", None),
         **taxa_info,
         **protocolo_recibo,

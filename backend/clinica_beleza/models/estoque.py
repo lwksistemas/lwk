@@ -435,13 +435,44 @@ class NfeDistribuicaoEstado(LojaIsolationMixin, models.Model):
         ]
 
 
+class SessaoCaixa(LojaIsolationMixin, models.Model):
+    """Gaveta aberta pela secretária. O recebimento da profissional não entra aqui."""
+
+    STATUS_ABERTA = "aberta"
+    STATUS_FECHADA = "fechada"
+    operador_id = models.IntegerField(null=True, blank=True)
+    operador_nome = models.CharField(max_length=150, blank=True, default="")
+    status = models.CharField(
+        max_length=10,
+        choices=[(STATUS_ABERTA, "Aberta"), (STATUS_FECHADA, "Fechada")],
+        default=STATUS_ABERTA,
+    )
+    aberta_em = models.DateTimeField(auto_now_add=True)
+    fechada_em = models.DateTimeField(null=True, blank=True)
+
+    objects = LojaIsolationManager()
+
+    class Meta:
+        app_label = "clinica_beleza"
+        ordering = ["-aberta_em"]
+
+
 class VendaBalcao(LojaIsolationMixin, models.Model):
     """Venda de produto sem atendimento. O recibo sai pelo pagamento ligado."""
 
     STATUS_CONCLUIDA = "concluida"
     STATUS_CANCELADA = "cancelada"
     paciente = models.ForeignKey(
-        "Patient", on_delete=models.PROTECT, related_name="vendas_balcao", verbose_name="Cliente",
+        "Patient", null=True, blank=True, on_delete=models.PROTECT, related_name="vendas_balcao", verbose_name="Cliente",
+    )
+    nome_cliente = models.CharField(max_length=200, blank=True, default="")
+    telefone_cliente = models.CharField(max_length=30, blank=True, default="")
+    email_cliente = models.CharField(max_length=200, blank=True, default="")
+    operador_id = models.IntegerField(null=True, blank=True)
+    operador_nome = models.CharField(max_length=150, blank=True, default="")
+    chave = models.CharField(max_length=64, blank=True, default="")
+    sessao = models.ForeignKey(
+        SessaoCaixa, null=True, blank=True, on_delete=models.SET_NULL, related_name="vendas",
     )
     payment = models.OneToOneField(
         "Payment", null=True, blank=True, on_delete=models.SET_NULL, related_name="venda_balcao",
@@ -458,6 +489,13 @@ class VendaBalcao(LojaIsolationMixin, models.Model):
     class Meta:
         app_label = "clinica_beleza"
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["loja_id", "chave"],
+                condition=~models.Q(chave=""),
+                name="cb_venda_balcao_chave",
+            ),
+        ]
 
 
 class VendaBalcaoItem(LojaIsolationMixin, models.Model):

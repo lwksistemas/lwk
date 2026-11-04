@@ -167,7 +167,9 @@ def _cabecalho_recibo_pdf(ctx, styles, col_w, mm_unit):
     story.append(Paragraph(f"<b>Cliente:</b> {_texto_pdf(ctx['paciente_nome'])}", s_left))
     if ctx.get("paciente_cpf"):
         story.append(Paragraph(f"<b>CPF:</b> {_texto_pdf(ctx['paciente_cpf'])}", s_left))
-    if ctx["profissional_nome"]:
+    if ctx.get("somente_produtos") and ctx.get("operador_nome"):
+        story.append(Paragraph(f"<b>Operador:</b> {_texto_pdf(ctx['operador_nome'])}", s_left))
+    elif ctx["profissional_nome"]:
         story.append(Paragraph(f"<b>Profissional:</b> {_texto_pdf(ctx['profissional_nome'])}", s_left))
     if ctx.get("data_atendimento"):
         story.append(Paragraph(f"<b>Data/Hora do atendimento:</b> {_texto_pdf(ctx['data_atendimento'])}", s_left))

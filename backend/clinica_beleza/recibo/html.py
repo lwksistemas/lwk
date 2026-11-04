@@ -194,6 +194,20 @@ def gerar_html_recibo(ctx: dict) -> str:
 
     aviso = (ctx.get("retorno_aviso") or "").strip()
     nome_loja = (ctx.get("loja_nome") or "CLÍNICA").upper()
+    if ctx.get("somente_produtos"):
+        pessoa_extra = ""
+        if ctx.get("operador_nome"):
+            pessoa_extra = (
+                '<div class="section"><div class="section-title">Operador</div>'
+                f'<table><tr><td>{_t(ctx.get("operador_nome"))}</td></tr></table></div>'
+            )
+    else:
+        pessoa_extra = (
+            '<div class="section"><div class="section-title">Profissional</div>'
+            f'<table><tr><td>{_t(ctx.get("profissional_nome") or "—")}</td></tr></table></div>'
+            '<div class="section"><div class="section-title">Data/Hora do atendimento</div>'
+            f'<table><tr><td>{_t(data_atend)}</td></tr></table></div>'
+        )
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
@@ -237,15 +251,7 @@ def gerar_html_recibo(ctx: dict) -> str:
   <table><tr><td>{_t(ctx.get("paciente_nome"))}</td></tr></table>
 </div>
 
-<div class="section">
-  <div class="section-title">Profissional</div>
-  <table><tr><td>{_t(ctx.get("profissional_nome") or "—")}</td></tr></table>
-</div>
-
-<div class="section">
-  <div class="section-title">Data/Hora do atendimento</div>
-  <table><tr><td>{_t(data_atend)}</td></tr></table>
-</div>
+{pessoa_extra}
 
 <div class="section">
   <div class="section-title">Serviços</div>
@@ -278,11 +284,12 @@ def gerar_html_recibo_do_payment(payment) -> str:
     """Carrega o mesmo contexto do PDF e devolve o cupom HTML."""
     appointment = payment.appointment
     if not appointment:
+        from clinica_beleza.venda_produto_service import pessoa_recibo, produtos_do_pagamento
+
         venda = getattr(payment, "venda_balcao", None)
-        patient = getattr(venda, "paciente", None) if venda is not None else None
-        if patient is None:
+        if venda is None or not produtos_do_pagamento(payment):
             raise ValueError("Pagamento sem agendamento vinculado.")
-        return gerar_html_recibo(_obter_dados_contexto(payment, patient, None))
+        return gerar_html_recibo(_obter_dados_contexto(payment, pessoa_recibo(venda), None))
     try:
         from clinica_beleza.models import Appointment
 

@@ -89,7 +89,7 @@ export const financeiroApi = {
 
 export const estoqueApi = {
   list: (
-    params?: { categoria?: string; categoria_id?: number; search?: string; page?: number; page_size?: number },
+    params?: { categoria?: string; categoria_id?: number; search?: string; page?: number; page_size?: number; vende_ao_cliente?: 1 | "1" | "true" },
     loja?: { id?: number; slug?: string } | null,
   ) => cbGetList("/estoque/", params, loja),
   create: (data: Record<string, unknown>, loja?: { id?: number; slug?: string } | null) =>
@@ -98,13 +98,39 @@ export const estoqueApi = {
     cbPut(`/estoque/${id}/`, data, loja),
   delete: (id: number) => cbDelete(`/estoque/${id}/`),
   vender: (data: {
-    paciente: number;
+    paciente?: number | null;
+    nome_cliente?: string;
+    telefone?: string;
+    email?: string;
+    chave?: string;
     payment_method: string;
     itens: { produto: number; quantidade: number; preco_unitario: number; desconto?: number }[];
   }) =>
-    cbPost<{ id: number; payment_id: number; total: string; status: string }>("/estoque/vendas/", data),
+    cbPost<{
+      id: number;
+      payment_id: number;
+      total: string;
+      status: string;
+      cliente: string;
+      telefone: string;
+      email: string;
+    }>("/estoque/vendas/", data),
+  vendas: (params?: { data?: string }) =>
+    cbGetList<{
+      id: number;
+      payment_id: number;
+      total: string;
+      status: string;
+      cliente: string;
+      telefone: string;
+      email: string;
+      operador: string;
+    }>("/estoque/vendas/", params),
   cancelarVenda: (id: number) =>
     cbPost<{ id: number; status: string }>(`/estoque/vendas/${id}/cancelar/`, {}),
+  caixa: () => cbGet<{ aberta: boolean; id?: number; operador?: string }>("/estoque/caixa/"),
+  abrirCaixa: () => cbPost<{ aberta: boolean }>("/estoque/caixa/", {}),
+  fecharCaixa: () => cbPost<{ aberta: boolean }>("/estoque/caixa/fechar/", {}),
   resumo: (loja?: { id?: number; slug?: string } | null) => cbGet("/estoque/resumo/", undefined, loja),
   movimentar: (id: number, data: { tipo: string; quantidade: number; motivo?: string }) =>
     cbPost(`/estoque/${id}/movimentar/`, data),

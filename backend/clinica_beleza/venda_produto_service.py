@@ -41,6 +41,31 @@ def validar_item_venda(produto, quantidade, lotes, *, hoje=None) -> None:
         )
 
 
+def nome_exibicao_venda(venda) -> str:
+    """Nome do recibo. Sem cadastro e sem nome, fica o consumidor não identificado."""
+    paciente = getattr(venda, "paciente", None)
+    nome_paciente = (getattr(paciente, "nome", "") or "").strip() if paciente is not None else ""
+    if nome_paciente:
+        return nome_paciente
+    nome = (getattr(venda, "nome_cliente", "") or "").strip()
+    return nome or "Consumidor não identificado"
+
+
+def pessoa_recibo(venda):
+    """Quem recebe o cupom. Pode ser o cadastro ou só o nome digitado no caixa."""
+    from types import SimpleNamespace
+
+    paciente = getattr(venda, "paciente", None)
+    if paciente is not None:
+        return paciente
+    return SimpleNamespace(
+        nome=nome_exibicao_venda(venda),
+        cpf="",
+        email=(getattr(venda, "email_cliente", "") or "").strip(),
+        telefone=(getattr(venda, "telefone_cliente", "") or "").strip(),
+    )
+
+
 def linha_recibo(nome: str, quantidade, preco_unitario, desconto) -> dict:
     qtd = Decimal(str(quantidade or 0))
     preco = Decimal(str(preco_unitario or 0))
@@ -110,8 +135,71 @@ def _lotes_do_produto(produto) -> list[dict]:
     ]
 
 
-def registrar_venda_balcao(*, loja_id, paciente, itens: list[dict], payment_method: str):
+def _nome_usuario(usuario) -> tuple[int | None, str]:
+    if usuario is None or not getattr(usuario, "is_authenticated", False):
+        return None, ""
+    nome = ""
+    obter = getattr(usuario, "get_full_name", None)
+    if callable(obter):
+        nome = (obter() or "").strip()
+    if not nome:
+        nome = (getattr(usuario, "username", "") or "").strip()
+    return getattr(usuario, "pk", None), nome
+
+
+def sessao_caixa_aberta(loja_id):
+    from .models import SessaoCaixa
+
+    return (
+        SessaoCaixa.objects.filter(loja_id=loja_id, status=SessaoCaixa.STATUS_ABERTA)
+        .order_by("-id")
+        .first()
+    )
+
+
+def abrir_caixa(loja_id, usuario):
+    from .models import SessaoCaixa
+
+    aberta = sessao_caixa_aberta(loja_id)
+    if aberta is not None:
+        return aberta
+    operador_id, operador_nome = _nome_usuario(usuario)
+    return SessaoCaixa.objects.create(
+        loja_id=loja_id,
+        operador_id=operador_id,
+        operador_nome=operador_nome,
+        status=SessaoCaixa.STATUS_ABERTA,
+    )
+
+
+def fechar_caixa(loja_id):
+    from django.utils.timezone import now
+
+    from .models import SessaoCaixa
+
+    aberta = sessao_caixa_aberta(loja_id)
+    if aberta is None:
+        return None
+    aberta.status = SessaoCaixa.STATUS_FECHADA
+    aberta.fechada_em = now()
+    aberta.save(update_fields=["status", "fechada_em"])
+    return aberta
+
+
+def registrar_venda_balcao(
+    *,
+    loja_id,
+    paciente,
+    itens: list[dict],
+    payment_method: str,
+    nome_cliente: str = "",
+    telefone_cliente: str = "",
+    email_cliente: str = "",
+    usuario=None,
+    chave: str = "",
+):
     """Cria a venda, o pagamento e a baixa numa transação só."""
+    from django.db import IntegrityError
     from django.utils.timezone import now
 
     from .estoque_service import movimentar_saida, tenant_atomic
@@ -123,11 +211,28 @@ def registrar_venda_balcao(*, loja_id, paciente, itens: list[dict], payment_meth
     metodos = {codigo for codigo, _rotulo in Payment.PAYMENT_METHOD_CHOICES}
     if metodo not in metodos or metodo == "DESPESA":
         raise VendaProdutoError("Forma de pagamento inválida.")
+    chave = (chave or "").strip()[:64]
 
     with tenant_atomic():
-        cliente = Patient.objects.filter(pk=paciente, loja_id=loja_id).first()
-        if cliente is None:
-            raise VendaProdutoError("Cliente não encontrado nesta clínica.")
+        if chave:
+            repetida = (
+                VendaBalcao.objects.select_related("payment")
+                .filter(loja_id=loja_id, chave=chave)
+                .first()
+            )
+            if repetida is not None:
+                return repetida
+        sessao = sessao_caixa_aberta(loja_id)
+        if sessao is None:
+            raise VendaProdutoError("Abra o caixa para registrar a venda.")
+        cliente = None
+        if paciente not in (None, ""):
+            cliente = Patient.objects.filter(pk=paciente, loja_id=loja_id).first()
+            if cliente is None:
+                raise VendaProdutoError("Cliente não encontrado nesta clínica.")
+        nome = (nome_cliente or "").strip()[:200]
+        if cliente is not None and not nome:
+            nome = (cliente.nome or "").strip()[:200]
         preparados = []
         total = Decimal("0")
         ja_pedido: dict[int, Decimal] = {}
@@ -152,20 +257,40 @@ def registrar_venda_balcao(*, loja_id, paciente, itens: list[dict], payment_meth
         if total <= 0:
             raise VendaProdutoError("O total da venda precisa ser maior que zero.")
 
-        payment = Payment.objects.create(
-            appointment=None,
-            amount=total if metodo != "PRAZO" else Decimal("0"),
-            valor_total=total,
-            valor_produtos=total,
-            payment_method=metodo,
-            status="PENDING" if metodo == "PRAZO" else "PAID",
-            payment_date=None if metodo == "PRAZO" else now(),
-            loja_id=loja_id,
-            notes="Venda de produtos. Recibo comercial, não é nota fiscal.",
-        )
-        venda = VendaBalcao.objects.create(
-            paciente=cliente, payment=payment, status=VendaBalcao.STATUS_CONCLUIDA, loja_id=loja_id,
-        )
+        operador_id, operador_nome = _nome_usuario(usuario)
+        from django.db import transaction
+
+        try:
+            with transaction.atomic():
+                payment = Payment.objects.create(
+                    appointment=None,
+                    amount=total if metodo != "PRAZO" else Decimal("0"),
+                    valor_total=total,
+                    valor_produtos=total,
+                    payment_method=metodo,
+                    status="PENDING" if metodo == "PRAZO" else "PAID",
+                    payment_date=None if metodo == "PRAZO" else now(),
+                    loja_id=loja_id,
+                    notes="Venda de produtos. Recibo comercial, não é nota fiscal.",
+                )
+                venda = VendaBalcao.objects.create(
+                    paciente=cliente,
+                    nome_cliente=nome,
+                    telefone_cliente=(telefone_cliente or "").strip()[:30],
+                    email_cliente=(email_cliente or "").strip()[:200],
+                    operador_id=operador_id,
+                    operador_nome=operador_nome,
+                    chave=chave,
+                    sessao=sessao,
+                    payment=payment,
+                    status=VendaBalcao.STATUS_CONCLUIDA,
+                    loja_id=loja_id,
+                )
+        except IntegrityError:
+            existente = VendaBalcao.objects.select_related("payment").filter(loja_id=loja_id, chave=chave).first()
+            if existente is not None:
+                return existente
+            raise
         for produto, quantidade, preco, desconto in preparados:
             item = VendaBalcaoItem.objects.create(
                 venda=venda,

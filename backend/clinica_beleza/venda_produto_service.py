@@ -147,14 +147,14 @@ def _nome_usuario(usuario) -> tuple[int | None, str]:
     return getattr(usuario, "pk", None), nome
 
 
-def totais_sessao_caixa(sessao) -> dict:
-    """Soma só o que entrou nesta gaveta. Caixa fechado não leva valor para o próximo operador."""
+def totais_gaveta(sessao) -> dict:
+    """Soma as vendas desta gaveta, aberta ou já fechada."""
     from decimal import Decimal
 
     vendas = Decimal("0")
     recebido = Decimal("0")
     a_receber = Decimal("0")
-    if sessao is None or getattr(sessao, "status", "") != "aberta":
+    if sessao is None:
         return {"vendas_produtos": 0.0, "recebido": 0.0, "a_receber": 0.0}
     for venda in sessao.vendas.select_related("payment").exclude(status="cancelada"):
         payment = venda.payment
@@ -173,6 +173,13 @@ def totais_sessao_caixa(sessao) -> dict:
         "recebido": float(recebido),
         "a_receber": float(a_receber),
     }
+
+
+def totais_sessao_caixa(sessao) -> dict:
+    """Soma só a gaveta aberta. Caixa fechado não leva valor para o próximo operador."""
+    if sessao is None or getattr(sessao, "status", "") != "aberta":
+        return {"vendas_produtos": 0.0, "recebido": 0.0, "a_receber": 0.0}
+    return totais_gaveta(sessao)
 
 
 def sessao_caixa_aberta(loja_id):

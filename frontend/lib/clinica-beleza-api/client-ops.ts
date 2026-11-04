@@ -156,6 +156,26 @@ export const estoqueApi = {
   abrirCaixa: (data: { nome: string; responsavel_id: number }) =>
     cbPost<{ aberta: boolean; nome?: string; responsavel?: string }>("/estoque/caixa/", data),
   fecharCaixa: () => cbPost<{ aberta: boolean }>("/estoque/caixa/fechar/", {}),
+  fechamentos: (params?: { data?: string }) =>
+    cbGetList<{
+      id: number;
+      nome: string;
+      operador: string;
+      aberta_em: string;
+      fechada_em: string;
+      vendas_produtos: number;
+      recebido: number;
+      a_receber: number;
+      vendas: {
+        id: number;
+        payment_id: number;
+        total: string;
+        status: string;
+        cliente: string;
+        operador: string;
+        criada_em?: string;
+      }[];
+    }>("/estoque/caixa/fechamentos/", params),
   resumo: (loja?: { id?: number; slug?: string } | null) => cbGet("/estoque/resumo/", undefined, loja),
   movimentar: (id: number, data: { tipo: string; quantidade: number; motivo?: string }) =>
     cbPost(`/estoque/${id}/movimentar/`, data),

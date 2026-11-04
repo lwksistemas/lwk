@@ -12,6 +12,7 @@ from clinica_beleza.venda_produto_service import (
     nome_exibicao_venda,
     pessoa_recibo,
     subtotal_item,
+    totais_gaveta,
     totais_sessao_caixa,
     validar_item_venda,
 )
@@ -55,6 +56,12 @@ class VendaProdutoRegrasTest(unittest.TestCase):
         totais = totais_sessao_caixa(SimpleNamespace(status="aberta", vendas=_Vendas([venda])))
         self.assertEqual(totais["a_receber"], 80.0)
         self.assertEqual(totais["recebido"], 0.0)
+        fechada = totais_gaveta(SimpleNamespace(status="fechada", vendas=_Vendas([venda])))
+        self.assertEqual(fechada["a_receber"], 80.0)
+        self.assertEqual(
+            totais_sessao_caixa(SimpleNamespace(status="fechada", vendas=_Vendas([venda]))),
+            {"vendas_produtos": 0.0, "recebido": 0.0, "a_receber": 0.0},
+        )
     def test_subtotal_separa_desconto_da_linha(self):
         self.assertEqual(subtotal_item("2", "50", "10"), Decimal("90"))
         self.assertEqual(subtotal_item("1", "10", "40"), Decimal("0"))

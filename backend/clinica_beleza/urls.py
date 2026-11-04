@@ -2,7 +2,13 @@
 """
 from django.urls import path
 
-from .views_venda_produto import CaixaFecharView, CaixaSessaoView, VendaProdutoCancelarView, VendaProdutoListView
+from .views_venda_produto import (
+    CaixaFechamentosView,
+    CaixaFecharView,
+    CaixaSessaoView,
+    VendaProdutoCancelarView,
+    VendaProdutoListView,
+)
 from .views import (
     AgendaCreateView,
     AgendaDeleteView,
@@ -457,6 +463,7 @@ urlpatterns = [
     path("estoque/fornecedores/<int:pk>/catalogo/preview/", FornecedorCatalogoPreviewView.as_view(), name="estoque-fornecedores-catalogo-preview"),
     path("estoque/fornecedores/<int:pk>/catalogo/importar/", FornecedorCatalogoImportarView.as_view(), name="estoque-fornecedores-catalogo-importar"),
     path("estoque/caixa/", CaixaSessaoView.as_view(), name="estoque-caixa"),
+    path("estoque/caixa/fechamentos/", CaixaFechamentosView.as_view(), name="estoque-caixa-fechamentos"),
     path("estoque/caixa/fechar/", CaixaFecharView.as_view(), name="estoque-caixa-fechar"),
     path("estoque/vendas/", VendaProdutoListView.as_view(), name="estoque-vendas"),
     path("estoque/vendas/<int:pk>/cancelar/", VendaProdutoCancelarView.as_view(), name="estoque-vendas-cancelar"),

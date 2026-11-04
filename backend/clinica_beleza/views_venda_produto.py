@@ -10,6 +10,7 @@ from .venda_produto_service import (
     cancelar_venda_balcao,
     fechar_caixa,
     funcionarios_do_caixa,
+    totais_gaveta,
     nome_exibicao_venda,
     registrar_venda_balcao,
     sessao_caixa_aberta,
@@ -121,6 +122,50 @@ class CaixaSessaoView(APIView):
             "operador": aberta.responsavel_nome,
             **totais_sessao_caixa(aberta),
         })
+
+
+class CaixaFechamentosView(APIView):
+    """Caixas fechados no dia, com o operador e o resumo da gaveta."""
+
+    permission_classes = CLINICA_ESTOQUE
+
+    def get(self, request):
+        from datetime import datetime, time
+
+        from django.utils import timezone
+        from django.utils.dateparse import parse_date
+
+        from .models import SessaoCaixa
+
+        loja_id = resolve_loja_id_from_request(request)
+        dia = parse_date(str(request.query_params.get("data") or "")) or timezone.localdate()
+        inicio = timezone.make_aware(datetime.combine(dia, time.min))
+        fim = timezone.make_aware(datetime.combine(dia, time.max))
+        sessoes = (
+            SessaoCaixa.objects.filter(
+                loja_id=loja_id,
+                status=SessaoCaixa.STATUS_FECHADA,
+                fechada_em__gte=inicio,
+                fechada_em__lte=fim,
+            )
+            .order_by("fechada_em", "id")
+        )
+        corpo = []
+        for sessao in sessoes:
+            vendas = [
+                _venda_resumo(venda)
+                for venda in sessao.vendas.select_related("payment", "paciente").order_by("id")
+            ]
+            corpo.append({
+                "id": sessao.id,
+                "nome": sessao.nome,
+                "operador": sessao.responsavel_nome or sessao.operador_nome,
+                "aberta_em": sessao.aberta_em.isoformat() if sessao.aberta_em else "",
+                "fechada_em": sessao.fechada_em.isoformat() if sessao.fechada_em else "",
+                **totais_gaveta(sessao),
+                "vendas": vendas,
+            })
+        return Response(corpo)
 
 
 class CaixaFecharView(APIView):

@@ -93,6 +93,50 @@ type VendaHistorico = {
   criada_em?: string;
 };
 
+type FechamentoCaixa = {
+  id: number;
+  nome: string;
+  operador: string;
+  aberta_em: string;
+  fechada_em: string;
+  vendas_produtos: number;
+  recebido: number;
+  a_receber: number;
+  vendas: VendaHistorico[];
+};
+
+function textoHtml(valor: string): string {
+  return valor.replace(/[&<>"]/g, (caractere) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[caractere] || caractere));
+}
+
+function imprimirResumoCaixa(resumo: FechamentoCaixa) {
+  const vendas = resumo.vendas.filter((item) => item.status !== "cancelada");
+  const linhas = vendas.length
+    ? vendas.map((item) => `<p><span>${textoHtml(item.cliente || "Consumidor não identificado")}</span><strong>${textoHtml(formatCurrency(Number(item.total || 0)))}</strong></p>`).join("")
+    : "<p>Nenhuma venda de produto nesta gaveta.</p>";
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Resumo do caixa</title>
+    <style>body{font-family:sans-serif;color:#111;max-width:420px;margin:24px auto}h1{font-size:18px;margin:0 0 12px}p{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:14px}.bloco{margin-top:16px;padding-top:8px;border-top:1px solid #ddd}</style>
+    </head><body>
+    <h1>Resumo do caixa</h1>
+    <p><span>Operador</span><strong>${textoHtml(resumo.operador || "Operador")}</strong></p>
+    <p><span>Caixa</span><strong>${textoHtml(resumo.nome || "Recepção")}</strong></p>
+    <p><span>Aberto</span><strong>${textoHtml(quandoRecibo(resumo.aberta_em))}</strong></p>
+    <p><span>Fechado</span><strong>${textoHtml(quandoRecibo(resumo.fechada_em))}</strong></p>
+    <div class="bloco">
+      <p><span>Recebido</span><strong>${textoHtml(formatCurrency(Number(resumo.recebido || 0)))}</strong></p>
+      <p><span>Ainda a receber</span><strong>${textoHtml(formatCurrency(Number(resumo.a_receber || 0)))}</strong></p>
+      <p><span>Vendas de produtos</span><strong>${textoHtml(formatCurrency(Number(resumo.vendas_produtos || 0)))}</strong></p>
+    </div>
+    <div class="bloco">${linhas}</div>
+    </body></html>`;
+  const janela = window.open("", "_blank");
+  if (!janela) return;
+  janela.document.write(html);
+  janela.document.close();
+  janela.focus();
+  janela.print();
+}
+
 const rosa = "var(--cb-primary, #8B3D52)";
 
 function listaDe<T>(corpo: unknown): T[] {
@@ -161,6 +205,8 @@ export function PdvPageContent() {
   const [avisoEntrega, setAvisoEntrega] = useState("");
   const [enviandoRecibo, setEnviandoRecibo] = useState<"whatsapp" | "email" | null>(null);
   const [vendasDia, setVendasDia] = useState<VendaHistorico[]>([]);
+  const [fechamentos, setFechamentos] = useState<FechamentoCaixa[]>([]);
+  const [resumoCaixa, setResumoCaixa] = useState<FechamentoCaixa | null>(null);
   const chaveVenda = useRef("");
 
   const carregar = useCallback(async () => {
@@ -321,6 +367,9 @@ export function PdvPageContent() {
     ClinicaBelezaAPI.estoque.vendas({ data: dia }).then((lista) => {
       setVendasDia(listaDe(lista));
     }).catch(() => setVendasDia([]));
+    ClinicaBelezaAPI.estoque.fechamentos({ data: dia }).then((lista) => {
+      setFechamentos(listaDe(lista));
+    }).catch(() => setFechamentos([]));
   }, [dia, painel]);
 
   const adicionarProduto = (produto: ProdutoOpcao) => {
@@ -954,15 +1003,47 @@ export function PdvPageContent() {
       )}
 
       {painel && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={() => setPainel(null)}>
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={() => { setPainel(null); setResumoCaixa(null); }}>
           <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5" onClick={(clique) => clique.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{painel === "historico" ? "Histórico de vendas" : "Fechamento do caixa"}</h2>
-              <button type="button" onClick={() => setPainel(null)} aria-label="Fechar"><X size={16} /></button>
+              <h2 className="text-lg font-semibold">{resumoCaixa ? "Resumo do caixa" : painel === "historico" ? "Histórico de vendas" : "Fechamento do caixa"}</h2>
+              <button type="button" onClick={() => { setPainel(null); setResumoCaixa(null); }} aria-label="Fechar"><X size={16} /></button>
             </div>
-            {painel === "historico" ? (
+            {painel === "historico" && resumoCaixa ? (
+              <div className="space-y-3 text-sm">
+                <button type="button" className="text-xs font-medium" style={{ color: rosa }} onClick={() => setResumoCaixa(null)}>Voltar ao histórico</button>
+                <p className="flex justify-between gap-3"><span className="text-gray-500">Operador</span><strong className="text-right">{resumoCaixa.operador || "Operador"}</strong></p>
+                <p className="flex justify-between gap-3"><span className="text-gray-500">Caixa</span><strong>{resumoCaixa.nome || "Recepção"}</strong></p>
+                <p className="flex justify-between gap-3"><span className="text-gray-500">Aberto</span><strong className="text-right">{quandoRecibo(resumoCaixa.aberta_em)}</strong></p>
+                <p className="flex justify-between gap-3"><span className="text-gray-500">Fechado</span><strong className="text-right">{quandoRecibo(resumoCaixa.fechada_em)}</strong></p>
+                <p className="flex justify-between"><span>Recebido</span><strong>{formatCurrency(Number(resumoCaixa.recebido || 0))}</strong></p>
+                <p className="flex justify-between"><span>Ainda a receber</span><strong>{formatCurrency(Number(resumoCaixa.a_receber || 0))}</strong></p>
+                <p className="flex justify-between"><span>Vendas de produtos</span><strong>{formatCurrency(Number(resumoCaixa.vendas_produtos || 0))}</strong></p>
+                <div className="space-y-2 border-t pt-2">
+                  {resumoCaixa.vendas.filter((item) => item.status !== "cancelada").length === 0 && <p className="text-gray-500">Nenhuma venda de produto nesta gaveta.</p>}
+                  {resumoCaixa.vendas.filter((item) => item.status !== "cancelada").map((item) => (
+                    <p key={item.id} className="flex justify-between gap-3"><span>{item.cliente}</span><strong>{formatCurrency(Number(item.total || 0))}</strong></p>
+                  ))}
+                </div>
+                <button type="button" onClick={() => imprimirResumoCaixa(resumoCaixa)} className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}><Printer size={14} /> Imprimir</button>
+              </div>
+            ) : painel === "historico" ? (
               <div className="space-y-2 text-sm">
-                {vendasDia.length === 0 && consultas.length === 0 && <p className="text-gray-500">Nenhuma venda hoje.</p>}
+                {fechamentos.length > 0 && (
+                  <div className="mb-3 space-y-1 border-b pb-3">
+                    <p className="text-xs font-medium text-gray-500">Caixa fechado no dia</p>
+                    {fechamentos.map((item) => (
+                      <button key={item.id} type="button" onClick={() => setResumoCaixa(item)} className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-2 text-left hover:bg-gray-50">
+                        <span>
+                          <span className="block font-medium" style={{ color: rosa }}>{item.operador || "Operador"}</span>
+                          <span className="block text-xs text-gray-500">{item.nome || "Recepção"} • fechado {quandoRecibo(item.fechada_em)}</span>
+                        </span>
+                        <span className="text-xs text-gray-500">Ver resumo</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {vendasDia.length === 0 && consultas.length === 0 && fechamentos.length === 0 && <p className="text-gray-500">Nenhuma venda hoje.</p>}
                 {vendasDia.map((item) => (
                   <div key={`venda-${item.id}`} className="flex items-start justify-between gap-3 border-b py-2">
                     <span>{item.cliente}<span className="block text-xs text-gray-500">Produtos{item.operador ? ` • ${item.operador}` : ""}{item.status === "cancelada" ? " • cancelada" : ""}</span></span>

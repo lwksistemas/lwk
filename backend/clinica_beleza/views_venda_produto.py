@@ -9,6 +9,7 @@ from .venda_produto_service import (
     abrir_caixa,
     cancelar_venda_balcao,
     fechar_caixa,
+    funcionarios_do_caixa,
     nome_exibicao_venda,
     registrar_venda_balcao,
     sessao_caixa_aberta,
@@ -79,21 +80,41 @@ class CaixaSessaoView(APIView):
     def get(self, request):
         loja_id = resolve_loja_id_from_request(request)
         aberta = sessao_caixa_aberta(loja_id)
+        corpo = {
+            "aberta": aberta is not None,
+            "funcionarios": funcionarios_do_caixa(loja_id) if loja_id else [],
+        }
         if aberta is None:
-            return Response({"aberta": False})
-        return Response({
-            "aberta": True,
+            return Response(corpo)
+        corpo.update({
             "id": aberta.id,
-            "operador": aberta.operador_nome,
+            "nome": aberta.nome,
+            "responsavel": aberta.responsavel_nome or aberta.operador_nome,
+            "operador": aberta.responsavel_nome or aberta.operador_nome,
             "aberta_em": aberta.aberta_em.isoformat() if aberta.aberta_em else "",
         })
+        return Response(corpo)
 
     def post(self, request):
         loja_id = resolve_loja_id_from_request(request)
         if not loja_id:
             return Response({"error": "Loja não identificada."}, status=status.HTTP_400_BAD_REQUEST)
-        aberta = abrir_caixa(loja_id, request.user)
-        return Response({"aberta": True, "id": aberta.id, "operador": aberta.operador_nome})
+        try:
+            aberta = abrir_caixa(
+                loja_id,
+                request.user,
+                nome=request.data.get("nome") or "",
+                responsavel_id=request.data.get("responsavel_id"),
+            )
+        except VendaProdutoError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            "aberta": True,
+            "id": aberta.id,
+            "nome": aberta.nome,
+            "responsavel": aberta.responsavel_nome,
+            "operador": aberta.responsavel_nome,
+        })
 
 
 class CaixaFecharView(APIView):

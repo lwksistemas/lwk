@@ -157,17 +157,36 @@ def sessao_caixa_aberta(loja_id):
     )
 
 
-def abrir_caixa(loja_id, usuario):
-    from .models import SessaoCaixa
+def funcionarios_do_caixa(loja_id) -> list[dict]:
+    from .models import Professional
+
+    return [
+        {"id": pessoa.id, "nome": pessoa.nome}
+        for pessoa in Professional.objects.filter(loja_id=loja_id, is_active=True).order_by("nome")
+    ]
+
+
+def abrir_caixa(loja_id, usuario, *, nome: str = "", responsavel_id=None):
+    from .models import Professional, SessaoCaixa
 
     aberta = sessao_caixa_aberta(loja_id)
     if aberta is not None:
         return aberta
-    operador_id, operador_nome = _nome_usuario(usuario)
+    nome_caixa = (nome or "").strip()[:80]
+    if not nome_caixa:
+        raise VendaProdutoError("Informe o nome do caixa.")
+    pessoa = Professional.objects.filter(pk=responsavel_id, loja_id=loja_id, is_active=True).first()
+    if pessoa is None:
+        raise VendaProdutoError("Escolha um funcionário cadastrado.")
+    operador_id, _operador_login = _nome_usuario(usuario)
+    responsavel = (pessoa.nome or "").strip()[:150]
     return SessaoCaixa.objects.create(
         loja_id=loja_id,
+        nome=nome_caixa,
+        responsavel_id=pessoa.id,
+        responsavel_nome=responsavel,
         operador_id=operador_id,
-        operador_nome=operador_nome,
+        operador_nome=responsavel,
         status=SessaoCaixa.STATUS_ABERTA,
     )
 
@@ -257,7 +276,10 @@ def registrar_venda_balcao(
         if total <= 0:
             raise VendaProdutoError("O total da venda precisa ser maior que zero.")
 
-        operador_id, operador_nome = _nome_usuario(usuario)
+        operador_id = getattr(sessao, "responsavel_id", None)
+        operador_nome = (getattr(sessao, "responsavel_nome", "") or "").strip()
+        if not operador_nome:
+            operador_id, operador_nome = _nome_usuario(usuario)
         from django.db import transaction
 
         try:

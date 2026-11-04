@@ -196,9 +196,14 @@ def gerar_html_recibo(ctx: dict) -> str:
     nome_loja = (ctx.get("loja_nome") or "CLÍNICA").upper()
     if ctx.get("somente_produtos"):
         pessoa_extra = ""
+        if ctx.get("caixa_nome"):
+            pessoa_extra += (
+                '<div class="section"><div class="section-title">Caixa</div>'
+                f'<table><tr><td>{_t(ctx.get("caixa_nome"))}</td></tr></table></div>'
+            )
         if ctx.get("operador_nome"):
-            pessoa_extra = (
-                '<div class="section"><div class="section-title">Operador</div>'
+            pessoa_extra += (
+                '<div class="section"><div class="section-title">Responsável pelo recebimento</div>'
                 f'<table><tr><td>{_t(ctx.get("operador_nome"))}</td></tr></table></div>'
             )
     else:

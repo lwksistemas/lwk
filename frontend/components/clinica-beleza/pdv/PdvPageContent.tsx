@@ -96,6 +96,12 @@ export function PdvPageContent() {
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [caixaAberto, setCaixaAberto] = useState(false);
+  const [caixaNome, setCaixaNome] = useState("");
+  const [caixaResponsavel, setCaixaResponsavel] = useState("");
+  const [funcionarios, setFuncionarios] = useState<{ id: number; nome: string }[]>([]);
+  const [abrindoCaixa, setAbrindoCaixa] = useState(false);
+  const [nomeCaixa, setNomeCaixa] = useState("");
+  const [responsavelCaixa, setResponsavelCaixa] = useState("");
   const [menuCaixa, setMenuCaixa] = useState(false);
   const [painel, setPainel] = useState<"historico" | "fechamento" | null>(null);
   const [incluindo, setIncluindo] = useState<"produto" | "servico" | null>(null);
@@ -144,7 +150,12 @@ export function PdvPageContent() {
 
   useEffect(() => {
     void carregar();
-    ClinicaBelezaAPI.estoque.caixa().then((sessao) => setCaixaAberto(Boolean(sessao.aberta))).catch(() => setCaixaAberto(false));
+    ClinicaBelezaAPI.estoque.caixa().then((sessao) => {
+      setCaixaAberto(Boolean(sessao.aberta));
+      setCaixaNome(sessao.nome || "");
+      setCaixaResponsavel(sessao.responsavel || sessao.operador || "");
+      setFuncionarios(Array.isArray(sessao.funcionarios) ? sessao.funcionarios : []);
+    }).catch(() => setCaixaAberto(false));
   }, [carregar]);
 
   useEffect(() => {
@@ -260,15 +271,41 @@ export function PdvPageContent() {
   const recebidoHoje = reais(resumo.total_pago + resumo.recebido_balcao);
   const vendasProdutos = reais(resumo.vendas_produtos + resumo.vendas_balcao);
 
-  const definirCaixa = async (aberto: boolean) => {
+  const fecharCaixa = async () => {
     setMenuCaixa(false);
     setErro("");
     try {
-      if (aberto) await ClinicaBelezaAPI.estoque.abrirCaixa();
-      else await ClinicaBelezaAPI.estoque.fecharCaixa();
-      setCaixaAberto(aberto);
+      await ClinicaBelezaAPI.estoque.fecharCaixa();
+      setCaixaAberto(false);
+      setCaixaNome("");
+      setCaixaResponsavel("");
     } catch (erroCaixa) {
-      setErro(mensagemErro(erroCaixa, "Não foi possível atualizar o caixa."));
+      setErro(mensagemErro(erroCaixa, "Não foi possível fechar o caixa."));
+    }
+  };
+
+  const confirmarAbertura = async () => {
+    setErro("");
+    if (!nomeCaixa.trim() || !responsavelCaixa) {
+      setErro("Informe o nome do caixa e escolha o funcionário responsável.");
+      return;
+    }
+    setSalvando(true);
+    try {
+      const sessao = await ClinicaBelezaAPI.estoque.abrirCaixa({
+        nome: nomeCaixa.trim(),
+        responsavel_id: Number(responsavelCaixa),
+      });
+      setCaixaAberto(true);
+      setCaixaNome(sessao.nome || nomeCaixa.trim());
+      setCaixaResponsavel(sessao.responsavel || funcionarios.find((pessoa) => pessoa.id === Number(responsavelCaixa))?.nome || "");
+      setAbrindoCaixa(false);
+      setNomeCaixa("");
+      setResponsavelCaixa("");
+    } catch (erroCaixa) {
+      setErro(mensagemErro(erroCaixa, "Não foi possível abrir o caixa."));
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -439,13 +476,20 @@ export function PdvPageContent() {
             <Lock size={15} /> Fechamento do caixa
           </button>
           <div className="relative">
-            <button type="button" onClick={() => setMenuCaixa((atual) => !atual)} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-              <DollarSign size={15} /> {caixaAberto ? "Caixa aberto" : "Caixa fechado"} <ChevronDown size={14} />
-            </button>
-            {menuCaixa && (
-              <div className="absolute right-0 z-20 mt-1 w-40 rounded-xl border bg-white p-1 shadow-lg">
-                <button type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => definirCaixa(true)}>Caixa aberto</button>
-                <button type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => definirCaixa(false)}>Caixa fechado</button>
+            {caixaAberto ? (
+              <button type="button" onClick={() => setMenuCaixa((atual) => !atual)} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+                <DollarSign size={15} /> {caixaNome || "Caixa aberto"} <ChevronDown size={14} />
+              </button>
+            ) : (
+              <button type="button" onClick={() => { setErro(""); setAbrindoCaixa(true); }} className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-white" style={{ backgroundColor: rosa }}>
+                <DollarSign size={15} /> Abrir caixa
+              </button>
+            )}
+            {menuCaixa && caixaAberto && (
+              <div className="absolute right-0 z-20 mt-1 w-64 rounded-xl border bg-white p-2 shadow-lg">
+                <p className="px-2 py-1 text-xs text-gray-500">Responsável pelo recebimento</p>
+                <p className="px-2 pb-2 text-sm font-medium text-gray-800">{caixaResponsavel || "—"}</p>
+                <button type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => void fecharCaixa()}>Fechar caixa</button>
               </div>
             )}
           </div>
@@ -641,6 +685,33 @@ export function PdvPageContent() {
         </section>
       </div>
 
+      {abrindoCaixa && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={() => setAbrindoCaixa(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-5" onClick={(clique) => clique.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Abrir caixa</h2>
+              <button type="button" onClick={() => setAbrindoCaixa(false)} aria-label="Fechar"><X size={16} /></button>
+            </div>
+            <label className="mb-3 block text-sm text-gray-600">
+              Nome do caixa
+              <input value={nomeCaixa} onChange={(e) => setNomeCaixa(e.target.value)} placeholder="Ex.: Recepção" className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" />
+            </label>
+            <label className="mb-4 block text-sm text-gray-600">
+              Funcionário responsável pelo recebimento
+              <select value={responsavelCaixa} onChange={(e) => setResponsavelCaixa(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm">
+                <option value="">Selecione o funcionário</option>
+                {funcionarios.map((pessoa) => <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>)}
+              </select>
+            </label>
+            {funcionarios.length === 0 && <p className="mb-3 text-sm text-gray-500">Nenhum funcionário ativo no cadastro.</p>}
+            {erro && <p className="mb-3 text-sm text-red-600">{erro}</p>}
+            <button type="button" disabled={salvando} onClick={() => void confirmarAbertura()} className="w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
+              {salvando ? "Abrindo..." : "Abrir caixa"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {painel && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={() => setPainel(null)}>
           <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5" onClick={(clique) => clique.stopPropagation()}>
@@ -678,7 +749,7 @@ export function PdvPageContent() {
                 <p className="flex justify-between"><span>Ainda a receber</span><strong>{formatCurrency(resumo.a_receber)}</strong></p>
                 <p className="flex justify-between"><span>Vendas de produtos</span><strong>{formatCurrency(vendasProdutos)}</strong></p>
                 <p className="pt-2 text-xs text-gray-500">O que a profissional recebe em Atendimentos entra neste Financeiro. A venda de produtos entra na gaveta aberta aqui.</p>
-                <button type="button" onClick={() => { void definirCaixa(false); setPainel(null); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>
+                <button type="button" onClick={() => { void fecharCaixa(); setPainel(null); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>
               </div>
             )}
           </div>

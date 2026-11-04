@@ -128,8 +128,17 @@ export const estoqueApi = {
     }>("/estoque/vendas/", params),
   cancelarVenda: (id: number) =>
     cbPost<{ id: number; status: string }>(`/estoque/vendas/${id}/cancelar/`, {}),
-  caixa: () => cbGet<{ aberta: boolean; id?: number; operador?: string }>("/estoque/caixa/"),
-  abrirCaixa: () => cbPost<{ aberta: boolean }>("/estoque/caixa/", {}),
+  caixa: () =>
+    cbGet<{
+      aberta: boolean;
+      id?: number;
+      nome?: string;
+      responsavel?: string;
+      operador?: string;
+      funcionarios?: { id: number; nome: string }[];
+    }>("/estoque/caixa/"),
+  abrirCaixa: (data: { nome: string; responsavel_id: number }) =>
+    cbPost<{ aberta: boolean; nome?: string; responsavel?: string }>("/estoque/caixa/", data),
   fecharCaixa: () => cbPost<{ aberta: boolean }>("/estoque/caixa/fechar/", {}),
   resumo: (loja?: { id?: number; slug?: string } | null) => cbGet("/estoque/resumo/", undefined, loja),
   movimentar: (id: number, data: { tipo: string; quantidade: number; motivo?: string }) =>

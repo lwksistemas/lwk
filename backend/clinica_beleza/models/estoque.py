@@ -440,6 +440,9 @@ class SessaoCaixa(LojaIsolationMixin, models.Model):
 
     STATUS_ABERTA = "aberta"
     STATUS_FECHADA = "fechada"
+    nome = models.CharField(max_length=80, blank=True, default="")
+    responsavel_id = models.IntegerField(null=True, blank=True)
+    responsavel_nome = models.CharField(max_length=150, blank=True, default="")
     operador_id = models.IntegerField(null=True, blank=True)
     operador_nome = models.CharField(max_length=150, blank=True, default="")
     status = models.CharField(

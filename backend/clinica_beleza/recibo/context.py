@@ -357,6 +357,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         "paciente_telefone": telefone_exibicao_brasileiro(getattr(patient, "telefone", "") or ""),
         "profissional_nome": getattr(professional, "nome", "") if professional else "",
         "operador_nome": (getattr(getattr(payment, "venda_balcao", None), "operador_nome", "") or "").strip(),
+        "caixa_nome": (getattr(getattr(getattr(payment, "venda_balcao", None), "sessao", None), "nome", "") or "").strip(),
         "procedimentos": procs,
         "produtos": produtos,
         "somente_produtos": somente_produtos,

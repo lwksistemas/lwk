@@ -101,13 +101,14 @@ export function PdvPageContent() {
   const [incluindo, setIncluindo] = useState<"produto" | "servico" | null>(null);
   const [escolha, setEscolha] = useState("");
   const [buscaCliente, setBuscaCliente] = useState("");
-  const [clientes, setClientes] = useState<{ id: number; nome: string }[]>([]);
+  const [clientes, setClientes] = useState<{ id: number; nome: string; telefone?: string; email?: string }[]>([]);
   const [pacienteVenda, setPacienteVenda] = useState<number | "">("");
   const [telefoneRecibo, setTelefoneRecibo] = useState("");
   const [emailRecibo, setEmailRecibo] = useState("");
   const [linhasVenda, setLinhasVenda] = useState<VendaLinha[]>([]);
   const [buscaProduto, setBuscaProduto] = useState("");
   const [sugestoes, setSugestoes] = useState<ProdutoOpcao[]>([]);
+  const [produtosConsultados, setProdutosConsultados] = useState(false);
   const [novoCliente, setNovoCliente] = useState(false);
   const [nomeNovo, setNomeNovo] = useState("");
   const [telefoneNovo, setTelefoneNovo] = useState("");
@@ -189,8 +190,11 @@ export function PdvPageContent() {
       return;
     }
     const timer = window.setTimeout(() => {
-      ClinicaBelezaAPI.pedidos.buscarPacientes(termo).then((lista) => {
-        setClientes(Array.isArray(lista) ? lista : []);
+      ClinicaBelezaAPI.getList<{ id: number; nome: string; telefone?: string; email?: string }>(
+        "/patients/",
+        { search: termo, page_size: 12 },
+      ).then((lista) => {
+        setClientes(listaDe(lista));
       }).catch(() => setClientes([]));
     }, 250);
     return () => window.clearTimeout(timer);
@@ -200,12 +204,17 @@ export function PdvPageContent() {
     const termo = buscaProduto.trim();
     if (aba !== "venda" || termo.length < 2) {
       setSugestoes([]);
+      setProdutosConsultados(false);
       return;
     }
     const timer = window.setTimeout(() => {
       ClinicaBelezaAPI.estoque.list({ search: termo, page_size: 20, vende_ao_cliente: 1 }).then((res) => {
         setSugestoes(listaDe<ProdutoOpcao>(res).filter((item) => item.vende_ao_cliente !== false && item.is_active !== false));
-      }).catch(() => setSugestoes([]));
+        setProdutosConsultados(true);
+      }).catch(() => {
+        setSugestoes([]);
+        setProdutosConsultados(true);
+      });
     }, 200);
     return () => window.clearTimeout(timer);
   }, [aba, buscaProduto]);
@@ -535,11 +544,11 @@ export function PdvPageContent() {
                   <button type="button" className="text-xs font-medium" style={{ color: rosa }} onClick={() => setNovoCliente((atual) => !atual)}>Cadastrar cliente</button>
                 </div>
                 <input value={buscaCliente} onChange={(e) => { setBuscaCliente(e.target.value); setPacienteVenda(""); }} placeholder="Nome, ou deixe em branco" className="w-full rounded-xl border px-3 py-2 text-sm" />
-                <p className="mt-1 text-xs text-gray-500">{pacienteVenda ? "Cliente cadastrado" : buscaCliente.trim() ? "Só o nome, sem cadastro" : "Consumidor não identificado"}</p>
+                <p className="mt-1 text-xs text-gray-500">{pacienteVenda ? "Cliente cadastrado" : clientes.length > 0 ? "Selecione o cadastro ou continue só com o nome" : buscaCliente.trim().length >= 2 ? "Só o nome, sem cadastro" : buscaCliente.trim() ? "Digite ao menos 2 letras" : "Consumidor não identificado"}</p>
                 {clientes.length > 0 && (
                   <div className="mt-1 max-h-32 overflow-y-auto rounded-xl border">
                     {clientes.map((cliente) => (
-                      <button key={cliente.id} type="button" className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => { setPacienteVenda(cliente.id); setBuscaCliente(cliente.nome); setClientes([]); }}>{cliente.nome}</button>
+                      <button key={cliente.id} type="button" className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => { setPacienteVenda(cliente.id); setBuscaCliente(cliente.nome); setTelefoneRecibo(cliente.telefone || ""); setEmailRecibo(cliente.email || ""); setClientes([]); }}>{cliente.nome}</button>
                     ))}
                   </div>
                 )}
@@ -578,6 +587,9 @@ export function PdvPageContent() {
                       </button>
                     ))}
                   </div>
+                )}
+                {produtosConsultados && sugestoes.length === 0 && (
+                  <p className="mt-1 text-xs text-gray-500">Nenhum produto liberado para venda com esse nome. No cadastro do estoque, marque “Pode vender ao cliente” e informe o preço de venda.</p>
                 )}
               </div>
               {linhasVenda.map((linha, indice) => (

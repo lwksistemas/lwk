@@ -753,21 +753,24 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
     return story
 
 
-def _gerar_pdf_recibo(ctx: dict) -> bytes:
-    """Gera o PDF no mesmo cartão A4 da prévia impressa."""
+def _gerar_pdf_recibo(ctx: dict, *, para_whatsapp: bool = False) -> bytes:
+    """Gera o cartão do recibo. No WhatsApp, a largura é a do cupom antigo (150 mm)."""
     ctx = reconciliar_conta_recibo(ctx)
     from reportlab.lib.pagesizes import A4, mm
     from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate
+
+    margem_x = 4 * mm if para_whatsapp else 12 * mm
+    margem_y = 6 * mm if para_whatsapp else 12 * mm
 
     class _ReciboDoc(BaseDocTemplate):
         def __init__(self, buffer, pagesize):
             super().__init__(
                 buffer,
                 pagesize=pagesize,
-                leftMargin=12 * mm,
-                rightMargin=12 * mm,
-                topMargin=12 * mm,
-                bottomMargin=12 * mm,
+                leftMargin=margem_x,
+                rightMargin=margem_x,
+                topMargin=margem_y,
+                bottomMargin=margem_y,
             )
             self.y_conteudo = None
             frame = Frame(
@@ -784,9 +787,9 @@ def _gerar_pdf_recibo(ctx: dict) -> bytes:
             self.y_conteudo = self.frame._y
 
     buf = io.BytesIO()
-    page_w = A4[0]
+    page_w = 150 * mm if para_whatsapp else A4[0]
     page_h = 900 * mm
-    col_w = page_w - 24 * mm
+    col_w = page_w - (2 * margem_x)
     story = _cartao_recibo_pdf(ctx, col_w, mm)
 
     doc = _ReciboDoc(buf, pagesize=(page_w, page_h))

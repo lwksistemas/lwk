@@ -48,7 +48,7 @@ def _enviar_recibo_whatsapp(payment, patient, appointment, *, somente_foto=False
             from clinica_beleza.public_pdf import PREFIX_RECIBO, gravar_pdf_publico
             from clinica_beleza.recibo.imagem import pdf_para_jpeg
 
-            pdf_bytes = _gerar_pdf_recibo(ctx)
+            pdf_bytes = _gerar_pdf_recibo(ctx, para_whatsapp=True)
             from clinica_beleza.media_docs_service import arquivar_pdf_gerado
             arquivar_pdf_gerado(
                 getattr(payment, "loja_id", None),

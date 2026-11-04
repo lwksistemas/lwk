@@ -102,7 +102,6 @@ export function PdvPageContent() {
   const [caixaVendas, setCaixaVendas] = useState(0);
   const [funcionarios, setFuncionarios] = useState<{ id: number; nome: string }[]>([]);
   const [abrindoCaixa, setAbrindoCaixa] = useState(false);
-  const [nomeCaixa, setNomeCaixa] = useState("");
   const [responsavelCaixa, setResponsavelCaixa] = useState("");
   const [menuCaixa, setMenuCaixa] = useState(false);
   const [painel, setPainel] = useState<"historico" | "fechamento" | null>(null);
@@ -311,24 +310,23 @@ export function PdvPageContent() {
 
   const confirmarAbertura = async () => {
     setErro("");
-    if (!nomeCaixa.trim() || !responsavelCaixa) {
-      setErro("Informe o nome do caixa e escolha o funcionário responsável.");
+    if (!responsavelCaixa) {
+      setErro("Escolha o operador do caixa.");
       return;
     }
     setSalvando(true);
     try {
       const sessao = await ClinicaBelezaAPI.estoque.abrirCaixa({
-        nome: nomeCaixa.trim(),
+        nome: "Recepção",
         responsavel_id: Number(responsavelCaixa),
       });
       aplicarCaixa({
         ...sessao,
         aberta: true,
-        nome: sessao.nome || nomeCaixa.trim(),
+        nome: "Recepção",
         responsavel: sessao.responsavel || funcionarios.find((pessoa) => pessoa.id === Number(responsavelCaixa))?.nome || "",
       });
       setAbrindoCaixa(false);
-      setNomeCaixa("");
       setResponsavelCaixa("");
     } catch (erroCaixa) {
       setErro(mensagemErro(erroCaixa, "Não foi possível abrir o caixa."));
@@ -721,12 +719,9 @@ export function PdvPageContent() {
               <h2 className="text-lg font-semibold">Abrir caixa</h2>
               <button type="button" onClick={() => setAbrindoCaixa(false)} aria-label="Fechar"><X size={16} /></button>
             </div>
-            <label className="mb-3 block text-sm text-gray-600">
-              Nome do caixa
-              <input value={nomeCaixa} onChange={(e) => setNomeCaixa(e.target.value)} placeholder="Ex.: Recepção" className="mt-1 w-full rounded-xl border px-3 py-2 text-sm" />
-            </label>
+            <p className="mb-3 text-sm text-gray-500">Caixa Recepção</p>
             <label className="mb-4 block text-sm text-gray-600">
-              Funcionário responsável pelo recebimento
+              Operador do caixa
               <select value={responsavelCaixa} onChange={(e) => setResponsavelCaixa(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2 text-sm">
                 <option value="">Selecione o funcionário</option>
                 {funcionarios.map((pessoa) => <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>)}

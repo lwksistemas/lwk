@@ -190,9 +190,7 @@ def abrir_caixa(loja_id, usuario, *, nome: str = "", responsavel_id=None):
     aberta = sessao_caixa_aberta(loja_id)
     if aberta is not None:
         return aberta
-    nome_caixa = (nome or "").strip()[:80]
-    if not nome_caixa:
-        raise VendaProdutoError("Informe o nome do caixa.")
+    nome_caixa = (nome or "Recepção").strip()[:80] or "Recepção"
     pessoa = Professional.objects.filter(pk=responsavel_id, loja_id=loja_id, is_active=True).first()
     if pessoa is None:
         raise VendaProdutoError("Escolha um funcionário cadastrado.")

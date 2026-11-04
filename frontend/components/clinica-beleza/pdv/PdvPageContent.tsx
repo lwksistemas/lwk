@@ -38,11 +38,12 @@ import {
   horaCurta,
   quandoRecibo,
   classeStatusPdv,
+  seloCaixaPdv,
   montarEntradasPdv,
   podeAlterarServico,
   podeMarcarPresente,
   reais,
-  rotuloStatus,
+  rotuloStatusPdv,
   somaEntradasPdv,
 } from "./pdv-utils";
 
@@ -518,7 +519,7 @@ export function PdvPageContent() {
         return;
       }
       if (!consulta?.id) throw { error: "Marque a cliente como presente para receber este atendimento." };
-      const recebidas = montarEntradasPdv(entradas, total);
+      const recebidas = montarEntradasPdv(entradas, total).sort((a, b) => Number(a.payment_method === "PRAZO") - Number(b.payment_method === "PRAZO"));
       const soma = somaEntradasPdv(recebidas);
       if (!recebidas.length || Math.abs(soma - total) > 0.009) {
         throw { error: "A soma das formas precisa ser igual ao total a receber." };
@@ -628,9 +629,11 @@ export function PdvPageContent() {
           <button type="button" onClick={() => setPainel("historico")} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
             <History size={15} /> Histórico de vendas
           </button>
-          <button type="button" onClick={() => setPainel("fechamento")} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-            <Lock size={15} /> Fechamento do caixa
-          </button>
+          {caixaAberto && (
+            <button type="button" onClick={() => { setMenuCaixa(false); setPainel("fechamento"); }} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+              <Lock size={15} /> Fechamento do caixa
+            </button>
+          )}
           <div className="relative">
             {caixaAberto ? (
               <button type="button" onClick={() => setMenuCaixa((atual) => !atual)} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
@@ -644,8 +647,7 @@ export function PdvPageContent() {
             {menuCaixa && caixaAberto && (
               <div className="absolute right-0 z-20 mt-1 w-64 rounded-xl border bg-white p-2 shadow-lg">
                 <p className="px-2 py-1 text-xs text-gray-500">Responsável pelo recebimento</p>
-                <p className="px-2 pb-2 text-sm font-medium text-gray-800">{caixaResponsavel || "—"}</p>
-                <button type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-gray-50" onClick={() => void fecharCaixa()}>Fechar caixa</button>
+                <p className="px-2 pb-1 text-sm font-medium text-gray-800">{caixaResponsavel || "—"}</p>
               </div>
             )}
           </div>
@@ -671,6 +673,7 @@ export function PdvPageContent() {
             {agendaHoje.map((evento) => {
               const id = Number(evento.extendedProps?.dbId);
               const status = evento.extendedProps?.status;
+              const selo = seloCaixaPdv(consultas.find((item) => item.appointment === id));
               const ativo = id === selecionadoId;
               return (
                 <button key={evento.id} type="button" onClick={() => { setSelecionadoId(id); setAba("servico"); }} className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left ${ativo ? "border-pink-200 bg-pink-50/60" : "border-transparent hover:bg-gray-50"}`}>
@@ -682,7 +685,7 @@ export function PdvPageContent() {
                   {podeMarcarPresente(status) ? (
                     <span role="presentation" onClick={(clique) => { clique.stopPropagation(); void marcarPresente(id); }} className="rounded-full border px-2 py-1 text-[11px] font-medium" style={{ color: rosa, borderColor: rosa }}>Marcar presente</span>
                   ) : (
-                    <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${classeStatusPdv(status)}`}>{rotuloStatus(status)}</span>
+                    <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${classeStatusPdv(status, selo)}`}>{rotuloStatusPdv(status, selo)}</span>
                   )}
                 </button>
               );
@@ -896,7 +899,10 @@ export function PdvPageContent() {
               </select>
             </>
           )}
-          <button type="button" disabled={salvando || total <= 0 || (aba === "servico" && !formasOk)} onClick={() => void receber()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
+          {!caixaAberto && (
+            <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Abra o caixa para vender ou receber um atendimento.</p>
+          )}
+          <button type="button" disabled={salvando || !caixaAberto || total <= 0 || (aba === "servico" && !formasOk)} onClick={() => void receber()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
             <DollarSign size={16} /> {salvando ? "Recebendo..." : "Receber pagamento"}
           </button>
           {recibo?.consultaId && (
@@ -987,7 +993,7 @@ export function PdvPageContent() {
                 <p className="flex justify-between"><span>Ainda a receber</span><strong>{formatCurrency(caixaAberto ? caixaAReceber : 0)}</strong></p>
                 <p className="flex justify-between"><span>Vendas de produtos</span><strong>{formatCurrency(vendasProdutos)}</strong></p>
                 <p className="pt-2 text-xs text-gray-500">{caixaAberto ? `Estes valores são do caixa ${caixaNome || "aberto"}${caixaResponsavel ? `, responsável ${caixaResponsavel}` : ""}. Ao fechar, o resumo zera para o próximo operador.` : "Caixa fechado. Recebido e vendas de produtos ficam zerados até a próxima abertura."} O lançamento continua no Financeiro.</p>
-                <button type="button" onClick={() => { void fecharCaixa(); setPainel(null); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>
+                {caixaAberto && <button type="button" onClick={() => { void fecharCaixa(); setPainel(null); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>}
               </div>
             )}
           </div>

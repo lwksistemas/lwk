@@ -51,7 +51,41 @@ export function rotuloStatus(status: string | undefined): string {
   return "Aguardando";
 }
 
-export function classeStatusPdv(status: string | undefined): string {
+/** Só no PDV: o valor devido entrou por inteiro. A agenda continua com o status do atendimento. */
+export function consultaQuitadaNoPdv(consulta: {
+  valor_pago?: number | string | null;
+  valor_restante?: number | string | null;
+} | null | undefined): boolean {
+  if (!consulta || consulta.valor_restante == null || consulta.valor_restante === "") return false;
+  const pago = Number(consulta.valor_pago || 0);
+  const restante = Number(consulta.valor_restante);
+  return pago > 0.009 && Number.isFinite(restante) && restante <= 0.009;
+}
+
+export type SeloCaixaPdv = "pago" | "prazo" | null;
+
+/** Pago quando o valor entrou. A prazo quando o recebimento ficou para depois. */
+export function seloCaixaPdv(consulta: {
+  valor_pago?: number | string | null;
+  valor_restante?: number | string | null;
+  payment_method?: string | null;
+} | null | undefined): SeloCaixaPdv {
+  if (consultaQuitadaNoPdv(consulta)) return "pago";
+  const metodo = String(consulta?.payment_method || "").toUpperCase();
+  const restante = consulta?.valor_restante;
+  if (metodo === "PRAZO" && restante != null && restante !== "" && Number(restante) > 0.009) return "prazo";
+  return null;
+}
+
+export function rotuloStatusPdv(status: string | undefined, selo: SeloCaixaPdv): string {
+  if (selo === "pago") return "Pago";
+  if (selo === "prazo") return "A prazo";
+  return rotuloStatus(status);
+}
+
+export function classeStatusPdv(status: string | undefined, selo: SeloCaixaPdv = null): string {
+  if (selo === "pago") return "bg-sky-100 text-sky-800";
+  if (selo === "prazo") return "bg-orange-100 text-orange-800";
   if (status === "IN_PROGRESS") return "bg-amber-100 text-amber-800";
   if (status === "CONFIRMED") return "bg-emerald-50 text-emerald-700";
   if (status === "COMPLETED") return "bg-emerald-100 text-emerald-800";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { montarEntradasPdv, somaEntradasPdv } from "@/components/clinica-beleza/pdv/pdv-utils";
+import { consultaQuitadaNoPdv, montarEntradasPdv, rotuloStatusPdv, seloCaixaPdv, somaEntradasPdv } from "@/components/clinica-beleza/pdv/pdv-utils";
 
 describe("montarEntradasPdv", () => {
   it("uma linha vazia recebe o total", () => {
@@ -19,6 +19,17 @@ describe("montarEntradasPdv", () => {
     );
     expect(somaEntradasPdv(entradas)).toBe(1000);
     expect(entradas.map((item) => item.payment_method)).toEqual(["PIX", "CASH", "CREDIT_CARD"]);
+  });
+
+  it("mostra Pago só quando o valor devido foi recebido", () => {
+    expect(consultaQuitadaNoPdv({ valor_pago: 100, valor_restante: 0 })).toBe(true);
+    expect(seloCaixaPdv({ valor_pago: 100, valor_restante: 0, payment_method: "PIX" })).toBe("pago");
+    expect(rotuloStatusPdv("COMPLETED", "pago")).toBe("Pago");
+    expect(consultaQuitadaNoPdv({ valor_pago: 40, valor_restante: 60 })).toBe(false);
+    expect(rotuloStatusPdv("COMPLETED", null)).toBe("Finalizada");
+    expect(consultaQuitadaNoPdv({ valor_pago: 0, valor_restante: 0 })).toBe(false);
+    expect(seloCaixaPdv({ valor_pago: 0, valor_restante: 100, payment_method: "PRAZO" })).toBe("prazo");
+    expect(rotuloStatusPdv("COMPLETED", "prazo")).toBe("A prazo");
   });
 
   it("soma parcial não fecha o total", () => {

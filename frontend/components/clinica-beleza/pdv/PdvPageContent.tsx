@@ -29,7 +29,6 @@ import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { formatarAgendaEvento } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { createQuickPatient } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-submit-api";
-import { abrirPdfBlobFromResponse } from "@/lib/consulta-print";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import {
   FORMAS_PDV,
@@ -39,6 +38,7 @@ import {
   quandoRecibo,
   classeStatusPdv,
   pdvPodeReceberAtendimento,
+  reciboPdvDisponivel,
   seloCaixaPdv,
   montarEntradasPdv,
   podeAlterarServico,
@@ -607,20 +607,14 @@ export function PdvPageContent() {
     }
   };
 
-  const abrirRecibo = async () => {
-    if (!recibo) return;
-    const resp = recibo.consultaId
-      ? await ClinicaBelezaAPI.consultas.reciboPdf(recibo.consultaId)
-      : await ClinicaBelezaAPI.payments.assinaturaReciboPdf(recibo.paymentId);
-    await abrirPdfBlobFromResponse(resp, "recibo.pdf");
-  };
-
   const alteraServico = podeAlterarServico(selecionado?.extendedProps?.status);
   const consultaFinalizada = selecionado?.extendedProps?.status === "COMPLETED";
   const recebidas = montarEntradasPdv(entradas, total);
   const somaFormas = somaEntradasPdv(recebidas);
   const formasOk = total > 0 && Math.abs(somaFormas - total) <= 0.009;
   const vendaAPrazo = aba === "servico" && !pdvPodeReceberAtendimento(consulta);
+  const paymentRecibo = Number(consulta?.payment_id || (recibo?.consultaId === consulta?.id ? recibo.paymentId : 0) || 0);
+  const mostrarRecibo = aba === "servico" && (reciboPdvDisponivel(consulta) || (Boolean(recibo?.consultaId) && recibo?.consultaId === consulta?.id));
   const procedimentos = consulta?.procedures_list?.length
     ? consulta.procedures_list
     : selecionado?.extendedProps?.procedure_name
@@ -926,13 +920,11 @@ export function PdvPageContent() {
               <DollarSign size={16} /> {salvando ? "Recebendo..." : "Receber pagamento"}
             </button>
           )}
-          {recibo?.consultaId && (
+          {mostrarRecibo && paymentRecibo > 0 && (
             <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-gray-500">
-              <button type="button" onClick={() => void imprimirRecibo(recibo.paymentId)} className="rounded-xl border px-1 py-2"><FileText size={16} className="mx-auto" />Imprimir</button>
-              <button type="button" onClick={() => void abrirRecibo()} className="rounded-xl border px-1 py-2"><FileText size={16} className="mx-auto" />PDF</button>
-              <button type="button" onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarRecibo(recibo.paymentId, "whatsapp")} className="rounded-xl border px-1 py-2"><MessageCircle size={16} className="mx-auto" />WhatsApp</button>
-              <button type="button" onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarRecibo(recibo.paymentId, "email")} className="rounded-xl border px-1 py-2"><Mail size={16} className="mx-auto" />E-mail</button>
-              <button type="button" onClick={() => void ClinicaBelezaAPI.payments.enviarReciboParaAssinatura(recibo.paymentId, "whatsapp")} className="rounded-xl border px-1 py-2"><PenLine size={16} className="mx-auto" />Assinatura</button>
+              <button type="button" onClick={() => void imprimirRecibo(paymentRecibo)} className="rounded-xl border px-1 py-2"><FileText size={16} className="mx-auto" />Imprimir</button>
+              <button type="button" onClick={() => void ClinicaBelezaAPI.payments.enviarRecibo(paymentRecibo, "whatsapp")} className="rounded-xl border px-1 py-2"><MessageCircle size={16} className="mx-auto" />WhatsApp</button>
+              <button type="button" onClick={() => void ClinicaBelezaAPI.payments.enviarReciboParaAssinatura(paymentRecibo, "whatsapp")} className="rounded-xl border px-1 py-2"><PenLine size={16} className="mx-auto" />Assinatura</button>
             </div>
           )}
         </section>

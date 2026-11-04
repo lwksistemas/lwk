@@ -77,6 +77,17 @@ export function seloCaixaPdv(consulta: {
   return null;
 }
 
+/** Recibo do PDV fica disponível depois de pago ou a prazo. */
+export function reciboPdvDisponivel(consulta: {
+  payment_id?: number | null;
+  valor_pago?: number | string | null;
+  valor_restante?: number | string | null;
+  payment_method?: string | null;
+} | null | undefined): boolean {
+  const selo = seloCaixaPdv(consulta);
+  return (selo === "pago" || selo === "prazo") && Number(consulta?.payment_id || 0) > 0;
+}
+
 /** A prazo já lançado só é recebido no Financeiro. O PDV não quita essa venda. */
 export function pdvPodeReceberAtendimento(consulta: {
   valor_pago?: number | string | null;

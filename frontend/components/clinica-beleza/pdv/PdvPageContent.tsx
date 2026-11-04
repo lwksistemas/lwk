@@ -26,6 +26,7 @@ import {
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
+import { formatarAgendaEvento } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { createQuickPatient } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-submit-api";
 import { abrirPdfBlobFromResponse } from "@/lib/consulta-print";
@@ -165,8 +166,12 @@ export function PdvPageContent() {
         recebido_balcao?: number;
       }>,
     ]);
-    const agenda = agendaRes.ok ? listaDe<AgendaEventData>(await agendaRes.json()) : [];
-    setEventos(agenda.filter((evento) => !evento.extendedProps?.isBloqueio && !evento.extendedProps?.isIntervalo));
+    const agenda = agendaRes.ok ? listaDe<Record<string, unknown>>(await agendaRes.json()) : [];
+    setEventos(
+      agenda
+        .map((evento) => formatarAgendaEvento(evento, false))
+        .filter((evento) => !evento.extendedProps?.isBloqueio && !evento.extendedProps?.isIntervalo),
+    );
     const corpoConsultas = consultasRes.ok ? await consultasRes.json() : [];
     setConsultas(listaDe<ConsultaDia>(corpoConsultas));
     setResumo({
@@ -208,6 +213,19 @@ export function PdvPageContent() {
     void carregar();
     void carregarCaixa();
   }, [carregar, carregarCaixa]);
+
+  useEffect(() => {
+    const atualizar = () => {
+      if (document.visibilityState !== "visible") return;
+      void carregar();
+    };
+    const timer = window.setInterval(atualizar, 15000);
+    document.addEventListener("visibilitychange", atualizar);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", atualizar);
+    };
+  }, [carregar]);
 
   useEffect(() => {
     ClinicaBelezaAPI.estoque.list({ page_size: 200 }).then((res) => {

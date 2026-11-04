@@ -105,38 +105,6 @@ type FechamentoCaixa = {
   vendas: VendaHistorico[];
 };
 
-function textoHtml(valor: string): string {
-  return valor.replace(/[&<>"]/g, (caractere) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[caractere] || caractere));
-}
-
-function imprimirResumoCaixa(resumo: FechamentoCaixa) {
-  const vendas = resumo.vendas.filter((item) => item.status !== "cancelada");
-  const linhas = vendas.length
-    ? vendas.map((item) => `<p><span>${textoHtml(item.cliente || "Consumidor não identificado")}</span><strong>${textoHtml(formatCurrency(Number(item.total || 0)))}</strong></p>`).join("")
-    : "<p>Nenhuma venda de produto nesta gaveta.</p>";
-  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Resumo do caixa</title>
-    <style>body{font-family:sans-serif;color:#111;max-width:420px;margin:24px auto}h1{font-size:18px;margin:0 0 12px}p{display:flex;justify-content:space-between;gap:12px;margin:6px 0;font-size:14px}.bloco{margin-top:16px;padding-top:8px;border-top:1px solid #ddd}</style>
-    </head><body>
-    <h1>Resumo do caixa</h1>
-    <p><span>Operador</span><strong>${textoHtml(resumo.operador || "Operador")}</strong></p>
-    <p><span>Caixa</span><strong>${textoHtml(resumo.nome || "Recepção")}</strong></p>
-    <p><span>Aberto</span><strong>${textoHtml(quandoRecibo(resumo.aberta_em))}</strong></p>
-    <p><span>Fechado</span><strong>${textoHtml(quandoRecibo(resumo.fechada_em))}</strong></p>
-    <div class="bloco">
-      <p><span>Recebido</span><strong>${textoHtml(formatCurrency(Number(resumo.recebido || 0)))}</strong></p>
-      <p><span>Ainda a receber</span><strong>${textoHtml(formatCurrency(Number(resumo.a_receber || 0)))}</strong></p>
-      <p><span>Vendas de produtos</span><strong>${textoHtml(formatCurrency(Number(resumo.vendas_produtos || 0)))}</strong></p>
-    </div>
-    <div class="bloco">${linhas}</div>
-    </body></html>`;
-  const janela = window.open("", "_blank");
-  if (!janela) return;
-  janela.document.write(html);
-  janela.document.close();
-  janela.focus();
-  janela.print();
-}
-
 const rosa = "var(--cb-primary, #8B3D52)";
 
 function listaDe<T>(corpo: unknown): T[] {
@@ -585,10 +553,10 @@ export function PdvPageContent() {
     }
   };
 
-  const imprimirRecibo = async (paymentId: number) => {
-    const resp = await clinicaBelezaFetch(`/payments/${paymentId}/recibo-html/`);
+  const imprimirHtml = async (caminho: string, aviso: string) => {
+    const resp = await clinicaBelezaFetch(caminho);
     if (!resp.ok) {
-      setAvisoEntrega("Não foi possível abrir o recibo para impressão.");
+      setAvisoEntrega(aviso);
       return;
     }
     const html = await resp.text();
@@ -609,6 +577,16 @@ export function PdvPageContent() {
       janela.print();
     }, 50);
   };
+
+  const imprimirRecibo = (paymentId: number) => imprimirHtml(
+    `/payments/${paymentId}/recibo-html/`,
+    "Não foi possível abrir o recibo para impressão.",
+  );
+
+  const imprimirResumoCaixa = (resumo: FechamentoCaixa) => imprimirHtml(
+    `/estoque/caixa/fechamentos/${resumo.id}/html/`,
+    "Não foi possível abrir o resumo do caixa para impressão.",
+  );
 
   const enviarReciboEscolhido = async (canal: "whatsapp" | "email") => {
     if (!entrega) return;

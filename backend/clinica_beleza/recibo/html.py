@@ -223,6 +223,245 @@ def _linhas_tabela(ctx: dict) -> tuple[str, str]:
     return titulo, "".join(linhas)
 
 
+def estilo_folha_recibo(cor: str) -> str:
+    """Folha A4 do recibo. O resumo do caixa usa a mesma folha."""
+    fundo = tinta_recibo(cor, 0.9)
+    fundo_tabela = tinta_recibo(cor, 0.82)
+    return f"""
+  @page {{ size: A4; margin: 12mm; }}
+  html {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+  html, body {{ margin: 0; background: #fff; color: #2b2430; }}
+  body {{ font-family: "Segoe UI", system-ui, sans-serif; }}
+  .folha {{ max-width: 720px; margin: 0 auto; padding: 28px 32px 36px; }}
+  .topo {{ text-align: center; }}
+  .logo {{ max-height: 92px; max-width: 240px; object-fit: contain; }}
+  .marca {{ margin: 0; font-size: 28px; letter-spacing: 0.18em; color: {cor}; font-weight: 700; }}
+  .razao {{ margin: 8px 0 0; font-size: 13px; letter-spacing: 0.04em; color: #5c5562; text-transform: uppercase; }}
+  .doc, .contato {{ margin: 4px 0 0; font-size: 13px; color: #5c5562; }}
+  .icone {{ flex: 0 0 auto; display: block; }}
+  .campo, .item {{ display: flex; align-items: center; gap: 8px; }}
+  .contato.linha {{ display: flex; justify-content: center; align-items: flex-start; gap: 6px; margin: 3px auto 0; max-width: 560px; }}
+  .tinta {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+  .faixa {{ margin: 18px 0 8px; background-color: {cor}; box-shadow: inset 0 0 0 999px {cor}; color: #fff; text-align: center; border-radius: 10px; padding: 10px 16px; font-size: 16px; line-height: 1.35; font-weight: 700; letter-spacing: 0.04em; }}
+  .meta {{ text-align: center; color: #5c5562; font-size: 14px; margin: 0 0 16px; }}
+  .cliente {{ background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 8px 16px; margin-bottom: 16px; }}
+  .cliente p {{ margin: 3px 0; font-size: 14px; line-height: 1.2; }}
+  .ico {{ color: {cor}; font-weight: 700; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+  thead th {{ background-color: {fundo_tabela}; box-shadow: inset 0 0 0 999px {fundo_tabela}; text-align: left; padding: 6px 8px; font-size: 12px; letter-spacing: 0.03em; }}
+  thead th.num, td.num {{ text-align: right; white-space: nowrap; }}
+  td {{ padding: 2px 8px; vertical-align: middle; border-bottom: 1px solid #eee; line-height: 1.2; }}
+  .secao {{ margin: 8px 0 4px; color: {cor}; font-weight: 700; letter-spacing: 0.06em; font-size: 13px; }}
+  .resumo {{ margin-top: 8px; }}
+  .linha {{ display: flex; justify-content: space-between; align-items: baseline; padding: 2px 8px; font-size: 14px; font-weight: 700; }}
+  .linha span {{ color: #2b2430; font-weight: 700; text-align: left; }}
+  .destaque {{ display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 12px 0; background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 8px 8px 8px 16px; }}
+  .destaque .rotulo {{ color: {cor}; font-weight: 800; letter-spacing: 0.04em; }}
+  .pill {{ background-color: {cor}; box-shadow: inset 0 0 0 999px {cor}; color: #fff; border-radius: 10px; padding: 8px 18px; font-size: 20px; font-weight: 800; }}
+  .pill.divida {{ background-color: #8a2b2b; box-shadow: inset 0 0 0 999px #8a2b2b; }}
+  .vencido {{ color: #8a2b2b; font-weight: 700; }}
+  table.recebimentos {{ margin-top: 8px; }}
+  table.recebimentos tr.total td {{ font-weight: 700; border-bottom: none; }}
+  .pagamento {{ display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0 4px; font-size: 14px; }}
+  .selo {{ font-weight: 700; }}
+  .selo.ok {{ display: inline-flex; align-items: center; gap: 6px; color: #1b8a45; }}
+  .selo.aviso {{ color: #a15c00; }}
+  .selo.neutro {{ color: #5c5562; }}
+  .ops {{ display: flex; justify-content: space-between; align-items: center; gap: 12px; background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 12px 16px; margin-top: 14px; font-size: 14px; }}
+  .ops .divisoria {{ width: 1px; align-self: stretch; background: #d8cedf; }}
+  .rodape {{ margin-top: 16px; background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 14px 16px 12px; text-align: center; }}
+  .obrigado {{ display: flex; align-items: center; justify-content: center; gap: 12px; color: {cor}; font-weight: 700; font-style: italic; margin: 0; }}
+  .traco {{ width: 72px; border-top: 1px dashed #b9a8c0; }}
+  .nota, .miudo {{ text-align: center; color: #6d6572; font-size: 12px; margin: 4px 0 0; }}
+  .centro {{ text-align: center; }}
+  .saldo strong {{ color: #8a2b2b; }}
+  @media print {{
+    .no-print, button {{ display: none !important; }}
+    .folha {{ padding: 0; max-width: none; }}
+    * {{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
+  }}
+"""
+
+
+def _quando_caixa(valor) -> str:
+    if valor is None or valor == "":
+        return "—"
+    if isinstance(valor, str):
+        return valor
+    from django.utils import timezone
+
+    momento = valor
+    if timezone.is_aware(momento):
+        momento = timezone.localtime(momento)
+    return momento.strftime("%d/%m/%Y às %H:%M")
+
+
+def _linhas_resumo_caixa(linhas: list) -> str:
+    if not linhas:
+        return '<tr><td class="desc" colspan="4">Nenhuma venda de produto nesta gaveta.</td></tr>'
+    partes = []
+    for item in linhas:
+        descricao = _t(item.get("nome") or "Produto")
+        cliente = (item.get("cliente") or "").strip()
+        if cliente:
+            descricao += f'<br><span class="miudo">{_t(cliente)}</span>'
+        desconto = float(item.get("desconto") or 0)
+        if desconto > 0.009:
+            descricao += f'<br><span class="miudo">desc. {formatar_moeda_recibo(desconto)}</span>'
+        partes.append(_celula_item(
+            descricao,
+            _t(item.get("quantidade") or "1"),
+            formatar_moeda_recibo(item.get("preco_unitario") or 0),
+            formatar_moeda_recibo(item.get("subtotal") or 0),
+        ))
+    return "".join(partes)
+
+
+def _cabecalho_loja_recibo(ctx: dict, cor: str) -> str:
+    from .context import _linha_documento_loja, _linha_tel_cep, texto_cadastro_recibo
+
+    doc_line = _linha_documento_loja(ctx)
+    tel_cep = ctx.get("loja_tel_cep") or _linha_tel_cep(
+        ctx.get("loja_telefone", ""), ctx.get("loja_cep", ""),
+    )
+    logo = _src_logo_recibo(ctx.get("logo_url") or "")
+    marca = (
+        f'<img class="logo" src="{_t(logo)}" alt="">'
+        if logo else
+        f'<p class="marca">{_t((ctx.get("loja_nome") or "CLÍNICA").upper())}</p>'
+    )
+    endereco = _t(texto_cadastro_recibo(ctx.get("loja_endereco") or ""))
+    telefone = _t(ctx.get("loja_telefone") or "")
+    email = _t(ctx.get("loja_email") or "")
+    partes_contato = []
+    if endereco:
+        partes_contato.append(f'<p class="contato linha">{_icone("pin", cor)}<span>{endereco}</span></p>')
+    if telefone:
+        partes_contato.append(f'<p class="contato linha">{_icone("telefone", cor)}<span>{telefone}</span></p>')
+    if email:
+        partes_contato.append(f'<p class="contato linha">{_icone("email", cor)}<span>{email}</span></p>')
+    return (
+        "<header class=\"topo\">"
+        f"{marca}"
+        f'{f"<p class=\"doc\">{_t(doc_line)}</p>" if doc_line else ""}'
+        f"{''.join(partes_contato)}"
+        f'{f"<p class=\"doc\">{_t(tel_cep)}</p>" if tel_cep and not ctx.get("loja_telefone") else ""}'
+        "</header>"
+    )
+
+
+def gerar_html_resumo_caixa(ctx: dict) -> str:
+    """Impressão do caixa fechado, com a mesma folha do recibo."""
+    cor = cor_primaria_recibo(ctx.get("cor_primaria") or "")
+    recebido = float(ctx.get("recebido") or 0)
+    a_receber = float(ctx.get("a_receber") or 0)
+    vendas = float(ctx.get("vendas_produtos") or 0)
+    operador = ctx.get("operador") or "Operador"
+    caixa = ctx.get("caixa_nome") or "Recepção"
+    cliente = (
+        _campo("pessoa", "Operador", operador, cor)
+        + _campo("caixa", "Caixa", caixa, cor)
+        + _campo("calendario", "Aberto", _quando_caixa(ctx.get("aberta_em")), cor)
+        + _campo("calendario", "Fechado", _quando_caixa(ctx.get("fechada_em")), cor)
+    )
+    saldo_html = ""
+    if a_receber > 0.009:
+        saldo_html = (
+            f'<div class="destaque tinta"><span class="rotulo">AINDA A RECEBER</span>'
+            f'<span class="pill divida tinta">{formatar_moeda_recibo(a_receber)}</span></div>'
+        )
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Resumo do caixa</title>
+<style>
+{estilo_folha_recibo(cor)}
+</style>
+</head><body>
+<article class="folha">
+  {_cabecalho_loja_recibo(ctx, cor)}
+  <h1 class="faixa tinta">RESUMO DO CAIXA</h1>
+  <p class="meta">Fechado em {_t(_quando_caixa(ctx.get("fechada_em")))}</p>
+  <section class="cliente tinta">{cliente}</section>
+  <p class="secao">PRODUTOS</p>
+  <table>
+    <thead><tr><th class="tinta">Descrição</th><th class="num tinta">Qtd.</th><th class="num tinta">Unitário</th><th class="num tinta">Subtotal</th></tr></thead>
+    <tbody>{_linhas_resumo_caixa(ctx.get("linhas") or [])}</tbody>
+  </table>
+  <div class="resumo">
+    <div class="linha"><span>Recebido</span><strong>{formatar_moeda_recibo(recebido)}</strong></div>
+    <div class="linha"><span>Ainda a receber</span><strong>{formatar_moeda_recibo(a_receber)}</strong></div>
+    <div class="linha"><span>Vendas de produtos</span><strong>{formatar_moeda_recibo(vendas)}</strong></div>
+  </div>
+  <div class="destaque tinta"><span class="rotulo">RECEBIDO</span><span class="pill tinta">{formatar_moeda_recibo(recebido)}</span></div>
+  {saldo_html}
+  <div class="rodape tinta">
+    <p class="obrigado"><span class="traco"></span>Agradecemos pela preferência!<span class="traco"></span></p>
+    <p class="nota">Resumo do caixa · Documento interno</p>
+  </div>
+  <p class="no-print" style="text-align:center"><button type="button" onclick="imprimirReciboPronto()">Imprimir</button></p>
+</article>
+<script>
+function imprimirReciboPronto() {{
+  if (window.__reciboImpresso) return;
+  var imgs = [].slice.call(document.images).filter(function(img) {{ return !img.complete; }});
+  var disparar = function() {{
+    if (window.__reciboImpresso) return;
+    window.__reciboImpresso = true;
+    try {{ window.focus(); }} catch (e) {{}}
+    window.print();
+  }};
+  if (!imgs.length) {{ disparar(); return; }}
+  var faltam = imgs.length;
+  var fim = function() {{ if (--faltam <= 0) disparar(); }};
+  imgs.forEach(function(img) {{
+    img.addEventListener("load", fim);
+    img.addEventListener("error", fim);
+  }});
+  setTimeout(disparar, 2500);
+}}
+</script>
+</body></html>"""
+
+
+def html_resumo_caixa_da_sessao(sessao, loja) -> str:
+    from clinica_beleza.venda_produto_service import nome_exibicao_venda, produtos_da_venda, totais_gaveta
+
+    from .context import _dados_loja_recibo
+
+    linhas = []
+    vendas = sessao.vendas.select_related("payment", "paciente").prefetch_related("itens__produto").order_by("id")
+    for venda in vendas:
+        if getattr(venda, "status", "") == "cancelada":
+            continue
+        payment = getattr(venda, "payment", None)
+        if payment is None or getattr(payment, "status", "") == "CANCELLED":
+            continue
+        cliente = nome_exibicao_venda(venda) or "Consumidor não identificado"
+        produtos = produtos_da_venda(venda)
+        if produtos:
+            for produto in produtos:
+                linhas.append({**produto, "cliente": cliente})
+            continue
+        total = payment.valor_total if payment.valor_total is not None else payment.amount or 0
+        linhas.append({
+            "nome": cliente,
+            "quantidade": "1",
+            "preco_unitario": float(total),
+            "desconto": 0,
+            "subtotal": float(total),
+        })
+    dados = _dados_loja_recibo(loja)
+    dados.update({
+        "operador": sessao.responsavel_nome or sessao.operador_nome or "Operador",
+        "caixa_nome": sessao.nome or "Recepção",
+        "aberta_em": sessao.aberta_em,
+        "fechada_em": sessao.fechada_em,
+        "linhas": linhas,
+        **totais_gaveta(sessao),
+    })
+    return gerar_html_resumo_caixa(dados)
+
+
 def gerar_html_recibo(ctx: dict) -> str:
     """Recibo visual único para venda de produtos e para atendimento."""
     ctx = reconciliar_conta_recibo(ctx)

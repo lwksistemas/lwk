@@ -1,4 +1,5 @@
 """Venda de produtos no balcão. Não abre atendimento."""
+from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -166,6 +167,31 @@ class CaixaFechamentosView(APIView):
                 "vendas": vendas,
             })
         return Response(corpo)
+
+
+class CaixaFechamentoHtmlView(APIView):
+    """Impressão do caixa fechado no mesmo visual do recibo."""
+
+    permission_classes = CLINICA_ESTOQUE
+
+    def get(self, request, pk):
+        from superadmin.models import Loja
+
+        from .models import SessaoCaixa
+        from .recibo.html import html_resumo_caixa_da_sessao
+
+        loja_id = resolve_loja_id_from_request(request)
+        sessao = (
+            SessaoCaixa.objects.filter(pk=pk, loja_id=loja_id, status=SessaoCaixa.STATUS_FECHADA)
+            .first()
+        )
+        if sessao is None:
+            return Response({"error": "Caixa fechado não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        loja = Loja.objects.using("default").filter(id=loja_id).first()
+        return HttpResponse(
+            html_resumo_caixa_da_sessao(sessao, loja),
+            content_type="text/html; charset=utf-8",
+        )
 
 
 class CaixaFecharView(APIView):

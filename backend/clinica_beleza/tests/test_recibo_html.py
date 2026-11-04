@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 from django.test import SimpleTestCase
 
 from clinica_beleza.recibo.context import _buscar_procedimentos_recibo
-from clinica_beleza.recibo.html import gerar_html_recibo
+from clinica_beleza.recibo.html import gerar_html_recibo, gerar_html_resumo_caixa
 
 
 class GerarHtmlReciboTests(SimpleTestCase):
@@ -480,3 +480,55 @@ class GerarHtmlReciboTests(SimpleTestCase):
         dados = _dados_loja_recibo(loja)
         self.assertEqual(dados["logo_url"], "")
         self.assertEqual(dados["cor_primaria"], "#8B3D52")
+
+
+class ResumoCaixaHtmlTests(SimpleTestCase):
+    def test_impressao_usa_a_folha_do_recibo(self):
+        html = gerar_html_resumo_caixa({
+            "loja_nome": "HARMONIS",
+            "loja_documento": "37.302.743/0001-26",
+            "loja_documento_label": "CNPJ",
+            "loja_endereco": "Rua A, 1",
+            "loja_telefone": "(16) 3333-0000",
+            "cor_primaria": "#EC4899",
+            "operador": "LUIZ <HENRIQUE>",
+            "caixa_nome": "Recepção",
+            "aberta_em": "04/11/2026 às 00:33",
+            "fechada_em": "04/11/2026 às 00:52",
+            "recebido": 50,
+            "a_receber": 80,
+            "vendas_produtos": 130,
+            "linhas": [{
+                "nome": "Protetor",
+                "cliente": "Maria",
+                "quantidade": "1",
+                "preco_unitario": 50,
+                "desconto": 10,
+                "subtotal": 40,
+            }],
+        })
+        self.assertIn("RESUMO DO CAIXA", html)
+        self.assertIn('class="faixa tinta"', html)
+        self.assertIn("#EC4899", html)
+        self.assertIn("LUIZ &lt;HENRIQUE&gt;", html)
+        self.assertIn("Protetor", html)
+        self.assertIn("desc. R$ 10,00", html)
+        self.assertIn("AINDA A RECEBER", html)
+        self.assertIn("Agradecemos pela preferência!", html)
+        self.assertNotIn("<img src=x>", html)
+
+    def test_gaveta_sem_venda_nao_inventa_produto(self):
+        html = gerar_html_resumo_caixa({
+            "loja_nome": "HARMONIS",
+            "cor_primaria": "#EC4899",
+            "operador": "LUIZ",
+            "caixa_nome": "Recepção",
+            "aberta_em": "04/11/2026 às 00:33",
+            "fechada_em": "04/11/2026 às 00:52",
+            "recebido": 0,
+            "a_receber": 0,
+            "vendas_produtos": 0,
+            "linhas": [],
+        })
+        self.assertIn("Nenhuma venda de produto nesta gaveta.", html)
+        self.assertNotIn("AINDA A RECEBER", html)

@@ -114,6 +114,8 @@ export const estoqueApi = {
       cliente: string;
       telefone: string;
       email: string;
+      forma?: string;
+      criada_em?: string;
     }>("/estoque/vendas/", data),
   vendas: (params?: { data?: string }) =>
     cbGetList<{
@@ -125,6 +127,8 @@ export const estoqueApi = {
       telefone: string;
       email: string;
       operador: string;
+      forma?: string;
+      criada_em?: string;
     }>("/estoque/vendas/", params),
   cancelarVenda: (id: number) =>
     cbPost<{ id: number; status: string }>(`/estoque/vendas/${id}/cancelar/`, {}),

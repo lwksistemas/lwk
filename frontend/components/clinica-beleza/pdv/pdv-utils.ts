@@ -14,6 +14,13 @@ export function hojeIso(): string {
   return `${agora.getFullYear()}-${mes}-${dia}`;
 }
 
+export function quandoRecibo(iso?: string): string {
+  const data = iso ? new Date(iso) : new Date();
+  if (Number.isNaN(data.getTime())) return "";
+  const hora = data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return `${data.toLocaleDateString("pt-BR")} às ${hora}`;
+}
+
 export function horaCurta(iso: string | undefined): string {
   if (!iso) return "";
   const data = new Date(iso);

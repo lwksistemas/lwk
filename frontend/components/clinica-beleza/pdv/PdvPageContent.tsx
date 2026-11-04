@@ -10,6 +10,7 @@ import {
   DollarSign,
   FileText,
   History,
+  Printer,
   Lock,
   Mail,
   MessageCircle,
@@ -34,6 +35,7 @@ import {
   clientePresente,
   hojeIso,
   horaCurta,
+  quandoRecibo,
   podeMarcarPresente,
   reais,
   rotuloStatus,
@@ -60,6 +62,30 @@ type ProdutoOpcao = {
 type ConsultaDia = Consulta & { appointment?: number | null };
 
 type VendaLinha = { produto: number; nome: string; quantidade: string; preco: string; desconto: string };
+
+type EntregaRecibo = {
+  paymentId: number;
+  cliente: string;
+  numero: number;
+  total: string;
+  forma: string;
+  quando: string;
+  telefone: string;
+  email: string;
+};
+
+type VendaHistorico = {
+  id: number;
+  payment_id: number;
+  cliente: string;
+  total: string;
+  status: string;
+  operador: string;
+  telefone?: string;
+  email?: string;
+  forma?: string;
+  criada_em?: string;
+};
 
 const rosa = "var(--cb-primary, #8B3D52)";
 
@@ -121,7 +147,10 @@ export function PdvPageContent() {
   const [telefoneNovo, setTelefoneNovo] = useState("");
   const [cpfNovo, setCpfNovo] = useState("");
   const [recibo, setRecibo] = useState<{ paymentId: number; consultaId?: number; telefone?: string; email?: string; cadastrado?: boolean } | null>(null);
-  const [vendasDia, setVendasDia] = useState<{ id: number; cliente: string; total: string; status: string; operador: string }[]>([]);
+  const [entrega, setEntrega] = useState<EntregaRecibo | null>(null);
+  const [avisoEntrega, setAvisoEntrega] = useState("");
+  const [enviandoRecibo, setEnviandoRecibo] = useState<"whatsapp" | "email" | null>(null);
+  const [vendasDia, setVendasDia] = useState<VendaHistorico[]>([]);
   const chaveVenda = useRef("");
 
   const carregar = useCallback(async () => {
@@ -421,12 +450,17 @@ export function PdvPageContent() {
           payment_method: forma,
           itens,
         });
-        setRecibo({
+        setEntrega({
           paymentId: criada.payment_id,
+          cliente: criada.cliente || buscaCliente.trim() || "Consumidor não identificado",
+          numero: criada.payment_id,
+          total: criada.total || String(total),
+          forma: FORMAS_PDV.find((item) => item.id === forma)?.label || forma,
+          quando: quandoRecibo(criada.criada_em),
           telefone: criada.telefone || telefoneRecibo.trim(),
           email: criada.email || emailRecibo.trim(),
-          cadastrado: Boolean(pacienteVenda),
         });
+        setAvisoEntrega("");
         chaveVenda.current = "";
         setLinhasVenda([]);
         setBuscaCliente("");
@@ -455,18 +489,51 @@ export function PdvPageContent() {
     }
   };
 
-  const imprimirRecibo = async () => {
-    if (!recibo) return;
-    const resp = await clinicaBelezaFetch(`/payments/${recibo.paymentId}/recibo-html/`);
+  const imprimirRecibo = async (paymentId: number) => {
+    const resp = await clinicaBelezaFetch(`/payments/${paymentId}/recibo-html/`);
     if (!resp.ok) {
-      setErro("Não foi possível abrir o recibo para impressão.");
+      setAvisoEntrega("Não foi possível abrir o recibo para impressão.");
       return;
     }
     const html = await resp.text();
     const janela = window.open("", "_blank");
-    if (!janela) return;
+    if (!janela) {
+      setAvisoEntrega("O navegador bloqueou a janela de impressão.");
+      return;
+    }
     janela.document.write(html);
     janela.document.close();
+    janela.focus();
+    window.setTimeout(() => janela.print(), 300);
+  };
+
+  const enviarReciboEscolhido = async (canal: "whatsapp" | "email") => {
+    if (!entrega) return;
+    setEnviandoRecibo(canal);
+    setAvisoEntrega("");
+    try {
+      await ClinicaBelezaAPI.payments.enviarRecibo(entrega.paymentId, canal);
+      setAvisoEntrega(canal === "whatsapp" ? "Recibo enviado pelo WhatsApp." : "Recibo enviado por e-mail.");
+    } catch (erroEnvio) {
+      setAvisoEntrega(mensagemErro(erroEnvio, "Não foi possível enviar o recibo."));
+    } finally {
+      setEnviandoRecibo(null);
+    }
+  };
+
+  const abrirEntregaHistorico = (item: VendaHistorico) => {
+    if (!item.payment_id) return;
+    setEntrega({
+      paymentId: item.payment_id,
+      cliente: item.cliente || "Consumidor não identificado",
+      numero: item.payment_id,
+      total: item.total,
+      forma: item.forma || "",
+      quando: quandoRecibo(item.criada_em),
+      telefone: item.telefone || "",
+      email: item.email || "",
+    });
+    setAvisoEntrega("");
   };
 
   const abrirRecibo = async () => {
@@ -702,15 +769,29 @@ export function PdvPageContent() {
           <button type="button" disabled={salvando || total <= 0} onClick={() => void receber()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
             <DollarSign size={16} /> {salvando ? "Recebendo..." : "Receber pagamento"}
           </button>
-          <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-gray-500">
-            <button type="button" disabled={!recibo} onClick={() => void imprimirRecibo()} className="rounded-xl border px-1 py-2 disabled:opacity-40"><FileText size={16} className="mx-auto" />Imprimir</button>
-            <button type="button" disabled={!recibo} onClick={() => void abrirRecibo()} className="rounded-xl border px-1 py-2 disabled:opacity-40"><FileText size={16} className="mx-auto" />PDF</button>
-            <button type="button" disabled={!recibo || (!recibo.consultaId && !recibo.telefone)} onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarRecibo(recibo.paymentId, "whatsapp")} className="rounded-xl border px-1 py-2 disabled:opacity-40"><MessageCircle size={16} className="mx-auto" />WhatsApp</button>
-            <button type="button" disabled={!recibo || (!recibo.consultaId && !recibo.email)} onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarRecibo(recibo.paymentId, "email")} className="rounded-xl border px-1 py-2 disabled:opacity-40"><Mail size={16} className="mx-auto" />E-mail</button>
-            <button type="button" disabled={!recibo?.cadastrado && !recibo?.consultaId} onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarReciboParaAssinatura(recibo.paymentId, "whatsapp")} className="rounded-xl border px-1 py-2 disabled:opacity-40"><PenLine size={16} className="mx-auto" />Assinatura</button>
-          </div>
+          {recibo?.consultaId && (
+            <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-gray-500">
+              <button type="button" onClick={() => void imprimirRecibo(recibo.paymentId)} className="rounded-xl border px-1 py-2"><FileText size={16} className="mx-auto" />Imprimir</button>
+              <button type="button" onClick={() => void abrirRecibo()} className="rounded-xl border px-1 py-2"><FileText size={16} className="mx-auto" />PDF</button>
+              <button type="button" onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarRecibo(recibo.paymentId, "whatsapp")} className="rounded-xl border px-1 py-2"><MessageCircle size={16} className="mx-auto" />WhatsApp</button>
+              <button type="button" onClick={() => recibo && void ClinicaBelezaAPI.payments.enviarRecibo(recibo.paymentId, "email")} className="rounded-xl border px-1 py-2"><Mail size={16} className="mx-auto" />E-mail</button>
+              <button type="button" onClick={() => void ClinicaBelezaAPI.payments.enviarReciboParaAssinatura(recibo.paymentId, "whatsapp")} className="rounded-xl border px-1 py-2"><PenLine size={16} className="mx-auto" />Assinatura</button>
+            </div>
+          )}
         </section>
       </div>
+
+      {entrega && (
+        <JanelaReciboVenda
+          entrega={entrega}
+          aviso={avisoEntrega}
+          enviando={enviandoRecibo}
+          onImprimir={() => void imprimirRecibo(entrega.paymentId)}
+          onWhatsapp={() => void enviarReciboEscolhido("whatsapp")}
+          onEmail={() => void enviarReciboEscolhido("email")}
+          onFechar={() => { setEntrega(null); setAvisoEntrega(""); }}
+        />
+      )}
 
       {abrindoCaixa && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={() => setAbrindoCaixa(false)}>
@@ -751,6 +832,9 @@ export function PdvPageContent() {
                     <span>{item.cliente}<span className="block text-xs text-gray-500">Produtos{item.operador ? ` • ${item.operador}` : ""}{item.status === "cancelada" ? " • cancelada" : ""}</span></span>
                     <span className="text-right">
                       {formatCurrency(Number(item.total || 0))}
+                      {item.status !== "cancelada" && item.payment_id && (
+                        <button type="button" className="mt-1 block text-xs" style={{ color: rosa }} onClick={() => abrirEntregaHistorico(item)}>Recibo</button>
+                      )}
                       {item.status !== "cancelada" && (
                         <button type="button" className="mt-1 block text-xs" style={{ color: rosa }} onClick={() => {
                           if (!window.confirm("Cancelar esta venda e devolver os produtos ao estoque?")) return;
@@ -800,6 +884,68 @@ function Bloco({ titulo, children }: { titulo: string; children: ReactNode }) {
     <div>
       <p className="mb-2 text-sm font-medium text-gray-700">{titulo}</p>
       <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
+
+function JanelaReciboVenda({
+  entrega,
+  aviso,
+  enviando,
+  onImprimir,
+  onWhatsapp,
+  onEmail,
+  onFechar,
+}: {
+  entrega: EntregaRecibo;
+  aviso: string;
+  enviando: "whatsapp" | "email" | null;
+  onImprimir: () => void;
+  onWhatsapp: () => void;
+  onEmail: () => void;
+  onFechar: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+        <div className="mb-4 flex justify-end">
+          <button type="button" onClick={onFechar} aria-label="Fechar"><X size={18} className="text-gray-500" /></button>
+        </div>
+        <div className="mb-2 flex justify-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-500"><Check size={28} /></span>
+        </div>
+        <h2 className="mb-4 text-center text-lg font-semibold text-gray-900">Pagamento registrado com sucesso</h2>
+        <div className="mb-4 space-y-2 rounded-xl bg-gray-50 px-4 py-3 text-sm">
+          <p className="flex justify-between gap-3"><span className="inline-flex items-center gap-2 text-gray-500"><UserRound size={14} /> Cliente</span><strong className="text-right">{entrega.cliente}</strong></p>
+          <p className="flex justify-between gap-3"><span className="inline-flex items-center gap-2 text-gray-500"><FileText size={14} /> Recibo nº</span><strong>{entrega.numero}</strong></p>
+          <p className="flex justify-between gap-3"><span className="inline-flex items-center gap-2 text-gray-500"><DollarSign size={14} /> Forma de pagamento</span><strong className="text-right">{entrega.forma}</strong></p>
+          <p className="flex justify-between gap-3"><span className="inline-flex items-center gap-2 text-gray-500"><DollarSign size={14} /> Valor pago</span><strong>{formatCurrency(Number(entrega.total || 0))}</strong></p>
+          <p className="flex justify-between gap-3"><span className="inline-flex items-center gap-2 text-gray-500"><CalendarDays size={14} /> Data e hora</span><strong>{entrega.quando}</strong></p>
+        </div>
+        {aviso && <p className="mb-3 text-center text-sm text-gray-600">{aviso}</p>}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <button type="button" onClick={onImprimir} className="rounded-xl bg-sky-50 px-2 py-3 text-center text-sky-700">
+            <Printer size={18} className="mx-auto" />
+            <span className="mt-1 block text-sm font-semibold">Imprimir / PDF</span>
+            <span className="block text-[11px]">Imprimir ou salvar em PDF</span>
+          </button>
+          <button type="button" disabled={!entrega.telefone || enviando !== null} onClick={onWhatsapp} className="rounded-xl bg-emerald-50 px-2 py-3 text-center text-emerald-700 disabled:opacity-40">
+            <MessageCircle size={18} className="mx-auto" />
+            <span className="mt-1 block text-sm font-semibold">{enviando === "whatsapp" ? "Enviando..." : "WhatsApp"}</span>
+            <span className="block text-[11px]">{entrega.telefone ? "Enviar o recibo pelo WhatsApp" : "Informe um telefone"}</span>
+          </button>
+          <button type="button" disabled={!entrega.email || enviando !== null} onClick={onEmail} className="rounded-xl bg-violet-50 px-2 py-3 text-center text-violet-700 disabled:opacity-40">
+            <Mail size={18} className="mx-auto" />
+            <span className="mt-1 block text-sm font-semibold">{enviando === "email" ? "Enviando..." : "E-mail"}</span>
+            <span className="block text-[11px]">{entrega.email ? "Enviar o recibo por e-mail" : "Informe um e-mail"}</span>
+          </button>
+          <button type="button" onClick={onFechar} className="rounded-xl bg-gray-100 px-2 py-3 text-center text-gray-600">
+            <X size={18} className="mx-auto" />
+            <span className="mt-1 block text-sm font-semibold">Fechar</span>
+            <span className="block text-[11px]">Sem enviar agora</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

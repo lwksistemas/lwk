@@ -19,16 +19,18 @@ from .views_base import resolve_loja_id_from_request
 
 
 def _venda_resumo(venda) -> dict:
+    payment = venda.payment if venda.payment_id else None
     return {
         "id": venda.id,
         "payment_id": venda.payment_id,
-        "total": str(venda.payment.valor_total) if venda.payment_id else "0",
+        "total": str(payment.valor_total) if payment is not None else "0",
         "status": venda.status,
         "cliente": nome_exibicao_venda(venda),
         "telefone": (venda.telefone_cliente or getattr(getattr(venda, "paciente", None), "telefone", "") or ""),
         "email": (venda.email_cliente or getattr(getattr(venda, "paciente", None), "email", "") or ""),
         "operador": venda.operador_nome,
         "recibo_numero": venda.payment_id,
+        "forma": payment.get_payment_method_display() if payment is not None else "",
         "criada_em": venda.created_at.isoformat() if venda.created_at else "",
     }
 

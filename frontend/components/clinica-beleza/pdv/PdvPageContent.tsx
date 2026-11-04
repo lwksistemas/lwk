@@ -37,6 +37,7 @@ import {
   horaCurta,
   quandoRecibo,
   classeStatusPdv,
+  paymentIdReciboPdv,
   pdvPodeReceberAtendimento,
   reciboPdvDisponivel,
   seloCaixaPdv,
@@ -613,7 +614,7 @@ export function PdvPageContent() {
   const somaFormas = somaEntradasPdv(recebidas);
   const formasOk = total > 0 && Math.abs(somaFormas - total) <= 0.009;
   const vendaAPrazo = aba === "servico" && !pdvPodeReceberAtendimento(consulta);
-  const paymentRecibo = Number(consulta?.payment_id || (recibo?.consultaId === consulta?.id ? recibo.paymentId : 0) || 0);
+  const paymentRecibo = paymentIdReciboPdv(consulta, recibo);
   const mostrarRecibo = aba === "servico" && (reciboPdvDisponivel(consulta) || (Boolean(recibo?.consultaId) && recibo?.consultaId === consulta?.id));
   const procedimentos = consulta?.procedures_list?.length
     ? consulta.procedures_list

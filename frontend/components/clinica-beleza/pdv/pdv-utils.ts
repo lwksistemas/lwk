@@ -88,6 +88,19 @@ export function reciboPdvDisponivel(consulta: {
   return (selo === "pago" || selo === "prazo") && Number(consulta?.payment_id || 0) > 0;
 }
 
+/** Id do pagamento do recibo. Sem atendimento selecionado, não lê o recibo da sessão. */
+export function paymentIdReciboPdv(
+  consulta: { id?: number | null; payment_id?: number | null } | null | undefined,
+  recibo: { consultaId?: number; paymentId?: number } | null | undefined,
+): number {
+  const daConsulta = Number(consulta?.payment_id || 0);
+  if (daConsulta > 0) return daConsulta;
+  if (recibo?.consultaId && consulta?.id && recibo.consultaId === consulta.id) {
+    return Number(recibo.paymentId || 0);
+  }
+  return 0;
+}
+
 /** A prazo já lançado só é recebido no Financeiro. O PDV não quita essa venda. */
 export function pdvPodeReceberAtendimento(consulta: {
   valor_pago?: number | string | null;

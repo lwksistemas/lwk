@@ -77,6 +77,15 @@ export function seloCaixaPdv(consulta: {
   return null;
 }
 
+/** A prazo já lançado só é recebido no Financeiro. O PDV não quita essa venda. */
+export function pdvPodeReceberAtendimento(consulta: {
+  valor_pago?: number | string | null;
+  valor_restante?: number | string | null;
+  payment_method?: string | null;
+} | null | undefined): boolean {
+  return seloCaixaPdv(consulta) !== "prazo";
+}
+
 export function rotuloStatusPdv(status: string | undefined, selo: SeloCaixaPdv): string {
   if (selo === "pago") return "Pago";
   if (selo === "prazo") return "A prazo";

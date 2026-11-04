@@ -38,6 +38,7 @@ import {
   horaCurta,
   quandoRecibo,
   classeStatusPdv,
+  pdvPodeReceberAtendimento,
   seloCaixaPdv,
   montarEntradasPdv,
   podeAlterarServico,
@@ -532,6 +533,9 @@ export function PdvPageContent() {
         return;
       }
       if (!consulta?.id) throw { error: "Marque a cliente como presente para receber este atendimento." };
+      if (!pdvPodeReceberAtendimento(consulta)) {
+        throw { error: "Venda a prazo só pode ser recebida no Financeiro." };
+      }
       const recebidas = montarEntradasPdv(entradas, total).sort((a, b) => Number(a.payment_method === "PRAZO") - Number(b.payment_method === "PRAZO"));
       const soma = somaEntradasPdv(recebidas);
       if (!recebidas.length || Math.abs(soma - total) > 0.009) {
@@ -542,6 +546,7 @@ export function PdvPageContent() {
         desconto: descontoNum,
         mark_as_paid: true,
         entradas: recebidas,
+        origem: "pdv",
       });
       const atual = await ClinicaBelezaAPI.consultas.get(consulta.id);
       setRecibo(atual.payment_id ? { paymentId: atual.payment_id, consultaId: consulta.id } : null);
@@ -615,6 +620,7 @@ export function PdvPageContent() {
   const recebidas = montarEntradasPdv(entradas, total);
   const somaFormas = somaEntradasPdv(recebidas);
   const formasOk = total > 0 && Math.abs(somaFormas - total) <= 0.009;
+  const vendaAPrazo = aba === "servico" && !pdvPodeReceberAtendimento(consulta);
   const procedimentos = consulta?.procedures_list?.length
     ? consulta.procedures_list
     : selecionado?.extendedProps?.procedure_name
@@ -847,7 +853,12 @@ export function PdvPageContent() {
             <span className="text-sm font-medium" style={{ color: rosa }}>Total a receber</span>
             <span className="text-lg font-semibold" style={{ color: rosa }}>{formatCurrency(total)}</span>
           </div>
-          {aba === "servico" ? (
+          {vendaAPrazo ? (
+            <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Esta venda está a prazo. O recebimento fica no{" "}
+              <Link href={`/loja/${slug}/clinica-beleza/financeiro`} className="font-medium underline">Financeiro</Link>.
+            </p>
+          ) : aba === "servico" ? (
             <div className="mb-3 space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-600">Formas de pagamento</p>
@@ -907,12 +918,14 @@ export function PdvPageContent() {
               </select>
             </>
           )}
-          {!caixaAberto && (
+          {!vendaAPrazo && !caixaAberto && (
             <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Abra o caixa para vender ou receber um atendimento.</p>
           )}
-          <button type="button" disabled={salvando || !caixaAberto || total <= 0 || (aba === "servico" && !formasOk)} onClick={() => void receber()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
-            <DollarSign size={16} /> {salvando ? "Recebendo..." : "Receber pagamento"}
-          </button>
+          {!vendaAPrazo && (
+            <button type="button" disabled={salvando || !caixaAberto || total <= 0 || (aba === "servico" && !formasOk)} onClick={() => void receber()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
+              <DollarSign size={16} /> {salvando ? "Recebendo..." : "Receber pagamento"}
+            </button>
+          )}
           {recibo?.consultaId && (
             <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-gray-500">
               <button type="button" onClick={() => void imprimirRecibo(recibo.paymentId)} className="rounded-xl border px-1 py-2"><FileText size={16} className="mx-auto" />Imprimir</button>

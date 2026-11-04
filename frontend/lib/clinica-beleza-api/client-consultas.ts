@@ -36,6 +36,7 @@ export const consultasApi = {
       desconto?: number | string;
       entradas?: Array<{ payment_method: string; valor: number | string }>;
       valor_procedimentos?: number | string;
+      origem?: string;
     },
   ) => cbPost(`/consultas/${id}/receber/`, data),
   estornarPagamento: (id: number) =>

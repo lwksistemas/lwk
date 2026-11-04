@@ -39,6 +39,23 @@ def _log_movimento_financeiro(acao, consulta, payment, usuario=None, *, valor=No
     )
 
 
+def mensagem_pdv_nao_recebe_prazo(payment, origem) -> str | None:
+    """O PDV lança a prazo, mas não quita. O dinheiro entra no Financeiro."""
+    if str(origem or "") != "pdv" or payment is None:
+        return None
+    if str(getattr(payment, "payment_method", "") or "") != "PRAZO":
+        return None
+    if str(getattr(payment, "status", "") or "") not in ("PENDING", "PARTIAL"):
+        return None
+    try:
+        saldo = Decimal(str(getattr(payment, "saldo_devedor", 0) or 0))
+    except (ArithmeticError, ValueError, TypeError):
+        return None
+    if saldo <= Decimal("0.01"):
+        return None
+    return "Venda a prazo só pode ser recebida no Financeiro."
+
+
 def _tem_entrada_prazo(lista) -> bool:
     """True se alguma entrada usa a forma 'a prazo'."""
     return bool(lista) and any(e.get("payment_method") == _METODO_PRAZO for e in lista)

@@ -412,3 +412,19 @@ class GarantirContaPendenteConsultaTest(SimpleTestCase):
         consulta = MagicMock(status="SCHEDULED", appointment=MagicMock())
         garantir_conta_pendente_consulta(consulta)
         consulta.appointment.assert_not_called()
+
+
+class PdvNaoRecebePrazoTest(SimpleTestCase):
+    def test_pdv_nao_quita_venda_a_prazo(self):
+        from types import SimpleNamespace
+
+        from clinica_beleza.consulta_service.payment._common import mensagem_pdv_nao_recebe_prazo
+
+        prazo = SimpleNamespace(payment_method="PRAZO", status="PENDING", saldo_devedor=Decimal("450"))
+        self.assertEqual(
+            mensagem_pdv_nao_recebe_prazo(prazo, "pdv"),
+            "Venda a prazo só pode ser recebida no Financeiro.",
+        )
+        self.assertIsNone(mensagem_pdv_nao_recebe_prazo(prazo, "financeiro"))
+        pago = SimpleNamespace(payment_method="PIX", status="PAID", saldo_devedor=Decimal("0"))
+        self.assertIsNone(mensagem_pdv_nao_recebe_prazo(pago, "pdv"))

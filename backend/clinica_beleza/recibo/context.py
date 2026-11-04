@@ -26,10 +26,18 @@ _QTD_NO_NOME = re.compile(
 )
 
 
+_MIUDAS_RECIBO = {
+    "de", "da", "do", "das", "dos", "e", "em", "com", "para", "por", "a", "o", "as", "os",
+}
+_SIGLAS_RECIBO = {"fps", "spf", "uv", "uva", "uvb", "led", "dna", "aha", "bha"}
+_UNIDADE_COLADA = re.compile(r"^(\d+(?:[.,]\d+)?)(ml|mg|mcg|µg|ug|ui|un|g)$", re.IGNORECASE)
+
+
 def nome_exibicao_procedimento_recibo(nome: str) -> str:
     """Junta a dose ao procedimento e tira o caixa-alta do cadastro.
 
-    ``PREENCHIMENTO DE GLÚTEOS 100 ML`` vira ``Preenchimento de glúteos — 100 mL``.
+    ``PREENCHIMENTO DE GLÚTEOS 100 ML`` vira ``Preenchimento de Glúteos — 100 mL``.
+    ``LIMPEZA DE PELE PROFUNDA`` vira ``Limpeza de Pele Profunda``.
     Nome que já veio com maiúsculas e minúsculas permanece.
     """
     texto = " ".join(str(nome or "").split())
@@ -54,8 +62,26 @@ def _nome_em_caixa_alta(texto: str) -> bool:
 
 
 def _frase_recibo(texto: str) -> str:
-    baixa = texto.casefold()
-    return baixa[:1].upper() + baixa[1:]
+    """Primeira letra de cada palavra. 'de' e 'da' ficam minúsculas, como na prévia."""
+    palavras = []
+    for indice, palavra in enumerate(texto.split()):
+        unidade = _UNIDADE_COLADA.fullmatch(palavra)
+        if unidade:
+            sigla = _UNIDADE_RECIBO.get(unidade.group(2).casefold(), unidade.group(2))
+            palavras.append(f"{unidade.group(1)} {sigla}")
+            continue
+        baixa = palavra.casefold()
+        if baixa == "ph":
+            palavras.append("pH")
+            continue
+        if baixa in _SIGLAS_RECIBO:
+            palavras.append(baixa.upper())
+            continue
+        if indice and baixa in _MIUDAS_RECIBO:
+            palavras.append(baixa)
+            continue
+        palavras.append(baixa[:1].upper() + baixa[1:])
+    return " ".join(palavras)
 
 
 def _agora_recibo():
@@ -806,7 +832,7 @@ def produtos_exibidos_recibo(ctx: dict) -> list[dict]:
         except (TypeError, ValueError):
             subtotal = 0.0
         linhas.append({
-            "nome": item.get("nome") or "Produto",
+            "nome": nome_exibicao_procedimento_recibo(item.get("nome") or "Produto"),
             "quantidade": item.get("quantidade") or "0",
             "preco_unitario": float(item.get("preco_unitario") or 0),
             "desconto": float(item.get("desconto") or 0),
@@ -944,6 +970,47 @@ def _desconto_comercial_sai_do_total(ctx: dict) -> dict:
     return ctx
 
 
+def _incorporar_desconto_da_linha_do_produto(ctx: dict) -> dict:
+    """O desconto do produto sai na linha Desconto e o subtotal fica no preço cheio.
+
+    A prévia aprovada mostra o item a R$ 300, o subtotal a R$ 300, o desconto de
+    R$ 35 e o total pago a R$ 265.
+    """
+    bruto = 0.0
+    desconto_linhas = 0.0
+    for item in ctx.get("produtos") or []:
+        try:
+            quantidade = float(str(item.get("quantidade") or 0).replace(",", "."))
+            preco = float(item.get("preco_unitario") or 0)
+            desconto_item = float(item.get("desconto") or 0)
+        except (TypeError, ValueError):
+            continue
+        if quantidade <= 0:
+            continue
+        bruto += quantidade * preco
+        desconto_linhas += desconto_item
+    bruto = round(bruto, 2)
+    desconto_linhas = round(desconto_linhas, 2)
+    if desconto_linhas <= 0.009 or bruto <= 0.009:
+        return ctx
+    desconto = round(float(ctx.get("desconto") or 0), 2)
+    subtotal = round(float(ctx.get("subtotal") or 0), 2)
+    if desconto + 0.02 >= desconto_linhas and subtotal + 0.05 >= bruto:
+        return ctx
+    # A venda de produto grava o subtotal líquido. O recibo mostra o preço cheio
+    # e a linha Desconto. Não mexe quando o desconto do pagamento é outro valor.
+    preco_cheio = subtotal + 0.05 < bruto and abs((subtotal + desconto_linhas) - bruto) <= 0.05
+    if not preco_cheio:
+        return ctx
+    if desconto > 0.009 and abs(desconto - desconto_linhas) > 0.02:
+        return ctx
+    ctx = dict(ctx)
+    ctx["subtotal"] = round(bruto, 2)
+    if desconto <= 0.009:
+        ctx["desconto"] = desconto_linhas
+    return ctx
+
+
 def reconciliar_conta_recibo(ctx: dict) -> dict:
     """Fecha a conta impressa: taxa omitida entra no total; o resto vira abatimento.
 
@@ -953,6 +1020,7 @@ def reconciliar_conta_recibo(ctx: dict) -> dict:
     Linha a R$ 0 cujo preço de cadastro explica o total cobrado volta a esse preço.
     O desconto do protocolo personalizado entra como linha quando a visita cobra o pacote.
     """
+    ctx = _incorporar_desconto_da_linha_do_produto(ctx)
     ctx = _aplicar_desconto_do_protocolo(
         _desconto_comercial_sai_do_total(
             _repor_preco_que_fecha_conta(aplicar_valor_consulta_do_local(dict(ctx)))

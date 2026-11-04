@@ -306,7 +306,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
             ),
         )
         self.assertIn("RECIBO DE VENDA DE PRODUTOS", html)
-        self.assertIn("CAMPO CIRURGICO", html)
+        self.assertIn("Campo Cirurgico", html)
         self.assertIn("TOTAL PAGO", html)
         self.assertIn("Quitado", html)
         self.assertIn("Recepção", html)

@@ -74,7 +74,7 @@ class ReciboMoedaEContaTests(SimpleTestCase):
         })
         self.assertEqual(ctx["valor_total"], 610)
         self.assertEqual(ctx["abatimento"], 1800)
-        self.assertEqual(ctx["abatimento_label"], "Abatimento — Bioestimulador de colágeno")
+        self.assertEqual(ctx["abatimento_label"], "Abatimento — Bioestimulador de Colágeno")
         linhas = _linhas_descontos_recibo(ctx)
         self.assertNotIn(("Desconto retorno", 150), linhas)
         self.assertIn((ctx["abatimento_label"], ctx["abatimento"]), linhas)
@@ -118,6 +118,33 @@ class ReciboMoedaEContaTests(SimpleTestCase):
         self.assertEqual(ctx["valor_total"], 1000)
         self.assertEqual(ctx["saldo_devedor"], 1000)
         self.assertNotIn("abatimento", ctx)
+
+    def test_desconto_do_produto_sobe_o_subtotal_para_o_preco_cheio(self):
+        from clinica_beleza.recibo.context import _linhas_descontos_recibo, reconciliar_conta_recibo
+
+        ctx = reconciliar_conta_recibo({
+            "somente_produtos": True,
+            "retorno_gratuito": False,
+            "taxa_consulta": 0,
+            "desconto": 0,
+            "procedimentos": [],
+            "produtos": [{
+                "nome": "BELOTERO INTENSE LIDOCAINA FR 1ML MERZ",
+                "quantidade": "1",
+                "preco_unitario": 300,
+                "desconto": 35,
+                "subtotal": 265,
+            }],
+            "subtotal": 265,
+            "valor_total": 265,
+            "valor_pago": 265,
+            "saldo_devedor": 0,
+        })
+        self.assertEqual(ctx["subtotal"], 300)
+        self.assertEqual(ctx["desconto"], 35)
+        self.assertEqual(ctx["valor_total"], 265)
+        self.assertNotIn("abatimento", ctx)
+        self.assertEqual(_linhas_descontos_recibo(ctx), [("Desconto", 35)])
 
     def test_desconto_ja_liquido_nao_sai_de_novo(self):
         from clinica_beleza.recibo.context import reconciliar_conta_recibo
@@ -180,9 +207,38 @@ class ReciboMoedaEContaTests(SimpleTestCase):
         self.assertEqual(_linhas_descontos_recibo(ctx), [])
         self.assertEqual(
             nome_exibicao_procedimento_recibo(ctx["procedimentos"][0]["nome"]),
-            "Preenchimento de glúteos — 100 mL",
+            "Preenchimento de Glúteos — 100 mL",
         )
         self.assertNotIn("descontada", ctx["retorno_aviso"])
+
+    def test_descricao_fica_com_a_primeira_letra_maiuscula(self):
+        from clinica_beleza.recibo.context import (
+            nome_exibicao_procedimento_recibo,
+            produtos_exibidos_recibo,
+        )
+
+        self.assertEqual(
+            nome_exibicao_procedimento_recibo("LIMPEZA DE PELE PROFUNDA"),
+            "Limpeza de Pele Profunda",
+        )
+        self.assertEqual(
+            nome_exibicao_procedimento_recibo("PEELING QUÍMICO FACIAL"),
+            "Peeling Químico Facial",
+        )
+        self.assertEqual(
+            nome_exibicao_procedimento_recibo("Limpeza de Pele Profunda"),
+            "Limpeza de Pele Profunda",
+        )
+        linhas = produtos_exibidos_recibo({
+            "produtos": [{
+                "nome": "PROTETOR SOLAR FPS 50",
+                "quantidade": "1",
+                "preco_unitario": 80,
+                "desconto": 0,
+                "subtotal": 80,
+            }],
+        })
+        self.assertEqual(linhas[0]["nome"], "Protetor Solar FPS 50")
 
     def test_consulta_lancada_e_descontada_mostra_a_conta(self):
         from clinica_beleza.recibo.context import (

@@ -109,7 +109,7 @@ class GerarPdfReciboTests(SimpleTestCase):
         texto = " ".join(
             "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages).split()
         )
-        self.assertIn("Preenchimento de glúteos — 100 mL", texto)
+        self.assertIn("Preenchimento de Glúteos — 100 mL", texto)
         self.assertIn("Vencimento: 12/10/2026", texto)
         self.assertNotIn("— vencimento", texto)
         self.assertIn("Retorno gratuito em até 30 dias após o atendimento.", texto)

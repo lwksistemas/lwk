@@ -68,7 +68,7 @@ def adicionar_procedimento_consulta(consulta: Consulta, procedure_id: int) -> Ap
     if not cliente_presente_para_procedimento(consulta):
         if getattr(consulta, "status", "") == "COMPLETED":
             raise ValueError("Não é possível incluir procedimentos com a consulta finalizada.")
-        raise ValueError("Só é possível incluir procedimentos com a cliente presente.")
+        raise ValueError("Só é possível incluir procedimentos com a cliente presente ou em atendimento.")
 
     appointment = consulta.appointment
     _garantir_procedimentos_legacy(appointment)
@@ -107,7 +107,7 @@ def remover_procedimento_consulta(consulta: Consulta, appointment_procedure_id: 
     if not cliente_presente_para_procedimento(consulta):
         if getattr(consulta, "status", "") == "COMPLETED":
             raise ValueError("Não é possível remover procedimentos após finalizar a consulta.")
-        raise ValueError("Só é possível remover procedimentos com a cliente presente.")
+        raise ValueError("Só é possível remover procedimentos com a cliente presente ou em atendimento.")
 
     appointment = consulta.appointment
     try:

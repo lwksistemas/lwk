@@ -41,13 +41,22 @@ export function podeAlterarServico(status: string | undefined): boolean {
 }
 
 export function rotuloStatus(status: string | undefined): string {
-  if (status === "CONFIRMED" || status === "IN_PROGRESS") return "Presente";
+  if (status === "IN_PROGRESS") return "Atendimento";
+  if (status === "CONFIRMED") return "Presente";
   if (status === "COMPLETED") return "Finalizada";
   if (status === "CANCELLED") return "Cancelado";
   if (status === "NO_SHOW") return "Faltou";
   if (status === "CLIENT_CONFIRMED") return "Confirmado";
   if (status === "PHONE_CONFIRMED") return "Confirmado";
   return "Aguardando";
+}
+
+export function classeStatusPdv(status: string | undefined): string {
+  if (status === "IN_PROGRESS") return "bg-amber-100 text-amber-800";
+  if (status === "CONFIRMED") return "bg-emerald-50 text-emerald-700";
+  if (status === "COMPLETED") return "bg-emerald-100 text-emerald-800";
+  if (status === "CANCELLED") return "bg-red-50 text-red-700";
+  return "bg-gray-100 text-gray-500";
 }
 
 export function reais(valor: number): number {

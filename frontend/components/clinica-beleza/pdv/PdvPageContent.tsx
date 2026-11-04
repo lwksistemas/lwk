@@ -37,6 +37,7 @@ import {
   hojeIso,
   horaCurta,
   quandoRecibo,
+  classeStatusPdv,
   podeAlterarServico,
   podeMarcarPresente,
   reais,
@@ -662,7 +663,7 @@ export function PdvPageContent() {
                   {podeMarcarPresente(status) ? (
                     <span role="presentation" onClick={(clique) => { clique.stopPropagation(); void marcarPresente(id); }} className="rounded-full border px-2 py-1 text-[11px] font-medium" style={{ color: rosa, borderColor: rosa }}>Marcar presente</span>
                   ) : (
-                    <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${clientePresente(status) ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>{rotuloStatus(status)}</span>
+                    <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${classeStatusPdv(status)}`}>{rotuloStatus(status)}</span>
                   )}
                 </button>
               );
@@ -715,7 +716,11 @@ export function PdvPageContent() {
                 {alteraServico && <button type="button" onClick={() => setIncluindo("servico")} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-sm" style={{ color: rosa, borderColor: rosa }}><Plus size={14} /> + Adicionar serviço</button>}
               </div>
               {selecionado && !alteraServico && (
-                <p className="text-xs text-gray-500">Procedimentos só podem ser incluídos ou removidos com a cliente presente.</p>
+                <p className="text-xs text-gray-500">
+                  {selecionado.extendedProps?.status === "COMPLETED"
+                    ? "Com a consulta finalizada não é possível incluir ou remover procedimentos."
+                    : "Procedimentos só podem ser incluídos ou removidos com a cliente presente ou em atendimento."}
+                </p>
               )}
               <label className="block text-sm text-gray-600">
                 Observações (opcional)

@@ -569,11 +569,75 @@ def custeado_pela_clinica(ctx: dict) -> bool:
 
 
 def linha_vencimento_recibo(ctx: dict) -> str:
-    """Data combinada, ou o aviso de que o saldo não tem vencimento."""
+    """Vencido quando a data já passou na emissão. Sem data, não inventa uma."""
     vencimento = (ctx.get("vencimento") or "").strip()
-    if vencimento:
-        return f"Vencimento: {vencimento}"
-    return "Sem vencimento"
+    if not vencimento:
+        return "Sem vencimento"
+    data_venc = _data_texto_recibo(vencimento)
+    data_emissao = _data_texto_recibo(ctx.get("data_emissao") or ctx.get("data") or "")
+    if data_venc and data_emissao and data_venc < data_emissao:
+        return f"Vencido em: {vencimento}"
+    return f"Vencimento: {vencimento}"
+
+
+def _data_texto_recibo(texto: str):
+    achado = re.search(r"(\d{2})/(\d{2})/(\d{4})", texto or "")
+    if not achado:
+        return None
+    from datetime import date
+
+    try:
+        return date(int(achado.group(3)), int(achado.group(2)), int(achado.group(1)))
+    except ValueError:
+        return None
+
+
+_DATA_NA_FORMA = re.compile(r"^(?P<forma>.*?)\s*\((?P<data>\d{2}/\d{2}/\d{4})\)\s*$")
+
+
+def formas_detalhadas_recibo(ctx: dict) -> list[dict]:
+    """Cada recebimento já gravado, com data, forma e valor separados."""
+    linhas = []
+    for item in ctx.get("formas_pagamento") or []:
+        try:
+            valor = float(item.get("valor") or 0)
+        except (TypeError, ValueError):
+            continue
+        if valor <= 0.009:
+            continue
+        metodo = str(item.get("metodo") or "").strip()
+        if forma_e_custeio_clinica(metodo):
+            continue
+        forma = str(item.get("forma") or "").strip()
+        data = str(item.get("data") or "").strip()
+        if not forma or not data:
+            achado = _DATA_NA_FORMA.match(metodo)
+            if achado:
+                forma = forma or achado.group("forma").strip()
+                data = data or achado.group("data")
+            else:
+                forma = forma or metodo
+        linhas.append({
+            "data": data,
+            "forma": rotulo_forma_recibo(forma),
+            "valor": round(valor, 2),
+        })
+    return linhas
+
+
+def conta_com_saldo_recibo(ctx: dict) -> bool:
+    """Ainda há valor a receber do paciente."""
+    if comprovante_sem_cobranca(ctx):
+        return False
+    return situacao_recibo(ctx) in ("parcial", "em_aberto")
+
+
+def rotulo_valor_conta_recibo(ctx: dict) -> str:
+    if not conta_com_saldo_recibo(ctx):
+        return rotulo_subtotal_recibo(ctx)
+    if ctx.get("somente_produtos"):
+        return "Valor total"
+    return "Valor total dos procedimentos"
 
 
 def _formas_pagamento_texto(ctx: dict) -> str:
@@ -645,7 +709,12 @@ def _listar_formas_pagamento(payment) -> list[dict]:
                 valor = round(g["valor"], 2)
                 if valor <= 0.009:
                     continue
-                result.append({"metodo": label, "valor": valor})
+                result.append({
+                    "metodo": label,
+                    "forma": METODOS.get(g["metodo_code"], g["metodo_code"]),
+                    "data": g["data"].strftime("%d/%m/%Y") if hasattr(g["data"], "strftime") else "",
+                    "valor": valor,
+                })
             return result
     except Exception:
         logger.exception("Erro ao listar parcelas do recibo (payment %s)", payment.id)

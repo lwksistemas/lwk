@@ -11,8 +11,10 @@ from .context import (
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
     comprovante_sem_cobranca,
+    conta_com_saldo_recibo,
     cor_primaria_recibo,
     custeado_pela_clinica,
+    formas_detalhadas_recibo,
     linha_valor_com_desconto_recibo,
     linha_vencimento_recibo,
     linhas_local_convenio_recibo,
@@ -25,6 +27,7 @@ from .context import (
     rotulo_numero_recibo,
     rotulo_subtotal_recibo,
     rotulo_total_recibo,
+    rotulo_valor_conta_recibo,
     situacao_comprovante_recibo,
     situacao_recibo,
     texto_cadastro_recibo,
@@ -246,8 +249,9 @@ def gerar_html_recibo(ctx: dict) -> str:
 
     descontos = _linhas_descontos_recibo(ctx)
     subtotal = float(ctx.get("subtotal", ctx.get("valor_total") or 0))
+    conta_pendente = conta_com_saldo_recibo(ctx)
     resumo = (
-        f'<div class="linha"><span>{_t(rotulo_subtotal_recibo(ctx))}</span>'
+        f'<div class="linha"><span>{_t(rotulo_valor_conta_recibo(ctx))}</span>'
         f'<strong>{formatar_moeda_recibo(subtotal)}</strong></div>'
     )
     resumo += "".join(
@@ -284,24 +288,41 @@ def gerar_html_recibo(ctx: dict) -> str:
         valor_destaque = ctx.get("valor_total") or 0
 
     valor_pago = float(ctx.get("valor_pago") or 0)
-    formas = [
-        f for f in (ctx.get("formas_pagamento") or [])
-        if float(f.get("valor") or 0) > 0.009
-    ]
-    if not formas and valor_pago > 0.009:
-        formas = [{"metodo": ctx.get("metodo") or "Pagamento", "valor": valor_pago}]
-    if custeio:
-        formas_texto = "Custeado pela clínica"
-    elif len(formas) > 1:
-        formas_texto = " · ".join(
-            f'{rotulo_forma_recibo(f.get("metodo") or "")} {formatar_moeda_recibo(f.get("valor") or 0)}'
-            for f in formas
+    detalhes = formas_detalhadas_recibo(ctx)
+    if not detalhes and valor_pago > 0.009 and not custeio:
+        detalhes = [{
+            "data": "",
+            "forma": rotulo_forma_recibo(ctx.get("metodo") or "Pagamento"),
+            "valor": valor_pago,
+        }]
+    tabela_recebimentos = ""
+    if len(detalhes) > 1:
+        linhas_receb = "".join(
+            "<tr>"
+            f'<td>{_t(item["data"] or "—")}</td>'
+            f'<td>{_t(item["forma"])}</td>'
+            f'<td class="num">{formatar_moeda_recibo(item["valor"])}</td>'
+            "</tr>"
+            for item in detalhes
         )
-    elif formas:
-        formas_texto = rotulo_forma_recibo(formas[0].get("metodo") or "")
+        total_recebido = round(sum(item["valor"] for item in detalhes), 2)
+        tabela_recebimentos = (
+            '<table class="recebimentos"><thead><tr>'
+            '<th class="tinta">Data</th><th class="tinta">Forma de pagamento</th>'
+            '<th class="num tinta">Valor</th></tr></thead><tbody>'
+            f"{linhas_receb}"
+            '<tr class="total"><td></td><td>Total recebido</td>'
+            f'<td class="num">{formatar_moeda_recibo(total_recebido)}</td></tr>'
+            "</tbody></table>"
+        )
+        formas_texto = ""
+    elif detalhes:
+        item = detalhes[0]
+        quando = f' ({item["data"]})' if item["data"] else ""
+        formas_texto = f'{item["forma"]}{quando} — {formatar_moeda_recibo(item["valor"])}'
     else:
         formas_texto = (ctx.get("condicao_cobranca") or "").strip()
-    rotulo_forma = "Formas de pagamento" if len(formas) > 1 else "Forma de pagamento"
+    rotulo_forma = "Forma de pagamento"
 
     if custeio:
         situacao_html = '<span class="selo neutro">Custeado pela clínica</span>'
@@ -317,9 +338,9 @@ def gerar_html_recibo(ctx: dict) -> str:
         situacao_html = ""
 
     saldo_html = ""
-    if not custeio and saldo > 0.009:
+    if not custeio and saldo > 0.009 and not conta_pendente:
         saldo_html = (
-            f'<div class="linha saldo"><span>SALDO A PAGAR</span>'
+            f'<div class="linha saldo"><span>Saldo a pagar</span>'
             f'<strong>{formatar_moeda_recibo(saldo)}</strong></div>'
             f'<p class="miudo centro">{_t(linha_vencimento_recibo(ctx))}</p>'
         )
@@ -328,8 +349,24 @@ def gerar_html_recibo(ctx: dict) -> str:
         f'<div class="linha"><span>Recebido a maior</span><strong>{formatar_moeda_recibo(extra)}</strong></div>'
         if extra > 0.009 else ""
     )
+    aviso_venc = linha_vencimento_recibo(ctx) if conta_pendente else ""
+    classe_venc = "miudo centro vencido" if aviso_venc.startswith("Vencido") else "miudo centro"
+    vencimento_html = f'<p class="{classe_venc}">{_t(aviso_venc)}</p>' if aviso_venc else ""
+    if conta_pendente:
+        destaque_html = (
+            f'<div class="destaque tinta"><span class="rotulo">Total já pago</span>'
+            f'<span class="pill tinta">{formatar_moeda_recibo(valor_pago)}</span></div>'
+            f'<div class="destaque tinta"><span class="rotulo">Saldo a pagar</span>'
+            f'<span class="pill divida tinta">{formatar_moeda_recibo(saldo)}</span></div>'
+        )
+    else:
+        destaque_html = (
+            f'<div class="destaque tinta"><span class="rotulo">{_t(rotulo_destaque)}</span>'
+            f'<span class="pill tinta">{formatar_moeda_recibo(valor_destaque)}</span></div>'
+        )
+
     pago_html = ""
-    if situacao == "parcial" and valor_pago > 0.009:
+    if situacao == "parcial" and valor_pago > 0.009 and not conta_pendente:
         pago_html = (
             f'<div class="linha"><span>PAGO</span><strong>{formatar_moeda_recibo(valor_pago)}</strong></div>'
         )
@@ -430,6 +467,10 @@ def gerar_html_recibo(ctx: dict) -> str:
   .destaque {{ display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 12px 0; background-color: {fundo}; box-shadow: inset 0 0 0 999px {fundo}; border-radius: 12px; padding: 8px 8px 8px 16px; }}
   .destaque .rotulo {{ color: {cor}; font-weight: 800; letter-spacing: 0.04em; }}
   .pill {{ background-color: {cor}; box-shadow: inset 0 0 0 999px {cor}; color: #fff; border-radius: 10px; padding: 8px 18px; font-size: 20px; font-weight: 800; }}
+  .pill.divida {{ background-color: #8a2b2b; box-shadow: inset 0 0 0 999px #8a2b2b; }}
+  .vencido {{ color: #8a2b2b; font-weight: 700; }}
+  table.recebimentos {{ margin-top: 8px; }}
+  table.recebimentos tr.total td {{ font-weight: 700; border-bottom: none; }}
   .pagamento {{ display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0 4px; font-size: 14px; }}
   .selo {{ font-weight: 700; }}
   .selo.ok {{ display: inline-flex; align-items: center; gap: 6px; color: #1b8a45; }}
@@ -472,7 +513,9 @@ def gerar_html_recibo(ctx: dict) -> str:
     {extra_html}
     {saldo_html}
   </div>
-  <div class="destaque tinta"><span class="rotulo">{_t(rotulo_destaque)}</span><span class="pill tinta">{formatar_moeda_recibo(valor_destaque)}</span></div>
+  {destaque_html}
+  {vencimento_html}
+  {tabela_recebimentos}
   {f'<div class="pagamento"><span><strong>Situação:</strong> {_t(situacao_comprovante_recibo(ctx))}</span></div>' if comprovante else f'''<div class="pagamento">
     <span class="item">{_icone("cartao", cor) if formas_texto and not custeio else ''}<span>{f'<strong>{_t(rotulo_forma)}:</strong> {_t(formas_texto)}' if formas_texto else ''}</span></span>
     {situacao_html}

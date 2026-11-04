@@ -271,6 +271,38 @@ class ReciboMoedaEContaTests(SimpleTestCase):
         self.assertEqual(ctx["valor_total"], 6000)
         self.assertEqual(ctx["saldo_devedor"], 5350)
 
+    def test_vencido_quando_a_data_passou_e_parcial_lista_os_recebimentos(self):
+        from clinica_beleza.recibo.context import (
+            formas_detalhadas_recibo,
+            linha_vencimento_recibo,
+        )
+
+        self.assertEqual(
+            linha_vencimento_recibo({
+                "vencimento": "12/10/2026",
+                "data_emissao": "04/11/2026 12:06",
+            }),
+            "Vencido em: 12/10/2026",
+        )
+        self.assertEqual(
+            linha_vencimento_recibo({
+                "vencimento": "20/11/2026",
+                "data_emissao": "04/11/2026 12:06",
+            }),
+            "Vencimento: 20/11/2026",
+        )
+        self.assertEqual(linha_vencimento_recibo({"vencimento": ""}), "Sem vencimento")
+        linhas = formas_detalhadas_recibo({
+            "formas_pagamento": [
+                {"metodo": "Cartão de Débito (30/09/2026)", "valor": 650},
+                {"metodo": "Cartão de Débito (07/10/2026)", "valor": 400},
+            ],
+        })
+        self.assertEqual(linhas, [
+            {"data": "30/09/2026", "forma": "Cartão de Débito", "valor": 650.0},
+            {"data": "07/10/2026", "forma": "Cartão de Débito", "valor": 400.0},
+        ])
+
     def test_recebido_a_maior(self):
         from clinica_beleza.recibo.context import recebido_a_maior_recibo
 

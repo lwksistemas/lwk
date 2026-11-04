@@ -10,8 +10,10 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     comprovante_sem_cobranca,
+    conta_com_saldo_recibo,
     cor_primaria_recibo,
     custeado_pela_clinica,
+    formas_detalhadas_recibo,
     linha_valor_com_desconto_recibo,
     linha_vencimento_recibo,
     linhas_local_convenio_recibo,
@@ -24,6 +26,7 @@ from .context import (
     rotulo_numero_recibo,
     rotulo_subtotal_recibo,
     rotulo_total_recibo,
+    rotulo_valor_conta_recibo,
     situacao_comprovante_recibo,
     situacao_recibo,
     texto_cadastro_recibo,
@@ -374,6 +377,10 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
     s_neutro = estilo("neutro", fontName="Helvetica-Bold", fontSize=10, alignment=TA_RIGHT, textColor=cinza)
     s_obrigado = estilo("obrigado", fontName="Helvetica-BoldOblique", fontSize=11, leading=14, alignment=TA_CENTER, textColor=cor)
     s_nota = estilo("nota", fontSize=8, alignment=TA_CENTER, textColor=colors.HexColor("#6D6572"))
+    s_vencido = estilo(
+        "vencido", fontName="Helvetica-Bold", fontSize=9, alignment=TA_CENTER,
+        textColor=colors.HexColor("#8A2B2B"),
+    )
 
     def caixa(conteudo, fundo_caixa, raios=(8, 8, 8, 8), paddings=(8, 8, 10, 10)):
         tabela = Table(conteudo, colWidths=[col_w])
@@ -573,9 +580,10 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
 
     subtotal = float(ctx.get("subtotal", ctx.get("valor_total") or 0))
     descontos = _linhas_descontos_recibo(ctx)
+    conta_pendente = conta_com_saldo_recibo(ctx)
     story.append(Spacer(1, 2 * mm_unit))
     if not comprovante or descontos:
-        story.append(linha_valor(rotulo_subtotal_recibo(ctx), subtotal))
+        story.append(linha_valor(rotulo_valor_conta_recibo(ctx), subtotal))
     for label, valor in descontos:
         story.append(linha_valor(label, valor, negativo=True))
     protocolo = linhas_protocolo_informativo(ctx)
@@ -588,50 +596,63 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
         story.append(linha_valor(valor_com_desconto[0], valor_com_desconto[1]))
     valor_pago = float(ctx.get("valor_pago") or 0)
     saldo = float(_saldo_devedor_recibo(ctx) or 0)
-    if situacao == "parcial" and valor_pago > 0.009:
+    if situacao == "parcial" and valor_pago > 0.009 and not conta_pendente:
         story.append(linha_valor("PAGO", valor_pago))
     extra = recebido_a_maior_recibo(ctx)
     if extra > 0.009:
         story.append(linha_valor("Recebido a maior", extra))
-    if not custeio and saldo > 0.009:
-        story.append(linha_valor("SALDO A PAGAR", saldo))
+    if not custeio and saldo > 0.009 and not conta_pendente:
+        story.append(linha_valor("Saldo a pagar", saldo))
         story.append(Paragraph(_texto_pdf(linha_vencimento_recibo(ctx)), s_nota))
     if comprovante:
         story.append(linha_valor("Valor do procedimento", float(ctx.get("valor_total") or 0)))
 
+    def barra(rotulo_barra, valor_barra, cor_barra):
+        tabela = Table(
+            [[
+                Paragraph(f"<b>{_texto_pdf(rotulo_barra)}</b>", s_rotulo),
+                Paragraph(f"<b>{formatar_moeda_recibo(valor_barra)}</b>", s_pill),
+            ]],
+            colWidths=[col_w * 0.72, col_w * 0.28],
+        )
+        tabela.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (0, 0), fundo),
+            ("BACKGROUND", (1, 0), (1, 0), cor_barra),
+            ("ROUNDEDCORNERS", [10, 10, 10, 10]),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (1, 0), (1, 0), "CENTER"),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ("LEFTPADDING", (0, 0), (0, 0), 12),
+            ("RIGHTPADDING", (1, 0), (1, 0), 8),
+        ]))
+        return tabela
+
     rotulo = rotulo_total_recibo(ctx)
-    if comprovante:
-        rotulo_destaque = "Valor pago pelo paciente"
-        valor_destaque = 0
-    elif situacao == "quitado" and not custeio and rotulo == "Total":
-        rotulo_destaque = "TOTAL PAGO"
-        valor_destaque = float(ctx.get("valor_total") or 0)
-    elif rotulo == "Total":
-        rotulo_destaque = "TOTAL"
-        valor_destaque = float(ctx.get("valor_total") or 0)
-    else:
-        rotulo_destaque = rotulo
-        valor_destaque = float(ctx.get("valor_total") or 0)
-    destaque = Table(
-        [[
-            Paragraph(f"<b>{_texto_pdf(rotulo_destaque)}</b>", s_rotulo),
-            Paragraph(f"<b>{formatar_moeda_recibo(valor_destaque)}</b>", s_pill),
-        ]],
-        colWidths=[col_w * 0.72, col_w * 0.28],
-    )
-    destaque.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (0, 0), fundo),
-        ("BACKGROUND", (1, 0), (1, 0), cor),
-        ("ROUNDEDCORNERS", [10, 10, 10, 10]),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN", (1, 0), (1, 0), "CENTER"),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("LEFTPADDING", (0, 0), (0, 0), 12),
-        ("RIGHTPADDING", (1, 0), (1, 0), 8),
-    ]))
     story.append(Spacer(1, 2 * mm_unit))
-    story.append(destaque)
+    if conta_pendente:
+        story.append(barra("Total já pago", valor_pago, cor))
+        story.append(Spacer(1, 2 * mm_unit))
+        story.append(barra("Saldo a pagar", saldo, colors.HexColor("#8A2B2B")))
+        aviso_venc = linha_vencimento_recibo(ctx)
+        story.append(Paragraph(
+            _texto_pdf(aviso_venc),
+            s_vencido if aviso_venc.startswith("Vencido") else s_nota,
+        ))
+    else:
+        if comprovante:
+            rotulo_destaque = "Valor pago pelo paciente"
+            valor_destaque = 0
+        elif situacao == "quitado" and not custeio and rotulo == "Total":
+            rotulo_destaque = "TOTAL PAGO"
+            valor_destaque = float(ctx.get("valor_total") or 0)
+        elif rotulo == "Total":
+            rotulo_destaque = "TOTAL"
+            valor_destaque = float(ctx.get("valor_total") or 0)
+        else:
+            rotulo_destaque = rotulo
+            valor_destaque = float(ctx.get("valor_total") or 0)
+        story.append(barra(rotulo_destaque, valor_destaque, cor))
 
     if comprovante:
         story.append(Paragraph(
@@ -639,19 +660,52 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
             s_cliente,
         ))
     else:
-        formas = [f for f in (ctx.get("formas_pagamento") or []) if float(f.get("valor") or 0) > 0.009]
-        if not formas and valor_pago > 0.009:
-            formas = [{"metodo": ctx.get("metodo") or "Pagamento", "valor": valor_pago}]
-        if len(formas) > 1:
-            formas_texto = " · ".join(
-                f"{rotulo_forma_recibo(f.get('metodo') or '')} {formatar_moeda_recibo(f.get('valor') or 0)}"
-                for f in formas
-            )
-        elif formas:
-            formas_texto = rotulo_forma_recibo(formas[0].get("metodo") or "")
+        detalhes = formas_detalhadas_recibo(ctx)
+        if not detalhes and valor_pago > 0.009 and not custeio:
+            detalhes = [{
+                "data": "",
+                "forma": rotulo_forma_recibo(ctx.get("metodo") or "Pagamento"),
+                "valor": valor_pago,
+            }]
+        if len(detalhes) > 1:
+            cab = [
+                Paragraph("<b>Data</b>", s_th),
+                Paragraph("<b>Forma de pagamento</b>", s_th),
+                Paragraph("<b>Valor</b>", s_th_r),
+            ]
+            linhas_receb = [cab]
+            for item in detalhes:
+                linhas_receb.append([
+                    Paragraph(_texto_pdf(item["data"] or "—"), s_td),
+                    Paragraph(_texto_pdf(item["forma"]), s_td),
+                    Paragraph(formatar_moeda_recibo(item["valor"]), s_td_r),
+                ])
+            total_recebido = round(sum(item["valor"] for item in detalhes), 2)
+            linhas_receb.append([
+                Paragraph("", s_td),
+                Paragraph("<b>Total recebido</b>", s_resumo),
+                Paragraph(f"<b>{formatar_moeda_recibo(total_recebido)}</b>", s_dir),
+            ])
+            recebidos = Table(linhas_receb, colWidths=[col_w * 0.24, col_w * 0.46, col_w * 0.30])
+            recebidos.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), fundo_tabela),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("LINEBELOW", (0, 1), (-1, -2), 0.3, colors.HexColor("#EEEEEE")),
+            ]))
+            story.append(Spacer(1, 2 * mm_unit))
+            story.append(recebidos)
+            formas_texto = ""
+        elif detalhes:
+            item = detalhes[0]
+            quando = f" ({item['data']})" if item["data"] else ""
+            formas_texto = f"{item['forma']}{quando} — {formatar_moeda_recibo(item['valor'])}"
         else:
             formas_texto = (ctx.get("condicao_cobranca") or "").strip()
-        rotulo_forma = "Formas de pagamento" if len(formas) > 1 else "Forma de pagamento"
+        rotulo_forma = "Forma de pagamento"
         if situacao == "sem_saldo":
             situacao_txt, sit_style = subtitulo or "Sem valor a pagar", s_neutro
         elif situacao == "parcial":

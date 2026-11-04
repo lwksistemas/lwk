@@ -130,7 +130,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertIn("Taxa de avaliação", html)
         self.assertIn("150,00", html)
         self.assertNotIn("Desconto retorno", html)
-        self.assertIn("SALDO A PAGAR", html)
+        self.assertIn("Saldo a pagar", html)
 
     def test_procedimento_sem_retorno_mostra_taxa_do_local(self):
         html = gerar_html_recibo(
@@ -179,6 +179,52 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertNotIn("Quitado", html)
         self.assertNotIn("Despesa (clínica)", html)
 
+    def test_parcial_destaca_o_pago_e_o_saldo_e_lista_cada_recebimento(self):
+        html = gerar_html_recibo(
+            self._ctx(
+                data_emissao="04/11/2026 12:06",
+                procedimentos=[{"nome": "PREENCHIMENTO DE GLÚTEOS 100 ML", "valor": 6000.0}],
+                taxa_consulta=0,
+                subtotal=6000.0,
+                valor_total=6000.0,
+                valor_pago=1050.0,
+                saldo_devedor=4950.0,
+                vencimento="12/10/2026",
+                formas_pagamento=[
+                    {"metodo": "Cartão de Débito (30/09/2026)", "valor": 650.0},
+                    {"metodo": "Cartão de Débito (07/10/2026)", "valor": 400.0},
+                ],
+            ),
+        )
+        self.assertIn("RECIBO DE PAGAMENTO — ATENDIMENTO", html)
+        self.assertIn("Valor total dos procedimentos", html)
+        self.assertIn("Total já pago", html)
+        self.assertIn("R$ 1.050,00", html)
+        self.assertIn("Saldo a pagar", html)
+        self.assertIn("R$ 4.950,00", html)
+        self.assertIn("Vencido em: 12/10/2026", html)
+        self.assertIn("Total recebido", html)
+        self.assertIn("30/09/2026", html)
+        self.assertIn("07/10/2026", html)
+        self.assertIn("Pagamento parcial", html)
+        self.assertNotIn("TOTAL PAGO", html)
+        self.assertNotIn(">TOTAL<", html)
+
+    def test_um_recebimento_mostra_o_valor_na_forma(self):
+        html = gerar_html_recibo(
+            self._ctx(
+                subtotal=650.0,
+                valor_total=650.0,
+                valor_pago=500.0,
+                saldo_devedor=150.0,
+                vencimento="",
+                formas_pagamento=[{"metodo": "Cartão de Débito (02/09/2026)", "valor": 500.0}],
+            ),
+        )
+        self.assertIn("Cartão de Débito (02/09/2026) — R$ 500,00", html)
+        self.assertIn("Sem vencimento", html)
+        self.assertIn("Total já pago", html)
+
     def test_saldo_sem_data_informa_que_nao_ha_vencimento(self):
         html = gerar_html_recibo(
             self._ctx(
@@ -188,7 +234,7 @@ class GerarHtmlReciboTests(SimpleTestCase):
                 formas_pagamento=[{"metodo": "PIX (14/09/2026)", "valor": 190.0}],
             ),
         )
-        self.assertIn("SALDO A PAGAR", html)
+        self.assertIn("Saldo a pagar", html)
         self.assertIn("Sem vencimento", html)
         self.assertIn("• Taxa de avaliação", html)
 

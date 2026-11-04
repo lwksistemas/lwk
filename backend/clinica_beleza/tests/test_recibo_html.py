@@ -316,6 +316,20 @@ class GerarHtmlReciboTests(SimpleTestCase):
         self.assertIn("box-shadow: inset 0 0 0 999px", html)
         self.assertNotIn("Profissional", html)
 
+    def test_recibo_embute_a_logomarca_para_a_impressao(self):
+        from unittest.mock import patch
+
+        png = b"\x89PNG\r\n\x1a\n" + b"logo"
+        with patch("clinica_beleza.pdf_common.logo.baixar_logo", return_value=png):
+            html = gerar_html_recibo(self._ctx(
+                logo_url="https://media.lwksistemas.com.br/files/37302743000126/admin/fotos/logo.png",
+                somente_produtos=True,
+                procedimentos=[],
+                taxa_consulta=0,
+            ))
+        self.assertIn("data:image/png;base64,", html)
+        self.assertIn('class="logo"', html)
+
     def test_recibo_ignora_a_logo_da_tela_de_login(self):
         from types import SimpleNamespace
 

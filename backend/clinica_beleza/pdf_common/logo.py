@@ -21,8 +21,11 @@ def baixar_logo(logo_url: str, *, timeout: int = 5) -> bytes | None:
     if not logo_url_permitida(logo_url):
         logger.warning("Logo recusada (URL fora da mídia)")
         return None
+    from core.media_storage import assinar_url_midia
+
+    destino = assinar_url_midia(logo_url)
     try:
-        resp = requests.get(logo_url, timeout=timeout, allow_redirects=False)
+        resp = requests.get(destino, timeout=timeout, allow_redirects=False)
         if resp.status_code != 200 or not resp.content:
             return None
         return resp.content

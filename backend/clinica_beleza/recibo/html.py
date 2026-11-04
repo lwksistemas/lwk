@@ -64,6 +64,34 @@ def _logo_http(url: str) -> str:
     return ""
 
 
+def _tipo_imagem(conteudo: bytes) -> str:
+    if conteudo.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if conteudo.startswith(b"GIF8"):
+        return "image/gif"
+    if conteudo.startswith(b"RIFF") and conteudo[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/png"
+
+
+def _src_logo_recibo(url: str) -> str:
+    """Coloca a logomarca dentro do HTML. O endereço público da mídia exige assinatura e o Chrome não imprime a imagem se o download falha."""
+    import base64
+
+    texto = _logo_http(url)
+    if not texto:
+        return ""
+    from clinica_beleza.pdf_common.logo import baixar_logo
+
+    conteudo = baixar_logo(texto, timeout=8)
+    if not conteudo or len(conteudo) > 2_000_000:
+        from core.media_storage import assinar_url_midia
+
+        return assinar_url_midia(texto)
+    codigo = base64.b64encode(conteudo).decode("ascii")
+    return f"data:{_tipo_imagem(conteudo)};base64,{codigo}"
+
+
 def _celula_item(descricao: str, quantidade: str, unitario: str, subtotal: str) -> str:
     return (
         "<tr>"
@@ -225,7 +253,7 @@ def gerar_html_recibo(ctx: dict) -> str:
             f'<div class="linha"><span>PAGO</span><strong>{formatar_moeda_recibo(valor_pago)}</strong></div>'
         )
 
-    logo = _logo_http(ctx.get("logo_url") or "")
+    logo = _src_logo_recibo(ctx.get("logo_url") or "")
     marca = (
         f'<img class="logo" src="{_t(logo)}" alt="">'
         if logo else

@@ -126,6 +126,7 @@ export function PdvPageContent() {
   const [caixaNome, setCaixaNome] = useState("");
   const [caixaResponsavel, setCaixaResponsavel] = useState("");
   const [caixaRecebido, setCaixaRecebido] = useState(0);
+  const [caixaAReceber, setCaixaAReceber] = useState(0);
   const [caixaVendas, setCaixaVendas] = useState(0);
   const [funcionarios, setFuncionarios] = useState<{ id: number; nome: string }[]>([]);
   const [abrindoCaixa, setAbrindoCaixa] = useState(false);
@@ -190,6 +191,7 @@ export function PdvPageContent() {
     operador?: string;
     vendas_produtos?: number;
     recebido?: number;
+    a_receber?: number;
     funcionarios?: { id: number; nome: string }[];
   }) => {
     const aberto = Boolean(sessao.aberta);
@@ -198,6 +200,7 @@ export function PdvPageContent() {
     setCaixaResponsavel(aberto ? sessao.responsavel || sessao.operador || "" : "");
     setCaixaRecebido(aberto ? Number(sessao.recebido || 0) : 0);
     setCaixaVendas(aberto ? Number(sessao.vendas_produtos || 0) : 0);
+    setCaixaAReceber(aberto ? Number(sessao.a_receber || 0) : 0);
     if (Array.isArray(sessao.funcionarios)) setFuncionarios(sessao.funcionarios);
   }, []);
 
@@ -206,6 +209,7 @@ export function PdvPageContent() {
       setCaixaAberto(false);
       setCaixaRecebido(0);
       setCaixaVendas(0);
+      setCaixaAReceber(0);
     });
   }, [aplicarCaixa]);
 
@@ -350,6 +354,7 @@ export function PdvPageContent() {
       setCaixaResponsavel("");
       setCaixaRecebido(0);
       setCaixaVendas(0);
+      setCaixaAReceber(0);
     } catch (erroCaixa) {
       setErro(mensagemErro(erroCaixa, "Não foi possível fechar o caixa."));
     }
@@ -879,7 +884,7 @@ export function PdvPageContent() {
             ) : (
               <div className="space-y-2 text-sm">
                 <p className="flex justify-between"><span>Recebido hoje</span><strong>{formatCurrency(recebidoHoje)}</strong></p>
-                <p className="flex justify-between"><span>Ainda a receber</span><strong>{formatCurrency(resumo.a_receber)}</strong></p>
+                <p className="flex justify-between"><span>Ainda a receber</span><strong>{formatCurrency(caixaAberto ? caixaAReceber : 0)}</strong></p>
                 <p className="flex justify-between"><span>Vendas de produtos</span><strong>{formatCurrency(vendasProdutos)}</strong></p>
                 <p className="pt-2 text-xs text-gray-500">{caixaAberto ? `Estes valores são do caixa ${caixaNome || "aberto"}${caixaResponsavel ? `, responsável ${caixaResponsavel}` : ""}. Ao fechar, o resumo zera para o próximo operador.` : "Caixa fechado. Recebido e vendas de produtos ficam zerados até a próxima abertura."} O lançamento continua no Financeiro.</p>
                 <button type="button" onClick={() => { void fecharCaixa(); setPainel(null); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>

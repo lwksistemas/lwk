@@ -87,7 +87,7 @@ class CaixaSessaoView(APIView):
             "aberta": aberta is not None,
             "funcionarios": funcionarios_do_caixa(loja_id) if loja_id else [],
         }
-        corpo.update({"vendas_produtos": 0, "recebido": 0})
+        corpo.update({"vendas_produtos": 0, "recebido": 0, "a_receber": 0})
         if aberta is None:
             return Response(corpo)
         corpo.update({

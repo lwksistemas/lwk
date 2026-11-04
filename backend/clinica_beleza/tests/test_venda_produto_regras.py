@@ -12,8 +12,21 @@ from clinica_beleza.venda_produto_service import (
     nome_exibicao_venda,
     pessoa_recibo,
     subtotal_item,
+    totais_sessao_caixa,
     validar_item_venda,
 )
+
+
+class _Vendas:
+    def __init__(self, itens):
+        self.itens = itens
+
+    def select_related(self, *_args, **_kwargs):
+        return self
+
+    def exclude(self, **kwargs):
+        status = kwargs.get("status")
+        return [item for item in self.itens if item.status != status]
 
 
 def _produto(**kwargs):
@@ -23,6 +36,25 @@ def _produto(**kwargs):
 
 
 class VendaProdutoRegrasTest(unittest.TestCase):
+    def test_caixa_sem_venda_nao_tem_valor_a_receber(self):
+        sessao = SimpleNamespace(status="aberta", vendas=_Vendas([]))
+        self.assertEqual(
+            totais_sessao_caixa(sessao),
+            {"vendas_produtos": 0.0, "recebido": 0.0, "a_receber": 0.0},
+        )
+        self.assertEqual(
+            totais_sessao_caixa(SimpleNamespace(status="fechada", vendas=_Vendas([]))),
+            {"vendas_produtos": 0.0, "recebido": 0.0, "a_receber": 0.0},
+        )
+
+    def test_caixa_a_prazo_fica_a_receber_na_gaveta(self):
+        payment = SimpleNamespace(
+            status="PENDING", amount=Decimal("0"), valor_total=Decimal("80"), valor_produtos=Decimal("80"),
+        )
+        venda = SimpleNamespace(status="concluida", payment=payment)
+        totais = totais_sessao_caixa(SimpleNamespace(status="aberta", vendas=_Vendas([venda])))
+        self.assertEqual(totais["a_receber"], 80.0)
+        self.assertEqual(totais["recebido"], 0.0)
     def test_subtotal_separa_desconto_da_linha(self):
         self.assertEqual(subtotal_item("2", "50", "10"), Decimal("90"))
         self.assertEqual(subtotal_item("1", "10", "40"), Decimal("0"))

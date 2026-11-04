@@ -153,16 +153,26 @@ def totais_sessao_caixa(sessao) -> dict:
 
     vendas = Decimal("0")
     recebido = Decimal("0")
+    a_receber = Decimal("0")
     if sessao is None or getattr(sessao, "status", "") != "aberta":
-        return {"vendas_produtos": 0.0, "recebido": 0.0}
+        return {"vendas_produtos": 0.0, "recebido": 0.0, "a_receber": 0.0}
     for venda in sessao.vendas.select_related("payment").exclude(status="cancelada"):
         payment = venda.payment
         if payment is None or payment.status == "CANCELLED":
             continue
         vendas += Decimal(str(payment.valor_produtos or 0))
+        total = Decimal(str(payment.valor_total if payment.valor_total is not None else payment.amount or 0))
         if payment.status == "PAID":
             recebido += Decimal(str(payment.amount or 0))
-    return {"vendas_produtos": float(vendas), "recebido": float(recebido)}
+            continue
+        pago = Decimal(str(payment.amount or 0))
+        if total > pago:
+            a_receber += total - pago
+    return {
+        "vendas_produtos": float(vendas),
+        "recebido": float(recebido),
+        "a_receber": float(a_receber),
+    }
 
 
 def sessao_caixa_aberta(loja_id):

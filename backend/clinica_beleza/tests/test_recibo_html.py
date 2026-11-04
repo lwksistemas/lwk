@@ -76,11 +76,11 @@ class GerarHtmlReciboTests(SimpleTestCase):
                 metodo="",
             ),
         )
-        self.assertIn("RECIBO DE PAGAMENTO — ATENDIMENTO", html)
+        self.assertIn("COMPROVANTE DE ATENDIMENTO", html)
         self.assertIn("Sem valor a pagar", html)
         self.assertNotIn("Sem saldo", html)
         self.assertNotIn("integralmente descontada", html)
-        self.assertIn("Laser etherea", html)
+        self.assertIn("Laser Etherea", html)
         self.assertNotIn("Quitado", html)
         self.assertNotIn("Isento — retorno", html)
         self.assertNotIn("Desconto retorno", html)
@@ -167,10 +167,15 @@ class GerarHtmlReciboTests(SimpleTestCase):
                 formas_pagamento=[{"metodo": "Despesa (clínica) (18/09/2026)", "valor": 350.0}],
             ),
         )
-        self.assertIn("RECIBO DE PAGAMENTO — ATENDIMENTO", html)
+        self.assertIn("COMPROVANTE DE ATENDIMENTO", html)
+        self.assertIn("Valor do procedimento", html)
+        self.assertIn("Valor pago pelo paciente", html)
+        self.assertIn("R$ 0,00", html)
+        self.assertIn("Situação:", html)
         self.assertIn("Custeado pela clínica", html)
+        self.assertEqual(html.count("Profissional"), 1)
         self.assertNotIn("TOTAL PAGO", html)
-        self.assertNotIn("VALOR PAGO", html)
+        self.assertNotIn("Forma de pagamento", html)
         self.assertNotIn("Quitado", html)
         self.assertNotIn("Despesa (clínica)", html)
 

@@ -10,6 +10,7 @@ from .context import (
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
     _obter_dados_contexto,
+    comprovante_sem_cobranca,
     cor_primaria_recibo,
     custeado_pela_clinica,
     linha_valor_com_desconto_recibo,
@@ -21,9 +22,12 @@ from .context import (
     recebido_a_maior_recibo,
     reconciliar_conta_recibo,
     rotulo_forma_recibo,
+    rotulo_numero_recibo,
     rotulo_subtotal_recibo,
     rotulo_total_recibo,
+    situacao_comprovante_recibo,
     situacao_recibo,
+    texto_cadastro_recibo,
     tinta_recibo,
     titulo_recibo,
 )
@@ -231,6 +235,7 @@ def gerar_html_recibo(ctx: dict) -> str:
     titulo_tabela, linhas_tabela = _linhas_tabela(ctx)
     somente_produtos = bool(ctx.get("somente_produtos"))
     custeio = situacao == "quitado" and custeado_pela_clinica(ctx)
+    comprovante = comprovante_sem_cobranca(ctx)
     rotulo = rotulo_total_recibo(ctx)
     if situacao == "quitado" and not custeio and rotulo == "Total":
         rotulo_destaque = "TOTAL PAGO"
@@ -264,6 +269,19 @@ def gerar_html_recibo(ctx: dict) -> str:
             f'<div class="linha"><span>{_t(valor_com_desconto[0])}</span>'
             f'<strong>{formatar_moeda_recibo(valor_com_desconto[1])}</strong></div>'
         )
+    if comprovante:
+        linha_procedimento = (
+            f'<div class="linha"><span>Valor do procedimento</span>'
+            f'<strong>{formatar_moeda_recibo(ctx.get("valor_total") or 0)}</strong></div>'
+        )
+        if descontos or protocolo_info or valor_com_desconto:
+            resumo += linha_procedimento
+        else:
+            resumo = linha_procedimento
+        rotulo_destaque = "Valor pago pelo paciente"
+        valor_destaque = 0
+    else:
+        valor_destaque = ctx.get("valor_total") or 0
 
     valor_pago = float(ctx.get("valor_pago") or 0)
     formas = [
@@ -323,8 +341,6 @@ def gerar_html_recibo(ctx: dict) -> str:
         f'<p class="marca">{_t((ctx.get("loja_nome") or "CLÍNICA").upper())}</p>'
     )
     nome_abaixo = ""
-    if logo and ctx.get("loja_nome"):
-        nome_abaixo = f'<p class="razao">{_t(ctx.get("loja_nome"))}</p>'
 
     cpf = (ctx.get("paciente_cpf") or "").strip()
     rotulo_pessoa = "Cliente" if somente_produtos else "Paciente"
@@ -348,43 +364,37 @@ def gerar_html_recibo(ctx: dict) -> str:
             f'<span class="item">{_icone("pessoa", cor)}'
             f'<span><strong>Recebido por:</strong> {_t(ctx.get("operador_nome"))}</span></span>'
         )
-    elif not somente_produtos and ctx.get("profissional_nome"):
-        operacional.append(
-            f'<span class="item">{_icone("pessoa", cor)}'
-            f'<span><strong>Profissional:</strong> {_t(ctx.get("profissional_nome"))}</span></span>'
-        )
     operacional_html = (
         f'<div class="ops tinta">{"<span class=\"divisoria\"></span>".join(operacional)}</div>'
         if operacional else ""
     )
 
     numero = ctx.get("recibo_numero")
+    rotulo_num = rotulo_numero_recibo(ctx)
     meta = " · ".join(
         parte for parte in (
-            f'Recibo nº {_t(numero)}' if numero else "",
+            f'{rotulo_num} nº {_t(numero)}' if numero else "",
             f'Emitido em {_t(data_emissao)}',
         ) if parte
     )
     aviso = (ctx.get("retorno_aviso") or "").strip()
-    nota = (
-        "Recibo comercial de produto · Documento não fiscal"
-        if somente_produtos else
-        "Recibo de prestação de serviços · Documento não fiscal."
-    )
-    endereco = _t(ctx.get("loja_endereco") or "")
+    if somente_produtos:
+        nota = "Recibo comercial de produto · Documento não fiscal"
+    elif comprovante:
+        nota = "Comprovante de atendimento · Documento não fiscal."
+    else:
+        nota = "Recibo de prestação de serviços · Documento não fiscal."
+    endereco = _t(texto_cadastro_recibo(ctx.get("loja_endereco") or ""))
     telefone = _t(ctx.get("loja_telefone") or "")
     email = _t(ctx.get("loja_email") or "")
     partes_contato = []
     if endereco:
-        partes_contato.append(f'<span class="item">{_icone("pin", cor)}<span>{endereco}</span></span>')
+        partes_contato.append(f'<p class="contato linha">{_icone("pin", cor)}<span>{endereco}</span></p>')
     if telefone:
-        partes_contato.append(f'<span class="item">{_icone("telefone", cor)}<span>{telefone}</span></span>')
+        partes_contato.append(f'<p class="contato linha">{_icone("telefone", cor)}<span>{telefone}</span></p>')
     if email:
-        partes_contato.append(f'<span class="item">{_icone("email", cor)}<span>{email}</span></span>')
-    contato = (
-        f'<p class="contato icones">{"<span class=\"sep\">|</span>".join(partes_contato)}</p>'
-        if partes_contato else ""
-    )
+        partes_contato.append(f'<p class="contato linha">{_icone("email", cor)}<span>{email}</span></p>')
+    contato = "".join(partes_contato)
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
@@ -402,8 +412,7 @@ def gerar_html_recibo(ctx: dict) -> str:
   .doc, .contato {{ margin: 4px 0 0; font-size: 13px; color: #5c5562; }}
   .icone {{ flex: 0 0 auto; display: block; }}
   .campo, .item {{ display: flex; align-items: center; gap: 8px; }}
-  .contato.icones {{ display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 6px 8px; }}
-  .sep {{ color: #c4b8cc; }}
+  .contato.linha {{ display: flex; justify-content: center; align-items: flex-start; gap: 6px; margin: 3px auto 0; max-width: 560px; }}
   .tinta {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
   .faixa {{ margin: 18px 0 8px; background-color: {cor}; box-shadow: inset 0 0 0 999px {cor}; color: #fff; text-align: center; border-radius: 10px; padding: 10px 16px; font-weight: 700; letter-spacing: 0.04em; }}
   .meta {{ text-align: center; color: #5c5562; font-size: 14px; margin: 0 0 16px; }}
@@ -463,11 +472,11 @@ def gerar_html_recibo(ctx: dict) -> str:
     {extra_html}
     {saldo_html}
   </div>
-  <div class="destaque tinta"><span class="rotulo">{_t(rotulo_destaque)}</span><span class="pill tinta">{formatar_moeda_recibo(ctx.get("valor_total") or 0)}</span></div>
-  <div class="pagamento">
+  <div class="destaque tinta"><span class="rotulo">{_t(rotulo_destaque)}</span><span class="pill tinta">{formatar_moeda_recibo(valor_destaque)}</span></div>
+  {f'<div class="pagamento"><span><strong>Situação:</strong> {_t(situacao_comprovante_recibo(ctx))}</span></div>' if comprovante else f'''<div class="pagamento">
     <span class="item">{_icone("cartao", cor) if formas_texto and not custeio else ''}<span>{f'<strong>{_t(rotulo_forma)}:</strong> {_t(formas_texto)}' if formas_texto else ''}</span></span>
     {situacao_html}
-  </div>
+  </div>'''}
   {operacional_html}
   {f'<p class="miudo">{_t(aviso)}</p>' if aviso else ''}
   <div class="rodape tinta">

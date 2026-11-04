@@ -9,6 +9,7 @@ from .context import (
     _linha_tel_cep,
     _linhas_descontos_recibo,
     _linhas_taxa_consulta_recibo,
+    comprovante_sem_cobranca,
     cor_primaria_recibo,
     custeado_pela_clinica,
     linha_valor_com_desconto_recibo,
@@ -20,9 +21,12 @@ from .context import (
     recebido_a_maior_recibo,
     reconciliar_conta_recibo,
     rotulo_forma_recibo,
+    rotulo_numero_recibo,
     rotulo_subtotal_recibo,
     rotulo_total_recibo,
+    situacao_comprovante_recibo,
     situacao_recibo,
+    texto_cadastro_recibo,
     tinta_recibo,
     titulo_recibo,
 )
@@ -388,8 +392,6 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
     logo = _logo_rodape_recibo((ctx.get("logo_url") or "").strip(), mm_unit)
     if logo is not None:
         story.append(logo)
-        if ctx.get("loja_nome"):
-            story.append(Paragraph(_texto_pdf(ctx["loja_nome"]), s_centro))
     elif ctx.get("loja_nome"):
         story.append(Paragraph(_texto_pdf(str(ctx["loja_nome"]).upper()), estilo(
             "marca", fontName="Helvetica-Bold", fontSize=14, leading=18, alignment=TA_CENTER,
@@ -419,40 +421,28 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
 
     contato_itens = []
     if ctx.get("loja_endereco"):
-        contato_itens.append(("pin", ctx["loja_endereco"]))
+        contato_itens.append(("pin", texto_cadastro_recibo(ctx["loja_endereco"])))
     if ctx.get("loja_telefone"):
         contato_itens.append(("telefone", ctx["loja_telefone"]))
     if ctx.get("loja_email"):
         contato_itens.append(("email", ctx["loja_email"]))
-    if contato_itens:
-        pares = [
-            (icone, texto, stringWidth(str(texto), "Helvetica", 9) + 4)
-            for icone, texto in contato_itens
-        ]
-        extra = (len(pares) - 1) * 12 + len(pares) * 16
-        soma = extra + sum(item[2] for item in pares)
-        if soma > col_w and pares:
-            pares[0] = (pares[0][0], pares[0][1], max(90, pares[0][2] - (soma - col_w)))
-        celulas, larguras = [], []
-        for indice, (icone, texto, largura_texto) in enumerate(pares):
-            if indice:
-                celulas.append(Paragraph("|", s_centro))
-                larguras.append(12)
-            celulas.append(_icone_pdf(icone, cor))
-            larguras.append(16)
-            celulas.append(Paragraph(_texto_pdf(texto), s_contato))
-            larguras.append(largura_texto)
-        contato = Table([celulas], colWidths=larguras)
-        contato.hAlign = "CENTER"
-        contato.setStyle(TableStyle([
+    for icone, texto in contato_itens:
+        largura_texto = min(col_w - 24, max(stringWidth(str(texto), "Helvetica", 9) + 8, 40))
+        linha = Table(
+            [[_icone_pdf(icone, cor), Paragraph(_texto_pdf(texto), s_contato)]],
+            colWidths=[18, largura_texto],
+        )
+        linha.hAlign = "CENTER"
+        linha.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (0, 0), (0, 0), "CENTER"),
             ("LEFTPADDING", (0, 0), (-1, -1), 1),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
             ("TOPPADDING", (0, 0), (-1, -1), 1),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
         ]))
-        story.append(contato)
-    elif not ctx.get("loja_telefone"):
+        story.append(linha)
+    if not contato_itens and not ctx.get("loja_telefone"):
         tel_cep = ctx.get("loja_tel_cep") or _linha_tel_cep(ctx.get("loja_telefone", ""), ctx.get("loja_cep", ""))
         if tel_cep:
             story.append(Paragraph(_texto_pdf(tel_cep), s_centro))
@@ -467,7 +457,7 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
     numero = ctx.get("recibo_numero")
     meta = f"Emitido em {_texto_pdf(data_emissao)}"
     if numero:
-        meta = f"Recibo nº {_texto_pdf(numero)}  |  {meta}"
+        meta = f"{rotulo_numero_recibo(ctx)} nº {_texto_pdf(numero)}  |  {meta}"
     story.append(Spacer(1, 2 * mm_unit))
     story.append(Paragraph(meta, s_centro))
     if subtitulo:
@@ -501,6 +491,7 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
 
     situacao = situacao_recibo(ctx)
     custeio = situacao == "quitado" and custeado_pela_clinica(ctx)
+    comprovante = comprovante_sem_cobranca(ctx)
     produtos = produtos_exibidos_recibo(ctx)
     servicos = []
     for label, valor in _linhas_taxa_consulta_recibo(ctx):
@@ -581,9 +572,11 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
         return tabela
 
     subtotal = float(ctx.get("subtotal", ctx.get("valor_total") or 0))
+    descontos = _linhas_descontos_recibo(ctx)
     story.append(Spacer(1, 2 * mm_unit))
-    story.append(linha_valor(rotulo_subtotal_recibo(ctx), subtotal))
-    for label, valor in _linhas_descontos_recibo(ctx):
+    if not comprovante or descontos:
+        story.append(linha_valor(rotulo_subtotal_recibo(ctx), subtotal))
+    for label, valor in descontos:
         story.append(linha_valor(label, valor, negativo=True))
     protocolo = linhas_protocolo_informativo(ctx)
     if protocolo:
@@ -603,18 +596,26 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
     if not custeio and saldo > 0.009:
         story.append(linha_valor("SALDO A PAGAR", saldo))
         story.append(Paragraph(_texto_pdf(linha_vencimento_recibo(ctx)), s_nota))
+    if comprovante:
+        story.append(linha_valor("Valor do procedimento", float(ctx.get("valor_total") or 0)))
 
     rotulo = rotulo_total_recibo(ctx)
-    if situacao == "quitado" and not custeio and rotulo == "Total":
+    if comprovante:
+        rotulo_destaque = "Valor pago pelo paciente"
+        valor_destaque = 0
+    elif situacao == "quitado" and not custeio and rotulo == "Total":
         rotulo_destaque = "TOTAL PAGO"
+        valor_destaque = float(ctx.get("valor_total") or 0)
     elif rotulo == "Total":
         rotulo_destaque = "TOTAL"
+        valor_destaque = float(ctx.get("valor_total") or 0)
     else:
         rotulo_destaque = rotulo
+        valor_destaque = float(ctx.get("valor_total") or 0)
     destaque = Table(
         [[
             Paragraph(f"<b>{_texto_pdf(rotulo_destaque)}</b>", s_rotulo),
-            Paragraph(f"<b>{formatar_moeda_recibo(ctx.get('valor_total') or 0)}</b>", s_pill),
+            Paragraph(f"<b>{formatar_moeda_recibo(valor_destaque)}</b>", s_pill),
         ]],
         colWidths=[col_w * 0.72, col_w * 0.28],
     )
@@ -632,77 +633,76 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
     story.append(Spacer(1, 2 * mm_unit))
     story.append(destaque)
 
-    formas = [f for f in (ctx.get("formas_pagamento") or []) if float(f.get("valor") or 0) > 0.009]
-    if not formas and valor_pago > 0.009:
-        formas = [{"metodo": ctx.get("metodo") or "Pagamento", "valor": valor_pago}]
-    if custeio:
-        formas_texto = "Custeado pela clínica"
-    elif len(formas) > 1:
-        formas_texto = " · ".join(
-            f"{rotulo_forma_recibo(f.get('metodo') or '')} {formatar_moeda_recibo(f.get('valor') or 0)}"
-            for f in formas
-        )
-    elif formas:
-        formas_texto = rotulo_forma_recibo(formas[0].get("metodo") or "")
-    else:
-        formas_texto = (ctx.get("condicao_cobranca") or "").strip()
-    rotulo_forma = "Formas de pagamento" if len(formas) > 1 else "Forma de pagamento"
-    if custeio:
-        situacao_txt, sit_style = "Custeado pela clínica", s_neutro
-    elif situacao == "sem_saldo":
-        situacao_txt, sit_style = subtitulo or "Sem valor a pagar", s_neutro
-    elif situacao == "parcial":
-        situacao_txt, sit_style = "Pagamento parcial", s_aviso_sit
-    elif situacao == "em_aberto":
-        situacao_txt, sit_style = "Em aberto", s_aviso_sit
-    elif situacao == "quitado":
-        situacao_txt, sit_style = "Quitado", s_ok
-    else:
-        situacao_txt, sit_style = "", s_neutro
-    if formas_texto and not custeio:
-        forma_flow = linha_icone(
-            "cartao",
-            f"<b>{_texto_pdf(rotulo_forma)}:</b> {_texto_pdf(formas_texto)}",
-            largura=col_w * 0.66,
-        )
-    else:
-        forma_flow = Paragraph(
-            f"<b>{_texto_pdf(rotulo_forma)}:</b> {_texto_pdf(formas_texto)}" if formas_texto else "",
+    if comprovante:
+        story.append(Paragraph(
+            f"<b>Situação:</b> {_texto_pdf(situacao_comprovante_recibo(ctx))}",
             s_cliente,
-        )
-    if situacao == "quitado" and not custeio:
-        s_ok_esq = estilo("ok_esq", fontName="Helvetica-Bold", fontSize=10, textColor=verde)
-        selo = Table(
-            [[_icone_pdf("ok", verde, 14), Paragraph("Quitado", s_ok_esq)]],
-            colWidths=[16, 58],
-        )
-        selo.hAlign = "RIGHT"
-        selo.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 1),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 1),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-            ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
-        ]))
+        ))
     else:
-        selo = Paragraph(_texto_pdf(situacao_txt), sit_style)
-    pagamento = Table(
-        [[forma_flow, selo]],
-        colWidths=[col_w * 0.68, col_w * 0.32],
-    )
-    pagamento.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-    ]))
-    story.append(pagamento)
+        formas = [f for f in (ctx.get("formas_pagamento") or []) if float(f.get("valor") or 0) > 0.009]
+        if not formas and valor_pago > 0.009:
+            formas = [{"metodo": ctx.get("metodo") or "Pagamento", "valor": valor_pago}]
+        if len(formas) > 1:
+            formas_texto = " · ".join(
+                f"{rotulo_forma_recibo(f.get('metodo') or '')} {formatar_moeda_recibo(f.get('valor') or 0)}"
+                for f in formas
+            )
+        elif formas:
+            formas_texto = rotulo_forma_recibo(formas[0].get("metodo") or "")
+        else:
+            formas_texto = (ctx.get("condicao_cobranca") or "").strip()
+        rotulo_forma = "Formas de pagamento" if len(formas) > 1 else "Forma de pagamento"
+        if situacao == "sem_saldo":
+            situacao_txt, sit_style = subtitulo or "Sem valor a pagar", s_neutro
+        elif situacao == "parcial":
+            situacao_txt, sit_style = "Pagamento parcial", s_aviso_sit
+        elif situacao == "em_aberto":
+            situacao_txt, sit_style = "Em aberto", s_aviso_sit
+        elif situacao == "quitado":
+            situacao_txt, sit_style = "Quitado", s_ok
+        else:
+            situacao_txt, sit_style = "", s_neutro
+        if formas_texto:
+            forma_flow = linha_icone(
+                "cartao",
+                f"<b>{_texto_pdf(rotulo_forma)}:</b> {_texto_pdf(formas_texto)}",
+                largura=col_w * 0.66,
+            )
+        else:
+            forma_flow = Paragraph("", s_cliente)
+        if situacao == "quitado":
+            s_ok_esq = estilo("ok_esq", fontName="Helvetica-Bold", fontSize=10, textColor=verde)
+            selo = Table(
+                [[_icone_pdf("ok", verde, 14), Paragraph("Quitado", s_ok_esq)]],
+                colWidths=[16, 58],
+            )
+            selo.hAlign = "RIGHT"
+            selo.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 1),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+            ]))
+        else:
+            selo = Paragraph(_texto_pdf(situacao_txt), sit_style)
+        pagamento = Table(
+            [[forma_flow, selo]],
+            colWidths=[col_w * 0.68, col_w * 0.32],
+        )
+        pagamento.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("LEFTPADDING", (0, 0), (-1, -1), 2),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+        ]))
+        story.append(pagamento)
 
     operacional = []
     tem_caixa = bool(ctx.get("caixa_nome"))
-    tem_recebedor = bool(ctx.get("operador_nome") or (not somente and ctx.get("profissional_nome")))
+    tem_recebedor = bool(ctx.get("operador_nome"))
     largura_ops = (col_w / 2) - 28 if tem_caixa and tem_recebedor else (col_w - 36)
     if ctx.get("caixa_nome"):
         operacional.append(linha_icone(
@@ -711,10 +711,6 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
     if ctx.get("operador_nome"):
         operacional.append(linha_icone(
             "pessoa", f"<b>Recebido por:</b> {_texto_pdf(ctx['operador_nome'])}", largura=largura_ops,
-        ))
-    elif not somente and ctx.get("profissional_nome"):
-        operacional.append(linha_icone(
-            "pessoa", f"<b>Profissional:</b> {_texto_pdf(ctx['profissional_nome'])}", largura=largura_ops,
         ))
     if operacional:
         story.append(Spacer(1, 1 * mm_unit))
@@ -739,11 +735,12 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
     if aviso:
         story.append(Spacer(1, 2 * mm_unit))
         story.append(Paragraph(_texto_pdf(aviso), s_nota))
-    nota = (
-        "Recibo comercial de produto · Documento não fiscal"
-        if somente else
-        "Recibo de prestação de serviços · Documento não fiscal."
-    )
+    if somente:
+        nota = "Recibo comercial de produto · Documento não fiscal"
+    elif comprovante:
+        nota = "Comprovante de atendimento · Documento não fiscal."
+    else:
+        nota = "Recibo de prestação de serviços · Documento não fiscal."
     story.append(Spacer(1, 3 * mm_unit))
     story.append(caixa([
         [Paragraph("Agradecemos pela preferência!", s_obrigado)],

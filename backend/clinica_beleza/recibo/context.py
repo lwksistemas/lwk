@@ -1084,16 +1084,68 @@ def tinta_recibo(cor: str, fator: float = 0.9) -> str:
     return "#{:02X}{:02X}{:02X}".format(*mistos)
 
 
+def comprovante_sem_cobranca(ctx: dict) -> bool:
+    """Atendimento em que o paciente não pagou: custeio da clínica ou sem valor."""
+    if ctx.get("somente_produtos"):
+        return False
+    if custeado_pela_clinica(ctx):
+        return True
+    return situacao_recibo(ctx) == "sem_saldo"
+
+
+def situacao_comprovante_recibo(ctx: dict) -> str:
+    if custeado_pela_clinica(ctx):
+        return "Custeado pela clínica"
+    if situacao_recibo(ctx) == "sem_saldo":
+        return "Sem valor a pagar"
+    return ""
+
+
+def rotulo_numero_recibo(ctx: dict) -> str:
+    return "Comprovante" if comprovante_sem_cobranca(ctx) else "Recibo"
+
+
+_UF_RECIBO = {
+    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
+    "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+}
+
+
+def texto_cadastro_recibo(texto: str) -> str:
+    """Tira o caixa-alta do endereço gravado. Sigla de estado permanece."""
+    texto = " ".join(str(texto or "").split())
+    if not texto or not _nome_em_caixa_alta(texto):
+        return texto
+    palavras = []
+    for indice, palavra in enumerate(texto.split()):
+        nucleo = palavra.strip(",.;")
+        sufixo = palavra[len(nucleo):]
+        if nucleo.upper() in _UF_RECIBO and nucleo.isalpha():
+            palavras.append(nucleo.upper() + sufixo)
+            continue
+        baixa = palavra.casefold()
+        miuda = baixa.strip(",.;")
+        if indice and miuda in _MIUDAS_RECIBO:
+            palavras.append(baixa)
+            continue
+        if not baixa[:1].isalpha():
+            palavras.append(palavra)
+            continue
+        palavras.append(baixa[:1].upper() + baixa[1:])
+    return " ".join(palavras)
+
+
 def titulo_recibo(ctx: dict) -> tuple[str, str]:
     """Título do documento e a situação, no mesmo visual para venda e atendimento."""
-    titulo = (
-        "RECIBO DE VENDA DE PRODUTOS"
-        if ctx.get("somente_produtos")
-        else "RECIBO DE PAGAMENTO — ATENDIMENTO"
-    )
+    if ctx.get("somente_produtos"):
+        titulo = "RECIBO DE VENDA DE PRODUTOS"
+    elif comprovante_sem_cobranca(ctx):
+        titulo = "COMPROVANTE DE ATENDIMENTO"
+    else:
+        titulo = "RECIBO DE PAGAMENTO — ATENDIMENTO"
     situacao = situacao_recibo(ctx)
-    if situacao == "quitado" and custeado_pela_clinica(ctx):
-        return titulo, "Custeado pela clínica"
+    if comprovante_sem_cobranca(ctx):
+        return titulo, ""
     if situacao == "sem_saldo":
         return titulo, "Sem valor a pagar"
     if situacao == "em_aberto":

@@ -122,12 +122,17 @@ export function FinanceiroReceitasTab({
                 payments.map((p) => {
                   const status = statusPagamentoReceita(p);
                   const vencimentoPrazo = rotuloVencimentoPrazo(p);
+                  const anterior = p.origem === "procedimento_anterior";
+                  const falta = anterior && p.saldo_devedor > 0 ? ` · falta ${formatCurrency(p.saldo_devedor)}` : "";
                   return (
-                  <tr key={p.id} className="border-b border-gray-100 dark:border-neutral-700">
+                  <tr key={anterior ? `anterior-${p.id}` : `pagamento-${p.id}`} className="border-b border-gray-100 dark:border-neutral-700">
                     <td className="py-3 px-4">{p.paciente_nome || "—"}</td>
                     <td className="py-3 px-4">{p.profissional_nome || "—"}</td>
                     <td className="py-3 px-4 max-w-[220px] text-sm leading-snug col-allow-wrap">
                       {p.procedimento_nome || "Consulta"}
+                      {anterior && (
+                        <span className="block text-xs text-gray-500">Antes do sistema</span>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-right font-medium">
                       {formatCurrency(p.valor_total_efetivo ?? p.amount)}
@@ -155,7 +160,7 @@ export function FinanceiroReceitasTab({
                         >
                           Retorno
                         </button>
-                      ) : status === "PAID" || status === "PARTIAL" ? (
+                      ) : (status === "PAID" || status === "PARTIAL") && !anterior ? (
                         <button
                           type="button"
                           onClick={() => onAbrirRecibo(p)}
@@ -174,17 +179,20 @@ export function FinanceiroReceitasTab({
                         </button>
                       ) : (
                         <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                          status === "PENDING"
+                          status === "PENDING" || status === "PARTIAL"
                             ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                            : "bg-gray-100 dark:bg-neutral-600"
+                            : status === "PAID"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              : "bg-gray-100 dark:bg-neutral-600"
                         }`}>
                           {CLINICA_PAGAMENTO_STATUS_LABEL[status] || status}
+                          {falta}
                         </span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-right col-allow-wrap">
-                      {formatCurrency(p.comissao_valor || 0)}
-                      {p.comissao_percentual ? (
+                      {anterior ? "—" : formatCurrency(p.comissao_valor || 0)}
+                      {!anterior && p.comissao_percentual ? (
                         <span className="block text-xs text-gray-500 font-normal">
                           ref. {p.comissao_percentual}% do total
                         </span>
@@ -198,10 +206,10 @@ export function FinanceiroReceitasTab({
                             onClick={() => onBaixa(p)}
                             className="text-xs px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium whitespace-nowrap"
                           >
-                            {status === "PARTIAL" ? "Complementar" : "Dar Baixa"}
+                            {anterior ? "Receber" : status === "PARTIAL" ? "Complementar" : "Dar Baixa"}
                           </button>
                         )}
-                        {podeCorrigirFormaPagamento(p) && (
+                        {!anterior && podeCorrigirFormaPagamento(p) && (
                           <button
                             type="button"
                             onClick={() => onCorrigirForma(p)}
@@ -210,7 +218,7 @@ export function FinanceiroReceitasTab({
                             Corrigir forma
                           </button>
                         )}
-                        {p.vencido && (
+                        {!anterior && p.vencido && (
                           <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"

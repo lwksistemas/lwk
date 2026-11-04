@@ -63,6 +63,60 @@ class PrazoCriadoPeloAdminTest(SimpleTestCase):
         self.assertFalse(paciente.tem_prazo_pagamento)
 
 
+class ListaFinanceiroProcedimentoAnteriorTest(SimpleTestCase):
+    def _item(self):
+        from types import SimpleNamespace
+
+        paciente = SimpleNamespace(id=2262, nome="TALITA MAGELA")
+        return SimpleNamespace(
+            id=15,
+            patient=paciente,
+            patient_id=2262,
+            nome="SORO REPOSIÇÃO COMPLETA DE VITAMINAS",
+            valor=Decimal("450.00"),
+            valor_pago=Decimal("0.00"),
+            data_pagamento=None,
+            data_procedimento=date(2026, 11, 2),
+            data_vencimento=date(2026, 11, 11),
+            created_at=None,
+        )
+
+    def test_saldo_aberto_entra_como_pendente_a_prazo(self):
+        from clinica_beleza.procedimento_anterior_service import linha_financeiro_anterior
+
+        linha = linha_financeiro_anterior(self._item(), [], date(2026, 11, 4))
+        self.assertEqual(linha["origem"], "procedimento_anterior")
+        self.assertEqual(linha["paciente_nome"], "TALITA MAGELA")
+        self.assertEqual(linha["status"], "PENDING")
+        self.assertEqual(linha["saldo_devedor"], 450.0)
+        self.assertEqual(linha["payment_method"], "PRAZO")
+        self.assertEqual(linha["data_vencimento"], "2026-11-11")
+        self.assertEqual(linha["comissao_valor"], "0.00")
+        self.assertFalse(linha["vencido"])
+
+    def test_aberto_aparece_mesmo_filtrando_outro_dia(self):
+        from clinica_beleza.procedimento_anterior_service import (
+            entra_na_lista_do_financeiro,
+            linha_financeiro_anterior,
+        )
+
+        linha = linha_financeiro_anterior(self._item(), [], date(2026, 11, 4))
+        self.assertTrue(entra_na_lista_do_financeiro(linha, date_filter="2026-11-04"))
+        self.assertTrue(entra_na_lista_do_financeiro(linha, status="PENDING"))
+        self.assertFalse(entra_na_lista_do_financeiro(linha, status="PAID"))
+        self.assertFalse(entra_na_lista_do_financeiro(linha, professional_id="3"))
+
+    def test_entrada_parcial_continua_em_aberto(self):
+        from types import SimpleNamespace
+
+        from clinica_beleza.procedimento_anterior_service import linha_financeiro_anterior
+
+        recebimento = SimpleNamespace(valor=Decimal("100.00"), data=date(2026, 11, 3))
+        linha = linha_financeiro_anterior(self._item(), [recebimento], date(2026, 11, 4))
+        self.assertEqual(linha["status"], "PARTIAL")
+        self.assertEqual(linha["saldo_devedor"], 350.0)
+
+
 class SaldoProcedimentoAnteriorTest(SimpleTestCase):
     def test_saldo_desconta_entrada_e_recebimentos(self):
         saldo = saldo_anterior(Decimal("1000.00"), Decimal("300.00"), [Decimal("200.00")])

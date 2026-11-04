@@ -105,6 +105,10 @@ class TestResumoSeparaPrazo(SimpleTestCase):
             patch("clinica_beleza.financeiro_service.somar_a_receber_periodo", side_effect=somar),
             patch("clinica_beleza.financeiro_service.somar_desconto_periodo", return_value=0),
             patch("clinica_beleza.financeiro_service.somar_contas_a_receber", return_value=0),
+            patch(
+                "clinica_beleza.procedimento_anterior_service.somar_saldo_procedimentos_anteriores",
+                return_value=0,
+            ),
             patch("clinica_beleza.financeiro_service.payments_visiveis_financeiro", return_value=qs),
             patch("clinica_beleza.financeiro_service.Payment") as payment,
             patch("clinica_beleza.financeiro_service.Despesa") as despesa,

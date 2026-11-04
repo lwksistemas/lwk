@@ -644,7 +644,9 @@ def montar_resumo_financeiro(*, ano: int, mes: int, today: date | None = None) -
         appointment__date__date__lte=period_end,
     )).exclude(payment_method=METODO_DESPESA)
     faturamento = _sum(pagos_caixa) + _sum(parciais_mes)
-    contas_a_receber = somar_contas_a_receber()
+    from .procedimento_anterior_service import somar_saldo_procedimentos_anteriores
+
+    contas_a_receber = somar_contas_a_receber() + somar_saldo_procedimentos_anteriores()
     a_receber_mes = somar_a_receber_periodo(first_day, last_day, excluir_metodo="PRAZO")
     a_prazo_mes = somar_a_receber_periodo(first_day, last_day, payment_method="PRAZO")
     desconto_mes = somar_desconto_periodo(first_day, last_day)

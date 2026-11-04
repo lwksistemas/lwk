@@ -12,7 +12,9 @@ export interface FinanceiroResumo {
 
 export interface FinanceiroPayment {
   id: number;
-  appointment: number;
+  origem?: "procedimento_anterior";
+  patient_id?: number | null;
+  appointment: number | null;
   amount: string;
   valor_total: string | null;
   valor_total_efetivo: number;

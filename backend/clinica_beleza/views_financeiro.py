@@ -34,6 +34,33 @@ from .throttles import PublicPdfThrottle
 from .views_base import GetObjectMixin, resolve_loja_id_from_request
 
 
+def _incluir_procedimentos_anteriores(resposta, request):
+    """Saldo de procedimento anterior entra na primeira página, sem novo pagamento."""
+    from .procedimento_anterior_service import linhas_financeiras_anteriores
+
+    try:
+        pagina = int(request.query_params.get("page") or 1)
+    except (TypeError, ValueError):
+        pagina = 1
+    if pagina > 1:
+        return resposta
+    linhas = linhas_financeiras_anteriores(
+        status=request.query_params.get("status"),
+        date_filter=request.query_params.get("date"),
+        professional_id=request.query_params.get("professional"),
+        hoje=data_hoje_clinica(),
+    )
+    if not linhas:
+        return resposta
+    dados = resposta.data
+    if isinstance(dados, list):
+        return Response(linhas + dados)
+    if isinstance(dados, dict) and isinstance(dados.get("results"), list):
+        dados["results"] = linhas + dados["results"]
+        return Response(dados)
+    return resposta
+
+
 class PaymentListView(APIView):
     """GET /clinica-beleza/payments/
     POST /clinica-beleza/payments/
@@ -48,7 +75,8 @@ class PaymentListView(APIView):
             date_filter=request.query_params.get("date"),
             professional_id=request.query_params.get("professional"),
         )
-        return paginate_queryset(queryset, request, PaymentSerializer)
+        resposta = paginate_queryset(queryset, request, PaymentSerializer)
+        return _incluir_procedimentos_anteriores(resposta, request)
 
     def post(self, request):
         serializer = PaymentSerializer(data=request.data)

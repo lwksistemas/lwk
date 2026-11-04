@@ -108,3 +108,117 @@ def validar_recebimento(saldo, valor, data_recebimento: date | None, hoje: date,
     if codigo not in FORMAS_RECEBIMENTO:
         raise ValueError("Escolha a forma de pagamento.")
     return quantia, codigo
+
+
+def status_financeiro_anterior(valor, valor_pago, saldo) -> str:
+    """Pendente sem entrada, parcial se já entrou dinheiro e ainda falta, pago se zerou."""
+    aberto = _dinheiro(saldo, "saldo")
+    if aberto <= 0:
+        return "PAID"
+    total = _dinheiro(valor, "valor")
+    entrada = _dinheiro(valor_pago, "valor já pago")
+    if entrada > 0 or (total - aberto - entrada) > 0:
+        return "PARTIAL"
+    return "PENDING"
+
+
+def linha_financeiro_anterior(item, recebimentos, hoje: date) -> dict:
+    """Linha da página do financeiro. Não é pagamento de consulta e não gera comissão."""
+    valores = []
+    datas = []
+    for recebimento in recebimentos:
+        valores.append(getattr(recebimento, "valor", recebimento))
+        data_item = getattr(recebimento, "data", None)
+        if data_item is not None:
+            datas.append(data_item)
+    saldo = saldo_anterior(item.valor, item.valor_pago, valores)
+    status = status_financeiro_anterior(item.valor, item.valor_pago, saldo)
+    pago = (_dinheiro(item.valor, "valor") - saldo).quantize(CENTAVOS)
+    vencimento = getattr(item, "data_vencimento", None)
+    vencido = bool(vencimento and saldo > 0 and vencimento < hoje)
+    ultima = max(datas) if datas else getattr(item, "data_pagamento", None)
+    paciente = getattr(item, "patient", None)
+    return {
+        "id": item.id,
+        "origem": "procedimento_anterior",
+        "patient_id": getattr(item, "patient_id", None) or getattr(paciente, "id", None),
+        "appointment": None,
+        "amount": str(pago if status != "PENDING" else Decimal("0.00")),
+        "valor_total": str(item.valor),
+        "valor_total_efetivo": float(item.valor),
+        "saldo_devedor": float(saldo),
+        "payment_method": "PRAZO" if saldo > 0 else "",
+        "status": status,
+        "payment_date": ultima.isoformat() if ultima and status != "PENDING" else None,
+        "data_vencimento": vencimento.isoformat() if vencimento else None,
+        "vencido": vencido,
+        "dias_atraso": (hoje - vencimento).days if vencido else 0,
+        "retorno_gratuito": False,
+        "consulta_id": None,
+        "comissao_percentual": 0,
+        "comissao_valor": "0.00",
+        "desconto": "0.00",
+        "paciente_nome": getattr(paciente, "nome", "") or "",
+        "paciente_tem_prazo": True,
+        "profissional_nome": "",
+        "procedimento_nome": item.nome,
+        "data_atendimento": item.data_procedimento.isoformat(),
+        "created_at": item.created_at.isoformat() if getattr(item, "created_at", None) else "",
+        "datas_recebimento": [dia.isoformat() for dia in datas],
+    }
+
+
+def entra_na_lista_do_financeiro(linha, *, status=None, date_filter=None, professional_id=None) -> bool:
+    """Saldo em aberto continua na lista para receber, mesmo com filtro de um dia."""
+    if professional_id not in (None, ""):
+        return False
+    if status == "CANCELLED":
+        return False
+    if status and linha["status"] != status:
+        return False
+    if not date_filter or linha["status"] in ("PENDING", "PARTIAL"):
+        return True
+    dia = str(date_filter)[:10]
+    datas = {
+        str(linha.get("data_atendimento") or "")[:10],
+        str(linha.get("payment_date") or "")[:10],
+        *[str(item)[:10] for item in linha.get("datas_recebimento") or []],
+    }
+    return dia in datas
+
+
+def linhas_financeiras_anteriores(*, status=None, date_filter=None, professional_id=None, hoje: date | None = None) -> list[dict]:
+    """Procedimentos anteriores com saldo, no formato da lista de receitas."""
+    from django.utils import timezone
+
+    from .models import ProcedimentoAnterior
+
+    if professional_id not in (None, ""):
+        return []
+    hoje = hoje or timezone.localdate()
+    linhas = []
+    itens = (
+        ProcedimentoAnterior.objects
+        .select_related("patient")
+        .prefetch_related("recebimentos")
+        .order_by("data_vencimento", "-id")
+    )
+    for item in itens:
+        linha = linha_financeiro_anterior(item, list(item.recebimentos.all()), hoje)
+        if entra_na_lista_do_financeiro(
+            linha, status=status, date_filter=date_filter, professional_id=professional_id,
+        ):
+            linha.pop("datas_recebimento", None)
+            linhas.append(linha)
+    return linhas
+
+
+def somar_saldo_procedimentos_anteriores() -> float:
+    """Saldo ainda aberto desses lançamentos, para o cartão A receber."""
+    from .models import ProcedimentoAnterior
+
+    total = Decimal("0.00")
+    itens = ProcedimentoAnterior.objects.prefetch_related("recebimentos")
+    for item in itens:
+        total += saldo_anterior(item.valor, item.valor_pago, [r.valor for r in item.recebimentos.all()])
+    return float(total)

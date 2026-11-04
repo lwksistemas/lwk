@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Patient, PrazoPagamentoClinica, ProcedimentoAnterior, ProcedimentoAnteriorRecebimento
-from .permissions import CLINICA_ADMIN
+from .permissions import CLINICA_ADMIN, CLINICA_FINANCEIRO
 from .prazo_service import validar_regra_prazo
 from .procedimento_anterior_service import (
     FORMAS_RECEBIMENTO,
@@ -217,7 +217,7 @@ class ProcedimentoAnteriorDetailView(GetObjectMixin, APIView):
 class ProcedimentoAnteriorReceberView(GetObjectMixin, APIView):
     """POST /clinica-beleza/patients/<patient_id>/procedimentos-anteriores/<pk>/receber/"""
 
-    permission_classes = CLINICA_ADMIN
+    permission_classes = CLINICA_FINANCEIRO
     model_class = Patient
     not_found_message = "Paciente não encontrado"
 

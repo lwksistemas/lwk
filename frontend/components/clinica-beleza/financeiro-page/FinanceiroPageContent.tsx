@@ -16,6 +16,7 @@ import { FinanceiroTabBar } from "./components/FinanceiroTabBar";
 import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/ModalReceberConsulta";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import { ModalBaixaPayment } from "./components/ModalBaixaPayment";
+import { ModalReceberProcedimentoAnterior } from "./components/ModalReceberProcedimentoAnterior";
 import { ModalCorrigirForma } from "./components/ModalCorrigirForma";
 import type { FinanceiroPayment } from "./types";
 
@@ -23,6 +24,7 @@ export function FinanceiroPageContent() {
   const f = useFinanceiroPage();
   const toast = useToast();
   const [baixaPayment, setBaixaPayment] = useState<FinanceiroPayment | null>(null);
+  const [receberAnterior, setReceberAnterior] = useState<FinanceiroPayment | null>(null);
   const [formaPayment, setFormaPayment] = useState<FinanceiroPayment | null>(null);
   const [cobrandoId, setCobrandoId] = useState<number | null>(null);
   const [reciboId, setReciboId] = useState<number | null>(null);
@@ -104,7 +106,10 @@ export function FinanceiroPageContent() {
                 onProfessionalFilterChange={f.setProfessionalFilter}
                 onDateFilterChange={f.setDateFilter}
                 onPageChange={f.setPaymentsPage}
-                onBaixa={(p) => setBaixaPayment(p)}
+                onBaixa={(p) => {
+                  if (p.origem === "procedimento_anterior") setReceberAnterior(p);
+                  else setBaixaPayment(p);
+                }}
                 onCorrigirForma={(p) => setFormaPayment(p)}
                 cobrandoId={cobrandoId}
                 onCobrar={handleCobrar}
@@ -141,6 +146,14 @@ export function FinanceiroPageContent() {
           onSuccess={(c) => setReceberConsulta((prev) => (prev ? { ...prev, ...c } : prev))}
         />
       )}
+      <ModalReceberProcedimentoAnterior
+        payment={receberAnterior}
+        onClose={() => setReceberAnterior(null)}
+        onSuccess={() => {
+          toast.success("Recebimento registrado.");
+          void f.loadAll();
+        }}
+      />
       <ModalBaixaPayment
         payment={baixaPayment}
         onClose={() => setBaixaPayment(null)}

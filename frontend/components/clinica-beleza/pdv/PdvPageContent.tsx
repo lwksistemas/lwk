@@ -204,7 +204,6 @@ export function PdvPageContent() {
   const [entrega, setEntrega] = useState<EntregaRecibo | null>(null);
   const [avisoEntrega, setAvisoEntrega] = useState("");
   const [enviandoRecibo, setEnviandoRecibo] = useState<"whatsapp" | "email" | null>(null);
-  const [vendasDia, setVendasDia] = useState<VendaHistorico[]>([]);
   const [fechamentos, setFechamentos] = useState<FechamentoCaixa[]>([]);
   const [resumoCaixa, setResumoCaixa] = useState<FechamentoCaixa | null>(null);
   const chaveVenda = useRef("");
@@ -364,9 +363,6 @@ export function PdvPageContent() {
 
   useEffect(() => {
     if (painel !== "historico") return;
-    ClinicaBelezaAPI.estoque.vendas({ data: dia }).then((lista) => {
-      setVendasDia(listaDe(lista));
-    }).catch(() => setVendasDia([]));
     ClinicaBelezaAPI.estoque.fechamentos({ data: dia }).then((lista) => {
       setFechamentos(listaDe(lista));
     }).catch(() => setFechamentos([]));
@@ -628,21 +624,6 @@ export function PdvPageContent() {
     }
   };
 
-  const abrirEntregaHistorico = (item: VendaHistorico) => {
-    if (!item.payment_id) return;
-    setEntrega({
-      paymentId: item.payment_id,
-      cliente: item.cliente || "Consumidor não identificado",
-      numero: item.payment_id,
-      total: item.total,
-      forma: item.forma || "",
-      quando: quandoRecibo(item.criada_em),
-      telefone: item.telefone || "",
-      email: item.email || "",
-    });
-    setAvisoEntrega("");
-  };
-
   const abrirRecibo = async () => {
     if (!recibo) return;
     const resp = recibo.consultaId
@@ -676,7 +657,7 @@ export function PdvPageContent() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => setPainel("historico")} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-            <History size={15} /> Histórico de vendas
+            <History size={15} /> Caixa fechado
           </button>
           {caixaAberto && (
             <button type="button" onClick={() => { setMenuCaixa(false); setPainel("fechamento"); }} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
@@ -1006,7 +987,7 @@ export function PdvPageContent() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={() => { setPainel(null); setResumoCaixa(null); }}>
           <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5" onClick={(clique) => clique.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{resumoCaixa ? "Resumo do caixa" : painel === "historico" ? "Histórico de vendas" : "Fechamento do caixa"}</h2>
+              <h2 className="text-lg font-semibold">{resumoCaixa ? "Resumo do caixa" : painel === "historico" ? "Caixa fechado" : "Fechamento do caixa"}</h2>
               <button type="button" onClick={() => { setPainel(null); setResumoCaixa(null); }} aria-label="Fechar"><X size={16} /></button>
             </div>
             {painel === "historico" && resumoCaixa ? (
@@ -1028,44 +1009,16 @@ export function PdvPageContent() {
                 <button type="button" onClick={() => imprimirResumoCaixa(resumoCaixa)} className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}><Printer size={14} /> Imprimir</button>
               </div>
             ) : painel === "historico" ? (
-              <div className="space-y-2 text-sm">
-                {fechamentos.length > 0 && (
-                  <div className="mb-3 space-y-1 border-b pb-3">
-                    <p className="text-xs font-medium text-gray-500">Caixa fechado no dia</p>
-                    {fechamentos.map((item) => (
-                      <button key={item.id} type="button" onClick={() => setResumoCaixa(item)} className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-2 text-left hover:bg-gray-50">
-                        <span>
-                          <span className="block font-medium" style={{ color: rosa }}>{item.operador || "Operador"}</span>
-                          <span className="block text-xs text-gray-500">{item.nome || "Recepção"} • fechado {quandoRecibo(item.fechada_em)}</span>
-                        </span>
-                        <span className="text-xs text-gray-500">Ver resumo</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {vendasDia.length === 0 && consultas.length === 0 && fechamentos.length === 0 && <p className="text-gray-500">Nenhuma venda hoje.</p>}
-                {vendasDia.map((item) => (
-                  <div key={`venda-${item.id}`} className="flex items-start justify-between gap-3 border-b py-2">
-                    <span>{item.cliente}<span className="block text-xs text-gray-500">Produtos{item.operador ? ` • ${item.operador}` : ""}{item.status === "cancelada" ? " • cancelada" : ""}</span></span>
-                    <span className="text-right">
-                      {formatCurrency(Number(item.total || 0))}
-                      {item.status !== "cancelada" && item.payment_id && (
-                        <button type="button" className="mt-1 block text-xs" style={{ color: rosa }} onClick={() => abrirEntregaHistorico(item)}>Recibo</button>
-                      )}
-                      {item.status !== "cancelada" && (
-                        <button type="button" className="mt-1 block text-xs" style={{ color: rosa }} onClick={() => {
-                          if (!window.confirm("Cancelar esta venda e devolver os produtos ao estoque?")) return;
-                          void ClinicaBelezaAPI.estoque.cancelarVenda(item.id).then(() => ClinicaBelezaAPI.estoque.vendas({ data: dia }).then((lista) => setVendasDia(listaDe(lista)))).then(() => carregar()).then(() => carregarCaixa());
-                        }}>Cancelar</button>
-                      )}
+              <div className="space-y-1 text-sm">
+                {fechamentos.length === 0 && <p className="text-gray-500">Nenhum caixa fechado hoje.</p>}
+                {fechamentos.map((item) => (
+                  <button key={item.id} type="button" onClick={() => setResumoCaixa(item)} className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-2 text-left hover:bg-gray-50">
+                    <span>
+                      <span className="block font-medium" style={{ color: rosa }}>{item.operador || "Operador"}</span>
+                      <span className="block text-xs text-gray-500">{item.nome || "Recepção"} • fechado {quandoRecibo(item.fechada_em)}</span>
                     </span>
-                  </div>
-                ))}
-                {consultas.map((item) => (
-                  <div key={item.id} className="flex justify-between gap-3 border-b py-2">
-                    <span>{item.patient_name}<span className="block text-xs text-gray-500">{item.procedure_name}</span></span>
-                    <span className="text-right">{formatCurrency(Number(item.valor_pago || 0))}<span className="block text-xs text-gray-500">saldo {formatCurrency(Number(item.valor_restante || 0))}</span></span>
-                  </div>
+                    <span className="text-xs text-gray-500">Ver resumo</span>
+                  </button>
                 ))}
               </div>
             ) : (

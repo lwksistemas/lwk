@@ -38,10 +38,12 @@ import {
   horaCurta,
   quandoRecibo,
   classeStatusPdv,
+  montarEntradasPdv,
   podeAlterarServico,
   podeMarcarPresente,
   reais,
   rotuloStatus,
+  somaEntradasPdv,
 } from "./pdv-utils";
 
 type ProdutoLinha = {
@@ -119,6 +121,9 @@ export function PdvPageContent() {
   const [catalogo, setCatalogo] = useState<ProdutoOpcao[]>([]);
   const [procedimentosCat, setProcedimentosCat] = useState<{ id: number; nome: string }[]>([]);
   const [forma, setForma] = useState("PIX");
+  const [entradas, setEntradas] = useState<{ id: string; forma: string; valor: string }[]>([
+    { id: "inicial", forma: "PIX", valor: "" },
+  ]);
   const [desconto, setDesconto] = useState("");
   const [editandoDesconto, setEditandoDesconto] = useState(false);
   const [observacao, setObservacao] = useState("");
@@ -219,6 +224,11 @@ export function PdvPageContent() {
     void carregar();
     void carregarCaixa();
   }, [carregar, carregarCaixa]);
+
+  useEffect(() => {
+    setEntradas([{ id: "inicial", forma: "PIX", valor: "" }]);
+    setIncluindo((atual) => (atual === "produto" ? null : atual));
+  }, [selecionadoId]);
 
   useEffect(() => {
     const atualizar = () => {
@@ -508,11 +518,16 @@ export function PdvPageContent() {
         return;
       }
       if (!consulta?.id) throw { error: "Marque a cliente como presente para receber este atendimento." };
+      const recebidas = montarEntradasPdv(entradas, total);
+      const soma = somaEntradasPdv(recebidas);
+      if (!recebidas.length || Math.abs(soma - total) > 0.009) {
+        throw { error: "A soma das formas precisa ser igual ao total a receber." };
+      }
       await ClinicaBelezaAPI.consultas.receber(consulta.id, {
-        payment_method: forma,
+        payment_method: recebidas[recebidas.length - 1].payment_method,
         desconto: descontoNum,
         mark_as_paid: true,
-        entradas: [{ payment_method: forma, valor: total }],
+        entradas: recebidas,
       });
       const atual = await ClinicaBelezaAPI.consultas.get(consulta.id);
       setRecibo(atual.payment_id ? { paymentId: atual.payment_id, consultaId: consulta.id } : null);
@@ -587,6 +602,10 @@ export function PdvPageContent() {
   };
 
   const alteraServico = podeAlterarServico(selecionado?.extendedProps?.status);
+  const consultaFinalizada = selecionado?.extendedProps?.status === "COMPLETED";
+  const recebidas = montarEntradasPdv(entradas, total);
+  const somaFormas = somaEntradasPdv(recebidas);
+  const formasOk = total > 0 && Math.abs(somaFormas - total) <= 0.009;
   const procedimentos = consulta?.procedures_list?.length
     ? consulta.procedures_list
     : selecionado?.extendedProps?.procedure_name
@@ -695,12 +714,14 @@ export function PdvPageContent() {
                   );
                 })}
               </Bloco>
-              <Bloco titulo="Produtos (cosméticos)">
-                {produtosConsulta.map((item) => (
-                  <LinhaCarrinho key={item.id} tipo="Produto" nome={item.produto_nome} detalhe={`${Number(item.quantidade)} × ${formatCurrency(Number(item.preco_unitario || 0))}`} valor={Math.max(0, Number(item.quantidade) * Number(item.preco_unitario || 0) - Number(item.desconto || 0))} onRemove={consulta?.id ? () => void ClinicaBelezaAPI.consultas.produtos.remove(consulta.id, item.id).then(() => carregarProdutos(consulta.id)) : undefined} />
-                ))}
-              </Bloco>
-              {incluindo && (incluindo !== "servico" || alteraServico) && (
+              {(!consultaFinalizada || produtosConsulta.length > 0) && (
+                <Bloco titulo="Produtos (cosméticos)">
+                  {produtosConsulta.map((item) => (
+                    <LinhaCarrinho key={item.id} tipo="Produto" nome={item.produto_nome} detalhe={`${Number(item.quantidade)} × ${formatCurrency(Number(item.preco_unitario || 0))}`} valor={Math.max(0, Number(item.quantidade) * Number(item.preco_unitario || 0) - Number(item.desconto || 0))} onRemove={!consultaFinalizada && consulta?.id ? () => void ClinicaBelezaAPI.consultas.produtos.remove(consulta.id, item.id).then(() => carregarProdutos(consulta.id)) : undefined} />
+                  ))}
+                </Bloco>
+              )}
+              {incluindo && ((incluindo === "produto" && !consultaFinalizada) || (incluindo === "servico" && alteraServico)) && (
                 <div className="flex gap-2">
                   <select value={escolha} onChange={(e) => setEscolha(e.target.value)} className="flex-1 rounded-xl border px-3 py-2 text-sm">
                     <option value="">{incluindo === "produto" ? "Produto" : "Serviço"}</option>
@@ -712,7 +733,7 @@ export function PdvPageContent() {
                 </div>
               )}
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => setIncluindo("produto")} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-sm" style={{ color: rosa, borderColor: rosa }}><ShoppingCart size={14} /> + Adicionar produto</button>
+                {!consultaFinalizada && <button type="button" onClick={() => setIncluindo("produto")} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-sm" style={{ color: rosa, borderColor: rosa }}><ShoppingCart size={14} /> + Adicionar produto</button>}
                 {alteraServico && <button type="button" onClick={() => setIncluindo("servico")} className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-sm" style={{ color: rosa, borderColor: rosa }}><Plus size={14} /> + Adicionar serviço</button>}
               </div>
               {selecionado && !alteraServico && (
@@ -815,11 +836,67 @@ export function PdvPageContent() {
             <span className="text-sm font-medium" style={{ color: rosa }}>Total a receber</span>
             <span className="text-lg font-semibold" style={{ color: rosa }}>{formatCurrency(total)}</span>
           </div>
-          <label className="mb-1 block text-sm text-gray-600">Forma de pagamento</label>
-          <select value={forma} onChange={(e) => setForma(e.target.value)} className="mb-3 w-full rounded-xl border px-3 py-2 text-sm">
-            {FORMAS_PDV.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-          </select>
-          <button type="button" disabled={salvando || total <= 0} onClick={() => void receber()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
+          {aba === "servico" ? (
+            <div className="mb-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">Formas de pagamento</p>
+                <button
+                  type="button"
+                  onClick={() => setEntradas((atual) => {
+                    const base = atual.map((linha, indice) => (
+                      atual.length === 1 && indice === 0 && !linha.valor && total > 0
+                        ? { ...linha, valor: String(reais(total)) }
+                        : linha
+                    ));
+                    const usadas = new Set(base.map((linha) => linha.forma));
+                    const proxima = FORMAS_PDV.find((item) => !usadas.has(item.id))?.id || "CASH";
+                    return [...base, { id: `forma-${base.length}-${proxima}`, forma: proxima, valor: "" }];
+                  })}
+                  className="inline-flex items-center gap-1 text-sm font-medium"
+                  style={{ color: rosa }}
+                >
+                  <Plus size={14} /> Adicionar forma
+                </button>
+              </div>
+              {entradas.map((linha) => (
+                <div key={linha.id} className="flex items-center gap-2">
+                  <select
+                    value={linha.forma}
+                    onChange={(e) => setEntradas((atual) => atual.map((item) => item.id === linha.id ? { ...item, forma: e.target.value } : item))}
+                    className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm"
+                    aria-label="Forma de pagamento"
+                  >
+                    {FORMAS_PDV.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                  </select>
+                  <input
+                    value={entradas.length === 1 && linha.valor === "" ? String(reais(total)) : linha.valor}
+                    onChange={(e) => setEntradas((atual) => atual.map((item) => item.id === linha.id ? { ...item, valor: e.target.value } : item))}
+                    inputMode="decimal"
+                    aria-label="Valor da forma"
+                    className="w-28 rounded-xl border px-3 py-2 text-right text-sm"
+                  />
+                  {entradas.length > 1 && (
+                    <button type="button" aria-label="Remover forma" onClick={() => setEntradas((atual) => atual.filter((item) => item.id !== linha.id))}>
+                      <Trash2 size={14} className="text-gray-400" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {total > 0 && (
+                <p className={`text-xs ${formasOk ? "text-emerald-700" : "text-amber-700"}`}>
+                  Distribuído {formatCurrency(somaFormas)} de {formatCurrency(total)}
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
+              <label className="mb-1 block text-sm text-gray-600">Forma de pagamento</label>
+              <select value={forma} onChange={(e) => setForma(e.target.value)} className="mb-3 w-full rounded-xl border px-3 py-2 text-sm">
+                {FORMAS_PDV.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+            </>
+          )}
+          <button type="button" disabled={salvando || total <= 0 || (aba === "servico" && !formasOk)} onClick={() => void receber()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
             <DollarSign size={16} /> {salvando ? "Recebendo..." : "Receber pagamento"}
           </button>
           {recibo?.consultaId && (

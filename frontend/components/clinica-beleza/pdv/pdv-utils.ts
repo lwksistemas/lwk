@@ -62,3 +62,27 @@ export function classeStatusPdv(status: string | undefined): string {
 export function reais(valor: number): number {
   return Math.round((Number.isFinite(valor) ? valor : 0) * 100) / 100;
 }
+
+export function valorLinhaPagamento(valor: string): number {
+  const numero = Number(String(valor).replace(",", "."));
+  return reais(Number.isFinite(numero) ? numero : 0);
+}
+
+/** Uma linha vazia usa o total. Várias linhas usam o valor digitado em cada forma. */
+export function montarEntradasPdv(
+  linhas: { forma: string; valor: string }[],
+  total: number,
+): { payment_method: string; valor: number }[] {
+  const preenchidas = linhas.map((linha) => ({
+    payment_method: linha.forma,
+    valor: valorLinhaPagamento(linha.valor),
+  }));
+  if (preenchidas.length === 1 && preenchidas[0].valor <= 0) {
+    preenchidas[0] = { ...preenchidas[0], valor: reais(total) };
+  }
+  return preenchidas.filter((linha) => linha.valor > 0);
+}
+
+export function somaEntradasPdv(entradas: { valor: number }[]): number {
+  return reais(entradas.reduce((acc, linha) => acc + linha.valor, 0));
+}

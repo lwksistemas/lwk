@@ -145,6 +145,16 @@ export function tituloCardAgenda(evt: AgendaEventData): string {
   return (p.patient_name || evt.title).toUpperCase();
 }
 
+export function procedimentoCardAgenda(evt: AgendaEventData): string {
+  const p = evt.extendedProps || {};
+  if (p.isBloqueio || p.isIntervalo) return "";
+  const lista = (p.procedures_list || [])
+    .map((item) => (item.nome || "").trim())
+    .filter(Boolean);
+  if (lista.length) return lista.join(" · ");
+  return (p.procedure_name || "").trim();
+}
+
 export function toAgendaDiaIso(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");

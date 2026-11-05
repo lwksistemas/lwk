@@ -7,6 +7,7 @@ import {
   ehAgendamentoCliente,
   eventProfessionalId,
   primeiroNomeProfissional,
+  procedimentoCardAgenda,
   tituloCardAgenda,
 } from "./agenda-dia-colunas-utils";
 
@@ -110,8 +111,20 @@ export function makeAgendaFcEventContent(opts: { showProfessional: boolean }) {
       opts.showProfessional && !isBloq && !isInt && !compact && mins >= 45;
     const nome = nomeCurtoEvento(
       arg.event,
-      isMonth ? 16 : compact ? 18 : opts.showProfessional ? 20 : 26,
+      isMonth ? 16 : 80,
     );
+    const procedimento = !isBloq && !isInt
+      ? procedimentoCardAgenda({
+          id: String(arg.event.id ?? ""),
+          title: arg.event.title,
+          start: arg.event.start?.toISOString() || "",
+          end: arg.event.end?.toISOString() || "",
+          backgroundColor: "",
+          borderColor: "",
+          textColor: "",
+          extendedProps: p as AgendaEventData["extendedProps"],
+        })
+      : "";
     const prof = showProf ? primeiroNomeProfissional(String(p.professional_name || "")) : "";
 
     if (isMonth) {
@@ -127,9 +140,13 @@ export function makeAgendaFcEventContent(opts: { showProfessional: boolean }) {
       return (
         <div
           className={`agenda-fc-event-inner is-compact${isBloq ? " is-bloqueio" : ""}${isInt ? " is-intervalo" : ""}`}
+          title={procedimento ? `${nome} · ${procedimento}` : nome}
         >
-          {hora ? <span className="agenda-fc-event-time">{hora}</span> : null}
-          <span className="agenda-fc-event-title">{nome}</span>
+          <span className="agenda-fc-event-line">
+            {hora ? <span className="agenda-fc-event-time">{hora}</span> : null}
+            <span className="agenda-fc-event-title">{nome}</span>
+          </span>
+          {procedimento ? <span className="agenda-fc-event-proc">{procedimento}</span> : null}
         </div>
       );
     }
@@ -141,6 +158,7 @@ export function makeAgendaFcEventContent(opts: { showProfessional: boolean }) {
         {hora ? <div className="agenda-fc-event-time">{hora}</div> : null}
         {prof ? <div className="agenda-fc-event-prof">{prof}</div> : null}
         <div className="agenda-fc-event-title">{nome}</div>
+        {procedimento ? <div className="agenda-fc-event-proc" title={procedimento}>{procedimento}</div> : null}
       </div>
     );
   };

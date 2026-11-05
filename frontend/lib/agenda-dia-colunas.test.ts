@@ -30,6 +30,7 @@ import {
   minutosArrastoNaGrade,
   movimentoGradeAlterou,
   primeiroNomeProfissional,
+  procedimentoCardAgenda,
   agendamentosDoDiaPainel,
   proximosAgendamentosAgenda,
   corBloqueioAgenda,
@@ -52,6 +53,24 @@ function evt(partial: Partial<AgendaEventData> & { id: string; start: string }):
     ...partial,
   };
 }
+
+describe("procedimentoCardAgenda", () => {
+  it("junta os procedimentos do agendamento", () => {
+    const item = evt({
+      id: "1",
+      start: "2026-11-06T15:00:00",
+      extendedProps: {
+        patient_name: "Patricia Santinon",
+        procedure_name: "INJEÇÃO DE VITAMINAS",
+        procedures_list: [
+          { id: 1, nome: "INJEÇÃO DE VITAMINAS" },
+          { id: 2, nome: "BOTOX" },
+        ],
+      },
+    });
+    expect(procedimentoCardAgenda(item)).toBe("INJEÇÃO DE VITAMINAS · BOTOX");
+  });
+});
 
 describe("iniciaisProfissional", () => {
   it("usa as duas primeiras palavras relevantes", () => {

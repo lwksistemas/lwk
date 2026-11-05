@@ -24,6 +24,7 @@ import {
   estiloInlineCardAgenda,
   rotuloStatusCardAgenda,
   capitalizarAgenda,
+  procedimentoCardAgenda,
   tituloCardAgenda,
   toAgendaDiaIso,
 } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
@@ -45,7 +46,7 @@ function subtituloCard(evt: AgendaEventData): string {
   const p = evt.extendedProps || {};
   if (p.isBloqueio) return "Bloqueio";
   if (p.isIntervalo) return "Intervalo";
-  return p.procedure_name || "";
+  return procedimentoCardAgenda(evt);
 }
 
 export function AgendaDiaColunas({
@@ -377,7 +378,7 @@ export function AgendaDiaColunas({
                                   {formatClinicaHora(start)}
                                 </p>
                                 <p className="agenda-card-titulo text-xs font-semibold text-gray-900 truncate leading-tight min-w-0 flex-1">
-                                  {tituloCardAgenda(evt)}
+                                  {tituloCardAgenda(evt)}{subtituloCard(evt) ? ` · ${subtituloCard(evt)}` : ""}
                                 </p>
                                 <span
                                   className="w-2 h-2 rounded-full shrink-0 ring-1 ring-white"
@@ -409,7 +410,7 @@ export function AgendaDiaColunas({
                                 <p className="agenda-card-titulo text-xs font-semibold text-gray-900 truncate leading-tight">
                                   {tituloCardAgenda(evt)}
                                 </p>
-                                {height > 64 ? (
+                                {subtituloCard(evt) ? (
                                   <p className="agenda-card-sub text-[11px] text-gray-500 truncate">
                                     {subtituloCard(evt)}
                                   </p>

@@ -31,6 +31,7 @@ import { formatApiErrorBody } from "@/lib/api-errors";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { formatarAgendaEvento } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
+import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import { createQuickPatient } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-submit-api";
 import { formatCurrency } from "@/lib/financeiro-helpers";
@@ -618,9 +619,11 @@ export function PdvPageContent() {
   const recebidas = montarEntradasPdv(entradas, total);
   const somaFormas = somaEntradasPdv(recebidas);
   const formasOk = total > 0 && Math.abs(somaFormas - total) <= 0.009;
-  const vendaAPrazo = aba === "servico" && !pdvPodeReceberAtendimento(consulta);
+  const pagamentoUi = consulta ? consultaPagamentoUi(consulta) : null;
+  const atendimentoIsento = Boolean(pagamentoUi?.mostrarIsento);
+  const vendaAPrazo = aba === "servico" && !atendimentoIsento && !pdvPodeReceberAtendimento(consulta);
   const paymentRecibo = paymentIdReciboPdv(consulta, recibo);
-  const mostrarRecibo = aba === "servico" && (reciboPdvDisponivel(consulta) || (Boolean(recibo?.consultaId) && recibo?.consultaId === consulta?.id));
+  const mostrarRecibo = aba === "servico" && (reciboPdvDisponivel(consulta) || (atendimentoIsento && Boolean(pagamentoUi?.consultaFinalizada)) || (Boolean(recibo?.consultaId) && recibo?.consultaId === consulta?.id));
   const enviarReciboAtendimento = async (canal: "email" | "whatsapp") => {
     if (paymentRecibo <= 0) return;
     try {
@@ -698,7 +701,9 @@ export function PdvPageContent() {
             {agendaHoje.map((evento) => {
               const id = Number(evento.extendedProps?.dbId);
               const status = evento.extendedProps?.status;
-              const selo = seloCaixaPdv(consultas.find((item) => item.appointment === id));
+              const consultaItem = consultas.find((item) => item.appointment === id);
+              const selo = seloCaixaPdv(consultaItem);
+              const isento = Boolean(consultaItem && consultaPagamentoUi(consultaItem).mostrarIsento);
               const ativo = id === selecionadoId;
               return (
                 <button key={evento.id} type="button" onClick={() => { setSelecionadoId(id); setAba("servico"); }} className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left ${ativo ? "border-pink-200 bg-pink-50/60" : "border-transparent hover:bg-gray-50"}`}>
@@ -710,7 +715,7 @@ export function PdvPageContent() {
                   {podeMarcarPresente(status) ? (
                     <span role="presentation" onClick={(clique) => { clique.stopPropagation(); void marcarPresente(id); }} className="rounded-full border px-2 py-1 text-[11px] font-medium" style={{ color: rosa, borderColor: rosa }}>Marcar presente</span>
                   ) : (
-                    <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${classeStatusPdv(status, selo)}`}>{rotuloStatusPdv(status, selo)}</span>
+                    <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${isento ? "bg-sky-100 text-sky-800" : classeStatusPdv(status, selo)}`}>{isento ? "Isento" : rotuloStatusPdv(status, selo)}</span>
                   )}
                 </button>
               );
@@ -869,6 +874,8 @@ export function PdvPageContent() {
               Esta venda está a prazo. O recebimento fica no{" "}
               <Link href={`/loja/${slug}/clinica-beleza/financeiro`} className="font-medium underline">Financeiro</Link>.
             </p>
+          ) : atendimentoIsento ? (
+            <p className="mb-4 rounded-xl bg-sky-50 px-3 py-2 text-sm text-sky-800">Retorno isento. Sem valor a receber.</p>
           ) : aba === "servico" ? (
             <div className="mb-3 space-y-2">
               <div className="flex items-center justify-between">
@@ -929,10 +936,10 @@ export function PdvPageContent() {
               </select>
             </>
           )}
-          {!vendaAPrazo && !caixaAberto && (
+          {!vendaAPrazo && !atendimentoIsento && !caixaAberto && (
             <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Abra o caixa para vender ou receber um atendimento.</p>
           )}
-          {!vendaAPrazo && (
+          {!vendaAPrazo && !atendimentoIsento && (
             <button type="button" disabled={salvando || !caixaAberto || total <= 0 || (aba === "servico" && !formasOk)} onClick={() => void receber()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
               <DollarSign size={16} /> {salvando ? "Recebendo..." : "Receber pagamento"}
             </button>

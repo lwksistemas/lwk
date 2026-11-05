@@ -418,14 +418,16 @@ class ConsultaSerializer(TenantQuerysetMixin, serializers.ModelSerializer):
 
 
 class ConsultaListSerializer(ConsultaSerializer):
-    """Serializer leve para listagens — evita N+1 em total_evolucoes e consultas de termo.
+    """Serializer leve para listagens — evita N+1 em total_evolucoes.
+    O termo usa o procedimento já carregado na lista.
     Requer queryset com annotate(total_evolucoes_count=Count('evolucoes')).
     """
 
     total_evolucoes = serializers.IntegerField(source="total_evolucoes_count", read_only=True)
 
+    def get_exige_termo_consentimento(self, obj):
+        from ..consentimento_service import consulta_exige_termo_listagem
+        return consulta_exige_termo_listagem(obj)
+
     class Meta(ConsultaSerializer.Meta):
-        fields = [
-            f for f in ConsultaSerializer.Meta.fields
-            if f not in ("exige_termo_consentimento",)
-        ]
+        fields = ConsultaSerializer.Meta.fields

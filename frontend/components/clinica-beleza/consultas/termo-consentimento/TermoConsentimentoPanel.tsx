@@ -14,6 +14,7 @@ export function TermoConsentimentoPanel({
   onEnviarPdfWhatsapp,
   onAssinarProfissional,
   onEnviarTodos,
+  ancora = "esquerda",
 }: {
   termos: TermoProcedimento[];
   loading: boolean;
@@ -25,9 +26,10 @@ export function TermoConsentimentoPanel({
   onEnviarPdfWhatsapp: (procedureId: number, nome: string) => void;
   onAssinarProfissional: (procedureId: number) => void;
   onEnviarTodos: (canal: TermoConsentimentoCanal) => void;
+  ancora?: "esquerda" | "direita";
 }) {
   return (
-    <div className="absolute left-0 top-full mt-2 z-50 w-[min(100vw-2rem,22rem)] rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xl overflow-hidden">
+    <div className={`absolute top-full mt-2 z-50 w-[min(100vw-2rem,22rem)] rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xl overflow-hidden ${ancora === "direita" ? "right-0" : "left-0"}`}>
       <div className="px-4 py-3 border-b border-gray-100 dark:border-neutral-800">
         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Termos de consentimento</p>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">

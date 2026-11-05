@@ -1,11 +1,38 @@
 """Testes do serviço de TCLE Interativo."""
+from types import SimpleNamespace
+
 from django.test import SimpleTestCase
 
+from clinica_beleza.consentimento_service import consulta_exige_termo_listagem
 from clinica_beleza.termos_consentimento_service import (
     nome_sem_anadem,
     normalizar_secoes,
     validar_respostas_interativo,
 )
+
+
+class TermoNaListaTest(SimpleTestCase):
+    def test_procedimento_com_termo_aparece_na_lista(self):
+        proc = SimpleNamespace(
+            id=1,
+            termo_consentimento_ativo=True,
+            termo_template_id=None,
+            termo_template=None,
+            termo_consentimento="Leia antes do exame.",
+        )
+        consulta = SimpleNamespace(procedure=proc, appointment=None)
+        self.assertTrue(consulta_exige_termo_listagem(consulta))
+
+    def test_sem_termo_nao_aparece_na_lista(self):
+        proc = SimpleNamespace(
+            id=2,
+            termo_consentimento_ativo=False,
+            termo_template_id=None,
+            termo_template=None,
+            termo_consentimento="",
+        )
+        consulta = SimpleNamespace(procedure=proc, appointment=None)
+        self.assertFalse(consulta_exige_termo_listagem(consulta))
 
 
 class NomeSemAnademTest(SimpleTestCase):

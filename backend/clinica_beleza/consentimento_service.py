@@ -82,6 +82,16 @@ def consulta_exige_termo_consentimento(consulta) -> bool:
     return bool(_procedimentos_com_termo_ativo(consulta))
 
 
+def consulta_exige_termo_listagem(consulta) -> bool:
+    """Usa o procedimento já carregado na lista. Não consulta produto nem banco de novo."""
+    appointment = getattr(consulta, "appointment", None)
+    if appointment is not None:
+        for item in appointment.appointment_procedures.all():
+            if procedimento_exige_termo(getattr(item, "procedure", None)):
+                return True
+    return procedimento_exige_termo(getattr(consulta, "procedure", None))
+
+
 def _dados_loja(loja_id: int) -> dict:
     from superadmin.models import Loja
 

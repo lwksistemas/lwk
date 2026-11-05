@@ -71,7 +71,7 @@ export function TermoConsentimentoItemActions({
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
             Reenviar e-mail
           </button>
-          {termoWhatsappHabilitado && termo.status === "aguardando_paciente" && (
+          {termoWhatsappHabilitado && (
             <button
               type="button"
               onClick={() => onReenviar(termo.procedure_id, termo.procedure_nome, "whatsapp")}

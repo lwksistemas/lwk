@@ -168,6 +168,31 @@ def msg_assinatura_vendedor(
     return "\n".join(linhas)
 
 
+def msg_termo_profissional(
+    *,
+    nome: str,
+    paciente: str,
+    procedimento: str,
+    loja_nome: str,
+    link: str,
+) -> str:
+    """A cliente já assinou. A profissional recebe o link para assinar."""
+    return "\n".join([
+        "📋 *Termo de Consentimento*",
+        SEPARADOR,
+        f"Olá *{nome}*!",
+        "",
+        f"*{paciente}* assinou o termo de *{procedimento}*.",
+        "Agora falta a sua assinatura.",
+        "",
+        "👇 *Toque para ler e assinar:*",
+        link,
+        "",
+        f"_{loja_nome}_",
+        "🔒 Documento verificado por LWK Sistemas",
+    ])
+
+
 def msg_termo_consentimento(
     *,
     nome: str,

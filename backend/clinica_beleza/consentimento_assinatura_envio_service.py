@@ -122,6 +122,59 @@ def reenviar_termo_whatsapp(
     return False, telefone, err or "Erro ao reenviar."
 
 
+def enviar_whatsapp_profissional(
+    *,
+    termo_proc,
+    adapter,
+    assinatura,
+    loja_id: int,
+    user=None,
+) -> tuple[bool, str | None]:
+    """Manda o link de assinatura da profissional no WhatsApp dela."""
+    import logging
+
+    from core.assinatura_service import _build_link_assinatura, _get_loja_nome
+    from whatsapp.assinatura_whatsapp import whatsapp_envio_permitido
+    from whatsapp.message_templates import msg_termo_profissional
+    from whatsapp.models import WhatsAppConfig
+    from whatsapp.services import send_whatsapp
+    from whatsapp.sync_context import whatsapp_sync_only
+
+    logger = logging.getLogger(__name__)
+    consulta = termo_proc.consulta
+    profissional = getattr(consulta, "professional", None)
+    telefone = (getattr(profissional, "telefone", "") or "").strip()
+    if not telefone:
+        return False, "Profissional não possui telefone cadastrado."
+
+    config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+    ok_cfg, err_cfg = whatsapp_envio_permitido(config, termo=True)
+    if not ok_cfg:
+        return False, err_cfg or "WhatsApp indisponível."
+
+    nome_prof, _email = adapter.get_destinatario_parte2(termo_proc, loja_id)
+    paciente = getattr(consulta, "patient", None)
+    nome_paciente = (getattr(paciente, "nome", None) or "A cliente").strip()
+    procedimento = getattr(termo_proc, "procedure", None)
+    nome_proc = (getattr(procedimento, "nome", None) or "procedimento").strip()
+    link = _build_link_assinatura(assinatura.token, adapter.get_pagina_assinatura_path())
+    mensagem = msg_termo_profissional(
+        nome=nome_prof or "profissional",
+        paciente=nome_paciente,
+        procedimento=nome_proc,
+        loja_nome=_get_loja_nome(loja_id),
+        link=link,
+    )
+    token = whatsapp_sync_only.set(True)
+    try:
+        ok, err = send_whatsapp(telefone=telefone, mensagem=mensagem, user=user, config=config)
+    finally:
+        whatsapp_sync_only.reset(token)
+    if not ok:
+        logger.warning("WhatsApp do termo para a profissional falhou: %s", err)
+    return ok, err
+
+
 def enviar_termo_assinado_whatsapp(
     *,
     termo_proc,

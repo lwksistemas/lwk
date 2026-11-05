@@ -197,6 +197,29 @@ class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
         loja_id = get_current_loja_id()
         adapter = ConsultaTermoAssinaturaAdapter()
 
+        if canal == "whatsapp" and termo_proc.status_assinatura_termo == "aguardando_profissional":
+            from core.assinatura_service import criar_assinatura
+
+            from .consentimento_assinatura_envio_service import enviar_whatsapp_profissional
+
+            assinatura = adapter.buscar_assinatura_pendente(termo_proc.id, "profissional")
+            if assinatura is None:
+                assinatura = criar_assinatura(adapter, termo_proc, "profissional", loja_id)
+            ok, err = enviar_whatsapp_profissional(
+                termo_proc=termo_proc,
+                adapter=adapter,
+                assinatura=assinatura,
+                loja_id=loja_id,
+                user=request.user,
+            )
+            if ok:
+                return Response({
+                    "message": "Link reenviado por WhatsApp para a profissional.",
+                    "procedure_nome": termo_proc.procedure.nome,
+                    "canal": canal,
+                })
+            return Response({"detail": err or "Erro ao reenviar."}, status=status.HTTP_400_BAD_REQUEST)
+
         if canal == "whatsapp" and termo_proc.status_assinatura_termo == "aguardando_paciente":
             ok, telefone, err = reenviar_termo_whatsapp(
                 termo_proc=termo_proc, adapter=adapter, loja_id=loja_id, request=request,

@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .consentimento_assinatura_adapter import ConsultaTermoAssinaturaAdapter
 from .consentimento_assinatura_envio_service import (
     enviar_termo_assinado_whatsapp,
+    enviar_whatsapp_profissional,
 )
 from .consentimento_assinatura_publica_service import (
     STATUS_DISPLAY,
@@ -189,6 +190,14 @@ class ConsultaAssinaturaPublicaView(View):
         if novo_status == "aguardando_profissional":
             assinatura_prof = criar_assinatura(adapter, termo_proc, "profissional", loja_id)
             enviar_email_parte2(adapter, termo_proc, assinatura_prof, loja_id)
+            with suppress(Exception):
+                enviar_whatsapp_profissional(
+                    termo_proc=termo_proc,
+                    adapter=adapter,
+                    assinatura=assinatura_prof,
+                    loja_id=loja_id,
+                    user=request.user if request.user.is_authenticated else None,
+                )
 
         if novo_status == "concluido":
             enviar_pdf_final(adapter, termo_proc, loja_id)

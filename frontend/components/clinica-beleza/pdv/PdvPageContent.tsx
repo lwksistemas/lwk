@@ -539,7 +539,9 @@ export function PdvPageContent() {
         await carregarCaixa();
         return;
       }
-      if (!consulta?.id) throw { error: "Marque a cliente como presente para receber este atendimento." };
+      if (!consulta?.id || !clientePresente(selecionado?.extendedProps?.status)) {
+        throw { error: "A cliente ainda não chegou. O caixa só recebe com ela presente, em atendimento ou com a consulta finalizada." };
+      }
       if (!pdvPodeReceberAtendimento(consulta)) {
         throw { error: "Venda a prazo só pode ser recebida no Financeiro." };
       }
@@ -621,7 +623,9 @@ export function PdvPageContent() {
   const formasOk = total > 0 && Math.abs(somaFormas - total) <= 0.009;
   const pagamentoUi = consulta ? consultaPagamentoUi(consulta) : null;
   const atendimentoIsento = Boolean(pagamentoUi?.mostrarIsento);
-  const vendaAPrazo = aba === "servico" && !atendimentoIsento && !pdvPodeReceberAtendimento(consulta);
+  const clienteNaClinica = clientePresente(selecionado?.extendedProps?.status);
+  const aguardandoChegada = aba === "servico" && Boolean(selecionado) && !clienteNaClinica;
+  const vendaAPrazo = aba === "servico" && !atendimentoIsento && !aguardandoChegada && !pdvPodeReceberAtendimento(consulta);
   const paymentRecibo = paymentIdReciboPdv(consulta, recibo);
   const mostrarRecibo = aba === "servico" && (reciboPdvDisponivel(consulta) || (atendimentoIsento && Boolean(pagamentoUi?.consultaFinalizada)) || (Boolean(recibo?.consultaId) && recibo?.consultaId === consulta?.id));
   const enviarReciboAtendimento = async (canal: "email" | "whatsapp") => {
@@ -876,6 +880,10 @@ export function PdvPageContent() {
             </p>
           ) : atendimentoIsento ? (
             <p className="mb-4 rounded-xl bg-sky-50 px-3 py-2 text-sm text-sky-800">Retorno isento. Sem valor a receber.</p>
+          ) : aguardandoChegada ? (
+            <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              A cliente ainda não chegou. Marque como presente para o caixa receber.
+            </p>
           ) : aba === "servico" ? (
             <div className="mb-3 space-y-2">
               <div className="flex items-center justify-between">
@@ -936,10 +944,10 @@ export function PdvPageContent() {
               </select>
             </>
           )}
-          {!vendaAPrazo && !atendimentoIsento && !caixaAberto && (
+          {!vendaAPrazo && !atendimentoIsento && !aguardandoChegada && !caixaAberto && (
             <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Abra o caixa para vender ou receber um atendimento.</p>
           )}
-          {!vendaAPrazo && !atendimentoIsento && (
+          {!vendaAPrazo && !atendimentoIsento && !aguardandoChegada && (
             <button type="button" disabled={salvando || !caixaAberto || total <= 0 || (aba === "servico" && !formasOk)} onClick={() => void receber()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
               <DollarSign size={16} /> {salvando ? "Recebendo..." : "Receber pagamento"}
             </button>

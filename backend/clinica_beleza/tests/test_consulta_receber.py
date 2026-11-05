@@ -428,3 +428,23 @@ class PdvNaoRecebePrazoTest(SimpleTestCase):
         self.assertIsNone(mensagem_pdv_nao_recebe_prazo(prazo, "financeiro"))
         pago = SimpleNamespace(payment_method="PIX", status="PAID", saldo_devedor=Decimal("0"))
         self.assertIsNone(mensagem_pdv_nao_recebe_prazo(pago, "pdv"))
+
+
+class PdvSoRecebeClienteNaClinicaTest(SimpleTestCase):
+    def test_caixa_nao_recebe_antes_da_chegada(self):
+        from types import SimpleNamespace
+
+        from clinica_beleza.consulta_service.payment._common import mensagem_pdv_cliente_ausente
+
+        aviso = (
+            "A cliente ainda não chegou. O caixa só recebe com ela presente, "
+            "em atendimento ou com a consulta finalizada."
+        )
+        for status_agenda in ("SCHEDULED", "CLIENT_CONFIRMED", "PHONE_CONFIRMED", "PENDING", "CANCELLED", "NO_SHOW", ""):
+            consulta = SimpleNamespace(appointment=SimpleNamespace(status=status_agenda))
+            self.assertEqual(mensagem_pdv_cliente_ausente(consulta, "pdv"), aviso)
+        for status_agenda in ("CONFIRMED", "IN_PROGRESS", "COMPLETED"):
+            consulta = SimpleNamespace(appointment=SimpleNamespace(status=status_agenda))
+            self.assertIsNone(mensagem_pdv_cliente_ausente(consulta, "pdv"))
+        agendada = SimpleNamespace(appointment=SimpleNamespace(status="SCHEDULED"))
+        self.assertIsNone(mensagem_pdv_cliente_ausente(agendada, "financeiro"))

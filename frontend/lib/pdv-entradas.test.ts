@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consultaQuitadaNoPdv, montarEntradasPdv, paymentIdReciboPdv, pdvPodeReceberAtendimento, reciboPdvDisponivel, rotuloStatusPdv, seloCaixaPdv, somaEntradasPdv } from "@/components/clinica-beleza/pdv/pdv-utils";
+import { clientePresente, consultaQuitadaNoPdv, montarEntradasPdv, paymentIdReciboPdv, pdvPodeReceberAtendimento, reciboPdvDisponivel, rotuloStatusPdv, seloCaixaPdv, somaEntradasPdv } from "@/components/clinica-beleza/pdv/pdv-utils";
 
 describe("montarEntradasPdv", () => {
   it("uma linha vazia recebe o total", () => {
@@ -38,6 +38,12 @@ describe("montarEntradasPdv", () => {
     expect(paymentIdReciboPdv({ id: 10, payment_id: null }, { consultaId: 10, paymentId: 81 })).toBe(81);
     expect(paymentIdReciboPdv(null, { consultaId: 10, paymentId: 81 })).toBe(0);
     expect(pdvPodeReceberAtendimento({ valor_pago: 0, valor_restante: 100, payment_method: "PIX" })).toBe(true);
+    expect(clientePresente("CONFIRMED")).toBe(true);
+    expect(clientePresente("IN_PROGRESS")).toBe(true);
+    expect(clientePresente("COMPLETED")).toBe(true);
+    expect(clientePresente("SCHEDULED")).toBe(false);
+    expect(clientePresente("CLIENT_CONFIRMED")).toBe(false);
+    expect(clientePresente("PHONE_CONFIRMED")).toBe(false);
     expect(rotuloStatusPdv("COMPLETED", "prazo")).toBe("A prazo");
   });
 

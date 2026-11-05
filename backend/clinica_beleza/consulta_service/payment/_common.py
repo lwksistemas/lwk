@@ -39,6 +39,23 @@ def _log_movimento_financeiro(acao, consulta, payment, usuario=None, *, valor=No
     )
 
 
+_STATUS_CAIXA_RECEBE = frozenset({"CONFIRMED", "IN_PROGRESS", "COMPLETED"})
+
+
+def mensagem_pdv_cliente_ausente(consulta, origem) -> str | None:
+    """O caixa só recebe com a cliente presente, em atendimento ou com a consulta finalizada."""
+    if str(origem or "") != "pdv":
+        return None
+    appointment = getattr(consulta, "appointment", None)
+    status = str(getattr(appointment, "status", "") or "")
+    if status in _STATUS_CAIXA_RECEBE:
+        return None
+    return (
+        "A cliente ainda não chegou. O caixa só recebe com ela presente, "
+        "em atendimento ou com a consulta finalizada."
+    )
+
+
 def mensagem_pdv_nao_recebe_prazo(payment, origem) -> str | None:
     """O PDV lança a prazo, mas não quita. O dinheiro entra no Financeiro."""
     if str(origem or "") != "pdv" or payment is None:

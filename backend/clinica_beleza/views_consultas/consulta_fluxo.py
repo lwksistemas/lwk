@@ -102,14 +102,22 @@ class ConsultaReceberView(APIView):
         if error:
             return error
 
-        if str(request.data.get("origem") or "") == "pdv" and getattr(consulta, "appointment_id", None):
-            from ..consulta_service.payment._common import mensagem_pdv_nao_recebe_prazo
-            from ..models import Payment
+        if str(request.data.get("origem") or "") == "pdv":
+            from ..consulta_service.payment._common import (
+                mensagem_pdv_cliente_ausente,
+                mensagem_pdv_nao_recebe_prazo,
+            )
 
-            pagamento = Payment.objects.filter(appointment_id=consulta.appointment_id).first()
-            aviso = mensagem_pdv_nao_recebe_prazo(pagamento, "pdv")
-            if aviso:
-                return Response({"error": aviso}, status=status.HTTP_400_BAD_REQUEST)
+            aviso_chegada = mensagem_pdv_cliente_ausente(consulta, "pdv")
+            if aviso_chegada:
+                return Response({"error": aviso_chegada}, status=status.HTTP_400_BAD_REQUEST)
+            if getattr(consulta, "appointment_id", None):
+                from ..models import Payment
+
+                pagamento = Payment.objects.filter(appointment_id=consulta.appointment_id).first()
+                aviso = mensagem_pdv_nao_recebe_prazo(pagamento, "pdv")
+                if aviso:
+                    return Response({"error": aviso}, status=status.HTTP_400_BAD_REQUEST)
 
         mark_as_paid = bool(request.data.get("mark_as_paid"))
         payment_method = (request.data.get("payment_method") or "CASH").strip()

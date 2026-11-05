@@ -11,7 +11,9 @@ import {
   custoUnitarioConvertido,
   itemPrecisaConfirmacao,
   quantidadeEntrada,
+  juntarNumerosNota,
   resumoConferencia,
+  textoItensPendentes,
   textoResumoConferencia,
 } from "@/components/clinica-beleza/estoque/estoque-importar-xml-utils";
 
@@ -81,8 +83,11 @@ describe("conferência da NF-e", () => {
       { ...base, acao: "ignorar" },
       { ...base, acao: "" },
     ]);
-    expect(resumo).toMatchObject({ vinculados: 1, novos: 1, ignorados: 1, pendentes: 1 });
-    expect(textoResumoConferencia(resumo)).toBe("1 vinculado · 1 novo · 1 ignorado · 1 para confirmar");
+    expect(resumo).toMatchObject({ vinculados: 1, novos: 1, ignorados: 1, pendentes: 1, pendentesNumeros: [4] });
+    expect(textoResumoConferencia(resumo)).toBe("1 vinculado · 1 novo · 1 ignorado");
+    expect(textoItensPendentes(resumo.pendentesNumeros)).toBe("Falta confirmar o item 4.");
+    expect(juntarNumerosNota([35, 45, 98])).toBe("35, 45 e 98");
+    expect(textoItensPendentes([35, 45, 98])).toBe("Falta confirmar os itens 35, 45 e 98.");
     expect(itemPrecisaConfirmacao({ ...base, acao: "vincular" })).toBe(true);
   });
 

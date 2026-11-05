@@ -71,17 +71,17 @@ export function resumoConferencia(produtos: ProdutoPreview[]) {
   let vinculados = 0;
   let novos = 0;
   let ignorados = 0;
-  let pendentes = 0;
-  for (const p of produtos) {
+  const pendentesNumeros: number[] = [];
+  produtos.forEach((p, indice) => {
     if (itemPrecisaConfirmacao(p)) {
-      pendentes += 1;
-      continue;
+      pendentesNumeros.push(indice + 1);
+      return;
     }
     if (p.acao === "vincular") vinculados += 1;
     else if (p.acao === "novo") novos += 1;
     else ignorados += 1;
-  }
-  return { vinculados, novos, ignorados, pendentes };
+  });
+  return { vinculados, novos, ignorados, pendentes: pendentesNumeros.length, pendentesNumeros };
 }
 
 export function textoResumoConferencia(resumo: {
@@ -90,15 +90,25 @@ export function textoResumoConferencia(resumo: {
   ignorados: number;
   pendentes: number;
 }): string {
-  const partes = [
+  return [
     `${resumo.vinculados} vinculado${resumo.vinculados !== 1 ? "s" : ""}`,
     `${resumo.novos} novo${resumo.novos !== 1 ? "s" : ""}`,
     `${resumo.ignorados} ignorado${resumo.ignorados !== 1 ? "s" : ""}`,
-  ];
-  if (resumo.pendentes > 0) {
-    partes.push(`${resumo.pendentes} para confirmar`);
-  }
-  return partes.join(" · ");
+  ].join(" · ");
+}
+
+/** "35, 45 e 98" na ordem da nota. */
+export function juntarNumerosNota(numeros: number[]): string {
+  if (numeros.length <= 1) return numeros.join("");
+  if (numeros.length === 2) return `${numeros[0]} e ${numeros[1]}`;
+  return `${numeros.slice(0, -1).join(", ")} e ${numeros[numeros.length - 1]}`;
+}
+
+export function textoItensPendentes(numeros: number[]): string {
+  if (numeros.length === 0) return "";
+  const lista = juntarNumerosNota(numeros);
+  if (numeros.length === 1) return `Falta confirmar o item ${lista}.`;
+  return `Falta confirmar os itens ${lista}.`;
 }
 
 export function produtoParaConfirmacao(p: ProdutoPreview) {

@@ -5,7 +5,7 @@ import { AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import type { CandidatoProdutoXml, PreviewResult, ProdutoPreview } from "./estoque-importar-xml-types";
-import { custoTotalConvertido, custoUnitarioConvertido, formatProdutoPreviewLine, quantidadeEntrada, resumoConferencia, textoResumoConferencia } from "./estoque-importar-xml-utils";
+import { custoTotalConvertido, custoUnitarioConvertido, formatProdutoPreviewLine, itemPrecisaConfirmacao, quantidadeEntrada, resumoConferencia, textoItensPendentes, textoResumoConferencia } from "./estoque-importar-xml-utils";
 import type { EstoqueCategoria } from "./estoque-types";
 import { ESTOQUE_CATEGORIAS } from "./estoque-types";
 
@@ -44,6 +44,13 @@ export function EstoqueImportarXmlPreview({
   };
 
   const resumo = resumoConferencia(preview.produtos);
+  const [destaque, setDestaque] = useState<number | null>(null);
+  const avisoPendentes = textoItensPendentes(resumo.pendentesNumeros);
+
+  const irParaItem = (numero: number) => {
+    setDestaque(numero);
+    document.getElementById(`nfe-item-${numero}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
 
   return (
     <div>
@@ -69,6 +76,27 @@ export function EstoqueImportarXmlPreview({
         <p className="text-xs text-blue-600 dark:text-blue-400">
           {textoResumoConferencia(resumo)}
         </p>
+        {avisoPendentes ? (
+          <p className="text-xs text-amber-800 dark:text-amber-200 mt-1">
+            {resumo.pendentesNumeros.length === 1 ? "Falta confirmar o item " : "Falta confirmar os itens "}
+            {resumo.pendentesNumeros.map((numero, indice) => {
+              const ultimo = indice === resumo.pendentesNumeros.length - 1;
+              const penultimo = indice === resumo.pendentesNumeros.length - 2;
+              return (
+                <span key={numero}>
+                  <button
+                    type="button"
+                    onClick={() => irParaItem(numero)}
+                    className="font-semibold underline"
+                  >
+                    {numero}
+                  </button>
+                  {ultimo ? "." : penultimo && resumo.pendentesNumeros.length > 1 ? " e " : ", "}
+                </span>
+              );
+            })}
+          </p>
+        ) : null}
       </div>
 
       <div className="border border-gray-200 dark:border-neutral-700 rounded-lg overflow-hidden">
@@ -79,11 +107,21 @@ export function EstoqueImportarXmlPreview({
           <span>Entrada</span>
         </div>
         <div className="max-h-[min(32rem,60vh)] overflow-y-auto divide-y divide-gray-100 dark:divide-neutral-700">
-          {preview.produtos.map((p: ProdutoPreview, i) => (
-            <div key={i} className="px-3 py-2 text-sm space-y-1.5">
+          {preview.produtos.map((p: ProdutoPreview, i) => {
+            const numero = i + 1;
+            const pendente = itemPrecisaConfirmacao(p);
+            return (
+            <div
+              key={i}
+              id={`nfe-item-${numero}`}
+              className={`px-3 py-2 text-sm space-y-1.5 ${pendente ? "bg-amber-50 dark:bg-amber-950/30" : ""} ${destaque === numero ? "ring-2 ring-inset ring-amber-400" : ""}`}
+            >
               <div className={COLUNAS}>
                 <div className="min-w-0">
-                  <p className="font-medium text-gray-900 dark:text-gray-100 break-words leading-snug">{p.nome}</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100 break-words leading-snug">
+                    <span className="text-gray-500 dark:text-gray-400 tabular-nums mr-1">{numero}.</span>
+                    {p.nome}
+                  </p>
                   {p.alerta && (
                     <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">{p.alerta}</p>
                   )}
@@ -123,7 +161,8 @@ export function EstoqueImportarXmlPreview({
                 </button>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

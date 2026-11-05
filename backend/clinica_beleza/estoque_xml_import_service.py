@@ -477,9 +477,8 @@ def confirmar_importacao_xml(
     Item com ação vazia (dúvida) interrompe. Itens iguais marcados como novo
     entram no mesmo produto, cada um com a própria movimentação.
     """
-    from django.db import transaction
-
     from .estoque_categorias import resolver_categoria
+    from .estoque_service import tenant_atomic
     from .estoque_nfe_vinculo import (
         custo_unitario_estoque,
         decisao_pendente,
@@ -496,7 +495,7 @@ def confirmar_importacao_xml(
     ignorados = 0
     novos_da_nota: dict[str, ProdutoEstoque] = {}
 
-    with transaction.atomic():
+    with tenant_atomic():
         for item in produtos_para_importar:
             nome = item.get("nome") or "Item"
             acao = (item.get("acao") or "").strip()

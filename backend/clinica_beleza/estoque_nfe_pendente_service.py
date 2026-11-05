@@ -183,14 +183,13 @@ def confirmar_arquivo(xml_content: bytes, produtos: list, *, loja_id: int | None
 
 
 def _aplicar_estoque(nota, produtos: list, loja_id: int | None, *, chave: str = "", usuario: str = "") -> dict:
-    from django.db import transaction
-
+    from .estoque_service import tenant_atomic
     from .estoque_xml_import_service import confirmar_importacao_xml
     from .models import NotaEntradaNfe
 
     if not produtos:
         raise ValueError("A nota não tem itens para lançar.")
-    with transaction.atomic():
+    with tenant_atomic():
         if nota is not None:
             nota = NotaEntradaNfe.objects.select_for_update().get(pk=nota.pk)
             if nota.status == NotaEntradaNfe.STATUS_IMPORTADA:

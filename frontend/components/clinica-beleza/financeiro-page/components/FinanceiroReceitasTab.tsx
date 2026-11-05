@@ -85,6 +85,7 @@ export function FinanceiroReceitasTab({
   reciboId,
 }: FinanceiroReceitasTabProps) {
   const campo = "px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm";
+  const mostrarOperador = payments.some((p) => Boolean(p.operador_nome?.trim())) || Boolean(operadorFilter);
   const temFiltro = Boolean(dateFilter || statusFilter || professionalFilter || operadorFilter || formaFilter || clienteFilter || tipoFilter || itemFilter);
   const operadoresLista = operadores.includes(operadorFilter) || !operadorFilter ? operadores : [operadorFilter, ...operadores];
 
@@ -122,17 +123,19 @@ export function FinanceiroReceitasTab({
             </option>
           ))}
         </select>
-        <select
-          value={operadorFilter}
-          onChange={(e) => onOperadorFilterChange(e.target.value)}
-          className={campo}
-          aria-label="Operador do caixa"
-        >
-          <option value="">Todos os operadores</option>
-          {operadoresLista.map((nome) => (
-            <option key={nome} value={nome}>{nome}</option>
-          ))}
-        </select>
+        {mostrarOperador && (
+          <select
+            value={operadorFilter}
+            onChange={(e) => onOperadorFilterChange(e.target.value)}
+            className={campo}
+            aria-label="Operador do caixa"
+          >
+            <option value="">Todos os operadores</option>
+            {operadoresLista.map((nome) => (
+              <option key={nome} value={nome}>{nome}</option>
+            ))}
+          </select>
+        )}
         <select
           value={formaFilter}
           onChange={(e) => onFormaFilterChange(e.target.value)}
@@ -183,7 +186,7 @@ export function FinanceiroReceitasTab({
               <tr>
                 <th className="text-left py-3 px-4 font-semibold">Cliente</th>
                 <th className="text-left py-3 px-4 font-semibold">Profissional</th>
-                <th className="text-left py-3 px-4 font-semibold">Operador</th>
+                {mostrarOperador && <th className="text-left py-3 px-4 font-semibold">Operador</th>}
                 <th className="text-left py-3 px-4 font-semibold">Procedimentos</th>
                 <th className="text-right py-3 px-4 font-semibold">Valor</th>
                 <th className="text-left py-3 px-4 font-semibold">Pagamento</th>
@@ -198,7 +201,7 @@ export function FinanceiroReceitasTab({
             <tbody>
               {payments.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-gray-500">
+                  <td colSpan={mostrarOperador ? 10 : 9} className="py-8 text-center text-gray-500">
                     Nenhum lançamento. Receitas são criadas ao finalizar consultas.
                   </td>
                 </tr>
@@ -212,7 +215,7 @@ export function FinanceiroReceitasTab({
                   <tr key={anterior ? `anterior-${p.id}` : `pagamento-${p.id}`} className="border-b border-gray-100 dark:border-neutral-700">
                     <td className="py-3 px-4">{p.paciente_nome || "—"}</td>
                     <td className="py-3 px-4">{p.profissional_nome || "—"}</td>
-                    <td className="py-3 px-4">{p.operador_nome || "—"}</td>
+                    {mostrarOperador && <td className="py-3 px-4">{p.operador_nome || "—"}</td>}
                     <td className="py-3 px-4 max-w-[220px] text-sm leading-snug col-allow-wrap">
                       {p.procedimento_nome || "Consulta"}
                       {anterior && (

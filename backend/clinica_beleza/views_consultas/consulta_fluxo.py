@@ -157,6 +157,10 @@ class ConsultaReceberView(APIView):
                     valor_procedimentos=valor_procedimentos,
                     usuario=request.user,
                 )
+                if str(request.data.get("origem") or "") == "pdv":
+                    from ..venda_produto_service import gravar_operador_do_caixa
+
+                    gravar_operador_do_caixa(payment)
         except AgendaValidationError as exc:
             return Response({"error": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         except ValueError as e:

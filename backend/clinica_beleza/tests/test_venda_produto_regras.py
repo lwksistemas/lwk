@@ -10,6 +10,8 @@ from clinica_beleza.venda_produto_service import (
     VendaProdutoError,
     linha_recibo,
     nome_exibicao_venda,
+    nome_operador_caixa,
+    nome_operador_pagamento,
     pessoa_recibo,
     subtotal_item,
     totais_gaveta,
@@ -34,6 +36,20 @@ def _produto(**kwargs):
     base = {"nome": "Serum", "is_active": True, "vende_ao_cliente": True, "preco_venda": Decimal("80"), "quantidade_atual": Decimal("10")}
     base.update(kwargs)
     return SimpleNamespace(**base)
+
+
+class OperadorCaixaFinanceiroTest(unittest.TestCase):
+    def test_financeiro_usa_o_operador_escolhido_no_caixa(self):
+        sessao = SimpleNamespace(responsavel_nome="LUIZ HENRIQUE FELIX", operador_nome="login")
+        self.assertEqual(nome_operador_caixa(sessao), "LUIZ HENRIQUE FELIX")
+        self.assertEqual(nome_operador_caixa(None), "")
+        venda = SimpleNamespace(operador_nome="LUIZ HENRIQUE FELIX")
+        pagamento_produto = SimpleNamespace(venda_balcao=venda, operador_nome="")
+        self.assertEqual(nome_operador_pagamento(pagamento_produto), "LUIZ HENRIQUE FELIX")
+        atendimento = SimpleNamespace(venda_balcao=None, operador_nome="LUIZ HENRIQUE FELIX")
+        self.assertEqual(nome_operador_pagamento(atendimento), "LUIZ HENRIQUE FELIX")
+        sem_caixa = SimpleNamespace(venda_balcao=None, operador_nome="")
+        self.assertEqual(nome_operador_pagamento(sem_caixa), "")
 
 
 class VendaProdutoRegrasTest(unittest.TestCase):

@@ -273,6 +273,7 @@ def queryset_payments_listagem(*, status=None, date_filter=None, professional_id
             "appointment__retorno_procedure",
             # consulta usada para exibir "Isento" (retorno gratuito) sem N+1.
             "appointment__consulta",
+            "venda_balcao",
         ).prefetch_related(
             "appointment__appointment_procedures__procedure",
             "parcelas",

@@ -161,6 +161,7 @@ def linha_financeiro_anterior(item, recebimentos, hoje: date) -> dict:
         "paciente_nome": getattr(paciente, "nome", "") or "",
         "paciente_tem_prazo": True,
         "profissional_nome": "",
+        "operador_nome": "",
         "procedimento_nome": item.nome,
         "data_atendimento": item.data_procedimento.isoformat(),
         "created_at": item.created_at.isoformat() if getattr(item, "created_at", None) else "",

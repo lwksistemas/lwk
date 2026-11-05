@@ -186,6 +186,9 @@ class PaymentSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["status"] = status_pagamento_exibido(instance)
+        from clinica_beleza.venda_produto_service import nome_operador_pagamento
+
+        data["operador_nome"] = nome_operador_pagamento(instance)
         return data
 
     class Meta:
@@ -195,6 +198,8 @@ class PaymentSerializer(serializers.ModelSerializer):
             "status",
             "comissao_percentual",
             "comissao_valor",
+            "operador_id",
+            "operador_nome",
             "created_at",
             "updated_at",
         ]

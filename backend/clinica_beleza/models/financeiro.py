@@ -73,6 +73,12 @@ class Payment(LojaIsolationMixin, models.Model):
     )
     comissao_percentual = models.PositiveSmallIntegerField(default=0, verbose_name="Comissão %")
     comissao_valor = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Comissão R$")
+    operador_id = models.IntegerField(null=True, blank=True, verbose_name="Operador do caixa")
+    operador_nome = models.CharField(
+        max_length=150, blank=True, default="",
+        verbose_name="Operador do caixa",
+        help_text="Quem estava no caixa quando o atendimento foi recebido no PDV.",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 

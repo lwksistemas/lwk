@@ -33,6 +33,7 @@ export interface FinanceiroPayment {
   paciente_nome: string;
   paciente_tem_prazo?: boolean;
   profissional_nome: string;
+  operador_nome?: string;
   procedimento_nome: string;
   data_atendimento: string;
   created_at: string;

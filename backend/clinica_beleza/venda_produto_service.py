@@ -182,6 +182,36 @@ def totais_sessao_caixa(sessao) -> dict:
     return totais_gaveta(sessao)
 
 
+def nome_operador_caixa(sessao) -> str:
+    """O mesmo nome da página do caixa: o funcionário escolhido ao abrir."""
+    if sessao is None:
+        return ""
+    return (getattr(sessao, "responsavel_nome", "") or getattr(sessao, "operador_nome", "") or "").strip()
+
+
+def nome_operador_pagamento(payment) -> str:
+    """Venda de produto já guarda o operador do caixa. Atendimento usa o nome gravado no recebimento."""
+    venda = getattr(payment, "venda_balcao", None)
+    if venda is not None:
+        nome = (getattr(venda, "operador_nome", "") or "").strip()
+        if nome:
+            return nome
+    return (getattr(payment, "operador_nome", "") or "").strip()
+
+
+def gravar_operador_do_caixa(payment) -> None:
+    """Copia o operador da gaveta aberta. Não troca um nome que já foi gravado."""
+    if payment is None or (getattr(payment, "operador_nome", "") or "").strip():
+        return
+    sessao = sessao_caixa_aberta(getattr(payment, "loja_id", None))
+    nome = nome_operador_caixa(sessao)
+    if not nome:
+        return
+    payment.operador_nome = nome[:150]
+    payment.operador_id = getattr(sessao, "responsavel_id", None) or getattr(sessao, "operador_id", None)
+    payment.save(update_fields=["operador_nome", "operador_id", "updated_at"])
+
+
 def sessao_caixa_aberta(loja_id):
     from .models import SessaoCaixa
 

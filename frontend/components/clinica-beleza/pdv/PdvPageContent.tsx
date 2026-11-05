@@ -24,6 +24,10 @@ import {
   X,
 } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { EnviarReciboAssinaturaAcao } from "@/components/clinica-beleza/consultas/receber/EnviarReciboAssinaturaAcao";
+import { ReceberReciboActions } from "@/components/clinica-beleza/consultas/receber/ReceberReciboActions";
+import { useToast } from "@/components/ui/Toast";
+import { formatApiErrorBody } from "@/lib/api-errors";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { formatarAgendaEvento } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
@@ -124,6 +128,7 @@ function mensagemErro(erro: unknown, fallback: string): string {
 }
 
 export function PdvPageContent() {
+  const toast = useToast();
   const params = useParams();
   const slug = String(params.slug || "");
   const dia = hojeIso();
@@ -616,6 +621,17 @@ export function PdvPageContent() {
   const vendaAPrazo = aba === "servico" && !pdvPodeReceberAtendimento(consulta);
   const paymentRecibo = paymentIdReciboPdv(consulta, recibo);
   const mostrarRecibo = aba === "servico" && (reciboPdvDisponivel(consulta) || (Boolean(recibo?.consultaId) && recibo?.consultaId === consulta?.id));
+  const enviarReciboAtendimento = async (canal: "email" | "whatsapp") => {
+    if (paymentRecibo <= 0) return;
+    try {
+      await ClinicaBelezaAPI.payments.enviarRecibo(paymentRecibo, canal);
+      toast.success(canal === "email" ? "Recibo enviado por email!" : "Recibo enviado por WhatsApp!");
+    } catch (erroEnvio: unknown) {
+      const corpo = erroEnvio as { response?: { data?: { error?: string } } };
+      toast.error(corpo?.response?.data?.error || formatApiErrorBody(erroEnvio) || (canal === "email" ? "Erro ao enviar email." : "Erro ao enviar WhatsApp."));
+    }
+  };
+
   const procedimentos = consulta?.procedures_list?.length
     ? consulta.procedures_list
     : selecionado?.extendedProps?.procedure_name
@@ -922,10 +938,13 @@ export function PdvPageContent() {
             </button>
           )}
           {mostrarRecibo && paymentRecibo > 0 && (
-            <div className="grid grid-cols-3 gap-2 text-center text-[11px] text-gray-500">
-              <button type="button" onClick={() => void imprimirRecibo(paymentRecibo)} className="rounded-xl border px-1 py-2"><FileText size={16} className="mx-auto" />Imprimir</button>
-              <button type="button" onClick={() => void ClinicaBelezaAPI.payments.enviarRecibo(paymentRecibo, "whatsapp")} className="rounded-xl border px-1 py-2"><MessageCircle size={16} className="mx-auto" />WhatsApp</button>
-              <button type="button" onClick={() => void ClinicaBelezaAPI.payments.enviarReciboParaAssinatura(paymentRecibo, "whatsapp")} className="rounded-xl border px-1 py-2"><PenLine size={16} className="mx-auto" />Assinatura</button>
+            <div className="space-y-3">
+              <ReceberReciboActions
+                onImprimir={() => void imprimirRecibo(paymentRecibo)}
+                onEmail={() => void enviarReciboAtendimento("email")}
+                onWhatsApp={() => void enviarReciboAtendimento("whatsapp")}
+              />
+              {vendaAPrazo && <EnviarReciboAssinaturaAcao paymentId={paymentRecibo} />}
             </div>
           )}
         </section>

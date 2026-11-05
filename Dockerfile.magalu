@@ -17,10 +17,10 @@ COPY backend/scripts/ scripts/
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr tesseract-ocr-por \
     && rm -rf /var/lib/apt/lists/*
-RUN mkdir -p staticfiles media && chmod +x scripts/*.sh 2>/dev/null || true \
+RUN mkdir -p staticfiles media backups && chmod +x scripts/*.sh 2>/dev/null || true \
     && groupadd --gid 1000 app \
     && useradd --uid 1000 --gid 1000 --create-home --shell /usr/sbin/nologin app \
-    && chown app:app staticfiles media \
+    && chown app:app staticfiles media backups \
     && chmod 755 scripts/*.sh
 
 ENV DJANGO_SETTINGS_MODULE=config.settings_production

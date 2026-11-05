@@ -18,9 +18,7 @@ interface FinanceiroDespesasTabProps {
   pageSize: number;
   totalLista: number;
   statusFilter: string;
-  dateFilter: string;
   onStatusFilterChange: (value: string) => void;
-  onDateFilterChange: (value: string) => void;
   onPageChange: (page: number) => void;
   onEdit: (d: DespesaItem) => void;
   onRemove: (d: DespesaItem) => void;
@@ -35,9 +33,7 @@ export function FinanceiroDespesasTab({
   pageSize,
   totalLista,
   statusFilter,
-  dateFilter,
   onStatusFilterChange,
-  onDateFilterChange,
   onPageChange,
   onEdit,
   onRemove,
@@ -45,13 +41,6 @@ export function FinanceiroDespesasTab({
   return (
     <>
       <div className="flex flex-wrap gap-3 mb-4">
-        <input
-          type="date"
-          value={dateFilter}
-          onChange={(e) => onDateFilterChange(e.target.value)}
-          className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-sm"
-          title="Filtrar por vencimento"
-        />
         <select
           value={statusFilter}
           onChange={(e) => onStatusFilterChange(e.target.value)}

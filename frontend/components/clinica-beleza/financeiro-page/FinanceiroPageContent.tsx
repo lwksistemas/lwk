@@ -125,7 +125,6 @@ export function FinanceiroPageContent() {
                 totalLista={f.totalListaReceitas}
                 statusFilter={f.statusFilter}
                 professionalFilter={f.professionalFilter}
-                dateFilter={f.dateFilter}
                 operadorFilter={f.operadorFilter}
                 operadores={f.resumo?.operadores ?? []}
                 formaFilter={f.formaFilter}
@@ -134,7 +133,6 @@ export function FinanceiroPageContent() {
                 itemFilter={f.itemFilter}
                 onStatusFilterChange={f.setStatusFilter}
                 onProfessionalFilterChange={f.setProfessionalFilter}
-                onDateFilterChange={f.setDateFilter}
                 onOperadorFilterChange={f.setOperadorFilter}
                 onFormaFilterChange={f.setFormaFilter}
                 onClienteFilterChange={f.setClienteFilter}
@@ -162,9 +160,7 @@ export function FinanceiroPageContent() {
                 pageSize={f.despesasPageSize}
                 totalLista={f.totalListaDespesas}
                 statusFilter={f.despesaStatusFilter}
-                dateFilter={f.despesaDateFilter}
                 onStatusFilterChange={f.setDespesaStatusFilter}
-                onDateFilterChange={f.setDespesaDateFilter}
                 onPageChange={f.setDespesasPage}
                 onEdit={f.editarDespesa}
                 onRemove={f.removerDespesa}

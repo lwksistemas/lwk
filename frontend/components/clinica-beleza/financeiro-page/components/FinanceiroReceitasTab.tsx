@@ -24,7 +24,6 @@ interface FinanceiroReceitasTabProps {
   totalLista: number;
   statusFilter: string;
   professionalFilter: string;
-  dateFilter: string;
   operadorFilter: string;
   operadores: string[];
   formaFilter: string;
@@ -34,7 +33,6 @@ interface FinanceiroReceitasTabProps {
   cobrandoId: number | null;
   onStatusFilterChange: (value: string) => void;
   onProfessionalFilterChange: (value: string) => void;
-  onDateFilterChange: (value: string) => void;
   onOperadorFilterChange: (value: string) => void;
   onFormaFilterChange: (value: string) => void;
   onClienteFilterChange: (value: string) => void;
@@ -60,7 +58,6 @@ export function FinanceiroReceitasTab({
   totalLista,
   statusFilter,
   professionalFilter,
-  dateFilter,
   operadorFilter,
   operadores,
   formaFilter,
@@ -70,7 +67,6 @@ export function FinanceiroReceitasTab({
   cobrandoId,
   onStatusFilterChange,
   onProfessionalFilterChange,
-  onDateFilterChange,
   onOperadorFilterChange,
   onFormaFilterChange,
   onClienteFilterChange,
@@ -86,18 +82,12 @@ export function FinanceiroReceitasTab({
 }: FinanceiroReceitasTabProps) {
   const campo = "px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm";
   const mostrarOperador = payments.some((p) => Boolean(p.operador_nome?.trim())) || Boolean(operadorFilter);
-  const temFiltro = Boolean(dateFilter || statusFilter || professionalFilter || operadorFilter || formaFilter || clienteFilter || tipoFilter || itemFilter);
+  const temFiltro = Boolean(statusFilter || professionalFilter || operadorFilter || formaFilter || clienteFilter || tipoFilter || itemFilter);
   const operadoresLista = operadores.includes(operadorFilter) || !operadorFilter ? operadores : [operadorFilter, ...operadores];
 
   return (
     <>
       <div className="flex flex-wrap gap-3 mb-4">
-        <input
-          type="date"
-          value={dateFilter}
-          onChange={(e) => onDateFilterChange(e.target.value)}
-          className={campo}
-        />
         <select
           value={statusFilter}
           onChange={(e) => onStatusFilterChange(e.target.value)}

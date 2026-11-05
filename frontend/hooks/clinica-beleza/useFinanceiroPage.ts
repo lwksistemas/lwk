@@ -21,7 +21,6 @@ export function useFinanceiroPage() {
   const [loadingResumo, setLoadingResumo] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
   const [professionalFilter, setProfessionalFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
   const [operadorFilter, setOperadorFilter] = useState("");
   const [formaFilter, setFormaFilter] = useState("");
   const [clienteFilter, setClienteFilter] = useState("");
@@ -33,7 +32,6 @@ export function useFinanceiroPage() {
   const [periodoInicio, setPeriodoInicio] = useState("");
   const [periodoFim, setPeriodoFim] = useState("");
   const [despesaStatusFilter, setDespesaStatusFilter] = useState("");
-  const [despesaDateFilter, setDespesaDateFilter] = useState("");
   const [showDespesaModal, setShowDespesaModal] = useState(false);
   const [editingDespesa, setEditingDespesa] = useState<DespesaItem | null>(null);
   const [savingDespesa, setSavingDespesa] = useState(false);
@@ -57,7 +55,6 @@ export function useFinanceiroPage() {
     () => ({
       status: statusFilter || undefined,
       professional: professionalFilter || undefined,
-      date: dateFilter || undefined,
       operador: operadorFilter || undefined,
       forma: formaFilter || undefined,
       cliente: clienteConsulta || undefined,
@@ -66,29 +63,28 @@ export function useFinanceiroPage() {
       inicio: intervalo.inicio || undefined,
       fim: intervalo.fim || undefined,
     }),
-    [statusFilter, professionalFilter, dateFilter, operadorFilter, formaFilter, clienteConsulta, tipoFilter, itemConsulta, intervalo],
+    [statusFilter, professionalFilter, operadorFilter, formaFilter, clienteConsulta, tipoFilter, itemConsulta, intervalo],
   );
 
   const despesaQueryParams = useMemo(
     () => ({
       status: despesaStatusFilter || undefined,
-      date: despesaDateFilter || undefined,
       inicio: intervalo.inicio || undefined,
       fim: intervalo.fim || undefined,
     }),
-    [despesaStatusFilter, despesaDateFilter, intervalo],
+    [despesaStatusFilter, intervalo],
   );
 
   const paymentsList = useClinicaBelezaPaginatedList<FinanceiroPayment>({
     path: "/payments/",
     queryParams: paymentQueryParams,
-    reloadDeps: [statusFilter, professionalFilter, dateFilter, operadorFilter, formaFilter, clienteConsulta, tipoFilter, itemConsulta, intervalo.inicio, intervalo.fim],
+    reloadDeps: [statusFilter, professionalFilter, operadorFilter, formaFilter, clienteConsulta, tipoFilter, itemConsulta, intervalo.inicio, intervalo.fim],
   });
 
   const despesasList = useClinicaBelezaPaginatedList<DespesaItem>({
     path: "/despesas/",
     queryParams: despesaQueryParams,
-    reloadDeps: [despesaStatusFilter, despesaDateFilter, intervalo.inicio, intervalo.fim],
+    reloadDeps: [despesaStatusFilter, intervalo.inicio, intervalo.fim],
   });
 
   const loadResumo = useCallback(async () => {
@@ -145,7 +141,6 @@ export function useFinanceiroPage() {
   const limparFiltrosReceita = () => {
     setStatusFilter("");
     setProfessionalFilter("");
-    setDateFilter("");
     setOperadorFilter("");
     setFormaFilter("");
     setClienteFilter("");
@@ -191,8 +186,6 @@ export function useFinanceiroPage() {
     setStatusFilter,
     professionalFilter,
     setProfessionalFilter,
-    dateFilter,
-    setDateFilter,
     periodo,
     setPeriodo,
     periodoInicio,
@@ -212,8 +205,6 @@ export function useFinanceiroPage() {
     limparFiltrosReceita,
     despesaStatusFilter,
     setDespesaStatusFilter,
-    despesaDateFilter,
-    setDespesaDateFilter,
     showDespesaModal,
     setShowDespesaModal,
     editingDespesa,

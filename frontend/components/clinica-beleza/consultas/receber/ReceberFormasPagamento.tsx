@@ -19,6 +19,7 @@ interface ReceberFormasPagamentoProps {
   onAdd: () => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, patch: Partial<EntradaPagamentoLinha>) => void;
+  formas?: ReadonlyArray<readonly [string, string]>;
 }
 
 export function ReceberFormasPagamento({
@@ -29,7 +30,9 @@ export function ReceberFormasPagamento({
   onAdd,
   onRemove,
   onUpdate,
+  formas,
 }: ReceberFormasPagamentoProps) {
+  const opcoes = formas ?? Object.entries(CLINICA_FORMA_PAGAMENTO_LABEL);
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -72,7 +75,7 @@ export function ReceberFormasPagamento({
                   onChange={(e) => onUpdate(linha.id, { payment_method: e.target.value })}
                   className={fieldClass}
                 >
-                  {Object.entries(CLINICA_FORMA_PAGAMENTO_LABEL).map(([value, label]) => (
+                  {opcoes.map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
                     </option>

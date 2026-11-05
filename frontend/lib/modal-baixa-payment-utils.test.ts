@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { baixaPagamentoPodeConfirmar } from "@/components/clinica-beleza/financeiro-page/components/modal-baixa-payment-utils";
+import {
+  baixaPagamentoPodeConfirmar,
+  validarBaixaFormas,
+} from "@/components/clinica-beleza/financeiro-page/components/modal-baixa-payment-utils";
 
 describe("baixaPagamentoPodeConfirmar", () => {
   it("habilita quitar quando o desconto cobre o saldo e não há valor recebido", () => {
@@ -30,5 +33,44 @@ describe("baixaPagamentoPodeConfirmar", () => {
     expect(
       baixaPagamentoPodeConfirmar({ saldoDevedor: 150, valorRecebido: 0, desconto: 200 }),
     ).toMatchObject({ pode: false, descontoExcede: true });
+  });
+});
+
+describe("validarBaixaFormas", () => {
+  it("aceita desconto que quita sem forma de pagamento", () => {
+    expect(validarBaixaFormas({ saldoDevedor: 150, desconto: 150, entradas: [], quitar: true })).toBeNull();
+  });
+
+  it("aceita duas formas que fecham o saldo", () => {
+    expect(
+      validarBaixaFormas({
+        saldoDevedor: 2500,
+        desconto: 0,
+        entradas: [{ valor: "1000" }, { valor: "1500" }],
+        quitar: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("pede o valor completo quando a opção de quitar está marcada", () => {
+    expect(
+      validarBaixaFormas({
+        saldoDevedor: 2500,
+        desconto: 0,
+        entradas: [{ valor: "1000" }],
+        quitar: true,
+      }),
+    ).toMatch(/Para quitar/);
+  });
+
+  it("permite entrada parcial quando não quita", () => {
+    expect(
+      validarBaixaFormas({
+        saldoDevedor: 2500,
+        desconto: 0,
+        entradas: [{ valor: "1000" }],
+        quitar: false,
+      }),
+    ).toBeNull();
   });
 });

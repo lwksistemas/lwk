@@ -105,6 +105,11 @@ class ListaFinanceiroProcedimentoAnteriorTest(SimpleTestCase):
         self.assertTrue(entra_na_lista_do_financeiro(linha, status="PENDING"))
         self.assertFalse(entra_na_lista_do_financeiro(linha, status="PAID"))
         self.assertFalse(entra_na_lista_do_financeiro(linha, professional_id="3"))
+        self.assertFalse(entra_na_lista_do_financeiro(linha, operador="LUIZ"))
+        self.assertFalse(entra_na_lista_do_financeiro(linha, tipo="produto"))
+        self.assertFalse(entra_na_lista_do_financeiro(linha, forma="PIX"))
+        self.assertTrue(entra_na_lista_do_financeiro(linha, forma="PRAZO", cliente="talita", item="soro"))
+        self.assertFalse(entra_na_lista_do_financeiro(linha, cliente="marcia"))
 
     def test_entrada_parcial_continua_em_aberto(self):
         from types import SimpleNamespace

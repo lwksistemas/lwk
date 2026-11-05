@@ -1,7 +1,7 @@
 "use client";
 
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
-import { CLINICA_PAGAMENTO_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
+import { CLINICA_FORMA_PAGAMENTO_LABEL, CLINICA_PAGAMENTO_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import { entityName } from "@/lib/clinica-beleza-entities";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import type { FinanceiroPayment, FinanceiroProfessional } from "../types";
@@ -25,10 +25,22 @@ interface FinanceiroReceitasTabProps {
   statusFilter: string;
   professionalFilter: string;
   dateFilter: string;
+  operadorFilter: string;
+  operadores: string[];
+  formaFilter: string;
+  clienteFilter: string;
+  tipoFilter: string;
+  itemFilter: string;
   cobrandoId: number | null;
   onStatusFilterChange: (value: string) => void;
   onProfessionalFilterChange: (value: string) => void;
   onDateFilterChange: (value: string) => void;
+  onOperadorFilterChange: (value: string) => void;
+  onFormaFilterChange: (value: string) => void;
+  onClienteFilterChange: (value: string) => void;
+  onTipoFilterChange: (value: string) => void;
+  onItemFilterChange: (value: string) => void;
+  onLimparFiltros: () => void;
   onPageChange: (page: number) => void;
   onBaixa: (payment: FinanceiroPayment) => void;
   onCorrigirForma: (payment: FinanceiroPayment) => void;
@@ -49,10 +61,22 @@ export function FinanceiroReceitasTab({
   statusFilter,
   professionalFilter,
   dateFilter,
+  operadorFilter,
+  operadores,
+  formaFilter,
+  clienteFilter,
+  tipoFilter,
+  itemFilter,
   cobrandoId,
   onStatusFilterChange,
   onProfessionalFilterChange,
   onDateFilterChange,
+  onOperadorFilterChange,
+  onFormaFilterChange,
+  onClienteFilterChange,
+  onTipoFilterChange,
+  onItemFilterChange,
+  onLimparFiltros,
   onPageChange,
   onBaixa,
   onCorrigirForma,
@@ -60,6 +84,10 @@ export function FinanceiroReceitasTab({
   onAbrirRecibo,
   reciboId,
 }: FinanceiroReceitasTabProps) {
+  const campo = "px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm";
+  const temFiltro = Boolean(dateFilter || statusFilter || professionalFilter || operadorFilter || formaFilter || clienteFilter || tipoFilter || itemFilter);
+  const operadoresLista = operadores.includes(operadorFilter) || !operadorFilter ? operadores : [operadorFilter, ...operadores];
+
   return (
     <>
       <div className="flex flex-wrap gap-3 mb-4">
@@ -67,12 +95,13 @@ export function FinanceiroReceitasTab({
           type="date"
           value={dateFilter}
           onChange={(e) => onDateFilterChange(e.target.value)}
-          className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm"
+          className={campo}
         />
         <select
           value={statusFilter}
           onChange={(e) => onStatusFilterChange(e.target.value)}
-          className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm"
+          className={campo}
+          aria-label="Status"
         >
           <option value="">Todos os status</option>
           <option value="PAID">Pago</option>
@@ -83,7 +112,8 @@ export function FinanceiroReceitasTab({
         <select
           value={professionalFilter}
           onChange={(e) => onProfessionalFilterChange(e.target.value)}
-          className="px-3 py-2 border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 text-sm"
+          className={campo}
+          aria-label="Profissional"
         >
           <option value="">Todos os profissionais</option>
           {professionals.map((p) => (
@@ -92,6 +122,59 @@ export function FinanceiroReceitasTab({
             </option>
           ))}
         </select>
+        <select
+          value={operadorFilter}
+          onChange={(e) => onOperadorFilterChange(e.target.value)}
+          className={campo}
+          aria-label="Operador do caixa"
+        >
+          <option value="">Todos os operadores</option>
+          {operadoresLista.map((nome) => (
+            <option key={nome} value={nome}>{nome}</option>
+          ))}
+        </select>
+        <select
+          value={formaFilter}
+          onChange={(e) => onFormaFilterChange(e.target.value)}
+          className={campo}
+          aria-label="Forma de pagamento"
+        >
+          <option value="">Todas as formas</option>
+          {Object.entries(CLINICA_FORMA_PAGAMENTO_LABEL).map(([id, rotulo]) => (
+            <option key={id} value={id}>{rotulo}</option>
+          ))}
+        </select>
+        <input
+          type="search"
+          value={clienteFilter}
+          onChange={(e) => onClienteFilterChange(e.target.value)}
+          placeholder="Cliente"
+          aria-label="Cliente"
+          className={campo}
+        />
+        <select
+          value={tipoFilter}
+          onChange={(e) => onTipoFilterChange(e.target.value)}
+          className={campo}
+          aria-label="Produtos ou procedimentos"
+        >
+          <option value="">Produtos e procedimentos</option>
+          <option value="produto">Só produtos</option>
+          <option value="procedimento">Só procedimentos</option>
+        </select>
+        <input
+          type="search"
+          value={itemFilter}
+          onChange={(e) => onItemFilterChange(e.target.value)}
+          placeholder="Nome do produto ou procedimento"
+          aria-label="Nome do produto ou procedimento"
+          className={`${campo} min-w-[16rem]`}
+        />
+        {temFiltro && (
+          <button type="button" onClick={onLimparFiltros} className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
+            Limpar filtros
+          </button>
+        )}
       </div>
       <section className="bg-white dark:bg-neutral-800 rounded-xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">

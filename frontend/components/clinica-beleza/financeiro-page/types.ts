@@ -8,6 +8,7 @@ export interface FinanceiroResumo {
   despesas_atendimento?: number;
   despesas: number;
   lucro: number;
+  operadores?: string[];
 }
 
 export interface FinanceiroPayment {

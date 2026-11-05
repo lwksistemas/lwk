@@ -265,7 +265,75 @@ def alinhar_pendentes_com_parcela() -> None:
     )
 
 
-def queryset_payments_listagem(*, status=None, date_filter=None, professional_id=None):
+def _texto_filtro(valor) -> str:
+    return str(valor or "").strip()
+
+
+def operadores_do_caixa() -> list[str]:
+    """Nomes escolhidos ao abrir o caixa, nas vendas e nos recebimentos do PDV."""
+    from .models import VendaBalcao
+
+    nomes = {
+        _texto_filtro(nome)
+        for nome in Payment.objects.exclude(operador_nome="").values_list("operador_nome", flat=True).distinct()
+    }
+    nomes.update(
+        _texto_filtro(nome)
+        for nome in VendaBalcao.objects.exclude(operador_nome="").values_list("operador_nome", flat=True).distinct()
+    )
+    nomes.discard("")
+    return sorted(nomes, key=str.casefold)
+
+
+def _filtrar_receitas(qs, *, operador=None, forma=None, cliente=None, tipo=None, item=None):
+    """Recorta a lista para achar o que ainda falta baixar."""
+    operador_nome = _texto_filtro(operador)
+    if operador_nome:
+        qs = qs.filter(
+            Q(operador_nome__iexact=operador_nome) | Q(venda_balcao__operador_nome__iexact=operador_nome),
+        )
+    forma_nome = _texto_filtro(forma).upper()
+    if forma_nome:
+        qs = qs.filter(
+            Q(payment_method=forma_nome) | Q(parcelas__payment_method=forma_nome, parcelas__status="PAID"),
+        )
+    cliente_nome = _texto_filtro(cliente)
+    if cliente_nome:
+        qs = qs.filter(
+            Q(appointment__patient__nome__icontains=cliente_nome)
+            | Q(venda_balcao__nome_cliente__icontains=cliente_nome)
+            | Q(venda_balcao__paciente__nome__icontains=cliente_nome),
+        )
+    tipo_nome = _texto_filtro(tipo).casefold()
+    if tipo_nome == "produto":
+        qs = qs.filter(Q(venda_balcao__isnull=False) | Q(valor_produtos__gt=0))
+    elif tipo_nome == "procedimento":
+        qs = qs.filter(appointment__isnull=False).filter(Q(venda_balcao__isnull=True))
+    item_nome = _texto_filtro(item)
+    if item_nome:
+        qs = qs.filter(
+            Q(appointment__procedure__nome__icontains=item_nome)
+            | Q(appointment__appointment_procedures__procedure__nome__icontains=item_nome)
+            | Q(appointment__retorno_procedure__nome__icontains=item_nome)
+            | Q(venda_balcao__itens__produto__nome__icontains=item_nome)
+            | Q(appointment__consulta__produtos_estoque__produto__nome__icontains=item_nome),
+        )
+    if operador_nome or forma_nome or cliente_nome or tipo_nome in ("produto", "procedimento") or item_nome:
+        qs = qs.distinct()
+    return qs
+
+
+def queryset_payments_listagem(
+    *,
+    status=None,
+    date_filter=None,
+    professional_id=None,
+    operador=None,
+    forma=None,
+    cliente=None,
+    tipo=None,
+    item=None,
+):
     qs = payments_visiveis_financeiro(
         Payment.objects.select_related(
             "appointment", "appointment__patient",
@@ -294,7 +362,14 @@ def queryset_payments_listagem(*, status=None, date_filter=None, professional_id
         qs = qs.filter(payment_date__date=date_filter)
     if professional_id:
         qs = qs.filter(appointment__professional_id=professional_id)
-    return qs
+    return _filtrar_receitas(
+        qs,
+        operador=operador,
+        forma=forma,
+        cliente=cliente,
+        tipo=tipo,
+        item=item,
+    )
 
 
 def decimal_ou_none(raw):

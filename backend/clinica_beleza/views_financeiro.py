@@ -19,6 +19,7 @@ from .financeiro_service import (
     erro_status_para_parcela,
     garantir_categorias_despesa_padrao,
     montar_resumo_financeiro,
+    operadores_do_caixa,
     queryset_payments_listagem,
 )
 from .models import CategoriaDespesa, Despesa, Payment
@@ -48,6 +49,11 @@ def _incluir_procedimentos_anteriores(resposta, request):
         status=request.query_params.get("status"),
         date_filter=request.query_params.get("date"),
         professional_id=request.query_params.get("professional"),
+        operador=request.query_params.get("operador"),
+        forma=request.query_params.get("forma"),
+        cliente=request.query_params.get("cliente"),
+        tipo=request.query_params.get("tipo"),
+        item=request.query_params.get("item"),
         hoje=data_hoje_clinica(),
     )
     if not linhas:
@@ -74,6 +80,11 @@ class PaymentListView(APIView):
             status=request.query_params.get("status"),
             date_filter=request.query_params.get("date"),
             professional_id=request.query_params.get("professional"),
+            operador=request.query_params.get("operador"),
+            forma=request.query_params.get("forma"),
+            cliente=request.query_params.get("cliente"),
+            tipo=request.query_params.get("tipo"),
+            item=request.query_params.get("item"),
         )
         resposta = paginate_queryset(queryset, request, PaymentSerializer)
         return _incluir_procedimentos_anteriores(resposta, request)
@@ -425,7 +436,9 @@ class FinanceiroResumoView(APIView):
                 raise ValueError
         except (ValueError, TypeError):
             ano, mes = today.year, today.month
-        return Response(montar_resumo_financeiro(ano=ano, mes=mes, today=today))
+        corpo = montar_resumo_financeiro(ano=ano, mes=mes, today=today)
+        corpo["operadores"] = operadores_do_caixa()
+        return Response(corpo)
 
 
 class CategoriaDespesaListView(APIView):

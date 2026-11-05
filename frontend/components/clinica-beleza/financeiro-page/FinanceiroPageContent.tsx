@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
@@ -29,6 +29,19 @@ export function FinanceiroPageContent() {
   const [cobrandoId, setCobrandoId] = useState<number | null>(null);
   const [reciboId, setReciboId] = useState<number | null>(null);
   const [receberConsulta, setReceberConsulta] = useState<Consulta | null>(null);
+  const [resumoVisivel, setResumoVisivel] = useState(true);
+
+  useEffect(() => {
+    setResumoVisivel(window.localStorage.getItem("lwk-financeiro-resumo") !== "0");
+  }, []);
+
+  const alternarResumo = () => {
+    setResumoVisivel((atual) => {
+      const proximo = !atual;
+      window.localStorage.setItem("lwk-financeiro-resumo", proximo ? "1" : "0");
+      return proximo;
+    });
+  };
 
   const handleAbrirRecibo = async (payment: FinanceiroPayment) => {
     if (!payment.consulta_id) {
@@ -83,7 +96,12 @@ export function FinanceiroPageContent() {
           </div>
         ) : (
           <>
-            <FinanceiroResumoCards resumo={f.resumo} />
+            <div className="mb-3 flex justify-end">
+              <button type="button" onClick={alternarResumo} className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                {resumoVisivel ? "Ocultar resumo" : "Mostrar resumo"}
+              </button>
+            </div>
+            {resumoVisivel && <FinanceiroResumoCards resumo={f.resumo} />}
             <FinanceiroTabBar
               tab={f.tab}
               onTabChange={f.setTab}
@@ -102,9 +120,21 @@ export function FinanceiroPageContent() {
                 statusFilter={f.statusFilter}
                 professionalFilter={f.professionalFilter}
                 dateFilter={f.dateFilter}
+                operadorFilter={f.operadorFilter}
+                operadores={f.resumo?.operadores ?? []}
+                formaFilter={f.formaFilter}
+                clienteFilter={f.clienteFilter}
+                tipoFilter={f.tipoFilter}
+                itemFilter={f.itemFilter}
                 onStatusFilterChange={f.setStatusFilter}
                 onProfessionalFilterChange={f.setProfessionalFilter}
                 onDateFilterChange={f.setDateFilter}
+                onOperadorFilterChange={f.setOperadorFilter}
+                onFormaFilterChange={f.setFormaFilter}
+                onClienteFilterChange={f.setClienteFilter}
+                onTipoFilterChange={f.setTipoFilter}
+                onItemFilterChange={f.setItemFilter}
+                onLimparFiltros={f.limparFiltrosReceita}
                 onPageChange={f.setPaymentsPage}
                 onBaixa={(p) => {
                   if (p.origem === "procedimento_anterior") setReceberAnterior(p);

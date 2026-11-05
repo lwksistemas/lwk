@@ -169,9 +169,33 @@ def linha_financeiro_anterior(item, recebimentos, hoje: date) -> dict:
     }
 
 
-def entra_na_lista_do_financeiro(linha, *, status=None, date_filter=None, professional_id=None) -> bool:
+def entra_na_lista_do_financeiro(
+    linha,
+    *,
+    status=None,
+    date_filter=None,
+    professional_id=None,
+    operador=None,
+    forma=None,
+    cliente=None,
+    tipo=None,
+    item=None,
+) -> bool:
     """Saldo em aberto continua na lista para receber, mesmo com filtro de um dia."""
     if professional_id not in (None, ""):
+        return False
+    if str(operador or "").strip():
+        return False
+    if str(tipo or "").strip().casefold() == "produto":
+        return False
+    forma_nome = str(forma or "").strip().upper()
+    if forma_nome and str(linha.get("payment_method") or "").upper() != forma_nome:
+        return False
+    cliente_nome = str(cliente or "").strip().casefold()
+    if cliente_nome and cliente_nome not in str(linha.get("paciente_nome") or "").casefold():
+        return False
+    item_nome = str(item or "").strip().casefold()
+    if item_nome and item_nome not in str(linha.get("procedimento_nome") or "").casefold():
         return False
     if status == "CANCELLED":
         return False
@@ -188,7 +212,18 @@ def entra_na_lista_do_financeiro(linha, *, status=None, date_filter=None, profes
     return dia in datas
 
 
-def linhas_financeiras_anteriores(*, status=None, date_filter=None, professional_id=None, hoje: date | None = None) -> list[dict]:
+def linhas_financeiras_anteriores(
+    *,
+    status=None,
+    date_filter=None,
+    professional_id=None,
+    operador=None,
+    forma=None,
+    cliente=None,
+    tipo=None,
+    item=None,
+    hoje: date | None = None,
+) -> list[dict]:
     """Procedimentos anteriores com saldo, no formato da lista de receitas."""
     from django.utils import timezone
 
@@ -207,7 +242,15 @@ def linhas_financeiras_anteriores(*, status=None, date_filter=None, professional
     for item in itens:
         linha = linha_financeiro_anterior(item, list(item.recebimentos.all()), hoje)
         if entra_na_lista_do_financeiro(
-            linha, status=status, date_filter=date_filter, professional_id=professional_id,
+            linha,
+            status=status,
+            date_filter=date_filter,
+            professional_id=professional_id,
+            operador=operador,
+            forma=forma,
+            cliente=cliente,
+            tipo=tipo,
+            item=item,
         ):
             linha.pop("datas_recebimento", None)
             linhas.append(linha)

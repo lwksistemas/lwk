@@ -21,19 +21,41 @@ export function useFinanceiroPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [professionalFilter, setProfessionalFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [operadorFilter, setOperadorFilter] = useState("");
+  const [formaFilter, setFormaFilter] = useState("");
+  const [clienteFilter, setClienteFilter] = useState("");
+  const [clienteConsulta, setClienteConsulta] = useState("");
+  const [tipoFilter, setTipoFilter] = useState("");
+  const [itemFilter, setItemFilter] = useState("");
+  const [itemConsulta, setItemConsulta] = useState("");
   const [despesaStatusFilter, setDespesaStatusFilter] = useState("");
   const [despesaDateFilter, setDespesaDateFilter] = useState("");
   const [showDespesaModal, setShowDespesaModal] = useState(false);
   const [editingDespesa, setEditingDespesa] = useState<DespesaItem | null>(null);
   const [savingDespesa, setSavingDespesa] = useState(false);
 
+  useEffect(() => {
+    const espera = window.setTimeout(() => setClienteConsulta(clienteFilter.trim()), 350);
+    return () => window.clearTimeout(espera);
+  }, [clienteFilter]);
+
+  useEffect(() => {
+    const espera = window.setTimeout(() => setItemConsulta(itemFilter.trim()), 350);
+    return () => window.clearTimeout(espera);
+  }, [itemFilter]);
+
   const paymentQueryParams = useMemo(
     () => ({
       status: statusFilter || undefined,
       professional: professionalFilter || undefined,
       date: dateFilter || undefined,
+      operador: operadorFilter || undefined,
+      forma: formaFilter || undefined,
+      cliente: clienteConsulta || undefined,
+      tipo: tipoFilter || undefined,
+      item: itemConsulta || undefined,
     }),
-    [statusFilter, professionalFilter, dateFilter],
+    [statusFilter, professionalFilter, dateFilter, operadorFilter, formaFilter, clienteConsulta, tipoFilter, itemConsulta],
   );
 
   const despesaQueryParams = useMemo(
@@ -47,7 +69,7 @@ export function useFinanceiroPage() {
   const paymentsList = useClinicaBelezaPaginatedList<FinanceiroPayment>({
     path: "/payments/",
     queryParams: paymentQueryParams,
-    reloadDeps: [statusFilter, professionalFilter, dateFilter],
+    reloadDeps: [statusFilter, professionalFilter, dateFilter, operadorFilter, formaFilter, clienteConsulta, tipoFilter, itemConsulta],
   });
 
   const despesasList = useClinicaBelezaPaginatedList<DespesaItem>({
@@ -107,6 +129,19 @@ export function useFinanceiroPage() {
     0,
   );
 
+  const limparFiltrosReceita = () => {
+    setStatusFilter("");
+    setProfessionalFilter("");
+    setDateFilter("");
+    setOperadorFilter("");
+    setFormaFilter("");
+    setClienteFilter("");
+    setClienteConsulta("");
+    setTipoFilter("");
+    setItemFilter("");
+    setItemConsulta("");
+  };
+
   const abrirNovaDespesa = () => {
     setEditingDespesa(null);
     setShowDespesaModal(true);
@@ -145,6 +180,17 @@ export function useFinanceiroPage() {
     setProfessionalFilter,
     dateFilter,
     setDateFilter,
+    operadorFilter,
+    setOperadorFilter,
+    formaFilter,
+    setFormaFilter,
+    clienteFilter,
+    setClienteFilter,
+    tipoFilter,
+    setTipoFilter,
+    itemFilter,
+    setItemFilter,
+    limparFiltrosReceita,
     despesaStatusFilter,
     setDespesaStatusFilter,
     despesaDateFilter,

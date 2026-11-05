@@ -11,6 +11,7 @@ from clinica_beleza.venda_produto_service import (
     linha_recibo,
     nome_exibicao_venda,
     nome_operador_caixa,
+    usuario_pode_fechar_caixa,
     nome_operador_pagamento,
     pessoa_recibo,
     subtotal_item,
@@ -50,6 +51,19 @@ class OperadorCaixaFinanceiroTest(unittest.TestCase):
         self.assertEqual(nome_operador_pagamento(atendimento), "LUIZ HENRIQUE FELIX")
         sem_caixa = SimpleNamespace(venda_balcao=None, operador_nome="")
         self.assertEqual(nome_operador_pagamento(sem_caixa), "")
+
+
+class FecharCaixaDoOperadorTest(unittest.TestCase):
+    def test_outro_login_nao_fecha_o_caixa_da_bruna(self):
+        sessao = SimpleNamespace(
+            responsavel_nome="BRUNA TUCCI MARTINS",
+            operador_nome="BRUNA TUCCI MARTINS",
+            responsavel_id=None,
+        )
+        luiz = SimpleNamespace(is_authenticated=True, pk=9, email="", username="luiz", get_full_name=lambda: "LUIZ HENRIQUE FELIX")
+        bruna = SimpleNamespace(is_authenticated=True, pk=3, email="", username="bruna", get_full_name=lambda: "bruna tucci martins")
+        self.assertFalse(usuario_pode_fechar_caixa(sessao, luiz))
+        self.assertTrue(usuario_pode_fechar_caixa(sessao, bruna))
 
 
 class VendaProdutoRegrasTest(unittest.TestCase):

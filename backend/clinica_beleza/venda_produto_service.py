@@ -135,6 +135,27 @@ def _lotes_do_produto(produto) -> list[dict]:
     ]
 
 
+def _normalizar_nome(valor: str) -> str:
+    return " ".join(str(valor or "").casefold().split())
+
+
+def usuario_pode_fechar_caixa(sessao, usuario) -> bool:
+    """Só o operador escolhido na abertura fecha a gaveta."""
+    if sessao is None or usuario is None or not getattr(usuario, "is_authenticated", False):
+        return False
+    _, nome_login = _nome_usuario(usuario)
+    if _normalizar_nome(nome_login) and _normalizar_nome(nome_login) == _normalizar_nome(nome_operador_caixa(sessao)):
+        return True
+    email = (getattr(usuario, "email", "") or "").strip().casefold()
+    responsavel_id = getattr(sessao, "responsavel_id", None)
+    if not email or not responsavel_id:
+        return False
+    from .models import Professional
+
+    pessoa = Professional.objects.filter(pk=responsavel_id).only("email").first()
+    return bool(pessoa is not None and (pessoa.email or "").strip().casefold() == email)
+
+
 def _nome_usuario(usuario) -> tuple[int | None, str]:
     if usuario is None or not getattr(usuario, "is_authenticated", False):
         return None, ""
@@ -254,7 +275,7 @@ def abrir_caixa(loja_id, usuario, *, nome: str = "", responsavel_id=None):
     )
 
 
-def fechar_caixa(loja_id):
+def fechar_caixa(loja_id, usuario=None):
     from django.utils.timezone import now
 
     from .models import SessaoCaixa
@@ -262,6 +283,9 @@ def fechar_caixa(loja_id):
     aberta = sessao_caixa_aberta(loja_id)
     if aberta is None:
         return None
+    if not usuario_pode_fechar_caixa(aberta, usuario):
+        nome = nome_operador_caixa(aberta) or "quem abriu"
+        raise VendaProdutoError(f"Só {nome} pode fechar este caixa.")
     aberta.status = SessaoCaixa.STATUS_FECHADA
     aberta.fechada_em = now()
     aberta.save(update_fields=["status", "fechada_em"])

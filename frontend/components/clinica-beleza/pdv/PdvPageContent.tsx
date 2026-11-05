@@ -153,6 +153,7 @@ export function PdvPageContent() {
   const [caixaAberto, setCaixaAberto] = useState(false);
   const [caixaNome, setCaixaNome] = useState("");
   const [caixaResponsavel, setCaixaResponsavel] = useState("");
+  const [podeFecharCaixa, setPodeFecharCaixa] = useState(false);
   const [caixaRecebido, setCaixaRecebido] = useState(0);
   const [caixaAReceber, setCaixaAReceber] = useState(0);
   const [caixaVendas, setCaixaVendas] = useState(0);
@@ -218,6 +219,7 @@ export function PdvPageContent() {
     nome?: string;
     responsavel?: string;
     operador?: string;
+    pode_fechar?: boolean;
     vendas_produtos?: number;
     recebido?: number;
     a_receber?: number;
@@ -227,6 +229,7 @@ export function PdvPageContent() {
     setCaixaAberto(aberto);
     setCaixaNome(aberto ? sessao.nome || "" : "");
     setCaixaResponsavel(aberto ? sessao.responsavel || sessao.operador || "" : "");
+    setPodeFecharCaixa(aberto && Boolean(sessao.pode_fechar));
     setCaixaRecebido(aberto ? Number(sessao.recebido || 0) : 0);
     setCaixaVendas(aberto ? Number(sessao.vendas_produtos || 0) : 0);
     setCaixaAReceber(aberto ? Number(sessao.a_receber || 0) : 0);
@@ -386,6 +389,7 @@ export function PdvPageContent() {
       setCaixaAberto(false);
       setCaixaNome("");
       setCaixaResponsavel("");
+      setPodeFecharCaixa(false);
       setCaixaRecebido(0);
       setCaixaVendas(0);
       setCaixaAReceber(0);
@@ -661,7 +665,7 @@ export function PdvPageContent() {
           <button type="button" onClick={() => setPainel("historico")} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
             <History size={15} /> Caixa fechado
           </button>
-          {caixaAberto && (
+          {caixaAberto && podeFecharCaixa && (
             <button type="button" onClick={() => { setMenuCaixa(false); setPainel("fechamento"); }} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
               <Lock size={15} /> Fechamento do caixa
             </button>
@@ -680,6 +684,9 @@ export function PdvPageContent() {
               <div className="absolute right-0 z-20 mt-1 w-64 rounded-xl border bg-white p-2 shadow-lg">
                 <p className="px-2 py-1 text-xs text-gray-500">Responsável pelo recebimento</p>
                 <p className="px-2 pb-1 text-sm font-medium text-gray-800">{caixaResponsavel || "—"}</p>
+                {!podeFecharCaixa && caixaResponsavel && (
+                  <p className="px-2 pb-1 text-xs text-amber-800">Só {caixaResponsavel} pode fechar este caixa.</p>
+                )}
               </div>
             )}
           </div>
@@ -1045,7 +1052,10 @@ export function PdvPageContent() {
                 <p className="flex justify-between"><span>Ainda a receber</span><strong>{formatCurrency(caixaAberto ? caixaAReceber : 0)}</strong></p>
                 <p className="flex justify-between"><span>Vendas de produtos</span><strong>{formatCurrency(vendasProdutos)}</strong></p>
                 <p className="pt-2 text-xs text-gray-500">{caixaAberto ? `Estes valores são do caixa ${caixaNome || "aberto"}${caixaResponsavel ? `, responsável ${caixaResponsavel}` : ""}. Ao fechar, o resumo zera para o próximo operador.` : "Caixa fechado. Recebido e vendas de produtos ficam zerados até a próxima abertura."} O lançamento continua no Financeiro.</p>
-                {caixaAberto && <button type="button" onClick={() => { void fecharCaixa(); setPainel(null); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>}
+                {caixaAberto && podeFecharCaixa && <button type="button" onClick={() => { void fecharCaixa(); setPainel(null); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>}
+                {caixaAberto && !podeFecharCaixa && (
+                  <p className="pt-2 text-sm text-amber-800">Só {caixaResponsavel || "quem abriu"} pode fechar este caixa.</p>
+                )}
               </div>
             )}
           </div>

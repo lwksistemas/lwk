@@ -16,6 +16,7 @@ from .venda_produto_service import (
     registrar_venda_balcao,
     sessao_caixa_aberta,
     totais_sessao_caixa,
+    usuario_pode_fechar_caixa,
 )
 from .views_base import resolve_loja_id_from_request
 
@@ -97,6 +98,7 @@ class CaixaSessaoView(APIView):
             "nome": aberta.nome,
             "responsavel": aberta.responsavel_nome or aberta.operador_nome,
             "operador": aberta.responsavel_nome or aberta.operador_nome,
+            "pode_fechar": usuario_pode_fechar_caixa(aberta, request.user),
             "aberta_em": aberta.aberta_em.isoformat() if aberta.aberta_em else "",
             **totais_sessao_caixa(aberta),
         })
@@ -121,6 +123,7 @@ class CaixaSessaoView(APIView):
             "nome": aberta.nome,
             "responsavel": aberta.responsavel_nome,
             "operador": aberta.responsavel_nome,
+            "pode_fechar": usuario_pode_fechar_caixa(aberta, request.user),
             **totais_sessao_caixa(aberta),
         })
 
@@ -199,7 +202,10 @@ class CaixaFecharView(APIView):
 
     def post(self, request):
         loja_id = resolve_loja_id_from_request(request)
-        fechar_caixa(loja_id)
+        try:
+            fechar_caixa(loja_id, request.user)
+        except VendaProdutoError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"aberta": False})
 
 

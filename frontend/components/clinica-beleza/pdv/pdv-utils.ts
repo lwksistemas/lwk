@@ -77,6 +77,16 @@ export function seloCaixaPdv(consulta: {
   return null;
 }
 
+/** Imprimir e enviar o recibo só depois que o atendimento foi finalizado. */
+export function exibirReciboNoPdv(
+  status: string | undefined,
+  consulta: Parameters<typeof reciboPdvDisponivel>[0],
+  isentoFinalizado = false,
+): boolean {
+  if (status !== "COMPLETED") return false;
+  return isentoFinalizado || reciboPdvDisponivel(consulta);
+}
+
 /** Recibo do PDV fica disponível depois de pago ou a prazo. */
 export function reciboPdvDisponivel(consulta: {
   payment_id?: number | null;

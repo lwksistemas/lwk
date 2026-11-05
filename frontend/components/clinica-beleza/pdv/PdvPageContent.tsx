@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ConsultaTermoConsentimentoButton } from "@/components/clinica-beleza/consultas/ConsultaTermoConsentimentoButton";
+import { ModalReceberConsulta } from "@/components/clinica-beleza/consultas/ModalReceberConsulta";
 import { EnviarReciboAssinaturaAcao } from "@/components/clinica-beleza/consultas/receber/EnviarReciboAssinaturaAcao";
 import { ReceberReciboActions } from "@/components/clinica-beleza/consultas/receber/ReceberReciboActions";
 import { useToast } from "@/components/ui/Toast";
@@ -34,6 +35,7 @@ import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { formatarAgendaEvento } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
 import { consultaPagamentoUi } from "@/hooks/clinica-beleza/consulta-detail-actions/consulta-detail-actions-utils";
 import { ClinicaBelezaAPI, clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
+import { CLINICA_FORMA_PAGAMENTO_LABEL } from "@/lib/clinica-beleza-constants";
 import { createQuickPatient } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-submit-api";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import {
@@ -43,16 +45,14 @@ import {
   horaCurta,
   quandoRecibo,
   classeStatusPdv,
+  exibirReciboNoPdv,
   paymentIdReciboPdv,
   pdvPodeReceberAtendimento,
-  reciboPdvDisponivel,
   seloCaixaPdv,
-  montarEntradasPdv,
   podeAlterarServico,
   podeMarcarPresente,
   reais,
   rotuloStatusPdv,
-  somaEntradasPdv,
 } from "./pdv-utils";
 
 type ProdutoLinha = {
@@ -143,9 +143,8 @@ export function PdvPageContent() {
   const [catalogo, setCatalogo] = useState<ProdutoOpcao[]>([]);
   const [procedimentosCat, setProcedimentosCat] = useState<{ id: number; nome: string }[]>([]);
   const [forma, setForma] = useState("PIX");
-  const [entradas, setEntradas] = useState<{ id: string; forma: string; valor: string }[]>([
-    { id: "inicial", forma: "PIX", valor: "" },
-  ]);
+  const [receberAberto, setReceberAberto] = useState(false);
+  const [formasPagas, setFormasPagas] = useState<{ id: number; rotulo: string; valor: number }[]>([]);
   const [desconto, setDesconto] = useState("");
   const [editandoDesconto, setEditandoDesconto] = useState(false);
   const [observacao, setObservacao] = useState("");
@@ -252,7 +251,7 @@ export function PdvPageContent() {
   }, [carregar, carregarCaixa]);
 
   useEffect(() => {
-    setEntradas([{ id: "inicial", forma: "PIX", valor: "" }]);
+    setReceberAberto(false);
     setIncluindo((atual) => (atual === "produto" ? null : atual));
   }, [selecionadoId]);
 
@@ -304,6 +303,33 @@ export function PdvPageContent() {
     }
     void carregarProdutos(consulta.id).catch(() => setProdutosConsulta([]));
   }, [aba, carregarProdutos, consulta?.id, consulta?.desconto, consulta?.observacoes_gerais]);
+
+  useEffect(() => {
+    const pagamentoId = Number(consulta?.payment_id || 0);
+    if (aba !== "servico" || pagamentoId <= 0) {
+      setFormasPagas([]);
+      return;
+    }
+    let ativo = true;
+    ClinicaBelezaAPI.financeiro.payments.parcelas.list(pagamentoId).then((corpo) => {
+      if (!ativo) return;
+      const lista = (corpo as { parcelas?: { id: number; valor?: string | number; payment_method?: string; payment_method_label?: string; status?: string }[] }).parcelas || [];
+      setFormasPagas(
+        lista
+          .filter((item) => item.status !== "CANCELLED")
+          .map((item) => ({
+            id: item.id,
+            rotulo: item.payment_method_label || CLINICA_FORMA_PAGAMENTO_LABEL[item.payment_method || ""] || item.payment_method || "Pagamento",
+            valor: Number(item.valor || 0),
+          })),
+      );
+    }).catch(() => {
+      if (ativo) setFormasPagas([]);
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [aba, consulta?.payment_id]);
 
   useEffect(() => {
     const termo = buscaCliente.trim();
@@ -547,29 +573,7 @@ export function PdvPageContent() {
         setDesconto("");
         await carregar();
         await carregarCaixa();
-        return;
       }
-      if (!consulta?.id || !clientePresente(selecionado?.extendedProps?.status)) {
-        throw { error: "A cliente ainda não chegou. O caixa só recebe com ela presente, em atendimento ou com a consulta finalizada." };
-      }
-      if (!pdvPodeReceberAtendimento(consulta)) {
-        throw { error: "Venda a prazo só pode ser recebida no Financeiro." };
-      }
-      const recebidas = montarEntradasPdv(entradas, total).sort((a, b) => Number(a.payment_method === "PRAZO") - Number(b.payment_method === "PRAZO"));
-      const soma = somaEntradasPdv(recebidas);
-      if (!recebidas.length || Math.abs(soma - total) > 0.009) {
-        throw { error: "A soma das formas precisa ser igual ao total a receber." };
-      }
-      await ClinicaBelezaAPI.consultas.receber(consulta.id, {
-        payment_method: recebidas[recebidas.length - 1].payment_method,
-        desconto: descontoNum,
-        mark_as_paid: true,
-        entradas: recebidas,
-        origem: "pdv",
-      });
-      const atual = await ClinicaBelezaAPI.consultas.get(consulta.id);
-      setRecibo(atual.payment_id ? { paymentId: atual.payment_id, consultaId: consulta.id } : null);
-      await carregar();
     } catch (erroReceber) {
       setErro(mensagemErro(erroReceber, "Não foi possível receber."));
     } finally {
@@ -628,16 +632,28 @@ export function PdvPageContent() {
 
   const alteraServico = podeAlterarServico(selecionado?.extendedProps?.status);
   const consultaFinalizada = selecionado?.extendedProps?.status === "COMPLETED";
-  const recebidas = montarEntradasPdv(entradas, total);
-  const somaFormas = somaEntradasPdv(recebidas);
-  const formasOk = total > 0 && Math.abs(somaFormas - total) <= 0.009;
   const pagamentoUi = consulta ? consultaPagamentoUi(consulta) : null;
   const atendimentoIsento = Boolean(pagamentoUi?.mostrarIsento);
   const clienteNaClinica = clientePresente(selecionado?.extendedProps?.status);
   const aguardandoChegada = aba === "servico" && Boolean(selecionado) && !clienteNaClinica;
   const vendaAPrazo = aba === "servico" && !atendimentoIsento && !aguardandoChegada && !pdvPodeReceberAtendimento(consulta);
   const paymentRecibo = paymentIdReciboPdv(consulta, recibo);
-  const mostrarRecibo = aba === "servico" && (reciboPdvDisponivel(consulta) || (atendimentoIsento && Boolean(pagamentoUi?.consultaFinalizada)) || (Boolean(recibo?.consultaId) && recibo?.consultaId === consulta?.id));
+  const quitado = seloCaixaPdv(consulta) === "pago";
+  const formasExibidas = formasPagas.length
+    ? formasPagas
+    : consulta?.payment_method
+      ? [{
+          id: 0,
+          rotulo: CLINICA_FORMA_PAGAMENTO_LABEL[consulta.payment_method] || consulta.payment_method,
+          valor: pago > 0.009 ? pago : Number(consulta.valor_restante || 0),
+        }]
+      : [];
+  const mostrarFormas = aba === "servico" && (quitado || vendaAPrazo) && formasExibidas.length > 0;
+  const mostrarRecibo = aba === "servico" && exibirReciboNoPdv(
+    selecionado?.extendedProps?.status,
+    consulta,
+    atendimentoIsento && Boolean(pagamentoUi?.consultaFinalizada),
+  );
   const enviarReciboAtendimento = async (canal: "email" | "whatsapp") => {
     if (paymentRecibo <= 0) return;
     try {
@@ -886,10 +902,12 @@ export function PdvPageContent() {
             <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
             <div className="flex justify-between">
               <span className="text-gray-500">Desconto</span>
-              {editandoDesconto ? (
+              {aba === "venda" && editandoDesconto ? (
                 <input autoFocus value={desconto} onChange={(e) => setDesconto(e.target.value)} onBlur={() => setEditandoDesconto(false)} className="w-24 rounded border px-2 py-1 text-right text-sm" />
-              ) : (
+              ) : aba === "venda" ? (
                 <button type="button" className="inline-flex items-center gap-1" onClick={() => setEditandoDesconto(true)}>{formatCurrency(descontoNum)} <PenLine size={12} /></button>
+              ) : (
+                <span>{formatCurrency(descontoNum)}</span>
               )}
             </div>
             {pago > 0.009 && aba === "servico" && <div className="flex justify-between"><span className="text-gray-500">Já recebido</span><span>{formatCurrency(pago)}</span></div>}
@@ -909,71 +927,47 @@ export function PdvPageContent() {
             <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
               A cliente ainda não chegou. Marque como presente para o caixa receber.
             </p>
-          ) : aba === "servico" ? (
-            <div className="mb-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600">Formas de pagamento</p>
-                <button
-                  type="button"
-                  onClick={() => setEntradas((atual) => {
-                    const base = atual.map((linha, indice) => (
-                      atual.length === 1 && indice === 0 && !linha.valor && total > 0
-                        ? { ...linha, valor: String(reais(total)) }
-                        : linha
-                    ));
-                    const usadas = new Set(base.map((linha) => linha.forma));
-                    const proxima = FORMAS_PDV.find((item) => !usadas.has(item.id))?.id || "CASH";
-                    return [...base, { id: `forma-${base.length}-${proxima}`, forma: proxima, valor: "" }];
-                  })}
-                  className="inline-flex items-center gap-1 text-sm font-medium"
-                  style={{ color: rosa }}
-                >
-                  <Plus size={14} /> Adicionar forma
-                </button>
-              </div>
-              {entradas.map((linha) => (
-                <div key={linha.id} className="flex items-center gap-2">
-                  <select
-                    value={linha.forma}
-                    onChange={(e) => setEntradas((atual) => atual.map((item) => item.id === linha.id ? { ...item, forma: e.target.value } : item))}
-                    className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-sm"
-                    aria-label="Forma de pagamento"
-                  >
-                    {FORMAS_PDV.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                  </select>
-                  <input
-                    value={entradas.length === 1 && linha.valor === "" ? String(reais(total)) : linha.valor}
-                    onChange={(e) => setEntradas((atual) => atual.map((item) => item.id === linha.id ? { ...item, valor: e.target.value } : item))}
-                    inputMode="decimal"
-                    aria-label="Valor da forma"
-                    className="w-28 rounded-xl border px-3 py-2 text-right text-sm"
-                  />
-                  {entradas.length > 1 && (
-                    <button type="button" aria-label="Remover forma" onClick={() => setEntradas((atual) => atual.filter((item) => item.id !== linha.id))}>
-                      <Trash2 size={14} className="text-gray-400" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {total > 0 && (
-                <p className={`text-xs ${formasOk ? "text-emerald-700" : "text-amber-700"}`}>
-                  Distribuído {formatCurrency(somaFormas)} de {formatCurrency(total)}
-                </p>
-              )}
-            </div>
-          ) : (
+          ) : aba === "venda" ? (
             <>
               <label className="mb-1 block text-sm text-gray-600">Forma de pagamento</label>
               <select value={forma} onChange={(e) => setForma(e.target.value)} className="mb-3 w-full rounded-xl border px-3 py-2 text-sm">
                 {FORMAS_PDV.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
               </select>
             </>
-          )}
+          ) : null}
           {!vendaAPrazo && !atendimentoIsento && !aguardandoChegada && !caixaAberto && (
             <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Abra o caixa para vender ou receber um atendimento.</p>
           )}
-          {!vendaAPrazo && !atendimentoIsento && !aguardandoChegada && (
-            <button type="button" disabled={salvando || !caixaAberto || total <= 0 || (aba === "servico" && !formasOk)} onClick={() => void receber()} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: rosa }}>
+          {mostrarFormas && (
+            <div className="mb-3 space-y-2">
+              <p className="text-sm text-gray-600">Formas de pagamento</p>
+              {formasExibidas.map((linha) => (
+                <div key={linha.id} className="flex items-center justify-between rounded-xl border px-3 py-2 text-sm">
+                  <span>{linha.rotulo}</span>
+                  <strong>{formatCurrency(linha.valor)}</strong>
+                </div>
+              ))}
+              {quitado && !consultaFinalizada && (
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Pagamento registrado. O recibo só pode ser impresso ou enviado depois de finalizar o atendimento.
+                </p>
+              )}
+            </div>
+          )}
+          {!vendaAPrazo && !atendimentoIsento && !aguardandoChegada && !(aba === "servico" && quitado) && (
+            <button
+              type="button"
+              disabled={salvando || !caixaAberto || (aba === "venda" ? total <= 0 : (!consulta?.id || total <= 0))}
+              onClick={() => {
+                if (aba === "servico") {
+                  setReceberAberto(true);
+                  return;
+                }
+                void receber();
+              }}
+              className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50"
+              style={{ backgroundColor: rosa }}
+            >
               <DollarSign size={16} /> {salvando ? "Recebendo..." : "Receber pagamento"}
             </button>
           )}
@@ -989,6 +983,23 @@ export function PdvPageContent() {
           )}
         </section>
       </div>
+
+      {receberAberto && consulta?.id ? (
+        <ModalReceberConsulta
+          open
+          consulta={consulta}
+          origem="pdv"
+          onClose={() => {
+            setReceberAberto(false);
+            void carregar();
+            void carregarCaixa();
+          }}
+          onSuccess={() => {
+            void carregar();
+            void carregarCaixa();
+          }}
+        />
+      ) : null}
 
       {entrega && (
         <JanelaReciboVenda

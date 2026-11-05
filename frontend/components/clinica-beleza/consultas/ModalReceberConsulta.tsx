@@ -33,6 +33,8 @@ interface ModalReceberConsultaProps {
   consulta: Consulta;
   onClose: () => void;
   onSuccess: (consulta: Partial<Consulta>) => void;
+  /** Caixa envia "pdv" para gravar o operador e barrar cliente ausente ou venda a prazo. */
+  origem?: string;
 }
 
 export function ModalReceberConsulta({
@@ -40,6 +42,7 @@ export function ModalReceberConsulta({
   consulta,
   onClose,
   onSuccess,
+  origem,
 }: ModalReceberConsultaProps) {
   const toast = useToast();
   const valorConsulta = Number(consulta.valor_consulta ?? 0);
@@ -263,7 +266,7 @@ export function ModalReceberConsulta({
         valorProcedimentos: escolhaPendente || !valorProcAlterado ? undefined : valorProcedimentosEfetivo,
         formaCobranca: escolhaPendente ? formaProtocolo : undefined,
       });
-      const data = await ClinicaBelezaAPI.consultas.receber(consulta.id, payload);
+      const data = await ClinicaBelezaAPI.consultas.receber(consulta.id, origem ? { ...payload, origem } : payload);
       const atualizada = (data as { consulta?: Consulta }).consulta;
       if (!atualizada) throw new Error("Resposta inválida ao registrar recebimento.");
       setReciboSnapshot({

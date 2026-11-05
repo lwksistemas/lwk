@@ -110,6 +110,8 @@ class ListaFinanceiroProcedimentoAnteriorTest(SimpleTestCase):
         self.assertFalse(entra_na_lista_do_financeiro(linha, forma="PIX"))
         self.assertTrue(entra_na_lista_do_financeiro(linha, forma="PRAZO", cliente="talita", item="soro"))
         self.assertFalse(entra_na_lista_do_financeiro(linha, cliente="marcia"))
+        self.assertTrue(entra_na_lista_do_financeiro(linha, inicio="2026-11-01", fim="2026-11-30"))
+        self.assertFalse(entra_na_lista_do_financeiro(linha, inicio="2026-10-01", fim="2026-10-31"))
 
     def test_entrada_parcial_continua_em_aberto(self):
         from types import SimpleNamespace

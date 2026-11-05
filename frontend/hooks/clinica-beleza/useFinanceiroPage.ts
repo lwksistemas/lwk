@@ -5,6 +5,7 @@ import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { useToast } from "@/components/ui/Toast";
 import type { DespesaItem } from "@/components/clinica-beleza/financeiro-page/DespesaFormModal";
+import { periodoFinanceiro, type PeriodoFinanceiro } from "@/components/clinica-beleza/financeiro-page/periodo";
 import type {
   FinanceiroPayment,
   FinanceiroProfessional,
@@ -28,6 +29,9 @@ export function useFinanceiroPage() {
   const [tipoFilter, setTipoFilter] = useState("");
   const [itemFilter, setItemFilter] = useState("");
   const [itemConsulta, setItemConsulta] = useState("");
+  const [periodo, setPeriodo] = useState<PeriodoFinanceiro>("");
+  const [periodoInicio, setPeriodoInicio] = useState("");
+  const [periodoFim, setPeriodoFim] = useState("");
   const [despesaStatusFilter, setDespesaStatusFilter] = useState("");
   const [despesaDateFilter, setDespesaDateFilter] = useState("");
   const [showDespesaModal, setShowDespesaModal] = useState(false);
@@ -44,6 +48,11 @@ export function useFinanceiroPage() {
     return () => window.clearTimeout(espera);
   }, [itemFilter]);
 
+  const intervalo = useMemo(
+    () => periodoFinanceiro(periodo, new Date(), periodoInicio, periodoFim),
+    [periodo, periodoInicio, periodoFim],
+  );
+
   const paymentQueryParams = useMemo(
     () => ({
       status: statusFilter || undefined,
@@ -54,28 +63,32 @@ export function useFinanceiroPage() {
       cliente: clienteConsulta || undefined,
       tipo: tipoFilter || undefined,
       item: itemConsulta || undefined,
+      inicio: intervalo.inicio || undefined,
+      fim: intervalo.fim || undefined,
     }),
-    [statusFilter, professionalFilter, dateFilter, operadorFilter, formaFilter, clienteConsulta, tipoFilter, itemConsulta],
+    [statusFilter, professionalFilter, dateFilter, operadorFilter, formaFilter, clienteConsulta, tipoFilter, itemConsulta, intervalo],
   );
 
   const despesaQueryParams = useMemo(
     () => ({
       status: despesaStatusFilter || undefined,
       date: despesaDateFilter || undefined,
+      inicio: intervalo.inicio || undefined,
+      fim: intervalo.fim || undefined,
     }),
-    [despesaStatusFilter, despesaDateFilter],
+    [despesaStatusFilter, despesaDateFilter, intervalo],
   );
 
   const paymentsList = useClinicaBelezaPaginatedList<FinanceiroPayment>({
     path: "/payments/",
     queryParams: paymentQueryParams,
-    reloadDeps: [statusFilter, professionalFilter, dateFilter, operadorFilter, formaFilter, clienteConsulta, tipoFilter, itemConsulta],
+    reloadDeps: [statusFilter, professionalFilter, dateFilter, operadorFilter, formaFilter, clienteConsulta, tipoFilter, itemConsulta, intervalo.inicio, intervalo.fim],
   });
 
   const despesasList = useClinicaBelezaPaginatedList<DespesaItem>({
     path: "/despesas/",
     queryParams: despesaQueryParams,
-    reloadDeps: [despesaStatusFilter, despesaDateFilter],
+    reloadDeps: [despesaStatusFilter, despesaDateFilter, intervalo.inicio, intervalo.fim],
   });
 
   const loadResumo = useCallback(async () => {
@@ -180,6 +193,12 @@ export function useFinanceiroPage() {
     setProfessionalFilter,
     dateFilter,
     setDateFilter,
+    periodo,
+    setPeriodo,
+    periodoInicio,
+    setPeriodoInicio,
+    periodoFim,
+    setPeriodoFim,
     operadorFilter,
     setOperadorFilter,
     formaFilter,

@@ -169,6 +169,17 @@ def linha_financeiro_anterior(item, recebimentos, hoje: date) -> dict:
     }
 
 
+def _dia_no_periodo(valor, inicio: str, fim: str) -> bool:
+    dia = str(valor or "")[:10]
+    if len(dia) < 10:
+        return False
+    if inicio and dia < inicio:
+        return False
+    if fim and dia > fim:
+        return False
+    return True
+
+
 def entra_na_lista_do_financeiro(
     linha,
     *,
@@ -180,6 +191,8 @@ def entra_na_lista_do_financeiro(
     cliente=None,
     tipo=None,
     item=None,
+    inicio=None,
+    fim=None,
 ) -> bool:
     """Saldo em aberto continua na lista para receber, mesmo com filtro de um dia."""
     if professional_id not in (None, ""):
@@ -197,6 +210,17 @@ def entra_na_lista_do_financeiro(
     item_nome = str(item or "").strip().casefold()
     if item_nome and item_nome not in str(linha.get("procedimento_nome") or "").casefold():
         return False
+    começo = str(inicio or "")[:10]
+    término = str(fim or "")[:10]
+    if começo or término:
+        datas = [
+            linha.get("data_atendimento"),
+            linha.get("payment_date"),
+            linha.get("data_vencimento"),
+            *(linha.get("datas_recebimento") or []),
+        ]
+        if not any(_dia_no_periodo(valor, começo, término) for valor in datas):
+            return False
     if status == "CANCELLED":
         return False
     if status and linha["status"] != status:
@@ -222,6 +246,8 @@ def linhas_financeiras_anteriores(
     cliente=None,
     tipo=None,
     item=None,
+    inicio=None,
+    fim=None,
     hoje: date | None = None,
 ) -> list[dict]:
     """Procedimentos anteriores com saldo, no formato da lista de receitas."""
@@ -251,6 +277,8 @@ def linhas_financeiras_anteriores(
             cliente=cliente,
             tipo=tipo,
             item=item,
+            inicio=inicio,
+            fim=fim,
         ):
             linha.pop("datas_recebimento", None)
             linhas.append(linha)

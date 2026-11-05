@@ -106,6 +106,12 @@ export function FinanceiroPageContent() {
               tab={f.tab}
               onTabChange={f.setTab}
               onNovaDespesa={f.abrirNovaDespesa}
+              periodo={f.periodo}
+              inicio={f.periodoInicio}
+              fim={f.periodoFim}
+              onPeriodoChange={f.setPeriodo}
+              onInicioChange={f.setPeriodoInicio}
+              onFimChange={f.setPeriodoFim}
             />
             {f.tab === "receitas" ? (
               <FinanceiroReceitasTab

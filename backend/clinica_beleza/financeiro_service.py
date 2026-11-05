@@ -269,6 +269,57 @@ def _texto_filtro(valor) -> str:
     return str(valor or "").strip()
 
 
+def data_periodo(valor) -> date | None:
+    texto = str(valor or "")[:10]
+    if len(texto) != 10:
+        return None
+    try:
+        return date.fromisoformat(texto)
+    except ValueError:
+        return None
+
+
+def filtrar_periodo_pagamento(qs, inicio, fim):
+    """Recebimento, vencimento ou atendimento dentro do intervalo."""
+    começo = data_periodo(inicio)
+    término = data_periodo(fim)
+    if começo is None and término is None:
+        return qs
+    partes = []
+    for campo_de, campo_ate in (
+        ("payment_date__date__gte", "payment_date__date__lte"),
+        ("appointment__date__date__gte", "appointment__date__date__lte"),
+        ("data_vencimento__gte", "data_vencimento__lte"),
+        ("created_at__date__gte", "created_at__date__lte"),
+    ):
+        parte = Q()
+        if começo is not None:
+            parte &= Q(**{campo_de: começo})
+        if término is not None:
+            parte &= Q(**{campo_ate: término})
+        partes.append(parte)
+    filtro = partes[0]
+    for parte in partes[1:]:
+        filtro |= parte
+    return qs.filter(filtro)
+
+
+def filtrar_periodo_despesa(qs, inicio, fim):
+    começo = data_periodo(inicio)
+    término = data_periodo(fim)
+    if começo is None and término is None:
+        return qs
+    vencimento = Q()
+    pagamento = Q()
+    if começo is not None:
+        vencimento &= Q(data_vencimento__gte=começo)
+        pagamento &= Q(data_pagamento__gte=começo)
+    if término is not None:
+        vencimento &= Q(data_vencimento__lte=término)
+        pagamento &= Q(data_pagamento__lte=término)
+    return qs.filter(vencimento | pagamento)
+
+
 def operadores_do_caixa() -> list[str]:
     """Nomes escolhidos ao abrir o caixa, nas vendas e nos recebimentos do PDV."""
     from .models import VendaBalcao
@@ -333,6 +384,8 @@ def queryset_payments_listagem(
     cliente=None,
     tipo=None,
     item=None,
+    inicio=None,
+    fim=None,
 ):
     qs = payments_visiveis_financeiro(
         Payment.objects.select_related(
@@ -360,6 +413,7 @@ def queryset_payments_listagem(
         qs = qs.filter(status=status)
     if date_filter:
         qs = qs.filter(payment_date__date=date_filter)
+    qs = filtrar_periodo_pagamento(qs, inicio, fim)
     if professional_id:
         qs = qs.filter(appointment__professional_id=professional_id)
     return _filtrar_receitas(

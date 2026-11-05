@@ -10,6 +10,7 @@ from .dashboard_service import data_hoje_clinica
 from .financeiro_service import (
     alinhar_pendentes_com_parcela,
     aplicar_desconto_payment,
+    filtrar_periodo_despesa,
     cancelar_parcela_pagamento,
     corrigir_forma_pagamento_recebido,
     criar_parcela_e_atualizar_payment,
@@ -54,6 +55,8 @@ def _incluir_procedimentos_anteriores(resposta, request):
         cliente=request.query_params.get("cliente"),
         tipo=request.query_params.get("tipo"),
         item=request.query_params.get("item"),
+        inicio=request.query_params.get("inicio"),
+        fim=request.query_params.get("fim"),
         hoje=data_hoje_clinica(),
     )
     if not linhas:
@@ -85,6 +88,8 @@ class PaymentListView(APIView):
             cliente=request.query_params.get("cliente"),
             tipo=request.query_params.get("tipo"),
             item=request.query_params.get("item"),
+            inicio=request.query_params.get("inicio"),
+            fim=request.query_params.get("fim"),
         )
         resposta = paginate_queryset(queryset, request, PaymentSerializer)
         return _incluir_procedimentos_anteriores(resposta, request)
@@ -475,6 +480,7 @@ class DespesaListView(APIView):
             qs = qs.filter(categoria_id=c)
         if d := request.query_params.get("date"):
             qs = qs.filter(data_vencimento=d)
+        qs = filtrar_periodo_despesa(qs, request.query_params.get("inicio"), request.query_params.get("fim"))
         if d := request.query_params.get("data_pagamento"):
             qs = qs.filter(data_pagamento=d)
         return paginate_queryset(qs, request, DespesaSerializer)

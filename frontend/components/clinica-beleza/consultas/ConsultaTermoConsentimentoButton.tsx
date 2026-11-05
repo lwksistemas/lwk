@@ -10,10 +10,12 @@ export function ConsultaTermoConsentimentoButton({
   consultaId,
   onUpdated,
   compacto = false,
+  permitirAssinaturaProfissional = true,
 }: {
   consultaId: number;
   onUpdated?: () => void;
   compacto?: boolean;
+  permitirAssinaturaProfissional?: boolean;
 }) {
   const { aberto, toggle, containerRef } = useTermoDropdown();
   const { termo: termoWhatsappHabilitado } = useWhatsappEnvioFlags();
@@ -68,6 +70,7 @@ export function ConsultaTermoConsentimentoButton({
           onAssinarProfissional={(id) => void assinarProfissional(id)}
           onEnviarTodos={(canal) => void enviar(undefined, canal)}
           ancora={compacto ? "direita" : "esquerda"}
+          permitirAssinaturaProfissional={permitirAssinaturaProfissional}
         />
       )}
     </div>

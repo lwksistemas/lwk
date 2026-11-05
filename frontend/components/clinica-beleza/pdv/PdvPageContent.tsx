@@ -740,7 +740,11 @@ export function PdvPageContent() {
                     <span className={`rounded-full px-2 py-1 text-[11px] font-medium ${isento ? "bg-sky-100 text-sky-800" : classeStatusPdv(status, selo)}`}>{isento ? "Isento" : rotuloStatusPdv(status, selo)}</span>
                   )}
                   {termoNoPdv && consultaItem?.id && (
-                    <ConsultaTermoConsentimentoButton consultaId={consultaItem.id} compacto />
+                    <ConsultaTermoConsentimentoButton
+                      consultaId={consultaItem.id}
+                      compacto
+                      permitirAssinaturaProfissional={false}
+                    />
                   )}
                 </div>
               );

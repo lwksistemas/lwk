@@ -15,6 +15,7 @@ export function TermoConsentimentoPanel({
   onAssinarProfissional,
   onEnviarTodos,
   ancora = "esquerda",
+  permitirAssinaturaProfissional = true,
 }: {
   termos: TermoProcedimento[];
   loading: boolean;
@@ -27,6 +28,7 @@ export function TermoConsentimentoPanel({
   onAssinarProfissional: (procedureId: number) => void;
   onEnviarTodos: (canal: TermoConsentimentoCanal) => void;
   ancora?: "esquerda" | "direita";
+  permitirAssinaturaProfissional?: boolean;
 }) {
   return (
     <div className={`absolute top-full mt-2 z-50 w-[min(100vw-2rem,22rem)] rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xl overflow-hidden ${ancora === "direita" ? "right-0" : "left-0"}`}>
@@ -57,6 +59,7 @@ export function TermoConsentimentoPanel({
                 onBaixarPdf={onBaixarPdf}
                 onEnviarPdfWhatsapp={onEnviarPdfWhatsapp}
                 onAssinarProfissional={onAssinarProfissional}
+                permitirAssinaturaProfissional={permitirAssinaturaProfissional}
               />
             ))}
           </ul>

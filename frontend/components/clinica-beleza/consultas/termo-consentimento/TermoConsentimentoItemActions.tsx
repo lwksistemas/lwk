@@ -11,6 +11,7 @@ export function TermoConsentimentoItemActions({
   onBaixarPdf,
   onEnviarPdfWhatsapp,
   onAssinarProfissional,
+  permitirAssinaturaProfissional = true,
 }: {
   termo: TermoProcedimento;
   loading: boolean;
@@ -20,6 +21,7 @@ export function TermoConsentimentoItemActions({
   onBaixarPdf: (procedureId: number, nome: string) => void;
   onEnviarPdfWhatsapp: (procedureId: number, nome: string) => void;
   onAssinarProfissional: (procedureId: number) => void;
+  permitirAssinaturaProfissional?: boolean;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -50,7 +52,7 @@ export function TermoConsentimentoItemActions({
       )}
       {(termo.status === "aguardando_paciente" || termo.status === "aguardando_profissional") && (
         <>
-          {termo.status === "aguardando_profissional" && (
+          {termo.status === "aguardando_profissional" && permitirAssinaturaProfissional && (
             <button
               type="button"
               onClick={() => onAssinarProfissional(termo.procedure_id)}
@@ -69,7 +71,7 @@ export function TermoConsentimentoItemActions({
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800 disabled:opacity-50"
           >
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-            Reenviar e-mail
+            {termo.status === "aguardando_profissional" ? "Reenviar ao profissional" : "Reenviar e-mail"}
           </button>
           {termoWhatsappHabilitado && (
             <button
@@ -79,7 +81,7 @@ export function TermoConsentimentoItemActions({
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-green-200 text-green-700 dark:border-green-800 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
             >
               <MessageCircle size={12} />
-              Reenviar WhatsApp
+              {termo.status === "aguardando_profissional" ? "WhatsApp ao profissional" : "Reenviar WhatsApp"}
             </button>
           )}
         </>
@@ -118,6 +120,7 @@ export function TermoConsentimentoItemRow({
   onBaixarPdf,
   onEnviarPdfWhatsapp,
   onAssinarProfissional,
+  permitirAssinaturaProfissional = true,
 }: {
   termo: TermoProcedimento;
   loading: boolean;
@@ -127,6 +130,7 @@ export function TermoConsentimentoItemRow({
   onBaixarPdf: (procedureId: number, nome: string) => void;
   onEnviarPdfWhatsapp: (procedureId: number, nome: string) => void;
   onAssinarProfissional: (procedureId: number) => void;
+  permitirAssinaturaProfissional?: boolean;
 }) {
   return (
     <li className="px-4 py-3">
@@ -151,6 +155,7 @@ export function TermoConsentimentoItemRow({
         onBaixarPdf={onBaixarPdf}
         onEnviarPdfWhatsapp={onEnviarPdfWhatsapp}
         onAssinarProfissional={onAssinarProfissional}
+        permitirAssinaturaProfissional={permitirAssinaturaProfissional}
       />
     </li>
   );

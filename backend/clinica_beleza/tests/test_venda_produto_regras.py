@@ -1,7 +1,8 @@
 """Regras puras da venda de produto. Não grava loja, saldo nem financeiro."""
 import ast
 import unittest
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,6 +11,7 @@ from clinica_beleza.venda_produto_service import (
     VendaProdutoError,
     linha_recibo,
     nome_exibicao_venda,
+    fechamento_automatico,
     nome_operador_caixa,
     usuario_pode_fechar_caixa,
     nome_operador_pagamento,
@@ -64,6 +66,13 @@ class FecharCaixaDoOperadorTest(unittest.TestCase):
         bruna = SimpleNamespace(is_authenticated=True, pk=3, email="", username="bruna", get_full_name=lambda: "bruna tucci martins")
         self.assertFalse(usuario_pode_fechar_caixa(sessao, luiz))
         self.assertTrue(usuario_pode_fechar_caixa(sessao, bruna))
+
+    def test_caixa_esquecido_fecha_depois_das_23_59(self):
+        fuso = ZoneInfo("America/Sao_Paulo")
+        abertura = datetime(2026, 11, 5, 18, 21, tzinfo=fuso)
+        self.assertIsNone(fechamento_automatico(abertura, datetime(2026, 11, 5, 23, 59, 30, tzinfo=fuso)))
+        limite = fechamento_automatico(abertura, datetime(2026, 11, 6, 0, 0, tzinfo=fuso))
+        self.assertEqual(limite, datetime(2026, 11, 5, 23, 59, 59, tzinfo=fuso))
 
 
 class VendaProdutoRegrasTest(unittest.TestCase):

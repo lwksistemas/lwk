@@ -383,9 +383,14 @@ export function PdvPageContent() {
 
   const fecharCaixa = async () => {
     setMenuCaixa(false);
+    if (!podeFecharCaixa) {
+      setErro(`Só ${caixaResponsavel || "quem abriu"} pode fechar este caixa.`);
+      return;
+    }
     setErro("");
     try {
       await ClinicaBelezaAPI.estoque.fecharCaixa();
+      setPainel(null);
       setCaixaAberto(false);
       setCaixaNome("");
       setCaixaResponsavel("");
@@ -665,7 +670,7 @@ export function PdvPageContent() {
           <button type="button" onClick={() => setPainel("historico")} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
             <History size={15} /> Caixa fechado
           </button>
-          {caixaAberto && podeFecharCaixa && (
+          {caixaAberto && (
             <button type="button" onClick={() => { setMenuCaixa(false); setPainel("fechamento"); }} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
               <Lock size={15} /> Fechamento do caixa
             </button>
@@ -673,7 +678,10 @@ export function PdvPageContent() {
           <div className="relative">
             {caixaAberto ? (
               <button type="button" onClick={() => setMenuCaixa((atual) => !atual)} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-                <DollarSign size={15} /> {caixaNome || "Caixa aberto"} <ChevronDown size={14} />
+                <DollarSign size={15} />
+                <span>Caixa Aberto</span>
+                {caixaResponsavel && <span>{caixaResponsavel}</span>}
+                <ChevronDown size={14} />
               </button>
             ) : (
               <button type="button" onClick={() => { setErro(""); setAbrindoCaixa(true); }} className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-white" style={{ backgroundColor: rosa }}>
@@ -684,9 +692,6 @@ export function PdvPageContent() {
               <div className="absolute right-0 z-20 mt-1 w-64 rounded-xl border bg-white p-2 shadow-lg">
                 <p className="px-2 py-1 text-xs text-gray-500">Responsável pelo recebimento</p>
                 <p className="px-2 pb-1 text-sm font-medium text-gray-800">{caixaResponsavel || "—"}</p>
-                {!podeFecharCaixa && caixaResponsavel && (
-                  <p className="px-2 pb-1 text-xs text-amber-800">Só {caixaResponsavel} pode fechar este caixa.</p>
-                )}
               </div>
             )}
           </div>
@@ -1052,10 +1057,8 @@ export function PdvPageContent() {
                 <p className="flex justify-between"><span>Ainda a receber</span><strong>{formatCurrency(caixaAberto ? caixaAReceber : 0)}</strong></p>
                 <p className="flex justify-between"><span>Vendas de produtos</span><strong>{formatCurrency(vendasProdutos)}</strong></p>
                 <p className="pt-2 text-xs text-gray-500">{caixaAberto ? `Estes valores são do caixa ${caixaNome || "aberto"}${caixaResponsavel ? `, responsável ${caixaResponsavel}` : ""}. Ao fechar, o resumo zera para o próximo operador.` : "Caixa fechado. Recebido e vendas de produtos ficam zerados até a próxima abertura."} O lançamento continua no Financeiro.</p>
-                {caixaAberto && podeFecharCaixa && <button type="button" onClick={() => { void fecharCaixa(); setPainel(null); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>}
-                {caixaAberto && !podeFecharCaixa && (
-                  <p className="pt-2 text-sm text-amber-800">Só {caixaResponsavel || "quem abriu"} pode fechar este caixa.</p>
-                )}
+                {erro && <p className="pt-2 text-sm text-amber-800">{erro}</p>}
+                {caixaAberto && <button type="button" onClick={() => { void fecharCaixa(); }} className="mt-3 rounded-xl px-4 py-2 text-white" style={{ backgroundColor: rosa }}>Fechar caixa</button>}
               </div>
             )}
           </div>

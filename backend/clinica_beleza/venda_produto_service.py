@@ -233,9 +233,69 @@ def gravar_operador_do_caixa(payment) -> None:
     payment.save(update_fields=["operador_nome", "operador_id", "updated_at"])
 
 
+def fechamento_automatico(aberta_em, agora):
+    """23:59 do dia da abertura, depois que esse dia já acabou."""
+    from datetime import datetime, time
+    from zoneinfo import ZoneInfo
+
+    if aberta_em is None or agora is None:
+        return None
+    fuso = ZoneInfo("America/Sao_Paulo")
+    abertura = aberta_em.astimezone(fuso)
+    momento = agora.astimezone(fuso)
+    if momento.date() <= abertura.date():
+        return None
+    return datetime.combine(abertura.date(), time(23, 59, 59), tzinfo=fuso)
+
+
+def fechar_caixas_esquecidos_da_loja(loja_id, agora=None) -> int:
+    from django.utils import timezone
+
+    from .models import SessaoCaixa
+
+    momento = agora or timezone.now()
+    fechados = 0
+    abertas = SessaoCaixa.objects.filter(loja_id=loja_id, status=SessaoCaixa.STATUS_ABERTA)
+    for sessao in abertas:
+        limite = fechamento_automatico(sessao.aberta_em, momento)
+        if limite is None:
+            continue
+        sessao.status = SessaoCaixa.STATUS_FECHADA
+        sessao.fechada_em = limite
+        sessao.save(update_fields=["status", "fechada_em"])
+        fechados += 1
+    return fechados
+
+
+def fechar_caixas_esquecidos() -> int:
+    """Job do worker: fecha a gaveta que passou das 23:59."""
+    from core.db_config import ensure_loja_database_config
+    from tenants.middleware import set_current_loja_id, set_current_tenant_db
+
+    from .catalogo_service import lojas_clinica_beleza_com_schema
+
+    total = 0
+    for loja in lojas_clinica_beleza_com_schema(apenas_ativas=True):
+        if not ensure_loja_database_config(loja.database_name, conn_max_age=0):
+            continue
+        try:
+            set_current_loja_id(loja.id)
+            set_current_tenant_db(loja.database_name)
+            total += fechar_caixas_esquecidos_da_loja(loja.id)
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception("Fechamento automático do caixa, loja %s", loja.id)
+        finally:
+            set_current_loja_id(None)
+            set_current_tenant_db("default")
+    return total
+
+
 def sessao_caixa_aberta(loja_id):
     from .models import SessaoCaixa
 
+    fechar_caixas_esquecidos_da_loja(loja_id)
     return (
         SessaoCaixa.objects.filter(loja_id=loja_id, status=SessaoCaixa.STATUS_ABERTA)
         .order_by("-id")

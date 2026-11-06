@@ -24,11 +24,13 @@ def build_me_payload(user, loja_id: int | None) -> dict:
     professional_nome = None
     perfil = None
     is_administrador = bool(getattr(user, "is_superuser", False))
+    pode_importar_backup = is_administrador
     if loja_id:
         if not is_administrador:
             loja = Loja.objects.filter(pk=loja_id).only("owner_id").first()
             if loja and loja.owner_id == getattr(user, "id", None):
                 is_administrador = True
+                pode_importar_backup = True
 
         pu = ProfissionalUsuario.objects.filter(user=user, loja_id=loja_id).first()
         if pu:
@@ -50,6 +52,15 @@ def build_me_payload(user, loja_id: int | None) -> dict:
         ):
             is_administrador = True
 
+    if not pode_importar_backup:
+        from superadmin.models import UsuarioSistema
+
+        suporte = UsuarioSistema.objects.filter(user=user, is_active=True)
+        if suporte.filter(pode_acessar_todas_lojas=True).exists() or (
+            loja_id and suporte.filter(lojas_acesso=loja_id).exists()
+        ):
+            pode_importar_backup = True
+
     pode_ver_consulta = bool(
         is_administrador
         or perfil == ProfissionalUsuario.PERFIL_PROFISSIONAL
@@ -67,4 +78,5 @@ def build_me_payload(user, loja_id: int | None) -> dict:
         "perfil": perfil,
         "pode_ver_consulta": pode_ver_consulta,
         "pode_abrir_consultas": pode_abrir_consultas,
+        "pode_importar_backup": pode_importar_backup,
     }

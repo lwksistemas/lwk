@@ -1,14 +1,32 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { LojaBackupStandardContent } from '@/components/loja/LojaBackupStandardContent';
 import { useLojaInfoPublica } from '@/hooks/useLojaInfoPublica';
+import apiClient from '@/lib/api-client';
 
 export default function ClinicaBelezaBackupPage() {
   const slug = (useParams()?.slug as string) ?? '';
   const base = `/loja/${slug}/clinica-beleza/configuracoes`;
   const { loja, loading, error } = useLojaInfoPublica(slug);
+  const [podeImportar, setPodeImportar] = useState(false);
+
+  useEffect(() => {
+    let ativo = true;
+    apiClient
+      .get<{ pode_importar_backup?: boolean }>('/clinica-beleza/me/')
+      .then((res) => {
+        if (ativo) setPodeImportar(Boolean(res.data?.pode_importar_backup));
+      })
+      .catch(() => {
+        if (ativo) setPodeImportar(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -34,6 +52,7 @@ export default function ClinicaBelezaBackupPage() {
         loja={loja}
         backHref={base}
         subtitle="Exporte e importe os dados da clínica com segurança"
+        showImport={podeImportar}
         accentColor={'var(--cb-primary, #8B3D52)'}
         warningItems={[
           'O backup inclui pacientes, agenda, procedimentos, financeiro e demais dados da clínica',

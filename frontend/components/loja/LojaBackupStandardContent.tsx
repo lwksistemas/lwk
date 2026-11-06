@@ -21,6 +21,7 @@ export interface LojaBackupStandardContentProps {
   modalPaisagem?: boolean;
   cardClass?: string;
   importWarning?: string;
+  showImport?: boolean;
 }
 
 export function LojaBackupStandardContent({
@@ -39,6 +40,7 @@ export function LojaBackupStandardContent({
   modalPaisagem = false,
   cardClass = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6',
   importWarning = 'Atenção: a importação pode substituir dados atuais. Use apenas backups desta loja.',
+  showImport = true,
 }: LojaBackupStandardContentProps) {
   return (
     <div className="space-y-6">
@@ -88,7 +90,7 @@ export function LojaBackupStandardContent({
           <BackupButton lojaId={loja.id} lojaNome={loja.nome} className={exportButtonClass} exportOnly />
         </div>
 
-        <div className={cardClass}>
+        {showImport && <div className={cardClass}>
           <div className="flex items-start gap-4 mb-4">
             <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
               <Upload size={24} />
@@ -110,7 +112,7 @@ export function LojaBackupStandardContent({
             </ul>
           )}
           <BackupButton lojaId={loja.id} lojaNome={loja.nome} className={importButtonClass} importOnly />
-        </div>
+        </div>}
 
         <div className={cardClass}>
           <div className="flex items-start gap-4 mb-4">

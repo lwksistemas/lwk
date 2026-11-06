@@ -28,10 +28,14 @@ class ResolveUserDisplayNameTests(SimpleTestCase):
 class BuildMePayloadTests(SimpleTestCase):
     def test_sem_loja_usa_username(self):
         user = SimpleNamespace(username="dona", get_full_name=lambda: "", is_superuser=False)
-        payload = build_me_payload(user, None)
+        with patch("superadmin.models.UsuarioSistema.objects.filter", return_value=MagicMock(
+            filter=MagicMock(return_value=MagicMock(exists=MagicMock(return_value=False))),
+        )):
+            payload = build_me_payload(user, None)
         self.assertEqual(payload["user_display_name"], "dona")
         self.assertIsNone(payload["professional_id"])
         self.assertFalse(payload["is_administrador"])
+        self.assertFalse(payload["pode_importar_backup"])
         self.assertIsNone(payload["perfil"])
         self.assertFalse(payload["pode_ver_consulta"])
         self.assertFalse(payload["pode_abrir_consultas"])
@@ -45,9 +49,13 @@ class BuildMePayloadTests(SimpleTestCase):
             patch("superadmin.models.ProfissionalUsuario.objects.filter", return_value=MagicMock(first=lambda: pu)),
             patch("superadmin.models.Loja.objects.filter", return_value=MagicMock(first=lambda: None)),
             patch("clinica_beleza.models.Professional.objects", qs),
+            patch("superadmin.models.UsuarioSistema.objects.filter", return_value=MagicMock(
+                filter=MagicMock(return_value=MagicMock(exists=MagicMock(return_value=False))),
+            )),
         ):
             payload = build_me_payload(user, 6)
         self.assertEqual(payload["user_display_name"], "BRUNA TUCCI MARTINS")
+        self.assertFalse(payload["pode_importar_backup"])
         self.assertEqual(payload["professional_id"], 3)
         self.assertFalse(payload["is_administrador"])
         self.assertEqual(payload["perfil"], "profissional")
@@ -65,6 +73,7 @@ class BuildMePayloadTests(SimpleTestCase):
         ):
             payload = build_me_payload(user, 6)
         self.assertTrue(payload["is_administrador"])
+        self.assertTrue(payload["pode_importar_backup"])
         self.assertTrue(payload["pode_ver_consulta"])
         self.assertTrue(payload["pode_abrir_consultas"])
 
@@ -76,9 +85,13 @@ class BuildMePayloadTests(SimpleTestCase):
         with (
             patch("superadmin.models.Loja.objects.filter", return_value=MagicMock(first=lambda: None)),
             patch("superadmin.models.ProfissionalUsuario.objects.filter", return_value=MagicMock(first=lambda: pu)),
+            patch("superadmin.models.UsuarioSistema.objects.filter", return_value=MagicMock(
+                filter=MagicMock(return_value=MagicMock(exists=MagicMock(return_value=False))),
+            )),
         ):
             payload = build_me_payload(user, 6)
         self.assertTrue(payload["is_administrador"])
+        self.assertFalse(payload["pode_importar_backup"])
         self.assertTrue(payload["pode_ver_consulta"])
         self.assertTrue(payload["pode_abrir_consultas"])
 
@@ -88,9 +101,13 @@ class BuildMePayloadTests(SimpleTestCase):
         with (
             patch("superadmin.models.Loja.objects.filter", return_value=MagicMock(first=lambda: None)),
             patch("superadmin.models.ProfissionalUsuario.objects.filter", return_value=MagicMock(first=lambda: pu)),
+            patch("superadmin.models.UsuarioSistema.objects.filter", return_value=MagicMock(
+                filter=MagicMock(return_value=MagicMock(exists=MagicMock(return_value=False))),
+            )),
         ):
             payload = build_me_payload(user, 6)
         self.assertEqual(payload["perfil"], "recepcionista")
+        self.assertFalse(payload["pode_importar_backup"])
         self.assertFalse(payload["is_administrador"])
         self.assertFalse(payload["pode_ver_consulta"])
         self.assertTrue(payload["pode_abrir_consultas"])
@@ -99,5 +116,6 @@ class BuildMePayloadTests(SimpleTestCase):
         user = SimpleNamespace(username="root", get_full_name=lambda: "", id=1, is_superuser=True)
         payload = build_me_payload(user, None)
         self.assertTrue(payload["is_administrador"])
+        self.assertTrue(payload["pode_importar_backup"])
         self.assertTrue(payload["pode_ver_consulta"])
         self.assertTrue(payload["pode_abrir_consultas"])

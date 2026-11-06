@@ -131,3 +131,18 @@ class IsSuperAdmin(permissions.BasePermission):
 
     def has_permission(self, request, view):
         return request.user and request.user.is_superuser and request.user.is_active
+
+
+class IsSuperAdminOuSuporte(permissions.BasePermission):
+    """Superadmin ou suporte ativo. Loja comum não altera o login do sistema."""
+
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        if not user or not getattr(user, "is_authenticated", False):
+            return False
+        if getattr(user, "is_superuser", False) is True:
+            return True
+        from ..models import UsuarioSistema
+        return UsuarioSistema.objects.filter(
+            user=user, tipo="suporte", is_active=True,
+        ).exists()

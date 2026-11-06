@@ -1,11 +1,8 @@
 "use client";
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import {
-  CLINICA_AGENDA_SLOT_DURATION,
-  CLINICA_AGENDA_SLOT_LABEL_INTERVAL,
-  CLINICA_AGENDA_SNAP_DURATION,
-} from "@/lib/clinica-beleza-constants";
+import { CLINICA_AGENDA_SNAP_DURATION } from "@/lib/clinica-beleza-constants";
+import { duracaoSlotAgenda, intervaloAgendaMinutos } from "@/lib/intervalo-agenda";
 import {
   aplicarHorarioAgendaEvento,
   eventosParaFullCalendar,
@@ -260,6 +257,10 @@ export function AgendaCalendarSection({
   /** Dia com vários profissionais e sem filtro: grade por coluna. Senão = FullCalendar do tema. */
   const usarColunasDia =
     gradeView === "day" && !selectedProfessional && professionals.length > 1;
+  const passoAgenda = intervaloAgendaMinutos(
+    professionals.find((p) => String(p.id) === String(selectedProfessional)),
+  );
+  const slotAgenda = duracaoSlotAgenda(passoAgenda);
 
   if (isMobileUi === null) {
     return (
@@ -281,6 +282,7 @@ export function AgendaCalendarSection({
           eventos={eventos}
           slotMinTime={slotMinTime}
           slotMaxTime={slotMaxTime}
+          stepMinutes={passoAgenda}
           onOpenEvent={onAbrirLista}
           onSlotClick={(date) => {
             onDateClick({ date, allDay: false } as DateClickArg);
@@ -340,7 +342,7 @@ export function AgendaCalendarSection({
         {calendarPlugins.length > 0 && ptBrLocale ? (
           <Suspense fallback={<div className="flex items-center justify-center h-40 text-sm text-gray-500">Carregando calendário...</div>}>
           <FullCalendar
-            key={`desktop-${selectedProfessional}-${fcView}-${visual}`}
+            key={`desktop-${selectedProfessional}-${fcView}-${visual}-${slotAgenda}`}
             plugins={calendarPlugins as never[]}
             initialView={fcView}
             initialDate={diaIso}
@@ -407,8 +409,8 @@ export function AgendaCalendarSection({
             slotMinTime={slotMinTime}
             slotMaxTime={slotMaxTime}
             allDaySlot={false}
-            slotDuration={CLINICA_AGENDA_SLOT_DURATION}
-            slotLabelInterval={CLINICA_AGENDA_SLOT_LABEL_INTERVAL}
+            slotDuration={slotAgenda}
+            slotLabelInterval={slotAgenda}
             snapDuration={CLINICA_AGENDA_SNAP_DURATION}
             businessHours={businessHours as never}
             hiddenDays={hiddenDays}

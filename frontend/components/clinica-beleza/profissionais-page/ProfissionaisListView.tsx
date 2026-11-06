@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Pencil, Timer, Trash2 } from "lucide-react";
+import { Clock, Pencil, Rows3, Timer, Trash2 } from "lucide-react";
 import { EntityListLoadMore } from "@/components/clinica-beleza/EntityListLoadMore";
 import { EntityListTable } from "@/components/clinica-beleza/EntityListTable";
 import { PacienteAvatar } from "@/components/clinica-beleza/PacienteAvatar";
@@ -19,6 +19,7 @@ interface ProfissionaisListViewProps {
   onToggleProfissional: (p: ClinicaProfessional) => void;
   onHorarios: (p: ClinicaProfessional) => void;
   onTempoConsulta: (p: ClinicaProfessional) => void;
+  onIntervaloAgenda: (p: ClinicaProfessional) => void;
 }
 
 export function ProfissionaisListView({
@@ -34,6 +35,7 @@ export function ProfissionaisListView({
   onToggleProfissional,
   onHorarios,
   onTempoConsulta,
+  onIntervaloAgenda,
 }: ProfissionaisListViewProps) {
   if (loading) {
     return <div className="text-center py-12 text-gray-500 dark:text-gray-400">Carregando...</div>;
@@ -114,6 +116,14 @@ export function ProfissionaisListView({
                       title="Tempo do atendimento (min)"
                     >
                       <Timer size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onIntervaloAgenda(p)}
+                      className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded"
+                      title="Intervalo da agenda (min)"
+                    >
+                      <Rows3 size={18} />
                     </button>
                   </>
                 )}

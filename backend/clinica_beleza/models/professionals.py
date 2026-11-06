@@ -56,6 +56,12 @@ class Professional(ProfissionalBase):
         verbose_name="Tempo da consulta (min)",
         help_text="Duração padrão da consulta deste profissional. Se os procedimentos somarem mais tempo, prevalece a soma dos procedimentos.",
     )
+    intervalo_agenda_minutos = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        verbose_name="Intervalo da agenda (min)",
+        help_text="Passo da grade e dos horários deste profissional. Vazio usa 15 minutos.",
+    )
     is_profissional = models.BooleanField(
         default=True,
         verbose_name="É profissional",

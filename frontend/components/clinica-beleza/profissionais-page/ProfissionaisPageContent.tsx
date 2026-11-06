@@ -3,6 +3,7 @@
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { ModalHorariosTrabalho } from "@/components/clinica-beleza/horarios-trabalho-modal/ModalHorariosTrabalho";
+import { ModalIntervaloAgenda } from "@/components/clinica-beleza/ModalIntervaloAgenda";
 import { ModalTempoConsulta } from "@/components/clinica-beleza/ModalTempoConsulta";
 import { ProfissionalFormPageContent } from "@/components/clinica-beleza/profissional-form/ProfissionalFormPageContent";
 import { AdminProfissionalToggle } from "@/components/clinica-beleza/AdminProfissionalToggle";
@@ -31,6 +32,8 @@ export function ProfissionaisPageContent() {
     setHorariosProfessional,
     tempoConsultaProfessional,
     setTempoConsultaProfessional,
+    intervaloAgendaProfessional,
+    setIntervaloAgendaProfessional,
     exclude,
     toggleProfissional,
   } = useProfissionaisPage();
@@ -71,6 +74,7 @@ export function ProfissionaisPageContent() {
           onToggleProfissional={toggleProfissional}
           onHorarios={setHorariosProfessional}
           onTempoConsulta={setTempoConsultaProfessional}
+          onIntervaloAgenda={setIntervaloAgendaProfessional}
         />
       </ClinicaBelezaPageContent>
 
@@ -88,6 +92,15 @@ export function ProfissionaisPageContent() {
           professionalId={tempoConsultaProfessional.id}
           professionalName={entityName(tempoConsultaProfessional)}
           onClose={() => setTempoConsultaProfessional(null)}
+          onSaved={() => load()}
+        />
+      )}
+
+      {intervaloAgendaProfessional && (
+        <ModalIntervaloAgenda
+          professionalId={intervaloAgendaProfessional.id}
+          professionalName={entityName(intervaloAgendaProfessional)}
+          onClose={() => setIntervaloAgendaProfessional(null)}
           onSaved={() => load()}
         />
       )}

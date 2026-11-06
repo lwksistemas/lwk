@@ -4,7 +4,7 @@ import { useMemo, useRef, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
 import { parseEventDate } from "@/lib/clinica-beleza-datetime";
-import { CLINICA_AGENDA_SLOT_VISUAL_MIN } from "@/lib/clinica-beleza-constants";
+import { INTERVALO_AGENDA_PADRAO } from "@/lib/intervalo-agenda";
 import {
   estiloCardStatusAgenda,
   estiloInlineCardAgenda,
@@ -66,6 +66,7 @@ export function AgendaMobileDayView({
   eventos,
   slotMinTime,
   slotMaxTime,
+  stepMinutes,
   onOpenEvent,
   onSlotClick,
 }: {
@@ -74,10 +75,11 @@ export function AgendaMobileDayView({
   eventos: AgendaEventData[];
   slotMinTime: string;
   slotMaxTime: string;
+  stepMinutes?: number;
   onOpenEvent: (evt: AgendaEventData) => void;
   onSlotClick: (date: Date) => void;
 }) {
-  const step = CLINICA_AGENDA_SLOT_VISUAL_MIN || 15;
+  const step = stepMinutes || INTERVALO_AGENDA_PADRAO;
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Swipe horizontal para navegar entre dias ───

@@ -26,6 +26,8 @@ export function useProfissionaisPage() {
   const [tempoConsultaProfessional, setTempoConsultaProfessional] = useState<ClinicaProfessional | null>(
     null,
   );
+  const [intervaloAgendaProfessional, setIntervaloAgendaProfessional] =
+    useState<ClinicaProfessional | null>(null);
 
   const exclude = useCallback(
     async (p: ClinicaProfessional) => {
@@ -75,6 +77,8 @@ export function useProfissionaisPage() {
     setHorariosProfessional,
     tempoConsultaProfessional,
     setTempoConsultaProfessional,
+    intervaloAgendaProfessional,
+    setIntervaloAgendaProfessional,
     exclude,
     toggleProfissional,
   };

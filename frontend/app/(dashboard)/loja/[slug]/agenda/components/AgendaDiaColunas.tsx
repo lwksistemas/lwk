@@ -33,6 +33,7 @@ import {
   agendaVisualStyleVars,
   type AgendaVisualId,
 } from "@/lib/clinica-agenda-visual";
+import { intervaloAgendaMinutos } from "@/lib/intervalo-agenda";
 import { AlcaLarguraColuna, useAgendaColunaLargura } from "./useAgendaColunaLargura";
 import { useAgendaDiaArrasto } from "./useAgendaDiaArrasto";
 import { AgendaLateralDireita } from "./AgendaLateralDireita";
@@ -287,7 +288,10 @@ export function AgendaDiaColunas({
                         if ((e.target as HTMLElement).closest("[data-agenda-card]")) return;
                         const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                         const y = e.clientY - rect.top;
-                        const mins = snapMinutos(minMin + y / pxPerMin);
+                        const passo = intervaloAgendaMinutos(
+                          professionals.find((p) => p.id === col.id),
+                        );
+                        const mins = snapMinutos(minMin + y / pxPerMin, passo);
                         onSlotClick(slotDateFromMinutes(dateIso, mins), col.id);
                       }}
                     >

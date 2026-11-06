@@ -15,6 +15,7 @@ export interface CriarAgendamentoProfessional {
   specialty?: string;
   especialidade?: string;
   tempo_consulta_minutos?: number | null;
+  intervalo_agenda_minutos?: number | null;
 }
 
 export function formatTimeFromDate(date: Date): string {

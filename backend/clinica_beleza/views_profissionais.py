@@ -90,6 +90,7 @@ _PROFESSIONAL_FIELD_MAP = {
 # Campos operacionais que o profissional-admin da loja pode alterar (PUT parcial).
 _OWNER_PROFESSIONAL_EDITABLE_FIELDS = frozenset({
     "tempo_consulta_minutos",
+    "intervalo_agenda_minutos",
     "registro_profissional", "conselho", "conselho_uf",
     "especialidade", "telefone", "email",
     "cpf", "data_nascimento", "sexo",

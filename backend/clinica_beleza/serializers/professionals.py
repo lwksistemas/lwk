@@ -164,6 +164,15 @@ class ProfessionalSerializer(UniqueDocumentoPerLojaMixin, TextNormalizationMixin
             raise serializers.ValidationError("O tempo deve ser entre 1 e 480 minutos.")
         return value
 
+    def validate_intervalo_agenda_minutos(self, value):
+        if value is None:
+            return value
+        if value not in (5, 10, 15, 20, 30, 45, 60):
+            raise serializers.ValidationError(
+                "O intervalo deve ser 5, 10, 15, 20, 30, 45 ou 60 minutos."
+            )
+        return value
+
 class ProfessionalCommissionSerializer(serializers.ModelSerializer):
     procedure_name = serializers.CharField(source="procedure.nome", read_only=True, default=None)
     local_atendimento_nome = serializers.CharField(

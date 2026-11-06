@@ -23,11 +23,6 @@ _CRM_VENDAS_PUBLIC_PREFIXES = (
     "/api/crm-vendas/relatorio-comissao/",
 )
 
-# CRM Vendas: rotas permitidas em lojas Clínica da Beleza (só config NFS-e / login)
-_CRM_VENDAS_CLINICA_BELEZA_ALLOWED_PREFIXES = (
-    "/api/crm-vendas/config/",
-    "/api/crm-vendas/login-config/",
-)
 
 # Endpoints superadmin acessíveis sem autenticação (cadastro público, health, webhooks)
 _SUPERADMIN_PUBLIC_ENDPOINTS = (
@@ -244,15 +239,11 @@ class SecurityIsolationMiddleware:
         return None
 
     def _check_clinica_crm_route_restriction(self, request):
-        """Lojas Clínica da Beleza têm tabelas crm_vendas (NFS-e) mas não expõem
-        leads, pipeline, vendedores etc.
-        """
+        """A clínica não usa as tabelas do CRM. A nota e o login ficam na própria clínica."""
         path = request.path
         if not path.startswith("/api/crm-vendas/"):
             return None
         if self._is_crm_vendas_public_path(path):
-            return None
-        if any(path.startswith(prefix) for prefix in _CRM_VENDAS_CLINICA_BELEZA_ALLOWED_PREFIXES):
             return None
 
         slug = self._extract_store_slug(request)

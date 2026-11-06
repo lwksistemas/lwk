@@ -18,7 +18,7 @@ export function useEstoqueColunas() {
     setLoading(true);
     try {
       const { data } = await apiClient.get<{ colunas_estoque?: string[] | null }>(
-        "/crm-vendas/login-config/",
+        "/clinica-beleza/login-config/",
       );
       const resolved = resolveColunasEstoque(data.colunas_estoque);
       setKeys(resolved.map((c) => c.key));

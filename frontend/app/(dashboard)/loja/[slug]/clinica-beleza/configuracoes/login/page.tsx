@@ -20,7 +20,7 @@ export default function ClinicaBelezaConfiguracoesLoginPage() {
   return (
     <LoginConfigPageContent
       slug={slug}
-      apiPath="/crm-vendas/login-config/"
+      apiPath="/clinica-beleza/login-config/"
       backHref={base}
       accentColor={'var(--cb-primary, #8B3D52)'}
       defaultPrimary="#8B3D52"

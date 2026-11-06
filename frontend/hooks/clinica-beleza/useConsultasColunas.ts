@@ -21,7 +21,7 @@ export function useConsultasColunas() {
     setLoading(true);
     try {
       const { data } = await apiClient.get<{ colunas_consultas?: string[] | null }>(
-        "/crm-vendas/login-config/",
+        "/clinica-beleza/login-config/",
       );
       const resolved = resolveColunasConsultas(data.colunas_consultas);
       setKeys(resolved.map((c) => c.key));

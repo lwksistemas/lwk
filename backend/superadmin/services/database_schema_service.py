@@ -115,10 +115,10 @@ def _reset_tenant_connection(alias: str) -> None:
 
 # Apps extras por slug de TipoLoja (única fonte para migrate / auditoria)
 TIPO_LOJA_EXTRA_APPS = {
-    "clinica-de-estetica": ["clinica_beleza", "whatsapp", "crm_vendas", "nfse_integration"],
-    "clinica-estetica": ["clinica_beleza", "whatsapp", "crm_vendas", "nfse_integration"],
-    "clinica-da-beleza": ["clinica_beleza", "whatsapp", "crm_vendas", "nfse_integration"],
-    "clinica-beleza": ["clinica_beleza", "whatsapp", "crm_vendas", "nfse_integration"],
+    "clinica-de-estetica": ["clinica_beleza", "whatsapp", "nfse_integration"],
+    "clinica-estetica": ["clinica_beleza", "whatsapp", "nfse_integration"],
+    "clinica-da-beleza": ["clinica_beleza", "whatsapp", "nfse_integration"],
+    "clinica-beleza": ["clinica_beleza", "whatsapp", "nfse_integration"],
     "crm-vendas": ["crm_vendas", "nfse_integration", "whatsapp"],
 }
 

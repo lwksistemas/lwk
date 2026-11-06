@@ -115,7 +115,7 @@ export default function ClinicaBelezaAparenciaPage() {
     setLoading(true);
     coresProntasRef.current = false;
     try {
-      const { data } = await apiClient.get<LoginConfigResponse>('/crm-vendas/login-config/');
+      const { data } = await apiClient.get<LoginConfigResponse>('/clinica-beleza/login-config/');
       setCorPrimaria(toHexInput(data.cor_primaria || '', '#8B3D52'));
       setCorSecundaria(toHexInput(data.cor_secundaria || '', '#6B2F40'));
       setCorFundoPagina(normalizeHexColor(data.cor_fundo_pagina || '') || '');
@@ -191,7 +191,7 @@ export default function ClinicaBelezaAparenciaPage() {
         setAutoSaving(true);
         try {
           const fundo = normalizeHexColor(corFundoPagina) || '';
-          await apiClient.patch('/crm-vendas/login-config/', {
+          await apiClient.patch('/clinica-beleza/login-config/', {
             cor_primaria: primaria,
             cor_secundaria: secundaria,
             cor_fundo_pagina: fundo,
@@ -257,7 +257,7 @@ export default function ClinicaBelezaAparenciaPage() {
     setSaving(true);
     try {
       const fundo = normalizeHexColor(corFundoPagina) || '';
-      await apiClient.patch('/crm-vendas/login-config/', {
+      await apiClient.patch('/clinica-beleza/login-config/', {
         cor_primaria: primaria,
         cor_secundaria: secundaria,
         cor_fundo_pagina: fundo,
@@ -545,7 +545,7 @@ export default function ClinicaBelezaAparenciaPage() {
                 setAgendaVisual(id);
                 writeClinicaAgendaVisualStorage(resolveClinicaThemeSlug(slug), id);
                 void apiClient
-                  .patch('/crm-vendas/login-config/', { agenda_visual: id })
+                  .patch('/clinica-beleza/login-config/', { agenda_visual: id })
                   .catch((err) => logger.warn('Falha ao salvar visual da agenda:', err));
               }}
             />

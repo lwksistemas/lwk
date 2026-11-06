@@ -2,6 +2,8 @@
 """
 from django.urls import path
 
+from crm_vendas.views_crm_whatsapp_login import LoginConfigView
+
 from .views_venda_produto import (
     CaixaFechamentoHtmlView,
     CaixaFechamentosView,
@@ -240,6 +242,7 @@ urlpatterns = [
     ),
     # Dados do administrador da loja (nome, email, telefone)
     path("loja-info/", LojaInfoView.as_view(), name="loja-info"),
+    path("login-config/", LoginConfigView.as_view(), name="login-config"),
     path("me/", MeView.as_view(), name="me"),
 
     # Pacientes

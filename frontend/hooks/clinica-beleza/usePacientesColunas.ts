@@ -18,7 +18,7 @@ export function usePacientesColunas() {
     setLoading(true);
     try {
       const { data } = await apiClient.get<{ colunas_pacientes?: string[] | null }>(
-        "/crm-vendas/login-config/",
+        "/clinica-beleza/login-config/",
       );
       const resolved = resolveColunasPacientes(data.colunas_pacientes);
       setKeys(resolved.map((c) => c.key));

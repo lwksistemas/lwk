@@ -23,9 +23,9 @@ class TenantDeployFiltroTest(SimpleTestCase):
         loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="crm-vendas"))
         self.assertEqual(filtrar_apps_loja(loja, ["clinica_beleza"]), [])
 
-    def test_crm_em_clinica_ainda_pode_migrar_crm(self):
+    def test_clinica_nao_recebe_tabelas_do_crm(self):
         loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="clinica-beleza"))
-        self.assertEqual(filtrar_apps_loja(loja, ["crm_vendas"]), ["crm_vendas"])
+        self.assertEqual(filtrar_apps_loja(loja, ["crm_vendas"]), [])
 
     def test_clinica_migra_so_clinica_beleza(self):
         loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="clinica-beleza"))
@@ -34,6 +34,7 @@ class TenantDeployFiltroTest(SimpleTestCase):
     def test_crm_nao_inclui_hotel_nem_salao(self):
         slugs = slugs_tipo_que_usam_app("crm_vendas")
         self.assertIn("crm-vendas", slugs)
+        self.assertNotIn("clinica-beleza", slugs)
         self.assertNotIn("hotel", slugs)
         self.assertNotIn("cabeleireiro", slugs)
 

@@ -79,7 +79,6 @@ ENSURE_COMANDOS_POR_TIPO: dict[str, list[str]] = {
         "ensure_payment_draft_nao_finalizadas",
         "ensure_consulta_numero",
         "ensure_nfse_tenant_clinica_beleza",
-        "ensure_crm_config_colunas",
     ],
 }
 
@@ -103,10 +102,6 @@ ENSURE_COMANDOS_POR_TIPO.update(
 # Tabelas com prefixo fora do padrão do app, mas válidas para o tipo.
 TABELAS_PERMITIDAS_EXTRA_POR_TIPO: dict[str, frozenset[str]] = {
     "crm-vendas": frozenset({"crm_relatorio_comissao"}),
-    "clinica-beleza": frozenset({"crm_relatorio_comissao"}),
-    "clinica-da-beleza": frozenset({"crm_relatorio_comissao"}),
-    "clinica-estetica": frozenset({"crm_relatorio_comissao"}),
-    "clinica-de-estetica": frozenset({"crm_relatorio_comissao"}),
 }
 
 

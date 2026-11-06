@@ -75,3 +75,12 @@ class DanfseNacionalTests(SimpleTestCase):
         self.assertIn("Não Retido", texto)
         self.assertIn("R$ 12,00", texto)
         self.assertIn(CHAVE, texto.replace(" ", "").replace("\n", ""))
+        self.assertIn("NFS-e Gerada", texto)
+        self.assertNotIn("NFS-e CANCELADA", texto)
+
+    def test_pdf_cancelada_mostra_a_situacao(self):
+        pdf = gerar_danfse_nacional(XML, chave=CHAVE, cancelada=True).getvalue()
+        texto = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages)
+        self.assertIn("NFS-e Cancelada", texto)
+        self.assertIn("NFS-e CANCELADA", texto)
+        self.assertNotIn("NFS-e Gerada", texto)

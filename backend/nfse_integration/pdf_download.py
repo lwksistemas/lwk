@@ -93,6 +93,7 @@ def resolver_download_pdf_superadmin(nfse_emitida: Any) -> ResultadoDownloadPdf:
         pdf_buffer = gerar_danfse_nacional(
             nfse_emitida.xml_nfse,
             chave=chave_acesso_nfse(nfse_emitida),
+            cancelada=(getattr(nfse_emitida, "status", "") or "") == "cancelada",
         )
         nome = f"DANFSe-{numero}.pdf"
     else:

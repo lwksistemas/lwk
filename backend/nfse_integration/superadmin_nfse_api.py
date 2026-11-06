@@ -127,7 +127,11 @@ def reenviar_email_nfse_superadmin(nf: Any, config: Any | None = None) -> str:
         if (getattr(nf, "provedor", "") or "") == "nacional" and (nf.xml_nfse or "").strip():
             from nfse_integration.danfse_nacional import gerar_danfse_nacional
 
-            pdf_bytes = gerar_danfse_nacional(nf.xml_nfse, chave=chave_acesso_nfse(nf)).getvalue()
+            pdf_bytes = gerar_danfse_nacional(
+                nf.xml_nfse,
+                chave=chave_acesso_nfse(nf),
+                cancelada=(getattr(nf, "status", "") or "") == "cancelada",
+            ).getvalue()
         else:
             from nfse_integration.pdf_nfse import gerar_pdf_nfse
 

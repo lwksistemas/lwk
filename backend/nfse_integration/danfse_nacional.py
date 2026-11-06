@@ -359,10 +359,10 @@ def _p(texto: str, estilo: ParagraphStyle) -> Paragraph:
     return Paragraph(escape(texto or ""), estilo)
 
 
-def _campo(rotulo: str, valor: str) -> Paragraph:
+def _campo(rotulo: str, valor: str, *, cor: str = "#111111") -> Paragraph:
     return Paragraph(
         f'<font name="Helvetica" size="5.2" color="#555555">{escape(rotulo)}</font><br/>'
-        f'<font name="Helvetica" size="7" color="#111111">{escape(_traco(valor))}</font>',
+        f'<font name="Helvetica" size="7" color="{cor}">{escape(_traco(valor))}</font>',
         ParagraphStyle("DfsCampo", fontName="Helvetica", fontSize=7, leading=8.2),
     )
 
@@ -384,9 +384,15 @@ def _grade(celulas: list[list], colunas: list[float], spans: list[tuple] | None 
     return tabela
 
 
-def gerar_danfse_nacional(xml_nfse: str, *, chave: str = "") -> BytesIO:
-    """Monta o PDF do DANFSe v2.0 na grade do documento auxiliar."""
+def gerar_danfse_nacional(xml_nfse: str, *, chave: str = "", cancelada: bool = False) -> BytesIO:
+    """Monta o PDF do DANFSe v2.0 na grade do documento auxiliar.
+
+    O XML autorizado permanece com a situação da emissão. O cancelamento
+    é um evento separado, então a marca de cancelada vem do status da nota.
+    """
     dados = ler_dados_danfse(xml_nfse, chave=chave)
+    if cancelada:
+        dados["situacao"] = "NFS-e Cancelada"
     chave_acesso = dados["chave"]
     consulta = PORTAL_CONSULTA_NACIONAL.format(chave=chave_acesso) if chave_acesso else ""
     est = _estilos()
@@ -410,6 +416,8 @@ def gerar_danfse_nacional(xml_nfse: str, *, chave: str = "") -> BytesIO:
     ]
     if dados["ambiente"] == "Homologação":
         cabeca_meio.append(_p("NFS-e SEM VALIDADE JURÍDICA", est["hom"]))
+    if cancelada:
+        cabeca_meio.append(_p("NFS-e CANCELADA", est["hom"]))
     direita = [
         _p(f"Município: {_traco(dados['municipio_uf'])}", est["dir"]),
         _p(f"Ambiente Gerador: {_traco(dados['amb_ger_cod'])}", est["dir"]),
@@ -456,7 +464,11 @@ def gerar_danfse_nacional(xml_nfse: str, *, chave: str = "") -> BytesIO:
             ],
             [
                 _campo("EMITENTE DA NFS-E", dados["emitente"]),
-                _campo("SITUAÇÃO DA NFS-E", dados["situacao"]),
+                _campo(
+                    "SITUAÇÃO DA NFS-E",
+                    dados["situacao"],
+                    cor="#c1121f" if cancelada else "#111111",
+                ),
                 _campo("FINALIDADE", dados["finalidade"]),
                 "",
             ],

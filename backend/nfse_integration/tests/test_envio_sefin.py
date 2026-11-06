@@ -80,6 +80,7 @@ class EnvioSefinTests(SimpleTestCase):
         self.assertNotIn("cTribMun", xml)
         self.assertIn("<pTotTribSN>2.00</pTotTribSN>", xml)
         self.assertNotIn("indTotTrib", xml)
+        self.assertNotIn("<pAliq>", xml)
 
         com_municipal = construir_xml_dps(
             numero_dps=1,

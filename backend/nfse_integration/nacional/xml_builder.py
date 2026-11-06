@@ -248,7 +248,9 @@ def construir_xml_dps(
     trib_mun = _el(trib, "tribMun")
     _el(trib_mun, "tribISSQN", str(natureza_tributacao))
     _el(trib_mun, "tpRetISSQN", "2" if iss_retido else "1")
-    _el(trib_mun, "pAliq", _formatar_decimal(aliquota))
+    # ME/EPP sem retenção não informa alíquota: o ISSQN é apurado no Simples (E0625).
+    if iss_retido or not optante_simples_nacional:
+        _el(trib_mun, "pAliq", _formatar_decimal(aliquota))
 
     # totTrib - ME/EPP precisa informar pTotTribSN; demais casos indTotTrib=0
     tot_trib = _el(trib, "totTrib")

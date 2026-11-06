@@ -10,6 +10,7 @@ from .models import Appointment, Patient
 from .models.appointments import APPOINTMENT_STATUSES_EM_ABERTO
 from .pagination import paginate_queryset
 from .patient_search import apply_patient_search
+from .acesso_leitura import registrar_leitura_clinica
 from .permissions import CLINICA_ADMIN, CLINICA_RECEPCAO
 from .serializers import PatientPrazoPagamentoSerializer, PatientSerializer
 from .views_base import GetObjectMixin, map_field_names
@@ -135,6 +136,7 @@ class PatientDetailView(GetObjectMixin, APIView):
         obj, err = self.object_or_404(pk)
         if err:
             return err
+        registrar_leitura_clinica(request, pk, "Paciente")
         return Response(PatientSerializer(obj).data)
 
     def put(self, request, pk):

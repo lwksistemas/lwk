@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 
 from ..consulta_service import consulta_esta_concluida, motivo_bloqueio_exclusao_consulta
 from ..models import Consulta
+from ..acesso_leitura import registrar_leitura_clinica
 from ..permissions import CLINICA_CLINICAL, CLINICA_CONSULTA_OPERACIONAL
 from ..serializers import ConsultaSerializer
 from ..views_base import GetObjectMixin
@@ -35,6 +36,7 @@ class ConsultaDetailView(GetObjectMixin, APIView):
         obj, err = self.object_or_404(pk)
         if err:
             return err
+        registrar_leitura_clinica(request, getattr(obj, "patient_id", None), "Consulta")
         return Response(ConsultaSerializer(obj, context={"request": request}).data)
 
     def put(self, request, pk):

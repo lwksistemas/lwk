@@ -7,7 +7,9 @@ from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
 from clinica_beleza.acesso_leitura import registrar_leitura_clinica
+from clinica_beleza.views_consultas.clinical import PatientAnamneseView
 from clinica_beleza.views_foto_paciente import ConsultaFotosPacienteView
+from clinica_beleza.views_pacientes import PatientDetailView
 from clinica_beleza.views_prontuario import ProntuarioView
 
 
@@ -79,3 +81,29 @@ class FotosRegistramLeituraTest(SimpleTestCase):
         response = view.get(request, 3)
         self.assertEqual(response.status_code, 200)
         registrar.assert_called_once_with(request, 9, "Fotos do paciente")
+
+
+class AnamneseEPacienteRegistramLeituraTest(SimpleTestCase):
+    @patch("clinica_beleza.views_consultas.clinical.registrar_leitura_clinica")
+    @patch("clinica_beleza.views_consultas.clinical.PatientAnamneseSerializer")
+    @patch("clinica_beleza.views_consultas.clinical.PatientAnamnese.objects")
+    @patch("clinica_beleza.views_consultas.clinical.get_patient_or_404")
+    def test_anamnese(self, paciente, anamnese, serializer, registrar):
+        paciente.return_value = (SimpleNamespace(loja_id=6), None)
+        anamnese.get_or_create.return_value = (SimpleNamespace(), False)
+        serializer.return_value.data = {}
+        request = APIRequestFactory().get("/api/clinica-beleza/patients/9/anamnese/")
+        response = PatientAnamneseView().get(request, 9)
+        self.assertEqual(response.status_code, 200)
+        registrar.assert_called_once_with(request, 9, "Anamnese")
+
+    @patch("clinica_beleza.views_pacientes.PatientSerializer")
+    @patch("clinica_beleza.views_pacientes.registrar_leitura_clinica")
+    def test_detalhe_do_paciente(self, registrar, serializer):
+        serializer.return_value.data = {"id": 9}
+        view = PatientDetailView()
+        view.object_or_404 = lambda pk: (SimpleNamespace(id=pk), None)
+        request = APIRequestFactory().get("/api/clinica-beleza/patients/9/")
+        response = view.get(request, 9)
+        self.assertEqual(response.status_code, 200)
+        registrar.assert_called_once_with(request, 9, "Paciente")

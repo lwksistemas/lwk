@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from ..models import Consulta, ConsultaEvolucao, PatientAnamnese
 from ..pagination import paginate_queryset
+from ..acesso_leitura import registrar_leitura_clinica
 from ..permissions import CLINICA_CLINICAL, CLINICA_CONSULTA_OPERACIONAL
 from ..serializers import ConsultaEvolucaoSerializer, PatientAnamneseSerializer
 from ..views_base import MSG_ERRO_PDF, resposta_erro_interno
@@ -27,6 +28,7 @@ class PatientAnamneseView(APIView):
             patient_id=patient_id,
             defaults={"loja_id": patient.loja_id},
         )
+        registrar_leitura_clinica(request, patient_id, "Anamnese")
         return Response(PatientAnamneseSerializer(obj).data)
 
     def put(self, request, patient_id):
@@ -55,7 +57,9 @@ class ConsultaEvolucaoListView(APIView):
     def get(self, request, consulta_id):
         from ..permissions import recusar_andamento_alheio
 
-        consulta = Consulta.objects.filter(pk=consulta_id).only("status", "professional_id").first()
+        consulta = Consulta.objects.filter(pk=consulta_id).only(
+            "status", "professional_id", "patient_id",
+        ).first()
         if consulta is None:
             return Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
         if bloqueio := recusar_andamento_alheio(request, consulta):
@@ -63,6 +67,7 @@ class ConsultaEvolucaoListView(APIView):
         qs = ConsultaEvolucao.objects.filter(consulta_id=consulta_id).select_related(
             "patient", "professional",
         ).order_by("-created_at")
+        registrar_leitura_clinica(request, consulta.patient_id, "Evolução")
         return Response(ConsultaEvolucaoSerializer(qs, many=True).data)
 
     def post(self, request, consulta_id):

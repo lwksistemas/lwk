@@ -1,6 +1,62 @@
+import logging
+
 from rest_framework import permissions
 
 from ..models import ProfissionalUsuario
+
+logger = logging.getLogger(__name__)
+
+_ACOES_BACKUP_DA_LOJA = (
+    "exportar_backup",
+    "enviar_backup_agora",
+    "configuracao_backup",
+    "atualizar_configuracao_backup",
+    "historico_backups",
+)
+
+
+def _vendedor_crm_e_admin(user, loja) -> bool:
+    """True só quando o login é o vendedor administrador da loja.
+
+    Sem essa leitura, ou se ela falhar, o vendedor comum não leva o ZIP.
+    O contexto da loja volta ao que estava antes da consulta.
+    """
+    from ..models import VendedorUsuario
+
+    vinculo = (
+        VendedorUsuario.objects.filter(user=user, loja=loja)
+        .only("vendedor_id")
+        .first()
+    )
+    if not vinculo or not getattr(vinculo, "vendedor_id", None):
+        return False
+
+    from tenants.middleware import (
+        get_current_loja_id,
+        get_current_tenant_db,
+        set_current_loja_id,
+        set_current_tenant_db,
+    )
+
+    anterior_db = get_current_tenant_db()
+    anterior_loja = get_current_loja_id()
+    try:
+        from core.db_config import ensure_loja_database_config
+        from crm_vendas.models import Vendedor
+
+        db_name = getattr(loja, "database_name", None) or ""
+        if not db_name or not ensure_loja_database_config(db_name, conn_max_age=0):
+            return False
+        set_current_tenant_db(db_name)
+        set_current_loja_id(getattr(loja, "id", None))
+        vendedor = Vendedor.objects.filter(pk=vinculo.vendedor_id).only("is_admin").first()
+        return bool(vendedor and vendedor.is_admin is True)
+    except Exception:
+        logger.warning("backup: sem leitura do vendedor da loja %s", getattr(loja, "id", None))
+        return False
+    finally:
+        set_current_tenant_db(anterior_db)
+        set_current_loja_id(anterior_loja)
 
 
 class IsOwnerOrSuperAdmin(permissions.BasePermission):
@@ -47,24 +103,24 @@ class IsOwnerOrSuperAdmin(permissions.BasePermission):
             if VendedorUsuario.objects.filter(user=request.user, loja=obj).exists():
                 return True
 
-        # Backup da loja: dono e superadmin já passaram acima.
-        # Na clínica só o perfil administrador. Caixa, limpeza, estoque,
-        # recepção e profissional não levam o ZIP com prontuários.
-        # No CRM o vendedor da própria loja continua podendo.
+        # Backup da loja: dono, superadmin e suporte já passaram acima.
+        # Na clínica o administrador exporta. A importação, que substitui a loja, não.
+        # No CRM só o vendedor administrador exporta e importa.
         if hasattr(obj, "id"):
-            from ..models import UsuarioSistema, VendedorUsuario
+            from ..models import UsuarioSistema
             action = getattr(view, "action", None)
-            if action in ("exportar_backup", "importar_backup", "enviar_backup_agora", "configuracao_backup", "atualizar_configuracao_backup", "historico_backups"):
-                vinculo = (
-                    ProfissionalUsuario.objects.filter(user=request.user, loja=obj)
-                    .only("perfil")
-                    .first()
-                )
-                if vinculo and vinculo.perfil == ProfissionalUsuario.PERFIL_ADMINISTRADOR:
-                    return True
+            if action in _ACOES_BACKUP_DA_LOJA or action == "importar_backup":
+                if action in _ACOES_BACKUP_DA_LOJA:
+                    vinculo = (
+                        ProfissionalUsuario.objects.filter(user=request.user, loja=obj)
+                        .only("perfil")
+                        .first()
+                    )
+                    if vinculo and vinculo.perfil == ProfissionalUsuario.PERFIL_ADMINISTRADOR:
+                        return True
                 if UsuarioSistema.objects.filter(user=request.user, lojas_acesso=obj, is_active=True).exists():
                     return True
-                if VendedorUsuario.objects.filter(user=request.user, loja=obj).exists():
+                if _vendedor_crm_e_admin(request.user, obj):
                     return True
 
         return False

@@ -15,8 +15,11 @@ from .provisional_password_helpers import loja_login_absolute_url
 logger = logging.getLogger(__name__)
 
 _RECOVERY_OK_MESSAGE = (
-    "Se o email estiver cadastrado para esta loja, você receberá uma senha provisória em instantes."
+    "Se o email estiver cadastrado para esta loja, você receberá um link "
+    "para criar uma nova senha. A senha atual continua válida até o link ser aberto."
 )
+_TOKEN_SALT = "lwk-loja-password-recovery-v1"
+_TOKEN_MAX_AGE = 3600
 
 _REQUEST_LIMIT_PER_IP = 30
 _REQUEST_WINDOW_SECONDS = 3600
@@ -26,9 +29,21 @@ _SEND_WINDOW_SECONDS = 3600
 
 
 def _client_ip(request) -> str:
-    from core.rate_limit import _get_client_ip
+    """Último endereço de X-Forwarded-For, o que o proxy acrescenta.
 
-    return _get_client_ip(request)
+    O primeiro valor é enviado pelo cliente e não serve de limite.
+    """
+    if request is None:
+        return "0.0.0.0"
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    partes = [parte.strip() for parte in forwarded.split(",") if parte.strip()]
+    if partes:
+        return partes[-1]
+    return request.META.get("REMOTE_ADDR", "0.0.0.0")
+
+
+def _nonce_key(user_id: int, loja_id: int) -> str:
+    return f"loja_pwd_nonce:{user_id}:{loja_id}"
 
 
 def _retry_after_seconds(cache_key: str, window_seconds: int) -> int:
@@ -235,68 +250,54 @@ class LojaPasswordRecoveryService:
         if limited:
             return limited
 
-        from core.password_validation import generate_provisional_password
+        import secrets
+        from html import escape
+        from urllib.parse import quote
 
-        nova_senha = generate_provisional_password()
+        from django.core import signing
+        from django.core.cache import cache
 
-        user.set_password(nova_senha)
-        user.save(update_fields=["password"])
+        from .provisional_password_helpers import frontend_base_url
 
-        if loja.owner_id == user.id:
-            loja.senha_provisoria = nova_senha
-            loja.senha_foi_alterada = False
-            loja.save(update_fields=["senha_provisoria", "senha_foi_alterada"])
-
-        ProfissionalUsuario.objects.filter(user=user, loja=loja).update(
-            precisa_trocar_senha=True,
+        nonce = secrets.token_urlsafe(18)
+        cache.set(_nonce_key(user.id, loja.id), nonce, _TOKEN_MAX_AGE)
+        token = signing.dumps(
+            {"uid": user.id, "loja": loja.id, "nonce": nonce},
+            salt=_TOKEN_SALT,
         )
-        VendedorUsuario.objects.filter(user=user, loja=loja).update(
-            precisa_trocar_senha=True,
+        atalho = (getattr(loja, "atalho", "") or "").strip() or loja.slug
+        link = (
+            f"{frontend_base_url()}/loja/{quote(atalho, safe='')}/recuperar-senha"
+            f"?token={quote(token, safe='')}"
         )
-
-        assunto = f"Recuperação de Senha - {loja.nome}"
-        login_url = loja_login_absolute_url(loja)
-
-        from core.email_templates import email_senha_provisoria_html
-
-        info_adicional = {
-            "Nome da Loja": loja.nome,
-            "Tipo de Sistema": loja.tipo_loja.nome if loja.tipo_loja_id else "Loja",
-            "Plano Contratado": loja.plano.nome if loja.plano_id else "—",
-        }
-
-        html_content, texto_plano = email_senha_provisoria_html(
-            nome_destinatario=user.first_name or user.username,
-            usuario=user.username,
-            senha=nova_senha,
-            url_login=login_url,
-            titulo_principal="Recuperação de Senha",
-            subtitulo="Sua senha foi redefinida com sucesso",
-            info_adicional=info_adicional,
-            nome_sistema=loja.nome,
+        nome = user.first_name or user.username
+        assunto = f"Recuperação de senha - {loja.nome}"
+        texto = (
+            f"Olá {nome},\n\n"
+            "Recebemos um pedido para criar uma nova senha de acesso.\n"
+            "A senha atual continua válida até você abrir o link abaixo. "
+            "Ele expira em 1 hora e só pode ser usado uma vez.\n\n"
+            f"{link}\n\n"
+            "Se você não pediu esta alteração, ignore este email.\n"
         )
-
+        html = (
+            f"<p>Olá {escape(nome)},</p>"
+            "<p>Recebemos um pedido para criar uma nova senha de acesso. "
+            "A senha atual continua válida até você abrir o link. "
+            "Ele expira em 1 hora e só pode ser usado uma vez.</p>"
+            f'<p><a href="{escape(link)}">Criar nova senha</a></p>'
+            "<p>Se você não pediu esta alteração, ignore este email.</p>"
+        )
         try:
             from core.email_delivery import create_email_multipart, send_prepared
             from core.email_sync_context import email_sync_only
 
-            email_msg = create_email_multipart(
-                assunto,
-                texto_plano,
-                [email.strip()],
-                html=html_content,
-            )
-            token = email_sync_only.set(True)
+            email_msg = create_email_multipart(assunto, texto, [email.strip()], html=html)
+            sync = email_sync_only.set(True)
             try:
                 send_prepared(email_msg, fail_silently=False)
             finally:
-                email_sync_only.reset(token)
-            logger.info(
-                "Recuperação de senha loja: email enviado (loja=%s, user=%s, identificador=%s)",
-                loja.slug,
-                user.username,
-                slug,
-            )
+                email_sync_only.reset(sync)
         except Exception as e:
             logger.exception("Erro ao enviar email de recuperação de senha: %s", e)
             return (
@@ -305,3 +306,75 @@ class LojaPasswordRecoveryService:
             )
 
         return ({"message": _RECOVERY_OK_MESSAGE}, http_status.HTTP_200_OK)
+
+    def confirmar(self, token: str) -> tuple[dict[str, Any], int]:
+        """Troca a senha só quando o link é aberto. A senha aparece uma vez e não fica gravada."""
+        import secrets
+
+        from django.core import signing
+        from django.core.cache import cache
+
+        bruto = (token or "").strip()
+        if not bruto:
+            return ({"detail": "Link inválido ou expirado."}, http_status.HTTP_400_BAD_REQUEST)
+        try:
+            data = signing.loads(bruto, salt=_TOKEN_SALT, max_age=_TOKEN_MAX_AGE)
+        except (signing.BadSignature, signing.SignatureExpired, ValueError, TypeError):
+            return ({"detail": "Link inválido ou expirado."}, http_status.HTTP_400_BAD_REQUEST)
+        if not isinstance(data, dict):
+            return ({"detail": "Link inválido ou expirado."}, http_status.HTTP_400_BAD_REQUEST)
+        try:
+            user_id = int(data.get("uid"))
+            loja_id = int(data.get("loja"))
+        except (TypeError, ValueError):
+            return ({"detail": "Link inválido ou expirado."}, http_status.HTTP_400_BAD_REQUEST)
+        nonce = data.get("nonce") or ""
+        if not nonce:
+            return ({"detail": "Link inválido ou expirado."}, http_status.HTTP_400_BAD_REQUEST)
+
+        chave = _nonce_key(user_id, loja_id)
+        atual = cache.get(chave)
+        if not atual or not secrets.compare_digest(str(atual), str(nonce)):
+            return ({"detail": "Link inválido ou expirado."}, http_status.HTTP_400_BAD_REQUEST)
+        cache.delete(chave)
+
+        from django.contrib.auth.models import User
+
+        from core.password_validation import generate_provisional_password
+
+        from ..models import Loja
+
+        loja = (
+            Loja.objects.select_related("owner")
+            .filter(id=loja_id, is_active=True)
+            .first()
+        )
+        user = User.objects.filter(id=user_id, is_active=True).first()
+        if loja is None or user is None:
+            return ({"detail": "Link inválido ou expirado."}, http_status.HTTP_400_BAD_REQUEST)
+        vinculado = (
+            loja.owner_id == user.id
+            or ProfissionalUsuario.objects.filter(user=user, loja=loja).exists()
+            or VendedorUsuario.objects.filter(user=user, loja=loja).exists()
+        )
+        if not vinculado:
+            return ({"detail": "Link inválido ou expirado."}, http_status.HTTP_400_BAD_REQUEST)
+
+        nova_senha = generate_provisional_password()
+        user.set_password(nova_senha)
+        user.save(update_fields=["password"])
+        if loja.owner_id == user.id:
+            loja.senha_provisoria = ""
+            loja.senha_foi_alterada = False
+            loja.save(update_fields=["senha_provisoria", "senha_foi_alterada"])
+        ProfissionalUsuario.objects.filter(user=user, loja=loja).update(precisa_trocar_senha=True)
+        VendedorUsuario.objects.filter(user=user, loja=loja).update(precisa_trocar_senha=True)
+        return (
+            {
+                "message": "Senha provisória criada. Anote agora: ela aparece só nesta tela.",
+                "senha_provisoria": nova_senha,
+                "usuario": user.username,
+                "url_login": loja_login_absolute_url(loja),
+            },
+            http_status.HTTP_200_OK,
+        )

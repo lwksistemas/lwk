@@ -556,7 +556,7 @@ class LojaViewSet(LojaBackupMixin, viewsets.ModelViewSet):
         user.set_password(nova_senha)
         user.save()
 
-        loja.senha_provisoria = nova_senha
+        loja.senha_provisoria = ""
         loja.senha_foi_alterada = False
         loja.save()
 
@@ -599,7 +599,6 @@ Equipe de Suporte
             "loja_nome": loja.nome,
             "owner_username": user.username,
             "owner_email": user.email,
-            "senha_provisoria": nova_senha,
             "senha_foi_alterada": False,
             "email_enviado": email_enviado,
             "precisa_trocar_senha": True,
@@ -607,9 +606,17 @@ Equipe de Suporte
 
     def destroy(self, request, *args, **kwargs):
         """Exclusão completa da loja com limpeza de todos os dados"""
+        from ...exclusao_segura import confirmacao_confere, registrar_exclusao
         from ...services import LojaCleanupService
 
         loja = self.get_object()
+        loja_id = loja.id
+        loja_slug = loja.slug
+        if not confirmacao_confere(request, loja_slug):
+            return Response(
+                {"error": "Confirme a exclusão informando o identificador da loja."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         cleanup_service = LojaCleanupService(loja)
 
         try:
@@ -627,11 +634,19 @@ Equipe de Suporte
                     logger.warning(f"⚠️ CASCADE falhou (tabela inexistente), forçando DELETE direto: {err_str}")
                     from django.db import connection
                     with connection.cursor() as cur:
-                        cur.execute("DELETE FROM superadmin_loja WHERE id = %s", [loja.id])
+                        cur.execute("DELETE FROM superadmin_loja WHERE id = %s", [loja_id])
                 else:
                     raise
 
             logger.info(f"✅ Loja removida: {results['loja_nome']}")
+            registrar_exclusao(
+                request=request,
+                email=getattr(loja.owner, "email", "") or "",
+                nome=results["loja_nome"],
+                recurso="Loja",
+                recurso_id=loja_id,
+                detalhes=f"slug={loja_slug}",
+            )
 
             return Response({
                 "message": f'Loja "{results["loja_nome"]}" foi completamente removida do sistema',
@@ -665,7 +680,7 @@ Equipe de Suporte
             user.set_password(nova_senha_provisoria)
             user.save()
 
-            loja.senha_provisoria = nova_senha_provisoria
+            loja.senha_provisoria = ""
             loja.senha_foi_alterada = False
             loja.save()
 
@@ -761,7 +776,7 @@ Equipe de Suporte
             "storage_horas_desde_verificacao": horas_desde_verificacao,
             "espaco_plano_gb": loja.plano.espaco_storage_gb if loja.plano else 5,
             "plano_nome": loja.plano.nome if loja.plano else "Sem plano",
-            "senha_provisoria": loja.senha_provisoria or "",
+            "senha_provisoria": "",
             "login_page_url": loja.login_page_url or "",
             "owner_username": loja.owner.username,
             "owner_email": loja.owner.email,

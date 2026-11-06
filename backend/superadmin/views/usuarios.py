@@ -32,10 +32,8 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
 
-        senha_provisoria = getattr(serializer.instance, "_senha_provisoria_gerada", None)
-
         response_data = serializer.data
-        response_data["senha_provisoria"] = senha_provisoria
+        response_data.pop("senha_provisoria", None)
         response_data["message"] = "Usuário criado com sucesso! Senha provisória enviada por email."
 
         headers = self.get_success_headers(serializer.data)
@@ -43,10 +41,23 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         """Exclusão completa do usuário (UsuarioSistema + User do Django)."""
+        from ..exclusao_segura import confirmacao_confere, eh_ultimo_superadmin_ativo, registrar_exclusao
+
         usuario_sistema = self.get_object()
         user_django = usuario_sistema.user
         username = user_django.username
         user_id = user_django.id
+
+        if not confirmacao_confere(request, username):
+            return Response(
+                {"error": "Confirme a exclusão informando o usuário."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if eh_ultimo_superadmin_ativo(usuario_sistema):
+            return Response(
+                {"error": "Não é possível excluir o último superadmin ativo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         lojas_owned = Loja.objects.filter(owner=user_django).exists()
         if lojas_owned:
@@ -68,10 +79,21 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
                 if sessoes_count:
                     logger.info(f"   ✅ {sessoes_count} sessão(ões) removida(s)")
 
+                from superadmin.models import HistoricoAcessoGlobal, ViolacaoSeguranca
+
+                HistoricoAcessoGlobal.objects.filter(user_id=user_id).update(user=None)
+                ViolacaoSeguranca.objects.filter(user_id=user_id).update(user=None)
+                registrar_exclusao(
+                    request=request,
+                    email=user_django.email or "",
+                    nome=username,
+                    recurso="UsuarioSistema",
+                    recurso_id=usuario_sistema.id,
+                    detalhes=f"usuario={username}",
+                )
                 with connection.cursor() as cursor:
-                    cursor.execute("SET LOCAL search_path TO public")
-                    cursor.execute("DELETE FROM superadmin_historico_acesso_global WHERE user_id = %s", [user_id])
-                    cursor.execute("DELETE FROM superadmin_violacoes_seguranca WHERE user_id = %s", [user_id])
+                    if connection.vendor == "postgresql":
+                        cursor.execute("SET LOCAL search_path TO public")
                     cursor.execute("DELETE FROM auth_user_groups WHERE user_id = %s", [user_id])
                     cursor.execute("DELETE FROM auth_user_user_permissions WHERE user_id = %s", [user_id])
                     cursor.execute("DELETE FROM superadmin_usuariosistema WHERE user_id = %s", [user_id])
@@ -118,7 +140,7 @@ class UsuarioSistemaViewSet(viewsets.ModelViewSet):
         try:
             usuario_sistema = UsuarioSistema.objects.get(user=request.user)
             return Response({
-                "precisa_trocar_senha": not usuario_sistema.senha_foi_alterada and bool(usuario_sistema.senha_provisoria),
+                "precisa_trocar_senha": not usuario_sistema.senha_foi_alterada,
                 "usuario_id": usuario_sistema.id,
                 "usuario_nome": request.user.username,
                 "tipo": usuario_sistema.tipo,
@@ -492,7 +514,7 @@ def sync_mercadopago_loja(request):
 @api_view(["POST"])
 @permission_classes([])
 def recuperar_senha_loja(request):
-    """Recuperar senha de loja pelo email e slug"""
+    """Pede um link por e-mail. Não altera a senha neste passo."""
     from ..services.loja_password_recovery_service import LojaPasswordRecoveryService
 
     payload, http_status = LojaPasswordRecoveryService().execute(
@@ -500,4 +522,14 @@ def recuperar_senha_loja(request):
         request.data.get("slug"),
         request=request,
     )
+    return Response(payload, status=http_status)
+
+
+@api_view(["POST"])
+@permission_classes([])
+def confirmar_recuperacao_senha_loja(request):
+    """Abre o link e só então grava a senha. Ela volta uma vez e não fica no banco."""
+    from ..services.loja_password_recovery_service import LojaPasswordRecoveryService
+
+    payload, http_status = LojaPasswordRecoveryService().confirmar(request.data.get("token"))
     return Response(payload, status=http_status)

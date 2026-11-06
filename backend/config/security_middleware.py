@@ -41,6 +41,8 @@ _SUPERADMIN_PUBLIC_ENDPOINTS = (
     "/api/superadmin/lojas/buscar-por-documento",
     "/api/superadmin/lojas/recuperar_senha/",
     "/api/superadmin/lojas/recuperar_senha",
+    "/api/superadmin/lojas/confirmar_recuperacao_senha/",
+    "/api/superadmin/lojas/confirmar_recuperacao_senha",
     "/api/superadmin/usuarios/recuperar_senha/",
     "/api/superadmin/usuarios/recuperar_senha",
     "/api/superadmin/usuarios/confirmar_recuperacao_senha/",

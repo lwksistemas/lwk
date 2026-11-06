@@ -54,6 +54,11 @@ class LojaSerializer(
         fields = "__all__"
         read_only_fields = ["database_name", "database_created", "login_page_url", "senha_provisoria", "owner", "owner_telefone"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data.pop("senha_provisoria", None)
+        return data
+
     def update(self, instance, validated_data):
         new_email = validated_data.pop("owner_email_edit", None)
         new_username = validated_data.pop("owner_username_edit", None)
@@ -294,7 +299,7 @@ class LojaCreateSerializer(
             # 4. PREPARAR DADOS DA LOJA
             validated_data["owner"] = owner
             validated_data["owner_telefone"] = owner_telefone
-            validated_data["senha_provisoria"] = owner_password
+            validated_data["senha_provisoria"] = ""
             validated_data["senha_foi_alterada"] = False
             request = self.context.get("request")
             usuario = getattr(request, "user", None)

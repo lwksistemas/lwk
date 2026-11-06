@@ -19,7 +19,7 @@ class EmailService:
     """Serviço para envio de emails com retry automático
     """
 
-    def enviar_senha_provisoria(self, loja, owner) -> bool:
+    def enviar_senha_provisoria(self, loja, owner, senha: str | None = None) -> bool:
         """Envia email com senha provisória para o administrador da loja
 
         Args:
@@ -33,15 +33,21 @@ class EmailService:
         email = getattr(owner, "email", "")
         email_log = mask_email(email)
         try:
-            senha = loja.senha_provisoria
-
-            if not senha:
-                logger.error(f"Senha provisória não encontrada para loja {loja.slug}")
-                return False
-
             if not email:
                 logger.error(f"Email do owner não encontrado para loja {loja.slug}")
                 return False
+            if not senha:
+                if getattr(loja, "senha_foi_alterada", False):
+                    logger.info("Senha já alterada; email de provisória não reenviado (loja=%s)", loja.slug)
+                    return False
+                from core.password_validation import generate_provisional_password
+
+                senha = generate_provisional_password()
+                owner.set_password(senha)
+                owner.save(update_fields=["password"])
+            loja.senha_provisoria = ""
+            loja.senha_foi_alterada = False
+            loja.save(update_fields=["senha_provisoria", "senha_foi_alterada"])
 
             # Criar mensagem HTML e texto plano
             assunto = f"Acesso à sua loja {loja.nome} - Senha Provisória"

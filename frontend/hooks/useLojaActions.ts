@@ -74,7 +74,9 @@ export function useLojaActions() {
     setError(null);
 
     try {
-      const response = await apiClient.delete(`/superadmin/lojas/${loja.id}/`);
+      const response = await apiClient.delete(`/superadmin/lojas/${loja.id}/`, {
+        data: { confirmacao: loja.slug },
+      });
       
       // Verificar se a resposta tem detalhes
       if (!response.data || !response.data.detalhes) {

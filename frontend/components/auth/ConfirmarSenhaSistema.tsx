@@ -4,7 +4,13 @@ import { FormEvent, Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 
-function Painel({ loginPath }: { loginPath: string }) {
+function Painel({
+  loginPath,
+  endpoint,
+}: {
+  loginPath: string;
+  endpoint: string;
+}) {
   const params = useSearchParams();
   const token = params.get('token') || '';
   const [senha, setSenha] = useState('');
@@ -19,7 +25,7 @@ function Painel({ loginPath }: { loginPath: string }) {
     setErro('');
     setLoading(true);
     try {
-      const res = await apiClient.post('/superadmin/usuarios/confirmar_recuperacao_senha/', { token });
+      const res = await apiClient.post(endpoint, { token });
       setSenha(res.data?.senha_provisoria || '');
       setUsuario(res.data?.usuario || '');
       setUrlLogin(res.data?.url_login || loginPath);
@@ -68,10 +74,16 @@ function Painel({ loginPath }: { loginPath: string }) {
   );
 }
 
-export default function ConfirmarSenhaSistema({ loginPath }: { loginPath: string }) {
+export default function ConfirmarSenhaSistema({
+  loginPath,
+  endpoint = '/superadmin/usuarios/confirmar_recuperacao_senha/',
+}: {
+  loginPath: string;
+  endpoint?: string;
+}) {
   return (
     <Suspense fallback={<p className="p-8 text-center text-gray-600">Carregando...</p>}>
-      <Painel loginPath={loginPath} />
+      <Painel loginPath={loginPath} endpoint={endpoint} />
     </Suspense>
   );
 }

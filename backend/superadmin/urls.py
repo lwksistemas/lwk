@@ -50,6 +50,7 @@ from .views import (
     mercadopago_config,
     mercadopago_test,
     mercadopago_webhook,
+    confirmar_recuperacao_senha_loja,
     recuperar_senha_loja,
     sync_mercadopago_loja,
     verificar_storage_loja,  # ✅ NOVO v738
@@ -108,6 +109,11 @@ urlpatterns = [
 
     # Outras rotas públicas
     path("lojas/recuperar_senha/", recuperar_senha_loja, name="loja-recuperar-senha"),
+    path(
+        "lojas/confirmar_recuperacao_senha/",
+        confirmar_recuperacao_senha_loja,
+        name="loja-confirmar-recuperacao-senha",
+    ),
     path("loja/<str:loja_slug>/financeiro/renovar/", renovar_assinatura_loja, name="renovar-financeiro-loja"),
     path("loja/<str:loja_slug>/financeiro/degustacao/", decidir_degustacao_loja, name="decidir-degustacao-loja"),
     path("loja/<str:loja_slug>/financeiro/", dashboard_financeiro_loja, name="dashboard-financeiro-loja"),

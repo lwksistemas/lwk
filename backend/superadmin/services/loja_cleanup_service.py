@@ -208,19 +208,11 @@ class LojaCleanupService:
     def cleanup_logs_and_alerts(self):
         """Remove logs de auditoria e alertas de segurança"""
         try:
-            from django.db.models import Q
-
-            from superadmin.models import HistoricoAcessoGlobal, ViolacaoSeguranca
+            from superadmin.models import ViolacaoSeguranca
 
             with transaction.atomic():
-                # Logs de auditoria (ações dentro da loja + ações sobre a loja)
-                logs = HistoricoAcessoGlobal.objects.filter(
-                    Q(loja_slug=self.loja_slug) |
-                    Q(loja_id=self.loja_id) |
-                    Q(recurso="Loja", recurso_id=self.loja_id),
-                )
-                logs_count = logs.count()
-                logs.delete()
+                # O histórico de acesso permanece. A exclusão da loja é registrada à parte.
+                logs_count = 0
 
                 # Alertas de segurança
                 alertas = ViolacaoSeguranca.objects.filter(loja__slug=self.loja_slug)

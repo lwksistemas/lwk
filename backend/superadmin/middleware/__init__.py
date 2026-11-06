@@ -127,6 +127,7 @@ class SuperAdminSecurityMiddleware:
                 "/api/superadmin/usuarios/recuperar_senha/",  # Recuperação de senha superadmin/suporte
                 "/api/superadmin/usuarios/confirmar_recuperacao_senha/",
                 "/api/superadmin/lojas/recuperar_senha/",     # Recuperação de senha lojas
+                "/api/superadmin/lojas/confirmar_recuperacao_senha/",
                 "/api/superadmin/mercadopago-webhook/",       # Webhook Mercado Pago (notificações de pagamento)
                 "/api/superadmin/cora-webhook",               # Webhook Cora, com ou sem barra final
                 "/api/superadmin/public/",                    # cadastro de lojas + backup-midia (token)

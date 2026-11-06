@@ -37,6 +37,11 @@ class UsuarioSistemaSerializer(UniqueDocumentoPerLojaMixin, serializers.ModelSer
         model = UsuarioSistema
         fields = "__all__"
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data.pop("senha_provisoria", None)
+        return data
+
     def create(self, validated_data):
 
         user_data = validated_data.pop("user")
@@ -58,7 +63,7 @@ class UsuarioSistemaSerializer(UniqueDocumentoPerLojaMixin, serializers.ModelSer
         # Criar perfil com senha provisória
         perfil = UsuarioSistema.objects.create(
             user=user,
-            senha_provisoria=senha_provisoria,
+            senha_provisoria="",
             senha_foi_alterada=False,
             **validated_data,
         )
@@ -107,9 +112,6 @@ Equipe LWK Sistemas
             logger.info("Email com senha provisória enviado: email=%s", mask_email(user.email))
         except Exception as e:
             logger.warning("Erro ao enviar email com senha provisória: %s", e)
-
-        # Armazenar senha provisória no contexto para retornar na resposta
-        perfil._senha_provisoria_gerada = senha_provisoria
 
         return perfil
 

@@ -930,41 +930,13 @@ class AsaasSyncService:
             }
 
     def _enviar_email_senha_acesso(self, loja):
-        """Envia email com senha de acesso após primeiro pagamento"""
-        assunto = f"Bem-vindo ao LWK Sistemas - {loja.nome}"
+        """Envia email com senha de acesso após primeiro pagamento.
 
-        mensagem = f"""
-Olá {loja.owner.first_name or loja.owner.username}!
+        A senha vai só no email. O cadastro da loja não guarda o texto.
+        """
+        from superadmin.email_service import EmailService
 
-Seu pagamento foi confirmado e sua loja está ativa! 🎉
-
-🔐 DADOS DE ACESSO:
-• URL: {loja.get_url_amigavel()}
-• Usuário: {loja.owner.username}
-• Senha: {loja.senha_provisoria}
-
-⚠️ IMPORTANTE:
-• Esta é uma senha provisória
-• Você será solicitado a trocar a senha no primeiro acesso
-• Mantenha seus dados de acesso em segurança
-
-📋 INFORMAÇÕES DA LOJA:
-• Nome: {loja.nome}
-• Plano: {loja.plano.nome}
-• Tipo: {loja.tipo_loja.nome}
-
----
-
-Atenciosamente,
-Equipe LWK Sistemas
-https://lwksistemas.com.br
-"""
-
-        try:
-            send_system_mail(assunto, mensagem, [loja.owner.email], fail_silently=False)
-            logger.info("Email de senha enviado para owner_email=%s", mask_email(loja.owner.email))
-        except Exception as e:
-            logger.error(f"Erro ao enviar email de senha: {e}")
+        EmailService().enviar_senha_provisoria(loja, loja.owner)
 
     def _enviar_link_cadastro_cartao(self, loja, financeiro):
         """Envia email com link para cadastrar cartão após primeiro pagamento"""

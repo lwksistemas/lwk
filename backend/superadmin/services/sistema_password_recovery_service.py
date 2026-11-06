@@ -148,7 +148,7 @@ class SistemaPasswordRecoveryService:
         user = perfil.user
         user.set_password(nova_senha)
         user.save(update_fields=["password"])
-        perfil.senha_provisoria = nova_senha
+        perfil.senha_provisoria = ""
         perfil.senha_foi_alterada = False
         perfil.save(update_fields=["senha_provisoria", "senha_foi_alterada"])
 

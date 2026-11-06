@@ -295,6 +295,8 @@ class SecurityDetector:
             "/superadmin/usuarios/alterar_senha_primeiro_acesso/",
             "/superadmin/usuarios/recuperar_senha/",
             "/superadmin/usuarios/confirmar_recuperacao_senha/",
+            "/superadmin/lojas/recuperar_senha/",
+            "/superadmin/lojas/confirmar_recuperacao_senha/",
             "alterar_senha_primeiro_acesso",
             "reenviar_senha",
         ]

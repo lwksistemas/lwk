@@ -50,6 +50,7 @@ from .usuarios import (
     mercadopago_config,
     mercadopago_test,
     mercadopago_webhook,
+    confirmar_recuperacao_senha_loja,
     recuperar_senha_loja,
     sync_mercadopago_loja,
 )
@@ -74,6 +75,7 @@ __all__ = [
     "mercadopago_test",
     "mercadopago_webhook",
     "sync_mercadopago_loja",
+    "confirmar_recuperacao_senha_loja",
     "recuperar_senha_loja",
     # Auditoria
     "HistoricoAcessoGlobalViewSet",

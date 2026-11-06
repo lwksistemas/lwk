@@ -64,9 +64,8 @@ export default function UsuariosPage() {
         await atualizarUsuario(editandoUsuario.id, data);
         alert('✅ Usuário atualizado com sucesso!');
       } else {
-        const response = await criarUsuario(data);
-        const senhaProvisoria = response.senha_provisoria;
-        alert(`✅ Usuário criado com sucesso!\n\n📧 Senha provisória enviada para: ${data.email}\n🔐 Senha: ${senhaProvisoria}\n\n⚠️ O usuário deverá trocar a senha no primeiro acesso.`);
+        await criarUsuario(data);
+        alert(`✅ Usuário criado com sucesso!\n\n📧 A senha provisória foi enviada para: ${data.email}\n\n⚠️ O usuário deverá trocar a senha no primeiro acesso.`);
       }
       reload();
       setShowModal(false);

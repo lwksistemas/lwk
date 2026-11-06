@@ -214,7 +214,7 @@ def reenviar_senha_administrador_loja(loja_id: int) -> tuple[dict | None, str | 
     senha = get_random_string(8)
     owner.set_password(senha)
     owner.save(update_fields=["password"])
-    loja.senha_provisoria = senha
+    loja.senha_provisoria = ""
     loja.senha_foi_alterada = False
     loja.save(update_fields=["senha_provisoria", "senha_foi_alterada"])
 
@@ -244,7 +244,7 @@ def reenviar_senha_vendedor(loja_id: int, vendedor) -> tuple[dict | None, str | 
             )
         loja.owner.set_password(senha)
         loja.owner.save(update_fields=["password"])
-        loja.senha_provisoria = senha
+        loja.senha_provisoria = ""
         loja.senha_foi_alterada = False
         loja.save(update_fields=["senha_provisoria", "senha_foi_alterada"])
         login_usuario = loja.owner.username

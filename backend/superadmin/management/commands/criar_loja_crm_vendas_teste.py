@@ -109,7 +109,8 @@ class Command(BaseCommand):
                 tipo_loja=tipo,
                 plano=plano,
                 owner=owner,
-                senha_provisoria=senha,
+                senha_provisoria="",
+                senha_foi_alterada=False,
                 cpf_cnpj="00000000000191",  # CNPJ teste para cobrança/Asaas
                 is_active=True,
             )

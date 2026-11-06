@@ -1,5 +1,7 @@
 """Testes de recuperação de senha da loja (slug vs atalho na URL)."""
+import re
 from unittest.mock import patch
+from urllib.parse import unquote
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -52,11 +54,12 @@ class LojaPasswordRecoveryServiceTest(TestCase):
         )
 
         self.assertEqual(code, http_status.HTTP_200_OK)
-        self.assertIn("message", payload)
+        self.assertIn("link", payload["message"])
         mock_send.assert_called_once()
+        self.owner.refresh_from_db()
+        self.assertTrue(self.owner.check_password("old-pass"))
         self.loja.refresh_from_db()
-        self.assertFalse(self.loja.senha_foi_alterada)
-        self.assertTrue(self.loja.senha_provisoria)
+        self.assertEqual(self.loja.senha_provisoria, "")
 
     @patch("core.email_delivery.send_prepared")
     def test_recuperacao_marca_profissional_usuario_trocar_senha(self, mock_send):
@@ -69,7 +72,13 @@ class LojaPasswordRecoveryServiceTest(TestCase):
         )
         LojaPasswordRecoveryService().execute("owner@felix.test", "felix")
         pu = ProfissionalUsuario.objects.get(user=self.owner, loja=self.loja)
+        self.assertFalse(pu.precisa_trocar_senha)
+        token = unquote(re.search(r"token=(\S+)", mock_send.call_args[0][0].body).group(1))
+        LojaPasswordRecoveryService().confirmar(token)
+        pu.refresh_from_db()
         self.assertTrue(pu.precisa_trocar_senha)
+        self.loja.refresh_from_db()
+        self.assertEqual(self.loja.senha_provisoria, "")
         mock_send.assert_called_once()
 
     @patch("core.email_delivery.send_prepared")
@@ -94,7 +103,9 @@ class LojaPasswordRecoveryServiceTest(TestCase):
         self.assertEqual(code, http_status.HTTP_200_OK)
         mock_send.assert_called_once()
         pu = ProfissionalUsuario.objects.get(user=prof_user, loja=self.loja)
-        self.assertTrue(pu.precisa_trocar_senha)
+        self.assertFalse(pu.precisa_trocar_senha)
+        prof_user.refresh_from_db()
+        self.assertTrue(prof_user.check_password("old-pass"))
 
     def test_resolve_profissional_por_email(self):
         prof_user = User.objects.create_user(
@@ -162,6 +173,16 @@ class LojaPasswordRecoveryServiceTest(TestCase):
         )
         self.assertEqual(code, http_status.HTTP_200_OK)
         mock_send.assert_called_once()
+
+    def test_limite_usa_o_ultimo_ip_do_proxy(self):
+        from django.test import RequestFactory
+
+        from superadmin.services.loja_password_recovery_service import _client_ip
+
+        request = RequestFactory().post("/api/superadmin/lojas/recuperar_senha/")
+        request.META["HTTP_X_FORWARDED_FOR"] = "203.0.113.9, 198.51.100.20"
+        request.META["REMOTE_ADDR"] = "127.0.0.1"
+        self.assertEqual(_client_ip(request), "198.51.100.20")
 
     def test_limite_de_envio_por_email(self):
         from django.test import RequestFactory

@@ -55,6 +55,7 @@ class SistemaPasswordRecoveryTest(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password(payload["senha_provisoria"]))
         self.assertFalse(self.user.perfil_sistema.senha_foi_alterada)
+        self.assertEqual(self.user.perfil_sistema.senha_provisoria, "")
         de_novo, code_de_novo = SistemaPasswordRecoveryService().confirmar(token)
         self.assertEqual(code_de_novo, http_status.HTTP_400_BAD_REQUEST)
         self.assertNotIn("senha_provisoria", de_novo)

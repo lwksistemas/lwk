@@ -139,7 +139,9 @@ export function useUsuarioActions() {
     setLoading(true);
     setError(null);
     try {
-      await apiClient.delete(`/superadmin/usuarios/${usuario.id}/`);
+      await apiClient.delete(`/superadmin/usuarios/${usuario.id}/`, {
+        data: { confirmacao: usuario.username },
+      });
       return true;
     } catch (err) {
       const errorObj = err && typeof err === 'object' ? (err as Record<string, unknown>) : null;

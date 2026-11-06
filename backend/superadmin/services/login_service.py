@@ -123,11 +123,7 @@ def usuario_precisa_trocar_senha_loja(user, loja, *, pu=None, vu=None) -> bool:
     if not user or not loja:
         return False
 
-    if (
-        loja.owner_id == user.id
-        and not loja.senha_foi_alterada
-        and bool(loja.senha_provisoria)
-    ):
+    if loja.owner_id == user.id and not loja.senha_foi_alterada:
         return True
 
     if pu is None:
@@ -523,7 +519,7 @@ class LoginService:
         """Verifica senha provisória de superadmin/suporte."""
         try:
             us = UsuarioSistema.objects.get(user=user, tipo=tipo, is_active=True)
-            precisa = not us.senha_foi_alterada and bool(us.senha_provisoria)
+            precisa = not us.senha_foi_alterada
             response_data["precisa_trocar_senha"] = precisa
             return precisa
         except UsuarioSistema.DoesNotExist:

@@ -443,7 +443,7 @@ export default function LojaLoginDinamicoPage() {
         endpoint="/superadmin/lojas/recuperar_senha/"
         extraData={{ slug }}
         title="Recuperar Senha"
-        description="Digite o email cadastrado no seu acesso à loja para receber uma nova senha provisória."
+        description="Digite o email cadastrado no seu acesso à loja para receber um link. A senha atual continua válida até o link ser aberto."
         primaryColor={corPrimaria}
       />
     </div>

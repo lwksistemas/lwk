@@ -41,10 +41,6 @@ export default function GerenciarLojasPage() {
   }, [router]);
 
   const handleReenviarSenha = async (loja: Loja) => {
-    if (!loja.senha_provisoria) {
-      alert('❌ Esta loja não possui senha provisória cadastrada.');
-      return;
-    }
     if (!confirm(`Reenviar senha provisória para ${loja.owner_email}?`)) return;
     const result = await reenviarSenha(loja);
     alert(result.message);

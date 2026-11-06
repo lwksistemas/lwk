@@ -5,6 +5,11 @@ from superadmin.services.login_service import usuario_precisa_trocar_senha_loja
 
 
 class SenhaProvisoriaLojaTests(TestCase):
+    def test_proprietario_sem_texto_gravado_ainda_precisa_trocar(self):
+        loja = SimpleNamespace(owner_id=1, senha_foi_alterada=False, senha_provisoria="")
+        user = SimpleNamespace(id=1)
+        self.assertTrue(usuario_precisa_trocar_senha_loja(user, loja))
+
     def test_proprietario_com_senha_provisoria(self):
         loja = SimpleNamespace(
             owner_id=1, senha_foi_alterada=False, senha_provisoria="abc123",

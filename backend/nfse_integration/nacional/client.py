@@ -177,12 +177,12 @@ class NacionalClient:
             if self.pfx_bytes:
                 xml_assinado = assinar_xml_dps_bytes(
                     xml_dps, self.pfx_bytes, self.senha_pfx,
-                    prefixo_ds=False, usar_sha256=True,
+                    prefixo_ds=False, usar_cadeia=False, usar_sha256=True,
                 )
             else:
                 xml_assinado = assinar_xml_dps(
                     xml_dps, self.pfx_path, self.senha_pfx,
-                    prefixo_ds=False, usar_sha256=True,
+                    prefixo_ds=False, usar_cadeia=False, usar_sha256=True,
                 )
 
             result["xml_dps"] = xml_assinado

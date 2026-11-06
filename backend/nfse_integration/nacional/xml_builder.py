@@ -196,6 +196,10 @@ def construir_xml_dps(
     _el(inf_dps, "tpEmit", "1")  # 1=Prestador
     _el(inf_dps, "cLocEmi", codigo_municipio_prestador)
 
+    # Ribeirão Preto não tem cadastro complementar no CNC: a Sefin recusa a IM (E0120).
+    if (codigo_municipio_prestador or "")[:7] == "3543402":
+        prestador_inscricao_municipal = ""
+
     # === PRESTADOR (prest) - conforme XML real ===
     _construir_xml_prestador(inf_dps, cnpj_digits, prestador_inscricao_municipal, prestador_telefone, prestador_email, optante_simples_nacional, regime_especial)
 

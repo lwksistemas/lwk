@@ -68,6 +68,7 @@ class EnvioSefinTests(SimpleTestCase):
             serie_dps="900",
             codigo_municipio_prestador="3543402",
             prestador_cnpj="24758458000172",
+            prestador_inscricao_municipal="12345",
             codigo_servico="140118",
             descricao_servico="teste",
             valor_servicos=Decimal("12.00"),
@@ -75,6 +76,7 @@ class EnvioSefinTests(SimpleTestCase):
             p_tot_trib_sn=Decimal("2.00"),
         )
         self.assertIn("<cTribNac>140118</cTribNac>", xml)
+        self.assertNotIn("<IM>", xml)
         self.assertNotIn("cTribMun", xml)
         self.assertIn("<pTotTribSN>2.00</pTotTribSN>", xml)
         self.assertNotIn("indTotTrib", xml)

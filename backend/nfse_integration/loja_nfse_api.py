@@ -118,6 +118,55 @@ def enviar_email_pos_emissao_loja(
     )
 
 
+def _legenda_danfse_whatsapp(nfse: Any, loja: Any, numero: str) -> str:
+    empresa = (getattr(nfse, "tomador_nome", None) or "Cliente").strip()
+    prestador = (getattr(loja, "nome", None) or "").strip()
+    try:
+        valor = f"{float(nfse.valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except (TypeError, ValueError):
+        valor = str(getattr(nfse, "valor", "") or "")
+    linhas = [f"Olá {empresa}!", "", f"NFS-e {numero} {empresa}"]
+    if prestador:
+        linhas.append(prestador)
+    if valor:
+        linhas.append(f"Valor: R$ {valor}")
+    linhas.extend(["", "A DANFSe segue em anexo."])
+    return "\n".join(linhas)[:1024]
+
+
+def _enviar_danfse_whatsapp(nfse: Any, loja: Any, loja_id: int, telefone: str, request: Any, config: Any) -> str:
+    """Manda o PDF da DANFSe. A Evolution baixa o arquivo pelo link temporário."""
+    from urllib.parse import quote
+
+    from core.public_urls import get_public_api_base_url
+    from nfse_integration.numero_exibicao import numero_nfse_para_exibicao
+    from nfse_integration.views_pdf_public import criar_token_pdf_nfse
+    from whatsapp.services import send_whatsapp_document
+    from whatsapp.sync_context import whatsapp_sync_only
+
+    numero = numero_nfse_para_exibicao(nfse) or getattr(nfse, "numero_nf", None) or nfse.id
+    token = criar_token_pdf_nfse(int(nfse.id), int(loja_id))
+    pdf_url = (
+        f"{get_public_api_base_url(request)}/api/nfse/documento-pdf/"
+        f"?token={quote(token, safe='')}"
+    )
+    marca = whatsapp_sync_only.set(True)
+    try:
+        ok, err = send_whatsapp_document(
+            telefone=telefone,
+            document_url=pdf_url,
+            filename=f"DANFSe-{numero}.pdf",
+            caption=_legenda_danfse_whatsapp(nfse, loja, str(numero)),
+            user=getattr(request, "user", None),
+            config=config,
+        )
+    finally:
+        whatsapp_sync_only.reset(marca)
+    if not ok:
+        raise ReenvioNFSeLojaError(err or "Erro ao enviar a DANFSe por WhatsApp.")
+    return telefone
+
+
 def enviar_whatsapp_nfse_loja(
     nfse: Any,
     loja: Any,
@@ -125,7 +174,7 @@ def enviar_whatsapp_nfse_loja(
     telefone: str,
     request: Any,
 ) -> str:
-    """Envia link oficial da NFS-e (portal da prefeitura) por WhatsApp."""
+    """Envia a DANFSe em PDF na API Nacional, ou o link do portal nos demais provedores."""
     from nfse_integration.danfe import obter_url_visualizacao_nfse_loja
     from nfse_integration.email_nfse import montar_corpo_email_nfse
     from whatsapp.models import WhatsAppConfig
@@ -143,6 +192,11 @@ def enviar_whatsapp_nfse_loja(
         raise ReenvioNFSeLojaError(
             "WhatsApp não está ativo. Configure em Configurações → WhatsApp.",
         )
+
+    if (getattr(nfse, "provedor", "") or "").strip().lower() == "nacional":
+        if not (getattr(nfse, "xml_nfse", "") or "").strip():
+            raise ReenvioNFSeLojaError("O PDF da DANFSe ainda não está disponível para esta nota.")
+        return _enviar_danfse_whatsapp(nfse, loja, loja_id, telefone, request, config)
 
     url_danfe = obter_url_visualizacao_nfse_loja(nfse, loja, loja_id)
     chave = (nfse.codigo_verificacao or "").strip()

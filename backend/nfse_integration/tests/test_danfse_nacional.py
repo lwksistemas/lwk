@@ -84,3 +84,25 @@ class DanfseNacionalTests(SimpleTestCase):
         self.assertIn("NFS-e Cancelada", texto)
         self.assertIn("NFS-e CANCELADA", texto)
         self.assertNotIn("NFS-e Gerada", texto)
+
+    def test_download_da_loja_usa_danfse(self):
+        from types import SimpleNamespace
+
+        from nfse_integration.pdf_download import resolver_download_pdf_loja
+
+        nfse = SimpleNamespace(
+            provedor="nacional",
+            xml_nfse=XML,
+            numero_nf="1",
+            codigo_verificacao=CHAVE,
+            status="emitida",
+            id=342,
+            pdf_url="",
+        )
+        resultado = resolver_download_pdf_loja(nfse, SimpleNamespace(), 4)
+        self.assertEqual(resultado.tipo, "pdf")
+        self.assertEqual(resultado.nome_arquivo, "DANFSe-1.pdf")
+        self.assertTrue(resultado.conteudo_pdf.startswith(b"%PDF"))
+        texto = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(resultado.conteudo_pdf)).pages)
+        self.assertIn("DANFSe v2.0", texto)
+        self.assertIn("LWK SISTEMAS", texto)

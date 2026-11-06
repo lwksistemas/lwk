@@ -19,13 +19,42 @@ class ResultadoDownloadPdf:
     content_disposition: str = "attachment"
 
 
+def _pdf_danfse_nacional(nfse: Any) -> ResultadoDownloadPdf | None:
+    """DANFSe v2.0 a partir do XML autorizado. A API do governo não entrega o PDF."""
+    if (getattr(nfse, "provedor", "") or "").strip().lower() != "nacional":
+        return None
+    xml = (getattr(nfse, "xml_nfse", "") or "").strip()
+    if not xml:
+        return None
+    from .danfse_nacional import gerar_danfse_nacional
+    from .numero_exibicao import chave_acesso_nfse, numero_nfse_para_exibicao
+
+    numero = numero_nfse_para_exibicao(nfse) or getattr(nfse, "numero_nf", None) or getattr(nfse, "id", "")
+    pdf = gerar_danfse_nacional(
+        xml,
+        chave=chave_acesso_nfse(nfse),
+        cancelada=(getattr(nfse, "status", "") or "") == "cancelada",
+    )
+    pdf.seek(0)
+    return ResultadoDownloadPdf(
+        tipo="pdf",
+        conteudo_pdf=pdf.read(),
+        nome_arquivo=f"DANFSe-{numero}.pdf",
+        content_disposition="attachment",
+    )
+
+
 def resolver_download_pdf_loja(nfse: Any, loja: Any, loja_id: int) -> ResultadoDownloadPdf:
-    """CRM/loja: URL oficial da DANFE (portal).
+    """CRM/loja: DANFSe da API Nacional ou URL oficial da DANFE (portal).
 
     Para ISSNet (padrão Nacional) o PDF interno NÃO é a nota fiscal real —
     só redireciona ao link do portal (Nota_Digital_Nacional.aspx). Sem o link,
     o chamador deve orientar a colar a URL do e-mail do ISSNet.
     """
+    danfse = _pdf_danfse_nacional(nfse)
+    if danfse is not None:
+        return danfse
+
     url_oficial = obter_url_visualizacao_nfse_loja(nfse, loja, loja_id)
     if url_danfe_valida(url_oficial) and _url_parece_portal_oficial(url_oficial):
         return ResultadoDownloadPdf(tipo="url", url=url_oficial)
@@ -84,23 +113,17 @@ def resolver_download_pdf_superadmin(nfse_emitida: Any) -> ResultadoDownloadPdf:
         if url_danfe:
             return ResultadoDownloadPdf(tipo="url", url=url_danfe)
 
-    from .numero_exibicao import chave_acesso_nfse, numero_nfse_para_exibicao
+    from .numero_exibicao import numero_nfse_para_exibicao
+
+    danfse = _pdf_danfse_nacional(nfse_emitida)
+    if danfse is not None:
+        return danfse
 
     numero = numero_nfse_para_exibicao(nfse_emitida) or nfse_emitida.id
-    if (nfse_emitida.provedor or "") == "nacional" and (nfse_emitida.xml_nfse or "").strip():
-        from .danfse_nacional import gerar_danfse_nacional
+    from .pdf_nfse import gerar_pdf_nfse
 
-        pdf_buffer = gerar_danfse_nacional(
-            nfse_emitida.xml_nfse,
-            chave=chave_acesso_nfse(nfse_emitida),
-            cancelada=(getattr(nfse_emitida, "status", "") or "") == "cancelada",
-        )
-        nome = f"DANFSe-{numero}.pdf"
-    else:
-        from .pdf_nfse import gerar_pdf_nfse
-
-        pdf_buffer = gerar_pdf_nfse(nfse_emitida, nfse_emitida.loja)
-        nome = f"NFSe-{numero}.pdf"
+    pdf_buffer = gerar_pdf_nfse(nfse_emitida, nfse_emitida.loja)
+    nome = f"NFSe-{numero}.pdf"
     pdf_buffer.seek(0)
     return ResultadoDownloadPdf(
         tipo="pdf",

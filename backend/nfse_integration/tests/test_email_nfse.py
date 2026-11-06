@@ -145,3 +145,34 @@ class ReenvioNacionalSuperadminTests(SimpleTestCase):
         self.assertEqual(kwargs["pdf_content"], b"%PDF")
         self.assertEqual(kwargs["pdf_filename"], "DANFSe-1.pdf")
         self.assertEqual(kwargs["xml_filename"], "nfse_1.xml")
+
+
+class ReenvioNacionalLojaTests(SimpleTestCase):
+    @patch("nfse_integration.danfse_nacional.gerar_danfse_nacional")
+    @patch("nfse_integration.email_nfse.enviar_email_nfse_tomador")
+    def test_reenvio_anexa_danfse_e_nao_usa_portal_issnet(self, enviar, pdf):
+        from nfse_integration.loja_nfse_api import reenviar_email_nfse_loja
+
+        pdf.return_value = BytesIO(b"%PDF")
+        nf = SimpleNamespace(
+            id=342,
+            provedor="nacional",
+            status="emitida",
+            tomador_email="financeiro@exemplo.com",
+            tomador_nome="LWK SISTEMAS LTDA",
+            numero_nf="1",
+            codigo_verificacao="4" * 50,
+            valor=6,
+            servico_descricao="TESTE",
+            xml_nfse="<NFSe/>",
+            xml_rps="",
+        )
+        loja = SimpleNamespace(id=4, nome="FELIX REPRESENTACOES")
+        reenviar_email_nfse_loja(nf, loja, 4)
+        kwargs = enviar.call_args.kwargs
+        self.assertEqual(kwargs["numero_nf"], "1")
+        self.assertEqual(kwargs["assunto_prestador"], "LWK SISTEMAS LTDA")
+        self.assertEqual(kwargs["url_danfe"], "")
+        self.assertEqual(kwargs["pdf_filename"], "DANFSe-1.pdf")
+        self.assertEqual(kwargs["pdf_content"], b"%PDF")
+        self.assertEqual(kwargs["xml_filename"], "nfse_1.xml")

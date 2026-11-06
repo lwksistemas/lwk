@@ -198,6 +198,36 @@ def reenviar_email_nfse_loja(nfse: Any, loja: Any, loja_id: int) -> str:
     if not nfse.tomador_email:
         raise ReenvioNFSeLojaError("NFS-e não possui email do tomador")
 
+    if (getattr(nfse, "provedor", "") or "").strip().lower() == "nacional" and (nfse.xml_nfse or "").strip():
+        from nfse_integration.danfse_nacional import gerar_danfse_nacional
+        from nfse_integration.numero_exibicao import chave_acesso_nfse, numero_nfse_para_exibicao
+
+        chave = chave_acesso_nfse(nfse)
+        numero = numero_nfse_para_exibicao(nfse) or nfse.numero_nf
+        empresa = (nfse.tomador_nome or "").strip() or getattr(loja, "nome", "")
+        pdf = gerar_danfse_nacional(
+            nfse.xml_nfse,
+            chave=chave,
+            cancelada=(getattr(nfse, "status", "") or "") == "cancelada",
+        ).getvalue()
+        enviar_email_nfse_tomador(
+            loja=loja,
+            tomador_email=nfse.tomador_email,
+            tomador_nome=nfse.tomador_nome,
+            numero_nf=numero,
+            valor=nfse.valor,
+            descricao=nfse.servico_descricao,
+            url_danfe="",
+            codigo_verificacao=chave,
+            xml_content=nfse.xml_nfse,
+            xml_filename=f"nfse_{numero}.xml",
+            pdf_content=pdf,
+            pdf_filename=f"DANFSe-{numero}.pdf",
+            fail_silently=False,
+            assunto_prestador=empresa,
+        )
+        return nfse.tomador_email
+
     url_danfe = obter_url_visualizacao_nfse_loja(nfse, loja, loja_id)
     xml_bruto = nfse.xml_nfse or nfse.xml_rps or ""
     chave = (nfse.codigo_verificacao or "").strip()

@@ -9,10 +9,11 @@ import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import { useToast } from '@/components/ui/Toast';
 import { telefoneInternacionalBr } from '@/lib/format-br';
 import {
+  blobFromApiData,
+  downloadBlobFile,
   nfseIdentificador,
   nfseSyncEndpoint,
   nfUsaIssnet,
-  openBlobInNewTab,
   openPdfFromJsonUrl,
   type NfseCancelamentoEscolha,
   type NfseEmissaoResult,
@@ -42,7 +43,8 @@ const CONFIRM_COPY: Record<
   },
   reenviar_email: {
     title: 'Reenviar email',
-    message: (nf) => `Reenviar nota fiscal por email para ${nf.tomador_email}?`,
+    message: (nf) =>
+      `Reenviar NFS-e ${nf.numero_nf || nf.numero_rps}${nf.tomador_nome ? ` ${nf.tomador_nome}` : ''} por email para ${nf.tomador_email}?`,
     confirmLabel: 'Reenviar',
     variant: 'primary',
   },
@@ -216,28 +218,58 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
     e.preventDefault();
     e.stopPropagation();
     try {
-      const res = await apiClient.get(`/nfse/${nf.id}/download_pdf/`);
-
-      if (openPdfFromJsonUrl(res.data)) {
-        if (nfUsaIssnet(nf, _lojaProvedor)) {
-          try {
-            await apiClient.post(`/nfse/${nf.id}/sincronizar-issnet/`);
-            await carregarNFSes(true);
-          } catch {
-            // silencioso: download do PDF não deve falhar por causa da sincronização
+      const res = await apiClient.get(`/nfse/${nf.id}/download_pdf/`, { responseType: 'blob' });
+      const contentType = String(res.headers?.['content-type'] || '');
+      if (contentType.includes('application/json')) {
+        const texto = await (res.data as Blob).text();
+        const json = JSON.parse(texto) as { url?: string; error?: string; precisa_colar_link?: boolean };
+        if (json.url && openPdfFromJsonUrl(json)) {
+          if (nfUsaIssnet(nf, _lojaProvedor)) {
+            try {
+              await apiClient.post(`/nfse/${nf.id}/sincronizar-issnet/`);
+              await carregarNFSes(true);
+            } catch {
+              // silencioso: download do PDF não deve falhar por causa da sincronização
+            }
           }
+          return;
         }
+        if (json.precisa_colar_link) {
+          toast.error(
+            json.error ||
+              'Cole o link do e-mail do ISSNet (Nota_Digital_Nacional.aspx) no ícone de colar desta nota.',
+          );
+          return;
+        }
+        toast.error(json.error || 'PDF não disponível.');
         return;
       }
-
-      const resBlob = await apiClient.get(`/nfse/${nf.id}/download_pdf/`, { responseType: 'blob' });
-      const blob =
-        resBlob.data instanceof Blob ? resBlob.data : new Blob([resBlob.data], { type: 'application/pdf' });
-      openBlobInNewTab(blob);
+      const numero = nf.numero_nf || String(nf.numero_rps || nf.id);
+      const empresa = (nf.tomador_nome || 'tomador').replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 40);
+      const prefixo = (nf.provedor || '').toLowerCase() === 'nacional' ? 'DANFSe' : 'NFSe';
+      downloadBlobFile(blobFromApiData(res.data, 'application/pdf'), `${prefixo}-${numero}-${empresa}.pdf`);
     } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: string; precisa_colar_link?: boolean } } };
-      const msg = ax.response?.data?.error;
-      if (ax.response?.data?.precisa_colar_link) {
+      const ax = err as { response?: { data?: { error?: string; precisa_colar_link?: boolean } | Blob } };
+      const data = ax.response?.data;
+      if (data instanceof Blob) {
+        try {
+          const json = JSON.parse(await data.text()) as { error?: string; precisa_colar_link?: boolean };
+          if (json.precisa_colar_link) {
+            toast.error(
+              json.error ||
+                'Cole o link do e-mail do ISSNet (Nota_Digital_Nacional.aspx) no ícone de colar desta nota.',
+            );
+            return;
+          }
+          toast.error(json.error || 'PDF não disponível.');
+          return;
+        } catch {
+          toast.error('PDF não disponível.');
+          return;
+        }
+      }
+      const msg = data && 'error' in data ? data.error : undefined;
+      if (data && 'precisa_colar_link' in data && data.precisa_colar_link) {
         toast.error(
           msg ||
             'Cole o link do e-mail do ISSNet (Nota_Digital_Nacional.aspx) no ícone de colar desta nota.',

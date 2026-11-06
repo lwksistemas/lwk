@@ -186,13 +186,34 @@ def cancelar_nfse_loja(
         }
 
     if provedor == "nacional":
-        return {
-            "success": False,
-            "error": (
-                "Cancelamento via API Nacional ainda não disponível. "
-                "Cancele no portal da prefeitura e use «Sincronizar»."
-            ),
-        }
+        from nfse_integration.nacional.cancelamento import cancelar_nfse_sefin
+
+        codigo = normalizar_codigo_cancelamento(codigo_cancelamento)
+        motivo_final = motivo or CODIGOS_CANCELAMENTO[codigo]
+        cnpj_prestador = re.sub(r"\D", "", getattr(loja, "cpf_cnpj", "") or "")
+        resultado = cancelar_nfse_sefin(
+            nfse,
+            config,
+            codigo,
+            motivo_final,
+            prestador_cnpj=cnpj_prestador,
+        )
+        if not resultado.get("success"):
+            return {
+                "success": False,
+                "error": resultado.get("error") or "Sefin Nacional rejeitou o cancelamento",
+            }
+        _marcar_cancelada_loja(nfse)
+        try:
+            notificar_cancelamento_nfse(
+                nfse=nfse,
+                loja=loja,
+                loja_id=getattr(loja, "id", None),
+                config=config,
+            )
+        except Exception as exc:
+            logger.warning("Falha ao enviar email de cancelamento: %s", exc)
+        return {"success": True, "message": "NFS-e cancelada com sucesso na API Nacional."}
 
     if provedor != "issnet":
         return {

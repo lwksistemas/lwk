@@ -54,7 +54,14 @@ def construir_xml_cancelamento_sefin(
     return etree.tostring(root, encoding="unicode")
 
 
-def cancelar_nfse_sefin(nf: Any, config: Any, codigo: str, motivo: str) -> dict[str, Any]:
+def cancelar_nfse_sefin(
+    nf: Any,
+    config: Any,
+    codigo: str,
+    motivo: str,
+    *,
+    prestador_cnpj: str = "",
+) -> dict[str, Any]:
     """Envia o cancelamento à Sefin e devolve success/error. Não altera o banco."""
     from nfse_integration.nacional.transport import (
         comprimir_e_codificar,
@@ -63,24 +70,30 @@ def cancelar_nfse_sefin(nf: Any, config: Any, codigo: str, motivo: str) -> dict[
     )
     from nfse_integration.nacional.xml_signer import assinar_xml_dps_bytes
 
-    if not getattr(config, "nacional_certificado", None) or not getattr(config, "nacional_senha_certificado", None):
+    certificado = getattr(config, "nacional_certificado", None) or getattr(config, "issnet_certificado", None)
+    senha = getattr(config, "nacional_senha_certificado", None) or getattr(config, "issnet_senha_certificado", None)
+    if not certificado or not senha:
         return {"success": False, "error": "Certificado digital Nacional não configurado"}
 
     chave = chave_acesso_nfse(nf)
     if len(chave) != 50:
         return {"success": False, "error": "A nota nacional não tem chave de acesso para cancelar"}
 
+    from nfse_integration.emissao_nacional_loja import ambiente_nacional_loja
+
+    ambiente = ambiente_nacional_loja(config)
+    cnpj = prestador_cnpj or getattr(config, "prestador_cnpj", "") or ""
     xml = construir_xml_cancelamento_sefin(
         chave_acesso=chave,
-        prestador_cnpj=getattr(config, "prestador_cnpj", "") or "",
+        prestador_cnpj=cnpj,
         codigo_cancelamento=codigo,
         motivo=motivo,
-        ambiente=getattr(config, "nacional_ambiente", None) or "producao",
+        ambiente=ambiente,
     )
     assinado = assinar_xml_dps_bytes(
         xml,
-        bytes(config.nacional_certificado),
-        config.nacional_senha_certificado,
+        bytes(certificado),
+        senha,
         prefixo_ds=False,
         usar_cadeia=False,
         usar_sha256=True,
@@ -89,9 +102,9 @@ def cancelar_nfse_sefin(nf: Any, config: Any, codigo: str, motivo: str) -> dict[
     resposta = enviar_evento_sefin(
         comprimir_e_codificar(assinado),
         chave,
-        ambiente=getattr(config, "nacional_ambiente", None) or "producao",
-        pfx_bytes=bytes(config.nacional_certificado),
-        senha_pfx=config.nacional_senha_certificado,
+        ambiente=ambiente,
+        pfx_bytes=bytes(certificado),
+        senha_pfx=senha,
     )
     dados = resposta.get("data") if isinstance(resposta.get("data"), dict) else {}
     lido = interpretar_resposta_evento(dados)

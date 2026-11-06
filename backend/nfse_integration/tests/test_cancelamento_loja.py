@@ -47,15 +47,48 @@ class CancelarNFSeLojaTests(SimpleTestCase):
         self.assertIn("Certificado", resultado["error"])
         self.assertNotEqual(nfse.status, "cancelada")
 
-    def test_nao_cancela_local_provedor_nacional(self):
+    def test_cancela_provedor_nacional_na_sefin(self):
+        nfse = self._nfse(provedor="nacional")
+        nfse.codigo_verificacao = "1" * 50
+        config = self._config(provedor_nf="nacional")
+        loja = self._loja()
+
+        with patch(
+            "nfse_integration.nacional.cancelamento.cancelar_nfse_sefin",
+            return_value={"success": True},
+        ) as sefin, patch("nfse_integration.cancelamento_loja.notificar_cancelamento_nfse"):
+            resultado = cancelar_nfse_loja(loja, config, nfse, "1", "Serviço não prestado", "2")
+
+        self.assertTrue(resultado["success"])
+        self.assertEqual(nfse.status, "cancelada")
+        nfse.save.assert_called_once()
+        sefin.assert_called_once()
+        self.assertEqual(sefin.call_args.kwargs["prestador_cnpj"], "41449198000172")
+
+    def test_nao_marca_cancelada_se_sefin_recusa(self):
         nfse = self._nfse(provedor="nacional")
         config = self._config(provedor_nf="nacional")
         loja = self._loja()
 
-        resultado = cancelar_nfse_loja(loja, config, nfse, "151", "Motivo")
+        with patch(
+            "nfse_integration.nacional.cancelamento.cancelar_nfse_sefin",
+            return_value={"success": False, "error": "E1235 esquema"},
+        ):
+            resultado = cancelar_nfse_loja(loja, config, nfse, "1", "Motivo")
 
         self.assertFalse(resultado["success"])
-        self.assertIn("API Nacional", resultado["error"])
+        self.assertIn("E1235", resultado["error"])
+        nfse.save.assert_not_called()
+
+    def test_nacional_sem_certificado_nao_cancela(self):
+        nfse = self._nfse(provedor="nacional")
+        config = self._config(provedor_nf="nacional", certificado=False)
+        loja = self._loja()
+
+        resultado = cancelar_nfse_loja(loja, config, nfse, "1", "Motivo")
+
+        self.assertFalse(resultado["success"])
+        self.assertIn("Certificado", resultado["error"])
         nfse.save.assert_not_called()
 
     def test_nao_cancela_local_quando_issnet_rejeita(self):

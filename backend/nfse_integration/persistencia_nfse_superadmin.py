@@ -111,8 +111,8 @@ def salvar_nfse_emitida_nacional_superadmin(
     return NFSeEmitida.objects.create(
         loja=payload.loja,
         pagamento=None,
-        numero_nf=chave,
-        codigo_verificacao=resultado.get("nsu_recepcao", ""),
+        numero_nf=chave[:50],
+        codigo_verificacao=(chave or resultado.get("nsu_recepcao") or "")[:50],
         numero_rps=numero_dps,
         serie_rps=config.nacional_serie_dps or "1",
         provedor="nacional",

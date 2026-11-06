@@ -2,6 +2,7 @@
 """
 import logging
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -9,6 +10,13 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from nfse_integration.numero_exibicao import (
+    PORTAL_CONSULTA_NACIONAL,
+    chave_acesso_nfse,
+    eh_chave_acesso_nacional,
+    numero_nfse_para_exibicao,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,15 +114,28 @@ def gerar_pdf_nfse(nfse, loja) -> BytesIO:
         leading=12,
     )
 
+    numero = numero_nfse_para_exibicao(nfse) or (nfse.numero_nf or "—")
+    empresa = escape(nfse.tomador_nome or "")
+    subtitulo = ParagraphStyle(
+        "NFSeSubtitulo",
+        parent=styles["Normal"],
+        fontSize=11,
+        alignment=TA_CENTER,
+        spaceBefore=0,
+        spaceAfter=6,
+    )
     # Título
     elements.append(Paragraph("NOTA FISCAL DE SERVIÇO ELETRÔNICA", title_style))
+    if empresa:
+        elements.append(Paragraph(f"NFS-e Nº {escape(str(numero))} — {empresa}", subtitulo))
     elements.append(Spacer(1, 0.3*cm))
 
-    # Dados da NFS-e
-    elements.append(Paragraph("<b>Dados da Nota Fiscal</b>", section_style))
+    # Dados da NFS-e. A chave de 50 dígitos não entra na célula: ela quebra a tabela.
+    codigo = (nfse.codigo_verificacao or "").strip()
+    codigo_celula = "ver chave abaixo" if eh_chave_acesso_nacional(codigo) else (codigo or "—")
     nf_data = [
-        ["Número NFS-e:", nfse.numero_nf or "—", "Número RPS:", str(nfse.numero_rps or "—")],
-        ["Data Emissão:", nfse.data_emissao.strftime("%d/%m/%Y %H:%M") if nfse.data_emissao else "—", "Cód. Verificação:", nfse.codigo_verificacao or "—"],
+        ["Número NFS-e:", str(numero), "Número RPS:", str(nfse.numero_rps or "—")],
+        ["Data Emissão:", nfse.data_emissao.strftime("%d/%m/%Y %H:%M") if nfse.data_emissao else "—", "Cód. Verificação:", codigo_celula],
         ["Status:", nfse.get_status_display() if hasattr(nfse, "get_status_display") else nfse.status, "", ""],
     ]
     t = Table(nf_data, colWidths=[80, 150, 90, 150])
@@ -143,15 +164,18 @@ def gerar_pdf_nfse(nfse, loja) -> BytesIO:
     # Serviço + Valores
     _pdf_nfse_secao_servico_valores(elements, nfse, section_style, info_style)
 
-    # Autenticidade (padrão Nacional)
-    chave = (getattr(nfse, "codigo_verificacao", "") or "").strip()
+    # Autenticidade
+    chave = chave_acesso_nfse(nfse) or (getattr(nfse, "codigo_verificacao", "") or "").strip()
     if chave:
         elements.append(Spacer(1, 0.3*cm))
         elements.append(Paragraph("<b>Autenticidade</b>", section_style))
-        elements.append(Paragraph(f"<b>Chave de Acesso:</b> {chave}", info_style))
+        elements.append(Paragraph(f"<b>Chave de Acesso:</b> {escape(chave)}", info_style))
+        if eh_chave_acesso_nacional(chave):
+            portal = PORTAL_CONSULTA_NACIONAL.format(chave=chave)
+        else:
+            portal = "https://www.notaeletronica.com.br/ribeiraopreto/NotaDigital/VerificaAutenticidade.aspx"
         elements.append(Paragraph(
-            "Verifique a autenticidade desta nota em: "
-            "<font color='#1565c0'>https://www.notaeletronica.com.br/ribeiraopreto/NotaDigital/VerificaAutenticidade.aspx</font>",
+            f"Verifique a autenticidade desta nota em: <font color='#1565c0'>{escape(portal)}</font>",
             info_style,
         ))
 

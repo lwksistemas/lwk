@@ -58,15 +58,29 @@ def montar_corpo_email_nfse(
                 f"{url_xml}\n\n"
             )
     elif codigo_verificacao:
-        # ConsultarUrlNfse Nacional ainda pode falhar (E160): oferecer chave + portal.
-        corpo += (
-            "A Nota Eletrônica foi emitida no padrão Nacional.\n"
-            f"Chave de acesso: {codigo_verificacao}\n\n"
-            "É possível confirmar a autenticidade acessando:\n"
-            "https://www.notaeletronica.com.br/ribeiraopreto/NotaDigital/VerificaAutenticidade.aspx\n"
-            "e clicando em VERIFICAR AUTENTICIDADE DE DOCUMENTOS FISCAIS.\n\n"
-            "O arquivo XML da nota segue em anexo neste e-mail.\n\n"
+        from nfse_integration.numero_exibicao import (
+            PORTAL_CONSULTA_NACIONAL,
+            eh_chave_acesso_nacional,
         )
+
+        if eh_chave_acesso_nacional(codigo_verificacao):
+            corpo += (
+                "A Nota Eletrônica foi emitida pelo Emissor Nacional.\n"
+                f"Chave de acesso: {codigo_verificacao}\n\n"
+                "Confira a autenticidade em:\n"
+                f"{PORTAL_CONSULTA_NACIONAL.format(chave=codigo_verificacao)}\n\n"
+                "O PDF e o XML da nota seguem em anexo neste e-mail.\n\n"
+            )
+        else:
+            # ConsultarUrlNfse ainda pode falhar (E160): oferecer chave + portal ISSNet.
+            corpo += (
+                "A Nota Eletrônica foi emitida no padrão Nacional.\n"
+                f"Chave de acesso: {codigo_verificacao}\n\n"
+                "É possível confirmar a autenticidade acessando:\n"
+                "https://www.notaeletronica.com.br/ribeiraopreto/NotaDigital/VerificaAutenticidade.aspx\n"
+                "e clicando em VERIFICAR AUTENTICIDADE DE DOCUMENTOS FISCAIS.\n\n"
+                "O arquivo XML da nota segue em anexo neste e-mail.\n\n"
+            )
 
     if rodape_simples:
         return corpo + f"Atenciosamente,\n{nome_prestador}"
@@ -89,6 +103,8 @@ def enviar_email_nfse_tomador(
     url_danfe: str = "",
     codigo_verificacao: str = "",
     xml_content: str = "",
+    pdf_content: bytes = b"",
+    pdf_filename: str | None = None,
     fail_silently: bool = False,
     intro: str = "Segue as informações da Nota Fiscal de Serviço Eletrônica.",
     incluir_codigo_verificacao: bool = True,
@@ -121,6 +137,13 @@ def enviar_email_nfse_tomador(
     from core.email_delivery import create_email_message, send_prepared
 
     email = create_email_message(subject=assunto, body=corpo, to=[tomador_email])
+
+    if pdf_content:
+        email.attach(
+            pdf_filename or f"NFSe-{numero_nf}.pdf",
+            pdf_content,
+            "application/pdf",
+        )
 
     if xml_content:
         email.attach(

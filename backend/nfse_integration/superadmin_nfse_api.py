@@ -1,13 +1,19 @@
 """Listagem, serialização e ações de NFS-e emitidas pelo superadmin."""
+import logging
 from typing import Any
 
 from django.db.models import QuerySet
+
+from nfse_integration.numero_exibicao import numero_nfse_para_exibicao
+
+logger = logging.getLogger(__name__)
 
 
 def serializar_nfse_emitida(nf: Any) -> dict[str, Any]:
     return {
         "id": nf.id,
         "numero_nf": nf.numero_nf,
+        "numero_exibicao": numero_nfse_para_exibicao(nf),
         "codigo_verificacao": nf.codigo_verificacao,
         "numero_rps": nf.numero_rps,
         "serie_rps": nf.serie_rps,
@@ -112,22 +118,34 @@ def reenviar_email_nfse_superadmin(nf: Any, config: Any | None = None) -> str:
         url_danfe = buscar_url_danfe_issnet_superadmin(nf, config)
 
     loja = nf.loja or SimpleNamespace(nome=prestador, cpf_cnpj=config.prestador_cnpj or "")
+    numero = numero_nfse_para_exibicao(nf) or nf.numero_nf
+    empresa = (nf.tomador_nome or "").strip() or prestador
+    pdf_bytes = b""
+    try:
+        from nfse_integration.pdf_nfse import gerar_pdf_nfse
+
+        pdf_bytes = gerar_pdf_nfse(nf, loja).getvalue()
+    except Exception:
+        logger.exception("PDF da NFS-e %s não anexado ao reenvio", getattr(nf, "id", ""))
 
     enviar_email_nfse_tomador(
         loja=loja,
         tomador_email=nf.tomador_email,
         tomador_nome=nf.tomador_nome,
-        numero_nf=nf.numero_nf,
+        numero_nf=numero,
         valor=nf.valor,
         descricao=nf.descricao_servico,
         url_danfe=url_danfe,
         codigo_verificacao=nf.codigo_verificacao,
         xml_content=nf.xml_nfse or "",
+        xml_filename=f"nfse_{numero}.xml",
+        pdf_content=pdf_bytes,
+        pdf_filename=f"NFSe-{numero}.pdf",
         fail_silently=False,
         intro="Segue a nota fiscal referente à sua assinatura.",
         prestador_nome=prestador,
         rodape_simples=True,
-        assunto_prestador=prestador,
+        assunto_prestador=empresa,
         incluir_cnpj_prestador=False,
     )
     return nf.tomador_email

@@ -84,12 +84,14 @@ def resolver_download_pdf_superadmin(nfse_emitida: Any) -> ResultadoDownloadPdf:
         if url_danfe:
             return ResultadoDownloadPdf(tipo="url", url=url_danfe)
 
+    from .numero_exibicao import numero_nfse_para_exibicao
     from .pdf_nfse import gerar_pdf_nfse
 
     loja = nfse_emitida.loja
     pdf_buffer = gerar_pdf_nfse(nfse_emitida, loja)
     pdf_buffer.seek(0)
-    nome = f"nfse_{nfse_emitida.numero_nf or nfse_emitida.id}.pdf"
+    numero = numero_nfse_para_exibicao(nfse_emitida) or nfse_emitida.id
+    nome = f"NFSe-{numero}.pdf"
     return ResultadoDownloadPdf(
         tipo="pdf",
         conteudo_pdf=pdf_buffer.read(),

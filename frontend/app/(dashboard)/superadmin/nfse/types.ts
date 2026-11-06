@@ -2,6 +2,7 @@
 export interface NFSeEmitida {
   id: number;
   numero_nf: string;
+  numero_exibicao?: string;
   codigo_verificacao: string;
   numero_rps: number;
   serie_rps: string;

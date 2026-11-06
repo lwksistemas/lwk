@@ -1,5 +1,6 @@
 """Corpo do e-mail da NFS-e e envio simulado. Não dispara SMTP."""
 from decimal import Decimal
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -44,8 +45,27 @@ class CorpoEmailNfseTests(SimpleTestCase):
         )
         self.assertIn("padrão Nacional", corpo)
         self.assertIn("CHAVE50", corpo)
+        self.assertIn("notaeletronica.com.br", corpo)
         self.assertNotIn("CNPJ:", corpo)
         self.assertTrue(corpo.endswith("Clínica"))
+
+    def test_chave_do_emissor_nacional_nao_aponta_issnet(self):
+        loja = SimpleNamespace(nome="LWK", cpf_cnpj="")
+        chave = "35434022224758458000172000000000000126110162861929"
+        corpo = montar_corpo_email_nfse(
+            loja=loja,
+            tomador_nome="FELIX",
+            numero_nf="1",
+            valor=12,
+            descricao="teste",
+            codigo_verificacao=chave,
+            rodape_simples=True,
+            incluir_cnpj_prestador=False,
+        )
+        self.assertIn("Emissor Nacional", corpo)
+        self.assertIn(f"https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave={chave}", corpo)
+        self.assertNotIn("notaeletronica.com.br", corpo)
+        self.assertIn("Número: 1", corpo)
 
 
 class EnvioEmailNfseTests(SimpleTestCase):
@@ -95,3 +115,33 @@ class EnvioEmailNfseTests(SimpleTestCase):
         )
         enviar.assert_called_once()
         self.assertEqual(enviar.call_args.kwargs["url_danfe"], "https://exemplo/nota")
+
+
+class ReenvioNacionalSuperadminTests(SimpleTestCase):
+    @patch("nfse_integration.pdf_nfse.gerar_pdf_nfse")
+    @patch("nfse_integration.email_nfse.enviar_email_nfse_tomador")
+    def test_reenvio_usa_numero_curto_empresa_e_pdf(self, enviar, pdf):
+        from nfse_integration.superadmin_nfse_api import reenviar_email_nfse_superadmin
+
+        pdf.return_value = BytesIO(b"%PDF")
+        config = SimpleNamespace(prestador_razao_social="LWK Sistemas", prestador_cnpj="1")
+        nf = SimpleNamespace(
+            id=37,
+            provedor="nacional",
+            tomador_email="ana@exemplo.com",
+            tomador_nome="FELIX REPRESENTACOES E COMERCIO LTDA",
+            numero_nf="3" * 50,
+            codigo_verificacao="3" * 50,
+            valor=12,
+            descricao_servico="teste",
+            xml_nfse="<NFSe xmlns='http://www.sped.fazenda.gov.br/nfse'><nNFSe>000001</nNFSe></NFSe>",
+            pdf_url="",
+            loja=SimpleNamespace(nome="FELIX", cpf_cnpj="1"),
+        )
+        reenviar_email_nfse_superadmin(nf, config)
+        kwargs = enviar.call_args.kwargs
+        self.assertEqual(kwargs["numero_nf"], "1")
+        self.assertEqual(kwargs["assunto_prestador"], "FELIX REPRESENTACOES E COMERCIO LTDA")
+        self.assertEqual(kwargs["pdf_content"], b"%PDF")
+        self.assertEqual(kwargs["pdf_filename"], "NFSe-1.pdf")
+        self.assertEqual(kwargs["xml_filename"], "nfse_1.xml")

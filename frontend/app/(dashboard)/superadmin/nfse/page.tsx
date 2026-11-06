@@ -6,7 +6,6 @@ import { logger } from '@/lib/logger';
 import {
   downloadBlobFile,
   nfseIdentificador,
-  openPdfFromApiBlobResponse,
   type NfseCancelamentoEscolha,
 } from '@/lib/nfse-helpers';
 import { NfseCancelamentoModal } from '@/components/nfse/NfseCancelamentoModal';
@@ -64,14 +63,29 @@ export default function NFSeEmitidasPage() {
   const handleBaixarPdf = async (nf: NFSeEmitida) => {
     try {
       const res = await apiClient.get(`/superadmin/nfse-emitidas/${nf.id}/pdf/`, { responseType: 'blob' });
-      await openPdfFromApiBlobResponse(res);
+      const contentType = String(res.headers?.['content-type'] || '');
+      if (contentType.includes('application/json')) {
+        const texto = await (res.data as Blob).text();
+        const json = JSON.parse(texto) as { url?: string; error?: string };
+        if (json.url) {
+          window.open(json.url, '_blank', 'noopener,noreferrer');
+          return;
+        }
+        setMessage({ type: 'error', text: json.error || 'PDF não disponível.' });
+        return;
+      }
+      const numero = nf.numero_exibicao || nf.numero_rps;
+      const empresa = (nf.tomador_nome || 'tomador').replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 40);
+      downloadBlobFile(res.data as Blob, `NFSe-${numero}-${empresa}.pdf`);
     } catch {
       setMessage({ type: 'error', text: 'PDF não disponível.' });
     }
   };
 
   const handleReenviar = async (nf: NFSeEmitida) => {
-    if (!confirm(`Reenviar NFS-e ${nf.numero_nf} por email para ${nf.tomador_email}?`)) return;
+    const numero = nf.numero_exibicao || nf.numero_nf;
+    const empresa = nf.tomador_nome ? ` ${nf.tomador_nome}` : '';
+    if (!confirm(`Reenviar NFS-e ${numero}${empresa} por email para ${nf.tomador_email}?`)) return;
     try {
       const { data } = await apiClient.post(`/superadmin/nfse-emitidas/${nf.id}/reenviar/`);
       if (data.success) {
@@ -79,8 +93,9 @@ export default function NFSeEmitidasPage() {
       } else {
         setMessage({ type: 'error', text: data.error });
       }
-    } catch {
-      setMessage({ type: 'error', text: 'Erro ao reenviar' });
+    } catch (err) {
+      const data = (err as { response?: { data?: { error?: string } } })?.response?.data;
+      setMessage({ type: 'error', text: data?.error || 'Erro ao reenviar' });
     }
   };
 

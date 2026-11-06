@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, Plus, RefreshCw } from 'lucide-react';
+import { FileText, Plus, RefreshCw, Search } from 'lucide-react';
 
 export function NfseLojaHeader({
   slug,
@@ -9,12 +9,16 @@ export function NfseLojaHeader({
   onRecuperar,
   onAtualizar,
   atualizando = false,
+  busca = '',
+  onBusca,
 }: {
   slug: string;
   onEmitir: () => void;
   onRecuperar?: () => void;
   onAtualizar?: () => void;
   atualizando?: boolean;
+  busca?: string;
+  onBusca?: (valor: string) => void;
 }) {
   return (
     <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -27,6 +31,18 @@ export function NfseLojaHeader({
         </p>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
+        {onBusca && (
+          <div className="relative w-full sm:w-72">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={busca}
+              onChange={(e) => onBusca(e.target.value)}
+              placeholder="Buscar por número, cliente ou CPF/CNPJ..."
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-sm text-gray-900 dark:text-white"
+            />
+          </div>
+        )}
         <Link
           href={`/loja/${slug}/crm-vendas/nfse-templates`}
           className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium transition-colors"

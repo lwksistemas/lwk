@@ -72,16 +72,13 @@ export default function NFSePage() {
         onRecuperar={lojaProvedor === 'issnet' ? () => setShowRecuperarModal(true) : undefined}
         onAtualizar={() => carregarNFSes(true)}
         atualizando={loading}
+        busca={busca}
+        onBusca={setBusca}
       />
 
       {syncMsg && <NfseLojaSyncMessage type={syncMsg.type} text={syncMsg.text} />}
 
-      <NfseLojaFilters
-        busca={busca}
-        setBusca={setBusca}
-        filtroStatus={filtroStatus}
-        setFiltroStatus={setFiltroStatus}
-      />
+      <NfseLojaFilters filtroStatus={filtroStatus} setFiltroStatus={setFiltroStatus} />
 
       {loading ? (
         <NfseLojaLoading />

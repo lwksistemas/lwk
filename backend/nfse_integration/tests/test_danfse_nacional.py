@@ -185,3 +185,76 @@ class WhatsappDanfseLojaTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.content.startswith(b"%PDF"))
         self.assertIn("DANFSe-1.pdf", response["Content-Disposition"])
+
+    def test_superadmin_whatsapp_envia_a_danfse(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        from nfse_integration.superadmin_nfse_api import enviar_whatsapp_nfse_superadmin
+
+        nf = SimpleNamespace(
+            id=37,
+            status="emitida",
+            provedor="nacional",
+            xml_nfse=XML,
+            numero_nf="1",
+            codigo_verificacao=CHAVE,
+            tomador_nome="FELIX REPRESENTACOES",
+            valor=12,
+            descricao_servico="teste",
+            loja=SimpleNamespace(id=4, database_name="loja_teste", nome="FELIX"),
+        )
+        config = SimpleNamespace(whatsapp_ativo=True)
+        with patch(
+            "core.db_config.ensure_loja_database_config",
+            return_value=True,
+        ), patch("whatsapp.models.WhatsAppConfig.objects") as objects, patch(
+            "asaas_integration.models_nfse_config.SuperadminNFSeConfig.get_config",
+            return_value=SimpleNamespace(prestador_razao_social="LWK Sistemas"),
+        ), patch(
+            "whatsapp.services.send_whatsapp_document",
+            return_value=(True, None),
+        ) as enviar, patch(
+            "core.public_urls.get_public_api_base_url",
+            return_value="https://api.lwksistemas.com.br",
+        ):
+            objects.using.return_value.filter.return_value.first.return_value = config
+            destino = enviar_whatsapp_nfse_superadmin(
+                nf, "16999999999", SimpleNamespace(user=None),
+            )
+
+        self.assertEqual(destino, "16999999999")
+        kwargs = enviar.call_args.kwargs
+        self.assertEqual(kwargs["filename"], "DANFSe-1.pdf")
+        self.assertIn("/api/nfse/documento-pdf/?token=", kwargs["document_url"])
+        self.assertIn("NFS-e 1 FELIX REPRESENTACOES", kwargs["caption"])
+        self.assertIn("LWK Sistemas", kwargs["caption"])
+        self.assertNotIn(CHAVE, kwargs["caption"])
+
+    def test_link_publico_da_lwk_entrega_a_danfse(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        from django.test import RequestFactory
+
+        from nfse_integration.views_pdf_public import NFSePdfPublicView, criar_token_pdf_nfse_superadmin
+
+        nfse = SimpleNamespace(
+            id=37,
+            provedor="nacional",
+            xml_nfse=XML,
+            numero_nf="1",
+            codigo_verificacao=CHAVE,
+            status="emitida",
+            pdf_url="",
+            loja=SimpleNamespace(),
+        )
+        token = criar_token_pdf_nfse_superadmin(37)
+        request = RequestFactory().get("/api/nfse/documento-pdf/", {"token": token})
+        with patch("superadmin.models.NFSeEmitida") as modelo:
+            modelo.objects.select_related.return_value.filter.return_value.first.return_value = nfse
+            response = NFSePdfPublicView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn("DANFSe-1.pdf", response["Content-Disposition"])

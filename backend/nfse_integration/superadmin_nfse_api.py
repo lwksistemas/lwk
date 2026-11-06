@@ -28,6 +28,11 @@ def serializar_nfse_emitida(nf: Any) -> dict[str, Any]:
         "descricao_servico": nf.descricao_servico,
         "loja_nome": nf.loja.nome if nf.loja else "",
         "loja_slug": nf.loja.slug if nf.loja else "",
+        "loja_telefone": (
+            (getattr(nf.loja, "telefone_contato", "") or getattr(nf.loja, "owner_telefone", "") or "")
+            if nf.loja
+            else ""
+        ),
         "asaas_payment_id": nf.asaas_payment_id,
         "data_emissao": nf.data_emissao.isoformat() if nf.data_emissao else None,
         "data_cancelamento": nf.data_cancelamento.isoformat() if nf.data_cancelamento else None,
@@ -160,3 +165,103 @@ def reenviar_email_nfse_superadmin(nf: Any, config: Any | None = None) -> str:
         incluir_cnpj_prestador=False,
     )
     return nf.tomador_email
+
+
+def _enviar_whatsapp_texto_superadmin(nf: Any, telefone: str, request: Any, config: Any) -> str:
+    """ISSNet e Asaas: o portal não entrega o PDF. Manda o link, como na loja."""
+    from types import SimpleNamespace
+
+    from asaas_integration.models_nfse_config import SuperadminNFSeConfig
+    from nfse_integration.danfe import buscar_url_danfe_issnet_superadmin
+    from nfse_integration.email_nfse import montar_corpo_email_nfse
+    from whatsapp.services import send_whatsapp
+
+    nfse_cfg = SuperadminNFSeConfig.get_config()
+    prestador = getattr(nfse_cfg, "prestador_razao_social", "") or "LWK Sistemas"
+    url_danfe = (getattr(nf, "pdf_url", "") or "").strip()
+    if not url_danfe and getattr(nf, "provedor", "") == "issnet" and getattr(nf, "numero_nf", ""):
+        url_danfe = buscar_url_danfe_issnet_superadmin(nf, nfse_cfg) or ""
+    chave = (getattr(nf, "codigo_verificacao", "") or "").strip()
+    if not url_danfe and not chave:
+        raise ReenvioNFSeError("Link da nota fiscal não disponível no momento.")
+    loja = nf.loja or SimpleNamespace(nome=prestador, cpf_cnpj=getattr(nfse_cfg, "prestador_cnpj", "") or "")
+    mensagem = montar_corpo_email_nfse(
+        loja=loja,
+        tomador_nome=nf.tomador_nome or "Cliente",
+        numero_nf=numero_nfse_para_exibicao(nf) or nf.numero_nf,
+        valor=nf.valor,
+        descricao=nf.descricao_servico,
+        url_danfe=url_danfe,
+        intro="A nota fiscal de serviço foi emitida.",
+        codigo_verificacao=chave,
+        incluir_codigo_verificacao=bool(chave) and not url_danfe,
+        prestador_nome=prestador,
+    )
+    ok, err = send_whatsapp(
+        telefone=telefone,
+        mensagem=mensagem,
+        user=getattr(request, "user", None),
+        config=config,
+    )
+    if not ok:
+        raise ReenvioNFSeError(err or "Erro ao enviar WhatsApp.")
+    return telefone
+
+
+def enviar_whatsapp_nfse_superadmin(nf: Any, telefone: str, request: Any) -> str:
+    """Envia a DANFSe pelo WhatsApp da loja tomadora. A LWK não tem número próprio."""
+    from types import SimpleNamespace
+    from urllib.parse import quote
+
+    from asaas_integration.models_nfse_config import SuperadminNFSeConfig
+    from core.db_config import ensure_loja_database_config
+    from core.public_urls import get_public_api_base_url
+    from nfse_integration.loja_nfse_api import _legenda_danfse_whatsapp
+    from nfse_integration.views_pdf_public import criar_token_pdf_nfse_superadmin
+    from whatsapp.models import WhatsAppConfig
+    from whatsapp.services import send_whatsapp_document
+    from whatsapp.sync_context import whatsapp_sync_only
+
+    if getattr(nf, "status", "") != "emitida":
+        raise ReenvioNFSeError("Só é possível enviar por WhatsApp NFS-e com status emitida.")
+    telefone = (telefone or "").strip()
+    if not telefone:
+        raise ReenvioNFSeError("Informe o número de WhatsApp.")
+
+    loja = getattr(nf, "loja", None)
+    db_name = getattr(loja, "database_name", None) if loja else None
+    if not loja or not db_name or not ensure_loja_database_config(db_name, conn_max_age=0):
+        raise ReenvioNFSeError("Esta nota não está vinculada a uma loja com WhatsApp.")
+
+    config = WhatsAppConfig.objects.using(db_name).filter(loja_id=loja.id).first()
+    if not config or not config.whatsapp_ativo:
+        raise ReenvioNFSeError(
+            "WhatsApp da loja não está ativo. Conecte em Configurações → WhatsApp da loja.",
+        )
+
+    if (getattr(nf, "provedor", "") or "") != "nacional" or not (getattr(nf, "xml_nfse", "") or "").strip():
+        return _enviar_whatsapp_texto_superadmin(nf, telefone, request, config)
+
+    nfse_cfg = SuperadminNFSeConfig.get_config()
+    prestador = getattr(nfse_cfg, "prestador_razao_social", "") or "LWK Sistemas"
+    numero = numero_nfse_para_exibicao(nf) or nf.numero_nf or nf.id
+    token = criar_token_pdf_nfse_superadmin(int(nf.id))
+    pdf_url = (
+        f"{get_public_api_base_url(request)}/api/nfse/documento-pdf/"
+        f"?token={quote(token, safe='')}"
+    )
+    marca = whatsapp_sync_only.set(True)
+    try:
+        ok, err = send_whatsapp_document(
+            telefone=telefone,
+            document_url=pdf_url,
+            filename=f"DANFSe-{numero}.pdf",
+            caption=_legenda_danfse_whatsapp(nf, SimpleNamespace(nome=prestador), str(numero)),
+            user=getattr(request, "user", None),
+            config=config,
+        )
+    finally:
+        whatsapp_sync_only.reset(marca)
+    if not ok:
+        raise ReenvioNFSeError(err or "Erro ao enviar a DANFSe por WhatsApp.")
+    return telefone

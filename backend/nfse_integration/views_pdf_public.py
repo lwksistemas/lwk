@@ -27,6 +27,15 @@ def criar_token_pdf_nfse(nfse_id: int, loja_id: int) -> str:
     return dumps(payload)
 
 
+def criar_token_pdf_nfse_superadmin(nfse_id: int) -> str:
+    payload = {
+        "id": nfse_id,
+        "origem": "superadmin",
+        "exp": int(time.time()) + TOKEN_MAX_AGE,
+    }
+    return dumps(payload)
+
+
 def _verificar_token(token: str) -> dict | None:
     try:
         payload = loads(token)
@@ -52,6 +61,9 @@ class NFSePdfPublicView(View):
             return HttpResponse("Token inválido ou expirado", status=403)
 
         nfse_id = payload.get("id")
+        if payload.get("origem") == "superadmin":
+            return self._pdf_superadmin(nfse_id)
+
         loja_id = payload.get("loja_id")
         if not nfse_id or not loja_id:
             return HttpResponse("Token inválido", status=403)
@@ -84,4 +96,27 @@ class NFSePdfPublicView(View):
             return response
         except Exception as exc:
             logger.exception("Erro ao servir PDF público NFS-e: %s", exc)
+            return HttpResponse("Erro interno", status=500)
+
+    def _pdf_superadmin(self, nfse_id):
+        if not nfse_id:
+            return HttpResponse("Token inválido", status=403)
+        try:
+            from superadmin.models import NFSeEmitida
+
+            from .pdf_download import resolver_download_pdf_superadmin
+
+            nfse = NFSeEmitida.objects.select_related("loja").filter(id=nfse_id).first()
+            if not nfse:
+                return HttpResponse("NFS-e não encontrada", status=404)
+            resultado = resolver_download_pdf_superadmin(nfse)
+            if resultado.tipo != "pdf" or not resultado.conteudo_pdf:
+                return HttpResponse("PDF não disponível", status=404)
+            response = HttpResponse(resultado.conteudo_pdf, content_type="application/pdf")
+            response["Content-Disposition"] = (
+                f'inline; filename="{resultado.nome_arquivo or f"nfse_{nfse.numero_nf or nfse.id}.pdf"}"'
+            )
+            return response
+        except Exception as exc:
+            logger.exception("Erro ao servir PDF público da NFS-e da LWK: %s", exc)
             return HttpResponse("Erro interno", status=500)

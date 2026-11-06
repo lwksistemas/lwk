@@ -17,6 +17,7 @@ export interface NFSeEmitida {
   descricao_servico: string;
   loja_nome: string;
   loja_slug: string;
+  loja_telefone?: string;
   asaas_payment_id: string;
   data_emissao: string | null;
   data_cancelamento: string | null;
@@ -30,6 +31,7 @@ export type NfseSuperadminHandlers = {
   onBaixarPdf: (nf: NFSeEmitida) => void;
   onBaixarXml: (nf: NFSeEmitida) => void;
   onReenviar: (nf: NFSeEmitida) => void;
+  onEnviarWhatsapp: (nf: NFSeEmitida) => void;
   onCancelar: (nf: NFSeEmitida) => void;
   onExcluir: (nf: NFSeEmitida) => void;
 };

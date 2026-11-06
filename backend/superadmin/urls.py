@@ -135,6 +135,7 @@ urlpatterns = [
     path("nfse-emitidas/<int:nfse_id>/cancelar/", nfse_views.nfse_cancelar, name="nfse-cancelar"),
     path("nfse-emitidas/<int:nfse_id>/pdf/", nfse_views.nfse_download_pdf, name="nfse-download-pdf"),
     path("nfse-emitidas/<int:nfse_id>/reenviar/", nfse_views.nfse_reenviar, name="nfse-reenviar"),
+    path("nfse-emitidas/<int:nfse_id>/whatsapp/", nfse_views.nfse_enviar_whatsapp, name="nfse-whatsapp"),
     path("nfse-emitidas/<int:nfse_id>/excluir/", nfse_views.nfse_excluir, name="nfse-excluir"),
     path("nfse-emitidas/<int:nfse_id>/debug-url/", nfse_views.nfse_debug_url, name="nfse-debug-url"),
     path("mercadopago-config/", mercadopago_config, name="mercadopago-config"),

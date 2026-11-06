@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, FileText, Mail, Trash2, XCircle } from 'lucide-react';
+import { Download, FileText, Mail, MessageCircle, Trash2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NfseProvedorBadge } from '@/components/nfse/NfseProvedorBadge';
@@ -9,6 +9,7 @@ import { formatDateTime } from '@/lib/financeiro-helpers';
 import {
   nfsePodeBaixar,
   nfsePodeCancelar,
+  nfsePodeEnviarWhatsapp,
   nfsePodeExcluirSuperadmin,
 } from '@/lib/nfse-helpers';
 import type { NFSeEmitida, NfseSuperadminHandlers } from '../types';
@@ -26,6 +27,7 @@ export function NfseSuperadminTable({
   onBaixarPdf,
   onBaixarXml,
   onReenviar,
+  onEnviarWhatsapp,
   onCancelar,
   onExcluir,
 }: NfseSuperadminTableProps) {
@@ -68,6 +70,7 @@ export function NfseSuperadminTable({
                     onBaixarPdf={onBaixarPdf}
                     onBaixarXml={onBaixarXml}
                     onReenviar={onReenviar}
+                    onEnviarWhatsapp={onEnviarWhatsapp}
                     onCancelar={onCancelar}
                     onExcluir={onExcluir}
                   />
@@ -86,6 +89,7 @@ function NfseSuperadminRow({
   onBaixarPdf,
   onBaixarXml,
   onReenviar,
+  onEnviarWhatsapp,
   onCancelar,
   onExcluir,
 }: { nf: NFSeEmitida } & NfseSuperadminHandlers) {
@@ -136,6 +140,11 @@ function NfseSuperadminRow({
         {nfsePodeBaixar(nf.status) && nf.tomador_email && (
           <Button size="sm" variant="ghost" onClick={() => onReenviar(nf)} title="Reenviar email">
             <Mail className="w-4 h-4" />
+          </Button>
+        )}
+        {nfsePodeEnviarWhatsapp(nf.status) && (
+          <Button size="sm" variant="ghost" onClick={() => onEnviarWhatsapp(nf)} title="Enviar PDF por WhatsApp">
+            <MessageCircle className="w-4 h-4" />
           </Button>
         )}
         {nfsePodeCancelar(nf.status) && (

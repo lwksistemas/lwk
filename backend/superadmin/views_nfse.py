@@ -15,6 +15,7 @@ from nfse_integration.superadmin_nfse_api import (
     ReenvioNFSeError,
     filtrar_nfse_emitidas,
     listar_nfse_emitidas_payload,
+    enviar_whatsapp_nfse_superadmin,
     reenviar_email_nfse_superadmin,
     serializar_loja_para_nfse,
     serializar_nfse_debug,
@@ -144,6 +145,24 @@ def nfse_reenviar(request, nfse_id):
         return Response({"success": False, "error": "NFS-e não encontrada"}, status=404)
     except Exception as e:
         logger.exception("Erro ao reenviar NFS-e: %s", e)
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes(_SUPERADMIN_PERMS)
+@audit_log("nfse_whatsapp", "Envio de NFS-e por WhatsApp via superadmin")
+def nfse_enviar_whatsapp(request, nfse_id):
+    try:
+        nf = NFSeEmitida.objects.select_related("loja").get(id=nfse_id)
+        telefone = (request.data.get("telefone") or "").strip()
+        destino = enviar_whatsapp_nfse_superadmin(nf, telefone, request)
+        return Response({"success": True, "message": f"NFS-e enviada por WhatsApp para {destino}"})
+    except ReenvioNFSeError as exc:
+        return Response({"success": False, "error": exc.message}, status=400)
+    except NFSeEmitida.DoesNotExist:
+        return Response({"success": False, "error": "NFS-e não encontrada"}, status=404)
+    except Exception as e:
+        logger.exception("Erro ao enviar NFS-e por WhatsApp: %s", e)
         return Response({"success": False, "error": str(e)}, status=500)
 
 

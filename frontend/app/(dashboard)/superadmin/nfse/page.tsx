@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '@/lib/api-client';
 import { logger } from '@/lib/logger';
+import { telefoneInternacionalBr } from '@/lib/format-br';
 import {
   downloadBlobFile,
   nfseIdentificador,
@@ -13,6 +14,7 @@ import { ModalEmitirNFSeManual } from './components/ModalEmitirNFSeManual';
 import { NfseSuperadminFilters } from './components/NfseSuperadminFilters';
 import { NfseSuperadminHeader } from './components/NfseSuperadminHeader';
 import { NfseSuperadminMessage } from './components/NfseSuperadminMessage';
+import { ModalEnviarWhatsapp } from './components/ModalEnviarWhatsapp';
 import { NfseSuperadminTable } from './components/NfseSuperadminTable';
 import type { NFSeEmitida } from './types';
 
@@ -23,6 +25,7 @@ export default function NFSeEmitidasPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [filtroStatus, setFiltroStatus] = useState('');
   const [showModalEmitir, setShowModalEmitir] = useState(false);
+  const [nfWhatsapp, setNfWhatsapp] = useState<NFSeEmitida | null>(null);
   const [nfCancelamento, setNfCancelamento] = useState<NFSeEmitida | null>(null);
   const [erroCancelamento, setErroCancelamento] = useState<string | null>(null);
   const [cancelandoNFSe, setCancelandoNFSe] = useState(false);
@@ -100,6 +103,18 @@ export default function NFSeEmitidasPage() {
     }
   };
 
+  const enviarWhatsapp = async (telefone: string) => {
+    if (!nfWhatsapp) return;
+    const { data } = await apiClient.post(`/superadmin/nfse-emitidas/${nfWhatsapp.id}/whatsapp/`, {
+      telefone: telefoneInternacionalBr(telefone),
+    });
+    if (!data.success) {
+      throw { response: { data } };
+    }
+    setMessage({ type: 'success', text: data.message || 'NFS-e enviada por WhatsApp.' });
+    setNfWhatsapp(null);
+  };
+
   const handleCancelar = (nf: NFSeEmitida) => {
     setErroCancelamento(null);
     setNfCancelamento(nf);
@@ -167,6 +182,7 @@ export default function NFSeEmitidasPage() {
         onBaixarPdf={handleBaixarPdf}
         onBaixarXml={handleBaixarXml}
         onReenviar={handleReenviar}
+        onEnviarWhatsapp={setNfWhatsapp}
         onCancelar={handleCancelar}
         onExcluir={handleExcluir}
       />
@@ -179,6 +195,14 @@ export default function NFSeEmitidasPage() {
             setMessage({ type: 'success', text: 'NFS-e emitida com sucesso!' });
             loadNotas();
           }}
+        />
+      )}
+
+      {nfWhatsapp && (
+        <ModalEnviarWhatsapp
+          nf={nfWhatsapp}
+          onClose={() => setNfWhatsapp(null)}
+          onEnviar={enviarWhatsapp}
         />
       )}
 

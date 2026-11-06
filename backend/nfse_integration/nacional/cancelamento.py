@@ -38,7 +38,7 @@ def construir_xml_cancelamento_sefin(
     quando = dh_evento or datetime.now(_FUSO)
     if quando.tzinfo is None:
         quando = quando.replace(tzinfo=_FUSO)
-    id_ped = f"PRE{chave}101101001"
+    id_ped = f"PRE{chave}101101"
 
     root = etree.Element(f"{{{NS_NFSE}}}pedRegEvento", versao="1.01", nsmap={None: NS_NFSE})
     inf = etree.SubElement(root, f"{{{NS_NFSE}}}infPedReg", Id=id_ped)
@@ -47,7 +47,6 @@ def construir_xml_cancelamento_sefin(
     etree.SubElement(inf, f"{{{NS_NFSE}}}dhEvento").text = quando.isoformat(timespec="seconds")
     etree.SubElement(inf, f"{{{NS_NFSE}}}{'CPFAutor' if len(doc) == 11 else 'CNPJAutor'}").text = doc
     etree.SubElement(inf, f"{{{NS_NFSE}}}chNFSe").text = chave
-    etree.SubElement(inf, f"{{{NS_NFSE}}}nPedRegEvento").text = "1"
     evento = etree.SubElement(inf, f"{{{NS_NFSE}}}e101101")
     etree.SubElement(evento, f"{{{NS_NFSE}}}xDesc").text = _DESC_CANCELAMENTO
     etree.SubElement(evento, f"{{{NS_NFSE}}}cMotivo").text = c_motivo

@@ -7,6 +7,8 @@ import uuid
 import requests
 from django.conf import settings
 
+from core.phone_utils import eh_telefone_paraguai
+
 from .models import WhatsAppConfig, WhatsAppLog
 
 logger = logging.getLogger(__name__)
@@ -93,6 +95,8 @@ def _normalize_phone(telefone):
     digits = re.sub(r"\D", "", str(telefone))
     if len(digits) < 10:
         return None
+    if eh_telefone_paraguai(digits):
+        return digits[:15]
     # Já tem código do país (12–15 dígitos): usar como está (remover zero à esquerda após 55)
     if len(digits) >= 12:
         out = digits[:15]

@@ -7,7 +7,7 @@ import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { formatCpfCnpj } from '@/lib/consulta-cnpj';
 import { buildCrmLeadPayload, getCrmApiErrorDetail } from '@/lib/crm-utils';
-import { formatCep, formatCpf } from '@/lib/format-br';
+import { formatCep, formatDocumentoPessoa } from '@/lib/format-br';
 import { LeadCadastroForm } from '@/components/crm-vendas/LeadCadastroForm';
 import { EMPTY_FORM_LEAD, leadComEmpresa, type ContaDoLead } from '@/lib/crm-lead-form-types';
 import { useCrmCepCnpjLookup } from '@/hooks/crm-vendas/useCrmCepCnpjLookup';
@@ -59,7 +59,7 @@ export default function NovoLeadPage() {
   }, []);
 
   const handleCpfChange = (value: string) => {
-    setForm((f) => ({ ...f, cpf_cnpj: formatCpf(value) }));
+    setForm((f) => ({ ...f, cpf_cnpj: formatDocumentoPessoa(value) }));
   };
 
   const handleCepChange = (value: string) => {
@@ -70,11 +70,6 @@ export default function NovoLeadPage() {
     setFormErro(null);
     if (!form.nome.trim()) {
       setFormErro('Informe o nome.');
-      return;
-    }
-    const cpf = form.cpf_cnpj.replace(/\D/g, '');
-    if (cpf && cpf.length !== 11) {
-      setFormErro('Informe o CPF com 11 dígitos.');
       return;
     }
     setEnviando(true);

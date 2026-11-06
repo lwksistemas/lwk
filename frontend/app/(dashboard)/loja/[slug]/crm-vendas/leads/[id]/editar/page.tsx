@@ -7,7 +7,7 @@ import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { STATUS_LEAD_OPCOES } from '@/constants/crm';
 import { formatCpfCnpj } from '@/lib/consulta-cnpj';
 import { buildCrmLeadPayload, getCrmApiErrorDetail } from '@/lib/crm-utils';
-import { formatCep, formatCpf, formatTelefone } from '@/lib/format-br';
+import { formatCep, formatDocumentoPessoa, formatTelefone } from '@/lib/format-br';
 import { LeadCadastroForm } from '@/components/crm-vendas/LeadCadastroForm';
 import { EMPTY_FORM_LEAD, leadComEmpresa, type ContaDoLead } from '@/lib/crm-lead-form-types';
 import type { Lead } from '@/components/crm-vendas/LeadsTable';
@@ -53,7 +53,7 @@ export default function EditarLeadPage() {
           empresa: lead.empresa || lead.conta_info?.nome || '',
           conta: lead.conta ? String(lead.conta) : '',
           cargo: lead.contato_info?.cargo || '',
-          cpf_cnpj: digits.length === 11 ? formatCpf(digits) : '',
+          cpf_cnpj: formatDocumentoPessoa(digits),
           email: lead.email || '',
           telefone: formatTelefone(lead.telefone || ''),
           origem: lead.origem,
@@ -103,7 +103,7 @@ export default function EditarLeadPage() {
   };
 
   const handleCpfChange = (value: string) => {
-    setForm((f) => ({ ...f, cpf_cnpj: formatCpf(value) }));
+    setForm((f) => ({ ...f, cpf_cnpj: formatDocumentoPessoa(value) }));
   };
 
   const handleCepChange = (value: string) => {
@@ -114,11 +114,6 @@ export default function EditarLeadPage() {
     setFormErro(null);
     if (!form.nome.trim()) {
       setFormErro('Informe o nome.');
-      return;
-    }
-    const cpf = form.cpf_cnpj.replace(/\D/g, '');
-    if (cpf && cpf.length !== 11) {
-      setFormErro('Informe o CPF com 11 dígitos.');
       return;
     }
     setEnviando(true);

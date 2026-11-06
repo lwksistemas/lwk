@@ -147,6 +147,8 @@ class PhoneUtilsTestCase(TestCase):
         self.assertEqual(telefone_internacional_br("(16) 99962-1823"), "5516999621823")
         self.assertEqual(telefone_internacional_br("5516999621823"), "5516999621823")
         self.assertEqual(telefone_internacional_br(""), "")
+        self.assertEqual(telefone_internacional_br("+595 985 000000"), "595985000000")
+        self.assertEqual(telefone_exibicao_brasileiro("595985000000"), "+595 985000000")
 
     def test_telefone_exibicao_brasileiro(self):
         self.assertEqual(

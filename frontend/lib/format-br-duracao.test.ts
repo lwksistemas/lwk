@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { calcularDuracaoAgendamento, tempoConsultaBaseMinutos } from './clinica-beleza-duracao';
 import {
   cpfCnpjValido,
+  formatDocumentoPessoa,
   formatTelefone,
   mensagemCpfCnpjInvalido,
   telefoneInternacionalBr,
@@ -14,6 +15,9 @@ describe('telefone e documento', () => {
     expect(formatTelefone('550422761222')).toBe('(42) 2761-222');
     expect(formatTelefone('554792561525')).toBe('(47) 9256-1525');
     expect(telefoneInternacionalBr('')).toBe('');
+    expect(formatTelefone('+595 985 000000')).toBe('+595 985000000');
+    expect(telefoneInternacionalBr('+595 985 000000')).toBe('595985000000');
+    expect(formatDocumentoPessoa('1544892')).toBe('154.489.2');
   });
 
   it('aceita um CPF conhecido e recusa sequência repetida', () => {

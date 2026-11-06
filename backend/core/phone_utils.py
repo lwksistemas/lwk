@@ -96,9 +96,15 @@ def formatar_telefone_brasileiro(telefone):
     return numeros
 
 
+def eh_telefone_paraguai(digits):
+    """Celular do Paraguai: 595 e o próximo dígito 9. Celular do Brasil tem 13 dígitos."""
+    return bool(digits) and digits.startswith("595") and len(digits) >= 11 and digits[3] == "9"
+
+
 def telefone_internacional_br(telefone):
     """Normaliza telefone brasileiro com código do país (55) — apenas dígitos.
     Usado no cadastro de pacientes para envio WhatsApp (Evolution/Meta).
+    Número do Paraguai (595) permanece como foi digitado, para o WhatsApp achar o celular.
     """
     if not telefone:
         return ""
@@ -106,6 +112,9 @@ def telefone_internacional_br(telefone):
     digits = limpar_telefone(telefone)
     if not digits:
         return ""
+
+    if eh_telefone_paraguai(digits) or str(telefone).strip().startswith("+"):
+        return digits[:15]
 
     if len(digits) >= 12 and digits.startswith("55"):
         out = digits[:15]
@@ -133,6 +142,8 @@ def telefone_exibicao_brasileiro(telefone):
         return ""
 
     digits = limpar_telefone(telefone)
+    if eh_telefone_paraguai(digits):
+        return f"+595 {digits[3:]}"
     if digits.startswith("55") and len(digits) >= 12:
         local = digits[2:].lstrip("0")
         if len(local) >= 8:

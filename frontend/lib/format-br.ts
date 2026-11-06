@@ -10,6 +10,12 @@ export function apenasDigitos(valor?: string | null): string {
   return (valor || "").replace(/\D/g, "");
 }
 
+/** Celular do Paraguai: 595 e o dígito seguinte 9. Não é um celular do Brasil. */
+export function ehTelefoneParaguai(valor?: string | null): boolean {
+  const d = apenasDigitos(valor);
+  return d.startsWith("595") && d.length >= 11 && d[3] === "9";
+}
+
 /** Remove código do país 55 e o zero antes do DDD (ex.: 550422761222 → 422761222). */
 export function telefoneLocalBr(valor?: string | null): string {
   let d = apenasDigitos(valor);
@@ -29,6 +35,12 @@ export function telefoneLocalBr(valor?: string | null): string {
  * Aceita valor já salvo com 55 (ex.: 5516999621823).
  */
 export function formatTelefone(valor?: string | null): string {
+  const texto = String(valor || "");
+  const internacional = apenasDigitos(texto);
+  if (texto.trim().startsWith("+") || ehTelefoneParaguai(internacional)) {
+    if (ehTelefoneParaguai(internacional)) return `+595 ${internacional.slice(3)}`;
+    return internacional ? `+${internacional}` : "+";
+  }
   const d = telefoneLocalBr(valor).slice(0, 11);
   if (d.length === 0) return "";
   if (d.length <= 2) return `(${d}`;
@@ -39,8 +51,10 @@ export function formatTelefone(valor?: string | null): string {
 
 /** Salva telefone BR com código do país 55 (WhatsApp). Ex.: (16) 99962-1823 → 5516999621823 */
 export function telefoneInternacionalBr(valor?: string | null): string {
-  const d = apenasDigitos(valor);
+  const texto = String(valor || "");
+  const d = apenasDigitos(texto);
   if (!d) return "";
+  if (texto.includes("+") || ehTelefoneParaguai(d)) return d.slice(0, 15);
   if (d.startsWith("55") && d.length >= 12) return d.slice(0, 15);
   if (d.length === 11 && !d.startsWith("1")) return `55${d}`;
   if (d.length === 11) {
@@ -106,6 +120,13 @@ export function formatCpf(valor?: string | null): string {
   if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
   if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+/** CPF brasileiro enquanto digita, ou o documento de outro país só com os números. */
+export function formatDocumentoPessoa(valor?: string | null): string {
+  const d = apenasDigitos(valor).slice(0, 18);
+  if (d.length <= 11) return formatCpf(d);
+  return d;
 }
 
 /** Formata CEP no padrão XXXXX-XXX (progressivo, até 8 dígitos). */

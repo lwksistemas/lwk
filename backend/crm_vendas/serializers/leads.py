@@ -18,6 +18,7 @@ class LeadSerializer(
 ):
     unique_documento_fields = ["cpf_cnpj"]
     unique_documento_entidade = "lead"
+    unique_documento_min_digitos = 5
     conta_info = serializers.SerializerMethodField()
     contato_info = serializers.SerializerMethodField()
     cargo = serializers.CharField(write_only=True, required=False, allow_blank=True)

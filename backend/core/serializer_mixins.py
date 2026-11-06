@@ -214,7 +214,8 @@ class UniqueDocumentoPerLojaMixin:
     unique_documento_apenas_ativos: bool = False
 
     def _validar_documento_unico(self, field_name: str, value):
-        if not documento_preenchido(value):
+        minimo = getattr(self, "unique_documento_min_digitos", 11)
+        if not documento_preenchido(value, min_digitos=minimo):
             return value
 
         model = getattr(getattr(self, "Meta", None), "model", None)

@@ -191,14 +191,14 @@ export function LeadCadastroForm({
                 </div>
 
                 <div className="sm:col-span-2">
-                  <FieldLabel>CPF</FieldLabel>
+                  <FieldLabel>CPF ou documento</FieldLabel>
                   <IconInput
                     icon={CreditCard}
                     value={form.cpf_cnpj}
                     onChange={(e) => onCpfChange(e.target.value)}
-                    placeholder="000.000.000-00"
+                    placeholder="CPF ou cédula"
                     inputMode="numeric"
-                    maxLength={14}
+                    maxLength={18}
                   />
                 </div>
 
@@ -219,9 +219,9 @@ export function LeadCadastroForm({
                     icon={Phone}
                     value={form.telefone}
                     onChange={(e) => onFormChange((f) => ({ ...f, telefone: formatTelefone(e.target.value) }))}
-                    placeholder="(00) 00000-0000"
+                    placeholder="(00) 00000-0000 ou +595..."
                     inputMode="tel"
-                    maxLength={15}
+                    maxLength={20}
                   />
                 </div>
 
@@ -351,6 +351,7 @@ export function LeadCadastroForm({
                     className={selectClass}
                   >
                     <option value="">—</option>
+                    <option value="PY">PY</option>
                     {UF_LIST.map((uf) => (
                       <option key={uf} value={uf}>
                         {uf}

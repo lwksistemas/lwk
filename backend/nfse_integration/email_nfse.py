@@ -23,6 +23,7 @@ def montar_corpo_email_nfse(
     prestador_cnpj: str | None = None,
     rodape_simples: bool = False,
     incluir_cnpj_prestador: bool = True,
+    link_e_danfse: bool = False,
 ) -> str:
     """Monta o corpo do e-mail mantendo o formato usado no produto."""
     nome_prestador = prestador_nome if prestador_nome is not None else loja.nome
@@ -45,18 +46,25 @@ def montar_corpo_email_nfse(
     corpo += f"• Descrição: {descricao}\n\n"
 
     if url_danfe:
-        corpo += (
-            f"A Nota Eletrônica está disponível para impressão no seguinte endereço:\n"
-            f"{url_danfe}\n\n"
-        )
-        from nfse_integration.danfe import url_xml_download_from_danfe
-
-        url_xml = url_xml_download_from_danfe(url_danfe)
-        if url_xml:
+        if link_e_danfse:
             corpo += (
-                f"O download do arquivo .xml referente a esta nota eletrônica pode ser feito acessando:\n"
-                f"{url_xml}\n\n"
+                "A DANFSe está disponível neste endereço:\n"
+                f"{url_danfe}\n\n"
+                "O PDF e o XML da nota também seguem em anexo neste e-mail.\n\n"
             )
+        else:
+            corpo += (
+                f"A Nota Eletrônica está disponível para impressão no seguinte endereço:\n"
+                f"{url_danfe}\n\n"
+            )
+            from nfse_integration.danfe import url_xml_download_from_danfe
+
+            url_xml = url_xml_download_from_danfe(url_danfe)
+            if url_xml:
+                corpo += (
+                    f"O download do arquivo .xml referente a esta nota eletrônica pode ser feito acessando:\n"
+                    f"{url_xml}\n\n"
+                )
     elif codigo_verificacao:
         from nfse_integration.numero_exibicao import (
             PORTAL_CONSULTA_NACIONAL,
@@ -114,6 +122,7 @@ def enviar_email_nfse_tomador(
     rodape_simples: bool = False,
     assunto_prestador: str | None = None,
     incluir_cnpj_prestador: bool = True,
+    link_e_danfse: bool = False,
 ) -> None:
     """Envia e-mail de NFS-e ao tomador e anexa XML quando disponível."""
     nome_assunto = assunto_prestador or prestador_nome or loja.nome
@@ -132,6 +141,7 @@ def enviar_email_nfse_tomador(
         prestador_cnpj=prestador_cnpj,
         rodape_simples=rodape_simples,
         incluir_cnpj_prestador=incluir_cnpj_prestador,
+        link_e_danfse=link_e_danfse,
     )
 
     from core.email_delivery import create_email_message, send_prepared

@@ -119,7 +119,13 @@ def reenviar_email_nfse_superadmin(nf: Any, config: Any | None = None) -> str:
 
     prestador = config.prestador_razao_social or "LWK Sistemas"
     url_danfe = nf.pdf_url or ""
-    if not url_danfe and nf.provedor == "issnet" and nf.numero_nf:
+    link_e_danfse = False
+    if (getattr(nf, "provedor", "") or "") == "nacional" and (nf.xml_nfse or "").strip():
+        from nfse_integration.views_pdf_public import url_danfse_email_superadmin
+
+        url_danfe = url_danfse_email_superadmin(int(nf.id))
+        link_e_danfse = True
+    elif not url_danfe and nf.provedor == "issnet" and nf.numero_nf:
         url_danfe = buscar_url_danfe_issnet_superadmin(nf, config)
 
     loja = nf.loja or SimpleNamespace(nome=prestador, cpf_cnpj=config.prestador_cnpj or "")
@@ -152,6 +158,7 @@ def reenviar_email_nfse_superadmin(nf: Any, config: Any | None = None) -> str:
         valor=nf.valor,
         descricao=nf.descricao_servico,
         url_danfe=url_danfe,
+        link_e_danfse=link_e_danfse,
         codigo_verificacao=nf.codigo_verificacao,
         xml_content=nf.xml_nfse or "",
         xml_filename=f"nfse_{numero}.xml",

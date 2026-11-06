@@ -256,6 +256,8 @@ def reenviar_email_nfse_loja(nfse: Any, loja: Any, loja_id: int) -> str:
         from nfse_integration.danfse_nacional import gerar_danfse_nacional
         from nfse_integration.numero_exibicao import chave_acesso_nfse, numero_nfse_para_exibicao
 
+        from nfse_integration.views_pdf_public import url_danfse_email_loja
+
         chave = chave_acesso_nfse(nfse)
         numero = numero_nfse_para_exibicao(nfse) or nfse.numero_nf
         empresa = (nfse.tomador_nome or "").strip() or getattr(loja, "nome", "")
@@ -271,7 +273,8 @@ def reenviar_email_nfse_loja(nfse: Any, loja: Any, loja_id: int) -> str:
             numero_nf=numero,
             valor=nfse.valor,
             descricao=nfse.servico_descricao,
-            url_danfe="",
+            url_danfe=url_danfse_email_loja(int(nfse.id), int(loja_id)),
+            link_e_danfse=True,
             codigo_verificacao=chave,
             xml_content=nfse.xml_nfse,
             xml_filename=f"nfse_{numero}.xml",

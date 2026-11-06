@@ -16,24 +16,42 @@ from .pdf_download import resolver_download_pdf_loja
 logger = logging.getLogger(__name__)
 
 TOKEN_MAX_AGE = 3600
+TOKEN_EMAIL_MAX_AGE = 60 * 60 * 24 * 180
 
 
-def criar_token_pdf_nfse(nfse_id: int, loja_id: int) -> str:
+def criar_token_pdf_nfse(nfse_id: int, loja_id: int, *, max_age: int = TOKEN_MAX_AGE) -> str:
     payload = {
         "id": nfse_id,
         "loja_id": loja_id,
-        "exp": int(time.time()) + TOKEN_MAX_AGE,
+        "exp": int(time.time()) + max_age,
     }
     return dumps(payload)
 
 
-def criar_token_pdf_nfse_superadmin(nfse_id: int) -> str:
+def criar_token_pdf_nfse_superadmin(nfse_id: int, *, max_age: int = TOKEN_MAX_AGE) -> str:
     payload = {
         "id": nfse_id,
         "origem": "superadmin",
-        "exp": int(time.time()) + TOKEN_MAX_AGE,
+        "exp": int(time.time()) + max_age,
     }
     return dumps(payload)
+
+
+def _url_documento_pdf(token: str) -> str:
+    from urllib.parse import quote
+
+    from core.public_urls import get_public_api_base_url
+
+    return f"{get_public_api_base_url()}/api/nfse/documento-pdf/?token={quote(token, safe='')}"
+
+
+def url_danfse_email_loja(nfse_id: int, loja_id: int) -> str:
+    """Link do e-mail. Dura mais que o do WhatsApp, que a Evolution baixa na hora."""
+    return _url_documento_pdf(criar_token_pdf_nfse(nfse_id, loja_id, max_age=TOKEN_EMAIL_MAX_AGE))
+
+
+def url_danfse_email_superadmin(nfse_id: int) -> str:
+    return _url_documento_pdf(criar_token_pdf_nfse_superadmin(nfse_id, max_age=TOKEN_EMAIL_MAX_AGE))
 
 
 def _verificar_token(token: str) -> dict | None:

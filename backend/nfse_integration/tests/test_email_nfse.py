@@ -67,6 +67,23 @@ class CorpoEmailNfseTests(SimpleTestCase):
         self.assertNotIn("notaeletronica.com.br", corpo)
         self.assertIn("Número: 1", corpo)
 
+    def test_link_da_danfse_nao_aponta_a_consulta_publica(self):
+        loja = SimpleNamespace(nome="Felix", cpf_cnpj="41.449.198/0001-72")
+        corpo = montar_corpo_email_nfse(
+            loja=loja,
+            tomador_nome="LWK SISTEMAS LTDA",
+            numero_nf="1",
+            valor=6,
+            descricao="TESTE",
+            url_danfe="https://api.lwksistemas.com.br/api/nfse/documento-pdf/?token=abc",
+            link_e_danfse=True,
+            codigo_verificacao="1" * 50,
+        )
+        self.assertIn("/api/nfse/documento-pdf/?token=abc", corpo)
+        self.assertIn("A DANFSe está disponível neste endereço", corpo)
+        self.assertNotIn("ConsultaPublica", corpo)
+        self.assertNotIn("notaeletronica.com.br", corpo)
+
 
 class EnvioEmailNfseTests(SimpleTestCase):
     @patch("core.email_delivery.send_prepared")
@@ -145,6 +162,8 @@ class ReenvioNacionalSuperadminTests(SimpleTestCase):
         self.assertEqual(kwargs["pdf_content"], b"%PDF")
         self.assertEqual(kwargs["pdf_filename"], "DANFSe-1.pdf")
         self.assertEqual(kwargs["xml_filename"], "nfse_1.xml")
+        self.assertIn("/api/nfse/documento-pdf/?token=", kwargs["url_danfe"])
+        self.assertTrue(kwargs["link_e_danfse"])
 
 
 class ReenvioNacionalLojaTests(SimpleTestCase):
@@ -172,7 +191,9 @@ class ReenvioNacionalLojaTests(SimpleTestCase):
         kwargs = enviar.call_args.kwargs
         self.assertEqual(kwargs["numero_nf"], "1")
         self.assertEqual(kwargs["assunto_prestador"], "LWK SISTEMAS LTDA")
-        self.assertEqual(kwargs["url_danfe"], "")
         self.assertEqual(kwargs["pdf_filename"], "DANFSe-1.pdf")
         self.assertEqual(kwargs["pdf_content"], b"%PDF")
         self.assertEqual(kwargs["xml_filename"], "nfse_1.xml")
+        self.assertIn("/api/nfse/documento-pdf/?token=", kwargs["url_danfe"])
+        self.assertNotIn("ConsultaPublica", kwargs["url_danfe"])
+        self.assertTrue(kwargs["link_e_danfse"])

@@ -332,8 +332,7 @@ def assinar_xml_dps(
         logger.error("Falha na verificação local da assinatura (Reference=#%s): %s", inf_id, e)
         raise
 
-    corpo = etree.tostring(root, encoding="unicode", xml_declaration=False)
-    result = corpo if usar_sha256 else '<?xml version="1.0" encoding="UTF-8"?>' + corpo
+    result = '<?xml version="1.0" encoding="UTF-8"?>' + etree.tostring(root, encoding="unicode", xml_declaration=False)
     logger.info(
         "XML DPS assinado com sucesso (%s, Reference=#%s)",
         "RSA-SHA256" if usar_sha256 else "RSA-SHA1",

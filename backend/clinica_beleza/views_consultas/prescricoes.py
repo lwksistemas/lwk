@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 
 from ..models import Consulta, PrescricaoMemed, Professional
 from ..permissions import CLINICA_CLINICAL
+from ..acesso_leitura import registrar_leitura_clinica
 from ..serializers import PrescricaoMemedSerializer
 from ..views_base import GetObjectMixin
 
@@ -105,7 +106,9 @@ class ConsultaPrescricaoView(APIView):
         from ..models import Consulta
         from ..permissions import recusar_andamento_alheio
 
-        consulta = Consulta.objects.filter(pk=consulta_id).only("status", "professional_id").first()
+        consulta = Consulta.objects.filter(pk=consulta_id).only(
+            "status", "professional_id", "patient_id",
+        ).first()
         if consulta is None:
             return Response({"error": "Consulta não encontrada"}, status=status.HTTP_404_NOT_FOUND)
         if bloqueio := recusar_andamento_alheio(request, consulta):
@@ -113,6 +116,7 @@ class ConsultaPrescricaoView(APIView):
         qs = PrescricaoMemed.objects.filter(consulta_id=consulta_id).select_related(
             "patient", "professional",
         ).order_by("-created_at")
+        registrar_leitura_clinica(request, consulta.patient_id, "Prescrição")
         return Response(PrescricaoMemedSerializer(qs, many=True).data)
 
     def post(self, request, consulta_id):
@@ -189,6 +193,7 @@ class PatientPrescricaoView(APIView):
         qs = PrescricaoMemed.objects.filter(patient_id=patient_id).select_related(
             "professional", "consulta",
         ).order_by("-created_at")
+        registrar_leitura_clinica(request, patient_id, "Prescrição")
         return Response(PrescricaoMemedSerializer(qs, many=True).data)
 
 
@@ -229,12 +234,17 @@ class PrescricaoMemedPdfView(APIView):
         )
         filename = nome_arquivo_pdf_prescricao(prescricao_id, presc.pk)
         url_atual = (presc.pdf_url or "").strip()
+
+        def entregar(url):
+            registrar_leitura_clinica(request, presc.patient_id, "Prescrição PDF")
+            return Response({"pdf_url": url})
+
         if (
             prescricao_id
             and pdf_midia_estavel(url_atual, filename)
             and arquivo_midia_disponivel(url_atual)
         ):
-            return Response({"pdf_url": url_atual})
+            return entregar(url_atual)
 
         pdf_url = ""
         if prescricao_id:
@@ -256,10 +266,10 @@ class PrescricaoMemedPdfView(APIView):
                             media_delete_by_url(url_atual)
                     except Exception:  # noqa: BLE001
                         pass
-            return Response({"pdf_url": pdf_url})
+            return entregar(pdf_url)
 
         if url_atual and arquivo_midia_disponivel(url_atual):
-            return Response({"pdf_url": url_atual})
+            return entregar(url_atual)
 
         from ..memed_prescricao_service import arquivar_pdf_bytes_media
         from ..prontuario_pdf import gerar_pdf_prescricao_memed
@@ -289,4 +299,4 @@ class PrescricaoMemedPdfView(APIView):
 
         presc.pdf_url = pdf_url
         presc.save(update_fields=["pdf_url"])
-        return Response({"pdf_url": pdf_url})
+        return entregar(pdf_url)

@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from .documento_service import listar_prontuario_paciente
 from .models import DocumentoClinico, Patient
 from .permissions import CLINICA_CLINICAL
+from .acesso_leitura import registrar_leitura_clinica
 from .prontuario_pdf import (
     gerar_pdf_documento,
     gerar_pdf_prontuario_completo,
@@ -128,6 +129,7 @@ class ProntuarioView(APIView):
         secao = request.query_params.get("secao")
         prontuario = listar_prontuario_paciente(patient_id, secao=secao)
         serializer = ProntuarioSectionSerializer(prontuario)
+        registrar_leitura_clinica(request, patient_id, "Prontuário")
         return Response(serializer.data)
 
 
@@ -175,6 +177,7 @@ class ProntuarioPDFView(APIView):
 
         response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="{filename}"'
+        registrar_leitura_clinica(request, patient_id, "Prontuário PDF")
         return response
 
 
@@ -205,4 +208,5 @@ class DocumentoPDFView(GetObjectMixin, APIView):
         arquivar_pdf_gerado(obj.loja_id, obj.patient, buffer.getvalue(), filename)
         response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="{filename}"'
+        registrar_leitura_clinica(request, getattr(obj, "patient_id", None), "Documento clínico")
         return response

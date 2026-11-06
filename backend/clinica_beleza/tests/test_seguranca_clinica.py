@@ -77,6 +77,48 @@ class WebhookAsaasGetTest(SimpleTestCase):
         self.assertTrue(response.data["ok"])
 
 
+class WebhookAsaasTokenDaLojaTest(SimpleTestCase):
+    def _post(self):
+        return APIRequestFactory().post(
+            "/api/clinica-beleza/webhooks/asaas/clinicaharmonis/",
+            {"event": "PAYMENT_RECEIVED"},
+            format="json",
+        )
+
+    @patch("clinica_beleza.views_asaas_webhook._configure_tenant_db_for_loja", return_value=True)
+    @patch("clinica_beleza.views_asaas_webhook.resolve_loja_from_slug_or_cnpj")
+    @patch("core.webhook_security.verify_asaas_access_token", return_value=True)
+    @patch("clinica_beleza.models.ClinicaBelezaNFSeConfig")
+    def test_sem_token_da_loja_nao_aceita_o_global(self, config, verificar, resolver, _tenant):
+        resolver.return_value = SimpleNamespace(id=6, slug="clinicaharmonis")
+        config.objects.filter.return_value.first.return_value = SimpleNamespace(asaas_webhook_token="")
+        from clinica_beleza.views_asaas_webhook import clinica_beleza_asaas_webhook
+
+        response = clinica_beleza_asaas_webhook(self._post(), loja_slug="clinicaharmonis")
+        self.assertEqual(response.status_code, 401)
+        verificar.assert_not_called()
+
+    @patch("asaas_integration.queue_dispatch.should_enqueue_asaas_webhook", return_value=False)
+    @patch("clinica_beleza.asaas_webhook_process.process_asaas_clinica_webhook_sync")
+    @patch("clinica_beleza.views_asaas_webhook._configure_tenant_db_for_loja", return_value=True)
+    @patch("clinica_beleza.views_asaas_webhook.resolve_loja_from_slug_or_cnpj")
+    @patch("core.webhook_security.verify_asaas_access_token", return_value=True)
+    @patch("clinica_beleza.models.ClinicaBelezaNFSeConfig")
+    def test_confere_o_token_gravado_na_clinica(
+        self, config, verificar, resolver, _tenant, _processa, _fila,
+    ):
+        resolver.return_value = SimpleNamespace(id=6, slug="clinicaharmonis")
+        config.objects.filter.return_value.first.return_value = SimpleNamespace(
+            asaas_webhook_token="token-da-clinica",
+        )
+        from clinica_beleza.views_asaas_webhook import clinica_beleza_asaas_webhook
+
+        response = clinica_beleza_asaas_webhook(self._post(), loja_slug="clinicaharmonis")
+        self.assertEqual(response.status_code, 200)
+        verificar.assert_called_once()
+        self.assertEqual(verificar.call_args.kwargs["expected_token"], "token-da-clinica")
+
+
 class IpDoLimitePublicoTest(SimpleTestCase):
     def test_ignora_o_endereco_inventado_no_inicio(self):
         request = SimpleNamespace(META={

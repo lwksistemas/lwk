@@ -19,6 +19,21 @@ from tenants.middleware import (
 logger = logging.getLogger(__name__)
 
 
+def _token_asaas_da_clinica(loja_id) -> str:
+    """Só o token gravado na clínica. O token global da mensalidade não autentica este webhook."""
+    from core.encryption import decrypt_value
+
+    from .models import ClinicaBelezaNFSeConfig
+
+    config = ClinicaBelezaNFSeConfig.objects.filter(loja_id=loja_id).first()
+    if not config:
+        return ""
+    raw = (getattr(config, "asaas_webhook_token", "") or "").strip()
+    if not raw:
+        return ""
+    return (decrypt_value(raw) or "").strip()
+
+
 @csrf_exempt
 @api_view(["GET", "POST", "HEAD"])
 @permission_classes([AllowAny])
@@ -51,21 +66,8 @@ def clinica_beleza_asaas_webhook(request, loja_slug: str):
         webhook_auth_failed_response,
     )
 
-    from .models import ClinicaBelezaNFSeConfig
-
-    # Buscar token do webhook da config da clínica
-    config = ClinicaBelezaNFSeConfig.objects.filter(loja_id=loja.id).first()
-    loja_token = ""
-    if config:
-        raw = getattr(config, "asaas_webhook_token", "") or ""
-        if raw:
-            from core.encryption import decrypt_value
-            try:
-                loja_token = decrypt_value(raw)
-            except Exception:
-                loja_token = raw
-
-    if not verify_asaas_access_token(request, expected_token=loja_token or None):
+    loja_token = _token_asaas_da_clinica(loja.id)
+    if not loja_token or not verify_asaas_access_token(request, expected_token=loja_token):
         return webhook_auth_failed_response()
 
     payload = request.data if isinstance(request.data, dict) else {}

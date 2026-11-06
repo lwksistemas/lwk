@@ -47,16 +47,23 @@ class IsOwnerOrSuperAdmin(permissions.BasePermission):
             if VendedorUsuario.objects.filter(user=request.user, loja=obj).exists():
                 return True
 
-        # Profissional, Vendedor (CRM) ou UsuarioSistema: pode exportar/importar backup da própria loja
+        # Backup da loja: dono e superadmin já passaram acima.
+        # Na clínica só o perfil administrador. Caixa, limpeza, estoque,
+        # recepção e profissional não levam o ZIP com prontuários.
+        # No CRM o vendedor da própria loja continua podendo.
         if hasattr(obj, "id"):
             from ..models import UsuarioSistema, VendedorUsuario
             action = getattr(view, "action", None)
             if action in ("exportar_backup", "importar_backup", "enviar_backup_agora", "configuracao_backup", "atualizar_configuracao_backup", "historico_backups"):
-                if ProfissionalUsuario.objects.filter(user=request.user, loja=obj).exists():
+                vinculo = (
+                    ProfissionalUsuario.objects.filter(user=request.user, loja=obj)
+                    .only("perfil")
+                    .first()
+                )
+                if vinculo and vinculo.perfil == ProfissionalUsuario.PERFIL_ADMINISTRADOR:
                     return True
                 if UsuarioSistema.objects.filter(user=request.user, lojas_acesso=obj, is_active=True).exists():
                     return True
-                # CRM Vendas: vendedor (incl. admin/owner) pode exportar/importar backup
                 if VendedorUsuario.objects.filter(user=request.user, loja=obj).exists():
                     return True
 

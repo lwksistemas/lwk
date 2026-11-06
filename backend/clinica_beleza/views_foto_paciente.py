@@ -27,6 +27,7 @@ from .foto_paciente_service import (
 )
 from .models import Consulta, PacienteFotoAcompanhamento
 from .permissions import CLINICA_CLINICAL
+from .acesso_leitura import registrar_leitura_clinica
 from .views_base import GetObjectMixin
 
 logger = logging.getLogger(__name__)
@@ -81,6 +82,7 @@ class ConsultaFotosPacienteView(GetObjectMixin, APIView):
                 {"error": self.not_found_message},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        registrar_leitura_clinica(request, consulta.patient_id, "Fotos do paciente")
         return Response({
             "patient_id": consulta.patient_id,
             "patient_nome": consulta.patient.nome if consulta.patient else "",

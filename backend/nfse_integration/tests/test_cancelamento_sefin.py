@@ -72,6 +72,37 @@ class EnvioEventoSefinTests(SimpleTestCase):
         self.assertIn("E999", lido["error"])
 
 
+class SenhaCancelamentoSefinTests(SimpleTestCase):
+    @patch("nfse_integration.nacional.transport.enviar_evento_sefin", return_value={"success": True, "data": {}})
+    @patch("nfse_integration.nacional.transport.interpretar_resposta_evento", return_value={"success": True})
+    @patch("nfse_integration.nacional.xml_signer.assinar_xml_dps_bytes", return_value="<assinado/>")
+    def test_abre_a_senha_cifrada_antes_de_assinar(self, assinar, _lido, _envio):
+        from core.encryption import encrypt_value
+
+        from nfse_integration.nacional.cancelamento import cancelar_nfse_sefin
+
+        nf = MagicMock()
+        nf.codigo_verificacao = "1" * 50
+        nf.numero_nf = "1"
+        nf.numero_rps = 191
+        config = MagicMock()
+        config.nacional_certificado = None
+        config.issnet_certificado = b"pfx"
+        config.nacional_senha_certificado = ""
+        config.issnet_senha_certificado = encrypt_value("senha-real")
+        config.nacional_ambiente = ""
+        config.issnet_ambiente_homologacao = False
+        config.prestador_cnpj = ""
+
+        resultado = cancelar_nfse_sefin(
+            nf, config, "2", "Serviço não prestado", prestador_cnpj="41449198000172",
+        )
+
+        self.assertTrue(resultado["success"])
+        self.assertEqual(assinar.call_args.args[2], "senha-real")
+        self.assertEqual(_envio.call_args.kwargs["senha_pfx"], "senha-real")
+
+
 class CancelamentoSuperadminNacionalTests(SimpleTestCase):
     def _nota(self):
         nf = MagicMock()

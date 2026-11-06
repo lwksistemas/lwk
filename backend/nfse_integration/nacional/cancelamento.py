@@ -70,8 +70,11 @@ def cancelar_nfse_sefin(
     )
     from nfse_integration.nacional.xml_signer import assinar_xml_dps_bytes
 
+    from core.encryption import decrypt_value
+
     certificado = getattr(config, "nacional_certificado", None) or getattr(config, "issnet_certificado", None)
-    senha = getattr(config, "nacional_senha_certificado", None) or getattr(config, "issnet_senha_certificado", None)
+    senha_guardada = getattr(config, "nacional_senha_certificado", None) or getattr(config, "issnet_senha_certificado", None)
+    senha = decrypt_value(senha_guardada or "")
     if not certificado or not senha:
         return {"success": False, "error": "Certificado digital Nacional não configurado"}
 
@@ -90,15 +93,19 @@ def cancelar_nfse_sefin(
         motivo=motivo,
         ambiente=ambiente,
     )
-    assinado = assinar_xml_dps_bytes(
-        xml,
-        bytes(certificado),
-        senha,
-        prefixo_ds=False,
-        usar_cadeia=False,
-        usar_sha256=True,
-        elemento="infPedReg",
-    )
+    try:
+        assinado = assinar_xml_dps_bytes(
+            xml,
+            bytes(certificado),
+            senha,
+            prefixo_ds=False,
+            usar_cadeia=False,
+            usar_sha256=True,
+            elemento="infPedReg",
+        )
+    except Exception:
+        logger.exception("Falha ao assinar o cancelamento nacional")
+        return {"success": False, "error": "Não foi possível abrir o certificado digital da loja."}
     resposta = enviar_evento_sefin(
         comprimir_e_codificar(assinado),
         chave,

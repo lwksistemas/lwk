@@ -148,7 +148,10 @@ def _emitir_via_nacional(
         )
 
         # Emitir
-        from nfse_integration.emissao_issnet_nacional_loja import _resolver_p_tot_trib_sn
+        from nfse_integration.emissao_issnet_nacional_loja import (
+            _resolver_p_tot_trib_sn,
+            codigo_tributacao_nacional_sefin,
+        )
 
         resultado = client.emitir_nfse(
             numero_dps=numero_dps,
@@ -162,7 +165,7 @@ def _emitir_via_nacional(
             tomador_nome=tomador_nome,
             tomador_endereco=tomador_endereco,
             tomador_email=tomador_email,
-            codigo_servico=config.codigo_servico_municipal or "14.01",
+            codigo_servico=codigo_tributacao_nacional_sefin(config),
             descricao_servico=descricao,
             codigo_cnae=(config.codigo_cnae or "").strip() or "",
             codigo_municipio_incidencia=config.nacional_codigo_municipio,

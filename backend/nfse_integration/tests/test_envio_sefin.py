@@ -9,6 +9,7 @@ from django.test import SimpleTestCase
 
 from nfse_integration.nacional.constants import SEFIN_NFSE_URLS
 from nfse_integration.nacional.transport import enviar_dps_sefin, interpretar_resposta_emissao
+from nfse_integration.emissao_issnet_nacional_loja import codigo_tributacao_nacional_sefin
 from nfse_integration.nacional.xml_builder import construir_xml_dps
 
 
@@ -89,3 +90,12 @@ class EnvioSefinTests(SimpleTestCase):
             valor_servicos=Decimal("12.00"),
         )
         self.assertIn("<cTribMun>118</cTribMun>", com_municipal)
+
+    def test_codigo_municipal_do_issnet_vira_o_nacional(self):
+        config = type("Config", (), {
+            "codigo_servico_municipal": "140118",
+            "item_lista_servico": "14.01",
+            "codigo_tributacao_nacional": "",
+        })()
+        self.assertEqual(codigo_tributacao_nacional_sefin(config, ""), "140101")
+        self.assertEqual(codigo_tributacao_nacional_sefin(config, "140118"), "140101")

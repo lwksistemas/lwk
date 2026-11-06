@@ -33,6 +33,33 @@ def _resolver_dados_prestador(loja, config, prestador) -> tuple[str, str]:
     return cnpj, im
 
 
+# Códigos de 6 dígitos cadastrados no ISSNet de Ribeirão Preto. A Sefin
+# só aceita o código da lista nacional (cTribNac), não o municipal.
+_CODIGO_MUNICIPAL_PARA_NACIONAL = {
+    "140118": "140101",
+    "170602": "170601",
+    "101002": "461801",
+}
+
+
+def codigo_tributacao_nacional_sefin(config, codigo_informado: str | None = None) -> str:
+    """cTribNac da Sefin a partir do item da lista, sem o código municipal."""
+    digits = _somente_digitos(codigo_informado or "")
+    if digits in _CODIGO_MUNICIPAL_PARA_NACIONAL:
+        return _CODIGO_MUNICIPAL_PARA_NACIONAL[digits]
+    municipal = _somente_digitos(getattr(config, "codigo_servico_municipal", "") or "")
+    if not digits or digits == municipal:
+        return _resolver_codigo_tributacao_nacional(
+            config,
+            item_lista_override=getattr(config, "item_lista_servico", None),
+        )
+    return _resolver_codigo_tributacao_nacional(
+        config,
+        codigo_trib_nacional_override=digits if len(digits) >= 6 else None,
+        item_lista_override=codigo_informado or getattr(config, "item_lista_servico", None),
+    )
+
+
 def _resolver_codigo_tributacao_nacional(
     config,
     *,

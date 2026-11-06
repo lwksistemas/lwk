@@ -25,7 +25,10 @@ def emitir_manual_nacional_superadmin(config: Any, payload: Any) -> EmissaoManua
         ambiente=config.nacional_ambiente or "homologacao",
     )
 
-    from nfse_integration.emissao_issnet_nacional_loja import _resolver_p_tot_trib_sn
+    from nfse_integration.emissao_issnet_nacional_loja import (
+        _resolver_p_tot_trib_sn,
+        codigo_tributacao_nacional_sefin,
+    )
 
     resultado = client.emitir_nfse(
         numero_dps=numero_dps,
@@ -39,7 +42,7 @@ def emitir_manual_nacional_superadmin(config: Any, payload: Any) -> EmissaoManua
         tomador_nome=payload.tomador_nome,
         tomador_endereco=payload.tomador_endereco,
         tomador_email=payload.tomador_email,
-        codigo_servico=payload.codigo_servico or config.codigo_servico_municipal or "14.01",
+        codigo_servico=codigo_tributacao_nacional_sefin(config, payload.codigo_servico),
         descricao_servico=payload.descricao,
         codigo_cnae=payload.codigo_cnae or (config.codigo_cnae or "").strip() or "",
         codigo_municipio_incidencia=config.nacional_codigo_municipio,

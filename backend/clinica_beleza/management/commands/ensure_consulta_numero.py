@@ -1,7 +1,7 @@
-"""Preenche numero sequencial (001, 002…) em clinica_beleza_consultas.
+"""Preenche numero só nas consultas que ainda não têm.
 
-A migration 0062 só numerava linhas com loja_id preenchido; em várias lojas
-loja_id estava NULL e o Nº ficou vazio na listagem.
+Não reordena número já gravado. Consulta apagada deixa o buraco: a próxima
+continua a partir do maior número existente, como o save() do model.
 
 Uso:
     python manage.py ensure_consulta_numero
@@ -17,8 +17,30 @@ from clinica_beleza.schema_ensure import column_exists, table_exists
 from core.db_config import ensure_loja_database_config
 
 
+# Só linhas com numero vazio. O máximo existente fica de fora do ROW_NUMBER,
+# senão um deploy torna a sequência densa e troca número já impresso na tela.
+SQL_NUMERAR_SEM_NUMERO = """
+WITH base AS (
+    SELECT COALESCE(MAX(numero), 0) AS max_numero
+    FROM clinica_beleza_consultas
+    WHERE numero IS NOT NULL
+),
+faltantes AS (
+    SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS rn
+    FROM clinica_beleza_consultas
+    WHERE numero IS NULL
+)
+UPDATE clinica_beleza_consultas c
+SET
+    numero = base.max_numero + faltantes.rn,
+    loja_id = COALESCE(c.loja_id, %s)
+FROM faltantes, base
+WHERE c.id = faltantes.id
+"""
+
+
 class Command(BaseCommand):
-    help = "Garante coluna numero e preenche sequência nas consultas da loja."
+    help = "Preenche numero apenas nas consultas que ainda não têm."
 
     def add_arguments(self, parser):
         parser.add_argument("--slug", type=str, help="Processar apenas loja com este slug/atalho/CNPJ")
@@ -56,22 +78,7 @@ class Command(BaseCommand):
                             ADD COLUMN numero INTEGER NULL
                             """,
                         )
-                    # Preenche loja_id nulo + numera por id (001, 002…).
-                    cursor.execute(
-                        """
-                        WITH ordered AS (
-                            SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS rn
-                            FROM clinica_beleza_consultas
-                        )
-                        UPDATE clinica_beleza_consultas c
-                        SET
-                            numero = ordered.rn,
-                            loja_id = COALESCE(c.loja_id, %s)
-                        FROM ordered
-                        WHERE c.id = ordered.id
-                        """,
-                        [loja.id],
-                    )
+                    cursor.execute(SQL_NUMERAR_SEM_NUMERO, [loja.id])
                     n = cursor.rowcount or 0
                     cursor.execute(
                         """
@@ -93,7 +100,7 @@ class Command(BaseCommand):
                 ok += 1
                 filled += n
                 self.stdout.write(self.style.SUCCESS(
-                    f"OK loja={loja.id} ({loja.nome}) db={db_name}: {n} consulta(s) numerada(s)",
+                    f"OK loja={loja.id} ({loja.nome}) db={db_name}: {n} consulta(s) sem número preenchida(s)",
                 ))
             except Exception as exc:
                 skip += 1

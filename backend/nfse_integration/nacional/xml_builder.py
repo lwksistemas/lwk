@@ -220,11 +220,12 @@ def construir_xml_dps(
     # aceita (cStat=100) para Felix Representações: cTribMun="140118" para
     # Atividade Municipal "14.01" — código de 6 dígitos (mesmo formato de
     # cTribNac), NÃO um código de 3 dígitos derivado do item da lista.
+    # A Sefin exige cTribMun com exatamente 3 dígitos ([0-9]{3}). O código
+    # nacional de 6 posições fica só em cTribNac. Sem código municipal de
+    # 3 dígitos, o campo é omitido (ele é opcional no leiaute).
     c_trib_mun = _somente_digitos(codigo_tributacao_municipal or "")
-    if not c_trib_mun:
-        c_trib_mun = codigo_trib_nac
-    c_trib_mun = c_trib_mun[:6].ljust(6, "0") if len(c_trib_mun) < 6 else c_trib_mun[:6]
-    _el(c_serv, "cTribMun", c_trib_mun)
+    if len(c_trib_mun) == 3 and c_trib_mun != "000":
+        _el(c_serv, "cTribMun", c_trib_mun)
     descricao_limpa = _normalizar_texto_xml(descricao_servico or "Servico prestado", 2000)
     _el(c_serv, "xDescServ", descricao_limpa)
 

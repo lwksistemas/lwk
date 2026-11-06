@@ -95,6 +95,7 @@ class NacionalClient:
         optante_simples_nacional: bool = True,
         regime_especial: int = 0,
         incentivador_cultural: bool = False,
+        p_tot_trib_sn: Decimal | None = None,
         # Controle
         codigo_numerico: int = 0,
         data_competencia: datetime | None = None,
@@ -166,6 +167,7 @@ class NacionalClient:
                 optante_simples_nacional=optante_simples_nacional,
                 regime_especial=regime_especial,
                 incentivador_cultural=incentivador_cultural,
+                p_tot_trib_sn=p_tot_trib_sn,
                 codigo_numerico=codigo_numerico,
                 data_competencia=data_competencia,
             )

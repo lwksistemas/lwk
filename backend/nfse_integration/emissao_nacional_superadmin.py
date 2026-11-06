@@ -25,6 +25,8 @@ def emitir_manual_nacional_superadmin(config: Any, payload: Any) -> EmissaoManua
         ambiente=config.nacional_ambiente or "homologacao",
     )
 
+    from nfse_integration.emissao_issnet_nacional_loja import _resolver_p_tot_trib_sn
+
     resultado = client.emitir_nfse(
         numero_dps=numero_dps,
         serie_dps=config.nacional_serie_dps or "1",
@@ -46,6 +48,7 @@ def emitir_manual_nacional_superadmin(config: Any, payload: Any) -> EmissaoManua
         iss_retido=False,
         optante_simples_nacional=config.optante_simples_nacional,
         incentivador_cultural=config.incentivador_cultural,
+        p_tot_trib_sn=_resolver_p_tot_trib_sn(config),
     )
 
     if resultado.get("success"):

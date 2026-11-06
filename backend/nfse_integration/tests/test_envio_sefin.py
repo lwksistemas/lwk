@@ -3,10 +3,13 @@ import base64
 import gzip
 from unittest.mock import patch
 
+from decimal import Decimal
+
 from django.test import SimpleTestCase
 
 from nfse_integration.nacional.constants import SEFIN_NFSE_URLS
 from nfse_integration.nacional.transport import enviar_dps_sefin, interpretar_resposta_emissao
+from nfse_integration.nacional.xml_builder import construir_xml_dps
 
 
 def _nfse_gzip_b64() -> str:
@@ -57,3 +60,32 @@ class EnvioSefinTests(SimpleTestCase):
         })
         self.assertFalse(lido["success"])
         self.assertIn("E1242", lido["error"])
+
+    def test_codigo_municipal_so_entra_com_tres_digitos(self):
+        xml = construir_xml_dps(
+            numero_dps=1,
+            serie_dps="900",
+            codigo_municipio_prestador="3543402",
+            prestador_cnpj="24758458000172",
+            codigo_servico="140118",
+            descricao_servico="teste",
+            valor_servicos=Decimal("12.00"),
+            optante_simples_nacional=True,
+            p_tot_trib_sn=Decimal("2.00"),
+        )
+        self.assertIn("<cTribNac>140118</cTribNac>", xml)
+        self.assertNotIn("cTribMun", xml)
+        self.assertIn("<pTotTribSN>2.00</pTotTribSN>", xml)
+        self.assertNotIn("indTotTrib", xml)
+
+        com_municipal = construir_xml_dps(
+            numero_dps=1,
+            serie_dps="900",
+            codigo_municipio_prestador="3543402",
+            prestador_cnpj="24758458000172",
+            codigo_servico="140118",
+            codigo_tributacao_municipal="118",
+            descricao_servico="teste",
+            valor_servicos=Decimal("12.00"),
+        )
+        self.assertIn("<cTribMun>118</cTribMun>", com_municipal)

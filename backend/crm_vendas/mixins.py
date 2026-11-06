@@ -182,19 +182,18 @@ class VendedorFilterMixin:
             QuerySet filtrado por vendedor ou original (se proprietário)
 
         """
-        from .utils import is_owner
-
-        # Owner SEMPRE vê todos os dados
-        if is_owner(self.request):
-            return queryset
+        from .utils import usuario_administra_crm
 
         if self._consulta_controle_qualidade():
             return queryset
 
+        # Dono e administrador veem a loja. Sem vínculo, a lista fica vazia.
+        if usuario_administra_crm(self.request):
+            return queryset
+
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is None:
-            # Proprietário sem vendedor: vê tudo
-            return queryset
+            return queryset.none()
 
         # Construir filtro Q: vendedor (+ pool compartilhado, se habilitado)
         filters = Q(**{self.vendedor_filter_field: vendedor_id})

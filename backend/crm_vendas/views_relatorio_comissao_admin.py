@@ -12,10 +12,24 @@ from .relatorio_comissao_data import nome_da_conta
 logger = logging.getLogger(__name__)
 
 
+def _so_administrador(request):
+    from .utils import usuario_administra_crm
+
+    if usuario_administra_crm(request):
+        return None
+    return Response(
+        {"detail": "Só o administrador da loja mexe em comissão."},
+        status=403,
+    )
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def criar_relatorio_comissao_view(request):
     """POST /crm-vendas/relatorios-comissao/criar/"""
+    recusa = _so_administrador(request)
+    if recusa:
+        return recusa
     from superadmin.models import Loja
 
     from .services_relatorio_comissao import (
@@ -71,6 +85,9 @@ def criar_relatorio_comissao_view(request):
 @permission_classes([IsAuthenticated])
 def preview_relatorio_comissao_view(request):
     """POST /crm-vendas/relatorios-comissao/preview/"""
+    recusa = _so_administrador(request)
+    if recusa:
+        return recusa
     from .services_relatorio_comissao import gerar_preview_pdf_comissao
 
     loja_id, err_resp = loja_id_ou_erro()
@@ -101,6 +118,9 @@ def preview_relatorio_comissao_view(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def listar_relatorios_comissao_view(request):
+    recusa = _so_administrador(request)
+    if recusa:
+        return recusa
     """GET /crm-vendas/relatorios-comissao/"""
     from tenants.middleware import get_current_tenant_db
 
@@ -127,6 +147,9 @@ def listar_relatorios_comissao_view(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def download_pdf_relatorio_comissao_view(request, relatorio_id):
+    recusa = _so_administrador(request)
+    if recusa:
+        return recusa
     """GET /crm-vendas/relatorios-comissao/<id>/pdf/"""
     from superadmin.models import Loja
 
@@ -160,6 +183,9 @@ def download_pdf_relatorio_comissao_view(request, relatorio_id):
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 def excluir_relatorio_comissao_view(request, relatorio_id):
+    recusa = _so_administrador(request)
+    if recusa:
+        return recusa
     """DELETE /crm-vendas/relatorios-comissao/<id>/excluir/"""
     from .models_relatorio_comissao import RelatorioComissao
 
@@ -205,6 +231,9 @@ def excluir_relatorio_comissao_view(request, relatorio_id):
 @permission_classes([IsAuthenticated])
 def confirmar_pagamento_manual_view(request, relatorio_id):
     """POST /crm-vendas/relatorios-comissao/<id>/confirmar-pagamento/"""
+    recusa = _so_administrador(request)
+    if recusa:
+        return recusa
     from .models_relatorio_comissao import RelatorioComissao
     from .services_relatorio_comissao import processar_pagamento_comissao
 
@@ -244,6 +273,9 @@ def confirmar_pagamento_manual_view(request, relatorio_id):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def reemitir_nfse_view(request, relatorio_id):
+    recusa = _so_administrador(request)
+    if recusa:
+        return recusa
     """POST /crm-vendas/relatorios-comissao/<id>/reemitir-nfse/"""
     from django.utils import timezone as tz
 

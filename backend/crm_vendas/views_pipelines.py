@@ -106,6 +106,12 @@ class OportunidadeViewSet(
             )
             data = data.copy()
             data.pop("vendedor", None)
+            return data
+        from .utils import vendedor_pode_atribuir
+
+        if not vendedor_pode_atribuir(getattr(self, "request", None), vid):
+            data = data.copy()
+            data.pop("vendedor", None)
         return data
 
     def create(self, request, *args, **kwargs):
@@ -127,6 +133,15 @@ class OportunidadeViewSet(
         self._invalidate_caches()
 
     def perform_update(self, serializer):
+        from rest_framework.exceptions import PermissionDenied
+
+        from .utils import vendedor_pode_atribuir
+
+        vid = serializer.validated_data.get("vendedor_id", serializer.validated_data.get("vendedor"))
+        if hasattr(vid, "id"):
+            vid = vid.id
+        if not vendedor_pode_atribuir(self.request, vid):
+            raise PermissionDenied("Você não pode passar esta venda para outro vendedor.")
         service = OportunidadeService(self.request)
         oportunidade = service.atualizar_oportunidade(
             serializer.instance, serializer.validated_data,
@@ -174,7 +189,11 @@ class OportunidadeViewSet(
         qs = self.get_queryset().select_related("lead__contato")
         vendedor_id = request.query_params.get("vendedor_id")
         if vendedor_id:
-            qs = qs.filter(vendedor_id=vendedor_id)
+            if not str(vendedor_id).isdigit():
+                from rest_framework.response import Response
+
+                return Response({"detail": "vendedor_id inválido."}, status=400)
+            qs = qs.filter(vendedor_id=int(vendedor_id))
         oportunidades = list(qs)
         loja = Loja.objects.using("default").filter(id=get_current_loja_id()).first()
         vendedor_nome = ""
@@ -206,7 +225,9 @@ class OportunidadeViewSet(
                 "itens__produto_servico",
                 "notas_negociacao",
             )
-        if get_current_vendedor_id(self.request) is None or vendedor_tem_controle_qualidade(self.request):
+        from .utils import usuario_administra_crm
+
+        if usuario_administra_crm(self.request) or vendedor_tem_controle_qualidade(self.request):
             qs = filtrar_queryset_por_query_params(qs, self.request, {"vendedor_id": "vendedor_id"})
         qs = filtrar_queryset_por_query_params(qs, self.request, {"etapa": "etapa"})
         return _filtrar_oportunidades_por_periodo(
@@ -266,6 +287,14 @@ class OportunidadeNotaViewSet(
         )
 
     def perform_create(self, serializer):
+        from rest_framework.exceptions import PermissionDenied
+
+        from .acesso_oportunidade import oportunidade_do_usuario
+
+        oportunidade = serializer.validated_data.get("oportunidade")
+        oid = getattr(oportunidade, "id", oportunidade)
+        if not oportunidade_do_usuario(self.request, oid):
+            raise PermissionDenied("Esta oportunidade é de outro vendedor.")
         serializer.save(autor_nome=_autor_nome_negociacao(self.request))
         self._invalidate_caches()
 
@@ -297,15 +326,15 @@ class AtividadeViewSet(
     crm_permission_model = "atividade"
 
     def filter_by_vendedor(self, queryset):
-        from .utils import is_owner
+        from .utils import get_current_vendedor_id, usuario_administra_crm
 
         if self._consulta_controle_qualidade():
             return queryset
-        if getattr(self.request, "user", None) is not None and is_owner(self.request):
+        if usuario_administra_crm(self.request):
             return queryset
         vendedor_id = get_current_vendedor_id(self.request)
         if vendedor_id is None:
-            return queryset
+            return queryset.none()
 
         filters = (
             Q(oportunidade__vendedor_id=vendedor_id)
@@ -316,7 +345,18 @@ class AtividadeViewSet(
         return queryset.filter(filters).distinct()
 
     def perform_create(self, serializer):
+        from rest_framework.exceptions import PermissionDenied
+
+        from .acesso_oportunidade import oportunidade_do_usuario
+        from .utils import get_current_vendedor_id, vendedor_pode_atribuir
+
         escolhido = serializer.validated_data.get("criado_por_vendedor_id")
+        if not vendedor_pode_atribuir(self.request, escolhido):
+            raise PermissionDenied("Você não pode criar atividade na agenda de outro vendedor.")
+        oportunidade = serializer.validated_data.get("oportunidade")
+        oid = getattr(oportunidade, "id", None)
+        if oid and not oportunidade_do_usuario(self.request, oid):
+            raise PermissionDenied("Esta oportunidade é de outro vendedor.")
         vendedor_id = escolhido or get_current_vendedor_id(self.request)
         if vendedor_id is not None:
             atividade = serializer.save(criado_por_vendedor_id=vendedor_id)

@@ -41,10 +41,12 @@ def configurar_tenant_relatorio_publico(loja_id: int):
 
 
 def extrair_ip_cliente(request) -> str:
-    ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", ""))
-    if "," in ip:
-        ip = ip.split(",")[0].strip()
-    return ip
+    """IP que o proxy acrescentou no fim. O primeiro valor é do cliente."""
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    partes = [parte.strip() for parte in forwarded.split(",") if parte.strip()]
+    if partes:
+        return partes[-1]
+    return request.META.get("REMOTE_ADDR", "") or ""
 
 
 def criar_relatorio_comissao(

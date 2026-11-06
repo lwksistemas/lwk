@@ -29,8 +29,10 @@ def _nome_assinante(relatorio, loja) -> str:
     return nome or getattr(loja, "nome", "") or ""
 
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
+
+from .throttles import PublicComissaoThrottle
 from rest_framework.response import Response
 
 from .relatorio_comissao_data import nome_da_conta
@@ -39,6 +41,7 @@ from .relatorio_comissao_data import nome_da_conta
 @csrf_exempt
 @api_view(["GET", "POST"])
 @permission_classes([AllowAny])
+@throttle_classes([PublicComissaoThrottle])
 def empresa_aprovar_view(request, loja_id, token):
     from .models_relatorio_comissao import RelatorioComissao
     from .services_relatorio_comissao import (
@@ -85,6 +88,7 @@ def empresa_aprovar_view(request, loja_id, token):
 @csrf_exempt
 @api_view(["GET", "POST"])
 @permission_classes([AllowAny])
+@throttle_classes([PublicComissaoThrottle])
 def empresa_reprovar_view(request, loja_id, token):
     from .models_relatorio_comissao import RelatorioComissao
     from .services_relatorio_comissao import (
@@ -131,6 +135,7 @@ def empresa_reprovar_view(request, loja_id, token):
 @csrf_exempt
 @api_view(["GET", "POST"])
 @permission_classes([AllowAny])
+@throttle_classes([PublicComissaoThrottle])
 def vendedor_assinar_view(request, loja_id, token):
     from .models_relatorio_comissao import RelatorioComissao
     from .services_relatorio_comissao import (

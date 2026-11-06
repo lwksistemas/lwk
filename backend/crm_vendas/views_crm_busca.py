@@ -122,7 +122,11 @@ def crm_busca(request):
     if len(q) < 2:
         return Response({"leads": [], "oportunidades": [], "contas": []})
 
-    limit = min(int(request.GET.get("limit", 5) or 5), 10)
+    try:
+        limit = int(request.GET.get("limit", 5) or 5)
+    except (TypeError, ValueError):
+        return Response({"detail": "limit inválido."}, status=400)
+    limit = min(max(limit, 1), 10)
     term = q
     # Versão só com dígitos para buscar CPF/CNPJ sem formatação
     term_digits = "".join(c for c in q if c.isdigit())

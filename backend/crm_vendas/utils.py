@@ -167,6 +167,46 @@ def get_current_vendedor_id(request):
     return None
 
 
+def usuario_administra_crm(request) -> bool:
+    """Dono da loja ou vendedor administrador. O controle de qualidade não entra."""
+    if not request or not getattr(getattr(request, "user", None), "is_authenticated", False):
+        return False
+    cached = getattr(request, "_crm_administra", None)
+    if isinstance(cached, bool):
+        return cached
+    resultado = False
+    if getattr(request.user, "is_superuser", False) is True or is_owner(request):
+        resultado = True
+    else:
+        vid = get_current_vendedor_id(request)
+        if vid:
+            try:
+                from .models import Vendedor
+
+                resultado = Vendedor.objects.filter(pk=vid, is_admin=True).exists()
+            except Exception as exc:
+                logger.warning("usuario_administra_crm: %s", exc)
+                resultado = False
+    try:
+        request._crm_administra = resultado
+    except Exception:
+        pass
+    return resultado
+
+
+def vendedor_pode_atribuir(request, vendedor_id) -> bool:
+    """Dono e administrador escolhem qualquer vendedor. O comum só usa o próprio id."""
+    if vendedor_id in (None, ""):
+        return True
+    if usuario_administra_crm(request):
+        return True
+    atual = get_current_vendedor_id(request)
+    try:
+        return atual is not None and int(vendedor_id) == int(atual)
+    except (TypeError, ValueError):
+        return False
+
+
 def is_owner(request):
     """Verifica se o usuário é o proprietário da loja.
     Owner SEMPRE tem acesso total, mesmo se tiver VendedorUsuario vinculado.

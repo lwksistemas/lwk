@@ -62,6 +62,30 @@ class TemplateViewSetMixin:
 
     template_model = None
 
+    def _exigir_administrador(self, request):
+        from rest_framework.exceptions import PermissionDenied
+
+        from .utils import usuario_administra_crm
+
+        if not usuario_administra_crm(request):
+            raise PermissionDenied("Só o administrador altera os templates da loja.")
+
+    def create(self, request, *args, **kwargs):
+        self._exigir_administrador(request)
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        self._exigir_administrador(request)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        self._exigir_administrador(request)
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        self._exigir_administrador(request)
+        return super().destroy(request, *args, **kwargs)
+
     def get_queryset(self):
         if hasattr(self, "request") and self.request:
             ensure_loja_context(self.request)
@@ -84,6 +108,7 @@ class TemplateViewSetMixin:
     @action(detail=True, methods=["post"])
     def marcar_padrao(self, request, pk=None):
         """Marca este template como padrão (desmarca outros)."""
+        self._exigir_administrador(request)
         template = self.get_object()
         template.is_padrao = True
         template.save()

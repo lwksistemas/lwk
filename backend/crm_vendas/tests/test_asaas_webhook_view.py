@@ -35,7 +35,7 @@ class AsaasLojaWebhookViewTest(SimpleTestCase):
     @patch("crm_vendas.views_asaas_webhook.process_asaas_loja_webhook_sync")
     @patch("asaas_integration.queue_dispatch.should_enqueue_asaas_webhook", return_value=False)
     @patch("core.webhook_security.verify_asaas_access_token", return_value=True)
-    @patch("crm_vendas.models_config.CRMConfig.resolve_asaas_webhook_token", return_value="secret")
+    @patch("crm_vendas.views_asaas_webhook._token_asaas_da_loja", return_value="secret")
     @patch("crm_vendas.views_asaas_webhook._configure_tenant_db_for_loja", return_value=True)
     @patch("crm_vendas.views_asaas_webhook.resolve_loja_from_slug_or_cnpj")
     def test_post_processa_sync(
@@ -64,7 +64,7 @@ class AsaasLojaWebhookViewTest(SimpleTestCase):
     @patch("asaas_integration.queue_dispatch.enqueue_asaas_loja_webhook")
     @patch("asaas_integration.queue_dispatch.should_enqueue_asaas_webhook", return_value=True)
     @patch("core.webhook_security.verify_asaas_access_token", return_value=True)
-    @patch("crm_vendas.models_config.CRMConfig.resolve_asaas_webhook_token", return_value="secret")
+    @patch("crm_vendas.views_asaas_webhook._token_asaas_da_loja", return_value="secret")
     @patch("crm_vendas.views_asaas_webhook._configure_tenant_db_for_loja", return_value=True)
     @patch("crm_vendas.views_asaas_webhook.resolve_loja_from_slug_or_cnpj")
     def test_post_enfileira_quando_fila_ativa(
@@ -90,7 +90,7 @@ class AsaasLojaWebhookViewTest(SimpleTestCase):
 
     @patch("core.webhook_security.webhook_auth_failed_response")
     @patch("core.webhook_security.verify_asaas_access_token", return_value=False)
-    @patch("crm_vendas.models_config.CRMConfig.resolve_asaas_webhook_token", return_value="secret")
+    @patch("crm_vendas.views_asaas_webhook._token_asaas_da_loja", return_value="secret")
     @patch("crm_vendas.views_asaas_webhook._configure_tenant_db_for_loja", return_value=True)
     @patch("crm_vendas.views_asaas_webhook.resolve_loja_from_slug_or_cnpj")
     def test_post_token_invalido(self, mock_resolve, _tenant, _token_cfg, _verify, mock_fail):

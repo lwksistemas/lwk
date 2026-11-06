@@ -204,6 +204,7 @@ class AssinaturaPdfView(View):
 class DocumentoAssinadoPdfPublicoView(View):
     """GET /api/crm-vendas/documento-assinado/{token}/ — PDF para o WhatsApp baixar."""
 
+    @assinatura_publica_rate_limit("documento_assinado_pdf", max_requests=30, window=60)
     def get(self, request, token):
         from .pdf_publico_whatsapp import ler_pdf_assinado
 

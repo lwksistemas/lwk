@@ -143,15 +143,27 @@ class LeadViewSet(
     vendedor_create_entity_label = "lead"
 
 
-class ContatoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, CRMNoCacheListMixin, CacheInvalidationMixin, BaseModelViewSet):
+class ContatoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, VendedorFilterMixin, CRMNoCacheListMixin, CacheInvalidationMixin, BaseModelViewSet):
     queryset = Contato.objects.select_related("conta").all()
     serializer_class = ContatoSerializer
     pagination_class = CRMPagination
     cache_keys = ["contatos"]
     crm_permission_model = "contato"
 
+    def filter_by_vendedor(self, queryset):
+        from django.db.models import Q
+
+        from .utils import get_current_vendedor_id, usuario_administra_crm
+
+        if usuario_administra_crm(self.request):
+            return queryset
+        vid = get_current_vendedor_id(self.request)
+        if not vid:
+            return queryset.none()
+        return queryset.filter(Q(leads__vendedor_id=vid)).distinct()
+
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = self.filter_by_vendedor(super().get_queryset())
         qs = qs.select_related("conta")
         qs = filtrar_queryset_por_query_params(
             qs,
@@ -177,7 +189,13 @@ class ContatoViewSet(CRMSchemaRecoveryMixin, CrmGranularPermissionMixin, CRMNoCa
             update_fields["telefone"] = instance.telefone or ""
 
         if update_fields:
-            updated = Lead.objects.filter(contato_id=instance.id).update(**update_fields)
+            from .utils import get_current_vendedor_id, usuario_administra_crm
+
+            leads = Lead.objects.filter(contato_id=instance.id)
+            if not usuario_administra_crm(self.request):
+                vid = get_current_vendedor_id(self.request)
+                leads = leads.filter(vendedor_id=vid) if vid else leads.none()
+            updated = leads.update(**update_fields)
             if updated:
                 logger.info(
                     "Contato %s atualizado: propagados %s para %d Lead(s) vinculado(s).",

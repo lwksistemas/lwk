@@ -242,16 +242,7 @@ def verificar_token_assinatura(token, loja_id=None):
             else:
                 raise AssinaturaDigital.DoesNotExist
     except AssinaturaDigital.DoesNotExist:
-        assinatura = _buscar_assinatura_pendente_por_payload(payload, loja_id)
-        if assinatura:
-            meta["link_anterior"] = True
-            logger.info(
-                "✅ Token rotacionado — usando assinatura pendente ID=%s (doc=%s#%s)",
-                assinatura.id,
-                payload.get("doc_type"),
-                payload.get("doc_id"),
-            )
-        elif _documento_aguarda_assinatura(payload, loja_id):
+        if _documento_aguarda_assinatura(payload, loja_id):
             logger.warning(
                 "Link substituído: token válido mas ausente no banco (loja_id=%s, doc=%s#%s)",
                 loja_id,

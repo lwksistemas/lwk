@@ -11,7 +11,7 @@ from tenants.middleware import get_current_loja_id
 
 from .cache import CRMCacheManager
 from .crm_config_helpers import get_crm_config_for_loja as _get_crm_config_for_loja
-from .utils import is_owner
+from .utils import is_owner, usuario_administra_crm
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +51,12 @@ CAMPOS_SO_DONO = frozenset({
     "emitir_nf_automaticamente",
 })
 
+# Afetam a loja inteira. O vendedor continua podendo ajustar colunas e etapas.
+CAMPOS_SO_ADMIN = frozenset({
+    "modulos_ativos",
+    "proposta_conteudo_padrao",
+})
+
 
 def _pode_gravar_segredo(request) -> bool:
     user = getattr(request, "user", None)
@@ -86,6 +92,19 @@ def _recusar_segredo_de_vendedor(request):
     return None
 
 
+def _recusar_config_da_loja(request):
+    if usuario_administra_crm(request):
+        return None
+    data = getattr(request, "data", None)
+    chaves = set(str(chave) for chave in data.keys()) if hasattr(data, "keys") else set()
+    if chaves & CAMPOS_SO_ADMIN:
+        return Response(
+            {"detail": "Só o administrador altera os módulos e o texto padrão da proposta."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return None
+
+
 @api_view(["GET", "PATCH"])
 def crm_config(request):
     """GET: configurações da loja.
@@ -98,6 +117,9 @@ def crm_config(request):
         return Response({"detail": "Loja não identificada."}, status=400)
 
     recusa = _recusar_segredo_de_vendedor(request)
+    if recusa:
+        return recusa
+    recusa = _recusar_config_da_loja(request)
     if recusa:
         return recusa
 

@@ -196,13 +196,27 @@ class OportunidadeItemViewSet(CRMSchemaRecoveryMixin, CacheInvalidationMixin, Ve
         if oportunidade:
             atualizar_valor_pago_pela_prestadora(oportunidade)
 
+    def _exigir_oportunidade_propria(self, serializer):
+        from rest_framework.exceptions import PermissionDenied
+
+        from .acesso_oportunidade import oportunidade_do_usuario
+
+        oportunidade = serializer.validated_data.get("oportunidade") or getattr(
+            serializer.instance, "oportunidade_id", None,
+        )
+        oid = getattr(oportunidade, "id", oportunidade)
+        if not oportunidade_do_usuario(self.request, oid):
+            raise PermissionDenied("Esta oportunidade é de outro vendedor.")
+
     def perform_create(self, serializer):
+        self._exigir_oportunidade_propria(serializer)
         serializer.save()
         self._recalcular_valor_oportunidade(serializer.instance.oportunidade_id)
         self._atualizar_valor_prestadora(serializer.instance.oportunidade_id)
         self._invalidate_caches()
 
     def perform_update(self, serializer):
+        self._exigir_oportunidade_propria(serializer)
         serializer.save()
         self._recalcular_valor_oportunidade(serializer.instance.oportunidade_id)
         self._atualizar_valor_prestadora(serializer.instance.oportunidade_id)

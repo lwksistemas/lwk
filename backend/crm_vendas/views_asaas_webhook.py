@@ -20,6 +20,18 @@ from tenants.middleware import _configure_tenant_db_for_loja, resolve_loja_from_
 logger = logging.getLogger(__name__)
 
 
+def _token_asaas_da_loja(loja_id) -> str:
+    """Só o token gravado na loja. O token global da mensalidade não autentica este webhook."""
+    try:
+        from crm_vendas.models_config import CRMConfig
+
+        cfg = CRMConfig.get_or_create_for_loja(loja_id)
+        return (cfg.asaas_webhook_token_decrypted() or "").strip()
+    except Exception:
+        logger.warning("asaas_loja_webhook: sem token da loja id=%s", loja_id)
+        return ""
+
+
 @csrf_exempt
 @api_view(["GET", "POST", "HEAD"])
 @permission_classes([AllowAny])
@@ -52,10 +64,9 @@ def asaas_loja_webhook(request, loja_slug: str):
 
     from asaas_integration.queue_dispatch import enqueue_asaas_loja_webhook, should_enqueue_asaas_webhook
     from core.webhook_security import verify_asaas_access_token, webhook_auth_failed_response
-    from crm_vendas.models_config import CRMConfig
 
-    loja_token = CRMConfig.resolve_asaas_webhook_token(loja.id)
-    if not verify_asaas_access_token(request, expected_token=loja_token or None):
+    loja_token = _token_asaas_da_loja(loja.id)
+    if not loja_token or not verify_asaas_access_token(request, expected_token=loja_token):
         return webhook_auth_failed_response()
 
     payload = request.data if isinstance(request.data, dict) else {}

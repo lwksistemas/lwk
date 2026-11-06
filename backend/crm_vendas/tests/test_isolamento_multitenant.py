@@ -66,6 +66,7 @@ class VendedorFilterMixinTests(SimpleTestCase):
             result = vs.filter_by_vendedor(qs)
             self.assertEqual(result, qs)
 
+    @patch("crm_vendas.utils.usuario_administra_crm", return_value=False)
     @patch("crm_vendas.mixins.get_current_vendedor_id", return_value=42)
     def test_vendedor_filtra_pelo_seu_id(self, *_):
         """Vendedor vê apenas registros com seu vendedor_id."""
@@ -135,6 +136,8 @@ class VendedorFilterMixinTests(SimpleTestCase):
         self.assertEqual(result, qs)
         qs.filter.assert_not_called()
 
+    @patch("crm_vendas.mixins.get_current_vendedor_id", return_value=42)
+    @patch("crm_vendas.utils.usuario_administra_crm", return_value=False)
     @patch("crm_vendas.mixins.vendedor_tem_controle_qualidade", return_value=True)
     @patch("crm_vendas.utils.is_owner", return_value=False)
     def test_controle_qualidade_altera_registro_da_equipe(self, *_):

@@ -18,9 +18,7 @@ def assinatura_publica_rate_limit(key_prefix, max_requests=10, window=60):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(self, request, *args, **kwargs):
-            ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", ""))
-            if "," in ip:
-                ip = ip.split(",")[0].strip()
+            ip = ip_cliente_assinatura(request)
             cache_key = f"rate_limit:{key_prefix}:{ip}"
             count = cache.get(cache_key, 0)
             if count >= max_requests:
@@ -83,9 +81,11 @@ def status_http_erro_tenant(mensagem: str) -> int:
 
 
 def ip_cliente_assinatura(request) -> str:
-    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-    if x_forwarded_for:
-        return x_forwarded_for.split(",")[0].strip()
+    """IP que o proxy acrescentou no fim de X-Forwarded-For."""
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    partes = [parte.strip() for parte in forwarded.split(",") if parte.strip()]
+    if partes:
+        return partes[-1]
     return request.META.get("REMOTE_ADDR", "0.0.0.0")
 
 

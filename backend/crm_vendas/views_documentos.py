@@ -41,6 +41,16 @@ class PropostaViewSet(
     assinatura_cache_key = "propostas"
     crm_permission_model = "proposta"
 
+    def perform_create(self, serializer):
+        from rest_framework.exceptions import PermissionDenied
+
+        from .acesso_oportunidade import oportunidade_do_usuario
+
+        oportunidade = serializer.validated_data.get("oportunidade")
+        if not oportunidade_do_usuario(self.request, getattr(oportunidade, "id", oportunidade)):
+            raise PermissionDenied("Esta oportunidade é de outro vendedor.")
+        serializer.save()
+
     @action(detail=True, methods=["post"])
     def confirmar_pedido(self, request, pk=None):
         proposta = self.get_object()
@@ -109,7 +119,7 @@ class PropostaViewSet(
             return response
         except Exception as e:
             return Response(
-                {"detail": f"Erro ao gerar PDF: {e!s}"},
+                {"detail": "Erro ao gerar PDF."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -133,7 +143,7 @@ class PropostaViewSet(
             return response
         except Exception as e:
             return Response(
-                {"detail": f"Erro ao gerar DOCX: {e!s}"},
+                {"detail": "Erro ao gerar DOCX."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -196,6 +206,16 @@ class ContratoViewSet(
     assinatura_cache_key = "contratos"
     crm_permission_model = "contrato"
 
+    def perform_create(self, serializer):
+        from rest_framework.exceptions import PermissionDenied
+
+        from .acesso_oportunidade import oportunidade_do_usuario
+
+        oportunidade = serializer.validated_data.get("oportunidade")
+        if not oportunidade_do_usuario(self.request, getattr(oportunidade, "id", oportunidade)):
+            raise PermissionDenied("Esta oportunidade é de outro vendedor.")
+        serializer.save()
+
     @action(detail=True, methods=["post"])
     def cancelar(self, request, pk=None):
         contrato = self.get_object()
@@ -234,7 +254,7 @@ class ContratoViewSet(
             return response
         except Exception as e:
             return Response(
-                {"detail": f"Erro ao gerar PDF: {e!s}"},
+                {"detail": "Erro ao gerar PDF."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -258,6 +278,6 @@ class ContratoViewSet(
             return response
         except Exception as e:
             return Response(
-                {"detail": f"Erro ao gerar DOCX: {e!s}"},
+                {"detail": "Erro ao gerar DOCX."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

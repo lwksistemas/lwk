@@ -124,7 +124,7 @@ def salvar_nfse_emitida_nacional_superadmin(
         tomador_cpf_cnpj=payload.tomador_cpf_cnpj,
         tomador_email=payload.tomador_email,
         descricao_servico=payload.descricao[:500],
-        xml_nfse=resultado.get("xml_dps", ""),
+        xml_nfse=resultado.get("xml_nfse") or resultado.get("xml_dps", ""),
         xml_dps_assinado=resultado.get("xml_dps", ""),
         resposta_adn=resultado.get("resposta_adn_raw", ""),
         data_emissao=timezone.now(),

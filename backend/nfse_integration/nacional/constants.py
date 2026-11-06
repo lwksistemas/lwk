@@ -2,10 +2,16 @@
 URLs, namespaces XML, enumerações.
 """
 
-# === Endpoints ADN ===
+# === Endpoints ADN (distribuição de DF-e já autorizados; não emite DPS) ===
 ADN_URLS = {
     "producao": "https://adn.nfse.gov.br/adn/DFe",
-    "homologacao": "https://adn.nfse.gov.br/adn/DFe",  # Produção restrita não processa DPS
+    "homologacao": "https://adn.nfse.gov.br/adn/DFe",
+}
+
+# Emissão síncrona da DPS. O ADN/DFe recusa com E1242 se receber a DPS.
+SEFIN_NFSE_URLS = {
+    "producao": "https://sefin.nfse.gov.br/SefinNacional/nfse",
+    "homologacao": "https://sefin.producaorestrita.nfse.gov.br/SefinNacional/nfse",
 }
 
 # === Namespaces XML ===

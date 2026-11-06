@@ -236,6 +236,7 @@ def assinar_xml_dps(
     senha_pfx: str,
     prefixo_ds: bool = True,
     usar_cadeia: bool = True,
+    usar_sha256: bool = False,
 ) -> str:
     """Assina o XML da DPS com certificado digital.
 
@@ -285,20 +286,20 @@ def assinar_xml_dps(
 
     # Criar template de assinatura
     # Signature como último filho do root (DPS)
-    # Usar RSA-SHA1 conforme Portal Contribuinte (nfse.gov.br)
     ns_prefix = "ds" if prefixo_ds else None
+    algoritmo = xmlsec.constants.TransformRsaSha256 if usar_sha256 else xmlsec.constants.TransformRsaSha1
+    resumo = xmlsec.constants.TransformSha256 if usar_sha256 else xmlsec.constants.TransformSha1
     sig_node = xmlsec.template.create(
         root,
         xmlsec.constants.TransformInclC14N,
-        xmlsec.constants.TransformRsaSha1,
+        algoritmo,
         ns=ns_prefix,
     )
     root.append(sig_node)
 
-    # Reference apontando para o infDPS via URI=#Id
     ref = xmlsec.template.add_reference(
         sig_node,
-        xmlsec.constants.TransformSha1,
+        resumo,
         uri=f"#{inf_id}",
     )
     xmlsec.template.add_transform(ref, xmlsec.constants.TransformEnveloped)
@@ -332,7 +333,11 @@ def assinar_xml_dps(
         raise
 
     result = '<?xml version="1.0" encoding="UTF-8"?>' + etree.tostring(root, encoding="unicode", xml_declaration=False)
-    logger.info("XML DPS assinado com sucesso (RSA-SHA1, Reference=#%s)", inf_id)
+    logger.info(
+        "XML DPS assinado com sucesso (%s, Reference=#%s)",
+        "RSA-SHA256" if usar_sha256 else "RSA-SHA1",
+        inf_id,
+    )
     return result
 
 
@@ -342,6 +347,7 @@ def assinar_xml_dps_bytes(
     senha_pfx: str,
     prefixo_ds: bool = True,
     usar_cadeia: bool = True,
+    usar_sha256: bool = False,
 ) -> str:
     """Assina XML da DPS usando certificado em bytes (BinaryField).
     Cria arquivo temporário e delega para assinar_xml_dps.
@@ -357,7 +363,7 @@ def assinar_xml_dps_bytes(
 
         return assinar_xml_dps(
             xml_str, cert_path, senha_pfx,
-            prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia,
+            prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia, usar_sha256=usar_sha256,
         )
     finally:
         if cert_path:

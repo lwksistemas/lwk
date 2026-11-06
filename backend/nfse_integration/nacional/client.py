@@ -7,8 +7,13 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from .constants import ADN_URLS
-from .transport import comprimir_e_codificar, consultar_dfe_nsu, enviar_lote_dfe
+from .constants import SEFIN_NFSE_URLS
+from .transport import (
+    comprimir_e_codificar,
+    consultar_dfe_nsu,
+    enviar_dps_sefin,
+    interpretar_resposta_emissao,
+)
 from .xml_builder import construir_xml_dps
 from .xml_signer import assinar_xml_dps, assinar_xml_dps_bytes
 
@@ -43,7 +48,9 @@ class NacionalClient:
         """
         self.pfx_path = pfx_path
         self.pfx_bytes = pfx_bytes
-        self.senha_pfx = senha_pfx
+        from core.encryption import decrypt_value
+
+        self.senha_pfx = decrypt_value(senha_pfx) or senha_pfx
         self.ambiente = "homologacao" if ambiente == "homologacao" else "producao"
 
         if not pfx_path and not pfx_bytes:
@@ -166,9 +173,13 @@ class NacionalClient:
             # 2. Assinar XML
             logger.info("NFS-e Nacional: assinando XML...")
             if self.pfx_bytes:
-                xml_assinado = assinar_xml_dps_bytes(xml_dps, self.pfx_bytes, self.senha_pfx)
+                xml_assinado = assinar_xml_dps_bytes(
+                    xml_dps, self.pfx_bytes, self.senha_pfx, usar_sha256=True,
+                )
             else:
-                xml_assinado = assinar_xml_dps(xml_dps, self.pfx_path, self.senha_pfx)
+                xml_assinado = assinar_xml_dps(
+                    xml_dps, self.pfx_path, self.senha_pfx, usar_sha256=True,
+                )
 
             result["xml_dps"] = xml_assinado
 
@@ -176,66 +187,44 @@ class NacionalClient:
             logger.info("NFS-e Nacional: XML assinado (primeiros 300 chars): %s", xml_assinado[:300])
             xml_b64 = comprimir_e_codificar(xml_assinado)
 
-            # 4. Enviar ao ADN
-            logger.info("NFS-e Nacional: enviando ao ADN (%s)...", self.ambiente)
-            resposta = enviar_lote_dfe(
-                lote_xml_b64=[xml_b64],
+            logger.info("NFS-e Nacional: enviando à Sefin (%s)...", self.ambiente)
+            resposta = enviar_dps_sefin(
+                dps_xml_b64=xml_b64,
                 ambiente=self.ambiente,
                 pfx_path=self.pfx_path,
                 pfx_bytes=self.pfx_bytes,
                 senha_pfx=self.senha_pfx,
             )
 
-            # 5. Processar resposta
+            data = resposta.get("data") if isinstance(resposta.get("data"), dict) else {}
+            result["resposta_adn_raw"] = str(resposta)[:5000]
+            logger.info("NFS-e Nacional: resposta Sefin: %s", str(data)[:2000])
             if not resposta.get("success"):
-                result["error"] = resposta.get("error", "Erro desconhecido no envio")
-                result["erros"] = self._extrair_erros(resposta.get("data"))
-                result["resposta_adn_raw"] = str(resposta)[:5000]
+                lido = interpretar_resposta_emissao(data)
+                result["erros"] = lido.get("erros") or self._extrair_erros(data)
+                result["error"] = lido.get("error") or resposta.get("error", "Erro desconhecido no envio")
                 logger.error("NFS-e Nacional: envio falhou: %s", result["error"])
                 return result
 
-            # Parse da resposta de sucesso (RecepcaoResponseLote)
-            data = resposta.get("data", {})
-            result["resposta_adn_raw"] = str(resposta)[:5000]
-            logger.info("NFS-e Nacional: resposta completa ADN: %s", str(data)[:2000])
-            lote = data.get("Lote", [])
-
-            if lote:
-                doc = lote[0]  # Primeiro (e único) documento do lote
-                result["chave_acesso"] = doc.get("ChaveAcesso")
-                result["nsu_recepcao"] = doc.get("NsuRecepcao")
-                result["status_processamento"] = doc.get("StatusProcessamento")
-                result["alertas"] = doc.get("Alertas") or []
-                result["erros"] = doc.get("Erros") or []
-
-                # Verificar se foi aceito
-                status_proc = (doc.get("StatusProcessamento") or "").upper()
-                if status_proc in ("PROCESSADO", "ACEITO", ""):
-                    # Se tem ChaveAcesso, foi aceito
-                    if doc.get("ChaveAcesso"):
-                        result["success"] = True
-                        logger.info(
-                            "NFS-e Nacional EMITIDA: ChaveAcesso=%s, NSU=%s",
-                            result["chave_acesso"], result["nsu_recepcao"],
-                        )
-                    elif not doc.get("Erros"):
-                        result["success"] = True
-                        logger.info("NFS-e Nacional: processamento aceito (sem erros)")
-                    else:
-                        result["error"] = self._formatar_erros(doc.get("Erros", []))
-                        logger.warning("NFS-e Nacional: rejeitada: %s", result["error"])
-                else:
-                    result["error"] = f'Status: {status_proc}. {self._formatar_erros(doc.get("Erros", []))}'
-                    logger.warning("NFS-e Nacional: status=%s", status_proc)
+            lido = interpretar_resposta_emissao(data)
+            result["chave_acesso"] = lido.get("chave_acesso")
+            result["nsu_recepcao"] = lido.get("nsu_recepcao")
+            result["alertas"] = lido.get("alertas") or []
+            result["erros"] = lido.get("erros") or []
+            if lido.get("xml_nfse"):
+                result["xml_nfse"] = lido["xml_nfse"]
+            result["ambiente_resposta"] = data.get("tipoAmbiente") or data.get("TipoAmbiente")
+            result["versao_aplicativo"] = data.get("versaoAplicativo") or data.get("VersaoAplicativo")
+            result["data_processamento"] = data.get("dataHoraProcessamento") or data.get("DataHoraProcessamento")
+            if lido.get("success"):
+                result["success"] = True
+                logger.info(
+                    "NFS-e Nacional EMITIDA: ChaveAcesso=%s",
+                    result["chave_acesso"],
+                )
             else:
-                # Resposta sem lote — verificar se há erros globais
-                result["error"] = "Resposta do ADN sem documentos no lote"
-                logger.warning("NFS-e Nacional: resposta sem Lote: %s", data)
-
-            # Metadados da resposta
-            result["ambiente_resposta"] = data.get("TipoAmbiente")
-            result["versao_aplicativo"] = data.get("VersaoAplicativo")
-            result["data_processamento"] = data.get("DataHoraProcessamento")
+                result["error"] = lido.get("error") or "Sefin Nacional rejeitou a DPS"
+                logger.warning("NFS-e Nacional: rejeitada: %s", result["error"])
 
         except Exception as e:
             logger.exception("NFS-e Nacional: erro inesperado: %s", e)
@@ -264,12 +253,10 @@ class NacionalClient:
         )
 
     def testar_conexao(self) -> dict[str, Any]:
-        """Testa conexão com o ADN (valida certificado e acesso ao endpoint).
-        Faz um GET simples para verificar se o mTLS funciona.
-        """
+        """Testa o mTLS no host da Sefin Nacional, onde a DPS é emitida."""
         import requests as req
 
-        url = ADN_URLS.get(self.ambiente)
+        url = SEFIN_NFSE_URLS.get(self.ambiente)
         cert_path = None
         key_path = None
 

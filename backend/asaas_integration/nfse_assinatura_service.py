@@ -183,7 +183,7 @@ def _emitir_via_nacional(
                 "numero_nf": resultado.get("chave_acesso", ""),
                 "codigo_verificacao": resultado.get("nsu_recepcao", ""),
                 "numero_rps": numero_dps,
-                "xml_nfse": resultado.get("xml_dps", ""),
+                "xml_nfse": resultado.get("xml_nfse") or resultado.get("xml_dps", ""),
                 "xml_dps_assinado": resultado.get("xml_dps", ""),
                 "resposta_adn": resultado.get("resposta_adn_raw", ""),
                 "data_emissao": _data_emissao_resultado(resultado),

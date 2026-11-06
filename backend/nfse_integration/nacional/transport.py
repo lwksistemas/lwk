@@ -15,7 +15,7 @@ from typing import Any
 
 import requests
 
-from .constants import ADN_URLS
+from .constants import ADN_URLS, SEFIN_NFSE_URLS
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,120 @@ def descomprimir_e_decodificar(b64_str: str) -> str:
     compressed = base64.b64decode(b64_str)
     xml_bytes = gzip.decompress(compressed)
     return xml_bytes.decode("utf-8")
+
+
+def _texto_erro_sefin(erros: list) -> str:
+    partes = []
+    for erro in erros:
+        if isinstance(erro, dict):
+            codigo = erro.get("Codigo") or erro.get("codigo") or ""
+            descricao = erro.get("Descricao") or erro.get("descricao") or ""
+            partes.append(f"[{codigo}] {descricao}".strip())
+        else:
+            partes.append(str(erro))
+    return "; ".join(p for p in partes if p)
+
+
+def interpretar_resposta_emissao(data: dict | None) -> dict[str, Any]:
+    """Normaliza a resposta da Sefin (chaveAcesso) ou do lote antigo do ADN."""
+    if not isinstance(data, dict):
+        return {"success": False, "error": "Resposta vazia da Sefin Nacional", "erros": []}
+
+    lote = data.get("Lote")
+    if isinstance(lote, list) and lote and isinstance(lote[0], dict):
+        doc = lote[0]
+        erros = doc.get("Erros") or []
+        chave = doc.get("ChaveAcesso") or ""
+        status = (doc.get("StatusProcessamento") or "").upper()
+        if chave and not erros and status in ("PROCESSADO", "ACEITO", ""):
+            return {
+                "success": True,
+                "chave_acesso": chave,
+                "nsu_recepcao": doc.get("NsuRecepcao") or "",
+                "alertas": doc.get("Alertas") or [],
+                "erros": [],
+            }
+        texto = _texto_erro_sefin(erros) or f"Status: {status or 'rejeitado'}"
+        return {"success": False, "error": texto, "erros": erros, "chave_acesso": chave}
+
+    erros = data.get("erros") or data.get("Erros") or []
+    chave = data.get("chaveAcesso") or data.get("ChaveAcesso") or ""
+    if chave and not erros:
+        xml_nfse = ""
+        pacote = data.get("nfseXmlGZipB64") or data.get("NfseXmlGZipB64") or ""
+        if pacote:
+            xml_nfse = descomprimir_e_decodificar(pacote)
+        return {
+            "success": True,
+            "chave_acesso": chave,
+            "nsu_recepcao": data.get("idDps") or data.get("IdDps") or "",
+            "xml_nfse": xml_nfse,
+            "alertas": data.get("alertas") or data.get("Alertas") or [],
+            "erros": [],
+        }
+    texto = _texto_erro_sefin(erros) or "Sefin Nacional não devolveu a chave de acesso"
+    return {"success": False, "error": texto, "erros": erros, "chave_acesso": chave}
+
+
+def enviar_dps_sefin(
+    dps_xml_b64: str,
+    ambiente: str = "producao",
+    pfx_path: str | None = None,
+    pfx_bytes: bytes | None = None,
+    senha_pfx: str = "",
+    timeout: int = DEFAULT_TIMEOUT,
+) -> dict[str, Any]:
+    """Envia uma DPS assinada à Sefin Nacional (POST /nfse).
+
+    O corpo é ``{"dpsXmlGZipB64": "<gzip+base64>"}``. A resposta traz
+    ``chaveAcesso`` e o XML da NFS-e, ou a lista ``erros``.
+    """
+    url = SEFIN_NFSE_URLS.get(ambiente, SEFIN_NFSE_URLS["homologacao"])
+    cert_path = None
+    key_path = None
+    try:
+        cert_path, key_path = _preparar_cert_mtls(pfx_path, pfx_bytes, senha_pfx)
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "LWK-Sistemas/1.0 (NFS-e Nacional)",
+        }
+        logger.info("Enviando DPS à Sefin Nacional: url=%s, ambiente=%s", url, ambiente)
+        response = requests.post(
+            url,
+            json={"dpsXmlGZipB64": dps_xml_b64},
+            headers=headers,
+            cert=(cert_path, key_path),
+            timeout=timeout,
+            verify=True,
+        )
+        logger.info("Resposta Sefin: status=%d", response.status_code)
+        try:
+            data = response.json()
+        except Exception:
+            data = {"raw": (response.text or "")[:2000]}
+        if response.status_code in (200, 201):
+            return {"success": True, "status_code": response.status_code, "data": data}
+        return {
+            "success": False,
+            "status_code": response.status_code,
+            "error": "Requisição rejeitada pela Sefin Nacional",
+            "data": data,
+        }
+    except requests.exceptions.SSLError as e:
+        logger.error("Erro SSL/mTLS ao conectar à Sefin: %s", e)
+        return {"success": False, "error": f"Erro de certificado (mTLS): {e}", "data": None}
+    except requests.exceptions.ConnectionError as e:
+        logger.error("Erro de conexão à Sefin: %s", e)
+        return {"success": False, "error": f"Não foi possível conectar à Sefin Nacional: {e}", "data": None}
+    except requests.exceptions.Timeout:
+        logger.error("Timeout ao conectar à Sefin (%ds)", timeout)
+        return {"success": False, "error": f"Timeout ({timeout}s) ao conectar à Sefin Nacional", "data": None}
+    except Exception as e:
+        logger.exception("Erro inesperado ao enviar DPS: %s", e)
+        return {"success": False, "error": str(e), "data": None}
+    finally:
+        _limpar_temp(cert_path, key_path, pfx_path)
 
 
 def enviar_lote_dfe(

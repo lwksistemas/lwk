@@ -122,6 +122,22 @@ class CapacidadeHistoricoTests(SimpleTestCase):
             self.assertEqual(len(linhas), 2)
 
 
+class MetricasWhatsappCapacidadeTests(SimpleTestCase):
+    @mock.patch("superadmin.services.whatsapp_painel_service.montar_painel")
+    def test_conta_clinica_e_crm_como_o_painel(self, mock_painel):
+        mock_painel.return_value = {
+            "evolution": {"ok": True},
+            "resumo": {"conectados": 2, "aguardando_qr": 0, "desconectados": 0},
+        }
+        from superadmin.capacidade_whatsapp import metricas_whatsapp_agregadas
+
+        out = metricas_whatsapp_agregadas()
+        self.assertEqual(out["wa_instancias"], 2)
+        self.assertEqual(out["wa_conectadas"], 2)
+        self.assertEqual(out["wa_desconectadas"], 0)
+        self.assertEqual(out["wa_fonte"], "evolution")
+
+
 class CapacidadeAlertasTests(SimpleTestCase):
     def test_disco_critico_gera_alerta(self):
         from superadmin.capacidade_alertas import _avaliar_registro

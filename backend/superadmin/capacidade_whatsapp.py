@@ -7,8 +7,28 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _contagem_do_painel() -> dict[str, Any] | None:
+    """Mesma lista do painel WhatsApp: Evolution, clínica e CRM."""
+    from superadmin.services.whatsapp_painel_service import montar_painel
+
+    painel = montar_painel()
+    evolution = painel.get("evolution") or {}
+    if not evolution.get("ok") and not evolution.get("parceiro_ok"):
+        return None
+    resumo = painel.get("resumo") or {}
+    conectadas = int(resumo.get("conectados") or 0)
+    aguardando = int(resumo.get("aguardando_qr") or 0)
+    desconectadas = int(resumo.get("desconectados") or 0)
+    return {
+        "wa_instancias": conectadas + aguardando + desconectadas,
+        "wa_conectadas": conectadas,
+        "wa_desconectadas": desconectadas + aguardando,
+        "wa_fonte": "evolution",
+    }
+
+
 def metricas_whatsapp_agregadas() -> dict[str, Any]:
-    """Conta instâncias por status nas lojas ativas (schemas tenant)."""
+    """Conta instâncias na Evolution (clínica e CRM), sem PII."""
     out: dict[str, Any] = {
         "wa_instancias": 0,
         "wa_conectadas": 0,
@@ -16,19 +36,21 @@ def metricas_whatsapp_agregadas() -> dict[str, Any]:
         "wa_fonte": "tenant",
     }
     try:
-        from core.db_config import ensure_loja_database_config
-        from tenants.middleware import set_current_loja_id, set_current_tenant_db
-
-        from clinica_beleza.catalogo_service import lojas_clinica_beleza_com_schema
+        do_painel = _contagem_do_painel()
     except Exception:
-        try:
-            from superadmin.models import Loja
+        logger.debug("wa métricas: painel indisponível", exc_info=True)
+        do_painel = None
+    if do_painel is not None:
+        return do_painel
 
-            lojas = list(Loja.objects.filter(is_active=True).only("id", "database_name")[:200])
-        except Exception:
-            return out
-    else:
-        lojas = list(lojas_clinica_beleza_com_schema(apenas_ativas=True))
+    try:
+        from superadmin.models import Loja
+
+        lojas = list(
+            Loja.objects.filter(is_active=True, database_created=True).only("id", "database_name")[:200]
+        )
+    except Exception:
+        return out
 
     total = 0
     conectadas = 0

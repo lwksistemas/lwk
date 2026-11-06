@@ -84,14 +84,23 @@ def resolver_download_pdf_superadmin(nfse_emitida: Any) -> ResultadoDownloadPdf:
         if url_danfe:
             return ResultadoDownloadPdf(tipo="url", url=url_danfe)
 
-    from .numero_exibicao import numero_nfse_para_exibicao
-    from .pdf_nfse import gerar_pdf_nfse
+    from .numero_exibicao import chave_acesso_nfse, numero_nfse_para_exibicao
 
-    loja = nfse_emitida.loja
-    pdf_buffer = gerar_pdf_nfse(nfse_emitida, loja)
-    pdf_buffer.seek(0)
     numero = numero_nfse_para_exibicao(nfse_emitida) or nfse_emitida.id
-    nome = f"NFSe-{numero}.pdf"
+    if (nfse_emitida.provedor or "") == "nacional" and (nfse_emitida.xml_nfse or "").strip():
+        from .danfse_nacional import gerar_danfse_nacional
+
+        pdf_buffer = gerar_danfse_nacional(
+            nfse_emitida.xml_nfse,
+            chave=chave_acesso_nfse(nfse_emitida),
+        )
+        nome = f"DANFSe-{numero}.pdf"
+    else:
+        from .pdf_nfse import gerar_pdf_nfse
+
+        pdf_buffer = gerar_pdf_nfse(nfse_emitida, nfse_emitida.loja)
+        nome = f"NFSe-{numero}.pdf"
+    pdf_buffer.seek(0)
     return ResultadoDownloadPdf(
         tipo="pdf",
         conteudo_pdf=pdf_buffer.read(),

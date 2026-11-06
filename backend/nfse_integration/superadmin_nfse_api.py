@@ -122,9 +122,16 @@ def reenviar_email_nfse_superadmin(nf: Any, config: Any | None = None) -> str:
     empresa = (nf.tomador_nome or "").strip() or prestador
     pdf_bytes = b""
     try:
-        from nfse_integration.pdf_nfse import gerar_pdf_nfse
+        from nfse_integration.numero_exibicao import chave_acesso_nfse
 
-        pdf_bytes = gerar_pdf_nfse(nf, loja).getvalue()
+        if (getattr(nf, "provedor", "") or "") == "nacional" and (nf.xml_nfse or "").strip():
+            from nfse_integration.danfse_nacional import gerar_danfse_nacional
+
+            pdf_bytes = gerar_danfse_nacional(nf.xml_nfse, chave=chave_acesso_nfse(nf)).getvalue()
+        else:
+            from nfse_integration.pdf_nfse import gerar_pdf_nfse
+
+            pdf_bytes = gerar_pdf_nfse(nf, loja).getvalue()
     except Exception:
         logger.exception("PDF da NFS-e %s não anexado ao reenvio", getattr(nf, "id", ""))
 
@@ -140,7 +147,7 @@ def reenviar_email_nfse_superadmin(nf: Any, config: Any | None = None) -> str:
         xml_content=nf.xml_nfse or "",
         xml_filename=f"nfse_{numero}.xml",
         pdf_content=pdf_bytes,
-        pdf_filename=f"NFSe-{numero}.pdf",
+        pdf_filename=f"{'DANFSe' if nf.provedor == 'nacional' else 'NFSe'}-{numero}.pdf",
         fail_silently=False,
         intro="Segue a nota fiscal referente à sua assinatura.",
         prestador_nome=prestador,

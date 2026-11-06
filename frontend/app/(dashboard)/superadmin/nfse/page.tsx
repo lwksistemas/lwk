@@ -76,7 +76,8 @@ export default function NFSeEmitidasPage() {
       }
       const numero = nf.numero_exibicao || nf.numero_rps;
       const empresa = (nf.tomador_nome || 'tomador').replace(/[\\/:*?"<>|]/g, '').trim().slice(0, 40);
-      downloadBlobFile(res.data as Blob, `NFSe-${numero}-${empresa}.pdf`);
+      const prefixo = nf.provedor === 'nacional' ? 'DANFSe' : 'NFSe';
+      downloadBlobFile(res.data as Blob, `${prefixo}-${numero}-${empresa}.pdf`);
     } catch {
       setMessage({ type: 'error', text: 'PDF não disponível.' });
     }

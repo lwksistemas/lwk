@@ -118,7 +118,7 @@ class EnvioEmailNfseTests(SimpleTestCase):
 
 
 class ReenvioNacionalSuperadminTests(SimpleTestCase):
-    @patch("nfse_integration.pdf_nfse.gerar_pdf_nfse")
+    @patch("nfse_integration.danfse_nacional.gerar_danfse_nacional")
     @patch("nfse_integration.email_nfse.enviar_email_nfse_tomador")
     def test_reenvio_usa_numero_curto_empresa_e_pdf(self, enviar, pdf):
         from nfse_integration.superadmin_nfse_api import reenviar_email_nfse_superadmin
@@ -143,5 +143,5 @@ class ReenvioNacionalSuperadminTests(SimpleTestCase):
         self.assertEqual(kwargs["numero_nf"], "1")
         self.assertEqual(kwargs["assunto_prestador"], "FELIX REPRESENTACOES E COMERCIO LTDA")
         self.assertEqual(kwargs["pdf_content"], b"%PDF")
-        self.assertEqual(kwargs["pdf_filename"], "NFSe-1.pdf")
+        self.assertEqual(kwargs["pdf_filename"], "DANFSe-1.pdf")
         self.assertEqual(kwargs["xml_filename"], "nfse_1.xml")

@@ -2,7 +2,6 @@
 import html
 import io
 import logging
-import re
 
 from .context import (
     _linha_documento_loja,
@@ -36,6 +35,7 @@ from .context import (
     tinta_recibo,
     titulo_recibo,
 )
+from .cartao import montar_cartao, saldo_recibo
 from .moeda import formatar_moeda_recibo
 
 logger = logging.getLogger(__name__)
@@ -54,13 +54,8 @@ def logo_url_permitida_para_download(logo_url: str) -> bool:
 
 
 def _saldo_devedor_recibo(ctx: dict) -> float:
-    """Saldo em aberto do recibo (a prazo ou pagamento parcial).
-
-    Usa 'saldo_devedor' quando presente; senão, deriva de valor_total - valor_pago.
-    """
-    valor_pago = ctx.get("valor_pago", 0) or 0
-    valor_total = ctx.get("valor_total", 0) or 0
-    return ctx.get("saldo_devedor", max(valor_total - valor_pago, 0))
+    """Saldo em aberto do recibo (a prazo ou pagamento parcial)."""
+    return saldo_recibo(ctx)
 
 
 # Logo no topo do recibo.
@@ -336,13 +331,6 @@ def _icone_pdf(nome: str, cor, lado: float = 13):
     return desenho
 
 
-def _hora_pdf(valor: str) -> str:
-    texto = (valor or "").strip()
-    if re.fullmatch(r"\d{2}/\d{2}/\d{4} \d{2}:\d{2}", texto):
-        return texto.replace(" ", " às ", 1)
-    return texto
-
-
 def _cartao_recibo_pdf(ctx, col_w, mm_unit):
     """O mesmo cartão da prévia: faixa, quadro do cliente, tabela e total em destaque."""
     from reportlab.lib import colors
@@ -350,7 +338,8 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
-    cor_hex = cor_primaria_recibo(ctx.get("cor_primaria") or "")
+    c = montar_cartao(ctx)
+    cor_hex = c.cor
     cor = colors.HexColor(cor_hex)
     fundo = colors.HexColor(tinta_recibo(cor_hex, 0.9))
     fundo_tabela = colors.HexColor(tinta_recibo(cor_hex, 0.82))
@@ -457,24 +446,24 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
         if tel_cep:
             story.append(Paragraph(_texto_pdf(tel_cep), s_centro))
 
-    titulo, subtitulo = titulo_recibo(ctx)
+    titulo, subtitulo = c.titulo, c.subtitulo
     story.append(Spacer(1, 3 * mm_unit))
     story.append(caixa(
         [[Paragraph(f"<b>{_texto_pdf(titulo)}</b>", s_faixa)]],
         cor, raios=(8, 8, 8, 8), paddings=(8, 8, 6, 6),
     ))
-    data_emissao = _hora_pdf(ctx.get("data_emissao") or ctx.get("data") or "—")
-    numero = ctx.get("recibo_numero")
+    data_emissao = c.data_emissao
+    numero = c.numero
     meta = f"Emitido em {_texto_pdf(data_emissao)}"
     if numero:
-        meta = f"{rotulo_numero_recibo(ctx)} nº {_texto_pdf(numero)}  |  {meta}"
+        meta = f"{c.rotulo_numero} nº {_texto_pdf(numero)}  |  {meta}"
     story.append(Spacer(1, 2 * mm_unit))
     story.append(Paragraph(meta, s_centro))
     if subtitulo:
         story.append(Paragraph(_texto_pdf(subtitulo), s_centro))
 
-    somente = bool(ctx.get("somente_produtos"))
-    rotulo_pessoa = "Cliente" if somente else "Paciente"
+    somente = c.somente_produtos
+    rotulo_pessoa = c.rotulo_pessoa
     folga_cliente = 2
     linhas_cliente = [linha_icone(
         "pessoa", f"<b>{rotulo_pessoa}:</b> {_texto_pdf(ctx.get('paciente_nome'))}",
@@ -485,7 +474,7 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
             "cpf", f"<b>CPF:</b> {_texto_pdf(ctx['paciente_cpf'])}", folga=folga_cliente,
         ))
     if not somente:
-        data_atend = _hora_pdf(ctx.get("data_atendimento") or "")
+        data_atend = c.data_atendimento
         if data_atend:
             linhas_cliente.append(linha_icone(
                 "calendario", f"<b>Data do atendimento:</b> {_texto_pdf(data_atend)}",
@@ -499,19 +488,13 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
     story.append(Spacer(1, 2 * mm_unit))
     story.append(caixa([[linhas_cliente]], fundo, paddings=(6, 6, 10, 10)))
 
-    situacao = situacao_recibo(ctx)
-    custeio = situacao == "quitado" and custeado_pela_clinica(ctx)
-    comprovante = comprovante_sem_cobranca(ctx)
-    produtos = produtos_exibidos_recibo(ctx)
-    servicos = []
-    for label, valor in _linhas_taxa_consulta_recibo(ctx):
-        servicos.append((f"• {label}", valor, "1"))
-    for nome, valor in procedimentos_exibidos_recibo(ctx):
-        quantidade = "1" if valor > 0.009 else "—"
-        servicos.append((nome, valor, quantidade))
-    titulo_tabela = "Produtos" if somente or (produtos and not servicos) else (
-        "Procedimentos, serviços e produtos" if produtos and servicos else "Serviços / procedimentos"
-    )
+    situacao = c.situacao
+    custeio = c.custeio
+    comprovante = c.comprovante
+    produtos = c.produtos
+    servicos = [(f"• {label}", valor, "1") for label, valor in c.taxas]
+    servicos.extend(c.procedimentos)
+    titulo_tabela = c.titulo_tabela_pdf
     story.append(Spacer(1, 3 * mm_unit))
     story.append(Paragraph(_texto_pdf(titulo_tabela.upper()), s_secao))
 
@@ -529,7 +512,7 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
             Paragraph(unitario, s_td_r),
             Paragraph(formatar_moeda_recibo(valor), s_td_r),
         ])
-    for label, valor in linhas_local_convenio_recibo(ctx):
+    for label, valor in c.convenios:
         dados.append([
             Paragraph(f"{_texto_pdf(label)} {_texto_pdf(valor)}", s_td),
             "", "", "",
@@ -581,34 +564,34 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
         ]))
         return tabela
 
-    subtotal = float(ctx.get("subtotal", ctx.get("valor_total") or 0))
-    descontos = _linhas_descontos_recibo(ctx)
-    conta_pendente = conta_com_saldo_recibo(ctx)
+    subtotal = c.subtotal
+    descontos = c.descontos
+    conta_pendente = c.conta_pendente
     story.append(Spacer(1, 2 * mm_unit))
     if not comprovante or descontos:
-        story.append(linha_valor(rotulo_valor_conta_recibo(ctx), subtotal))
+        story.append(linha_valor(c.rotulo_conta, subtotal))
     for label, valor in descontos:
         story.append(linha_valor(label, valor, negativo=True))
-    protocolo = linhas_protocolo_informativo(ctx)
+    protocolo = c.protocolo
     if protocolo:
         story.append(Paragraph("<b>Protocolo</b>", s_secao))
         for label, valor in protocolo:
             story.append(linha_valor(label, valor))
-    valor_com_desconto = linha_valor_com_desconto_recibo(ctx)
+    valor_com_desconto = c.valor_com_desconto
     if valor_com_desconto:
         story.append(linha_valor(valor_com_desconto[0], valor_com_desconto[1]))
-    valor_pago = float(ctx.get("valor_pago") or 0)
-    saldo = float(_saldo_devedor_recibo(ctx) or 0)
-    if situacao == "parcial" and valor_pago > 0.009 and not conta_pendente:
+    valor_pago = c.valor_pago
+    saldo = c.saldo
+    if c.mostrar_pago:
         story.append(linha_valor("PAGO", valor_pago))
-    extra = recebido_a_maior_recibo(ctx)
+    extra = c.extra
     if extra > 0.009:
         story.append(linha_valor("Recebido a maior", extra))
-    if not custeio and saldo > 0.009 and not conta_pendente:
+    if c.mostrar_saldo:
         story.append(linha_valor("Saldo a pagar", saldo))
-        story.append(Paragraph(_texto_pdf(linha_vencimento_recibo(ctx)), s_nota))
+        story.append(Paragraph(_texto_pdf(c.texto_vencimento), s_nota))
     if comprovante:
-        story.append(linha_valor("Valor do procedimento", float(ctx.get("valor_total") or 0)))
+        story.append(linha_valor("Valor do procedimento", c.valor_total))
 
     def barra(rotulo_barra, valor_barra, cor_barra):
         tabela = Table(
@@ -631,31 +614,18 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
         ]))
         return tabela
 
-    rotulo = rotulo_total_recibo(ctx)
     story.append(Spacer(1, 2 * mm_unit))
     if conta_pendente:
         story.append(barra("Total já pago", valor_pago, cor))
         story.append(Spacer(1, 2 * mm_unit))
         story.append(barra("Saldo a pagar", saldo, colors.HexColor("#8A2B2B")))
-        aviso_venc = linha_vencimento_recibo(ctx)
+        aviso_venc = c.aviso_vencimento
         story.append(Paragraph(
             _texto_pdf(aviso_venc),
-            s_vencido if aviso_venc.startswith("Vencido") else s_nota,
+            s_vencido if c.vencido else s_nota,
         ))
     else:
-        if comprovante:
-            rotulo_destaque = "Valor pago pelo paciente"
-            valor_destaque = 0
-        elif situacao == "quitado" and not custeio and rotulo == "Total":
-            rotulo_destaque = "TOTAL PAGO"
-            valor_destaque = float(ctx.get("valor_total") or 0)
-        elif rotulo == "Total":
-            rotulo_destaque = "TOTAL"
-            valor_destaque = float(ctx.get("valor_total") or 0)
-        else:
-            rotulo_destaque = rotulo
-            valor_destaque = float(ctx.get("valor_total") or 0)
-        story.append(barra(rotulo_destaque, valor_destaque, cor))
+        story.append(barra(c.rotulo_destaque, c.valor_destaque, cor))
 
     if comprovante:
         story.append(Paragraph(
@@ -663,14 +633,8 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
             s_cliente,
         ))
     else:
-        detalhes = formas_detalhadas_recibo(ctx)
-        if not detalhes and valor_pago > 0.009 and not custeio:
-            detalhes = [{
-                "data": "",
-                "forma": rotulo_forma_recibo(ctx.get("metodo") or "Pagamento"),
-                "valor": valor_pago,
-            }]
-        if len(detalhes) > 1:
+        detalhes = c.detalhes
+        if c.varios_recebimentos:
             cab = [
                 Paragraph("<b>Data</b>", s_th),
                 Paragraph("<b>Forma de pagamento</b>", s_th),
@@ -683,11 +647,10 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
                     Paragraph(_texto_pdf(item["forma"]), s_td),
                     Paragraph(formatar_moeda_recibo(item["valor"]), s_td_r),
                 ])
-            total_recebido = round(sum(item["valor"] for item in detalhes), 2)
             linhas_receb.append([
                 Paragraph("", s_td),
                 Paragraph("<b>Total recebido</b>", s_resumo),
-                Paragraph(f"<b>{formatar_moeda_recibo(total_recebido)}</b>", s_dir),
+                Paragraph(f"<b>{formatar_moeda_recibo(c.total_recebido)}</b>", s_dir),
             ])
             recebidos = Table(linhas_receb, colWidths=[col_w * 0.24, col_w * 0.46, col_w * 0.30])
             recebidos.setStyle(TableStyle([
@@ -701,20 +664,14 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
             ]))
             story.append(Spacer(1, 2 * mm_unit))
             story.append(recebidos)
-            formas_texto = ""
-        elif detalhes:
-            item = detalhes[0]
-            quando = f" ({item['data']})" if item["data"] else ""
-            formas_texto = f"{item['forma']}{quando} — {formatar_moeda_recibo(item['valor'])}"
-        else:
-            formas_texto = (ctx.get("condicao_cobranca") or "").strip()
-        rotulo_forma = "Forma de pagamento"
+        formas_texto = c.formas_texto
+        rotulo_forma = c.rotulo_forma
         if situacao == "sem_saldo":
             situacao_txt, sit_style = subtitulo or "Sem valor a pagar", s_neutro
         elif situacao == "parcial":
-            situacao_txt, sit_style = rotulo_situacao_recibo(ctx), s_aviso_sit
+            situacao_txt, sit_style = c.rotulo_situacao, s_aviso_sit
         elif situacao == "em_aberto":
-            situacao_txt, sit_style = rotulo_situacao_recibo(ctx), s_aviso_sit
+            situacao_txt, sit_style = c.rotulo_situacao, s_aviso_sit
         elif situacao == "quitado":
             situacao_txt, sit_style = "Quitado", s_ok
         else:
@@ -788,11 +745,11 @@ def _cartao_recibo_pdf(ctx, col_w, mm_unit):
             ]))
             story.append(ops)
 
-    aviso = aviso_exibido_recibo(ctx)
+    aviso = c.aviso
     if aviso:
         story.append(Spacer(1, 2 * mm_unit))
         story.append(Paragraph(_texto_pdf(aviso), s_nota))
-    nota = nota_documento_recibo(ctx)
+    nota = c.nota
     story.append(Spacer(1, 3 * mm_unit))
     story.append(caixa([
         [Paragraph("Agradecemos pela preferência!", s_obrigado)],

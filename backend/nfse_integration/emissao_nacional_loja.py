@@ -70,17 +70,27 @@ def _montar_resultado_emissao_nacional(
     resultado: dict[str, Any], numero_dps: int, valor_servicos: Decimal, aliquota: Decimal, valor_iss: Decimal,
     tomador_nome: str, tomador_cpf_cnpj: str, servico_descricao: str,
 ) -> dict[str, Any]:
-    """Monta o resultado_final de sucesso para emissao Nacional."""
+    """Monta o resultado_final de sucesso para emissao Nacional.
+
+    A lista da loja mostra numero_nf. A chave de acesso fica na verificação
+    e o XML gravado é o da NFS-e autorizada, não o da DPS.
+    """
+    from nfse_integration.issnet_nacional_xml_builder import extrair_numero_nfse_nacional
+
+    xml = resultado.get("xml_nfse") or resultado.get("xml_dps") or ""
+    chave = (resultado.get("chave_acesso") or "")[:50]
+    numero = extrair_numero_nfse_nacional(xml)
+    numero_nf = str(int(numero)) if numero and str(numero).isdigit() else chave
     return {
         "success": True,
-        "numero_nf": resultado.get("chave_acesso", ""),
-        "codigo_verificacao": resultado.get("nsu_recepcao", ""),
+        "numero_nf": numero_nf,
+        "codigo_verificacao": chave,
         "numero_rps": numero_dps,
         "data_emissao": timezone.now(),
         "valor": float(valor_servicos),
         "aliquota_iss": float(aliquota),
         "valor_iss": float(valor_iss),
-        "xml_nfse": resultado.get("xml_dps", ""),
+        "xml_nfse": xml,
         "pdf_url": "",
         "tomador_nome": tomador_nome,
         "tomador_cpf_cnpj": tomador_cpf_cnpj,

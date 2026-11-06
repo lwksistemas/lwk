@@ -5,7 +5,10 @@ from types import SimpleNamespace
 from django.test import SimpleTestCase
 
 from nfse_integration.emissao_issnet_nacional_loja import codigo_tributacao_nacional_sefin
-from nfse_integration.emissao_nacional_loja import ambiente_nacional_loja
+from nfse_integration.emissao_nacional_loja import (
+    _montar_resultado_emissao_nacional,
+    ambiente_nacional_loja,
+)
 
 
 class AmbienteNacionalLojaTests(SimpleTestCase):
@@ -27,3 +30,15 @@ class AmbienteNacionalLojaTests(SimpleTestCase):
             p_tot_trib_sn=None,
         )
         self.assertEqual(codigo_tributacao_nacional_sefin(config, "1706.01"), "170601")
+
+    def test_grava_o_numero_curto_e_a_chave_na_verificacao(self):
+        chave = "1" * 50
+        xml = "<NFSe xmlns='http://www.sped.fazenda.gov.br/nfse'><infNFSe><nNFSe>000000000000001</nNFSe></infNFSe></NFSe>"
+        resultado = _montar_resultado_emissao_nacional(
+            {"chave_acesso": chave, "xml_nfse": xml, "nsu_recepcao": "DPS123"},
+            191, Decimal("6.00"), Decimal("2.50"), Decimal("0.15"),
+            "LWK", "24758458000172", "TESTE",
+        )
+        self.assertEqual(resultado["numero_nf"], "1")
+        self.assertEqual(resultado["codigo_verificacao"], chave)
+        self.assertIn("<nNFSe>", resultado["xml_nfse"])

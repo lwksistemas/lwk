@@ -7,10 +7,14 @@ export function NfseLojaHeader({
   slug,
   onEmitir,
   onRecuperar,
+  onAtualizar,
+  atualizando = false,
 }: {
   slug: string;
   onEmitir: () => void;
   onRecuperar?: () => void;
+  onAtualizar?: () => void;
+  atualizando?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -46,6 +50,16 @@ export function NfseLojaHeader({
         >
           <Plus size={20} /> Emitir NFS-e
         </button>
+        {onAtualizar && (
+          <button
+            type="button"
+            onClick={onAtualizar}
+            disabled={atualizando}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-[#0d1f3c] disabled:opacity-50"
+          >
+            <RefreshCw size={18} className={atualizando ? 'animate-spin' : ''} /> Atualizar
+          </button>
+        )}
       </div>
     </div>
   );

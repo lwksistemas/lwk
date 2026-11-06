@@ -1,11 +1,12 @@
 'use client';
 
-import { Download, FileText, Link, Mail, MessageCircle, RefreshCw, Trash2, X } from 'lucide-react';
+import { Download, FileText, Link, Mail, MessageCircle, RefreshCw, Trash2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import apiClient from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime } from '@/lib/financeiro-helpers';
-import { NfseStatusPill } from '@/components/nfse/NfseStatusPill';
+import { NfseProvedorBadge } from '@/components/nfse/NfseProvedorBadge';
+import { NfseStatusBadge } from '@/components/nfse/NfseStatusBadge';
 import {
   downloadNfseXmlBlob,
   nfsePodeBaixar,
@@ -57,7 +58,8 @@ export function NfseLojaTable({
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Valor</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">ISS</th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ações</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Provedor</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -133,7 +135,10 @@ function NfseLojaRow({
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/50">
       <td className="px-4 py-3 text-sm">
-        <div className="font-bold text-gray-900 dark:text-white">{nf.numero_nf || '—'}</div>
+        <div className="font-medium text-gray-900 dark:text-white">
+          {nf.numero_nf || '—'}
+          {nf.tomador_nome ? <span className="font-normal"> {nf.tomador_nome}</span> : null}
+        </div>
         <div className="text-xs text-gray-500 dark:text-gray-400">RPS {nf.numero_rps}</div>
       </td>
       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
@@ -151,10 +156,18 @@ function NfseLojaRow({
         <div className="text-xs text-gray-500 dark:text-gray-400">{aliquota}%</div>
       </td>
       <td className="px-4 py-3 text-center">
-        <NfseStatusPill status={nf.status} label={nf.status_display ?? nf.status} erro={nf.erro} />
+        <NfseStatusBadge status={nf.status} />
+        {nf.erro ? (
+          <div className="text-xs text-red-500 mt-1 max-w-[200px] truncate" title={nf.erro}>
+            {nf.erro}
+          </div>
+        ) : null}
       </td>
       <td className="px-4 py-3">
-        <div className="flex items-center justify-center gap-1">
+        <NfseProvedorBadge provedor={nf.provedor || lojaProvedor || ''} />
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-1">
           {podeBaixar && (
             <>
               <button
@@ -188,20 +201,21 @@ function NfseLojaRow({
               >
                 <Mail size={16} />
               </button>
-              {/* Botão para colar o link oficial da nota (do email do ISSNet) */}
-              <button
-                type="button"
-                title={nf.pdf_url ? 'Link da nota salvo — clique para atualizar' : 'Colar link da nota (do email do ISSNet)'}
-                onClick={handleColarLink}
-                disabled={salvandoUrl}
-                className={`p-1.5 rounded ${
-                  nf.pdf_url
-                    ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                    : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                }`}
-              >
-                <Link size={16} />
-              </button>
+              {nfUsaIssnet(nf, lojaProvedor) && (
+                <button
+                  type="button"
+                  title={nf.pdf_url ? 'Link da nota salvo — clique para atualizar' : 'Colar link da nota (do email do ISSNet)'}
+                  onClick={handleColarLink}
+                  disabled={salvandoUrl}
+                  className={`p-1.5 rounded ${
+                    nf.pdf_url
+                      ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                      : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                  }`}
+                >
+                  <Link size={16} />
+                </button>
+              )}
               {whatsappHabilitado && nfsePodeEnviarWhatsapp(nf.status) && (
                 <button
                   type="button"
@@ -217,15 +231,15 @@ function NfseLojaRow({
           {nfsePodeCancelar(nf.status) && (
             <button
               type="button"
-              title="Cancelar NFS-e"
+              title="Cancelar NF"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 onCancelar(nf);
               }}
-              className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
             >
-              <X size={16} />
+              <XCircle size={16} />
             </button>
           )}
           {podeSincronizar && nfseSyncEndpoint(nf, lojaProvedor) && (

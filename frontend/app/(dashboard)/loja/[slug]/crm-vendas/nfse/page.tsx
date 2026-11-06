@@ -70,6 +70,8 @@ export default function NFSePage() {
         slug={slug}
         onEmitir={() => setShowModal(true)}
         onRecuperar={lojaProvedor === 'issnet' ? () => setShowRecuperarModal(true) : undefined}
+        onAtualizar={() => carregarNFSes(true)}
+        atualizando={loading}
       />
 
       {syncMsg && <NfseLojaSyncMessage type={syncMsg.type} text={syncMsg.text} />}

@@ -11,7 +11,7 @@ from core.throttling import DashboardRateThrottle
 from tenants.middleware import ensure_loja_context, get_current_loja_id, get_current_tenant_db
 
 from .cache import CRMCacheManager
-from .utils import get_current_vendedor_id, vendedor_tem_controle_qualidade
+from .utils import get_current_vendedor_id, usuario_administra_crm, vendedor_tem_controle_qualidade
 from .vendedor_permissoes_service import (
     permissoes_codenames_usuario_crm,
     todas_permissoes_codenames_crm,
@@ -200,8 +200,13 @@ def dashboard_data(request):
         or vendedor_id_filtro or status_filtro != "todas"
     )
     # Home do vendedor mostra só as vendas dele. O total da loja fica com o administrador.
-    # Controle de qualidade não abre esse total.
-    vendedor_id = None if is_owner_flag else get_current_vendedor_id(request)
+    # Controle de qualidade não abre esse total. Sem vínculo, a home fica vazia.
+    if usuario_administra_crm(request):
+        vendedor_id = None
+    else:
+        vendedor_id = get_current_vendedor_id(request)
+        if vendedor_id is None:
+            return Response(_empty_dashboard_response(), status=200)
     cache_key = _dashboard_cache_key(loja_id, vendedor_id, tem_filtros)
     cached_resp = _dashboard_cached_response(cache_key)
     if cached_resp is not None:

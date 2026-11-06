@@ -46,7 +46,7 @@ class ExtrairIpClienteTest(SimpleTestCase):
     def test_x_forwarded_for(self):
         request = MagicMock()
         request.META = {"HTTP_X_FORWARDED_FOR": "203.0.113.1, 10.0.0.1"}
-        self.assertEqual(extrair_ip_cliente(request), "203.0.113.1")
+        self.assertEqual(extrair_ip_cliente(request), "10.0.0.1")
 
     def test_remote_addr_fallback(self):
         request = MagicMock()

@@ -13,15 +13,20 @@ class AtividadeVendedorFilterTest(SimpleTestCase):
         self.view = AtividadeViewSet()
         self.view.request = self.factory.get("/crm-vendas/atividades/")
 
-    @patch("crm_vendas.views_pipelines.get_current_vendedor_id", return_value=None)
-    def test_sem_vendedor_retorna_queryset_intacto(self, _mock_vid):
+    @patch("crm_vendas.utils.usuario_administra_crm", return_value=False)
+    @patch("crm_vendas.utils.get_current_vendedor_id", return_value=None)
+    def test_sem_vendedor_devolve_lista_vazia(self, _mock_vid, _admin):
         qs = MagicMock()
+        vazio = MagicMock()
+        qs.none.return_value = vazio
         result = self.view.filter_by_vendedor(qs)
-        self.assertIs(result, qs)
+        self.assertIs(result, vazio)
         qs.filter.assert_not_called()
+        qs.none.assert_called_once()
 
-    @patch("crm_vendas.views_pipelines.get_current_vendedor_id", return_value=7)
-    def test_com_vendedor_aplica_filtro_or_distinct(self, _mock_vid):
+    @patch("crm_vendas.utils.usuario_administra_crm", return_value=False)
+    @patch("crm_vendas.utils.get_current_vendedor_id", return_value=7)
+    def test_com_vendedor_aplica_filtro_or_distinct(self, _mock_vid, _admin):
         qs = MagicMock()
         filtered = MagicMock()
         qs.filter.return_value.distinct.return_value = filtered

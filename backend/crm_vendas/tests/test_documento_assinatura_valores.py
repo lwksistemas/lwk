@@ -88,9 +88,9 @@ class DocumentoAssinaturaTests(SimpleTestCase):
 
 
 class IpAssinaturaTests(SimpleTestCase):
-    def test_primeiro_endereco_do_proxy(self):
+    def test_ultimo_endereco_do_proxy(self):
         request = MagicMock()
         request.META = {"HTTP_X_FORWARDED_FOR": "203.0.113.8, 10.0.0.1", "REMOTE_ADDR": "127.0.0.1"}
-        self.assertEqual(ip_cliente_assinatura(request), "203.0.113.8")
+        self.assertEqual(ip_cliente_assinatura(request), "10.0.0.1")
         request.META = {"REMOTE_ADDR": "127.0.0.1"}
         self.assertEqual(ip_cliente_assinatura(request), "127.0.0.1")

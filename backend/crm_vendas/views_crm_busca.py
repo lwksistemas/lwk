@@ -7,16 +7,22 @@ from rest_framework.response import Response
 
 from tenants.middleware import get_current_loja_id
 
-from .utils import get_current_vendedor_id, is_owner, vendedor_tem_controle_qualidade
+from .utils import get_current_vendedor_id, usuario_administra_crm, vendedor_tem_controle_qualidade
+
+
+def _ve_a_loja_na_busca(request, liberar_qualidade=False):
+    if usuario_administra_crm(request):
+        return True
+    return bool(liberar_qualidade and vendedor_tem_controle_qualidade(request))
 
 
 def _aplicar_filtro_vendedor(qs, vendedor_id, request, vendedor_field="vendedor_id", liberar_qualidade=False):
-    """Filtra queryset pelo vendedor se não for owner."""
-    if vendedor_id is not None and not is_owner(request):
-        if liberar_qualidade and vendedor_tem_controle_qualidade(request):
-            return qs
-        return qs.filter(**{vendedor_field: vendedor_id})
-    return qs
+    """Dono e administrador veem a busca inteira. Sem vínculo, a busca fica vazia."""
+    if _ve_a_loja_na_busca(request, liberar_qualidade):
+        return qs
+    if vendedor_id is None:
+        return qs.none()
+    return qs.filter(**{vendedor_field: vendedor_id})
 
 
 def _busca_leads(term, term_digits, vendedor_id, request, limit, q_icontains_sem_acento, Lead, Q):
@@ -24,8 +30,10 @@ def _busca_leads(term, term_digits, vendedor_id, request, limit, q_icontains_sem
     f = q_icontains_sem_acento(term, "nome", "empresa", "email") | Q(telefone__icontains=term) | Q(cpf_cnpj__icontains=term)
     if term_digits and len(term_digits) >= 3:
         f |= Q(cpf_cnpj__icontains=term_digits) | Q(telefone__icontains=term_digits)
+    if not _ve_a_loja_na_busca(request, liberar_qualidade=True) and vendedor_id is None:
+        return []
     qs = Lead.objects.filter(f)
-    if vendedor_id is not None and not is_owner(request) and not vendedor_tem_controle_qualidade(request):
+    if not _ve_a_loja_na_busca(request, liberar_qualidade=True):
         qs = qs.filter(
             Q(oportunidades__vendedor_id=vendedor_id) | Q(vendedor_id=vendedor_id),
         ).distinct()
@@ -131,6 +139,8 @@ def crm_busca(request):
     # Versão só com dígitos para buscar CPF/CNPJ sem formatação
     term_digits = "".join(c for c in q if c.isdigit())
     vendedor_id = get_current_vendedor_id(request)
+    if vendedor_id is None and not _ve_a_loja_na_busca(request, liberar_qualidade=True):
+        return Response({"leads": [], "oportunidades": [], "contas": [], "propostas": []})
 
     from core.text_search import q_icontains_sem_acento
 

@@ -94,13 +94,14 @@ class CrmDashboardApiSmokeTest(_CrmApiTestBase):
     @patch("crm_vendas.views_crm_me_dashboard._store_dashboard_cache")
     @patch("crm_vendas.views_crm_me_dashboard._dashboard_cached_response", return_value=None)
     @patch("crm_vendas.services_dashboard.build_dashboard_payload")
+    @patch("crm_vendas.views_crm_me_dashboard.usuario_administra_crm", return_value=False)
     @patch("crm_vendas.views_crm_me_dashboard.vendedor_tem_controle_qualidade", return_value=True)
     @patch("crm_vendas.views_crm_me_dashboard.get_current_vendedor_id", return_value=2)
     @patch("crm_vendas.views_crm_me_dashboard._is_owner_loja", return_value=False)
     @patch("crm_vendas.views_crm_me_dashboard.ensure_loja_context")
     @patch("crm_vendas.views_crm_me_dashboard.get_current_loja_id")
     def test_dashboard_vendedor_com_qualidade_ve_so_as_proprias_vendas(
-        self, mock_loja_id, _ctx, _owner, _vend, _qualidade, mock_build, _cache, _store,
+        self, mock_loja_id, _ctx, _owner, _vend, _qualidade, _admin, mock_build, _cache, _store,
     ):
         mock_loja_id.return_value = self.loja.id
         mock_build.return_value = {"leads": 1, "receita": 10}
@@ -146,7 +147,7 @@ class CrmBuscaApiSmokeTest(_CrmApiTestBase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["leads"], [])
 
-    @patch("crm_vendas.views_crm_busca.is_owner", return_value=True)
+    @patch("crm_vendas.views_crm_busca.usuario_administra_crm", return_value=True)
     @patch("crm_vendas.views_crm_busca.get_current_vendedor_id", return_value=None)
     @patch("crm_vendas.models.Proposta")
     @patch("crm_vendas.models.Conta")
@@ -169,7 +170,7 @@ class CrmBuscaApiSmokeTest(_CrmApiTestBase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("leads", response.json())
 
-    @patch("crm_vendas.views_crm_busca.is_owner", return_value=True)
+    @patch("crm_vendas.views_crm_busca.usuario_administra_crm", return_value=True)
     @patch("crm_vendas.views_crm_busca.get_current_vendedor_id", return_value=None)
     @patch("crm_vendas.models.Proposta")
     @patch("crm_vendas.models.Conta")
@@ -194,7 +195,8 @@ class CrmBuscaApiSmokeTest(_CrmApiTestBase):
             tipo__in=["prestadora", "ambos"],
         )
 
-    @patch("crm_vendas.views_crm_busca.is_owner", return_value=False)
+    @patch("crm_vendas.views_crm_busca.usuario_administra_crm", return_value=False)
+    @patch("crm_vendas.views_crm_busca.vendedor_tem_controle_qualidade", return_value=False)
     @patch("crm_vendas.views_crm_busca.get_current_vendedor_id", return_value=7)
     @patch("crm_vendas.models.Proposta")
     @patch("crm_vendas.models.Conta")
@@ -202,7 +204,7 @@ class CrmBuscaApiSmokeTest(_CrmApiTestBase):
     @patch("crm_vendas.models.Lead")
     @patch("crm_vendas.views_crm_busca.get_current_loja_id")
     def test_busca_vendedor_nao_ve_pool_sem_dono(
-        self, mock_loja_id, mock_lead, mock_opp, mock_conta, mock_prop, _vend, _owner,
+        self, mock_loja_id, mock_lead, mock_opp, mock_conta, mock_prop, _vend, _qualidade, _admin,
     ):
         mock_loja_id.return_value = self.loja.id
         lead_chain = MagicMock()

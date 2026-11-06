@@ -29,7 +29,13 @@ from .services_financeiro import (
     resumo_financeiro_crm,
     sincronizar_comissoes_retroativas,
 )
-from .utils import get_current_vendedor_id, is_owner, vendedor_nao_ve_valor_da_prestadora, vendedor_tem_controle_qualidade
+from .utils import (
+    get_current_vendedor_id,
+    is_owner,
+    usuario_administra_crm,
+    vendedor_nao_ve_valor_da_prestadora,
+    vendedor_tem_controle_qualidade,
+)
 from .views_common import CRMPagination, filtrar_queryset_por_query_params
 
 logger = logging.getLogger(__name__)
@@ -287,13 +293,22 @@ def financeiro_crm_resumo(request):
     if not loja_id:
         return Response({"error": "Loja não identificada"}, status=status.HTTP_400_BAD_REQUEST)
 
-    vendedor_id = get_current_vendedor_id(request)
+    vid = get_current_vendedor_id(request)
     filtro = request.query_params.get("vendedor_id")
-    if is_owner(request) and filtro:
-        with contextlib.suppress(TypeError, ValueError):
-            vendedor_id = int(filtro)
-    elif not is_owner(request):
-        vendedor_id = vendedor_id
+    if is_owner(request):
+        vendedor_id = vid
+        if filtro:
+            with contextlib.suppress(TypeError, ValueError):
+                vendedor_id = int(filtro)
+    elif usuario_administra_crm(request):
+        vendedor_id = None
+        if filtro:
+            with contextlib.suppress(TypeError, ValueError):
+                vendedor_id = int(filtro)
+    elif vid is None:
+        vendedor_id = -1
+    else:
+        vendedor_id = vid
 
     try:
         def _handler():
@@ -336,8 +351,13 @@ def financeiro_crm_relatorio_pdf(request):
     vendedor_id = request.data.get("vendedor_id")
 
     current_vendedor_id = get_current_vendedor_id(request)
-    if current_vendedor_id and not is_owner(request) and not vendedor_tem_controle_qualidade(request):
-        vendedor_id = current_vendedor_id
+    ve_a_loja = (
+        is_owner(request)
+        or usuario_administra_crm(request)
+        or vendedor_tem_controle_qualidade(request)
+    )
+    if not ve_a_loja:
+        vendedor_id = current_vendedor_id or -1
     elif vendedor_id:
         try:
             vendedor_id = int(vendedor_id)

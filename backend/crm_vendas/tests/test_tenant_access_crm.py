@@ -161,6 +161,7 @@ class VendedorFilterMixinPoolTest(SimpleTestCase):
     @patch("crm_vendas.utils.is_owner", return_value=True)
     @patch("crm_vendas.mixins.get_current_vendedor_id", return_value=5)
     def test_owner_ve_queryset_intacto(self, _vid, _owner):
+        self.view.request.user = MagicMock(is_authenticated=True, is_superuser=False)
         qs = MagicMock()
         result = self.view.filter_by_vendedor(qs)
         self.assertIs(result, qs)

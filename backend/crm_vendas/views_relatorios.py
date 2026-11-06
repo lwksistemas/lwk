@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from core.email_delivery import create_email_message, send_prepared
 from tenants.middleware import get_current_loja_id
 
-from .utils import get_current_vendedor_id, vendedor_tem_controle_qualidade
+from .utils import get_current_vendedor_id, usuario_administra_crm, vendedor_tem_controle_qualidade
 
 logger = logging.getLogger(__name__)
 
@@ -59,23 +59,17 @@ def gerar_relatorio(request):
     data_inicio_custom = request.data.get("data_inicio")
     data_fim_custom = request.data.get("data_fim")
 
-    # Verificar se é o proprietário da loja (admin tem acesso total)
-    loja = Loja.objects.using("default").get(id=loja_id)
-    is_owner = (request.user.id == loja.owner_id)
-
-    # Vendedores (NÃO owners): restringir a apenas suas próprias vendas.
-    # Controle de qualidade consulta a carteira inteira, sem virar administrador.
-    if (
-        current_vendedor_id is not None
-        and not is_owner
-        and not vendedor_tem_controle_qualidade(request)
-    ):
+    # Dono, administrador e controle de qualidade veem a loja.
+    # Sem vínculo, o relatório não sai. Vendedor comum fica nas próprias vendas.
+    ve_a_loja = usuario_administra_crm(request) or vendedor_tem_controle_qualidade(request)
+    if not ve_a_loja:
+        if current_vendedor_id is None:
+            return Response({"detail": "Sem vínculo de vendedor."}, status=status.HTTP_403_FORBIDDEN)
         if tipo == "vendas_total":
             return Response(
                 {"detail": 'Vendedores só podem gerar relatórios das próprias vendas. Use "Vendas por Vendedor" ou "Comissões".'},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        # Forçar vendedor_id = próprio (ignorar o que veio no request)
         vendedor_id = current_vendedor_id
 
     try:
@@ -90,7 +84,7 @@ def gerar_relatorio(request):
         if periodo == "personalizado" and data_inicio_custom and data_fim_custom:
             periodo_label = f"{data_inicio_custom}_a_{data_fim_custom}"
 
-        comissao_somente = current_vendedor_id if not is_owner else None
+        comissao_somente = None if usuario_administra_crm(request) else current_vendedor_id
         if tipo == "vendas_total":
             pdf_buffer = gerar_relatorio_vendas_total(loja_id, periodo, empresa_prestadora_id=empresa_prestadora_id, data_inicio_custom=data_inicio_custom, data_fim_custom=data_fim_custom, comissao_somente_vendedor_id=comissao_somente)
             filename = f"relatorio_vendas_total_{periodo_label}.pdf"

@@ -14,6 +14,40 @@ from nfse_integration.prestador_loja import DadosPrestadorNFSe
 logger = logging.getLogger(__name__)
 
 
+def ambiente_nacional_loja(config: Any) -> str:
+    """Produção, salvo homologação explícita.
+
+    A config do CRM não tem o campo da API Nacional. Sem isso a nota da loja
+    ia para o ambiente de teste mesmo com o ISSNet em produção.
+    """
+    explicito = (getattr(config, "nacional_ambiente", "") or "").strip()
+    if explicito in ("producao", "homologacao"):
+        return explicito
+    if getattr(config, "issnet_ambiente_homologacao", False):
+        return "homologacao"
+    return "producao"
+
+
+def _codigo_municipio_loja(loja: Any, config: Any) -> str:
+    codigo = (
+        getattr(config, "nacional_codigo_municipio", "")
+        or getattr(config, "codigo_municipio", "")
+        or ""
+    ).strip()
+    if codigo:
+        return codigo
+    via_cep = buscar_codigo_ibge_por_cep(getattr(loja, "cep", "") or "")
+    if via_cep:
+        return via_cep
+    from nfse_integration.nfse_geo import _normalizar_nome_municipio
+
+    cidade = _normalizar_nome_municipio(getattr(loja, "cidade", "") or "")
+    uf = (getattr(loja, "uf", "") or "").strip().upper()
+    if cidade == "RIBEIRAO PRETO" and uf == "SP":
+        return "3543402"
+    return ""
+
+
 def _validar_config_nacional(loja: Any, config: Any) -> tuple[Any, str, str, str] | dict[str, Any]:
     """Valida e retorna (cert_data, senha_cert, codigo_municipio, ambiente) ou dict de erro."""
     cert_data = getattr(config, "nacional_certificado", None) or getattr(config, "issnet_certificado", None)
@@ -22,22 +56,14 @@ def _validar_config_nacional(loja: Any, config: Any) -> tuple[Any, str, str, str
     senha_cert = decrypt_value(
         getattr(config, "nacional_senha_certificado", "") or getattr(config, "issnet_senha_certificado", "") or ""
     )
-    codigo_municipio = (
-        getattr(config, "nacional_codigo_municipio", "")
-        or getattr(config, "codigo_municipio", "")
-        or ""
-    )
     if not cert_data:
         return {"success": False, "error": "Certificado digital não configurado"}
     if not senha_cert:
         return {"success": False, "error": "Senha do certificado não configurada"}
+    codigo_municipio = _codigo_municipio_loja(loja, config)
     if not codigo_municipio:
-        cep_loja = getattr(loja, "cep", "") or ""
-        codigo_municipio = buscar_codigo_ibge_por_cep(cep_loja)
-        if not codigo_municipio:
-            return {"success": False, "error": "Código IBGE do município não configurado"}
-    ambiente = getattr(config, "nacional_ambiente", "homologacao") or "homologacao"
-    return cert_data, senha_cert, codigo_municipio, ambiente
+        return {"success": False, "error": "Código IBGE do município não configurado"}
+    return cert_data, senha_cert, codigo_municipio, ambiente_nacional_loja(config)
 
 
 def _montar_resultado_emissao_nacional(
@@ -114,10 +140,16 @@ def emitir_via_nacional_loja(
         if erro_endereco:
             return {"success": False, "error": erro_endereco}
 
+        from nfse_integration.emissao_issnet_nacional_loja import (
+            _resolver_p_tot_trib_sn,
+            codigo_tributacao_nacional_sefin,
+        )
+
         cnpj_prestador, im_prestador, razao_prestador = _preparar_dados_prestador_nacional(loja, config, prestador)
         codigo_servico_final, codigo_cnae_final, aliquota, valor_iss = _preparar_config_servico_nacional(
             config, valor_servicos, codigo_cnae_override, codigo_servico_override,
         )
+        codigo_servico_final = codigo_tributacao_nacional_sefin(config, codigo_servico_final)
         serie_dps = getattr(config, "nacional_serie_dps", "900") or "900"
 
         resultado = client.emitir_nfse(
@@ -145,6 +177,7 @@ def emitir_via_nacional_loja(
             iss_retido=False,
             optante_simples_nacional=getattr(config, "optante_simples_nacional", True),
             incentivador_cultural=getattr(config, "incentivador_cultural", False),
+            p_tot_trib_sn=_resolver_p_tot_trib_sn(config),
         )
 
         if resultado.get("success"):

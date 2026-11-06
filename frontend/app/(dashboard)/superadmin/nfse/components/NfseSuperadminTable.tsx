@@ -96,12 +96,7 @@ function NfseSuperadminRow({
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-gray-800">
       <td className="px-4 py-3">
-        <div className="font-medium">
-          {nf.numero_exibicao || nf.numero_nf || '-'}
-          {(nf.tomador_nome || nf.loja_nome) && (
-            <span className="font-normal"> {nf.tomador_nome || nf.loja_nome}</span>
-          )}
-        </div>
+        <div className="font-medium">{nf.numero_exibicao || nf.numero_nf || '-'}</div>
         <div className="text-xs text-muted-foreground">RPS {nf.numero_rps}</div>
       </td>
       <td className="px-4 py-3 text-sm">{formatDateTime(nf.data_emissao)}</td>

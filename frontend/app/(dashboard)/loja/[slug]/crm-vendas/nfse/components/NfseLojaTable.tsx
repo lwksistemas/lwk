@@ -135,10 +135,7 @@ function NfseLojaRow({
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/50">
       <td className="px-4 py-3 text-sm">
-        <div className="font-medium text-gray-900 dark:text-white">
-          {nf.numero_nf || '—'}
-          {nf.tomador_nome ? <span className="font-normal"> {nf.tomador_nome}</span> : null}
-        </div>
+        <div className="font-medium text-gray-900 dark:text-white">{nf.numero_nf || '—'}</div>
         <div className="text-xs text-gray-500 dark:text-gray-400">RPS {nf.numero_rps}</div>
       </td>
       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">

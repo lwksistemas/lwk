@@ -275,7 +275,7 @@ class BackupEmailService:
             f'<div class="info-box"><p><a href="{link}" style="color:#059669;font-weight:bold;">'
             "Baixar todas as fotos e PDFs (um ZIP)</a></p>"
             f'<p style="font-size:12px;color:#666;word-break:break-all;">{link}</p>'
-            '<p style="font-size:12px;">O link vale por 21 dias.</p></div>'
+            '<p style="font-size:12px;">O link vale por 7 dias.</p></div>'
             if link else ""
         )
         return (
@@ -326,7 +326,7 @@ Este é um email automático, não responda.
         return (
             f'Segue em anexo o backup dos cadastros da loja "{loja.nome}" (ZIP com planilhas).\n'
             "As fotos e PDFs não vão no anexo. O link baixa tudo de uma vez, em um único ZIP "
-            "(válido por 21 dias):\n"
+            "(válido por 7 dias):\n"
             f"{link_midia or '(sem link de mídia)'}"
         )
 

@@ -38,3 +38,4 @@ class BackupMidiaCrmTests(SimpleTestCase):
         ))
         self.assertIn("backup-midia/abc", texto)
         self.assertIn("único ZIP", texto)
+        self.assertIn("7 dias", texto)

@@ -174,6 +174,71 @@ def enviar_dps_sefin(
         _limpar_temp(cert_path, key_path, pfx_path)
 
 
+def enviar_evento_sefin(
+    evento_xml_b64: str,
+    chave_acesso: str,
+    ambiente: str = "producao",
+    pfx_path: str | None = None,
+    pfx_bytes: bytes | None = None,
+    senha_pfx: str = "",
+    timeout: int = DEFAULT_TIMEOUT,
+) -> dict[str, Any]:
+    """Registra um evento da NFS-e (POST /nfse/{chave}/eventos)."""
+    base = SEFIN_NFSE_URLS.get(ambiente, SEFIN_NFSE_URLS["homologacao"]).rstrip("/")
+    url = f"{base}/{chave_acesso}/eventos"
+    cert_path = None
+    key_path = None
+    try:
+        cert_path, key_path = _preparar_cert_mtls(pfx_path, pfx_bytes, senha_pfx)
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "LWK-Sistemas/1.0 (NFS-e Nacional)",
+        }
+        logger.info("Enviando evento à Sefin Nacional: ambiente=%s", ambiente)
+        response = requests.post(
+            url,
+            json={"pedidoRegistroEventoXmlGZipB64": evento_xml_b64},
+            headers=headers,
+            cert=(cert_path, key_path),
+            timeout=timeout,
+            verify=True,
+        )
+        logger.info("Resposta do evento Sefin: status=%d", response.status_code)
+        try:
+            data = response.json()
+        except Exception:
+            data = {"raw": (response.text or "")[:2000]}
+        if response.status_code in (200, 201):
+            return {"success": True, "status_code": response.status_code, "data": data}
+        return {
+            "success": False,
+            "status_code": response.status_code,
+            "error": "Evento rejeitado pela Sefin Nacional",
+            "data": data,
+        }
+    except Exception as exc:
+        logger.exception("Erro ao enviar evento à Sefin: %s", exc)
+        return {"success": False, "error": str(exc), "data": None}
+    finally:
+        _limpar_temp(cert_path, key_path, pfx_path)
+
+
+def interpretar_resposta_evento(data: dict | None) -> dict[str, Any]:
+    """Lê o retorno do registro de evento. Erro da Sefin não é sucesso."""
+    if not isinstance(data, dict):
+        return {"success": False, "error": "Resposta vazia da Sefin Nacional", "erros": []}
+    erros = data.get("erros") or data.get("Erros") or data.get("erro") or data.get("Erro") or []
+    if isinstance(erros, dict):
+        erros = [erros]
+    if erros:
+        texto = _texto_erro_sefin(erros) or "Sefin Nacional rejeitou o evento"
+        return {"success": False, "error": texto, "erros": erros}
+    pacote = data.get("eventoXmlGZipB64") or data.get("EventoXmlGZipB64") or ""
+    xml_evento = descomprimir_e_decodificar(pacote) if pacote else ""
+    return {"success": True, "xml_evento": xml_evento, "erros": []}
+
+
 def enviar_lote_dfe(
     lote_xml_b64: list,
     ambiente: str = "producao",

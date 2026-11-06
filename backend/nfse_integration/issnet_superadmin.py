@@ -186,12 +186,17 @@ def cancelar_nfse_emitida_superadmin(
             return {"success": False, "error": str(exc)}
 
     if nf.provedor == "nacional":
+        from nfse_integration.nacional.cancelamento import cancelar_nfse_sefin
+        from nfse_integration.numero_exibicao import numero_nfse_para_exibicao
+
+        resultado = cancelar_nfse_sefin(nf, config, codigo, motivo_issnet)
+        if not resultado.get("success"):
+            return {"success": False, "error": resultado.get("error") or "Erro ao cancelar na Sefin"}
+        _marcar_cancelada(nf)
+        numero = numero_nfse_para_exibicao(nf) or nf.numero_nf
         return {
-            "success": False,
-            "error": (
-                "Cancelamento via API Nacional ainda não disponível. "
-                "Cancele no portal da prefeitura e sincronize o status."
-            ),
+            "success": True,
+            "message": f"NFS-e {numero} cancelada no Emissor Nacional e no sistema.",
         }
 
     return {

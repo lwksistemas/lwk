@@ -237,6 +237,7 @@ def assinar_xml_dps(
     prefixo_ds: bool = True,
     usar_cadeia: bool = True,
     usar_sha256: bool = False,
+    elemento: str = "infDPS",
 ) -> str:
     """Assina o XML da DPS com certificado digital.
 
@@ -274,15 +275,15 @@ def assinar_xml_dps(
     chain = _completar_cadeia_certificados(cert_obj, extra_certs)
     logger.info("Cadeia de certificados montada: %d certificado(s) (folha + intermediários)", len(chain))
 
-    # Encontrar o elemento infDPS e seu Id
+    # A assinatura referencia o Id do bloco informado (infDPS ou infPedReg).
     ns = "http://www.sped.fazenda.gov.br/nfse"
-    inf_dps = root.find(f"{{{ns}}}infDPS")
+    inf_dps = root.find(f"{{{ns}}}{elemento}")
     if inf_dps is None:
-        raise ValueError("Elemento infDPS não encontrado no XML")
+        raise ValueError(f"Elemento {elemento} não encontrado no XML")
 
     inf_id = inf_dps.get("Id")
     if not inf_id:
-        raise ValueError("Atributo Id não encontrado em infDPS")
+        raise ValueError(f"Atributo Id não encontrado em {elemento}")
 
     # Criar template de assinatura
     # Signature como último filho do root (DPS)
@@ -348,6 +349,7 @@ def assinar_xml_dps_bytes(
     prefixo_ds: bool = True,
     usar_cadeia: bool = True,
     usar_sha256: bool = False,
+    elemento: str = "infDPS",
 ) -> str:
     """Assina XML da DPS usando certificado em bytes (BinaryField).
     Cria arquivo temporário e delega para assinar_xml_dps.
@@ -364,6 +366,7 @@ def assinar_xml_dps_bytes(
         return assinar_xml_dps(
             xml_str, cert_path, senha_pfx,
             prefixo_ds=prefixo_ds, usar_cadeia=usar_cadeia, usar_sha256=usar_sha256,
+            elemento=elemento,
         )
     finally:
         if cert_path:

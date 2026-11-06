@@ -145,6 +145,24 @@ class Command(BaseCommand):
             "a cada 15 min",
         )
 
+        # WhatsApp: apaga logs com mais de 30 dias, domingo às 3h.
+        # executar_cron_lwks também chama isso, mas esse processo não sobe na produção.
+        from django.utils import timezone
+        from whatsapp.tasks import agendar_limpeza_logs_whatsapp
+
+        agenda_logs, logs_novo = agendar_limpeza_logs_whatsapp()
+        quando = timezone.localtime(agenda_logs.next_run)
+        if logs_novo:
+            schedules_criados += 1
+            self.stdout.write(self.style.SUCCESS(
+                f"✅ Schedule criado: {agenda_logs.name} (domingo às 3h, {quando:%d/%m/%Y %H:%M})"
+            ))
+        else:
+            schedules_atualizados += 1
+            self.stdout.write(self.style.WARNING(
+                f"⚠️  Schedule atualizado: {agenda_logs.name} (domingo às 3h, {quando:%d/%m/%Y %H:%M})"
+            ))
+
         # 9. Backups automáticos por email
         # Roda a cada 15 min; a task só envia se estiver no slot 00:00–04:45 da loja.
         _upsert(

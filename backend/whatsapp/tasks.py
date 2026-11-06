@@ -307,3 +307,57 @@ def send_cobrancas_pendentes_whatsapp():
             set_current_tenant_db("default")
     logger.info("WhatsApp cobranças pendentes: %d enviados", enviados)
     return enviados
+
+
+def proxima_limpeza_logs_whatsapp(agora=None):
+    """Próximo domingo às 3:00 em America/Sao_Paulo."""
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    tz = ZoneInfo("America/Sao_Paulo")
+    agora = agora or datetime.now(tz)
+    if agora.tzinfo is None:
+        agora = agora.replace(tzinfo=tz)
+    else:
+        agora = agora.astimezone(tz)
+    dias = (6 - agora.weekday()) % 7
+    proxima = (agora + timedelta(days=dias)).replace(hour=3, minute=0, second=0, microsecond=0)
+    if proxima <= agora:
+        proxima += timedelta(days=7)
+    return proxima
+
+
+def limpar_logs_whatsapp_agendado():
+    """Apaga logs de WhatsApp com mais de 30 dias. O worker chama isto no domingo às 3h."""
+    from django.core.management import call_command
+
+    call_command("limpar_logs_whatsapp", dias=30, verbosity=1)
+    return "ok"
+
+
+def agendar_limpeza_logs_whatsapp():
+    """Garante o agendamento semanal no django-q. Não altera os outros schedules."""
+    from django.utils import timezone
+    from django_q.models import Schedule
+
+    proxima = proxima_limpeza_logs_whatsapp()
+    schedule, created = Schedule.objects.get_or_create(
+        name="limpar_logs_whatsapp",
+        defaults={
+            "func": "whatsapp.tasks.limpar_logs_whatsapp_agendado",
+            "schedule_type": Schedule.WEEKLY,
+            "repeats": -1,
+            "next_run": proxima,
+        },
+    )
+    if not created:
+        schedule.func = "whatsapp.tasks.limpar_logs_whatsapp_agendado"
+        schedule.schedule_type = Schedule.WEEKLY
+        schedule.repeats = -1
+        atual = schedule.next_run
+        if atual is not None and timezone.is_naive(atual):
+            atual = timezone.make_aware(atual, timezone.get_current_timezone())
+        if atual is None or atual <= timezone.now():
+            schedule.next_run = proxima
+        schedule.save(update_fields=["func", "schedule_type", "repeats", "next_run"])
+    return schedule, created

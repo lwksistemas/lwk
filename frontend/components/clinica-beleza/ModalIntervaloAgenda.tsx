@@ -6,8 +6,10 @@
  */
 
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
+import { clinicaBelezaQueryKeys } from "@/lib/clinica-beleza-cadastros-api";
 import { formatApiError } from "@/lib/api-errors";
 import { INTERVALOS_AGENDA_MIN, INTERVALO_AGENDA_PADRAO } from "@/lib/intervalo-agenda";
 
@@ -24,6 +26,7 @@ export function ModalIntervaloAgenda({
   onClose,
   onSaved,
 }: ModalIntervaloAgendaProps) {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -63,6 +66,9 @@ export function ModalIntervaloAgenda({
     try {
       await ClinicaBelezaAPI.professionals.update(professionalId, {
         intervalo_agenda_minutos: parsed,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: clinicaBelezaQueryKeys.schedulingProfessionals(),
       });
       onSaved?.();
       onClose();

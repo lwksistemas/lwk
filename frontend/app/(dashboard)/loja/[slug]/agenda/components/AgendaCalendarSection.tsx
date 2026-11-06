@@ -1,7 +1,6 @@
 "use client";
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { CLINICA_AGENDA_SNAP_DURATION } from "@/lib/clinica-beleza-constants";
 import { duracaoSlotAgenda, intervaloAgendaMinutos } from "@/lib/intervalo-agenda";
 import {
   aplicarHorarioAgendaEvento,
@@ -411,7 +410,7 @@ export function AgendaCalendarSection({
             allDaySlot={false}
             slotDuration={slotAgenda}
             slotLabelInterval={slotAgenda}
-            snapDuration={CLINICA_AGENDA_SNAP_DURATION}
+            snapDuration={slotAgenda}
             businessHours={businessHours as never}
             hiddenDays={hiddenDays}
           />

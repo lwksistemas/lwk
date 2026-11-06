@@ -26,6 +26,9 @@ export function useAgendaCadastroQueries(isOnline: boolean) {
     queryKey: clinicaBelezaQueryKeys.schedulingProfessionals(),
     queryFn: fetchClinicaSchedulingProfessionals,
     enabled: isOnline,
+    // O intervalo da grade muda no cadastro. A agenda não pode ficar com a lista de 1 minuto atrás.
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   // Cache local de pacientes da sessão (criados no modal); autocomplete usa search sob demanda.

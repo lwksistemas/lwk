@@ -1,8 +1,7 @@
-"""Catálogo padrão (locais + procedimentos) — Clínica da Beleza.
+"""Catálogo padrão (locais) — Clínica da Beleza.
 
-Loja nova (sem cadastro): cria locais e procedimentos do seed.
-Loja que já tem cadastro: não recria, não reativa e não reescreve o que a clínica
-editou ou excluiu. O ensure_all do deploy não pode desfazer o catálogo da loja.
+Loja nova: cria o local padrão e o convênio Particular. Não semeia procedimentos.
+Cada clínica cadastra os seus. Loja que já tem procedimento não é alterada.
 """
 from __future__ import annotations
 
@@ -14,7 +13,6 @@ from clinica_beleza.procedimentos_catalogo import (
     LOCAIS_CATALOGO,
     LOCAIS_CATALOGO_LEGADO,
     NOMES_AGENDA_CATALOGO,
-    PROCEDIMENTOS_CATALOGO,
     nomes_agenda_faltando,
     procedimento_catalogo_defaults,
 )
@@ -73,10 +71,10 @@ def _upsert_procedimento_catalogo(db, lid, item) -> None:
 
 
 def _aplicar_procedimentos_catalogo(db, lid, emit) -> tuple[int, int]:
-    """Só semeia o catálogo se a loja ainda não tiver nenhum procedimento.
+    """Não copia o catálogo de demonstração.
 
-    Exclusão na tela é soft-delete (is_active=False). Se já há linhas, o deploy
-    não reativa nem recria o padrão.
+    Loja nova nasce sem procedimentos. Loja que já cadastrou os seus não é
+    reescrita nem reativada pelo deploy.
     """
     from clinica_beleza.models import Procedure
 
@@ -84,13 +82,8 @@ def _aplicar_procedimentos_catalogo(db, lid, emit) -> tuple[int, int]:
         emit("  procedimentos: mantidos (já cadastrados)")
         return 0, 0
 
-    com_termo = 0
-    for item in PROCEDIMENTOS_CATALOGO:
-        defaults = procedimento_catalogo_defaults(item)
-        if defaults["termo_consentimento_ativo"]:
-            com_termo += 1
-        _upsert_procedimento_catalogo(db, lid, item)
-    return len(PROCEDIMENTOS_CATALOGO), com_termo
+    emit("  procedimentos: loja nova sem cadastro")
+    return 0, 0
 
 
 def _desativar_procedimentos_duplicados(db, lid) -> int:
@@ -260,7 +253,7 @@ def lojas_clinica_beleza_com_schema(*, apenas_ativas: bool = True):
 
 
 def aplicar_catalogo_padrao(loja, *, log: Callable[[str], None] | None = None) -> dict | None:
-    """Garante locais e procedimentos padrão na loja.
+    """Garante locais padrão na loja. Procedimentos ficam a cargo da clínica.
     Retorna estatísticas ou None se a loja foi ignorada.
     """
     emit = log or (lambda msg: logger.info(msg))

@@ -557,7 +557,7 @@ class DatabaseSchemaService:
                     "O cadastro não pode ser concluído sem as tabelas do app.",
                 )
 
-            # Catálogo padrão (locais + procedimentos) para novas lojas Clínica da Beleza
+            # Local padrão da clínica. Procedimentos não são semeados.
             try:
                 from clinica_beleza.catalogo_service import aplicar_catalogo_padrao, is_clinica_beleza_loja
                 if is_clinica_beleza_loja(loja):

@@ -1,4 +1,4 @@
-"""Garante locais de atendimento e procedimentos padrão de estética no catálogo da loja.
+"""Garante o local padrão da Clínica da Beleza. Não semeia procedimentos.
 
 Uso:
     python manage.py ensure_procedimentos_catalogo --slug novaimagem
@@ -12,8 +12,8 @@ from superadmin.models import Loja
 
 class Command(BaseCommand):
     help = (
-        "Semeia locais e procedimentos padrão só em loja nova (sem cadastro). "
-        "Não reativa nem reescreve o que a clínica já cadastrou, editou ou excluiu."
+        "Garante o local padrão. Não cria procedimentos: cada clínica cadastra os seus. "
+        "Não reescreve o que a loja já cadastrou."
     )
 
     def add_arguments(self, parser):
@@ -51,15 +51,12 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("Nenhuma loja Clínica da Beleza encontrada."))
             return
 
-        total_proc = 0
         for loja in lojas:
-            stats = aplicar_catalogo_padrao(loja, log=self.stdout.write)
-            if stats:
-                total_proc += stats["procedimentos"]
+            aplicar_catalogo_padrao(loja, log=self.stdout.write)
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"\n✅ Catálogo padrão aplicado em {len(lojas)} loja(s) "
-                f"({total_proc} procedimentos por loja quando concluído).",
+                f"\n✅ Catálogo padrão aplicado em {len(lojas)} loja(s). "
+                "Procedimentos não são semeados.",
             ),
         )

@@ -50,6 +50,15 @@ def _item():
 
 class NaoReseedProcedimentosExistentesTests(SimpleTestCase):
     @patch("clinica_beleza.models.Procedure")
+    def test_loja_nova_nao_recebe_catalogo(self, mock_proc):
+        mock_proc.objects.using.return_value.filter.return_value.exists.return_value = False
+        logs = []
+        n, termo = _aplicar_procedimentos_catalogo("loja_x", 6, logs.append)
+        self.assertEqual((n, termo), (0, 0))
+        mock_proc.objects.using.return_value.create.assert_not_called()
+        self.assertTrue(any("sem cadastro" in msg for msg in logs))
+
+    @patch("clinica_beleza.models.Procedure")
     def test_loja_com_cadastro_nao_recria_catalogo(self, mock_proc):
         mock_proc.objects.using.return_value.filter.return_value.exists.return_value = True
         logs = []

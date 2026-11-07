@@ -1,7 +1,6 @@
 'use client';
 
-import { Download, FileText, Link, Mail, MessageCircle, RefreshCw, Trash2, X } from 'lucide-react';
-import { useState } from 'react';
+import { Download, FileText, Mail, MessageCircle, RefreshCw, Trash2, X } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime } from '@/lib/financeiro-helpers';
@@ -23,7 +22,6 @@ type NfseLojaTableProps = {
   lojaProvedor?: string;
   syncingId: number | null;
   deletingId: number | null;
-  onRefresh?: () => void;
 } & NfseLojaRowHandlers;
 
 export function NfseLojaTable({
@@ -37,7 +35,6 @@ export function NfseLojaTable({
   onReenviarEmail,
   onEnviarWhatsapp,
   onCancelar,
-  onRefresh,
   whatsappHabilitado = false,
 }: NfseLojaTableProps) {
   return (
@@ -74,7 +71,6 @@ export function NfseLojaTable({
                 onReenviarEmail={onReenviarEmail}
                 onEnviarWhatsapp={onEnviarWhatsapp}
                 onCancelar={onCancelar}
-                onRefresh={onRefresh}
                 whatsappHabilitado={whatsappHabilitado}
               />
             ))}
@@ -96,7 +92,6 @@ function NfseLojaRow({
   onReenviarEmail,
   onEnviarWhatsapp,
   onCancelar,
-  onRefresh,
   whatsappHabilitado = false,
 }: {
   nf: NFSe;
@@ -108,27 +103,6 @@ function NfseLojaRow({
   const aliquota = Number(nf.aliquota_iss ?? 0).toFixed(2);
   const podeBaixar = nfsePodeBaixar(nf.status);
   const podeSincronizar = nfsePodeSincronizar(nf.status, nf, lojaProvedor);
-  const [salvandoUrl, setSalvandoUrl] = useState(false);
-
-  const handleColarLink = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const url = window.prompt(
-      `Cole o link da nota ${nf.numero_nf} (do email do ISSNet — Nota_Digital_Nacional.aspx):`,
-      nf.pdf_url || ''
-    );
-    if (!url || !url.startsWith('http')) return;
-    setSalvandoUrl(true);
-    try {
-      await apiClient.post(`/nfse/${nf.id}/salvar_url/`, { url });
-      toast.success('Link salvo! PDF e email agora usam o link oficial do portal.');
-      onRefresh?.();
-    } catch {
-      toast.error('Erro ao salvar link. Tente novamente.');
-    } finally {
-      setSalvandoUrl(false);
-    }
-  };
 
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-[#0d1f3c]/50">
@@ -187,20 +161,6 @@ function NfseLojaRow({
                 className="p-1.5 text-gray-600 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
               >
                 <Mail size={16} />
-              </button>
-              {/* Botão para colar o link oficial da nota (do email do ISSNet) */}
-              <button
-                type="button"
-                title={nf.pdf_url ? 'Link da nota salvo — clique para atualizar' : 'Colar link da nota (do email do ISSNet)'}
-                onClick={handleColarLink}
-                disabled={salvandoUrl}
-                className={`p-1.5 rounded ${
-                  nf.pdf_url
-                    ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                    : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                }`}
-              >
-                <Link size={16} />
               </button>
               {whatsappHabilitado && nfsePodeEnviarWhatsapp(nf.status) && (
                 <button

@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, Mail, Calendar, DollarSign, Users, TrendingUp, Building2, Phone } from 'lucide-react';
+import { Download, Mail, Calendar, DollarSign, Users, TrendingUp, Building2, Phone, FileText } from 'lucide-react';
 import { CRM_PERIODO_RELATORIO } from '@/lib/crm-periodos';
 
 interface Vendedor { id: number; nome: string; }
@@ -32,6 +32,7 @@ const TIPOS = [
   { key: 'vendas_vendedor', label: 'Vendas por Vendedor', desc: 'Com comissões', icon: Users, adminOnly: false },
   { key: 'comissoes', label: 'Exportar comissões (PDF)', desc: 'Relatório pontual para download/e-mail', icon: TrendingUp, adminOnly: false },
   { key: 'negociacao_ganhos', label: 'Controle de qualidade', desc: 'Nome, telefone e histórico da negociação', icon: Phone, adminOnly: false },
+  { key: 'nfse_emitidas', label: 'Notas fiscais', desc: 'Emitidas por empresa ou no total', icon: FileText, adminOnly: true },
 ];
 
 export function RelatorioForm({ tipoRelatorio, periodo, dataInicio, dataFim, vendedorSelecionado, vendedores, empresasPrestadoras, empresaPrestadoraSelecionada, isVendedor, gerando, loading, onTipoChange, onPeriodoChange, onDataInicioChange, onDataFimChange, onVendedorChange, onEmpresaPrestadoraChange, onGerar }: Props) {

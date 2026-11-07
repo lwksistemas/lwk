@@ -88,6 +88,22 @@ def gerar_relatorio(request):
         if tipo == "vendas_total":
             pdf_buffer = gerar_relatorio_vendas_total(loja_id, periodo, empresa_prestadora_id=empresa_prestadora_id, data_inicio_custom=data_inicio_custom, data_fim_custom=data_fim_custom, comissao_somente_vendedor_id=comissao_somente)
             filename = f"relatorio_vendas_total_{periodo_label}.pdf"
+        elif tipo == "nfse_emitidas":
+            if current_vendedor_id is not None and not is_owner and not vendedor_tem_controle_qualidade(request):
+                return Response(
+                    {"detail": "Só o administrador da loja gera o relatório de notas fiscais."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            from .relatorios_nfse_pdf import gerar_relatorio_nfse_emitidas
+
+            pdf_buffer = gerar_relatorio_nfse_emitidas(
+                loja_id,
+                periodo,
+                empresa_prestadora_id=empresa_prestadora_id,
+                data_inicio_custom=data_inicio_custom,
+                data_fim_custom=data_fim_custom,
+            )
+            filename = f"relatorio_nfse_emitidas_{periodo_label}.pdf"
         elif tipo in ["vendas_vendedor", "comissoes"]:
             pdf_buffer = gerar_relatorio_vendas_vendedor(loja_id, periodo, vendedor_id, empresa_prestadora_id=empresa_prestadora_id, data_inicio_custom=data_inicio_custom, data_fim_custom=data_fim_custom, comissao_somente_vendedor_id=comissao_somente)
             filename = f"relatorio_vendas{nome_vendedor_label}_{periodo_label}.pdf"
@@ -118,9 +134,10 @@ def gerar_relatorio(request):
             if not user_email:
                 return Response({"detail": "Usuário não possui email cadastrado."}, status=400)
 
+            assunto = "Notas fiscais emitidas" if tipo == "nfse_emitidas" else "Relatório de Vendas"
             email = create_email_message(
-                subject=f"Relatório de Vendas - {loja.nome}",
-                body=f"Segue em anexo o relatório de vendas solicitado.\n\nPeríodo: {periodo}\nTipo: {tipo}",
+                subject=f"{assunto} - {loja.nome}",
+                body=f"Segue em anexo o relatório solicitado.\n\nPeríodo: {periodo}\nTipo: {tipo}",
                 to=[user_email],
             )
             email.attach(filename, pdf_buffer.read(), "application/pdf")

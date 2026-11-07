@@ -128,6 +128,7 @@ export default function RelatoriosPage() {
           <li>• <strong>Vendas por Vendedor:</strong> Detalhamento individual com valores de comissão</li>
           <li>• <strong>Exportar comissões (PDF):</strong> Relatório pontual para download ou e-mail</li>
           <li>• <strong>Aprovação/Prestador:</strong> Relatório da loja para a prestadora, com os clientes fechados e ganhos. Pessoa jurídica sai pela razão social.</li>
+          <li>• <strong>Notas fiscais:</strong> NFS-e emitidas no período. Uma empresa prestadora ou o total de todas. O tomador é a empresa.</li>
           <li>• <strong>Controle de qualidade:</strong> Nome, telefone e histórico de negociação de cada venda fechada</li>
           <li>• Os relatórios incluem apenas oportunidades com status &quot;Fechado ganho&quot;</li>
         </ul>

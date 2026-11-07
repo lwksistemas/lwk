@@ -10,6 +10,9 @@ import {
   rotuloFormaPagamentoReceita,
   rotuloVencimentoPrazo,
   podeCorrigirFormaPagamento,
+  classeLinhaReceita,
+  classeSeloReceita,
+  classeValorReceita,
   statusPagamentoReceita,
 } from "../payment-status";
 
@@ -202,7 +205,7 @@ export function FinanceiroReceitasTab({
                   const anterior = p.origem === "procedimento_anterior";
                   const falta = anterior && p.saldo_devedor > 0 ? ` · falta ${formatCurrency(p.saldo_devedor)}` : "";
                   return (
-                  <tr key={anterior ? `anterior-${p.id}` : `pagamento-${p.id}`} className="border-b border-gray-100 dark:border-neutral-700">
+                  <tr key={anterior ? `anterior-${p.id}` : `pagamento-${p.id}`} className={classeLinhaReceita(status)}>
                     <td className="py-3 px-4">{p.paciente_nome || "—"}</td>
                     <td className="py-3 px-4">{p.profissional_nome || "—"}</td>
                     {mostrarOperador && <td className="py-3 px-4">{p.operador_nome || "—"}</td>}
@@ -212,7 +215,7 @@ export function FinanceiroReceitasTab({
                         <span className="block text-xs text-gray-500">Antes do sistema</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-right font-medium">
+                    <td className={`py-3 px-4 text-right font-medium ${classeValorReceita(status)}`}>
                       {formatCurrency(p.valor_total_efetivo ?? p.amount)}
                     </td>
                     <td className="py-3 px-4">
@@ -244,11 +247,7 @@ export function FinanceiroReceitasTab({
                           onClick={() => onAbrirRecibo(p)}
                           disabled={reciboId === p.id}
                           title="Clique para imprimir ou enviar o recibo"
-                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium disabled:opacity-50 ${
-                            status === "PAID"
-                              ? "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300"
-                              : "bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300"
-                          }`}
+                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium disabled:opacity-50 hover:opacity-80 ${classeSeloReceita(status)}`}
                         >
                           {CLINICA_PAGAMENTO_STATUS_LABEL[status] || status}
                           {status === "PARTIAL" && p.saldo_devedor > 0
@@ -256,13 +255,7 @@ export function FinanceiroReceitasTab({
                             : ""}
                         </button>
                       ) : (
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                          status === "PENDING" || status === "PARTIAL"
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                            : status === "PAID"
-                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                              : "bg-gray-100 dark:bg-neutral-600"
-                        }`}>
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${classeSeloReceita(status)}`}>
                           {CLINICA_PAGAMENTO_STATUS_LABEL[status] || status}
                           {falta}
                         </span>
@@ -339,7 +332,7 @@ export function FinanceiroReceitasTab({
       </section>
       {payments.length > 0 && (
         <p className="mt-3 text-sm text-gray-500">
-          Total na lista (pagos): {formatCurrency(totalLista)}
+          Recebido nesta lista: {formatCurrency(totalLista)}. Cancelado não entra.
         </p>
       )}
     </>

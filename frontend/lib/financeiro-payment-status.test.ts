@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  classeLinhaReceita,
+  classeValorReceita,
   podeCorrigirFormaPagamento,
   rotuloDataLancamentoReceita,
   rotuloFormaPagamentoReceita,
@@ -86,6 +88,16 @@ describe("statusPagamentoReceita", () => {
   it("respeita PARTIAL e PAID da API", () => {
     expect(statusPagamentoReceita(payment({ status: "PARTIAL", saldo_devedor: 300 }))).toBe("PARTIAL");
     expect(statusPagamentoReceita(payment({ status: "PAID", saldo_devedor: 0 }))).toBe("PAID");
+  });
+});
+
+describe("aparência da receita", () => {
+  it("separa recebido, pendente e cancelado", () => {
+    expect(classeValorReceita("PAID")).toContain("green");
+    expect(classeLinhaReceita("PENDING")).toContain("amber");
+    expect(classeValorReceita("CANCELLED")).toContain("line-through");
+    expect(classeLinhaReceita("CANCELLED")).toContain("gray");
+    expect(classeLinhaReceita("PAID")).not.toContain("amber");
   });
 });
 

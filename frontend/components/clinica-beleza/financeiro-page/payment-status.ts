@@ -19,6 +19,36 @@ export function statusPagamentoReceita(p: FinanceiroPayment): string {
   return p.status;
 }
 
+/** Aparência da linha: recebido em verde, pendente em âmbar, cancelado riscado. */
+export function classeLinhaReceita(status: string): string {
+  if (status === "CANCELLED") {
+    return "border-b border-gray-200 bg-gray-100/90 text-gray-500 dark:border-neutral-700 dark:bg-neutral-900/60 dark:text-gray-400";
+  }
+  if (status === "PENDING") {
+    return "border-b border-amber-100 bg-amber-50/80 dark:border-amber-900/40 dark:bg-amber-950/25";
+  }
+  if (status === "PARTIAL") {
+    return "border-b border-orange-100 bg-orange-50/70 dark:border-orange-900/40 dark:bg-orange-950/20";
+  }
+  return "border-b border-gray-100 dark:border-neutral-700";
+}
+
+export function classeValorReceita(status: string): string {
+  if (status === "CANCELLED") return "text-gray-400 line-through decoration-gray-400";
+  if (status === "PENDING") return "text-amber-800 dark:text-amber-200";
+  if (status === "PARTIAL") return "text-orange-800 dark:text-orange-200";
+  if (status === "PAID") return "text-green-700 dark:text-green-400";
+  return "";
+}
+
+export function classeSeloReceita(status: string): string {
+  if (status === "CANCELLED") return "bg-gray-300 text-gray-700 dark:bg-neutral-600 dark:text-gray-100";
+  if (status === "PENDING") return "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200";
+  if (status === "PARTIAL") return "bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-200";
+  if (status === "PAID") return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+  return "bg-gray-100 dark:bg-neutral-600";
+}
+
 /**
  * Data do recebimento na coluna Recebido em.
  * Vale para dinheiro, PIX, cartão e transferência. Pendente fica em branco.

@@ -133,6 +133,7 @@ def emitir_via_nacional_loja(
     codigo_cnae_override: str | None = None,
     codigo_servico_override: str | None = None,
     prestador: DadosPrestadorNFSe | None = None,
+    numero_rps: int | None = None,
 ) -> dict[str, Any]:
     """Emite NFS-e via ADN Nacional usando certificado da loja."""
     try:
@@ -143,7 +144,7 @@ def emitir_via_nacional_loja(
             return cfg
         cert_data, senha_cert, codigo_municipio, ambiente = cfg
 
-        numero_dps = gerar_proximo_numero_rps(loja.id, config)
+        numero_dps = int(numero_rps) if numero_rps else gerar_proximo_numero_rps(loja.id, config)
         client = NacionalClient(pfx_bytes=bytes(cert_data), senha_pfx=senha_cert, ambiente=ambiente)
 
         tomador_endereco_final, erro_endereco = preparar_endereco_tomador_emissao(tomador_endereco, email=tomador_email)

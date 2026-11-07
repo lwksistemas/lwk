@@ -1,6 +1,7 @@
 """Enfileira emissões NFS-e no lwks-backend (django-q + Redis)."""
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 from nfse_integration.queue_serialize import payload_emissao_manual_to_dict, serialize_validated_data
@@ -31,7 +32,17 @@ def enqueue_emissao_nfse_loja(loja_id: int, validated_data: dict[str, Any]) -> b
     from core.task_queue import enqueue_task
 
     payload = serialize_validated_data(validated_data)
-    key = abs(hash((loja_id, payload.get("servico_descricao", ""), payload.get("valor_servicos", ""))))
+    base = "|".join(
+        str(parte or "")
+        for parte in (
+            loja_id,
+            payload.get("numero_rps_reservado", ""),
+            payload.get("tomador_cpf_cnpj", ""),
+            payload.get("valor_servicos", ""),
+            payload.get("servico_descricao", ""),
+        )
+    )
+    key = hashlib.sha256(base.encode()).hexdigest()[:16]
     enqueue_task(
         f"nfse-loja-{loja_id}-{key}",
         "nfse_integration.queue_tasks.run_emissao_nfse_loja",

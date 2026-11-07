@@ -128,6 +128,7 @@ class NFSe(LojaIsolationMixin, models.Model):
         ("emitida", "Emitida"),
         ("cancelada", "Cancelada"),
         ("erro", "Erro na Emissão"),
+        ("pendente", "Emitindo"),
     ]
 
     status = models.CharField(

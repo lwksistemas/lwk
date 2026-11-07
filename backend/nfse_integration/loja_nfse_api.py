@@ -596,6 +596,7 @@ def processar_emissao_nfse_loja_sync(
     if empresa_prestadora_id is not None:
         empresa_prestadora_id = int(empresa_prestadora_id)
 
+    numero_reservado = validated_data.get("numero_rps_reservado")
     resultado = service.emitir_nfse(
         tomador_cpf_cnpj=tomador.cpf_cnpj,
         tomador_nome=tomador.nome,
@@ -603,6 +604,7 @@ def processar_emissao_nfse_loja_sync(
         tomador_endereco=tomador.endereco,
         servico_descricao=validated_data["servico_descricao"],
         valor_servicos=Decimal(str(validated_data["valor_servicos"])),
+        numero_rps=int(numero_reservado) if numero_reservado else None,
         enviar_email=validated_data.get("enviar_email", True),
         codigo_cnae=codigo_cnae,
         codigo_servico=codigo_servico,
@@ -610,6 +612,9 @@ def processar_emissao_nfse_loja_sync(
         codigo_tributacao_nacional=codigo_tributacao_nacional,
         empresa_prestadora_id=empresa_prestadora_id,
     )
+
+    if resultado.get("em_andamento"):
+        return {"success": False, "error": resultado.get("error", "")}, status.HTTP_409_CONFLICT
 
     if resultado.get("success"):
         nfse = NFSe.objects.filter(
@@ -640,7 +645,7 @@ def processar_emissao_nfse_loja_sync(
         tomador_email=tomador.email,
         servico_descricao=validated_data["servico_descricao"],
         valor_servicos=Decimal(str(validated_data["valor_servicos"])),
-        numero_rps=int(resultado.get("numero_rps") or 0),
+        numero_rps=int(resultado.get("numero_rps") or validated_data.get("numero_rps_reservado") or 0),
     )
     body: dict[str, Any] = {"success": False, "error": erro_msg}
     if nfse_falha:
@@ -654,19 +659,40 @@ def processar_emissao_nfse_loja(
     validated_data: dict[str, Any],
 ) -> tuple[dict[str, Any], int]:
     """Enfileira ou emite NFS-e para a loja (API HTTP)."""
+    from nfse_integration.config_loja import config_nfse_da_loja
+    from nfse_integration.emissao import montar_dados_tomador_nfse
+    from nfse_integration.persistencia_nfse_loja import EmissaoJaEmAndamento, reservar_emissao_loja
     from nfse_integration.queue_dispatch import enqueue_emissao_nfse_loja, should_enqueue_nfse
 
+    tomador = montar_dados_tomador_nfse(validated_data, loja_id)
+    try:
+        reserva = reservar_emissao_loja(
+            loja_id,
+            config_nfse_da_loja(loja),
+            tomador_cpf_cnpj=tomador.cpf_cnpj,
+            tomador_nome=tomador.nome,
+            tomador_email=tomador.email,
+            servico_descricao=validated_data["servico_descricao"],
+            valor_servicos=Decimal(str(validated_data["valor_servicos"])),
+        )
+    except EmissaoJaEmAndamento as exc:
+        return {"success": False, "error": str(exc)}, status.HTTP_409_CONFLICT
+
+    dados = dict(validated_data)
+    dados["numero_rps_reservado"] = reserva.numero_rps
     if should_enqueue_nfse():
-        enqueue_emissao_nfse_loja(loja_id, validated_data)
+        enqueue_emissao_nfse_loja(loja_id, dados)
         return (
             {
                 "success": True,
                 "queued": True,
-                "message": "NFS-e enfileirada para emissão. Consulte a lista em instantes.",
+                "message": (
+                    f"NFS-e enfileirada (DPS {reserva.numero_rps}). Consulte a lista em instantes."
+                ),
             },
             status.HTTP_202_ACCEPTED,
         )
-    return processar_emissao_nfse_loja_sync(loja, loja_id, validated_data)
+    return processar_emissao_nfse_loja_sync(loja, loja_id, dados)
 
 
 def _series_rps_candidatas(cfg: Any) -> list[str]:

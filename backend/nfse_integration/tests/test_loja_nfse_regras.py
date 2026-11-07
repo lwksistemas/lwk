@@ -76,14 +76,38 @@ class LojaNfseRegrasTests(SimpleTestCase):
         self.assertEqual(out["valor"], 10.5)
 
     def test_emissao_enfileira_sem_chamar_o_provedor(self):
+        reserva = SimpleNamespace(numero_rps=12)
+        dados = {"servico_descricao": "Consulta", "valor_servicos": "10.00"}
         with (
             patch("nfse_integration.queue_dispatch.should_enqueue_nfse", return_value=True),
             patch("nfse_integration.queue_dispatch.enqueue_emissao_nfse_loja") as enfileirar,
+            patch("nfse_integration.config_loja.config_nfse_da_loja", return_value=SimpleNamespace()),
+            patch("nfse_integration.persistencia_nfse_loja.reservar_emissao_loja", return_value=reserva),
         ):
-            body, code = processar_emissao_nfse_loja(SimpleNamespace(id=1), 4, {"servico_descricao": "Consulta"})
+            body, code = processar_emissao_nfse_loja(SimpleNamespace(id=1), 4, dados)
         self.assertEqual(code, 202)
         self.assertTrue(body["queued"])
-        enfileirar.assert_called_once_with(4, {"servico_descricao": "Consulta"})
+        self.assertIn("DPS 12", body["message"])
+        enfileirar.assert_called_once()
+        self.assertEqual(enfileirar.call_args.args[1]["numero_rps_reservado"], 12)
+
+    def test_segundo_clique_igual_nao_enfileira(self):
+        from nfse_integration.persistencia_nfse_loja import EmissaoJaEmAndamento
+
+        dados = {"servico_descricao": "Consulta", "valor_servicos": "10.00"}
+        with (
+            patch("nfse_integration.queue_dispatch.should_enqueue_nfse", return_value=True),
+            patch("nfse_integration.queue_dispatch.enqueue_emissao_nfse_loja") as enfileirar,
+            patch("nfse_integration.config_loja.config_nfse_da_loja", return_value=SimpleNamespace()),
+            patch(
+                "nfse_integration.persistencia_nfse_loja.reservar_emissao_loja",
+                side_effect=EmissaoJaEmAndamento(12),
+            ),
+        ):
+            body, code = processar_emissao_nfse_loja(SimpleNamespace(id=1), 4, dados)
+        self.assertEqual(code, 409)
+        self.assertIn("DPS 12", body["error"])
+        enfileirar.assert_not_called()
 
     def test_sync_asaas_recusa_nota_de_outro_provedor_e_loja_sem_chave(self):
         body, code = sincronizar_nfse_asaas_loja(SimpleNamespace(provedor="issnet"), 4)

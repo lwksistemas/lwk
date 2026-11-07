@@ -87,6 +87,26 @@ class NFSeService:
             if erro_endereco:
                 return {"success": False, "error": erro_endereco}
 
+            if not numero_rps:
+                from nfse_integration.persistencia_nfse_loja import (
+                    EmissaoJaEmAndamento,
+                    reservar_emissao_loja,
+                )
+
+                try:
+                    reserva = reservar_emissao_loja(
+                        self.loja.id,
+                        self.config,
+                        tomador_cpf_cnpj=tomador_cpf_cnpj,
+                        tomador_nome=tomador_nome,
+                        tomador_email=tomador_email,
+                        servico_descricao=servico_descricao,
+                        valor_servicos=valor_servicos,
+                    )
+                except EmissaoJaEmAndamento as exc:
+                    return {"success": False, "error": str(exc), "em_andamento": True}
+                numero_rps = reserva.numero_rps
+
             kwargs = dict(
                 tomador_cpf_cnpj=tomador_cpf_cnpj,
                 tomador_nome=tomador_nome,
@@ -100,6 +120,7 @@ class NFSeService:
                 codigo_servico_override=codigo_servico,
                 item_lista_override=item_lista_servico,
                 prestador=prestador,
+                numero_rps=int(numero_rps),
             )
 
             if provedor == "issnet":

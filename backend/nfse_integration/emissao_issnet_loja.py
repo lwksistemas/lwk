@@ -104,6 +104,7 @@ def emitir_via_issnet_loja(
     codigo_servico_override: str | None = None,
     item_lista_override: str | None = None,
     prestador: DadosPrestadorNFSe | None = None,
+    numero_rps: int | None = None,
 ) -> dict[str, Any]:
     """Emite NFS-e via WebService ISSNet municipal."""
     try:
@@ -117,7 +118,7 @@ def emitir_via_issnet_loja(
             config, valor_servicos, codigo_servico_override, codigo_cnae_override, item_lista_override,
         )
         with issnet_client_loja(config) as client:
-            numero_rps = gerar_proximo_numero_rps(loja.id, config)
+            numero_rps = int(numero_rps) if numero_rps else gerar_proximo_numero_rps(loja.id, config)
             resultado = client.emitir_nfse(
                 prestador_cnpj=cnpj_prestador,
                 prestador_inscricao_municipal=im_prestador,

@@ -209,6 +209,7 @@ def emitir_via_issnet_nacional_loja(
     item_lista_override: str | None = None,
     codigo_trib_nacional_override: str | None = None,
     prestador: DadosPrestadorNFSe | None = None,
+    numero_rps: int | None = None,
     **_extra,
 ) -> dict[str, Any]:
     """Emite NFS-e via ISSNet Nacional (padrão DPS/RTC).
@@ -265,7 +266,7 @@ def emitir_via_issnet_nacional_loja(
         )
 
         # Número DPS (usa mesmo contador de RPS)
-        numero_dps = gerar_proximo_numero_rps(loja.id, config)
+        numero_dps = int(numero_rps) if numero_rps else gerar_proximo_numero_rps(loja.id, config)
         serie_dps = getattr(config, "issnet_serie_rps", "1") or "1"
 
         # Emitir

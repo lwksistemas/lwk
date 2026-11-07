@@ -13,8 +13,43 @@ from core.cpf_utils import normalizar_cpf_cnpj
 logger = logging.getLogger(__name__)
 
 
-def gerar_proximo_numero_rps(loja_id: int, config: Any) -> int:
-    """Proximo numero RPS/DPS baseado no maior ja gravado."""
+class EmissaoJaEmAndamento(Exception):
+    """Já existe uma emissão igual que ainda não terminou."""
+
+    def __init__(self, numero_rps: int):
+        self.numero_rps = int(numero_rps or 0)
+        super().__init__(
+            f"Esta emissão já está em andamento (DPS {self.numero_rps}). Espere ela aparecer na lista.",
+        )
+
+
+def _travar_config_nfse(config: Any) -> Any:
+    """Trava a linha de configuração da loja. Sem pk, devolve o objeto como está."""
+    pk = getattr(config, "pk", None)
+    manager = getattr(type(config), "objects", None)
+    if not pk or manager is None:
+        return config
+    travada = manager.select_for_update().filter(pk=pk).first()
+    return travada or config
+
+
+def _gravar_ultimo_numero(config: Any, numero: int) -> None:
+    meta = getattr(config, "_meta", None)
+    if not getattr(config, "pk", None) or meta is None:
+        return
+    nomes = {campo.name for campo in meta.fields}
+    campos = []
+    if "issnet_ultimo_rps_conhecido" in nomes:
+        config.issnet_ultimo_rps_conhecido = numero
+        campos.append("issnet_ultimo_rps_conhecido")
+    if "nacional_ultimo_dps" in nomes:
+        config.nacional_ultimo_dps = numero
+        campos.append("nacional_ultimo_dps")
+    if campos:
+        config.save(update_fields=campos)
+
+
+def _calcular_proximo_numero(loja_id: int, config: Any) -> int:
     from nfse_integration.models import NFSe
 
     mx = NFSe.objects.filter(loja_id=loja_id).aggregate(m=Max("numero_rps"))["m"]
@@ -24,9 +59,83 @@ def gerar_proximo_numero_rps(loja_id: int, config: Any) -> int:
         or getattr(config, "issnet_ultimo_rps_conhecido", 0)
         or 0,
     )
-    nxt = max(mx + 1, portal_ult + 1)
-    logger.info("NFS-e proximo RPS/DPS: max_BD=%s, portal=%s -> %s", mx, portal_ult, nxt)
+    return max(mx + 1, portal_ult + 1)
+
+
+def gerar_proximo_numero_rps(loja_id: int, config: Any) -> int:
+    """Próximo RPS/DPS. Grava o número na configuração antes de devolver."""
+    from django.db import transaction
+
+    if not getattr(config, "pk", None):
+        nxt = _calcular_proximo_numero(loja_id, config)
+    else:
+        with transaction.atomic():
+            config = _travar_config_nfse(config)
+            nxt = _calcular_proximo_numero(loja_id, config)
+            _gravar_ultimo_numero(config, nxt)
+    logger.info("NFS-e proximo RPS/DPS reservado: %s (loja_id=%s)", nxt, loja_id)
     return nxt
+
+
+def reservar_emissao_loja(
+    loja_id: int,
+    config: Any,
+    *,
+    tomador_cpf_cnpj: str,
+    tomador_nome: str,
+    tomador_email: str,
+    servico_descricao: str,
+    valor_servicos: Decimal,
+) -> Any:
+    """Cria a linha pendente com o DPS reservado, ou recusa se a mesma já está saindo."""
+    from datetime import timedelta
+
+    from django.db import transaction
+
+    from nfse_integration.models import NFSe
+
+    cpf = normalizar_cpf_cnpj(tomador_cpf_cnpj or "")[:18]
+    descricao = (servico_descricao or "")[:500]
+    valor = Decimal(str(valor_servicos or 0)).quantize(Decimal("0.01"))
+    with transaction.atomic():
+        config = _travar_config_nfse(config)
+        agora = timezone.now()
+        limite = agora - timedelta(minutes=3)
+        abertas = list(
+            NFSe.objects.select_for_update().filter(
+                loja_id=loja_id,
+                status="pendente",
+                tomador_cpf_cnpj=cpf,
+                servico_descricao=descricao,
+                valor=valor,
+            ),
+        )
+        recente = next((nota for nota in abertas if nota.data_emissao and nota.data_emissao >= limite), None)
+        if recente:
+            raise EmissaoJaEmAndamento(recente.numero_rps)
+        for antiga in abertas:
+            antiga.status = "erro"
+            antiga.erro = (
+                "A emissão anterior não terminou. "
+                f"Confira o DPS {antiga.numero_rps} na prefeitura antes de emitir outra igual."
+            )[:2000]
+            antiga.save(update_fields=["status", "erro", "updated_at"])
+        numero = _calcular_proximo_numero(loja_id, config)
+        _gravar_ultimo_numero(config, numero)
+        provedor = (getattr(config, "provedor_nf", "") or "nacional").strip().lower()[:20]
+        return NFSe.objects.create(
+            loja_id=loja_id,
+            numero_nf=f"PENDENTE-{numero}"[:50],
+            numero_rps=numero,
+            data_emissao=agora,
+            valor=valor,
+            tomador_cpf_cnpj=cpf,
+            tomador_nome=(tomador_nome or "")[:200],
+            tomador_email=tomador_email or "",
+            servico_descricao=descricao,
+            provedor=provedor or "nacional",
+            status="pendente",
+        )
 
 
 def salvar_nfse_emitida(
@@ -45,6 +154,32 @@ def salvar_nfse_emitida(
         codigo_verificacao = (resultado.get("codigo_verificacao") or "").strip()
         if not codigo_verificacao and xml_nfse:
             codigo_verificacao = (extrair_chave_acesso_nfse_nacional(xml_nfse) or "").strip()
+        numero_rps = int(resultado.get("numero_rps") or 0)
+        if numero_rps:
+            pendente = NFSe.objects.filter(
+                loja_id=loja_id, numero_rps=numero_rps, status="pendente",
+            ).first()
+            if pendente:
+                pendente.numero_nf = str(resultado["numero_nf"])[:50]
+                pendente.codigo_verificacao = codigo_verificacao[:50]
+                pendente.data_emissao = resultado.get("data_emissao", timezone.now())
+                pendente.valor = resultado.get("valor", 0)
+                pendente.aliquota_iss = aliquota_iss
+                pendente.valor_iss = valor_iss
+                pendente.tomador_email = tomador_email or pendente.tomador_email
+                pendente.tomador_nome = (resultado.get("tomador_nome", "") or pendente.tomador_nome)[:200]
+                pendente.tomador_cpf_cnpj = normalizar_cpf_cnpj(
+                    resultado.get("tomador_cpf_cnpj", "") or pendente.tomador_cpf_cnpj,
+                )[:18]
+                pendente.servico_descricao = (resultado.get("servico_descricao") or pendente.servico_descricao or "")[:500]
+                pendente.xml_nfse = xml_nfse
+                pendente.pdf_url = (resultado.get("pdf_url", "") or "")[:1000]
+                pendente.provedor = provedor
+                pendente.status = "emitida"
+                pendente.erro = ""
+                pendente.save()
+                logger.info("NFS-e %s concluída da reserva (loja_id=%s)", pendente.numero_nf, loja_id)
+                return pendente
         nfse = NFSe.objects.create(
             loja_id=loja_id,
             numero_nf=resultado["numero_nf"],
@@ -85,6 +220,16 @@ def registrar_falha_emissao_loja(
 
     numero_nf = f"FALHA-{uuid4().hex[:12]}"
     try:
+        if numero_rps:
+            pendente = NFSe.objects.filter(
+                loja_id=loja_id, numero_rps=int(numero_rps), status="pendente",
+            ).first()
+            if pendente:
+                pendente.status = "erro"
+                pendente.erro = (erro_msg or "Erro desconhecido")[:2000]
+                pendente.numero_nf = f"FALHA-{int(numero_rps)}"[:50]
+                pendente.save(update_fields=["status", "erro", "numero_nf", "updated_at"])
+                return pendente
         return NFSe.objects.create(
             loja_id=loja_id,
             numero_nf=numero_nf[:50],

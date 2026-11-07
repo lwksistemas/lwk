@@ -15,6 +15,11 @@ import { formatCurrency, formatDate } from '@/lib/financeiro-helpers';
 import apiClient from '@/lib/api-client';
 import { hexToRgba } from '@/lib/loja-theme';
 import { cobrancaBoletoPixDisponivel } from '@/lib/assinatura-aviso';
+import {
+  cobrancaAbertaTemBoleto,
+  linhaTemBoletoDisponivel,
+  rotuloNotaFiscal,
+} from '@/lib/assinatura-historico';
 
 export interface HistoricoPagamentoItem {
   pagamento_loja_id: number;
@@ -391,6 +396,11 @@ export function HistoricoPagamentos({
 
   const mostrarProximaLinha = !cobrancaAberta && !temCobrancaAbertaNaLista && proximaCobranca;
   const podeGerarBoleto = geracaoBoleto?.pode_gerar !== false;
+  const mostrarColunaBoleto =
+    Boolean(cobrancaAberta && !temCobrancaAbertaNaLista && cobrancaAbertaTemBoleto(cobrancaAberta)) ||
+    Boolean(mostrarProximaLinha && onGerarCobranca && podeGerarBoleto) ||
+    itens.some((item) => linhaTemBoletoDisponivel(item));
+  const colunas = mostrarColunaBoleto ? 6 : 5;
   const mensagemGeracaoBoleto =
     geracaoBoleto?.motivo ||
     (geracaoBoleto?.data_liberacao
@@ -428,7 +438,9 @@ export function HistoricoPagamentos({
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Vencimento</th>
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Valor</th>
             <th className="text-left py-3 px-3 font-medium text-muted-foreground">Status</th>
-            <th className="text-right py-3 px-3 font-medium text-muted-foreground">Boleto</th>
+            {mostrarColunaBoleto ? (
+              <th className="text-right py-3 px-3 font-medium text-muted-foreground">Boleto</th>
+            ) : null}
             <th className="text-right py-3 px-3 font-medium text-muted-foreground">Nota fiscal</th>
           </tr>
         </thead>
@@ -445,6 +457,7 @@ export function HistoricoPagamentos({
               <td className="py-3 px-3">
                 <Badge variant="secondary">Pendente</Badge>
               </td>
+              {mostrarColunaBoleto ? (
               <td className="py-3 px-3">
                 {renderAvisoBoletoIndisponivel(cobrancaAberta.data_vencimento) || (
                 <div className="flex flex-wrap gap-1 justify-end">
@@ -498,6 +511,7 @@ export function HistoricoPagamentos({
                 </div>
                 )}
               </td>
+              ) : null}
               <td className="py-3 px-3 text-right text-xs text-muted-foreground">Após pagamento</td>
             </tr>
           )}
@@ -512,6 +526,7 @@ export function HistoricoPagamentos({
               <td className="py-3 px-3">
                 <Badge variant="outline">Aguardando</Badge>
               </td>
+              {mostrarColunaBoleto ? (
               <td className="py-3 px-3 text-right">
                 {onGerarCobranca && podeGerarBoleto && (
                   <Button
@@ -536,12 +551,14 @@ export function HistoricoPagamentos({
                   </span>
                 )}
               </td>
+              ) : null}
               <td className="py-3 px-3 text-right text-xs text-muted-foreground">—</td>
             </tr>
           )}
 
           {itens.map((item, index) => {
             const pid = item.pagamento_loja_id || item.id;
+            const nota = rotuloNotaFiscal(item.numero_nf);
             return (
               <tr
                 key={`${pid}-${item.asaas_id || index}`}
@@ -549,8 +566,8 @@ export function HistoricoPagamentos({
               >
                 <td className="py-3 px-3 dark:text-gray-200">
                   {item.referencia_mes || item.status_display || 'Mensalidade'}
-                  {item.numero_nf ? (
-                    <span className="block text-xs text-muted-foreground">NF {item.numero_nf}</span>
+                  {nota ? (
+                    <span className="block text-xs text-muted-foreground">{nota}</span>
                   ) : null}
                 </td>
                 <td className="py-3 px-3 dark:text-gray-200">
@@ -565,7 +582,9 @@ export function HistoricoPagamentos({
                 <td className="py-3 px-3">
                   <StatusBadge item={item} />
                 </td>
-                <td className="py-3 px-3 text-right">{renderAcoesBoleto(item)}</td>
+                {mostrarColunaBoleto ? (
+                  <td className="py-3 px-3 text-right">{renderAcoesBoleto(item)}</td>
+                ) : null}
                 <td className="py-3 px-3 text-right">{renderAcoesNf(item)}</td>
               </tr>
             );
@@ -573,7 +592,7 @@ export function HistoricoPagamentos({
 
           {!itens.length && !cobrancaAberta && !mostrarProximaLinha && (
             <tr>
-              <td colSpan={6} className="py-10 px-4 text-center text-muted-foreground dark:text-gray-400">
+              <td colSpan={colunas} className="py-10 px-4 text-center text-muted-foreground dark:text-gray-400">
                 Nenhum pagamento no histórico. O boleto ficará disponível 10 dias antes do vencimento.
               </td>
             </tr>

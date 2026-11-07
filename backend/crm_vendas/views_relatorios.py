@@ -89,7 +89,7 @@ def gerar_relatorio(request):
             pdf_buffer = gerar_relatorio_vendas_total(loja_id, periodo, empresa_prestadora_id=empresa_prestadora_id, data_inicio_custom=data_inicio_custom, data_fim_custom=data_fim_custom, comissao_somente_vendedor_id=comissao_somente)
             filename = f"relatorio_vendas_total_{periodo_label}.pdf"
         elif tipo == "nfse_emitidas":
-            if current_vendedor_id is not None and not is_owner and not vendedor_tem_controle_qualidade(request):
+            if not ve_a_loja:
                 return Response(
                     {"detail": "Só o administrador da loja gera o relatório de notas fiscais."},
                     status=status.HTTP_403_FORBIDDEN,

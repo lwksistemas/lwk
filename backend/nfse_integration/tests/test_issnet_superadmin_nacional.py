@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
-from asaas_integration.nfse_assinatura_service import _emitir_via_issnet
+from asaas_integration.nfse_assinatura_service import _emitir_via_issnet, _salvar_nfse_emitida
 from nfse_integration.emissao_issnet_superadmin import emitir_manual_issnet_superadmin
 from nfse_integration.issnet_superadmin import cancelar_nfse_emitida_superadmin
 
@@ -109,3 +109,30 @@ class SuperadminIssnetNacionalTest(SimpleTestCase):
         client.cancelar_nfse.assert_called_once()
         self.assertEqual(client.cancelar_nfse.call_args.kwargs["chave_acesso"], "3" * 50)
         client_antigo.assert_not_called()
+
+
+class GravacaoNfseAssinaturaTest(SimpleTestCase):
+    @patch("superadmin.models.NFSeEmitida")
+    def test_identificador_longo_cabe_na_coluna(self, modelo):
+        modelo.objects.create.return_value = SimpleNamespace(id=1)
+        pagamento = SimpleNamespace(loja=SimpleNamespace(), asaas_payment_id="")
+        config = SimpleNamespace(aliquota_iss=Decimal("2"), nacional_serie_dps="900")
+
+        _salvar_nfse_emitida(
+            pagamento,
+            config,
+            {
+                "numero_nf": "2" * 50,
+                "codigo_verificacao": "NFS" + ("1" * 50),
+                "numero_rps": 365,
+            },
+            "Loja",
+            "22239255889",
+            "loja@exemplo.com",
+            "Assinatura",
+            Decimal("7"),
+        )
+
+        kwargs = modelo.objects.create.call_args.kwargs
+        self.assertEqual(len(kwargs["numero_nf"]), 50)
+        self.assertEqual(len(kwargs["codigo_verificacao"]), 50)

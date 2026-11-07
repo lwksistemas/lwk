@@ -361,8 +361,8 @@ def _salvar_nfse_emitida(pagamento, config, resultado, tomador_nome, tomador_cpf
         nf = NFSeEmitida.objects.create(
             loja=pagamento.loja,
             pagamento=pagamento,
-            numero_nf=resultado.get("numero_nf", ""),
-            codigo_verificacao=resultado.get("codigo_verificacao", ""),
+            numero_nf=(resultado.get("numero_nf") or "")[:50],
+            codigo_verificacao=(resultado.get("codigo_verificacao") or "")[:50],
             numero_rps=resultado.get("numero_rps", 0),
             serie_rps=config.nacional_serie_dps or "900",
             provedor="nacional",

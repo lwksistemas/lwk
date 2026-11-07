@@ -78,6 +78,17 @@ class NFSeService:
             if provedor == "desabilitado":
                 return {"success": False, "error": "Emissão de NFS-e desabilitada"}
 
+            from nfse_integration.emissao_issnet_nacional_loja import motivo_codigo_nacional_inventado
+
+            motivo_codigo = motivo_codigo_nacional_inventado(
+                self.config,
+                codigo_servico=codigo_servico,
+                item_lista=item_lista_servico,
+                codigo_tributacao_nacional=codigo_tributacao_nacional,
+            )
+            if motivo_codigo:
+                return {"success": False, "error": motivo_codigo}
+
             from nfse_integration.nfse_geo import preparar_endereco_tomador_emissao
 
             tomador_endereco_final, erro_endereco = preparar_endereco_tomador_emissao(

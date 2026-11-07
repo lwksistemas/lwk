@@ -675,14 +675,25 @@ def processar_emissao_nfse_loja(
     """Enfileira ou emite NFS-e para a loja (API HTTP)."""
     from nfse_integration.config_loja import config_nfse_da_loja
     from nfse_integration.emissao import montar_dados_tomador_nfse
+    from nfse_integration.emissao_issnet_nacional_loja import motivo_codigo_nacional_inventado
     from nfse_integration.persistencia_nfse_loja import EmissaoJaEmAndamento, reservar_emissao_loja
     from nfse_integration.queue_dispatch import enqueue_emissao_nfse_loja, should_enqueue_nfse
+
+    config = config_nfse_da_loja(loja)
+    motivo_codigo = motivo_codigo_nacional_inventado(
+        config,
+        codigo_servico=validated_data.get("codigo_servico"),
+        item_lista=validated_data.get("item_lista_servico"),
+        codigo_tributacao_nacional=validated_data.get("codigo_tributacao_nacional"),
+    )
+    if motivo_codigo:
+        return {"success": False, "error": motivo_codigo}, status.HTTP_400_BAD_REQUEST
 
     tomador = montar_dados_tomador_nfse(validated_data, loja_id)
     try:
         reserva = reservar_emissao_loja(
             loja_id,
-            config_nfse_da_loja(loja),
+            config,
             tomador_cpf_cnpj=tomador.cpf_cnpj,
             tomador_nome=tomador.nome,
             tomador_email=tomador.email,

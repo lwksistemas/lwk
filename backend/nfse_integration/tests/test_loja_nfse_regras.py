@@ -81,7 +81,10 @@ class LojaNfseRegrasTests(SimpleTestCase):
         with (
             patch("nfse_integration.queue_dispatch.should_enqueue_nfse", return_value=True),
             patch("nfse_integration.queue_dispatch.enqueue_emissao_nfse_loja") as enfileirar,
-            patch("nfse_integration.config_loja.config_nfse_da_loja", return_value=SimpleNamespace()),
+            patch(
+                "nfse_integration.config_loja.config_nfse_da_loja",
+                return_value=SimpleNamespace(codigo_tributacao_nacional="060201"),
+            ),
             patch("nfse_integration.persistencia_nfse_loja.reservar_emissao_loja", return_value=reserva),
         ):
             body, code = processar_emissao_nfse_loja(SimpleNamespace(id=1), 4, dados)
@@ -98,7 +101,10 @@ class LojaNfseRegrasTests(SimpleTestCase):
         with (
             patch("nfse_integration.queue_dispatch.should_enqueue_nfse", return_value=True),
             patch("nfse_integration.queue_dispatch.enqueue_emissao_nfse_loja") as enfileirar,
-            patch("nfse_integration.config_loja.config_nfse_da_loja", return_value=SimpleNamespace()),
+            patch(
+                "nfse_integration.config_loja.config_nfse_da_loja",
+                return_value=SimpleNamespace(codigo_tributacao_nacional="060201"),
+            ),
             patch(
                 "nfse_integration.persistencia_nfse_loja.reservar_emissao_loja",
                 side_effect=EmissaoJaEmAndamento(12),

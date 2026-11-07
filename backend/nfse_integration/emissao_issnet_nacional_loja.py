@@ -98,6 +98,45 @@ def _resolver_codigo_tributacao_nacional(
     return "140101"
 
 
+def _digitos_de_codigo(valor: Any) -> str:
+    return _somente_digitos(str(valor or ""))
+
+
+def _codigo_foi_escolhido(valor: Any) -> bool:
+    return len(_digitos_de_codigo(valor)) >= 4
+
+
+def motivo_codigo_nacional_inventado(
+    config: Any,
+    *,
+    codigo_servico: str | None = None,
+    item_lista: str | None = None,
+    codigo_tributacao_nacional: str | None = None,
+) -> str:
+    """Recusa quando o cTribNac sairia 140101 sem ninguém ter escolhido o serviço.
+
+    O código municipal sozinho não conta: 0601 vazio de item e de cTribNac
+    também cai em conserto de computadores. Quem gravou 140101 ou 06.02 segue.
+    """
+    provedor = (getattr(config, "provedor_nf", None) or "issnet").strip().lower()
+    if provedor in ("manual", "desabilitado"):
+        return ""
+    if _codigo_foi_escolhido(codigo_tributacao_nacional) or _codigo_foi_escolhido(
+        getattr(config, "codigo_tributacao_nacional", ""),
+    ):
+        return ""
+    if _codigo_foi_escolhido(item_lista) or _codigo_foi_escolhido(getattr(config, "item_lista_servico", "")):
+        return ""
+    municipal = _digitos_de_codigo(getattr(config, "codigo_servico_municipal", ""))
+    informado = _digitos_de_codigo(codigo_servico)
+    if len(informado) >= 4 and informado != municipal:
+        return ""
+    return (
+        "Preencha o código nacional do serviço ou o item da lista antes de emitir. "
+        "Sem isso a nota sairia como 14.01 (conserto de computadores)."
+    )
+
+
 def _resolver_codigo_tributacao_municipal(
     config,
     *,

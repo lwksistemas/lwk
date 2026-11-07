@@ -23,6 +23,20 @@ class EmissaoJaEmAndamento(Exception):
         )
 
 
+def _alias_banco_loja(config: Any) -> str:
+    """Banco em que a nota e a configuração da loja são lidas."""
+    from tenants.middleware import get_current_tenant_db
+
+    tenant = get_current_tenant_db() or ""
+    if tenant and tenant != "default":
+        return tenant
+    estado = getattr(config, "_state", None)
+    alias = getattr(estado, "db", None) or ""
+    if alias and alias != "default":
+        return alias
+    return tenant or alias or "default"
+
+
 def _travar_config_nfse(config: Any) -> Any:
     """Trava a linha de configuração da loja. Sem pk, devolve o objeto como está."""
     pk = getattr(config, "pk", None)
@@ -69,7 +83,7 @@ def gerar_proximo_numero_rps(loja_id: int, config: Any) -> int:
     if not getattr(config, "pk", None):
         nxt = _calcular_proximo_numero(loja_id, config)
     else:
-        with transaction.atomic():
+        with transaction.atomic(using=_alias_banco_loja(config)):
             config = _travar_config_nfse(config)
             nxt = _calcular_proximo_numero(loja_id, config)
             _gravar_ultimo_numero(config, nxt)
@@ -97,7 +111,7 @@ def reservar_emissao_loja(
     cpf = normalizar_cpf_cnpj(tomador_cpf_cnpj or "")[:18]
     descricao = (servico_descricao or "")[:500]
     valor = Decimal(str(valor_servicos or 0)).quantize(Decimal("0.01"))
-    with transaction.atomic():
+    with transaction.atomic(using=_alias_banco_loja(config)):
         config = _travar_config_nfse(config)
         agora = timezone.now()
         limite = agora - timedelta(minutes=3)

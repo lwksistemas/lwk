@@ -7,7 +7,12 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase
 from django.utils import timezone
 
-from nfse_integration.persistencia_nfse_loja import EmissaoJaEmAndamento, reservar_emissao_loja
+from nfse_integration.persistencia_nfse_loja import (
+    EmissaoJaEmAndamento,
+    gerar_proximo_numero_rps,
+    reservar_emissao_loja,
+)
+from tenants.middleware import set_current_tenant_db
 from nfse_integration.queue_dispatch import enqueue_emissao_nfse_loja
 
 
@@ -66,6 +71,33 @@ class ReservaDpsTests(SimpleTestCase):
         )
         self.assertEqual(antiga.status, "erro")
         self.assertEqual(nfse.objects.create.call_args.kwargs["numero_rps"], 4)
+
+    @patch("django.db.transaction.atomic")
+    @patch("nfse_integration.models.NFSe")
+    def test_a_trava_abre_no_banco_da_loja(self, nfse, atomic):
+        nfse.objects.select_for_update.return_value.filter.return_value = []
+        nfse.objects.filter.return_value.aggregate.return_value = {"m": 1}
+        nfse.objects.create.return_value = SimpleNamespace(numero_rps=2)
+        set_current_tenant_db("loja_teste")
+        try:
+            reservar_emissao_loja(
+                4,
+                SimpleNamespace(provedor_nf="nacional", nacional_ultimo_dps=1, issnet_ultimo_rps_conhecido=0),
+                tomador_cpf_cnpj="123",
+                tomador_nome="Ana",
+                tomador_email="",
+                servico_descricao="Consulta",
+                valor_servicos=Decimal("10.00"),
+            )
+            gerar_proximo_numero_rps(
+                4,
+                SimpleNamespace(pk=1, nacional_ultimo_dps=1, issnet_ultimo_rps_conhecido=0),
+            )
+        finally:
+            set_current_tenant_db("default")
+        atomic.assert_any_call(using="loja_teste")
+        for chamada in atomic.call_args_list:
+            self.assertEqual(chamada.kwargs.get("using"), "loja_teste")
 
     def test_o_nome_da_tarefa_nao_muda_entre_processos(self):
         nomes = []

@@ -130,6 +130,8 @@ def _legenda_danfse_whatsapp(nfse: Any, loja: Any, numero: str) -> str:
         linhas.append(prestador)
     if valor:
         linhas.append(f"Valor: R$ {valor}")
+    if (getattr(nfse, "status", "") or "") == "cancelada":
+        linhas.append("Situação: NFS-e cancelada.")
     linhas.extend(["", "A DANFSe segue em anexo."])
     return "\n".join(linhas)[:1024]
 
@@ -180,8 +182,8 @@ def enviar_whatsapp_nfse_loja(
     from whatsapp.models import WhatsAppConfig
     from whatsapp.services import send_whatsapp
 
-    if nfse.status != "emitida":
-        raise ReenvioNFSeLojaError("Só é possível enviar por WhatsApp NFS-e com status emitida.")
+    if nfse.status not in ("emitida", "cancelada"):
+        raise ReenvioNFSeLojaError("Só é possível enviar por WhatsApp NFS-e emitida ou cancelada.")
 
     telefone = (telefone or "").strip()
     if not telefone:

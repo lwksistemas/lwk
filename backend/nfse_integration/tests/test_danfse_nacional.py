@@ -159,6 +159,33 @@ class WhatsappDanfseLojaTests(SimpleTestCase):
         self.assertNotIn("e-mail", kwargs["caption"])
         self.assertNotIn(CHAVE, kwargs["caption"])
 
+    def test_whatsapp_da_nota_cancelada_avisa_a_situacao(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        from nfse_integration.loja_nfse_api import enviar_whatsapp_nfse_loja
+
+        nfse = self._nfse()
+        nfse.status = "cancelada"
+        config = SimpleNamespace(whatsapp_ativo=True)
+        with patch("whatsapp.models.WhatsAppConfig.objects") as objects, patch(
+            "whatsapp.services.send_whatsapp_document",
+            return_value=(True, None),
+        ) as enviar, patch(
+            "core.public_urls.get_public_api_base_url",
+            return_value="https://api.lwksistemas.com.br",
+        ):
+            objects.filter.return_value.first.return_value = config
+            enviar_whatsapp_nfse_loja(
+                nfse,
+                SimpleNamespace(nome="FELIX REPRESENTACOES E COMERCIO LTDA"),
+                4,
+                "16999621823",
+                SimpleNamespace(user=None),
+            )
+        self.assertIn("NFS-e cancelada", enviar.call_args.kwargs["caption"])
+        self.assertNotIn(CHAVE, enviar.call_args.kwargs["caption"])
+
     def test_link_publico_entrega_o_pdf(self):
         from types import SimpleNamespace
         from unittest.mock import patch

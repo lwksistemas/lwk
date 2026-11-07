@@ -136,7 +136,7 @@ export function nfsePodeSincronizar(
 }
 
 export function nfsePodeEnviarWhatsapp(status: string): boolean {
-  return status === 'emitida';
+  return status === 'emitida' || status === 'cancelada';
 }
 
 export function nfsePodeCancelar(status: string): boolean {

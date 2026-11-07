@@ -229,8 +229,8 @@ def enviar_whatsapp_nfse_superadmin(nf: Any, telefone: str, request: Any) -> str
     from whatsapp.services import send_whatsapp_document
     from whatsapp.sync_context import whatsapp_sync_only
 
-    if getattr(nf, "status", "") != "emitida":
-        raise ReenvioNFSeError("Só é possível enviar por WhatsApp NFS-e com status emitida.")
+    if getattr(nf, "status", "") not in ("emitida", "cancelada"):
+        raise ReenvioNFSeError("Só é possível enviar por WhatsApp NFS-e emitida ou cancelada.")
     telefone = (telefone or "").strip()
     if not telefone:
         raise ReenvioNFSeError("Informe o número de WhatsApp.")

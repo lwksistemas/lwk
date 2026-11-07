@@ -3,6 +3,7 @@ import {
   filtrarNfsesPorBusca,
   montarMotivoCancelamento,
   nfsePodeCancelar,
+  nfsePodeEnviarWhatsapp,
   nfsePodeExcluirLoja,
   nfsePodeSincronizar,
   nfseProvedorLabel,
@@ -13,6 +14,9 @@ describe('regras de NFS-e na loja', () => {
   it('só cancela e sincroniza o que o status permite', () => {
     expect(nfsePodeCancelar('emitida')).toBe(true);
     expect(nfsePodeCancelar('erro')).toBe(false);
+    expect(nfsePodeEnviarWhatsapp('emitida')).toBe(true);
+    expect(nfsePodeEnviarWhatsapp('cancelada')).toBe(true);
+    expect(nfsePodeEnviarWhatsapp('erro')).toBe(false);
     expect(nfsePodeExcluirLoja('pendente')).toBe(true);
     expect(nfsePodeExcluirLoja('emitida')).toBe(false);
     expect(nfsePodeExcluirLoja('cancelada')).toBe(false);

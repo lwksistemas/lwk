@@ -51,6 +51,7 @@ def reservar_emissao_superadmin(config: Any, payload: Any) -> Any:
     cpf = normalizar_cpf_cnpj(getattr(payload, "tomador_cpf_cnpj", "") or "")[:18]
     descricao = (getattr(payload, "descricao", "") or "")[:500]
     valor = Decimal(str(getattr(payload, "valor", 0) or 0)).quantize(Decimal("0.01"))
+    interrompida = None
     with transaction.atomic():
         travada = type(config).objects.using("default").select_for_update().get(pk=config.pk)
         agora = timezone.now()
@@ -74,35 +75,36 @@ def reservar_emissao_superadmin(config: Any, payload: Any) -> Any:
                     f"Confira o DPS {antiga.numero_rps} na prefeitura antes de emitir outra igual."
                 )[:2000]
                 antiga.save(update_fields=["status", "erro_mensagem"])
-            numero_antigo = abertas[0].numero_rps
-            raise EmissaoJaEmAndamento(
-                numero_antigo,
-                (
-                    f"A emissão do DPS {numero_antigo} passou do tempo e foi interrompida. "
-                    "Confira na prefeitura. Se a nota não estiver lá, emita de novo."
-                ),
+            interrompida = abertas[0].numero_rps
+        else:
+            numero = int(travada.nacional_ultimo_dps or 0) + 1
+            travada.nacional_ultimo_dps = numero
+            travada.ultimo_rps = numero
+            travada.save(update_fields=["nacional_ultimo_dps", "ultimo_rps", "updated_at"])
+            config.nacional_ultimo_dps = numero
+            config.ultimo_rps = numero
+            return NFSeEmitida.objects.create(
+                loja=getattr(payload, "loja", None),
+                numero_nf=f"PENDENTE-{numero}"[:50],
+                numero_rps=numero,
+                serie_rps=travada.nacional_serie_dps or "1",
+                provedor="nacional",
+                status="pendente",
+                valor=valor,
+                aliquota_iss=Decimal(str(getattr(travada, "aliquota_iss", 0) or 0)),
+                tomador_nome=(getattr(payload, "tomador_nome", "") or "")[:200],
+                tomador_cpf_cnpj=cpf,
+                tomador_email=getattr(payload, "tomador_email", "") or "",
+                descricao_servico=descricao,
+                data_emissao=agora,
             )
-        numero = int(travada.nacional_ultimo_dps or 0) + 1
-        travada.nacional_ultimo_dps = numero
-        travada.ultimo_rps = numero
-        travada.save(update_fields=["nacional_ultimo_dps", "ultimo_rps", "updated_at"])
-        config.nacional_ultimo_dps = numero
-        config.ultimo_rps = numero
-        return NFSeEmitida.objects.create(
-            loja=getattr(payload, "loja", None),
-            numero_nf=f"PENDENTE-{numero}"[:50],
-            numero_rps=numero,
-            serie_rps=travada.nacional_serie_dps or "1",
-            provedor="nacional",
-            status="pendente",
-            valor=valor,
-            aliquota_iss=Decimal(str(getattr(travada, "aliquota_iss", 0) or 0)),
-            tomador_nome=(getattr(payload, "tomador_nome", "") or "")[:200],
-            tomador_cpf_cnpj=cpf,
-            tomador_email=getattr(payload, "tomador_email", "") or "",
-            descricao_servico=descricao,
-            data_emissao=agora,
-        )
+    raise EmissaoJaEmAndamento(
+        interrompida,
+        (
+            f"A emissão do DPS {interrompida} passou do tempo e foi interrompida. "
+            "Confira na prefeitura. Se a nota não estiver lá, emita de novo."
+        ),
+    )
 
 
 def _pendente_do_dps(numero_dps: int) -> Any | None:

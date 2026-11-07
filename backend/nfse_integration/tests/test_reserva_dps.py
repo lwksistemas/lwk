@@ -4,7 +4,8 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from django.test import SimpleTestCase
+from django.contrib.auth.models import User
+from django.test import SimpleTestCase, TestCase, TransactionTestCase
 from django.utils import timezone
 
 from nfse_integration.persistencia_nfse_loja import (
@@ -134,3 +135,113 @@ class ReservaDpsTests(SimpleTestCase):
             enqueue_emissao_nfse_loja(4, dados)
         self.assertEqual(nomes[0], nomes[1])
         self.assertNotIn("hash", nomes[0])
+
+
+class ReservaLojaGravaErroNoBancoTests(TransactionTestCase):
+    """A nota da loja mora no schema do tenant. O teste cria a tabela e usa a transação de verdade."""
+
+    def tearDown(self):
+        from tenants.middleware import set_current_loja_id, set_current_tenant_db
+
+        set_current_loja_id(None)
+        set_current_tenant_db("default")
+
+    def test_loja_nota_velha_fica_erro_e_o_clique_seguinte_reserva(self):
+        from django.db import connection
+
+        from superadmin.models import Loja, PlanoAssinatura, TipoLoja
+
+        from nfse_integration.models import NFSe
+        from tenants.middleware import set_current_loja_id, set_current_tenant_db
+
+        if NFSe._meta.db_table not in connection.introspection.table_names():
+            with connection.schema_editor() as editor:
+                editor.create_model(NFSe)
+
+        tipo = TipoLoja.objects.create(nome="CRM Reserva", slug="tipo-reserva-nfse", codigo="RSVNF")
+        plano = PlanoAssinatura.objects.create(
+            nome="Plano Reserva", slug="plano-reserva-nfse", descricao="teste", preco_mensal=Decimal("10.00"),
+        )
+        owner = User.objects.create_user(username="dono-reserva-nfse", password="senha12345")
+        loja = Loja.objects.create(
+            nome="Loja Reserva", slug="loja-reserva-nfse", tipo_loja=tipo, plano=plano, owner=owner,
+        )
+        set_current_loja_id(loja.id)
+        set_current_tenant_db("default")
+        antiga = NFSe.objects.create(
+            loja_id=loja.id,
+            numero_nf="PENDENTE-3",
+            numero_rps=3,
+            data_emissao=timezone.now() - timedelta(minutes=20),
+            valor=Decimal("10.00"),
+            tomador_cpf_cnpj="123",
+            tomador_nome="Ana",
+            servico_descricao="Consulta",
+            status="pendente",
+            provedor="nacional",
+        )
+        config = SimpleNamespace(provedor_nf="nacional", nacional_ultimo_dps=3, issnet_ultimo_rps_conhecido=0)
+        dados = dict(
+            tomador_cpf_cnpj="123",
+            tomador_nome="Ana",
+            tomador_email="",
+            servico_descricao="Consulta",
+            valor_servicos=Decimal("10.00"),
+        )
+        with self.assertRaises(EmissaoJaEmAndamento):
+            reservar_emissao_loja(loja.id, config, **dados)
+        antiga.refresh_from_db()
+        self.assertEqual(antiga.status, "erro")
+        nova = reservar_emissao_loja(loja.id, config, **dados)
+        self.assertEqual(nova.status, "pendente")
+        self.assertNotEqual(nova.pk, antiga.pk)
+        antiga.refresh_from_db()
+        self.assertEqual(antiga.status, "erro")
+
+
+class ReservaGravaErroNoBancoTests(TestCase):
+    """A recusa da nota velha tem que ficar gravada. O raise depois do commit é o que permite emitir de novo."""
+
+    def test_lwk_nota_velha_fica_erro_e_o_clique_seguinte_reserva(self):
+        from asaas_integration.models_nfse_config import SuperadminNFSeConfig
+        from superadmin.models import NFSeEmitida
+
+        from nfse_integration.persistencia_nfse_superadmin import (
+            EmissaoJaEmAndamento as RecusaLwk,
+            reservar_emissao_superadmin,
+        )
+
+        config = SuperadminNFSeConfig.get_config()
+        config.nacional_ultimo_dps = 364
+        config.ultimo_rps = 364
+        config.save(update_fields=["nacional_ultimo_dps", "ultimo_rps", "updated_at"])
+        antiga = NFSeEmitida.objects.create(
+            numero_nf="PENDENTE-364",
+            numero_rps=364,
+            valor=Decimal("12.00"),
+            tomador_cpf_cnpj="123",
+            tomador_nome="Ana",
+            descricao_servico="Consulta",
+            status="pendente",
+            provedor="nacional",
+        )
+        NFSeEmitida.objects.filter(pk=antiga.pk).update(created_at=timezone.now() - timedelta(minutes=20))
+        payload = SimpleNamespace(
+            loja=None,
+            tomador_cpf_cnpj="123",
+            tomador_nome="Ana",
+            tomador_email="",
+            descricao="Consulta",
+            valor=Decimal("12.00"),
+        )
+        with self.assertRaises(RecusaLwk):
+            reservar_emissao_superadmin(config, payload)
+        antiga.refresh_from_db()
+        self.assertEqual(antiga.status, "erro")
+        config.refresh_from_db()
+        self.assertEqual(config.nacional_ultimo_dps, 364)
+        nova = reservar_emissao_superadmin(config, payload)
+        self.assertEqual(nova.status, "pendente")
+        self.assertEqual(nova.numero_rps, 365)
+        antiga.refresh_from_db()
+        self.assertEqual(antiga.status, "erro")

@@ -115,6 +115,7 @@ def reservar_emissao_loja(
     cpf = normalizar_cpf_cnpj(tomador_cpf_cnpj or "")[:18]
     descricao = (servico_descricao or "")[:500]
     valor = Decimal(str(valor_servicos or 0)).quantize(Decimal("0.01"))
+    interrompida = None
     with transaction.atomic(using=_alias_banco_loja(config)):
         config = _travar_config_nfse(config)
         agora = timezone.now()
@@ -139,30 +140,31 @@ def reservar_emissao_loja(
                     f"Confira o DPS {antiga.numero_rps} na prefeitura antes de emitir outra igual."
                 )[:2000]
                 antiga.save(update_fields=["status", "erro", "updated_at"])
-            numero_antigo = abertas[0].numero_rps
-            raise EmissaoJaEmAndamento(
-                numero_antigo,
-                (
-                    f"A emissão do DPS {numero_antigo} passou do tempo e foi interrompida. "
-                    "Confira na prefeitura. Se a nota não estiver lá, emita de novo."
-                ),
+            interrompida = abertas[0].numero_rps
+        else:
+            numero = _calcular_proximo_numero(loja_id, config)
+            _gravar_ultimo_numero(config, numero)
+            provedor = (getattr(config, "provedor_nf", "") or "nacional").strip().lower()[:20]
+            return NFSe.objects.create(
+                loja_id=loja_id,
+                numero_nf=f"PENDENTE-{numero}"[:50],
+                numero_rps=numero,
+                data_emissao=agora,
+                valor=valor,
+                tomador_cpf_cnpj=cpf,
+                tomador_nome=(tomador_nome or "")[:200],
+                tomador_email=tomador_email or "",
+                servico_descricao=descricao,
+                provedor=provedor or "nacional",
+                status="pendente",
             )
-        numero = _calcular_proximo_numero(loja_id, config)
-        _gravar_ultimo_numero(config, numero)
-        provedor = (getattr(config, "provedor_nf", "") or "nacional").strip().lower()[:20]
-        return NFSe.objects.create(
-            loja_id=loja_id,
-            numero_nf=f"PENDENTE-{numero}"[:50],
-            numero_rps=numero,
-            data_emissao=agora,
-            valor=valor,
-            tomador_cpf_cnpj=cpf,
-            tomador_nome=(tomador_nome or "")[:200],
-            tomador_email=tomador_email or "",
-            servico_descricao=descricao,
-            provedor=provedor or "nacional",
-            status="pendente",
-        )
+    raise EmissaoJaEmAndamento(
+        interrompida,
+        (
+            f"A emissão do DPS {interrompida} passou do tempo e foi interrompida. "
+            "Confira na prefeitura. Se a nota não estiver lá, emita de novo."
+        ),
+    )
 
 
 def salvar_nfse_emitida(

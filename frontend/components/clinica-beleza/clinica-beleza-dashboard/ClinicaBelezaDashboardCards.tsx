@@ -87,6 +87,16 @@ export function DashboardGreeting({
             value={mesAno}
             max={mesAnoMax}
             onChange={(e) => e.target.value && onMesAno(e.target.value)}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => {
+              const input = e.currentTarget;
+              if (typeof input.showPicker !== "function") return;
+              try {
+                input.showPicker();
+              } catch {
+                input.focus();
+              }
+            }}
             className="absolute inset-0 opacity-0 cursor-pointer"
             aria-label="Filtrar mês do dashboard"
           />

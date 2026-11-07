@@ -28,3 +28,42 @@ export function pctChangeDashboard(current: number, previous: number): string | 
   const pct = Math.round(((current - previous) / previous) * 100);
   return `${pct >= 0 ? "+" : ""}${pct}%`;
 }
+
+const MESES_DASHBOARD = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+
+/** Rótulo do seletor: "Novembro / 2026". */
+export function rotuloPeriodoDashboard(value: string): string {
+  const { mes, ano } = parseDashboardMesAno(value);
+  const nome = MESES_DASHBOARD[mes - 1];
+  if (!nome || !ano) return value;
+  return `${nome} / ${ano}`;
+}
+
+export function saudacaoDashboard(hora: number): string {
+  if (hora < 12) return "Bom dia";
+  if (hora < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+export function primeiroNomeDashboard(nome: string): string {
+  return nome.trim().split(/\s+/)[0] || "";
+}
+
+/** Percentual inteiro de `parte` sobre `total`. Total zero vira 0. */
+export function percentualDashboard(parte: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.round((parte / total) * 100);
+}

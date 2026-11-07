@@ -25,13 +25,17 @@ def gerar_proximo_numero_rps_superadmin(config: Any) -> int:
     return nxt
 
 
+JANELA_EMISSAO_MINUTOS = 15
+
+
 class EmissaoJaEmAndamento(Exception):
     """Já existe uma emissão igual da LWK que ainda não terminou."""
 
-    def __init__(self, numero_rps: int):
+    def __init__(self, numero_rps: int, mensagem: str = ""):
         self.numero_rps = int(numero_rps or 0)
         super().__init__(
-            f"Esta emissão já está em andamento (DPS {self.numero_rps}). Espere ela aparecer na lista.",
+            mensagem
+            or f"Esta emissão já está em andamento (DPS {self.numero_rps}). Espere ela aparecer na lista.",
         )
 
 
@@ -50,7 +54,7 @@ def reservar_emissao_superadmin(config: Any, payload: Any) -> Any:
     with transaction.atomic():
         travada = type(config).objects.using("default").select_for_update().get(pk=config.pk)
         agora = timezone.now()
-        limite = agora - timedelta(minutes=3)
+        limite = agora - timedelta(minutes=JANELA_EMISSAO_MINUTOS)
         abertas = list(
             NFSeEmitida.objects.select_for_update().filter(
                 status="pendente",
@@ -62,13 +66,22 @@ def reservar_emissao_superadmin(config: Any, payload: Any) -> Any:
         recente = next((nota for nota in abertas if nota.created_at and nota.created_at >= limite), None)
         if recente:
             raise EmissaoJaEmAndamento(recente.numero_rps)
-        for antiga in abertas:
-            antiga.status = "erro"
-            antiga.erro_mensagem = (
-                "A emissão anterior não terminou. "
-                f"Confira o DPS {antiga.numero_rps} na prefeitura antes de emitir outra igual."
-            )[:2000]
-            antiga.save(update_fields=["status", "erro_mensagem"])
+        if abertas:
+            for antiga in abertas:
+                antiga.status = "erro"
+                antiga.erro_mensagem = (
+                    "A emissão anterior passou do tempo. "
+                    f"Confira o DPS {antiga.numero_rps} na prefeitura antes de emitir outra igual."
+                )[:2000]
+                antiga.save(update_fields=["status", "erro_mensagem"])
+            numero_antigo = abertas[0].numero_rps
+            raise EmissaoJaEmAndamento(
+                numero_antigo,
+                (
+                    f"A emissão do DPS {numero_antigo} passou do tempo e foi interrompida. "
+                    "Confira na prefeitura. Se a nota não estiver lá, emita de novo."
+                ),
+            )
         numero = int(travada.nacional_ultimo_dps or 0) + 1
         travada.nacional_ultimo_dps = numero
         travada.ultimo_rps = numero
@@ -97,7 +110,8 @@ def _pendente_do_dps(numero_dps: int) -> Any | None:
 
     if not numero_dps:
         return None
-    return NFSeEmitida.objects.filter(numero_rps=int(numero_dps), status="pendente").first()
+    base = NFSeEmitida.objects.filter(numero_rps=int(numero_dps))
+    return base.filter(status="pendente").first() or base.filter(status="erro").first()
 
 
 def sincronizar_contadores_rps_superadmin(config: Any, numero_rps: int) -> None:

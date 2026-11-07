@@ -75,19 +75,21 @@ class ReservaDpsSuperadminTests(SimpleTestCase):
         self.assertEqual(nfse.objects.create.call_args.kwargs["status"], "pendente")
 
     @patch("superadmin.models.NFSeEmitida")
-    def test_pendente_velha_libera_o_proximo(self, nfse):
-        antiga = MagicMock(numero_rps=360, created_at=timezone.now() - timedelta(minutes=10))
+    def test_pendente_velha_nao_emite_outra_no_mesmo_clique(self, nfse):
+        antiga = MagicMock(numero_rps=360, created_at=timezone.now() - timedelta(minutes=20))
         nfse.objects.select_for_update.return_value.filter.return_value = [antiga]
-        nfse.objects.create.return_value = SimpleNamespace(numero_rps=365)
         travada = SimpleNamespace(
             nacional_ultimo_dps=364,
             nacional_serie_dps="1",
             aliquota_iss=2,
             save=MagicMock(),
         )
-        reservar_emissao_superadmin(self._config(travada), _payload())
+        with self.assertRaises(EmissaoJaEmAndamento) as ctx:
+            reservar_emissao_superadmin(self._config(travada), _payload())
+        self.assertEqual(ctx.exception.numero_rps, 360)
         self.assertEqual(antiga.status, "erro")
-        self.assertEqual(nfse.objects.create.call_args.kwargs["numero_rps"], 365)
+        self.assertEqual(travada.nacional_ultimo_dps, 364)
+        nfse.objects.create.assert_not_called()
 
     @patch("nfse_integration.emissao_issnet_nacional_loja._resolver_p_tot_trib_sn", return_value=None)
     @patch("nfse_integration.emissao_issnet_nacional_loja.codigo_tributacao_nacional_sefin", return_value="140101")

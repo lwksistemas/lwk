@@ -17,6 +17,21 @@ logger = logging.getLogger(__name__)
 
 TOKEN_MAX_AGE = 3600
 TOKEN_EMAIL_MAX_AGE = 60 * 60 * 24 * 180
+LIMITE_CONSULTA_PDF = 40
+
+
+def _consulta_pdf_permitida(token: str) -> bool:
+    """Limita quantas vezes o mesmo link baixa o PDF numa hora."""
+    import hashlib
+
+    from django.core.cache import cache
+
+    chave = "nfse-pdf:" + hashlib.sha256(token.encode()).hexdigest()[:24]
+    atual = int(cache.get(chave, 0) or 0)
+    if atual >= LIMITE_CONSULTA_PDF:
+        return False
+    cache.set(chave, atual + 1, TOKEN_MAX_AGE)
+    return True
 
 
 def criar_token_pdf_nfse(nfse_id: int, loja_id: int, *, max_age: int = TOKEN_MAX_AGE) -> str:
@@ -77,6 +92,8 @@ class NFSePdfPublicView(View):
         payload = _verificar_token(token)
         if not payload:
             return HttpResponse("Token inválido ou expirado", status=403)
+        if not _consulta_pdf_permitida(token):
+            return HttpResponse("Muitas consultas deste link. Espere um pouco e tente de novo.", status=429)
 
         nfse_id = payload.get("id")
         if payload.get("origem") == "superadmin":

@@ -597,6 +597,20 @@ def processar_emissao_nfse_loja_sync(
         empresa_prestadora_id = int(empresa_prestadora_id)
 
     numero_reservado = validated_data.get("numero_rps_reservado")
+    if numero_reservado:
+        ja_emitida = NFSe.objects.filter(
+            loja_id=loja_id, numero_rps=int(numero_reservado), status="emitida",
+        ).first()
+        if ja_emitida:
+            return (
+                {
+                    "success": True,
+                    "message": "NFS-e emitida com sucesso",
+                    "nfse": NFSeSerializer(ja_emitida).data,
+                },
+                status.HTTP_200_OK,
+            )
+
     resultado = service.emitir_nfse(
         tomador_cpf_cnpj=tomador.cpf_cnpj,
         tomador_nome=tomador.nome,

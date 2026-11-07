@@ -97,7 +97,7 @@ def nfse_cancelar(request, nfse_id):
         return Response({"success": False, "error": "NFS-e não encontrada"}, status=404)
     except Exception as e:
         logger.exception("Erro ao cancelar NFS-e: %s", e)
-        return Response({"success": False, "error": str(e)}, status=500)
+        return Response({"success": False, "error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=500)
 
 
 @api_view(["GET"])
@@ -145,7 +145,7 @@ def nfse_reenviar(request, nfse_id):
         return Response({"success": False, "error": "NFS-e não encontrada"}, status=404)
     except Exception as e:
         logger.exception("Erro ao reenviar NFS-e: %s", e)
-        return Response({"success": False, "error": str(e)}, status=500)
+        return Response({"success": False, "error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=500)
 
 
 @api_view(["POST"])
@@ -163,7 +163,7 @@ def nfse_enviar_whatsapp(request, nfse_id):
         return Response({"success": False, "error": "NFS-e não encontrada"}, status=404)
     except Exception as e:
         logger.exception("Erro ao enviar NFS-e por WhatsApp: %s", e)
-        return Response({"success": False, "error": str(e)}, status=500)
+        return Response({"success": False, "error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=500)
 
 
 @api_view(["GET"])
@@ -193,7 +193,7 @@ def nfse_debug_url(request, nfse_id):
         return Response({"error": "NFS-e não encontrada"}, status=404)
     except Exception as e:
         logger.exception("Erro debug URL NFS-e: %s", e)
-        return Response({"error": str(e)}, status=500)
+        return Response({"error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=500)
 
 
 @api_view(["DELETE"])
@@ -226,7 +226,7 @@ def nfse_excluir(request, nfse_id):
         return Response({"success": False, "error": "NFS-e não encontrada"}, status=404)
     except Exception as e:
         logger.exception("Erro ao excluir NFS-e: %s", e)
-        return Response({"success": False, "error": str(e)}, status=500)
+        return Response({"success": False, "error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=500)
 
 
 @api_view(["GET"])
@@ -300,4 +300,4 @@ def emitir_nfse_manual(request):
         return Response(resultado.as_response_dict(), status=resultado.http_status)
     except Exception as e:
         logger.exception("Erro ao emitir NFS-e manual: %s", e)
-        return Response({"success": False, "error": str(e)}, status=500)
+        return Response({"success": False, "error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=500)

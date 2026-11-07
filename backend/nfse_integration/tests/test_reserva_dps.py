@@ -55,22 +55,23 @@ class ReservaDpsTests(SimpleTestCase):
         self.assertEqual(criado["status"], "pendente")
 
     @patch("nfse_integration.models.NFSe")
-    def test_pendente_velha_libera_um_numero_novo(self, nfse):
-        antiga = MagicMock(numero_rps=3, data_emissao=timezone.now() - timedelta(minutes=10))
+    def test_pendente_velha_nao_emite_outra_no_mesmo_clique(self, nfse):
+        antiga = MagicMock(numero_rps=3, data_emissao=timezone.now() - timedelta(minutes=20))
         nfse.objects.select_for_update.return_value.filter.return_value = [antiga]
-        nfse.objects.filter.return_value.aggregate.return_value = {"m": 3}
-        nfse.objects.create.return_value = SimpleNamespace(numero_rps=4)
-        reservar_emissao_loja(
-            4,
-            SimpleNamespace(nacional_ultimo_dps=3, issnet_ultimo_rps_conhecido=0, provedor_nf="nacional"),
-            tomador_cpf_cnpj="123",
-            tomador_nome="Ana",
-            tomador_email="",
-            servico_descricao="Consulta",
-            valor_servicos=Decimal("10.00"),
-        )
+        with self.assertRaises(EmissaoJaEmAndamento) as ctx:
+            reservar_emissao_loja(
+                4,
+                SimpleNamespace(nacional_ultimo_dps=3, issnet_ultimo_rps_conhecido=0, provedor_nf="nacional"),
+                tomador_cpf_cnpj="123",
+                tomador_nome="Ana",
+                tomador_email="",
+                servico_descricao="Consulta",
+                valor_servicos=Decimal("10.00"),
+            )
+        self.assertEqual(ctx.exception.numero_rps, 3)
+        self.assertIn("prefeitura", str(ctx.exception))
         self.assertEqual(antiga.status, "erro")
-        self.assertEqual(nfse.objects.create.call_args.kwargs["numero_rps"], 4)
+        nfse.objects.create.assert_not_called()
 
     @patch("django.db.transaction.atomic")
     @patch("nfse_integration.models.NFSe")
@@ -98,6 +99,23 @@ class ReservaDpsTests(SimpleTestCase):
         atomic.assert_any_call(using="loja_teste")
         for chamada in atomic.call_args_list:
             self.assertEqual(chamada.kwargs.get("using"), "loja_teste")
+
+    def test_o_link_publico_tem_limite_por_hora(self):
+        from nfse_integration.views_pdf_public import LIMITE_CONSULTA_PDF, _consulta_pdf_permitida
+
+        memoria: dict[str, int] = {}
+
+        class _Cache:
+            def get(self, chave, default=0):
+                return memoria.get(chave, default)
+
+            def set(self, chave, valor, timeout=None):
+                memoria[chave] = valor
+
+        with patch("django.core.cache.cache", _Cache()):
+            for _ in range(LIMITE_CONSULTA_PDF):
+                self.assertTrue(_consulta_pdf_permitida("token-da-nota"))
+            self.assertFalse(_consulta_pdf_permitida("token-da-nota"))
 
     def test_o_nome_da_tarefa_nao_muda_entre_processos(self):
         nomes = []

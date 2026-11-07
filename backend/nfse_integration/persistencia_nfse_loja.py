@@ -13,13 +13,17 @@ from core.cpf_utils import normalizar_cpf_cnpj
 logger = logging.getLogger(__name__)
 
 
+JANELA_EMISSAO_MINUTOS = 15
+
+
 class EmissaoJaEmAndamento(Exception):
     """Já existe uma emissão igual que ainda não terminou."""
 
-    def __init__(self, numero_rps: int):
+    def __init__(self, numero_rps: int, mensagem: str = ""):
         self.numero_rps = int(numero_rps or 0)
         super().__init__(
-            f"Esta emissão já está em andamento (DPS {self.numero_rps}). Espere ela aparecer na lista.",
+            mensagem
+            or f"Esta emissão já está em andamento (DPS {self.numero_rps}). Espere ela aparecer na lista.",
         )
 
 
@@ -114,7 +118,7 @@ def reservar_emissao_loja(
     with transaction.atomic(using=_alias_banco_loja(config)):
         config = _travar_config_nfse(config)
         agora = timezone.now()
-        limite = agora - timedelta(minutes=3)
+        limite = agora - timedelta(minutes=JANELA_EMISSAO_MINUTOS)
         abertas = list(
             NFSe.objects.select_for_update().filter(
                 loja_id=loja_id,
@@ -127,13 +131,22 @@ def reservar_emissao_loja(
         recente = next((nota for nota in abertas if nota.data_emissao and nota.data_emissao >= limite), None)
         if recente:
             raise EmissaoJaEmAndamento(recente.numero_rps)
-        for antiga in abertas:
-            antiga.status = "erro"
-            antiga.erro = (
-                "A emissão anterior não terminou. "
-                f"Confira o DPS {antiga.numero_rps} na prefeitura antes de emitir outra igual."
-            )[:2000]
-            antiga.save(update_fields=["status", "erro", "updated_at"])
+        if abertas:
+            for antiga in abertas:
+                antiga.status = "erro"
+                antiga.erro = (
+                    "A emissão anterior passou do tempo. "
+                    f"Confira o DPS {antiga.numero_rps} na prefeitura antes de emitir outra igual."
+                )[:2000]
+                antiga.save(update_fields=["status", "erro", "updated_at"])
+            numero_antigo = abertas[0].numero_rps
+            raise EmissaoJaEmAndamento(
+                numero_antigo,
+                (
+                    f"A emissão do DPS {numero_antigo} passou do tempo e foi interrompida. "
+                    "Confira na prefeitura. Se a nota não estiver lá, emita de novo."
+                ),
+            )
         numero = _calcular_proximo_numero(loja_id, config)
         _gravar_ultimo_numero(config, numero)
         provedor = (getattr(config, "provedor_nf", "") or "nacional").strip().lower()[:20]
@@ -170,9 +183,10 @@ def salvar_nfse_emitida(
             codigo_verificacao = (extrair_chave_acesso_nfse_nacional(xml_nfse) or "").strip()
         numero_rps = int(resultado.get("numero_rps") or 0)
         if numero_rps:
-            pendente = NFSe.objects.filter(
-                loja_id=loja_id, numero_rps=numero_rps, status="pendente",
-            ).first()
+            pendente = (
+                NFSe.objects.filter(loja_id=loja_id, numero_rps=numero_rps, status="pendente").first()
+                or NFSe.objects.filter(loja_id=loja_id, numero_rps=numero_rps, status="erro").first()
+            )
             if pendente:
                 pendente.numero_nf = str(resultado["numero_nf"])[:50]
                 pendente.codigo_verificacao = codigo_verificacao[:50]

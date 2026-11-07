@@ -21,6 +21,18 @@ def emitir_manual_nacional_superadmin(config: Any, payload: Any) -> EmissaoManua
     from core.encryption import decrypt_value
 
     numero_dps = int(getattr(payload, "numero_dps_reservado", 0) or 0) or config.proximo_dps()
+    from superadmin.models import NFSeEmitida
+
+    ja_emitida = NFSeEmitida.objects.filter(numero_rps=numero_dps, status="emitida").first()
+    if ja_emitida:
+        return EmissaoManualResult(
+            True,
+            200,
+            message="NFS-e já estava emitida.",
+            numero_nf=ja_emitida.numero_nf or "",
+            nfse_id=ja_emitida.id,
+        )
+
     client = NacionalClient(
         pfx_bytes=bytes(config.nacional_certificado),
         senha_pfx=decrypt_value(config.nacional_senha_certificado),

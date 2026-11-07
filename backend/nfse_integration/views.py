@@ -153,7 +153,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             )
         except Exception as e:
             logger.exception("Erro ao emitir NFS-e: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=["post"], url_path="recuperar-issnet")
     def recuperar_issnet(self, request):
@@ -185,7 +185,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(body, status=http_status)
         except Exception as e:
             logger.exception("Erro ao recuperar NFS-e do ISSNet: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=["post"])
     def cancelar(self, request, pk=None):
@@ -204,7 +204,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(body, status=http_status)
         except Exception as e:
             logger.exception("Erro ao cancelar NFS-e: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=["post"], url_path="sincronizar-asaas")
     def sincronizar_asaas(self, request, pk=None):
@@ -215,7 +215,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(body, status=http_status)
         except Exception as e:
             logger.exception("Erro ao sincronizar NFS-e com Asaas: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=["post"], url_path="sincronizar-issnet")
     def sincronizar_issnet(self, request, pk=None):
@@ -231,7 +231,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(body, status=http_status)
         except Exception as e:
             logger.exception("Erro ao sincronizar NFS-e com ISSNet: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=["get"], url_path="download_pdf")
     def download_pdf(self, request, pk=None):
@@ -288,7 +288,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
 
         except Exception as e:
             logger.exception("Erro ao baixar XML da NFS-e: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=["post"], url_path="salvar_url")
     def salvar_url(self, request, pk=None):
@@ -320,7 +320,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"success": True, "url": url, "xml_url": xml_url or ""})
         except Exception as e:
             logger.exception("Erro ao salvar URL da NFS-e: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=["post"])
     def enviar_whatsapp(self, request, pk=None):
@@ -337,7 +337,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"error": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception("Erro ao enviar NFS-e por WhatsApp: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=["post"])
     def reenviar_email(self, request, pk=None):
@@ -353,7 +353,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"error": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception("Erro ao reenviar email: %s", e)
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def destroy(self, request, pk=None):
         loja_id = get_current_loja_id()

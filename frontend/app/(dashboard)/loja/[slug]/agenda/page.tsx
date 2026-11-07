@@ -69,6 +69,7 @@ export default function AgendaPage() {
     selectedEvent,
     eventos,
     setSelectedEvent,
+    setShowModal,
     setSelectedDate,
     setShowCreateModal,
     isMutatingRef,

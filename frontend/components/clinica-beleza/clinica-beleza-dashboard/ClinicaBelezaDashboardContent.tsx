@@ -1,25 +1,32 @@
 "use client";
 
-import type { ElementType } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
-import { Activity, AlertTriangle, CalendarDays, RefreshCw, TrendingUp, Users } from "lucide-react";
+import { Activity, AlertTriangle, CalendarDays, TrendingUp, Users } from "lucide-react";
 import { ClinicaBelezaShell } from "@/components/clinica-beleza/clinica-beleza-shell/ClinicaBelezaShell";
-import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
+import { useClinicaBelezaUserDisplayName } from "@/components/clinica-beleza/ClinicaBelezaTopBar";
 import {
   ClinicaBelezaThemeProvider,
   useClinicaBelezaTheme,
 } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
 import { useClinicaBelezaDark } from "@/hooks/useClinicaBelezaDark";
 import { formatCurrency } from "@/lib/financeiro-helpers";
-import { CLINICA_AGENDA_STATUS_LABEL } from "@/lib/clinica-beleza-constants";
 import type { LojaInfo } from "@/types/dashboard";
-import type { DashboardAppointment } from "./clinica-beleza-dashboard-types";
 import {
-  DASHBOARD_STATUS_COLORS,
+  AppointmentItem,
+  DashboardGreeting,
+  LinkPainel,
+  PainelCard,
+  ProcedureBars,
+  ResumoFinanceiroLista,
+  StatCard,
+} from "./ClinicaBelezaDashboardCards";
+import {
   getDashboardChartColors,
   parseDashboardMesAno,
   pctChangeDashboard,
+  primeiroNomeDashboard,
+  rotuloPeriodoDashboard,
+  saudacaoDashboard,
 } from "./clinica-beleza-dashboard-utils";
 import { useClinicaBelezaDashboard } from "./useClinicaBelezaDashboard";
 
@@ -29,70 +36,13 @@ const ClinicaBelezaDashboardCharts = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="h-72 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
-        <div className="h-72 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+        <div className="xl:col-span-3 h-72 rounded-2xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
+        <div className="xl:col-span-2 h-72 rounded-2xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
       </div>
     ),
   },
 );
-
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-  changeLabel,
-  positive,
-}: {
-  title: string;
-  value: string | number;
-  icon: ElementType;
-  changeLabel?: string | null;
-  positive?: boolean;
-}) {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-sm text-gray-500 dark:text-gray-400">{title}</span>
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-          style={{ backgroundColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 9%, transparent)' }}
-        >
-          <Icon className="w-4 h-4" style={{ color: 'var(--cb-primary, #8B3D52)' }} />
-        </div>
-      </div>
-      <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
-      {changeLabel && (
-        <p
-          className={`text-xs mt-1 font-medium ${positive === false ? "text-red-500" : "text-emerald-600"}`}
-        >
-          {changeLabel}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function AppointmentItem({ appt }: { appt: DashboardAppointment }) {
-  const statusClass = DASHBOARD_STATUS_COLORS[appt.status] || DASHBOARD_STATUS_COLORS.PENDING;
-  const statusLabel = CLINICA_AGENDA_STATUS_LABEL[appt.status] || appt.status;
-  return (
-    <div className="flex items-center justify-between py-3 border-b border-gray-50 dark:border-gray-700 last:border-0">
-      <div className="flex items-center gap-3 min-w-0">
-        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 w-11 shrink-0">
-          {appt.time || appt.date?.slice(11, 16) || "--:--"}
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{appt.patient_name}</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{appt.procedure_name}</p>
-        </div>
-      </div>
-      <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium shrink-0 ml-2 ${statusClass}`}>
-        {statusLabel}
-      </span>
-    </div>
-  );
-}
 
 export function ClinicaBelezaDashboardContent({ loja, onLogout }: { loja: LojaInfo; onLogout?: () => void }) {
   return (
@@ -113,10 +63,10 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
   const { slug, data, financial, loading, mesAno, setMesAno, mesAnoMax, fetchData } =
     useClinicaBelezaDashboard(loja);
   const [darkMode] = useClinicaBelezaDark();
+  const nomeUsuario = useClinicaBelezaUserDisplayName();
 
   const stats = data?.statistics;
   const filterLabel = data?.filter?.label ?? "Este mês";
-  const isCurrentMonth = data?.filter?.is_current_month ?? true;
   const appointments = data?.next_appointments || [];
   const revenueData = data?.revenue_last_7_days || [];
   const revenueComValor = revenueData.some((d) => d.value > 0);
@@ -128,213 +78,157 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
     stats?.appointments_yesterday != null
       ? pctChangeDashboard(stats.appointments_today, stats.appointments_yesterday)
       : null;
+  const apptCaiu = Boolean(apptChange?.startsWith("-"));
+  const inadimplentes = stats?.inadimplentes_count ?? 0;
 
-  const faturamentoChartTitle = isCurrentMonth
-    ? `Faturamento (${filterLabel})`
-    : `Faturamento — ${filterLabel}`;
+  const faturamento = financial?.faturamento ?? stats?.revenue_month ?? 0;
+  const despesas = financial?.despesas ?? 0;
+  const lucro = financial?.lucro ?? faturamento - despesas;
   const periodoDashboard = parseDashboardMesAno(mesAno);
+  const faturamentoChartTitle = `Faturamento — ${filterLabel}`;
 
   return (
     <ClinicaBelezaShell loja={loja} onLogout={onLogout}>
-      <ClinicaBelezaStandardPageHeader
-        title=""
-        actionsOnly
-        extraActions={
-          <div className="flex items-center gap-2">
-            <input
-              type="month"
-              value={mesAno}
-              max={mesAnoMax}
-              onChange={(e) => e.target.value && setMesAno(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100"
-              aria-label="Filtrar mês do dashboard"
-            />
-            <button
-              type="button"
-              onClick={() => void fetchData(true)}
-              disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-neutral-700 disabled:opacity-50"
-              title="Atualizar gráficos"
-            >
-              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-              Atualizar
-            </button>
-          </div>
-        }
-      />
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div
-            className="w-8 h-8 border-4 rounded-full animate-spin"
-            style={{ borderColor: 'color-mix(in srgb, var(--cb-primary, #8B3D52) 20%, transparent)', borderTopColor: 'var(--cb-primary, #8B3D52)' }}
-          />
-        </div>
-      ) : (
-        <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-            <StatCard
-              title="Atendimentos hoje"
-              value={stats?.appointments_today ?? 0}
-              icon={CalendarDays}
-              changeLabel={apptChange ? `${apptChange} vs ontem` : undefined}
-              positive={apptChange ? !apptChange.startsWith("-") : true}
-            />
-            <StatCard
-              title="Faturamento hoje"
-              value={formatCurrency(stats?.revenue_today ?? 0)}
-              icon={TrendingUp}
-              changeLabel="Hoje"
-            />
-            <StatCard
-              title="Clientes ativos"
-              value={stats?.patients_total ?? 0}
-              icon={Users}
-              changeLabel="Cadastrados"
-            />
-            <StatCard
-              title="Sessões realizadas"
-              value={stats?.sessions_month ?? 0}
-              icon={Activity}
-              changeLabel={filterLabel}
-            />
-            <StatCard
-              title="Inadimplência"
-              value={formatCurrency(stats?.inadimplencia_total ?? 0)}
-              icon={AlertTriangle}
-              changeLabel={
-                (stats?.inadimplentes_count ?? 0) > 0
-                  ? `${stats?.inadimplentes_count} em atraso`
-                  : "Em dia"
-              }
-              positive={(stats?.inadimplentes_count ?? 0) === 0}
+      <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full min-w-0">
+        <DashboardGreeting
+          saudacao={saudacaoDashboard(new Date().getHours())}
+          primeiroNome={primeiroNomeDashboard(nomeUsuario)}
+          mesAno={mesAno}
+          mesAnoMax={mesAnoMax}
+          rotuloPeriodo={rotuloPeriodoDashboard(mesAno)}
+          loading={loading}
+          onMesAno={setMesAno}
+          onAtualizar={() => void fetchData(true)}
+        />
+
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div
+              className="w-8 h-8 border-4 rounded-full animate-spin"
+              style={{
+                borderColor: "color-mix(in srgb, var(--cb-primary, #8B3D52) 20%, transparent)",
+                borderTopColor: "var(--cb-primary, #8B3D52)",
+              }}
             />
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 h-full">
-              <div className="flex items-center justify-between mb-4 gap-2">
-                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Próximos agendamentos</h3>
-                <Link
-                  href={`/loja/${slug}/agenda`}
-                  className="text-xs font-medium hover:underline shrink-0"
-                  style={{ color: 'var(--cb-primary, #8B3D52)' }}
-                >
-                  Ver completo
-                </Link>
-              </div>
-              {appointments.length > 0 ? (
-                appointments.slice(0, 5).map((appt) => <AppointmentItem key={appt.id} appt={appt} />)
-              ) : (
-                <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Nenhum agendamento próximo</p>
-              )}
+        ) : (
+          <>
+            <div className="grid grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-5 gap-4">
+              <StatCard
+                title="Atendimentos hoje"
+                value={stats?.appointments_today ?? 0}
+                icon={CalendarDays}
+                changeLabel={apptChange ? `${apptChange} vs. ontem` : undefined}
+                hintTone={apptChange ? (apptCaiu ? "alert" : "positive") : "muted"}
+              />
+              <StatCard
+                title="Faturamento hoje"
+                value={formatCurrency(stats?.revenue_today ?? 0)}
+                icon={TrendingUp}
+                changeLabel="Hoje"
+              />
+              <StatCard
+                title="Clientes ativos"
+                value={stats?.patients_total ?? 0}
+                icon={Users}
+                changeLabel="Cadastrados"
+                valueTone="positive"
+                hintTone="positive"
+              />
+              <StatCard
+                title="Sessões realizadas"
+                value={stats?.sessions_month ?? 0}
+                icon={Activity}
+                changeLabel={filterLabel}
+                valueTone="positive"
+                hintTone="positive"
+              />
+              <StatCard
+                title="Inadimplência"
+                value={formatCurrency(stats?.inadimplencia_total ?? 0)}
+                icon={AlertTriangle}
+                changeLabel={
+                  inadimplentes > 0
+                    ? `${inadimplentes} ${inadimplentes === 1 ? "cliente em atraso" : "clientes em atraso"}`
+                    : "Em dia"
+                }
+                valueTone={inadimplentes > 0 ? "alert" : "positive"}
+                hintTone={inadimplentes > 0 ? "alert" : "positive"}
+                href={`/loja/${slug}/clinica-beleza/financeiro`}
+              />
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 h-full">
-              <div className="flex items-center justify-between mb-4 gap-2">
-                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                  Procedimentos realizados — {filterLabel}
-                </h3>
-                <Link
-                  href={`/loja/${slug}/clinica-beleza/procedimentos-realizados?mes=${periodoDashboard.mes}&ano=${periodoDashboard.ano}`}
-                  className="text-xs font-medium hover:underline shrink-0"
-                  style={{ color: 'var(--cb-primary, #8B3D52)' }}
-                >
-                  Ver completo
-                </Link>
-              </div>
-              {topProcedures.length > 0 ? (
-                <div className="space-y-3">
-                  {topProcedures.slice(0, 7).map((proc, i) => {
-                    const max = topProcedures[0]?.count || 1;
-                    const pct = Math.round((proc.count / max) * 100);
-                    return (
-                      <div key={proc.name || i}>
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-gray-600 dark:text-gray-400 truncate pr-2">{proc.name}</span>
-                          <span className="text-gray-500 dark:text-gray-400 font-medium shrink-0">{proc.count}</span>
-                        </div>
-                        <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${pct}%`,
-                              backgroundColor: chartColors[i % chartColors.length],
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">Sem atendimentos concluídos no período</p>
-              )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              <PainelCard
+                title="Próximos agendamentos"
+                action={<LinkPainel href={`/loja/${slug}/agenda`}>Ver agenda</LinkPainel>}
+              >
+                {appointments.length > 0 ? (
+                  appointments
+                    .slice(0, 5)
+                    .map((appt) => (
+                      <AppointmentItem
+                        key={appt.id}
+                        appt={appt}
+                        href={`/loja/${slug}/agenda?agendamento=${appt.id}`}
+                      />
+                    ))
+                ) : (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">
+                    Nenhum agendamento próximo
+                  </p>
+                )}
+              </PainelCard>
+
+              <PainelCard
+                title={`Procedimentos realizados — ${filterLabel}`}
+                action={
+                  <LinkPainel
+                    href={`/loja/${slug}/clinica-beleza/procedimentos-realizados?mes=${periodoDashboard.mes}&ano=${periodoDashboard.ano}`}
+                  >
+                    Ver relatório
+                  </LinkPainel>
+                }
+              >
+                {topProcedures.length > 0 ? (
+                  <ProcedureBars procedures={topProcedures.slice(0, 6)} colors={chartColors} />
+                ) : (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">
+                    Sem atendimentos concluídos no período
+                  </p>
+                )}
+              </PainelCard>
+
+              <PainelCard
+                title={`Resumo financeiro — ${filterLabel}`}
+                action={<LinkPainel href={`/loja/${slug}/clinica-beleza/financeiro`}>Ver financeiro</LinkPainel>}
+              >
+                <ResumoFinanceiroLista
+                  faturamento={faturamento}
+                  desconto={financial?.desconto ?? 0}
+                  despesas={despesas}
+                  lucro={lucro}
+                  aReceber={financial?.a_receber ?? 0}
+                  aPrazo={financial?.a_prazo ?? 0}
+                />
+              </PainelCard>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 h-full">
-              <div className="flex items-center justify-between mb-4 gap-2">
-                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                  Resumo financeiro — {filterLabel}
-                </h3>
-                <Link
-                  href={`/loja/${slug}/clinica-beleza/financeiro`}
-                  className="text-xs font-medium hover:underline shrink-0"
-                  style={{ color: 'var(--cb-primary, #8B3D52)' }}
-                >
-                  Ver completo
-                </Link>
-              </div>
-              <div className="space-y-1.5">
-                {(
-                  [
-                    ["Faturamento",  financial?.faturamento ?? stats?.revenue_month ?? 0, "text-emerald-600 dark:text-emerald-400", true],
-                    ["Despesas",     financial?.despesas ?? 0,                             "text-red-500 dark:text-red-400",        false],
-                    [
-                      "Lucro líquido",
-                      financial?.lucro ??
-                        (financial?.faturamento ?? stats?.revenue_month ?? 0) - (financial?.despesas ?? 0),
-                      "text-emerald-600 dark:text-emerald-400",
-                      true,
-                    ],
-                    ["A receber", financial?.a_receber ?? 0, "text-amber-600 dark:text-amber-400",  false],
-                    ["Desconto",  financial?.desconto  ?? 0, "text-orange-600 dark:text-orange-400", false],
-                    ["A prazo",   financial?.a_prazo   ?? 0, "text-violet-600 dark:text-violet-400", false],
-                  ] as const
-                ).map(([label, valor, cor, destaque], idx) => (
-                  <div key={label}>
-                    {/* separador antes de "A receber" para dividir resultado vs pendências */}
-                    {idx === 3 && (
-                      <div className="border-t border-gray-100 dark:border-gray-700 my-2" />
-                    )}
-                    <div className={`flex justify-between items-center gap-3 py-1 px-2 rounded-lg text-sm ${
-                      destaque ? 'bg-gray-50 dark:bg-gray-700/40' : ''
-                    }`}>
-                      <span className={`${destaque ? 'font-medium text-gray-700 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400'}`}>
-                        {label}
-                      </span>
-                      <span className={`font-semibold shrink-0 tabular-nums ${cor} ${destaque ? 'text-base' : 'text-sm'}`}>
-                        {formatCurrency(valor)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <ClinicaBelezaDashboardCharts
-            faturamentoChartTitle={faturamentoChartTitle}
-            filterLabel={filterLabel}
-            revenueData={revenueData}
-            revenueComValor={revenueComValor}
-            topProceduresVolume={topProceduresVolume}
-            soroterapiaComMovimento={soroterapiaComMovimento}
-            chartColors={chartColors}
-            primary={primary}
-            darkMode={darkMode}
-          />
-        </div>
-      )}
+            <ClinicaBelezaDashboardCharts
+              faturamentoChartTitle={faturamentoChartTitle}
+              filterLabel={filterLabel}
+              revenueData={revenueData}
+              revenueComValor={revenueComValor}
+              topProcedures={topProcedures}
+              topProceduresVolume={topProceduresVolume}
+              soroterapiaComMovimento={soroterapiaComMovimento}
+              chartColors={chartColors}
+              primary={primary}
+              darkMode={darkMode}
+            />
+          </>
+        )}
+      </div>
     </ClinicaBelezaShell>
   );
 }

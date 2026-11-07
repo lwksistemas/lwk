@@ -21,6 +21,7 @@ export function useAgendaPageEffects({
   selectedEvent,
   eventos,
   setSelectedEvent,
+  setShowModal,
   setSelectedDate,
   setShowCreateModal,
   isMutatingRef,
@@ -35,6 +36,7 @@ export function useAgendaPageEffects({
   selectedEvent: AgendaEventData | null;
   eventos: AgendaEventData[];
   setSelectedEvent: (event: AgendaEventData | null) => void;
+  setShowModal?: (open: boolean) => void;
   setSelectedDate: (date: Date | null) => void;
   setShowCreateModal: (open: boolean) => void;
   isMutatingRef?: React.MutableRefObject<boolean>;
@@ -50,6 +52,7 @@ export function useAgendaPageEffects({
   const userScrollingRef = useRef(false);
   const scrollPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const desktopPluginsReadyRef = useRef(false);
+  const agendamentoAbertoRef = useRef<string | null>(null);
 
   carregarDadosRef.current = carregarDados;
   recarregarEventosRef.current = recarregarEventos;
@@ -65,6 +68,22 @@ export function useAgendaPageEffects({
     const stored = readClinicaAgendaVisualStorage(resolveClinicaThemeSlug());
     setVisualAtivo(normalizeAgendaVisual(stored || agendaVisual || AGENDA_VISUAL_DEFAULT));
   }, [agendaVisual]);
+
+  useEffect(() => {
+    const id = searchParams.get("agendamento")?.trim();
+    if (!id || !setShowModal || eventos.length === 0) return;
+    if (agendamentoAbertoRef.current === id) return;
+    const found = eventos.find(
+      (evento) =>
+        String(evento.extendedProps?.dbId ?? "") === id &&
+        !evento.extendedProps?.isBloqueio &&
+        !evento.extendedProps?.isIntervalo,
+    );
+    if (!found) return;
+    agendamentoAbertoRef.current = id;
+    setSelectedEvent(found);
+    setShowModal(true);
+  }, [searchParams, eventos, setSelectedEvent, setShowModal]);
 
   useEffect(() => {
     // Celular usa AgendaMobileDayView — não carrega FullCalendar (economiza memória/Android).

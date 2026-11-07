@@ -6,7 +6,7 @@ import type { LojaInfo } from '@/types/dashboard';
 import apiClient from '@/lib/api-client';
 import { useClinicaBelezaPageHeaderMount, useClinicaBelezaShellActions } from './ClinicaBelezaPageHeaderContext';
 
-function useClinicaBelezaUserDisplayName() {
+export function useClinicaBelezaUserDisplayName() {
   const [nome, setNome] = useState('');
 
   useEffect(() => {

@@ -181,7 +181,7 @@ export function AppointmentItem({ appt, href }: { appt: DashboardAppointment; hr
     <Link
       href={href}
       title={`${appt.patient_name} — ${appt.procedure_name} — ${statusLabel}`}
-      className="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-2 py-1.5 px-1 -mx-1 rounded-lg border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/40"
+      className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-x-2.5 py-1.5 px-1 -mx-1 rounded-lg border-b border-gray-50 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/40"
       aria-label={`Abrir agendamento de ${appt.patient_name}`}
     >
       <span
@@ -191,12 +191,17 @@ export function AppointmentItem({ appt, href }: { appt: DashboardAppointment; hr
         {hora}
       </span>
       <span className="min-w-0">
-        <span className="block text-[13px] font-semibold text-gray-800 dark:text-gray-100 leading-tight">
+        <span
+          className="block text-[13px] font-semibold text-gray-800 dark:text-gray-100 leading-tight line-clamp-2"
+          title={appt.patient_name}
+        >
           {appt.patient_name}
         </span>
-        <span className="block text-[11px] text-gray-400 dark:text-gray-500 leading-tight">{appt.procedure_name}</span>
+        <span className="block text-[11px] text-gray-400 dark:text-gray-500 leading-tight line-clamp-1" title={appt.procedure_name}>
+          {appt.procedure_name}
+        </span>
       </span>
-      <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${statusClass}`}>
+      <span className={`max-w-[6.8rem] text-center text-[11px] px-2 py-0.5 rounded-full font-medium leading-tight ${statusClass}`}>
         {statusLabel}
       </span>
     </Link>

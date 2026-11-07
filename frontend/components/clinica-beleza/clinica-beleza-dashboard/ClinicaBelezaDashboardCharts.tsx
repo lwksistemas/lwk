@@ -61,7 +61,7 @@ export type ClinicaBelezaDashboardChartsProps = {
   filterLabel: string;
   revenueData: RevenueDay[];
   revenueComValor: boolean;
-  soroterapias: TopProcedure[];
+  topProcedures: TopProcedure[];
   chartColors: string[];
   primary: string;
   darkMode: boolean;
@@ -72,13 +72,13 @@ export function ClinicaBelezaDashboardCharts({
   filterLabel,
   revenueData,
   revenueComValor,
-  soroterapias,
+  topProcedures,
   chartColors,
   primary,
   darkMode,
 }: ClinicaBelezaDashboardChartsProps) {
-  const topSoroterapias = soroterapias.filter((p) => p.count > 0).slice(0, 5);
-  const totalSoroterapias = topSoroterapias.reduce((soma, p) => soma + p.count, 0);
+  const topCinco = topProcedures.filter((p) => p.count > 0).slice(0, 5);
+  const totalProcedimentos = topProcedures.reduce((soma, p) => soma + p.count, 0);
   const maiorFaturamento = revenueData.reduce((maior, dia) => Math.max(maior, dia.value), 0);
   const grade = darkMode ? "#374151" : "#f3f4f6";
   const tick = darkMode ? "#9ca3af" : "#6b7280";
@@ -132,14 +132,14 @@ export function ClinicaBelezaDashboardCharts({
       </div>
 
       <div className="@min-[980px]:col-span-2 min-w-0">
-        <ChartCard title={`Soroterapia — ${filterLabel}`}>
-          {topSoroterapias.length > 0 ? (
+        <ChartCard title={`Top 5 procedimentos — ${filterLabel}`}>
+          {topCinco.length > 0 ? (
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
               <div className="h-52 w-full sm:w-[46%] sm:shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={topSoroterapias}
+                      data={topCinco}
                       dataKey="count"
                       nameKey="name"
                       cx="50%"
@@ -149,13 +149,13 @@ export function ClinicaBelezaDashboardCharts({
                       paddingAngle={2}
                       stroke="none"
                     >
-                      {topSoroterapias.map((_, i) => (
+                      {topCinco.map((_, i) => (
                         <Cell key={i} fill={chartColors[i % chartColors.length]} />
                       ))}
                     </Pie>
                     <Tooltip
                       formatter={(v, nome) => [
-                        `${v} (${percentualDashboard(Number(v), totalSoroterapias)}%)`,
+                        `${v} (${percentualDashboard(Number(v), totalProcedimentos)}%)`,
                         String(nome),
                       ]}
                       contentStyle={
@@ -168,7 +168,7 @@ export function ClinicaBelezaDashboardCharts({
                 </ResponsiveContainer>
               </div>
               <ul className="min-w-0 flex-1 space-y-2">
-                {topSoroterapias.map((proc, i) => (
+                {topCinco.map((proc, i) => (
                   <li key={`${proc.name}-${i}`} className="grid grid-cols-[0.65rem_minmax(0,1fr)_auto] items-center gap-2 text-xs text-gray-600 dark:text-gray-300 min-w-0">
                     <span
                       className="w-2.5 h-2.5 rounded-full"
@@ -176,7 +176,7 @@ export function ClinicaBelezaDashboardCharts({
                     />
                     <span className="min-w-0 leading-tight">{proc.name}</span>
                     <span className="shrink-0 tabular-nums font-medium text-gray-800 dark:text-gray-100 text-right">
-                      {proc.count} ({percentualDashboard(proc.count, totalSoroterapias)}%)
+                      {proc.count} ({percentualDashboard(proc.count, totalProcedimentos)}%)
                     </span>
                   </li>
                 ))}
@@ -184,7 +184,7 @@ export function ClinicaBelezaDashboardCharts({
             </div>
           ) : (
             <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-16">
-              Sem soroterapias em {filterLabel}.
+              Sem procedimentos realizados em {filterLabel}.
             </p>
           )}
         </ChartCard>

@@ -72,7 +72,6 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
   const revenueData = data?.revenue_last_7_days || [];
   const revenueComValor = revenueData.some((d) => d.value > 0);
   const topProcedures = data?.top_procedures || [];
-  const soroterapias = data?.top_procedures_volume || [];
 
   const apptChange =
     stats?.appointments_yesterday != null
@@ -133,7 +132,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                 title="Clientes ativos"
                 value={stats?.patients_total ?? 0}
                 icon={Users}
-                changeLabel="Cadastrados"
+                changeLabel="Total cadastrado"
                 valueTone="positive"
                 hintTone="positive"
               />
@@ -151,8 +150,8 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                 icon={AlertTriangle}
                 changeLabel={
                   inadimplentes > 0
-                    ? `${inadimplentes} ${inadimplentes === 1 ? "cliente em atraso" : "clientes em atraso"}`
-                    : "Em dia"
+                    ? `${inadimplentes} ${inadimplentes === 1 ? "cliente em atraso" : "clientes em atraso"} · situação atual`
+                    : "Situação atual"
                 }
                 valueTone={inadimplentes > 0 ? "alert" : "positive"}
                 hintTone={inadimplentes > 0 ? "alert" : "positive"}
@@ -221,7 +220,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               filterLabel={filterLabel}
               revenueData={revenueData}
               revenueComValor={revenueComValor}
-              soroterapias={soroterapias}
+              topProcedures={topProcedures}
               chartColors={chartColors}
               primary={primary}
               darkMode={darkMode}

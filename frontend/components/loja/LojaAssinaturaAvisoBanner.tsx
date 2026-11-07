@@ -24,19 +24,19 @@ export function LojaAssinaturaAvisoBanner({ slug, aviso, visivel }: Props) {
   return (
     <div
       role="alert"
-      className={`fixed top-0 left-0 right-0 z-[200] border-b px-3 py-2.5 sm:px-4 shadow-md ${NIVEL_STYLES[aviso.nivel]}`}
+      className={`fixed top-0 left-0 right-0 z-[200] border-b px-3 py-2 sm:px-4 shadow-md ${NIVEL_STYLES[aviso.nivel]}`}
     >
-      <div className="mx-auto flex max-w-7xl items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
-        <div className="min-w-0 flex-1 text-sm leading-snug">
-          <p className="font-medium">{aviso.mensagem}</p>
-          <Link
-            href={assinaturaHref}
-            className="mt-1 inline-block font-semibold underline underline-offset-2 hover:opacity-80"
-          >
-            Ir para assinatura e pagar
-          </Link>
-        </div>
+      <div className="mx-auto flex max-w-7xl items-center gap-2">
+        <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+        <p className="min-w-0 flex-1 truncate text-sm font-medium" title={aviso.mensagem}>
+          {aviso.mensagem}
+        </p>
+        <Link
+          href={assinaturaHref}
+          className="shrink-0 text-sm font-semibold underline underline-offset-2 hover:opacity-80"
+        >
+          Ir para assinatura e pagar
+        </Link>
       </div>
     </div>
   );
@@ -45,5 +45,5 @@ export function LojaAssinaturaAvisoBanner({ slug, aviso, visivel }: Props) {
 /** Espaço para o banner fixo não cobrir o menu. */
 export function LojaAssinaturaAvisoSpacer({ visivel }: { visivel: boolean }) {
   if (!visivel) return null;
-  return <div className="h-14 shrink-0" aria-hidden />;
+  return <div className="h-10 shrink-0" aria-hidden />;
 }

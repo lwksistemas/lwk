@@ -22,6 +22,7 @@ class PortalOficialTests(SimpleTestCase):
         self.assertFalse(url_e_portal_oficial("https://evil.example/?x=nfse.gov.br"))
         self.assertFalse(url_e_portal_oficial("https://nfse.gov.br.evil.example/x"))
         self.assertFalse(url_e_portal_oficial("https://nota_digital.evil.example/x"))
+        self.assertFalse(url_e_portal_oficial("http://nfse.gov.br/"))
 
     def test_aceita_os_portais_usados(self):
         self.assertTrue(url_e_portal_oficial("https://www.nfse.gov.br/ConsultaPublica/?tpc=1"))

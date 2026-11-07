@@ -29,9 +29,9 @@ _HOSTS_PORTAL_NFSE = (
 def url_e_portal_oficial(url: str | None) -> bool:
     """True só quando o host é um portal de NFS-e conhecido.
 
-    O teste é no hostname, não no texto da URL. Um endereço como
-    https://evil.example/?x=nfse.gov.br ou https://nfse.gov.br.evil.example
-    não passa.
+    O teste é no hostname, não no texto da URL, e só vale https. Um endereço
+    como https://evil.example/?x=nfse.gov.br, https://nfse.gov.br.evil.example
+    ou http://nfse.gov.br não passa.
     """
     from urllib.parse import urlparse
 
@@ -42,7 +42,7 @@ def url_e_portal_oficial(url: str | None) -> bool:
         parsed = urlparse(bruto)
     except ValueError:
         return False
-    if parsed.username or parsed.password:
+    if parsed.scheme != "https" or parsed.username or parsed.password:
         return False
     host = (parsed.hostname or "").lower().rstrip(".")
     if not host:

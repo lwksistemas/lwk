@@ -178,10 +178,17 @@ class SuperadminNFSeConfig(models.Model):
         return obj
 
     def proximo_dps(self) -> int:
-        """Retorna e incrementa o próximo número de DPS."""
-        self.nacional_ultimo_dps += 1
-        self.save(update_fields=["nacional_ultimo_dps", "updated_at"])
-        return self.nacional_ultimo_dps
+        """Reserva o próximo DPS com trava, antes de chamar a Sefin."""
+        from django.db import transaction
+
+        with transaction.atomic():
+            travada = type(self).objects.using("default").select_for_update().get(pk=self.pk)
+            travada.nacional_ultimo_dps = int(travada.nacional_ultimo_dps or 0) + 1
+            travada.ultimo_rps = travada.nacional_ultimo_dps
+            travada.save(update_fields=["nacional_ultimo_dps", "ultimo_rps", "updated_at"])
+        self.nacional_ultimo_dps = travada.nacional_ultimo_dps
+        self.ultimo_rps = travada.ultimo_rps
+        return travada.nacional_ultimo_dps
 
     @property
     def nacional_senha_certificado_decrypted(self) -> str:

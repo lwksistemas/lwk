@@ -20,7 +20,7 @@ def emitir_manual_nacional_superadmin(config: Any, payload: Any) -> EmissaoManua
 
     from core.encryption import decrypt_value
 
-    numero_dps = config.proximo_dps()
+    numero_dps = int(getattr(payload, "numero_dps_reservado", 0) or 0) or config.proximo_dps()
     client = NacionalClient(
         pfx_bytes=bytes(config.nacional_certificado),
         senha_pfx=decrypt_value(config.nacional_senha_certificado),

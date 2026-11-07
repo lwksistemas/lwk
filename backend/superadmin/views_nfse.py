@@ -267,15 +267,30 @@ def emitir_nfse_manual(request):
     if config_err:
         return Response({"success": False, "error": config_err.message}, status=config_err.status)
 
+    from dataclasses import replace
+
+    from nfse_integration.persistencia_nfse_superadmin import (
+        EmissaoJaEmAndamento,
+        reservar_emissao_superadmin,
+    )
     from nfse_integration.queue_dispatch import enqueue_emitir_nfse_manual, should_enqueue_nfse
+
+    if config.provedor_nfse == "nacional":
+        try:
+            reserva = reservar_emissao_superadmin(config, payload)
+        except EmissaoJaEmAndamento as exc:
+            return Response({"success": False, "error": str(exc)}, status=status.HTTP_409_CONFLICT)
+        payload = replace(payload, numero_dps_reservado=reserva.numero_rps)
 
     if should_enqueue_nfse():
         enqueue_emitir_nfse_manual(payload)
+        dps = payload.numero_dps_reservado
+        aviso = f" (DPS {dps})" if dps else ""
         return Response(
             {
                 "success": True,
                 "queued": True,
-                "message": "Emissão de NFS-e enfileirada. A nota aparecerá em NFS-e emitidas em instantes.",
+                "message": f"Emissão de NFS-e enfileirada{aviso}. A nota aparecerá em NFS-e emitidas em instantes.",
             },
             status=status.HTTP_202_ACCEPTED,
         )

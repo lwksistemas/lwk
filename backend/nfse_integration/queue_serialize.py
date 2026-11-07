@@ -35,6 +35,7 @@ def payload_emissao_manual_to_dict(payload) -> dict[str, Any]:
         "descricao": payload.descricao,
         "codigo_cnae": payload.codigo_cnae,
         "codigo_servico": payload.codigo_servico,
+        "numero_dps_reservado": int(getattr(payload, "numero_dps_reservado", 0) or 0),
     }
 
 
@@ -56,4 +57,5 @@ def payload_emissao_manual_from_dict(data: dict[str, Any]):
         descricao=data["descricao"],
         codigo_cnae=data.get("codigo_cnae") or "",
         codigo_servico=data.get("codigo_servico") or "",
+        numero_dps_reservado=int(data.get("numero_dps_reservado") or 0),
     )

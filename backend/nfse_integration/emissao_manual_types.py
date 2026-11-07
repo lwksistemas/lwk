@@ -24,6 +24,7 @@ class EmissaoManualPayload:
     descricao: str
     codigo_cnae: str
     codigo_servico: str
+    numero_dps_reservado: int = 0
 
 
 @dataclass(frozen=True)

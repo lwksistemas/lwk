@@ -56,8 +56,19 @@ def enqueue_emitir_nfse_manual(payload) -> bool:
     from core.task_queue import enqueue_task
 
     data = payload_emissao_manual_to_dict(payload)
+    base = "|".join(
+        str(parte or "")
+        for parte in (
+            data.get("loja_id"),
+            data.get("numero_dps_reservado"),
+            data.get("tomador_cpf_cnpj"),
+            data.get("valor"),
+            data.get("descricao"),
+        )
+    )
+    key = hashlib.sha256(base.encode()).hexdigest()[:16]
     enqueue_task(
-        f'nfse-manual-{data.get("loja_id") or "ext"}-{hash(data.get("tomador_cpf_cnpj", ""))}',
+        f"nfse-manual-{key}",
         "nfse_integration.queue_tasks.run_emitir_nfse_manual",
         data,
     )

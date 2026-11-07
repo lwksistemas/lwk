@@ -51,7 +51,12 @@ class Command(BaseCommand):
             self.stdout.write("  ⚠️  Nenhuma configuração encontrada")
             return 0
 
-        fields = ["issnet_usuario", "issnet_senha", "issnet_senha_certificado"]
+        fields = [
+            "issnet_usuario",
+            "issnet_senha",
+            "issnet_senha_certificado",
+            "nacional_senha_certificado",
+        ]
         for field in fields:
             value = getattr(config, field, "") or ""
             if value and not is_encrypted(value):

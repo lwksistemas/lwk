@@ -18,10 +18,12 @@ def emitir_manual_nacional_superadmin(config: Any, payload: Any) -> EmissaoManua
     if not config.nacional_codigo_municipio:
         return EmissaoManualResult(False, 400, error="Código IBGE do município não configurado")
 
+    from core.encryption import decrypt_value
+
     numero_dps = config.proximo_dps()
     client = NacionalClient(
         pfx_bytes=bytes(config.nacional_certificado),
-        senha_pfx=config.nacional_senha_certificado,
+        senha_pfx=decrypt_value(config.nacional_senha_certificado),
         ambiente=config.nacional_ambiente or "homologacao",
     )
 

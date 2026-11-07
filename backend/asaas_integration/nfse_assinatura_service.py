@@ -140,10 +140,12 @@ def _emitir_via_nacional(
         # Número DPS
         numero_dps = config.proximo_dps()
 
+        from core.encryption import decrypt_value
+
         # Cliente Nacional
         client = NacionalClient(
             pfx_bytes=bytes(config.nacional_certificado),
-            senha_pfx=config.nacional_senha_certificado,
+            senha_pfx=decrypt_value(config.nacional_senha_certificado),
             ambiente=config.nacional_ambiente or "homologacao",
         )
 

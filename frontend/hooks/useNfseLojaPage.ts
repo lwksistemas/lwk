@@ -298,7 +298,13 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
       setNfCancelamento(null);
       await carregarNFSes(true);
     } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: string; cancelamento_manual_necessario?: boolean } } };
+      const ax = err as { response?: { status?: number; data?: { error?: string; cancelamento_manual_necessario?: boolean } } };
+      if (ax.response?.status === 403) {
+        const semPermissao = getCrmApiErrorDetail(err, 'Sem permissão para cancelar esta nota.');
+        setErroCancelamento(semPermissao);
+        toast.error(semPermissao);
+        return;
+      }
       const manualNecessario = ax.response?.data?.cancelamento_manual_necessario;
       const errorMsg = ax.response?.data?.error || getCrmApiErrorDetail(err, 'Erro ao cancelar NFS-e');
 

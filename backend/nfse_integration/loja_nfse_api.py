@@ -611,7 +611,7 @@ def processar_emissao_nfse_loja_sync(
         empresa_prestadora_id=empresa_prestadora_id,
     )
 
-    if resultado["success"]:
+    if resultado.get("success"):
         nfse = NFSe.objects.filter(
             loja_id=loja_id,
             numero_nf=resultado["numero_nf"],
@@ -622,14 +622,15 @@ def processar_emissao_nfse_loja_sync(
                 "message": "NFS-e emitida com sucesso",
                 "nfse": NFSeSerializer(nfse).data,
             }
-        else:
-            body = {
-                "success": True,
-                "message": "NFS-e emitida com sucesso",
-                "numero_nf": resultado["numero_nf"],
-                "codigo_verificacao": resultado.get("codigo_verificacao", ""),
-            }
-        return body, status.HTTP_201_CREATED
+            return body, status.HTTP_201_CREATED
+        resultado = {
+            "success": False,
+            "error": (
+                "A prefeitura autorizou a nota, mas ela não ficou gravada nesta loja. "
+                f"Anote o DPS {int(resultado.get('numero_rps') or 0)} e avise o suporte."
+            ),
+            "numero_rps": resultado.get("numero_rps") or 0,
+        }
 
     erro_msg = resultado.get("error", "Erro desconhecido")
     nfse_falha = service.registrar_falha_emissao(

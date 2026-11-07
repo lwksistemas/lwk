@@ -17,6 +17,7 @@ import {
 } from '@/lib/nfse-emissao-form';
 import { mesclarAtividadeMunicipalPadrao } from '@/lib/nfse-atividades-municipais';
 import { parseNfseEmissaoResult, type NfseEmissaoResult, type NfseEmitirResponse } from '@/lib/nfse-helpers';
+import { getCrmApiErrorDetail } from '@/lib/crm-utils';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { ServicoFields } from './ServicoFields';
 import { ModalFormButtons } from './ModalFormButtons';
@@ -170,8 +171,7 @@ export function ModalEmitirNFSe({ onClose, onSuccess, onRefreshList }: ModalEmit
       onSuccess(parseNfseEmissaoResult(res.status, res.data));
     } catch (err: unknown) {
       logger.warn('Erro ao emitir NFS-e:', err);
-      const ax = err as { response?: { data?: { error?: string } } };
-      setError(ax.response?.data?.error || 'Erro ao emitir NFS-e');
+      setError(getCrmApiErrorDetail(err, 'Erro ao emitir NFS-e'));
       onRefreshList?.();
     } finally {
       setLoading(false);

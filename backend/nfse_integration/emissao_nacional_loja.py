@@ -195,7 +195,16 @@ def emitir_via_nacional_loja(
                 resultado, numero_dps, valor_servicos, aliquota, valor_iss,
                 tomador_nome, tomador_cpf_cnpj, servico_descricao,
             )
-            salvar_nfse_emitida(loja.id, resultado_final, tomador_email, provedor="nacional")
+            gravada = salvar_nfse_emitida(loja.id, resultado_final, tomador_email, provedor="nacional")
+            if not gravada:
+                return {
+                    "success": False,
+                    "error": (
+                        "A Sefin autorizou a nota, mas ela não ficou gravada nesta loja. "
+                        f"Anote o DPS {numero_dps} e avise o suporte."
+                    ),
+                    "numero_rps": numero_dps,
+                }
             if enviar_email and tomador_email:
                 enviar_email_fn(
                     tomador_email=tomador_email,

@@ -85,32 +85,22 @@ def resolver_download_pdf_loja(nfse: Any, loja: Any, loja_id: int) -> ResultadoD
 
 
 def _url_parece_portal_oficial(url: str | None) -> bool:
-    u = (url or "").lower()
-    if not u.startswith("http"):
-        return False
-    return any(
-        marker in u
-        for marker in (
-            "notaeletronica.com.br",
-            "nota_digital",
-            "issnetonline.com.br",
-            "nfse.gov.br",
-            "asaas.com",
-        )
-    )
+    from .danfe import url_e_portal_oficial
+
+    return url_e_portal_oficial(url)
 
 
 def resolver_download_pdf_superadmin(nfse_emitida: Any) -> ResultadoDownloadPdf:
     """Superadmin: Asaas URL, ISSNet ConsultarUrlNfse ou PDF interno."""
-    if nfse_emitida.pdf_url and nfse_emitida.provedor == "asaas":
+    if nfse_emitida.pdf_url and nfse_emitida.provedor == "asaas" and _url_parece_portal_oficial(nfse_emitida.pdf_url):
         return ResultadoDownloadPdf(tipo="url", url=nfse_emitida.pdf_url)
 
-    if url_danfe_valida(nfse_emitida.pdf_url):
+    if url_danfe_valida(nfse_emitida.pdf_url) and _url_parece_portal_oficial(nfse_emitida.pdf_url):
         return ResultadoDownloadPdf(tipo="url", url=nfse_emitida.pdf_url)
 
     if nfse_emitida.provedor == "issnet" and nfse_emitida.numero_nf:
         url_danfe = buscar_url_danfe_issnet_superadmin(nfse_emitida)
-        if url_danfe:
+        if url_danfe and _url_parece_portal_oficial(url_danfe):
             return ResultadoDownloadPdf(tipo="url", url=url_danfe)
 
     from .numero_exibicao import numero_nfse_para_exibicao

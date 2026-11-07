@@ -18,6 +18,38 @@ def url_danfe_valida(url: str | None) -> bool:
     return not any(marker in str(url) for marker in URL_INVALID_MARKERS)
 
 
+_HOSTS_PORTAL_NFSE = (
+    "nfse.gov.br",
+    "issnetonline.com.br",
+    "notaeletronica.com.br",
+    "asaas.com",
+)
+
+
+def url_e_portal_oficial(url: str | None) -> bool:
+    """True só quando o host é um portal de NFS-e conhecido.
+
+    O teste é no hostname, não no texto da URL. Um endereço como
+    https://evil.example/?x=nfse.gov.br ou https://nfse.gov.br.evil.example
+    não passa.
+    """
+    from urllib.parse import urlparse
+
+    bruto = (url or "").strip()
+    if not url_danfe_valida(bruto):
+        return False
+    try:
+        parsed = urlparse(bruto)
+    except ValueError:
+        return False
+    if parsed.username or parsed.password:
+        return False
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if not host:
+        return False
+    return any(host == base or host.endswith("." + base) for base in _HOSTS_PORTAL_NFSE)
+
+
 def _extrair_prestador_do_xml(xml_nfse: str) -> tuple[str, str]:
     cnpj = ""
     inscricao_municipal = ""
@@ -103,7 +135,7 @@ def obter_url_visualizacao_nfse_loja(
     Mesma fonte usada no e-mail ao tomador — não usa PDF interno do sistema.
     """
     pdf_url = (getattr(nfse, "pdf_url", "") or "").strip()
-    if url_danfe_valida(pdf_url):
+    if url_e_portal_oficial(pdf_url):
         return pdf_url
 
     from nfse_integration.issnet_response import extrair_url_visualizacao_nfse
@@ -111,7 +143,7 @@ def obter_url_visualizacao_nfse_loja(
     url_no_xml = extrair_url_visualizacao_nfse(
         f"{getattr(nfse, 'xml_nfse', '') or ''}\n{getattr(nfse, 'xml_rps', '') or ''}"
     )
-    if url_danfe_valida(url_no_xml):
+    if url_e_portal_oficial(url_no_xml):
         _salvar_pdf_url(nfse, url_no_xml)
         return url_no_xml
 

@@ -28,6 +28,7 @@ from .loja_nfse_api import (
 )
 from .models import NFSe
 from .pdf_download import resolver_download_pdf_loja
+from .permissoes_loja import PodeOperarNFSe
 from .serializers import CancelarNFSeSerializer, EmitirNFSeSerializer, NFSeSerializer
 from .tomador_busca import buscar_tomador_nfse_loja
 from .xml_nfse_loja import resolver_xml_nfse_loja
@@ -49,7 +50,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     serializer_class = NFSeSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, PodeOperarNFSe]
     http_method_names = ["get", "post", "delete", "head", "options"]
 
     def initial(self, request, *args, **kwargs):
@@ -293,13 +294,19 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
     def salvar_url(self, request, pk=None):
         """Salva a URL oficial da nota (ex: link do email do ISSNet) para uso no PDF/email."""
         try:
-            from nfse_integration.danfe import url_xml_download_from_danfe
+            from nfse_integration.danfe import url_e_portal_oficial, url_xml_download_from_danfe
 
             nfse = self.get_object()
+
             url = (request.data.get("url") or "").strip()
-            if not url or not url.startswith("http"):
+            if not url_e_portal_oficial(url):
                 return Response(
-                    {"error": "URL inválida. Informe o link completo da nota."},
+                    {
+                        "error": (
+                            "Use o link oficial da nota "
+                            "(nfse.gov.br, ISSNet, Nota Eletrônica ou Asaas)."
+                        ),
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             nfse.pdf_url = url[:2000]

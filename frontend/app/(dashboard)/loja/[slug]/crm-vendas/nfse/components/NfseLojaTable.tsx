@@ -3,6 +3,7 @@
 import { Download, FileText, Link, Mail, MessageCircle, RefreshCw, Trash2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import apiClient from '@/lib/api-client';
+import { getCrmApiErrorDetail } from '@/lib/crm-utils';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime } from '@/lib/financeiro-helpers';
 import { NfseProvedorBadge } from '@/components/nfse/NfseProvedorBadge';
@@ -125,8 +126,8 @@ function NfseLojaRow({
       await apiClient.post(`/nfse/${nf.id}/salvar_url/`, { url });
       toast.success('Link salvo! PDF e email agora usam o link oficial do portal.');
       onRefresh?.();
-    } catch {
-      toast.error('Erro ao salvar link. Tente novamente.');
+    } catch (err: unknown) {
+      toast.error(getCrmApiErrorDetail(err, 'Erro ao salvar link. Tente novamente.'));
     } finally {
       setSalvandoUrl(false);
     }

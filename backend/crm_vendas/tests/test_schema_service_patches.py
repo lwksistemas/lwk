@@ -96,3 +96,20 @@ class PatchClinicaBelezaMigrationOrphansTest(SimpleTestCase):
         self.assertEqual(removed, 3)
         delete_calls = [c for c in cursor.execute.call_args_list if "DELETE FROM django_migrations" in c.args[0]]
         self.assertEqual(len(delete_calls), 1)
+
+
+class MigrationCrmConfigTabelaTest(SimpleTestCase):
+    def test_0073_altera_crm_vendas_config(self):
+        import importlib
+
+        mig = importlib.import_module(
+            "crm_vendas.migrations.0073_crmconfig_issnet_nacional_fields",
+        )
+
+        sqls = []
+        for op in mig.Migration.operations:
+            for db_op in getattr(op, "database_operations", []):
+                sqls.append(db_op.sql)
+        texto = " ".join(sqls)
+        self.assertIn("crm_vendas_config", texto)
+        self.assertNotIn("crm_vendas_crmconfig", texto)

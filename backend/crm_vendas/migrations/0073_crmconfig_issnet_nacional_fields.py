@@ -39,7 +39,7 @@ class Migration(migrations.Migration):
             database_operations=[
                 migrations.RunSQL(
                     sql=(
-                        "ALTER TABLE crm_vendas_crmconfig "
+                        "ALTER TABLE crm_vendas_config "
                         "ADD COLUMN IF NOT EXISTS issnet_usar_padrao_nacional "
                         "boolean NOT NULL DEFAULT false;"
                     ),
@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
                 ),
                 migrations.RunSQL(
                     sql=(
-                        "ALTER TABLE crm_vendas_crmconfig "
+                        "ALTER TABLE crm_vendas_config "
                         "ADD COLUMN IF NOT EXISTS codigo_tributacao_nacional "
                         "varchar(10) NOT NULL DEFAULT '';"
                     ),

@@ -72,6 +72,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
   const revenueData = data?.revenue_last_7_days || [];
   const revenueComValor = revenueData.some((d) => d.value > 0);
   const topProcedures = data?.top_procedures || [];
+  const soroterapias = data?.top_procedures_volume || [];
 
   const apptChange =
     stats?.appointments_yesterday != null
@@ -220,7 +221,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               filterLabel={filterLabel}
               revenueData={revenueData}
               revenueComValor={revenueComValor}
-              topProcedures={topProcedures}
+              soroterapias={soroterapias}
               chartColors={chartColors}
               primary={primary}
               darkMode={darkMode}

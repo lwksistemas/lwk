@@ -21,15 +21,11 @@ MESES_PT = (
 SOROTERAPIA_PROCEDURE_Q = (
     Q(procedure__categoria__iexact="soroterapia")
     | Q(procedure__categoria__icontains="soroterapia")
-    | Q(procedure__categoria__iexact="injetavel")
-    | Q(procedure__categoria__icontains="injetavel")
 )
 
 SOROTERAPIA_CADASTRO_Q = (
     Q(categoria__iexact="soroterapia")
     | Q(categoria__icontains="soroterapia")
-    | Q(categoria__iexact="injetavel")
-    | Q(categoria__icontains="injetavel")
 )
 
 NEXT_APPOINTMENT_STATUSES = (
@@ -232,8 +228,10 @@ def procedimentos_realizados_lista(period_start: date, period_end: date) -> list
 
 
 def top_soroterapia_periodo(period_start: date, period_end: date) -> list[dict]:
-    """Top soroterapias das consultas concluídas no mês do agendamento.
-    Se não houver movimento, lista cadastros ativos de soroterapia (count=0).
+    """Top 5 da categoria Soroterapia nas consultas concluídas do período.
+
+    Não inclui outras categorias, como injetável. Sem movimento, lista os
+    cadastros ativos dessa categoria com quantidade zero.
     """
     counts: dict[str, int] = {}
 

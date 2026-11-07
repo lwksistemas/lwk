@@ -132,7 +132,7 @@ export function ClinicaBelezaDashboardCharts({
       </div>
 
       <div className="@min-[980px]:col-span-2 min-w-0">
-        <ChartCard title={`Top 5 soroterapias — ${filterLabel}`}>
+        <ChartCard title={`Soroterapia — ${filterLabel}`}>
           {topSoroterapias.length > 0 ? (
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
               <div className="h-52 w-full sm:w-[46%] sm:shrink-0">

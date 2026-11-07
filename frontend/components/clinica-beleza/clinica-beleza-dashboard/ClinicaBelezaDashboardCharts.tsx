@@ -62,8 +62,6 @@ export type ClinicaBelezaDashboardChartsProps = {
   revenueData: RevenueDay[];
   revenueComValor: boolean;
   topProcedures: TopProcedure[];
-  topProceduresVolume: TopProcedure[];
-  soroterapiaComMovimento: TopProcedure[];
   chartColors: string[];
   primary: string;
   darkMode: boolean;
@@ -75,22 +73,21 @@ export function ClinicaBelezaDashboardCharts({
   revenueData,
   revenueComValor,
   topProcedures,
-  topProceduresVolume,
-  soroterapiaComMovimento,
   chartColors,
   primary,
   darkMode,
 }: ClinicaBelezaDashboardChartsProps) {
   const topCinco = topProcedures.filter((p) => p.count > 0).slice(0, 5);
   const totalProcedimentos = topProcedures.reduce((soma, p) => soma + p.count, 0);
+  const maiorFaturamento = revenueData.reduce((maior, dia) => Math.max(maior, dia.value), 0);
   const grade = darkMode ? "#374151" : "#f3f4f6";
   const tick = darkMode ? "#9ca3af" : "#6b7280";
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-      <div className="xl:col-span-3 min-w-0">
+    <div className="grid grid-cols-1 @min-[980px]:grid-cols-5 gap-3">
+      <div className="@min-[980px]:col-span-3 min-w-0">
         <ChartCard title={faturamentoChartTitle}>
-          <div className="h-64 sm:h-72">
+          <div className="h-56">
             {revenueComValor ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={revenueData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -111,14 +108,16 @@ export function ClinicaBelezaDashboardCharts({
                     cursor={{ fill: "color-mix(in srgb, var(--cb-primary, #8B3D52) 8%, transparent)" }}
                     content={<TooltipFaturamento primary={primary} />}
                   />
-                  <Bar dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={28}>
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={22}>
                     {revenueData.map((dia, i) => (
                       <Cell
                         key={dia.day || i}
                         fill={
-                          dia.value > 0
-                            ? primary
-                            : "color-mix(in srgb, var(--cb-primary, #8B3D52) 18%, transparent)"
+                          dia.value <= 0
+                            ? "color-mix(in srgb, var(--cb-primary, #8B3D52) 16%, white)"
+                            : dia.value === maiorFaturamento
+                              ? primary
+                              : "color-mix(in srgb, var(--cb-primary, #8B3D52) 55%, white)"
                         }
                       />
                     ))}
@@ -132,7 +131,7 @@ export function ClinicaBelezaDashboardCharts({
         </ChartCard>
       </div>
 
-      <div className="xl:col-span-2 min-w-0">
+      <div className="@min-[980px]:col-span-2 min-w-0">
         <ChartCard title={`Top 5 procedimentos — ${filterLabel}`}>
           {topCinco.length > 0 ? (
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
@@ -170,13 +169,13 @@ export function ClinicaBelezaDashboardCharts({
               </div>
               <ul className="min-w-0 flex-1 space-y-2">
                 {topCinco.map((proc, i) => (
-                  <li key={`${proc.name}-${i}`} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300 min-w-0">
+                  <li key={`${proc.name}-${i}`} className="grid grid-cols-[0.65rem_minmax(0,1fr)_auto] items-center gap-2 text-xs text-gray-600 dark:text-gray-300 min-w-0">
                     <span
-                      className="w-2.5 h-2.5 rounded-full mt-1 shrink-0"
+                      className="w-2.5 h-2.5 rounded-full"
                       style={{ backgroundColor: chartColors[i % chartColors.length] }}
                     />
-                    <span className="min-w-0 flex-1 leading-snug">{proc.name}</span>
-                    <span className="shrink-0 tabular-nums font-medium text-gray-700 dark:text-gray-200">
+                    <span className="min-w-0 leading-tight">{proc.name}</span>
+                    <span className="shrink-0 tabular-nums font-medium text-gray-800 dark:text-gray-100 text-right">
                       {proc.count} ({percentualDashboard(proc.count, totalProcedimentos)}%)
                     </span>
                   </li>
@@ -188,19 +187,6 @@ export function ClinicaBelezaDashboardCharts({
               Sem procedimentos realizados em {filterLabel}.
             </p>
           )}
-          {soroterapiaComMovimento.length > 0 ? (
-            <p className="mt-3 text-xs text-gray-400 dark:text-gray-500 leading-relaxed">
-              Soroterapias:{" "}
-              {soroterapiaComMovimento
-                .slice(0, 5)
-                .map((proc) => `${proc.name} (${proc.count})`)
-                .join(" · ")}
-            </p>
-          ) : topProceduresVolume.length > 0 ? (
-            <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
-              Soroterapias cadastradas, sem movimento em {filterLabel}.
-            </p>
-          ) : null}
         </ChartCard>
       </div>
     </div>

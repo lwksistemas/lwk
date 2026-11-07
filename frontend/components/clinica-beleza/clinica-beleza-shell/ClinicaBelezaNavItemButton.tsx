@@ -26,12 +26,12 @@ export function ClinicaBelezaNavItemButton({
       type="button"
       onClick={onClick}
       title={collapsed ? label : undefined}
-      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer ${
+      className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
         collapsed ? "justify-center px-2" : ""
       } ${
         isActive
-          ? "font-semibold text-white shadow-sm"
-          : "font-medium text-gray-600 hover:bg-white/80 dark:text-gray-300 dark:hover:bg-gray-700/50"
+          ? "text-white shadow-sm"
+          : "text-gray-600 hover:bg-white/80 dark:text-gray-300 dark:hover:bg-gray-700/50"
       }`}
       style={isActive ? { backgroundColor: CB_PRIMARY_CSS } : undefined}
     >

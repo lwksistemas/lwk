@@ -2,8 +2,9 @@
 
 import dynamic from "next/dynamic";
 import { Activity, AlertTriangle, CalendarDays, TrendingUp, Users } from "lucide-react";
-import { ClinicaBelezaShell } from "@/components/clinica-beleza/clinica-beleza-shell/ClinicaBelezaShell";
+import { ClinicaBelezaPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { useClinicaBelezaUserDisplayName } from "@/components/clinica-beleza/ClinicaBelezaTopBar";
+import { ClinicaBelezaShell } from "@/components/clinica-beleza/clinica-beleza-shell/ClinicaBelezaShell";
 import {
   ClinicaBelezaThemeProvider,
   useClinicaBelezaTheme,
@@ -71,8 +72,6 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
   const revenueData = data?.revenue_last_7_days || [];
   const revenueComValor = revenueData.some((d) => d.value > 0);
   const topProcedures = data?.top_procedures || [];
-  const topProceduresVolume = data?.top_procedures_volume || [];
-  const soroterapiaComMovimento = topProceduresVolume.filter((p) => p.count > 0);
 
   const apptChange =
     stats?.appointments_yesterday != null
@@ -89,7 +88,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
 
   return (
     <ClinicaBelezaShell loja={loja} onLogout={onLogout}>
-      <div className="p-4 md:p-6 lg:p-8 space-y-6 w-full min-w-0">
+      <ClinicaBelezaPageHeader>
         <DashboardGreeting
           saudacao={saudacaoDashboard(new Date().getHours())}
           primeiroNome={primeiroNomeDashboard(nomeUsuario)}
@@ -100,6 +99,8 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
           onMesAno={setMesAno}
           onAtualizar={() => void fetchData(true)}
         />
+      </ClinicaBelezaPageHeader>
+      <div className="@container p-4 lg:p-5 space-y-4 w-full min-w-0">
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -113,7 +114,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 @min-[520px]:grid-cols-2 @min-[1040px]:grid-cols-5 gap-3">
               <StatCard
                 title="Atendimentos hoje"
                 value={stats?.appointments_today ?? 0}
@@ -158,7 +159,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 @min-[760px]:grid-cols-2 @min-[1100px]:grid-cols-3 gap-3 items-stretch">
               <PainelCard
                 title="Próximos agendamentos"
                 action={<LinkPainel href={`/loja/${slug}/agenda`}>Ver agenda</LinkPainel>}
@@ -191,7 +192,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                 }
               >
                 {topProcedures.length > 0 ? (
-                  <ProcedureBars procedures={topProcedures.slice(0, 6)} colors={chartColors} />
+                  <ProcedureBars procedures={topProcedures.slice(0, 5)} colors={chartColors} />
                 ) : (
                   <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">
                     Sem atendimentos concluídos no período
@@ -220,8 +221,6 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
               revenueData={revenueData}
               revenueComValor={revenueComValor}
               topProcedures={topProcedures}
-              topProceduresVolume={topProceduresVolume}
-              soroterapiaComMovimento={soroterapiaComMovimento}
               chartColors={chartColors}
               primary={primary}
               darkMode={darkMode}

@@ -45,7 +45,7 @@ export function ClinicaBelezaSidebarNav({
       const expanded = openGroups[item.label] ?? groupActive;
 
       return (
-        <div key={item.label} className="space-y-1">
+        <div key={item.label} className="space-y-0.5">
           <ClinicaBelezaNavItemButton
             label={item.label}
             icon={item.icon}
@@ -62,7 +62,7 @@ export function ClinicaBelezaSidebarNav({
             }}
           />
           {!collapsed && expanded && (
-            <div className="ml-4 pl-3 border-l border-gray-200 dark:border-gray-600 space-y-1">
+            <div className="ml-4 pl-3 border-l border-gray-200 dark:border-gray-600 space-y-0.5">
               {item.children.map((child) => {
                 const href = getClinicaBelezaNavHref(slug, child.path);
                 const childActive = isClinicaBelezaNavActive(pathname, slug, child.path);
@@ -106,7 +106,7 @@ export function ClinicaBelezaSidebarNav({
 
   return (
     <nav
-      className={`space-y-1 shrink-0 ${collapsed ? "p-2" : "px-3 py-3"} max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-y-auto lg:overflow-visible`}
+      className={`space-y-0.5 shrink-0 ${collapsed ? "p-2" : "px-3 py-2"} max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-y-auto lg:overflow-visible`}
     >
       {navItems.map(renderItem)}
     </nav>

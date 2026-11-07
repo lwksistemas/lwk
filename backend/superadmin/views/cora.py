@@ -87,8 +87,20 @@ def _segredo_webhook_cora() -> str:
     return (getattr(settings, "CORA_WEBHOOK_SECRET", None) or "").strip()
 
 
+def _evento_cora(request) -> tuple[str, str]:
+    """Tipo e fatura vêm no cabeçalho. A Cora documenta os dois como opcionais."""
+    tipo = (request.headers.get("webhook-event-type") or "").strip().lower()
+    invoice_id = (request.headers.get("webhook-resource-id") or "").strip()
+    return tipo, invoice_id
+
+
 def _cora_webhook_autorizado(request) -> bool:
-    """A Cora não assina o POST. Com CORA_WEBHOOK_SECRET, a URL registrada leva ?token=."""
+    """A Cora não assina o POST. O token vale quando a URL foi registrada com ele.
+
+    Endereços antigos, sem token, ainda recebem o aviso de boleto pago.
+    Sem o cabeçalho da fatura esses endereços continuam recusados. A baixa
+    só acontece depois que a API da Cora confirma o status PAID.
+    """
     from core.webhook_security import secrets_match
 
     segredo = _segredo_webhook_cora()
@@ -99,7 +111,10 @@ def _cora_webhook_autorizado(request) -> bool:
         or request.query_params.get("token")
         or ""
     ).strip()
-    return secrets_match(recebido, segredo)
+    if recebido:
+        return secrets_match(recebido, segredo)
+    tipo, invoice_id = _evento_cora(request)
+    return tipo == "invoice.paid" and bool(invoice_id)
 
 
 def _cora_dentro_do_limite(request) -> bool:
@@ -129,9 +144,9 @@ def cora_webhook(request):
         return Response({"status": "unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
     if not _cora_dentro_do_limite(request):
         return Response({"status": "limited"}, status=status.HTTP_429_TOO_MANY_REQUESTS)
-    tipo = (request.headers.get("webhook-event-type") or "").strip()
-    invoice_id = (request.headers.get("webhook-resource-id") or "").strip()
+    tipo, invoice_id = _evento_cora(request)
     if tipo != "invoice.paid" or not invoice_id:
+        logger.info("Webhook Cora ignorado: evento=%s fatura=%s", tipo or "ausente", "sim" if invoice_id else "nao")
         return Response({"status": "ignored"}, status=status.HTTP_200_OK)
     from ..cora_service import confirmar_fatura_paga
 

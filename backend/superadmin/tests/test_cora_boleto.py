@@ -54,9 +54,31 @@ class CoraWebhookSegredoTests(SimpleTestCase):
 
     @override_settings(CORA_WEBHOOK_SECRET="segredo-cora")
     @patch("superadmin.cora_service.confirmar_fatura_paga")
-    def test_sem_token_nao_consulta_a_fatura(self, confirmar):
+    def test_sem_token_e_sem_fatura_nao_consulta(self, confirmar):
+        request = APIRequestFactory().post("/api/superadmin/cora-webhook/", {}, format="json")
+        response = cora_webhook(request)
+        self.assertEqual(response.status_code, 401)
+        confirmar.assert_not_called()
+
+    @override_settings(CORA_WEBHOOK_SECRET="segredo-cora")
+    @patch("superadmin.cora_service.confirmar_fatura_paga", return_value={"success": True})
+    def test_endereco_antigo_sem_token_confirma_boleto_pago(self, confirmar):
         request = APIRequestFactory().post(
             "/api/superadmin/cora-webhook/",
+            {},
+            format="json",
+            HTTP_WEBHOOK_EVENT_TYPE="invoice.paid",
+            HTTP_WEBHOOK_RESOURCE_ID="inv_1",
+        )
+        response = cora_webhook(request)
+        self.assertEqual(response.status_code, 200)
+        confirmar.assert_called_once_with("inv_1")
+
+    @override_settings(CORA_WEBHOOK_SECRET="segredo-cora")
+    @patch("superadmin.cora_service.confirmar_fatura_paga")
+    def test_token_errado_nao_consulta_a_fatura(self, confirmar):
+        request = APIRequestFactory().post(
+            "/api/superadmin/cora-webhook/?token=errado",
             {},
             format="json",
             HTTP_WEBHOOK_EVENT_TYPE="invoice.paid",

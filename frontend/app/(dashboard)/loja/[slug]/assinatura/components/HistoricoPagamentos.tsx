@@ -17,6 +17,7 @@ import { hexToRgba } from '@/lib/loja-theme';
 import { cobrancaBoletoPixDisponivel } from '@/lib/assinatura-aviso';
 import {
   cobrancaAbertaTemBoleto,
+  deveMostrarProximaMensalidade,
   linhaTemBoletoDisponivel,
   rotuloNotaFiscal,
 } from '@/lib/assinatura-historico';
@@ -394,7 +395,11 @@ export function HistoricoPagamentos({
       })
     : false;
 
-  const mostrarProximaLinha = !cobrancaAberta && !temCobrancaAbertaNaLista && proximaCobranca;
+  const mostrarProximaLinha = deveMostrarProximaMensalidade(
+    itens,
+    proximaCobranca,
+    Boolean(cobrancaAberta) || temCobrancaAbertaNaLista,
+  );
   const podeGerarBoleto = geracaoBoleto?.pode_gerar !== false;
   const mostrarColunaBoleto =
     Boolean(cobrancaAberta && !temCobrancaAbertaNaLista && cobrancaAbertaTemBoleto(cobrancaAberta)) ||

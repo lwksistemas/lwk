@@ -53,3 +53,16 @@ export function cobrancaAbertaTemBoleto(cobranca: CobrancaAbertaBoleto): boolean
   if (!cobrancaBoletoPixDisponivel(cobranca.data_vencimento).disponivel) return false;
   return Boolean(cobranca.boleto_url || cobranca.pagamento_id || cobranca.pix_copy_paste);
 }
+
+export function deveMostrarProximaMensalidade(
+  itens: { is_paid: boolean; data_vencimento?: string | null }[],
+  proximaCobranca?: string | null,
+  temCobrancaAberta?: boolean,
+): boolean {
+  if (!proximaCobranca || temCobrancaAberta) return false;
+  const vencimento = proximaCobranca.slice(0, 10);
+  const jaListado = itens.some(
+    (item) => !item.is_paid && (item.data_vencimento || "").slice(0, 10) === vencimento,
+  );
+  return !jaListado;
+}

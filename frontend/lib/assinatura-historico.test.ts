@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import {
   cobrancaAbertaTemBoleto,
+  deveMostrarProximaMensalidade,
   linhaTemBoletoDisponivel,
   numeroNotaParaExibir,
   rotuloNotaFiscal,
@@ -65,5 +66,31 @@ describe('coluna de boleto', () => {
       data_vencimento: '2026-11-10',
       pagamento_loja_id: 26,
     })).toBe(true);
+  });
+});
+
+describe('deveMostrarProximaMensalidade', () => {
+  it('esconde a próxima mensalidade quando o boleto daquele vencimento já está na lista', () => {
+    expect(
+      deveMostrarProximaMensalidade(
+        [{ is_paid: false, data_vencimento: '2026-11-10' }],
+        '2026-11-10',
+        false,
+      ),
+    ).toBe(false);
+  });
+
+  it('mostra a próxima mensalidade quando ainda não há boleto daquele vencimento', () => {
+    expect(
+      deveMostrarProximaMensalidade(
+        [{ is_paid: true, data_vencimento: '2026-09-02' }],
+        '2026-11-10',
+        false,
+      ),
+    ).toBe(true);
+  });
+
+  it('não mostra outra linha quando a cobrança em aberto já será exibida', () => {
+    expect(deveMostrarProximaMensalidade([], '2026-11-10', true)).toBe(false);
   });
 });

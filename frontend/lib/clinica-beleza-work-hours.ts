@@ -125,11 +125,12 @@ export function intervalosEventsFromHorarios(
     const diaBackend = weekdayFromDate(data);
     const horario = horarios.find((h) => h.ativo && h.dia_semana === diaBackend);
     if (!horario?.intervalo_inicio || !horario?.intervalo_fim) continue;
+    const ini = horario.intervalo_inicio.slice(0, 5);
+    const fim = horario.intervalo_fim.slice(0, 5);
+    if (!ini || !fim || ini === fim) continue;
     const y = data.getFullYear();
     const m = String(data.getMonth() + 1).padStart(2, "0");
     const d = String(data.getDate()).padStart(2, "0");
-    const ini = horario.intervalo_inicio.slice(0, 5);
-    const fim = horario.intervalo_fim.slice(0, 5);
     result.push({
       id: `intervalo-${profId}-${y}${m}${d}`,
       title: `🍽️ Intervalo ${ini}–${fim}`,
@@ -142,7 +143,13 @@ export function intervalosEventsFromHorarios(
       borderColor: "#d97706",
       textColor: "#fff",
       editable: false,
-      extendedProps: { isIntervalo: true, professional_name: profName, intervalo_inicio: ini, intervalo_fim: fim },
+      extendedProps: {
+        isIntervalo: true,
+        professional: Number(profId) || undefined,
+        professional_name: profName,
+        intervalo_inicio: ini,
+        intervalo_fim: fim,
+      },
     });
   }
   return result;

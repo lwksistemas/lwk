@@ -105,6 +105,31 @@ export function useAgendaCalendarQueries(isOnline: boolean, selectedProfessional
   return { horariosQuery, eventsQuery, bloqueiosQuery, horariosTrabalho, bloqueios };
 }
 
+/** Expediente de cada profissional quando o filtro da agenda é “Todos”. */
+export function useAgendaHorariosTodos(
+  isOnline: boolean,
+  professionals: ClinicaProfessional[],
+  selectedProfessional: string,
+) {
+  const ids = professionals.map((p) => p.id).sort((a, b) => a - b);
+  const verTodos = isOnline && !selectedProfessional && ids.length > 0;
+  const query = useQuery({
+    queryKey: [...clinicaBelezaQueryKeys.horariosTrabalho("todos"), ids.join(",")],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        ids.map(async (id) => {
+          const rows = (await fetchClinicaHorariosTrabalho(String(id))) as HorarioTrabalhoRow[];
+          return [String(id), Array.isArray(rows) ? rows : []] as const;
+        }),
+      );
+      return Object.fromEntries(entries) as Record<string, HorarioTrabalhoRow[]>;
+    },
+    enabled: verTodos,
+    staleTime: 5 * 60 * 1000,
+  });
+  return (query.data ?? {}) as Record<string, HorarioTrabalhoRow[]>;
+}
+
 export function useAgendaRefresh(
   isOnline: boolean,
   selectedProfessional: string,

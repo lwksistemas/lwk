@@ -265,6 +265,21 @@ export function intervalosAgendaProfissional(
   return intervalosEventsFromHorarios(selectedProfessional, horariosTrabalho, profName);
 }
 
+/** Intervalo de cada profissional quando o filtro está em “Todos”. */
+export function intervalosAgendaTodos(
+  professionals: ClinicaProfessional[],
+  horariosPorId: Record<string, HorarioTrabalhoRow[]>,
+): AgendaEventData[] {
+  const out: AgendaEventData[] = [];
+  for (const prof of professionals) {
+    const horarios = horariosPorId[String(prof.id)] || [];
+    if (!horarios.length) continue;
+    const nome = entityName(prof) || "Profissional";
+    out.push(...intervalosEventsFromHorarios(String(prof.id), horarios, nome));
+  }
+  return out;
+}
+
 export function buildPendingSyncEvents({
   fila,
   patients,
@@ -331,6 +346,7 @@ export function buildEventosOnline({
   rawEvents,
   bloqueios,
   horariosTrabalho,
+  horariosPorProfissional = {},
   professionals,
   selectedProfessional,
   pendingEvents,
@@ -339,6 +355,7 @@ export function buildEventosOnline({
   rawEvents: AgendaEventData[] | Record<string, unknown>[];
   bloqueios: BloqueioHorario[];
   horariosTrabalho: HorarioTrabalhoRow[];
+  horariosPorProfissional?: Record<string, HorarioTrabalhoRow[]>;
   professionals: ClinicaProfessional[];
   selectedProfessional: string;
   pendingEvents: AgendaEventData[];
@@ -349,10 +366,8 @@ export function buildEventosOnline({
     formatarAgendaEvento(ev, temExpediente, statusColors),
   );
   const bloqueiosAsEvents = bloqueiosToAgendaEvents(bloqueios);
-  const intervalos = intervalosAgendaProfissional(
-    selectedProfessional,
-    horariosTrabalho,
-    professionals,
-  );
+  const intervalos = selectedProfessional
+    ? intervalosAgendaProfissional(selectedProfessional, horariosTrabalho, professionals)
+    : intervalosAgendaTodos(professionals, horariosPorProfissional);
   return [...eventosFormatados, ...bloqueiosAsEvents, ...intervalos, ...pendingEvents];
 }

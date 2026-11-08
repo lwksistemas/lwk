@@ -32,6 +32,7 @@ export function useAgendaEventos({
   eventsData,
   bloqueios,
   horariosTrabalho,
+  horariosPorProfissional = {},
   professionals,
   patients,
   procedures,
@@ -42,6 +43,7 @@ export function useAgendaEventos({
   eventsData: unknown;
   bloqueios: BloqueioHorario[];
   horariosTrabalho: HorarioTrabalhoRow[];
+  horariosPorProfissional?: Record<string, HorarioTrabalhoRow[]>;
   professionals: ClinicaProfessional[];
   patients: ClinicaPatient[];
   procedures: ClinicaProcedure[];
@@ -126,6 +128,7 @@ export function useAgendaEventos({
         rawEvents: Array.isArray(eventsData) ? eventsData : [],
         bloqueios,
         horariosTrabalho,
+        horariosPorProfissional,
         professionals,
         selectedProfessional,
         pendingEvents,
@@ -135,6 +138,7 @@ export function useAgendaEventos({
       bloqueios,
       eventsData,
       horariosTrabalho,
+      horariosPorProfissional,
       pendingEvents,
       professionals,
       selectedProfessional,

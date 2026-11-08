@@ -8,6 +8,7 @@ import { useAgendaOfflineCache } from "./useAgendaOfflineCache";
 import {
   useAgendaCadastroQueries,
   useAgendaCalendarQueries,
+  useAgendaHorariosTodos,
   useAgendaRefresh,
 } from "./useAgendaQueries";
 
@@ -28,6 +29,11 @@ export function useAgendaData(selectedProfessional: string) {
     isOnline,
     selectedProfessional,
   );
+  const horariosPorProfissional = useAgendaHorariosTodos(
+    isOnline,
+    professionals,
+    selectedProfessional,
+  );
 
   useAgendaOfflineCache(isOnline, professionals, patients, procedures, eventsQuery.data);
 
@@ -37,6 +43,7 @@ export function useAgendaData(selectedProfessional: string) {
     eventsData: eventsQuery.data,
     bloqueios,
     horariosTrabalho,
+    horariosPorProfissional,
     professionals,
     patients,
     procedures,

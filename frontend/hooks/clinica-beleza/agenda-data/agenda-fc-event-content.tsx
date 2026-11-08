@@ -107,8 +107,7 @@ export function makeAgendaFcEventContent(opts: { showProfessional: boolean }) {
     const isInt = Boolean(p.isIntervalo);
     const mins = duracaoMinutos(arg.event);
     const compact = !isMonth && mins > 0 && mins <= 25;
-    const showProf =
-      opts.showProfessional && !isBloq && !isInt && !compact && mins >= 45;
+    const showProf = opts.showProfessional && !isBloq && !isInt;
     const nome = nomeCurtoEvento(
       arg.event,
       isMonth ? 16 : 80,
@@ -144,6 +143,7 @@ export function makeAgendaFcEventContent(opts: { showProfessional: boolean }) {
         >
           <span className="agenda-fc-event-line">
             {hora ? <span className="agenda-fc-event-time">{hora}</span> : null}
+            {prof ? <span className="agenda-fc-event-prof">{prof}</span> : null}
             <span className="agenda-fc-event-title">{nome}</span>
           </span>
           {procedimento ? <span className="agenda-fc-event-proc">{procedimento}</span> : null}

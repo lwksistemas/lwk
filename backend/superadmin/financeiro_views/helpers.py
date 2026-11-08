@@ -393,6 +393,39 @@ def _build_historico_item(pl, ap, asaas_id, financeiro, boleto_url, pix_copy, pi
     }
 
 
+def _asaas_do_pagamento(pl, asaas_by_id, asaas_by_due, ids_da_loja):
+    """Liga o PagamentoLoja ao Asaas só quando a cobrança é dele.
+
+    O financeiro guarda o último id Asaas da loja. Um boleto novo, de outro
+    vencimento ou de outro banco, não pode herdar esse pagamento.
+    """
+    asaas_id = (pl.asaas_payment_id or "").strip()
+    if (
+        not asaas_id
+        and (getattr(pl, "provedor_boleto", "") or "") == "asaas"
+        and not (getattr(pl, "cora_invoice_id", "") or "").strip()
+        and getattr(pl, "financeiro", None)
+    ):
+        candidato = (pl.financeiro.asaas_payment_id or "").strip()
+        ap_candidato = asaas_by_id.get(candidato) if candidato else None
+        mesmo_vencimento = (
+            ap_candidato is not None
+            and pl.data_vencimento
+            and getattr(ap_candidato, "due_date", None) == pl.data_vencimento
+        )
+        if mesmo_vencimento and candidato not in ids_da_loja:
+            asaas_id = candidato
+
+    ap = asaas_by_id.get(asaas_id) if asaas_id else None
+    if ap is None and pl.data_vencimento:
+        candidato_due = asaas_by_due.get(pl.data_vencimento)
+        id_due = (getattr(candidato_due, "asaas_id", "") or "").strip() if candidato_due else ""
+        if id_due and id_due not in ids_da_loja:
+            ap = candidato_due
+            asaas_id = id_due
+    return asaas_id, ap
+
+
 def _build_historico_pagamentos_loja(
     loja,
     financeiro,
@@ -421,22 +454,20 @@ def _build_historico_pagamentos_loja(
         logger.warning("historico loja %s: AsaasPayment: %s", loja.slug, e)
 
     historico = []
-    pls = (
+    pls = list(
         PagamentoLoja.objects.filter(loja=loja)
         .exclude(status="cancelado")
         .select_related("financeiro")
         .order_by("-data_vencimento")
     )
+    ids_da_loja = {
+        (pl.asaas_payment_id or "").strip()
+        for pl in pls
+        if (pl.asaas_payment_id or "").strip()
+    }
 
     for pl in pls:
-        asaas_id = (pl.asaas_payment_id or "").strip()
-        if not asaas_id and getattr(pl, "financeiro", None):
-            asaas_id = (pl.financeiro.asaas_payment_id or "").strip()
-        ap = asaas_by_id.get(asaas_id) if asaas_id else None
-        if ap is None and pl.data_vencimento:
-            ap = asaas_by_due.get(pl.data_vencimento)
-            if ap and ap.asaas_id:
-                asaas_id = ap.asaas_id
+        asaas_id, ap = _asaas_do_pagamento(pl, asaas_by_id, asaas_by_due, ids_da_loja)
 
         status_raw, status_display, is_paid, is_pending, is_overdue = _resolve_status_pagamento(pl, ap)
         boleto_url, pix_copy, pix_qr = _resolve_urls_boleto_pix(

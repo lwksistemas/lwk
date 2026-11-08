@@ -1,6 +1,10 @@
+from datetime import date
+from types import SimpleNamespace
+
 from django.test import SimpleTestCase
 
 from superadmin.financeiro_views.helpers import (
+    _asaas_do_pagamento,
     _deduplicar_historico_pagamentos,
     _suprimir_pendentes_obsoletos_historico,
 )
@@ -142,3 +146,49 @@ class SuprimirPendentesObsoletosHistoricoTest(SimpleTestCase):
         ]
         out = _suprimir_pendentes_obsoletos_historico(historico)
         self.assertEqual(len(out), 2)
+
+
+class AsaasDoPagamentoTest(SimpleTestCase):
+    def test_boleto_novo_nao_herda_pagamento_de_outro_vencimento(self):
+        pago = SimpleNamespace(
+            asaas_id="pay_ago",
+            due_date=date(2026, 9, 2),
+            status="RECEIVED",
+        )
+        boleto_novo = SimpleNamespace(
+            asaas_payment_id="",
+            cora_invoice_id="inv_nov",
+            provedor_boleto="cora",
+            data_vencimento=date(2026, 11, 10),
+            financeiro=SimpleNamespace(asaas_payment_id="pay_ago"),
+        )
+        asaas_id, ap = _asaas_do_pagamento(
+            boleto_novo,
+            {"pay_ago": pago},
+            {date(2026, 9, 2): pago},
+            set(),
+        )
+        self.assertEqual(asaas_id, "")
+        self.assertIsNone(ap)
+
+    def test_nao_reaproveita_asaas_ja_ligado_a_outro_boleto(self):
+        pago = SimpleNamespace(
+            asaas_id="pay_ago",
+            due_date=date(2026, 10, 10),
+            status="RECEIVED",
+        )
+        outro = SimpleNamespace(
+            asaas_payment_id="",
+            cora_invoice_id="",
+            provedor_boleto="asaas",
+            data_vencimento=date(2026, 10, 10),
+            financeiro=SimpleNamespace(asaas_payment_id="pay_ago"),
+        )
+        asaas_id, ap = _asaas_do_pagamento(
+            outro,
+            {"pay_ago": pago},
+            {date(2026, 10, 10): pago},
+            {"pay_ago"},
+        )
+        self.assertEqual(asaas_id, "")
+        self.assertIsNone(ap)

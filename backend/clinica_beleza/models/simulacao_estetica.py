@@ -69,6 +69,13 @@ class SimulacaoConsulta(LojaIsolationMixin, models.Model):
     erro = models.TextField(blank=True, default="")
     ilustrativa = models.BooleanField(default=True)
     ciencia_visual = models.BooleanField(default=False)
+    api_nome = models.CharField(max_length=80, blank=True, default="Perfect Corp YouCam")
+    endpoint = models.CharField(max_length=80, blank=True, default="")
+    pedido = models.JSONField(default=dict, blank=True)
+    profissional_nome = models.CharField(max_length=200, blank=True, default="")
+    procedimento_nome = models.CharField(max_length=300, blank=True, default="")
+    unidades = models.PositiveSmallIntegerField(null=True, blank=True)
+    unidades_fonte = models.CharField(max_length=20, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

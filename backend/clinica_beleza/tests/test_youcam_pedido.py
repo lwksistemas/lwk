@@ -3,7 +3,15 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
-from clinica_beleza.youcam_api import YouCamError, interpretar_resposta, montar_pedido, mensagem_erro
+from clinica_beleza.youcam_api import (
+    YouCamError,
+    carimbar_aviso,
+    interpretar_resposta,
+    mensagem_erro,
+    montar_pedido,
+    resumo_pedido,
+    unidades_tabela,
+)
 
 
 class MontarPedidoTest(SimpleTestCase):
@@ -36,6 +44,34 @@ class MontarPedidoTest(SimpleTestCase):
     def test_rosto_cortado_explica_o_motivo(self):
         texto = mensagem_erro({"data": {"task_status": "error", "error": "error_src_face_out_of_bound"}})
         self.assertIn("rosto inteiro", texto)
+
+
+class IntensidadeEHistoricoTest(SimpleTestCase):
+    def test_pele_envia_so_a_intensidade_escolhida(self):
+        pedido = montar_pedido("pele", "wrinkle", 1, "arquivo", "https://media.exemplo/foto.jpg")
+        self.assertEqual(pedido["wrinkle"], 1.0)
+        self.assertNotIn("pores", pedido)
+        self.assertNotIn("src_file_id", resumo_pedido(pedido))
+
+    def test_olhos_vao_para_os_dois_lados_sem_alisar_o_rosto(self):
+        pedido = montar_pedido("rosto", "eye_size", -40, "arquivo", "https://media.exemplo/foto.jpg")
+        self.assertEqual(pedido["features"], {"eye_size_left": -40, "eye_size_right": -40})
+        self.assertEqual(pedido["global"]["skin_smooth_strength"], 0)
+
+    def test_tabela_de_unidades(self):
+        self.assertEqual(unidades_tabela("pele", {"wrinkle": 1.0}), 4)
+        self.assertEqual(unidades_tabela("rosto", {}), 1)
+        self.assertEqual(unidades_tabela("corpo", {}), 1)
+
+    def test_aviso_fica_no_arquivo_gerado(self):
+        from io import BytesIO
+
+        from PIL import Image
+
+        origem = BytesIO()
+        Image.new("RGB", (80, 40), (255, 0, 0)).save(origem, format="JPEG")
+        carimbada = Image.open(BytesIO(carimbar_aviso(origem.getvalue())))
+        self.assertGreater(carimbada.height, 40)
 
 
 class ExcluirSimulacaoTest(SimpleTestCase):

@@ -12,7 +12,7 @@ from core.media_storage import (
     assinar_url_midia,
     media_baixar_arquivo,
     media_delete_by_url,
-    media_upload_from_url,
+    media_upload,
     parse_media_url,
     url_publica_midia,
 )
@@ -21,7 +21,18 @@ logger = logging.getLogger(__name__)
 
 from .models import PacienteFotoAcompanhamento, SimulacaoConsulta, SimulacaoEsteticaConfig
 from .simulacao_estetica_service import SimulacaoEsteticaError
-from .youcam_api import YouCamClient, YouCamError, interpretar_resposta, montar_pedido, preparar_imagem
+from .youcam_api import (
+    YouCamClient,
+    YouCamError,
+    carimbar_aviso,
+    endpoint_tarefa,
+    interpretar_resposta,
+    montar_pedido,
+    preparar_imagem,
+    resumo_pedido,
+    unidades_da_resposta,
+    unidades_tabela,
+)
 
 
 def _chave(loja_id: int) -> str:
@@ -82,6 +93,14 @@ def serializar(item: SimulacaoConsulta) -> dict:
         "ilustrativa": True,
         "ciencia_visual": item.ciencia_visual,
         "created_at": timezone.localtime(item.created_at).isoformat() if item.created_at else "",
+        "api_nome": item.api_nome or "Perfect Corp YouCam",
+        "endpoint": item.endpoint,
+        "pedido": item.pedido if isinstance(item.pedido, dict) else {},
+        "profissional_nome": item.profissional_nome,
+        "procedimento_nome": item.procedimento_nome,
+        "unidades": item.unidades,
+        "unidades_fonte": item.unidades_fonte,
+        "imagem_na_clinica": bool(item.resultado_url and parse_media_url(item.resultado_url)),
     }
 
 
@@ -97,6 +116,48 @@ def _baixar_foto(url: str) -> bytes:
     if not conteudo:
         raise SimulacaoEsteticaError("Não foi possível ler a foto da consulta.")
     return preparar_imagem(conteudo)
+
+
+def _endpoint(modo: str) -> str:
+    try:
+        return endpoint_tarefa(modo)
+    except KeyError:
+        return ""
+
+
+def _nome_profissional(consulta) -> str:
+    profissional = getattr(consulta, "professional", None)
+    return getattr(profissional, "nome", "") or ""
+
+
+def _nome_procedimento(consulta) -> str:
+    agendamento = getattr(consulta, "appointment", None)
+    if agendamento is not None:
+        nomes = [
+            nome
+            for nome in agendamento.appointment_procedures.order_by("ordem", "id").values_list(
+                "procedure__nome", flat=True,
+            )
+            if nome
+        ]
+        if nomes:
+            return ", ".join(nomes)
+    procedimento = getattr(consulta, "procedure", None)
+    return getattr(procedimento, "nome", "") or ""
+
+
+def _guardar_resultado(loja, url: str) -> str | None:
+    try:
+        resposta = requests.get(url, timeout=30)
+    except requests.RequestException:
+        return None
+    if resposta.status_code != 200 or not resposta.content:
+        return None
+    try:
+        conteudo = carimbar_aviso(resposta.content)
+    except (OSError, ValueError):
+        conteudo = resposta.content
+    return media_upload(loja, conteudo, filename="simulacao.jpg", folder="fotos")
 
 
 def iniciar(loja, consulta, dados: dict) -> dict:
@@ -124,6 +185,10 @@ def iniciar(loja, consulta, dados: dict) -> dict:
         intensidade=Decimal(str(intensidade)) if modo != "analise" else None,
         quantidade=_quantidade(dados.get("quantidade")),
         status=SimulacaoConsulta.STATUS_PROCESSANDO,
+        api_nome="Perfect Corp YouCam",
+        endpoint=_endpoint(modo),
+        profissional_nome=_nome_profissional(consulta),
+        procedimento_nome=_nome_procedimento(consulta),
     )
     registro.save()
     try:
@@ -137,6 +202,8 @@ def iniciar(loja, consulta, dados: dict) -> dict:
             file_id,
             assinar_url_midia(foto.url, ttl_seconds=30 * 60),
         )
+        registro.pedido = resumo_pedido(pedido)
+        registro.save(update_fields=["pedido", "updated_at"])
         registro.task_id = cliente.criar_tarefa(modo, pedido)
         registro.save(update_fields=["task_id", "updated_at"])
     except (YouCamError, SimulacaoEsteticaError) as exc:
@@ -183,7 +250,7 @@ def acompanhar(loja, registro: SimulacaoConsulta) -> dict:
         registro.save(update_fields=["status", "erro", "task_id", "updated_at"])
         return serializar(registro)
     if url:
-        salva = media_upload_from_url(loja, url, folder="fotos")
+        salva = _guardar_resultado(loja, url)
         if not salva:
             cliente.apagar(registro.task_id)
             registro.task_id = ""
@@ -195,10 +262,19 @@ def acompanhar(loja, registro: SimulacaoConsulta) -> dict:
     registro.resultado_json = [
         leitura for item in saida if isinstance(item, dict) and (leitura := _leitura(item))
     ]
+    debito = unidades_da_resposta(corpo)
+    if debito is None:
+        debito = unidades_tabela(registro.modo, registro.pedido if isinstance(registro.pedido, dict) else {})
+        registro.unidades_fonte = "tabela" if debito is not None else ""
+    else:
+        registro.unidades_fonte = "resposta"
+    registro.unidades = debito
     registro.status = SimulacaoConsulta.STATUS_PRONTA
     cliente.apagar(registro.task_id)
     registro.task_id = ""
-    registro.save(update_fields=["resultado_url", "resultado_json", "status", "task_id", "updated_at"])
+    registro.save(update_fields=[
+        "resultado_url", "resultado_json", "status", "task_id", "unidades", "unidades_fonte", "updated_at",
+    ])
     return serializar(registro)
 
 

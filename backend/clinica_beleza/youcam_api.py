@@ -5,7 +5,7 @@ import io
 from typing import Any
 
 import requests
-from PIL import Image
+from PIL import Image, ImageDraw
 
 BASE = "https://yce-api-01.makeupar.com"
 CAMINHOS = {
@@ -55,10 +55,16 @@ def montar_pedido(modo: str, parametro: str, intensidade: float, file_id: str, _
         if parametro not in ROSTO or intensidade == 0:
             raise YouCamError("Escolha o traço do rosto e uma intensidade diferente de zero.")
         valor = int(intensidade)
+        # Olhos na documentação são um valor por lado. Os dois recebem o mesmo ajuste.
+        features = (
+            {"eye_size_left": valor, "eye_size_right": valor}
+            if parametro == "eye_size"
+            else {parametro: valor}
+        )
         return {
             "version": "1.0",
             **origem,
-            "features": {parametro: valor},
+            "features": features,
             "global": {"skin_smooth_strength": 0, "skin_smooth_color_intensity": 0},
         }
     if modo == "corpo":
@@ -85,6 +91,55 @@ def interpretar_resposta(payload: dict) -> tuple[str, str, list]:
     if status == "success":
         return "success", url, saida
     return "processando", "", []
+
+
+def endpoint_tarefa(modo: str) -> str:
+    return f"/s2s/v2.0/task/{CAMINHOS[modo]}"
+
+
+def resumo_pedido(pedido: dict) -> dict:
+    """Parâmetros enviados, sem o identificador do arquivo."""
+    return {chave: valor for chave, valor in pedido.items() if chave not in {"src_file_id", "src_file_url"}}
+
+
+def unidades_da_resposta(payload: dict) -> int | None:
+    dados = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    for chave in ("units", "unit", "consumed_units", "credit", "credits"):
+        valor = dados.get(chave, payload.get(chave))
+        if isinstance(valor, int) and valor >= 0:
+            return valor
+    return None
+
+
+def unidades_tabela(modo: str, pedido: dict | None = None) -> int | None:
+    """Tabela publicada da YouCam. A resposta da tarefa não traz o saldo."""
+    pedido = pedido or {}
+    if modo == "pele":
+        preocupacoes = sum(1 for chave in PELE if float(pedido.get(chave) or 0) > 0)
+        if preocupacoes <= 0:
+            return None
+        return 4 if preocupacoes <= 4 else 6
+    if modo in {"rosto", "corpo"}:
+        return 1
+    if modo == "analise":
+        # V2.1 SD, 1 a 4 preocupações, sem relatório avançado. A chamada atual é a v2.0.
+        return 9
+    return None
+
+
+AVISO_IMAGEM = "Simulação ilustrativa. Não é previsão de dose e não substitui o termo de consentimento."
+
+
+def carimbar_aviso(conteudo: bytes) -> bytes:
+    """Acrescenta o aviso abaixo da foto, para ele seguir em qualquer arquivo salvo."""
+    imagem = Image.open(io.BytesIO(conteudo)).convert("RGB")
+    faixa = 64
+    quadro = Image.new("RGB", (imagem.width, imagem.height + faixa), (20, 20, 20))
+    quadro.paste(imagem, (0, 0))
+    ImageDraw.Draw(quadro).text((12, imagem.height + 22), AVISO_IMAGEM, fill=(255, 255, 255))
+    saida = io.BytesIO()
+    quadro.save(saida, format="JPEG", quality=90)
+    return saida.getvalue()
 
 
 def mensagem_erro(payload: dict) -> str:

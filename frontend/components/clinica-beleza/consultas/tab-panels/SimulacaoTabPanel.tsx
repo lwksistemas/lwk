@@ -27,6 +27,59 @@ const MODOS = [
   { id: "corpo", rotulo: "Simular o corpo" },
 ] as const;
 
+const AVISO = "Simulação ilustrativa. Não é previsão de uma dose e não substitui o termo de consentimento.";
+
+const ENDPOINTS: Record<string, string> = {
+  analise: "POST /s2s/v2.0/task/skin-analysis",
+  pele: "POST /s2s/v2.0/task/skin-simulation",
+  rosto: "POST /s2s/v2.0/task/face-reshape",
+  corpo: "POST /s2s/v2.0/task/body-reshape",
+};
+
+const SENTIDO: Record<string, { negativo: string; positivo: string }> = {
+  lip_size: { negativo: "lábios menores", positivo: "lábios maiores" },
+  nose_size: { negativo: "nariz menor", positivo: "nariz maior" },
+  chin_length: { negativo: "queixo mais curto", positivo: "queixo mais longo" },
+  eye_size: { negativo: "olhos menores", positivo: "olhos maiores" },
+  waist: { negativo: "cintura mais estreita", positivo: "cintura mais larga" },
+  belly: { negativo: "abdômen mais plano", positivo: "abdômen mais projetado" },
+  hip: { negativo: "quadril mais estreito", positivo: "quadril mais largo" },
+};
+
+function rotuloParametro(modo: string, parametro: string): string {
+  return OPCOES[modo]?.find((opcao) => opcao.id === parametro)?.rotulo || "";
+}
+
+function textoIntensidade(modo: string, parametro: string, valor: number): string {
+  const nome = rotuloParametro(modo, parametro);
+  if (modo === "pele") {
+    const faixa = valor <= 0.3 ? "sutil" : valor <= 0.6 ? "perceptível" : "mais forte";
+    return `Intensidade visual ${valor.toFixed(1).replace(".", ",")} de 1,0 em ${nome} (${faixa}). Não é dose de produto.`;
+  }
+  const sentido = SENTIDO[parametro];
+  const efeito = valor < 0 ? sentido?.negativo : valor > 0 ? sentido?.positivo : "sem ajuste";
+  return `Intensidade visual ${valor} na escala de −100 a 100 (${efeito}). Não é dose de produto.`;
+}
+
+function avisoProcedimento(nome: string, modo: string): string {
+  const texto = nome.toLowerCase();
+  const facial = /facial|rosto|pele|testa|l[aá]bio|microagulh|botox|preenchimento/.test(texto);
+  const corporal = /corporal|abd[oô]men|cintura|quadril|gl[uú]teo/.test(texto);
+  if (facial && modo === "corpo") {
+    return `O procedimento da agenda é ${nome}. Simular o corpo não corresponde a esse procedimento.`;
+  }
+  if (corporal && (modo === "pele" || modo === "rosto")) {
+    return `O procedimento da agenda é ${nome}. Esta simulação é de rosto e não corresponde a esse procedimento.`;
+  }
+  return "";
+}
+
+function dataCurta(iso: string): string {
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return "";
+  return data.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
 const OPCOES: Record<string, { id: string; rotulo: string }[]> = {
   pele: [
     { id: "wrinkle", rotulo: "Rugas" },
@@ -89,6 +142,7 @@ function ComparacaoDual({
           <X size={22} />
         </button>
       </div>
+      <p className="absolute inset-x-0 bottom-0 bg-black/80 px-4 py-2 text-center text-xs text-white">{AVISO}</p>
     </div>
   );
 }
@@ -198,9 +252,9 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-gray-600 dark:text-gray-300">{AVISO} A quantidade planejada fica só no histórico e não baixa o estoque.</p>
       <p className="text-sm text-gray-600 dark:text-gray-300">
-        A imagem gerada é ilustrativa. Ela não calcula dose e não substitui o termo de consentimento.
-        A quantidade planejada fica só neste registro e não baixa o estoque.
+        Procedimento da agenda: {selected.procedure_name || "nenhum"}. A simulação não altera o agendamento nem o protocolo.
       </p>
       {!pronta && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
@@ -282,7 +336,7 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                 </select>
               </label>
               <label className="block text-sm">
-                Intensidade visual ({intensidade})
+                {textoIntensidade(modo, parametro, intensidade)}
                 <input
                   type="range"
                   min={modo === "pele" ? 0.1 : -100}
@@ -292,11 +346,24 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                   onChange={(event) => setIntensidade(Number(event.target.value))}
                   className="mt-1 w-full"
                 />
+                <span className="mt-1 flex justify-between text-xs text-gray-500">
+                  <span>{modo === "pele" ? "0,1 sutil" : (SENTIDO[parametro]?.negativo || "−100")}</span>
+                  <span>{modo === "pele" ? "1,0 mais forte" : (SENTIDO[parametro]?.positivo || "100")}</span>
+                </span>
               </label>
+              <p className="text-xs text-gray-500">
+                A YouCam recebe só {rotuloParametro(modo, parametro) || "este ajuste"}. Ela não aceita uma máscara desenhada; o efeito fica na região que o modelo reconhece para esse parâmetro.
+              </p>
             </>
+          )}
+          {avisoProcedimento(selected.procedure_name || "", modo) && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {avisoProcedimento(selected.procedure_name || "", modo)}
+            </p>
           )}
           <label className="block text-sm">
             Quantidade planejada do produto
+            <span className="mt-1 block text-xs text-gray-500">Este número não muda a imagem e não representa a dose do resultado.</span>
             <input
               type="number"
               min="0"
@@ -331,7 +398,8 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
             <div className="flex items-start justify-between gap-3">
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                 {MODOS.find((modoItem) => modoItem.id === item.modo)?.rotulo || item.modo}
-                {item.quantidade != null ? ` · quantidade ${item.quantidade}` : ""}
+                {item.parametro ? ` · ${rotuloParametro(item.modo, item.parametro) || item.parametro}` : ""}
+                {item.intensidade != null ? ` · ${textoIntensidade(item.modo, item.parametro, item.intensidade)}` : ""}
                 {item.status === "processando" ? " · processando" : ""}
               </p>
               <button
@@ -372,6 +440,7 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                 ))}
               </div>
             ) : null}
+            {par && <p className="mt-2 text-xs text-gray-600 dark:text-gray-300">{AVISO}</p>}
             {par && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="text-xs text-gray-500">Marque as duas fotos para comparar</span>
@@ -411,6 +480,19 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                 {par ? "O paciente viu esta comparação." : "O paciente viu estas notas."} Isso não é o termo do procedimento.
               </p>
             )}
+            <dl className="mt-3 space-y-1 text-xs text-gray-600 dark:text-gray-300">
+              <div>API: {item.api_nome || "Perfect Corp YouCam"} · {item.endpoint || ENDPOINTS[item.modo] || "—"}</div>
+              <div>Data: {dataCurta(item.created_at) || "—"} · Profissional: {item.profissional_nome || selected.professional_name || "—"}</div>
+              <div>Procedimento: {item.procedimento_nome || selected.procedure_name || "—"}</div>
+              <div>Quantidade planejada: {item.quantidade != null ? item.quantidade : "não informada"}. Separada da intensidade visual.</div>
+              {item.unidades != null && (
+                <div>
+                  Consumo: {item.unidades} {item.unidades === 1 ? "unidade" : "unidades"} YouCam desta clínica
+                  {item.unidades_fonte === "tabela" ? ", pela tabela publicada. A resposta não traz o saldo." : "."}
+                </div>
+              )}
+              {item.imagem_na_clinica && <div>A imagem gerada está no servidor de mídia da clínica.</div>}
+            </dl>
           </article>
           );
         })}

@@ -17,6 +17,13 @@ export type SimulacaoConsultaItem = {
   ilustrativa: boolean;
   ciencia_visual: boolean;
   created_at: string;
+  api_nome?: string;
+  endpoint?: string;
+  profissional_nome?: string;
+  procedimento_nome?: string;
+  unidades?: number | null;
+  unidades_fonte?: string;
+  imagem_na_clinica?: boolean;
 };
 
 export const consultasApi = {

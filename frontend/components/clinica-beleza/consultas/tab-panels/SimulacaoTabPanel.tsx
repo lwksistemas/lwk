@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Check, Columns2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
@@ -47,6 +48,41 @@ const OPCOES: Record<string, { id: string; rotulo: string }[]> = {
   ],
 };
 
+function ComparacaoDual({
+  original,
+  gerada,
+  onClose,
+}: {
+  original: string;
+  gerada: string;
+  onClose: () => void;
+}) {
+  const lados = [
+    { url: original, legenda: "Original" },
+    { url: gerada, legenda: "Gerada" },
+  ];
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col bg-black" role="dialog" aria-modal>
+      <div className="flex shrink-0 items-center justify-between bg-black/80 px-4 py-3 text-white">
+        <span className="text-sm font-medium">Original e gerada — tela cheia</span>
+        <button type="button" onClick={onClose} className="rounded-lg p-2 hover:bg-white/10" aria-label="Fechar">
+          <X size={22} />
+        </button>
+      </div>
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-2">
+        {lados.map((lado) => (
+          <div key={lado.legenda} className="flex min-h-0 flex-col">
+            <p className="shrink-0 bg-black/60 py-1 text-center text-xs text-white/80">{lado.legenda}</p>
+            <div className="min-h-0 flex-1 bg-neutral-900">
+              <img src={lado.url} alt={lado.legenda} className="h-full w-full object-contain" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function mensagemErro(err: unknown): string {
   if (err && typeof err === "object" && "error" in err && typeof (err as { error?: unknown }).error === "string") {
     return (err as { error: string }).error;
@@ -66,6 +102,8 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
   const [quantidade, setQuantidade] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [marcadas, setMarcadas] = useState<Record<string, boolean>>({});
+  const [dual, setDual] = useState<{ original: string; gerada: string } | null>(null);
 
   useEffect(() => {
     if (tab !== "simulacao") return;
@@ -160,7 +198,7 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                 <button
                   type="button"
                   onClick={() => setFotoId(null)}
-                  className="text-sm underline"
+                  className="mb-1 text-sm underline"
                 >
                   Trocar foto
                 </button>
@@ -250,8 +288,13 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
       )}
       <div className="space-y-3">
         {resultados.filter((item) => item.status !== "erro").map((item) => {
+          const par = Boolean(item.foto_url && item.resultado_url);
           const imagem = item.resultado_url || item.foto_url;
           const notas = item.leituras.filter((leitura) => leitura.nota != null && NOTAS[leitura.tipo]);
+          const chaveOriginal = `${item.id}:original`;
+          const chaveGerada = `${item.id}:gerada`;
+          const duasMarcadas = Boolean(marcadas[chaveOriginal] && marcadas[chaveGerada]);
+          const marcar = (chave: string) => setMarcadas((atual) => ({ ...atual, [chave]: !atual[chave] }));
           return (
           <article key={item.id} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -259,8 +302,51 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
               {item.quantidade != null ? ` · quantidade ${item.quantidade}` : ""}
               {item.status === "processando" ? " · processando" : ""}
             </p>
-            {imagem && (
+            {par ? (
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                {[
+                  { chave: chaveOriginal, url: item.foto_url, legenda: "Original" },
+                  { chave: chaveGerada, url: item.resultado_url, legenda: "Gerada" },
+                ].map((lado) => (
+                  <div
+                    key={lado.chave}
+                    className={`relative overflow-hidden rounded-xl border-2 ${
+                      marcadas[lado.chave] ? "border-purple-600 ring-2 ring-purple-300" : "border-gray-200 dark:border-gray-600"
+                    }`}
+                  >
+                    <img src={lado.url} alt={lado.legenda} className="aspect-[3/4] w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => marcar(lado.chave)}
+                      className={`absolute left-2 top-2 rounded-full p-1.5 text-white shadow ${
+                        marcadas[lado.chave] ? "bg-purple-600" : "bg-black/50"
+                      }`}
+                      title={marcadas[lado.chave] ? "Desmarcar" : "Marcar para comparar"}
+                    >
+                      <Check size={14} />
+                    </button>
+                    <span className="absolute inset-x-0 bottom-0 bg-black/70 px-2 py-1 text-[10px] text-white">{lado.legenda}</span>
+                  </div>
+                ))}
+              </div>
+            ) : imagem ? (
               <img src={imagem} alt="Foto usada na simulação" className="mt-2 max-h-80 rounded-lg" />
+            ) : null}
+            {par && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="text-xs text-gray-500">Marque as duas fotos para comparar</span>
+                {duasMarcadas && (
+                  <button
+                    type="button"
+                    onClick={() => setDual({ original: item.foto_url, gerada: item.resultado_url })}
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white"
+                    style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+                  >
+                    <Columns2 size={15} />
+                    Comparar lado a lado
+                  </button>
+                )}
+              </div>
             )}
             {notas.length > 0 && (
               <ul className="mt-2 text-sm text-gray-700 dark:text-gray-200">
@@ -277,14 +363,19 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                   setResultados((atual) => atual.map((linha) => linha.id === item.id ? { ...linha, ciencia_visual: true } : linha));
                 })}
               >
-                Registrar que o paciente viu esta imagem ilustrativa
+                {par ? "Registrar que o paciente viu esta comparação" : "Registrar que o paciente viu estas notas"}
               </button>
             )}
-            {item.ciencia_visual && <p className="mt-2 text-xs text-gray-500">O paciente viu estas notas. Isso não é o termo do procedimento.</p>}
+            {item.ciencia_visual && (
+              <p className="mt-2 text-xs text-gray-500">
+                {par ? "O paciente viu esta comparação." : "O paciente viu estas notas."} Isso não é o termo do procedimento.
+              </p>
+            )}
           </article>
           );
         })}
       </div>
+      {dual && <ComparacaoDual original={dual.original} gerada={dual.gerada} onClose={() => setDual(null)} />}
     </div>
   );
 }

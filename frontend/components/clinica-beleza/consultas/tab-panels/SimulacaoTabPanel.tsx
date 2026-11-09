@@ -137,20 +137,35 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
             <p className="text-sm">Foto</p>
             {fotos.length === 0 ? (
               <p className="mt-1 text-sm text-gray-500">Nenhuma foto neste acompanhamento. Envie uma na aba Fotos.</p>
+            ) : fotoId ? (
+              <div className="mt-2 flex items-end gap-3">
+                {fotos.filter((foto) => foto.id === fotoId).map((foto) => {
+                  const legenda = `${foto.consulta_data || "—"} · ${foto.origem_display || "Foto"}`;
+                  return (
+                    <div key={foto.id} className="w-36 overflow-hidden rounded-xl border-2 border-[var(--cb-primary,#8B3D52)]">
+                      <img src={foto.url} alt={legenda} className="aspect-square w-full object-cover" />
+                      <span className="block bg-black/70 px-2 py-1 text-[10px] text-white">{legenda}</span>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setFotoId(null)}
+                  className="text-sm underline"
+                >
+                  Trocar foto
+                </button>
+              </div>
             ) : (
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                 {fotos.map((foto) => {
-                  const escolhida = fotoId === foto.id;
                   const legenda = `${foto.consulta_data || "—"} · ${foto.origem_display || "Foto"}`;
                   return (
                     <button
                       key={foto.id}
                       type="button"
                       onClick={() => setFotoId(foto.id)}
-                      className={`overflow-hidden rounded-xl border-2 text-left ${
-                        escolhida ? "border-[var(--cb-primary,#8B3D52)] ring-2 ring-[var(--cb-primary,#8B3D52)]" : "border-gray-200 dark:border-gray-600"
-                      }`}
-                      aria-pressed={escolhida}
+                      className="overflow-hidden rounded-xl border-2 border-gray-200 text-left dark:border-gray-600"
                     >
                       <img src={foto.url} alt={legenda} className="aspect-square w-full object-cover" />
                       <span className="block bg-black/70 px-2 py-1 text-[10px] text-white">{legenda}</span>

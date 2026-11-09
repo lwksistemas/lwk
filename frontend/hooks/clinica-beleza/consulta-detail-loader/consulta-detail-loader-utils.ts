@@ -5,7 +5,7 @@ import type {
 } from "@/components/clinica-beleza/consultas/consultas-types";
 import { EMPTY_ANAMNESE } from "@/components/clinica-beleza/consultas/consultas-types";
 
-export const TABS_WITHOUT_REMOTE_LOAD: TabId[] = ["produtos", "documentos", "fotos"];
+export const TABS_WITHOUT_REMOTE_LOAD: TabId[] = ["produtos", "documentos", "fotos", "simulacao"];
 
 export function isTabWithoutRemoteLoad(tabId: TabId): boolean {
   return TABS_WITHOUT_REMOTE_LOAD.includes(tabId);

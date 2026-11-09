@@ -62,6 +62,7 @@ from .views import (
     ReciboPdfPublicView,
 )
 from .views_admin_professional import AdminProfessionalStatusView, AdminProfessionalToggleView
+from .views_simulacao_consulta import ConsultaSimulacaoCienciaView, ConsultaSimulacaoListView
 from .views_simulacao_estetica import SimulacaoEsteticaConfigView
 from .views_agenda_confirmacao import ConfirmarAgendamentoPublicaView
 from .views_asaas_webhook import clinica_beleza_asaas_webhook
@@ -319,6 +320,12 @@ urlpatterns = [
     path("assinar-recibo/<path:token>/pdf/", ReciboAssinaturaPdfPublicaView.as_view(), name="assinar-recibo-pdf"),
     path("assinar-recibo/<path:token>/", ReciboAssinaturaPublicaView.as_view(), name="assinar-recibo"),
     path("consultas/<int:pk>/fotos/", ConsultaFotosPacienteView.as_view(), name="consultas-fotos"),
+    path("consultas/<int:pk>/simulacao/", ConsultaSimulacaoListView.as_view(), name="consultas-simulacao"),
+    path(
+        "consultas/<int:pk>/simulacao/<int:simulacao_id>/ciencia/",
+        ConsultaSimulacaoCienciaView.as_view(),
+        name="consultas-simulacao-ciencia",
+    ),
     path("consultas/<int:pk>/fotos/qr/", ConsultaFotoQrView.as_view(), name="consultas-fotos-qr"),
     path("consultas/<int:pk>/fotos/<int:foto_id>/", ConsultaFotoDeleteView.as_view(), name="consultas-fotos-delete"),
     path("enviar-foto/", EnviarFotoPublicaView.as_view(), name="enviar-foto-query"),

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   Activity,
   Camera,
@@ -10,8 +10,10 @@ import {
   FolderOpen,
   History,
   Package,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
+import { lojaApi } from "@/lib/clinica-beleza-api/client-ops";
 import { ConsultaTermoConsentimentoButton } from "./ConsultaTermoConsentimentoButton";
 import type { Consulta, TabId } from "./consultas-types";
 
@@ -22,6 +24,7 @@ export const CONSULTA_DETAIL_TABS: { id: TabId; label: string; icon: LucideIcon 
   { id: "produtos", label: "Produtos", icon: Package },
   { id: "documentos", label: "Documentos", icon: FolderOpen },
   { id: "fotos", label: "Fotos", icon: Camera },
+  { id: "simulacao", label: "Simulação", icon: Sparkles },
   { id: "orcamento", label: "Orçamentos", icon: DollarSign },
   { id: "historico", label: "Histórico", icon: History },
 ];
@@ -49,10 +52,28 @@ export function ConsultaDetailTabBar({
     (t) => t.id,
   );
 
+  const [temSimulacao, setTemSimulacao] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    lojaApi
+      .info()
+      .then((info) => {
+        if (vivo) setTemSimulacao(Boolean(info.tem_simulacao_estetica));
+      })
+      .catch(() => {
+        if (vivo) setTemSimulacao(false);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
   const visibleTabs = (consultaFinalizada
     ? CONSULTA_DETAIL_TABS.filter((t) => tabsConsultaFinalizada.includes(t.id))
     : CONSULTA_DETAIL_TABS
-  ).filter((t) => t.id !== "historico" || temHistoricoAnterior);
+  ).filter((t) => t.id !== "historico" || temHistoricoAnterior)
+    .filter((t) => t.id !== "simulacao" || temSimulacao);
 
   return (
     <div className={`flex flex-wrap gap-2 ${consultaAtiva ? "mt-0" : "mt-4"}`}>

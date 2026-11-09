@@ -58,7 +58,7 @@ from .protocolo import (
     ProtocoloProduto,
 )
 from .retorno import AgendaRetornoConfig, RetornoProcedimentoRegra
-from .simulacao_estetica import SimulacaoEsteticaConfig
+from .simulacao_estetica import SimulacaoConsulta, SimulacaoEsteticaConfig
 from .termos_consentimento import TermoConsentimentoConfig, TermoConsentimentoTemplate
 
 __all__ = [
@@ -124,5 +124,6 @@ __all__ = [
     "Professional",
     "ProfessionalCommission",
     "RetornoProcedimentoRegra",
+    "SimulacaoConsulta",
     "SimulacaoEsteticaConfig",
 ]

@@ -3,6 +3,21 @@ import type { PacienteFotoItem } from "./types-memed";
 import { cbDelete, cbGet, cbPatch, cbPost, cbPostFormData } from "./client-http";
 import type { Consulta } from "@/components/clinica-beleza/consultas/consultas-types";
 
+export type SimulacaoConsultaItem = {
+  id: number;
+  modo: "analise" | "pele" | "rosto" | "corpo";
+  parametro: string;
+  intensidade: number | null;
+  quantidade: number | null;
+  status: "processando" | "pronta" | "erro";
+  resultado_url: string;
+  leituras: { tipo: string; nota: number | null }[];
+  erro: string;
+  ilustrativa: boolean;
+  ciencia_visual: boolean;
+  created_at: string;
+};
+
 export const consultasApi = {
   criar: (data: {
     patient: number;
@@ -132,6 +147,22 @@ export const consultasApi = {
       ),
     excluir: (consultaId: number, fotoId: number) =>
       cbDelete(`/consultas/${consultaId}/fotos/${fotoId}/`),
+  },
+  simulacao: {
+    list: (consultaId: number) =>
+      cbGet<{ resultados: SimulacaoConsultaItem[] }>(`/consultas/${consultaId}/simulacao/`),
+    criar: (
+      consultaId: number,
+      data: {
+        foto_id: number;
+        modo: "analise" | "pele" | "rosto" | "corpo";
+        parametro?: string;
+        intensidade?: number;
+        quantidade?: number | null;
+      },
+    ) => cbPost<SimulacaoConsultaItem>(`/consultas/${consultaId}/simulacao/`, data),
+    ciencia: (consultaId: number, simulacaoId: number) =>
+      cbPost<SimulacaoConsultaItem>(`/consultas/${consultaId}/simulacao/${simulacaoId}/ciencia/`, {}),
   },
   termoConsentimento: {
     get: (consultaId: number) =>

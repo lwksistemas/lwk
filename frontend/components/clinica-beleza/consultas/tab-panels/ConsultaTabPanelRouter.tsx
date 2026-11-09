@@ -5,6 +5,7 @@ import { AtendimentoTabPanel } from "./AtendimentoTabPanel";
 import { DocumentosTabPanel } from "./DocumentosTabPanel";
 import { EvolucaoTabPanel } from "./EvolucaoTabPanel";
 import { FotosTabPanel } from "./FotosTabPanel";
+import { SimulacaoTabPanel } from "./SimulacaoTabPanel";
 import { HistoricoTabPanel } from "./HistoricoTabPanel";
 import { OrcamentoTabPanel } from "./OrcamentoTabPanel";
 import { ProdutosTabPanel } from "./ProdutosTabPanel";
@@ -16,6 +17,7 @@ const TAB_PANELS: Record<TabId, ComponentType<ConsultaDetailTabPanelsProps>> = {
   anamnese: AnamneseTabPanel,
   evolucao: EvolucaoTabPanel,
   fotos: FotosTabPanel,
+  simulacao: SimulacaoTabPanel,
   historico: HistoricoTabPanel,
   documentos: DocumentosTabPanel,
   orcamento: OrcamentoTabPanel,

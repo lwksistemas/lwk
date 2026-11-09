@@ -1,6 +1,7 @@
 """Simulação da consulta. A quantidade não vai para a YouCam e não mexe no estoque."""
 from __future__ import annotations
 
+import logging
 from decimal import Decimal, InvalidOperation
 
 import requests
@@ -10,10 +11,13 @@ from core.encryption import decrypt_value
 from core.media_storage import (
     assinar_url_midia,
     media_baixar_arquivo,
+    media_delete_by_url,
     media_upload_from_url,
     parse_media_url,
     url_publica_midia,
 )
+
+logger = logging.getLogger(__name__)
 
 from .models import PacienteFotoAcompanhamento, SimulacaoConsulta, SimulacaoEsteticaConfig
 from .simulacao_estetica_service import SimulacaoEsteticaError
@@ -196,6 +200,18 @@ def acompanhar(loja, registro: SimulacaoConsulta) -> dict:
     registro.task_id = ""
     registro.save(update_fields=["resultado_url", "resultado_json", "status", "task_id", "updated_at"])
     return serializar(registro)
+
+
+def excluir(loja, registro: SimulacaoConsulta) -> None:
+    """Remove a geração. A foto original do paciente permanece."""
+    if registro.task_id:
+        try:
+            YouCamClient(_chave(loja.id)).apagar(registro.task_id)
+        except Exception:
+            logger.warning("YouCam não apagou a tarefa da simulação %s", registro.id)
+    if registro.resultado_url:
+        media_delete_by_url(registro.resultado_url)
+    registro.delete()
 
 
 def marcar_ciencia(registro: SimulacaoConsulta) -> dict:

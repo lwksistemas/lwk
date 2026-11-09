@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Columns2, X } from "lucide-react";
+import { Check, Columns2, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
@@ -51,10 +51,14 @@ const OPCOES: Record<string, { id: string; rotulo: string }[]> = {
 function ComparacaoDual({
   original,
   gerada,
+  excluindo,
+  onExcluir,
   onClose,
 }: {
   original: string;
   gerada: string;
+  excluindo: boolean;
+  onExcluir: () => void;
   onClose: () => void;
 }) {
   const lados = [
@@ -71,14 +75,20 @@ function ComparacaoDual({
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute right-3 top-3 rounded-lg bg-black/60 p-2 text-white hover:bg-black/80"
-        aria-label="Fechar"
-      >
-        <X size={22} />
-      </button>
+      <div className="absolute right-3 top-3 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onExcluir}
+          disabled={excluindo}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+        >
+          <Trash2 size={16} />
+          {excluindo ? "Excluindo…" : "Excluir geração"}
+        </button>
+        <button type="button" onClick={onClose} className="rounded-lg bg-black/60 p-2 text-white hover:bg-black/80" aria-label="Fechar">
+          <X size={22} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -103,7 +113,8 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [marcadas, setMarcadas] = useState<Record<string, boolean>>({});
-  const [dual, setDual] = useState<{ original: string; gerada: string } | null>(null);
+  const [dual, setDual] = useState<{ id: number; original: string; gerada: string } | null>(null);
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
 
   useEffect(() => {
     if (tab !== "simulacao") return;
@@ -137,6 +148,27 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
     if (primeira) setParametro(primeira);
     setIntensidade(modo === "pele" ? 0.4 : 30);
   }, [modo]);
+
+  async function excluirGeracao(itemId: number) {
+    if (!window.confirm("Excluir esta geração? A foto original do paciente permanece.")) return;
+    setExcluindoId(itemId);
+    setErro("");
+    try {
+      await ClinicaBelezaAPI.consultas.simulacao.excluir(selected.id, itemId);
+      setResultados((atual) => atual.filter((linha) => linha.id !== itemId));
+      setMarcadas((atual) => {
+        const proximo = { ...atual };
+        delete proximo[`${itemId}:original`];
+        delete proximo[`${itemId}:gerada`];
+        return proximo;
+      });
+      setDual((atual) => (atual?.id === itemId ? null : atual));
+    } catch (err) {
+      setErro(mensagemErro(err));
+    } finally {
+      setExcluindoId(null);
+    }
+  }
 
   async function gerar() {
     if (!fotoId) {
@@ -296,11 +328,22 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
           const marcar = (chave: string) => setMarcadas((atual) => ({ ...atual, [chave]: !atual[chave] }));
           return (
           <article key={item.id} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {MODOS.find((modoItem) => modoItem.id === item.modo)?.rotulo || item.modo}
-              {item.quantidade != null ? ` · quantidade ${item.quantidade}` : ""}
-              {item.status === "processando" ? " · processando" : ""}
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {MODOS.find((modoItem) => modoItem.id === item.modo)?.rotulo || item.modo}
+                {item.quantidade != null ? ` · quantidade ${item.quantidade}` : ""}
+                {item.status === "processando" ? " · processando" : ""}
+              </p>
+              <button
+                type="button"
+                onClick={() => void excluirGeracao(item.id)}
+                disabled={excluindoId === item.id}
+                className="inline-flex shrink-0 items-center gap-1 text-sm text-red-600 disabled:opacity-60"
+              >
+                <Trash2 size={14} />
+                {excluindoId === item.id ? "Excluindo…" : "Excluir geração"}
+              </button>
+            </div>
             {par ? (
               <div className="mt-2 grid grid-cols-2 gap-3">
                 {[
@@ -335,7 +378,7 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                 {duasMarcadas && (
                   <button
                     type="button"
-                    onClick={() => setDual({ original: item.foto_url, gerada: item.resultado_url })}
+                    onClick={() => setDual({ id: item.id, original: item.foto_url, gerada: item.resultado_url })}
                     className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-white"
                     style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
                   >
@@ -372,7 +415,15 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
           );
         })}
       </div>
-      {dual && <ComparacaoDual original={dual.original} gerada={dual.gerada} onClose={() => setDual(null)} />}
+      {dual && (
+        <ComparacaoDual
+          original={dual.original}
+          gerada={dual.gerada}
+          excluindo={excluindoId === dual.id}
+          onExcluir={() => void excluirGeracao(dual.id)}
+          onClose={() => setDual(null)}
+        />
+      )}
     </div>
   );
 }

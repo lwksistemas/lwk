@@ -1,4 +1,6 @@
 """Pedido e leitura da YouCam, sem rede."""
+from unittest.mock import MagicMock, patch
+
 from django.test import SimpleTestCase
 
 from clinica_beleza.youcam_api import YouCamError, interpretar_resposta, montar_pedido, mensagem_erro
@@ -34,3 +36,17 @@ class MontarPedidoTest(SimpleTestCase):
     def test_rosto_cortado_explica_o_motivo(self):
         texto = mensagem_erro({"data": {"task_status": "error", "error": "error_src_face_out_of_bound"}})
         self.assertIn("rosto inteiro", texto)
+
+
+class ExcluirSimulacaoTest(SimpleTestCase):
+    @patch("clinica_beleza.simulacao_consulta_service.media_delete_by_url", return_value=True)
+    def test_excluir_apaga_so_a_foto_gerada(self, apagar_midia):
+        from clinica_beleza.simulacao_consulta_service import excluir
+
+        registro = MagicMock()
+        registro.task_id = ""
+        registro.resultado_url = "https://media.exemplo/files/loja/fotos/gerada.png"
+        excluir(MagicMock(id=1), registro)
+        apagar_midia.assert_called_once_with(registro.resultado_url)
+        registro.delete.assert_called_once()
+        registro.foto.delete.assert_not_called()

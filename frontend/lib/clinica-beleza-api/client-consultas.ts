@@ -164,6 +164,8 @@ export const consultasApi = {
     ) => cbPost<SimulacaoConsultaItem>(`/consultas/${consultaId}/simulacao/`, data),
     ciencia: (consultaId: number, simulacaoId: number) =>
       cbPost<SimulacaoConsultaItem>(`/consultas/${consultaId}/simulacao/${simulacaoId}/ciencia/`, {}),
+    excluir: (consultaId: number, simulacaoId: number) =>
+      cbDelete(`/consultas/${consultaId}/simulacao/${simulacaoId}/`),
   },
   termoConsentimento: {
     get: (consultaId: number) =>

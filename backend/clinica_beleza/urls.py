@@ -62,7 +62,11 @@ from .views import (
     ReciboPdfPublicView,
 )
 from .views_admin_professional import AdminProfessionalStatusView, AdminProfessionalToggleView
-from .views_simulacao_consulta import ConsultaSimulacaoCienciaView, ConsultaSimulacaoListView
+from .views_simulacao_consulta import (
+    ConsultaSimulacaoCienciaView,
+    ConsultaSimulacaoDetailView,
+    ConsultaSimulacaoListView,
+)
 from .views_simulacao_estetica import SimulacaoEsteticaConfigView
 from .views_agenda_confirmacao import ConfirmarAgendamentoPublicaView
 from .views_asaas_webhook import clinica_beleza_asaas_webhook
@@ -321,6 +325,11 @@ urlpatterns = [
     path("assinar-recibo/<path:token>/", ReciboAssinaturaPublicaView.as_view(), name="assinar-recibo"),
     path("consultas/<int:pk>/fotos/", ConsultaFotosPacienteView.as_view(), name="consultas-fotos"),
     path("consultas/<int:pk>/simulacao/", ConsultaSimulacaoListView.as_view(), name="consultas-simulacao"),
+    path(
+        "consultas/<int:pk>/simulacao/<int:simulacao_id>/",
+        ConsultaSimulacaoDetailView.as_view(),
+        name="consultas-simulacao-detail",
+    ),
     path(
         "consultas/<int:pk>/simulacao/<int:simulacao_id>/ciencia/",
         ConsultaSimulacaoCienciaView.as_view(),

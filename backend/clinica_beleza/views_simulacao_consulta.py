@@ -8,7 +8,7 @@ from superadmin.models import Loja
 
 from .models import SimulacaoConsulta
 from .permissions import CLINICA_CLINICAL
-from .simulacao_consulta_service import acompanhar, iniciar, marcar_ciencia, serializar
+from .simulacao_consulta_service import acompanhar, excluir, iniciar, marcar_ciencia, serializar
 from .simulacao_estetica_service import SimulacaoEsteticaError
 from .views_base import GetObjectMixin
 from .models import Consulta
@@ -53,6 +53,24 @@ class ConsultaSimulacaoListView(GetObjectMixin, APIView):
             return Response(iniciar(loja, consulta, request.data or {}), status=status.HTTP_201_CREATED)
         except SimulacaoEsteticaError as exc:
             return Response({"error": exc.message}, status=exc.status)
+
+
+class ConsultaSimulacaoDetailView(GetObjectMixin, APIView):
+    permission_classes = CLINICA_CLINICAL
+    bloquear_andamento_alheio = True
+    model_class = Consulta
+    not_found_message = "Consulta não encontrada"
+
+    def delete(self, request, pk, simulacao_id):
+        consulta, erro = self.object_or_404(pk)
+        if erro:
+            return erro
+        registro = get_object_or_404(SimulacaoConsulta, pk=simulacao_id, consulta_id=consulta.id)
+        loja = Loja.objects.using("default").filter(pk=consulta.loja_id).first()
+        if loja is None:
+            return Response({"error": "Clínica não encontrada"}, status=status.HTTP_404_NOT_FOUND)
+        excluir(loja, registro)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ConsultaSimulacaoCienciaView(GetObjectMixin, APIView):

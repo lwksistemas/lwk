@@ -94,7 +94,7 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
 
   async function gerar() {
     if (!fotoId) {
-      setErro("Escolha uma foto deste paciente.");
+      setErro("Toque na foto que será usada.");
       return;
     }
     setEnviando(true);
@@ -133,21 +133,33 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
       )}
       {pronta && consultaAtiva && (
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3 dark:border-gray-700 dark:bg-gray-800">
-          <label className="block text-sm">
-            Foto
-            <select
-              className="mt-1 w-full rounded-lg border px-3 py-2 dark:border-gray-600 dark:bg-gray-900"
-              value={fotoId ?? ""}
-              onChange={(event) => setFotoId(Number(event.target.value) || null)}
-            >
-              <option value="">Selecione</option>
-              {fotos.map((foto) => (
-                <option key={foto.id} value={foto.id}>
-                  Foto {foto.id}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div>
+            <p className="text-sm">Foto</p>
+            {fotos.length === 0 ? (
+              <p className="mt-1 text-sm text-gray-500">Nenhuma foto neste acompanhamento. Envie uma na aba Fotos.</p>
+            ) : (
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                {fotos.map((foto) => {
+                  const escolhida = fotoId === foto.id;
+                  const legenda = `${foto.consulta_data || "—"} · ${foto.origem_display || "Foto"}`;
+                  return (
+                    <button
+                      key={foto.id}
+                      type="button"
+                      onClick={() => setFotoId(foto.id)}
+                      className={`overflow-hidden rounded-xl border-2 text-left ${
+                        escolhida ? "border-[var(--cb-primary,#8B3D52)] ring-2 ring-[var(--cb-primary,#8B3D52)]" : "border-gray-200 dark:border-gray-600"
+                      }`}
+                      aria-pressed={escolhida}
+                    >
+                      <img src={foto.url} alt={legenda} className="aspect-square w-full object-cover" />
+                      <span className="block bg-black/70 px-2 py-1 text-[10px] text-white">{legenda}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           <div className="flex flex-wrap gap-2">
             {MODOS.map((item) => (
               <button

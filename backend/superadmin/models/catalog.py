@@ -102,6 +102,10 @@ class PlanoAssinatura(models.Model):
         default=False,
         help_text="Permite prescrição digital Memed.",
     )
+    tem_simulacao_estetica = models.BooleanField(
+        default=False,
+        help_text="Permite a clínica configurar a própria chave de simulação estética.",
+    )
 
     is_active = models.BooleanField(default=True)
     ordem = models.IntegerField(default=0)  # Para ordenar na exibição

@@ -22,6 +22,7 @@ interface Plano {
   tem_whatsapp_integration: boolean;
   tem_fotos_paciente: boolean;
   tem_memed: boolean;
+  tem_simulacao_estetica: boolean;
   is_active: boolean;
   ordem: number;
 }
@@ -77,6 +78,7 @@ export function ModalNovoPlano({
     tem_whatsapp_integration: editingPlano?.tem_whatsapp_integration || false,
     tem_fotos_paciente: editingPlano?.tem_fotos_paciente || false,
     tem_memed: editingPlano?.tem_memed || false,
+    tem_simulacao_estetica: editingPlano?.tem_simulacao_estetica || false,
     is_active: editingPlano?.is_active ?? true,
     ordem: editingPlano?.ordem || 1,
   });
@@ -444,6 +446,17 @@ export function ModalNovoPlano({
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
                 <span className="text-sm text-gray-900 dark:text-gray-100">Memed (prescrição)</span>
+              </label>
+
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="tem_simulacao_estetica"
+                  checked={formData.tem_simulacao_estetica}
+                  onChange={handleChange}
+                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900 dark:text-gray-100">Simulação estética (chave da clínica)</span>
               </label>
 
               <label className="flex items-center space-x-2">

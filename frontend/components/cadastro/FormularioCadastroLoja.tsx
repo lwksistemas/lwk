@@ -493,6 +493,7 @@ export function FormularioCadastroLoja({
                     <li>{plano.tem_fotos_paciente ? '✓' : '✗'} Fotos de acompanhamento</li>
                     <li>{plano.tem_whatsapp_integration ? '✓' : '✗'} WhatsApp</li>
                     <li>{plano.tem_memed ? '✓' : '✗'} Memed (prescrição)</li>
+                    <li>{plano.tem_simulacao_estetica ? '✓' : '✗'} Simulação estética</li>
                     <li>{plano.tem_relatorios_avancados ? '✓' : '✗'} Relatórios avançados / NFSe</li>
                     {typeof plano.espaco_storage_gb === 'number' && (
                       <li>{plano.espaco_storage_gb} GB de armazenamento</li>

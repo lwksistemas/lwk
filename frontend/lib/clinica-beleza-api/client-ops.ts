@@ -39,6 +39,7 @@ export const lojaApi = {
       tem_fotos_paciente?: boolean;
       tem_memed?: boolean;
       tem_whatsapp_integration?: boolean;
+      tem_simulacao_estetica?: boolean;
     }>("/loja-info/"),
   updateContato: (data: {
     telefone_contato?: string;
@@ -380,4 +381,18 @@ export const retornoApi = {
     if (params.reference_date) qs.set("reference_date", params.reference_date);
     return cbGet<RetornoVerificacaoResult>(`/retorno/verificar/?${qs.toString()}`);
   },
+};
+
+export type SimulacaoEsteticaConfig = {
+  disponivel: boolean;
+  mensagem: string;
+  provedor: string;
+  ativa: boolean;
+  chave_configurada: boolean;
+};
+
+export const simulacaoEsteticaApi = {
+  config: () => cbGet<SimulacaoEsteticaConfig>("/simulacao-estetica/config/"),
+  salvar: (data: { api_key?: string; ativa?: boolean; limpar_chave?: boolean }) =>
+    cbPatch<SimulacaoEsteticaConfig>("/simulacao-estetica/config/", data),
 };

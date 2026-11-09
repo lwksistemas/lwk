@@ -134,6 +134,11 @@ export function PlanoCard({ plano, onEdit, onDelete }: PlanoCardProps) {
               Memed
             </span>
           )}
+          {plano.tem_simulacao_estetica && (
+            <span className="px-2 py-1 bg-rose-100 text-rose-800 text-xs rounded">
+              Simulação
+            </span>
+          )}
         </div>
       </div>
 

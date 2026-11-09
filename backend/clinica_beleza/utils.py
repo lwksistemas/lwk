@@ -83,7 +83,7 @@ class LojaContextHelper:
         if not loja_id:
             return None
 
-        cache_key = f"loja_owner_info_v5_{loja_id}"
+        cache_key = f"loja_owner_info_v6_{loja_id}"
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
@@ -196,6 +196,7 @@ class LojaContextHelper:
         cache.delete(f"admin_professional_ids_{loja_id}")
         cache.delete(f"loja_owner_info_v4_{loja_id}")
         cache.delete(f"loja_owner_info_v5_{loja_id}")
+        cache.delete(f"loja_owner_info_v6_{loja_id}")
         cache.delete(f"whatsapp_config_{loja_id}")
         invalidate_dashboard_cache(loja_id)
 

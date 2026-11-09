@@ -20,6 +20,7 @@ export interface PlanoFormData {
   tem_whatsapp_integration: boolean;
   tem_fotos_paciente: boolean;
   tem_memed: boolean;
+  tem_simulacao_estetica: boolean;
   is_active: boolean;
   ordem: number;
 }

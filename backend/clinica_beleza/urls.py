@@ -62,6 +62,7 @@ from .views import (
     ReciboPdfPublicView,
 )
 from .views_admin_professional import AdminProfessionalStatusView, AdminProfessionalToggleView
+from .views_simulacao_estetica import SimulacaoEsteticaConfigView
 from .views_agenda_confirmacao import ConfirmarAgendamentoPublicaView
 from .views_asaas_webhook import clinica_beleza_asaas_webhook
 from .views_assinatura_consentimento import (
@@ -341,6 +342,8 @@ urlpatterns = [
     path("convenios/", ConvenioListView.as_view(), name="convenios-list"),
     path("convenios/<int:pk>/", ConvenioDetailView.as_view(), name="convenios-detail"),
     path("convenios/<int:pk>/precos/", ConvenioPrecosView.as_view(), name="convenios-precos"),
+
+    path("simulacao-estetica/config/", SimulacaoEsteticaConfigView.as_view(), name="simulacao-estetica-config"),
 
     # Memed — prescrição digital (receituário e exames)
     path("memed/token/", MemedTokenView.as_view(), name="memed-token"),

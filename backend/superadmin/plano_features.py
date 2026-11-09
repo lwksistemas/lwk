@@ -9,6 +9,10 @@ MSG_UPGRADE_MEMED = (
     "Seu plano não inclui Memed. "
     "Faça upgrade para o Completo para usar prescrição digital."
 )
+MSG_UPGRADE_SIMULACAO = (
+    "Seu plano não inclui simulação estética. "
+    "Faça upgrade para o Completo para configurar a chave da clínica."
+)
 
 
 def _loja_com_plano(loja_or_id):
@@ -49,6 +53,17 @@ def loja_plano_permite_memed(loja_or_id) -> tuple[bool, str | None]:
     return False, MSG_UPGRADE_MEMED
 
 
+def loja_plano_permite_simulacao_estetica(loja_or_id) -> tuple[bool, str | None]:
+    """Retorna (ok, erro). Sem plano cadastrado → libera (legado)."""
+    loja = _loja_com_plano(loja_or_id)
+    if not loja or not loja.plano_id:
+        return True, None
+    plano = loja.plano
+    if getattr(plano, "tem_simulacao_estetica", False):
+        return True, None
+    return False, MSG_UPGRADE_SIMULACAO
+
+
 def plano_flags_dict(loja_or_id) -> dict:
     """Flags para API/frontend."""
     loja = _loja_com_plano(loja_or_id)
@@ -57,10 +72,12 @@ def plano_flags_dict(loja_or_id) -> dict:
             "tem_fotos_paciente": True,
             "tem_memed": True,
             "tem_whatsapp_integration": True,
+            "tem_simulacao_estetica": True,
         }
     plano = loja.plano
     return {
         "tem_fotos_paciente": bool(getattr(plano, "tem_fotos_paciente", False)),
         "tem_memed": bool(getattr(plano, "tem_memed", False)),
         "tem_whatsapp_integration": bool(getattr(plano, "tem_whatsapp_integration", False)),
+        "tem_simulacao_estetica": bool(getattr(plano, "tem_simulacao_estetica", False)),
     }

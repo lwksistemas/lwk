@@ -32,6 +32,7 @@ const PLANOS_CLINICA: PlanoValor[] = [
       { label: "WhatsApp", detalhe: "Confirmações e mensagens da agenda.", incluso: false },
       { label: "NFS-e e relatórios avançados", detalhe: "Nota fiscal de serviço e painéis de gestão.", incluso: false },
       { label: "Memed (prescrição digital)", detalhe: "Prescrição eletrônica na consulta.", incluso: false },
+      { label: "Simulação estética", detalhe: "A clínica configura a própria chave YouCam.", incluso: false },
     ],
   },
   {
@@ -47,12 +48,13 @@ const PLANOS_CLINICA: PlanoValor[] = [
       { label: "WhatsApp", detalhe: "Confirmações e mensagens da agenda.", incluso: false },
       { label: "NFS-e e relatórios avançados", detalhe: "Nota fiscal de serviço e painéis de gestão.", incluso: false },
       { label: "Memed (prescrição digital)", detalhe: "Prescrição eletrônica na consulta.", incluso: false },
+      { label: "Simulação estética", detalhe: "A clínica configura a própria chave YouCam.", incluso: false },
     ],
   },
   {
     nome: "Completo",
     slug: "profissional-clinica-beleza",
-    resumo: "Fotos, WhatsApp, NFS-e, relatórios e Memed no mesmo sistema.",
+    resumo: "Fotos, WhatsApp, NFS-e, relatórios, Memed e simulação estética com a chave da própria clínica.",
     precoMensal: "R$ 199,90",
     precoAnual: "R$ 1.999",
     storage: "25 GB",
@@ -63,6 +65,7 @@ const PLANOS_CLINICA: PlanoValor[] = [
       { label: "WhatsApp", detalhe: "Confirmações e mensagens da agenda.", incluso: true },
       { label: "NFS-e e relatórios avançados", detalhe: "Nota fiscal de serviço e painéis de gestão.", incluso: true },
       { label: "Memed (prescrição digital)", detalhe: "Prescrição eletrônica na consulta.", incluso: true },
+      { label: "Simulação estética", detalhe: "A clínica configura a própria chave YouCam.", incluso: true },
     ],
   },
 ];
@@ -84,7 +87,7 @@ export default function Modules() {
     <section className="w-full border-t border-white/10 bg-[#04183f] px-4 py-12 text-white sm:px-6 lg:px-8">
       <h2 className="text-3xl font-bold tracking-tight">Gestão para Clínicas de Estética</h2>
       <p className="mt-3 max-w-3xl text-lg text-slate-200">
-        Três planos. O Básico cobre a rotina da clínica, o Intermediário libera as fotos e o Completo soma WhatsApp, NFS-e, relatórios e Memed.
+        Três planos. O Básico cobre a rotina da clínica, o Intermediário libera as fotos e o Completo soma WhatsApp, NFS-e, relatórios, Memed e a simulação estética.
       </p>
 
       <div className="mt-8 overflow-x-auto">

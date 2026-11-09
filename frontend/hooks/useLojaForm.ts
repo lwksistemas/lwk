@@ -28,6 +28,7 @@ export interface PlanoOption {
   preco_anual?: number | string;
   tem_fotos_paciente?: boolean;
   tem_memed?: boolean;
+  tem_simulacao_estetica?: boolean;
   tem_whatsapp_integration?: boolean;
   tem_relatorios_avancados?: boolean;
   espaco_storage_gb?: number;

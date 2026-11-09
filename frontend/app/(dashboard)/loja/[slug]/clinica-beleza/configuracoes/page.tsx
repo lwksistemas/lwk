@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -14,7 +15,9 @@ import {
   FileText,
   Palette,
   Phone,
+  Sparkles,
 } from 'lucide-react';
+import { lojaApi } from '@/lib/clinica-beleza-api/client-ops';
 import { ClinicaBelezaPageContent } from '@/components/clinica-beleza/ClinicaBelezaPageContent';
 import { useClinicaBelezaTheme } from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
 import { ClinicaBelezaStandardPageHeader } from '@/components/clinica-beleza/ClinicaBelezaPageHeaderContext';
@@ -23,6 +26,22 @@ export default function ClinicaBelezaConfiguracoesPage() {
   const slug = (useParams()?.slug as string) ?? '';
   const base = `/loja/${slug}/clinica-beleza/configuracoes`;
   const { primary } = useClinicaBelezaTheme();
+  const [temSimulacao, setTemSimulacao] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    lojaApi
+      .info()
+      .then((info) => {
+        if (vivo) setTemSimulacao(Boolean(info.tem_simulacao_estetica));
+      })
+      .catch(() => {
+        if (vivo) setTemSimulacao(false);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   const opcoes = [
     {
@@ -80,6 +99,17 @@ export default function ClinicaBelezaConfiguracoesPage() {
       icon: FileText,
       itens: ['Upload do PDF timbrado da clínica', 'Aplica aos prescritores desta loja', 'Receita e exames'],
     },
+    ...(temSimulacao
+      ? [
+          {
+            titulo: 'Simulação estética',
+            descricao: 'Chave YouCam API desta clínica. Cada loja configura a própria conta.',
+            href: `${base}/simulacao`,
+            icon: Sparkles,
+            itens: ['Somente no plano Completo', 'Chave individual da clínica', 'Não compartilhada com outras lojas'],
+          },
+        ]
+      : []),
     {
       titulo: 'Nota Fiscal (NFS-e)',
       descricao: 'Configure provedor e certificado (emissão manual no menu NFS-e)',

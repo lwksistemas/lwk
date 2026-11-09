@@ -62,23 +62,23 @@ function ComparacaoDual({
     { url: gerada, legenda: "Gerada" },
   ];
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-black" role="dialog" aria-modal>
-      <div className="flex shrink-0 items-center justify-between bg-black/80 px-4 py-3 text-white">
-        <span className="text-sm font-medium">Original e gerada — tela cheia</span>
-        <button type="button" onClick={onClose} className="rounded-lg p-2 hover:bg-white/10" aria-label="Fechar">
-          <X size={22} />
-        </button>
-      </div>
-      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-2">
+    <div className="fixed inset-0 z-[210] bg-black" role="dialog" aria-modal>
+      <div className="grid h-full grid-cols-1 md:grid-cols-2">
         {lados.map((lado) => (
-          <div key={lado.legenda} className="flex min-h-0 flex-col">
-            <p className="shrink-0 bg-black/60 py-1 text-center text-xs text-white/80">{lado.legenda}</p>
-            <div className="min-h-0 flex-1 bg-neutral-900">
-              <img src={lado.url} alt={lado.legenda} className="h-full w-full object-contain" />
-            </div>
+          <div key={lado.legenda} className="relative h-full min-h-0 overflow-hidden">
+            <img src={lado.url} alt={lado.legenda} className="h-full w-full object-cover" />
+            <p className="absolute inset-x-0 top-0 bg-black/50 py-1 text-center text-xs text-white">{lado.legenda}</p>
           </div>
         ))}
       </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-3 top-3 rounded-lg bg-black/60 p-2 text-white hover:bg-black/80"
+        aria-label="Fechar"
+      >
+        <X size={22} />
+      </button>
     </div>
   );
 }
@@ -289,7 +289,6 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
       <div className="space-y-3">
         {resultados.filter((item) => item.status !== "erro").map((item) => {
           const par = Boolean(item.foto_url && item.resultado_url);
-          const imagem = item.resultado_url || item.foto_url;
           const notas = item.leituras.filter((leitura) => leitura.nota != null && NOTAS[leitura.tipo]);
           const chaveOriginal = `${item.id}:original`;
           const chaveGerada = `${item.id}:gerada`;
@@ -329,8 +328,6 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                   </div>
                 ))}
               </div>
-            ) : imagem ? (
-              <img src={imagem} alt="Foto usada na simulação" className="mt-2 max-h-80 rounded-lg" />
             ) : null}
             {par && (
               <div className="mt-2 flex flex-wrap items-center gap-2">

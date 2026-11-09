@@ -10,6 +10,7 @@ export type SimulacaoConsultaItem = {
   intensidade: number | null;
   quantidade: number | null;
   status: "processando" | "pronta" | "erro";
+  foto_url: string;
   resultado_url: string;
   leituras: { tipo: string; nota: number | null }[];
   erro: string;

@@ -11,6 +11,14 @@ import {
 import type { SimulacaoConsultaItem } from "@/lib/clinica-beleza-api/client-consultas";
 import type { ConsultaDetailTabPanelsProps } from "./tab-panels-types";
 
+const NOTAS: Record<string, string> = {
+  pore: "Poros",
+  texture: "Textura",
+  wrinkle: "Rugas",
+  acne: "Acne",
+  skin_age: "Idade da pele",
+};
+
 const MODOS = [
   { id: "analise", rotulo: "Analisar a pele" },
   { id: "pele", rotulo: "Simular a pele" },
@@ -100,13 +108,14 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
     setEnviando(true);
     setErro("");
     try {
-      await ClinicaBelezaAPI.consultas.simulacao.criar(selected.id, {
+      const criada = await ClinicaBelezaAPI.consultas.simulacao.criar(selected.id, {
         foto_id: fotoId,
         modo,
         parametro: modo === "analise" ? "" : parametro,
         intensidade: modo === "analise" ? 0 : intensidade,
         quantidade: quantidade === "" ? null : Number(quantidade),
       });
+      if (criada.status === "erro") setErro(criada.erro || "Não foi possível gerar a simulação.");
     } catch (err) {
       setErro(mensagemErro(err));
     } finally {
@@ -240,22 +249,23 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
         </div>
       )}
       <div className="space-y-3">
-        {resultados.map((item) => (
+        {resultados.filter((item) => item.status !== "erro").map((item) => {
+          const imagem = item.resultado_url || item.foto_url;
+          const notas = item.leituras.filter((leitura) => leitura.nota != null && NOTAS[leitura.tipo]);
+          return (
           <article key={item.id} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
               {MODOS.find((modoItem) => modoItem.id === item.modo)?.rotulo || item.modo}
               {item.quantidade != null ? ` · quantidade ${item.quantidade}` : ""}
-              {" · "}
-              {item.status === "processando" ? "processando" : item.status === "pronta" ? "pronta" : "erro"}
+              {item.status === "processando" ? " · processando" : ""}
             </p>
-            {item.erro && <p className="text-sm text-red-600">{item.erro}</p>}
-            {item.resultado_url && (
-              <img src={item.resultado_url} alt="Simulação ilustrativa" className="mt-2 max-h-80 rounded-lg" />
+            {imagem && (
+              <img src={imagem} alt="Foto usada na simulação" className="mt-2 max-h-80 rounded-lg" />
             )}
-            {item.leituras.length > 0 && (
+            {notas.length > 0 && (
               <ul className="mt-2 text-sm text-gray-700 dark:text-gray-200">
-                {item.leituras.map((leitura) => (
-                  <li key={`${item.id}-${leitura.tipo}`}>{leitura.tipo}: {leitura.nota ?? "—"}</li>
+                {notas.map((leitura) => (
+                  <li key={`${item.id}-${leitura.tipo}`}>{NOTAS[leitura.tipo]}: {leitura.nota}</li>
                 ))}
               </ul>
             )}
@@ -270,9 +280,10 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                 Registrar que o paciente viu esta imagem ilustrativa
               </button>
             )}
-            {item.ciencia_visual && <p className="mt-2 text-xs text-gray-500">O paciente viu esta versão. Isso não é o termo do procedimento.</p>}
+            {item.ciencia_visual && <p className="mt-2 text-xs text-gray-500">O paciente viu estas notas. Isso não é o termo do procedimento.</p>}
           </article>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -25,8 +25,13 @@ class ConsultaSimulacaoListView(GetObjectMixin, APIView):
         if erro:
             return erro
         loja = Loja.objects.using("default").filter(pk=consulta.loja_id).first()
+        SimulacaoConsulta.objects.filter(
+            consulta_id=consulta.id,
+            status=SimulacaoConsulta.STATUS_ERRO,
+        ).delete()
         itens = []
-        for registro in SimulacaoConsulta.objects.filter(consulta_id=consulta.id).order_by("-created_at")[:30]:
+        consultas = SimulacaoConsulta.objects.filter(consulta_id=consulta.id).select_related("foto")
+        for registro in consultas.order_by("-created_at")[:30]:
             if loja and registro.status == SimulacaoConsulta.STATUS_PROCESSANDO:
                 try:
                     itens.append(acompanhar(loja, registro))

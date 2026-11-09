@@ -7,7 +7,13 @@ import requests
 from django.utils import timezone
 
 from core.encryption import decrypt_value
-from core.media_storage import assinar_url_midia, media_baixar_arquivo, media_upload_from_url, parse_media_url
+from core.media_storage import (
+    assinar_url_midia,
+    media_baixar_arquivo,
+    media_upload_from_url,
+    parse_media_url,
+    url_publica_midia,
+)
 
 from .models import PacienteFotoAcompanhamento, SimulacaoConsulta, SimulacaoEsteticaConfig
 from .simulacao_estetica_service import SimulacaoEsteticaError
@@ -41,13 +47,23 @@ def _quantidade(valor) -> Decimal | None:
     return numero
 
 
-def _leitura(item: dict) -> dict:
+_NOTAS_VISIVEIS = {"pore", "texture", "wrinkle", "acne", "skin_age"}
+
+
+def _leitura(item: dict) -> dict | None:
+    tipo = str(item.get("type") or "")
     nota = item.get("ui_score")
-    return {"tipo": str(item.get("type") or ""), "nota": nota if isinstance(nota, (int, float)) else None}
+    if tipo not in _NOTAS_VISIVEIS or not isinstance(nota, (int, float)):
+        return None
+    return {"tipo": tipo, "nota": nota}
 
 
 def serializar(item: SimulacaoConsulta) -> dict:
     leituras = item.resultado_json if isinstance(item.resultado_json, list) else []
+    foto_url = ""
+    foto = getattr(item, "foto", None)
+    if foto is not None and foto.url:
+        foto_url = url_publica_midia(foto.url, ttl_seconds=2 * 60 * 60)
     return {
         "id": item.id,
         "modo": item.modo,
@@ -55,8 +71,9 @@ def serializar(item: SimulacaoConsulta) -> dict:
         "intensidade": float(item.intensidade) if item.intensidade is not None else None,
         "quantidade": float(item.quantidade) if item.quantidade is not None else None,
         "status": item.status,
-        "resultado_url": item.resultado_url,
-        "leituras": leituras,
+        "foto_url": foto_url,
+        "resultado_url": url_publica_midia(item.resultado_url, ttl_seconds=2 * 60 * 60) if item.resultado_url else "",
+        "leituras": [leitura for leitura in leituras if isinstance(leitura, dict) and leitura.get("nota") is not None],
         "erro": item.erro,
         "ilustrativa": True,
         "ciencia_visual": item.ciencia_visual,
@@ -171,7 +188,9 @@ def acompanhar(loja, registro: SimulacaoConsulta) -> dict:
             registro.save(update_fields=["status", "erro", "task_id", "updated_at"])
             return serializar(registro)
         registro.resultado_url = salva
-    registro.resultado_json = [_leitura(item) for item in saida if isinstance(item, dict)]
+    registro.resultado_json = [
+        leitura for item in saida if isinstance(item, dict) and (leitura := _leitura(item))
+    ]
     registro.status = SimulacaoConsulta.STATUS_PRONTA
     cliente.apagar(registro.task_id)
     registro.task_id = ""

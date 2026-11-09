@@ -31,6 +31,7 @@ from reportlab.platypus import (
 )
 from xml.sax.saxutils import escape
 
+from nfse_integration.ibge_municipios import municipio_ibge
 from nfse_integration.numero_exibicao import PORTAL_CONSULTA_NACIONAL
 
 logger = logging.getLogger(__name__)
@@ -213,6 +214,17 @@ def _cidade_uf(cidade: str, uf: str) -> str:
     return cidade or uf
 
 
+def _municipio_tomador(end_toma) -> str:
+    """Nome e UF do tomador. O endereço nacional só traz o código IBGE."""
+    cidade = _texto(end_toma, "xMun")
+    uf = _texto(end_toma, "UF")
+    if not cidade or not uf:
+        nome_ibge, uf_ibge = municipio_ibge(_texto(end_toma, "cMun"))
+        cidade = cidade or nome_ibge
+        uf = uf or uf_ibge
+    return _cidade_uf(cidade, uf)
+
+
 def _local_pais(cidade: str, uf: str) -> str:
     base = _cidade_uf(cidade, uf)
     if not base:
@@ -245,7 +257,9 @@ def ler_dados_danfse(xml_nfse: str, *, chave: str = "") -> dict[str, str]:
     serv = _primeiro(dps, "serv") if dps is not None else None
     valores_nf = _filho(inf, "valores")
     end_prest = _primeiro(emit, "enderNac") if emit is not None else None
-    end_toma = _primeiro(toma, "endNac") if toma is not None else None
+    # O endereço nacional traz logradouro, número, complemento e bairro em <end>.
+    # <endNac> só tem cMun e CEP. Notas antigas às vezes repetiam a rua dentro de endNac.
+    end_toma = _primeiro(toma, "end") if toma is not None else None
     uf_prest = _texto(end_prest, "UF")
     cidade_prest = _texto(end_prest, "xMun") or _texto(inf, "xLocEmi")
     numero = _texto(inf, "nNFSe")
@@ -299,7 +313,7 @@ def ler_dados_danfse(xml_nfse: str, *, chave: str = "") -> dict[str, str]:
         "tomador_fone": _fone(_texto(toma, "fone")) if toma is not None else "",
         "tomador_email": _texto(toma, "email") if toma is not None else "",
         "tomador_im": _texto(toma, "IM") if toma is not None else "",
-        "tomador_mun_uf": _cidade_uf(_texto(end_toma, "xMun"), _texto(end_toma, "UF")),
+        "tomador_mun_uf": _municipio_tomador(end_toma),
         "tomador_ibge_cep": " / ".join(
             p for p in (_texto(end_toma, "cMun"), _cep(_texto(end_toma, "CEP"))) if p
         ),

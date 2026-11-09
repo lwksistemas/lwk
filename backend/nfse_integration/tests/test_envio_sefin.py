@@ -94,6 +94,36 @@ class EnvioSefinTests(SimpleTestCase):
         )
         self.assertIn("<cTribMun>118</cTribMun>", com_municipal)
 
+    def test_tomador_leva_complemento_e_telefone_do_cadastro(self):
+        xml = construir_xml_dps(
+            numero_dps=1,
+            serie_dps="900",
+            codigo_municipio_prestador="3543402",
+            prestador_cnpj="41449198000172",
+            tomador_cpf_cnpj="38900437000154",
+            tomador_nome="ULTRASIS INFORMATICA LTDA",
+            tomador_endereco={
+                "logradouro": "Rua Marcos Markarian",
+                "numero": "1025",
+                "complemento": "SALA 206",
+                "bairro": "Nova Aliança",
+                "cep": "14026583",
+                "codigo_municipio": "3543402",
+                "telefone": "551636275837",
+            },
+            tomador_email="karlateixeira1@hotmail.com",
+            codigo_servico="140101",
+            descricao_servico="teste",
+            valor_servicos=Decimal("10.00"),
+        )
+        self.assertIn("<xLgr>Rua Marcos Markarian</xLgr>", xml)
+        self.assertIn("<xCpl>SALA 206</xCpl>", xml)
+        self.assertIn("<xBairro>Nova Alianca</xBairro>", xml)
+        self.assertLess(xml.index("<nro>"), xml.index("<xCpl>"))
+        self.assertLess(xml.index("<xCpl>"), xml.index("<xBairro>"))
+        self.assertIn("<fone>1636275837</fone>", xml)
+        self.assertNotIn("<fone>551636275837</fone>", xml)
+
     def test_codigo_municipal_do_issnet_vira_o_nacional(self):
         config = type("Config", (), {
             "codigo_servico_municipal": "140118",

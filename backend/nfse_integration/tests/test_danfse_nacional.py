@@ -63,6 +63,8 @@ class DanfseNacionalTests(SimpleTestCase):
         self.assertEqual(dados["ambiente"], "Produção")
         self.assertEqual(dados["gerador"], "Emissor Nacional")
         self.assertEqual(dados["retencao_iss"], "Não retido")
+        self.assertEqual(dados["tomador_endereco"], "Rua B, 20, Centro")
+        self.assertEqual(dados["tomador_mun_uf"], "SP")
 
     def test_pdf_e_danfse_com_chave_e_qr(self):
         pdf = gerar_danfse_nacional(XML, chave=CHAVE).getvalue()
@@ -106,6 +108,70 @@ class DanfseNacionalTests(SimpleTestCase):
         texto = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(resultado.conteudo_pdf)).pages)
         self.assertIn("DANFSe v2.0", texto)
         self.assertIn("LWK SISTEMAS", texto)
+
+
+XML_ENDERECO_NACIONAL = """<?xml version="1.0" encoding="UTF-8"?>
+<NFSe xmlns="http://www.sped.fazenda.gov.br/nfse">
+  <infNFSe>
+    <xLocEmi>Ribeirão Preto</xLocEmi>
+    <nNFSe>2</nNFSe>
+    <ambGer>2</ambGer>
+    <cStat>100</cStat>
+    <dhProc>2026-11-09T08:43:40-03:00</dhProc>
+    <emit>
+      <CNPJ>41449198000172</CNPJ>
+      <xNome>FELIX REPRESENTACOES E COMERCIO LTDA</xNome>
+      <enderNac>
+        <xLgr>RUA EURIDICE</xLgr><nro>145</nro><xBairro>CENTRO</xBairro>
+        <cMun>3543402</cMun><UF>SP</UF><CEP>14057498</CEP>
+      </enderNac>
+    </emit>
+    <valores><vLiq>2500.00</vLiq></valores>
+    <DPS>
+      <infDPS>
+        <tpAmb>1</tpAmb>
+        <dhEmi>2026-11-09T00:00:00-03:00</dhEmi>
+        <serie>00900</serie>
+        <nDPS>192</nDPS>
+        <dCompet>2026-11-09</dCompet>
+        <toma>
+          <CNPJ>38900437000154</CNPJ>
+          <xNome>ULTRASIS INFORMATICA LTDA</xNome>
+          <end>
+            <endNac><cMun>3543402</cMun><CEP>14026583</CEP></endNac>
+            <xLgr>Rua Marcos Markarian</xLgr>
+            <nro>1025</nro>
+            <xCpl>SALA 206</xCpl>
+            <xBairro>Nova Alianca</xBairro>
+          </end>
+          <fone>1636275837</fone>
+          <email>karlateixeira1@hotmail.com</email>
+        </toma>
+        <serv><cServ><cTribNac>140101</cTribNac><xDescServ>Referente ajuda de custos.</xDescServ></cServ></serv>
+        <valores><vServPrest><vServ>2500.00</vServ></vServPrest></valores>
+      </infDPS>
+    </DPS>
+  </infNFSe>
+</NFSe>
+"""
+
+
+class DanfseTomadorNacionalTests(SimpleTestCase):
+    def test_endereco_fora_do_endnac_e_municipio_pelo_ibge(self):
+        dados = ler_dados_danfse(XML_ENDERECO_NACIONAL)
+        self.assertEqual(
+            dados["tomador_endereco"],
+            "Rua Marcos Markarian, 1025, SALA 206, Nova Alianca",
+        )
+        self.assertEqual(dados["tomador_mun_uf"], "Ribeirão Preto / SP")
+        self.assertEqual(dados["tomador_ibge_cep"], "3543402 / 14026-583")
+        self.assertEqual(dados["tomador_fone"], "(16) 3627-5837")
+
+        pdf = gerar_danfse_nacional(XML_ENDERECO_NACIONAL).getvalue()
+        texto = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf)).pages)
+        self.assertIn("Rua Marcos Markarian", texto)
+        self.assertIn("Ribeirão Preto / SP", texto)
+        self.assertIn("(16) 3627-5837", texto)
 
 
 class WhatsappDanfseLojaTests(SimpleTestCase):

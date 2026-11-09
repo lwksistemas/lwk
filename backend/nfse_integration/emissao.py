@@ -63,5 +63,6 @@ def montar_dados_tomador_nfse(validated_data: dict[str, Any], loja_id: int) -> D
             "cidade": validated_data.get("tomador_cidade", ""),
             "uf": validated_data.get("tomador_uf", ""),
             "cep": validated_data.get("tomador_cep", ""),
+            "telefone": validated_data.get("tomador_telefone", "") or "",
         },
     )

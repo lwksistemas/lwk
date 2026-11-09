@@ -22,6 +22,14 @@ def _somente_digitos(texto: str) -> str:
     return re.sub(r"\D", "", texto or "")
 
 
+def _fone_nacional(telefone: str) -> str:
+    """DDD + número. Descarta o DDI 55 quando o cadastro grava o número internacional."""
+    fone = _somente_digitos(telefone)
+    if len(fone) > 11 and fone.startswith("55"):
+        fone = fone[2:]
+    return fone[:11]
+
+
 def _normalizar_texto_xml(texto: str, max_len: int | None = None) -> str:
     """Remove acentos e caracteres fora do ASCII básico para evitar diferenças de
     canonicalização no servidor da ISSNet."""
@@ -55,12 +63,9 @@ def _construir_xml_prestador(inf_dps, cnpj_digits: str, prestador_inscricao_muni
     _el(prest, "CNPJ", cnpj_digits)
     if prestador_inscricao_municipal:
         _el(prest, "IM", _somente_digitos(prestador_inscricao_municipal))
-    if prestador_telefone:
-        fone = _somente_digitos(prestador_telefone)
-        # Remove DDI 55 se presente (aceita apenas DDD+número = 10 ou 11 dígitos)
-        if len(fone) > 11 and fone.startswith("55"):
-            fone = fone[2:]
-        _el(prest, "fone", fone[:11])
+    fone_prestador = _fone_nacional(prestador_telefone)
+    if fone_prestador:
+        _el(prest, "fone", fone_prestador)
     if prestador_email:
         _el(prest, "email", prestador_email[:80])
     reg_trib = _el(prest, "regTrib")
@@ -95,11 +100,18 @@ def _construir_xml_tomador(inf_dps, tomador_doc: str, tomador_nome: str, tomador
             _el(end_toma, "xLgr", _normalizar_texto_xml(logradouro, 60))
         numero = (tomador_endereco.get("numero") or "S/N").strip()
         _el(end_toma, "nro", _normalizar_texto_xml(numero, 10))
+        complemento = (tomador_endereco.get("complemento") or "").strip()
+        if complemento:
+            _el(end_toma, "xCpl", _normalizar_texto_xml(complemento, 156))
         bairro = (tomador_endereco.get("bairro") or "").strip()
         if bairro:
             _el(end_toma, "xBairro", _normalizar_texto_xml(bairro, 60))
-    if tomador_telefone:
-        _el(toma, "fone", _somente_digitos(tomador_telefone)[:11])
+    telefone = (tomador_telefone or "").strip()
+    if not telefone and tomador_endereco:
+        telefone = (tomador_endereco.get("telefone") or "").strip()
+    fone_tomador = _fone_nacional(telefone)
+    if fone_tomador:
+        _el(toma, "fone", fone_tomador)
     if tomador_email:
         _el(toma, "email", tomador_email[:80])
 

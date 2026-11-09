@@ -7,7 +7,7 @@ import requests
 from django.utils import timezone
 
 from core.encryption import decrypt_value
-from core.media_storage import media_upload_from_url, parse_media_url
+from core.media_storage import assinar_url_midia, media_baixar_arquivo, media_upload_from_url, parse_media_url
 
 from .models import PacienteFotoAcompanhamento, SimulacaoConsulta, SimulacaoEsteticaConfig
 from .simulacao_estetica_service import SimulacaoEsteticaError
@@ -72,13 +72,10 @@ def listar(consulta_id: int) -> list[dict]:
 def _baixar_foto(url: str) -> bytes:
     if not parse_media_url(url):
         raise SimulacaoEsteticaError("A foto precisa estar no servidor de mídia da clínica.")
-    try:
-        resposta = requests.get(url, timeout=20)
-    except requests.RequestException as exc:
-        raise SimulacaoEsteticaError("Não foi possível ler a foto da consulta.") from exc
-    if resposta.status_code != 200 or not resposta.content:
+    conteudo = media_baixar_arquivo(url)
+    if not conteudo:
         raise SimulacaoEsteticaError("Não foi possível ler a foto da consulta.")
-    return preparar_imagem(resposta.content)
+    return preparar_imagem(conteudo)
 
 
 def iniciar(loja, consulta, dados: dict) -> dict:
@@ -112,7 +109,13 @@ def iniciar(loja, consulta, dados: dict) -> dict:
         conteudo = _baixar_foto(foto.url)
         cliente = YouCamClient(chave)
         file_id = cliente.enviar_arquivo(conteudo)
-        pedido = montar_pedido(modo, parametro, intensidade, file_id, foto.url)
+        pedido = montar_pedido(
+            modo,
+            parametro,
+            intensidade,
+            file_id,
+            assinar_url_midia(foto.url, ttl_seconds=30 * 60),
+        )
         registro.task_id = cliente.criar_tarefa(modo, pedido)
         registro.save(update_fields=["task_id", "updated_at"])
     except (YouCamError, SimulacaoEsteticaError) as exc:

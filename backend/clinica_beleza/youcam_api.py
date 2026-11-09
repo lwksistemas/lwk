@@ -42,8 +42,9 @@ def preparar_imagem(conteudo: bytes) -> bytes:
     return saida.getvalue()
 
 
-def montar_pedido(modo: str, parametro: str, intensidade: float, file_id: str, file_url: str) -> dict:
-    origem = {"src_file_id": file_id, "src_file_url": file_url}
+def montar_pedido(modo: str, parametro: str, intensidade: float, file_id: str, _file_url: str) -> dict:
+    # A YouCam aceita o arquivo enviado ou uma URL, e recusa os dois juntos.
+    origem = {"src_file_id": file_id}
     if modo == "analise":
         return {"src_file_id": file_id, "dst_actions": list(ANALISE), "format": "json"}
     if modo == "pele":
@@ -87,13 +88,22 @@ def interpretar_resposta(payload: dict) -> tuple[str, str, list]:
 
 
 def mensagem_erro(payload: dict) -> str:
-    codigo = str(payload.get("error_code") or "")
-    if codigo == "CreditInsufficiency":
-        return "A conta YouCam desta clínica está sem unidades."
-    if codigo == "InvalidParameters":
-        return "A YouCam não aceitou os parâmetros desta foto."
-    texto = str(payload.get("error") or "").strip()
-    return texto or "A YouCam não concluiu esta geração."
+    dados = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    codigo = str(payload.get("error_code") or dados.get("error_code") or dados.get("error") or "")
+    textos = {
+        "CreditInsufficiency": "A conta YouCam desta clínica está sem unidades.",
+        "InvalidParameters": "A YouCam não aceitou os parâmetros desta foto.",
+        "error_src_face_out_of_bound": (
+            "A YouCam precisa do rosto inteiro dentro da foto, sem cortar a testa, o queixo ou as laterais."
+        ),
+        "error_below_min_image_size": "A foto é pequena demais para a YouCam.",
+    }
+    if codigo in textos:
+        return textos[codigo]
+    texto = str(dados.get("error_message") or payload.get("error") or "").strip()
+    if texto and " " in texto and not texto.startswith("error_"):
+        return "A YouCam não aceitou esta foto."
+    return "A YouCam não concluiu esta geração."
 
 
 class YouCamClient:

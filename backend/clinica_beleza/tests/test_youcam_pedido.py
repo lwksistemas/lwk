@@ -14,6 +14,7 @@ class MontarPedidoTest(SimpleTestCase):
         pedido = montar_pedido("pele", "wrinkle", 0.4, "arquivo", "https://media.exemplo/foto.jpg")
         self.assertEqual(pedido["wrinkle"], 0.4)
         self.assertNotIn("quantidade", pedido)
+        self.assertNotIn("src_file_url", pedido)
 
     def test_rosto_rejeita_intensidade_zero(self):
         with self.assertRaises(YouCamError):
@@ -29,3 +30,7 @@ class MontarPedidoTest(SimpleTestCase):
 
     def test_sem_unidade_tem_mensagem_da_clinica(self):
         self.assertIn("sem unidades", mensagem_erro({"error_code": "CreditInsufficiency"}))
+
+    def test_rosto_cortado_explica_o_motivo(self):
+        texto = mensagem_erro({"data": {"task_status": "error", "error": "error_src_face_out_of_bound"}})
+        self.assertIn("rosto inteiro", texto)

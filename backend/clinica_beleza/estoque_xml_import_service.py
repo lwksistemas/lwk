@@ -196,7 +196,12 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
     valor_nf = _parse_decimal(_find_text(inf_nfe, "total/ICMSTot/vNF"))
 
     # Produtos
-    from .estoque_nfe_vinculo import custo_comercial_efetivo, fator_da_unidade, gtin_util
+    from .estoque_nfe_vinculo import (
+        custo_comercial_efetivo,
+        embalagem_na_descricao,
+        fator_da_unidade,
+        gtin_util,
+    )
 
     produtos = []
     for det in inf_nfe.iter():
@@ -221,6 +226,11 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
         u_trib = (_get_prod_field(prod, "uTrib") or u_com).lower()[:30]
         gtin = gtin_util(_get_prod_field(prod, "cEAN")) or gtin_util(_get_prod_field(prod, "cEANTrib"))
         fator = fator_da_unidade(q_com, q_trib, u_com, u_trib)
+        embalagem = embalagem_na_descricao(nome) if fator == 1 else None
+        unidade_estoque = u_trib if fator != 1 else u_com
+        if embalagem:
+            fator = embalagem["quantidade"]
+            unidade_estoque = embalagem["unidade"]
         v_un = _parse_decimal(_get_prod_field(prod, "vUnCom"))
         v_prod = _parse_decimal(_get_prod_field(prod, "vProd"))
         v_desc = _parse_decimal(_get_prod_field(prod, "vDesc"))
@@ -234,7 +244,9 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
             "gtin": gtin,
             "ncm": _get_prod_field(prod, "NCM"),
             "unidade_medida": u_com,
-            "unidade_estoque": u_trib if fator != 1 else u_com,
+            "unidade_estoque": unidade_estoque,
+            "embalagem_quantidade": str(embalagem["quantidade"]) if embalagem else "",
+            "embalagem_unidade": embalagem["unidade"] if embalagem else "",
             "quantidade": str(q_com),
             "quantidade_tributavel": str(q_trib),
             "fator": str(fator),
@@ -328,6 +340,8 @@ def importar_produtos_xml(
             "ncm": item.get("ncm") or "",
             "unidade_medida": item["unidade_medida"],
             "unidade_estoque": item.get("unidade_estoque") or item["unidade_medida"],
+            "embalagem_quantidade": item.get("embalagem_quantidade") or "",
+            "embalagem_unidade": item.get("embalagem_unidade") or "",
             "quantidade": quantidade,
             "fator": item.get("fator") or "1",
             "preco_custo": preco,
@@ -386,6 +400,11 @@ def _anexar_reconhecimento(produtos: list[dict]) -> None:
         )
         item.update(sugestao)
         fator_item = Decimal(str(item.get("fator") or "1"))
+        embalagem_qtd = Decimal(str(item.get("embalagem_quantidade") or "0"))
+        if fator_item == 1:
+            item["unidade_estoque"] = item.get("unidade_medida") or item.get("unidade_estoque")
+        elif item.get("embalagem_unidade") and fator_item == embalagem_qtd:
+            item["unidade_estoque"] = item["embalagem_unidade"]
         item["quantidade_estoque"] = str(
             quantidade_estoque(Decimal(str(item.get("quantidade") or "0")), fator_item),
         )

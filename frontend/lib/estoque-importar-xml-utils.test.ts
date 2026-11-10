@@ -10,6 +10,7 @@ import {
   custoTotalConvertido,
   custoUnitarioConvertido,
   itemPrecisaConfirmacao,
+  opcoesEntradaEstoque,
   quantidadeEntrada,
   juntarNumerosNota,
   resumoConferencia,
@@ -70,6 +71,21 @@ describe("conferência da NF-e", () => {
     lote: "",
     validade: null,
   };
+
+  it("oferece a ampola quando a caixa está no nome", () => {
+    const opcoes = opcoesEntradaEstoque({
+      ...base,
+      nome: "VITAMINA D3",
+      unidade_medida: "un",
+      quantidade: "2",
+      preco_custo: "189",
+      embalagem_quantidade: "10",
+      embalagem_unidade: "ampola",
+    });
+    expect(opcoes?.[1]).toMatchObject({ fator: "10", unidade: "ampola" });
+    expect(opcoes?.[1].rotulo).toContain("R$ 18.90");
+    expect(opcoes?.[1].rotulo).toContain("entra 20");
+  });
 
   it("converte caixa em unidades de estoque", () => {
     expect(quantidadeEntrada({ ...base, fator: "5" })).toBe("10");

@@ -29,6 +29,54 @@ def gtin_util(valor: str) -> str:
     return digitos
 
 
+_CONTEUDO_EMBALAGEM = {
+    "AMPOLA": "ampola",
+    "AMPOLAS": "ampola",
+    "AMP": "ampola",
+    "CAPSULA": "cápsula",
+    "CAPSULAS": "cápsula",
+    "COMPRIMIDO": "comprimido",
+    "COMPRIMIDOS": "comprimido",
+    "DRAGEA": "drágea",
+    "DRAGEAS": "drágea",
+    "SACHE": "sachê",
+    "SACHES": "sachê",
+    "SERINGA": "seringa",
+    "SERINGAS": "seringa",
+    "FRASCO": "frasco",
+    "FRASCOS": "frasco",
+    "UNIDADE": "unidade",
+    "UNIDADES": "unidade",
+    "UND": "unidade",
+    "UNDS": "unidade",
+    "DOSE": "dose",
+    "DOSES": "dose",
+}
+_EMBALAGEM_RE = re.compile(
+    r"(?:\b(?:CX|CAIXA|KIT|PACK|PACOTE|DISPLAY)\b[\s/]*)?(?:\bCOM\b|\bC\b)?\s*(\d{1,4})\s+"
+    r"(AMPOLAS?|AMP|CAPSULAS?|COMPRIMIDOS?|DRAGEAS?|SACHES?|SERINGAS?|FRASCOS?|UNIDADES?|UNDS?|DOSES?)\b",
+    re.IGNORECASE,
+)
+
+
+def embalagem_na_descricao(nome: str) -> dict | None:
+    """Caixa descrita no nome, quando a nota não separa a unidade de estoque.
+
+    "CX COM 10 AMPOLAS 2ML" vale 10 ampolas. "2ML" sozinho não é embalagem.
+    """
+    texto = normalizar_nome(nome)
+    achado = _EMBALAGEM_RE.search(texto)
+    if not achado:
+        return None
+    quantidade = Decimal(achado.group(1))
+    if quantidade <= 1 or quantidade > 1000:
+        return None
+    unidade = _CONTEUDO_EMBALAGEM.get(achado.group(2).upper())
+    if not unidade:
+        return None
+    return {"quantidade": quantidade, "unidade": unidade}
+
+
 def fator_da_unidade(q_com: Decimal, q_trib: Decimal, u_com: str, u_trib: str) -> Decimal:
     """Unidades de estoque que entram para cada unidade comercial da nota.
 

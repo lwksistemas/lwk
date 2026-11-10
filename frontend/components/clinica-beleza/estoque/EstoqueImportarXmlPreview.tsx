@@ -5,7 +5,7 @@ import { AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import type { CandidatoProdutoXml, PreviewResult, ProdutoPreview } from "./estoque-importar-xml-types";
-import { custoTotalConvertido, custoUnitarioConvertido, formatProdutoPreviewLine, itemPrecisaConfirmacao, quantidadeEntrada, resumoConferencia, textoItensPendentes, textoResumoConferencia } from "./estoque-importar-xml-utils";
+import { custoTotalConvertido, custoUnitarioConvertido, formatProdutoPreviewLine, itemPrecisaConfirmacao, opcoesEntradaEstoque, quantidadeEntrada, resumoConferencia, textoItensPendentes, textoResumoConferencia } from "./estoque-importar-xml-utils";
 import type { EstoqueCategoria } from "./estoque-types";
 import { ESTOQUE_CATEGORIAS } from "./estoque-types";
 
@@ -240,27 +240,53 @@ function LinhaFatorLote({
   produto: ProdutoPreview;
   onChange: (patch: Partial<ProdutoPreview>) => void;
 }) {
+  const opcoes = opcoesEntradaEstoque(produto);
+  const fatorAtual = Number(produto.fator || "1");
+  const mostraConversao = Number.isFinite(fatorAtual) && fatorAtual !== 1;
+  const escolher = (fator: string, unidade: string) => onChange({ fator, unidade_estoque: unidade });
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
+      {opcoes && (
+        <div className="flex flex-wrap items-center gap-1">
+          <span>Entrada no estoque</span>
+          {opcoes.map((opcao) => {
+            const selecionada = Number(opcao.fator) === fatorAtual;
+            return (
+              <button
+                key={opcao.id}
+                type="button"
+                onClick={() => escolher(opcao.fator, opcao.unidade)}
+                className={`px-2 py-1 rounded border ${selecionada ? "border-[#8B3D52] bg-[#8B3D52]/10 text-gray-900 dark:text-gray-100" : "border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-gray-300"}`}
+              >
+                {opcao.rotulo}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <label className="flex items-center gap-1">
-        Fator
+        {opcoes ? "Unidades em cada item da nota" : "Fator"}
         <input
           type="number"
           min="0.01"
           step="1"
           value={produto.fator || "1"}
-          onChange={(e) => onChange({ fator: e.target.value })}
+          onChange={(e) => escolher(e.target.value, Number(e.target.value) === 1 ? (produto.unidade_medida || "un") : (opcoes?.find((o) => o.id === "conteudo")?.unidade || produto.unidade_estoque || produto.unidade_medida || "un"))}
           className="w-14 px-1.5 py-1 border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800 text-gray-800 dark:text-gray-100"
         />
       </label>
-      <span className="text-gray-600 dark:text-gray-300">
-        entra {quantidadeEntrada(produto)} {produto.unidade_estoque || produto.unidade_medida}
-      </span>
-      <span className="text-gray-800 dark:text-gray-100">
-        custo R$ {custoUnitarioConvertido(produto)}/{produto.unidade_estoque || produto.unidade_medida}
-        {" · total R$ "}{custoTotalConvertido(produto)}
-        {(Number(produto.valor_desconto || "0") > 0 || Number(produto.valor_despesas || "0") > 0) ? " líquido" : ""}
-      </span>
+      {mostraConversao && (
+        <>
+          <span className="text-gray-600 dark:text-gray-300">
+            entra {quantidadeEntrada(produto)} {produto.unidade_estoque || produto.unidade_medida}
+          </span>
+          <span className="text-gray-800 dark:text-gray-100">
+            custo R$ {custoUnitarioConvertido(produto)}/{produto.unidade_estoque || produto.unidade_medida}
+            {" · total R$ "}{custoTotalConvertido(produto)}
+            {(Number(produto.valor_desconto || "0") > 0 || Number(produto.valor_despesas || "0") > 0) ? " líquido" : ""}
+          </span>
+        </>
+      )}
       {produto.exige_lote && (!(produto.lote || "").trim() || !(produto.validade || "").trim()) && (
         <span className="text-amber-700 dark:text-amber-300">exige lote e validade</span>
       )}

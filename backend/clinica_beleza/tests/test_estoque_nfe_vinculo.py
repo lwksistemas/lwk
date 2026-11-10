@@ -10,6 +10,7 @@ from clinica_beleza.estoque_nfe_vinculo import (
     custo_total_estoque,
     custo_unitario_estoque,
     decisao_pendente,
+    embalagem_na_descricao,
     fator_da_unidade,
     gtin_util,
     marcar_repetidos,
@@ -44,6 +45,12 @@ class FatorUnidadeTests(TestCase):
 
     def test_mesma_unidade_nao_converte(self):
         self.assertEqual(fator_da_unidade(Decimal("2"), Decimal("2"), "UN", "UN"), Decimal("1"))
+
+    def test_caixa_escrita_no_nome_vira_ampola(self):
+        achado = embalagem_na_descricao("VITAMINA D3 (CX COM 10 AMPOLAS 2ML)")
+        self.assertEqual(achado["quantidade"], Decimal("10"))
+        self.assertEqual(achado["unidade"], "ampola")
+        self.assertIsNone(embalagem_na_descricao("SORO FISIOLOGICO 2ML"))
 
     def test_gtin_vazio_da_nota(self):
         self.assertEqual(gtin_util("SEM GTIN"), "")

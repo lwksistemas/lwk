@@ -33,6 +33,37 @@ export function custoTotalConvertido(p: ProdutoPreview): string {
   return (Math.round(unitario * entra * 100) / 100).toFixed(2);
 }
 
+export function opcoesEntradaEstoque(p: ProdutoPreview): {
+  id: "nota" | "conteudo";
+  fator: string;
+  unidade: string;
+  rotulo: string;
+}[] | null {
+  const dentro = Number(p.embalagem_quantidade || "0");
+  if (!Number.isFinite(dentro) || dentro <= 1) return null;
+  const conteudo = p.embalagem_unidade || "unidade";
+  const nota = p.unidade_medida || "un";
+  const preco = Number(p.preco_custo || "0");
+  const quantidade = Number(p.quantidade || "0");
+  if (!Number.isFinite(preco) || !Number.isFinite(quantidade)) return null;
+  const entra = Math.round(quantidade * dentro * 100) / 100;
+  const unitario = Math.round((preco / dentro) * 100) / 100;
+  return [
+    {
+      id: "nota",
+      fator: "1",
+      unidade: nota,
+      rotulo: `Como na nota — ${quantidade} ${nota} a R$ ${preco.toFixed(2)}`,
+    },
+    {
+      id: "conteudo",
+      fator: String(dentro),
+      unidade: conteudo,
+      rotulo: `Por ${conteudo} — entra ${entra} · R$ ${unitario.toFixed(2)} cada`,
+    },
+  ];
+}
+
 export function quantidadeEntrada(p: ProdutoPreview): string {
   const q = Number(p.quantidade);
   const fator = Number(p.fator || "1");
@@ -131,11 +162,11 @@ export function formatProdutoPreviewLine(p: ProdutoPreview): string {
   const motivo = p.categoria_motivo ? ` (${p.categoria_motivo})` : "";
   const fator = Number(p.fator || "1");
   const unidade = p.unidade_estoque || p.unidade_medida;
-  const convertido = Number.isFinite(fator) && fator !== 1
-    ? ` · entra ${quantidadeEntrada(p)} ${unidade}`
-    : "";
   const liquido = Number(p.valor_desconto || "0") > 0 || Number(p.valor_despesas || "0") > 0 ? " líquido" : "";
-  return `${p.quantidade} ${p.unidade_medida} × R$ ${preco}${liquido} · custo R$ ${custoUnitarioConvertido(p)}/${unidade}${convertido}${lote}${cat}${motivo}`;
+  const convertido = Number.isFinite(fator) && fator !== 1
+    ? `${liquido} · entra ${quantidadeEntrada(p)} ${unidade} · custo R$ ${custoUnitarioConvertido(p)}/${unidade}`
+    : liquido;
+  return `${p.quantidade} ${p.unidade_medida} × R$ ${preco}${convertido}${lote}${cat}${motivo}`;
 }
 
 export function buildEstoqueImportFormData(

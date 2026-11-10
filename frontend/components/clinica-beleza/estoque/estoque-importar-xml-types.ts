@@ -15,6 +15,8 @@ export interface ProdutoPreview {
   quantidade: string;
   quantidade_estoque?: string;
   fator?: string;
+  embalagem_quantidade?: string;
+  embalagem_unidade?: string;
   preco_custo: string;
   custo_unitario?: string;
   valor_desconto?: string;

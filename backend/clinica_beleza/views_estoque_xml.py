@@ -60,6 +60,20 @@ def _usuario_da_requisicao(request) -> str:
     return (nome or getattr(user, "username", "") or "")[:80]
 
 
+def _sincronizar_unidade_escolhida(item: dict) -> None:
+    """Fator 1 mantém a unidade da nota. Caixa convertida entra na unidade do conteúdo."""
+    from decimal import Decimal, InvalidOperation
+
+    try:
+        fator = Decimal(str(item.get("fator") or "1"))
+    except InvalidOperation:
+        return
+    if fator == 1:
+        item["unidade_estoque"] = item.get("unidade_medida") or item.get("unidade_estoque")
+    elif item.get("embalagem_unidade"):
+        item["unidade_estoque"] = item["embalagem_unidade"]
+
+
 def _mesclar_overrides_categoria(resultado_produtos, produtos_override, loja_id):
     """Aplica categoria e a decisão de vínculo escolhida na conferência."""
     overrides = [p for p in produtos_override if isinstance(p, dict)]
@@ -76,6 +90,7 @@ def _mesclar_overrides_categoria(resultado_produtos, produtos_override, loja_id)
         for campo in ("acao", "produto_id", "fator", "validade", "lote"):
             if campo in ov and ov[campo] not in (None, ""):
                 p[campo] = ov[campo]
+        _sincronizar_unidade_escolhida(p)
         cat = resolver_categoria(
             loja_id=loja_id,
             categoria_id=int(p["categoria_id"]) if str(p.get("categoria_id") or "").isdigit() else None,

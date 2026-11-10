@@ -360,17 +360,21 @@ def media_url(loja, filename: str, folder: str = "fotos") -> str:
 
 
 def arquivo_midia_disponivel(url: str) -> bool:
-    """True se o arquivo público do media responde. 404 é arquivo ausente.
+    """True se o arquivo do media responde. 404 é arquivo ausente.
 
-    Falha de rede não conta como ausência: evita regravar o PDF à toa.
+    A URL gravada não traz ?e=&s=. Sem a assinatura o media responde 401, e
+    isso não pode ser lido como arquivo sumido — senão cada abertura da
+    receita consulta a Memed de novo. Falha de rede também não conta como
+    ausência.
     """
     raw = (url or "").strip()
     if not is_media_url(raw):
         return bool(raw)
+    alvo = assinar_url_midia(raw)
     try:
-        response = requests.head(raw, timeout=8, allow_redirects=True)
+        response = requests.head(alvo, timeout=8, allow_redirects=True)
         if response.status_code == 405:
-            response = requests.get(raw, timeout=8, stream=True)
+            response = requests.get(alvo, timeout=8, stream=True)
             response.close()
         if response.status_code in (404, 410):
             return False

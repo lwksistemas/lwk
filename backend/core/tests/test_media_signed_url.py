@@ -38,6 +38,30 @@ class AssinarUrlMidiaTest(TestCase):
         self.assertEqual(assinar_url_midia("https://evil.com/files/x/a.jpg"), "https://evil.com/files/x/a.jpg")
 
 
+class ArquivoMidiaDisponivelTest(TestCase):
+    URL = "https://media.lwksistemas.com.br/files/37302743000126/paciente/pdf/prescricao_1.pdf"
+
+    @patch("core.media_storage.MEDIA_API_TOKEN", "segredo-teste")
+    @patch("core.media_storage.requests.head")
+    def test_consulta_com_assinatura(self, mock_head):
+        from core.media_storage import arquivo_midia_disponivel
+
+        mock_head.return_value = MagicMock(status_code=200)
+        self.assertTrue(arquivo_midia_disponivel(self.URL))
+        consultada = mock_head.call_args.args[0]
+        self.assertIn("?e=", consultada)
+        self.assertIn("&s=", consultada)
+        self.assertNotEqual(consultada, self.URL)
+
+    @patch("core.media_storage.MEDIA_API_TOKEN", "segredo-teste")
+    @patch("core.media_storage.requests.head")
+    def test_401_sem_assinatura_nao_entra_aqui_e_404_e_ausente(self, mock_head):
+        from core.media_storage import arquivo_midia_disponivel
+
+        mock_head.return_value = MagicMock(status_code=404)
+        self.assertFalse(arquivo_midia_disponivel(self.URL))
+
+
 class TokenTenantTest(TestCase):
     @patch("core.media_storage.MEDIA_API_TOKEN", "master-token")
     def test_token_de_uma_loja_diferente_da_outra(self):

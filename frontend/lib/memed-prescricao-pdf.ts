@@ -17,31 +17,44 @@ function mensagemErroApi(erro: unknown): string {
 }
 
 /**
- * Abre o PDF da prescrição Memed pedindo de novo à API.
+ * Abre o PDF da prescrição Memed.
  *
- * Sempre consulta o backend: o PDF assinado da Memed pode chegar depois do
- * fallback local. A abertura ocorre após um await, então o chamador deve
- * passar uma aba já aberta no clique (`janela`).
+ * Se a clínica já tem o arquivo, a aba abre na hora. A API só entra de novo
+ * quando o PDF assinado ainda não substituiu o fallback local. O chamador
+ * passa uma aba aberta no clique (`janela`) para o navegador não bloquear.
  */
+function caminhoPdf(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url.split("?")[0];
+  }
+}
+
+function abrir(url: string, modo: ConsultaPdfModo, janela?: Window | null) {
+  if (janela !== undefined) direcionarJanelaPdf(janela, url, modo);
+  else abrirPdfUrl(url, modo);
+}
+
 export async function abrirPdfPrescricaoMemed(
   prescricao: Pick<PrescricaoMemedItem, "id" | "pdf_url">,
   modo: ConsultaPdfModo = "visualizar",
   janela?: Window | null,
 ): Promise<string> {
+  const salvo = (prescricao.pdf_url || "").trim();
+  const salvoNaClinica = salvo.includes("media.lwksistemas.com.br/files/");
+  if (salvoNaClinica) abrir(salvo, modo, janela);
   try {
     const res = await ClinicaBelezaAPI.memed.obterPdf(prescricao.id);
-    const url = (res.pdf_url || "").trim() || (prescricao.pdf_url || "").trim();
+    const url = (res.pdf_url || "").trim() || salvo;
     if (!url) {
       throw new Error("PDF da prescrição não disponível.");
     }
-    if (janela !== undefined) direcionarJanelaPdf(janela, url, modo);
-    else abrirPdfUrl(url, modo);
+    if (!salvoNaClinica || caminhoPdf(url) !== caminhoPdf(salvo)) abrir(url, modo, janela);
     return url;
   } catch (erro) {
-    const salvo = (prescricao.pdf_url || "").trim();
     if (salvo) {
-      if (janela !== undefined) direcionarJanelaPdf(janela, salvo, modo);
-      else abrirPdfUrl(salvo, modo);
+      if (!salvoNaClinica) abrir(salvo, modo, janela);
       return salvo;
     }
     if (janela !== undefined) fecharJanelaPdf(janela);

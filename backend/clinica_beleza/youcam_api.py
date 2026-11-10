@@ -16,8 +16,22 @@ CAMINHOS = {
 }
 PELE = {"wrinkle", "pores", "redness", "spots", "texture"}
 ROSTO = {"lip_size", "nose_size", "chin_length", "eye_size"}
-CORPO = {"waist", "belly", "hip"}
-ANALISE = ["wrinkle", "pore", "texture", "acne"]
+CORPO = {
+    "arm", "belly", "breast", "hip", "hip_lift", "leg", "neck",
+    "shoulder", "squared_shoulder", "slim", "taller", "waist",
+}
+CORPO_LADOS = {
+    "breast": ("breast_left", "breast_right"),
+    "neck": ("neck_left", "neck_right"),
+    "shoulder": ("shoulder_left", "shoulder_right"),
+    "squared_shoulder": ("squared_shoulder_left", "squared_shoulder_right"),
+}
+CORPO_DE_ZERO = {"neck", "taller"}
+ANALISE = [
+    "wrinkle", "pore", "texture", "acne", "droopy_upper_eyelid", "droopy_lower_eyelid",
+    "firmness", "moisture", "eye_bag", "dark_circle_v2", "age_spot", "radiance",
+    "redness", "oiliness", "tear_trough", "skin_type",
+]
 
 
 class YouCamError(Exception):
@@ -70,7 +84,12 @@ def montar_pedido(modo: str, parametro: str, intensidade: float, file_id: str, _
     if modo == "corpo":
         if parametro not in CORPO or intensidade == 0:
             raise YouCamError("Escolha a região do corpo e uma intensidade diferente de zero.")
-        return {"version": "1.0", **origem, "features": {parametro: int(intensidade)}}
+        valor = int(intensidade)
+        if parametro in CORPO_DE_ZERO and not 0 < valor <= 100:
+            raise YouCamError("Nesta região a intensidade vai de 1 a 100.")
+        lados = CORPO_LADOS.get(parametro)
+        features = {lado: valor for lado in lados} if lados else {parametro: valor}
+        return {"version": "1.0", **origem, "features": features}
     raise YouCamError("Modo de simulação desconhecido.")
 
 
@@ -122,8 +141,15 @@ def unidades_tabela(modo: str, pedido: dict | None = None) -> int | None:
     if modo in {"rosto", "corpo"}:
         return 1
     if modo == "analise":
-        # V2.1 SD, 1 a 4 preocupações, sem relatório avançado. A chamada atual é a v2.0.
-        return 9
+        # Tabela SD da V2.1, sem relatório avançado. A chamada usa o caminho v2.0.
+        quantidade = len(pedido.get("dst_actions") or [])
+        if quantidade <= 4:
+            return 9
+        if quantidade <= 8:
+            return 12
+        if quantidade <= 12:
+            return 14
+        return 16
     return None
 
 

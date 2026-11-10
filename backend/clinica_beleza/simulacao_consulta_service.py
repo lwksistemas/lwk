@@ -62,15 +62,41 @@ def _quantidade(valor) -> Decimal | None:
     return numero
 
 
-_NOTAS_VISIVEIS = {"pore", "texture", "wrinkle", "acne", "skin_age"}
+_NOTAS_VISIVEIS = {
+    "pore", "texture", "wrinkle", "acne", "skin_age", "all",
+    "droopy_upper_eyelid", "droopy_lower_eyelid", "firmness", "moisture",
+    "eye_bag", "dark_circle_v2", "age_spot", "radiance", "redness", "oiliness",
+    "tear_trough", "skin_type",
+}
+
+
+def _completar_saida(saida: list, corpo: dict) -> list:
+    dados = corpo.get("data") if isinstance(corpo.get("data"), dict) else {}
+    resultados = dados.get("results") if isinstance(dados.get("results"), dict) else {}
+    extra = list(saida)
+    tipos = {str(item.get("type")) for item in extra if isinstance(item, dict)}
+    idade = resultados.get("skin_age")
+    if "skin_age" not in tipos and isinstance(idade, (int, float)):
+        extra.append({"type": "skin_age", "ui_score": idade})
+    geral = resultados.get("all")
+    if "all" not in tipos and isinstance(geral, dict) and isinstance(geral.get("score"), (int, float)):
+        extra.append({"type": "all", "score": geral["score"]})
+    return extra
 
 
 def _leitura(item: dict) -> dict | None:
     tipo = str(item.get("type") or "")
-    nota = item.get("ui_score")
-    if tipo not in _NOTAS_VISIVEIS or not isinstance(nota, (int, float)):
+    if tipo not in _NOTAS_VISIVEIS:
         return None
-    return {"tipo": tipo, "nota": nota}
+    nota = item.get("ui_score")
+    if nota is None and tipo == "all":
+        nota = item.get("score")
+    if isinstance(nota, (int, float)):
+        return {"tipo": tipo, "nota": int(round(float(nota)))}
+    texto = item.get("label") or item.get("skin_type") or item.get("value")
+    if isinstance(texto, str) and texto.strip():
+        return {"tipo": tipo, "nota": None, "texto": texto.strip()}
+    return None
 
 
 def serializar(item: SimulacaoConsulta) -> dict:
@@ -260,7 +286,7 @@ def acompanhar(loja, registro: SimulacaoConsulta) -> dict:
             return serializar(registro)
         registro.resultado_url = salva
     registro.resultado_json = [
-        leitura for item in saida if isinstance(item, dict) and (leitura := _leitura(item))
+        leitura for item in _completar_saida(saida, corpo) if isinstance(item, dict) and (leitura := _leitura(item))
     ]
     debito = unidades_da_resposta(corpo)
     if debito is None:

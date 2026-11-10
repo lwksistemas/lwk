@@ -17,7 +17,10 @@ from clinica_beleza.youcam_api import (
 class MontarPedidoTest(SimpleTestCase):
     def test_analise_nao_muda_a_foto(self):
         pedido = montar_pedido("analise", "", 0, "arquivo", "https://media.exemplo/foto.jpg")
-        self.assertEqual(pedido["dst_actions"], ["wrinkle", "pore", "texture", "acne"])
+        self.assertEqual(len(pedido["dst_actions"]), 16)
+        self.assertIn("oiliness", pedido["dst_actions"])
+        self.assertIn("skin_type", pedido["dst_actions"])
+        self.assertNotIn("hd_wrinkle", pedido["dst_actions"])
         self.assertNotIn("features", pedido)
 
     def test_pele_guarda_so_a_intensidade_visual(self):
@@ -62,6 +65,13 @@ class IntensidadeEHistoricoTest(SimpleTestCase):
         self.assertEqual(unidades_tabela("pele", {"wrinkle": 1.0}), 4)
         self.assertEqual(unidades_tabela("rosto", {}), 1)
         self.assertEqual(unidades_tabela("corpo", {}), 1)
+        self.assertEqual(unidades_tabela("analise", {"dst_actions": ["wrinkle"] * 16}), 16)
+
+    def test_corpo_envia_os_dois_lados_e_rejeita_pescoco_negativo(self):
+        pedido = montar_pedido("corpo", "breast", 20, "arquivo", "https://media.exemplo/foto.jpg")
+        self.assertEqual(pedido["features"], {"breast_left": 20, "breast_right": 20})
+        with self.assertRaises(YouCamError):
+            montar_pedido("corpo", "neck", -10, "arquivo", "https://media.exemplo/foto.jpg")
 
     def test_aviso_fica_no_arquivo_gerado(self):
         from io import BytesIO

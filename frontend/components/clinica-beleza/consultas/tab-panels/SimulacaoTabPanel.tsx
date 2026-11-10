@@ -13,12 +13,27 @@ import type { SimulacaoConsultaItem } from "@/lib/clinica-beleza-api/client-cons
 import type { ConsultaDetailTabPanelsProps } from "./tab-panels-types";
 
 const NOTAS: Record<string, string> = {
+  all: "Condição geral",
+  wrinkle: "Rugas",
   pore: "Poros",
   texture: "Textura",
-  wrinkle: "Rugas",
   acne: "Acne",
+  age_spot: "Manchas",
+  redness: "Vermelhidão",
+  oiliness: "Oleosidade",
+  moisture: "Hidratação",
+  radiance: "Luminosidade",
+  firmness: "Firmeza",
+  eye_bag: "Bolsas",
+  dark_circle_v2: "Olheiras",
+  tear_trough: "Sulco lacrimal",
+  droopy_upper_eyelid: "Pálpebra superior",
+  droopy_lower_eyelid: "Pálpebra inferior",
+  skin_type: "Tipo de pele",
   skin_age: "Idade da pele",
 };
+
+const ORDEM_NOTAS = Object.keys(NOTAS);
 
 const MODOS = [
   { id: "analise", rotulo: "Analisar a pele" },
@@ -44,6 +59,15 @@ const SENTIDO: Record<string, { negativo: string; positivo: string }> = {
   waist: { negativo: "cintura mais estreita", positivo: "cintura mais larga" },
   belly: { negativo: "abdômen mais plano", positivo: "abdômen mais projetado" },
   hip: { negativo: "quadril mais estreito", positivo: "quadril mais largo" },
+  hip_lift: { negativo: "quadril mais marcado", positivo: "quadril mais arredondado" },
+  arm: { negativo: "braços mais finos", positivo: "braços mais grossos" },
+  leg: { negativo: "pernas mais finas", positivo: "pernas mais grossas" },
+  breast: { negativo: "colo mais plano", positivo: "colo mais cheio" },
+  shoulder: { negativo: "ombros mais estreitos", positivo: "ombros mais largos" },
+  squared_shoulder: { negativo: "ombros mais caídos", positivo: "ombros mais retos" },
+  slim: { negativo: "silhueta mais fina", positivo: "silhueta mais curvilínea" },
+  neck: { negativo: "sem ajuste", positivo: "pescoço mais marcado" },
+  taller: { negativo: "sem ajuste", positivo: "mais alto" },
 };
 
 function rotuloParametro(modo: string, parametro: string): string {
@@ -98,8 +122,23 @@ const OPCOES: Record<string, { id: string; rotulo: string }[]> = {
     { id: "waist", rotulo: "Cintura" },
     { id: "belly", rotulo: "Abdômen" },
     { id: "hip", rotulo: "Quadril" },
+    { id: "hip_lift", rotulo: "Elevação do quadril" },
+    { id: "arm", rotulo: "Braços" },
+    { id: "leg", rotulo: "Pernas" },
+    { id: "breast", rotulo: "Colo" },
+    { id: "shoulder", rotulo: "Largura dos ombros" },
+    { id: "squared_shoulder", rotulo: "Formato dos ombros" },
+    { id: "slim", rotulo: "Silhueta" },
+    { id: "neck", rotulo: "Pescoço" },
+    { id: "taller", rotulo: "Altura" },
   ],
 };
+
+function faixaIntensidade(modo: string, parametro: string): { min: number; max: number; step: number } {
+  if (modo === "pele") return { min: 0.1, max: 1, step: 0.1 };
+  if (parametro === "neck" || parametro === "taller") return { min: 5, max: 100, step: 5 };
+  return { min: -100, max: 100, step: 5 };
+}
 
 function ComparacaoDual({
   original,
@@ -328,7 +367,12 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                 <select
                   className="mt-1 w-full rounded-lg border px-3 py-2 dark:border-gray-600 dark:bg-gray-900"
                   value={parametro}
-                  onChange={(event) => setParametro(event.target.value)}
+                  onChange={(event) => {
+                    const proximo = event.target.value;
+                    const faixa = faixaIntensidade(modo, proximo);
+                    setParametro(proximo);
+                    setIntensidade((atual) => Math.min(faixa.max, Math.max(faixa.min, atual)));
+                  }}
                 >
                   {(OPCOES[modo] || []).map((opcao) => (
                     <option key={opcao.id} value={opcao.id}>{opcao.rotulo}</option>
@@ -339,9 +383,9 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                 {textoIntensidade(modo, parametro, intensidade)}
                 <input
                   type="range"
-                  min={modo === "pele" ? 0.1 : -100}
-                  max={modo === "pele" ? 1 : 100}
-                  step={modo === "pele" ? 0.1 : 5}
+                  min={faixaIntensidade(modo, parametro).min}
+                  max={faixaIntensidade(modo, parametro).max}
+                  step={faixaIntensidade(modo, parametro).step}
                   value={intensidade}
                   onChange={(event) => setIntensidade(Number(event.target.value))}
                   className="mt-1 w-full"
@@ -355,6 +399,11 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
                 A YouCam recebe só {rotuloParametro(modo, parametro) || "este ajuste"}. Ela não aceita uma máscara desenhada; o efeito fica na região que o modelo reconhece para esse parâmetro.
               </p>
             </>
+          )}
+          {modo === "analise" && (
+            <p className="text-xs text-gray-500">
+              A análise pede as 16 medidas da pele em uma foto frontal. A nota mais alta indica a pele mais saudável nessa medida. A tabela YouCam indica 16 unidades quando a geração conclui. Não há análise com nota para o corpo; Simular o corpo gera uma imagem.
+            </p>
           )}
           {avisoProcedimento(selected.procedure_name || "", modo) && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
@@ -388,7 +437,9 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
       <div className="space-y-3">
         {resultados.filter((item) => item.status !== "erro").map((item) => {
           const par = Boolean(item.foto_url && item.resultado_url);
-          const notas = item.leituras.filter((leitura) => leitura.nota != null && NOTAS[leitura.tipo]);
+          const notas = item.leituras
+            .filter((leitura) => NOTAS[leitura.tipo] && (leitura.nota != null || leitura.texto))
+            .sort((a, b) => ORDEM_NOTAS.indexOf(a.tipo) - ORDEM_NOTAS.indexOf(b.tipo));
           const chaveOriginal = `${item.id}:original`;
           const chaveGerada = `${item.id}:gerada`;
           const duasMarcadas = Boolean(marcadas[chaveOriginal] && marcadas[chaveGerada]);
@@ -460,7 +511,7 @@ export function SimulacaoTabPanel({ tab, selected, consultaAtiva }: ConsultaDeta
             {notas.length > 0 && (
               <ul className="mt-2 text-sm text-gray-700 dark:text-gray-200">
                 {notas.map((leitura) => (
-                  <li key={`${item.id}-${leitura.tipo}`}>{NOTAS[leitura.tipo]}: {leitura.nota}</li>
+                  <li key={`${item.id}-${leitura.tipo}`}>{NOTAS[leitura.tipo]}: {leitura.texto || leitura.nota}</li>
                 ))}
               </ul>
             )}

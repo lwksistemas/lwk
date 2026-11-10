@@ -12,7 +12,7 @@ export type SimulacaoConsultaItem = {
   status: "processando" | "pronta" | "erro";
   foto_url: string;
   resultado_url: string;
-  leituras: { tipo: string; nota: number | null }[];
+  leituras: { tipo: string; nota: number | null; texto?: string }[];
   erro: string;
   ilustrativa: boolean;
   ciencia_visual: boolean;

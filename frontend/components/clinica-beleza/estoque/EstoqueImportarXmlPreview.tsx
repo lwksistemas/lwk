@@ -128,6 +128,18 @@ export function EstoqueImportarXmlPreview({
                   {p.alerta && (
                     <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">{p.alerta}</p>
                   )}
+                  {p.acao === "novo" && (
+                    <label className="block mt-1">
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400">Nome comercial</span>
+                      <input
+                        value={p.nome_comercial ?? p.nome}
+                        maxLength={200}
+                        placeholder="No recibo e na consulta"
+                        onChange={(e) => onProdutoChange?.(i, { nome_comercial: e.target.value })}
+                        className="mt-0.5 w-full px-2 py-1.5 text-xs border border-gray-300 dark:border-neutral-600 rounded bg-white dark:bg-neutral-800"
+                      />
+                    </label>
+                  )}
                   <p className="sm:hidden text-xs text-gray-500 dark:text-gray-400">
                     {formatProdutoPreviewLine(p)}
                   </p>

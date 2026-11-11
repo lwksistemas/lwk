@@ -191,7 +191,7 @@ def _aplicar_estoque(
     nota, produtos: list, loja_id: int | None, *, chave: str = "", usuario: str = "", pagamento: dict | None = None,
 ) -> dict:
     from .estoque_service import tenant_atomic
-    from .estoque_xml_import_service import confirmar_importacao_xml
+    from .estoque_xml_import_service import confirmar_importacao_xml, nome_do_cadastro
     from .models import NotaEntradaNfe
 
     if not produtos:
@@ -222,9 +222,13 @@ def _aplicar_estoque(
             )
             nomes = []
             for item in produtos:
-                if (item.get("acao") or "").strip() == "ignorar":
+                acao_item = (item.get("acao") or "").strip()
+                if acao_item == "ignorar":
                     continue
-                nome = (item.get("nome") or "").strip()
+                if acao_item == "novo":
+                    nome = nome_do_cadastro(item)
+                else:
+                    nome = (item.get("nome") or "").strip()
                 if nome and nome not in nomes:
                     nomes.append(nome)
             resultado["financeiro"] = publicar_despesa_nfe(

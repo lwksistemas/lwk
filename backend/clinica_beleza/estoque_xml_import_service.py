@@ -496,6 +496,13 @@ def _lembrar_fornecedor(item: dict, produto, fator: Decimal, custo: Decimal) -> 
     )
 
 
+def nome_do_cadastro(item: dict) -> str:
+    """Nome do estoque, do recibo e da consulta. O nome da nota fica no fornecedor."""
+    nota = (item.get("nome") or "").strip()
+    comercial = (item.get("nome_comercial") or "").strip()
+    return (comercial or nota or "Item")[:200]
+
+
 def confirmar_importacao_xml(
     produtos_para_importar: list[dict],
     *,
@@ -574,9 +581,10 @@ def confirmar_importacao_xml(
                 continue
 
             unidade = item.get("unidade_estoque") or item.get("unidade_medida") or "unidade"
+            nome_estoque = nome_do_cadastro(item)
             serializer = ProdutoEstoqueSerializer(
                 data={
-                    "nome": nome,
+                    "nome": nome_estoque,
                     "categoria": (cat.slug if cat else None) or item.get("categoria") or "outro",
                     "marca": "",
                     "unidade_medida": unidade,

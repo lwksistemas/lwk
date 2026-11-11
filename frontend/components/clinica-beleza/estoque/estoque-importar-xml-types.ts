@@ -31,6 +31,7 @@ export interface ProdutoPreview {
   codigo_produto?: string;
   gtin?: string;
   acao?: AcaoImportacaoXml;
+  nome_comercial?: string;
   confianca?: string;
   produto_id?: number | null;
   produto_nome?: string;

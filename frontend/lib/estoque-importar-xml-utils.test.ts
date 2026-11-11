@@ -14,6 +14,7 @@ import {
   quantidadeEntrada,
   textoPagamentoNota,
   juntarNumerosNota,
+  produtoParaConfirmacao,
   resumoConferencia,
   textoItensPendentes,
   textoResumoConferencia,
@@ -127,6 +128,17 @@ describe("conferência da NF-e", () => {
     expect(aplicados[1].lote).toBe("B");
     expect(aplicados[1].validade).toBe("2028-01-01");
     expect(aplicados[2].acao).toBe("");
+    const comNome = aplicarDecisaoAosIguais(
+      [
+        { ...base, nome: "TOXINA BOTULINICA", grupo: "nome:TOXINA", acao: "novo", nome_comercial: "Botox" },
+        { ...base, nome: "TOXINA BOTULINICA", grupo: "nome:TOXINA", acao: "" },
+      ],
+      0,
+    );
+    expect(comNome[1].nome_comercial).toBe("Botox");
+    expect(produtoParaConfirmacao(comNome[0]).nome).toBe("TOXINA BOTULINICA");
+    expect(produtoParaConfirmacao(comNome[0]).nome_comercial).toBe("Botox");
+    expect(produtoParaConfirmacao({ ...base, acao: "vincular", produto_id: 1 }).nome_comercial).toBe("");
     expect(itemPrecisaConfirmacao({ ...base, acao: "vincular", produto_id: 1, exige_lote: true })).toBe(true);
   });
 });

@@ -109,6 +109,7 @@ export function aplicarDecisaoAosIguais(produtos: ProdutoPreview[], indice: numb
       acao: origem.acao,
       produto_id: origem.produto_id,
       produto_nome: origem.produto_nome,
+      nome_comercial: origem.nome_comercial,
       exige_lote: origem.exige_lote,
       candidatos: origem.candidatos,
     };
@@ -160,8 +161,10 @@ export function textoItensPendentes(numeros: number[]): string {
 }
 
 export function produtoParaConfirmacao(p: ProdutoPreview) {
+  const comercial = (p.nome_comercial || "").trim();
   return {
     nome: p.nome,
+    nome_comercial: p.acao === "novo" ? (comercial || p.nome).slice(0, 200) : "",
     categoria: p.categoria,
     categoria_id: p.categoria_id ?? undefined,
     acao: (p.acao || "") as AcaoImportacaoXml,

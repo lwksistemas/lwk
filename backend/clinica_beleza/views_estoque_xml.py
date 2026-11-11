@@ -90,6 +90,8 @@ def _mesclar_overrides_categoria(resultado_produtos, produtos_override, loja_id)
         for campo in ("acao", "produto_id", "fator", "validade", "lote"):
             if campo in ov and ov[campo] not in (None, ""):
                 p[campo] = ov[campo]
+        if "nome_comercial" in ov:
+            p["nome_comercial"] = str(ov.get("nome_comercial") or "").strip()[:200]
         _sincronizar_unidade_escolhida(p)
         cat = resolver_categoria(
             loja_id=loja_id,

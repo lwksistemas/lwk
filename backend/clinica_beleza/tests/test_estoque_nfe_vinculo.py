@@ -18,7 +18,7 @@ from clinica_beleza.estoque_nfe_vinculo import (
     rastreio_obrigatorio_faltando,
     serie_da_chave,
 )
-from clinica_beleza.estoque_xml_import_service import parse_nfe_xml
+from clinica_beleza.estoque_xml_import_service import nome_do_cadastro, parse_nfe_xml
 
 XML_CAIXA = """<?xml version="1.0" encoding="UTF-8"?>
 <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe">
@@ -291,6 +291,13 @@ class CustoEIdentidadeTests(TestCase):
         self.assertTrue(decisao_pendente("vincular", None))
         self.assertFalse(decisao_pendente("novo", None))
         self.assertFalse(decisao_pendente("ignorar", None))
+
+    def test_nome_comercial_entra_no_estoque(self):
+        self.assertEqual(
+            nome_do_cadastro({"nome": "TOXINA BOTULINICA", "nome_comercial": "Botox"}),
+            "Botox",
+        )
+        self.assertEqual(nome_do_cadastro({"nome": "TOXINA BOTULINICA", "nome_comercial": "  "}), "TOXINA BOTULINICA")
 
     def test_confirmacao_esta_dentro_de_uma_transacao(self):
         import inspect

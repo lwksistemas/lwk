@@ -281,6 +281,14 @@ class ProcedimentoAnteriorRecebimento(LojaIsolationMixin, models.Model):
     payment_method = models.CharField(
         max_length=20, choices=FORMAS, verbose_name="Forma de pagamento",
     )
+    recebido_por_id = models.IntegerField(null=True, blank=True, verbose_name="Quem recebeu")
+    recebido_por_nome = models.CharField(
+        max_length=150,
+        blank=True,
+        default="",
+        verbose_name="Quem recebeu",
+        help_text="Usuário logado que confirmou este recebimento.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = LojaIsolationManager()

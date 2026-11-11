@@ -118,10 +118,13 @@ class ListaFinanceiroProcedimentoAnteriorTest(SimpleTestCase):
 
         from clinica_beleza.procedimento_anterior_service import linha_financeiro_anterior
 
-        recebimento = SimpleNamespace(valor=Decimal("100.00"), data=date(2026, 11, 3))
+        recebimento = SimpleNamespace(
+            id=1, valor=Decimal("100.00"), data=date(2026, 11, 3), recebido_por_nome="LUIZ HENRIQUE FELIX",
+        )
         linha = linha_financeiro_anterior(self._item(), [recebimento], date(2026, 11, 4))
         self.assertEqual(linha["status"], "PARTIAL")
         self.assertEqual(linha["saldo_devedor"], 350.0)
+        self.assertEqual(linha["operador_nome"], "LUIZ HENRIQUE FELIX")
 
 
 class SaldoProcedimentoAnteriorTest(SimpleTestCase):

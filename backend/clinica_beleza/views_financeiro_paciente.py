@@ -246,11 +246,16 @@ class ProcedimentoAnteriorReceberView(GetObjectMixin, APIView):
             )
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        from .venda_produto_service import _nome_usuario
+
+        pessoa_id, nome = _nome_usuario(request.user)
         ProcedimentoAnteriorRecebimento.objects.create(
             procedimento=item,
             valor=valor,
             data=data_recebimento,
             payment_method=forma,
+            recebido_por_id=pessoa_id,
+            recebido_por_nome=(nome or "")[:150],
         )
         item = (
             ProcedimentoAnterior.objects

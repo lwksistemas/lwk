@@ -122,6 +122,22 @@ def status_financeiro_anterior(valor, valor_pago, saldo) -> str:
     return "PENDING"
 
 
+def _primeiro_nome_recebido(recebimentos) -> str:
+    """O primeiro usuário que baixou. Um complemento posterior não troca o nome."""
+    escolhido = None
+    for recebimento in recebimentos:
+        nome = (getattr(recebimento, "recebido_por_nome", "") or "").strip()
+        if not nome:
+            continue
+        chave = (
+            getattr(recebimento, "data", None) or date.max,
+            getattr(recebimento, "id", None) or 0,
+        )
+        if escolhido is None or chave < escolhido[0]:
+            escolhido = (chave, nome)
+    return escolhido[1] if escolhido else ""
+
+
 def linha_financeiro_anterior(item, recebimentos, hoje: date) -> dict:
     """Linha da página do financeiro. Não é pagamento de consulta e não gera comissão."""
     valores = []
@@ -138,6 +154,7 @@ def linha_financeiro_anterior(item, recebimentos, hoje: date) -> dict:
     vencido = bool(vencimento and saldo > 0 and vencimento < hoje)
     ultima = max(datas) if datas else getattr(item, "data_pagamento", None)
     paciente = getattr(item, "patient", None)
+    quem_recebeu = _primeiro_nome_recebido(recebimentos)
     return {
         "id": item.id,
         "origem": "procedimento_anterior",
@@ -161,7 +178,7 @@ def linha_financeiro_anterior(item, recebimentos, hoje: date) -> dict:
         "paciente_nome": getattr(paciente, "nome", "") or "",
         "paciente_tem_prazo": True,
         "profissional_nome": "",
-        "operador_nome": "",
+        "operador_nome": quem_recebeu,
         "procedimento_nome": item.nome,
         "data_atendimento": item.data_procedimento.isoformat(),
         "created_at": item.created_at.isoformat() if getattr(item, "created_at", None) else "",

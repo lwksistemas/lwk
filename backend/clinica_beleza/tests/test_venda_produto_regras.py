@@ -70,28 +70,32 @@ class QuemRecebeuTest(unittest.TestCase):
 
         return Pagamento(), saved
 
-    def test_consulta_grava_o_profissional(self):
-        pagamento, saved = self._pagamento()
-        consulta = SimpleNamespace(professional=SimpleNamespace(pk=4, nome="NAYARA"), professional_id=4)
-        gravar_quem_recebeu(pagamento, origem="consulta", consulta=consulta, usuario=None)
-        self.assertEqual(saved["nome"], "NAYARA")
-        self.assertEqual(saved["id"], 4)
-
-    def test_financeiro_grava_quem_confirmou(self):
-        pagamento, saved = self._pagamento()
-        usuario = SimpleNamespace(
+    def _usuario(self):
+        return SimpleNamespace(
             is_authenticated=True, pk=9, username="admin", get_full_name=lambda: "LUIZ HENRIQUE FELIX",
         )
-        gravar_quem_recebeu(pagamento, origem="financeiro", consulta=None, usuario=usuario)
+
+    def test_consulta_grava_quem_esta_logado(self):
+        pagamento, saved = self._pagamento()
+        gravar_quem_recebeu(pagamento, origem="consulta", usuario=self._usuario())
         self.assertEqual(saved["nome"], "LUIZ HENRIQUE FELIX")
         self.assertEqual(saved["id"], 9)
 
+    def test_financeiro_grava_quem_confirmou(self):
+        pagamento, saved = self._pagamento()
+        gravar_quem_recebeu(pagamento, origem="financeiro", usuario=self._usuario())
+        self.assertEqual(saved["nome"], "LUIZ HENRIQUE FELIX")
+        self.assertEqual(saved["id"], 9)
+
+    def test_sem_usuario_nao_grava_nome(self):
+        pagamento, saved = self._pagamento()
+        gravar_quem_recebeu(pagamento, origem="consulta", usuario=None)
+        self.assertEqual(saved, {})
+        self.assertEqual(pagamento.operador_nome, "")
+
     def test_nao_troca_nome_ja_gravado(self):
         pagamento, saved = self._pagamento("CAIXA")
-        usuario = SimpleNamespace(
-            is_authenticated=True, pk=9, username="admin", get_full_name=lambda: "LUIZ HENRIQUE FELIX",
-        )
-        gravar_quem_recebeu(pagamento, origem="financeiro", consulta=None, usuario=usuario)
+        gravar_quem_recebeu(pagamento, origem="financeiro", usuario=self._usuario())
         self.assertEqual(saved, {})
         self.assertEqual(pagamento.operador_nome, "CAIXA")
 

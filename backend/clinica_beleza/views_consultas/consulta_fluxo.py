@@ -162,7 +162,6 @@ class ConsultaReceberView(APIView):
                 gravar_quem_recebeu(
                     payment,
                     origem=str(request.data.get("origem") or ""),
-                    consulta=consulta,
                     usuario=request.user,
                 )
         except AgendaValidationError as exc:

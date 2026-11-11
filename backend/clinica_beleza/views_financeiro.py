@@ -206,6 +206,9 @@ class PaymentParcelaView(GetObjectMixin, APIView):
             "payment_date": request.data.get("payment_date") or data_hoje_clinica().isoformat(),
             "observacoes": request.data.get("observacoes") or "",
         })
+        from .venda_produto_service import gravar_quem_recebeu
+
+        gravar_quem_recebeu(payment, origem="financeiro", usuario=request.user)
         return Response({
             "parcela": PaymentParcelaSerializer(parcela).data if parcela else None,
             "valor_total": float(payment.valor_total_efetivo),

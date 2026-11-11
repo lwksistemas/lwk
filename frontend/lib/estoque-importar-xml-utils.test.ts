@@ -83,9 +83,8 @@ describe("conferência da NF-e", () => {
       embalagem_quantidade: "10",
       embalagem_unidade: "ampola",
     });
-    expect(opcoes?.[1]).toMatchObject({ fator: "10", unidade: "ampola" });
-    expect(opcoes?.[1].rotulo).toContain("R$ 18.90");
-    expect(opcoes?.[1].rotulo).toContain("entra 20");
+    expect(opcoes?.[0].rotulo).toBe("Como na nota");
+    expect(opcoes?.[1]).toMatchObject({ fator: "10", unidade: "ampola", rotulo: "Por ampola" });
   });
 
   it("explica o pagamento da nota", () => {
@@ -96,7 +95,7 @@ describe("conferência da NF-e", () => {
 
   it("converte caixa em unidades de estoque", () => {
     expect(quantidadeEntrada({ ...base, fator: "5" })).toBe("10");
-    expect(formatProdutoPreviewLine({ ...base, fator: "5", unidade_estoque: "UN" })).toContain("entra 10 UN");
+    expect(formatProdutoPreviewLine({ ...base, fator: "5", unidade_estoque: "UN" })).toBe("2 CX × R$ 100.00");
   });
 
   it("resume vinculados, novos e o que ainda precisa de confirmação", () => {

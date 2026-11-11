@@ -5,7 +5,7 @@ import { AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import type { CandidatoProdutoXml, PreviewResult, ProdutoPreview } from "./estoque-importar-xml-types";
-import { custoTotalConvertido, custoUnitarioConvertido, formatProdutoPreviewLine, itemPrecisaConfirmacao, opcoesEntradaEstoque, quantidadeEntrada, resumoConferencia, textoItensPendentes, textoPagamentoNota, textoResumoConferencia } from "./estoque-importar-xml-utils";
+import { custoUnitarioConvertido, formatProdutoPreviewLine, itemPrecisaConfirmacao, opcoesEntradaEstoque, quantidadeEntrada, resumoConferencia, textoItensPendentes, textoPagamentoNota, textoResumoConferencia } from "./estoque-importar-xml-utils";
 import type { EstoqueCategoria } from "./estoque-types";
 import { ESTOQUE_CATEGORIAS } from "./estoque-types";
 
@@ -268,7 +268,7 @@ function LinhaFatorLote({
         </div>
       )}
       <label className="flex items-center gap-1">
-        {opcoes ? "Unidades em cada item da nota" : "Fator"}
+        {opcoes ? "Por item da nota" : "Fator"}
         <input
           type="number"
           min="0.01"
@@ -279,16 +279,10 @@ function LinhaFatorLote({
         />
       </label>
       {mostraConversao && (
-        <>
-          <span className="text-gray-600 dark:text-gray-300">
-            entra {quantidadeEntrada(produto)} {produto.unidade_estoque || produto.unidade_medida}
-          </span>
-          <span className="text-gray-800 dark:text-gray-100">
-            custo R$ {custoUnitarioConvertido(produto)}/{produto.unidade_estoque || produto.unidade_medida}
-            {" · total R$ "}{custoTotalConvertido(produto)}
-            {(Number(produto.valor_desconto || "0") > 0 || Number(produto.valor_despesas || "0") > 0) ? " líquido" : ""}
-          </span>
-        </>
+        <span className="text-gray-800 dark:text-gray-100">
+          {quantidadeEntrada(produto)} {produto.unidade_estoque || produto.unidade_medida} a R$ {custoUnitarioConvertido(produto)}
+          {(Number(produto.valor_desconto || "0") > 0 || Number(produto.valor_despesas || "0") > 0) ? " líquido" : ""}
+        </span>
       )}
       {produto.exige_lote && (!(produto.lote || "").trim() || !(produto.validade || "").trim()) && (
         <span className="text-amber-700 dark:text-amber-300">exige lote e validade</span>

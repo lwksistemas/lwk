@@ -39,7 +39,7 @@ export function textoPagamentoNota(pagamento?: {
 } | null): string {
   if (!pagamento?.situacao) return "";
   if (pagamento.situacao === "pago") {
-    return "Despesa: a nota está paga. O financeiro recebe como paga.";
+    return "Despesa paga no financeiro.";
   }
   if (pagamento.situacao === "pendente") {
     const datas = (pagamento.parcelas || [])
@@ -65,20 +65,18 @@ export function opcoesEntradaEstoque(p: ProdutoPreview): {
   const preco = Number(p.preco_custo || "0");
   const quantidade = Number(p.quantidade || "0");
   if (!Number.isFinite(preco) || !Number.isFinite(quantidade)) return null;
-  const entra = Math.round(quantidade * dentro * 100) / 100;
-  const unitario = Math.round((preco / dentro) * 100) / 100;
   return [
     {
       id: "nota",
       fator: "1",
       unidade: nota,
-      rotulo: `Como na nota — ${quantidade} ${nota} a R$ ${preco.toFixed(2)}`,
+      rotulo: "Como na nota",
     },
     {
       id: "conteudo",
       fator: String(dentro),
       unidade: conteudo,
-      rotulo: `Por ${conteudo} — entra ${entra} · R$ ${unitario.toFixed(2)} cada`,
+      rotulo: `Por ${conteudo}`,
     },
   ];
 }
@@ -179,13 +177,8 @@ export function formatProdutoPreviewLine(p: ProdutoPreview): string {
   const lote = p.lote ? ` · Lote: ${p.lote}` : "";
   const cat = p.categoria ? ` · ${p.categoria}` : "";
   const motivo = p.categoria_motivo ? ` (${p.categoria_motivo})` : "";
-  const fator = Number(p.fator || "1");
-  const unidade = p.unidade_estoque || p.unidade_medida;
   const liquido = Number(p.valor_desconto || "0") > 0 || Number(p.valor_despesas || "0") > 0 ? " líquido" : "";
-  const convertido = Number.isFinite(fator) && fator !== 1
-    ? `${liquido} · entra ${quantidadeEntrada(p)} ${unidade} · custo R$ ${custoUnitarioConvertido(p)}/${unidade}`
-    : liquido;
-  return `${p.quantidade} ${p.unidade_medida} × R$ ${preco}${convertido}${lote}${cat}${motivo}`;
+  return `${p.quantidade} ${p.unidade_medida} × R$ ${preco}${liquido}${lote}${cat}${motivo}`;
 }
 
 export function buildEstoqueImportFormData(

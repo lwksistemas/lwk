@@ -262,6 +262,14 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
     if valor_nf <= 0 and produtos:
         valor_nf = sum((_parse_decimal(p.get("valor_total") or "0") for p in produtos), start=_parse_decimal("0"))
 
+    from .estoque_nfe_pagamento import pagamento_da_nfe
+
+    pagamento = pagamento_da_nfe(
+        inf_nfe,
+        data_emissao=data_emissao or "",
+        valor_total=str(round(valor_nf, 2)),
+    )
+
     return {
         "chave": chave,
         "numero_nota": numero_nota,
@@ -271,6 +279,7 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
         "destinatario_documento": dest_documento,
         "destinatario_nome": dest_nome,
         "valor_total": str(round(valor_nf, 2)),
+        "pagamento": pagamento,
         "produtos": produtos,
         "total_produtos": len(produtos),
     }
@@ -374,7 +383,9 @@ def importar_produtos_xml(
             "destinatario_documento": parsed.get("destinatario_documento", ""),
             "destinatario_nome": parsed.get("destinatario_nome", ""),
             "valor_total": parsed.get("valor_total") or "",
+            "pagamento": parsed.get("pagamento") or {},
         },
+        "pagamento": parsed.get("pagamento") or {},
         "produtos": produtos_para_importar,
         "total_produtos": len(produtos_para_importar),
     }

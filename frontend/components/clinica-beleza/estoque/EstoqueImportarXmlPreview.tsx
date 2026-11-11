@@ -5,7 +5,7 @@ import { AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 import type { CandidatoProdutoXml, PreviewResult, ProdutoPreview } from "./estoque-importar-xml-types";
-import { custoTotalConvertido, custoUnitarioConvertido, formatProdutoPreviewLine, itemPrecisaConfirmacao, opcoesEntradaEstoque, quantidadeEntrada, resumoConferencia, textoItensPendentes, textoResumoConferencia } from "./estoque-importar-xml-utils";
+import { custoTotalConvertido, custoUnitarioConvertido, formatProdutoPreviewLine, itemPrecisaConfirmacao, opcoesEntradaEstoque, quantidadeEntrada, resumoConferencia, textoItensPendentes, textoPagamentoNota, textoResumoConferencia } from "./estoque-importar-xml-utils";
 import type { EstoqueCategoria } from "./estoque-types";
 import { ESTOQUE_CATEGORIAS } from "./estoque-types";
 
@@ -76,6 +76,9 @@ export function EstoqueImportarXmlPreview({
         <p className="text-xs text-blue-600 dark:text-blue-400">
           {textoResumoConferencia(resumo)}
         </p>
+        {textoPagamentoNota(preview.pagamento) ? (
+          <p className="text-xs text-blue-800 dark:text-blue-200 mt-1">{textoPagamentoNota(preview.pagamento)}</p>
+        ) : null}
         {avisoPendentes ? (
           <p className="text-xs text-amber-800 dark:text-amber-200 mt-1">
             {resumo.pendentesNumeros.length === 1 ? "Falta confirmar o item " : "Falta confirmar os itens "}

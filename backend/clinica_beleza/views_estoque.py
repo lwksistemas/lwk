@@ -29,6 +29,7 @@ from .views_estoque_helpers import (  # noqa: F401
 from .views_estoque_xml import (  # noqa: F401
     EstoqueImportarXmlView,
     EstoqueNfePendenteConfirmarView,
+    EstoqueNfeFinanceiroView,
     EstoqueNfePendenteIgnorarView,
     EstoqueNfePendentePreviewView,
     EstoqueNfePendentesView,

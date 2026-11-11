@@ -14,6 +14,8 @@ export interface DespesaItem {
   data_pagamento: string | null;
   forma_pagamento: string;
   observacoes?: string;
+  numero_nota?: string;
+  fornecedor_nome?: string;
 }
 
 export interface DespesaFormState {

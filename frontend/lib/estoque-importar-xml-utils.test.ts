@@ -12,6 +12,7 @@ import {
   itemPrecisaConfirmacao,
   opcoesEntradaEstoque,
   quantidadeEntrada,
+  textoPagamentoNota,
   juntarNumerosNota,
   resumoConferencia,
   textoItensPendentes,
@@ -85,6 +86,12 @@ describe("conferência da NF-e", () => {
     expect(opcoes?.[1]).toMatchObject({ fator: "10", unidade: "ampola" });
     expect(opcoes?.[1].rotulo).toContain("R$ 18.90");
     expect(opcoes?.[1].rotulo).toContain("entra 20");
+  });
+
+  it("explica o pagamento da nota", () => {
+    expect(textoPagamentoNota({ situacao: "pago" })).toContain("paga");
+    expect(textoPagamentoNota({ situacao: "pendente", parcelas: [{ vencimento: "2026-12-10" }] })).toContain("10/12/2026");
+    expect(textoPagamentoNota({ situacao: "indefinido" })).toContain("pergunta");
   });
 
   it("converte caixa em unidades de estoque", () => {

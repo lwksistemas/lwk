@@ -460,6 +460,10 @@ class Despesa(LojaIsolationMixin, models.Model):
         max_length=20, choices=PAYMENT_METHOD_CHOICES, blank=True, default="", verbose_name="Forma de pagamento",
     )
     observacoes = models.TextField(blank=True, default="", verbose_name="Observações")
+    numero_nota = models.CharField(max_length=20, blank=True, default="", verbose_name="Número da nota")
+    fornecedor_nome = models.CharField(max_length=200, blank=True, default="", verbose_name="Fornecedor")
+    chave_nfe = models.CharField(max_length=44, blank=True, default="", verbose_name="Chave da NF-e")
+    parcela = models.PositiveSmallIntegerField(default=1, verbose_name="Parcela")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Criado em")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
 
@@ -474,6 +478,13 @@ class Despesa(LojaIsolationMixin, models.Model):
             models.Index(fields=["loja_id", "status"]),
             models.Index(fields=["loja_id", "data_vencimento"]),
             models.Index(fields=["loja_id", "data_pagamento"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["loja_id", "chave_nfe", "parcela"],
+                condition=~models.Q(chave_nfe=""),
+                name="cb_despesa_nfe_parcela_uniq",
+            ),
         ]
 
     def __str__(self):

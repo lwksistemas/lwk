@@ -147,7 +147,7 @@ def preview_da_nota(nota_id: int, *, loja_id: int | None) -> dict:
 
 
 def confirmar_nota(nota_id: int, produtos: list | None, *, loja_id: int | None, usuario: str = "") -> dict:
-    from .estoque_xml_import_service import confirmar_importacao_xml, importar_produtos_xml
+    from .estoque_xml_import_service import importar_produtos_xml
     from .models import NotaEntradaNfe
 
     nota = NotaEntradaNfe.objects.filter(pk=nota_id).first()
@@ -157,12 +157,15 @@ def confirmar_nota(nota_id: int, produtos: list | None, *, loja_id: int | None, 
         raise ValueError(MSG_JA_IMPORTADA)
     if not nota.xml:
         raise ValueError(MSG_SEM_XML)
-    preparados = importar_produtos_xml(nota.xml.encode("utf-8"), loja_id=loja_id)["produtos"]
+    importado = importar_produtos_xml(nota.xml.encode("utf-8"), loja_id=loja_id)
+    preparados = importado["produtos"]
     if produtos:
         from .views_estoque_xml import _mesclar_overrides_categoria
 
         _mesclar_overrides_categoria(preparados, produtos, loja_id)
-    return _aplicar_estoque(nota, preparados, loja_id, usuario=usuario)
+    return _aplicar_estoque(
+        nota, preparados, loja_id, usuario=usuario, pagamento=importado.get("pagamento") or {},
+    )
 
 
 def confirmar_arquivo(xml_content: bytes, produtos: list, *, loja_id: int | None, usuario: str = "") -> dict:
@@ -179,10 +182,14 @@ def confirmar_arquivo(xml_content: bytes, produtos: list, *, loja_id: int | None
         nota = _salvar_completo(parsed, xml_content, origem=NotaEntradaNfe.ORIGEM_ARQUIVO, loja_id=loja_id)
     elif chave:
         nota = NotaEntradaNfe.objects.filter(chave=chave).first()
-    return _aplicar_estoque(nota, produtos, loja_id, chave=chave, usuario=usuario)
+    return _aplicar_estoque(
+        nota, produtos, loja_id, chave=chave, usuario=usuario, pagamento=parsed.get("pagamento") or {},
+    )
 
 
-def _aplicar_estoque(nota, produtos: list, loja_id: int | None, *, chave: str = "", usuario: str = "") -> dict:
+def _aplicar_estoque(
+    nota, produtos: list, loja_id: int | None, *, chave: str = "", usuario: str = "", pagamento: dict | None = None,
+) -> dict:
     from .estoque_service import tenant_atomic
     from .estoque_xml_import_service import confirmar_importacao_xml
     from .models import NotaEntradaNfe
@@ -197,6 +204,29 @@ def _aplicar_estoque(nota, produtos: list, loja_id: int | None, *, chave: str = 
         elif chave and nota_importada(chave):
             raise ValueError(MSG_JA_IMPORTADA)
         resultado = confirmar_importacao_xml(produtos, loja_id=loja_id, usuario=usuario)
+        if resultado["criados"] + resultado["atualizados"] > 0:
+            from .estoque_nfe_pagamento import publicar_despesa_nfe
+
+            primeiro = produtos[0] if produtos else {}
+            numero = (getattr(nota, "numero", "") if nota is not None else "") or primeiro.get("numero_nota") or ""
+            fornecedor = (
+                primeiro.get("fornecedor")
+                or (getattr(nota, "fornecedor_nome", "") if nota is not None else "")
+                or ""
+            )
+            chave_nota = (
+                (getattr(nota, "chave", "") if nota is not None else "")
+                or chave
+                or primeiro.get("chave")
+                or ""
+            )
+            resultado["financeiro"] = publicar_despesa_nfe(
+                loja_id,
+                pagamento or {},
+                numero=numero,
+                fornecedor=fornecedor,
+                chave=chave_nota,
+            )
         if nota is not None:
             nota.status = NotaEntradaNfe.STATUS_IMPORTADA
             nota.importada_em = timezone.now()

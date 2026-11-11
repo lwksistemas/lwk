@@ -37,6 +37,7 @@ export function EstoqueImportarXmlModal({
     confirmarPendente,
     ignorarPendente,
     sincronizar,
+    responderPagamento,
   } = useEstoqueImportarXml(open, onClose, onSuccess, { categorias, defaultCategoriaSlug });
 
   if (!open) return null;
@@ -76,7 +77,13 @@ export function EstoqueImportarXmlModal({
             </div>
           )}
 
-          {resultado && <EstoqueImportarXmlResult resultado={resultado} />}
+          {resultado && (
+            <EstoqueImportarXmlResult
+              resultado={resultado}
+              respondendo={loading}
+              onResponderPagamento={(pago, vencimento) => void responderPagamento(pago, vencimento)}
+            />
+          )}
           {preview && !resultado && (
             <EstoqueImportarXmlPreview
               preview={preview}

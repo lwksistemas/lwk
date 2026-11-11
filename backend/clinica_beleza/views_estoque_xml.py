@@ -288,3 +288,45 @@ class EstoqueNfePendenteIgnorarView(APIView):
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"ok": True})
+
+
+class EstoqueNfeFinanceiroView(APIView):
+    """POST /clinica-beleza/estoque/nfe-financeiro/
+    Resposta de quando o XML não diz se a nota foi paga.
+    """
+
+    permission_classes = CLINICA_ESTOQUE
+
+    def post(self, request):
+        from .estoque_nfe_pagamento import publicar_despesa_nfe
+        from .views_base import resolve_loja_id_from_request
+
+        pago = request.data.get("pago")
+        if isinstance(pago, bool):
+            foi_pago = pago
+        else:
+            foi_pago = str(pago).strip().lower() in {"1", "true", "sim", "pago"}
+        if pago in (None, ""):
+            return Response({"error": "Informe se a nota foi paga."}, status=status.HTTP_400_BAD_REQUEST)
+        pagamento = {
+            "situacao": "indefinido",
+            "valor": request.data.get("valor") or "0",
+            "data_emissao": str(request.data.get("data_emissao") or "")[:10],
+            "forma_pagamento": request.data.get("forma_pagamento") or "",
+            "parcelas": [],
+        }
+        financeiro = publicar_despesa_nfe(
+            resolve_loja_id_from_request(request),
+            pagamento,
+            numero=str(request.data.get("numero") or ""),
+            fornecedor=str(request.data.get("fornecedor") or ""),
+            chave=str(request.data.get("chave") or ""),
+            pago=foi_pago,
+            data_vencimento=str(request.data.get("data_vencimento") or "")[:10],
+        )
+        if not financeiro.get("lancado"):
+            return Response(
+                {"error": "Informe a data de vencimento da nota." if not foi_pago else "Não foi possível lançar a despesa."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response({"financeiro": financeiro}, status=status.HTTP_201_CREATED)

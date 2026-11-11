@@ -209,6 +209,39 @@ export function useEstoqueImportarXml(
     }
   }, [carregarPendentes]);
 
+  const responderPagamento = useCallback(async (pago: boolean, dataVencimento: string) => {
+    if (!resultado?.financeiro) return;
+    const financeiro = resultado.financeiro;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await clinicaBelezaFetch("/estoque/nfe-financeiro/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pago,
+          data_vencimento: dataVencimento,
+          valor: financeiro.valor,
+          numero: financeiro.numero || resultado?.nota.numero,
+          fornecedor: financeiro.fornecedor || resultado?.nota.fornecedor,
+          chave: financeiro.chave,
+          data_emissao: financeiro.data_emissao || resultado?.nota.data_emissao,
+          forma_pagamento: financeiro.forma_pagamento,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(extractEstoqueImportError(data));
+        return;
+      }
+      setResultado({ ...resultado, financeiro: data.financeiro });
+    } catch {
+      setError("Erro ao lançar a despesa.");
+    } finally {
+      setLoading(false);
+    }
+  }, [resultado]);
+
   const sincronizar = useCallback(async () => {
     setSincronizando(true);
     setError("");
@@ -248,5 +281,6 @@ export function useEstoqueImportarXml(
     confirmarPendente,
     ignorarPendente,
     sincronizar,
+    responderPagamento,
   };
 }

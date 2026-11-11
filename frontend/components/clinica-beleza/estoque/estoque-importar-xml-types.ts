@@ -40,6 +40,19 @@ export interface ProdutoPreview {
   grupo?: string;
 }
 
+export interface PagamentoNota {
+  situacao: "pago" | "pendente" | "indefinido" | "";
+  valor?: string;
+  numero?: string;
+  fornecedor?: string;
+  chave?: string;
+  data_emissao?: string;
+  forma_pagamento?: string;
+  parcelas?: { numero?: string; vencimento: string; valor?: string }[];
+  lancado?: boolean;
+  precisa_resposta?: boolean;
+}
+
 export interface PreviewResult {
   preview: boolean;
   nota: {
@@ -51,6 +64,7 @@ export interface PreviewResult {
   produtos: ProdutoPreview[];
   total_produtos: number;
   aviso_destinatario?: string;
+  pagamento?: PagamentoNota;
 }
 
 export interface ImportResult {
@@ -60,6 +74,7 @@ export interface ImportResult {
   erros: { nome: string; erros: Record<string, string[]> }[];
   nota: { numero: string; fornecedor: string; data_emissao: string };
   aviso_destinatario?: string;
+  financeiro?: PagamentoNota;
 }
 
 export interface NotaPendente {

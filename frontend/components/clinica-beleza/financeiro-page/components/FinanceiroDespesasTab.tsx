@@ -57,6 +57,8 @@ export function FinanceiroDespesasTab({
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-neutral-700 border-b">
               <tr>
+                <th className="text-left py-3 px-4 font-semibold">Nota</th>
+                <th className="text-left py-3 px-4 font-semibold">Fornecedor</th>
                 <th className="text-left py-3 px-4 font-semibold">Vencimento</th>
                 <th className="text-left py-3 px-4 font-semibold">Descrição</th>
                 <th className="text-left py-3 px-4 font-semibold">Categoria</th>
@@ -71,13 +73,15 @@ export function FinanceiroDespesasTab({
             <tbody>
               {despesas.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-gray-500">
+                  <td colSpan={9} className="py-8 text-center text-gray-500">
                     Nenhuma despesa lançada. Clique em <strong>Nova despesa</strong>.
                   </td>
                 </tr>
               ) : (
                 despesas.map((d) => (
                   <tr key={d.id} className="border-b border-gray-100 dark:border-neutral-700">
+                    <td className="py-3 px-4 whitespace-nowrap">{d.numero_nota || "—"}</td>
+                    <td className="py-3 px-4">{d.fornecedor_nome || "—"}</td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       {d.data_vencimento
                         ? String(d.data_vencimento).slice(0, 10).split("-").reverse().join("/")

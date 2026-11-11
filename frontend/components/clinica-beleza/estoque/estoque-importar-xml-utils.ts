@@ -33,6 +33,25 @@ export function custoTotalConvertido(p: ProdutoPreview): string {
   return (Math.round(unitario * entra * 100) / 100).toFixed(2);
 }
 
+export function textoPagamentoNota(pagamento?: {
+  situacao?: string;
+  parcelas?: { vencimento?: string }[];
+} | null): string {
+  if (!pagamento?.situacao) return "";
+  if (pagamento.situacao === "pago") {
+    return "Despesa: a nota está paga. O financeiro recebe como paga.";
+  }
+  if (pagamento.situacao === "pendente") {
+    const datas = (pagamento.parcelas || [])
+      .map((p) => (p.vencimento || "").slice(0, 10).split("-").reverse().join("/"))
+      .filter((data) => data.length === 10);
+    return datas.length
+      ? `Despesa: pendente, vencimento ${datas.join(", ")}.`
+      : "Despesa: pendente.";
+  }
+  return "A nota não informa o pagamento. Depois de importar, o sistema pergunta se foi paga.";
+}
+
 export function opcoesEntradaEstoque(p: ProdutoPreview): {
   id: "nota" | "conteudo";
   fator: string;

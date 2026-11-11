@@ -220,12 +220,20 @@ def _aplicar_estoque(
                 or primeiro.get("chave")
                 or ""
             )
+            nomes = []
+            for item in produtos:
+                if (item.get("acao") or "").strip() == "ignorar":
+                    continue
+                nome = (item.get("nome") or "").strip()
+                if nome and nome not in nomes:
+                    nomes.append(nome)
             resultado["financeiro"] = publicar_despesa_nfe(
                 loja_id,
                 pagamento or {},
                 numero=numero,
                 fornecedor=fornecedor,
                 chave=chave_nota,
+                nomes=nomes,
             )
         if nota is not None:
             nota.status = NotaEntradaNfe.STATUS_IMPORTADA

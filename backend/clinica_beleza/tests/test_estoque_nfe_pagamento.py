@@ -4,7 +4,13 @@ from decimal import Decimal
 from unittest import TestCase
 from xml.etree import ElementTree as ET
 
-from clinica_beleza.estoque_nfe_pagamento import _data_texto, montar_lancamentos, pagamento_da_nfe
+from clinica_beleza.estoque_nfe_pagamento import (
+    _data_texto,
+    descricao_da_compra,
+    descricao_sem_nota,
+    montar_lancamentos,
+    pagamento_da_nfe,
+)
 
 NS = "http://www.portalfiscal.inf.br/nfe"
 
@@ -70,3 +76,28 @@ class PagamentoNfeTests(TestCase):
     def test_data_em_texto_nao_quebra_a_resposta(self):
         self.assertEqual(_data_texto("2026-11-09"), "2026-11-09")
         self.assertEqual(_data_texto(date(2026, 11, 9)), "2026-11-09")
+
+    def test_descricao_e_o_produto_nao_a_nota(self):
+        self.assertEqual(descricao_da_compra(["VITAMINA D3"]), "VITAMINA D3")
+        self.assertEqual(
+            descricao_sem_nota(
+                "NF 63028 — NEXTPHARMA Farmacia de Manipulacao Ltda",
+                "63028",
+                "NEXTPHARMA Farmacia de Manipulacao Ltda",
+            ),
+            "",
+        )
+        pagamento = pagamento_da_nfe(
+            _nfe("<pag><detPag><indPag>0</indPag><tPag>01</tPag><vPag>378.00</vPag></detPag></pag>"),
+            data_emissao="2026-11-09",
+            valor_total="378.00",
+        )
+        lancamento = montar_lancamentos(
+            pagamento,
+            numero="63028",
+            fornecedor="NEXTPHARMA",
+            chave="",
+            nomes=["VITAMINA D3 (CX COM 10 AMPOLAS 2ML)"],
+        )[0]
+        self.assertEqual(lancamento["descricao"], "VITAMINA D3 (CX COM 10 AMPOLAS 2ML)")
+        self.assertEqual(lancamento["numero_nota"], "63028")

@@ -21,6 +21,33 @@ class DespesaSerializer(serializers.ModelSerializer):
         exclude = ["loja_id"]
         read_only_fields = ["created_at", "updated_at"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        from ..estoque_nfe_pagamento import descricao_sem_nota
+
+        resto = descricao_sem_nota(
+            data.get("descricao") or "",
+            data.get("numero_nota") or "",
+            data.get("fornecedor_nome") or "",
+        )
+        if resto:
+            data["descricao"] = resto
+            return data
+        if not data.get("numero_nota"):
+            return data
+        from ..models.estoque import CompraFornecedorEstoque
+
+        nomes = []
+        compras = CompraFornecedorEstoque.objects.filter(
+            numero_nota=data["numero_nota"],
+        ).select_related("produto").order_by("id")
+        for compra in compras:
+            nome = (getattr(getattr(compra, "produto", None), "nome", "") or "").strip()
+            if nome and nome not in nomes:
+                nomes.append(nome)
+        data["descricao"] = " · ".join(nomes)[:200] if nomes else "Compra de estoque"
+        return data
+
     def validate(self, attrs):
         status = attrs.get("status", getattr(self.instance, "status", None))
         data_pag = attrs.get("data_pagamento", getattr(self.instance, "data_pagamento", None))

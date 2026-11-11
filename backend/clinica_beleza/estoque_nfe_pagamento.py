@@ -96,6 +96,36 @@ def pagamento_da_nfe(inf_nfe, *, data_emissao: str = "", valor_total: str = "0")
     }
 
 
+def descricao_da_compra(nomes: list[str] | None, *, parcela: int = 1, total: int = 1) -> str:
+    """O que foi comprado. Nota e fornecedor ficam nos próprios campos."""
+    vistos: list[str] = []
+    for nome in nomes or []:
+        texto = (nome or "").strip()
+        if texto and texto not in vistos:
+            vistos.append(texto)
+    base = " · ".join(vistos) if vistos else "Compra de estoque"
+    if total > 1:
+        marca = f" · {parcela}/{total}"
+        base = base[: 200 - len(marca)] + marca
+    return base[:200]
+
+
+def descricao_sem_nota(descricao: str, numero: str, fornecedor: str) -> str:
+    """Tira o prefixo NF + fornecedor quando a descrição só repete esses campos."""
+    desc = (descricao or "").strip()
+    nota = (numero or "").strip()
+    forn = (fornecedor or "").strip()
+    if not desc or not nota:
+        return desc
+    prefixo = f"NF {nota} — {forn}".strip(" —")
+    if desc == prefixo:
+        return ""
+    marca = f"{prefixo} · "
+    if desc.startswith(marca):
+        return desc[len(marca):].strip()
+    return desc
+
+
 def montar_lancamentos(
     pagamento: dict,
     *,
@@ -105,6 +135,7 @@ def montar_lancamentos(
     hoje: date | None = None,
     pago: bool | None = None,
     data_vencimento: str = "",
+    nomes: list[str] | None = None,
 ) -> list[dict]:
     """Parcelas prontas para gravar. Lista vazia quando ainda falta a resposta."""
     situacao = pagamento.get("situacao") or "indefinido"
@@ -118,12 +149,11 @@ def montar_lancamentos(
     numero_nota = (numero or "")[:20]
     chave_nfe = "".join(c for c in (chave or "") if c.isdigit())[:44]
     forma = (pagamento.get("forma_pagamento") or "")[:20]
-    base = f"NF {numero_nota} — {fornecedor_nome}".strip(" —")[:200]
 
     if situacao == "pago":
         vencimento = emissao
         return [{
-            "descricao": base[:200],
+            "descricao": descricao_da_compra(nomes),
             "valor": _dinheiro(pagamento.get("valor")),
             "status": "PAID",
             "data_vencimento": vencimento,
@@ -152,7 +182,7 @@ def montar_lancamentos(
         valor = _dinheiro(parcela.get("valor"))
         if valor <= 0:
             continue
-        descricao = base if total == 1 else f"{base} · {indice}/{total}"
+        descricao = descricao_da_compra(nomes, parcela=indice, total=total)
         lancamentos.append({
             "descricao": descricao[:200],
             "valor": valor.quantize(Decimal("0.01")),
@@ -208,6 +238,7 @@ def publicar_despesa_nfe(
     chave: str,
     pago: bool | None = None,
     data_vencimento: str = "",
+    nomes: list[str] | None = None,
 ) -> dict:
     resumo = resumo_pagamento(pagamento, numero=numero, fornecedor=fornecedor, chave=chave)
     lancamentos = montar_lancamentos(
@@ -217,6 +248,7 @@ def publicar_despesa_nfe(
         chave=chave,
         pago=pago,
         data_vencimento=data_vencimento,
+        nomes=nomes,
     )
     if not lancamentos:
         return resumo

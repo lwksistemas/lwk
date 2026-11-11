@@ -38,6 +38,18 @@ export function DespesaFormModal({ open, editing, saving: savingProp, onClose, o
           </button>
         </div>
         <div className="p-4 space-y-4">
+          {(editing?.numero_nota || editing?.fornecedor_nome) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nota</label>
+                <input readOnly value={editing.numero_nota || "—"} className={DESPESA_FORM_INPUT_CLASS} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Fornecedor</label>
+                <input readOnly value={editing.fornecedor_nome || "—"} className={DESPESA_FORM_INPUT_CLASS} />
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Descrição *</label>
             <input

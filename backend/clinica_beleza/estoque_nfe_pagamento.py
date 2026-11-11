@@ -31,6 +31,13 @@ def _dinheiro(valor: str) -> Decimal:
         return Decimal("0")
 
 
+def _data_texto(valor) -> str:
+    """Date do banco ou o texto já gravado no objeto."""
+    if hasattr(valor, "isoformat"):
+        return valor.isoformat()
+    return str(valor or "")[:10]
+
+
 def _data(valor: str) -> str:
     texto = (valor or "")[:10]
     try:
@@ -220,7 +227,7 @@ def publicar_despesa_nfe(
     resumo["precisa_resposta"] = False
     resumo["situacao"] = "pago" if gravadas[0].status == "PAID" else "pendente"
     resumo["parcelas"] = [
-        {"vencimento": item.data_vencimento.isoformat(), "valor": str(item.valor), "numero": str(item.parcela)}
+        {"vencimento": _data_texto(item.data_vencimento), "valor": str(item.valor), "numero": str(item.parcela)}
         for item in gravadas
     ]
     return resumo

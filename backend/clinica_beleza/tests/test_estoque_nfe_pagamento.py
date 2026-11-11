@@ -4,7 +4,7 @@ from decimal import Decimal
 from unittest import TestCase
 from xml.etree import ElementTree as ET
 
-from clinica_beleza.estoque_nfe_pagamento import montar_lancamentos, pagamento_da_nfe
+from clinica_beleza.estoque_nfe_pagamento import _data_texto, montar_lancamentos, pagamento_da_nfe
 
 NS = "http://www.portalfiscal.inf.br/nfe"
 
@@ -66,3 +66,7 @@ class PagamentoNfeTests(TestCase):
             pagamento, numero="1", fornecedor="X", chave="", pago=True, hoje=date(2026, 11, 11),
         )
         self.assertEqual(pago[0]["status"], "PAID")
+
+    def test_data_em_texto_nao_quebra_a_resposta(self):
+        self.assertEqual(_data_texto("2026-11-09"), "2026-11-09")
+        self.assertEqual(_data_texto(date(2026, 11, 9)), "2026-11-09")

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchCrmPaginatedPage, getCrmApiErrorDetail } from '@/lib/crm-utils';
 
 export const DEFAULT_PAGE_SIZE = 50;
@@ -38,10 +38,20 @@ export function usePaginatedList<T>(
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const pedido = useRef(0);
 
   useEffect(() => {
     setPage(1);
   }, [paramsKey, path]);
+
+  const aplicarPagina = useCallback((data: { results: T[]; count: number; totalPages: number }) => {
+    pedido.current += 1;
+    setItems(data.results);
+    setTotalCount(data.count);
+    setTotalPages(data.totalPages);
+    setError(null);
+    setLoading(false);
+  }, []);
 
   const reload = useCallback(
     async (
@@ -52,6 +62,7 @@ export function usePaginatedList<T>(
       },
     ) => {
       if (!enabled) return;
+      const id = ++pedido.current;
       if (!silent) setLoading(true);
       try {
         const pageToLoad = overrides?.page ?? page;
@@ -66,14 +77,16 @@ export function usePaginatedList<T>(
           paramsToLoad = cleaned;
         }
         const data = await fetchCrmPaginatedPage<T>(path, pageToLoad, pageSize, paramsToLoad);
+        if (id !== pedido.current) return;
         setItems(data.results);
         setTotalCount(data.count);
         setTotalPages(data.totalPages);
         setError(null);
       } catch (err) {
+        if (id !== pedido.current) return;
         setError(getCrmApiErrorDetail(err, options?.errorFallback ?? 'Erro ao carregar lista.'));
       } finally {
-        if (!silent) setLoading(false);
+        if (id === pedido.current && !silent) setLoading(false);
       }
     },
     [path, page, pageSize, queryParams, enabled, options?.errorFallback],
@@ -95,5 +108,6 @@ export function usePaginatedList<T>(
     error,
     setError,
     reload,
+    aplicarPagina,
   };
 }

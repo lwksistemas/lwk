@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState, type MouseEvent } from 'react';
 import apiClient from '@/lib/api-client';
-import { fetchCrmPaginatedPage, getCrmApiErrorDetail } from '@/lib/crm-utils';
-import { usePaginatedList, DEFAULT_PAGE_SIZE } from '@/hooks/usePaginatedList';
+import { getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useNfseQueuedPolling } from '@/hooks/useNfseQueuedPolling';
 import { useWhatsappEnvioFlags } from '@/hooks/useWhatsappEnvioFlags';
 import { useToast } from '@/components/ui/Toast';
@@ -11,6 +11,7 @@ import { telefoneInternacionalBr } from '@/lib/format-br';
 import {
   blobFromApiData,
   downloadBlobFile,
+  mensagemEmissaoNota,
   nfseIdentificador,
   nfseSyncEndpoint,
   nfUsaIssnet,
@@ -65,9 +66,14 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
   const [syncMsg, setSyncMsg] = useState<NfseSyncMessage>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [nfWhatsapp, setNfWhatsapp] = useState<NFSe | null>(null);
-  const [emissaoPolling, setEmissaoPolling] = useState<{ active: boolean; countBefore: number }>({
+  const [emissaoPolling, setEmissaoPolling] = useState<{
+    active: boolean;
+    idsAntes: number[];
+    capturarBase: boolean;
+  }>({
     active: false,
-    countBefore: 0,
+    idsAntes: [],
+    capturarBase: false,
   });
   const [confirmAction, setConfirmAction] = useState<NfseConfirmAction | null>(null);
   const [confirmando, setConfirmando] = useState(false);
@@ -89,6 +95,7 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
     pageSize,
     loading,
     reload: carregarNFSes,
+    aplicarPagina,
   } = usePaginatedList<NFSe>('/nfse/', {
     params: {
       status: filtroStatus || undefined,
@@ -96,47 +103,35 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
     },
   });
 
-  // O próprio useNfseQueuedPolling já consulta /nfse/; não disparar carregarNFSes aqui
-  // (evita GET duplicado a cada intervalo e tempestade de requests).
-  const handlePollingTick = useCallback(() => {}, []);
+  const pararEmissao = useCallback(() => {
+    setEmissaoPolling({ active: false, idsAntes: [], capturarBase: false });
+  }, []);
 
-  const handlePollingFound = useCallback(async () => {
-    setEmissaoPolling({ active: false, countBefore: 0 });
-    await carregarNFSes(true);
-    try {
-      const data = await fetchCrmPaginatedPage<NFSe>('/nfse/', 1, DEFAULT_PAGE_SIZE, {});
-      const newest = data.results[0];
-      if (newest?.status === 'erro' && newest.erro) {
-        setSyncMsg({ type: 'err', text: `Falha na emissão: ${newest.erro}` });
-        return;
-      }
-      if (newest?.status === 'emitida' && newest.numero_nf) {
-        setSyncMsg({ type: 'ok', text: `NFS-e ${newest.numero_nf} emitida com sucesso.` });
-        return;
-      }
-    } catch {
-      // mantém mensagem genérica abaixo
-    }
-    setSyncMsg({ type: 'ok', text: 'Emissão processada. Verifique o status da nota na lista.' });
-  }, [carregarNFSes]);
+  const aoAtualizarLista = useCallback((data: { results: NFSe[]; count: number; totalPages: number }) => {
+    aplicarPagina(data);
+  }, [aplicarPagina]);
+
+  const aoResolverEmissao = useCallback((nota: NFSe) => {
+    pararEmissao();
+    const aviso = mensagemEmissaoNota(nota);
+    setSyncMsg(aviso);
+  }, [pararEmissao]);
 
   const handlePollingTimeout = useCallback(() => {
-    setEmissaoPolling({ active: false, countBefore: 0 });
-    void carregarNFSes(false);
+    pararEmissao();
     setSyncMsg({
       type: 'info',
-      text: 'Ainda processando a emissão. A lista foi atualizada — se a nota não aparecer, aguarde alguns segundos e atualize (F5).',
+      text: 'A emissão ainda está em andamento. A lista já foi atualizada.',
     });
-  }, [carregarNFSes]);
+  }, [pararEmissao]);
 
-  useNfseQueuedPolling({
+  useNfseQueuedPolling<NFSe>({
     active: emissaoPolling.active,
-    countBefore: emissaoPolling.countBefore,
+    idsAntes: emissaoPolling.idsAntes,
+    capturarBase: emissaoPolling.capturarBase,
     queryParams: {},
-    onTick: handlePollingTick,
-    onFound: () => {
-      void handlePollingFound();
-    },
+    onPage: aoAtualizarLista,
+    onResolved: aoResolverEmissao,
     onTimeout: handlePollingTimeout,
   });
 
@@ -346,16 +341,20 @@ export function useNfseLojaPage(lojaProvedor: string | undefined | null) {
 
   const handleEmitirSuccess = (result: NfseEmissaoResult) => {
     setShowModal(false);
-    const countBefore = totalCount;
+    const listaConfiavel = !filtroStatus && !busca && page === 1;
     setFiltroStatus('');
     setBusca('');
     setBuscaDebounced('');
     setPage(1);
     if (result.queued) {
-      setEmissaoPolling({ active: true, countBefore });
+      setEmissaoPolling({
+        active: true,
+        idsAntes: listaConfiavel ? nfses.map((nota) => nota.id) : [],
+        capturarBase: !listaConfiavel,
+      });
       setSyncMsg({ type: 'info', text: result.message });
     } else {
-      setEmissaoPolling({ active: false, countBefore: 0 });
+      setEmissaoPolling({ active: false, idsAntes: [], capturarBase: false });
       setSyncMsg({ type: 'ok', text: result.message });
     }
     void carregarNFSes(false, { page: 1, params: {} });

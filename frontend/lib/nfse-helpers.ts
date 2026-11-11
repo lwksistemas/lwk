@@ -207,6 +207,40 @@ export type NfseEmissaoResult = {
   message: string;
 };
 
+export type NotaListaEmissao = {
+  id: number;
+  status: string;
+  numero_nf?: string;
+  erro?: string;
+};
+
+/** Nota que ainda não estava na lista quando a emissão começou. */
+export function notaRecemEmitida<T extends NotaListaEmissao>(resultados: T[], idsAntes: number[]): T | null {
+  const conhecidos = new Set(idsAntes);
+  const novas = resultados.filter((nota) => !conhecidos.has(nota.id));
+  if (novas.length === 0) return null;
+  return novas.reduce((atual, nota) => (nota.id > atual.id ? nota : atual));
+}
+
+export function emissaoConcluida(nota: NotaListaEmissao): boolean {
+  if (nota.status === 'erro' || nota.status === 'cancelada') return true;
+  const numero = (nota.numero_nf || '').trim();
+  return nota.status === 'emitida' && numero.length > 0 && !numero.startsWith('FALHA');
+}
+
+export function mensagemEmissaoNota(nota: NotaListaEmissao): { type: 'ok' | 'err'; text: string } {
+  if (nota.status === 'erro') {
+    return {
+      type: 'err',
+      text: nota.erro ? `Falha na emissão: ${nota.erro}` : 'A emissão falhou. A nota está na lista.',
+    };
+  }
+  if (nota.status === 'emitida' && (nota.numero_nf || '').trim()) {
+    return { type: 'ok', text: `NFS-e ${nota.numero_nf} emitida com sucesso.` };
+  }
+  return { type: 'ok', text: 'A nota entrou na lista.' };
+}
+
 /** Interpreta resposta de POST /nfse/emitir/ (201 imediato ou 202 enfileirado). */
 export function parseNfseEmissaoResult(status: number, data: NfseEmitirResponse): NfseEmissaoResult {
   const queued = Boolean(data.queued) || status === 202;

@@ -3,8 +3,15 @@
 import { useEffect } from 'react';
 import { fetchCrmPaginatedPage } from '@/lib/crm-utils';
 import { DEFAULT_PAGE_SIZE } from '@/hooks/usePaginatedList';
+import { emissaoConcluida, notaRecemEmitida, type NotaListaEmissao } from '@/lib/nfse-helpers';
 
 type QueryParams = Record<string, string | number | undefined | null>;
+
+export type PaginaNfse<T> = {
+  results: T[];
+  count: number;
+  totalPages: number;
+};
 
 function cleanQueryParams(params: QueryParams): Record<string, string | number> {
   const cleaned: Record<string, string | number> = {};
@@ -17,22 +24,24 @@ function cleanQueryParams(params: QueryParams): Record<string, string | number> 
 }
 
 /** Atualiza a lista enquanto aguarda o worker concluir emissão enfileirada (202). */
-export function useNfseQueuedPolling(options: {
+export function useNfseQueuedPolling<T extends NotaListaEmissao>(options: {
   active: boolean;
-  countBefore: number;
+  idsAntes: number[];
+  capturarBase: boolean;
   queryParams: QueryParams;
-  onTick: () => void;
-  onFound: () => void;
+  onPage: (data: PaginaNfse<T>) => void;
+  onResolved: (nota: T) => void;
   onTimeout: () => void;
   intervalMs?: number;
   maxAttempts?: number;
 }) {
   const {
     active,
-    countBefore,
+    idsAntes,
+    capturarBase,
     queryParams,
-    onTick,
-    onFound,
+    onPage,
+    onResolved,
     onTimeout,
     intervalMs = 4000,
     // ISSNet/nacional pode demorar > 1 min; ~4 min de polling
@@ -40,23 +49,32 @@ export function useNfseQueuedPolling(options: {
   } = options;
 
   const paramsKey = JSON.stringify(queryParams);
+  const idsKey = idsAntes.join(',');
 
   useEffect(() => {
     if (!active) return;
 
     let attempts = 0;
     let cancelled = false;
+    let basePendente = capturarBase;
+    let conhecidos = idsAntes;
     const cleaned = cleanQueryParams(queryParams);
 
     const tick = async () => {
-      if (cancelled) return;
+      if (cancelled) return false;
       attempts++;
-      onTick();
       try {
-        const data = await fetchCrmPaginatedPage('/nfse/', 1, DEFAULT_PAGE_SIZE, cleaned);
-        if (cancelled) return;
-        if (data.count > countBefore) {
-          onFound();
+        const data = await fetchCrmPaginatedPage<T>('/nfse/', 1, DEFAULT_PAGE_SIZE, cleaned);
+        if (cancelled) return false;
+        onPage({ results: data.results, count: data.count, totalPages: data.totalPages });
+        if (basePendente) {
+          conhecidos = data.results.map((nota) => nota.id);
+          basePendente = false;
+          return false;
+        }
+        const nota = notaRecemEmitida(data.results, conhecidos);
+        if (nota && emissaoConcluida(nota)) {
+          onResolved(nota);
           return true;
         }
       } catch {
@@ -72,7 +90,6 @@ export function useNfseQueuedPolling(options: {
     let timer: ReturnType<typeof setInterval> | null = null;
 
     void (async () => {
-      // Primeira checagem imediata (não espera o intervalo)
       const done = await tick();
       if (done || cancelled) return;
       timer = setInterval(() => {
@@ -87,5 +104,5 @@ export function useNfseQueuedPolling(options: {
       if (timer) clearInterval(timer);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, countBefore, paramsKey, intervalMs, maxAttempts, onTick, onFound, onTimeout]);
+  }, [active, idsKey, capturarBase, paramsKey, intervalMs, maxAttempts, onPage, onResolved, onTimeout]);
 }

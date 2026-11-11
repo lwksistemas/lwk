@@ -12,6 +12,7 @@ from clinica_beleza.venda_produto_service import (
     linha_recibo,
     nome_exibicao_venda,
     fechamento_automatico,
+    gravar_quem_recebeu,
     nome_operador_caixa,
     usuario_pode_fechar_caixa,
     nome_operador_pagamento,
@@ -53,6 +54,46 @@ class OperadorCaixaFinanceiroTest(unittest.TestCase):
         self.assertEqual(nome_operador_pagamento(atendimento), "LUIZ HENRIQUE FELIX")
         sem_caixa = SimpleNamespace(venda_balcao=None, operador_nome="")
         self.assertEqual(nome_operador_pagamento(sem_caixa), "")
+
+
+class QuemRecebeuTest(unittest.TestCase):
+    def _pagamento(self, nome=""):
+        saved = {}
+
+        class Pagamento:
+            operador_nome = nome
+            operador_id = None
+
+            def save(self, update_fields=None):
+                saved["nome"] = self.operador_nome
+                saved["id"] = self.operador_id
+
+        return Pagamento(), saved
+
+    def test_consulta_grava_o_profissional(self):
+        pagamento, saved = self._pagamento()
+        consulta = SimpleNamespace(professional=SimpleNamespace(pk=4, nome="NAYARA"), professional_id=4)
+        gravar_quem_recebeu(pagamento, origem="consulta", consulta=consulta, usuario=None)
+        self.assertEqual(saved["nome"], "NAYARA")
+        self.assertEqual(saved["id"], 4)
+
+    def test_financeiro_grava_quem_confirmou(self):
+        pagamento, saved = self._pagamento()
+        usuario = SimpleNamespace(
+            is_authenticated=True, pk=9, username="admin", get_full_name=lambda: "LUIZ HENRIQUE FELIX",
+        )
+        gravar_quem_recebeu(pagamento, origem="financeiro", consulta=None, usuario=usuario)
+        self.assertEqual(saved["nome"], "LUIZ HENRIQUE FELIX")
+        self.assertEqual(saved["id"], 9)
+
+    def test_nao_troca_nome_ja_gravado(self):
+        pagamento, saved = self._pagamento("CAIXA")
+        usuario = SimpleNamespace(
+            is_authenticated=True, pk=9, username="admin", get_full_name=lambda: "LUIZ HENRIQUE FELIX",
+        )
+        gravar_quem_recebeu(pagamento, origem="financeiro", consulta=None, usuario=usuario)
+        self.assertEqual(saved, {})
+        self.assertEqual(pagamento.operador_nome, "CAIXA")
 
 
 class FecharCaixaDoOperadorTest(unittest.TestCase):

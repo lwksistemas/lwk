@@ -121,9 +121,9 @@ export function FinanceiroReceitasTab({
             value={operadorFilter}
             onChange={(e) => onOperadorFilterChange(e.target.value)}
             className={campo}
-            aria-label="Operador do caixa"
+            aria-label="Recebido por"
           >
-            <option value="">Todos os operadores</option>
+            <option value="">Todos que receberam</option>
             {operadoresLista.map((nome) => (
               <option key={nome} value={nome}>{nome}</option>
             ))}
@@ -179,7 +179,7 @@ export function FinanceiroReceitasTab({
               <tr>
                 <th className="text-left py-3 px-4 font-semibold">Cliente</th>
                 <th className="text-left py-3 px-4 font-semibold">Profissional</th>
-                {mostrarOperador && <th className="text-left py-3 px-4 font-semibold">Operador</th>}
+                {mostrarOperador && <th className="text-left py-3 px-4 font-semibold">Recebido por</th>}
                 <th className="text-left py-3 px-4 font-semibold">Procedimentos</th>
                 <th className="text-right py-3 px-4 font-semibold">Valor</th>
                 <th className="text-left py-3 px-4 font-semibold">Pagamento</th>

@@ -143,6 +143,7 @@ export function ProntuarioPageContent() {
         <ModalReceberConsulta
           open
           consulta={receberConsulta}
+          origem="consulta"
           onClose={fecharReceber}
           onSuccess={(c) => void aposRecebimento(c)}
         />

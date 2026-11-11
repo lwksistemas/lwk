@@ -174,6 +174,7 @@ export function FinanceiroPageContent() {
         <ModalReceberConsulta
           open
           consulta={receberConsulta}
+          origem="financeiro"
           onClose={() => setReceberConsulta(null)}
           onSuccess={(c) => setReceberConsulta((prev) => (prev ? { ...prev, ...c } : prev))}
         />

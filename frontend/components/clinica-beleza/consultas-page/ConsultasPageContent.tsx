@@ -291,6 +291,7 @@ function ConsultasPageWorkspace({ slug }: { slug: string }) {
         <ModalReceberConsulta
           open
           consulta={receberConsulta}
+          origem="consulta"
           onClose={() => setReceberConsulta(null)}
           onSuccess={(c) => void aposRecebimentoLista(c)}
         />

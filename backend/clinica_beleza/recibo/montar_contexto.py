@@ -18,6 +18,14 @@ from .protocolo_recibo import _dados_protocolo_recibo
 from .quando_recibo import _agora_recibo, _formatar_data_recibo
 
 logger = logging.getLogger(__name__)
+
+
+def _nome_de_quem_recebeu(payment) -> str:
+    from clinica_beleza.venda_produto_service import nome_operador_pagamento
+
+    return nome_operador_pagamento(payment)
+
+
 def _dados_assinatura_recibo(payment) -> dict | None:
     """Se o recibo já foi assinado pelo cliente, retorna os dados da assinatura
     (para o PDF exibir a seção de assinatura em qualquer canal: email/WhatsApp/download).
@@ -126,7 +134,7 @@ def _obter_dados_contexto(payment, patient, appointment) -> dict:
         "paciente_email": (getattr(patient, "email", "") or "").strip(),
         "paciente_telefone": telefone_exibicao_brasileiro(getattr(patient, "telefone", "") or ""),
         "profissional_nome": getattr(professional, "nome", "") if professional else "",
-        "operador_nome": (getattr(getattr(payment, "venda_balcao", None), "operador_nome", "") or "").strip(),
+        "operador_nome": _nome_de_quem_recebeu(payment),
         "caixa_nome": (getattr(getattr(getattr(payment, "venda_balcao", None), "sessao", None), "nome", "") or "").strip(),
         "procedimentos": procs,
         "produtos": produtos,

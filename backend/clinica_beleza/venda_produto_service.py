@@ -233,6 +233,40 @@ def gravar_operador_do_caixa(payment) -> None:
     payment.save(update_fields=["operador_nome", "operador_id", "updated_at"])
 
 
+def _nome_profissional(consulta) -> tuple[int | None, str]:
+    if consulta is None:
+        return None, ""
+    prof = getattr(consulta, "professional", None)
+    if prof is None and getattr(consulta, "professional_id", None):
+        from .models import Professional
+
+        prof = Professional.objects.filter(pk=consulta.professional_id).only("nome").first()
+    if prof is None:
+        return None, ""
+    return getattr(prof, "pk", None), (getattr(prof, "nome", "") or "").strip()
+
+
+def gravar_quem_recebeu(payment, *, origem: str = "", consulta=None, usuario=None) -> None:
+    """PDV grava o caixa. Consulta grava o profissional. Financeiro grava quem confirmou."""
+    if payment is None or (getattr(payment, "operador_nome", "") or "").strip():
+        return
+    if (origem or "").strip().lower() == "pdv":
+        gravar_operador_do_caixa(payment)
+        return
+    if (origem or "").strip().lower() == "financeiro":
+        pessoa_id, nome = _nome_usuario(usuario)
+    else:
+        pessoa_id, nome = _nome_profissional(consulta)
+        if not nome:
+            pessoa_id, nome = _nome_usuario(usuario)
+    nome = (nome or "").strip()
+    if not nome:
+        return
+    payment.operador_nome = nome[:150]
+    payment.operador_id = pessoa_id
+    payment.save(update_fields=["operador_nome", "operador_id", "updated_at"])
+
+
 def fechamento_automatico(aberta_em, agora):
     """23:59 do dia da abertura, depois que esse dia já acabou."""
     from datetime import datetime, time

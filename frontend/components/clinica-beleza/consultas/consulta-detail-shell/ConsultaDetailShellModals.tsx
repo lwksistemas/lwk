@@ -17,6 +17,7 @@ export function ConsultaDetailShellModals({ selected, actions }: ConsultaDetailS
       <ModalReceberConsulta
         open={actions.showReceberModal}
         consulta={selected}
+        origem="consulta"
         onClose={() => actions.setShowReceberModal(false)}
         onSuccess={(c) => void actions.aposRecebimento(c)}
       />

@@ -396,7 +396,9 @@ def _anexar_reconhecimento(produtos: list[dict]) -> None:
     from .models import ProdutoEstoque, VinculoProdutoFornecedor
 
     catalogo = list(ProdutoEstoque.objects.filter(is_active=True).values("id", "nome", "unidade_medida", "exige_lote"))
-    vinculos = list(VinculoProdutoFornecedor.objects.values("produto_id", "documento", "codigo", "gtin", "fator"))
+    vinculos = list(
+        VinculoProdutoFornecedor.objects.values("produto_id", "documento", "codigo", "gtin", "fator", "uso_consumo"),
+    )
     for item in produtos:
         sugestao = classificar_item(
             {
@@ -470,7 +472,7 @@ def _depois_da_entrada(item: dict, produto, fator: Decimal, quantidade: Decimal,
     registrar_entrada_lote(produto, item, quantidade, validade)
 
 
-def _lembrar_fornecedor(item: dict, produto, fator: Decimal, custo: Decimal) -> None:
+def _lembrar_fornecedor(item: dict, produto, fator: Decimal, custo: Decimal, *, uso_consumo: bool = False) -> None:
     import re
 
     from .estoque_nfe_vinculo import gtin_util
@@ -487,11 +489,12 @@ def _lembrar_fornecedor(item: dict, produto, fator: Decimal, custo: Decimal) -> 
         documento=documento,
         codigo=codigo,
         defaults={
-            "produto": produto,
+            "produto": None if uso_consumo else produto,
             "gtin": gtin[:14],
             "fator": fator,
             "preco": custo,
             "nome_no_fornecedor": (item.get("nome") or "")[:200],
+            "uso_consumo": uso_consumo,
         },
     )
 
@@ -530,6 +533,7 @@ def confirmar_importacao_xml(
     criados = 0
     atualizados = 0
     ignorados = 0
+    consumos = 0
     novos_da_nota: dict[str, ProdutoEstoque] = {}
 
     with tenant_atomic():
@@ -539,8 +543,18 @@ def confirmar_importacao_xml(
             if acao == "ignorar":
                 ignorados += 1
                 continue
+            if acao == "consumo":
+                _lembrar_fornecedor(
+                    item,
+                    None,
+                    Decimal("1"),
+                    Decimal(str(item.get("preco_custo") or "0")),
+                    uso_consumo=True,
+                )
+                consumos += 1
+                continue
             if decisao_pendente(acao, item.get("produto_id")):
-                raise ValueError(f'Confirme "{nome}" antes de lançar: vincular, cadastrar ou ignorar.')
+                raise ValueError(f'Confirme "{nome}" antes de lançar: vincular, cadastrar, uso e consumo ou ignorar.')
 
             fator = _fator_item(item)
             quantidade = quantidade_estoque(Decimal(str(item.get("quantidade") or "0")), fator)
@@ -608,7 +622,7 @@ def confirmar_importacao_xml(
                 novos_da_nota[chave_novo] = produto_novo
             criados += 1
 
-    return {"criados": criados, "atualizados": atualizados, "ignorados": ignorados, "erros": []}
+    return {"criados": criados, "atualizados": atualizados, "ignorados": ignorados, "consumos": consumos, "erros": []}
 
 
 def _somar_entrada(produto, quantidade: Decimal, custo: Decimal, validade, lote: str, numero_nota: str, cat) -> None:

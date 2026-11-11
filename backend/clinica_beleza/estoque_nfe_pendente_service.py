@@ -204,7 +204,7 @@ def _aplicar_estoque(
         elif chave and nota_importada(chave):
             raise ValueError(MSG_JA_IMPORTADA)
         resultado = confirmar_importacao_xml(produtos, loja_id=loja_id, usuario=usuario)
-        if resultado["criados"] + resultado["atualizados"] > 0:
+        if resultado["criados"] + resultado["atualizados"] + resultado.get("consumos", 0) > 0:
             from .estoque_nfe_pagamento import publicar_despesa_nfe
 
             primeiro = produtos[0] if produtos else {}

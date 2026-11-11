@@ -146,13 +146,13 @@ def chave_item_identico(item: dict) -> str:
 
 
 def decisao_pendente(acao: str, produto_id) -> bool:
-    if acao not in ("vincular", "novo", "ignorar"):
+    if acao not in ("vincular", "novo", "ignorar", "consumo"):
         return True
     return acao == "vincular" and not produto_id
 
 
 def rastreio_obrigatorio_faltando(exige: bool, acao: str, lote: str, validade) -> bool:
-    if not exige or (acao or "") == "ignorar":
+    if not exige or (acao or "") in ("ignorar", "consumo"):
         return False
     return not (lote or "").strip() or not validade
 
@@ -200,10 +200,22 @@ def classificar_item(item: dict, produtos: list[dict], vinculos: list[dict]) -> 
             "candidatos": candidatos if candidatos is not None else ([_cand(escolhido)] if escolhido else []),
         }
 
+    if doc and codigo:
+        for vinculo in vinculos:
+            if vinculo.get("documento") == doc and vinculo.get("codigo") == codigo and vinculo.get("uso_consumo"):
+                return resposta("consumo", "alta", None, alerta="Uso e consumo. Não entra no estoque.")
+
+    if gtin:
+        for vinculo in vinculos:
+            if gtin_util(vinculo.get("gtin") or "") == gtin and vinculo.get("uso_consumo"):
+                return resposta("consumo", "alta", None, alerta="Uso e consumo. Não entra no estoque.")
+
     por_codigo = None
     fator_codigo = None
     if doc and codigo:
         for vinculo in vinculos:
+            if vinculo.get("uso_consumo"):
+                continue
             if vinculo.get("documento") == doc and vinculo.get("codigo") == codigo:
                 encontrado = _produto(produtos, vinculo.get("produto_id"))
                 if encontrado:
@@ -214,6 +226,8 @@ def classificar_item(item: dict, produtos: list[dict], vinculos: list[dict]) -> 
     por_gtin = None
     if gtin:
         for vinculo in vinculos:
+            if vinculo.get("uso_consumo"):
+                continue
             if gtin_util(vinculo.get("gtin") or "") == gtin:
                 encontrado = _produto(produtos, vinculo.get("produto_id"))
                 if encontrado:

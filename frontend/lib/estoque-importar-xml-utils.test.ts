@@ -30,6 +30,7 @@ describe("formatImportResultSummary", () => {
   it("resume criados e atualizados", () => {
     expect(formatImportResultSummary(2, 1)).toBe("2 novos · 1 atualizado (estoque somado)");
     expect(formatImportResultSummary(1, 0)).toBe("1 novo");
+    expect(formatImportResultSummary(0, 0, 0, 2)).toBe("2 uso e consumo");
   });
 });
 
@@ -61,6 +62,7 @@ describe("hasEstoqueImportChanges", () => {
   it("detecta alterações", () => {
     expect(hasEstoqueImportChanges({ criados: 0, atualizados: 0, erros: [], nota: { numero: "", fornecedor: "", data_emissao: "" } })).toBe(false);
     expect(hasEstoqueImportChanges({ criados: 1, atualizados: 0, erros: [], nota: { numero: "", fornecedor: "", data_emissao: "" } })).toBe(true);
+    expect(hasEstoqueImportChanges({ criados: 0, atualizados: 0, consumos: 1, erros: [], nota: { numero: "", fornecedor: "", data_emissao: "" } })).toBe(true);
   });
 });
 
@@ -108,6 +110,10 @@ describe("conferência da NF-e", () => {
     ]);
     expect(resumo).toMatchObject({ vinculados: 1, novos: 1, ignorados: 1, pendentes: 1, pendentesNumeros: [4] });
     expect(textoResumoConferencia(resumo)).toBe("1 vinculado · 1 novo · 1 ignorado");
+    expect(itemPrecisaConfirmacao({ ...base, acao: "consumo" })).toBe(false);
+    const comConsumo = resumoConferencia([{ ...base, acao: "consumo" }]);
+    expect(comConsumo.consumos).toBe(1);
+    expect(textoResumoConferencia(comConsumo)).toContain("1 uso e consumo");
     expect(textoItensPendentes(resumo.pendentesNumeros)).toBe("Falta confirmar o item 4.");
     expect(juntarNumerosNota([35, 45, 98])).toBe("35, 45 e 98");
     expect(textoItensPendentes([35, 45, 98])).toBe("Falta confirmar os itens 35, 45 e 98.");

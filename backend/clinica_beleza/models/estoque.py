@@ -299,13 +299,16 @@ class NotaEntradaNfe(LojaIsolationMixin, models.Model):
 
 
 class VinculoProdutoFornecedor(LojaIsolationMixin, models.Model):
-    """Código e preço de um fornecedor para um produto já existente no estoque."""
+    """Código do fornecedor. Sem produto, a compra é uso e consumo e não entra no estoque."""
 
     produto = models.ForeignKey(
         ProdutoEstoque,
         on_delete=models.CASCADE,
         related_name="vinculos_fornecedor",
+        null=True,
+        blank=True,
     )
+    uso_consumo = models.BooleanField(default=False, verbose_name="Uso e consumo")
     documento = models.CharField(max_length=20, verbose_name="CPF/CNPJ do fornecedor")
     codigo = models.CharField(max_length=60, verbose_name="Código na NF do fornecedor")
     gtin = models.CharField(max_length=14, blank=True, default="", verbose_name="GTIN/EAN")

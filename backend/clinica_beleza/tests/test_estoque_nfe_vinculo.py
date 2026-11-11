@@ -291,6 +291,16 @@ class CustoEIdentidadeTests(TestCase):
         self.assertTrue(decisao_pendente("vincular", None))
         self.assertFalse(decisao_pendente("novo", None))
         self.assertFalse(decisao_pendente("ignorar", None))
+        self.assertFalse(decisao_pendente("consumo", None))
+
+    def test_uso_consumo_nao_vira_estoque(self):
+        item = classificar_item(
+            {"nome": "CAFE TORRADO 500G", "codigo": "CF-1", "gtin": "", "documento": "111", "fator": Decimal("1")},
+            [{"id": 3, "nome": "CAFE"}],
+            [{"produto_id": None, "documento": "111", "codigo": "CF-1", "gtin": "", "fator": "1", "uso_consumo": True}],
+        )
+        self.assertEqual(item["acao"], "consumo")
+        self.assertIsNone(item["produto_id"])
 
     def test_nome_comercial_entra_no_estoque(self):
         self.assertEqual(

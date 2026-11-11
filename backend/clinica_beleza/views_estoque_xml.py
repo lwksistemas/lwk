@@ -60,6 +60,12 @@ def _usuario_da_requisicao(request) -> str:
     return (nome or getattr(user, "username", "") or "")[:80]
 
 
+def _nota_teve_lancamento(result: dict) -> bool:
+    return (
+        result.get("criados", 0) + result.get("atualizados", 0) + result.get("ignorados", 0) + result.get("consumos", 0)
+    ) > 0
+
+
 def _sincronizar_unidade_escolhida(item: dict) -> None:
     """Fator 1 mantém a unidade da nota. Caixa convertida entra na unidade do conteúdo."""
     from decimal import Decimal, InvalidOperation
@@ -193,7 +199,7 @@ class EstoqueImportarXmlView(APIView):
 
         return Response(
             response_data,
-            status=status.HTTP_201_CREATED if (result["criados"] + result["atualizados"] + result.get("ignorados", 0)) > 0 else status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_201_CREATED if _nota_teve_lancamento(result) else status.HTTP_400_BAD_REQUEST,
         )
 
 
@@ -271,7 +277,7 @@ class EstoqueNfePendenteConfirmarView(APIView):
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(
             result,
-            status=status.HTTP_201_CREATED if (result["criados"] + result["atualizados"] + result.get("ignorados", 0)) > 0 else status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_201_CREATED if _nota_teve_lancamento(result) else status.HTTP_400_BAD_REQUEST,
         )
 
 

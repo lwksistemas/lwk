@@ -1,6 +1,6 @@
 import type { EstoqueCategoria } from "@/components/clinica-beleza/estoque/estoque-types";
 
-export type AcaoImportacaoXml = "" | "vincular" | "novo" | "ignorar";
+export type AcaoImportacaoXml = "" | "vincular" | "novo" | "ignorar" | "consumo";
 
 export interface CandidatoProdutoXml {
   id: number;
@@ -72,6 +72,7 @@ export interface ImportResult {
   criados: number;
   atualizados: number;
   ignorados?: number;
+  consumos?: number;
   erros: { nome: string; erros: Record<string, string[]> }[];
   nota: { numero: string; fornecedor: string; data_emissao: string };
   aviso_destinatario?: string;

@@ -9,12 +9,13 @@ export function formatXmlFileSizeKb(sizeBytes: number): string {
   return `${(sizeBytes / 1024).toFixed(0)} KB`;
 }
 
-export function formatImportResultSummary(criados: number, atualizados: number, ignorados = 0): string {
+export function formatImportResultSummary(criados: number, atualizados: number, ignorados = 0, consumos = 0): string {
   const parts: string[] = [];
   if (criados > 0) parts.push(`${criados} novo${criados !== 1 ? "s" : ""}`);
   if (atualizados > 0) {
     parts.push(`${atualizados} atualizado${atualizados !== 1 ? "s" : ""} (estoque somado)`);
   }
+  if (consumos > 0) parts.push(`${consumos} uso e consumo`);
   if (ignorados > 0) parts.push(`${ignorados} ignorado${ignorados !== 1 ? "s" : ""}`);
   return parts.join(" · ") || "Nenhum item lançado";
 }
@@ -90,9 +91,9 @@ export function quantidadeEntrada(p: ProdutoPreview): string {
 }
 
 export function itemPrecisaConfirmacao(p: ProdutoPreview): boolean {
-  if (p.acao !== "vincular" && p.acao !== "novo" && p.acao !== "ignorar") return true;
+  if (p.acao !== "vincular" && p.acao !== "novo" && p.acao !== "ignorar" && p.acao !== "consumo") return true;
   if (p.acao === "vincular" && !p.produto_id) return true;
-  if (p.exige_lote && p.acao !== "ignorar") {
+  if (p.exige_lote && p.acao !== "ignorar" && p.acao !== "consumo") {
     if (!(p.lote || "").trim() || !(p.validade || "").trim()) return true;
   }
   return false;
@@ -120,6 +121,7 @@ export function resumoConferencia(produtos: ProdutoPreview[]) {
   let vinculados = 0;
   let novos = 0;
   let ignorados = 0;
+  let consumos = 0;
   const pendentesNumeros: number[] = [];
   produtos.forEach((p, indice) => {
     if (itemPrecisaConfirmacao(p)) {
@@ -128,22 +130,26 @@ export function resumoConferencia(produtos: ProdutoPreview[]) {
     }
     if (p.acao === "vincular") vinculados += 1;
     else if (p.acao === "novo") novos += 1;
+    else if (p.acao === "consumo") consumos += 1;
     else ignorados += 1;
   });
-  return { vinculados, novos, ignorados, pendentes: pendentesNumeros.length, pendentesNumeros };
+  return { vinculados, novos, ignorados, consumos, pendentes: pendentesNumeros.length, pendentesNumeros };
 }
 
 export function textoResumoConferencia(resumo: {
   vinculados: number;
   novos: number;
   ignorados: number;
+  consumos?: number;
   pendentes: number;
 }): string {
-  return [
+  const partes = [
     `${resumo.vinculados} vinculado${resumo.vinculados !== 1 ? "s" : ""}`,
     `${resumo.novos} novo${resumo.novos !== 1 ? "s" : ""}`,
     `${resumo.ignorados} ignorado${resumo.ignorados !== 1 ? "s" : ""}`,
-  ].join(" · ");
+  ];
+  if ((resumo.consumos || 0) > 0) partes.push(`${resumo.consumos} uso e consumo`);
+  return partes.join(" · ");
 }
 
 /** "35, 45 e 98" na ordem da nota. */
@@ -212,7 +218,7 @@ export function buildEstoqueImportFormData(
 }
 
 export function hasEstoqueImportChanges(resultado: ImportResult): boolean {
-  return resultado.criados > 0 || resultado.atualizados > 0;
+  return resultado.criados > 0 || resultado.atualizados > 0 || (resultado.consumos || 0) > 0;
 }
 
 export function extractEstoqueImportError(data: unknown): string {

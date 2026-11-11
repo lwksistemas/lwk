@@ -164,7 +164,12 @@ export function EstoqueImportarXmlPreview({
                 )}
                 <AcaoItem produto={p} onChange={(patch) => onProdutoChange?.(i, patch)} />
               </div>
-              <LinhaFatorLote produto={p} onChange={(patch) => onProdutoChange?.(i, patch)} />
+              {p.acao === "consumo" && (
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">Não entra no estoque. O valor fica na despesa.</p>
+              )}
+              {p.acao !== "consumo" && (
+                <LinhaFatorLote produto={p} onChange={(patch) => onProdutoChange?.(i, patch)} />
+              )}
               {p.grupo && preview.produtos.filter((outro) => outro.grupo === p.grupo).length > 1 && (
                 <button
                   type="button"
@@ -212,6 +217,7 @@ function AcaoItem({
         <option value="">Confirme</option>
         <option value="vincular">Vincular</option>
         <option value="novo">Cadastrar novo</option>
+        <option value="consumo">Uso e consumo</option>
         <option value="ignorar">Ignorar</option>
       </select>
       {produto.acao === "vincular" && (

@@ -77,12 +77,26 @@ export function ModalLogoAssinatura({ onClose }: { onClose: () => void }) {
           )}
           <div className="grid grid-cols-2 overflow-hidden rounded border border-gray-300 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200">
             {['Vendedor', 'Cliente'].map((lado) => (
-              <div key={lado} className="relative h-28 border-r border-gray-200 p-2 last:border-r-0 dark:border-gray-600">
-                <div
-                  className="pointer-events-none absolute inset-0 flex items-center justify-center font-bold tracking-wide text-gray-400"
-                  style={{ opacity: intensidade / 100, fontSize: `${Math.round(10 + tamanho * 0.22)}px` }}
-                >
-                  LOGO
+              <div key={lado} className="relative h-32 overflow-hidden border-r border-gray-200 p-2 last:border-r-0 dark:border-gray-600">
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div
+                    className="text-gray-400"
+                    style={{ width: `${tamanho}%`, height: `${tamanho}%`, opacity: intensidade / 100 }}
+                  >
+                    <svg viewBox="0 0 100 40" className="h-full w-full" preserveAspectRatio="none" aria-hidden>
+                      <text
+                        x="50"
+                        y="34"
+                        textAnchor="middle"
+                        fontSize="36"
+                        fontWeight="800"
+                        fill="currentColor"
+                        fontFamily="Arial, sans-serif"
+                      >
+                        LOGO
+                      </text>
+                    </svg>
+                  </div>
                 </div>
                 <div className="relative">
                   <p className="font-semibold">{lado}</p>

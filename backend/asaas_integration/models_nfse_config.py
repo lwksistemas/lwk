@@ -95,6 +95,16 @@ class SuperadminNFSeConfig(models.Model):
         verbose_name="Código tributação municipal",
         help_text="Código cadastrado na prefeitura para este CNPJ/IM (portal ISS / ISSNet).",
     )
+    codigo_tributacao_nacional = models.CharField(
+        max_length=20, blank=True, default="",
+        verbose_name="Código de tributação nacional",
+        help_text="cTribNac de 6 dígitos. Ex.: 01.07.01.",
+    )
+    codigo_nbs = models.CharField(
+        max_length=20, blank=True, default="",
+        verbose_name="Código da NBS",
+        help_text="Nomenclatura Brasileira de Serviços. Ex.: 1.1508.00.00.",
+    )
     descricao_servico_padrao = models.TextField(
         default="Licenciamento de uso de software SaaS",
         blank=True,

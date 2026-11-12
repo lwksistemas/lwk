@@ -151,10 +151,12 @@ def _emitir_via_nacional(
 
         # Emitir
         from nfse_integration.emissao_issnet_nacional_loja import (
+            _resolver_codigo_nbs,
             _resolver_p_tot_trib_sn,
             codigo_tributacao_nacional_sefin,
         )
 
+        codigo_nacional = (getattr(config, "codigo_tributacao_nacional", "") or "").strip()
         resultado = client.emitir_nfse(
             numero_dps=numero_dps,
             serie_dps=config.nacional_serie_dps or "900",
@@ -167,7 +169,9 @@ def _emitir_via_nacional(
             tomador_nome=tomador_nome,
             tomador_endereco=tomador_endereco,
             tomador_email=tomador_email,
-            codigo_servico=codigo_tributacao_nacional_sefin(config),
+            codigo_servico=codigo_tributacao_nacional_sefin(config, codigo_nacional or None),
+            codigo_tributacao_municipal=getattr(config, "codigo_tributacao_municipio", "") or "",
+            codigo_nbs=_resolver_codigo_nbs(config),
             descricao_servico=descricao,
             codigo_cnae=(config.codigo_cnae or "").strip() or "",
             codigo_municipio_incidencia=config.nacional_codigo_municipio,

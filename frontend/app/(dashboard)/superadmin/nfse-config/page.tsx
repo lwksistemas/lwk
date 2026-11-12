@@ -24,6 +24,7 @@ import Link from 'next/link'
 import apiClient from '@/lib/api-client'
 import { consultaCnpj, formatCpfCnpj } from '@/lib/consulta-cnpj'
 import { logger } from '@/lib/logger'
+import { SERVICOS_NACIONAIS, digitosCodigo, servicoPeloCodigoNacional } from '@/lib/nfse-servicos-nacionais'
 
 interface NFSeConfig {
   provedor_nfse: 'issnet' | 'nacional' | 'desabilitado'
@@ -36,6 +37,8 @@ interface NFSeConfig {
   codigo_servico_municipal: string
   item_lista_servico: string
   codigo_tributacao_municipio: string
+  codigo_tributacao_nacional: string
+  codigo_nbs: string
   descricao_servico_padrao: string
   aliquota_iss: string
   codigo_cnae: string
@@ -81,6 +84,8 @@ function normalizeConfigResponse(data: Record<string, unknown>): NFSeConfig {
     codigo_servico_municipal: String(raw.codigo_servico_municipal ?? '1401'),
     item_lista_servico: String(raw.item_lista_servico ?? '14.01'),
     codigo_tributacao_municipio: String(raw.codigo_tributacao_municipio ?? ''),
+    codigo_tributacao_nacional: String(raw.codigo_tributacao_nacional ?? ''),
+    codigo_nbs: String(raw.codigo_nbs ?? ''),
     descricao_servico_padrao: String(
       raw.descricao_servico_padrao ?? 'Licenciamento de uso de software SaaS'
     ),
@@ -117,6 +122,8 @@ export default function NFSeConfigPage() {
     codigo_servico_municipal: '1401',
     item_lista_servico: '14.01',
     codigo_tributacao_municipio: '',
+    codigo_tributacao_nacional: '',
+    codigo_nbs: '',
     descricao_servico_padrao: 'Licenciamento de uso de software SaaS',
     aliquota_iss: '2.00',
     codigo_cnae: '',
@@ -172,6 +179,8 @@ export default function NFSeConfigPage() {
     formData.append('codigo_servico_municipal', config.codigo_servico_municipal)
     formData.append('item_lista_servico', config.item_lista_servico)
     formData.append('codigo_tributacao_municipio', config.codigo_tributacao_municipio)
+    formData.append('codigo_tributacao_nacional', config.codigo_tributacao_nacional)
+    formData.append('codigo_nbs', config.codigo_nbs)
     formData.append('descricao_servico_padrao', config.descricao_servico_padrao)
     formData.append('aliquota_iss', config.aliquota_iss)
     formData.append('codigo_cnae', config.codigo_cnae)
@@ -736,14 +745,16 @@ export default function NFSeConfigPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label>Código IBGE Município</Label>
+              <Label>Local da prestação (código IBGE)</Label>
               <Input
                 value={config.nacional_codigo_municipio}
                 onChange={(e) => setConfig(prev => ({ ...prev, nacional_codigo_municipio: e.target.value }))}
                 placeholder="Ex: 3543402"
                 maxLength={7}
               />
-              <p className="text-xs text-muted-foreground">7 dígitos (IBGE)</p>
+              <p className="text-xs text-muted-foreground">
+                7 dígitos. Ex.: 3543402 para Ribeirão Preto / SP / BR. A UF e o país saem desse município.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Série DPS</Label>
@@ -792,30 +803,85 @@ export default function NFSeConfigPage() {
             <Hash className="w-5 h-5" />
             Dados Fiscais
           </CardTitle>
-          <CardDescription>Informações fiscais usadas na emissão</CardDescription>
+          <CardDescription>
+            Escolha o serviço prestado. A nota usa o código nacional, a NBS e o item da LC 116/03 dessa opção.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Serviço prestado</Label>
+            <select
+              value={servicoPeloCodigoNacional(config.codigo_tributacao_nacional)?.id || ''}
+              onChange={(e) => {
+                const servico = SERVICOS_NACIONAIS.find((item) => item.id === e.target.value)
+                if (!servico) return
+                setConfig(prev => ({
+                  ...prev,
+                  item_lista_servico: servico.lc116,
+                  codigo_tributacao_nacional: servico.tribNac,
+                  codigo_nbs: servico.nbs || prev.codigo_nbs,
+                }))
+              }}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0d1f3c] text-gray-900 dark:text-white"
+            >
+              <option value="">
+                {digitosCodigo(config.codigo_tributacao_nacional)
+                  ? 'Código informado manualmente'
+                  : 'Selecione o serviço'}
+              </option>
+              {SERVICOS_NACIONAIS.map((servico) => (
+                <option key={servico.id} value={servico.id}>
+                  {servico.tribNac} — {servico.descricao}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              A frase oficial do código é o serviço prestado da nota. A descrição abaixo continua sendo o texto livre da empresa.
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Item lista serviço (LC 116)</Label>
+              <Label>Código de serviços da LC 116/03</Label>
               <Input
                 value={config.item_lista_servico}
                 onChange={(e) => setConfig(prev => ({ ...prev, item_lista_servico: e.target.value }))}
                 placeholder="14.01"
               />
               <p className="text-xs text-muted-foreground">
-                Ex.: 1.05 (licenciamento de software) ou 14.01. Deve combinar com o CNAE.
+                Item da lei. Ex.: 01.07 para suporte técnico em informática. Preenchido ao escolher o serviço.
               </p>
             </div>
             <div className="space-y-2">
-              <Label>Código tributação municipal (ISSNet)</Label>
+              <Label>Código de tributação nacional</Label>
+              <Input
+                value={config.codigo_tributacao_nacional}
+                onChange={(e) => setConfig(prev => ({ ...prev, codigo_tributacao_nacional: e.target.value }))}
+                placeholder="01.07.01"
+              />
+              <p className="text-xs text-muted-foreground">
+                Seis dígitos impressos na nota. Ex.: 01.07.01.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Código de tributação municipal</Label>
               <Input
                 value={config.codigo_tributacao_municipio}
                 onChange={(e) => setConfig(prev => ({ ...prev, codigo_tributacao_municipio: e.target.value }))}
                 placeholder="Consulte o portal ISS / prefeitura"
               />
               <p className="text-xs text-muted-foreground">
-                Código cadastrado para o CNPJ/IM na prefeitura (erros E035/L003 se incorreto).
+                Código da prefeitura, quando for diferente do nacional. A Sefin aceita 3 dígitos.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Código da NBS</Label>
+              <Input
+                value={config.codigo_nbs}
+                onChange={(e) => setConfig(prev => ({ ...prev, codigo_nbs: e.target.value }))}
+                placeholder="1.1508.00.00"
+              />
+              <p className="text-xs text-muted-foreground">
+                Nove dígitos. O serviço 01.07.01 sugere 1.1501.30.00; a nota de exemplo usou 1.1508.00.00.
               </p>
             </div>
             <div className="space-y-2">

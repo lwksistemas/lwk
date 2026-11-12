@@ -152,6 +152,7 @@ def emitir_via_nacional_loja(
             return {"success": False, "error": erro_endereco}
 
         from nfse_integration.emissao_issnet_nacional_loja import (
+            _resolver_codigo_nbs,
             _resolver_p_tot_trib_sn,
             codigo_tributacao_nacional_sefin,
         )
@@ -176,6 +177,8 @@ def emitir_via_nacional_loja(
             tomador_endereco=tomador_endereco_final,
             tomador_email=tomador_email,
             codigo_servico=codigo_servico_final,
+            codigo_tributacao_municipal=getattr(config, "codigo_tributacao_municipal", "") or "",
+            codigo_nbs=_resolver_codigo_nbs(config),
             descricao_servico=(
                 servico_descricao
                 or getattr(config, "descricao_servico_padrao", "")

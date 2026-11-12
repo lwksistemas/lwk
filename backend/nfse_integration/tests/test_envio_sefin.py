@@ -124,6 +124,23 @@ class EnvioSefinTests(SimpleTestCase):
         self.assertIn("<fone>1636275837</fone>", xml)
         self.assertNotIn("<fone>551636275837</fone>", xml)
 
+    def test_codigo_nacional_e_nbs_entram_no_servico(self):
+        xml = construir_xml_dps(
+            numero_dps=1,
+            serie_dps="1",
+            codigo_municipio_prestador="3543402",
+            prestador_cnpj="24758458000172",
+            codigo_servico="01.07.01",
+            codigo_nbs="1.1508.00.00",
+            codigo_municipio_incidencia="3543402",
+            descricao_servico="Suporte tecnico",
+            valor_servicos=Decimal("63.00"),
+        )
+        self.assertIn("<cTribNac>010701</cTribNac>", xml)
+        self.assertIn("<cNBS>115080000</cNBS>", xml)
+        self.assertIn("<cLocPrestacao>3543402</cLocPrestacao>", xml)
+        self.assertLess(xml.index("<xDescServ>"), xml.index("<cNBS>"))
+
     def test_codigo_municipal_do_issnet_vira_o_nacional(self):
         config = type("Config", (), {
             "codigo_servico_municipal": "140118",

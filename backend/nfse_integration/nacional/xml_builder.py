@@ -142,6 +142,7 @@ def construir_xml_dps(
     descricao_servico: str = "",
     codigo_cnae: str = "",
     codigo_municipio_incidencia: str = "",
+    codigo_nbs: str = "",
     # Valores
     valor_servicos: Decimal = Decimal("0.00"),
     aliquota_iss: Decimal = Decimal("0.00"),
@@ -244,6 +245,9 @@ def construir_xml_dps(
         _el(c_serv, "cTribMun", c_trib_mun)
     descricao_limpa = _normalizar_texto_xml(descricao_servico or "Servico prestado", 2000)
     _el(c_serv, "xDescServ", descricao_limpa)
+    nbs = _somente_digitos(codigo_nbs or "")
+    if len(nbs) == 9:
+        _el(c_serv, "cNBS", nbs)
 
     # === VALORES (valores) ===
     valores = _el(inf_dps, "valores")

@@ -67,6 +67,35 @@ def texto_plano_interativo(template: TermoConsentimentoTemplate) -> str:
     return "\n\n".join(partes)
 
 
+TAMANHO_LOGO_ASSINATURA_PADRAO = 100
+INTENSIDADE_LOGO_ASSINATURA_PADRAO = 55
+
+
+def normalizar_logo_assinatura_termo(tamanho, intensidade) -> tuple[int, int]:
+    """30–100 no quadro e 5–80 de opacidade. Fora da faixa volta ao desenho atual."""
+    try:
+        tamanho_n = int(tamanho)
+    except (TypeError, ValueError):
+        tamanho_n = TAMANHO_LOGO_ASSINATURA_PADRAO
+    try:
+        intensidade_n = int(intensidade)
+    except (TypeError, ValueError):
+        intensidade_n = INTENSIDADE_LOGO_ASSINATURA_PADRAO
+    if tamanho_n < 30 or tamanho_n > 100:
+        tamanho_n = TAMANHO_LOGO_ASSINATURA_PADRAO
+    if intensidade_n < 5 or intensidade_n > 80:
+        intensidade_n = INTENSIDADE_LOGO_ASSINATURA_PADRAO
+    return tamanho_n, intensidade_n
+
+
+def logo_assinatura_do_termo(loja_id: int | None) -> tuple[int, int]:
+    cfg = obter_config_termo(loja_id)
+    return normalizar_logo_assinatura_termo(
+        getattr(cfg, "logo_assinatura_tamanho", TAMANHO_LOGO_ASSINATURA_PADRAO),
+        getattr(cfg, "logo_assinatura_intensidade", INTENSIDADE_LOGO_ASSINATURA_PADRAO),
+    )
+
+
 def obter_config_termo(loja_id: int | None) -> TermoConsentimentoConfig:
     qs = TermoConsentimentoConfig.objects.all()
     if loja_id:

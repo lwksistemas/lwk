@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ScrollText } from "lucide-react";
+import { Image, ScrollText } from "lucide-react";
 import { ClinicaBelezaPageContent } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
 import { ClinicaBelezaStandardPageHeader } from "@/components/clinica-beleza/ClinicaBelezaPageHeaderContext";
 import { useClinicaBelezaPaginatedList } from "@/hooks/clinica-beleza";
 import { ClinicaBelezaAPI, type TermoConsentimentoTemplateItem } from "@/lib/clinica-beleza-api";
 import { useToast } from "@/components/ui/Toast";
 import { TermosConsentimentoListView } from "./TermosConsentimentoListView";
+import { ModalLogoAssinaturaTermo } from "./ModalLogoAssinaturaTermo";
 import { buildTermoNovoPath } from "./termos-consentimento-utils";
 
 export function TermosConsentimentoPageContent() {
@@ -18,6 +19,7 @@ export function TermosConsentimentoPageContent() {
   const slug = params.slug as string;
   const [deleteTarget, setDeleteTarget] = useState<TermoConsentimentoTemplateItem | null>(null);
   const [pdfCabecalho, setPdfCabecalho] = useState<"logo" | "timbrado">("logo");
+  const [logoAberta, setLogoAberta] = useState(false);
 
   const { list, loading, load, page, setPage, totalPages, pageSize, totalCount } =
     useClinicaBelezaPaginatedList<TermoConsentimentoTemplateItem>({
@@ -62,6 +64,16 @@ export function TermosConsentimentoPageContent() {
         icon={ScrollText}
         newLabel="Novo termo"
         onNew={() => router.push(buildTermoNovoPath(slug))}
+        extraActions={
+          <button
+            type="button"
+            onClick={() => setLogoAberta(true)}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-gray-300 dark:border-neutral-600 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-neutral-800"
+          >
+            <Image className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Logo da assinatura</span>
+          </button>
+        }
       />
       <ClinicaBelezaPageContent>
         <div className="mb-5 rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-4 py-3">
@@ -104,6 +116,7 @@ export function TermosConsentimentoPageContent() {
         />
       </ClinicaBelezaPageContent>
 
+      {logoAberta && <ModalLogoAssinaturaTermo onClose={() => setLogoAberta(false)} />}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white dark:bg-neutral-900 rounded-xl p-5 max-w-sm w-full shadow-xl">

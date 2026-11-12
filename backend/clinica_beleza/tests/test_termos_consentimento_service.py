@@ -103,3 +103,16 @@ class RenderizarTextoTermoTest(SimpleTestCase):
         self.assertIn("LUIZ HENRIQUE FELIX", out)
         self.assertIn("HARMONIS", out)
         self.assertIn("MICROAGULHAMENTO FACIAL", out)
+
+
+class LogoAssinaturaTermoTest(SimpleTestCase):
+    def test_padrao_mantem_o_desenho_atual(self):
+        from clinica_beleza.termos_consentimento_service import normalizar_logo_assinatura_termo
+
+        self.assertEqual(normalizar_logo_assinatura_termo(None, None), (100, 55))
+        self.assertEqual(normalizar_logo_assinatura_termo(100, 55), (100, 55))
+
+    def test_valor_fora_da_faixa_volta_ao_padrao(self):
+        from clinica_beleza.termos_consentimento_service import normalizar_logo_assinatura_termo
+
+        self.assertEqual(normalizar_logo_assinatura_termo(10, 99), (100, 55))

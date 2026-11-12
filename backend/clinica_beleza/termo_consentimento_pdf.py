@@ -42,11 +42,11 @@ WM_Y_FACTOR = 1.12
 WM_DESCER_CM = 0.48  # ~1 linha abaixo do nome (antes: 2 linhas)
 
 
-def _watermark_bytes(logo_url: str) -> bytes | None:
-    """Logo da clínica a 55% de opacidade — marca d'água abaixo do nome nas assinaturas."""
+def _watermark_bytes(logo_url: str, intensidade: int = round(WM_OPACIDADE * 100)) -> bytes | None:
+    """Logo da clínica atrás das assinaturas. 55 é a opacidade usada hoje."""
     from clinica_beleza.pdf_common.watermark import watermark_logo_bytes
 
-    return watermark_logo_bytes(logo_url, opacidade=WM_OPACIDADE)
+    return watermark_logo_bytes(logo_url, opacidade=intensidade / 100)
 
 
 def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assinaturas: bool):
@@ -132,13 +132,14 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
     return ass_paciente, ass_profissional
 
 
-def _insert_watermark(elements, wm_bytes: bytes):
+def _insert_watermark(elements, wm_bytes: bytes, tamanho: int = 100):
     """Marca d'água atrás das duas colunas de assinatura (flowable compartilhado)."""
     if not wm_bytes:
         return
 
     from clinica_beleza.pdf_common.watermark import MarcaDaguaColunas
 
+    fator = max(30, min(100, int(tamanho))) / 100
     insert_idx = None
     for i in range(len(elements) - 1, -1, -1):
         if isinstance(elements[i], Table):
@@ -147,8 +148,8 @@ def _insert_watermark(elements, wm_bytes: bytes):
     if insert_idx is not None:
         elements.insert(insert_idx, MarcaDaguaColunas(
             wm_bytes,
-            max_w=WM_MAX_W_CM * cm,
-            max_h=WM_MAX_H_CM * cm,
+            max_w=WM_MAX_W_CM * cm * fator,
+            max_h=WM_MAX_H_CM * cm * fator,
             y_factor=WM_Y_FACTOR,
             descer=WM_DESCER_CM * cm,
         ))
@@ -359,9 +360,12 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
 
     ass_p, ass_pr = _build_secao_assinaturas(elements, termo_proc, compact, incluir_assinaturas)
     if (ass_p or ass_pr) and logo_url:
-        wm_bytes = _watermark_bytes(logo_url)
+        from .termos_consentimento_service import logo_assinatura_do_termo
+
+        tamanho, intensidade = logo_assinatura_do_termo(consulta.loja_id)
+        wm_bytes = _watermark_bytes(logo_url, intensidade)
         if wm_bytes:
-            _insert_watermark(elements, wm_bytes)
+            _insert_watermark(elements, wm_bytes, tamanho)
 
     doc.build(elements)
     buf.seek(0)

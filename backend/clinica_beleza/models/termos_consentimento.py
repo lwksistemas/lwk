@@ -94,6 +94,16 @@ class TermoConsentimentoConfig(LojaIsolationMixin, models.Model):
         default=PDF_CABECALHO_LOGO,
         verbose_name="Cabeçalho do PDF",
     )
+    logo_assinatura_tamanho = models.PositiveSmallIntegerField(
+        default=100,
+        verbose_name="Tamanho da logo na assinatura",
+        help_text="Percentual do quadro. 100 mantém o tamanho atual.",
+    )
+    logo_assinatura_intensidade = models.PositiveSmallIntegerField(
+        default=55,
+        verbose_name="Intensidade da logo na assinatura",
+        help_text="Opacidade da logo atrás dos dados do paciente e do profissional.",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     objects = LojaIsolationManager()

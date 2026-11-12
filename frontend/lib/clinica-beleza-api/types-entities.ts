@@ -214,4 +214,6 @@ export interface TermoConsentimentoTemplateItem {
 
 export interface TermoConsentimentoConfigItem {
   pdf_cabecalho: TermoPdfCabecalho;
+  logo_assinatura_tamanho?: number;
+  logo_assinatura_intensidade?: number;
 }

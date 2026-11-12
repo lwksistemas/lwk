@@ -78,4 +78,14 @@ class TermoConsentimentoTemplateSerializer(serializers.ModelSerializer):
 class TermoConsentimentoConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = TermoConsentimentoConfig
-        fields = ["pdf_cabecalho"]
+        fields = ["pdf_cabecalho", "logo_assinatura_tamanho", "logo_assinatura_intensidade"]
+
+    def validate_logo_assinatura_tamanho(self, value):
+        if value < 30 or value > 100:
+            raise serializers.ValidationError("Escolha um tamanho entre 30 e 100.")
+        return value
+
+    def validate_logo_assinatura_intensidade(self, value):
+        if value < 5 or value > 80:
+            raise serializers.ValidationError("Escolha uma intensidade entre 5 e 80.")
+        return value

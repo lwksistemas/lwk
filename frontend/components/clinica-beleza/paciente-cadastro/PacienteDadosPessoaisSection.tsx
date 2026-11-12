@@ -106,9 +106,9 @@ export function PacienteDadosPessoaisSection({
             icon={Phone}
             value={form.phone}
             onChange={(e) => onChange({ phone: formatTelefone(e.target.value) })}
-            placeholder="(00) 00000-0000"
+            placeholder="(00) 00000-0000 ou +595..."
             inputMode="tel"
-            maxLength={15}
+            maxLength={20}
           />
         </div>
         {!hideConvenio && (

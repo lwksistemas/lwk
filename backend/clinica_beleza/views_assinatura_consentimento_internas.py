@@ -27,6 +27,7 @@ from .consentimento_service import (
     serializar_termos_procedimento,
     sincronizar_status_consulta,
 )
+from .consentimento_validade import mensagem_envio_termo_encerrado
 from .models import Consulta
 from .permissions import CLINICA_CLINICAL
 from .throttles import PublicPdfThrottle
@@ -71,6 +72,10 @@ class ConsultaEnviarTermoAssinaturaView(GetObjectMixin, APIView):
         consulta, err = self.object_or_404(pk)
         if err:
             return err
+
+        encerrada = mensagem_envio_termo_encerrado(consulta.status)
+        if encerrada:
+            return Response({"detail": encerrada}, status=status.HTTP_400_BAD_REQUEST)
 
         if not consulta_exige_termo_consentimento(consulta):
             return Response(
@@ -172,6 +177,10 @@ class ConsultaReenviarTermoAssinaturaView(GetObjectMixin, APIView):
         if err:
             return err
 
+        encerrada = mensagem_envio_termo_encerrado(consulta.status)
+        if encerrada:
+            return Response({"detail": encerrada}, status=status.HTTP_400_BAD_REQUEST)
+
         procedure_id = request.data.get("procedure_id")
         if not procedure_id:
             return Response(
@@ -255,6 +264,10 @@ class ConsultaLinkAssinaturaProfissionalView(GetObjectMixin, APIView):
         consulta, err = self.object_or_404(pk)
         if err:
             return err
+
+        encerrada = mensagem_envio_termo_encerrado(consulta.status)
+        if encerrada:
+            return Response({"detail": encerrada}, status=status.HTTP_400_BAD_REQUEST)
 
         procedure_id = request.data.get("procedure_id")
         if not procedure_id:

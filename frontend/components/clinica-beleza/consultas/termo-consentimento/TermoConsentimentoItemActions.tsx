@@ -12,6 +12,7 @@ export function TermoConsentimentoItemActions({
   onEnviarPdfWhatsapp,
   onAssinarProfissional,
   permitirAssinaturaProfissional = true,
+  consultaFinalizada = false,
 }: {
   termo: TermoProcedimento;
   loading: boolean;
@@ -22,10 +23,12 @@ export function TermoConsentimentoItemActions({
   onEnviarPdfWhatsapp: (procedureId: number, nome: string) => void;
   onAssinarProfissional: (procedureId: number) => void;
   permitirAssinaturaProfissional?: boolean;
+  consultaFinalizada?: boolean;
 }) {
+  const podeEnviar = !consultaFinalizada;
   return (
     <div className="flex flex-wrap gap-1.5">
-      {termo.status === "rascunho" && (
+      {podeEnviar && termo.status === "rascunho" && (
         <>
           <button
             type="button"
@@ -50,7 +53,7 @@ export function TermoConsentimentoItemActions({
           )}
         </>
       )}
-      {(termo.status === "aguardando_paciente" || termo.status === "aguardando_profissional") && (
+      {podeEnviar && (termo.status === "aguardando_paciente" || termo.status === "aguardando_profissional") && (
         <>
           {termo.status === "aguardando_profissional" && permitirAssinaturaProfissional && (
             <button
@@ -121,6 +124,7 @@ export function TermoConsentimentoItemRow({
   onEnviarPdfWhatsapp,
   onAssinarProfissional,
   permitirAssinaturaProfissional = true,
+  consultaFinalizada = false,
 }: {
   termo: TermoProcedimento;
   loading: boolean;
@@ -131,6 +135,7 @@ export function TermoConsentimentoItemRow({
   onEnviarPdfWhatsapp: (procedureId: number, nome: string) => void;
   onAssinarProfissional: (procedureId: number) => void;
   permitirAssinaturaProfissional?: boolean;
+  consultaFinalizada?: boolean;
 }) {
   return (
     <li className="px-4 py-3">
@@ -156,6 +161,7 @@ export function TermoConsentimentoItemRow({
         onEnviarPdfWhatsapp={onEnviarPdfWhatsapp}
         onAssinarProfissional={onAssinarProfissional}
         permitirAssinaturaProfissional={permitirAssinaturaProfissional}
+        consultaFinalizada={consultaFinalizada}
       />
     </li>
   );

@@ -16,6 +16,7 @@ export function TermoConsentimentoPanel({
   onEnviarTodos,
   ancora = "esquerda",
   permitirAssinaturaProfissional = true,
+  consultaFinalizada = false,
 }: {
   termos: TermoProcedimento[];
   loading: boolean;
@@ -29,13 +30,16 @@ export function TermoConsentimentoPanel({
   onEnviarTodos: (canal: TermoConsentimentoCanal) => void;
   ancora?: "esquerda" | "direita";
   permitirAssinaturaProfissional?: boolean;
+  consultaFinalizada?: boolean;
 }) {
   return (
     <div className={`absolute top-full mt-2 z-50 w-[min(100vw-2rem,22rem)] rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xl overflow-hidden ${ancora === "direita" ? "right-0" : "left-0"}`}>
       <div className="px-4 py-3 border-b border-gray-100 dark:border-neutral-800">
         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Termos de consentimento</p>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          Cada procedimento exige leitura e assinatura separadas.
+          {consultaFinalizada
+            ? "Consulta finalizada. O termo não pode mais ser enviado para assinatura."
+            : "Cada procedimento exige leitura e assinatura separadas."}
         </p>
       </div>
 
@@ -60,13 +64,14 @@ export function TermoConsentimentoPanel({
                 onEnviarPdfWhatsapp={onEnviarPdfWhatsapp}
                 onAssinarProfissional={onAssinarProfissional}
                 permitirAssinaturaProfissional={permitirAssinaturaProfissional}
+                consultaFinalizada={consultaFinalizada}
               />
             ))}
           </ul>
         )}
       </div>
 
-      {pendentesEnvioCount > 1 && (
+      {!consultaFinalizada && pendentesEnvioCount > 1 && (
         <div className="px-4 py-3 border-t border-gray-100 dark:border-neutral-800 bg-gray-50/80 dark:bg-neutral-800/50 space-y-2">
           <button
             type="button"

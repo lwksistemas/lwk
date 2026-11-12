@@ -101,6 +101,7 @@ export function ConsultaDetailTabBar({
               <ConsultaTermoConsentimentoButton
                 consultaId={selected.id}
                 onUpdated={onRefreshConsulta}
+                consultaFinalizada={consultaFinalizada}
               />
             )}
           </Fragment>

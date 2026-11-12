@@ -84,7 +84,7 @@ export function PatientQuickRegisterField(props: PatientQuickRegisterFieldProps)
               type="tel"
               value={telefoneNovo}
               onChange={(e) => setTelefoneNovo(formatTelefone(e.target.value))}
-              placeholder="(00) 00000-0000 ou +595..."
+              placeholder="(00) 00000-0000 ou +código"
               inputMode="tel"
               maxLength={20}
               disabled={disabled}

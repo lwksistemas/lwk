@@ -16,6 +16,19 @@ export function ehTelefoneParaguai(valor?: string | null): boolean {
   return d.startsWith("595") && d.length >= 11 && d[3] === "9";
 }
 
+/** Código de país diferente do 55. O + vale para qualquer país. */
+export function ehTelefoneOutroPais(valor?: string | null): boolean {
+  const texto = String(valor || "").trim();
+  const d = apenasDigitos(texto);
+  if (ehTelefoneParaguai(d)) return true;
+  if (texto.startsWith("+")) {
+    if (d.startsWith("55") && d.length >= 12) return false;
+    return true;
+  }
+  if (!d || d.startsWith("55")) return false;
+  return d.length >= 12 && d.length <= 15;
+}
+
 /** Remove código do país 55 e o zero antes do DDD (ex.: 550422761222 → 422761222). */
 export function telefoneLocalBr(valor?: string | null): string {
   let d = apenasDigitos(valor);
@@ -37,7 +50,7 @@ export function telefoneLocalBr(valor?: string | null): string {
 export function formatTelefone(valor?: string | null): string {
   const texto = String(valor || "");
   const internacional = apenasDigitos(texto);
-  if (texto.trim().startsWith("+") || ehTelefoneParaguai(internacional)) {
+  if (ehTelefoneOutroPais(texto)) {
     if (ehTelefoneParaguai(internacional)) return `+595 ${internacional.slice(3)}`;
     return internacional ? `+${internacional}` : "+";
   }
@@ -54,7 +67,7 @@ export function telefoneInternacionalBr(valor?: string | null): string {
   const texto = String(valor || "");
   const d = apenasDigitos(texto);
   if (!d) return "";
-  if (texto.includes("+") || ehTelefoneParaguai(d)) return d.slice(0, 15);
+  if (ehTelefoneOutroPais(texto)) return d.slice(0, 15);
   if (d.startsWith("55") && d.length >= 12) return d.slice(0, 15);
   if (d.length === 11 && !d.startsWith("1")) return `55${d}`;
   if (d.length === 11) {

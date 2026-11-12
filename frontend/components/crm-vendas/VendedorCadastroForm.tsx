@@ -132,7 +132,8 @@ export function VendedorCadastroForm({
                     readOnly={administrador}
                     onChange={(e) => setForm((f) => ({ ...f, telefone: formatTelefone(e.target.value) }))}
                     className={inputClass}
-                    placeholder="(11) 99999-9999"
+                    placeholder="(00) 00000-0000 ou +código"
+                    maxLength={20}
                   />
                 </div>
                 <div className="sm:col-span-2">

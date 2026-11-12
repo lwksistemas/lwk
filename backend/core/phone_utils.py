@@ -101,10 +101,25 @@ def eh_telefone_paraguai(digits):
     return bool(digits) and digits.startswith("595") and len(digits) >= 11 and digits[3] == "9"
 
 
+def eh_telefone_outro_pais(telefone) -> bool:
+    """Código de país diferente do 55. O + vale para qualquer país."""
+    texto = str(telefone or "").strip()
+    digits = limpar_telefone(texto)
+    if eh_telefone_paraguai(digits):
+        return True
+    if texto.startswith("+"):
+        if digits.startswith("55") and len(digits) >= 12:
+            return False
+        return True
+    if not digits or digits.startswith("55"):
+        return False
+    return 12 <= len(digits) <= 15
+
+
 def telefone_internacional_br(telefone):
     """Normaliza telefone brasileiro com código do país (55) — apenas dígitos.
-    Usado no cadastro de pacientes para envio WhatsApp (Evolution/Meta).
-    Número do Paraguai (595) permanece como foi digitado, para o WhatsApp achar o celular.
+    Usado no cadastro para envio WhatsApp (Evolution/Meta).
+    Número de outro país permanece como foi digitado, com o código do país.
     """
     if not telefone:
         return ""
@@ -113,7 +128,7 @@ def telefone_internacional_br(telefone):
     if not digits:
         return ""
 
-    if eh_telefone_paraguai(digits) or str(telefone).strip().startswith("+"):
+    if eh_telefone_outro_pais(telefone):
         return digits[:15]
 
     if len(digits) >= 12 and digits.startswith("55"):
@@ -144,6 +159,8 @@ def telefone_exibicao_brasileiro(telefone):
     digits = limpar_telefone(telefone)
     if eh_telefone_paraguai(digits):
         return f"+595 {digits[3:]}"
+    if eh_telefone_outro_pais(telefone):
+        return f"+{digits}"
     if digits.startswith("55") and len(digits) >= 12:
         local = digits[2:].lstrip("0")
         if len(local) >= 8:

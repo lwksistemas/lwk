@@ -275,7 +275,8 @@ export function ContaCadastroForm({
                   value={formData.telefone}
                   onChange={(e) => setPhone(e.target.value)}
                   className={inputClass}
-                  placeholder="(00) 00000-0000"
+                  placeholder="(00) 00000-0000 ou +código"
+                  maxLength={20}
                 />
               </div>
               <div>

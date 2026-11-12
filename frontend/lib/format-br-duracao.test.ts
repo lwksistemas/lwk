@@ -17,6 +17,9 @@ describe('telefone e documento', () => {
     expect(telefoneInternacionalBr('')).toBe('');
     expect(formatTelefone('+595 985 000000')).toBe('+595 985000000');
     expect(telefoneInternacionalBr('+595 985 000000')).toBe('595985000000');
+    expect(formatTelefone('+54 9 11 5555 6666')).toBe('+5491155556666');
+    expect(telefoneInternacionalBr('+54 9 11 5555 6666')).toBe('5491155556666');
+    expect(formatTelefone('5491155556666')).toBe('+5491155556666');
     expect(formatDocumentoPessoa('1544892')).toBe('154.489.2');
   });
 

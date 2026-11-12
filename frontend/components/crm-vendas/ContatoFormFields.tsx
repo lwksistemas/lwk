@@ -133,7 +133,8 @@ export function ContatoFormFields({
           value={formData.telefone}
           onChange={(e) => setPhone('telefone', e.target.value)}
           className={inputCls}
-          placeholder="(00) 00000-0000"
+          placeholder="(00) 00000-0000 ou +código"
+          maxLength={20}
           disabled={disabled}
         />
       </div>

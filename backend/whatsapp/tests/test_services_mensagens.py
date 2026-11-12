@@ -38,6 +38,7 @@ class TelefoneWhatsappTests(SimpleTestCase):
         self.assertIsNone(_normalize_phone(""))
         self.assertEqual(_normalize_phone("55016981402966"), "5516981402966")
         self.assertEqual(_normalize_phone("+595 985 000000"), "595985000000")
+        self.assertEqual(_normalize_phone("+54 9 11 5555 6666"), "5491155556666")
 
 
 class MensagensAgendaTests(SimpleTestCase):

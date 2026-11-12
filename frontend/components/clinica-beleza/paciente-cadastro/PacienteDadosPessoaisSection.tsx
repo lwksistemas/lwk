@@ -106,7 +106,7 @@ export function PacienteDadosPessoaisSection({
             icon={Phone}
             value={form.phone}
             onChange={(e) => onChange({ phone: formatTelefone(e.target.value) })}
-            placeholder="(00) 00000-0000 ou +595..."
+            placeholder="(00) 00000-0000 ou +código"
             inputMode="tel"
             maxLength={20}
           />

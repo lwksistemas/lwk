@@ -12,7 +12,8 @@ interface CrmFormPageShellProps {
   savingLabel?: string;
   onSave: () => void;
   onCancel: () => void;
-  saveDisabled?: boolean;
+  cancelLabel?: string;
+  ocultarSalvar?: boolean;
   accentColor?: string;
   /** Dentro de uma página que já ocupa a tela. Evita um segundo bloco com altura vazia. */
   embedded?: boolean;
@@ -27,7 +28,9 @@ export function CrmFormPageShell({
   savingLabel = 'Salvando...',
   onSave,
   onCancel,
+  cancelLabel = 'Cancelar',
   saveDisabled = false,
+  ocultarSalvar = false,
   accentColor = CRM_ACCENT,
   embedded = false,
 }: CrmFormPageShellProps) {
@@ -50,8 +53,9 @@ export function CrmFormPageShell({
               onClick={onCancel}
               className="sm:min-w-[120px] py-2.5 px-5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-[#1e3a5f]"
             >
-              Cancelar
+              {cancelLabel}
             </button>
+            {!ocultarSalvar && (
             <button
               type="button"
               onClick={onSave}
@@ -62,6 +66,7 @@ export function CrmFormPageShell({
               {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
               {saving ? savingLabel : saveLabel}
             </button>
+            )}
           </div>
         </div>
       </div>

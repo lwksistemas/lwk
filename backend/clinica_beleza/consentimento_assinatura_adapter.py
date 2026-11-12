@@ -152,7 +152,12 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
 
     def atualizar_status_assinatura(self, termo_proc, novo_status: str):
         termo_proc.status_assinatura_termo = novo_status
-        termo_proc.save(update_fields=["status_assinatura_termo", "updated_at"])
+        if novo_status == "concluido":
+            from .consentimento_service import congelar_termo_assinado
+
+            congelar_termo_assinado(termo_proc)
+        else:
+            termo_proc.save(update_fields=["status_assinatura_termo", "updated_at"])
         sincronizar_status_consulta(termo_proc.consulta)
 
     def get_status_assinatura(self, termo_proc) -> str:

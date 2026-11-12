@@ -45,6 +45,15 @@ def _invalidar_assinaturas_pendentes(documento) -> None:
     qs.delete()
 
 
+MENSAGEM_DOCUMENTO_ASSINADO = (
+    "Este documento já foi assinado pelas duas partes e não pode ser alterado."
+)
+
+
+def documento_assinado_pelas_duas_partes(documento) -> bool:
+    return getattr(documento, "status_assinatura", "") == "concluido"
+
+
 def _fechar_oportunidade_ao_concluir_assinatura(instance, old_status_assinatura, new_status_assinatura):
     if old_status_assinatura == "concluido" or new_status_assinatura != "concluido":
         return
@@ -105,6 +114,8 @@ class PropostaSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Ao marcar como assinado manualmente, fecha oportunidade e invalida tokens."""
+        if documento_assinado_pelas_duas_partes(instance):
+            raise serializers.ValidationError({"detail": MENSAGEM_DOCUMENTO_ASSINADO})
         old_status_assinatura = instance.status_assinatura
         new_status_assinatura = validated_data.get("status_assinatura", old_status_assinatura)
         instance = super().update(instance, validated_data)
@@ -247,6 +258,8 @@ class ContratoSerializer(serializers.ModelSerializer):
         return limpar_emitente_se_vazio(attrs)
 
     def update(self, instance, validated_data):
+        if documento_assinado_pelas_duas_partes(instance):
+            raise serializers.ValidationError({"detail": MENSAGEM_DOCUMENTO_ASSINADO})
         old_status_assinatura = instance.status_assinatura
         new_status_assinatura = validated_data.get("status_assinatura", old_status_assinatura)
         instance = super().update(instance, validated_data)

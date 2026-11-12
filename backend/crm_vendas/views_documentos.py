@@ -18,7 +18,14 @@ from .serializers import (
     PropostaSerializer,
     PropostaTemplateSerializer,
 )
+from .serializers.documentos import MENSAGEM_DOCUMENTO_ASSINADO, documento_assinado_pelas_duas_partes
 from .views_common import CRMPagination
+
+
+def _resposta_documento_assinado(documento):
+    if documento_assinado_pelas_duas_partes(documento):
+        return Response({"detail": MENSAGEM_DOCUMENTO_ASSINADO}, status=status.HTTP_400_BAD_REQUEST)
+    return None
 
 
 class PropostaViewSet(
@@ -51,9 +58,18 @@ class PropostaViewSet(
             raise PermissionDenied("Esta oportunidade é de outro vendedor.")
         serializer.save()
 
+    def destroy(self, request, *args, **kwargs):
+        bloqueio = _resposta_documento_assinado(self.get_object())
+        if bloqueio:
+            return bloqueio
+        return super().destroy(request, *args, **kwargs)
+
     @action(detail=True, methods=["post"])
     def confirmar_pedido(self, request, pk=None):
         proposta = self.get_object()
+        bloqueio = _resposta_documento_assinado(proposta)
+        if bloqueio:
+            return bloqueio
         if proposta.status != "aceita":
             return Response(
                 {
@@ -71,6 +87,9 @@ class PropostaViewSet(
     @action(detail=True, methods=["post"])
     def cancelar(self, request, pk=None):
         proposta = self.get_object()
+        bloqueio = _resposta_documento_assinado(proposta)
+        if bloqueio:
+            return bloqueio
         if proposta.status == "cancelada":
             return Response(
                 {"detail": "Proposta já está cancelada."},
@@ -216,9 +235,18 @@ class ContratoViewSet(
             raise PermissionDenied("Esta oportunidade é de outro vendedor.")
         serializer.save()
 
+    def destroy(self, request, *args, **kwargs):
+        bloqueio = _resposta_documento_assinado(self.get_object())
+        if bloqueio:
+            return bloqueio
+        return super().destroy(request, *args, **kwargs)
+
     @action(detail=True, methods=["post"])
     def cancelar(self, request, pk=None):
         contrato = self.get_object()
+        bloqueio = _resposta_documento_assinado(contrato)
+        if bloqueio:
+            return bloqueio
         if contrato.status == "cancelado":
             return Response(
                 {"detail": "Contrato já está cancelado."},

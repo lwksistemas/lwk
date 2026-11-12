@@ -237,6 +237,8 @@ export default function CrmVendasContratosPage() {
                               </button>
                             )}
                             <button type="button" onClick={() => openModal('view', c)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Visualizar"><Eye size={16} /></button>
+                            {c.status_assinatura !== 'concluido' && (
+                              <>
                             <button type="button" onClick={() => irParaEditarContrato(c.id)} className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600" title="Editar"><Edit2 size={16} /></button>
                             <button
                               type="button"
@@ -248,6 +250,8 @@ export default function CrmVendasContratosPage() {
                               <Ban size={16} />
                             </button>
                             <button type="button" onClick={() => openModal('delete', c)} className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600" title="Excluir"><Trash2 size={16} /></button>
+                              </>
+                            )}
                           </>
                         )}
                       </div>

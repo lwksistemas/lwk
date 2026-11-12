@@ -100,6 +100,12 @@ class AssinaturaDigitalMixin:
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if doc.status_assinatura == "concluido":
+            return Response(
+                {"detail": "Este documento já foi assinado pelas duas partes e não pode ser alterado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if doc.status_assinatura in ["aguardando_cliente", "aguardando_vendedor"]:
             return Response(
                 {"detail": f"{label} já está em processo de assinatura: {doc.get_status_assinatura_display()}"},

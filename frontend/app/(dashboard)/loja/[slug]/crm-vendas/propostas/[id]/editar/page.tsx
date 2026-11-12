@@ -139,7 +139,9 @@ export default function EditarPropostaPage() {
         setLoading(false);
 
         const oppId = String(p.oportunidade);
-        void loadItensOportunidade(oppId);
+        if (p.status_assinatura !== 'concluido') {
+          void loadItensOportunidade(oppId);
+        }
         void fetchCrmOportunidade(oppId)
           .then(async (opp) => {
             if (cancelled) return;
@@ -238,6 +240,10 @@ export default function EditarPropostaPage() {
 
   const handleSave = async () => {
     setFormErro(null);
+    if (statusAssinaturaAntes === 'concluido') {
+      setFormErro('Esta proposta já foi assinada pelas duas partes e não pode ser alterada.');
+      return;
+    }
     if (!formData.titulo.trim()) {
       setFormErro('Título é obrigatório');
       return;
@@ -284,6 +290,8 @@ export default function EditarPropostaPage() {
     );
   }
 
+  const assinadoPelasDuasPartes = statusAssinaturaAntes === 'concluido';
+
   return (
     <>
     <CrmFormPageShell
@@ -293,7 +301,15 @@ export default function EditarPropostaPage() {
       savingLabel="Salvando..."
       onSave={handleSave}
       onCancel={() => router.push(listPath)}
+      ocultarSalvar={assinadoPelasDuasPartes}
+      cancelLabel={assinadoPelasDuasPartes ? 'Voltar' : 'Cancelar'}
     >
+      {assinadoPelasDuasPartes && (
+        <p className="mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+          Esta proposta já foi assinada pelas duas partes e não pode ser alterada.
+        </p>
+      )}
+      <fieldset disabled={assinadoPelasDuasPartes} className="min-w-0">
       <PropostaFormContent
         form={formData}
         formErro={formErro}
@@ -331,6 +347,7 @@ export default function EditarPropostaPage() {
         }
         vendedorNome={vendedorNome}
       />
+      </fieldset>
 
       <p className="mt-6 pt-4 border-t border-gray-100 dark:border-[#0d1f3c] text-xs text-gray-500 dark:text-gray-400 text-center">
         Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de

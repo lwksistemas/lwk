@@ -184,8 +184,25 @@ class OportunidadeItemViewSet(CRMSchemaRecoveryMixin, CacheInvalidationMixin, Ve
             total=Sum(F("quantidade") * F("preco_unitario")),
         )["total"] or 0
         Oportunidade.objects.filter(id=oportunidade_id).update(valor=total)
-        Proposta.objects.filter(oportunidade_id=oportunidade_id).exclude(status__in=["cancelada", "rejeitada"]).update(valor_total=total)
-        Contrato.objects.filter(oportunidade_id=oportunidade_id).exclude(status="cancelado").update(valor_total=total)
+        Proposta.objects.filter(oportunidade_id=oportunidade_id).exclude(
+            status__in=["cancelada", "rejeitada"],
+        ).exclude(status_assinatura="concluido").update(valor_total=total)
+        Contrato.objects.filter(oportunidade_id=oportunidade_id).exclude(
+            status="cancelado",
+        ).exclude(status_assinatura="concluido").update(valor_total=total)
+
+    def _recusar_item_se_documento_assinado(self, oportunidade_id):
+        from rest_framework.exceptions import ValidationError
+
+        from .serializers.documentos import MENSAGEM_DOCUMENTO_ASSINADO
+
+        if not oportunidade_id:
+            return
+        if (
+            Proposta.objects.filter(oportunidade_id=oportunidade_id, status_assinatura="concluido").exists()
+            or Contrato.objects.filter(oportunidade_id=oportunidade_id, status_assinatura="concluido").exists()
+        ):
+            raise ValidationError({"detail": MENSAGEM_DOCUMENTO_ASSINADO})
 
     def _atualizar_valor_prestadora(self, oportunidade_id):
         from .comissao_prestadora_service import atualizar_valor_pago_pela_prestadora
@@ -210,6 +227,8 @@ class OportunidadeItemViewSet(CRMSchemaRecoveryMixin, CacheInvalidationMixin, Ve
 
     def perform_create(self, serializer):
         self._exigir_oportunidade_propria(serializer)
+        oportunidade = serializer.validated_data.get("oportunidade")
+        self._recusar_item_se_documento_assinado(getattr(oportunidade, "id", oportunidade))
         serializer.save()
         self._recalcular_valor_oportunidade(serializer.instance.oportunidade_id)
         self._atualizar_valor_prestadora(serializer.instance.oportunidade_id)
@@ -217,12 +236,14 @@ class OportunidadeItemViewSet(CRMSchemaRecoveryMixin, CacheInvalidationMixin, Ve
 
     def perform_update(self, serializer):
         self._exigir_oportunidade_propria(serializer)
+        self._recusar_item_se_documento_assinado(serializer.instance.oportunidade_id)
         serializer.save()
         self._recalcular_valor_oportunidade(serializer.instance.oportunidade_id)
         self._atualizar_valor_prestadora(serializer.instance.oportunidade_id)
         self._invalidate_caches()
 
     def perform_destroy(self, instance):
+        self._recusar_item_se_documento_assinado(instance.oportunidade_id)
         oportunidade_id = instance.oportunidade_id
         instance.delete()
         self._recalcular_valor_oportunidade(oportunidade_id)

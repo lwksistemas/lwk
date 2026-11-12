@@ -248,11 +248,22 @@ def _build_conteudo_texto_termo(elements: list, termo_proc, consulta, procedure,
         limpar_conteudo_termo_exibicao,
         montar_conteudo_termo_procedimento,
         renderizar_texto_termo,
+        texto_termo_assinado,
     )
     from .termos_consentimento_service import (
         normalizar_secoes,
         template_do_procedimento,
     )
+
+    if termo_proc.status_assinatura_termo == "concluido":
+        conteudo = limpar_conteudo_termo_exibicao(texto_termo_assinado(termo_proc))
+        for line in conteudo.split("\n"):
+            stripped = line.strip()
+            if not stripped:
+                elements.append(Spacer(1, 0.12 * cm))
+            else:
+                elements.append(Paragraph(stripped.replace("&", "&amp;"), body_style))
+        return
 
     tpl = template_do_procedimento(procedure)
     if tpl and tpl.is_interativo:
@@ -294,14 +305,11 @@ def _build_conteudo_texto_termo(elements: list, termo_proc, consulta, procedure,
             elements.append(Spacer(1, 0.12 * cm))
         return
 
-    if termo_proc.status_assinatura_termo == "concluido":
-        conteudo = limpar_conteudo_termo_exibicao(termo_proc.conteudo_termo or "")
-    else:
-        conteudo = limpar_conteudo_termo_exibicao(
-            montar_conteudo_termo_procedimento(consulta, procedure)
-            or termo_proc.conteudo_termo
-            or "",
-        )
+    conteudo = limpar_conteudo_termo_exibicao(
+        montar_conteudo_termo_procedimento(consulta, procedure)
+        or termo_proc.conteudo_termo
+        or "",
+    )
     for line in conteudo.split("\n"):
         stripped = line.strip()
         if not stripped:

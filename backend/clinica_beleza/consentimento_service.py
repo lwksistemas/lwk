@@ -155,6 +155,85 @@ def _ctx_base_termo(consulta) -> dict:
     }
 
 
+CHAVE_TEXTO_ASSINADO = "_texto_assinado"
+
+
+def _respostas_do_termo(termo_proc) -> dict:
+    respostas = getattr(termo_proc, "respostas_interativo", None)
+    return dict(respostas) if isinstance(respostas, dict) else {}
+
+
+def texto_termo_com_respostas(termo_proc) -> str:
+    """Texto que as duas partes leram, com as respostas do paciente."""
+    from .termos_consentimento_service import normalizar_secoes, template_do_procedimento
+
+    consulta = termo_proc.consulta
+    procedure = termo_proc.procedure
+    tpl = template_do_procedimento(procedure) if procedure is not None else None
+    respostas = _respostas_do_termo(termo_proc)
+    if tpl and tpl.is_interativo:
+        linhas = []
+        intro = renderizar_texto_termo((tpl.introducao or "").strip(), consulta, procedure)
+        if intro:
+            linhas.append(intro)
+        for secao in normalizar_secoes(tpl.secoes):
+            cab = renderizar_texto_termo(secao["titulo"], consulta, procedure)
+            if secao["codigo"]:
+                cab = f"{secao['codigo']}. {cab}"
+            if cab:
+                linhas.append(cab)
+            texto_secao = renderizar_texto_termo(secao["texto"], consulta, procedure)
+            if texto_secao:
+                linhas.append(texto_secao)
+            resp = respostas.get(secao["id"]) or {}
+            if not isinstance(resp, dict):
+                continue
+            sim = (resp.get("sim_nao") or "").strip()
+            if sim:
+                linhas.append(f"Resposta: {sim.upper()}")
+            duvida = (resp.get("duvidas") or "").strip()
+            if duvida:
+                linhas.append(f"Dúvidas: {duvida}")
+            if secao["tipo"] == "gravidez":
+                if resp.get("nao_me_recordo"):
+                    linhas.append("Data da última menstruação: não me recordo")
+                elif (resp.get("dum") or "").strip():
+                    linhas.append(f"Data da última menstruação: {resp.get('dum').strip()}")
+            cons = (resp.get("consinto") or "").strip()
+            if cons:
+                linhas.append(f"Manifestação: {cons.upper()}")
+        return "\n\n".join(linhas).strip()
+
+    return limpar_conteudo_termo_exibicao(
+        (termo_proc.conteudo_termo or "")
+        or montar_conteudo_termo_procedimento(consulta, procedure)
+        or "",
+    )
+
+
+def congelar_termo_assinado(termo_proc) -> str:
+    """Guarda o texto no momento em que as duas partes concluem a assinatura."""
+    respostas = _respostas_do_termo(termo_proc)
+    guardado = (respostas.get(CHAVE_TEXTO_ASSINADO) or "").strip()
+    if guardado:
+        return guardado
+    texto = texto_termo_com_respostas(termo_proc)
+    respostas[CHAVE_TEXTO_ASSINADO] = texto
+    termo_proc.respostas_interativo = respostas
+    termo_proc.conteudo_termo = texto
+    termo_proc.save(update_fields=[
+        "status_assinatura_termo", "conteudo_termo", "respostas_interativo", "updated_at",
+    ])
+    return texto
+
+
+def texto_termo_assinado(termo_proc) -> str:
+    """Depois das duas assinaturas, o PDF usa só o texto guardado."""
+    if getattr(termo_proc, "status_assinatura_termo", "") != "concluido":
+        return ""
+    return congelar_termo_assinado(termo_proc)
+
+
 def limpar_conteudo_termo_exibicao(conteudo: str) -> str:
     """Remove cabeçalho legado com metadados duplicados (já exibidos no PDF/tela)."""
     texto = (conteudo or "").strip()

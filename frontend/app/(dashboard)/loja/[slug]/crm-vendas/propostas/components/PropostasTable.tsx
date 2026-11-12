@@ -188,7 +188,7 @@ export function PropostasTable({
                     >
                       <Eye size={16} />
                     </button>
-                    {p.status !== 'cancelada' && (
+                    {p.status !== 'cancelada' && p.status_assinatura !== 'concluido' && (
                       <button
                         type="button"
                         onClick={() => onEditar(p.id)}
@@ -217,7 +217,7 @@ export function PropostasTable({
                           setMenuAberto(null);
                         }}
                       />
-                      {p.status !== 'cancelada' && (
+                      {p.status !== 'cancelada' && p.status_assinatura !== 'concluido' && (
                         <>
                           <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
                           {p.status_assinatura === 'aguardando_vendedor' && (

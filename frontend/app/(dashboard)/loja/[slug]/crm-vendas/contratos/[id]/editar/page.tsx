@@ -174,6 +174,10 @@ export default function EditarContratoPage() {
 
   const handleSave = async () => {
     setFormErro(null);
+    if (statusAssinaturaAntes === 'concluido') {
+      setFormErro('Este contrato já foi assinado pelas duas partes e não pode ser alterado.');
+      return;
+    }
     if (!formData.titulo.trim()) {
       setFormErro('Título é obrigatório');
       return;
@@ -221,6 +225,8 @@ export default function EditarContratoPage() {
     );
   }
 
+  const assinadoPelasDuasPartes = statusAssinaturaAntes === 'concluido';
+
   return (
     <>
     <CrmFormPageShell
@@ -230,7 +236,15 @@ export default function EditarContratoPage() {
       savingLabel="Salvando..."
       onSave={handleSave}
       onCancel={() => router.push(listPath)}
+      ocultarSalvar={assinadoPelasDuasPartes}
+      cancelLabel={assinadoPelasDuasPartes ? 'Voltar' : 'Cancelar'}
     >
+      {assinadoPelasDuasPartes && (
+        <p className="mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+          Este contrato já foi assinado pelas duas partes e não pode ser alterado.
+        </p>
+      )}
+      <fieldset disabled={assinadoPelasDuasPartes} className="min-w-0">
       <ContratoFormContent
         form={formData}
         enviando={submitting}
@@ -250,6 +264,7 @@ export default function EditarContratoPage() {
         vendedorNome={vendedorNome}
         oportunidadeExibicao={oportunidadeExibicao}
       />
+      </fieldset>
 
       <p className="mt-6 pt-4 border-t border-gray-100 dark:border-[#0d1f3c] text-xs text-gray-500 dark:text-gray-400 text-center">
         Este documento possui validade jurídica e contém as assinaturas digitais de ambas as partes, com registro de

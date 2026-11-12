@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, FileText } from 'lucide-react';
+import { Plus, FileText, Image } from 'lucide-react';
+import apiClient from '@/lib/api-client';
 import SkeletonTable from '@/components/crm-vendas/SkeletonTable';
 import CrmPaginationBar from '@/components/crm-vendas/CrmPaginationBar';
 import { CrmDocumentoListPageShell } from '@/components/crm-vendas/documentos/CrmDocumentoListPageShell';
@@ -10,11 +12,24 @@ import { useCrmPropostasPage } from '@/hooks/crm-vendas/useCrmPropostasPage';
 import { useCRMConfig } from '@/contexts/CRMConfigContext';
 import { PropostasTable } from './components/PropostasTable';
 import { PropostasPageModals } from './components/PropostasPageModals';
+import { ModalLogoAssinatura } from './components/ModalLogoAssinatura';
 
 export default function CrmVendasPropostasPage() {
   const params = useParams();
   const slug = (params?.slug as string) ?? '';
   const { colunasPropostasVisiveis } = useCRMConfig();
+  const [souAdmin, setSouAdmin] = useState(false);
+  const [logoAberta, setLogoAberta] = useState(false);
+
+  useEffect(() => {
+    let ativo = true;
+    apiClient.get<{ user_role?: string }>('/crm-vendas/me/').then((res) => {
+      if (ativo) setSouAdmin(res.data.user_role !== 'vendedor');
+    }).catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   const {
     propostas,
@@ -81,6 +96,16 @@ export default function CrmVendasPropostasPage() {
               <FileText size={18} />
               <span>Gerenciar Templates</span>
             </Link>
+            {souAdmin && (
+              <button
+                type="button"
+                onClick={() => setLogoAberta(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded text-sm font-medium transition-colors shadow-sm"
+              >
+                <Image size={18} />
+                <span>Logo da assinatura</span>
+              </button>
+            )}
             <Link
               href={`/loja/${slug}/crm-vendas/propostas/nova`}
               className="flex items-center gap-2 px-4 py-2 bg-[#0176d3] hover:bg-[#0159a8] text-white rounded text-sm font-medium transition-colors shadow-sm"
@@ -141,6 +166,7 @@ export default function CrmVendasPropostasPage() {
         onCloseConfirm={closeConfirm}
         onExecuteConfirm={executeConfirm}
       />
+      {logoAberta && <ModalLogoAssinatura onClose={() => setLogoAberta(false)} />}
     </>
   );
 }

@@ -8,7 +8,55 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Flowable, Table
 
 
-def _build_watermark_callback(logo_url, assinatura_vendedor, assinatura_cliente):
+TAMANHO_LOGO_PADRAO = 100
+INTENSIDADE_LOGO_PADRAO = 25
+
+
+def normalizar_logo_assinatura(tamanho, intensidade) -> tuple[int, int]:
+    """30–100 no quadro e 5–80 de opacidade. Fora da faixa volta ao padrão atual."""
+    try:
+        tamanho_n = int(tamanho)
+    except (TypeError, ValueError):
+        tamanho_n = TAMANHO_LOGO_PADRAO
+    try:
+        intensidade_n = int(intensidade)
+    except (TypeError, ValueError):
+        intensidade_n = INTENSIDADE_LOGO_PADRAO
+    if tamanho_n < 30 or tamanho_n > 100:
+        tamanho_n = TAMANHO_LOGO_PADRAO
+    if intensidade_n < 5 or intensidade_n > 80:
+        intensidade_n = INTENSIDADE_LOGO_PADRAO
+    return tamanho_n, intensidade_n
+
+
+def escala_logo_no_quadro(largura_imagem, altura_imagem, largura_quadro, altura_quadro, tamanho) -> float:
+    """100 cobre o quadro como hoje. Um valor menor deixa a logo menor, no centro."""
+    if not largura_imagem or not altura_imagem or largura_quadro <= 0 or altura_quadro <= 0:
+        return 0
+    cobrir = max(largura_quadro / float(largura_imagem), altura_quadro / float(altura_imagem))
+    return cobrir * (tamanho / 100.0)
+
+
+def configuracao_logo_assinatura(loja_id) -> tuple[int, int]:
+    if not loja_id:
+        return TAMANHO_LOGO_PADRAO, INTENSIDADE_LOGO_PADRAO
+    try:
+        from django.db.utils import OperationalError, ProgrammingError
+
+        from crm_vendas.models import CRMConfig
+
+        cfg = CRMConfig.objects.filter(loja_id=loja_id).first()
+    except (OperationalError, ProgrammingError):
+        return TAMANHO_LOGO_PADRAO, INTENSIDADE_LOGO_PADRAO
+    if cfg is None:
+        return TAMANHO_LOGO_PADRAO, INTENSIDADE_LOGO_PADRAO
+    return normalizar_logo_assinatura(
+        getattr(cfg, "logo_assinatura_tamanho", TAMANHO_LOGO_PADRAO),
+        getattr(cfg, "logo_assinatura_intensidade", INTENSIDADE_LOGO_PADRAO),
+    )
+
+
+def _build_watermark_callback(logo_url, assinatura_vendedor, assinatura_cliente, intensidade=INTENSIDADE_LOGO_PADRAO):
     """Prepara dados da marca d\'água (logo transparente) para uso nas assinaturas."""
     if not (assinatura_vendedor or assinatura_cliente) or not logo_url:
         return None
@@ -18,7 +66,8 @@ def _build_watermark_callback(logo_url, assinatura_vendedor, assinatura_cliente)
             return None
         pil_img = PILImage.open(BytesIO(conteudo)).convert("RGBA")
         alpha = pil_img.split()[3]
-        alpha = alpha.point(lambda p: int(p * 0.25))
+        _, intensidade_n = normalizar_logo_assinatura(TAMANHO_LOGO_PADRAO, intensidade)
+        alpha = alpha.point(lambda p, fator=intensidade_n / 100: int(p * fator))
         pil_img.putalpha(alpha)
         out_buf = BytesIO()
         pil_img.save(out_buf, format="PNG")
@@ -45,10 +94,11 @@ def _recortar_marca(wm_bytes: bytes) -> bytes:
 class _QuadroComMarca(Flowable):
     """Desenha a logo em cada metade do quadro, cobrindo o retângulo inteiro."""
 
-    def __init__(self, tabela, wm_bytes):
+    def __init__(self, tabela, wm_bytes, tamanho=TAMANHO_LOGO_PADRAO):
         Flowable.__init__(self)
         self.tabela = tabela
         self.wm_bytes = _recortar_marca(wm_bytes)
+        self.tamanho, _ = normalizar_logo_assinatura(tamanho, INTENSIDADE_LOGO_PADRAO)
 
     def wrap(self, aw, ah):
         largura, altura = self.tabela.wrap(aw, ah)
@@ -73,11 +123,13 @@ class _QuadroComMarca(Flowable):
                 recorte = self.canv.beginPath()
                 recorte.rect(origem, 0, coluna, self.height)
                 self.canv.clipPath(recorte, stroke=0, fill=0)
-                escala = max(coluna / float(largura_imagem), self.height / float(altura_imagem))
+                escala = escala_logo_no_quadro(
+                    largura_imagem, altura_imagem, coluna, self.height, self.tamanho,
+                )
                 desenho_w = largura_imagem * escala
                 desenho_h = altura_imagem * escala
                 x = origem + (coluna - desenho_w) / 2
-                y = (self.height - desenho_h) / 2 - 12
+                y = (self.height - desenho_h) / 2 - 12 * (self.tamanho / 100)
                 self.canv.drawImage(
                     imagem, x, y, width=desenho_w, height=desenho_h, mask="auto", preserveAspectRatio=True,
                 )
@@ -86,15 +138,16 @@ class _QuadroComMarca(Flowable):
             return
 
 
-def _inserir_watermark_flowable(elements, wm_data, *, cell_width_cm=8, max_wm_w_cm=7.5, max_wm_h_cm=5, y_factor=0.8, preencher_quadro=False):
+def _inserir_watermark_flowable(elements, wm_data, *, cell_width_cm=8, max_wm_w_cm=7.5, max_wm_h_cm=5, y_factor=0.8, preencher_quadro=False, tamanho=TAMANHO_LOGO_PADRAO):
     """Insere flowable de marca d\'água antes da última tabela (assinaturas)."""
     if not wm_data:
         return
 
     class WatermarkFlowable(Flowable):
-        def __init__(self, wm_bytes):
+        def __init__(self, wm_bytes, tamanho_logo):
             Flowable.__init__(self)
             self.wm_bytes = wm_bytes
+            self.tamanho_logo = tamanho_logo
             self.width = 16 * cm
             self.height = 0
 
@@ -103,10 +156,11 @@ def _inserir_watermark_flowable(elements, wm_data, *, cell_width_cm=8, max_wm_w_
                 from reportlab.lib.utils import ImageReader
                 img = ImageReader(BytesIO(self.wm_bytes))
                 iw, ih = img.getSize()
-                wm_w = max_wm_w_cm * cm
+                fator = self.tamanho_logo / 100
+                wm_w = max_wm_w_cm * cm * fator
                 wm_h = wm_w * (ih / float(iw))
-                if wm_h > max_wm_h_cm * cm:
-                    wm_h = max_wm_h_cm * cm
+                if wm_h > max_wm_h_cm * cm * fator:
+                    wm_h = max_wm_h_cm * cm * fator
                     wm_w = wm_h / (ih / float(iw))
                 y_offset = -(wm_h * y_factor)
                 cell_w = cell_width_cm * cm
@@ -125,6 +179,6 @@ def _inserir_watermark_flowable(elements, wm_data, *, cell_width_cm=8, max_wm_w_
     if insert_idx is None:
         return
     if preencher_quadro:
-        elements[insert_idx] = _QuadroComMarca(elements[insert_idx], wm_data)
+        elements[insert_idx] = _QuadroComMarca(elements[insert_idx], wm_data, tamanho)
         return
-    elements.insert(insert_idx, WatermarkFlowable(wm_data))
+    elements.insert(insert_idx, WatermarkFlowable(wm_data, tamanho))

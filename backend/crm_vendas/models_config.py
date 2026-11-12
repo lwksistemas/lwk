@@ -66,6 +66,17 @@ class CRMConfig(LojaIsolationMixin, models.Model):
         help_text="Colunas visíveis na listagem de contratos",
     )
 
+    logo_assinatura_tamanho = models.PositiveSmallIntegerField(
+        default=100,
+        verbose_name="Tamanho da logo na assinatura",
+        help_text="Percentual do quadro. 100 preenche o quadro como hoje.",
+    )
+    logo_assinatura_intensidade = models.PositiveSmallIntegerField(
+        default=25,
+        verbose_name="Intensidade da logo na assinatura",
+        help_text="Opacidade da logo atrás dos dados do cliente e do vendedor.",
+    )
+
     # Módulos ativos
     # Formato: {"contas": true, "contatos": true, "pipeline": true}
     modulos_ativos = models.JSONField(

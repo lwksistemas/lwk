@@ -48,7 +48,11 @@ from .sections import (
     _linhas_implantacao,
     _par_logos,
 )
-from .watermark import _build_watermark_callback, _inserir_watermark_flowable
+from .watermark import (
+    _build_watermark_callback,
+    _inserir_watermark_flowable,
+    configuracao_logo_assinatura,
+)
 
 
 def _proposta_tem_as_duas_assinaturas(proposta) -> bool:
@@ -176,8 +180,9 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     if incluir_assinaturas and _proposta_tem_as_duas_assinaturas(proposta):
         ass_v, ass_c = _build_secao_assinaturas(elements, proposta, lead, vendedor, compact, True, "proposta")
 
-    wm_data = _build_watermark_callback(logo_url, ass_v, ass_c)
-    _inserir_watermark_flowable(elements, wm_data, preencher_quadro=True)
+    tamanho_logo, intensidade_logo = configuracao_logo_assinatura(loja_id)
+    wm_data = _build_watermark_callback(logo_url, ass_v, ass_c, intensidade_logo)
+    _inserir_watermark_flowable(elements, wm_data, preencher_quadro=True, tamanho=tamanho_logo)
 
     doc.build(elements)
     buffer.seek(0)
@@ -223,8 +228,11 @@ def gerar_pdf_contrato(contrato, incluir_assinaturas=True) -> BytesIO:
     vendedor = contrato.oportunidade.vendedor if contrato.oportunidade and getattr(contrato.oportunidade, "vendedor", None) else None
     ass_v, ass_c = _build_secao_assinaturas(elements, contrato, lead, vendedor, normal, incluir_assinaturas, "contrato")
 
-    wm_data = _build_watermark_callback(logo_url, ass_v, ass_c)
-    _inserir_watermark_flowable(elements, wm_data, max_wm_w_cm=5.5, max_wm_h_cm=3.5, y_factor=1.0)
+    tamanho_logo, intensidade_logo = configuracao_logo_assinatura(loja_id)
+    wm_data = _build_watermark_callback(logo_url, ass_v, ass_c, intensidade_logo)
+    _inserir_watermark_flowable(
+        elements, wm_data, max_wm_w_cm=5.5, max_wm_h_cm=3.5, y_factor=1.0, tamanho=tamanho_logo,
+    )
 
     doc.build(elements)
     buffer.seek(0)

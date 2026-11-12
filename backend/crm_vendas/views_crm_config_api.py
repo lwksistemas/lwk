@@ -55,6 +55,8 @@ CAMPOS_SO_DONO = frozenset({
 CAMPOS_SO_ADMIN = frozenset({
     "modulos_ativos",
     "proposta_conteudo_padrao",
+    "logo_assinatura_tamanho",
+    "logo_assinatura_intensidade",
 })
 
 
@@ -99,7 +101,7 @@ def _recusar_config_da_loja(request):
     chaves = set(str(chave) for chave in data.keys()) if hasattr(data, "keys") else set()
     if chaves & CAMPOS_SO_ADMIN:
         return Response(
-            {"detail": "Só o administrador altera os módulos e o texto padrão da proposta."},
+            {"detail": "Só o administrador altera os módulos, o texto padrão e a logo da assinatura."},
             status=status.HTTP_403_FORBIDDEN,
         )
     return None

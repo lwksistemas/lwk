@@ -88,6 +88,16 @@ class CRMConfigSerializer(serializers.ModelSerializer):
             data.pop("issnet_certificado", None)
         return super().to_internal_value(data)
 
+    def validate_logo_assinatura_tamanho(self, value):
+        if value < 30 or value > 100:
+            raise serializers.ValidationError("Escolha um tamanho entre 30 e 100.")
+        return value
+
+    def validate_logo_assinatura_intensidade(self, value):
+        if value < 5 or value > 80:
+            raise serializers.ValidationError("Escolha uma intensidade entre 5 e 80.")
+        return value
+
     def update(self, instance, validated_data):
         """Trata upload do certificado .pfx e normalização da API Key Asaas."""
         api_key = validated_data.get("asaas_api_key")
@@ -162,6 +172,7 @@ class CRMConfigSerializer(serializers.ModelSerializer):
         fields = [
             "id", "origens_leads", "etapas_pipeline", "colunas_leads",
             "colunas_contas", "colunas_contatos", "colunas_propostas", "colunas_contratos",
+            "logo_assinatura_tamanho", "logo_assinatura_intensidade",
             "modulos_ativos", "proposta_conteudo_padrao",
             "provedor_nf", "provedor_nf_display",
             "issnet_usuario", "issnet_senha",

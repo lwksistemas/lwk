@@ -76,8 +76,10 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
             elif ass.tipo == "profissional":
                 ass_profissional = ass
 
-    paciente_nome = (paciente.nome if paciente else "—").strip().upper() or "—"
-    prof_nome = (prof.nome if prof else "—").strip().upper() or "—"
+    from .termo_identificacao import capitalizar_exibicao, linhas_profissional_termo
+
+    paciente_nome = capitalizar_exibicao((getattr(paciente, "nome", "") or "").strip()) or "—"
+    prof_nome = capitalizar_exibicao((getattr(prof, "nome", "") or "").strip()) or "—"
 
     paciente_info = [f"Paciente: {paciente_nome}"]
     if paciente_email:
@@ -90,8 +92,6 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
     prof_info = [f"Profissional: {prof_nome}"]
     conselho = ""
     if prof is not None:
-        from .termo_identificacao import linhas_profissional_termo
-
         conselho = " ".join(
             valor
             for rotulo, valor in linhas_profissional_termo(prof)
@@ -194,7 +194,11 @@ def _build_tabela_dados_termo(consulta, procedure, loja, col1, col2) -> Table:
     data_str = dj_tz.localtime().strftime("%d/%m/%Y")
     if consulta.data_inicio:
         data_str = dj_tz.localtime(consulta.data_inicio).strftime("%d/%m/%Y")
-    from .termo_identificacao import linhas_clinica_termo, linhas_profissional_termo
+    from .termo_identificacao import (
+        capitalizar_exibicao,
+        linhas_clinica_termo,
+        linhas_profissional_termo,
+    )
 
     rotulo = ParagraphStyle(
         "RotuloTermo", fontName="Helvetica-Bold", fontSize=10, leading=13,
@@ -208,9 +212,9 @@ def _build_tabela_dados_termo(consulta, procedure, loja, col1, col2) -> Table:
 
     linhas = linhas_clinica_termo(loja)
     linhas.extend([
-        ("Paciente", paciente.nome if paciente else "—"),
+        ("Paciente", capitalizar_exibicao(paciente.nome) if paciente and paciente.nome else "—"),
         ("CPF", getattr(paciente, "cpf", "") or "—"),
-        ("Procedimento", procedure.nome if procedure else "—"),
+        ("Procedimento", capitalizar_exibicao(procedure.nome) if procedure and procedure.nome else "—"),
     ])
     linhas.extend(linhas_profissional_termo(prof))
     linhas.append(("Data", data_str))
@@ -356,8 +360,10 @@ def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False)
     col1, col2 = 5.5 * cm, 11 * cm
     title_style, section_style, body_style, compact = _criar_styles_termo(styles)
     from superadmin.models import Loja
+    from .termo_identificacao import capitalizar_exibicao
+
     loja = Loja.objects.using("default").filter(id=consulta.loja_id).first()
-    nome_clinica = loja.nome if loja else "Clínica"
+    nome_clinica = capitalizar_exibicao(loja.nome) if loja and loja.nome else "Clínica"
     logo_url = _logo_url_loja(loja)
     if not usa_timbrado:
         _build_cabecalho_logo_termo(elements, loja, styles, nome_clinica)

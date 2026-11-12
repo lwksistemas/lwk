@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import re
 
+_PARTICULAS = {"de", "da", "do", "das", "dos", "e", "em", "a", "o", "as", "os"}
+
 
 def _texto(obj, attr: str) -> str:
     if obj is None:
@@ -46,6 +48,33 @@ def endereco_completo_loja(loja) -> str:
     return _texto(loja, "endereco")
 
 
+def _em_caixa_alta(texto: str) -> bool:
+    letras = [letra for letra in texto if letra.isalpha()]
+    if not letras:
+        return False
+    return sum(1 for letra in letras if letra.isupper()) / len(letras) > 0.6
+
+
+def capitalizar_exibicao(texto: str) -> str:
+    """Tira a caixa alta do cadastro e deixa a primeira letra de cada palavra maiúscula."""
+    texto = (texto or "").strip()
+    if not texto or texto == "—" or not _em_caixa_alta(texto):
+        return texto
+    titulo = texto.title()
+    titulo = re.sub(
+        r"(?<=\s)(De|Da|Do|Das|Dos|E|Em|A|O|As|Os)(?=\s)",
+        lambda match: match.group(0).lower(),
+        titulo,
+    )
+    titulo = re.sub(r"\bCep\b", "CEP", titulo)
+    titulo = re.sub(
+        r"(?<= - )([A-Za-z]{2})(?=\s|,|$)",
+        lambda match: match.group(1).upper(),
+        titulo,
+    )
+    return titulo
+
+
 def telefone_loja(loja) -> str:
     bruto = (
         _texto(loja, "telefone_contato")
@@ -54,9 +83,9 @@ def telefone_loja(loja) -> str:
     )
     if not bruto:
         return ""
-    from core.phone_utils import formatar_telefone_brasileiro
+    from core.phone_utils import telefone_exibicao_brasileiro
 
-    return formatar_telefone_brasileiro(bruto) or bruto
+    return telefone_exibicao_brasileiro(bruto) or bruto
 
 
 def email_loja(loja) -> str:
@@ -79,6 +108,8 @@ def linhas_clinica_termo(loja) -> list[tuple[str, str]]:
     razao = _texto(loja, "razao_social") or _texto(loja, "nome")
     fantasia = _texto(loja, "nome_fantasia")
     linhas: list[tuple[str, str]] = []
+    fantasia = capitalizar_exibicao(fantasia)
+    razao = capitalizar_exibicao(razao)
     if fantasia and fantasia.casefold() != razao.casefold():
         linhas.append(("Nome fantasia", fantasia))
     if razao:
@@ -88,7 +119,7 @@ def linhas_clinica_termo(loja) -> list[tuple[str, str]]:
     cnpj = cnpj_loja(loja)
     if cnpj:
         linhas.append(("CNPJ", cnpj))
-    endereco = endereco_completo_loja(loja)
+    endereco = capitalizar_exibicao(endereco_completo_loja(loja))
     if endereco:
         linhas.append(("Endereço", endereco))
     telefone = telefone_loja(loja)
@@ -101,7 +132,7 @@ def linhas_profissional_termo(prof) -> list[tuple[str, str]]:
     """Nome, conselho e registro do profissional responsável pelo procedimento."""
     if prof is None:
         return [("Profissional", "—"), ("Conselho", "—")]
-    nome = _texto(prof, "nome") or "—"
+    nome = capitalizar_exibicao(_texto(prof, "nome")) or "—"
     conselho = _texto(prof, "conselho").upper()
     uf = _texto(prof, "conselho_uf").upper()
     registro = _texto(prof, "registro_profissional")

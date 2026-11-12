@@ -100,9 +100,9 @@ class RenderizarTextoTermoTest(SimpleTestCase):
             )
         self.assertNotIn("{paciente_nome}", out)
         self.assertNotIn("{clinica_nome}", out)
-        self.assertIn("LUIZ HENRIQUE FELIX", out)
-        self.assertIn("HARMONIS", out)
-        self.assertIn("MICROAGULHAMENTO FACIAL", out)
+        self.assertIn("Luiz Henrique Felix", out)
+        self.assertIn("Harmonis", out)
+        self.assertIn("Microagulhamento Facial", out)
 
 
 class LogoAssinaturaTermoTest(SimpleTestCase):

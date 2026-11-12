@@ -7,6 +7,7 @@ from __future__ import annotations
 from django.utils import timezone
 
 from .models import ConsultaTermoProcedimento, Procedure
+from .termo_identificacao import capitalizar_exibicao
 
 # Domínios com erro de digitação frequente — bloqueia envio e orienta correção no cadastro.
 _EMAIL_DOMINIO_TYPO: dict[str, str] = {
@@ -120,7 +121,7 @@ def renderizar_texto_termo(template: str, consulta, procedure=None) -> str:
     """Substitui {paciente_nome}, {data}, {clinica_nome}, etc. no texto do termo."""
     ctx = _ctx_base_termo(consulta)
     if procedure is not None:
-        nome = getattr(procedure, "nome", "") or ""
+        nome = capitalizar_exibicao(getattr(procedure, "nome", "") or "")
         ctx["procedimento"] = nome
         ctx["procedimentos"] = nome
     return _renderizar_bloco_termo(template or "", ctx)
@@ -134,16 +135,16 @@ def _ctx_base_termo(consulta) -> dict:
     if consulta.data_inicio:
         data_str = timezone.localtime(consulta.data_inicio).strftime("%d/%m/%Y")
     return {
-        "paciente_nome": paciente.nome if paciente else "",
+        "paciente_nome": capitalizar_exibicao(paciente.nome if paciente else ""),
         "paciente_cpf": getattr(paciente, "cpf", "") or "",
         "paciente_email": getattr(paciente, "email", "") or "",
         "paciente_telefone": getattr(paciente, "telefone", "") or "",
-        "profissional_nome": prof.nome if prof else "",
+        "profissional_nome": capitalizar_exibicao(prof.nome if prof else ""),
         "profissional_conselho": prof.formatar_conselho() if prof else "",
         "profissional_cpf": getattr(prof, "cpf", "") or "",
-        "clinica_nome": loja["nome"],
+        "clinica_nome": capitalizar_exibicao(loja["nome"]),
         "clinica_cnpj": loja["cnpj"],
-        "clinica_endereco": loja["endereco"],
+        "clinica_endereco": capitalizar_exibicao(loja["endereco"]),
         "clinica_telefone": loja["telefone"],
         "clinica_email": loja["email"],
         "data": data_str,

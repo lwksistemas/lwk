@@ -26,10 +26,10 @@ class EnderecoClinicaTermoTest(TestCase):
             email_contato="",
         )
         linhas = dict(linhas_clinica_termo(loja))
-        self.assertEqual(linhas["Nome fantasia"], "HARMONIS")
+        self.assertEqual(linhas["Nome fantasia"], "Harmonis")
         self.assertEqual(
             linhas["Razão social"],
-            "HARMONIS - CLINICA DE ESTETICA AVANCADA & SAUDE LTDA",
+            "Harmonis - Clinica de Estetica Avancada & Saude Ltda",
         )
         self.assertEqual(linhas["CNPJ"], "37.302.743/0001-26")
         self.assertEqual(
@@ -42,7 +42,31 @@ class EnderecoClinicaTermoTest(TestCase):
         loja = SimpleNamespace(nome="HARMONIS", cpf_cnpj="", cidade="PRADOPOLIS", uf="")
         self.assertEqual(endereco_completo_loja(loja), "PRADOPOLIS")
         self.assertNotIn("Nome fantasia", dict(linhas_clinica_termo(loja)))
-        self.assertEqual(dict(linhas_clinica_termo(loja))["Razão social"], "HARMONIS")
+        self.assertEqual(dict(linhas_clinica_termo(loja))["Razão social"], "Harmonis")
+
+    def test_telefone_com_codigo_do_pais_e_texto_em_caixa_alta(self):
+        loja = SimpleNamespace(
+            nome="HARMONIS - CLINICA DE ESTETICA AVANCADA & SAUDE LTDA",
+            cpf_cnpj="37.302.743/0001-26",
+            logradouro="SAO MARTINHO",
+            numero="833",
+            complemento="",
+            bairro="CENTRO",
+            cidade="PRADOPOLIS",
+            uf="SP",
+            cep="14850000",
+            telefone_contato="5516997842341",
+        )
+        linhas = dict(linhas_clinica_termo(loja))
+        self.assertEqual(linhas["Telefone"], "(16) 99784-2341")
+        self.assertEqual(
+            linhas["Razão social"],
+            "Harmonis - Clinica de Estetica Avancada & Saude Ltda",
+        )
+        self.assertEqual(
+            linhas["Endereço"],
+            "Sao Martinho, 833, Centro, Pradopolis - SP, CEP 14850-000",
+        )
 
     def test_telefone_cai_no_contato_do_administrador(self):
         loja = SimpleNamespace(
@@ -64,7 +88,7 @@ class ProfissionalTermoTest(TestCase):
         self.assertEqual(
             linhas_profissional_termo(prof),
             [
-                ("Profissional", "NAYARA DA SILVA DE SOUZA"),
+                ("Profissional", "Nayara da Silva de Souza"),
                 ("Conselho", "COREN-SP"),
                 ("Registro", "356480"),
             ],
@@ -74,5 +98,5 @@ class ProfissionalTermoTest(TestCase):
         prof = SimpleNamespace(nome="DRA. MARINA", formatar_conselho=lambda: "CRF-SP 55604")
         self.assertEqual(
             linhas_profissional_termo(prof),
-            [("Profissional", "DRA. MARINA"), ("Conselho", "CRF-SP 55604")],
+            [("Profissional", "Dra. Marina"), ("Conselho", "CRF-SP 55604")],
         )

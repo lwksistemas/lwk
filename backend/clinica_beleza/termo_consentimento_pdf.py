@@ -3,6 +3,7 @@ Assinaturas no padrão CRM Vendas (lado a lado + logo como marca d'água).
 """
 import logging
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from PIL import Image as PILImage
 from reportlab.lib import colors
@@ -87,6 +88,17 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
         paciente_info.append("<font size='8'>Assinado digitalmente</font>")
 
     prof_info = [f"Profissional: {prof_nome}"]
+    conselho = ""
+    if prof is not None:
+        from .termo_identificacao import linhas_profissional_termo
+
+        conselho = " ".join(
+            valor
+            for rotulo, valor in linhas_profissional_termo(prof)
+            if rotulo in ("Conselho", "Registro") and valor and valor != "—"
+        )
+    if conselho:
+        prof_info.append(f"<font size='8'>{escape(conselho)}</font>")
     if prof_email:
         prof_info.append(f"<font size='8'>Email: {prof_email}</font>")
     if ass_profissional:
@@ -182,31 +194,37 @@ def _build_tabela_dados_termo(consulta, procedure, loja, col1, col2) -> Table:
     data_str = dj_tz.localtime().strftime("%d/%m/%Y")
     if consulta.data_inicio:
         data_str = dj_tz.localtime(consulta.data_inicio).strftime("%d/%m/%Y")
-    dados = [
-        ["Paciente", paciente.nome if paciente else "—"],
-        ["CPF", getattr(paciente, "cpf", "") or "—"],
-        ["Procedimento", procedure.nome if procedure else "—"],
-        ["Profissional", prof.nome if prof else "—"],
-        ["Conselho", (prof.formatar_conselho() if prof else "") or "—"],
-        ["Data", data_str],
-    ]
-    if loja and loja.cpf_cnpj:
-        dados.append(["CNPJ Clínica", loja.cpf_cnpj])
-    if loja:
-        endereco = ", ".join(
-            p for p in [getattr(loja, "endereco", "") or "", getattr(loja, "cidade", "") or "", getattr(loja, "estado", "") or ""] if p
-        )
-        if endereco:
-            dados.append(["Endereço", endereco])
+    from .termo_identificacao import linhas_clinica_termo, linhas_profissional_termo
+
+    rotulo = ParagraphStyle(
+        "RotuloTermo", fontName="Helvetica-Bold", fontSize=10, leading=13,
+    )
+    valor = ParagraphStyle(
+        "ValorTermo", fontName="Helvetica", fontSize=10, leading=13,
+    )
+
+    def celula(texto: str, style) -> Paragraph:
+        return Paragraph(escape(texto or "—"), style)
+
+    linhas = linhas_clinica_termo(loja)
+    linhas.extend([
+        ("Paciente", paciente.nome if paciente else "—"),
+        ("CPF", getattr(paciente, "cpf", "") or "—"),
+        ("Procedimento", procedure.nome if procedure else "—"),
+    ])
+    linhas.extend(linhas_profissional_termo(prof))
+    linhas.append(("Data", data_str))
+    dados = [[celula(rotulo_linha, rotulo), celula(valor_linha, valor)] for rotulo_linha, valor_linha in linhas]
     t = Table(dados, colWidths=[col1, col2])
     t.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 10),
         ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fafafa")),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7eb")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("TOPPADDING", (0, 0), (-1, -1), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
     ]))
     return t
 

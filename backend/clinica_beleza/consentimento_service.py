@@ -98,19 +98,14 @@ def _dados_loja(loja_id: int) -> dict:
     loja = Loja.objects.using("default").filter(id=loja_id).first()
     if not loja:
         return {"nome": "Clínica", "cnpj": "", "endereco": "", "telefone": "", "email": ""}
-    endereco = ", ".join(
-        p for p in [
-            getattr(loja, "endereco", "") or "",
-            getattr(loja, "cidade", "") or "",
-            getattr(loja, "estado", "") or "",
-        ] if p
-    )
+    from .termo_identificacao import cnpj_loja, email_loja, endereco_completo_loja, telefone_loja
+
     return {
         "nome": loja.nome or "Clínica",
-        "cnpj": getattr(loja, "cpf_cnpj", "") or "",
-        "endereco": endereco,
-        "telefone": getattr(loja, "telefone", "") or "",
-        "email": getattr(loja, "email", "") or "",
+        "cnpj": cnpj_loja(loja),
+        "endereco": endereco_completo_loja(loja),
+        "telefone": telefone_loja(loja),
+        "email": email_loja(loja),
     }
 
 

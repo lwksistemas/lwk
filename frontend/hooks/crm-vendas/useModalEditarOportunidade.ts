@@ -35,6 +35,19 @@ interface OportunidadeItemApi {
   preco_unitario: number;
 }
 
+function itensDaOportunidadeIguais(atual: OportunidadeItemRow[], original: OportunidadeItemRow[]) {
+  if (atual.length !== original.length) return false;
+  return atual.every((item, indice) => {
+    const outro = original[indice];
+    return (
+      item.id === outro.id
+      && item.produto_servico_id === outro.produto_servico_id
+      && Number(item.quantidade) === Number(outro.quantidade)
+      && Number(item.preco_unitario) === Number(outro.preco_unitario)
+    );
+  });
+}
+
 export function useModalEditarOportunidade(
   oportunidade: Oportunidade,
   onClose: () => void,
@@ -47,6 +60,8 @@ export function useModalEditarOportunidade(
   const [motivoPerda, setMotivoPerda] = useState(oportunidade.motivo_perda || '');
   const [feedbackPosVenda, setFeedbackPosVenda] = useState(oportunidade.feedback_pos_venda || '');
   const [itensEditar, setItensEditar] = useState<OportunidadeItemRow[]>([]);
+  const itensOriginais = useRef<OportunidadeItemRow[]>([]);
+  const [itensProntos, setItensProntos] = useState(false);
   const [produtosServicos, setProdutosServicos] = useState<ProdutoServicoOption[]>([]);
   const [propostasOportunidade, setPropostasOportunidade] = useState<{ id: number; titulo: string }[]>([]);
   const [contratoOportunidade, setContratoOportunidade] = useState<{ id: number; titulo: string } | null>(null);
@@ -66,17 +81,22 @@ export function useModalEditarOportunidade(
       .get(`/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidade.id}`)
       .then((res) => {
         const itens = normalizeListResponse<OportunidadeItemApi>(res.data);
-        setItensEditar(
-          itens.map((item) => ({
+        const linhas = itens.map((item) => ({
             id: item.id,
             produto_servico_id: item.produto_servico,
             nome: item.produto_servico_nome || '',
             quantidade: String(item.quantidade),
             preco_unitario: String(item.preco_unitario),
-          })),
-        );
+          }));
+        itensOriginais.current = linhas;
+        setItensEditar(linhas);
+        setItensProntos(true);
       })
-      .catch(() => setItensEditar([]));
+      .catch(() => {
+        itensOriginais.current = [];
+        setItensEditar([]);
+        setItensProntos(true);
+      });
 
     apiClient
       .get<ContaPrestadoraOption[] | { results: ContaPrestadoraOption[] }>('/crm-vendas/contas/?tipo=prestadora')
@@ -207,37 +227,40 @@ export function useModalEditarOportunidade(
 
       await apiClient.patch(`/crm-vendas/oportunidades/${oportunidade.id}/`, payload);
 
-      const resItens = await apiClient.get(`/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidade.id}`);
-      const itensAtuais = normalizeListResponse<OportunidadeItemApi>(resItens.data);
-      const idsAtuais = itensAtuais.map((item) => item.id);
-      const idsEditados = itensEditar.filter((item) => item.id).map((item) => item.id);
+      const itensMudaram = itensProntos && !itensDaOportunidadeIguais(itensEditar, itensOriginais.current);
+      if (itensMudaram) {
+        const resItens = await apiClient.get(`/crm-vendas/oportunidade-itens/?oportunidade_id=${oportunidade.id}`);
+        const itensAtuais = normalizeListResponse<OportunidadeItemApi>(resItens.data);
+        const idsAtuais = itensAtuais.map((item) => item.id);
+        const idsEditados = itensEditar.filter((item) => item.id).map((item) => item.id);
 
-      for (const id of idsAtuais) {
-        if (!idsEditados.includes(id)) {
-          await apiClient.delete(`/crm-vendas/oportunidade-itens/${id}/`);
+        for (const id of idsAtuais) {
+          if (!idsEditados.includes(id)) {
+            await apiClient.delete(`/crm-vendas/oportunidade-itens/${id}/`);
+          }
         }
-      }
 
-      for (const item of itensEditar) {
-        const itemData = {
-          oportunidade: oportunidade.id,
-          produto_servico: item.produto_servico_id,
-          quantidade: parseFloat(item.quantidade),
-          preco_unitario: parseFloat(item.preco_unitario),
-        };
+        for (const item of itensEditar) {
+          const itemData = {
+            oportunidade: oportunidade.id,
+            produto_servico: item.produto_servico_id,
+            quantidade: parseFloat(item.quantidade),
+            preco_unitario: parseFloat(item.preco_unitario),
+          };
 
-        if (item.id) {
-          await apiClient.patch(`/crm-vendas/oportunidade-itens/${item.id}/`, itemData);
-        } else {
-          await apiClient.post('/crm-vendas/oportunidade-itens/', itemData);
+          if (item.id) {
+            await apiClient.patch(`/crm-vendas/oportunidade-itens/${item.id}/`, itemData);
+          } else {
+            await apiClient.post('/crm-vendas/oportunidade-itens/', itemData);
+          }
         }
-      }
 
-      if (itensEditar.length > 0) {
-        const valorTotal = calcularTotalOportunidadeItens(itensEditar);
-        await apiClient.patch(`/crm-vendas/oportunidades/${oportunidade.id}/`, {
-          valor: valorTotal,
-        });
+        if (itensEditar.length > 0) {
+          const valorTotal = calcularTotalOportunidadeItens(itensEditar);
+          await apiClient.patch(`/crm-vendas/oportunidades/${oportunidade.id}/`, {
+            valor: valorTotal,
+          });
+        }
       }
 
       onClose();

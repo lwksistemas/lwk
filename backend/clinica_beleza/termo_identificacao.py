@@ -75,6 +75,60 @@ def capitalizar_exibicao(texto: str) -> str:
     return titulo
 
 
+_SIGLAS_TERMO = {
+    "LGPD", "CPF", "CNPJ", "CRM", "COREN", "CRO", "CRF", "CRP", "CRN",
+    "CREFITO", "CRBM", "CRMV", "CRFA", "CEP",
+}
+_ROMANO_TERMO = re.compile(r"^[IVXLCDM]+\.$")
+
+
+def _baixar_token_caixa_alta(token: str) -> str:
+    letras = [letra for letra in token if letra.isalpha()]
+    if not letras or not all(letra.isupper() for letra in letras):
+        return token
+    nucleo = "".join(letras).upper()
+    if len(letras) > 1 and nucleo in _SIGLAS_TERMO:
+        return token
+    return "".join(letra.lower() if letra.isalpha() else letra for letra in token)
+
+
+def _capitalizar_primeira_letra(token: str) -> str:
+    chars = list(token)
+    for indice, letra in enumerate(chars):
+        if letra.isalpha():
+            chars[indice] = letra.upper()
+            break
+    return "".join(chars)
+
+
+def _normalizar_linha_termo(linha: str) -> str:
+    partes = re.split(r"(\s+)", linha)
+    inicio_frase = True
+    saida = []
+    for parte in partes:
+        if not parte or parte.isspace():
+            saida.append(parte)
+            continue
+        if inicio_frase and _ROMANO_TERMO.match(parte):
+            saida.append(parte)
+            continue
+        convertido = _baixar_token_caixa_alta(parte)
+        if inicio_frase:
+            convertido = _capitalizar_primeira_letra(convertido)
+            inicio_frase = False
+        saida.append(convertido)
+        if parte.endswith((".", "!", "?")) and not _ROMANO_TERMO.match(parte):
+            inicio_frase = True
+    return "".join(saida)
+
+
+def normalizar_caixa_termo(texto: str) -> str:
+    """Tira a caixa alta do texto jurídico e deixa a primeira letra da frase maiúscula."""
+    if not texto:
+        return texto or ""
+    return "\n".join(_normalizar_linha_termo(linha) for linha in texto.split("\n"))
+
+
 def telefone_loja(loja) -> str:
     bruto = (
         _texto(loja, "telefone_contato")

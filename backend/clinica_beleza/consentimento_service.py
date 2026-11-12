@@ -7,7 +7,7 @@ from __future__ import annotations
 from django.utils import timezone
 
 from .models import ConsultaTermoProcedimento, Procedure
-from .termo_identificacao import capitalizar_exibicao
+from .termo_identificacao import capitalizar_exibicao, normalizar_caixa_termo
 
 # Domínios com erro de digitação frequente — bloqueia envio e orienta correção no cadastro.
 _EMAIL_DOMINIO_TYPO: dict[str, str] = {
@@ -114,7 +114,7 @@ def _renderizar_bloco_termo(template: str, ctx: dict) -> str:
     texto = template or ""
     for chave, valor in ctx.items():
         texto = texto.replace(f"{{{chave}}}", str(valor or ""))
-    return texto
+    return normalizar_caixa_termo(texto)
 
 
 def renderizar_texto_termo(template: str, consulta, procedure=None) -> str:
@@ -241,8 +241,8 @@ def limpar_conteudo_termo_exibicao(conteudo: str) -> str:
             _, resto = texto.split(sep, 1)
             resto = resto.strip()
             if resto:
-                return resto
-    return texto
+                return normalizar_caixa_termo(resto)
+    return normalizar_caixa_termo(texto)
 
 
 def montar_conteudo_termo_procedimento(consulta, procedure: Procedure) -> str:

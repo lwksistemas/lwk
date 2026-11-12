@@ -100,3 +100,33 @@ class ProfissionalTermoTest(TestCase):
             linhas_profissional_termo(prof),
             [("Profissional", "Dra. Marina"), ("Conselho", "CRF-SP 55604")],
         )
+
+
+class CaixaAltaTermoTest(TestCase):
+    def test_texto_juridico_fica_com_a_primeira_letra_maiuscula(self):
+        from clinica_beleza.termo_identificacao import normalizar_caixa_termo
+
+        texto = (
+            "Através do presente TERMO DE CONSENTIMENTO LIVRE E ESCLARECIDO, eu, Cris Bossoni "
+            "Stoianovi, formalizo no consultório Harmonis - Clinica de Estetica Avancada & Saude Ltda "
+            "o procedimento com TOXINA BOTULÍNICA a que me submeterei.\n"
+            "I. DO PROCEDIMENTO e DA INDICAÇÃO\n"
+            "RISCOS PRECOCES\n"
+            "Declaro que NÃO estou grávida e que NÃO HÁ POSSIBILIDADE de estar.\n"
+            "XI. DO RESULTADO FINAL E DA OBRIGAÇÃO ASSUMIDA PELO(A) PROFISSIONAL\n"
+            "XII. DA LEI GERAL DE PROTEÇÃO DE DADOS - LGPD\n"
+            "Eu estou ciente de que NÃO HÁ GARANTIA DE RESULTADO FINAL"
+        )
+        out = normalizar_caixa_termo(texto)
+        self.assertIn("termo de consentimento livre e esclarecido", out)
+        self.assertIn("toxina botulínica", out)
+        self.assertIn("Cris Bossoni Stoianovi", out)
+        self.assertIn("Harmonis - Clinica de Estetica Avancada & Saude Ltda", out)
+        self.assertIn("I. Do procedimento e da indicação", out)
+        self.assertIn("Riscos precoces", out)
+        self.assertIn("não estou grávida e que não há possibilidade", out)
+        self.assertIn("XI. Do resultado final e da obrigação assumida pelo(a) profissional", out)
+        self.assertIn("XII. Da lei geral de proteção de dados - LGPD", out)
+        self.assertIn("não há garantia de resultado final", out)
+        self.assertNotIn("TERMO DE CONSENTIMENTO", out)
+        self.assertNotIn("TOXINA BOTULÍNICA", out)

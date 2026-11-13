@@ -212,6 +212,7 @@ class PrescricaoMemedPdfView(APIView):
             nome_arquivo_pdf_prescricao,
             pdf_midia_estavel,
             resolver_pdf_prescricao,
+            url_link_temporario_memed,
         )
 
         try:
@@ -268,7 +269,7 @@ class PrescricaoMemedPdfView(APIView):
                         pass
             return entregar(pdf_url)
 
-        if url_atual and arquivo_midia_disponivel(url_atual):
+        if url_atual and not url_link_temporario_memed(url_atual) and arquivo_midia_disponivel(url_atual):
             return entregar(url_atual)
 
         from ..memed_prescricao_service import arquivar_pdf_bytes_media

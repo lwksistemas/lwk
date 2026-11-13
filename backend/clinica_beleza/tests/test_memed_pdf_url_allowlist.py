@@ -45,6 +45,22 @@ class ResolverPdfPrescricaoAllowlistTest(SimpleTestCase):
             )
         self.assertEqual(url, "")
 
+    def test_link_temporario_nao_e_gravado_se_o_arquivo_nao_baixa(self):
+        with patch(
+            "clinica_beleza.memed_prescricao_service.arquivar_pdf_media",
+            return_value="",
+        ), patch(
+            "clinica_beleza.memed_prescricao_service.resolver_prescritor_id_profissional",
+            return_value=None,
+        ):
+            url = resolver_pdf_prescricao(
+                loja=MagicMock(),
+                professional=MagicMock(),
+                prescricao_id="abc",
+                pdf_url_frontend="https://cdn.memed.com.br/doc.pdf",
+            )
+        self.assertEqual(url, "")
+
     def test_url_memed_do_frontend_e_arquivada(self):
         with patch(
             "clinica_beleza.memed_prescricao_service.arquivar_pdf_media",
@@ -66,6 +82,14 @@ class ArquivarPdfMediaAllowlistTest(SimpleTestCase):
             out = arquivar_pdf_media(MagicMock(), "https://169.254.169.254/x")
         self.assertEqual(out, "")
         mock_get.assert_not_called()
+
+    def test_falha_no_download_nao_devolve_o_link_da_memed(self):
+        with patch(
+            "clinica_beleza.memed_prescricao_service._baixar_pdf_url_permitida",
+            return_value=None,
+        ):
+            out = arquivar_pdf_media(MagicMock(), "https://cdn.memed.com.br/doc.pdf")
+        self.assertEqual(out, "")
 
 
 class BaixarPdfRedirectAllowlistTest(SimpleTestCase):
@@ -100,6 +124,24 @@ class BaixarPdfRedirectAllowlistTest(SimpleTestCase):
             pdf = _baixar_pdf_url_permitida("https://cdn.memed.com.br/doc.pdf")
         self.assertIsNone(pdf)
         mock_get.assert_called_once()
+
+    def test_segue_redirect_para_o_storage_do_pdf(self):
+        from clinica_beleza.memed_prescricao_service import _baixar_pdf_url_permitida
+
+        redirect = MagicMock()
+        redirect.status_code = 302
+        redirect.headers = {"Location": "https://memed.s3.amazonaws.com/receita.pdf"}
+        final = MagicMock()
+        final.status_code = 200
+        final.content = b"%PDF-1.4 " + (b"x" * 200)
+        final.headers = {"Content-Type": "application/pdf"}
+        with patch(
+            "clinica_beleza.memed_prescricao_service.requests.get",
+            side_effect=[redirect, final],
+        ):
+            pdf = _baixar_pdf_url_permitida("https://api.memed.com.br/v1/doc")
+        self.assertIsNotNone(pdf)
+        self.assertTrue(pdf.startswith(b"%PDF"))
 
 
 class CaminhosPdfMemedTest(SimpleTestCase):

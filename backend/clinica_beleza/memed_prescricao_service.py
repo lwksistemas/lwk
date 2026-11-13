@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 _URL_HTTP = re.compile(r"^https?://", re.IGNORECASE)
 _MEMED_HOST = "memed.com.br"
+_HOSTS_ARQUIVO = ("amazonaws.com", "cloudfront.net", "googleapis.com")
 
 
 def nome_arquivo_pdf_prescricao(prescricao_id: str, pk: int | None = None) -> str:
@@ -62,6 +63,41 @@ def url_pdf_permitida(url: str) -> bool:
     return is_media_url(raw)
 
 
+def _host_https(url: str) -> str:
+    """Host HTTPS sem usuário, senha nem IP literal. Vazio se a URL não serve."""
+    parsed = urlparse((url or "").strip())
+    if parsed.scheme != "https" or not parsed.hostname:
+        return ""
+    if parsed.username or parsed.password:
+        return ""
+    host = parsed.hostname.lower().rstrip(".")
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return host
+    return ""
+
+
+def _host_e_memed(host: str) -> bool:
+    return host == _MEMED_HOST or host.endswith(f".{_MEMED_HOST}")
+
+
+def _host_e_arquivo(host: str) -> bool:
+    return any(host == sufixo or host.endswith(f".{sufixo}") for sufixo in _HOSTS_ARQUIVO)
+
+
+def url_arquivo_da_memed(url: str) -> bool:
+    """URL que a API da Memed devolve: o domínio dela ou o storage do PDF."""
+    host = _host_https(url)
+    return bool(host) and (_host_e_memed(host) or _host_e_arquivo(host))
+
+
+def url_link_temporario_memed(url: str) -> bool:
+    """True quando ainda é o link curto da Memed, não o arquivo guardado na clínica."""
+    host = _host_https(url)
+    return bool(host) and _host_e_memed(host)
+
+
 def _resolver_redirect_permitido(url_atual: str, location: str) -> str:
     """Monta o próximo hop só se o Location for HTTPS allowlist (anti-SSRF)."""
     loc = (location or "").strip()
@@ -70,13 +106,15 @@ def _resolver_redirect_permitido(url_atual: str, location: str) -> str:
     if loc.startswith("/"):
         parsed = urlparse(url_atual)
         loc = f"{parsed.scheme}://{parsed.netloc}{loc}"
-    return loc if url_pdf_permitida(loc) else ""
+    if url_pdf_permitida(loc) or url_arquivo_da_memed(loc):
+        return loc
+    return ""
 
 
 def _baixar_pdf_url_permitida(url: str) -> bytes | None:
     """Baixa PDF só se a URL (e cada redirect) passar na allowlist."""
     atual = (url or "").strip()
-    if not url_pdf_permitida(atual):
+    if not url_arquivo_da_memed(atual) and not url_pdf_permitida(atual):
         logger.warning("PDF Memed recusado (host não permitido): %s", atual[:120])
         return None
     for _ in range(5):
@@ -282,7 +320,7 @@ def buscar_pdf_url_memed(prescritor_id: str, prescricao_id: str) -> str:
             if not resp.ok:
                 continue
             url = _extrair_url_pdf_de_objeto(resp.json())
-            if url and url_pdf_permitida(url):
+            if url and url_arquivo_da_memed(url):
                 return url
         except (requests.RequestException, ValueError) as exc:
             logger.debug("Memed PDF %s: %s", path, exc)
@@ -307,24 +345,30 @@ def arquivar_pdf_bytes_media(loja, conteudo: bytes, patient=None, filename: str 
 def arquivar_pdf_media(loja, pdf_url: str, patient=None, filename: str = "prescricao.pdf") -> str:
     """Baixa o PDF da Memed e salva no servidor de mídia ({paciente}/pdf/).
 
-    Só baixa URL da allowlist. Se o arquivo já estiver no Magalu, devolve a URL.
+    Só baixa URL da allowlist. O link temporário da Memed não é gravado:
+    se o arquivo não baixar, devolve vazio.
     """
     url = (pdf_url or "").strip()
-    if not url_pdf_permitida(url):
-        return ""
     if is_media_url(url):
         return url
+    if not url_pdf_permitida(url) and not url_arquivo_da_memed(url):
+        return ""
     try:
         conteudo = _baixar_pdf_url_permitida(url)
         if not conteudo:
-            return url
+            return ""
         folder = folder_media_paciente("pdf", patient)
         nome = (filename or "prescricao.pdf").strip() or "prescricao.pdf"
-        arquivada = media_upload(loja, conteudo, filename=nome, folder=folder)
-        return (arquivada or url).strip()
+        return (media_upload(loja, conteudo, filename=nome, folder=folder) or "").strip()
     except Exception as exc:
         logger.warning("Falha ao arquivar PDF Memed no servidor de mídia: %s", exc)
-        return url
+        return ""
+
+
+def _url_arquivada(url: str) -> str:
+    """Só a URL do arquivo no servidor da clínica. O link da Memed não entra."""
+    limpa = (url or "").strip()
+    return limpa if limpa and is_media_url(limpa) else ""
 
 
 def resolver_pdf_prescricao(
@@ -335,21 +379,29 @@ def resolver_pdf_prescricao(
     patient=None,
     filename: str = "",
 ) -> str:
-    """Define URL final do PDF: frontend (allowlist) → API Memed → mídia."""
+    """Define URL final do PDF no servidor da clínica. Nunca devolve o link da Memed."""
     nome = filename or nome_arquivo_pdf_prescricao(prescricao_id)
     pdf = (pdf_url_frontend or "").strip()[:500]
-    if pdf and url_pdf_permitida(pdf):
-        return arquivar_pdf_media(loja, pdf, patient=patient, filename=nome) or pdf
+    if pdf and (url_pdf_permitida(pdf) or url_arquivo_da_memed(pdf)):
+        arquivada = _url_arquivada(arquivar_pdf_media(loja, pdf, patient=patient, filename=nome))
+        if arquivada:
+            return arquivada
 
     prescritor = resolver_prescritor_id_profissional(professional) if prescricao_id else None
     if prescritor:
         pdf_bytes = buscar_pdf_bytes_memed(prescritor, prescricao_id)
         if pdf_bytes:
-            arquivada = arquivar_pdf_bytes_media(loja, pdf_bytes, patient=patient, filename=nome)
+            arquivada = _url_arquivada(
+                arquivar_pdf_bytes_media(loja, pdf_bytes, patient=patient, filename=nome),
+            )
             if arquivada:
                 return arquivada
 
         pdf_url = buscar_pdf_url_memed(prescritor, prescricao_id)
-        if pdf_url and url_pdf_permitida(pdf_url):
-            return arquivar_pdf_media(loja, pdf_url, patient=patient, filename=nome) or pdf_url
+        if pdf_url:
+            arquivada = _url_arquivada(
+                arquivar_pdf_media(loja, pdf_url, patient=patient, filename=nome),
+            )
+            if arquivada:
+                return arquivada
     return ""
